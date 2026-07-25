@@ -3,48 +3,60 @@ import {
   encodeChunkRef,
   encodeProcessThreadRef,
   getCounterRefChunkIndex,
-  getCrossDependencyRefChunkIndex,
+  getCrossProcessDependencyRefChunkIndex,
   getEventRefChunkIndex,
   getInstantRefChunkIndex,
-  getLocalDependencyRefProcessIndex,
   getProcessRefIndex,
+  getSameProcessDependencyRefProcessIndex,
   getSpanRefChunkIndex,
   getSpanRefRowIndex,
+  getThreadRefProcessIndex,
   getTraceRefKind
 } from './trace-id-encoder';
 
 import type {
   ArrowTraceChunk,
-  ArrowTraceLocalDependencyTable,
+  ArrowTraceSameProcessDependencyTable,
   ArrowTraceSpanSidecarTable,
-  ArrowTraceSpanTable,
-  TraceGraphData,
-  TraceSpanArrowSidecarRow
+  ArrowTraceSpanTable
 } from '../ingestion/arrow-trace';
+import type {TraceDataset} from '../trace-dataset';
 import type {
   CounterRef,
-  CrossDependencyRef,
+  CrossProcessDependencyRef,
   EventRef,
   InstantRef,
-  LocalDependencyRef,
   ProcessRef,
+  SameProcessDependencyRef,
   ThreadRef,
   TraceRefKind
 } from './trace-id-encoder';
 import type {TraceRuntimeEntityRefs} from './trace-runtime-entity-refs';
 import type {SpanRef, TraceProcessId, TraceThreadId} from './trace-types';
 
+/**
+ * Narrow Arrow table surface required by the runtime chunk registry.
+ *
+ * Canonical TraceDataset snapshots satisfy this shape directly. The registry reads only retained
+ * chunks, dependency tables, sidecars, and canonical process ordering; it never needs a projected
+ * graph snapshot.
+ */
+type TraceChunkRegistrySource = Pick<
+  TraceDataset,
+  'chunks' | 'sameProcessDependencyTableMap' | 'spanSidecarTableMap' | 'ownerRefSnapshot'
+>;
+
 /** Row-backed trace ref families that can be located through a chunk registry. */
 export type TraceChunkBackedRefKind = Extract<
   TraceRefKind,
-  'span' | 'localDependency' | 'event' | 'crossDependency' | 'instant' | 'counter'
+  'span' | 'sameProcessDependency' | 'event' | 'crossProcessDependency' | 'instant' | 'counter'
 >;
 
 /** Runtime refs that can be resolved to a loaded chunk. */
 export type TraceChunkBackedRef =
   | SpanRef
-  | LocalDependencyRef
-  | CrossDependencyRef
+  | SameProcessDependencyRef
+  | CrossProcessDependencyRef
   | EventRef
   | InstantRef
   | CounterRef;
@@ -55,6 +67,14 @@ export type TraceProcessOwnedRef = TraceChunkBackedRef | ThreadRef | ProcessRef;
 /** Runtime refs that can resolve to an owning thread ref. */
 export type TraceThreadOwnedRef = SpanRef | EventRef | InstantRef | CounterRef | ThreadRef;
 
+/** Process and thread refs resolved from one loaded span row. */
+export type TraceSpanOwnerRefs = {
+  /** Owning process ref, when row owner data is available. */
+  readonly processRef: ProcessRef | null;
+  /** Owning thread ref, when row owner data is available. */
+  readonly threadRef: ThreadRef | null;
+};
+
 /** Synthetic or streamed runtime chunk metadata used to resolve row-backed runtime refs. */
 export type TraceRuntimeChunk = ArrowTraceChunk & {
   /** App-owned stable key for this loaded chunk. */
@@ -63,10 +83,8 @@ export type TraceRuntimeChunk = ArrowTraceChunk & {
   readonly spanTable: ArrowTraceSpanTable;
   /** Row-aligned owner columns extracted from {@link TraceRuntimeChunk.spanTable}. */
   readonly spanColumns: TraceRuntimeSpanColumns;
-  /** Canonical process-local Arrow dependency table for this chunk. */
-  readonly localDependencyTable: ArrowTraceLocalDependencyTable;
-  /** Optional row-aligned compatibility payloads for this chunk. */
-  readonly spanSidecarRows?: readonly TraceSpanArrowSidecarRow[];
+  /** Resolved same-process Arrow dependency table owned by this storage chunk. */
+  readonly resolvedSameProcessDependencyTable: ArrowTraceSameProcessDependencyTable;
   /** Optional row-aligned Arrow sidecar table for this chunk. */
   readonly spanSidecarTable?: ArrowTraceSpanSidecarTable;
   /** Process refs represented by rows in this chunk. */
@@ -93,21 +111,33 @@ type TraceRuntimeSpanColumns = {
   readonly threadId: ColumnVector<TraceThreadId> | null;
 };
 
+/** Loaded span chunk and canonical Arrow row resolved from one span ref. */
+type TraceSpanChunkRow = {
+  /** Loaded runtime chunk containing the span row. */
+  readonly chunk: TraceRuntimeChunk;
+  /** Canonical Arrow span-table row index inside the loaded chunk. */
+  readonly rowIndex: number;
+};
+
 /** Registry that resolves tagged numeric refs to chunks and owner refs. */
 export type TraceChunkRegistry = {
   /** Loaded chunks indexed by encoded chunk index. */
   readonly chunks: readonly TraceRuntimeChunk[];
   /** Resolve the decoded chunk for a row-backed ref. */
   readonly getChunkByRef: (ref: number) => TraceRuntimeChunk | null;
+  /** Resolve the loaded chunk for a span ref without generic ref-kind dispatch. */
+  readonly getSpanChunkByRef: (spanRef: SpanRef) => TraceRuntimeChunk | null;
   /** Resolve the owning process ref for a supported runtime ref. */
   readonly getProcessRefByRef: (ref: number) => ProcessRef | null;
   /** Resolve the owning thread ref for a supported runtime ref. */
   readonly getThreadRefByRef: (ref: number) => ThreadRef | null;
+  /** Resolve both owner refs for one loaded span row with one row lookup. */
+  readonly getSpanOwnerRefs: (spanRef: SpanRef) => TraceSpanOwnerRefs | null;
 };
 
-/** Builds the chunk registry for current TraceGraphData tables. */
+/** Builds the chunk registry from canonical dataset tables. */
 export function buildTraceChunkRegistry(
-  traceGraphTables: Readonly<TraceGraphData>,
+  traceGraphTables: Readonly<TraceChunkRegistrySource>,
   runtimeEntityRefs: Readonly<TraceRuntimeEntityRefs>
 ): TraceChunkRegistry {
   const chunks = traceGraphTables.chunks.map(chunk => buildTraceChunk(chunk, runtimeEntityRefs));
@@ -123,6 +153,7 @@ export function buildTraceChunkRegistry(
   return {
     chunks,
     getChunkByRef: ref => getChunkByRef(spanChunkByIndex, compatibilityProcessChunkByIndex, ref),
+    getSpanChunkByRef: spanRef => spanChunkByIndex.get(getSpanRefChunkIndex(spanRef)) ?? null,
     getProcessRefByRef: ref =>
       getProcessRefByRef(
         runtimeEntityRefs,
@@ -131,7 +162,8 @@ export function buildTraceChunkRegistry(
         ref
       ),
     getThreadRefByRef: ref =>
-      getThreadRefByRef(runtimeEntityRefs, spanChunkByIndex, compatibilityProcessChunkByIndex, ref)
+      getThreadRefByRef(runtimeEntityRefs, spanChunkByIndex, compatibilityProcessChunkByIndex, ref),
+    getSpanOwnerRefs: spanRef => getSpanOwnerRefs(spanChunkByIndex, spanRef)
   };
 }
 
@@ -170,17 +202,17 @@ function buildTraceChunk(
 }
 
 /**
- * Build process-scoped compatibility chunks for legacy non-span row-backed ref families.
+ * Build process-scoped synthetic chunks for non-span row-backed ref families.
  */
 function buildCompatibilityProcessChunks(
-  traceGraphTables: Readonly<TraceGraphData>,
+  traceGraphTables: Readonly<TraceChunkRegistrySource>,
   runtimeEntityRefs: Readonly<TraceRuntimeEntityRefs>
 ): readonly TraceRuntimeChunk[] {
-  return traceGraphTables.processIdsByIndex.flatMap((processId, processIndex) => {
+  return traceGraphTables.ownerRefSnapshot.processIdsByIndex.flatMap((processId, processIndex) => {
     const sourceChunk = traceGraphTables.chunks.find(chunk => chunk.processId === processId);
     const spanTable = sourceChunk?.spanTable;
-    const localDependencyTable = traceGraphTables.localDependencyTableMap[processId];
-    if (!spanTable || !localDependencyTable) {
+    const sameProcessDependencyTable = traceGraphTables.sameProcessDependencyTableMap[processId];
+    if (!spanTable || !sameProcessDependencyTable) {
       return [];
     }
     const processRef = runtimeEntityRefs.processRefById.get(processId as TraceProcessId);
@@ -193,9 +225,7 @@ function buildCompatibilityProcessChunks(
           processRefs: processRef == null ? [] : [processRef],
           processId: processId as TraceProcessId,
           spanTable,
-          localDependencyTable,
-          spanSidecarRows:
-            sourceChunk?.spanSidecarRows ?? traceGraphTables.spanSidecarMap?.[processId],
+          resolvedSameProcessDependencyTable: sameProcessDependencyTable,
           spanSidecarTable:
             sourceChunk?.spanSidecarTable ?? traceGraphTables.spanSidecarTableMap?.[processId]
         },
@@ -217,18 +247,18 @@ function getChunkByRef(
   switch (kind) {
     case 'span':
       return spanChunkByIndex.get(getSpanRefChunkIndex(ref as SpanRef)) ?? null;
-    case 'localDependency':
+    case 'sameProcessDependency':
       return (
         compatibilityProcessChunkByIndex.get(
-          getLocalDependencyRefProcessIndex(ref as LocalDependencyRef)
+          getSameProcessDependencyRefProcessIndex(ref as SameProcessDependencyRef)
         ) ?? null
       );
     case 'event':
       return compatibilityProcessChunkByIndex.get(getEventRefChunkIndex(ref as EventRef)) ?? null;
-    case 'crossDependency':
+    case 'crossProcessDependency':
       return (
         compatibilityProcessChunkByIndex.get(
-          getCrossDependencyRefChunkIndex(ref as CrossDependencyRef)
+          getCrossProcessDependencyRefChunkIndex(ref as CrossProcessDependencyRef)
         ) ?? null
       );
     case 'instant':
@@ -265,12 +295,12 @@ function getProcessRefByRef(
       return runtimeEntityRefs.processRefByCounterRef.get(ref as CounterRef) ?? null;
     case 'span':
       return getProcessRefBySpanRef(spanChunkByIndex, ref as SpanRef);
-    case 'localDependency': {
-      const processIndex = getLocalDependencyRefProcessIndex(ref as LocalDependencyRef);
+    case 'sameProcessDependency': {
+      const processIndex = getSameProcessDependencyRefProcessIndex(ref as SameProcessDependencyRef);
       return runtimeEntityRefs.processRefs[processIndex] ?? null;
     }
     case 'event':
-    case 'crossDependency': {
+    case 'crossProcessDependency': {
       const chunk = getChunkByRef(spanChunkByIndex, compatibilityProcessChunkByIndex, ref);
       return chunk?.processRefs.length === 1 ? (chunk.processRefs[0] ?? null) : null;
     }
@@ -312,13 +342,20 @@ function getThreadRefBySpanRef(
   spanChunkByIndex: ReadonlyMap<number, TraceRuntimeChunk>,
   spanRef: SpanRef
 ): ThreadRef | null {
-  const chunk = spanChunkByIndex.get(getSpanRefChunkIndex(spanRef));
-  if (!chunk) {
-    return null;
-  }
-  const rowIndex = getArrowTraceChunkSpanTableRowIndex(chunk, getSpanRefRowIndex(spanRef));
-  if (rowIndex == null) {
-    return null;
+  const spanChunkRow = getSpanChunkRow(spanChunkByIndex, spanRef);
+  return spanChunkRow ? getThreadRefBySpanRow(spanChunkRow.chunk, spanChunkRow.rowIndex) : null;
+}
+
+/** Resolves a span row to its owning thread ref from row-level owner data. */
+function getThreadRefBySpanRow(chunk: TraceRuntimeChunk, rowIndex: number): ThreadRef | null {
+  const threadRef = readArrowRefColumn(chunk.spanColumns.threadRef, rowIndex);
+  const chunkProcessRef = chunk.processRefs.length === 1 ? (chunk.processRefs[0] ?? null) : null;
+  if (
+    threadRef != null &&
+    (chunkProcessRef == null ||
+      getThreadRefProcessIndex(threadRef as ThreadRef) === getProcessRefIndex(chunkProcessRef))
+  ) {
+    return threadRef as ThreadRef;
   }
   const threadId = readColumnValue(chunk.spanColumns.threadId, rowIndex);
   if (chunk.processId != null && threadId && chunk.processRefs.length === 1) {
@@ -330,10 +367,6 @@ function getThreadRefBySpanRef(
     if (threadIndex >= 0) {
       return encodeProcessThreadRef(getProcessRefIndex(chunk.processRefs[0]!), threadIndex);
     }
-  }
-  const threadRef = readArrowRefColumn(chunk.spanColumns.threadRef, rowIndex);
-  if (threadRef != null) {
-    return threadRef as ThreadRef;
   }
   return threadId ? (chunk.threadRefById.get(threadId) ?? null) : null;
 }
@@ -355,14 +388,12 @@ function getProcessRefBySpanRef(
   spanChunkByIndex: ReadonlyMap<number, TraceRuntimeChunk>,
   spanRef: SpanRef
 ): ProcessRef | null {
-  const chunk = spanChunkByIndex.get(getSpanRefChunkIndex(spanRef));
-  if (!chunk) {
-    return null;
-  }
-  const rowIndex = getArrowTraceChunkSpanTableRowIndex(chunk, getSpanRefRowIndex(spanRef));
-  if (rowIndex == null) {
-    return null;
-  }
+  const spanChunkRow = getSpanChunkRow(spanChunkByIndex, spanRef);
+  return spanChunkRow ? getProcessRefBySpanRow(spanChunkRow.chunk, spanChunkRow.rowIndex) : null;
+}
+
+/** Resolves a span row to its owning process ref from row-level owner data. */
+function getProcessRefBySpanRow(chunk: TraceRuntimeChunk, rowIndex: number): ProcessRef | null {
   if (chunk.processId != null && chunk.processRefs.length === 1) {
     return chunk.processRefs[0] ?? null;
   }
@@ -373,8 +404,36 @@ function getProcessRefBySpanRef(
   return chunk.processRefs.length === 1 ? (chunk.processRefs[0] ?? null) : null;
 }
 
+/** Resolves both row-backed owner refs for one loaded span. */
+function getSpanOwnerRefs(
+  spanChunkByIndex: ReadonlyMap<number, TraceRuntimeChunk>,
+  spanRef: SpanRef
+): TraceSpanOwnerRefs | null {
+  const spanChunkRow = getSpanChunkRow(spanChunkByIndex, spanRef);
+  if (!spanChunkRow) {
+    return null;
+  }
+  return {
+    processRef: getProcessRefBySpanRow(spanChunkRow.chunk, spanChunkRow.rowIndex),
+    threadRef: getThreadRefBySpanRow(spanChunkRow.chunk, spanChunkRow.rowIndex)
+  };
+}
+
+/** Resolves one loaded span ref to its chunk and canonical Arrow row. */
+function getSpanChunkRow(
+  spanChunkByIndex: ReadonlyMap<number, TraceRuntimeChunk>,
+  spanRef: SpanRef
+): TraceSpanChunkRow | null {
+  const chunk = spanChunkByIndex.get(getSpanRefChunkIndex(spanRef));
+  if (!chunk) {
+    return null;
+  }
+  const rowIndex = getArrowTraceChunkSpanTableRowIndex(chunk, getSpanRefRowIndex(spanRef));
+  return rowIndex == null ? null : {chunk, rowIndex};
+}
+
 /**
- * Converts Arrow `Uint64` ref values back to safe JavaScript numbers.
+ * Converts Arrow numeric ref values back to safe JavaScript numbers.
  */
 function normalizeArrowRefNumber(value: unknown): number | null {
   if (typeof value === 'number') {

@@ -1,6 +1,6 @@
-import {TraceLabels} from '../../../../trace/index';
+import {TraceLabels} from '../../../../trace';
 
-import type {TraceInstant} from '../../../../trace/index';
+import type {TraceInstant} from '../../../../trace';
 
 export type TraceInstantCardProps = {
   instant: TraceInstant;

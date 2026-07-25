@@ -4,10 +4,12 @@ import {
   cloneTraceLayoutCollapseStateForGraphs,
   createEmptyTraceGraphCollapseState,
   createTraceComparisonModelMatrix,
+  areTraceLayoutCollapseStatesEqual,
   DEFAULT_TRACE_COLOR_SCHEME,
   DEFAULT_TRACE_FONT_FAMILY
-} from '../../trace/index';
+} from '../../trace';
 import {
+  areTraceViewLayoutSettingsEqual,
   buildTraceViewRenderInputs,
   buildTraceViewState
 } from '../../trace/trace-view-state/trace-view-state';
@@ -22,12 +24,13 @@ import type {
   TraceGraph,
   TraceThreadId,
   TraceVisSettings,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
-} from '../../trace/index';
+  CrossProcessDependencyRef,
+  SameProcessDependencyRef
+} from '../../trace';
 import type {CompositeLayerProps, Layer, LayerProps, UpdateParameters} from '@deck.gl/core';
 import type {Matrix4} from '@math.gl/core';
-import type {ThreadLaneMetadata} from '../../trace/index';
+import type {ThreadLaneMetadata} from '../../trace';
+import type {TraceLayout} from '../../trace';
 import type {TraceViewState} from '../../trace/trace-view-state/trace-view-state';
 import type {TraceDeckLayerHandlers, TraceDeckLayerSelection} from './deck-layers';
 import type {TracePreparedStateLayerPathHighlighting} from './trace-prepared-state-layer';
@@ -83,10 +86,10 @@ export type TraceGraphLayerProps = LayerProps &
     readonly selectedSpanRefs?: readonly SpanRef[];
     /** Extra selected span refs visible only in focused or extended selection. */
     readonly extendedSelectionSpanRefs?: readonly SpanRef[];
-    /** Selected local dependency refs whose endpoints should remain visible. */
-    readonly selectedLocalDependencyRefs?: ReadonlySet<VisibleLocalDependencyRef>;
+    /** Selected same-process dependency refs whose endpoints should remain visible. */
+    readonly selectedSameProcessDependencyRefs?: ReadonlySet<SameProcessDependencyRef>;
     /** Selected cross-process dependency refs whose endpoints should remain visible. */
-    readonly selectedCrossDependencyRefs?: ReadonlySet<VisibleCrossDependencyRef>;
+    readonly selectedCrossProcessDependencyRefs?: ReadonlySet<CrossProcessDependencyRef>;
     /** Whether current selection inputs should produce a focused extended-selection layout. */
     readonly isExtendedSelection?: boolean;
     /** Returns the model matrix for one graph index in comparison mode. */
@@ -103,16 +106,20 @@ export class TraceGraphLayer extends CompositeLayer<TraceGraphLayerProps> {
     traceViewState: null
   };
 
-  override updateState({props}: UpdateParameters<this>): void {
+  override updateState({props, oldProps}: UpdateParameters<this>): void {
     this.state.traceViewState = buildTraceGraphLayerTraceViewState(
       props,
-      this.state.traceViewState
+      getOwnedTraceGraphLayerBaseLayouts({
+        props,
+        oldProps,
+        traceViewState: this.state.traceViewState
+      })
     );
   }
 
   override renderLayers(): Layer | null {
     const traceViewState =
-      this.state.traceViewState ?? buildTraceGraphLayerTraceViewState(this.props, null);
+      this.state.traceViewState ?? buildTraceGraphLayerTraceViewState(this.props);
     if (!traceViewState) {
       return null;
     }
@@ -139,7 +146,7 @@ export class TraceGraphLayer extends CompositeLayer<TraceGraphLayerProps> {
 /** Builds the pure-JS trace view state consumed by {@link TraceGraphLayer}. */
 function buildTraceGraphLayerTraceViewState(
   props: TraceGraphLayerProps,
-  previousState: TraceViewState | null
+  baseLayouts?: readonly TraceLayout[]
 ): TraceViewState | null {
   const traceGraphs = props.traceGraphs;
   const primaryTraceGraph = traceGraphs[0];
@@ -166,29 +173,19 @@ function buildTraceGraphLayerTraceViewState(
         : undefined);
   const renderInputs = buildTraceViewRenderInputs({
     traceGraph: primaryTraceGraph,
-    traceGraphs,
-    settings,
-    collapseStateForLayout: collapseState,
-    layoutTopPadding,
-    layoutTimingKey: props.layoutTimingKey,
-    minTimeMs,
-    shouldPrepareOverviewData: false,
-    initialViewportFitKey: getInitialViewportFitKey(traceGraphs),
     selectedSpanRefs,
     extendedSelectionSpanRefs: props.extendedSelectionSpanRefs ?? EMPTY_SPAN_REFS,
-    selectedLocalDependencyRefs: props.selectedLocalDependencyRefs,
-    selectedCrossDependencyRefs: props.selectedCrossDependencyRefs,
+    selectedSameProcessDependencyRefs: props.selectedSameProcessDependencyRefs,
+    selectedCrossProcessDependencyRefs: props.selectedCrossProcessDependencyRefs,
     isExtendedSelection: props.isExtendedSelection ?? false
   });
 
   return buildTraceViewState({
-    previousState,
-    baseLayoutKey: renderInputs.traceViewBaseLayoutKey,
+    baseLayouts,
     traceGraphs,
     sourceTraceGraphs,
     primaryTraceGraph,
     paths: props.paths ?? EMPTY_TRACE_PATHS,
-    layoutSettings: renderInputs.traceLayoutSettings,
     settings,
     colorScheme,
     collapseState,
@@ -205,6 +202,55 @@ function buildTraceGraphLayerTraceViewState(
   });
 }
 
+/** Returns current layer-owned base layouts when next direct layout inputs still match them. */
+function getOwnedTraceGraphLayerBaseLayouts(params: {
+  props: TraceGraphLayerProps;
+  oldProps: TraceGraphLayerProps;
+  traceViewState: TraceViewState | null;
+}): readonly TraceLayout[] | undefined {
+  const {props, oldProps, traceViewState} = params;
+  if (
+    !traceViewState ||
+    !areTraceGraphListsEqual(oldProps.traceGraphs, props.traceGraphs) ||
+    !areTraceViewLayoutSettingsEqual(oldProps.settings, props.settings) ||
+    !areOptionalCollapseStatesEqual(oldProps.collapseState, props.collapseState) ||
+    oldProps.threadLaneLayoutOverrides !== props.threadLaneLayoutOverrides ||
+    oldProps.layoutTopPadding !== props.layoutTopPadding ||
+    oldProps.layoutTimingKey !== props.layoutTimingKey ||
+    oldProps.minTimeMs !== props.minTimeMs ||
+    oldProps.showCollapsedActivitySummary !== props.showCollapsedActivitySummary ||
+    oldProps.collapsedActivityAggregation !== props.collapsedActivityAggregation ||
+    traceViewState.baseLayouts.length !== props.traceGraphs.length ||
+    !traceViewState.baseLayouts.every(
+      (layout, graphIndex) => layout.traceGraph === props.traceGraphs[graphIndex]
+    )
+  ) {
+    return undefined;
+  }
+  return traceViewState.baseLayouts;
+}
+
+/** Returns whether two trace graph lists retain the same graph instances in order. */
+function areTraceGraphListsEqual(
+  left: readonly TraceGraph[],
+  right: readonly TraceGraph[]
+): boolean {
+  return (
+    left.length === right.length && left.every((traceGraph, index) => traceGraph === right[index])
+  );
+}
+
+/** Returns whether optional ref-native collapse states are semantically unchanged. */
+function areOptionalCollapseStatesEqual(
+  left: TraceLayoutCollapseState | undefined,
+  right: TraceLayoutCollapseState | undefined
+): boolean {
+  if (left === right) {
+    return true;
+  }
+  return left != null && right != null && areTraceLayoutCollapseStatesEqual(left, right);
+}
+
 /** Creates an expanded-by-default collapse state aligned with one graph list. */
 function createEmptyTraceLayoutCollapseState(
   traceGraphs: readonly TraceGraph[]
@@ -212,11 +258,4 @@ function createEmptyTraceLayoutCollapseState(
   return {
     graphs: traceGraphs.map(() => createEmptyTraceGraphCollapseState())
   };
-}
-
-/** Returns the stable graph-family key used by TraceViewState base layout reuse. */
-function getInitialViewportFitKey(traceGraphs: readonly TraceGraph[]): string {
-  return traceGraphs
-    .map(traceGraph => `${traceGraph.name}\u0000${traceGraph.minTimeMs}`)
-    .join('\u0001');
 }

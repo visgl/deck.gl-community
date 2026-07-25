@@ -6,7 +6,7 @@
 </p>
 
 `TracePreparedStateLayer` is the lowest public trace rendering layer. It accepts already-prepared
-`TraceViewState` and renders the main timeline sublayers.
+`TraceViewState`, reads `traceViewState.renderSnapshot`, and renders the main timeline sublayers.
 
 ```ts
 import {
@@ -25,7 +25,7 @@ The required props are `traceViewState` and caller-owned `settings: TraceVisSett
 props forward transient selection, path highlighting, trace color scheme, font family, process
 layer handlers, step number, and row-separator visibility.
 
-This layer intentionally does not render legend, grid, overview, run-event strip, time measurement,
+This layer intentionally does not render legend, grid, overview, trace-event strip, time measurement,
 widgets, tooltips, or deck views. Use `TraceGraphLayer` when the shell owns `TraceGraph` inputs but
 does not already own prepared state. Use `DeckTraceGraph` for the full React viewer.
 

@@ -1,30 +1,27 @@
 import {describe, expect, it} from 'vitest';
 
-import {
-  buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
-  buildTraceLayouts
-} from '../../trace/index';
+import {buildJSONTrace, buildTraceLayouts, buildTracePreparedProcessRows} from '../../trace';
+import {createRuntimeTraceGraph} from '../../trace/trace-graph/trace-graph-test-fixtures';
 import {TraceProcessLayer} from './trace-process-layer';
 
 import type {
+  JSONTrace,
   SpanRef,
-  TraceGraphData,
   TraceProcess,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId,
   TraceVisSettings
-} from '../../trace/index';
+} from '../../trace';
 
 describe('TraceProcessLayer text labels', () => {
   it('uses stock TextLayer span labels unless FastTextLayer is enabled', () => {
-    const {graphData, process} = createGraphData();
+    const {graph, process} = createGraphFixture();
     const getBlockLabelLayerName = (enableFastTextLayer?: boolean) => {
       const rankLayer = createTraceProcessLayer({
         enableFastTextLayer,
-        graphData,
+        graph,
         process
       });
       const layer = rankLayer
@@ -49,24 +46,31 @@ describe('TraceProcessLayer text labels', () => {
 function createTraceProcessLayer(params: {
   /** Whether the experimental fast text label layer is enabled. */
   readonly enableFastTextLayer?: boolean;
-  /** Trace graph data used to build the process-row layout. */
-  readonly graphData: TraceGraphData;
+  /** JSON trace fixture used to build the dataset-backed process-row layout. */
+  readonly graph: JSONTrace;
   /** Source process rendered by the process layer. */
   readonly process: TraceProcess;
 }): TraceProcessLayer {
   const settings = getTraceSettings(params.enableFastTextLayer);
+  const traceGraph = createRuntimeTraceGraph(params.graph);
   const layout = buildTraceLayouts({
-    traceGraphs: [params.graphData],
+    traceGraphs: [traceGraph],
     settings
   })[0]!;
-  const processRef = layout.traceGraph.getProcessRefs()[0]!;
-  const spans = layout.traceGraph.getVisibleProcessRenderSpanRefs(processRef);
+  const preparedRow = buildTracePreparedProcessRows({
+    graph: layout.traceGraph,
+    layout,
+    settings
+  })[0];
+  if (preparedRow?.binaryBlockData == null || preparedRow.binaryDependencyLineData == null) {
+    throw new Error('Expected prepared binary process-row data.');
+  }
 
   return new TraceProcessLayer({
     id: `rank-label-layer-${params.enableFastTextLayer === true ? 'fast' : 'default'}`,
     threads: params.process.threads,
-    spans,
-    dependencies: [],
+    binaryBlockData: preparedRow.binaryBlockData,
+    binaryDependencyLineData: preparedRow.binaryDependencyLineData,
     selectedSpanRefs: [],
     selectedDependencies: [],
     rankIndex: 0,
@@ -80,15 +84,15 @@ function createTraceProcessLayer(params: {
 }
 
 /** Builds the one-process graph fixture used by label implementation tests. */
-function createGraphData(): {
-  /** Runtime trace graph data used by layout construction. */
-  graphData: TraceGraphData;
+function createGraphFixture(): {
+  /** JSON trace fixture used by dataset-backed layout construction. */
+  graph: JSONTrace;
   /** Source process contained by the graph. */
   process: TraceProcess;
 } {
   const process = createProcess();
   return {
-    graphData: buildTraceGraphDataFromJSONTrace(buildJSONTrace([process], [], {name: 'labels'})),
+    graph: buildJSONTrace([process], [], {name: 'labels'}),
     process
   };
 }
@@ -119,8 +123,8 @@ function createProcess(): TraceProcess {
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -141,7 +145,7 @@ function createProcess(): TraceProcess {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 }
@@ -156,7 +160,7 @@ function getTraceSettings(enableFastTextLayer?: boolean): TraceVisSettings {
     highlightFadeFactor: 1,
     layoutDensity: 'comfortable',
     lineRoutingMode: 'straight',
-    localDependencyMode: 'all',
+    sameProcessDependencyMode: 'all',
     minSpanTimeMs: 0,
     processLayoutMode: 'interleaved',
     showCounters: true,

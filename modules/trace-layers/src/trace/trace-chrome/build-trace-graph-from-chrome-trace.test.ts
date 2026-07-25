@@ -22,8 +22,8 @@ const makeBlock = (id: string, startTimeMs: number, endTimeMs: number): TraceSpa
         durationMsAsString: `${Math.max(0, endTimeMs - startTimeMs)} ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

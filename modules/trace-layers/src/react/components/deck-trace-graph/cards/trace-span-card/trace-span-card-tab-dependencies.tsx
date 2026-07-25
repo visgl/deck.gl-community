@@ -1,6 +1,5 @@
 import {CSSProperties, useEffect, useMemo, useRef, useState} from 'react';
 
-import {hasTraceSpanRegexpFilter, hasTraceSpanTopologyFilter} from '../../../../../trace/index';
 import {PrettyTable} from '../../components/pretty-table';
 import {
   emitDependencyHoverFromResolvedBlocks,
@@ -20,7 +19,7 @@ import type {
   TraceSpanCardDependencyEntry,
   TraceSpanCardParentChainEntry,
   TraceStyle
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {TraceSpanDoubleClickAction} from '../trace-span-name-badge';
 import type {
   ResolvedTraceLabels,
@@ -71,7 +70,7 @@ export type TraceSpanDependenciesTabProps = {
   onSpanDoubleClick?: (spanRef: SpanRef, action: TraceSpanDoubleClickAction) => void;
   /** Callback when dependency hover should highlight another block. */
   onBlockHover?: (spanRef: SpanRef | null) => void;
-  /** Callback when the dependency action column is clicked. */
+  /** Callback when the outgoing dependency action column is clicked. */
   onDependencyClick?: (targetSpanRef: SpanRef) => void;
   /** Resolved labels for process and block columns. */
   traceLabels: ResolvedTraceLabels;
@@ -87,6 +86,7 @@ export type TraceSpanDependenciesTabProps = {
 export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
   const {parentChain, interactive, traceLabels, currentSpan, traceStyle} = props;
   const direction = props.direction ?? 'incoming';
+  const includesDependencyDetails = direction === 'outgoing';
   const [filterText, setFilterText] = useState('');
   const filterSpanRef = useRef(props.currentSpan.spanRef);
 
@@ -103,11 +103,7 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
     : dependencies;
   const filteredParentChain = props.filterLabel
     ? filterTraceSpanTableRows(parentChain, filterText, chainEntry =>
-        getTraceSpanParentFilterValues(
-          chainEntry,
-          props.parentIndexBySpanRef.get(chainEntry.spanRef) ?? chainEntry.chainIndex,
-          props.getMetricValues
-        )
+        getTraceSpanParentFilterValues(chainEntry, props.getMetricValues)
       )
     : parentChain;
   const hasFilter = filterText.trim().length > 0;
@@ -128,9 +124,6 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
       const dependencySpan = direction === 'incoming' ? entry.startSpan : entry.endSpan;
       const dependencySpanRef = direction === 'incoming' ? entry.startSpanRef : entry.endSpanRef;
       const isFilteredDependencySource = dependencySpan.isFiltered;
-      const isTopologyOnlyFilteredDependencySource =
-        hasTraceSpanTopologyFilter(dependencySpan.filterMask) &&
-        !hasTraceSpanRegexpFilter(dependencySpan.filterMask);
       const hoverHandlers =
         !isFilteredDependencySource && props.onBlockHover
           ? {
@@ -161,7 +154,6 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
             colorScheme: traceStyle.colorScheme,
             style: props.getDependencyBadgeStyle(dependencySpan),
             filtered: isFilteredDependencySource,
-            filteredVariant: isTopologyOnlyFilteredDependencySource ? 'topology' : 'regexp',
             filterMask: dependencySpan.filterMask,
             interactive:
               props.interactive &&
@@ -170,16 +162,20 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
             onSpanDoubleClick: props.onSpanDoubleClick
           })}
         </span>,
-        entry.dependency.waitMode,
-        entry.dependency.bidirectional ? '↔️' : '➡️',
-        isFilteredDependencySource ? (
-          ''
-        ) : (
-          <button
-            className="pointer-events-auto"
-            onClick={() => props.onDependencyClick?.(dependencySpanRef)}
-          />
-        )
+        ...(includesDependencyDetails
+          ? [
+              entry.dependency.waitMode,
+              entry.dependency.bidirectional ? '↔️' : '➡️',
+              isFilteredDependencySource ? (
+                ''
+              ) : (
+                <button
+                  className="pointer-events-auto"
+                  onClick={() => props.onDependencyClick?.(dependencySpanRef)}
+                />
+              )
+            ]
+          : [])
       ];
     })
     .filter(fields => fields !== null);
@@ -187,9 +183,6 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
   let parentChainRows = [...filteredParentChain]
     .map((chainEntry, index) => {
       const isVisibleParent = !chainEntry.isFiltered;
-      const isTopologyOnlyFilteredParent =
-        hasTraceSpanTopologyFilter(chainEntry.span.filterMask) &&
-        !hasTraceSpanRegexpFilter(chainEntry.span.filterMask);
       const parentIndex = props.parentIndexBySpanRef.get(chainEntry.spanRef) ?? index + 1;
       return [
         ...props.getMetricValues({
@@ -208,7 +201,6 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
             colorScheme: traceStyle.colorScheme,
             style: props.getDependencyBadgeStyle(chainEntry.span),
             filtered: !isVisibleParent,
-            filteredVariant: isTopologyOnlyFilteredParent ? 'topology' : 'regexp',
             filterMask: chainEntry.span.filterMask,
             interactive:
               props.interactive && (isVisibleParent || props.onSpanDoubleClick !== undefined),
@@ -216,9 +208,7 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
             onSpanDoubleClick: props.onSpanDoubleClick
           })}
         </span>,
-        `parent-${parentIndex}`,
-        '⬆️',
-        ''
+        ...(includesDependencyDetails ? [`parent-${parentIndex}`, '⬆️', ''] : [])
       ];
     })
     .filter(Boolean);
@@ -229,10 +219,11 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
     const hiddenLeadingParentCount = Math.max(0, firstVisibleParentIndex - 1);
     const hiddenLeadingRow =
       hiddenLeadingParentCount > 0
-        ? buildPlaceholderRow(
-            props.metricColumns.length,
-            `omitting ${hiddenLeadingParentCount} hidden parent spans`
-          )
+        ? buildPlaceholderRow({
+            metricColumnCount: props.metricColumns.length,
+            message: `omitting ${hiddenLeadingParentCount} hidden parent spans`,
+            includesDependencyDetails
+          })
         : null;
 
     if (parentChainRows.length > MAX_PARENT_CHAIN_ROWS) {
@@ -241,10 +232,11 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
       parentChainRows = [
         ...(hiddenLeadingRow ? [hiddenLeadingRow] : []),
         ...immediateParentRows,
-        buildPlaceholderRow(
-          props.metricColumns.length,
-          `omitted ${omittedParentCount} parent spans`
-        )
+        buildPlaceholderRow({
+          metricColumnCount: props.metricColumns.length,
+          message: `omitted ${omittedParentCount} parent spans`,
+          includesDependencyDetails
+        })
       ];
     } else if (hiddenLeadingRow) {
       parentChainRows = [hiddenLeadingRow, ...parentChainRows];
@@ -254,10 +246,11 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
   if (!interactive && dependencyCount > 3 && dependencyRows.length > 0) {
     dependencyRows = [
       dependencyRows[0],
-      buildPlaceholderRow(
-        props.metricColumns.length,
-        `...omitted ${dependencyCount - 2} dependencies`
-      ),
+      buildPlaceholderRow({
+        metricColumnCount: props.metricColumns.length,
+        message: `...omitted ${dependencyCount - 2} dependencies`,
+        includesDependencyDetails
+      }),
       dependencyRows[dependencyRows.length - 1]
     ];
   }
@@ -271,8 +264,7 @@ export function TraceSpanDependenciesTab(props: TraceSpanDependenciesTabProps) {
       spanLabelPlural: traceLabels.spanLabelPlural,
       spanVisibilityControl: props.spanVisibilityControl
     }),
-    'Mode',
-    'Dir'
+    ...(includesDependencyDetails ? ['Mode', 'Dir'] : [])
   ];
 
   return (
@@ -332,9 +324,9 @@ function getTraceSpanDependencyFilterValues(
     dependencySpan.spanId,
     dependencySpan.processName,
     dependencySpan.threadId,
-    entry.dependency.waitMode,
-    entry.dependency.bidirectional,
-    direction
+    ...(direction === 'outgoing'
+      ? [entry.dependency.waitMode, entry.dependency.bidirectional, direction]
+      : [])
   ];
 }
 
@@ -343,7 +335,6 @@ function getTraceSpanDependencyFilterValues(
  */
 function getTraceSpanParentFilterValues(
   chainEntry: TraceSpanCardParentChainEntry,
-  parentIndex: number,
   getMetricValues: TraceSpanDependenciesTabProps['getMetricValues']
 ): readonly (number | string)[] {
   return [
@@ -355,15 +346,25 @@ function getTraceSpanParentFilterValues(
     chainEntry.span.name,
     chainEntry.span.spanId,
     chainEntry.span.processName,
-    chainEntry.span.threadId,
-    `parent-${parentIndex}`,
-    parentIndex
+    chainEntry.span.threadId
   ];
 }
 
 /**
  * Build one compact placeholder row aligned with the dependency table columns.
  */
-function buildPlaceholderRow(metricColumnCount: number, message: string): string[] {
-  return [...Array.from({length: metricColumnCount}, () => ''), '', message, '', ''];
+function buildPlaceholderRow(params: {
+  /** Number of leading metric columns rendered before process and span. */
+  metricColumnCount: number;
+  /** Placeholder text rendered in the span column. */
+  message: string;
+  /** Whether outgoing-only dependency detail columns remain visible. */
+  includesDependencyDetails: boolean;
+}): string[] {
+  return [
+    ...Array.from({length: params.metricColumnCount}, () => ''),
+    '',
+    params.message,
+    ...(params.includesDependencyDetails ? ['', '', ''] : [])
+  ];
 }

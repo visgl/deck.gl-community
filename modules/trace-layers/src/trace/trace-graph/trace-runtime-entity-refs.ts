@@ -6,9 +6,8 @@ import {
   isEventRef,
   isInstantRef
 } from './trace-id-encoder';
-import {TraceOwnerRefRegistry} from './trace-owner-ref-registry';
 
-import type {TraceGraphData} from '../ingestion/arrow-trace';
+import type {TraceDataset} from '../trace-dataset';
 import type {CounterRef, EventRef, InstantRef, ProcessRef, ThreadRef} from './trace-id-encoder';
 import type {TraceOwnerRefSnapshot} from './trace-owner-ref-registry';
 import type {
@@ -18,6 +17,14 @@ import type {
   TraceProcessId,
   TraceThreadId
 } from './trace-types';
+
+/**
+ * Narrow runtime metadata surface required to allocate graph-local entity refs.
+ *
+ * Canonical TraceDataset snapshots satisfy this contract without projecting or copying their
+ * row-heavy Arrow tables.
+ */
+type TraceRuntimeEntityRefSource = Pick<TraceDataset, 'processes' | 'events' | 'ownerRefSnapshot'>;
 
 /** Graph-local ref tables that bridge ingestion ids to canonical runtime refs. */
 export type TraceRuntimeEntityRefs = {
@@ -71,14 +78,19 @@ export type TraceRuntimeEntityRefs = {
   readonly processRefByCounterRef: ReadonlyMap<CounterRef, ProcessRef>;
 };
 
-/** Builds canonical graph-local entity-ref tables from Arrow-backed runtime tables. */
+/**
+ * Builds canonical graph-local entity-ref tables from Arrow-backed runtime tables.
+ *
+ * Process/thread owner refs and lookup maps are immutable dataset inputs reused by identity. Only
+ * event, instant, and counter refs that are not owner-registry state are derived for this runtime
+ * graph.
+ */
 export function buildTraceRuntimeEntityRefs(
-  traceGraphTables: Readonly<TraceGraphData>
+  traceGraphTables: Readonly<TraceRuntimeEntityRefSource>
 ): TraceRuntimeEntityRefs {
-  const ownerRefSnapshot =
-    traceGraphTables.ownerRefSnapshot ?? buildGraphLocalTraceOwnerRefSnapshot(traceGraphTables);
-  const processRefs = [...ownerRefSnapshot.processRefs];
-  const threadRefs = [...ownerRefSnapshot.threadRefs];
+  const ownerRefSnapshot = traceGraphTables.ownerRefSnapshot;
+  const processRefs = ownerRefSnapshot.processRefs;
+  const threadRefs = ownerRefSnapshot.threadRefs;
   const eventRefs: EventRef[] = [];
   const instantRefs: InstantRef[] = [];
   const counterRefs: CounterRef[] = [];
@@ -86,13 +98,13 @@ export function buildTraceRuntimeEntityRefs(
   const usedInstantRefs = new Set<InstantRef>();
   const usedCounterRefs = new Set<CounterRef>();
 
-  const processRefById = new Map(ownerRefSnapshot.processRefById);
-  const processIdByRef = new Map(ownerRefSnapshot.processIdByRef);
-  const threadRefById = new Map(ownerRefSnapshot.threadRefById);
-  const threadIdByRef = new Map(ownerRefSnapshot.threadIdByRef);
-  const processRefByThreadRef = new Map(ownerRefSnapshot.processRefByThreadRef);
-  const processRefByThreadId = new Map(ownerRefSnapshot.processRefByThreadId);
-  const threadRefsByProcessRef = new Map(ownerRefSnapshot.threadRefsByProcessRef);
+  const processRefById = ownerRefSnapshot.processRefById;
+  const processIdByRef = ownerRefSnapshot.processIdByRef;
+  const threadRefById = ownerRefSnapshot.threadRefById;
+  const threadIdByRef = ownerRefSnapshot.threadIdByRef;
+  const processRefByThreadRef = ownerRefSnapshot.processRefByThreadRef;
+  const processRefByThreadId = ownerRefSnapshot.processRefByThreadId;
+  const threadRefsByProcessRef = ownerRefSnapshot.threadRefsByProcessRef;
   const eventRefById = new Map<TraceEventId, EventRef>();
   const eventIdByRef = new Map<EventRef, TraceEventId>();
   const instantRefById = new Map<TraceInstantId, InstantRef>();
@@ -247,23 +259,4 @@ function allocateNextUniqueRuntimeEntityRef<RefT extends number>(
     }
     index += 1;
   }
-}
-
-/**
- * Build legacy graph-local owner refs when a TraceGraphData has no shared preallocated owner table.
- */
-function buildGraphLocalTraceOwnerRefSnapshot(
-  traceGraphTables: Readonly<TraceGraphData>
-): TraceOwnerRefSnapshot {
-  const registry = new TraceOwnerRefRegistry();
-  traceGraphTables.processes.forEach(process => {
-    registry.upsertProcess(process);
-    process.threads.forEach(thread => {
-      registry.upsertThread({
-        ...thread,
-        processId: thread.processId ?? process.processId
-      });
-    });
-  });
-  return registry.createSnapshot();
 }

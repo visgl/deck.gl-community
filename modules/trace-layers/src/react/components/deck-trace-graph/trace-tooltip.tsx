@@ -2,15 +2,15 @@ import {useMemo} from 'react';
 
 import {
   getJSONForTraceObject,
-  isVisibleCrossDependencyRef,
-  isVisibleLocalDependencyRef
-} from '../../../trace/index';
+  isCrossProcessDependencyRef,
+  isSameProcessDependencyRef
+} from '../../../trace';
 import {TraceCounterCard} from './cards/trace-counter-card';
 import {TraceCrossProcessDependencyCard} from './cards/trace-cross-process-dependency-card';
 import {TraceEventCard} from './cards/trace-event-card';
 import {TraceInstantCard} from './cards/trace-instant-card';
-import {TraceLocalDependencyCard} from './cards/trace-local-dependency-card';
 import {TraceProcessCard} from './cards/trace-process-card';
+import {TraceSameProcessDependencyCard} from './cards/trace-same-process-dependency-card';
 import {TraceSpanCard} from './cards/trace-span-card';
 import {TraceThreadCard} from './cards/trace-thread-card';
 import {isTraceRenderSpanObject} from './deck-trace-graph-hover';
@@ -28,7 +28,7 @@ import type {
   TraceRenderSpan,
   TraceStyle,
   TraceVisSettings
-} from '../../../trace/index';
+} from '../../../trace';
 import type {TraceSpanCardTabOptions, TraceSpanDoubleClickAction} from './cards/trace-span-card';
 import type {ReactNode} from 'react';
 
@@ -160,14 +160,13 @@ export function TraceTooltip(props: TraceTooltipProps) {
     case 'trace-counter':
       return <TraceCounterCard counter={object} labels={props.traceLabels} />;
 
-    case 'trace-local-dependency': {
+    case 'trace-same-process-dependency': {
       const dependency = object;
       return (
-        <TraceLocalDependencyCard
+        <TraceSameProcessDependencyCard
           dependency={'dependencyId' in dependency ? dependency : undefined}
           dependencyRef={
-            dependency.dependencyRef != null &&
-            isVisibleLocalDependencyRef(dependency.dependencyRef)
+            dependency.dependencyRef != null && isSameProcessDependencyRef(dependency.dependencyRef)
               ? dependency.dependencyRef
               : undefined
           }
@@ -185,7 +184,7 @@ export function TraceTooltip(props: TraceTooltipProps) {
         <TraceCrossProcessDependencyCard
           crossDep={'dependencyId' in crossDep ? crossDep : undefined}
           dependencyRef={
-            crossDep.dependencyRef != null && isVisibleCrossDependencyRef(crossDep.dependencyRef)
+            crossDep.dependencyRef != null && isCrossProcessDependencyRef(crossDep.dependencyRef)
               ? crossDep.dependencyRef
               : undefined
           }
@@ -206,7 +205,7 @@ function isTraceDependencyRenderSourceObject(
   value: TraceTooltipProps['object']
 ): value is TraceDependencyRenderSource {
   return value != null && 'type' in value
-    ? (value.type === 'trace-local-dependency' ||
+    ? (value.type === 'trace-same-process-dependency' ||
         value.type === 'trace-cross-process-dependency') &&
         !('dependencyId' in value)
     : false;

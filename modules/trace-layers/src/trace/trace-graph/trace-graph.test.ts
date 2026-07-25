@@ -1,30 +1,35 @@
 import {describe, expect, it, vi} from 'vitest';
 
 import {
+  buildArrowTraceSameProcessDependencyTableFromColumns,
   buildArrowTraceSpanTableFromRows,
-  buildTraceGraphDataFromJSONTrace,
   buildTraceProcessSpanRefTables,
   toTraceSpanArrowRow
 } from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
-import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {
   getTraceGraphSpanNameUtf8,
+  iterateTraceGraphProcessSpanRefRows,
   iterateTraceGraphProcessSpanRefs
 } from '../trace-graph-accessors';
+import * as traceGraphAccessors from '../trace-graph-accessors';
+import {buildTraceLayoutProcesses} from '../trace-layout/trace-geometry-layout-helpers';
 import {getDependencyLineColor, TRACE_COLOR} from '../trace-style/trace-colors';
 import {buildTraceFilterSummary, hasTraceFilteredItems} from './trace-filter-summary';
 import {TraceGraph} from './trace-graph';
+import * as traceGraphArrowFields from './trace-graph-arrow-fields';
+import {getSameProcessDependencyLookupByProcessId} from './trace-graph-selection-utils';
 import {
-  createArrowGraphWithoutCompatibilityBlocks,
   createBlock,
   createBlockForProcess,
-  createCrossDependency,
+  createCrossProcessDependency,
+  createDatasetRuntimeTraceGraphForTest,
+  createDatasetTraceGraphRuntimeSourceForTest,
   createGraphWithBlocks,
-  createLocalDependency,
   createProcess,
   createRuntimeTraceGraph,
-  getVisibleIndexForTest,
+  createSameProcessDependency,
+  createTraceDatasetFromJSONTraceForTest,
   getVisibleProcessSnapshot
 } from './trace-graph-test-fixtures';
 import {
@@ -33,7 +38,6 @@ import {
   getRequiredSpanRefBySpanId,
   getRequiredThreadRef,
   getRequiredVisibleDisplaySourceBySpanId,
-  getTraceGraphDependencyChainForBlock,
   getTraceGraphEndpointsWithDependencies,
   getTraceGraphFilteredParentSpanId,
   getTraceGraphRankNumForBlock,
@@ -41,27 +45,25 @@ import {
   getTraceGraphVisibleDependencyChainForBlock,
   isTraceGraphBlockFiltered
 } from './trace-graph-test-utils';
-import {
-  TRACE_SPAN_FILTER_MASK_NONE,
-  TRACE_SPAN_FILTER_MASK_REGEXP,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY
-} from './trace-graph-types';
-import {buildTraceGraphView} from './trace-graph-view';
+import {TRACE_SPAN_FILTER_MASK_NONE, TRACE_SPAN_FILTER_MASK_REGEXP} from './trace-graph-types';
+import {getVisibleSpanGeometrySourcesByProcess} from './trace-graph-visible-span-sources';
 import {
   encodeChunkRef,
   encodeCounterRefFromChunkRow,
-  encodeCrossDependencyRef,
+  encodeCrossProcessDependencyRef,
   encodeEventRefFromChunkRow,
   encodeInstantRefFromChunkRow,
+  encodeLocalSpanRef,
   encodeProcessRef,
   encodeProcessThreadRef,
+  encodeSameProcessDependencyRef,
   encodeSpanRef,
   getSpanRefProcessId,
   getSpanRefRowIndex
 } from './trace-id-encoder';
+import {createTraceSpanOmniBoxSearchPredicate} from './trace-span-name-search';
 
 import type {
-  SpanRef,
   TraceCounter,
   TraceCounterId,
   TraceCrossProcessDependency,
@@ -70,40 +72,87 @@ import type {
   TraceEventId,
   TraceInstant,
   TraceInstantId,
-  TraceLocalDependency,
   TraceProcessId,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceThreadId
 } from './trace-types';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceDataset: Parameters<typeof createDatasetTraceGraphRuntimeSourceForTest>[0],
+  options?: Parameters<typeof createRuntimeTraceGraph>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
+  return createDatasetRuntimeTraceGraphForTest(traceDataset, options);
+}
+
+/** Resolves visible detail rows only for test assertions after the production detail helper was removed. */
+function getVisibleSpanDetailsByProcess(
+  traceGraph: TraceGraph,
+  processRef: Parameters<TraceGraph['iterateVisibleSpanRefsByProcess']>[0]
+) {
+  return Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRef)).flatMap(
+    spanRef => traceGraph.getSpanDetailSource(spanRef) ?? []
   );
 }
 
 describe('TraceGraph', () => {
-  it('builds a no-clone view over the cached visible index and layout projection', () => {
-    const parent = createBlock('parent');
+  it('does not expose retired alias, projection, card, or selection methods', () => {
+    const retiredMethods = [
+      'getSpanBlockId',
+      'getExternalBlockId',
+      'getExternalBlockIdForUrl',
+      'getTraceGraphSpanRef',
+      'getSpanRefByExternalBlockId',
+      'getVisibleSpanId',
+      'getVisibleSpanBlockId',
+      'getProcessSourceBySpanRef',
+      'getThreadSourceBySpanRef',
+      'getVisibleProcessRenderSpans',
+      'getVisibleProcessGeometrySources',
+      'getVisibleProcessLaneSources',
+      'getVisibleGeometrySourceBySpanRef',
+      'getVisibleDependencySourceByRef',
+      'getDependencyChainBySpanRef',
+      'getParentDependencyChainEntriesBySpanRef',
+      'getVisibleDependencyChainBySpanRef',
+      'getTraceSpanDependencySelection',
+      'getTraceSpanCardModel',
+      'getTraceSpanDescendants'
+    ];
+
+    for (const methodName of retiredMethods) {
+      expect(TraceGraph.prototype).not.toHaveProperty(methodName);
+    }
+  });
+
+  it('streams unfiltered refs without a runtime cache', () => {
+    const root = createBlock('root');
     const child = createBlock('child');
-    const traceGraph = createRuntimeTraceGraph(createGraphWithBlocks([parent, child], []), {
-      spanFilters: ['child']
-    });
+    const traceGraph = createRuntimeTraceGraph(
+      createGraphWithBlocks(
+        [root, child],
+        [createSameProcessDependency('dep-root-child', root.spanId, child.spanId)]
+      )
+    );
+    const processRef = getRequiredProcessRef(traceGraph, 'rank-1');
+    const spanRefs = Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRef));
+    const dependencyRefs = Array.from(
+      traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRef)
+    );
 
-    const visibleIndex = traceGraph.getVisibleIndex();
-    const view = buildTraceGraphView(traceGraph);
-
-    expect(view.graph).toBe(traceGraph);
-    expect(view.visibleIndex).toBe(visibleIndex);
-    expect(view.layoutGraph.traceGraph).toBe(traceGraph);
-    expect(view.layoutGraph.processes).toHaveLength(1);
+    expect(spanRefs).toEqual([
+      getRequiredSpanRef(traceGraph, root),
+      getRequiredSpanRef(traceGraph, child)
+    ]);
+    expect(dependencyRefs).toHaveLength(1);
+    expect(dependencyRefs.at(0)).toBeDefined();
+    expect(Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRef))).toEqual(spanRefs);
+    expect(
+      Array.from(traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRef))
+    ).toEqual(dependencyRefs);
+    expect(
+      (traceGraph as unknown as {visibleRuntimeCache?: unknown}).visibleRuntimeCache
+    ).toBeUndefined();
   });
 
   it('preserves visual process order in runtime process sources', () => {
@@ -152,12 +201,13 @@ describe('TraceGraph', () => {
     const lateProcessRef = getRequiredProcessRef(traceGraph, 'rank-late');
 
     expect(traceGraph.getProcessSourceByRef(lateProcessRef)?.processOrder).toBe(1);
-    expect(
-      buildTraceGraphView(traceGraph).layoutGraph.processes.map(process => process.name)
-    ).toEqual(['rank-early', 'rank-late']);
+    expect(buildTraceLayoutProcesses(traceGraph).map(process => process.name)).toEqual([
+      'rank-early',
+      'rank-late'
+    ]);
   });
 
-  it('reads span and cross-dependency fields through ref-native accessors', () => {
+  it('reads span and cross-process-dependency fields through ref-native accessors', () => {
     const blockA = {
       ...createBlockForProcess({
         spanId: 'span-a',
@@ -178,8 +228,8 @@ describe('TraceGraph', () => {
       startTimeMs: 10,
       endTimeMs: 15
     });
-    const crossDependency = {
-      ...createCrossDependency(
+    const crossProcessDependency = {
+      ...createCrossProcessDependency(
         'cross-a-b',
         'endpoint-a-b',
         blockA.spanId,
@@ -210,17 +260,15 @@ describe('TraceGraph', () => {
           spans: [blockB]
         })
       ],
-      [crossDependency],
+      [crossProcessDependency],
       {name: 'accessor-test'}
     );
 
     const traceGraph = createRuntimeTraceGraph(graph);
-    const spanRef = traceGraph.getSpanRefByExternalBlockId(blockA.spanId)!;
-    const crossDependencyRef = encodeCrossDependencyRef(0);
+    const spanRef = traceGraph.getSpanRefById(blockA.spanId)!;
+    const crossProcessDependencyRef = encodeCrossProcessDependencyRef(0);
 
-    expect(traceGraph.getSpanBlockId(spanRef)).toBe(blockA.spanId);
-    expect(traceGraph.getExternalBlockId(spanRef)).toBe(blockA.spanId);
-    expect(traceGraph.getExternalBlockIdForUrl(spanRef)).toBe(blockA.spanId);
+    expect(traceGraph.getSpanId(spanRef)).toBe(blockA.spanId);
     expect(traceGraph.getSpanStreamId(spanRef)).toBe(blockA.threadId);
     expect(traceGraph.getSpanName(spanRef)).toBe('Block A');
     const spanNameUtf8View = {data: new Uint8Array(), start: 0, end: 0};
@@ -238,50 +286,59 @@ describe('TraceGraph', () => {
     expect(traceGraph.getSpanDurationLabel(spanRef)).toBe('6 ms');
     expect(traceGraph.getSpanKeywords(spanRef)).toEqual(['ROOT']);
     expect(traceGraph.getSpanUserData(spanRef)).toMatchObject({owner: 'runtime'});
-    expect(traceGraph.getSpanDisplaySource(spanRef)?.spanId).toBe(blockA.spanId);
-    expect(traceGraph.getSpanBlockId(encodeSpanRef(0, 99))).toBeNull();
+    expect(traceGraph.getSpanAttribute(spanRef, ['owner'])).toBeUndefined();
+    expect(traceGraph.getSpanDetailSource(spanRef)?.spanId).toBe(blockA.spanId);
+    expect(traceGraph.getSpanId(encodeSpanRef(0, 99))).toBeNull();
 
-    expect(traceGraph.getDependencyId(crossDependencyRef)).toBe(crossDependency.dependencyId);
-    expect(traceGraph.getDependencyStartBlockId(crossDependencyRef)).toBe(blockA.spanId);
-    expect(traceGraph.getDependencyEndBlockId(crossDependencyRef)).toBe(blockB.spanId);
-    expect(traceGraph.getDependencyWaitMode(crossDependencyRef)).toBe('end-to-end');
-    expect(traceGraph.getDependencyBidirectional(crossDependencyRef)).toBe(true);
-    expect(traceGraph.getDependencyWaitTimeMs(crossDependencyRef)).toBe(7);
-    expect(traceGraph.getDependencyKeywords(crossDependencyRef)).toEqual(
+    expect(traceGraph.getDependencyId(crossProcessDependencyRef)).toBe(
+      crossProcessDependency.dependencyId
+    );
+    expect(traceGraph.getDependencyStartBlockId(crossProcessDependencyRef)).toBe(blockA.spanId);
+    expect(traceGraph.getDependencyEndBlockId(crossProcessDependencyRef)).toBe(blockB.spanId);
+    expect(traceGraph.getDependencyWaitMode(crossProcessDependencyRef)).toBe('end-to-end');
+    expect(traceGraph.getDependencyBidirectional(crossProcessDependencyRef)).toBe(true);
+    expect(traceGraph.getDependencyWaitTimeMs(crossProcessDependencyRef)).toBe(7);
+    expect(traceGraph.getDependencyKeywords(crossProcessDependencyRef)).toEqual(
       new Set(['PARENT', 'REMOTE'])
     );
-    expect(traceGraph.getDependencyHasKeyword(crossDependencyRef, 'REMOTE')).toBe(true);
-    expect(traceGraph.getDependencyHasKeyword(crossDependencyRef, 'MISSING')).toBe(false);
-    expect(traceGraph.getCrossDependencyEndpointId(crossDependencyRef)).toBe(
-      crossDependency.endpointId
+    expect(traceGraph.getDependencyHasKeyword(crossProcessDependencyRef, 'REMOTE')).toBe(true);
+    expect(traceGraph.getDependencyHasKeyword(crossProcessDependencyRef, 'MISSING')).toBe(false);
+    expect(traceGraph.getCrossProcessDependencyEndpointId(crossProcessDependencyRef)).toBe(
+      crossProcessDependency.endpointId
     );
-    expect(traceGraph.getCrossDependencyStartRankNum(crossDependencyRef)).toBe(0);
-    expect(traceGraph.getCrossDependencyEndRankNum(crossDependencyRef)).toBe(1);
-    expect(traceGraph.getCrossDependencyTopology(crossDependencyRef)).toBe('ring');
-    expect(traceGraph.getCrossDependencyWaiting(crossDependencyRef)).toBe(true);
-    expect(traceGraph.getCrossDependencyWaitNotFinished(crossDependencyRef)).toBe(true);
-    expect(traceGraph.getCrossDependencyEndpointId(encodeCrossDependencyRef(99))).toBeNull();
+    expect(traceGraph.getCrossProcessDependencyStartRankNum(crossProcessDependencyRef)).toBe(0);
+    expect(traceGraph.getCrossProcessDependencyEndRankNum(crossProcessDependencyRef)).toBe(1);
+    expect(traceGraph.getCrossProcessDependencyTopology(crossProcessDependencyRef)).toBe('ring');
+    expect(traceGraph.getCrossProcessDependencyWaiting(crossProcessDependencyRef)).toBe(true);
+    expect(traceGraph.getCrossProcessDependencyWaitNotFinished(crossProcessDependencyRef)).toBe(
+      true
+    );
+    expect(
+      traceGraph.getCrossProcessDependencyEndpointId(encodeCrossProcessDependencyRef(99))
+    ).toBeNull();
 
-    const visibleCrossDependencyRef = traceGraph.getVisibleCrossDependencyRefs()[0]!;
-    expect(traceGraph.getVisibleDependencyStartBlockId(visibleCrossDependencyRef)).toBe(
+    const visibleCrossProcessDependencyRef = Array.from(
+      traceGraph.iterateVisibleCrossProcessDependencyRefs()
+    )[0]!;
+    expect(traceGraph.getDependencyStartBlockId(visibleCrossProcessDependencyRef)).toBe(
       blockA.spanId
     );
-    expect(traceGraph.getVisibleDependencyEndBlockId(visibleCrossDependencyRef)).toBe(
+    expect(traceGraph.getDependencyEndBlockId(visibleCrossProcessDependencyRef)).toBe(
       blockB.spanId
     );
-    expect(traceGraph.getVisibleDependencyStartSpan(visibleCrossDependencyRef)).toBe(
-      traceGraph.getSpanRefByExternalBlockId(blockA.spanId)
+    expect(traceGraph.getDependencyStartSpan(visibleCrossProcessDependencyRef)).toBe(
+      traceGraph.getSpanRefById(blockA.spanId)
     );
-    expect(traceGraph.getVisibleDependencyEndSpan(visibleCrossDependencyRef)).toBe(
-      traceGraph.getSpanRefByExternalBlockId(blockB.spanId)
+    expect(traceGraph.getDependencyEndSpan(visibleCrossProcessDependencyRef)).toBe(
+      traceGraph.getSpanRefById(blockB.spanId)
     );
-    expect(traceGraph.getVisibleDependencyWaitMode(visibleCrossDependencyRef)).toBe('end-to-end');
-    expect(traceGraph.getVisibleDependencyBidirectional(visibleCrossDependencyRef)).toBe(true);
-    expect(traceGraph.getVisibleDependencyWaitTimeMs(visibleCrossDependencyRef)).toBe(7);
-    expect(traceGraph.getVisibleDependencyKeywords(visibleCrossDependencyRef)).toEqual(
+    expect(traceGraph.getDependencyWaitMode(visibleCrossProcessDependencyRef)).toBe('end-to-end');
+    expect(traceGraph.getDependencyBidirectional(visibleCrossProcessDependencyRef)).toBe(true);
+    expect(traceGraph.getDependencyWaitTimeMs(visibleCrossProcessDependencyRef)).toBe(7);
+    expect(traceGraph.getDependencyKeywords(visibleCrossProcessDependencyRef)).toEqual(
       new Set(['PARENT', 'REMOTE'])
     );
-    expect(traceGraph.getVisibleDependencyHasKeyword(visibleCrossDependencyRef, 'REMOTE')).toBe(
+    expect(traceGraph.getDependencyHasKeyword(visibleCrossProcessDependencyRef, 'REMOTE')).toBe(
       true
     );
   });
@@ -293,20 +350,21 @@ describe('TraceGraph', () => {
     const graph = createGraphWithBlocks(
       [root, filteredParent, child],
       [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['PARENT'])
+        createSameProcessDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
+          'PARENT'
+        ]),
+        createSameProcessDependency('dep-parent-child', filteredParent.spanId, child.spanId, [
+          'PARENT'
+        ])
       ]
     );
 
     const traceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
 
     expect(
-      getSpanRefProcessId(
-        traceGraph.processIdsByIndex,
-        traceGraph.getSpanRefByExternalBlockId(root.spanId)!
-      )
+      getSpanRefProcessId(traceGraph.processIdsByIndex, traceGraph.getSpanRefById(root.spanId)!)
     ).toBe('rank-1');
-    expect(getSpanRefRowIndex(traceGraph.getSpanRefByExternalBlockId(root.spanId)!)).toBe(0);
+    expect(getSpanRefRowIndex(traceGraph.getSpanRefById(root.spanId)!)).toBe(0);
     expect(traceGraph.getName()).toBe(graph.name);
     expect(traceGraph.getStats()).toMatchObject({
       processCount: 1,
@@ -318,13 +376,11 @@ describe('TraceGraph', () => {
     });
     expect(traceGraph.getProcessRefs()).toHaveLength(1);
     expect(getTraceGraphRankNumForBlock(traceGraph, child)).toBe(0);
-    expect(
-      Array.from(
-        traceGraph.processSpanTableMap['rank-1' as TraceProcessId]
-          ?.getChild('filter_mask')
-          ?.toArray() ?? []
-      )
-    ).toEqual([0, TRACE_SPAN_FILTER_MASK_REGEXP, 0]);
+    expect(Array.from(traceGraph.traceViewSnapshot.chunks[0]?.filterMaskByRow ?? [])).toEqual([
+      TRACE_SPAN_FILTER_MASK_NONE,
+      TRACE_SPAN_FILTER_MASK_REGEXP,
+      TRACE_SPAN_FILTER_MASK_NONE
+    ]);
     expect(isTraceGraphBlockFiltered(traceGraph, root)).toBe(false);
     expect(isTraceGraphBlockFiltered(traceGraph, filteredParent)).toBe(true);
     expect(
@@ -334,36 +390,7 @@ describe('TraceGraph', () => {
     expect(getTraceGraphFilteredParentSpanId(traceGraph, child)).toBeNull();
   });
 
-  it('resolves stitched visible local parent endpoint refs through filtered spans', () => {
-    const root = createBlock('root');
-    const filteredParent = createBlock('filtered-parent');
-    const child = createBlock('child');
-    const graph = createGraphWithBlocks(
-      [root, filteredParent, child],
-      [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['PARENT'])
-      ]
-    );
-    const traceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
-    const visibleDependency = traceGraph
-      .getVisibleLocalDependencySources(getRequiredProcessRef(traceGraph, 'rank-1'))
-      .find(dependency => dependency.endSpanId === child.spanId);
-
-    expect(visibleDependency).toMatchObject({
-      startSpanId: root.spanId,
-      endSpanId: child.spanId
-    });
-    expect(visibleDependency?.dependencyRef).toBeDefined();
-    expect(traceGraph.getVisibleDependencyStartSpan(visibleDependency!.dependencyRef!)).toBe(
-      getRequiredSpanRef(traceGraph, root)
-    );
-    expect(traceGraph.getVisibleDependencyEndSpan(visibleDependency!.dependencyRef!)).toBe(
-      getRequiredSpanRef(traceGraph, child)
-    );
-  });
-
-  it('keeps visible local dependency refs process-scoped when dependency ids repeat', () => {
+  it('keeps visible same-process dependency refs process-scoped when dependency ids repeat', () => {
     const rootA = createBlockForProcess({
       spanId: 'root-a',
       processId: 'rank-a',
@@ -393,8 +420,8 @@ describe('TraceGraph', () => {
             rankNum: 0,
             threadId: 'thread-a',
             spans: [rootA, childA],
-            localDependencies: [
-              createLocalDependency(sharedDependencyId, rootA.spanId, childA.spanId)
+            sameProcessDependencies: [
+              createSameProcessDependency(sharedDependencyId, rootA.spanId, childA.spanId)
             ]
           }),
           createProcess({
@@ -402,43 +429,49 @@ describe('TraceGraph', () => {
             rankNum: 1,
             threadId: 'thread-b',
             spans: [rootB, childB],
-            localDependencies: [
-              createLocalDependency(sharedDependencyId, rootB.spanId, childB.spanId)
+            sameProcessDependencies: [
+              createSameProcessDependency(sharedDependencyId, rootB.spanId, childB.spanId)
             ]
           })
         ],
         [],
-        {name: 'duplicate-local-dependency-id-test'}
+        {name: 'duplicate-same-process-dependency-id-test'}
       )
     );
     const processRefA = getRequiredProcessRef(traceGraph, 'rank-a');
     const processRefB = getRequiredProcessRef(traceGraph, 'rank-b');
-    const dependencyRefA = traceGraph.getVisibleLocalDependencyRefs(processRefA)[0];
-    const dependencyRefB = traceGraph.getVisibleLocalDependencyRefs(processRefB)[0];
+    const dependencyRefA = Array.from(
+      traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRefA)
+    ).at(0);
+    const dependencyRefB = Array.from(
+      traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRefB)
+    ).at(0);
 
     expect(dependencyRefA).toBeDefined();
     expect(dependencyRefB).toBeDefined();
     expect(dependencyRefB).not.toBe(dependencyRefA);
-    expect(traceGraph.getVisibleLocalDependencyProcessRefByRef(dependencyRefA!)).toBe(processRefA);
-    expect(traceGraph.getVisibleLocalDependencyProcessRefByRef(dependencyRefB!)).toBe(processRefB);
-    expect(traceGraph.getVisibleDependencySourceByRef(dependencyRefA!)).toMatchObject({
+    expect(traceGraph.getSameProcessDependencyProcessRefByRef(dependencyRefA!)).toBe(processRefA);
+    expect(traceGraph.getSameProcessDependencyProcessRefByRef(dependencyRefB!)).toBe(processRefB);
+    expect(traceGraph.getDependencySource(dependencyRefA!)).toMatchObject({
       startSpanId: rootA.spanId,
       endSpanId: childA.spanId
     });
-    expect(traceGraph.getVisibleDependencySourceByRef(dependencyRefB!)).toMatchObject({
+    expect(traceGraph.getDependencySource(dependencyRefB!)).toMatchObject({
       startSpanId: rootB.spanId,
       endSpanId: childB.spanId
     });
   });
 
-  it('omits rewritten local dependencies that collapse onto one visible span', () => {
+  it('omits rewritten same process dependencies that collapse onto one visible span', () => {
     const root = createBlock('root');
     const filteredParent = createBlock('filtered-parent');
     const graph = createGraphWithBlocks(
       [root, filteredParent],
       [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-filtered-root', filteredParent.spanId, root.spanId)
+        createSameProcessDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
+          'PARENT'
+        ]),
+        createSameProcessDependency('dep-filtered-root', filteredParent.spanId, root.spanId)
       ]
     );
     const traceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
@@ -446,398 +479,33 @@ describe('TraceGraph', () => {
     expect(
       traceGraph
         .getVisibleProcessRefs()
-        .flatMap(processRef => traceGraph.getVisibleLocalDependencyRefs(processRef))
+        .flatMap(processRef =>
+          Array.from(traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRef))
+        )
         .filter(
           dependencyRef =>
-            traceGraph.getVisibleDependencyIdByRef(dependencyRef) ===
-            ('dep-filtered-root' as TraceDependencyId)
+            traceGraph.getDependencyId(dependencyRef) === ('dep-filtered-root' as TraceDependencyId)
         )
     ).toEqual([]);
   });
 
-  it('uses a zero filter-mask column for no-filter graphs', () => {
+  it('omits the all-zero filter-mask column for no-filter graphs', () => {
     const root = createBlock('root');
     const child = createBlock('child');
     const graph = createGraphWithBlocks([root, child], []);
 
     const traceGraph = createRuntimeTraceGraph(graph);
-    const rootSpanRef = traceGraph.getSpanRefByExternalBlockId(root.spanId)!;
+    const rootSpanRef = traceGraph.getSpanRefById(root.spanId)!;
 
     expect(traceGraph.hasActiveSpanFilter()).toBe(false);
-    expect(traceGraph.filteredSpanRefs.size).toBe(0);
+    expect(traceGraph.traceViewSnapshot.filteredSpanCount).toBe(0);
     expect(
-      Array.from(
-        traceGraph.processSpanTableMap['rank-1' as TraceProcessId]
-          ?.getChild('filter_mask')
-          ?.toArray() ?? []
+      traceGraph.processSpanTableMap['rank-1' as TraceProcessId]?.schema.fields.some(
+        field => field.name === 'filter_mask'
       )
-    ).toEqual([0, 0]);
+    ).toBe(false);
     expect(traceGraph.spanIsFiltered(rootSpanRef)).toBe(false);
     expect(isTraceGraphBlockFiltered(traceGraph, root)).toBe(false);
-    expect(traceGraph.getVisibleBlockCount()).toBe(2);
-  });
-
-  it('filters short overlapping single-parent children while preserving stitched and source chains', () => {
-    const root = createBlockForProcess({
-      spanId: 'root',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 10
-    });
-    const overlappingChild = createBlockForProcess({
-      spanId: 'overlapping-child',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 5,
-      endTimeMs: 5
-    });
-    const grandchild = createBlockForProcess({
-      spanId: 'grandchild',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 6,
-      endTimeMs: 7
-    });
-    const graph = createGraphWithBlocks(
-      [root, overlappingChild, grandchild],
-      [
-        createLocalDependency('dep-root-child', root.spanId, overlappingChild.spanId, ['PARENT']),
-        createLocalDependency('dep-child-grandchild', overlappingChild.spanId, grandchild.spanId, [
-          'PARENT'
-        ])
-      ]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      overlappingParentSpanFilter: {maxChildDurationMs: 1}
-    });
-
-    expect(isTraceGraphBlockFiltered(traceGraph, overlappingChild)).toBe(true);
-    expect(isTraceGraphBlockFiltered(traceGraph, grandchild)).toBe(false);
-    expect(
-      traceGraph.spanFilterReason(getRequiredSpanRef(traceGraph, overlappingChild)).filterMask
-    ).toBe(TRACE_SPAN_FILTER_MASK_TOPOLOGY);
-    expect(traceGraph.filteredSpanCountsByFilter).toEqual({
-      spanFilterCount: 0,
-      overlappingParentSpanFilterCount: 1,
-      similarDurationChainSpanFilterCount: 0
-    });
-    expect(buildTraceFilterSummary([traceGraph]).filteredSpanCountsByFilter).toEqual({
-      spanFilterCount: 0,
-      overlappingParentSpanFilterCount: 1,
-      similarDurationChainSpanFilterCount: 0
-    });
-    expect(
-      getTraceGraphDependencyChainForBlock(traceGraph, grandchild, 'PARENT').map(
-        span => span.spanId
-      )
-    ).toEqual([overlappingChild.spanId, root.spanId]);
-    expect(
-      getTraceGraphVisibleDependencyChainForBlock(traceGraph, grandchild, 'PARENT').map(
-        span => span.spanId
-      )
-    ).toEqual([root.spanId]);
-  });
-
-  it('keeps short children visible when they do not overlap their only parent', () => {
-    const root = createBlockForProcess({
-      spanId: 'root',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 1
-    });
-    const nonOverlappingChild = createBlockForProcess({
-      spanId: 'non-overlapping-child',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 2,
-      endTimeMs: 2
-    });
-    const graph = createGraphWithBlocks(
-      [root, nonOverlappingChild],
-      [createLocalDependency('dep-root-child', root.spanId, nonOverlappingChild.spanId, ['PARENT'])]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      overlappingParentSpanFilter: {maxChildDurationMs: 1}
-    });
-
-    expect(isTraceGraphBlockFiltered(traceGraph, nonOverlappingChild)).toBe(false);
-  });
-
-  it('attributes overlapping filter matches to the first filter stage that removed them', () => {
-    const root = createBlockForProcess({
-      spanId: 'root',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 10
-    });
-    const filteredOverlappingChild = createBlockForProcess({
-      spanId: 'filtered-overlapping-child',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 5,
-      endTimeMs: 5
-    });
-    const graph = createGraphWithBlocks(
-      [root, filteredOverlappingChild],
-      [
-        createLocalDependency('dep-root-child', root.spanId, filteredOverlappingChild.spanId, [
-          'PARENT'
-        ])
-      ]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      spanFilters: ['filtered-overlapping'],
-      overlappingParentSpanFilter: {maxChildDurationMs: 1}
-    });
-
-    expect(traceGraph.filteredSpanCountsByFilter).toEqual({
-      spanFilterCount: 1,
-      overlappingParentSpanFilterCount: 0,
-      similarDurationChainSpanFilterCount: 0
-    });
-    expect(
-      traceGraph.spanFilterReason(getRequiredSpanRef(traceGraph, filteredOverlappingChild))
-        .filterMask
-    ).toBe(TRACE_SPAN_FILTER_MASK_REGEXP | TRACE_SPAN_FILTER_MASK_TOPOLOGY);
-  });
-
-  it('keeps overlapping children visible when they have multiple local parents', () => {
-    const firstParent = createBlockForProcess({
-      spanId: 'first-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 10
-    });
-    const secondParent = createBlockForProcess({
-      spanId: 'second-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 10
-    });
-    const overlappingChild = createBlockForProcess({
-      spanId: 'overlapping-child',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 5,
-      endTimeMs: 5
-    });
-    const graph = createGraphWithBlocks(
-      [firstParent, secondParent, overlappingChild],
-      [
-        createLocalDependency('dep-first-child', firstParent.spanId, overlappingChild.spanId, [
-          'PARENT'
-        ]),
-        createLocalDependency('dep-second-child', secondParent.spanId, overlappingChild.spanId, [
-          'PARENT'
-        ])
-      ]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      overlappingParentSpanFilter: {maxChildDurationMs: 1}
-    });
-
-    expect(isTraceGraphBlockFiltered(traceGraph, overlappingChild)).toBe(false);
-  });
-
-  it('collapses similar-duration non-branching parent chains down to their terminal span', () => {
-    const oldestParent = createBlockForProcess({
-      spanId: 'oldest-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 100
-    });
-    const middleParent = createBlockForProcess({
-      spanId: 'middle-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 1,
-      endTimeMs: 102
-    });
-    const nearestParent = createBlockForProcess({
-      spanId: 'nearest-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 2,
-      endTimeMs: 101
-    });
-    const terminal = createBlockForProcess({
-      spanId: 'terminal',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 3,
-      endTimeMs: 103
-    });
-    const graph = createGraphWithBlocks(
-      [oldestParent, middleParent, nearestParent, terminal],
-      [
-        createLocalDependency('dep-oldest-middle', oldestParent.spanId, middleParent.spanId, [
-          'PARENT'
-        ]),
-        createLocalDependency('dep-middle-nearest', middleParent.spanId, nearestParent.spanId, [
-          'PARENT'
-        ]),
-        createLocalDependency('dep-nearest-terminal', nearestParent.spanId, terminal.spanId, [
-          'PARENT'
-        ])
-      ]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      similarDurationChainSpanFilter: {maxRelativeDurationDelta: 0.1}
-    });
-
-    expect(isTraceGraphBlockFiltered(traceGraph, oldestParent)).toBe(true);
-    expect(isTraceGraphBlockFiltered(traceGraph, middleParent)).toBe(true);
-    expect(isTraceGraphBlockFiltered(traceGraph, nearestParent)).toBe(true);
-    expect(isTraceGraphBlockFiltered(traceGraph, terminal)).toBe(false);
-    expect(
-      traceGraph.spanFilterReason(getRequiredSpanRef(traceGraph, nearestParent)).filterMask
-    ).toBe(TRACE_SPAN_FILTER_MASK_TOPOLOGY);
-    expect(traceGraph.filteredSpanCountsByFilter).toEqual({
-      spanFilterCount: 0,
-      overlappingParentSpanFilterCount: 0,
-      similarDurationChainSpanFilterCount: 3
-    });
-    expect(buildTraceFilterSummary([traceGraph]).filteredSpanCountsByFilter).toEqual({
-      spanFilterCount: 0,
-      overlappingParentSpanFilterCount: 0,
-      similarDurationChainSpanFilterCount: 3
-    });
-    expect(
-      getTraceGraphDependencyChainForBlock(traceGraph, terminal, 'PARENT').map(span => span.spanId)
-    ).toEqual([nearestParent.spanId, middleParent.spanId, oldestParent.spanId]);
-    expect(
-      getTraceGraphVisibleDependencyChainForBlock(traceGraph, terminal, 'PARENT').map(
-        span => span.spanId
-      )
-    ).toEqual([]);
-  });
-
-  it('keeps parent chains visible when their durations drift beyond the similarity threshold', () => {
-    const parent = createBlockForProcess({
-      spanId: 'parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 100
-    });
-    const terminal = createBlockForProcess({
-      spanId: 'terminal',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 130
-    });
-    const graph = createGraphWithBlocks(
-      [parent, terminal],
-      [createLocalDependency('dep-parent-terminal', parent.spanId, terminal.spanId, ['PARENT'])]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      similarDurationChainSpanFilter: {maxRelativeDurationDelta: 0.1}
-    });
-
-    expect(isTraceGraphBlockFiltered(traceGraph, parent)).toBe(false);
-    expect(isTraceGraphBlockFiltered(traceGraph, terminal)).toBe(false);
-  });
-
-  it('collapses a similar-duration parent run before a later dissimilar continuation', () => {
-    const oldestParent = createBlockForProcess({
-      spanId: 'oldest-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 100
-    });
-    const candidateParent = createBlockForProcess({
-      spanId: 'candidate-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 1,
-      endTimeMs: 101
-    });
-    const dissimilarChild = createBlockForProcess({
-      spanId: 'dissimilar-child',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 1,
-      endTimeMs: 131
-    });
-    const graph = createGraphWithBlocks(
-      [oldestParent, candidateParent, dissimilarChild],
-      [
-        createLocalDependency('dep-oldest-candidate', oldestParent.spanId, candidateParent.spanId, [
-          'PARENT'
-        ]),
-        createLocalDependency(
-          'dep-candidate-dissimilar',
-          candidateParent.spanId,
-          dissimilarChild.spanId,
-          ['PARENT']
-        )
-      ]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      similarDurationChainSpanFilter: {maxRelativeDurationDelta: 0.1}
-    });
-
-    expect(isTraceGraphBlockFiltered(traceGraph, oldestParent)).toBe(true);
-    expect(isTraceGraphBlockFiltered(traceGraph, candidateParent)).toBe(false);
-    expect(isTraceGraphBlockFiltered(traceGraph, dissimilarChild)).toBe(false);
-  });
-
-  it('keeps branch-point parents visible when similar-duration chains split', () => {
-    const sharedParent = createBlockForProcess({
-      spanId: 'shared-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 100
-    });
-    const leftTerminal = createBlockForProcess({
-      spanId: 'left-terminal',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 100
-    });
-    const rightTerminal = createBlockForProcess({
-      spanId: 'right-terminal',
-      processId: 'rank-1',
-      threadId: 'thread-1',
-      startTimeMs: 0,
-      endTimeMs: 100
-    });
-    const graph = createGraphWithBlocks(
-      [sharedParent, leftTerminal, rightTerminal],
-      [
-        createLocalDependency('dep-parent-left', sharedParent.spanId, leftTerminal.spanId, [
-          'PARENT'
-        ]),
-        createLocalDependency('dep-parent-right', sharedParent.spanId, rightTerminal.spanId, [
-          'PARENT'
-        ])
-      ]
-    );
-
-    const traceGraph = createRuntimeTraceGraph(graph, {
-      similarDurationChainSpanFilter: {maxRelativeDurationDelta: 0.1}
-    });
-
-    expect(isTraceGraphBlockFiltered(traceGraph, sharedParent)).toBe(false);
-    expect(isTraceGraphBlockFiltered(traceGraph, leftTerminal)).toBe(false);
-    expect(isTraceGraphBlockFiltered(traceGraph, rightTerminal)).toBe(false);
   });
 
   it('resolves chunk-backed span refs to process and thread refs', () => {
@@ -899,10 +567,10 @@ describe('TraceGraph', () => {
         ]
       }
     );
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const traceGraph = createTestTraceGraph({
-      ...traceGraphData,
-      chunks: traceGraphData.chunks.map(chunk => ({
+      ...traceDataset,
+      chunks: traceDataset.chunks.map(chunk => ({
         ...chunk,
         chunkKey: `loaded-${chunk.processId}`
       }))
@@ -955,13 +623,13 @@ describe('TraceGraph', () => {
     const eventRef = traceGraph.getEventSources()[0]?.eventRef;
     const instantRef = traceGraph.getInstantSources()[0]?.instantRef;
     const counterRef = traceGraph.getCounterSources()[0]?.counterRef;
-    const crossDependencyRef = encodeCrossDependencyRef(0);
+    const crossProcessDependencyRef = encodeCrossProcessDependencyRef(0);
 
     expect(eventRef).toBeTruthy();
     expect(instantRef).toBeTruthy();
     expect(counterRef).toBeTruthy();
     expect(traceGraph.getChunkByRef(eventRef!)?.chunkKey).toBe('rank-a');
-    expect(traceGraph.getChunkByRef(crossDependencyRef)?.chunkKey).toBe('rank-a');
+    expect(traceGraph.getChunkByRef(crossProcessDependencyRef)?.chunkKey).toBe('rank-a');
     expect(traceGraph.getChunkByRef(instantRef!)?.chunkKey).toBe('rank-a');
     expect(traceGraph.getChunkByRef(counterRef!)?.chunkKey).toBe('rank-a');
     expect(traceGraph.getProcessRefByRef(eventRef!)).toBe(processRefA);
@@ -1001,21 +669,19 @@ describe('TraceGraph', () => {
         }
       ]
     });
-    const traceGraph = createTestTraceGraph(
-      buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace([process], [], {
-          name: 'chunk-entity-ref-test',
-          events: [
-            {
-              type: 'trace-event',
-              eventRef,
-              eventId: 'event-a' as TraceEventId,
-              name: 'event-a',
-              atTimeMs: 0
-            }
-          ]
-        })
-      )
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace([process], [], {
+        name: 'chunk-entity-ref-test',
+        events: [
+          {
+            type: 'trace-event',
+            eventRef,
+            eventId: 'event-a' as TraceEventId,
+            name: 'event-a',
+            atTimeMs: 0
+          }
+        ]
+      })
     );
 
     expect(traceGraph.getEventSources()[0]?.eventRef).toBe(eventRef);
@@ -1055,7 +721,7 @@ describe('TraceGraph', () => {
       [],
       {name: 'multi-process-chunk-test'}
     );
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const processRefA = encodeProcessRef(0);
     const processRefB = encodeProcessRef(1);
     const threadRefA = encodeProcessThreadRef(0, 0);
@@ -1073,19 +739,26 @@ describe('TraceGraph', () => {
       }
     ]);
     const sharedChunk = {
+      ...traceDataset.chunks[0]!,
       chunkIndex: 0,
       chunkRef: encodeChunkRef(0),
       chunkKey: 'shared-chunk',
+      processes: traceDataset.processes,
       processRefs: [processRefA, processRefB],
       processId: null,
       spanTable: sharedSpanTable,
-      localDependencyTable: traceGraphData.localDependencyTableMap['rank-a' as TraceProcessId]!
+      metadata: {
+        ...traceDataset.chunks[0]!.metadata,
+        rowCount: sharedSpanTable.numRows
+      },
+      resolvedSameProcessDependencyTable:
+        traceDataset.sameProcessDependencyTableMap['rank-a' as TraceProcessId]!
     };
     const traceGraph = createTestTraceGraph({
-      ...traceGraphData,
+      ...traceDataset,
       chunks: [sharedChunk],
-      processSpanTableMap: buildTraceProcessSpanRefTables([sharedChunk], traceGraphData.processes, {
-        processIdsByIndex: traceGraphData.processIdsByIndex
+      processSpanTableMap: buildTraceProcessSpanRefTables([sharedChunk], traceDataset.processes, {
+        processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex
       })
     });
     const spanRefA = getRequiredSpanRefBySpanId(traceGraph, blockA.spanId);
@@ -1099,6 +772,12 @@ describe('TraceGraph', () => {
     expect(traceGraph.getProcessRefByRef(spanRefB!)).toBe(processRefB);
     expect(traceGraph.getThreadRefByRef(spanRefA!)).toBe(threadRefA);
     expect(traceGraph.getThreadRefByRef(spanRefB!)).toBe(threadRefB);
+    expect(Array.from(iterateTraceGraphProcessSpanRefRows(traceGraph, 'rank-a'))).toEqual([
+      {spanRef: spanRefA, processRowIndex: 0}
+    ]);
+    expect(Array.from(iterateTraceGraphProcessSpanRefRows(traceGraph, 'rank-b'))).toEqual([
+      {spanRef: spanRefB, processRowIndex: 0}
+    ]);
     expect(Array.from(iterateTraceGraphProcessSpanRefs(traceGraph, 'rank-a'))).toEqual([spanRefA]);
     expect(Array.from(iterateTraceGraphProcessSpanRefs(traceGraph, 'rank-b'))).toEqual([spanRefB]);
   });
@@ -1132,7 +811,7 @@ describe('TraceGraph', () => {
       [],
       {name: 'chunk-span-ref-test'}
     );
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
     const processRefA = encodeProcessRef(0);
     const processRefB = encodeProcessRef(1);
     const storeSpanTable = buildArrowTraceSpanTableFromRows([
@@ -1148,25 +827,28 @@ describe('TraceGraph', () => {
       }
     ]);
     const sharedChunk = {
+      ...traceDataset.chunks[0]!,
       chunkIndex: 0,
       chunkRef: encodeChunkRef(0),
       chunkKey: 'chunk-shared',
+      processes: traceDataset.processes,
       processRefs: [processRefA, processRefB],
       processId: null,
       spanTable: storeSpanTable,
-      localDependencyTable: traceGraphData.localDependencyTableMap['rank-a' as TraceProcessId]!
+      metadata: {
+        ...traceDataset.chunks[0]!.metadata,
+        rowCount: storeSpanTable.numRows
+      },
+      resolvedSameProcessDependencyTable:
+        traceDataset.sameProcessDependencyTableMap['rank-a' as TraceProcessId]!
     };
     const traceGraph = createTestTraceGraph(
       {
-        ...traceGraphData,
+        ...traceDataset,
         chunks: [sharedChunk],
-        processSpanTableMap: buildTraceProcessSpanRefTables(
-          [sharedChunk],
-          traceGraphData.processes,
-          {
-            processIdsByIndex: traceGraphData.processIdsByIndex
-          }
-        )
+        processSpanTableMap: buildTraceProcessSpanRefTables([sharedChunk], traceDataset.processes, {
+          processIdsByIndex: traceDataset.ownerRefSnapshot.processIdsByIndex
+        })
       },
       {spanFilters: ['chunk-filter-no-match']}
     );
@@ -1191,8 +873,12 @@ describe('TraceGraph', () => {
     const graph = createGraphWithBlocks(
       [root, filteredParent, child],
       [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['PARENT'])
+        createSameProcessDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
+          'PARENT'
+        ]),
+        createSameProcessDependency('dep-parent-child', filteredParent.spanId, child.spanId, [
+          'PARENT'
+        ])
       ]
     );
     const traceGraph = createRuntimeTraceGraph(graph, {
@@ -1202,7 +888,7 @@ describe('TraceGraph', () => {
     expect(traceGraph.getVisibleProcessRefs()).toEqual([
       getRequiredProcessRef(traceGraph, 'rank-1')
     ]);
-    expect(traceGraph.getVisibleBlockCount()).toBe(2);
+    expect(traceGraph.traceViewSnapshot.filteredSpanCount).toBe(1);
   });
 
   it('preserves unfiltered visible dependency ids when reading from Arrow dependency tables', () => {
@@ -1238,9 +924,9 @@ describe('TraceGraph', () => {
           rankNum: 0,
           threadId: 'thread-1',
           spans: [rank1BlockA, rank1BlockB, rank1BlockC],
-          localDependencies: [
-            createLocalDependency('dep-a-b', rank1BlockA.spanId, rank1BlockB.spanId),
-            createLocalDependency('dep-b-c', rank1BlockB.spanId, rank1BlockC.spanId)
+          sameProcessDependencies: [
+            createSameProcessDependency('dep-a-b', rank1BlockA.spanId, rank1BlockB.spanId),
+            createSameProcessDependency('dep-b-c', rank1BlockB.spanId, rank1BlockC.spanId)
           ]
         }),
         createProcess({
@@ -1248,13 +934,13 @@ describe('TraceGraph', () => {
           rankNum: 1,
           threadId: 'thread-2',
           spans: [rank2BlockA, rank2BlockB],
-          localDependencies: [
-            createLocalDependency('dep-remote-a-b', rank2BlockA.spanId, rank2BlockB.spanId)
+          sameProcessDependencies: [
+            createSameProcessDependency('dep-remote-a-b', rank2BlockA.spanId, rank2BlockB.spanId)
           ]
         })
       ],
       [
-        createCrossDependency(
+        createCrossProcessDependency(
           'dep-c-remote-a',
           'endpoint-c-remote-a',
           rank1BlockC.spanId,
@@ -1263,7 +949,7 @@ describe('TraceGraph', () => {
           1,
           'rpc'
         ),
-        createCrossDependency(
+        createCrossProcessDependency(
           'dep-a-remote-b',
           'endpoint-a-remote-b',
           rank1BlockA.spanId,
@@ -1277,23 +963,17 @@ describe('TraceGraph', () => {
     );
 
     const traceGraph = createRuntimeTraceGraph(graph);
-    const visibleIndex = getVisibleIndexForTest(traceGraph);
-
-    expect(visibleIndex.visibleLocalDependencyIdsByProcessId).toEqual({
-      ['rank-1' as TraceProcessId]: [
-        'dep-a-b' as TraceDependencyId,
-        'dep-b-c' as TraceDependencyId
-      ],
-      ['rank-2' as TraceProcessId]: ['dep-remote-a-b' as TraceDependencyId]
-    });
-    expect(visibleIndex.visibleCrossDependencyIds).toEqual([
-      'dep-c-remote-a' as TraceDependencyId,
-      'dep-a-remote-b' as TraceDependencyId
-    ]);
     expect(
-      traceGraph.getVisibleLocalDependencySources(getRequiredProcessRef(traceGraph, 'rank-1'))
+      Array.from(
+        traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(
+          getRequiredProcessRef(traceGraph, 'rank-1')
+        )
+      ).flatMap(dependencyRef => {
+        const dependency = traceGraph.getDependencySource(dependencyRef);
+        return dependency?.type === 'trace-same-process-dependency' ? [dependency] : [];
+      })
     ).toEqual(
-      graph.processes[0]?.localDependencies?.map(dependency =>
+      graph.processes[0]?.sameProcessDependencies?.map(dependency =>
         expect.objectContaining({
           dependencyId: dependency.dependencyId,
           type: dependency.type,
@@ -1301,19 +981,40 @@ describe('TraceGraph', () => {
         })
       )
     );
-    expect(traceGraph.getVisibleCrossDependencySources()).toEqual(
-      traceGraph.crossDependencies.map(dependency =>
+    const visibleCrossProcessDependencies = Array.from(
+      traceGraph.iterateVisibleCrossProcessDependencyRefs()
+    ).flatMap(dependencyRef => {
+      const dependency = traceGraph.getDependencySource(dependencyRef);
+      return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+    });
+    expect(visibleCrossProcessDependencies).toEqual(
+      (graph.crossProcessDependencies ?? []).map(dependency =>
         expect.objectContaining({
-          dependencyId: dependency.dependencyId,
           type: dependency.type,
           waitTimeMs: dependency.waitTimeMs
         })
       )
     );
+    expect(
+      visibleCrossProcessDependencies.map(dependency =>
+        traceGraph.getDependencyId(dependency.dependencyRef)
+      )
+    ).toEqual((graph.crossProcessDependencies ?? []).map(dependency => dependency.dependencyId));
     const visibleDependencyIdsForBlock = (span: TraceSpan) =>
-      visibleIndex.visibleDependencyRefsBySpanRef
-        .get(getRequiredSpanRefBySpanId(traceGraph, span.spanId))
-        ?.map(dependencyRef => traceGraph.getVisibleDependencyIdByRef(dependencyRef as never));
+      Array.from(
+        new Set(
+          (['incoming', 'outgoing'] as const).flatMap(
+            direction =>
+              traceGraph.getVisibleDirectionalDependencyRefSlice(
+                getRequiredSpanRefBySpanId(traceGraph, span.spanId),
+                direction,
+                Number.POSITIVE_INFINITY
+              ).dependencyRefs
+          )
+        )
+      )
+        .map(dependencyRef => traceGraph.getDependencyId(dependencyRef))
+        .sort();
     expect(visibleDependencyIdsForBlock(rank1BlockA)).toEqual([
       'dep-a-b' as TraceDependencyId,
       'dep-a-remote-b' as TraceDependencyId
@@ -1327,16 +1028,16 @@ describe('TraceGraph', () => {
       'dep-c-remote-a' as TraceDependencyId
     ]);
     expect(visibleDependencyIdsForBlock(rank2BlockA)).toEqual([
-      'dep-remote-a-b' as TraceDependencyId,
-      'dep-c-remote-a' as TraceDependencyId
+      'dep-c-remote-a' as TraceDependencyId,
+      'dep-remote-a-b' as TraceDependencyId
     ]);
     expect(visibleDependencyIdsForBlock(rank2BlockB)).toEqual([
-      'dep-remote-a-b' as TraceDependencyId,
-      'dep-a-remote-b' as TraceDependencyId
+      'dep-a-remote-b' as TraceDependencyId,
+      'dep-remote-a-b' as TraceDependencyId
     ]);
   });
 
-  it('resolves unfiltered local dependency sources from Arrow tables when process objects are empty', () => {
+  it('resolves unfiltered same-process dependency sources without runtime process arrays', () => {
     const blockA = createBlockForProcess({
       spanId: 'span-a',
       processId: 'rank-1',
@@ -1347,8 +1048,8 @@ describe('TraceGraph', () => {
       processId: 'rank-1',
       threadId: 'thread-1'
     });
-    const warningDependency: TraceLocalDependency = {
-      type: 'trace-local-dependency',
+    const warningDependency: TraceSameProcessDependency = {
+      type: 'trace-same-process-dependency',
       dependencyId: 'submit-warning' as TraceDependencyId,
       startSpanId: blockA.spanId,
       endSpanId: blockB.spanId,
@@ -1364,18 +1065,21 @@ describe('TraceGraph', () => {
           rankNum: 0,
           threadId: 'thread-1',
           spans: [blockA, blockB],
-          localDependencies: [warningDependency]
+          sameProcessDependencies: [warningDependency]
         })
       ],
       [],
-      {name: 'arrow-only-local-dependency-source'}
+      {name: 'arrow-only-same-process-dependency-source'}
     );
     const traceGraph = createRuntimeTraceGraph(graph);
-    traceGraph.processes[0]!.localDependencies = [];
+    expect(traceGraph.processes[0]?.sameProcessDependencies).toBeUndefined();
 
-    const dependency = traceGraph.getVisibleLocalDependencySources(
-      getRequiredProcessRef(traceGraph, 'rank-1')
-    )[0];
+    const dependencyRef = Array.from(
+      traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(
+        getRequiredProcessRef(traceGraph, 'rank-1')
+      )
+    ).at(0)!;
+    const dependency = traceGraph.getDependencySource(dependencyRef);
 
     expect(dependency).toEqual(
       expect.objectContaining({
@@ -1385,31 +1089,73 @@ describe('TraceGraph', () => {
         waitTimeMs: warningDependency.waitTimeMs
       })
     );
-    expect(dependency?.keywords.has('SUBMIT')).toBe(true);
-    expect(dependency ? getDependencyLineColor(dependency, {} as never) : null).toEqual(
-      TRACE_COLOR.WARNING_DEPENDENCY_LINE
-    );
+    expect(
+      dependency?.type === 'trace-same-process-dependency' && dependency.keywords.has('SUBMIT')
+    ).toBe(true);
+    expect(
+      dependency?.type === 'trace-same-process-dependency'
+        ? getDependencyLineColor(dependency, {} as never)
+        : null
+    ).toEqual(TRACE_COLOR.WARNING_DEPENDENCY_LINE);
   });
 
-  it('keeps filtered dependency behavior on ref-native dependency accessors', () => {
-    const root = createBlock('root');
-    const filteredParent = createBlock('filtered-parent');
+  it('derives omitted ref-native same-process dependency identity columns lazily', () => {
+    const parent = createBlock('parent');
     const child = createBlock('child');
-    const graph = createGraphWithBlocks(
-      [root, filteredParent, child],
-      [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['CHAIN'])
-      ]
+    const processId = 'rank-1' as TraceProcessId;
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(
+      createGraphWithBlocks([parent, child], [])
     );
+    const dependencyRef = encodeSameProcessDependencyRef(encodeLocalSpanRef(0, 0));
+    const resolvedSameProcessDependencyTable = buildArrowTraceSameProcessDependencyTableFromColumns(
+      {
+        startSpanRef: [encodeSpanRef(0, 0)],
+        endSpanRef: [encodeSpanRef(0, 1)],
+        waitMode: ['end-to-start'],
+        bidirectional: [false],
+        waitTimeMs: [5],
+        keywords: [['PARENT']],
+        hasParentKeyword: [true]
+      }
+    );
+    const refNativeTraceDataset = {
+      ...traceDataset,
+      sameProcessDependencyTableMap: {
+        ...traceDataset.sameProcessDependencyTableMap,
+        [processId]: resolvedSameProcessDependencyTable
+      }
+    };
+    const traceGraph = createTestTraceGraph(refNativeTraceDataset);
+    const processRef = getRequiredProcessRef(traceGraph, processId);
+    const visibleDependencyRef = Array.from(
+      traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(processRef)
+    ).at(0)!;
+    const dependencyId = `same-process-dependency-ref(${dependencyRef})` as TraceDependencyId;
 
-    const traceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
-
+    expect(resolvedSameProcessDependencyTable.getChild('dependencyId')).toBeNull();
+    expect(resolvedSameProcessDependencyTable.getChild('startSpanId')).toBeNull();
+    expect(resolvedSameProcessDependencyTable.getChild('endSpanId')).toBeNull();
+    expect(traceGraph.getDependencyId(dependencyRef)).toBe(dependencyId);
+    expect(traceGraph.getDependencyStartBlockId(dependencyRef)).toBe(parent.spanId);
+    expect(traceGraph.getDependencyEndBlockId(dependencyRef)).toBe(child.spanId);
+    expect(traceGraph.getDependencyStartSpan(dependencyRef)).toBe(encodeSpanRef(0, 0));
+    expect(traceGraph.getDependencyEndSpan(dependencyRef)).toBe(encodeSpanRef(0, 1));
+    expect(traceGraph.getDependencyId(visibleDependencyRef)).toBe(dependencyId);
     expect(
-      traceGraph.getDisplaySourceBySpanRef(
-        getRequiredSpanRefBySpanId(traceGraph, filteredParent.spanId)
-      )?.localDependencyIds
-    ).toEqual(['dep-root-parent', 'dep-parent-child']);
+      getSameProcessDependencyLookupByProcessId(traceGraph)[processId].getRowIndex(dependencyId)
+    ).toBe(0);
+    expect(traceGraph.getDependencySource(visibleDependencyRef)).toEqual(
+      expect.objectContaining({
+        dependencyId,
+        startSpanId: parent.spanId,
+        endSpanId: child.spanId
+      })
+    );
+    expect(
+      getTraceGraphVisibleDependencyChainForBlock(traceGraph, child, 'PARENT').map(
+        span => span.spanId
+      )
+    ).toEqual([parent.spanId]);
   });
 
   it('preserves filtering behavior when the source graph is Arrow-backed', () => {
@@ -1419,61 +1165,120 @@ describe('TraceGraph', () => {
     const graph = createGraphWithBlocks(
       [root, filteredParent, child],
       [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['PARENT'])
+        createSameProcessDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
+          'PARENT'
+        ]),
+        createSameProcessDependency('dep-parent-child', filteredParent.spanId, child.spanId, [
+          'PARENT'
+        ])
       ]
     );
 
     const plainTraceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const traceGraphDataGraph = createTestTraceGraph(traceGraphData, {
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
+    const traceDatasetGraph = createTestTraceGraph(traceDataset, {
       spanFilters: ['filtered']
     });
 
     expect(
       getSpanRefProcessId(
         plainTraceGraph.processIdsByIndex,
-        plainTraceGraph.getSpanRefByExternalBlockId(child.spanId)!
+        plainTraceGraph.getSpanRefById(child.spanId)!
       )
     ).toBe('rank-1');
-    expect(getSpanRefRowIndex(plainTraceGraph.getSpanRefByExternalBlockId(child.spanId)!)).toBe(2);
-    expect(plainTraceGraph.processSpanTableMap).not.toBe(traceGraphData.processSpanTableMap);
-    expect(traceGraphDataGraph.processSpanTableMap).not.toBe(traceGraphData.processSpanTableMap);
-    expect(traceGraphDataGraph.processIdsByIndex).toBe(traceGraphData.processIdsByIndex);
+    expect(getSpanRefRowIndex(plainTraceGraph.getSpanRefById(child.spanId)!)).toBe(2);
+    expect(plainTraceGraph.processSpanTableMap).not.toBe(traceDataset.processSpanTableMap);
+    expect(traceDatasetGraph.processSpanTableMap).toBe(traceDataset.processSpanTableMap);
     expect(
-      Array.from(
-        traceGraphDataGraph.processSpanTableMap['rank-1' as TraceProcessId]
-          ?.getChild('filter_mask')
-          ?.toArray() ?? []
-      )
-    ).toEqual(
-      Array.from(
-        plainTraceGraph.processSpanTableMap['rank-1' as TraceProcessId]
-          ?.getChild('filter_mask')
-          ?.toArray() ?? []
-      )
-    );
-    expect(getVisibleProcessSnapshot(traceGraphDataGraph)).toEqual(
+      Array.from(traceDatasetGraph.traceViewSnapshot.chunks[0]?.filterMaskByRow ?? [])
+    ).toEqual(Array.from(plainTraceGraph.traceViewSnapshot.chunks[0]?.filterMaskByRow ?? []));
+    expect(getVisibleProcessSnapshot(traceDatasetGraph)).toEqual(
       getVisibleProcessSnapshot(plainTraceGraph)
     );
-    expect(traceGraphDataGraph.getVisibleCrossDependencySources()).toEqual(
-      plainTraceGraph.getVisibleCrossDependencySources()
+    expect(
+      Array.from(traceDatasetGraph.iterateVisibleCrossProcessDependencyRefs()).flatMap(
+        dependencyRef => {
+          const dependency = traceDatasetGraph.getDependencySource(dependencyRef);
+          return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+        }
+      )
+    ).toEqual(
+      Array.from(plainTraceGraph.iterateVisibleCrossProcessDependencyRefs()).flatMap(
+        dependencyRef => {
+          const dependency = plainTraceGraph.getDependencySource(dependencyRef);
+          return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+        }
+      )
     );
-    expect(isTraceGraphBlockFiltered(traceGraphDataGraph, filteredParent)).toBe(
+    expect(isTraceGraphBlockFiltered(traceDatasetGraph, filteredParent)).toBe(
       isTraceGraphBlockFiltered(plainTraceGraph, filteredParent)
     );
-    expect(getTraceGraphFilteredParentSpanId(traceGraphDataGraph, filteredParent)).toBe(
+    expect(getTraceGraphFilteredParentSpanId(traceDatasetGraph, filteredParent)).toBe(
       getTraceGraphFilteredParentSpanId(plainTraceGraph, filteredParent)
     );
-    expect(
-      getTraceGraphVisibleDependencyChainForBlock(traceGraphDataGraph, child, 'PARENT')
-    ).toEqual(getTraceGraphVisibleDependencyChainForBlock(plainTraceGraph, child, 'PARENT'));
-    expect(traceGraphDataGraph.getFilteredSpanCountByThreadRef()).toEqual(
-      plainTraceGraph.getFilteredSpanCountByThreadRef()
+    expect(getTraceGraphVisibleDependencyChainForBlock(traceDatasetGraph, child, 'PARENT')).toEqual(
+      getTraceGraphVisibleDependencyChainForBlock(plainTraceGraph, child, 'PARENT')
     );
-    expect(traceGraphDataGraph.getVisibleBlockSearchRecords()).toEqual(
-      plainTraceGraph.getVisibleBlockSearchRecords()
+    const traceDatasetSearchRecords: unknown[] = [];
+    traceDatasetGraph.searchVisibleBlockRecords(
+      () => true,
+      record => {
+        traceDatasetSearchRecords.push(record);
+      }
     );
+    const plainSearchRecords: unknown[] = [];
+    plainTraceGraph.searchVisibleBlockRecords(
+      () => true,
+      record => {
+        plainSearchRecords.push(record);
+      }
+    );
+    expect(traceDatasetSearchRecords).toEqual(plainSearchRecords);
+  });
+
+  it('prioritizes and deduplicates exact external ids in loaded graph search', () => {
+    const textMatch = createBlock('text-match');
+    textMatch.name = 'Exact:Case text match';
+    const exactMatch = createBlock('exact-match');
+    exactMatch.name = 'Exact:Case exact target';
+    const graph = createGraphWithBlocks([textMatch, exactMatch], []);
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
+    const spanTable = buildArrowTraceSpanTableFromRows([
+      {
+        ...toTraceSpanArrowRow(textMatch),
+        process_ref: encodeProcessRef(0),
+        thread_ref: encodeProcessThreadRef(0, 0),
+        external_span_id: 'other-id'
+      },
+      {
+        ...toTraceSpanArrowRow(exactMatch),
+        process_ref: encodeProcessRef(0),
+        thread_ref: encodeProcessThreadRef(0, 0),
+        external_span_id: 'Exact:Case'
+      }
+    ]);
+    const traceGraph = createTestTraceGraph({
+      ...traceDataset,
+      chunks: traceDataset.chunks.map(chunk => ({
+        ...chunk,
+        spanTable
+      }))
+    });
+    const matchesSearchText = createTraceSpanOmniBoxSearchPredicate('  Exact:Case  ');
+    if (!matchesSearchText) {
+      throw new Error('Expected Omnibox search predicate');
+    }
+    const records: string[] = [];
+
+    traceGraph.searchSpans(
+      matchesSearchText,
+      record => {
+        records.push(record.blockName);
+      },
+      2
+    );
+
+    expect(records).toEqual(['Exact:Case exact target', 'Exact:Case text match']);
   });
 
   it('preserves filtering behavior when Arrow processes omit compatibility spans', () => {
@@ -1483,23 +1288,27 @@ describe('TraceGraph', () => {
     const graph = createGraphWithBlocks(
       [root, filteredParent, child],
       [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['PARENT'])
+        createSameProcessDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
+          'PARENT'
+        ]),
+        createSameProcessDependency('dep-parent-child', filteredParent.spanId, child.spanId, [
+          'PARENT'
+        ])
       ]
     );
 
     const plainTraceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
-    const traceGraphData = createArrowGraphWithoutCompatibilityBlocks(graph);
-    const traceGraphDataGraph = createTestTraceGraph(traceGraphData, {
+    const traceDataset = createTraceDatasetFromJSONTraceForTest(graph);
+    const traceDatasetGraph = createTestTraceGraph(traceDataset, {
       spanFilters: ['filtered']
     });
 
-    expect('spanMap' in traceGraphData).toBe(false);
-    expect(traceGraphData.processes.every(process => !('spans' in process))).toBe(true);
-    expect(traceGraphData.processes[0]).not.toHaveProperty('spans');
-    expect(isTraceGraphBlockFiltered(traceGraphDataGraph, filteredParent)).toBe(true);
+    expect('spanMap' in traceDataset).toBe(false);
+    expect(traceDataset.processes.every(process => !('spans' in process))).toBe(true);
+    expect(traceDataset.processes[0]).not.toHaveProperty('spans');
+    expect(isTraceGraphBlockFiltered(traceDatasetGraph, filteredParent)).toBe(true);
     expect(
-      getTraceGraphVisibleDependencyChainForBlock(traceGraphDataGraph, child, 'PARENT').map(
+      getTraceGraphVisibleDependencyChainForBlock(traceDatasetGraph, child, 'PARENT').map(
         span => span.spanId
       )
     ).toEqual(
@@ -1507,7 +1316,7 @@ describe('TraceGraph', () => {
         span => span.spanId
       )
     );
-    expect(getVisibleProcessSnapshot(traceGraphDataGraph)).toEqual(
+    expect(getVisibleProcessSnapshot(traceDatasetGraph)).toEqual(
       getVisibleProcessSnapshot(plainTraceGraph)
     );
   });
@@ -1540,11 +1349,11 @@ describe('TraceGraph', () => {
           rankNum: 0,
           threadId: 'thread-1',
           spans: [root, filteredParent, child],
-          localDependencies: [
-            createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
+          sameProcessDependencies: [
+            createSameProcessDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
               'PARENT'
             ]),
-            createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, [
+            createSameProcessDependency('dep-parent-child', filteredParent.spanId, child.spanId, [
               'CHAIN'
             ])
           ]
@@ -1557,7 +1366,7 @@ describe('TraceGraph', () => {
         })
       ],
       [
-        createCrossDependency(
+        createCrossProcessDependency(
           'dep-child-remote',
           'endpoint-child-remote',
           child.spanId,
@@ -1571,22 +1380,24 @@ describe('TraceGraph', () => {
     );
 
     const plainTraceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
-    const metadataOnlyArrowTraceGraph = createTestTraceGraph(
-      createArrowGraphWithoutCompatibilityBlocks(graph),
-      {
-        spanFilters: ['filtered']
-      }
-    );
+    const metadataOnlyArrowTraceGraph = createRuntimeTraceGraph(graph, {
+      spanFilters: ['filtered']
+    });
 
-    expect(getVisibleIndexForTest(metadataOnlyArrowTraceGraph)).toEqual(
-      getVisibleIndexForTest(plainTraceGraph)
-    );
     expect(
-      metadataOnlyArrowTraceGraph
-        .getVisibleCrossDependencySources()
-        .map(dependency => dependency.dependencyId)
+      Array.from(metadataOnlyArrowTraceGraph.iterateVisibleCrossProcessDependencyRefs())
+        .flatMap(dependencyRef => {
+          const dependency = metadataOnlyArrowTraceGraph.getDependencySource(dependencyRef);
+          return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+        })
+        .map(dependency => metadataOnlyArrowTraceGraph.getDependencyId(dependency.dependencyRef))
     ).toEqual(
-      plainTraceGraph.getVisibleCrossDependencySources().map(dependency => dependency.dependencyId)
+      Array.from(plainTraceGraph.iterateVisibleCrossProcessDependencyRefs())
+        .flatMap(dependencyRef => {
+          const dependency = plainTraceGraph.getDependencySource(dependencyRef);
+          return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+        })
+        .map(dependency => plainTraceGraph.getDependencyId(dependency.dependencyRef))
     );
     expect(
       getTraceGraphSpanDependencies(
@@ -1612,7 +1423,7 @@ describe('TraceGraph', () => {
     );
   });
 
-  it('preserves filtered unresolved endpoint pairing and matched cross dependencies', () => {
+  it('preserves filtered unresolved endpoint pairing and matched cross process dependencies', () => {
     const source = createBlockForProcess({
       spanId: 'source',
       processId: 'rank-1',
@@ -1683,7 +1494,7 @@ describe('TraceGraph', () => {
         })
       ],
       [
-        createCrossDependency(
+        createCrossProcessDependency(
           'dep-source-target',
           'endpoint-source-target',
           source.spanId,
@@ -1723,7 +1534,7 @@ describe('TraceGraph', () => {
     ).toEqual([['endpoint-source-target', 20, 'dep-source-target']]);
   });
 
-  it('reuses visible process and dependency arrays across repeated filtered reads', () => {
+  it('projects visible process sources across repeated filtered reads', () => {
     const root = createBlockForProcess({
       spanId: 'root',
       processId: 'rank-1',
@@ -1749,9 +1560,14 @@ describe('TraceGraph', () => {
       rankNum: 0,
       threadId: 'thread-1',
       spans: [root, filteredParent, child],
-      localDependencies: [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['PARENT'])
+      sameProcessDependencies: [
+        createSameProcessDependency('dep-root-parent', root.spanId, filteredParent.spanId, [
+          'PARENT'
+        ]),
+        createSameProcessDependency('dep-parent-child', filteredParent.spanId, child.spanId, [
+          'PARENT'
+        ]),
+        createSameProcessDependency('dep-root-child', root.spanId, child.spanId, ['PARENT'])
       ]
     });
     const processB = createProcess({
@@ -1763,7 +1579,7 @@ describe('TraceGraph', () => {
     const graph = buildJSONTrace(
       [processA, processB],
       [
-        createCrossDependency(
+        createCrossProcessDependency(
           'dep-root-remote',
           'endpoint-root-remote',
           root.spanId,
@@ -1781,107 +1597,79 @@ describe('TraceGraph', () => {
 
     const rank1ProcessRef = getRequiredProcessRef(traceGraph, 'rank-1');
     const rank2ProcessRef = getRequiredProcessRef(traceGraph, 'rank-2');
-    const visibleBlocks = traceGraph.getVisibleProcessDisplaySources(rank1ProcessRef);
-    const visibleBlocksAgain = traceGraph.getVisibleProcessDisplaySources(rank1ProcessRef);
-    const visibleGeometryBlocks = traceGraph.getVisibleProcessGeometrySources(rank1ProcessRef);
-    const visibleGeometryBlocksAgain = traceGraph.getVisibleProcessGeometrySources(rank1ProcessRef);
-    const visibleRenderSpans = traceGraph.getVisibleProcessRenderSpans(rank1ProcessRef);
-    const visibleRenderSpansAgain = traceGraph.getVisibleProcessRenderSpans(rank1ProcessRef);
-    const remoteVisibleBlocks = traceGraph.getVisibleProcessDisplaySources(rank2ProcessRef);
-    const remoteVisibleGeometryBlocks =
-      traceGraph.getVisibleProcessGeometrySources(rank2ProcessRef);
-    const visibleLocalDependencies =
-      traceGraph.getVisibleLocalDependencyLayoutSources(rank1ProcessRef);
-    const visibleLocalDependenciesAgain =
-      traceGraph.getVisibleLocalDependencyLayoutSources(rank1ProcessRef);
-    const visibleTraceLocalDependencies =
-      traceGraph.getVisibleLocalDependencySources(rank1ProcessRef);
-    const visibleTraceLocalDependenciesAgain =
-      traceGraph.getVisibleLocalDependencySources(rank1ProcessRef);
-    const visibleCrossDependencies = traceGraph.getVisibleCrossDependencySources();
-    const visibleCrossDependenciesAgain = traceGraph.getVisibleCrossDependencySources();
+    const visibleGeometryBlocks = getVisibleSpanGeometrySourcesByProcess(
+      traceGraph,
+      rank1ProcessRef
+    );
+    const visibleGeometryBlocksAgain = getVisibleSpanGeometrySourcesByProcess(
+      traceGraph,
+      rank1ProcessRef
+    );
+    const visibleRenderSpans = getVisibleSpanDetailsByProcess(traceGraph, rank1ProcessRef);
+    const visibleRenderSpansAgain = getVisibleSpanDetailsByProcess(traceGraph, rank1ProcessRef);
+    const remoteVisibleRenderSpans = getVisibleSpanDetailsByProcess(traceGraph, rank2ProcessRef);
+    const remoteVisibleGeometryBlocks = getVisibleSpanGeometrySourcesByProcess(
+      traceGraph,
+      rank2ProcessRef
+    );
+    const visibleSameProcessDependencies =
+      traceGraph.getVisibleSameProcessDependencyLayoutSources(rank1ProcessRef);
+    const visibleSameProcessDependenciesAgain =
+      traceGraph.getVisibleSameProcessDependencyLayoutSources(rank1ProcessRef);
+    const visibleTraceSameProcessDependencies = Array.from(
+      traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(rank1ProcessRef)
+    ).flatMap(dependencyRef => {
+      const dependency = traceGraph.getDependencySource(dependencyRef);
+      return dependency?.type === 'trace-same-process-dependency' ? [dependency] : [];
+    });
+    const visibleTraceSameProcessDependenciesAgain = Array.from(
+      traceGraph.iterateVisibleSameProcessDependencyRefsByProcess(rank1ProcessRef)
+    ).flatMap(dependencyRef => {
+      const dependency = traceGraph.getDependencySource(dependencyRef);
+      return dependency?.type === 'trace-same-process-dependency' ? [dependency] : [];
+    });
+    const visibleCrossProcessDependencies = Array.from(
+      traceGraph.iterateVisibleCrossProcessDependencyRefs()
+    ).flatMap(dependencyRef => {
+      const dependency = traceGraph.getDependencySource(dependencyRef);
+      return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+    });
+    const visibleCrossProcessDependenciesAgain = Array.from(
+      traceGraph.iterateVisibleCrossProcessDependencyRefs()
+    ).flatMap(dependencyRef => {
+      const dependency = traceGraph.getDependencySource(dependencyRef);
+      return dependency?.type === 'trace-cross-process-dependency' ? [dependency] : [];
+    });
 
-    expect(visibleBlocksAgain).toBe(visibleBlocks);
-    expect(visibleGeometryBlocksAgain).toBe(visibleGeometryBlocks);
-    expect(visibleRenderSpansAgain).toBe(visibleRenderSpans);
-    expect(visibleBlocks.map(span => span.spanId)).toEqual([root.spanId, child.spanId]);
-    expect(visibleGeometryBlocks.map(span => span.spanId)).toEqual([root.spanId, child.spanId]);
+    expect(visibleGeometryBlocksAgain).toStrictEqual(visibleGeometryBlocks);
+    expect(visibleRenderSpansAgain).toStrictEqual(visibleRenderSpans);
+    expect(visibleGeometryBlocks.map(span => span.spanRef)).toEqual(
+      visibleRenderSpans.map(span => span.spanRef)
+    );
     expect(visibleRenderSpans.map(span => span.spanId)).toEqual([root.spanId, child.spanId]);
-    expect(remoteVisibleBlocks.map(span => span.spanId)).toEqual([remote.spanId]);
-    expect(remoteVisibleGeometryBlocks.map(span => span.spanId)).toEqual([remote.spanId]);
-    expect(visibleLocalDependenciesAgain).toBe(visibleLocalDependencies);
-    expect(visibleLocalDependencies.map(dependency => dependency.dependencyId)).toEqual([
-      'dep-parent-child'
-    ]);
-    expect(visibleTraceLocalDependenciesAgain).toBe(visibleTraceLocalDependencies);
-    expect(visibleTraceLocalDependencies.map(dependency => dependency.dependencyId)).toEqual([
-      'dep-parent-child'
-    ]);
-    expect(visibleCrossDependenciesAgain).toBe(visibleCrossDependencies);
-    expect(visibleCrossDependencies.map(dependency => dependency.dependencyId)).toEqual([
-      'dep-root-remote'
-    ]);
-  });
-
-  it('resolves visible display sources consistently before and after process display materialization', () => {
-    const root = createBlockForProcess({
-      spanId: 'root',
-      processId: 'rank-1',
-      threadId: 'thread-1'
-    });
-    const filteredParent = createBlockForProcess({
-      spanId: 'filtered-parent',
-      processId: 'rank-1',
-      threadId: 'thread-1'
-    });
-    const child = createBlockForProcess({
-      spanId: 'child',
-      processId: 'rank-1',
-      threadId: 'thread-1'
-    });
-    const process = createProcess({
-      processId: 'rank-1',
-      rankNum: 0,
-      threadId: 'thread-1',
-      spans: [root, filteredParent, child],
-      localDependencies: [
-        createLocalDependency('dep-root-parent', root.spanId, filteredParent.spanId, ['PARENT']),
-        createLocalDependency('dep-parent-child', filteredParent.spanId, child.spanId, ['PARENT'])
-      ]
-    });
-    const graph = buildJSONTrace([process], [], {name: 'visible-display-source-cache-test'});
-
-    const lookupFirstTraceGraph = createRuntimeTraceGraph(graph, {
-      spanFilters: ['filtered-parent']
-    });
-    const lookupFirstProcessRef = getRequiredProcessRef(lookupFirstTraceGraph, 'rank-1');
-    const childLookupBeforeArray = getRequiredVisibleDisplaySourceBySpanId(
-      lookupFirstTraceGraph,
-      child.spanId
+    expect(remoteVisibleRenderSpans.map(span => span.spanId)).toEqual([remote.spanId]);
+    expect(remoteVisibleGeometryBlocks.map(span => span.spanRef)).toEqual(
+      remoteVisibleRenderSpans.map(span => span.spanRef)
     );
-    const displaySourcesAfterLookup =
-      lookupFirstTraceGraph.getVisibleProcessDisplaySources(lookupFirstProcessRef);
-    const childLookupAfterArray = getRequiredVisibleDisplaySourceBySpanId(
-      lookupFirstTraceGraph,
-      child.spanId
+    expect(visibleSameProcessDependenciesAgain).toStrictEqual(visibleSameProcessDependencies);
+    expect(visibleSameProcessDependencies.map(dependency => dependency.dependencyId)).toEqual([
+      'dep-root-child'
+    ]);
+    expect(visibleTraceSameProcessDependenciesAgain).toStrictEqual(
+      visibleTraceSameProcessDependencies
     );
-
-    expect(childLookupBeforeArray).not.toBeNull();
-    expect(displaySourcesAfterLookup).toContain(childLookupBeforeArray);
-    expect(childLookupAfterArray).toBe(childLookupBeforeArray);
-
-    const arrayFirstTraceGraph = createRuntimeTraceGraph(graph, {
-      spanFilters: ['filtered-parent']
-    });
-    const arrayFirstProcessRef = getRequiredProcessRef(arrayFirstTraceGraph, 'rank-1');
-    const displaySourcesBeforeLookup =
-      arrayFirstTraceGraph.getVisibleProcessDisplaySources(arrayFirstProcessRef);
-    const childLookupAfterArrayBuild = getRequiredVisibleDisplaySourceBySpanId(
-      arrayFirstTraceGraph,
-      child.spanId
-    );
-
-    expect(childLookupAfterArrayBuild).toBe(displaySourcesBeforeLookup[1]);
+    expect(visibleTraceSameProcessDependencies.map(dependency => dependency.dependencyId)).toEqual([
+      'dep-root-child'
+    ]);
+    expect(visibleCrossProcessDependenciesAgain).toStrictEqual(visibleCrossProcessDependencies);
+    expect(
+      visibleCrossProcessDependencies.map(dependency =>
+        traceGraph.getDependencyId(dependency.dependencyRef)
+      )
+    ).toEqual(['dep-root-remote']);
+    expect(
+      (traceGraph as unknown as {visibleRuntimeCache?: unknown}).visibleRuntimeCache
+    ).toBeUndefined();
   });
 
   it('reuses grouped metadata sources across repeated reads', () => {
@@ -1940,6 +1728,28 @@ describe('TraceGraph', () => {
     expect(counterExtent).toEqual({min: 10, max: 10});
   });
 
+  it('resolves span owners without source span table preflight', () => {
+    const span = createBlockForProcess({
+      spanId: 'span-owner-ref',
+      processId: 'rank-1',
+      threadId: 'thread-1'
+    });
+    const traceGraph = createRuntimeTraceGraph(createGraphWithBlocks([span], []));
+    const spanRef = getRequiredSpanRef(traceGraph, span);
+    const processRef = getRequiredProcessRef(traceGraph, 'rank-1');
+    const threadRef = getRequiredThreadRef(traceGraph, 'thread-1');
+    const spanTableRowIndexSpy = vi.spyOn(traceGraphAccessors, 'getTraceGraphSpanTableRowIndex');
+
+    try {
+      expect(traceGraph.getProcessRefBySpanRef(spanRef)).toBe(processRef);
+      expect(traceGraph.getThreadRefBySpanRef(spanRef)).toBe(threadRef);
+      expect(traceGraph.getSpanOwnerRefs(spanRef)).toEqual({processRef, threadRef});
+      expect(spanTableRowIndexSpy).not.toHaveBeenCalled();
+    } finally {
+      spanTableRowIndexSpy.mockRestore();
+    }
+  });
+
   it('treats plain filters as literal prefixes and explicit slash-delimited filters as regexes', () => {
     const literalPrefixBlock = createBlock('rpc.request_worker');
     const regexBlock = createBlock('executeRpc-1');
@@ -1957,149 +1767,108 @@ describe('TraceGraph', () => {
     });
 
     expect(
-      literalTraceGraph
-        .getVisibleProcessDisplaySources(getRequiredProcessRef(literalTraceGraph, 'rank-1'))
-        .map(span => span.name)
+      getVisibleSpanDetailsByProcess(
+        literalTraceGraph,
+        getRequiredProcessRef(literalTraceGraph, 'rank-1')
+      ).map(span => span.name)
     ).toEqual(['executeRpc-1', 'renderUi']);
     expect(
-      regexTraceGraph
-        .getVisibleProcessDisplaySources(getRequiredProcessRef(regexTraceGraph, 'rank-1'))
-        .map(span => span.name)
+      getVisibleSpanDetailsByProcess(
+        regexTraceGraph,
+        getRequiredProcessRef(regexTraceGraph, 'rank-1')
+      ).map(span => span.name)
     ).toEqual(['rpc.request_worker', 'renderUi']);
     expect(
-      invalidRegexTraceGraph
-        .getVisibleProcessDisplaySources(getRequiredProcessRef(invalidRegexTraceGraph, 'rank-1'))
-        .map(span => span.name)
+      getVisibleSpanDetailsByProcess(
+        invalidRegexTraceGraph,
+        getRequiredProcessRef(invalidRegexTraceGraph, 'rank-1')
+      ).map(span => span.name)
     ).toEqual(['rpc.request_worker', 'executeRpc-1', 'renderUi']);
   });
 
-  it('caches filtered span counts by thread id and treats blank filters as inactive', () => {
-    const thread1Visible = createBlockForProcess({
-      spanId: 'visible-thread-1',
+  it('skips unfiltered span lane probes when every process disables lane assignment', () => {
+    const laneSpan = createBlockForProcess({
+      spanId: 'lane-span',
       processId: 'rank-1',
       threadId: 'thread-1'
     });
-    const thread1Filtered = createBlockForProcess({
-      spanId: 'filtered-thread-1',
-      processId: 'rank-1',
-      threadId: 'thread-1'
-    });
-    const thread2FilteredA = createBlockForProcess({
-      spanId: 'filtered-thread-2-a',
-      processId: 'rank-2',
-      threadId: 'thread-2'
-    });
-    const thread2FilteredB = createBlockForProcess({
-      spanId: 'filtered-thread-2-b',
-      processId: 'rank-2',
-      threadId: 'thread-2'
-    });
+    laneSpan.userData = {lane: 7};
+    const graph = createGraphWithBlocks([laneSpan], []);
+    graph.processes[0]!.userData = {laneAssignmentMode: 'none'};
+    const laneValueSpy = vi.spyOn(traceGraphArrowFields, 'getArrowTraceSpanLaneValue');
 
-    const graph = buildJSONTrace(
-      [
-        createProcess({
-          processId: 'rank-1',
-          rankNum: 0,
-          threadId: 'thread-1',
-          spans: [thread1Visible, thread1Filtered]
-        }),
-        createProcess({
-          processId: 'rank-2',
-          rankNum: 1,
-          threadId: 'thread-2',
-          spans: [thread2FilteredA, thread2FilteredB]
-        })
-      ],
-      [],
-      {name: 'filtered-counts'}
-    );
+    try {
+      const traceGraph = createRuntimeTraceGraph(graph);
+      const laneLayoutInfo = traceGraph.getVisibleLaneLayoutInfo();
 
-    const traceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered']});
-    const spanIsFilteredSpy = vi.spyOn(traceGraph, 'spanIsFiltered');
-    const filteredCounts = traceGraph.getFilteredSpanCountByThreadRef();
-
-    expect(filteredCounts).toEqual(
-      new Map([
-        [getRequiredThreadRef(traceGraph, 'thread-1'), 1],
-        [getRequiredThreadRef(traceGraph, 'thread-2'), 2]
-      ])
-    );
-    expect(spanIsFilteredSpy).not.toHaveBeenCalled();
-    expect(traceGraph.getFilteredSpanCountByThreadRef()).toBe(filteredCounts);
-    spanIsFilteredSpy.mockRestore();
-
-    const untraceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['   ']});
-    expect(untraceGraph.hasActiveSpanFilter()).toBe(false);
-    expect(untraceGraph.getFilteredSpanCountByThreadRef()).toEqual(new Map());
+      expect(laneLayoutInfo.threadLaneLayoutMapByRef).toBeUndefined();
+      expect(laneLayoutInfo.explicitLaneValueCount).toBe(0);
+      expect(laneLayoutInfo.threadsWithLaneDataCount).toBe(0);
+      expect(laneValueSpy).not.toHaveBeenCalled();
+    } finally {
+      laneValueSpy.mockRestore();
+    }
   });
 
-  it('uses spanIsFiltered for filtered span counts when a trace store owns filtering', () => {
-    const thread1Visible = createBlockForProcess({
-      spanId: 'store-visible-thread-1',
+  it('skips same-process dependency lane sources when the process disables lane assignment', () => {
+    const parent = createBlockForProcess({
+      spanId: 'parent-span',
       processId: 'rank-1',
       threadId: 'thread-1'
     });
-    const thread1Filtered = createBlockForProcess({
-      spanId: 'store-filtered-thread-1',
+    const child = createBlockForProcess({
+      spanId: 'child-span',
       processId: 'rank-1',
       threadId: 'thread-1'
     });
-    const thread2Filtered = createBlockForProcess({
-      spanId: 'store-filtered-thread-2',
-      processId: 'rank-2',
-      threadId: 'thread-2'
+    const graph = createGraphWithBlocks(
+      [parent, child],
+      [createSameProcessDependency('dep-parent-child', parent.spanId, child.spanId, ['PARENT'])]
+    );
+    graph.processes[0]!.userData = {laneAssignmentMode: 'none'};
+    const traceGraph = createRuntimeTraceGraph(graph);
+    const sameProcessDependencySourcesSpy = vi.spyOn(traceGraph, 'getDependencySource');
+
+    try {
+      expect(
+        traceGraph.getVisibleSameProcessDependencyLayoutSources(
+          getRequiredProcessRef(traceGraph, 'rank-1')
+        )
+      ).toEqual([]);
+      expect(sameProcessDependencySourcesSpy).not.toHaveBeenCalled();
+    } finally {
+      sameProcessDependencySourcesSpy.mockRestore();
+    }
+  });
+
+  it('skips filtered span lane probes when the process disables lane assignment', () => {
+    const visibleLaneSpan = createBlockForProcess({
+      spanId: 'visible-lane-span',
+      processId: 'rank-1',
+      threadId: 'thread-1'
     });
+    visibleLaneSpan.userData = {lane: 7};
+    const filteredLaneSpan = createBlockForProcess({
+      spanId: 'filtered-lane-span',
+      processId: 'rank-1',
+      threadId: 'thread-1'
+    });
+    filteredLaneSpan.userData = {lane: 11};
+    const graph = createGraphWithBlocks([visibleLaneSpan, filteredLaneSpan], []);
+    graph.processes[0]!.userData = {laneAssignmentMode: 'none'};
+    const laneValueSpy = vi.spyOn(traceGraphArrowFields, 'getArrowTraceSpanLaneValue');
 
-    const graph = buildJSONTrace(
-      [
-        createProcess({
-          processId: 'rank-1',
-          rankNum: 0,
-          threadId: 'thread-1',
-          spans: [thread1Visible, thread1Filtered]
-        }),
-        createProcess({
-          processId: 'rank-2',
-          rankNum: 1,
-          threadId: 'thread-2',
-          spans: [thread2Filtered]
-        })
-      ],
-      [],
-      {name: 'store-filtered-counts'}
-    );
-    let storeFilteredSpanRefs = new Set<SpanRef>();
-    const traceStore = {
-      isFiltered: vi.fn((spanRef: SpanRef) => storeFilteredSpanRefs.has(spanRef)),
-      getFilterReason: vi.fn((spanRef: SpanRef) => {
-        const isFiltered = storeFilteredSpanRefs.has(spanRef);
-        return {
-          filterMask: isFiltered ? TRACE_SPAN_FILTER_MASK_REGEXP : TRACE_SPAN_FILTER_MASK_NONE,
-          isFiltered,
-          state: isFiltered ? 'filtered' : 'visible'
-        } as const;
-      }),
-      hasActiveSourceSpanFilter: vi.fn(() => true)
-    };
-    const traceGraphData = buildTraceGraphDataFromJSONTrace(graph);
-    const traceGraph = new TraceGraph({traceGraphData, traceStore});
-    storeFilteredSpanRefs = new Set([
-      getRequiredSpanRef(traceGraph, thread1Filtered),
-      getRequiredSpanRef(traceGraph, thread2Filtered)
-    ]);
-    const spanIsFilteredSpy = vi.spyOn(traceGraph, 'spanIsFiltered');
+    try {
+      const traceGraph = createRuntimeTraceGraph(graph, {spanFilters: ['filtered-lane-span']});
+      const laneLayoutInfo = traceGraph.getVisibleLaneLayoutInfo();
 
-    const filteredCounts = traceGraph.getFilteredSpanCountByThreadRef();
-
-    expect(filteredCounts).toEqual(
-      new Map([
-        [getRequiredThreadRef(traceGraph, 'thread-1'), 1],
-        [getRequiredThreadRef(traceGraph, 'thread-2'), 1]
-      ])
-    );
-    expect(spanIsFilteredSpy).toHaveBeenCalled();
-    expect(traceStore.isFiltered).toHaveBeenCalled();
-    spanIsFilteredSpy.mockRestore();
+      expect(laneLayoutInfo.threadLaneLayoutMapByRef).toBeUndefined();
+      expect(laneLayoutInfo.explicitLaneValueCount).toBe(0);
+      expect(laneLayoutInfo.threadsWithLaneDataCount).toBe(0);
+      expect(laneValueSpy).not.toHaveBeenCalled();
+    } finally {
+      laneValueSpy.mockRestore();
+    }
   });
 
   it('summarizes filtered-out processes, threads, spans, and dependencies on demand', () => {
@@ -2125,8 +1894,8 @@ describe('TraceGraph', () => {
           rankNum: 0,
           threadId: 'thread-visible',
           spans: [visibleSpan, filteredLocalSpan],
-          localDependencies: [
-            createLocalDependency(
+          sameProcessDependencies: [
+            createSameProcessDependency(
               'dep-visible-filtered',
               visibleSpan.spanId,
               filteredLocalSpan.spanId
@@ -2141,7 +1910,7 @@ describe('TraceGraph', () => {
         })
       ],
       [
-        createCrossDependency(
+        createCrossProcessDependency(
           'cross-visible-filtered',
           'endpoint-visible-filtered',
           visibleSpan.spanId,
@@ -2166,17 +1935,12 @@ describe('TraceGraph', () => {
       visibleSpanCount: 1,
       totalSpanCount: 3,
       filteredSpanCount: 2,
-      filteredSpanCountsByFilter: {
-        spanFilterCount: 2,
-        overlappingParentSpanFilterCount: 0,
-        similarDurationChainSpanFilterCount: 0
-      },
-      visibleLocalDependencyCount: 0,
-      totalLocalDependencyCount: 1,
-      filteredLocalDependencyCount: 1,
-      visibleCrossDependencyCount: 0,
-      totalCrossDependencyCount: 1,
-      filteredCrossDependencyCount: 1,
+      visibleSameProcessDependencyCount: 0,
+      totalSameProcessDependencyCount: 1,
+      filteredSameProcessDependencyCount: 1,
+      visibleCrossProcessDependencyCount: 0,
+      totalCrossProcessDependencyCount: 1,
+      filteredCrossProcessDependencyCount: 1,
       hasFilteredItems: true
     });
   });
@@ -2218,17 +1982,12 @@ describe('TraceGraph', () => {
       visibleSpanCount: 2,
       totalSpanCount: 2,
       filteredSpanCount: 0,
-      filteredSpanCountsByFilter: {
-        spanFilterCount: 0,
-        overlappingParentSpanFilterCount: 0,
-        similarDurationChainSpanFilterCount: 0
-      },
-      visibleLocalDependencyCount: 0,
-      totalLocalDependencyCount: 0,
-      filteredLocalDependencyCount: 0,
-      visibleCrossDependencyCount: 0,
-      totalCrossDependencyCount: 0,
-      filteredCrossDependencyCount: 0,
+      visibleSameProcessDependencyCount: 0,
+      totalSameProcessDependencyCount: 0,
+      filteredSameProcessDependencyCount: 0,
+      visibleCrossProcessDependencyCount: 0,
+      totalCrossProcessDependencyCount: 0,
+      filteredCrossProcessDependencyCount: 0,
       hasFilteredItems: false
     });
     expect(buildTraceFilterSummary([filteredGraph, filteredGraph])).toEqual({
@@ -2241,18 +2000,46 @@ describe('TraceGraph', () => {
       visibleSpanCount: 2,
       totalSpanCount: 4,
       filteredSpanCount: 2,
-      filteredSpanCountsByFilter: {
-        spanFilterCount: 2,
-        overlappingParentSpanFilterCount: 0,
-        similarDurationChainSpanFilterCount: 0
-      },
-      visibleLocalDependencyCount: 0,
-      totalLocalDependencyCount: 0,
-      filteredLocalDependencyCount: 0,
-      visibleCrossDependencyCount: 0,
-      totalCrossDependencyCount: 0,
-      filteredCrossDependencyCount: 0,
+      visibleSameProcessDependencyCount: 0,
+      totalSameProcessDependencyCount: 0,
+      filteredSameProcessDependencyCount: 0,
+      visibleCrossProcessDependencyCount: 0,
+      totalCrossProcessDependencyCount: 0,
+      filteredCrossProcessDependencyCount: 0,
       hasFilteredItems: true
     });
+  });
+
+  it('keeps active zero-match filters on canonical ref paths', () => {
+    const localStart = createBlock('local-start');
+    const localEnd = createBlock('local-end');
+    const graph = createGraphWithBlocks(
+      [localStart, localEnd],
+      [createSameProcessDependency('local-dependency', localStart.spanId, localEnd.spanId)]
+    );
+    const unfilteredGraph = createRuntimeTraceGraph(graph);
+    const zeroMatchGraph = createRuntimeTraceGraph(graph, {
+      spanFilters: ['missing-filter-text']
+    });
+    const unfilteredProcessRef = getRequiredProcessRef(unfilteredGraph, 'rank-1');
+    const zeroMatchProcessRef = getRequiredProcessRef(zeroMatchGraph, 'rank-1');
+
+    expect(zeroMatchGraph.hasActiveSpanFilter()).toBe(true);
+    expect(zeroMatchGraph.traceViewSnapshot.filteredSpanCount).toBe(0);
+    expect(Array.from(zeroMatchGraph.iterateVisibleSpanRefsByProcess(zeroMatchProcessRef))).toEqual(
+      Array.from(unfilteredGraph.iterateVisibleSpanRefsByProcess(unfilteredProcessRef))
+    );
+    expect(
+      Array.from(
+        zeroMatchGraph.iterateVisibleSameProcessDependencyRefsByProcess(zeroMatchProcessRef)
+      )
+    ).toEqual(
+      Array.from(
+        unfilteredGraph.iterateVisibleSameProcessDependencyRefsByProcess(unfilteredProcessRef)
+      )
+    );
+    expect(zeroMatchGraph.getVisibleLaneLayoutInfo()).toEqual(
+      unfilteredGraph.getVisibleLaneLayoutInfo()
+    );
   });
 });

@@ -1,17 +1,21 @@
 import {
-  fillTraceLayoutCrossDependencyGeometry,
-  fillTraceLayoutLocalDependencyGeometry,
+  fillTraceLayoutCrossProcessDependencyGeometry,
+  fillTraceLayoutSameProcessDependencyGeometry,
   fillTraceLayoutSpanGeometry,
-  getTraceLayoutSpanVisibility,
-  isVisibleCrossDependencyRef,
-  isVisibleLocalDependencyRef
-} from '../../trace/index';
-import {isCrossDependencyRef, isLocalDependencyRef} from '../../trace/trace-graph/trace-id-encoder';
+  getTraceLayoutDependencyRenderSource,
+  getTraceLayoutSpanVisibility
+} from '../../trace';
+import {
+  isCrossProcessDependencyRef,
+  isSameProcessDependencyRef
+} from '../../trace/trace-graph/trace-id-encoder';
 
 import type {
+  CrossProcessDependencyRef,
+  SameProcessDependencyRef,
   SpanBoundingBox,
   SpanRef,
-  TraceCrossDependencySource,
+  TraceDependencyId,
   TraceDependencyRef,
   TraceDependencyRenderSource,
   TraceDependencySource,
@@ -19,10 +23,9 @@ import type {
   TraceLayout,
   TraceLayoutGeometryDerivationContext,
   TraceLayoutSpanVisibility,
-  TraceLocalDependencySource,
-  TraceSpan,
-  VisibleDependencyRef
-} from '../../trace/index';
+  TraceSameProcessDependencySource,
+  TraceSpan
+} from '../../trace';
 
 const geometryScratch = {x1: 0, y1: 0, x2: 0, y2: 0};
 
@@ -97,15 +100,15 @@ export function getTraceLayoutVisibleDependencyGeometry(params: {
   /** Layout containing current endpoint span timing and lane assignment state. */
   traceLayout: Readonly<TraceLayout>;
   /** Canonical dependency ref for the dependency. */
-  dependencyRef: TraceDependencyRef | VisibleDependencyRef;
+  dependencyRef: TraceDependencyRef | TraceDependencyRef;
   /** Optional batch-scoped lane lookup reused across geometry reads. */
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
   if (
-    isVisibleLocalDependencyRef(params.dependencyRef) ||
-    isLocalDependencyRef(params.dependencyRef)
+    isSameProcessDependencyRef(params.dependencyRef) ||
+    isSameProcessDependencyRef(params.dependencyRef)
   ) {
-    return fillTraceLayoutLocalDependencyGeometry({
+    return fillTraceLayoutSameProcessDependencyGeometry({
       traceLayout: params.traceLayout,
       dependencyRef: params.dependencyRef,
       target: geometryScratch,
@@ -120,10 +123,10 @@ export function getTraceLayoutVisibleDependencyGeometry(params: {
       : undefined;
   }
   if (
-    isVisibleCrossDependencyRef(params.dependencyRef) ||
-    isCrossDependencyRef(params.dependencyRef)
+    isCrossProcessDependencyRef(params.dependencyRef) ||
+    isCrossProcessDependencyRef(params.dependencyRef)
   ) {
-    return fillTraceLayoutCrossDependencyGeometry({
+    return fillTraceLayoutCrossProcessDependencyGeometry({
       traceLayout: params.traceLayout,
       dependencyRef: params.dependencyRef,
       target: geometryScratch,
@@ -141,64 +144,116 @@ export function getTraceLayoutVisibleDependencyGeometry(params: {
 }
 
 /**
- * Resolves selected local-dependency geometry, deriving a path from endpoint spans when the
+ * Resolves one exact visible same-process dependency geometry from a known same-process dependency ref.
+ */
+export function getTraceLayoutVisibleSameProcessDependencyGeometry(params: {
+  /** Layout containing current endpoint span timing and lane assignment state. */
+  traceLayout: Readonly<TraceLayout>;
+  /** Canonical same-process dependency ref for the dependency. */
+  dependencyRef: TraceDependencyRef | SameProcessDependencyRef;
+  /** Optional batch-scoped lane lookup reused across geometry reads. */
+  context?: TraceLayoutGeometryDerivationContext;
+}): Float32Array | undefined {
+  return fillTraceLayoutSameProcessDependencyGeometry({
+    traceLayout: params.traceLayout,
+    dependencyRef: params.dependencyRef,
+    target: geometryScratch,
+    context: params.context
+  })
+    ? new Float32Array([
+        geometryScratch.x1,
+        geometryScratch.y1,
+        geometryScratch.x2,
+        geometryScratch.y2
+      ])
+    : undefined;
+}
+
+/**
+ * Resolves one exact visible cross-process dependency geometry from a known cross-process dependency ref.
+ */
+export function getTraceLayoutVisibleCrossProcessDependencyGeometry(params: {
+  /** Layout containing current endpoint span timing and lane assignment state. */
+  traceLayout: Readonly<TraceLayout>;
+  /** Canonical cross-process dependency ref for the dependency. */
+  dependencyRef: TraceDependencyRef | CrossProcessDependencyRef;
+  /** Optional batch-scoped lane lookup reused across geometry reads. */
+  context?: TraceLayoutGeometryDerivationContext;
+}): Float32Array | undefined {
+  return fillTraceLayoutCrossProcessDependencyGeometry({
+    traceLayout: params.traceLayout,
+    dependencyRef: params.dependencyRef,
+    target: geometryScratch,
+    context: params.context
+  })
+    ? new Float32Array([
+        geometryScratch.x1,
+        geometryScratch.y1,
+        geometryScratch.x2,
+        geometryScratch.y2
+      ])
+    : undefined;
+}
+
+/**
+ * Resolves selected same-process-dependency geometry, deriving a path from endpoint spans when the
  * normal dependency row was skipped by the current base dependency visibility mode.
  */
-export function getTraceLayoutSelectedLocalDependencyGeometry(params: {
+export function getTraceLayoutSelectedSameProcessDependencyGeometry(params: {
   /** Layout containing current endpoint span timing and lane assignment state. */
   traceLayout: Readonly<TraceLayout>;
-  /** Canonical visible local dependency ref for the selected dependency. */
-  dependencyRef: TraceDependencyRef | VisibleDependencyRef;
+  /** Canonical visible same-process dependency ref for the selected dependency. */
+  dependencyRef: TraceDependencyRef | SameProcessDependencyRef;
   /** Optional batch-scoped lane lookup reused across geometry reads. */
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
-  const geometry = getTraceLayoutVisibleDependencyGeometry(params);
+  const geometry = getTraceLayoutVisibleSameProcessDependencyGeometry(params);
   if (geometry != null) {
     return geometry;
   }
-  return getTraceLayoutLocalDependencyGeometryFromEndpointSpans(params);
+  return getTraceLayoutSameProcessDependencyGeometryFromEndpointSpans(params);
 }
 
 /**
- * Resolves selected cross-dependency geometry, deriving a path from endpoint spans when the
+ * Resolves selected cross-process-dependency geometry, deriving a path from endpoint spans when the
  * normal dependency row is absent from current visible dependency refs.
  */
-export function getTraceLayoutSelectedCrossDependencyGeometry(params: {
+export function getTraceLayoutSelectedCrossProcessDependencyGeometry(params: {
   /** Layout containing current endpoint span timing and lane assignment state. */
   traceLayout: Readonly<TraceLayout>;
-  /** Canonical visible cross dependency ref for the selected dependency. */
-  dependencyRef: TraceDependencyRef | VisibleDependencyRef;
+  /** Canonical visible cross-process dependency ref for the selected dependency. */
+  dependencyRef: TraceDependencyRef | CrossProcessDependencyRef;
   /** Optional batch-scoped lane lookup reused across geometry reads. */
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
-  const geometry = getTraceLayoutVisibleDependencyGeometry(params);
+  const geometry = getTraceLayoutVisibleCrossProcessDependencyGeometry(params);
   if (geometry != null) {
     return geometry;
   }
-  return getTraceLayoutCrossDependencyGeometryFromEndpointSpans(params);
+  return getTraceLayoutCrossProcessDependencyGeometryFromEndpointSpans(params);
 }
 
 /**
- * Resolves one exact visible local dependency geometry from a materialized dependency.
+ * Resolves one exact visible same-process dependency geometry from a materialized dependency.
  */
-export function getTraceLayoutLocalDependencyGeometry(params: {
+export function getTraceLayoutSameProcessDependencyGeometry(params: {
   /** Layout containing current endpoint span timing and lane assignment state. */
   traceLayout: Readonly<TraceLayout>;
-  /** Visible local dependency whose canonical ref should drive geometry lookup. */
+  /** Visible same-process dependency whose canonical ref should drive geometry lookup. */
   dependency: Readonly<{
-    dependencyRef?: TraceLocalDependencySource['dependencyRef'];
-    dependencyId?: TraceLocalDependencySource['dependencyId'];
+    dependencyRef?: TraceSameProcessDependencySource['dependencyRef'];
+    dependencyId?: TraceSameProcessDependencySource['dependencyId'];
   }>;
   /** Optional batch-scoped lane lookup reused across geometry reads. */
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
-  const dependencyRef = resolveTraceLayoutVisibleDependencyRef({
+  const dependencyRef = resolveTraceLayoutTraceDependencyRef({
     ...params.dependency,
-    type: 'trace-local-dependency'
+    type: 'trace-same-process-dependency'
   });
   return dependencyRef != null &&
-    (isVisibleLocalDependencyRef(dependencyRef) || isLocalDependencyRef(dependencyRef))
-    ? getTraceLayoutVisibleDependencyGeometry({
+    (isSameProcessDependencyRef(dependencyRef) || isSameProcessDependencyRef(dependencyRef))
+    ? getTraceLayoutVisibleSameProcessDependencyGeometry({
         traceLayout: params.traceLayout,
         dependencyRef,
         context: params.context
@@ -207,26 +262,26 @@ export function getTraceLayoutLocalDependencyGeometry(params: {
 }
 
 /**
- * Resolves one exact visible cross dependency geometry from a materialized dependency.
+ * Resolves one exact visible cross-process dependency geometry from a materialized dependency.
  */
-export function getTraceLayoutCrossDependencyGeometry(params: {
+export function getTraceLayoutCrossProcessDependencyGeometry(params: {
   /** Layout containing current endpoint span timing and lane assignment state. */
   traceLayout: Readonly<TraceLayout>;
-  /** Visible cross dependency whose canonical ref should drive geometry lookup. */
+  /** Visible cross-process dependency whose canonical ref should drive geometry lookup. */
   dependency: Readonly<{
-    dependencyRef?: TraceCrossDependencySource['dependencyRef'];
-    dependencyId?: TraceCrossDependencySource['dependencyId'];
+    dependencyRef?: TraceDependencyRef | CrossProcessDependencyRef;
+    dependencyId?: TraceDependencyId;
   }>;
   /** Optional batch-scoped lane lookup reused across geometry reads. */
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
-  const dependencyRef = resolveTraceLayoutVisibleDependencyRef({
+  const dependencyRef = resolveTraceLayoutTraceDependencyRef({
     ...params.dependency,
     type: 'trace-cross-process-dependency'
   });
   return dependencyRef != null &&
-    (isVisibleCrossDependencyRef(dependencyRef) || isCrossDependencyRef(dependencyRef))
-    ? getTraceLayoutVisibleDependencyGeometry({
+    (isCrossProcessDependencyRef(dependencyRef) || isCrossProcessDependencyRef(dependencyRef))
+    ? getTraceLayoutVisibleCrossProcessDependencyGeometry({
         traceLayout: params.traceLayout,
         dependencyRef,
         context: params.context
@@ -254,12 +309,12 @@ export function getTraceLayoutPathDependencyGeometry(params: {
     return geometry;
   }
   return params.source.dependency.type === 'trace-cross-process-dependency'
-    ? getTraceLayoutCrossDependencyGeometryFromEndpointSpans({
+    ? getTraceLayoutCrossProcessDependencyGeometryFromEndpointSpans({
         traceLayout: params.traceLayout,
         dependencyRef: params.source.dependencyRef,
         context: params.context
       })
-    : getTraceLayoutLocalDependencyGeometryFromEndpointSpans({
+    : getTraceLayoutSameProcessDependencyGeometryFromEndpointSpans({
         traceLayout: params.traceLayout,
         dependencyRef: params.source.dependencyRef,
         context: params.context
@@ -269,21 +324,21 @@ export function getTraceLayoutPathDependencyGeometry(params: {
 /**
  * Resolves the current visible dependency ref for one dependency in the active layout graph.
  */
-function resolveTraceLayoutVisibleDependencyRef(dependency: {
+function resolveTraceLayoutTraceDependencyRef(dependency: {
   /** Current graph-native or visible dependency ref, when already resolved. */
-  dependencyRef?: TraceDependencySource['dependencyRef'] | null;
+  dependencyRef?: TraceDependencyRef | TraceDependencyRef | null;
   /** External dependency id retained for callers that have not resolved a ref. */
-  dependencyId?: TraceDependencySource['dependencyId'];
+  dependencyId?: TraceDependencyId;
   /** Dependency kind retained for callers that have not resolved a ref. */
   type?: TraceDependencySource['type'];
-}): TraceDependencyRef | VisibleDependencyRef | undefined {
+}): TraceDependencyRef | TraceDependencyRef | undefined {
   const rawDependencyRef = dependency.dependencyRef;
   if (
     rawDependencyRef != null &&
-    (isLocalDependencyRef(rawDependencyRef) ||
-      isCrossDependencyRef(rawDependencyRef) ||
-      isVisibleLocalDependencyRef(rawDependencyRef) ||
-      isVisibleCrossDependencyRef(rawDependencyRef))
+    (isSameProcessDependencyRef(rawDependencyRef) ||
+      isCrossProcessDependencyRef(rawDependencyRef) ||
+      isSameProcessDependencyRef(rawDependencyRef) ||
+      isCrossProcessDependencyRef(rawDependencyRef))
   ) {
     return rawDependencyRef;
   }
@@ -292,29 +347,29 @@ function resolveTraceLayoutVisibleDependencyRef(dependency: {
 }
 
 /**
- * Builds a selected local-dependency line from endpoint span boxes when dependency geometry is not
+ * Builds a selected same-process-dependency line from endpoint span boxes when dependency geometry is not
  * present in the layout's dependency columns.
  */
-function getTraceLayoutLocalDependencyGeometryFromEndpointSpans(params: {
+function getTraceLayoutSameProcessDependencyGeometryFromEndpointSpans(params: {
   traceLayout: Readonly<TraceLayout>;
-  dependencyRef: TraceDependencyRef | VisibleDependencyRef;
+  dependencyRef: TraceDependencyRef | TraceDependencyRef;
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
   return getTraceLayoutDependencyGeometryFromEndpointSpans({
     ...params,
-    dependencyType: 'trace-local-dependency'
+    dependencyType: 'trace-same-process-dependency'
   });
 }
 
 /**
- * Builds a selected cross-dependency line from endpoint span boxes when dependency geometry is
+ * Builds a selected cross-process-dependency line from endpoint span boxes when dependency geometry is
  * not present in the layout's dependency columns.
  */
-function getTraceLayoutCrossDependencyGeometryFromEndpointSpans(params: {
+function getTraceLayoutCrossProcessDependencyGeometryFromEndpointSpans(params: {
   /** Active layout containing rendered endpoint span boxes. */
   traceLayout: Readonly<TraceLayout>;
   /** Visible dependency ref whose endpoint geometry should be rebuilt. */
-  dependencyRef: TraceDependencyRef | VisibleDependencyRef;
+  dependencyRef: TraceDependencyRef | TraceDependencyRef;
   /** Optional batch-scoped lane lookup reused across geometry reads. */
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
@@ -329,13 +384,14 @@ function getTraceLayoutDependencyGeometryFromEndpointSpans(params: {
   /** Active layout containing rendered endpoint span boxes. */
   traceLayout: Readonly<TraceLayout>;
   /** Visible dependency ref whose endpoint geometry should be rebuilt. */
-  dependencyRef: TraceDependencyRef | VisibleDependencyRef;
+  dependencyRef: TraceDependencyRef | TraceDependencyRef;
   /** Dependency kind required from the visible dependency source. */
   dependencyType: TraceDependencyRenderSource['type'];
   /** Optional batch-scoped lane lookup reused across geometry reads. */
   context?: TraceLayoutGeometryDerivationContext;
 }): Float32Array | undefined {
-  const dependency = params.traceLayout.traceGraph?.getVisibleDependencyRenderSourceByRef?.(
+  const dependency = getTraceLayoutDependencyRenderSource(
+    params.traceLayout.traceGraph,
     params.dependencyRef
   );
   if (

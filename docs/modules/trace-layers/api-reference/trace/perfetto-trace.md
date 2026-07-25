@@ -30,8 +30,8 @@ import {parsePerfettoTraceToArrow} from '@deck.gl-community/trace-layers/trace';
 - ingesting Perfetto protobuf traces into an Arrow-oriented normalization path
 - inspecting Perfetto track, slice, process, and thread rows before building shared trace objects
 
-The parser output is still source-shaped. Normalize it into `JSONTrace`, `TraceGraphData`, or
-`TraceChunkData` before rendering.
+The parser output is still source-shaped. Normalize it into `JSONTrace` or parser-local
+`TraceChunkData`, then finalize a `TraceDataset` before rendering.
 
 See [Data model](../../developer-guide/data-model.md) and
 [Loading traces](../../developer-guide/loading-traces.md).

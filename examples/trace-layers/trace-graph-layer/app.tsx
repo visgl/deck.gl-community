@@ -12,14 +12,16 @@ import {TraceGraphLayer} from '@deck.gl-community/trace-layers/layers';
 import {TimeAxisLayer} from '@deck.gl-community/timeline-layers';
 import {
   buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
+  buildTraceChunkDataFromJSONTrace,
   createStaticTraceGraphRuntimeSource,
+  materializeJSONTrace,
   TraceGraph
 } from '@deck.gl-community/trace-layers/trace';
 
 import type {
+  SpanRef,
   TraceDependencyId,
-  TraceLocalDependency,
+  TraceSameProcessDependency,
   TraceProcess,
   TraceSpan,
   TraceSpanId,
@@ -30,7 +32,7 @@ import type {
 
 const TRACE_LAYER_SETTINGS = {
   showDependencies: true,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   showCrossProcessDependencies: true,
   showInstants: false,
   showCounters: false,
@@ -227,13 +229,22 @@ function TraceGraphLayerExample() {
 
 /** Builds the small normalized graph rendered by this layers-only example. */
 function createExampleTraceGraph(): TraceGraph {
-  const traceGraphData = buildTraceGraphDataFromJSONTrace(
+  const materializedTrace = materializeJSONTrace(
     buildJSONTrace([createExampleProcess('frontend', 0)], [], {name: 'trace-graph-layer-example'})
   );
   return new TraceGraph(
     createStaticTraceGraphRuntimeSource({
       identityKey: 'trace-graph-layer-example',
-      traceGraphData
+      name: materializedTrace.name,
+      spanLayout: materializedTrace.spanLayout,
+      chunks: buildTraceChunkDataFromJSONTrace(materializedTrace),
+      crossProcessDependencies: materializedTrace.crossProcessDependencies,
+      events: materializedTrace.events,
+      timeExtents: {
+        minTimeMs: materializedTrace.minTimeMs,
+        maxTimeMs: materializedTrace.maxTimeMs
+      },
+      stats: materializedTrace.stats
     })
   );
 }
@@ -251,10 +262,10 @@ function createExampleProcess(processId: string, rankNum: number): TraceProcess 
   const renderSpan = createSpan('Render', thread, 13, 18);
   const requestToParse = createDependency('request-to-parse', requestSpan, parseSpan);
   const parseToRender = createDependency('parse-to-render', parseSpan, renderSpan);
-  requestSpan.localDependencyIds = [requestToParse.dependencyId];
-  requestSpan.localDependencies = [requestToParse];
-  parseSpan.localDependencyIds = [parseToRender.dependencyId];
-  parseSpan.localDependencies = [parseToRender];
+  requestSpan.sameProcessDependencyIds = [requestToParse.dependencyId];
+  requestSpan.sameProcessDependencies = [requestToParse];
+  parseSpan.sameProcessDependencyIds = [parseToRender.dependencyId];
+  parseSpan.sameProcessDependencies = [parseToRender];
 
   return {
     type: 'trace-process',
@@ -276,7 +287,7 @@ function createExampleProcess(processId: string, rankNum: number): TraceProcess 
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [requestToParse, parseToRender],
+    sameProcessDependencies: [requestToParse, parseToRender],
     remoteDependencies: []
   };
 }
@@ -290,6 +301,7 @@ function createSpan(
 ): TraceSpan {
   return {
     type: 'trace-span',
+    spanRef: 0 as SpanRef,
     spanId: name.toLowerCase() as TraceSpanId,
     threadId: thread.threadId,
     processName: thread.processId,
@@ -305,21 +317,21 @@ function createSpan(
         durationMsAsString: `${endTimeMs - startTimeMs}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
 }
 
-/** Creates one end-to-start local dependency between example spans. */
+/** Creates one end-to-start same-process dependency between example spans. */
 function createDependency(
   dependencyId: string,
   startSpan: TraceSpan,
   endSpan: TraceSpan
-): TraceLocalDependency {
+): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
+    type: 'trace-same-process-dependency',
     dependencyId: dependencyId as TraceDependencyId,
     startSpanId: startSpan.spanId,
     endSpanId: endSpan.spanId,

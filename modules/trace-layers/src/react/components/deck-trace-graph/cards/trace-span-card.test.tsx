@@ -4,12 +4,11 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {
   buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
   DEFAULT_TRACE_STYLE,
   materializeJSONTrace,
   TraceGraph
-} from '../../../../trace/index';
-import {createStaticTraceGraphRuntimeSource} from '../../../../trace/trace-chunk-store';
+} from '../../../../trace';
+import {createRuntimeTraceGraph} from '../../../../trace/trace-graph/trace-graph-test-fixtures';
 import {
   getRequiredSpanRef,
   getRequiredSpanRefBySpanId
@@ -24,16 +23,14 @@ import type {
   TraceCrossProcessEndpoint,
   TraceCrossProcessEndpointId,
   TraceDependencyId,
-  TraceGraphOverlappingParentSpanFilter,
-  TraceGraphSimilarDurationChainSpanFilter,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId,
   TraceVisSettings
-} from '../../../../trace/index';
+} from '../../../../trace';
 import type {
   TraceSpanCardCustomTab,
   TraceSpanCardTabId,
@@ -43,16 +40,10 @@ import type {ReactNode} from 'react';
 import type {Root} from 'react-dom/client';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceGraph: Parameters<typeof createRuntimeTraceGraph>[0],
+  options?: Parameters<typeof createRuntimeTraceGraph>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createRuntimeTraceGraph(traceGraph, options);
 }
 
 let container: HTMLDivElement | null = null;
@@ -62,10 +53,6 @@ function getDependencyTableSpanTexts(rendered: HTMLDivElement): string[] {
   return getDependencyTableColumnTexts(rendered, 'Span').filter(
     text => !text.startsWith('...omitted')
   );
-}
-
-function getDependencyTableModeTexts(rendered: HTMLDivElement): string[] {
-  return getDependencyTableColumnTexts(rendered, 'Mode');
 }
 
 function getDependencyTableMetricTexts(rendered: HTMLDivElement): string[] {
@@ -124,15 +111,16 @@ function getFilteredBadgeTexts(rendered: HTMLDivElement): string[] {
     .filter(Boolean);
 }
 
-function getTopologyFilteredBadgeTexts(rendered: HTMLDivElement): string[] {
-  return [...rendered.querySelectorAll('[style*="border-color"]')]
-    .map(element => element.textContent?.trim() ?? '')
+function getChildDepths(rendered: HTMLDivElement): string[] {
+  return [...rendered.querySelectorAll('[data-child-depth]')]
+    .map(element => element.getAttribute('data-child-depth') ?? '')
     .filter(Boolean);
 }
 
-function getChildDepths(rendered: HTMLDivElement): string[] {
-  return [...rendered.querySelectorAll('tbody tr td:nth-child(3) [data-child-depth]')]
-    .map(element => element.getAttribute('data-child-depth') ?? '')
+/** Returns the compact rendered indentation levels from child-row badge wrappers. */
+function getChildIndentationLevels(rendered: HTMLDivElement): string[] {
+  return [...rendered.querySelectorAll('[data-child-indent-level]')]
+    .map(element => element.getAttribute('data-child-indent-level') ?? '')
     .filter(Boolean);
 }
 
@@ -230,7 +218,7 @@ function rerenderTraceSpanCard(params: {
   selectedTabStorageKey?: string;
   tabBodyHeightPx?: number;
 }) {
-  const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(params.traceGraph), {});
+  const traceGraph = createTestTraceGraph(params.traceGraph, {});
   const tabOptions = {
     allDependencyLabel: params.allDependencyTabLabel,
     showChildren: params.showChildrenTab,
@@ -269,7 +257,7 @@ function createParentChainGraph(parentCount: number): {
   };
 
   const spans: TraceSpan[] = [];
-  const localDependencies: TraceLocalDependency[] = [];
+  const sameProcessDependencies: TraceSameProcessDependency[] = [];
 
   for (let index = 0; index < parentCount + 1; index += 1) {
     const spanId =
@@ -292,8 +280,8 @@ function createParentChainGraph(parentCount: number): {
           durationMsAsString: '1ms'
         }
       },
-      localDependencyIds: [],
-      localDependencies: [],
+      sameProcessDependencyIds: [],
+      sameProcessDependencies: [],
       crossProcessEndpointId: null,
       crossProcessDependencyEndpoints: []
     };
@@ -307,8 +295,8 @@ function createParentChainGraph(parentCount: number): {
       continue;
     }
     const dependencyId = `dep-${index + 1}` as TraceDependencyId;
-    const dependency: TraceLocalDependency = {
-      type: 'trace-local-dependency',
+    const dependency: TraceSameProcessDependency = {
+      type: 'trace-same-process-dependency',
       dependencyId,
       startSpanId: startBlock.spanId,
       endSpanId: endBlock.spanId,
@@ -317,8 +305,8 @@ function createParentChainGraph(parentCount: number): {
       bidirectional: false,
       waitTimeMs: 0
     };
-    endBlock.localDependencyIds.push(dependencyId);
-    localDependencies.push(dependency);
+    endBlock.sameProcessDependencyIds.push(dependencyId);
+    sameProcessDependencies.push(dependency);
   }
 
   const process: TraceProcess = {
@@ -337,7 +325,7 @@ function createParentChainGraph(parentCount: number): {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
@@ -355,7 +343,7 @@ function renderTraceSpanCard(params?: {
   onSpanDoubleClick?: (spanRef: SpanRef, action: 'select' | 'select-and-focus') => void;
   traceGraph?: JSONTrace;
   span?: TraceSpan;
-  traceRunSummaryAggregationKey?: string;
+  traceTimingKey?: string;
   timezone?: string;
   dependencyTabLabel?: string;
   outgoingDependencyTabLabel?: string;
@@ -365,12 +353,8 @@ function renderTraceSpanCard(params?: {
   showOutgoingDependenciesTab?: boolean;
   showCrossProcessDependencies?: boolean;
   dependencyMetric?: 'wait' | 'duration';
-  /** Local dependency render filter used to verify inspector data is not render-filtered. */
-  localDependencyMode?: TraceVisSettings['localDependencyMode'];
-  /** Topology filter that removes short overlapping parent/child spans. */
-  overlappingParentSpanFilter?: TraceGraphOverlappingParentSpanFilter;
-  /** Topology filter that removes linear same-duration parent chains. */
-  similarDurationChainSpanFilter?: TraceGraphSimilarDurationChainSpanFilter;
+  /** Same-process dependency render filter used to verify inspector data is not render-filtered. */
+  sameProcessDependencyMode?: TraceVisSettings['sameProcessDependencyMode'];
   selectedTabStorageKey?: string;
   /** Caller-selected active tab restored into the interactive card. */
   selectedTab?: TraceSpanCardTabId;
@@ -383,10 +367,8 @@ function renderTraceSpanCard(params?: {
   const fallbackGraph = createParentChainGraph(params?.parentCount ?? 7);
   const span = params?.span ?? fallbackGraph.span;
   const sourceTraceGraph = params?.traceGraph ?? fallbackGraph.traceGraph;
-  const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {
-    spanFilters: params?.spanFilter ? params.spanFilter.split('|').filter(Boolean) : undefined,
-    overlappingParentSpanFilter: params?.overlappingParentSpanFilter,
-    similarDurationChainSpanFilter: params?.similarDurationChainSpanFilter
+  const traceGraph = createTestTraceGraph(sourceTraceGraph, {
+    spanFilters: params?.spanFilter ? params.spanFilter.split('|').filter(Boolean) : undefined
   });
   const tabOptions = {
     dependencyLabel: params?.dependencyTabLabel,
@@ -415,9 +397,9 @@ function renderTraceSpanCard(params?: {
         traceSettings={
           {
             spanFilter: params?.spanFilter,
-            traceRunSummaryAggregationKey: params?.traceRunSummaryAggregationKey,
+            traceTimingKey: params?.traceTimingKey,
             timezone: params?.timezone,
-            localDependencyMode: params?.localDependencyMode
+            sameProcessDependencyMode: params?.sameProcessDependencyMode
           } as TraceVisSettings
         }
         interactive={params?.interactive ?? true}
@@ -503,8 +485,8 @@ function createGraphWithChildren(): {span: TraceSpan; traceGraph: JSONTrace} {
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -552,9 +534,9 @@ function createGraphWithChildren(): {span: TraceSpan; traceGraph: JSONTrace} {
     }
   };
 
-  const localDependencies: TraceLocalDependency[] = [
+  const sameProcessDependencies: TraceSameProcessDependency[] = [
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-child-later' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: childLater.spanId,
@@ -564,7 +546,7 @@ function createGraphWithChildren(): {span: TraceSpan; traceGraph: JSONTrace} {
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-child-earlier' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: childEarlier.spanId,
@@ -574,7 +556,7 @@ function createGraphWithChildren(): {span: TraceSpan; traceGraph: JSONTrace} {
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-unrelated' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: unrelated.spanId,
@@ -602,7 +584,7 @@ function createGraphWithChildren(): {span: TraceSpan; traceGraph: JSONTrace} {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
@@ -637,8 +619,8 @@ function buildChildBlock(params: {
         durationMsAsString: `${params.endTimeMs - params.startTimeMs}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -712,9 +694,9 @@ function createGraphWithRecursiveChildren(): {span: TraceSpan; traceGraph: JSONT
     grandChildOneB,
     grandChildTwoA
   ];
-  const localDependencies: TraceLocalDependency[] = [
+  const sameProcessDependencies: TraceSameProcessDependency[] = [
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-child-one' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: childOne.spanId,
@@ -724,7 +706,7 @@ function createGraphWithRecursiveChildren(): {span: TraceSpan; traceGraph: JSONT
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-child-two' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: childTwo.spanId,
@@ -734,7 +716,7 @@ function createGraphWithRecursiveChildren(): {span: TraceSpan; traceGraph: JSONT
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-child-three' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: childThree.spanId,
@@ -744,7 +726,7 @@ function createGraphWithRecursiveChildren(): {span: TraceSpan; traceGraph: JSONT
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-child-one-grand-one-a' as TraceDependencyId,
       startSpanId: childOne.spanId,
       endSpanId: grandChildOneA.spanId,
@@ -754,7 +736,7 @@ function createGraphWithRecursiveChildren(): {span: TraceSpan; traceGraph: JSONT
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-child-one-grand-one-b' as TraceDependencyId,
       startSpanId: childOne.spanId,
       endSpanId: grandChildOneB.spanId,
@@ -764,7 +746,7 @@ function createGraphWithRecursiveChildren(): {span: TraceSpan; traceGraph: JSONT
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-child-two-grand-two-a' as TraceDependencyId,
       startSpanId: childTwo.spanId,
       endSpanId: grandChildTwoA.spanId,
@@ -791,7 +773,7 @@ function createGraphWithRecursiveChildren(): {span: TraceSpan; traceGraph: JSONT
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
@@ -832,9 +814,9 @@ function createGraphWithFilteredChildren(): {span: TraceSpan; traceGraph: JSONTr
     endTimeMs: 13
   });
 
-  const localDependencies: TraceLocalDependency[] = [
+  const sameProcessDependencies: TraceSameProcessDependency[] = [
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-filtered' as TraceDependencyId,
       startSpanId: visibleRoot.spanId,
       endSpanId: filteredChild.spanId,
@@ -844,7 +826,7 @@ function createGraphWithFilteredChildren(): {span: TraceSpan; traceGraph: JSONTr
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-filtered-visible' as TraceDependencyId,
       startSpanId: filteredChild.spanId,
       endSpanId: visibleGrandchild.spanId,
@@ -872,94 +854,13 @@ function createGraphWithFilteredChildren(): {span: TraceSpan; traceGraph: JSONTr
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
   return {
     span: visibleRoot,
     traceGraph: buildJSONTrace([process], [], {name: 'filtered-children-tab'})
-  };
-}
-
-function createGraphWithTopologyFilteredChildren(): {span: TraceSpan; traceGraph: JSONTrace} {
-  const processId = 'rank-1';
-  const thread: TraceThread = {
-    type: 'trace-thread',
-    name: 'thread-1',
-    threadId: 'thread-1' as TraceThreadId,
-    processId
-  };
-
-  const selected = buildChildBlock({
-    spanId: 'selected',
-    threadId: thread.threadId,
-    name: 'selected',
-    startTimeMs: 0,
-    endTimeMs: 10
-  });
-  const topologyFilteredChild = buildChildBlock({
-    spanId: 'topology-filtered-child',
-    threadId: thread.threadId,
-    name: 'topology-filtered-child',
-    startTimeMs: 5,
-    endTimeMs: 5
-  });
-  const visibleGrandchild = buildChildBlock({
-    spanId: 'visible-grandchild',
-    threadId: thread.threadId,
-    name: 'visible-grandchild',
-    startTimeMs: 6,
-    endTimeMs: 7
-  });
-
-  const localDependencies: TraceLocalDependency[] = [
-    {
-      type: 'trace-local-dependency',
-      dependencyId: 'dep-selected-topology-child' as TraceDependencyId,
-      startSpanId: selected.spanId,
-      endSpanId: topologyFilteredChild.spanId,
-      keywords: new Set(['PARENT']),
-      waitMode: 'start-to-start',
-      bidirectional: false,
-      waitTimeMs: 0
-    },
-    {
-      type: 'trace-local-dependency',
-      dependencyId: 'dep-topology-child-grandchild' as TraceDependencyId,
-      startSpanId: topologyFilteredChild.spanId,
-      endSpanId: visibleGrandchild.spanId,
-      keywords: new Set(['PARENT']),
-      waitMode: 'start-to-start',
-      bidirectional: false,
-      waitTimeMs: 0
-    }
-  ];
-
-  const spans = [selected, topologyFilteredChild, visibleGrandchild];
-  const process: TraceProcess = {
-    type: 'trace-process',
-    processId,
-    name: processId,
-    rankNum: 0,
-    stepNum: 0,
-    threads: [thread],
-    threadMap: {[thread.threadId]: thread},
-    spans,
-    spanMap: Object.fromEntries(spans.map(span => [span.spanId, span])),
-    instants: [],
-    instantMap: {},
-    threadInstantMap: {},
-    counters: [],
-    counterMap: {},
-    threadCounterMap: {},
-    localDependencies,
-    remoteDependencies: []
-  };
-
-  return {
-    span: selected,
-    traceGraph: buildJSONTrace([process], [], {name: 'topology-filtered-children-tab'})
   };
 }
 
@@ -987,9 +888,9 @@ function createGraphWithFilteredDependencySource(): {span: TraceSpan; traceGraph
     endTimeMs: 13
   });
 
-  const localDependencies: TraceLocalDependency[] = [
+  const sameProcessDependencies: TraceSameProcessDependency[] = [
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-filtered-selected' as TraceDependencyId,
       startSpanId: filteredDependencySource.spanId,
       endSpanId: selected.spanId,
@@ -1017,7 +918,7 @@ function createGraphWithFilteredDependencySource(): {span: TraceSpan; traceGraph
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
@@ -1059,9 +960,9 @@ function createGraphWithDirectionalDependencies(): {span: TraceSpan; traceGraph:
     startTimeMs: 6,
     endTimeMs: 7
   });
-  const localDependencies: TraceLocalDependency[] = [
+  const sameProcessDependencies: TraceSameProcessDependency[] = [
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-incoming-selected' as TraceDependencyId,
       startSpanId: incomingSource.spanId,
       endSpanId: selected.spanId,
@@ -1071,7 +972,7 @@ function createGraphWithDirectionalDependencies(): {span: TraceSpan; traceGraph:
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-outgoing' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: outgoingTarget.spanId,
@@ -1081,7 +982,7 @@ function createGraphWithDirectionalDependencies(): {span: TraceSpan; traceGraph:
       waitTimeMs: 0
     },
     {
-      type: 'trace-local-dependency',
+      type: 'trace-same-process-dependency',
       dependencyId: 'dep-selected-filtered-outgoing' as TraceDependencyId,
       startSpanId: selected.spanId,
       endSpanId: filteredOutgoingTarget.spanId,
@@ -1108,7 +1009,7 @@ function createGraphWithDirectionalDependencies(): {span: TraceSpan; traceGraph:
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
@@ -1146,10 +1047,10 @@ function createGraphWithManyChildren(blockCount: number): {
     })
   );
 
-  const localDependencies = descendants.map(
+  const sameProcessDependencies = descendants.map(
     descendant =>
       ({
-        type: 'trace-local-dependency',
+        type: 'trace-same-process-dependency',
         dependencyId: `dep-selected-${descendant.spanId}` as TraceDependencyId,
         startSpanId: selected.spanId,
         endSpanId: descendant.spanId,
@@ -1157,7 +1058,7 @@ function createGraphWithManyChildren(blockCount: number): {
         waitMode: 'start-to-start',
         bidirectional: false,
         waitTimeMs: 0
-      }) satisfies TraceLocalDependency
+      }) satisfies TraceSameProcessDependency
   );
 
   const process: TraceProcess = {
@@ -1176,7 +1077,7 @@ function createGraphWithManyChildren(blockCount: number): {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: []
   };
 
@@ -1215,8 +1116,8 @@ function createLeafBlockGraph(
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: [],
     userData
@@ -1238,7 +1139,7 @@ function createLeafBlockGraph(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 
@@ -1286,8 +1187,8 @@ function createGraphWithCrossProcessEndpoint(): {span: TraceSpan; traceGraph: JS
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: endpoint.endpointId,
     crossProcessDependencyEndpoints: [endpoint]
   };
@@ -1308,7 +1209,7 @@ function createGraphWithCrossProcessEndpoint(): {span: TraceSpan; traceGraph: JS
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 
@@ -1338,12 +1239,6 @@ describe('TraceSpanCard', () => {
       'parent-4',
       'omitted 3 parent spans'
     ]);
-    expect(getDependencyTableModeTexts(rendered)).toEqual([
-      'parent-1',
-      'parent-2',
-      'parent-3',
-      'parent-4'
-    ]);
   });
 
   it('shows the visible stitched parent chain in the popup when intermediate parents are filtered', () => {
@@ -1356,12 +1251,6 @@ describe('TraceSpanCard', () => {
       'parent-5',
       'parent-3',
       'parent-1'
-    ]);
-    expect(getDependencyTableModeTexts(rendered)).toEqual([
-      'parent-1',
-      'parent-3',
-      'parent-5',
-      'parent-7'
     ]);
   });
 
@@ -1378,13 +1267,6 @@ describe('TraceSpanCard', () => {
       'parent-3',
       'parent-2',
       'parent-1'
-    ]);
-    expect(getDependencyTableModeTexts(rendered)).toEqual([
-      'parent-3',
-      'parent-4',
-      'parent-5',
-      'parent-6',
-      'parent-7'
     ]);
   });
 
@@ -1404,44 +1286,17 @@ describe('TraceSpanCard', () => {
       'parent-2',
       'parent-1'
     ]);
-    expect(getDependencyTableModeTexts(rendered)).toEqual([
-      'parent-1',
-      'parent-2',
-      'parent-3',
-      'parent-4',
-      'parent-5',
-      'parent-6',
-      'parent-7'
-    ]);
     expect(rendered.textContent).not.toContain('...omitted');
   });
 
-  it('keeps topology-filtered parents visible by default with topology outlines', () => {
-    const rendered = renderTraceSpanCard({
-      parentCount: 3,
-      interactive: true,
-      similarDurationChainSpanFilter: {maxRelativeDurationDelta: 0}
-    });
-
-    expect(getDependencyTableSpanTexts(rendered)).toEqual(['parent-3', 'parent-2', 'parent-1']);
-    expect(getTopologyFilteredBadgeTexts(rendered)).toEqual(
-      expect.arrayContaining(['parent-3', 'parent-2', 'parent-1'])
-    );
-
-    changeSelectValue(rendered, 'Span visibility', 'visible');
-
-    expect(getDependencyTableSpanTexts(rendered)).toEqual([]);
-  });
-
-  it('does not apply local dependency render filters to inspector parent rows', () => {
+  it('does not apply same-process dependency render filters to inspector parent rows', () => {
     const rendered = renderTraceSpanCard({
       parentCount: 1,
       interactive: true,
-      localDependencyMode: 'warnings'
+      sameProcessDependencyMode: 'warnings'
     });
 
     expect(getDependencyTableSpanTexts(rendered)).toContain('parent-1');
-    expect(getDependencyTableModeTexts(rendered)).toEqual(['parent-1']);
   });
 
   it('shows filtered parents by default and hides them when Visible Spans is selected', async () => {
@@ -1460,15 +1315,6 @@ describe('TraceSpanCard', () => {
       'parent-3',
       'parent-2',
       'parent-1'
-    ]);
-    expect(getDependencyTableModeTexts(rendered)).toEqual([
-      'parent-1',
-      'parent-2',
-      'parent-3',
-      'parent-4',
-      'parent-5',
-      'parent-6',
-      'parent-7'
     ]);
     expect(getFilteredBadgeTexts(rendered)).toEqual(
       expect.arrayContaining(['parent-2', 'parent-4', 'parent-6'])
@@ -1489,7 +1335,7 @@ describe('TraceSpanCard', () => {
 
   it('double-clicks filtered parent badges while filtered spans are shown by default', async () => {
     const source = createParentChainGraph(7);
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(source.traceGraph), {
+    const traceGraph = createTestTraceGraph(source.traceGraph, {
       spanFilters: ['parent-2', 'parent-4', 'parent-6']
     });
     const onSpanDoubleClick = vi.fn();
@@ -1551,6 +1397,30 @@ describe('TraceSpanCard', () => {
 
     clickButton(rendered, 'Constituents');
     expect(rendered.textContent).toContain('Stub constituent rows');
+  });
+
+  it('keeps interactive tabs on one horizontally scrollable row', () => {
+    const rendered = renderTraceSpanCard({
+      interactive: true,
+      alwaysShowAllInteractiveTabs: true,
+      showChildrenTab: true,
+      customTabs: [
+        {
+          id: 'constituents',
+          label: 'Constituents',
+          content: <div>Stub constituent rows</div>
+        }
+      ]
+    });
+
+    const tabList = rendered.querySelector('[role="tablist"]');
+    expect(tabList?.className).toContain('flex-nowrap');
+    expect(tabList?.className).toContain('overflow-x-auto');
+    expect(
+      [...rendered.querySelectorAll('[role="tab"]')].every(
+        tab => tab.className.includes('shrink-0') && tab.className.includes('whitespace-nowrap')
+      )
+    ).toBe(true);
   });
 
   it('inserts caller-provided custom tabs before a requested tab id', () => {
@@ -1642,15 +1512,8 @@ describe('TraceSpanCard', () => {
       'grandchild-two-a',
       'child-three'
     ]);
-    expect(getDependencyTableModeTexts(rendered)).toEqual([
-      'start-to-start',
-      'start-to-start',
-      'start-to-start',
-      'start-to-start',
-      'start-to-start',
-      'start-to-start'
-    ]);
     expect(getChildDepths(rendered)).toEqual(['1', '2', '2', '1', '2', '1']);
+    expect(getChildIndentationLevels(rendered)).toEqual(['0', '1', '1', '0', '1', '0']);
   });
 
   it('shows filtered descendants by default and can hide them', () => {
@@ -1666,17 +1529,19 @@ describe('TraceSpanCard', () => {
     clickButton(rendered, 'Children');
     expect(getDependencyTableSpanTexts(rendered)).toEqual(['filtered-child', 'visible-grandchild']);
     expect(getChildDepths(rendered)).toEqual(['1', '2']);
+    expect(getChildIndentationLevels(rendered)).toEqual(['0', '1']);
     expect(getFilteredBadgeTexts(rendered)).toEqual(expect.arrayContaining(['filtered-child']));
 
     changeSelectValue(rendered, 'Span visibility', 'visible');
 
     expect(getDependencyTableSpanTexts(rendered)).toEqual(['visible-grandchild']);
     expect(getChildDepths(rendered)).toEqual(['2']);
+    expect(getChildIndentationLevels(rendered)).toEqual(['0']);
   });
 
   it('double-clicks filtered child badges while filtered spans are shown by default', () => {
     const {span, traceGraph: sourceTraceGraph} = createGraphWithFilteredChildren();
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {
       spanFilters: ['filtered-child']
     });
     const onSpanDoubleClick = vi.fn();
@@ -1696,31 +1561,6 @@ describe('TraceSpanCard', () => {
       getRequiredSpanRefBySpanId(traceGraph, 'filtered-child' as TraceSpanId),
       'select'
     );
-  });
-
-  it('keeps topology-filtered descendants visible by default with topology outlines', () => {
-    const {span, traceGraph} = createGraphWithTopologyFilteredChildren();
-    const rendered = renderTraceSpanCard({
-      interactive: true,
-      span,
-      traceGraph,
-      showChildrenTab: true,
-      overlappingParentSpanFilter: {maxChildDurationMs: 1}
-    });
-
-    clickButton(rendered, 'Children');
-
-    expect(getDependencyTableSpanTexts(rendered)).toEqual([
-      'topology-filtered-child',
-      'visible-grandchild'
-    ]);
-    expect(getTopologyFilteredBadgeTexts(rendered)).toEqual(
-      expect.arrayContaining(['topology-filtered-child'])
-    );
-
-    changeSelectValue(rendered, 'Span visibility', 'visible');
-
-    expect(getDependencyTableSpanTexts(rendered)).toEqual(['visible-grandchild']);
   });
 
   it('outlines filtered direct dependency sources while filtered spans are shown by default', () => {
@@ -1788,32 +1628,16 @@ describe('TraceSpanCard', () => {
   });
 
   it('renders a truncation notice when recursive child traversal exceeds the limit', () => {
-    const {span, traceGraph} = createGraphWithManyChildren(1);
-    const getTraceSpanDescendants = TraceGraph.prototype.getTraceSpanDescendants;
-    const descendantSpy = vi
-      .spyOn(TraceGraph.prototype, 'getTraceSpanDescendants')
-      .mockImplementation(function (this: TraceGraph, spanRef, options) {
-        return {
-          ...getTraceSpanDescendants.call(this, spanRef, options),
-          isTruncated: true,
-          limit: 1000,
-          truncatedCount: 1,
-          truncationCountIsExact: false
-        };
-      });
-    try {
-      const rendered = renderTraceSpanCard({
-        interactive: true,
-        span,
-        traceGraph,
-        showChildrenTab: true
-      });
+    const {span, traceGraph} = createGraphWithManyChildren(1001);
+    const rendered = renderTraceSpanCard({
+      interactive: true,
+      span,
+      traceGraph,
+      showChildrenTab: true
+    });
 
-      clickButton(rendered, 'Children');
-      expect(rendered.textContent).toContain('Showing first 1000 descendants; 1 more omitted');
-    } finally {
-      descendantSpy.mockRestore();
-    }
+    clickButton(rendered, 'Children');
+    expect(rendered.textContent).toContain('Showing first 1000 descendants; 1 more omitted');
   });
 
   it('shows the children tab even when no child dependencies are visible', () => {
@@ -1924,7 +1748,6 @@ describe('TraceSpanCard', () => {
       dependencyTabLabel: 'Parents'
     });
 
-    expect(getDependencyTableModeTexts(rendered)).toEqual(['parent-1']);
     expect(rendered.textContent).not.toContain('Dependencies');
   });
 
@@ -1983,7 +1806,7 @@ describe('TraceSpanCard', () => {
       dependencyTabLabel: 'Parents',
       showChildrenTab: true,
       dependencyMetric: 'duration',
-      traceRunSummaryAggregationKey: 'envelope'
+      traceTimingKey: 'envelope'
     });
 
     expect(getSelectValue(rendered, 'First duration metric')).toBe('envelope');
@@ -2001,12 +1824,12 @@ describe('TraceSpanCard', () => {
     expect(firstDurationMetricSelect.closest('th')?.className).toContain('w-20');
     expect(firstDurationMetricSelect.closest('th')?.className).toContain('max-w-20');
     expect(getDependencyTableSelectColumnTexts(rendered, 'First duration metric')).toEqual([
-      '7ms',
-      '5ms'
+      '7 ms',
+      '5 ms'
     ]);
     expect(getDependencyTableSelectColumnTexts(rendered, 'Second duration metric')).toEqual([
-      '4ms',
-      '3ms'
+      '4 ms',
+      '3 ms'
     ]);
 
     changeSelectValue(rendered, 'Second duration metric', 'envelope');
@@ -2068,7 +1891,7 @@ describe('TraceSpanCard', () => {
       dependencyTabLabel: 'Parents',
       showChildrenTab: true,
       dependencyMetric: 'duration',
-      traceRunSummaryAggregationKey: 'envelope'
+      traceTimingKey: 'envelope'
     });
 
     clickButton(rendered, 'Children');
@@ -2076,12 +1899,12 @@ describe('TraceSpanCard', () => {
     expect(getSelectValue(rendered, 'First duration metric')).toBe('envelope');
     expect(getSelectValue(rendered, 'Second duration metric')).toBe('p50');
     expect(getDependencyTableSelectColumnTexts(rendered, 'First duration metric')).toEqual([
-      '4ms',
-      '5ms'
+      '4 ms',
+      '5 ms'
     ]);
     expect(getDependencyTableSelectColumnTexts(rendered, 'Second duration metric')).toEqual([
-      '2ms',
-      '3ms'
+      '2 ms',
+      '3 ms'
     ]);
   });
 
@@ -2245,7 +2068,7 @@ describe('TraceSpanCard', () => {
       interactive: true,
       span,
       traceGraph,
-      traceRunSummaryAggregationKey: 'latest',
+      traceTimingKey: 'latest',
       timezone: 'America/Los_Angeles'
     });
 
@@ -2259,8 +2082,8 @@ describe('TraceSpanCard', () => {
     expect(rendered.textContent).toContain('P50 duration:');
     expect(rendered.textContent).not.toContain('Duration:');
     expect(rendered.textContent).toContain('Start Time:');
-    expect(rendered.textContent).toContain('146ms');
-    expect(rendered.textContent).toContain('6ms');
+    expect(rendered.textContent).toContain('146 ms');
+    expect(rendered.textContent).toContain('6 ms');
     expect(rendered.textContent).toContain('5ms');
     expect(rendered.textContent).toContain('latest');
     expect(rendered.textContent).toContain('PST');
@@ -2413,7 +2236,6 @@ describe('TraceSpanCard', () => {
 
     expect(rendered.textContent).toContain('Dependencies');
     expect(rendered.textContent).toContain('Span Data');
-    expect(getDependencyTableModeTexts(rendered)).toEqual(['parent-1']);
   });
 
   it('marks the selected interactive tab for styling', () => {

@@ -13,7 +13,7 @@ import type {
   TraceCounter,
   TraceCrossProcessDependency,
   TraceInstant,
-  TraceLocalDependency,
+  TraceSameProcessDependency,
   TraceObject,
   TracePath,
   TraceProcess,
@@ -31,7 +31,7 @@ import type {
 | `TraceSpan` | Duration-bearing timeline object with one or more timing projections |
 | `TraceInstant` | Point-in-time event |
 | `TraceCounter` | Sampled value over time |
-| `TraceLocalDependency` | Dependency between spans in one process |
+| `TraceSameProcessDependency` | Dependency between spans in one process |
 | `TraceCrossProcessDependency` | Dependency between spans in different processes |
 | `TraceCrossProcessEndpoint` | Stitchable endpoint used before a cross-process dependency is complete |
 | `TracePath` | Selected or computed path through spans and visible dependencies |

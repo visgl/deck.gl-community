@@ -19,7 +19,7 @@ import {createTraceStreamSession, type TraceStreamChunk} from '@deck.gl-communit
 - process upserts
 - thread upserts
 - span updates
-- local dependency updates
+- same-process dependency updates
 - instant updates
 - counter updates
 - replacement snapshots
@@ -28,7 +28,7 @@ Custom sources should emit these chunks instead of mutating React state or deck 
 
 ## Output contract
 
-Published snapshots contain immutable `TraceGraphData` and `TraceGraph` values. Render only those
+Published snapshots contain immutable `TraceDataset` and `TraceGraph` values. Render only those
 published snapshots; keep the session's mutable ingestion state upstream.
 
 ## Built-in producers

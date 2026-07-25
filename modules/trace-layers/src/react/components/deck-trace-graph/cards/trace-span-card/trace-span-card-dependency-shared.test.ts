@@ -1,13 +1,13 @@
 import {isValidElement} from 'react';
 import {describe, expect, it, vi} from 'vitest';
 
-import {TRACE_SPAN_FILTER_MASK_NONE} from '../../../../../trace/index';
+import {TRACE_SPAN_FILTER_MASK_NONE} from '../../../../../trace';
 import {
   emitDependencyHoverFromResolvedBlocks,
   renderDependencyProcessBadge
 } from './trace-span-card-dependency-shared';
 
-import type {SpanRef, TraceCardSpan, TraceSpanId} from '../../../../../trace/index';
+import type {SpanRef, TraceCardSpan, TraceSpanId} from '../../../../../trace';
 import type {ReactNode} from 'react';
 
 /** Builds one minimal selected-card span row for dependency-hover tests. */
@@ -93,7 +93,7 @@ describe('renderDependencyProcessBadge', () => {
 
   it('front-truncates long process labels and keeps the full label in the tooltip', () => {
     const badge = renderDependencyProcessBadge({
-      span: createSpan('child', 'service/client/very/deep/process'),
+      span: createSpan('child', 'synthetic/client/very/deep/process'),
       currentSpan: createSpan('current', 'rank-one'),
       traceLabels: {
         processLabel: 'Process',
@@ -114,7 +114,7 @@ describe('renderDependencyProcessBadge', () => {
     if (!isValidElement<{children?: ReactNode; tooltip?: ReactNode}>(badge)) {
       throw new Error('Expected dependency process tooltip element');
     }
-    expect(badge.props.tooltip).toBe('Process: service/client/very/deep/process');
+    expect(badge.props.tooltip).toBe('Process: synthetic/client/very/deep/process');
     const child = badge.props.children;
     expect(isValidElement<{children?: ReactNode}>(child)).toBe(true);
     if (!isValidElement<{children?: ReactNode}>(child)) {

@@ -42,9 +42,11 @@ describe('trace graph span filters', () => {
     const regexSpy = vi.spyOn(globalThis, 'RegExp');
 
     try {
-      const filterPlan = buildCompiledTraceSpanFilterPlan(['/workspace/project/crates']);
+      const filterPlan = buildCompiledTraceSpanFilterPlan([
+        '/workspace/projects/runtime/runtime-crates'
+      ]);
 
-      expect(filterPlan.literalPrefixes).toEqual(['/workspace/project/crates']);
+      expect(filterPlan.literalPrefixes).toEqual(['/workspace/projects/runtime/runtime-crates']);
       expect(filterPlan.regexMatchers).toEqual([]);
       expect(regexSpy).not.toHaveBeenCalled();
     } finally {

@@ -17,8 +17,8 @@ describe('estimateTraceGraphSize', () => {
 
     const report = estimateTraceGraphSize({
       processes: [],
-      crossDependencies: [],
-      crossDependencyTable: table
+      crossProcessDependencies: [],
+      crossProcessDependencyTable: table
     });
 
     expect(report.totalBytes).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ describe('estimateTraceGraphSize', () => {
     const report = estimateTraceGraphSize(
       {
         processes: [],
-        crossDependencies: [],
+        crossProcessDependencies: [],
         processSpanTableMap: {process: table},
         crossProcessEndpointsBySpanRef: largeRuntimeMap
       },

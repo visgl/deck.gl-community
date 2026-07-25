@@ -1,6 +1,6 @@
 import {ArrowDown, ArrowUp} from 'lucide-react';
 
-import {formatTimeMs, pluralize} from '../../../../../trace/index';
+import {formatTimeMs, pluralize} from '../../../../../trace';
 import {cn} from '../../../ui';
 import {WithTooltip} from '../../../with-tooltip';
 

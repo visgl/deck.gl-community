@@ -1,11 +1,11 @@
 import type {TraceProcessActivityAggregation} from './collapsed-activity';
 import type {
   CounterRef,
+  CrossProcessDependencyRef,
   EventRef,
   InstantRef,
-  TraceDependencyRef,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
+  SameProcessDependencyRef,
+  TraceDependencyRef
 } from './trace-id-encoder';
 
 // TODO -remove
@@ -38,10 +38,13 @@ export type TraceEventId = Branded<'event', string>;
 export type TraceDependencyId = Branded<'dependency', string>;
 /** A packed safe-integer reference for one exact graph-global chunk span row. */
 export type SpanRef = Branded<'span-ref', number>;
+
+/** Tuple path identifying one declared span user-data attribute leaf. */
+export type TraceSpanAttributePath = readonly string[];
 /** A packed safe-integer reference for one process-local span/dependency row. */
 export type LocalSpanRef = Branded<'local-span-ref', number>;
 
-/** A typed string identifier for partial cross-rank dependencies */
+/** A typed string identifier for one unresolved cross-process dependency endpoint group. */
 export type TraceCrossProcessEndpointId = Branded<'endpoint', string>;
 
 /** Controls whether trace spans render per thread or on combined process rows. */
@@ -54,9 +57,11 @@ export type TraceSpanLayoutMode = 'auto' | 'manual';
 export type TraceInteractionMode = 'drag-to-zoom' | 'drag-to-pan';
 
 export type TraceVisSettings = {
+  /** Whether to render dependency geometry. */
   showDependencies: boolean;
-  /** Mode for filtering local dependencies when shown */
-  localDependencyMode: 'all' | 'warnings' | 'submit';
+  /** Mode for filtering same-process dependencies when shown. */
+  sameProcessDependencyMode: 'all' | 'warnings' | 'submit';
+  /** Whether to render cross-process dependency geometry. */
   showCrossProcessDependencies: boolean;
   showInstants: boolean;
   showCounters: boolean;
@@ -69,8 +74,11 @@ export type TraceVisSettings = {
   showPathsOnly: boolean;
   /** Whether to render the interactive overview mini-map. */
   showOverview: boolean;
+  /** Whether dependency keyword filtering includes, excludes, or ignores matching dependencies. */
   dependencyDisplayMode: 'all' | 'exclude' | 'include';
+  /** Dependency keywords used by {@link dependencyDisplayMode}. */
   dependencyKeywords: string[];
+  /** Opacity multiplier applied to rendered dependency geometry. */
   dependencyOpacity: number;
   /** Alpha multiplier applied to non-highlighted spans when highlighted span refs are set. */
   highlightFadeFactor?: number;
@@ -115,7 +123,7 @@ export type TraceVisSettings = {
   /** Select from multiple trace color schemes */
   traceColorSchemeId: string;
   /** Optional timing key used by aggregated traces to choose an active timing projection. */
-  traceRunSummaryAggregationKey?: string;
+  traceTimingKey?: string;
   /** Controls whether layout rows are per thread or per process. */
   trackAggregationMode: TrackAggregationMode;
   /** Aggregation algorithm used to summarize collapsed process activity rows. */
@@ -131,10 +139,10 @@ export type TracePath = {
   spanRefSet: Set<SpanRef>;
   /** Optional ordered visible span refs as they appear in the path. */
   orderedSpanRefs?: SpanRef[];
-  /** Canonical set of visible local dependency refs in this runtime path. */
-  visibleLocalDependencyRefSet: Set<VisibleLocalDependencyRef>;
+  /** Canonical set of visible same-process dependency refs in this runtime path. */
+  visibleSameProcessDependencyRefSet: Set<SameProcessDependencyRef>;
   /** Canonical set of visible cross-process dependency refs in this runtime path. */
-  visibleCrossDependencyRefSet: Set<VisibleCrossDependencyRef>;
+  visibleCrossProcessDependencyRefSet: Set<CrossProcessDependencyRef>;
 };
 
 export type TraceProcessInfo = Record<string, string | number>;
@@ -154,7 +162,7 @@ export type TraceProcessInfoObject = {
  * One trace, containing
  * - streams
  * - spans organized into streams
- * - local dependencies
+ * - same-process dependencies
  */
 export type TraceProcess = {
   type: 'trace-process';
@@ -179,7 +187,7 @@ export type TraceProcess = {
   counters: TraceCounter[];
   counterMap: Record<string, TraceCounter>;
   threadCounterMap: Record<string, TraceCounter[]>;
-  localDependencies: TraceLocalDependency[];
+  sameProcessDependencies: TraceSameProcessDependency[];
   remoteDependencies: {processId: string; spanId: TraceSpanId}[];
   /** Additional data the application may want to preserve / attach */
   userData?: Record<string, unknown>;
@@ -206,7 +214,7 @@ export type TraceObject =
   | TraceEvent
   | TraceInstant
   | TraceCounter
-  | TraceLocalDependency
+  | TraceSameProcessDependency
   | TraceCrossProcessDependency
   | TraceProcessInfoObject;
 
@@ -287,10 +295,10 @@ export type TraceSpan<UserDataT extends Record<string, unknown> = Record<string,
   /** Rendered span height used when the owning trace opts into manual span layout. */
   layoutHeight?: number;
 
-  /** Ids to local dependencies of this block */
-  localDependencyIds: TraceDependencyId[];
+  /** Ids to same-process dependencies of this block */
+  sameProcessDependencyIds: TraceDependencyId[];
   /** Actual dependencies @todo - Can we drop this? */
-  localDependencies: TraceDependency[];
+  sameProcessDependencies: TraceDependency[];
 
   /** Shared endpoint-group id used to stitch unresolved cross-process dependencies. */
   crossProcessEndpointId: TraceCrossProcessEndpointId | null;
@@ -301,7 +309,8 @@ export type TraceSpan<UserDataT extends Record<string, unknown> = Record<string,
   userData?: UserDataT;
 };
 
-export type TraceSpanTimingSource = Pick<TraceSpan, 'spanId' | 'primaryTimingKey' | 'timings'>;
+export type TraceSpanTimingSource = Pick<TraceSpan, 'primaryTimingKey' | 'timings'> &
+  Partial<Pick<TraceSpan, 'spanId'>>;
 
 export function getPrimaryTiming(block: TraceSpanTimingSource): TraceSpanTiming {
   const primary = block.timings[block.primaryTimingKey];
@@ -315,30 +324,34 @@ export function getPrimaryTiming(block: TraceSpanTimingSource): TraceSpanTiming 
   throw new Error(`TraceSpan ${String(block.spanId)} has no timing entries.`);
 }
 
-/** One endpoint of a cross-rank dependency. If we haven't loaded the other rank, this is all we have. */
-export type TraceDependency = TraceLocalDependency | TraceCrossProcessDependency;
+/** Union of same-process and cross-process dependency compatibility objects. */
+export type TraceDependency = TraceSameProcessDependency | TraceCrossProcessDependency;
 
 /**
- * A local dependency between spans in the same rank
- * with annotation data calculated for visualization
+ * Compatibility object for a dependency whose endpoints belong to the same graph process.
+ *
+ * Same-process is semantic and does not imply that both endpoint rows came from the same storage
+ * chunk. Canonical runtime storage lives in process-keyed Arrow dependency tables.
  */
-export type TraceLocalDependency<
+export type TraceSameProcessDependency<
   UserDataT extends Record<string, unknown> = Record<string, unknown>
 > = {
-  type: 'trace-local-dependency';
+  /** Discriminator for same-process dependency compatibility objects. */
+  type: 'trace-same-process-dependency';
   /** Canonical runtime dependency reference when materialized by runtime graph helpers. */
-  dependencyRef?: TraceDependencyRef | VisibleLocalDependencyRef;
+  dependencyRef?: TraceDependencyRef;
   /** Canonical runtime span ref for the dependency start span when available. */
   startSpanRef?: SpanRef;
   /** Canonical runtime span ref for the dependency end span when available. */
   endSpanRef?: SpanRef;
-  /** Global dependency id */
+  /** Stable compatibility dependency id. */
   dependencyId: TraceDependencyId;
-  /** Global id of starting block */
+  /** Stable source id for the dependency start span. */
   startSpanId: TraceSpanId;
-  /** Global id of end block */
+  /** Stable source id for the dependency end span. */
   endSpanId: TraceSpanId;
 
+  /** Keyword labels used by dependency filtering and parent traversal. */
   keywords: Set<string>;
 
   /**
@@ -348,40 +361,44 @@ export type TraceLocalDependency<
    * 'start-to-start' - from start of first block to start of the second block (submission of tasks to a queue can continue while the first task starts).
    */
   waitMode: 'end-to-start' | 'end-to-end' | 'start-to-start';
-  /** Is this dependency bidirectional? (more of a sync point) */
+  /** Whether this dependency acts as a bidirectional synchronization edge. */
   bidirectional: boolean;
-  /** The wait time for this dependency, i.e. the delay between spans */
+  /** Delay between endpoint spans under the selected wait mode, in milliseconds. */
   waitTimeMs: number;
 
-  /** Additional data the application may want to preserve / attach */
+  /** Additional application-owned metadata preserved at compatibility boundaries. */
   userData?: UserDataT;
 };
 
 /**
- * This is a cross-rank Trace dependency
- * with annotation data calculated for visualization
+ * Compatibility object for a dependency whose endpoints belong to different graph processes.
+ *
+ * Canonical runtime storage lives in the graph-global Arrow cross-process dependency table.
  */
 export type TraceCrossProcessDependency<
   UserDataT extends Record<string, unknown> = Record<string, unknown>
 > = {
+  /** Discriminator for cross-process dependency compatibility objects. */
   type: 'trace-cross-process-dependency';
   /** Canonical runtime dependency reference when materialized by runtime graph helpers. */
-  dependencyRef?: TraceDependencyRef | VisibleCrossDependencyRef;
+  dependencyRef?: TraceDependencyRef;
   /** Canonical runtime span ref for the dependency start span when available. */
   startSpanRef?: SpanRef;
   /** Canonical runtime span ref for the dependency end span when available. */
   endSpanRef?: SpanRef;
-  /** Global dependency id */
+  /** Stable compatibility dependency id. */
   dependencyId: TraceDependencyId;
-  /** The endpoint ids */
+  /** Stable unresolved endpoint-group id used while stitching loaded processes. */
   endpointId: TraceCrossProcessEndpointId;
 
+  /** Source rank number retained for source-format compatibility. */
   startRankNum: number;
+  /** Destination rank number retained for source-format compatibility. */
   endRankNum: number;
 
-  /** Global id of starting block */
+  /** Stable source id for the dependency start span. */
   startSpanId: TraceSpanId;
-  /** Global id of end block */
+  /** Stable source id for the dependency end span. */
   endSpanId: TraceSpanId;
 
   /**
@@ -395,7 +412,7 @@ export type TraceCrossProcessDependency<
   /** Is this dependency bidirectional? */
   bidirectional: boolean;
 
-  /** Cross Dependency topology */
+  /** Cross-process dependency topology. */
   topology: string;
 
   waitTimeMs: number;
@@ -410,9 +427,9 @@ export type TraceCrossProcessDependency<
 };
 
 /**
- * Type represents one endpoint of a cross dependency.
+ * Type represents one endpoint of a cross-process dependency.
  * A rank knows which rank and comm group it depends on, but does not know the block id in that rank.
- * This means that cross dependencies are just "endpoints" that need to be resolved
+ * This means that cross-process dependencies are just "endpoints" that need to be resolved
  * (i.e. combined into actual "dependencies") once those remote ranks actually load.
  */
 export type TraceCrossProcessEndpoint<

@@ -1,20 +1,32 @@
+import * as arrow from 'apache-arrow';
+
 import {
-  buildArrowTraceLocalDependencyTableFromColumns,
+  buildArrowTraceSameProcessDependencyTableFromColumns,
   buildArrowTraceSpanSidecarTableFromColumns,
   buildArrowTraceSpanTableFromColumns
 } from './ingestion/arrow-trace';
+import {
+  decodeTraceDependencyWaitModeCode,
+  traceDependencyKeywordFlagsHasParent
+} from './ingestion/trace-dependency-arrow-fields';
+import {decodeTraceSpanTimingStatusCode} from './ingestion/trace-span-timing-status-code';
 
 import type {
-  ArrowTraceLocalDependencyTable,
   ArrowTraceProcessMetadata,
+  ArrowTraceSameProcessDependencyTable,
   ArrowTraceSpanSidecarTable,
   ArrowTraceSpanTable,
-  TraceLocalDependencyArrowColumns,
+  TraceSameProcessDependencyArrowColumns,
   TraceSpanArrowColumns,
   TraceSpanArrowSidecarColumns,
-  TraceSpanArrowSidecarRow
+  TraceSpanArrowTimingProjectionColumns
 } from './ingestion/arrow-trace';
-import type {TraceLocalDependency} from './trace-graph/trace-types';
+import type {
+  TraceCrossProcessEndpoint,
+  TraceCrossProcessEndpointId,
+  TraceProcessId,
+  TraceSameProcessDependency
+} from './trace-graph/trace-types';
 
 /** Inclusive trace-chunk timing envelope used to test active window visibility. */
 export type TraceChunkSpanOverlapRange = {
@@ -33,13 +45,33 @@ export type TraceChunkSourceDependencyRow = {
   /** Stable source id for the dependency destination span. */
   readonly endExternalSpanId: string;
   /** Optional wait-mode hint used when materializing a runtime dependency. */
-  readonly waitMode?: TraceLocalDependencyWaitMode | null;
+  readonly waitMode?: TraceSameProcessDependencyWaitMode | null;
 };
 
-/** Source dependency table carried by parser-local chunk data. */
-export type TraceChunkSourceDependencyTable = {
-  /** Dependency rows in parser-provided order. */
-  readonly rows: readonly TraceChunkSourceDependencyRow[];
+type TraceChunkSourceDependencyTableTypeMap = arrow.TypeMap & {
+  /** Dependency family supplied by the parser, for example `parent`. */
+  dependencyKind: arrow.Utf8;
+  /** Stable source id for the dependency source span. */
+  startExternalSpanId: arrow.Utf8;
+  /** Stable source id for the dependency destination span. */
+  endExternalSpanId: arrow.Utf8;
+  /** Optional wait-mode hint used when materializing a runtime dependency. */
+  waitMode: arrow.Utf8;
+};
+
+/** Source dependency rows carried by parser-local chunk data. */
+export type TraceChunkSourceDependencyTable = arrow.Table<TraceChunkSourceDependencyTableTypeMap>;
+
+/** Column-oriented Arrow source dependency payload used by chunk transport. */
+export type TraceChunkSourceDependencyArrowColumns = {
+  /** Dependency family supplied by the parser, for example `parent`. */
+  readonly dependencyKind: string[];
+  /** Stable source ids for dependency source spans. */
+  readonly startExternalSpanId: string[];
+  /** Stable source ids for dependency destination spans. */
+  readonly endExternalSpanId: string[];
+  /** Optional wait-mode hints used when materializing runtime dependencies. */
+  readonly waitMode?: Array<TraceSameProcessDependencyWaitMode | null>;
 };
 
 /** Row-window metadata carried by parser-local chunk data. */
@@ -52,11 +84,15 @@ export type TraceChunkRowWindowTable = {
 export type TraceChunkDiagnostics = {
   /** Number of source rows kept after parser-local normalization. */
   readonly rowCount: number;
+  /** Number of kept span rows whose canonical timing status is `not-started`. */
+  readonly notStartedSpanCount: number;
+  /** Number of kept span rows whose canonical timing status is `not-finished`. */
+  readonly unfinishedSpanCount: number;
   /** Number of source rows rejected during parser-local normalization. */
   readonly invalidRecordCount: number;
-  /** Earliest chunk row timing bound in UTC milliseconds, when one exists. */
+  /** Earliest canonical chunk timing bound in UTC milliseconds, when one exists. */
   readonly minTimeMs: number | null;
-  /** Latest chunk row timing bound in UTC milliseconds, when one exists. */
+  /** Latest canonical chunk timing bound in UTC milliseconds, when one exists. */
   readonly maxTimeMs: number | null;
   /** Parser-local warning counters kept for diagnostics. */
   readonly warningCounters: Readonly<Record<string, number>>;
@@ -70,15 +106,27 @@ export type TraceChunkData = {
   readonly chunkKey: string;
   /** Metadata for every process represented by rows in this chunk. */
   readonly processes: readonly ArrowTraceProcessMetadata[];
+  /** Compatibility owning process id when this parser-local chunk is process-scoped. */
+  readonly processId?: TraceProcessId | null;
   /** Canonical Arrow span table for this chunk. */
   readonly spanTable: ArrowTraceSpanTable;
-  /** Canonical Arrow local dependency table for chunk-local dependencies. */
-  readonly localDependencyTable: ArrowTraceLocalDependencyTable;
-  /** Optional row-aligned compatibility payloads kept during migration. */
-  readonly spanSidecarRows?: readonly TraceSpanArrowSidecarRow[];
+  /**
+   * Same-process dependency rows already resolved for this storage chunk.
+   *
+   * Same-process is a graph category; it does not require both endpoint rows to originate from
+   * the same source chunk.
+   */
+  readonly resolvedSameProcessDependencyTable: ArrowTraceSameProcessDependencyTable;
   /** Optional row-aligned Arrow sidecar table for this chunk. */
   readonly spanSidecarTable?: ArrowTraceSpanSidecarTable;
-  /** Source-level dependency rows that may resolve across chunk boundaries. */
+  /** Unresolved cross-process endpoint groups retained until selected chunks are stitched. */
+  readonly crossProcessEndpointsByEndpointId?: Readonly<
+    Record<TraceCrossProcessEndpointId, readonly TraceCrossProcessEndpoint[]>
+  >;
+  /**
+   * Neutral source-level dependency rows awaiting graph-level endpoint resolution and category
+   * classification.
+   */
   readonly sourceDependencyTable?: TraceChunkSourceDependencyTable;
   /** Row-level time-window overlap metadata. */
   readonly rowWindowTable?: TraceChunkRowWindowTable;
@@ -88,16 +136,19 @@ export type TraceChunkData = {
   readonly refState: 'parser-local';
 };
 
-/** JSON-safe local dependency metadata embedded in chunk process metadata. */
-export type JSONTraceChunkLocalDependency = Omit<TraceLocalDependency, 'keywords'> & {
+/** JSON-safe same-process dependency metadata embedded in chunk process metadata. */
+export type JSONTraceChunkSameProcessDependency = Omit<TraceSameProcessDependency, 'keywords'> & {
   /** Dependency keyword labels serialized as plain JSON arrays. */
   readonly keywords: readonly string[];
 };
 
 /** JSON-safe process metadata embedded in one trace chunk transport payload. */
-export type JSONTraceChunkProcessMetadata = Omit<ArrowTraceProcessMetadata, 'localDependencies'> & {
-  /** Optional local dependency metadata with Set-backed fields converted to JSON arrays. */
-  readonly localDependencies?: readonly JSONTraceChunkLocalDependency[];
+export type JSONTraceChunkProcessMetadata = Omit<
+  ArrowTraceProcessMetadata,
+  'sameProcessDependencies'
+> & {
+  /** Optional same-process dependency metadata with Set-backed fields converted to JSON arrays. */
+  readonly sameProcessDependencies?: readonly JSONTraceChunkSameProcessDependency[];
 };
 
 /** JSON-safe transport form for one parser-local {@link TraceChunkData} payload. */
@@ -108,16 +159,20 @@ export type JSONTraceChunkData = {
   readonly chunkKey: string;
   /** JSON-safe metadata for every process represented by rows in this chunk. */
   readonly processes: readonly JSONTraceChunkProcessMetadata[];
+  /** Compatibility owning process id when this parser-local chunk is process-scoped. */
+  readonly processId?: TraceProcessId | null;
   /** Column-oriented span payload used to rebuild the chunk span table. */
   readonly spanColumns: TraceSpanArrowColumns;
-  /** Column-oriented dependency payload used to rebuild the chunk local dependency table. */
-  readonly localDependencyColumns: TraceLocalDependencyArrowColumns;
+  /** Column-oriented dependency payload used to rebuild the resolved chunk dependency table. */
+  readonly sameProcessDependencyColumns: TraceSameProcessDependencyArrowColumns;
   /** Optional column-oriented sidecar payload used to rebuild the chunk sidecar table. */
   readonly spanSidecarColumns?: TraceSpanArrowSidecarColumns;
-  /** Optional row-aligned compatibility sidecars kept with this chunk. */
-  readonly spanSidecarRows?: readonly TraceSpanArrowSidecarRow[];
-  /** Source-level dependency rows that may resolve across chunk boundaries. */
-  readonly sourceDependencyTable?: TraceChunkSourceDependencyTable;
+  /** Unresolved cross-process endpoint groups retained until selected chunks are stitched. */
+  readonly crossProcessEndpointsByEndpointId?: Readonly<
+    Record<TraceCrossProcessEndpointId, readonly TraceCrossProcessEndpoint[]>
+  >;
+  /** Column-oriented source dependency rows that may resolve across chunk boundaries. */
+  readonly sourceDependencyColumns?: TraceChunkSourceDependencyArrowColumns;
   /** Row-level time-window overlap metadata. */
   readonly rowWindowTable?: TraceChunkRowWindowTable;
   /** Parser-local diagnostics for this chunk. */
@@ -128,7 +183,78 @@ export type JSONTraceChunkData = {
 export function buildTraceChunkSourceDependencyTable(
   rows: readonly TraceChunkSourceDependencyRow[]
 ): TraceChunkSourceDependencyTable {
-  return {rows};
+  return buildTraceChunkSourceDependencyTableFromColumns({
+    dependencyKind: rows.map(row => row.dependencyKind),
+    startExternalSpanId: rows.map(row => row.startExternalSpanId),
+    endExternalSpanId: rows.map(row => row.endExternalSpanId),
+    waitMode: rows.map(row => row.waitMode ?? null)
+  });
+}
+
+/** Builds one source dependency Arrow table from column-oriented payloads. */
+export function buildTraceChunkSourceDependencyTableFromColumns(
+  columns: TraceChunkSourceDependencyArrowColumns
+): TraceChunkSourceDependencyTable {
+  const rowCount = columns.dependencyKind.length;
+  if (
+    columns.startExternalSpanId.length !== rowCount ||
+    columns.endExternalSpanId.length !== rowCount ||
+    (columns.waitMode != null && columns.waitMode.length !== rowCount)
+  ) {
+    throw new Error('Expected source dependency columns to preserve row count.');
+  }
+  return new arrow.Table({
+    dependencyKind: arrow.vectorFromArray(columns.dependencyKind, new arrow.Utf8()),
+    startExternalSpanId: arrow.vectorFromArray(columns.startExternalSpanId, new arrow.Utf8()),
+    endExternalSpanId: arrow.vectorFromArray(columns.endExternalSpanId, new arrow.Utf8()),
+    waitMode: arrow.vectorFromArray(
+      columns.waitMode ?? Array(rowCount).fill(null),
+      new arrow.Utf8()
+    )
+  }) as unknown as TraceChunkSourceDependencyTable;
+}
+
+/** Reads one parser-normalized source dependency row from its Arrow table. */
+export function readTraceChunkSourceDependencyRow(
+  table: Readonly<TraceChunkSourceDependencyTable>,
+  rowIndex: number
+): TraceChunkSourceDependencyRow | null {
+  if (rowIndex < 0 || rowIndex >= table.numRows) {
+    return null;
+  }
+  const dependencyKind = table.getChild('dependencyKind')?.get(rowIndex);
+  const startExternalSpanId = table.getChild('startExternalSpanId')?.get(rowIndex);
+  const endExternalSpanId = table.getChild('endExternalSpanId')?.get(rowIndex);
+  if (
+    typeof dependencyKind !== 'string' ||
+    typeof startExternalSpanId !== 'string' ||
+    typeof endExternalSpanId !== 'string'
+  ) {
+    return null;
+  }
+  const waitMode = table.getChild('waitMode')?.get(rowIndex);
+  return {
+    dependencyKind,
+    startExternalSpanId,
+    endExternalSpanId,
+    ...(typeof waitMode === 'string' && waitMode.length > 0
+      ? {waitMode: waitMode as TraceSameProcessDependencyWaitMode}
+      : {})
+  };
+}
+
+/** Reads parser-normalized source dependency rows from their Arrow table. */
+export function readTraceChunkSourceDependencyRows(
+  table: Readonly<TraceChunkSourceDependencyTable>
+): TraceChunkSourceDependencyRow[] {
+  const rows: TraceChunkSourceDependencyRow[] = [];
+  for (let rowIndex = 0; rowIndex < table.numRows; rowIndex += 1) {
+    const row = readTraceChunkSourceDependencyRow(table, rowIndex);
+    if (row) {
+      rows.push(row);
+    }
+  }
+  return rows;
 }
 
 /** Builds one row-window table from parser-normalized row overlap ranges. */
@@ -155,15 +281,18 @@ export function buildTraceChunkDataFromJSONTraceChunkData(
     type: 'trace-chunk-data',
     chunkKey: data.chunkKey,
     processes: data.processes.map(toArrowTraceChunkProcessMetadata),
+    processId: data.processId ?? null,
     spanTable: buildArrowTraceSpanTableFromColumns(data.spanColumns),
-    localDependencyTable: buildArrowTraceLocalDependencyTableFromColumns(
-      data.localDependencyColumns
+    resolvedSameProcessDependencyTable: buildArrowTraceSameProcessDependencyTableFromColumns(
+      data.sameProcessDependencyColumns
     ),
-    spanSidecarRows: data.spanSidecarRows,
     spanSidecarTable: data.spanSidecarColumns
       ? buildArrowTraceSpanSidecarTableFromColumns(data.spanSidecarColumns)
       : undefined,
-    sourceDependencyTable: data.sourceDependencyTable,
+    crossProcessEndpointsByEndpointId: data.crossProcessEndpointsByEndpointId,
+    sourceDependencyTable: data.sourceDependencyColumns
+      ? buildTraceChunkSourceDependencyTableFromColumns(data.sourceDependencyColumns)
+      : undefined,
     rowWindowTable: data.rowWindowTable,
     diagnostics: data.diagnostics,
     refState: 'parser-local'
@@ -178,13 +307,18 @@ export function buildJSONTraceChunkDataFromTraceChunkData(
     type: 'json-trace-chunk-data',
     chunkKey: data.chunkKey,
     processes: data.processes.map(toJSONTraceChunkProcessMetadata),
+    processId: data.processId ?? null,
     spanColumns: readTraceSpanArrowColumns(data.spanTable),
-    localDependencyColumns: readTraceLocalDependencyArrowColumns(data.localDependencyTable),
+    sameProcessDependencyColumns: readTraceSameProcessDependencyArrowColumns(
+      data.resolvedSameProcessDependencyTable
+    ),
     spanSidecarColumns: data.spanSidecarTable
       ? readTraceSpanArrowSidecarColumns(data.spanSidecarTable)
       : undefined,
-    spanSidecarRows: data.spanSidecarRows,
-    sourceDependencyTable: data.sourceDependencyTable,
+    crossProcessEndpointsByEndpointId: data.crossProcessEndpointsByEndpointId,
+    sourceDependencyColumns: data.sourceDependencyTable
+      ? readTraceChunkSourceDependencyArrowColumns(data.sourceDependencyTable)
+      : undefined,
     rowWindowTable: data.rowWindowTable,
     diagnostics: data.diagnostics
   };
@@ -199,7 +333,7 @@ export function isJSONTraceChunkData(payload: unknown): payload is JSONTraceChun
   );
 }
 
-type TraceLocalDependencyWaitMode = 'start-to-start' | 'end-to-start' | 'end-to-end';
+type TraceSameProcessDependencyWaitMode = 'start-to-start' | 'end-to-start' | 'end-to-end';
 
 type ArrowReadableTable = {
   readonly numRows: number;
@@ -211,7 +345,9 @@ function toJSONTraceChunkProcessMetadata(
 ): JSONTraceChunkProcessMetadata {
   return {
     ...process,
-    localDependencies: process.localDependencies?.map(toJSONTraceChunkLocalDependency)
+    sameProcessDependencies: process.sameProcessDependencies?.map(
+      toJSONTraceChunkSameProcessDependency
+    )
   };
 }
 
@@ -220,20 +356,22 @@ function toArrowTraceChunkProcessMetadata(
 ): ArrowTraceProcessMetadata {
   return {
     ...process,
-    localDependencies: process.localDependencies?.map(toTraceLocalDependency)
+    sameProcessDependencies: process.sameProcessDependencies?.map(toTraceSameProcessDependency)
   };
 }
 
-function toJSONTraceChunkLocalDependency(
-  dependency: TraceLocalDependency
-): JSONTraceChunkLocalDependency {
+function toJSONTraceChunkSameProcessDependency(
+  dependency: TraceSameProcessDependency
+): JSONTraceChunkSameProcessDependency {
   return {
     ...dependency,
     keywords: Array.from(dependency.keywords)
   };
 }
 
-function toTraceLocalDependency(dependency: JSONTraceChunkLocalDependency): TraceLocalDependency {
+function toTraceSameProcessDependency(
+  dependency: JSONTraceChunkSameProcessDependency
+): TraceSameProcessDependency {
   return {
     ...dependency,
     keywords: new Set(dependency.keywords)
@@ -250,7 +388,7 @@ function readTraceSpanArrowColumns(table: ArrowTraceSpanTable): TraceSpanArrowCo
     name: readStringColumn(table, 'name'),
     source: readOptionalNullableStringColumn(table, 'source'),
     primary_timing_key: readStringColumn(table, 'primary_timing_key'),
-    status: readStringColumn(table, 'status'),
+    status: readTraceSpanTimingStatusCodeColumn(table),
     start_time_ms: readNumberColumn(table, 'start_time_ms'),
     end_time_ms: readNumberColumn(table, 'end_time_ms'),
     duration_ms: readNumberColumn(table, 'duration_ms'),
@@ -259,37 +397,141 @@ function readTraceSpanArrowColumns(table: ArrowTraceSpanTable): TraceSpanArrowCo
   };
 }
 
-function readTraceLocalDependencyArrowColumns(
-  table: ArrowTraceLocalDependencyTable
-): TraceLocalDependencyArrowColumns {
+/** Decodes canonical compact span timing-status scalars for JSON-safe chunk transport. */
+function readTraceSpanTimingStatusCodeColumn(
+  table: ArrowTraceSpanTable
+): TraceSpanArrowColumns['status'] {
+  return readNumberColumn(table, 'status_code').map(statusCode => {
+    const status = decodeTraceSpanTimingStatusCode(statusCode);
+    if (!status) {
+      throw new Error('Expected canonical span timing-status code ' + statusCode + '.');
+    }
+    return status;
+  });
+}
+
+function readTraceSameProcessDependencyArrowColumns(
+  table: ArrowTraceSameProcessDependencyTable
+): TraceSameProcessDependencyArrowColumns {
   return {
-    dependencyRef: readOptionalNumberColumn(table, 'dependencyRef'),
-    dependencyId: readStringColumn(table, 'dependencyId'),
+    dependencyId: readOptionalStringColumn(table, 'dependencyId'),
     startSpanRef: readOptionalNullableNumberColumn(table, 'startSpanRef'),
-    startSpanId: readStringColumn(table, 'startSpanId'),
+    startSpanId: readOptionalStringColumn(table, 'startSpanId'),
     endSpanRef: readOptionalNullableNumberColumn(table, 'endSpanRef'),
-    endSpanId: readStringColumn(table, 'endSpanId'),
-    waitMode: readStringColumn(table, 'waitMode') as TraceLocalDependencyWaitMode[],
+    endSpanId: readOptionalStringColumn(table, 'endSpanId'),
+    waitMode: readTraceDependencyWaitModeCodeColumn(table),
     bidirectional: readBooleanColumn(table, 'bidirectional'),
     waitTimeMs: readNumberColumn(table, 'waitTimeMs'),
     keywords: readOptionalStringListColumn(table, 'keywords'),
-    hasParentKeyword: readBooleanColumn(table, 'hasParentKeyword')
+    hasParentKeyword: readNumberColumn(table, 'keywordFlags').map(keywordFlags =>
+      traceDependencyKeywordFlagsHasParent(keywordFlags)
+    ),
+    userDataJson: readOptionalNullableStringColumn(table, 'userDataJson')
   };
+}
+
+/** Decodes canonical compact dependency wait-mode scalars for JSON-safe chunk transport. */
+function readTraceDependencyWaitModeCodeColumn(
+  table: ArrowTraceSameProcessDependencyTable
+): TraceSameProcessDependencyWaitMode[] {
+  return readNumberColumn(table, 'waitModeCode').map(waitModeCode => {
+    const waitMode = decodeTraceDependencyWaitModeCode(waitModeCode);
+    if (!waitMode) {
+      throw new Error('Expected canonical dependency wait-mode code ' + waitModeCode + '.');
+    }
+    return waitMode;
+  });
 }
 
 function readTraceSpanArrowSidecarColumns(
   table: ArrowTraceSpanSidecarTable
 ): TraceSpanArrowSidecarColumns {
   return {
-    incomingLocalDependencyRefs: readNumberListColumn(table, 'incomingLocalDependencyRefs'),
-    outgoingLocalDependencyRefs: readNumberListColumn(table, 'outgoingLocalDependencyRefs'),
-    localDependencyRefs: readOptionalNumberListColumn(table, 'localDependencyRefs'),
-    incomingCrossDependencyRefs: readOptionalNumberListColumn(table, 'incomingCrossDependencyRefs'),
-    outgoingCrossDependencyRefs: readOptionalNumberListColumn(table, 'outgoingCrossDependencyRefs'),
-    crossDependencyRefs: readOptionalNumberListColumn(table, 'crossDependencyRefs'),
+    rowCount: table.numRows,
     keywords: readOptionalStringListColumn(table, 'keywords'),
     crossProcessEndpointId: readOptionalNullableStringColumn(table, 'crossProcessEndpointId'),
-    userDataJson: readOptionalNullableStringColumn(table, 'userDataJson')
+    userDataJson: readOptionalNullableStringColumn(table, 'userDataJson'),
+    timings: readTraceSpanArrowTimingProjectionColumns(table),
+    timingsJson: readOptionalNullableStringColumn(table, 'timingsJson')
+  };
+}
+
+/** Reads Arrow-native secondary timing projections into JSON-safe sidecar columns. */
+function readTraceSpanArrowTimingProjectionColumns(
+  table: ArrowTraceSpanSidecarTable
+): Readonly<Record<string, TraceSpanArrowTimingProjectionColumns>> | undefined {
+  const timingsColumn = table.getChild('timings') as
+    | arrow.Vector<arrow.Struct<arrow.TypeMap>>
+    | null
+    | undefined;
+  if (!timingsColumn) {
+    return undefined;
+  }
+
+  const timingColumns = Object.fromEntries(
+    timingsColumn.type.children.flatMap((field, timingFieldIndex) => {
+      const timingColumn = timingsColumn.getChildAt(timingFieldIndex) as
+        | arrow.Vector<arrow.Struct<arrow.TypeMap>>
+        | null
+        | undefined;
+      if (!timingColumn) {
+        return [];
+      }
+      return [
+        [
+          field.name,
+          {
+            statusCode: readTraceSpanArrowTimingFieldColumn(
+              timingColumn,
+              'status_code',
+              table.numRows
+            ),
+            startTimeMs: readTraceSpanArrowTimingFieldColumn(
+              timingColumn,
+              'start_time_ms',
+              table.numRows
+            ),
+            endTimeMs: readTraceSpanArrowTimingFieldColumn(
+              timingColumn,
+              'end_time_ms',
+              table.numRows
+            ),
+            durationMs: readTraceSpanArrowTimingFieldColumn(
+              timingColumn,
+              'duration_ms',
+              table.numRows
+            )
+          } satisfies TraceSpanArrowTimingProjectionColumns
+        ] as const
+      ];
+    })
+  );
+  return Object.keys(timingColumns).length > 0 ? timingColumns : undefined;
+}
+
+/** Reads one nullable scalar field from an Arrow-native secondary timing projection. */
+function readTraceSpanArrowTimingFieldColumn(
+  timingColumn: arrow.Vector<arrow.Struct<arrow.TypeMap>>,
+  fieldName: string,
+  rowCount: number
+): Array<number | null> {
+  const fieldIndex = timingColumn.type.children.findIndex(field => field.name === fieldName);
+  const fieldColumn = fieldIndex < 0 ? null : timingColumn.getChildAt(fieldIndex);
+  return Array.from({length: rowCount}, (_, rowIndex) =>
+    toFiniteNumber(fieldColumn?.get(rowIndex))
+  );
+}
+
+function readTraceChunkSourceDependencyArrowColumns(
+  table: TraceChunkSourceDependencyTable
+): TraceChunkSourceDependencyArrowColumns {
+  return {
+    dependencyKind: readStringColumn(table, 'dependencyKind'),
+    startExternalSpanId: readStringColumn(table, 'startExternalSpanId'),
+    endExternalSpanId: readStringColumn(table, 'endExternalSpanId'),
+    waitMode: readOptionalNullableStringColumn(table, 'waitMode')?.map(waitMode =>
+      waitMode == null ? null : (waitMode as TraceSameProcessDependencyWaitMode)
+    )
   };
 }
 
@@ -305,18 +547,12 @@ function readBooleanColumn(table: ArrowReadableTable, columnName: string): boole
   return readColumn(table, columnName, value => Boolean(value));
 }
 
-function readNumberListColumn(
+/** Reads one optional string-valued Arrow column when the table stores it. */
+function readOptionalStringColumn(
   table: ArrowReadableTable,
   columnName: string
-): Array<readonly number[]> {
-  return readColumn(table, columnName, toNumberArray);
-}
-
-function readOptionalNumberColumn(
-  table: ArrowReadableTable,
-  columnName: string
-): number[] | undefined {
-  return table.getChild(columnName) ? readNumberColumn(table, columnName) : undefined;
+): string[] | undefined {
+  return table.getChild(columnName) ? readStringColumn(table, columnName) : undefined;
 }
 
 function readOptionalNullableNumberColumn(
@@ -335,13 +571,6 @@ function readOptionalNullableStringColumn(
   return table.getChild(columnName)
     ? readColumn(table, columnName, value => (value == null ? null : String(value)))
     : undefined;
-}
-
-function readOptionalNumberListColumn(
-  table: ArrowReadableTable,
-  columnName: string
-): Array<readonly number[]> | undefined {
-  return table.getChild(columnName) ? readNumberListColumn(table, columnName) : undefined;
 }
 
 function readOptionalStringListColumn(
@@ -370,12 +599,6 @@ function toFiniteNumber(value: unknown): number | null {
   }
   const numberValue = typeof value === 'bigint' ? Number(value) : Number(value);
   return Number.isFinite(numberValue) ? numberValue : null;
-}
-
-function toNumberArray(value: unknown): number[] {
-  return toArray(value)
-    .map(toFiniteNumber)
-    .filter((item): item is number => item != null);
 }
 
 function toStringArray(value: unknown): string[] {

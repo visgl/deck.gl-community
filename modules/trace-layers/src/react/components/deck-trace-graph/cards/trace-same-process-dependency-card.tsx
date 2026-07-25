@@ -1,46 +1,56 @@
-import {DEFAULT_SUBMIT_MIN_WAIT_TIME_MS, formatTimeMs} from '../../../../trace/index';
+import {DEFAULT_SUBMIT_MIN_WAIT_TIME_MS, formatTimeMs} from '../../../../trace';
 import {getTraceSpanBadgeStyleForRef} from '../../../utils/trace-span-badge-style';
 import {TraceSpanNameBadge} from './trace-span-name-badge';
 
 import type {
+  SameProcessDependencyRef,
   TraceGraph,
   TraceLabels,
-  TraceLocalDependency,
+  TraceSameProcessDependency,
   TraceStyle,
-  TraceVisSettings,
-  VisibleLocalDependencyRef
-} from '../../../../trace/index';
+  TraceVisSettings
+} from '../../../../trace';
 
-export type TraceLocalDependencyCardProps = {
-  dependency?: TraceLocalDependency;
-  dependencyRef?: VisibleLocalDependencyRef;
+export type TraceSameProcessDependencyCardProps = {
+  /** Compatibility object payload used when the caller has already materialized the row. */
+  dependency?: TraceSameProcessDependency;
+  /** Canonical Arrow dependency ref used to materialize the row from the active graph. */
+  dependencyRef?: SameProcessDependencyRef;
+  /** Active graph that resolves dependency refs, spans, and owner metadata. */
   traceGraph: Readonly<TraceGraph>;
+  /** Optional domain labels used for thread and span copy in the card. */
   labels?: TraceLabels;
+  /** Active trace style used for badges and dependency warning thresholds. */
   traceStyle: TraceStyle;
+  /** Active visualization settings used when resolving span badge presentation. */
   traceSettings: TraceVisSettings;
 };
 
-export function TraceLocalDependencyCard({
+export function TraceSameProcessDependencyCard({
   dependency,
   dependencyRef,
   traceGraph,
   labels,
   traceStyle,
   traceSettings
-}: TraceLocalDependencyCardProps) {
+}: TraceSameProcessDependencyCardProps) {
   const threadLabel = labels?.threadLabel?.trim() || 'Thread';
   const dependencySource = dependencyRef
-    ? traceGraph.getVisibleDependencySourceByRef(dependencyRef)
+    ? traceGraph.getDependencySource(dependencyRef)
     : (dependency ?? null);
-  if (dependencySource?.type !== 'trace-local-dependency') {
+  if (dependencySource?.type !== 'trace-same-process-dependency') {
     return <div className="text-red-400">Error: Missing dependency data</div>;
   }
   const startSpanRef = dependencySource.startSpanRef ?? null;
   const endSpanRef = dependencySource.endSpanRef ?? null;
 
+  const startThreadRef =
+    startSpanRef == null ? null : (traceGraph.getSpanOwnerRefs(startSpanRef)?.threadRef ?? null);
+  const endThreadRef =
+    endSpanRef == null ? null : (traceGraph.getSpanOwnerRefs(endSpanRef)?.threadRef ?? null);
   const startStream =
-    startSpanRef != null ? traceGraph.getThreadSourceBySpanRef(startSpanRef) : null;
-  const endStream = endSpanRef != null ? traceGraph.getThreadSourceBySpanRef(endSpanRef) : null;
+    startThreadRef == null ? null : traceGraph.getThreadSourceByRef(startThreadRef);
+  const endStream = endThreadRef == null ? null : traceGraph.getThreadSourceByRef(endThreadRef);
   if (startSpanRef == null || endSpanRef == null || !startStream || !endStream) {
     return <div className="text-red-400">Error: Missing span or stream data</div>;
   }
@@ -62,7 +72,7 @@ export function TraceLocalDependencyCard({
   return (
     <div className="px-3 py-2 space-y-2 min-w-[400px] max-w-[500px] bg-muted-background text-foreground text-narrow ">
       <div className="flex flex-wrap items-center gap-1 text-xs font-bold">
-        <div>DEPENDENCY</div>
+        <div>SAME PROCESS</div>
         {keywordTitle && <div>{keywordTitle}</div>}
       </div>
       <div className={badgeContainerClass}>

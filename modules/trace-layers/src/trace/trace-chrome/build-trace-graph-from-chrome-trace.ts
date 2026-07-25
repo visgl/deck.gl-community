@@ -1,8 +1,4 @@
-import {
-  encodeSpanRef,
-  encodeVisibleCrossDependencyRef,
-  encodeVisibleLocalDependencyRef
-} from '../trace-graph/trace-id-encoder';
+import {encodeCrossProcessDependencyRef, encodeSpanRef} from '../trace-graph/trace-id-encoder';
 import {brand, getPrimaryTiming} from '../trace-graph/trace-types';
 import {COLORS_LIST} from '../trace-style/color-palette';
 
@@ -24,8 +20,8 @@ import type {
   TraceDependencyId,
   TraceInstant,
   TraceInstantId,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceSpanTiming,
@@ -74,7 +70,7 @@ export function buildTraceRanksFromChromeTrace(
   opts: BuildChromeTraceRanksOptions = {}
 ): {
   ranks: Readonly<TraceProcess[]>;
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>;
+  crossProcessDependencies: Readonly<TraceCrossProcessDependency[]>;
   traces?: Readonly<ChromeTrace[]>;
 } {
   const startTime = performance.now();
@@ -157,7 +153,7 @@ export function buildTraceRanksFromChromeTrace(
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: [],
         userData: {
           color: processColor,
@@ -274,8 +270,8 @@ export function buildTraceRanksFromChromeTrace(
             timings: {
               trace: timing
             },
-            localDependencyIds: [],
-            localDependencies: [],
+            sameProcessDependencyIds: [],
+            sameProcessDependencies: [],
             crossProcessEndpointId: null,
             crossProcessDependencyEndpoints: [],
             userData: {
@@ -445,8 +441,8 @@ export function buildTraceRanksFromChromeTrace(
     }
   }
 
-  // Build local and cross-rank dependencies by linking consecutive flow spans
-  const crossDependencies: TraceCrossProcessDependency[] = [];
+  // Build same-process and cross-process dependencies by linking consecutive flow spans.
+  const crossProcessDependencies: TraceCrossProcessDependency[] = [];
 
   for (const [key, list] of flowsByKey) {
     list.sort((a, b) => a.atMs - b.atMs);
@@ -487,10 +483,9 @@ export function buildTraceRanksFromChromeTrace(
       const waitTimeMs = computeWaitTime(waitMode, startBlock!, endBlock!);
 
       if (sameRank && startRank) {
-        // Local dependency
-        const localDep: TraceLocalDependency = {
-          type: 'trace-local-dependency',
-          dependencyRef: encodeVisibleLocalDependencyRef(startRank.localDependencies.length),
+        // Same-process dependency
+        const localDep: TraceSameProcessDependency = {
+          type: 'trace-same-process-dependency',
           startSpanRef: startBlock!.spanRef,
           endSpanRef: endBlock!.spanRef,
           dependencyId: depId,
@@ -502,18 +497,18 @@ export function buildTraceRanksFromChromeTrace(
           waitTimeMs,
           userData: {flowKey: key}
         };
-        startRank.localDependencies.push(localDep);
+        startRank.sameProcessDependencies.push(localDep);
         // Attach to spans
-        startBlock!.localDependencyIds.push(localDep.dependencyId);
-        startBlock!.localDependencies.push(localDep);
+        startBlock!.sameProcessDependencyIds.push(localDep.dependencyId);
+        startBlock!.sameProcessDependencies.push(localDep);
       } else if (startRank && endRank) {
-        // Cross-rank dependency
+        // Cross-process dependency.
         const endpointId: TraceCrossProcessEndpointId = brand<'endpoint', string>(
           `endpoint:${key}:${a.atMs}->${b.atMs}`
         );
         const crossDep: TraceCrossProcessDependency = {
           type: 'trace-cross-process-dependency',
-          dependencyRef: encodeVisibleCrossDependencyRef(crossDependencies.length),
+          dependencyRef: encodeCrossProcessDependencyRef(crossProcessDependencies.length),
           startSpanRef: startBlock!.spanRef,
           endSpanRef: endBlock!.spanRef,
           dependencyId: depId,
@@ -531,7 +526,7 @@ export function buildTraceRanksFromChromeTrace(
           keywords: new Set(),
           userData: {flowKey: key}
         };
-        crossDependencies.push(crossDep);
+        crossProcessDependencies.push(crossDep);
       }
     }
   }
@@ -602,11 +597,11 @@ export function buildTraceRanksFromChromeTrace(
   })();
 
   // 3) finalize/return
-  // (Optional) you could deduplicate localDependencies or endpoints if flows overlapped
+  // (Optional) you could deduplicate sameProcessDependencies or endpoints if flows overlapped
   return {
     traces: opts.includeRawTraces ? Object.freeze(traces) : undefined,
     ranks: Object.freeze(ranks),
-    crossDependencies: Object.freeze(crossDependencies)
+    crossProcessDependencies: Object.freeze(crossProcessDependencies)
   };
 }
 
@@ -775,7 +770,7 @@ function computeWaitTime(
   }
 }
 
-/** Creates a cross-rank dependency endpoint when only one side is known. */
+/** Creates a cross-process dependency endpoint when only one side is known. */
 function makeEndpointFromSingleSide(
   side: 'start' | 'end',
   key: string,

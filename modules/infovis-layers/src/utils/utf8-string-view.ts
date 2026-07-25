@@ -45,6 +45,21 @@ export function makeUtf8StringView(value: string): Utf8StringView {
   return {data, start: 0, end: data.length};
 }
 
+/** Returns whether two UTF-8 byte views contain identical encoded text. */
+export function utf8StringViewsEqual(left: Utf8StringView, right: Utf8StringView): boolean {
+  const leftLength = left.end - left.start;
+  const rightLength = right.end - right.start;
+  if (leftLength !== rightLength) {
+    return false;
+  }
+  for (let index = 0; index < leftLength; index += 1) {
+    if (left.data[left.start + index] !== right.data[right.start + index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Builds a direct-buffer source from an Arrow Utf8 vector without copying UTF-8 bytes.
  */
@@ -256,16 +271,7 @@ function utf8BytesEqual(
   end: number,
   value: Utf8StringView
 ): boolean {
-  const valueLength = value.end - value.start;
-  if (end - start !== valueLength) {
-    return false;
-  }
-  for (let index = 0; index < valueLength; index += 1) {
-    if (data[start + index] !== value.data[value.start + index]) {
-      return false;
-    }
-  }
-  return true;
+  return utf8StringViewsEqual({data, start, end}, value);
 }
 
 function decodeUtf8StringView(value: Utf8StringView): string {

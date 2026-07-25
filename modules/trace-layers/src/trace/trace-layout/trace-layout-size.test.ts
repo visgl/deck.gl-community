@@ -21,23 +21,15 @@ describe('estimateTraceLayoutSize', () => {
           yHeight: 10,
           labelY: 5,
           collapsedActivityY: 5,
-          backgroundPolygon: new Float32Array(6),
           backgroundPolygonInfinite: new Float32Array(6),
-          separatorLineInfinite: new Float32Array(4),
-          terminalSeparatorLineInfinite: new Float32Array(4),
-          startPosition: [0, 0, 0],
+          contentStartY: 0,
           threadLayouts: []
         }
       ],
       processLayoutMapByRef: new Map(),
       renderRows: [],
       threadLayoutMapByRef: new Map(),
-      overflowLabels: [],
       currentBounds: [
-        [0, 0],
-        [1, 1]
-      ],
-      expandedBounds: [
         [0, 0],
         [1, 1]
       ]

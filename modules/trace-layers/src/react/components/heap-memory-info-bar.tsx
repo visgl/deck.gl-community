@@ -8,7 +8,7 @@ import type {
   TraceEngineDiagnostics,
   TraceGraphSizeEntry,
   TraceGraphSizeReport
-} from '../../trace/index';
+} from '../../trace';
 
 /** Browser heap-memory counters exposed by Chromium performance.memory. */
 type BrowserHeapMemoryInfo = {
@@ -258,12 +258,6 @@ function HeapMemoryInfoTooltip(props: {
                     label="Active windows"
                     value={formatTraceCount(props.traceChunkStoreDiagnostics.traceWindowCount)}
                   />
-                  {props.traceChunkStoreDiagnostics.sourceSpanFilterCount > 0 ? (
-                    <MemoryMetricRow
-                      label="Source filters"
-                      value={`${formatTraceCount(props.traceChunkStoreDiagnostics.sourceSpanFilterCount)} @ ${formatTraceCount(props.traceChunkStoreDiagnostics.sourceSpanFilterRevision)}`}
-                    />
-                  ) : null}
                 </>
               ) : typeof traceChunkStoreReadyChunkCount === 'number' ? (
                 <MemoryMetricRow
@@ -279,13 +273,13 @@ function HeapMemoryInfoTooltip(props: {
               ) : null}
               {typeof props.traceChunkStoreObservedHeapDeltaBytes === 'number' ? (
                 <MemoryMetricRow
-                  label="Observed store heap delta"
+                  label="Observed loaded-trace heap delta"
                   value={formatTraceSizeBytes(props.traceChunkStoreObservedHeapDeltaBytes)}
                 />
               ) : null}
               {typeof props.traceChunkStoreUnattributedHeapDeltaBytes === 'number' ? (
                 <MemoryMetricRow
-                  label="Unattributed store delta"
+                  label="Unattributed loaded-trace delta"
                   value={formatTraceSizeBytes(props.traceChunkStoreUnattributedHeapDeltaBytes)}
                 />
               ) : null}
@@ -348,8 +342,8 @@ function HeapMemoryInfoTooltip(props: {
                   <MemoryMetricRow
                     label="Displayed deps"
                     value={formatTraceCount(
-                      props.traceEngineDiagnostics.displayedLocalDependencyCount +
-                        props.traceEngineDiagnostics.displayedCrossDependencyCount
+                      props.traceEngineDiagnostics.displayedSameProcessDependencyCount +
+                        props.traceEngineDiagnostics.displayedCrossProcessDependencyCount
                     )}
                   />
                   <MemoryMetricRow
@@ -662,14 +656,14 @@ function buildMemorySummaryRows(params: MemoryDiagnosticsParams): MemorySummaryR
   }
   if (typeof params.traceChunkStoreObservedHeapDeltaBytes === 'number') {
     rows.push({
-      metric: 'Observed store heap delta',
+      metric: 'Observed loaded-trace heap delta',
       bytes: params.traceChunkStoreObservedHeapDeltaBytes,
       size: formatTraceSizeBytes(params.traceChunkStoreObservedHeapDeltaBytes)
     });
   }
   if (typeof params.traceChunkStoreUnattributedHeapDeltaBytes === 'number') {
     rows.push({
-      metric: 'Unattributed store delta',
+      metric: 'Unattributed loaded-trace delta',
       bytes: params.traceChunkStoreUnattributedHeapDeltaBytes,
       size: formatTraceSizeBytes(params.traceChunkStoreUnattributedHeapDeltaBytes)
     });
@@ -722,8 +716,8 @@ function buildMemorySummaryRows(params: MemoryDiagnosticsParams): MemorySummaryR
       buildMemorySummaryValueRow(
         'TraceEngine displayed deps',
         formatTraceCount(
-          params.traceEngineDiagnostics.displayedLocalDependencyCount +
-            params.traceEngineDiagnostics.displayedCrossDependencyCount
+          params.traceEngineDiagnostics.displayedSameProcessDependencyCount +
+            params.traceEngineDiagnostics.displayedCrossProcessDependencyCount
         )
       ),
       buildMemorySummaryValueRow(
@@ -800,14 +794,12 @@ function formatTraceSizePath(path: string): string {
   switch (path) {
     case 'traceChunkStore.processMetadataSnapshots':
       return 'Process snapshots';
-    case 'traceChunkStore.spanSidecarRows':
-      return 'Span sidecars';
     case 'traceChunkStore.spanSidecarTables':
       return 'Sidecar Arrow tables';
     case 'traceChunkStore.spanTables':
       return 'Span tables';
-    case 'traceChunkStore.localDependencyTables':
-      return 'Local dependency tables';
+    case 'traceChunkStore.sameProcessDependencyTables':
+      return 'Same-process dependency tables';
     case 'traceChunkStore.sourceDependencyTables':
       return 'Source dependencies';
     case 'traceChunkStore.rowWindowTables':

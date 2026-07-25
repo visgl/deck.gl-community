@@ -2,7 +2,7 @@ import * as arrow from 'apache-arrow';
 
 import {getHeapUsageProbeFields, log} from '../log';
 
-import type {TraceGraphData} from '../ingestion/arrow-trace';
+import type {TraceGraphStats} from './trace-graph-stats';
 
 /** A byte-size estimate for one TraceGraph component. */
 export type TraceGraphSizeEntry = {
@@ -59,16 +59,16 @@ export type TraceGraphSizeOptions = {
  * estimates because engines do not expose exact object heap sizes.
  */
 export function estimateTraceGraphSize(
-  traceGraph: Readonly<TraceGraphData> | object,
+  traceGraph: object,
   options: TraceGraphSizeOptions = {}
 ): TraceGraphSizeReport {
   const estimateStartTime = performance.now();
-  const graphStats = (traceGraph as Partial<TraceGraphData>).stats;
+  const graphStats = (traceGraph as {stats?: TraceGraphSizeStats}).stats;
   log.probe(0, 'TraceGraph size calculation start', {
     processCount: graphStats?.processCount,
     spanCount: graphStats?.spanCount,
-    localDependencyCount: graphStats?.localDependencyCount,
-    crossDependencyCount: graphStats?.crossDependencyCount,
+    sameProcessDependencyCount: graphStats?.sameProcessDependencyCount,
+    crossProcessDependencyCount: graphStats?.crossProcessDependencyCount,
     includeRuntimeCaches: options.includeRuntimeCaches === true,
     maxObjectDepth: options.maxObjectDepth ?? 4,
     ...getHeapUsageProbeFields()
@@ -78,7 +78,7 @@ export function estimateTraceGraphSize(
 
   const rootEntries = options.includeRuntimeCaches
     ? Object.entries(traceGraph)
-    : getKnownTraceGraphEntries(traceGraph as Partial<TraceGraphData>);
+    : getKnownTraceGraphEntries(traceGraph);
 
   for (const [key, value] of rootEntries) {
     estimateValueSize(value, key, context, 0);
@@ -93,8 +93,8 @@ export function estimateTraceGraphSize(
   log.probe(0, 'TraceGraph size calculation done', {
     processCount: graphStats?.processCount,
     spanCount: graphStats?.spanCount,
-    localDependencyCount: graphStats?.localDependencyCount,
-    crossDependencyCount: graphStats?.crossDependencyCount,
+    sameProcessDependencyCount: graphStats?.sameProcessDependencyCount,
+    crossProcessDependencyCount: graphStats?.crossProcessDependencyCount,
     totalBytes: report.totalBytes,
     entryCount: report.entries.length,
     bytesByKind: report.bytesByKind,
@@ -155,7 +155,7 @@ type TraceGraphSizeContext = {
   maxObjectDepth: number;
 };
 
-type TraceGraphSizeStats = Partial<NonNullable<TraceGraphData['stats']>>;
+type TraceGraphSizeStats = Partial<TraceGraphStats>;
 
 type TraceGraphSizeBreakdownGroup = {
   label: string;
@@ -181,32 +181,31 @@ function createTraceGraphSizeContext(
   };
 }
 
-function getKnownTraceGraphEntries(traceGraph: Partial<TraceGraphData>): Array<[string, unknown]> {
-  return [
-    ['processes', traceGraph.processes],
-    ['crossDependencies', traceGraph.crossDependencies],
-    ['threadMap', traceGraph.threadMap],
-    ['threadInstantMap', traceGraph.threadInstantMap],
-    ['threadCounterMap', traceGraph.threadCounterMap],
-    ['instantMap', traceGraph.instantMap],
-    ['counterMap', traceGraph.counterMap],
-    ['counterExtents', traceGraph.counterExtents],
-    ['events', traceGraph.events],
-    ['eventMap', traceGraph.eventMap],
-    ['processSpanTableMap', traceGraph.processSpanTableMap],
-    ['localDependencyTableMap', traceGraph.localDependencyTableMap],
-    ['crossDependencyTable', traceGraph.crossDependencyTable],
-    ['spanSidecarMap', traceGraph.spanSidecarMap],
-    ['spanSidecarTableMap', traceGraph.spanSidecarTableMap],
-    ['crossProcessEndpointsBySpanRef', traceGraph.crossProcessEndpointsBySpanRef],
-    ['spanCrossDependencyRefMap', traceGraph.spanCrossDependencyRefMap],
-    ['chunks', traceGraph.chunks],
-    ['processIdsByIndex', traceGraph.processIdsByIndex],
-    ['crossDependencyIdToIndexMap', traceGraph.crossDependencyIdToIndexMap],
-    ['dependencyMap', traceGraph.dependencyMap],
-    ['stats', traceGraph.stats]
-  ];
+function getKnownTraceGraphEntries(traceGraph: object): Array<[string, unknown]> {
+  const traceGraphRecord = traceGraph as Record<string, unknown>;
+  return KNOWN_TRACE_GRAPH_ENTRY_KEYS.map(key => [key, traceGraphRecord[key]]);
 }
+
+/** Stable runtime-owned fields included when private caches are excluded from size reports. */
+const KNOWN_TRACE_GRAPH_ENTRY_KEYS = [
+  'processes',
+  'threadMap',
+  'threadInstantMap',
+  'threadCounterMap',
+  'instantMap',
+  'counterMap',
+  'counterExtents',
+  'events',
+  'eventMap',
+  'processSpanTableMap',
+  'sameProcessDependencyTableMap',
+  'crossProcessDependencyTable',
+  'spanSidecarTableMap',
+  'crossProcessEndpointsBySpanRef',
+  'chunks',
+  'processIdsByIndex',
+  'stats'
+] as const;
 
 function estimateValueSize(
   value: unknown,
@@ -417,8 +416,8 @@ function buildTraceGraphSizeBreakdown(
   totalBytes: number;
   rows: {
     spans: number | null;
-    localDependencies: number | null;
-    crossDependencies: number | null;
+    sameProcessDependencies: number | null;
+    crossProcessDependencies: number | null;
     spanAndDependencyRows: number | null;
   };
   bytesPerSpanAndDependencyRow: number | null;
@@ -427,19 +426,19 @@ function buildTraceGraphSizeBreakdown(
   topEntries: TraceGraphSizeBreakdownGroup[];
 } {
   const spanCount = getFiniteCount(graphStats?.spanCount);
-  const localDependencyCount = getFiniteCount(graphStats?.localDependencyCount);
-  const crossDependencyCount = getFiniteCount(graphStats?.crossDependencyCount);
+  const sameProcessDependencyCount = getFiniteCount(graphStats?.sameProcessDependencyCount);
+  const crossProcessDependencyCount = getFiniteCount(graphStats?.crossProcessDependencyCount);
   const spanAndDependencyRows =
-    spanCount == null || localDependencyCount == null || crossDependencyCount == null
+    spanCount == null || sameProcessDependencyCount == null || crossProcessDependencyCount == null
       ? null
-      : spanCount + localDependencyCount + crossDependencyCount;
+      : spanCount + sameProcessDependencyCount + crossProcessDependencyCount;
 
   return {
     totalBytes: report.totalBytes,
     rows: {
       spans: spanCount,
-      localDependencies: localDependencyCount,
-      crossDependencies: crossDependencyCount,
+      sameProcessDependencies: sameProcessDependencyCount,
+      crossProcessDependencies: crossProcessDependencyCount,
       spanAndDependencyRows
     },
     bytesPerSpanAndDependencyRow: getBytesPerRow(report.totalBytes, spanAndDependencyRows),
@@ -452,9 +451,9 @@ function buildTraceGraphSizeBreakdown(
       ),
       buildTableBreakdownGroup(
         report.entries,
-        'Local dependency tables',
-        'localDependencyTableMap',
-        localDependencyCount
+        'Same-process dependency tables',
+        'sameProcessDependencyTableMap',
+        sameProcessDependencyCount
       ),
       buildTableBreakdownGroup(
         report.entries,
@@ -464,9 +463,9 @@ function buildTraceGraphSizeBreakdown(
       ),
       buildTableBreakdownGroup(
         report.entries,
-        'Cross dependency table',
-        'crossDependencyTable',
-        crossDependencyCount
+        'Cross-process dependency table',
+        'crossProcessDependencyTable',
+        crossProcessDependencyCount
       ),
       buildTableBreakdownGroup(report.entries, 'Event table', 'events', null)
     ].filter(group => group.bytes > 0),

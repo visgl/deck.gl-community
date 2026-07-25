@@ -1,14 +1,18 @@
 import {create} from 'zustand';
+import {log, safeJsonParse} from '@deck.gl-community/trace-layers/react';
 import {
   buildTraceRanksFromChromeTrace,
   DEFAULT_TRACE_COLOR_SCHEME,
   maybeChromeTraceFile,
   parseChromeTrace
 } from '@deck.gl-community/trace-layers/trace';
-import {log, safeJsonParse} from '@deck.gl-community/trace-layers/react';
 
 import {getTracevisExampleTrace} from './examples/tracevis-examples';
-import {DEFAULT_VIS_SETTINGS, normalizeLineRoutingMode} from './lib/vis-settings';
+import {
+  DEFAULT_VIS_SETTINGS,
+  normalizeLegacyDependencyModeVisSettings,
+  normalizeLineRoutingMode
+} from './lib/vis-settings';
 
 import type {VisSettings} from './lib/vis-settings';
 import type {
@@ -18,9 +22,7 @@ import type {
   TraceColorScheme,
   TraceCrossProcessDependency,
   TraceProcess,
-  TraceSpanLayoutMode,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
+  TraceSpanLayoutMode
 } from '@deck.gl-community/trace-layers/trace';
 
 /** Controls how extended selection affects non-selected spans and dependency overlays. */
@@ -72,7 +74,7 @@ export type TracevisTraceData = TraceIdentifier & {
   /** Normalized trace processes built from the payload. */
   ranks: Readonly<TraceProcess[]>;
   /** Cross-process dependencies built from the payload. */
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>;
+  crossProcessDependencies: Readonly<TraceCrossProcessDependency[]>;
   /** Whether spans use generated lanes or authored vertical geometry. */
   spanLayout?: TraceSpanLayoutMode;
 };
@@ -87,16 +89,6 @@ export type UploadedTraceMetadata = {
   type: string;
   /** Short display name for the trace. */
   name: string;
-};
-
-/** Extended selection data used by deck trace highlighting. */
-export type ExtendedSelection = {
-  /** Visible selected span refs chunk for extended-selection highlighting. */
-  spanRefs: SpanRef[];
-  /** Visible selected local dependency refs chunk for extended-selection overlays. */
-  visibleLocalDependencyRefs: VisibleLocalDependencyRef[];
-  /** Visible selected cross dependency refs chunk for extended-selection overlays. */
-  visibleCrossDependencyRefs: VisibleCrossDependencyRef[];
 };
 
 /** Demo-only Tracevis state used by the standalone app. */
@@ -127,8 +119,6 @@ export type TracevisDemoState = {
   timeRange: {startTimeMs: number; endTimeMs: number} | null;
   /** Canonical runtime span refs to highlight. */
   highlightedSpanRefs: SpanRef[];
-  /** Extended selection data for alternative highlight flows. */
-  extendedSelection: ExtendedSelection;
   /** Mode controlling how extended selection is rendered. */
   extendedSelectionMode: ExtendedSelectionMode;
   /** Initial selection state resolved by the demo. */
@@ -186,8 +176,6 @@ export type TracevisDemoState = {
   setSelectedTimeRange: (timeRange: {startTimeMs: number; endTimeMs: number} | null) => void;
   /** Sets highlighted runtime span refs. */
   setHighlightedSpanRefs: (highlightedSpanRefs: SpanRef[]) => void;
-  /** Sets extended selection data. */
-  setExtendedSelection: (selection: ExtendedSelection) => void;
   /** Updates extended selection rendering mode. */
   setExtendedSelectionMode: (mode: ExtendedSelectionMode) => void;
   /** Updates canonical selected span refs. */
@@ -237,7 +225,6 @@ export const useRoomStore = create<AppState>()((set, get) => ({
     uploadedTraceSelectionMap: {},
     timeRange: null,
     highlightedSpanRefs: [],
-    extendedSelection: normalizeExtendedSelection(undefined),
     extendedSelectionMode: 'fade',
     defaultSelectionState: {evaluated: true, selectedSpanRefs: [], expandedProcessIds: []},
     selectedSpanRefs: [],
@@ -376,7 +363,7 @@ export const useRoomStore = create<AppState>()((set, get) => ({
             runId: params.runId ?? null,
             trace: null,
             ranks: example.ranks,
-            crossDependencies: example.crossDependencies ?? [],
+            crossProcessDependencies: example.crossProcessDependencies ?? [],
             spanLayout: example.spanLayout
           };
 
@@ -412,7 +399,7 @@ export const useRoomStore = create<AppState>()((set, get) => ({
         }
 
         const trace = parseChromeTrace(traceJson, {log});
-        const {ranks, crossDependencies} = buildTraceRanksFromChromeTrace(trace, {log});
+        const {ranks, crossProcessDependencies} = buildTraceRanksFromChromeTrace(trace, {log});
         const traceData: TracevisTraceData = {
           key,
           traceId: params.traceId,
@@ -420,7 +407,7 @@ export const useRoomStore = create<AppState>()((set, get) => ({
           runId: params.runId ?? null,
           trace,
           ranks,
-          crossDependencies,
+          crossProcessDependencies,
           spanLayout: params.source === 'example' ? example?.spanLayout : undefined
         };
 
@@ -498,21 +485,6 @@ export const useRoomStore = create<AppState>()((set, get) => ({
           highlightedSpanRefs: dedupeScalarArray(highlightedSpanRefs)
         }
       }));
-    },
-
-    setExtendedSelection(selection) {
-      const nextSelection = normalizeExtendedSelection(selection);
-      set(state => {
-        if (areExtendedSelectionsEqual(state.tracevis.extendedSelection, nextSelection)) {
-          return state;
-        }
-        return {
-          tracevis: {
-            ...state.tracevis,
-            extendedSelection: nextSelection
-          }
-        };
-      });
     },
 
     setExtendedSelectionMode(extendedSelectionMode) {
@@ -653,15 +625,17 @@ function buildSettingsPatch(
   state: TracevisDemoState,
   patch: Partial<VisSettings>
 ): Pick<TracevisDemoState, 'visSettings' | 'selectedTraceColorScheme'> {
+  const normalizedPatch = normalizeLegacyDependencyModeVisSettings(patch);
   const nextVisSettings: VisSettings = {
     ...state.visSettings,
-    ...patch,
+    ...normalizedPatch,
     lineRoutingMode:
-      normalizeLineRoutingMode(patch.lineRoutingMode ?? state.visSettings.lineRoutingMode) ??
-      DEFAULT_VIS_SETTINGS.lineRoutingMode,
+      normalizeLineRoutingMode(
+        normalizedPatch.lineRoutingMode ?? state.visSettings.lineRoutingMode
+      ) ?? DEFAULT_VIS_SETTINGS.lineRoutingMode,
     traceColorSchemeId: resolveTraceColorSchemeId(
       state.traceColorSchemes,
-      patch.traceColorSchemeId ?? state.visSettings.traceColorSchemeId
+      normalizedPatch.traceColorSchemeId ?? state.visSettings.traceColorSchemeId
     )
   };
   return {
@@ -701,30 +675,6 @@ function buildUploadedTracePatch(
         }
       : state.uploadedTraceSelectionMap
   };
-}
-
-/** Normalizes possibly partial extended-selection data into a complete selection object. */
-function normalizeExtendedSelection(
-  extendedSelection: Partial<ExtendedSelection> | null | undefined
-): ExtendedSelection {
-  return {
-    spanRefs: Array.isArray(extendedSelection?.spanRefs) ? [...extendedSelection.spanRefs] : [],
-    visibleLocalDependencyRefs: Array.isArray(extendedSelection?.visibleLocalDependencyRefs)
-      ? [...extendedSelection.visibleLocalDependencyRefs]
-      : [],
-    visibleCrossDependencyRefs: Array.isArray(extendedSelection?.visibleCrossDependencyRefs)
-      ? [...extendedSelection.visibleCrossDependencyRefs]
-      : []
-  };
-}
-
-/** Compares two extended-selection payloads without allocating new sets. */
-function areExtendedSelectionsEqual(left: ExtendedSelection, right: ExtendedSelection): boolean {
-  return (
-    areScalarArraysEqual(left.spanRefs, right.spanRefs) &&
-    areScalarArraysEqual(left.visibleLocalDependencyRefs, right.visibleLocalDependencyRefs) &&
-    areScalarArraysEqual(left.visibleCrossDependencyRefs, right.visibleCrossDependencyRefs)
-  );
 }
 
 /** Compares ordered scalar arrays used by selection and expansion state. */

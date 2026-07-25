@@ -130,16 +130,17 @@ export function VisualizationSettings() {
     [setVisSetting]
   );
 
-  const setLocalDependencyMode = useCallback(
-    (mode: 'all' | 'none' | 'warnings' | 'submit') => setVisSetting('localDependencyMode', mode),
+  const setSameProcessDependencyMode = useCallback(
+    (mode: 'all' | 'none' | 'warnings' | 'submit') =>
+      setVisSetting('sameProcessDependencyMode', mode),
     [setVisSetting]
   );
   // const setShowSubmits = useCallback(
   //   (checked: boolean) => setVisSetting('showSubmits', checked),
   //   [setVisSetting],
   // );
-  const setCrossDependencyMode = useCallback(
-    (mode: 'all' | 'none') => setVisSetting('crossDependencyMode', mode),
+  const setCrossProcessDependencyMode = useCallback(
+    (mode: 'all' | 'none') => setVisSetting('crossProcessDependencyMode', mode),
     [setVisSetting]
   );
   const setShowInstants = useCallback(
@@ -490,13 +491,13 @@ Changes which streams are visible:
         <div className="text-foreground"> Dependencies </div>
         <hr className="col-span-3 border-t border-muted" />
 
-        <label htmlFor="local-dependency-mode" className="text-sm text-muted-foreground">
-          Local
+        <label htmlFor="same-process-dependency-mode" className="text-sm text-muted-foreground">
+          Same process
         </label>
 
         <CompactSelect<'all' | 'none' | 'warnings' | 'submit'>
-          value={visSettings.localDependencyMode}
-          onValueChange={setLocalDependencyMode}
+          value={visSettings.sameProcessDependencyMode}
+          onValueChange={setSameProcessDependencyMode}
           small
           placeholder="Select how dependencies are shown"
           items={[
@@ -524,12 +525,12 @@ Changes which streams are visible:
         */}
 
         <label htmlFor="cross-dependency-mode" className="text-sm text-muted-foreground">
-          Cross Rank
+          Cross Process
         </label>
 
         <CompactSelect<'all' | 'none'>
-          value={visSettings.crossDependencyMode}
-          onValueChange={setCrossDependencyMode}
+          value={visSettings.crossProcessDependencyMode}
+          onValueChange={setCrossProcessDependencyMode}
           small
           placeholder="Select how cross dependencies are shown"
           items={[
@@ -539,7 +540,7 @@ Changes which streams are visible:
         />
 
         <span />
-        <WithInfo tooltip="Show cross rank dependency lines. ⚠️ Memory Intensive">
+        <WithInfo tooltip="Show cross-process dependency lines. ⚠️ Memory Intensive">
           <span>⚠️</span>
         </WithInfo>
 

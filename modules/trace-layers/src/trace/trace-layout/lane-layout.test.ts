@@ -1,13 +1,7 @@
 import {describe, expect, it} from 'vitest';
 
 import {brand, encodeSpanRef} from '../trace-graph';
-import {
-  kahnLaneLayout,
-  layoutLanes,
-  layoutLanesByOverlap,
-  legacyLaneLayout,
-  sortSpansByTime
-} from './lane-layout';
+import {kahnLaneLayout, layoutLanesByOverlap, sortSpansByTime} from './lane-layout';
 
 import type {SpanRef, TraceSpan} from '../trace-graph';
 
@@ -60,8 +54,8 @@ const makeSpan = (
       },
       ...(extraTimings ?? {})
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: [],
     userData
@@ -87,7 +81,7 @@ describe('sortSpansByTime', () => {
   });
 });
 
-describe('layoutLanes', () => {
+describe('kahnLaneLayout', () => {
   it('places nested spans on deeper lanes than parents when available', () => {
     const spans = [
       makeSpan(1, 0, 10),
@@ -96,7 +90,7 @@ describe('layoutLanes', () => {
       makeSpan(4, 6, 3)
     ];
 
-    const lanes = layoutLanes(spans, {getParentSpanRef});
+    const lanes = kahnLaneLayout(spans, {getParentSpanRef});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -108,7 +102,7 @@ describe('layoutLanes', () => {
   it('falls back to overlap packing when nested lane is spaned', () => {
     const spans = [makeSpan(1, 0, 10), makeSpan(2, 1, 10), makeSpan(3, 2, 2, 1)];
 
-    const lanes = layoutLanes(spans, {getParentSpanRef});
+    const lanes = kahnLaneLayout(spans, {getParentSpanRef});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -119,7 +113,7 @@ describe('layoutLanes', () => {
   it('recursively assigns a parent that sorts after its child', () => {
     const spans = [makeSpan(1, 10, 5), makeSpan(2, 0, 5, 1)];
 
-    const lanes = layoutLanes(spans, {getParentSpanRef});
+    const lanes = kahnLaneLayout(spans, {getParentSpanRef});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -129,7 +123,7 @@ describe('layoutLanes', () => {
   it('uses ordered lane windows when recursion assigns a later parent first', () => {
     const spans = [makeSpan(1, 10, 5), makeSpan(2, 0, 5, 1), makeSpan(3, 5, 5)];
 
-    const lanes = layoutLanes(spans, {getParentSpanRef});
+    const lanes = kahnLaneLayout(spans, {getParentSpanRef});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -140,7 +134,7 @@ describe('layoutLanes', () => {
   it('keeps sequential tiny spans in one lane', () => {
     const spans = Array.from({length: 2_000}, (_, index) => makeSpan(index, index * 2, 1));
 
-    const lanes = layoutLanes(spans);
+    const lanes = kahnLaneLayout(spans);
 
     expect(lanes).toHaveLength(spans.length);
     expect(new Set(lanes.map(({lane}) => lane))).toEqual(new Set([0]));
@@ -149,7 +143,7 @@ describe('layoutLanes', () => {
   it('assigns deeply nested spans without repeatedly scanning all occupied lanes', () => {
     const spans = Array.from({length: 5_000}, (_, index) => makeSpan(index, index, 10_000 - index));
 
-    const lanes = layoutLanes(spans);
+    const lanes = kahnLaneLayout(spans);
 
     expect(lanes).toHaveLength(spans.length);
     expect(lanes.at(0)?.lane).toBe(0);
@@ -159,7 +153,7 @@ describe('layoutLanes', () => {
   it('handles cyclic parent hints without infinite recursion', () => {
     const spans = [makeSpan(1, 0, 10, 2), makeSpan(2, 1, 8, 1)];
 
-    const lanes = layoutLanes(spans, {getParentSpanRef});
+    const lanes = kahnLaneLayout(spans, {getParentSpanRef});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -172,21 +166,36 @@ describe('layoutLanes', () => {
       makeSpan(index, index, 1, index + 1 < spanCount ? index + 1 : undefined)
     );
 
-    const lanes = layoutLanes(spans, {getParentSpanRef});
+    const lanes = kahnLaneLayout(spans, {getParentSpanRef});
 
     expect(lanes).toHaveLength(spanCount);
     expect(lanes[0]?.lane).toBe(spanCount - 1);
     expect(lanes.at(-1)?.lane).toBe(0);
   });
 
-  it('keeps spans with the same affinity key on nearby fitting lanes', () => {
+  it('compacts same-affinity spans after their overlap component becomes idle', () => {
     const spans = [
       makeSpan(1, 0, 10),
       makeSpan(2, 1, 4, undefined, undefined, 'finished', 'trace-a'),
       makeSpan(3, 10, 5, undefined, undefined, 'finished', 'trace-a')
     ];
 
-    const lanes = layoutLanes(spans, {getLaneAffinityKey});
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
+    const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
+
+    expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
+    expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
+    expect(lanesById.get(brand<'block', string>('span:3'))).toBe(0);
+  });
+
+  it('preserves historical raw-key affinity when compact layout is disabled', () => {
+    const spans = [
+      makeSpan(1, 0, 10),
+      makeSpan(2, 1, 4, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(3, 10, 5, undefined, undefined, 'finished', 'trace-a')
+    ];
+
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: false, getLaneAffinityKey});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -194,58 +203,82 @@ describe('layoutLanes', () => {
     expect(lanesById.get(brand<'block', string>('span:3'))).toBe(1);
   });
 
-  it('prefers the most recently used legal lane for one affinity group', () => {
+  it('keeps active same-affinity spans on nearby fitting lanes', () => {
     const spans = [
-      makeSpan(1, 0, 10),
-      makeSpan(2, 1, 4, undefined, undefined, 'finished', 'trace-a'),
-      makeSpan(3, 10, 5, undefined, undefined, 'finished', 'trace-a'),
-      makeSpan(4, 15, 5, undefined, undefined, 'finished', 'trace-a')
+      makeSpan(1, 0, 20),
+      makeSpan(2, 1, 10, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(3, 3, 1, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(4, 5, 1, undefined, undefined, 'finished', 'trace-a')
     ];
 
-    const lanes = kahnLaneLayout(spans, {getLaneAffinityKey});
-    const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
-
-    expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
-    expect(lanesById.get(brand<'block', string>('span:3'))).toBe(1);
-    expect(lanesById.get(brand<'block', string>('span:4'))).toBe(1);
-  });
-
-  it('keeps a new affinity group out of another trace lane when an unclaimed legal lane fits', () => {
-    const spans = [
-      makeSpan(1, 0, 10),
-      makeSpan(2, 1, 1, undefined, undefined, 'finished', 'trace-a'),
-      makeSpan(3, 1, 1),
-      makeSpan(4, 3, 1, undefined, undefined, 'finished', 'trace-b'),
-      makeSpan(5, 5, 1, undefined, undefined, 'finished', 'trace-a')
-    ];
-
-    const lanes = kahnLaneLayout(spans, {getLaneAffinityKey});
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
     expect(lanesById.get(brand<'block', string>('span:3'))).toBe(2);
     expect(lanesById.get(brand<'block', string>('span:4'))).toBe(2);
-    expect(lanesById.get(brand<'block', string>('span:5'))).toBe(1);
   });
 
-  it('reserves a contiguous home band for one trace before its later overlapping spans arrive', () => {
+  it('compacts a same-affinity child into the uppermost legal fitting lane', () => {
     const spans = [
-      makeSpan(1, 0, 20),
-      makeSpan(2, 1, 1, undefined, undefined, 'finished', 'trace-a'),
-      makeSpan(3, 1, 1),
-      makeSpan(4, 1, 1),
-      makeSpan(5, 3, 6, undefined, undefined, 'finished', 'trace-b'),
-      makeSpan(6, 5, 5, undefined, undefined, 'finished', 'trace-a'),
-      makeSpan(7, 5, 5, undefined, undefined, 'finished', 'trace-a')
+      makeSpan(1, 0, 20, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(2, 1, 4, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(3, 2, 2, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(4, 5, 1, 1, undefined, 'finished', 'trace-a')
     ];
 
-    const lanes = kahnLaneLayout(spans, {getLaneAffinityKey});
+    const lanes = kahnLaneLayout(spans, {
+      compactLaneAffinity: true,
+      getParentSpanRef,
+      getLaneAffinityKey
+    });
+    const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
+
+    expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
+    expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
+    expect(lanesById.get(brand<'block', string>('span:3'))).toBe(2);
+    expect(lanesById.get(brand<'block', string>('span:4'))).toBe(1);
+  });
+
+  it('keeps a new affinity group out of another active trace lane when an unclaimed legal lane fits', () => {
+    const spans = [
+      makeSpan(1, 0, 10),
+      makeSpan(2, 1, 4, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(3, 1, 1),
+      makeSpan(4, 1, 1),
+      makeSpan(5, 3, 1, undefined, undefined, 'finished', 'trace-b'),
+      makeSpan(6, 4, 2, undefined, undefined, 'finished', 'trace-a')
+    ];
+
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
+    expect(lanesById.get(brand<'block', string>('span:3'))).toBe(2);
+    expect(lanesById.get(brand<'block', string>('span:4'))).toBe(3);
     expect(lanesById.get(brand<'block', string>('span:5'))).toBe(3);
-    expect(lanesById.get(brand<'block', string>('span:6'))).toBe(1);
+    expect(lanesById.get(brand<'block', string>('span:6'))).toBe(2);
+  });
+
+  it('reserves an active contiguous home band before later overlapping spans arrive', () => {
+    const spans = [
+      makeSpan(1, 0, 20),
+      makeSpan(2, 1, 10, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(3, 1, 1),
+      makeSpan(4, 1, 1),
+      makeSpan(5, 1, 1),
+      makeSpan(6, 3, 6, undefined, undefined, 'finished', 'trace-b'),
+      makeSpan(7, 5, 5, undefined, undefined, 'finished', 'trace-a'),
+      makeSpan(8, 5, 5, undefined, undefined, 'finished', 'trace-a')
+    ];
+
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
+    const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
+
+    expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
+    expect(lanesById.get(brand<'block', string>('span:6'))).toBe(4);
     expect(lanesById.get(brand<'block', string>('span:7'))).toBe(2);
+    expect(lanesById.get(brand<'block', string>('span:8'))).toBe(3);
   });
 
   it('reuses a foreign affinity lane rather than creating an extra lane when it is the only legal fit', () => {
@@ -255,7 +288,7 @@ describe('layoutLanes', () => {
       makeSpan(3, 3, 1, undefined, undefined, 'finished', 'trace-b')
     ];
 
-    const lanes = kahnLaneLayout(spans, {getLaneAffinityKey});
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
@@ -270,7 +303,7 @@ describe('layoutLanes', () => {
       makeSpan(3, 4, 4, undefined, undefined, 'finished', 'trace-a')
     ];
 
-    const lanes = layoutLanes(spans, {getLaneAffinityKey});
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
@@ -284,7 +317,11 @@ describe('layoutLanes', () => {
       makeSpan(3, 3, 1, 2, undefined, 'finished', 'trace-a')
     ];
 
-    const lanes = layoutLanes(spans, {getParentSpanRef, getLaneAffinityKey});
+    const lanes = kahnLaneLayout(spans, {
+      compactLaneAffinity: true,
+      getParentSpanRef,
+      getLaneAffinityKey
+    });
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:2'))).toBe(0);
@@ -339,11 +376,24 @@ describe('kahnLaneLayout', () => {
       makeSpan(index, 0, 10, undefined, undefined, 'finished', 'trace-a')
     );
 
-    const lanes = kahnLaneLayout(spans, {getLaneAffinityKey});
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
 
     expect(lanes).toHaveLength(spanCount);
     expect(lanes[0]?.lane).toBe(0);
     expect(lanes.at(-1)?.lane).toBe(spanCount - 1);
+  });
+
+  it('compacts many disconnected affinity components without growing lanes', () => {
+    const spanCount = 20_000;
+    const spans = Array.from({length: spanCount}, (_, index) =>
+      makeSpan(index, index * 2, 1, undefined, undefined, 'finished', 'trace-a')
+    );
+
+    const lanes = kahnLaneLayout(spans, {compactLaneAffinity: true, getLaneAffinityKey});
+
+    expect(lanes).toHaveLength(spanCount);
+    expect(lanes[0]?.lane).toBe(0);
+    expect(lanes.at(-1)?.lane).toBe(0);
   });
 
   it('assigns deep parent chains without exhausting the JavaScript call stack', () => {
@@ -357,18 +407,6 @@ describe('kahnLaneLayout', () => {
     expect(lanes).toHaveLength(spanCount);
     expect(lanes[0]?.lane).toBe(spanCount - 1);
     expect(lanes.at(-1)?.lane).toBe(0);
-  });
-});
-
-describe('legacyLaneLayout', () => {
-  it('preserves the historical parent-aware placement entry point', () => {
-    const spans = [makeSpan(1, 10, 5), makeSpan(2, 0, 5, 1)];
-
-    const lanes = legacyLaneLayout(spans, {getParentSpanRef});
-    const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
-
-    expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
-    expect(lanesById.get(brand<'block', string>('span:2'))).toBe(1);
   });
 });
 
@@ -418,7 +456,7 @@ describe('layoutLanesByOverlap', () => {
   it('keeps unfinished top-level spans spaning subsequent overlaps', () => {
     const spans = [makeSpan(1, 0, 0, undefined, undefined, 'not-finished'), makeSpan(2, 500, 0)];
 
-    const lanes = layoutLanes(spans);
+    const lanes = layoutLanesByOverlap(spans);
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -428,7 +466,7 @@ describe('layoutLanesByOverlap', () => {
   it('extends not-finished spans with equal end time to max time for overlap checks', () => {
     const spans = [makeSpan(1, 0, 0, undefined, undefined, 'not-finished'), makeSpan(2, 0, 0)];
 
-    const lanes = layoutLanes(spans, {maxTimeMs: 25_000});
+    const lanes = layoutLanesByOverlap(spans, {maxTimeMs: 25_000});
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);
@@ -438,7 +476,7 @@ describe('layoutLanesByOverlap', () => {
   it('treats zero-length spans as overlapping when inside unfinished spans', () => {
     const spans = [makeSpan(1, 0, 0, undefined, undefined, 'not-finished'), makeSpan(2, 500, 0)];
 
-    const lanes = layoutLanes(spans);
+    const lanes = layoutLanesByOverlap(spans);
     const lanesById = new Map(lanes.map(({span, lane}) => [span.spanId, lane]));
 
     expect(lanesById.get(brand<'block', string>('span:1'))).toBe(0);

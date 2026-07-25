@@ -2,7 +2,7 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_NONE} from '../../../../../trace/index';
+import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_NONE} from '../../../../../trace';
 import {resolveTraceSpanCardLabels} from '../trace-span-card-helpers';
 import {TraceSpanChildrenTab} from './trace-span-card-tab-children';
 
@@ -10,11 +10,11 @@ import type {
   SpanRef,
   TraceCardSpan,
   TraceDependencyId,
-  TraceLocalDependency,
+  TraceSameProcessDependency,
   TraceSpanCardDescendantResult,
   TraceSpanId,
   TraceThreadId
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {TraceSpanDoubleClickAction} from '../trace-span-name-badge';
 import type {Root} from 'react-dom/client';
 
@@ -76,6 +76,37 @@ describe('TraceSpanChildrenTab', () => {
 
     expect(container?.textContent).toContain('No children match the current filter.');
   });
+
+  it('renders metrics and process before span with one-em listed-descendant indentation', () => {
+    const currentSpan = createSpan(1, 'current');
+    const childSpan = createSpan(2, 'child');
+    const deepChildSpan = createSpan(3, 'deep-child');
+    const nestedSiblingSpan = createSpan(4, 'nested-sibling');
+    const siblingSpan = createSpan(5, 'sibling');
+
+    renderChildrenTab({
+      currentSpan,
+      descendants: createDescendantsFromEntries(currentSpan, [
+        {childSpan, depth: 1, parentSpanId: currentSpan.spanId},
+        {
+          childSpan: deepChildSpan,
+          depth: 4,
+          parentSpanId: 'hidden-parent' as TraceSpanId
+        },
+        {
+          childSpan: nestedSiblingSpan,
+          depth: 3,
+          parentSpanId: 'hidden-sibling-parent' as TraceSpanId
+        },
+        {childSpan: siblingSpan, depth: 1, parentSpanId: currentSpan.spanId}
+      ])
+    });
+
+    expect(getHeaderTexts()).toEqual(['Duration', 'Process', 'Span']);
+    expect(getChildAttributeValues('data-child-depth')).toEqual(['1', '4', '3', '1']);
+    expect(getChildAttributeValues('data-child-indent-level')).toEqual(['0', '1', '1', '0']);
+    expect(getChildIndentOffsets()).toEqual(['0em', '1em', '1em', '0em']);
+  });
 });
 
 function renderChildrenTab(params: {
@@ -127,8 +158,30 @@ function createDescendants(
   currentSpan: TraceCardSpan,
   ...childSpans: TraceCardSpan[]
 ): TraceSpanCardDescendantResult {
+  return createDescendantsFromEntries(
+    currentSpan,
+    childSpans.map(childSpan => ({
+      childSpan,
+      depth: 1,
+      parentSpanId: currentSpan.spanId
+    }))
+  );
+}
+
+/** Builds descendant rows with explicit raw traversal depths for indentation tests. */
+function createDescendantsFromEntries(
+  currentSpan: TraceCardSpan,
+  entries: readonly {
+    /** Descendant span rendered in one child row. */
+    childSpan: TraceCardSpan;
+    /** Raw dependency traversal depth retained on the child row. */
+    depth: number;
+    /** Raw parent span id retained on the child row. */
+    parentSpanId: TraceSpanId;
+  }[]
+): TraceSpanCardDescendantResult {
   return {
-    entries: childSpans.map(childSpan => {
+    entries: entries.map(({childSpan, depth, parentSpanId}) => {
       const dependency = createDependency(currentSpan.spanId, childSpan.spanId);
       return {
         dependency,
@@ -137,8 +190,8 @@ function createDescendants(
         endSpan: childSpan,
         childSpanRef: childSpan.spanRef,
         childSpan,
-        depth: 1,
-        parentSpanId: currentSpan.spanId
+        depth,
+        parentSpanId
       };
     }),
     isTruncated: false,
@@ -146,6 +199,27 @@ function createDescendants(
     truncationCountIsExact: true,
     limit: 100
   };
+}
+
+/** Returns rendered child-table header labels. */
+function getHeaderTexts(): string[] {
+  return [...(container?.querySelectorAll('thead th') ?? [])].map(
+    header => header.textContent?.trim() ?? ''
+  );
+}
+
+/** Returns one rendered child-row data attribute from every matching child badge wrapper. */
+function getChildAttributeValues(attributeName: string): string[] {
+  return [...(container?.querySelectorAll(`[${attributeName}]`) ?? [])].map(
+    element => element.getAttribute(attributeName) ?? ''
+  );
+}
+
+/** Returns rendered inline indentation offsets from every child badge wrapper. */
+function getChildIndentOffsets(): string[] {
+  return [...(container?.querySelectorAll<HTMLElement>('[data-child-indent-level]') ?? [])].map(
+    element => element.style.paddingInlineStart
+  );
 }
 
 function createSpan(spanRef: number, name: string): TraceCardSpan {
@@ -173,9 +247,12 @@ function createSpan(spanRef: number, name: string): TraceCardSpan {
   };
 }
 
-function createDependency(startSpanId: TraceSpanId, endSpanId: TraceSpanId): TraceLocalDependency {
+function createDependency(
+  startSpanId: TraceSpanId,
+  endSpanId: TraceSpanId
+): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
+    type: 'trace-same-process-dependency',
     dependencyId: 'dependency' as TraceDependencyId,
     startSpanId,
     endSpanId,

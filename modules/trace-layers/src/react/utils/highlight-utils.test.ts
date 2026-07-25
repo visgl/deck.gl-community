@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {filterValidSpanIds} from './highlight-utils';
 
-import type {TraceSpan, TraceSpanId, TraceThreadId} from '../../trace/index';
+import type {TraceSpan, TraceSpanId, TraceThreadId} from '../../trace';
 
 function makeBlock(spanId: TraceSpanId): TraceSpan {
   return {
@@ -22,8 +22,8 @@ function makeBlock(spanId: TraceSpanId): TraceSpan {
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

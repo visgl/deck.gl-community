@@ -1,74 +1,55 @@
 import {log} from '../log';
-import {getPrimaryTiming} from '../trace-graph/trace-types';
-import {DEFAULT_SUBMIT_MIN_WAIT_TIME_MS} from '../trace-layout/local-dependency-filter';
+import {DEFAULT_SUBMIT_MIN_WAIT_TIME_MS} from '../trace-layout/same-process-dependency-filter';
 import {interpolateColor, makeDeckColor} from './color-palette';
 import {getReadableSpanBorderColor} from './trace-color-scheme';
 
 import type {TraceSelectedDependencyDirection} from '../trace-graph/trace-graph-types';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
-import type {SpanRef, TraceProcess, TraceThread} from '../trace-graph/trace-types';
+import type {SpanRef, TraceThread} from '../trace-graph/trace-types';
 import type {
   TraceColor,
   TraceColorScheme,
   TraceDeckColor,
   TraceSpanColorAccessorSource,
   TraceSpanColorRefParams,
-  TraceSpanColorSource,
   TraceSpanColorStyle
 } from './trace-color-scheme';
 
-/** Parameters used to create a trace color resolver for one render context. */
-export type TraceColorResolverParams = {
+/** Parameters used to create a ref-native trace color resolver for one render context. */
+export type TraceGraphColorResolverParams = {
+  /** TraceGraph accessor source used to read span fields without materializing span objects. */
+  traceGraph: TraceSpanColorAccessorSource;
   /** Active color scheme used for application-specific color hooks. */
   colorScheme?: TraceColorScheme;
   /** Active visualization settings used for fallback and fade behavior. */
   settings: TraceVisSettings;
   /** Runtime span refs that should remain emphasized when highlight fading is active. */
   highlightedSpanRefs?: ReadonlySet<SpanRef>;
-  /** Whether non-highlighted span fill and border alpha should be faded. */
-  applyHighlightFade?: boolean;
-};
-
-/** Resolver for final trace render colors after scheme hooks and fallbacks are applied. */
-export type TraceColorResolver = {
-  /** Resolve the final combined style for one span. */
-  getSpanStyle: (
-    span: TraceSpanColorSource,
-    path?: 'path' | 'any',
-    labelPlacement?: 'inside' | 'outside'
-  ) => TraceSpanColorStyle;
-  /** Resolve the final fill color for one span. */
-  getSpanFillColor: (span: TraceSpanColorSource, path?: 'path' | 'any') => TraceDeckColor;
-  /** Resolve the final border color for one span. */
-  getSpanBorderColor: (span: TraceSpanColorSource, path?: 'path') => TraceDeckColor;
-  /** Resolve the final label text color for one span. */
-  getSpanTextColor: (
-    span: TraceSpanColorSource,
-    path?: 'path' | 'any',
-    labelPlacement?: 'inside' | 'outside'
-  ) => TraceDeckColor;
-  /** Resolve the final thread/lane color for one thread. */
-  getThreadColor: (thread: TraceThread | undefined) => TraceDeckColor | undefined;
-  /** Resolve the final process background color for one process. */
-  getProcessBackgroundColor: (params: {
-    /** Zero-based process index in process ordering. */
-    processIndex: number;
-    /** Process metadata object being colored. */
-    process: TraceProcess;
-  }) => TraceDeckColor | undefined;
-};
-
-/** Parameters used to create a ref-native trace color resolver for one render context. */
-export type TraceGraphColorResolverParams = TraceColorResolverParams & {
-  /** TraceGraph accessor source used to read span fields without materializing span objects. */
-  traceGraph: TraceSpanColorAccessorSource & {
-    /** Optional compatibility fallback for color schemes that have not implemented ref hooks. */
-    getSpanDisplaySource?: (spanRef: SpanRef) => TraceSpanColorSource | null;
-  };
 };
 
 /** Resolver for span-ref keyed render colors after scheme hooks and fallbacks are applied. */
 export type TraceGraphColorResolver = {
+  /**
+   * Writes final block fill and border channels directly into caller-owned byte buffers.
+   *
+   * This block-only path intentionally skips label text-color resolution and shares one
+   * ref-style lookup plus one visibility/fade calculation across both output colors.
+   *
+   * @param primaryStartTimeMs Optional raw primary start time already bound by the caller. Pass
+   *   both raw timing arguments, using null for a missing field, to avoid TraceGraph timing reads.
+   * @param primaryEndTimeMs Optional raw primary end time already bound by the caller. Pass both
+   *   raw timing arguments, using null for a missing field, to avoid TraceGraph timing reads.
+   */
+  writeSpanBlockColors: (
+    spanRef: SpanRef,
+    fillColors: Uint8Array,
+    fillColorOffset: number,
+    lineColors: Uint8Array,
+    lineColorOffset: number,
+    path?: 'path' | 'any',
+    primaryStartTimeMs?: number | null,
+    primaryEndTimeMs?: number | null
+  ) => void;
   /** Resolve the final fill color for one span ref. */
   getSpanFillColor: (spanRef: SpanRef, path?: 'path' | 'any') => TraceDeckColor;
   /** Resolve the final border color for one span ref. */
@@ -81,19 +62,23 @@ export type TraceGraphColorResolver = {
   ) => TraceDeckColor;
 };
 
-type LocalDependencyColorSource = {
+type SameProcessDependencyColorSource = {
   /** Dependency keywords used to detect submit edges. */
   keywords: ReadonlySet<string>;
   /** Wait duration used to color warning states. */
   waitTimeMs: number;
 };
-type CrossDependencyColorSource = {
+type CrossProcessDependencyColorSource = {
   /** Wait duration used to color warning states. */
   waitTimeMs: number;
 };
 type TraceSpanColorResolverRefParams = TraceSpanColorRefParams & {
   /** Active color scheme used for application-specific color hooks. */
   colorScheme?: TraceColorScheme;
+  /** Combined ref-native color override already resolved for this span. */
+  refColorStyle?: TraceSpanColorStyle;
+  /** Whether the combined ref-native color override was already resolved. */
+  hasRefColorStyle?: boolean;
 };
 
 export {
@@ -112,74 +97,13 @@ export {
   PROCESS_TRACE_COLOR_SCHEME
 } from './trace-color-scheme';
 export type {
-  TraceSpanColorParams,
   TraceSpanColorAccessorSource,
   TraceSpanColorRefParams,
-  TraceSpanColorSource,
   TraceSpanColorStyle,
   TraceColorScheme,
   TraceColor,
   TraceDeckColor
 } from './trace-color-scheme';
-
-/** Create a color resolver for one trace render context. */
-export function createTraceColorResolver({
-  colorScheme,
-  settings,
-  highlightedSpanRefs,
-  applyHighlightFade = true
-}: TraceColorResolverParams): TraceColorResolver {
-  return {
-    getSpanStyle: (span, path, labelPlacement = 'inside') => ({
-      spanFillColor: resolveSpanFillColor(
-        span,
-        settings,
-        path,
-        colorScheme,
-        highlightedSpanRefs,
-        applyHighlightFade
-      ),
-      spanBorderColor: resolveSpanBorderColor(
-        span,
-        settings,
-        path === 'path' ? path : undefined,
-        colorScheme,
-        highlightedSpanRefs,
-        applyHighlightFade
-      ),
-      spanTextColor: resolveSpanTextColor(
-        span,
-        settings,
-        path,
-        colorScheme,
-        highlightedSpanRefs,
-        labelPlacement
-      )
-    }),
-    getSpanFillColor: (span, path) =>
-      resolveSpanFillColor(
-        span,
-        settings,
-        path,
-        colorScheme,
-        highlightedSpanRefs,
-        applyHighlightFade
-      ),
-    getSpanBorderColor: (span, path) =>
-      resolveSpanBorderColor(
-        span,
-        settings,
-        path,
-        colorScheme,
-        highlightedSpanRefs,
-        applyHighlightFade
-      ),
-    getSpanTextColor: (span, path, labelPlacement = 'inside') =>
-      resolveSpanTextColor(span, settings, path, colorScheme, highlightedSpanRefs, labelPlacement),
-    getThreadColor: thread => resolveThreadColor(thread, colorScheme),
-    getProcessBackgroundColor: params => resolveProcessBackgroundColor(params, colorScheme)
-  };
-}
 
 /** Create a color resolver that reads span fields through TraceGraph accessors. */
 export function createTraceGraphColorResolver({
@@ -189,6 +113,30 @@ export function createTraceGraphColorResolver({
   highlightedSpanRefs
 }: TraceGraphColorResolverParams): TraceGraphColorResolver {
   return {
+    writeSpanBlockColors: (
+      spanRef,
+      fillColors,
+      fillColorOffset,
+      lineColors,
+      lineColorOffset,
+      path,
+      primaryStartTimeMs,
+      primaryEndTimeMs
+    ) =>
+      writeSpanBlockColorsForRef(
+        traceGraph,
+        colorScheme,
+        settings,
+        highlightedSpanRefs,
+        spanRef,
+        path,
+        fillColors,
+        fillColorOffset,
+        lineColors,
+        lineColorOffset,
+        primaryStartTimeMs,
+        primaryEndTimeMs
+      ),
     getSpanFillColor: (spanRef, path) =>
       resolveSpanFillColorForRef({
         traceGraph,
@@ -220,6 +168,66 @@ export function createTraceGraphColorResolver({
   };
 }
 
+/**
+ * Writes pre-resolved block fill and border colors while preserving per-span visibility alpha.
+ *
+ * Row-local render builders use this seam when a style is provably constant for the entire row,
+ * so they can skip per-span color hooks without duplicating fade or minimum-duration semantics.
+ */
+export function writeFixedSpanBlockColorsForRef(
+  traceGraph: TraceSpanColorAccessorSource,
+  settings: TraceVisSettings,
+  highlightedSpanRefs: ReadonlySet<SpanRef> | undefined,
+  spanRef: SpanRef,
+  fillColor: TraceDeckColor,
+  borderColor: TraceDeckColor,
+  fillColors: Uint8Array,
+  fillColorOffset: number,
+  lineColors: Uint8Array,
+  lineColorOffset: number,
+  primaryStartTimeMs?: number | null,
+  primaryEndTimeMs?: number | null
+): void {
+  const alphaMultiplier = getSpanVisibilityAlphaMultiplierForRef(
+    spanRef,
+    traceGraph,
+    settings,
+    highlightedSpanRefs,
+    primaryStartTimeMs,
+    primaryEndTimeMs
+  );
+
+  writeTraceDeckColorBytes(fillColors, fillColorOffset, fillColor, alphaMultiplier);
+  writeTraceDeckColorBytes(lineColors, lineColorOffset, borderColor, alphaMultiplier);
+}
+
+/**
+ * Writes pre-resolved block colors from already-borrowed primary timing fields.
+ *
+ * Dense Arrow row writers use this when no highlighted-ref membership is active. It preserves the
+ * path/min-duration alpha rules without synthesizing a packed span ref solely for color output.
+ */
+export function writeFixedSpanBlockColorsForTiming(
+  settings: TraceVisSettings,
+  fillColor: TraceDeckColor,
+  borderColor: TraceDeckColor,
+  fillColors: Uint8Array,
+  fillColorOffset: number,
+  lineColors: Uint8Array,
+  lineColorOffset: number,
+  primaryStartTimeMs?: number | null,
+  primaryEndTimeMs?: number | null
+): void {
+  const alphaMultiplier = getSpanVisibilityAlphaMultiplierForTiming(
+    settings,
+    primaryStartTimeMs,
+    primaryEndTimeMs
+  );
+
+  writeTraceDeckColorBytes(fillColors, fillColorOffset, fillColor, alphaMultiplier);
+  writeTraceDeckColorBytes(lineColors, lineColorOffset, borderColor, alphaMultiplier);
+}
+
 export const TRACE_COLOR = {
   THREAD_LINE: makeDeckColor('#cccccc66'),
   THREAD_TEXT: makeDeckColor('#333333ff'),
@@ -228,21 +236,20 @@ export const TRACE_COLOR = {
   SPAN_FINISHED_FILL: makeDeckColor('#2f85a4ff'),
   SPAN_NOT_FINISHED_LINE: makeDeckColor('#c14e0bff'),
   SPAN_NOT_FINISHED_FILL: makeDeckColor('#c14e0bff'),
-  SPAN_CROSS_RANK: makeDeckColor('#ff00ff80'),
   SPAN_HIGHLIGHT: makeDeckColor('#ff000080'),
   DEPENDENCY_LINE: makeDeckColor('#eab308ff'),
   DEPENDENCY_HIGHLIGHT: makeDeckColor('#ff0000ff'),
   WARNING_DEPENDENCY_LINE: makeDeckColor('#ef4444ff'),
   SUBMIT_DEPENDENCY_LINE: makeDeckColor('#ec407a'),
-  CROSS_DEPENDENCY_LINE: makeDeckColor('#0ea5e9ff'),
-  CROSS_DEPENDENCY_HIDDEN_ENDPOINT_LINE: makeDeckColor('#64748bff'),
+  CROSS_PROCESS_DEPENDENCY_LINE: makeDeckColor('#0ea5e9ff'),
+  CROSS_PROCESS_DEPENDENCY_HIDDEN_ENDPOINT_LINE: makeDeckColor('#64748bff'),
 
   SPAN_IN_CRITICAL_PATH_FILL: makeDeckColor('#ff4d4d80'),
   SPAN_IN_CRITICAL_PATH_LINE: makeDeckColor('#ff4d4d99'),
   SPAN_IN_CRITICAL_PATH_HIGHLIGHT_FILL: makeDeckColor('#ff1a1ad9'),
   SPAN_IN_CRITICAL_PATH_HIGHLIGHT_LINE: makeDeckColor('#ff1a1aff'),
   DEPENDENCY_IN_CRITICAL_PATH_LINE: makeDeckColor('#ff4d4dff'),
-  CROSS_DEPENDENCY_IN_CRITICAL_PATH_LINE: makeDeckColor('#ff8033ff')
+  CROSS_PROCESS_DEPENDENCY_IN_CRITICAL_PATH_LINE: makeDeckColor('#ff8033ff')
 } as const;
 
 export const NOT_IN_PATH_FADE_FACTOR = 0.2;
@@ -250,10 +257,10 @@ export const DEFAULT_PATH_HIGHLIGHT_TRAIL_LENGTH = 1;
 export const MIN_PATH_HIGHLIGHT_TRAIL_LENGTH = 1;
 export const MAX_PATH_HIGHLIGHT_TRAIL_LENGTH = 10;
 export const PATH_HIGHLIGHT_TRAIL_LENGTH = DEFAULT_PATH_HIGHLIGHT_TRAIL_LENGTH;
-const SELECTED_CROSS_DEPENDENCY_COLOR_START = makeDeckColor('#ff2a2aff');
-const SELECTED_CROSS_DEPENDENCY_COLOR_END = makeDeckColor('#ff0000ff');
-const SELECTED_LOCAL_DEPENDENCY_COLOR_START = SELECTED_CROSS_DEPENDENCY_COLOR_START;
-const SELECTED_LOCAL_DEPENDENCY_COLOR_END = SELECTED_CROSS_DEPENDENCY_COLOR_END;
+const SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_START = makeDeckColor('#ff2a2aff');
+const SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_END = makeDeckColor('#ff0000ff');
+const SELECTED_SAME_PROCESS_DEPENDENCY_COLOR_START = SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_START;
+const SELECTED_SAME_PROCESS_DEPENDENCY_COLOR_END = SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_END;
 const SELECTED_OUTGOING_DEPENDENCY_COLOR_START = makeDeckColor('#e11d48ff');
 const SELECTED_OUTGOING_DEPENDENCY_COLOR_END = makeDeckColor('#a21cafff');
 const SPAN_TEXT_COLOR_BLACK: TraceColor = [0, 0, 0, 255];
@@ -279,150 +286,6 @@ function getTextHighlightFadeMultiplier(settings: TraceVisSettings): number {
   return 0.55 + 0.45 * fillFade;
 }
 
-function resolveSpanFillColor(
-  span: TraceSpanColorSource,
-  settings: TraceVisSettings,
-  path?: 'path' | 'any',
-  colorScheme?: TraceColorScheme,
-  highlightedSpanRefs?: ReadonlySet<SpanRef>,
-  applyHighlightFade = true
-): TraceDeckColor {
-  const inPath = path === 'path';
-  if (inPath) {
-    return TRACE_COLOR.SPAN_IN_CRITICAL_PATH_FILL;
-  }
-
-  const colorStyle = colorScheme?.getSpanStyle?.({
-    span,
-    settings,
-    path,
-    highlightedSpanRefs
-  });
-  const baseColor: TraceDeckColor =
-    colorStyle?.spanFillColor ??
-    colorScheme?.getSpanFillColor?.({
-      span,
-      settings,
-      path,
-      highlightedSpanRefs
-    }) ??
-    getDefaultSpanFillColor(span, colorScheme);
-
-  return applySpanVisibilityAdjustments(
-    baseColor,
-    span,
-    settings,
-    highlightedSpanRefs,
-    applyHighlightFade
-  );
-}
-
-function resolveSpanBorderColor(
-  span: TraceSpanColorSource,
-  settings: TraceVisSettings,
-  path?: 'path',
-  colorScheme?: TraceColorScheme,
-  highlightedSpanRefs?: ReadonlySet<SpanRef>,
-  applyHighlightFade = true
-): TraceDeckColor {
-  const inPath = path === 'path';
-  if (inPath) {
-    return TRACE_COLOR.SPAN_IN_CRITICAL_PATH_LINE;
-  }
-
-  const colorStyle = colorScheme?.getSpanStyle?.({
-    span,
-    settings,
-    path,
-    highlightedSpanRefs
-  });
-  const baseFillColor: TraceDeckColor =
-    colorStyle?.spanFillColor ??
-    colorScheme?.getSpanFillColor?.({
-      span,
-      settings,
-      path,
-      highlightedSpanRefs
-    }) ??
-    getDefaultSpanFillColor(span, colorScheme);
-  const baseColor: TraceDeckColor =
-    colorStyle?.spanBorderColor ??
-    colorScheme?.getSpanBorderColor?.({
-      span,
-      settings,
-      path,
-      highlightedSpanRefs
-    }) ??
-    getReadableSpanBorderColor(baseFillColor);
-
-  return applySpanVisibilityAdjustments(
-    baseColor,
-    span,
-    settings,
-    highlightedSpanRefs,
-    applyHighlightFade
-  );
-}
-
-function resolveSpanTextColor(
-  span: TraceSpanColorSource,
-  settings: TraceVisSettings,
-  path?: 'path' | 'any',
-  colorScheme?: TraceColorScheme,
-  highlightedSpanRefs?: ReadonlySet<SpanRef>,
-  labelPlacement: 'inside' | 'outside' = 'inside'
-): TraceDeckColor {
-  if (labelPlacement === 'outside') {
-    return applySpanTextVisibilityAdjustments(
-      SPAN_TEXT_COLOR_BLACK,
-      span,
-      settings,
-      highlightedSpanRefs
-    );
-  }
-
-  const colorStyle = colorScheme?.getSpanStyle?.({
-    span,
-    settings,
-    path,
-    highlightedSpanRefs,
-    labelPlacement
-  });
-  if (colorStyle?.spanTextColor) {
-    return applySpanTextVisibilityAdjustments(
-      getFadeAwareSpanTextColor(colorStyle.spanTextColor, span, settings, highlightedSpanRefs),
-      span,
-      settings,
-      highlightedSpanRefs
-    );
-  }
-
-  const baseColor = colorScheme?.getSpanTextColor?.({
-    span,
-    settings,
-    path,
-    highlightedSpanRefs,
-    labelPlacement
-  });
-  if (baseColor) {
-    return applySpanTextVisibilityAdjustments(
-      getFadeAwareSpanTextColor(baseColor, span, settings, highlightedSpanRefs),
-      span,
-      settings,
-      highlightedSpanRefs
-    );
-  }
-
-  const fillColor = resolveSpanFillColor(span, settings, path, colorScheme, highlightedSpanRefs);
-  const contrastColor = getFadeAwareSpanTextColor(
-    getSpanTextColorFromFill(fillColor),
-    span,
-    settings,
-    highlightedSpanRefs
-  );
-  return applySpanTextVisibilityAdjustments(contrastColor, span, settings, highlightedSpanRefs);
-}
-
 function getSpanTextColorFromFill(
   fillColor: TraceDeckColor,
   backgroundColor: TraceDeckColor = SPAN_TEXT_BACKGROUND_COLOR
@@ -431,7 +294,7 @@ function getSpanTextColorFromFill(
 }
 
 export function getDependencyLineColor(
-  dependency: LocalDependencyColorSource,
+  dependency: SameProcessDependencyColorSource,
   _settings: TraceVisSettings,
   type?: 'path' | 'selected'
 ): TraceDeckColor {
@@ -442,8 +305,8 @@ export function getDependencyLineColor(
     case 'selected':
       return getSelectedDependencyColor(
         Math.abs(dependency.waitTimeMs),
-        SELECTED_LOCAL_DEPENDENCY_COLOR_START,
-        SELECTED_LOCAL_DEPENDENCY_COLOR_END
+        SELECTED_SAME_PROCESS_DEPENDENCY_COLOR_START,
+        SELECTED_SAME_PROCESS_DEPENDENCY_COLOR_END
       );
 
     default:
@@ -462,16 +325,16 @@ export function getDependencyLineColor(
 }
 
 /**
- * Returns whether a local dependency should use the submit-warning dependency color.
+ * Returns whether a same-process dependency should use the submit-warning dependency color.
  */
-export function isSubmitWarningDependency(dependency: LocalDependencyColorSource): boolean {
+export function isSubmitWarningDependency(dependency: SameProcessDependencyColorSource): boolean {
   return (
     dependency.keywords.has('SUBMIT') && dependency.waitTimeMs < DEFAULT_SUBMIT_MIN_WAIT_TIME_MS
   );
 }
 
 export function getCrossRankDependencyLineColor(
-  dependency: CrossDependencyColorSource,
+  dependency: CrossProcessDependencyColorSource,
   _settings: TraceVisSettings,
   type?: 'path' | 'selected'
 ): TraceDeckColor {
@@ -480,27 +343,27 @@ export function getCrossRankDependencyLineColor(
       log.log(
         'CRITICAL CROSS_DEP:',
         dependency,
-        TRACE_COLOR.CROSS_DEPENDENCY_IN_CRITICAL_PATH_LINE
+        TRACE_COLOR.CROSS_PROCESS_DEPENDENCY_IN_CRITICAL_PATH_LINE
       )();
 
-      return TRACE_COLOR.CROSS_DEPENDENCY_IN_CRITICAL_PATH_LINE;
+      return TRACE_COLOR.CROSS_PROCESS_DEPENDENCY_IN_CRITICAL_PATH_LINE;
 
     case 'selected':
       return getSelectedDependencyColor(
         Math.abs(dependency.waitTimeMs),
-        SELECTED_CROSS_DEPENDENCY_COLOR_START,
-        SELECTED_CROSS_DEPENDENCY_COLOR_END
+        SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_START,
+        SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_END
       );
 
     default:
     // fall through
   }
 
-  return TRACE_COLOR.CROSS_DEPENDENCY_LINE;
+  return TRACE_COLOR.CROSS_PROCESS_DEPENDENCY_LINE;
 }
 
-/** Returns the selected local-dependency overlay color for one wait duration. */
-export function getSelectedLocalDependencyLineColor(
+/** Returns the selected same-process-dependency overlay color for one wait duration. */
+export function getSelectedSameProcessDependencyLineColor(
   waitTimeMs: number,
   selectedDirection: TraceSelectedDependencyDirection = 'incoming'
 ): TraceDeckColor {
@@ -513,12 +376,12 @@ export function getSelectedLocalDependencyLineColor(
   }
   return getSelectedDependencyColor(
     Math.abs(waitTimeMs),
-    SELECTED_LOCAL_DEPENDENCY_COLOR_START,
-    SELECTED_LOCAL_DEPENDENCY_COLOR_END
+    SELECTED_SAME_PROCESS_DEPENDENCY_COLOR_START,
+    SELECTED_SAME_PROCESS_DEPENDENCY_COLOR_END
   );
 }
 
-/** Returns the selected cross-dependency overlay color for one wait duration. */
+/** Returns the selected cross-process-dependency overlay color for one wait duration. */
 export function getSelectedCrossRankDependencyLineColor(
   waitTimeMs: number,
   selectedDirection: TraceSelectedDependencyDirection = 'incoming'
@@ -532,8 +395,8 @@ export function getSelectedCrossRankDependencyLineColor(
   }
   return getSelectedDependencyColor(
     Math.abs(waitTimeMs),
-    SELECTED_CROSS_DEPENDENCY_COLOR_START,
-    SELECTED_CROSS_DEPENDENCY_COLOR_END
+    SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_START,
+    SELECTED_CROSS_PROCESS_DEPENDENCY_COLOR_END
   );
 }
 
@@ -590,7 +453,8 @@ export const SELECTED_SPAN_HIGHLIGHT_STYLES = [
   }
 ] as const;
 
-function resolveThreadColor(
+/** Resolve the final thread/lane color for one thread. */
+export function getTraceThreadColor(
   thread: TraceThread | undefined,
   colorScheme?: TraceColorScheme
 ): TraceDeckColor | undefined {
@@ -600,24 +464,13 @@ function resolveThreadColor(
   });
 }
 
-function resolveProcessBackgroundColor(
-  params: {processIndex: number; process: TraceProcess},
-  colorScheme?: TraceColorScheme
-): TraceDeckColor | undefined {
-  return colorScheme?.getProcessBackgroundColor?.({
-    processIndex: params.processIndex,
-    processId: params.process.processId,
-    process: params.process
-  });
-}
-
 function resolveSpanFillColorForRef(params: TraceSpanColorResolverRefParams): TraceDeckColor {
   const {traceGraph, spanRef, settings, path, colorScheme, highlightedSpanRefs} = params;
   if (path === 'path') {
     return TRACE_COLOR.SPAN_IN_CRITICAL_PATH_FILL;
   }
 
-  const colorStyle = colorScheme?.getSpanStyleForRef?.(params);
+  const colorStyle = getSpanRefColorStyle(params);
   const refColor =
     colorStyle?.spanFillColor ?? colorScheme?.getSpanFillColorForRef?.(params) ?? null;
   if (refColor) {
@@ -626,17 +479,6 @@ function resolveSpanFillColorForRef(params: TraceSpanColorResolverRefParams): Tr
       spanRef,
       traceGraph,
       settings,
-      highlightedSpanRefs
-    );
-  }
-
-  const compatibilitySource = getCompatibilitySpanColorSource(params);
-  if (compatibilitySource) {
-    return resolveSpanFillColor(
-      compatibilitySource,
-      settings,
-      path,
-      colorScheme,
       highlightedSpanRefs
     );
   }
@@ -656,7 +498,7 @@ function resolveSpanBorderColorForRef(params: TraceSpanColorResolverRefParams): 
     return TRACE_COLOR.SPAN_IN_CRITICAL_PATH_LINE;
   }
 
-  const colorStyle = colorScheme?.getSpanStyleForRef?.(params);
+  const colorStyle = getSpanRefColorStyle(params);
   const baseFillColor =
     colorStyle?.spanFillColor ??
     colorScheme?.getSpanFillColorForRef?.(params) ??
@@ -665,27 +507,6 @@ function resolveSpanBorderColorForRef(params: TraceSpanColorResolverRefParams): 
     colorStyle?.spanBorderColor ??
     colorScheme?.getSpanBorderColorForRef?.(params) ??
     getReadableSpanBorderColor(baseFillColor);
-  if (colorStyle?.spanBorderColor || colorScheme?.getSpanBorderColorForRef) {
-    return applySpanVisibilityAdjustmentsForRef(
-      refColor,
-      spanRef,
-      traceGraph,
-      settings,
-      highlightedSpanRefs
-    );
-  }
-
-  const compatibilitySource = getCompatibilitySpanColorSource(params);
-  if (compatibilitySource) {
-    return resolveSpanBorderColor(
-      compatibilitySource,
-      settings,
-      undefined,
-      colorScheme,
-      highlightedSpanRefs
-    );
-  }
-
   return applySpanVisibilityAdjustmentsForRef(
     refColor,
     spanRef,
@@ -696,14 +517,7 @@ function resolveSpanBorderColorForRef(params: TraceSpanColorResolverRefParams): 
 }
 
 function resolveSpanTextColorForRef(params: TraceSpanColorResolverRefParams): TraceDeckColor {
-  const {
-    spanRef,
-    settings,
-    path,
-    colorScheme,
-    highlightedSpanRefs,
-    labelPlacement = 'inside'
-  } = params;
+  const {spanRef, settings, colorScheme, highlightedSpanRefs, labelPlacement = 'inside'} = params;
   if (labelPlacement === 'outside') {
     return applySpanTextVisibilityAdjustmentsForRef(
       SPAN_TEXT_COLOR_BLACK,
@@ -713,7 +527,7 @@ function resolveSpanTextColorForRef(params: TraceSpanColorResolverRefParams): Tr
     );
   }
 
-  const colorStyle = colorScheme?.getSpanStyleForRef?.(params);
+  const colorStyle = getSpanRefColorStyle(params);
   if (colorStyle?.spanTextColor) {
     return applySpanTextVisibilityAdjustmentsForRef(
       getFadeAwareSpanTextColorForRef(
@@ -738,18 +552,6 @@ function resolveSpanTextColorForRef(params: TraceSpanColorResolverRefParams): Tr
     );
   }
 
-  const compatibilitySource = getCompatibilitySpanColorSource(params);
-  if (compatibilitySource) {
-    return resolveSpanTextColor(
-      compatibilitySource,
-      settings,
-      path,
-      colorScheme,
-      highlightedSpanRefs,
-      labelPlacement
-    );
-  }
-
   const fillColor = resolveSpanFillColorForRef(params);
   const contrastColor = getFadeAwareSpanTextColorForRef(
     getSpanTextColorFromFill(fillColor),
@@ -765,55 +567,85 @@ function resolveSpanTextColorForRef(params: TraceSpanColorResolverRefParams): Tr
   );
 }
 
-function getCompatibilitySpanColorSource(
-  params: TraceSpanColorResolverRefParams
-): TraceSpanColorSource | null {
-  if (
-    params.colorScheme?.getSpanStyle ||
-    params.colorScheme?.getSpanFillColor ||
-    params.colorScheme?.getSpanBorderColor ||
-    params.colorScheme?.getSpanTextColor
-  ) {
-    return (
-      (
-        params.traceGraph as TraceSpanColorAccessorSource & {
-          getSpanDisplaySource?: (spanRef: SpanRef) => TraceSpanColorSource | null;
-        }
-      ).getSpanDisplaySource?.(params.spanRef) ?? null
-    );
+/**
+ * Writes block-only fill and border colors without constructing a combined style or text color.
+ *
+ * The direct writer keeps the typed-array ownership with its caller and computes the shared
+ * ref-style and fade multiplier only once for the pair of block colors.
+ */
+function writeSpanBlockColorsForRef(
+  traceGraph: TraceSpanColorAccessorSource,
+  colorScheme: TraceColorScheme | undefined,
+  settings: TraceVisSettings,
+  highlightedSpanRefs: ReadonlySet<SpanRef> | undefined,
+  spanRef: SpanRef,
+  path: 'path' | 'any' | undefined,
+  fillColors: Uint8Array,
+  fillColorOffset: number,
+  lineColors: Uint8Array,
+  lineColorOffset: number,
+  primaryStartTimeMs?: number | null,
+  primaryEndTimeMs?: number | null
+): void {
+  if (path === 'path') {
+    writeTraceDeckColorBytes(fillColors, fillColorOffset, TRACE_COLOR.SPAN_IN_CRITICAL_PATH_FILL);
+    writeTraceDeckColorBytes(lineColors, lineColorOffset, TRACE_COLOR.SPAN_IN_CRITICAL_PATH_LINE);
+    return;
   }
-  return null;
+
+  const params: TraceSpanColorResolverRefParams = {
+    traceGraph,
+    spanRef,
+    settings,
+    path,
+    colorScheme,
+    highlightedSpanRefs
+  };
+  const refColorStyle = colorScheme?.getSpanStyleForRef?.(params);
+
+  const fillColor =
+    refColorStyle?.spanFillColor ??
+    colorScheme?.getSpanFillColorForRef?.(params) ??
+    getDefaultSpanFillColorForRef(params);
+  const borderColor =
+    refColorStyle?.spanBorderColor ??
+    colorScheme?.getSpanBorderColorForRef?.(params) ??
+    getReadableSpanBorderColor(fillColor);
+  writeFixedSpanBlockColorsForRef(
+    traceGraph,
+    settings,
+    highlightedSpanRefs,
+    spanRef,
+    fillColor,
+    borderColor,
+    fillColors,
+    fillColorOffset,
+    lineColors,
+    lineColorOffset,
+    primaryStartTimeMs,
+    primaryEndTimeMs
+  );
 }
 
-function getDefaultSpanFillColor(
-  span: TraceSpanColorSource,
-  colorScheme?: TraceColorScheme
-): TraceDeckColor {
-  const status = getPrimaryTiming(span).status;
-  let color: TraceDeckColor;
-  switch (status) {
-    case 'finished':
-    default:
-      color = TRACE_COLOR.SPAN_FINISHED_FILL;
-  }
+/** Writes one RGBA tuple into caller-owned byte storage with an optional alpha multiplier. */
+function writeTraceDeckColorBytes(
+  target: Uint8Array,
+  offset: number,
+  color: TraceDeckColor,
+  alphaMultiplier = 1
+): void {
+  target[offset] = color[0];
+  target[offset + 1] = color[1];
+  target[offset + 2] = color[2];
+  target[offset + 3] = color[3] * alphaMultiplier;
+}
 
-  if (
-    span.crossProcessDependencyEndpoints?.length &&
-    status !== 'not-finished' &&
-    status !== 'not-started'
-  ) {
-    // If this span has cross-rank dependencies, use a different color.
-    color = TRACE_COLOR.SPAN_CROSS_RANK;
-  }
-
-  const keywordPresentation = colorScheme?.getKeywordPresentation?.({
-    keywords: span.keywords ?? []
-  });
-  if (keywordPresentation?.color) {
-    color = [...keywordPresentation.color];
-  }
-
-  return color;
+function getSpanRefColorStyle(
+  params: TraceSpanColorResolverRefParams
+): TraceSpanColorStyle | undefined {
+  return params.hasRefColorStyle
+    ? params.refColorStyle
+    : params.colorScheme?.getSpanStyleForRef?.(params);
 }
 
 function getDefaultSpanFillColorForRef(params: TraceSpanColorResolverRefParams): TraceDeckColor {
@@ -829,48 +661,6 @@ function getDefaultSpanFillColorForRef(params: TraceSpanColorResolverRefParams):
   return color;
 }
 
-function applySpanVisibilityAdjustments(
-  baseColor: TraceDeckColor,
-  span: TraceSpanColorSource,
-  settings: TraceVisSettings,
-  highlightedSpanRefs?: ReadonlySet<SpanRef>,
-  applyHighlightFade = true
-): TraceDeckColor {
-  const color: [number, number, number, number] = [...baseColor];
-  if (settings.showPathsOnly) {
-    color[3] *= NOT_IN_PATH_FADE_FACTOR;
-  }
-  const timing = getPrimaryTiming(span);
-  if (timing.endTimeMs - timing.startTimeMs < settings.minSpanTimeMs) {
-    color[3] *= 0.2;
-  }
-  if (
-    applyHighlightFade &&
-    highlightedSpanRefs &&
-    span.spanRef != null &&
-    !highlightedSpanRefs.has(span.spanRef)
-  ) {
-    color[3] *= getHighlightFadeMultiplier(settings);
-  }
-  return color;
-}
-
-function applySpanTextVisibilityAdjustments(
-  baseColor: TraceDeckColor,
-  span: TraceSpanColorSource,
-  settings: TraceVisSettings,
-  highlightedSpanRefs?: ReadonlySet<SpanRef>
-): TraceDeckColor {
-  const color: [number, number, number, number] = [...baseColor];
-  if (highlightedSpanRefs && span.spanRef != null && !highlightedSpanRefs.has(span.spanRef)) {
-    color[3] = Math.max(0, color[3] * getTextHighlightFadeMultiplier(settings));
-  }
-  if (color[3] < SPAN_TEXT_CONTRAST_ALPHA_MIN * 255) {
-    color[3] = Math.max(color[3], SPAN_TEXT_CONTRAST_ALPHA_MIN * 255);
-  }
-  return color;
-}
-
 function applySpanVisibilityAdjustmentsForRef(
   baseColor: TraceDeckColor,
   spanRef: SpanRef,
@@ -879,22 +669,53 @@ function applySpanVisibilityAdjustmentsForRef(
   highlightedSpanRefs?: ReadonlySet<SpanRef>
 ): TraceDeckColor {
   const color: [number, number, number, number] = [...baseColor];
-  if (settings.showPathsOnly) {
-    color[3] *= NOT_IN_PATH_FADE_FACTOR;
-  }
-  const startTimeMs = traceGraph.getSpanStartTimeMs(spanRef);
-  const endTimeMs = traceGraph.getSpanEndTimeMs(spanRef);
-  if (
-    startTimeMs != null &&
-    endTimeMs != null &&
-    endTimeMs - startTimeMs < settings.minSpanTimeMs
-  ) {
-    color[3] *= 0.2;
-  }
-  if (highlightedSpanRefs && !highlightedSpanRefs.has(spanRef)) {
-    color[3] *= getHighlightFadeMultiplier(settings);
-  }
+  color[3] *= getSpanVisibilityAlphaMultiplierForRef(
+    spanRef,
+    traceGraph,
+    settings,
+    highlightedSpanRefs
+  );
   return color;
+}
+
+/** Returns the shared alpha multiplier used by block fill and border visibility adjustments. */
+function getSpanVisibilityAlphaMultiplierForRef(
+  spanRef: SpanRef,
+  traceGraph: TraceSpanColorAccessorSource,
+  settings: TraceVisSettings,
+  highlightedSpanRefs?: ReadonlySet<SpanRef>,
+  primaryStartTimeMs?: number | null,
+  primaryEndTimeMs?: number | null
+): number {
+  const hasRawPrimaryTiming = primaryStartTimeMs !== undefined || primaryEndTimeMs !== undefined;
+  const startTimeMs = hasRawPrimaryTiming
+    ? (primaryStartTimeMs ?? null)
+    : traceGraph.getSpanStartTimeMs(spanRef);
+  const endTimeMs = hasRawPrimaryTiming
+    ? (primaryEndTimeMs ?? null)
+    : traceGraph.getSpanEndTimeMs(spanRef);
+  let alphaMultiplier = getSpanVisibilityAlphaMultiplierForTiming(settings, startTimeMs, endTimeMs);
+  if (highlightedSpanRefs && !highlightedSpanRefs.has(spanRef)) {
+    alphaMultiplier *= getHighlightFadeMultiplier(settings);
+  }
+  return alphaMultiplier;
+}
+
+/** Returns ref-independent alpha adjustments from already-resolved primary timing fields. */
+function getSpanVisibilityAlphaMultiplierForTiming(
+  settings: TraceVisSettings,
+  primaryStartTimeMs?: number | null,
+  primaryEndTimeMs?: number | null
+): number {
+  let alphaMultiplier = settings.showPathsOnly ? NOT_IN_PATH_FADE_FACTOR : 1;
+  if (
+    primaryStartTimeMs != null &&
+    primaryEndTimeMs != null &&
+    primaryEndTimeMs - primaryStartTimeMs < settings.minSpanTimeMs
+  ) {
+    alphaMultiplier *= 0.2;
+  }
+  return alphaMultiplier;
 }
 
 function applySpanTextVisibilityAdjustmentsForRef(
@@ -913,21 +734,6 @@ function applySpanTextVisibilityAdjustmentsForRef(
   return color;
 }
 
-/**
- * Switch faded light inside-label text to a muted dark color once highlight fading is strong.
- */
-function getFadeAwareSpanTextColor(
-  baseColor: TraceDeckColor,
-  span: TraceSpanColorSource,
-  settings: TraceVisSettings,
-  highlightedSpanRefs: ReadonlySet<SpanRef> | undefined
-): TraceDeckColor {
-  if (!shouldUseMutedFadedSpanText(baseColor, span, settings, highlightedSpanRefs)) {
-    return baseColor;
-  }
-  return SPAN_TEXT_COLOR_MUTED_DARK;
-}
-
 function getFadeAwareSpanTextColorForRef(
   baseColor: TraceDeckColor,
   spanRef: SpanRef,
@@ -938,32 +744,6 @@ function getFadeAwareSpanTextColorForRef(
     return baseColor;
   }
   return SPAN_TEXT_COLOR_MUTED_DARK;
-}
-
-/**
- * Return true when one span label is subject to highlight fading.
- */
-function isSpanSubjectToHighlightFade(
-  span: TraceSpanColorSource,
-  highlightedSpanRefs: ReadonlySet<SpanRef> | undefined
-): boolean {
-  return !!(highlightedSpanRefs && span.spanRef != null && !highlightedSpanRefs.has(span.spanRef));
-}
-
-/**
- * Return true when a text color is light enough that strong highlight fading should mute it.
- */
-function shouldUseMutedFadedSpanText(
-  baseColor: TraceDeckColor,
-  span: TraceSpanColorSource,
-  settings: TraceVisSettings,
-  highlightedSpanRefs: ReadonlySet<SpanRef> | undefined
-): boolean {
-  return (
-    isSpanSubjectToHighlightFade(span, highlightedSpanRefs) &&
-    getHighlightFadeMultiplier(settings) <= SPAN_TEXT_MUTED_FADE_THRESHOLD &&
-    computeRelativeLuminance(baseColor) >= SPAN_TEXT_LIGHT_LUMINANCE_THRESHOLD
-  );
 }
 
 function shouldUseMutedFadedSpanTextForRef(
@@ -984,8 +764,10 @@ function getContrastTextColor(
   backgroundColor: TraceDeckColor = SPAN_TEXT_BACKGROUND_COLOR
 ): TraceDeckColor {
   const compositedColor = getCompositedColor(fillColor, backgroundColor);
-  // const blackContrast = getContrastRatio(compositedColor, SPAN_TEXT_COLOR_BLACK);
-  const whiteContrast = getContrastRatio(compositedColor, SPAN_TEXT_COLOR_WHITE);
+  const backgroundLuminance = computeRelativeLuminance(compositedColor);
+  // White has relative luminance 1, so this preserves the previous contrast-ratio result without
+  // recomputing a fixed candidate color for every span label.
+  const whiteContrast = 1.05 / (backgroundLuminance + 0.05);
   return whiteContrast >= 2 ? SPAN_TEXT_COLOR_WHITE : SPAN_TEXT_COLOR_BLACK;
 }
 
@@ -1017,18 +799,12 @@ function getCompositedColor(
   return [Math.round(r), Math.round(g), Math.round(b), Math.round(effectiveAlpha * 255)];
 }
 
-function getContrastRatio(backgroundColor: TraceDeckColor, textColor: TraceDeckColor): number {
-  const backgroundLuminance = computeRelativeLuminance(backgroundColor);
-  const textLuminance = computeRelativeLuminance(textColor);
-  const lighter = Math.max(backgroundLuminance, textLuminance);
-  const darker = Math.min(backgroundLuminance, textLuminance);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
 function computeRelativeLuminance(color: TraceDeckColor): number {
-  const normalized = color.slice(0, 3).map(component => component / 255);
-  const linear = normalized.map(value =>
-    value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-  );
-  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  const red = color[0] / 255;
+  const green = color[1] / 255;
+  const blue = color[2] / 255;
+  const linearRed = red <= 0.03928 ? red / 12.92 : ((red + 0.055) / 1.055) ** 2.4;
+  const linearGreen = green <= 0.03928 ? green / 12.92 : ((green + 0.055) / 1.055) ** 2.4;
+  const linearBlue = blue <= 0.03928 ? blue / 12.92 : ((blue + 0.055) / 1.055) ** 2.4;
+  return 0.2126 * linearRed + 0.7152 * linearGreen + 0.0722 * linearBlue;
 }

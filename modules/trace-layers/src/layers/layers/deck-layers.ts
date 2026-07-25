@@ -7,60 +7,60 @@ import {DependencyArrowLayer, PathDirection} from '@deck.gl-community/layers';
 import {TimeAxisLayer} from '@deck.gl-community/timeline-layers';
 
 import {
+  buildTraceLayoutGeometryDerivationContext,
   CounterSparkline,
   DEFAULT_COUNTER_COLOR,
   DEFAULT_INSTANT_COLOR,
   DEFAULT_TRACE_FONT_FAMILY,
-  fillTracePreparedSpanBinaryGeometry,
-  getMemoizedDerivedTraceData,
-  getTraceLayoutFilteredSpanCountByThreadRef,
-  getTraceLayoutOverflowLabelThreadName,
+  fillTraceLayoutSpanGeometry,
   getTraceLayoutProcessLayoutByRef,
   traceLog
-} from '../../trace/index';
+} from '../../trace';
 import {
   DEFAULT_TRACE_COLOR_SCHEME,
-  getSelectedLocalDependencyLineColor,
+  getSelectedSameProcessDependencyLineColor,
   makeDeckColor,
   TRACE_COLOR
 } from '../../trace/trace-style/trace-colors';
 import {TraceLegendLayer} from '../layers/legend-layer';
-import {TraceCrossDependencyLayer} from '../layers/trace-cross-dependency-layer';
+import {TraceCrossProcessDependencyLayer} from '../layers/trace-cross-process-dependency-layer';
 import {TracePathLayer} from '../layers/trace-path-layer';
 import {TraceProcessLayer} from '../layers/trace-process-layer';
 import {TimeMeasureLayer} from './time-measure-layer';
-import {getTraceLayoutSelectedLocalDependencyGeometry} from './trace-layout-geometry';
+import {getTraceLayoutSelectedSameProcessDependencyGeometry} from './trace-layout-geometry';
 import {ViewportHighlightLayer} from './viewport-highlight-layer';
 
 import type {TimeMeasureSelectionState} from '@deck.gl-community/widgets';
 import type {
+  CrossProcessDependencyRef,
+  DerivedTraceData,
   SpanRef,
   ThreadRef,
   TraceColorScheme,
   TraceCounterSource,
-  TraceCrossDependencySource,
+  TraceCrossProcessDependency,
+  TraceCrossProcessDependencyRenderSource,
   TraceDeckBinaryAttributeData,
   TraceDeckBinaryProcessActivityData,
   TraceEventSource,
-  TraceGraph,
   TraceGraphPathBlockSource,
   TraceGraphPathDependencySource,
-  TraceGraphSelectedCrossDependencySource,
-  TraceGraphSelectedLocalDependencySource,
+  TraceGraphSelectedCrossProcessDependencySource,
+  TraceGraphSelectedSameProcessDependencySource,
   TraceInstantSource,
   TraceLayout,
   TraceLayoutBounds,
-  TraceLayoutOverflowLabelDatum,
   TraceLayoutRow,
-  TraceLocalDependencySource,
   TracePreparedGraphScene,
   TracePreparedMinimapSpanIndicator,
   TraceProcessInfo,
+  TraceRefSource,
   TraceRenderSpan,
+  TraceSameProcessDependencySource,
   TraceThread,
   TraceThreadId,
   TraceVisSettings
-} from '../../trace/index';
+} from '../../trace';
 import type {PathStyleExtensionProps} from '@deck.gl/extensions';
 import type {Bounds} from '@deck.gl-community/infovis-layers';
 import type {Tick} from '@deck.gl-community/timeline-layers';
@@ -123,6 +123,19 @@ type MinimapSpanIndicatorWhiskerCapDatum = {
   readonly x: number;
 };
 
+type TimeAnchorLineDatum = {
+  /** Stable marker identifier shared by the main and minimap anchor lines. */
+  readonly id: string;
+  /** Absolute anchor timestamp retained for shared hover payload resolution. */
+  readonly timeMs: number;
+  /** Optional caller-owned tooltip rendered when the anchor line is hovered. */
+  readonly tooltip?: unknown;
+  /** Optional caller-owned line color override. */
+  readonly lineColor?: readonly [number, number, number, number];
+  /** Full-height vertical line rendered in one trace viewport. */
+  readonly path: [number, number][];
+};
+
 const TEXT_LAYER_CHARACTER_SET =
   ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~▸▾';
 const RANK_LABEL_BACKGROUND_COLOR = [255, 255, 255, 220] as [number, number, number, number];
@@ -142,7 +155,7 @@ const OVERVIEW_EVENT_MARKER_LINE_WIDTH_PX = 1;
 const OVERVIEW_AXIS_LABEL_TOP_MARGIN_FRACTION = 0.16;
 const OVERVIEW_EVENT_MARKER_Y_FRACTION = 0.07;
 const OVERVIEW_UNLOADED_INTERVAL_TOP_INSET_FRACTION = 0.26;
-const OVERVIEW_UNLOADED_INTERVAL_LABEL = 'Not loaded';
+const OVERVIEW_UNLOADED_INTERVAL_LABEL = 'Not loaded\nRight click to load';
 const MAIN_TIMELINE_EVENT_MARKER_Y_OFFSET = 0.18;
 const MINIMAP_SELECTED_SPAN_INDICATOR_DOT_RADIUS_PX = 4.5;
 const MINIMAP_SELECTED_SPAN_INDICATOR_HOVER_DOT_RADIUS_PX = 3.8;
@@ -171,7 +184,7 @@ const SELECTED_DEPENDENCY_OVERLAY_PARAMETERS = {
   depthCompare: 'always'
 } as const;
 const HOVERED_BLOCK_HIGHLIGHT_LINE_WIDTH_PX = 1.5;
-const SELECTED_LOCAL_DEPENDENCY_LINE_WIDTH_PX = 2;
+const SELECTED_SAME_PROCESS_DEPENDENCY_LINE_WIDTH_PX = 2;
 const PATH_DEPENDENCY_MARKER_SIZE = 3;
 const FORWARD_DEPENDENCY_MARKER_PLACEMENTS = [1];
 const BIDIRECTIONAL_DEPENDENCY_MARKER_PLACEMENTS = [1];
@@ -183,8 +196,17 @@ const HEADER_TIME_AXIS_DEPTH_PARAMETERS = {
   depthCompare: 'less'
 } as const;
 const EMPTY_SELECTED_SPAN_REFS: readonly SpanRef[] = [];
-const EMPTY_SELECTED_LOCAL_DEPENDENCIES: readonly TraceLocalDependencySource[] = [];
-const EMPTY_SELECTED_CROSS_DEPENDENCIES: readonly TraceCrossDependencySource[] = [];
+const EMPTY_SELECTED_SAME_PROCESS_DEPENDENCIES: readonly TraceSameProcessDependencySource[] = [];
+const EMPTY_CROSS_PROCESS_DEPENDENCY_REFS: TraceRefSource<CrossProcessDependencyRef> =
+  Object.freeze({
+    length: 0,
+    at: () => undefined,
+    *[Symbol.iterator](): Iterator<CrossProcessDependencyRef> {}
+  });
+const EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCIES: readonly (
+  | TraceCrossProcessDependencyRenderSource
+  | TraceCrossProcessDependency
+)[] = [];
 const EMPTY_MINIMAP_SPAN_INDICATORS: readonly TracePreparedMinimapSpanIndicator[] = [];
 const EMPTY_ROW_SEPARATOR_LINE = new Float32Array();
 const EMPTY_LAYER_UPDATE_TRIGGER = {};
@@ -198,16 +220,19 @@ export type TraceDeckLayerSelection = {
   readonly hoveredSpan?: {rankIndex: number; block?: TraceRenderSpan} | null;
   /** Exact selected span refs used for the animated selected-block overlay. */
   readonly selectedSpanRefs?: readonly SpanRef[];
-  /** Legacy selected local dependency sources used for overlay rendering. */
-  readonly selectedDependencies?: readonly TraceLocalDependencySource[];
+  /** Legacy selected same-process dependency sources used for overlay rendering. */
+  readonly selectedDependencies?: readonly TraceSameProcessDependencySource[];
   /** Legacy selected cross-process dependency sources used for overlay rendering. */
-  readonly selectedCrossDependencies?: readonly TraceCrossDependencySource[];
-  /** Graph-native selected local dependency sources grouped by process id. */
-  readonly selectedLocalDependencySourcesByProcessId?: Readonly<
-    Partial<Record<string, readonly TraceGraphSelectedLocalDependencySource[]>>
+  readonly selectedCrossProcessDependencies?: readonly (
+    | TraceCrossProcessDependencyRenderSource
+    | TraceCrossProcessDependency
+  )[];
+  /** Graph-native selected same-process dependency sources grouped by process id. */
+  readonly selectedSameProcessDependencySourcesByProcessId?: Readonly<
+    Partial<Record<string, readonly TraceGraphSelectedSameProcessDependencySource[]>>
   >;
   /** Graph-native selected cross-process dependency sources used for overlay rendering. */
-  readonly selectedCrossDependencySources?: readonly TraceGraphSelectedCrossDependencySource[];
+  readonly selectedCrossProcessDependencySources?: readonly TraceGraphSelectedCrossProcessDependencySource[];
   /** Span refs highlighted by path or search state. */
   readonly highlightedSpanRefs?: ReadonlySet<SpanRef>;
 };
@@ -225,7 +250,7 @@ export type TraceDeckLayerHandlers = {
 
 /** Inputs for building deck.gl layers from one prepared graph scene. */
 export type BuildDeckLayersForTraceParams = {
-  /** Prepared graph scene that supplies stable graph, layout, rows, model matrix, and dependencies. */
+  /** Prepared graph scene that supplies stable layout, rows, model matrix, and dependencies. */
   readonly scene: TracePreparedGraphScene;
   /** Transient hover and selection overlays rendered over the stable prepared scene. */
   readonly selection?: TraceDeckLayerSelection;
@@ -247,18 +272,20 @@ export type BuildDeckLayersForTraceParams = {
   readonly layerGroup?: TraceDeckLayerGroup;
 };
 
-type TraceDeckSelectedLocalDependencyDatum =
-  | (TraceLocalDependencySource & {
-      /** Exact visible local dependency ref used to resolve overlay geometry. */
-      readonly dependencyRef: NonNullable<TraceLocalDependencySource['dependencyRef']>;
+type TraceDeckSelectedSameProcessDependencyDatum =
+  | (TraceSameProcessDependencySource & {
+      /** Exact visible same-process dependency ref used to resolve overlay geometry. */
+      readonly dependencyRef: NonNullable<TraceSameProcessDependencySource['dependencyRef']>;
       /** Optional legacy selected-dependency direction; missing values render as incoming. */
-      readonly selectedDirection?: TraceGraphSelectedLocalDependencySource['selectedDirection'];
+      readonly selectedDirection?: TraceGraphSelectedSameProcessDependencySource['selectedDirection'];
     })
-  | (TraceGraphSelectedLocalDependencySource & {
-      /** Exact visible local dependency ref used to resolve overlay geometry. */
-      readonly dependencyRef: NonNullable<TraceGraphSelectedLocalDependencySource['dependencyRef']>;
+  | (TraceGraphSelectedSameProcessDependencySource & {
+      /** Exact visible same-process dependency ref used to resolve overlay geometry. */
+      readonly dependencyRef: NonNullable<
+        TraceGraphSelectedSameProcessDependencySource['dependencyRef']
+      >;
     });
-const EMPTY_SELECTED_LOCAL_DEPENDENCY_OVERLAY_DATA: readonly TraceDeckSelectedLocalDependencyDatum[] =
+const EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_OVERLAY_DATA: readonly TraceDeckSelectedSameProcessDependencyDatum[] =
   [];
 const EMPTY_HOVERED_SPAN_OVERLAY_DATA: readonly TraceRenderSpan[] = [];
 const EMPTY_CRITICAL_PATH_BLOCK_SOURCES: readonly TraceGraphPathBlockSource[] = [];
@@ -378,43 +405,36 @@ export function buildDeckRowSeparatorLayerForTrace({
   const terminalRow = [...separatorRows]
     .reverse()
     .find(row => getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef));
-  const getTraceTimeExtentSeparatorLine = (line: Float32Array | undefined): Float32Array => {
-    if (!line || line.length < 4) {
-      return EMPTY_ROW_SEPARATOR_LINE;
-    }
+  const getTraceTimeExtentSeparatorLine = (y: number | undefined): Float32Array => {
     const startX = Math.min(
       traceLayout.currentBounds[0]?.[0] ?? 0,
       -ROW_SEPARATOR_HORIZONTAL_EXTENT
     );
     const endX = traceLayout.currentBounds[1]?.[0];
-    const startY = line[1];
-    const endY = line[3];
     if (
       !Number.isFinite(startX) ||
       !Number.isFinite(endX) ||
-      !Number.isFinite(startY) ||
-      !Number.isFinite(endY)
+      typeof y !== 'number' ||
+      !Number.isFinite(y)
     ) {
       return EMPTY_ROW_SEPARATOR_LINE;
     }
-    return new Float32Array([startX, startY, endX, endY]);
+    return new Float32Array([startX, y, endX, y]);
   };
-  const getTerminalSeparatorLine = (
+  const getTerminalSeparatorY = (
     rankLayout: Readonly<TraceLayout>['processLayouts'][number] | undefined
   ) => {
     if (!rankLayout) {
       return undefined;
     }
-    if (rankLayout.terminalSeparatorLineInfinite.length >= 4) {
-      return rankLayout.terminalSeparatorLineInfinite;
+    const polygon = rankLayout.backgroundPolygonInfinite;
+    if (polygon.length >= 8) {
+      const bottomY = Math.max(polygon[5]!, polygon[7]!);
+      if (Number.isFinite(bottomY)) {
+        return bottomY;
+      }
     }
-    const bottomY = rankLayout.yOffset + rankLayout.yHeight;
-    return new Float32Array([
-      -ROW_SEPARATOR_HORIZONTAL_EXTENT,
-      bottomY,
-      ROW_SEPARATOR_HORIZONTAL_EXTENT,
-      bottomY
-    ]);
+    return rankLayout.yOffset + rankLayout.yHeight;
   };
   const separatorData: RowSeparatorDatum[] = [
     ...separatorRows.map(row => {
@@ -422,7 +442,7 @@ export function buildDeckRowSeparatorLayerForTrace({
       return {
         row,
         edge: 'top' as const,
-        path: getTraceTimeExtentSeparatorLine(rankLayout?.separatorLineInfinite)
+        path: getTraceTimeExtentSeparatorLine(rankLayout?.yOffset)
       };
     }),
     ...(terminalRow
@@ -431,7 +451,7 @@ export function buildDeckRowSeparatorLayerForTrace({
             row: terminalRow,
             edge: 'bottom' as const,
             path: getTraceTimeExtentSeparatorLine(
-              getTerminalSeparatorLine(
+              getTerminalSeparatorY(
                 getTraceLayoutProcessLayoutByRef(traceLayout, terminalRow.processRef)
               )
             )
@@ -473,9 +493,9 @@ function buildSelectionTraceLayers(layers: readonly (Layer | null | undefined)[]
   return layers.filter((layer): layer is Layer => Boolean(layer));
 }
 
-/** Builds selected local dependency line overlays without updating per-rank layers. */
-function buildSelectedLocalDependencyOverlayLayer({
-  selectedLocalDependencySourcesByProcessId,
+/** Builds selected same-process dependency line overlays without updating per-rank layers. */
+function buildSelectedSameProcessDependencyOverlayLayer({
+  selectedSameProcessDependencySourcesByProcessId,
   selectedDependencies,
   traceLayout,
   settings,
@@ -483,11 +503,11 @@ function buildSelectedLocalDependencyOverlayLayer({
   modelMatrix
 }: {
   /** Selected dependency sources partitioned by process id when available. */
-  selectedLocalDependencySourcesByProcessId?: Readonly<
-    Partial<Record<string, readonly TraceGraphSelectedLocalDependencySource[]>>
+  selectedSameProcessDependencySourcesByProcessId?: Readonly<
+    Partial<Record<string, readonly TraceGraphSelectedSameProcessDependencySource[]>>
   >;
   /** Flat selected dependency fallback sources. */
-  selectedDependencies: readonly TraceLocalDependencySource[];
+  selectedDependencies: readonly TraceSameProcessDependencySource[];
   /** Prepared trace layout used to resolve selected dependency geometry. */
   traceLayout: Readonly<TraceLayout>;
   /** Trace viewer settings that choose selected dependency routing mode. */
@@ -497,8 +517,8 @@ function buildSelectedLocalDependencyOverlayLayer({
   /** Optional transform applied to the trace scene. */
   modelMatrix?: Matrix4;
 }): Layer {
-  const data = getSelectedLocalDependencyOverlayData({
-    selectedLocalDependencySourcesByProcessId,
+  const data = getSelectedSameProcessDependencyOverlayData({
+    selectedSameProcessDependencySourcesByProcessId,
     selectedDependencies
   });
   const hasSelectedDependencies = data.length > 0;
@@ -506,66 +526,74 @@ function buildSelectedLocalDependencyOverlayLayer({
     ? [traceLayout]
     : EMPTY_LAYER_UPDATE_TRIGGERS;
 
-  return new DependencyArrowLayer<TraceDeckSelectedLocalDependencyDatum, {rankIndex: number}>({
-    id: makeLayerId(layerIdPrefix, 'selected-local-dependency-overlays'),
-    visible: hasSelectedDependencies,
-    data,
-    positionFormat: 'XY',
-    getPath: dependency =>
-      getTraceLayoutSelectedLocalDependencyGeometry({
-        traceLayout,
-        dependencyRef: dependency.dependencyRef
-      }) ?? [],
-    getColor: dependency =>
-      getSelectedLocalDependencyLineColor(dependency.waitTimeMs, dependency.selectedDirection),
-    getMarkerColor: dependency =>
-      getSelectedLocalDependencyLineColor(dependency.waitTimeMs, dependency.selectedDirection),
-    getDirection: dependency =>
-      dependency.bidirectional ? PathDirection.BOTH : PathDirection.FORWARD,
-    getMarkerPlacements: dependency =>
-      dependency.bidirectional
-        ? BIDIRECTIONAL_DEPENDENCY_MARKER_PLACEMENTS
-        : FORWARD_DEPENDENCY_MARKER_PLACEMENTS,
-    getMarkerSize: [2, 1],
-    getWidth: SELECTED_LOCAL_DEPENDENCY_LINE_WIDTH_PX,
-    markerSizeScale: SELECTED_LOCAL_DEPENDENCY_LINE_WIDTH_PX * PATH_DEPENDENCY_MARKER_SIZE,
-    widthUnits: 'pixels',
-    pickable: false,
-    mode: settings.lineRoutingMode === 'curve' ? 'arc' : 'line',
-    getArcTilt: 90,
-    getArcHeight: 0.3,
-    rankIndex: 0,
-    parameters: SELECTED_DEPENDENCY_OVERLAY_PARAMETERS,
-    modelMatrix,
-    updateTriggers: {
-      getPath: geometryUpdateTriggers,
-      getColor: geometryUpdateTriggers,
-      getMarkerColor: geometryUpdateTriggers
+  return new DependencyArrowLayer<TraceDeckSelectedSameProcessDependencyDatum, {rankIndex: number}>(
+    {
+      id: makeLayerId(layerIdPrefix, 'selected-same-process-dependency-overlays'),
+      visible: hasSelectedDependencies,
+      data,
+      positionFormat: 'XY',
+      getPath: dependency =>
+        getTraceLayoutSelectedSameProcessDependencyGeometry({
+          traceLayout,
+          dependencyRef: dependency.dependencyRef
+        }) ?? [],
+      getColor: dependency =>
+        getSelectedSameProcessDependencyLineColor(
+          dependency.waitTimeMs,
+          dependency.selectedDirection
+        ),
+      getMarkerColor: dependency =>
+        getSelectedSameProcessDependencyLineColor(
+          dependency.waitTimeMs,
+          dependency.selectedDirection
+        ),
+      getDirection: dependency =>
+        dependency.bidirectional ? PathDirection.BOTH : PathDirection.FORWARD,
+      getMarkerPlacements: dependency =>
+        dependency.bidirectional
+          ? BIDIRECTIONAL_DEPENDENCY_MARKER_PLACEMENTS
+          : FORWARD_DEPENDENCY_MARKER_PLACEMENTS,
+      getMarkerSize: [2, 1],
+      getWidth: SELECTED_SAME_PROCESS_DEPENDENCY_LINE_WIDTH_PX,
+      markerSizeScale: SELECTED_SAME_PROCESS_DEPENDENCY_LINE_WIDTH_PX * PATH_DEPENDENCY_MARKER_SIZE,
+      widthUnits: 'pixels',
+      pickable: false,
+      mode: settings.lineRoutingMode === 'curve' ? 'arc' : 'line',
+      getArcTilt: 90,
+      getArcHeight: 0.3,
+      rankIndex: 0,
+      parameters: SELECTED_DEPENDENCY_OVERLAY_PARAMETERS,
+      modelMatrix,
+      updateTriggers: {
+        getPath: geometryUpdateTriggers,
+        getColor: geometryUpdateTriggers,
+        getMarkerColor: geometryUpdateTriggers
+      }
     }
-  });
+  );
 }
 
-/** Flattens selected local dependency sources to entries with visible dependency refs. */
-function getSelectedLocalDependencyOverlayData({
-  selectedLocalDependencySourcesByProcessId,
+/** Flattens selected same-process dependency sources to entries with visible dependency refs. */
+function getSelectedSameProcessDependencyOverlayData({
+  selectedSameProcessDependencySourcesByProcessId,
   selectedDependencies
 }: {
   /** Selected dependency sources partitioned by process id when available. */
-  selectedLocalDependencySourcesByProcessId?: Readonly<
-    Partial<Record<string, readonly TraceGraphSelectedLocalDependencySource[]>>
+  selectedSameProcessDependencySourcesByProcessId?: Readonly<
+    Partial<Record<string, readonly TraceGraphSelectedSameProcessDependencySource[]>>
   >;
   /** Flat selected dependency fallback sources. */
-  selectedDependencies: readonly TraceLocalDependencySource[];
-}): readonly TraceDeckSelectedLocalDependencyDatum[] {
-  if (selectedLocalDependencySourcesByProcessId) {
-    const visibleSources: TraceDeckSelectedLocalDependencyDatum[] = [];
-    for (const dependencies of Object.values(selectedLocalDependencySourcesByProcessId)) {
+  selectedDependencies: readonly TraceSameProcessDependencySource[];
+}): readonly TraceDeckSelectedSameProcessDependencyDatum[] {
+  if (selectedSameProcessDependencySourcesByProcessId) {
+    const visibleSources: TraceDeckSelectedSameProcessDependencyDatum[] = [];
+    for (const dependencies of Object.values(selectedSameProcessDependencySourcesByProcessId)) {
       for (const dependency of dependencies ?? []) {
         if (dependency.dependencyRef != null) {
           visibleSources.push(
-            dependency as TraceGraphSelectedLocalDependencySource & {
+            dependency as TraceGraphSelectedSameProcessDependencySource & {
               readonly dependencyRef: NonNullable<
-                TraceGraphSelectedLocalDependencySource['dependencyRef']
+                TraceGraphSelectedSameProcessDependencySource['dependencyRef']
               >;
             }
           );
@@ -577,19 +605,21 @@ function getSelectedLocalDependencyOverlayData({
     }
   }
   if (selectedDependencies.length === 0) {
-    return EMPTY_SELECTED_LOCAL_DEPENDENCY_OVERLAY_DATA;
+    return EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_OVERLAY_DATA;
   }
-  const visibleSources: TraceDeckSelectedLocalDependencyDatum[] = [];
+  const visibleSources: TraceDeckSelectedSameProcessDependencyDatum[] = [];
   for (const dependency of selectedDependencies) {
     if (dependency.dependencyRef != null) {
       visibleSources.push(
-        dependency as TraceLocalDependencySource & {
-          readonly dependencyRef: NonNullable<TraceLocalDependencySource['dependencyRef']>;
+        dependency as TraceSameProcessDependencySource & {
+          readonly dependencyRef: NonNullable<TraceSameProcessDependencySource['dependencyRef']>;
         }
       );
     }
   }
-  return visibleSources.length > 0 ? visibleSources : EMPTY_SELECTED_LOCAL_DEPENDENCY_OVERLAY_DATA;
+  return visibleSources.length > 0
+    ? visibleSources
+    : EMPTY_SELECTED_SAME_PROCESS_DEPENDENCY_OVERLAY_DATA;
 }
 
 /** Builds the selected-span animated outline overlay without mutating per-rank base layer props. */
@@ -601,7 +631,7 @@ function buildSelectedSpanOverlayLayer({
 }: {
   /** Canonical selected span refs for this trace scene. */
   selectedSpanRefs: readonly SpanRef[];
-  /** Prepared graph scene whose row-local binary spans own rectangle coordinates. */
+  /** Prepared graph scene whose current layout owns selected-span geometry. */
   scene: Readonly<TracePreparedGraphScene>;
   /** Optional id prefix identifying the graph/view that owns this overlay. */
   layerIdPrefix?: string;
@@ -611,17 +641,26 @@ function buildSelectedSpanOverlayLayer({
   const hasSelectedSpans = selectedSpanRefs.length > 0;
   const geometryUpdateTriggers = hasSelectedSpans ? [scene] : EMPTY_LAYER_UPDATE_TRIGGERS;
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const geometryContext = hasSelectedSpans
+    ? buildTraceLayoutGeometryDerivationContext(scene.layout)
+    : undefined;
+  const fillSelectedSpanGeometry = (spanRef: SpanRef): boolean =>
+    geometryContext != null &&
+    fillTraceLayoutSpanGeometry({
+      traceLayout: scene.layout,
+      spanRef,
+      target: geometry,
+      context: geometryContext
+    });
   const outlineLayer = new BlockLayer<SpanRef, {rankIndex: number}>({
     id: makeLayerId(layerIdPrefix, 'selected-block-outlines'),
     visible: hasSelectedSpans,
     data: selectedSpanRefs,
     positionFormat: 'XY',
     getPosition: spanRef =>
-      fillTracePreparedSpanBinaryGeometry({scene, spanRef, target: geometry})
-        ? [geometry.x1, geometry.y1]
-        : [0, 0],
+      fillSelectedSpanGeometry(spanRef) ? [geometry.x1, geometry.y1] : [0, 0],
     getSize: spanRef =>
-      fillTracePreparedSpanBinaryGeometry({scene, spanRef, target: geometry})
+      fillSelectedSpanGeometry(spanRef)
         ? [Math.max(0, geometry.x2 - geometry.x1), Math.max(0, geometry.y2 - geometry.y1)]
         : [0, 0],
     getFillColor: [0, 0, 0, 0],
@@ -681,7 +720,7 @@ function buildHoveredSpanOverlayLayer({
 }: {
   /** Hovered span payload and rank index from the current deck picking state. */
   hoveredSpan?: {rankIndex: number; block?: TraceRenderSpan} | null;
-  /** Prepared graph scene whose row-local binary spans own rectangle coordinates. */
+  /** Prepared graph scene whose current layout owns hovered-span geometry. */
   scene: Readonly<TracePreparedGraphScene>;
   /** Optional id prefix identifying the graph/view that owns this overlay. */
   layerIdPrefix?: string;
@@ -697,6 +736,17 @@ function buildHoveredSpanOverlayLayer({
   const hasHoveredSpan = data.length > 0;
   const geometryUpdateTriggers = hasHoveredSpan ? [scene] : EMPTY_LAYER_UPDATE_TRIGGERS;
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const geometryContext = hasHoveredSpan
+    ? buildTraceLayoutGeometryDerivationContext(scene.layout)
+    : undefined;
+  const fillHoveredSpanGeometry = (spanRef: SpanRef): boolean =>
+    geometryContext != null &&
+    fillTraceLayoutSpanGeometry({
+      traceLayout: scene.layout,
+      spanRef,
+      target: geometry,
+      context: geometryContext
+    });
 
   return new BlockLayer<TraceRenderSpan, {rankIndex: number}>({
     id: makeLayerId(layerIdPrefix, 'hovered-block-overlay'),
@@ -704,11 +754,9 @@ function buildHoveredSpanOverlayLayer({
     data,
     positionFormat: 'XY',
     getPosition: span =>
-      fillTracePreparedSpanBinaryGeometry({scene, spanRef: span.spanRef, target: geometry})
-        ? [geometry.x1, geometry.y1]
-        : [0, 0],
+      fillHoveredSpanGeometry(span.spanRef) ? [geometry.x1, geometry.y1] : [0, 0],
     getSize: span =>
-      fillTracePreparedSpanBinaryGeometry({scene, spanRef: span.spanRef, target: geometry})
+      fillHoveredSpanGeometry(span.spanRef)
         ? [Math.max(0, geometry.x2 - geometry.x1), Math.max(0, geometry.y2 - geometry.y1)]
         : [0, 0],
     getFillColor: TRACE_COLOR.SPAN_FINISHED_FILL,
@@ -752,7 +800,8 @@ export function buildDeckLayersForTrace({
   const {
     layout: traceLayout,
     rows: processRows,
-    visibleCrossDependencies,
+    crossProcessDependencyRefs,
+    binaryCrossProcessDependencyLineData,
     layerIdPrefix,
     rankBackgroundColor,
     modelMatrix
@@ -760,59 +809,69 @@ export function buildDeckLayersForTrace({
   const {
     hoveredSpan,
     selectedSpanRefs = EMPTY_SELECTED_SPAN_REFS,
-    selectedCrossDependencies = EMPTY_SELECTED_CROSS_DEPENDENCIES,
-    selectedDependencies = EMPTY_SELECTED_LOCAL_DEPENDENCIES,
-    selectedCrossDependencySources,
-    selectedLocalDependencySourcesByProcessId,
+    selectedCrossProcessDependencies = EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCIES,
+    selectedDependencies = EMPTY_SELECTED_SAME_PROCESS_DEPENDENCIES,
+    selectedCrossProcessDependencySources,
+    selectedSameProcessDependencySourcesByProcessId,
     highlightedSpanRefs
   } = selection ?? {};
   const {onSpanClick, onToggleProcess} = handlers;
   const shouldBuildBaseLayers = layerGroup !== 'selection';
   const shouldBuildSelectionLayers = layerGroup !== 'base';
   const buildStartTime = performance.now();
-  traceLog.probe(0, 'deck-trace-layers buildDeckLayersForTrace start', {
+  traceLog.probe(1, 'deck-trace-layers buildDeckLayersForTrace start', {
     layerIdPrefix: layerIdPrefix ?? '',
     processRowCount: processRows.length,
-    totalSpanCount: processRows.reduce((sum, row) => sum + row.spans.length, 0),
-    totalLocalDependencyCount: processRows.reduce((sum, row) => sum + row.dependencies.length, 0),
-    crossDependencyCount: visibleCrossDependencies.length,
+    totalSpanCount: processRows.reduce(
+      (sum, row) => sum + (row.binaryBlockData?.data.length ?? 0),
+      0
+    ),
+    totalSameProcessDependencyCount: processRows.reduce(
+      (sum, row) => sum + (row.binaryDependencyLineData?.data.length ?? 0),
+      0
+    ),
+    crossProcessDependencyCount:
+      binaryCrossProcessDependencyLineData?.data.length ?? crossProcessDependencyRefs.length,
     selectedSpanCount: selectedSpanRefs.length,
-    selectedLocalDependencyCount: selectedDependencies.length,
-    selectedCrossDependencyCount: selectedCrossDependencies.length
+    selectedSameProcessDependencyCount: selectedDependencies.length,
+    selectedCrossProcessDependencyCount: selectedCrossProcessDependencies.length
   })();
   const stableSelectedSpanRefs =
     selectedSpanRefs.length > 0 ? selectedSpanRefs : EMPTY_SELECTED_SPAN_REFS;
   const stableSelectedDependencies =
-    selectedDependencies.length > 0 ? selectedDependencies : EMPTY_SELECTED_LOCAL_DEPENDENCIES;
-  const stableSelectedCrossDependencies =
-    selectedCrossDependencies.length > 0
-      ? selectedCrossDependencies
-      : EMPTY_SELECTED_CROSS_DEPENDENCIES;
+    selectedDependencies.length > 0
+      ? selectedDependencies
+      : EMPTY_SELECTED_SAME_PROCESS_DEPENDENCIES;
+  const stableSelectedCrossProcessDependencies =
+    selectedCrossProcessDependencies.length > 0
+      ? selectedCrossProcessDependencies
+      : EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCIES;
   const rankLayers = shouldBuildBaseLayers
     ? processRows.map(
         ({
           row,
-          spans,
-          dependencies,
           binaryBlockData,
           binaryDependencyLineData,
           collapsedActivityIntervals,
           overflowLabels
         }) => {
+          if (binaryBlockData == null || binaryDependencyLineData == null) {
+            throw new Error(
+              'Foreground trace process rows require prepared binary block and dependency data.'
+            );
+          }
           const {threads, rankIndex, processId, rankNum, isCollapsed} = row;
           const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
           const effectiveIsCollapsed = rankLayout ? rankLayout.isCollapsed === true : isCollapsed;
           const layerThreads = getTraceLayerThreadsForRow({processId, settings, threads});
           return new TraceProcessLayer({
             id: makeLayerId(layerIdPrefix, `rank-${processId}`),
-            data: binaryBlockData?.data ?? spans,
+            data: binaryBlockData.data,
             threads: layerThreads,
-            spans,
-            dependencies,
             binaryBlockData,
             binaryDependencyLineData,
             selectedSpanRefs: EMPTY_SELECTED_SPAN_REFS,
-            selectedDependencies: EMPTY_SELECTED_LOCAL_DEPENDENCIES,
+            selectedDependencies: EMPTY_SELECTED_SAME_PROCESS_DEPENDENCIES,
             rankIndex,
             processId,
             processName: row.name,
@@ -840,27 +899,28 @@ export function buildDeckLayersForTrace({
       )
     : [];
 
-  const selectedCrossDependencyOverlaySources =
-    selectedCrossDependencySources ?? stableSelectedCrossDependencies;
+  const selectedCrossProcessDependencyOverlaySources =
+    selectedCrossProcessDependencySources ?? stableSelectedCrossProcessDependencies;
   const crossLayer = shouldBuildBaseLayers
-    ? new TraceCrossDependencyLayer({
+    ? new TraceCrossProcessDependencyLayer({
         id: makeLayerId(layerIdPrefix, 'cross-rank-dependencies'),
         visible: settings.showCrossProcessDependencies,
         // traceGraph,
         colorScheme,
-        crossDependencies: visibleCrossDependencies,
-        selectedCrossDependencies: EMPTY_SELECTED_CROSS_DEPENDENCIES,
+        crossProcessDependencyRefs,
+        binaryCrossProcessDependencyLineData,
+        selectedCrossProcessDependencies: EMPTY_SELECTED_CROSS_PROCESS_DEPENDENCIES,
         settings,
         traceLayout,
         modelMatrix
       })
     : null;
   const selectedCrossLayer = shouldBuildSelectionLayers
-    ? new TraceCrossDependencyLayer({
+    ? new TraceCrossProcessDependencyLayer({
         id: makeLayerId(layerIdPrefix, 'cross-rank-dependency-selection'),
         colorScheme,
-        crossDependencies: EMPTY_SELECTED_CROSS_DEPENDENCIES,
-        selectedCrossDependencies: selectedCrossDependencyOverlaySources,
+        crossProcessDependencyRefs: EMPTY_CROSS_PROCESS_DEPENDENCY_REFS,
+        selectedCrossProcessDependencies: selectedCrossProcessDependencyOverlaySources,
         settings,
         traceLayout,
         modelMatrix
@@ -884,9 +944,9 @@ export function buildDeckLayersForTrace({
         settings
       })
     : null;
-  const selectedLocalDependencyOverlayLayer = shouldBuildSelectionLayers
-    ? buildSelectedLocalDependencyOverlayLayer({
-        selectedLocalDependencySourcesByProcessId,
+  const selectedSameProcessDependencyOverlayLayer = shouldBuildSelectionLayers
+    ? buildSelectedSameProcessDependencyOverlayLayer({
+        selectedSameProcessDependencySourcesByProcessId,
         selectedDependencies: stableSelectedDependencies,
         traceLayout,
         settings,
@@ -905,24 +965,31 @@ export function buildDeckLayersForTrace({
 
   logDeckLayerConstructionProbe({
     buildStartTime,
-    crossDependencyCount: visibleCrossDependencies.length,
+    crossProcessDependencyCount:
+      binaryCrossProcessDependencyLineData?.data.length ?? crossProcessDependencyRefs.length,
     layerIdPrefix,
     processRowCount: processRows.length,
     rankLayerCount: rankLayers.length,
-    selectedCrossDependencyCount: selectedCrossDependencyOverlaySources.length,
-    selectedLocalDependencyProcessCount: selectedLocalDependencySourcesByProcessId
-      ? Object.keys(selectedLocalDependencySourcesByProcessId).length
+    selectedCrossProcessDependencyCount: selectedCrossProcessDependencyOverlaySources.length,
+    selectedSameProcessDependencyProcessCount: selectedSameProcessDependencySourcesByProcessId
+      ? Object.keys(selectedSameProcessDependencySourcesByProcessId).length
       : 0,
     selectedSpanCount: stableSelectedSpanRefs.length,
-    totalLocalDependencyCount: processRows.reduce((sum, row) => sum + row.dependencies.length, 0),
-    totalSpanCount: processRows.reduce((sum, row) => sum + row.spans.length, 0)
+    totalSameProcessDependencyCount: processRows.reduce(
+      (sum, row) => sum + (row.binaryDependencyLineData?.data.length ?? 0),
+      0
+    ),
+    totalSpanCount: processRows.reduce(
+      (sum, row) => sum + (row.binaryBlockData?.data.length ?? 0),
+      0
+    )
   });
 
   const baseTraceLayers = buildBaseTraceLayers([crossLayer, ...rankLayers, rowSeparatorLayer]);
   const selectionTraceLayers = buildSelectionTraceLayers([
     hoveredSpanOverlayLayer,
     selectedSpanOverlayLayer,
-    selectedLocalDependencyOverlayLayer,
+    selectedSameProcessDependencyOverlayLayer,
     selectedCrossLayer
   ]);
 
@@ -993,8 +1060,8 @@ export function buildDeckLayerForTraceProcessActivitySummary({
 function logDeckLayerConstructionProbe(params: {
   /** Timestamp captured before layer construction starts. */
   buildStartTime: number;
-  /** Number of visible cross-process dependencies passed to the cross-dependency layer. */
-  crossDependencyCount: number;
+  /** Number of visible cross-process dependencies passed to the cross-process-dependency layer. */
+  crossProcessDependencyCount: number;
   /** Optional id prefix identifying the graph/view that owns these layers. */
   layerIdPrefix: string | undefined;
   /** Number of rendered process rows passed to rank layers. */
@@ -1002,26 +1069,26 @@ function logDeckLayerConstructionProbe(params: {
   /** Number of TraceProcessLayer instances constructed. */
   rankLayerCount: number;
   /** Number of selected cross-process dependencies passed to the selection layer. */
-  selectedCrossDependencyCount: number;
-  /** Number of process rows with selected local dependency overlays. */
-  selectedLocalDependencyProcessCount: number;
+  selectedCrossProcessDependencyCount: number;
+  /** Number of process rows with selected same-process dependency overlays. */
+  selectedSameProcessDependencyProcessCount: number;
   /** Number of selected span refs passed to row layers. */
   selectedSpanCount: number;
-  /** Number of visible local dependencies passed to row layers. */
-  totalLocalDependencyCount: number;
+  /** Number of visible same-process dependencies passed to row layers. */
+  totalSameProcessDependencyCount: number;
   /** Number of visible spans passed to row layers. */
   totalSpanCount: number;
 }): void {
-  traceLog.probe(0, 'deck-trace-layers buildDeckLayersForTrace done', {
+  traceLog.probe(1, 'deck-trace-layers buildDeckLayersForTrace done', {
     layerIdPrefix: params.layerIdPrefix ?? '',
     processRowCount: params.processRowCount,
     rankLayerCount: params.rankLayerCount,
     totalSpanCount: params.totalSpanCount,
-    totalLocalDependencyCount: params.totalLocalDependencyCount,
-    crossDependencyCount: params.crossDependencyCount,
+    totalSameProcessDependencyCount: params.totalSameProcessDependencyCount,
+    crossProcessDependencyCount: params.crossProcessDependencyCount,
     selectedSpanCount: params.selectedSpanCount,
-    selectedCrossDependencyCount: params.selectedCrossDependencyCount,
-    selectedLocalDependencyProcessCount: params.selectedLocalDependencyProcessCount,
+    selectedCrossProcessDependencyCount: params.selectedCrossProcessDependencyCount,
+    selectedSameProcessDependencyProcessCount: params.selectedSameProcessDependencyProcessCount,
     durationMs: performance.now() - params.buildStartTime
   })();
 }
@@ -1083,33 +1150,17 @@ export function buildDeckLayerForCriticalPath({
 }
 
 export function buildDeckLayersForInstantsAndCounter({
-  traceGraph,
-  traceLayout,
   settings,
-  colorScheme = DEFAULT_TRACE_COLOR_SCHEME,
   layerIdPrefix,
   modelMatrix,
-  globalEventYPosition
+  derivedData
 }: {
-  traceGraph: Readonly<TraceGraph>;
-  traceLayout: Readonly<TraceLayout>;
   settings: TraceVisSettings;
-  colorScheme?: TraceColorScheme;
   layerIdPrefix?: string;
   modelMatrix?: Matrix4;
-  /** Optional fixed trace-space Y position for graph-global event markers. */
-  globalEventYPosition?: number;
+  /** Snapshot-owned event, instant, and counter projections for this graph. */
+  derivedData: DerivedTraceData;
 }): Layer[] {
-  const derivedData = getMemoizedDerivedTraceData({
-    traceGraph,
-    traceLayout,
-    settings,
-    colorScheme,
-    buildGlobalEvents: settings.showGlobalEvents,
-    buildInstants: settings.showInstants,
-    buildCounters: settings.showCounters,
-    globalEventYPosition
-  });
   const layers: Layer[] = [];
 
   const {
@@ -1306,7 +1357,6 @@ export function buildDeckLayersForLegend({
   modelMatrix?: Matrix4;
 }): Layer[] {
   void colorScheme;
-  const legendOverflowLabels = getLegendOverflowLabels({processRows, traceLayout});
   const legendLayers = processRows.flatMap(row => {
     const {processId, processRef, threads, threadRefs, rankIndex, isCollapsed} = row;
     const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, processRef);
@@ -1346,9 +1396,7 @@ export function buildDeckLayersForLegend({
     getPosition: row => {
       const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
       const labelY = getRankLabelRenderY(rankLayout);
-      return rankLayout?.startPosition
-        ? [rankLayout.startPosition[0], labelY, rankLayout.startPosition[2] ?? 0]
-        : [0, labelY, 0];
+      return [0, labelY, 0];
     },
     getText: ({processId}) => {
       return String(processInfoMap?.[processId]?.node_name ?? '');
@@ -1393,9 +1441,7 @@ export function buildDeckLayersForLegend({
     getPosition: row => {
       const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
       const labelY = getRankLabelRenderY(rankLayout);
-      return rankLayout?.startPosition
-        ? [rankLayout.startPosition[0], labelY, rankLayout.startPosition[2] ?? 0]
-        : [0, labelY, 0];
+      return [0, labelY, 0];
     },
     getText: ({name, processId, processRef, isCollapsed}) => {
       const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, processRef);
@@ -1475,39 +1521,7 @@ export function buildDeckLayersForLegend({
     }
   });
 
-  const legendOverflowLabelLayer = new TextLayer<TraceLayoutOverflowLabelDatum>({
-    id: makeLayerId(layerIdPrefix, 'legend-overflow-label'),
-    visible: legendOverflowLabels.length > 0,
-    data: legendOverflowLabels,
-    getPosition: datum => [datum.x, datum.y, 0],
-    getText: datum => datum.text,
-    getTextAnchor: 'start',
-    getAlignmentBaseline: 'center',
-    getColor: TRACE_COLOR.THREAD_TEXT,
-    getPixelOffset: [RANK_LABEL_BACKGROUND_PADDING[0], 0],
-    getSize: 10,
-    sizeUnits: 'pixels',
-    sizeMaxPixels: 14,
-    fontFamily,
-    fontWeight: 500,
-    wordBreak: 'break-word',
-    maxWidth: 400,
-    pickable: false,
-    modelMatrix,
-    parameters: {blend: true, depthWriteEnabled: false, depthCompare: 'always'},
-    updateTriggers: {
-      getPosition: [legendOverflowLabels],
-      getText: [legendOverflowLabels]
-    }
-  });
-
-  return [
-    ...legendLayers,
-    nodeNameLabels,
-    rankLabels,
-    globalEventLabelLayer,
-    legendOverflowLabelLayer
-  ];
+  return [...legendLayers, nodeNameLabels, rankLabels, globalEventLabelLayer];
 }
 
 /** Returns the rendered process-label Y anchor inside the process band. */
@@ -1515,83 +1529,6 @@ function getRankLabelRenderY(
   rankLayout: Readonly<TraceLayout>['processLayouts'][number] | undefined
 ) {
   return rankLayout?.labelY ?? 0;
-}
-
-/**
- * Returns filtered-only overflow labels that should render in the legend instead of the timeline.
- */
-function getLegendOverflowLabels(params: {
-  /** Stable rendered rows used to derive per-rank legend notice placement. */
-  processRows: ReadonlyArray<TraceLayoutRow>;
-  /** Layout that provides thread visibility and filtered-span counts. */
-  traceLayout: Readonly<TraceLayout>;
-}): readonly TraceLayoutOverflowLabelDatum[] {
-  const laneSeparation = params.traceLayout.layoutConfiguration?.laneSeparation ?? 0.7;
-  const filteredSpanCountByThreadRef = getTraceLayoutFilteredSpanCountByThreadRef({
-    traceLayout: params.traceLayout
-  });
-  return params.processRows.flatMap(row => {
-    const rankLayout = getTraceLayoutProcessLayoutByRef(params.traceLayout, row.processRef);
-    if (!rankLayout) {
-      return [];
-    }
-
-    const effectiveIsCollapsed = Boolean(rankLayout.isCollapsed || row.isCollapsed);
-    const filteredSpanCount =
-      filteredSpanCountByThreadRef != null && row.threadRefs.length > 0
-        ? row.threadRefs.reduce(
-            (count, threadRef) => count + (filteredSpanCountByThreadRef.get(threadRef) ?? 0),
-            0
-          )
-        : 0;
-
-    if (effectiveIsCollapsed) {
-      if (filteredSpanCount === 0) {
-        return [];
-      }
-      const collapsedActivityY = Number.isFinite(rankLayout.collapsedActivityY)
-        ? rankLayout.collapsedActivityY
-        : rankLayout.yOffset;
-      return [
-        {
-          text: `${filteredSpanCount} span${filteredSpanCount === 1 ? '' : 's'} filtered`,
-          x: 0,
-          y: collapsedActivityY + laneSeparation,
-          maxX: 0,
-          view: 'legend'
-        } satisfies TraceLayoutOverflowLabelDatum
-      ];
-    }
-
-    const threadFilteredLabels = rankLayout.threadLayouts.flatMap(threadLayout => {
-      const overflowLabel = threadLayout.visible ? threadLayout.overflowLabel : undefined;
-      if (!overflowLabel || (threadLayout.overflowSpanCount ?? 0) > 0) {
-        return [];
-      }
-      return [
-        {
-          text: overflowLabel.text,
-          x: 0,
-          y: overflowLabel.y,
-          maxX: 0,
-          view: 'legend'
-        } satisfies TraceLayoutOverflowLabelDatum
-      ];
-    });
-    if (threadFilteredLabels.length > 0 || filteredSpanCount === 0) {
-      return threadFilteredLabels;
-    }
-
-    return [
-      {
-        text: `All ${filteredSpanCount} span${filteredSpanCount === 1 ? '' : 's'} filtered out in thread ${getTraceLayoutOverflowLabelThreadName(row.threads)}`,
-        x: 0,
-        y: rankLayout.startPosition[1] + laneSeparation,
-        maxX: 0,
-        view: 'legend'
-      } satisfies TraceLayoutOverflowLabelDatum
-    ];
-  });
 }
 
 /** Returns row threads that deck.gl layers need without forwarding every logical thread in combined rows. */
@@ -1921,6 +1858,62 @@ function getMinimapSpanIndicatorDotLineColor(
   indicator: TracePreparedMinimapSpanIndicator
 ): readonly [number, number, number, number] {
   return indicator.kind === 'selected' ? [255, 255, 255, 245] : [255, 255, 255, 210];
+}
+
+/**
+ * Builds matching vertical time-anchor lines for the main timeline and minimap.
+ */
+export function buildDeckLayersForTimeAnchor(params: {
+  /** Caller-owned anchor marker, or null when no anchor should be rendered. */
+  marker: {
+    /** Stable marker identifier used by deck.gl diffing. */
+    readonly id: string;
+    /** Absolute anchor timestamp in milliseconds. */
+    readonly timeMs: number;
+    /** Optional tooltip payload surfaced by shared hover handling. */
+    readonly tooltip?: unknown;
+    /** Optional RGBA line color override. */
+    readonly lineColor?: readonly [number, number, number, number];
+  } | null;
+  /** Absolute trace origin subtracted from the marker timestamp. */
+  originTimeMs: number;
+  /** Main timeline bounds that determine the line's vertical extent. */
+  mainBounds: Bounds;
+  /** Minimap bounds that determine the line's vertical extent. */
+  overviewBounds: Bounds;
+}): Layer[] {
+  const {marker, originTimeMs, mainBounds, overviewBounds} = params;
+  if (!marker || !Number.isFinite(marker.timeMs) || !Number.isFinite(originTimeMs)) {
+    return [];
+  }
+
+  const x = marker.timeMs - originTimeMs;
+  const buildLineDatum = (bounds: Bounds): TimeAnchorLineDatum => ({
+    ...marker,
+    path: [
+      [x, bounds[0][1]],
+      [x, bounds[1][1]]
+    ]
+  });
+  const mainLineData = [buildLineDatum(mainBounds)];
+  const overviewLineData = [buildLineDatum(overviewBounds)];
+  const buildLayer = (id: string, data: TimeAnchorLineDatum[]) =>
+    new PathLayer<TimeAnchorLineDatum>({
+      id,
+      data,
+      getPath: datum => datum.path,
+      getColor: datum => datum.lineColor ?? TRACE_COLOR.SPAN_HIGHLIGHT,
+      getWidth: 2,
+      widthUnits: 'pixels',
+      widthMinPixels: 2,
+      pickable: true,
+      parameters: {blend: false, depthWriteEnabled: false, depthCompare: 'always'}
+    });
+
+  return [
+    buildLayer('trace-time-anchor', mainLineData),
+    buildLayer('minimap-time-anchor', overviewLineData)
+  ];
 }
 
 export function buildOverviewLayers(params: {

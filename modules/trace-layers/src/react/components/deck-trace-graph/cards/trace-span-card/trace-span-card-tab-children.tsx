@@ -1,6 +1,5 @@
 import {CSSProperties, useEffect, useRef, useState} from 'react';
 
-import {hasTraceSpanRegexpFilter, hasTraceSpanTopologyFilter} from '../../../../../trace/index';
 import {PrettyTable} from '../../components/pretty-table';
 import {
   emitDependencyHoverFromResolvedBlocks,
@@ -18,7 +17,7 @@ import type {
   TraceCardSpan,
   TraceSpanCardDescendantResult,
   TraceStyle
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {TraceSpanDoubleClickAction} from '../trace-span-name-badge';
 import type {
   ResolvedTraceLabels,
@@ -83,59 +82,57 @@ export function TraceSpanChildrenTab(props: TraceSpanChildrenTabProps) {
     filterText,
     getTraceSpanChildFilterValues
   );
+  const indentationLevels = getTraceSpanChildIndentationLevels(filteredEntries);
   const hasFilter = filterText.trim().length > 0;
-  const rows = filteredEntries.map(({dependency, startSpan, endSpan, childSpan, depth}) => {
-    const isFiltered = childSpan.isFiltered;
-    const isTopologyOnlyFiltered =
-      hasTraceSpanTopologyFilter(childSpan.filterMask) &&
-      !hasTraceSpanRegexpFilter(childSpan.filterMask);
-    const depthOffsetRem = Math.min(3, Math.max(0, (depth - 1) * 0.75));
-    const hoverHandlers = props.onBlockHover
-      ? {
-          onMouseEnter: () =>
-            emitDependencyHoverFromResolvedBlocks({
-              startSpan,
-              endSpan,
-              onBlockHover: props.onBlockHover
-            }),
-          onMouseLeave: () => props.onBlockHover?.(null)
-        }
-      : undefined;
+  const rows = filteredEntries.map(
+    ({dependency, startSpan, endSpan, childSpan, depth}, entryIndex) => {
+      const isFiltered = childSpan.isFiltered;
+      const indentationLevel = indentationLevels[entryIndex] ?? 0;
+      const hoverHandlers = props.onBlockHover
+        ? {
+            onMouseEnter: () =>
+              emitDependencyHoverFromResolvedBlocks({
+                startSpan,
+                endSpan,
+                onBlockHover: props.onBlockHover
+              }),
+            onMouseLeave: () => props.onBlockHover?.(null)
+          }
+        : undefined;
 
-    return [
-      ...props.getMetricValues({
-        span: childSpan,
-        dependency,
-        rowKind: 'child'
-      }),
-      renderDependencyProcessBadge({
-        span: childSpan,
-        currentSpan: props.currentSpan,
-        traceLabels: props.traceLabels
-      }),
-      <span className="inline-flex" {...hoverHandlers}>
-        <span
-          className="inline-flex items-center"
-          style={{paddingLeft: `${depthOffsetRem}rem`}}
-          data-child-depth={depth}
-        >
-          {renderDependencyNameBadge({
-            span: childSpan,
-            colorScheme: props.traceStyle.colorScheme,
-            style: props.getDependencyBadgeStyle(childSpan),
-            interactive: !isFiltered || props.onSpanDoubleClick !== undefined,
-            filtered: isFiltered,
-            filteredVariant: isTopologyOnlyFiltered ? 'topology' : 'regexp',
-            filterMask: childSpan.filterMask,
-            onSpanClick: isFiltered ? undefined : props.onSpanClick,
-            onSpanDoubleClick: props.onSpanDoubleClick
-          })}
+      return [
+        ...props.getMetricValues({
+          span: childSpan,
+          dependency,
+          rowKind: 'child'
+        }),
+        renderDependencyProcessBadge({
+          span: childSpan,
+          currentSpan: props.currentSpan,
+          traceLabels: props.traceLabels
+        }),
+        <span className="inline-flex" {...hoverHandlers}>
+          <span
+            className="inline-flex items-center"
+            style={{paddingInlineStart: `${indentationLevel}em`}}
+            data-child-depth={depth}
+            data-child-indent-level={indentationLevel}
+          >
+            {renderDependencyNameBadge({
+              span: childSpan,
+              colorScheme: props.traceStyle.colorScheme,
+              style: props.getDependencyBadgeStyle(childSpan),
+              interactive: !isFiltered || props.onSpanDoubleClick !== undefined,
+              filtered: isFiltered,
+              filterMask: childSpan.filterMask,
+              onSpanClick: isFiltered ? undefined : props.onSpanClick,
+              onSpanDoubleClick: props.onSpanDoubleClick
+            })}
+          </span>
         </span>
-      </span>,
-      dependency.waitMode,
-      '⬇️'
-    ];
-  });
+      ];
+    }
+  );
 
   if (props.descendants.isTruncated) {
     rows.push(
@@ -152,9 +149,7 @@ export function TraceSpanChildrenTab(props: TraceSpanChildrenTabProps) {
       spanLabel: props.traceLabels.spanLabel,
       spanLabelPlural: props.traceLabels.spanLabelPlural,
       spanVisibilityControl: props.spanVisibilityControl
-    }),
-    'Mode',
-    'Dir'
+    })
   ];
 
   return (
@@ -189,6 +184,28 @@ export function TraceSpanChildrenTab(props: TraceSpanChildrenTabProps) {
 }
 
 /**
+ * Returns compact visual indentation levels for descendant rows that remain listed.
+ */
+function getTraceSpanChildIndentationLevels(
+  entries: readonly TraceSpanCardDescendantResult['entries'][number][]
+): number[] {
+  const listedAncestorDepths: number[] = [];
+
+  return entries.map(entry => {
+    while (
+      listedAncestorDepths.length > 0 &&
+      listedAncestorDepths[listedAncestorDepths.length - 1]! >= entry.depth
+    ) {
+      listedAncestorDepths.pop();
+    }
+
+    const indentationLevel = listedAncestorDepths.length;
+    listedAncestorDepths.push(entry.depth);
+    return indentationLevel;
+  });
+}
+
+/**
  * Returns visible child-row values searched by the Children tab filter.
  */
 function getTraceSpanChildFilterValues(
@@ -199,7 +216,6 @@ function getTraceSpanChildFilterValues(
     entry.childSpan.spanId,
     entry.childSpan.processName,
     entry.childSpan.threadId,
-    entry.dependency.waitMode,
     entry.depth
   ];
 }
@@ -208,5 +224,5 @@ function getTraceSpanChildFilterValues(
  * Build one compact placeholder row aligned with the child dependency table columns.
  */
 function buildPlaceholderRow(metricColumnCount: number, message: string): string[] {
-  return [...Array.from({length: metricColumnCount}, () => ''), '', message, '', ''];
+  return [...Array.from({length: metricColumnCount}, () => ''), '', message];
 }

@@ -1,9 +1,10 @@
+import {readTraceChunkSourceDependencyRows} from './trace-chunk-data';
+
 import type {
-  ArrowTraceLocalDependencyTable,
   ArrowTraceProcessMetadata,
+  ArrowTraceSameProcessDependencyTable,
   ArrowTraceSpanSidecarTable,
-  ArrowTraceSpanTable,
-  TraceSpanArrowSidecarRow
+  ArrowTraceSpanTable
 } from './ingestion/arrow-trace';
 import type {
   TraceChunkData,
@@ -12,6 +13,11 @@ import type {
   TraceChunkSourceDependencyTable
 } from './trace-chunk-data';
 import type {ChunkRef, ProcessRef} from './trace-graph/trace-id-encoder';
+import type {
+  TraceCrossProcessEndpoint,
+  TraceCrossProcessEndpointId,
+  TraceProcessId
+} from './trace-graph/trace-types';
 
 /** Store-owned indexes derived when `TraceChunkData` is added to a chunk store. */
 export type TraceChunkIndexes = {
@@ -41,14 +47,18 @@ export type TraceChunk = {
   readonly chunkKey: string;
   /** Metadata for every process represented by rows in this chunk. */
   readonly processes: readonly ArrowTraceProcessMetadata[];
+  /** Compatibility owning process id when this finalized chunk is process-scoped. */
+  readonly processId?: TraceProcessId | null;
   /** Canonical Arrow span table for this chunk. */
   readonly spanTable: ArrowTraceSpanTable;
-  /** Canonical Arrow local dependency table for chunk-local dependencies. */
-  readonly localDependencyTable: ArrowTraceLocalDependencyTable;
-  /** Optional row-aligned compatibility payloads kept during migration. */
-  readonly spanSidecarRows?: readonly TraceSpanArrowSidecarRow[];
+  /** Resolved same-process Arrow dependency table owned by this storage chunk. */
+  readonly resolvedSameProcessDependencyTable: ArrowTraceSameProcessDependencyTable;
   /** Optional row-aligned Arrow sidecar table for this chunk. */
   readonly spanSidecarTable?: ArrowTraceSpanSidecarTable;
+  /** Unresolved cross-process endpoint groups retained until selected chunks are stitched. */
+  readonly crossProcessEndpointsByEndpointId?: Readonly<
+    Record<TraceCrossProcessEndpointId, readonly TraceCrossProcessEndpoint[]>
+  >;
   /** Source-level dependency rows that may resolve across chunk boundaries. */
   readonly sourceDependencyTable?: TraceChunkSourceDependencyTable;
   /** Row-level time-window overlap metadata. */
@@ -67,8 +77,6 @@ export type TraceChunk = {
   readonly indexes: TraceChunkIndexes;
   /** Store-owned metadata derived from chunk data. */
   readonly metadata: TraceChunkMetadata;
-  /** Source-column filename filter masks aligned by chunk-local span-ref row index. */
-  readonly sourceFilterMaskByRow?: Readonly<Uint8Array>;
 };
 
 /** Promotes parser-local chunk data into a store-owned finalized chunk. */
@@ -87,10 +95,11 @@ export function finalizeTraceChunkData(params: {
     type: 'trace-chunk',
     chunkKey: params.data.chunkKey,
     processes: params.data.processes,
+    processId: params.data.processId ?? null,
     spanTable: params.data.spanTable,
-    localDependencyTable: params.data.localDependencyTable,
-    spanSidecarRows: params.data.spanSidecarRows,
+    resolvedSameProcessDependencyTable: params.data.resolvedSameProcessDependencyTable,
     spanSidecarTable: params.data.spanSidecarTable,
+    crossProcessEndpointsByEndpointId: params.data.crossProcessEndpointsByEndpointId,
     sourceDependencyTable: params.data.sourceDependencyTable,
     rowWindowTable: params.data.rowWindowTable,
     diagnostics: params.data.diagnostics,
@@ -137,7 +146,10 @@ function buildTraceChunkIndexes(data: TraceChunkData): TraceChunkIndexes {
 
   const sourceDependencyRowsByEndExternalSpanId = new Map<string, number[]>();
   const parentExternalSpanIdByRowIndex: Array<string | null> = [];
-  data.sourceDependencyTable?.rows.forEach((row, rowIndex) => {
+  const sourceDependencyRows = data.sourceDependencyTable
+    ? readTraceChunkSourceDependencyRows(data.sourceDependencyTable)
+    : [];
+  sourceDependencyRows.forEach((row, rowIndex) => {
     const rowIndexesForEnd =
       sourceDependencyRowsByEndExternalSpanId.get(row.endExternalSpanId) ?? [];
     rowIndexesForEnd.push(rowIndex);

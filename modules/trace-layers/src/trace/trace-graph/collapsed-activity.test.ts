@@ -1,11 +1,11 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
-import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {buildTraceLayout} from '../trace-layout/trace-geometry-layout';
+import {buildTraceViewSnapshot} from '../trace-view-snapshot';
 import {buildCollapsedActivityByTraceGraphRows} from './collapsed-activity';
 import {TraceGraph} from './trace-graph';
+import {createRuntimeTraceGraph} from './trace-graph-test-fixtures';
 
 import type {TraceLayoutRow} from '../trace-layout/trace-layout';
 import type {TraceColorScheme} from '../trace-style/trace-color-scheme';
@@ -19,16 +19,10 @@ import type {
 } from './trace-types';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceGraph: Parameters<typeof createRuntimeTraceGraph>[0],
+  options?: Parameters<typeof createRuntimeTraceGraph>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createRuntimeTraceGraph(traceGraph, options);
 }
 
 const settings = {colorBy: 'blockName'} as unknown as TraceVisSettings;
@@ -57,8 +51,8 @@ function makeBlock(spanId: string, startTimeMs: number, endTimeMs: number): Trac
         durationMsAsString: `${Math.max(0, endTimeMs - startTimeMs)}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -88,12 +82,10 @@ function makeRuntimeGraphForProcesses(
   const allSpans = processSpanSources.flatMap(({spans}) => spans);
   return {
     graph: createTestTraceGraph(
-      buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace(processes, [], {
-          name: 'test',
-          timeExtents: getTestTimeExtents(allSpans)
-        })
-      )
+      buildJSONTrace(processes, [], {
+        name: 'test',
+        timeExtents: getTestTimeExtents(allSpans)
+      })
     ),
     processes
   };
@@ -133,7 +125,7 @@ function makeRuntimeProcess(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   } as unknown as TraceProcess;
 }
@@ -222,6 +214,26 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
     expect(intervals.some(interval => interval.startX < 50 && interval.endX > 50)).toBe(false);
   });
 
+  it('streams filtered activity without building the compatibility visible index', () => {
+    const {graph, stream} = makeRuntimeGraph([
+      makeBlock('visible', 0, 10),
+      makeBlock('filtered', 20, 30)
+    ]);
+    const filteredGraph = new TraceGraph(
+      {traceDataset: graph.traceDataset},
+      buildTraceViewSnapshot(graph.traceDataset, {spanFilters: ['filtered']})
+    );
+
+    const result = buildCollapsedActivityByTraceGraphRows({
+      graph: filteredGraph,
+      rows: [makeRow(filteredGraph, stream)],
+      colorScheme: defaultColorScheme,
+      settings
+    });
+
+    expect(getCollapsedActivityForProcessIndex(filteredGraph, result, 0)).not.toHaveLength(0);
+  });
+
   it('builds compact icicle intervals from runtime graph geometry bands', () => {
     const {graph, stream} = makeRuntimeGraph([
       makeBlock('parent', 0, 100),
@@ -230,7 +242,8 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
     const colorScheme = {
       id: 'icicle-test',
       name: 'Icicle Test',
-      getSpanFillColor: ({span}) => (span.name === 'parent' ? [1, 2, 3, 255] : [4, 5, 6, 255])
+      getSpanFillColorForRef: ({spanRef, traceGraph}) =>
+        traceGraph.getSpanName(spanRef) === 'parent' ? [1, 2, 3, 255] : [4, 5, 6, 255]
     } satisfies TraceColorScheme;
 
     const result = buildCollapsedActivityByTraceGraphRows({
@@ -297,7 +310,7 @@ describe('buildCollapsedActivityByTraceGraphRows', () => {
       colorScheme: {
         id: 'same-color',
         name: 'Same Color',
-        getSpanFillColor: () => [9, 8, 7, 255]
+        getSpanFillColorForRef: () => [9, 8, 7, 255]
       },
       settings,
       aggregation: 'icicle'

@@ -1,19 +1,15 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
 import {TraceGraph} from '../trace-graph/trace-graph';
+import {createRuntimeTraceGraph} from '../trace-graph/trace-graph-test-fixtures';
 import {
-  getRequiredVisibleCrossDependencyRefById,
   getTraceGraphEndpointsWithDependencies,
   getTraceGraphSpanDependencies,
-  getTraceGraphVisibleDependencyChainForBlock,
   isTraceGraphBlockFiltered
 } from '../trace-graph/trace-graph-test-utils';
 import {buildTraceLayouts as buildRuntimeTraceLayouts} from '../trace-layout/trace-geometry-layout';
-import {fillTraceLayoutCrossDependencyGeometry} from '../trace-layout/trace-layout';
 
-import type {TraceGraphData} from '../ingestion/arrow-trace';
 import type {JSONTrace} from '../ingestion/json-trace';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {
@@ -33,7 +29,7 @@ type FilteringTraceLayoutSettings = {
   threadDisplayMode: TraceVisSettings['threadDisplayMode'];
   selectedThreadNames: TraceVisSettings['selectedThreadNames'];
   sortThreads: TraceVisSettings['sortThreads'];
-  localDependencyMode: TraceVisSettings['localDependencyMode'];
+  sameProcessDependencyMode: TraceVisSettings['sameProcessDependencyMode'];
   processLayoutMode: TraceVisSettings['processLayoutMode'];
   layoutDensity: TraceVisSettings['layoutDensity'];
   maxVisibleLanesPerThread: TraceVisSettings['maxVisibleLanesPerThread'];
@@ -43,17 +39,20 @@ type FilteringTraceLayoutSettings = {
 
 /** Builds trace layouts while accepting either JSON test graphs or Arrow runtime graphs. */
 function buildTraceLayouts(params: {
-  traceGraphs: readonly (JSONTrace | TraceGraphData)[];
+  traceGraphs: readonly (JSONTrace | TraceGraph)[];
   settings: FilteringTraceLayoutSettings;
 }) {
+  const {spanFilter, ...settings} = params.settings;
   return buildRuntimeTraceLayouts({
-    ...params,
-    traceGraphs: params.traceGraphs.map(normalizeTraceGraphSource)
+    settings,
+    traceGraphs: params.traceGraphs.map(traceGraph =>
+      normalizeTraceGraphSource(traceGraph, spanFilter)
+    )
   });
 }
 
 /** Creates a cross-rank dependency for filtering and contraction tests. */
-function createCrossDependency(params: {
+function createCrossProcessDependency(params: {
   dependencyId: TraceDependencyId;
   startSpanId: TraceSpanId;
   endSpanId: TraceSpanId;
@@ -111,8 +110,8 @@ function createRankWithNamedBlocks(
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: [],
     ...(options?.sources?.[index] !== undefined
@@ -138,23 +137,23 @@ function createRankWithNamedBlocks(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   } satisfies TraceProcess;
 }
 
-/** Adds a local dependency to a test rank and updates endpoint span ids. */
-function addLocalDependency(
+/** Adds a same-process dependency to a test rank and updates endpoint span ids. */
+function addSameProcessDependency(
   rank: TraceProcess,
   params: {
     dependencyId: TraceDependencyId;
     startSpanId: TraceSpanId;
     endSpanId: TraceSpanId;
-    keywords?: TraceProcess['localDependencies'][number]['keywords'];
+    keywords?: TraceProcess['sameProcessDependencies'][number]['keywords'];
   }
 ): TraceProcess {
-  const localDependency = {
-    type: 'trace-local-dependency',
+  const sameProcessDependency = {
+    type: 'trace-same-process-dependency',
     dependencyId: params.dependencyId,
     startSpanId: params.startSpanId,
     endSpanId: params.endSpanId,
@@ -162,20 +161,24 @@ function addLocalDependency(
     waitMode: 'start-to-start',
     bidirectional: false,
     waitTimeMs: 0
-  } satisfies TraceProcess['localDependencies'][number];
+  } satisfies TraceProcess['sameProcessDependencies'][number];
 
   const spans = rank.spans.map(span =>
-    span.spanId === localDependency.startSpanId || span.spanId === localDependency.endSpanId
+    span.spanId === sameProcessDependency.startSpanId ||
+    span.spanId === sameProcessDependency.endSpanId
       ? {
           ...span,
-          localDependencyIds: [...span.localDependencyIds, localDependency.dependencyId]
+          sameProcessDependencyIds: [
+            ...span.sameProcessDependencyIds,
+            sameProcessDependency.dependencyId
+          ]
         }
       : span
   );
 
   return {
     ...rank,
-    localDependencies: [...rank.localDependencies, localDependency],
+    sameProcessDependencies: [...rank.sameProcessDependencies, sameProcessDependency],
     spans,
     spanMap: Object.fromEntries(spans.map(span => [span.spanId, span])) as {
       [spanId: string]: TraceSpan;
@@ -183,41 +186,17 @@ function addLocalDependency(
   } satisfies TraceProcess;
 }
 
-/** Builds a parent chain over named spans for visible-ancestor filtering tests. */
-function createRankWithParentChain(processId: string, blockNames: string[]): TraceProcess {
-  const rank = createRankWithNamedBlocks(processId, blockNames);
-  const localDependencies: TraceProcess['localDependencies'] = [];
-
-  for (let index = 1; index < rank.spans.length; index += 1) {
-    const parentBlock = rank.spans[index - 1]!;
-    const childBlock = rank.spans[index]!;
-    const dependencyId = `${processId}:parent-${index}` as TraceDependencyId;
-    const dependency: TraceProcess['localDependencies'][number] = {
-      type: 'trace-local-dependency',
-      dependencyId,
-      startSpanId: parentBlock.spanId,
-      endSpanId: childBlock.spanId,
-      keywords: new Set(['PARENT']),
-      waitMode: 'start-to-start',
-      bidirectional: false,
-      waitTimeMs: 0
-    };
-
-    parentBlock.localDependencyIds.push(dependencyId);
-    localDependencies.push(dependency);
+/** Normalizes plain test traces to canonical runtime graphs before layout. */
+function normalizeTraceGraphSource(
+  traceGraph: JSONTrace | TraceGraph,
+  spanFilter?: TraceVisSettings['spanFilter']
+): TraceGraph {
+  if (traceGraph instanceof TraceGraph) {
+    return traceGraph;
   }
-
-  return {
-    ...rank,
-    localDependencies
-  } satisfies TraceProcess;
-}
-
-/** Normalizes plain JSON traces to Arrow runtime trace sources. */
-function normalizeTraceGraphSource(traceGraph: JSONTrace | TraceGraphData): TraceGraphData {
-  return 'processSpanTableMap' in traceGraph
-    ? traceGraph
-    : buildTraceGraphDataFromJSONTrace(traceGraph);
+  return createRuntimeTraceGraph(traceGraph, {
+    spanFilters: spanFilter ? [spanFilter] : undefined
+  });
 }
 
 /** Requires a layout to retain its TraceGraph instance. */
@@ -236,7 +215,7 @@ const baseSettings: FilteringTraceLayoutSettings = {
   threadDisplayMode: 'all',
   selectedThreadNames: undefined,
   sortThreads: false,
-  localDependencyMode: 'all',
+  sameProcessDependencyMode: 'all',
   processLayoutMode: 'interleaved',
   layoutDensity: 'comfortable',
   maxVisibleLanesPerThread: undefined,
@@ -286,7 +265,11 @@ describe('buildTraceLayouts filtering', () => {
       'filter-source',
       ['executeRpc', 'fetchQuery', 'renderUi'],
       {
-        sources: ['packages/tracing/base.py', '/workspace/runtime/rpc_runtime.py', 'other/file.py']
+        sources: [
+          'packages/distributed_tracing/base.py',
+          '/workspace/src/runtime/core/rpc_runtime.py',
+          'other/file.py'
+        ]
       }
     );
     const graph = buildJSONTrace([rank], [], {name: 'span-filter-source'});
@@ -295,7 +278,8 @@ describe('buildTraceLayouts filtering', () => {
       traceGraphs: [graph],
       settings: {
         ...baseSettings,
-        spanFilter: 'packages/tracing/base.py;/workspace/runtime/rpc_runtime.py'
+        spanFilter:
+          'packages/distributed_tracing/base.py;/workspace/src/runtime/core/rpc_runtime.py'
       }
     });
 
@@ -320,135 +304,10 @@ describe('buildTraceLayouts filtering', () => {
     expect(getVisibleBlocks(rank.spans, traceGraph).map(span => span.name)).toEqual(['other']);
   });
 
-  it('rewires parent dependencies to the nearest visible ancestor', () => {
-    const rank = createRankWithParentChain('filter-ancestor', [
-      'rpc-root',
-      'filtered-parent',
-      'filtered-child',
-      'child-leaf'
-    ]);
-    const graph = buildJSONTrace([rank], [], {name: 'span-filter-ancestor'});
-
-    const [layout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: {...baseSettings, spanFilter: 'filtered'}
-    });
-
-    const traceGraph = requireTraceGraph(layout);
-    expect(getVisibleBlocks(rank.spans, traceGraph).map(span => span.name)).toEqual([
-      'rpc-root',
-      'child-leaf'
-    ]);
-
-    const visibleParentChain = getTraceGraphVisibleDependencyChainForBlock(
-      traceGraph,
-      rank.spans[3]!,
-      'PARENT'
-    );
-    expect(visibleParentChain.map(span => span.name)).toEqual(['rpc-root']);
-
-    const childDependencies = getTraceGraphSpanDependencies(traceGraph, rank.spans[3]!);
-    expect(childDependencies.localDependencies).toHaveLength(1);
-    expect(childDependencies.localDependencies[0]).toMatchObject({
-      startSpanId: rank.spans[0]!.spanId,
-      endSpanId: rank.spans[3]!.spanId
-    });
-  });
-
-  it('contracts a mixed cross/local parent chain into a cross dependency', () => {
-    const rankA = createRankWithNamedBlocks('rank-a', ['head-root'], {rankNum: 0});
-    const rankBBase = createRankWithNamedBlocks('rank-b', ['filtered-logical', 'logical-child'], {
-      rankNum: 1
-    });
-    const rankB = addLocalDependency(rankBBase, {
-      dependencyId: 'rank-b:parent-1' as TraceDependencyId,
-      startSpanId: rankBBase.spans[0]!.spanId,
-      endSpanId: rankBBase.spans[1]!.spanId,
-      keywords: new Set(['PARENT'])
-    });
-    const crossDependency = createCrossDependency({
-      dependencyId: 'cross:parent-1' as TraceDependencyId,
-      startSpanId: rankA.spans[0]!.spanId,
-      endSpanId: rankB.spans[0]!.spanId,
-      startRankNum: 0,
-      endRankNum: 1,
-      topology: 'parent',
-      keywords: new Set(['PARENT'])
-    });
-
-    const graph = buildJSONTrace([rankA, rankB], [crossDependency], {name: 'mixed-cross-local'});
-    const [layout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: {...baseSettings, spanFilter: 'filtered'}
-    });
-
-    const traceGraph = requireTraceGraph(layout);
-    const logicalChild = rankB.spans[1]!;
-    const logicalChildDependencies = getTraceGraphSpanDependencies(traceGraph, logicalChild);
-
-    expect(logicalChildDependencies.crossRankDependencies).toHaveLength(1);
-    expect(logicalChildDependencies.crossRankDependencies[0]).toMatchObject({
-      startSpanId: rankA.spans[0]!.spanId,
-      endSpanId: rankB.spans[1]!.spanId,
-      topology: 'parent'
-    });
-    expect(logicalChildDependencies.localDependencies).toHaveLength(0);
-
-    const endpointsWithDeps = getTraceGraphEndpointsWithDependencies(traceGraph, logicalChild);
-    expect(endpointsWithDeps).toHaveLength(1);
-    expect(endpointsWithDeps[0]?.[1]).toMatchObject({
-      startSpanId: rankA.spans[0]!.spanId,
-      endSpanId: rankB.spans[1]!.spanId
-    });
-  });
-
-  it('contracts a mixed local/cross parent chain when the filtered node is on the start side of the cross edge', () => {
-    const rankABase = createRankWithNamedBlocks('rank-a', ['head-root', 'filtered-head'], {
-      rankNum: 0
-    });
-    const rankA = addLocalDependency(rankABase, {
-      dependencyId: 'rank-a:parent-1' as TraceDependencyId,
-      startSpanId: rankABase.spans[0]!.spanId,
-      endSpanId: rankABase.spans[1]!.spanId,
-      keywords: new Set(['PARENT'])
-    });
-    const rankB = createRankWithNamedBlocks('rank-b', ['logical-child'], {rankNum: 1});
-    const crossDependency = createCrossDependency({
-      dependencyId: 'cross:parent-2' as TraceDependencyId,
-      startSpanId: rankA.spans[1]!.spanId,
-      endSpanId: rankB.spans[0]!.spanId,
-      startRankNum: 0,
-      endRankNum: 1,
-      topology: 'parent',
-      keywords: new Set(['PARENT'])
-    });
-
-    const graph = buildJSONTrace([rankA, rankB], [crossDependency], {name: 'mixed-local-cross'});
-    const [layout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: {...baseSettings, spanFilter: 'filtered'}
-    });
-
-    const traceGraph = requireTraceGraph(layout);
-    const logicalChildDependencies = getTraceGraphSpanDependencies(traceGraph, rankB.spans[0]!);
-
-    expect(logicalChildDependencies.crossRankDependencies).toHaveLength(1);
-    expect(logicalChildDependencies.crossRankDependencies[0]).toMatchObject({
-      startSpanId: rankA.spans[0]!.spanId,
-      endSpanId: rankB.spans[0]!.spanId,
-      topology: 'parent'
-    });
-    expect(
-      getTraceGraphVisibleDependencyChainForBlock(traceGraph, rankB.spans[0]!, 'PARENT').map(
-        span => span.name
-      )
-    ).toEqual(['head-root']);
-  });
-
   it('drops a cross parent dependency when the filtered child has no visible descendant', () => {
     const rankA = createRankWithNamedBlocks('rank-a', ['head-root'], {rankNum: 0});
     const rankB = createRankWithNamedBlocks('rank-b', ['filtered-leaf'], {rankNum: 1});
-    const crossDependency = createCrossDependency({
+    const crossProcessDependency = createCrossProcessDependency({
       dependencyId: 'cross:parent-3' as TraceDependencyId,
       startSpanId: rankA.spans[0]!.spanId,
       endSpanId: rankB.spans[0]!.spanId,
@@ -458,7 +317,9 @@ describe('buildTraceLayouts filtering', () => {
       keywords: new Set(['PARENT'])
     });
 
-    const graph = buildJSONTrace([rankA, rankB], [crossDependency], {name: 'cross-leaf-drop'});
+    const graph = buildJSONTrace([rankA, rankB], [crossProcessDependency], {
+      name: 'cross-leaf-drop'
+    });
     const [layout] = buildTraceLayouts({
       traceGraphs: [graph],
       settings: {...baseSettings, spanFilter: 'filtered'}
@@ -469,17 +330,17 @@ describe('buildTraceLayouts filtering', () => {
     expect(rootDependencies.outDependencies).toHaveLength(0);
   });
 
-  it('does not promote non-parent local dependencies across ranks', () => {
+  it('does not promote non-parent same process dependencies across ranks', () => {
     const rankA = createRankWithNamedBlocks('rank-a', ['head-root'], {rankNum: 0});
     const rankBBase = createRankWithNamedBlocks('rank-b', ['filtered-logical', 'logical-child'], {
       rankNum: 1
     });
-    const rankB = addLocalDependency(rankBBase, {
+    const rankB = addSameProcessDependency(rankBBase, {
       dependencyId: 'rank-b:dep-1' as TraceDependencyId,
       startSpanId: rankBBase.spans[0]!.spanId,
       endSpanId: rankBBase.spans[1]!.spanId
     });
-    const crossDependency = createCrossDependency({
+    const crossProcessDependency = createCrossProcessDependency({
       dependencyId: 'cross:parent-4' as TraceDependencyId,
       startSpanId: rankA.spans[0]!.spanId,
       endSpanId: rankB.spans[0]!.spanId,
@@ -489,7 +350,9 @@ describe('buildTraceLayouts filtering', () => {
       keywords: new Set(['PARENT'])
     });
 
-    const graph = buildJSONTrace([rankA, rankB], [crossDependency], {name: 'non-parent-local'});
+    const graph = buildJSONTrace([rankA, rankB], [crossProcessDependency], {
+      name: 'non-parent-local'
+    });
     const [layout] = buildTraceLayouts({
       traceGraphs: [graph],
       settings: {...baseSettings, spanFilter: 'filtered'}
@@ -498,113 +361,6 @@ describe('buildTraceLayouts filtering', () => {
     const traceGraph = requireTraceGraph(layout);
     const logicalChildDependencies = getTraceGraphSpanDependencies(traceGraph, rankB.spans[1]!);
     expect(logicalChildDependencies.inDependencies).toHaveLength(0);
-  });
-
-  it('deduplicates stitched parent edges that collapse to the same visible endpoints', () => {
-    const rankA = createRankWithNamedBlocks('rank-a', ['head-root'], {rankNum: 0});
-    const rankBBase = createRankWithNamedBlocks(
-      'rank-b',
-      ['filtered-parent', 'logical-child', 'logical-child-2'],
-      {rankNum: 1}
-    );
-    const rankBWithChildOne = addLocalDependency(rankBBase, {
-      dependencyId: 'rank-b:parent-1' as TraceDependencyId,
-      startSpanId: rankBBase.spans[0]!.spanId,
-      endSpanId: rankBBase.spans[1]!.spanId,
-      keywords: new Set(['PARENT'])
-    });
-    const rankB = addLocalDependency(rankBWithChildOne, {
-      dependencyId: 'rank-b:parent-2' as TraceDependencyId,
-      startSpanId: rankBBase.spans[0]!.spanId,
-      endSpanId: rankBBase.spans[2]!.spanId,
-      keywords: new Set(['PARENT'])
-    });
-    const crossDependencies = [
-      createCrossDependency({
-        dependencyId: 'cross:parent-5' as TraceDependencyId,
-        startSpanId: rankA.spans[0]!.spanId,
-        endSpanId: rankB.spans[0]!.spanId,
-        startRankNum: 0,
-        endRankNum: 1,
-        topology: 'parent',
-        keywords: new Set(['PARENT'])
-      }),
-      createCrossDependency({
-        dependencyId: 'cross:parent-6' as TraceDependencyId,
-        startSpanId: rankA.spans[0]!.spanId,
-        endSpanId: rankB.spans[1]!.spanId,
-        startRankNum: 0,
-        endRankNum: 1,
-        topology: 'parent',
-        keywords: new Set(['PARENT'])
-      })
-    ];
-
-    const graph = buildJSONTrace([rankA, rankB], crossDependencies, {name: 'dedup-parent'});
-    const [layout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: {...baseSettings, spanFilter: 'filtered-parent|logical-child-2'}
-    });
-
-    const traceGraph = requireTraceGraph(layout);
-    const logicalChildDependencies = getTraceGraphSpanDependencies(traceGraph, rankB.spans[1]!);
-
-    expect(logicalChildDependencies.crossRankDependencies).toHaveLength(1);
-    expect(logicalChildDependencies.crossRankDependencies[0]).toMatchObject({
-      startSpanId: rankA.spans[0]!.spanId,
-      endSpanId: rankB.spans[1]!.spanId
-    });
-  });
-
-  it('preserves geometry for stitched cross parent edges', () => {
-    const rankA = createRankWithNamedBlocks('rank-a', ['head-root'], {rankNum: 0});
-    const rankBBase = createRankWithNamedBlocks('rank-b', ['filtered-logical', 'logical-child'], {
-      rankNum: 1
-    });
-    const rankB = addLocalDependency(rankBBase, {
-      dependencyId: 'rank-b:parent-3' as TraceDependencyId,
-      startSpanId: rankBBase.spans[0]!.spanId,
-      endSpanId: rankBBase.spans[1]!.spanId,
-      keywords: new Set(['PARENT'])
-    });
-    const crossDependency = createCrossDependency({
-      dependencyId: 'cross:parent-7' as TraceDependencyId,
-      startSpanId: rankA.spans[0]!.spanId,
-      endSpanId: rankB.spans[0]!.spanId,
-      startRankNum: 0,
-      endRankNum: 1,
-      topology: 'parent',
-      keywords: new Set(['PARENT'])
-    });
-
-    const graph = buildJSONTrace([rankA, rankB], [crossDependency], {name: 'geometry-parent'});
-    const [layout] = buildTraceLayouts({
-      traceGraphs: [graph],
-      settings: {...baseSettings, spanFilter: 'filtered'}
-    });
-
-    const traceGraph = requireTraceGraph(layout);
-    const stitchedDependency = getTraceGraphSpanDependencies(traceGraph, rankB.spans[1]!)
-      .crossRankDependencies[0];
-    const stitchedDependencyRef =
-      stitchedDependency?.dependencyId == null
-        ? undefined
-        : getRequiredVisibleCrossDependencyRefById(traceGraph, stitchedDependency.dependencyId);
-    const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
-    const hasGeometry =
-      stitchedDependencyRef != null &&
-      fillTraceLayoutCrossDependencyGeometry({
-        traceLayout: layout!,
-        dependencyRef: stitchedDependencyRef,
-        target: geometry
-      });
-    expect(hasGeometry).toBe(true);
-    if (!hasGeometry) {
-      throw new Error('Expected stitched cross dependency geometry');
-    }
-    expect(geometry.x1).toBe(rankA.spans[0]!.timings.test.startTimeMs - traceGraph.minTimeMs);
-    expect(geometry.x2).toBe(rankB.spans[1]!.timings.test.startTimeMs - traceGraph.minTimeMs);
-    expect([geometry.x1, geometry.y1, geometry.x2, geometry.y2].every(Number.isFinite)).toBe(true);
   });
 
   it('preserves unresolved cross-rank endpoints when filtering spans', () => {

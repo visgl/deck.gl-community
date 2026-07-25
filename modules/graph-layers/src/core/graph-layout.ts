@@ -213,7 +213,7 @@ export abstract class GraphLayout<PropsT extends GraphLayoutProps = GraphLayoutP
 
   /** @fires GraphLayout#onLayoutStart */
   protected _onLayoutStart = (): void => {
-    log.log(0, `GraphLayout(${this}): start`)();
+    log.log(1, `GraphLayout(${this}): start`)();
     this._updateBounds();
     this._updateState('calculating');
 
@@ -228,7 +228,7 @@ export abstract class GraphLayout<PropsT extends GraphLayoutProps = GraphLayoutP
 
   /** @fires GraphLayout#onLayoutChange */
   protected _onLayoutChange = (): void => {
-    log.log(0, `GraphLayout(${this}): update`)();
+    log.log(1, `GraphLayout(${this}): update`)();
     this._updateBounds();
     this._updateState('calculating');
 
@@ -243,7 +243,7 @@ export abstract class GraphLayout<PropsT extends GraphLayoutProps = GraphLayoutP
 
   /** @fires GraphLayout#onLayoutDone */
   protected _onLayoutDone = (): void => {
-    log.log(0, `GraphLayout(${this}): end`)();
+    log.log(1, `GraphLayout(${this}): end`)();
     this._updateBounds();
     this._updateState('done');
 

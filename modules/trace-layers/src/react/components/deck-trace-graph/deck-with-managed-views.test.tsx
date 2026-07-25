@@ -1,4 +1,4 @@
-import {act, createRef} from 'react';
+import {act, createRef, forwardRef, useEffect, useImperativeHandle} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
@@ -201,27 +201,23 @@ const mockState = vi.hoisted(() => {
   };
 });
 
-vi.mock('@deck.gl/react', async () => {
-  const ReactModule = await import('react');
-
-  return {
-    DeckGL: ReactModule.forwardRef(function MockDeckGL(props: Record<string, any>, ref) {
-      ReactModule.useImperativeHandle(ref, () => ({
-        deck: {
-          isInitialized: true,
-          metrics: mockState.deckMetrics,
-          stats: mockState.deckStats,
-          getViewports: () => [{id: 'main', width: 960, height: 504}]
-        }
-      }));
-      ReactModule.useEffect(() => {
-        props.onResize?.({width: 960, height: 540});
-      }, []);
-      mockState.lastDeckProps = props;
-      return <div data-testid="mock-deck-gl" />;
-    })
-  };
-});
+vi.mock('@deck.gl/react', () => ({
+  DeckGL: forwardRef(function MockDeckGL(props: Record<string, any>, ref) {
+    useImperativeHandle(ref, () => ({
+      deck: {
+        isInitialized: true,
+        metrics: mockState.deckMetrics,
+        stats: mockState.deckStats,
+        getViewports: () => [{id: 'main', width: 960, height: 504}]
+      }
+    }));
+    useEffect(() => {
+      props.onResize?.({width: 960, height: 540});
+    }, []);
+    mockState.lastDeckProps = props;
+    return <div data-testid="mock-deck-gl" />;
+  })
+}));
 
 vi.mock('@deck.gl/widgets', () => ({
   _FpsWidget: class MockFpsWidget extends mockState.MockWidget {
@@ -991,7 +987,7 @@ describe('DeckWithManagedViews', () => {
     });
   });
 
-  it('keeps the overview separator, trace catalog, hover popup, and overview toggle out of interaction-capture', async () => {
+  it('keeps full-canvas and overview widgets out of interaction-capture', async () => {
     const traceCatalogWidget = new TraceCatalogWidget();
     traceCatalogWidget.viewId = 'main';
     const studioSettingsWidget = new StudioSettingsWidget();
@@ -999,6 +995,7 @@ describe('DeckWithManagedViews', () => {
     hoverPopupWidget.viewId = 'legend';
     const overviewToggleWidget = new OverviewToggleWidget();
     overviewToggleWidget.viewId = 'minimap';
+    const contextMenuWidget = new ExternalWidget({id: 'tracevis-context-menu'});
 
     await renderDeckWithManagedViews({
       isOverviewEnabled: true,
@@ -1009,7 +1006,8 @@ describe('DeckWithManagedViews', () => {
         traceCatalogWidget,
         studioSettingsWidget,
         hoverPopupWidget,
-        overviewToggleWidget
+        overviewToggleWidget,
+        contextMenuWidget
       ],
       showMainVerticalScrollbar: true
     });
@@ -1035,6 +1033,9 @@ describe('DeckWithManagedViews', () => {
     const renderedOverviewToggleWidget = widgets.find(
       widget => widget.props.id === 'tracevis-overview-toggle'
     );
+    const renderedContextMenuWidget = widgets.find(
+      widget => widget.props.id === 'tracevis-context-menu'
+    );
     const zoomWidget = widgets.find(widget => widget.props.id === 'zoom');
     const resetTimelineWidget = widgets.find(
       widget => widget.props.id === 'tracevis-reset-timeline-view'
@@ -1056,6 +1057,7 @@ describe('DeckWithManagedViews', () => {
     expect(renderedOverviewToggleWidget?.placement).toBe('bottom-right');
     expect(renderedOverviewToggleWidget?.viewId).toBe('minimap');
     expect(renderedOverviewToggleWidget?.props._container).toBeNull();
+    expect(renderedContextMenuWidget?.props._container).toBeNull();
     expect(overviewSeparatorWidget?.props._container).toBeNull();
     expect(scrollbarWidget?.props._container).toBe('main');
     expect(resetTimelineWidget?.placement).toBe('top-right');

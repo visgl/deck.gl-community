@@ -79,22 +79,37 @@ function estimateLayout(
     return;
   }
 
-  addObjectEntry(context, path, 21);
+  addObjectEntry(context, path, 20);
+  estimateSpanLaneColumns(
+    layout.spanLaneColumnsByChunkIndex,
+    `${path}.spanLaneColumnsByChunkIndex`,
+    context
+  );
   estimateProcessLayouts(layout.processLayouts, `${path}.processLayouts`, context);
   estimateMapShallow(layout.processLayoutMapByRef, `${path}.processLayoutMapByRef`, context);
   estimateRenderRows(layout.renderRows, `${path}.renderRows`, context);
   estimateMapShallow(layout.threadLayoutMapByRef, `${path}.threadLayoutMapByRef`, context);
-  addArrayEntry(context, `${path}.overflowLabels`, layout.overflowLabels.length, 64);
   addArrayEntry(context, `${path}.currentBounds`, 2, 32);
-  addArrayEntry(context, `${path}.expandedBounds`, 2, 32);
 
   if (layout.globalEventRow) {
-    addObjectEntry(context, `${path}.globalEventRow`, 2);
+    addObjectEntry(context, `${path}.globalEventRow`, 1);
   }
   if (context.includeMinimapLayouts && layout.minimapLayout) {
     addObjectEntry(context, `${path}.minimapLayout`, 2);
     estimateLayout(layout.minimapLayout.traceLayout, `${path}.minimapLayout.traceLayout`, context);
     addArrayEntry(context, `${path}.minimapLayout.bounds`, 2, 32);
+  }
+}
+
+/** Adds estimated stored bytes for generated span lane columns. */
+function estimateSpanLaneColumns(
+  spanLaneColumnsByChunkIndex: TraceLayout['spanLaneColumnsByChunkIndex'],
+  path: string,
+  context: TraceLayoutSizeContext
+): void {
+  estimateMapShallow(spanLaneColumnsByChunkIndex, path, context, 16);
+  for (const [chunkIndex, laneColumn] of spanLaneColumnsByChunkIndex ?? []) {
+    estimateTypedArray(laneColumn.values, `${path}.${chunkIndex}.values`, context);
   }
 }
 
@@ -114,28 +129,12 @@ function estimateProcessLayouts(
     if (!markObjectSeen(processLayout, context)) {
       return;
     }
-    addObjectEntry(context, processPath, 15);
-    estimateTypedArray(
-      processLayout.backgroundPolygon,
-      `${processPath}.backgroundPolygon`,
-      context
-    );
+    addObjectEntry(context, processPath, 12);
     estimateTypedArray(
       processLayout.backgroundPolygonInfinite,
       `${processPath}.backgroundPolygonInfinite`,
       context
     );
-    estimateTypedArray(
-      processLayout.separatorLineInfinite,
-      `${processPath}.separatorLineInfinite`,
-      context
-    );
-    estimateTypedArray(
-      processLayout.terminalSeparatorLineInfinite,
-      `${processPath}.terminalSeparatorLineInfinite`,
-      context
-    );
-    addArrayEntry(context, `${processPath}.startPosition`, processLayout.startPosition.length, 8);
     estimateString(processLayout.label, `${processPath}.label`, context);
     estimateThreadLayouts(processLayout.threadLayouts, `${processPath}.threadLayouts`, context);
   });
@@ -157,11 +156,7 @@ function estimateThreadLayouts(
     if (!markObjectSeen(threadLayout, context)) {
       return;
     }
-    addObjectEntry(context, threadPath, 10);
-    estimateString(threadLayout.threadId, `${threadPath}.threadId`, context);
-    addArrayEntry(context, `${threadPath}.startPosition`, threadLayout.startPosition.length, 8);
-    addArrayEntry(context, `${threadPath}.targetPosition`, threadLayout.targetPosition.length, 8);
-    estimateMapShallow(threadLayout.spanLaneMap, `${threadPath}.spanLaneMap`, context, 16);
+    addObjectEntry(context, threadPath, 7);
     if (threadLayout.lanes) {
       addObjectEntry(context, `${threadPath}.lanes`, 6);
       addArrayEntry(
@@ -178,7 +173,7 @@ function estimateThreadLayouts(
       );
     }
     if (threadLayout.overflowLabel) {
-      addObjectEntry(context, `${threadPath}.overflowLabel`, 4);
+      addObjectEntry(context, `${threadPath}.overflowLabel`, 3);
       estimateString(threadLayout.overflowLabel.text, `${threadPath}.overflowLabel.text`, context);
     }
   });

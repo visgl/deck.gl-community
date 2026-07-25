@@ -45,8 +45,8 @@ const makeBlock = (spanId: string, startTimeMs: number, endTimeMs: number): Trac
       durationMsAsString: `${Math.max(0, endTimeMs - startTimeMs)}ms`
     }
   },
-  localDependencyIds: [],
-  localDependencies: [],
+  sameProcessDependencyIds: [],
+  sameProcessDependencies: [],
   crossProcessEndpointId: null,
   crossProcessDependencyEndpoints: []
 });
@@ -68,7 +68,7 @@ function mkGraph(params: {
         threads: index === 0 ? params.threads : [],
         instants: [],
         counters: [],
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       }) as unknown as TraceProcess
   );
@@ -89,14 +89,14 @@ describe('trace-graph', () => {
           name: 'rank1',
           spans: [makeBlock('block1', 0, 10), makeBlock('block2', 10, 20)],
           threads: [],
-          localDependencies: []
+          sameProcessDependencies: []
         } as unknown as TraceProcess,
         {
           processId: 'rank2',
           name: 'rank2',
           spans: [makeBlock('block3', 20, 30)],
           threads: [],
-          localDependencies: []
+          sameProcessDependencies: []
         } as unknown as TraceProcess
       ];
 
@@ -120,14 +120,14 @@ describe('trace-graph', () => {
             {threadId: 'stream1', name: 'Stream 1'} as TraceThread,
             {threadId: 'stream2', name: 'Stream 2'} as TraceThread
           ],
-          localDependencies: []
+          sameProcessDependencies: []
         } as unknown as TraceProcess,
         {
           processId: 'rank2',
           name: 'rank2',
           spans: [],
           threads: [{threadId: 'stream3', name: 'Stream 3'} as TraceThread],
-          localDependencies: []
+          sameProcessDependencies: []
         } as unknown as TraceProcess
       ];
 
@@ -155,7 +155,7 @@ describe('trace-graph', () => {
           name: 'rank1',
           spans: [span],
           threads: [thread as TraceThread],
-          localDependencies: []
+          sameProcessDependencies: []
         } as unknown as TraceProcess
       ];
       const graph = mkGraph({
@@ -195,7 +195,7 @@ describe('trace-graph', () => {
       rankNum: 0,
       stepNum: 0,
       threads: [thread],
-      localDependencies: []
+      sameProcessDependencies: []
     } as unknown as TraceProcess;
     const span = {
       ...makeBlock('block1', 0, 10),
@@ -258,7 +258,7 @@ describe('trace-graph', () => {
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       } satisfies TraceProcess;
 
@@ -293,7 +293,7 @@ describe('trace-graph', () => {
         threadId: thread.threadId
       } satisfies TraceSpan;
       const dependency = {
-        type: 'trace-local-dependency',
+        type: 'trace-same-process-dependency',
         dependencyId: 'json-dependency' as TraceDependencyId,
         startSpanId: span.spanId,
         endSpanId: span.spanId,
@@ -301,7 +301,7 @@ describe('trace-graph', () => {
         waitMode: 'end-to-start',
         bidirectional: false,
         waitTimeMs: 0
-      } satisfies TraceProcess['localDependencies'][number];
+      } satisfies TraceProcess['sameProcessDependencies'][number];
       const process = {
         type: 'trace-process',
         processId: 'json-rank',
@@ -313,8 +313,8 @@ describe('trace-graph', () => {
         spans: [
           {
             ...span,
-            localDependencyIds: [dependency.dependencyId],
-            localDependencies: [dependency]
+            sameProcessDependencyIds: [dependency.dependencyId],
+            sameProcessDependencies: [dependency]
           }
         ],
         spanMap: {[span.spanId]: span},
@@ -324,7 +324,7 @@ describe('trace-graph', () => {
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [dependency],
+        sameProcessDependencies: [dependency],
         remoteDependencies: []
       } satisfies TraceProcess;
 
@@ -333,8 +333,8 @@ describe('trace-graph', () => {
 
       expect('threadMap' in roundTripped.processes[0]!).toBe(false);
       expect('spanMap' in roundTripped.processes[0]!).toBe(false);
-      expect('localDependencies' in roundTripped.processes[0]!.spans[0]!).toBe(false);
-      expect(roundTripped.processes[0]!.localDependencies[0]!.keywords).toEqual(['SUBMIT']);
+      expect('sameProcessDependencies' in roundTripped.processes[0]!.spans[0]!).toBe(false);
+      expect(roundTripped.processes[0]!.sameProcessDependencies[0]!.keywords).toEqual(['SUBMIT']);
       expect(materializeJSONTrace(roundTripped).spanDependencyMap[span.spanId]).toHaveLength(1);
     });
 
@@ -382,7 +382,7 @@ describe('trace-graph', () => {
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       } satisfies TraceProcess;
 
@@ -437,7 +437,7 @@ describe('trace-graph', () => {
         counters: [counter],
         counterMap: {[counter.counterId]: counter},
         threadCounterMap: {[thread.threadId]: [counter]},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       } satisfies TraceProcess;
 
@@ -475,7 +475,7 @@ describe('trace-graph', () => {
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       } satisfies TraceProcess;
 
@@ -535,7 +535,7 @@ describe('trace-graph', () => {
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       } satisfies TraceProcess;
 
@@ -604,7 +604,7 @@ describe('trace-graph', () => {
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       } satisfies TraceProcess;
 
@@ -667,14 +667,14 @@ describe('trace-graph', () => {
             name: 'rank1',
             spans: [{spanId: 'block1'}],
             threads: [{threadId: 'stream1', name: 'Stream 1'}],
-            localDependencies: []
+            sameProcessDependencies: []
           },
           {
             processId: 'rank2',
             name: 'rank2',
             spans: [{spanId: 'block2'}],
             threads: [{threadId: 'stream2', name: 'Stream 2'}],
-            localDependencies: []
+            sameProcessDependencies: []
           }
         ]
       });
@@ -771,7 +771,7 @@ describe('trace-graph', () => {
         counters: [],
         counterMap: {},
         threadCounterMap: {},
-        localDependencies: [],
+        sameProcessDependencies: [],
         remoteDependencies: []
       } as unknown as TraceProcess;
       const graph = buildJSONTrace([process], [], {

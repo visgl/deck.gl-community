@@ -1,4 +1,6 @@
+import {getTraceSpanDependencySelection} from '../trace-graph/trace-graph-selection-utils';
 import {
+  buildTraceLayoutThreadPruneRequest,
   cloneTraceLayoutCollapseStateForGraphs,
   getTraceLayoutGraphs
 } from '../trace-layout/trace-collapse-resolution';
@@ -10,10 +12,11 @@ import {DEFAULT_TRACE_COLOR_SCHEME} from '../trace-style/trace-colors';
 import {createTraceComparisonModelMatrix} from './trace-prepared-scene';
 import {
   buildTraceSelectedDependencyDirectionMaps,
-  getImmediateVisibleDependencyRefsForSpan,
+  getImmediateDependencyRefsForSpan,
   getTraceSelectedSpanFromRef
 } from './trace-view-selection';
 import {
+  areTraceViewLayoutSettingsEqual,
   buildTraceViewRenderInputs,
   buildTraceViewState,
   estimateTraceViewStateRetainedSize
@@ -23,19 +26,22 @@ import type {TraceProcessActivityAggregation} from '../trace-graph/collapsed-act
 import type {TraceGraph} from '../trace-graph/trace-graph';
 import type {TraceSelectedDependencyDirection} from '../trace-graph/trace-graph-types';
 import type {
+  CrossProcessDependencyRef,
   ProcessRef,
-  ThreadRef,
-  VisibleCrossDependencyRef,
-  VisibleLocalDependencyRef
+  SameProcessDependencyRef,
+  ThreadRef
 } from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
 import type {SpanRef, TracePath} from '../trace-graph/trace-types';
+import type {TraceCollapseRuntimeState} from '../trace-layout/trace-collapse-runtime';
 import type {TraceLayout, TraceLayoutCollapseState} from '../trace-layout/trace-layout';
 import type {TraceColorScheme} from '../trace-style/trace-color-scheme';
 import type {TraceStyle} from '../trace-style/trace-style';
-import type {TracePreparedGraphScene, TracePreparedScene} from './trace-prepared-scene';
+import type {TracePreparedGraphScene} from './trace-prepared-scene';
 import type {TraceSelectedSpan} from './trace-view-selection';
 import type {TraceViewState, TraceViewStateBuildPhaseTimings} from './trace-view-state';
+
+const DEFAULT_TRACE_GLOBAL_EVENT_Y_POSITION = -15;
 
 /** Selection expansion policy retained by the mounted trace engine. */
 type TraceEngineSelectionPolicy =
@@ -60,18 +66,18 @@ type TraceEngineSelectionState = {
   readonly selectedSpanRefs: readonly SpanRef[];
   /** Extra selected span refs visible through the active selection policy. */
   readonly extendedSelectionSpanRefs: readonly SpanRef[];
-  /** Visible local dependency refs rendered as selected overlays. */
-  readonly selectedLocalDependencyRefs: readonly VisibleLocalDependencyRef[];
+  /** Visible same-process dependency refs rendered as selected overlays. */
+  readonly selectedSameProcessDependencyRefs: readonly SameProcessDependencyRef[];
   /** Visible cross-process dependency refs rendered as selected overlays. */
-  readonly selectedCrossDependencyRefs: readonly VisibleCrossDependencyRef[];
-  /** Selected visible local dependency directions keyed by dependency ref. */
-  readonly selectedLocalDependencyDirectionByRef: ReadonlyMap<
-    VisibleLocalDependencyRef,
+  readonly selectedCrossProcessDependencyRefs: readonly CrossProcessDependencyRef[];
+  /** Selected visible same-process dependency directions keyed by dependency ref. */
+  readonly selectedSameProcessDependencyDirectionByRef: ReadonlyMap<
+    SameProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
-  /** Selected visible cross dependency directions keyed by dependency ref. */
-  readonly selectedCrossDependencyDirectionByRef: ReadonlyMap<
-    VisibleCrossDependencyRef,
+  /** Selected visible cross-process dependency directions keyed by dependency ref. */
+  readonly selectedCrossProcessDependencyDirectionByRef: ReadonlyMap<
+    CrossProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
   /** Whether the mounted engine is rendering a temporary focused layout. */
@@ -108,18 +114,18 @@ type TraceEngineSnapshot = {
   readonly extendedSelectionMode: 'none' | 'fade' | 'highlight' | 'both';
   /** Span refs kept opaque by app-owned path or search highlighting. */
   readonly highlightedSpanRefs?: ReadonlySet<SpanRef>;
-  /** Selected local dependency refs rendered as selected overlays. */
-  readonly selectedLocalDependencyRefs?: ReadonlySet<VisibleLocalDependencyRef>;
-  /** Selected cross dependency refs rendered as selected overlays. */
-  readonly selectedCrossDependencyRefs?: ReadonlySet<VisibleCrossDependencyRef>;
-  /** Selected local dependency directions keyed by visible dependency ref. */
-  readonly selectedLocalDependencyDirectionByRef: ReadonlyMap<
-    VisibleLocalDependencyRef,
+  /** Selected same-process dependency refs rendered as selected overlays. */
+  readonly selectedSameProcessDependencyRefs?: ReadonlySet<SameProcessDependencyRef>;
+  /** Selected cross-process dependency refs rendered as selected overlays. */
+  readonly selectedCrossProcessDependencyRefs?: ReadonlySet<CrossProcessDependencyRef>;
+  /** Selected same-process dependency directions keyed by visible dependency ref. */
+  readonly selectedSameProcessDependencyDirectionByRef: ReadonlyMap<
+    SameProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
-  /** Selected cross dependency directions keyed by visible dependency ref. */
-  readonly selectedCrossDependencyDirectionByRef: ReadonlyMap<
-    VisibleCrossDependencyRef,
+  /** Selected cross-process dependency directions keyed by visible dependency ref. */
+  readonly selectedCrossProcessDependencyDirectionByRef: ReadonlyMap<
+    CrossProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
   /** Ref-native collapse state consumed by layout builders. */
@@ -193,6 +199,8 @@ export type TraceEngineInputs = {
   readonly layoutTimingKey?: string | null;
   /** Vertical inset applied to the first rendered process row. */
   readonly layoutTopPadding?: number;
+  /** Fixed trace-space Y position for graph-global event markers. */
+  readonly globalEventYPosition?: number;
 };
 
 /** One user or host interaction applied to a mounted trace engine. */
@@ -204,18 +212,18 @@ export type TraceEngineAction =
       readonly spanRef: SpanRef;
       /** Whether the interaction should enter temporary focused layout mode. */
       readonly isExtendedSelection?: boolean;
-      /** Optional selected visible local dependency refs supplied by the interaction. */
-      readonly selectedLocalDependencyRefs?: readonly VisibleLocalDependencyRef[];
-      /** Optional selected visible cross dependency refs supplied by the interaction. */
-      readonly selectedCrossDependencyRefs?: readonly VisibleCrossDependencyRef[];
-      /** Optional selected visible local dependency directions supplied by the interaction. */
-      readonly selectedLocalDependencyDirectionByRef?: ReadonlyMap<
-        VisibleLocalDependencyRef,
+      /** Optional selected visible same-process dependency refs supplied by the interaction. */
+      readonly selectedSameProcessDependencyRefs?: readonly SameProcessDependencyRef[];
+      /** Optional selected visible cross-process dependency refs supplied by the interaction. */
+      readonly selectedCrossProcessDependencyRefs?: readonly CrossProcessDependencyRef[];
+      /** Optional selected visible same-process dependency directions supplied by the interaction. */
+      readonly selectedSameProcessDependencyDirectionByRef?: ReadonlyMap<
+        SameProcessDependencyRef,
         TraceSelectedDependencyDirection
       >;
-      /** Optional selected visible cross dependency directions supplied by the interaction. */
-      readonly selectedCrossDependencyDirectionByRef?: ReadonlyMap<
-        VisibleCrossDependencyRef,
+      /** Optional selected visible cross-process dependency directions supplied by the interaction. */
+      readonly selectedCrossProcessDependencyDirectionByRef?: ReadonlyMap<
+        CrossProcessDependencyRef,
         TraceSelectedDependencyDirection
       >;
     }
@@ -224,18 +232,18 @@ export type TraceEngineAction =
       readonly type: 'setSelection';
       /** Canonical selected span refs to store in the engine. */
       readonly selectedSpanRefs: readonly SpanRef[];
-      /** Optional selected visible local dependency refs supplied by the caller. */
-      readonly selectedLocalDependencyRefs?: readonly VisibleLocalDependencyRef[];
-      /** Optional selected visible cross dependency refs supplied by the caller. */
-      readonly selectedCrossDependencyRefs?: readonly VisibleCrossDependencyRef[];
-      /** Optional selected visible local dependency directions supplied by the caller. */
-      readonly selectedLocalDependencyDirectionByRef?: ReadonlyMap<
-        VisibleLocalDependencyRef,
+      /** Optional selected visible same-process dependency refs supplied by the caller. */
+      readonly selectedSameProcessDependencyRefs?: readonly SameProcessDependencyRef[];
+      /** Optional selected visible cross-process dependency refs supplied by the caller. */
+      readonly selectedCrossProcessDependencyRefs?: readonly CrossProcessDependencyRef[];
+      /** Optional selected visible same-process dependency directions supplied by the caller. */
+      readonly selectedSameProcessDependencyDirectionByRef?: ReadonlyMap<
+        SameProcessDependencyRef,
         TraceSelectedDependencyDirection
       >;
-      /** Optional selected visible cross dependency directions supplied by the caller. */
-      readonly selectedCrossDependencyDirectionByRef?: ReadonlyMap<
-        VisibleCrossDependencyRef,
+      /** Optional selected visible cross-process dependency directions supplied by the caller. */
+      readonly selectedCrossProcessDependencyDirectionByRef?: ReadonlyMap<
+        CrossProcessDependencyRef,
         TraceSelectedDependencyDirection
       >;
       /** Whether the replacement selection should enter temporary focused layout mode. */
@@ -286,10 +294,10 @@ export type TraceEngineUpdate = {
   readonly selectedSpanRefs: readonly SpanRef[];
   /** Display-oriented selected span payloads after the applied change. */
   readonly selectedSpans: readonly TraceSelectedSpan[];
-  /** Selected visible local dependency refs after the applied change. */
-  readonly selectedLocalDependencyRefs: readonly VisibleLocalDependencyRef[];
-  /** Selected visible cross dependency refs after the applied change. */
-  readonly selectedCrossDependencyRefs: readonly VisibleCrossDependencyRef[];
+  /** Selected visible same-process dependency refs after the applied change. */
+  readonly selectedSameProcessDependencyRefs: readonly SameProcessDependencyRef[];
+  /** Selected visible cross-process dependency refs after the applied change. */
+  readonly selectedCrossProcessDependencyRefs: readonly CrossProcessDependencyRef[];
   /** Whether temporary focused layout mode is active after the applied change. */
   readonly isExtendedSelection: boolean;
   /** Serialized expanded process ids after the applied change. */
@@ -312,21 +320,21 @@ export type TraceEngineDiagnostics = {
   readonly displayedThreadCount: number;
   /** Number of displayed spans across current projected graphs. */
   readonly displayedSpanCount: number;
-  /** Number of displayed local dependencies across current projected graphs. */
-  readonly displayedLocalDependencyCount: number;
+  /** Number of displayed same-process dependencies across current projected graphs. */
+  readonly displayedSameProcessDependencyCount: number;
   /** Number of displayed cross-process dependencies across current projected graphs. */
-  readonly displayedCrossDependencyCount: number;
+  readonly displayedCrossProcessDependencyCount: number;
   /** Number of canonical selected span refs owned by the engine. */
   readonly selectedSpanCount: number;
   /** Number of span refs currently driving temporary focused layouts. */
   readonly focusedSpanCount: number;
-  /** Number of visible local dependency refs rendered as selected overlays. */
-  readonly selectedLocalDependencyCount: number;
-  /** Number of visible cross dependency refs rendered as selected overlays. */
-  readonly selectedCrossDependencyCount: number;
+  /** Number of visible same-process dependency refs rendered as selected overlays. */
+  readonly selectedSameProcessDependencyCount: number;
+  /** Number of visible cross-process dependency refs rendered as selected overlays. */
+  readonly selectedCrossProcessDependencyCount: number;
   /** Number of layouts currently consumed by renderers. */
   readonly activeLayoutCount: number;
-  /** Number of reusable base layouts retained by the engine. */
+  /** Number of current base layouts owned by the engine snapshot. */
   readonly baseLayoutCount: number;
   /** Number of temporary focused layouts retained by the engine. */
   readonly focusedLayoutCount: number;
@@ -365,8 +373,6 @@ export class TraceEngine {
     traceGraphs: [],
     defaultExpandProcess: true
   });
-  /** Latest prepared trace-view state, when materialized. */
-  private traceViewState: TraceViewState | null = null;
   /** Latest immutable renderer snapshot published by the engine. */
   private snapshot!: TraceEngineSnapshot;
   /** Monotonic renderer snapshot revision. */
@@ -397,6 +403,7 @@ export class TraceEngine {
 
     const previousSnapshot = this.snapshot;
     const previousInputs = this.inputs;
+    const previousCollapseRuntime = this.collapseRuntime;
     this.inputs = nextInputs;
     const selectedSpanRefs = nextInputs.selectedSpanRefs ?? [];
     const shouldReplaceSelection =
@@ -421,20 +428,47 @@ export class TraceEngine {
       type: 'syncInputs',
       inputs: this.buildCollapseRuntimeInputs()
     });
-    return this.rebuildSnapshot('sync', previousSnapshot, true);
+    if (
+      areTraceEngineInputsEqualExceptSelectedSpanRefs(previousInputs, nextInputs) &&
+      canPublishOverlayOnlySelectionSnapshot({
+        previousSnapshot,
+        previousCollapseRuntime,
+        nextCollapseRuntime: this.collapseRuntime,
+        selection: this.selection
+      })
+    ) {
+      return this.publishSelectionSnapshot('sync', previousSnapshot);
+    }
+    const ownedBaseLayouts = canUseOwnedTraceEngineBaseLayouts({
+      previousInputs,
+      nextInputs,
+      previousCollapseRuntime,
+      nextCollapseRuntime: this.collapseRuntime,
+      previousSnapshot
+    })
+      ? previousSnapshot.traceViewState.baseLayouts
+      : undefined;
+    return this.rebuildSnapshot('sync', previousSnapshot, true, ownedBaseLayouts);
   }
 
   /** Applies one mounted trace interaction and returns its semantic engine update. */
   dispatch(action: TraceEngineAction): TraceEngineUpdate {
     const previousSnapshot = this.snapshot;
+    const previousCollapseRuntime = this.collapseRuntime;
+    const isSelectionAction =
+      action.type === 'selectSpan' ||
+      action.type === 'setSelection' ||
+      action.type === 'clearSelection';
     if (action.type === 'selectSpan') {
       this.selection = buildTraceEngineSelectionState({
         inputs: this.inputs,
         selectedSpanRefs: [action.spanRef],
-        selectedLocalDependencyRefs: action.selectedLocalDependencyRefs,
-        selectedCrossDependencyRefs: action.selectedCrossDependencyRefs,
-        selectedLocalDependencyDirectionByRef: action.selectedLocalDependencyDirectionByRef,
-        selectedCrossDependencyDirectionByRef: action.selectedCrossDependencyDirectionByRef,
+        selectedSameProcessDependencyRefs: action.selectedSameProcessDependencyRefs,
+        selectedCrossProcessDependencyRefs: action.selectedCrossProcessDependencyRefs,
+        selectedSameProcessDependencyDirectionByRef:
+          action.selectedSameProcessDependencyDirectionByRef,
+        selectedCrossProcessDependencyDirectionByRef:
+          action.selectedCrossProcessDependencyDirectionByRef,
         isExtendedSelection: action.isExtendedSelection === true
       });
       this.syncCollapseRuntimeInputs();
@@ -442,10 +476,12 @@ export class TraceEngine {
       this.selection = buildTraceEngineSelectionState({
         inputs: this.inputs,
         selectedSpanRefs: action.selectedSpanRefs,
-        selectedLocalDependencyRefs: action.selectedLocalDependencyRefs,
-        selectedCrossDependencyRefs: action.selectedCrossDependencyRefs,
-        selectedLocalDependencyDirectionByRef: action.selectedLocalDependencyDirectionByRef,
-        selectedCrossDependencyDirectionByRef: action.selectedCrossDependencyDirectionByRef,
+        selectedSameProcessDependencyRefs: action.selectedSameProcessDependencyRefs,
+        selectedCrossProcessDependencyRefs: action.selectedCrossProcessDependencyRefs,
+        selectedSameProcessDependencyDirectionByRef:
+          action.selectedSameProcessDependencyDirectionByRef,
+        selectedCrossProcessDependencyDirectionByRef:
+          action.selectedCrossProcessDependencyDirectionByRef,
         isExtendedSelection: action.isExtendedSelection === true
       });
       this.syncCollapseRuntimeInputs();
@@ -475,7 +511,23 @@ export class TraceEngine {
       this.collapseRuntime = createTraceCollapseRuntimeState(this.buildCollapseRuntimeInputs());
     }
 
-    return this.rebuildSnapshot(action.type, previousSnapshot, true)!;
+    if (
+      isSelectionAction &&
+      canPublishOverlayOnlySelectionSnapshot({
+        previousSnapshot,
+        previousCollapseRuntime,
+        nextCollapseRuntime: this.collapseRuntime,
+        selection: this.selection
+      })
+    ) {
+      return this.publishSelectionSnapshot(action.type, previousSnapshot);
+    }
+
+    const ownedBaseLayouts =
+      previousCollapseRuntime.collapseState === this.collapseRuntime.collapseState
+        ? previousSnapshot.traceViewState.baseLayouts
+        : undefined;
+    return this.rebuildSnapshot(action.type, previousSnapshot, true, ownedBaseLayouts)!;
   }
 
   /** Subscribes to semantic mounted-engine updates. */
@@ -494,11 +546,6 @@ export class TraceEngine {
   /** Returns currently active trace layouts consumed by renderers. */
   getActiveLayouts(): readonly TraceLayout[] {
     return this.snapshot.traceViewState.activeLayouts;
-  }
-
-  /** Returns currently prepared scene inputs consumed by renderers. */
-  getPreparedScene(): TracePreparedScene {
-    return this.snapshot.traceViewState.preparedScene;
   }
 
   /** Returns canonical mounted selected span refs. */
@@ -533,17 +580,17 @@ export class TraceEngine {
         displayedProcessCount: totals.displayedProcessCount + traceGraph.stats.processCount,
         displayedThreadCount: totals.displayedThreadCount + traceGraph.stats.threadCount,
         displayedSpanCount: totals.displayedSpanCount + traceGraph.stats.spanCount,
-        displayedLocalDependencyCount:
-          totals.displayedLocalDependencyCount + traceGraph.stats.localDependencyCount,
-        displayedCrossDependencyCount:
-          totals.displayedCrossDependencyCount + traceGraph.stats.crossDependencyCount
+        displayedSameProcessDependencyCount:
+          totals.displayedSameProcessDependencyCount + traceGraph.stats.sameProcessDependencyCount,
+        displayedCrossProcessDependencyCount:
+          totals.displayedCrossProcessDependencyCount + traceGraph.stats.crossProcessDependencyCount
       }),
       {
         displayedProcessCount: 0,
         displayedThreadCount: 0,
         displayedSpanCount: 0,
-        displayedLocalDependencyCount: 0,
-        displayedCrossDependencyCount: 0
+        displayedSameProcessDependencyCount: 0,
+        displayedCrossProcessDependencyCount: 0
       }
     );
     return {
@@ -554,17 +601,28 @@ export class TraceEngine {
       ...graphStats,
       selectedSpanCount: this.selection.selectedSpanRefs.length,
       focusedSpanCount: traceViewState.focusedSelectionSpanRefs.length,
-      selectedLocalDependencyCount: this.selection.selectedLocalDependencyRefs.length,
-      selectedCrossDependencyCount: this.selection.selectedCrossDependencyRefs.length,
+      selectedSameProcessDependencyCount: this.selection.selectedSameProcessDependencyRefs.length,
+      selectedCrossProcessDependencyCount: this.selection.selectedCrossProcessDependencyRefs.length,
       activeLayoutCount: traceViewState.activeLayouts.length,
       baseLayoutCount: traceViewState.baseLayouts.length,
-      focusedLayoutCount: traceViewState.focusedLayouts?.length ?? 0,
-      preparedForegroundSceneCount: traceViewState.preparedScene.foreground.length,
-      preparedOverviewSceneCount: traceViewState.preparedScene.overview.length,
-      preparedForegroundRowCount: countPreparedSceneRows(traceViewState.preparedScene.foreground),
-      preparedForegroundSpanCount: countPreparedSceneSpans(traceViewState.preparedScene.foreground),
-      preparedOverviewRowCount: countPreparedSceneRows(traceViewState.preparedScene.overview),
-      preparedOverviewSpanCount: countPreparedSceneSpans(traceViewState.preparedScene.overview),
+      focusedLayoutCount:
+        traceViewState.activeLayouts === traceViewState.baseLayouts
+          ? 0
+          : traceViewState.activeLayouts.length,
+      preparedForegroundSceneCount: traceViewState.renderSnapshot.foregroundScenes.length,
+      preparedOverviewSceneCount: traceViewState.renderSnapshot.overviewScenes.length,
+      preparedForegroundRowCount: countPreparedSceneRows(
+        traceViewState.renderSnapshot.foregroundScenes
+      ),
+      preparedForegroundSpanCount: countPreparedSceneSpans(
+        traceViewState.renderSnapshot.foregroundScenes
+      ),
+      preparedOverviewRowCount: countPreparedSceneRows(
+        traceViewState.renderSnapshot.overviewScenes
+      ),
+      preparedOverviewSpanCount: countPreparedSceneSpans(
+        traceViewState.renderSnapshot.overviewScenes
+      ),
       buildPhaseTimings: traceViewState.buildPhaseTimings,
       traceEngineRetainedSizeBytes: retainedSizeEstimate?.sizes.traceViewStateSizeBytes ?? null,
       traceLayoutSizeBytes: retainedSizeEstimate?.sizes.traceLayoutSizeBytes ?? null,
@@ -578,6 +636,43 @@ export class TraceEngine {
       type: 'syncInputs',
       inputs: this.buildCollapseRuntimeInputs()
     });
+  }
+
+  /**
+   * Publishes overlay-only selection changes without rebuilding layouts or render data.
+   */
+  private publishSelectionSnapshot(
+    reason: TraceEngineUpdate['reason'],
+    previousSnapshot: TraceEngineSnapshot
+  ): TraceEngineUpdate {
+    this.revision += 1;
+    this.lastUpdateReason = reason;
+    this.snapshot = {
+      ...previousSnapshot,
+      revision: this.revision,
+      selectedSpanRefs: this.selection.selectedSpanRefs,
+      selectedSpans: buildTraceSelectedSpans(
+        previousSnapshot.primaryTraceGraph,
+        this.selection.selectedSpanRefs
+      ),
+      extendedSelectionSpanRefs: this.selection.extendedSelectionSpanRefs,
+      selectedSameProcessDependencyRefs:
+        this.selection.selectedSameProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedSameProcessDependencyRefs)
+          : undefined,
+      selectedCrossProcessDependencyRefs:
+        this.selection.selectedCrossProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedCrossProcessDependencyRefs)
+          : undefined,
+      selectedSameProcessDependencyDirectionByRef:
+        this.selection.selectedSameProcessDependencyDirectionByRef,
+      selectedCrossProcessDependencyDirectionByRef:
+        this.selection.selectedCrossProcessDependencyDirectionByRef,
+      isOverviewEnabled: isTraceEngineOverviewEnabled(this.inputs.settings, this.selection)
+    };
+    const update = buildTraceEngineUpdate(reason, previousSnapshot, this.snapshot);
+    this.listeners.forEach(listener => listener(update));
+    return update;
   }
 
   private buildCollapseRuntimeInputs() {
@@ -607,7 +702,8 @@ export class TraceEngine {
   private rebuildSnapshot(
     reason: TraceEngineUpdate['reason'],
     previousSnapshot: TraceEngineSnapshot | null,
-    emit: boolean
+    emit: boolean,
+    ownedBaseLayouts?: readonly TraceLayout[]
   ): TraceEngineUpdate | null {
     const traceGraphs = this.getTraceGraphsForInputs();
     const collapseState = cloneTraceLayoutCollapseStateForGraphs(
@@ -618,34 +714,24 @@ export class TraceEngine {
     const shouldPrepareOverviewData = Boolean(this.inputs.settings.showOverview);
     const traceViewRenderInputs = buildTraceViewRenderInputs({
       traceGraph: this.inputs.traceGraph,
-      traceGraphs,
-      settings: this.inputs.settings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: this.inputs.layoutTopPadding ?? 0,
-      layoutTimingKey: this.inputs.layoutTimingKey,
-      minTimeMs,
-      shouldPrepareOverviewData,
-      initialViewportFitKey: getInitialViewportFitKey(traceGraphs),
       selectedSpanRefs: this.selection.selectedSpanRefs,
       extendedSelectionSpanRefs: this.selection.extendedSelectionSpanRefs,
-      selectedLocalDependencyRefs:
-        this.selection.selectedLocalDependencyRefs.length > 0
-          ? new Set(this.selection.selectedLocalDependencyRefs)
+      selectedSameProcessDependencyRefs:
+        this.selection.selectedSameProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedSameProcessDependencyRefs)
           : undefined,
-      selectedCrossDependencyRefs:
-        this.selection.selectedCrossDependencyRefs.length > 0
-          ? new Set(this.selection.selectedCrossDependencyRefs)
+      selectedCrossProcessDependencyRefs:
+        this.selection.selectedCrossProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedCrossProcessDependencyRefs)
           : undefined,
       isExtendedSelection: this.selection.isExtendedSelection
     });
     const traceViewState = buildTraceViewState({
-      previousState: this.traceViewState,
-      baseLayoutKey: traceViewRenderInputs.traceViewBaseLayoutKey,
+      baseLayouts: ownedBaseLayouts,
       traceGraphs,
       sourceTraceGraphs: traceGraphs,
       primaryTraceGraph: traceGraphs[0] ?? this.inputs.traceGraph,
       paths: this.inputs.paths,
-      layoutSettings: traceViewRenderInputs.traceLayoutSettings,
       settings: this.inputs.settings,
       colorScheme: this.inputs.colorScheme ?? DEFAULT_TRACE_COLOR_SCHEME,
       collapseState,
@@ -657,6 +743,7 @@ export class TraceEngine {
       showCollapsedActivitySummary: this.inputs.showCollapsedActivitySummary ?? false,
       collapsedActivityAggregation: this.inputs.collapsedActivityAggregation,
       isOverviewEnabled: shouldPrepareOverviewData,
+      globalEventYPosition: this.inputs.globalEventYPosition,
       getTraceModelMatrixForGraph: graphIndex =>
         graphIndex === 1
           ? createTraceComparisonModelMatrix(
@@ -665,9 +752,11 @@ export class TraceEngine {
             )
           : undefined
     });
-    this.traceViewState = traceViewState;
-    const prunedTraceViewState = this.pruneThreadCollapseState(traceGraphs, traceViewState);
-    this.traceViewState = prunedTraceViewState;
+    const prunedTraceViewState = this.pruneThreadCollapseState(
+      traceGraphs,
+      traceViewState,
+      collapseState
+    );
     this.revision += 1;
     this.lastUpdateReason = reason;
     this.snapshot = {
@@ -688,16 +777,18 @@ export class TraceEngine {
       extendedSelectionSpanRefs: this.selection.extendedSelectionSpanRefs,
       extendedSelectionMode: this.inputs.extendedSelectionMode ?? 'none',
       highlightedSpanRefs: this.inputs.highlightedSpanRefs,
-      selectedLocalDependencyRefs:
-        this.selection.selectedLocalDependencyRefs.length > 0
-          ? new Set(this.selection.selectedLocalDependencyRefs)
+      selectedSameProcessDependencyRefs:
+        this.selection.selectedSameProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedSameProcessDependencyRefs)
           : undefined,
-      selectedCrossDependencyRefs:
-        this.selection.selectedCrossDependencyRefs.length > 0
-          ? new Set(this.selection.selectedCrossDependencyRefs)
+      selectedCrossProcessDependencyRefs:
+        this.selection.selectedCrossProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedCrossProcessDependencyRefs)
           : undefined,
-      selectedLocalDependencyDirectionByRef: this.selection.selectedLocalDependencyDirectionByRef,
-      selectedCrossDependencyDirectionByRef: this.selection.selectedCrossDependencyDirectionByRef,
+      selectedSameProcessDependencyDirectionByRef:
+        this.selection.selectedSameProcessDependencyDirectionByRef,
+      selectedCrossProcessDependencyDirectionByRef:
+        this.selection.selectedCrossProcessDependencyDirectionByRef,
       collapseState: this.collapseRuntime.collapseState,
       serializedExpandedProcessIds: this.collapseRuntime.serializedExpandedProcessIds,
       layoutTimingKey: this.inputs.layoutTimingKey,
@@ -717,12 +808,15 @@ export class TraceEngine {
 
   private pruneThreadCollapseState(
     traceGraphs: readonly TraceGraph[],
-    traceViewState: TraceViewState
+    traceViewState: TraceViewState,
+    collapseState: TraceLayoutCollapseState
   ): TraceViewState {
-    const pruneRequest = traceViewState.threadCollapsePruneRequest;
-    if (!pruneRequest) {
+    if (!hasTraceEngineThreadCollapseOverrides(collapseState)) {
       return traceViewState;
     }
+    const pruneRequest = buildTraceLayoutThreadPruneRequest({
+      traceLayouts: traceViewState.baseLayouts
+    });
     const nextCollapseRuntime = reduceTraceCollapseRuntimeState(this.collapseRuntime, {
       type: 'pruneThreads',
       validThreadRefsByGraph: pruneRequest.validThreadRefsByGraph
@@ -731,44 +825,33 @@ export class TraceEngine {
       return traceViewState;
     }
     this.collapseRuntime = nextCollapseRuntime;
-    const collapseState = cloneTraceLayoutCollapseStateForGraphs(
+    const prunedCollapseState = cloneTraceLayoutCollapseStateForGraphs(
       this.collapseRuntime.collapseState,
       traceGraphs
     );
     const {minTimeMs} = this.inputs.traceGraph.getTimeBounds();
     const traceViewRenderInputs = buildTraceViewRenderInputs({
       traceGraph: this.inputs.traceGraph,
-      traceGraphs,
-      settings: this.inputs.settings,
-      collapseStateForLayout: collapseState,
-      layoutTopPadding: this.inputs.layoutTopPadding ?? 0,
-      layoutTimingKey: this.inputs.layoutTimingKey,
-      minTimeMs,
-      shouldPrepareOverviewData: Boolean(this.inputs.settings.showOverview),
-      initialViewportFitKey: getInitialViewportFitKey(traceGraphs),
       selectedSpanRefs: this.selection.selectedSpanRefs,
       extendedSelectionSpanRefs: this.selection.extendedSelectionSpanRefs,
-      selectedLocalDependencyRefs:
-        this.selection.selectedLocalDependencyRefs.length > 0
-          ? new Set(this.selection.selectedLocalDependencyRefs)
+      selectedSameProcessDependencyRefs:
+        this.selection.selectedSameProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedSameProcessDependencyRefs)
           : undefined,
-      selectedCrossDependencyRefs:
-        this.selection.selectedCrossDependencyRefs.length > 0
-          ? new Set(this.selection.selectedCrossDependencyRefs)
+      selectedCrossProcessDependencyRefs:
+        this.selection.selectedCrossProcessDependencyRefs.length > 0
+          ? new Set(this.selection.selectedCrossProcessDependencyRefs)
           : undefined,
       isExtendedSelection: this.selection.isExtendedSelection
     });
     return buildTraceViewState({
-      previousState: traceViewState,
-      baseLayoutKey: traceViewRenderInputs.traceViewBaseLayoutKey,
       traceGraphs,
       sourceTraceGraphs: traceGraphs,
       primaryTraceGraph: traceGraphs[0] ?? this.inputs.traceGraph,
       paths: this.inputs.paths,
-      layoutSettings: traceViewRenderInputs.traceLayoutSettings,
       settings: this.inputs.settings,
       colorScheme: this.inputs.colorScheme ?? DEFAULT_TRACE_COLOR_SCHEME,
-      collapseState,
+      collapseState: prunedCollapseState,
       layoutTopPadding: this.inputs.layoutTopPadding,
       layoutTimingKey: this.inputs.layoutTimingKey,
       minTimeMs,
@@ -777,6 +860,7 @@ export class TraceEngine {
       showCollapsedActivitySummary: this.inputs.showCollapsedActivitySummary ?? false,
       collapsedActivityAggregation: this.inputs.collapsedActivityAggregation,
       isOverviewEnabled: isTraceEngineOverviewEnabled(this.inputs.settings, this.selection),
+      globalEventYPosition: this.inputs.globalEventYPosition,
       getTraceModelMatrixForGraph: graphIndex =>
         graphIndex === 1
           ? createTraceComparisonModelMatrix(
@@ -786,6 +870,13 @@ export class TraceEngine {
           : undefined
     });
   }
+}
+
+/** Returns whether current collapse state contains thread overrides worth pruning. */
+function hasTraceEngineThreadCollapseOverrides(collapseState: TraceLayoutCollapseState): boolean {
+  return collapseState.graphs.some(
+    graphState => graphState.collapsedThreadRefs.size > 0 || graphState.expandedThreadRefs.size > 0
+  );
 }
 
 /** On-demand retained-size estimate returned by TraceEngine diagnostics. */
@@ -814,16 +905,20 @@ function buildTraceEngineRetainedSizeEstimate(params: {
   };
 }
 
-/** Counts prepared process rows retained across one prepared scene collection. */
+/** Counts prepared process rows retained across one graph-scene collection. */
 function countPreparedSceneRows(scenes: readonly TracePreparedGraphScene[]): number {
   return scenes.reduce((rowCount, scene) => rowCount + scene.rows.length, 0);
 }
 
-/** Counts prepared span refs retained across one prepared scene collection. */
+/** Counts prepared span refs retained across one graph-scene collection. */
 function countPreparedSceneSpans(scenes: readonly TracePreparedGraphScene[]): number {
   return scenes.reduce(
     (spanCount, scene) =>
-      spanCount + scene.rows.reduce((rowSpanCount, row) => rowSpanCount + row.spans.length, 0),
+      spanCount +
+      scene.rows.reduce(
+        (rowSpanCount, row) => rowSpanCount + (row.binaryBlockData?.data.length ?? 0),
+        0
+      ),
     0
   );
 }
@@ -841,7 +936,8 @@ function normalizeTraceEngineInputs(inputs: TraceEngineInputs): TraceEngineInput
     defaultSelectedSpanRefs: inputs.defaultSelectedSpanRefs ?? [],
     expandExtendedSelectionProcesses: inputs.expandExtendedSelectionProcesses ?? true,
     showCollapsedActivitySummary: inputs.showCollapsedActivitySummary ?? false,
-    layoutTopPadding: inputs.layoutTopPadding ?? 0
+    layoutTopPadding: inputs.layoutTopPadding ?? 0,
+    globalEventYPosition: inputs.globalEventYPosition ?? DEFAULT_TRACE_GLOBAL_EVENT_Y_POSITION
   };
 }
 
@@ -851,18 +947,18 @@ function buildTraceEngineSelectionState(params: {
   inputs: TraceEngineInputs;
   /** Explicit selected span refs before dependency-chain expansion. */
   selectedSpanRefs: readonly SpanRef[];
-  /** Optional visible local dependency refs selected by the caller. */
-  selectedLocalDependencyRefs?: readonly VisibleLocalDependencyRef[];
-  /** Optional visible cross dependency refs selected by the caller. */
-  selectedCrossDependencyRefs?: readonly VisibleCrossDependencyRef[];
-  /** Optional local dependency directions selected by the caller. */
-  selectedLocalDependencyDirectionByRef?: ReadonlyMap<
-    VisibleLocalDependencyRef,
+  /** Optional visible same-process dependency refs selected by the caller. */
+  selectedSameProcessDependencyRefs?: readonly SameProcessDependencyRef[];
+  /** Optional visible cross-process dependency refs selected by the caller. */
+  selectedCrossProcessDependencyRefs?: readonly CrossProcessDependencyRef[];
+  /** Optional same-process dependency directions selected by the caller. */
+  selectedSameProcessDependencyDirectionByRef?: ReadonlyMap<
+    SameProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
-  /** Optional cross dependency directions selected by the caller. */
-  selectedCrossDependencyDirectionByRef?: ReadonlyMap<
-    VisibleCrossDependencyRef,
+  /** Optional cross-process dependency directions selected by the caller. */
+  selectedCrossProcessDependencyDirectionByRef?: ReadonlyMap<
+    CrossProcessDependencyRef,
     TraceSelectedDependencyDirection
   >;
   /** Whether the caller is building a temporary focused selection layout. */
@@ -873,98 +969,108 @@ function buildTraceEngineSelectionState(params: {
     return createEmptyTraceEngineSelectionState();
   }
   const primarySpanRef = selectedSpanRefs[0];
-  const selectedLocalDependencyRefs = [...(params.selectedLocalDependencyRefs ?? [])];
-  const selectedCrossDependencyRefs = [...(params.selectedCrossDependencyRefs ?? [])];
+  const selectedSameProcessDependencyRefs = [...(params.selectedSameProcessDependencyRefs ?? [])];
+  const selectedCrossProcessDependencyRefs = [...(params.selectedCrossProcessDependencyRefs ?? [])];
   const selectionPolicy = params.inputs.selectionPolicy ?? {type: 'raw'};
   if (selectionPolicy.type === 'immediate-visible-dependencies') {
-    const immediateDependencyRefs = getImmediateVisibleDependencyRefsForSpan(
+    const immediateDependencyRefs = getImmediateDependencyRefsForSpan(
       params.inputs.traceGraph,
       primarySpanRef
     );
-    const selectedLocalDependencyRefsWithImmediate = dedupeRefs([
-      ...immediateDependencyRefs.localDependencyRefs,
-      ...selectedLocalDependencyRefs
+    const selectedSameProcessDependencyRefsWithImmediate = dedupeRefs([
+      ...immediateDependencyRefs.sameProcessDependencyRefs,
+      ...selectedSameProcessDependencyRefs
     ]);
-    const selectedCrossDependencyRefsWithImmediate = dedupeRefs([
-      ...immediateDependencyRefs.crossDependencyRefs,
-      ...selectedCrossDependencyRefs
+    const selectedCrossProcessDependencyRefsWithImmediate = dedupeRefs([
+      ...immediateDependencyRefs.crossProcessDependencyRefs,
+      ...selectedCrossProcessDependencyRefs
     ]);
     const dependencyDirections = mergeTraceSelectedDependencyDirectionMaps(
       buildTraceSelectedDependencyDirectionMaps({
-        incomingLocalDependencyRefs: immediateDependencyRefs.incomingLocalDependencyRefs,
-        incomingCrossDependencyRefs: immediateDependencyRefs.incomingCrossDependencyRefs,
-        outgoingLocalDependencyRefs: immediateDependencyRefs.outgoingLocalDependencyRefs,
-        outgoingCrossDependencyRefs: immediateDependencyRefs.outgoingCrossDependencyRefs
+        incomingSameProcessDependencyRefs:
+          immediateDependencyRefs.incomingSameProcessDependencyRefs,
+        incomingCrossProcessDependencyRefs:
+          immediateDependencyRefs.incomingCrossProcessDependencyRefs,
+        outgoingSameProcessDependencyRefs:
+          immediateDependencyRefs.outgoingSameProcessDependencyRefs,
+        outgoingCrossProcessDependencyRefs:
+          immediateDependencyRefs.outgoingCrossProcessDependencyRefs
       }),
-      params.selectedLocalDependencyDirectionByRef,
-      params.selectedCrossDependencyDirectionByRef
+      params.selectedSameProcessDependencyDirectionByRef,
+      params.selectedCrossProcessDependencyDirectionByRef
     );
     return {
       selectedSpanRefs,
       extendedSelectionSpanRefs: [],
-      selectedLocalDependencyRefs: selectedLocalDependencyRefsWithImmediate,
-      selectedCrossDependencyRefs: selectedCrossDependencyRefsWithImmediate,
-      selectedLocalDependencyDirectionByRef: dependencyDirections.localDependencyDirectionByRef,
-      selectedCrossDependencyDirectionByRef: dependencyDirections.crossDependencyDirectionByRef,
+      selectedSameProcessDependencyRefs: selectedSameProcessDependencyRefsWithImmediate,
+      selectedCrossProcessDependencyRefs: selectedCrossProcessDependencyRefsWithImmediate,
+      selectedSameProcessDependencyDirectionByRef:
+        dependencyDirections.sameProcessDependencyDirectionByRef,
+      selectedCrossProcessDependencyDirectionByRef:
+        dependencyDirections.crossProcessDependencyDirectionByRef,
       isExtendedSelection: params.isExtendedSelection
     };
   }
   if (selectionPolicy.type === 'dependency-chain') {
-    const dependencySelection = params.inputs.traceGraph.getTraceSpanDependencySelection(
-      primarySpanRef,
-      {
-        keywords: new Set(selectionPolicy.keywords ?? [])
-      }
-    );
+    const dependencySelection = getTraceSpanDependencySelection({
+      traceGraph: params.inputs.traceGraph,
+      spanRef: primarySpanRef,
+      keywords: new Set(selectionPolicy.keywords ?? [])
+    });
     const dependencySelectionHasRefs =
-      dependencySelection.visibleLocalDependencyRefs.length > 0 ||
-      dependencySelection.visibleCrossDependencyRefs.length > 0;
+      dependencySelection.visibleSameProcessDependencyRefs.length > 0 ||
+      dependencySelection.visibleCrossProcessDependencyRefs.length > 0;
     const dependencyDirections = mergeTraceSelectedDependencyDirectionMaps(
       dependencySelectionHasRefs
         ? buildTraceSelectedDependencyDirectionMaps({
-            incomingLocalDependencyRefs: dependencySelection.parentLocalDependencyRefs,
-            incomingCrossDependencyRefs: dependencySelection.parentCrossDependencyRefs,
-            outgoingLocalDependencyRefs: dependencySelection.childLocalDependencyRefs,
-            outgoingCrossDependencyRefs: dependencySelection.childCrossDependencyRefs
+            incomingSameProcessDependencyRefs: dependencySelection.parentSameProcessDependencyRefs,
+            incomingCrossProcessDependencyRefs:
+              dependencySelection.parentCrossProcessDependencyRefs,
+            outgoingSameProcessDependencyRefs: dependencySelection.childSameProcessDependencyRefs,
+            outgoingCrossProcessDependencyRefs: dependencySelection.childCrossProcessDependencyRefs
           })
         : buildTraceSelectedDependencyDirectionMaps({
-            incomingLocalDependencyRefs: selectedLocalDependencyRefs,
-            incomingCrossDependencyRefs: selectedCrossDependencyRefs
+            incomingSameProcessDependencyRefs: selectedSameProcessDependencyRefs,
+            incomingCrossProcessDependencyRefs: selectedCrossProcessDependencyRefs
           }),
-      params.selectedLocalDependencyDirectionByRef,
-      params.selectedCrossDependencyDirectionByRef
+      params.selectedSameProcessDependencyDirectionByRef,
+      params.selectedCrossProcessDependencyDirectionByRef
     );
     return {
       selectedSpanRefs,
       extendedSelectionSpanRefs: params.isExtendedSelection
         ? dependencySelection.spanRefs.filter(spanRef => !selectedSpanRefs.includes(spanRef))
         : [],
-      selectedLocalDependencyRefs: dependencySelectionHasRefs
-        ? dependencySelection.visibleLocalDependencyRefs
-        : selectedLocalDependencyRefs,
-      selectedCrossDependencyRefs: dependencySelectionHasRefs
-        ? dependencySelection.visibleCrossDependencyRefs
-        : selectedCrossDependencyRefs,
-      selectedLocalDependencyDirectionByRef: dependencyDirections.localDependencyDirectionByRef,
-      selectedCrossDependencyDirectionByRef: dependencyDirections.crossDependencyDirectionByRef,
+      selectedSameProcessDependencyRefs: dependencySelectionHasRefs
+        ? dependencySelection.visibleSameProcessDependencyRefs
+        : selectedSameProcessDependencyRefs,
+      selectedCrossProcessDependencyRefs: dependencySelectionHasRefs
+        ? dependencySelection.visibleCrossProcessDependencyRefs
+        : selectedCrossProcessDependencyRefs,
+      selectedSameProcessDependencyDirectionByRef:
+        dependencyDirections.sameProcessDependencyDirectionByRef,
+      selectedCrossProcessDependencyDirectionByRef:
+        dependencyDirections.crossProcessDependencyDirectionByRef,
       isExtendedSelection: params.isExtendedSelection
     };
   }
   const dependencyDirections = mergeTraceSelectedDependencyDirectionMaps(
     buildTraceSelectedDependencyDirectionMaps({
-      incomingLocalDependencyRefs: selectedLocalDependencyRefs,
-      incomingCrossDependencyRefs: selectedCrossDependencyRefs
+      incomingSameProcessDependencyRefs: selectedSameProcessDependencyRefs,
+      incomingCrossProcessDependencyRefs: selectedCrossProcessDependencyRefs
     }),
-    params.selectedLocalDependencyDirectionByRef,
-    params.selectedCrossDependencyDirectionByRef
+    params.selectedSameProcessDependencyDirectionByRef,
+    params.selectedCrossProcessDependencyDirectionByRef
   );
   return {
     selectedSpanRefs,
     extendedSelectionSpanRefs: [],
-    selectedLocalDependencyRefs,
-    selectedCrossDependencyRefs,
-    selectedLocalDependencyDirectionByRef: dependencyDirections.localDependencyDirectionByRef,
-    selectedCrossDependencyDirectionByRef: dependencyDirections.crossDependencyDirectionByRef,
+    selectedSameProcessDependencyRefs,
+    selectedCrossProcessDependencyRefs,
+    selectedSameProcessDependencyDirectionByRef:
+      dependencyDirections.sameProcessDependencyDirectionByRef,
+    selectedCrossProcessDependencyDirectionByRef:
+      dependencyDirections.crossProcessDependencyDirectionByRef,
     isExtendedSelection: params.isExtendedSelection
   };
 }
@@ -974,10 +1080,10 @@ function createEmptyTraceEngineSelectionState(): TraceEngineSelectionState {
   return {
     selectedSpanRefs: [],
     extendedSelectionSpanRefs: [],
-    selectedLocalDependencyRefs: [],
-    selectedCrossDependencyRefs: [],
-    selectedLocalDependencyDirectionByRef: new Map(),
-    selectedCrossDependencyDirectionByRef: new Map(),
+    selectedSameProcessDependencyRefs: [],
+    selectedCrossProcessDependencyRefs: [],
+    selectedSameProcessDependencyDirectionByRef: new Map(),
+    selectedCrossProcessDependencyDirectionByRef: new Map(),
     isExtendedSelection: false
   };
 }
@@ -990,24 +1096,27 @@ function dedupeRefs<TRef>(refs: readonly TRef[]): TRef[] {
 /** Overlays caller-supplied selected dependency directions on computed policy directions. */
 function mergeTraceSelectedDependencyDirectionMaps(
   baseDirections: ReturnType<typeof buildTraceSelectedDependencyDirectionMaps>,
-  selectedLocalDependencyDirectionByRef:
-    | ReadonlyMap<VisibleLocalDependencyRef, TraceSelectedDependencyDirection>
+  selectedSameProcessDependencyDirectionByRef:
+    | ReadonlyMap<SameProcessDependencyRef, TraceSelectedDependencyDirection>
     | undefined,
-  selectedCrossDependencyDirectionByRef:
-    | ReadonlyMap<VisibleCrossDependencyRef, TraceSelectedDependencyDirection>
+  selectedCrossProcessDependencyDirectionByRef:
+    | ReadonlyMap<CrossProcessDependencyRef, TraceSelectedDependencyDirection>
     | undefined
 ): ReturnType<typeof buildTraceSelectedDependencyDirectionMaps> {
-  if (!selectedLocalDependencyDirectionByRef && !selectedCrossDependencyDirectionByRef) {
+  if (
+    !selectedSameProcessDependencyDirectionByRef &&
+    !selectedCrossProcessDependencyDirectionByRef
+  ) {
     return baseDirections;
   }
   return {
-    localDependencyDirectionByRef: new Map([
-      ...baseDirections.localDependencyDirectionByRef,
-      ...(selectedLocalDependencyDirectionByRef ?? [])
+    sameProcessDependencyDirectionByRef: new Map([
+      ...baseDirections.sameProcessDependencyDirectionByRef,
+      ...(selectedSameProcessDependencyDirectionByRef ?? [])
     ]),
-    crossDependencyDirectionByRef: new Map([
-      ...baseDirections.crossDependencyDirectionByRef,
-      ...(selectedCrossDependencyDirectionByRef ?? [])
+    crossProcessDependencyDirectionByRef: new Map([
+      ...baseDirections.crossProcessDependencyDirectionByRef,
+      ...(selectedCrossProcessDependencyDirectionByRef ?? [])
     ])
   };
 }
@@ -1051,12 +1160,12 @@ function buildTraceEngineUpdate(
       previousSnapshot == null ||
       !areScalarArraysEqual(previousSnapshot.selectedSpanRefs, nextSnapshot.selectedSpanRefs) ||
       !areScalarArraysEqual(
-        [...(previousSnapshot.selectedLocalDependencyRefs ?? [])],
-        [...(nextSnapshot.selectedLocalDependencyRefs ?? [])]
+        [...(previousSnapshot.selectedSameProcessDependencyRefs ?? [])],
+        [...(nextSnapshot.selectedSameProcessDependencyRefs ?? [])]
       ) ||
       !areScalarArraysEqual(
-        [...(previousSnapshot.selectedCrossDependencyRefs ?? [])],
-        [...(nextSnapshot.selectedCrossDependencyRefs ?? [])]
+        [...(previousSnapshot.selectedCrossProcessDependencyRefs ?? [])],
+        [...(nextSnapshot.selectedCrossProcessDependencyRefs ?? [])]
       ) ||
       !areScalarArraysEqual(
         previousSnapshot.traceViewState.focusedSelectionSpanRefs,
@@ -1070,8 +1179,10 @@ function buildTraceEngineUpdate(
       ),
     selectedSpanRefs: nextSnapshot.selectedSpanRefs,
     selectedSpans: nextSnapshot.selectedSpans,
-    selectedLocalDependencyRefs: [...(nextSnapshot.selectedLocalDependencyRefs ?? [])],
-    selectedCrossDependencyRefs: [...(nextSnapshot.selectedCrossDependencyRefs ?? [])],
+    selectedSameProcessDependencyRefs: [...(nextSnapshot.selectedSameProcessDependencyRefs ?? [])],
+    selectedCrossProcessDependencyRefs: [
+      ...(nextSnapshot.selectedCrossProcessDependencyRefs ?? [])
+    ],
     isExtendedSelection: nextSnapshot.traceViewState.focusedSelectionSpanRefs.length > 0,
     serializedExpandedProcessIds: nextSnapshot.serializedExpandedProcessIds
   };
@@ -1080,6 +1191,17 @@ function buildTraceEngineUpdate(
 /** Returns whether two normalized TraceEngine input bundles are semantically equal. */
 function areTraceEngineInputsEqual(left: TraceEngineInputs, right: TraceEngineInputs): boolean {
   return (
+    areTraceEngineInputsEqualExceptSelectedSpanRefs(left, right) &&
+    areScalarArraysEqual(left.selectedSpanRefs ?? [], right.selectedSpanRefs ?? [])
+  );
+}
+
+/** Returns whether normalized engine inputs differ only by controlled selected span refs. */
+function areTraceEngineInputsEqualExceptSelectedSpanRefs(
+  left: TraceEngineInputs,
+  right: TraceEngineInputs
+): boolean {
+  return (
     left.traceGraph === right.traceGraph &&
     left.secondaryTraceGraph === right.secondaryTraceGraph &&
     left.traceStyle === right.traceStyle &&
@@ -1087,7 +1209,6 @@ function areTraceEngineInputsEqual(left: TraceEngineInputs, right: TraceEngineIn
     left.settings === right.settings &&
     left.colorScheme === right.colorScheme &&
     left.highlightedSpanRefs === right.highlightedSpanRefs &&
-    areScalarArraysEqual(left.selectedSpanRefs ?? [], right.selectedSpanRefs ?? []) &&
     areTraceEngineSelectionPoliciesEqual(left.selectionPolicy, right.selectionPolicy) &&
     left.focusSelectedSpanRefs === right.focusSelectedSpanRefs &&
     left.extendedSelectionMode === right.extendedSelectionMode &&
@@ -1105,7 +1226,71 @@ function areTraceEngineInputsEqual(left: TraceEngineInputs, right: TraceEngineIn
     left.showCollapsedActivitySummary === right.showCollapsedActivitySummary &&
     left.collapsedActivityAggregation === right.collapsedActivityAggregation &&
     left.layoutTimingKey === right.layoutTimingKey &&
-    left.layoutTopPadding === right.layoutTopPadding
+    left.layoutTopPadding === right.layoutTopPadding &&
+    left.globalEventYPosition === right.globalEventYPosition
+  );
+}
+
+/**
+ * Returns whether the current snapshot's base layouts still match the next direct layout inputs.
+ *
+ * The engine owns only its current immutable base layouts. It never serializes graph, row, or
+ * collapse state into a reuse key.
+ */
+function canUseOwnedTraceEngineBaseLayouts(params: {
+  /** Durable inputs that produced the current snapshot. */
+  readonly previousInputs: TraceEngineInputs;
+  /** Durable inputs being synchronized into the engine. */
+  readonly nextInputs: TraceEngineInputs;
+  /** Collapse runtime that produced the current snapshot. */
+  readonly previousCollapseRuntime: TraceCollapseRuntimeState;
+  /** Collapse runtime after synchronizing the next inputs. */
+  readonly nextCollapseRuntime: TraceCollapseRuntimeState;
+  /** Current immutable snapshot that owns the candidate base layouts. */
+  readonly previousSnapshot: TraceEngineSnapshot;
+}): boolean {
+  const {previousInputs, nextInputs, previousSnapshot} = params;
+  return (
+    params.previousCollapseRuntime.collapseState === params.nextCollapseRuntime.collapseState &&
+    previousInputs.traceGraph === nextInputs.traceGraph &&
+    previousInputs.secondaryTraceGraph === nextInputs.secondaryTraceGraph &&
+    areTraceViewLayoutSettingsEqual(previousInputs.settings, nextInputs.settings) &&
+    previousInputs.settings.showOverview === nextInputs.settings.showOverview &&
+    previousInputs.layoutTimingKey === nextInputs.layoutTimingKey &&
+    previousInputs.layoutTopPadding === nextInputs.layoutTopPadding &&
+    previousSnapshot.traceViewState.baseLayouts.length === previousSnapshot.traceGraphs.length &&
+    previousSnapshot.traceViewState.baseLayouts.every(
+      (layout, graphIndex) => layout.traceGraph === previousSnapshot.traceGraphs[graphIndex]
+    )
+  );
+}
+
+/**
+ * Returns whether a selection update can publish only sparse overlay state.
+ *
+ * Selection may update internal expansion bookkeeping even when every rendered process row keeps
+ * the same collapse state. That bookkeeping should not turn an overlay-only click into a layout or
+ * scene rebuild.
+ */
+function canPublishOverlayOnlySelectionSnapshot(params: {
+  /** Snapshot rendered before the selection update. */
+  readonly previousSnapshot: TraceEngineSnapshot;
+  /** Collapse runtime before selection synchronization. */
+  readonly previousCollapseRuntime: TraceCollapseRuntimeState;
+  /** Collapse runtime after selection synchronization. */
+  readonly nextCollapseRuntime: TraceCollapseRuntimeState;
+  /** Canonical selection after the update. */
+  readonly selection: TraceEngineSelectionState;
+}): boolean {
+  return (
+    params.previousCollapseRuntime.collapseState === params.nextCollapseRuntime.collapseState &&
+    areScalarArraysEqual(
+      params.previousCollapseRuntime.serializedExpandedProcessIds,
+      params.nextCollapseRuntime.serializedExpandedProcessIds
+    ) &&
+    params.previousSnapshot.traceViewState.focusedSelectionSpanRefs.length === 0 &&
+    !params.selection.isExtendedSelection &&
+    params.selection.extendedSelectionSpanRefs.length === 0
   );
 }
 
@@ -1132,11 +1317,4 @@ function areScalarArraysEqual<T>(left: readonly T[], right: readonly T[]): boole
   return (
     left.length === right.length && left.every((value, valueIndex) => value === right[valueIndex])
   );
-}
-
-/** Builds the graph identity key used for first-fit viewport invalidation. */
-function getInitialViewportFitKey(traceGraphs: readonly TraceGraph[]): string {
-  return traceGraphs
-    .map(traceGraph => `${traceGraph.name}\u0000${traceGraph.minTimeMs}`)
-    .join('\u0001');
 }

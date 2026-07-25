@@ -4,21 +4,20 @@ import {describe, expect, it, vi} from 'vitest';
 import {
   TRACE_SPAN_FILTER_MASK_NONE,
   TRACE_SPAN_FILTER_MASK_REGEXP,
-  TRACE_SPAN_FILTER_MASK_SOURCE,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY
-} from '../../../../trace/index';
+  TRACE_SPAN_FILTER_MASK_SOURCE
+} from '../../../../trace';
 import {TraceSpanNameBadge} from './trace-span-name-badge';
 
 import type {
   SpanRef,
+  TraceCardSpan,
   TraceGraph,
-  TraceSpanColorSource,
   TraceSpanId,
   TraceThreadId
-} from '../../../../trace/index';
+} from '../../../../trace';
 import type {ReactElement} from 'react';
 
-const filteredSpan: TraceSpanColorSource = {
+const filteredSpan: TraceCardSpan = {
   spanRef: 1 as SpanRef,
   spanId: 'filtered-span' as TraceSpanId,
   threadId: 'thread-1' as TraceThreadId,
@@ -37,7 +36,9 @@ const filteredSpan: TraceSpanColorSource = {
   },
   crossProcessEndpointId: null,
   crossProcessDependencyEndpoints: [],
-  userData: undefined
+  userData: undefined,
+  filterMask: TRACE_SPAN_FILTER_MASK_NONE,
+  isFiltered: false
 };
 
 describe('TraceSpanNameBadge', () => {
@@ -54,24 +55,10 @@ describe('TraceSpanNameBadge', () => {
     expect(props.copyText).toBe('filtered-span');
     expect(props.filterMask).toBe(TRACE_SPAN_FILTER_MASK_REGEXP);
     expect(props.filtered).toBe(true);
-    expect(props.filteredVariant).toBe('regexp');
-  });
-
-  it('infers topology filtered variants from explicit filter provenance', () => {
-    const badge = TraceSpanNameBadge({
-      spanRef: filteredSpan.spanRef!,
-      span: filteredSpan,
-      filtered: true,
-      filterMask: TRACE_SPAN_FILTER_MASK_TOPOLOGY
-    });
-    const props = getBadgeProps(badge);
-
-    expect(props.filterMask).toBe(TRACE_SPAN_FILTER_MASK_TOPOLOGY);
-    expect(props.filteredVariant).toBe('topology');
   });
 
   it('infers filtered direct span badges from card-model filter state', () => {
-    const fileFilteredSpan: TraceSpanColorSource & {
+    const fileFilteredSpan: TraceCardSpan & {
       filterMask: number;
       isFiltered: boolean;
     } = {
@@ -86,13 +73,12 @@ describe('TraceSpanNameBadge', () => {
     const props = getBadgeProps(badge);
 
     expect(props.filtered).toBe(true);
-    expect(props.filteredVariant).toBe('regexp');
     expect(props.filterMask).toBe(TRACE_SPAN_FILTER_MASK_SOURCE);
     expect(props.copyText).toBe('filtered-span');
   });
 
   it('treats direct span filter masks as filtered even when visibility flags are stale', () => {
-    const fileFilteredSpan: TraceSpanColorSource & {
+    const fileFilteredSpan: TraceCardSpan & {
       filterMask: number;
       isFiltered: boolean;
     } = {
@@ -107,7 +93,6 @@ describe('TraceSpanNameBadge', () => {
     const props = getBadgeProps(badge);
 
     expect(props.filtered).toBe(true);
-    expect(props.filteredVariant).toBe('regexp');
     expect(props.filterMask).toBe(TRACE_SPAN_FILTER_MASK_SOURCE);
   });
 
@@ -137,18 +122,6 @@ describe('TraceSpanNameBadge', () => {
     expect(props.filtered).toBe(true);
     expect(props.filterMask).toBe(TRACE_SPAN_FILTER_MASK_REGEXP);
     expect(props.copyText).toBe('filtered-span');
-  });
-
-  it('infers topology-filtered ref badges from TraceGraph state', () => {
-    const badge = TraceSpanNameBadge({
-      traceGraph: createTraceGraphBadgeFacade(TRACE_SPAN_FILTER_MASK_TOPOLOGY),
-      spanRef: filteredSpan.spanRef!
-    });
-    const props = getBadgeProps(badge);
-
-    expect(props.filtered).toBe(true);
-    expect(props.filteredVariant).toBe('topology');
-    expect(props.filterMask).toBe(TRACE_SPAN_FILTER_MASK_TOPOLOGY);
   });
 
   it('uses resolved span data before graph fallback for span-ref badges', () => {
@@ -218,7 +191,6 @@ type TraceSpanNameBadgeTestProps = {
   copyText?: string;
   filterMask?: number | null;
   filtered?: boolean;
-  filteredVariant?: string;
   onDoubleClick?: (event: {shiftKey?: boolean}) => void;
 };
 

@@ -59,25 +59,33 @@ Please refer the documentation of each module for detailed upgrade guides.
   - `@deck.gl-community/trace-layers/deck-trace-layers` -> `@deck.gl-community/trace-layers/layers`
   - `@deck.gl-community/trace-layers/trace-loaders` -> `@deck.gl-community/trace-layers/loaders`
   - `@deck.gl-community/trace-layers/tracevis` -> `@deck.gl-community/trace-layers/react`
-- Breaking change: trace-layers no longer owns vendored community panel/widget
-  helpers or vendored deck fast-text/view-layout helpers.
+- Breaking change: trace-layers no longer owns package-local panel/widget
+  helpers or deck fast-text/view-layout helpers.
 - Breaking change: `DeckTraceGraph` now accepts `{engine, className?, reactConfig?}` instead of
   the previous graph/settings/collapse/selection callback prop set. Mount `TraceEngine`, sync
   durable inputs into it, and subscribe to `TraceEngineUpdate` when host persistence is needed.
-- Breaking change: `TraceChunkStore` no longer exposes the old store-owned window graph snapshot
-  compatibility flow. Select descriptors, materialize immutable `TraceGraphData` through the
-  source-owned `TraceChunkWindowGraphMaterializer`, and wrap it in `TraceGraph`.
+- Breaking change: the runtime no longer uses `TraceGraphData` as the visible graph owner.
+  Normalize parser output into `TraceChunkData`, finalize immutable `TraceDataset` snapshots, build
+  `TraceViewSnapshot`, and construct dataset-backed `TraceGraph` instances from that pair.
+- Breaking change: `TraceChunkStore` now owns one active `TraceChunkStoreWindow` load through
+  `loadWindow(...)`. Select descriptors, call `withReadyChunks(...)`, and let a caller-owned
+  materializer build `TraceDataset`.
 - Migration:
   - Import panel definitions, settings managers, commands, keyboard shortcuts,
     and panel containers from `@deck.gl-community/panels`.
   - Import deck widget adapters, `OmniBoxWidget`, toast/time/heap widgets, and
     Studio settings widget helpers from `@deck.gl-community/widgets`.
+  - Import general add-on layers from `@deck.gl-community/layers`.
+  - Import timeline axis and tick helpers from
+    `@deck.gl-community/timeline-layers`.
   - Import `FastTextLayer`, UTF8 Arrow string-view helpers, and view-layout
     helpers from `@deck.gl-community/infovis-layers`.
   - Replace old `DeckTraceGraph` controlled props with `TraceEngineInputs` plus
     `DeckTraceGraphConfig`.
   - Replace old `TraceStoreLayer` sources with sources that provide
-    `materializeTraceGraphData`.
+    `materializeTraceDataset`, optional `traceViewSnapshotOptions`, and `TraceChunkStoreWindow`.
+  - Replace `TraceLocalDependency` and visible local/cross dependency refs with
+    `TraceSameProcessDependency`, `SameProcessDependencyRef`, and `CrossProcessDependencyRef`.
 
 ### `@deck.gl-community/react`
 

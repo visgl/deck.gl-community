@@ -1,29 +1,64 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
 import {
   DEFAULT_TRACE_COLOR_SCHEME,
   getReadableSpanBorderColor,
+  getTraceSpanAttributeValue,
   PERFETTO_TRACE_COLOR_SCHEME,
   PROCESS_TRACE_COLOR_SCHEME
 } from './trace-color-scheme';
 
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
-import type {TraceColor, TraceColorScheme, TraceSpanColorSource} from './trace-color-scheme';
+import type {SpanRef, TraceSpan} from '../trace-graph/trace-types';
+import type {
+  TraceColor,
+  TraceColorScheme,
+  TraceSpanColorAccessorSource,
+  TraceSpanColorRefParams
+} from './trace-color-scheme';
 
 const EMPTY_SETTINGS = {} as TraceVisSettings;
 
-/** Builds the minimal span payload required by span-name color-scheme tests. */
-function makeSpanColorBlock(name: string): TraceSpanColorSource {
+/** Builds one materialized span row for ref-native color-scheme tests. */
+function makeSpanColorBlock(name: string): TraceSpan {
   return {
-    spanId: 'span-1' as TraceSpanColorSource['spanId'],
-    threadId: 'stream-1' as TraceSpanColorSource['threadId'],
+    type: 'trace-span',
+    spanRef: 0 as SpanRef,
+    spanId: 'span-1' as TraceSpan['spanId'],
+    threadId: 'stream-1' as TraceSpan['threadId'],
     processName: 'rank-1',
     name,
     primaryTimingKey: 'default',
     timings: {},
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: [],
     userData: {}
+  };
+}
+
+function makeRefParams(span: TraceSpan): TraceSpanColorRefParams {
+  return {
+    spanRef: span.spanRef ?? (0 as SpanRef),
+    traceGraph: createSpanColorAccessorSource(span),
+    settings: EMPTY_SETTINGS
+  };
+}
+
+/** Builds ref-native color accessors for one synthetic span row. */
+function createSpanColorAccessorSource(span: TraceSpan): TraceSpanColorAccessorSource {
+  const getTiming = () => span.timings[span.primaryTimingKey] ?? null;
+  return {
+    getSpanRankName: () => span.processName,
+    getSpanStreamId: () => span.threadId,
+    getSpanName: () => span.name,
+    getSpanKeywords: () => span.keywords ?? [],
+    getSpanAttribute: (_spanRef, path) => getTraceSpanAttributeValue(span.userData, path),
+    getSpanPrimaryTimingKey: () => span.primaryTimingKey,
+    getSpanStatus: () => getTiming()?.status ?? null,
+    getSpanStartTimeMs: () => getTiming()?.startTimeMs ?? null,
+    getSpanEndTimeMs: () => getTiming()?.endTimeMs ?? null
   };
 }
 
@@ -55,24 +90,20 @@ describe('TraceColorScheme', () => {
   });
 
   it('assigns default wheel colors by normalized span name in the Perfetto scheme', () => {
-    const firstStyle = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyle?.({
-      span: makeSpanColorBlock('decode'),
-      settings: EMPTY_SETTINGS
-    });
+    const firstStyle = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyleForRef?.(
+      makeRefParams(makeSpanColorBlock('decode'))
+    );
     const firstColor = firstStyle?.spanFillColor;
-    const secondStyle = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyle?.({
-      span: makeSpanColorBlock('decode'),
-      settings: EMPTY_SETTINGS
-    });
+    const secondStyle = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyleForRef?.(
+      makeRefParams(makeSpanColorBlock('decode'))
+    );
     const secondColor = secondStyle?.spanFillColor;
-    const numberedColor = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyle?.({
-      span: makeSpanColorBlock('decode 123'),
-      settings: EMPTY_SETTINGS
-    })?.spanFillColor;
-    const otherColor = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyle?.({
-      span: makeSpanColorBlock('sample'),
-      settings: EMPTY_SETTINGS
-    })?.spanFillColor;
+    const numberedColor = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyleForRef?.(
+      makeRefParams(makeSpanColorBlock('decode 123'))
+    )?.spanFillColor;
+    const otherColor = PERFETTO_TRACE_COLOR_SCHEME.getSpanStyleForRef?.(
+      makeRefParams(makeSpanColorBlock('sample'))
+    )?.spanFillColor;
 
     expect(firstColor).toEqual(secondColor);
     expect(firstStyle?.spanBorderColor).toEqual(secondStyle?.spanBorderColor);
@@ -82,52 +113,38 @@ describe('TraceColorScheme', () => {
     expect(firstColor).not.toEqual(otherColor);
   });
 
-  it('prefers userData.processId over processName in the process-id scheme', () => {
-    const firstColor = PROCESS_TRACE_COLOR_SCHEME.getSpanFillColor?.({
-      span: {
-        ...makeSpanColorBlock('first'),
-        processName: 'rank-a',
-        userData: {processId: 'process-1'}
-      },
-      settings: EMPTY_SETTINGS
+  it('colors by canonical process name without reading row attributes', () => {
+    const firstParams = makeRefParams({
+      ...makeSpanColorBlock('first'),
+      processName: 'rank-a',
+      userData: {processId: 'shared-user-process'}
     });
-    const secondColor = PROCESS_TRACE_COLOR_SCHEME.getSpanFillColor?.({
-      span: {
-        ...makeSpanColorBlock('second'),
-        processName: 'rank-b',
-        userData: {processId: 'process-1'}
-      },
-      settings: EMPTY_SETTINGS
+    const sameNameParams = makeRefParams({
+      ...makeSpanColorBlock('second'),
+      processName: 'rank-a',
+      userData: {processId: 'different-user-process'}
     });
-    const thirdColor = PROCESS_TRACE_COLOR_SCHEME.getSpanFillColor?.({
-      span: {
-        ...makeSpanColorBlock('third'),
-        processName: 'rank-c',
-        userData: {processId: 'process-2'}
-      },
-      settings: EMPTY_SETTINGS
+    const otherNameParams = makeRefParams({
+      ...makeSpanColorBlock('third'),
+      processName: 'rank-b',
+      userData: {processId: 'shared-user-process'}
     });
-    const firstLineColor = PROCESS_TRACE_COLOR_SCHEME.getSpanBorderColor?.({
-      span: {
-        ...makeSpanColorBlock('first'),
-        processName: 'rank-a',
-        userData: {processId: 'process-1'}
-      },
-      settings: EMPTY_SETTINGS
-    });
-    const secondLineColor = PROCESS_TRACE_COLOR_SCHEME.getSpanBorderColor?.({
-      span: {
-        ...makeSpanColorBlock('second'),
-        processName: 'rank-b',
-        userData: {processId: 'process-1'}
-      },
-      settings: EMPTY_SETTINGS
-    });
+    const firstAttributeSpy = vi.spyOn(firstParams.traceGraph, 'getSpanAttribute');
+    const sameNameAttributeSpy = vi.spyOn(sameNameParams.traceGraph, 'getSpanAttribute');
+    const otherNameAttributeSpy = vi.spyOn(otherNameParams.traceGraph, 'getSpanAttribute');
 
-    expect(secondColor).toEqual(firstColor);
-    expect(secondLineColor).toEqual(firstLineColor);
+    const firstColor = PROCESS_TRACE_COLOR_SCHEME.getSpanFillColorForRef?.(firstParams);
+    const sameNameColor = PROCESS_TRACE_COLOR_SCHEME.getSpanFillColorForRef?.(sameNameParams);
+    const otherNameColor = PROCESS_TRACE_COLOR_SCHEME.getSpanFillColorForRef?.(otherNameParams);
+    const firstLineColor = PROCESS_TRACE_COLOR_SCHEME.getSpanBorderColorForRef?.(firstParams);
+
+    expect(PROCESS_TRACE_COLOR_SCHEME.requiredSpanAttributePaths).toBeUndefined();
+    expect(sameNameColor).toEqual(firstColor);
+    expect(otherNameColor).not.toEqual(firstColor);
     expect(firstLineColor).toEqual(getReadableSpanBorderColor(firstColor!));
     expect(firstLineColor).not.toEqual(firstColor);
-    expect(thirdColor).not.toEqual(firstColor);
+    expect(firstAttributeSpy).not.toHaveBeenCalled();
+    expect(sameNameAttributeSpy).not.toHaveBeenCalled();
+    expect(otherNameAttributeSpy).not.toHaveBeenCalled();
   });
 });

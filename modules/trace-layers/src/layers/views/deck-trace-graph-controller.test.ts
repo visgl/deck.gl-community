@@ -5,7 +5,7 @@ import {
   widenBoundsForMinimumBlockWidth
 } from './deck-trace-graph-controller';
 
-import type {SpanBoundingBox} from '../../trace/index';
+import type {SpanBoundingBox} from '../../trace';
 
 vi.mock('@deck.gl-community/infovis-layers', () => ({
   fitBoundsOrthographic: vi.fn(),

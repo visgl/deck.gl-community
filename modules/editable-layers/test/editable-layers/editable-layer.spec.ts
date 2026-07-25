@@ -14,6 +14,8 @@ import {EditableLayer, EVENT_TYPES} from '../../src/editable-layers/editable-lay
 import {Position} from '../../src/utils/geojson-types';
 
 class TestEditableLayer extends EditableLayer {
+  static componentName = 'TestEditableLayer';
+
   renderLayers() {
     return null;
   }

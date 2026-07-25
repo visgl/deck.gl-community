@@ -4,7 +4,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {TraceProcessCard} from './trace-process-card';
 
-import type {TraceProcessInfo} from '../../../../trace/index';
+import type {TraceProcessInfo} from '../../../../trace';
 import type {Root} from 'react-dom/client';
 
 let container: HTMLDivElement | null = null;

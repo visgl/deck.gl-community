@@ -33,7 +33,7 @@ Runtime refs include:
 - owner refs: `ProcessRef`, `ThreadRef`
 - storage refs: `ChunkRef`
 - row refs: `SpanRef`, `EventRef`, `InstantRef`, `CounterRef`
-- dependency refs: local, cross-process, and visible dependency refs
+- dependency refs: `SameProcessDependencyRef`, `CrossProcessDependencyRef`, and generic dependency refs
 
 Use runtime refs for mounted selection, dependency traversal, filtering, layout, and geometry.
 

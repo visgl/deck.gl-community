@@ -14,6 +14,7 @@ export {
   type TraceDependencyId,
   type LocalSpanRef,
   type SpanRef,
+  type TraceSpanAttributePath,
   type TraceProcess,
   type TraceThread,
   type TraceSpan,
@@ -22,7 +23,7 @@ export {
   type TraceCounter,
   type TraceEvent,
   type TraceDependency,
-  type TraceLocalDependency,
+  type TraceSameProcessDependency,
   type TraceCrossProcessDependency,
   type TraceCrossProcessEndpoint,
   type TraceCrossProcessEndpointId,
@@ -40,6 +41,7 @@ export {
   type TraceChunkRegistry,
   type TraceRuntimeChunk,
   type TraceProcessOwnedRef,
+  type TraceSpanOwnerRefs,
   type TraceThreadOwnedRef
 } from './trace-graph/trace-chunk-registry';
 export {
@@ -52,61 +54,89 @@ export {
   DEFAULT_TRACE_WINDOW_NOTIFY_INTERVAL_MS,
   TRACE_EXTERNAL_SPAN_ID_URL_CODEC,
   TraceChunkStore,
+  TraceChunkStoreLoadCancelledError,
   TraceChunkStoreLoadSkippedError,
   createChronologicalTraceChunkSpanBudgetPolicy,
   createStaticTraceChunkStore,
   createStaticTraceGraphRuntimeSource,
+  isTraceChunkStoreLoadCancelledError,
   isTraceChunkStoreLoadSkippedError,
   traceWindowToTraceChunkSelectionWindow,
   type StaticTraceChunkStoreOptions,
-  type StaticTraceGraphRuntimeSourceChunkOptions,
-  type StaticTraceGraphRuntimeSourceGraphDataOptions,
-  type StaticTraceGraphRuntimeSourceMetadataOptions,
   type StaticTraceGraphRuntimeSourceOptions,
   type TraceChunkDescriptor,
+  type TraceChunkReadyMaterializerParams,
+  type TraceChunkLoadContext,
   type TraceChunkSelection,
   type TraceChunkSelectionPolicy,
   type TraceChunkSelectionPolicyParams,
   type TraceChunkSelectionSummary,
   type TraceChunkSelectionWindow,
-  type TraceChunkStoreEnsureParams,
-  type TraceChunkStoreEnsureResult,
-  type TraceChunkStoreEnsureSummary,
-  type TraceChunkStoreDescriptorRefreshParams,
   type TraceChunkStoreDiagnostics,
+  type TraceChunkStoreLoadWindowParams,
+  type TraceChunkStoreLoadWindowResult,
   type TraceChunkStoreLoadResult,
+  type TraceChunkLoadState,
   type TraceChunkStoreOptions,
   type TraceChunkStoreProgress,
   type TraceChunkStoreReadyChunk,
-  type TraceChunkStoreRegisterTraceWindowsParams,
-  type TraceChunkStoreTraceWindowLoadParams,
-  type TraceChunkWindowGraphMaterializer,
-  type TraceChunkWindowGraphMaterializerParams,
+  type TraceChunkStoreUnloadSummary,
+  type TraceChunkStoreWindow,
+  type TraceChunkStoreWindowChunksArrivedEvent,
   type TraceSpanUrlCodec,
   type TraceSpanUrlDeserializeParams,
   type TraceSpanUrlSerializeParams,
-  type TraceWindow,
-  type TraceWindowChunksArrivedEvent,
+  type TraceSpanUrlSource,
   type TraceStore
 } from './trace-chunk-store';
+export {
+  appendTraceDatasetFromReadyTraceChunks,
+  buildTraceDatasetFromReadyTraceChunks,
+  replaceTraceDatasetEvents
+} from './trace-chunk-graph-assembler';
+export {
+  forEachTraceDatasetActiveSpanRow,
+  getTraceDatasetSpanRefProcessId,
+  type TraceDataset,
+  type TraceDatasetTimeExtents
+} from './trace-dataset';
+export {type TraceRefSource} from './trace-ref-source';
+export {
+  buildTraceViewSnapshot,
+  getTraceViewSpanFilterMask,
+  hasTraceViewSnapshotFilters,
+  type TraceViewChunkSnapshot,
+  type TraceViewSnapshot,
+  type TraceViewSnapshotOptions
+} from './trace-view-snapshot';
 export {type TraceGraphRuntimeSource} from './trace-graph/trace-graph-runtime-source';
 export {
   buildJSONTraceChunkDataFromTraceChunkData,
   buildTraceChunkDataFromJSONTraceChunkData,
   buildTraceChunkRowWindowTable,
   buildTraceChunkSourceDependencyTable,
+  buildTraceChunkSourceDependencyTableFromColumns,
   isJSONTraceChunkData,
   isTraceChunkData,
+  readTraceChunkSourceDependencyRow,
+  readTraceChunkSourceDependencyRows,
   type JSONTraceChunkData,
-  type JSONTraceChunkLocalDependency,
+  type JSONTraceChunkSameProcessDependency,
   type JSONTraceChunkProcessMetadata,
   type TraceChunkData,
   type TraceChunkDiagnostics,
   type TraceChunkRowWindowTable,
   type TraceChunkSourceDependencyRow,
+  type TraceChunkSourceDependencyArrowColumns,
   type TraceChunkSourceDependencyTable,
   type TraceChunkSpanOverlapRange
 } from './trace-chunk-data';
+export {
+  buildTracePhysicalSpanChunk,
+  type BuildTracePhysicalSpanChunkOptions,
+  type TracePhysicalSpanChunkColumns,
+  type TracePhysicalSpanColumn
+} from './physical-span-chunk';
 export {
   isTraceChunk,
   traceChunkHasSpanRefRow,
@@ -117,8 +147,8 @@ export {
 export {
   TRACE_CHUNK_OUTSIDE_WINDOW_REASON_LABEL,
   buildHiddenTraceChunkSpanInspectorGraph,
-  buildTraceChunkWindowGraphData,
-  getTraceChunkStoreSpanDisplaySource,
+  buildTraceChunkWindowDataset,
+  getTraceChunkStoreSpanDetailSource,
   getTraceChunkStoreSpanFilterNavigation,
   resolveHiddenTraceChunkSpanNavigation,
   searchHiddenTraceChunkSpans,
@@ -132,17 +162,15 @@ export {
 export {
   type ChunkRef,
   type CounterRef,
-  type CrossDependencyRef,
+  type CrossProcessDependencyRef,
   decodeChunkRef,
   decodeCounterRef,
-  decodeVisibleCrossDependencyRef,
-  decodeVisibleLocalDependencyRef,
-  decodeCrossDependencyRef,
+  decodeCrossProcessDependencyRef,
   decodeEventRef,
   decodeInstantRef,
-  decodeLocalDependencySpanRef,
+  decodeSameProcessDependencySpanRef,
   decodeProcessRef,
-  decodeTaggedLocalDependencyRef,
+  decodeTaggedSameProcessDependencyRef,
   decodeThreadRef,
   decodeTraceRefInto,
   decodeTraceRef,
@@ -151,14 +179,12 @@ export {
   encodeChunkRef,
   encodeCounterRef,
   encodeCounterRefFromChunkRow,
-  encodeVisibleCrossDependencyRef,
-  encodeVisibleLocalDependencyRef,
-  encodeCrossDependencyRef,
+  encodeCrossProcessDependencyRef,
   encodeEventRef,
   encodeEventRefFromChunkRow,
   encodeInstantRef,
   encodeInstantRefFromChunkRow,
-  encodeLocalDependencyRef,
+  encodeSameProcessDependencyRef,
   encodeLocalSpanRef,
   encodeProcessThreadRef,
   encodeProcessRef,
@@ -169,19 +195,19 @@ export {
   getCounterRefChunkIndex,
   getCounterRefIndex,
   getCounterRefRowIndex,
-  getCrossDependencyRefChunkIndex,
-  getCrossDependencyRefIndex,
-  getCrossDependencyRefRowIndex,
+  getCrossProcessDependencyRefChunkIndex,
+  getCrossProcessDependencyRefIndex,
+  getCrossProcessDependencyRefRowIndex,
   getEventRefChunkIndex,
   getEventRefIndex,
   getEventRefRowIndex,
   getInstantRefChunkIndex,
   getInstantRefIndex,
   getInstantRefRowIndex,
-  getLocalDependencyRefChunkIndex,
-  getLocalDependencyRefPayload,
-  getLocalDependencyRefProcessIndex,
-  getLocalDependencyRefRowIndex,
+  getSameProcessDependencyRefChunkIndex,
+  getSameProcessDependencyRefPayload,
+  getSameProcessDependencyRefProcessIndex,
+  getSameProcessDependencyRefRowIndex,
   getLocalSpanRefProcessIndex,
   getLocalSpanRefRowIndex,
   getProcessRefIndex,
@@ -192,11 +218,9 @@ export {
   getThreadRefProcessIndex,
   getThreadRefThreadIndex,
   getTraceRefKind,
-  getVisibleCrossDependencyRefIndex,
-  getVisibleLocalDependencyRefIndex,
   type InstantRef,
   INSTANT_REF_OFFSET,
-  type LocalDependencyRef,
+  type SameProcessDependencyRef,
   MAX_CHUNK_REF_INDEX,
   MAX_CHUNK_ROW_ENTITY_REF_ROW_INDEX,
   MAX_COUNTER_REF_CHUNK_INDEX,
@@ -205,37 +229,33 @@ export {
   MAX_EVENT_REF_INDEX,
   MAX_INSTANT_REF_CHUNK_INDEX,
   MAX_INSTANT_REF_INDEX,
-  MAX_LOCAL_DEPENDENCY_REF_PROCESS_INDEX,
+  MAX_SAME_PROCESS_DEPENDENCY_REF_PROCESS_INDEX,
   MAX_PROCESS_REF_INDEX,
   MAX_THREAD_REF_INDEX,
   PROCESS_REF_OFFSET,
   type ProcessRef,
-  type StitchedParentDependencyRef,
   TraceIdEncoder,
   type TraceDependencyRef,
   type TraceRefDecodeScratch,
   type TraceRefKind,
   THREAD_REF_OFFSET,
   type ThreadRef,
-  type VisibleCrossDependencyRef,
-  type VisibleDependencyRef,
-  type VisibleLocalDependencyRef,
   COUNTER_REF_OFFSET,
   encodeSpanRef,
   isChunkRef,
   isCounterRef,
+  isCrossProcessDependencyRef,
   isEventRef,
   isInstantRef,
   isProcessRef,
   isSpanRef,
-  isThreadRef,
-  isVisibleCrossDependencyRef,
-  isVisibleLocalDependencyRef
+  isSameProcessDependencyRef,
+  isThreadRef
 } from './trace-graph/trace-id-encoder';
 export {
   type JSONTrace,
   type JSONTraceCrossProcessDependency,
-  type JSONTraceLocalDependency,
+  type JSONTraceSameProcessDependency,
   type JSONTraceProcess,
   type JSONTraceSpan,
   type MaterializedJSONTrace,
@@ -257,19 +277,18 @@ export {
   buildCollapsedActivityByTraceGraphRows
 } from './trace-graph/collapsed-activity';
 export {
-  type ArrowTraceCrossDependencyTable,
-  type TraceGraphData,
-  type ArrowTraceLocalDependencyTable,
-  type TraceLocalDependencyArrowColumns,
+  type ArrowTraceCrossProcessDependencyTable,
+  type BuildTraceChunkDataOptions,
+  type ArrowTraceSameProcessDependencyTable,
+  type TraceSameProcessDependencyArrowColumns,
   type TraceSpanArrowColumns,
   type ArrowTraceSpanSidecarTable,
   type ArrowTraceSpanSidecarTableMap,
   type TraceSpanArrowSidecarColumns,
+  type TraceSpanArrowTimingProjectionColumns,
   type TraceSpanArrowSidecarEndpoint,
-  type TraceSpanArrowSidecarMap,
   type TraceSpanArrowSidecarRow,
   type TraceCrossProcessEndpointsBySpanRef,
-  type TraceSpanCrossDependencyRefMap,
   type TraceEventArrowColumns,
   type TraceEventArrowRow,
   type TraceSpanArrowRow,
@@ -281,78 +300,73 @@ export {
   type TraceProcessSpanRefTable,
   buildArrowTraceEventTableFromColumns,
   buildArrowTraceEventTableFromRows,
-  buildTraceGraphData,
   buildArrowTraceSpanTableFromColumns,
   buildArrowTraceSpanTableFromRows,
+  replaceArrowTraceSpanRefColumns,
   buildArrowTraceSpanSidecarTableFromColumns,
+  buildArrowTraceSpanSidecarTableFromRows,
   buildArrowFloat64Vector,
   buildArrowUtf8Vector,
-  buildArrowUint64Vector,
-  buildArrowUint64ListVector,
-  buildArrowTraceCrossDependencyTable,
-  buildArrowTraceLocalDependencyTableFromColumns,
+  buildArrowTraceCrossProcessDependencyTable,
+  buildArrowTraceSameProcessDependencyTableFromColumns,
   buildTraceSpanTablesByProcessId,
   buildTraceProcessSpanRefTables,
-  buildArrowTraceLocalDependencyTable,
-  buildCrossDependencyIdToIndexMap,
+  buildArrowTraceSameProcessDependencyTable,
   buildTraceChunkDataFromJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
-  getCombinedBlockTable,
+  buildTraceChunkDataFromTraceProcesses,
   toTraceSpanArrowRow
 } from './ingestion/arrow-trace';
 export {serializeArrowTraceJson, deserializeArrowTraceJson} from './ingestion/arrow-trace-json';
+export {
+  type TraceSpanTimingStatusCode,
+  decodeTraceSpanTimingStatusCode,
+  encodeTraceSpanTimingStatusCode
+} from './ingestion/trace-span-timing-status-code';
 export {
   TraceGraph,
   TRACE_SPAN_FILTER_MASK_NONE,
   TRACE_SPAN_FILTER_MASK_REGEXP,
   TRACE_SPAN_FILTER_MASK_SOURCE,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY,
   hasTraceSpanNameFilter,
   hasTraceSpanRegexpFilter,
   hasTraceSpanSourceFilter,
-  hasTraceSpanTopologyFilter,
   type TraceGraphDependencyLookupOptions,
   type TraceDirectionalDependencyRefSlice,
   type TraceGraphDescendantEntry,
   type TraceGraphDescendantOptions,
   type TraceGraphDescendantResult,
-  type TraceGraphFilterOptions,
-  type TraceGraphFilteredSpanCountsByFilter,
-  type TraceGraphOverlappingParentSpanFilter,
-  type TraceGraphPreparedState,
-  type TraceGraphSimilarDurationChainSpanFilter,
   type TraceSpanFilterMask,
   type TraceGraphPathBlockSource,
-  type TraceGraphPathCrossDependencySource,
+  type TraceGraphPathCrossProcessDependencySource,
   type TraceGraphPathDependencySource,
-  type TraceGraphPathLocalDependencySource,
-  type TraceGraphSelectedCrossDependencySource,
-  type TraceGraphSelectedLocalDependencySource,
+  type TraceGraphPathSameProcessDependencySource,
+  type TraceGraphSelectedCrossProcessDependencySource,
+  type TraceGraphSelectedSameProcessDependencySource,
   type TraceSelectedDependencyDirection,
   type TraceGraphSpanFilterReasonInput,
   type TraceGraphSpanFilterReason,
   type TraceGraphSpanFilterState,
   type TraceGraphSpanFilterNavigation,
-  type TraceGraphSpanFilterStore,
+  type TraceGraphSpanLookupStore,
   type TraceGraphSpanStoreAvailability,
   type TraceGraphSpanSearchRecord,
   type TraceGraphVisibleSpanSearchRecord,
-  type TraceSpanDependencySelection,
   type TraceSpanDependencyDirection,
   type TraceSpanDirectionalDependencyRefs
 } from './trace-graph/trace-graph';
-export {buildTraceGraphView, type TraceGraphView} from './trace-graph/trace-graph-view';
 export {
   type TraceGraphSpanSearchContext,
   type TraceGraphSpanStoreNavigationParams,
   type TraceGraphSpanStoreSearchParams,
-  type TraceGraphVisibleIndex
+  type TraceSpanDependencySelection
 } from './trace-graph/trace-graph-types';
-export {createTraceSpanNameSearchPredicate} from './trace-graph/trace-span-name-search';
+export {
+  createTraceSpanNameSearchPredicate,
+  createTraceSpanOmniBoxSearchPredicate
+} from './trace-graph/trace-span-name-search';
 export {
   buildTraceFilterSummary,
   hasTraceFilteredItems,
-  type TraceFilterSummarySpanCountsByFilter,
   type TraceFilterSummary
 } from './trace-graph/trace-filter-summary';
 export {
@@ -388,7 +402,7 @@ export {
   type TraceStreamChunk,
   type TraceStreamCounterUpdate,
   type TraceStreamInstantUpdate,
-  type TraceStreamLocalDependencyUpdate,
+  type TraceStreamSameProcessDependencyUpdate,
   type TraceStreamProcessUpsert,
   type TraceStreamPublishedSnapshot,
   type TraceStreamReplaceSnapshot,
@@ -400,10 +414,20 @@ export {
 } from './trace-stream-session';
 export {
   DEFAULT_TRACE_SPAN_CARD_DEPENDENCY_LIMIT,
-  buildTraceCardCrossDependency,
+  buildTraceCardCrossProcessDependency,
   buildTraceCardDependency,
+  getTraceSpanCardModel,
+  getTraceSpanChildDependencies,
+  getTraceSpanDependencyChain,
+  getTraceSpanDescendants,
+  getTraceSpanEndpointsWithDependencies,
+  getTraceSpanIncomingDependencyEntries,
+  getTraceSpanOutgoingDependencyEntries,
+  getTraceSpanParentDependencyChainEntries,
+  getTraceSpanParentChainEntries,
+  getTraceSpanVisibleDependencyChain,
   type TraceSpanCardChildDependency,
-  type TraceCardCrossDependency,
+  type TraceCardCrossProcessDependency,
   type TraceCardDependency,
   type TraceSpanCardDependencyEntry,
   type TraceSpanCardDependencyEntryCollection,
@@ -415,74 +439,51 @@ export {
   type TraceSpanCardParentChainEntry,
   type TraceCardSpan
 } from './trace-graph/build-trace-span-card-data';
+export {getTraceSpanDependencySelection} from './trace-graph/trace-graph-selection-utils';
 export {
-  type TraceLocalDependencyArrowAccessParams,
-  buildLocalDependencyBlockAdjacencyFromArrowTable,
-  createLazyTraceLocalDependencyArray,
-  getTraceLocalDependencyByRefFromArrowTable,
-  iterateTraceLocalDependenciesFromArrowTable,
-  materializeTraceLocalDependencyFromArrowRow
-} from './trace-graph/trace-local-dependency-table';
+  type TraceCrossProcessDependencyArrowAccessParams,
+  iterateTraceCrossProcessDependenciesFromArrowTable,
+  materializeTraceCrossProcessDependenciesFromArrowTable,
+  materializeTraceCrossProcessDependencyFromArrowRow
+} from './trace-graph/trace-cross-process-dependency-table';
 // Helper functions
 export {
-  buildCrossDependencies,
-  buildCrossDependenciesFromEndpoints
-} from './trace-graph/trace-cross-dependency-utils';
+  appendCrossProcessDependenciesFromEndpoints,
+  buildCrossProcessDependencies,
+  buildCrossProcessDependenciesFromEndpoints,
+  mergeCrossProcessDependencySpanRefLookups,
+  setCrossProcessDependencySpanRef,
+  type TraceCrossProcessDependencyAppendResult,
+  type TraceCrossProcessDependencyBuildOptions,
+  type TraceCrossProcessDependencySpanRefLookup
+} from './trace-graph/trace-cross-process-dependency-utils';
 export {
-  type ArrowTraceSpanRow,
   type TraceCounterSource,
-  type TraceCrossDependencyRenderSource,
-  type TraceCrossDependencySource,
+  type TraceCrossProcessDependencyRenderSource,
   type TraceDependencyRenderSource,
   type TraceDependencySource,
   type TraceEventSource,
   type TraceInstantSource,
-  type TraceLocalDependencyRenderSource,
-  type TraceLocalDependencySource,
+  type TraceSameProcessDependencyRenderSource,
+  type TraceSameProcessDependencySource,
+  type TraceGraphSpanAccessorSource,
+  type TraceGraphProcessSpanRefRow,
   type TraceProcessSource,
-  type TraceGraphSpanArrowColumnValue,
-  type TraceGraphSpanStoreRow,
   type TraceRenderSpan,
-  type TraceSpanRenderSource,
+  type TraceSpanDetailSource,
   type TraceThreadSource,
-  materializeTraceGraphSpan,
-  getArrowTraceSpanField,
-  getArrowTraceSpanRow,
+  getTraceGraphProcessSpanRowIndex,
+  getTraceGraphSpanDetailSource,
   getTraceGraphSpanArrowColumnValues,
-  getTraceGraphSpanCount,
-  iterateMaterializedTraceGraphSpans,
-  getTraceGraphProcessSpanOrdinal,
-  getTraceGraphProcessSpanCount,
-  iterateMaterializedTraceGraphProcessSpans,
-  getTraceGraphSpanDisplaySource,
-  getTraceGraphSpanRenderSource,
-  getTraceGraphSpanExternalSpanId,
   getTraceGraphSpanNameUtf8,
-  getTraceGraphSpanRef,
+  getUniqueTraceGraphSpanRef,
   getTraceGraphSpanRefProcessId,
-  getTraceGraphSpanRefProcessRef,
-  getTraceGraphSpanRefThreadRef,
-  getTraceGraphSpanStoreRow,
-  getTraceGraphSpanTableRowIndex,
   getTraceGraphSpanUserData,
+  getTraceGraphSpanAttribute,
+  iterateTraceGraphProcessSpanRefRows,
   iterateTraceGraphProcessSpanRefs,
   iterateTraceGraphSpanRefs
 } from './trace-graph-accessors';
-export {
-  type MultiProcessTrace,
-  type MultiProcessTraceOptions,
-  type MultiProcessTraceProcessData,
-  multiProcessTrace_addProcessData,
-  multiProcessTrace_buildTraceGraphData,
-  multiProcessTrace_create,
-  multiProcessTrace_getCrossDependencies,
-  multiProcessTrace_getTraceGraph,
-  multiProcessTrace_removeProcessData,
-  multiProcessTrace_updateTraceGraphData,
-  multiProcessTrace_updateCrossDependencies,
-  multiProcessTrace_updateProcessList,
-  multiProcessTrace_updateTraceGraph
-} from './trace-graph/multi-process-trace';
 export {buildFastRowAccessorWithScratchGeneric} from '../arrow-utils/arrow-accessors';
 
 export {getDependencyDurationMs} from './trace-graph/trace-dependency-utils';
@@ -498,10 +499,12 @@ export {
   type TraceLayoutRenderConfiguration,
   type TraceLayoutOverflowLabelDatum,
   type TraceLayoutRow,
+  type TraceLayoutSpanLaneAssignment,
+  type TraceLayoutSpanLaneColumn,
+  type TraceLayoutSpanLaneColumns,
   type TraceLayoutSpanVisibility,
   type TraceLayoutSpanVisibilityFlag,
   type TraceLayoutSpanVisibilityMask,
-  type TraceLayoutVisibleGraph,
   type TraceMinimapLayout,
   type TraceGraphCollapseState,
   type TraceProcessCollapseState,
@@ -517,9 +520,11 @@ export {
   type ThreadLayout,
   deserializeTraceGraphCollapseState,
   serializeTraceGraphCollapseState,
-  fillTraceLayoutCrossDependencyGeometry,
-  fillTraceLayoutLocalDependencyGeometry,
+  fillTraceLayoutCrossProcessDependencyGeometry,
+  fillTraceLayoutSameProcessDependencyGeometry,
   fillTraceLayoutSpanGeometry,
+  getTraceLayoutSpanLaneIndex,
+  hasTraceLayoutSpanLaneIndex,
   getTraceLayoutSpanVisibility,
   getTraceLayoutSpanVisibilityFlags,
   getTraceLayoutSpanVisibilityMask,
@@ -528,17 +533,13 @@ export {
   traceLayoutSpanVisibilityFlags,
   buildTraceLayoutProcessLayoutMapByRef,
   buildTraceLayoutRows,
-  buildTraceLayoutOverflowLabels,
-  getTraceLayoutCollapsedActivityEndX,
-  getTraceLayoutCollapsedActivityStartX,
-  getTraceLayoutFilteredSpanCountByThreadRef,
-  getTraceLayoutOverflowLabelThreadName,
   getTraceLayoutProcessLayoutByRef,
   getTraceLayoutBoundsFromStructure,
   getTraceLayoutVerticalBounds
 } from './trace-layout/trace-layout';
 export {
   buildTraceLayoutGeometryDerivationContext,
+  getTraceLayoutDependencyRenderSource,
   type TraceLayoutGeometryDerivationContext
 } from './trace-layout/trace-derived-geometry';
 export {
@@ -596,34 +597,27 @@ export {
   type SpanBoundingBox
 } from './trace-layout/trace-geometry-layout';
 export {
-  buildTracePreparedScene,
-  buildTraceSelectionPreparedScene,
+  buildTraceSelectionOverviewScenes,
   buildTracePreparedMinimapSpanIndicators,
   buildTracePreparedOverviewGraphScenes,
   buildTracePreparedOverviewViewModel,
   buildTracePreparedGraphScenes,
   buildTracePreparedProcessRows,
   createTraceComparisonModelMatrix,
-  estimateTracePreparedSceneSize,
-  fillTracePreparedSpanBinaryGeometry,
-  type TracePreparedScene,
-  type TracePreparedSpanBinaryLocation,
-  type BuildTracePreparedSceneParams,
-  type BuildTraceSelectionPreparedSceneParams,
+  type BuildTraceSelectionOverviewScenesParams,
   type BuildTracePreparedOverviewGraphScenesParams,
   type BuildTracePreparedOverviewViewModelParams,
   type BuildTracePreparedGraphScenesParams,
   type BuildTracePreparedProcessRowsParams,
-  type TraceSelectionPreparedScene,
   type TraceComparisonTransform,
   type TracePreparedMinimapSpanIndicator,
   type TracePreparedMinimapSpanIndicatorKind,
   type TraceOverviewLoadedContentBounds,
   type TraceOverviewTimeRange,
   type TracePreparedGraphScene,
+  type TracePreparedPathData,
   type TracePreparedOverviewViewModel,
   type TracePreparedProcessRow,
-  type TracePreparedRowReuseInfo,
   type TraceViewBounds
 } from './trace-view-state/trace-prepared-scene';
 export {
@@ -633,45 +627,53 @@ export {
   type TraceEngineInputs,
   type TraceEngineUpdate
 } from './trace-view-state/trace-engine';
+export {type TraceRenderSnapshot} from './trace-view-state/trace-view-state';
 export {
-  buildTraceSelectedCrossDependencySources,
+  buildTraceSelectedCrossProcessDependencySources,
   buildTraceSelectedDependencyDirectionMaps,
-  buildTraceSelectedLocalDependencySourcesByProcessId,
-  getImmediateVisibleDependencyRefsForSpan,
+  buildTraceSelectedSameProcessDependencySourcesByProcessId,
+  getImmediateDependencyRefsForSpan,
   getTraceSelectedSpanFromRef,
   getTraceSelectedSpanFromRenderSpan,
   getVisibleDependencyEndpointSpanRefs,
-  getVisibleCrossDependenciesByRef,
-  getVisibleLocalDependenciesByRef,
-  type TraceSelectedCrossDependencySources,
+  type TraceSelectedCrossProcessDependencySources,
   type TraceSelectedDependencyDirectionMapInput,
   type TraceSelectedDependencyDirectionMaps,
   type TraceSelectedDependencySourceDirectionOptions,
-  type TraceSelectedLocalDependencySourcesByProcessId,
+  type TraceSelectedSameProcessDependencySourcesByProcessId,
   type TraceSelectedSpan,
   type TraceVisibleDependencyEndpointSpanRefInput,
-  type TraceVisibleDependencyRefsForSpan
+  type TraceDependencyRefsForSpan
 } from './trace-view-state/trace-view-selection';
+export {
+  type TraceDeckBinaryAttributeData,
+  type TraceDeckBinaryBlockData,
+  type TraceDeckBinaryCrossProcessDependencyLineData,
+  type TraceDeckBinaryDependencyLineData,
+  buildTraceDeckBinaryBlockData,
+  buildTraceDeckBinaryCrossProcessDependencyLineData,
+  buildTraceDeckBinaryDependencyLineData
+} from './trace-view-state/trace-deck-binary-data';
+export {
+  buildTraceVisibleCrossProcessDependencyRefSource,
+  type TraceCrossProcessDependencyRefSource,
+  type TraceDenseSpanRefRange,
+  type TraceSameProcessDependencyRefSource,
+  type TraceSpanRefSource
+} from './trace-view-state/trace-ref-source';
 export {
   type CounterRenderData,
   type CounterSparkline,
   type DerivedTraceData,
   type GlobalEventRenderData,
   type InstantRenderData,
-  type TraceDeckBinaryAttributeData,
-  type TraceDeckBinaryBlockData,
-  type TraceDeckBinaryDependencyLineData,
   type TraceDeckBinaryProcessActivityData,
   type TraceLayoutRowEnrichment,
   DEFAULT_COUNTER_COLOR,
   DEFAULT_INSTANT_COLOR,
-  __resetDerivedTraceDataCacheForTests,
-  buildTraceDeckBinaryBlockData,
-  buildTraceDeckBinaryDependencyLineData,
+  buildDerivedTraceData,
   buildTraceDeckBinaryProcessActivityData,
-  buildTraceLayoutRowEnrichments,
-  getMemoizedDerivedTraceData,
-  getMemoizedTraceLayoutRowEnrichments
+  buildTraceLayoutRowEnrichments
 } from './trace-view-state/trace-prepared-scene';
 export {
   getLaneIndexFromUserData,
@@ -695,21 +697,19 @@ export {
 } from './trace-style/trace-style';
 
 export {
-  createTraceColorResolver,
   createTraceGraphColorResolver,
   DEFAULT_PATH_HIGHLIGHT_TRAIL_LENGTH,
   getCrossRankDependencyLineColor,
   getDependencyLineColor,
   getSelectedCrossRankDependencyLineColor,
-  getSelectedLocalDependencyLineColor,
+  getSelectedSameProcessDependencyLineColor,
+  getTraceThreadColor,
   MAX_PATH_HIGHLIGHT_TRAIL_LENGTH,
   MIN_PATH_HIGHLIGHT_TRAIL_LENGTH,
   NOT_IN_PATH_FADE_FACTOR,
   PATH_HIGHLIGHT_TRAIL_LENGTH,
   SELECTED_SPAN_HIGHLIGHT_STYLES,
   TRACE_COLOR,
-  type TraceColorResolver,
-  type TraceColorResolverParams,
   type TraceGraphColorResolver,
   type TraceGraphColorResolverParams
 } from './trace-style/trace-colors';
@@ -724,13 +724,14 @@ export {
 
 export {
   DEFAULT_TRACE_COLOR_SCHEME,
+  collectTraceColorSchemeAttributePaths,
   getReadableSpanBorderColor,
+  getTraceSpanAttributeValue,
+  isTraceColorSchemeAvailable,
   PERFETTO_TRACE_COLOR_SCHEME,
   PROCESS_TRACE_COLOR_SCHEME,
-  type TraceProcessColorParams,
-  type TraceSpanColorSource,
   type TraceSpanColorAccessorSource,
-  type TraceSpanColorParams,
+  type TraceSpanColorContext,
   type TraceSpanColorRefParams,
   type TraceSpanColorStyle,
   type TraceThreadColorParams,
@@ -762,7 +763,7 @@ export {
   type ChromeTraceEventArrowTable,
   parseChromeTrace,
   type ChromeTraceParseOptions
-} from './loaders/chrome-trace-loader/index';
+} from './loaders/chrome-trace-loader';
 
 export {
   ArrowChromeTraceWriter,
@@ -823,30 +824,26 @@ export {
 
 export {
   createChromeTraceColorScheme,
-  getColorFromUserData
+  getColorFromUserData,
+  getColorFromUserDataValues
 } from './trace-chrome/chrome-color-scheme';
 
-// LOCAL DEPENDENCY HELPERS
+// SAME-PROCESS DEPENDENCY HELPERS
 
 export {
   DEFAULT_SUBMIT_MIN_WAIT_TIME_MS,
   SUBMIT_MIN_WAIT_TIME_MS,
-  filterLocalDependenciesByMode,
-  shouldShowLocalDependencyByMode,
-  shouldShowLocalDependencyByModeFields
-} from './trace-layout/local-dependency-filter';
+  shouldShowSameProcessDependencyByMode,
+  shouldShowSameProcessDependencyByModeFields
+} from './trace-layout/same-process-dependency-filter';
 
 // UTILITIES
 
 export {
   kahnLaneLayout,
-  legacyLaneLayout,
-  layoutLanes,
   layoutLanesByOverlap,
   sortSpansByTime,
-  visitKahnLaneAssignments,
-  visitLaneAssignments,
-  visitLegacyLaneAssignments
+  visitKahnLaneAssignments
 } from './trace-layout/lane-layout';
 export type {LaneAssignment, LaneLayoutOptions} from './trace-layout/lane-layout';
 

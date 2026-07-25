@@ -1,11 +1,10 @@
-import {truncateMiddle, wrapText} from '../../trace/index';
+import {truncateMiddle, wrapText} from '../../trace';
 import {getTraceSpanBadgePresentation} from '../utils/trace-span-badge-presentation';
 import {CopyShortcutHint} from './copy-shortcut-hint';
 import {Badge, cn} from './ui';
 import {WithTooltip} from './with-tooltip';
 
-import type {TraceLabels, TraceSpanFilterMask} from '../../trace/index';
-import type {TraceSpanBadgeFilteredVariant} from '../utils/trace-span-badge-presentation';
+import type {TraceLabels, TraceSpanFilterMask} from '../../trace';
 import type {CSSProperties, MouseEvent as ReactMouseEvent, ReactNode} from 'react';
 
 export type TraceSpanBadgeProps = {
@@ -14,13 +13,13 @@ export type TraceSpanBadgeProps = {
   interactive?: boolean;
   /** Whether the badge represents a filtered span. */
   filtered?: boolean;
-  /** Visual treatment for a filtered badge. */
-  filteredVariant?: TraceSpanBadgeFilteredVariant;
   /** Exact graph filter provenance used to explain filtered badges. */
   filterMask?: TraceSpanFilterMask | null;
   onClick?: () => void;
   onDoubleClick?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
   maxLabelLength?: number;
+  /** Optional character position for the ellipsis; omitted values center truncation within the max length. */
+  ellipsisPosition?: number;
   className?: string;
   style?: CSSProperties;
   /** Base tooltip used when `tooltipText` is not supplied. */
@@ -48,6 +47,7 @@ export function TraceSpanBadge(props: TraceSpanBadgeProps) {
     blockRank,
     currentRank,
     maxLabelLength = 40,
+    ellipsisPosition,
     tooltipText
   } = props;
   const processLabel = props.traceLabels.processLabel.trim();
@@ -58,10 +58,9 @@ export function TraceSpanBadge(props: TraceSpanBadgeProps) {
         label: labelText,
         tooltipText: props.baseTooltipText ?? labelText,
         filtered: props.filtered,
-        filteredVariant: props.filteredVariant,
         filterMask: props.filterMask,
         maxLabelLength,
-        ellipsisPosition: 5,
+        ellipsisPosition,
         backgroundColor: typeof style?.backgroundColor === 'string' ? style.backgroundColor : null,
         textColor: typeof style?.color === 'string' ? style.color : null
       })
@@ -78,11 +77,8 @@ export function TraceSpanBadge(props: TraceSpanBadgeProps) {
     (typeof currentRank !== 'number' || blockRank !== currentRank);
 
   const isFiltered = presentation?.isFiltered ?? Boolean(props.filtered);
-  const filteredVariant = presentation?.filteredVariant ?? props.filteredVariant ?? 'regexp';
   const filteredBadgeClassName = isFiltered
-    ? filteredVariant === 'topology'
-      ? 'border text-muted-foreground bg-background'
-      : 'border border-muted-foreground text-muted-foreground bg-background'
+    ? 'border border-muted-foreground text-muted-foreground bg-background'
     : null;
   const filteredContentClassName = isFiltered ? 'text-muted-foreground' : null;
   const badgeStyle = isFiltered

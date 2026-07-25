@@ -1,9 +1,8 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
-import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
 import {TraceGraph} from '../trace-graph/trace-graph';
+import {createRuntimeTraceGraph} from '../trace-graph/trace-graph-test-fixtures';
 import {
   createTraceCollapseRuntimeState,
   reduceTraceCollapseRuntimeState
@@ -16,19 +15,6 @@ import type {
   TraceThread,
   TraceThreadId
 } from '../trace-graph/trace-types';
-
-function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
-): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
-}
 
 describe('trace collapse runtime', () => {
   it('preserves explicit process overrides across input syncs', () => {
@@ -75,7 +61,32 @@ describe('trace collapse runtime', () => {
 
     expect(runtime.collapseState.graphs[0]?.collapsedProcessRefs.has(processARef)).toBe(true);
     expect(runtime.collapseState.graphs[0]?.collapsedProcessRefs.has(processBRef)).toBe(false);
+    expect(runtime.appliedExpansionSpanRefs).toEqual([spanBRef]);
     expect(runtime.serializedExpandedProcessIds).toEqual(['B']);
+  });
+
+  it('compares applied selection refs directly without retaining a serialized key', () => {
+    const graph = createGraph('primary', ['A', 'B']);
+    const spanBRef = getRequiredSpanRef(graph, 'B');
+    const runtime = createTraceCollapseRuntimeState({
+      traceGraphs: [graph],
+      primaryTraceGraph: graph,
+      defaultExpandProcess: false,
+      selectedSpanRefs: [spanBRef]
+    });
+
+    const synced = reduceTraceCollapseRuntimeState(runtime, {
+      type: 'syncInputs',
+      inputs: {
+        traceGraphs: [graph],
+        primaryTraceGraph: graph,
+        defaultExpandProcess: false,
+        selectedSpanRefs: [spanBRef]
+      }
+    });
+
+    expect(synced).toBe(runtime);
+    expect('selectedExpansionSpanRefsKey' in synced).toBe(false);
   });
 
   it('prunes stale graph refs and stale process overrides during sync', () => {
@@ -185,13 +196,11 @@ describe('trace collapse runtime', () => {
 });
 
 function createGraph(name: string, processIds: readonly string[]): TraceGraph {
-  return createTestTraceGraph(
-    buildTraceGraphDataFromJSONTrace(
-      buildJSONTrace(
-        processIds.map((processId, index) => createRank(processId, index)),
-        [],
-        {name}
-      )
+  return createRuntimeTraceGraph(
+    buildJSONTrace(
+      processIds.map((processId, index) => createRank(processId, index)),
+      [],
+      {name}
     )
   );
 }
@@ -220,8 +229,8 @@ function createRank(processId: string, index: number): TraceProcess {
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };
@@ -241,7 +250,7 @@ function createRank(processId: string, index: number): TraceProcess {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 }
@@ -256,8 +265,7 @@ function getRequiredProcessRef(traceGraph: TraceGraph, processId: string) {
 }
 
 function getRequiredSpanRef(traceGraph: TraceGraph, processId: string) {
-  const spanRef =
-    traceGraph.getSpanRefByExternalBlockId(`${processId}-span` as TraceSpanId) ?? null;
+  const spanRef = traceGraph.getSpanRefById(`${processId}-span` as TraceSpanId) ?? null;
   if (spanRef == null) {
     throw new Error(`Expected span ref for ${processId}`);
   }

@@ -162,7 +162,7 @@ export class GraphEngine {
    * @fires GraphEngine#onLayoutStart
    */
   _onLayoutStart = (detail?: GraphLayoutEventDetail) => {
-    log.log(0, 'GraphEngine: layout start')();
+    log.log(1, 'GraphEngine: layout start')();
     this._props.onLayoutStart?.(detail);
   };
 
@@ -170,7 +170,7 @@ export class GraphEngine {
    * @fires GraphEngine#onLayoutChange
    */
   _onLayoutChange = (detail?: GraphLayoutEventDetail) => {
-    log.log(0, 'GraphEngine: layout update event')();
+    log.log(1, 'GraphEngine: layout update event')();
     this._props.onLayoutChange?.(detail);
   };
 
@@ -178,7 +178,7 @@ export class GraphEngine {
    * @fires GraphEngine#onLayoutDone
    */
   _onLayoutDone = (detail?: GraphLayoutEventDetail) => {
-    log.log(0, 'GraphEngine: layout end')();
+    log.log(1, 'GraphEngine: layout end')();
     this._props.onLayoutDone?.(detail);
   };
 
@@ -239,7 +239,7 @@ export class GraphEngine {
   };
 
   _updateLayout = () => {
-    log.log(0, 'GraphEngine: layout update');
+    log.log(1, 'GraphEngine: layout update');
     this._layout.updateGraph(this._graph);
     this._layout.update();
     this._layoutDirty = false;

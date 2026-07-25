@@ -4,7 +4,7 @@ import {useEffect, useState} from 'preact/hooks';
 import {TRACEVIS_EXAMPLE_TRACES} from '../examples/tracevis-examples';
 
 import type {AppState} from '../tracevis-store';
-import {Panel} from '@deck.gl-community/trace-layers/react';
+import type {Panel} from '@deck.gl-community/panels';
 import type {JSX} from 'preact';
 
 /**
@@ -28,16 +28,19 @@ export type TraceCatalogPanelProps = {
 /**
  * Widget panel that manages example and uploaded-trace selection for the demo app.
  */
-export class TraceCatalogPanel extends Panel {
+export class TraceCatalogPanel implements Panel {
+  /** Stable panel id used by widget containers. */
+  id = 'tracevis-trace-catalog-panel';
+  /** Visible panel heading. */
+  title = 'Traces';
+  /** Renderable panel body. */
+  content: JSX.Element;
+
   /**
    * Creates a trace-catalog panel bound to the provided demo store.
    */
   constructor(props: TraceCatalogPanelProps) {
-    super({
-      id: 'tracevis-trace-catalog-panel',
-      title: 'Traces',
-      content: <TraceCatalogPanelView store={props.store} />
-    });
+    this.content = <TraceCatalogPanelView store={props.store} />;
   }
 }
 

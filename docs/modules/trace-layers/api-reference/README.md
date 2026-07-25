@@ -28,8 +28,9 @@ The folders mirror the package entrypoints used in import paths.
 ### Data, runtime, and layout
 
 - [JSONTrace](./trace/json-trace.md)
-- [TraceGraphData](./trace/trace-graph-data.md)
 - [TraceChunkData](./trace/trace-chunk-data.md)
+- [TraceDataset](./trace/trace-dataset.md)
+- [TraceViewSnapshot](./trace/trace-view-snapshot.md)
 - [TraceChunkStore](./trace/trace-chunk-store.md)
 - [TraceStreamSession](./trace/trace-stream-session.md)
 - [TraceGraph](./trace/trace-graph.md)

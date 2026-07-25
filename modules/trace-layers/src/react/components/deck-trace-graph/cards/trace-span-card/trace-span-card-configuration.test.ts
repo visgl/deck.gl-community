@@ -1,39 +1,32 @@
-import {describe, expect, it, vi} from 'vitest';
+import {describe, expect, it} from 'vitest';
 
 import {
   buildJSONTrace,
-  buildTraceGraphDataFromJSONTrace,
   DEFAULT_TRACE_STYLE,
   materializeJSONTrace,
   TraceGraph
-} from '../../../../../trace/index';
-import {createStaticTraceGraphRuntimeSource} from '../../../../../trace/trace-chunk-store';
+} from '../../../../../trace';
+import {createRuntimeTraceGraph} from '../../../../../trace/trace-graph/trace-graph-test-fixtures';
 import {getRequiredSpanRef} from '../../../../../trace/trace-graph/trace-graph-test-utils';
 import {buildTraceSpanCardConfiguration} from './trace-span-card-configuration';
 
 import type {
   JSONTrace,
   TraceDependencyId,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceThread,
   TraceThreadId,
   TraceVisSettings
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 
 function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
+  traceGraph: Parameters<typeof createRuntimeTraceGraph>[0],
+  options?: Parameters<typeof createRuntimeTraceGraph>[1]
 ): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
+  return createRuntimeTraceGraph(traceGraph, options);
 }
 
 describe('buildTraceSpanCardConfiguration', () => {
@@ -41,13 +34,10 @@ describe('buildTraceSpanCardConfiguration', () => {
     const {span, traceGraph} = createConfiguredTraceGraph();
 
     const configuration = buildTraceSpanCardConfiguration({
-      traceGraph: createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-      spanRef: getRequiredSpanRef(
-        createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-        span
-      ),
+      traceGraph: createTestTraceGraph(traceGraph, {}),
+      spanRef: getRequiredSpanRef(createTestTraceGraph(traceGraph, {}), span),
       traceLabels: DEFAULT_TRACE_STYLE.labels,
-      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceTimingKey: 'latest'} as TraceVisSettings,
       interactive: true,
       tabOptions: {
         dependencyLabel: 'Parents',
@@ -85,13 +75,10 @@ describe('buildTraceSpanCardConfiguration', () => {
     };
 
     const defaultOptionsConfiguration = buildTraceSpanCardConfiguration({
-      traceGraph: createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-      spanRef: getRequiredSpanRef(
-        createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-        span
-      ),
+      traceGraph: createTestTraceGraph(traceGraph, {}),
+      spanRef: getRequiredSpanRef(createTestTraceGraph(traceGraph, {}), span),
       traceLabels: traceGraphOptions,
-      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceTimingKey: 'latest'} as TraceVisSettings,
       interactive: true,
       tabOptions: {
         dependencyLabel: 'Parents',
@@ -99,13 +86,10 @@ describe('buildTraceSpanCardConfiguration', () => {
       }
     });
     const deprecatedOptionsConfiguration = buildTraceSpanCardConfiguration({
-      traceGraph: createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-      spanRef: getRequiredSpanRef(
-        createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-        span
-      ),
+      traceGraph: createTestTraceGraph(traceGraph, {}),
+      spanRef: getRequiredSpanRef(createTestTraceGraph(traceGraph, {}), span),
       traceLabels: traceGraphOptions,
-      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceTimingKey: 'latest'} as TraceVisSettings,
       interactive: true,
       tabOptions: {
         dependencyLabel: 'Parents',
@@ -139,7 +123,7 @@ describe('buildTraceSpanCardConfiguration', () => {
       spanLabel: 'Span'
     };
     const {span, traceGraph} = createLeafTraceGraph();
-    const graph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {});
+    const graph = createTestTraceGraph(traceGraph, {});
     const configuration = buildTraceSpanCardConfiguration({
       traceGraph: graph,
       spanRef: getRequiredSpanRef(graph, span),
@@ -171,7 +155,7 @@ describe('buildTraceSpanCardConfiguration', () => {
     span.timings.envelope = createTiming(8, 52);
     span.timings.mean = createTiming(12, 17);
     span.timings.p50 = createTiming(13, 19);
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {});
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {});
 
     const configuration = buildTraceSpanCardConfiguration({
       spanRef: getRequiredSpanRef(traceGraph, span),
@@ -181,8 +165,14 @@ describe('buildTraceSpanCardConfiguration', () => {
       interactive: true
     });
     expect(configuration.aggregatedDurationSummary).toMatchObject({
-      envelopeTiming: span.timings.envelope,
-      representativeTiming: span.timings.mean,
+      envelopeTiming: expect.objectContaining({
+        durationMs: 44,
+        durationMsAsString: '44 ms'
+      }),
+      representativeTiming: expect.objectContaining({
+        durationMs: 5,
+        durationMsAsString: '5 ms'
+      }),
       representativeTimingKey: 'mean'
     });
     expect(configuration.defaultDependencyDurationTimingKeys).toEqual(['envelope', 'mean']);
@@ -192,7 +182,7 @@ describe('buildTraceSpanCardConfiguration', () => {
     const {span, traceGraph: sourceTraceGraph} = createConfiguredTraceGraph();
     span.timings.envelope = createTiming(8, 52);
     span.timings.p50 = createTiming(13, 19);
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {});
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {});
 
     const configuration = buildTraceSpanCardConfiguration({
       spanRef: getRequiredSpanRef(traceGraph, span),
@@ -203,8 +193,14 @@ describe('buildTraceSpanCardConfiguration', () => {
     });
 
     expect(configuration.aggregatedDurationSummary).toMatchObject({
-      envelopeTiming: span.timings.envelope,
-      representativeTiming: span.timings.p50,
+      envelopeTiming: expect.objectContaining({
+        durationMs: 44,
+        durationMsAsString: '44 ms'
+      }),
+      representativeTiming: expect.objectContaining({
+        durationMs: 6,
+        durationMsAsString: '6 ms'
+      }),
       representativeTimingKey: 'p50'
     });
     expect(configuration.defaultDependencyDurationTimingKeys).toEqual(['envelope', 'p50']);
@@ -213,7 +209,7 @@ describe('buildTraceSpanCardConfiguration', () => {
   it('leaves the aggregated representative duration empty when mean and p50 are unavailable', () => {
     const {span, traceGraph: sourceTraceGraph} = createConfiguredTraceGraph();
     span.timings.envelope = createTiming(8, 52);
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {});
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {});
 
     const configuration = buildTraceSpanCardConfiguration({
       spanRef: getRequiredSpanRef(traceGraph, span),
@@ -224,7 +220,10 @@ describe('buildTraceSpanCardConfiguration', () => {
     });
 
     expect(configuration.aggregatedDurationSummary).toMatchObject({
-      envelopeTiming: span.timings.envelope,
+      envelopeTiming: expect.objectContaining({
+        durationMs: 44,
+        durationMsAsString: '44 ms'
+      }),
       representativeTiming: null,
       representativeTimingKey: null
     });
@@ -232,10 +231,7 @@ describe('buildTraceSpanCardConfiguration', () => {
 
   it('builds unfiltered dependency rows without graph-wide projection', () => {
     const {span, traceGraph: sourceTraceGraph} = createConfiguredTraceGraph();
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {});
-    const projectionSpy = vi.spyOn(traceGraph, 'getProjection');
-    const sourceProjectionSpy = vi.spyOn(traceGraph, 'getSourceProjection');
-    const dependencyChainSpy = vi.spyOn(traceGraph, 'getParentDependencyChainEntriesBySpanRef');
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {});
     const spanRef = getRequiredSpanRef(traceGraph, span);
 
     const configuration = buildTraceSpanCardConfiguration({
@@ -252,22 +248,16 @@ describe('buildTraceSpanCardConfiguration', () => {
     expect(configuration.fullInDependencies.map(entry => entry.dependency.dependencyId)).toEqual([
       'dep-parent'
     ]);
-    expect(projectionSpy).not.toHaveBeenCalled();
-    expect(sourceProjectionSpy).not.toHaveBeenCalled();
-    expect(dependencyChainSpy).toHaveBeenCalledWith(spanRef);
   });
 
   it('derives aggregated span labels and summary timing from aggregate metadata', () => {
     const {span, traceGraph} = createConfiguredTraceGraph();
 
     const configuration = buildTraceSpanCardConfiguration({
-      traceGraph: createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-      spanRef: getRequiredSpanRef(
-        createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph), {}),
-        span
-      ),
+      traceGraph: createTestTraceGraph(traceGraph, {}),
+      spanRef: getRequiredSpanRef(createTestTraceGraph(traceGraph, {}), span),
       traceLabels: DEFAULT_TRACE_STYLE.labels,
-      traceSettings: {traceRunSummaryAggregationKey: 'latest'} as TraceVisSettings,
+      traceSettings: {traceTimingKey: 'latest'} as TraceVisSettings,
       interactive: true
     });
 
@@ -281,7 +271,7 @@ describe('buildTraceSpanCardConfiguration', () => {
 
   it('keeps the dependencies tab available even when a span has no dependencies', () => {
     const {span, traceGraph: sourceTraceGraph} = createLeafTraceGraph();
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {});
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {});
 
     const configuration = buildTraceSpanCardConfiguration({
       spanRef: getRequiredSpanRef(traceGraph, span),
@@ -298,7 +288,7 @@ describe('buildTraceSpanCardConfiguration', () => {
 
   it('shows Arrow span table columns in the span data tab', () => {
     const {span, traceGraph: sourceTraceGraph} = createLeafTraceGraph();
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {});
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {});
 
     const configuration = buildTraceSpanCardConfiguration({
       spanRef: getRequiredSpanRef(traceGraph, span),
@@ -318,7 +308,7 @@ describe('buildTraceSpanCardConfiguration', () => {
     const {span, traceGraph: sourceTraceGraph} = createLeafTraceGraph({
       userData: {source: 'worker-trace.json'}
     });
-    const traceGraph = createTestTraceGraph(buildTraceGraphDataFromJSONTrace(sourceTraceGraph), {});
+    const traceGraph = createTestTraceGraph(sourceTraceGraph, {});
 
     const configuration = buildTraceSpanCardConfiguration({
       spanRef: getRequiredSpanRef(traceGraph, span),
@@ -416,8 +406,8 @@ function createConfiguredTraceGraph(): {
     keywords: ['SUBMIT']
   });
 
-  currentBlock.localDependencyIds = [parentDependency.dependencyId];
-  childBlock.localDependencyIds = [childDependency.dependencyId];
+  currentBlock.sameProcessDependencyIds = [parentDependency.dependencyId];
+  childBlock.sameProcessDependencyIds = [childDependency.dependencyId];
 
   const process: TraceProcess = {
     type: 'trace-process',
@@ -439,7 +429,7 @@ function createConfiguredTraceGraph(): {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [parentDependency, childDependency],
+    sameProcessDependencies: [parentDependency, childDependency],
     remoteDependencies: []
   };
 
@@ -476,8 +466,8 @@ function createBlock(params: {
         durationMsAsString: `${params.endTimeMs - params.startTimeMs}ms`
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: [],
     userData: params.userData
@@ -500,9 +490,9 @@ function createDependency(params: {
   startSpanId: TraceSpanId;
   endSpanId: TraceSpanId;
   keywords: string[];
-}): TraceLocalDependency {
+}): TraceSameProcessDependency {
   return {
-    type: 'trace-local-dependency',
+    type: 'trace-same-process-dependency',
     dependencyId: params.dependencyId as TraceDependencyId,
     startSpanId: params.startSpanId,
     endSpanId: params.endSpanId,
@@ -549,7 +539,7 @@ function createLeafTraceGraph(params?: {userData?: Record<string, unknown>}): {
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
 

@@ -100,6 +100,7 @@ const CONFIG = defineConfig({
         test: {
           name: 'node',
           environment: 'node',
+          setupFiles: ['./modules/trace-layers/vitest.setup.ts'],
           include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
           exclude: [
             'modules/**/dist/**',
@@ -121,6 +122,7 @@ const CONFIG = defineConfig({
         test: {
           name: 'browser',
           environment: 'node',
+          setupFiles: ['./modules/trace-layers/vitest.setup.ts'],
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
@@ -142,6 +144,7 @@ const CONFIG = defineConfig({
         test: {
           name: 'headless',
           environment: 'node',
+          setupFiles: ['./modules/trace-layers/vitest.setup.ts'],
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
@@ -163,6 +166,7 @@ const CONFIG = defineConfig({
         test: {
           name: 'examples',
           environment: 'node',
+          setupFiles: ['./modules/trace-layers/vitest.setup.ts'],
           include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}']
         }
       }

@@ -120,10 +120,10 @@ describe('HeapMemoryInfoBar', () => {
     expect(getTooltipText()).toContain('Descriptors30');
     expect(getTooltipText()).toContain('Loaded chunks25');
     expect(getTooltipText()).toContain('Loaded spans250,000');
-    expect(getTooltipText()).toContain('Observed store heap delta3 GB');
-    expect(getTooltipText()).toContain('Unattributed store delta901 MB');
+    expect(getTooltipText()).toContain('Observed loaded-trace heap delta3 GB');
+    expect(getTooltipText()).toContain('Unattributed loaded-trace delta901 MB');
     expect(getTooltipText()).toContain('Process snapshots1 GB');
-    expect(getTooltipText()).toContain('Span sidecars512 MB');
+    expect(getTooltipText()).toContain('traceChunkStore.spanSidecarRows512 MB');
     expect(getTooltipText()).toContain('Visualization window');
     expect(getTooltipText()).toContain('TraceGraph estimate123 MB');
     expect(getTooltipText()).toContain('TraceEngine');
@@ -300,9 +300,7 @@ function createTraceChunkStoreDiagnostics() {
     readyChunkCount: 25,
     pendingChunkCount: 2,
     failedChunkCount: 1,
-    traceWindowCount: 1,
-    sourceSpanFilterCount: 0,
-    sourceSpanFilterRevision: 0
+    traceWindowCount: 1
   };
 }
 
@@ -316,12 +314,12 @@ function createTraceEngineDiagnostics() {
     displayedProcessCount: 4,
     displayedThreadCount: 8,
     displayedSpanCount: 250_000,
-    displayedLocalDependencyCount: 320_000,
-    displayedCrossDependencyCount: 12_000,
+    displayedSameProcessDependencyCount: 320_000,
+    displayedCrossProcessDependencyCount: 12_000,
     selectedSpanCount: 1,
     focusedSpanCount: 0,
-    selectedLocalDependencyCount: 0,
-    selectedCrossDependencyCount: 0,
+    selectedSameProcessDependencyCount: 0,
+    selectedCrossProcessDependencyCount: 0,
     activeLayoutCount: 1,
     baseLayoutCount: 1,
     focusedLayoutCount: 0,
@@ -335,8 +333,7 @@ function createTraceEngineDiagnostics() {
       totalDurationMs: 12.3,
       baseLayoutDurationMs: 4.1,
       focusedLayoutDurationMs: 0,
-      threadCollapsePruneDurationMs: 0,
-      preparedSceneDurationMs: 7.2
+      preparedRenderDataDurationMs: 7.2
     },
     traceEngineRetainedSizeBytes: 112 * 1024 * 1024,
     traceLayoutSizeBytes: 45 * 1024 * 1024,

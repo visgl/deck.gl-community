@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 
 import {resolveDeckTraceGraphHoverPayload} from './deck-trace-graph-hover';
 
-import type {EventRef, TraceEventId} from '../../../trace/index';
+import type {EventRef, TraceEventId} from '../../../trace';
 
 describe('resolveDeckTraceGraphHoverPayload', () => {
   it('ignores primitive selected-span picking payloads', () => {

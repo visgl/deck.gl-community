@@ -2,10 +2,10 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it} from 'vitest';
 
-import {TRACE_SPAN_FILTER_MASK_NONE} from '../../../../../trace/index';
+import {TRACE_SPAN_FILTER_MASK_NONE} from '../../../../../trace';
 import {
-  TraceSpanCrossDependencies,
-  TraceSpanCrossDependenciesHorizontal
+  TraceSpanCrossProcessDependencies,
+  TraceSpanCrossProcessDependenciesHorizontal
 } from './trace-span-card-cross-dependencies';
 
 import type {
@@ -15,13 +15,13 @@ import type {
   TraceDependencyId,
   TraceSpan,
   TraceSpanId
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {Root} from 'react-dom/client';
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
 
-describe('TraceSpanCrossDependencies', () => {
+describe('TraceSpanCrossProcessDependencies', () => {
   afterEach(() => {
     root?.unmount();
     root = null;
@@ -44,7 +44,7 @@ describe('TraceSpanCrossDependencies', () => {
 
     flushSync(() => {
       root?.render(
-        <TraceSpanCrossDependencies
+        <TraceSpanCrossProcessDependencies
           endpointsWithDeps={[
             createEndpointEntry({
               endpoint: createEndpoint({endRankNum: 7, waitTimeMs: 12}),
@@ -73,14 +73,14 @@ describe('TraceSpanCrossDependencies', () => {
     expect(container.textContent).toContain('...1 more processes...');
   });
 
-  it('renders all horizontal cross dependencies in a scrollable container', () => {
+  it('renders capped horizontal cross process dependencies in a scrollable container', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
 
     flushSync(() => {
       root?.render(
-        <TraceSpanCrossDependenciesHorizontal
+        <TraceSpanCrossProcessDependenciesHorizontal
           endpointsWithDeps={[
             createEndpointEntry({
               endpoint: createEndpoint({endRankNum: 7, waitTimeMs: 12}),
@@ -106,9 +106,9 @@ describe('TraceSpanCrossDependencies', () => {
     const textContent = container.textContent ?? '';
     expect(textContent).toContain('7');
     expect(textContent).toContain('8');
-    expect(textContent).toContain('9');
-    expect(textContent).toContain('30ms');
-    expect(textContent).not.toContain('...');
+    expect(textContent).not.toContain('9');
+    expect(textContent).not.toContain('30ms');
+    expect(textContent).toContain('Showing 2 of 3 processes');
   });
 
   it('renders an idle glyph for an unloaded unresolved rank', () => {
@@ -118,7 +118,7 @@ describe('TraceSpanCrossDependencies', () => {
 
     flushSync(() => {
       root?.render(
-        <TraceSpanCrossDependenciesHorizontal
+        <TraceSpanCrossProcessDependenciesHorizontal
           endpointsWithDeps={[
             createEndpointEntry({
               endpoint: createEndpoint({endRankNum: 8, waitTimeMs: 25}),
@@ -145,7 +145,7 @@ describe('TraceSpanCrossDependencies', () => {
 
     flushSync(() => {
       root?.render(
-        <TraceSpanCrossDependenciesHorizontal
+        <TraceSpanCrossProcessDependenciesHorizontal
           endpointsWithDeps={[
             createEndpointEntry({
               endpoint: createEndpoint({endRankNum: 8, waitTimeMs: 25}),
@@ -184,7 +184,7 @@ describe('TraceSpanCrossDependencies', () => {
 
     flushSync(() => {
       root?.render(
-        <TraceSpanCrossDependenciesHorizontal
+        <TraceSpanCrossProcessDependenciesHorizontal
           endpointsWithDeps={[
             createEndpointEntry({
               endpoint: createEndpoint({endRankNum: 8, waitTimeMs: 25}),
@@ -227,7 +227,7 @@ describe('TraceSpanCrossDependencies', () => {
 
     flushSync(() => {
       root?.render(
-        <TraceSpanCrossDependenciesHorizontal
+        <TraceSpanCrossProcessDependenciesHorizontal
           endpointsWithDeps={[
             createEndpointEntry({
               endpoint: createEndpoint({endRankNum: 7, waitTimeMs: 0.402}),
@@ -269,8 +269,8 @@ function createBlock(name: string): TraceSpan {
         durationMsAsString: '1ms'
       }
     },
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: []
   };

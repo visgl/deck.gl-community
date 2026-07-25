@@ -4,7 +4,7 @@ import {
   DEFAULT_PATH_HIGHLIGHT_TRAIL_LENGTH,
   DEFAULT_TRACE_COLOR_SCHEME,
   DEFAULT_TRACE_FONT_FAMILY
-} from '../../trace/index';
+} from '../../trace';
 import {
   buildDeckBackgroundLayersForTrace,
   buildDeckLayerForCriticalPath,
@@ -12,11 +12,7 @@ import {
   buildDeckLayersForTrace
 } from './deck-layers';
 
-import type {
-  TraceColorScheme,
-  TracePathHighlightingResult,
-  TraceVisSettings
-} from '../../trace/index';
+import type {TraceColorScheme, TracePathHighlightingResult, TraceVisSettings} from '../../trace';
 import type {CompositeLayerProps, Layer, LayerProps} from '@deck.gl/core';
 import type {TraceDeckLayerHandlers, TraceDeckLayerSelection} from './deck-layers';
 import type {TraceViewState} from '../../trace/trace-view-state/trace-view-state';
@@ -81,48 +77,55 @@ export class TracePreparedStateLayer extends CompositeLayer<TracePreparedStateLa
       ? {...settings, showGlobalEvents: false}
       : settings;
 
-    return traceViewState.preparedScene.foreground
-      .flatMap(scene => [
-        buildDeckBackgroundLayersForTrace({
-          processRows: scene.layout.renderRows,
-          traceLayout: scene.layout,
-          layerIdPrefix: scene.layerIdPrefix,
-          rankBackgroundColor: scene.rankBackgroundColor,
-          modelMatrix: scene.modelMatrix
-        }),
-        ...buildDeckLayersForTrace({
-          scene,
-          stepNum,
-          selection,
-          settings,
-          handlers,
-          colorScheme,
-          fontFamily,
-          showRowSeparators
-        }),
-        ...buildDeckLayersForInstantsAndCounter({
-          traceGraph: scene.graph,
-          traceLayout: scene.layout,
-          settings: mainTimelineEventSettings,
-          colorScheme,
-          layerIdPrefix: scene.layerIdPrefix,
-          modelMatrix: scene.modelMatrix
-        }),
-        buildDeckLayerForCriticalPath({
-          pathBlockSources: traceViewState.preparedScene.paths.pathBlockSources,
-          pathDependencySources: traceViewState.preparedScene.paths.pathDependencySources,
-          pathHighlightSpanRefs: pathHighlighting?.highlightedPathSpanRefs,
-          pathHighlightTrail: pathHighlighting?.highlightedPathTrail,
-          pathHighlightTrailLength,
-          onSpanClick: handlers.onSpanClick,
-          traceLayout: scene.layout,
-          settings,
-          colorScheme,
-          highlightedSpanRefs: selection?.highlightedSpanRefs,
-          layerIdPrefix: scene.layerIdPrefix,
-          modelMatrix: scene.modelMatrix
-        })
-      ])
+    const {foregroundScenes, derivedDataByGraph, pathData} = traceViewState.renderSnapshot;
+
+    return foregroundScenes
+      .flatMap((scene, graphIndex) => {
+        const derivedData = derivedDataByGraph[graphIndex];
+        if (!derivedData) {
+          throw new Error('TracePreparedStateLayer requires derived render data for each scene.');
+        }
+
+        return [
+          buildDeckBackgroundLayersForTrace({
+            processRows: scene.layout.renderRows,
+            traceLayout: scene.layout,
+            layerIdPrefix: scene.layerIdPrefix,
+            rankBackgroundColor: scene.rankBackgroundColor,
+            modelMatrix: scene.modelMatrix
+          }),
+          ...buildDeckLayersForTrace({
+            scene,
+            stepNum,
+            selection,
+            settings,
+            handlers,
+            colorScheme,
+            fontFamily,
+            showRowSeparators
+          }),
+          ...buildDeckLayersForInstantsAndCounter({
+            settings: mainTimelineEventSettings,
+            derivedData,
+            layerIdPrefix: scene.layerIdPrefix,
+            modelMatrix: scene.modelMatrix
+          }),
+          buildDeckLayerForCriticalPath({
+            pathBlockSources: pathData.pathBlockSources,
+            pathDependencySources: pathData.pathDependencySources,
+            pathHighlightSpanRefs: pathHighlighting?.highlightedPathSpanRefs,
+            pathHighlightTrail: pathHighlighting?.highlightedPathTrail,
+            pathHighlightTrailLength,
+            onSpanClick: handlers.onSpanClick,
+            traceLayout: scene.layout,
+            settings,
+            colorScheme,
+            highlightedSpanRefs: selection?.highlightedSpanRefs,
+            layerIdPrefix: scene.layerIdPrefix,
+            modelMatrix: scene.modelMatrix
+          })
+        ];
+      })
       .map(layer => this.getNamespacedSubLayer(layer));
   }
 

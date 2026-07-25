@@ -1,6 +1,6 @@
-import {getPrimaryTiming} from '../../../../../trace/index';
+import {getTraceSelectedSpanFromRef} from '../../../../../trace';
 
-import type {SpanRef, TraceGraph, TraceSpanId} from '../../../../../trace/index';
+import type {SpanRef, TraceGraph, TraceSpanId} from '../../../../../trace';
 
 /**
  * Derived previous/next navigation state for a selected block within its stream.
@@ -51,7 +51,7 @@ export function getThreadNavigation(
     rankNum: null
   };
 
-  const span = traceGraph.getTraceSpanCardModel(spanRef)?.span ?? null;
+  const span = getTraceSelectedSpanFromRef(traceGraph, spanRef);
   if (!span) {
     return emptyNavigation;
   }
@@ -62,33 +62,32 @@ export function getThreadNavigation(
     return emptyNavigation;
   }
 
-  const streamBlocks = traceGraph
-    .getVisibleProcessDisplaySources(processRef)
-    .filter(candidate => candidate.threadId === span.threadId)
+  const streamSpanRefs = Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRef))
+    .filter(candidateSpanRef => traceGraph.getSpanStreamId(candidateSpanRef) === span.threadId)
     .sort(
-      (a, b) =>
-        getPrimaryTiming(a).startTimeMs - getPrimaryTiming(b).startTimeMs ||
-        getPrimaryTiming(a).endTimeMs - getPrimaryTiming(b).endTimeMs ||
-        a.spanId.localeCompare(b.spanId)
+      (leftSpanRef, rightSpanRef) =>
+        (traceGraph.getSpanStartTimeMs(leftSpanRef) ?? 0) -
+          (traceGraph.getSpanStartTimeMs(rightSpanRef) ?? 0) ||
+        (traceGraph.getSpanEndTimeMs(leftSpanRef) ?? 0) -
+          (traceGraph.getSpanEndTimeMs(rightSpanRef) ?? 0) ||
+        (traceGraph.getSpanId(leftSpanRef) ?? '').localeCompare(
+          traceGraph.getSpanId(rightSpanRef) ?? ''
+        )
     );
 
-  const currentIndex = streamBlocks.findIndex(candidate => candidate.spanRef === spanRef);
+  const currentIndex = streamSpanRefs.indexOf(spanRef);
   if (currentIndex === -1) {
     return emptyNavigation;
   }
 
-  const streamName = traceGraph.getThreadSourceBySpanRef(spanRef)?.name ?? span.threadId;
-  const previousSpanRef =
-    currentIndex > 0 ? (streamBlocks[currentIndex - 1]?.spanRef ?? null) : null;
+  const threadRef = traceGraph.getSpanOwnerRefs(spanRef)?.threadRef ?? null;
+  const streamName =
+    (threadRef == null ? null : traceGraph.getThreadSourceByRef(threadRef)?.name) ?? span.threadId;
+  const previousSpanRef = currentIndex > 0 ? (streamSpanRefs[currentIndex - 1] ?? null) : null;
   const nextSpanRef =
-    currentIndex + 1 < streamBlocks.length
-      ? (streamBlocks[currentIndex + 1]?.spanRef ?? null)
-      : null;
-  const previousSpanId = currentIndex > 0 ? (streamBlocks[currentIndex - 1]?.spanId ?? null) : null;
-  const nextSpanId =
-    currentIndex + 1 < streamBlocks.length
-      ? (streamBlocks[currentIndex + 1]?.spanId ?? null)
-      : null;
+    currentIndex + 1 < streamSpanRefs.length ? (streamSpanRefs[currentIndex + 1] ?? null) : null;
+  const previousSpanId = previousSpanRef == null ? null : traceGraph.getSpanId(previousSpanRef);
+  const nextSpanId = nextSpanRef == null ? null : traceGraph.getSpanId(nextSpanRef);
 
   return {
     previousSpanRef,
@@ -96,7 +95,7 @@ export function getThreadNavigation(
     previousSpanId,
     nextSpanId,
     streamName,
-    positionLabel: `${currentIndex + 1} / ${streamBlocks.length}`,
+    positionLabel: `${currentIndex + 1} / ${streamSpanRefs.length}`,
     rankNum
   };
 }
@@ -115,7 +114,7 @@ export function getSameNameNavigation(
     positionLabel: null
   };
 
-  const span = traceGraph.getTraceSpanCardModel(spanRef)?.span ?? null;
+  const span = getTraceSelectedSpanFromRef(traceGraph, spanRef);
   if (!span) {
     return emptyNavigation;
   }

@@ -1,4 +1,4 @@
-import type {TraceLabels} from '../../../../../trace/index';
+import type {TraceLabels} from '../../../../../trace';
 import type {ReactNode} from 'react';
 
 /**

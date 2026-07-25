@@ -76,6 +76,7 @@ export {
   getArrowUtf8RowView,
   getUtf8ColumnSourceRowView,
   makeUtf8StringView,
+  utf8StringViewsEqual,
   type Utf8ColumnSource,
   type Utf8ColumnSourceChunk,
   type Utf8StringView

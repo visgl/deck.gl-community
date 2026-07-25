@@ -16,12 +16,12 @@ import {buildJSONTrace, materializeJSONTrace} from '@deck.gl-community/trace-lay
 `JSONTrace` contains:
 
 - `processes`
-- `crossDependencies`
+- `crossProcessDependencies`
 - optional graph-global `events`
 - optional `timeExtents`
 - optional `spanLayout`, usually `'auto'` or `'manual'`
 
-`JSONTraceProcess` owns process-local threads, spans, local dependencies, instants, and counters.
+`JSONTraceProcess` owns process-local threads, spans, same-process dependencies, instants, and counters.
 `JSONTrace` adds graph-wide dependencies and events.
 
 ## Use it for
@@ -41,7 +41,6 @@ belongs in `TraceGraph`.
 - `mergeJSONTraces(...)`
 - `getJSONTraceTimingBounds(...)`
 - `buildTraceChunkDataFromJSONTrace(...)`
-- `buildTraceGraphDataFromJSONTrace(...)`
 
 ## Manual span layout
 
@@ -49,5 +48,5 @@ When `spanLayout` is `'manual'`, spans may provide thread-relative `layoutTopY` 
 Both values must be finite, `layoutTopY >= 0`, and `layoutHeight > 0` for the span to render in
 manual mode.
 
-See [Data model](../../developer-guide/data-model.md), [TraceGraphData](./trace-graph-data.md), and
+See [Data model](../../developer-guide/data-model.md), [TraceDataset](./trace-dataset.md), and
 [TraceLayout](./trace-layout.md).

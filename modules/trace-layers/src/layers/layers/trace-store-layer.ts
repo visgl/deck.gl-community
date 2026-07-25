@@ -4,21 +4,23 @@ import {TraceGraphLayer} from './trace-graph-layer';
 
 import type {
   TraceChunkDescriptor,
+  TraceChunkLoadContext,
+  TraceChunkReadyMaterializerParams,
   TraceChunkSelection,
   TraceChunkStore,
   TraceChunkStoreLoadResult,
   TraceChunkStoreProgress,
-  TraceChunkWindowGraphMaterializer,
+  TraceChunkStoreWindow,
+  TraceChunkStoreWindowChunksArrivedEvent,
+  TraceDataset,
   TraceGraph,
-  TraceGraphData,
-  TraceGraphFilterOptions,
-  TraceWindow,
-  TraceWindowChunksArrivedEvent
-} from '../../trace/index';
+  TraceViewSnapshotOptions
+} from '../../trace';
 import {
+  buildTraceViewSnapshot,
   TraceGraph as RuntimeTraceGraph,
   traceWindowToTraceChunkSelectionWindow
-} from '../../trace/index';
+} from '../../trace';
 import type {Layer, LayerContext, UpdateParameters} from '@deck.gl/core';
 import type {TraceGraphLayerProps} from './trace-graph-layer';
 
@@ -27,21 +29,28 @@ export type TraceStoreLayerSource<
   TPayload = unknown,
   TDescriptor extends TraceChunkDescriptor = TraceChunkDescriptor
 > = {
-  /** Chunk store that owns descriptors, ready chunks, and trace-window subscriptions. */
+  /** Chunk store that owns descriptors, ready chunks, and the active trace-window load. */
   readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor>;
-  /** Active time window registered while this source is rendered. */
-  readonly traceWindow: TraceWindow;
-  /** Async source loader used by `TraceChunkStore.registerTraceWindows`. */
-  readonly loadChunk: (descriptor: TDescriptor) => Promise<TraceChunkStoreLoadResult<TPayload>>;
-  /** Caller-owned materializer that builds one selected trace window into immutable graph data. */
-  readonly materializeTraceGraphData: TraceChunkWindowGraphMaterializer<TPayload, TDescriptor>;
-  /** Optional filters applied when wrapping materialized graph data in `TraceGraph`. */
-  readonly traceGraphFilterOptions?: TraceGraphFilterOptions;
-  /** Optional selected-descriptor span budget used while materializing the window graph. */
+  /** Active time window loaded while this source is rendered. */
+  readonly traceWindow: TraceChunkStoreWindow;
+  /** Async source loader used by `TraceChunkStore.loadWindow`. */
+  readonly loadChunk: (
+    descriptor: TDescriptor,
+    context: TraceChunkLoadContext
+  ) => Promise<TraceChunkStoreLoadResult<TPayload>>;
+  /** Caller-owned materializer that builds one selected trace window into an immutable dataset. */
+  readonly materializeTraceDataset: (
+    params: TraceChunkReadyMaterializerParams<TPayload, TDescriptor>
+  ) => TraceDataset | null;
+  /** Optional view filters applied when wrapping the materialized dataset in `TraceGraph`. */
+  readonly traceViewSnapshotOptions?: TraceViewSnapshotOptions;
+  /** Optional selected-descriptor span budget used while materializing the window dataset. */
   readonly spanBudget?: number | null;
   /** Optional readiness callback forwarded to `TraceChunkStore`. */
   readonly onProgress?: (progress: TraceChunkStoreProgress) => void;
-  /** Optional async registration/load error callback. */
+  /** Optional throttled chunk-arrival callback forwarded to `TraceChunkStore`. */
+  readonly onChunksArrived?: (event: TraceChunkStoreWindowChunksArrivedEvent) => void;
+  /** Optional async load error callback. */
   readonly onError?: (error: unknown) => void;
 };
 
@@ -54,34 +63,32 @@ export type TraceStoreLayerProps<
   readonly traceSources: readonly TraceStoreLayerSource<TPayload, TDescriptor>[];
 };
 
-type RegisteredTraceStoreLayerSource<TPayload, TDescriptor extends TraceChunkDescriptor> = {
+type ActiveTraceStoreLayerSource<TPayload, TDescriptor extends TraceChunkDescriptor> = {
   /** Original caller-owned source props used for graph materialization and cleanup. */
   readonly source: TraceStoreLayerSource<TPayload, TDescriptor>;
-  /** Wrapped trace window that invalidates the layer when chunks arrive. */
-  readonly wrappedWindow: TraceWindow;
 };
 
 type MaterializedTraceStoreLayerGraph = {
-  /** Latest immutable graph data returned by the source-owned materializer. */
-  readonly traceGraphData: TraceGraphData;
-  /** Runtime graph wrapping `traceGraphData` and its owning chunk store. */
+  /** Latest immutable dataset returned by the source-owned materializer. */
+  readonly traceDataset: TraceDataset;
+  /** Runtime graph wrapping `traceDataset` and its owning chunk store. */
   readonly traceGraph: TraceGraph;
   /** Whether every selected descriptor currently has a ready stored payload. */
   readonly isComplete: boolean;
 };
 
 type TraceStoreLayerState<TPayload, TDescriptor extends TraceChunkDescriptor> = {
-  /** Monotonic token used to ignore stale async registration completions. */
-  registrationGeneration: number;
-  /** Currently registered store-backed trace sources. */
-  registeredSources: readonly RegisteredTraceStoreLayerSource<TPayload, TDescriptor>[];
-  /** Latest materialized runtime graphs aligned with `registeredSources`. */
+  /** Monotonic token used to ignore stale async load completions. */
+  loadGeneration: number;
+  /** Currently active store-backed trace sources. */
+  activeSources: readonly ActiveTraceStoreLayerSource<TPayload, TDescriptor>[];
+  /** Latest materialized runtime graphs aligned with `activeSources`. */
   materializedGraphs: readonly (MaterializedTraceStoreLayerGraph | null)[];
-  /** Runtime graphs resolved from the latest materialized graph data. */
+  /** Runtime graphs resolved from the latest materialized datasets. */
   traceGraphs: readonly TraceGraph[];
 };
 
-/** Owns trace-window registration, materializes store graph data, and renders it through `TraceGraphLayer`. */
+/** Owns trace-window loading, materializes store datasets, and renders them through `TraceGraphLayer`. */
 export class TraceStoreLayer<
   TPayload = unknown,
   TDescriptor extends TraceChunkDescriptor = TraceChunkDescriptor
@@ -89,8 +96,8 @@ export class TraceStoreLayer<
   static override layerName = 'TraceStoreLayer';
 
   override state: TraceStoreLayerState<TPayload, TDescriptor> = {
-    registrationGeneration: 0,
-    registeredSources: [],
+    loadGeneration: 0,
+    activeSources: [],
     materializedGraphs: [],
     traceGraphs: []
   };
@@ -106,18 +113,18 @@ export class TraceStoreLayer<
   }
 
   override updateState({props}: UpdateParameters<this>): void {
-    if (!areTraceStoreLayerSourcesEqual(props.traceSources, this.state.registeredSources)) {
+    if (!areTraceStoreLayerSourcesEqual(props.traceSources, this.state.activeSources)) {
       this.syncTraceSources(props.traceSources);
       return;
     }
 
-    this.refreshMaterializedGraphs(this.state.registrationGeneration);
+    this.refreshMaterializedGraphs(this.state.loadGeneration);
   }
 
   override finalizeState(context: LayerContext): void {
-    this.releaseRegisteredSources();
-    this.state.registrationGeneration += 1;
-    this.state.registeredSources = [];
+    this.releaseActiveSources();
+    this.state.loadGeneration += 1;
+    this.state.activeSources = [];
     super.finalizeState(context);
   }
 
@@ -134,68 +141,63 @@ export class TraceStoreLayer<
     });
   }
 
-  /** Replaces active store subscriptions with the current source list. */
+  /** Replaces active store window loads with the current source list. */
   private syncTraceSources(
     traceSources: readonly TraceStoreLayerSource<TPayload, TDescriptor>[]
   ): void {
-    const registrationGeneration = this.state.registrationGeneration + 1;
-    this.releaseRegisteredSources();
-    const registeredSources = traceSources.map(source => ({
-      source,
-      wrappedWindow: {
-        ...source.traceWindow,
-        onChunksArrived: (event: TraceWindowChunksArrivedEvent) => {
-          source.traceWindow.onChunksArrived?.(event);
-          this.refreshMaterializedGraphs(registrationGeneration);
-        }
-      }
-    }));
+    const loadGeneration = this.state.loadGeneration + 1;
+    this.releaseActiveSources();
+    const activeSources = traceSources.map(source => ({source}));
     Object.assign(this.state, {
-      registrationGeneration,
-      registeredSources,
+      loadGeneration,
+      activeSources,
       materializedGraphs: [],
       traceGraphs: []
     });
 
-    registeredSources.forEach(({source, wrappedWindow}) => {
-      let registration: ReturnType<typeof source.traceChunkStore.registerTraceWindows>;
+    activeSources.forEach(({source}) => {
+      let loading: ReturnType<typeof source.traceChunkStore.loadWindow>;
       try {
-        registration = source.traceChunkStore.registerTraceWindows({
-          windows: [wrappedWindow],
+        loading = source.traceChunkStore.loadWindow({
+          window: source.traceWindow,
           loadChunk: source.loadChunk,
-          onProgress: source.onProgress
+          onProgress: source.onProgress,
+          onChunksArrived: event => {
+            source.onChunksArrived?.(event);
+            this.refreshMaterializedGraphs(loadGeneration);
+          }
         });
       } catch (error) {
-        this.handleSourceError(source, error, registrationGeneration);
+        this.handleSourceError(source, error, loadGeneration);
         return;
       }
 
-      void registration
+      void loading
         .then(() => {
-          this.refreshMaterializedGraphs(registrationGeneration);
+          this.refreshMaterializedGraphs(loadGeneration);
         })
         .catch(error => {
-          this.handleSourceError(source, error, registrationGeneration);
+          this.handleSourceError(source, error, loadGeneration);
         });
     });
 
-    this.refreshMaterializedGraphs(registrationGeneration);
+    this.refreshMaterializedGraphs(loadGeneration);
   }
 
-  /** Removes active store window subscriptions owned by this layer instance. */
-  private releaseRegisteredSources(): void {
-    this.state.registeredSources.forEach(({source}) => {
-      source.traceChunkStore.removeTraceWindow(source.traceWindow.id);
+  /** Removes active store window loads owned by this layer instance. */
+  private releaseActiveSources(): void {
+    this.state.activeSources.forEach(({source}) => {
+      source.traceChunkStore.clearActiveWindow();
     });
   }
 
-  /** Reads latest materialized window graph data and invalidates child graph rendering when changed. */
-  private refreshMaterializedGraphs(registrationGeneration: number): void {
-    if (registrationGeneration !== this.state.registrationGeneration) {
+  /** Reads latest materialized window datasets and invalidates child graph rendering when changed. */
+  private refreshMaterializedGraphs(loadGeneration: number): void {
+    if (loadGeneration !== this.state.loadGeneration) {
       return;
     }
 
-    const materializedGraphs = this.state.registeredSources.map(({source}) =>
+    const materializedGraphs = this.state.activeSources.map(({source}) =>
       materializeTraceStoreLayerGraph(source)
     );
     if (
@@ -214,40 +216,39 @@ export class TraceStoreLayer<
   private handleSourceError(
     source: TraceStoreLayerSource<TPayload, TDescriptor>,
     error: unknown,
-    registrationGeneration: number
+    loadGeneration: number
   ): void {
-    if (registrationGeneration !== this.state.registrationGeneration) {
+    if (loadGeneration !== this.state.loadGeneration) {
       return;
     }
 
     if (source.onError) {
       source.onError(error);
     } else {
-      this.raiseError(toError(error), 'TraceStoreLayer failed to register trace window');
+      this.raiseError(toError(error), 'TraceStoreLayer failed to load trace window');
     }
-    this.refreshMaterializedGraphs(registrationGeneration);
+    this.refreshMaterializedGraphs(loadGeneration);
   }
 }
 
-/** Materializes one registered trace window into runtime graph data and a runtime graph. */
+/** Materializes one active trace window into a runtime dataset and graph. */
 function materializeTraceStoreLayerGraph<TPayload, TDescriptor extends TraceChunkDescriptor>(
   source: TraceStoreLayerSource<TPayload, TDescriptor>
 ): MaterializedTraceStoreLayerGraph | null {
   const selection = getTraceStoreLayerSelection(source);
-  const traceGraphData = source.traceChunkStore.materializeTraceGraphDataForWindow(
-    source.traceWindow.id,
+  const traceDataset = source.traceChunkStore.withReadyChunks(
     selection,
-    source.materializeTraceGraphData
+    source.materializeTraceDataset
   );
-  if (!traceGraphData) {
+  if (!traceDataset) {
     return null;
   }
 
   return {
-    traceGraphData,
+    traceDataset,
     traceGraph: new RuntimeTraceGraph(
-      {traceGraphData, traceStore: source.traceChunkStore},
-      source.traceGraphFilterOptions
+      {traceDataset, traceStore: source.traceChunkStore},
+      buildTraceViewSnapshot(traceDataset, source.traceViewSnapshotOptions)
     ),
     isComplete:
       source.traceChunkStore.getReadyChunks(selection.selectedDescriptors).length ===
@@ -274,24 +275,22 @@ function getTraceGraphsForMaterializedGraphs(
     : [];
 }
 
-/** Returns whether two source lists describe the same active store registrations. */
+/** Returns whether two source lists describe the same active store loads. */
 function areTraceStoreLayerSourcesEqual<TPayload, TDescriptor extends TraceChunkDescriptor>(
   sources: readonly TraceStoreLayerSource<TPayload, TDescriptor>[],
-  registeredSources: readonly RegisteredTraceStoreLayerSource<TPayload, TDescriptor>[]
+  activeSources: readonly ActiveTraceStoreLayerSource<TPayload, TDescriptor>[]
 ): boolean {
-  if (sources.length !== registeredSources.length) {
+  if (sources.length !== activeSources.length) {
     return false;
   }
 
   return sources.every((source, index) => {
-    const registeredSource = registeredSources[index]?.source;
-    return (
-      registeredSource != null && areTraceStoreLayerSourcesEquivalent(source, registeredSource)
-    );
+    const activeSource = activeSources[index]?.source;
+    return activeSource != null && areTraceStoreLayerSourcesEquivalent(source, activeSource);
   });
 }
 
-/** Returns whether two source props can reuse one store window registration. */
+/** Returns whether two source props can reuse one store window load. */
 function areTraceStoreLayerSourcesEquivalent<TPayload, TDescriptor extends TraceChunkDescriptor>(
   left: TraceStoreLayerSource<TPayload, TDescriptor>,
   right: TraceStoreLayerSource<TPayload, TDescriptor>
@@ -302,12 +301,12 @@ function areTraceStoreLayerSourcesEquivalent<TPayload, TDescriptor extends Trace
     left.traceWindow.minTimeMs === right.traceWindow.minTimeMs &&
     left.traceWindow.maxTimeMs === right.traceWindow.maxTimeMs &&
     left.traceWindow.notifyIntervalMs === right.traceWindow.notifyIntervalMs &&
-    left.traceWindow.onChunksArrived === right.traceWindow.onChunksArrived &&
     left.loadChunk === right.loadChunk &&
-    left.materializeTraceGraphData === right.materializeTraceGraphData &&
-    left.traceGraphFilterOptions === right.traceGraphFilterOptions &&
+    left.materializeTraceDataset === right.materializeTraceDataset &&
+    left.traceViewSnapshotOptions === right.traceViewSnapshotOptions &&
     left.spanBudget === right.spanBudget &&
     left.onProgress === right.onProgress &&
+    left.onChunksArrived === right.onChunksArrived &&
     left.onError === right.onError
   );
 }
@@ -322,7 +321,7 @@ function areMaterializedTraceStoreLayerGraphsEqual(
     left.every((materializedGraph, index) => {
       const previousGraph = right[index];
       return (
-        materializedGraph?.traceGraphData === previousGraph?.traceGraphData &&
+        materializedGraph?.traceDataset === previousGraph?.traceDataset &&
         materializedGraph?.isComplete === previousGraph?.isComplete
       );
     })

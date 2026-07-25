@@ -1,4 +1,4 @@
-import type {TraceSpan, TraceSpanId} from '../../trace/index';
+import type {TraceSpan, TraceSpanId} from '../../trace';
 
 type TraceSpanLookup =
   | Record<string, TraceSpan>

@@ -1,6 +1,6 @@
 import {ReactNode} from 'react';
 
-import {formatTimeMs, lowerCase, pluralize} from '../../../../trace/index';
+import {formatTimeMs, lowerCase, pluralize} from '../../../../trace';
 
 import type {
   ResolvedTraceLabels,

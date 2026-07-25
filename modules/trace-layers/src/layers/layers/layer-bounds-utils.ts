@@ -1,25 +1,28 @@
 import {
   assert,
   buildTraceLayoutGeometryDerivationContext,
-  fillTraceLayoutLocalDependencyGeometry,
-  isVisibleLocalDependencyRef
-} from '../../trace/index';
+  fillTraceLayoutCrossProcessDependencyGeometry,
+  fillTraceLayoutSameProcessDependencyGeometry,
+  isCrossProcessDependencyRef,
+  isSameProcessDependencyRef
+} from '../../trace';
 import {
   getTraceLayoutBlockGeometry,
-  getTraceLayoutCrossDependencyGeometry,
-  getTraceLayoutLocalDependencyGeometry
+  getTraceLayoutCrossProcessDependencyGeometry,
+  getTraceLayoutSameProcessDependencyGeometry
 } from './trace-layout-geometry';
 
 import type {
+  CrossProcessDependencyRef,
   ProcessLayout,
+  SameProcessDependencyRef,
   ThreadLayout,
-  TraceCrossDependencySource,
+  TraceCrossProcessDependencyRenderSource,
   TraceDependencySource,
   TraceLayout,
-  TraceLocalDependencySource,
-  TraceSpan,
-  VisibleLocalDependencyRef
-} from '../../trace/index';
+  TraceSameProcessDependencySource,
+  TraceSpan
+} from '../../trace';
 
 export type Bounds = [[number, number], [number, number]];
 
@@ -29,13 +32,13 @@ const TEXT_LABEL_LINE_HEIGHT_FACTOR = 1.2;
 
 type Geometry = ArrayLike<number> | null | undefined;
 
-type LocalDependencyWithRef = {
-  /** Exact visible local dependency ref used to resolve geometry. */
-  dependencyRef?: TraceLocalDependencySource['dependencyRef'];
+type SameProcessDependencyWithRef = {
+  /** Exact visible same-process dependency ref used to resolve geometry. */
+  dependencyRef?: TraceSameProcessDependencySource['dependencyRef'];
 };
-type CrossDependencyWithRef = {
-  /** Exact visible cross dependency ref used to resolve geometry. */
-  dependencyRef?: TraceCrossDependencySource['dependencyRef'];
+type CrossProcessDependencyWithRef = {
+  /** Exact visible cross-process dependency ref used to resolve geometry. */
+  dependencyRef?: TraceCrossProcessDependencyRenderSource['dependencyRef'];
 };
 
 function isFiniteNumber(value: number | undefined): value is number {
@@ -163,16 +166,16 @@ export function getSpanBounds(spans: Iterable<TraceSpan>, traceLayout: TraceLayo
   );
 }
 
-export function getLocalDependencyBounds(
-  dependencies: Iterable<LocalDependencyWithRef | VisibleLocalDependencyRef>,
+export function getSameProcessDependencyBounds(
+  dependencies: Iterable<SameProcessDependencyWithRef | SameProcessDependencyRef>,
   traceLayout: TraceLayout
 ): Bounds | null {
   const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
   const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
   return combineGeometryBounds(
     Array.from(dependencies, dependency => {
-      if (typeof dependency === 'number' && isVisibleLocalDependencyRef(dependency)) {
-        return fillTraceLayoutLocalDependencyGeometry({
+      if (typeof dependency === 'number' && isSameProcessDependencyRef(dependency)) {
+        return fillTraceLayoutSameProcessDependencyGeometry({
           traceLayout,
           dependencyRef: dependency,
           target: geometry,
@@ -181,7 +184,7 @@ export function getLocalDependencyBounds(
           ? new Float32Array([geometry.x1, geometry.y1, geometry.x2, geometry.y2])
           : undefined;
       }
-      return getTraceLayoutLocalDependencyGeometry({
+      return getTraceLayoutSameProcessDependencyGeometry({
         traceLayout,
         dependency,
         context
@@ -190,20 +193,42 @@ export function getLocalDependencyBounds(
   );
 }
 
-export function getCrossDependencyBounds(
-  dependencies: Iterable<CrossDependencyWithRef>,
+export function getCrossProcessDependencyBounds(
+  dependencies: Iterable<CrossProcessDependencyWithRef | CrossProcessDependencyRef>,
   traceLayout: TraceLayout
 ): Bounds | null {
+  const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
+  const refGeometry = new Float32Array(4);
   const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
-  return combineGeometryBounds(
-    Array.from(dependencies, dependency =>
-      getTraceLayoutCrossDependencyGeometry({
+  let combined: Bounds | null = null;
+  for (const dependency of dependencies) {
+    let dependencyGeometry: Geometry;
+    if (typeof dependency === 'number' && isCrossProcessDependencyRef(dependency)) {
+      if (
+        !fillTraceLayoutCrossProcessDependencyGeometry({
+          traceLayout,
+          dependencyRef: dependency,
+          target: geometry,
+          context
+        })
+      ) {
+        continue;
+      }
+      refGeometry[0] = geometry.x1;
+      refGeometry[1] = geometry.y1;
+      refGeometry[2] = geometry.x2;
+      refGeometry[3] = geometry.y2;
+      dependencyGeometry = refGeometry;
+    } else {
+      dependencyGeometry = getTraceLayoutCrossProcessDependencyGeometry({
         traceLayout,
         dependency,
         context
-      })
-    )
-  );
+      });
+    }
+    combined = mergeBounds(combined, geometryToBounds(dependencyGeometry));
+  }
+  return combined;
 }
 
 export function getAnyDependencyBounds(
@@ -213,13 +238,13 @@ export function getAnyDependencyBounds(
   const context = buildTraceLayoutGeometryDerivationContext(traceLayout);
   return combineGeometryBounds(
     Array.from(dependencies, dependency =>
-      dependency.type === 'trace-local-dependency'
-        ? getTraceLayoutLocalDependencyGeometry({
+      dependency.type === 'trace-same-process-dependency'
+        ? getTraceLayoutSameProcessDependencyGeometry({
             traceLayout,
             dependency,
             context
           })
-        : getTraceLayoutCrossDependencyGeometry({
+        : getTraceLayoutCrossProcessDependencyGeometry({
             traceLayout,
             dependency,
             context
@@ -228,8 +253,12 @@ export function getAnyDependencyBounds(
   );
 }
 
-export function getStreamLayoutBounds(threadLayouts: Iterable<ThreadLayout>): Bounds | null {
+export function getStreamLayoutBounds(
+  threadLayouts: Iterable<ThreadLayout>,
+  timelineMaxX: number
+): Bounds | null {
   const geometries: Geometry[] = [];
+  const maxX = Number.isFinite(timelineMaxX) ? timelineMaxX : 0;
 
   for (const layout of threadLayouts) {
     if (!layout?.visible) {
@@ -242,12 +271,7 @@ export function getStreamLayoutBounds(threadLayouts: Iterable<ThreadLayout>): Bo
         : [layout.yPosition];
 
     lanePositions.forEach(laneY => {
-      geometries.push(
-        toLineGeometry(
-          [layout.startPosition[0], laneY, layout.startPosition[2]],
-          [layout.targetPosition[0], laneY, layout.targetPosition[2]]
-        )
-      );
+      geometries.push(toLineGeometry([0, laneY, 0], [maxX, laneY, 0]));
     });
   }
 
@@ -259,8 +283,8 @@ export function getProcessLayoutBounds(rankLayout?: ProcessLayout): Bounds | nul
     return null;
   }
   const geometry = toLineGeometry(
-    [rankLayout.startPosition[0]!, rankLayout.yOffset, 0],
-    [rankLayout.startPosition[0]!, rankLayout.yOffset + rankLayout.yHeight, 0]
+    [0, rankLayout.yOffset, 0],
+    [0, rankLayout.yOffset + rankLayout.yHeight, 0]
   );
   return geometryToBounds(geometry);
 }

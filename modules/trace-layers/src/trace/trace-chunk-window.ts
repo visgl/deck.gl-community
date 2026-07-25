@@ -1,44 +1,54 @@
 import {
-  buildArrowTraceLocalDependencyTable,
-  buildTraceGraphData,
-  buildTraceGraphDataFromJSONTrace
+  getArrowUtf8ColumnSource,
+  getUtf8ColumnSourceRowView,
+  makeUtf8StringView
+} from '@deck.gl-community/infovis-layers';
+import {
+  buildArrowTraceCrossProcessDependencyTable,
+  buildArrowTraceSameProcessDependencyTable,
+  buildTraceChunkDataFromTraceProcesses,
+  buildTraceProcessSpanRefTables
 } from './ingestion/arrow-trace';
-import {buildJSONTrace} from './ingestion/json-trace';
+import {deserializeArrowTraceJson} from './ingestion/arrow-trace-json';
+import {decodeTraceSpanTimingStatusCode} from './ingestion/trace-span-timing-status-code';
 import {getHeapUsageProbeFields, log} from './log';
-import {isTraceChunk} from './trace-chunk';
-import {
-  getTraceGraphSpanDisplaySource,
-  getTraceGraphSpanExternalSpanId,
-  iterateTraceGraphSpanRefs
-} from './trace-graph-accessors';
+import {finalizeTraceChunkData, isTraceChunk, traceChunkHasSpanRefRow} from './trace-chunk';
+import {readTraceChunkSourceDependencyRow} from './trace-chunk-data';
+import {buildTraceDatasetFromReadyTraceChunks} from './trace-chunk-graph-assembler';
+import {buildTraceDatasetRefSources} from './trace-dataset-ref-sources';
+import {getTraceGraphSpanExternalSpanId, iterateTraceGraphSpanRefs} from './trace-graph-accessors';
+import {EMPTY_ARROW_TRACE_EVENT_TABLE} from './trace-graph/trace-event-table';
 import {TraceGraph} from './trace-graph/trace-graph';
-import {getTraceSpanSourceFilterMatchMask} from './trace-graph/trace-graph-span-filters';
+import {hasTraceSpanNameFilter, hasTraceSpanSourceFilter} from './trace-graph/trace-graph-types';
 import {
-  hasTraceSpanNameFilter,
-  hasTraceSpanSourceFilter,
-  TRACE_SPAN_FILTER_MASK_NONE
-} from './trace-graph/trace-graph-types';
-import {
+  encodeChunkRef,
+  encodeCrossProcessDependencyRef,
+  encodeLocalSpanRef,
   encodeProcessRef,
+  encodeSameProcessDependencyRef,
   encodeSpanRef,
-  encodeVisibleCrossDependencyRef,
-  encodeVisibleLocalDependencyRef,
   getProcessRefIndex,
   getSpanRefChunkIndex,
   getSpanRefRowIndex
 } from './trace-graph/trace-id-encoder';
+import {TraceOwnerRefRegistry} from './trace-graph/trace-owner-ref-registry';
+import {
+  getTraceSpanExactExternalIdQuery,
+  getTraceSpanPlainTextQuery
+} from './trace-graph/trace-span-name-search';
 import {
   isTraceSpanTimingEligibleForTimeExtents,
   isTraceSpanTimingTimestampEligibleForTimeExtents
 } from './trace-time-extents';
+import {buildTraceViewSnapshot} from './trace-view-snapshot';
+import {formatTimeMs} from './utils/time-format-utils';
 
+import type {Utf8ColumnSource, Utf8StringView} from '@deck.gl-community/infovis-layers';
 import type {
-  ArrowTraceChunk,
-  ArrowTraceLocalDependencyTable,
   ArrowTraceProcessMetadata,
-  ArrowTraceSpanTable,
-  TraceGraphData,
-  TraceSpanArrowSidecarRow
+  ArrowTraceSameProcessDependencyTable,
+  ArrowTraceSpanSidecarTable,
+  ArrowTraceSpanTable
 } from './ingestion/arrow-trace';
 import type {TraceChunk} from './trace-chunk';
 import type {TraceChunkSpanOverlapRange} from './trace-chunk-data';
@@ -46,44 +56,37 @@ import type {
   TraceChunkDescriptor,
   TraceChunkStore,
   TraceChunkStoreReadyChunk,
-  TraceWindow
+  TraceChunkStoreWindow
 } from './trace-chunk-store';
-import type {TraceSpanDisplaySource} from './trace-graph-accessors';
-import type {CompiledTraceSpanFilterPlan} from './trace-graph/trace-graph-span-filters';
+import type {TraceDataset} from './trace-dataset';
+import type {TraceSpanDetailSource} from './trace-graph-accessors';
 import type {TraceGraphStats} from './trace-graph/trace-graph-stats';
 import type {
   TraceGraphSpanFilterNavigation,
-  TraceGraphSpanFilterStore,
   TraceGraphSpanSearchContext,
   TraceGraphSpanSearchRecord,
   TraceSpanFilterMask
 } from './trace-graph/trace-graph-types';
 import type {ProcessRef, ThreadRef} from './trace-graph/trace-id-encoder';
-import type {TraceOwnerRefRegistry} from './trace-graph/trace-owner-ref-registry';
 import type {
   SpanRef,
   TraceCrossProcessDependency,
+  TraceCrossProcessEndpoint,
   TraceCrossProcessEndpointId,
   TraceDependencyId,
-  TraceLocalDependency,
   TraceProcess,
   TraceProcessId,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceSpanTiming,
   TraceThread,
   TraceThreadId
 } from './trace-graph/trace-types';
+import type * as arrow from 'apache-arrow';
 
-const HIDDEN_TRACE_CHUNK_SPAN_INSPECTOR_STORE: TraceGraphSpanFilterStore = {
-  isFiltered: () => false,
-  getFilterReason: () => ({
-    filterMask: TRACE_SPAN_FILTER_MASK_NONE,
-    isFiltered: false,
-    state: 'outside-window'
-  }),
-  hasActiveSourceSpanFilter: () => false
-};
+const EMPTY_TRACE_CHUNK_UTF8_DATA = new Uint8Array();
+const EMPTY_TRACE_CHUNK_SEARCH_KEYWORDS: readonly string[] = [];
 
 export {isTraceChunk, traceChunkHasSpanRefRow} from './trace-chunk';
 export {
@@ -97,7 +100,7 @@ export {
 export type {TraceChunk, TraceChunkIndexes, TraceChunkMetadata} from './trace-chunk';
 export type {
   JSONTraceChunkData,
-  JSONTraceChunkLocalDependency,
+  JSONTraceChunkSameProcessDependency,
   JSONTraceChunkProcessMetadata,
   TraceChunkData,
   TraceChunkDiagnostics,
@@ -166,109 +169,131 @@ export function searchTraceChunkStoreSpans<
   /** Maximum number of span records to return. */
   readonly limit: number;
 }): TraceGraphSpanSearchRecord[] {
-  const results: TraceGraphSpanSearchRecord[] = [];
+  const visibleResults: TraceGraphSpanSearchRecord[] = [];
+  const hiddenResults: TraceGraphSpanSearchRecord[] = [];
   const resultLimit = Math.max(0, params.limit);
   if (resultLimit === 0) {
-    return results;
+    return [];
   }
+  const searchStartTimeMs = performance.now();
+  const exactExternalIdQuery = getTraceSpanExactExternalIdQuery(params.matchesSearchText);
+  const exactResults = exactExternalIdQuery
+    ? searchReadyTraceChunkExactExternalIdSpans({
+        traceChunkStore: params.traceChunkStore,
+        traceGraph: params.traceGraph,
+        exactExternalIdQuery,
+        limit: resultLimit
+      })
+    : [];
+  const exactMatchedSpanRefs = new Set(exactResults.map(result => result.spanRef));
+  const plainTextQuery = getSingleTokenTraceSpanPlainTextQuery(params.matchesSearchText);
+  const plainTextSearchQuery = plainTextQuery
+    ? buildTraceChunkPlainTextSearchQuery(plainTextQuery)
+    : null;
+  let activePlainTextSpanSearchMatcher: TraceChunkPlainTextSpanSearchMatcher | null = null;
+  let activePlainTextSpanSearchChunkIndex = -1;
+  let activeSpanSearchRecordColumns: TraceChunkSpanSearchRecordColumns | null = null;
+  let activeSpanSearchRecordChunkIndex = -1;
 
-  const visitedStats = visitReadyTraceChunkRows(params.traceChunkStore, (row, readyChunk) => {
-    if (results.length >= resultLimit) {
-      return false;
+  const visitedStats = visitReadyTraceChunkSpanRefs(
+    params.traceChunkStore,
+    (spanRefRowIndex, readyChunk, spanSearchColumns) => {
+      if (exactResults.length >= resultLimit || visibleResults.length >= resultLimit) {
+        return false;
+      }
+      const spanRef = encodeSpanRef(readyChunk.chunkIndex, spanRefRowIndex);
+      if (exactMatchedSpanRefs.has(spanRef)) {
+        return;
+      }
+      if (plainTextSearchQuery && activePlainTextSpanSearchChunkIndex !== readyChunk.chunkIndex) {
+        activePlainTextSpanSearchMatcher = buildTraceChunkPlainTextSpanSearchMatcher(
+          readyChunk.payload,
+          spanSearchColumns,
+          plainTextSearchQuery
+        );
+        activePlainTextSpanSearchChunkIndex = readyChunk.chunkIndex;
+      }
+      if (
+        !matchesTraceChunkSpanSearchText({
+          payload: readyChunk.payload,
+          spanRefRowIndex,
+          spanSearchColumns,
+          matchesSearchText: params.matchesSearchText,
+          plainTextSpanSearchMatcher: activePlainTextSpanSearchMatcher
+        })
+      ) {
+        return;
+      }
+      const spanSearchRecordColumns =
+        activeSpanSearchRecordChunkIndex === readyChunk.chunkIndex && activeSpanSearchRecordColumns
+          ? activeSpanSearchRecordColumns
+          : readTraceChunkSpanSearchRecordColumns(readyChunk.payload.spanTable);
+      activeSpanSearchRecordColumns = spanSearchRecordColumns;
+      activeSpanSearchRecordChunkIndex = readyChunk.chunkIndex;
+      const record = buildTraceChunkSpanSearchRecord({
+        spanRefRowIndex,
+        spanSearchColumns,
+        spanSearchRecordColumns,
+        readyChunk,
+        traceGraph: params.traceGraph
+      });
+      if (!record) {
+        return;
+      }
+      if (record.filterReason.isFiltered) {
+        if (hiddenResults.length < resultLimit) {
+          hiddenResults.push(record);
+        }
+        return;
+      }
+      visibleResults.push(record);
     }
-    if (!params.matchesSearchText(buildTraceChunkSpanSearchText(row))) {
-      return;
-    }
-    const record = buildTraceChunkSpanSearchRecord({
-      row,
-      readyChunk,
-      traceGraph: params.traceGraph
-    });
-    if (!record) {
-      return;
-    }
-    results.push(record);
-  });
+  );
+  const textResults = visibleResults.concat(
+    hiddenResults.slice(0, Math.max(0, resultLimit - visibleResults.length))
+  );
+  const results = exactResults.concat(
+    textResults.slice(0, Math.max(0, resultLimit - exactResults.length))
+  );
   log.probe(0, 'TraceChunkStore search spans done', {
     readyChunkCount: visitedStats.readyChunkCount,
     scannedRowCount: visitedStats.rowCount,
     matchCount: results.length,
     limit: resultLimit,
+    searchMode: exactExternalIdQuery
+      ? 'exact-external-id'
+      : plainTextSearchQuery
+        ? plainTextSearchQuery.utf8View
+          ? 'plain-single-token-utf8'
+          : 'plain-single-token'
+        : 'generic',
+    durationMs: performance.now() - searchStartTimeMs,
     ...getHeapUsageProbeFields()
   })();
   return results;
 }
 
 /**
- * Apply source-column filename filters to every normalized row in one store-owned chunk payload.
+ * Resolve render data for a ready normalized trace-chunk row by store-backed span ref.
  */
-export function applyTraceChunkSourceSpanFilters(
-  payload: TraceChunk,
-  filterPlan: Readonly<CompiledTraceSpanFilterPlan>
-): TraceChunk {
-  if (filterPlan.literalPrefixes.length === 0 && filterPlan.regexMatchers.length === 0) {
-    return payload.sourceFilterMaskByRow == null
-      ? payload
-      : omitTraceChunkSourceFilterMask(payload);
-  }
-
-  const sourceFilterMaskByRow = new Uint8Array(payload.spanTable.numRows);
-  const sourceColumn = getTraceChunkSpanColumn<string>(payload.spanTable, 'source');
-  for (let rowIndex = 0; rowIndex < payload.spanTable.numRows; rowIndex += 1) {
-    const source = readColumnValue(sourceColumn, rowIndex);
-    sourceFilterMaskByRow[rowIndex] = getTraceSpanSourceFilterMatchMask({
-      source,
-      filterPlan
-    });
-  }
-
-  return areUint8ArraysEqual(payload.sourceFilterMaskByRow, sourceFilterMaskByRow)
-    ? payload
-    : {...payload, sourceFilterMaskByRow};
-}
-
-/**
- * Return the store-owned source-column filename filter mask for one chunk-local span row.
- *
- * When a compiled filter plan is provided, compute the row mask from the chunk's source column
- * without requiring the chunk payload to carry an eager `sourceFilterMaskByRow` allocation.
- */
-export function getTraceChunkSourceFilterMask(
-  payload: TraceChunk,
-  spanRefRowIndex: number,
-  filterPlan?: Readonly<CompiledTraceSpanFilterPlan>
-): TraceSpanFilterMask {
-  if (hasCompiledTraceSpanFilterPlanMatchers(filterPlan)) {
-    const sourceColumn = getTraceChunkSpanColumn<string>(payload.spanTable, 'source');
-    return getTraceSpanSourceFilterMatchMask({
-      source: readColumnValue(sourceColumn, spanRefRowIndex),
-      filterPlan
-    });
-  }
-  return payload.sourceFilterMaskByRow?.[spanRefRowIndex] ?? TRACE_SPAN_FILTER_MASK_NONE;
-}
-
-/**
- * Resolve display data for a ready normalized trace-chunk row by store-backed span ref.
- */
-export function getTraceChunkStoreSpanDisplaySource<
+export function getTraceChunkStoreSpanDetailSource<
   TPayload,
   TDescriptor extends TraceChunkDescriptor
 >(
   traceChunkStore: TraceChunkStore<TPayload, TDescriptor>,
   spanRef: SpanRef
-): TraceSpanDisplaySource | null {
+): TraceSpanDetailSource | null {
   const matched = findReadyTraceChunkRowBySpanRef(traceChunkStore, spanRef);
-  return matched ? buildTraceChunkSpanDisplaySource(matched.row, spanRef) : null;
+  return matched ? buildTraceChunkSpanSource(matched.row, spanRef) : null;
 }
 
 /**
- * Resolve display data for one ready normalized trace-chunk row without scanning the store.
+ * Resolve render data for one ready normalized trace-chunk row without scanning the store.
  */
-export function getTraceChunkSpanDisplaySource(
+export function getTraceChunkSpanDetailSource(
   payload: TraceChunk,
   spanRef: SpanRef
-): TraceSpanDisplaySource | null {
+): TraceSpanDetailSource | null {
   if (payload.chunkIndex !== getSpanRefChunkIndex(spanRef)) {
     return null;
   }
@@ -277,7 +302,7 @@ export function getTraceChunkSpanDisplaySource(
     getSpanRefRowIndex(spanRef),
     readTraceChunkSpanColumns(payload.spanTable)
   );
-  return row ? buildTraceChunkSpanDisplaySource(row, spanRef) : null;
+  return row ? buildTraceChunkSpanSource(row, spanRef) : null;
 }
 
 /**
@@ -299,7 +324,8 @@ export function getTraceChunkStoreSpanFilterNavigation<
     return null;
   }
   const filterReason = params.traceGraph.spanFilterReason(params.spanRef, {
-    spanName: matched.row.name
+    spanName: matched.row.name,
+    source: matched.row.source
   });
   const result = buildTraceChunkSpanSearchResult({
     filterReason,
@@ -336,29 +362,77 @@ export function searchHiddenTraceChunkSpans<TDescriptor extends TraceChunkDescri
   readonly limit: number;
 }): TraceChunkSpanSearchResult[] {
   const results: TraceChunkSpanSearchResult[] = [];
-  visitReadyTraceChunkRows(params.traceChunkStore, (row, readyChunk) => {
-    if (results.length >= params.limit) {
-      return false;
-    }
-    if (!row.externalSpanId) {
-      return;
-    }
+  const plainTextQuery = getSingleTokenTraceSpanPlainTextQuery(params.matchesQuery);
+  const plainTextSearchQuery = plainTextQuery
+    ? buildTraceChunkPlainTextSearchQuery(plainTextQuery)
+    : null;
+  let activePlainTextSpanSearchMatcher: TraceChunkPlainTextSpanSearchMatcher | null = null;
+  let activePlainTextSpanSearchChunkIndex = -1;
+  visitReadyTraceChunkSpanRefs(
+    params.traceChunkStore,
+    (spanRefRowIndex, readyChunk, spanSearchColumns) => {
+      if (results.length >= params.limit) {
+        return false;
+      }
+      if (plainTextSearchQuery && activePlainTextSpanSearchChunkIndex !== readyChunk.chunkIndex) {
+        activePlainTextSpanSearchMatcher = buildTraceChunkPlainTextSpanSearchMatcher(
+          readyChunk.payload,
+          spanSearchColumns,
+          plainTextSearchQuery
+        );
+        activePlainTextSpanSearchChunkIndex = readyChunk.chunkIndex;
+      }
+      if (!readyChunk.payload.indexes.externalSpanIdByRowIndex[spanRefRowIndex]) {
+        return;
+      }
 
-    const spanRef = encodeSpanRef(readyChunk.chunkIndex, row.rowIndex);
-    const filterReason = params.traceGraph.spanFilterReason(spanRef, {
-      spanName: row.name
-    });
-    if (filterReason.state !== 'outside-window') {
-      return;
-    }
+      const spanTableRowIndex = getTraceChunkSpanTableRowIndex(readyChunk.payload, spanRefRowIndex);
+      if (spanTableRowIndex == null) {
+        return;
+      }
+      const name = readColumnValue(spanSearchColumns.name, spanTableRowIndex);
+      if (!name) {
+        return;
+      }
+      const source = readColumnValue(spanSearchColumns.source, spanTableRowIndex) ?? null;
+      const spanRef = encodeSpanRef(readyChunk.chunkIndex, spanRefRowIndex);
+      const filterReason = params.traceGraph.spanFilterReason(spanRef, {
+        spanName: name,
+        source
+      });
+      if (filterReason.state !== 'outside-window') {
+        return;
+      }
 
-    const searchText = `${row.name} ${row.source ?? ''}`.toLowerCase();
-    if (!params.matchesQuery(searchText)) {
-      return;
-    }
+      const searchSource = activePlainTextSpanSearchMatcher ? null : source;
+      if (
+        activePlainTextSpanSearchMatcher
+          ? !traceChunkSpanSearchColumnMatchesPlainTextQuery({
+              column: spanSearchColumns.name,
+              utf8Source: activePlainTextSpanSearchMatcher.nameUtf8Source,
+              utf8View: activePlainTextSpanSearchMatcher.nameUtf8View,
+              rowIndex: spanTableRowIndex,
+              query: activePlainTextSpanSearchMatcher.query
+            }) &&
+            !traceChunkSpanSearchColumnMatchesPlainTextQuery({
+              column: spanSearchColumns.source,
+              utf8Source: activePlainTextSpanSearchMatcher.sourceUtf8Source,
+              utf8View: activePlainTextSpanSearchMatcher.sourceUtf8View,
+              rowIndex: spanTableRowIndex,
+              query: activePlainTextSpanSearchMatcher.query
+            })
+          : !params.matchesQuery(`${name} ${searchSource ?? ''}`.toLowerCase())
+      ) {
+        return;
+      }
 
-    results.push(buildTraceChunkSpanSearchResult({filterReason, readyChunk, row}));
-  });
+      const row = readReadyTraceChunkSpanRow(readyChunk, spanRefRowIndex);
+      if (!row) {
+        return;
+      }
+      results.push(buildTraceChunkSpanSearchResult({filterReason, readyChunk, row}));
+    }
+  );
   return results;
 }
 
@@ -383,7 +457,7 @@ export function resolveHiddenTraceChunkSpanNavigation<
 }
 
 /**
- * Build a one-spa TraceGraph for rendering details for a loaded span outside the window.
+ * Build a one-span TraceGraph for rendering details for a loaded span outside the window.
  */
 export function buildHiddenTraceChunkSpanInspectorGraph(
   result: TraceChunkSpanSearchResult,
@@ -410,8 +484,8 @@ export function buildHiddenTraceChunkSpanInspectorGraph(
     keywords: [...result.keywords],
     primaryTimingKey: result.primaryTimingKey,
     timings: result.timings as Record<string, TraceSpanTiming>,
-    localDependencyIds: [],
-    localDependencies: [],
+    sameProcessDependencyIds: [],
+    sameProcessDependencies: [],
     crossProcessEndpointId: null,
     crossProcessDependencyEndpoints: [],
     userData: {
@@ -435,19 +509,15 @@ export function buildHiddenTraceChunkSpanInspectorGraph(
     counters: [],
     counterMap: {},
     threadCounterMap: {},
-    localDependencies: [],
+    sameProcessDependencies: [],
     remoteDependencies: []
   };
+  const traceDataset = buildHiddenTraceChunkSpanInspectorDataset(process);
   const traceGraph = new TraceGraph(
-    {
-      traceGraphData: buildTraceGraphDataFromJSONTrace(
-        buildJSONTrace([process], [], {name: 'Hidden loaded chunk span'})
-      ),
-      traceStore: HIDDEN_TRACE_CHUNK_SPAN_INSPECTOR_STORE
-    },
-    {spanFilters: options?.spanFilters}
+    {traceDataset},
+    buildTraceViewSnapshot(traceDataset, {spanFilters: options?.spanFilters})
   );
-  const spanRef = traceGraph.getSpanRefByExternalBlockId(spanId);
+  const spanRef = traceGraph.getSpanRefById(spanId);
   if (spanRef == null) {
     throw new Error('Hidden trace-chunk span inspector graph did not contain its span.');
   }
@@ -455,47 +525,107 @@ export function buildHiddenTraceChunkSpanInspectorGraph(
 }
 
 /**
- * Build a visible TraceGraphData for one trace window from ready normalized chunks.
+ * Build one canonical Arrow dataset for the synthetic hidden-span inspector graph.
+ *
+ * The inspector is intentionally tiny, but it still enters the runtime through the same
+ * store-finalized chunk and immutable dataset seam as loaded traces. This avoids constructing a
+ * JSON graph only to project it back into Arrow tables before TraceGraph can read the span.
  */
-export function buildTraceChunkWindowGraphData<TDescriptor extends TraceChunkDescriptor>(params: {
-  /** Human-friendly name for the materialized TraceGraphData. */
+function buildHiddenTraceChunkSpanInspectorDataset(process: TraceProcess): TraceDataset {
+  const ownerRefRegistry = new TraceOwnerRefRegistry();
+  const processRef = ownerRefRegistry.upsertProcess(process);
+  for (const thread of process.threads) {
+    ownerRefRegistry.upsertThread(thread);
+  }
+  const [chunkData] = buildTraceChunkDataFromTraceProcesses([process]);
+  if (!chunkData) {
+    throw new Error('Hidden trace-chunk span inspector dataset did not contain a chunk.');
+  }
+  const chunk = finalizeTraceChunkData({
+    data: chunkData,
+    chunkIndex: 0,
+    chunkRef: encodeChunkRef(0),
+    processRefs: [processRef]
+  });
+  return buildTraceDatasetFromReadyTraceChunks({
+    name: 'Hidden loaded chunk span',
+    ownerRefRegistry,
+    readyChunks: [{payload: chunk}]
+  });
+}
+
+/**
+ * Build a canonical row-selected dataset for one trace window from ready normalized chunks.
+ *
+ * The dataset keeps every store-finalized chunk object and Arrow table by identity. Row-level
+ * window selection is represented only by ascending active span refs, while the dependency tables,
+ * stats, and time extents preserve the established visible-window semantics.
+ */
+export function buildTraceChunkWindowDataset<TDescriptor extends TraceChunkDescriptor>(params: {
+  /** Human-friendly name for the materialized TraceDataset. */
   readonly name: string;
   /** Trace-global process/thread owner-ref allocator kept for materializer compatibility. */
   readonly ownerRefRegistry: TraceOwnerRefRegistry;
   /** Registered trace window being materialized. */
-  readonly window: TraceWindow;
+  readonly window: TraceChunkStoreWindow;
   /** Ready normalized chunks that may contribute visible rows. */
   readonly readyChunks: readonly TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>[];
-}): TraceGraphData {
+}): TraceDataset {
+  const buildStartTime = performance.now();
+  const rowSelectionStartTime = performance.now();
   const selectedRows = selectTraceChunkRowsForWindow(params.readyChunks, params.window);
+  const rowSelectionDurationMs = performance.now() - rowSelectionStartTime;
+  const dependencyBuildStartTime = performance.now();
   const dependencies = buildTraceChunkParentDependencies(selectedRows);
+  const dependencyBuildDurationMs = performance.now() - dependencyBuildStartTime;
+  const processBuildStartTime = performance.now();
   const ownerRefSnapshot = params.ownerRefRegistry.createSnapshot();
   const processes = buildArrowTraceProcesses({
     ownerRefRegistry: params.ownerRefRegistry,
-    localDependenciesByProcessId: dependencies.localDependenciesByProcessId
-  });
+    sameProcessDependenciesByProcessId: dependencies.sameProcessDependenciesByProcessId
+  }).map(stripTraceChunkWindowProcessDependencyMetadata);
+  const processBuildDurationMs = performance.now() - processBuildStartTime;
   const selectedSpanRefs = selectedRows.map(row => row.spanRef).sort((left, right) => left - right);
-  const traceGraphData = buildTraceGraphData({
+  const traceDatasetStartTime = performance.now();
+  const chunks = params.readyChunks
+    .map(readyChunk => readyChunk.payload)
+    .sort((left, right) => left.chunkIndex - right.chunkIndex);
+  const sameProcessDependencyTableMap = buildSameProcessDependencyTableMap(
+    processes,
+    dependencies.sameProcessDependenciesByProcessId
+  );
+  const processSpanTableMap = buildTraceProcessSpanRefTables(chunks, processes, {
+    processIdsByIndex: ownerRefSnapshot.processIdsByIndex,
+    spanRefs: selectedSpanRefs
+  });
+  const refSources = buildTraceDatasetRefSources({
+    processIdsByIndex: ownerRefSnapshot.processIdsByIndex,
+    processSpanTableMap,
+    sameProcessDependencyTableMap
+  });
+  const traceDataset = {
+    type: 'trace-dataset',
+    revision: 0,
     name: params.name,
     processes,
-    crossDependencies: dependencies.crossDependencies,
-    spanTableMap: {},
-    localDependencyTableMap: buildLocalDependencyTableMap(
-      processes,
-      dependencies.localDependenciesByProcessId
-    ),
-    chunks: buildTraceChunkWindowStorageChunks({
-      readyChunks: params.readyChunks
-    }),
+    chunks,
     spanRefs: selectedSpanRefs,
+    sameProcessDependencyTableMap,
+    crossProcessDependencyTable: buildArrowTraceCrossProcessDependencyTable(
+      dependencies.crossProcessDependencies
+    ),
+    events: EMPTY_ARROW_TRACE_EVENT_TABLE,
     ownerRefSnapshot,
     timeExtents: buildTraceChunkWindowTimeExtents(selectedRows),
     stats: buildTraceChunkWindowStats({
       dependencies,
       processes,
       selectedRows
-    })
-  });
+    }),
+    processSpanTableMap,
+    ...refSources
+  } satisfies TraceDataset;
+  const traceDatasetDurationMs = performance.now() - traceDatasetStartTime;
   log.probe(0, 'TraceChunk window materialization done', {
     name: params.name,
     readyChunkCount: params.readyChunks.length,
@@ -508,47 +638,19 @@ export function buildTraceChunkWindowGraphData<TDescriptor extends TraceChunkDes
     processCount: processes.length,
     displaySourceReadyRowCount: selectedRows.length,
     dependencyCount:
-      dependencies.crossDependencies.length +
-      [...dependencies.localDependenciesByProcessId.values()].reduce(
+      dependencies.crossProcessDependencies.length +
+      [...dependencies.sameProcessDependenciesByProcessId.values()].reduce(
         (total, processDependencies) => total + processDependencies.length,
         0
       ),
+    rowSelectionDurationMs,
+    dependencyBuildDurationMs,
+    processBuildDurationMs,
+    traceDatasetDurationMs,
+    durationMs: performance.now() - buildStartTime,
     ...getHeapUsageProbeFields()
   })();
-  return traceGraphData;
-}
-
-/** Returns a payload copy with any previous source-filter column removed. */
-function omitTraceChunkSourceFilterMask(payload: TraceChunk): TraceChunk {
-  const {sourceFilterMaskByRow: _sourceFilterMaskByRow, ...payloadWithoutSourceFilterMask} =
-    payload;
-  return payloadWithoutSourceFilterMask;
-}
-
-/** Returns whether two source-filter mask columns contain identical values. */
-function areUint8ArraysEqual(
-  left: Readonly<Uint8Array> | undefined,
-  right: Readonly<Uint8Array>
-): boolean {
-  if (!left || left.length !== right.length) {
-    return false;
-  }
-  for (let index = 0; index < right.length; index += 1) {
-    if (left[index] !== right[index]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/** Returns whether one compiled source-filter plan has any active matcher. */
-function hasCompiledTraceSpanFilterPlanMatchers(
-  filterPlan: Readonly<CompiledTraceSpanFilterPlan> | undefined
-): filterPlan is Readonly<CompiledTraceSpanFilterPlan> {
-  return (
-    filterPlan !== undefined &&
-    (filterPlan.literalPrefixes.length > 0 || filterPlan.regexMatchers.length > 0)
-  );
+  return traceDataset;
 }
 
 /** Walks chunk parent pointers upward until a visible active-graph ancestor is found. */
@@ -604,20 +706,25 @@ function resolveVisibleDescendantSpanRef<
     visited.add(currentExternalSpanId);
 
     let foundSpanRef: SpanRef | null = null;
-    visitReadyTraceChunkRows(params.traceChunkStore, row => {
-      if (!row.externalSpanId || row.parentExternalSpanId !== currentExternalSpanId) {
+    visitReadyTraceChunkSpanRefs(params.traceChunkStore, (spanRefRowIndex, readyChunk) => {
+      const externalSpanId = readyChunk.payload.indexes.externalSpanIdByRowIndex[spanRefRowIndex];
+      if (
+        !externalSpanId ||
+        readyChunk.payload.indexes.parentExternalSpanIdByRowIndex[spanRefRowIndex] !==
+          currentExternalSpanId
+      ) {
         return;
       }
 
       const visibleSpanRef = resolveVisibleSpanRefByExternalSpanId(
         params.traceGraph,
-        row.externalSpanId
+        externalSpanId
       );
       if (visibleSpanRef != null) {
         foundSpanRef = visibleSpanRef;
         return false;
       }
-      queue.push(row.externalSpanId);
+      queue.push(externalSpanId);
     });
 
     if (foundSpanRef != null) {
@@ -639,8 +746,7 @@ function resolveVisibleSpanRefByExternalSpanId(
     const spanExternalSpanId = getTraceGraphSpanExternalSpanId(traceGraph, spanRef);
     if (
       spanExternalSpanId === externalSpanId ||
-      (spanExternalSpanId == null &&
-        getTraceGraphSpanDisplaySource(traceGraph, spanRef)?.spanId === externalSpanId)
+      (spanExternalSpanId == null && traceGraph.getSpanId(spanRef) === externalSpanId)
     ) {
       return spanRef;
     }
@@ -653,14 +759,74 @@ function findReadyTraceChunkRow<TPayload, TDescriptor extends TraceChunkDescript
   traceChunkStore: TraceChunkStore<TPayload, TDescriptor>,
   externalSpanId: string
 ): TraceChunkSpanRowView | null {
-  let matchedRow: TraceChunkSpanRowView | null = null;
-  visitReadyTraceChunkRows(traceChunkStore, row => {
-    if (row.externalSpanId === externalSpanId) {
-      matchedRow = row;
-      return false;
+  for (const readyChunk of traceChunkStore.getReadyChunks(traceChunkStore.getDescriptors())) {
+    if (!isTraceChunk(readyChunk.payload)) {
+      continue;
     }
-  });
-  return matchedRow;
+    const traceChunkReadyChunk = readyChunk as TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>;
+    const spanRefRowIndex =
+      traceChunkReadyChunk.payload.indexes.rowIndexByExternalSpanId.get(externalSpanId);
+    if (spanRefRowIndex == null) {
+      continue;
+    }
+    const row = readReadyTraceChunkSpanRow(traceChunkReadyChunk, spanRefRowIndex);
+    if (row) {
+      return row;
+    }
+  }
+  return null;
+}
+
+/**
+ * Finds exact external ids in ready chunks through existing chunk indexes without scanning rows.
+ */
+function searchReadyTraceChunkExactExternalIdSpans<
+  TPayload,
+  TDescriptor extends TraceChunkDescriptor
+>(params: {
+  /** Active trace chunk store. */
+  readonly traceChunkStore: TraceChunkStore<TPayload, TDescriptor>;
+  /** Active materialized graph used only for filter/window provenance. */
+  readonly traceGraph: TraceGraphSpanSearchContext;
+  /** Case-sensitive external span id supplied by Omnibox search. */
+  readonly exactExternalIdQuery: string;
+  /** Maximum number of exact results to return. */
+  readonly limit: number;
+}): TraceGraphSpanSearchRecord[] {
+  const results: TraceGraphSpanSearchRecord[] = [];
+  const readyChunks = params.traceChunkStore.getReadyChunks(
+    params.traceChunkStore.getDescriptors()
+  );
+  for (const readyChunk of readyChunks) {
+    if (!isTraceChunk(readyChunk.payload)) {
+      continue;
+    }
+    const traceChunkReadyChunk = readyChunk as TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>;
+    const spanRefRowIndex =
+      traceChunkReadyChunk.payload.indexes.rowIndexByExternalSpanId.get(
+        params.exactExternalIdQuery
+      ) ?? null;
+    if (spanRefRowIndex == null) {
+      continue;
+    }
+    const record = buildTraceChunkSpanSearchRecord({
+      spanRefRowIndex,
+      spanSearchColumns: readTraceChunkSpanSearchColumns(traceChunkReadyChunk.payload.spanTable),
+      spanSearchRecordColumns: readTraceChunkSpanSearchRecordColumns(
+        traceChunkReadyChunk.payload.spanTable
+      ),
+      readyChunk: traceChunkReadyChunk,
+      traceGraph: params.traceGraph
+    });
+    if (!record) {
+      continue;
+    }
+    results.push(record);
+    if (results.length >= params.limit) {
+      return results;
+    }
+  }
+  return results;
 }
 
 /** Finds one ready chunk row by its exact store-backed span ref. */
@@ -673,25 +839,25 @@ function findReadyTraceChunkRowBySpanRef<TPayload, TDescriptor extends TraceChun
 } | null {
   const chunkIndex = getSpanRefChunkIndex(spanRef);
   const rowIndex = getSpanRefRowIndex(spanRef);
-  let matchedRow: {
-    readonly row: TraceChunkSpanRowView;
-    readonly readyChunk: TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>;
-  } | null = null;
-  visitReadyTraceChunkRows(traceChunkStore, (row, readyChunk) => {
-    if (readyChunk.chunkIndex === chunkIndex && row.rowIndex === rowIndex) {
-      matchedRow = {row, readyChunk};
-      return false;
-    }
-  });
-  return matchedRow;
+  const readyChunk = traceChunkStore.getReadyChunkByIndex(chunkIndex);
+  if (!readyChunk || !isTraceChunk(readyChunk.payload)) {
+    return null;
+  }
+  const traceChunkReadyChunk = readyChunk as TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>;
+  if (!traceChunkHasSpanRefRow(traceChunkReadyChunk.payload, rowIndex)) {
+    return null;
+  }
+  const row = readReadyTraceChunkSpanRow(traceChunkReadyChunk, rowIndex);
+  return row ? {row, readyChunk: traceChunkReadyChunk} : null;
 }
 
-/** Iterates currently ready chunk rows without triggering additional chunk loads. */
-function visitReadyTraceChunkRows<TPayload, TDescriptor extends TraceChunkDescriptor>(
+/** Iterates ready chunk span-ref rows with minimal search vectors and no row views. */
+function visitReadyTraceChunkSpanRefs<TPayload, TDescriptor extends TraceChunkDescriptor>(
   traceChunkStore: TraceChunkStore<TPayload, TDescriptor>,
-  visitRow: (
-    row: TraceChunkSpanRowView,
-    readyChunk: TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>
+  visitSpanRef: (
+    spanRefRowIndex: number,
+    readyChunk: TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>,
+    spanSearchColumns: TraceChunkSpanSearchColumns
   ) => boolean | void
 ): TraceChunkRowVisitStats {
   const readyChunks = traceChunkStore.getReadyChunks(traceChunkStore.getDescriptors());
@@ -703,15 +869,13 @@ function visitReadyTraceChunkRows<TPayload, TDescriptor extends TraceChunkDescri
     }
     readyChunkCount += 1;
     const traceChunkReadyChunk = readyChunk as TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>;
-    const spanColumns = readTraceChunkSpanColumns(traceChunkReadyChunk.payload.spanTable);
-    for (
-      let rowIndex = 0;
-      rowIndex < traceChunkReadyChunk.payload.spanTable.numRows;
-      rowIndex += 1
-    ) {
-      const row = readTraceChunkSpanRow(traceChunkReadyChunk.payload, rowIndex, spanColumns);
+    const spanSearchColumns = readTraceChunkSpanSearchColumns(
+      traceChunkReadyChunk.payload.spanTable
+    );
+    const spanRowCount = traceChunkReadyChunk.payload.spanTable.numRows;
+    for (let rowIndex = 0; rowIndex < spanRowCount; rowIndex += 1) {
       rowCount += 1;
-      if (row && visitRow(row, traceChunkReadyChunk) === false) {
+      if (visitSpanRef(rowIndex, traceChunkReadyChunk, spanSearchColumns) === false) {
         return {readyChunkCount, rowCount};
       }
     }
@@ -719,29 +883,63 @@ function visitReadyTraceChunkRows<TPayload, TDescriptor extends TraceChunkDescri
   return {readyChunkCount, rowCount};
 }
 
-/** Converts one normalized chunk row into canonical search metadata. */
+/** Materializes one rich normalized chunk row only after its span ref is selected. */
+function readReadyTraceChunkSpanRow<TDescriptor extends TraceChunkDescriptor>(
+  readyChunk: TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>,
+  spanRefRowIndex: number
+): TraceChunkSpanRowView | null {
+  return readTraceChunkSpanRow(
+    readyChunk.payload,
+    spanRefRowIndex,
+    readTraceChunkSpanColumns(readyChunk.payload.spanTable)
+  );
+}
+
+/** Converts one matched chunk span ref into canonical search metadata. */
 function buildTraceChunkSpanSearchRecord<TDescriptor extends TraceChunkDescriptor>(params: {
-  readonly row: TraceChunkSpanRowView;
+  /** Matched chunk-local span-ref row index. */
+  readonly spanRefRowIndex: number;
+  /** Minimal span-table vectors already read before matching. */
+  readonly spanSearchColumns: TraceChunkSpanSearchColumns;
+  /** Span-table vectors read only after the search row matches. */
+  readonly spanSearchRecordColumns: TraceChunkSpanSearchRecordColumns;
+  /** Ready store chunk containing the matched span ref. */
   readonly readyChunk: TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>;
+  /** Active materialized graph used for filter provenance. */
   readonly traceGraph: TraceGraphSpanSearchContext;
 }): TraceGraphSpanSearchRecord | null {
-  const spanRef = encodeSpanRef(params.readyChunk.chunkIndex, params.row.rowIndex);
-  const primaryTiming = getPrimaryTiming(params.row);
-  if (!primaryTiming) {
+  const spanTableRowIndex = getTraceChunkSpanTableRowIndex(
+    params.readyChunk.payload,
+    params.spanRefRowIndex
+  );
+  if (spanTableRowIndex == null) {
     return null;
   }
+  const processRef = readArrowRefColumn(params.spanSearchColumns.processRef, spanTableRowIndex);
+  const process = resolveTraceChunkRowProcess(params.readyChunk.payload, processRef);
+  const threadId = readColumnValue(params.spanSearchColumns.threadId, spanTableRowIndex);
+  const name = readColumnValue(params.spanSearchColumns.name, spanTableRowIndex);
+  const spanId = readColumnValue(params.spanSearchRecordColumns.spanId, spanTableRowIndex);
+  if (!process || !threadId || !name || !spanId) {
+    return null;
+  }
+  const spanRef = encodeSpanRef(params.readyChunk.chunkIndex, params.spanRefRowIndex);
+  const primaryTiming = readPrimaryTiming(params.spanSearchRecordColumns, spanTableRowIndex);
+  const keywords = readTraceChunkSidecarKeywords(params.readyChunk.payload, spanTableRowIndex);
+  const source = readColumnValue(params.spanSearchColumns.source, spanTableRowIndex) ?? null;
   const filterReason = params.traceGraph.spanFilterReason(spanRef, {
-    spanName: params.row.name
+    spanName: name,
+    source
   });
   return {
     spanRef,
-    spanId: params.row.spanId,
-    blockName: params.row.name,
-    processName: params.row.process.name,
-    threadName: params.row.thread.name,
+    spanId,
+    blockName: name,
+    processName: process.name,
+    threadName: process.threadMap[threadId]?.name ?? threadId,
     primaryTiming,
-    keywordsText: params.row.keywords.join(' '),
-    searchText: params.row.name.toLowerCase(),
+    keywordsText: keywords.join(' '),
+    searchText: name.toLowerCase(),
     filterMask: filterReason.filterMask,
     filterReason
   };
@@ -771,15 +969,15 @@ function buildTraceChunkSpanSearchResult<TDescriptor extends TraceChunkDescripto
   };
 }
 
-/** Converts one normalized chunk row into a display source suitable for selected-card rendering. */
-function buildTraceChunkSpanDisplaySource(
+/** Converts one normalized chunk row into one lightweight span source. */
+function buildTraceChunkSpanSource(
   row: TraceChunkSpanRowView,
   spanRef: SpanRef
-): TraceSpanDisplaySource | null {
+): TraceSpanDetailSource | null {
   if (row.processRef == null || row.threadRef == null) {
     return null;
   }
-  return {
+  const spanSource = {
     spanRef,
     processRef: row.processRef,
     threadRef: row.threadRef,
@@ -792,22 +990,25 @@ function buildTraceChunkSpanDisplaySource(
     name: row.name,
     source: row.source,
     keywords: [...row.keywords],
-    localDependencyIds: [...(row.sidecarRow?.localDependencyIds ?? [])] as TraceDependencyId[],
-    crossProcessEndpointId: row.sidecarRow?.crossProcessEndpointId ?? null,
-    crossProcessDependencyEndpoints: (row.sidecarRow?.crossProcessDependencyEndpoints ?? []).map(
-      endpoint => ({
-        type: 'cross-process-dependency-endpoint',
-        ...endpoint
-      })
-    )
-  };
+    crossProcessEndpointId: row.crossProcessEndpointId,
+    crossProcessDependencyEndpoints: row.crossProcessDependencyEndpoints.map(endpoint => ({
+      ...endpoint,
+      type: 'cross-process-dependency-endpoint'
+    }))
+  } satisfies TraceSpanDetailSource;
+
+  return spanSource;
 }
 
 /** Builds normalized lowercase row text for store-backed span search. */
-function buildTraceChunkSpanSearchText(row: TraceChunkSpanRowView): string {
-  return [row.name, row.source ?? '', row.keywords.join(' '), row.process.name, row.thread.name]
-    .join('\n')
-    .toLowerCase();
+function buildTraceChunkSpanSearchText(
+  name: string,
+  source: string | null,
+  keywords: readonly string[],
+  processName: string,
+  threadName: string
+): string {
+  return [name, source ?? '', keywords.join(' '), processName, threadName].join('\n').toLowerCase();
 }
 
 /** Builds the user-facing hidden reason from the active TraceGraph filter mask. */
@@ -856,8 +1057,10 @@ type TraceChunkSpanRowView = {
   readonly userData: Readonly<Record<string, unknown>>;
   /** Window-overlap envelopes kept with the span. */
   readonly overlapRanges: readonly TraceChunkSpanOverlapRange[];
-  /** Row-aligned sidecar payload from the normalized chunk, when present. */
-  readonly sidecarRow: TraceSpanArrowSidecarRow | null;
+  /** Optional unresolved cross-process endpoint id. */
+  readonly crossProcessEndpointId: TraceCrossProcessEndpointId | null;
+  /** Structured unresolved cross-process endpoints attached to the span. */
+  readonly crossProcessDependencyEndpoints: readonly TraceCrossProcessEndpoint[];
 };
 
 /** Minimal Arrow vector surface needed by chunk-window row readers. */
@@ -884,14 +1087,66 @@ type TraceChunkSpanColumns = {
   readonly source: ColumnVector<string> | null;
   /** Primary timing key column. */
   readonly primaryTimingKey: ColumnVector<string> | null;
-  /** Primary timing status column. */
-  readonly status: ColumnVector<TraceSpanTiming['status']> | null;
+  /** Compact primary timing-status column. */
+  readonly statusCode: ColumnVector<number> | null;
   /** Primary timing start column. */
   readonly startTimeMs: ColumnVector<number> | null;
   /** Primary timing end column. */
   readonly endTimeMs: ColumnVector<number> | null;
   /** Primary timing duration column. */
   readonly durationMs: ColumnVector<number> | null;
+};
+
+/** Span-table vectors needed before a search row is known to match. */
+type TraceChunkSpanSearchColumns = {
+  /** Packed process refs needed only for metadata-backed plain-text matches. */
+  readonly processRef: TraceChunkSpanColumns['processRef'];
+  /** Thread ids needed only for metadata-backed or unknown-thread plain-text matches. */
+  readonly threadId: TraceChunkSpanColumns['threadId'];
+  /** Span names scanned before wider search fields. */
+  readonly name: TraceChunkSpanColumns['name'];
+  /** Optional span source labels scanned after names. */
+  readonly source: TraceChunkSpanColumns['source'];
+};
+
+/** Primary timing vectors needed after a matched search row is selected. */
+type TraceChunkSpanPrimaryTimingColumns = Pick<
+  TraceChunkSpanColumns,
+  'statusCode' | 'startTimeMs' | 'endTimeMs' | 'durationMs'
+>;
+
+/** Span-table vectors needed only after a search row matches. */
+type TraceChunkSpanSearchRecordColumns = TraceChunkSpanPrimaryTimingColumns & {
+  /** Stable legacy span id column emitted with matched search records. */
+  readonly spanId: TraceChunkSpanColumns['spanId'];
+};
+
+/** One reusable lowercase plain-text query for one store-backed span search pass. */
+type TraceChunkPlainTextSearchQuery = {
+  /** Lowercase plain-text query matched against search fields. */
+  readonly text: string;
+  /** ASCII UTF-8 query bytes used when direct Arrow buffer matching is safe. */
+  readonly utf8View: Utf8StringView | null;
+};
+
+/** One chunk-local field matcher reused across row scans for one plain-text search pass. */
+type TraceChunkPlainTextSpanSearchMatcher = {
+  /** Plain-text query shared by every field in this chunk. */
+  readonly query: TraceChunkPlainTextSearchQuery;
+  /** Direct UTF-8 name buffers, when Arrow exposes them. */
+  readonly nameUtf8Source: Utf8ColumnSource | null;
+  /** Reusable direct UTF-8 name row view. */
+  readonly nameUtf8View: Utf8StringView;
+  /** Direct UTF-8 source buffers, when Arrow exposes them. */
+  readonly sourceUtf8Source: Utf8ColumnSource | null;
+  /** Reusable direct UTF-8 source row view. */
+  readonly sourceUtf8View: Utf8StringView;
+  /** Direct UTF-8 thread-id buffers, when Arrow exposes them. */
+  readonly threadIdUtf8Source: Utf8ColumnSource | null;
+  /** Reusable direct UTF-8 thread-id row view. */
+  readonly threadIdUtf8View: Utf8StringView;
+  /** Whether any process or known-thread display name can match the query. */
+  readonly mayMatchProcessOrKnownThreadName: boolean;
 };
 
 /** Row selected for one materialized visible trace window. */
@@ -930,13 +1185,14 @@ type TraceChunkRowVisitStats = {
 /** Selects ready chunk rows whose overlap envelopes intersect the requested window. */
 function selectTraceChunkRowsForWindow<TDescriptor extends TraceChunkDescriptor>(
   readyChunks: readonly TraceChunkStoreReadyChunk<TraceChunk, TDescriptor>[],
-  window: TraceWindow
+  window: TraceChunkStoreWindow
 ): SelectedTraceChunkSpanRow[] {
   const selectedRows: SelectedTraceChunkSpanRow[] = [];
   const scratchSelectedRow = {} as MutableSelectedTraceChunkSpanRow;
   for (const readyChunk of readyChunks) {
     const spanColumns = readTraceChunkSpanColumns(readyChunk.payload.spanTable);
-    for (let rowIndex = 0; rowIndex < readyChunk.payload.spanTable.numRows; rowIndex += 1) {
+    const spanRowCount = readyChunk.payload.spanTable.numRows;
+    for (let rowIndex = 0; rowIndex < spanRowCount; rowIndex += 1) {
       const overlapRanges = getTraceChunkSpanOverlapRanges(readyChunk.payload, rowIndex);
       if (!doesTraceChunkSpanOverlapWindow(overlapRanges, window)) {
         continue;
@@ -960,7 +1216,7 @@ function getTraceChunkSpanOverlapRanges(
 /** Returns whether any chunk-row overlap envelope intersects a registered trace window. */
 function doesTraceChunkSpanOverlapWindow(
   overlapRanges: readonly TraceChunkSpanOverlapRange[],
-  window: TraceWindow
+  window: TraceChunkStoreWindow
 ): boolean {
   return overlapRanges.some(
     range => range.endTimeMs >= window.minTimeMs && range.startTimeMs <= window.maxTimeMs
@@ -970,7 +1226,10 @@ function doesTraceChunkSpanOverlapWindow(
 /** Builds Arrow process metadata from the store's current owner-ref snapshot. */
 function buildArrowTraceProcesses(params: {
   readonly ownerRefRegistry: TraceOwnerRefRegistry;
-  readonly localDependenciesByProcessId: ReadonlyMap<TraceProcessId, TraceLocalDependency[]>;
+  readonly sameProcessDependenciesByProcessId: ReadonlyMap<
+    TraceProcessId,
+    TraceSameProcessDependency[]
+  >;
 }): ArrowTraceProcessMetadata[] {
   return params.ownerRefRegistry.getOwnerProcessSnapshots().map(process => {
     const threads = [...process.threads];
@@ -984,49 +1243,19 @@ function buildArrowTraceProcesses(params: {
       counters: [],
       counterMap: {},
       threadCounterMap: {},
-      localDependencies:
-        params.localDependenciesByProcessId.get(process.processId as TraceProcessId) ?? [],
+      sameProcessDependencies:
+        params.sameProcessDependenciesByProcessId.get(process.processId as TraceProcessId) ?? [],
       remoteDependencies: []
     };
   });
 }
 
-/** Builds window storage chunks by reusing the original stored chunk tables. */
-function buildTraceChunkWindowStorageChunks(params: {
-  readonly readyChunks: readonly TraceChunkStoreReadyChunk<TraceChunk, TraceChunkDescriptor>[];
-}): ArrowTraceChunk[] {
-  return params.readyChunks.map(readyChunk => ({
-    chunkIndex: readyChunk.chunkIndex,
-    chunkRef: readyChunk.chunkRef,
-    chunkKey: readyChunk.descriptor.chunkKey,
-    processRefs: getTraceChunkProcessRefs(readyChunk.payload),
-    processId: null,
-    spanTable: readyChunk.payload.spanTable,
-    localDependencyTable: readyChunk.payload.localDependencyTable,
-    spanSidecarRows: readyChunk.payload.spanSidecarRows,
-    spanSidecarTable: readyChunk.payload.spanSidecarTable
-  }));
-}
-
-/** Returns process refs represented by one original stored chunk payload. */
-function getTraceChunkProcessRefs(payload: TraceChunk): readonly ProcessRef[] {
-  if (payload.processRefs.length > 0) {
-    return payload.processRefs;
-  }
-  const processRefColumn = getTraceChunkSpanColumn(payload.spanTable, 'process_ref');
-  const processRefs: ProcessRef[] = [];
-  const seenProcessRefs = new Set<ProcessRef>();
-  for (let rowIndex = 0; rowIndex < payload.spanTable.numRows; rowIndex += 1) {
-    const processRef = readArrowRefColumn(processRefColumn, rowIndex) as ProcessRef | null;
-    if (processRef != null && !seenProcessRefs.has(processRef)) {
-      processRefs.push(processRef);
-      seenProcessRefs.add(processRef);
-    }
-  }
-  if (processRefs.length > 0) {
-    return processRefs;
-  }
-  return payload.processes.map(process => encodeProcessRef(process.rankNum));
+/** Drops ingestion-only dependency object arrays from persisted window process metadata. */
+function stripTraceChunkWindowProcessDependencyMetadata(
+  process: ArrowTraceProcessMetadata
+): ArrowTraceProcessMetadata {
+  const {sameProcessDependencies: _sameProcessDependencies, ...metadata} = process;
+  return metadata;
 }
 
 /** Builds active-window time extents from selected original chunk rows. */
@@ -1087,10 +1316,10 @@ function buildTraceChunkWindowStats(params: {
       }, 0)
     );
   }, 0);
-  const localDependencyCount = [
-    ...params.dependencies.localDependenciesByProcessId.values()
+  const sameProcessDependencyCount = [
+    ...params.dependencies.sameProcessDependenciesByProcessId.values()
   ].reduce((total, dependencies) => total + dependencies.length, 0);
-  const crossDependencyCount = params.dependencies.crossDependencies.length;
+  const crossProcessDependencyCount = params.dependencies.crossProcessDependencies.length;
   let notStartedSpanCount = 0;
   let unfinishedSpanCount = 0;
   for (const selectedRow of params.selectedRows) {
@@ -1106,14 +1335,14 @@ function buildTraceChunkWindowStats(params: {
     threadCount,
     laneCount,
     spanCount: params.selectedRows.length,
-    localDependencyCount,
+    sameProcessDependencyCount,
     notStartedSpanCount,
     unfinishedSpanCount,
     droppedSpanCount: 0,
-    dependencyCount: localDependencyCount + crossDependencyCount,
+    dependencyCount: sameProcessDependencyCount + crossProcessDependencyCount,
     droppedDependencyCount: 0,
-    crossDependencyCount,
-    droppedCrossDependencyCount: 0
+    crossProcessDependencyCount,
+    droppedCrossProcessDependencyCount: 0
   };
 }
 
@@ -1137,8 +1366,11 @@ function countSelectedRowsWithMissingOwnerProcessRef(
 
 /** Builds visible dependency rows from parent source rows within the visible subset. */
 function buildTraceChunkParentDependencies(selectedRows: readonly SelectedTraceChunkSpanRow[]): {
-  readonly localDependenciesByProcessId: ReadonlyMap<TraceProcessId, TraceLocalDependency[]>;
-  readonly crossDependencies: readonly TraceCrossProcessDependency[];
+  readonly sameProcessDependenciesByProcessId: ReadonlyMap<
+    TraceProcessId,
+    TraceSameProcessDependency[]
+  >;
+  readonly crossProcessDependencies: readonly TraceCrossProcessDependency[];
 } {
   const rowByExternalSpanId = new Map<string, SelectedTraceChunkSpanRow>();
   for (const selectedRow of selectedRows) {
@@ -1147,8 +1379,11 @@ function buildTraceChunkParentDependencies(selectedRows: readonly SelectedTraceC
     }
   }
 
-  const localDependenciesByProcessId = new Map<TraceProcessId, TraceLocalDependency[]>();
-  const crossDependencies: TraceCrossProcessDependency[] = [];
+  const sameProcessDependenciesByProcessId = new Map<
+    TraceProcessId,
+    TraceSameProcessDependency[]
+  >();
+  const crossProcessDependencies: TraceCrossProcessDependency[] = [];
   for (const endRow of selectedRows) {
     for (const parentExternalSpanId of endRow.parentExternalSpanIds) {
       const startRow = rowByExternalSpanId.get(parentExternalSpanId);
@@ -1158,21 +1393,21 @@ function buildTraceChunkParentDependencies(selectedRows: readonly SelectedTraceC
       appendTraceChunkParentDependency({
         startRow,
         endRow,
-        localDependenciesByProcessId,
-        crossDependencies
+        sameProcessDependenciesByProcessId,
+        crossProcessDependencies
       });
     }
   }
 
-  return {localDependenciesByProcessId, crossDependencies};
+  return {sameProcessDependenciesByProcessId, crossProcessDependencies};
 }
 
 /** Appends one local or cross-process parent dependency for two visible chunk rows. */
 function appendTraceChunkParentDependency(params: {
   readonly startRow: SelectedTraceChunkSpanRow;
   readonly endRow: SelectedTraceChunkSpanRow;
-  readonly localDependenciesByProcessId: Map<TraceProcessId, TraceLocalDependency[]>;
-  readonly crossDependencies: TraceCrossProcessDependency[];
+  readonly sameProcessDependenciesByProcessId: Map<TraceProcessId, TraceSameProcessDependency[]>;
+  readonly crossProcessDependencies: TraceCrossProcessDependency[];
 }): void {
   const waitTimeMs = computeWaitTimeMs(params.startRow.primaryTiming, params.endRow.primaryTiming);
   const dependencyId =
@@ -1180,10 +1415,17 @@ function appendTraceChunkParentDependency(params: {
   const startProcessId = params.startRow.process.processId as TraceProcessId;
   const endProcessId = params.endRow.process.processId as TraceProcessId;
   if (startProcessId === endProcessId) {
-    const dependencies = params.localDependenciesByProcessId.get(startProcessId) ?? [];
+    const dependencies = params.sameProcessDependenciesByProcessId.get(startProcessId) ?? [];
+    const processRef = params.startRow.processRef;
     dependencies.push({
-      type: 'trace-local-dependency',
-      dependencyRef: encodeVisibleLocalDependencyRef(dependencies.length),
+      type: 'trace-same-process-dependency',
+      ...(processRef == null
+        ? {}
+        : {
+            dependencyRef: encodeSameProcessDependencyRef(
+              encodeLocalSpanRef(getProcessRefIndex(processRef), dependencies.length)
+            )
+          }),
       startSpanRef: params.startRow.spanRef,
       endSpanRef: params.endRow.spanRef,
       dependencyId,
@@ -1199,15 +1441,15 @@ function appendTraceChunkParentDependency(params: {
         end_external_span_id: params.endRow.externalSpanId
       }
     });
-    params.localDependenciesByProcessId.set(startProcessId, dependencies);
+    params.sameProcessDependenciesByProcessId.set(startProcessId, dependencies);
     return;
   }
 
   const endpointId =
     `endpoint:parent:${params.startRow.externalSpanId ?? params.startRow.spanId}->${params.endRow.externalSpanId ?? params.endRow.spanId}` as TraceCrossProcessEndpointId;
-  params.crossDependencies.push({
+  params.crossProcessDependencies.push({
     type: 'trace-cross-process-dependency',
-    dependencyRef: encodeVisibleCrossDependencyRef(params.crossDependencies.length),
+    dependencyRef: encodeCrossProcessDependencyRef(params.crossProcessDependencies.length),
     startSpanRef: params.startRow.spanRef,
     endSpanRef: params.endRow.spanRef,
     dependencyId,
@@ -1233,18 +1475,20 @@ function appendTraceChunkParentDependency(params: {
 }
 
 /** Builds one process-local Arrow dependency table for each materialized process. */
-function buildLocalDependencyTableMap(
+function buildSameProcessDependencyTableMap(
   processes: readonly ArrowTraceProcessMetadata[],
-  localDependenciesByProcessId: ReadonlyMap<TraceProcessId, TraceLocalDependency[]>
-): Readonly<Record<TraceProcessId, ArrowTraceLocalDependencyTable>> {
+  sameProcessDependenciesByProcessId: ReadonlyMap<TraceProcessId, TraceSameProcessDependency[]>
+): Readonly<Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>> {
   return Object.fromEntries(
     processes.map(process => [
       process.processId as TraceProcessId,
-      buildArrowTraceLocalDependencyTable(
-        localDependenciesByProcessId.get(process.processId as TraceProcessId) ?? []
+      buildArrowTraceSameProcessDependencyTable(
+        sameProcessDependenciesByProcessId.get(process.processId as TraceProcessId) ?? []
       )
     ])
-  ) as Readonly<Record<TraceProcessId, ReturnType<typeof buildArrowTraceLocalDependencyTable>>>;
+  ) as Readonly<
+    Record<TraceProcessId, ReturnType<typeof buildArrowTraceSameProcessDependencyTable>>
+  >;
 }
 
 /** Reads the minimal selected-row payload needed for active-window graph materialization. */
@@ -1265,9 +1509,6 @@ function readSelectedTraceChunkSpanRow<TDescriptor extends TraceChunkDescriptor>
   if (!process || !spanId) {
     return false;
   }
-  const primaryTimingKey =
-    readColumnValue(spanColumns.primaryTimingKey, spanTableRowIndex) ?? 'primary';
-  const sidecarTimings = payload.spanSidecarRows?.[spanTableRowIndex]?.timings;
   out.spanRef = encodeSpanRef(readyChunk.chunkIndex, spanRefRowIndex);
   out.processRef =
     processRef == null ? encodeProcessRef(process.rankNum) : (processRef as ProcessRef);
@@ -1282,9 +1523,9 @@ function readSelectedTraceChunkSpanRow<TDescriptor extends TraceChunkDescriptor>
     spanRefRowIndex
   );
   out.process = process;
-  out.primaryTiming = sidecarTimings
-    ? (sidecarTimings[primaryTimingKey] ?? null)
-    : readPrimaryTiming(spanColumns, spanTableRowIndex);
+  // Window materialization only needs the canonical primary timing projection. Reading
+  // `timingsJson` here deserializes one JSON object per selected span during large loads.
+  out.primaryTiming = readPrimaryTiming(spanColumns, spanTableRowIndex);
   return true;
 }
 
@@ -1318,7 +1559,9 @@ function getTraceChunkParentExternalSpanIds(
     ? (payload.indexes.sourceDependencyRowsByEndExternalSpanId.get(externalSpanId) ?? [])
     : [];
   for (const sourceDependencyRowIndex of sourceDependencyRowIndexes) {
-    const dependencyRow = payload.sourceDependencyTable?.rows[sourceDependencyRowIndex];
+    const dependencyRow = payload.sourceDependencyTable
+      ? readTraceChunkSourceDependencyRow(payload.sourceDependencyTable, sourceDependencyRowIndex)
+      : null;
     if (
       dependencyRow?.dependencyKind !== 'parent' ||
       !dependencyRow.startExternalSpanId ||
@@ -1359,11 +1602,13 @@ function readTraceChunkSpanRow(
   if (!threadId || !name || !spanId) {
     return null;
   }
-  const sidecarRow = payload.spanSidecarRows?.[spanTableRowIndex] ?? null;
   const primaryTimingKey =
     readColumnValue(spanColumns.primaryTimingKey, spanTableRowIndex) ?? 'primary';
   const primaryTiming = readPrimaryTiming(spanColumns, spanTableRowIndex);
-  const timings = sidecarRow?.timings ?? {[primaryTimingKey]: primaryTiming};
+  const timings = {
+    ...(readTraceChunkSpanTimings(payload, spanTableRowIndex) ?? {}),
+    [primaryTimingKey]: primaryTiming
+  };
   return {
     rowIndex: spanRefRowIndex,
     spanTableRowIndex,
@@ -1383,21 +1628,157 @@ function readTraceChunkSpanRow(
     threadRef: threadRef == null ? null : (threadRef as ThreadRef),
     name,
     source: readColumnValue(spanColumns.source, spanTableRowIndex) ?? null,
-    keywords: sidecarRow?.keywords ?? [],
+    keywords: readTraceChunkSidecarKeywords(payload, spanTableRowIndex),
     primaryTimingKey,
     timings,
-    userData: sidecarRow?.userData ?? {},
+    userData: readTraceChunkSidecarUserData(payload, spanTableRowIndex) ?? {},
     overlapRanges: payload.rowWindowTable?.overlapRangesByRow[spanRefRowIndex] ?? [],
-    sidecarRow
+    crossProcessEndpointId: readTraceChunkSidecarEndpointId(payload, spanTableRowIndex),
+    crossProcessDependencyEndpoints: readTraceChunkSpanCrossProcessEndpoints(
+      payload,
+      spanTableRowIndex
+    )
   };
+}
+
+/** Reads normalized search text without materializing the full normalized chunk row. */
+function readTraceChunkSpanSearchText(
+  payload: TraceChunk,
+  spanRefRowIndex: number,
+  spanSearchColumns: TraceChunkSpanSearchColumns
+): string | null {
+  const spanTableRowIndex = getTraceChunkSpanTableRowIndex(payload, spanRefRowIndex);
+  if (spanTableRowIndex == null) {
+    return null;
+  }
+  const processRef = readArrowRefColumn(spanSearchColumns.processRef, spanTableRowIndex);
+  const process = resolveTraceChunkRowProcess(payload, processRef);
+  const threadId = readColumnValue(spanSearchColumns.threadId, spanTableRowIndex);
+  const name = readColumnValue(spanSearchColumns.name, spanTableRowIndex);
+  if (!process || !threadId || !name) {
+    return null;
+  }
+  const source = readColumnValue(spanSearchColumns.source, spanTableRowIndex) ?? null;
+  const keywords = readTraceChunkSidecarKeywords(payload, spanTableRowIndex);
+  return buildTraceChunkSpanSearchText(
+    name,
+    source,
+    keywords,
+    process.name,
+    process.threadMap[threadId]?.name ?? threadId
+  );
+}
+
+/** Matches one ready chunk span through field-wise plain text or the generic combined-text path. */
+function matchesTraceChunkSpanSearchText(params: {
+  /** Store-owned normalized trace chunk. */
+  readonly payload: TraceChunk;
+  /** Stable chunk-local span-ref row index. */
+  readonly spanRefRowIndex: number;
+  /** Minimal span-table vectors needed before a search row matches. */
+  readonly spanSearchColumns: TraceChunkSpanSearchColumns;
+  /** Shared generic search predicate. */
+  readonly matchesSearchText: (searchText: string) => boolean;
+  /** Chunk-local single-token plain-text matcher eligible for field-wise matching. */
+  readonly plainTextSpanSearchMatcher: TraceChunkPlainTextSpanSearchMatcher | null;
+}): boolean {
+  if (params.plainTextSpanSearchMatcher) {
+    return traceChunkSpanMatchesPlainTextQuery(
+      params.payload,
+      params.spanRefRowIndex,
+      params.spanSearchColumns,
+      params.plainTextSpanSearchMatcher
+    );
+  }
+
+  const searchText = readTraceChunkSpanSearchText(
+    params.payload,
+    params.spanRefRowIndex,
+    params.spanSearchColumns
+  );
+  return searchText != null && params.matchesSearchText(searchText);
+}
+
+/** Matches one single-token plain-text query without allocating one combined row string. */
+function traceChunkSpanMatchesPlainTextQuery(
+  payload: TraceChunk,
+  spanRefRowIndex: number,
+  spanSearchColumns: TraceChunkSpanSearchColumns,
+  spanSearchMatcher: TraceChunkPlainTextSpanSearchMatcher
+): boolean {
+  const spanTableRowIndex = getTraceChunkSpanTableRowIndex(payload, spanRefRowIndex);
+  if (spanTableRowIndex == null) {
+    return false;
+  }
+
+  if (
+    traceChunkSpanSearchColumnMatchesPlainTextQuery({
+      column: spanSearchColumns.name,
+      utf8Source: spanSearchMatcher.nameUtf8Source,
+      utf8View: spanSearchMatcher.nameUtf8View,
+      rowIndex: spanTableRowIndex,
+      query: spanSearchMatcher.query
+    })
+  ) {
+    return true;
+  }
+  if (
+    traceChunkSpanSearchColumnMatchesPlainTextQuery({
+      column: spanSearchColumns.source,
+      utf8Source: spanSearchMatcher.sourceUtf8Source,
+      utf8View: spanSearchMatcher.sourceUtf8View,
+      rowIndex: spanTableRowIndex,
+      query: spanSearchMatcher.query
+    })
+  ) {
+    return true;
+  }
+
+  const keywords = readTraceChunkSidecarKeywords(payload, spanTableRowIndex);
+  if (
+    keywords.some(keyword =>
+      traceChunkSpanSearchFieldMatchesPlainTextQuery(keyword, spanSearchMatcher.query.text)
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    spanSearchMatcher.mayMatchProcessOrKnownThreadName &&
+    traceChunkSpanProcessOrKnownThreadMatchesPlainTextQuery(
+      payload,
+      spanTableRowIndex,
+      spanSearchColumns,
+      spanSearchMatcher.query.text
+    )
+  ) {
+    return true;
+  }
+
+  return traceChunkSpanUnknownThreadIdMatchesPlainTextQuery(
+    payload,
+    spanTableRowIndex,
+    spanSearchColumns,
+    spanSearchMatcher
+  );
 }
 
 /** Resolves the process metadata represented by one chunk span-table row. */
 function resolveTraceChunkRowProcess(
-  chunk: Pick<TraceChunk, 'processes'>,
+  chunk: Pick<TraceChunk, 'processes' | 'processId' | 'processRefs'>,
   processRef: number | null
 ): ArrowTraceProcessMetadata | null {
+  if (chunk.processId != null) {
+    return (
+      chunk.processes.find(process => process.processId === chunk.processId) ??
+      (chunk.processes.length === 1 ? chunk.processes[0]! : null)
+    );
+  }
   if (processRef != null) {
+    const representedProcessIndex = chunk.processRefs.indexOf(processRef as ProcessRef);
+    if (representedProcessIndex >= 0) {
+      return chunk.processes[representedProcessIndex] ?? null;
+    }
     const processIndex = getProcessRefIndex(processRef as ProcessRef);
     return (
       chunk.processes[processIndex] ??
@@ -1429,11 +1810,222 @@ function readTraceChunkSpanColumns(spanTable: ArrowTraceSpanTable): TraceChunkSp
     name: getTraceChunkSpanColumn(spanTable, 'name'),
     source: getTraceChunkSpanColumn(spanTable, 'source'),
     primaryTimingKey: getTraceChunkSpanColumn(spanTable, 'primary_timing_key'),
-    status: getTraceChunkSpanColumn(spanTable, 'status'),
+    statusCode: getTraceChunkSpanColumn(spanTable, 'status_code'),
     startTimeMs: getTraceChunkSpanColumn(spanTable, 'start_time_ms'),
     endTimeMs: getTraceChunkSpanColumn(spanTable, 'end_time_ms'),
     durationMs: getTraceChunkSpanColumn(spanTable, 'duration_ms')
   };
+}
+
+/** Reads the span-table vectors needed before a search row is known to match. */
+function readTraceChunkSpanSearchColumns(
+  spanTable: ArrowTraceSpanTable
+): TraceChunkSpanSearchColumns {
+  return {
+    processRef: getTraceChunkSpanColumn(spanTable, 'process_ref'),
+    threadId: getTraceChunkSpanColumn(spanTable, 'thread_id'),
+    name: getTraceChunkSpanColumn(spanTable, 'name'),
+    source: getTraceChunkSpanColumn(spanTable, 'source')
+  };
+}
+
+/** Reads the span-table vectors needed only after a search row matches. */
+function readTraceChunkSpanSearchRecordColumns(
+  spanTable: ArrowTraceSpanTable
+): TraceChunkSpanSearchRecordColumns {
+  return {
+    spanId: getTraceChunkSpanColumn(spanTable, 'span_id'),
+    statusCode: getTraceChunkSpanColumn(spanTable, 'status_code'),
+    startTimeMs: getTraceChunkSpanColumn(spanTable, 'start_time_ms'),
+    endTimeMs: getTraceChunkSpanColumn(spanTable, 'end_time_ms'),
+    durationMs: getTraceChunkSpanColumn(spanTable, 'duration_ms')
+  };
+}
+
+/** Returns one field-wise plain-text query only when concatenation cannot affect matching. */
+function getSingleTokenTraceSpanPlainTextQuery(
+  predicate: (searchText: string) => boolean
+): string | null {
+  const plainTextQuery = getTraceSpanPlainTextQuery(predicate);
+  return plainTextQuery && !/\s/.test(plainTextQuery) ? plainTextQuery : null;
+}
+
+/** Builds one reusable plain-text query with optional direct UTF-8 bytes. */
+function buildTraceChunkPlainTextSearchQuery(text: string): TraceChunkPlainTextSearchQuery {
+  return {
+    text,
+    utf8View: isTraceChunkAsciiSearchText(text) ? makeUtf8StringView(text) : null
+  };
+}
+
+/** Builds one chunk-local direct-buffer matcher for one plain-text search query. */
+function buildTraceChunkPlainTextSpanSearchMatcher(
+  payload: TraceChunk,
+  spanSearchColumns: TraceChunkSpanSearchColumns,
+  query: TraceChunkPlainTextSearchQuery
+): TraceChunkPlainTextSpanSearchMatcher {
+  return {
+    query,
+    nameUtf8Source: getTraceChunkUtf8ColumnSource(spanSearchColumns.name),
+    nameUtf8View: createTraceChunkUtf8StringView(),
+    sourceUtf8Source: getTraceChunkUtf8ColumnSource(spanSearchColumns.source),
+    sourceUtf8View: createTraceChunkUtf8StringView(),
+    threadIdUtf8Source: getTraceChunkUtf8ColumnSource(spanSearchColumns.threadId),
+    threadIdUtf8View: createTraceChunkUtf8StringView(),
+    mayMatchProcessOrKnownThreadName: payload.processes.some(process => {
+      return (
+        traceChunkSpanSearchFieldMatchesPlainTextQuery(process.name, query.text) ||
+        Object.values(process.threadMap).some(thread =>
+          traceChunkSpanSearchFieldMatchesPlainTextQuery(thread.name, query.text)
+        )
+      );
+    })
+  };
+}
+
+/** Matches one span-table UTF-8 column through direct bytes when Arrow exposes them. */
+function traceChunkSpanSearchColumnMatchesPlainTextQuery(params: {
+  /** Nullable span-table string vector. */
+  readonly column: ColumnVector<string> | null;
+  /** Direct UTF-8 source for the same span-table string vector. */
+  readonly utf8Source: Utf8ColumnSource | null;
+  /** Reusable direct UTF-8 row view for the same span-table string vector. */
+  readonly utf8View: Utf8StringView;
+  /** Span-table row index being searched. */
+  readonly rowIndex: number;
+  /** Lowercase plain-text query being searched. */
+  readonly query: TraceChunkPlainTextSearchQuery;
+}): boolean {
+  if (params.query.utf8View && params.utf8Source) {
+    return (
+      getUtf8ColumnSourceRowView(params.utf8Source, params.rowIndex, params.utf8View) &&
+      traceChunkUtf8ViewIncludesAsciiCaseInsensitive(params.utf8View, params.query.utf8View)
+    );
+  }
+
+  return traceChunkSpanSearchFieldMatchesPlainTextQuery(
+    readColumnValue(params.column, params.rowIndex),
+    params.query.text
+  );
+}
+
+/** Matches process or known-thread display names only when chunk metadata can contain the query. */
+function traceChunkSpanProcessOrKnownThreadMatchesPlainTextQuery(
+  payload: TraceChunk,
+  spanTableRowIndex: number,
+  spanSearchColumns: TraceChunkSpanSearchColumns,
+  plainTextQuery: string
+): boolean {
+  const processRef = readArrowRefColumn(spanSearchColumns.processRef, spanTableRowIndex);
+  const process = resolveTraceChunkRowProcess(payload, processRef);
+  if (!process) {
+    return false;
+  }
+  if (traceChunkSpanSearchFieldMatchesPlainTextQuery(process.name, plainTextQuery)) {
+    return true;
+  }
+
+  const threadId = readColumnValue(spanSearchColumns.threadId, spanTableRowIndex);
+  return Boolean(
+    threadId &&
+      traceChunkSpanSearchFieldMatchesPlainTextQuery(
+        process.threadMap[threadId]?.name ?? null,
+        plainTextQuery
+      )
+  );
+}
+
+/** Matches thread ids only when the row lacks a known thread display name. */
+function traceChunkSpanUnknownThreadIdMatchesPlainTextQuery(
+  payload: TraceChunk,
+  spanTableRowIndex: number,
+  spanSearchColumns: TraceChunkSpanSearchColumns,
+  spanSearchMatcher: TraceChunkPlainTextSpanSearchMatcher
+): boolean {
+  if (
+    !traceChunkSpanSearchColumnMatchesPlainTextQuery({
+      column: spanSearchColumns.threadId,
+      utf8Source: spanSearchMatcher.threadIdUtf8Source,
+      utf8View: spanSearchMatcher.threadIdUtf8View,
+      rowIndex: spanTableRowIndex,
+      query: spanSearchMatcher.query
+    })
+  ) {
+    return false;
+  }
+
+  const processRef = readArrowRefColumn(spanSearchColumns.processRef, spanTableRowIndex);
+  const process = resolveTraceChunkRowProcess(payload, processRef);
+  if (!process) {
+    return false;
+  }
+  const threadId = readColumnValue(spanSearchColumns.threadId, spanTableRowIndex);
+  return Boolean(threadId && process.threadMap[threadId] == null);
+}
+
+/** Returns one direct UTF-8 source for a nullable span-table UTF-8 vector. */
+function getTraceChunkUtf8ColumnSource(
+  column: ColumnVector<string> | null
+): Utf8ColumnSource | null {
+  if (!column) {
+    return null;
+  }
+  return getArrowUtf8ColumnSource(column as Parameters<typeof getArrowUtf8ColumnSource>[0]);
+}
+
+/** Creates one empty direct UTF-8 row view reused during a span search pass. */
+function createTraceChunkUtf8StringView(): Utf8StringView {
+  return {data: EMPTY_TRACE_CHUNK_UTF8_DATA, start: 0, end: 0};
+}
+
+/** Returns whether one lowercase plain-text query can use ASCII UTF-8 byte matching. */
+function isTraceChunkAsciiSearchText(searchText: string): boolean {
+  for (let index = 0; index < searchText.length; index += 1) {
+    if (searchText.charCodeAt(index) > 0x7f) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Matches one UTF-8 field view against one lowercase ASCII UTF-8 query view. */
+function traceChunkUtf8ViewIncludesAsciiCaseInsensitive(
+  fieldView: Utf8StringView,
+  queryView: Utf8StringView
+): boolean {
+  const queryByteCount = queryView.end - queryView.start;
+  if (queryByteCount === 0) {
+    return true;
+  }
+  const lastStartIndex = fieldView.end - queryByteCount;
+  for (let fieldIndex = fieldView.start; fieldIndex <= lastStartIndex; fieldIndex += 1) {
+    let queryIndex = 0;
+    for (; queryIndex < queryByteCount; queryIndex += 1) {
+      if (
+        lowercaseTraceChunkAsciiByte(fieldView.data[fieldIndex + queryIndex]!) !==
+        queryView.data[queryView.start + queryIndex]
+      ) {
+        break;
+      }
+    }
+    if (queryIndex === queryByteCount) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Lowercases one ASCII byte while leaving UTF-8 continuation bytes unchanged. */
+function lowercaseTraceChunkAsciiByte(byte: number): number {
+  return byte >= 0x41 && byte <= 0x5a ? byte + 0x20 : byte;
+}
+
+/** Matches one nullable search field against a normalized single-token plain-text query. */
+function traceChunkSpanSearchFieldMatchesPlainTextQuery(
+  field: string | null,
+  plainTextQuery: string
+): boolean {
+  return field != null && field.toLowerCase().includes(plainTextQuery);
 }
 
 /** Resolves one Arrow span-table vector by column name. */
@@ -1450,6 +2042,195 @@ function getTraceChunkSpanColumn<Value>(
   );
 }
 
+/** Resolves one optional Arrow sidecar vector by column name. */
+function getTraceChunkSidecarColumn<Value>(
+  table: ArrowTraceSpanSidecarTable | undefined,
+  columnName: string
+): ColumnVector<Value> | null {
+  if (!table) {
+    return null;
+  }
+  return (
+    (
+      table as unknown as {
+        getChild(name: string): ColumnVector<Value> | null | undefined;
+      }
+    ).getChild(columnName) ?? null
+  );
+}
+
+/** Reads one row's keyword labels from the Arrow sidecar table. */
+function readTraceChunkSidecarKeywords(payload: TraceChunk, rowIndex: number): readonly string[] {
+  const value = readColumnValue<unknown>(
+    getTraceChunkSidecarColumn(payload.spanSidecarTable, 'keywords'),
+    rowIndex
+  );
+  if (Array.isArray(value)) {
+    return value.filter((keyword): keyword is string => typeof keyword === 'string');
+  }
+  return EMPTY_TRACE_CHUNK_SEARCH_KEYWORDS;
+}
+
+/** Decodes one full user-data payload for detail-only chunk-window consumers. */
+function readTraceChunkSidecarUserData(
+  payload: TraceChunk,
+  rowIndex: number
+): Record<string, unknown> | undefined {
+  return deserializeArrowTraceJson<Record<string, unknown>>(
+    readColumnValue<string>(
+      getTraceChunkSidecarColumn(payload.spanSidecarTable, 'userDataJson'),
+      rowIndex
+    )
+  );
+}
+
+/** Reads one unresolved endpoint id from the Arrow sidecar table. */
+function readTraceChunkSidecarEndpointId(
+  payload: TraceChunk,
+  rowIndex: number
+): TraceCrossProcessEndpointId | null {
+  return (
+    (readColumnValue<string>(
+      getTraceChunkSidecarColumn(payload.spanSidecarTable, 'crossProcessEndpointId'),
+      rowIndex
+    ) as TraceCrossProcessEndpointId | null) ?? null
+  );
+}
+
+/** Decodes optional timing projections from native sidecars or legacy JSON columns. */
+function readTraceChunkSpanTimings(
+  payload: TraceChunk,
+  rowIndex: number
+): Record<string, TraceSpanTiming> | undefined {
+  const nativeTimings = readTraceChunkNativeSpanTimings(payload, rowIndex);
+  const legacyTimings =
+    deserializeArrowTraceJson<Record<string, TraceSpanTiming>>(
+      readColumnValue<string>(
+        getTraceChunkSidecarColumn(payload.spanSidecarTable, 'timingsJson'),
+        rowIndex
+      )
+    ) ??
+    deserializeArrowTraceJson<Record<string, TraceSpanTiming>>(
+      readColumnValue<string>(getTraceChunkSpanColumn(payload.spanTable, 'timingsJson'), rowIndex)
+    );
+  if (!nativeTimings) {
+    return legacyTimings;
+  }
+  return legacyTimings ? {...legacyTimings, ...nativeTimings} : nativeTimings;
+}
+
+/** Reads every Arrow-native non-primary timing projection from one chunk sidecar row. */
+function readTraceChunkNativeSpanTimings(
+  payload: TraceChunk,
+  rowIndex: number
+): Record<string, TraceSpanTiming> | undefined {
+  const timingsColumn = getTraceChunkSidecarColumn(
+    payload.spanSidecarTable,
+    'timings'
+  ) as arrow.Vector<arrow.Struct<arrow.TypeMap>> | null;
+  if (!timingsColumn) {
+    return undefined;
+  }
+
+  const timings = Object.fromEntries(
+    timingsColumn.type.children.flatMap(field => {
+      const timing = readTraceChunkNativeSpanTiming(timingsColumn, field.name, rowIndex);
+      return timing ? [[field.name, timing] as const] : [];
+    })
+  );
+  return Object.keys(timings).length > 0 ? timings : undefined;
+}
+
+/** Reads one Arrow-native non-primary timing projection from a chunk sidecar row. */
+function readTraceChunkNativeSpanTiming(
+  timingsColumn: arrow.Vector<arrow.Struct<arrow.TypeMap>>,
+  timingKey: string,
+  rowIndex: number
+): TraceSpanTiming | null {
+  const timingFieldIndex = timingsColumn.type.children.findIndex(field => field.name === timingKey);
+  const timingColumn =
+    timingFieldIndex < 0
+      ? null
+      : (timingsColumn.getChildAt(timingFieldIndex) as
+          | arrow.Vector<arrow.Struct<arrow.TypeMap>>
+          | null
+          | undefined);
+  if (!timingColumn) {
+    return null;
+  }
+
+  const status = decodeTraceSpanTimingStatusCode(
+    readTraceChunkNativeTimingField<number>(timingColumn, 'status_code', rowIndex)
+  );
+  const startTimeMs = readTraceChunkNativeTimingField<number>(
+    timingColumn,
+    'start_time_ms',
+    rowIndex
+  );
+  const endTimeMs = readTraceChunkNativeTimingField<number>(timingColumn, 'end_time_ms', rowIndex);
+  const durationMs = readTraceChunkNativeTimingField<number>(timingColumn, 'duration_ms', rowIndex);
+  if (
+    !status ||
+    typeof startTimeMs !== 'number' ||
+    typeof endTimeMs !== 'number' ||
+    typeof durationMs !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    status,
+    startTimeMs,
+    endTimeMs,
+    durationMs,
+    durationMsAsString: formatTraceChunkTimingDuration(status, durationMs)
+  };
+}
+
+/** Reads one scalar child value from an Arrow-native chunk timing projection. */
+function readTraceChunkNativeTimingField<Value>(
+  timingColumn: arrow.Vector<arrow.Struct<arrow.TypeMap>>,
+  fieldName: string,
+  rowIndex: number
+): Value | null {
+  const fieldIndex = timingColumn.type.children.findIndex(field => field.name === fieldName);
+  if (fieldIndex < 0) {
+    return null;
+  }
+  return (timingColumn.getChildAt(fieldIndex)?.get(rowIndex) as Value | null | undefined) ?? null;
+}
+
+/** Formats one Arrow-native chunk timing duration for detail consumers. */
+function formatTraceChunkTimingDuration(
+  status: TraceSpanTiming['status'],
+  durationMs: number
+): string {
+  if (status === 'not-started') {
+    return 'not started';
+  }
+  if (status === 'not-finished') {
+    return 'incomplete';
+  }
+  return formatTimeMs(durationMs, {roundDigits: 3});
+}
+
+/** Reads structured unresolved endpoint payloads from canonical span columns. */
+function readTraceChunkSpanCrossProcessEndpoints(
+  payload: TraceChunk,
+  rowIndex: number
+): readonly TraceCrossProcessEndpoint[] {
+  const value = readColumnValue<unknown>(
+    getTraceChunkSpanColumn(payload.spanTable, 'crossProcessDependencyEndpoints'),
+    rowIndex
+  );
+  return Array.isArray(value)
+    ? value.filter(
+        (endpoint): endpoint is TraceCrossProcessEndpoint =>
+          endpoint != null && typeof endpoint === 'object'
+      )
+    : [];
+}
+
 /** Reads one typed value from an extracted Arrow column if the column exists. */
 function readColumnValue<T>(column: ColumnVector<T> | null, rowIndex: number): T | null {
   return column ? (column.get(rowIndex) ?? null) : null;
@@ -1460,9 +2241,9 @@ function readArrowRefColumn(column: ColumnVector<unknown> | null, rowIndex: numb
   return normalizeArrowRefNumber(readColumnValue(column, rowIndex));
 }
 
-/** Normalizes Arrow ref columns that may be nullish or bigint-backed. */
+/** Normalizes Arrow ref columns that may be nullish or bigint-backed into safe integers. */
 function normalizeArrowRefNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === 'number' && Number.isSafeInteger(value)) {
     return value;
   }
   if (typeof value === 'bigint') {
@@ -1478,8 +2259,13 @@ function normalizeExternalSpanId(value: string | null): string | null {
 }
 
 /** Reads the primary timing projection from one Arrow span row. */
-function readPrimaryTiming(spanColumns: TraceChunkSpanColumns, rowIndex: number): TraceSpanTiming {
-  const status = readColumnValue(spanColumns.status, rowIndex) ?? 'finished';
+function readPrimaryTiming(
+  spanColumns: TraceChunkSpanPrimaryTimingColumns,
+  rowIndex: number
+): TraceSpanTiming {
+  const status =
+    decodeTraceSpanTimingStatusCode(readColumnValue(spanColumns.statusCode, rowIndex)) ??
+    'finished';
   const durationMs = readColumnValue(spanColumns.durationMs, rowIndex) ?? 0;
   return {
     status,
@@ -1488,11 +2274,6 @@ function readPrimaryTiming(spanColumns: TraceChunkSpanColumns, rowIndex: number)
     durationMs,
     durationMsAsString: status === 'finished' ? `${durationMs}ms` : 'Not finished'
   };
-}
-
-/** Returns the chunk row's primary timing projection when available. */
-function getPrimaryTiming(row: TraceChunkSpanRowView): TraceSpanTiming | null {
-  return row.timings[row.primaryTimingKey] ?? null;
 }
 
 /** Computes parent dependency wait time from two timing projections. */

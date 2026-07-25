@@ -1,6 +1,6 @@
 import {getTraceGraphSpanStoreRow} from '../trace-graph-accessors';
 
-import type {TraceGraphData} from '../ingestion/arrow-trace';
+import type {TraceGraphSpanAccessorSource} from '../trace-graph-accessors';
 import type {
   SpanRef,
   TraceCrossProcessEndpoint,
@@ -11,7 +11,7 @@ import type {
 
 /** Reads the visible lane hint from one Arrow span row without materializing a `TraceSpan`. */
 export function getArrowTraceSpanLaneValue(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   span: SpanRef
 ): number | null {
   const spanRow = getTraceGraphSpanStoreRow(traceGraph, span);
@@ -40,7 +40,7 @@ export function getArrowTraceSpanLaneValue(
 
 /** Reads unresolved cross-rank endpoints from one Arrow span row without materializing a block. */
 export function getArrowTraceSpanCrossProcessEndpoints(
-  traceGraph: Readonly<TraceGraphData>,
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>,
   span: SpanRef
 ): TraceCrossProcessEndpoint[] {
   const sparseEndpoints = traceGraph.crossProcessEndpointsBySpanRef?.get(span);
@@ -66,7 +66,7 @@ export function getArrowTraceSpanCrossProcessEndpoints(
 
 /** Reads one raw Arrow table or sidecar field by process id and row index. */
 export function getArrowTraceTableField<Value>(params: {
-  traceGraph: Readonly<TraceGraphData>;
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>;
   processId: TraceProcessId;
   rowIndex: number;
   spanRef?: SpanRef;
@@ -78,32 +78,6 @@ export function getArrowTraceTableField<Value>(params: {
   const sidecarTableValue = getArrowTraceSpanSidecarTableField<Value>({...params, spanRow});
   if (sidecarTableValue != null) {
     return sidecarTableValue;
-  }
-
-  const sidecarRow =
-    spanRow?.chunk.spanSidecarRows?.[spanRow.rowIndex] ??
-    (spanRow == null || spanRow.chunk.processId === params.processId
-      ? params.traceGraph.spanSidecarMap?.[params.processId]?.[params.rowIndex]
-      : null);
-  if (sidecarRow) {
-    if (params.fieldName === 'userDataJson') {
-      return (sidecarRow.userData as Value | undefined) ?? null;
-    }
-    if (params.fieldName === 'crossProcessDependencyEndpoints') {
-      return (sidecarRow.crossProcessDependencyEndpoints as Value | undefined) ?? null;
-    }
-    if (params.fieldName === 'localDependencyIds') {
-      return (sidecarRow.localDependencyIds as Value | undefined) ?? null;
-    }
-    if (params.fieldName === 'crossProcessEndpointId') {
-      return (sidecarRow.crossProcessEndpointId as Value | undefined) ?? null;
-    }
-    if (params.fieldName === 'keywords') {
-      return (sidecarRow.keywords as Value | undefined) ?? null;
-    }
-    if (params.fieldName === 'timingsJson') {
-      return (sidecarRow.timings as Value | undefined) ?? null;
-    }
   }
 
   const table = spanRow?.spanTable;
@@ -121,7 +95,7 @@ export function normalizeNumberArray(value: unknown): number[] {
 }
 
 function getArrowTraceSpanSidecarTableField<Value>(params: {
-  traceGraph: Readonly<TraceGraphData>;
+  traceGraph: Readonly<TraceGraphSpanAccessorSource>;
   processId: TraceProcessId;
   rowIndex: number;
   spanRow?: ReturnType<typeof getTraceGraphSpanStoreRow>;
@@ -130,13 +104,7 @@ function getArrowTraceSpanSidecarTableField<Value>(params: {
   if (
     params.fieldName !== 'userDataJson' &&
     params.fieldName !== 'crossProcessEndpointId' &&
-    params.fieldName !== 'keywords' &&
-    params.fieldName !== 'incomingLocalDependencyRefs' &&
-    params.fieldName !== 'outgoingLocalDependencyRefs' &&
-    params.fieldName !== 'localDependencyRefs' &&
-    params.fieldName !== 'incomingCrossDependencyRefs' &&
-    params.fieldName !== 'outgoingCrossDependencyRefs' &&
-    params.fieldName !== 'crossDependencyRefs'
+    params.fieldName !== 'keywords'
   ) {
     return null;
   }

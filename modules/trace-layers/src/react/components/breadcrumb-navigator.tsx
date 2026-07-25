@@ -1,13 +1,13 @@
 import React from 'react';
 import {ChevronLeft, ChevronRight} from 'lucide-react';
 
-import {TRACE_SPAN_FILTER_MASK_NONE} from '../../trace/index';
+import {TRACE_SPAN_FILTER_MASK_NONE} from '../../trace';
 import {colorToRgbaCss} from '../utils/trace-span-badge-style';
 import {TraceSpanBadge} from './trace-span-badge';
 import {cn} from './ui';
 import {WithTooltip} from './with-tooltip';
 
-import type {SpanRef, TraceGraph, TraceSpanFilterMask, TraceStyle} from '../../trace/index';
+import type {SpanRef, TraceGraph, TraceSpanFilterMask, TraceStyle} from '../../trace';
 
 export type TraceBreadcrumbEntry = {
   /** Canonical span ref for the breadcrumb entry. */

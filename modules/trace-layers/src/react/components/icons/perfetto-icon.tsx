@@ -1,4 +1,4 @@
-import {PERFETTO_ICON_DATA_URL} from '../../../trace/index';
+import {PERFETTO_ICON_DATA_URL} from '../../../trace';
 import {cn} from '../ui';
 
 import type {ComponentProps} from 'react';

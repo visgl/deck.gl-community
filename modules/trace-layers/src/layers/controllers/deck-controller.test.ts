@@ -7,7 +7,7 @@ import {
   imperativeDeckController
 } from './deck-controller';
 
-import type {SpanRef} from '../../trace/index';
+import type {SpanRef} from '../../trace';
 import type {DeckControllerTarget, ImperativeDeckControllerTarget} from './deck-controller';
 
 /** Creates a controller target stub for delegation tests. */

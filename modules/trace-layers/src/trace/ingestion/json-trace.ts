@@ -20,8 +20,8 @@ import {
   TraceEventId,
   TraceInstant,
   TraceInstantId,
-  TraceLocalDependency,
   TraceProcess,
+  TraceSameProcessDependency,
   TraceSpan,
   TraceSpanId,
   TraceSpanLayoutMode,
@@ -37,18 +37,23 @@ import {
   toRgb
 } from '../trace-graph/utils/collapsed-activity';
 import {sliceMipmap} from '../trace-graph/utils/slice-mipmap';
-import {createTraceColorResolver} from '../trace-style/trace-colors';
+import {getTraceSpanAttributeValue} from '../trace-style/trace-color-scheme';
+import {createTraceGraphColorResolver} from '../trace-style/trace-colors';
 
 import type {ArrowTraceEventTable} from '../trace-graph/trace-event-table';
 import type {TraceGraphStats} from '../trace-graph/trace-graph-stats';
+import type {SpanRef} from '../trace-graph/trace-types';
 import type {Slice} from '../trace-graph/utils/slice-mipmap';
 import type {TraceProcessActivityInterval} from '../trace-layout/trace-layout';
-import type {TraceColorScheme, TraceSpanColorSource} from '../trace-style/trace-color-scheme';
+import type {
+  TraceColorScheme,
+  TraceSpanColorAccessorSource
+} from '../trace-style/trace-color-scheme';
 
 type TraceGraphStatsOverrides = Partial<
   Pick<
     TraceGraphStats,
-    'droppedSpanCount' | 'droppedDependencyCount' | 'droppedCrossDependencyCount'
+    'droppedSpanCount' | 'droppedDependencyCount' | 'droppedCrossProcessDependencyCount'
   >
 >;
 
@@ -82,8 +87,8 @@ export type JSONTrace = {
 
   /** List of ranks */
   processes: Readonly<JSONTraceProcess[]>;
-  /** List of cross dependencies across ranks. */
-  crossDependencies?: Readonly<JSONTraceCrossProcessDependency[]>;
+  /** List of cross-process dependencies across ranks. */
+  crossProcessDependencies?: Readonly<JSONTraceCrossProcessDependency[]>;
   /** Optional graph-global events serialized with the public JSON trace. */
   events?: Readonly<TraceEvent[]>;
   /** Optional canonical time extents for the trace. */
@@ -105,7 +110,7 @@ export type JSONTraceProcess = Omit<
   | 'counters'
   | 'counterMap'
   | 'threadCounterMap'
-  | 'localDependencies'
+  | 'sameProcessDependencies'
 > & {
   /** Public thread rows in authoring order. */
   threads: Readonly<TraceThread[]>;
@@ -115,19 +120,19 @@ export type JSONTraceProcess = Omit<
   instants: Readonly<TraceInstant[]>;
   /** Public counter rows in authoring order. */
   counters: Readonly<TraceCounter[]>;
-  /** Public local dependency rows defined once per process. */
-  localDependencies: Readonly<JSONTraceLocalDependency[]>;
+  /** Public same-process dependency rows defined once per process. */
+  sameProcessDependencies: Readonly<JSONTraceSameProcessDependency[]>;
 };
 
 /**
  * Public JSON-safe span record without duplicated dependency objects.
  */
-export type JSONTraceSpan = Omit<TraceSpan, 'localDependencies'>;
+export type JSONTraceSpan = Omit<TraceSpan, 'sameProcessDependencies'>;
 
 /**
- * Public JSON-safe local dependency record.
+ * Public JSON-safe same-process dependency record.
  */
-export type JSONTraceLocalDependency = Omit<TraceLocalDependency, 'keywords'> & {
+export type JSONTraceSameProcessDependency = Omit<TraceSameProcessDependency, 'keywords'> & {
   /** Keyword labels serialized as JSON strings. */
   keywords: ReadonlyArray<string>;
 };
@@ -153,7 +158,7 @@ export type MaterializedJSONTrace = {
   /** List of normalized processes. */
   processes: Readonly<TraceProcess[]>;
   /** List of cross-process dependencies. */
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>;
+  crossProcessDependencies: Readonly<TraceCrossProcessDependency[]>;
   /** Minimum time in the trace, used for scaling. */
   minTimeMs: number;
   /** Maximum time in the trace, used for scaling. */
@@ -189,7 +194,7 @@ export const EMPTY_JSON_TRACE = {
   name: 'Trace Graph',
   spanLayout: 'auto',
   processes: [] as JSONTraceProcess[],
-  crossDependencies: [] as JSONTraceCrossProcessDependency[],
+  crossProcessDependencies: [] as JSONTraceCrossProcessDependency[],
   events: [] as TraceEvent[],
   timeExtents: {minTimeMs: 0, maxTimeMs: 0}
 } as const satisfies JSONTrace;
@@ -219,7 +224,7 @@ export type TraceCollapsedActivityProcessRow = {
   /** Lists the visible threads represented by the row. */
   readonly threads: readonly TraceProcess['threads'][number][];
   /** Lists the visible spans represented by the row. */
-  readonly spans: readonly TraceSpanColorSource[];
+  readonly spans: readonly TraceSpan[];
 };
 
 /**
@@ -278,22 +283,29 @@ function buildCollapsedActivityByProcessIdInternal(
   let bucketCount = 0;
   const intervalsByProcessId: Record<string, TraceProcessActivityInterval[]> = {};
   const defaultWindowEnd = Math.max(0, traceGraph.maxTimeMs - traceGraph.minTimeMs);
-  const colorResolver = createTraceColorResolver({colorScheme, settings});
-
   for (const rank of traceGraph.processes) {
     const streamDepthMap = new Map<TraceThreadId, number>();
     rank.threads.forEach((thread, index) => {
       streamDepthMap.set(thread.threadId, index);
     });
 
+    const traceGraphColorAccessors = createJSONTraceSpanColorAccessorSource(rank.spans);
+    const colorResolver = createTraceGraphColorResolver({
+      traceGraph: traceGraphColorAccessors,
+      colorScheme,
+      settings
+    });
     const spanColorMap = new Map<number, [number, number, number]>();
     const colorSamplingStartTime = performance.now();
     rank.spans.forEach((block, index) => {
       spanColorMap.set(
         index,
-        toRgb(colorResolver.getSpanFillColor(block, 'any')) ?? [
-          ...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB
-        ]
+        toRgb(
+          colorResolver.getSpanFillColor(
+            traceGraphColorAccessors.getColorSpanRef(block, index),
+            'any'
+          )
+        ) ?? [...COLLAPSED_ACTIVITY_FALLBACK_COLOR_RGB]
       );
     });
     colorSamplingDurationMs += performance.now() - colorSamplingStartTime;
@@ -424,7 +436,7 @@ function buildCollapsedActivityByProcessIdInternal(
 
 export function buildJSONTrace(
   processes: Readonly<TraceProcess[]>,
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>,
+  crossProcessDependencies: Readonly<TraceCrossProcessDependency[]>,
   options: BuildJSONTraceOptions = {name: 'Trace Graph'}
 ): Readonly<JSONTrace> {
   const timeExtents = normalizeTraceGraphTimeExtents(options.timeExtents) ?? undefined;
@@ -434,7 +446,7 @@ export function buildJSONTrace(
     name: options.name,
     spanLayout: normalizeTraceSpanLayoutMode(options.spanLayout),
     processes: processes.map(serializeJSONTraceProcess),
-    crossDependencies: crossDependencies.map(serializeCrossProcessDependency),
+    crossProcessDependencies: crossProcessDependencies.map(serializeCrossProcessDependency),
     events: options.events,
     timeExtents
   } satisfies JSONTrace;
@@ -452,11 +464,11 @@ export function materializeJSONTrace(
   }
 
   const processes = traceGraph.processes;
-  const crossDependencies = (traceGraph.crossDependencies ?? []).map(
+  const crossProcessDependencies = (traceGraph.crossProcessDependencies ?? []).map(
     materializeCrossProcessDependency
   );
   const normalizedProcesses = processes.map(materializeTraceProcess);
-  const spanDependencyMap = buildSpanDependencyMap(normalizedProcesses, crossDependencies);
+  const spanDependencyMap = buildSpanDependencyMap(normalizedProcesses, crossProcessDependencies);
   const threadMap = normalizedProcesses.reduce(
     (acc, rank) => {
       rank.threads.forEach(thread => {
@@ -479,7 +491,7 @@ export function materializeJSONTrace(
 
   const dependencyMap = normalizedProcesses.reduce(
     (acc, rank) => {
-      rank.localDependencies?.forEach(dep => {
+      rank.sameProcessDependencies?.forEach(dep => {
         acc[dep.dependencyId] = dep;
       });
       return acc;
@@ -543,7 +555,7 @@ export function materializeJSONTrace(
     {} as Record<TraceThreadId, {min: number; max: number}>
   );
 
-  const stats = buildTraceGraphStats(normalizedProcesses, crossDependencies, statsOverrides);
+  const stats = buildTraceGraphStats(normalizedProcesses, crossProcessDependencies, statsOverrides);
   const events = normalizeTraceEventTable(traceGraph.events);
   const eventMap = buildTraceEventMap(events);
 
@@ -556,7 +568,7 @@ export function materializeJSONTrace(
     name: traceGraph.name,
     spanLayout: normalizeTraceSpanLayoutMode(traceGraph.spanLayout),
     processes: normalizedProcesses,
-    crossDependencies,
+    crossProcessDependencies,
     minTimeMs: timeExtents.minTimeMs,
     maxTimeMs: timeExtents.maxTimeMs,
     spanDependencyMap,
@@ -684,7 +696,7 @@ export function getJSONTraceTimingBounds(
 export function mergeJSONTraces(graphs: Readonly<JSONTrace[]>): JSONTrace {
   const materializedGraphs = graphs.map(graph => materializeJSONTrace(graph));
   const mergedProcesses: TraceProcess[] = [];
-  const mergedCrossDependencies: TraceCrossProcessDependency[] = [];
+  const mergedCrossProcessDependencies: TraceCrossProcessDependency[] = [];
   const mergedEvents: TraceEvent[] = [];
   const mergedEventMap: Record<string, TraceEvent> = {};
 
@@ -696,7 +708,7 @@ export function mergeJSONTraces(graphs: Readonly<JSONTrace[]>): JSONTrace {
     mergedProcesses.push(...graph.processes);
 
     // Merge cross-dependencies
-    mergedCrossDependencies.push(...graph.crossDependencies);
+    mergedCrossProcessDependencies.push(...graph.crossProcessDependencies);
 
     Object.entries(graph.eventMap ?? {}).forEach(([eventId, event]) => {
       if (!mergedEventMap[eventId]) {
@@ -728,9 +740,48 @@ export function mergeJSONTraces(graphs: Readonly<JSONTrace[]>): JSONTrace {
       ? 'manual'
       : 'auto',
     processes: mergedProcesses.map(serializeJSONTraceProcess),
-    crossDependencies: mergedCrossDependencies.map(serializeCrossProcessDependency),
+    crossProcessDependencies: mergedCrossProcessDependencies.map(serializeCrossProcessDependency),
     events: mergedEvents,
     timeExtents: {minTimeMs, maxTimeMs}
+  };
+}
+
+/** Builds ref-native color accessors for JSON-only span rows before a TraceGraph exists. */
+function createJSONTraceSpanColorAccessorSource(
+  spans: readonly TraceSpan[]
+): TraceSpanColorAccessorSource & {
+  /** Returns the opaque color ref assigned to one JSON span row. */
+  getColorSpanRef(span: TraceSpan, index: number): SpanRef;
+} {
+  const usesCanonicalSpanRefs = spans.every(span => span.spanRef != null);
+  const entries = spans.map((span, index) => ({
+    span,
+    spanRef: usesCanonicalSpanRefs ? span.spanRef! : (index as SpanRef)
+  }));
+  const spanByRef = new Map(entries.map(entry => [entry.spanRef, entry.span]));
+  const getSpan = (spanRef: SpanRef) => spanByRef.get(spanRef);
+
+  return {
+    getColorSpanRef: (span, index) => (usesCanonicalSpanRefs ? span.spanRef! : (index as SpanRef)),
+    getSpanRankName: spanRef => getSpan(spanRef)?.processName ?? null,
+    getSpanStreamId: spanRef => getSpan(spanRef)?.threadId ?? null,
+    getSpanName: spanRef => getSpan(spanRef)?.name ?? null,
+    getSpanKeywords: spanRef => getSpan(spanRef)?.keywords ?? [],
+    getSpanAttribute: (spanRef, path) =>
+      getTraceSpanAttributeValue(getSpan(spanRef)?.userData, path),
+    getSpanPrimaryTimingKey: spanRef => getSpan(spanRef)?.primaryTimingKey ?? null,
+    getSpanStatus: spanRef => {
+      const span = getSpan(spanRef);
+      return span ? getPrimaryTiming(span).status : null;
+    },
+    getSpanStartTimeMs: spanRef => {
+      const span = getSpan(spanRef);
+      return span ? getPrimaryTiming(span).startTimeMs : null;
+    },
+    getSpanEndTimeMs: spanRef => {
+      const span = getSpan(spanRef);
+      return span ? getPrimaryTiming(span).endTimeMs : null;
+    }
   };
 }
 
@@ -831,15 +882,17 @@ function materializeTraceProcess(process: JSONTraceProcess): TraceProcess {
   const processSpans = process.spans ?? [];
   const processInstants = process.instants ?? [];
   const processCounters = process.counters ?? [];
-  const processLocalDependencies = process.localDependencies ?? [];
+  const processSameProcessDependencies = process.sameProcessDependencies ?? [];
   const processRemoteDependencies = process.remoteDependencies ?? [];
-  const localDependencies = processLocalDependencies.map(materializeLocalDependency);
+  const sameProcessDependencies = processSameProcessDependencies.map(
+    materializeSameProcessDependency
+  );
   const dependencyMap = Object.fromEntries(
-    localDependencies.map(dependency => [dependency.dependencyId, dependency])
-  ) as Record<TraceDependencyId, TraceLocalDependency>;
+    sameProcessDependencies.map(dependency => [dependency.dependencyId, dependency])
+  ) as Record<TraceDependencyId, TraceSameProcessDependency>;
   const spans = processSpans.map(span => ({
     ...span,
-    localDependencies: (span.localDependencyIds ?? []).flatMap(dependencyId => {
+    sameProcessDependencies: (span.sameProcessDependencyIds ?? []).flatMap(dependencyId => {
       const dependency = dependencyMap[dependencyId];
       return dependency ? [dependency] : [];
     })
@@ -861,7 +914,7 @@ function materializeTraceProcess(process: JSONTraceProcess): TraceProcess {
     spans,
     instants: [...processInstants],
     counters: [...processCounters],
-    localDependencies,
+    sameProcessDependencies,
     remoteDependencies: [...processRemoteDependencies],
     threadMap,
     spanMap,
@@ -900,19 +953,23 @@ function serializeJSONTraceProcess(process: TraceProcess): JSONTraceProcess {
     processOrder: process.processOrder,
     stepNum: process.stepNum,
     threads: process.threads,
-    spans: process.spans.map(({localDependencies: _localDependencies, ...span}) => span),
+    spans: process.spans.map(
+      ({sameProcessDependencies: _sameProcessDependencies, ...span}) => span
+    ),
     instants: process.instants,
     counters: process.counters,
-    localDependencies: process.localDependencies.map(serializeLocalDependency),
+    sameProcessDependencies: process.sameProcessDependencies.map(serializeSameProcessDependency),
     remoteDependencies: process.remoteDependencies,
     userData: process.userData
   };
 }
 
 /**
- * Serializes one local dependency into the public JSON-safe dependency shape.
+ * Serializes one same-process dependency into the public JSON-safe dependency shape.
  */
-function serializeLocalDependency(dependency: TraceLocalDependency): JSONTraceLocalDependency {
+function serializeSameProcessDependency(
+  dependency: TraceSameProcessDependency
+): JSONTraceSameProcessDependency {
   return {
     ...dependency,
     keywords: [...dependency.keywords]
@@ -932,9 +989,11 @@ function serializeCrossProcessDependency(
 }
 
 /**
- * Restores one local dependency from the public JSON-safe dependency shape.
+ * Restores one same-process dependency from the public JSON-safe dependency shape.
  */
-function materializeLocalDependency(dependency: JSONTraceLocalDependency): TraceLocalDependency {
+function materializeSameProcessDependency(
+  dependency: JSONTraceSameProcessDependency
+): TraceSameProcessDependency {
   return {
     ...dependency,
     keywords: new Set(dependency.keywords)
@@ -974,7 +1033,7 @@ function buildTraceItemsByThread<ItemT extends {threadId: TraceThreadId}>(
 
 function buildTraceGraphStats(
   processes: Readonly<TraceProcess[]>,
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>,
+  crossProcessDependencies: Readonly<TraceCrossProcessDependency[]>,
   overrides?: TraceGraphStatsOverrides
 ): TraceGraphStats {
   const processCount = processes.length;
@@ -1006,25 +1065,28 @@ function buildTraceGraphStats(
     });
   });
 
-  const localDependencyCount = processes.reduce(
-    (total, process) => total + (process.localDependencies?.length ?? 0),
+  const sameProcessDependencyCount = processes.reduce(
+    (total, process) => total + (process.sameProcessDependencies?.length ?? 0),
     0
   );
-  const crossDependencyCount = crossDependencies.length;
-  const dependencyCount = localDependencyCount + crossDependencyCount;
+  const crossProcessDependencyCount = crossProcessDependencies.length;
+  const dependencyCount = sameProcessDependencyCount + crossProcessDependencyCount;
 
   return {
     processCount,
     threadCount,
     laneCount,
     spanCount,
-    localDependencyCount,
+    sameProcessDependencyCount,
     notStartedSpanCount,
     unfinishedSpanCount,
     droppedSpanCount: Math.max(0, overrides?.droppedSpanCount ?? 0),
     dependencyCount,
     droppedDependencyCount: Math.max(0, overrides?.droppedDependencyCount ?? 0),
-    crossDependencyCount,
-    droppedCrossDependencyCount: Math.max(0, overrides?.droppedCrossDependencyCount ?? 0)
+    crossProcessDependencyCount,
+    droppedCrossProcessDependencyCount: Math.max(
+      0,
+      overrides?.droppedCrossProcessDependencyCount ?? 0
+    )
   };
 }

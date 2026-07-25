@@ -1,7 +1,7 @@
 import {MouseEvent, ReactNode} from 'react';
 import {Navigation2} from 'lucide-react';
 
-import {formatTimeMs} from '../../../../../trace/index';
+import {formatTimeMs} from '../../../../../trace';
 import {CompactQueryStatus} from '../../../query-status';
 import {WithTooltip} from '../../../with-tooltip';
 import {PrettyTable} from '../../components/pretty-table';
@@ -12,24 +12,24 @@ import type {
   TraceCrossProcessEndpoint,
   TraceSpanCardEndpointDependencyEntry,
   TraceSpanId
-} from '../../../../../trace/index';
+} from '../../../../../trace';
 import type {QueryStatus} from '../../../query-status';
 
 /**
- * Props for the compact cross-rank dependency table export.
+ * Props for the compact cross-process dependency table export.
  */
-export type TraceSpanCrossDependenciesProps = {
+export type TraceSpanCrossProcessDependenciesProps = {
   endpointsWithDeps: TraceSpanCardEndpointDependencyEntry[];
-  /** Total cross-rank endpoint count before span-card row capping. */
+  /** Total cross-process endpoint count before span-card row capping. */
   endpointCount?: number;
   maxRanks: number;
   traceLabels?: Parameters<typeof resolveTraceSpanCardLabels>[0];
 };
 
 /**
- * Render the compact cross-rank dependency summary table.
+ * Render the compact cross-process dependency summary table.
  */
-export function TraceSpanCrossDependencies(props: TraceSpanCrossDependenciesProps) {
+export function TraceSpanCrossProcessDependencies(props: TraceSpanCrossProcessDependenciesProps) {
   const endpointsWithDeps = props.endpointsWithDeps.slice(0, props.maxRanks);
   const traceLabels = resolveTraceSpanCardLabels(props.traceLabels);
 
@@ -60,11 +60,11 @@ export function TraceSpanCrossDependencies(props: TraceSpanCrossDependenciesProp
 }
 
 /**
- * Props for the interactive horizontal cross-rank dependency strip.
+ * Props for the interactive horizontal cross-process dependency strip.
  */
-export type TraceSpanCrossDependenciesHorizontalProps = {
+export type TraceSpanCrossProcessDependenciesHorizontalProps = {
   endpointsWithDeps: TraceSpanCardEndpointDependencyEntry[];
-  /** Total cross-rank endpoint count before span-card row capping. */
+  /** Total cross-process endpoint count before span-card row capping. */
   endpointCount?: number;
   maxRanks: number;
   interactive?: boolean;
@@ -76,12 +76,12 @@ export type TraceSpanCrossDependenciesHorizontalProps = {
 };
 
 /**
- * Render the interactive horizontal cross-rank strip shown under block details.
+ * Render the interactive horizontal cross-process strip shown under block details.
  */
-export function TraceSpanCrossDependenciesHorizontal(
-  props: TraceSpanCrossDependenciesHorizontalProps
+export function TraceSpanCrossProcessDependenciesHorizontal(
+  props: TraceSpanCrossProcessDependenciesHorizontalProps
 ) {
-  const endpointsWithDeps = props.endpointsWithDeps;
+  const endpointsWithDeps = props.endpointsWithDeps.slice(0, props.maxRanks);
   const endpointCount = props.endpointCount ?? props.endpointsWithDeps.length;
   const traceLabels = resolveTraceSpanCardLabels(props.traceLabels);
   const formatWaitLabel = (waitTimeMs: number) =>
@@ -191,7 +191,7 @@ export function TraceSpanCrossDependenciesHorizontal(
     if (!dependency && !queryStatus?.isLoading) {
       return renderUnresolvedLoadedRankGlyph({
         processId,
-        tooltip: getCrossRankUnresolvedDependencyTooltip({
+        tooltip: getCrossProcessUnresolvedDependencyTooltip({
           processId,
           traceLabels
         })
@@ -298,11 +298,11 @@ function getCrossRankFallbackTooltip(params: {
 /**
  * Build the tooltip for a loaded peer rank whose endpoint did not resolve to a dependency.
  */
-function getCrossRankUnresolvedDependencyTooltip(params: {
+function getCrossProcessUnresolvedDependencyTooltip(params: {
   processId: string;
   traceLabels: ReturnType<typeof resolveTraceSpanCardLabels>;
 }): string {
-  return `${params.traceLabels.processLabel} ${params.processId} loaded, but no matching cross-rank dependency was resolved`;
+  return `${params.traceLabels.processLabel} ${params.processId} loaded, but no matching cross-process dependency was resolved`;
 }
 
 /**

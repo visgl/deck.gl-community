@@ -1,6 +1,6 @@
 import {MouseEvent, useEffect, useRef, useState} from 'react';
 
-import {formatTimeMs} from '../../../../../trace/index';
+import {formatTimeMs} from '../../../../../trace';
 import {formatRelativeTraceTimeLabel} from '../trace-span-card-helpers';
 import {
   TRACE_BLOCK_CARD_HISTOGRAM_BAR_MAX_HEIGHT,

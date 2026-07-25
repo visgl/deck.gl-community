@@ -1,4 +1,4 @@
-import type {TraceDependencyRenderSource, TraceObject, TraceRenderSpan} from '../../../trace/index';
+import type {TraceDependencyRenderSource, TraceObject, TraceRenderSpan} from '../../../trace';
 import type {ReactNode} from 'react';
 
 /**

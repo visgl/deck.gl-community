@@ -4,14 +4,21 @@
 
 /* eslint-disable  max-nested-callbacks */
 
-import {beforeAll, beforeEach, describe, it, expect} from 'vitest';
+import {beforeAll, beforeEach, describe, it, expect, vi} from 'vitest';
 import SAMPLE_GRAPH1 from '../data/__fixtures__/graph1.json';
 
 import {ClassicGraph} from '../../src/graph/classic-graph';
 import {Node} from '../../src/graph/node';
 import {Edge} from '../../src/graph/edge';
+import {warn} from '../../src/utils/log';
 import type {EdgeInterface, Graph, NodeInterface} from '../../src/graph/graph';
 import type {PlainGraphData} from '../../src/graph-data/graph-data';
+
+vi.mock('../../src/utils/log', () => ({
+  error: vi.fn(),
+  log: {log: vi.fn(() => vi.fn())},
+  warn: vi.fn()
+}));
 
 type GraphFactory = () => Graph;
 
@@ -124,6 +131,8 @@ describe('core/graph', () => {
 
     it('should add edges in a batch', () => {
       const graph = createEmptyClassicGraph();
+      const warnSpy = vi.mocked(warn);
+      warnSpy.mockClear();
       const glEdges = SAMPLE_GRAPH1.edges.map(
         e =>
           new Edge({
@@ -137,6 +146,7 @@ describe('core/graph', () => {
       graph.batchAddEdges(glEdges);
       // No edges will be added since those source/target
       // nodes don't exist in the graph
+      expect(warnSpy).toHaveBeenCalledTimes(glEdges.length);
       expect(graph.getEdges()).toHaveLength(0);
     });
 

@@ -7,8 +7,11 @@ export * from './indexed-arrow-vector';
 export * from './mapped-arrow-table';
 export {
   arrowFindUtf8,
+  getArrowUtf8ColumnSource,
   getArrowUtf8RowView,
+  getUtf8ColumnSourceRowView,
   makeUtf8StringView,
+  utf8StringViewsEqual,
   type Utf8ColumnSource,
   type Utf8StringView
 } from '@deck.gl-community/infovis-layers';

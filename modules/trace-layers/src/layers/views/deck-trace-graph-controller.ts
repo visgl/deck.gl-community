@@ -5,7 +5,7 @@ import {
   getPaddedBlockBounds
 } from '@deck.gl-community/infovis-layers';
 
-import type {SpanBoundingBox} from '../../trace/index';
+import type {SpanBoundingBox} from '../../trace';
 import type {OrthographicViewState} from '@deck.gl/core';
 
 const DEFAULT_ORIGIN_Y = 0;

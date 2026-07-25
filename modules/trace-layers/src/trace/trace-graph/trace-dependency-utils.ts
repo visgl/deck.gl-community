@@ -1,13 +1,12 @@
 import type {
   TraceCrossProcessDependency,
   TraceDependency,
-  TraceDependencyId,
-  TraceLocalDependency
+  TraceSameProcessDependency
 } from './trace-types';
 
 type TraceDependencyProcess = {
-  /** Optional legacy local dependency objects for ingestion/export compatibility. */
-  localDependencies?: readonly TraceLocalDependency[];
+  /** Optional legacy same-process dependency objects for ingestion/export compatibility. */
+  sameProcessDependencies?: readonly TraceSameProcessDependency[];
 };
 
 // DEPENDENCIES
@@ -15,7 +14,7 @@ type TraceDependencyProcess = {
 /** Builds a dependency lookup keyed by each dependency's start and end span ids. */
 export function buildSpanDependencyMap(
   processes: Readonly<TraceDependencyProcess[]>,
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>
+  crossProcessDependencies: Readonly<TraceCrossProcessDependency[]>
 ): Record<string, TraceDependency[]> {
   const map: Record<string, TraceDependency[]> = {};
   const appendDependency = (spanId: string, dependency: TraceDependency) => {
@@ -25,14 +24,14 @@ export function buildSpanDependencyMap(
   };
 
   processes.forEach(process => {
-    (process.localDependencies ?? []).forEach(dependency => {
+    (process.sameProcessDependencies ?? []).forEach(dependency => {
       appendDependency(dependency.startSpanId, dependency);
       if (dependency.endSpanId !== dependency.startSpanId) {
         appendDependency(dependency.endSpanId, dependency);
       }
     });
   });
-  crossDependencies.forEach(dependency => {
+  crossProcessDependencies.forEach(dependency => {
     appendDependency(dependency.startSpanId, dependency);
     if (dependency.endSpanId !== dependency.startSpanId) {
       appendDependency(dependency.endSpanId, dependency);
@@ -42,27 +41,10 @@ export function buildSpanDependencyMap(
   return map;
 }
 
-/** Builds a graph-global dependency map keyed by stable dependency id. */
-export function getGlobalDependencyMap(
-  ranks: Readonly<TraceDependencyProcess[]>,
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>
-) {
-  const map = {} as Record<TraceDependencyId, TraceLocalDependency | TraceCrossProcessDependency>;
-  ranks.forEach(rank => {
-    (rank.localDependencies ?? []).forEach(dep => {
-      map[dep.dependencyId] = dep;
-    });
-  });
-  crossDependencies.forEach(dep => {
-    map[dep.dependencyId] = dep;
-  });
-  return map;
-}
-
 /** Returns the wait duration attached to a local or cross-process dependency. */
 export function getDependencyDurationMs(dep: Readonly<TraceDependency>): number {
   let durationMs = 0;
-  if (dep.type === 'trace-local-dependency') {
+  if (dep.type === 'trace-same-process-dependency') {
     durationMs = dep.waitTimeMs;
   } else if (dep.type === 'trace-cross-process-dependency') {
     durationMs = dep.waitTimeMs;

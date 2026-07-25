@@ -1,15 +1,21 @@
 import {describe, expect, it} from 'vitest';
 
-import {buildTraceGraphDataFromJSONTrace} from '../ingestion/arrow-trace';
 import {buildJSONTrace} from '../ingestion/json-trace';
-import {createStaticTraceGraphRuntimeSource} from '../trace-chunk-store';
+import {resolveTraceSpanTimingEndTimeFields} from '../trace-graph-accessors';
 import {TraceGraph} from '../trace-graph/trace-graph';
+import {createRuntimeTraceGraph as createDatasetRuntimeTraceGraph} from '../trace-graph/trace-graph-test-fixtures';
 import {getRequiredThreadRef} from '../trace-graph/trace-graph-test-utils';
+import {buildTraceLayoutGeometryDerivationContext} from '../trace-layout/trace-derived-geometry';
 import {
   buildTraceLayoutForSpanRefs,
   buildTraceLayouts
 } from '../trace-layout/trace-geometry-layout';
-import {fillTraceLayoutSpanGeometry} from '../trace-layout/trace-layout';
+import {fillGeneratedPrimarySpanBoundingBoxFromFields} from '../trace-layout/trace-geometry-layout-common';
+import {
+  fillTraceLayoutSpanGeometry,
+  getTraceLayoutSpanLaneIndex,
+  hasTraceLayoutSpanLaneIndex
+} from '../trace-layout/trace-layout';
 
 import type {ProcessRef} from '../trace-graph/trace-id-encoder';
 import type {TraceVisSettings} from '../trace-graph/trace-settings';
@@ -23,23 +29,10 @@ import type {
 } from '../trace-graph/trace-types';
 import type {TraceLayout} from '../trace-layout/trace-layout';
 
-function createTestTraceGraph(
-  traceGraphData: Parameters<typeof createStaticTraceGraphRuntimeSource>[0]['traceGraphData'],
-  options?: ConstructorParameters<typeof TraceGraph>[1]
-): TraceGraph {
-  return new TraceGraph(
-    createStaticTraceGraphRuntimeSource({
-      identityKey: `${traceGraphData.name}:test`,
-      traceGraphData
-    }),
-    options
-  );
-}
-
 describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
   const baseSettings: Pick<
     TraceVisSettings,
-    | 'localDependencyMode'
+    | 'sameProcessDependencyMode'
     | 'layoutDensity'
     | 'sortThreads'
     | 'maxVisibleLanesPerThread'
@@ -55,7 +48,7 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     threadDisplayMode: 'all',
     selectedThreadNames: undefined,
     sortThreads: false,
-    localDependencyMode: 'all',
+    sameProcessDependencyMode: 'all',
     processLayoutMode: 'interleaved',
     layoutDensity: 'comfortable',
     maxVisibleLanesPerThread: undefined,
@@ -82,9 +75,7 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     const selectedSpanRef = getLayoutSpanRef(layout, selectedSpan.spanId);
     const selectedProcessRef = getRequiredProcessRef(traceGraph, selectedRank.processId);
     const selectedThreadRef = traceGraph.getThreadRefsByProcessRef(selectedProcessRef)[0];
-    const selectedLaneIndex = getLayoutThread(layout, selectedSpan.threadId)?.spanLaneMap?.get(
-      selectedSpanRef
-    );
+    const selectedLaneIndex = getTraceLayoutSpanLaneIndex(layout, selectedSpanRef);
 
     const focusedLayout = buildFocusedLayout({
       traceGraph,
@@ -212,7 +203,8 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     const selectedThreadLayout = focusedLayout.threadLayoutMapByRef.get(selectedThreadRef);
     const geometry = {x1: 0, y1: 0, x2: 0, y2: 0};
 
-    expect(selectedThreadLayout?.spanLaneMap?.has(selectedSpanRef)).toBe(true);
+    expect(selectedThreadLayout).toBeDefined();
+    expect(hasTraceLayoutSpanLaneIndex(focusedLayout, selectedSpanRef)).toBe(true);
     expect(
       fillTraceLayoutSpanGeometry({
         traceLayout: focusedLayout,
@@ -222,6 +214,195 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     ).toBe(true);
     expect(geometry.x2).toBeGreaterThan(geometry.x1);
     expect(geometry.y2).toBeGreaterThan(geometry.y1);
+  });
+
+  it('writes focused visible geometry and clears lane-hidden or collapsed spans', () => {
+    const rank = createRankWithSpans('rank-focused-fused-geometry', 0, [
+      {start: 0, end: 20},
+      {start: 1, end: 19}
+    ]);
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace([rank], [], {name: 'focused-fused-geometry'})
+    );
+    const [layout] = buildTraceLayouts({
+      traceGraphs: [traceGraph],
+      settings: baseSettings
+    });
+    const hiddenSpanRef = getProcessSpanRef(traceGraph, rank.processId, rank.spans[0]!.spanId);
+    const visibleSpanRef = getProcessSpanRef(traceGraph, rank.processId, rank.spans[1]!.spanId);
+    const focusedLayout = buildFocusedLayout({
+      traceGraph,
+      traceLayout: layout,
+      spanRefs: [visibleSpanRef]
+    });
+    const processRef = getRequiredProcessRef(traceGraph, rank.processId);
+    const threadRef = getRequiredThreadRef(traceGraph, rank.threads[0]!.threadId);
+    const visibleLaneIndex = getTraceLayoutSpanLaneIndex(focusedLayout, visibleSpanRef);
+    const hiddenLaneIndex = getTraceLayoutSpanLaneIndex(focusedLayout, hiddenSpanRef);
+    if (visibleLaneIndex == null || hiddenLaneIndex == null) {
+      throw new Error('Expected generated lane indices for focused geometry parity test.');
+    }
+    const focusedGeometryContext = buildTraceLayoutGeometryDerivationContext(focusedLayout);
+    const visibleTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+    const scalarVisibleTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+    const hiddenTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+    const scalarHiddenTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+
+    expect(
+      fillTraceLayoutSpanGeometry({
+        traceLayout: focusedLayout,
+        spanRef: visibleSpanRef,
+        target: visibleTarget
+      })
+    ).toBe(true);
+    expect(visibleTarget.x2).toBeGreaterThan(visibleTarget.x1);
+    expect(visibleTarget.y2).toBeGreaterThan(visibleTarget.y1);
+    expect(
+      fillGeneratedPrimarySpanBoundingBoxFromFields(
+        processRef,
+        threadRef,
+        visibleLaneIndex,
+        1,
+        resolveTraceSpanTimingEndTimeFields('finished', 1, 19, focusedGeometryContext.maxTimeMs),
+        focusedGeometryContext.layoutLookup,
+        focusedGeometryContext.minTimeMs,
+        scalarVisibleTarget,
+        focusedGeometryContext.spanHeight
+      )
+    ).toBe(true);
+    expect(scalarVisibleTarget).toEqual(visibleTarget);
+    expect(
+      fillTraceLayoutSpanGeometry({
+        traceLayout: focusedLayout,
+        spanRef: hiddenSpanRef,
+        target: hiddenTarget
+      })
+    ).toBe(false);
+    expect(hiddenTarget).toEqual({x1: 0, y1: 0, x2: 0, y2: 0});
+    expect(
+      fillGeneratedPrimarySpanBoundingBoxFromFields(
+        processRef,
+        threadRef,
+        hiddenLaneIndex,
+        0,
+        resolveTraceSpanTimingEndTimeFields('finished', 0, 20, focusedGeometryContext.maxTimeMs),
+        focusedGeometryContext.layoutLookup,
+        focusedGeometryContext.minTimeMs,
+        scalarHiddenTarget,
+        focusedGeometryContext.spanHeight
+      )
+    ).toBe(false);
+    expect(scalarHiddenTarget).toEqual({x1: 0, y1: 0, x2: 0, y2: 0});
+
+    const focusedThreadLayout = focusedLayout.threadLayoutMapByRef.get(threadRef);
+    if (!focusedThreadLayout?.lanes) {
+      throw new Error('Expected focused lane layout for collapsed-thread visibility test.');
+    }
+    const collapsedThreadLayout = {
+      ...focusedThreadLayout,
+      lanes: {
+        ...focusedThreadLayout.lanes,
+        isCollapsed: true,
+        collapseMode: 'top-only' as const
+      }
+    };
+    const collapsedFocusedLayout = {
+      ...focusedLayout,
+      threadLayoutMapByRef: new Map(focusedLayout.threadLayoutMapByRef).set(
+        threadRef,
+        collapsedThreadLayout
+      )
+    };
+    const collapsedLaneTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+    const scalarCollapsedLaneTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+    expect(
+      fillTraceLayoutSpanGeometry({
+        traceLayout: collapsedFocusedLayout,
+        spanRef: visibleSpanRef,
+        target: collapsedLaneTarget
+      })
+    ).toBe(false);
+    expect(collapsedLaneTarget).toEqual({x1: 0, y1: 0, x2: 0, y2: 0});
+    const collapsedFocusedGeometryContext =
+      buildTraceLayoutGeometryDerivationContext(collapsedFocusedLayout);
+    expect(
+      fillGeneratedPrimarySpanBoundingBoxFromFields(
+        processRef,
+        threadRef,
+        visibleLaneIndex,
+        1,
+        resolveTraceSpanTimingEndTimeFields(
+          'finished',
+          1,
+          19,
+          collapsedFocusedGeometryContext.maxTimeMs
+        ),
+        collapsedFocusedGeometryContext.layoutLookup,
+        collapsedFocusedGeometryContext.minTimeMs,
+        scalarCollapsedLaneTarget,
+        collapsedFocusedGeometryContext.spanHeight
+      )
+    ).toBe(false);
+    expect(scalarCollapsedLaneTarget).toEqual({x1: 0, y1: 0, x2: 0, y2: 0});
+
+    const [collapsedLayout] = buildTraceLayouts({
+      traceGraphs: [traceGraph],
+      settings: baseSettings,
+      collapseState: {
+        graphs: [
+          {
+            collapsedProcessRefs: new Set([processRef]),
+            collapsedThreadRefs: new Set(),
+            expandedThreadRefs: new Set()
+          }
+        ]
+      }
+    });
+    const collapsedTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+    expect(
+      fillTraceLayoutSpanGeometry({
+        traceLayout: collapsedLayout,
+        spanRef: visibleSpanRef,
+        target: collapsedTarget
+      })
+    ).toBe(false);
+    expect(collapsedTarget).toEqual({x1: 0, y1: 0, x2: 0, y2: 0});
+  });
+
+  it('preserves manual span geometry and clears malformed manual spans', () => {
+    const rank = createRankWithSpans('rank-focused-manual-geometry', 0, [
+      {start: 0, end: 10, layoutTopY: 0.5, layoutHeight: 1.25},
+      {start: 1, end: 2, layoutTopY: -1, layoutHeight: 1}
+    ]);
+    const traceGraph = createRuntimeTraceGraph(
+      buildJSONTrace([rank], [], {name: 'focused-manual-geometry', spanLayout: 'manual'})
+    );
+    const [layout] = buildTraceLayouts({
+      traceGraphs: [traceGraph],
+      settings: baseSettings
+    });
+    const visibleSpanRef = getProcessSpanRef(traceGraph, rank.processId, rank.spans[0]!.spanId);
+    const malformedSpanRef = getProcessSpanRef(traceGraph, rank.processId, rank.spans[1]!.spanId);
+    const visibleTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+    const malformedTarget = {x1: -1, y1: -1, x2: -1, y2: -1};
+
+    expect(
+      fillTraceLayoutSpanGeometry({
+        traceLayout: layout,
+        spanRef: visibleSpanRef,
+        target: visibleTarget
+      })
+    ).toBe(true);
+    expect(visibleTarget.x2).toBeGreaterThan(visibleTarget.x1);
+    expect(visibleTarget.y2 - visibleTarget.y1).toBeCloseTo(1.25);
+    expect(
+      fillTraceLayoutSpanGeometry({
+        traceLayout: layout,
+        spanRef: malformedSpanRef,
+        target: malformedTarget
+      })
+    ).toBe(false);
+    expect(malformedTarget).toEqual({x1: 0, y1: 0, x2: 0, y2: 0});
   });
 
   function buildFocusedLayout(params: {
@@ -236,9 +417,9 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
   }
 
   function createRuntimeTraceGraph(
-    traceGraph: Parameters<typeof buildTraceGraphDataFromJSONTrace>[0]
+    traceGraph: Parameters<typeof createDatasetRuntimeTraceGraph>[0]
   ) {
-    return createTestTraceGraph(buildTraceGraphDataFromJSONTrace(traceGraph));
+    return createDatasetRuntimeTraceGraph(traceGraph);
   }
 
   function createRankWithSpans(
@@ -249,6 +430,10 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
       end: number;
       /** Optional exact span id for duplicate-id focused-selection cases. */
       spanId?: TraceSpanId;
+      /** Optional thread-relative top edge for manual-layout fixtures. */
+      layoutTopY?: number;
+      /** Optional rendered height for manual-layout fixtures. */
+      layoutHeight?: number;
     }>
   ): TraceProcess {
     const thread: TraceThread = {
@@ -274,10 +459,12 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
           durationMsAsString: `${spanConfig.end - spanConfig.start}ms`
         }
       },
-      localDependencyIds: [],
-      localDependencies: [],
+      sameProcessDependencyIds: [],
+      sameProcessDependencies: [],
       crossProcessEndpointId: null,
-      crossProcessDependencyEndpoints: []
+      crossProcessDependencyEndpoints: [],
+      ...(spanConfig.layoutTopY == null ? {} : {layoutTopY: spanConfig.layoutTopY}),
+      ...(spanConfig.layoutHeight == null ? {} : {layoutHeight: spanConfig.layoutHeight})
     }));
     return {
       type: 'trace-process',
@@ -295,7 +482,7 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
       counters: [],
       counterMap: {},
       threadCounterMap: {},
-      localDependencies: [],
+      sameProcessDependencies: [],
       remoteDependencies: []
     } satisfies TraceProcess;
   }
@@ -322,7 +509,7 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
   }
 
   function getLayoutSpanRef(layout: TraceLayout, spanId: TraceSpanId): SpanRef {
-    const spanRef = layout.traceGraph.getSpanRefByExternalBlockId(spanId);
+    const spanRef = layout.traceGraph.getSpanRefById(spanId);
     if (spanRef == null) {
       throw new Error(`Expected span ref for span ${spanId}`);
     }
@@ -352,9 +539,9 @@ describe('buildTraceLayoutForSpanRefs focused selection layout', () => {
     spanId: TraceSpanId
   ): SpanRef {
     const processRef = getRequiredProcessRef(traceGraph, processId);
-    const spanRef = traceGraph
-      .getVisibleProcessGeometrySources(processRef)
-      .find(span => span.spanId === spanId)?.spanRef;
+    const spanRef = Array.from(traceGraph.iterateVisibleSpanRefsByProcess(processRef)).find(
+      candidateSpanRef => traceGraph.getSpanId(candidateSpanRef) === spanId
+    );
     if (spanRef == null) {
       throw new Error(`Expected span ref for ${processId}:${spanId}`);
     }

@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/status-work--in--progress-orange.svg?style=flat-square" alt="status Work-in-Progress" />
 </p>
 
-`TraceLayout` is the render-ready representation of a filtered trace graph.
+`TraceLayout` is the visible row and geometry layout derived from a filtered dataset-backed graph.
 
 ```ts
 import {buildTraceLayout, buildTraceLayouts, type TraceLayout} from '@deck.gl-community/trace-layers/trace';
@@ -14,14 +14,16 @@ import {buildTraceLayout, buildTraceLayouts, type TraceLayout} from '@deck.gl-co
 ## What it contains
 
 - visible process and thread rows
-- span, local dependency, and cross dependency geometry chunks
+- span, same-process dependency, and cross-process dependency geometry chunks
 - geometry caches for reuse
 - current and fully expanded bounds
 - collapse-aware row state
 - optional collapsed activity summaries
-- the visible graph projection the layout reflects
+- the visible graph/view snapshot the layout reflects
 
-`TraceLayout` describes where normalized trace objects draw. It is not an ingestion format.
+`TraceLayout` describes where normalized trace objects draw. `TraceRenderSnapshot` packages the
+foreground scenes, overview scenes, path data, and per-graph derived render data consumed by deck
+layers. Neither is an ingestion format.
 
 ## Builder APIs
 
@@ -39,9 +41,9 @@ thread refs in mounted state, then serialize IDs only when crossing persistence 
 ## Invalidation
 
 Rebuild layout when filtered topology, visible threads, aggregation mode, lane limits, process
-layout mode, or density changes. Rebuild geometry when timing projection, min span time, or local
-dependency geometry changes. Render-only color, fade, and animation changes should not rebuild the
-layout.
+layout mode, or density changes. Rebuild geometry when timing projection, min span time, or
+same-process dependency geometry changes. Render-only color, fade, and animation changes should not
+rebuild the layout.
 
 See [Rendering traces](../../developer-guide/rendering-traces.md) and
 [TraceVisSettings](./trace-vis-settings.md).

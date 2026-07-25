@@ -1,6 +1,6 @@
-import {TraceLabels} from '../../../../trace/index';
+import {TraceLabels} from '../../../../trace';
 
-import type {TraceCounter} from '../../../../trace/index';
+import type {TraceCounter} from '../../../../trace';
 
 export type TraceCounterCardProps = {
   counter: TraceCounter;

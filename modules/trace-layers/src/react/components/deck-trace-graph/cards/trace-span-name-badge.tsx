@@ -1,23 +1,21 @@
-import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_NONE} from '../../../../trace/index';
-import {getTraceSpanBadgeFilteredVariant} from '../../../utils/trace-span-badge-presentation';
+import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_NONE} from '../../../../trace';
 import {colorToRgbaCss} from '../../../utils/trace-span-badge-style';
 import {TraceSpanBadge} from '../../trace-span-badge';
 
 import type {
   SpanRef,
+  TraceCardSpan,
   TraceColorScheme,
   TraceGraph,
-  TraceSpanColorSource,
   TraceSpanFilterMask
-} from '../../../../trace/index';
-import type {TraceSpanBadgeFilteredVariant} from '../../../utils/trace-span-badge-presentation';
+} from '../../../../trace';
 import type {CSSProperties, MouseEvent as ReactMouseEvent} from 'react';
 
 /** Semantic action requested by a span-name badge double-click gesture. */
 export type TraceSpanDoubleClickAction = 'select' | 'select-and-focus';
 
 /** Resolved span display data accepted by the internal span-name badge adapter. */
-export type TraceSpanNameBadgeResolvedSpan = TraceSpanColorSource & {
+export type TraceSpanNameBadgeResolvedSpan = TraceCardSpan & {
   /** Exact graph filter provenance used to explain filtered badges. */
   filterMask?: TraceSpanFilterMask;
   /** Whether the span is hidden by the current filtered view. */
@@ -37,8 +35,6 @@ export type TraceSpanNameBadgeProps = {
   interactive?: boolean;
   /** Whether the span is hidden by the current filtered view. */
   filtered?: boolean;
-  /** Visual treatment for a filtered badge. */
-  filteredVariant?: TraceSpanBadgeFilteredVariant;
   /** Exact graph filter provenance used to explain filtered badges. */
   filterMask?: TraceSpanFilterMask;
   /** Maximum label length before middle truncation. */
@@ -74,8 +70,6 @@ export function TraceSpanNameBadge(props: TraceSpanNameBadgeProps) {
     filterMask
   });
   const badgeFilterMask = filtered ? filterMask : TRACE_SPAN_FILTER_MASK_NONE;
-  const filteredVariant =
-    props.filteredVariant ?? getTraceSpanBadgeFilteredVariant(badgeFilterMask);
   const keywordPresentation = props.colorScheme?.getKeywordPresentation?.({
     keywords
   });
@@ -98,7 +92,6 @@ export function TraceSpanNameBadge(props: TraceSpanNameBadgeProps) {
       className="py-0 my-0 rounded-xl pointer-events-auto"
       style={style}
       filtered={filtered}
-      filteredVariant={filteredVariant}
       filterMask={badgeFilterMask}
       maxLabelLength={props.maxLabelLength}
       interactive={props.interactive}

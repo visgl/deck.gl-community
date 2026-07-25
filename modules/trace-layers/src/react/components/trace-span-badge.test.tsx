@@ -2,11 +2,7 @@ import React, {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import {
-  DEFAULT_TRACE_STYLE,
-  TRACE_SPAN_FILTER_MASK_REGEXP,
-  TRACE_SPAN_FILTER_MASK_TOPOLOGY
-} from '../../trace/index';
+import {DEFAULT_TRACE_STYLE, TRACE_SPAN_FILTER_MASK_REGEXP} from '../../trace';
 import {TraceSpanBadge} from './trace-span-badge';
 
 import type {Root} from 'react-dom/client';
@@ -64,6 +60,18 @@ describe('TraceSpanBadge', () => {
     expect(writeText).toHaveBeenCalledWith('rpc.actor.call_user_python');
   });
 
+  it('centers middle truncation within the configured maximum label length', () => {
+    renderTraceSpanBadge(
+      <TraceSpanBadge
+        traceLabels={DEFAULT_TRACE_STYLE.labels}
+        label="abcdefghijklmnopqrstuvwxyz"
+        maxLabelLength={20}
+      />
+    );
+
+    expect(container?.textContent).toBe('abcdefghi…qrstuvwxyz');
+  });
+
   it('renders filtered badges as outlines instead of filled keyword badges', () => {
     renderTraceSpanBadge(
       <TraceSpanBadge
@@ -103,21 +111,6 @@ describe('TraceSpanBadge', () => {
 
     const tooltip = document.querySelector('[role="tooltip"]');
     expect(tooltip?.textContent).toContain('filtered-span (Hidden by: span-name filter)');
-  });
-
-  it('uses the source badge color for topology-filtered outlines', () => {
-    renderTraceSpanBadge(
-      <TraceSpanBadge
-        traceLabels={DEFAULT_TRACE_STYLE.labels}
-        label="topology-filtered-span"
-        filterMask={TRACE_SPAN_FILTER_MASK_TOPOLOGY}
-        style={{backgroundColor: 'rgb(12, 34, 56)'}}
-      />
-    );
-
-    const badge = container?.querySelector('.relative.group') as HTMLElement | null;
-    expect(badge?.className).toContain('bg-background');
-    expect(badge?.style.borderColor).toBe('rgb(12, 34, 56)');
   });
 });
 

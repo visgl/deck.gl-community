@@ -53,6 +53,32 @@ search, breadcrumbs, or deep-link restore flows rather than mutating deck state 
 - `reactConfig.getJSONForTraceObject`: customize raw-object output
 - `reactConfig.externalOmniBoxSearchProvider`: merge host-owned results into search
 - `reactConfig.widgets` and `reactConfig.showDefaultWidgets`: compose the control surface
+- `reactConfig.fitInitialViewportToLoadedTimeRange`: fit the first main viewport to the loaded
+  minimap range instead of the full overview range
+- `reactConfig.getOverviewTimeContextMenuActions`: add host-owned right-click actions for empty
+  minimap time picks
+
+## Runtime flow
+
+`DeckTraceGraph` does not assemble trace storage in React. Hosts publish dataset-backed
+`TraceGraph` values into `TraceEngineInputs`; the engine owns `TraceViewState`, including
+`renderSnapshot.foregroundScenes`, `renderSnapshot.overviewScenes`, `renderSnapshot.pathData`, and
+`renderSnapshot.derivedDataByGraph`. The React component reads the immutable engine snapshot and
+instantiates deck layers from those prepared render inputs.
+
+## Search and hidden results
+
+Built-in OmniBox span search calls `TraceGraph.searchSpans(...)`, which enumerates loaded chunk or
+store rows rather than only the current visible graph. A trimmed query first checks loaded
+`external_span_id` values as a case-sensitive exact match, then falls back to the existing
+name/source/keyword substring or regexp match. Results include reason labels such as `Hidden by:
+time window`, `Hidden by: span-name filter`, or `Hidden by: filename filter`. Selecting a hidden
+loaded span opens the exact span in the inspector while navigation uses the closest visible
+descendant or ancestor when one exists.
+
+Applications can attach `externalOmniBoxSearchProvider` in `reactConfig` for host-owned non-span
+results. The provider receives the raw query, the normalized `matchesQuery` predicate used by
+built-in search, and the requested result limit.
 
 See [Getting started](../../developer-guide/getting-started.md) and
 [Rendering traces](../../developer-guide/rendering-traces.md), plus

@@ -1,24 +1,16 @@
 import * as arrow from 'apache-arrow';
 
-import {log} from '../log';
-import {getGlobalDependencyMap} from '../trace-graph/trace-dependency-utils';
 import {
   buildArrowTraceEventTableFromColumns as buildArrowTraceEventTableFromColumnsInternal,
   buildArrowTraceEventTableFromRows as buildArrowTraceEventTableFromRowsInternal,
-  buildTraceEventMap,
-  EMPTY_ARROW_TRACE_EVENT_TABLE
+  buildTraceEventMap
 } from '../trace-graph/trace-event-table';
 import {
   encodeChunkRef,
-  encodeCrossDependencyRef,
-  encodeLocalDependencyRef,
-  encodeLocalSpanRef,
   encodeProcessRef,
   encodeProcessThreadRef,
   encodeSpanRef,
   getProcessRefIndex,
-  getSpanRefProcessId,
-  getSpanRefRowIndex,
   TraceIdEncoder
 } from '../trace-graph/trace-id-encoder';
 import {getTraceSpanUserDataSource} from '../trace-graph/trace-span-user-data-fields';
@@ -26,7 +18,16 @@ import {
   isTraceSpanTimingEligibleForTimeExtents,
   isTraceSpanTimingTimestampEligibleForTimeExtents
 } from '../trace-time-extents';
+import {serializeArrowTraceJson} from './arrow-trace-json';
 import {materializeJSONTrace} from './json-trace';
+import {
+  encodeTraceDependencyKeywordFlags,
+  encodeTraceDependencyWaitModeCode
+} from './trace-dependency-arrow-fields';
+import {
+  decodeTraceSpanTimingStatusCode,
+  encodeTraceSpanTimingStatusCode
+} from './trace-span-timing-status-code';
 
 import type {TraceChunkData} from '../trace-chunk-data';
 import type {
@@ -34,14 +35,7 @@ import type {
   TraceEventArrowColumns,
   TraceEventArrowRow
 } from '../trace-graph/trace-event-table';
-import type {TraceGraphStats} from '../trace-graph/trace-graph-stats';
-import type {
-  ChunkRef,
-  CrossDependencyRef,
-  ProcessRef,
-  ThreadRef
-} from '../trace-graph/trace-id-encoder';
-import type {TraceOwnerRefSnapshot} from '../trace-graph/trace-owner-ref-registry';
+import type {ChunkRef, ProcessRef, ThreadRef} from '../trace-graph/trace-id-encoder';
 import type {
   SpanRef,
   TraceCounter,
@@ -49,18 +43,16 @@ import type {
   TraceCrossProcessDependency,
   TraceCrossProcessEndpoint,
   TraceCrossProcessEndpointId,
-  TraceDependency,
-  TraceDependencyId,
   TraceEvent,
   TraceEventId,
   TraceInstant,
   TraceInstantId,
-  TraceLocalDependency,
   TraceProcess,
   TraceProcessId,
+  TraceSameProcessDependency,
   TraceSpan,
+  TraceSpanAttributePath,
   TraceSpanId,
-  TraceSpanLayoutMode,
   TraceSpanTiming,
   TraceThread,
   TraceThreadId
@@ -76,7 +68,7 @@ export type {
 /**
  * Metadata-only Arrow process record.
  *
- * Canonical span storage for Arrow graphs lives in `TraceGraphData.chunks[].spanTable`;
+ * Canonical span storage lives in dataset chunks;
  * block-id lookup is a compatibility boundary.
  */
 export type ArrowTraceProcessMetadata = Pick<
@@ -100,25 +92,35 @@ export type ArrowTraceProcessMetadata = Pick<
   | 'userData'
 > & {
   /**
-   * Legacy compatibility local dependencies. Arrow-backed runtime code should read
-   * `localDependencyTableMap` instead of requiring this object array.
+   * Legacy compatibility same-process dependencies. Arrow-backed runtime code should read
+   * `sameProcessDependencyTableMap` instead of requiring this object array.
    */
-  localDependencies?: TraceLocalDependency[];
+  sameProcessDependencies?: TraceSameProcessDependency[];
 };
 
 /**
  * Apache Arrow schema describing one hot-path process-local span table stored within a
- * {@link TraceGraphData}.
+ * canonical dataset chunks.
  *
  * This table intentionally keeps only the scalar fields needed by filtering, visible-index
  * construction, and layout. Richer compatibility/display payloads live in the optional
  * row-aligned sidecar map.
  */
 export type ArrowTraceSpanTable = arrow.Table<{
-  /** Canonical runtime process ref owning this span row. */
-  process_ref: arrow.Uint64;
-  /** Canonical runtime thread ref owning this span row. */
-  thread_ref: arrow.Uint64;
+  /**
+   * Canonical runtime process ref owning this span row.
+   *
+   * Runtime refs are safe JavaScript integers, so Float64 preserves every value exactly while
+   * exposing a number-native Arrow buffer to layout and render hot paths.
+   */
+  process_ref: arrow.Float64;
+  /**
+   * Canonical runtime thread ref owning this span row.
+   *
+   * Runtime refs are safe JavaScript integers, so Float64 preserves every value exactly while
+   * exposing a number-native Arrow buffer to layout and render hot paths.
+   */
+  thread_ref: arrow.Float64;
   /** Stable legacy block identifier for this span. */
   span_id: arrow.Utf8;
   /** Optional stable external span identifier for URL/deeplink identity. */
@@ -131,8 +133,8 @@ export type ArrowTraceSpanTable = arrow.Table<{
   source: arrow.Utf8;
   /** Primary timing key selected for the span. */
   primary_timing_key: arrow.Utf8;
-  /** Completion status for the primary timing projection. */
-  status: arrow.Utf8;
+  /** Compact completion status for the primary timing projection. */
+  status_code: arrow.Uint8;
   /** Primary timing start in milliseconds. */
   start_time_ms: arrow.Float64;
   /** Primary timing end in milliseconds. */
@@ -149,9 +151,9 @@ export type ArrowTraceSpanTable = arrow.Table<{
  * Apache Arrow schema for a lightweight process-local span index.
  *
  * Full span scalar/string data is owned by {@link ArrowTraceChunk.spanTable}. This table only keeps
- * process-local row order plus the layout/filter columns that need geometry-row alignment. Rows
- * are sorted by ascending `span_ref`; accessors depend on that invariant for binary-search lookup
- * from a chunk-local `SpanRef` back to this process-local row.
+ * process-local row order plus layout columns that need geometry-row alignment. Rows are sorted by
+ * ascending `span_ref`; accessors depend on that invariant for binary-search lookup from a
+ * chunk-local `SpanRef` back to this process-local row.
  */
 export type TraceProcessSpanRefTable = arrow.Table<{
   /** Stable encoded span ref for the process-local row, sorted ascending within the table. */
@@ -160,12 +162,7 @@ export type TraceProcessSpanRefTable = arrow.Table<{
   layout_top_y: arrow.Float64;
   /** Optional rendered height used by manual span layout. */
   layout_height: arrow.Float64;
-  /** Graph-local filter provenance mask aligned with the process-local `span_ref` row. */
-  filter_mask: arrow.Uint8;
-}> & {
-  /** Content generation for this process-local SpanRef/layout index table. */
-  readonly generation: number;
-};
+}>;
 
 /**
  * Options for building process-local SpanRef index tables from chunk-backed span storage.
@@ -179,61 +176,56 @@ export type BuildTraceProcessSpanRefTablesOptions = {
 
 /**
  * Apache Arrow schema describing one row-aligned process-local span sidecar table stored within an
- * {@link TraceGraphData}.
+ * canonical dataset chunks.
  *
  * This table is reserved for generic trace-graph-compatible scalar/list metadata. It intentionally
  * avoids nested endpoint payloads such as `List<Struct<...>>`; structured endpoint payloads remain
  * in compatibility JS sidecars until a normalized endpoint table model is designed.
  */
-export type ArrowTraceSpanSidecarTable = arrow.Table<{
-  /** Compact local dependency refs where this span is the dependency destination. */
-  incomingLocalDependencyRefs: arrow.List<arrow.Uint64>;
-  /** Compact local dependency refs where this span is the dependency source. */
-  outgoingLocalDependencyRefs: arrow.List<arrow.Uint64>;
-  /** Compact local dependency refs touching this span in either direction. */
-  localDependencyRefs: arrow.List<arrow.Uint64>;
-  /** Compact cross-process dependency refs where this span is the dependency destination. */
-  incomingCrossDependencyRefs: arrow.List<arrow.Uint64>;
-  /** Compact cross-process dependency refs where this span is the dependency source. */
-  outgoingCrossDependencyRefs: arrow.List<arrow.Uint64>;
-  /** Compact cross-process dependency refs touching this span in either direction. */
-  crossDependencyRefs: arrow.List<arrow.Uint64>;
+type ArrowTraceSpanSidecarTableTypeMap = arrow.TypeMap & {
   /** Keyword labels shown in cards, search, and filters. */
   keywords: arrow.List<arrow.Utf8>;
-  /** Optional unresolved cross-rank endpoint id. */
+  /** Optional unresolved cross-process endpoint id. */
   crossProcessEndpointId: arrow.Utf8;
   /** Optional JSON-serialized user-data payload. */
   userDataJson: arrow.Utf8;
-}>;
+  /** Arrow-native non-primary timing projections keyed by timing name. */
+  timings?: arrow.Struct<arrow.TypeMap>;
+  /** Compatibility-only legacy JSON timing maps read from older Arrow payloads. */
+  timingsJson?: arrow.Utf8;
+};
 
-/**
- * Apache Arrow schema describing one hot-path process-local dependency table stored within an
- * {@link TraceGraphData}.
- */
-export type ArrowTraceLocalDependencyTable = arrow.Table<{
-  /** Canonical runtime dependency ref for this process-local dependency row. */
-  dependencyRef: arrow.Float64;
-  /** Stable dependency identifier. */
-  dependencyId: arrow.Utf8;
+/** Row-aligned Arrow sidecar storage for compatibility/detail span fields. */
+export type ArrowTraceSpanSidecarTable = arrow.Table<ArrowTraceSpanSidecarTableTypeMap>;
+
+type ArrowTraceSameProcessDependencyTableTypeMap = arrow.TypeMap & {
   /** Canonical runtime source span ref for the dependency edge. */
   startSpanRef: arrow.Float64;
-  /** Visible source span block id for the dependency edge. */
-  startSpanId: arrow.Utf8;
   /** Canonical runtime destination span ref for the dependency edge. */
   endSpanRef: arrow.Float64;
-  /** Visible destination span block id for the dependency edge. */
-  endSpanId: arrow.Utf8;
-  /** Wait-mode discriminator used by geometry and cards. */
-  waitMode: arrow.Utf8;
+  /** Compact closed-domain wait-mode discriminator used by hot geometry. */
+  waitModeCode: arrow.Uint8;
   /** Whether the dependency is bidirectional. */
   bidirectional: arrow.Bool;
   /** Wait duration in milliseconds. */
   waitTimeMs: arrow.Float64;
   /** Keyword labels attached to the dependency source block. */
   keywords: arrow.List<arrow.Utf8>;
-  /** Whether the dependency carries the parent keyword. */
-  hasParentKeyword: arrow.Bool;
-}>;
+  /** Compact hot predicates for parent and submit keyword reads. */
+  keywordFlags: arrow.Uint8;
+  /** Optional JSON-serialized app-owned dependency payload. */
+  userDataJson?: arrow.Utf8;
+};
+
+/**
+ * Apache Arrow schema describing one hot-path same-process dependency table stored within an
+ * canonical dataset chunks.
+ *
+ * Ref-native tables may omit compatibility `dependencyId`, `startSpanId`, and `endSpanId` Utf8
+ * columns; accessors derive those strings lazily from refs when callers still need them.
+ */
+export type ArrowTraceSameProcessDependencyTable =
+  arrow.Table<ArrowTraceSameProcessDependencyTableTypeMap>;
 
 /**
  * Graph-local storage chunk for row-backed trace tables.
@@ -251,16 +243,14 @@ export type ArrowTraceChunk = {
   readonly processId?: TraceProcessId | null;
   /** Canonical process-local Arrow span table for this chunk. */
   readonly spanTable: ArrowTraceSpanTable;
-  /** Canonical process-local Arrow dependency table for this chunk. */
-  readonly localDependencyTable: ArrowTraceLocalDependencyTable;
-  /** Optional row-aligned compatibility payloads for this chunk. */
-  readonly spanSidecarRows?: readonly TraceSpanArrowSidecarRow[];
+  /** Resolved same-process Arrow dependency table owned by this storage chunk. */
+  readonly resolvedSameProcessDependencyTable: ArrowTraceSameProcessDependencyTable;
   /** Optional row-aligned Arrow sidecar table for this chunk. */
   readonly spanSidecarTable?: ArrowTraceSpanSidecarTable;
 };
 
 /**
- * Returns the number of published span rows represented by one TraceGraphData chunk.
+ * Returns the number of published span rows represented by one canonical chunk.
  */
 export function getArrowTraceChunkSpanRowCount(chunk: Readonly<ArrowTraceChunk>): number {
   return chunk.spanTable.numRows;
@@ -333,9 +323,9 @@ export function findArrowTraceChunkByIndex(
 
 /**
  * Apache Arrow schema describing the graph-global cross-process dependency table stored within an
- * {@link TraceGraphData}.
+ * canonical datasets.
  */
-export type ArrowTraceCrossDependencyTable = arrow.Table<{
+export type ArrowTraceCrossProcessDependencyTable = arrow.Table<{
   /** Stable dependency identifier. */
   dependencyId: arrow.Utf8;
   /** Stable unresolved endpoint identifier. */
@@ -368,6 +358,8 @@ export type ArrowTraceCrossDependencyTable = arrow.Table<{
   keywords: arrow.List<arrow.Utf8>;
   /** Whether the dependency carries the parent keyword. */
   hasParentKeyword: arrow.Bool;
+  /** Optional JSON-serialized app-owned dependency payload. */
+  userDataJson?: arrow.Utf8;
 }>;
 
 /**
@@ -398,36 +390,36 @@ export type TraceSpanArrowSidecarEndpoint = {
  * Row-aligned compatibility/display payload kept outside the hot Arrow table.
  */
 export type TraceSpanArrowSidecarRow = {
+  /** Primary timing key already stored in the hot span table. */
+  primaryTimingKey?: string;
   /** Full timing projections keyed by timing source. */
   timings?: Record<string, TraceSpanTiming>;
   /** Compatibility user data payload. */
   userData?: Record<string, unknown>;
   /** Keyword labels shown in cards, search, and filters. */
   keywords: string[];
-  /** Local dependency identifiers touching the span. */
-  localDependencyIds: string[];
-  /** Process-local dependency row indexes where this span is the dependency destination. */
-  incomingLocalDependencyRowIndexes: number[];
-  /** Process-local dependency row indexes where this span is the dependency source. */
-  outgoingLocalDependencyRowIndexes: number[];
-  /** Compact local dependency refs where this span is the dependency destination. */
-  incomingLocalDependencyRefs?: number[];
-  /** Compact local dependency refs where this span is the dependency source. */
-  outgoingLocalDependencyRefs?: number[];
-  /** Compact cross-process dependency refs where this span is the dependency destination. */
-  incomingCrossDependencyRefs?: number[];
-  /** Compact cross-process dependency refs where this span is the dependency source. */
-  outgoingCrossDependencyRefs?: number[];
+  /** Ingestion-only dependency identifiers touching the span before Arrow adjacency is built. */
+  sameProcessDependencyIds: string[];
+  /** Ingestion-only dependency row indexes where this span is the dependency destination. */
+  incomingSameProcessDependencyRowIndexes: number[];
+  /** Ingestion-only dependency row indexes where this span is the dependency source. */
+  outgoingSameProcessDependencyRowIndexes: number[];
+  /** Ingestion-only compact same-process refs where this span is the dependency destination. */
+  incomingSameProcessDependencyRefs?: number[];
+  /** Ingestion-only compact same-process refs where this span is the dependency source. */
+  outgoingSameProcessDependencyRefs?: number[];
+  /** Ingestion-only compact cross-process refs where this span is the dependency destination. */
+  incomingCrossProcessDependencyRefs?: number[];
+  /** Ingestion-only compact cross-process refs where this span is the dependency source. */
+  outgoingCrossProcessDependencyRefs?: number[];
   /** Optional unresolved cross-rank endpoint id. */
   crossProcessEndpointId: TraceCrossProcessEndpointId | null;
   /** Structured unresolved cross-rank endpoints attached to the span. */
   crossProcessDependencyEndpoints: TraceSpanArrowSidecarEndpoint[];
 };
 
-/**
- * Row-aligned compatibility/display payloads keyed by process id.
- */
-export type TraceSpanArrowSidecarMap = Readonly<
+/** Row-aligned ingestion staging payloads keyed by process id. */
+type TraceSpanArrowSidecarRowMap = Readonly<
   Record<TraceProcessId, readonly TraceSpanArrowSidecarRow[]>
 >;
 
@@ -445,22 +437,6 @@ export type TraceCrossProcessEndpointsBySpanRef = ReadonlyMap<
   SpanRef,
   readonly TraceCrossProcessEndpoint[]
 >;
-
-/**
- * Sparse directional cross-dependency refs keyed by exact span ref.
- */
-export type TraceSpanCrossDependencyRefMap = {
-  /** Cross-dependency refs where the span is the dependency destination. */
-  readonly incomingCrossDependencyRefsBySpanRef: ReadonlyMap<
-    SpanRef,
-    readonly CrossDependencyRef[]
-  >;
-  /** Cross-dependency refs where the span is the dependency source. */
-  readonly outgoingCrossDependencyRefsBySpanRef: ReadonlyMap<
-    SpanRef,
-    readonly CrossDependencyRef[]
-  >;
-};
 
 /**
  * Serialized Arrow row used to populate a {@link ArrowTraceSpanTable}.
@@ -483,7 +459,7 @@ export type TraceSpanArrowRow = {
   /** Primary timing key selected for the span. */
   primary_timing_key: string;
   /** Completion status for the primary timing projection. */
-  status: string;
+  status: TraceSpanTiming['status'];
   /** Primary timing start in milliseconds. */
   start_time_ms: number;
   /** Primary timing end in milliseconds. */
@@ -500,10 +476,10 @@ export type TraceSpanArrowRow = {
  * Column-oriented Arrow span payload used to build one {@link ArrowTraceSpanTable}.
  */
 export type TraceSpanArrowColumns = {
-  /** Canonical runtime process refs owning span rows. */
-  process_ref?: Array<number | null>;
-  /** Canonical runtime thread refs owning span rows. */
-  thread_ref?: Array<number | null>;
+  /** Canonical runtime process refs owning span rows, optionally already in borrowed Float64 form. */
+  process_ref?: Array<number | null> | Float64Array;
+  /** Canonical runtime thread refs owning span rows, optionally already in borrowed Float64 form. */
+  thread_ref?: Array<number | null> | Float64Array;
   /** Stable legacy block identifiers in process-local row order. */
   span_id: string[];
   /** Optional stable external span identifiers in process-local row order. */
@@ -517,7 +493,7 @@ export type TraceSpanArrowColumns = {
   /** Primary timing key selected for each span. */
   primary_timing_key: string[];
   /** Completion status for the primary timing projection. */
-  status: string[];
+  status: Array<TraceSpanTiming['status']>;
   /** Primary timing start in milliseconds. */
   start_time_ms: number[];
   /** Primary timing end in milliseconds. */
@@ -530,48 +506,69 @@ export type TraceSpanArrowColumns = {
   layout_height?: Array<number | null>;
 };
 
+/** Mutable row-builder span columns whose owner refs have not yet become Arrow buffers. */
+type MutableTraceSpanArrowColumns = Omit<TraceSpanArrowColumns, 'process_ref' | 'thread_ref'> & {
+  /** Mutable canonical runtime process refs appended while lowering row payloads. */
+  process_ref: Array<number | null>;
+  /** Mutable canonical runtime thread refs appended while lowering row payloads. */
+  thread_ref: Array<number | null>;
+};
+
+/** Options for adding declared primitive attribute columns to one span table. */
+export type BuildArrowTraceSpanTableOptions = {
+  /** Declared tuple paths to project from source rows into optional Arrow columns. */
+  declaredSpanAttributePaths?: readonly TraceSpanAttributePath[];
+  /** Row-aligned attribute sources used only for declared path projection. */
+  spanAttributeRows?: readonly (Record<string, unknown> | undefined)[];
+};
+
 /**
  * Column-oriented Arrow span sidecar payload used to build one {@link ArrowTraceSpanSidecarTable}.
  */
 export type TraceSpanArrowSidecarColumns = {
-  /** Compact local dependency refs where each span is the dependency destination. */
-  incomingLocalDependencyRefs: Array<readonly number[]>;
-  /** Compact local dependency refs where each span is the dependency source. */
-  outgoingLocalDependencyRefs: Array<readonly number[]>;
-  /** Compact local dependency refs touching each span in either direction. */
-  localDependencyRefs?: Array<readonly number[]>;
-  /** Compact cross-process dependency refs where each span is the dependency destination. */
-  incomingCrossDependencyRefs?: Array<readonly number[]>;
-  /** Compact cross-process dependency refs where each span is the dependency source. */
-  outgoingCrossDependencyRefs?: Array<readonly number[]>;
-  /** Compact cross-process dependency refs touching each span in either direction. */
-  crossDependencyRefs?: Array<readonly number[]>;
+  /** Number of row-aligned span sidecar rows represented by these columns. */
+  rowCount: number;
   /** Keyword labels for each span. */
   keywords?: Array<readonly string[]>;
   /** Optional unresolved cross-rank endpoint ids for each span. */
   crossProcessEndpointId?: Array<TraceCrossProcessEndpointId | string | null>;
   /** Optional JSON-serialized user-data payloads for each span. */
   userDataJson?: Array<string | null>;
+  /** Optional Arrow-native non-primary timing projections keyed by timing name. */
+  timings?: Readonly<Record<string, TraceSpanArrowTimingProjectionColumns>>;
+  /** Compatibility-only legacy JSON timing maps read from older Arrow payloads. */
+  timingsJson?: Array<string | null>;
+};
+
+/** Columnar values for one Arrow-native secondary timing projection. */
+export type TraceSpanArrowTimingProjectionColumns = {
+  /** Compact completion-status codes aligned with sidecar rows. */
+  statusCode: Array<number | null>;
+  /** Timing start values in milliseconds aligned with sidecar rows. */
+  startTimeMs: Array<number | null>;
+  /** Timing end values in milliseconds aligned with sidecar rows. */
+  endTimeMs: Array<number | null>;
+  /** Timing duration values in milliseconds aligned with sidecar rows. */
+  durationMs: Array<number | null>;
 };
 
 /**
- * Column-oriented local dependency payload used to build one {@link ArrowTraceLocalDependencyTable}.
+ * Column-oriented same-process dependency payload used to build one
+ * {@link ArrowTraceSameProcessDependencyTable}.
  */
-export type TraceLocalDependencyArrowColumns = {
-  /** Canonical runtime dependency refs in process-local dependency row order. */
-  dependencyRef?: number[];
-  /** Stable dependency identifiers in process-local dependency row order. */
-  dependencyId: string[];
+export type TraceSameProcessDependencyArrowColumns = {
+  /** Optional stable dependency identifiers in same-process dependency row order. */
+  dependencyId?: string[];
   /** Dependency source span refs. */
   startSpanRef?: Array<number | null>;
-  /** Dependency source block ids. */
-  startSpanId: string[];
+  /** Optional dependency source block ids. */
+  startSpanId?: string[];
   /** Dependency destination span refs. */
   endSpanRef?: Array<number | null>;
-  /** Dependency destination block ids. */
-  endSpanId: string[];
+  /** Optional dependency destination block ids. */
+  endSpanId?: string[];
   /** Wait-mode discriminator used by geometry and cards. */
-  waitMode: string[];
+  waitMode: TraceSameProcessDependency['waitMode'][];
   /** Whether each dependency is bidirectional. */
   bidirectional: boolean[];
   /** Wait durations in milliseconds. */
@@ -580,6 +577,8 @@ export type TraceLocalDependencyArrowColumns = {
   keywords?: Array<readonly string[]>;
   /** Whether each dependency has the parent keyword. */
   hasParentKeyword: boolean[];
+  /** Optional JSON-serialized app-owned payloads. */
+  userDataJson?: Array<string | null>;
 };
 
 type TraceSpanArrowVectorOverrides = {
@@ -587,171 +586,40 @@ type TraceSpanArrowVectorOverrides = {
   name?: arrow.Vector<arrow.Utf8>;
 };
 
-/**
- * Options for constructing an ingestion-oriented TraceGraphData from normalized graph metadata.
- */
-export type BuildTraceGraphDataOptions = {
-  /** Human-friendly name for the ingestion trace. */
-  name: string;
-  /** Whether spans use generated lanes or authored thread-relative vertical geometry. */
-  spanLayout?: TraceSpanLayoutMode;
-  /**
-   * Metadata-only process records in render order.
-   */
-  processes: Readonly<ArrowTraceProcessMetadata[]>;
-  /** Cross-process dependencies shared across the graph. */
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>;
-  /** Canonical process-local span tables keyed by process id. */
-  spanTableMap: Readonly<Record<TraceProcessId, ArrowTraceSpanTable>>;
-  /** Optional canonical process-local dependency tables keyed by process id. */
-  localDependencyTableMap?: Readonly<Record<TraceProcessId, ArrowTraceLocalDependencyTable>>;
-  /** Optional canonical graph-global cross-process dependency table. */
-  crossDependencyTable?: Readonly<ArrowTraceCrossDependencyTable>;
-  /** Optional precomputed graph-global dependency map. */
-  dependencyMap?: Readonly<Record<TraceDependencyId, TraceDependency>>;
-  /** Optional row-aligned compatibility payloads keyed by process id. */
-  spanSidecarMap?: TraceSpanArrowSidecarMap;
-  /** Optional row-aligned Arrow sidecar tables keyed by process id. */
-  spanSidecarTableMap?: ArrowTraceSpanSidecarTableMap;
-  /** Optional sparse unresolved cross-rank endpoints keyed by exact owning span ref. */
-  crossProcessEndpointsBySpanRef?: TraceCrossProcessEndpointsBySpanRef;
-  /** Optional sparse directional cross-dependency refs keyed by exact span ref. */
-  spanCrossDependencyRefMap?: TraceSpanCrossDependencyRefMap;
-  /** Optional explicit row-backed storage chunks. */
-  chunks?: readonly ArrowTraceChunk[];
-  /** Optional active span refs into {@link chunks}; when omitted, every chunk row is active. */
-  spanRefs?: readonly SpanRef[];
-  /** Optional stable map from cross-dependency ids to deterministic packed dependency indexes. */
-  crossDependencyIdToIndexMap?: Readonly<Record<TraceDependencyId, number>>;
-  /** Optional trace-global owner-ref lookup tables allocated outside this materialized graph. */
-  ownerRefSnapshot?: TraceOwnerRefSnapshot;
-  /** Canonical graph-global event table. */
-  events?: Readonly<ArrowTraceEventTable>;
-  /** Optional canonical graph-wide time bounds to preserve from an existing graph. */
-  timeExtents?: {
-    /** Earliest canonical timestamp in the graph. */
-    minTimeMs: number;
-    /** Latest canonical timestamp in the graph. */
-    maxTimeMs: number;
-  };
-  /** Optional stat overrides preserved from upstream loaders or active span selections. */
-  stats?: Partial<TraceGraphStats>;
+/** Options for projecting declared primitive attributes into parser-local span chunks. */
+export type BuildTraceChunkDataOptions = {
+  /** Declared primitive span attribute paths carried by the emitted span tables. */
+  readonly declaredSpanAttributePaths?: readonly TraceSpanAttributePath[];
+};
+
+/** Low-cardinality metadata maps derived from canonical process and event metadata. */
+export type TraceGraphMetadataMaps = {
+  /** Threads keyed by source thread id. */
+  readonly threadMap: Record<TraceThreadId, TraceThread>;
+  /** Instant events grouped by owning thread id. */
+  readonly threadInstantMap: Record<TraceThreadId, TraceInstant[]>;
+  /** Counter samples grouped by owning thread id. */
+  readonly threadCounterMap: Record<TraceThreadId, TraceCounter[]>;
+  /** Instant events keyed by event id. */
+  readonly instantMap: Readonly<Record<TraceInstantId, TraceInstant>>;
+  /** Counter samples keyed by counter id. */
+  readonly counterMap: Readonly<Record<TraceCounterId, TraceCounter>>;
+  /** Counter min/max extents keyed by thread id. */
+  readonly counterExtents: Readonly<Record<TraceThreadId, {min: number; max: number}>>;
+  /** Global events keyed by event id. */
+  readonly eventMap: Readonly<Record<TraceEventId, TraceEvent>>;
 };
 
 /**
- * Shared Arrow-backed graph tables used by runtime consumers after ingestion.
+ * Builds low-cardinality runtime metadata maps from canonical process and event metadata.
  *
- * `TraceGraph` owns a graph-local copy of this shape and may share the underlying Arrow columns
- * from an {@link TraceGraphData}, but it must not retain the ingestion object itself.
+ * This helper intentionally does not inspect span or dependency tables. Dataset-backed runtime
+ * projections use it after the dataset boundary has already finalized row-heavy Arrow storage.
  */
-export type TraceGraphData = {
-  /** Human friendly name for this TraceGraphData (e.g. "Step 1"). */
-  name: string;
-  /** Whether spans use generated lanes or authored thread-relative vertical geometry. */
-  spanLayout?: TraceSpanLayoutMode;
-
-  /**
-   * Metadata-only process records in render order.
-   */
-  processes: Readonly<ArrowTraceProcessMetadata[]>;
-  /** List of cross dependencies across processes. */
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>;
-
-  /** Minimum canonical timestamp in the trace. */
-  minTimeMs: number;
-  /** Maximum canonical timestamp in the trace. */
-  maxTimeMs: number;
-
-  /** Map of all threads for all processes. */
-  threadMap: Record<TraceThreadId, TraceThread>;
-
-  /** Map of all instants across the trace, keyed by thread. */
-  threadInstantMap: Record<TraceThreadId, TraceInstant[]>;
-  /** Map of all counters across the trace, keyed by thread. */
-  threadCounterMap: Record<TraceThreadId, TraceCounter[]>;
-
-  /** Map for fast lookups of instants across all processes. */
-  instantMap: Readonly<Record<TraceInstantId, TraceInstant>>;
-  /** Map for fast lookups of counters across all processes. */
-  counterMap: Readonly<Record<TraceCounterId, TraceCounter>>;
-
-  /** Extents for counter totals per thread. */
-  counterExtents: Readonly<Record<TraceThreadId, {min: number; max: number}>>;
-  /** Canonical graph-global Arrow event table. */
-  events: Readonly<ArrowTraceEventTable>;
-  /** Event metadata keyed by event id. */
-  eventMap: Readonly<Record<TraceEventId, TraceEvent>>;
-
-  /** Process-local SpanRef/layout index tables keyed by process id. */
-  processSpanTableMap: Readonly<Record<TraceProcessId, TraceProcessSpanRefTable>>;
-  /** Canonical process-local Arrow dependency tables keyed by process id. */
-  localDependencyTableMap: Readonly<Record<TraceProcessId, ArrowTraceLocalDependencyTable>>;
-  /** Canonical graph-global Arrow cross-process dependency table. */
-  crossDependencyTable: Readonly<ArrowTraceCrossDependencyTable>;
-  /** Optional row-aligned compatibility payloads keyed by process id. */
-  spanSidecarMap?: TraceSpanArrowSidecarMap;
-  /** Optional row-aligned Arrow sidecar tables keyed by process id. */
-  spanSidecarTableMap?: ArrowTraceSpanSidecarTableMap;
-  /** Optional sparse unresolved cross-rank endpoints keyed by exact owning span ref. */
-  crossProcessEndpointsBySpanRef?: TraceCrossProcessEndpointsBySpanRef;
-  /** Optional sparse directional cross-dependency refs keyed by exact span ref. */
-  spanCrossDependencyRefMap?: TraceSpanCrossDependencyRefMap;
-  /** Row-backed storage chunks indexed by encoded chunk index. */
-  chunks: readonly ArrowTraceChunk[];
-  /** Optional active span refs into {@link chunks}; when omitted, every chunk row is active. */
-  spanRefs?: readonly SpanRef[];
-  /** Stable map from cross-dependency ids to deterministic packed dependency indexes. */
-  crossDependencyIdToIndexMap?: Readonly<Record<TraceDependencyId, number>>;
-  /** Optional trace-global owner-ref lookup tables allocated outside this materialized graph. */
-  ownerRefSnapshot?: TraceOwnerRefSnapshot;
-  /** Canonical process ids indexed by packed process index. */
-  processIdsByIndex: ReadonlyArray<TraceProcessId>;
-  /** Map for fast lookups of dependencies across the entire trace. */
-  dependencyMap: Readonly<Record<TraceDependencyId, TraceDependency>>;
-
-  /** Aggregated counts about the trace. */
-  stats: TraceGraphStats;
-};
-
-/**
- * Build a {@link TraceGraphData} from canonical per-process block tables plus graph metadata.
- */
-export function buildTraceGraphData(options: BuildTraceGraphDataOptions): TraceGraphData {
-  const buildStartTime = performance.now();
-  log.probe(0, 'buildTraceGraphData start', {
-    name: options.name,
-    processCount: options.processes.length,
-    spanTableCount: Object.keys(options.spanTableMap).length
-  })();
-  const processes = options.processes.map(toArrowTraceProcessMetadata);
-  const events = options.events ?? EMPTY_ARROW_TRACE_EVENT_TABLE;
-  const sourceSpanTableMap = options.spanTableMap;
-  const timeExtentsStartTime = performance.now();
-  const normalizedTimeExtents = normalizeArrowTraceTimeExtents(options.timeExtents);
-  const computedTimeExtents =
-    normalizedTimeExtents ?? computeArrowTraceTimeExtents(processes, sourceSpanTableMap, events);
-  const timeExtentsDurationMs = performance.now() - timeExtentsStartTime;
-  const localDependencyTableStartTime = performance.now();
-  const localDependencyTableMap =
-    options.localDependencyTableMap ?? buildLocalDependencyTablesByProcessId(processes);
-  const localDependencyTableDurationMs = performance.now() - localDependencyTableStartTime;
-  const crossDependencyTableStartTime = performance.now();
-  const crossDependencyTable =
-    options.crossDependencyTable ?? buildArrowTraceCrossDependencyTable(options.crossDependencies);
-  const crossDependencyTableDurationMs = performance.now() - crossDependencyTableStartTime;
-  const crossDependencyIndexStartTime = performance.now();
-  const crossDependencyIdToIndexMap =
-    options.crossDependencyIdToIndexMap ??
-    buildCrossDependencyIdToIndexMap(options.crossDependencies);
-  const crossDependencyIndexDurationMs = performance.now() - crossDependencyIndexStartTime;
-  const dependencyMapStartTime = performance.now();
-  const dependencyMap =
-    options.dependencyMap ??
-    (getGlobalDependencyMap(processes, options.crossDependencies) as Readonly<
-      Record<TraceDependencyId, TraceDependency>
-    >);
-  const dependencyMapDurationMs = performance.now() - dependencyMapStartTime;
-  const metadataMapStartTime = performance.now();
+export function buildTraceGraphMetadataMaps(
+  processes: Readonly<ArrowTraceProcessMetadata[]>,
+  events: Readonly<ArrowTraceEventTable>
+): TraceGraphMetadataMaps {
   const threadMap = buildThreadMap(processes);
   const threadInstantMap = buildThreadInstantMap(processes);
   const threadCounterMap = buildThreadCounterMap(processes);
@@ -759,206 +627,116 @@ export function buildTraceGraphData(options: BuildTraceGraphDataOptions): TraceG
   const counterMap = buildCounterMap(processes);
   const counterExtents = buildCounterExtents(threadCounterMap);
   const eventMap = buildTraceEventMap(events);
-  const metadataMapDurationMs = performance.now() - metadataMapStartTime;
-  const traceIdEncoder = new TraceIdEncoder(
-    options.ownerRefSnapshot?.processIdsByIndex ??
-      processes.map(process => process.processId as TraceProcessId)
-  );
-  const spanSidecarStartTime = performance.now();
-  const spanSidecarMap = options.spanSidecarMap
-    ? attachDependencyRefsToSpanSidecars({
-        crossDependencies: options.crossDependencies,
-        crossDependencyIdToIndexMap,
-        processes,
-        processIdsByIndex: traceIdEncoder.getProcessIdsByIndex(),
-        spanSidecarMap: options.spanSidecarMap,
-        spanTableMap: sourceSpanTableMap
-      })
-    : undefined;
-  const spanSidecarDurationMs = performance.now() - spanSidecarStartTime;
-  const chunks = buildArrowTraceChunks({
-    chunks: options.chunks,
-    localDependencyTableMap,
-    processes,
-    processIdsByIndex: traceIdEncoder.getProcessIdsByIndex(),
-    spanSidecarMap,
-    spanSidecarTableMap: options.spanSidecarTableMap,
-    spanTableMap: sourceSpanTableMap
-  });
-  const processSpanRefTableStartTime = performance.now();
-  const processSpanTableMap = buildTraceProcessSpanRefTables(chunks, processes, {
-    processIdsByIndex: traceIdEncoder.getProcessIdsByIndex(),
-    spanRefs: options.spanRefs
-  });
-  const processSpanRefTableDurationMs = performance.now() - processSpanRefTableStartTime;
-  const spanCrossDependencyRefMapStartTime = performance.now();
-  const spanCrossDependencyRefMap =
-    options.spanCrossDependencyRefMap ??
-    buildSpanCrossDependencyRefMap({
-      crossDependencies: options.crossDependencies,
-      crossDependencyIdToIndexMap
-    });
-  const spanCrossDependencyRefMapDurationMs =
-    performance.now() - spanCrossDependencyRefMapStartTime;
-  const statsStartTime = performance.now();
-  const stats = buildArrowTraceStats(
-    processes,
-    options.crossDependencies,
-    sourceSpanTableMap,
-    localDependencyTableMap,
-    options.stats
-  );
-  const statsDurationMs = performance.now() - statsStartTime;
-
-  const traceGraphData = {
-    name: options.name,
-    spanLayout: normalizeArrowTraceSpanLayoutMode(options.spanLayout),
-    processes,
-    crossDependencies: options.crossDependencies,
-    minTimeMs: computedTimeExtents.minTimeMs,
-    maxTimeMs: computedTimeExtents.maxTimeMs,
+  return {
     threadMap,
     threadInstantMap,
     threadCounterMap,
     instantMap,
     counterMap,
     counterExtents,
-    events,
-    eventMap,
-    processSpanTableMap,
-    localDependencyTableMap,
-    crossDependencyTable,
-    spanSidecarMap,
-    spanSidecarTableMap: options.spanSidecarTableMap,
-    crossProcessEndpointsBySpanRef: options.crossProcessEndpointsBySpanRef,
-    spanCrossDependencyRefMap,
-    chunks,
-    spanRefs: options.spanRefs,
-    crossDependencyIdToIndexMap,
-    ownerRefSnapshot: options.ownerRefSnapshot,
-    processIdsByIndex: traceIdEncoder.getProcessIdsByIndex(),
-    dependencyMap,
-    stats
-  } satisfies TraceGraphData;
-  log.probe(0, 'buildTraceGraphData detail', {
-    name: traceGraphData.name,
-    processCount: traceGraphData.processes.length,
-    spanCount: traceGraphData.stats.spanCount,
-    crossDependencyCount: traceGraphData.stats.crossDependencyCount,
-    timeExtentsDurationMs,
-    localDependencyTableDurationMs,
-    crossDependencyTableDurationMs,
-    crossDependencyIndexDurationMs,
-    dependencyMapDurationMs,
-    metadataMapDurationMs,
-    spanSidecarDurationMs,
-    processSpanRefTableDurationMs,
-    spanCrossDependencyRefMapDurationMs,
-    statsDurationMs
-  })();
-  log.probe(0, 'buildTraceGraphData done', {
-    name: traceGraphData.name,
-    processCount: traceGraphData.processes.length,
-    spanCount: traceGraphData.stats.spanCount,
-    dependencyCount: traceGraphData.stats.dependencyCount,
-    crossDependencyCount: traceGraphData.stats.crossDependencyCount,
-    durationMs: performance.now() - buildStartTime
-  })();
-  return traceGraphData;
-}
-
-/**
- * Returns the lazy combined span table view for a {@link TraceGraphData}.
- *
- * Combined row numbers are derived from the current process ordering and must be treated as
- * ephemeral. The canonical row identity is always `spanId -> { processId, rowIndex }`.
- */
-export function getCombinedBlockTable(traceGraph: TraceGraphData): ArrowTraceSpanTable {
-  const cachedTable = combinedBlockTableCache.get(traceGraph);
-  if (cachedTable) {
-    return cachedTable;
-  }
-
-  const combinedTable = new arrow.Table(
-    getTraceSpanArrowSchema(),
-    traceGraph.chunks.flatMap(chunk => chunk.spanTable.batches ?? [])
-  ) as ArrowTraceSpanTable;
-  combinedBlockTableCache.set(traceGraph, combinedTable);
-  return combinedTable;
-}
-
-/**
- * Convert a plain {@link JSONTrace} into the Arrow-backed graph representation.
- */
-export function buildTraceGraphDataFromJSONTrace(traceGraph: JSONTrace): TraceGraphData {
-  const materializedTraceGraph = materializeJSONTrace(traceGraph);
-  const traceIdEncoder = new TraceIdEncoder(
-    materializedTraceGraph.processes.map(process => process.processId as TraceProcessId)
-  );
-  const crossDependencyIdToIndexMap = buildCrossDependencyIdToIndexMap(
-    materializedTraceGraph.crossDependencies
-  );
-
-  return buildTraceGraphData({
-    name: materializedTraceGraph.name,
-    spanLayout: materializedTraceGraph.spanLayout,
-    processes: materializedTraceGraph.processes.map(toArrowTraceProcessMetadata),
-    crossDependencies: materializedTraceGraph.crossDependencies,
-    crossDependencyIdToIndexMap,
-    events: materializedTraceGraph.events,
-    spanTableMap: buildTraceSpanTablesByProcessId(materializedTraceGraph.processes),
-    spanSidecarMap: buildTraceSpanSidecarsByProcessId(
-      materializedTraceGraph.processes,
-      traceIdEncoder
-    ),
-    timeExtents: {
-      minTimeMs: materializedTraceGraph.minTimeMs,
-      maxTimeMs: materializedTraceGraph.maxTimeMs
-    },
-    stats: {
-      droppedSpanCount: materializedTraceGraph.stats.droppedSpanCount,
-      droppedDependencyCount: materializedTraceGraph.stats.droppedDependencyCount,
-      droppedCrossDependencyCount: materializedTraceGraph.stats.droppedCrossDependencyCount
-    }
-  });
+    eventMap
+  };
 }
 
 /**
  * Convert a plain or materialized {@link JSONTrace} into parser-local chunk payloads.
  */
 export function buildTraceChunkDataFromJSONTrace(
-  traceGraph: Readonly<JSONTrace> | Readonly<MaterializedJSONTrace>
+  traceGraph: Readonly<JSONTrace> | Readonly<MaterializedJSONTrace>,
+  options: BuildTraceChunkDataOptions = {}
 ): TraceChunkData[] {
   const materializedTraceGraph = materializeJSONTrace(traceGraph);
-  const traceIdEncoder = new TraceIdEncoder(
-    materializedTraceGraph.processes.map(process => process.processId as TraceProcessId)
-  );
-  const processes = materializedTraceGraph.processes.map(toArrowTraceProcessMetadata);
-  const spanTableMap = buildTraceSpanTablesByProcessId(materializedTraceGraph.processes);
-  const localDependencyTableMap = buildLocalDependencyTablesByProcessId(processes);
-  const spanSidecarMap = buildTraceSpanSidecarsByProcessId(
-    materializedTraceGraph.processes,
-    traceIdEncoder
-  );
+  return buildTraceChunkDataFromTraceProcesses(materializedTraceGraph.processes, options);
+}
 
-  return materializedTraceGraph.processes.map(process => {
+/**
+ * Convert normalized compatibility processes into parser-local chunk payloads.
+ *
+ * This is the narrow static-ingestion boundary for callers that already own materialized
+ * processes. It preserves process-local Arrow table identity inside each returned chunk and does
+ * not first construct a legacy graph snapshot merely to reverse it back into chunk input.
+ */
+export function buildTraceChunkDataFromTraceProcesses(
+  traceProcesses: ReadonlyArray<TraceProcess>,
+  options: BuildTraceChunkDataOptions = {}
+): TraceChunkData[] {
+  const processes = traceProcesses.map(toArrowTraceProcessMetadata);
+  const traceIdEncoder = new TraceIdEncoder(
+    traceProcesses.map(process => process.processId as TraceProcessId)
+  );
+  const spanTableMap = buildTraceSpanTablesByProcessId(traceProcesses, options);
+  const sourceSameProcessDependencyTableMap =
+    buildSameProcessDependencyTablesByProcessId(processes);
+  const spanSidecarTableMap = buildTraceSpanSidecarTablesByProcessId(traceProcesses);
+  const sourceChunks = buildArrowTraceChunks({
+    processes,
+    processIdsByIndex: traceIdEncoder.getProcessIdsByIndex(),
+    spanTableMap,
+    sameProcessDependencyTableMap: sourceSameProcessDependencyTableMap,
+    spanSidecarTableMap
+  });
+  const dependencyEndpointSpanRefLookup = buildArrowTraceDependencyEndpointSpanRefLookup({
+    chunks: sourceChunks,
+    processIdsByIndex: traceIdEncoder.getProcessIdsByIndex(),
+    processes
+  });
+  const sameProcessDependencyTableMap = canonicalizeArrowTraceSameProcessDependencyTableMap({
+    dependencyEndpointSpanRefLookup,
+    processIdsByIndex: traceIdEncoder.getProcessIdsByIndex(),
+    sameProcessDependencyTableMap: sourceSameProcessDependencyTableMap
+  });
+
+  return traceProcesses.map((process, processIndex) => {
     const processId = process.processId as TraceProcessId;
+    const processMetadata = processes[processIndex];
     const spanTable = spanTableMap[processId];
-    const localDependencyTable = localDependencyTableMap[processId];
-    if (!spanTable || !localDependencyTable) {
-      throw new Error(`Missing JSON trace chunk tables for process ${processId}`);
+    const resolvedSameProcessDependencyTable = sameProcessDependencyTableMap[processId];
+    if (!processMetadata || !spanTable || !resolvedSameProcessDependencyTable) {
+      throw new Error(`Missing trace chunk tables for process ${processId}`);
     }
     return {
       type: 'trace-chunk-data',
       chunkKey: processId,
-      processes,
+      processes: [stripArrowTraceProcessDependencyMetadata(processMetadata)],
+      processId,
       spanTable,
-      localDependencyTable,
-      spanSidecarRows: spanSidecarMap[processId],
+      resolvedSameProcessDependencyTable,
+      spanSidecarTable: spanSidecarTableMap[processId],
+      crossProcessEndpointsByEndpointId: buildTraceChunkCrossProcessEndpointsByEndpointId(
+        process,
+        traceIdEncoder
+      ),
       diagnostics: buildTraceChunkDataDiagnostics(spanTable),
       refState: 'parser-local'
     } satisfies TraceChunkData;
   });
+}
+
+/**
+ * Build parser-local unresolved endpoint groups for one process-scoped chunk.
+ *
+ * Endpoint objects are sparse compatibility sidecars, so assigning the owning parser-local
+ * `SpanRef` here keeps later store finalization and dataset assembly ref-native without opening
+ * span rows again.
+ */
+function buildTraceChunkCrossProcessEndpointsByEndpointId(
+  process: Pick<TraceProcess, 'processId' | 'spans'>,
+  traceIdEncoder: TraceIdEncoder
+): Readonly<Record<TraceCrossProcessEndpointId, readonly TraceCrossProcessEndpoint[]>> | undefined {
+  const endpointGroups = {} as Record<TraceCrossProcessEndpointId, TraceCrossProcessEndpoint[]>;
+  const processId = process.processId as TraceProcessId;
+  for (const [rowIndex, span] of process.spans.entries()) {
+    if (span.crossProcessDependencyEndpoints.length === 0) {
+      continue;
+    }
+    const spanRef = traceIdEncoder.getSpanRef(processId, rowIndex);
+    for (const endpoint of span.crossProcessDependencyEndpoints) {
+      const endpoints = endpointGroups[endpoint.endpointId] ?? [];
+      endpoints.push(endpoint.spanRef === spanRef ? endpoint : {...endpoint, spanRef});
+      endpointGroups[endpoint.endpointId] = endpoints;
+    }
+  }
+  return Object.keys(endpointGroups).length === 0 ? undefined : endpointGroups;
 }
 
 /**
@@ -967,45 +745,80 @@ export function buildTraceChunkDataFromJSONTrace(
 function buildTraceChunkDataDiagnostics(
   spanTable: ArrowTraceSpanTable
 ): TraceChunkData['diagnostics'] {
-  const timeExtents = computeArrowTraceSpanTableTimeExtents(spanTable);
+  const summary = computeArrowTraceSpanTableDiagnostics(spanTable);
   return {
     rowCount: spanTable.numRows,
+    notStartedSpanCount: summary.notStartedSpanCount,
+    unfinishedSpanCount: summary.unfinishedSpanCount,
     invalidRecordCount: 0,
-    minTimeMs: timeExtents?.minTimeMs ?? null,
-    maxTimeMs: timeExtents?.maxTimeMs ?? null,
+    minTimeMs: summary.minTimeMs,
+    maxTimeMs: summary.maxTimeMs,
     warningCounters: {}
   };
 }
 
 /**
- * Compute finite timing bounds for one chunk-local span table.
+ * Compute exact status counts and finite timing bounds for one chunk-local span table.
+ *
+ * The max bound mirrors graph-wide extent semantics: unfinished rows without a later finite end
+ * contribute at least one millisecond past their start, while not-started rows stay excluded from
+ * timing bounds. Aggregating these chunk summaries with event/process timestamps therefore yields
+ * the same extrema as rereading every span row at dataset assembly time.
  */
-function computeArrowTraceSpanTableTimeExtents(
-  spanTable: ArrowTraceSpanTable
-): {minTimeMs: number; maxTimeMs: number} | null {
+function computeArrowTraceSpanTableDiagnostics(spanTable: ArrowTraceSpanTable): {
+  /** Number of canonical not-started rows. */
+  readonly notStartedSpanCount: number;
+  /** Number of canonical unfinished rows. */
+  readonly unfinishedSpanCount: number;
+  /** Earliest finite canonical timing bound, when one exists. */
+  readonly minTimeMs: number | null;
+  /** Latest finite canonical timing bound, when one exists. */
+  readonly maxTimeMs: number | null;
+} {
   const startTimeColumn = getColumn<number>(spanTable, 'start_time_ms');
   const endTimeColumn = getColumn<number>(spanTable, 'end_time_ms');
-  const statusColumn = getColumn<string>(spanTable, 'status');
+  const statusCodeColumn = getColumn<number>(spanTable, 'status_code');
   let minTimeMs = Number.POSITIVE_INFINITY;
-  let maxTimeMs = Number.NEGATIVE_INFINITY;
+  let finiteMaxTimeMs = Number.NEGATIVE_INFINITY;
+  let unfinishedMaxTimeMs = Number.NEGATIVE_INFINITY;
+  let notStartedSpanCount = 0;
+  let unfinishedSpanCount = 0;
 
   for (let rowIndex = 0; rowIndex < spanTable.numRows; rowIndex += 1) {
     const startTimeMs = startTimeColumn?.get(rowIndex) ?? null;
     const endTimeMs = endTimeColumn?.get(rowIndex) ?? null;
-    const status = statusColumn?.get(rowIndex) ?? null;
+    const status = decodeTraceSpanTimingStatusCode(statusCodeColumn?.get(rowIndex));
+    if (status === 'not-started') {
+      notStartedSpanCount += 1;
+    } else if (status === 'not-finished') {
+      unfinishedSpanCount += 1;
+    }
     if (!isTraceSpanTimingEligibleForTimeExtents({status, startTimeMs})) {
       continue;
     }
     const finiteStartTimeMs = startTimeMs as number;
     minTimeMs = Math.min(minTimeMs, finiteStartTimeMs);
-    maxTimeMs = Math.max(maxTimeMs, finiteStartTimeMs);
+    finiteMaxTimeMs = Math.max(finiteMaxTimeMs, finiteStartTimeMs);
     if (isTraceSpanTimingTimestampEligibleForTimeExtents(endTimeMs)) {
       minTimeMs = Math.min(minTimeMs, endTimeMs);
-      maxTimeMs = Math.max(maxTimeMs, endTimeMs);
+      finiteMaxTimeMs = Math.max(finiteMaxTimeMs, endTimeMs);
+    }
+    if (
+      status === 'not-finished' &&
+      (!isTraceSpanTimingTimestampEligibleForTimeExtents(endTimeMs) ||
+        endTimeMs <= finiteStartTimeMs)
+    ) {
+      unfinishedMaxTimeMs = Math.max(unfinishedMaxTimeMs, finiteStartTimeMs + 1);
     }
   }
 
-  return Number.isFinite(minTimeMs) && Number.isFinite(maxTimeMs) ? {minTimeMs, maxTimeMs} : null;
+  const maxTimeMs = Math.max(finiteMaxTimeMs, unfinishedMaxTimeMs);
+  return {
+    notStartedSpanCount,
+    unfinishedSpanCount,
+    minTimeMs: Number.isFinite(minTimeMs) ? minTimeMs : null,
+    maxTimeMs: Number.isFinite(maxTimeMs) ? maxTimeMs : null
+  };
 }
 
 /**
@@ -1030,7 +843,7 @@ export function toArrowTraceProcessMetadata(
     counters: process.counters,
     counterMap: process.counterMap,
     threadCounterMap: process.threadCounterMap,
-    localDependencies: process.localDependencies,
+    sameProcessDependencies: process.sameProcessDependencies,
     remoteDependencies: process.remoteDependencies,
     userData: process.userData
   };
@@ -1041,8 +854,8 @@ export function toArrowTraceProcessMetadata(
  *
  * Rows are emitted in ascending `SpanRef` order by scanning chunks by `chunkIndex` and then their
  * chunk-local row order. The sorted `span_ref` column is the lookup invariant used by
- * `getTraceGraphProcessSpanOrdinal(...)`; all other process-local columns, including
- * `filter_mask`, must stay row-aligned with it.
+ * `getTraceGraphProcessSpanRowIndex(...)`; optional process-local layout columns stay row-aligned
+ * with it.
  */
 export function buildTraceProcessSpanRefTables(
   chunks: readonly ArrowTraceChunk[],
@@ -1051,13 +864,22 @@ export function buildTraceProcessSpanRefTables(
 ): Readonly<Record<TraceProcessId, TraceProcessSpanRefTable>> {
   const processIdsByIndex =
     options?.processIdsByIndex ?? processes.map(process => process.processId as TraceProcessId);
+  const sortedChunks = [...chunks].sort(compareArrowTraceChunksByIndex);
+  const directProcessSpanTableMap =
+    options?.spanRefs == null ? buildDirectTraceProcessSpanRefTables(sortedChunks) : {};
   const rowsByProcessId = new Map<TraceProcessId, TraceProcessSpanRefTableColumns>();
   for (const process of processes) {
-    rowsByProcessId.set(process.processId as TraceProcessId, createTraceProcessSpanRefColumns());
+    const processId = process.processId as TraceProcessId;
+    if (!directProcessSpanTableMap[processId]) {
+      rowsByProcessId.set(processId, createTraceProcessSpanRefColumns());
+    }
   }
 
   const activeSpanRefs = options?.spanRefs ? new Set(options.spanRefs) : null;
-  for (const chunk of [...chunks].sort(compareArrowTraceChunksByIndex)) {
+  for (const chunk of sortedChunks) {
+    if (chunk.processId != null && directProcessSpanTableMap[chunk.processId]) {
+      continue;
+    }
     const spanColumns = readTraceProcessSpanRefSourceColumns(chunk.spanTable);
     const spanRowCount = getArrowTraceChunkSpanRowCount(chunk);
     for (let chunkRowOrdinal = 0; chunkRowOrdinal < spanRowCount; chunkRowOrdinal += 1) {
@@ -1082,69 +904,307 @@ export function buildTraceProcessSpanRefTables(
   }
 
   return Object.fromEntries(
-    [...rowsByProcessId].map(([processId, columns]) => [
-      processId,
-      buildTraceProcessSpanRefTableFromColumns(columns)
-    ])
+    processes.map(({processId}) => {
+      const typedProcessId = processId as TraceProcessId;
+      return [
+        typedProcessId,
+        directProcessSpanTableMap[typedProcessId] ??
+          buildTraceProcessSpanRefTableFromColumns(
+            rowsByProcessId.get(typedProcessId) ?? createTraceProcessSpanRefColumns()
+          )
+      ];
+    })
   ) as Readonly<Record<TraceProcessId, TraceProcessSpanRefTable>>;
 }
 
+/** Temporary span-id resolver used while canonicalizing Arrow dependency endpoint refs. */
+type ArrowTraceDependencyEndpointSpanRefLookup = {
+  /** Resolves one same-process endpoint span id within its owning process. */
+  readonly getForProcessId: (
+    processId: TraceProcessId,
+    spanId: TraceSpanId | string
+  ) => SpanRef | null;
+  /** Resolves one cross-process endpoint span id within its owning rank number. */
+  readonly getForRankNum: (rankNum: number, spanId: TraceSpanId | string) => SpanRef | null;
+};
+
 /**
- * Returns a process span-ref table with graph filter masks aligned to process-local rows.
+ * Canonicalize cross-process dependency endpoint refs against finalized chunk rows.
  *
- * The input table's sorted `span_ref` column is preserved exactly; the returned table only replaces
- * the row-aligned `filter_mask` column. `filterMask` must have one entry per process-local row and
- * must already be aligned with `table.span_ref`; callers are responsible for deriving it from that
- * same process table row order.
- *
- * @throws When the filter-mask buffer is not row-aligned with the source table.
+ * Dataset assembly uses this after the store has assigned canonical chunk refs. The helper keeps
+ * unchanged Arrow vectors by identity and is intentionally not re-exported from the public trace
+ * barrel: it is an assembly seam, not a second graph materialization API.
  */
-export function buildTraceProcessSpanRefTableWithFilterMaskColumn(
-  table: TraceProcessSpanRefTable,
-  filterMask: Uint8Array
-): TraceProcessSpanRefTable {
-  if (filterMask.length !== table.numRows) {
-    throw new Error(
-      `TraceProcessSpanRefTable filter_mask length ${filterMask.length} does not match row count ${table.numRows}`
-    );
+export function canonicalizeArrowTraceCrossProcessDependencyTableFromChunks(params: {
+  /** Source graph-global cross-process dependency table. */
+  readonly crossProcessDependencyTable: Readonly<ArrowTraceCrossProcessDependencyTable>;
+  /** Canonical finalized chunks whose span rows resolve dependency ids. */
+  readonly chunks: readonly ArrowTraceChunk[];
+  /** Canonical process ids indexed by packed process index. */
+  readonly processIdsByIndex: readonly TraceProcessId[];
+  /** Process metadata used to resolve source cross-process rank numbers. */
+  readonly processes: Readonly<ArrowTraceProcessMetadata[]>;
+}): ArrowTraceCrossProcessDependencyTable {
+  if (params.crossProcessDependencyTable.numRows === 0) {
+    return params.crossProcessDependencyTable as ArrowTraceCrossProcessDependencyTable;
   }
-  if (table.numRows === 0) {
-    return table;
-  }
-
-  const spanRefColumn = table.getChild('span_ref');
-  if (!spanRefColumn) {
-    throw new Error('TraceProcessSpanRefTable is missing the required span_ref column');
-  }
-
-  return buildTraceProcessSpanRefTableFromVectors({
-    span_ref: spanRefColumn,
-    layout_top_y:
-      table.getChild('layout_top_y') ?? buildArrowNullableFloat64Vector(undefined, table.numRows),
-    layout_height:
-      table.getChild('layout_height') ?? buildArrowNullableFloat64Vector(undefined, table.numRows),
-    filter_mask: buildArrowUint8Vector(filterMask, table.numRows),
-    rowCount: table.numRows
+  const dependencyEndpointSpanRefLookup = buildArrowTraceDependencyEndpointSpanRefLookup({
+    chunks: params.chunks,
+    processIdsByIndex: params.processIdsByIndex,
+    processes: params.processes
   });
+  return canonicalizeArrowTraceCrossProcessDependencyTable({
+    crossProcessDependencyTable: params.crossProcessDependencyTable,
+    dependencyEndpointSpanRefLookup
+  }) as ArrowTraceCrossProcessDependencyTable;
 }
 
-const NOT_STARTED_BLOCK_DURATION_MS = 1_000;
+/**
+ * Resolves dependency endpoint span ids against chunk-backed Arrow span rows during graph build.
+ */
+function buildArrowTraceDependencyEndpointSpanRefLookup(params: {
+  /** Chunk-backed Arrow span rows whose encoded refs become canonical graph endpoint refs. */
+  readonly chunks: readonly ArrowTraceChunk[];
+  /** Canonical process ids indexed by packed process index. */
+  readonly processIdsByIndex: readonly TraceProcessId[];
+  /** Process metadata used to resolve cross-process rank numbers. */
+  readonly processes: readonly Pick<ArrowTraceProcessMetadata, 'processId' | 'rankNum'>[];
+}): ArrowTraceDependencyEndpointSpanRefLookup {
+  const spanRefByProcessIdAndSpanId = new Map<TraceProcessId, Map<TraceSpanId, SpanRef>>();
+  const processIdByRankNum = new Map(
+    params.processes.map(process => [process.rankNum, process.processId as TraceProcessId])
+  );
+  for (const chunk of params.chunks) {
+    const spanIdColumn = chunk.spanTable.getChild('span_id');
+    const processRefColumn = getTraceProcessSpanRefSourceColumn(chunk.spanTable, 'process_ref');
+    const spanRowCount = getArrowTraceChunkSpanRowCount(chunk);
+    for (let chunkRowOrdinal = 0; chunkRowOrdinal < spanRowCount; chunkRowOrdinal += 1) {
+      const spanTableRowIndex = getArrowTraceChunkSpanTableRowIndexAt(chunk, chunkRowOrdinal);
+      const spanRefRowIndex = getArrowTraceChunkSpanRefRowIndex(chunk, chunkRowOrdinal);
+      if (spanTableRowIndex == null || spanRefRowIndex == null) {
+        continue;
+      }
+      const processId = getTraceProcessSpanRefRowProcessId(
+        chunk,
+        spanTableRowIndex,
+        params.processIdsByIndex,
+        processRefColumn
+      );
+      const spanId = spanIdColumn?.get(spanTableRowIndex);
+      if (!processId || typeof spanId !== 'string') {
+        continue;
+      }
+      const spanRefsBySpanId =
+        spanRefByProcessIdAndSpanId.get(processId) ?? new Map<TraceSpanId, SpanRef>();
+      if (!spanRefsBySpanId.has(spanId as TraceSpanId)) {
+        spanRefsBySpanId.set(
+          spanId as TraceSpanId,
+          encodeSpanRef(chunk.chunkIndex, spanRefRowIndex)
+        );
+      }
+      spanRefByProcessIdAndSpanId.set(processId, spanRefsBySpanId);
+    }
+  }
+
+  return {
+    getForProcessId: (processId, spanId) =>
+      spanRefByProcessIdAndSpanId.get(processId)?.get(spanId as TraceSpanId) ?? null,
+    getForRankNum: (rankNum, spanId) => {
+      const processId = processIdByRankNum.get(rankNum);
+      return processId
+        ? (spanRefByProcessIdAndSpanId.get(processId)?.get(spanId as TraceSpanId) ?? null)
+        : null;
+    }
+  };
+}
+
+/**
+ * Canonicalizes same-process Arrow dependency refs and endpoint span refs for every process.
+ */
+function canonicalizeArrowTraceSameProcessDependencyTableMap(params: {
+  /** Temporary span-id resolver used only while building canonical dependency tables. */
+  readonly dependencyEndpointSpanRefLookup: ArrowTraceDependencyEndpointSpanRefLookup;
+  /** Canonical process ids indexed by packed process index. */
+  readonly processIdsByIndex: readonly TraceProcessId[];
+  /** Source same-process Arrow dependency tables keyed by process id. */
+  readonly sameProcessDependencyTableMap: Readonly<
+    Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>
+  >;
+}): Readonly<Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>> {
+  return Object.fromEntries(
+    Object.entries(params.sameProcessDependencyTableMap).map(([processId, dependencyTable]) => {
+      const processIndex = params.processIdsByIndex.indexOf(processId as TraceProcessId);
+      return [
+        processId,
+        processIndex < 0
+          ? dependencyTable
+          : canonicalizeArrowTraceSameProcessDependencyTable({
+              dependencyEndpointSpanRefLookup: params.dependencyEndpointSpanRefLookup,
+              dependencyTable,
+              processId: processId as TraceProcessId
+            })
+      ];
+    })
+  ) as Readonly<Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>>;
+}
+
+/**
+ * Canonicalizes one same-process Arrow dependency table without retaining JS dependency objects.
+ */
+function canonicalizeArrowTraceSameProcessDependencyTable(params: {
+  /** Temporary span-id resolver used only while building canonical dependency tables. */
+  readonly dependencyEndpointSpanRefLookup: ArrowTraceDependencyEndpointSpanRefLookup;
+  /** Source same-process Arrow dependency table for one process. */
+  readonly dependencyTable: ArrowTraceSameProcessDependencyTable;
+  /** Stable process id owning the dependency rows. */
+  readonly processId: TraceProcessId;
+}): ArrowTraceSameProcessDependencyTable {
+  const startSpanRefColumn = params.dependencyTable.getChild('startSpanRef');
+  const startSpanIdColumn = params.dependencyTable.getChild('startSpanId');
+  const endSpanRefColumn = params.dependencyTable.getChild('endSpanRef');
+  const endSpanIdColumn = params.dependencyTable.getChild('endSpanId');
+  const startSpanRef: Array<number | null> = new Array(params.dependencyTable.numRows);
+  const endSpanRef: Array<number | null> = new Array(params.dependencyTable.numRows);
+  let changed = false;
+  for (let rowIndex = 0; rowIndex < params.dependencyTable.numRows; rowIndex += 1) {
+    const sourceStartSpanRef = normalizeArrowSpanRef(startSpanRefColumn?.get(rowIndex));
+    startSpanRef[rowIndex] = resolveArrowTraceDependencyEndpointSpanRef({
+      sourceSpanRef: sourceStartSpanRef,
+      spanId: readArrowTraceString(startSpanIdColumn?.get(rowIndex)),
+      spanRefResolver: spanId =>
+        params.dependencyEndpointSpanRefLookup.getForProcessId(params.processId, spanId)
+    });
+    changed ||= sourceStartSpanRef !== startSpanRef[rowIndex];
+    const sourceEndSpanRef = normalizeArrowSpanRef(endSpanRefColumn?.get(rowIndex));
+    endSpanRef[rowIndex] = resolveArrowTraceDependencyEndpointSpanRef({
+      sourceSpanRef: sourceEndSpanRef,
+      spanId: readArrowTraceString(endSpanIdColumn?.get(rowIndex)),
+      spanRefResolver: spanId =>
+        params.dependencyEndpointSpanRefLookup.getForProcessId(params.processId, spanId)
+    });
+    changed ||= sourceEndSpanRef !== endSpanRef[rowIndex];
+  }
+  return changed
+    ? rebuildArrowTraceTableWithColumns(params.dependencyTable, {
+        startSpanRef: buildArrowNullableFloat64Vector(startSpanRef, params.dependencyTable.numRows),
+        endSpanRef: buildArrowNullableFloat64Vector(endSpanRef, params.dependencyTable.numRows)
+      })
+    : params.dependencyTable;
+}
+
+/**
+ * Canonicalizes graph-global cross-process Arrow dependency endpoint span refs.
+ */
+function canonicalizeArrowTraceCrossProcessDependencyTable(params: {
+  /** Source graph-global cross-process Arrow dependency table. */
+  readonly crossProcessDependencyTable: Readonly<ArrowTraceCrossProcessDependencyTable>;
+  /** Temporary span-id resolver used only while building canonical dependency tables. */
+  readonly dependencyEndpointSpanRefLookup: ArrowTraceDependencyEndpointSpanRefLookup;
+}): Readonly<ArrowTraceCrossProcessDependencyTable> {
+  const startRankNumColumn = params.crossProcessDependencyTable.getChild('startRankNum');
+  const startSpanRefColumn = params.crossProcessDependencyTable.getChild('startSpanRef');
+  const startSpanIdColumn = params.crossProcessDependencyTable.getChild('startSpanId');
+  const endRankNumColumn = params.crossProcessDependencyTable.getChild('endRankNum');
+  const endSpanRefColumn = params.crossProcessDependencyTable.getChild('endSpanRef');
+  const endSpanIdColumn = params.crossProcessDependencyTable.getChild('endSpanId');
+  const startSpanRef: Array<number | null> = new Array(params.crossProcessDependencyTable.numRows);
+  const endSpanRef: Array<number | null> = new Array(params.crossProcessDependencyTable.numRows);
+  let changed = false;
+  for (let rowIndex = 0; rowIndex < params.crossProcessDependencyTable.numRows; rowIndex += 1) {
+    const sourceStartSpanRef = normalizeArrowSpanRef(startSpanRefColumn?.get(rowIndex));
+    startSpanRef[rowIndex] = resolveArrowTraceDependencyEndpointSpanRef({
+      sourceSpanRef: sourceStartSpanRef,
+      spanId: readArrowTraceString(startSpanIdColumn?.get(rowIndex)),
+      spanRefResolver: spanId =>
+        params.dependencyEndpointSpanRefLookup.getForRankNum(
+          normalizeArrowNumber(startRankNumColumn?.get(rowIndex)) ?? -1,
+          spanId
+        )
+    });
+    changed ||= sourceStartSpanRef !== startSpanRef[rowIndex];
+    const sourceEndSpanRef = normalizeArrowSpanRef(endSpanRefColumn?.get(rowIndex));
+    endSpanRef[rowIndex] = resolveArrowTraceDependencyEndpointSpanRef({
+      sourceSpanRef: sourceEndSpanRef,
+      spanId: readArrowTraceString(endSpanIdColumn?.get(rowIndex)),
+      spanRefResolver: spanId =>
+        params.dependencyEndpointSpanRefLookup.getForRankNum(
+          normalizeArrowNumber(endRankNumColumn?.get(rowIndex)) ?? -1,
+          spanId
+        )
+    });
+    changed ||= sourceEndSpanRef !== endSpanRef[rowIndex];
+  }
+  return changed
+    ? rebuildArrowTraceTableWithColumns(params.crossProcessDependencyTable, {
+        startSpanRef: buildArrowNullableFloat64Vector(
+          startSpanRef,
+          params.crossProcessDependencyTable.numRows
+        ),
+        endSpanRef: buildArrowNullableFloat64Vector(
+          endSpanRef,
+          params.crossProcessDependencyTable.numRows
+        )
+      })
+    : params.crossProcessDependencyTable;
+}
+
+/** Resolves one dependency endpoint span ref from a canonical span id when available. */
+function resolveArrowTraceDependencyEndpointSpanRef(params: {
+  /** Existing Arrow endpoint span ref retained when no canonical span id resolves. */
+  readonly sourceSpanRef: SpanRef | null;
+  /** Optional stable span id used to find the current graph endpoint ref. */
+  readonly spanId: string | null;
+  /** Process- or rank-scoped endpoint resolver for the dependency row. */
+  readonly spanRefResolver: (spanId: TraceSpanId | string) => SpanRef | null;
+}): SpanRef | null {
+  return params.spanId == null
+    ? params.sourceSpanRef
+    : (params.spanRefResolver(params.spanId) ?? params.sourceSpanRef);
+}
+
+/** Rebuilds one Arrow table while retaining unchanged column vectors by identity. */
+function rebuildArrowTraceTableWithColumns<TableT extends arrow.Table>(
+  table: Readonly<TableT>,
+  replacementColumns: Readonly<Record<string, arrow.Vector>>
+): TableT {
+  return new arrow.Table({
+    ...copyArrowTraceTableColumns(table),
+    ...replacementColumns
+  }) as TableT;
+}
+
+/** Copies one Arrow table's existing column vectors without materializing row objects. */
+function copyArrowTraceTableColumns(table: Readonly<arrow.Table>): Record<string, arrow.Vector> {
+  const readableTable = table as unknown as {
+    readonly schema: arrow.Schema;
+    getChild: (columnName: string) => arrow.Vector | null | undefined;
+  };
+  return Object.fromEntries(
+    readableTable.schema.fields.flatMap(field => {
+      const column = readableTable.getChild(field.name);
+      return column ? [[field.name, column]] : [];
+    })
+  ) as Record<string, arrow.Vector>;
+}
+
+/** Reads one Arrow Utf8 cell as a nullable JavaScript string. */
+function readArrowTraceString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
 const PARENT_DEPENDENCY_KEYWORD = 'PARENT';
-const combinedBlockTableCache = new WeakMap<TraceGraphData, ArrowTraceSpanTable>();
-const traceProcessSpanRefTableGenerationFloat64Scratch = new Float64Array(1);
-const traceProcessSpanRefTableGenerationUint32Scratch = new Uint32Array(
-  traceProcessSpanRefTableGenerationFloat64Scratch.buffer
-);
 
 type TraceProcessSpanRefTableColumns = {
   /** Stable encoded span refs in process-local scan order. */
   span_ref: SpanRef[];
   /** Optional layout top values aligned with span refs. */
   layout_top_y: Array<number | null>;
+  /** Whether any row carries an explicit layout top value. */
+  has_layout_top_y: boolean;
   /** Optional layout heights aligned with span refs. */
   layout_height: Array<number | null>;
-  /** Filter masks aligned with span refs. */
-  filter_mask: number[];
+  /** Whether any row carries an explicit layout height value. */
+  has_layout_height: boolean;
 };
 
 /** Minimal Arrow vector surface used while building process-local span-ref tables. */
@@ -1164,7 +1224,7 @@ type TraceProcessSpanRefSourceColumns = {
 };
 
 /**
- * Builds or normalizes process-scoped chunks for a TraceGraphData.
+ * Builds or normalizes process-scoped canonical chunks.
  */
 function buildArrowTraceChunks(params: {
   /** Optional caller-provided chunks to normalize against canonical table maps. */
@@ -1176,9 +1236,9 @@ function buildArrowTraceChunks(params: {
   /** Canonical span tables keyed by process id. */
   spanTableMap: Readonly<Record<TraceProcessId, ArrowTraceSpanTable>>;
   /** Canonical dependency tables keyed by process id. */
-  localDependencyTableMap: Readonly<Record<TraceProcessId, ArrowTraceLocalDependencyTable>>;
-  /** Optional sidecar rows keyed by process id. */
-  spanSidecarMap?: TraceSpanArrowSidecarMap;
+  sameProcessDependencyTableMap: Readonly<
+    Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>
+  >;
   /** Optional sidecar tables keyed by process id. */
   spanSidecarTableMap?: ArrowTraceSpanSidecarTableMap;
 }): readonly ArrowTraceChunk[] {
@@ -1210,21 +1270,15 @@ function buildArrowTraceChunks(params: {
       return chunk as ArrowTraceChunk;
     }
     const spanTable = params.spanTableMap[processId];
-    const localDependencyTable = params.localDependencyTableMap[processId];
-    if (!spanTable || !localDependencyTable) {
-      throw new Error(`Missing TraceGraphData tables for chunk ${processId}`);
+    const resolvedSameProcessDependencyTable = params.sameProcessDependencyTableMap[processId];
+    if (!spanTable || !resolvedSameProcessDependencyTable) {
+      throw new Error(`Missing canonical span or dependency tables for chunk ${processId}`);
     }
-    const spanSidecarRows = params.spanSidecarMap?.[processId];
     const spanSidecarTable = params.spanSidecarTableMap?.[processId];
-    const chunkSidecarRows = 'spanSidecarRows' in chunk ? chunk.spanSidecarRows : undefined;
-    const hasCompatibleSidecarRows =
-      chunkSidecarRows === spanSidecarRows ||
-      (chunkSidecarRows !== undefined && chunkSidecarRows.length === spanTable.numRows);
     if (
       'spanTable' in chunk &&
       chunk.spanTable === spanTable &&
-      chunk.localDependencyTable === localDependencyTable &&
-      hasCompatibleSidecarRows &&
+      chunk.resolvedSameProcessDependencyTable === resolvedSameProcessDependencyTable &&
       chunk.spanSidecarTable === spanSidecarTable
     ) {
       return chunk;
@@ -1238,8 +1292,7 @@ function buildArrowTraceChunks(params: {
               (processRef): processRef is ProcessRef => processRef != null
             ),
       spanTable,
-      localDependencyTable,
-      spanSidecarRows,
+      resolvedSameProcessDependencyTable,
       spanSidecarTable
     } satisfies ArrowTraceChunk;
   });
@@ -1258,9 +1311,55 @@ function createTraceProcessSpanRefColumns(): TraceProcessSpanRefTableColumns {
   return {
     span_ref: [],
     layout_top_y: [],
+    has_layout_top_y: false,
     layout_height: [],
-    filter_mask: []
+    has_layout_height: false
   };
+}
+
+/**
+ * Builds direct process-local span-ref tables for one-process chunks that need no row routing.
+ */
+function buildDirectTraceProcessSpanRefTables(
+  chunks: readonly ArrowTraceChunk[]
+): Readonly<Record<TraceProcessId, TraceProcessSpanRefTable>> {
+  if (chunks.some(chunk => chunk.processId == null || chunk.processRefs.length !== 1)) {
+    return {};
+  }
+
+  const directChunkByProcessId = new Map<TraceProcessId, ArrowTraceChunk | null>();
+  for (const chunk of chunks) {
+    const processId = chunk.processId!;
+    directChunkByProcessId.set(processId, directChunkByProcessId.has(processId) ? null : chunk);
+  }
+
+  return Object.fromEntries(
+    [...directChunkByProcessId].flatMap(([processId, chunk]) =>
+      chunk ? [[processId, buildDirectTraceProcessSpanRefTable(chunk)] as const] : []
+    )
+  ) as Readonly<Record<TraceProcessId, TraceProcessSpanRefTable>>;
+}
+
+/**
+ * Builds one process-local span-ref table from a one-process chunk without row materialization.
+ */
+function buildDirectTraceProcessSpanRefTable(chunk: ArrowTraceChunk): TraceProcessSpanRefTable {
+  const rowCount = chunk.spanTable.numRows;
+  const spanRefs = new Float64Array(rowCount);
+  for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+    const spanRef = encodeSpanRef(chunk.chunkIndex, rowIndex);
+    spanRefs[rowIndex] = spanRef;
+  }
+  const spanRefColumn = buildArrowFloat64Vector(spanRefs);
+  const layoutTopYColumn = chunk.spanTable.getChild('layout_top_y');
+  const layoutHeightColumn = chunk.spanTable.getChild('layout_height');
+
+  return buildTraceProcessSpanRefTableFromVectors({
+    span_ref: spanRefColumn,
+    layout_top_y: layoutTopYColumn,
+    layout_height: layoutHeightColumn,
+    rowCount
+  });
 }
 
 /** Appends one chunk-backed global SpanRef to the matching process-local index columns. */
@@ -1288,13 +1387,12 @@ function appendTraceProcessSpanRefTableRow(params: {
   }
 
   columns.span_ref.push(params.spanRef);
-  columns.layout_top_y.push(
-    normalizeArrowNumber(params.spanColumns.layoutTopY?.get(params.rowIndex))
-  );
-  columns.layout_height.push(
-    normalizeArrowNumber(params.spanColumns.layoutHeight?.get(params.rowIndex))
-  );
-  columns.filter_mask.push(0);
+  const layoutTopY = normalizeArrowNumber(params.spanColumns.layoutTopY?.get(params.rowIndex));
+  const layoutHeight = normalizeArrowNumber(params.spanColumns.layoutHeight?.get(params.rowIndex));
+  columns.layout_top_y.push(layoutTopY);
+  columns.has_layout_top_y ||= layoutTopY != null;
+  columns.layout_height.push(layoutHeight);
+  columns.has_layout_height ||= layoutHeight != null;
 }
 
 /** Builds one Arrow process SpanRef/layout index table without copying span-name fields. */
@@ -1305,7 +1403,6 @@ function buildTraceProcessSpanRefTableFromColumns(
     span_ref: buildArrowFloat64Vector(columns.span_ref),
     layout_top_y: buildArrowNullableFloat64Vector(columns.layout_top_y, columns.span_ref.length),
     layout_height: buildArrowNullableFloat64Vector(columns.layout_height, columns.span_ref.length),
-    filter_mask: buildArrowUint8Vector(columns.filter_mask, columns.span_ref.length),
     rowCount: columns.span_ref.length
   });
 }
@@ -1318,81 +1415,20 @@ function buildTraceProcessSpanRefTableFromVectors(params: {
   layout_top_y?: arrow.Vector<arrow.Float64> | null;
   /** Optional layout heights aligned with span refs. */
   layout_height?: arrow.Vector<arrow.Float64> | null;
-  /** Filter masks aligned with span refs. */
-  filter_mask?: arrow.Vector<arrow.Uint8> | null;
   /** Number of process-local rows. */
   rowCount: number;
 }): TraceProcessSpanRefTable {
-  const table = new arrow.Table({
-    span_ref: params.span_ref ?? buildArrowFloat64Vector(new Float64Array(params.rowCount)),
-    layout_top_y:
-      params.layout_top_y ?? buildArrowNullableFloat64Vector(undefined, params.rowCount),
-    layout_height:
-      params.layout_height ?? buildArrowNullableFloat64Vector(undefined, params.rowCount),
-    filter_mask: params.filter_mask ?? buildArrowUint8Vector(undefined, params.rowCount)
+  const spanRefColumn =
+    params.span_ref ?? buildArrowFloat64Vector(new Float64Array(params.rowCount));
+  const layoutTopYColumn =
+    params.layout_top_y ?? buildArrowNullableFloat64Vector(undefined, params.rowCount);
+  const layoutHeightColumn =
+    params.layout_height ?? buildArrowNullableFloat64Vector(undefined, params.rowCount);
+  return new arrow.Table({
+    span_ref: spanRefColumn,
+    layout_top_y: layoutTopYColumn,
+    layout_height: layoutHeightColumn
   }) as unknown as TraceProcessSpanRefTable;
-  Object.defineProperty(table, 'generation', {
-    enumerable: true,
-    value: computeTraceProcessSpanRefTableGeneration(table)
-  });
-  return table;
-}
-
-/** Computes a bounded numeric generation for process SpanRef/layout index reuse checks. */
-function computeTraceProcessSpanRefTableGeneration(table: TraceProcessSpanRefTable): number {
-  const spanRefColumn = table.getChild('span_ref');
-  const layoutTopYColumn = table.getChild('layout_top_y');
-  const layoutHeightColumn = table.getChild('layout_height');
-  const filterMaskColumn = table.getChild('filter_mask');
-  let hash = 2166136261;
-  hash = updateTraceProcessSpanRefTableGenerationHash(hash, table.numRows);
-  for (let rowIndex = 0; rowIndex < table.numRows; rowIndex += 1) {
-    hash = updateTraceProcessSpanRefTableGenerationHash(
-      hash,
-      normalizeArrowNumber(spanRefColumn?.get(rowIndex)) ?? 0
-    );
-    hash = updateTraceProcessSpanRefTableNullableNumberGenerationHash(
-      hash,
-      normalizeArrowNumber(layoutTopYColumn?.get(rowIndex))
-    );
-    hash = updateTraceProcessSpanRefTableNullableNumberGenerationHash(
-      hash,
-      normalizeArrowNumber(layoutHeightColumn?.get(rowIndex))
-    );
-    hash = updateTraceProcessSpanRefTableGenerationHash(
-      hash,
-      normalizeArrowNumber(filterMaskColumn?.get(rowIndex)) ?? 0
-    );
-  }
-  return hash >>> 0;
-}
-
-/** Updates one process-span table generation hash with a nullable 64-bit number. */
-function updateTraceProcessSpanRefTableNullableNumberGenerationHash(
-  hash: number,
-  value: number | null
-): number {
-  if (value == null) {
-    return updateTraceProcessSpanRefTableGenerationHash(hash, 0);
-  }
-  hash = updateTraceProcessSpanRefTableGenerationHash(hash, 1);
-  traceProcessSpanRefTableGenerationFloat64Scratch[0] = value;
-  hash = updateTraceProcessSpanRefTableGenerationHash(
-    hash,
-    traceProcessSpanRefTableGenerationUint32Scratch[0] ?? 0
-  );
-  return updateTraceProcessSpanRefTableGenerationHash(
-    hash,
-    traceProcessSpanRefTableGenerationUint32Scratch[1] ?? 0
-  );
-}
-
-/** Updates one process-span table generation hash with one safe numeric value. */
-function updateTraceProcessSpanRefTableGenerationHash(hash: number, value: number): number {
-  hash ^= value & 0xffffffff;
-  hash = Math.imul(hash, 16777619) >>> 0;
-  hash ^= Math.floor(value / 0x100000000);
-  return Math.imul(hash, 16777619) >>> 0;
 }
 
 /** Resolves the owning process id for one chunk span-table row. */
@@ -1442,7 +1478,8 @@ function getTraceProcessSpanRefSourceColumn<Value>(
  * {@link TraceProcess} records.
  */
 export function buildTraceSpanTablesByProcessId(
-  processes: Readonly<TraceProcess[]>
+  processes: Readonly<TraceProcess[]>,
+  options: BuildTraceChunkDataOptions = {}
 ): Readonly<Record<TraceProcessId, ArrowTraceSpanTable>> {
   return Object.fromEntries(
     processes.map((process, processIndex) => {
@@ -1455,10 +1492,24 @@ export function buildTraceSpanTablesByProcessId(
       );
       return [
         process.processId as TraceProcessId,
-        buildArrowTraceSpanTableFromRows(
-          process.spans.map(block =>
-            toTraceSpanArrowRow(block, processRef, threadRefByStreamId.get(block.threadId) ?? null)
-          )
+        buildArrowTraceSpanTableFromColumns(
+          rowsToTraceSpanArrowColumns(
+            process.spans.map(block =>
+              toTraceSpanArrowRow(
+                block,
+                processRef,
+                threadRefByStreamId.get(block.threadId) ?? null
+              )
+            )
+          ),
+          undefined,
+          {
+            declaredSpanAttributePaths: options.declaredSpanAttributePaths,
+            spanAttributeRows: process.spans.map(block => ({
+              ...(block.userData ?? {}),
+              processId: process.processId
+            }))
+          }
         )
       ] as const;
     })
@@ -1469,35 +1520,28 @@ export function buildTraceSpanTablesByProcessId(
  * Builds canonical process-local sidecar rows from the span arrays embedded in compatibility
  * {@link TraceProcess} records.
  */
-export function buildTraceSpanSidecarsByProcessId(
-  processes: Readonly<TraceProcess[]>,
-  traceIdEncoder?: TraceIdEncoder,
-  crossDependencies: ReadonlyArray<TraceCrossProcessDependency> = [],
-  crossDependencyIdToIndexMap: Readonly<Record<TraceDependencyId, number>> = {}
-): TraceSpanArrowSidecarMap {
-  const resolvedTraceIdEncoder =
-    traceIdEncoder ??
-    new TraceIdEncoder(processes.map(process => process.processId as TraceProcessId));
-  const sidecarMap = Object.fromEntries(
+function buildTraceSpanSidecarRowsByProcessId(
+  processes: Readonly<TraceProcess[]>
+): TraceSpanArrowSidecarRowMap {
+  return Object.fromEntries(
     processes.map(process => [
       process.processId as TraceProcessId,
-      buildTraceSpanSidecarRows(
-        process,
-        resolvedTraceIdEncoder.getProcessIndex(process.processId as TraceProcessId)
-      )
+      buildTraceSpanSidecarRows(process)
     ])
-  ) as TraceSpanArrowSidecarMap;
-  if (crossDependencies.length === 0) {
-    return sidecarMap;
-  }
-  return attachCrossDependencyRefsToSpanSidecars({
-    blockRowIndexByProcessId: buildSpanRowIndexesByProcessIdFromProcesses(processes),
-    crossDependencies,
-    crossDependencyIdToIndexMap,
-    processes,
-    processIdsByIndex: resolvedTraceIdEncoder.getProcessIdsByIndex(),
-    spanSidecarMap: sidecarMap
-  });
+  ) as TraceSpanArrowSidecarRowMap;
+}
+
+/** Builds row-aligned Arrow sidecar tables from ingestion-only compatibility span objects. */
+export function buildTraceSpanSidecarTablesByProcessId(
+  processes: Readonly<TraceProcess[]>
+): ArrowTraceSpanSidecarTableMap {
+  const sidecarMap = buildTraceSpanSidecarRowsByProcessId(processes);
+  return Object.fromEntries(
+    Object.entries(sidecarMap).map(([processId, rows]) => [
+      processId,
+      buildArrowTraceSpanSidecarTableFromRows(rows)
+    ])
+  ) as ArrowTraceSpanSidecarTableMap;
 }
 
 /**
@@ -1535,22 +1579,14 @@ export function toTraceSpanArrowRow(
  * Converts a compatibility {@link TraceSpan} span object into one row-aligned sidecar payload.
  */
 export function toTraceSpanArrowSidecarRow(block: TraceSpan): TraceSpanArrowSidecarRow {
-  const incomingLocalDependencyRowIndexes: number[] = [];
-  const outgoingLocalDependencyRowIndexes: number[] = [];
-  const incomingCrossDependencyRefs: number[] = [];
-  const outgoingCrossDependencyRefs: number[] = [];
-
   return {
+    primaryTimingKey: block.primaryTimingKey,
     timings: block.timings,
     userData: block.userData,
     keywords: block.keywords ?? [],
-    localDependencyIds: block.localDependencyIds,
-    incomingLocalDependencyRowIndexes,
-    outgoingLocalDependencyRowIndexes,
-    incomingLocalDependencyRefs: [],
-    outgoingLocalDependencyRefs: [],
-    incomingCrossDependencyRefs,
-    outgoingCrossDependencyRefs,
+    sameProcessDependencyIds: [...block.sameProcessDependencyIds],
+    incomingSameProcessDependencyRowIndexes: [],
+    outgoingSameProcessDependencyRowIndexes: [],
     crossProcessEndpointId: block.crossProcessEndpointId ?? null,
     crossProcessDependencyEndpoints: block.crossProcessDependencyEndpoints.map(endpoint => ({
       endpointId: endpoint.endpointId,
@@ -1567,391 +1603,12 @@ export function toTraceSpanArrowSidecarRow(block: TraceSpan): TraceSpanArrowSide
 }
 
 /**
- * Builds row-aligned sidecar payloads for one process and annotates each block with directional
- * process-local dependency row indexes.
+ * Builds row-aligned sidecar payloads for one process.
  */
 function buildTraceSpanSidecarRows(
-  process: Readonly<TraceProcess>,
-  processIndex: number
+  process: Readonly<TraceProcess>
 ): readonly TraceSpanArrowSidecarRow[] {
-  const sidecarRows = process.spans.map(block => toTraceSpanArrowSidecarRow(block));
-  attachLocalDependencyRefsToSidecars({
-    spans: process.spans,
-    localDependencies: process.localDependencies,
-    processIndex,
-    sidecarRows
-  });
-  return sidecarRows;
-}
-
-/**
- * Annotates sidecar rows with directional process-local dependency row indexes and refs.
- */
-function attachLocalDependencyRefsToSidecars(params: {
-  spans: ReadonlyArray<Pick<TraceSpan, 'spanId'>>;
-  localDependencies: ReadonlyArray<TraceLocalDependency>;
-  sidecarRows: TraceSpanArrowSidecarRow[];
-  processIndex: number;
-}): void {
-  const blockRowIndexById = new Map(
-    params.spans.map((block, rowIndex) => [block.spanId, rowIndex] as const)
-  );
-
-  params.localDependencies.forEach((dependency, dependencyRowIndex) => {
-    const dependencyRef = encodeLocalDependencyRef(
-      encodeLocalSpanRef(params.processIndex, dependencyRowIndex)
-    );
-    const startRowIndex = blockRowIndexById.get(dependency.startSpanId);
-    if (startRowIndex != null) {
-      params.sidecarRows[startRowIndex]?.outgoingLocalDependencyRowIndexes.push(dependencyRowIndex);
-      params.sidecarRows[startRowIndex]?.outgoingLocalDependencyRefs?.push(dependencyRef);
-    }
-
-    const endRowIndex = blockRowIndexById.get(dependency.endSpanId);
-    if (endRowIndex != null) {
-      params.sidecarRows[endRowIndex]?.incomingLocalDependencyRowIndexes.push(dependencyRowIndex);
-      params.sidecarRows[endRowIndex]?.incomingLocalDependencyRefs?.push(dependencyRef);
-    }
-  });
-}
-
-/**
- * Ensures every provided sidecar row includes directional local and cross dependency refs.
- */
-function attachDependencyRefsToSpanSidecars(params: {
-  /** Cross-process dependencies to attach to source and destination span sidecars. */
-  crossDependencies: ReadonlyArray<TraceCrossProcessDependency>;
-  /** Stable cross-dependency indexes keyed by dependency id. */
-  crossDependencyIdToIndexMap: Readonly<Record<TraceDependencyId, number>>;
-  /** Metadata-only process rows used to resolve rank numbers. */
-  processes: ReadonlyArray<Pick<ArrowTraceProcessMetadata, 'processId' | 'rankNum'>>;
-  /** Process ids in runtime ref order. */
-  processIdsByIndex: readonly TraceProcessId[];
-  /** Row-aligned sidecar rows keyed by process id. */
-  spanSidecarMap: TraceSpanArrowSidecarMap;
-  /** Canonical span tables keyed by process id. */
-  spanTableMap: Readonly<Record<TraceProcessId, ArrowTraceSpanTable>>;
-}): TraceSpanArrowSidecarMap {
-  const sidecarMapWithLocalRefs = attachLocalDependencyRefsToSpanSidecars({
-    processIdsByIndex: params.processIdsByIndex,
-    spanSidecarMap: params.spanSidecarMap
-  });
-  if (params.crossDependencies.length === 0) {
-    return sidecarMapWithLocalRefs;
-  }
-  return attachCrossDependencyRefsToSpanSidecars({
-    crossDependencies: params.crossDependencies,
-    crossDependencyIdToIndexMap: params.crossDependencyIdToIndexMap,
-    processes: params.processes,
-    processIdsByIndex: params.processIdsByIndex,
-    spanSidecarMap: sidecarMapWithLocalRefs,
-    spanTableMap: params.spanTableMap
-  });
-}
-
-/**
- * Ensures every provided sidecar row includes the directional dependency ref array when not already
- * populated.
- */
-function attachLocalDependencyRefsToSpanSidecars(params: {
-  processIdsByIndex: readonly TraceProcessId[];
-  spanSidecarMap: TraceSpanArrowSidecarMap;
-}): TraceSpanArrowSidecarMap {
-  const processIndexById = new Map<TraceProcessId, number>();
-  params.processIdsByIndex.forEach((processId, processIndex) => {
-    processIndexById.set(processId, processIndex);
-  });
-  const sidecarMap = {...params.spanSidecarMap} as Record<
-    TraceProcessId,
-    readonly TraceSpanArrowSidecarRow[]
-  >;
-
-  for (const [processId, sidecarRows] of Object.entries(sidecarMap)) {
-    const typedProcessId = processId as TraceProcessId;
-    const processIndex = processIndexById.get(typedProcessId);
-    if (processIndex == null) {
-      continue;
-    }
-    sidecarMap[typedProcessId] = sidecarRows.map(sidecarRow => {
-      const shouldBuildIncomingLocalDependencyRefs =
-        sidecarRow.incomingLocalDependencyRefs == null ||
-        (sidecarRow.incomingLocalDependencyRefs.length === 0 &&
-          sidecarRow.incomingLocalDependencyRowIndexes.length > 0);
-      const incomingLocalDependencyRefs = shouldBuildIncomingLocalDependencyRefs
-        ? sidecarRow.incomingLocalDependencyRowIndexes.map(dependencyRowIndex =>
-            encodeLocalDependencyRef(encodeLocalSpanRef(processIndex, dependencyRowIndex))
-          )
-        : sidecarRow.incomingLocalDependencyRefs;
-      const shouldBuildOutgoingLocalDependencyRefs =
-        sidecarRow.outgoingLocalDependencyRefs == null ||
-        (sidecarRow.outgoingLocalDependencyRefs.length === 0 &&
-          sidecarRow.outgoingLocalDependencyRowIndexes.length > 0);
-      const outgoingLocalDependencyRefs = shouldBuildOutgoingLocalDependencyRefs
-        ? sidecarRow.outgoingLocalDependencyRowIndexes.map(dependencyRowIndex =>
-            encodeLocalDependencyRef(encodeLocalSpanRef(processIndex, dependencyRowIndex))
-          )
-        : sidecarRow.outgoingLocalDependencyRefs;
-
-      if (
-        sidecarRow.incomingLocalDependencyRefs === incomingLocalDependencyRefs &&
-        sidecarRow.outgoingLocalDependencyRefs === outgoingLocalDependencyRefs
-      ) {
-        return sidecarRow;
-      }
-
-      return {
-        ...sidecarRow,
-        incomingLocalDependencyRefs,
-        outgoingLocalDependencyRefs
-      };
-    });
-  }
-
-  return sidecarMap;
-}
-
-/**
- * Ensures every provided sidecar row includes directional cross-dependency refs.
- */
-function attachCrossDependencyRefsToSpanSidecars(params: {
-  /** Optional span row indexes keyed by process id and block id for unresolved span refs. */
-  blockRowIndexByProcessId?: Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, number>>>;
-  /** Cross-process dependencies to attach to source and destination span sidecars. */
-  crossDependencies: ReadonlyArray<TraceCrossProcessDependency>;
-  /** Stable cross-dependency indexes keyed by dependency id. */
-  crossDependencyIdToIndexMap: Readonly<Record<TraceDependencyId, number>>;
-  /** Metadata-only process rows used to resolve rank numbers. */
-  processes: ReadonlyArray<Pick<ArrowTraceProcessMetadata, 'processId' | 'rankNum'>>;
-  /** Process ids in packed span-ref order. */
-  processIdsByIndex?: readonly TraceProcessId[];
-  /** Row-aligned sidecar rows keyed by process id. */
-  spanSidecarMap: TraceSpanArrowSidecarMap;
-  /** Canonical span tables keyed by process id, used only when a dependency has no span ref. */
-  spanTableMap?: Readonly<Record<TraceProcessId, ArrowTraceSpanTable>>;
-}): TraceSpanArrowSidecarMap {
-  if (params.crossDependencies.length === 0) {
-    return params.spanSidecarMap;
-  }
-
-  const processIdByRankNum = new Map(
-    params.processes.map(process => [process.rankNum, process.processId as TraceProcessId] as const)
-  );
-  const sidecarMap = {...params.spanSidecarMap} as Record<
-    TraceProcessId,
-    readonly TraceSpanArrowSidecarRow[]
-  >;
-  const copiedProcessIds = new Set<TraceProcessId>();
-  let blockRowIndexByProcessId = params.blockRowIndexByProcessId;
-
-  const getBlockRowIndexByProcessId = () => {
-    blockRowIndexByProcessId ??= params.spanTableMap
-      ? buildSpanRowIndexesByProcessIdFromTables(params.spanTableMap)
-      : {};
-    return blockRowIndexByProcessId;
-  };
-
-  const appendCrossDependencyRef = (params: {
-    processId: TraceProcessId | null;
-    rowIndex: number | null;
-    fieldName: 'incomingCrossDependencyRefs' | 'outgoingCrossDependencyRefs';
-    dependencyRef: number;
-  }) => {
-    const {processId, rowIndex, fieldName, dependencyRef} = params;
-    if (processId == null || rowIndex == null) {
-      return;
-    }
-
-    const currentRows = sidecarMap[processId];
-    const currentRow = currentRows?.[rowIndex];
-    if (!currentRows || !currentRow) {
-      return;
-    }
-
-    const currentRefs = currentRow[fieldName] ?? [];
-    if (currentRefs.includes(dependencyRef)) {
-      return;
-    }
-
-    const nextRows = copiedProcessIds.has(processId)
-      ? (sidecarMap[processId] as TraceSpanArrowSidecarRow[])
-      : currentRows.slice();
-    copiedProcessIds.add(processId);
-    const nextRow = {
-      ...currentRow,
-      [fieldName]: [...currentRefs, dependencyRef]
-    } satisfies TraceSpanArrowSidecarRow;
-    nextRows[rowIndex] = nextRow;
-    sidecarMap[processId] = nextRows;
-  };
-
-  params.crossDependencies.forEach((dependency, dependencyIndex) => {
-    const dependencyRef = encodeCrossDependencyRef(
-      params.crossDependencyIdToIndexMap[dependency.dependencyId] ?? dependencyIndex
-    );
-    const startLocation = getCrossDependencySpanSidecarLocation({
-      spanId: dependency.startSpanId,
-      blockRowIndexByProcessId: getBlockRowIndexByProcessId,
-      processIdByRankNum,
-      processIdsByIndex: params.processIdsByIndex,
-      rankNum: dependency.startRankNum,
-      spanRef: dependency.startSpanRef
-    });
-    const endLocation = getCrossDependencySpanSidecarLocation({
-      spanId: dependency.endSpanId,
-      blockRowIndexByProcessId: getBlockRowIndexByProcessId,
-      processIdByRankNum,
-      processIdsByIndex: params.processIdsByIndex,
-      rankNum: dependency.endRankNum,
-      spanRef: dependency.endSpanRef
-    });
-
-    appendCrossDependencyRef({
-      processId: startLocation?.processId ?? null,
-      rowIndex: startLocation?.rowIndex ?? null,
-      fieldName: 'outgoingCrossDependencyRefs',
-      dependencyRef
-    });
-    appendCrossDependencyRef({
-      processId: endLocation?.processId ?? null,
-      rowIndex: endLocation?.rowIndex ?? null,
-      fieldName: 'incomingCrossDependencyRefs',
-      dependencyRef
-    });
-  });
-
-  return sidecarMap;
-}
-
-/**
- * Resolves the row-aligned sidecar location for one cross-dependency endpoint.
- */
-function getCrossDependencySpanSidecarLocation(params: {
-  /** Endpoint block id used when the packed span ref is unavailable. */
-  spanId: TraceSpanId;
-  /** Lazy block-id index getter for the fallback path. */
-  blockRowIndexByProcessId: () => Readonly<
-    Record<TraceProcessId, ReadonlyMap<TraceSpanId, number>>
-  >;
-  /** Process id lookup keyed by source rank number. */
-  processIdByRankNum: ReadonlyMap<number, TraceProcessId>;
-  /** Process ids in packed span-ref order. */
-  processIdsByIndex?: readonly TraceProcessId[];
-  /** Endpoint rank number. */
-  rankNum: number;
-  /** Packed span ref for the endpoint when already rebased into graph process order. */
-  spanRef?: SpanRef;
-}): {processId: TraceProcessId; rowIndex: number} | null {
-  const processId = params.processIdByRankNum.get(params.rankNum);
-  if (processId != null) {
-    const rowIndex = params.blockRowIndexByProcessId()[processId]?.get(params.spanId);
-    if (rowIndex != null) {
-      return {processId, rowIndex};
-    }
-  }
-
-  if (params.spanRef != null && params.processIdsByIndex) {
-    const spanProcessId = getSpanRefProcessId(params.processIdsByIndex, params.spanRef);
-    if (spanProcessId != null) {
-      return {
-        processId: spanProcessId,
-        rowIndex: getSpanRefRowIndex(params.spanRef)
-      };
-    }
-  }
-
-  return null;
-}
-
-/**
- * Builds sparse directional cross-dependency refs keyed by exact span ref.
- */
-function buildSpanCrossDependencyRefMap(params: {
-  /** Cross-process dependencies to attach to endpoint span refs. */
-  crossDependencies: ReadonlyArray<TraceCrossProcessDependency>;
-  /** Stable cross-dependency indexes keyed by dependency id. */
-  crossDependencyIdToIndexMap: Readonly<Record<TraceDependencyId, number>>;
-}): TraceSpanCrossDependencyRefMap | undefined {
-  if (params.crossDependencies.length === 0) {
-    return undefined;
-  }
-
-  const incomingCrossDependencyRefsBySpanRef = new Map<SpanRef, CrossDependencyRef[]>();
-  const outgoingCrossDependencyRefsBySpanRef = new Map<SpanRef, CrossDependencyRef[]>();
-  params.crossDependencies.forEach((dependency, dependencyIndex) => {
-    const dependencyRef = encodeCrossDependencyRef(
-      params.crossDependencyIdToIndexMap[dependency.dependencyId] ?? dependencyIndex
-    );
-    const startSpanRef = dependency.startSpanRef ?? null;
-    const endSpanRef = dependency.endSpanRef ?? null;
-    if (startSpanRef != null) {
-      appendMapArray(outgoingCrossDependencyRefsBySpanRef, startSpanRef, dependencyRef);
-    }
-    if (endSpanRef != null) {
-      appendMapArray(incomingCrossDependencyRefsBySpanRef, endSpanRef, dependencyRef);
-    }
-  });
-
-  return {
-    incomingCrossDependencyRefsBySpanRef,
-    outgoingCrossDependencyRefsBySpanRef
-  };
-}
-
-/**
- * Appends a value to a mutable array-valued map.
- */
-function appendMapArray<KeyT, ValueT>(map: Map<KeyT, ValueT[]>, key: KeyT, value: ValueT): void {
-  const values = map.get(key);
-  if (values) {
-    values.push(value);
-  } else {
-    map.set(key, [value]);
-  }
-}
-
-/**
- * Builds span row indexes keyed by process id and block id from compatibility process spans.
- */
-function buildSpanRowIndexesByProcessIdFromProcesses(
-  processes: ReadonlyArray<Pick<TraceProcess, 'processId' | 'spans'>>
-): Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, number>>> {
-  return Object.fromEntries(
-    processes.map(process => [
-      process.processId as TraceProcessId,
-      new Map(process.spans.map((block, rowIndex) => [block.spanId, rowIndex] as const))
-    ])
-  ) as Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, number>>>;
-}
-
-/**
- * Builds span row indexes keyed by process id and block id from canonical span tables.
- */
-function buildSpanRowIndexesByProcessIdFromTables(
-  spanTableMap: Readonly<Record<TraceProcessId, ArrowTraceSpanTable>>
-): Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, number>>> {
-  return Object.fromEntries(
-    Object.entries(spanTableMap).map(([processId, spanTable]) => [
-      processId,
-      buildSpanRowIndexByBlockId(spanTable)
-    ])
-  ) as Readonly<Record<TraceProcessId, ReadonlyMap<TraceSpanId, number>>>;
-}
-
-/**
- * Builds span row indexes keyed by block id for one process-local span table.
- */
-function buildSpanRowIndexByBlockId(
-  spanTable: Readonly<ArrowTraceSpanTable>
-): ReadonlyMap<TraceSpanId, number> {
-  const spanIdColumn = spanTable.getChild('span_id');
-  const rowIndexByBlockId = new Map<TraceSpanId, number>();
-  for (let rowIndex = 0; rowIndex < spanTable.numRows; rowIndex += 1) {
-    const spanId = spanIdColumn?.get(rowIndex) as TraceSpanId | null | undefined;
-    if (spanId) {
-      rowIndexByBlockId.set(spanId, rowIndex);
-    }
-  }
-  return rowIndexByBlockId;
+  return process.spans.map(block => toTraceSpanArrowSidecarRow(block));
 }
 
 /**
@@ -1968,14 +1625,17 @@ export function buildArrowTraceSpanTableFromRows(
  */
 export function buildArrowTraceSpanTableFromColumns(
   columns: TraceSpanArrowColumns,
-  vectorOverrides?: TraceSpanArrowVectorOverrides
+  vectorOverrides?: TraceSpanArrowVectorOverrides,
+  options: BuildArrowTraceSpanTableOptions = {}
 ): ArrowTraceSpanTable {
   const rowCount = columns.span_id.length;
-  return new arrow.Table({
-    process_ref: buildArrowUint64Vector(
-      normalizeNullableNumberColumn(columns.process_ref, rowCount)
+  const tableColumns = {
+    process_ref: buildArrowNullableOwnerRefFloat64Vector(
+      columns.process_ref,
+      rowCount,
+      'process_ref'
     ),
-    thread_ref: buildArrowUint64Vector(normalizeNullableNumberColumn(columns.thread_ref, rowCount)),
+    thread_ref: buildArrowNullableOwnerRefFloat64Vector(columns.thread_ref, rowCount, 'thread_ref'),
     span_id: buildArrowUtf8Vector(columns.span_id),
     external_span_id: arrow.vectorFromArray(
       normalizeNullableStringColumn(columns.external_span_id, rowCount),
@@ -1988,13 +1648,73 @@ export function buildArrowTraceSpanTableFromColumns(
       new arrow.Utf8()
     ),
     primary_timing_key: buildArrowUtf8Vector(columns.primary_timing_key),
-    status: buildArrowUtf8Vector(columns.status),
+    status_code: buildArrowUint8Vector(
+      columns.status.map(status => encodeTraceSpanTimingStatusCode(status)),
+      rowCount
+    ),
     start_time_ms: buildArrowFloat64Vector(columns.start_time_ms),
     end_time_ms: buildArrowFloat64Vector(columns.end_time_ms),
     duration_ms: buildArrowFloat64Vector(columns.duration_ms),
     layout_top_y: buildArrowNullableFloat64Vector(columns.layout_top_y, rowCount),
     layout_height: buildArrowNullableFloat64Vector(columns.layout_height, rowCount)
-  }) as unknown as ArrowTraceSpanTable;
+  };
+  Object.assign(
+    tableColumns,
+    buildDeclaredSpanAttributeColumns(
+      options.declaredSpanAttributePaths,
+      options.spanAttributeRows,
+      rowCount
+    )
+  );
+  return new arrow.Table(tableColumns) as unknown as ArrowTraceSpanTable;
+}
+
+/**
+ * Mutates one span table with finalized owner ref values while preserving Arrow buffers.
+ */
+export function replaceArrowTraceSpanRefColumns(params: {
+  /** Source span table whose ref value buffers should be updated in place. */
+  sourceTable: Readonly<ArrowTraceSpanTable>;
+  /** Canonical runtime process refs in span row order. */
+  processRef: Array<number | null>;
+  /** Canonical runtime thread refs in span row order. */
+  threadRef: Array<number | null>;
+}): ArrowTraceSpanTable {
+  const rowCount = params.sourceTable.numRows;
+  if (params.processRef.length !== rowCount || params.threadRef.length !== rowCount) {
+    throw new Error('Expected replacement span ref columns to preserve row count.');
+  }
+
+  mutateArrowTableColumnValues({
+    sourceTable: params.sourceTable,
+    columnName: 'process_ref',
+    values: params.processRef,
+    writeValue: writeSafeIntegerFloat64Value
+  });
+  mutateArrowTableColumnValues({
+    sourceTable: params.sourceTable,
+    columnName: 'thread_ref',
+    values: params.threadRef,
+    writeValue: writeSafeIntegerFloat64Value
+  });
+  return params.sourceTable as ArrowTraceSpanTable;
+}
+
+/**
+ * Build one process-local Arrow span sidecar table from column-oriented sidecar payloads.
+ */
+export function buildArrowTraceSpanSidecarTableFromRows(
+  rows: readonly TraceSpanArrowSidecarRow[]
+): ArrowTraceSpanSidecarTable {
+  return buildArrowTraceSpanSidecarTableFromColumns({
+    rowCount: rows.length,
+    keywords: rows.map(row => row.keywords ?? []),
+    crossProcessEndpointId: rows.map(row => row.crossProcessEndpointId ?? null),
+    userDataJson: rows.map(row =>
+      row.userData == null ? null : serializeArrowTraceJson(row.userData)
+    ),
+    timings: buildTraceSpanArrowTimingProjectionColumns(rows)
+  });
 }
 
 /**
@@ -2003,19 +1723,8 @@ export function buildArrowTraceSpanTableFromColumns(
 export function buildArrowTraceSpanSidecarTableFromColumns(
   columns: TraceSpanArrowSidecarColumns
 ): ArrowTraceSpanSidecarTable {
-  const rowCount = columns.incomingLocalDependencyRefs.length;
-  const outgoingLocalDependencyRefs = normalizeSidecarListColumn(
-    columns.outgoingLocalDependencyRefs,
-    rowCount
-  );
-  const incomingLocalDependencyRefs = normalizeSidecarListColumn(
-    columns.incomingLocalDependencyRefs,
-    rowCount
-  );
-  const localDependencyRefs = columns.localDependencyRefs ?? undefined;
-  const tableColumns = {
-    incomingLocalDependencyRefs: buildArrowUint64ListVector(incomingLocalDependencyRefs),
-    outgoingLocalDependencyRefs: buildArrowUint64ListVector(outgoingLocalDependencyRefs),
+  const rowCount = columns.rowCount;
+  const tableColumns: Record<string, arrow.Vector> = {
     keywords: buildArrowUtf8ListVector(normalizeSidecarListColumn(columns.keywords, rowCount)),
     crossProcessEndpointId: arrow.vectorFromArray(
       normalizeNullableStringColumn(columns.crossProcessEndpointId, rowCount),
@@ -2026,97 +1735,93 @@ export function buildArrowTraceSpanSidecarTableFromColumns(
       new arrow.Utf8()
     )
   };
-  if (localDependencyRefs) {
-    Object.assign(tableColumns, {
-      localDependencyRefs: buildArrowUint64ListVector(
-        normalizeSidecarListColumn(localDependencyRefs, rowCount)
-      )
-    });
+  const timingsColumn = buildTraceSpanArrowTimingsStructColumn(columns.timings, rowCount);
+  if (timingsColumn) {
+    tableColumns.timings = timingsColumn;
   }
-  if (columns.incomingCrossDependencyRefs) {
-    Object.assign(tableColumns, {
-      incomingCrossDependencyRefs: buildArrowUint64ListVector(
-        normalizeSidecarListColumn(columns.incomingCrossDependencyRefs, rowCount)
-      )
-    });
-  }
-  if (columns.outgoingCrossDependencyRefs) {
-    Object.assign(tableColumns, {
-      outgoingCrossDependencyRefs: buildArrowUint64ListVector(
-        normalizeSidecarListColumn(columns.outgoingCrossDependencyRefs, rowCount)
-      )
-    });
-  }
-  if (columns.crossDependencyRefs) {
-    Object.assign(tableColumns, {
-      crossDependencyRefs: buildArrowUint64ListVector(
-        normalizeSidecarListColumn(columns.crossDependencyRefs, rowCount)
-      )
-    });
+  if (columns.timingsJson) {
+    tableColumns.timingsJson = arrow.vectorFromArray(
+      normalizeNullableStringColumn(columns.timingsJson, rowCount),
+      new arrow.Utf8()
+    );
   }
 
   return new arrow.Table(tableColumns) as unknown as ArrowTraceSpanSidecarTable;
 }
 
-/**
- * Builds an Arrow `List<Uint64>` vector for row-aligned compact dependency ref columns.
- */
-export function buildArrowUint64ListVector(
-  rows: ReadonlyArray<readonly number[]>
-): arrow.Vector<arrow.List<arrow.Uint64>> {
-  const offsets = new Int32Array(rows.length + 1);
-  let valueCount = 0;
-  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
-    valueCount += rows[rowIndex]?.length ?? 0;
-    offsets[rowIndex + 1] = valueCount;
-  }
-
-  const values = new BigUint64Array(valueCount);
-  let valueIndex = 0;
-  for (const row of rows) {
-    for (const value of row) {
-      values[valueIndex] = BigInt(value);
-      valueIndex += 1;
-    }
-  }
-
-  const type = new arrow.List(new arrow.Field('item', new arrow.Uint64(), false));
-  const child = arrow.makeData({
-    type: new arrow.Uint64(),
-    length: values.length,
-    nullCount: 0,
-    data: values
+/** Builds columnar non-primary timing projection values from row-aligned sidecar inputs. */
+function buildTraceSpanArrowTimingProjectionColumns(
+  rows: readonly TraceSpanArrowSidecarRow[]
+): Readonly<Record<string, TraceSpanArrowTimingProjectionColumns>> {
+  const timingKeys = new Set<string>();
+  rows.forEach(row => {
+    Object.keys(row.timings ?? {}).forEach(timingKey => {
+      if (timingKey !== row.primaryTimingKey) {
+        timingKeys.add(timingKey);
+      }
+    });
   });
-  return arrow.makeVector(
-    arrow.makeData({
-      type,
-      length: rows.length,
-      nullCount: 0,
-      valueOffsets: offsets,
-      child
+
+  return Object.fromEntries(
+    [...timingKeys].map(timingKey => {
+      const timings = rows.map(row =>
+        timingKey === row.primaryTimingKey ? undefined : row.timings?.[timingKey]
+      );
+      return [
+        timingKey,
+        {
+          statusCode: timings.map(timing =>
+            timing ? encodeTraceSpanTimingStatusCode(timing.status) : null
+          ),
+          startTimeMs: timings.map(timing => timing?.startTimeMs ?? null),
+          endTimeMs: timings.map(timing => timing?.endTimeMs ?? null),
+          durationMs: timings.map(timing => timing?.durationMs ?? null)
+        } satisfies TraceSpanArrowTimingProjectionColumns
+      ];
     })
-  ) as arrow.Vector<arrow.List<arrow.Uint64>>;
+  );
 }
 
-/**
- * Builds an Arrow `Uint64` vector for compact runtime refs.
- */
-export function buildArrowUint64Vector(
-  values: ReadonlyArray<number | null> | BigUint64Array
-): arrow.Vector<arrow.Uint64> {
-  if (values instanceof BigUint64Array) {
-    return arrow.makeVector({
-      type: new arrow.Uint64(),
-      length: values.length,
-      nullCount: 0,
-      data: values
-    }) as arrow.Vector<arrow.Uint64>;
+/** Builds one nested Arrow Struct column for non-primary timing projections. */
+function buildTraceSpanArrowTimingsStructColumn(
+  timingColumns: Readonly<Record<string, TraceSpanArrowTimingProjectionColumns>> | undefined,
+  rowCount: number
+): arrow.Vector | null {
+  const timingEntries = Object.entries(timingColumns ?? {});
+  if (timingEntries.length === 0) {
+    return null;
   }
 
-  return arrow.vectorFromArray(
-    values.map(value => (value == null ? null : BigInt(value))),
-    new arrow.Uint64()
+  const timingType = new arrow.Struct([
+    new arrow.Field('status_code', new arrow.Uint8(), true),
+    new arrow.Field('start_time_ms', new arrow.Float64(), true),
+    new arrow.Field('end_time_ms', new arrow.Float64(), true),
+    new arrow.Field('duration_ms', new arrow.Float64(), true)
+  ]);
+  const timingsType = new arrow.Struct(
+    timingEntries.map(([timingKey]) => new arrow.Field(timingKey, timingType, true))
   );
+  const values = Array.from({length: rowCount}, (_, rowIndex) =>
+    Object.fromEntries(
+      timingEntries.map(([timingKey, columns]) => {
+        const statusCode = columns.statusCode[rowIndex] ?? null;
+        const startTimeMs = columns.startTimeMs[rowIndex] ?? null;
+        const endTimeMs = columns.endTimeMs[rowIndex] ?? null;
+        const durationMs = columns.durationMs[rowIndex] ?? null;
+        const timing =
+          statusCode == null && startTimeMs == null && endTimeMs == null && durationMs == null
+            ? null
+            : {
+                status_code: statusCode,
+                start_time_ms: startTimeMs,
+                end_time_ms: endTimeMs,
+                duration_ms: durationMs
+              };
+        return [timingKey, timing];
+      })
+    )
+  );
+  return arrow.vectorFromArray(values, timingsType);
 }
 
 /**
@@ -2197,27 +1902,24 @@ export function buildArrowTraceEventTableFromColumns(
   return buildArrowTraceEventTableFromColumnsInternal(columns);
 }
 
-function buildLocalDependencyTablesByProcessId(
+function buildSameProcessDependencyTablesByProcessId(
   processes: Readonly<ArrowTraceProcessMetadata[]>
-): Readonly<Record<TraceProcessId, ArrowTraceLocalDependencyTable>> {
+): Readonly<Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>> {
   return Object.fromEntries(
     processes.map(process => [
       process.processId as TraceProcessId,
-      buildArrowTraceLocalDependencyTable(process.localDependencies ?? [])
+      buildArrowTraceSameProcessDependencyTable(process.sameProcessDependencies ?? [])
     ])
-  ) as Readonly<Record<TraceProcessId, ArrowTraceLocalDependencyTable>>;
+  ) as Readonly<Record<TraceProcessId, ArrowTraceSameProcessDependencyTable>>;
 }
 
 /**
- * Builds one process-local Arrow dependency table from normalized local dependency objects.
+ * Builds one process-local Arrow dependency table from normalized same-process dependency objects.
  */
-export function buildArrowTraceLocalDependencyTable(
-  dependencies: ReadonlyArray<TraceLocalDependency>
-): ArrowTraceLocalDependencyTable {
-  return buildArrowTraceLocalDependencyTableFromColumns({
-    dependencyRef: dependencies.map((_, rowIndex) =>
-      encodeLocalDependencyRef(encodeLocalSpanRef(0, rowIndex))
-    ),
+export function buildArrowTraceSameProcessDependencyTable(
+  dependencies: ReadonlyArray<TraceSameProcessDependency>
+): ArrowTraceSameProcessDependencyTable {
+  return buildArrowTraceSameProcessDependencyTableFromColumns({
     dependencyId: dependencies.map(dependency => dependency.dependencyId),
     startSpanRef: dependencies.map(dependency => dependency.startSpanRef ?? null),
     startSpanId: dependencies.map(dependency => dependency.startSpanId),
@@ -2229,6 +1931,9 @@ export function buildArrowTraceLocalDependencyTable(
     keywords: dependencies.map(dependency => Array.from(dependency.keywords)),
     hasParentKeyword: dependencies.map(dependency =>
       hasParentDependencyKeyword(dependency.keywords)
+    ),
+    userDataJson: dependencies.map(dependency =>
+      dependency.userData == null ? null : serializeArrowTraceJson(dependency.userData)
     )
   });
 }
@@ -2236,38 +1941,144 @@ export function buildArrowTraceLocalDependencyTable(
 /**
  * Builds one process-local Arrow dependency table from column-oriented dependency payloads.
  */
-export function buildArrowTraceLocalDependencyTableFromColumns(
-  columns: TraceLocalDependencyArrowColumns
-): ArrowTraceLocalDependencyTable {
-  const rowCount = columns.dependencyId.length;
+export function buildArrowTraceSameProcessDependencyTableFromColumns(
+  columns: TraceSameProcessDependencyArrowColumns
+): ArrowTraceSameProcessDependencyTable {
+  const rowCount = columns.waitMode.length;
+  const keywords =
+    columns.keywords ??
+    columns.hasParentKeyword.map(hasParentKeyword => (hasParentKeyword ? ['PARENT'] : []));
   return new arrow.Table({
-    dependencyRef: buildArrowFloat64Vector(
-      columns.dependencyRef ??
-        columns.dependencyId.map((_, rowIndex) =>
-          encodeLocalDependencyRef(encodeLocalSpanRef(0, rowIndex))
-        )
-    ),
-    dependencyId: buildArrowUtf8Vector(columns.dependencyId),
+    ...(columns.dependencyId ? {dependencyId: buildArrowUtf8Vector(columns.dependencyId)} : {}),
     startSpanRef: buildArrowNullableFloat64Vector(columns.startSpanRef, rowCount),
-    startSpanId: buildArrowUtf8Vector(columns.startSpanId),
+    ...(columns.startSpanId ? {startSpanId: buildArrowUtf8Vector(columns.startSpanId)} : {}),
     endSpanRef: buildArrowNullableFloat64Vector(columns.endSpanRef, rowCount),
-    endSpanId: buildArrowUtf8Vector(columns.endSpanId),
-    waitMode: buildArrowUtf8Vector(columns.waitMode),
+    ...(columns.endSpanId ? {endSpanId: buildArrowUtf8Vector(columns.endSpanId)} : {}),
+    waitModeCode: buildArrowUint8Vector(
+      columns.waitMode.map(waitMode => encodeTraceDependencyWaitModeCode(waitMode)),
+      rowCount
+    ),
     bidirectional: arrow.vectorFromArray(columns.bidirectional, new arrow.Bool()),
     waitTimeMs: buildArrowFloat64Vector(columns.waitTimeMs),
-    keywords: buildArrowUtf8ListVector(
-      columns.keywords ?? columns.hasParentKeyword.map(hasParent => (hasParent ? ['PARENT'] : []))
+    keywords: buildArrowUtf8ListVector(keywords),
+    keywordFlags: buildArrowUint8Vector(
+      keywords.map((dependencyKeywords, rowIndex) =>
+        encodeTraceDependencyKeywordFlags(
+          dependencyKeywords,
+          columns.hasParentKeyword[rowIndex] === true
+        )
+      ),
+      rowCount
     ),
-    hasParentKeyword: arrow.vectorFromArray(columns.hasParentKeyword, new arrow.Bool())
-  }) as unknown as ArrowTraceLocalDependencyTable;
+    ...(columns.userDataJson
+      ? {
+          userDataJson: arrow.vectorFromArray(
+            normalizeNullableStringColumn(columns.userDataJson, rowCount),
+            new arrow.Utf8()
+          )
+        }
+      : {})
+  }) as unknown as ArrowTraceSameProcessDependencyTable;
+}
+
+/**
+ * Mutates one same-process dependency table with finalized endpoint refs while preserving Arrow buffers.
+ */
+export function replaceArrowTraceSameProcessDependencyEndpointRefColumns(params: {
+  /** Source dependency table whose endpoint-ref value buffers should be updated in place. */
+  sourceTable: Readonly<ArrowTraceSameProcessDependencyTable>;
+  /** Canonical runtime source span refs in same-process dependency row order. */
+  startSpanRef: Array<number | null>;
+  /** Canonical runtime destination span refs in same-process dependency row order. */
+  endSpanRef: Array<number | null>;
+}): ArrowTraceSameProcessDependencyTable {
+  const rowCount = params.sourceTable.numRows;
+  if (params.startSpanRef.length !== rowCount || params.endSpanRef.length !== rowCount) {
+    throw new Error(
+      'Expected replacement same-process dependency ref columns to preserve row count.'
+    );
+  }
+
+  mutateArrowTableColumnValues({
+    sourceTable: params.sourceTable,
+    columnName: 'startSpanRef',
+    values: params.startSpanRef,
+    writeValue: writeSafeIntegerFloat64Value
+  });
+  mutateArrowTableColumnValues({
+    sourceTable: params.sourceTable,
+    columnName: 'endSpanRef',
+    values: params.endSpanRef,
+    writeValue: writeSafeIntegerFloat64Value
+  });
+  return params.sourceTable as ArrowTraceSameProcessDependencyTable;
+}
+
+/**
+ * Mutates one fixed-width Arrow column in place while leaving table/data buffers stable.
+ */
+function mutateArrowTableColumnValues<TTable extends arrow.Table, TValue>(params: {
+  /** Source table whose column value buffer should be updated in place. */
+  readonly sourceTable: Readonly<TTable>;
+  /** Existing column name to mutate. */
+  readonly columnName: string;
+  /** Row-aligned replacement values. */
+  readonly values: ReadonlyArray<TValue | null>;
+  /** Writes one value into the physical Arrow value buffer. */
+  readonly writeValue: (values: unknown, rowIndex: number, value: TValue | null) => void;
+}): void {
+  const table = params.sourceTable as TTable;
+  const columnIndex = table.schema.fields.findIndex(field => field.name === params.columnName);
+  if (columnIndex < 0) {
+    throw new Error(`Expected Arrow table column ${params.columnName}.`);
+  }
+  if (params.values.length !== table.numRows) {
+    throw new Error(
+      `Expected replacement Arrow column ${params.columnName} to preserve row count.`
+    );
+  }
+
+  const column = table.getChildAt(columnIndex);
+  if (!column) {
+    throw new Error(`Expected Arrow table column ${params.columnName}.`);
+  }
+
+  let rowOffset = 0;
+  for (const data of column.data) {
+    const valueBuffer = data?.values;
+    if (!data || !valueBuffer) {
+      throw new Error(`Expected mutable Arrow values for ${params.columnName}.`);
+    }
+    for (let rowIndex = 0; rowIndex < data.length; rowIndex += 1) {
+      const value = params.values[rowOffset + rowIndex] ?? null;
+      data.setValid(rowIndex, value != null);
+      params.writeValue(valueBuffer, data.offset + rowIndex, value);
+    }
+    rowOffset += data.length;
+  }
+}
+
+/** Writes one optional Float64 value into an Arrow value buffer. */
+function writeFloat64Value(values: unknown, rowIndex: number, value: number | null): void {
+  (values as Float64Array)[rowIndex] = value ?? 0;
+}
+
+/** Writes one optional safe-integer runtime ref into an Arrow Float64 value buffer. */
+function writeSafeIntegerFloat64Value(
+  values: unknown,
+  rowIndex: number,
+  value: number | null
+): void {
+  assertNullableSafeIntegerRef(value, 'runtime ref', rowIndex);
+  writeFloat64Value(values, rowIndex, value);
 }
 
 /**
  * Builds one graph-global Arrow cross-process dependency table from normalized dependencies.
  */
-export function buildArrowTraceCrossDependencyTable(
+export function buildArrowTraceCrossProcessDependencyTable(
   dependencies: ReadonlyArray<TraceCrossProcessDependency>
-): ArrowTraceCrossDependencyTable {
+): ArrowTraceCrossProcessDependencyTable {
   const columns = {
     dependencyId: [] as string[],
     endpointId: [] as string[],
@@ -2284,7 +2095,8 @@ export function buildArrowTraceCrossDependencyTable(
     waiting: [] as boolean[],
     waitNotFinished: [] as boolean[],
     keywords: [] as string[][],
-    hasParentKeyword: [] as boolean[]
+    hasParentKeyword: [] as boolean[],
+    userDataJson: [] as Array<string | null>
   };
   for (const dependency of dependencies) {
     columns.dependencyId.push(dependency.dependencyId);
@@ -2303,6 +2115,9 @@ export function buildArrowTraceCrossDependencyTable(
     columns.waitNotFinished.push(dependency.waitNotFinished);
     columns.keywords.push(Array.from(dependency.keywords));
     columns.hasParentKeyword.push(hasParentDependencyKeyword(dependency.keywords));
+    columns.userDataJson.push(
+      dependency.userData == null ? null : serializeArrowTraceJson(dependency.userData)
+    );
   }
 
   return new arrow.Table({
@@ -2327,23 +2142,9 @@ export function buildArrowTraceCrossDependencyTable(
       columns.keywords,
       new arrow.List(new arrow.Field('item', new arrow.Utf8()))
     ),
-    hasParentKeyword: arrow.vectorFromArray(columns.hasParentKeyword, new arrow.Bool())
-  }) as unknown as ArrowTraceCrossDependencyTable;
-}
-
-/**
- * Builds a deterministic map from cross-dependency id to stable packed dependency index.
- */
-export function buildCrossDependencyIdToIndexMap(
-  crossDependencies: ReadonlyArray<TraceCrossProcessDependency>
-): Readonly<Record<TraceDependencyId, number>> {
-  const indexByDependencyId = Object.create(null) as Record<TraceDependencyId, number>;
-  crossDependencies.forEach((dependency, index) => {
-    if (dependency.dependencyId != null && indexByDependencyId[dependency.dependencyId] == null) {
-      indexByDependencyId[dependency.dependencyId] = index;
-    }
-  });
-  return indexByDependencyId;
+    hasParentKeyword: arrow.vectorFromArray(columns.hasParentKeyword, new arrow.Bool()),
+    userDataJson: arrow.vectorFromArray(columns.userDataJson, new arrow.Utf8())
+  }) as unknown as ArrowTraceCrossProcessDependencyTable;
 }
 
 function hasParentDependencyKeyword(keywords: ReadonlySet<string>): boolean {
@@ -2353,6 +2154,14 @@ function hasParentDependencyKeyword(keywords: ReadonlySet<string>): boolean {
     }
   }
   return false;
+}
+
+/** Removes ingestion-only dependency object arrays from persisted graph process metadata. */
+function stripArrowTraceProcessDependencyMetadata(
+  process: ArrowTraceProcessMetadata
+): ArrowTraceProcessMetadata {
+  const {sameProcessDependencies: _sameProcessDependencies, ...metadata} = process;
+  return metadata;
 }
 
 function buildThreadMap(
@@ -2445,228 +2254,207 @@ function buildCounterExtents(
   );
 }
 
+type DeclaredSpanAttributePrimitive = string | number | bigint | boolean;
+type DeclaredSpanAttributeValue =
+  | DeclaredSpanAttributePrimitive
+  | readonly DeclaredSpanAttributePrimitive[]
+  | null;
+type DeclaredSpanAttributeNode = {
+  /** Child nodes keyed by one tuple-path segment. */
+  readonly children: Map<string, DeclaredSpanAttributeNode>;
+  /** Full tuple path for a declared leaf node. */
+  path?: TraceSpanAttributePath;
+};
+type DeclaredSpanAttributeColumn = {
+  /** Arrow field type for the projected column or struct child. */
+  readonly type: arrow.DataType;
+  /** Row-aligned normalized values accepted by the Arrow type. */
+  readonly values: readonly unknown[];
+};
+
 /**
- * Computes graph-wide TraceGraphData time extents from span timings, instants, counters, and events.
+ * Builds optional Arrow span columns for declared primitive attribute paths.
+ *
+ * Nested paths become declared-only Arrow structs. Unsupported leaves remain null and do not
+ * cause arbitrary nested source objects to enter the span table.
  */
-export function computeArrowTraceTimeExtents(
-  processes: Readonly<ArrowTraceProcessMetadata[]>,
-  spanTableMap: Readonly<Record<TraceProcessId, ArrowTraceSpanTable>>,
-  events: Readonly<ArrowTraceEventTable>
-): {minTimeMs: number; maxTimeMs: number} {
-  let minTimeMs = Number.MAX_SAFE_INTEGER;
-  let finiteMaxTimeMs = Number.MIN_SAFE_INTEGER;
+function buildDeclaredSpanAttributeColumns(
+  paths: readonly TraceSpanAttributePath[] | undefined,
+  rows: readonly (Record<string, unknown> | undefined)[] | undefined,
+  rowCount: number
+): Record<string, arrow.Vector> {
+  if (!paths?.length || !rows) {
+    return {};
+  }
 
-  for (const process of processes) {
-    const table = spanTableMap[process.processId as TraceProcessId];
-    if (!table) {
+  const root = createDeclaredSpanAttributeNode();
+  for (const path of paths) {
+    if (path.length === 0) {
       continue;
     }
-    const startTimeColumn = getColumn<number>(table, 'start_time_ms');
-    const endTimeColumn = getColumn<number>(table, 'end_time_ms');
-    const statusColumn = getColumn<string>(table, 'status');
-    const rowCount = table?.numRows ?? 0;
-
-    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-      const startTimeMs = startTimeColumn?.get(rowIndex) ?? null;
-      const endTimeMs = endTimeColumn?.get(rowIndex) ?? null;
-      const status = statusColumn?.get(rowIndex) ?? null;
-      if (!isTraceSpanTimingEligibleForTimeExtents({status, startTimeMs})) {
-        continue;
+    let node = root;
+    for (const key of path) {
+      let child = node.children.get(key);
+      if (!child) {
+        child = createDeclaredSpanAttributeNode();
+        node.children.set(key, child);
       }
-      const finiteStartTimeMs = startTimeMs as number;
-      minTimeMs = Math.min(minTimeMs, finiteStartTimeMs);
-      finiteMaxTimeMs = Math.max(finiteMaxTimeMs, finiteStartTimeMs);
-      if (isTraceSpanTimingTimestampEligibleForTimeExtents(endTimeMs)) {
-        const finiteEndTimeMs = endTimeMs as number;
-        minTimeMs = Math.min(minTimeMs, finiteEndTimeMs);
-        finiteMaxTimeMs = Math.max(finiteMaxTimeMs, finiteEndTimeMs);
-      }
+      node = child;
     }
-
-    for (const instant of process.instants) {
-      minTimeMs = Math.min(minTimeMs, instant.atTimeMs ?? Number.MAX_SAFE_INTEGER);
-      finiteMaxTimeMs = Math.max(finiteMaxTimeMs, instant.atTimeMs ?? Number.MIN_SAFE_INTEGER);
-    }
-    for (const counter of process.counters) {
-      minTimeMs = Math.min(minTimeMs, counter.atTimeMs ?? Number.MAX_SAFE_INTEGER);
-      finiteMaxTimeMs = Math.max(finiteMaxTimeMs, counter.atTimeMs ?? Number.MIN_SAFE_INTEGER);
-    }
-  }
-  const eventTimeColumn = events.getChild('atTimeMs');
-  for (let rowIndex = 0; rowIndex < events.numRows; rowIndex += 1) {
-    const atTimeMs = Number(eventTimeColumn?.get(rowIndex) ?? Number.NaN);
-    if (!Number.isFinite(atTimeMs)) {
-      continue;
-    }
-    minTimeMs = Math.min(minTimeMs, atTimeMs);
-    finiteMaxTimeMs = Math.max(finiteMaxTimeMs, atTimeMs);
+    node.path = path;
   }
 
-  if (minTimeMs === Number.MAX_SAFE_INTEGER) {
-    minTimeMs = 0;
-  }
-  if (finiteMaxTimeMs === Number.MIN_SAFE_INTEGER) {
-    finiteMaxTimeMs = 0;
-  }
-
-  let maxTimeMs = finiteMaxTimeMs;
-  for (const process of processes) {
-    const table = spanTableMap[process.processId as TraceProcessId];
-    if (!table) {
-      continue;
-    }
-    const startTimeColumn = getColumn<number>(table, 'start_time_ms');
-    const endTimeColumn = getColumn<number>(table, 'end_time_ms');
-    const statusColumn = getColumn<string>(table, 'status');
-    const rowCount = table?.numRows ?? 0;
-
-    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-      const startTimeMs = startTimeColumn?.get(rowIndex) ?? null;
-      const status = statusColumn?.get(rowIndex) ?? null;
-      if (!isTraceSpanTimingEligibleForTimeExtents({status, startTimeMs})) {
-        continue;
-      }
-      const finiteStartTimeMs = startTimeMs as number;
-
-      minTimeMs = Math.min(minTimeMs, finiteStartTimeMs);
-      maxTimeMs = Math.max(
-        maxTimeMs,
-        resolveExtremalEndTime({
-          startTimeMs: finiteStartTimeMs,
-          endTimeMs: endTimeColumn?.get(rowIndex) ?? null,
-          status,
-          finiteMaxTimeMs
-        })
-      );
+  const columns: Record<string, arrow.Vector> = {};
+  for (const [key, node] of root.children) {
+    const column = buildDeclaredSpanAttributeColumn(node, rows, rowCount);
+    if (column) {
+      columns[key] = arrow.vectorFromArray(column.values, column.type);
     }
   }
-
-  return {minTimeMs, maxTimeMs};
+  return columns;
 }
 
-function normalizeArrowTraceTimeExtents(
-  timeExtents?: BuildTraceGraphDataOptions['timeExtents']
-): BuildTraceGraphDataOptions['timeExtents'] | null {
-  if (!timeExtents) {
-    return null;
-  }
-  if (!Number.isFinite(timeExtents.minTimeMs) || !Number.isFinite(timeExtents.maxTimeMs)) {
-    return null;
-  }
-  return {
-    minTimeMs: Math.min(timeExtents.minTimeMs, timeExtents.maxTimeMs),
-    maxTimeMs: Math.max(timeExtents.minTimeMs, timeExtents.maxTimeMs)
-  };
+/** Creates one mutable declared-attribute path tree node. */
+function createDeclaredSpanAttributeNode(): DeclaredSpanAttributeNode {
+  return {children: new Map()};
 }
 
-function buildArrowTraceStats(
-  processes: Readonly<ArrowTraceProcessMetadata[]>,
-  crossDependencies: Readonly<TraceCrossProcessDependency[]>,
-  spanTableMap: Readonly<Record<TraceProcessId, ArrowTraceSpanTable>>,
-  localDependencyTableMap: Readonly<Record<TraceProcessId, ArrowTraceLocalDependencyTable>>,
-  overrides?: BuildTraceGraphDataOptions['stats']
-): TraceGraphStats {
-  const processCount = processes.length;
-  const threadCount = processes.reduce((total, process) => total + process.threads.length, 0);
-  const laneCount = processes.reduce((total, process) => {
-    return (
-      total +
-      process.threads.reduce((threadTotal, thread) => {
-        const laneValue = (thread.userData as {laneCount?: number} | undefined)?.laneCount;
-        if (typeof laneValue === 'number' && Number.isFinite(laneValue) && laneValue > 0) {
-          return threadTotal + Math.floor(laneValue);
-        }
-        return threadTotal + 1;
-      }, 0)
-    );
-  }, 0);
-
-  let spanCount = 0;
-  let notStartedSpanCount = 0;
-  let unfinishedSpanCount = 0;
-
-  for (const process of processes) {
-    const table = spanTableMap[process.processId as TraceProcessId];
-    if (!table) {
-      continue;
-    }
-    const rowCount = table?.numRows ?? 0;
-    const statusColumn = getColumn<string>(table, 'status');
-    spanCount += rowCount;
-
-    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
-      const status = statusColumn?.get(rowIndex) ?? null;
-      if (status === 'not-started') {
-        notStartedSpanCount += 1;
-      } else if (status === 'not-finished') {
-        unfinishedSpanCount += 1;
-      }
-    }
+/** Builds one declared leaf column or struct subtree from row-aligned source objects. */
+function buildDeclaredSpanAttributeColumn(
+  node: DeclaredSpanAttributeNode,
+  rows: readonly (Record<string, unknown> | undefined)[],
+  rowCount: number
+): DeclaredSpanAttributeColumn | null {
+  if (node.path) {
+    return buildDeclaredSpanAttributeLeafColumn(node.path, rows, rowCount);
   }
 
-  const localDependencyCount = processes.reduce((total, process) => {
-    return total + (localDependencyTableMap[process.processId as TraceProcessId]?.numRows ?? 0);
-  }, 0);
-  const crossDependencyCount = crossDependencies.length;
+  const children = [...node.children].flatMap(([key, child]) => {
+    const column = buildDeclaredSpanAttributeColumn(child, rows, rowCount);
+    return column ? [[key, column] as const] : [];
+  });
+  if (children.length === 0) {
+    return null;
+  }
 
   return {
-    processCount: Math.max(0, overrides?.processCount ?? processCount),
-    threadCount: Math.max(0, overrides?.threadCount ?? threadCount),
-    laneCount: Math.max(0, overrides?.laneCount ?? laneCount),
-    spanCount: Math.max(0, overrides?.spanCount ?? spanCount),
-    localDependencyCount: Math.max(0, overrides?.localDependencyCount ?? localDependencyCount),
-    notStartedSpanCount: Math.max(0, overrides?.notStartedSpanCount ?? notStartedSpanCount),
-    unfinishedSpanCount: Math.max(0, overrides?.unfinishedSpanCount ?? unfinishedSpanCount),
-    droppedSpanCount: Math.max(0, overrides?.droppedSpanCount ?? 0),
-    dependencyCount: Math.max(
-      0,
-      overrides?.dependencyCount ?? localDependencyCount + crossDependencyCount
+    type: new arrow.Struct(
+      children.map(([key, column]) => new arrow.Field(key, column.type, true))
     ),
-    droppedDependencyCount: Math.max(0, overrides?.droppedDependencyCount ?? 0),
-    crossDependencyCount: Math.max(0, overrides?.crossDependencyCount ?? crossDependencyCount),
-    droppedCrossDependencyCount: Math.max(0, overrides?.droppedCrossDependencyCount ?? 0)
+    values: Array.from({length: rowCount}, (_, rowIndex) =>
+      Object.fromEntries(children.map(([key, column]) => [key, column.values[rowIndex] ?? null]))
+    )
   };
 }
 
-function resolveExtremalEndTime(params: {
-  startTimeMs: number;
-  endTimeMs: number | null;
-  status: string | null;
-  finiteMaxTimeMs: number;
-}): number {
-  if (
-    Number.isFinite(params.endTimeMs) &&
-    params.endTimeMs != null &&
-    params.endTimeMs > params.startTimeMs
-  ) {
-    return params.endTimeMs;
+/** Builds one declared primitive leaf column and drops incompatible row values. */
+function buildDeclaredSpanAttributeLeafColumn(
+  path: TraceSpanAttributePath,
+  rows: readonly (Record<string, unknown> | undefined)[],
+  rowCount: number
+): DeclaredSpanAttributeColumn | null {
+  const sourceValues = Array.from({length: rowCount}, (_, rowIndex) =>
+    normalizeDeclaredSpanAttributeValue(readDeclaredSpanAttributeValue(rows[rowIndex], path))
+  );
+  const firstValue = sourceValues.find(value => value != null);
+  if (firstValue == null) {
+    return null;
   }
-  if (params.status === 'not-finished') {
-    return Math.max(params.finiteMaxTimeMs, params.startTimeMs + 1);
-  }
-  if (params.status === 'not-started') {
-    return params.startTimeMs + NOT_STARTED_BLOCK_DURATION_MS;
-  }
-  return params.startTimeMs;
+  const type = getDeclaredSpanAttributeArrowType(firstValue);
+
+  return {
+    type,
+    values: sourceValues.map(value =>
+      value != null && isDeclaredSpanAttributeValueCompatible(value, firstValue) ? value : null
+    )
+  };
 }
 
-function getTraceSpanArrowSchema(): arrow.Schema {
-  return new arrow.Schema([
-    new arrow.Field('process_ref', new arrow.Uint64(), true),
-    new arrow.Field('thread_ref', new arrow.Uint64(), true),
-    new arrow.Field('span_id', new arrow.Utf8(), true),
-    new arrow.Field('external_span_id', new arrow.Utf8(), true),
-    new arrow.Field('thread_id', new arrow.Utf8(), true),
-    new arrow.Field('name', new arrow.Utf8(), true),
-    new arrow.Field('source', new arrow.Utf8(), true),
-    new arrow.Field('primary_timing_key', new arrow.Utf8(), true),
-    new arrow.Field('status', new arrow.Utf8(), true),
-    new arrow.Field('start_time_ms', new arrow.Float64(), true),
-    new arrow.Field('end_time_ms', new arrow.Float64(), true),
-    new arrow.Field('duration_ms', new arrow.Float64(), true),
-    new arrow.Field('layout_top_y', new arrow.Float64(), true),
-    new arrow.Field('layout_height', new arrow.Float64(), true)
-  ]);
+/** Reads one declared path from an ingestion-only source object. */
+function readDeclaredSpanAttributeValue(
+  source: Record<string, unknown> | undefined,
+  path: TraceSpanAttributePath
+): unknown {
+  let value: unknown = source;
+  for (const key of path) {
+    if (value == null || typeof value !== 'object' || Array.isArray(value) || !(key in value)) {
+      return undefined;
+    }
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
+
+/** Accepts only primitive leaves and homogeneous primitive arrays of at most eight values. */
+function normalizeDeclaredSpanAttributeValue(value: unknown): DeclaredSpanAttributeValue {
+  if (typeof value === 'string' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (!Array.isArray(value) || value.length === 0 || value.length > 8) {
+    return null;
+  }
+  const normalized = value.map(entry => normalizeDeclaredSpanAttributePrimitive(entry));
+  const first = normalized[0];
+  if (
+    normalized.some(entry => entry == null) ||
+    (first != null && normalized.some(entry => typeof entry !== typeof first))
+  ) {
+    return null;
+  }
+  return normalized as readonly DeclaredSpanAttributePrimitive[];
+}
+
+/** Normalizes one supported primitive attribute leaf. */
+function normalizeDeclaredSpanAttributePrimitive(
+  value: unknown
+): DeclaredSpanAttributePrimitive | null {
+  if (typeof value === 'string' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return value;
+  }
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** Resolves the Arrow type for one normalized declared attribute value. */
+function getDeclaredSpanAttributeArrowType(value: Exclude<DeclaredSpanAttributeValue, null>) {
+  if (Array.isArray(value)) {
+    const item = value[0];
+    const itemType =
+      typeof item === 'string'
+        ? new arrow.Utf8()
+        : typeof item === 'bigint'
+          ? new arrow.Int64()
+          : typeof item === 'boolean'
+            ? new arrow.Bool()
+            : new arrow.Float64();
+    return new arrow.List(new arrow.Field('item', itemType, true));
+  }
+  if (typeof value === 'string') {
+    return new arrow.Utf8();
+  }
+  if (typeof value === 'bigint') {
+    return new arrow.Int64();
+  }
+  if (typeof value === 'boolean') {
+    return new arrow.Bool();
+  }
+  return new arrow.Float64();
+}
+
+/** Returns whether one normalized row value matches the selected column type. */
+function isDeclaredSpanAttributeValueCompatible(
+  value: Exclude<DeclaredSpanAttributeValue, null>,
+  firstValue: Exclude<DeclaredSpanAttributeValue, null>
+): boolean {
+  if (Array.isArray(firstValue)) {
+    return (
+      Array.isArray(value) &&
+      (firstValue.length === 0 || value.length === 0 || typeof value[0] === typeof firstValue[0])
+    );
+  }
+  return !Array.isArray(value) && typeof value === typeof firstValue;
 }
 
 /**
@@ -2690,29 +2478,64 @@ function normalizeNullableStringColumn(
 }
 
 /**
- * Normalizes an optional row-aligned nullable number column to the requested row count.
- */
-function normalizeNullableNumberColumn(
-  column: ReadonlyArray<number | null | undefined> | BigUint64Array | undefined,
-  rowCount: number
-): Array<number | null> | BigUint64Array {
-  if (column instanceof BigUint64Array) {
-    return column;
-  }
-  return Array.from({length: rowCount}, (_, rowIndex) => column?.[rowIndex] ?? null);
-}
-
-/**
  * Builds a nullable Float64 vector for optional span refs.
  */
 function buildArrowNullableFloat64Vector(
-  values: ReadonlyArray<number | null | undefined> | undefined,
+  values: ReadonlyArray<number | null | undefined> | Float64Array | undefined,
   rowCount: number
 ): arrow.Vector<arrow.Float64> {
+  if (values instanceof Float64Array) {
+    if (values.length !== rowCount) {
+      throw new Error('Expected Float64 span column to preserve row count.');
+    }
+    return buildArrowFloat64Vector(values);
+  }
   return arrow.vectorFromArray(
     Array.from({length: rowCount}, (_, rowIndex) => values?.[rowIndex] ?? null),
     new arrow.Float64()
   );
+}
+
+/**
+ * Builds one nullable Float64 owner-ref vector while preserving already-owned typed buffers.
+ *
+ * Array inputs are normalized and validated in the same row pass that prepares Arrow values.
+ * Float64 inputs require one validation pass before their buffer is borrowed by identity.
+ */
+function buildArrowNullableOwnerRefFloat64Vector(
+  values: ReadonlyArray<number | null | undefined> | Float64Array | undefined,
+  rowCount: number,
+  columnName: 'process_ref' | 'thread_ref'
+): arrow.Vector<arrow.Float64> {
+  if (values instanceof Float64Array) {
+    if (values.length !== rowCount) {
+      throw new Error(`Expected Float64 ${columnName} column to preserve row count.`);
+    }
+    for (let rowIndex = 0; rowIndex < values.length; rowIndex += 1) {
+      assertNullableSafeIntegerRef(values[rowIndex] ?? null, columnName, rowIndex);
+    }
+    return buildArrowFloat64Vector(values);
+  }
+
+  return arrow.vectorFromArray(
+    Array.from({length: rowCount}, (_, rowIndex) => {
+      const value = values?.[rowIndex] ?? null;
+      assertNullableSafeIntegerRef(value, columnName, rowIndex);
+      return value;
+    }),
+    new arrow.Float64()
+  );
+}
+
+/** Validates one nullable canonical runtime ref before storing it in Float64 Arrow data. */
+function assertNullableSafeIntegerRef(
+  value: number | null,
+  columnName: string,
+  rowIndex: number
+): void {
+  if (value != null && !Number.isSafeInteger(value)) {
+    throw new Error(`Expected ${columnName}[${rowIndex}] to be null or a safe integer.`);
+  }
 }
 
 /**
@@ -2800,9 +2623,7 @@ function buildAsciiUtf8Data(values: ReadonlyArray<string>): {
 function rowsToTraceSpanArrowColumns(
   rows: ReadonlyArray<TraceSpanArrowRow>
 ): TraceSpanArrowColumns {
-  return rows.reduce<TraceSpanArrowColumns>((columns, row) => {
-    columns.process_ref ??= [];
-    columns.thread_ref ??= [];
+  return rows.reduce<MutableTraceSpanArrowColumns>((columns, row) => {
     columns.process_ref.push(row.process_ref ?? null);
     columns.thread_ref.push(row.thread_ref ?? null);
     columns.span_id.push(row.span_id);
@@ -2828,7 +2649,7 @@ function rowsToTraceSpanArrowColumns(
 /**
  * Create an empty column-oriented span payload container.
  */
-function createTraceSpanArrowColumns(): TraceSpanArrowColumns {
+function createTraceSpanArrowColumns(): MutableTraceSpanArrowColumns {
   return {
     process_ref: [],
     thread_ref: [],
@@ -2847,11 +2668,6 @@ function createTraceSpanArrowColumns(): TraceSpanArrowColumns {
   };
 }
 
-/** Normalizes optional public layout mode metadata for Arrow-backed runtime consumers. */
-function normalizeArrowTraceSpanLayoutMode(spanLayout?: TraceSpanLayoutMode): TraceSpanLayoutMode {
-  return spanLayout === 'manual' ? 'manual' : 'auto';
-}
-
 function getColumn<T>(table: ArrowTraceSpanTable, columnName: string) {
   const column = (table as unknown as {getChild(name: string): unknown}).getChild(columnName);
   return (column ?? null) as {get(index: number): T | null | undefined} | null;
@@ -2867,4 +2683,12 @@ function normalizeArrowNumber(value: unknown): number | null {
     return Number.isFinite(numberValue) ? numberValue : null;
   }
   return null;
+}
+
+/** Normalizes one Arrow numeric cell into a safe packed span ref. */
+function normalizeArrowSpanRef(value: unknown): SpanRef | null {
+  const spanRef = normalizeArrowNumber(value);
+  return spanRef != null && Number.isSafeInteger(spanRef) && spanRef >= 0
+    ? (spanRef as SpanRef)
+    : null;
 }

@@ -227,11 +227,14 @@ function buildChromeTraceAccumulatorChunk(
     ...(state.metadata ? {metadata: state.metadata} : {})
   };
   const trace = parseChromeTrace(traceFile, state.parseOptions);
-  const {ranks, crossDependencies} = buildTraceRanksFromChromeTrace(trace, state.buildOptions);
+  const {ranks, crossProcessDependencies} = buildTraceRanksFromChromeTrace(
+    trace,
+    state.buildOptions
+  );
   const chunk = createTraceStreamReplaceChunk({
     name: state.name,
     processes: ranks,
-    crossDependencies
+    crossProcessDependencies
   });
   state.eventsSincePublish = 0;
   return chunk;

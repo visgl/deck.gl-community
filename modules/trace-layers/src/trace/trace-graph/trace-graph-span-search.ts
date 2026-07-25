@@ -1,8 +1,13 @@
-import {getArrowTraceChunkSpanTableRowIndex} from '../ingestion/arrow-trace';
+import {arrowFindUtf8, makeUtf8StringView} from '@deck.gl-community/infovis-layers';
+import {
+  getArrowTraceChunkSpanRefRowIndex,
+  getArrowTraceChunkSpanTableRowIndex
+} from '../ingestion/arrow-trace';
 import {encodeSpanRef} from './trace-id-encoder';
+import {getTraceSpanExactExternalIdQuery} from './trace-span-name-search';
 import {getPrimaryTiming} from './trace-types';
 
-import type {TraceSpanDisplaySource} from '../trace-graph-accessors';
+import type {TraceSpanDetailSource} from '../trace-graph-accessors';
 import type {TraceGraph} from './trace-graph';
 import type {TraceGraphSpanSearchRecord} from './trace-graph-types';
 import type {SpanRef} from './trace-types';
@@ -15,7 +20,7 @@ export type TraceGraphLoadedChunkSpanSearchParams = {
   /** Maximum number of records to visit. */
   readonly limit: number;
   /** Optional search text projection; defaults to the rich chunk-row text. */
-  readonly getSearchText?: (displaySource: TraceSpanDisplaySource) => string;
+  readonly getSearchText?: (spanSource: TraceSpanDetailSource) => string;
 };
 
 /**
@@ -27,28 +32,104 @@ export function searchLoadedChunkSpanRecords(
   traceGraph: TraceGraph,
   params: TraceGraphLoadedChunkSpanSearchParams
 ): number {
+  if (params.limit <= 0) {
+    return 0;
+  }
+
   let visitedCount = 0;
+  const exactExternalIdQuery = getTraceSpanExactExternalIdQuery(params.matchesSearchText);
+  const exactMatchedSpanRefs = exactExternalIdQuery ? new Set<SpanRef>() : null;
+  const visitMatchingRecord = (spanSource: TraceSpanDetailSource, spanRef: SpanRef): boolean => {
+    visitedCount += 1;
+    const shouldContinue =
+      params.visitRecord(buildLoadedChunkSpanSearchRecord(traceGraph, spanSource, spanRef)) !==
+      false;
+    return shouldContinue && visitedCount < params.limit;
+  };
+
+  if (exactExternalIdQuery) {
+    const shouldContinue = visitLoadedChunkExactExternalIdSpanRefs(
+      traceGraph,
+      exactExternalIdQuery,
+      spanRef => {
+        const spanSource = traceGraph.getSpanDetailSource(spanRef);
+        if (!spanSource) {
+          return;
+        }
+        exactMatchedSpanRefs?.add(spanRef);
+        return visitMatchingRecord(spanSource, spanRef);
+      }
+    );
+    if (!shouldContinue) {
+      return visitedCount;
+    }
+  }
+
+  visitLoadedChunkSpanRefs(traceGraph, spanRef => {
+    if (exactMatchedSpanRefs?.has(spanRef)) {
+      return;
+    }
+    const spanSource = traceGraph.getSpanDetailSource(spanRef);
+    if (!spanSource) {
+      return;
+    }
+    const searchText = params.getSearchText?.(spanSource) ?? buildSpanSearchText(spanSource);
+    if (!params.matchesSearchText(searchText)) {
+      return;
+    }
+    return visitMatchingRecord(spanSource, spanRef);
+  });
+  return visitedCount;
+}
+
+/**
+ * Visits exact external-id span refs through Arrow UTF-8 search without scanning every span row.
+ *
+ * @returns Whether the visitor reached the end of the matching loaded span refs.
+ */
+function visitLoadedChunkExactExternalIdSpanRefs(
+  traceGraph: TraceGraph,
+  exactExternalIdQuery: string,
+  visitSpanRef: (spanRef: SpanRef) => boolean | void
+): boolean {
+  const requestedView = makeUtf8StringView(exactExternalIdQuery);
+  for (const chunk of traceGraph.chunks) {
+    const externalSpanIdColumn = chunk.spanTable.getChild('external_span_id');
+    if (!externalSpanIdColumn) {
+      continue;
+    }
+
+    let rowIndex = arrowFindUtf8(externalSpanIdColumn, requestedView);
+    while (rowIndex !== -1) {
+      const spanRefRowIndex = getArrowTraceChunkSpanRefRowIndex(chunk, rowIndex);
+      if (
+        spanRefRowIndex != null &&
+        visitSpanRef(encodeSpanRef(chunk.chunkIndex, spanRefRowIndex)) === false
+      ) {
+        return false;
+      }
+      rowIndex = arrowFindUtf8(externalSpanIdColumn, requestedView, rowIndex + 1);
+    }
+  }
+  return true;
+}
+
+/**
+ * Visits loaded span refs in graph search order without materializing span detail rows.
+ *
+ * @returns Whether the visitor reached the end of the loaded span refs.
+ */
+function visitLoadedChunkSpanRefs(
+  traceGraph: TraceGraph,
+  visitSpanRef: (spanRef: SpanRef) => boolean | void
+): boolean {
   if (traceGraph.spanRefs) {
     for (const spanRef of traceGraph.spanRefs) {
-      const displaySource = traceGraph.getSpanDisplaySource(spanRef);
-      if (!displaySource) {
-        continue;
-      }
-      const searchText =
-        params.getSearchText?.(displaySource) ?? buildSpanSearchText(displaySource);
-      if (!params.matchesSearchText(searchText)) {
-        continue;
-      }
-
-      visitedCount += 1;
-      const shouldContinue =
-        params.visitRecord(buildLoadedChunkSpanSearchRecord(traceGraph, displaySource, spanRef)) !==
-        false;
-      if (!shouldContinue || visitedCount >= params.limit) {
-        return visitedCount;
+      if (visitSpanRef(spanRef) === false) {
+        return false;
       }
     }
-    return visitedCount;
+    return true;
   }
 
   for (const chunk of traceGraph.chunks) {
@@ -57,57 +138,42 @@ export function searchLoadedChunkSpanRecords(
       if (rowIndex == null) {
         continue;
       }
-      const spanRef = encodeSpanRef(chunk.chunkIndex, spanRefRowIndex);
-      const displaySource = traceGraph.getSpanDisplaySource(spanRef);
-      if (!displaySource) {
-        continue;
-      }
-      const searchText =
-        params.getSearchText?.(displaySource) ?? buildSpanSearchText(displaySource);
-      if (!params.matchesSearchText(searchText)) {
-        continue;
-      }
-
-      visitedCount += 1;
-      const shouldContinue =
-        params.visitRecord(buildLoadedChunkSpanSearchRecord(traceGraph, displaySource, spanRef)) !==
-        false;
-      if (!shouldContinue || visitedCount >= params.limit) {
-        return visitedCount;
+      if (visitSpanRef(encodeSpanRef(chunk.chunkIndex, spanRefRowIndex)) === false) {
+        return false;
       }
     }
   }
-  return visitedCount;
+  return true;
 }
 
 function buildLoadedChunkSpanSearchRecord(
   traceGraph: TraceGraph,
-  displaySource: TraceSpanDisplaySource,
+  spanSource: TraceSpanDetailSource,
   spanRef: SpanRef
 ): TraceGraphSpanSearchRecord {
   const filterReason = traceGraph.spanFilterReason(spanRef, {
-    spanName: displaySource.name
+    spanName: spanSource.name
   });
   const threadName =
-    displaySource.threadRef == null
-      ? String(displaySource.threadId)
-      : (traceGraph.getThreadSourceByRef(displaySource.threadRef)?.name ??
-        String(displaySource.threadId));
+    spanSource.threadRef == null
+      ? String(spanSource.threadId)
+      : (traceGraph.getThreadSourceByRef(spanSource.threadRef)?.name ??
+        String(spanSource.threadId));
   return {
     spanRef,
-    spanId: displaySource.spanId,
-    blockName: displaySource.name,
-    processName: displaySource.processName,
+    spanId: spanSource.spanId,
+    blockName: spanSource.name,
+    processName: spanSource.processName,
     threadName,
-    primaryTiming: getPrimaryTiming(displaySource),
-    keywordsText: displaySource.keywords.join(' '),
-    searchText: displaySource.name.toLowerCase(),
+    primaryTiming: getPrimaryTiming(spanSource),
+    keywordsText: spanSource.keywords.join(' '),
+    searchText: spanSource.name.toLowerCase(),
     filterMask: filterReason.filterMask,
     filterReason
   };
 }
 
-function buildSpanSearchText(source: TraceSpanDisplaySource): string {
+function buildSpanSearchText(source: TraceSpanDetailSource): string {
   return [
     source.name,
     source.source ?? '',
