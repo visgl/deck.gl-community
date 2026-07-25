@@ -67,7 +67,7 @@ export type TraceGraphLayerProps = LayerProps &
     readonly showCollapsedActivitySummary?: boolean;
     /** Aggregation algorithm used by collapsed process activity summaries. */
     readonly collapsedActivityAggregation?: TraceProcessActivityAggregation;
-    /** Whether dashed row separators should be rendered for foreground rows. */
+    /** Whether horizontal row separators should be rendered for foreground rows. */
     readonly showRowSeparators?: boolean;
     /** Vertical inset applied before the first visible process row. */
     readonly layoutTopPadding?: number;

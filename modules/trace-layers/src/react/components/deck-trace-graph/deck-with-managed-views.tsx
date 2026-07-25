@@ -34,6 +34,7 @@ import {buildTracevisViewLayout, DeckTraceGraphController} from '../../../layers
 import {type SpanBoundingBox} from '../../../trace/index';
 
 import type {TraceDragInteractionMode} from '../../../layers/index';
+import type {Deck, View} from '@deck.gl/core';
 import type {ZoomWidgetProps} from '@deck.gl/widgets';
 import type {Bounds} from '@deck.gl-community/infovis-layers';
 import type {Dispatch, SetStateAction} from 'react';
@@ -150,6 +151,9 @@ type GpuFrameTimerMetrics = {
   /** Number of resolved GPU frame timings. */
   sampleCount: number;
 };
+
+/** Backend-neutral render callback payload provided by deck.gl. */
+type DeckRenderContext = Parameters<NonNullable<DeckProps['onBeforeRender']>>[0];
 
 type DeckStatsTarget = {
   /** Deck's probe.gl stats object. Protected in TypeScript, present at runtime. */
@@ -523,23 +527,17 @@ function useGpuFrameTimer(enabled: boolean, getDeck: () => DeckStatsTarget | nul
     return () => timer.reset();
   }, [enabled]);
 
-  const handleBeforeRender = useCallback(
-    ({device}: {device: unknown; gl: WebGL2RenderingContext}) => {
-      if (enabledRef.current) {
-        timerRef.current?.beginFrame(device);
-      }
-    },
-    []
-  );
+  const handleBeforeRender = useCallback(({device}: DeckRenderContext) => {
+    if (enabledRef.current) {
+      timerRef.current?.beginFrame(device);
+    }
+  }, []);
 
-  const handleAfterRender = useCallback(
-    ({device}: {device: unknown; gl: WebGL2RenderingContext}) => {
-      if (enabledRef.current) {
-        timerRef.current?.endFrame(device);
-      }
-    },
-    []
-  );
+  const handleAfterRender = useCallback(({device}: DeckRenderContext) => {
+    if (enabledRef.current) {
+      timerRef.current?.endFrame(device);
+    }
+  }, []);
 
   return {
     handleAfterRender,
@@ -946,7 +944,9 @@ function DeckWithManagedViewsWithRef(
     enableDeckGpuTimeStats = false,
     enableDeckAnimation = false,
     viewAnchorTransition = null,
-    deckTheme = LightTheme
+    deckTheme = LightTheme,
+    device,
+    onDeckInitialized
   }: {
     bounds: Bounds;
     /** Optional bounds used only for fitting the overview minimap. */
@@ -975,10 +975,20 @@ function DeckWithManagedViewsWithRef(
     /** Optional one-shot Y correction for preserving an anchor across a trace layout transition. */
     viewAnchorTransition?: DeckWithManagedViewsAnchorTransition | null;
     deckTheme?: DeckWidgetTheme;
+    /** Optional caller-owned graphics device used by this mounted trace viewer. */
+    device?: DeckProps['device'];
+    /** Called when the actual trace deck is ready for host-managed device selection. */
+    onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
   },
   ref: React.Ref<DeckWithManagedViewsRef>
 ) {
   const deckRef = useRef<DeckGLRef<OrthographicView[]>>(null);
+  const handleDeckLoad = useCallback(() => {
+    const deck = deckRef.current?.deck;
+    if (deck) {
+      onDeckInitialized?.(deck);
+    }
+  }, [onDeckInitialized]);
   const widgetContainerRef = useRef<HTMLDivElement>(null);
   const [isWidgetContainerReady, setIsWidgetContainerReady] = useState(false);
 
@@ -1234,6 +1244,7 @@ function DeckWithManagedViewsWithRef(
     >
       <DeckGL<OrthographicView[]>
         ref={deckRef}
+        device={device}
         style={DECK_STYLE}
         views={deckViews}
         viewState={{
@@ -1250,6 +1261,7 @@ function DeckWithManagedViewsWithRef(
         getCursor={getCursor}
         onBeforeRender={gpuFrameTimer.handleBeforeRender}
         onAfterRender={gpuFrameTimer.handleAfterRender}
+        onLoad={handleDeckLoad}
         deviceProps={DECK_DEVICE_PROPS}
         _typedArrayManagerProps={DECK_TYPED_ARRAY_MANAGER_PROPS}
         _animate={enableDeckAnimation}

@@ -11,12 +11,7 @@ import {
   type SettingsSchema,
   type SettingsState
 } from '@deck.gl-community/panels';
-import {
-  BoxPanelWidget,
-  DeviceManagerController,
-  DeviceTabsWidget,
-  SidebarPanelWidget
-} from '@deck.gl-community/widgets';
+import {BoxPanelWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -86,6 +81,7 @@ type HorizonExampleConfig = {
   infoTitle?: string;
   infoMarkdown?: string;
   showInfoWidget?: boolean;
+  onDeckInitialized?: (deck: Deck) => void;
 };
 
 const VIEW = new OrthographicView({id: 'ortho'});
@@ -253,7 +249,7 @@ const SETTINGS_SCHEMA: SettingsSchema = {
   ]
 };
 
-const DEFAULT_EXAMPLE_CONFIG: Required<HorizonExampleConfig> = {
+const DEFAULT_EXAMPLE_CONFIG: Required<Omit<HorizonExampleConfig, 'onDeckInitialized'>> = {
   layerId: 'horizon-graph-layer',
   sidebarTitle: 'Horizon Graph Controls',
   infoTitle: 'HorizonGraphLayer',
@@ -270,8 +266,6 @@ export function mountHorizonGraphLayerExample(
   const rootElement = container.ownerDocument.createElement('div');
   applyElementStyle(rootElement, ROOT_STYLE);
   container.replaceChildren(rootElement);
-  const deviceManager = new DeviceManagerController();
-  deviceManager.reparentCanvas(rootElement);
 
   const state: ExampleState = {
     settings: cloneSettings(INITIAL_SETTINGS),
@@ -318,15 +312,7 @@ export function mountHorizonGraphLayerExample(
     );
   }
 
-  widgets.push(
-    sidebarWidget,
-    new DeviceTabsWidget({
-      id: `${resolvedConfig.layerId}-device-tabs`,
-      devices: ['webgpu', 'webgl2'],
-      manager: deviceManager,
-      placement: 'bottom-right'
-    })
-  );
+  widgets.push(sidebarWidget);
 
   const deck = new Deck({
     parent: rootElement,
@@ -350,17 +336,10 @@ export function mountHorizonGraphLayerExample(
       syncDeck();
     }
   });
-  const unsubscribeDevice = deviceManager.subscribe(({device}) => {
-    if (device && deck.device !== device) {
-      deck.setProps({device});
-    }
-  });
-  void deviceManager.initialize();
+  config.onDeckInitialized?.(deck);
 
   return () => {
-    unsubscribeDevice();
     deck.finalize();
-    deviceManager.reset();
     rootElement.remove();
     container.replaceChildren();
   };
@@ -392,7 +371,10 @@ export function mountMultiHorizonGraphLayerExample(
   });
 }
 
-function buildLayers(state: ExampleState, config: Required<HorizonExampleConfig>) {
+function buildLayers(
+  state: ExampleState,
+  config: Required<Omit<HorizonExampleConfig, 'onDeckInitialized'>>
+) {
   const {settings, derived, mousePosition} = state;
   const {x, y, width} = settings.layout;
   const {height} = derived;

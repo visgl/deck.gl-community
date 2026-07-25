@@ -14,6 +14,7 @@ import {
   updateFastTextDynamicGlyphAttributes
 } from './fast-text-layout';
 import {DEFAULT_FAST_TEXT_FONT_SETTINGS, FastTextFontAtlasManager} from './font-atlas';
+import FAST_TEXT_WGSL from './fast-text-layer.wgsl';
 
 import type {
   FastTextAlignmentBaseline,
@@ -158,6 +159,7 @@ export class FastTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Lay
   /** Return the shader set used by the direct glyph instance model. */
   override getShaders() {
     return super.getShaders({
+      source: FAST_TEXT_WGSL,
       vs: FAST_TEXT_VS,
       fs: FAST_TEXT_FS,
       modules: [project32, color, fastTextUniforms]
@@ -535,8 +537,10 @@ const fastTextLog = new Log({id: 'trace-layers'});
 const FAST_TEXT_PROBE_LABEL_STYLE =
   'background:#f59e0b;color:#111827;font-weight:700;padding:2px 8px;border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;';
 
-const fastTextUniforms = {
+/** Shader module shared by the GLSL and WGSL packed-glyph renderers. */
+export const fastTextUniforms = {
   name: 'fastText',
+  source: '',
   vs: `\
 layout(std140) uniform fastTextUniforms {
   vec2 fontAtlasSize;

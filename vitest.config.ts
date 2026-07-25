@@ -80,10 +80,23 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   include: ['apache-arrow', 'protobufjs/dist/light/protobuf.js', 'zod']
 };
 
+const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
+
 const HEADLESS_BROWSER_PROVIDER =
   process.env.GITHUB_ACTIONS === 'true'
     ? playwright({launchOptions: {channel: 'chrome'}})
-    : playwright();
+    : process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true'
+      ? playwright({
+          launchOptions: {
+            args: [
+              '--enable-unsafe-webgpu',
+              '--enable-unsafe-swiftshader',
+              '--use-angle=swiftshader',
+              '--enable-features=Vulkan,WebGPU'
+            ]
+          }
+        })
+      : playwright();
 
 const CONFIG = defineConfig({
   resolve: NODE_RESOLVE_CONFIG,
@@ -128,6 +141,7 @@ const CONFIG = defineConfig({
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: BROWSER_TEST_EXCLUDE,
           browser: {
             enabled: true,
             provider: playwright(),
@@ -149,6 +163,7 @@ const CONFIG = defineConfig({
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: BROWSER_TEST_EXCLUDE,
           browser: {
             enabled: true,
             headless: true,

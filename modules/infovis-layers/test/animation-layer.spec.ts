@@ -37,7 +37,7 @@ describe('AnimationLayer helpers', () => {
 describe('BlockLayer shaders', () => {
   it('converts scalar line widths through the vec2 pixel-size helper', () => {
     expect(blockLayerVertexShader).toContain(
-      'lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), block.lineWidthUnits).x;'
+      'lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), blockLayer.lineWidthUnits).x;'
     );
   });
 });

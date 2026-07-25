@@ -129,7 +129,7 @@ import type {TraceSpanCardTabOptions} from './cards/trace-span-card';
 import type {DeckWithManagedViewsAnchorTransition} from './deck-with-managed-views';
 import type {PendingTraceLayoutAnchor} from './trace-layout-anchors';
 import type {TraceEventCardRenderer} from './trace-tooltip';
-import type {DeckProps, PickingInfo, Widget} from '@deck.gl/core';
+import type {Deck, DeckProps, PickingInfo, View, Widget} from '@deck.gl/core';
 import type {Bounds, LayerFilter} from '@deck.gl-community/infovis-layers';
 import type {Tick} from '@deck.gl-community/timeline-layers';
 
@@ -222,6 +222,10 @@ function resolveDeckTraceGraphPickedObject(
 type DeckTraceRendererProps = {
   /** Imperative deck ref owned by the container. */
   deckRef: React.Ref<DeckWithManagedViewsRef>;
+  /** Optional caller-owned graphics device used by the managed trace deck. */
+  device?: DeckProps['device'];
+  /** Called once the underlying trace deck has initialized. */
+  onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
   /** Bounds used to fit the main trace viewport. */
   bounds: Bounds;
   /** Prepared minimap view model used by the overview viewport and controls. */
@@ -258,7 +262,7 @@ type DeckTraceRendererProps = {
   enableDeckGpuTimeStats?: boolean;
   /** Optional one-shot Y correction for preserving a span across trace layout transitions. */
   viewAnchorTransition?: DeckWithManagedViewsAnchorTransition | null;
-  /** Whether to render dashed process row separator lines in foreground trace layers. */
+  /** Whether to render horizontal process row separator lines in foreground trace layers. */
   showRowSeparators: boolean;
   /** Hover callback passed directly to deck.gl. */
   onHover: DeckProps['onHover'];
@@ -718,9 +722,13 @@ export type DeckTraceGraphTraceEventCardRenderer = TraceEventCardRenderer;
 
 /** Viewer configuration layered around the mounted TraceEngine. */
 export type DeckTraceGraphConfig = {
+  /** Optional caller-owned graphics device passed through to the actual trace renderer. */
+  readonly device?: DeckProps['device'];
+  /** Called when the actual trace deck is ready for host-managed device selection. */
+  readonly onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
   /** Whether to append graph names to rank labels when multiple graphs are rendered. */
   readonly showGraphNames?: boolean;
-  /** Whether to render dashed process row separator lines. */
+  /** Whether to render horizontal process row separator lines. */
   readonly showRowSeparators?: boolean;
   /** Extra per-process information keyed by trace process id. */
   readonly processInfoMap?: Record<string, TraceProcessInfo>;
@@ -852,6 +860,8 @@ export type DeckTraceGraphHandle = {
 // projection here; add those to scene/build helpers and pass the prepared result in.
 function DeckTraceRenderer({
   deckRef,
+  device,
+  onDeckInitialized,
   bounds,
   overviewViewModel,
   traceBackgroundLayers,
@@ -1024,6 +1034,8 @@ function DeckTraceRenderer({
   return (
     <DeckWithManagedViews
       ref={deckRef}
+      device={device}
+      onDeckInitialized={onDeckInitialized}
       bounds={bounds}
       overviewBounds={overviewViewModel.bounds}
       layers={layers}
@@ -1233,6 +1245,8 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
     isOverviewEnabled
   } = engineSnapshot;
   const {
+    device,
+    onDeckInitialized,
     showGraphNames: showGraphNamesProp = true,
     showRowSeparators = true,
     traceSpanCardOptions,
@@ -3015,6 +3029,8 @@ export const DeckTraceGraph = forwardRef(function DeckTraceGraph(
       <div className="relative h-full w-full">
         <DeckTraceRenderer
           deckRef={deckRef}
+          device={device}
+          onDeckInitialized={onDeckInitialized}
           bounds={bounds}
           overviewViewModel={overviewViewModel}
           traceBackgroundLayers={traceBackgroundLayers}

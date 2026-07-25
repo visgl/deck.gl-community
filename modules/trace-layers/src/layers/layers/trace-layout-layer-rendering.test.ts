@@ -1487,7 +1487,8 @@ describe('trace layout collapsed activity enrichment', () => {
           data: readonly unknown[];
           getColor?: unknown;
           getFillColor?: unknown;
-          getPath?: unknown;
+          getSourcePosition?: unknown;
+          getTargetPosition?: unknown;
           getPosition?: unknown;
           getRadius?: unknown;
           getWidth?: unknown;
@@ -1520,7 +1521,8 @@ describe('trace layout collapsed activity enrichment', () => {
     expect(secondInstants.props.getPosition).toBe(firstInstants.props.getPosition);
     expect(secondInstants.props.getFillColor).toBe(firstInstants.props.getFillColor);
     expect(secondInstants.props.getRadius).toBe(firstInstants.props.getRadius);
-    expect(secondSparklines.props.getPath).toBe(firstSparklines.props.getPath);
+    expect(secondSparklines.props.getSourcePosition).toBe(firstSparklines.props.getSourcePosition);
+    expect(secondSparklines.props.getTargetPosition).toBe(firstSparklines.props.getTargetPosition);
     expect(secondSparklines.props.getColor).toBe(firstSparklines.props.getColor);
     expect(secondSparklines.props.getWidth).toBe(firstSparklines.props.getWidth);
     expect(secondCounterPoints.props.getPosition).toBe(firstCounterPoints.props.getPosition);
@@ -1529,8 +1531,8 @@ describe('trace layout collapsed activity enrichment', () => {
     expect(secondInstants.props.updateTriggers?.getPosition).toBe(
       firstInstants.props.updateTriggers?.getPosition
     );
-    expect(secondSparklines.props.updateTriggers?.getPath).toBe(
-      firstSparklines.props.updateTriggers?.getPath
+    expect(secondSparklines.props.updateTriggers?.getSourcePosition).toBe(
+      firstSparklines.props.updateTriggers?.getSourcePosition
     );
     expect(secondCounterPoints.props.updateTriggers?.getPosition).toBe(
       firstCounterPoints.props.updateTriggers?.getPosition
@@ -1671,14 +1673,14 @@ describe('trace layout collapsed activity enrichment', () => {
       ?.find(layer => layer?.id.endsWith('block-rectangle-borders')) as
       | {
           props: {
-            getWidth: number;
+            getLineWidth: number;
             widthMinPixels: number;
             pickable: boolean;
           };
         }
       | undefined;
 
-    expect(borderLayer?.props.getWidth).toBe(1);
+    expect(borderLayer?.props.getLineWidth).toBe(1);
     expect(borderLayer?.props.widthMinPixels).toBe(0);
     expect(borderLayer?.props.pickable).toBe(false);
   });

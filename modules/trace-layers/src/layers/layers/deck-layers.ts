@@ -1,6 +1,5 @@
 import {Layer, PickingInfo} from '@deck.gl/core';
-import {PathStyleExtension} from '@deck.gl/extensions';
-import {PathLayer, PolygonLayer, ScatterplotLayer, TextLayer} from '@deck.gl/layers';
+import {LineLayer, PathLayer, PolygonLayer, ScatterplotLayer, TextLayer} from '@deck.gl/layers';
 import {Matrix4} from '@math.gl/core';
 import {AnimationLayer, BlockLayer} from '@deck.gl-community/infovis-layers';
 import {DependencyArrowLayer, PathDirection} from '@deck.gl-community/layers';
@@ -61,7 +60,6 @@ import type {
   TraceThreadId,
   TraceVisSettings
 } from '../../trace/index';
-import type {PathStyleExtensionProps} from '@deck.gl/extensions';
 import type {Bounds} from '@deck.gl-community/infovis-layers';
 import type {Tick} from '@deck.gl-community/timeline-layers';
 
@@ -102,6 +100,15 @@ type RowSeparatorDatum = {
   path: Float32Array;
 };
 
+type CounterSparklineSegment = {
+  /** Prepared sparkline that owns this line segment and its color. */
+  readonly sparkline: CounterSparkline;
+  /** Source vertex in trace-local coordinates. */
+  readonly sourcePosition: readonly [number, number, number];
+  /** Target vertex in trace-local coordinates. */
+  readonly targetPosition: readonly [number, number, number];
+};
+
 type MinimapSpanIndicatorLineDatum = {
   /** Source indicator that owns this line segment. */
   readonly indicator: TracePreparedMinimapSpanIndicator;
@@ -129,7 +136,6 @@ const RANK_LABEL_BACKGROUND_COLOR = [255, 255, 255, 220] as [number, number, num
 const RANK_LABEL_BACKGROUND_PADDING = [6, 4] as [number, number];
 const RANK_LABEL_LEFT_EDGE_OFFSET_PX = -142;
 const RANK_ROW_SEPARATOR_COLOR = [0, 0, 0, 160] as [number, number, number, number];
-const RANK_ROW_SEPARATOR_DASH_ARRAY = [5, 4] as [number, number];
 const RANK_ROW_SEPARATOR_WIDTH_PX = 1;
 const ROW_SEPARATOR_HORIZONTAL_EXTENT = 1e6;
 const NODENAME_BACKGROUND_COLOR = [0, 196, 0, 255] as [number, number, number, number];
@@ -239,7 +245,7 @@ export type BuildDeckLayersForTraceParams = {
   readonly colorScheme?: TraceColorScheme;
   /** CSS font stack used by deck text labels. */
   readonly fontFamily?: string;
-  /** Whether dashed row separators should be rendered for this trace layer group. */
+  /** Whether horizontal row separators should be rendered for this trace layer group. */
   readonly showRowSeparators?: boolean;
   /** Direction collapsed activity summaries grow relative to the row baseline. */
   readonly collapsedActivityDirection?: 'up' | 'down';
@@ -266,6 +272,7 @@ const EMPTY_CRITICAL_PATH_DEPENDENCY_SOURCES: readonly TraceGraphPathDependencyS
 const EMPTY_TRACE_EVENT_SOURCES: readonly TraceEventSource[] = [];
 const EMPTY_TRACE_INSTANT_SOURCES: readonly TraceInstantSource[] = [];
 const EMPTY_COUNTER_SPARKLINES: readonly CounterSparkline[] = [];
+const EMPTY_COUNTER_SPARKLINE_SEGMENTS: readonly CounterSparklineSegment[] = [];
 const EMPTY_TRACE_COUNTER_SOURCES: readonly TraceCounterSource[] = [];
 const EMPTY_TRACE_RENDER_BINARY_ATTRIBUTE_DATA: TraceDeckBinaryAttributeData = {
   length: 0,
@@ -277,7 +284,6 @@ const EMPTY_CRITICAL_PATH_HIGHLIGHT_TRAIL: readonly {
 }[] = [];
 const HIDDEN_EVENT_POSITION = [0, -1e6, 0] as [number, number, number];
 const HIDDEN_EVENT_COLOR = [0, 0, 0, 0] as [number, number, number, number];
-const EMPTY_COUNTER_SPARKLINE_PATH: [number, number, number][] = [];
 
 /** Eases selected-block color transitions so the outline dwells near endpoint colors. */
 function easeSelectedBlockHighlightColor(t: number): number {
@@ -304,8 +310,16 @@ function getTraceMarkerRadius(): number {
   return 4;
 }
 
-function getHiddenCounterSparklinePath(): [number, number, number][] {
-  return EMPTY_COUNTER_SPARKLINE_PATH;
+function getCounterSparklineSourcePosition(
+  segment: CounterSparklineSegment
+): readonly [number, number, number] {
+  return segment.sourcePosition;
+}
+
+function getCounterSparklineTargetPosition(
+  segment: CounterSparklineSegment
+): readonly [number, number, number] {
+  return segment.targetPosition;
 }
 
 function getHiddenCounterSparklineColor(): [number, number, number, number] {
@@ -316,12 +330,10 @@ function getHiddenCounterSparklineWidth(): number {
   return 0;
 }
 
-function getCounterSparklinePath(item: CounterSparkline): [number, number, number][] {
-  return item.path as [number, number, number][];
-}
-
-function getCounterSparklineColor(item: CounterSparkline): [number, number, number, number] {
-  return [...item.color] as [number, number, number, number];
+function getCounterSparklineColor(
+  segment: CounterSparklineSegment
+): [number, number, number, number] {
+  return [...segment.sparkline.color] as [number, number, number, number];
 }
 
 function getCounterSparklineWidth(): number {
@@ -345,17 +357,26 @@ export function buildDeckBackgroundLayersForTrace({
   rankBackgroundColor?: Readonly<[number, number, number, number]>;
   modelMatrix?: Matrix4;
 }) {
-  return new PolygonLayer<TraceLayoutRow>({
+  return new BlockLayer<TraceLayoutRow>({
     id: makeLayerId(layerIdPrefix, 'rank-background'),
     visible: Boolean(rankBackgroundColor),
     data: processRows,
     positionFormat: 'XY',
-    getPolygon: row => {
+    sizeUnits: 'common',
+    getPosition: row => {
       const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
-      return rankLayout?.backgroundPolygonInfinite ?? [];
+      const polygon = rankLayout?.backgroundPolygonInfinite;
+      return [polygon?.[0] ?? 0, polygon?.[1] ?? 0, 0];
+    },
+    getSize: row => {
+      const rankLayout = getTraceLayoutProcessLayoutByRef(traceLayout, row.processRef);
+      const polygon = rankLayout?.backgroundPolygonInfinite;
+      return polygon && polygon.length >= 6
+        ? [polygon[2]! - polygon[0]!, polygon[5]! - polygon[1]!]
+        : [0, 0];
     },
     getFillColor: (rankBackgroundColor ?? HIDDEN_EVENT_COLOR) as [number, number, number, number],
-    stroked: false,
+    getLineWidth: 0,
     parameters: {blend: false, depthWriteEnabled: false, depthCompare: 'always'},
     pickable: false,
     modelMatrix
@@ -440,18 +461,16 @@ export function buildDeckRowSeparatorLayerForTrace({
       : [])
   ];
 
-  return new PathLayer<RowSeparatorDatum, PathStyleExtensionProps<RowSeparatorDatum>>({
+  return new LineLayer<RowSeparatorDatum>({
     id: makeLayerId(layerIdPrefix, 'rank-row-separators'),
     visible,
     data: separatorData,
     positionFormat: 'XY',
-    getPath: datum => datum.path,
+    getSourcePosition: datum => [datum.path[0] ?? 0, datum.path[1] ?? 0, 0],
+    getTargetPosition: datum => [datum.path[2] ?? 0, datum.path[3] ?? 0, 0],
     getColor: RANK_ROW_SEPARATOR_COLOR,
     getWidth: RANK_ROW_SEPARATOR_WIDTH_PX,
     widthUnits: 'pixels',
-    getDashArray: RANK_ROW_SEPARATOR_DASH_ARRAY,
-    dashJustified: true,
-    extensions: [new PathStyleExtension({dash: true})],
     pickable: false,
     parameters: {blend: true, depthWriteEnabled: false, depthCompare: 'always'},
     modelMatrix
@@ -1210,6 +1229,15 @@ export function buildDeckLayersForInstantsAndCounter({
   const counterPointLayerData =
     settings.showCounters && counterPoints.length > 0 ? counterPoints : EMPTY_TRACE_COUNTER_SOURCES;
   const hasSparklineData = sparklineLayerData.length > 0;
+  const sparklineSegments = hasSparklineData
+    ? sparklineLayerData.flatMap(sparkline =>
+        sparkline.path.slice(0, -1).map((sourcePosition, index) => ({
+          sparkline,
+          sourcePosition,
+          targetPosition: sparkline.path[index + 1]!
+        }))
+      )
+    : EMPTY_COUNTER_SPARKLINE_SEGMENTS;
   const hasCounterPointData = counterPointLayerData.length > 0;
   const sparklineUpdateTriggers = hasSparklineData
     ? [sparklineLayerData]
@@ -1218,12 +1246,17 @@ export function buildDeckLayersForInstantsAndCounter({
     ? [counterPositionMap, counterColorMap]
     : EMPTY_LAYER_UPDATE_TRIGGERS;
   layers.push(
-    new PathLayer<CounterSparkline>({
+    new LineLayer<CounterSparklineSegment>({
       id: makeLayerId(layerIdPrefix, 'trace-counter-sparklines'),
-      data: sparklineLayerData,
+      data: sparklineSegments,
       visible: Boolean(settings.showCounters && hasSparklineData),
       positionFormat: 'XY',
-      getPath: hasSparklineData ? getCounterSparklinePath : getHiddenCounterSparklinePath,
+      getSourcePosition: hasSparklineData
+        ? getCounterSparklineSourcePosition
+        : getHiddenEventPosition,
+      getTargetPosition: hasSparklineData
+        ? getCounterSparklineTargetPosition
+        : getHiddenEventPosition,
       getColor: hasSparklineData ? getCounterSparklineColor : getHiddenCounterSparklineColor,
       widthUnits: 'pixels',
       getWidth: hasSparklineData ? getCounterSparklineWidth : getHiddenCounterSparklineWidth,
@@ -1231,7 +1264,8 @@ export function buildDeckLayersForInstantsAndCounter({
       modelMatrix,
       parameters: {blend: false, depthWriteEnabled: false, depthCompare: 'always'},
       updateTriggers: {
-        getPath: sparklineUpdateTriggers,
+        getSourcePosition: sparklineUpdateTriggers,
+        getTargetPosition: sparklineUpdateTriggers,
         getColor: sparklineUpdateTriggers,
         getWidth: EMPTY_LAYER_UPDATE_TRIGGERS
       }

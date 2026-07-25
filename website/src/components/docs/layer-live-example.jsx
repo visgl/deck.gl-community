@@ -3,6 +3,7 @@ import BrowserOnly from '@docusaurus/BrowserOnly';
 import '@deck.gl/widgets/stylesheet.css';
 
 import {deferImperativeCleanup} from '../imperative-cleanup';
+import {mountDeviceManagedExample} from '../example/mount-device-managed-example';
 
 const WRAPPER_STYLE = {
   position: 'relative',
@@ -43,6 +44,18 @@ const GRAPH_LAYER_HIGHLIGHTS = new Set([
   'zoomable-text-layer'
 ]);
 
+const DEVICE_MANAGED_LAYER_HIGHLIGHTS = new Set([
+  'animation-layer',
+  'block-layer',
+  'dependency-arrow-layer',
+  'horizon-graph-layer',
+  'multi-horizon-graph-layer',
+  'path-marker-layer',
+  'path-outline-layer',
+  'skybox-layer',
+  'time-delta-layer'
+]);
+
 const INFO_COPY = {
   'arrow-layers': {
     title: 'GeoArrow layers',
@@ -68,7 +81,22 @@ function LayerLiveExampleHost({highlight, height}) {
     let cleanup;
     let isDisposed = false;
     const animationFrame = window.requestAnimationFrame(() => {
-      mountLayerDocsExample(hostElement, highlight)
+      mountDeviceManagedExample(
+        hostElement,
+        (container, mountProps) => mountLayerDocsExample(container, highlight, mountProps),
+        {},
+        {
+          deviceTabs: DEVICE_MANAGED_LAYER_HIGHLIGHTS.has(highlight)
+            ? {
+                placement:
+                  highlight === 'horizon-graph-layer' || highlight === 'multi-horizon-graph-layer'
+                    ? 'bottom-right'
+                    : 'top-right'
+              }
+            : false,
+          mountLabel: highlight
+        }
+      )
         .then((nextCleanup) => {
           if (isDisposed) {
             deferImperativeCleanup(nextCleanup);
@@ -102,13 +130,13 @@ export default function LayerLiveExample({highlight, size = 'narrow', height}) {
   );
 }
 
-async function mountLayerDocsExample(container, highlight) {
+async function mountLayerDocsExample(container, highlight, mountProps = {}) {
   switch (highlight) {
     case 'skybox-layer': {
       const {mountSkyboxMapViewExample} = await import(
         '../../../../examples/layers/skybox-map-view/app'
       );
-      return mountSkyboxMapViewExample(container, {showInfoOverlay: false});
+      return mountSkyboxMapViewExample(container, {showInfoOverlay: false, ...mountProps});
     }
     case 'basemap-layer': {
       const {mountBasemapLayerMapViewExample} = await import(
@@ -122,7 +150,7 @@ async function mountLayerDocsExample(container, highlight) {
       const {mountPathOutlineAndMarkersExample} = await import(
         '../../../../examples/layers/path-marker-outline/app'
       );
-      return mountPathOutlineAndMarkersExample(container, {showInfoWidget: false});
+      return mountPathOutlineAndMarkersExample(container, {showInfoWidget: false, ...mountProps});
     }
     case 'shared-tile-2d-layer':
     case 'tile-grid-layer': {
@@ -150,13 +178,13 @@ async function mountLayerDocsExample(container, highlight) {
       const {mountHorizonGraphLayerExample} = await import(
         '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
       );
-      return mountHorizonGraphLayerExample(container, {showInfoWidget: false});
+      return mountHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
     case 'multi-horizon-graph-layer': {
       const {mountMultiHorizonGraphLayerExample} = await import(
         '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
       );
-      return mountMultiHorizonGraphLayerExample(container, {showInfoWidget: false});
+      return mountMultiHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
     case 'time-axis-layer':
       return mountTimeAxisLayerExample(container);
@@ -170,7 +198,8 @@ async function mountLayerDocsExample(container, highlight) {
       );
       return mountInfovisLayerPrimitivesExample(container, {
         highlight,
-        showInfoOverlay: false
+        showInfoOverlay: false,
+        ...mountProps
       });
     }
     default:

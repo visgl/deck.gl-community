@@ -142,8 +142,7 @@ export class HorizonGraphLayer<ExtraProps extends {} = {}> extends Layer<
 
     return new Model(this.context.device, {
       ...this.getShaders(),
-      geometry,
-      bufferLayout: this.getAttributeManager().getBufferLayouts()
+      geometry
     });
   }
 

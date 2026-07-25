@@ -10,11 +10,7 @@ import {
   PathMarkerLayer
 } from '@deck.gl-community/layers';
 import {MarkdownPanel} from '@deck.gl-community/panels';
-import {
-  BoxPanelWidget,
-  DeviceManagerController,
-  DeviceTabsWidget
-} from '@deck.gl-community/widgets';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -206,6 +202,7 @@ function getInitialViewState(container: HTMLElement): MapViewState {
  */
 type PathOutlineAndMarkersExampleOptions = {
   showInfoWidget?: boolean;
+  onDeckInitialized?: (deck: Deck) => void;
 };
 
 export function mountPathOutlineAndMarkersExample(
@@ -218,14 +215,6 @@ export function mountPathOutlineAndMarkersExample(
   rootElement.style.height = '100%';
   container.replaceChildren(rootElement);
 
-  const deviceManager = new DeviceManagerController();
-  deviceManager.reparentCanvas(rootElement);
-  const deviceTabsWidget = new DeviceTabsWidget({
-    id: 'path-outline-and-markers-device-tabs',
-    devices: ['webgpu', 'webgl2'],
-    manager: deviceManager,
-    placement: 'top-right'
-  });
   const deck = new Deck({
     parent: rootElement,
     width: '100%',
@@ -233,9 +222,8 @@ export function mountPathOutlineAndMarkersExample(
     initialViewState: getInitialViewState(rootElement),
     controller: true,
     parameters: {clearColor: [0.96, 0.97, 1, 1]},
-    widgets: [
-      deviceTabsWidget,
-      ...(options.showInfoWidget === false
+    widgets:
+      options.showInfoWidget === false
         ? []
         : [
             new BoxPanelWidget({
@@ -252,8 +240,7 @@ export function mountPathOutlineAndMarkersExample(
                   'Demonstrates `PathOutlineLayer` for outlined dashed routes, `PathMarkerLayer` for directional markers, and `DependencyArrowLayer` for routed handoff links.\n\nHover a path to inspect each route or trail.'
               })
             })
-          ])
-    ],
+          ],
     layers: [
       new PathOutlineLayer<WaterfrontSegment>({
         id: 'trail-outlines',
@@ -324,17 +311,10 @@ export function mountPathOutlineAndMarkersExample(
     ],
     getTooltip: (info: PickingInfo<LayerDatum>) => getTooltip(info)
   });
-  const unsubscribeDevice = deviceManager.subscribe(({device}) => {
-    if (device && deck.device !== device) {
-      deck.setProps({device});
-    }
-  });
-  void deviceManager.initialize();
+  options.onDeckInitialized?.(deck);
 
   return () => {
-    unsubscribeDevice();
     deck.finalize();
-    deviceManager.reset();
     rootElement.remove();
     container.replaceChildren();
   };

@@ -3,6 +3,7 @@ import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import {deferImperativeCleanup} from '../imperative-cleanup';
 import makeExample from './make-example';
+import {mountDeviceManagedExample} from './mount-device-managed-example';
 
 const HOST_STYLE = {
   position: 'absolute',
@@ -11,7 +12,7 @@ const HOST_STYLE = {
   height: '100%'
 };
 
-function ImperativeExampleHost({mount, mountLabel, ...mountProps}) {
+function ImperativeExampleHost({mount, mountLabel, deviceTabs, ...mountProps}) {
   const hostRef = useRef(null);
   const initialPropsRef = useRef(mountProps);
 
@@ -25,7 +26,12 @@ function ImperativeExampleHost({mount, mountLabel, ...mountProps}) {
     let isDisposed = false;
     const animationFrame = window.requestAnimationFrame(() => {
       Promise.resolve()
-        .then(() => mount(hostElement, initialPropsRef.current))
+        .then(() =>
+          mountDeviceManagedExample(hostElement, mount, initialPropsRef.current, {
+            deviceTabs,
+            mountLabel
+          })
+        )
         .then((nextCleanup) => {
           if (typeof nextCleanup !== 'function') {
             return;
@@ -47,19 +53,26 @@ function ImperativeExampleHost({mount, mountLabel, ...mountProps}) {
       window.cancelAnimationFrame(animationFrame);
       deferImperativeCleanup(cleanup);
     };
-  }, [mount, mountLabel]);
+  }, [mount, mountLabel, deviceTabs]);
 
   return <div ref={hostRef} style={HOST_STYLE} />;
 }
 
 export default function makeImperativeExample(
-  {title, code, renderInfo = () => null, mount, parameters, mapStyle, data},
+  {title, code, renderInfo = () => null, mount, parameters, mapStyle, data, deviceTabs},
   options
 ) {
   function ImperativeDemo(props) {
     return (
       <BrowserOnly>
-        {() => <ImperativeExampleHost mount={mount} mountLabel={title} {...props} />}
+        {() => (
+          <ImperativeExampleHost
+            mount={mount}
+            mountLabel={title}
+            deviceTabs={deviceTabs}
+            {...props}
+          />
+        )}
       </BrowserOnly>
     );
   }

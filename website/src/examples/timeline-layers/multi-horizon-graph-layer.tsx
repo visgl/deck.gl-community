@@ -5,11 +5,12 @@ export default makeImperativeExample(
   {
     title: 'Multi Horizon Graph Layer Demo',
     code: `${GITHUB_TREE}/dev/timeline-layers/examples/horizon-graph-layer`,
-    async mount(container) {
+    deviceTabs: {placement: 'bottom-right'},
+    async mount(container, props) {
       const {mountMultiHorizonGraphLayerExample} = await import(
         '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
       );
-      return mountMultiHorizonGraphLayerExample(container);
+      return mountMultiHorizonGraphLayerExample(container, props);
     }
   },
   {

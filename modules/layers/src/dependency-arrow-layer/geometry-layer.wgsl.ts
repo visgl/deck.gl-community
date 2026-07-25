@@ -16,15 +16,12 @@ struct GeometryLayerUniforms {
 struct GeometryLayerAttributes {
   @location(0) positions: vec2<f32>,
   @location(1) instanceSourcePositions: vec3<f32>,
-  @location(2) instanceSourcePositions64Low: vec3<f32>,
-  @location(3) instanceTargetPositions: vec3<f32>,
-  @location(4) instanceTargetPositions64Low: vec3<f32>,
-  @location(5) instanceRatios: f32,
-  @location(6) instanceArcHeights: f32,
-  @location(7) instanceArcTilts: f32,
-  @location(8) instanceSizes: vec2<f32>,
-  @location(9) instanceColors: vec4<f32>,
-  @location(10) instancePickingColors: vec3<f32>,
+  @location(2) instanceTargetPositions: vec3<f32>,
+  @location(3) instanceRatios: f32,
+  @location(4) instanceArcHeights: f32,
+  @location(5) instanceSizes: vec2<f32>,
+  @location(6) instanceColors: vec4<f32>,
+  @location(7) instancePickingColors: vec4<f32>,
 };
 
 struct GeometryLayerVaryings {
@@ -56,44 +53,44 @@ fn geometry_layer_paraboloid(
 
 fn geometry_layer_interpolate(
   source: vec3<f32>,
-  target: vec3<f32>,
+  destination: vec3<f32>,
   ratio: f32,
   arcHeight: f32,
   arcTilt: f32
 ) -> vec3<f32> {
   if (geometryLayer.interpolationMode != 1) {
-    return mix(source, target, ratio);
+    return mix(source, destination, ratio);
   }
 
-  let distance = length(source.xy - target.xy);
-  let height = geometry_layer_paraboloid(distance, source.z, target.z, ratio, arcHeight);
+  let distance = length(source.xy - destination.xy);
+  let height = geometry_layer_paraboloid(distance, source.z, destination.z, ratio, arcHeight);
   let tiltAngle = radians(arcTilt);
-  let delta = target.xy - source.xy;
+  let delta = destination.xy - source.xy;
   let direction = select(vec2<f32>(1.0, 0.0), normalize(delta), length(delta) > 0.0);
   let tilt = vec2<f32>(-direction.y, direction.x) * height * sin(tiltAngle);
-  return vec3<f32>(mix(source.xy, target.xy, ratio) + tilt, height * cos(tiltAngle));
+  return vec3<f32>(mix(source.xy, destination.xy, ratio) + tilt, height * cos(tiltAngle));
 }
 
 @vertex
 fn vertexMain(attributes: GeometryLayerAttributes) -> GeometryLayerVaryings {
   geometry.worldPosition = attributes.instanceSourcePositions;
   geometry.worldPositionAlt = attributes.instanceTargetPositions;
-  geometry.pickingColor = attributes.instancePickingColors;
+  geometry.pickingColor = attributes.instancePickingColors.rgb;
 
   let source = project_position_vec3_f64(
     attributes.instanceSourcePositions,
-    attributes.instanceSourcePositions64Low
+    vec3<f32>(0.0)
   );
-  let target = project_position_vec3_f64(
+  let destination = project_position_vec3_f64(
     attributes.instanceTargetPositions,
-    attributes.instanceTargetPositions64Low
+    vec3<f32>(0.0)
   );
   let current = geometry_layer_interpolate(
     source,
-    target,
+    destination,
     attributes.instanceRatios,
     attributes.instanceArcHeights,
-    attributes.instanceArcTilts
+    0.0
   );
   let adjacentRatio = select(
     attributes.instanceRatios - 0.01,
@@ -102,10 +99,10 @@ fn vertexMain(attributes: GeometryLayerAttributes) -> GeometryLayerVaryings {
   );
   let adjacent = geometry_layer_interpolate(
     source,
-    target,
+    destination,
     adjacentRatio,
     attributes.instanceArcHeights,
-    attributes.instanceArcTilts
+    0.0
   );
   let normal = select(current.xy - adjacent.xy, adjacent.xy - current.xy, attributes.instanceRatios < 0.01);
   let markerPosition = select(
@@ -138,7 +135,7 @@ fn vertexMain(attributes: GeometryLayerAttributes) -> GeometryLayerVaryings {
     geometryLayer.sizeUnits == UNIT_PIXELS
   );
   varyings.color = vec4<f32>(attributes.instanceColors.rgb, attributes.instanceColors.a * layer.opacity);
-  varyings.pickingColor = attributes.instancePickingColors;
+  varyings.pickingColor = attributes.instancePickingColors.rgb;
   return varyings;
 }
 

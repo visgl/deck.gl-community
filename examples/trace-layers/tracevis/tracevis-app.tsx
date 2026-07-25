@@ -1,11 +1,16 @@
 import {MainView} from './components/tracevis-main-view';
 import {initStore} from './tracevis-store';
+import type {Deck, View} from '@deck.gl/core';
 
 /** Glues up the standalone Tracevis demo shell. */
-export const App = () => {
+export const App = ({
+  onDeckInitialized
+}: {
+  onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
+} = {}) => {
   return (
     <AppInitializer>
-      <MainView />
+      <MainView onDeckInitialized={onDeckInitialized} />
     </AppInitializer>
   );
 };
