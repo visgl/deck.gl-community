@@ -15,7 +15,6 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry, picking, and line-mode dependencies; path mode remains blocked on upstream `PathLayer` support.
 - `HorizonGraphLayer`: added native WGSL and portable `r32float` data-texture bindings.
 - `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.
-- `TimeAxisLayer`: automatically renders time-axis labels through the portable packed fast-text layer on WebGPU while preserving upstream text rendering on WebGL2.
 - `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceProcessLayer`: ported trace backgrounds, binary span blocks, outlines, labels, overflow labels, separators, and straight dependencies by reusing dual-backend community layers.
 - Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
 - The website injects luma.gl-style device tabs into skybox, path and dependency-marker, information-visualization, horizon-graph, and trace examples, with independent managers, WebGPU preference, WebGL2 fallback, and real renderer switching; standalone examples remain free of device-management dependencies.
@@ -35,7 +34,6 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 ### `@deck.gl-community/timeline-layers`
 
 - `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
-- `TimeAxisLayer` automatically uses WebGPU-compatible packed glyphs for tick labels while retaining the existing WebGL2 text implementation.
 - `HorizonGraphLayer` and `MultiHorizonGraphLayer` can render their floating-point data textures on WebGPU and WebGL2; stacked horizon dividers now use the upstream dual-backend `LineLayer`.
 
 ### `@deck.gl-community/trace-layers`

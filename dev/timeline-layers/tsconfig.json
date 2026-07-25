@@ -7,6 +7,5 @@
     "rootDir": "src",
     "outDir": "dist",
     "noEmit": false
-  },
-  "references": [{"path": "../../modules/infovis-layers"}]
+  }
 }

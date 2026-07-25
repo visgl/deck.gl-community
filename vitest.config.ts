@@ -80,6 +80,8 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   include: ['apache-arrow', 'protobufjs/dist/light/protobuf.js', 'zod']
 };
 
+const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
+
 const HEADLESS_BROWSER_PROVIDER =
   process.env.GITHUB_ACTIONS === 'true'
     ? playwright({launchOptions: {channel: 'chrome'}})
@@ -139,6 +141,7 @@ const CONFIG = defineConfig({
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: BROWSER_TEST_EXCLUDE,
           browser: {
             enabled: true,
             provider: playwright(),
@@ -160,6 +163,7 @@ const CONFIG = defineConfig({
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: BROWSER_TEST_EXCLUDE,
           browser: {
             enabled: true,
             headless: true,

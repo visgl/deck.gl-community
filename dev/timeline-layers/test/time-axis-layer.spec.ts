@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {describe, expect, it} from 'vitest';
+import {TextLayer} from '@deck.gl/layers';
 
 import {TimeAxisLayer} from '../src/layers/time-axis-layer';
 
@@ -83,6 +84,33 @@ function updateLayer(layer: TestableTimeAxisLayer): void {
 }
 
 describe('TimeAxisLayer', () => {
+  it('renders tick labels with the standard deck.gl text layer', () => {
+    const layer = makeLayer(makeViewport([0, 0, 100, 100]));
+
+    const tickLabels = layer.renderLayers().find(sublayer => sublayer instanceof TextLayer);
+
+    expect(tickLabels).toBeInstanceOf(TextLayer);
+  });
+
+  it('forwards optional font properties directly to the tick label layer', () => {
+    const fontSettings = {sdf: true};
+    const layer = makeLayer(makeViewport([0, 0, 100, 100]), {
+      characterSet: '0123456789ms',
+      fontFamily: 'system-ui',
+      fontSettings,
+      fontWeight: 500
+    });
+
+    const tickLabels = layer.renderLayers().find(sublayer => sublayer instanceof TextLayer);
+
+    expect(tickLabels?.props).toMatchObject({
+      characterSet: '0123456789ms',
+      fontFamily: 'system-ui',
+      fontSettings,
+      fontWeight: 500
+    });
+  });
+
   it('clears ticks without throwing when viewport bounds are unavailable', () => {
     const layer = makeLayer(makeViewport(new Error('missing projection')));
 

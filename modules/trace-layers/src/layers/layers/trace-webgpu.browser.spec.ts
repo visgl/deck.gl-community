@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, OrthographicView} from '@deck.gl/core';
-import {TimeAxisLayer} from '@deck.gl-community/timeline-layers';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -181,18 +180,6 @@ async function renderTraceGraph(
       settings: {...TRACE_SETTINGS, enableFastTextLayer},
       showRowSeparators: true
     });
-    const timeAxisLayer = new TimeAxisLayer({
-      id: `trace-time-axis-${type}`,
-      mode: 'duration',
-      minX: 0,
-      maxX: 18,
-      minY: 0,
-      maxY: 3,
-      labelY: 0,
-      tickCount: 5,
-      minorTickCount: 1
-    });
-
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         reject(new Error(`Timed out while rendering the trace graph with ${type}.`));
@@ -205,7 +192,7 @@ async function renderTraceGraph(
         height: 128,
         views: new OrthographicView({id: 'trace-webgpu-test', flipY: true}),
         initialViewState: {target: [9, 1, 0], zoom: 3},
-        layers: [timeAxisLayer, layer],
+        layers: [layer],
         onAfterRender: () => {
           window.clearTimeout(timeout);
           resolve();
@@ -219,7 +206,6 @@ async function renderTraceGraph(
 
     await nativeGpuDevice?.queue.onSubmittedWorkDone();
     expect(device.type).toBe(type);
-    expect(timeAxisLayer.state.ticks.length).toBeGreaterThan(0);
     expect(layer.state.traceViewState?.preparedScene.foreground).toHaveLength(1);
     expect(graph.getProcessRefs()).toHaveLength(1);
     expect(validationErrors).toEqual([]);
