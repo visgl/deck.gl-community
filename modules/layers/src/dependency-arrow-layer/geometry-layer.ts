@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Layer, picking, project32, UNIT} from '@deck.gl/core';
+import {color, Layer, picking, project32, UNIT} from '@deck.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
+import source from './geometry-layer.wgsl';
 
 import type {
   Accessor,
@@ -60,6 +61,7 @@ type GeometryLayerUniformProps = {
 
 const geometryLayerUniforms = {
   name: 'geometryLayer',
+  source: '',
   vs: `\
 uniform geometryLayerUniforms {
   float sizeScale;
@@ -270,7 +272,12 @@ export class GeometryLayer<DataT = unknown> extends Layer<Required<_GeometryLaye
   } = {};
 
   override getShaders() {
-    return super.getShaders({vs, fs, modules: [project32, picking, geometryLayerUniforms]});
+    return super.getShaders({
+      source,
+      vs,
+      fs,
+      modules: [project32, color, picking, geometryLayerUniforms]
+    });
   }
 
   initializeState() {

@@ -23,6 +23,7 @@ import {Geometry, Model} from '@luma.gl/engine';
 import fs from './block-layer-fragment.glsl';
 import {BlockProps, blockUniforms} from './block-layer-uniforms';
 import vs from './block-layer-vertex.glsl';
+import source from './block-layer.wgsl';
 
 const DEFAULT_COLOR: [number, number, number, number] = [0, 0, 0, 255];
 
@@ -114,6 +115,7 @@ export class BlockLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
 
   override getShaders() {
     return super.getShaders({
+      source,
       vs,
       fs,
       modules: [project32, color, picking, blockUniforms]

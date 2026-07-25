@@ -5,6 +5,7 @@
 import {COORDINATE_SYSTEM, Deck, OrthographicView, type Color, type Position} from '@deck.gl/core';
 import {LineLayer, TextLayer} from '@deck.gl/layers';
 import {AnimationLayer, BlockLayer, TimeDeltaLayer} from '@deck.gl-community/infovis-layers';
+import {DeviceManagerController, DeviceTabsWidget} from '@deck.gl-community/widgets';
 
 type InfovisLayerHighlight = 'all' | 'animation-layer' | 'block-layer' | 'time-delta-layer';
 
@@ -41,6 +42,8 @@ export function mountInfovisLayerPrimitivesExample(
     rootElement.appendChild(createInfoOverlay(rootElement.ownerDocument));
   }
 
+  const deviceManager = new DeviceManagerController();
+  deviceManager.reparentCanvas(rootElement);
   const deck = new Deck({
     parent: rootElement,
     views: new OrthographicView({id: 'infovis-layer-primitives', flipY: false}),
@@ -49,11 +52,27 @@ export function mountInfovisLayerPrimitivesExample(
       zoom: 0
     },
     controller: true,
+    widgets: [
+      new DeviceTabsWidget({
+        id: 'infovis-layer-primitives-device-tabs',
+        devices: ['webgpu', 'webgl2'],
+        manager: deviceManager,
+        placement: 'top-right'
+      })
+    ],
     layers: createLayers(highlight)
   });
+  const unsubscribeDevice = deviceManager.subscribe(({device}) => {
+    if (device && deck.device !== device) {
+      deck.setProps({device});
+    }
+  });
+  void deviceManager.initialize();
 
   return () => {
+    unsubscribeDevice();
     deck.finalize();
+    deviceManager.reset();
     rootElement.remove();
     container.replaceChildren();
   };

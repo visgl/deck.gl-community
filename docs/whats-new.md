@@ -1,21 +1,36 @@
 # What's New
 
-## v9.4 - In Planning
+## v9.4 - In Development
+
+Target Release Date: July 2026
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
+
+### WebGPU
+
+- Added the [WebGPU support matrix and migration roadmap](./webgpu.md), covering WebGL2 and WebGPU support by module and layer, upstream dependencies, and host integration limitations.
+- `SkyboxLayer`: validated the existing native WGSL and GLSL implementation with real WebGPU/WebGL2 device selection in the skybox example.
+- `BlockLayer`: added native WGSL for instanced block fills, outlines, projection, opacity, and picking while preserving the existing WebGL2 shaders.
+- `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry, picking, and line-mode dependencies; path mode remains blocked on upstream `PathLayer` support.
+- `HorizonGraphLayer`: added native WGSL and portable `r32float` data-texture bindings.
+- `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.
+- Skybox, path and dependency-marker, information-visualization, and horizon-graph examples now provide luma.gl-style device tabs with independent managers, WebGPU preference, WebGL2 fallback, and real renderer switching.
 
 ### `@deck.gl-community/layers`
 
 - `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
+- `DependencyArrowLayer` marker geometry now includes a native WGSL shader alongside its existing WebGL2 shader, including directional markers and picking; complete path-mode compatibility remains dependent on upstream `PathLayer` support.
 - `PathOutlineLayer` and `PathMarkerLayer` now use deck.gl v9-native sublayers for outlined paths, dashed strokes, and pixel-sized directional markers, restoring the path outline and marker example.
 
 ### `@deck.gl-community/infovis-layers`
 
 - Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
+- `BlockLayer` now provides paired WebGPU WGSL and WebGL2 GLSL shaders for instanced fills, outlines, projection, and picking.
 
 ### `@deck.gl-community/timeline-layers`
 
 - `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
+- `HorizonGraphLayer` and `MultiHorizonGraphLayer` can render their floating-point data textures on WebGPU and WebGL2; stacked horizon dividers now use the upstream dual-backend `LineLayer`.
 
 ### `@deck.gl-community/trace-layers`
 

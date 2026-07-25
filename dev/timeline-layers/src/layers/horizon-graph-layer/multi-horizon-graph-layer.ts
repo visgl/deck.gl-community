@@ -4,7 +4,7 @@
 
 import type {DefaultProps, LayerProps, Color, LayerDataSource, Accessor} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {SolidPolygonLayer} from '@deck.gl/layers';
+import {LineLayer} from '@deck.gl/layers';
 import {HorizonGraphLayer} from './horizon-graph-layer';
 
 export type _MultiHorizonGraphLayerProps<DataT> = {
@@ -82,50 +82,41 @@ export class MultiHorizonGraphLayer<DataT = any, ExtraProps extends {} = {}> ext
 
     const layers = [];
 
-    // Create divider rectangles
+    // Draw divider bands with the upstream dual-backend LineLayer.
     if (dividerWidth > 0) {
       const dividerData = [];
 
       // Top divider
       dividerData.push({
-        polygon: [
-          [x, y],
-          [x + width, y],
-          [x + width, y + dividerWidth],
-          [x, y + dividerWidth]
-        ]
+        source: [x, y + dividerWidth / 2],
+        target: [x + width, y + dividerWidth / 2]
       });
 
       // Dividers between series
       for (let i = 0; i < seriesCount - 1; i++) {
         const dividerY = y + dividerWidth + (i + 1) * seriesHeight + i * dividerWidth;
         dividerData.push({
-          polygon: [
-            [x, dividerY],
-            [x + width, dividerY],
-            [x + width, dividerY + dividerWidth],
-            [x, dividerY + dividerWidth]
-          ]
+          source: [x, dividerY + dividerWidth / 2],
+          target: [x + width, dividerY + dividerWidth / 2]
         });
       }
 
       // Bottom divider
       const bottomDividerY = y + height - dividerWidth;
       dividerData.push({
-        polygon: [
-          [x, bottomDividerY],
-          [x + width, bottomDividerY],
-          [x + width, y + height],
-          [x, y + height]
-        ]
+        source: [x, bottomDividerY + dividerWidth / 2],
+        target: [x + width, bottomDividerY + dividerWidth / 2]
       });
 
       layers.push(
-        new SolidPolygonLayer({
+        new LineLayer({
           id: `${this.props.id}-dividers`,
           data: dividerData,
-          getPolygon: (d: any) => d.polygon,
-          getFillColor: dividerColor,
+          getSourcePosition: datum => datum.source,
+          getTargetPosition: datum => datum.target,
+          getColor: dividerColor,
+          getWidth: dividerWidth,
+          widthUnits: 'common',
           pickable: false
         })
       );

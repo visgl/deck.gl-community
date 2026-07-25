@@ -11,7 +11,12 @@ import {
   type SettingsSchema,
   type SettingsState
 } from '@deck.gl-community/panels';
-import {BoxPanelWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
+import {
+  BoxPanelWidget,
+  DeviceManagerController,
+  DeviceTabsWidget,
+  SidebarPanelWidget
+} from '@deck.gl-community/widgets';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -265,6 +270,8 @@ export function mountHorizonGraphLayerExample(
   const rootElement = container.ownerDocument.createElement('div');
   applyElementStyle(rootElement, ROOT_STYLE);
   container.replaceChildren(rootElement);
+  const deviceManager = new DeviceManagerController();
+  deviceManager.reparentCanvas(rootElement);
 
   const state: ExampleState = {
     settings: cloneSettings(INITIAL_SETTINGS),
@@ -311,7 +318,15 @@ export function mountHorizonGraphLayerExample(
     );
   }
 
-  widgets.push(sidebarWidget);
+  widgets.push(
+    sidebarWidget,
+    new DeviceTabsWidget({
+      id: `${resolvedConfig.layerId}-device-tabs`,
+      devices: ['webgpu', 'webgl2'],
+      manager: deviceManager,
+      placement: 'bottom-right'
+    })
+  );
 
   const deck = new Deck({
     parent: rootElement,
@@ -335,9 +350,17 @@ export function mountHorizonGraphLayerExample(
       syncDeck();
     }
   });
+  const unsubscribeDevice = deviceManager.subscribe(({device}) => {
+    if (device && deck.device !== device) {
+      deck.setProps({device});
+    }
+  });
+  void deviceManager.initialize();
 
   return () => {
+    unsubscribeDevice();
     deck.finalize();
+    deviceManager.reset();
     rootElement.remove();
     container.replaceChildren();
   };

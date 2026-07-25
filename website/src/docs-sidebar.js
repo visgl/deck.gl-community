@@ -37,7 +37,7 @@ const sidebars = {
       type: 'category',
       label: 'Overview',
       className: 'heading_bold',
-      items: ['README', 'whats-new', 'upgrade-guide', 'CONTRIBUTING']
+      items: ['README', 'whats-new', 'webgpu', 'upgrade-guide', 'CONTRIBUTING']
     },
     {
       type: 'category',

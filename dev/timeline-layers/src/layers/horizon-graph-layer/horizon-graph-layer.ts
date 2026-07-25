@@ -7,6 +7,7 @@ import {Layer, project32} from '@deck.gl/core';
 import {Model, Geometry} from '@luma.gl/engine';
 import vs from './horizon-graph-layer.vs';
 import fs from './horizon-graph-layer.fs';
+import source from './horizon-graph-layer.wgsl';
 import {Texture} from '@luma.gl/core';
 import {horizonLayerUniforms} from './horizon-graph-layer-uniforms';
 
@@ -61,6 +62,7 @@ export class HorizonGraphLayer<ExtraProps extends {} = {}> extends Layer<
 
   getShaders() {
     return super.getShaders({
+      source,
       vs,
       fs,
       modules: [project32, horizonLayerUniforms]
@@ -191,6 +193,7 @@ export class HorizonGraphLayer<ExtraProps extends {} = {}> extends Layer<
         negativeColor: negativeColor.map(c => c / 255)
       }
     });
+    model.setBindings({dataTexture});
     model.draw(this.context.renderPass);
   }
 
