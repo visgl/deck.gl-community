@@ -8,6 +8,8 @@ import {describe, expect, it} from 'vitest';
 
 import blockSource from '../../infovis-layers/src/layers/block-layer/block-layer.wgsl';
 import {blockUniforms} from '../../infovis-layers/src/layers/block-layer/block-layer-uniforms';
+import fastTextSource from '../../infovis-layers/src/layers/fast-text-layer/fast-text-layer.wgsl';
+import {fastTextUniforms} from '../../infovis-layers/src/layers/fast-text-layer/fast-text-layer';
 import horizonSource from '../../../dev/timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
 import {horizonLayerUniforms} from '../../../dev/timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer-uniforms';
 import geometrySource from '../src/dependency-arrow-layer/geometry-layer.wgsl';
@@ -82,6 +84,19 @@ describe('community WebGPU shaders', () => {
     expect(shader.source).toContain('texture_2d<f32>');
     expect(shader.source).toContain('textureLoad(dataTexture');
     expect(shader.source).toContain('horizonLayer');
+    expect(shader.source).not.toContain('@binding(auto)');
+  });
+
+  it('assembles bitmap and SDF fast-text atlas, clipping, and alignment bindings', () => {
+    const shader = assembleWebgpuShader(fastTextSource, [project32, color, fastTextUniforms]);
+
+    expect(shader.source).toContain('fontAtlasTexture: texture_2d<f32>');
+    expect(shader.source).toContain('fontAtlasTextureSampler: sampler');
+    expect(shader.source).toContain('textureSample(');
+    expect(shader.source).toContain('fast_text_alignment_pixel_offset');
+    expect(shader.source).toContain('fast_text_clip_glyph_vertex');
+    expect(shader.source).toContain('fastText.sdfEnabled');
+    expect(shader.source).toContain('deckgl_premultiplied_alpha');
     expect(shader.source).not.toContain('@binding(auto)');
   });
 });

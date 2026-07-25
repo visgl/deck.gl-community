@@ -83,7 +83,18 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
 const HEADLESS_BROWSER_PROVIDER =
   process.env.GITHUB_ACTIONS === 'true'
     ? playwright({launchOptions: {channel: 'chrome'}})
-    : playwright();
+    : process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true'
+      ? playwright({
+          launchOptions: {
+            args: [
+              '--enable-unsafe-webgpu',
+              '--enable-unsafe-swiftshader',
+              '--use-angle=swiftshader',
+              '--enable-features=Vulkan,WebGPU'
+            ]
+          }
+        })
+      : playwright();
 
 const CONFIG = defineConfig({
   resolve: NODE_RESOLVE_CONFIG,

@@ -14,6 +14,7 @@ import {
 } from './deck-with-managed-views';
 
 import type {DeckWithManagedViewsRef} from './deck-with-managed-views';
+import type {Deck, DeckProps, View} from '@deck.gl/core';
 import type {Bounds} from '@deck.gl-community/infovis-layers';
 import type {CSSProperties, RefObject} from 'react';
 import type {Root} from 'react-dom/client';
@@ -55,6 +56,10 @@ type MockWidgetProps = {
 };
 
 type RenderDeckWithManagedViewsArgs = {
+  /** Caller-owned rendering device selected by an embedding application. */
+  device?: DeckProps['device'];
+  /** Receives the initialized deck so the host can manage backend selection. */
+  onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
   /** Whether the overview minimap is rendered. */
   isOverviewEnabled?: boolean;
   /** Whether the thread legend is collapsed into a process-label overlay. */
@@ -368,6 +373,8 @@ async function renderDeckWithManagedViews(args?: RenderDeckWithManagedViewsArgs)
   const render = (nextArgs?: RenderDeckWithManagedViewsArgs) => {
     root?.render(
       <DeckWithManagedViews
+        device={nextArgs?.device}
+        onDeckInitialized={nextArgs?.onDeckInitialized}
         bounds={[
           [0, 0],
           [100, 100]
@@ -1143,6 +1150,25 @@ describe('DeckWithManagedViews', () => {
     expect(mockState.lastDeckProps?.deviceProps).toMatchObject({
       debug: false
     });
+  });
+
+  it('passes a caller-owned rendering device through to DeckGL', async () => {
+    const device = {type: 'webgpu'} as DeckProps['device'];
+
+    await renderDeckWithManagedViews({device});
+
+    expect(mockState.lastDeckProps?.device).toBe(device);
+  });
+
+  it('reports the initialized deck to the embedding device manager', async () => {
+    const onDeckInitialized = vi.fn();
+
+    await renderDeckWithManagedViews({onDeckInitialized});
+    const onLoad = mockState.lastDeckProps?.onLoad as (() => void) | undefined;
+    onLoad?.();
+
+    expect(onDeckInitialized).toHaveBeenCalledOnce();
+    expect(onDeckInitialized).toHaveBeenCalledWith(expect.objectContaining({isInitialized: true}));
   });
 
   it('keeps luma device debug disabled and hooks app-owned GPU timing when requested', async () => {

@@ -48,7 +48,7 @@ export type TracePreparedStateLayerProps = LayerProps &
     readonly colorScheme?: TraceColorScheme;
     /** CSS font stack used by trace text layers. */
     readonly fontFamily?: string;
-    /** Whether dashed row separators should be rendered for foreground rows. */
+    /** Whether horizontal row separators should be rendered for foreground rows. */
     readonly showRowSeparators?: boolean;
     /** Active path animation overlays, when critical-path playback is enabled. */
     readonly pathHighlighting?: TracePreparedStateLayerPathHighlighting;

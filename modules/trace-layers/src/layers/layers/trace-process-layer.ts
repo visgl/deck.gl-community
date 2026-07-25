@@ -1,5 +1,5 @@
 import {CompositeLayer, FilterContext, Layer, LayerProps, PickingInfo} from '@deck.gl/core';
-import {LineLayer, PathLayer, TextLayer} from '@deck.gl/layers';
+import {LineLayer, TextLayer} from '@deck.gl/layers';
 import {BlockLayer, FastTextLayer} from '@deck.gl-community/infovis-layers';
 import {DependencyArrowLayer, PathDirection} from '@deck.gl-community/layers';
 import {
@@ -1291,6 +1291,8 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       ...makeColorUpdateTriggers(settings, highlightedSpanRefs),
       colorScheme
     ];
+    const useFastTextLayer =
+      settings.enableFastTextLayer === true || this.context?.device?.type === 'webgpu';
     const colorResolver = createTraceColorResolver({
       colorScheme,
       settings,
@@ -1321,10 +1323,10 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
 
     const showBaseDependencies =
       settings.showDependencies && !visibleHoveredBlock && !effectiveIsCollapsed;
-    const dependencyLineLayer = !shouldUseBinaryStraightDependencyLineData({
-      settings,
-      binaryDependencyLineData
-    })
+    const useBinaryStraightDependencyLineData =
+      this.context?.device?.type !== 'webgpu' &&
+      shouldUseBinaryStraightDependencyLineData({settings, binaryDependencyLineData});
+    const dependencyLineLayer = !useBinaryStraightDependencyLineData
       ? new DependencyArrowLayer<TraceRankDependencyDatum, {rankIndex: number}>(
           this.getSubLayerProps({
             id: 'dependency-lines',
@@ -1525,7 +1527,7 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
 
     const shouldRenderBlockRectangleBorders =
       binaryBlockData == null && !visibleHoveredBlock && !effectiveIsCollapsed;
-    const blockRectangleBorderLayer = new PathLayer<SpanRef, {rankIndex: number}>({
+    const blockRectangleBorderLayer = new BlockLayer<SpanRef, {rankIndex: number}>({
       ...this.getSubLayerProps({
         id: 'block-rectangle-borders',
         visible: shouldRenderBlockRectangleBorders
@@ -1533,38 +1535,41 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
       data: binaryBlockData == null ? spans : EMPTY_TRACE_RENDER_SPANS,
       modelMatrix: blockBinaryModelMatrix,
       positionFormat: 'XY',
-      getPath: (span: SpanRef) => {
+      getPosition: (span: SpanRef) => {
         const bbox = getTraceRenderSpanGeometry(span, traceLayout, geometryContext);
         if (!bbox || bbox[2] <= bbox[0] || bbox[3] <= bbox[1]) {
-          return [];
+          return [0, 0];
         }
-        return [
-          [bbox[0], bbox[1]],
-          [bbox[2], bbox[1]],
-          [bbox[2], bbox[3]],
-          [bbox[0], bbox[3]],
-          [bbox[0], bbox[1]]
-        ];
+        return [bbox[0], bbox[1]];
       },
-      getColor: (span: SpanRef) =>
+      getSize: (span: SpanRef) => {
+        const bbox = getTraceRenderSpanGeometry(span, traceLayout, geometryContext);
+        return bbox && bbox[2] > bbox[0] && bbox[3] > bbox[1]
+          ? [bbox[2] - bbox[0], bbox[3] - bbox[1]]
+          : [0, 0];
+      },
+      getFillColor: [0, 0, 0, 0],
+      getLineColor: (span: SpanRef) =>
         getTraceRenderSpanBorderColor({span, traceLayout, colorResolver, graphColorResolver}),
-      getWidth: SPAN_LINE_WIDTH_PX,
+      getLineWidth: SPAN_LINE_WIDTH_PX,
       updateTriggers: {
-        getPath: geometryUpdateTriggers,
-        getColor: colorUpdateTriggers
+        getPosition: geometryUpdateTriggers,
+        getSize: geometryUpdateTriggers,
+        getLineColor: colorUpdateTriggers
       },
       ...(settings.transitions
         ? {
             transitions: {
-              getPath: TRACE_SPAN_POSITION_TRANSITION
+              getPosition: TRACE_SPAN_POSITION_TRANSITION,
+              getSize: TRACE_SPAN_POSITION_TRANSITION
             }
           }
         : {}),
-      widthUnits: 'pixels',
+      lineWidthUnits: 'pixels',
       widthMinPixels: SPAN_BORDER_LINE_MIN_PIXELS,
       pickable: false,
       parameters: {
-        blend: false,
+        blend: true,
         depthWriteEnabled: false,
         depthCompare: 'always'
       },
@@ -1647,127 +1652,166 @@ export class TraceProcessLayer extends CompositeLayer<TraceProcessLayerProps> {
         isInsideBlockText
       });
 
-    const blockNamesLayer =
-      settings.enableFastTextLayer === true
-        ? new FastTextLayer<SpanRef>(blockLabelLayerProps, {
-            data: spans,
-            modelMatrix: spanLabelModelMatrix,
-            updateTriggers: {
-              getText: spanLabelTextUpdateTriggers,
-              getTextUtf8: spanLabelTextUpdateTriggers,
-              getPosition: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
-              getClipRect: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
-              getColor: colorUpdateTriggers
-            },
-            pickable: false,
-            getPosition: getSpanLabelPosition,
-            getClipRect: getSpanLabelClipRect,
-            getContentBox: getSpanLabelContentBox,
-            contentCutoffPixels: clipRectCutoffPixels,
-            getTextUtf8: (span: SpanRef, out) =>
-              getTraceGraphSpanNameUtf8(traceLayout.traceGraph, span, out),
-            singleLine: true,
-            getText: (span: SpanRef) => getTraceRenderSpanName(span, traceLayout),
-            pixelOffset: isInsideBlockText ? [INSIDE_BLOCK_LABEL_LEFT_INSET_PX, 0] : [0, 0],
-            getPixelOffset: isInsideBlockText ? [INSIDE_BLOCK_LABEL_LEFT_INSET_PX, 0] : [0, 0],
-            contentAlignHorizontal: spanLabelPlacement === 'start' ? 'start' : 'center',
-            textAnchor: spanLabelPlacement === 'start' ? 'start' : 'middle',
-            alignmentBaseline: isInsideBlockText ? 'top' : 'bottom',
-            getColor: getSpanLabelColor,
-            size: blockNameTextSize,
-            fontFamily,
-            parameters: {
-              blend: true,
-              depthWriteEnabled: false,
-              depthCompare: 'always'
-            }
-          })
-        : new TextLayer<SpanRef>(blockLabelLayerProps, {
-            data: spans,
-            modelMatrix: spanLabelModelMatrix,
-            updateTriggers: {
-              getPath: blockGeometryUpdateTriggers,
-              getText: spanLabelTextUpdateTriggers,
-              getPosition: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
-              getContentBox: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
-              getColor: colorUpdateTriggers
-            },
-            fontFamily,
-            ...(settings.transitions
-              ? {
-                  transitions: {
-                    getPosition: TRACE_SPAN_POSITION_TRANSITION,
-                    getContentBox: TRACE_SPAN_POSITION_TRANSITION
-                  }
+    const blockNamesLayer = useFastTextLayer
+      ? new FastTextLayer<SpanRef>(blockLabelLayerProps, {
+          data: spans,
+          modelMatrix: spanLabelModelMatrix,
+          updateTriggers: {
+            getText: spanLabelTextUpdateTriggers,
+            getTextUtf8: spanLabelTextUpdateTriggers,
+            getPosition: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
+            getClipRect: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
+            getColor: colorUpdateTriggers
+          },
+          pickable: false,
+          getPosition: getSpanLabelPosition,
+          getClipRect: getSpanLabelClipRect,
+          getContentBox: getSpanLabelContentBox,
+          contentCutoffPixels: clipRectCutoffPixels,
+          getTextUtf8: (span: SpanRef, out) =>
+            getTraceGraphSpanNameUtf8(traceLayout.traceGraph, span, out),
+          singleLine: true,
+          getText: (span: SpanRef) => getTraceRenderSpanName(span, traceLayout),
+          pixelOffset: isInsideBlockText ? [INSIDE_BLOCK_LABEL_LEFT_INSET_PX, 0] : [0, 0],
+          getPixelOffset: isInsideBlockText ? [INSIDE_BLOCK_LABEL_LEFT_INSET_PX, 0] : [0, 0],
+          contentAlignHorizontal: spanLabelPlacement === 'start' ? 'start' : 'center',
+          textAnchor: spanLabelPlacement === 'start' ? 'start' : 'middle',
+          alignmentBaseline: isInsideBlockText ? 'top' : 'bottom',
+          getColor: getSpanLabelColor,
+          size: blockNameTextSize,
+          fontFamily,
+          parameters: {
+            blend: true,
+            depthWriteEnabled: false,
+            depthCompare: 'always'
+          }
+        })
+      : new TextLayer<SpanRef>(blockLabelLayerProps, {
+          data: spans,
+          modelMatrix: spanLabelModelMatrix,
+          updateTriggers: {
+            getPath: blockGeometryUpdateTriggers,
+            getText: spanLabelTextUpdateTriggers,
+            getPosition: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
+            getContentBox: [...spanLabelGeometryUpdateTriggers, spanLabelPosition],
+            getColor: colorUpdateTriggers
+          },
+          fontFamily,
+          ...(settings.transitions
+            ? {
+                transitions: {
+                  getPosition: TRACE_SPAN_POSITION_TRANSITION,
+                  getContentBox: TRACE_SPAN_POSITION_TRANSITION
                 }
-              : {}),
-            getPosition: getSpanLabelPosition,
-            getContentBox: getSpanLabelContentBox,
-            contentCutoffPixels: clipRectCutoffPixels,
-            getText: (span: SpanRef) => getTraceRenderSpanName(span, traceLayout),
-            getPixelOffset: isInsideBlockText ? [INSIDE_BLOCK_LABEL_LEFT_INSET_PX, 0] : [0, 0],
-            contentAlignHorizontal: spanLabelPlacement === 'start' ? 'start' : 'center',
-            getTextAnchor: spanLabelPlacement === 'start' ? 'start' : 'middle',
-            getAlignmentBaseline: isInsideBlockText ? 'top' : 'bottom',
-            getColor: getSpanLabelColor,
-            getSize: blockNameTextSize,
-            pickable: false,
-            parameters: {
-              blend: true,
-              depthWriteEnabled: false,
-              depthCompare: 'always'
-            }
-          });
-
-    const overflowLabelLayer = new TextLayer<TraceLayoutOverflowLabelDatum>(
-      this.getSubLayerProps({
-        id: 'overflow-labels',
-        visible: mergedOverflowLabelData.length > 0
-      }),
-      {
-        data: mergedOverflowLabelData,
-        updateTriggers: {
-          getPosition: [...geometryUpdateTriggers, effectiveIsCollapsed],
-          getContentBox: [...geometryUpdateTriggers, effectiveIsCollapsed],
-          getText: [mergedOverflowLabelData]
-        },
-        ...(settings.transitions
-          ? {
-              transitions: {
-                getPosition: TRACE_SPAN_POSITION_TRANSITION,
-                getContentBox: TRACE_SPAN_POSITION_TRANSITION
               }
-            }
-          : {}),
-        getPosition: (datum: TraceLayoutOverflowLabelDatum) => [datum.x, datum.y],
-        getContentBox: (datum: TraceLayoutOverflowLabelDatum) => [
-          0,
-          -1,
-          Math.max(0, datum.maxX - datum.x),
-          2
-        ],
-        contentCutoffPixels: [0, 10],
-        getText: (datum: TraceLayoutOverflowLabelDatum) => datum.text,
-        contentAlignHorizontal: 'start',
-        getTextAnchor: 'start',
-        getAlignmentBaseline: 'center',
-        getPixelOffset: [6, 0],
-        getColor: TRACE_COLOR.THREAD_TEXT,
-        getSize: 10,
-        sizeUnits: 'pixels',
-        sizeMaxPixels: 14,
-        fontFamily,
-        fontWeight: 500,
-        wordBreak: 'break-word',
-        maxWidth: 400,
-        pickable: false,
-        parameters: {
-          blend: true,
-          depthWriteEnabled: false,
-          depthCompare: 'always'
-        }
-      }
-    );
+            : {}),
+          getPosition: getSpanLabelPosition,
+          getContentBox: getSpanLabelContentBox,
+          contentCutoffPixels: clipRectCutoffPixels,
+          getText: (span: SpanRef) => getTraceRenderSpanName(span, traceLayout),
+          getPixelOffset: isInsideBlockText ? [INSIDE_BLOCK_LABEL_LEFT_INSET_PX, 0] : [0, 0],
+          contentAlignHorizontal: spanLabelPlacement === 'start' ? 'start' : 'center',
+          getTextAnchor: spanLabelPlacement === 'start' ? 'start' : 'middle',
+          getAlignmentBaseline: isInsideBlockText ? 'top' : 'bottom',
+          getColor: getSpanLabelColor,
+          getSize: blockNameTextSize,
+          pickable: false,
+          parameters: {
+            blend: true,
+            depthWriteEnabled: false,
+            depthCompare: 'always'
+          }
+        });
+
+    const overflowLabelLayerProps = this.getSubLayerProps({
+      id: 'overflow-labels',
+      visible: mergedOverflowLabelData.length > 0
+    });
+    const overflowLabelLayer = useFastTextLayer
+      ? new FastTextLayer<TraceLayoutOverflowLabelDatum>(overflowLabelLayerProps, {
+          data: mergedOverflowLabelData,
+          updateTriggers: {
+            getPosition: [...geometryUpdateTriggers, effectiveIsCollapsed],
+            getClipRect: [...geometryUpdateTriggers, effectiveIsCollapsed],
+            getContentBox: [...geometryUpdateTriggers, effectiveIsCollapsed],
+            getText: [mergedOverflowLabelData]
+          },
+          getPosition: (datum: TraceLayoutOverflowLabelDatum) => [datum.x, datum.y],
+          getClipRect: (datum: TraceLayoutOverflowLabelDatum) => [
+            0,
+            -1,
+            Math.min(32767, Math.max(0, datum.maxX - datum.x)),
+            2
+          ],
+          getContentBox: (datum: TraceLayoutOverflowLabelDatum) => [
+            0,
+            -1,
+            Math.max(0, datum.maxX - datum.x),
+            2
+          ],
+          contentCutoffPixels: [0, 10],
+          getText: (datum: TraceLayoutOverflowLabelDatum) => datum.text,
+          contentAlignHorizontal: 'start',
+          textAnchor: 'start',
+          alignmentBaseline: 'center',
+          pixelOffset: [6, 0],
+          getPixelOffset: [6, 0],
+          getColor: TRACE_COLOR.THREAD_TEXT,
+          size: 10,
+          sizeUnits: 'pixels',
+          sizeMaxPixels: 14,
+          fontFamily,
+          fontWeight: 500,
+          pickable: false,
+          parameters: {
+            blend: true,
+            depthWriteEnabled: false,
+            depthCompare: 'always'
+          }
+        })
+      : new TextLayer<TraceLayoutOverflowLabelDatum>(overflowLabelLayerProps, {
+          data: mergedOverflowLabelData,
+          updateTriggers: {
+            getPosition: [...geometryUpdateTriggers, effectiveIsCollapsed],
+            getContentBox: [...geometryUpdateTriggers, effectiveIsCollapsed],
+            getText: [mergedOverflowLabelData]
+          },
+          ...(settings.transitions
+            ? {
+                transitions: {
+                  getPosition: TRACE_SPAN_POSITION_TRANSITION,
+                  getContentBox: TRACE_SPAN_POSITION_TRANSITION
+                }
+              }
+            : {}),
+          getPosition: (datum: TraceLayoutOverflowLabelDatum) => [datum.x, datum.y],
+          getContentBox: (datum: TraceLayoutOverflowLabelDatum) => [
+            0,
+            -1,
+            Math.max(0, datum.maxX - datum.x),
+            2
+          ],
+          contentCutoffPixels: [0, 10],
+          getText: (datum: TraceLayoutOverflowLabelDatum) => datum.text,
+          contentAlignHorizontal: 'start',
+          getTextAnchor: 'start',
+          getAlignmentBaseline: 'center',
+          getPixelOffset: [6, 0],
+          getColor: TRACE_COLOR.THREAD_TEXT,
+          getSize: 10,
+          sizeUnits: 'pixels',
+          sizeMaxPixels: 14,
+          fontFamily,
+          fontWeight: 500,
+          wordBreak: 'break-word',
+          maxWidth: 400,
+          pickable: false,
+          parameters: {
+            blend: true,
+            depthWriteEnabled: false,
+            depthCompare: 'always'
+          }
+        });
 
     const collapsedActivityLayer = new BlockLayer<TraceProcessActivityInterval>(
       this.getSubLayerProps({

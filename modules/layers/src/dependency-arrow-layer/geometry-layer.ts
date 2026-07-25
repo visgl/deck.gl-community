@@ -324,9 +324,10 @@ export class GeometryLayer<DataT = unknown> extends Layer<Required<_GeometryLaye
         defaultValue: [0, 0, 0, 255]
       },
       instancePickingColors: {
-        size: 3,
+        size: 4,
         type: 'uint8',
-        accessor: 'getPickingColor'
+        accessor: 'getPickingColor',
+        defaultValue: [0, 0, 0, 0]
       }
     });
   }
@@ -363,11 +364,27 @@ export class GeometryLayer<DataT = unknown> extends Layer<Required<_GeometryLaye
   protected _getModel(): Model {
     // A square that minimally covers the unit circle.
     const positions = [-1, -1, 1, -1, -1, 1, 1, 1];
+    const bufferLayout = this.getAttributeManager()!.getBufferLayouts();
+    const webgpuAttributes = new Set([
+      'instanceSourcePositions',
+      'instanceTargetPositions',
+      'instanceRatios',
+      'instanceArcHeights',
+      'instanceSizes',
+      'instanceColors',
+      'instancePickingColors'
+    ]);
+    const webgpuBufferLayout = bufferLayout
+      .map(layout => ({
+        ...layout,
+        attributes: layout.attributes?.filter(({attribute}) => webgpuAttributes.has(attribute))
+      }))
+      .filter(layout => !layout.attributes || layout.attributes.length > 0);
 
     return new Model(this.context.device, {
       ...this.getShaders(),
       id: this.props.id,
-      bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
+      bufferLayout: this.context.device.type === 'webgpu' ? webgpuBufferLayout : bufferLayout,
       geometry: new Geometry({
         topology: 'triangle-strip',
         attributes: {

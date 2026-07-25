@@ -43,12 +43,12 @@ void main(void) {
   geometry.pickingColor = instancePickingColors;
   geometry.uv = positions.xy;
 
-  vec2 pixelSize = project_size_to_pixel(instanceSizes, block.sizeUnits);
-  pixelSize.x = clamp_signed_size(pixelSize.x, block.widthMinPixels, block.sizeMaxPixels);
-  pixelSize.y = clamp_signed_size(pixelSize.y, block.heightMinPixels, block.sizeMaxPixels);
+  vec2 pixelSize = project_size_to_pixel(instanceSizes, blockLayer.sizeUnits);
+  pixelSize.x = clamp_signed_size(pixelSize.x, blockLayer.widthMinPixels, blockLayer.sizeMaxPixels);
+  pixelSize.y = clamp_signed_size(pixelSize.y, blockLayer.heightMinPixels, blockLayer.sizeMaxPixels);
   unitPosition = positions.xy;
   size = pixelSize;
-  lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), block.lineWidthUnits).x;
+  lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), blockLayer.lineWidthUnits).x;
 
   // Find the center of the point and add the current vertex
   vec3 offset = vec3(unitPosition * project_pixel_size(pixelSize), 0.0);

@@ -10,8 +10,6 @@
   },
   "dependencies": {
     "@deck.gl-community/infovis-layers": "workspace:*",
-    "@deck.gl-community/panels": "workspace:*",
-    "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/layers": "~9.3.0",
     "@loaders.gl/core": "^4.4.1",

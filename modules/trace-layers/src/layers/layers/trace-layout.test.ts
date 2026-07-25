@@ -1,4 +1,4 @@
-import {PathStyleExtension} from '@deck.gl/extensions';
+import {LineLayer} from '@deck.gl/layers';
 import {Matrix4} from '@math.gl/core';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
@@ -1492,6 +1492,7 @@ describe('trace layout collapsed activity enrichment', () => {
       traceLayout: layout
     });
 
+    expect(layer).toBeInstanceOf(LineLayer);
     expect(layer.id).toBe('rank-row-separators');
     const separatorData = layer.props.data as unknown as ReadonlyArray<{
       readonly row: TraceLayoutRow;
@@ -1508,16 +1509,21 @@ describe('trace layout collapsed activity enrichment', () => {
       {row: layout.renderRows[1], edge: 'top'},
       {row: layout.renderRows[1], edge: 'bottom'}
     ]);
-    const getPath = layer.props.getPath as (datum: {path: Float32Array}) => Float32Array;
-    expect(Array.from(getPath(separatorData[0]!))).toEqual([-1000000, 2, 90, 2]);
-    expect(Array.from(getPath(separatorData[1]!))).toEqual([-1000000, 4, 90, 4]);
-    expect(Array.from(getPath(separatorData[2]!))).toEqual([-1000000, 8, 90, 8]);
+    const getSourcePosition = layer.props.getSourcePosition as (datum: {
+      path: Float32Array;
+    }) => [number, number, number];
+    const getTargetPosition = layer.props.getTargetPosition as (datum: {
+      path: Float32Array;
+    }) => [number, number, number];
+    expect(getSourcePosition(separatorData[0]!)).toEqual([-1000000, 2, 0]);
+    expect(getTargetPosition(separatorData[0]!)).toEqual([90, 2, 0]);
+    expect(getSourcePosition(separatorData[1]!)).toEqual([-1000000, 4, 0]);
+    expect(getTargetPosition(separatorData[1]!)).toEqual([90, 4, 0]);
+    expect(getSourcePosition(separatorData[2]!)).toEqual([-1000000, 8, 0]);
+    expect(getTargetPosition(separatorData[2]!)).toEqual([90, 8, 0]);
     expect(layer.props.widthUnits).toBe('pixels');
     expect(layer.props.getColor).toEqual([0, 0, 0, 160]);
     expect(layer.props.getWidth).toBe(1);
-    expect(layer.props.getDashArray).toEqual([5, 4]);
-    expect(layer.props.dashJustified).toBe(true);
-    expect(layer.props.extensions?.[0]).toBeInstanceOf(PathStyleExtension);
   });
 
   it('falls back to the last process band bottom for the terminal row separator', () => {
@@ -1549,10 +1555,16 @@ describe('trace layout collapsed activity enrichment', () => {
       readonly path: Float32Array;
     }>;
     const bottomSeparator = separatorData.find(datum => datum.edge === 'bottom');
-    const getPath = layer.props.getPath as (datum: {path: Float32Array}) => Float32Array;
+    const getSourcePosition = layer.props.getSourcePosition as (datum: {
+      path: Float32Array;
+    }) => [number, number, number];
+    const getTargetPosition = layer.props.getTargetPosition as (datum: {
+      path: Float32Array;
+    }) => [number, number, number];
 
     expect(bottomSeparator).toBeDefined();
-    expect(Array.from(getPath(bottomSeparator!))).toEqual([-1000000, 5.25, 90, 5.25]);
+    expect(getSourcePosition(bottomSeparator!)).toEqual([-1000000, 5.25, 0]);
+    expect(getTargetPosition(bottomSeparator!)).toEqual([90, 5.25, 0]);
   });
 
   it('renders row separators above rank backgrounds and below selected cross-rank overlays', () => {

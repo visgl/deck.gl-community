@@ -12,17 +12,16 @@ struct BlockUniforms {
   lineWidthUnits: i32,
 };
 
-@group(0) @binding(auto) var<uniform> block: BlockUniforms;
+@group(0) @binding(auto) var<uniform> blockLayer: BlockUniforms;
 
 struct BlockAttributes {
   @location(0) positions: vec3<f32>,
   @location(1) instancePositions: vec3<f32>,
-  @location(2) instancePositions64Low: vec3<f32>,
-  @location(3) instanceSizes: vec2<f32>,
-  @location(4) instanceLineWidths: f32,
-  @location(5) instanceLineColors: vec4<f32>,
-  @location(6) instanceFillColors: vec4<f32>,
-  @location(7) instancePickingColors: vec3<f32>,
+  @location(2) instanceSizes: vec2<f32>,
+  @location(3) instanceLineWidths: f32,
+  @location(4) instanceLineColors: vec4<f32>,
+  @location(5) instanceFillColors: vec4<f32>,
+  @location(6) instancePickingColors: vec3<f32>,
 };
 
 struct BlockVaryings {
@@ -52,9 +51,17 @@ fn vertexMain(attributes: BlockAttributes) -> BlockVaryings {
   geometry.pickingColor = attributes.instancePickingColors;
   geometry.uv = attributes.positions.xy;
 
-  var pixelSize = block_size_to_pixels(attributes.instanceSizes, block.sizeUnits);
-  pixelSize.x = block_clamp_signed_size(pixelSize.x, block.widthMinPixels, block.sizeMaxPixels);
-  pixelSize.y = block_clamp_signed_size(pixelSize.y, block.heightMinPixels, block.sizeMaxPixels);
+  var pixelSize = block_size_to_pixels(attributes.instanceSizes, blockLayer.sizeUnits);
+  pixelSize.x = block_clamp_signed_size(
+    pixelSize.x,
+    blockLayer.widthMinPixels,
+    blockLayer.sizeMaxPixels
+  );
+  pixelSize.y = block_clamp_signed_size(
+    pixelSize.y,
+    blockLayer.heightMinPixels,
+    blockLayer.sizeMaxPixels
+  );
 
   let offset = vec3<f32>(
     attributes.positions.xy * project_pixel_size_vec2(pixelSize),
@@ -62,7 +69,7 @@ fn vertexMain(attributes: BlockAttributes) -> BlockVaryings {
   );
   let projected = project_position_to_clipspace_and_commonspace(
     attributes.instancePositions,
-    attributes.instancePositions64Low,
+    vec3<f32>(0.0),
     offset
   );
   geometry.position = projected.commonPosition;
@@ -80,7 +87,7 @@ fn vertexMain(attributes: BlockAttributes) -> BlockVaryings {
   );
   varyings.lineWidth = project_unit_size_to_pixel(
     attributes.instanceLineWidths,
-    block.lineWidthUnits
+    blockLayer.lineWidthUnits
   );
   varyings.size = pixelSize;
   varyings.pickingColor = attributes.instancePickingColors;

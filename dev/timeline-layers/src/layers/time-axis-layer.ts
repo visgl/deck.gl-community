@@ -4,6 +4,7 @@
 
 import {CompositeLayer} from '@deck.gl/core';
 import {LineLayer, TextLayer} from '@deck.gl/layers';
+import {FastTextLayer} from '@deck.gl-community/infovis-layers';
 
 import {formatTimeMs} from '../utils/format-utils';
 import {
@@ -246,6 +247,20 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
         : configuration.maxX;
     const minorTextColor = withHalfAlpha(configuration.textColor);
     const minorGridColor = withHalfAlpha(configuration.gridColor);
+    const tickLabelProps = {
+      id: 'tick-labels',
+      data: ticks,
+      getPosition: (tick: Tick) => [tick.x, configuration.labelY] as [number, number],
+      getText: (tick: Tick) => this.formatTime(tick, configuration),
+      getColor: (tick: Tick) => (tick.type === 'major' ? configuration.textColor : minorTextColor),
+      ...(this.props.characterSet === undefined ? {} : {characterSet: this.props.characterSet}),
+      ...(this.props.fontFamily === undefined ? {} : {fontFamily: this.props.fontFamily}),
+      ...(this.props.fontSettings === undefined ? {} : {fontSettings: this.props.fontSettings}),
+      ...(this.props.fontWeight === undefined ? {} : {fontWeight: this.props.fontWeight}),
+      updateTriggers: {
+        getText: [this.props.formatTick, configuration.mode, configuration.legacyRange]
+      }
+    };
 
     return [
       configuration.axisLine &&
@@ -275,29 +290,23 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
           })
         ),
       configuration.tickLabels &&
-        new TextLayer<Tick>(
-          this.getSubLayerProps({
-            id: 'tick-labels',
-            data: ticks,
-            getPosition: tick => [tick.x, configuration.labelY],
-            getText: tick => this.formatTime(tick, configuration),
-            getSize: configuration.fontSize,
-            getColor: tick => (tick.type === 'major' ? configuration.textColor : minorTextColor),
-            getTextAnchor: configuration.legacyRange ? 'middle' : 'start',
-            getAlignmentBaseline: configuration.legacyRange ? 'top' : 'bottom',
-            ...(this.props.characterSet === undefined
-              ? {}
-              : {characterSet: this.props.characterSet}),
-            ...(this.props.fontFamily === undefined ? {} : {fontFamily: this.props.fontFamily}),
-            ...(this.props.fontSettings === undefined
-              ? {}
-              : {fontSettings: this.props.fontSettings}),
-            ...(this.props.fontWeight === undefined ? {} : {fontWeight: this.props.fontWeight}),
-            updateTriggers: {
-              getText: [this.props.formatTick, configuration.mode, configuration.legacyRange]
-            }
-          })
-        )
+        (this.context?.device?.type === 'webgpu'
+          ? new FastTextLayer<Tick>(
+              this.getSubLayerProps({
+                ...tickLabelProps,
+                size: configuration.fontSize,
+                textAnchor: configuration.legacyRange ? 'middle' : 'start',
+                alignmentBaseline: configuration.legacyRange ? 'top' : 'bottom'
+              })
+            )
+          : new TextLayer<Tick>(
+              this.getSubLayerProps({
+                ...tickLabelProps,
+                getSize: configuration.fontSize,
+                getTextAnchor: configuration.legacyRange ? 'middle' : 'start',
+                getAlignmentBaseline: configuration.legacyRange ? 'top' : 'bottom'
+              })
+            ))
     ];
   }
 

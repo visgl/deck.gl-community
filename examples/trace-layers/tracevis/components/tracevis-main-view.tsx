@@ -40,7 +40,8 @@ import {TraceCatalogPanel} from '../widgets/trace-catalog-widget';
 import {DismissibleBadge, ErrorMessage, WithTooltip} from './infovis-primitives';
 
 import type {TraceBreadcrumbEntry} from '../tracevis-store';
-import type {Widget} from '@deck.gl/core';
+import type {Deck, View, Widget} from '@deck.gl/core';
+import type {DeckGLRef} from '@deck.gl/react';
 import type {DeckWidgetTheme} from '@deck.gl/widgets';
 import type {DeckTraceGraphHandle, ThreadNavigation} from '@deck.gl-community/trace-layers/react';
 import type {
@@ -73,17 +74,21 @@ const TRACE_CATALOG_TRIGGER_ICON =
  */
 function TracevisEmptyStateDeck({
   deckWidgetTheme,
-  widgets
+  widgets,
+  onDeckInitialized
 }: {
   deckWidgetTheme: DeckWidgetTheme;
   widgets: Widget[];
+  onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
 }) {
+  const deckRef = useRef<DeckGLRef>(null);
   return (
     <div
       className="absolute w-full h-full bg-white overflow-hidden"
       style={deckWidgetTheme as React.CSSProperties}
     >
       <DeckGL
+        ref={deckRef}
         style={{position: 'relative', width: '100%', height: '100%'}}
         views={EMPTY_SHELL_VIEW}
         viewState={EMPTY_SHELL_VIEW_STATE}
@@ -91,6 +96,12 @@ function TracevisEmptyStateDeck({
         layers={[]}
         widgets={widgets}
         getCursor={() => 'default'}
+        onLoad={() => {
+          const deck = deckRef.current?.deck;
+          if (deck) {
+            onDeckInitialized?.(deck);
+          }
+        }}
       />
     </div>
   );
@@ -140,7 +151,9 @@ const getResolvedWidgetThemeMode = (widgetTheme: string | undefined): 'light' | 
 };
 
 /** Main standalone Tracevis demo view. */
-export const MainView: React.FC = () => {
+export const MainView: React.FC<{
+  onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
+}> = ({onDeckInitialized}) => {
   const traceStyle = DEFAULT_TRACE_STYLE;
 
   const errorMap = useRoomStore(s => s.tracevis.errorMap);
@@ -598,12 +611,14 @@ export const MainView: React.FC = () => {
       deckWidgetTheme,
       controlWidgetPlacement: 'top-right' as const,
       showDefaultWidgets: true,
-      widgets: traceDeckWidgets
+      widgets: traceDeckWidgets,
+      onDeckInitialized
     }),
     [
       deckWidgetTheme,
       getTraceObjectJSON,
       handleProcessInfoClick,
+      onDeckInitialized,
       setSelectedTimeRange,
       settingsConfig,
       traceDeckWidgets
@@ -632,7 +647,11 @@ export const MainView: React.FC = () => {
       </div>
       {!traceGraph ? (
         <div className="relative flex items-center justify-center w-full h-full">
-          <TracevisEmptyStateDeck deckWidgetTheme={deckWidgetTheme} widgets={emptyDeckWidgets} />
+          <TracevisEmptyStateDeck
+            deckWidgetTheme={deckWidgetTheme}
+            widgets={emptyDeckWidgets}
+            onDeckInitialized={onDeckInitialized}
+          />
         </div>
       ) : (
         <DeckTraceGraph

@@ -3,11 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import {OrthographicView} from '@deck.gl/core';
-import {TextLayer} from '@deck.gl/layers';
 import {DeckGL} from '@deck.gl/react';
 import {Matrix4} from '@math.gl/core';
+import {useRef} from 'react';
 import {createRoot} from 'react-dom/client';
-import {makeLayerFilter} from '@deck.gl-community/infovis-layers';
+import {FastTextLayer, makeLayerFilter} from '@deck.gl-community/infovis-layers';
 import {TraceGraphLayer} from '@deck.gl-community/trace-layers/layers';
 import {TimeAxisLayer} from '@deck.gl-community/timeline-layers';
 import {
@@ -27,6 +27,8 @@ import type {
   TraceThreadId,
   TraceVisSettings
 } from '@deck.gl-community/trace-layers/trace';
+import type {Deck, View} from '@deck.gl/core';
+import type {DeckGLRef} from '@deck.gl/react';
 
 const TRACE_LAYER_SETTINGS = {
   showDependencies: true,
@@ -130,9 +132,12 @@ const INITIAL_VIEW_STATE = {
 };
 
 /** Mounts the non-React-viewer TraceGraphLayer example into a supplied container. */
-export function mountTraceGraphLayerExample(container: HTMLElement): () => void {
+export function mountTraceGraphLayerExample(
+  container: HTMLElement,
+  {onDeckInitialized}: {onDeckInitialized?: (deck: Deck<View | View[] | null>) => void} = {}
+): () => void {
   const root = createRoot(container);
-  root.render(<TraceGraphLayerExample />);
+  root.render(<TraceGraphLayerExample onDeckInitialized={onDeckInitialized} />);
 
   return () => {
     root.unmount();
@@ -141,7 +146,12 @@ export function mountTraceGraphLayerExample(container: HTMLElement): () => void 
 }
 
 /** Renders one trace graph inside a caller-owned DeckGL shell. */
-function TraceGraphLayerExample() {
+function TraceGraphLayerExample({
+  onDeckInitialized
+}: {
+  onDeckInitialized?: (deck: Deck<View | View[] | null>) => void;
+}) {
+  const deckRef = useRef<DeckGLRef>(null);
   return (
     <div style={{position: 'relative', width: '100%', height: '100%', background: '#fff'}}>
       <div
@@ -167,6 +177,7 @@ function TraceGraphLayerExample() {
         }}
       />
       <DeckGL
+        ref={deckRef}
         style={{position: 'absolute', top: '0', right: '0', bottom: '0', left: '0'}}
         views={TRACE_VIEWS}
         initialViewState={INITIAL_VIEW_STATE}
@@ -198,16 +209,17 @@ function TraceGraphLayerExample() {
               }
             }
           }),
-          new TextLayer({
+          new FastTextLayer({
             id: 'legend-process-labels',
             data: LEGEND_ROWS,
             getPosition: row => row.position,
             getText: row => row.label,
-            getTextAnchor: 'start',
-            getAlignmentBaseline: 'center',
+            textAnchor: 'start',
+            alignmentBaseline: 'center',
+            pixelOffset: [16, 0],
             getPixelOffset: [16, 0],
             getColor: [31, 41, 55, 255],
-            getSize: 12,
+            size: 12,
             fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
             fontWeight: 600,
             pickable: false
@@ -220,6 +232,12 @@ function TraceGraphLayerExample() {
         ]}
         layerFilter={TRACE_LAYER_FILTER}
         getCursor={({isDragging}) => (isDragging ? 'grabbing' : 'grab')}
+        onLoad={() => {
+          const deck = deckRef.current?.deck;
+          if (deck) {
+            onDeckInitialized?.(deck);
+          }
+        }}
       />
     </div>
   );

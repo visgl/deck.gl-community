@@ -4,8 +4,12 @@
 
 import {COORDINATE_SYSTEM, Deck, OrthographicView, type Color, type Position} from '@deck.gl/core';
 import {LineLayer, TextLayer} from '@deck.gl/layers';
-import {AnimationLayer, BlockLayer, TimeDeltaLayer} from '@deck.gl-community/infovis-layers';
-import {DeviceManagerController, DeviceTabsWidget} from '@deck.gl-community/widgets';
+import {
+  AnimationLayer,
+  BlockLayer,
+  FastTextLayer,
+  TimeDeltaLayer
+} from '@deck.gl-community/infovis-layers';
 
 type InfovisLayerHighlight = 'all' | 'animation-layer' | 'block-layer' | 'time-delta-layer';
 
@@ -15,6 +19,8 @@ export type InfovisLayerPrimitivesExampleProps = {
   highlight?: InfovisLayerHighlight;
   /** Whether to render the title overlay. @defaultValue true */
   showInfoOverlay?: boolean;
+  /** Called when the example's Deck instance is ready for a host to configure. */
+  onDeckInitialized?: (deck: Deck) => void;
 };
 
 type TraceBlock = {
@@ -35,15 +41,17 @@ const TRACE_BLOCKS: TraceBlock[] = [
  */
 export function mountInfovisLayerPrimitivesExample(
   container: HTMLElement,
-  {highlight = 'all', showInfoOverlay = true}: InfovisLayerPrimitivesExampleProps = {}
+  {
+    highlight = 'all',
+    showInfoOverlay = true,
+    onDeckInitialized
+  }: InfovisLayerPrimitivesExampleProps = {}
 ): () => void {
   const rootElement = createRoot(container);
   if (showInfoOverlay) {
     rootElement.appendChild(createInfoOverlay(rootElement.ownerDocument));
   }
 
-  const deviceManager = new DeviceManagerController();
-  deviceManager.reparentCanvas(rootElement);
   const deck = new Deck({
     parent: rootElement,
     views: new OrthographicView({id: 'infovis-layer-primitives', flipY: false}),
@@ -52,27 +60,12 @@ export function mountInfovisLayerPrimitivesExample(
       zoom: 0
     },
     controller: true,
-    widgets: [
-      new DeviceTabsWidget({
-        id: 'infovis-layer-primitives-device-tabs',
-        devices: ['webgpu', 'webgl2'],
-        manager: deviceManager,
-        placement: 'top-right'
-      })
-    ],
     layers: createLayers(highlight)
   });
-  const unsubscribeDevice = deviceManager.subscribe(({device}) => {
-    if (device && deck.device !== device) {
-      deck.setProps({device});
-    }
-  });
-  void deviceManager.initialize();
+  onDeckInitialized?.(deck);
 
   return () => {
-    unsubscribeDevice();
     deck.finalize();
-    deviceManager.reset();
     rootElement.remove();
     container.replaceChildren();
   };
@@ -91,16 +84,17 @@ function createLayers(highlight: InfovisLayerHighlight) {
     getLineColor: [15, 23, 42, 240],
     getLineWidth: 2
   });
-  const labelLayer = new TextLayer<TraceBlock>({
+  const labelLayer = new FastTextLayer<TraceBlock>({
     id: `${highlight}-example-labels`,
     data: TRACE_BLOCKS,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     getPosition: datum => [datum.position[0] + datum.size[0] / 2, datum.position[1] + 27],
     getText: datum => datum.label,
-    getSize: 17,
+    characterSet: 'auto',
+    size: 17,
     getColor: [255, 255, 255, 255],
-    getTextAnchor: 'middle',
-    getAlignmentBaseline: 'center'
+    textAnchor: 'middle',
+    alignmentBaseline: 'center'
   });
   const animatedBlocks = new AnimationLayer({
     id: 'animation-layer-example',

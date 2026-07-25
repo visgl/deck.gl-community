@@ -5,9 +5,10 @@ export default makeImperativeExample(
   {
     title: 'Tracevis',
     code: `${GITHUB_TREE}/examples/trace-layers/tracevis`,
-    async mount(container) {
+    deviceTabs: true,
+    async mount(container, props) {
       const {mountTracevisExample} = await import('../../../../examples/trace-layers/tracevis/app');
-      return mountTracevisExample(container);
+      return mountTracevisExample(container, props);
     }
   },
   {addInfoPanel: false}

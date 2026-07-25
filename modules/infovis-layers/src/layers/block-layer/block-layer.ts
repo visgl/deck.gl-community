@@ -122,6 +122,11 @@ export class BlockLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
     });
   }
 
+  /** WebGPU consumes float32 positions directly, including external binary attributes. */
+  override use64bitPositions(): boolean {
+    return this.context?.device?.type !== 'webgpu' && super.use64bitPositions();
+  }
+
   initializeState() {
     this.getAttributeManager()!.addInstanced({
       instancePositions: {
@@ -178,17 +183,32 @@ export class BlockLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
       sizeMaxPixels,
       lineWidthUnits: UNIT[lineWidthUnits]
     };
-    model.shaderInputs.setProps({block: blockProps});
+    model.shaderInputs.setProps({blockLayer: blockProps});
     model.draw(this.context.renderPass);
   }
 
   protected _getModel(): Model {
     // a square
     const positions = [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0];
+    const bufferLayout = this.getAttributeManager()!.getBufferLayouts();
+    const webgpuAttributes = new Set([
+      'instancePositions',
+      'instanceSizes',
+      'instanceLineWidths',
+      'instanceLineColors',
+      'instanceFillColors',
+      'instancePickingColors'
+    ]);
+    const webgpuBufferLayout = bufferLayout
+      .map(layout => ({
+        ...layout,
+        attributes: layout.attributes?.filter(({attribute}) => webgpuAttributes.has(attribute))
+      }))
+      .filter(layout => !layout.attributes || layout.attributes.length > 0);
     return new Model(this.context.device, {
       ...this.getShaders(),
       id: this.props.id,
-      bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
+      bufferLayout: this.context.device.type === 'webgpu' ? webgpuBufferLayout : bufferLayout,
       geometry: new Geometry({
         topology: 'triangle-strip',
         attributes: {

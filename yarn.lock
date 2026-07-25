@@ -679,6 +679,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/timeline-layers@workspace:dev/timeline-layers"
   dependencies:
+    "@deck.gl-community/infovis-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/test-utils": "npm:~9.3.0"
@@ -9791,8 +9792,6 @@ __metadata:
   resolution: "infovis-layer-primitives-example@workspace:examples/infovis-layers/layer-primitives"
   dependencies:
     "@deck.gl-community/infovis-layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@loaders.gl/core": "npm:^4.4.1"
@@ -14824,8 +14823,6 @@ __metadata:
   dependencies:
     "@deck.gl-community/basemap-layers": "workspace:*"
     "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -14835,8 +14832,6 @@ __metadata:
     "@luma.gl/core": "npm:~9.3.2"
     "@luma.gl/engine": "npm:~9.3.2"
     "@luma.gl/shadertools": "npm:~9.3.2"
-    "@luma.gl/webgl": "npm:~9.3.2"
-    "@luma.gl/webgpu": "npm:~9.3.2"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

@@ -9,7 +9,7 @@ import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
 import {HorizonGraphLayer, MultiHorizonGraphLayer} from '../../../dev/timeline-layers/src';
-import {BlockLayer} from '../../infovis-layers/src';
+import {BlockLayer, FastTextLayer} from '../../infovis-layers/src';
 import {SkyboxLayer} from '../src';
 import {GeometryLayer} from '../src/dependency-arrow-layer/geometry-layer';
 
@@ -30,6 +30,24 @@ function createPortableLayers() {
       getFillColor: [37, 99, 235, 255],
       getLineColor: [15, 23, 42, 255],
       pickable: true
+    }),
+    new FastTextLayer({
+      id: 'webgpu-test-fast-text-bitmap',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: [{text: 'GPU', position: [-20, -8]}],
+      characterSet: 'GPU',
+      fontSettings: {sdf: false, fontSize: 32},
+      size: 14,
+      getColor: [255, 255, 255, 255]
+    }),
+    new FastTextLayer({
+      id: 'webgpu-test-fast-text-sdf',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: [{text: 'SDF', position: [5, -8]}],
+      characterSet: 'SDF',
+      fontSettings: {sdf: true, fontSize: 32},
+      size: 14,
+      getColor: [15, 23, 42, 255]
     }),
     new GeometryLayer({
       id: 'webgpu-test-marker',
@@ -120,11 +138,11 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 }
 
 describe('community graphics backend compatibility', () => {
-  it('renders skybox, blocks, dependency markers, and horizon textures on WebGL2', async () => {
+  it('renders skybox, blocks, fast text, dependency markers, and horizon textures on WebGL2', async () => {
     await renderPortableLayers('webgl');
   }, 20_000);
 
-  it('renders skybox, blocks, dependency markers, and horizon textures on WebGPU', async ({
+  it('renders skybox, blocks, fast text, dependency markers, and horizon textures on WebGPU', async ({
     skip
   }) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;

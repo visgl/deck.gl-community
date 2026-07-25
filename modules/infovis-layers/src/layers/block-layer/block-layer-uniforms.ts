@@ -5,13 +5,13 @@
 import type {ShaderModule} from '@luma.gl/shadertools';
 
 const glslUniformBlock = `\
-uniform blockUniforms {
+uniform blockLayerUniforms {
   highp int sizeUnits;
   highp float widthMinPixels;
   highp float heightMinPixels;
   highp float sizeMaxPixels;
   highp int lineWidthUnits;
-} block;
+} blockLayer;
 `;
 
 /** Shader uniform values used by {@link BlockLayer}. */
@@ -30,7 +30,7 @@ export type BlockProps = {
 
 /** Shader module that defines uniforms consumed by {@link BlockLayer}. */
 export const blockUniforms = {
-  name: 'block',
+  name: 'blockLayer',
   source: '',
   vs: glslUniformBlock,
   fs: glslUniformBlock,
