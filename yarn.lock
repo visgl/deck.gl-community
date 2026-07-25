@@ -589,6 +589,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/json@workspace:modules/json":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/json@workspace:modules/json"
+  dependencies:
+    zod: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
