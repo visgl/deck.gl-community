@@ -26,6 +26,18 @@ it('exports GlobalGridLayer', () => {
   expect(GeoLayers.GlobalGridLayer).toBeDefined();
 });
 
+it('exports the reusable wind showcase layers and field utilities', () => {
+  expect(GeoLayers.WindLayer).toBeDefined();
+  expect(GeoLayers.ParticleLayer).toBeDefined();
+  expect(GeoLayers.DelaunayCoverLayer).toBeDefined();
+  expect(GeoLayers.ElevationLayer).toBeDefined();
+  expect(GeoLayers.DelaunayInterpolation).toBeDefined();
+  expect(GeoLayers.createWindField).toBeDefined();
+  expect(GeoLayers.parseWindData).toBeDefined();
+  expect(GeoLayers.sampleWindField).toBeDefined();
+  expect(GeoLayers.triangulateWindStations).toBeDefined();
+});
+
 it('exports grid systems', () => {
   expect(GeoLayers.H3Grid).toBeDefined();
   expect(GeoLayers.S2Grid).toBeDefined();

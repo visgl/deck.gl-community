@@ -3,11 +3,16 @@
   "label": "@deck.gl-community/geo-layers",
   "items": [
     "modules/geo-layers/README",
+    "modules/geo-layers/api-reference/delaunay-cover-layer",
+    "modules/geo-layers/api-reference/delaunay-interpolation",
+    "modules/geo-layers/api-reference/elevation-layer",
+    "modules/geo-layers/api-reference/particle-layer",
     "modules/geo-layers/api-reference/shared-tile-2d-layer",
     "modules/geo-layers/api-reference/shared-tileset-2d",
     "modules/geo-layers/api-reference/tile-grid-layer",
     "modules/geo-layers/api-reference/tile-source-layer",
     "modules/geo-layers/api-reference/global-grid-layer",
+    "modules/geo-layers/api-reference/wind-layer",
     {
       "type": "category",
       "label": "Grids",
