@@ -29,14 +29,14 @@ const WIND_DATA_ROOT = 'https://raw.githubusercontent.com/visgl/deck.gl-data/mas
 const US_STATE_BOUNDARIES =
   'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json';
 const ELEVATION_BOUNDS: [number, number, number, number] = [-125, 24.4, -66.7, 49.6];
-const ELEVATION_SCALE = 12;
+const ELEVATION_SCALE = 24;
 const PARTICLE_FRAME_RATE = 60;
 const WIND_VECTOR_UPDATE_INTERVAL_MS = 250;
 const INITIAL_VIEW_STATE: MapViewState = {
   longitude: -98.319,
   latitude: 37.614,
   zoom: 4.05,
-  pitch: 46,
+  pitch: 52,
   bearing: -0.64,
   minPitch: 0,
   maxPitch: 85
@@ -75,7 +75,7 @@ const WIND_LIGHTING = new LightingEffect({
   ambient: new AmbientLight({color: [194, 210, 235], intensity: 0.7}),
   sunlight: new DirectionalLight({
     color: [255, 226, 198],
-    intensity: 1,
+    intensity: 1.15,
     direction: [-1, -2, -2]
   }),
   fill: new DirectionalLight({
@@ -94,6 +94,7 @@ export type WindExampleOptions = {
 };
 
 type WindSettings = {
+  numParticles: number;
   showParticles: boolean;
   showWind: boolean;
   showTerrain: boolean;
@@ -171,16 +172,20 @@ async function loadTerrainData(dataUrl: string, signal: AbortSignal): Promise<Wi
 
   for (let offset = 0; offset < data.length; offset += 4) {
     const height = smoothedElevation[offset / 4];
-    data[offset] = 20 + Math.round(height * 0.12);
-    data[offset + 1] = 32 + Math.round(height * 0.15);
-    data[offset + 2] = 45 + Math.round(height * 0.19);
+    data[offset] = 24 + Math.round(height * 0.17);
+    data[offset + 1] = 38 + Math.round(height * 0.22);
+    data[offset + 2] = 49 + Math.round(height * 0.25);
     data[offset + 3] = height > 3 ? 245 : 0;
   }
   context.putImageData(imageData, 0, 0);
   return {elevationData, texture: canvas.toDataURL('image/png')};
 }
 
-function createSettingsPanel(settings: WindSettings, onChange: () => void): HTMLElement {
+function createSettingsPanel(
+  settings: WindSettings,
+  onChange: () => void,
+  onParticleCountChange: () => void
+): HTMLElement {
   const panel = document.createElement('section');
   panel.style.cssText =
     'position:absolute;top:18px;left:18px;z-index:1;width:min(286px,calc(100% - 36px));' +
@@ -199,7 +204,7 @@ function createSettingsPanel(settings: WindSettings, onChange: () => void): HTML
   description.style.cssText = 'margin:0 0 13px;color:rgba(232,247,240,.72)';
   panel.append(description);
 
-  const controls: [keyof WindSettings, string][] = [
+  const controls: [Exclude<keyof WindSettings, 'numParticles'>, string][] = [
     ['showParticles', 'Animated wind particles'],
     ['showWind', 'Filled wind-direction arrows'],
     ['showTerrain', 'Extruded 3D mountain terrain'],
@@ -221,6 +226,42 @@ function createSettingsPanel(settings: WindSettings, onChange: () => void): HTML
     panel.append(label);
   }
 
+  const particleControl = document.createElement('label');
+  particleControl.style.cssText =
+    'display:grid;grid-template-columns:1fr auto;gap:7px;margin:14px 0 0;' +
+    'color:rgba(232,247,240,.85)';
+  const particleLabel = document.createElement('span');
+  particleLabel.textContent = 'Particle count';
+  const particleValue = document.createElement('output');
+  particleValue.dataset.windParticleCount = 'true';
+  particleValue.textContent = settings.numParticles.toLocaleString();
+  particleValue.style.cssText = 'font-variant-numeric:tabular-nums;color:#9de8ca';
+  const particleSlider = document.createElement('input');
+  particleSlider.type = 'range';
+  particleSlider.min = '1000';
+  particleSlider.max = '1000000';
+  particleSlider.step = '1000';
+  particleSlider.value = String(settings.numParticles);
+  particleSlider.dataset.windParticleSlider = 'true';
+  particleSlider.setAttribute('aria-label', 'Wind particle count');
+  particleSlider.style.cssText = 'grid-column:1/-1;width:100%;margin:0;accent-color:#72d8b2';
+  let particleCountUpdate: number | undefined;
+  const applyParticleCount = () => {
+    window.clearTimeout(particleCountUpdate);
+    particleCountUpdate = undefined;
+    settings.numParticles = Number(particleSlider.value);
+    particleValue.textContent = settings.numParticles.toLocaleString();
+    onParticleCountChange();
+  };
+  particleSlider.addEventListener('input', () => {
+    particleValue.textContent = Number(particleSlider.value).toLocaleString();
+    window.clearTimeout(particleCountUpdate);
+    particleCountUpdate = window.setTimeout(applyParticleCount, 120);
+  });
+  particleSlider.addEventListener('change', applyParticleCount);
+  particleControl.append(particleLabel, particleValue, particleSlider);
+  panel.append(particleControl);
+
   const status = document.createElement('p');
   status.dataset.windStatus = 'true';
   status.textContent = 'Loading original weather stations and 72-hour forecast…';
@@ -237,6 +278,7 @@ export function mountWindExample(
   options: WindExampleOptions = {}
 ): () => void {
   const settings: WindSettings = {
+    numParticles: 100_000,
     showParticles: true,
     showWind: true,
     showTerrain: true,
@@ -257,7 +299,7 @@ export function mountWindExample(
 
   container.style.position = 'relative';
   container.style.background = '#0b1520';
-  const panel = createSettingsPanel(settings, updateLayers);
+  const panel = createSettingsPanel(settings, updateLayers, updateParticleCount);
   container.append(panel);
   const status = panel.querySelector<HTMLElement>('[data-wind-status]');
 
@@ -305,12 +347,12 @@ export function mountWindExample(
         id: 'wind-particles',
         windField,
         time: animationTime,
-        numParticles: 3_600,
+        numParticles: settings.numParticles,
         trailLength: 12,
         speedScale: 0.16,
-        widthMinPixels: 1,
-        pointRadiusPixels: 1,
-        color: [237, 247, 255, 158],
+        widthMinPixels: 0.7,
+        pointRadiusPixels: 0.7,
+        color: [186, 233, 223, 34],
         elevationScale: ELEVATION_SCALE,
         surfaceOffset: 1_700
       })
@@ -335,6 +377,15 @@ export function mountWindExample(
     });
   }
 
+  function updateParticleCount(): void {
+    if (!field || !layerStack || disposed) {
+      return;
+    }
+
+    layerStack.particles = createParticleLayer(field);
+    publishLayers();
+  }
+
   function updateLayers(): void {
     if (!field || !terrainData || disposed) {
       return;
@@ -349,7 +400,7 @@ export function mountWindExample(
           bounds: ELEVATION_BOUNDS,
           elevationRange: [-100, 4126],
           elevationScale: ELEVATION_SCALE,
-          meshMaxError: 24,
+          meshMaxError: 12,
           color: [35, 49, 64, 255],
           texture: terrainData.texture
         }),
@@ -443,7 +494,8 @@ export function mountWindExample(
           status.dataset.windFps = String(framesPerSecond);
           status.textContent =
             `${field.stations.length.toLocaleString()} stations · ` +
-            `${field.frames.length} hourly frames · ${framesPerSecond} fps`;
+            `${settings.numParticles.toLocaleString()} GPU particles · ` +
+            `${framesPerSecond} fps`;
           measuredFrames = 0;
           frameSampleStart = timestamp;
         }
