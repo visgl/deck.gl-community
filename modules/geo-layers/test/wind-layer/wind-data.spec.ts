@@ -66,6 +66,43 @@ describe('wind showcase data', () => {
     expect(new Set(triangles.flat())).toEqual(new Set([0, 1, 2, 3]));
   });
 
+  it('preserves a skinny, non-collinear station hull and its interpolated wind', () => {
+    const stations: WindStation[] = [
+      {name: 'northwest', long: 74.7453, lat: 38.9114, elv: 120},
+      {name: 'southwest', long: 86.4623, lat: 29.6477, elv: 180},
+      {name: 'northeast', long: 65.4474, lat: 46.4987, elv: 240}
+    ];
+    const field = createWindField(stations, [
+      [
+        [0, 12, 20],
+        [0, 18, 26],
+        [0, 24, 32]
+      ]
+    ]);
+    const center: [number, number] = [
+      -(stations[0].long + stations[1].long + stations[2].long) / 3,
+      (stations[0].lat + stations[1].lat + stations[2].lat) / 3
+    ];
+
+    expect(field.triangles).toHaveLength(1);
+    expect(new Set(field.triangles[0])).toEqual(new Set([0, 1, 2]));
+    const sample = sampleWindField(field, center, 0);
+    expect(sample).not.toBeNull();
+    expect(sample?.speed).toBeCloseTo(18);
+    expect(sample?.temperature).toBeCloseTo(26);
+    expect(sample?.elevation).toBeCloseTo(180);
+  });
+
+  it('returns no faces for genuinely collinear stations', () => {
+    const stations: WindStation[] = [
+      {name: 'southwest', long: 3, lat: 0, elv: 10},
+      {name: 'center', long: 2, lat: 1, elv: 20},
+      {name: 'northeast', long: 1, lat: 2, elv: 30}
+    ];
+
+    expect(triangulateWindStations(stations)).toEqual([]);
+  });
+
   it('ignores duplicate station coordinates without creating degenerate triangles', () => {
     const triangles = triangulateWindStations([...STATIONS, {...STATIONS[0], name: 'duplicate'}]);
 

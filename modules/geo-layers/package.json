@@ -44,6 +44,7 @@
     "@math.gl/core": "^4.0.0",
     "@probe.gl/stats": "^4.1.1",
     "a5-js": "^0.5.0",
+    "delaunator": "^5.1.0",
     "h3-js": "^4.2.1"
   },
   "peerDependencies": {

@@ -23,11 +23,15 @@ import {
   type WindStation
 } from '@deck.gl-community/geo-layers';
 
+import {smoothWindElevation} from './terrain-data';
+
 const WIND_DATA_ROOT = 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/wind';
 const US_STATE_BOUNDARIES =
   'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json';
 const ELEVATION_BOUNDS: [number, number, number, number] = [-125, 24.4, -66.7, 49.6];
-const ELEVATION_SCALE = 80;
+const ELEVATION_SCALE = 12;
+const PARTICLE_FRAME_RATE = 60;
+const WIND_VECTOR_UPDATE_INTERVAL_MS = 250;
 const INITIAL_VIEW_STATE: MapViewState = {
   longitude: -98.319,
   latitude: 37.614,
@@ -68,15 +72,15 @@ const WIND_CITIES: WindCity[] = [
 ];
 
 const WIND_LIGHTING = new LightingEffect({
-  ambient: new AmbientLight({color: [194, 210, 235], intensity: 0.8}),
+  ambient: new AmbientLight({color: [194, 210, 235], intensity: 0.7}),
   sunlight: new DirectionalLight({
     color: [255, 226, 198],
-    intensity: 1.7,
+    intensity: 1,
     direction: [-1, -2, -2]
   }),
   fill: new DirectionalLight({
     color: [125, 170, 223],
-    intensity: 0.5,
+    intensity: 0.3,
     direction: [2, 1, -1]
   })
 });
@@ -95,6 +99,21 @@ type WindSettings = {
   showTerrain: boolean;
   showStationMesh: boolean;
   showStations: boolean;
+};
+
+type WindTerrainData = {
+  elevationData: string;
+  texture: string;
+};
+
+type WindExampleLayerStack = {
+  terrain: ElevationLayer | false;
+  stationMesh: DelaunayCoverLayer | false;
+  boundaries: GeoJsonLayer;
+  wind: WindLayer | false;
+  particles: ParticleLayer | false;
+  labels: TextLayer<WindCity>;
+  stations: ScatterplotLayer<WindStation> | false;
 };
 
 async function loadWindField(dataUrl: string, signal: AbortSignal): Promise<WindField> {
@@ -116,8 +135,8 @@ async function loadWindField(dataUrl: string, signal: AbortSignal): Promise<Wind
   return createWindField(stations, parseWindData(weather, stations.length));
 }
 
-/** Turns the original grayscale elevation map into a dark, transparent terrain texture. */
-async function loadTerrainTexture(dataUrl: string, signal: AbortSignal): Promise<string> {
+/** Smooths and shades the original height map once, before animation begins. */
+async function loadTerrainData(dataUrl: string, signal: AbortSignal): Promise<WindTerrainData> {
   const response = await fetch(`${dataUrl}/elevation.png`, {signal});
   if (!response.ok) {
     throw new Error(`Could not load terrain elevation: ${response.status}.`);
@@ -137,15 +156,28 @@ async function loadTerrainTexture(dataUrl: string, signal: AbortSignal): Promise
   image.close();
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
   const {data} = imageData;
-  for (let offset = 0; offset < data.length; offset += 4) {
-    const height = data[offset];
-    data[offset] = 20 + Math.round(height * 0.15);
-    data[offset + 1] = 30 + Math.round(height * 0.19);
-    data[offset + 2] = 43 + Math.round(height * 0.22);
-    data[offset + 3] = height > 2 ? 245 : 0;
+  const smoothedElevation = smoothWindElevation(data, canvas.width, canvas.height);
+
+  for (let pixel = 0; pixel < smoothedElevation.length; pixel++) {
+    const offset = pixel * 4;
+    const height = smoothedElevation[pixel];
+    data[offset] = height;
+    data[offset + 1] = height;
+    data[offset + 2] = height;
+    data[offset + 3] = 255;
   }
   context.putImageData(imageData, 0, 0);
-  return canvas.toDataURL('image/png');
+  const elevationData = canvas.toDataURL('image/png');
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    const height = smoothedElevation[offset / 4];
+    data[offset] = 20 + Math.round(height * 0.12);
+    data[offset + 1] = 32 + Math.round(height * 0.15);
+    data[offset + 2] = 45 + Math.round(height * 0.19);
+    data[offset + 3] = height > 3 ? 245 : 0;
+  }
+  context.putImageData(imageData, 0, 0);
+  return {elevationData, texture: canvas.toDataURL('image/png')};
 }
 
 function createSettingsPanel(settings: WindSettings, onChange: () => void): HTMLElement {
@@ -213,9 +245,13 @@ export function mountWindExample(
   };
   const abortController = new AbortController();
   let field: WindField | null = null;
-  let terrainTexture: string | null = null;
+  let terrainData: WindTerrainData | null = null;
+  let layerStack: WindExampleLayerStack | null = null;
   let animationFrame = 0;
   let lastFrameTime = 0;
+  let lastVectorFrameTime = 0;
+  let frameSampleStart = 0;
+  let measuredFrames = 0;
   let animationTime = 0;
   let disposed = false;
 
@@ -229,6 +265,7 @@ export function mountWindExample(
     parent: container,
     width: '100%',
     height: '100%',
+    useDevicePixels: Math.min(window.devicePixelRatio || 1, 1.5),
     views: new MapView({repeat: false}),
     initialViewState: INITIAL_VIEW_STATE,
     controller: {dragRotate: true, touchRotate: true, keyboard: true, inertia: 180},
@@ -242,122 +279,175 @@ export function mountWindExample(
   });
   options.onDeckInitialized?.(deck);
 
-  function updateLayers(): void {
-    if (!field || disposed) {
+  function createWindLayer(windField: WindField): WindLayer | false {
+    return (
+      settings.showWind &&
+      new WindLayer({
+        id: 'wind-vectors',
+        windField,
+        time: animationTime,
+        gridWidth: 40,
+        gridHeight: 22,
+        speedScale: 1.8,
+        widthMinPixels: 1.1,
+        lowColor: [52, 190, 160, 195],
+        highColor: [239, 163, 137, 230],
+        elevationScale: ELEVATION_SCALE,
+        surfaceOffset: 1_200
+      })
+    );
+  }
+
+  function createParticleLayer(windField: WindField): ParticleLayer | false {
+    return (
+      settings.showParticles &&
+      new ParticleLayer({
+        id: 'wind-particles',
+        windField,
+        time: animationTime,
+        numParticles: 3_600,
+        trailLength: 12,
+        speedScale: 0.16,
+        widthMinPixels: 1,
+        pointRadiusPixels: 1,
+        color: [237, 247, 255, 158],
+        elevationScale: ELEVATION_SCALE,
+        surfaceOffset: 1_700
+      })
+    );
+  }
+
+  function publishLayers(): void {
+    if (!layerStack || disposed) {
       return;
     }
 
     deck.setProps({
       layers: [
-        settings.showTerrain &&
-          new ElevationLayer({
-            id: 'wind-height-map',
-            elevationData: `${options.dataUrl ?? WIND_DATA_ROOT}/elevation.png`,
-            bounds: ELEVATION_BOUNDS,
-            elevationRange: [-100, 4126],
-            elevationScale: ELEVATION_SCALE,
-            meshMaxError: 480,
-            color: [42, 60, 77, 255],
-            texture: terrainTexture ?? undefined
-          }),
-        settings.showStationMesh &&
-          new DelaunayCoverLayer({
-            id: 'wind-station-terrain',
-            windField: field,
-            elevationScale: ELEVATION_SCALE,
-            opacity: 0.32
-          }),
-        new GeoJsonLayer({
-          id: 'wind-state-boundaries',
-          data: US_STATE_BOUNDARIES,
-          filled: false,
-          stroked: true,
-          getLineColor: [177, 188, 205, 95],
-          getLineWidth: 1,
-          lineWidthUnits: 'pixels',
-          lineWidthMinPixels: 0.65,
-          parameters: {depthCompare: 'always', depthWriteEnabled: false},
-          pickable: false
-        }),
-        settings.showWind &&
-          new WindLayer({
-            id: 'wind-vectors',
-            windField: field,
-            time: animationTime,
-            gridWidth: 40,
-            gridHeight: 22,
-            speedScale: 1.8,
-            widthMinPixels: 1.1,
-            lowColor: [52, 190, 160, 195],
-            highColor: [239, 163, 137, 230],
-            elevationScale: ELEVATION_SCALE,
-            surfaceOffset: 3_200
-          }),
-        settings.showParticles &&
-          new ParticleLayer({
-            id: 'wind-particles',
-            windField: field,
-            time: animationTime,
-            numParticles: 3_600,
-            trailLength: 20,
-            speedScale: 0.16,
-            widthMinPixels: 1.1,
-            pointRadiusPixels: 1,
-            color: [237, 247, 255, 168],
-            elevationScale: ELEVATION_SCALE,
-            surfaceOffset: 4_600
-          }),
-        new TextLayer<WindCity>({
-          id: 'wind-city-labels',
-          data: WIND_CITIES,
-          getPosition: city => {
-            const sample = sampleWindField(field, city.position, animationTime);
-            return [
-              city.position[0],
-              city.position[1],
-              (sample?.elevation ?? 0) * ELEVATION_SCALE + 6_000
-            ];
-          },
-          getText: city => city.name,
-          getColor: [231, 232, 238, 215],
-          getSize: 12,
-          sizeUnits: 'pixels',
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'center',
-          parameters: {depthWriteEnabled: false},
-          pickable: false
-        }),
-        settings.showStations &&
-          new ScatterplotLayer<WindStation>({
-            id: 'wind-stations',
-            data: field.stations,
-            getPosition: station => [
-              -station.long,
-              station.lat,
-              station.elv * ELEVATION_SCALE + 5_200
-            ],
-            getFillColor: [255, 227, 165, 205],
-            getRadius: 3,
-            radiusUnits: 'pixels',
-            radiusMinPixels: 2,
-            pickable: true
-          })
+        layerStack.terrain,
+        layerStack.stationMesh,
+        layerStack.boundaries,
+        layerStack.wind,
+        layerStack.particles,
+        layerStack.labels,
+        layerStack.stations
       ]
     });
+  }
+
+  function updateLayers(): void {
+    if (!field || !terrainData || disposed) {
+      return;
+    }
+
+    layerStack = {
+      terrain:
+        settings.showTerrain &&
+        new ElevationLayer({
+          id: 'wind-height-map',
+          elevationData: terrainData.elevationData,
+          bounds: ELEVATION_BOUNDS,
+          elevationRange: [-100, 4126],
+          elevationScale: ELEVATION_SCALE,
+          meshMaxError: 24,
+          color: [35, 49, 64, 255],
+          texture: terrainData.texture
+        }),
+      stationMesh:
+        settings.showStationMesh &&
+        new DelaunayCoverLayer({
+          id: 'wind-station-terrain',
+          windField: field,
+          elevationScale: ELEVATION_SCALE,
+          opacity: 0.32
+        }),
+      boundaries: new GeoJsonLayer({
+        id: 'wind-state-boundaries',
+        data: US_STATE_BOUNDARIES,
+        filled: false,
+        stroked: true,
+        getLineColor: [177, 188, 205, 95],
+        getLineWidth: 1,
+        lineWidthUnits: 'pixels',
+        lineWidthMinPixels: 0.65,
+        parameters: {depthCompare: 'always', depthWriteEnabled: false},
+        pickable: false
+      }),
+      wind: createWindLayer(field),
+      particles: createParticleLayer(field),
+      labels: new TextLayer<WindCity>({
+        id: 'wind-city-labels',
+        data: WIND_CITIES,
+        getPosition: city => {
+          const sample = sampleWindField(field, city.position, 0);
+          return [
+            city.position[0],
+            city.position[1],
+            (sample?.elevation ?? 0) * ELEVATION_SCALE + 2_200
+          ];
+        },
+        getText: city => city.name,
+        getColor: [231, 232, 238, 215],
+        getSize: 12,
+        sizeUnits: 'pixels',
+        getTextAnchor: 'middle',
+        getAlignmentBaseline: 'center',
+        parameters: {depthWriteEnabled: false},
+        pickable: false
+      }),
+      stations:
+        settings.showStations &&
+        new ScatterplotLayer<WindStation>({
+          id: 'wind-stations',
+          data: field.stations,
+          getPosition: station => [
+            -station.long,
+            station.lat,
+            station.elv * ELEVATION_SCALE + 1_900
+          ],
+          getFillColor: [255, 227, 165, 205],
+          getRadius: 3,
+          radiusUnits: 'pixels',
+          radiusMinPixels: 2,
+          pickable: true
+        })
+    };
+    publishLayers();
   }
 
   function animate(timestamp: number): void {
     if (disposed) {
       return;
     }
-    if (timestamp - lastFrameTime >= 1000 / 30) {
+    if (timestamp - lastFrameTime >= 1000 / PARTICLE_FRAME_RATE - 1) {
       const elapsed = lastFrameTime ? Math.min(timestamp - lastFrameTime, 100) : 0;
       animationTime += elapsed / 1800;
       lastFrameTime = timestamp;
+      if (field && layerStack) {
+        layerStack.particles = createParticleLayer(field);
+        if (timestamp - lastVectorFrameTime >= WIND_VECTOR_UPDATE_INTERVAL_MS) {
+          layerStack.wind = createWindLayer(field);
+          lastVectorFrameTime = timestamp;
+        }
+        publishLayers();
+      }
       if (status && field) {
         status.dataset.windFrame = animationTime.toFixed(3);
+        measuredFrames++;
+        if (!frameSampleStart) {
+          frameSampleStart = timestamp;
+        } else if (timestamp - frameSampleStart >= 1000) {
+          const framesPerSecond = Math.round(
+            (measuredFrames * 1000) / (timestamp - frameSampleStart)
+          );
+          status.dataset.windFps = String(framesPerSecond);
+          status.textContent =
+            `${field.stations.length.toLocaleString()} stations · ` +
+            `${field.frames.length} hourly frames · ${framesPerSecond} fps`;
+          measuredFrames = 0;
+          frameSampleStart = timestamp;
+        }
       }
-      updateLayers();
     }
     animationFrame = window.requestAnimationFrame(animate);
   }
@@ -365,14 +455,14 @@ export function mountWindExample(
   const dataUrl = options.dataUrl ?? WIND_DATA_ROOT;
   void Promise.all([
     loadWindField(dataUrl, abortController.signal),
-    loadTerrainTexture(dataUrl, abortController.signal)
+    loadTerrainData(dataUrl, abortController.signal)
   ])
-    .then(([windField, nextTerrainTexture]) => {
+    .then(([windField, nextTerrainData]) => {
       if (disposed) {
         return;
       }
       field = windField;
-      terrainTexture = nextTerrainTexture;
+      terrainData = nextTerrainData;
       if (status) {
         status.textContent = `${windField.stations.length.toLocaleString()} stations · ${windField.frames.length} hourly weather frames`;
       }

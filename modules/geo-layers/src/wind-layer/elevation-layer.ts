@@ -64,7 +64,7 @@ export class ElevationLayer extends CompositeLayer<ElevationLayerProps> {
       meshMaxError,
       color,
       texture: texture || elevationData,
-      material: {ambient: 0.42, diffuse: 0.82, shininess: 28, specularColor: [76, 91, 105]},
+      material: {ambient: 0.58, diffuse: 0.68, shininess: 48, specularColor: [18, 23, 28]},
       loaders: [TerrainLoader],
       loadOptions: {worker: false},
       pickable: false

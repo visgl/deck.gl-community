@@ -38,7 +38,14 @@ type Particle = {
   direction?: number;
   speed?: number;
 };
-type ParticleSegment = {source: ParticlePosition; target: ParticlePosition; color: Color};
+type BinaryParticleSegments = {
+  length: number;
+  attributes: {
+    getSourcePosition: {value: Float32Array; size: 3};
+    getTargetPosition: {value: Float32Array; size: 3};
+    getColor: {value: Uint8Array; size: 4};
+  };
+};
 
 const PARTICLE_FRAME_RATE = 30;
 const WEATHER_FRAME_DURATION_MS = 1800;
@@ -182,7 +189,12 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
         sample.elevation * elevationScale + surfaceOffset
       ];
 
-      if (!sampleWindField(windField, [next[0], next[1]], time)) {
+      if (
+        next[0] < windField.bounds.minLng ||
+        next[0] > windField.bounds.maxLng ||
+        next[1] < windField.bounds.minLat ||
+        next[1] > windField.bounds.maxLat
+      ) {
         particle.seed += 101.7;
         particle.direction = undefined;
         particle.speed = undefined;
@@ -208,31 +220,47 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
     }
   }
 
-  /** Renders independently faded, GPU-instanced trail segments. */
+  /** Streams faded particle trails to GPU layers as compact binary attributes. */
   renderLayers() {
     if (!this.state?.particles) {
       return null;
     }
 
-    const {color, widthMinPixels, pointRadiusPixels} = this.props;
-    const segments: ParticleSegment[] = [];
+    const {color, widthMinPixels, pointRadiusPixels, time} = this.props;
+    const segmentCount = this.state.particles.reduce(
+      (count, particle) => count + Math.max(0, particle.positions.length - 1),
+      0
+    );
+    const sourcePositions = new Float32Array(segmentCount * 3);
+    const targetPositions = new Float32Array(segmentCount * 3);
+    const colors = new Uint8Array(segmentCount * 4);
+    let segmentIndex = 0;
+
     for (const particle of this.state.particles) {
       for (let index = 1; index < particle.positions.length; index++) {
         const opacity = index / Math.max(1, particle.positions.length - 1);
-        segments.push({
-          source: particle.positions[index - 1],
-          target: particle.positions[index],
-          color: [color[0], color[1], color[2], Math.round((color[3] ?? 255) * opacity)]
-        });
+        sourcePositions.set(particle.positions[index - 1], segmentIndex * 3);
+        targetPositions.set(particle.positions[index], segmentIndex * 3);
+        colors.set(
+          [color[0], color[1], color[2], Math.round((color[3] ?? 255) * opacity)],
+          segmentIndex * 4
+        );
+        segmentIndex++;
       }
     }
 
+    const segments: BinaryParticleSegments = {
+      length: segmentCount,
+      attributes: {
+        getSourcePosition: {value: sourcePositions, size: 3},
+        getTargetPosition: {value: targetPositions, size: 3},
+        getColor: {value: colors, size: 4}
+      }
+    };
+
     return [
-      new LineLayer<ParticleSegment>(this.getSubLayerProps({id: 'trails'}), {
+      new LineLayer(this.getSubLayerProps({id: 'trails'}), {
         data: segments,
-        getSourcePosition: segment => segment.source,
-        getTargetPosition: segment => segment.target,
-        getColor: segment => segment.color,
         getWidth: 1,
         widthUnits: 'pixels',
         widthMinPixels,
@@ -247,6 +275,7 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
         radiusUnits: 'pixels',
         radiusMinPixels: pointRadiusPixels,
         billboard: true,
+        updateTriggers: {getPosition: time},
         parameters: {depthWriteEnabled: false},
         pickable: false
       })

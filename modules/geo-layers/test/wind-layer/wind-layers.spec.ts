@@ -170,15 +170,31 @@ describe('reusable wind showcase layers', () => {
     };
 
     const [trails, heads] = layer.renderLayers() as [LineLayer, ScatterplotLayer];
-    const segments = trails.props.data as {color: number[]}[];
+    const segments = trails.props.data as {
+      length: number;
+      attributes: {
+        getSourcePosition: {value: Float32Array; size: number};
+        getTargetPosition: {value: Float32Array; size: number};
+        getColor: {value: Uint8Array; size: number};
+      };
+    };
 
     expect(trails).toBeInstanceOf(LineLayer);
     expect(heads).toBeInstanceOf(ScatterplotLayer);
     expect(trails.props.id).toBe('trails');
-    expect(segments).toHaveLength(2);
-    expect(segments[0].color[3]).toBeLessThan(segments[1].color[3]);
-    expect(segments[1].color).toEqual([100, 150, 200, 180]);
+    expect(segments.length).toBe(2);
+    expect(segments.attributes.getSourcePosition.value).toEqual(
+      new Float32Array([-1.5, 0.5, 10, -1.25, 0.5, 12])
+    );
+    expect(segments.attributes.getTargetPosition.value).toEqual(
+      new Float32Array([-1.25, 0.5, 12, -1, 0.5, 14])
+    );
+    expect(segments.attributes.getColor.value[3]).toBeLessThan(
+      segments.attributes.getColor.value[7]
+    );
+    expect([...segments.attributes.getColor.value.slice(4, 8)]).toEqual([100, 150, 200, 180]);
     expect(heads.props.data).toHaveLength(1);
+    expect(heads.props.updateTriggers).toMatchObject({getPosition: 0});
   });
 
   it('does not render particles before their simulation is initialized', () => {
