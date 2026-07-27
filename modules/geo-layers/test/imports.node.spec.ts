@@ -4,6 +4,7 @@
 
 import {it, expect} from 'vitest';
 import * as GeoLayers from '../src/index';
+import type {WindFieldOptions} from '../src/index';
 import * as SharedTilesetSurface from '../src/tileset/index';
 
 it('exports TileSourceLayer', () => {
@@ -33,9 +34,15 @@ it('exports the reusable wind showcase layers and field utilities', () => {
   expect(GeoLayers.ElevationLayer).toBeDefined();
   expect(GeoLayers.DelaunayInterpolation).toBeDefined();
   expect(GeoLayers.createWindField).toBeDefined();
+  expect(GeoLayers.getWindBounds).toBeDefined();
   expect(GeoLayers.parseWindData).toBeDefined();
   expect(GeoLayers.sampleWindField).toBeDefined();
   expect(GeoLayers.triangulateWindStations).toBeDefined();
+});
+
+it('exports typed wind field options', () => {
+  const options: WindFieldOptions = {triangles: [[0, 1, 2]]};
+  expect(options.triangles).toEqual([[0, 1, 2]]);
 });
 
 it('exports grid systems', () => {

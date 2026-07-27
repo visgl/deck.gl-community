@@ -1,29 +1,49 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # DelaunayCoverLayer
 
-`DelaunayCoverLayer` renders a terrain surface from the same weather-station triangulation used to
-interpolate a `WindField`. Each triangle follows measured station elevations and is colored by its
-average height. It recreates the elevation surface in the original deck.gl wind showcase.
+:::caution Work in progress
+The station-surface appearance and API may change. Its `SolidPolygonLayer` sublayer is not yet
+fully portable to WebGPU.
+:::
+
+`DelaunayCoverLayer` renders one elevation-colored polygon for each triangle in a shared
+[`WindField`](./wind-field.md). It visualizes the real station interpolation hull; it is not the
+same as the smoothed image-based mountain surface rendered by
+[`ElevationLayer`](./elevation-layer.md).
+
+<LayerLiveExample highlight="delaunay-cover-layer" size="tall" />
+
+## Import
 
 ```ts
 import {DelaunayCoverLayer} from '@deck.gl-community/geo-layers';
+```
 
-const layer = new DelaunayCoverLayer({
-  id: 'wind-terrain',
+## Example
+
+```ts
+const stationSurface = new DelaunayCoverLayer({
+  id: 'wind-station-surface',
   windField,
-  elevationScale: 14,
+  elevationScale: 24,
   lowColor: [17, 34, 49, 220],
-  highColor: [102, 151, 127, 235]
+  highColor: [102, 151, 127, 235],
+  opacity: 0.32
 });
 ```
 
 ## Properties
 
-- `windField`: A `WindField` returned by `createWindField`.
-- `elevationScale`: Multiplier for each station elevation.
-- `lowColor`, `highColor`: RGBA colors interpolated by average triangle elevation.
+- `windField` (`WindField`, required): shared robust station triangulation and forecast.
+- `elevationScale` (`number`, default `1`): station-height multiplier.
+- `lowColor` (`Color`, default `[17, 34, 49, 220]`): fill color for the lowest stations.
+- `highColor` (`Color`, default `[102, 151, 127, 235]`): fill color for the highest stations.
+- Standard deck.gl `CompositeLayer` properties, including `opacity` and `visible`.
 
 ## Sub-layers
 
-- `terrain`: A `SolidPolygonLayer` containing the station Delaunay triangles.
+- `terrain`: a `SolidPolygonLayer` containing the station-index Delaunay triangles.
 
-See the [Wind Map example](/examples/geo-layers/wind).
+Use the example's **Delaunay station surface** control to inspect the triangulation independently
+of the smoothed mountains. See the [wind showcase guide](../developer-guide/wind-showcase.md).

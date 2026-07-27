@@ -76,7 +76,15 @@ const defaultProps: DefaultProps<GpuParticlePointLayerProps> = {
   pointRadiusPixels: 1
 };
 
-/** Draws one true GPU point per simulated particle, matching the original wind showcase. */
+/**
+ * Draws one GPU vertex per simulated particle, matching the historical WebGL showcase.
+ *
+ * @remarks
+ * This is an internal WebGL rendering primitive. Applications should construct
+ * {@link ParticleLayer} rather than importing this implementation detail.
+ *
+ * @internal
+ */
 export class GpuParticlePointLayer extends Layer<Required<GpuParticlePointLayerProps>> {
   static layerName = 'GpuParticlePointLayer';
   static defaultProps: DefaultProps<GpuParticlePointLayerProps> = defaultProps;

@@ -159,6 +159,15 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       );
       return mountSharedTile2DLayerExample(container, {mode: 'compact', showInfoWidget: false});
     }
+    case 'delaunay-cover-layer':
+    case 'delaunay-interpolation':
+    case 'elevation-layer':
+    case 'particle-layer':
+    case 'wind-field':
+    case 'wind-layer': {
+      const {mountWindExample} = await import('../../../../examples/geo-layers/wind/app');
+      return mountWindExample(container, mountProps);
+    }
     case 'global-grid-layer':
       return mountGlobalGridLayerExample(container);
     case 'tile-source-layer':

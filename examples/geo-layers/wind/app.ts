@@ -85,7 +85,13 @@ const WIND_LIGHTING = new LightingEffect({
   })
 });
 
-/** Options accepted by the standalone and embedded historical wind showcase. */
+/**
+ * Options for mounting the work-in-progress historical wind showcase.
+ *
+ * @remarks
+ * Standalone examples remain independent of website device-management widgets. Hosts
+ * can use `onDeckInitialized` to attach a WebGL2 or WebGPU device after construction.
+ */
 export type WindExampleOptions = {
   /** Receives the initialized deck instance when the website manages GPU devices. */
   onDeckInitialized?: (deck: Deck) => void;
@@ -272,7 +278,20 @@ function createSettingsPanel(
   return panel;
 }
 
-/** Mounts the original wind showcase using exclusively exported, reusable geo-layers. */
+/**
+ * Mounts the historical wind showcase using only public geo-layer exports.
+ *
+ * @param container - Element that owns the deck canvas and example controls.
+ * @param options - Optional original-data URL and embedding-device callback.
+ * @returns A cleanup function that cancels animation, aborts data loads, and finalizes deck.
+ *
+ * @example
+ * ```ts
+ * const unmount = mountWindExample(document.querySelector('#app')!);
+ * // When the host is removed:
+ * unmount();
+ * ```
+ */
 export function mountWindExample(
   container: HTMLElement,
   options: WindExampleOptions = {}

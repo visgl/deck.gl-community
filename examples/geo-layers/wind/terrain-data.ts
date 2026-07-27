@@ -8,6 +8,12 @@
  * The original wind showcase filters the elevation texture and averages adjacent samples
  * in its terrain vertex shader. Pre-filtering once preserves that smooth relief without
  * repeating terrain work while particles animate.
+ *
+ * @param pixels - Row-major RGBA pixels from the original grayscale elevation image.
+ * @param width - Image width in pixels.
+ * @param height - Image height in pixels.
+ * @returns One smoothed grayscale elevation sample for each input pixel.
+ * @throws RangeError if the pixel buffer does not match the image dimensions.
  */
 export function smoothWindElevation(
   pixels: Uint8ClampedArray,

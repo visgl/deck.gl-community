@@ -6,3 +6,20 @@ hide_title: true
 import Demo from './wind';
 
 <Demo />
+
+:::caution Work in progress
+The reusable wind showcase and its layer APIs are experimental. GPU particle simulation is
+browser-tested on WebGL2 and WebGPU; the complete terrain-and-arrows scene remains WebGL2-first
+while upstream terrain, polygon, and path compatibility is in progress.
+:::
+
+The example recreates
+[Nicolas Belmonte's original wind showcase](https://github.com/visgl/deck.gl/tree/master/showcases/wind/src)
+using the historical 72-hour forecast, image-derived three-dimensional mountain terrain,
+interpolated wind arrows, and reusable
+[`@deck.gl-community/geo-layers`](/docs/modules/geo-layers/).
+
+Use the particle-density slider to select between 1,000 and 1,000,000 GPU-animated particles.
+Right-drag, Control-drag, or use a touch rotation gesture to tilt and rotate the terrain. See the
+[complete wind showcase guide](/docs/modules/geo-layers/developer-guide/wind-showcase) for the
+data format, source code, GPU architecture, and backend limitations.

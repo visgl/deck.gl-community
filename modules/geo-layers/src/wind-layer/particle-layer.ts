@@ -10,27 +10,33 @@ import {GpuParticlePointLayer} from './gpu-particle-point-layer';
 import {GpuParticleSimulation} from './gpu-particle-simulation';
 import {sampleWindField, type WindBounds, type WindField} from './wind-data';
 
-/** Properties for animated wind-field particle trails. */
+/**
+ * Configuration for the work-in-progress, GPU-advected {@link ParticleLayer}.
+ *
+ * @remarks
+ * WebGL2 uses transform feedback and point primitives; WebGPU uses compute and portable
+ * point sublayers. Particle positions are not read back during animation.
+ */
 export type ParticleLayerProps = {
   /** Indexed, time-varying weather station data. */
   windField: WindField;
-  /** Fractional weather-frame and animation time. */
+  /** Fractional, cyclic forecast and animation time; defaults to `0`. */
   time?: number;
-  /** Number of continuously advected particles. */
+  /** Number of GPU-resident animated particles; defaults to `2400`. */
   numParticles?: number;
-  /** Number of historical positions retained in each trail. */
+  /** Maximum CPU-fallback trail history; defaults to `12`. */
   trailLength?: number;
-  /** Geographic distance advanced per elapsed, 30-frame-per-second animation step. */
+  /** Geographic distance per 30-fps-equivalent simulation step; defaults to `0.085`. */
   speedScale?: number;
-  /** Screen-space trail width in pixels. */
+  /** Minimum on-screen trail width in pixels; defaults to `1.1`. */
   widthMinPixels?: number;
-  /** Trail color; opacity increases toward each particle's current position. */
+  /** RGBA trail color, modulated by GPU particle lifetime. */
   color?: Color;
-  /** Elevation multiplier applied to interpolated station elevation. */
+  /** Station-elevation multiplier; defaults to `1`. */
   elevationScale?: number;
-  /** Vertical separation above the shaded terrain surface, in meters. */
+  /** Separation above station-interpolated terrain in meters; defaults to `160`. */
   surfaceOffset?: number;
-  /** Radius in pixels of each bright, moving particle head. */
+  /** Radius of each moving particle head in pixels; defaults to `1.6`. */
   pointRadiusPixels?: number;
 };
 
@@ -179,6 +185,22 @@ function createParticlePosition(
  * Keeps particle positions and advection on the GPU: WebGL uses transform feedback and WebGPU
  * uses a compute shader. Built-in deck.gl layers render directly from the ping-pong GPU buffers.
  * The CPU fallback is retained for lightweight, device-free construction and unit testing.
+ *
+ * @remarks
+ * This API is a work in progress. Preserve the layer `id` while updating `time`; deck.gl
+ * transfers the existing simulation state instead of recreating the GPU particle buffers.
+ * At high densities the renderer prioritizes single-vertex particle heads over extra trails.
+ *
+ * @example
+ * ```ts
+ * new ParticleLayer({
+ *   id: 'wind-particles',
+ *   windField,
+ *   time: 12.5,
+ *   numParticles: 100_000,
+ *   color: [186, 233, 223, 34]
+ * });
+ * ```
  */
 export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
   static layerName = 'ParticleLayer';

@@ -7,15 +7,15 @@ import {SolidPolygonLayer} from '@deck.gl/layers';
 
 import type {WindField, WindStation, WindTriangle} from './wind-data';
 
-/** Properties for the station-triangulated terrain beneath a geographic wind field. */
+/** Configuration for the work-in-progress, station-triangulated {@link DelaunayCoverLayer}. */
 export type DelaunayCoverLayerProps = {
   /** Wind field supplying the geographic station triangulation. */
   windField: WindField;
-  /** Elevation multiplier applied to station heights in meters. */
+  /** Station-height multiplier; defaults to `1`. */
   elevationScale?: number;
-  /** Color for the lowest station elevation. */
+  /** RGBA fill for the lowest station elevation. */
   lowColor?: Color;
-  /** Color for the highest station elevation. */
+  /** RGBA fill for the highest station elevation. */
   highColor?: Color;
 };
 
@@ -54,7 +54,23 @@ function createTerrainTriangle(
   };
 }
 
-/** Recreates the wind showcase's elevation-colored Delaunay terrain as a reusable layer. */
+/**
+ * Renders elevation-colored terrain from the actual station Delaunay triangulation.
+ *
+ * @remarks
+ * This API is a work in progress. It visualizes station triangles; use
+ * {@link ElevationLayer} when a smooth image-derived mountain mesh is required.
+ * The underlying `SolidPolygonLayer` currently limits full WebGPU support.
+ *
+ * @example
+ * ```ts
+ * new DelaunayCoverLayer({
+ *   id: 'wind-station-mesh',
+ *   windField,
+ *   elevationScale: 24
+ * });
+ * ```
+ */
 export class DelaunayCoverLayer extends CompositeLayer<DelaunayCoverLayerProps> {
   static layerName = 'DelaunayCoverLayer';
   static defaultProps: DefaultProps<DelaunayCoverLayerProps> = defaultProps;

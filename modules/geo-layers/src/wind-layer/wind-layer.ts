@@ -7,27 +7,33 @@ import {PathLayer, SolidPolygonLayer} from '@deck.gl/layers';
 
 import {sampleWindField, type WindField} from './wind-data';
 
-/** Properties for rendering geographic wind vectors as directional arrow glyphs. */
+/**
+ * Configuration for the work-in-progress, station-interpolated {@link WindLayer}.
+ *
+ * @remarks
+ * Filled arrows currently depend on deck.gl polygon and path sublayers. Full-scene
+ * WebGPU compatibility therefore depends on the upstream support of those sublayers.
+ */
 export type WindLayerProps = {
   /** Indexed, time-varying weather station data. */
   windField: WindField;
-  /** Fractional weather-frame time. Frame indices wrap automatically. */
+  /** Fractional, automatically wrapping forecast-frame index; defaults to `0`. */
   time?: number;
-  /** Number of arrow samples in the longitudinal direction. */
+  /** Longitudinal arrow-sample count; defaults to `64`. */
   gridWidth?: number;
-  /** Number of arrow samples in the latitudinal direction. */
+  /** Latitudinal arrow-sample count; defaults to `32`. */
   gridHeight?: number;
-  /** Geographic length multiplier for wind arrows. */
+  /** Geographic arrow-length multiplier; defaults to `0.65`. */
   speedScale?: number;
-  /** Minimum on-screen arrow width in pixels. */
+  /** Minimum on-screen arrow width in pixels; defaults to `1.25`. */
   widthMinPixels?: number;
-  /** Color used for slower wind vectors. */
+  /** RGBA color for the minimum observed wind speed. */
   lowColor?: Color;
-  /** Color used for faster wind vectors. */
+  /** RGBA color for the maximum observed wind speed. */
   highColor?: Color;
-  /** Elevation multiplier applied to sampled station elevations. */
+  /** Multiplier for station elevation in meters; defaults to `1`. */
   elevationScale?: number;
-  /** Vertical separation above the terrain surface, in meters. */
+  /** Separation above the station-interpolated terrain in meters; defaults to `200`. */
   surfaceOffset?: number;
 };
 
@@ -60,12 +66,30 @@ function mixColor(from: Color, to: Color, factor: number): Color {
   ];
 }
 
-/** Renders the original wind showcase's directional field as reusable deck.gl arrow glyphs. */
+/**
+ * Renders the historical wind showcase as sampled, speed-colored directional arrows.
+ *
+ * @remarks
+ * This API is a work in progress. Create one shared `WindField` and preserve the layer's
+ * `id` while advancing fractional forecast time. Polygon and path compatibility is subject
+ * to upstream deck.gl support on WebGPU.
+ *
+ * @example
+ * ```ts
+ * new WindLayer({
+ *   id: 'wind-arrows',
+ *   windField,
+ *   time: 12.5,
+ *   gridWidth: 40,
+ *   gridHeight: 22
+ * });
+ * ```
+ */
 export class WindLayer extends CompositeLayer<WindLayerProps> {
   static layerName = 'WindLayer';
   static defaultProps: DefaultProps<WindLayerProps> = defaultProps;
 
-  /** Samples the field and renders arrow shafts and directional arrowheads. */
+  /** Samples valid station coverage and builds filled, shaft, and arrowhead sublayers. */
   renderLayers() {
     const {
       windField,

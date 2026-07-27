@@ -6,17 +6,17 @@ import {CompositeLayer, type Color, type DefaultProps} from '@deck.gl/core';
 import {TerrainLayer} from '@deck.gl/geo-layers';
 import {TerrainLoader} from '@loaders.gl/terrain';
 
-/** Properties for a height-map-based geographic wind-showcase terrain surface. */
+/** Configuration for the work-in-progress, height-map-based {@link ElevationLayer}. */
 export type ElevationLayerProps = {
   /** Grayscale image encoding real terrain elevations in its red channel. */
   elevationData: string;
   /** Geographic extent of the elevation image: west, south, east, north. */
   bounds: [number, number, number, number];
-  /** Minimum and maximum elevations encoded by the image, in meters. */
+  /** Encoded minimum and maximum elevation in meters; defaults to `[-100, 4126]`. */
   elevationRange?: [number, number];
-  /** Vertical exaggeration applied to the decoded terrain geometry. */
+  /** Vertical exaggeration of the decoded terrain; defaults to `1`. */
   elevationScale?: number;
-  /** Error tolerance used to simplify the generated terrain mesh. */
+  /** Mesh simplification error tolerance; defaults to `80`. */
   meshMaxError?: number;
   /** Color applied to the shaded three-dimensional terrain surface. */
   color?: Color;
@@ -39,6 +39,23 @@ const defaultProps: DefaultProps<ElevationLayerProps> = {
  *
  * The image is decoded with the in-process loaders.gl terrain parser so the standalone
  * showcase does not rely on an externally hosted terrain-worker bundle.
+ *
+ * @remarks
+ * This API is a work in progress. Smooth the source height map before applying strong
+ * exaggeration; use a smaller `meshMaxError` to preserve mountain detail. WebGPU support
+ * depends on the upstream `TerrainLayer` and active loaders.gl rendering path.
+ *
+ * @example
+ * ```ts
+ * new ElevationLayer({
+ *   id: 'wind-terrain',
+ *   elevationData: '/wind/elevation.png',
+ *   bounds: [-125, 24.4, -66.7, 49.6],
+ *   elevationRange: [-100, 4126],
+ *   elevationScale: 24,
+ *   meshMaxError: 12
+ * });
+ * ```
  */
 export class ElevationLayer extends CompositeLayer<ElevationLayerProps> {
   static layerName = 'ElevationLayer';

@@ -6,6 +6,28 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## v9.4
 
+### `@deck.gl-community/geo-layers`
+
+- The reusable wind showcase is an additive, **work-in-progress** API. Existing geospatial layers
+  do not require a breaking migration.
+- Import `WindLayer`, `ParticleLayer`, `ElevationLayer`, `DelaunayCoverLayer`,
+  `DelaunayInterpolation`, and weather-field utilities from `@deck.gl-community/geo-layers`
+  instead of copying the original showcase's private layer files or raw WebGL transforms.
+- Preserve the historical station dataset's positive-west `station.long` values; `createWindField`
+  and `getWindBounds` convert them to deck.gl's negative-west longitude convention.
+- Decode the station-major, 72-frame binary forecast with
+  `parseWindData(weather, stations.length)`; create and retain one shared field with
+  `createWindField(stations, frames)`.
+- Animate `ParticleLayer` by advancing its `time` property while preserving its layer `id` and
+  field. Do not reintroduce CPU particle arrays, GPU readbacks, per-frame triangulation, or raw
+  WebGL `Transform` and `Texture2D` dependencies.
+- `trailLength` controls the device-free CPU fallback; GPU rendering uses ping-pong buffers,
+  lifetime fading, and high-density point rendering.
+- WebGPU support for `ParticleLayer` does not imply support for the complete showcase. Terrain,
+  filled wind arrows, and station polygons remain dependent on upstream `TerrainLayer`,
+  `PathLayer`, and `SolidPolygonLayer` compatibility. See the
+  [WebGPU support matrix](./webgpu.md).
+
 ### `@deck.gl-community/panels`
 
 - Breaking change: panel composition APIs no longer expose `Widget*` names from `@deck.gl-community/panels`.

@@ -4,48 +4,95 @@
 
 import Delaunator from 'delaunator';
 
-/** A weather station in the original deck.gl wind showcase dataset. */
+/**
+ * A weather station in the original wind-showcase dataset.
+ *
+ * @remarks
+ * This work-in-progress format uses positive-west `long` values. Use
+ * {@link getWindBounds} or {@link createWindField} to convert those values to deck.gl
+ * longitude/latitude coordinates.
+ */
 export type WindStation = {
+  /** Human-readable station name. */
   name: string;
+  /** Positive-west longitude from the historical station dataset. */
   long: number;
+  /** Latitude in decimal degrees. */
   lat: number;
+  /** Station elevation in meters. */
   elv: number;
+  /** Optional International Civil Aviation Organization station identifier. */
   icao?: string;
+  /** Optional US state name or abbreviation. */
   state?: string;
+  /** Optional abbreviated station name. */
   abbr?: string;
 };
 
-/** West, south, east, and north bounds of a geographic wind field. */
+/** Geographic longitude/latitude coverage for a station-interpolated wind field. */
 export type WindBounds = {
+  /** Westernmost geographic longitude in decimal degrees. */
   minLng: number;
+  /** Southernmost latitude in decimal degrees. */
   minLat: number;
+  /** Easternmost geographic longitude in decimal degrees. */
   maxLng: number;
+  /** Northernmost latitude in decimal degrees. */
   maxLat: number;
 };
 
-/** Direction in eighth-turns, wind speed, and temperature at one station. */
-export type WindMeasurement = readonly [number, number, number];
+/**
+ * One station measurement: direction in eighth-turns, wind speed, and temperature.
+ *
+ * @remarks
+ * Direction `0` points east; each subsequent unit rotates by 45 degrees.
+ */
+export type WindMeasurement = readonly [direction: number, speed: number, temperature: number];
 
 /** Three indices into a wind field's station and measurement arrays. */
-export type WindTriangle = readonly [number, number, number];
+export type WindTriangle = readonly [first: number, second: number, third: number];
 
-/** A time-varying Delaunay-interpolated geographic vector field. */
+/** Optional configuration for {@link createWindField}. */
+export type WindFieldOptions = {
+  /** Existing station-index triangles; omit this to compute a robust Delaunay triangulation. */
+  triangles?: readonly WindTriangle[];
+};
+
+/**
+ * A time-varying, station-interpolated geographic wind field.
+ *
+ * @remarks
+ * Construct this object with {@link createWindField} rather than assembling its spatial
+ * index manually. The reusable wind, particle, and station-surface layers share this field.
+ */
 export type WindField = {
+  /** Weather stations in the original positive-west coordinate format. */
   stations: readonly WindStation[];
+  /** Forecast frames, each containing one measurement per station. */
   frames: readonly (readonly WindMeasurement[])[];
+  /** Robust Delaunay triangles referencing {@link WindField.stations}. */
   triangles: readonly WindTriangle[];
+  /** Geographic station bounds in deck.gl longitude/latitude coordinates. */
   bounds: WindBounds;
+  /** Minimum and maximum nonzero observed wind speeds. */
   speedRange: readonly [number, number];
+  /** Minimum and maximum nonzero observed temperatures. */
   temperatureRange: readonly [number, number];
+  /** @internal Spatial lookup shared by field sampling and GPU weather rasterization. */
   spatialIndex: WindSpatialIndex;
 };
 
-/** A sampled and temporally interpolated wind vector. */
+/** A spatially and temporally interpolated wind observation. */
 export type WindSample = {
+  /** Counterclockwise wind direction in radians, measured from the east. */
   direction: number;
+  /** Interpolated wind speed in the dataset's original units. */
   speed: number;
+  /** Interpolated temperature in the dataset's original units. */
   temperature: number;
+  /** Interpolated station elevation in meters. */
   elevation: number;
+  /** Eastward and northward velocity components. */
   velocity: [number, number];
 };
 
@@ -65,7 +112,21 @@ const WIND_DIRECTION_NORTH = Float64Array.from({length: 8}, (_, index) =>
   Math.sin((index * Math.PI) / 4)
 );
 
-/** Parses the station-major, 72-hour binary format used by the original wind showcase. */
+/**
+ * Decodes the station-major binary forecast from the historical wind showcase.
+ *
+ * @param buffer - Unsigned 16-bit forecast data in station-major order.
+ * @param stationCount - Number of stations represented by each forecast frame.
+ * @param frameCount - Number of forecast frames; the original dataset contains 72.
+ * @returns Frame-major direction, speed, and temperature measurements.
+ * @throws RangeError if the forecast dimensions or binary length are invalid.
+ *
+ * @example
+ * ```ts
+ * const weather = await fetch('/weather.bin').then(response => response.arrayBuffer());
+ * const frames = parseWindData(weather, stations.length);
+ * ```
+ */
 export function parseWindData(
   buffer: ArrayBuffer,
   stationCount: number,
@@ -94,7 +155,14 @@ export function parseWindData(
   );
 }
 
-/** Calculates geographic bounds for stations whose legacy longitudes are positive-west. */
+/**
+ * Converts legacy positive-west station coordinates into geographic field bounds.
+ *
+ * @param stations - Historical station records.
+ * @returns Western, southern, eastern, and northern geographic coverage.
+ * @throws RangeError if no station is provided.
+ * @throws TypeError if any station coordinate is not finite.
+ */
 export function getWindBounds(stations: readonly WindStation[]): WindBounds {
   if (stations.length === 0) {
     throw new RangeError('A wind field requires at least one station.');
@@ -119,7 +187,17 @@ export function getWindBounds(stations: readonly WindStation[]): WindBounds {
   return {minLng, minLat, maxLng, maxLat};
 }
 
-/** Builds a robust Delaunay triangulation of positive-west weather-station positions. */
+/**
+ * Builds a robust Delaunay triangulation of positive-west weather stations.
+ *
+ * @remarks
+ * Duplicate coordinates are ignored. Fewer than three distinct non-collinear positions
+ * produce an empty triangulation.
+ *
+ * @param stations - Historical station records in measurement-array order.
+ * @returns Station-index triangles covering the valid station hull.
+ * @throws TypeError if any station coordinate is not finite.
+ */
 export function triangulateWindStations(stations: readonly WindStation[]): WindTriangle[] {
   if (stations.length < 3) {
     return [];
@@ -190,11 +268,25 @@ function createSpatialIndex(
   return {columns, rows, cells};
 }
 
-/** Creates the shared, indexed wind field consumed by all wind showcase layers. */
+/**
+ * Creates the indexed, time-varying wind field shared by the reusable wind layers.
+ *
+ * @param stations - Weather stations using the historical positive-west format.
+ * @param frames - Frame-major measurements with one observation per station.
+ * @param options - Optional precomputed station triangulation.
+ * @returns Geographic bounds, station triangles, observed ranges, and a spatial index.
+ * @throws RangeError if fewer than three stations are supplied or a frame is misaligned.
+ *
+ * @example
+ * ```ts
+ * const frames = parseWindData(weather, stations.length);
+ * const field = createWindField(stations, frames);
+ * ```
+ */
 export function createWindField(
   stations: readonly WindStation[],
   frames: readonly (readonly WindMeasurement[])[],
-  options: {triangles?: readonly WindTriangle[]} = {}
+  options: WindFieldOptions = {}
 ): WindField {
   if (stations.length < 3) {
     throw new RangeError('A wind field requires at least three stations.');
@@ -240,7 +332,20 @@ function getBarycentricWeights(
     : null;
 }
 
-/** Samples the wind field using spatial Delaunay and circular temporal interpolation. */
+/**
+ * Samples a wind field with barycentric spatial and circular temporal interpolation.
+ *
+ * @param field - Indexed wind field returned by {@link createWindField}.
+ * @param position - Geographic `[longitude, latitude]` position.
+ * @param time - Fractional forecast-frame index; values wrap in either direction.
+ * @returns The interpolated observation, or `null` outside the station hull.
+ *
+ * @example
+ * ```ts
+ * const sample = sampleWindField(field, [-97, 38], 12.5);
+ * console.log(sample?.velocity, sample?.elevation);
+ * ```
+ */
 export function sampleWindField(field: WindField, position: Point, time = 0): WindSample | null {
   const {bounds, spatialIndex, triangles, stations, frames} = field;
   if (

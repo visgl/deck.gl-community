@@ -158,7 +158,17 @@ fn main(@builtin(global_invocation_id) invocation: vec3<u32>) {
   );
 }`;
 
-/** Rasterizes one station-interpolated weather frame for constant-time GPU wind lookup. */
+/**
+ * Rasterizes one station-interpolated frame for GPU weather-texture sampling.
+ *
+ * @param field - Indexed wind field shared by the particle simulation.
+ * @param frame - Integer forecast-frame index.
+ * @param width - Weather-texture width; defaults to `128`.
+ * @param height - Weather-texture height; defaults to `64`.
+ * @returns RGBA float texels containing east, north, elevation, and coverage.
+ * @throws RangeError if either raster dimension is not a positive integer.
+ * @internal
+ */
 export function rasterizeParticleWindField(
   field: WindField,
   frame: number,
@@ -231,12 +241,25 @@ function createSeedPositions(field: WindField, count: number, surfaceOffset: num
   return positions;
 }
 
-/** Ping-pong GPU simulation shared by the WebGL transform-feedback and WebGPU compute paths. */
+/**
+ * GPU-resident wind simulation for WebGL transform feedback and WebGPU compute.
+ *
+ * @remarks
+ * This implementation detail is not exported from the package entry point. Use
+ * {@link ParticleLayer} as the public, backend-selecting layer API.
+ *
+ * @internal
+ */
 export class GpuParticleSimulation {
+  /** Active luma.gl rendering device. */
   readonly device: Device;
+  /** Number of simulated GPU-resident particles. */
   readonly particleCount: number;
+  /** Current and next station-interpolated weather textures. */
   readonly textures: [Texture, Texture];
+  /** Ping-pong particle-position storage and vertex buffers. */
   readonly buffers: [Buffer, Buffer];
+  /** Previous valid position used to avoid cross-map respawn trails. */
   readonly trailBuffer: Buffer;
 
   private readonly field: WindField;
@@ -247,6 +270,14 @@ export class GpuParticleSimulation {
   private currentBufferIndex = 0;
   private currentWeatherFrame = -1;
 
+  /**
+   * Allocates GPU particle buffers, cached weather textures, and the backend pipeline.
+   *
+   * @param device - Active WebGL2 or WebGPU rendering device.
+   * @param field - Indexed station forecast.
+   * @param count - Number of GPU particles to allocate.
+   * @param surfaceOffset - Initial particle elevation in meters.
+   */
   constructor(device: Device, field: WindField, count: number, surfaceOffset: number) {
     this.device = device;
     this.field = field;
@@ -339,14 +370,25 @@ export class GpuParticleSimulation {
     }
   }
 
+  /** GPU trail-source positions without synchronous or asynchronous readback. */
   get sourceBuffer(): Buffer {
     return this.trailBuffer;
   }
 
+  /** Current GPU-computed particle positions. */
   get targetBuffer(): Buffer {
     return this.buffers[this.currentBufferIndex];
   }
 
+  /**
+   * Advances GPU-resident particles and uploads a weather texture only when its frame changes.
+   *
+   * @param time - Fractional, cyclic weather-frame index.
+   * @param speedScale - Geographic distance per normalized simulation frame.
+   * @param elevationScale - Multiplier for interpolated station elevation.
+   * @param surfaceOffset - Separation above the station-interpolated surface.
+   * @param elapsedFrames - Elapsed, frame-rate-independent simulation steps.
+   */
   advance(
     time: number,
     speedScale: number,
@@ -423,6 +465,7 @@ export class GpuParticleSimulation {
     this.currentBufferIndex = 1 - this.currentBufferIndex;
   }
 
+  /** Destroys owned particle buffers, weather textures, and the active GPU pipeline. */
   destroy(): void {
     this.transform?.destroy();
     this.computation?.destroy();
