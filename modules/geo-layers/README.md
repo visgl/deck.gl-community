@@ -9,15 +9,37 @@ They can be quite useful in applications, however they are not officially suppor
 
 ## Wind layers
 
-The package includes the reusable layers and interpolation utilities from the historical deck.gl
-wind showcase:
+**Status: work in progress.** The package includes reusable layers and interpolation utilities
+from Nicolas Belmonte's historical deck.gl wind showcase:
 
 - `WindLayer` renders interpolated, speed-colored wind-direction arrows.
-- `ParticleLayer` renders fading particle trails through the wind field.
+- `ParticleLayer` animates GPU-resident particles through the wind field using WebGL2 transform
+  feedback or WebGPU compute, without per-frame particle readbacks.
 - `ElevationLayer` renders the original elevation image as illuminated 3D mountain terrain.
 - `DelaunayCoverLayer` renders elevation-colored station-triangulated terrain.
 - `DelaunayInterpolation` samples or rasterizes the same field.
-- `parseWindData`, `triangulateWindStations`, `createWindField`, and `sampleWindField` load and
-  interpolate the original station-major, 72-hour weather forecast.
+- `parseWindData`, `triangulateWindStations`, `createWindField`, `getWindBounds`, and
+  `sampleWindField` load and interpolate the original station-major, 72-hour weather forecast.
 
-The standalone example is in `examples/geo-layers/wind`.
+```ts
+import {
+  createWindField,
+  parseWindData,
+  ParticleLayer,
+  WindLayer
+} from '@deck.gl-community/geo-layers';
+
+const windField = createWindField(stations, parseWindData(weather, stations.length));
+
+const layers = [
+  new WindLayer({id: 'wind-arrows', windField, time}),
+  new ParticleLayer({id: 'wind-particles', windField, time, numParticles: 100_000})
+];
+```
+
+WebGL2 and WebGPU particle simulation are independently browser-tested. Complete WebGPU rendering
+of the mountain-and-arrow scene remains in progress because its upstream terrain, polygon, and
+path sublayers are not yet universally portable.
+
+See the [wind showcase guide](https://deck.gl-community.github.io/docs/modules/geo-layers/developer-guide/wind-showcase)
+and [standalone example](https://github.com/visgl/deck.gl-community/tree/master/examples/geo-layers/wind).

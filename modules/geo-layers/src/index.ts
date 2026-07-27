@@ -29,6 +29,7 @@ export {
 export type {
   WindBounds,
   WindField,
+  WindFieldOptions,
   WindMeasurement,
   WindSample,
   WindStation,

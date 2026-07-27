@@ -4,30 +4,39 @@
 
 import {CompositeLayer, type Color, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
 import {LineLayer, ScatterplotLayer} from '@deck.gl/layers';
+import type {ShaderModule} from '@luma.gl/shadertools';
 
+import {GpuParticlePointLayer} from './gpu-particle-point-layer';
+import {GpuParticleSimulation} from './gpu-particle-simulation';
 import {sampleWindField, type WindBounds, type WindField} from './wind-data';
 
-/** Properties for animated wind-field particle trails. */
+/**
+ * Configuration for the work-in-progress, GPU-advected {@link ParticleLayer}.
+ *
+ * @remarks
+ * WebGL2 uses transform feedback and point primitives; WebGPU uses compute and portable
+ * point sublayers. Particle positions are not read back during animation.
+ */
 export type ParticleLayerProps = {
   /** Indexed, time-varying weather station data. */
   windField: WindField;
-  /** Fractional weather-frame and animation time. */
+  /** Fractional, cyclic forecast and animation time; defaults to `0`. */
   time?: number;
-  /** Number of continuously advected particles. */
+  /** Number of GPU-resident animated particles; defaults to `2400`. */
   numParticles?: number;
-  /** Number of historical positions retained in each trail. */
+  /** Maximum CPU-fallback trail history; defaults to `12`. */
   trailLength?: number;
-  /** Geographic distance advanced per elapsed, 30-frame-per-second animation step. */
+  /** Geographic distance per 30-fps-equivalent simulation step; defaults to `0.085`. */
   speedScale?: number;
-  /** Screen-space trail width in pixels. */
+  /** Minimum on-screen trail width in pixels; defaults to `1.1`. */
   widthMinPixels?: number;
-  /** Trail color; opacity increases toward each particle's current position. */
+  /** RGBA trail color, modulated by GPU particle lifetime. */
   color?: Color;
-  /** Elevation multiplier applied to interpolated station elevation. */
+  /** Station-elevation multiplier; defaults to `1`. */
   elevationScale?: number;
-  /** Vertical separation above the shaded terrain surface, in meters. */
+  /** Separation above station-interpolated terrain in meters; defaults to `160`. */
   surfaceOffset?: number;
-  /** Radius in pixels of each bright, moving particle head. */
+  /** Radius of each moving particle head in pixels; defaults to `1.6`. */
   pointRadiusPixels?: number;
 };
 
@@ -38,7 +47,96 @@ type Particle = {
   direction?: number;
   speed?: number;
 };
-type ParticleSegment = {source: ParticlePosition; target: ParticlePosition; color: Color};
+type BinaryParticleSegments = {
+  length: number;
+  attributes: {
+    getSourcePosition: {value: Float32Array; size: 3};
+    getTargetPosition: {value: Float32Array; size: 3};
+    getColor: {value: Uint8Array; size: 4};
+  };
+};
+
+/** GPU particle buffers contain float32 geographic positions, not split fp64 attributes. */
+const windParticleTrailClip = {
+  name: 'windParticleTrailClip',
+  inject: {
+    'vs:DECKGL_FILTER_GL_POSITION': `
+      if (distance(geometry.worldPosition.xy, geometry.worldPositionAlt.xy) > 0.75) {
+        position = vec4(2.0, 2.0, 2.0, 1.0);
+      }
+    `
+  }
+} as const satisfies ShaderModule;
+
+const windParticleAgeFade = {
+  name: 'windParticleAgeFade',
+  inject: {
+    'vs:#decl': 'in float windParticleAges;',
+    'vs:DECKGL_FILTER_COLOR': `
+      float windFadeIn = smoothstep(0.0, 16.0, windParticleAges);
+      float windFadeOut = 1.0 - smoothstep(152.0, 180.0, windParticleAges);
+      color.a *= windFadeIn * windFadeOut;
+    `
+  }
+} as const satisfies ShaderModule;
+
+class GpuParticleTrailLayer extends LineLayer {
+  static layerName = 'GpuParticleTrailLayer';
+
+  initializeState(): void {
+    super.initializeState();
+    if (this.context.device.type === 'webgl') {
+      this.getAttributeManager()?.addInstanced({
+        windParticleAges: {size: 1, accessor: 'getParticleAge'}
+      });
+    }
+  }
+
+  getShaders() {
+    const shaders = super.getShaders();
+    return {
+      ...shaders,
+      modules: [
+        ...shaders.modules,
+        windParticleTrailClip,
+        ...(this.context.device.type === 'webgl' ? [windParticleAgeFade] : [])
+      ]
+    };
+  }
+
+  use64bitPositions(): boolean {
+    return false;
+  }
+}
+
+/** GPU-computed particle heads use the same tightly packed float32 positions. */
+class GpuParticleHeadLayer extends ScatterplotLayer {
+  static layerName = 'GpuParticleHeadLayer';
+
+  initializeState(): void {
+    super.initializeState();
+    if (this.context.device.type === 'webgl') {
+      this.getAttributeManager()?.addInstanced({
+        windParticleAges: {size: 1, accessor: 'getParticleAge'}
+      });
+    }
+  }
+
+  getShaders() {
+    const shaders = super.getShaders();
+    return {
+      ...shaders,
+      modules: [
+        ...shaders.modules,
+        ...(this.context.device.type === 'webgl' ? [windParticleAgeFade] : [])
+      ]
+    };
+  }
+
+  use64bitPositions(): boolean {
+    return false;
+  }
+}
 
 const PARTICLE_FRAME_RATE = 30;
 const WEATHER_FRAME_DURATION_MS = 1800;
@@ -84,22 +182,92 @@ function createParticlePosition(
 /**
  * Advects fading particle trails through a Delaunay-interpolated wind field.
  *
- * Particle positions are backend independent, while built-in deck.gl line sublayers handle
- * instanced GPU rendering on both WebGL and WebGPU.
+ * Keeps particle positions and advection on the GPU: WebGL uses transform feedback and WebGPU
+ * uses a compute shader. Built-in deck.gl layers render directly from the ping-pong GPU buffers.
+ * The CPU fallback is retained for lightweight, device-free construction and unit testing.
+ *
+ * @remarks
+ * This API is a work in progress. Preserve the layer `id` while updating `time`; deck.gl
+ * transfers the existing simulation state instead of recreating the GPU particle buffers.
+ * At high densities the renderer prioritizes single-vertex particle heads over extra trails.
+ *
+ * @example
+ * ```ts
+ * new ParticleLayer({
+ *   id: 'wind-particles',
+ *   windField,
+ *   time: 12.5,
+ *   numParticles: 100_000,
+ *   color: [186, 233, 223, 34]
+ * });
+ * ```
  */
 export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
   static layerName = 'ParticleLayer';
   static defaultProps: DefaultProps<ParticleLayerProps> = defaultProps;
 
-  declare state: {particles: Particle[]; lastTime: number};
+  declare state: {particles: Particle[]; lastTime: number; gpu?: GpuParticleSimulation};
 
   /** Seeds particles reproducibly throughout the measured station coverage. */
   initializeState(): void {
+    const {device} = this.context || {};
+    if (device?.type === 'webgl' || device?.type === 'webgpu') {
+      const gpu = new GpuParticleSimulation(
+        device,
+        this.props.windField,
+        this.props.numParticles,
+        this.props.surfaceOffset
+      );
+      gpu.advance(
+        this.props.time,
+        this.props.speedScale,
+        this.props.elevationScale,
+        this.props.surfaceOffset,
+        0.2
+      );
+      this.setState({gpu, particles: [], lastTime: this.props.time});
+      return;
+    }
+
     this.setState({particles: this.createParticles(), lastTime: this.props.time});
   }
 
   /** Re-seeds on field changes and advances existing trails when animation time changes. */
   updateState({props, oldProps, changeFlags}: UpdateParameters<this>): void {
+    if (this.state.gpu) {
+      if (
+        changeFlags.dataChanged ||
+        props.windField !== oldProps.windField ||
+        props.numParticles !== oldProps.numParticles
+      ) {
+        this.state.gpu.destroy();
+        const gpu = new GpuParticleSimulation(
+          this.context.device,
+          props.windField,
+          props.numParticles,
+          props.surfaceOffset
+        );
+        gpu.advance(props.time, props.speedScale, props.elevationScale, props.surfaceOffset, 0.2);
+        this.setState({gpu, particles: [], lastTime: props.time});
+        return;
+      }
+
+      if (props.time !== this.state.lastTime) {
+        const elapsedFrames =
+          Math.abs(props.time - this.state.lastTime) *
+          (WEATHER_FRAME_DURATION_MS / (1000 / PARTICLE_FRAME_RATE));
+        this.state.gpu.advance(
+          props.time,
+          props.speedScale,
+          props.elevationScale,
+          props.surfaceOffset,
+          Math.max(0.2, Math.min(elapsedFrames, 3))
+        );
+        this.setState({lastTime: props.time});
+      }
+      return;
+    }
+
     if (
       changeFlags.dataChanged ||
       props.windField !== oldProps.windField ||
@@ -182,7 +350,12 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
         sample.elevation * elevationScale + surfaceOffset
       ];
 
-      if (!sampleWindField(windField, [next[0], next[1]], time)) {
+      if (
+        next[0] < windField.bounds.minLng ||
+        next[0] > windField.bounds.maxLng ||
+        next[1] < windField.bounds.minLat ||
+        next[1] > windField.bounds.maxLat
+      ) {
         particle.seed += 101.7;
         particle.direction = undefined;
         particle.speed = undefined;
@@ -208,31 +381,95 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
     }
   }
 
-  /** Renders independently faded, GPU-instanced trail segments. */
+  /** Streams faded particle trails to GPU layers as compact binary attributes. */
   renderLayers() {
     if (!this.state?.particles) {
       return null;
     }
 
-    const {color, widthMinPixels, pointRadiusPixels} = this.props;
-    const segments: ParticleSegment[] = [];
+    const {color, widthMinPixels, pointRadiusPixels, time} = this.props;
+    if (this.state.gpu) {
+      const {gpu} = this.state;
+      const positions = {
+        length: gpu.particleCount,
+        attributes: {
+          getSourcePosition: {buffer: gpu.sourceBuffer, size: 3, stride: 16},
+          getTargetPosition: {buffer: gpu.targetBuffer, size: 3, stride: 16},
+          getPosition: {buffer: gpu.targetBuffer, size: 3, stride: 16},
+          getParticleAge: {buffer: gpu.targetBuffer, size: 1, stride: 16, offset: 12}
+        }
+      };
+
+      const heads =
+        this.context.device.type === 'webgl'
+          ? new GpuParticlePointLayer(this.getSubLayerProps({id: 'heads'}), {
+              simulation: gpu,
+              color: [237, 247, 255, Math.min(255, (color[3] ?? 255) + 12)],
+              pointRadiusPixels,
+              pickable: false
+            })
+          : new GpuParticleHeadLayer(this.getSubLayerProps({id: 'heads'}), {
+              data: positions,
+              getFillColor: [237, 247, 255, Math.min(255, (color[3] ?? 255) + 12)],
+              getRadius: pointRadiusPixels,
+              radiusUnits: 'pixels',
+              radiusMinPixels: pointRadiusPixels,
+              billboard: true,
+              parameters: {depthWriteEnabled: false},
+              pickable: false
+            });
+      if (gpu.particleCount > 250_000) {
+        return [heads];
+      }
+
+      return [
+        new GpuParticleTrailLayer(this.getSubLayerProps({id: 'trails'}), {
+          data: positions,
+          getColor: color,
+          getWidth: 1,
+          widthUnits: 'pixels',
+          widthMinPixels,
+          parameters: {depthWriteEnabled: false},
+          pickable: false
+        }),
+        heads
+      ];
+    }
+
+    const segmentCount = this.state.particles.reduce(
+      (count, particle) => count + Math.max(0, particle.positions.length - 1),
+      0
+    );
+    const sourcePositions = new Float32Array(segmentCount * 3);
+    const targetPositions = new Float32Array(segmentCount * 3);
+    const colors = new Uint8Array(segmentCount * 4);
+    let segmentIndex = 0;
+
     for (const particle of this.state.particles) {
       for (let index = 1; index < particle.positions.length; index++) {
         const opacity = index / Math.max(1, particle.positions.length - 1);
-        segments.push({
-          source: particle.positions[index - 1],
-          target: particle.positions[index],
-          color: [color[0], color[1], color[2], Math.round((color[3] ?? 255) * opacity)]
-        });
+        sourcePositions.set(particle.positions[index - 1], segmentIndex * 3);
+        targetPositions.set(particle.positions[index], segmentIndex * 3);
+        colors.set(
+          [color[0], color[1], color[2], Math.round((color[3] ?? 255) * opacity)],
+          segmentIndex * 4
+        );
+        segmentIndex++;
       }
     }
 
+    const segments: BinaryParticleSegments = {
+      length: segmentCount,
+      attributes: {
+        getSourcePosition: {value: sourcePositions, size: 3},
+        getTargetPosition: {value: targetPositions, size: 3},
+        getColor: {value: colors, size: 4}
+      }
+    };
+
     return [
-      new LineLayer<ParticleSegment>(this.getSubLayerProps({id: 'trails'}), {
+      new LineLayer(this.getSubLayerProps({id: 'trails'}), {
         data: segments,
-        getSourcePosition: segment => segment.source,
-        getTargetPosition: segment => segment.target,
-        getColor: segment => segment.color,
         getWidth: 1,
         widthUnits: 'pixels',
         widthMinPixels,
@@ -247,9 +484,16 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
         radiusUnits: 'pixels',
         radiusMinPixels: pointRadiusPixels,
         billboard: true,
+        updateTriggers: {getPosition: time},
         parameters: {depthWriteEnabled: false},
         pickable: false
       })
     ];
+  }
+
+  /** Releases the ping-pong particle buffers, weather textures, and GPU pipeline. */
+  finalizeState(): void {
+    this.state?.gpu?.destroy();
+    super.finalizeState(this.context);
   }
 }

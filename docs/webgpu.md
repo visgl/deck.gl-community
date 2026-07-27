@@ -31,6 +31,12 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/graph-layers` | `GraphLayer`, `EdgeLayer`, and node layers | ✅ | 🚧 | Custom shaders, picking, and graph styling require porting and validation. |
 | `@deck.gl-community/graph-layers` | `RoundedRectangleLayer` | ✅ | ❌ | Custom fragment shader has no native WGSL implementation. |
 | `@deck.gl-community/graph-layers` | `FlowPathLayer` | ❌ | ❌ | Existing transform-feedback implementation is incomplete; requires redesign. |
+| `@deck.gl-community/geo-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |
+| `@deck.gl-community/geo-layers` | Wind-field utilities and `DelaunayInterpolation` | ✅ | ✅ | Backend-independent station indexing, explicit sampling, and optional CPU rasterization. |
+| `@deck.gl-community/geo-layers` | `WindLayer` | ✅ | 🚧 | Filled arrows depend on upstream `SolidPolygonLayer` and `PathLayer`. |
+| `@deck.gl-community/geo-layers` | `ElevationLayer` | ✅ | 🚧 | Three-dimensional mountain rendering depends on upstream `TerrainLayer`. |
+| `@deck.gl-community/geo-layers` | `DelaunayCoverLayer` | ✅ | ❌ | Station-surface rendering depends on upstream `SolidPolygonLayer`. |
+| `@deck.gl-community/geo-layers` | Complete Wind Map showcase | ✅ | 🚧 | GPU particles are portable; upstream terrain, polygon, and path sublayers still block full-scene WebGPU compatibility. |
 | `@deck.gl-community/geo-layers` | Tile and global-grid layers | ✅ | 🚧 | Validate upstream sublayers, tile formats, and picking. |
 | `@deck.gl-community/arrow-layers` | GeoArrow layers | ✅ | 🚧 | Validate binary attributes and each upstream rendering layer. |
 | `@deck.gl-community/editable-layers` | Editing and selection layers | ✅ | 🚧 | Validate editing interactions and upstream GeoJSON and path layers. |
@@ -86,6 +92,7 @@ WebGPU is preferred when available. The manager respects a previously selected b
 | --- | --- | --- |
 | Existing reference | `SkyboxLayer` | Provides native WGSL and GLSL sources, portable cubemap bindings, and a switchable skybox example. |
 | First wave | `BlockLayer`, `DependencyArrowLayer` marker geometry, `HorizonGraphLayer`, and `MultiHorizonGraphLayer` | Native WGSL and existing GLSL are maintained together. Stacked horizon dividers use the upstream dual-backend `LineLayer`; the website injects real WebGPU/WebGL2 device selection into the skybox, path, block, and horizon examples. |
+| Wind showcase | `ParticleLayer`, wind-field utilities, `WindLayer`, `ElevationLayer`, and `DelaunayCoverLayer` | WebGL2 transform-feedback and WebGPU compute particle paths are browser-verified. Complete scene support remains in progress until upstream terrain, polygon, and path rendering is portable. |
 | Upstream-dependent paths | `PathOutlineLayer`, `PathMarkerLayer`, dashed path routing, and `DependencyArrowLayer` path mode | Full route rendering depends on native WGSL support for deck.gl's `PathLayer` and `PathStyleExtension`. Directional marker geometry and line-mode dependencies can be ported independently, but outlined or dashed paths must not be advertised as fully WebGPU-compatible yet. |
 | Second wave | `FastTextLayer` | Add a small WGSL compatibility shader to the existing glyph layer, following luma.gl `master`'s `TextRenderer` and Arrow text patterns while retaining the published luma.gl 9.3 dependency line. |
 | Trace rendering | `TraceGraphLayer`, `TracePreparedStateLayer`, `TraceProcessLayer`, and counter sparklines | Reuse shared dual-backend blocks, fast text, and lines; preserve external float32 trace attributes; automatically select portable text and straight dependency routes on WebGPU. |

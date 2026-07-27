@@ -2,48 +2,97 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-/** A weather station in the original deck.gl wind showcase dataset. */
+import Delaunator from 'delaunator';
+
+/**
+ * A weather station in the original wind-showcase dataset.
+ *
+ * @remarks
+ * This work-in-progress format uses positive-west `long` values. Use
+ * {@link getWindBounds} or {@link createWindField} to convert those values to deck.gl
+ * longitude/latitude coordinates.
+ */
 export type WindStation = {
+  /** Human-readable station name. */
   name: string;
+  /** Positive-west longitude from the historical station dataset. */
   long: number;
+  /** Latitude in decimal degrees. */
   lat: number;
+  /** Station elevation in meters. */
   elv: number;
+  /** Optional International Civil Aviation Organization station identifier. */
   icao?: string;
+  /** Optional US state name or abbreviation. */
   state?: string;
+  /** Optional abbreviated station name. */
   abbr?: string;
 };
 
-/** West, south, east, and north bounds of a geographic wind field. */
+/** Geographic longitude/latitude coverage for a station-interpolated wind field. */
 export type WindBounds = {
+  /** Westernmost geographic longitude in decimal degrees. */
   minLng: number;
+  /** Southernmost latitude in decimal degrees. */
   minLat: number;
+  /** Easternmost geographic longitude in decimal degrees. */
   maxLng: number;
+  /** Northernmost latitude in decimal degrees. */
   maxLat: number;
 };
 
-/** Direction in eighth-turns, wind speed, and temperature at one station. */
-export type WindMeasurement = readonly [number, number, number];
+/**
+ * One station measurement: direction in eighth-turns, wind speed, and temperature.
+ *
+ * @remarks
+ * Direction `0` points east; each subsequent unit rotates by 45 degrees.
+ */
+export type WindMeasurement = readonly [direction: number, speed: number, temperature: number];
 
 /** Three indices into a wind field's station and measurement arrays. */
-export type WindTriangle = readonly [number, number, number];
+export type WindTriangle = readonly [first: number, second: number, third: number];
 
-/** A time-varying Delaunay-interpolated geographic vector field. */
+/** Optional configuration for {@link createWindField}. */
+export type WindFieldOptions = {
+  /** Existing station-index triangles; omit this to compute a robust Delaunay triangulation. */
+  triangles?: readonly WindTriangle[];
+};
+
+/**
+ * A time-varying, station-interpolated geographic wind field.
+ *
+ * @remarks
+ * Construct this object with {@link createWindField} rather than assembling its spatial
+ * index manually. The reusable wind, particle, and station-surface layers share this field.
+ */
 export type WindField = {
+  /** Weather stations in the original positive-west coordinate format. */
   stations: readonly WindStation[];
+  /** Forecast frames, each containing one measurement per station. */
   frames: readonly (readonly WindMeasurement[])[];
+  /** Robust Delaunay triangles referencing {@link WindField.stations}. */
   triangles: readonly WindTriangle[];
+  /** Geographic station bounds in deck.gl longitude/latitude coordinates. */
   bounds: WindBounds;
+  /** Minimum and maximum nonzero observed wind speeds. */
   speedRange: readonly [number, number];
+  /** Minimum and maximum nonzero observed temperatures. */
   temperatureRange: readonly [number, number];
+  /** @internal Spatial lookup shared by field sampling and GPU weather rasterization. */
   spatialIndex: WindSpatialIndex;
 };
 
-/** A sampled and temporally interpolated wind vector. */
+/** A spatially and temporally interpolated wind observation. */
 export type WindSample = {
+  /** Counterclockwise wind direction in radians, measured from the east. */
   direction: number;
+  /** Interpolated wind speed in the dataset's original units. */
   speed: number;
+  /** Interpolated temperature in the dataset's original units. */
   temperature: number;
+  /** Interpolated station elevation in meters. */
   elevation: number;
+  /** Eastward and northward velocity components. */
   velocity: [number, number];
 };
 
@@ -53,12 +102,31 @@ type WindSpatialIndex = {
   cells: number[][];
 };
 
-type Circumcircle = {x: number; y: number; radiusSquared: number};
 type Point = readonly [number, number];
 
 const EPSILON = 1e-10;
+const WIND_DIRECTION_EAST = Float64Array.from({length: 8}, (_, index) =>
+  Math.cos((index * Math.PI) / 4)
+);
+const WIND_DIRECTION_NORTH = Float64Array.from({length: 8}, (_, index) =>
+  Math.sin((index * Math.PI) / 4)
+);
 
-/** Parses the station-major, 72-hour binary format used by the original wind showcase. */
+/**
+ * Decodes the station-major binary forecast from the historical wind showcase.
+ *
+ * @param buffer - Unsigned 16-bit forecast data in station-major order.
+ * @param stationCount - Number of stations represented by each forecast frame.
+ * @param frameCount - Number of forecast frames; the original dataset contains 72.
+ * @returns Frame-major direction, speed, and temperature measurements.
+ * @throws RangeError if the forecast dimensions or binary length are invalid.
+ *
+ * @example
+ * ```ts
+ * const weather = await fetch('/weather.bin').then(response => response.arrayBuffer());
+ * const frames = parseWindData(weather, stations.length);
+ * ```
+ */
 export function parseWindData(
   buffer: ArrayBuffer,
   stationCount: number,
@@ -87,7 +155,14 @@ export function parseWindData(
   );
 }
 
-/** Calculates geographic bounds for stations whose legacy longitudes are positive-west. */
+/**
+ * Converts legacy positive-west station coordinates into geographic field bounds.
+ *
+ * @param stations - Historical station records.
+ * @returns Western, southern, eastern, and northern geographic coverage.
+ * @throws RangeError if no station is provided.
+ * @throws TypeError if any station coordinate is not finite.
+ */
 export function getWindBounds(stations: readonly WindStation[]): WindBounds {
   if (stations.length === 0) {
     throw new RangeError('A wind field requires at least one station.');
@@ -112,85 +187,33 @@ export function getWindBounds(stations: readonly WindStation[]): WindBounds {
   return {minLng, minLat, maxLng, maxLat};
 }
 
-function getCircumcircle(a: Point, b: Point, c: Point): Circumcircle | null {
-  const determinant = 2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1]));
-  if (Math.abs(determinant) < EPSILON) {
-    return null;
-  }
-  const aSquared = a[0] * a[0] + a[1] * a[1];
-  const bSquared = b[0] * b[0] + b[1] * b[1];
-  const cSquared = c[0] * c[0] + c[1] * c[1];
-  const x =
-    (aSquared * (b[1] - c[1]) + bSquared * (c[1] - a[1]) + cSquared * (a[1] - b[1])) / determinant;
-  const y =
-    (aSquared * (c[0] - b[0]) + bSquared * (a[0] - c[0]) + cSquared * (b[0] - a[0])) / determinant;
-  return {x, y, radiusSquared: (x - a[0]) ** 2 + (y - a[1]) ** 2};
-}
-
-/** Builds a dependency-free Delaunay triangulation of weather-station positions. */
+/**
+ * Builds a robust Delaunay triangulation of positive-west weather stations.
+ *
+ * @remarks
+ * Duplicate coordinates are ignored. Fewer than three distinct non-collinear positions
+ * produce an empty triangulation.
+ *
+ * @param stations - Historical station records in measurement-array order.
+ * @returns Station-index triangles covering the valid station hull.
+ * @throws TypeError if any station coordinate is not finite.
+ */
 export function triangulateWindStations(stations: readonly WindStation[]): WindTriangle[] {
   if (stations.length < 3) {
     return [];
   }
 
-  const bounds = getWindBounds(stations);
-  const centerX = (bounds.minLng + bounds.maxLng) / 2;
-  const centerY = (bounds.minLat + bounds.maxLat) / 2;
-  const span = Math.max(bounds.maxLng - bounds.minLng, bounds.maxLat - bounds.minLat, 1);
-  const points: Point[] = stations.map(station => [-station.long, station.lat]);
-  const count = points.length;
-  points.push(
-    [centerX - 32 * span, centerY - span],
-    [centerX, centerY + 32 * span],
-    [centerX + 32 * span, centerY - span]
+  getWindBounds(stations);
+  const {triangles} = Delaunator.from(
+    Array.from(stations),
+    station => -station.long,
+    station => station.lat
   );
 
-  let triangles: WindTriangle[] = [[count, count + 1, count + 2]];
-  const seenPoints = new Set<string>();
-
-  for (let pointIndex = 0; pointIndex < count; pointIndex++) {
-    const point = points[pointIndex];
-    const pointKey = `${point[0]},${point[1]}`;
-    if (seenPoints.has(pointKey)) {
-      continue;
-    }
-    seenPoints.add(pointKey);
-
-    const surviving: WindTriangle[] = [];
-    const boundary = new Map<string, [number, number]>();
-
-    for (const triangle of triangles) {
-      const circle = getCircumcircle(points[triangle[0]], points[triangle[1]], points[triangle[2]]);
-      const inside =
-        circle !== null &&
-        (point[0] - circle.x) ** 2 + (point[1] - circle.y) ** 2 <= circle.radiusSquared + EPSILON;
-
-      if (!inside) {
-        surviving.push(triangle);
-        continue;
-      }
-
-      for (const [start, end] of [
-        [triangle[0], triangle[1]],
-        [triangle[1], triangle[2]],
-        [triangle[2], triangle[0]]
-      ] as [number, number][]) {
-        const edgeKey = start < end ? `${start}:${end}` : `${end}:${start}`;
-        if (boundary.has(edgeKey)) {
-          boundary.delete(edgeKey);
-        } else {
-          boundary.set(edgeKey, [start, end]);
-        }
-      }
-    }
-
-    for (const [start, end] of boundary.values()) {
-      surviving.push([start, end, pointIndex]);
-    }
-    triangles = surviving;
-  }
-
-  return triangles.filter(triangle => triangle.every(index => index < count));
+  return Array.from({length: triangles.length / 3}, (_, index) => {
+    const offset = index * 3;
+    return [triangles[offset], triangles[offset + 1], triangles[offset + 2]];
+  });
 }
 
 function getRange(
@@ -245,11 +268,25 @@ function createSpatialIndex(
   return {columns, rows, cells};
 }
 
-/** Creates the shared, indexed wind field consumed by all wind showcase layers. */
+/**
+ * Creates the indexed, time-varying wind field shared by the reusable wind layers.
+ *
+ * @param stations - Weather stations using the historical positive-west format.
+ * @param frames - Frame-major measurements with one observation per station.
+ * @param options - Optional precomputed station triangulation.
+ * @returns Geographic bounds, station triangles, observed ranges, and a spatial index.
+ * @throws RangeError if fewer than three stations are supplied or a frame is misaligned.
+ *
+ * @example
+ * ```ts
+ * const frames = parseWindData(weather, stations.length);
+ * const field = createWindField(stations, frames);
+ * ```
+ */
 export function createWindField(
   stations: readonly WindStation[],
   frames: readonly (readonly WindMeasurement[])[],
-  options: {triangles?: readonly WindTriangle[]} = {}
+  options: WindFieldOptions = {}
 ): WindField {
   if (stations.length < 3) {
     throw new RangeError('A wind field requires at least three stations.');
@@ -273,25 +310,42 @@ export function createWindField(
 
 function getBarycentricWeights(
   position: Point,
-  a: Point,
-  b: Point,
-  c: Point
+  a: WindStation,
+  b: WindStation,
+  c: WindStation
 ): [number, number, number] | null {
-  const determinant = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+  const ax = -a.long;
+  const ay = a.lat;
+  const bx = -b.long;
+  const by = b.lat;
+  const cx = -c.long;
+  const cy = c.lat;
+  const determinant = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
   if (Math.abs(determinant) < EPSILON) {
     return null;
   }
-  const first =
-    ((b[1] - c[1]) * (position[0] - c[0]) + (c[0] - b[0]) * (position[1] - c[1])) / determinant;
-  const second =
-    ((c[1] - a[1]) * (position[0] - c[0]) + (a[0] - c[0]) * (position[1] - c[1])) / determinant;
+  const first = ((by - cy) * (position[0] - cx) + (cx - bx) * (position[1] - cy)) / determinant;
+  const second = ((cy - ay) * (position[0] - cx) + (ax - cx) * (position[1] - cy)) / determinant;
   const third = 1 - first - second;
   return first >= -EPSILON && second >= -EPSILON && third >= -EPSILON
     ? [first, second, third]
     : null;
 }
 
-/** Samples the wind field using spatial Delaunay and circular temporal interpolation. */
+/**
+ * Samples a wind field with barycentric spatial and circular temporal interpolation.
+ *
+ * @param field - Indexed wind field returned by {@link createWindField}.
+ * @param position - Geographic `[longitude, latitude]` position.
+ * @param time - Fractional forecast-frame index; values wrap in either direction.
+ * @returns The interpolated observation, or `null` outside the station hull.
+ *
+ * @example
+ * ```ts
+ * const sample = sampleWindField(field, [-97, 38], 12.5);
+ * console.log(sample?.velocity, sample?.elevation);
+ * ```
+ */
 export function sampleWindField(field: WindField, position: Point, time = 0): WindSample | null {
   const {bounds, spatialIndex, triangles, stations, frames} = field;
   if (
@@ -332,9 +386,9 @@ export function sampleWindField(field: WindField, position: Point, time = 0): Wi
     const triangle = triangles[triangleIndex];
     const weights = getBarycentricWeights(
       position,
-      [-stations[triangle[0]].long, stations[triangle[0]].lat],
-      [-stations[triangle[1]].long, stations[triangle[1]].lat],
-      [-stations[triangle[2]].long, stations[triangle[2]].lat]
+      stations[triangle[0]],
+      stations[triangle[1]],
+      stations[triangle[2]]
     );
     if (!weights) {
       continue;
@@ -351,10 +405,16 @@ export function sampleWindField(field: WindField, position: Point, time = 0): Wi
       const from = frames[frameIndex][stationIndex];
       const to = frames[nextFrameIndex][stationIndex];
       const weight = weights[vertex];
-      const fromAngle = (from[0] * Math.PI) / 4;
-      const toAngle = (to[0] * Math.PI) / 4;
-      east += weight * ((1 - frameMix) * Math.cos(fromAngle) + frameMix * Math.cos(toAngle));
-      north += weight * ((1 - frameMix) * Math.sin(fromAngle) + frameMix * Math.sin(toAngle));
+      const fromDirection = from[0] % WIND_DIRECTION_EAST.length;
+      const toDirection = to[0] % WIND_DIRECTION_EAST.length;
+      east +=
+        weight *
+        ((1 - frameMix) * WIND_DIRECTION_EAST[fromDirection] +
+          frameMix * WIND_DIRECTION_EAST[toDirection]);
+      north +=
+        weight *
+        ((1 - frameMix) * WIND_DIRECTION_NORTH[fromDirection] +
+          frameMix * WIND_DIRECTION_NORTH[toDirection]);
       speed += weight * ((1 - frameMix) * from[1] + frameMix * to[1]);
       temperature += weight * ((1 - frameMix) * from[2] + frameMix * to[2]);
       elevation += weight * stations[stationIndex].elv;
@@ -364,12 +424,13 @@ export function sampleWindField(field: WindField, position: Point, time = 0): Wi
       return null;
     }
     const direction = Math.atan2(north, east);
+    const directionLength = Math.hypot(east, north);
     return {
       direction,
       speed,
       temperature,
       elevation,
-      velocity: [Math.cos(direction) * speed, Math.sin(direction) * speed]
+      velocity: [(east / directionLength) * speed, (north / directionLength) * speed]
     };
   }
 

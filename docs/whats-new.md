@@ -15,9 +15,29 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry, picking, and line-mode dependencies; path mode remains blocked on upstream `PathLayer` support.
 - `HorizonGraphLayer`: added native WGSL and portable `r32float` data-texture bindings.
 - `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.
+- `ParticleLayer`: restored the historical wind showcase's GPU-resident particle advection using
+  WebGL2 transform feedback and native WebGPU compute, with no production particle readbacks and
+  support for up to one million animated particles.
 - `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceProcessLayer`: ported trace backgrounds, binary span blocks, outlines, labels, overflow labels, separators, and straight dependencies by reusing dual-backend community layers.
 - Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
 - The website injects luma.gl-style device tabs into skybox, path and dependency-marker, information-visualization, horizon-graph, and trace examples, with independent managers, WebGPU preference, WebGL2 fallback, and real renderer switching; standalone examples remain free of device-management dependencies.
+
+### `@deck.gl-community/geo-layers`
+
+- Added the **work-in-progress** reusable wind showcase, ported from Nicolas Belmonte's original
+  deck.gl example and the original 72-hour United States station forecast.
+- `ParticleLayer` advances up to one million GPU-resident particles with WebGL2 transform feedback
+  or WebGPU compute; its production animation does not read particle buffers back to the CPU.
+- `WindLayer` renders interpolated, speed-colored wind arrows; `ElevationLayer` restores smooth,
+  vertically exaggerated image-based mountain terrain.
+- `DelaunayCoverLayer` exposes the weather-station mesh, while `DelaunayInterpolation` provides
+  backend-independent explicit weather sampling and rasterization.
+- Added public weather data, field, measurement, bounds, sample, triangle, and field-options types,
+  including robust Delaunay station triangulation for skinny station hulls.
+- Added a complete wind showcase guide, six reference pages with inline live examples, documented
+  WebGPU limitations, migration guidance, and public API TSDoc.
+- The [Wind Map](/examples/geo-layers/wind) includes original forecast data, three-dimensional
+  mountains, tilt-and-rotate camera controls, and a 1,000-to-1,000,000-particle density slider.
 
 ### `@deck.gl-community/layers`
 

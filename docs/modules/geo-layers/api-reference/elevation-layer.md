@@ -1,39 +1,57 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # ElevationLayer
 
-`ElevationLayer` renders a grayscale elevation image as a genuinely three-dimensional, illuminated
-terrain mesh. It ports the height-map surface used by Nicolas Belmonte's original wind showcase,
-including the original elevation image, geographic bounds, and elevation range.
+:::caution Work in progress
+The terrain API, height-map smoothing, material, and exaggeration are experimental. WebGPU
+compatibility depends on upstream `TerrainLayer` and loaders.gl support.
+:::
+
+`ElevationLayer` decodes a grayscale height map into illuminated, extruded mountain geometry.
+Unlike [`DelaunayCoverLayer`](./delaunay-cover-layer.md), its mesh follows the original elevation
+image rather than the sparse weather-station triangles.
+
+<LayerLiveExample highlight="elevation-layer" size="tall" />
+
+## Import
 
 ```ts
 import {ElevationLayer} from '@deck.gl-community/geo-layers';
+```
 
-const layer = new ElevationLayer({
-  id: 'wind-elevation',
+## Example
+
+```ts
+const terrain = new ElevationLayer({
+  id: 'wind-mountain-terrain',
   elevationData:
     'https://raw.githubusercontent.com/visgl/deck.gl-data/master/examples/wind/elevation.png',
   bounds: [-125, 24.4, -66.7, 49.6],
   elevationRange: [-100, 4126],
-  elevationScale: 80,
-  meshMaxError: 480,
-  color: [42, 60, 77, 255]
+  elevationScale: 24,
+  meshMaxError: 12,
+  color: [35, 49, 64, 255]
 });
 ```
 
-The layer decodes the original height map into terrain geometry using the in-process loaders.gl
-terrain loader. It does not require an externally hosted terrain worker.
+For smoother relief, filter the grayscale image once before passing it as `elevationData`. Do not
+recreate or decode the terrain mesh during particle animation.
 
 ## Properties
 
-- `elevationData`: URL of the red-channel grayscale terrain height map.
-- `bounds`: Geographic `[west, south, east, north]` extent.
-- `elevationRange`: Minimum and maximum image elevations, in meters.
-- `elevationScale`: Vertical exaggeration applied to the decoded mesh.
-- `meshMaxError`: Simplification error tolerance for the generated terrain mesh.
-- `color`: RGBA color applied to the lit terrain surface.
-- `texture`: Optional image draped over the three-dimensional mesh.
+- `elevationData` (`string`, required): URL or data URL of a red-channel grayscale height map.
+- `bounds` (`[number, number, number, number]`, required): geographic west, south, east, and north.
+- `elevationRange` (`[number, number]`, default `[-100, 4126]`): source elevation range in meters.
+- `elevationScale` (`number`, default `1`): vertical exaggeration of the decoded mesh.
+- `meshMaxError` (`number`, default `80`): terrain simplification error; use approximately `12`
+  for the smoothed wind showcase.
+- `color` (`Color`, default `[42, 58, 72, 255]`): shaded mountain-surface color.
+- `texture` (`string`, optional): image draped over the decoded terrain.
 
 ## Sub-layers
 
-- `terrain-mesh`: A `TerrainLayer` containing the decoded elevation mesh.
+- `terrain-mesh`: a loaders.gl-backed `TerrainLayer`.
 
-See the [Wind Map example](/examples/geo-layers/wind).
+Terrain decoding runs in-process, so the example does not require a separately hosted terrain
+worker. See the [wind showcase guide](../developer-guide/wind-showcase.md) and the
+[Wind Map example](/examples/geo-layers/wind).

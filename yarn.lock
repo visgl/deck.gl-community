@@ -526,6 +526,7 @@ __metadata:
     "@probe.gl/stats": "npm:^4.1.1"
     "@probe.gl/test-utils": "npm:^4.1.1"
     a5-js: "npm:^0.5.0"
+    delaunator: "npm:^5.1.0"
     h3-js: "npm:^4.2.1"
   peerDependencies:
     "@deck.gl/core": ~9.3.0
@@ -7255,6 +7256,15 @@ __metadata:
   version: 1.0.1
   resolution: "defined@npm:1.0.1"
   checksum: 10c0/357212c95fd69c3b431f4766440f1b10a8362d2663b86e3d7c139fe7fc98a1d5a4996b8b55ca62e97fb882f9887374b76944d29f9650a07993d98e7be86a804a
+  languageName: node
+  linkType: hard
+
+"delaunator@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "delaunator@npm:5.1.0"
+  dependencies:
+    robust-predicates: "npm:^3.0.2"
+  checksum: 10c0/6489e3598212ab8759575e30f3ac26063471846e25c779048f441f2ccefd25efb9a52275e7e8e3dcc5bf5bc5c35169cf1de27f985d359fd5a24057be88fd1817
   languageName: node
   linkType: hard
 

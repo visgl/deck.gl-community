@@ -4,17 +4,29 @@
 
 import {sampleWindField, type WindField, type WindSample} from './wind-data';
 
-/** An RGBA float raster containing direction, speed, temperature, and elevation. */
+/**
+ * A row-major float raster containing direction, speed, temperature, and elevation.
+ *
+ * @remarks
+ * Each pixel contains four consecutive `Float32Array` entries. Invalid or uncovered
+ * geographic positions retain four zero-valued entries.
+ */
 export type WindRaster = {
+  /** Number of geographic samples per row. */
   width: number;
+  /** Number of geographic sample rows. */
   height: number;
+  /** Row-major `[direction, speed, temperature, elevation]` samples. */
   data: Float32Array;
 };
 
 /** Options for rasterizing a Delaunay-interpolated wind field. */
 export type DelaunayInterpolationProps = {
+  /** Indexed station forecast returned by {@link createWindField}. */
   field: WindField;
+  /** Raster width in pixels; defaults to `256`. */
   width?: number;
+  /** Optional raster height; otherwise inferred from the geographic aspect ratio. */
   height?: number;
 };
 
@@ -23,12 +35,33 @@ export type DelaunayInterpolationProps = {
  *
  * Unlike the original showcase's off-screen WebGL transform, this implementation can be
  * shared by WebGL, WebGPU, server-side preprocessing, and deterministic tests.
+ *
+ * @remarks
+ * The wind APIs are work in progress. This utility intentionally performs explicit CPU
+ * sampling; {@link ParticleLayer} separately caches GPU weather textures and advances
+ * particle positions on the active graphics device.
+ *
+ * @example
+ * ```ts
+ * const interpolation = new DelaunayInterpolation({field, width: 128, height: 64});
+ * const sample = interpolation.sample([-97, 38], 12.5);
+ * const raster = interpolation.rasterize(12.5);
+ * ```
  */
 export class DelaunayInterpolation {
+  /** Shared, indexed station forecast. */
   readonly field: WindField;
+  /** Raster width in pixels. */
   readonly width: number;
+  /** Raster height in pixels. */
   readonly height: number;
 
+  /**
+   * Creates a reusable interpolation wrapper for a geographic wind field.
+   *
+   * @param options - Field and output raster dimensions.
+   * @throws RangeError if either provided raster dimension is smaller than two.
+   */
   constructor({field, width = 256, height}: DelaunayInterpolationProps) {
     if (!Number.isInteger(width) || width < 2) {
       throw new RangeError('A wind raster width must be an integer greater than one.');
@@ -49,12 +82,23 @@ export class DelaunayInterpolation {
     this.height = height ?? inferredHeight;
   }
 
-  /** Samples a geographic position at a fractional, cyclic weather-frame time. */
+  /**
+   * Samples a geographic position at a fractional, cyclic forecast time.
+   *
+   * @param position - Geographic `[longitude, latitude]` coordinates.
+   * @param time - Fractional forecast frame; defaults to the first frame.
+   * @returns Interpolated weather, or `null` outside station coverage.
+   */
   sample(position: readonly [number, number], time = 0): WindSample | null {
     return sampleWindField(this.field, position, time);
   }
 
-  /** Rasterizes one time step without eagerly materializing the complete weather animation. */
+  /**
+   * Rasterizes one weather frame without materializing the full forecast animation.
+   *
+   * @param time - Fractional forecast frame; defaults to the first frame.
+   * @returns Row-major direction, speed, temperature, and elevation samples.
+   */
   rasterize(time = 0): WindRaster {
     const {bounds} = this.field;
     const data = new Float32Array(this.width * this.height * 4);

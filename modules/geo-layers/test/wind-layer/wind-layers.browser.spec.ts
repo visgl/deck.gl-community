@@ -8,6 +8,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
+import {GpuParticleSimulation} from '../../src/wind-layer/gpu-particle-simulation';
 import {
   createWindField,
   DelaunayCoverLayer,
@@ -45,7 +46,25 @@ function createElevationData(): string {
   return canvas.toDataURL('image/png');
 }
 
-function createLayers(field: WindField, time: number, elevationData: string) {
+function createLayers(
+  field: WindField,
+  time: number,
+  elevationData: string,
+  deviceType: 'webgl' | 'webgpu'
+) {
+  const particles = new ParticleLayer({
+    id: 'test-wind-particles',
+    windField: field,
+    time,
+    numParticles: 4096,
+    trailLength: 4,
+    elevationScale: 2
+  });
+
+  if (deviceType === 'webgpu') {
+    return [particles];
+  }
+
   return [
     new ElevationLayer({
       id: 'test-wind-height-map',
@@ -64,14 +83,7 @@ function createLayers(field: WindField, time: number, elevationData: string) {
       gridHeight: 6,
       elevationScale: 2
     }),
-    new ParticleLayer({
-      id: 'test-wind-particles',
-      windField: field,
-      time,
-      numParticles: 24,
-      trailLength: 4,
-      elevationScale: 2
-    })
+    particles
   ];
 }
 
@@ -112,6 +124,7 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 
   let device: Device | undefined;
   let deck: Deck | undefined;
+  let particleLayer: ParticleLayer | undefined;
   const elevationData = createElevationData();
 
   try {
@@ -134,11 +147,13 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
         height: 120,
         views: new MapView({id: 'wind-test'}),
         initialViewState: {longitude: -98, latitude: 37, zoom: 4},
-        layers: createLayers(field, 0, elevationData),
+        layers: createLayers(field, 0, elevationData, type),
         onAfterRender: () => {
           if (!renderedAnimation) {
             renderedAnimation = true;
-            deck?.setProps({layers: createLayers(field, 0.5, elevationData)});
+            const layers = createLayers(field, 0.5, elevationData, type);
+            particleLayer = layers.find(layer => layer instanceof ParticleLayer) as ParticleLayer;
+            deck?.setProps({layers});
             return;
           }
           window.clearTimeout(timeout);
@@ -152,6 +167,32 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     });
 
     expect(deck.device?.type).toBe(type);
+    expect(particleLayer?.state.gpu).toBeInstanceOf(GpuParticleSimulation);
+    expect(particleLayer?.state.gpu?.particleCount).toBe(4096);
+    expect(particleLayer?.state.particles).toHaveLength(0);
+    expect(particleLayer?.state.gpu?.targetBuffer.byteLength).toBe(4096 * 4 * 4);
+    if (type === 'webgl' && particleLayer?.state.gpu) {
+      const sourceBytes = particleLayer.state.gpu.sourceBuffer.readSyncWebGL();
+      const targetBytes = particleLayer.state.gpu.targetBuffer.readSyncWebGL();
+      const sources = new Float32Array(
+        sourceBytes.buffer,
+        sourceBytes.byteOffset,
+        sourceBytes.byteLength / Float32Array.BYTES_PER_ELEMENT
+      );
+      const targets = new Float32Array(
+        targetBytes.buffer,
+        targetBytes.byteOffset,
+        targetBytes.byteLength / Float32Array.BYTES_PER_ELEMENT
+      );
+
+      for (let index = 0; index < sources.length; index += 4) {
+        expect(Number.isFinite(sources[index])).toBe(true);
+        expect(Number.isFinite(targets[index])).toBe(true);
+        expect(
+          Math.hypot(sources[index] - targets[index], sources[index + 1] - targets[index + 1])
+        ).toBeLessThan(0.5);
+      }
+    }
   } finally {
     deck?.finalize();
     device?.destroy();
@@ -164,7 +205,7 @@ describe('wind showcase rendering', () => {
     await renderWindLayers('webgl');
   }, 20_000);
 
-  it('renders and animates terrain, arrows, and particles on WebGPU', async ({skip}) => {
+  it('computes and animates GPU-resident wind particles on WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       skip('This browser does not expose an available WebGPU adapter.');
