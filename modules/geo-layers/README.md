@@ -37,9 +37,9 @@ const layers = [
 ];
 ```
 
-WebGL2 and WebGPU particle simulation are independently browser-tested. Complete WebGPU rendering
-of the mountain-and-arrow scene remains in progress because its upstream terrain, polygon, and
-path sublayers are not yet universally portable.
+WebGL2 and WebGPU particle simulation are independently browser-tested. Wind arrows, state
+boundaries, and station-triangulated terrain are portable; complete rendering of the original
+mountain scene remains in progress because upstream `TerrainLayer` does not yet support WebGPU.
 
 See the [wind showcase guide](https://deck.gl-community.github.io/docs/modules/geo-layers/developer-guide/wind-showcase)
 and [standalone example](https://github.com/visgl/deck.gl-community/tree/master/examples/geo-layers/wind).

@@ -196,7 +196,7 @@ buffers on every slider event.
 | `WindLayer` | Supported | Supported | Native GLSL/WGSL filled arrows and portable line shafts. |
 | `ElevationLayer` | Supported | Blocked | Image-derived mountain terrain depends on upstream `TerrainLayer`. |
 | `DelaunayCoverLayer` | Supported | Supported | Native GLSL/WGSL station-triangulated surface. |
-| Complete original showcase | Supported | In progress | WebGPU uses station terrain while image-derived mountains remain blocked. |
+| Complete original showcase | Supported | In progress | WebGPU renders state boundaries and uses station terrain while image-derived mountains remain blocked. |
 
 See the full [WebGPU compatibility matrix](/docs/webgpu).
 

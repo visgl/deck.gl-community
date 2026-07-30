@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView} from '@deck.gl/core';
+import {GeoJsonLayer} from '@deck.gl/layers';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -33,6 +34,20 @@ const STATIONS: WindStation[] = [
   {name: 'northwest', long: 100, lat: 39, elv: 240},
   {name: 'northeast', long: 96, lat: 39, elv: 320}
 ];
+const STATE_BOUNDARY = {
+  type: 'Feature' as const,
+  properties: {},
+  geometry: {
+    type: 'LineString' as const,
+    coordinates: [
+      [-100, 35],
+      [-96, 35],
+      [-96, 39],
+      [-100, 39],
+      [-100, 35]
+    ]
+  }
+};
 
 function createElevationData(): string {
   const canvas = document.createElement('canvas');
@@ -88,6 +103,15 @@ function createLayers(
       gridWidth: 8,
       gridHeight: 6,
       elevationScale: 2
+    }),
+    new GeoJsonLayer({
+      id: 'test-wind-state-boundary',
+      data: STATE_BOUNDARY,
+      filled: false,
+      stroked: true,
+      getLineColor: [177, 188, 205, 255],
+      getLineWidth: 1,
+      lineWidthUnits: 'pixels'
     }),
     particles
   ];
@@ -223,7 +247,7 @@ describe('wind showcase rendering', () => {
     await renderWindLayers('webgl');
   }, 20_000);
 
-  it('renders portable wind arrows, station terrain, and GPU-resident particles on WebGPU', async ({
+  it('renders portable boundaries, arrows, station terrain, and particles on WebGPU', async ({
     skip
   }) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
