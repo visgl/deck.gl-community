@@ -82,8 +82,10 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
 
+const SOFTWARE_WEBGPU_ENABLED = process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true';
+
 const HEADLESS_BROWSER_PROVIDER =
-  process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true'
+  SOFTWARE_WEBGPU_ENABLED
     ? playwright({
         launchOptions: {
           ...(process.env.GITHUB_ACTIONS === 'true' ? {channel: 'chrome'} : {}),
@@ -168,6 +170,7 @@ const CONFIG = defineConfig({
           browser: {
             enabled: true,
             headless: true,
+            fileParallelism: !SOFTWARE_WEBGPU_ENABLED,
             provider: HEADLESS_BROWSER_PROVIDER,
             instances: [{browser: 'chromium'}]
           }
