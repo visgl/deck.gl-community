@@ -1,6 +1,5 @@
 import React, {useEffect, useRef} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
-import {DeviceManagerController, DeviceTabsWidget} from '@deck.gl-community/widgets';
 
 import {deferImperativeCleanup} from '../imperative-cleanup';
 import makeExample from './make-example';
@@ -37,7 +36,7 @@ function ImperativeExampleHost({mount, mountLabel, deviceTabs, ...mountProps}) {
           if (typeof nextCleanup !== 'function') {
             return;
           }
-          if (isDisposed || generation !== mountGeneration) {
+          if (isDisposed) {
             deferImperativeCleanup(nextCleanup);
             return;
           }
@@ -47,35 +46,12 @@ function ImperativeExampleHost({mount, mountLabel, deviceTabs, ...mountProps}) {
           // eslint-disable-next-line no-console
           console.error(`Failed to mount ${mountLabel}`, error);
         });
-    };
-
-    const animationFrame = window.requestAnimationFrame(() => {
-      if (!deviceTabs) {
-        mountExample();
-        return;
-      }
-
-      manager = new DeviceManagerController();
-      unsubscribe = manager.subscribe(({device}) => {
-        if (!device || device === activeDevice || isDisposed) {
-          return;
-        }
-        activeDevice = device;
-        mountExample(device);
-      });
-      manager.initialize().catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error(`Failed to initialize ${mountLabel} graphics backend`, error);
-        });
     });
 
     return () => {
       isDisposed = true;
-      mountGeneration++;
       window.cancelAnimationFrame(animationFrame);
-      unsubscribe?.();
       deferImperativeCleanup(cleanup);
-      manager?.reset();
     };
   }, [mount, mountLabel, deviceTabs]);
 

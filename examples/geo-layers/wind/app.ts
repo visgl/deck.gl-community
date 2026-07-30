@@ -451,18 +451,20 @@ export function mountWindExample(
           elevationScale: ELEVATION_SCALE,
           opacity: 0.32
         }),
-      boundaries: !isWebgpu && new GeoJsonLayer({
-        id: 'wind-state-boundaries',
-        data: US_STATE_BOUNDARIES,
-        filled: false,
-        stroked: true,
-        getLineColor: [177, 188, 205, 95],
-        getLineWidth: 1,
-        lineWidthUnits: 'pixels',
-        lineWidthMinPixels: 0.65,
-        parameters: {depthCompare: 'always', depthWriteEnabled: false},
-        pickable: false
-      }),
+      boundaries:
+        !isWebgpu &&
+        new GeoJsonLayer({
+          id: 'wind-state-boundaries',
+          data: US_STATE_BOUNDARIES,
+          filled: false,
+          stroked: true,
+          getLineColor: [177, 188, 205, 95],
+          getLineWidth: 1,
+          lineWidthUnits: 'pixels',
+          lineWidthMinPixels: 0.65,
+          parameters: {depthCompare: 'always', depthWriteEnabled: false},
+          pickable: false
+        }),
       wind: createWindLayer(field),
       particles: createParticleLayer(field),
       labels: isWebgpu
@@ -487,23 +489,23 @@ export function mountWindExample(
             pickable: false
           })
         : new TextLayer<WindCity>({
-        id: 'wind-city-labels',
-        data: WIND_CITIES,
-        getPosition: city => {
-          const sample = sampleWindField(field, city.position, 0);
-          return [
-            city.position[0],
-            city.position[1],
-            (sample?.elevation ?? 0) * ELEVATION_SCALE + 2_200
-          ];
-        },
-        getText: city => city.name,
-        getColor: [231, 232, 238, 215],
-        getSize: 12,
-        sizeUnits: 'pixels',
-        getTextAnchor: 'middle',
-        getAlignmentBaseline: 'center',
-        parameters: {depthWriteEnabled: false},
+            id: 'wind-city-labels',
+            data: WIND_CITIES,
+            getPosition: city => {
+              const sample = sampleWindField(field, city.position, 0);
+              return [
+                city.position[0],
+                city.position[1],
+                (sample?.elevation ?? 0) * ELEVATION_SCALE + 2_200
+              ];
+            },
+            getText: city => city.name,
+            getColor: [231, 232, 238, 215],
+            getSize: 12,
+            sizeUnits: 'pixels',
+            getTextAnchor: 'middle',
+            getAlignmentBaseline: 'center',
+            parameters: {depthWriteEnabled: false},
             pickable: false
           }),
       stations:

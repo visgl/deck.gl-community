@@ -22,7 +22,8 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `WindLayer` and `DelaunayCoverLayer`: render filled directional arrows and station-triangulated surfaces using native WebGL2/WebGPU triangle shaders.
 - `ParticleLayer`: restored the historical wind showcase's GPU-resident particle advection using
   WebGL2 transform feedback and native WebGPU compute, with no production particle readbacks and
-  support for up to one million animated particles.
+  support for up to one million animated particles; native point rendering preserves simulation
+  buffer ownership and defers resource cleanup until submitted GPU work completes.
 - `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceProcessLayer`: ported trace backgrounds, binary span blocks, outlines, labels, overflow labels, separators, and straight dependencies by reusing dual-backend community layers.
 - Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
 - The website injects luma.gl-style device tabs into skybox, path and dependency-marker, information-visualization, horizon-graph, and trace examples, with independent managers, WebGPU preference, WebGL2 fallback, and real renderer switching; standalone examples remain free of device-management dependencies.

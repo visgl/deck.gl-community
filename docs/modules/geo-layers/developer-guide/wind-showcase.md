@@ -4,9 +4,9 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 :::caution Work in progress
 The reusable wind layers and the historical showcase are experimental. GPU particle advection has
-been independently verified on WebGL2 and WebGPU. The complete mountain-and-arrow scene currently
-uses upstream terrain, polygon, and path layers, so its end-to-end WebGPU support remains a work
-in progress.
+been independently verified on WebGL2 and WebGPU, along with filled wind arrows and station
+surfaces. Image-derived mountain terrain still depends on upstream `TerrainLayer` support, so the
+WebGPU showcase substitutes the station-triangulated surface.
 :::
 
 The Wind Map restores
@@ -178,8 +178,9 @@ when debugging interpolation coverage; do not replace the mountain terrain with 
 
 The example starts with `100_000` particles and provides a debounced slider from `1_000` to
 `1_000_000`. WebGL2 advances GPU-resident particle buffers using transform feedback and renders
-single-vertex point primitives. WebGPU advances them with a WGSL compute shader. Neither production
-animation path reads particle positions back to the CPU.
+single-vertex point primitives. WebGPU advances them with a WGSL compute shader and renders native
+GPU-buffer-backed point primitives. Neither production animation path reads particle positions
+back to the CPU.
 
 Weather textures are cached, static terrain is retained, arrow resampling is throttled, and
 high-density rendering favors particle heads over additional line geometry. Changing the particle
@@ -192,10 +193,10 @@ buffers on every slider event.
 | --- | :---: | :---: | --- |
 | `ParticleLayer` | Supported | Supported | Independently browser-tested GPU advection and rendering. |
 | Wind data and `DelaunayInterpolation` | Supported | Supported | Backend-independent indexing and explicit sampling. |
-| `WindLayer` | Supported | In progress | Depends on upstream polygon and path rendering. |
-| `ElevationLayer` | Supported | In progress | Depends on upstream `TerrainLayer`. |
-| `DelaunayCoverLayer` | Supported | Blocked | Depends on upstream polygon rendering. |
-| Complete original showcase | Supported | In progress | GPU particles are ready; remaining scene layers are not. |
+| `WindLayer` | Supported | Supported | Native GLSL/WGSL filled arrows and portable line shafts. |
+| `ElevationLayer` | Supported | Blocked | Image-derived mountain terrain depends on upstream `TerrainLayer`. |
+| `DelaunayCoverLayer` | Supported | Supported | Native GLSL/WGSL station-triangulated surface. |
+| Complete original showcase | Supported | In progress | WebGPU uses station terrain while image-derived mountains remain blocked. |
 
 See the full [WebGPU compatibility matrix](/docs/webgpu).
 

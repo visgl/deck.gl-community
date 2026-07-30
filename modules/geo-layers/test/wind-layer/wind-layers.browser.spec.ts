@@ -26,12 +26,6 @@ type NativeGpuDevice = {
   removeEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
   queue: {onSubmittedWorkDone: () => Promise<void>};
 };
-type NativeGpuDevice = {
-  addEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
-  removeEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
-  queue: {onSubmittedWorkDone: () => Promise<void>};
-};
-type NativeGpuError = {error?: {message?: string}};
 
 const STATIONS: WindStation[] = [
   {name: 'southwest', long: 100, lat: 35, elv: 120},

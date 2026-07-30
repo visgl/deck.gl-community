@@ -8,8 +8,9 @@ import {mountDeviceManagedExample} from '../../../website/src/components/example
 
 const deviceTabs = vi.hoisted(() => {
   const webgpuDevice = {id: 'wind-webgpu', type: 'webgpu'};
-  let listener: ((state: {device: typeof webgpuDevice | {id: string; type: 'webgl'}}) => void) |
-    undefined;
+  let listener:
+    | ((state: {device: typeof webgpuDevice | {id: string; type: 'webgl'}}) => void)
+    | undefined;
   const unsubscribe = vi.fn();
   const manager = {
     subscribe: vi.fn((nextListener: typeof listener) => {
