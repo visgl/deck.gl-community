@@ -1,5 +1,10 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.0-alpha.1
+
+- chore: target deck.gl 9.4.0-alpha.2 and luma.gl 9.4.0-alpha.1 (#701)
+- feat: make wind rendering and backend switching WebGPU-portable (#702)
+- feat: port remaining path and polygon layers to WebGPU (#703)
 
 ## v9.3.7
 
