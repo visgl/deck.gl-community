@@ -82,20 +82,25 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
 
+const SOFTWARE_WEBGPU_ENABLED = process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true';
+
 const HEADLESS_BROWSER_PROVIDER =
-  process.env.GITHUB_ACTIONS === 'true'
-    ? playwright({launchOptions: {channel: 'chrome'}})
-    : process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true'
-      ? playwright({
-          launchOptions: {
-            args: [
-              '--enable-unsafe-webgpu',
-              '--enable-unsafe-swiftshader',
-              '--use-angle=swiftshader',
-              '--enable-features=Vulkan,WebGPU'
-            ]
-          }
-        })
+  SOFTWARE_WEBGPU_ENABLED
+    ? playwright({
+        launchOptions: {
+          ...(process.env.GITHUB_ACTIONS === 'true' ? {channel: 'chrome'} : {}),
+          args: [
+            '--enable-unsafe-webgpu',
+            '--enable-unsafe-swiftshader',
+            '--use-gl=angle',
+            '--use-angle=swiftshader',
+            '--use-webgpu-adapter=swiftshader',
+            '--use-gpu-in-tests'
+          ]
+        }
+      })
+    : process.env.GITHUB_ACTIONS === 'true'
+      ? playwright({launchOptions: {channel: 'chrome'}})
       : playwright();
 
 const CONFIG = defineConfig({
@@ -167,6 +172,7 @@ const CONFIG = defineConfig({
           browser: {
             enabled: true,
             headless: true,
+            fileParallelism: !SOFTWARE_WEBGPU_ENABLED,
             provider: HEADLESS_BROWSER_PROVIDER,
             instances: [{browser: 'chromium'}]
           }

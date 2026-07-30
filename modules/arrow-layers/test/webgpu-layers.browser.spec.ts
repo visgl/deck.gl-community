@@ -16,6 +16,7 @@ import {
 } from 'apache-arrow';
 import {describe, expect, it} from 'vitest';
 
+import {releaseBrowserTestDevice} from '../../../test/browser-test-device';
 import {GeoArrowPathLayer, GeoArrowSolidPolygonLayer} from '../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
@@ -136,7 +137,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
-    device?.destroy();
+    releaseBrowserTestDevice(device);
     parent.remove();
   }
 }

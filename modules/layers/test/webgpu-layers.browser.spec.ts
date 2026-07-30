@@ -8,6 +8,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
+import {releaseBrowserTestDevice} from '../../../test/browser-test-device';
 import {
   HorizonGraphLayer,
   MultiHorizonGraphLayer,
@@ -417,7 +418,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
-    device?.destroy();
+    releaseBrowserTestDevice(device);
     parent.remove();
   }
 }
@@ -425,7 +426,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 describe('community graphics backend compatibility', () => {
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGL2', async () => {
     await renderPortableLayers('webgl');
-  }, 20_000);
+  }, 30_000);
 
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGPU', async ({
     skip
@@ -436,5 +437,5 @@ describe('community graphics backend compatibility', () => {
     }
 
     await renderPortableLayers('webgpu');
-  }, 20_000);
+  }, 30_000);
 });
