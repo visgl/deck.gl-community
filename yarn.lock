@@ -17163,6 +17163,7 @@ __metadata:
   resolution: "wind-layer-example@workspace:examples/geo-layers/wind"
   dependencies:
     "@deck.gl-community/geo-layers": "workspace:*"
+    "@deck.gl-community/infovis-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0-alpha.2"
     "@deck.gl/extensions": "npm:~9.4.0-alpha.2"
     "@deck.gl/geo-layers": "npm:~9.4.0-alpha.2"
