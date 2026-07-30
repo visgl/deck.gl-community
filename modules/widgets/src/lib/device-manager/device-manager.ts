@@ -282,11 +282,13 @@ export class DeviceManagerController {
   }
 
   /**
-   * Clears cached devices, DOM state, and subscriptions.
+   * Destroys cached devices and clears the managed device and canvas state.
    *
    * Primarily intended for tests and controlled teardown.
    */
   reset(): void {
+    const cachedDevices = Object.values(this.#cachedDevices);
+    this.#requestGeneration++;
     this.#state = {
       deviceType: undefined,
       device: undefined,
@@ -295,10 +297,12 @@ export class DeviceManagerController {
     };
     this.#cachedDevices = {};
     this.#cachedDeviceAvailability = {};
-    this.#requestGeneration = 0;
     this.#canvasParent = null;
     this.#hiddenCanvasParent?.remove();
     this.#hiddenCanvasParent = null;
+    for (const devicePromise of cachedDevices) {
+      void devicePromise.then(device => device.destroy()).catch(() => {});
+    }
     this.#emitState();
   }
 

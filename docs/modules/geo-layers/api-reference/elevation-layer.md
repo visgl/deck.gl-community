@@ -37,6 +37,12 @@ const terrain = new ElevationLayer({
 For smoother relief, filter the grayscale image once before passing it as `elevationData`. Do not
 recreate or decode the terrain mesh during particle animation.
 
+Height-map rendering currently requires WebGL2 because upstream `TerrainLayer` uses a WebGL-only
+mesh renderer. On WebGPU, `ElevationLayer` safely omits its terrain sub-layer; use
+[`DelaunayCoverLayer`](/docs/modules/geo-layers/api-reference/delaunay-cover-layer) for a
+WebGPU-compatible station-triangulated terrain surface. See the
+[WebGPU support matrix](/docs/webgpu) for the current status.
+
 ## Properties
 
 - `elevationData` (`string`, required): URL or data URL of a red-channel grayscale height map.

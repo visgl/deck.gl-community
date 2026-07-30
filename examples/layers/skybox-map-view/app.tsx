@@ -2,9 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, MapView} from '@deck.gl/core';
+import {
+  Deck,
+  MapView,
+  type MapViewState,
+  type ViewStateChangeParameters,
+  type Widget
+} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {SkyboxLayer} from '@deck.gl-community/layers';
+import type {Device} from '@luma.gl/core';
 import {SKYBOX_CUBEMAP} from '../skybox-assets/cubemap';
 
 const INITIAL_VIEW_STATE = {
@@ -19,7 +26,13 @@ const MAX_PITCH = 89.9;
 
 type SkyboxMapViewExampleOptions = {
   showInfoOverlay?: boolean;
-  onDeckInitialized?: (deck: Deck) => void;
+  device?: Device;
+  widgets?: Widget[];
+  initialViewState?: MapViewState;
+  onViewStateChange?: <ViewStateT extends MapViewState>(
+    params: ViewStateChangeParameters<ViewStateT>
+  ) => ViewStateT;
+  onDeckInitialized?: (deck: Deck<MapView>) => void;
 };
 
 export function mountSkyboxMapViewExample(
@@ -32,26 +45,33 @@ export function mountSkyboxMapViewExample(
   }
 
   const deck = new Deck({
+    device: options.device,
     parent: rootElement,
     views: new MapView({repeat: true, maxPitch: MAX_PITCH}),
-    initialViewState: INITIAL_VIEW_STATE,
+    initialViewState: options.initialViewState ?? INITIAL_VIEW_STATE,
+    onViewStateChange: options.onViewStateChange,
     controller: {
       dragRotate: true,
       touchRotate: true,
       maxPitch: MAX_PITCH
     },
     parameters: {clearColor: [0, 0, 0, 1]},
+    widgets: options.widgets ?? [],
     layers: [
       new SkyboxLayer({
         id: 'skybox',
         cubemap: SKYBOX_CUBEMAP,
         orientation: 'y-up'
       }),
-      new BasemapLayer({
-        id: 'basemap',
-        mode: 'map',
-        style: 'https://basemaps.cartocdn.com/gl/voyager-nolabels-gl-style/style.json'
-      })
+      ...(options.device?.type === 'webgpu'
+        ? []
+        : [
+            new BasemapLayer({
+              id: 'basemap',
+              mode: 'map',
+              style: 'https://basemaps.cartocdn.com/gl/voyager-nolabels-gl-style/style.json'
+            })
+          ])
     ]
   });
   options.onDeckInitialized?.(deck);

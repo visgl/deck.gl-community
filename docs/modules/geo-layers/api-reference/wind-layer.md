@@ -3,8 +3,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 # WindLayer
 
 :::caution Work in progress
-The wind arrow API and styling are experimental. Filled arrows depend on upstream
-`SolidPolygonLayer` and `PathLayer`, so complete WebGPU scene support is still in progress.
+The wind arrow API and styling are experimental. Native triangle glyphs and portable line
+segments render on WebGL2 and WebGPU; image-based mountain terrain remains in progress.
 :::
 
 `WindLayer` renders a Delaunay-interpolated station forecast as directional, speed-colored arrow
@@ -61,9 +61,9 @@ than the animation frame rate.
 
 ## Sub-layers
 
-- `glyphs`: filled `SolidPolygonLayer` arrows.
-- `shafts`: a `PathLayer` for arrow shafts.
-- `arrowheads`: a `PathLayer` for directional arrowheads.
+- `glyphs`: native GLSL/WGSL triangle geometry for filled directional arrows.
+- `shafts`: a dual-backend `LineLayer` for arrow shafts.
+- `arrowheads`: a dual-backend `LineLayer` for directional arrowhead segments.
 
 ## Historical source
 

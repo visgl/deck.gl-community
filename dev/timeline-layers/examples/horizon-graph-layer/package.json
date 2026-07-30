@@ -5,6 +5,7 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
+    "@deck.gl-community/infovis-layers": "workspace:*",
     "@deck.gl-community/panels": "workspace:*",
     "@deck.gl-community/timeline-layers": "workspace:*",
     "@deck.gl-community/widgets": "workspace:*",

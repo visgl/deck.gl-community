@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {LineLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer} from '@deck.gl/layers';
+import {LineLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {TerrainLayer} from '@deck.gl/geo-layers';
 import {describe, expect, it, vi} from 'vitest';
 
@@ -14,6 +14,7 @@ import {
   WindLayer,
   type WindStation
 } from '../../src';
+import {WindTriangleLayer} from '../../src/wind-layer/wind-triangle-layer';
 
 const STATIONS: WindStation[] = [
   {name: 'southwest', long: 2, lat: 0, elv: 10},
@@ -49,20 +50,20 @@ describe('reusable wind showcase layers', () => {
     layer.getSubLayerProps = vi.fn(props => props);
 
     const [glyphs, shafts, heads] = layer.renderLayers() as [
-      SolidPolygonLayer,
-      PathLayer,
-      PathLayer
+      WindTriangleLayer<unknown>,
+      LineLayer,
+      LineLayer
     ];
 
-    expect(glyphs).toBeInstanceOf(SolidPolygonLayer);
+    expect(glyphs).toBeInstanceOf(WindTriangleLayer);
     expect(glyphs.props.id).toBe('glyphs');
-    expect(shafts).toBeInstanceOf(PathLayer);
-    expect(heads).toBeInstanceOf(PathLayer);
+    expect(shafts).toBeInstanceOf(LineLayer);
+    expect(heads).toBeInstanceOf(LineLayer);
     expect(shafts.props.id).toBe('shafts');
     expect(heads.props.id).toBe('arrowheads');
     expect(shafts.props.data).not.toHaveLength(0);
-    expect(glyphs.props.data).toHaveLength((shafts.props.data as unknown[]).length);
-    expect(heads.props.data).toHaveLength((shafts.props.data as unknown[]).length);
+    expect(glyphs.props.data).toHaveLength((shafts.props.data as unknown[]).length * 5);
+    expect(heads.props.data).toHaveLength((shafts.props.data as unknown[]).length * 2);
   });
 
   it('decodes the original grayscale elevation image as a real exaggerated terrain mesh', () => {
@@ -98,12 +99,23 @@ describe('reusable wind showcase layers', () => {
     });
     layer.getSubLayerProps = vi.fn(props => props);
 
-    const terrain = layer.renderLayers() as SolidPolygonLayer;
+    const terrain = layer.renderLayers() as WindTriangleLayer<unknown>;
 
-    expect(terrain).toBeInstanceOf(SolidPolygonLayer);
+    expect(terrain).toBeInstanceOf(WindTriangleLayer);
     expect(terrain.props.id).toBe('terrain');
     expect(terrain.props.data).toHaveLength(FIELD.triangles.length);
     expect((terrain.props.data as {polygon: number[][]}[])[0].polygon[0][2]).toBeGreaterThan(0);
+  });
+
+  it('does not instantiate upstream WebGL-only height-map terrain on WebGPU', () => {
+    const layer = new ElevationLayer({
+      id: 'webgpu-elevation-test',
+      elevationData: 'https://example.com/elevation.png',
+      bounds: [-125, 24.4, -66.7, 49.6]
+    });
+    Object.defineProperty(layer, 'context', {value: {device: {type: 'webgpu'}}});
+
+    expect(layer.renderLayers()).toBeNull();
   });
 
   it('advects particles a visible, elapsed-time-scaled distance through the wind field', () => {

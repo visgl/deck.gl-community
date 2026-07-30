@@ -10,6 +10,7 @@ import blockSource from '../../infovis-layers/src/layers/block-layer/block-layer
 import {blockUniforms} from '../../infovis-layers/src/layers/block-layer/block-layer-uniforms';
 import fastTextSource from '../../infovis-layers/src/layers/fast-text-layer/fast-text-layer.wgsl';
 import {fastTextUniforms} from '../../infovis-layers/src/layers/fast-text-layer/fast-text-layer';
+import windTriangleSource from '../../geo-layers/src/wind-layer/wind-triangle-layer.wgsl';
 import horizonSource from '../../../dev/timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
 import {horizonLayerUniforms} from '../../../dev/timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer-uniforms';
 import geometrySource from '../src/dependency-arrow-layer/geometry-layer.wgsl';
@@ -74,6 +75,24 @@ describe('community WebGPU shaders', () => {
 
     expect(shader.source).toContain('geometry_layer_interpolate');
     expect(shader.source).toContain('geometry_layer_paraboloid');
+    expect(shader.source).toContain('picking_normalizeColor');
+    expect(shader.source).not.toContain('@binding(auto)');
+  });
+
+  it('assembles packed glyph projection, atlas sampling, clipping, and SDF text', () => {
+    const shader = assembleWebgpuShader(fastTextSource, [project32, color, fastTextUniforms]);
+
+    expect(shader.source).toContain('fast_text_clip_glyph_vertex');
+    expect(shader.source).toContain('textureSample');
+    expect(shader.source).toContain('fastText.sdfEnabled');
+    expect(shader.source).not.toContain('@binding(auto)');
+  });
+
+  it('assembles native wind-triangle projection, colors, and picking', () => {
+    const shader = assembleWebgpuShader(windTriangleSource, [project32, color, picking]);
+
+    expect(shader.source).toContain('WindTriangleAttributes');
+    expect(shader.source).toContain('project_position_to_clipspace_and_commonspace');
     expect(shader.source).toContain('picking_normalizeColor');
     expect(shader.source).not.toContain('@binding(auto)');
   });

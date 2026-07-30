@@ -8,13 +8,23 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
-import {HorizonGraphLayer, MultiHorizonGraphLayer} from '../../../dev/timeline-layers/src';
-import {BlockLayer, FastTextLayer} from '../../infovis-layers/src';
+import {
+  HorizonGraphLayer,
+  MultiHorizonGraphLayer,
+  VerticalGridLayer
+} from '../../../dev/timeline-layers/src';
+import {BlockLayer, FastTextLayer, TimeDeltaLayer} from '../../infovis-layers/src';
 import {SkyboxLayer} from '../src';
 import {GeometryLayer} from '../src/dependency-arrow-layer/geometry-layer';
 
 type BrowserGpu = {
   requestAdapter: () => Promise<unknown>;
+};
+type NativeGpuError = {error?: {message?: string}};
+type NativeGpuDevice = {
+  addEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+  removeEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+  queue: {onSubmittedWorkDone: () => Promise<void>};
 };
 
 function createPortableLayers() {
@@ -59,6 +69,24 @@ function createPortableLayers() {
       getSize: [10, 6],
       pickable: true
     }),
+    new TimeDeltaLayer({
+      id: 'webgpu-test-time-delta',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      header: true,
+      startTimeMs: -15,
+      endTimeMs: 15,
+      y: -25,
+      color: [15, 23, 42, 255]
+    }),
+    new VerticalGridLayer({
+      id: 'webgpu-test-vertical-grid',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      xMin: -30,
+      xMax: 30,
+      yMin: -30,
+      yMax: 30,
+      tickCount: 4
+    }),
     new HorizonGraphLayer({
       id: 'webgpu-test-horizon',
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -96,7 +124,12 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   document.body.append(parent);
 
   let device: Device | undefined;
-  let deck: Deck | undefined;
+  let deck: Deck<OrthographicView> | undefined;
+  let nativeDevice: NativeGpuDevice | undefined;
+  const validationErrors: string[] = [];
+  const captureValidationError = (event: NativeGpuError): void => {
+    validationErrors.push(event.error?.message ?? 'Unknown WebGPU validation error.');
+  };
 
   try {
     device = await luma.createDevice({
@@ -104,6 +137,10 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       adapters: [webgl2Adapter, webgpuAdapter],
       createCanvasContext: {container: parent}
     });
+    if (type === 'webgpu') {
+      nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
+      nativeDevice?.addEventListener('uncapturederror', captureValidationError);
+    }
 
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
@@ -129,8 +166,11 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       });
     });
 
-    expect(deck.device?.type).toBe(type);
+    await nativeDevice?.queue.onSubmittedWorkDone();
+    expect(device.type).toBe(type);
+    expect(validationErrors).toEqual([]);
   } finally {
+    nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
     device?.destroy();
     parent.remove();
@@ -138,11 +178,11 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 }
 
 describe('community graphics backend compatibility', () => {
-  it('renders skybox, blocks, fast text, dependency markers, and horizon textures on WebGL2', async () => {
+  it('renders skybox, blocks, text, dependency markers, and horizon textures on WebGL2', async () => {
     await renderPortableLayers('webgl');
   }, 20_000);
 
-  it('renders skybox, blocks, fast text, dependency markers, and horizon textures on WebGPU', async ({
+  it('renders skybox, blocks, text, dependency markers, and horizon textures on WebGPU', async ({
     skip
   }) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;

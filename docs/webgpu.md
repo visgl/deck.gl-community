@@ -16,12 +16,12 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/layers` | `PathMarkerLayer` | ✅ | 🚧 | Marker geometry is portable; outlined and dashed paths remain blocked. |
 | `@deck.gl-community/infovis-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
 | `@deck.gl-community/infovis-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
-| `@deck.gl-community/infovis-layers` | `TimeDeltaLayer` | ✅ | 🚧 | Upstream line and text sublayers require end-to-end validation. |
+| `@deck.gl-community/infovis-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
 | `@deck.gl-community/infovis-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
 | `@deck.gl-community/timeline-layers` | `HorizonGraphLayer` | ✅ | ✅ | Native WGSL and `r32float` data textures. |
 | `@deck.gl-community/timeline-layers` | `MultiHorizonGraphLayer` | ✅ | ✅ | Portable horizon shaders and dual-backend line dividers. |
 | `@deck.gl-community/timeline-layers` | `TimeAxisLayer` | ✅ | 🚧 | Grid lines use the portable `LineLayer`; tick labels depend on upstream `TextLayer` WebGPU support. |
-| `@deck.gl-community/timeline-layers` | `VerticalGridLayer` | ✅ | 🚧 | Upstream `LineLayer` is portable; dedicated rendering validation is pending. |
+| `@deck.gl-community/timeline-layers` | `VerticalGridLayer` | ✅ | ✅ | Browser-verified portable `LineLayer` grid marks and viewport-driven ticks. |
 | `@deck.gl-community/timeline-layers` | `TimelineLayer` | ✅ | ❌ | Blocked by upstream `SolidPolygonLayer`. |
 | `@deck.gl-community/trace-layers` | `TraceGraphLayer` and `TracePreparedStateLayer` | ✅ | ✅ | Browser-verified span blocks, backgrounds, outlines, row separators, fast labels, and straight dependency markers. |
 | `@deck.gl-community/trace-layers` | `TraceProcessLayer` | ✅ | ✅ | Automatically selects WebGPU-compatible binary blocks, fast span and overflow labels, and straight dependency rendering. |
@@ -33,10 +33,10 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/graph-layers` | `FlowPathLayer` | ❌ | ❌ | Existing transform-feedback implementation is incomplete; requires redesign. |
 | `@deck.gl-community/geo-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |
 | `@deck.gl-community/geo-layers` | Wind-field utilities and `DelaunayInterpolation` | ✅ | ✅ | Backend-independent station indexing, explicit sampling, and optional CPU rasterization. |
-| `@deck.gl-community/geo-layers` | `WindLayer` | ✅ | 🚧 | Filled arrows depend on upstream `SolidPolygonLayer` and `PathLayer`. |
-| `@deck.gl-community/geo-layers` | `ElevationLayer` | ✅ | 🚧 | Three-dimensional mountain rendering depends on upstream `TerrainLayer`. |
-| `@deck.gl-community/geo-layers` | `DelaunayCoverLayer` | ✅ | ❌ | Station-surface rendering depends on upstream `SolidPolygonLayer`. |
-| `@deck.gl-community/geo-layers` | Complete Wind Map showcase | ✅ | 🚧 | GPU particles are portable; upstream terrain, polygon, and path sublayers still block full-scene WebGPU compatibility. |
+| `@deck.gl-community/geo-layers` | `WindLayer` | ✅ | ✅ | Native WGSL/GLSL filled-arrow triangles and portable line shafts and arrowheads. |
+| `@deck.gl-community/geo-layers` | `ElevationLayer` | ✅ | ❌ | Image-derived mountain terrain depends on upstream `TerrainLayer`; skipped safely on WebGPU. |
+| `@deck.gl-community/geo-layers` | `DelaunayCoverLayer` | ✅ | ✅ | Native WGSL/GLSL station triangles, elevation scaling, and height-based coloring. |
+| `@deck.gl-community/geo-layers` | Complete Wind Map showcase | ✅ | 🚧 | GPU particles, arrows, labels, and station terrain are portable; image terrain and map boundaries remain upstream-dependent. |
 | `@deck.gl-community/geo-layers` | Tile and global-grid layers | ✅ | 🚧 | Validate upstream sublayers, tile formats, and picking. |
 | `@deck.gl-community/arrow-layers` | GeoArrow layers | ✅ | 🚧 | Validate binary attributes and each upstream rendering layer. |
 | `@deck.gl-community/editable-layers` | Editing and selection layers | ✅ | 🚧 | Validate editing interactions and upstream GeoJSON and path layers. |
@@ -57,34 +57,53 @@ import {Deck} from '@deck.gl/core';
 import {DeviceManagerController, DeviceTabsWidget} from '@deck.gl-community/widgets';
 
 const manager = new DeviceManagerController();
-manager.reparentCanvas(container);
-
-const deck = new Deck({
-  parent: container,
-  layers,
-  widgets: [
-    new DeviceTabsWidget({
-      devices: ['webgpu', 'webgl2'],
-      manager
-    })
-  ]
-});
+let deck;
+let activeDevice;
+let currentViewState = initialViewState;
 
 const unsubscribe = manager.subscribe(({device}) => {
-  if (device && deck.device !== device) {
-    deck.setProps({device});
+  if (!device || device === activeDevice) {
+    return;
   }
+
+  activeDevice = device;
+  deck?.finalize();
+  manager.reparentCanvas(container, device);
+  deck = new Deck({
+    device,
+    parent: container,
+    initialViewState: currentViewState,
+    onViewStateChange: ({viewState}) => {
+      currentViewState = viewState;
+      return viewState;
+    },
+    layers: createLayers(device),
+    widgets: [
+      new DeviceTabsWidget({
+        devices: ['webgpu', 'webgl2'],
+        manager
+      })
+    ]
+  });
 });
 
 void manager.initialize();
 
 // When the surface is removed:
 unsubscribe();
-deck.finalize();
+deck?.finalize();
 manager.reset();
 ```
 
-WebGPU is preferred when available. The manager respects a previously selected backend, disables unavailable devices, and falls back to WebGL2. Switching tabs changes the device used to draw the scene; it is not only a visual indicator.
+WebGPU is preferred when available. The manager respects a previously selected backend, disables
+unavailable devices, and falls back to WebGL2. A backend switch must recreate `Deck` with the newly
+selected device; `deck.setProps({device})` does not migrate an existing renderer, canvas, or layer
+resources. Preserve view state across recreation, create only layers supported by the selected
+backend, and call `manager.reset()` after finalizing the renderer to destroy every cached device.
+
+The documentation website injects device tabs in its shared imperative-example host. Standalone
+example applications accept an optional device and widgets but do not own device management. Path
+outline and marker demonstrations remain WebGL2-only until upstream path rendering supports WebGPU.
 
 ## Compatibility roadmap
 
@@ -92,7 +111,7 @@ WebGPU is preferred when available. The manager respects a previously selected b
 | --- | --- | --- |
 | Existing reference | `SkyboxLayer` | Provides native WGSL and GLSL sources, portable cubemap bindings, and a switchable skybox example. |
 | First wave | `BlockLayer`, `DependencyArrowLayer` marker geometry, `HorizonGraphLayer`, and `MultiHorizonGraphLayer` | Native WGSL and existing GLSL are maintained together. Stacked horizon dividers use the upstream dual-backend `LineLayer`; the website injects real WebGPU/WebGL2 device selection into the skybox, path, block, and horizon examples. |
-| Wind showcase | `ParticleLayer`, wind-field utilities, `WindLayer`, `ElevationLayer`, and `DelaunayCoverLayer` | WebGL2 transform-feedback and WebGPU compute particle paths are browser-verified. Complete scene support remains in progress until upstream terrain, polygon, and path rendering is portable. |
+| Wind showcase | `ParticleLayer`, wind-field utilities, `WindLayer`, and `DelaunayCoverLayer` | WebGL2 transform-feedback, WebGPU compute, native arrow triangles, and station-surface rendering are browser-verified. Image-based mountain terrain still depends on upstream `TerrainLayer`. |
 | Upstream-dependent paths | `PathOutlineLayer`, `PathMarkerLayer`, dashed path routing, and `DependencyArrowLayer` path mode | Full route rendering depends on native WGSL support for deck.gl's `PathLayer` and `PathStyleExtension`. Directional marker geometry and line-mode dependencies can be ported independently, but outlined or dashed paths must not be advertised as fully WebGPU-compatible yet. |
 | Second wave | `FastTextLayer` | Add a small WGSL compatibility shader to the existing glyph layer, following luma.gl `master`'s `TextRenderer` and Arrow text patterns while retaining the published luma.gl 9.3 dependency line. |
 | Trace rendering | `TraceGraphLayer`, `TracePreparedStateLayer`, `TraceProcessLayer`, and counter sparklines | Reuse shared dual-backend blocks, fast text, and lines; preserve external float32 trace attributes; automatically select portable text and straight dependency routes on WebGPU. |
@@ -120,5 +139,14 @@ getShaders() {
 ```
 
 Declare WGSL resource bindings with `@binding(auto)`, keep each shader module's uniform types in the same order as its WGSL structure, and use `Model`, `Geometry`, `Texture`, and `renderPass` rather than a raw WebGL context. Include real browser coverage for available devices, and explicitly skip WebGPU rendering when a browser cannot supply a WebGPU adapter.
+
+To explicitly run the complete Chromium suite with software WebGPU, use:
+
+```sh
+DECK_GL_COMMUNITY_SOFTWARE_WEBGPU=true yarn test-headless
+```
+
+WebGPU rendering tests wait for submitted GPU work and fail on native shader, pipeline, and
+validation errors. Browser environments without an adapter continue to run the WebGL2 assertions.
 
 Do not update a package-wide WebGPU compatibility badge until all of the package's advertised layers and integrations have been validated.

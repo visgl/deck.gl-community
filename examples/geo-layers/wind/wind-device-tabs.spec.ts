@@ -8,7 +8,8 @@ import {mountDeviceManagedExample} from '../../../website/src/components/example
 
 const deviceTabs = vi.hoisted(() => {
   const webgpuDevice = {id: 'wind-webgpu', type: 'webgpu'};
-  let listener: ((state: {device: typeof webgpuDevice}) => void) | undefined;
+  let listener: ((state: {device: typeof webgpuDevice | {id: string; type: 'webgl'}}) => void) |
+    undefined;
   const unsubscribe = vi.fn();
   const manager = {
     subscribe: vi.fn((nextListener: typeof listener) => {
@@ -24,6 +25,9 @@ const deviceTabs = vi.hoisted(() => {
 
   return {
     webgpuDevice,
+    selectDevice: (device: typeof webgpuDevice | {id: string; type: 'webgl'}) => {
+      listener?.({device});
+    },
     manager,
     unsubscribe,
     Manager: vi.fn(function DeviceManagerController() {
@@ -47,25 +51,26 @@ describe('wind showcase graphics backend selector', () => {
 
   it('installs working WebGL and WebGPU tabs into the mounted wind deck', async () => {
     const container = {} as HTMLElement;
-    const webglDevice = {id: 'wind-webgl', type: 'webgl'};
-    const deck = {
-      device: webglDevice as typeof webglDevice | typeof deviceTabs.webgpuDevice,
-      props: {parent: container, widgets: [] as unknown[]},
-      setProps: vi.fn((props: {device?: typeof deviceTabs.webgpuDevice; widgets?: unknown[]}) => {
-        if (props.device) {
-          deck.device = props.device;
-        }
-        if (props.widgets) {
-          deck.props.widgets = props.widgets;
-        }
-      })
-    };
+    const webglDevice = {id: 'wind-webgl', type: 'webgl' as const};
     const cleanup = vi.fn();
     const mount = vi.fn(
       (
         _container: HTMLElement,
-        options: {onDeckInitialized: (initializedDeck: typeof deck) => void}
+        options: {
+          device: typeof webglDevice | typeof deviceTabs.webgpuDevice;
+          widgets: unknown[];
+          initialViewState?: {longitude: number};
+          onViewStateChange: (params: {viewState: {longitude: number}}) => {longitude: number};
+          onDeckInitialized: (deck: {
+            device: typeof webglDevice | typeof deviceTabs.webgpuDevice;
+            props: {parent: HTMLElement; widgets: unknown[]};
+          }) => void;
+        }
       ) => {
+        const deck = {
+          device: options.device,
+          props: {parent: container, widgets: options.widgets}
+        };
         options.onDeckInitialized(deck);
         return cleanup;
       }
@@ -90,15 +95,26 @@ describe('wind showcase graphics backend selector', () => {
         placement: 'top-right'
       })
     );
-    expect(deck.props.widgets).toHaveLength(1);
+    expect(mount).toHaveBeenCalledOnce();
+    expect(mount.mock.calls[0][1].device).toBe(deviceTabs.webgpuDevice);
+    expect(mount.mock.calls[0][1].widgets).toHaveLength(1);
     expect(deviceTabs.manager.initialize).toHaveBeenCalledOnce();
-    expect(deck.device).toBe(deviceTabs.webgpuDevice);
+
+    mount.mock.calls[0][1].onViewStateChange({viewState: {longitude: -98}});
+    deviceTabs.selectDevice(webglDevice);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mount).toHaveBeenCalledTimes(2);
+    expect(mount.mock.calls[1][1].device).toBe(webglDevice);
+    expect(mount.mock.calls[1][1].initialViewState).toEqual({longitude: -98});
+    expect(cleanup).toHaveBeenCalledOnce();
 
     dispose();
 
     expect(deviceTabs.unsubscribe).toHaveBeenCalledOnce();
     expect(deviceTabs.manager.reset).toHaveBeenCalledOnce();
-    expect(cleanup).toHaveBeenCalledOnce();
+    expect(cleanup).toHaveBeenCalledTimes(2);
   });
 
   it('mounts without a device manager when graphics tabs are disabled', async () => {

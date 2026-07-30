@@ -3,16 +3,17 @@
 // Copyright (c) vis.gl contributors
 
 import {CompositeLayer, type Color, type DefaultProps} from '@deck.gl/core';
-import {PathLayer, SolidPolygonLayer} from '@deck.gl/layers';
+import {LineLayer} from '@deck.gl/layers';
 
 import {sampleWindField, type WindField} from './wind-data';
+import {WindTriangleLayer} from './wind-triangle-layer';
 
 /**
  * Configuration for the work-in-progress, station-interpolated {@link WindLayer}.
  *
  * @remarks
- * Filled arrows currently depend on deck.gl polygon and path sublayers. Full-scene
- * WebGPU compatibility therefore depends on the upstream support of those sublayers.
+ * Filled arrows use a native dual-backend triangle primitive, and outlines use portable
+ * `LineLayer` segments. Image-based terrain remains dependent on upstream WebGPU support.
  */
 export type WindLayerProps = {
   /** Indexed, time-varying weather station data. */
@@ -44,6 +45,29 @@ type WindArrow = {
   color: Color;
 };
 
+type WindArrowTriangle = {
+  positions: [
+    WindArrow['polygon'][number],
+    WindArrow['polygon'][number],
+    WindArrow['polygon'][number]
+  ];
+  color: Color;
+};
+
+type WindArrowheadSegment = {
+  source: WindArrow['head'][number];
+  target: WindArrow['head'][number];
+  color: Color;
+};
+
+const ARROW_TRIANGLE_INDICES: readonly [number, number, number][] = [
+  [0, 1, 6],
+  [1, 5, 6],
+  [1, 2, 5],
+  [2, 3, 5],
+  [3, 4, 5]
+];
+
 const defaultProps: DefaultProps<WindLayerProps> = {
   windField: {type: 'object', value: undefined!},
   time: 0,
@@ -71,8 +95,8 @@ function mixColor(from: Color, to: Color, factor: number): Color {
  *
  * @remarks
  * This API is a work in progress. Create one shared `WindField` and preserve the layer's
- * `id` while advancing fractional forecast time. Polygon and path compatibility is subject
- * to upstream deck.gl support on WebGPU.
+ * `id` while advancing fractional forecast time. Filled arrows, shafts, and arrowheads
+ * render on both WebGL2 and WebGPU.
  *
  * @example
  * ```ts
@@ -191,34 +215,45 @@ export class WindLayer extends CompositeLayer<WindLayerProps> {
       }
     }
 
+    const triangles: WindArrowTriangle[] = arrows.flatMap(arrow =>
+      ARROW_TRIANGLE_INDICES.map(([first, second, third]) => ({
+        positions: [arrow.polygon[first], arrow.polygon[second], arrow.polygon[third]],
+        color: arrow.color
+      }))
+    );
+    const arrowheads: WindArrowheadSegment[] = arrows.flatMap(arrow => [
+      {source: arrow.head[0], target: arrow.head[1], color: arrow.color},
+      {source: arrow.head[1], target: arrow.head[2], color: arrow.color}
+    ]);
+
     return [
-      new SolidPolygonLayer<WindArrow>(this.getSubLayerProps({id: 'glyphs'}), {
-        data: arrows,
-        getPolygon: arrow => arrow.polygon,
-        getFillColor: arrow => arrow.color,
-        material: {ambient: 0.75, diffuse: 0.45, shininess: 16},
+      new WindTriangleLayer<WindArrowTriangle>(this.getSubLayerProps({id: 'glyphs'}), {
+        data: triangles,
+        getFirstPosition: triangle => triangle.positions[0],
+        getSecondPosition: triangle => triangle.positions[1],
+        getThirdPosition: triangle => triangle.positions[2],
+        getColor: triangle => triangle.color,
         parameters: {depthWriteEnabled: false},
         pickable: false
       }),
-      new PathLayer<WindArrow>(this.getSubLayerProps({id: 'shafts'}), {
+      new LineLayer<WindArrow>(this.getSubLayerProps({id: 'shafts'}), {
         data: arrows,
-        getPath: arrow => arrow.shaft,
+        getSourcePosition: arrow => arrow.shaft[0],
+        getTargetPosition: arrow => arrow.shaft[1],
         getColor: arrow => arrow.color,
-        getWidth: 1,
+        getWidth: widthMinPixels,
         widthUnits: 'pixels',
         widthMinPixels,
-        capRounded: true,
         pickable: false
       }),
-      new PathLayer<WindArrow>(this.getSubLayerProps({id: 'arrowheads'}), {
-        data: arrows,
-        getPath: arrow => arrow.head,
-        getColor: arrow => arrow.color,
-        getWidth: 1,
+      new LineLayer<WindArrowheadSegment>(this.getSubLayerProps({id: 'arrowheads'}), {
+        data: arrowheads,
+        getSourcePosition: segment => segment.source,
+        getTargetPosition: segment => segment.target,
+        getColor: segment => segment.color,
+        getWidth: widthMinPixels,
         widthUnits: 'pixels',
         widthMinPixels,
-        jointRounded: true,
-        capRounded: true,
         pickable: false
       })
     ];
