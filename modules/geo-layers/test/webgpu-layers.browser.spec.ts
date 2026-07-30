@@ -114,7 +114,11 @@ async function renderPortableGeoLayers(type: 'webgl' | 'webgpu'): Promise<void> 
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
-    device?.destroy();
+    // Deck finalization releases WebGPU resources; leave final WebGPU teardown to the browser so
+    // this test remains compatible with shared software adapters when CI enables them separately.
+    if (device?.type !== 'webgpu') {
+      device?.destroy();
+    }
     parent.remove();
   }
 }

@@ -39,8 +39,6 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
 - `GlobalGridLayer`, `TileGridLayer` borders, and the wind showcase's state boundaries now have
   local-data browser coverage on WebGL2 and WebGPU.
-- Headless CI enables Chromium's software WebGPU adapter, so native WebGPU validation tests run
-  even on runners without hardware adapters instead of being skipped.
 - Every website gallery example and live layer-reference example now receives a standalone
   `DeviceTabsWidget` from the shared imperative host, with an independent device manager, WebGPU
   preference, WebGL2 fallback, renderer remounting, and preserved view state.

@@ -425,7 +425,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 describe('community graphics backend compatibility', () => {
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGL2', async () => {
     await renderPortableLayers('webgl');
-  }, 30_000);
+  }, 20_000);
 
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGPU', async ({
     skip
@@ -436,5 +436,5 @@ describe('community graphics backend compatibility', () => {
     }
 
     await renderPortableLayers('webgpu');
-  }, 30_000);
+  }, 20_000);
 });
