@@ -91,7 +91,7 @@ export function GeometryEditor() {
 }
 ```
 
-See the [getting-started example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/getting-started) for a complete runnable version.
+See the [getting-started example](https://github.com/visgl/deck.gl-community/tree/9.3-release/examples/editable-layers/getting-started) for a complete runnable version.
 
 ## Widgets
 
@@ -132,7 +132,7 @@ const toolbarWidget = new EditorToolbarWidget({
 });
 ```
 
-See the [editor example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/editor) for a full widgets-only editing setup, and the [Widget API docs](/docs/modules/editable-layers/api-reference/widgets/edit-mode-tray-widget) for the complete props reference.
+See the [editor example](https://github.com/visgl/deck.gl-community/tree/9.3-release/examples/editable-layers/editor) for a full widgets-only editing setup, and the [Widget API docs](/docs/modules/editable-layers/api-reference/widgets/edit-mode-tray-widget) for the complete props reference.
 
 ## See Also
 

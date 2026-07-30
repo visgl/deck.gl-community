@@ -17,13 +17,13 @@ Note that for all polygon drawing modes, the following options can also be provi
 
 User can draw a new `Point` feature by clicking where the point is to be.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-point-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-point-mode.ts)
 
 ## DrawLineStringMode
 
 User can draw a new `LineString` feature by clicking positions to add. User finishes drawing by double-clicking.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-line-string-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-line-string-mode.ts)
 
 ## ExtendLineStringMode
 
@@ -42,19 +42,19 @@ Callback parameters
 
 - `position` (Array): An array containing the ground coordinates (i.e. [lng, lat]) of the added position
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/extend-line-string-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/extend-line-string-mode.ts)
 
 ## ResizeCircleMode
 
 User can resize an existing circular Polygon feature by clicking and dragging along the ring.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/resize-circle-mode.js)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/resize-circle-mode.js)
 
 ## DrawPolygonMode
 
 User can draw a new `Polygon` feature by clicking positions to add then closing the polygon (or double-clicking).
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-polygon-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-polygon-mode.ts)
 
 The following options can be provided in the `modeConfig` object:
 
@@ -94,13 +94,13 @@ When using the new configuration options, the following additional edit types ma
 
 User can draw a new `Polygon` feature with 90 degree corners (right angle) by clicking positions to add then closing the polygon (or double-clicking). After clicking the 2 points, the draw mode guides/allows to have right angle polygon.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-90degree-polygon-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-90degree-polygon-mode.ts)
 
 ## DrawPolygonByDraggingMode
 
 User can draw a new `Polygon` feature by dragging (similar to the lasso tool commonly found in photo editing software).
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-polygon-by-dragging-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-polygon-by-dragging-mode.ts)
 
 The following options can be provided in the `modeConfig` object:
 
@@ -111,7 +111,7 @@ The following options can be provided in the `modeConfig` object:
 
 User can draw a new rectangular `Polygon` feature by clicking two opposing corners of the rectangle.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-rectangle-mode.ts)
 
 The following options can be provided in the `modeConfig` object:
 
@@ -127,25 +127,25 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-from-center-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-rectangle-from-center-mode.ts)
 
 ## DrawRectangleUsingThreePointsMode
 
 User can draw a new rectangular `Polygon` feature by clicking three corners of the rectangle.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-rectangle-using-three-points-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-rectangle-using-three-points-mode.ts)
 
 ## DrawSquareMode
 
 User can draw a new square-shaped `Polygon` feature by clicking two opposing corners of the square.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-square-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-square-mode.ts)
 
 ## DrawSquareFromCenterMode
 
 User can draw a new square-shaped `Polygon` feature by clicking the center and then along one of the corners of the square.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modesdraw-square-from-center-mode..ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modesdraw-square-from-center-mode..ts)
 
 The following options can be provided in the `modeConfig` object:
 
@@ -163,7 +163,7 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modesdraw-circle-from-center-mode..ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modesdraw-circle-from-center-mode..ts)
 
 ## DrawCircleByDiameterMode
 
@@ -176,7 +176,7 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modesdraw-circle-by-diameter-mode..ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modesdraw-circle-by-diameter-mode..ts)
 
 ## DrawEllipseByBoundingBoxMode
 
@@ -187,13 +187,13 @@ The following options can be provided in the `modeConfig` object:
 - `dragToDraw` (optional): `boolean`
   - If `true`, user can click and drag instead of clicking twice. Note however, that the user will not be able to pan the map while drawing.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-ellipse-by-bounding-box-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-ellipse-by-bounding-box-mode.ts)
 
 ## DrawEllipseUsingThreePointsMode
 
 User can draw a new ellipse shape `Polygon` feature by clicking three points along the ring. Properties of the ellipse will be added to the resulting geometry in the object editProperties.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/draw-ellipse-using-three-points-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/draw-ellipse-using-three-points-mode.ts)
 
 ## SplitPolygonMode
 
@@ -203,4 +203,4 @@ User can split a polygon by drawing a new `LineString` feature on top of the pol
 
 - If the clicked position is inside the polygon, it will not split the polygon
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/split-polygon-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/split-polygon-mode.ts)

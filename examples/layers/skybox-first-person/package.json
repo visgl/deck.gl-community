@@ -5,7 +5,7 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/layers": "workspace:*",
+    "@deck.gl-community/layers": "~9.3.0",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/layers": "~9.3.0",
     "@deck.gl/mesh-layers": "~9.3.0",

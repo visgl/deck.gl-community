@@ -149,4 +149,4 @@ Custom CSS class name added to the widget root element.
 
 Update widget properties. Call this to sync the widget with React state changes. Automatically re-renders the tray.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/widgets/edit-mode-tray-widget.tsx)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/widgets/edit-mode-tray-widget.tsx)

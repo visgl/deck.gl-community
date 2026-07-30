@@ -60,4 +60,4 @@ Position and size of the entire chart. Defaults: `x:0`, `y:0`, `width:800`, `hei
 
 ## Source
 
-[modules/timeline-layers/src/layers/horizon-graph-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/timeline-layers/src/layers/horizon-graph-layer)
+[modules/timeline-layers/src/layers/horizon-graph-layer](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/timeline-layers/src/layers/horizon-graph-layer)

@@ -128,7 +128,7 @@ New module for THREE.js integration experiments
   - Season-driven canopy colours (spring / summer / autumn / winter).
   - Pine tier density control (`getBranchLevels` 1–5) with per-tier drift.
   - Crop / fruit / flower visualisation (`getCrop`) with live and dropped crop spheres.
-  - [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/wild-forest) with 9 forest zones and interactive controls.
+  - [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/9.3-release/examples/three/wild-forest) with 9 forest zones and interactive controls.
 
 ## v9.2
 

@@ -8,14 +8,14 @@ The most basic modes are:
 
 No edits are possible, but selection is still possible.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/view-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/view-mode.ts)
 
 ## DuplicateMode
 
 User can duplicate and translate a feature by clicking selected feature and dragging anywhere on the screen.
 This mode is extends TranslateMode. This mode supports multiple selections.
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/duplicate-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/duplicate-mode.ts)
 
 
 ## Composite Mode

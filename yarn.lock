@@ -393,7 +393,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/basemap-layers@workspace:*, @deck.gl-community/basemap-layers@workspace:modules/basemap-layers":
+"@deck.gl-community/basemap-layers@npm:~9.3.0, @deck.gl-community/basemap-layers@workspace:modules/basemap-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/basemap-layers@workspace:modules/basemap-layers"
   dependencies:
@@ -414,7 +414,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/bing-maps@workspace:*, @deck.gl-community/bing-maps@workspace:modules/bing-maps":
+"@deck.gl-community/bing-maps@npm:~9.3.0, @deck.gl-community/bing-maps@workspace:modules/bing-maps":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/bing-maps@workspace:modules/bing-maps"
   peerDependencies:
@@ -430,7 +430,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/editable-layers@workspace:*, @deck.gl-community/editable-layers@workspace:modules/editable-layers":
+"@deck.gl-community/editable-layers@npm:~9.3.0, @deck.gl-community/editable-layers@workspace:modules/editable-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/editable-layers@workspace:modules/editable-layers"
   dependencies:
@@ -509,7 +509,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/geo-layers@workspace:*, @deck.gl-community/geo-layers@workspace:modules/geo-layers":
+"@deck.gl-community/geo-layers@npm:~9.3.0, @deck.gl-community/geo-layers@workspace:modules/geo-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/geo-layers@workspace:modules/geo-layers"
   dependencies:
@@ -534,7 +534,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/graph-layers@workspace:*, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
+"@deck.gl-community/graph-layers@npm:~9.3.0, @deck.gl-community/graph-layers@workspace:modules/graph-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/graph-layers@workspace:modules/graph-layers"
   dependencies:
@@ -565,7 +565,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/infovis-layers@workspace:*, @deck.gl-community/infovis-layers@workspace:modules/infovis-layers":
+"@deck.gl-community/infovis-layers@npm:~9.3.0, @deck.gl-community/infovis-layers@workspace:*, @deck.gl-community/infovis-layers@workspace:modules/infovis-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/infovis-layers@workspace:modules/infovis-layers"
   dependencies:
@@ -589,7 +589,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers":
+"@deck.gl-community/layers@npm:~9.3.0, @deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
@@ -628,7 +628,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/panels@workspace:*, @deck.gl-community/panels@workspace:modules/panels":
+"@deck.gl-community/panels@npm:~9.3.0, @deck.gl-community/panels@workspace:*, @deck.gl-community/panels@workspace:modules/panels":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/panels@workspace:modules/panels"
   dependencies:
@@ -663,7 +663,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/three@workspace:*, @deck.gl-community/three@workspace:modules/three":
+"@deck.gl-community/three@npm:~9.3.0, @deck.gl-community/three@workspace:modules/three":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/three@workspace:modules/three"
   dependencies:
@@ -675,7 +675,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/timeline-layers@workspace:*, @deck.gl-community/timeline-layers@workspace:dev/timeline-layers":
+"@deck.gl-community/timeline-layers@npm:~9.3.0, @deck.gl-community/timeline-layers@workspace:*, @deck.gl-community/timeline-layers@workspace:dev/timeline-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/timeline-layers@workspace:dev/timeline-layers"
   dependencies:
@@ -691,7 +691,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/trace-layers@workspace:*, @deck.gl-community/trace-layers@workspace:modules/trace-layers":
+"@deck.gl-community/trace-layers@npm:~9.3.0, @deck.gl-community/trace-layers@workspace:modules/trace-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/trace-layers@workspace:modules/trace-layers"
   dependencies:
@@ -742,7 +742,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/widgets@workspace:*, @deck.gl-community/widgets@workspace:modules/widgets":
+"@deck.gl-community/widgets@npm:~9.3.0, @deck.gl-community/widgets@workspace:*, @deck.gl-community/widgets@workspace:modules/widgets":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/widgets@workspace:modules/widgets"
   dependencies:
@@ -5806,7 +5806,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "basemap-layer-map-view-7c2ef2@workspace:examples/layers/basemap-layer-map-view"
   dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
+    "@deck.gl-community/basemap-layers": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -5873,7 +5873,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "bing-deck-get-started-example@workspace:examples/bing-maps/get-started"
   dependencies:
-    "@deck.gl-community/bing-maps": "workspace:*"
+    "@deck.gl-community/bing-maps": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@loaders.gl/core": "npm:^4.4.1"
@@ -7502,10 +7502,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-h3-cluster-layer-0285dd@workspace:examples/editable-layers/editable-h3-cluster-layer"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -7532,10 +7532,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-layers-3d-tiles@workspace:examples/editable-layers/3d-tiles"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -7564,10 +7564,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-layers-advanced-example@workspace:examples/editable-layers/advanced"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -7599,10 +7599,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-layers-editor@workspace:examples/editable-layers/editor"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -7633,10 +7633,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "editable-layers-widget@workspace:examples/editable-layers/widget"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -9133,10 +9133,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "getting-started-46c11b@workspace:examples/editable-layers/getting-started"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -9374,9 +9374,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "graph-layers-example@workspace:examples/graph-layers/graph-viewer"
   dependencies:
-    "@deck.gl-community/graph-layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/graph-layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/widgets": "npm:~9.3.0"
@@ -9790,7 +9790,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "infovis-layer-primitives-example@workspace:examples/infovis-layers/layer-primitives"
   dependencies:
-    "@deck.gl-community/infovis-layers": "workspace:*"
+    "@deck.gl-community/infovis-layers": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@loaders.gl/core": "npm:^4.4.1"
@@ -10876,8 +10876,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "leaflet-deck-get-started-example@workspace:examples/leaflet/get-started"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/widgets": "npm:~9.3.0"
@@ -12022,10 +12022,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "no-map-90d205@workspace:examples/editable-layers/no-map"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -12604,8 +12604,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "overlays-022e03@workspace:examples/widgets/overlays"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -12946,9 +12946,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "path-marker-outline-f6deca@workspace:examples/layers/path-marker-outline"
   dependencies:
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
@@ -14551,10 +14551,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "sf-42f06e@workspace:examples/editable-layers/sf"
   dependencies:
-    "@deck.gl-community/editable-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/editable-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -14589,7 +14589,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "shared-tile-2d-layer-example@workspace:examples/geo-layers/shared-tile-2d-layer"
   dependencies:
-    "@deck.gl-community/geo-layers": "workspace:*"
+    "@deck.gl-community/geo-layers": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -14780,7 +14780,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "skybox-first-person-a4390b@workspace:examples/layers/skybox-first-person"
   dependencies:
-    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl-community/layers": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/mesh-layers": "npm:~9.3.0"
@@ -14796,10 +14796,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "skybox-globe-c5fa13@workspace:examples/layers/skybox-globe"
   dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/basemap-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -14820,8 +14820,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "skybox-map-view-9054d9@workspace:examples/layers/skybox-map-view"
   dependencies:
-    "@deck.gl-community/basemap-layers": "workspace:*"
-    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl-community/basemap-layers": "npm:~9.3.0"
+    "@deck.gl-community/layers": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/geo-layers": "npm:~9.3.0"
@@ -15905,9 +15905,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "trace-layers-trace-graph-layer-example@workspace:examples/trace-layers/trace-graph-layer"
   dependencies:
-    "@deck.gl-community/infovis-layers": "workspace:*"
-    "@deck.gl-community/timeline-layers": "workspace:*"
-    "@deck.gl-community/trace-layers": "workspace:*"
+    "@deck.gl-community/infovis-layers": "npm:~9.3.0"
+    "@deck.gl-community/timeline-layers": "npm:~9.3.0"
+    "@deck.gl-community/trace-layers": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/react": "npm:~9.3.0"
@@ -15927,9 +15927,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "trace-layers-tracevis-example@workspace:examples/trace-layers/tracevis"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/trace-layers": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/trace-layers": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/extensions": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
@@ -17056,8 +17056,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "widgets-html-overlays-example@workspace:examples/widgets/html-overlays"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/mapbox": "npm:~9.3.0"
@@ -17078,8 +17078,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "widgets-pan-and-zoom-controls-example@workspace:examples/widgets/pan-and-zoom-controls"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/widgets": "npm:~9.3.0"
@@ -17097,7 +17097,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "widgets-standalone-widgets-example@workspace:examples/widgets/standalone-widgets"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/widgets": "npm:~9.3.0"
     "@luma.gl/core": "npm:~9.3.2"
@@ -17109,8 +17109,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "widgets-widget-panels-example@workspace:examples/widgets/widget-panels"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/layers": "npm:~9.3.0"
     "@deck.gl/widgets": "npm:~9.3.0"
@@ -17128,9 +17128,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "wild-forest-ea7bdb@workspace:examples/three/wild-forest"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
-    "@deck.gl-community/three": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
+    "@deck.gl-community/panels": "npm:~9.3.0"
+    "@deck.gl-community/three": "npm:~9.3.0"
+    "@deck.gl-community/widgets": "npm:~9.3.0"
     "@deck.gl/core": "npm:~9.3.0"
     "@deck.gl/mesh-layers": "npm:~9.3.0"
     "@deck.gl/widgets": "npm:~9.3.0"

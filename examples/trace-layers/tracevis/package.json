@@ -10,9 +10,9 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/panels": "workspace:*",
-    "@deck.gl-community/trace-layers": "workspace:*",
-    "@deck.gl-community/widgets": "workspace:*",
+    "@deck.gl-community/panels": "~9.3.0",
+    "@deck.gl-community/trace-layers": "~9.3.0",
+    "@deck.gl-community/widgets": "~9.3.0",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/extensions": "~9.3.0",
     "@deck.gl/layers": "~9.3.0",

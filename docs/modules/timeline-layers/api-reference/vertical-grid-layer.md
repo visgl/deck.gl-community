@@ -60,4 +60,4 @@ RGBA color for grid lines. Default: `[200, 200, 200, 255]`.
 
 ## Source
 
-[modules/timeline-layers/src/layers/vertical-grid-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/timeline-layers/src/layers/vertical-grid-layer.ts)
+[modules/timeline-layers/src/layers/vertical-grid-layer.ts](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/timeline-layers/src/layers/vertical-grid-layer.ts)

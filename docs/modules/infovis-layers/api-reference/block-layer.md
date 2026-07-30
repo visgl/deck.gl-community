@@ -64,4 +64,4 @@ Pixel clamps applied after projecting block size.
 
 ## Source
 
-[modules/infovis-layers/src/layers/block-layer/block-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/infovis-layers/src/layers/block-layer/block-layer.ts)
+[modules/infovis-layers/src/layers/block-layer/block-layer.ts](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/infovis-layers/src/layers/block-layer/block-layer.ts)

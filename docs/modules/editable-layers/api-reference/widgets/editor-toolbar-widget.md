@@ -119,6 +119,6 @@ The toolbar renders as a horizontal pill-shaped tray with three sections:
 ## See Also
 
 - [EditModeTrayWidget](/docs/modules/editable-layers/api-reference/widgets/edit-mode-tray-widget) — Mode selection widget
-- [Editor example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/editor) — Complete example using both widgets
+- [Editor example](https://github.com/visgl/deck.gl-community/tree/9.3-release/examples/editable-layers/editor) — Complete example using both widgets
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/widgets/editor-toolbar-widget.tsx)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/widgets/editor-toolbar-widget.tsx)

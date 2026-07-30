@@ -148,4 +148,4 @@ Crop positions are seeded deterministically from each tree's geographic coordina
 
 ## Source
 
-[modules/three/src/tree-layer](https://github.com/visgl/deck.gl-community/tree/master/modules/three/src/tree-layer)
+[modules/three/src/tree-layer](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/three/src/tree-layer)

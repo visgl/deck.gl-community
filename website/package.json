@@ -58,7 +58,7 @@
     "@loaders.gl/obj": "^4.4.1",
     "@loaders.gl/ply": "^4.4.1",
     "@luma.gl/core": "~9.3.2",
-    "@turf/turf": "^6.5.0",
+    "@turf/turf": "^7.2.0",
     "brace": "^0.11.1",
     "d3-color": "^3.1.0",
     "d3-hierarchy": "^2.0.0",

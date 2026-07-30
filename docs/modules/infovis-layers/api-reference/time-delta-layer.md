@@ -54,4 +54,4 @@ RGBA color used by guide lines and the header label. Default: `[0, 0, 0, 255]`.
 
 ## Source
 
-[modules/infovis-layers/src/layers/time-delta-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/infovis-layers/src/layers/time-delta-layer.ts)
+[modules/infovis-layers/src/layers/time-delta-layer.ts](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/infovis-layers/src/layers/time-delta-layer.ts)

@@ -1,5 +1,14 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.8
+
+- fix(editable-layers): use named Turf imports so CJS/esbuild consumers no longer call missing `.default` exports (#679)
+- chore(website): align the documentation build with the Turf 7 dependency baseline
+- fix(layers): support orthographic path markers (#276)
+- fix(editable-layers): persist the distance returned by `nearestPointOnLine` (#629)
+- fix: update local development paths and React compiler options (#625)
+- fix(layers): restore PathMarkerLayer and PathOutlineLayer v9 rendering (#660)
+- chore(trace-layers): align the open source trace layers with Tracevis (#661)
 
 ## v9.3.7
 
