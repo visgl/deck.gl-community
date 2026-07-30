@@ -28,7 +28,7 @@ The following options can be provided in the `modeConfig` object:
   - If true, the measurement tooltips appear on the middle of their respective line segments rather than at the end
   - Default: `false`
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/measure-distance-mode.ts)
 
 ## MeasureAreaMode
 
@@ -45,7 +45,7 @@ The following options can be provided in the `modeConfig` object:
   - Function to call as measurements are calculated
   - Default: `undefined`
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-area-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/measure-area-mode.ts)
 
 ## MeasureAngleMode
 
@@ -62,7 +62,7 @@ The following options can be provided in the `modeConfig` object:
   - Function to call as measurements are calculated
   - Default: `undefined`
 
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/measure-angle-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/measure-angle-mode.ts)
 
 
 ## ElevationMode
@@ -92,4 +92,4 @@ if (mode === 'elevation') {
     ElevationMode.calculateElevationChangeWithViewport(viewport, opts);
 }
 ```
-[Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/elevation-mode.ts)
+[Source code](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/editable-layers/src/edit-modes/elevation-mode.ts)

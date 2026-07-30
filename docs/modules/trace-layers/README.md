@@ -33,6 +33,6 @@ shells use `TraceGraphLayer` for normalized graphs, `TraceStoreLayer` for `Trace
 windows, or `TracePreparedStateLayer` for caller-prepared `TraceViewState`.
 
 The full viewer example lives at
-[`examples/trace-layers/tracevis`](https://github.com/visgl/deck.gl-community/tree/master/examples/trace-layers/tracevis).
+[`examples/trace-layers/tracevis`](https://github.com/visgl/deck.gl-community/tree/9.3-release/examples/trace-layers/tracevis).
 The layers-only example lives at
-[`examples/trace-layers/trace-graph-layer`](https://github.com/visgl/deck.gl-community/tree/master/examples/trace-layers/trace-graph-layer).
+[`examples/trace-layers/trace-graph-layer`](https://github.com/visgl/deck.gl-community/tree/9.3-release/examples/trace-layers/trace-graph-layer).

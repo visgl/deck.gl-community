@@ -57,4 +57,4 @@ Delay in milliseconds before each repeated iteration. Default: `0`.
 
 ## Source
 
-[modules/infovis-layers/src/layers/animation-layer/animation-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/infovis-layers/src/layers/animation-layer/animation-layer.ts)
+[modules/infovis-layers/src/layers/animation-layer/animation-layer.ts](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/infovis-layers/src/layers/animation-layer/animation-layer.ts)

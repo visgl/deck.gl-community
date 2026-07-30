@@ -10,9 +10,9 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@deck.gl-community/infovis-layers": "workspace:*",
-    "@deck.gl-community/timeline-layers": "workspace:*",
-    "@deck.gl-community/trace-layers": "workspace:*",
+    "@deck.gl-community/infovis-layers": "~9.3.0",
+    "@deck.gl-community/timeline-layers": "~9.3.0",
+    "@deck.gl-community/trace-layers": "~9.3.0",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/layers": "~9.3.0",
     "@deck.gl/react": "~9.3.0",

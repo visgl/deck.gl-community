@@ -98,4 +98,4 @@ highlight sublayer.
 
 ## Source
 
-[modules/layers/src/dependency-arrow-layer/dependency-arrow-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/dependency-arrow-layer/dependency-arrow-layer.ts)
+[modules/layers/src/dependency-arrow-layer/dependency-arrow-layer.ts](https://github.com/visgl/deck.gl-community/tree/9.3-release/modules/layers/src/dependency-arrow-layer/dependency-arrow-layer.ts)

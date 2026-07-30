@@ -6,8 +6,8 @@
     "start-local": "vite --config ../../vite.config.local.mjs"
   },
   "dependencies": {
-    "@deck.gl-community/panels": "workspace:*",
-    "@deck.gl-community/widgets": "workspace:*",
+    "@deck.gl-community/panels": "~9.3.0",
+    "@deck.gl-community/widgets": "~9.3.0",
     "@deck.gl/core": "~9.3.0",
     "@deck.gl/extensions": "~9.3.0",
     "@deck.gl/geo-layers": "~9.3.0",
