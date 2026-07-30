@@ -246,6 +246,12 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
         : configuration.maxX;
     const minorTextColor = withHalfAlpha(configuration.textColor);
     const minorGridColor = withHalfAlpha(configuration.gridColor);
+    const fontProps = {
+      ...(this.props.characterSet === undefined ? {} : {characterSet: this.props.characterSet}),
+      ...(this.props.fontFamily === undefined ? {} : {fontFamily: this.props.fontFamily}),
+      ...(this.props.fontSettings === undefined ? {} : {fontSettings: this.props.fontSettings}),
+      ...(this.props.fontWeight === undefined ? {} : {fontWeight: this.props.fontWeight})
+    };
 
     return [
       configuration.axisLine &&
@@ -285,10 +291,7 @@ export class TimeAxisLayer extends CompositeLayer<TimeAxisLayerProps> {
             getColor: tick => (tick.type === 'major' ? configuration.textColor : minorTextColor),
             getTextAnchor: configuration.legacyRange ? 'middle' : 'start',
             getAlignmentBaseline: configuration.legacyRange ? 'top' : 'bottom',
-            characterSet: this.props.characterSet,
-            fontFamily: this.props.fontFamily,
-            fontSettings: this.props.fontSettings,
-            fontWeight: this.props.fontWeight,
+            ...fontProps,
             updateTriggers: {
               getText: [this.props.formatTick, configuration.mode, configuration.legacyRange]
             }

@@ -5,10 +5,9 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 <LayerLiveExample highlight="path-rounded-rectangle-layer" size="tall" />
 
 `PathBasedRoundedRectangleLayer` renders rounded rectangles by tessellating a
-polygon path. Unlike [`RoundedRectangleLayer`](./rounded-rectangle-layer.md),
-which shaders the rounding in the fragment stage, this layer generates explicit
-geometry using `generateRoundedCorners` so it can work with Deck.gl's standard
-polygon shaders.
+polygon path. `RoundedRectangleLayer` now extends this implementation, so both
+style names generate explicit geometry with `generateRoundedCorners` and use
+deck.gl's standard dual-backend polygon shaders.
 
 ## Usage
 
@@ -34,8 +33,8 @@ const layer = new PathBasedRoundedRectangleLayer({
 });
 ```
 
-Use this renderer when you need rounded rectangles without the custom shader
-module required by `RoundedRectangleLayer`.
+Use this renderer directly for the explicit `path-rounded-rectangle` graph style;
+the regular `rounded-rectangle` style shares the same portable implementation.
 
 ## Properties
 

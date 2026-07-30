@@ -15,15 +15,25 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `BlockLayer`: added native WGSL for instanced block fills, outlines, projection, opacity, and picking while preserving the existing WebGL2 shaders.
 - `FastTextLayer`: added an upstream-informed WGSL compatibility shader for existing packed bitmap and signed-distance-field glyphs, font-atlas bindings, clipping, alignment, and WebGPU mipmaps.
 - `TimeDeltaLayer`: uses portable line guides and native-WGSL fast-text labels on WebGPU while preserving WebGL2 label backgrounds.
-- `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry, picking, and line-mode dependencies; path mode remains blocked on upstream `PathLayer` support.
-- `HorizonGraphLayer`: added native WGSL and portable `r32float` data-texture bindings.
+- `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry and picking; line, arc, and path routing are browser-verified on both backends with deck.gl 9.4 alpha.2.
+- `PathOutlineLayer` and `PathMarkerLayer`: use the upstream dual-backend `PathLayer` and add a local WGSL dash plugin until `PathStyleExtension` gains native WGSL.
+- `HorizonGraphLayer`: added native WGSL and baseline-compatible WebGPU integer data textures that preserve the original float bits.
 - `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.
 - `VerticalGridLayer`: validated viewport-driven timeline ticks and grid lines on both graphics backends.
+- `TimelineLayer`: validated track, clip, scrubber, and line geometry with the upstream WebGPU polygon and line layers; text labels and interactions remain in progress.
 - `WindLayer` and `DelaunayCoverLayer`: render filled directional arrows and station-triangulated surfaces using native WebGL2/WebGPU triangle shaders.
 - `ParticleLayer`: restored the historical wind showcase's GPU-resident particle advection using
   WebGL2 transform feedback and native WebGPU compute, with no production particle readbacks and
   support for up to one million animated particles; native point rendering preserves simulation
-  buffer ownership and defers resource cleanup until submitted GPU work completes.
+  buffer ownership and defers resource cleanup until submitted GPU work completes. WebGPU weather
+  textures preserve float data in integer textures so baseline adapters do not require
+  `float32-filterable`.
+- `RoundedRectangleLayer`, `PathEdgeLayer`, and `EdgeArrowLayer`: replaced WebGL-only graph
+  primitives with CPU-tessellated polygons and browser-verified upstream path rendering.
+- GeoArrow path and solid-polygon layers now have browser coverage for zero-copy binary attributes
+  on WebGL2 and WebGPU.
+- `EditableGeoJsonLayer`: browser-verified polygon, path, and edit-handle rendering on WebGPU,
+  including its picking-width shader customization.
 - `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceProcessLayer`: ported trace backgrounds, binary span blocks, outlines, labels, overflow labels, separators, and straight dependencies by reusing dual-backend community layers.
 - Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
 - The website injects luma.gl-style device tabs into skybox, path and dependency-marker, information-visualization, horizon-graph, and trace examples, with independent managers, WebGPU preference, WebGL2 fallback, and real renderer switching; standalone examples remain free of device-management dependencies.
@@ -50,7 +60,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 ### `@deck.gl-community/layers`
 
 - `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
-- `DependencyArrowLayer` marker geometry now includes a native WGSL shader alongside its existing WebGL2 shader, including directional markers and picking; complete path-mode compatibility remains dependent on upstream `PathLayer` support.
+- `DependencyArrowLayer` marker geometry includes native WGSL alongside its existing WebGL2 shader; line, path, and arc routing are supported on both backends.
 - `PathOutlineLayer` and `PathMarkerLayer` now use deck.gl v9-native sublayers for outlined paths, dashed strokes, and pixel-sized directional markers, restoring the path outline and marker example.
 
 ### `@deck.gl-community/infovis-layers`

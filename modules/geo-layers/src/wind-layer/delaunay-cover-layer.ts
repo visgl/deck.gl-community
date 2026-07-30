@@ -59,7 +59,7 @@ function createTerrainTriangle(
  * @remarks
  * This API is a work in progress. It visualizes station triangles; use
  * {@link ElevationLayer} when a smooth image-derived mountain mesh is required.
- * The underlying `SolidPolygonLayer` currently limits full WebGPU support.
+ * Native triangle shaders render the same station mesh on WebGL2 and WebGPU.
  *
  * @example
  * ```ts

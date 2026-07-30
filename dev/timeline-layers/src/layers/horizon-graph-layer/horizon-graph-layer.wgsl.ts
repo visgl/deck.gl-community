@@ -16,7 +16,7 @@ struct HorizonLayerUniforms {
 };
 
 @group(0) @binding(auto) var<uniform> horizonLayer: HorizonLayerUniforms;
-@group(0) @binding(auto) var dataTexture: texture_2d<f32>;
+@group(0) @binding(auto) var dataTexture: texture_2d<u32>;
 
 struct HorizonAttributes {
   @location(0) positions: vec3<f32>,
@@ -49,8 +49,9 @@ fn fragmentMain(varyings: HorizonVaryings) -> @location(0) vec4<f32> {
   );
   let row = floor(index * horizonLayer.dataTextureSizeInv);
   let column = index - row * horizonLayer.dataTextureSize;
-  let value = textureLoad(dataTexture, vec2<i32>(i32(column), i32(row)), 0).r *
-    horizonLayer.yAxisScaleInv;
+  let value = bitcast<f32>(
+    textureLoad(dataTexture, vec2<i32>(i32(column), i32(row)), 0).r
+  ) * horizonLayer.yAxisScaleInv;
   let scaledBand = abs(value) * horizonLayer.bands;
   let bandIndex = clamp(floor(scaledBand), 0.0, horizonLayer.bands - 1.0);
   let bandFraction = fract(scaledBand);

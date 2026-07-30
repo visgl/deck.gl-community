@@ -11,6 +11,9 @@ on top. This keeps the layer on the deck.gl/luma.gl v9 render path while letting
 you emphasize overlapping paths (for example, trails or transit lines) without
 managing multiple layers manually.
 
+The solid and dashed variants are browser-verified on WebGL2 and WebGPU. On WebGPU, the layer
+bridges the currently GLSL-only `PathStyleExtension` with an internal WGSL dash plugin.
+
 Use [`PathMarkerLayer`](./path-marker-layer.md) when you need arrows or other
 markers along a path. The `PathOutlineLayer` is focused purely on the outline
 pass and can be combined with any other overlays.
@@ -80,10 +83,11 @@ your data ordering when outlines overlap. Defaults to `() => 0`.
    `widthScale * outlineWidthScale`.
 2. `path`: rendered second with the original `getColor` and `widthScale`.
 
-When `getDashArray` is supplied, the layer attaches
+When `getDashArray` is supplied on WebGL2, the layer attaches
 `PathStyleExtension({dash: true, highPrecisionDash: true})` unless a caller
-already provided a path-style extension, so `getDashArray` and `dashJustified`
-work on both sublayers. It also disables depth writes and uses
+already provided a path-style extension. WebGPU uses the equivalent internal
+WGSL dash implementation. Both paths support `getDashArray` and `dashJustified`
+on both sublayers. The layer also disables depth writes and uses
 `depthCompare: 'always'` on both passes to avoid z-fighting between colocated
 path strokes.
 

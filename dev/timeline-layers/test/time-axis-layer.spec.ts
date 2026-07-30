@@ -90,6 +90,7 @@ describe('TimeAxisLayer', () => {
     const tickLabels = layer.renderLayers().find(sublayer => sublayer instanceof TextLayer);
 
     expect(tickLabels).toBeInstanceOf(TextLayer);
+    expect(tickLabels?.props.fontSettings).toEqual({});
   });
 
   it('forwards optional font properties directly to the tick label layer', () => {
