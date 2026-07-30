@@ -10,8 +10,12 @@ import {describe, expect, it} from 'vitest';
 
 import {FastTextLayer} from '../src';
 
-type BrowserGpu = {
-  requestAdapter: () => Promise<unknown>;
+type BrowserGpu = {requestAdapter: () => Promise<unknown>};
+type NativeGpuError = {error?: {message?: string}};
+type NativeGpuDevice = {
+  addEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+  removeEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+  queue: {onSubmittedWorkDone: () => Promise<void>};
 };
 
 async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<void> {
@@ -21,7 +25,12 @@ async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<v
   document.body.append(parent);
 
   let device: Device | undefined;
-  let deck: Deck | undefined;
+  let deck: Deck<OrthographicView> | undefined;
+  let nativeDevice: NativeGpuDevice | undefined;
+  const validationErrors: string[] = [];
+  const captureValidationError = (event: NativeGpuError): void => {
+    validationErrors.push(event.error?.message ?? 'Unknown WebGPU validation error.');
+  };
 
   try {
     device = await luma.createDevice({
@@ -29,6 +38,10 @@ async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<v
       adapters: [webgl2Adapter, webgpuAdapter],
       createCanvasContext: {container: parent}
     });
+    if (type === 'webgpu') {
+      nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
+      nativeDevice?.addEventListener('uncapturederror', captureValidationError);
+    }
 
     const layer = new FastTextLayer({
       id: `fast-text-${type}-${sdf ? 'sdf' : 'bitmap'}`,
@@ -66,11 +79,14 @@ async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<v
       });
     });
 
-    expect(deck.device?.type).toBe(type);
+    await nativeDevice?.queue.onSubmittedWorkDone();
+    expect(device.type).toBe(type);
     expect(layer.state.glyphData?.length).toBe(6);
     expect(layer.state.atlasTexture?.mipLevels).toBeGreaterThan(1);
     expect(layer.state.model).toBeDefined();
+    expect(validationErrors).toEqual([]);
   } finally {
+    nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
     device?.destroy();
     parent.remove();

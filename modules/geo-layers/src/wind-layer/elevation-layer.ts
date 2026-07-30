@@ -65,7 +65,7 @@ export class ElevationLayer extends CompositeLayer<ElevationLayerProps> {
   renderLayers(): TerrainLayer | null {
     const {elevationData, bounds, elevationRange, elevationScale, meshMaxError, color, texture} =
       this.props;
-    if (!elevationData) {
+    if (!elevationData || this.context?.device?.type === 'webgpu') {
       return null;
     }
 

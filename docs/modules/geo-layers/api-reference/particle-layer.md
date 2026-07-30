@@ -4,13 +4,14 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 :::caution Work in progress
 The wind-layer API, GPU simulation, particle appearance, and tuning controls are experimental and
-may change. WebGL2 and WebGPU particle simulation are browser-tested independently; a complete
-WebGPU wind scene still depends on upstream terrain, polygon, and path support.
+may change. WebGL2 and WebGPU particle simulation, wind arrows, and station surfaces are
+browser-tested independently; image-derived mountain terrain still depends on upstream support.
 :::
 
 `ParticleLayer` animates GPU-resident particles through a station-interpolated geographic wind
 field. WebGL2 uses transform feedback and single-vertex point rendering; WebGPU uses a compute
-shader and portable deck.gl sublayers. Neither simulation reads particle positions back to the CPU.
+shader and native GPU-buffer-backed point primitives. Neither simulation reads particle positions
+back to the CPU.
 
 <LayerLiveExample highlight="particle-layer" size="tall" />
 
@@ -117,11 +118,13 @@ Radius of moving particle heads in screen pixels.
 
 - WebGL2: cached `rgba32float` weather textures, transform-feedback ping-pong buffers, and one
   native point vertex per particle.
-- WebGPU: cached weather textures, a WGSL compute pipeline, and GPU-buffer-backed sublayers.
+- WebGPU: cached weather textures, a WGSL compute pipeline, and native GPU-buffer-backed point
+  primitives.
 - Coverage: invalid samples are respawned within the wind field; overlong segments are clipped.
-- Cleanup: deck.gl finalization releases the weather textures, simulation buffers, and pipeline.
-- Scope: GPU particle compatibility does not imply that `TerrainLayer`, `SolidPolygonLayer`, or
-  `PathLayer` is already WebGPU-compatible.
+- Cleanup: deck.gl finalization releases the weather textures, simulation buffers, and pipeline
+  after submitted GPU work has completed.
+- Scope: native wind arrows and station-triangulated surfaces support WebGPU, but image-derived
+  mountain terrain still depends on upstream `TerrainLayer` compatibility.
 
 See the [wind showcase guide](../developer-guide/wind-showcase.md), the
 [Wind Map example](/examples/geo-layers/wind), and the

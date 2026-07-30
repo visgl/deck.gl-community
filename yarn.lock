@@ -9583,6 +9583,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "horizon-graph-layer-289f4b@workspace:dev/timeline-layers/examples/horizon-graph-layer"
   dependencies:
+    "@deck.gl-community/infovis-layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/timeline-layers": "workspace:*"
     "@deck.gl-community/widgets": "workspace:*"
@@ -17162,6 +17163,7 @@ __metadata:
   resolution: "wind-layer-example@workspace:examples/geo-layers/wind"
   dependencies:
     "@deck.gl-community/geo-layers": "workspace:*"
+    "@deck.gl-community/infovis-layers": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0-alpha.2"
     "@deck.gl/extensions": "npm:~9.4.0-alpha.2"
     "@deck.gl/geo-layers": "npm:~9.4.0-alpha.2"

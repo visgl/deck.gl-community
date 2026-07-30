@@ -3,8 +3,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 # DelaunayCoverLayer
 
 :::caution Work in progress
-The station-surface appearance and API may change. Its `SolidPolygonLayer` sublayer is not yet
-fully portable to WebGPU.
+The station-surface appearance and API may change. Its native triangle primitive works on WebGL2
+and WebGPU; image-derived mountain terrain remains dependent on upstream `TerrainLayer` support.
 :::
 
 `DelaunayCoverLayer` renders one elevation-colored polygon for each triangle in a shared
@@ -43,7 +43,10 @@ const stationSurface = new DelaunayCoverLayer({
 
 ## Sub-layers
 
-- `terrain`: a `SolidPolygonLayer` containing the station-index Delaunay triangles.
+- `terrain`: native GLSL/WGSL triangle geometry containing the station-index Delaunay triangles.
+
+The triangulated station surface, elevation scaling, and height-based colors render on both
+WebGL2 and WebGPU. This surface is distinct from the smoothed image-based mountain terrain.
 
 Use the example's **Delaunay station surface** control to inspect the triangulation independently
 of the smoothed mountains. See the [wind showcase guide](../developer-guide/wind-showcase.md).

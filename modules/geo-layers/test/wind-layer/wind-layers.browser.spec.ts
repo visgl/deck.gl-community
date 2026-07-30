@@ -20,6 +20,12 @@ import {
 } from '../../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
+type NativeGpuError = {error?: {message?: string}};
+type NativeGpuDevice = {
+  addEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+  removeEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+  queue: {onSubmittedWorkDone: () => Promise<void>};
+};
 
 const STATIONS: WindStation[] = [
   {name: 'southwest', long: 100, lat: 35, elv: 120},
@@ -61,19 +67,19 @@ function createLayers(
     elevationScale: 2
   });
 
-  if (deviceType === 'webgpu') {
-    return [particles];
-  }
-
   return [
-    new ElevationLayer({
-      id: 'test-wind-height-map',
-      elevationData,
-      bounds: [-100, 35, -96, 39],
-      elevationRange: [0, 255],
-      elevationScale: 2,
-      meshMaxError: 4
-    }),
+    ...(deviceType === 'webgpu'
+      ? []
+      : [
+          new ElevationLayer({
+            id: 'test-wind-height-map',
+            elevationData,
+            bounds: [-100, 35, -96, 39],
+            elevationRange: [0, 255],
+            elevationScale: 2,
+            meshMaxError: 4
+          })
+        ]),
     new DelaunayCoverLayer({id: 'test-wind-terrain', windField: field, elevationScale: 2}),
     new WindLayer({
       id: 'test-wind-arrows',
@@ -125,6 +131,11 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   let device: Device | undefined;
   let deck: Deck | undefined;
   let particleLayer: ParticleLayer | undefined;
+  let nativeDevice: NativeGpuDevice | undefined;
+  const validationErrors: string[] = [];
+  const captureValidationError = (event: NativeGpuError): void => {
+    validationErrors.push(event.error?.message ?? 'Unknown WebGPU validation error.');
+  };
   const elevationData = createElevationData();
 
   try {
@@ -133,6 +144,14 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       adapters: [webgl2Adapter, webgpuAdapter],
       createCanvasContext: {container: parent}
     });
+    if (type === 'webgpu') {
+      nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
+      nativeDevice?.addEventListener('uncapturederror', captureValidationError);
+    }
+    if (type === 'webgpu') {
+      nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
+      nativeDevice?.addEventListener('uncapturederror', captureValidationError);
+    }
 
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
@@ -166,7 +185,9 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       });
     });
 
-    expect(deck.device?.type).toBe(type);
+    await nativeDevice?.queue.onSubmittedWorkDone();
+    expect(device.type).toBe(type);
+    expect(validationErrors).toEqual([]);
     expect(particleLayer?.state.gpu).toBeInstanceOf(GpuParticleSimulation);
     expect(particleLayer?.state.gpu?.particleCount).toBe(4096);
     expect(particleLayer?.state.particles).toHaveLength(0);
@@ -194,6 +215,8 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       }
     }
   } finally {
+    nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
+    nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
     device?.destroy();
     parent.remove();
@@ -205,7 +228,9 @@ describe('wind showcase rendering', () => {
     await renderWindLayers('webgl');
   }, 20_000);
 
-  it('computes and animates GPU-resident wind particles on WebGPU', async ({skip}) => {
+  it('renders portable wind arrows, station terrain, and GPU-resident particles on WebGPU', async ({
+    skip
+  }) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       skip('This browser does not expose an available WebGPU adapter.');

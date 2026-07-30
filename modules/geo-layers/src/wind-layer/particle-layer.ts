@@ -14,8 +14,8 @@ import {sampleWindField, type WindBounds, type WindField} from './wind-data';
  * Configuration for the work-in-progress, GPU-advected {@link ParticleLayer}.
  *
  * @remarks
- * WebGL2 uses transform feedback and point primitives; WebGPU uses compute and portable
- * point sublayers. Particle positions are not read back during animation.
+ * WebGL2 uses transform feedback and point primitives; WebGPU uses compute and native
+ * GPU-buffer-backed point primitives. Particle positions are not read back during animation.
  */
 export type ParticleLayerProps = {
   /** Indexed, time-varying weather station data. */
@@ -99,35 +99,6 @@ class GpuParticleTrailLayer extends LineLayer {
       modules: [
         ...shaders.modules,
         windParticleTrailClip,
-        ...(this.context.device.type === 'webgl' ? [windParticleAgeFade] : [])
-      ]
-    };
-  }
-
-  use64bitPositions(): boolean {
-    return false;
-  }
-}
-
-/** GPU-computed particle heads use the same tightly packed float32 positions. */
-class GpuParticleHeadLayer extends ScatterplotLayer {
-  static layerName = 'GpuParticleHeadLayer';
-
-  initializeState(): void {
-    super.initializeState();
-    if (this.context.device.type === 'webgl') {
-      this.getAttributeManager()?.addInstanced({
-        windParticleAges: {size: 1, accessor: 'getParticleAge'}
-      });
-    }
-  }
-
-  getShaders() {
-    const shaders = super.getShaders();
-    return {
-      ...shaders,
-      modules: [
-        ...shaders.modules,
         ...(this.context.device.type === 'webgl' ? [windParticleAgeFade] : [])
       ]
     };
@@ -233,13 +204,9 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
   }
 
   /** Re-seeds on field changes and advances existing trails when animation time changes. */
-  updateState({props, oldProps, changeFlags}: UpdateParameters<this>): void {
+  updateState({props, oldProps}: UpdateParameters<this>): void {
     if (this.state.gpu) {
-      if (
-        changeFlags.dataChanged ||
-        props.windField !== oldProps.windField ||
-        props.numParticles !== oldProps.numParticles
-      ) {
+      if (props.windField !== oldProps.windField || props.numParticles !== oldProps.numParticles) {
         this.state.gpu.destroy();
         const gpu = new GpuParticleSimulation(
           this.context.device,
@@ -268,11 +235,7 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
       return;
     }
 
-    if (
-      changeFlags.dataChanged ||
-      props.windField !== oldProps.windField ||
-      props.numParticles !== oldProps.numParticles
-    ) {
+    if (props.windField !== oldProps.windField || props.numParticles !== oldProps.numParticles) {
       this.setState({particles: this.createParticles(), lastTime: props.time});
       return;
     }
@@ -390,41 +353,31 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
     const {color, widthMinPixels, pointRadiusPixels, time} = this.props;
     if (this.state.gpu) {
       const {gpu} = this.state;
-      const positions = {
+      const isWebgl = this.context.device.type === 'webgl';
+      const ages = isWebgl
+        ? {getParticleAge: {buffer: gpu.targetBuffer, size: 1, stride: 16, offset: 12}}
+        : {};
+      const trailPositions = {
         length: gpu.particleCount,
         attributes: {
           getSourcePosition: {buffer: gpu.sourceBuffer, size: 3, stride: 16},
           getTargetPosition: {buffer: gpu.targetBuffer, size: 3, stride: 16},
-          getPosition: {buffer: gpu.targetBuffer, size: 3, stride: 16},
-          getParticleAge: {buffer: gpu.targetBuffer, size: 1, stride: 16, offset: 12}
+          ...ages
         }
       };
-
-      const heads =
-        this.context.device.type === 'webgl'
-          ? new GpuParticlePointLayer(this.getSubLayerProps({id: 'heads'}), {
-              simulation: gpu,
-              color: [237, 247, 255, Math.min(255, (color[3] ?? 255) + 12)],
-              pointRadiusPixels,
-              pickable: false
-            })
-          : new GpuParticleHeadLayer(this.getSubLayerProps({id: 'heads'}), {
-              data: positions,
-              getFillColor: [237, 247, 255, Math.min(255, (color[3] ?? 255) + 12)],
-              getRadius: pointRadiusPixels,
-              radiusUnits: 'pixels',
-              radiusMinPixels: pointRadiusPixels,
-              billboard: true,
-              parameters: {depthWriteEnabled: false},
-              pickable: false
-            });
-      if (gpu.particleCount > 250_000) {
+      const heads = new GpuParticlePointLayer(this.getSubLayerProps({id: 'heads'}), {
+        simulation: gpu,
+        color: [237, 247, 255, Math.min(255, (color[3] ?? 255) + 12)],
+        pointRadiusPixels,
+        pickable: false
+      });
+      if (!isWebgl || gpu.particleCount > 250_000) {
         return [heads];
       }
 
       return [
         new GpuParticleTrailLayer(this.getSubLayerProps({id: 'trails'}), {
-          data: positions,
+          data: trailPositions,
           getColor: color,
           getWidth: 1,
           widthUnits: 'pixels',

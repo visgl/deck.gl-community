@@ -24,6 +24,7 @@ function createMockDevice(label: string): Device {
   canvas.dataset.deviceLabel = label;
 
   return {
+    destroy: vi.fn(),
     getDefaultCanvasContext: () => ({
       canvas
     })
@@ -173,6 +174,42 @@ describe('DeviceManagerController', () => {
       isLoading: false
     });
     expect(document.body.querySelector('[data-device-manager-canvas-parent]')).toBeNull();
+  });
+
+  it('destroys every cached backend when the manager is reset', async () => {
+    const webgpuDevice = createMockDevice('webgpu');
+    const webglDevice = createMockDevice('webgl');
+    createDeviceMock.mockImplementation(({type}: {type: 'webgl' | 'webgpu'}) =>
+      Promise.resolve(type === 'webgpu' ? webgpuDevice : webglDevice)
+    );
+
+    await manager.createDevice('webgpu');
+    await manager.createDevice('webgl');
+    manager.reset();
+    await Promise.resolve();
+
+    expect(webgpuDevice.destroy).toHaveBeenCalledOnce();
+    expect(webglDevice.destroy).toHaveBeenCalledOnce();
+  });
+
+  it('destroys devices that finish creation after the manager is reset', async () => {
+    const webgpuDevice = createMockDevice('webgpu');
+    let finishCreation: ((device: Device) => void) | undefined;
+    createDeviceMock.mockImplementation(
+      () =>
+        new Promise<Device>(resolve => {
+          finishCreation = resolve;
+        })
+    );
+
+    const pendingDevice = manager.createDevice('webgpu');
+    manager.reset();
+    finishCreation?.(webgpuDevice);
+    await pendingDevice;
+    await Promise.resolve();
+
+    expect(webgpuDevice.destroy).toHaveBeenCalledOnce();
+    expect(manager.getState().device).toBeUndefined();
   });
 
   it('stops notifying a listener after it unsubscribes', async () => {

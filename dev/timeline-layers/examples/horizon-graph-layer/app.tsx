@@ -2,8 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, OrthographicView, type OrthographicViewState} from '@deck.gl/core';
-import {LineLayer, TextLayer} from '@deck.gl/layers';
+import {
+  Deck,
+  OrthographicView,
+  type OrthographicViewState,
+  type ViewStateChangeParameters,
+  type Widget
+} from '@deck.gl/core';
+import {LineLayer} from '@deck.gl/layers';
+import {FastTextLayer} from '@deck.gl-community/infovis-layers';
 import {MultiHorizonGraphLayer} from '@deck.gl-community/timeline-layers';
 import {
   MarkdownPanel,
@@ -12,6 +19,7 @@ import {
   type SettingsState
 } from '@deck.gl-community/panels';
 import {BoxPanelWidget, SidebarPanelWidget} from '@deck.gl-community/widgets';
+import type {Device} from '@luma.gl/core';
 
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -81,8 +89,25 @@ type HorizonExampleConfig = {
   infoTitle?: string;
   infoMarkdown?: string;
   showInfoWidget?: boolean;
-  onDeckInitialized?: (deck: Deck) => void;
+  device?: Device;
+  widgets?: Widget[];
+  initialViewState?: OrthographicViewState;
+  onViewStateChange?: <ViewStateT extends OrthographicViewState>(
+    params: ViewStateChangeParameters<ViewStateT>
+  ) => ViewStateT;
+  onDeckInitialized?: (deck: Deck<OrthographicView>) => void;
 };
+
+type ResolvedHorizonExampleConfig = Required<
+  Pick<
+    HorizonExampleConfig,
+    'layerId' | 'sidebarTitle' | 'infoTitle' | 'infoMarkdown' | 'showInfoWidget'
+  >
+> &
+  Omit<
+    HorizonExampleConfig,
+    'layerId' | 'sidebarTitle' | 'infoTitle' | 'infoMarkdown' | 'showInfoWidget'
+  >;
 
 const VIEW = new OrthographicView({id: 'ortho'});
 
@@ -249,7 +274,10 @@ const SETTINGS_SCHEMA: SettingsSchema = {
   ]
 };
 
-const DEFAULT_EXAMPLE_CONFIG: Required<Omit<HorizonExampleConfig, 'onDeckInitialized'>> = {
+const DEFAULT_EXAMPLE_CONFIG: Pick<
+  ResolvedHorizonExampleConfig,
+  'layerId' | 'sidebarTitle' | 'infoTitle' | 'infoMarkdown' | 'showInfoWidget'
+> = {
   layerId: 'horizon-graph-layer',
   sidebarTitle: 'Horizon Graph Controls',
   infoTitle: 'HorizonGraphLayer',
@@ -266,7 +294,6 @@ export function mountHorizonGraphLayerExample(
   const rootElement = container.ownerDocument.createElement('div');
   applyElementStyle(rootElement, ROOT_STYLE);
   container.replaceChildren(rootElement);
-
   const state: ExampleState = {
     settings: cloneSettings(INITIAL_SETTINGS),
     derived: buildDerivedState(INITIAL_SETTINGS),
@@ -293,7 +320,7 @@ export function mountHorizonGraphLayerExample(
     panel: settingsPanel
   });
 
-  const widgets = [];
+  const widgets: Widget[] = [...(resolvedConfig.widgets ?? [])];
 
   if (resolvedConfig.showInfoWidget && resolvedConfig.infoTitle && resolvedConfig.infoMarkdown) {
     widgets.push(
@@ -315,11 +342,13 @@ export function mountHorizonGraphLayerExample(
   widgets.push(sidebarWidget);
 
   const deck = new Deck({
+    device: resolvedConfig.device,
     parent: rootElement,
     width: '100%',
     height: '100%',
     views: VIEW,
-    initialViewState: INITIAL_VIEW_STATE,
+    initialViewState: resolvedConfig.initialViewState ?? INITIAL_VIEW_STATE,
+    onViewStateChange: resolvedConfig.onViewStateChange,
     controller: true,
     widgets,
     layers: buildLayers(state, resolvedConfig),
@@ -336,7 +365,7 @@ export function mountHorizonGraphLayerExample(
       syncDeck();
     }
   });
-  config.onDeckInitialized?.(deck);
+  resolvedConfig.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();
@@ -371,10 +400,7 @@ export function mountMultiHorizonGraphLayerExample(
   });
 }
 
-function buildLayers(
-  state: ExampleState,
-  config: Required<Omit<HorizonExampleConfig, 'onDeckInitialized'>>
-) {
+function buildLayers(state: ExampleState, config: ResolvedHorizonExampleConfig) {
   const {settings, derived, mousePosition} = state;
   const {x, y, width} = settings.layout;
   const {height} = derived;
@@ -396,16 +422,15 @@ function buildLayers(
       width,
       height
     }),
-    new TextLayer<LabelDatum>({
+    new FastTextLayer<LabelDatum>({
       id: 'series-labels',
       data: derived.textLabels,
       getText: datum => datum.text,
       getPosition: datum => datum.position,
-      getSize: datum => datum.size,
+      size: 12,
       getColor: datum => datum.color,
-      getAngle: datum => datum.angle,
-      getTextAnchor: datum => datum.textAnchor,
-      getAlignmentBaseline: datum => datum.alignmentBaseline,
+      textAnchor: 'end',
+      alignmentBaseline: 'center',
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'normal'
     }),
@@ -418,16 +443,15 @@ function buildLayers(
       getWidth: 1,
       widthUnits: 'pixels'
     }),
-    new TextLayer<LabelDatum>({
+    new FastTextLayer<LabelDatum>({
       id: 'intersection-values',
       data: buildIntersectionData(state),
       getText: datum => datum.text,
       getPosition: datum => datum.position,
-      getSize: datum => datum.size,
+      size: 12,
       getColor: datum => datum.color,
-      getAngle: datum => datum.angle,
-      getTextAnchor: datum => datum.textAnchor,
-      getAlignmentBaseline: datum => datum.alignmentBaseline,
+      textAnchor: 'start',
+      alignmentBaseline: 'center',
       fontFamily: 'Arial, sans-serif',
       fontWeight: 'normal'
     })

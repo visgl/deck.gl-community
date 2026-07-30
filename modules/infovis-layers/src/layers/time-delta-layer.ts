@@ -8,6 +8,7 @@ import {LineLayer, TextLayer, type TextLayerProps} from '@deck.gl/layers';
 // import {PathStyleExtension} from '@deck.gl/extensions';
 
 import {formatTimeMs} from '../utils/format-utils';
+import {FastTextLayer} from './fast-text-layer/fast-text-layer';
 
 /** Properties supported by {@link TimeDeltaLayer}. */
 export type TimeDeltaLayerProps = LayerProps & _TimeDeltaLayerProps;
@@ -92,6 +93,7 @@ export class TimeDeltaLayer extends CompositeLayer<Required<_TimeDeltaLayerProps
     const timeDeltaPosition = [(startTimeMs + endTimeMs) / 2, y - 10];
     const timeDeltaMs = Math.abs(endTimeMs - startTimeMs);
     const timeDeltaLabel = formatTimeMs(timeDeltaMs, {space: false});
+    const labelData = [{position: timeDeltaPosition, text: timeDeltaLabel}];
 
     const timeLines = [
       {
@@ -133,23 +135,38 @@ export class TimeDeltaLayer extends CompositeLayer<Required<_TimeDeltaLayerProps
       }),
 
       // Label
-      new TextLayer({
-        id: 'header-time-delta-label',
-        data: [{position: timeDeltaPosition, text: timeDeltaLabel}],
-        getPosition: d => d.position,
-        getText: d => d.text,
-        characterSet: '-0123456789.dhmsµ',
-        getSize: fontSize,
-        fontFamily,
-        fontSettings,
-        fontWeight,
-        getColor: color,
-        getTextAnchor: 'middle',
-        getAlignmentBaseline: 'center',
-        background: true,
-        getBackgroundColor: [255 - color[0], 255 - color[1], 255 - color[2], 255],
-        backgroundPadding: [4, 2] // Horizontal and vertical padding
-      })
+      this.context?.device?.type === 'webgpu'
+        ? new FastTextLayer({
+            id: 'header-time-delta-label',
+            data: labelData,
+            getPosition: d => d.position,
+            getText: d => d.text,
+            characterSet: '-0123456789.dhmsµ',
+            size: fontSize,
+            fontFamily,
+            fontSettings,
+            fontWeight,
+            getColor: color,
+            textAnchor: 'middle',
+            alignmentBaseline: 'center'
+          })
+        : new TextLayer({
+            id: 'header-time-delta-label',
+            data: labelData,
+            getPosition: d => d.position,
+            getText: d => d.text,
+            characterSet: '-0123456789.dhmsµ',
+            getSize: fontSize,
+            fontFamily,
+            fontSettings,
+            fontWeight,
+            getColor: color,
+            getTextAnchor: 'middle',
+            getAlignmentBaseline: 'center',
+            background: true,
+            getBackgroundColor: [255 - color[0], 255 - color[1], 255 - color[2], 255],
+            backgroundPadding: [4, 2]
+          })
     ];
   }
 }

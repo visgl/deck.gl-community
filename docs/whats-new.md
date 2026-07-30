@@ -14,12 +14,16 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `SkyboxLayer`: validated the existing native WGSL and GLSL implementation with real WebGPU/WebGL2 device selection in the skybox example.
 - `BlockLayer`: added native WGSL for instanced block fills, outlines, projection, opacity, and picking while preserving the existing WebGL2 shaders.
 - `FastTextLayer`: added an upstream-informed WGSL compatibility shader for existing packed bitmap and signed-distance-field glyphs, font-atlas bindings, clipping, alignment, and WebGPU mipmaps.
+- `TimeDeltaLayer`: uses portable line guides and native-WGSL fast-text labels on WebGPU while preserving WebGL2 label backgrounds.
 - `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry, picking, and line-mode dependencies; path mode remains blocked on upstream `PathLayer` support.
 - `HorizonGraphLayer`: added native WGSL and portable `r32float` data-texture bindings.
 - `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.
+- `VerticalGridLayer`: validated viewport-driven timeline ticks and grid lines on both graphics backends.
+- `WindLayer` and `DelaunayCoverLayer`: render filled directional arrows and station-triangulated surfaces using native WebGL2/WebGPU triangle shaders.
 - `ParticleLayer`: restored the historical wind showcase's GPU-resident particle advection using
   WebGL2 transform feedback and native WebGPU compute, with no production particle readbacks and
-  support for up to one million animated particles.
+  support for up to one million animated particles; native point rendering preserves simulation
+  buffer ownership and defers resource cleanup until submitted GPU work completes.
 - `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceProcessLayer`: ported trace backgrounds, binary span blocks, outlines, labels, overflow labels, separators, and straight dependencies by reusing dual-backend community layers.
 - Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
 - The website injects luma.gl-style device tabs into skybox, path and dependency-marker, information-visualization, horizon-graph, and trace examples, with independent managers, WebGPU preference, WebGL2 fallback, and real renderer switching; standalone examples remain free of device-management dependencies.
@@ -34,6 +38,8 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
   vertically exaggerated image-based mountain terrain.
 - `DelaunayCoverLayer` exposes the weather-station mesh, while `DelaunayInterpolation` provides
   backend-independent explicit weather sampling and rasterization.
+- `WindLayer` arrows and `DelaunayCoverLayer` station terrain now use native GLSL/WGSL triangle
+  geometry; image-based mountain terrain remains dependent on upstream WebGPU support.
 - Added public weather data, field, measurement, bounds, sample, triangle, and field-options types,
   including robust Delaunay station triangulation for skinny station hulls.
 - Added a complete wind showcase guide, six reference pages with inline live examples, documented
@@ -52,11 +58,13 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
 - `BlockLayer` now provides paired WebGPU WGSL and WebGL2 GLSL shaders for instanced fills, outlines, projection, and picking.
 - `FastTextLayer` now renders its existing packed glyphs and generated font atlases on WebGPU and WebGL2; optimized upstream text and Arrow renderers remain planned for luma.gl v10.
+- `TimeDeltaLayer` now renders interval guides and headers using portable lines and fast text.
 
 ### `@deck.gl-community/timeline-layers`
 
 - `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
 - `HorizonGraphLayer` and `MultiHorizonGraphLayer` can render their floating-point data textures on WebGPU and WebGL2; stacked horizon dividers now use the upstream dual-backend `LineLayer`.
+- `VerticalGridLayer` is browser-verified on both graphics backends.
 
 ### `@deck.gl-community/trace-layers`
 

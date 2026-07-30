@@ -28,6 +28,14 @@ type GpuParticlePointUniforms = {
 
 const gpuParticlePointUniforms = {
   name: 'windParticlePoint',
+  source: /* wgsl */ `
+struct WindParticlePointUniforms {
+  color: vec4<f32>,
+  pointSize: f32,
+};
+
+@group(0) @binding(auto) var<uniform> windParticlePoint: WindParticlePointUniforms;
+`,
   vs: `layout(std140) uniform windParticlePointUniforms {
   vec4 color;
   float pointSize;
@@ -70,6 +78,37 @@ void main() {
   fragColor = vec4(particleColor.rgb, particleColor.a * edge);
 }`;
 
+const POINT_WEBGPU_SHADER = /* wgsl */ `
+struct WindParticlePointVaryings {
+  @builtin(position) position: vec4<f32>,
+  @location(0) color: vec4<f32>,
+};
+
+@vertex
+fn vertexMain(@location(0) particlePosition: vec4<f32>) -> WindParticlePointVaryings {
+  let fadeIn = smoothstep(0.0, 16.0, particlePosition.w);
+  let fadeOut = 1.0 - smoothstep(152.0, 180.0, particlePosition.w);
+  let projected = project_position_to_clipspace_and_commonspace(
+    particlePosition.xyz,
+    vec3<f32>(0.0),
+    vec3<f32>(0.0)
+  );
+
+  var varyings: WindParticlePointVaryings;
+  varyings.position = projected.clipPosition;
+  varyings.color = vec4<f32>(
+    windParticlePoint.color.rgb,
+    windParticlePoint.color.a * fadeIn * fadeOut * layer.opacity
+  );
+  return varyings;
+}
+
+@fragment
+fn fragmentMain(varyings: WindParticlePointVaryings) -> @location(0) vec4<f32> {
+  return varyings.color;
+}
+`;
+
 const defaultProps: DefaultProps<GpuParticlePointLayerProps> = {
   simulation: {type: 'object', value: undefined!},
   color: [237, 247, 255, 46],
@@ -80,7 +119,7 @@ const defaultProps: DefaultProps<GpuParticlePointLayerProps> = {
  * Draws one GPU vertex per simulated particle, matching the historical WebGL showcase.
  *
  * @remarks
- * This is an internal WebGL rendering primitive. Applications should construct
+ * This is an internal dual-backend rendering primitive. Applications should construct
  * {@link ParticleLayer} rather than importing this implementation detail.
  *
  * @internal
@@ -93,6 +132,7 @@ export class GpuParticlePointLayer extends Layer<Required<GpuParticlePointLayerP
 
   getShaders() {
     return super.getShaders({
+      source: POINT_WEBGPU_SHADER,
       vs: POINT_VERTEX_SHADER,
       fs: POINT_FRAGMENT_SHADER,
       modules: [project32, gpuParticlePointUniforms]
@@ -107,9 +147,11 @@ export class GpuParticlePointLayer extends Layer<Required<GpuParticlePointLayerP
       topology: 'point-list',
       vertexCount: simulation.particleCount,
       bufferLayout: [{name: 'particlePosition', format: 'float32x4'}],
-      attributes: {particlePosition: simulation.targetBuffer},
       parameters: {depthWriteEnabled: false}
     });
+    // Bind shared simulation storage after construction: Model-owned geometry must never
+    // take ownership of or destroy the particle simulation's ping-pong buffers.
+    model.setAttributes({particlePosition: simulation.targetBuffer});
     this.setState({model});
   }
 

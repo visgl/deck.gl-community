@@ -23,9 +23,9 @@ Please refer the documentation of each module for detailed upgrade guides.
   WebGL `Transform` and `Texture2D` dependencies.
 - `trailLength` controls the device-free CPU fallback; GPU rendering uses ping-pong buffers,
   lifetime fading, and high-density point rendering.
-- WebGPU support for `ParticleLayer` does not imply support for the complete showcase. Terrain,
-  filled wind arrows, and station polygons remain dependent on upstream `TerrainLayer`,
-  `PathLayer`, and `SolidPolygonLayer` compatibility. See the
+- WebGPU supports GPU-resident particles, filled wind arrows, and station-triangulated surfaces
+  through native shaders. Image-derived mountain terrain remains dependent on upstream
+  `TerrainLayer` compatibility. See the
   [WebGPU support matrix](./webgpu.md).
 
 ### `@deck.gl-community/panels`

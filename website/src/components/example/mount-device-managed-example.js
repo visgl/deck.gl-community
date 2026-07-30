@@ -10,7 +10,12 @@ export async function mountDeviceManagedExample(container, mount, mountProps = {
 
   const {DeviceManagerController, DeviceTabsWidget} = await import('@deck.gl-community/widgets');
   const manager = new DeviceManagerController();
-  let deck;
+  let cleanup;
+  let activeDevice;
+  let currentViewState = mountProps.initialViewState;
+  let disposed = false;
+  let mountGeneration = 0;
+  let mountQueue = Promise.resolve();
   const widgetOptions = typeof deviceTabs === 'object' ? deviceTabs : {};
   const deviceTabsWidget = new DeviceTabsWidget({
     id: `${mountLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-device-tabs`,
@@ -20,35 +25,60 @@ export async function mountDeviceManagedExample(container, mount, mountProps = {
   });
 
   const unsubscribe = manager.subscribe(({device}) => {
-    if (deck && device && deck.device !== device) {
-      deck.setProps({device});
+    if (!device || device === activeDevice || disposed) {
+      return;
     }
+
+    activeDevice = device;
+    const generation = ++mountGeneration;
+    mountQueue = mountQueue.then(async () => {
+      if (disposed || generation !== mountGeneration) {
+        return;
+      }
+
+      cleanup?.();
+      cleanup = undefined;
+      manager.reparentCanvas(container, device);
+
+      const nextCleanup = await mount(container, {
+        ...mountProps,
+        device,
+        initialViewState: currentViewState,
+        widgets: [...(mountProps.widgets ?? []), deviceTabsWidget],
+        onViewStateChange(params) {
+          currentViewState = params.viewState;
+          return mountProps.onViewStateChange?.(params) ?? params.viewState;
+        },
+        onDeckInitialized(deck) {
+          manager.reparentCanvas(deck.props.parent ?? container, device);
+          mountProps.onDeckInitialized?.(deck);
+        }
+      });
+
+      if (disposed || generation !== mountGeneration) {
+        nextCleanup?.();
+        return;
+      }
+      cleanup = nextCleanup;
+    });
   });
 
   try {
-    const cleanup = await mount(container, {
-      ...mountProps,
-      onDeckInitialized(initializedDeck) {
-        deck = initializedDeck;
-        manager.reparentCanvas(deck.props.parent ?? container);
-        const existingWidgets = deck.props.widgets ?? [];
-        if (!existingWidgets.includes(deviceTabsWidget)) {
-          deck.setProps({widgets: [...existingWidgets, deviceTabsWidget]});
-        }
-        mountProps.onDeckInitialized?.(deck);
-        void manager.initialize();
-      }
-    });
+    await manager.initialize();
+    await mountQueue;
 
     return () => {
+      disposed = true;
+      mountGeneration++;
       unsubscribe();
       cleanup?.();
-      deck = undefined;
       manager.reset();
     };
   } catch (error) {
+    disposed = true;
+    mountGeneration++;
     unsubscribe();
-    deck = undefined;
+    cleanup?.();
     manager.reset();
     throw error;
   }

@@ -269,6 +269,7 @@ export class GpuParticleSimulation {
   private readonly uniformValues = new Float32Array(12);
   private currentBufferIndex = 0;
   private currentWeatherFrame = -1;
+  private destroyed = false;
 
   /**
    * Allocates GPU particle buffers, cached weather textures, and the backend pipeline.
@@ -467,15 +468,40 @@ export class GpuParticleSimulation {
 
   /** Destroys owned particle buffers, weather textures, and the active GPU pipeline. */
   destroy(): void {
-    this.transform?.destroy();
-    this.computation?.destroy();
-    this.computeUniforms?.destroy();
-    for (const buffer of this.buffers) {
-      buffer.destroy();
+    if (this.destroyed) {
+      return;
     }
-    this.trailBuffer.destroy();
-    for (const texture of this.textures) {
-      texture.destroy();
+    this.destroyed = true;
+
+    const destroyResources = (): void => {
+      this.transform?.destroy();
+      this.computation?.destroy();
+      this.computeUniforms?.destroy();
+      for (const buffer of this.buffers) {
+        buffer.destroy();
+      }
+      this.trailBuffer.destroy();
+      for (const texture of this.textures) {
+        texture.destroy();
+      }
+    };
+
+    if (this.device.type === 'webgpu') {
+      const nativeDevice = (
+        this.device as Device & {
+          handle?: {queue: {onSubmittedWorkDone: () => Promise<void>}};
+        }
+      ).handle;
+      if (nativeDevice) {
+        // Layer replacement can happen inside the active render pass. Wait until that
+        // pass is submitted and complete before releasing its compute/vertex resources.
+        setTimeout(() => {
+          void nativeDevice.queue.onSubmittedWorkDone().then(destroyResources, destroyResources);
+        }, 0);
+        return;
+      }
     }
+
+    destroyResources();
   }
 }

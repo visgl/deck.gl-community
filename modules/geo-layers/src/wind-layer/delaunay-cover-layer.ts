@@ -3,9 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 import {CompositeLayer, type Color, type DefaultProps} from '@deck.gl/core';
-import {SolidPolygonLayer} from '@deck.gl/layers';
-
 import type {WindField, WindStation, WindTriangle} from './wind-data';
+import {WindTriangleLayer} from './wind-triangle-layer';
 
 /** Configuration for the work-in-progress, station-triangulated {@link DelaunayCoverLayer}. */
 export type DelaunayCoverLayerProps = {
@@ -96,11 +95,12 @@ export class DelaunayCoverLayer extends CompositeLayer<DelaunayCoverLayerProps> 
       )
     );
 
-    return new SolidPolygonLayer<TerrainTriangle>(this.getSubLayerProps({id: 'terrain'}), {
+    return new WindTriangleLayer<TerrainTriangle>(this.getSubLayerProps({id: 'terrain'}), {
       data,
-      getPolygon: triangle => triangle.polygon,
-      getFillColor: triangle => triangle.color,
-      material: true,
+      getFirstPosition: triangle => triangle.polygon[0],
+      getSecondPosition: triangle => triangle.polygon[1],
+      getThirdPosition: triangle => triangle.polygon[2],
+      getColor: triangle => triangle.color,
       pickable: false
     });
   }
