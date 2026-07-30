@@ -97,11 +97,12 @@ describe('community WebGPU shaders', () => {
     expect(shader.source).not.toContain('@binding(auto)');
   });
 
-  it('assembles horizon floating-point texture and uniform bindings', () => {
+  it('assembles horizon bit-preserving integer texture and uniform bindings', () => {
     const shader = assembleWebgpuShader(horizonSource, [project32, horizonLayerUniforms]);
 
-    expect(shader.source).toContain('texture_2d<f32>');
+    expect(shader.source).toContain('texture_2d<u32>');
     expect(shader.source).toContain('textureLoad(dataTexture');
+    expect(shader.source).toContain('bitcast<f32>');
     expect(shader.source).toContain('horizonLayer');
     expect(shader.source).not.toContain('@binding(auto)');
   });

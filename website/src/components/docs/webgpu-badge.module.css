@@ -1,0 +1,63 @@
+.badgeRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  min-height: 24px;
+  margin-bottom: -24px;
+  pointer-events: none;
+}
+
+.badge {
+  display: inline-flex;
+  overflow: hidden;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 18%);
+  pointer-events: auto;
+}
+
+.badge:hover {
+  color: #fff;
+  text-decoration: none;
+  filter: brightness(1.06);
+}
+
+.badge span {
+  padding: 0 7px;
+}
+
+.name {
+  background: #555;
+}
+
+.supported {
+  background: #2e7d32;
+}
+
+.partial {
+  background: #b7791f;
+}
+
+.unsupported {
+  background: #c62828;
+}
+
+.not-applicable {
+  background: #607d8b;
+}
+
+.mixed {
+  background: #2563eb;
+}
+
+@media (width <= 600px) {
+  .badgeRow {
+    justify-content: flex-start;
+    margin-bottom: 8px;
+  }
+}

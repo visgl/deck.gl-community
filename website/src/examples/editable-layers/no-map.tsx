@@ -4,8 +4,8 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample({
   title: 'No Map',
   code: `${GITHUB_TREE}/examples/editable-layers/no-map`,
-  async mount(container) {
+  async mount(container, props) {
     const {mountNoMapExample} = await import('../../../../examples/editable-layers/no-map/app');
-    return mountNoMapExample(container);
+    return mountNoMapExample(container, props);
   }
 }, {addInfoPanel: false});

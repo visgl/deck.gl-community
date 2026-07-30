@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {describe, it, expect} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 
-import {getArrowTransform, isEdgeDirected} from '../../src/layers/edge-layers/edge-arrow-layer';
+import {PolygonLayer} from '@deck.gl/layers';
+import {
+  EdgeArrowLayer,
+  getArrowPolygon,
+  getArrowTransform,
+  isEdgeDirected
+} from '../../src/layers/edge-layers/edge-arrow-layer';
 
 describe('EdgeArrowLayer helpers', () => {
   it('identifies directed edges', () => {
@@ -54,5 +60,49 @@ describe('EdgeArrowLayer helpers', () => {
 
     expect(position).toEqual([5, 5, 0]);
     expect(angle).toBe(0);
+  });
+
+  it('builds a portable arrow triangle at the target', () => {
+    const polygon = getArrowPolygon({
+      layout: {
+        sourcePosition: [0, 0, 0],
+        targetPosition: [10, 0, 0]
+      },
+      size: 4,
+      offset: [2, 1]
+    });
+
+    expect(polygon[0]).toEqual([8, 1, 0]);
+    expect(polygon[1]).toEqual([4, 2.2, 0]);
+    expect(polygon[2][0]).toBe(4);
+    expect(polygon[2][1]).toBeCloseTo(-0.2);
+    expect(polygon[2][2]).toBe(0);
+  });
+
+  it('renders directed edge arrows with PolygonLayer', () => {
+    const edge = {directed: true};
+    const layer = new EdgeArrowLayer({
+      id: 'portable-arrows',
+      data: [edge],
+      getLayoutInfo: () => ({
+        sourcePosition: [0, 0, 0],
+        targetPosition: [10, 0, 0]
+      }),
+      stylesheet: {
+        getDeckGLAccessors: () => ({
+          getColor: () => [255, 0, 0, 255],
+          getSize: () => 4,
+          getOffset: () => [0, 0]
+        }),
+        getDeckGLUpdateTriggers: () => ({})
+      }
+    } as any);
+    layer.getSubLayerProps = vi.fn(props => props) as any;
+
+    const [arrowLayer] = layer.renderLayers() as PolygonLayer[];
+
+    expect(arrowLayer).toBeInstanceOf(PolygonLayer);
+    expect(arrowLayer.props.filled).toBe(true);
+    expect(arrowLayer.props.stroked).toBe(false);
   });
 });

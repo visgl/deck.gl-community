@@ -148,10 +148,6 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
       nativeDevice?.addEventListener('uncapturederror', captureValidationError);
     }
-    if (type === 'webgpu') {
-      nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
-      nativeDevice?.addEventListener('uncapturederror', captureValidationError);
-    }
 
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
@@ -215,7 +211,6 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       }
     }
   } finally {
-    nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
     device?.destroy();

@@ -101,16 +101,25 @@ struct WindParticleUniforms {
   particleCount: f32,
 };
 
-@group(0) @binding(0) var windFrom: texture_2d<f32>;
-@group(0) @binding(1) var windSampler: sampler;
-@group(0) @binding(2) var windTo: texture_2d<f32>;
-@group(0) @binding(3) var<storage, read> particlePositions: array<vec4<f32>>;
-@group(0) @binding(4) var<storage, read_write> previousParticlePositions: array<vec4<f32>>;
-@group(0) @binding(5) var<storage, read_write> nextParticlePositions: array<vec4<f32>>;
-@group(0) @binding(6) var<uniform> windParticle: WindParticleUniforms;
+@group(0) @binding(0) var windFrom: texture_2d<u32>;
+@group(0) @binding(1) var windTo: texture_2d<u32>;
+@group(0) @binding(2) var<storage, read> particlePositions: array<vec4<f32>>;
+@group(0) @binding(3) var<storage, read_write> previousParticlePositions: array<vec4<f32>>;
+@group(0) @binding(4) var<storage, read_write> nextParticlePositions: array<vec4<f32>>;
+@group(0) @binding(5) var<uniform> windParticle: WindParticleUniforms;
 
 fn randomValue(value: vec2<f32>) -> f32 {
   return fract(sin(dot(value, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+}
+
+fn sampleWind(texture: texture_2d<u32>, uv: vec2<f32>) -> vec4<f32> {
+  let dimensions = textureDimensions(texture);
+  let texel = clamp(
+    vec2<i32>(uv * vec2<f32>(dimensions)),
+    vec2<i32>(0),
+    vec2<i32>(dimensions) - vec2<i32>(1)
+  );
+  return bitcast<vec4<f32>>(textureLoad(texture, texel, 0));
 }
 
 @compute @workgroup_size(256)
@@ -123,11 +132,7 @@ fn main(@builtin(global_invocation_id) invocation: vec3<u32>) {
   let particlePosition = particlePositions[index];
   let span = windParticle.bounds.zw - windParticle.bounds.xy;
   let uv = (particlePosition.xy - windParticle.bounds.xy) / span;
-  let wind = mix(
-    textureSampleLevel(windFrom, windSampler, uv, 0.0),
-    textureSampleLevel(windTo, windSampler, uv, 0.0),
-    windParticle.frameMix
-  );
+  let wind = mix(sampleWind(windFrom, uv), sampleWind(windTo, uv), windParticle.frameMix);
   var nextPosition = particlePosition.xy +
     wind.xy * windParticle.speedScale * windParticle.elapsedFrames;
   var age = particlePosition.w + windParticle.elapsedFrames;
@@ -140,7 +145,7 @@ fn main(@builtin(global_invocation_id) invocation: vec3<u32>) {
       randomValue(seed), randomValue(seed.yx + 7.13)
     );
     let candidateUV = (nextPosition - windParticle.bounds.xy) / span;
-    if (textureSampleLevel(windFrom, windSampler, candidateUV, 0.0).w < 0.5) {
+    if (sampleWind(windFrom, candidateUV).w < 0.5) {
       nextPosition = windParticle.bounds.xy + span * 0.5;
     }
     age = 0.0;
@@ -302,7 +307,9 @@ export class GpuParticleSimulation {
     const textureProps = {
       width: WIND_TEXTURE_WIDTH,
       height: WIND_TEXTURE_HEIGHT,
-      format: 'rgba32float' as const,
+      // Baseline WebGPU cannot bind rgba32float as a filterable texture. Store the identical
+      // float bits in an integer texture and recover them with bitcast in the compute shader.
+      format: device.type === 'webgpu' ? ('rgba32uint' as const) : ('rgba32float' as const),
       sampler: {
         minFilter: 'nearest' as const,
         magFilter: 'nearest' as const,
@@ -345,26 +352,19 @@ export class GpuParticleSimulation {
               type: 'texture',
               group: 0,
               location: 0,
-              sampleType: 'unfilterable-float'
-            },
-            {
-              name: 'windSampler',
-              type: 'sampler',
-              group: 0,
-              location: 1,
-              samplerType: 'non-filtering'
+              sampleType: 'uint'
             },
             {
               name: 'windTo',
               type: 'texture',
               group: 0,
-              location: 2,
-              sampleType: 'unfilterable-float'
+              location: 1,
+              sampleType: 'uint'
             },
-            {name: 'particlePositions', type: 'read-only-storage', group: 0, location: 3},
-            {name: 'previousParticlePositions', type: 'storage', group: 0, location: 4},
-            {name: 'nextParticlePositions', type: 'storage', group: 0, location: 5},
-            {name: 'windParticle', type: 'uniform', group: 0, location: 6}
+            {name: 'particlePositions', type: 'read-only-storage', group: 0, location: 2},
+            {name: 'previousParticlePositions', type: 'storage', group: 0, location: 3},
+            {name: 'nextParticlePositions', type: 'storage', group: 0, location: 4},
+            {name: 'windParticle', type: 'uniform', group: 0, location: 5}
           ]
         }
       });
@@ -405,9 +405,16 @@ export class GpuParticleSimulation {
       ((Math.floor(time) % this.field.frames.length) + this.field.frames.length) %
       this.field.frames.length;
     if (frame !== this.currentWeatherFrame) {
-      this.textures[0].writeData(getCachedParticleWindRaster(this.field, frame));
+      const fromRaster = getCachedParticleWindRaster(this.field, frame);
+      const toRaster = getCachedParticleWindRaster(
+        this.field,
+        (frame + 1) % this.field.frames.length
+      );
+      this.textures[0].writeData(
+        this.device.type === 'webgpu' ? new Uint32Array(fromRaster.buffer) : fromRaster
+      );
       this.textures[1].writeData(
-        getCachedParticleWindRaster(this.field, (frame + 1) % this.field.frames.length)
+        this.device.type === 'webgpu' ? new Uint32Array(toRaster.buffer) : toRaster
       );
       this.currentWeatherFrame = frame;
     }
@@ -451,7 +458,6 @@ export class GpuParticleSimulation {
       this.computeUniforms.write(this.uniformValues);
       this.computation.setBindings({
         windFrom: this.textures[0],
-        windSampler: this.textures[0].sampler,
         windTo: this.textures[1],
         particlePositions: input,
         previousParticlePositions: this.trailBuffer,

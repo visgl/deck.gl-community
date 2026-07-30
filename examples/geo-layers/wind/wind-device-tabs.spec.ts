@@ -35,7 +35,12 @@ const deviceTabs = vi.hoisted(() => {
       return manager;
     }),
     Widget: vi.fn(function DeviceTabsWidget(props: unknown) {
-      return {props};
+      return {
+        props,
+        onAdd: vi.fn(),
+        onRenderHTML: vi.fn(),
+        onRemove: vi.fn()
+      };
     })
   };
 });
@@ -98,7 +103,7 @@ describe('wind showcase graphics backend selector', () => {
     );
     expect(mount).toHaveBeenCalledOnce();
     expect(mount.mock.calls[0][1].device).toBe(deviceTabs.webgpuDevice);
-    expect(mount.mock.calls[0][1].widgets).toHaveLength(1);
+    expect(mount.mock.calls[0][1].widgets).toHaveLength(0);
     expect(deviceTabs.manager.initialize).toHaveBeenCalledOnce();
 
     mount.mock.calls[0][1].onViewStateChange({viewState: {longitude: -98}});

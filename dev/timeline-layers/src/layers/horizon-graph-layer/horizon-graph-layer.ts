@@ -85,13 +85,16 @@ export class HorizonGraphLayer<ExtraProps extends {} = {}> extends Layer<
     }
 
     // TODO: use the right way to only submit the minimum amount of data
-    const data = new Float32Array(dataTextureSize * dataTextureSize);
-    data.set(_data, 0);
+    const floatData = new Float32Array(dataTextureSize * dataTextureSize);
+    floatData.set(_data, 0);
+    const isWebGpu = device.type === 'webgpu';
 
     return {
       dataTexture: device.createTexture({
-        data,
-        format: 'r32float',
+        data: isWebGpu ? new Uint32Array(floatData.buffer) : floatData,
+        // WebGPU float32 textures are unfilterable on baseline adapters. Preserve every float bit
+        // in an integer texture and recover it with bitcast in WGSL; WebGL keeps the sampler path.
+        format: isWebGpu ? 'r32uint' : 'r32float',
         dimension: '2d',
         width: dataTextureSize,
         height: dataTextureSize,

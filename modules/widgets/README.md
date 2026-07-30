@@ -7,7 +7,7 @@ The deck.gl-community repository is semi-maintained. One of its goals is to coll
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/widgets.svg)](https://www.npmjs.com/package/@deck.gl-community/widgets)
 [![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/widgets.svg)](https://www.npmjs.com/package/@deck.gl-community/widgets)
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square")
 
 This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and `PanelWidget`, the deck adapter for panel-owned UI components.
 

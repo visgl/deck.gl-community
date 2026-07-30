@@ -3,7 +3,7 @@
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/timeline-layers.svg)](https://www.npmjs.com/package/@deck.gl-community/timeline-layers)
 [![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/timeline-layers.svg)](https://www.npmjs.com/package/@deck.gl-community/timeline-layers)
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square")
 
 Experimental timeline visualization layers for [deck.gl](https://deck.gl), including HorizonGraph primitives and timeline axes/grid utilities for compact time series displays.
 

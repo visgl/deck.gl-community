@@ -59,7 +59,7 @@ function ImperativeExampleHost({mount, mountLabel, deviceTabs, ...mountProps}) {
 }
 
 export default function makeImperativeExample(
-  {title, code, renderInfo = () => null, mount, parameters, mapStyle, data, deviceTabs},
+  {title, code, renderInfo = () => null, mount, parameters, mapStyle, data, deviceTabs = true},
   options
 ) {
   function ImperativeDemo(props) {
