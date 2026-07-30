@@ -92,8 +92,10 @@ const HEADLESS_BROWSER_PROVIDER =
           args: [
             '--enable-unsafe-webgpu',
             '--enable-unsafe-swiftshader',
+            '--use-gl=angle',
             '--use-angle=swiftshader',
-            '--enable-features=Vulkan,WebGPU'
+            '--use-webgpu-adapter=swiftshader',
+            '--use-gpu-in-tests'
           ]
         }
       })
