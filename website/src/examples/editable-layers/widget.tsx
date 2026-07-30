@@ -4,10 +4,10 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample({
   title: 'Editor (Widgets)',
   code: `${GITHUB_TREE}/examples/editable-layers/widget`,
-  async mount(container) {
+  async mount(container, props) {
     const {mountEditableLayersWidgetExample} = await import(
       '../../../../examples/editable-layers/widget/app'
     );
-    return mountEditableLayersWidgetExample(container);
+    return mountEditableLayersWidgetExample(container, props);
   }
 }, {addInfoPanel: false});

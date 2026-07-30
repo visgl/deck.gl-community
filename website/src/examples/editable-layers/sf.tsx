@@ -4,8 +4,8 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample({
   title: 'SF Polygons',
   code: `${GITHUB_TREE}/examples/editable-layers/sf`,
-  async mount(container) {
+  async mount(container, props) {
     const {mountSfExample} = await import('../../../../examples/editable-layers/sf/app');
-    return mountSfExample(container);
+    return mountSfExample(container, props);
   }
 }, {addInfoPanel: false});

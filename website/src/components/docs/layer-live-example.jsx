@@ -44,18 +44,6 @@ const GRAPH_LAYER_HIGHLIGHTS = new Set([
   'zoomable-text-layer'
 ]);
 
-const DEVICE_MANAGED_LAYER_HIGHLIGHTS = new Set([
-  'animation-layer',
-  'block-layer',
-  'dependency-arrow-layer',
-  'horizon-graph-layer',
-  'multi-horizon-graph-layer',
-  'path-marker-layer',
-  'path-outline-layer',
-  'skybox-layer',
-  'time-delta-layer'
-]);
-
 const INFO_COPY = {
   'arrow-layers': {
     title: 'GeoArrow layers',
@@ -86,14 +74,12 @@ function LayerLiveExampleHost({highlight, height}) {
         (container, mountProps) => mountLayerDocsExample(container, highlight, mountProps),
         {},
         {
-          deviceTabs: DEVICE_MANAGED_LAYER_HIGHLIGHTS.has(highlight)
-            ? {
-                placement:
-                  highlight === 'horizon-graph-layer' || highlight === 'multi-horizon-graph-layer'
-                    ? 'bottom-right'
-                    : 'top-right'
-              }
-            : false,
+          deviceTabs: {
+            placement:
+              highlight === 'horizon-graph-layer' || highlight === 'multi-horizon-graph-layer'
+                ? 'bottom-right'
+                : 'top-right'
+          },
           mountLabel: highlight
         }
       )
@@ -142,7 +128,7 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       const {mountBasemapLayerMapViewExample} = await import(
         '../../../../examples/layers/basemap-layer-map-view/app'
       );
-      return mountBasemapLayerMapViewExample(container);
+      return mountBasemapLayerMapViewExample(container, mountProps);
     }
     case 'dependency-arrow-layer':
     case 'path-marker-layer':
@@ -157,7 +143,11 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       const {mountSharedTile2DLayerExample} = await import(
         '../../../../examples/geo-layers/shared-tile-2d-layer/app'
       );
-      return mountSharedTile2DLayerExample(container, {mode: 'compact', showInfoWidget: false});
+      return mountSharedTile2DLayerExample(container, {
+        mode: 'compact',
+        showInfoWidget: false,
+        ...mountProps
+      });
     }
     case 'delaunay-cover-layer':
     case 'delaunay-interpolation':
@@ -169,19 +159,19 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       return mountWindExample(container, mountProps);
     }
     case 'global-grid-layer':
-      return mountGlobalGridLayerExample(container);
+      return mountGlobalGridLayerExample(container, mountProps);
     case 'tile-source-layer':
-      return mountTileSourceLayerExample(container);
+      return mountTileSourceLayerExample(container, mountProps);
     case 'editable-geojson-layer':
     case 'selection-layer': {
       const {mountGettingStartedExample} = await import(
         '../../../../examples/editable-layers/getting-started/app'
       );
-      return mountGettingStartedExample(container, {showControlsWidget: false});
+      return mountGettingStartedExample(container, {showControlsWidget: false, ...mountProps});
     }
     case 'tree-layer': {
       const {mountWildForestExample} = await import('../../../../examples/three/wild-forest/app');
-      return mountWildForestExample(container, {showControlsWidget: false});
+      return mountWildForestExample(container, {showControlsWidget: false, ...mountProps});
     }
     case 'horizon-graph-layer': {
       const {mountHorizonGraphLayerExample} = await import(
@@ -196,9 +186,9 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       return mountMultiHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
     case 'time-axis-layer':
-      return mountTimeAxisLayerExample(container);
+      return mountTimeAxisLayerExample(container, mountProps);
     case 'vertical-grid-layer':
-      return mountVerticalGridLayerExample(container);
+      return mountVerticalGridLayerExample(container, mountProps);
     case 'animation-layer':
     case 'block-layer':
     case 'time-delta-layer': {
@@ -213,13 +203,17 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
     }
     default:
       if (GRAPH_LAYER_HIGHLIGHTS.has(highlight)) {
-        return mountGraphLayerDocsExample(container, highlight);
+        return mountGraphLayerDocsExample(container, highlight, mountProps);
       }
-      return mountInfoDeck(container, INFO_COPY[highlight] ?? INFO_COPY['arrow-layers']);
+      return mountInfoDeck(
+        container,
+        INFO_COPY[highlight] ?? INFO_COPY['arrow-layers'],
+        mountProps
+      );
   }
 }
 
-async function mountGlobalGridLayerExample(container) {
+async function mountGlobalGridLayerExample(container, mountProps = {}) {
   const {Deck} = await import('@deck.gl/core');
   const {GlobalGridLayer, GeohashGrid} = await import('@deck.gl-community/geo-layers');
   const rootElement = createRoot(container);
@@ -232,16 +226,21 @@ async function mountGlobalGridLayerExample(container) {
   ];
 
   const deck = new Deck({
+    device: mountProps.device,
     parent: rootElement,
-    initialViewState: {
-      longitude: -122.42,
-      latitude: 37.77,
-      zoom: 10.5,
-      pitch: 35,
-      bearing: -20
-    },
+    initialViewState:
+      mountProps.initialViewState ??
+      {
+        longitude: -122.42,
+        latitude: 37.77,
+        zoom: 10.5,
+        pitch: 35,
+        bearing: -20
+      },
     controller: true,
     parameters: {clearColor: [0.94, 0.97, 1, 1]},
+    widgets: mountProps.widgets,
+    onViewStateChange: mountProps.onViewStateChange,
     layers: [
       new GlobalGridLayer({
         id: 'global-grid-layer-docs',
@@ -261,6 +260,7 @@ async function mountGlobalGridLayerExample(container) {
     ],
     getTooltip: ({object}) => object && `${object.cellId}: ${object.value}`
   });
+  mountProps.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();
@@ -269,21 +269,26 @@ async function mountGlobalGridLayerExample(container) {
   };
 }
 
-async function mountTileSourceLayerExample(container) {
+async function mountTileSourceLayerExample(container, mountProps = {}) {
   const {Deck} = await import('@deck.gl/core');
   const {TileSourceLayer} = await import('@deck.gl-community/geo-layers');
   const rootElement = createRoot(container);
   const tileSource = createCanvasTileSource(rootElement.ownerDocument);
 
   const deck = new Deck({
+    device: mountProps.device,
     parent: rootElement,
-    initialViewState: {
-      longitude: -122.42,
-      latitude: 37.77,
-      zoom: 9.5
-    },
+    initialViewState:
+      mountProps.initialViewState ??
+      {
+        longitude: -122.42,
+        latitude: 37.77,
+        zoom: 9.5
+      },
     controller: true,
     parameters: {clearColor: [0.94, 0.97, 1, 1]},
+    widgets: mountProps.widgets,
+    onViewStateChange: mountProps.onViewStateChange,
     layers: [
       new TileSourceLayer({
         id: 'tile-source-layer-docs',
@@ -292,6 +297,7 @@ async function mountTileSourceLayerExample(container) {
       })
     ]
   });
+  mountProps.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();
@@ -300,7 +306,7 @@ async function mountTileSourceLayerExample(container) {
   };
 }
 
-async function mountGraphLayerDocsExample(container, highlight) {
+async function mountGraphLayerDocsExample(container, highlight, mountProps = {}) {
   const {Deck, OrthographicView, COORDINATE_SYSTEM} = await import('@deck.gl/core');
   const {LineLayer, TextLayer} = await import('@deck.gl/layers');
   const rootElement = createRoot(container);
@@ -315,14 +321,18 @@ async function mountGraphLayerDocsExample(container, highlight) {
   });
 
   const deck = new Deck({
+    device: mountProps.device,
     parent: rootElement,
     views: new OrthographicView({id: 'graph-docs'}),
-    initialViewState: {target: [0, 0, 0], zoom: 0.25},
+    initialViewState: mountProps.initialViewState ?? {target: [0, 0, 0], zoom: 0.25},
     controller: true,
     parameters: {clearColor: [0.96, 0.98, 1, 1]},
+    widgets: mountProps.widgets,
+    onViewStateChange: mountProps.onViewStateChange,
     layers: Array.isArray(layer) ? layer : [layer],
     getTooltip: ({object}) => object?.label || object?._data?.label || object?.id || null
   });
+  mountProps.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();
@@ -695,7 +705,7 @@ function createStaticFlowDocsLayers({highlight, LineLayer, TextLayer, COORDINATE
   ];
 }
 
-async function mountTimeAxisLayerExample(container) {
+async function mountTimeAxisLayerExample(container, mountProps = {}) {
   const {Deck, OrthographicView} = await import('@deck.gl/core');
   const {LineLayer, TextLayer} = await import('@deck.gl/layers');
   const {TimeAxisLayer} = await import('@deck.gl-community/timeline-layers');
@@ -705,14 +715,17 @@ async function mountTimeAxisLayerExample(container) {
   rootElement.style.background = 'linear-gradient(180deg, #f8fafc 0%, #eef5ff 100%)';
 
   const deck = new Deck({
+    device: mountProps.device,
     parent: rootElement,
     views: new OrthographicView({id: 'timeline-docs'}),
-    initialViewState: {
+    initialViewState: mountProps.initialViewState ?? {
       target: [500, 0, 0],
       zoom: 0
     },
     controller: true,
     parameters: {clearColor: [0.97, 0.98, 1, 1]},
+    widgets: mountProps.widgets,
+    onViewStateChange: mountProps.onViewStateChange,
     layers: [
       new LineLayer({
         id: 'time-axis-docs-baseline',
@@ -743,6 +756,7 @@ async function mountTimeAxisLayerExample(container) {
       })
     ]
   });
+  mountProps.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();
@@ -751,7 +765,7 @@ async function mountTimeAxisLayerExample(container) {
   };
 }
 
-async function mountVerticalGridLayerExample(container) {
+async function mountVerticalGridLayerExample(container, mountProps = {}) {
   const {Deck, OrthographicView} = await import('@deck.gl/core');
   const {LineLayer, TextLayer} = await import('@deck.gl/layers');
   const {VerticalGridLayer} = await import('@deck.gl-community/timeline-layers');
@@ -761,14 +775,17 @@ async function mountVerticalGridLayerExample(container) {
   rootElement.style.background = 'linear-gradient(180deg, #fff7ed 0%, #f8fafc 100%)';
 
   const deck = new Deck({
+    device: mountProps.device,
     parent: rootElement,
     views: new OrthographicView({id: 'timeline-docs'}),
-    initialViewState: {
+    initialViewState: mountProps.initialViewState ?? {
       target: [500, 0, 0],
       zoom: 0
     },
     controller: true,
     parameters: {clearColor: [1, 0.97, 0.93, 1]},
+    widgets: mountProps.widgets,
+    onViewStateChange: mountProps.onViewStateChange,
     layers: [
       new VerticalGridLayer({
         id: 'vertical-grid-docs',
@@ -803,6 +820,7 @@ async function mountVerticalGridLayerExample(container) {
       })
     ]
   });
+  mountProps.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();
@@ -811,7 +829,7 @@ async function mountVerticalGridLayerExample(container) {
   };
 }
 
-async function mountInfoDeck(container, {title, markdown}) {
+async function mountInfoDeck(container, {title, markdown}, mountProps = {}) {
   const {Deck} = await import('@deck.gl/core');
   const {MarkdownPanel} = await import('@deck.gl-community/panels');
   const {BoxPanelWidget} = await import('@deck.gl-community/widgets');
@@ -819,12 +837,14 @@ async function mountInfoDeck(container, {title, markdown}) {
   rootElement.style.background = 'linear-gradient(135deg, #f8fafc 0%, #dbeafe 50%, #ecfeff 100%)';
 
   const deck = new Deck({
+    device: mountProps.device,
     parent: rootElement,
-    initialViewState: {longitude: 0, latitude: 0, zoom: 1},
+    initialViewState: mountProps.initialViewState ?? {longitude: 0, latitude: 0, zoom: 1},
     controller: false,
     parameters: {clearColor: [0.96, 0.98, 1, 1]},
     layers: [],
     widgets: [
+      ...(mountProps.widgets ?? []),
       new BoxPanelWidget({
         id: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-docs-info`,
         placement: 'top-left',
@@ -837,8 +857,10 @@ async function mountInfoDeck(container, {title, markdown}) {
           markdown
         })
       })
-    ]
+    ],
+    onViewStateChange: mountProps.onViewStateChange
   });
+  mountProps.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();

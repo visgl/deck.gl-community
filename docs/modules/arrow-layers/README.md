@@ -1,7 +1,7 @@
 # Overview
 
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square")
 
 This module provides deck.gl layers that accept Apache Arrow and [GeoArrow](https://geoarrow.org) tables. 
 These layers take advantage of the deck.gl [low-level binary interface](https://deck.gl/docs/developer-guide/performance#supply-attributes-directly) to provide binary arrow data from Apache Arrow tables directly to the GPU.

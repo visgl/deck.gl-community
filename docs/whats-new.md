@@ -36,7 +36,12 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
   including its picking-width shader customization.
 - `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceProcessLayer`: ported trace backgrounds, binary span blocks, outlines, labels, overflow labels, separators, and straight dependencies by reusing dual-backend community layers.
 - Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
-- The website injects luma.gl-style device tabs into skybox, path and dependency-marker, information-visualization, horizon-graph, and trace examples, with independent managers, WebGPU preference, WebGL2 fallback, and real renderer switching; standalone examples remain free of device-management dependencies.
+- Every website gallery example and live layer-reference example now receives a standalone
+  `DeviceTabsWidget` from the shared imperative host, with an independent device manager, WebGPU
+  preference, WebGL2 fallback, renderer remounting, and preserved view state.
+- Every documentation page now displays a generated WebGPU compatibility badge linked to the
+  support matrix. Verified and blocked layer pages override their package-level status, and
+  backend-neutral APIs are marked not applicable.
 
 ### `@deck.gl-community/geo-layers`
 

@@ -52,7 +52,13 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 
 ## Selecting a graphics backend
 
-The website injects luma.gl-style WebGPU/WebGL2 tabs into the selected gallery examples and their corresponding layer-reference examples. Its shared imperative-example host owns a separate `DeviceManagerController` and `DeviceTabsWidget` for each mounted surface, preserves the example's existing widgets and view state, and passes the selected luma.gl device to the actual `Deck` instance. Standalone examples stay independent: they only expose an optional `onDeckInitialized` callback so a website or another embedding application can configure their `Deck`.
+The website injects luma.gl-style WebGPU/WebGL2 tabs into every gallery example and live
+layer-reference example. Its shared imperative-example host owns a separate
+`DeviceManagerController` and standalone `DeviceTabsWidget` for each mounted surface, preserves the
+example's existing widgets and view state, and passes the selected luma.gl device to the actual
+`Deck` instance. Standalone examples stay independent: they only expose an optional
+`onDeckInitialized` callback so a website or another embedding application can configure their
+`Deck`.
 
 The `@deck.gl-community/widgets` package also exposes both primitives for applications that want to manage their own backend selection:
 
@@ -105,9 +111,11 @@ selected device; `deck.setProps({device})` does not migrate an existing renderer
 resources. Preserve view state across recreation, create only layers supported by the selected
 backend, and call `manager.reset()` after finalizing the renderer to destroy every cached device.
 
-The documentation website injects device tabs in its shared imperative-example host. Standalone
-example applications accept an optional device and widgets but do not own device management.
-Path outlines, path markers, and dependency routes now render through the selected backend.
+Every documentation page also displays a generated WebGPU status badge linked to this matrix.
+Specific verified or blocked layer pages override their package's aggregate status, while
+backend-neutral APIs are marked not applicable. Standalone example applications accept an optional
+device and widgets but do not own device management. Path outlines, path markers, and dependency
+routes now render through the selected backend.
 
 ## Compatibility roadmap
 
