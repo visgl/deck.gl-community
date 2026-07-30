@@ -6,6 +6,8 @@ Target Release Date: July 2026
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
+- Development now targets community `9.4.0-alpha.0`, deck.gl `9.4.0-alpha.2`, and luma.gl `9.4.0-alpha.1`; the Turf 7 and mjolnir.js 3.1 beta baselines keep editable and event-driven layers compatible with the 9.4 toolchain.
+
 ### WebGPU
 
 - Added the [WebGPU support matrix and migration roadmap](./webgpu.md), covering WebGL2 and WebGPU support by module and layer, upstream dependencies, and host integration limitations.

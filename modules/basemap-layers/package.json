@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/basemap-layers",
-  "version": "9.3.7",
+  "version": "9.4.0-alpha.0",
   "description": "Basemap layer and map-style helpers for deck.gl.",
   "license": "MIT",
   "keywords": [
@@ -52,11 +52,11 @@
     "zod": "^4.0.0"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.3.0",
-    "@deck.gl/geo-layers": "~9.3.0",
-    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/core": "~9.4.0-alpha.2",
+    "@deck.gl/geo-layers": "~9.4.0-alpha.2",
+    "@deck.gl/layers": "~9.4.0-alpha.2",
     "@loaders.gl/core": "^4.4.1",
-    "@luma.gl/core": "~9.3.2",
-    "@luma.gl/engine": "~9.3.2"
+    "@luma.gl/core": "~9.4.0-alpha.1",
+    "@luma.gl/engine": "~9.4.0-alpha.1"
   }
 }

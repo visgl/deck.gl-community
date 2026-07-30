@@ -549,10 +549,12 @@ function useGpuFrameTimer(enabled: boolean, getDeck: () => DeckStatsTarget | nul
 /**
  * Returns deck widgets with managed placement-local priorities applied.
  */
-function prioritizeManagedWidgets(widgets: Widget[]): Widget[] {
-  const prioritizedTopLeftWidgets: Widget[] = [];
-  const prioritizedTopRightWidgets: Widget[] = [];
-  const remainingWidgets: Widget[] = [];
+function prioritizeManagedWidgets(
+  widgets: NonNullable<DeckProps['widgets']>
+): NonNullable<DeckProps['widgets']> {
+  const prioritizedTopLeftWidgets: NonNullable<DeckProps['widgets']> = [];
+  const prioritizedTopRightWidgets: NonNullable<DeckProps['widgets']> = [];
+  const remainingWidgets: NonNullable<DeckProps['widgets']> = [];
   const topLeftPriorityIds = new Set<string>(TOP_LEFT_WIDGET_PRIORITY_ORDER);
   const topRightPriorityIds = new Set<string>(TOP_RIGHT_WIDGET_PRIORITY_ORDER);
 
