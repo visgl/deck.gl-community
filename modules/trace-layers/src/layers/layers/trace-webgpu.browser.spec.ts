@@ -8,6 +8,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
+import {releaseBrowserTestDevice} from '../../../../../test/browser-test-device';
 import {
   buildJSONTrace,
   buildTraceGraphDataFromJSONTrace,
@@ -212,7 +213,7 @@ async function renderTraceGraph(
   } finally {
     nativeGpuDevice?.removeEventListener('uncapturederror', handleValidationError);
     deck?.finalize();
-    device?.destroy();
+    releaseBrowserTestDevice(device);
     parent.remove();
   }
 }

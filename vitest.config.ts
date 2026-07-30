@@ -83,19 +83,20 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
 
 const HEADLESS_BROWSER_PROVIDER =
-  process.env.GITHUB_ACTIONS === 'true'
-    ? playwright({launchOptions: {channel: 'chrome'}})
-    : process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true'
-      ? playwright({
-          launchOptions: {
-            args: [
-              '--enable-unsafe-webgpu',
-              '--enable-unsafe-swiftshader',
-              '--use-angle=swiftshader',
-              '--enable-features=Vulkan,WebGPU'
-            ]
-          }
-        })
+  process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true'
+    ? playwright({
+        launchOptions: {
+          ...(process.env.GITHUB_ACTIONS === 'true' ? {channel: 'chrome'} : {}),
+          args: [
+            '--enable-unsafe-webgpu',
+            '--enable-unsafe-swiftshader',
+            '--use-angle=swiftshader',
+            '--enable-features=Vulkan,WebGPU'
+          ]
+        }
+      })
+    : process.env.GITHUB_ACTIONS === 'true'
+      ? playwright({launchOptions: {channel: 'chrome'}})
       : playwright();
 
 const CONFIG = defineConfig({

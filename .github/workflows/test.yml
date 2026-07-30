@@ -260,6 +260,8 @@ jobs:
 
       - name: Run headless browser tests
         run: yarn test-headless
+        env:
+          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
   website-build:
     runs-on: ubuntu-22.04

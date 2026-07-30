@@ -8,6 +8,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
+import {releaseBrowserTestDevice} from '../../../../test/browser-test-device';
 import {GpuParticleSimulation} from '../../src/wind-layer/gpu-particle-simulation';
 import {
   createWindField,
@@ -213,7 +214,7 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
-    device?.destroy();
+    releaseBrowserTestDevice(device);
     parent.remove();
   }
 }

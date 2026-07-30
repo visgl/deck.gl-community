@@ -8,6 +8,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
+import {releaseBrowserTestDevice} from '../../../test/browser-test-device';
 import {FastTextLayer} from '../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
@@ -88,7 +89,7 @@ async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<v
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
-    device?.destroy();
+    releaseBrowserTestDevice(device);
     parent.remove();
   }
 }
