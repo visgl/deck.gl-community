@@ -79,6 +79,10 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `FastTextLayer` now renders its existing packed glyphs and generated font atlases on WebGPU and WebGL2; optimized upstream text and Arrow renderers remain planned for luma.gl v10.
 - `TimeDeltaLayer` now renders interval guides and headers using portable lines and fast text.
 
+### `@deck.gl-community/graph-layers`
+
+- `GraphLayer` now accepts `layoutUpdateInterval` to throttle layout-driven redraws while preserving layout lifecycle callbacks.
+
 ### `@deck.gl-community/timeline-layers`
 
 - `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
