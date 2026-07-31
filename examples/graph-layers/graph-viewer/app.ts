@@ -66,7 +66,6 @@ import {
   type LayoutType
 } from './layout-options';
 import {EXAMPLES, filterExamplesByType} from './examples';
-import {createArrowGraphFromJson, type JsonGraph} from './sanitize-graph';
 import type {PropDescription} from './props-form';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -126,7 +125,6 @@ type GraphViewerRuntime = {
   layout: GraphLayout | null;
   dagLayout: CollapsableD3DagLayout | null;
   isDagLayout: boolean;
-  manualEngine: GraphEngine | null;
   graphLayer: GraphLayer | null;
   metadataLoading: boolean;
   layoutDescription?: string;
@@ -492,11 +490,7 @@ export function mountGraphViewerExample(
     const runtime = buildRuntime(state);
     currentRuntime = runtime;
 
-    if (runtime.manualEngine) {
-      state.resolvedEngine = runtime.manualEngine;
-    } else if (isRemoteExample(runtime.selectedExample)) {
-      state.resolvedEngine = null;
-    }
+    state.resolvedEngine = null;
 
     updateInlineMetadata(runtime);
     updateResolvedEngineMetadata(runtime);
@@ -533,9 +527,11 @@ export function mountGraphViewerExample(
 
   function syncLoadingOverlay() {
     loadingElement.hidden = !state.loading.isLoading;
+    loadingElement.style.display = state.loading.isLoading ? 'flex' : 'none';
   }
 
   function handleAfterRender() {
+    updateResolvedEngineFromLayer();
     if (state.loading.loaded && !state.loading.rendered) {
       state.loading = {
         loaded: true,
@@ -543,12 +539,20 @@ export function mountGraphViewerExample(
         isLoading: false
       };
       syncLoadingOverlay();
+      return;
     }
-    updateResolvedEngineFromLayer();
+    if (!state.loading.rendered && state.resolvedEngine) {
+      state.loading = {
+        loaded: true,
+        rendered: true,
+        isLoading: false
+      };
+      syncLoadingOverlay();
+    }
   }
 
   function updateResolvedEngineFromLayer() {
-    if (!deck || currentRuntime?.manualEngine) {
+    if (!deck) {
       return;
     }
 
@@ -801,15 +805,10 @@ export function mountGraphViewerExample(
       }
     }
 
-    const manualEngine =
-      graphData && layout
-        ? new GraphEngine({graph: createArrowGraphFromJson(graphData as JsonGraph), layout})
-        : null;
-
     const graphLayer = buildGraphLayer({
       selectedExample,
+      graphData,
       layout,
-      manualEngine,
       rankGrid: buildRankGrid(selectedLayout, layoutOptions, dagLayout),
       onLayoutStart: detail => {
         state.loading = {...INITIAL_LOADING_STATE};
@@ -824,7 +823,7 @@ export function mountGraphViewerExample(
         state.loading = {
           loaded: true,
           rendered: state.loading.rendered,
-          isLoading: !state.loading.rendered
+          isLoading: false
         };
         syncLoadingOverlay();
         viewportController.handleLayoutEvent(detail);
@@ -843,7 +842,6 @@ export function mountGraphViewerExample(
       layout,
       dagLayout,
       isDagLayout: selectedLayout === 'd3-dag-layout',
-      manualEngine,
       graphLayer,
       metadataLoading: Boolean(isRemoteExample(selectedExample) && !activeMetadata),
       layoutDescription: selectedExample.layoutDescriptions[selectedLayout]
@@ -866,8 +864,8 @@ export function mountGraphViewerExample(
 
 function buildGraphLayer({
   selectedExample,
+  graphData,
   layout,
-  manualEngine,
   rankGrid,
   onLayoutStart,
   onLayoutChange,
@@ -875,8 +873,8 @@ function buildGraphLayer({
   onDataLoad
 }: {
   selectedExample: ExampleDefinition;
+  graphData: ExampleGraphData | null;
   layout: GraphLayout | null;
-  manualEngine: GraphEngine | null;
   rankGrid: RankGridConfig | false;
   onLayoutStart: (detail?: GraphLayoutEventDetail) => void;
   onLayoutChange: (detail?: GraphLayoutEventDetail) => void;
@@ -899,11 +897,11 @@ function buildGraphLayer({
     ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
   } as const;
 
-  if (manualEngine) {
+  if (isInlineExample(selectedExample) && graphData) {
     return new GraphLayer({
       ...baseProps,
-      data: manualEngine,
-      engine: manualEngine
+      data: graphData,
+      onDataLoad
     });
   }
 

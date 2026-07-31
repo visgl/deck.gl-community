@@ -3,7 +3,6 @@
   "files": [
     "./app.ts",
     "./examples.ts",
-    "./layout-options.ts",
-    "./sanitize-graph.ts"
+    "./layout-options.ts"
   ]
 }
