@@ -149,7 +149,8 @@ function createTraceGraph(): TraceGraph {
 /** Renders the complete public graph layer with an actual selected luma device. */
 async function renderTraceGraph(
   type: 'webgl' | 'webgpu',
-  enableFastTextLayer: boolean
+  enableFastTextLayer: boolean,
+  lineRoutingMode: TraceVisSettings['lineRoutingMode'] = 'straight'
 ): Promise<void> {
   const parent = document.createElement('div');
   parent.style.width = '256px';
@@ -175,9 +176,11 @@ async function renderTraceGraph(
     nativeGpuDevice?.addEventListener('uncapturederror', handleValidationError);
     const graph = createTraceGraph();
     const layer = new TraceGraphLayer({
-      id: `trace-graph-${type}-${enableFastTextLayer ? 'fast-text' : 'default-text'}`,
+      id: `trace-graph-${type}-${lineRoutingMode}-${
+        enableFastTextLayer ? 'fast-text' : 'default-text'
+      }`,
       traceGraphs: [graph],
-      settings: {...TRACE_SETTINGS, enableFastTextLayer},
+      settings: {...TRACE_SETTINGS, enableFastTextLayer, lineRoutingMode},
       showRowSeparators: true
     });
     await new Promise<void>((resolve, reject) => {
@@ -244,5 +247,14 @@ describe('trace graph graphics backend compatibility', () => {
     }
 
     await renderTraceGraph('webgpu', true);
+  }, 30_000);
+
+  it('renders curved dependencies on WebGPU', async ({skip}) => {
+    const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
+    if (!gpu || !(await gpu.requestAdapter())) {
+      skip('This browser does not expose an available WebGPU adapter.');
+    }
+
+    await renderTraceGraph('webgpu', true, 'curve');
   }, 30_000);
 });

@@ -451,20 +451,18 @@ export function mountWindExample(
           elevationScale: ELEVATION_SCALE,
           opacity: 0.32
         }),
-      boundaries:
-        !isWebgpu &&
-        new GeoJsonLayer({
-          id: 'wind-state-boundaries',
-          data: US_STATE_BOUNDARIES,
-          filled: false,
-          stroked: true,
-          getLineColor: [177, 188, 205, 95],
-          getLineWidth: 1,
-          lineWidthUnits: 'pixels',
-          lineWidthMinPixels: 0.65,
-          parameters: {depthCompare: 'always', depthWriteEnabled: false},
-          pickable: false
-        }),
+      boundaries: new GeoJsonLayer({
+        id: 'wind-state-boundaries',
+        data: US_STATE_BOUNDARIES,
+        filled: false,
+        stroked: true,
+        getLineColor: [177, 188, 205, 95],
+        getLineWidth: 1,
+        lineWidthUnits: 'pixels',
+        lineWidthMinPixels: 0.65,
+        parameters: {depthCompare: 'always', depthWriteEnabled: false},
+        pickable: false
+      }),
       wind: createWindLayer(field),
       particles: createParticleLayer(field),
       labels: isWebgpu
