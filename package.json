@@ -12,31 +12,30 @@
   },
   "type": "module",
   "workspaces": [
-    "dev-modules/*",
     "modules/*",
     "dev/*",
-    "dev/timeline-layers/examples/*",
+    "modules/timeline-layers/examples/*",
     "examples/**"
   ],
   "scripts": {
-    "bootstrap": "ocular-bootstrap",
+    "bootstrap": "yarn && ocular-bootstrap",
     "build": "ocular-clean && ocular-build && npx lerna run build",
     "build-bundles": "node ./scripts/build-bundles.mjs",
-    "lint": "yarn workspace @deck.gl-community/devtools-extensions lint",
+    "lint": "ocular-lint",
     "lint-pre-commit": "yarn lint",
-    "lint-fix": "yarn workspace @deck.gl-community/devtools-extensions lint fix",
+    "lint-fix": "ocular-lint fix",
+    "playwright:install": "playwright install chromium",
     "publish-beta": "ocular-publish version-only-beta",
     "publish-prod": "ocular-publish version-only-prod",
-    "test": "yarn test-node",
-    "test-node": "vitest --project node",
-    "test-ci": "vitest run --project node --coverage",
-    "test-browser": "vitest --project browser",
-    "test-headless": "vitest run --project headless",
+    "test": "ocular-test node",
+    "test-node": "ocular-test node",
+    "test-ci": "ocular-test node --coverage",
+    "test-browser": "ocular-test browser",
+    "test-headless": "ocular-test headless",
     "metrics": "ocular-metrics",
     "update-release-branch": "scripts/update-release-branch.sh"
   },
   "devDependencies": {
-    "@deck.gl-community/devtools-extensions": "workspace:*",
     "@deck.gl/aggregation-layers": "~9.4.0-alpha.2",
     "@deck.gl/core": "~9.4.0-alpha.2",
     "@deck.gl/layers": "~9.4.0-alpha.2",
@@ -55,10 +54,9 @@
     "@types/bin-pack": "^1.0.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vis.gl/dev-tools": "patch:@vis.gl/dev-tools@npm%3A1.0.1#~/.yarn/patches/@vis.gl-dev-tools-npm-1.0.1-f38d363810.patch",
-    "@vis.gl/ts-plugins": "^1.0.0",
+    "@vis.gl/dev-tools": "2.0.0-alpha.6",
+    "@vis.gl/ts-plugins": "2.0.0-alpha.6",
     "@vitejs/plugin-react": "^5.1.4",
-    "@vitest/browser": "^4.0.18",
     "@vitest/browser-playwright": "^4.0.18",
     "@vitest/coverage-v8": "^4.0.18",
     "apache-arrow": "^17.0.0",
@@ -66,14 +64,13 @@
     "datauri": "^4.1.0",
     "ndarray": "^1.0.19",
     "ndarray-pixels": "^3.1.0",
-    "playwright": "^1.56.1",
+    "playwright": "^1.58.0",
     "pre-commit": "^1.2.2",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "typescript": "6.0.3",
     "vite": "^7.3.1",
-    "vitest": "^4.0.18",
-    "vitest-browser-react": "^2.0.5"
+    "vitest": "^4.0.18"
   },
   "resolutions": {
     "typescript": "6.0.3",
@@ -142,5 +139,5 @@
     "lint-pre-commit",
     "test"
   ],
-  "packageManager": "yarn@4.14.1"
+  "packageManager": "yarn@4.17.1+sha512.ccbfabf7d7b6b32075088be9386fb9a2e00bb6887ef07fa56effabc890a56d53da1ccc4128d62db245fcbd3961b236d75335bdf7d5320ed6eafb7588b7ad4697"
 }

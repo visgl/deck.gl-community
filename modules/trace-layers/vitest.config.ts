@@ -17,7 +17,7 @@ export default defineConfig({
       },
       {
         find: '@deck.gl-community/timeline-layers',
-        replacement: new URL('../../dev/timeline-layers/src/index.ts', import.meta.url).pathname
+        replacement: new URL('../timeline-layers/src/index.ts', import.meta.url).pathname
       },
       {
         find: '@deck.gl-community/widgets',

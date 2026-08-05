@@ -13,7 +13,7 @@ import {
   MultiHorizonGraphLayer,
   TimelineLayer,
   VerticalGridLayer
-} from '../../../dev/timeline-layers/src';
+} from '../../timeline-layers/src';
 import {BlockLayer, FastTextLayer, TimeDeltaLayer} from '../../infovis-layers/src';
 import {EditableGeoJsonLayer, ModifyMode} from '../../editable-layers/src';
 import {EdgeArrowLayer} from '../../graph-layers/src/layers/edge-layers/edge-arrow-layer';

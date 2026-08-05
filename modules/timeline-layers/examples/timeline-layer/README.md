@@ -49,4 +49,4 @@ See [`TimelineLayerProps`](../../src/layers/timeline-layer/timeline-types.ts) fo
 
 ## Context
 
-Originally prototyped in PR [#379](https://github.com/visgl/deck.gl-community/pull/379), refined in PR [#517](https://github.com/visgl/deck.gl-community/pull/517). Lives in `dev/timeline-layers` until promoted to `modules/` — tracked in [#38](https://github.com/visgl/deck.gl-community/issues/38).
+Originally prototyped in PR [#379](https://github.com/visgl/deck.gl-community/pull/379) and refined in PR [#517](https://github.com/visgl/deck.gl-community/pull/517).

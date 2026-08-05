@@ -175,13 +175,13 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
     }
     case 'horizon-graph-layer': {
       const {mountHorizonGraphLayerExample} = await import(
-        '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
+        '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'
       );
       return mountHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
     case 'multi-horizon-graph-layer': {
       const {mountMultiHorizonGraphLayerExample} = await import(
-        '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
+        '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'
       );
       return mountMultiHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
