@@ -31,6 +31,6 @@
     {"path": "../layers"},
     {"path": "../panels"},
     {"path": "../widgets"},
-    {"path": "../../dev/timeline-layers"}
+    {"path": "../timeline-layers"}
   ]
 }

@@ -7,7 +7,7 @@ const infovisLayersSource = fileURLToPath(
 const layersSource = fileURLToPath(new URL('../../../modules/layers/src', import.meta.url));
 const panelsSource = fileURLToPath(new URL('../../../modules/panels/src', import.meta.url));
 const timelineLayersSource = fileURLToPath(
-  new URL('../../../dev/timeline-layers/src', import.meta.url)
+  new URL('../../../modules/timeline-layers/src', import.meta.url)
 );
 const traceLayersSource = fileURLToPath(
   new URL('../../../modules/trace-layers/src', import.meta.url)
