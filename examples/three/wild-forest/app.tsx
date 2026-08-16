@@ -104,7 +104,7 @@ const ZONES: ZoneInfo[] = [
   {label: 'Pine Forest (Summer)', color: '#006400'},
   {label: 'Oak Grove (Autumn)', color: '#b45314'},
   {label: 'Cherry Blossom (Spring)', color: '#ffb4c8'},
-  {label: 'Date Palm Grove (Summer)', color: '#14911e'},
+  {label: 'Palm Grove (Summer)', color: '#14911e'},
   {label: 'Birch Glade (Autumn)', color: '#e6b928'},
   {label: 'Oak Silhouettes (Winter)', color: 'rgba(100,80,80,0.4)'},
   {label: 'Birch Grove (Spring)', color: '#96d26e'},
@@ -369,7 +369,7 @@ function generateForest(): TreeDatum[] {
       trunkHeightFraction: 0.72 + palmRng() * 0.15,
       season: 'summer',
       branchLevels: 0,
-      label: 'Date Palm',
+      label: 'Palm',
       crop: null
     });
   }

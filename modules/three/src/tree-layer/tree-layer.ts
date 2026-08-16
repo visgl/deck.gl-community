@@ -125,7 +125,7 @@ const ALL_TREE_TYPES: TreeType[] = ['pine', 'oak', 'palm', 'birch', 'cherry'];
 const CANOPY_TRUNK_OVERLAP = 0.22;
 
 /**
- * Extra date-palm shaft length, expressed as a fraction of canopy height.
+ * Extra palm shaft length, expressed as a fraction of canopy height.
  * The shaft terminates inside the crown heart so varying trunk/canopy ratios
  * cannot expose daylight between the two independently scaled meshes.
  */
@@ -288,7 +288,7 @@ type _TreeLayerProps<DataT> = {
    * Silhouette / species variant.
    * 'pine'   – layered conical tiers (evergreen)
    * 'oak'    – wide spherical canopy
-   * 'palm'   – ring-scarred date-palm trunk with arching pinnate fronds
+   * 'palm'   – ring-scarred palm trunk with arching pinnate fronds
    * 'birch'  – narrow oval canopy, pale bark
    * 'cherry' – round lush canopy, seasonal blossom
    * @default 'pine'
@@ -606,7 +606,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const {grouped, pineMeshes, liveCropPoints, droppedCropPoints} = this.state;
 
     // -----------------------------------------------------------------------
-    // 1. Trunk layers — date palms use their ring-scarred trunk mesh while
+    // 1. Trunk layers — palms use their ring-scarred trunk mesh while
     //    all other species continue to share the simpler tapered cylinder.
     // -----------------------------------------------------------------------
     const nonPalmTrunkData = ALL_TREE_TYPES.filter(type => type !== 'palm').flatMap(

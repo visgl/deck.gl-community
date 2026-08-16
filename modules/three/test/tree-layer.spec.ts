@@ -30,10 +30,10 @@ describe('TreeLayer', () => {
     expect(defaults.getSeason.value({})).toBe('summer');
   });
 
-  it('extends date-palm trunks into the crown', () => {
+  it('extends palm trunks into the crown', () => {
     const datum = {position: [0, 0] as [number, number]};
     const layer = new TreeLayer({
-      id: 'date-palm-crown-connection',
+      id: 'palm-crown-connection',
       data: [datum],
       getTreeType: () => 'palm',
       getHeight: () => 10,
@@ -103,10 +103,10 @@ describe('tree geometry generators', () => {
     expect(maxZ).toBeCloseTo(1, 1);
   });
 
-  it('date-palm trunk adds leaf-scar detail without changing unit bounds', () => {
+  it('palm trunk adds leaf-scar detail without changing unit bounds', () => {
     const basicTrunk = createTrunkMesh();
-    const datePalmTrunk = createDatePalmTrunkMesh();
-    const positions = datePalmTrunk.attributes.POSITION.value;
+    const palmTrunk = createDatePalmTrunkMesh();
+    const positions = palmTrunk.attributes.POSITION.value;
     let minZ = Infinity;
     let maxZ = -Infinity;
 
@@ -120,7 +120,7 @@ describe('tree geometry generators', () => {
     expect(maxZ).toBeLessThanOrEqual(1.01);
   });
 
-  it('date-palm crown has a dense radial, pinnate silhouette', () => {
+  it('palm crown has a dense radial, pinnate silhouette', () => {
     const mesh = createPalmCanopyMesh();
     const positions = mesh.attributes.POSITION.value;
     let minX = Infinity;
@@ -148,7 +148,7 @@ describe('tree geometry generators', () => {
     expect(maxZ).toBeGreaterThan(0.95);
   });
 
-  it('date-palm geometry is deterministic', () => {
+  it('palm geometry is deterministic', () => {
     const first = createPalmCanopyMesh();
     const second = createPalmCanopyMesh();
 

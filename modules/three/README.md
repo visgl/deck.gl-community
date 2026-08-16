@@ -21,7 +21,7 @@ Renders richly configurable 3D trees at geographic positions using procedural ge
 
 ### Features
 
-- **5 tree species / silhouettes**: pine (tiered cones), oak (sphere), date palm (ring-scarred trunk and pinnate fronds), birch (narrow oval), cherry (round sphere)
+- **5 tree species / silhouettes**: pine (tiered cones), oak (sphere), palm (ring-scarred trunk and pinnate fronds), birch (narrow oval), cherry (round sphere)
 - **Organic canopy geometry**: smooth low-frequency vertex jitter baked into each species mesh at init time — no runtime cost, no mesh gaps
 - **Per-tree variety**: position-derived random bearing and asymmetric XY scale give every instance a unique silhouette with zero extra draw calls
 - **Parametric geometry**: per-instance height, trunk-to-canopy ratio, trunk radius, canopy radius
@@ -184,7 +184,7 @@ type CropConfig = {
 
 ## Wild-Forest example
 
-A full demo with 9 forest zones (pines, oaks, date palms, birches, cherry blossoms, citrus orchards, almond groves) is available at `examples/three/wild-forest/`.
+A full demo with 9 forest zones (pines, oaks, palms, birches, cherry blossoms, citrus orchards, almond groves) is available at `examples/three/wild-forest/`.
 
 ```bash
 cd examples/three/wild-forest

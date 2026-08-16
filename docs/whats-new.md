@@ -103,10 +103,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 ### `@deck.gl-community/three`
 
-- `TreeLayer` now renders its `palm` silhouette as a recognizable date palm with a tapered,
-  ring-scarred trunk, a connected crown shaft, 20 mature arching fronds, 8 upright spear fronds,
-  and paired pinnate leaflets. The procedural crown remains one shared instanced mesh, and the
-  Wild Forest example includes a dedicated Date Palm Grove for visual inspection.
+- `TreeLayer`: improved `palm` silhouette with a detailed frond crown and ring-scarred trunk.
 
 ### `@deck.gl-community/widgets`
 

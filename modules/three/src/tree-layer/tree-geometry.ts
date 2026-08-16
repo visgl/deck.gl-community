@@ -171,11 +171,11 @@ export function createTrunkMesh(segments = 8): TreeMesh {
 }
 
 /**
- * Unit date-palm trunk mesh with a slender taper and raised leaf-scar rings.
+ * Unit palm trunk mesh with a slender taper and raised leaf-scar rings.
  * Extends from z=0 (base) to z=1 (top).
  *
  * The shared trunk accessor still controls the overall radius and height. The
- * extra geometry is generated once and instanced for every date palm.
+ * extra geometry is generated once and instanced for every palm.
  */
 export function createDatePalmTrunkMesh(segments = 10, scarRings = 14): TreeMesh {
   const geos: BufferGeometry[] = [];
@@ -319,7 +319,7 @@ function appendPalmLeaflet(
   );
 }
 
-/** Build paired pinnate leaflets along one date-palm frond. */
+/** Build paired pinnate leaflets along one palm frond. */
 function appendPalmFrondLeaflets(
   positions: number[],
   indices: number[],
@@ -354,7 +354,7 @@ function appendPalmFrondLeaflets(
 }
 
 /**
- * Unit date-palm crown with radial, arching fronds and paired pinnate leaflets.
+ * Unit palm crown with radial, arching fronds and paired pinnate leaflets.
  * Extends approximately one unit in XY and from z=0.1 to z=1.
  *
  * Fronds are intentionally modeled as real mesh ribbons instead of a solid
