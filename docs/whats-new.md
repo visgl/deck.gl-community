@@ -101,6 +101,13 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 - `<Panel />` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
 
+### `@deck.gl-community/three`
+
+- `TreeLayer` now renders its `palm` silhouette as a recognizable date palm with a tapered,
+  ring-scarred trunk, a connected crown shaft, 20 mature arching fronds, 8 upright spear fronds,
+  and paired pinnate leaflets. The procedural crown remains one shared instanced mesh, and the
+  Wild Forest example includes a dedicated Date Palm Grove for visual inspection.
+
 ### `@deck.gl-community/widgets`
 
 - `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
