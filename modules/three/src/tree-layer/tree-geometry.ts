@@ -5,10 +5,14 @@
 import {
   BufferGeometry,
   BufferAttribute,
+  CubicBezierCurve3,
   CylinderGeometry,
   ConeGeometry,
   SphereGeometry,
-  Matrix4
+  Matrix4,
+  TorusGeometry,
+  TubeGeometry,
+  Vector3
 } from 'three';
 
 /**
@@ -167,6 +171,32 @@ export function createTrunkMesh(segments = 8): TreeMesh {
 }
 
 /**
+ * Unit palm trunk mesh with a slender taper and raised leaf-scar rings.
+ * Extends from z=0 (base) to z=1 (top).
+ *
+ * The shared trunk accessor still controls the overall radius and height. The
+ * extra geometry is generated once and instanced for every palm.
+ */
+export function createDatePalmTrunkMesh(segments = 10, scarRings = 14): TreeMesh {
+  const geos: BufferGeometry[] = [];
+  const core = new CylinderGeometry(0.62, 1, 1, segments, scarRings);
+  core.applyMatrix4(Y_TO_Z_UP);
+  core.translate(0, 0, 0.5);
+  geos.push(core);
+
+  for (let i = 1; i <= scarRings; i++) {
+    const z = i / (scarRings + 1);
+    const trunkRadius = 1 - z * 0.38;
+    const scar = new TorusGeometry(trunkRadius * 0.96, 0.045, 3, segments);
+    scar.rotateZ((i % 2) * (Math.PI / segments));
+    scar.translate(0, 0, z);
+    geos.push(scar);
+  }
+
+  return extractMesh(mergeGeometries(geos));
+}
+
+/**
  * Unit pine canopy mesh: multiple tiered cones creating a Christmas tree silhouette.
  * Extends from z=0 (base of canopy) to z=1 (tip).
  *
@@ -249,19 +279,147 @@ export function createOakCanopyMesh(): TreeMesh {
   return extractMesh(geo);
 }
 
+/** Append a two-sided, tapered leaflet blade to a direct Z-up geometry buffer. */
+function appendPalmLeaflet(
+  positions: number[],
+  indices: number[],
+  base: Vector3,
+  direction: Vector3,
+  widthDirection: Vector3,
+  length: number,
+  width: number
+): void {
+  const tip = base.clone().addScaledVector(direction, length);
+  const middle = base.clone().lerp(tip, 0.52);
+  const left = middle.clone().addScaledVector(widthDirection, width);
+  const right = middle.clone().addScaledVector(widthDirection, -width);
+  const vertexBase = positions.length / 3;
+
+  // Duplicate the four vertices for the reverse winding. This keeps the thin
+  // blades visible from above and below without relying on material cull mode.
+  for (let side = 0; side < 2; side++) {
+    for (const point of [base, left, tip, right]) {
+      positions.push(point.x, point.y, point.z);
+    }
+  }
+
+  indices.push(
+    vertexBase,
+    vertexBase + 1,
+    vertexBase + 2,
+    vertexBase,
+    vertexBase + 2,
+    vertexBase + 3,
+    vertexBase + 4,
+    vertexBase + 6,
+    vertexBase + 5,
+    vertexBase + 4,
+    vertexBase + 7,
+    vertexBase + 6
+  );
+}
+
+/** Build paired pinnate leaflets along one palm frond. */
+function appendPalmFrondLeaflets(
+  positions: number[],
+  indices: number[],
+  curve: CubicBezierCurve3,
+  leafletPairs: number,
+  phase: number
+): void {
+  for (let i = 0; i < leafletPairs; i++) {
+    const t = 0.2 + (i / (leafletPairs - 1)) * 0.72;
+    const point = curve.getPoint(t);
+    const tangent = curve.getTangent(t).normalize();
+    const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
+    const fullness = Math.sin(((i + 0.75) / leafletPairs) * Math.PI);
+    const length = 0.055 + fullness * 0.095;
+    const width = 0.007 + fullness * 0.008;
+
+    for (const side of [-1, 1]) {
+      const base = point.clone().addScaledVector(sideways, side * 0.008);
+      const direction = sideways
+        .clone()
+        .multiplyScalar(side)
+        .addScaledVector(tangent, 0.18 + Math.sin(phase + i * 0.7) * 0.06)
+        .add(new Vector3(0, 0, 0.12 - t * 0.2))
+        .normalize();
+      const widthDirection = tangent
+        .clone()
+        .add(new Vector3(0, 0, 0.08))
+        .normalize();
+      appendPalmLeaflet(positions, indices, base, direction, widthDirection, length, width);
+    }
+  }
+}
+
 /**
- * Unit palm canopy mesh: a flat, wide disk crown typical of palm trees.
- * Extends from z=0 to z=0.35, radius=1.
+ * Unit palm crown with radial, arching fronds and paired pinnate leaflets.
+ * Extends approximately one unit in XY and from z=0.1 to z=1.
+ *
+ * Fronds are intentionally modeled as real mesh ribbons instead of a solid
+ * canopy blob. This preserves the characteristic feathered silhouette from
+ * both aerial and pitched map views while remaining one shared instanced mesh.
  */
 export function createPalmCanopyMesh(): TreeMesh {
-  // Flattened sphere acting as a spread crown
-  const geo = new SphereGeometry(0.7, 12, 5);
-  jitterSmooth(geo, 0.1, 4);
-  const flatten = new Matrix4().makeScale(1.4, 0.35, 1.4);
-  geo.applyMatrix4(flatten);
-  geo.applyMatrix4(Y_TO_Z_UP);
-  geo.translate(0, 0, 0.18);
-  return extractMesh(geo);
+  const geos: BufferGeometry[] = [];
+  const leafletPositions: number[] = [];
+  const leafletIndices: number[] = [];
+  const frondCount = 20;
+
+  for (let i = 0; i < frondCount; i++) {
+    const angle = (i / frondCount) * Math.PI * 2 + Math.sin(i * 5.37) * 0.07;
+    const radial = new Vector3(Math.cos(angle), Math.sin(angle), 0);
+    const tier = i % 4;
+    const length = 0.84 + ((i * 7) % 9) * 0.018;
+    const start = radial
+      .clone()
+      .multiplyScalar(0.035)
+      .setZ(0.43 + tier * 0.012);
+    const controlA = radial
+      .clone()
+      .multiplyScalar(0.28)
+      .setZ(0.72 - tier * 0.025);
+    const controlB = radial
+      .clone()
+      .multiplyScalar(0.68)
+      .setZ(0.55 - tier * 0.045);
+    const end = radial
+      .clone()
+      .multiplyScalar(length)
+      .setZ(0.25 - tier * 0.035);
+    const curve = new CubicBezierCurve3(start, controlA, controlB, end);
+
+    geos.push(new TubeGeometry(curve, 10, 0.012, 4, false));
+    appendPalmFrondLeaflets(leafletPositions, leafletIndices, curve, 11, angle);
+  }
+
+  // Younger upright fronds close the crown and create the distinctive central spear.
+  const uprightFrondCount = 8;
+  for (let i = 0; i < uprightFrondCount; i++) {
+    const angle = ((i + 0.5) / uprightFrondCount) * Math.PI * 2;
+    const radial = new Vector3(Math.cos(angle), Math.sin(angle), 0);
+    const start = radial.clone().multiplyScalar(0.025).setZ(0.44);
+    const controlA = radial.clone().multiplyScalar(0.12).setZ(0.82);
+    const controlB = radial.clone().multiplyScalar(0.38).setZ(1.04);
+    const end = radial.clone().multiplyScalar(0.62).setZ(0.96);
+    const curve = new CubicBezierCurve3(start, controlA, controlB, end);
+
+    geos.push(new TubeGeometry(curve, 8, 0.011, 4, false));
+    appendPalmFrondLeaflets(leafletPositions, leafletIndices, curve, 8, angle + 0.4);
+  }
+
+  const leaflets = new BufferGeometry();
+  leaflets.setAttribute('position', new BufferAttribute(new Float32Array(leafletPositions), 3));
+  leaflets.setIndex(new BufferAttribute(new Uint32Array(leafletIndices), 1));
+  geos.push(leaflets);
+
+  const crownHeart = new SphereGeometry(0.13, 8, 5);
+  crownHeart.scale(1, 1, 0.75);
+  crownHeart.translate(0, 0, 0.43);
+  geos.push(crownHeart);
+
+  return extractMesh(mergeGeometries(geos));
 }
 
 /**
