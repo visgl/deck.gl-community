@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/trace-layers",
-  "version": "9.4.0-alpha.1",
+  "version": "9.4.0-alpha.2",
   "description": "Trace visualization layers and React viewer components for deck.gl",
   "license": "MIT",
   "private": true,
