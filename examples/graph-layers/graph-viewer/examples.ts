@@ -656,7 +656,7 @@ const KNOWLEDGE_GRAPH_STYLE: ExampleStyles = {
       fontSize: 12,
       textAnchor: 'start',
       offset: [10, 0],
-      alignmentBaseline: 'middle',
+      alignmentBaseline: 'center',
       scaleWithZoom: false
     }
   ],
@@ -697,7 +697,7 @@ const MULTI_GRAPH_STYLE: ExampleStyles = {
       color: [255, 255, 255],
       fontSize: 14,
       textAnchor: 'middle',
-      alignmentBaseline: 'middle',
+      alignmentBaseline: 'center',
       scaleWithZoom: false
     }
   ],
