@@ -24,11 +24,6 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/timeline-layers` | `VerticalGridLayer` | ✅ | ✅ | Browser-verified portable `LineLayer` grid marks and viewport-driven ticks. |
 | `@deck.gl-community/timeline-layers` | `TimelineLayer` geometry | ✅ | ✅ | Browser-verified tracks, clips, scrubber polygons, and lines using upstream dual-backend layers. |
 | `@deck.gl-community/timeline-layers` | `TimelineLayer` labels and interactions | ✅ | 🚧 | Text labels and pointer/drag behavior still require stable WebGPU browser coverage. |
-| `@deck.gl-community/trace-layers` | `TraceGraphLayer` and `TracePreparedStateLayer` | ✅ | ✅ | Browser-verified span blocks, backgrounds, outlines, row separators, fast labels, and straight dependency markers. |
-| `@deck.gl-community/trace-layers` | `TraceProcessLayer` | ✅ | ✅ | Automatically selects WebGPU-compatible binary blocks, fast span and overflow labels, and straight dependency rendering. |
-| `@deck.gl-community/trace-layers` | Counter sparklines | ✅ | ✅ | Preserves every sparkline vertex as a dual-backend `LineLayer` segment. |
-| `@deck.gl-community/trace-layers` | Curved dependencies and dashed separators | ✅ | 🚧 | Curves depend on upstream `ArcLayer`; portable separators use solid horizontal lines. |
-| `@deck.gl-community/trace-layers` | `DeckTraceGraph` and Tracevis overview | ✅ | 🚧 | Managed devices and backend-neutral timing are available; complete legend, minimap, picking, and application validation remains in progress. |
 | `@deck.gl-community/graph-layers` | `GraphLayer`, `EdgeLayer`, and node layers | ✅ | 🚧 | Static path edges, arrow decorators, and rounded nodes are portable; complete graph styling, images, labels, layouts, and picking still require end-to-end validation. |
 | `@deck.gl-community/graph-layers` | `RoundedRectangleLayer` | ✅ | ✅ | Rounded corners are CPU-tessellated and rendered with upstream dual-backend `PolygonLayer`. |
 | `@deck.gl-community/graph-layers` | `PathEdgeLayer` and `EdgeArrowLayer` | ✅ | ✅ | Browser-verified upstream path rendering and polygon arrowheads. |

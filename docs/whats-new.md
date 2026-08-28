@@ -81,16 +81,6 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `HorizonGraphLayer` and `MultiHorizonGraphLayer` can render their floating-point data textures on WebGPU and WebGL2; stacked horizon dividers now use the upstream dual-backend `LineLayer`.
 - `VerticalGridLayer` is browser-verified on both graphics backends.
 
-### `@deck.gl-community/trace-layers`
-
-- Trace graph data, layout, style, runtime-ref, Chrome trace, Perfetto trace, and Arrow ingestion APIs now ship from normalized `trace`, `layers`, `loaders`, and `react` package subpaths.
-- `TraceEngine` now owns mounted trace selection, collapse, layout, prepared scene, and diagnostics state below React; `DeckTraceGraph` renders an engine instead of receiving the full controlled trace-view state directly.
-- `TraceChunkStore` now exposes source-owned graph-data materialization and retained-state diagnostics for incremental windows, while `TraceStoreLayer` composes that flow as a low-level deck layer.
-- `DeckTraceGraph`, deck controllers/layers, trace loaders, and the Tracevis React surface now consume shared `@deck.gl-community/panels`, `@deck.gl-community/widgets`, and `@deck.gl-community/infovis-layers` APIs instead of vendored upstream copies.
-- Main trace rendering, binary span geometry, straight dependency arrows, row separators, span borders, overflow labels, and counter sparklines now work on WebGPU and WebGL2 using shared portable layers.
-- Managed trace viewers accept caller-owned rendering devices and backend-neutral GPU-timing callbacks.
-- Added the website Tracevis example for exercising trace loading, selection, catalog, and Studio visualization settings workflows.
-
 ### `@deck.gl-community/react`
 
 - `<Panel />` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.

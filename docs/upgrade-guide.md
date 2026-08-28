@@ -74,33 +74,6 @@ Please refer the documentation of each module for detailed upgrade guides.
   `@deck.gl-community/panels`.
 - New API: `SplitterPanel` composes the first panel in one resizable pane and the remaining panels in a second pane.
 
-### `@deck.gl-community/trace-layers`
-
-- Breaking change: package subpaths were normalized:
-  - `@deck.gl-community/trace-layers/trace-graph` -> `@deck.gl-community/trace-layers/trace`
-  - `@deck.gl-community/trace-layers/deck-trace-layers` -> `@deck.gl-community/trace-layers/layers`
-  - `@deck.gl-community/trace-layers/trace-loaders` -> `@deck.gl-community/trace-layers/loaders`
-  - `@deck.gl-community/trace-layers/tracevis` -> `@deck.gl-community/trace-layers/react`
-- Breaking change: trace-layers no longer owns vendored community panel/widget
-  helpers or vendored deck fast-text/view-layout helpers.
-- Breaking change: `DeckTraceGraph` now accepts `{engine, className?, reactConfig?}` instead of
-  the previous graph/settings/collapse/selection callback prop set. Mount `TraceEngine`, sync
-  durable inputs into it, and subscribe to `TraceEngineUpdate` when host persistence is needed.
-- Breaking change: `TraceChunkStore` no longer exposes the old store-owned window graph snapshot
-  compatibility flow. Select descriptors, materialize immutable `TraceGraphData` through the
-  source-owned `TraceChunkWindowGraphMaterializer`, and wrap it in `TraceGraph`.
-- Migration:
-  - Import panel definitions, settings managers, commands, keyboard shortcuts,
-    and panel containers from `@deck.gl-community/panels`.
-  - Import deck widget adapters, `OmniBoxWidget`, toast/time/heap widgets, and
-    Studio settings widget helpers from `@deck.gl-community/widgets`.
-  - Import `FastTextLayer`, UTF8 Arrow string-view helpers, and view-layout
-    helpers from `@deck.gl-community/infovis-layers`.
-  - Replace old `DeckTraceGraph` controlled props with `TraceEngineInputs` plus
-    `DeckTraceGraphConfig`.
-  - Replace old `TraceStoreLayer` sources with sources that provide
-    `materializeTraceGraphData`.
-
 ### `@deck.gl-community/react`
 
 - Breaking change: `WidgetPanel` was renamed to `Panel`.

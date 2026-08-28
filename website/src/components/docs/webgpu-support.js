@@ -13,8 +13,6 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/timeline-layers/api-reference/horizon-graph-layer',
   'modules/timeline-layers/api-reference/multi-horizon-graph-layer',
   'modules/timeline-layers/api-reference/vertical-grid-layer',
-  'modules/trace-layers/api-reference/layers/trace-graph-layer',
-  'modules/trace-layers/api-reference/layers/trace-prepared-state-layer'
 ]);
 
 const UNSUPPORTED_DOC_IDS = new Set([
@@ -38,7 +36,6 @@ const MODULE_STATUS = {
   react: 'not-applicable',
   three: 'unsupported',
   'timeline-layers': 'partial',
-  'trace-layers': 'partial',
   widgets: 'supported'
 };
 
