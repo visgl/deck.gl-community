@@ -99,4 +99,4 @@ Hour offset applied before timestamp-mode labels are formatted.
 
 ## Source
 
-[dev/timeline-layers/src/layers/time-axis-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/dev/timeline-layers/src/layers/time-axis-layer.ts)
+[modules/timeline-layers/src/layers/time-axis-layer.ts](https://github.com/visgl/deck.gl-community/tree/master/modules/timeline-layers/src/layers/time-axis-layer.ts)

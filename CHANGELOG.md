@@ -1,5 +1,11 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.0-alpha.2
+
+- feat(three): render detailed palms (#716)
+- chore: migrate to dev-tools v2 (#711)
+- feat: expand WebGPU layer coverage and documentation (#705)
+
 ## v9.4.0-alpha.1
 
 - chore: target deck.gl 9.4.0-alpha.2 and luma.gl 9.4.0-alpha.1 (#701)

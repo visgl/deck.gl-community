@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/timeline-layers",
-  "version": "9.4.0-alpha.1",
+  "version": "9.4.0-alpha.2",
   "description": "Layers for compact timeline visualizations in deck.gl",
   "license": "MIT",
   "publishConfig": {
@@ -33,15 +33,20 @@
     "test-watch": "vitest"
   },
   "dependencies": {
+    "@luma.gl/shadertools": "~9.4.0-alpha.1"
+  },
+  "peerDependencies": {
     "@deck.gl/core": "~9.4.0-alpha.2",
     "@deck.gl/layers": "~9.4.0-alpha.2",
     "@loaders.gl/core": "^4.4.1",
     "@luma.gl/core": "~9.4.0-alpha.1",
-    "@luma.gl/engine": "~9.4.0-alpha.1",
-    "@luma.gl/shadertools": "~9.4.0-alpha.1"
+    "@luma.gl/engine": "~9.4.0-alpha.1"
   },
   "devDependencies": {
+    "@deck.gl/core": "~9.4.0-alpha.2",
+    "@deck.gl/layers": "~9.4.0-alpha.2",
     "@deck.gl/test-utils": "~9.4.0-alpha.2",
+    "@loaders.gl/core": "^4.4.1",
     "@luma.gl/core": "~9.4.0-alpha.1",
     "@luma.gl/engine": "~9.4.0-alpha.1",
     "@luma.gl/webgpu": "~9.4.0-alpha.1",

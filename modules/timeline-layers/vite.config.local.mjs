@@ -1,4 +1,4 @@
-// Allows examples in dev/timeline-layers/examples/ to be built against
+// Allows examples in modules/timeline-layers/examples/ to be built against
 // the source code in this repo instead of installed node_modules.
 
 import {defineConfig} from 'vite';
@@ -15,7 +15,7 @@ export default defineConfig(async () => {
     resolve: {
       alias: {
         ...aliases,
-        '@deck.gl-community/timeline-layers': join(rootDir, './dev/timeline-layers/src'),
+        '@deck.gl-community/timeline-layers': join(rootDir, './modules/timeline-layers/src'),
         'react': join(rootDir, './node_modules/react'),
         'react-dom': join(rootDir, './node_modules/react-dom'),
       }

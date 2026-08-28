@@ -7,6 +7,7 @@ import type {Color, DefaultProps, LayerProps, Position} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {
   createTrunkMesh,
+  createDatePalmTrunkMesh,
   createPineCanopyMesh,
   createOakCanopyMesh,
   createPalmCanopyMesh,
@@ -102,6 +103,7 @@ const DEFAULT_CANOPY_COLORS: Record<TreeType, Record<Season, Color>> = {
 // ---------------------------------------------------------------------------
 
 const TRUNK_MESH = createTrunkMesh();
+const DATE_PALM_TRUNK_MESH = createDatePalmTrunkMesh();
 
 const CANOPY_MESHES: Record<TreeType, ReturnType<typeof createTrunkMesh>> = {
   pine: createPineCanopyMesh(3),
@@ -121,6 +123,13 @@ const ALL_TREE_TYPES: TreeType[] = ['pine', 'oak', 'palm', 'birch', 'cherry'];
  * 0.22 means the canopy base sits 22% of canopy-height below the trunk top.
  */
 const CANOPY_TRUNK_OVERLAP = 0.22;
+
+/**
+ * Extra palm shaft length, expressed as a fraction of canopy height.
+ * The shaft terminates inside the crown heart so varying trunk/canopy ratios
+ * cannot expose daylight between the two independently scaled meshes.
+ */
+const DATE_PALM_TRUNK_CANOPY_EXTENSION = 0.24;
 
 // ---------------------------------------------------------------------------
 // Crop helpers
@@ -279,7 +288,7 @@ type _TreeLayerProps<DataT> = {
    * Silhouette / species variant.
    * 'pine'   – layered conical tiers (evergreen)
    * 'oak'    – wide spherical canopy
-   * 'palm'   – tall thin trunk with flat crown
+   * 'palm'   – ring-scarred palm trunk with arching pinnate fronds
    * 'birch'  – narrow oval canopy, pale bark
    * 'cherry' – round lush canopy, seasonal blossom
    * @default 'pine'
@@ -597,34 +606,61 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const {grouped, pineMeshes, liveCropPoints, droppedCropPoints} = this.state;
 
     // -----------------------------------------------------------------------
-    // 1. Trunk layer — one layer for ALL tree types, shared cylinder geometry
+    // 1. Trunk layers — palms use their ring-scarred trunk mesh while
+    //    all other species continue to share the simpler tapered cylinder.
     // -----------------------------------------------------------------------
-    const trunkLayer = new SimpleMeshLayer(
-      this.getSubLayerProps({
-        id: 'trunks',
-        data: this.props.data,
-        mesh: TRUNK_MESH,
-        getPosition: d => {
-          const pos = getPosition(d);
-          return [pos[0], pos[1], getElevation(d) || 0];
-        },
-        getScale: d => {
-          const h = getHeight(d) * sizeScale;
-          const f = getTrunkHeightFraction(d);
-          const r = getTrunkRadius(d) * sizeScale;
-          return [r, r, h * f];
-        },
-        getColor: d => {
-          const explicit = getTrunkColor(d);
-          if (explicit) return explicit;
-          const type = getTreeType(d) || 'pine';
-          return DEFAULT_TRUNK_COLORS[type] ?? DEFAULT_TRUNK_COLORS.pine;
-        },
-        pickable: this.props.pickable,
-        material: {ambient: 0.45, diffuse: 0.55, shininess: 4},
-        updateTriggers: {getScale: sizeScale}
-      })
+    const nonPalmTrunkData = ALL_TREE_TYPES.filter(type => type !== 'palm').flatMap(
+      type => grouped[type]
     );
+    const buildTrunkLayer = (
+      id: string,
+      data: unknown[],
+      mesh: ReturnType<typeof createTrunkMesh>,
+      canopyExtension = 0
+    ) =>
+      new SimpleMeshLayer(
+        this.getSubLayerProps({
+          id,
+          data,
+          mesh,
+          getPosition: d => {
+            const pos = getPosition(d);
+            return [pos[0], pos[1], getElevation(d) || 0];
+          },
+          getScale: d => {
+            const h = getHeight(d) * sizeScale;
+            const f = getTrunkHeightFraction(d);
+            const r = getTrunkRadius(d) * sizeScale;
+            const trunkHeight = h * f;
+            const canopyHeight = h * (1 - f);
+            return [r, r, trunkHeight + canopyHeight * canopyExtension];
+          },
+          getColor: d => {
+            const explicit = getTrunkColor(d);
+            if (explicit) return explicit;
+            const type = getTreeType(d) || 'pine';
+            return DEFAULT_TRUNK_COLORS[type] ?? DEFAULT_TRUNK_COLORS.pine;
+          },
+          pickable: this.props.pickable,
+          material: {ambient: 0.45, diffuse: 0.55, shininess: 4},
+          updateTriggers: {getScale: sizeScale}
+        })
+      );
+    const trunkLayers = [
+      ...(nonPalmTrunkData.length > 0
+        ? [buildTrunkLayer('trunks', nonPalmTrunkData, TRUNK_MESH)]
+        : []),
+      ...(grouped.palm.length > 0
+        ? [
+            buildTrunkLayer(
+              'trunks-palm',
+              grouped.palm,
+              DATE_PALM_TRUNK_MESH,
+              DATE_PALM_TRUNK_CANOPY_EXTENSION
+            )
+          ]
+        : [])
+    ];
 
     // -----------------------------------------------------------------------
     // 2. Canopy layers
@@ -688,6 +724,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       );
     }
 
-    return [trunkLayer, ...canopyLayers, ...cropLayers];
+    return [...trunkLayers, ...canopyLayers, ...cropLayers];
   }
 }

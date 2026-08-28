@@ -1,8 +1,8 @@
 const SUPPORTED_DOC_IDS = new Set([
   'modules/geo-layers/api-reference/delaunay-cover-layer',
-  'modules/geo-layers/api-reference/delaunay-interpolation',
+  'modules/geo-layers/api-reference/global-grid-layer',
   'modules/geo-layers/api-reference/particle-layer',
-  'modules/geo-layers/api-reference/wind-field',
+  'modules/geo-layers/api-reference/tile-grid-layer',
   'modules/geo-layers/api-reference/wind-layer',
   'modules/graph-layers/api-reference/layers/edge-arrow-layer',
   'modules/graph-layers/api-reference/layers/path-edge-layer',
@@ -21,6 +21,26 @@ const UNSUPPORTED_DOC_IDS = new Set([
   'modules/graph-layers/api-reference/layers/flow-path-layer'
 ]);
 
+const NOT_APPLICABLE_DOC_IDS = new Set([
+  'modules/basemap-layers/api-reference/map-style',
+  'modules/basemap-layers/api-reference/map-style-loader',
+  'modules/geo-layers/api-reference/a5-grid',
+  'modules/geo-layers/api-reference/delaunay-interpolation',
+  'modules/geo-layers/api-reference/geohash-grid',
+  'modules/geo-layers/api-reference/global-grid',
+  'modules/geo-layers/api-reference/h3-grid',
+  'modules/geo-layers/api-reference/quadkey-grid',
+  'modules/geo-layers/api-reference/s2-grid',
+  'modules/geo-layers/api-reference/shared-tileset-2d',
+  'modules/geo-layers/api-reference/wind-field'
+]);
+
+const NOT_APPLICABLE_DOC_ID_PATTERNS = [
+  /^modules\/editable-layers\/api-reference\/(?:edit-modes|widgets)\//,
+  /^modules\/graph-layers\/api-reference\/(?:internal|layouts|loaders|styling)\//,
+  /^modules\/graph-layers\/api-reference\/(?:classic-graph|edge|graph|node|tabular-graph)$/,
+];
+
 const MODULE_STATUS = {
   'arrow-layers': 'partial',
   'basemap-layers': 'partial',
@@ -34,7 +54,7 @@ const MODULE_STATUS = {
   leaflet: 'unsupported',
   panels: 'not-applicable',
   react: 'not-applicable',
-  three: 'unsupported',
+  three: 'partial',
   'timeline-layers': 'partial',
   widgets: 'supported'
 };
@@ -73,6 +93,12 @@ export function getDocWebGpuStatus(docId = '') {
   }
   if (UNSUPPORTED_DOC_IDS.has(docId)) {
     return 'unsupported';
+  }
+  if (
+    NOT_APPLICABLE_DOC_IDS.has(docId) ||
+    NOT_APPLICABLE_DOC_ID_PATTERNS.some(pattern => pattern.test(docId))
+  ) {
+    return 'not-applicable';
   }
 
   const moduleName = /^modules\/([^/]+)/.exec(docId)?.[1];

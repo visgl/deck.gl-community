@@ -30,18 +30,20 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
   `float32-filterable`.
 - `RoundedRectangleLayer`, `PathEdgeLayer`, and `EdgeArrowLayer`: replaced WebGL-only graph
   primitives with CPU-tessellated polygons and browser-verified upstream path rendering.
-- GeoArrow path and solid-polygon layers now have browser coverage for zero-copy binary attributes
-  on WebGL2 and WebGPU.
+- GeoArrow column, heatmap, path, point-cloud, polygon, scatterplot, and solid-polygon layers now
+  have browser coverage for Arrow binary attributes on WebGL2 and WebGPU. The compatibility matrix
+  records the remaining baseline vertex-buffer limit in `GeoArrowArcLayer`.
 - `EditableGeoJsonLayer`: browser-verified polygon, path, and edit-handle rendering on WebGPU,
   including its picking-width shader customization.
-- `TraceGraphLayer`, `TracePreparedStateLayer`, and `TraceProcessLayer`: ported trace backgrounds, binary span blocks, outlines, labels, overflow labels, separators, and straight dependencies by reusing dual-backend community layers.
-- Trace counter sparklines now preserve their full geometry using portable `LineLayer` segments.
+- `GlobalGridLayer`, `TileGridLayer` borders, and the wind showcase's state boundaries now have
+  local-data browser coverage on WebGL2 and WebGPU.
 - Every website gallery example and live layer-reference example now receives a standalone
   `DeviceTabsWidget` from the shared imperative host, with an independent device manager, WebGPU
   preference, WebGL2 fallback, renderer remounting, and preserved view state.
 - Every documentation page now displays a generated WebGPU compatibility badge linked to the
   support matrix. Verified and blocked layer pages override their package-level status, and
-  backend-neutral APIs are marked not applicable.
+  backend-neutral data, grid-adapter, layout, loader, mode, and trace-model APIs are marked not
+  applicable.
 
 ### `@deck.gl-community/geo-layers`
 
@@ -85,13 +87,17 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 - `<Panel />` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
 
+### `@deck.gl-community/three`
+
+- `TreeLayer`: improved `palm` silhouette with a detailed frond crown and ring-scarred trunk.
+
 ### `@deck.gl-community/widgets`
 
 - `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
 - Thin named adapters now cover real panel containers plus specialized toolbar
   and toast components without duplicating panel rendering logic.
 - `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
-- `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode Tracevis integrations.
+- `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode integrations.
 - `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
 - `createStudioSettingsWidget` and `updateStudioSettingsWidget` now host the shared Studio settings panel through deck widget chrome.
 

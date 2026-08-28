@@ -42,7 +42,7 @@ import type {
 } from '@deck.gl/core';
 import type {ShaderModule} from '@luma.gl/shadertools';
 
-/** Fast text layer props that intentionally cover dense Tracevis-style span labels. */
+/** Fast text layer props that intentionally cover dense timeline-style span labels. */
 export type _FastTextLayerProps<DataT> = {
   /** Source label rows. */
   data: LayerDataSource<DataT>;

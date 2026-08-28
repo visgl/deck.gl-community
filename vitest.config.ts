@@ -37,7 +37,7 @@ const ALIASES = [
   },
   {
     find: /^@deck\.gl-community\/timeline-layers$/,
-    replacement: fileURLToPath(new URL('./dev/timeline-layers/src/index.ts', import.meta.url))
+    replacement: fileURLToPath(new URL('./modules/timeline-layers/src/index.ts', import.meta.url))
   },
   {
     find: '@deck.gl-community/basemaps/style-spec',
