@@ -13,8 +13,6 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/timeline-layers/api-reference/horizon-graph-layer',
   'modules/timeline-layers/api-reference/multi-horizon-graph-layer',
   'modules/timeline-layers/api-reference/vertical-grid-layer',
-  'modules/trace-layers/api-reference/layers/trace-graph-layer',
-  'modules/trace-layers/api-reference/layers/trace-prepared-state-layer'
 ]);
 
 const UNSUPPORTED_DOC_IDS = new Set([
@@ -41,7 +39,6 @@ const NOT_APPLICABLE_DOC_ID_PATTERNS = [
   /^modules\/editable-layers\/api-reference\/(?:edit-modes|widgets)\//,
   /^modules\/graph-layers\/api-reference\/(?:internal|layouts|loaders|styling)\//,
   /^modules\/graph-layers\/api-reference\/(?:classic-graph|edge|graph|node|tabular-graph)$/,
-  /^modules\/trace-layers\/api-reference\/trace\//
 ];
 
 const MODULE_STATUS = {
@@ -59,7 +56,6 @@ const MODULE_STATUS = {
   react: 'not-applicable',
   three: 'partial',
   'timeline-layers': 'partial',
-  'trace-layers': 'partial',
   widgets: 'supported'
 };
 

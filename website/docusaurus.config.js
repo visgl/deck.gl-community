@@ -7,12 +7,8 @@ const darkCodeTheme = themes.dracula;
 
 const webpack = require('webpack');
 const {resolve} = require('path');
-const autoprefixer = require('autoprefixer');
-const tailwindcss = require('tailwindcss');
 const websiteReact = resolve('node_modules/react');
 const websiteReactDom = resolve('node_modules/react-dom');
-const tracevisExampleNodeModules = resolve('../examples/trace-layers/tracevis/node_modules');
-const tracevisTailwindConfig = resolve('../examples/trace-layers/tracevis/tailwind.config.ts');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -70,15 +66,6 @@ const config = {
   ],
 
   plugins: [
-    function tracevisTailwindPlugin() {
-      return {
-        name: 'tracevis-tailwind',
-        configurePostCss(postCssOptions) {
-          postCssOptions.plugins.push(tailwindcss(tracevisTailwindConfig), autoprefixer);
-          return postCssOptions;
-        }
-      };
-    },
     // Improve build performance by disabling expensive optimizations
     // https://github.com/facebook/docusaurus/discussions/11199
     function disableExpensiveBundlerOptimizationPlugin() {
@@ -98,7 +85,7 @@ const config = {
       {
         debug: true,
         resolve: {
-          modules: [resolve('node_modules'), resolve('../node_modules'), tracevisExampleNodeModules],
+          modules: [resolve('node_modules'), resolve('../node_modules')],
           alias: {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/basemap-layers': resolve('../modules/basemap-layers/src'),
@@ -113,7 +100,6 @@ const config = {
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
             '@deck.gl-community/panels': resolve('../modules/panels/src'),
-            '@deck.gl-community/trace-layers': resolve('../modules/trace-layers/src'),
             '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
             '@deck.gl/aggregation-layers': resolve('../node_modules/@deck.gl/aggregation-layers'),
             '@deck.gl/arcgis': resolve('../node_modules/@deck.gl/arcgis'),

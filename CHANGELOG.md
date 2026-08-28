@@ -23,9 +23,6 @@ finish draw-polygon mode cartesian and add tests (#641)
 Fix editable terrain no-pick events
 fix: double-offset fallback with TerrainExtension
 Remove unused test PNGs (#657)
-feat(trace-layers) Add trace-layers implementation (#653)
-chore(infovis-layers) Upstream helpers needed for trace-layers (#650)
-chore(trace-layers) Scaffold trace-layers module (#649)
 fix(panels) remove unused widgets dependency (#648)
 
 ## v9.3.5
