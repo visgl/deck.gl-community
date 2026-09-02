@@ -29,8 +29,10 @@ describe('BlockLayer dense rectangle controls', () => {
   });
 
   it('applies stroke alignment behavior in WebGL2', () => {
+    expect(blockLayerVertexShader).toContain('pixelSize.x < 0.0 ? -1.0 : 1.0');
+    expect(blockLayerVertexShader).toContain('pixelSize.y < 0.0 ? -1.0 : 1.0');
     expect(blockLayerVertexShader).toContain(
-      'vec2 strokePadding = vec2(lineWidth * block.strokeOffset);'
+      'vec2 strokePadding = strokeDirection * lineWidth * block.strokeOffset;'
     );
     expect(blockLayerVertexShader).toContain(
       'project_pixel_size(unitPosition * pixelSize - strokePadding)'

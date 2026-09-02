@@ -51,7 +51,11 @@ void main(void) {
   pixelSize.x = clamp_signed_size(pixelSize.x, block.widthMinPixels, effectiveWidthMaxPixels);
   pixelSize.y = clamp_signed_size(pixelSize.y, block.heightMinPixels, block.sizeMaxPixels);
   lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), block.lineWidthUnits).x;
-  vec2 strokePadding = vec2(lineWidth * block.strokeOffset);
+  vec2 strokeDirection = vec2(
+    pixelSize.x < 0.0 ? -1.0 : 1.0,
+    pixelSize.y < 0.0 ? -1.0 : 1.0
+  );
+  vec2 strokePadding = strokeDirection * lineWidth * block.strokeOffset;
   pixelSize += 2.0 * strokePadding;
   if (widthBelowCutoff) {
     pixelSize = vec2(0.0);
