@@ -222,13 +222,13 @@ describe('TimeMeasureWidget boundary editing', () => {
     selectRange(widget, 100, 250);
     onSelectionChange.mockClear();
 
-    const leftPanStart = createGestureEvent({}, {x: 100, y: 100});
-    eventManager.handlers.get('panstart')?.(leftPanStart);
+    const pointerMovePanStart = createGestureEvent({button: -1, buttons: 1}, {x: 100, y: 100});
+    eventManager.handlers.get('panstart')?.(pointerMovePanStart);
 
     expect(eventManager.handlerOptions.get('panstart')?.priority).toBeGreaterThan(0);
-    expect(leftPanStart.preventDefault).toHaveBeenCalledTimes(1);
-    expect(leftPanStart.stopImmediatePropagation).toHaveBeenCalledTimes(1);
-    expect(leftPanStart.stopPropagation).toHaveBeenCalledTimes(1);
+    expect(pointerMovePanStart.preventDefault).toHaveBeenCalledTimes(1);
+    expect(pointerMovePanStart.stopImmediatePropagation).toHaveBeenCalledTimes(1);
+    expect(pointerMovePanStart.stopPropagation).toHaveBeenCalledTimes(1);
 
     widget.onDragEnd(createPickingInfo(100), createGestureEvent({}, {x: 100, y: 100}) as never);
     onSelectionChange.mockClear();

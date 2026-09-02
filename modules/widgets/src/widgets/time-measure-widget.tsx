@@ -516,12 +516,16 @@ export class TimeMeasureWidget extends Widget<TimeMeasureWidgetProps, null> {
     ) {
       return false;
     }
-    const button = srcEvent && 'button' in srcEvent ? srcEvent.button : null;
-    if (typeof button === 'number' && button !== 0) {
+    const buttons = srcEvent && 'buttons' in srcEvent ? srcEvent.buttons : null;
+    if (typeof buttons === 'number' && (buttons & ~1) !== 0) {
       return false;
     }
-    const buttons = srcEvent && 'buttons' in srcEvent ? srcEvent.buttons : null;
-    return typeof buttons !== 'number' || (buttons & ~1) === 0;
+    const button = srcEvent && 'button' in srcEvent ? srcEvent.button : null;
+    if (typeof button !== 'number' || button === 0) {
+      return true;
+    }
+    // PointerEvent panstart may originate from pointermove, where button is -1.
+    return button === -1 && buttons === 1;
   }
 
   #shouldHandleEvent(info: PickingInfo): boolean {
