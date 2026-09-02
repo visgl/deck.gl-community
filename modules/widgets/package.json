@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/widgets",
-  "version": "9.3.8",
+  "version": "9.3.9",
   "description": "UI widgets for deck.gl",
   "license": "MIT",
   "publishConfig": {
