@@ -310,26 +310,28 @@ describe('ColorLegendWidget', () => {
       }
     });
     const row = root.querySelector('li');
-    vi.spyOn(row!, 'getBoundingClientRect').mockReturnValue(new DOMRect(20, 140, 160, 16));
+    let rowBounds = new DOMRect(20, 140, 160, 16);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return this === row ? rowBounds : new DOMRect(0, 0, 224, 80);
+    });
 
     act(() => {
       row?.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
     });
 
-    const initialTooltip = document.querySelector<HTMLElement>(
-      '[data-testid="color-legend-entry-tooltip"]'
-    );
-    vi.spyOn(initialTooltip!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 224, 80));
-
-    act(() => {
-      row?.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
-    });
-
-    const tooltip = document.querySelector<HTMLElement>(
-      '[data-testid="color-legend-entry-tooltip"]'
-    );
+    let tooltip = document.querySelector<HTMLElement>('[data-testid="color-legend-entry-tooltip"]');
     expect(tooltip?.style.maxHeight).toBe('144px');
     expect(tooltip?.style.top).toBe('112px');
+
+    rowBounds = new DOMRect(20, 0, 160, 16);
+    act(() => {
+      row?.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
+    });
+
+    tooltip = document.querySelector<HTMLElement>('[data-testid="color-legend-entry-tooltip"]');
+    expect(tooltip?.style.top).toBe('48px');
   });
 
   it('opens an accessible tooltip when a titled legend entry receives keyboard focus', () => {

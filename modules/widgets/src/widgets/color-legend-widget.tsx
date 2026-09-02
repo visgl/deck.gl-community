@@ -304,6 +304,14 @@ type ColorLegendHoveredEntry = {
   readonly ownerDocument: Document;
 };
 
+/** Measured tooltip position retained with the hover state that produced it. */
+type ColorLegendMeasuredTooltipTop = {
+  /** Hover state whose rendered tooltip height produced this clamped position. */
+  readonly hoveredEntry: ColorLegendHoveredEntry;
+  /** Viewport-relative vertical midpoint after measuring and clamping the tooltip. */
+  readonly top: number;
+};
+
 type ContinuousSectionViewProps = {
   /** Continuous scale to render. */
   readonly section: ColorLegendContinuousSection;
@@ -418,9 +426,15 @@ function CategoricalSectionView({
   onExpandedChange
 }: CategoricalSectionViewProps) {
   const [hoveredEntry, setHoveredEntry] = useState<ColorLegendHoveredEntry | null>(null);
+  const [measuredTooltipTop, setMeasuredTooltipTop] =
+    useState<ColorLegendMeasuredTooltipTop | null>(null);
   const tooltipElementRef = useRef<HTMLSpanElement | null>(null);
   const tooltipId = useId();
   const activeHoveredEntry = hoveredEntry?.section === section ? hoveredEntry : null;
+  const activeTooltipTop =
+    measuredTooltipTop?.hoveredEntry === activeHoveredEntry
+      ? measuredTooltipTop.top
+      : activeHoveredEntry?.top;
 
   useEffect(() => {
     const ownerWindow = activeHoveredEntry?.ownerDocument.defaultView;
@@ -439,7 +453,11 @@ function CategoricalSectionView({
 
   useLayoutEffect(() => {
     const tooltipElement = tooltipElementRef.current;
-    if (!tooltipElement || !activeHoveredEntry) {
+    if (!activeHoveredEntry) {
+      setMeasuredTooltipTop(null);
+      return;
+    }
+    if (!tooltipElement) {
       return;
     }
 
@@ -449,11 +467,12 @@ function CategoricalSectionView({
     }
 
     const measuredHeight = tooltipElement.getBoundingClientRect().height;
-    tooltipElement.style.top = `${clampTooltipTop(
-      activeHoveredEntry.top,
-      measuredHeight,
-      viewportHeight
-    )}px`;
+    const top = clampTooltipTop(activeHoveredEntry.top, measuredHeight, viewportHeight);
+    setMeasuredTooltipTop(previousTop =>
+      previousTop?.hoveredEntry === activeHoveredEntry && previousTop.top === top
+        ? previousTop
+        : {hoveredEntry: activeHoveredEntry, top}
+    );
   }, [activeHoveredEntry]);
 
   const visibleLimit = normalizeEntryLimit(
@@ -589,7 +608,7 @@ function CategoricalSectionView({
                 borderRadius: activeHoveredEntry.borderRadius,
                 boxShadow: activeHoveredEntry.boxShadow,
                 left: `${activeHoveredEntry.left}px`,
-                top: `${activeHoveredEntry.top}px`,
+                top: `${activeTooltipTop ?? activeHoveredEntry.top}px`,
                 maxWidth: `${activeHoveredEntry.maxWidth}px`,
                 maxHeight: getTooltipMaxHeight(activeHoveredEntry.ownerDocument),
                 overflow: 'hidden',
