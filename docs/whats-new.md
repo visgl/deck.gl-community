@@ -101,6 +101,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
   and toast components without duplicating panel rendering logic.
 - `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
 - `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode integrations.
+- `OmniBoxWidget` now supports debounced async search, refresh-key reruns, caller-managed result ordering, and result-state callbacks.
 - `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
 - `createStudioSettingsWidget` and `updateStudioSettingsWidget` now host the shared Studio settings panel through deck widget chrome.
 - `TimeMeasureWidget` now lets users hover and drag either boundary of a completed range, with

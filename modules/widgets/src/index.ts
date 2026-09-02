@@ -45,8 +45,10 @@ export {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
+  type OmniBoxOptionSorter,
   type OmniBoxRenderOptionArgs,
   type OmniBoxResultsSummaryArgs,
+  type OmniBoxResultsState,
   type OmniBoxWidgetProps
 } from './widgets/omni-box-widget';
 export {
