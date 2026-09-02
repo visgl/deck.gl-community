@@ -8,6 +8,8 @@ Alongside classic navigation and overlay widgets, the package exports
 
 For renderer selection and reusable luma device lifecycle, the package also exports `DeviceManager` and `DeviceTabsWidget`.
 
+For data-driven presentation, `ColorLegendWidget` renders JSON-safe categorical, continuous, and palette color keys without coupling the widget to an application's data model.
+
 Panel definitions, panel containers, specialized toolbar/toast components, and
 standalone mounting live in [`@deck.gl-community/panels`](/docs/modules/panels).
 Import components from `panels`, then pass them through `PanelWidget` or one of
@@ -58,6 +60,8 @@ See the [Panels developer guide](/docs/modules/panels/developer-guide/using-pane
 
 Use [`DeviceManager`](./api-reference/device-manager.md) when an application needs one reusable WebGPU or WebGL device that can be shared across UI surfaces and reparented into different DOM hosts. Use [`DeviceTabsWidget`](./api-reference/device-tabs-widget.md) when you want a built-in widget for switching the active backend.
 
+Use [`ColorLegendWidget`](./api-reference/color-legend-widget.md) when a view needs a serializable, bounded color key that can combine categories, gradients, and compact palettes.
+
 The [SharedTile2DLayer example](/examples/geo-layers/shared-tile-2d-layer) uses panel widgets to combine markdown and live probe.gl stats in one collapsible `BoxPanelWidget`.
 
 ### HTML overlays
@@ -96,6 +100,7 @@ map positions via the widget lifecycle.
 
 ## Advanced UI Widgets
 
+- [ColorLegendWidget](./api-reference/color-legend-widget.md)
 - [DeviceManager](./api-reference/device-manager.md)
 - [DeviceTabsWidget](./api-reference/device-tabs-widget.md)
 - [OmniBoxWidget](./api-reference/omni-box-widget.md)
