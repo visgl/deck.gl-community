@@ -1069,6 +1069,7 @@ function OmniBoxWidgetView({
           requestVersionRef.current += 1;
           setIsLoading(false);
           setIsFocused(false);
+          inputRef.current?.blur();
           setIsQueryHistoryOpen(false);
           setActiveOptionIndex(-1);
           return;

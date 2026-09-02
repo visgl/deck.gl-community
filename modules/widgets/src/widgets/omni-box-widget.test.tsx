@@ -566,11 +566,10 @@ describe('OmniBoxWidget', () => {
     });
 
     expect(getOptions).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(input);
 
     await act(async () => {
       input.focus();
-      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
-      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
     });
     await act(async () => {
       vi.advanceTimersByTime(150);
