@@ -74,6 +74,8 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 - Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
 - `BlockLayer` now provides paired WebGPU WGSL and WebGL2 GLSL shaders for instanced fills, outlines, projection, and picking.
+- `BlockLayer` now supports independent width limits, dense-width cutoffs, stroke alignment, and
+  per-instance opacity or replacement colors for dense interval views.
 - `FastTextLayer` now renders its existing packed glyphs and generated font atlases on WebGPU and WebGL2; optimized upstream text and Arrow renderers remain planned for luma.gl v10.
 - `TimeDeltaLayer` now renders interval guides and headers using portable lines and fast text.
 
