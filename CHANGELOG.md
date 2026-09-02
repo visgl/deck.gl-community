@@ -1,5 +1,11 @@
 # deck.gl-community CHANGELOG
 
+## v9.3.9
+
+- feat(infovis-layers): add dense BlockLayer width controls, stroke alignment, per-instance opacity, and replacement colors (#725)
+- feat(widgets): add ColorLegendWidget, editable TimeMeasure range boundaries, and expanded async OmniBoxWidget search APIs (#726)
+- fix(graph-layers): restore the graph-layer website examples with supported theme handling and valid text alignment (#727)
+
 ## v9.3.8
 
 - fix(editable-layers): use named Turf imports so CJS/esbuild consumers no longer call missing `.default` exports (#679)
