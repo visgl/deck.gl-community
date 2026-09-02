@@ -54,6 +54,26 @@ describe('ColorLegendWidget', () => {
     );
   });
 
+  it('renders a one-stop continuous scale as a solid color', () => {
+    const {root} = mountWidget({
+      payload: {
+        id: 'single-stop',
+        title: 'Status',
+        sections: [
+          {
+            id: 'status',
+            type: 'continuous',
+            stops: [{label: 'Only value', color: '#ef4444'}]
+          }
+        ]
+      }
+    });
+
+    const scale = root.querySelector<HTMLElement>('[data-testid="color-legend-gradient"]');
+    expect(scale?.style.backgroundImage).toBe('');
+    expect(scale?.style.backgroundColor).toBe('rgb(239, 68, 68)');
+  });
+
   it('bounds categorical DOM while preserving exact overflow through expansion', () => {
     const payload: ColorLegendPayload = {
       id: 'many-categories',
@@ -264,6 +284,52 @@ describe('ColorLegendWidget', () => {
     expect(tooltip?.style.left).toBe('328px');
     expect(tooltip?.style.transform).toBe('translate(-100%, -50%)');
     expect(Number.parseInt(tooltip?.style.left ?? '0', 10) - 320).toBe(8);
+  });
+
+  it('vertically clamps a measured wrapped tooltip inside the viewport', () => {
+    vi.stubGlobal('innerWidth', 240);
+    vi.stubGlobal('innerHeight', 160);
+    const {root} = mountWidget({
+      payload: {
+        id: 'vertical-clamp',
+        title: 'Operations',
+        sections: [
+          {
+            id: 'operations',
+            type: 'categorical',
+            entries: [
+              {
+                label: 'Pipeline send',
+                color: '#22c55e',
+                title:
+                  'A long descriptive entry title that wraps across several lines in the tooltip'
+              }
+            ]
+          }
+        ]
+      }
+    });
+    const row = root.querySelector('li');
+    vi.spyOn(row!, 'getBoundingClientRect').mockReturnValue(new DOMRect(20, 140, 160, 16));
+
+    act(() => {
+      row?.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
+    });
+
+    const initialTooltip = document.querySelector<HTMLElement>(
+      '[data-testid="color-legend-entry-tooltip"]'
+    );
+    vi.spyOn(initialTooltip!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 224, 80));
+
+    act(() => {
+      row?.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
+    });
+
+    const tooltip = document.querySelector<HTMLElement>(
+      '[data-testid="color-legend-entry-tooltip"]'
+    );
+    expect(tooltip?.style.maxHeight).toBe('144px');
+    expect(tooltip?.style.top).toBe('112px');
   });
 
   it('opens an accessible tooltip when a titled legend entry receives keyboard focus', () => {

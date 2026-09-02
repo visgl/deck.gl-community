@@ -6,7 +6,7 @@
 import {Widget} from '@deck.gl/core';
 import {render} from 'preact';
 import {createPortal} from 'preact/compat';
-import {useEffect, useId, useState} from 'preact/hooks';
+import {useEffect, useId, useLayoutEffect, useRef, useState} from 'preact/hooks';
 
 import type {WidgetPlacement, WidgetProps} from '@deck.gl/core';
 import type {JSX} from 'preact';
@@ -168,6 +168,8 @@ export class ColorLegendWidget extends Widget<ColorLegendWidgetProps> {
 
 const DEFAULT_VISIBLE_ENTRY_COUNT = 10;
 const DEFAULT_EXPANDED_ENTRY_COUNT = 100;
+const TOOLTIP_VIEWPORT_MARGIN = 8;
+const TOOLTIP_MAX_WIDTH = 320;
 
 const LEGEND_STYLE: JSX.CSSProperties = {
   pointerEvents: 'none',
@@ -416,6 +418,7 @@ function CategoricalSectionView({
   onExpandedChange
 }: CategoricalSectionViewProps) {
   const [hoveredEntry, setHoveredEntry] = useState<ColorLegendHoveredEntry | null>(null);
+  const tooltipElementRef = useRef<HTMLSpanElement | null>(null);
   const tooltipId = useId();
   const activeHoveredEntry = hoveredEntry?.section === section ? hoveredEntry : null;
 
@@ -432,6 +435,25 @@ function CategoricalSectionView({
       ownerWindow.removeEventListener('scroll', dismissTooltip, true);
       ownerWindow.removeEventListener('resize', dismissTooltip);
     };
+  }, [activeHoveredEntry]);
+
+  useLayoutEffect(() => {
+    const tooltipElement = tooltipElementRef.current;
+    if (!tooltipElement || !activeHoveredEntry) {
+      return;
+    }
+
+    const viewportHeight = getTooltipViewportHeight(activeHoveredEntry.ownerDocument);
+    if (viewportHeight === null) {
+      return;
+    }
+
+    const measuredHeight = tooltipElement.getBoundingClientRect().height;
+    tooltipElement.style.top = `${clampTooltipTop(
+      activeHoveredEntry.top,
+      measuredHeight,
+      viewportHeight
+    )}px`;
   }, [activeHoveredEntry]);
 
   const visibleLimit = normalizeEntryLimit(
@@ -555,6 +577,7 @@ function CategoricalSectionView({
       {activeHoveredEntry
         ? createPortal(
             <span
+              ref={tooltipElementRef}
               id={tooltipId}
               role="tooltip"
               data-testid="color-legend-entry-tooltip"
@@ -568,6 +591,8 @@ function CategoricalSectionView({
                 left: `${activeHoveredEntry.left}px`,
                 top: `${activeHoveredEntry.top}px`,
                 maxWidth: `${activeHoveredEntry.maxWidth}px`,
+                maxHeight: getTooltipMaxHeight(activeHoveredEntry.ownerDocument),
+                overflow: 'hidden',
                 transform:
                   activeHoveredEntry.placement === 'left'
                     ? 'translate(-100%, -50%)'
@@ -598,12 +623,24 @@ function showColorLegendEntryTooltip(
   const bounds = row.getBoundingClientRect();
   const ownerWindow = row.ownerDocument.defaultView;
   const viewportWidth = ownerWindow?.innerWidth ?? bounds.right;
-  const maxWidth = Math.min(320, Math.max(0, viewportWidth - 16));
+  const maxWidth = Math.min(
+    TOOLTIP_MAX_WIDTH,
+    Math.max(0, viewportWidth - TOOLTIP_VIEWPORT_MARGIN * 2)
+  );
   const placement = bounds.left >= viewportWidth - bounds.right ? 'left' : 'right';
   const left =
     placement === 'left'
-      ? Math.min(viewportWidth - 8, Math.max(maxWidth + 8, bounds.left - 8))
-      : Math.max(8, Math.min(viewportWidth - maxWidth - 8, bounds.right + 8));
+      ? Math.min(
+          viewportWidth - TOOLTIP_VIEWPORT_MARGIN,
+          Math.max(maxWidth + TOOLTIP_VIEWPORT_MARGIN, bounds.left - TOOLTIP_VIEWPORT_MARGIN)
+        )
+      : Math.max(
+          TOOLTIP_VIEWPORT_MARGIN,
+          Math.min(
+            viewportWidth - maxWidth - TOOLTIP_VIEWPORT_MARGIN,
+            bounds.right + TOOLTIP_VIEWPORT_MARGIN
+          )
+        );
   const legend = row.closest<HTMLElement>('[data-testid="color-legend"]') ?? row;
   const theme = ownerWindow?.getComputedStyle(legend);
 
@@ -624,8 +661,34 @@ function showColorLegendEntryTooltip(
   });
 }
 
+/** Returns a finite viewport height when the tooltip's owning document has one. */
+function getTooltipViewportHeight(ownerDocument: Document): number | null {
+  const viewportHeight = ownerDocument.defaultView?.innerHeight;
+  return typeof viewportHeight === 'number' && Number.isFinite(viewportHeight)
+    ? Math.max(0, viewportHeight)
+    : null;
+}
+
+/** Returns a CSS height cap that keeps a tooltip inside its viewport margin. */
+function getTooltipMaxHeight(ownerDocument: Document): string | undefined {
+  const viewportHeight = getTooltipViewportHeight(ownerDocument);
+  return viewportHeight === null
+    ? undefined
+    : `${Math.max(0, viewportHeight - TOOLTIP_VIEWPORT_MARGIN * 2)}px`;
+}
+
+/** Clamps a measured tooltip midpoint so its visible box stays inside the viewport. */
+function clampTooltipTop(anchorTop: number, tooltipHeight: number, viewportHeight: number): number {
+  const availableHeight = Math.max(0, viewportHeight - TOOLTIP_VIEWPORT_MARGIN * 2);
+  const visibleHeight = Math.min(Math.max(0, tooltipHeight), availableHeight);
+  const minTop = TOOLTIP_VIEWPORT_MARGIN + visibleHeight / 2;
+  const maxTop = Math.max(minTop, viewportHeight - TOOLTIP_VIEWPORT_MARGIN - visibleHeight / 2);
+  return Math.min(maxTop, Math.max(minTop, anchorTop));
+}
+
 /** Renders one vertical continuous gradient and its high-to-low labels. */
 function ContinuousSectionView({section}: ContinuousSectionViewProps) {
+  const [singleStop] = section.stops;
   return (
     <div style={{display: 'flex', alignItems: 'stretch', gap: '8px'}}>
       <div
@@ -636,7 +699,12 @@ function ContinuousSectionView({section}: ContinuousSectionViewProps) {
           minHeight: '64px',
           flexShrink: 0,
           borderRadius: '9999px',
-          backgroundImage: formatColorScaleGradient(section.stops)
+          backgroundColor:
+            section.stops.length === 1 && singleStop
+              ? formatLegendColor(singleStop.color)
+              : undefined,
+          backgroundImage:
+            section.stops.length > 1 ? formatColorScaleGradient(section.stops) : undefined
         }}
       />
       <div
