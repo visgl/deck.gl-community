@@ -100,6 +100,8 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode integrations.
 - `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
 - `createStudioSettingsWidget` and `updateStudioSettingsWidget` now host the shared Studio settings panel through deck widget chrome.
+- `TimeMeasureWidget` now lets users hover and drag either boundary of a completed range, with
+  provisional selection updates and cancellation that restores the previous range.
 
 ### `@deck.gl-community/panels` (NEW module)
 
