@@ -31,6 +31,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 ### `@deck.gl-community/widgets`
 
+- `ColorLegendWidget` - NEW JSON-safe color legend for categorical lists, continuous gradients, and compact palettes, with bounded expansion, accessible controls, and deck.gl theme-token styling.
 - `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
 - Thin named adapters now cover real panel containers plus specialized toolbar
   and toast components without duplicating panel rendering logic.
