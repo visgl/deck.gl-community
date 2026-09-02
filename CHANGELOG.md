@@ -1,5 +1,12 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.0-alpha.3
+
+- feat(widgets): add async search lifecycle controls to OmniBoxWidget (#723)
+- feat(widgets): add a JSON-safe ColorLegendWidget (#722)
+- feat(widgets): allow editing completed ranges in TimeMeasureWidget (#724)
+- feat(infovis-layers): add dense block controls to BlockLayer (#721)
+
 ## v9.4.0-alpha.2
 
 - feat(three): render detailed palms (#716)
