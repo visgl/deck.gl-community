@@ -13,6 +13,8 @@ in vec2 instanceSizes;
 in float instanceLineWidths;
 in vec4 instanceFillColors;
 in vec4 instanceLineColors;
+in float instanceOpacities;
+in float instanceColorOverrides;
 in vec3 instancePickingColors;
 
 out vec2 unitPosition;
@@ -44,24 +46,33 @@ void main(void) {
   geometry.uv = positions.xy;
 
   vec2 pixelSize = project_size_to_pixel(instanceSizes, block.sizeUnits);
-  pixelSize.x = clamp_signed_size(pixelSize.x, block.widthMinPixels, block.sizeMaxPixels);
+  bool widthBelowCutoff = abs(pixelSize.x) < block.widthCutoffPixels;
+  float effectiveWidthMaxPixels = min(block.widthMaxPixels, block.sizeMaxPixels);
+  pixelSize.x = clamp_signed_size(pixelSize.x, block.widthMinPixels, effectiveWidthMaxPixels);
   pixelSize.y = clamp_signed_size(pixelSize.y, block.heightMinPixels, block.sizeMaxPixels);
+  lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), block.lineWidthUnits).x;
+  vec2 strokePadding = vec2(lineWidth * block.strokeOffset);
+  pixelSize += 2.0 * strokePadding;
+  if (widthBelowCutoff) {
+    pixelSize = vec2(0.0);
+  }
   unitPosition = positions.xy;
   size = pixelSize;
-  lineWidth = project_size_to_pixel(vec2(instanceLineWidths, 0.0), block.lineWidthUnits).x;
 
   // Find the center of the point and add the current vertex
-  vec3 offset = vec3(unitPosition * project_pixel_size(pixelSize), 0.0);
+  vec3 offset = vec3(project_pixel_size(unitPosition * pixelSize - strokePadding), 0.0);
   DECKGL_FILTER_SIZE(offset, geometry);
 
   gl_Position = project_position_to_clipspace(instancePositions, instancePositions64Low, offset, geometry.position);
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
   // Apply opacity to instance color, or return instance picking color
-  vFillColor = vec4(instanceFillColors.rgb, instanceFillColors.a * layer.opacity);
+  vec3 fillColor = mix(instanceFillColors.rgb, block.overrideColor.rgb, instanceColorOverrides);
+  vFillColor = vec4(fillColor, instanceFillColors.a * instanceOpacities * layer.opacity);
   DECKGL_FILTER_COLOR(vFillColor, geometry);
 
-  vLineColor = vec4(instanceLineColors.rgb, instanceLineColors.a * layer.opacity);
+  vec3 lineColor = mix(instanceLineColors.rgb, block.overrideColor.rgb, instanceColorOverrides);
+  vLineColor = vec4(lineColor, instanceLineColors.a * instanceOpacities * layer.opacity);
   DECKGL_FILTER_COLOR(vLineColor, geometry);
 }
 `;
