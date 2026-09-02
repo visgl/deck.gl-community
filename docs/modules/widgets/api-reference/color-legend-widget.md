@@ -1,7 +1,7 @@
 # ColorLegendWidget
 
 <p className="badges">
-  <img src="https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square" alt="from v9.4" />
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
 `ColorLegendWidget` renders declarative color keys in a deck.gl HTML widget. Its payload is JSON-safe, so applications can prepare legend content outside the rendering layer and pass it through unchanged.
