@@ -513,7 +513,6 @@ __metadata:
     lodash.throttle: "npm:^4.1.1"
     preact: "npm:^10.17.0"
   peerDependencies:
-    "@deck.gl-community/layers": ~9.4.0-alpha.0
     "@deck.gl/core": ~9.4.0-alpha.2
     "@deck.gl/extensions": ~9.4.0-alpha.2
     "@deck.gl/geo-layers": ~9.4.0-alpha.2
