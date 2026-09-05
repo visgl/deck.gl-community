@@ -592,6 +592,7 @@ __metadata:
     d3-force: "npm:^3.0.0"
     d3-format: "npm:^3.1.0"
     d3-scale: "npm:^4.0.2"
+    fast-xml-parser: "npm:^5.5.3"
     lodash.isequal: "npm:^4.5.0"
     ngraph.generators: "npm:^20.1.0"
     zod: "npm:^4.0.0"
