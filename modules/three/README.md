@@ -2,6 +2,7 @@
 
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/three.svg)](https://www.npmjs.com/package/@deck.gl-community/three)
 [![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/three.svg)](https://www.npmjs.com/package/@deck.gl-community/three)
+![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square)
 
 A collection of deck.gl layers powered by [Three.js](https://threejs.org/), giving access to Three.js geometry primitives and scene graph tooling directly inside deck.gl visualisations.
 

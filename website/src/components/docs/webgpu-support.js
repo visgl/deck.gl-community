@@ -1,5 +1,6 @@
 const SUPPORTED_DOC_IDS = new Set([
   'modules/geo-layers/api-reference/delaunay-cover-layer',
+  'modules/geo-layers/api-reference/elevation-layer',
   'modules/geo-layers/api-reference/global-grid-layer',
   'modules/geo-layers/api-reference/particle-layer',
   'modules/geo-layers/api-reference/tile-grid-layer',
@@ -12,11 +13,12 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/infovis-layers/api-reference/time-delta-layer',
   'modules/timeline-layers/api-reference/horizon-graph-layer',
   'modules/timeline-layers/api-reference/multi-horizon-graph-layer',
+  'modules/timeline-layers/api-reference/time-axis-layer',
   'modules/timeline-layers/api-reference/vertical-grid-layer',
+  'modules/three/api-reference/tree-layer',
 ]);
 
 const UNSUPPORTED_DOC_IDS = new Set([
-  'modules/geo-layers/api-reference/elevation-layer',
   'modules/graph-layers/api-reference/layers/flow-layer',
   'modules/graph-layers/api-reference/layers/flow-path-layer'
 ]);
@@ -42,7 +44,7 @@ const NOT_APPLICABLE_DOC_ID_PATTERNS = [
 ];
 
 const MODULE_STATUS = {
-  'arrow-layers': 'partial',
+  'arrow-layers': 'supported',
   'basemap-layers': 'partial',
   'bing-maps': 'unsupported',
   'editable-layers': 'partial',
@@ -54,8 +56,8 @@ const MODULE_STATUS = {
   leaflet: 'unsupported',
   panels: 'not-applicable',
   react: 'not-applicable',
-  three: 'partial',
-  'timeline-layers': 'partial',
+  three: 'supported',
+  'timeline-layers': 'supported',
   widgets: 'supported'
 };
 

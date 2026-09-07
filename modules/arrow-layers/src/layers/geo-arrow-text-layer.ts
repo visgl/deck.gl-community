@@ -17,7 +17,6 @@ import * as arrow from 'apache-arrow';
 import * as ga from '@geoarrow/geoarrow-js';
 import {
   assignAccessor,
-  expandArrayToCoords,
   extractAccessorsFromProps,
   getGeometryVector
 } from '../utils/utils';
@@ -208,22 +207,30 @@ export class GeoArrowTextLayer<ExtraProps extends {} = {}> extends CompositeLaye
         recordBatchIdx,
         tableOffsets,
 
-        id: `${this.props.id}-geoarrow-heatmap-${recordBatchIdx}`,
+        id: `${this.props.id}-geoarrow-text-${recordBatchIdx}`,
+        // TextLayer forwards positions through an intermediate MultiIconLayer. Supplying a CPU
+        // accessor lets deck.gl generate the interleaved high/low position buffer required by
+        // WebGPU instead of forwarding a single unsplit binary buffer to the child layer.
+        getPosition: (_object, objectInfo) => {
+          const offset = objectInfo.index * geometryData.type.listSize;
+          objectInfo.target[0] = flatCoordinateArray[offset];
+          objectInfo.target[1] = flatCoordinateArray[offset + 1];
+          objectInfo.target[2] = flatCoordinateArray[offset + 2] ?? 0;
+          return objectInfo.target as [number, number, number];
+        },
         data: {
           // @ts-expect-error passed through to enable use by function accessors
           data: table.batches[recordBatchIdx],
           length: geometryData.length,
           startIndices: characterOffsets,
+          // TextLayer expands one logical row into one instance per glyph. Exposing the logical
+          // rows to the attribute manager lets deck.gl 9.4 build and pack its child attributes.
+          *[Symbol.iterator]() {
+            for (let index = 0; index < geometryData.length; index++) {
+              yield table.batches[recordBatchIdx];
+            }
+          },
           attributes: {
-            // Positions need to be expanded to be one per character!
-            getPosition: {
-              value: expandArrayToCoords(
-                flatCoordinateArray,
-                geometryData.type.listSize,
-                characterOffsets
-              ),
-              size: geometryData.type.listSize
-            },
             // TODO: support non-ascii characters
             getText: {
               value: textValues

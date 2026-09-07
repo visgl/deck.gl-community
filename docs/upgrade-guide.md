@@ -23,9 +23,8 @@ Please refer the documentation of each module for detailed upgrade guides.
   WebGL `Transform` and `Texture2D` dependencies.
 - `trailLength` controls the device-free CPU fallback; GPU rendering uses ping-pong buffers,
   lifetime fading, and high-density point rendering.
-- WebGPU supports GPU-resident particles, filled wind arrows, and station-triangulated surfaces
-  through native shaders. Image-derived mountain terrain remains dependent on upstream
-  `TerrainLayer` compatibility. See the
+- WebGPU supports GPU-resident particles, filled wind arrows, station-triangulated surfaces, and
+  image-derived mountain terrain through stable deck.gl 9.4. See the
   [WebGPU support matrix](./webgpu.md).
 
 ### `@deck.gl-community/panels`

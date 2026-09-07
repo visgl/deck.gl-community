@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, MapView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
-import {GlobalGridLayer, SharedTile2DHeader, TileGridLayer, type GlobalGrid} from '../src';
+import {TreeLayer} from '../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 type NativeGpuError = {error?: {message?: string}};
@@ -18,55 +18,14 @@ type NativeGpuDevice = {
   queue: {onSubmittedWorkDone: () => Promise<void>};
 };
 
-const TEST_GRID: GlobalGrid = {
-  name: 'browser-test-grid',
-  hasNumericRepresentation: false,
-  cellToLngLat: () => [0, 0],
-  cellToBoundary: () => [
-    [-28, -20],
-    [-4, -20],
-    [-4, 4],
-    [-28, 4]
-  ]
-};
-
-function createPortableGeoLayers() {
-  const tile = new SharedTile2DHeader({x: 0, y: 0, z: 0});
-  tile.bbox = {left: 4, top: -20, right: 28, bottom: 4};
-
-  return [
-    new GlobalGridLayer({
-      id: 'webgpu-global-grid',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      data: [{cellId: 'test-cell'}],
-      globalGrid: TEST_GRID,
-      filled: true,
-      stroked: true,
-      getFillColor: [14, 165, 233, 160],
-      getLineColor: [3, 105, 161, 255],
-      getLineWidth: 2,
-      lineWidthUnits: 'pixels',
-      pickable: true
-    }),
-    new TileGridLayer({
-      id: 'webgpu-tile-grid',
-      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      tile,
-      showLabel: true,
-      borderColor: [245, 158, 11, 255],
-      borderWidthMinPixels: 2
-    })
-  ];
-}
-
-async function renderPortableGeoLayers(type: 'webgl' | 'webgpu'): Promise<void> {
+async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
   const parent = document.createElement('div');
   parent.style.width = '128px';
   parent.style.height = '128px';
   document.body.append(parent);
 
   let device: Device | undefined;
-  let deck: Deck<OrthographicView> | undefined;
+  let deck: Deck | undefined;
   let nativeDevice: NativeGpuDevice | undefined;
   const validationErrors: string[] = [];
   const captureValidationError = (event: NativeGpuError): void => {
@@ -86,7 +45,7 @@ async function renderPortableGeoLayers(type: 'webgl' | 'webgpu'): Promise<void> 
 
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
-        reject(new Error(`Timed out while rendering portable geospatial layers with ${type}.`));
+        reject(new Error(`Timed out while rendering TreeLayer with ${type}.`));
       }, 10_000);
 
       deck = new Deck({
@@ -94,9 +53,18 @@ async function renderPortableGeoLayers(type: 'webgl' | 'webgpu'): Promise<void> 
         parent,
         width: 128,
         height: 128,
-        views: new OrthographicView({id: 'geo-layers-webgpu-test', flipY: false}),
-        initialViewState: {target: [0, 0, 0], zoom: 0},
-        layers: createPortableGeoLayers(),
+        views: new MapView({id: 'tree-webgpu-test'}),
+        initialViewState: {longitude: 0, latitude: 0, zoom: 18, pitch: 45},
+        layers: [
+          new TreeLayer({
+            id: `tree-${type}`,
+            data: [{position: [0, 0] as [number, number]}],
+            getPosition: datum => datum.position,
+            getTreeType: () => 'oak',
+            getHeight: () => 12,
+            pickable: true
+          })
+        ],
         onAfterRender: () => {
           window.clearTimeout(timeout);
           resolve();
@@ -114,26 +82,22 @@ async function renderPortableGeoLayers(type: 'webgl' | 'webgpu'): Promise<void> 
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
-    // Deck finalization releases WebGPU resources; leave final WebGPU teardown to the browser so
-    // this test remains compatible with shared software adapters when CI enables them separately.
-    if (device?.type !== 'webgpu') {
-      device?.destroy();
-    }
+    device?.destroy();
     parent.remove();
   }
 }
 
-describe('geospatial graphics backend compatibility', () => {
-  it('renders global-grid polygons plus tile outlines and labels on WebGL2', async () => {
-    await renderPortableGeoLayers('webgl');
-  }, 60_000);
+describe('TreeLayer graphics backend compatibility', () => {
+  it('renders procedural SimpleMeshLayer geometry on WebGL2', async () => {
+    await renderTreeLayer('webgl');
+  }, 20_000);
 
-  it('renders global-grid polygons plus tile outlines and labels on WebGPU', async ({skip}) => {
+  it('renders procedural SimpleMeshLayer geometry on WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       skip('This browser does not expose an available WebGPU adapter.');
     }
 
-    await renderPortableGeoLayers('webgpu');
-  }, 60_000);
+    await renderTreeLayer('webgpu');
+  }, 20_000);
 });

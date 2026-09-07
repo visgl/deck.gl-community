@@ -5,7 +5,7 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 :::caution Work in progress
 The wind-layer API, GPU simulation, particle appearance, and tuning controls are experimental and
 may change. WebGL2 and WebGPU particle simulation, wind arrows, and station surfaces are
-browser-tested independently; image-derived mountain terrain still depends on upstream support.
+browser-tested independently, together with the image-derived mountain terrain.
 :::
 
 `ParticleLayer` animates GPU-resident particles through a station-interpolated geographic wind
@@ -123,8 +123,8 @@ Radius of moving particle heads in screen pixels.
 - Coverage: invalid samples are respawned within the wind field; overlong segments are clipped.
 - Cleanup: deck.gl finalization releases the weather textures, simulation buffers, and pipeline
   after submitted GPU work has completed.
-- Scope: native wind arrows and station-triangulated surfaces support WebGPU, but image-derived
-  mountain terrain still depends on upstream `TerrainLayer` compatibility.
+- Scope: native wind arrows, station-triangulated surfaces, and image-derived terrain support
+  WebGPU with stable deck.gl 9.4.
 
 See the [wind showcase guide](../developer-guide/wind-showcase.md), the
 [Wind Map example](/examples/geo-layers/wind), and the

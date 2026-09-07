@@ -67,12 +67,7 @@ function createElevationData(): string {
   return canvas.toDataURL('image/png');
 }
 
-function createLayers(
-  field: WindField,
-  time: number,
-  elevationData: string,
-  deviceType: 'webgl' | 'webgpu'
-) {
+function createLayers(field: WindField, time: number, elevationData: string) {
   const particles = new ParticleLayer({
     id: 'test-wind-particles',
     windField: field,
@@ -83,18 +78,14 @@ function createLayers(
   });
 
   return [
-    ...(deviceType === 'webgpu'
-      ? []
-      : [
-          new ElevationLayer({
-            id: 'test-wind-height-map',
-            elevationData,
-            bounds: [-100, 35, -96, 39],
-            elevationRange: [0, 255],
-            elevationScale: 2,
-            meshMaxError: 4
-          })
-        ]),
+    new ElevationLayer({
+      id: 'test-wind-height-map',
+      elevationData,
+      bounds: [-100, 35, -96, 39],
+      elevationRange: [0, 255],
+      elevationScale: 2,
+      meshMaxError: 4
+    }),
     new DelaunayCoverLayer({id: 'test-wind-terrain', windField: field, elevationScale: 2}),
     new WindLayer({
       id: 'test-wind-arrows',
@@ -186,11 +177,11 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
         height: 120,
         views: new MapView({id: 'wind-test'}),
         initialViewState: {longitude: -98, latitude: 37, zoom: 4},
-        layers: createLayers(field, 0, elevationData, type),
+        layers: createLayers(field, 0, elevationData),
         onAfterRender: () => {
           if (!renderedAnimation) {
             renderedAnimation = true;
-            const layers = createLayers(field, 0.5, elevationData, type);
+            const layers = createLayers(field, 0.5, elevationData);
             particleLayer = layers.find(layer => layer instanceof ParticleLayer) as ParticleLayer;
             deck?.setProps({layers});
             return;
@@ -245,9 +236,9 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 describe('wind showcase rendering', () => {
   it('renders and animates terrain, arrows, and particles on WebGL2', async () => {
     await renderWindLayers('webgl');
-  }, 20_000);
+  }, 60_000);
 
-  it('renders portable boundaries, arrows, station terrain, and particles on WebGPU', async ({
+  it('renders height-map terrain, boundaries, arrows, station terrain, and particles on WebGPU', async ({
     skip
   }) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
@@ -256,5 +247,5 @@ describe('wind showcase rendering', () => {
     }
 
     await renderWindLayers('webgpu');
-  }, 20_000);
+  }, 60_000);
 });

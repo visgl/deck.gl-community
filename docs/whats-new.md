@@ -12,7 +12,9 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 - Added the [WebGPU support matrix and migration roadmap](./webgpu.md), covering WebGL2 and WebGPU support by module and layer, upstream dependencies, and host integration limitations.
 - `SkyboxLayer`: validated the existing native WGSL and GLSL implementation with real WebGPU/WebGL2 device selection in the skybox example.
-- `BlockLayer`: added native WGSL for instanced block fills, outlines, projection, opacity, and picking while preserving the existing WebGL2 shaders.
+- `BlockLayer`: added native WGSL for instanced block fills, outlines, projection, opacity, and
+  picking while preserving the existing WebGL2 shaders; stable deck.gl 9.4 packs the per-instance
+  data into a baseline-compatible vertex buffer and uses an aligned float color-override selector.
 - `FastTextLayer`: added an upstream-informed WGSL compatibility shader for existing packed bitmap and signed-distance-field glyphs, font-atlas bindings, clipping, alignment, and WebGPU mipmaps.
 - `TimeDeltaLayer`: uses portable line guides and native-WGSL fast-text labels on WebGPU while preserving WebGL2 label backgrounds.
 - `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry and picking; line, arc, and path routing are browser-verified on both backends with deck.gl 9.4.
@@ -20,7 +22,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `HorizonGraphLayer`: added native WGSL and baseline-compatible WebGPU integer data textures that preserve the original float bits.
 - `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.
 - `VerticalGridLayer`: validated viewport-driven timeline ticks and grid lines on both graphics backends.
-- `TimelineLayer`: validated track, clip, scrubber, and line geometry with the upstream WebGPU polygon and line layers; text labels and interactions remain in progress.
+- `TimeAxisLayer` and `TimelineLayer`: validated tick, track, clip, axis, and scrubber labels with the stable upstream WebGPU `TextLayer`; pointer and drag interaction coverage remains in progress.
 - `WindLayer` and `DelaunayCoverLayer`: render filled directional arrows and station-triangulated surfaces using native WebGL2/WebGPU triangle shaders.
 - `ParticleLayer`: restored the historical wind showcase's GPU-resident particle advection using
   WebGL2 transform feedback and native WebGPU compute, with no production particle readbacks and
@@ -30,13 +32,17 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
   `float32-filterable`.
 - `RoundedRectangleLayer`, `PathEdgeLayer`, and `EdgeArrowLayer`: replaced WebGL-only graph
   primitives with CPU-tessellated polygons and browser-verified upstream path rendering.
-- GeoArrow column, heatmap, path, point-cloud, polygon, scatterplot, and solid-polygon layers now
-  have browser coverage for Arrow binary attributes on WebGL2 and WebGPU. The compatibility matrix
-  records the remaining baseline vertex-buffer limit in `GeoArrowArcLayer`.
+- All GeoArrow renderers now have browser coverage on WebGL2 and WebGPU, including Arc, H3, Text,
+  and Trips. H3 string indexes stay available to its CPU composite stage, while text glyph
+  positions use deck.gl 9.4-compatible child-layer packing.
 - `EditableGeoJsonLayer`: browser-verified polygon, path, and edit-handle rendering on WebGPU,
   including its picking-width shader customization.
 - `GlobalGridLayer`, `TileGridLayer` borders, and the wind showcase's state boundaries now have
   local-data browser coverage on WebGL2 and WebGPU.
+- `ElevationLayer` and the complete Wind Map now render image-derived terrain through stable
+  upstream `TerrainLayer` on WebGPU; the example no longer substitutes station triangles.
+- `TreeLayer` now has WebGL2/WebGPU browser coverage for its procedural geometry through stable
+  upstream `SimpleMeshLayer`.
 - Every website gallery example and live layer-reference example now receives a standalone
   `DeviceTabsWidget` from the shared imperative host, with an independent device manager, WebGPU
   preference, WebGL2 fallback, renderer remounting, and preserved view state.
@@ -55,8 +61,8 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
   vertically exaggerated image-based mountain terrain.
 - `DelaunayCoverLayer` exposes the weather-station mesh, while `DelaunayInterpolation` provides
   backend-independent explicit weather sampling and rasterization.
-- `WindLayer` arrows and `DelaunayCoverLayer` station terrain now use native GLSL/WGSL triangle
-  geometry; image-based mountain terrain remains dependent on upstream WebGPU support.
+- `WindLayer` arrows and `DelaunayCoverLayer` station terrain use native GLSL/WGSL triangle
+  geometry, and `ElevationLayer` uses the upstream dual-backend terrain renderer.
 - Added public weather data, field, measurement, bounds, sample, triangle, and field-options types,
   including robust Delaunay station triangulation for skinny station hulls.
 - Added a complete wind showcase guide, six reference pages with inline live examples, documented
