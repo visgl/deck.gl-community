@@ -1,6 +1,8 @@
 # What's New
 
-## v9.4 - In Development
+## v9.4
+
+Release Date: Sep 7, 2026
 
 Highlights:
 

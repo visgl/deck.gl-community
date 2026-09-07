@@ -126,14 +126,18 @@ const config = {
             '@loaders.gl/obj': resolve('node_modules/@loaders.gl/obj'),
             '@loaders.gl/ply': resolve('node_modules/@loaders.gl/ply'),
             '@loaders.gl': resolve('../node_modules/@loaders.gl'),
-            preact: resolve('node_modules/preact'),
-            'preact/hooks': resolve('node_modules/preact/hooks'),
-            'preact/jsx-runtime': resolve('node_modules/preact/jsx-runtime'),
-            'preact/jsx-dev-runtime': resolve('node_modules/preact/jsx-dev-runtime'),
+            'preact$': resolve('node_modules/preact/dist/preact.module.js'),
+            'preact/hooks': resolve('node_modules/preact/hooks/dist/hooks.module.js'),
+            'preact/jsx-runtime': resolve(
+              'node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js'
+            ),
+            'preact/jsx-dev-runtime': resolve(
+              'node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js'
+            ),
             'react/jsx-dev-runtime': resolve('node_modules/react/jsx-dev-runtime'),
             'react/jsx-runtime': resolve('node_modules/react/jsx-runtime'),
             'react-dom/client': resolve('node_modules/react-dom/client'),
-            react: websiteReact,
+            'react$': websiteReact,
             'react-dom': websiteReactDom
           }
         },
