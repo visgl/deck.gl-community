@@ -52,8 +52,8 @@
     "@testing-library/dom": "^10.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/bin-pack": "^1.0.3",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
     "@vis.gl/dev-tools": "2.0.0-alpha.6",
     "@vis.gl/ts-plugins": "2.0.0-alpha.6",
     "@vitejs/plugin-react": "^5.1.4",
@@ -66,8 +66,8 @@
     "ndarray-pixels": "^3.1.0",
     "playwright": "^1.58.0",
     "pre-commit": "^1.2.2",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "6.0.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
@@ -139,5 +139,5 @@
     "lint-pre-commit",
     "test"
   ],
-  "packageManager": "yarn@4.17.1+sha512.ccbfabf7d7b6b32075088be9386fb9a2e00bb6887ef07fa56effabc890a56d53da1ccc4128d62db245fcbd3961b236d75335bdf7d5320ed6eafb7588b7ad4697"
+  "packageManager": "yarn@4.18.0"
 }

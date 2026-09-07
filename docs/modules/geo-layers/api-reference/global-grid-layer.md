@@ -4,10 +4,10 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 <LayerLiveExample highlight="global-grid-layer" />
 
-<!--
+{/*
 import {GlobalGridLayerDemo} from '@site/src/doc-demos/geo-layers';
 <GlobalGridLayerDemo />
--->
+*/}
 
 The `GlobalGridLayer` renders filled and/or stroked polygons based on the specified DGGS geospatial indexing system.
 
@@ -189,7 +189,7 @@ Inherits from all [Base Layer](https://deck.gl/docs/api-reference/core/layer), [
 
 ### Data Accessors
 
-#### `getPentagon` (Accessor&lt;bigint | string&gt;] ![transition-enabled](https://img.shields.io/badge/transition-enabled-green.svg?style=flat-square") {#getpentagon}
+#### `getPentagon` (`Accessor&lt;bigint | string&gt;`) ![transition-enabled](https://img.shields.io/badge/transition-enabled-green.svg?style=flat-square) {/* #getpentagon */}
 
 Called for each data object to retrieve the identifier of the DGGS cell id.  May return one of the following:
 
