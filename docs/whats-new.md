@@ -23,7 +23,8 @@ Highlights:
 - [`WindLayer`](/docs/modules/geo-layers/api-reference/wind-layer) (new) renders
   interpolated, speed-colored wind arrows.
 - [`ParticleLayer`](/docs/modules/geo-layers/api-reference/particle-layer) (new) animates up to one
-  million particles on the GPU with WebGL2 or WebGPU.
+  million particles on the GPU with WebGL2 or WebGPU, including GPU-resident particle heads and
+  trails on both backends.
 - [`ElevationLayer`](/docs/modules/geo-layers/api-reference/elevation-layer) (new) renders smooth,
   image-based terrain on WebGL2 and WebGPU.
 - [`DelaunayCoverLayer`](/docs/modules/geo-layers/api-reference/delaunay-cover-layer) (new) renders
@@ -86,6 +87,8 @@ Highlights:
 
 ### `@deck.gl-community/widgets`
 
+- Device-managed examples now preserve transparent canvas backgrounds across WebGPU and WebGL2,
+  and keep only the active backend canvas mounted in the visible example host.
 - [`ColorLegendWidget`](/docs/modules/widgets/api-reference/color-legend-widget) (new) renders
   categorical, continuous, and compact color legends.
 - [`PanelWidget`](/docs/modules/widgets/api-reference/panel-widget) (new) hosts any panel component

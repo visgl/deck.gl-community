@@ -42,6 +42,7 @@ export class DeviceManagerController {
 
   #listeners = new Set<(state: DeviceManagerState) => void>();
   #cachedDevices: Partial<Record<DeviceType, Promise<Device>>> = {};
+  #resolvedDevices: Partial<Record<DeviceType, Device>> = {};
   #cachedDeviceAvailability: Partial<Record<DeviceType, Promise<boolean>>> = {};
   #requestGeneration = 0;
   #canvasParent: HTMLElement | null = null;
@@ -86,7 +87,17 @@ export class DeviceManagerController {
     if (!this.#hiddenCanvasParent) {
       const container = document.createElement('div');
       container.dataset.deviceManagerCanvasParent = 'true';
-      container.style.display = 'none';
+      Object.assign(container.style, {
+        position: 'fixed',
+        left: '-10000px',
+        top: '-10000px',
+        width: '1px',
+        height: '1px',
+        overflow: 'hidden',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+        contain: 'strict'
+      });
       document.body.append(container);
       this.#hiddenCanvasParent = container;
     }
@@ -100,19 +111,28 @@ export class DeviceManagerController {
    * @param type Backend to create.
    */
   async createDevice(type: DeviceType): Promise<Device> {
-    const devicePromise =
-      this.#cachedDevices[type] !== undefined
-        ? this.#cachedDevices[type]
-        : luma.createDevice({
-            adapters: [webgl2Adapter, webgpuAdapter],
-            type,
-            debugGPUTime: true,
-            createCanvasContext: {
-              container: this.getHiddenCanvasParent(),
-              alphaMode: 'opaque'
-            }
-          });
-    this.#cachedDevices[type] = devicePromise;
+    let devicePromise = this.#cachedDevices[type];
+    if (!devicePromise) {
+      devicePromise = luma.createDevice({
+        adapters: [webgl2Adapter, webgpuAdapter],
+        type,
+        debugGPUTime: true,
+        createCanvasContext: {
+          container: this.getHiddenCanvasParent(),
+          width: 1,
+          height: 1,
+          alphaMode: 'premultiplied'
+        }
+      });
+      this.#cachedDevices[type] = devicePromise;
+      void devicePromise
+        .then(device => {
+          if (this.#cachedDevices[type] === devicePromise) {
+            this.#resolvedDevices[type] = device;
+          }
+        })
+        .catch(() => {});
+    }
 
     return await devicePromise;
   }
@@ -296,6 +316,7 @@ export class DeviceManagerController {
       isLoading: false
     };
     this.#cachedDevices = {};
+    this.#resolvedDevices = {};
     this.#cachedDeviceAvailability = {};
     this.#canvasParent = null;
     this.#hiddenCanvasParent?.remove();
@@ -327,12 +348,25 @@ export class DeviceManagerController {
       return undefined;
     }
 
-    if (
-      typeof HTMLCanvasElement !== 'undefined' &&
-      canvas instanceof HTMLCanvasElement &&
-      canvas.parentElement !== parentElement
-    ) {
-      parentElement.append(canvas);
+    if (typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement) {
+      if (parentElement !== this.#hiddenCanvasParent) {
+        const hiddenCanvasParent = this.getHiddenCanvasParent();
+        for (const cachedDevice of Object.values(this.#resolvedDevices)) {
+          if (cachedDevice === device) {
+            continue;
+          }
+          const inactiveCanvas = getDeviceCanvas(cachedDevice);
+          if (
+            inactiveCanvas instanceof HTMLCanvasElement &&
+            inactiveCanvas.parentElement !== hiddenCanvasParent
+          ) {
+            hiddenCanvasParent.append(inactiveCanvas);
+          }
+        }
+      }
+      if (canvas.parentElement !== parentElement) {
+        parentElement.append(canvas);
+      }
     }
 
     return canvas;

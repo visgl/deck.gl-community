@@ -14,8 +14,8 @@ import {sampleWindField, type WindBounds, type WindField} from './wind-data';
  * Configuration for the work-in-progress, GPU-advected {@link ParticleLayer}.
  *
  * @remarks
- * WebGL2 uses transform feedback and point primitives; WebGPU uses compute and native
- * GPU-buffer-backed point primitives. Particle positions are not read back during animation.
+ * WebGL2 uses transform feedback, while WebGPU uses compute. Both backends render trails and
+ * particle heads directly from GPU-resident buffers without reading positions back during animation.
  */
 export type ParticleLayerProps = {
   /** Indexed, time-varying weather station data. */
@@ -80,13 +80,39 @@ const windParticleAgeFade = {
   }
 } as const satisfies ShaderModule;
 
+const windParticleTrailInjectionsWGSL = {
+  '  var vColor: vec4<f32> = vec4<f32>(instanceColors.rgb, instanceColors.a * layer.opacity);': /* wgsl */ `
+  let windFadeIn = smoothstep(0.0, 16.0, instanceTargetPositions.w);
+  let windFadeOut = 1.0 - smoothstep(152.0, 180.0, instanceTargetPositions.w);
+  vColor.a *= windFadeIn * windFadeOut;`,
+  '  output.gl_Position = finalPosition;': /* wgsl */ `
+  if (distance(geometry.worldPosition.xy, geometry.worldPositionAlt.xy) > 0.75) {
+    output.gl_Position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
+  }`
+} as const;
+
 class GpuParticleTrailLayer extends LineLayer {
   static layerName = 'GpuParticleTrailLayer';
 
   initializeState(): void {
     super.initializeState();
-    if (this.context.device.type === 'webgl') {
-      this.getAttributeManager()?.addInstanced({
+    const attributeManager = this.getAttributeManager();
+    if (this.context.device.type === 'webgpu') {
+      attributeManager?.remove(['instanceSourcePositions', 'instanceTargetPositions']);
+      attributeManager?.addInstanced({
+        instanceSourcePositions: {
+          size: 3,
+          type: 'float32',
+          accessor: 'getSourcePosition'
+        },
+        instanceTargetPositions: {
+          size: 4,
+          type: 'float32',
+          accessor: 'getTargetPosition'
+        }
+      });
+    } else {
+      attributeManager?.addInstanced({
         windParticleAges: {size: 1, accessor: 'getParticleAge'}
       });
     }
@@ -94,13 +120,36 @@ class GpuParticleTrailLayer extends LineLayer {
 
   getShaders() {
     const shaders = super.getShaders();
+    if (this.context.device.type === 'webgpu') {
+      shaders.source = shaders.source
+        .replace(
+          '@location(2) instanceTargetPositions: vec3<f32>,',
+          '@location(2) instanceTargetPositions: vec4<f32>,'
+        )
+        .replace('  @location(3) instanceSourcePositions64Low: vec3<f32>,\n', '')
+        .replace('  @location(4) instanceTargetPositions64Low: vec3<f32>,\n', '')
+        .replace(
+          'geometry.worldPositionAlt = instanceTargetPositions;',
+          'geometry.worldPositionAlt = instanceTargetPositions.xyz;'
+        )
+        .replace(
+          'var source_world_64low: vec3<f32> = instanceSourcePositions64Low;',
+          'var source_world_64low = vec3<f32>(0.0);'
+        )
+        .replace(
+          'var target_world: vec3<f32> = instanceTargetPositions;',
+          'var target_world: vec3<f32> = instanceTargetPositions.xyz;'
+        )
+        .replace(
+          'var target_world_64low: vec3<f32> = instanceTargetPositions64Low;',
+          'var target_world_64low = vec3<f32>(0.0);'
+        );
+      shaders.inject = windParticleTrailInjectionsWGSL;
+      return shaders;
+    }
     return {
       ...shaders,
-      modules: [
-        ...shaders.modules,
-        windParticleTrailClip,
-        ...(this.context.device.type === 'webgl' ? [windParticleAgeFade] : [])
-      ]
+      modules: [...shaders.modules, windParticleTrailClip, windParticleAgeFade]
     };
   }
 
@@ -354,15 +403,14 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
     if (this.state.gpu) {
       const {gpu} = this.state;
       const isWebgl = this.context.device.type === 'webgl';
-      const ages = isWebgl
-        ? {getParticleAge: {buffer: gpu.targetBuffer, size: 1, stride: 16, offset: 12}}
-        : {};
       const trailPositions = {
         length: gpu.particleCount,
         attributes: {
           getSourcePosition: {buffer: gpu.sourceBuffer, size: 3, stride: 16},
-          getTargetPosition: {buffer: gpu.targetBuffer, size: 3, stride: 16},
-          ...ages
+          getTargetPosition: {buffer: gpu.targetBuffer, size: isWebgl ? 3 : 4, stride: 16},
+          ...(isWebgl
+            ? {getParticleAge: {buffer: gpu.targetBuffer, size: 1, stride: 16, offset: 12}}
+            : {})
         }
       };
       const heads = new GpuParticlePointLayer(this.getSubLayerProps({id: 'heads'}), {
@@ -371,7 +419,7 @@ export class ParticleLayer extends CompositeLayer<ParticleLayerProps> {
         pointRadiusPixels,
         pickable: false
       });
-      if (!isWebgl || gpu.particleCount > 250_000) {
+      if (gpu.particleCount > 250_000) {
         return [heads];
       }
 

@@ -57,6 +57,30 @@ describe('DeviceManagerController', () => {
     expect(createDeviceMock).toHaveBeenCalledTimes(1);
   });
 
+  it('creates backend-neutral transparent canvases in a nonzero offscreen cache', async () => {
+    createDeviceMock.mockResolvedValue(createMockDevice('webgpu'));
+
+    await manager.createDevice('webgpu');
+
+    const hiddenParent = document.body.querySelector<HTMLElement>(
+      '[data-device-manager-canvas-parent]'
+    );
+    expect(createDeviceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        createCanvasContext: expect.objectContaining({
+          alphaMode: 'premultiplied',
+          container: hiddenParent,
+          width: 1,
+          height: 1
+        })
+      })
+    );
+    expect(hiddenParent?.style.display).toBe('');
+    expect(hiddenParent?.style.width).toBe('1px');
+    expect(hiddenParent?.style.height).toBe('1px');
+    expect(hiddenParent?.style.visibility).toBe('hidden');
+  });
+
   it('updates state and reparents the active canvas', async () => {
     const webgpuDevice = createMockDevice('webgpu');
     createDeviceMock.mockResolvedValue(webgpuDevice);
@@ -85,7 +109,11 @@ describe('DeviceManagerController', () => {
     await manager.setDeviceType('webgpu');
     await manager.setDeviceType('webgl');
 
+    expect(target.querySelectorAll('canvas')).toHaveLength(1);
     expect(target.lastElementChild).toBe(webglDevice.getDefaultCanvasContext().canvas as Element);
+    expect(
+      document.body.querySelector('[data-device-manager-canvas-parent]')?.querySelector('canvas')
+    ).toBe(webgpuDevice.getDefaultCanvasContext().canvas as Element);
   });
 
   it('reports failing device creation attempts', async () => {

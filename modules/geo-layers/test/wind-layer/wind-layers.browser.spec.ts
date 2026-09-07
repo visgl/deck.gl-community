@@ -203,6 +203,9 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     expect(particleLayer?.state.gpu?.particleCount).toBe(4096);
     expect(particleLayer?.state.particles).toHaveLength(0);
     expect(particleLayer?.state.gpu?.targetBuffer.byteLength).toBe(4096 * 4 * 4);
+    const particleSublayerIds = particleLayer?.getSubLayers().map(layer => layer.props.id) ?? [];
+    expect(particleSublayerIds.some(id => id.endsWith('-trails'))).toBe(true);
+    expect(particleSublayerIds.some(id => id.endsWith('-heads'))).toBe(true);
     if (type === 'webgl' && particleLayer?.state.gpu) {
       const sourceBytes = particleLayer.state.gpu.sourceBuffer.readSyncWebGL();
       const targetBytes = particleLayer.state.gpu.targetBuffer.readSyncWebGL();
