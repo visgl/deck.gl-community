@@ -3,8 +3,7 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 # ElevationLayer
 
 :::caution Work in progress
-The terrain API, height-map smoothing, material, and exaggeration are experimental. WebGPU
-compatibility depends on upstream `TerrainLayer` and loaders.gl support.
+The terrain API, height-map smoothing, material, and exaggeration are experimental.
 :::
 
 `ElevationLayer` decodes a grayscale height map into illuminated, extruded mountain geometry.
@@ -37,11 +36,10 @@ const terrain = new ElevationLayer({
 For smoother relief, filter the grayscale image once before passing it as `elevationData`. Do not
 recreate or decode the terrain mesh during particle animation.
 
-Height-map rendering currently requires WebGL2 because upstream `TerrainLayer` uses a WebGL-only
-mesh renderer. On WebGPU, `ElevationLayer` safely omits its terrain sub-layer; use
-[`DelaunayCoverLayer`](/docs/modules/geo-layers/api-reference/delaunay-cover-layer) for a
-WebGPU-compatible station-triangulated terrain surface. See the
-[WebGPU support matrix](/docs/webgpu) for the current status.
+Height-map rendering is browser-verified on WebGL2 and WebGPU through deck.gl 9.4's upstream
+`TerrainLayer` and `SimpleMeshLayer`. [`DelaunayCoverLayer`](./delaunay-cover-layer.md) remains a
+separate station-triangulated debugging surface. See the [WebGPU support matrix](/docs/webgpu) for
+the current status.
 
 ## Properties
 

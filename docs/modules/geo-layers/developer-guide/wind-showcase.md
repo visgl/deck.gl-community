@@ -5,8 +5,7 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 :::caution Work in progress
 The reusable wind layers and the historical showcase are experimental. GPU particle advection has
 been independently verified on WebGL2 and WebGPU, along with filled wind arrows and station
-surfaces. Image-derived mountain terrain still depends on upstream `TerrainLayer` support, so the
-WebGPU showcase substitutes the station-triangulated surface.
+surfaces. Stable deck.gl 9.4 also renders the image-derived mountain terrain on both backends.
 :::
 
 The Wind Map restores
@@ -194,9 +193,9 @@ buffers on every slider event.
 | `ParticleLayer` | Supported | Supported | Independently browser-tested GPU advection and rendering. |
 | Wind data and `DelaunayInterpolation` | Supported | Supported | Backend-independent indexing and explicit sampling. |
 | `WindLayer` | Supported | Supported | Native GLSL/WGSL filled arrows and portable line shafts. |
-| `ElevationLayer` | Supported | Blocked | Image-derived mountain terrain depends on upstream `TerrainLayer`. |
+| `ElevationLayer` | Supported | Supported | Browser-tested upstream `TerrainLayer` and `SimpleMeshLayer`. |
 | `DelaunayCoverLayer` | Supported | Supported | Native GLSL/WGSL station-triangulated surface. |
-| Complete original showcase | Supported | In progress | WebGPU renders state boundaries and uses station terrain while image-derived mountains remain blocked. |
+| Complete original showcase | Supported | Supported | Browser-tested image terrain, particles, arrows, labels, boundaries, and station terrain. |
 
 See the full [WebGPU compatibility matrix](/docs/webgpu).
 

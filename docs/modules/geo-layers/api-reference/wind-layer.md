@@ -4,7 +4,7 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 :::caution Work in progress
 The wind arrow API and styling are experimental. Native triangle glyphs and portable line
-segments render on WebGL2 and WebGPU; image-based mountain terrain remains in progress.
+segments render on WebGL2 and WebGPU, as does the showcase's image-based mountain terrain.
 :::
 
 `WindLayer` renders a Delaunay-interpolated station forecast as directional, speed-colored arrow

@@ -38,8 +38,8 @@ const layers = [
 ```
 
 WebGL2 and WebGPU particle simulation are independently browser-tested. Wind arrows, state
-boundaries, and station-triangulated terrain are portable; complete rendering of the original
-mountain scene remains in progress because upstream `TerrainLayer` does not yet support WebGPU.
+boundaries, station-triangulated terrain, and the original image-derived mountain terrain are
+portable with stable deck.gl 9.4.
 
 See the [wind showcase guide](https://deck.gl-community.github.io/docs/modules/geo-layers/developer-guide/wind-showcase)
 and [standalone example](https://github.com/visgl/deck.gl-community/tree/master/examples/geo-layers/wind).

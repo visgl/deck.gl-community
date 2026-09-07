@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@deck.gl-community/geo-layers": "workspace:*",
-    "@deck.gl-community/infovis-layers": "workspace:*",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/geo-layers": "~9.4.0",

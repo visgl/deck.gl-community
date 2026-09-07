@@ -69,7 +69,7 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  include: ['apache-arrow', 'zod']
+  include: ['@deck.gl/mesh-layers', 'apache-arrow', 'three', 'zod']
 };
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];

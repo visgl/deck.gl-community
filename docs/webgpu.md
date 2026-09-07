@@ -20,10 +20,11 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/infovis-layers` | `FastTextLayer` | ✅ | ✅ | Native WGSL adapted from luma.gl's text-renderer patterns; existing packed glyphs, bitmap/SDF atlases, clipping, alignment, and mipmaps work on both backends. |
 | `@deck.gl-community/timeline-layers` | `HorizonGraphLayer` | ✅ | ✅ | Native WGSL; WebGPU preserves float bits in baseline-compatible `r32uint` textures. |
 | `@deck.gl-community/timeline-layers` | `MultiHorizonGraphLayer` | ✅ | ✅ | Portable horizon shaders and dual-backend line dividers. |
-| `@deck.gl-community/timeline-layers` | `TimeAxisLayer` | ✅ | 🚧 | Grid lines are portable; upstream `TextLayer` labels still require stable WebGPU validation. |
+| `@deck.gl-community/timeline-layers` | `TimeAxisLayer` | ✅ | ✅ | Browser-verified grid lines and upstream `TextLayer` tick labels. |
 | `@deck.gl-community/timeline-layers` | `VerticalGridLayer` | ✅ | ✅ | Browser-verified portable `LineLayer` grid marks and viewport-driven ticks. |
 | `@deck.gl-community/timeline-layers` | `TimelineLayer` geometry | ✅ | ✅ | Browser-verified tracks, clips, scrubber polygons, and lines using upstream dual-backend layers. |
-| `@deck.gl-community/timeline-layers` | `TimelineLayer` labels and interactions | ✅ | 🚧 | Text labels and pointer/drag behavior still require stable WebGPU browser coverage. |
+| `@deck.gl-community/timeline-layers` | `TimelineLayer` labels | ✅ | ✅ | Browser-verified upstream `TextLayer` track, clip, axis, and scrubber labels. |
+| `@deck.gl-community/timeline-layers` | `TimelineLayer` interactions | ✅ | 🚧 | Pointer, drag, and selection behavior is backend-neutral but still needs browser interaction coverage. |
 | `@deck.gl-community/graph-layers` | `GraphLayer`, `EdgeLayer`, and node layers | ✅ | 🚧 | Static path edges, arrow decorators, and rounded nodes are portable; complete graph styling, images, labels, layouts, and picking still require end-to-end validation. |
 | `@deck.gl-community/graph-layers` | `RoundedRectangleLayer` | ✅ | ✅ | Rounded corners are CPU-tessellated and rendered with upstream dual-backend `PolygonLayer`. |
 | `@deck.gl-community/graph-layers` | `PathEdgeLayer` and `EdgeArrowLayer` | ✅ | ✅ | Browser-verified upstream path rendering and polygon arrowheads. |
@@ -31,17 +32,16 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/geo-layers` | `ParticleLayer` | ✅ | ✅ | Browser-verified WebGL2 transform-feedback and WebGPU compute advection; production rendering uses GPU particle buffers without readbacks. |
 | `@deck.gl-community/geo-layers` | Wind-field utilities and `DelaunayInterpolation` | ✅ | ✅ | Backend-independent station indexing, explicit sampling, and optional CPU rasterization. |
 | `@deck.gl-community/geo-layers` | `WindLayer` | ✅ | ✅ | Native WGSL/GLSL filled-arrow triangles and portable line shafts and arrowheads. |
-| `@deck.gl-community/geo-layers` | `ElevationLayer` | ✅ | ❌ | Image-derived mountain terrain depends on upstream `TerrainLayer`; skipped safely on WebGPU. |
+| `@deck.gl-community/geo-layers` | `ElevationLayer` | ✅ | ✅ | Browser-verified image-derived mountain terrain through upstream `TerrainLayer` and `SimpleMeshLayer`. |
 | `@deck.gl-community/geo-layers` | `DelaunayCoverLayer` | ✅ | ✅ | Native WGSL/GLSL station triangles, elevation scaling, and height-based coloring. |
-| `@deck.gl-community/geo-layers` | Complete Wind Map showcase | ✅ | 🚧 | GPU particles, arrows, labels, state boundaries, and station terrain are portable; image terrain remains upstream-dependent. |
-| `@deck.gl-community/geo-layers` | `GlobalGridLayer` and `TileGridLayer` borders | ✅ | ✅ | Browser-verified upstream polygon and path renderers using local grid and tile data. |
+| `@deck.gl-community/geo-layers` | Complete Wind Map showcase | ✅ | ✅ | Browser-verified image terrain, GPU particles, arrows, labels, state boundaries, and station terrain. |
+| `@deck.gl-community/geo-layers` | `GlobalGridLayer` and `TileGridLayer` | ✅ | ✅ | Browser-verified upstream polygon, path, and text renderers using local grid and tile data. |
 | `@deck.gl-community/geo-layers` | `SharedTile2DLayer` and `TileSourceLayer` | ✅ | 🚧 | Validate tile formats, texture upload, labels, and picking. |
-| `@deck.gl-community/arrow-layers` | Column, heatmap, path, point-cloud, polygon, scatterplot, and solid-polygon layers | ✅ | ✅ | Browser-verified Arrow binary attributes through the corresponding upstream renderers. |
-| `@deck.gl-community/arrow-layers` | Arc, H3, text, and trips layers | ✅ | 🚧 | Arc binary attributes exceed the baseline eight-vertex-buffer limit; the others require upstream renderer validation or remaining custom shader work. |
+| `@deck.gl-community/arrow-layers` | Arc, column, H3, heatmap, path, point-cloud, polygon, scatterplot, solid-polygon, text, and trips layers | ✅ | ✅ | Browser-verified Arrow binary data through the corresponding upstream renderers; H3 indexes and text glyph positions are adapted for their composite sublayers. |
 | `@deck.gl-community/editable-layers` | GeoJSON paths, polygons, and edit handles | ✅ | ✅ | Browser-verified `EditableGeoJsonLayer` rendering in `ModifyMode`, including the WebGPU picking-width shader path. |
 | `@deck.gl-community/editable-layers` | Editing and selection interactions | ✅ | 🚧 | Pointer, drag, snapping, and selection behavior still require browser interaction coverage on WebGPU. |
 | `@deck.gl-community/basemap-layers` | `BasemapLayer` | ✅ | 🚧 | Support depends on the selected style's polygon, path, and label sublayers. |
-| `@deck.gl-community/three` | `TreeLayer` | ✅ | 🚧 | Three.js builds the geometry, but deck.gl renders it through upstream `SimpleMeshLayer`, whose WebGPU port is still pending. |
+| `@deck.gl-community/three` | `TreeLayer` | ✅ | ✅ | Browser-verified procedural Three.js geometry rendered through upstream `SimpleMeshLayer`. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/bing-maps` | Bing Maps overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/widgets` | `DeviceManagerController` and `DeviceTabsWidget` | ✅ | ✅ | Selects and attaches an independently managed real rendering device. |
@@ -119,13 +119,13 @@ routes now render through the selected backend.
 | --- | --- | --- |
 | Existing reference | `SkyboxLayer` | Provides native WGSL and GLSL sources, portable cubemap bindings, and a switchable skybox example. |
 | First wave | `BlockLayer`, `DependencyArrowLayer` marker geometry, `HorizonGraphLayer`, and `MultiHorizonGraphLayer` | Native WGSL and existing GLSL are maintained together. Stacked horizon dividers use the upstream dual-backend `LineLayer`; the website injects real WebGPU/WebGL2 device selection into the skybox, path, block, and horizon examples. |
-| Wind showcase | `ParticleLayer`, wind-field utilities, `WindLayer`, and `DelaunayCoverLayer` | WebGL2 transform-feedback, WebGPU compute, native arrow triangles, and station-surface rendering are browser-verified. Image-based mountain terrain still depends on upstream `TerrainLayer`. |
-| Path and polygon unblock | `PathOutlineLayer`, `PathMarkerLayer`, `DependencyArrowLayer`, `TimelineLayer` geometry, GeoArrow renderers, editable GeoJSON, global-grid and tile-border layers, and static graph geometry | deck.gl 9.4 alpha.2 supplies dual-backend path and polygon shaders. Community layers use them directly, with a local WGSL dash plugin until `PathStyleExtension` gains native WGSL. |
-| Fast text | `FastTextLayer` | The existing bitmap/SDF glyph layer now has native WGSL and remains available while upstream `TextLayer` WebGPU support stabilizes. |
-| Upstream follow-ups | `TextLayer`, `TripsLayer`, `SimpleMeshLayer`, and specialized geo-cell layers | Adopt and validate upstream WebGPU implementations as they become available; keep local fallbacks narrowly scoped. |
+| Wind showcase | `ParticleLayer`, wind-field utilities, `WindLayer`, `ElevationLayer`, and `DelaunayCoverLayer` | WebGL2 transform-feedback, WebGPU compute, native arrow triangles, station surfaces, and upstream image terrain are browser-verified. |
+| Path and polygon unblock | `PathOutlineLayer`, `PathMarkerLayer`, `DependencyArrowLayer`, `TimelineLayer` geometry, GeoArrow renderers, editable GeoJSON, global-grid and tile-border layers, and static graph geometry | deck.gl 9.4 supplies dual-backend path and polygon shaders. Community layers use them directly, with a local WGSL dash plugin until `PathStyleExtension` gains native WGSL. |
+| Fast text | `FastTextLayer` | The existing bitmap/SDF glyph layer has native WGSL and remains available as a packed, Arrow-aware alternative to upstream `TextLayer`. |
+| Stable 9.4 upstream follow-ups | `TextLayer`, `TripsLayer`, `SimpleMeshLayer`, `TerrainLayer`, and H3 layers | Community timeline labels, GeoArrow wrappers, trees, tile labels, and image terrain are browser-verified against the stable upstream implementations. |
 | Graph geometry | `RoundedRectangleLayer`, `PathEdgeLayer`, and `EdgeArrowLayer` | Replace the fragment-only rounded rectangle and mesh arrowhead with CPU-tessellated polygons, then validate static path and polygon geometry on both backends. Full `GraphLayer` integration remains in progress. |
 | Dedicated redesign | `FlowPathLayer` and animated graph flows | The current transform-feedback implementation is incomplete and WebGL-specific. Replace it with a backend-neutral animation or compute design; do not treat shader translation alone as a port. |
-| Subsequent validation | Arrow arc/H3/text/trips, editable interactions, geospatial tile sources, and basemap layers | Reduce Arrow arc vertex-buffer usage; validate remaining upstream sublayers, picking interactions, tile and texture formats, and each demonstrated example independently. |
+| Subsequent validation | Editable interactions, geospatial tile sources, graph composition, and basemap layers | Validate picking and drag interactions, tile and texture formats, complete graph styling/layout, and each basemap style independently. |
 | Host-dependent integrations | Leaflet, Bing Maps, and external map renderers | Support depends on the host renderer and canvas ownership. A host-owned WebGL context cannot be switched to WebGPU by adding device tabs. |
 
 The skybox map example also composes a basemap. `SkyboxLayer` itself has native WebGPU shaders, while complete basemap compatibility remains subject to the downstream GeoJSON, polygon, path, and label sublayers used by the selected style.

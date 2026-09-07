@@ -13,7 +13,6 @@ import {
   type Widget
 } from '@deck.gl/core';
 import {GeoJsonLayer, ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-import {FastTextLayer} from '@deck.gl-community/infovis-layers';
 import {
   createWindField,
   DelaunayCoverLayer,
@@ -133,7 +132,7 @@ type WindExampleLayerStack = {
   boundaries: GeoJsonLayer | false;
   wind: WindLayer | false;
   particles: ParticleLayer | false;
-  labels: TextLayer<WindCity> | FastTextLayer<WindCity>;
+  labels: TextLayer<WindCity>;
   stations: ScatterplotLayer<WindStation> | false;
 };
 
@@ -427,12 +426,9 @@ export function mountWindExample(
       return;
     }
 
-    const isWebgpu = options.device?.type === 'webgpu';
-
     layerStack = {
       terrain:
         settings.showTerrain &&
-        !isWebgpu &&
         new ElevationLayer({
           id: 'wind-height-map',
           elevationData: terrainData.elevationData,
@@ -444,7 +440,7 @@ export function mountWindExample(
           texture: terrainData.texture
         }),
       stationMesh:
-        (settings.showStationMesh || (settings.showTerrain && isWebgpu)) &&
+        settings.showStationMesh &&
         new DelaunayCoverLayer({
           id: 'wind-station-terrain',
           windField: field,
@@ -465,47 +461,26 @@ export function mountWindExample(
       }),
       wind: createWindLayer(field),
       particles: createParticleLayer(field),
-      labels: isWebgpu
-        ? new FastTextLayer<WindCity>({
-            id: 'wind-city-labels',
-            data: WIND_CITIES,
-            getPosition: city => {
-              const sample = sampleWindField(field, city.position, 0);
-              return [
-                city.position[0],
-                city.position[1],
-                (sample?.elevation ?? 0) * ELEVATION_SCALE + 2_200
-              ];
-            },
-            getText: city => city.name,
-            getColor: [231, 232, 238, 215],
-            size: 12,
-            sizeUnits: 'pixels',
-            textAnchor: 'middle',
-            alignmentBaseline: 'center',
-            parameters: {depthWriteEnabled: false},
-            pickable: false
-          })
-        : new TextLayer<WindCity>({
-            id: 'wind-city-labels',
-            data: WIND_CITIES,
-            getPosition: city => {
-              const sample = sampleWindField(field, city.position, 0);
-              return [
-                city.position[0],
-                city.position[1],
-                (sample?.elevation ?? 0) * ELEVATION_SCALE + 2_200
-              ];
-            },
-            getText: city => city.name,
-            getColor: [231, 232, 238, 215],
-            getSize: 12,
-            sizeUnits: 'pixels',
-            getTextAnchor: 'middle',
-            getAlignmentBaseline: 'center',
-            parameters: {depthWriteEnabled: false},
-            pickable: false
-          }),
+      labels: new TextLayer<WindCity>({
+        id: 'wind-city-labels',
+        data: WIND_CITIES,
+        getPosition: city => {
+          const sample = sampleWindField(field, city.position, 0);
+          return [
+            city.position[0],
+            city.position[1],
+            (sample?.elevation ?? 0) * ELEVATION_SCALE + 2_200
+          ];
+        },
+        getText: city => city.name,
+        getColor: [231, 232, 238, 215],
+        getSize: 12,
+        sizeUnits: 'pixels',
+        getTextAnchor: 'middle',
+        getAlignmentBaseline: 'center',
+        parameters: {depthWriteEnabled: false},
+        pickable: false
+      }),
       stations:
         settings.showStations &&
         new ScatterplotLayer<WindStation>({

@@ -180,17 +180,20 @@ export class BlockLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
       instanceSizes: {
         size: 2,
         transition: true,
+        bufferGroup: 'block-instance-data',
         accessor: 'getSize'
       },
       instanceLineWidths: {
         size: 1,
         transition: true,
+        bufferGroup: 'block-instance-data',
         accessor: 'getLineWidth'
       },
       instanceLineColors: {
         size: this.props.colorFormat.length,
         type: 'unorm8',
         transition: true,
+        bufferGroup: 'block-instance-data',
         accessor: 'getLineColor',
         defaultValue: DEFAULT_COLOR
       },
@@ -198,18 +201,20 @@ export class BlockLayer<DataT = any, ExtraPropsT extends {} = {}> extends Layer<
         size: this.props.colorFormat.length,
         type: 'unorm8',
         transition: true,
+        bufferGroup: 'block-instance-data',
         accessor: 'getFillColor',
         defaultValue: DEFAULT_COLOR
       },
       instanceOpacities: {
         size: 1,
         transition: true,
+        bufferGroup: 'block-instance-data',
         accessor: 'getOpacity',
         defaultValue: 1
       },
       instanceColorOverrides: {
         size: 1,
-        type: 'uint8',
+        bufferGroup: 'block-instance-data',
         accessor: 'getColorOverride',
         defaultValue: 0
       }
