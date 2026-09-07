@@ -6,7 +6,7 @@ Target Release Date: July 2026
 
 Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
 
-- Development now targets community `9.4.0-alpha.0`, deck.gl `9.4.0-alpha.2`, and luma.gl `9.4.0-alpha.1`; the Turf 7 and mjolnir.js 3.1 beta baselines keep editable and event-driven layers compatible with the 9.4 toolchain.
+- Development now targets community `9.4.0-alpha.3`, the stable deck.gl and luma.gl `9.4.0` releases, loaders.gl `4.4.3`, and mjolnir.js `3.1.1`; the Turf 7 baseline keeps editable layers compatible with the 9.4 toolchain.
 
 ### WebGPU
 
@@ -15,7 +15,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 - `BlockLayer`: added native WGSL for instanced block fills, outlines, projection, opacity, and picking while preserving the existing WebGL2 shaders.
 - `FastTextLayer`: added an upstream-informed WGSL compatibility shader for existing packed bitmap and signed-distance-field glyphs, font-atlas bindings, clipping, alignment, and WebGPU mipmaps.
 - `TimeDeltaLayer`: uses portable line guides and native-WGSL fast-text labels on WebGPU while preserving WebGL2 label backgrounds.
-- `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry and picking; line, arc, and path routing are browser-verified on both backends with deck.gl 9.4 alpha.2.
+- `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry and picking; line, arc, and path routing are browser-verified on both backends with deck.gl 9.4.
 - `PathOutlineLayer` and `PathMarkerLayer`: use the upstream dual-backend `PathLayer` and add a local WGSL dash plugin until `PathStyleExtension` gains native WGSL.
 - `HorizonGraphLayer`: added native WGSL and baseline-compatible WebGPU integer data textures that preserve the original float bits.
 - `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.

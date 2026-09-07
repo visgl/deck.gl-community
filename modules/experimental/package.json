@@ -37,23 +37,23 @@
     "test-watch": "vitest"
   },
   "dependencies": {
-    "@loaders.gl/i3s": "^4.4.1",
-    "@loaders.gl/loader-utils": "^4.4.1",
-    "@loaders.gl/schema": "^4.4.1",
-    "@loaders.gl/tiles": "^4.4.1",
-    "@luma.gl/shadertools": "~9.4.0-alpha.1"
+    "@loaders.gl/i3s": "^4.4.3",
+    "@loaders.gl/loader-utils": "^4.4.3",
+    "@loaders.gl/schema": "^4.4.3",
+    "@loaders.gl/tiles": "^4.4.3",
+    "@luma.gl/shadertools": "~9.4.0"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.0-alpha.2",
-    "@deck.gl/geo-layers": "~9.4.0-alpha.2",
-    "@deck.gl/layers": "~9.4.0-alpha.2",
-    "@deck.gl/mesh-layers": "~9.4.0-alpha.2",
-    "@loaders.gl/core": "^4.4.1",
-    "@luma.gl/core": "~9.4.0-alpha.1",
-    "@luma.gl/engine": "~9.4.0-alpha.1"
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/geo-layers": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
+    "@loaders.gl/core": "^4.4.3",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0"
   },
   "devDependencies": {
-    "@loaders.gl/core": "^4.4.1",
-    "@luma.gl/core": "~9.4.0-alpha.1"
+    "@loaders.gl/core": "^4.4.3",
+    "@luma.gl/core": "~9.4.0"
   }
 }
