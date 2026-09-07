@@ -3,6 +3,9 @@
   "label": "@deck.gl-community/graph-layers",
   "items": [
     "modules/graph-layers/README",
+    "modules/graph-layers/api-reference/layers/graph-layer",
+    "modules/graph-layers/api-reference/layers/edge-layer",
+    "modules/graph-layers/api-reference/layers/grid-layer",
     {
       "type": "category",
       "label": "Developer Guide",
@@ -14,9 +17,6 @@
         "modules/graph-layers/developer-guide/layouts"
       ]
     },
-    "modules/graph-layers/api-reference/layers/graph-layer",
-    "modules/graph-layers/api-reference/layers/edge-layer",
-    "modules/graph-layers/api-reference/layers/grid-layer",
     {
       "type": "category",
       "label": "Node layers",
