@@ -1,5 +1,14 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.0
+
+- chore(deps): upgrade deck.gl and luma.gl to 9.4.0 (#733)
+- feat: complete the deck.gl 9.4 WebGPU follow-ups and align embedded example rendering (#734, #737)
+- fix(editable-layers): remove the unnecessary layers peer dependency (#732)
+- chore(website): prepare for Docusaurus v4 (#735)
+- docs: streamline and finalize the 9.4 release notes and upgrade guide (#736, #738)
+- See [What's New](docs/whats-new.md) and the [Upgrade Guide](docs/upgrade-guide.md) for details.
+
 ## v9.4.0-alpha.3
 
 - feat(widgets): add async search lifecycle controls to OmniBoxWidget (#723)
