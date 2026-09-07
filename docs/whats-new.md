@@ -75,16 +75,6 @@ Highlights:
 - [`VerticalGridLayer`](/docs/modules/timeline-layers/api-reference/vertical-grid-layer) now
   supports WebGPU.
 
-### `@deck.gl-community/react`
-
-- [`Panel`](/docs/modules/react/api-reference/panel) (new) renders reusable
-  `@deck.gl-community/panels` definitions in React and MDX trees.
-
-### `@deck.gl-community/three`
-
-- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) improves the `palm` silhouette with a
-  detailed frond crown and ring-scarred trunk, and now supports WebGPU.
-
 ### `@deck.gl-community/widgets`
 
 - Device-managed examples now preserve transparent canvas backgrounds across WebGPU and WebGL2,
@@ -114,6 +104,16 @@ Highlights:
   Arrow schemas and metadata.
 - [`ArrowBatchesPanel`](/docs/modules/panels/api-reference/arrow-batches-panel) (new) summarizes
   Apache Arrow record batches.
+
+### `@deck.gl-community/react`
+
+- [`Panel`](/docs/modules/react/api-reference/panel) (new) renders reusable
+  `@deck.gl-community/panels` definitions in React and MDX trees.
+
+### `@deck.gl-community/three`
+
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) improves the `palm` silhouette with a
+  detailed frond crown and ring-scarred trunk, and now supports WebGPU.
 
 ## v9.3
 
