@@ -2,143 +2,115 @@
 
 ## v9.4 - In Development
 
-Target Release Date: July 2026
+Highlights:
 
-Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
+- Updated the community modules for deck.gl and luma.gl 9.4.
+- Expanded WebGPU support across the layer catalog. See the
+  [WebGPU support matrix](./webgpu.md) for current support and known limitations.
+- Added reusable wind visualization layers and new panel and widget APIs.
 
-- Development now targets community `9.4.0-alpha.3`, the stable deck.gl and luma.gl `9.4.0` releases, loaders.gl `4.4.3`, and mjolnir.js `3.1.1`; the Turf 7 baseline keeps editable layers compatible with the 9.4 toolchain.
+### `@deck.gl-community/arrow-layers`
 
-### WebGPU
+- All [GeoArrow layers](/docs/modules/arrow-layers/api-reference/layers) now support WebGPU.
 
-- Added the [WebGPU support matrix and migration roadmap](./webgpu.md), covering WebGL2 and WebGPU support by module and layer, upstream dependencies, and host integration limitations.
-- `SkyboxLayer`: validated the existing native WGSL and GLSL implementation with real WebGPU/WebGL2 device selection in the skybox example.
-- `BlockLayer`: added native WGSL for instanced block fills, outlines, projection, opacity, and
-  picking while preserving the existing WebGL2 shaders; stable deck.gl 9.4 packs the per-instance
-  data into a baseline-compatible vertex buffer and uses an aligned float color-override selector.
-- `FastTextLayer`: added an upstream-informed WGSL compatibility shader for existing packed bitmap and signed-distance-field glyphs, font-atlas bindings, clipping, alignment, and WebGPU mipmaps.
-- `TimeDeltaLayer`: uses portable line guides and native-WGSL fast-text labels on WebGPU while preserving WebGL2 label backgrounds.
-- `DependencyArrowLayer`: added native WGSL for directional arrow-marker geometry and picking; line, arc, and path routing are browser-verified on both backends with deck.gl 9.4.
-- `PathOutlineLayer` and `PathMarkerLayer`: use the upstream dual-backend `PathLayer` and add a local WGSL dash plugin until `PathStyleExtension` gains native WGSL.
-- `HorizonGraphLayer`: added native WGSL and baseline-compatible WebGPU integer data textures that preserve the original float bits.
-- `MultiHorizonGraphLayer`: made stacked horizon graphs portable by using dual-backend `LineLayer` dividers alongside the new horizon shaders.
-- `VerticalGridLayer`: validated viewport-driven timeline ticks and grid lines on both graphics backends.
-- `TimeAxisLayer` and `TimelineLayer`: validated tick, track, clip, axis, and scrubber labels with the stable upstream WebGPU `TextLayer`; pointer and drag interaction coverage remains in progress.
-- `WindLayer` and `DelaunayCoverLayer`: render filled directional arrows and station-triangulated surfaces using native WebGL2/WebGPU triangle shaders.
-- `ParticleLayer`: restored the historical wind showcase's GPU-resident particle advection using
-  WebGL2 transform feedback and native WebGPU compute, with no production particle readbacks and
-  support for up to one million animated particles; native point rendering preserves simulation
-  buffer ownership and defers resource cleanup until submitted GPU work completes. WebGPU weather
-  textures preserve float data in integer textures so baseline adapters do not require
-  `float32-filterable`.
-- `RoundedRectangleLayer`, `PathEdgeLayer`, and `EdgeArrowLayer`: replaced WebGL-only graph
-  primitives with CPU-tessellated polygons and browser-verified upstream path rendering.
-- All GeoArrow renderers now have browser coverage on WebGL2 and WebGPU, including Arc, H3, Text,
-  and Trips. H3 string indexes stay available to its CPU composite stage, while text glyph
-  positions use deck.gl 9.4-compatible child-layer packing.
-- `EditableGeoJsonLayer`: browser-verified polygon, path, and edit-handle rendering on WebGPU,
-  including its picking-width shader customization.
-- `GlobalGridLayer`, `TileGridLayer` borders, and the wind showcase's state boundaries now have
-  local-data browser coverage on WebGL2 and WebGPU.
-- `ElevationLayer` and the complete Wind Map now render image-derived terrain through stable
-  upstream `TerrainLayer` on WebGPU; the example no longer substitutes station triangles.
-- `TreeLayer` now has WebGL2/WebGPU browser coverage for its procedural geometry through stable
-  upstream `SimpleMeshLayer`.
-- Every website gallery example and live layer-reference example now receives a standalone
-  `DeviceTabsWidget` from the shared imperative host, with an independent device manager, WebGPU
-  preference, WebGL2 fallback, renderer remounting, and preserved view state.
-- Every documentation page now displays a generated WebGPU compatibility badge linked to the
-  support matrix. Verified and blocked layer pages override their package-level status, and
-  backend-neutral data, grid-adapter, layout, loader, mode, and trace-model APIs are marked not
-  applicable.
+### `@deck.gl-community/editable-layers`
+
+- [`EditableGeoJsonLayer`](/docs/modules/editable-layers/api-reference/layers/editable-geojson-layer)
+  now supports WebGPU, including polygon, path, and edit-handle picking.
 
 ### `@deck.gl-community/geo-layers`
 
-- Added the **work-in-progress** reusable wind showcase, ported from Nicolas Belmonte's original
-  deck.gl example and the original 72-hour United States station forecast.
-- `ParticleLayer` advances up to one million GPU-resident particles with WebGL2 transform feedback
-  or WebGPU compute; its production animation does not read particle buffers back to the CPU.
-- `WindLayer` renders interpolated, speed-colored wind arrows; `ElevationLayer` restores smooth,
-  vertically exaggerated image-based mountain terrain.
-- `DelaunayCoverLayer` exposes the weather-station mesh, while `DelaunayInterpolation` provides
-  backend-independent explicit weather sampling and rasterization.
-- `WindLayer` arrows and `DelaunayCoverLayer` station terrain use native GLSL/WGSL triangle
-  geometry, and `ElevationLayer` uses the upstream dual-backend terrain renderer.
-- Added public weather data, field, measurement, bounds, sample, triangle, and field-options types,
-  including robust Delaunay station triangulation for skinny station hulls.
-- Added a complete wind showcase guide, six reference pages with inline live examples, documented
-  WebGPU limitations, migration guidance, and public API TSDoc.
+- [`WindLayer`](/docs/modules/geo-layers/api-reference/wind-layer) (new) renders
+  interpolated, speed-colored wind arrows.
+- [`ParticleLayer`](/docs/modules/geo-layers/api-reference/particle-layer) (new) animates up to one
+  million particles on the GPU with WebGL2 or WebGPU.
+- [`ElevationLayer`](/docs/modules/geo-layers/api-reference/elevation-layer) (new) renders smooth,
+  image-based terrain on WebGL2 and WebGPU.
+- [`DelaunayCoverLayer`](/docs/modules/geo-layers/api-reference/delaunay-cover-layer) (new) renders
+  the triangulated weather-station surface.
+- [`DelaunayInterpolation`](/docs/modules/geo-layers/api-reference/delaunay-interpolation) (new)
+  samples and rasterizes weather fields independently of the rendering backend.
+- [`GlobalGridLayer`](/docs/modules/geo-layers/api-reference/global-grid-layer) now supports WebGPU.
+- [`TileGridLayer`](/docs/modules/geo-layers/api-reference/tile-grid-layer) now renders tile borders
+  on WebGPU.
 - The [Wind Map](/examples/geo-layers/wind) includes original forecast data, three-dimensional
   mountains, tilt-and-rotate camera controls, and a 1,000-to-1,000,000-particle density slider.
 
+### `@deck.gl-community/graph-layers`
+
+- [`RoundedRectangleLayer`](/docs/modules/graph-layers/api-reference/layers/rounded-rectangle-layer)
+  now supports WebGPU.
+- [`PathEdgeLayer`](/docs/modules/graph-layers/api-reference/layers/path-edge-layer) now supports
+  WebGPU.
+- [`EdgeArrowLayer`](/docs/modules/graph-layers/api-reference/layers/edge-arrow-layer) now supports
+  WebGPU.
+
 ### `@deck.gl-community/layers`
 
-- `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
-- `DependencyArrowLayer` marker geometry includes native WGSL alongside its existing WebGL2 shader; line, path, and arc routing are supported on both backends.
-- `PathOutlineLayer` and `PathMarkerLayer` now use deck.gl v9-native sublayers for outlined paths, dashed strokes, and pixel-sized directional markers, restoring the path outline and marker example.
+- [`DependencyArrowLayer`](/docs/modules/layers/api-reference/dependency-arrow-layer) (new) renders
+  dependency links with path, line, or arc routing on WebGL2 and WebGPU.
+- [`PathOutlineLayer`](/docs/modules/layers/api-reference/path-outline-layer) now uses deck.gl
+  v9-native sublayers and supports WebGPU.
+- [`PathMarkerLayer`](/docs/modules/layers/api-reference/path-marker-layer) now supports dashed
+  strokes and pixel-sized directional markers on WebGL2 and WebGPU.
 
 ### `@deck.gl-community/infovis-layers`
 
-- Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
-- `BlockLayer` now provides paired WebGPU WGSL and WebGL2 GLSL shaders for instanced fills, outlines, projection, and picking.
-- `BlockLayer` now supports independent width limits, dense-width cutoffs, stroke alignment, and
-  per-instance opacity or replacement colors for dense interval views.
-- `FastTextLayer` now renders its existing packed glyphs and generated font atlases on WebGPU and WebGL2; optimized upstream text and Arrow renderers remain planned for luma.gl v10.
-- `TimeDeltaLayer` now renders interval guides and headers using portable lines and fast text.
+- [`AnimationLayer`](/docs/modules/infovis-layers/api-reference/animation-layer) (new) animates a
+  child layer from a frame schedule.
+- [`BlockLayer`](/docs/modules/infovis-layers/api-reference/block-layer) (new) renders dense interval
+  blocks on WebGL2 and WebGPU, with width cutoffs, stroke alignment, opacity, and color overrides.
+- [`TimeDeltaLayer`](/docs/modules/infovis-layers/api-reference/time-delta-layer) (new) renders
+  interval guides and labels on WebGL2 and WebGPU.
 
 ### `@deck.gl-community/timeline-layers`
 
-- `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
-- `HorizonGraphLayer` and `MultiHorizonGraphLayer` can render their floating-point data textures on WebGPU and WebGL2; stacked horizon dividers now use the upstream dual-backend `LineLayer`.
-- `VerticalGridLayer` is browser-verified on both graphics backends.
+- [`TimeAxisLayer`](/docs/modules/timeline-layers/api-reference/time-axis-layer) now supports
+  adaptive duration and timestamp grids.
+- [`HorizonGraphLayer`](/docs/modules/timeline-layers/api-reference/horizon-graph-layer) now supports
+  WebGPU.
+- [`MultiHorizonGraphLayer`](/docs/modules/timeline-layers/api-reference/multi-horizon-graph-layer)
+  now supports WebGPU.
+- [`VerticalGridLayer`](/docs/modules/timeline-layers/api-reference/vertical-grid-layer) now
+  supports WebGPU.
 
 ### `@deck.gl-community/react`
 
-- `<Panel />` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
+- [`Panel`](/docs/modules/react/api-reference/panel) (new) renders reusable
+  `@deck.gl-community/panels` definitions in React and MDX trees.
 
 ### `@deck.gl-community/three`
 
-- `TreeLayer`: improved `palm` silhouette with a detailed frond crown and ring-scarred trunk.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) improves the `palm` silhouette with a
+  detailed frond crown and ring-scarred trunk, and now supports WebGPU.
 
 ### `@deck.gl-community/widgets`
 
-- `ColorLegendWidget` - NEW JSON-safe color legend for categorical lists, continuous gradients, and compact palettes, with bounded expansion, accessible controls, and deck.gl theme-token styling.
-- `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
-- Thin named adapters now cover real panel containers plus specialized toolbar
-  and toast components without duplicating panel rendering logic.
-- `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
-- `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode integrations.
-- `OmniBoxWidget` now supports debounced async search, refresh-key reruns, caller-managed result ordering, and result-state callbacks.
-- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
-- `createStudioSettingsWidget` and `updateStudioSettingsWidget` now host the shared Studio settings panel through deck widget chrome.
-- `TimeMeasureWidget` now lets users hover and drag either boundary of a completed range, with
-  provisional selection updates and cancellation that restores the previous range.
+- [`ColorLegendWidget`](/docs/modules/widgets/api-reference/color-legend-widget) (new) renders
+  categorical, continuous, and compact color legends.
+- [`PanelWidget`](/docs/modules/widgets/api-reference/panel-widget) (new) hosts any panel component
+  as a deck.gl widget.
+- [`OmniBoxWidget`](/docs/modules/widgets/api-reference/omni-box-widget) adds debounced asynchronous
+  search, refresh reruns, result-state callbacks, and custom result summaries.
+- [`TimeMeasureWidget`](/docs/modules/widgets/api-reference/time-measure-widget) lets users adjust
+  either boundary of a completed time range.
 
-### `@deck.gl-community/panels` (NEW module)
+### `@deck.gl-community/panels`
 
-A new module for deck-independent panel composition and small application UI.
-
-- `PanelManager` - mount compatible panel-managed UI into a plain `HTMLElement`
-- `PanelComponent` - NEW root lifecycle for mountable panel-owned UI.
-- `Panel` now inherits the shared `PanelComponent` lifecycle, including direct mounting.
-- Panel/container composition APIs extracted into a dedicated package
-- Stand-alone documentation and examples for panel composition outside deck.gl
-- Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs.
-- `ModalPanelContainer` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
-
-- `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
-
-- `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
-- `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with row, column, batch, nested-list, matrix, temporal, and loaders.gl wrapper support.
-- `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema, field, child, matrix, and temporal metadata with JSON metadata formatting.
-- `ArrowBatchesPanel` - NEW reusable panel for inspecting Arrow record batches, row counts, cumulative row ranges, and column counts.
-- `StudioSettingsPanel` - NEW schema-driven settings surface with grouped controls, compact navigation, and visual routing-shape controls.
-- `SettingsPanel` now renders `multi-select` descriptors through the shared searchable panel selector.
-- `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
-- `SettingsPanel` and `StudioSettingsPanel` select menus can render option descriptions and grow to fit long labels; `StudioSettingsPanel` also accepts `settingRowLayout: 'fit-labels'` when controls should claim width from short labels.
-- `ModalPanelContainer` and `SidebarPanelContainer` trigger icons can render data/http(s) image URLs as CSS mask icons.
-
-- `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
-- `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
+- [`PanelComponent`](/docs/modules/panels/api-reference/panel-components/panel-component) (new) is the
+  common lifecycle for directly mountable panel UI.
+- [`Panel`](/docs/modules/panels/api-reference/panel) now extends `PanelComponent`, providing a
+  consistent base for leaf and composite panels.
+- [`ModalPanelContainer`](/docs/modules/panels/api-reference/panel-containers/modal-panel-container)
+  adds non-blocking floating dialogs, drag handles, custom placement, and custom styling.
+- [`BinaryDataPanel`](/docs/modules/panels/api-reference/binary-data-panel) (new) previews binary
+  data as hexadecimal and ASCII rows.
+- [`ArrowTablePanel`](/docs/modules/panels/api-reference/arrow-table-panel) (new) previews Apache
+  Arrow tables.
+- [`ArrowSchemaPanel`](/docs/modules/panels/api-reference/arrow-schema-panel) (new) inspects Apache
+  Arrow schemas and metadata.
+- [`ArrowBatchesPanel`](/docs/modules/panels/api-reference/arrow-batches-panel) (new) summarizes
+  Apache Arrow record batches.
 
 ## v9.3
 
@@ -146,9 +118,12 @@ Released: April 15, 2026
 
 ### `@deck.gl-community/geo-layers`
 
-- `SharedTile2DLayer` - NEW experimental tiled `CompositeLayer` that can share one `SharedTileset2D` across multiple layer instances and multiple views.
-- `SharedTileset2D` - NEW shared tile cache and loading engine for coordinated multi-view / multi-layer tile loading.
-- `TileGridLayer` - NEW helper overlay for visualizing tile loading, tile bounds, and tile zoom depth while debugging tiled rendering.
+- [`SharedTile2DLayer`](/docs/modules/geo-layers/api-reference/shared-tile-2d-layer) (new) shares one
+  tiled data source across multiple layer instances and views.
+- [`SharedTileset2D`](/docs/modules/geo-layers/api-reference/shared-tileset-2d) (new) coordinates tile
+  caching and loading across layers and views.
+- [`TileGridLayer`](/docs/modules/geo-layers/api-reference/tile-grid-layer) (new) visualizes tile
+  loading, bounds, and zoom depth.
 - New [`SharedTile2DLayer` example](/examples/geo-layers/shared-tile-2d-layer) showing one shared auto-tiled GeoJSON `TableTileSource` and one shared `SharedTileset2D` feeding multiple styled comparisons plus a minimap.
 
 <img src="/images/icon-no-react.svg" alt="No React example UI initiative" width="72" align="right" />
@@ -161,10 +136,8 @@ Highlights:
 
 ### `@deck.gl-community/layers`
 
-- [`SkyboxLayer`](/docs/modules/layers/api-reference/skybox-layer) - NEW experimental layer for rendering a camera-centered cubemap background in deck.gl.
-  - Supports `MapView`, `GlobeView`, `FirstPersonView`, and other 3D-capable views.
-  - Accepts either a cubemap manifest URL or an in-memory cubemap manifest.
-  - Includes cubemap normalization utilities for converting loaded cubemap faces into runtime texture data.
+- [`SkyboxLayer`](/docs/modules/layers/api-reference/skybox-layer) (new) renders a camera-centered
+  cubemap in 3D-capable views from a URL or in-memory manifest.
 
 Examples:
 
@@ -176,33 +149,24 @@ Examples:
 
 A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
 
-- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
-- `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
-- `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
-- `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
+- [`BasemapLayer`](/docs/modules/basemap-layers/api-reference/basemap-layer) (new) renders MapLibre or
+  Mapbox style documents with deck.gl sublayers.
 - [BasemapLayer MapView](/examples/layers/basemap-layer-map-view) - Interactive flat-map control example with style switching and globe/flat runtime validation.
 
 **`@deck.gl-community/basemap-layers/map-style`** - Utilities for loading and working with map styles available as a separate deck.gl independent sub-export:
 
-- `MapStyleLoader` - loaders.gl-compatible loader wrapper for resolving and validating style documents.
-- `BasemapSourceSchema`, `BasemapStyleLayerSchema`, `BasemapStyleSchema`, `ResolvedBasemapStyleSchema` - Zod schemas for strongly typed style validation.
-- `parseProperties` - Resolve style paint/layout properties for a given zoom level.
-- `filterFeatures` - Apply Mapbox-style feature filters to decoded features.
-- `findFeaturesStyledByLayer` - Inspect which features match a specific style layer.
-- `resolveBasemapStyle` - Resolve style URLs, in-memory style objects, relative TileJSON references, and source URLs into a validated runtime style definition.
+- [`MapStyleLoader`](/docs/modules/basemap-layers/api-reference/map-style-loader) (new) resolves and
+  validates style documents through loaders.gl.
+- [Map style utilities](/docs/modules/basemap-layers/api-reference/map-style) provide schemas,
+  property evaluation, feature filtering, and URL resolution.
 
 ### `@deck.gl-community/three` (NEW module)
 
-New module for THREE.js integration experiments
+New module for THREE.js integration experiments.
 
-- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
-  - 5 species / silhouettes: pine, oak, palm, birch, cherry.
-  - Organic canopy geometry with smooth low-frequency vertex jitter.
-  - Per-tree variety via position-derived random bearing and asymmetric XY scale.
-  - Season-driven canopy colours (spring / summer / autumn / winter).
-  - Pine tier density control (`getBranchLevels` 1–5) with per-tier drift.
-  - Crop / fruit / flower visualisation (`getCrop`) with live and dropped crop spheres.
-  - [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/wild-forest) with 9 forest zones and interactive controls.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) (new) renders varied, seasonal 3D
+  forests with five tree silhouettes and optional crops. See the
+  [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/wild-forest).
 
 ## v9.2
 
