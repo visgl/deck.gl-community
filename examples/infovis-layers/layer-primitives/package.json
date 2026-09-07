@@ -10,14 +10,14 @@
   },
   "dependencies": {
     "@deck.gl-community/infovis-layers": "workspace:*",
-    "@deck.gl/core": "~9.4.0-alpha.2",
-    "@deck.gl/layers": "~9.4.0-alpha.2",
-    "@loaders.gl/core": "^4.4.1",
-    "@luma.gl/core": "~9.4.0-alpha.1",
-    "@luma.gl/engine": "~9.4.0-alpha.1",
-    "@luma.gl/shadertools": "~9.4.0-alpha.1",
-    "@luma.gl/webgl": "~9.4.0-alpha.1",
-    "@luma.gl/webgpu": "~9.4.0-alpha.1"
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@loaders.gl/core": "^4.4.3",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0",
+    "@luma.gl/webgl": "~9.4.0",
+    "@luma.gl/webgpu": "~9.4.0"
   },
   "devDependencies": {
     "vite": "^7.3.1"
