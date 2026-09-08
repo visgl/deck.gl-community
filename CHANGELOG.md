@@ -1,5 +1,9 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.1
+
+- fix: declare the widgets peer dependency and export `ToastManager` from the panels module (#739)
+
 ## v9.4.0
 
 - chore(deps): upgrade deck.gl and luma.gl to 9.4.0 (#733)
