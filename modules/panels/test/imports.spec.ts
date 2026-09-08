@@ -14,8 +14,14 @@ beforeAll(async () => {
   Panels = await import('../src/index');
 });
 
-it('exports PanelManager', () => {
+it('exports all manager classes', () => {
   expect(Panels.PanelManager).toBeDefined();
+  expect(Panels.SettingsManager).toBeDefined();
+  expect(Panels.CommandManager).toBeDefined();
+  expect(Panels.ToastManager).toBeDefined();
+  expect(Panels.URLManager).toBeDefined();
+  expect(Panels.KeyboardShortcutsManager).toBeDefined();
+  expect(Panels.KeyboardShortcutsManagerDocument).toBeDefined();
 });
 
 it('exports panel component primitives', () => {

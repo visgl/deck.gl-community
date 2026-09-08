@@ -44,6 +44,7 @@
   "peerDependencies": {
     "@deck.gl-community/panels": "~9.4.0-alpha.0",
     "@deck.gl/core": "~9.4.0",
+    "@deck.gl/widgets": "~9.4.0",
     "@luma.gl/core": "~9.4.0",
     "@luma.gl/webgl": "~9.4.0",
     "@luma.gl/webgpu": "~9.4.0"

@@ -8,7 +8,9 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 <PanelLiveExample highlight="panels" />
 
-`toastManager` manages toast state independently of any specific rendering host.
+`ToastManager` manages toast state independently of any specific rendering host.
+The package also exports `toastManager`, a shared instance for applications that
+do not need an isolated toast queue.
 
 Use it when application code needs to enqueue, dismiss, or observe toast
 messages without coupling that logic to a React component or a deck.gl widget.
@@ -16,10 +18,19 @@ messages without coupling that logic to a React component or a deck.gl widget.
 ## Usage
 
 ```ts
-import {toastManager, type ToastKind, type ToastRequest} from '@deck.gl-community/panels';
+import {ToastManager, toastManager, type ToastKind, type ToastRequest} from '@deck.gl-community/panels';
 ```
 
 ## API
+
+### `new ToastManager(maxVisibleToasts?)`
+
+Creates an isolated toast manager. The optional argument controls the maximum
+number of visible toasts; it defaults to three.
+
+```ts
+const isolatedToastManager = new ToastManager(5);
+```
 
 ### `toastManager.toast(request)`
 
