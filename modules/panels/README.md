@@ -13,7 +13,8 @@ visualization applications.
 
 It exports `PanelComponent`, panel/container types, reusable panel content
 classes, `ToolbarComponent`, `ToastComponent`, `PanelManager`, panel theme
-primitives, and application-managed helpers such as `toastManager`.
+primitives, and application-managed helpers such as `ToastManager` and the
+shared `toastManager` instance.
 
 ## Panels
 
@@ -30,6 +31,7 @@ application-specific panel-managed controls extend it.
 ## Managers
 
 `PanelManager` mounts `PanelComponent[]` without deck.gl. `SettingsManager`,
-keyboard shortcut managers, `URLManager`, `CommandManager`, and `toastManager`
+keyboard shortcut managers, `URLManager`, `CommandManager`, and `ToastManager`
 keep app behavior and state outside rendering so panels and components can
-reuse the same descriptors or state.
+reuse the same descriptors or state. The package also exports a shared
+`toastManager` instance for applications that do not need an isolated toast queue.

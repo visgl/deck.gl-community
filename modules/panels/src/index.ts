@@ -151,6 +151,7 @@ export {
 } from './components/toolbar-component';
 export {ToastComponent, type ToastComponentProps} from './components/toast-component';
 export {
+  ToastManager,
   toastManager,
   type ToastEntry,
   type ToastKind,

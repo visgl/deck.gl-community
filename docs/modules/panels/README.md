@@ -62,8 +62,8 @@ and URL docs stay synchronized with the app.
   deep links documented by `URLParametersPanel`
 - [CommandManager](./api-reference/managers/command-manager.md) registers
   executable app commands
-- [Toast Manager](./api-reference/managers/toast-manager.md) owns toast state
-  rendered by `ToastComponent`
+- [ToastManager](./api-reference/managers/toast-manager.md) owns toast state
+  rendered by `ToastComponent`; `toastManager` is the shared instance
 
 Start with [Using Panels](./developer-guide/using-panels.md) for panel
 composition, [Using Components](./developer-guide/using-components.md) for
