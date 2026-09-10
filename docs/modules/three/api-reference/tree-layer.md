@@ -21,20 +21,9 @@ new TreeLayer({
 });
 ```
 
-Explore the [full Wild Forest demo](/examples/three/wild-forest), which opens directly
-in Siwa's date-palm grove. Seven regional groves cover all five TreeLayer forms, with
-400 varied trees in each. Choose a region to fly to its centered grove. One local-season
-selector updates foliage, fruit, flowers, and bare branches together. Planted rows and
-irregular woodland clusters contain saplings through veterans, with independently varied
-crown and trunk proportions, bark and foliage tones, branch tiers, vigor, seasonal timing,
-fruit size, and crop load. Hover a tree to inspect its simulated attributes.
-
-Trees retain metre-scale dimensions at every zoom level. Region changes use smooth
-fly-to interpolation, while wheel input and zoom buttons respond immediately and can
-interrupt a flight. Camera motion reuses the tree geometry.
-Positions are representative regional examples, not surveyed tree inventories. Seasons illustrate
-local conditions rather than a simultaneous global date; fruit and flowers are enlarged for visibility.
-Each selected sample links to a source for its regional context.
+Try the [Wild Forest demo](/examples/three/wild-forest) to explore seven regional groves
+with 400 varied trees each. Choose a region and season, then hover a tree to inspect its
+attributes. Tree locations and seasonal traits are illustrative, not surveyed data.
 
 ## Features
 

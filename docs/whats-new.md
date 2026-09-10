@@ -2,16 +2,10 @@
 
 ## Unreleased
 
-- [Wild Forest](/examples/three/wild-forest) opens directly in a date-palm grove, with
-  seven regional settings and 400 varied trees per region. All trees retain metre-scale dimensions.
-  Region changes reuse resident tree/crop attributes and cached camera fits during one-second
-  fly-to interpolation; wheel and button zoom remain immediate. Centered
-  3D framing and a compact region/season/zoom bar are shared by the standalone demo and website.
-  Independent maturity, crown and trunk proportions, bark tones, vigor, seasonal timing, and crop
-  load vary across orchard rows and woodland clusters. Seasonal foliage, fruit, flowers, and winter
-  branches update together on a light vector basemap; hover reveals each tree's simulated traits.
-- TreeLayer reuses pine geometry during color, crop, and size changes to avoid rebuilding GPU models.
-  Corrected its Y-up to Z-up conversion so pine tiers point upward and trunks taper toward the canopy.
+- [Wild Forest](/examples/three/wild-forest) adds seven regional groves with seasonal trees,
+  smoother navigation, and simpler controls.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
+  reuses pine geometry when attributes change.
 
 ## v9.4
 
