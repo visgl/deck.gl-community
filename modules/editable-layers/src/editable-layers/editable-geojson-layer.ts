@@ -69,6 +69,11 @@ const DEFAULT_EDITING_SNAP_POINT_RADIUS = 7;
 const DEFAULT_TOOLTIP_FONT_SIZE = 32 * PROJECTED_PIXEL_SIZE_MULTIPLIER;
 
 const DEFAULT_EDIT_MODE = DrawPolygonMode;
+const PRIMARY_BUTTON = 0;
+
+function isPrimaryButtonEvent(event: {sourceEvent: any}): boolean {
+  return event.sourceEvent?.button === undefined || event.sourceEvent.button === PRIMARY_BUTTON;
+}
 
 function guideAccessor(accessor) {
   if (!accessor || typeof accessor !== 'function') {
@@ -279,6 +284,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
 > {
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;
+  _isDraggingWithPrimaryButton = false;
 
   state: EditableLayer['state'] & {
     cursor?: 'grabbing' | 'grab' | null;
@@ -587,10 +593,16 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onLayerClick(event: ClickEvent): void {
+    if (!isPrimaryButtonEvent(event)) {
+      return;
+    }
     this.getActiveMode().handleClick(event, this.getModeProps(this.props));
   }
 
   onLayerDoubleClick(event: DoubleClickEvent): void {
+    if (!isPrimaryButtonEvent(event)) {
+      return;
+    }
     if (this.getActiveMode().handleDoubleClick) {
       this.getActiveMode().handleDoubleClick(event, this.getModeProps(this.props));
     }
@@ -601,15 +613,26 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onStartDragging(event: StartDraggingEvent): void {
+    this._isDraggingWithPrimaryButton = isPrimaryButtonEvent(event);
+    if (!this._isDraggingWithPrimaryButton) {
+      return;
+    }
     this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
   onDragging(event: DraggingEvent): void {
+    if (!this._isDraggingWithPrimaryButton) {
+      return;
+    }
     this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 
   onStopDragging(event: StopDraggingEvent): void {
+    if (!this._isDraggingWithPrimaryButton) {
+      return;
+    }
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
+    this._isDraggingWithPrimaryButton = false;
   }
 
   onPointerMove(event: PointerMoveEvent): void {
