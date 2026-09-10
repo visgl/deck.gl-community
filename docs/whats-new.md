@@ -66,6 +66,10 @@ Highlights:
 - [`TimeDeltaLayer`](/docs/modules/infovis-layers/api-reference/time-delta-layer) (new) renders
   interval guides and labels on WebGL2 and WebGPU.
 
+### `@deck.gl-community/graph-layers`
+
+- `GraphLayer` now accepts `layoutUpdateInterval` to throttle layout-driven redraws while preserving layout lifecycle callbacks.
+
 ### `@deck.gl-community/timeline-layers`
 
 - [`TimeAxisLayer`](/docs/modules/timeline-layers/api-reference/time-axis-layer) now supports
