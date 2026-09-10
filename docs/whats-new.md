@@ -1,5 +1,12 @@
 # What's New
 
+## Unreleased
+
+- [Wild Forest](/examples/three/wild-forest) adds seven regional groves with seasonal trees,
+  smoother navigation, and simpler controls.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
+  reuses pine geometry when attributes change.
+
 ## v9.4
 
 Release Date: Sep 7, 2026

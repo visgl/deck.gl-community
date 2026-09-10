@@ -21,6 +21,10 @@ new TreeLayer({
 });
 ```
 
+Try the [Wild Forest demo](/examples/three/wild-forest) to explore seven regional groves
+with 400 varied trees each. Choose a region and season, then hover a tree to inspect its
+attributes. Tree locations and seasonal traits are illustrative, not surveyed data.
+
 ## Features
 
 - **5 tree species / silhouettes**: pine (tiered cones), oak (sphere), date palm (ring-scarred trunk and pinnate fronds), birch (narrow oval), cherry (round sphere)

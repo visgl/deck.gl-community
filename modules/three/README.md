@@ -183,14 +183,9 @@ type CropConfig = {
 
 ---
 
-## Wild-Forest example
+## Wild Forest example
 
-A full demo with 9 forest zones (pines, oaks, palms, birches, cherry blossoms, citrus orchards, almond groves) is available at `examples/three/wild-forest/`.
-
-```bash
-cd examples/three/wild-forest
-yarn          # first time only
-yarn start    # opens http://localhost:8080
-```
-
-The example includes a live `sizeScale` slider, a crop toggle, and a zone legend.
+Explore seven regional groves in the
+[Wild Forest demo](https://visgl.github.io/deck.gl-community/examples/three/wild-forest),
+with controls for region, season, and zoom. See the
+[example README](../../examples/three/wild-forest/README.md) for setup and data details.

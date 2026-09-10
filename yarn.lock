@@ -12638,17 +12638,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "wild-forest-ea7bdb@workspace:examples/three/wild-forest"
   dependencies:
-    "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/three": "workspace:*"
-    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
+    "@deck.gl/extensions": "npm:~9.4.0"
+    "@deck.gl/geo-layers": "npm:~9.4.0"
+    "@deck.gl/layers": "npm:~9.4.0"
     "@deck.gl/mesh-layers": "npm:~9.4.0"
-    "@deck.gl/widgets": "npm:~9.4.0"
+    "@loaders.gl/core": "npm:^4.4.3"
+    "@loaders.gl/mvt": "npm:^4.4.3"
     "@luma.gl/core": "npm:~9.4.0"
     "@luma.gl/engine": "npm:~9.4.0"
     "@luma.gl/shadertools": "npm:~9.4.0"
     "@luma.gl/webgl": "npm:~9.4.0"
     "@luma.gl/webgpu": "npm:~9.4.0"
+    "@math.gl/web-mercator": "npm:^4.1.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
