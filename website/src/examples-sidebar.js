@@ -54,6 +54,11 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/three',
+      items: ['three/wild-forest']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/timeline-layers',
       items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
     },

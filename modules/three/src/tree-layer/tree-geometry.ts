@@ -31,9 +31,9 @@ export type TreeMesh = {
 
 /**
  * Rotation matrix that converts from Three.js Y-up to deck.gl Z-up.
- * Rotates -90 degrees around the X axis: Y -> Z, Z -> -Y.
+ * Rotates +90 degrees around the X axis: Y -> Z, Z -> -Y.
  */
-const Y_TO_Z_UP = new Matrix4().makeRotationX(-Math.PI / 2);
+const Y_TO_Z_UP = new Matrix4().makeRotationX(Math.PI / 2);
 
 /**
  * Perturb each vertex radially using a sum of low-frequency sinusoidal waves

@@ -171,7 +171,7 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
     }
     case 'tree-layer': {
       const {mountWildForestExample} = await import('../../../../examples/three/wild-forest/app');
-      return mountWildForestExample(container, {showControlsWidget: false, ...mountProps});
+      return mountWildForestExample(container, mountProps);
     }
     case 'horizon-graph-layer': {
       const {mountHorizonGraphLayerExample} = await import(

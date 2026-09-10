@@ -2,469 +2,427 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, type MapViewState} from '@deck.gl/core';
-import {TreeLayer} from '@deck.gl-community/three';
-import type {CropConfig, Season, TreeType} from '@deck.gl-community/three';
 import {
-  ColumnPanel,
-  CustomPanel,
-  MarkdownPanel,
-  SettingsPanel,
-  type SettingsSchema,
-  type SettingsState
-} from '@deck.gl-community/panels';
-import {BoxPanelWidget} from '@deck.gl-community/widgets';
+  Deck,
+  _GlobeView,
+  _GlobeViewport,
+  MapView,
+  type MapViewState,
+  type PickingInfo,
+  type ViewStateChangeParameters,
+  type Widget
+} from '@deck.gl/core';
+import {LineLayer, SolidPolygonLayer} from '@deck.gl/layers';
+import type {Device} from '@luma.gl/core';
+import {TreeLayer, type Season} from '@deck.gl-community/three';
+import {
+  FOREST_SITES,
+  SEASONS,
+  TREES_PER_SITE,
+  createTreeSamples,
+  getFoliageColor,
+  getBarkColor,
+  getSeasonalCanopyRadius,
+  getSeasonalCrop,
+  getSeasonDescription,
+  createWinterBranches,
+  type ForestTree
+} from './forest-data';
+import {createForestBasemap} from './forest-basemap';
+import {getGroveView, pickTreeAtPixel, createGroveFlight} from './forest-camera';
+import './style.css';
 
-import '@deck.gl/widgets/stylesheet.css';
-
-type TreeDatum = {
-  position: [number, number];
-  type: TreeType;
-  height: number;
-  trunkRadius: number;
-  canopyRadius: number;
-  trunkHeightFraction: number;
-  season: Season;
-  branchLevels: number;
-  label: string;
-  crop: CropConfig | null;
-};
-
-type WildForestSettings = {
-  render: {
-    sizeScale: number;
-    showCrops: boolean;
-  };
-};
-
-type WildForestState = {
-  settings: WildForestSettings;
-};
-
-type WildForestExampleOptions = {
+export type WildForestExampleOptions = {
   showControlsWidget?: boolean;
+  /** Reuse the website's selected graphics device. */
+  device?: Device;
+  widgets?: Widget[];
+  /** Restore the camera after a graphics backend switch. */
+  initialViewState?: MapViewState;
+  onViewStateChange?: <ViewStateT extends MapViewState>(
+    params: ViewStateChangeParameters<ViewStateT>
+  ) => ViewStateT;
+  onDeckInitialized?: (deck: Deck<_GlobeView | MapView>) => void;
 };
 
-type ZoneInfo = {
-  label: string;
-  color: string;
-};
-
-const INITIAL_VIEW_STATE: MapViewState = {
-  longitude: -0.022,
-  latitude: 51.503,
-  zoom: 13,
-  pitch: 62,
-  bearing: 20
-};
-
-const ROOT_STYLE = {
-  position: 'relative',
-  width: '100%',
-  height: '100%',
-  minHeight: '100%'
-} as const;
-
-const INITIAL_SETTINGS: WildForestSettings = {
-  render: {
-    sizeScale: 30,
-    showCrops: true
+// Keep projection and controller paired through the handoff. GlobeView's implicit
+// Mercator switch otherwise leaves GlobeController handling a flat viewport.
+class ForestGlobeView extends _GlobeView {
+  getViewportType() {
+    return _GlobeViewport;
   }
-};
+}
 
-const SETTINGS_SCHEMA: SettingsSchema = {
-  title: 'Wild Forest Controls',
-  sections: [
-    {
-      id: 'render',
-      name: 'Render',
-      initiallyCollapsed: false,
-      settings: [
-        {
-          name: 'render.sizeScale',
-          label: 'Size Scale',
-          type: 'number',
-          min: 5,
-          max: 80,
-          step: 1,
-          description: 'Scales tree geometry uniformly.'
-        },
-        {
-          name: 'render.showCrops',
-          label: 'Show Crops',
-          type: 'boolean',
-          description: 'Toggle blossoms, oranges, and almonds.'
-        }
-      ]
-    }
+type ExplorerState = {siteId: string; season: Season};
+const SAMPLES = createTreeSamples();
+const GROVES = FOREST_SITES.map(site => ({
+  site,
+  trees: SAMPLES.filter(tree => tree.siteId === site.id)
+}));
+const DEFAULT_SITE_ID = 'siwa';
+const FLIGHT_DURATION = 1000;
+// Preserve the two selectors when the website remounts for a graphics backend switch.
+const HOST_STATE = new WeakMap<HTMLElement, ExplorerState>();
+const VIEW_LIMITS: Partial<MapViewState> = {minZoom: -1, maxZoom: 21, maxPitch: 75};
+const WORLD_POLYGON = [
+  [
+    [-180, 90],
+    [0, 90],
+    [180, 90],
+    [180, -90],
+    [0, -90],
+    [-180, -90]
   ]
-};
-
-const ZONES: ZoneInfo[] = [
-  {label: 'Pine Forest (Summer)', color: '#006400'},
-  {label: 'Oak Grove (Autumn)', color: '#b45314'},
-  {label: 'Cherry Blossom (Spring)', color: '#ffb4c8'},
-  {label: 'Palm Grove (Summer)', color: '#14911e'},
-  {label: 'Birch Glade (Autumn)', color: '#e6b928'},
-  {label: 'Oak Silhouettes (Winter)', color: 'rgba(100,80,80,0.4)'},
-  {label: 'Birch Grove (Spring)', color: '#96d26e'},
-  {label: 'Citrus Orchard (Fruiting)', color: '#ff8c00'},
-  {label: 'Almond Grove (Harvest)', color: '#c39b5a'}
 ];
 
-const FOREST_DATA = generateForest();
+// Keep the depth-occluding globe just below tile geometry. Coincident tessellations
+// otherwise produce white seams over the open ocean near the antimeridian.
+const GLOBE_BACKGROUND = WORLD_POLYGON.map(polygon =>
+  polygon.map(([lng, lat]) => [lng, lat, -20000])
+);
 
+/** Mount a grove explorer that starts in Siwa with metre-scale trees. */
 export function mountWildForestExample(
   container: HTMLElement,
   options: WildForestExampleOptions = {}
 ): () => void {
-  const rootElement = container.ownerDocument.createElement('div');
-  applyElementStyle(rootElement, ROOT_STYLE);
-  container.replaceChildren(rootElement);
-
-  const state: WildForestState = {
-    settings: cloneSettings(INITIAL_SETTINGS)
-  };
-
-  const controlsWidget =
-    options.showControlsWidget === false
-      ? null
-      : new BoxPanelWidget({
-          id: 'wild-forest-controls',
-          placement: 'top-right',
-          widthPx: 320,
-          title: 'Wild Forest + Orchards',
-          panel: buildControlPanel(state, handleSettingsChange)
-        });
-
+  const doc = container.ownerDocument;
+  const root = doc.createElement('div');
+  root.className = 'forest-explorer';
+  root.dataset.flying = 'false';
+  root.dataset.managedDevice = String(Boolean(options.device));
+  const canvasHost = doc.createElement('div');
+  canvasHost.className = 'forest-canvas';
+  root.append(canvasHost);
+  container.replaceChildren(root);
+  const savedState = HOST_STATE.get(container);
+  const state: ExplorerState = {...(savedState ?? {siteId: DEFAULT_SITE_ID, season: 'autumn'})};
+  if (!FOREST_SITES.some(site => site.id === state.siteId)) state.siteId = DEFAULT_SITE_ID;
+  let currentView =
+    savedState && options.initialViewState ? options.initialViewState : getSelectedView();
+  let flightFrame: number | null = null;
+  const reducedMotion = doc.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)');
+  let disposed = false;
+  let mapRevision = 0;
+  let mapFailed = false;
+  let mapLoaded = false;
+  const ui = createControls(root, options.showControlsWidget !== false);
+  let basemap = createBasemap();
+  let globeProjection = currentView.zoom <= 12;
+  // Keep every grove's GPU attributes resident across region and projection changes.
+  // Only a season change needs to regenerate foliage, fruit, or winter branches.
+  let groveLayers = createGroveLayers();
   const deck = new Deck({
-    parent: rootElement,
-    initialViewState: INITIAL_VIEW_STATE,
-    controller: {
-      maxPitch: 80
+    parent: canvasHost,
+    device: options.device,
+    views: createView(),
+    initialViewState: {...currentView, ...VIEW_LIMITS},
+    controller: {touchRotate: true, inertia: 100, scrollZoom: {smooth: false, speed: 0.025}},
+    useDevicePixels: Math.min(2, doc.defaultView?.devicePixelRatio || 1),
+    widgets: options.widgets ?? [],
+    pickingRadius: 8,
+    layers: buildLayers(),
+    layerFilter({layer, viewport}) {
+      const grove = GROVES.find(
+        ({site}) =>
+          layer.id.startsWith(`forest-trees-${site.id}`) || layer.id === `forest-winter-${site.id}`
+      );
+      if (!grove) return true;
+      if (viewport.zoom < 13) return false;
+      const lngDelta = ((grove.site.position[0] - currentView.longitude + 540) % 360) - 180;
+      return Math.abs(lngDelta) < 1 && Math.abs(grove.site.position[1] - currentView.latitude) < 1;
     },
-    layers: buildLayers(state),
-    parameters: {clearColor: [0.06, 0.1, 0.06, 1]},
-    getTooltip: getTooltip,
-    widgets: controlsWidget ? [controlsWidget] : []
+    onViewStateChange(params) {
+      // Ignore trailing controller callbacks while the flight owns the camera.
+      // New native input cancels the flight in the capture listeners below.
+      if (flightFrame !== null) return currentView as typeof params.viewState;
+      const viewState = options.onViewStateChange?.(params) ?? params.viewState;
+      currentView = viewState as MapViewState;
+      // Camera motion only changes the viewport, not tree data or mesh attributes.
+      if (globeProjection !== currentView.zoom <= 12) {
+        globeProjection = currentView.zoom <= 12;
+        deck.setProps({
+          views: createView(),
+          initialViewState: {...currentView, ...VIEW_LIMITS, transitionDuration: 0},
+          layers: buildLayers()
+        });
+      }
+      updateControls();
+      return viewState;
+    },
+    getTooltip(info: PickingInfo<ForestTree>) {
+      const tree = getTreeAtPointer(info);
+      if (!tree) return null;
+      const site = FOREST_SITES.find(item => item.id === tree.siteId)!;
+      const crop = getSeasonalCrop(tree, state.season);
+      const stage = tree.maturity[0].toUpperCase() + tree.maturity.slice(1);
+      const structure =
+        tree.species === 'pine'
+          ? `${tree.branchLevels} branch tiers`
+          : `${Math.round((getSeasonalCanopyRadius(tree, state.season) / tree.canopyRadius) * 100)}% crown fullness`;
+      const yieldText = crop
+        ? `${crop.count} fruit / flower markers · ${crop.droppedCount} fallen`
+        : 'Resting crop';
+      return {
+        text: `${tree.label} · ${stage}\n${tree.height.toFixed(1)} m high · ${(tree.trunkRadius * 2).toFixed(2)} m trunk\n${Math.round(tree.vigor * 100)}% vigour · ${structure}\n${yieldText}\nSimulated tree · ${site.name}`
+      };
+    },
+    onClick(info: PickingInfo<ForestTree>) {
+      const tree = getTreeAtPointer(info);
+      if (tree) focusTree(tree.siteId);
+    }
   });
-
+  options.onDeckInitialized?.(deck);
+  const interactionEvents = ['pointerdown', 'wheel', 'keydown'] as const;
+  const onUserInput = (event: Event) => {
+    const target = event.target as Node | null;
+    // A website-owned device may keep its canvas outside the mounting container.
+    if (target && (container.contains(target) || target === deck.getCanvas())) stopFlight();
+  };
+  for (const event of interactionEvents) {
+    doc.addEventListener(event, onUserInput, {capture: true, passive: true});
+  }
+  updateControls();
+  ui.treeSelect.onchange = () => focusTree(ui.treeSelect.value);
+  ui.seasonSelect.onchange = () => {
+    state.season = ui.seasonSelect.value as Season;
+    groveLayers = createGroveLayers();
+    updateScene();
+  };
+  ui.zoomIn.onclick = () => zoomBy(1);
+  ui.zoomOut.onclick = () => zoomBy(-1);
+  ui.retry.onclick = () => {
+    mapFailed = false;
+    mapLoaded = false;
+    mapRevision++;
+    basemap = createBasemap();
+    updateScene();
+  };
+  let previousSize = [container.clientWidth, container.clientHeight];
+  const resizeObserver = new ResizeObserver(() => {
+    const size = [container.clientWidth, container.clientHeight];
+    if (size[0] && size[1] && size.some((value, index) => value !== previousSize[index])) {
+      previousSize = size;
+      focusTree(state.siteId, false);
+    }
+  });
+  resizeObserver.observe(container);
   return () => {
+    disposed = true;
+    stopFlight();
+    for (const event of interactionEvents) doc.removeEventListener(event, onUserInput, true);
+    resizeObserver.disconnect();
+    HOST_STATE.set(container, {...state});
     deck.finalize();
-    rootElement.remove();
-    container.replaceChildren();
+    root.remove();
   };
 
-  function handleSettingsChange(nextSettings: SettingsState) {
-    state.settings = cloneSettings(nextSettings as WildForestSettings);
-    deck.setProps({layers: buildLayers(state)});
-    controlsWidget?.setProps({
-      panel: buildControlPanel(state, handleSettingsChange)
+  function createView() {
+    // Distinct IDs also dispose the outgoing controller and its event listeners.
+    return globeProjection
+      ? new ForestGlobeView({id: 'forest-globe', resolution: 5})
+      : new MapView({id: 'forest-map'});
+  }
+  function getSelectedView(): MapViewState {
+    return getGroveView(
+      GROVES.find(grove => grove.site.id === state.siteId)!.trees,
+      container.clientWidth || 900,
+      container.clientHeight || 600
+    );
+  }
+  function zoomBy(delta: number) {
+    stopFlight();
+    const zoom = Math.max(-1, Math.min(21, currentView.zoom + delta));
+    setView({...currentView, zoom});
+  }
+  function stopFlight() {
+    if (flightFrame !== null) doc.defaultView!.cancelAnimationFrame(flightFrame);
+    flightFrame = null;
+    root.dataset.flying = 'false';
+  }
+  function flyTo(view: MapViewState) {
+    stopFlight();
+    if (reducedMotion?.matches) {
+      setView(view);
+      return;
+    }
+    const interpolate = createGroveFlight(
+      currentView,
+      view,
+      container.clientWidth || 900,
+      container.clientHeight || 600
+    );
+    let startedAt: number | null = null;
+    root.dataset.flying = 'true';
+    // Own the flight clock so crossing the globe/map boundary cannot cancel the flight
+    // when the matching viewport and controller are replaced.
+    const frame = (now: number) => {
+      // Start on the first available frame rather than consuming the flight during setup.
+      startedAt ??= now;
+      const progress = Math.min(1, (now - startedAt) / FLIGHT_DURATION);
+      const eased = progress * progress * (3 - 2 * progress);
+      setView(interpolate(eased));
+      if (progress < 1) {
+        flightFrame = doc.defaultView!.requestAnimationFrame(frame);
+      } else {
+        flightFrame = null;
+        root.dataset.flying = 'false';
+      }
+    };
+    flightFrame = doc.defaultView!.requestAnimationFrame(frame);
+  }
+  function setView(view: MapViewState) {
+    // Apply each camera frame directly; wheel input never waits behind a transition.
+    currentView =
+      options.onViewStateChange?.({
+        viewId: view.zoom <= 12 ? 'forest-globe' : 'forest-map',
+        viewState: view,
+        oldViewState: currentView,
+        interactionState: {}
+      }) ?? view;
+    const projectionChanged = globeProjection !== currentView.zoom <= 12;
+    globeProjection = currentView.zoom <= 12;
+    deck.setProps({
+      initialViewState: {...currentView, ...VIEW_LIMITS, transitionDuration: 0},
+      ...(projectionChanged ? {views: createView(), layers: buildLayers()} : {})
+    });
+    updateControls();
+  }
+  function focusTree(siteId: string, animate = true) {
+    if (!FOREST_SITES.some(site => site.id === siteId)) return;
+    state.siteId = siteId;
+    HOST_STATE.set(container, {...state});
+    if (animate) {
+      flyTo(getSelectedView());
+    } else {
+      stopFlight();
+      setView(getSelectedView());
+    }
+    updateControls();
+  }
+  function updateScene() {
+    HOST_STATE.set(container, {...state});
+    deck.setProps({layers: buildLayers()});
+    updateControls();
+  }
+  function updateControls() {
+    if (disposed) return;
+    const site = FOREST_SITES.find(item => item.id === state.siteId)!;
+    root.dataset.site = state.siteId;
+    root.dataset.season = state.season;
+    root.dataset.view = currentView.zoom <= 12 ? 'globe' : 'grove';
+    ui.treeSelect.value = state.siteId;
+    ui.seasonSelect.value = state.season;
+    ui.heading.textContent = `${site.name}, ${site.country}`;
+    ui.caption.textContent = `${TREES_PER_SITE} trees · ${getSeasonDescription(site, state.season)}`;
+    ui.source.hidden = false;
+    ui.source.href = site.source;
+    ui.scaleNote.textContent = 'Illustrative tree locations';
+    ui.zoomIn.disabled = currentView.zoom >= 21;
+    ui.zoomOut.disabled = currentView.zoom <= -1;
+    ui.status.textContent = mapFailed ? 'Map unavailable' : mapLoaded ? '' : 'Loading map…';
+    ui.retry.hidden = !mapFailed;
+  }
+  function createBasemap() {
+    return createForestBasemap({
+      id: `forest-vector-${mapRevision}`,
+      onLoad() {
+        mapLoaded = true;
+        updateControls();
+      },
+      onError() {
+        mapFailed = true;
+        updateControls();
+      }
     });
   }
-}
-
-function buildLayers(state: WildForestState) {
-  return [
-    new TreeLayer<TreeDatum>({
-      id: 'wild-forest',
-      data: FOREST_DATA,
-      getPosition: datum => datum.position,
-      getTreeType: datum => datum.type,
-      getHeight: datum => datum.height,
-      getTrunkRadius: datum => datum.trunkRadius,
-      getCanopyRadius: datum => datum.canopyRadius,
-      getTrunkHeightFraction: datum => datum.trunkHeightFraction,
-      getSeason: datum => datum.season,
-      getBranchLevels: datum => datum.branchLevels || 3,
-      getCrop: state.settings.render.showCrops ? datum => datum.crop : () => null,
-      sizeScale: state.settings.render.sizeScale,
-      pickable: true,
-      updateTriggers: {
-        getCrop: [state.settings.render.showCrops],
-        sizeScale: [state.settings.render.sizeScale]
-      }
-    })
-  ];
-}
-
-function buildControlPanel(
-  state: WildForestState,
-  onSettingsChange: (nextSettings: SettingsState) => void
-) {
-  return new ColumnPanel({
-    id: 'wild-forest-panel',
-    title: 'Wild Forest + Orchards',
-    panels: [
-      new MarkdownPanel({
-        id: 'summary',
-        title: '',
-        markdown: [
-          'A procedural forest scene rendered with `TreeLayer`.',
-          '',
-          `- Trees: **${FOREST_DATA.length}**`,
-          `- Size scale: **${state.settings.render.sizeScale.toFixed(1)}x**`,
-          `- Crops: **${state.settings.render.showCrops ? 'visible' : 'hidden'}**`
-        ].join('\n')
+  function getTreeAtPointer({x, y}: PickingInfo<ForestTree>) {
+    if (flightFrame !== null) return undefined;
+    return pickTreeAtPixel(SAMPLES, deck.getViewports()[0], currentView, x, y);
+  }
+  function buildLayers() {
+    return [
+      new SolidPolygonLayer({
+        id: 'forest-earth',
+        data: globeProjection ? GLOBE_BACKGROUND : WORLD_POLYGON,
+        getPolygon: polygon => polygon,
+        getFillColor: [247, 247, 239, 255],
+        parameters: {cullMode: 'back', depthWriteEnabled: globeProjection},
+        pickable: false
       }),
-      new SettingsPanel({
-        id: 'settings',
-        label: 'Controls',
-        schema: SETTINGS_SCHEMA,
-        settings: state.settings,
-        onSettingsChange
-      }),
-      new CustomPanel({
-        id: 'legend',
-        title: 'Forest Zones',
-        onRenderHTML(hostElement) {
-          const legend = hostElement.ownerDocument.createElement('div');
-          applyElementStyle(legend, {
-            display: 'grid',
-            gap: '6px',
-            fontSize: '12px'
-          });
-
-          for (const zone of ZONES) {
-            const row = hostElement.ownerDocument.createElement('div');
-            const swatch = hostElement.ownerDocument.createElement('span');
-            const label = hostElement.ownerDocument.createElement('span');
-
-            applyElementStyle(row, {
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            });
-            applyElementStyle(swatch, {
-              display: 'inline-block',
-              width: '12px',
-              height: '12px',
-              borderRadius: '3px',
-              background: zone.color,
-              border: '1px solid rgba(0, 0, 0, 0.12)',
-              flexShrink: '0'
-            });
-
-            label.textContent = zone.label;
-            row.append(swatch, label);
-            legend.append(row);
-          }
-
-          hostElement.replaceChildren(legend);
-
-          return () => {
-            hostElement.replaceChildren();
-          };
-        }
+      basemap,
+      ...groveLayers
+    ];
+  }
+  function createGroveLayers() {
+    return GROVES.flatMap(({site, trees}) => [
+      createTreeLayer(trees, site.id),
+      new LineLayer({
+        id: `forest-winter-${site.id}`,
+        parameters: {cullMode: 'none'},
+        data: state.season === 'winter' ? createWinterBranches(trees, 1) : [],
+        getSourcePosition: branch => branch.source,
+        getTargetPosition: branch => branch.target,
+        getColor: [113, 92, 69, 255],
+        getWidth: 1.5
       })
-    ]
-  });
-}
-
-function getTooltip({object}: {object?: unknown}) {
-  const datum = object as TreeDatum | null;
-  return datum
-    ? {
-        text: `${datum.label}\nHeight: ${datum.height.toFixed(1)} m\nCanopy ⌀: ${(datum.canopyRadius * 2).toFixed(1)} m`,
-        style: {
-          background: 'rgba(0,0,0,0.75)',
-          color: '#fff',
-          borderRadius: '6px',
-          padding: '6px 10px',
-          fontSize: '12px'
-        }
+    ]);
+  }
+  function createTreeLayer(trees: ForestTree[], id: string) {
+    const season = state.season;
+    return new TreeLayer<ForestTree>({
+      id: `forest-trees-${id}`,
+      data: trees,
+      getPosition: tree => tree.position,
+      getTreeType: tree => tree.type,
+      getHeight: tree => tree.height,
+      getTrunkRadius: tree => tree.trunkRadius,
+      getCanopyRadius: tree => getSeasonalCanopyRadius(tree, season),
+      getTrunkColor: getBarkColor,
+      getTrunkHeightFraction: tree => tree.trunkFraction,
+      getBranchLevels: tree => tree.branchLevels,
+      getCanopyColor: tree => getFoliageColor(tree, season),
+      getCrop: tree => getSeasonalCrop(tree, season),
+      sizeScale: 1,
+      _subLayerProps:
+        season === 'winter' && ['cherry', 'birch'].includes(trees[0]?.species)
+          ? {'canopy-cherry': {visible: false}, 'canopy-birch': {visible: false}}
+          : {},
+      pickable: true,
+      parameters: {cullMode: 'none'},
+      updateTriggers: {
+        getCanopyRadius: season,
+        getCanopyColor: season,
+        getCrop: season
       }
-    : null;
+    });
+  }
 }
 
-function cloneSettings(settings: WildForestSettings): WildForestSettings {
+function createControls(root: HTMLElement, showControls: boolean) {
+  const ui = root.ownerDocument.createElement('div');
+  ui.className = 'forest-ui';
+  ui.innerHTML = `
+    <div class="forest-title"><h1 class="forest-heading">TreeLayer</h1><p class="forest-caption"></p><a class="forest-source" target="_blank" rel="noreferrer" hidden>About this region ↗</a></div>
+    <div class="forest-toolbar" aria-label="Tree explorer" ${showControls ? '' : 'hidden'}>
+      <select aria-label="Explore a tree">${FOREST_SITES.map(site => `<option value="${site.id}">${SAMPLES.find(tree => tree.siteId === site.id)!.label} · ${site.country}</option>`).join('')}</select>
+      <select aria-label="Local season">${SEASONS.map(season => `<option value="${season}">${season[0].toUpperCase() + season.slice(1)}</option>`).join('')}</select>
+      <div class="forest-zoom"><button type="button" data-action="zoom-out" aria-label="Zoom out">−</button><button type="button" data-action="zoom-in" aria-label="Zoom in">+</button></div>
+    </div>
+    <div class="forest-map-status" role="status"><span></span><button type="button" data-action="retry" hidden>Retry</button></div>
+    <div class="forest-attribution"><span class="forest-scale-note"></span><span>© <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a></span></div>`;
+  root.append(ui);
+  const find = <T extends HTMLElement>(selector: string) => ui.querySelector<T>(selector)!;
   return {
-    render: {...settings.render}
+    heading: find('h1'),
+    caption: find('.forest-caption'),
+    source: find<HTMLAnchorElement>('.forest-source'),
+    treeSelect: find<HTMLSelectElement>('[aria-label="Explore a tree"]'),
+    seasonSelect: find<HTMLSelectElement>('[aria-label="Local season"]'),
+    zoomIn: find<HTMLButtonElement>('[data-action="zoom-in"]'),
+    zoomOut: find<HTMLButtonElement>('[data-action="zoom-out"]'),
+    scaleNote: find('.forest-scale-note'),
+    status: find('.forest-map-status span'),
+    retry: find<HTMLButtonElement>('[data-action="retry"]')
   };
-}
-
-function applyElementStyle(element: HTMLElement, style: Record<string, string>) {
-  for (const [key, value] of Object.entries(style)) {
-    element.style.setProperty(camelCaseToKebabCase(key), value);
-  }
-}
-
-function camelCaseToKebabCase(value: string) {
-  return value.replace(/[A-Z]/g, character => `-${character.toLowerCase()}`);
-}
-
-function makeRng(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 0xffffffff;
-  };
-}
-
-function generateForest(): TreeDatum[] {
-  const trees: TreeDatum[] = [];
-
-  const pineRng = makeRng(1);
-  for (let i = 0; i < 90; i++) {
-    trees.push({
-      position: [-0.055 + pineRng() * 0.04, 51.503 + pineRng() * 0.022],
-      type: 'pine',
-      height: 8 + pineRng() * 14,
-      trunkRadius: 0.25 + pineRng() * 0.35,
-      canopyRadius: 1.8 + pineRng() * 2.2,
-      trunkHeightFraction: 0.38 + pineRng() * 0.12,
-      season: 'summer',
-      branchLevels: 2 + Math.round(pineRng() * 2),
-      label: 'Pine',
-      crop: null
-    });
-  }
-
-  const oakRng = makeRng(2);
-  for (let i = 0; i < 65; i++) {
-    trees.push({
-      position: [0.01 + oakRng() * 0.04, 51.503 + oakRng() * 0.022],
-      type: 'oak',
-      height: 10 + oakRng() * 9,
-      trunkRadius: 0.45 + oakRng() * 0.45,
-      canopyRadius: 3 + oakRng() * 3.5,
-      trunkHeightFraction: 0.28 + oakRng() * 0.12,
-      season: 'autumn',
-      branchLevels: 0,
-      label: 'Oak (Autumn)',
-      crop: null
-    });
-  }
-
-  const cherryRng = makeRng(3);
-  for (let i = 0; i < 55; i++) {
-    const r = cherryRng;
-    trees.push({
-      position: [-0.025 + r() * 0.05, 51.495 + r() * 0.018],
-      type: 'cherry',
-      height: 5 + r() * 6,
-      trunkRadius: 0.2 + r() * 0.25,
-      canopyRadius: 2 + r() * 2.5,
-      trunkHeightFraction: 0.32 + r() * 0.12,
-      season: 'spring',
-      branchLevels: 0,
-      label: 'Cherry Blossom',
-      crop: {
-        color: [255, 230, 240, 210],
-        count: Math.round(20 + r() * 18),
-        droppedCount: Math.round(5 + r() * 10),
-        radius: 0.07
-      }
-    });
-  }
-
-  const palmRng = makeRng(4);
-  for (let i = 0; i < 35; i++) {
-    trees.push({
-      position: [0.022 + palmRng() * 0.025, 51.489 + palmRng() * 0.02],
-      type: 'palm',
-      height: 9 + palmRng() * 10,
-      trunkRadius: 0.18 + palmRng() * 0.18,
-      canopyRadius: 2.5 + palmRng() * 2.5,
-      trunkHeightFraction: 0.72 + palmRng() * 0.15,
-      season: 'summer',
-      branchLevels: 0,
-      label: 'Palm',
-      crop: null
-    });
-  }
-
-  const birchRng = makeRng(5);
-  for (let i = 0; i < 60; i++) {
-    trees.push({
-      position: [-0.072 + birchRng() * 0.03, 51.489 + birchRng() * 0.02],
-      type: 'birch',
-      height: 7 + birchRng() * 7,
-      trunkRadius: 0.12 + birchRng() * 0.13,
-      canopyRadius: 1.8 + birchRng() * 1.8,
-      trunkHeightFraction: 0.48 + birchRng() * 0.16,
-      season: 'autumn',
-      branchLevels: 0,
-      label: 'Birch (Autumn)',
-      crop: null
-    });
-  }
-
-  const winterRng = makeRng(6);
-  for (let i = 0; i < 40; i++) {
-    trees.push({
-      position: [-0.02 + winterRng() * 0.04, 51.518 + winterRng() * 0.012],
-      type: 'oak',
-      height: 11 + winterRng() * 7,
-      trunkRadius: 0.5 + winterRng() * 0.4,
-      canopyRadius: 3.5 + winterRng() * 2,
-      trunkHeightFraction: 0.3 + winterRng() * 0.1,
-      season: 'winter',
-      branchLevels: 0,
-      label: 'Oak (Winter)',
-      crop: null
-    });
-  }
-
-  const springBirchRng = makeRng(7);
-  for (let i = 0; i < 45; i++) {
-    trees.push({
-      position: [-0.085 + springBirchRng() * 0.025, 51.499 + springBirchRng() * 0.018],
-      type: 'birch',
-      height: 9 + springBirchRng() * 6,
-      trunkRadius: 0.14 + springBirchRng() * 0.12,
-      canopyRadius: 2 + springBirchRng() * 2,
-      trunkHeightFraction: 0.5 + springBirchRng() * 0.14,
-      season: 'spring',
-      branchLevels: 0,
-      label: 'Birch (Spring)',
-      crop: null
-    });
-  }
-
-  const citrusRng = makeRng(8);
-  for (let i = 0; i < 50; i++) {
-    const r = citrusRng;
-    trees.push({
-      position: [-0.01 + r() * 0.04, 51.481 + r() * 0.012],
-      type: 'cherry',
-      height: 4 + r() * 4,
-      trunkRadius: 0.18 + r() * 0.18,
-      canopyRadius: 2 + r() * 2,
-      trunkHeightFraction: 0.3 + r() * 0.12,
-      season: 'summer',
-      branchLevels: 0,
-      label: 'Citrus (Fruiting)',
-      crop: {
-        color: [255, 140, 0, 255],
-        count: Math.round(22 + r() * 20),
-        droppedCount: Math.round(6 + r() * 10),
-        radius: 0.11
-      }
-    });
-  }
-
-  const almondRng = makeRng(9);
-  for (let i = 0; i < 45; i++) {
-    const r = almondRng;
-    trees.push({
-      position: [-0.065 + r() * 0.03, 51.481 + r() * 0.012],
-      type: 'oak',
-      height: 5 + r() * 5,
-      trunkRadius: 0.22 + r() * 0.2,
-      canopyRadius: 2.5 + r() * 2,
-      trunkHeightFraction: 0.32 + r() * 0.12,
-      season: 'summer',
-      branchLevels: 0,
-      label: 'Almond (Harvest)',
-      crop: {
-        color: [195, 155, 90, 255],
-        count: Math.round(28 + r() * 22),
-        droppedCount: Math.round(10 + r() * 16),
-        radius: 0.09
-      }
-    });
-  }
-
-  return trees;
 }

@@ -3,8 +3,8 @@
 // Copyright (c) vis.gl contributors
 
 // Local vite config for the wild-forest example.
-// Aliases @deck.gl-community/three directly to the TypeScript source so that
-// Vite HMR picks up changes to the module without requiring a dist rebuild.
+// Resolve the local TreeLayer package from source,
+// so a fresh checkout can start without a package build.
 import {defineConfig} from 'vite';
 import path from 'path';
 import {fileURLToPath} from 'url';

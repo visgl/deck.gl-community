@@ -1,0 +1,172 @@
+.forest-explorer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  overflow: hidden;
+  background: #e6ecee;
+  color: #2e4038;
+  font:
+    12px / 1.5 system-ui,
+    sans-serif;
+  container: forest / inline-size;
+}
+.forest-explorer * {
+  box-sizing: border-box;
+}
+.forest-explorer .forest-canvas,
+.forest-explorer .forest-ui {
+  position: absolute;
+  inset: 0;
+}
+.forest-explorer .forest-ui {
+  pointer-events: none;
+}
+.forest-explorer :is(button, select, a) {
+  pointer-events: auto;
+  font: inherit;
+  color: inherit;
+}
+.forest-explorer [hidden] {
+  display: none !important;
+}
+.forest-explorer .forest-title {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  max-width: 55%;
+  text-shadow: 0 1px 3px #ffffffd9;
+}
+/* Preserve the sample typography in the website's heading cascade. */
+.forest-explorer .forest-heading {
+  font:
+    600 18px / 1.2 system-ui,
+    sans-serif !important;
+  color: #304737 !important;
+  margin: 0 0 4px !important;
+  letter-spacing: -0.4px;
+}
+.forest-explorer .forest-caption {
+  font-size: 11px;
+  margin: 0 !important;
+  color: #607469;
+}
+.forest-explorer .forest-source {
+  display: inline-block;
+  margin-top: 4px;
+  color: #4e6d58;
+  font-size: 10px;
+}
+.forest-explorer .forest-toolbar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 36px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  max-width: calc(100% - 24px);
+  background: #fffffff5;
+  border: 1px solid #dce3d9;
+  border-radius: 9px;
+  box-shadow: 0 2px 10px #293d3012;
+  pointer-events: auto;
+}
+.forest-explorer select {
+  min-width: 0;
+  max-width: 235px;
+  border: 0;
+  background: transparent;
+  padding: 9px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.forest-explorer select[aria-label="Local season"] {
+  border-left: 1px solid #e4e9e0;
+}
+.forest-explorer .forest-zoom {
+  display: flex;
+  border-left: 1px solid #e4e9e0;
+  padding-left: 4px;
+}
+.forest-explorer button {
+  cursor: pointer;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+}
+.forest-explorer .forest-zoom button {
+  font-size: 20px;
+  width: 32px;
+  height: 34px;
+  padding: 0;
+}
+.forest-explorer button:hover,
+.forest-explorer select:hover {
+  background: #edf2e8;
+}
+.forest-explorer button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.forest-explorer :is(button, select, a):focus-visible {
+  outline: 2px solid #39764c;
+  outline-offset: 1px;
+}
+.forest-explorer .forest-map-status {
+  position: absolute;
+  right: 12px;
+  bottom: 90px;
+  font-size: 10px;
+  background: #ffffffec;
+  border-radius: 4px;
+}
+.forest-explorer .forest-attribution {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  padding: 4px 10px;
+  font-size: 9px;
+  background: #ffffffe6;
+  color: #5b6f60;
+}
+@container forest (max-width: 600px) {
+  .forest-explorer .forest-title {
+    top: 16px;
+    left: 14px;
+    max-width: calc(100% - 28px);
+  }
+  .forest-explorer[data-managed-device="true"] .forest-title {
+    top: 60px;
+  }
+  .forest-explorer .forest-heading {
+    font-size: 16px !important;
+  }
+  .forest-explorer .forest-toolbar {
+    width: calc(100% - 24px);
+    bottom: 32px;
+    gap: 2px;
+  }
+  .forest-explorer select {
+    font-size: 10px;
+    padding: 9px 2px;
+  }
+  .forest-explorer select[aria-label="Explore a tree"] {
+    flex: 1;
+  }
+  .forest-explorer .forest-zoom {
+    padding-left: 2px;
+  }
+  .forest-explorer .forest-zoom button {
+    width: 26px;
+  }
+  .forest-explorer .forest-attribution {
+    font-size: 8px;
+  }
+}
