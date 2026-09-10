@@ -48,6 +48,12 @@ Highlights:
 - [`EdgeArrowLayer`](/docs/modules/graph-layers/api-reference/layers/edge-arrow-layer) now supports
   WebGPU.
 
+### `@deck.gl-community/graph-layers`
+
+- `GraphLayer` now accepts normalized `PlainGraphData` and `ArrowGraphData`
+  loader outputs directly through `data`, without routing them through a custom
+  `graphLoader`.
+
 ### `@deck.gl-community/layers`
 
 - [`DependencyArrowLayer`](/docs/modules/layers/api-reference/dependency-arrow-layer) (new) renders
