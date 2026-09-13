@@ -91,7 +91,7 @@ describe('geographic tree groves', () => {
     for (const tree of createTreeSamples()) {
       const leafless = ['cherry', 'birch'].includes(tree.species);
       expect(getFoliageColor(tree, 'winter')[3] === 0).toBe(leafless);
-      expect(createWinterBranches([tree], 1).length > 0).toBe(leafless);
+      expect(createWinterBranches([tree]).length > 0).toBe(leafless);
     }
   });
 
@@ -107,16 +107,5 @@ describe('geographic tree groves', () => {
       getSeasonalCrop(orange, 'summer')?.color
     );
     expect(getSeasonalCrop(orange, 'winter')?.droppedCount).toBeGreaterThan(0);
-  });
-
-  it('scales the leafless scaffold without moving its geographic base', () => {
-    const tree = createTreeSamples().find(sample => sample.species === 'birch')!;
-    const normal = createWinterBranches([tree], 1);
-    const larger = createWinterBranches([tree], 2);
-    for (let index = 0; index < normal.length; index++) {
-      expect(larger[index].source.slice(0, 2)).toEqual(normal[index].source.slice(0, 2));
-      expect(larger[index].source[2]).toBeCloseTo(normal[index].source[2] * 2);
-      expect(larger[index].target[2]).toBeCloseTo(normal[index].target[2] * 2);
-    }
   });
 });

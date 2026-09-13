@@ -24,7 +24,6 @@ import {
   getBarkColor,
   getSeasonalCanopyRadius,
   getSeasonalCrop,
-  getSeasonDescription,
   createWinterBranches,
   type ForestTree
 } from './forest-data';
@@ -97,7 +96,6 @@ export function mountWildForestExample(
   container.replaceChildren(root);
   const savedState = HOST_STATE.get(container);
   const state: ExplorerState = {...(savedState ?? {siteId: DEFAULT_SITE_ID, season: 'autumn'})};
-  if (!FOREST_SITES.some(site => site.id === state.siteId)) state.siteId = DEFAULT_SITE_ID;
   let currentView =
     savedState && options.initialViewState ? options.initialViewState : getSelectedView();
   let flightFrame: number | null = null;
@@ -136,22 +134,14 @@ export function mountWildForestExample(
       // Ignore trailing controller callbacks while the flight owns the camera.
       // New native input cancels the flight in the capture listeners below.
       if (flightFrame !== null) return currentView as typeof params.viewState;
-      const viewState = options.onViewStateChange?.(params) ?? params.viewState;
-      currentView = viewState as MapViewState;
-      // Camera motion only changes the viewport, not tree data or mesh attributes.
-      if (globeProjection !== currentView.zoom <= 12) {
-        globeProjection = currentView.zoom <= 12;
-        deck.setProps({
-          views: createView(),
-          initialViewState: {...currentView, ...VIEW_LIMITS, transitionDuration: 0},
-          layers: buildLayers()
-        });
-      }
-      updateControls();
-      return viewState;
+      setView(params.viewState as MapViewState, params);
+      return currentView as typeof params.viewState;
     },
     getTooltip(info: PickingInfo<ForestTree>) {
-      const tree = getTreeAtPointer(info);
+      const tree =
+        flightFrame === null &&
+        (info.object ??
+          pickTreeAtPixel(SAMPLES, deck.getViewports()[0], currentView, info.x, info.y));
       if (!tree) return null;
       const site = FOREST_SITES.find(item => item.id === tree.siteId)!;
       const crop = getSeasonalCrop(tree, state.season);
@@ -166,10 +156,6 @@ export function mountWildForestExample(
       return {
         text: `${tree.label} · ${stage}\n${tree.height.toFixed(1)} m high · ${(tree.trunkRadius * 2).toFixed(2)} m trunk\n${Math.round(tree.vigor * 100)}% vigour · ${structure}\n${yieldText}\nSimulated tree · ${site.name}`
       };
-    },
-    onClick(info: PickingInfo<ForestTree>) {
-      const tree = getTreeAtPointer(info);
-      if (tree) focusTree(tree.siteId);
     }
   });
   options.onDeckInitialized?.(deck);
@@ -187,7 +173,8 @@ export function mountWildForestExample(
   ui.seasonSelect.onchange = () => {
     state.season = ui.seasonSelect.value as Season;
     groveLayers = createGroveLayers();
-    updateScene();
+    deck.setProps({layers: buildLayers()});
+    updateControls();
   };
   ui.zoomIn.onclick = () => zoomBy(1);
   ui.zoomOut.onclick = () => zoomBy(-1);
@@ -196,7 +183,8 @@ export function mountWildForestExample(
     mapLoaded = false;
     mapRevision++;
     basemap = createBasemap();
-    updateScene();
+    deck.setProps({layers: buildLayers()});
+    updateControls();
   };
   let previousSize = [container.clientWidth, container.clientHeight];
   const resizeObserver = new ResizeObserver(() => {
@@ -271,38 +259,37 @@ export function mountWildForestExample(
     };
     flightFrame = doc.defaultView!.requestAnimationFrame(frame);
   }
-  function setView(view: MapViewState) {
-    // Apply each camera frame directly; wheel input never waits behind a transition.
+  function setView(view: MapViewState, input?: ViewStateChangeParameters) {
     currentView =
-      options.onViewStateChange?.({
-        viewId: view.zoom <= 12 ? 'forest-globe' : 'forest-map',
-        viewState: view,
-        oldViewState: currentView,
-        interactionState: {}
-      }) ?? view;
+      (options.onViewStateChange?.(
+        input ?? {
+          viewId: view.zoom <= 12 ? 'forest-globe' : 'forest-map',
+          viewState: view,
+          oldViewState: currentView,
+          interactionState: {}
+        }
+      ) as MapViewState) ?? view;
     const projectionChanged = globeProjection !== currentView.zoom <= 12;
     globeProjection = currentView.zoom <= 12;
-    deck.setProps({
-      initialViewState: {...currentView, ...VIEW_LIMITS, transitionDuration: 0},
-      ...(projectionChanged ? {views: createView(), layers: buildLayers()} : {})
-    });
+    // Native input already updates its controller. Only reset it for programmatic
+    // camera motion or when handing off between globe and map controllers.
+    if (!input || projectionChanged) {
+      deck.setProps({
+        initialViewState: {...currentView, ...VIEW_LIMITS, transitionDuration: 0},
+        ...(projectionChanged ? {views: createView(), layers: buildLayers()} : {})
+      });
+    }
     updateControls();
   }
   function focusTree(siteId: string, animate = true) {
     if (!FOREST_SITES.some(site => site.id === siteId)) return;
     state.siteId = siteId;
-    HOST_STATE.set(container, {...state});
     if (animate) {
       flyTo(getSelectedView());
     } else {
       stopFlight();
       setView(getSelectedView());
     }
-    updateControls();
-  }
-  function updateScene() {
-    HOST_STATE.set(container, {...state});
-    deck.setProps({layers: buildLayers()});
     updateControls();
   }
   function updateControls() {
@@ -314,10 +301,7 @@ export function mountWildForestExample(
     ui.treeSelect.value = state.siteId;
     ui.seasonSelect.value = state.season;
     ui.heading.textContent = `${site.name}, ${site.country}`;
-    ui.caption.textContent = `${TREES_PER_SITE} trees · ${getSeasonDescription(site, state.season)}`;
-    ui.source.hidden = false;
     ui.source.href = site.source;
-    ui.scaleNote.textContent = 'Illustrative tree locations';
     ui.zoomIn.disabled = currentView.zoom >= 21;
     ui.zoomOut.disabled = currentView.zoom <= -1;
     ui.status.textContent = mapFailed ? 'Map unavailable' : mapLoaded ? '' : 'Loading map…';
@@ -335,10 +319,6 @@ export function mountWildForestExample(
         updateControls();
       }
     });
-  }
-  function getTreeAtPointer({x, y}: PickingInfo<ForestTree>) {
-    if (flightFrame !== null) return undefined;
-    return pickTreeAtPixel(SAMPLES, deck.getViewports()[0], currentView, x, y);
   }
   function buildLayers() {
     return [
@@ -360,7 +340,7 @@ export function mountWildForestExample(
       new LineLayer({
         id: `forest-winter-${site.id}`,
         parameters: {cullMode: 'none'},
-        data: state.season === 'winter' ? createWinterBranches(trees, 1) : [],
+        data: state.season === 'winter' ? createWinterBranches(trees) : [],
         getSourcePosition: branch => branch.source,
         getTargetPosition: branch => branch.target,
         getColor: [113, 92, 69, 255],
@@ -403,25 +383,23 @@ function createControls(root: HTMLElement, showControls: boolean) {
   const ui = root.ownerDocument.createElement('div');
   ui.className = 'forest-ui';
   ui.innerHTML = `
-    <div class="forest-title"><h1 class="forest-heading">TreeLayer</h1><p class="forest-caption"></p><a class="forest-source" target="_blank" rel="noreferrer" hidden>About this region ↗</a></div>
+    <div class="forest-title"><h1 class="forest-heading">TreeLayer</h1><p class="forest-caption">${TREES_PER_SITE} trees · varied ages and sizes</p><a class="forest-source" target="_blank" rel="noreferrer">About this region ↗</a></div>
     <div class="forest-toolbar" aria-label="Tree explorer" ${showControls ? '' : 'hidden'}>
       <select aria-label="Explore a tree">${FOREST_SITES.map(site => `<option value="${site.id}">${SAMPLES.find(tree => tree.siteId === site.id)!.label} · ${site.country}</option>`).join('')}</select>
       <select aria-label="Local season">${SEASONS.map(season => `<option value="${season}">${season[0].toUpperCase() + season.slice(1)}</option>`).join('')}</select>
       <div class="forest-zoom"><button type="button" data-action="zoom-out" aria-label="Zoom out">−</button><button type="button" data-action="zoom-in" aria-label="Zoom in">+</button></div>
     </div>
     <div class="forest-map-status" role="status"><span></span><button type="button" data-action="retry" hidden>Retry</button></div>
-    <div class="forest-attribution"><span class="forest-scale-note"></span><span>© <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a></span></div>`;
+    <div class="forest-attribution"><span>Illustrative tree locations</span><span>© <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a></span></div>`;
   root.append(ui);
   const find = <T extends HTMLElement>(selector: string) => ui.querySelector<T>(selector)!;
   return {
     heading: find('h1'),
-    caption: find('.forest-caption'),
     source: find<HTMLAnchorElement>('.forest-source'),
     treeSelect: find<HTMLSelectElement>('[aria-label="Explore a tree"]'),
     seasonSelect: find<HTMLSelectElement>('[aria-label="Local season"]'),
     zoomIn: find<HTMLButtonElement>('[data-action="zoom-in"]'),
     zoomOut: find<HTMLButtonElement>('[data-action="zoom-out"]'),
-    scaleNote: find('.forest-scale-note'),
     status: find('.forest-map-status span'),
     retry: find<HTMLButtonElement>('[data-action="retry"]')
   };

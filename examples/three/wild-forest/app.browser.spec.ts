@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, type _GlobeView, type MapView, type MapViewState} from '@deck.gl/core';
+import {
+  Deck,
+  type _GlobeView,
+  type MapView,
+  type MapViewState,
+  type PickingInfo
+} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -127,6 +133,12 @@ describe('Wild Forest integration', () => {
         expect(treeLayers().every(layer => layer.props.data.length === 400)).toBe(true);
         const palms = treeLayers().find(layer => layer.id.endsWith('siwa'));
         const palm = palms.props.data[0];
+        const viewport = deck!.getViewports()[0];
+        const [x, y] = viewport.project([palm.position[0], palm.position[1], palm.height * 0.9]);
+        // Some WebGPU adapters render meshes but return no pick. Keep hover useful there.
+        expect(deck!.props.getTooltip!({x, y, viewport} as PickingInfo)).toMatchObject({
+          text: expect.stringContaining('Date palm')
+        });
         const autumnColor = palms.props.getCanopyColor(palm);
         const autumnCrop = palms.props.getCrop(palm);
         expect(autumnCrop.count).toBeGreaterThan(0);

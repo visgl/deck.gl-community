@@ -13,14 +13,27 @@ import type {ForestTree} from './forest-data';
 
 /** Include crown width, lean, and height instead of fitting trunk bases alone. */
 export function getGroveBoundsPoints(trees: ForestTree[]): number[][] {
-  return trees.flatMap(tree => {
-    const radius = tree.canopyRadius * 1.5;
-    return [-radius, radius].flatMap(x =>
-      [-radius, radius].flatMap(y =>
-        [0, tree.height * 1.1].map(z => addMetersToLngLat(tree.position, [x, y, z]))
-      )
-    );
-  });
+  return trees.flatMap(tree => getTreeBox(tree, tree.canopyRadius * 1.5, 0, tree.height * 1.1));
+}
+
+function getTreeBox(tree: ForestTree, radius: number, bottom: number, top: number): number[][] {
+  return [-radius, radius].flatMap(x =>
+    [-radius, radius].flatMap(y =>
+      [bottom, top].map(z => addMetersToLngLat(tree.position, [x, y, z]))
+    )
+  );
+}
+
+function getPixelBounds(points: number[][], project: (point: number[]) => number[]): number[] {
+  const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const point of points) {
+    const [x, y] = project(point);
+    bounds[0] = Math.min(bounds[0], x);
+    bounds[1] = Math.min(bounds[1], y);
+    bounds[2] = Math.max(bounds[2], x);
+    bounds[3] = Math.max(bounds[3], y);
+  }
+  return bounds;
 }
 
 const FIT_CACHE = new WeakMap<ForestTree[], Map<string, MapViewState>>();
@@ -57,17 +70,12 @@ export function getGroveView(trees: ForestTree[], width: number, height: number)
     let bounds: number[] = [];
     for (let pass = 0; pass < 4; pass++) {
       const viewport = new WebMercatorViewport({...view, width, height});
-      bounds = [Infinity, Infinity, -Infinity, -Infinity];
-      for (const point of points) {
-        const [x, y] = worldToPixels(
+      bounds = getPixelBounds(points, point =>
+        worldToPixels(
           [point[0], point[1], point[2] * viewport.distanceScales.unitsPerMeter[2]],
           viewport.pixelProjectionMatrix
-        );
-        bounds[0] = Math.min(bounds[0], x);
-        bounds[1] = Math.min(bounds[1], y);
-        bounds[2] = Math.max(bounds[2], x);
-        bounds[3] = Math.max(bounds[3], y);
-      }
+        )
+      );
       if (pass === 3) break;
       const middle = [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
       const from = viewport.unproject(middle, {targetZ: altitude});
@@ -119,22 +127,10 @@ export function pickTreeAtPixel(
       // Other continents cannot be hit at grove zoom. Avoid projecting their geometry.
       const lngDelta = ((tree.position[0] - view.longitude + 540) % 360) - 180;
       if (Math.abs(lngDelta) > 1 || Math.abs(tree.position[1] - view.latitude) > 1) continue;
-      const radius = tree.canopyRadius * 1.35;
-      let left = Infinity;
-      let right = -Infinity;
-      let top = Infinity;
-      let bottom = -Infinity;
-      for (const dx of [-radius, radius]) {
-        for (const dy of [-radius, radius]) {
-          for (const z of [tree.height * tree.trunkFraction, tree.height]) {
-            const pixel = viewport.project(addMetersToLngLat(tree.position, [dx, dy, z]));
-            left = Math.min(left, pixel[0]);
-            right = Math.max(right, pixel[0]);
-            top = Math.min(top, pixel[1]);
-            bottom = Math.max(bottom, pixel[1]);
-          }
-        }
-      }
+      const [left, top, right, bottom] = getPixelBounds(
+        getTreeBox(tree, tree.canopyRadius * 1.35, tree.height * tree.trunkFraction, tree.height),
+        point => viewport.project(point)
+      );
       if (right < 0 || left > viewport.width || bottom < 0 || top > viewport.height) continue;
       crowns.push({
         tree,

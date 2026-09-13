@@ -273,104 +273,53 @@ function getSeasonColor(tree: ForestTree, season: Season): Color {
   return season === 'spring' ? [143, 191, 88, 255] : [65, 130, 53, 255];
 }
 
-/** Illustrative local seasons, not a synchronized global date; fruit is enlarged for visibility. */
-export function getSeasonalCrop(tree: ForestTree, season: Season): CropConfig | null {
-  const crop = (
-    color: Color,
-    count: number,
-    radius: number,
-    droppedCount = 0
-  ): CropConfig | null => {
-    if (tree.cropLoad === 0) return null;
-    return {
-      color: mixColor(color, [246, 219, 127, 255], tree.phenology * 0.24),
-      count: Math.round(count * tree.cropLoad),
-      radius: radius * tree.fruitSize,
-      droppedCount: Math.round(droppedCount * tree.cropLoad * (0.35 + tree.phenology))
-    };
-  };
-  switch (tree.species) {
-    case 'date':
-      return season === 'autumn'
-        ? crop([169, 82, 29, 255], 48, 0.12, 8)
-        : season === 'summer'
-          ? crop([216, 167, 52, 255], 34, 0.1)
-          : null;
-    case 'orange':
-      return season === 'spring'
-        ? crop([255, 250, 225, 255], 34, 0.13)
-        : season === 'summer'
-          ? crop([121, 160, 40, 255], 22, 0.14)
-          : crop([255, 151, 18, 255], 40, 0.18, season === 'winter' ? 7 : 2);
-    case 'cherry':
-      return season === 'spring' ? crop([255, 225, 238, 255], 46, 0.16, 14) : null;
-    case 'almond':
-      return season === 'winter'
-        ? crop([255, 239, 242, 255], 38, 0.14)
-        : season === 'summer' || season === 'autumn'
-          ? crop([184, 142, 81, 255], 30, 0.13, season === 'autumn' ? 14 : 0)
-          : null;
-    case 'cork-oak':
-      return season === 'autumn' ? crop([126, 80, 33, 255], 28, 0.15, 16) : null;
-    default:
-      return null;
-  }
-}
+type CropPreset = [color: Color, count: number, radius: number, droppedCount?: number];
+const CROPS: Partial<Record<Species, Partial<Record<Season, CropPreset>>>> = {
+  date: {
+    summer: [[216, 167, 52, 255], 34, 0.1],
+    autumn: [[169, 82, 29, 255], 48, 0.12, 8]
+  },
+  orange: {
+    spring: [[255, 250, 225, 255], 34, 0.13],
+    summer: [[121, 160, 40, 255], 22, 0.14],
+    autumn: [[255, 151, 18, 255], 40, 0.18, 2],
+    winter: [[255, 151, 18, 255], 40, 0.18, 7]
+  },
+  cherry: {spring: [[255, 225, 238, 255], 46, 0.16, 14]},
+  almond: {
+    summer: [[184, 142, 81, 255], 30, 0.13],
+    autumn: [[184, 142, 81, 255], 30, 0.13, 14],
+    winter: [[255, 239, 242, 255], 38, 0.14]
+  },
+  'cork-oak': {autumn: [[126, 80, 33, 255], 28, 0.15, 16]}
+};
 
-export function getSeasonDescription(site: ForestSite, season: Season): string {
-  if (site.species === 'almond' && season === 'winter')
-    return 'Winter blossom · white and pink almond flowers';
-  if (site.species === 'cherry')
-    return {
-      spring: 'Blossom · ornamental cherries in flower',
-      summer: 'Full green crowns · no edible-cherry crop shown',
-      autumn: 'Amber foliage · leaves turning',
-      winter: 'Leafless crowns · branching structure revealed'
-    }[season];
-  if (site.species === 'date')
-    return {
-      spring: 'Evergreen fronds · new growth',
-      summer: 'Evergreen fronds · ripening dates',
-      autumn: 'Date harvest · ripe fruit and fallen dates',
-      winter: 'Evergreen fronds · fruiting display rests'
-    }[season];
-  if (site.species === 'orange')
-    return {
-      spring: 'Orange blossom · pale flowers',
-      summer: 'Green fruit · evergreen foliage',
-      autumn: 'Fruit colouring · oranges on the canopy',
-      winter: 'Ripe oranges · evergreen winter crowns'
-    }[season];
-  if (site.species === 'birch')
-    return {
-      spring: 'Fresh birch leaves',
-      summer: 'Full green birch canopy',
-      autumn: 'Golden birch foliage',
-      winter: 'Bare birch branches'
-    }[season];
-  if (site.species === 'cork-oak')
-    return season === 'autumn'
-      ? 'Acorns on the canopy and pasture · evergreen oak'
-      : 'Evergreen cork-oak crowns · open woodland';
-  if (site.species === 'pine') return 'Evergreen pine · tiered canopy';
-  return season === 'summer' || season === 'autumn'
-    ? 'Almonds ripening · harvest on the ground'
-    : 'Fresh green almond leaves';
+/** Illustrative local seasons; fruit is enlarged for visibility. */
+export function getSeasonalCrop(tree: ForestTree, season: Season): CropConfig | null {
+  const preset = CROPS[tree.species]?.[season];
+  if (!preset || tree.cropLoad === 0) return null;
+  const [color, count, radius, droppedCount = 0] = preset;
+  return {
+    color: mixColor(color, [246, 219, 127, 255], tree.phenology * 0.24),
+    count: Math.round(count * tree.cropLoad),
+    radius: radius * tree.fruitSize,
+    droppedCount: Math.round(droppedCount * tree.cropLoad * (0.35 + tree.phenology))
+  };
 }
 
 export type TreeBranch = {source: [number, number, number]; target: [number, number, number]};
 
 /** A lightweight branching scaffold for winter's leafless cherry and birch silhouettes. */
-export function createWinterBranches(trees: ForestTree[], sizeScale: number): TreeBranch[] {
+export function createWinterBranches(trees: ForestTree[]): TreeBranch[] {
   return trees
     .filter(tree => tree.species === 'cherry' || tree.species === 'birch')
     .flatMap(tree => {
-      const h = tree.height * sizeScale;
+      const h = tree.height;
       const base = h * tree.trunkFraction;
       return Array.from({length: 5 + tree.branchLevels * 2}, (_, index) => {
         const angle = tree.branchPhase + index * 2.39996;
         const level = 0.25 + (index % 3) * 0.24;
-        const radius = tree.canopyRadius * sizeScale * 0.45 * (1 - level * 0.55);
+        const radius = tree.canopyRadius * 0.45 * (1 - level * 0.55);
         return {
           source: [tree.position[0], tree.position[1], base + (h - base) * level * 0.4] as [
             number,
