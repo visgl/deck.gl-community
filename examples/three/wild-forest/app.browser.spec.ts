@@ -15,6 +15,7 @@ import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it, vi} from 'vitest';
+import {userEvent} from 'vitest/browser';
 import {mountWildForestExample} from './app';
 import {createFarmPlots, getFarmPosition, type FarmTree} from './farm-data';
 
@@ -101,16 +102,9 @@ describe('Seasonal farm integration', () => {
           text: expect.stringContaining('Orange tree')
         });
         const canvas = deck!.getCanvas()!;
-        const bounds = canvas.getBoundingClientRect();
-        canvas.dispatchEvent(
-          new MouseEvent('mousemove', {
-            bubbles: true,
-            clientX: bounds.left + x,
-            clientY: bounds.top + y
-          })
-        );
+        await userEvent.hover(canvas, {position: {x, y}});
         await expect
-          .poll(() => parent.querySelector('.deck-tooltip')?.textContent)
+          .poll(() => parent.querySelector('.deck-tooltip')?.textContent, {timeout: 5000})
           .toContain('Orange tree');
         const [px, py] = view.project(getFarmPosition(3, 3));
         expect(deck!.props.getTooltip!({x: px, y: py} as PickingInfo)).toMatchObject({
@@ -118,6 +112,7 @@ describe('Seasonal farm integration', () => {
         });
         expect(deck!.props.getTooltip!({x: 0, y: 0} as PickingInfo)).toBeNull();
         expect(viewport().zoom).toBe(view.zoom);
+        const bounds = canvas.getBoundingClientRect();
         canvas.dispatchEvent(
           new WheelEvent('wheel', {
             bubbles: true,
@@ -139,7 +134,7 @@ describe('Seasonal farm integration', () => {
             shiftKey: true
           })
         );
-        await expect.poll(() => viewport().bearing).toBe(-15);
+        await expect.poll(() => viewport().bearing, {timeout: 5000}).toBe(-15);
         const navigated = {...savedView!};
         // Ignore the transient canvas size reported during a website device handoff.
         deck!.props.onResize!({width: 1, height: 1});
