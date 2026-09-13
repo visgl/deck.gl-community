@@ -21,9 +21,8 @@ new TreeLayer({
 });
 ```
 
-Try the [Wild Forest demo](/examples/three/wild-forest) to explore seven regional groves
-with 400 varied trees each. Choose a region and season, then hover a tree to inspect its
-attributes. Tree locations and seasonal traits are illustrative, not surveyed data.
+Try the [Seasonal farm demo](/examples/three/wild-forest): seven labelled plots with
+varied trees, a season control, and hover details. Planting and seasonal traits are illustrative.
 
 ## Features
 

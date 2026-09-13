@@ -3,7 +3,7 @@ import {makeImperativeExample} from '../../components';
 
 export default makeImperativeExample(
   {
-    title: 'Wild Forest · TreeLayer',
+    title: 'Seasonal farm · TreeLayer',
     code: `${GITHUB_TREE}/examples/three/wild-forest`,
     deviceTabs: {placement: 'top-right'},
     async mount(container, props) {

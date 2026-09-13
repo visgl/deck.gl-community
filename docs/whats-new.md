@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- [Wild Forest](/examples/three/wild-forest) adds seven regional groves with seasonal trees,
-  smoother navigation, and simpler controls.
+- [Seasonal farm](/examples/three/wild-forest) shows seven labelled plots with varied trees,
+  seasonal crops, and hover details.
 - [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
   reuses pine geometry when attributes change.
 

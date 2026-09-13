@@ -7,79 +7,9 @@ import type {Color} from '@deck.gl/core';
 import type {CropConfig, Season, TreeType} from '@deck.gl-community/three';
 
 export type Species = 'date' | 'orange' | 'cherry' | 'pine' | 'birch' | 'cork-oak' | 'almond';
-export type ForestSite = {
+export type FarmTree = {
   id: string;
-  name: string;
-  country: string;
-  position: [number, number];
-  species: Species;
-  source: string;
-};
-
-/** Regional examples, not surveyed individual-tree locations. */
-export const FOREST_SITES: ForestSite[] = [
-  {
-    id: 'siwa',
-    name: 'Siwa Oasis',
-    country: 'Egypt',
-    position: [25.53, 29.21],
-    species: 'date',
-    source: 'https://www.fao.org/giahs/giahs-around-the-world/egypt-siwa-oasis-dates-system/en'
-  },
-  {
-    id: 'saopaulo',
-    name: 'São Paulo',
-    country: 'Brazil',
-    position: [-47.04, -21.85],
-    species: 'orange',
-    source:
-      'https://agenciadenoticias.ibge.gov.br/en/agencia-press-room/2185-news-agency/releases-en/43106-in-march-ibge-s-harvest-estimate-for-2025-is-327-6-million-tonnes'
-  },
-  {
-    id: 'kyoto',
-    name: 'Kyoto',
-    country: 'Japan',
-    position: [135.7847, 35.0035],
-    species: 'cherry',
-    source: 'https://kyoto.travel/en/destinations/maruyama-park/'
-  },
-  {
-    id: 'nuuksio',
-    name: 'Nuuksio',
-    country: 'Finland',
-    position: [24.5008, 60.3078],
-    species: 'birch',
-    source: 'https://www.luontoon.fi/en/destinations/nuuksio-national-park'
-  },
-  {
-    id: 'alentejo',
-    name: 'Alentejo',
-    country: 'Portugal',
-    position: [-8.009, 38.5528],
-    species: 'cork-oak',
-    source: 'https://www.visitportugal.com/en/content/the-cork'
-  },
-  {
-    id: 'riverland',
-    name: 'Riverland',
-    country: 'Australia',
-    position: [140.63, -34.41],
-    species: 'almond',
-    source: 'https://almondboard.org.au/almond-story/'
-  },
-  {
-    id: 'yosemite',
-    name: 'Yosemite',
-    country: 'United States',
-    position: [-119.58, 37.7469],
-    species: 'pine',
-    source: 'https://www.nps.gov/yose/learn/nature/plants.htm'
-  }
-];
-
-export type ForestTree = {
-  id: string;
-  siteId: string;
+  plotId: Species;
   position: [number, number, number];
   species: Species;
   type: TreeType;
@@ -128,9 +58,45 @@ const SPECIES: Record<
 
 export const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
 
-export const TREES_PER_SITE = 400;
+export type FarmPlot = {
+  species: Species;
+  label: string;
+  bounds: [number, number, number, number];
+  polygon: [number, number, number][];
+  rows: number;
+  columns: number;
+};
 
-/** Independent, repeatable traits; moving the camera never regenerates a grove. */
+/** A fictional farm, laid out in metres around an arbitrary origin. */
+export function getFarmPosition(x: number, y: number, z = 0): [number, number, number] {
+  return addMetersToLngLat([0, 0, 0], [x, y, z]) as [number, number, number];
+}
+
+export function createFarmPlots(columns = 3): FarmPlot[] {
+  return (['orange', 'almond', 'cherry', 'date', 'cork-oak', 'birch', 'pine'] as Species[]).map(
+    (species, index) => {
+      const [x, y, width, height] =
+        species === 'pine'
+          ? [0, (6 / columns) * 104, columns * 104 - 8, 34]
+          : [(index % columns) * 104, Math.floor(index / columns) * 104, 96, 96];
+      return {
+        species,
+        label: SPECIES[species].label,
+        bounds: [x, y, x + width, y + height],
+        polygon: [
+          [x, y],
+          [x + width, y],
+          [x + width, y + height],
+          [x, y + height]
+        ].map(([px, py]) => getFarmPosition(px, py)),
+        rows: species === 'pine' ? 2 : 8,
+        columns: species === 'pine' ? 16 : 8
+      };
+    }
+  );
+}
+
+/** Independent, repeatable traits; season changes never regenerate the planting. */
 function createRandom(seed: number): () => number {
   let state = seed;
   return () => {
@@ -141,53 +107,39 @@ function createRandom(seed: number): () => number {
   };
 }
 
-/** Seven substantial groves: planted orchard rows and irregular woodland clusters. */
-export function createTreeSamples(): ForestTree[] {
-  return FOREST_SITES.flatMap((site, siteIndex) => {
-    const model = SPECIES[site.species];
-    const orchard = ['date', 'orange', 'almond'].includes(site.species);
-    const spacing = model.radius * (orchard ? 1.65 : 1.9);
-    const random = createRandom(127 + siteIndex * 7919);
-    const offsets: [number, number][] = [];
-    const trees = Array.from({length: TREES_PER_SITE}, (_, index): ForestTree => {
+/** Compact orchard rows with independent age, shape, colour, and crop traits. */
+export function createTreeSamples(plots = createFarmPlots()): FarmTree[] {
+  return plots.flatMap((plot, plotIndex) => {
+    const model = SPECIES[plot.species];
+    const random = createRandom(127 + plotIndex * 7919);
+    const [left, bottom, right, top] = plot.bounds;
+    return Array.from({length: plot.rows * plot.columns}, (_, index): FarmTree => {
       const age = index === 0 ? 0.65 : random();
       const maturity =
         age < 0.1 ? 'sapling' : age < 0.32 ? 'young' : age < 0.88 ? 'mature' : 'veteran';
       const growth = 0.28 + Math.sqrt(age) * 0.95;
       const vigor = 0.5 + random() * 0.5;
-      const width = 0.65 + random() * 0.7;
-      const trunk = 0.7 + random() * 0.65 + (maturity === 'veteran' ? 0.35 : 0);
-      let x: number;
-      let y: number;
-      if (orchard) {
-        const col = index % 20;
-        const row = Math.floor(index / 20);
-        // Working lanes between blocks, with small planting offsets within rows.
-        x = (col - 9.5 + (Math.floor(col / 5) - 1.5) * 0.65 + (random() - 0.5) * 0.2) * spacing;
-        y = (row - 9.5 + (Math.floor(row / 5) - 1.5) * 0.65 + (random() - 0.5) * 0.2) * spacing;
-      } else {
-        const angle = index * 2.399963 + (random() - 0.5) * 0.35;
-        const radius = Math.sqrt(index / TREES_PER_SITE) * spacing * 11;
-        const edge = 1 + Math.sin(angle * 3) * 0.12 + Math.cos(angle * 5) * 0.08;
-        x = Math.cos(angle) * radius * edge;
-        y = Math.sin(angle) * radius * edge * 0.8;
-        // A winding opening through the woodland creates loose, uneven stands.
-        x += Math.sign(x) * spacing * (0.5 + 0.5 * Math.sin(y / (spacing * 3)));
-      }
-      offsets.push([x, y]);
+      // Keep a clear border around each plot, with small offsets inside the rows.
+      const x =
+        left +
+        10 +
+        (((index % plot.columns) + random() * 0.2) * (right - left - 20)) / (plot.columns - 1);
+      const y =
+        bottom +
+        10 +
+        ((Math.floor(index / plot.columns) + random() * 0.2) * (top - bottom - 20)) /
+          (plot.rows - 1);
       return {
-        id: `${site.id}-${index}`,
-        siteId: site.id,
-        position: [0, 0, 0],
-        species: site.species,
+        id: `${plot.species}-${index}`,
+        plotId: plot.species,
+        position: getFarmPosition(x, y),
+        species: plot.species,
         type: model.type,
         label: model.label,
         height: model.height * growth * (0.85 + random() * 0.3),
-        canopyRadius: model.radius * growth * width,
-        trunkRadius: model.trunk * growth * trunk,
-        trunkFraction:
-          Math.max(0.18, model.fraction - 0.1) +
-          random() * (Math.min(0.87, model.fraction + 0.1) - Math.max(0.18, model.fraction - 0.1)),
+        canopyRadius: model.radius * growth * (0.65 + random() * 0.7),
+        trunkRadius: model.trunk * growth * (0.7 + random() * 0.65),
+        trunkFraction: Math.max(0.18, model.fraction - 0.08) + random() * 0.12,
         branchLevels: Math.min(5, 1 + Math.floor(age * 4 + random() * 1.5)),
         maturity,
         vigor,
@@ -199,15 +151,6 @@ export function createTreeSamples(): ForestTree[] {
         branchPhase: random() * Math.PI * 2
       };
     });
-    const centerX = offsets.reduce((sum, point) => sum + point[0], 0) / trees.length;
-    const centerY = offsets.reduce((sum, point) => sum + point[1], 0) / trees.length;
-    for (let index = 0; index < trees.length; index++) {
-      trees[index].position = addMetersToLngLat(
-        [...site.position, 0],
-        [offsets[index][0] - centerX, offsets[index][1] - centerY, 0]
-      ) as [number, number, number];
-    }
-    return trees;
   });
 }
 
@@ -221,7 +164,7 @@ function mixColor(from: Color, to: Color, amount: number): Color {
 }
 
 /** Individual bark tones preserve the pale birch and warm date-palm trunks. */
-export function getBarkColor(tree: ForestTree): Color {
+export function getBarkColor(tree: FarmTree): Color {
   const base: Color =
     tree.species === 'birch'
       ? [221, 216, 200, 255]
@@ -233,12 +176,12 @@ export function getBarkColor(tree: ForestTree): Color {
   return mixColor(base, [55, 48, 37, 255], tree.barkTone * 0.35);
 }
 
-/** Crown fullness changes with local season, vigor, and each tree's timing. */
-export function getSeasonalCanopyRadius(tree: ForestTree, season: Season): number {
+/** Crown fullness changes with season, vigor, and each tree's timing. */
+export function getSeasonalCanopyRadius(tree: FarmTree, season: Season): number {
   const evergreen = ['date', 'orange', 'cork-oak', 'pine'].includes(tree.species);
   const fullness = evergreen
     ? 0.9 + tree.vigor * 0.1
-    : season === 'spring' || (tree.species === 'almond' && season === 'winter')
+    : season === 'spring'
       ? 0.68 + tree.phenology * 0.25
       : season === 'autumn'
         ? 0.66 + tree.phenology * 0.3
@@ -246,7 +189,7 @@ export function getSeasonalCanopyRadius(tree: ForestTree, season: Season): numbe
   return tree.canopyRadius * fullness;
 }
 
-export function getFoliageColor(tree: ForestTree, season: Season): Color {
+export function getFoliageColor(tree: FarmTree, season: Season): Color {
   const color = getSeasonColor(tree, season);
   if (color[3] === 0) return color;
   return mixColor(
@@ -256,12 +199,12 @@ export function getFoliageColor(tree: ForestTree, season: Season): Color {
   );
 }
 
-function getSeasonColor(tree: ForestTree, season: Season): Color {
+function getSeasonColor(tree: FarmTree, season: Season): Color {
   if (tree.species === 'date') return season === 'spring' ? [91, 145, 55, 255] : [62, 122, 49, 255];
   if (tree.species === 'orange') return [46, 111, 40, 255];
   if (tree.species === 'cork-oak') return [91, 118, 65, 255];
   if (tree.species === 'pine') return season === 'spring' ? [61, 124, 71, 255] : [37, 92, 60, 255];
-  if (tree.species === 'almond' && season === 'winter')
+  if (tree.species === 'almond' && season === 'spring')
     return mixColor([253, 245, 237, 255], [238, 179, 199, 255], tree.phenology);
   if (season === 'winter') return [135, 119, 101, 0];
   if (tree.species === 'cherry' && season === 'spring')
@@ -289,30 +232,30 @@ const CROPS: Partial<Record<Species, Partial<Record<Season, CropPreset>>>> = {
   almond: {
     summer: [[184, 142, 81, 255], 30, 0.13],
     autumn: [[184, 142, 81, 255], 30, 0.13, 14],
-    winter: [[255, 239, 242, 255], 38, 0.14]
+    spring: [[255, 239, 242, 255], 38, 0.14]
   },
   'cork-oak': {autumn: [[126, 80, 33, 255], 28, 0.15, 16]}
 };
 
-/** Illustrative local seasons; fruit is enlarged for visibility. */
-export function getSeasonalCrop(tree: ForestTree, season: Season): CropConfig | null {
+/** Illustrative seasons; fruit is enlarged for visibility. */
+export function getSeasonalCrop(tree: FarmTree, season: Season): CropConfig | null {
   const preset = CROPS[tree.species]?.[season];
   if (!preset || tree.cropLoad === 0) return null;
   const [color, count, radius, droppedCount = 0] = preset;
   return {
     color: mixColor(color, [246, 219, 127, 255], tree.phenology * 0.24),
     count: Math.round(count * tree.cropLoad),
-    radius: radius * tree.fruitSize,
+    radius: radius * tree.fruitSize * 2.5,
     droppedCount: Math.round(droppedCount * tree.cropLoad * (0.35 + tree.phenology))
   };
 }
 
 export type TreeBranch = {source: [number, number, number]; target: [number, number, number]};
 
-/** A lightweight branching scaffold for winter's leafless cherry and birch silhouettes. */
-export function createWinterBranches(trees: ForestTree[]): TreeBranch[] {
+/** A lightweight branching scaffold for winter's leafless orchard silhouettes. */
+export function createWinterBranches(trees: FarmTree[]): TreeBranch[] {
   return trees
-    .filter(tree => tree.species === 'cherry' || tree.species === 'birch')
+    .filter(tree => ['cherry', 'birch', 'almond'].includes(tree.species))
     .flatMap(tree => {
       const h = tree.height;
       const base = h * tree.trunkFraction;

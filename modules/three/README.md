@@ -183,9 +183,8 @@ type CropConfig = {
 
 ---
 
-## Wild Forest example
+## Seasonal farm example
 
-Explore seven regional groves in the
-[Wild Forest demo](https://visgl.github.io/deck.gl-community/examples/three/wild-forest),
-with controls for region, season, and zoom. See the
+Explore seven labelled plots with seasonal trees and hover details in the
+[Seasonal farm demo](https://visgl.github.io/deck.gl-community/examples/three/wild-forest). See the
 [example README](../../examples/three/wild-forest/README.md) for setup and data details.

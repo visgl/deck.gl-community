@@ -7,12 +7,9 @@
   "dependencies": {
     "@deck.gl-community/three": "workspace:*",
     "@deck.gl/core": "~9.4.0",
-    "@deck.gl/extensions": "~9.4.0",
-    "@deck.gl/geo-layers": "~9.4.0",
     "@deck.gl/layers": "~9.4.0",
     "@deck.gl/mesh-layers": "~9.4.0",
     "@loaders.gl/core": "^4.4.3",
-    "@loaders.gl/mvt": "^4.4.3",
     "@luma.gl/core": "~9.4.0",
     "@luma.gl/engine": "~9.4.0",
     "@luma.gl/shadertools": "~9.4.0",
