@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, MapView, WebMercatorViewport, type PickingInfo, type Widget} from '@deck.gl/core';
+import {
+  Deck,
+  MapView,
+  MapController,
+  WebMercatorViewport,
+  type DeckProps,
+  type MapViewState,
+  type PickingInfo,
+  type Widget
+} from '@deck.gl/core';
 import {LineLayer, PolygonLayer, TextLayer} from '@deck.gl/layers';
 import type {Device} from '@luma.gl/core';
 import {TreeLayer, type Season} from '@deck.gl-community/three';
@@ -26,6 +35,9 @@ export type WildForestExampleOptions = {
   /** Reuse the website's selected graphics device and widgets. */
   device?: Device;
   widgets?: Widget[];
+  /** Restore and publish the camera when switching website graphics backends. */
+  initialViewState?: MapViewState;
+  onViewStateChange?: DeckProps<MapView>['onViewStateChange'];
   onDeckInitialized?: (deck: Deck<MapView>) => void;
 };
 
@@ -44,8 +56,8 @@ const FARMS = [2, 3].map(columns => {
 // Keep the season when the website remounts for a graphics backend switch.
 const HOST_SEASON = new WeakMap<HTMLElement, Season>();
 
-/** Fit one fixed farm view; there is no navigation state or animation loop. */
-function getFarmView(width: number, height: number, plots: FarmPlot[]) {
+/** Frame the initial planting and refit when its responsive layout changes. */
+function getFarmView(width: number, height: number, plots: FarmPlot[]): MapViewState {
   const view = new WebMercatorViewport({
     width: Math.max(180, width),
     height: Math.max(300, height)
@@ -88,23 +100,37 @@ export function mountWildForestExample(
   container.replaceChildren(root);
   let season = HOST_SEASON.get(container) ?? 'spring';
   let farm = FARMS[container.clientWidth < 600 ? 0 : 1];
+  let currentView: MapViewState =
+    options.initialViewState ??
+    getFarmView(container.clientWidth, container.clientHeight, farm.plots);
   const deck = new Deck({
     parent: root.querySelector<HTMLDivElement>('.farm-canvas')!,
     device: options.device,
     widgets: options.widgets ?? [],
     views: new MapView({id: 'farm'}),
-    initialViewState: getFarmView(container.clientWidth, container.clientHeight, farm.plots),
-    controller: false,
+    initialViewState: currentView,
+    controller: {type: MapController, touchRotate: true},
+    onViewStateChange(params) {
+      currentView = options.onViewStateChange?.(params) || params.viewState;
+      return currentView as typeof params.viewState;
+    },
     useDevicePixels: Math.min(2, container.ownerDocument.defaultView?.devicePixelRatio || 1),
     layers: createLayers(),
-    onResize({width, height}) {
+    onResize() {
+      // A website-managed device starts with a 1×1 canvas before reparenting.
+      const {clientWidth: width, clientHeight: height} = container;
       const next = FARMS[width < 600 ? 0 : 1];
-      const changed = next !== farm;
+      if (next === farm) return;
       farm = next;
-      deck.setProps({
-        initialViewState: getFarmView(width, height, farm.plots),
-        ...(changed ? {layers: createLayers()} : {})
-      });
+      const viewState = getFarmView(width, height, farm.plots);
+      currentView =
+        options.onViewStateChange?.({
+          viewId: 'farm',
+          viewState,
+          oldViewState: currentView,
+          interactionState: {}
+        }) || viewState;
+      deck.setProps({initialViewState: currentView, layers: createLayers()});
     },
     getTooltip(info: PickingInfo) {
       const viewport = deck.getViewports()[0];
@@ -117,10 +143,10 @@ export function mountWildForestExample(
           tree.height * (0.5 + tree.trunkFraction * 0.5)
         ];
         const [x, y] = viewport.project(crown);
-        const [edge] = viewport.project(
+        const [edgeX, edgeY] = viewport.project(
           getFarmPosition(tree.canopyRadius, 0).map((value, index) => value + crown[index])
         );
-        return Math.hypot(info.x - x, info.y - y) < Math.max(4, Math.abs(edge - x));
+        return Math.hypot(info.x - x, info.y - y) < Math.max(4, Math.hypot(edgeX - x, edgeY - y));
       });
       if (tree) {
         const crop = getSeasonalCrop(tree, season);

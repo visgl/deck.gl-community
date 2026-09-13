@@ -2,7 +2,8 @@
 
 A compact TreeLayer demo with seven labelled plots and 416 varied trees. Switch seasons
 to change foliage, blossom, fruit, and bare branches. Hover a tree or plot to inspect it.
-The farm fits the screen automatically; no navigation or basemap is required.
+The farm starts fitted to the screen. Drag to pan, scroll or pinch to zoom, and
+right-drag to tilt or rotate using the standard MapController. No basemap is required.
 
 ## Run
 
@@ -14,7 +15,7 @@ yarn --cwd examples/three/wild-forest start
 ```
 
 TreeLayer loads from source. The same demo runs standalone, on the website, and in the
-gallery. Switching graphics backends preserves the season.
+gallery. Switching graphics backends preserves the camera and season.
 
 ## Data
 

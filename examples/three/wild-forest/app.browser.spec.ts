@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, type MapView, type PickingInfo} from '@deck.gl/core';
+import {
+  Deck,
+  MapController,
+  type MapView,
+  type MapViewState,
+  type WebMercatorViewport,
+  type PickingInfo
+} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/three';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
@@ -28,16 +35,23 @@ describe('Seasonal farm integration', () => {
       let device: Device | undefined;
       let deck: Deck<MapView>;
       let cleanup: (() => void) | undefined;
+      let savedView: MapViewState | undefined;
       const errors: Error[] = [];
       const frames = vi.fn();
       const mount = () =>
         mountWildForestExample(parent, {
           device,
+          initialViewState: savedView,
+          onViewStateChange(params) {
+            savedView = params.viewState;
+            return params.viewState;
+          },
           onDeckInitialized(instance) {
             deck = instance;
             deck.setProps({onError: error => errors.push(error), onAfterRender: frames});
           }
         });
+      const viewport = () => deck!.getViewports()[0] as WebMercatorViewport;
       const root = () => parent.querySelector<HTMLElement>('.forest-farm')!;
       const select = (season: string) =>
         parent.querySelector<HTMLButtonElement>(`button[data-season="${season}"]`)!.click();
@@ -52,14 +66,14 @@ describe('Seasonal farm integration', () => {
         cleanup = mount();
         await expect.poll(() => frames.mock.calls.length).toBeGreaterThan(0);
         expect(deck!.props.device).toBe(device);
-        expect(deck!.props.controller).toBe(false);
+        expect(deck!.props.controller).toMatchObject({type: MapController});
         expect(parent.querySelectorAll('button')).toHaveLength(4);
         expect(parent.querySelectorAll('select, input')).toHaveLength(0);
         expect(root().dataset.season).toBe('spring');
         expect(treeLayers()).toHaveLength(7);
         const data = treeLayers().map(layer => layer.props.data as FarmTree[]);
         expect(data.flat()).toHaveLength(416);
-        const view = deck!.getViewports()[0];
+        const view = viewport();
         const cherry = treeLayers().find(layer => layer.id.endsWith('cherry'))!;
         const cherryTree = (cherry.props.data as FarmTree[])[0];
         const springCrop = cherry.props.getCrop(cherryTree);
@@ -103,26 +117,64 @@ describe('Seasonal farm integration', () => {
           text: expect.stringContaining('Orange tree plot')
         });
         expect(deck!.props.getTooltip!({x: 0, y: 0} as PickingInfo)).toBeNull();
-        expect(deck!.getViewports()[0].zoom).toBe(view.zoom);
+        expect(viewport().zoom).toBe(view.zoom);
+        canvas.dispatchEvent(
+          new WheelEvent('wheel', {
+            bubbles: true,
+            deltaY: -240,
+            clientX: bounds.left + bounds.width / 2,
+            clientY: bounds.top + bounds.height / 2
+          })
+        );
+        await expect.poll(() => viewport().zoom).toBeGreaterThan(view.zoom + 0.5);
+        canvas.dispatchEvent(
+          new KeyboardEvent('keydown', {bubbles: true, key: 'ArrowRight', code: 'ArrowRight'})
+        );
+        await expect.poll(() => viewport().longitude).not.toBe(view.longitude);
+        canvas.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            bubbles: true,
+            key: 'ArrowLeft',
+            code: 'ArrowLeft',
+            shiftKey: true
+          })
+        );
+        await expect.poll(() => viewport().bearing).toBe(-15);
+        const navigated = {...savedView!};
+        // Ignore the transient canvas size reported during a website device handoff.
+        deck!.props.onResize!({width: 1, height: 1});
+        expect(savedView!.zoom).toBe(navigated.zoom);
+        expect(treeLayers().every((layer, index) => layer.props.data === data[index])).toBe(true);
+        select('summer');
+        select('winter');
+        // Ordinary resizes and season changes must not reset a navigated camera.
+        parent.style.width = '880px';
+        await expect.poll(() => viewport().width).toBe(880);
+        expect(viewport().zoom).toBe(navigated.zoom);
+        expect(viewport().bearing).toBe(navigated.bearing);
+        expect(treeLayers().every((layer, index) => layer.props.data === data[index])).toBe(true);
         cleanup();
         frames.mockClear();
         cleanup = mount();
         await expect.poll(() => frames.mock.calls.length).toBeGreaterThan(0);
         expect(root().dataset.season).toBe('winter');
+        expect(viewport().zoom).toBe(navigated.zoom);
+        expect(viewport().longitude).toBe(navigated.longitude);
+        expect(viewport().bearing).toBe(navigated.bearing);
         expect(parent.querySelectorAll('.forest-farm')).toHaveLength(1);
         for (const [width, height, columns] of [
           [390, 740, 2],
           [900, 600, 3]
         ]) {
           Object.assign(parent.style, {width: `${width}px`, height: `${height}px`});
-          await expect.poll(() => deck!.getViewports()[0].width).toBe(width);
+          await expect.poll(() => viewport().width).toBe(width);
           await expect
             .poll(() => {
-              const viewport = deck!.getViewports()[0];
+              const fitted = viewport();
               return createFarmPlots(columns)
                 .flatMap(plot => plot.polygon)
                 .every(point => {
-                  const [x, y] = viewport.project(point);
+                  const [x, y] = fitted.project(point);
                   return x > 8 && x < width - 8 && y > 90 && y < height - 70;
                 });
             })
