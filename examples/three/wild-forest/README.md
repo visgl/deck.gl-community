@@ -3,7 +3,8 @@
 A compact TreeLayer demo with seven labelled plots and 416 varied trees. Switch seasons
 to change foliage, blossom, fruit, and bare branches. Hover a tree or plot to inspect it.
 The farm starts fitted to the screen. Drag to pan, scroll or pinch to zoom, and
-right-drag to tilt or rotate using the standard MapController. No basemap is required.
+right-drag to tilt or rotate using the standard MapController, up to zoom 23 and an
+80° pitch. No basemap is required.
 
 ## Run
 

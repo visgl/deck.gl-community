@@ -55,6 +55,7 @@ const FARMS = [2, 3].map(columns => {
 });
 // Keep the season when the website remounts for a graphics backend switch.
 const HOST_SEASON = new WeakMap<HTMLElement, Season>();
+const VIEW_LIMITS = {maxZoom: 23, maxPitch: 80};
 
 /** Frame the initial planting and refit when its responsive layout changes. */
 function getFarmView(width: number, height: number, plots: FarmPlot[]): MapViewState {
@@ -74,6 +75,7 @@ function getFarmView(width: number, height: number, plots: FarmPlot[]): MapViewS
     }
   );
   return {
+    ...VIEW_LIMITS,
     longitude: view.longitude,
     latitude: view.latitude,
     zoom: view.zoom,
@@ -100,9 +102,11 @@ export function mountWildForestExample(
   container.replaceChildren(root);
   let season = HOST_SEASON.get(container) ?? 'spring';
   let farm = FARMS[container.clientWidth < 600 ? 0 : 1];
-  let currentView: MapViewState =
-    options.initialViewState ??
-    getFarmView(container.clientWidth, container.clientHeight, farm.plots);
+  let currentView: MapViewState = {
+    ...(options.initialViewState ??
+      getFarmView(container.clientWidth, container.clientHeight, farm.plots)),
+    ...VIEW_LIMITS
+  };
   const deck = new Deck({
     parent: root.querySelector<HTMLDivElement>('.farm-canvas')!,
     device: options.device,

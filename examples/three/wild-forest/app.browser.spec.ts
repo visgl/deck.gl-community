@@ -135,6 +135,25 @@ describe('Seasonal farm integration', () => {
           })
         );
         await expect.poll(() => viewport().bearing, {timeout: 5000}).toBe(-15);
+        // Reach the close-up limits through the standard controller, then try past them.
+        for (const [code, key, property, step, limit] of [
+          ['Equal', '=', 'zoom', 1, 23],
+          ['ArrowUp', 'ArrowUp', 'pitch', 10, 80]
+        ] as const) {
+          for (let i = 0; i < 6; i++) {
+            const expected = Math.min(limit, viewport()[property] + step);
+            canvas.dispatchEvent(
+              new KeyboardEvent('keydown', {
+                bubbles: true,
+                code,
+                key,
+                shiftKey: property === 'pitch'
+              })
+            );
+            await expect.poll(() => viewport()[property], {timeout: 5000}).toBe(expected);
+          }
+          expect(viewport()[property]).toBe(limit);
+        }
         const navigated = {...savedView!};
         // Ignore the transient canvas size reported during a website device handoff.
         deck!.props.onResize!({width: 1, height: 1});
@@ -146,6 +165,7 @@ describe('Seasonal farm integration', () => {
         parent.style.width = '880px';
         await expect.poll(() => viewport().width).toBe(880);
         expect(viewport().zoom).toBe(navigated.zoom);
+        expect(viewport().pitch).toBe(navigated.pitch);
         expect(viewport().bearing).toBe(navigated.bearing);
         expect(treeLayers().every((layer, index) => layer.props.data === data[index])).toBe(true);
         cleanup();
@@ -154,6 +174,7 @@ describe('Seasonal farm integration', () => {
         await expect.poll(() => frames.mock.calls.length).toBeGreaterThan(0);
         expect(root().dataset.season).toBe('winter');
         expect(viewport().zoom).toBe(navigated.zoom);
+        expect(viewport().pitch).toBe(navigated.pitch);
         expect(viewport().longitude).toBe(navigated.longitude);
         expect(viewport().bearing).toBe(navigated.bearing);
         expect(parent.querySelectorAll('.forest-farm')).toHaveLength(1);
