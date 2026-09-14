@@ -276,6 +276,7 @@ export class DrawPolygonMode extends GeoJsonEditMode {
     props: ModeProps<SimpleFeatureCollection>
   ): {handled: boolean} {
     const outer = getPolygonFeature(feature.geometry.coordinates, props);
+    const cartesian = props.coordinateSystem instanceof CartesianCoordinateSystem;
     // Check existing holes for conflicts
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
       const hole = getPolygonFeature([feature.geometry.coordinates[i]], props);
