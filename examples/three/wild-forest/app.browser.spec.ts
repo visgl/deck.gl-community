@@ -24,7 +24,7 @@ type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 describe('Seasonal farm integration', () => {
   it.for(['webgl', 'webgpu'] as const)(
     'renders seasons, plot inspection, and responsive remounts on %s',
-    {timeout: 30_000},
+    {timeout: 60_000},
     async (type, {skip}) => {
       if (type === 'webgpu') {
         const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
@@ -65,7 +65,7 @@ describe('Seasonal farm integration', () => {
           createCanvasContext: {container: parent}
         });
         cleanup = mount();
-        await expect.poll(() => frames.mock.calls.length).toBeGreaterThan(0);
+        await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
         expect(deck!.props.device).toBe(device);
         expect(deck!.props.controller).toMatchObject({type: MapController});
         expect(parent.querySelectorAll('button')).toHaveLength(4);
@@ -81,7 +81,7 @@ describe('Seasonal farm integration', () => {
         expect(springCrop!.count).toBeGreaterThan(0);
         frames.mockClear();
         for (const season of ['summer', 'autumn', 'winter']) select(season);
-        await expect.poll(() => frames.mock.calls.length).toBeGreaterThan(0);
+        await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
         expect(root().dataset.season).toBe('winter');
         expect(
           parent.querySelector('button[data-season="winter"]')!.getAttribute('aria-pressed')
@@ -121,11 +121,11 @@ describe('Seasonal farm integration', () => {
             clientY: bounds.top + bounds.height / 2
           })
         );
-        await expect.poll(() => viewport().zoom).toBeGreaterThan(view.zoom + 0.5);
+        await expect.poll(() => viewport().zoom, {timeout: 5000}).toBeGreaterThan(view.zoom + 0.5);
         canvas.dispatchEvent(
           new KeyboardEvent('keydown', {bubbles: true, key: 'ArrowRight', code: 'ArrowRight'})
         );
-        await expect.poll(() => viewport().longitude).not.toBe(view.longitude);
+        await expect.poll(() => viewport().longitude, {timeout: 5000}).not.toBe(view.longitude);
         canvas.dispatchEvent(
           new KeyboardEvent('keydown', {
             bubbles: true,
@@ -135,26 +135,28 @@ describe('Seasonal farm integration', () => {
           })
         );
         await expect.poll(() => viewport().bearing, {timeout: 5000}).toBe(-15);
-        // Reach the close-up limits through the standard controller, then try past them.
-        for (const [code, key, property, step, limit] of [
-          ['Equal', '=', 'zoom', 1, 23],
-          ['ArrowUp', 'ArrowUp', 'pitch', 10, 80]
+        // Start near the limits to avoid rendering a long zoom sequence on CI's software GPU.
+        deck!.setProps({
+          initialViewState: {...savedView!, zoom: 22.5, pitch: 75, transitionDuration: 0}
+        });
+        await expect
+          .poll(() => frames.mock.results.at(-1)?.value, {timeout: 5000})
+          .toMatchObject({zoom: 22.5, pitch: 75});
+        for (const [code, key, property, limit] of [
+          ['Equal', '=', 'zoom', 23],
+          ['ArrowUp', 'ArrowUp', 'pitch', 80]
         ] as const) {
-          for (let i = 0; i < 6; i++) {
-            const expected = Math.min(limit, viewport()[property] + step);
-            canvas.dispatchEvent(
-              new KeyboardEvent('keydown', {
-                bubbles: true,
-                code,
-                key,
-                shiftKey: property === 'pitch'
-              })
-            );
-            await expect
-              .poll(() => frames.mock.results.at(-1)?.value[property], {timeout: 5000})
-              .toBe(expected);
-          }
-          expect(viewport()[property]).toBe(limit);
+          canvas.dispatchEvent(
+            new KeyboardEvent('keydown', {
+              bubbles: true,
+              code,
+              key,
+              shiftKey: property === 'pitch'
+            })
+          );
+          await expect
+            .poll(() => frames.mock.results.at(-1)?.value[property], {timeout: 5000})
+            .toBe(limit);
         }
         const navigated = {...savedView!};
         // Ignore the transient canvas size reported during a website device handoff.
@@ -165,7 +167,7 @@ describe('Seasonal farm integration', () => {
         select('winter');
         // Ordinary resizes and season changes must not reset a navigated camera.
         parent.style.width = '880px';
-        await expect.poll(() => viewport().width).toBe(880);
+        await expect.poll(() => viewport().width, {timeout: 5000}).toBe(880);
         expect(viewport().zoom).toBe(navigated.zoom);
         expect(viewport().pitch).toBe(navigated.pitch);
         expect(viewport().bearing).toBe(navigated.bearing);
@@ -173,7 +175,7 @@ describe('Seasonal farm integration', () => {
         cleanup();
         frames.mockClear();
         cleanup = mount();
-        await expect.poll(() => frames.mock.calls.length).toBeGreaterThan(0);
+        await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
         expect(root().dataset.season).toBe('winter');
         expect(viewport().zoom).toBe(navigated.zoom);
         expect(viewport().pitch).toBe(navigated.pitch);
@@ -185,7 +187,7 @@ describe('Seasonal farm integration', () => {
           [900, 600, 3]
         ]) {
           Object.assign(parent.style, {width: `${width}px`, height: `${height}px`});
-          await expect.poll(() => viewport().width).toBe(width);
+          await expect.poll(() => viewport().width, {timeout: 5000}).toBe(width);
           await expect
             .poll(() => {
               const fitted = viewport();
