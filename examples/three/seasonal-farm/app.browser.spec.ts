@@ -16,12 +16,12 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it, vi} from 'vitest';
 import {userEvent} from 'vitest/browser';
-import {mountWildForestExample} from './app';
+import {mountSeasonalFarmExample} from './app';
 import {createFarmPlots, getFarmPosition, type FarmTree} from './farm-data';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 
-describe('Seasonal farm integration', () => {
+describe('Seasonal Farm integration', () => {
   it.for(['webgl', 'webgpu'] as const)(
     'renders seasons, plot inspection, and responsive remounts on %s',
     {timeout: 60_000},
@@ -40,7 +40,7 @@ describe('Seasonal farm integration', () => {
       const errors: Error[] = [];
       const frames = vi.fn(() => deck!.getViewports()[0] as WebMercatorViewport);
       const mount = () =>
-        mountWildForestExample(parent, {
+        mountSeasonalFarmExample(parent, {
           device,
           initialViewState: savedView,
           onViewStateChange(params) {
@@ -53,7 +53,7 @@ describe('Seasonal farm integration', () => {
           }
         });
       const viewport = () => deck!.getViewports()[0] as WebMercatorViewport;
-      const root = () => parent.querySelector<HTMLElement>('.forest-farm')!;
+      const root = () => parent.querySelector<HTMLElement>('.seasonal-farm')!;
       const select = (season: string) =>
         parent.querySelector<HTMLButtonElement>(`button[data-season="${season}"]`)!.click();
       const treeLayers = () =>
@@ -181,7 +181,7 @@ describe('Seasonal farm integration', () => {
         expect(viewport().pitch).toBe(navigated.pitch);
         expect(viewport().longitude).toBe(navigated.longitude);
         expect(viewport().bearing).toBe(navigated.bearing);
-        expect(parent.querySelectorAll('.forest-farm')).toHaveLength(1);
+        expect(parent.querySelectorAll('.seasonal-farm')).toHaveLength(1);
         for (const [width, height, columns] of [
           [390, 740, 2],
           [900, 600, 3]

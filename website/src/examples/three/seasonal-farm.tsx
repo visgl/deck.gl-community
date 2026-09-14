@@ -3,12 +3,12 @@ import {makeImperativeExample} from '../../components';
 
 export default makeImperativeExample(
   {
-    title: 'Seasonal farm · TreeLayer',
-    code: `${GITHUB_TREE}/examples/three/wild-forest`,
+    title: 'Seasonal Farm · TreeLayer',
+    code: `${GITHUB_TREE}/examples/three/seasonal-farm`,
     deviceTabs: {placement: 'top-right'},
     async mount(container, props) {
-      const {mountWildForestExample} = await import('../../../../examples/three/wild-forest/app');
-      return mountWildForestExample(container, props);
+      const {mountSeasonalFarmExample} = await import('../../../../examples/three/seasonal-farm/app');
+      return mountSeasonalFarmExample(container, props);
     }
   },
   {addInfoPanel: false}

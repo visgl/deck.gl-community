@@ -11003,6 +11003,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"seasonal-farm-6a8c04@workspace:examples/three/seasonal-farm":
+  version: 0.0.0-use.local
+  resolution: "seasonal-farm-6a8c04@workspace:examples/three/seasonal-farm"
+  dependencies:
+    "@deck.gl-community/three": "workspace:*"
+    "@deck.gl/core": "npm:~9.4.0"
+    "@deck.gl/layers": "npm:~9.4.0"
+    "@deck.gl/mesh-layers": "npm:~9.4.0"
+    "@loaders.gl/core": "npm:^4.4.3"
+    "@luma.gl/core": "npm:~9.4.0"
+    "@luma.gl/engine": "npm:~9.4.0"
+    "@luma.gl/shadertools": "npm:~9.4.0"
+    "@luma.gl/webgl": "npm:~9.4.0"
+    "@luma.gl/webgpu": "npm:~9.4.0"
+    "@math.gl/web-mercator": "npm:^4.1.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "semver@npm:7.7.2":
   version: 7.7.2
   resolution: "semver@npm:7.7.2"
@@ -12630,25 +12649,6 @@ __metadata:
     "@luma.gl/shadertools": "npm:~9.4.0"
     "@luma.gl/webgl": "npm:~9.4.0"
     "@luma.gl/webgpu": "npm:~9.4.0"
-    vite: "npm:^7.3.1"
-  languageName: unknown
-  linkType: soft
-
-"wild-forest-ea7bdb@workspace:examples/three/wild-forest":
-  version: 0.0.0-use.local
-  resolution: "wild-forest-ea7bdb@workspace:examples/three/wild-forest"
-  dependencies:
-    "@deck.gl-community/three": "workspace:*"
-    "@deck.gl/core": "npm:~9.4.0"
-    "@deck.gl/layers": "npm:~9.4.0"
-    "@deck.gl/mesh-layers": "npm:~9.4.0"
-    "@loaders.gl/core": "npm:^4.4.3"
-    "@luma.gl/core": "npm:~9.4.0"
-    "@luma.gl/engine": "npm:~9.4.0"
-    "@luma.gl/shadertools": "npm:~9.4.0"
-    "@luma.gl/webgl": "npm:~9.4.0"
-    "@luma.gl/webgpu": "npm:~9.4.0"
-    "@math.gl/web-mercator": "npm:^4.1.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

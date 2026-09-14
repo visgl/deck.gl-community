@@ -1,4 +1,4 @@
-# Seasonal farm
+# Seasonal Farm
 
 A compact TreeLayer demo with seven labelled plots and 416 varied trees. Switch seasons
 to change foliage, blossom, fruit, and bare branches. Hover a tree or plot to inspect it.
@@ -12,7 +12,7 @@ From the repository root:
 
 ```sh
 yarn
-yarn --cwd examples/three/wild-forest start
+yarn --cwd examples/three/seasonal-farm start
 ```
 
 TreeLayer loads from source. The same demo runs standalone, on the website, and in the

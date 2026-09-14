@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-// Local vite config for the wild-forest example.
+// Local vite config for the seasonal-farm example.
 // Resolve the local TreeLayer package from source,
 // so a fresh checkout can start without a package build.
 import {defineConfig} from 'vite';

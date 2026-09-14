@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- [Seasonal farm](/examples/three/wild-forest) shows seven labelled plots with varied trees,
+- [Seasonal Farm](/examples/three/seasonal-farm) shows seven labelled plots with varied trees,
   seasonal crops, and hover details.
 - [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
   reuses pine geometry when attributes change.
@@ -178,7 +178,7 @@ New module for THREE.js integration experiments.
 
 - [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) (new) renders varied, seasonal 3D
   forests with five tree silhouettes and optional crops. See the
-  [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/wild-forest).
+  [Seasonal Farm example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/seasonal-farm).
 
 ## v9.2
 

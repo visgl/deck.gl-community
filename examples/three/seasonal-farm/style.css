@@ -1,4 +1,4 @@
-.forest-farm {
+.seasonal-farm {
   position: relative;
   width: 100%;
   height: 100%;
@@ -9,28 +9,28 @@
   font: 12px / 1.5 system-ui, sans-serif;
   container: farm / inline-size;
 }
-.forest-farm .farm-canvas {
+.seasonal-farm .farm-canvas {
   position: absolute;
   inset: 0;
 }
-.forest-farm .farm-title {
+.seasonal-farm .farm-title {
   position: absolute;
   top: 20px;
   left: 24px;
   pointer-events: none;
 }
-.forest-farm .farm-title h1 {
+.seasonal-farm .farm-title h1 {
   font: 600 20px / 1.2 system-ui, sans-serif !important;
   color: inherit !important;
   margin: 0 0 5px !important;
   letter-spacing: -0.5px;
 }
-.forest-farm .farm-title p {
+.seasonal-farm .farm-title p {
   margin: 0 !important;
   color: #74806c;
   font-size: 11px;
 }
-.forest-farm .farm-seasons {
+.seasonal-farm .farm-seasons {
   position: absolute;
   bottom: 38px;
   left: 50%;
@@ -42,10 +42,10 @@
   border-radius: 24px;
   background: #fffffff2;
 }
-.forest-farm .farm-seasons[hidden] {
+.seasonal-farm .farm-seasons[hidden] {
   display: none;
 }
-.forest-farm button {
+.seasonal-farm button {
   color: inherit;
   background: transparent;
   border: 0;
@@ -54,18 +54,18 @@
   font: inherit;
   cursor: pointer;
 }
-.forest-farm button:hover {
+.seasonal-farm button:hover {
   background: #edf1e6;
 }
-.forest-farm button[aria-pressed="true"] {
+.seasonal-farm button[aria-pressed="true"] {
   background: #385634;
   color: white;
 }
-.forest-farm button:focus-visible {
+.seasonal-farm button:focus-visible {
   outline: 2px solid #63884f;
   outline-offset: 2px;
 }
-.forest-farm .farm-note {
+.seasonal-farm .farm-note {
   position: absolute;
   bottom: 12px;
   width: 100%;
@@ -75,7 +75,7 @@
   pointer-events: none;
 }
 @container farm (max-width: 600px) {
-  .forest-farm .farm-title { left: 16px; }
-  .forest-farm[data-managed-device="true"] .farm-title { top: 60px; }
-  .forest-farm button { padding: 8px 10px; }
+  .seasonal-farm .farm-title { left: 16px; }
+  .seasonal-farm[data-managed-device="true"] .farm-title { top: 60px; }
+  .seasonal-farm button { padding: 8px 10px; }
 }

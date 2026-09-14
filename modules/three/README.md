@@ -183,8 +183,8 @@ type CropConfig = {
 
 ---
 
-## Seasonal farm example
+## Seasonal Farm example
 
 Explore seven labelled plots with seasonal trees and hover details in the
-[Seasonal farm demo](https://visgl.github.io/deck.gl-community/examples/three/wild-forest). See the
-[example README](../../examples/three/wild-forest/README.md) for setup and data details.
+[Seasonal Farm demo](https://visgl.github.io/deck.gl-community/examples/three/seasonal-farm). See the
+[example README](../../examples/three/seasonal-farm/README.md) for setup and data details.

@@ -21,7 +21,7 @@ new TreeLayer({
 });
 ```
 
-Try the [Seasonal farm demo](/examples/three/wild-forest): seven labelled plots with
+Try the [Seasonal Farm demo](/examples/three/seasonal-farm): seven labelled plots with
 varied trees, a season control, and hover details. Planting and seasonal traits are illustrative.
 
 ## Features

@@ -30,7 +30,7 @@ import {
 } from './farm-data';
 import './style.css';
 
-export type WildForestExampleOptions = {
+export type SeasonalFarmExampleOptions = {
   showControlsWidget?: boolean;
   /** Reuse the website's selected graphics device and widgets. */
   device?: Device;
@@ -85,16 +85,16 @@ function getFarmView(width: number, height: number, plots: FarmPlot[]): MapViewS
 }
 
 /** Mount a compact demonstration farm with seasonal trees and labelled plots. */
-export function mountWildForestExample(
+export function mountSeasonalFarmExample(
   container: HTMLElement,
-  options: WildForestExampleOptions = {}
+  options: SeasonalFarmExampleOptions = {}
 ): () => void {
   const root = container.ownerDocument.createElement('div');
-  root.className = 'forest-farm';
+  root.className = 'seasonal-farm';
   root.dataset.managedDevice = String(Boolean(options.device));
   root.innerHTML = `
     <div class="farm-canvas"></div>
-    <header class="farm-title"><h1>Seasonal farm</h1><p>7 plots · ${FARMS[0].trees.length} trees · hover to inspect</p></header>
+    <header class="farm-title"><h1>Seasonal Farm</h1><p>7 plots · ${FARMS[0].trees.length} trees · hover to inspect</p></header>
     <div class="farm-seasons" role="group" aria-label="Season" ${options.showControlsWidget === false ? 'hidden' : ''}>
       ${SEASONS.map(season => `<button type="button" data-season="${season}" aria-pressed="false">${season[0].toUpperCase() + season.slice(1)}</button>`).join('')}
     </div>

@@ -3,6 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {mountStandaloneExample} from '../../mount-example';
-import {mountWildForestExample} from './app';
+import {mountSeasonalFarmExample} from './app';
 
-void mountStandaloneExample(mountWildForestExample);
+void mountStandaloneExample(mountSeasonalFarmExample);
