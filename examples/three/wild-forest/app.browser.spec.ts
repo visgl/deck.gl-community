@@ -38,7 +38,7 @@ describe('Seasonal farm integration', () => {
       let cleanup: (() => void) | undefined;
       let savedView: MapViewState | undefined;
       const errors: Error[] = [];
-      const frames = vi.fn();
+      const frames = vi.fn(() => deck!.getViewports()[0] as WebMercatorViewport);
       const mount = () =>
         mountWildForestExample(parent, {
           device,
@@ -150,7 +150,9 @@ describe('Seasonal farm integration', () => {
                 shiftKey: property === 'pitch'
               })
             );
-            await expect.poll(() => viewport()[property], {timeout: 5000}).toBe(expected);
+            await expect
+              .poll(() => frames.mock.results.at(-1)?.value[property], {timeout: 5000})
+              .toBe(expected);
           }
           expect(viewport()[property]).toBe(limit);
         }
