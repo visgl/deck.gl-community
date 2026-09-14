@@ -97,6 +97,7 @@ const config = {
             '@deck.gl-community/timeline-layers': resolve('../modules/timeline-layers/src'),
             '@deck.gl-community/three': resolve('../modules/three/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
+            '@deck.gl-community/react-fiber': resolve('../modules/react-fiber/src/dom'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),

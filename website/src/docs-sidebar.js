@@ -25,6 +25,7 @@ const bingMapsDocs = require('../../docs/modules/bing-maps/sidebar.json');
 const leafletDocs = require('../../docs/modules/leaflet/sidebar.json');
 
 const reactDocs = require('../../docs/modules/react/sidebar.json');
+const reactFiberDocs = require('../../docs/modules/react-fiber/sidebar.json');
 
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
 const panelsDocs = require('../../docs/modules/panels/sidebar.json');
@@ -71,7 +72,7 @@ const sidebars = {
         title: 'Components',
         description: 'deck.gl-community component packages and integrations.'
       },
-      items: [widgetsDocs, panelsDocs, reactDocs, experimentalDocs]
+      items: [widgetsDocs, panelsDocs, reactDocs, reactFiberDocs, experimentalDocs]
     }
   ]
 };

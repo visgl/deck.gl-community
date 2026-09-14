@@ -1,0 +1,9 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/react-fiber",
+  "items": [
+    "modules/react-fiber/README",
+    "modules/react-fiber/developer-guide/get-started",
+    "modules/react-fiber/api-reference/deckgl"
+  ]
+}
