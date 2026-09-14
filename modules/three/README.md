@@ -183,14 +183,8 @@ type CropConfig = {
 
 ---
 
-## Wild-Forest example
+## Seasonal Farm example
 
-A full demo with 9 forest zones (pines, oaks, palms, birches, cherry blossoms, citrus orchards, almond groves) is available at `examples/three/wild-forest/`.
-
-```bash
-cd examples/three/wild-forest
-yarn          # first time only
-yarn start    # opens http://localhost:8080
-```
-
-The example includes a live `sizeScale` slider, a crop toggle, and a zone legend.
+Explore seven labelled plots with seasonal trees and hover details in the
+[Seasonal Farm demo](https://visgl.github.io/deck.gl-community/examples/three/seasonal-farm). See the
+[example README](../../examples/three/seasonal-farm/README.md) for setup and data details.

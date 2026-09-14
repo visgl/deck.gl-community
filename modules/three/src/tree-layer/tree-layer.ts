@@ -472,7 +472,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
         if (type === 'pine') {
           const levels = Math.max(1, Math.min(5, Math.round(getBranchLevels(d) as number)));
-          pineMeshes[levels] ??= createPineCanopyMesh(levels);
+          // A scale/crop/color update does not change the unit mesh. Preserve its
+          // identity so SimpleMeshLayer can retain the existing GPU model.
+          pineMeshes[levels] ??= this.state.pineMeshes[levels] ?? createPineCanopyMesh(levels);
         }
 
         const cropConfig = getCrop(d);

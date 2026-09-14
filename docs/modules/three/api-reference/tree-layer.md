@@ -21,6 +21,9 @@ new TreeLayer({
 });
 ```
 
+Try the [Seasonal Farm demo](/examples/three/seasonal-farm): seven labelled plots with
+varied trees, a season control, and hover details. Planting and seasonal traits are illustrative.
+
 ## Features
 
 - **5 tree species / silhouettes**: pine (tiered cones), oak (sphere), date palm (ring-scarred trunk and pinnate fronds), birch (narrow oval), cherry (round sphere)

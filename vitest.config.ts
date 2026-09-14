@@ -6,6 +6,10 @@ import react from '@vitejs/plugin-react';
 const ALIASES = [
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
+    find: '@deck.gl-community/three',
+    replacement: fileURLToPath(new URL('./modules/three/src/index.ts', import.meta.url))
+  },
+  {
     find: '@deck.gl-community/basemap-layers/style-spec',
     replacement: fileURLToPath(
       new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
@@ -128,6 +132,7 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
@@ -150,6 +155,7 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
@@ -170,7 +176,8 @@ const CONFIG = defineConfig({
         test: {
           name: 'examples',
           environment: 'node',
-          include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}']
+          include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+          exclude: ['examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}']
         }
       }
     ]

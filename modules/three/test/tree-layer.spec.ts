@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {describe, it, expect} from 'vitest';
+import {describe, it, expect, vi} from 'vitest';
 import {TreeLayer} from '../src/index';
 import {
   createTrunkMesh,
@@ -15,6 +15,31 @@ import {
 } from '../src/tree-layer/tree-geometry';
 
 describe('TreeLayer', () => {
+  it('reuses pine meshes across scale and crop updates while removing unused tiers', () => {
+    const layer = new TreeLayer({
+      data: [{position: [0, 0], levels: 2}],
+      getBranchLevels: d => d.levels
+    });
+    layer.initializeState();
+    vi.spyOn(layer, 'setState').mockImplementation(state => {
+      Object.assign(layer.state, state);
+    });
+    const update = (overrides = {}) =>
+      layer.updateState({
+        props: Object.assign(Object.create(layer.props), overrides),
+        oldProps: layer.props,
+        changeFlags: {propsChanged: true}
+      });
+    update();
+    const mesh = layer.state.pineMeshes[2];
+    update({sizeScale: 40});
+    expect(layer.state.pineMeshes[2]).toBe(mesh);
+    update({getCrop: () => null});
+    expect(layer.state.pineMeshes[2]).toBe(mesh);
+    update({data: [{position: [0, 0], levels: 4}]});
+    expect(Object.keys(layer.state.pineMeshes)).toEqual(['4']);
+  });
+
   it('exports TreeLayer', () => {
     expect(TreeLayer).toBeTruthy();
     expect(TreeLayer.layerName).toBe('TreeLayer');
@@ -56,6 +81,24 @@ describe('TreeLayer', () => {
 });
 
 describe('tree geometry generators', () => {
+  it('pine tiers point upward and trunks taper toward the canopy', () => {
+    for (const mesh of [createPineCanopyMesh(1), createTrunkMesh()]) {
+      const positions = mesh.attributes.POSITION.value;
+      let bottomRadius = 0;
+      let topRadius = 0;
+      let maxZ = 0;
+      for (let index = 2; index < positions.length; index += 3) {
+        maxZ = Math.max(maxZ, positions[index]);
+      }
+      for (let index = 0; index < positions.length; index += 3) {
+        const radius = Math.hypot(positions[index], positions[index + 1]);
+        if (positions[index + 2] < maxZ * 0.2) bottomRadius = Math.max(bottomRadius, radius);
+        if (positions[index + 2] > maxZ * 0.8) topRadius = Math.max(topRadius, radius);
+      }
+      expect(topRadius).toBeLessThan(bottomRadius);
+    }
+  });
+
   it('createTrunkMesh returns valid mesh', () => {
     const mesh = createTrunkMesh();
     expect(mesh.topology).toBe('triangle-list');
