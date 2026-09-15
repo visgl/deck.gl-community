@@ -122,6 +122,13 @@ you need—they are all optional.
 When `true`, nodes can be repositioned by dragging. The interaction manager
 updates the layout and stylesheet state automatically during drags.
 
+#### `layoutUpdateInterval` (number, optional)
+
+Minimum time in milliseconds between layout-driven layer redraws. Defaults to
+`0`, which redraws on every layout change. Increase this value when a rapidly
+iterating layout should update the rendered graph at a steadier cadence while
+still receiving every layout lifecycle callback.
+
 ### Miscellaneous
 
 #### `pickable` (boolean, optional)
