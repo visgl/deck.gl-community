@@ -55,3 +55,7 @@ export function isPlainGraphData(value: unknown): value is PlainGraphData {
   const candidate = value as PlainGraphData;
   return typeof value === 'object' && candidate?.shape === 'plain-graph-data';
 }
+
+export function isGraphData(value: unknown): value is GraphData {
+  return isPlainGraphData(value) || isArrowGraphData(value);
+}
