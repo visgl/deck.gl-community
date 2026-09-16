@@ -1,6 +1,7 @@
 import type {Layer, LayersList, View} from '@deck.gl/core';
 import {log, toPascal} from '../shared/index';
 import {globalScope} from '../shared/constants';
+import {MapboxOverlay} from '@deck.gl/mapbox';
 import {createContext} from 'react';
 import type {Fiber, ReactContext} from 'react-reconciler';
 import {
@@ -838,9 +839,10 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
       layers: combinedLayers
     };
 
-    // NOTE: for interleaved mode we cannot pass a `views` prop
-    // IDEA: perhaps also do a props check for `interleaved`
-    if (types.views.length > 0) {
+    // MapboxOverlay owns its views through the external map renderer. Standalone
+    // Deck must receive an explicit empty list when the last JSX view is removed
+    // so that ViewManager restores its default view.
+    if (!(deckgl instanceof MapboxOverlay)) {
       propsUpdate.views = types.views;
     }
 

@@ -19,7 +19,10 @@
     "renderer"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "dist/reconciler/side-effects.*",
+    "dist/types/jsx.*"
+  ],
   "types": "./dist/dom/index.d.ts",
   "main": "./dist/dom/index.cjs",
   "module": "./dist/dom/index.js",

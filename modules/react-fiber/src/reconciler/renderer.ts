@@ -1,7 +1,7 @@
 import type {Layer, View} from '@deck.gl/core';
 import {Deck} from '@deck.gl/core';
 import {MapboxOverlay} from '@deck.gl/mapbox';
-import {noop, log, useStore as storeInstance} from '../shared/index';
+import {createStore, noop, log, useStore as legacyStore} from '../shared/index';
 import type {DeckglProps} from '../types/index';
 import type {ReactNode} from 'react';
 import reactReconciler from 'react-reconciler';
@@ -93,6 +93,10 @@ export const renderer: ReturnType<typeof reactReconciler> = reactReconciler(
  */
 export const roots = new Map<RootElement, ReconcilerRoot>();
 
+function reportError(error: unknown): void {
+  console.error(error);
+}
+
 /**
  * Unmounts and cleans up a reconciler root
  *
@@ -138,14 +142,18 @@ export function unmountAtNode(node: RootElement) {
     renderer.updateContainer(null, root.container, null, noop);
 
     const state = root.store.getState();
+    const deckgl = state.deckgl;
 
     // Ensure cleanup completes even if finalize throws
     try {
-      state.deckgl?.finalize();
+      deckgl?.finalize();
     } finally {
       // Always clear state and remove from registry, even on error
       // oxlint-disable-next-line typescript/no-explicit-any
       state.setDeckgl(undefined as any);
+      if (legacyStore.getState().deckgl === deckgl) {
+        legacyStore.setState({deckgl: null, _passedLayers: []});
+      }
       roots.delete(node);
     }
   }
@@ -200,7 +208,7 @@ export function createRoot(node: RootElement): ReconcilerRoot {
   }
 
   // Create new root
-  const store = storeInstance;
+  const store = createStore();
 
   /**
    * Create a new React reconciler container with the following configuration:
@@ -234,14 +242,23 @@ export function createRoot(node: RootElement): ReconcilerRoot {
   function configure(props: DeckglProps) {
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
+    store.setState({
+      _passedLayers: props?.layers ?? []
+    });
+
+    if (configured) {
+      const deckgl = store.getState().deckgl;
+      if (deckgl) {
+        deckgl.setProps(props as Parameters<typeof deckgl.setProps>[0]);
+        legacyStore.setState({deckgl});
+      }
+      return;
+    }
+
     if (props?.layers && props.layers.length > 0) {
       // IDEA: we could do some complex diffing logic here but since we don't expose the full store there are
       // no footguns to just updating it all the time.
       store.setState({_passedLayers: props.layers});
-    }
-
-    if (configured) {
-      return;
     }
 
     log.withMetadata(props).debug('renderer.configure');
@@ -253,6 +270,7 @@ export function createRoot(node: RootElement): ReconcilerRoot {
     const deckgl = isOverlay ? new MapboxOverlay(props) : new Deck(props);
 
     state.setDeckgl(deckgl);
+    legacyStore.setState({deckgl});
 
     configured = true;
   }

@@ -64,6 +64,7 @@ const {mockEnableLogging, mockDisableLogging} = (await import('../../shared')) a
 
 describe('Deckgl Component Tests', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mockRoots.clear();
   });
 

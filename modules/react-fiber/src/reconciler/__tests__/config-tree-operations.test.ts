@@ -322,7 +322,8 @@ describe('config-tree-operations', () => {
 
       // Assert
       expect(mockDeckgl.setProps).toHaveBeenCalledExactlyOnceWith({
-        layers: [layer1, layer2]
+        layers: [layer1, layer2],
+        views: []
       });
     });
 
@@ -356,7 +357,8 @@ describe('config-tree-operations', () => {
 
       // Assert
       expect(mockDeckgl.setProps).toHaveBeenCalledWith({
-        layers: [passedLayer, jsxLayer]
+        layers: [passedLayer, jsxLayer],
+        views: []
       });
     });
 
@@ -396,7 +398,7 @@ describe('config-tree-operations', () => {
       });
     });
 
-    it('should omit views prop if empty', () => {
+    it('should reset views prop if empty', () => {
       // Arrange
       const layer = new ScatterplotLayer({data: [], id: 'layer'});
       const child = createMockInstance(layer);
@@ -425,7 +427,8 @@ describe('config-tree-operations', () => {
 
       // Assert
       expect(mockDeckgl.setProps).toHaveBeenCalledWith({
-        layers: [layer]
+        layers: [layer],
+        views: []
       });
     });
 

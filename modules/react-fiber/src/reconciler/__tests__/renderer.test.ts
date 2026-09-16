@@ -67,6 +67,19 @@ describe('renderer', () => {
       expect(root2).not.toBe(root1);
       expect(root2.container).not.toBe(root1.container);
     });
+
+    it('different nodes get isolated stores', () => {
+      const node1 = createTestRootElement();
+      const node2 = createTestRootElement();
+
+      const root1 = createRoot(node1);
+      const root2 = createRoot(node2);
+
+      root1.store.setState({_passedLayers: [new ScatterplotLayer({id: 'one', data: []})]});
+
+      expect(root1.store).not.toBe(root2.store);
+      expect(root2.store.getState()._passedLayers).toStrictEqual([]);
+    });
   });
 
   describe('configure', () => {
@@ -116,6 +129,25 @@ describe('renderer', () => {
       // Assert
       const state = root.store.getState();
       expect(state._passedLayers).toStrictEqual(newLayers);
+    });
+
+    it('should forward updated props after initial configuration', () => {
+      const {root, deck} = createTestRoot();
+      const layers = [new ScatterplotLayer({data: [], id: 'updated-layer'})];
+
+      root.configure({layers});
+
+      expect(deck.setProps).toHaveBeenCalledWith({layers});
+    });
+
+    it('should clear passed layers when the prop is removed', () => {
+      const {root} = createTestRoot();
+      const layers = [new ScatterplotLayer({data: [], id: 'stale-layer'})];
+
+      root.configure({layers});
+      root.configure({});
+
+      expect(root.store.getState()._passedLayers).toStrictEqual([]);
     });
 
     it('should create MapboxOverlay when interleaved prop is present', () => {

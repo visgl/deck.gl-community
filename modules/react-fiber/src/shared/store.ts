@@ -1,7 +1,8 @@
 import type {Deck, LayersList} from '@deck.gl/core';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
 import {create} from 'zustand';
-import type {StoreApi} from 'zustand';
+import {createStore as createVanillaStore} from 'zustand/vanilla';
+import type {StateCreator, StoreApi} from 'zustand/vanilla';
 
 /**
  * Global state shape for deckgl-fiber internal state management
@@ -59,7 +60,7 @@ export type Store = StoreApi<State>;
  * const state = useStore();
  * ```
  */
-export const useStore = create<State>()(set => ({
+const createState: StateCreator<State> = set => ({
   // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
   // traditional usage of creating layers as JSX children.
   _passedLayers: [],
@@ -69,7 +70,24 @@ export const useStore = create<State>()(set => ({
   setDeckgl: instance => {
     set({deckgl: instance});
   }
-}));
+});
+
+/**
+ * Creates an isolated store for a reconciler root.
+ *
+ * Each root owns its deck.gl instance and the layers supplied through its
+ * component props. The exported React hook below is retained for backwards
+ * compatibility, but must not be used as the reconciler's root state.
+ */
+export function createStore(): Store {
+  return createVanillaStore<State>(createState);
+}
+
+/**
+ * Legacy shared React store used by `useDeckgl()`.
+ * @deprecated Reconciler roots use isolated stores internally.
+ */
+export const useStore = create<State>()(createState);
 
 /**
  * Optimized selectors for deckgl-fiber state access

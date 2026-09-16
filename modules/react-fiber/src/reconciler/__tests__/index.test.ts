@@ -1,6 +1,7 @@
 import {describe, expect, expectTypeOf, it} from 'vitest';
 
 import * as reconcilerModule from '../index';
+import {catalogue} from '../extend';
 
 describe('index', () => {
   it('should export createRoot', () => {
@@ -24,9 +25,8 @@ describe('index', () => {
   });
 
   it('should import side-effects automatically', () => {
-    // Side effects are imported at the top of index.ts
-    // This test verifies the import statement exists by checking that
-    // the module loads without errors
     expect(reconcilerModule).toBeDefined();
+    expect(catalogue.ScatterplotLayer).toBeDefined();
+    expect(catalogue.MapView).toBeDefined();
   });
 });

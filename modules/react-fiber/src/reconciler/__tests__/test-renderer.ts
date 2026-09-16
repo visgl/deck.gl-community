@@ -21,14 +21,14 @@ export class TestDeckRenderer {
    * Updates deck.gl properties
    * Matches: `Deck.prototype.setProps(props: Partial<DeckProps>): void`
    */
-  setProps(props: {layers?: LayersList; views?: View[]}): void {
+  setProps = vi.fn((props: {layers?: LayersList; views?: View[] | null}): void => {
     if (props.layers !== undefined) {
       this.layers = props.layers.filter(Boolean) as Layer[];
     }
     if (props.views !== undefined) {
       this.views = props.views ? [...props.views] : [];
     }
-  }
+  });
 
   /**
    * Frees all resources
