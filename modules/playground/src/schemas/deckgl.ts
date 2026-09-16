@@ -66,13 +66,36 @@ export const DeckGLLayerSchema = z.discriminatedUnion('@@type', [
 ]);
 export type DeckGLLayerName = keyof typeof DeckGLLayerSchemas;
 export type DeckGLLayer = z.infer<typeof DeckGLLayerSchema>;
-const documentState = z.union([DeckGLViewStateSchema, z.record(z.string(), DeckGLViewStateSchema)]);
-
-/** Creates an immutable document schema including application-owned layer/view schemas. */
+/**
+ * Creates an immutable document schema including application-owned layer/view schemas.
+ * @param layerSchema - Accepted layer configurations.
+ * @param viewSchema - Accepted view constructors.
+ * @param stateSchema - Accepted camera states; defaults to the built-in state union.
+ * Supply a union with DeckGLViewStateSchema to retain built-in states alongside custom states.
+ */
+export function createDeckGLDocumentSchema<
+  L extends z.ZodType,
+  V extends z.ZodType,
+  S extends z.ZodType
+>(layerSchema: L, viewSchema: V, stateSchema: S): ReturnType<typeof createDocumentSchema<L, V, S>>;
 export function createDeckGLDocumentSchema<L extends z.ZodType, V extends z.ZodType>(
   layerSchema: L,
   viewSchema: V
+): ReturnType<typeof createDocumentSchema<L, V, typeof DeckGLViewStateSchema>>;
+export function createDeckGLDocumentSchema(
+  layerSchema: z.ZodType,
+  viewSchema: z.ZodType,
+  stateSchema: z.ZodType = DeckGLViewStateSchema
 ) {
+  return createDocumentSchema(layerSchema, viewSchema, stateSchema);
+}
+
+function createDocumentSchema<L extends z.ZodType, V extends z.ZodType, S extends z.ZodType>(
+  layerSchema: L,
+  viewSchema: V,
+  stateSchema: S
+) {
+  const documentState = z.union([stateSchema, z.record(z.string(), stateSchema)]);
   return z.strictObject({
     layers: z.array(layerSchema).optional(),
     views: z.union([viewSchema, z.array(viewSchema)]).optional(),

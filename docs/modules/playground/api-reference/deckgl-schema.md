@@ -120,6 +120,33 @@ const ApplicationSchema = createDeckGLDocumentSchema(
 This preserves the built-in validators and inferred types. Generate application-specific JSON
 Schema from your composed schema with Zod; register the corresponding classes with your converter.
 
+For custom views, pass a third argument describing their camera state. The factory uses it for
+both `initialViewState` and `viewState`, accepting either a single state or a map of state IDs.
+Omitting it preserves the built-in state union. Include that union explicitly when mixing built-in
+and custom states:
+
+```ts
+import {z} from 'zod';
+import {
+  DeckGLLayerSchema, DeckGLViewSchema, DeckGLViewStateSchema, createDeckGLDocumentSchema
+} from '@deck.gl-community/playground';
+
+const CustomState = z.strictObject({distance: z.number()});
+const CustomView = z.strictObject({'@@type': z.literal('CustomView')});
+const ApplicationSchema = createDeckGLDocumentSchema(
+  DeckGLLayerSchema,
+  z.union([DeckGLViewSchema, CustomView]),
+  z.union([DeckGLViewStateSchema, CustomState])
+);
+ApplicationSchema.parse({
+  views: [{'@@type': 'CustomView'}],
+  initialViewState: {distance: 10}
+});
+```
+
+The supplied view schema remains responsible for any embedded `viewState` overrides; the third
+argument governs document-level state only. Matching state IDs to views remains the host's job.
+
 ## Generated artifact
 
 `deckgl-schema.json` uses draft 2020-12, named `$defs`, and the stable identifier

@@ -9,6 +9,7 @@ import {
   ColorSchema,
   ColorAccessorSchema as color,
   NumberAccessorSchema as number,
+  NumberAccessorSchema,
   PositionAccessorSchema as position,
   Vector2AccessorSchema as offset,
   StringAccessorSchema as string,
@@ -162,7 +163,7 @@ export const PolygonLayerPropsSchema = CompositeLayerPropsSchema.extend({
   lineAntialiasing: z.boolean().optional(),
   lineDashJustified: z.boolean().optional(),
   getLineWidth: number.optional(),
-  getLineDashArray: number.nullable().optional()
+  getLineDashArray: NumberAccessorSchema.nullable().optional()
 });
 /** JSON-safe props for PointCloudLayer; compose or extend with Zod. */
 export const PointCloudLayerPropsSchema = BaseLayerPropsSchema.extend({

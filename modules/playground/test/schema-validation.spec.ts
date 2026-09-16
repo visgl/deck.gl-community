@@ -8,6 +8,7 @@ import {
   DeckGLDocumentSchema,
   DeckGLViewSchema,
   DeckGLViewStateSchemas,
+  DeckGLViewStateSchema,
   ScatterplotLayerPropsSchema,
   ScatterplotLayerSchema,
   createDeckGLDocumentSchema,
@@ -88,6 +89,57 @@ const cases = {
 
 const artifact = createDeckGLJSONSchema();
 const validate = new Ajv2020({strict: false}).compile(artifact);
+
+test('polygon dash accessors accept deferred values in Zod and JSON Schema', () => {
+  for (const value of [2, null, '@@=dash', '@@#dash', {'@@function': 'getDash', size: 2}]) {
+    const document = {layers: [{...base('PolygonLayer'), getLineDashArray: value}]};
+    expect(DeckGLDocumentSchema.safeParse(document).success).toBe(true);
+    expect(validate(document), JSON.stringify(validate.errors)).toBe(true);
+  }
+  for (const value of [false, [], {}, 'invalid']) {
+    const document = {layers: [{...base('PolygonLayer'), getLineDashArray: value}]};
+    expect(DeckGLDocumentSchema.safeParse(document).success).toBe(false);
+    expect(validate(document)).toBe(false);
+  }
+});
+
+test('custom views compose typed camera states for both document state properties', () => {
+  const state = z.strictObject({distance: z.number()});
+  const view = z.strictObject({'@@type': z.literal('CustomView')});
+  const customOnly = createDeckGLDocumentSchema(DeckGLLayerSchema, view, state);
+  expectTypeOf<z.infer<typeof customOnly>['initialViewState']>().toEqualTypeOf<
+    {distance: number} | Record<string, {distance: number}> | undefined
+  >();
+  const schema = createDeckGLDocumentSchema(
+    z.never(),
+    z.union([DeckGLViewSchema, view]),
+    z.union([DeckGLViewStateSchema, state])
+  );
+  const validateCustom = new Ajv2020({strict: false}).compile(
+    z.toJSONSchema(schema, {
+      override: ({jsonSchema}) => {
+        delete jsonSchema.id;
+      }
+    })
+  );
+  for (const key of ['initialViewState', 'viewState']) {
+    for (const value of [
+      {distance: 10},
+      {camera: {distance: 10}},
+      {camera: {distance: 10}, map: {longitude: 0, latitude: 0, zoom: 1}}
+    ]) {
+      const document = {views: [{'@@type': 'CustomView'}], [key]: value};
+      expect(schema.safeParse(document).success).toBe(true);
+      expect(validateCustom(document), JSON.stringify(validateCustom.errors)).toBe(true);
+      expect(DeckGLDocumentSchema.safeParse({[key]: value}).success).toBe(false);
+    }
+    for (const value of [{distance: 'bad'}, {camera: {distance: 'bad'}}, {distance: 1, typo: 2}]) {
+      expect(schema.safeParse({[key]: value}).success).toBe(false);
+      expect(validateCustom({[key]: value})).toBe(false);
+    }
+  }
+  expect(customOnly.safeParse({viewState: null}).success).toBe(true);
+});
 
 test('honors numeric bounds published in deck.gl defaultProps', async () => {
   const constructors = {
