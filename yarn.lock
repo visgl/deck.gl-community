@@ -685,6 +685,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/playground@workspace:modules/playground":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/playground@workspace:modules/playground"
+  peerDependencies:
+    "@deck.gl-community/panels": ~9.4.0-alpha.0
+    "@deck.gl/core": ~9.4.0
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/react@workspace:modules/react":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react@workspace:modules/react"
