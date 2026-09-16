@@ -685,7 +685,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/playground@workspace:modules/playground":
+"@deck.gl-community/playground@workspace:*, @deck.gl-community/playground@workspace:modules/playground":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/playground@workspace:modules/playground"
   peerDependencies:
@@ -10159,6 +10159,25 @@ __metadata:
   checksum: 10c0/c56bda7769e04907a88423feb320babaed0711af8c436ce3e56763ab1021ba107c7b0cafb11cde7529f669cfc22bffcaebffb573645cbd63842ea9fb17cd7728
   languageName: node
   linkType: hard
+
+"playground-example@workspace:examples/playground":
+  version: 0.0.0-use.local
+  resolution: "playground-example@workspace:examples/playground"
+  dependencies:
+    "@deck.gl-community/panels": "workspace:*"
+    "@deck.gl-community/playground": "workspace:*"
+    "@deck.gl/core": "npm:~9.4.0"
+    "@deck.gl/layers": "npm:~9.4.0"
+    "@loaders.gl/core": "npm:^4.4.3"
+    "@luma.gl/constants": "npm:~9.4.0"
+    "@luma.gl/core": "npm:~9.4.0"
+    "@luma.gl/engine": "npm:~9.4.0"
+    "@luma.gl/shadertools": "npm:~9.4.0"
+    "@luma.gl/webgl": "npm:~9.4.0"
+    "@luma.gl/webgpu": "npm:~9.4.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
 
 "playwright-core@npm:1.62.1":
   version: 1.62.1
