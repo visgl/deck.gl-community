@@ -101,6 +101,7 @@ const config = {
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
             '@deck.gl-community/panels': resolve('../modules/panels/src'),
+            '@deck.gl-community/playground': resolve('../modules/playground/src'),
             '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
             '@deck.gl/aggregation-layers': resolve('../node_modules/@deck.gl/aggregation-layers'),
             '@deck.gl/arcgis': resolve('../node_modules/@deck.gl/arcgis'),
