@@ -8,4 +8,14 @@ describe('@deck.gl-community/playground', () => {
     expect(Playground.PanelManager).toBeDefined();
     expect(Playground.TextEditorPanel).toBeDefined();
   });
+
+  it('exports GeoJSON schemas and inferred type runtime values', () => {
+    expect(Playground.GeoJSONSchema.safeParse({type: 'Point', coordinates: [0, 1]}).success).toBe(
+      true
+    );
+    expect(
+      Playground.FeatureCollectionSchema.safeParse({type: 'FeatureCollection', features: []})
+        .success
+    ).toBe(true);
+  });
 });

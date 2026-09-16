@@ -13,6 +13,8 @@ export type PlaygroundProps = {
   templates: Record<string, PlaygroundTemplate>;
   /** Optional template selected on startup; defaults to the first template. */
   initialTemplate?: string;
+  /** Optional JSON Schema passed to Monaco for diagnostics and completion. */
+  jsonSchema?: Record<string, unknown>;
   /** Converts an edited document into the value consumed by the renderer. */
   parse?: (text: string) => unknown;
   /** Called whenever the current document changes. */
@@ -97,7 +99,8 @@ export class Playground {
       title: 'JSON',
       value: text,
       onValueChange: this.handleTextChange,
-      language: 'json'
+      language: 'json',
+      jsonSchema: this.props.jsonSchema
     });
     this.editorPanel.placement = 'fill';
     this.panelManager.setProps({components: [this.editorPanel]});
@@ -167,6 +170,7 @@ export class Playground {
 }
 
 export {PanelManager, TextEditorPanel};
+export * from './geojson/index';
 
 function ensurePlaygroundStyles(document: Document): void {
   if (document.getElementById('deckgl-playground-styles')) {
