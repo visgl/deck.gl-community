@@ -86,7 +86,9 @@ const config = {
       {
         debug: true,
         resolve: {
-          modules: [resolve('node_modules'), resolve('../node_modules')],
+          // Resolve each importer's dependencies before the shared fallbacks. In
+          // particular, loaders.gl and MapLibre may require different pbf majors.
+          modules: ['node_modules', resolve('node_modules'), resolve('../node_modules')],
           alias: {
             '@deck.gl-community/bing-maps': resolve('../modules/bing-maps/src'),
             '@deck.gl-community/basemap-layers': resolve('../modules/basemap-layers/src'),

@@ -48,3 +48,19 @@ Marker size in pixels. Defaults to `10`.
 ### `data` (array, optional)
 
 Collection of marker data. Defaults to an empty array.
+
+## Marker names
+
+Use the public `Marker` type to check names against the bundled atlas:
+
+```ts
+import type {Marker} from '@deck.gl-community/graph-layers';
+
+const marker: Marker = 'pin-filled';
+```
+
+`Marker` is a TypeScript union, not a runtime list of names.
+
+The [MarkerLayer example](/examples/graph-layers/marker-layer) shows colored city
+markers and hover labels. Its [source](https://github.com/visgl/deck.gl-community/tree/master/examples/graph-layers/marker-layer)
+uses the local graph-layers workspace for both standard and local development.

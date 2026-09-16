@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import React, {useMemo} from 'react';
+import {createRoot} from 'react-dom/client';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import DeckGL from '@deck.gl/react';
-import {MarkerLayer} from '@deck.gl-community/graph-layers';
+import {MarkerLayer, type Marker} from '@deck.gl-community/graph-layers';
 import StaticMap from 'react-map-gl/maplibre';
 
 const INITIAL_VIEW_STATE = {
@@ -18,7 +20,7 @@ const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json
 
 type CityMarker = {
   position: [number, number];
-  marker: string;
+  marker: Marker;
   color: [number, number, number, number];
   size: number;
   label: string;
@@ -57,6 +59,7 @@ export default function App(): React.ReactElement {
         getPosition: d => d.position,
         getMarker: d => d.marker,
         getColor: d => d.color,
+        pickable: true,
         getSize: d => d.size
       })
     ],
@@ -68,7 +71,7 @@ export default function App(): React.ReactElement {
       initialViewState={INITIAL_VIEW_STATE}
       controller={{dragPan: true, scrollZoom: true}}
       layers={layers}
-      style={{width: '100vw', height: '100vh'}}
+      style={{width: '100%', height: '100%'}}
       getTooltip={info => {
         const {object} = info;
         return object ? object.label : null;
@@ -77,4 +80,10 @@ export default function App(): React.ReactElement {
       <StaticMap mapStyle={MAP_STYLE} />
     </DeckGL>
   );
+}
+
+export function mountMarkerLayerExample(container: HTMLElement): () => void {
+  const root = createRoot(container);
+  root.render(<App />);
+  return () => root.unmount();
 }

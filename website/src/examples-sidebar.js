@@ -34,7 +34,8 @@ const sidebars = {
         'graph-layers/multi-graph',
         'graph-layers/radial',
         'graph-layers/hive-plot',
-        'graph-layers/dag'
+        'graph-layers/dag',
+        'graph-layers/marker-layer'
       ]
     },
     {
