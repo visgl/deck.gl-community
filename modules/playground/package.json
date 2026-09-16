@@ -1,6 +1,7 @@
 {
   "name": "@deck.gl-community/playground",
   "version": "9.4.1",
+  "private": true,
   "description": "An installable JSON playground for deck.gl built on the panels module",
   "license": "MIT",
   "repository": {
@@ -26,7 +27,9 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
-    }
+    },
+    "./geojson-schema.json": "./dist/geojson-schema.json",
+    "./deckgl-schema.json": "./dist/deckgl-schema.json"
   },
   "files": [
     "dist",
@@ -34,11 +37,16 @@
   ],
   "scripts": {
     "prepack": "yarn --cwd ../.. build",
+    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
+    "build:schema": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
   },
   "peerDependencies": {
     "@deck.gl-community/panels": "~9.4.0-alpha.0",
     "@deck.gl/core": "~9.4.0"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
   }
 }
