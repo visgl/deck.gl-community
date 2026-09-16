@@ -154,6 +154,11 @@ Highlights:
 - [`Panel`](/docs/modules/react/api-reference/panel) (new) renders reusable
   `@deck.gl-community/panels` definitions in React and MDX trees.
 
+### `@deck.gl-community/react-fiber`
+
+- New direct community fork of Brandon Pierce's React Fiber renderer for
+  composing deck.gl layers and views as React elements.
+
 ### `@deck.gl-community/three`
 
 - [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) improves the `palm` silhouette with a
