@@ -1,6 +1,6 @@
 # @deck.gl-community/playground
 
-An installable JSON playground surface for deck.gl applications. It provides a
+An installable (but currently private) JSON playground surface for deck.gl applications. It provides a
 Monaco-backed editor and template selector using `@deck.gl-community/panels`,
 and leaves preview rendering to the host application.
 
@@ -18,3 +18,7 @@ const playground = new Playground({
 
 The package does not require React. Install `@deck.gl/core` alongside it when
 the preview is rendered with deck.gl.
+
+The package also exports RFC 7946 GeoJSON schemas and inferred TypeScript types. The generated
+JSON Schema artifact is available from `@deck.gl-community/playground/geojson-schema.json` for
+Monaco and other JSON tooling.
