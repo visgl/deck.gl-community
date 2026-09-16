@@ -54,10 +54,10 @@ export default function App(): React.ReactElement {
       new MarkerLayer({
         id: 'marker-layer',
         data: CITY_MARKERS,
-        getPosition: (d) => d.position,
-        getMarker: (d) => d.marker,
-        getColor: (d) => d.color,
-        getSize: (d) => d.size
+        getPosition: d => d.position,
+        getMarker: d => d.marker,
+        getColor: d => d.color,
+        getSize: d => d.size
       })
     ],
     []
@@ -69,7 +69,7 @@ export default function App(): React.ReactElement {
       controller={{dragPan: true, scrollZoom: true}}
       layers={layers}
       style={{width: '100vw', height: '100vh'}}
-      getTooltip={(info) => {
+      getTooltip={info => {
         const {object} = info;
         return object ? object.label : null;
       }}
