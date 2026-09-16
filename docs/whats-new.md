@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `MarkerLayer` is exported from graph-layers and has a website gallery example using workspace dependencies.
+
 - [Seasonal Farm](/examples/three/seasonal-farm) shows seven labelled plots with varied trees,
   seasonal crops, and hover details.
 - [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
