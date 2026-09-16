@@ -19,9 +19,11 @@ describe('GeoJSON schemas', () => {
   it('validates positions and bounding boxes', () => {
     expect(PositionSchema.safeParse([-73.98, 40.75]).success).toBe(true);
     expect(PositionSchema.safeParse([-73.98, 40.75, 10]).success).toBe(true);
+    expect(PositionSchema.safeParse([-73.98, 40.75, 10, 5]).success).toBe(true);
     expect(PositionSchema.safeParse([1]).success).toBe(false);
     expect(BBoxSchema.safeParse([0, 0, 1, 1]).success).toBe(true);
     expect(BBoxSchema.safeParse([0, 0, 0, 1, 1, 1]).success).toBe(true);
+    expect(BBoxSchema.safeParse([0, 0, 0, 0, 1, 1, 1, 1]).success).toBe(true);
     expect(BBoxSchema.safeParse([0, 0, 1]).success).toBe(false);
   });
 
@@ -119,5 +121,14 @@ describe('GeoJSON schemas', () => {
         features: [{type: 'Feature', geometry: {type: 'Point'}, properties: null}]
       }).success
     ).toBe(false);
+  });
+
+  it('preserves GeoJSON foreign members', () => {
+    const result = FeatureCollectionSchema.parse({
+      type: 'FeatureCollection',
+      timestamp: '2026-09-16T00:00:00Z',
+      features: []
+    });
+    expect(result).toMatchObject({timestamp: '2026-09-16T00:00:00Z'});
   });
 });

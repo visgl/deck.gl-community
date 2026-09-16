@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import {mkdir, writeFile} from 'node:fs/promises';
 import {dirname, join, relative} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {z} from 'zod';
@@ -27,11 +27,9 @@ async function generateSchemaArtifacts() {
     throw new Error('GeoJSONSchema export not found.');
   }
 
-  const packageJson = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'));
-  const cdnUrl = `https://cdn.jsdelivr.net/npm/${packageJson.name}@${packageJson.version}/dist/geojson-schema.json`;
   const schema = z.toJSONSchema(GeoJSONSchema, {target: 'draft-2020-12'});
   const jsonSchema = {
-    $id: cdnUrl,
+    $id: 'urn:deck.gl-community:playground:geojson-schema',
     title: 'GeoJSON',
     description: 'JSON Schema for GeoJSON documents supported by @deck.gl-community/playground.',
     ...schema
@@ -42,14 +40,6 @@ async function generateSchemaArtifacts() {
 
   await mkdir(distDir, {recursive: true});
   await writeFile(join(distDir, 'geojson-schema.json'), JSON.stringify(jsonSchema, null, 2));
-  await writeFile(
-    join(distDir, 'geojson-schema.cdn.js'),
-    `export const GEOJSON_SCHEMA_CDN_URL = '${cdnUrl}';\nexport default GEOJSON_SCHEMA_CDN_URL;\n`
-  );
-  await writeFile(
-    join(distDir, 'geojson-schema.cdn.d.ts'),
-    'export declare const GEOJSON_SCHEMA_CDN_URL: string;\nexport default GEOJSON_SCHEMA_CDN_URL;\n'
-  );
 }
 
 generateSchemaArtifacts().catch(error => {

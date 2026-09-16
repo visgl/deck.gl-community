@@ -4,10 +4,7 @@
 
 import {z} from 'zod';
 
-/** GeoJSON position, represented as longitude/latitude with optional altitude. */
-export const PositionSchema = z.union([
-  z.tuple([z.number(), z.number()]),
-  z.tuple([z.number(), z.number(), z.number()])
-]);
+/** GeoJSON position with at least longitude and latitude coordinates. */
+export const PositionSchema = z.array(z.number()).min(2);
 
 export type Position = z.infer<typeof PositionSchema>;

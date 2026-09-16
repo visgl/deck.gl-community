@@ -19,10 +19,12 @@ export const LinearRingSchema = z
     {message: 'Linear ring must be closed: first and last position must be identical'}
   );
 
-export const PolygonSchema = z.object({
-  type: z.literal('Polygon'),
-  coordinates: z.array(LinearRingSchema),
-  bbox: BBoxSchema.optional()
-});
+export const PolygonSchema = z
+  .object({
+    type: z.literal('Polygon'),
+    coordinates: z.array(LinearRingSchema),
+    bbox: BBoxSchema.optional()
+  })
+  .loose();
 
 export type Polygon = z.infer<typeof PolygonSchema>;

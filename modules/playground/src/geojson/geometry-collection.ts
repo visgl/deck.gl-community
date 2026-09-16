@@ -26,19 +26,21 @@ export type GeometryCollection = {
 };
 
 export const GeometryCollectionSchema: z.ZodType<GeometryCollection> = z.lazy(() =>
-  z.object({
-    type: z.literal('GeometryCollection'),
-    geometries: z.array(
-      z.union([
-        PointSchema,
-        LineStringSchema,
-        PolygonSchema,
-        MultiPointSchema,
-        MultiLineStringSchema,
-        MultiPolygonSchema,
-        GeometryCollectionSchema
-      ])
-    ),
-    bbox: BBoxSchema.optional()
-  })
+  z
+    .object({
+      type: z.literal('GeometryCollection'),
+      geometries: z.array(
+        z.union([
+          PointSchema,
+          LineStringSchema,
+          PolygonSchema,
+          MultiPointSchema,
+          MultiLineStringSchema,
+          MultiPolygonSchema,
+          GeometryCollectionSchema
+        ])
+      ),
+      bbox: BBoxSchema.optional()
+    })
+    .loose()
 );
