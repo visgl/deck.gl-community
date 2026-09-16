@@ -1,0 +1,27 @@
+{
+  "name": "global-grid-layer-example",
+  "version": "9.4.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "vite --open",
+    "start-local": "vite --config ../../vite.config.local.mjs",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@deck.gl-community/geo-layers": "workspace:*",
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/extensions": "~9.4.0",
+    "@deck.gl/geo-layers": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
+    "@loaders.gl/core": "^4.4.3",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}
