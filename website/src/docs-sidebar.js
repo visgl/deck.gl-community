@@ -28,8 +28,8 @@ const reactDocs = require('../../docs/modules/react/sidebar.json');
 
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
 const panelsDocs = require('../../docs/modules/panels/sidebar.json');
-const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 const playgroundDocs = require('../../docs/modules/playground/sidebar.json');
+const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 
 const sidebars = {
   tutorialSidebar: [
@@ -72,7 +72,7 @@ const sidebars = {
         title: 'Components',
         description: 'deck.gl-community component packages and integrations.'
       },
-      items: [widgetsDocs, panelsDocs, reactDocs, experimentalDocs, playgroundDocs]
+      items: [widgetsDocs, panelsDocs, playgroundDocs, reactDocs, experimentalDocs]
     }
   ]
 };

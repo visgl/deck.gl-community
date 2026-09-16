@@ -6,6 +6,8 @@
 
 - [Seasonal Farm](/examples/three/seasonal-farm) shows seven labelled plots with varied trees,
   seasonal crops, and hover details.
+- [`@deck.gl-community/playground`](/docs/modules/playground) adds an installable panels-based JSON
+  editor and live preview surface, with a standalone [deck.gl playground example](/examples/playground).
 - [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
   reuses pine geometry when attributes change.
 
