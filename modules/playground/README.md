@@ -22,3 +22,9 @@ the preview is rendered with deck.gl.
 The package also exports RFC 7946 GeoJSON schemas and inferred TypeScript types. The generated
 JSON Schema artifact is available from `@deck.gl-community/playground/geojson-schema.json` for
 Monaco and other JSON tooling.
+
+The deck.gl catalog exports concrete layer props schemas, inferred JSON prop types, typed accessors,
+and separate view constructor/state schemas. Unknown props fail validation. Import
+`deckgl-schema.json` for editor diagnostics, or use `DeckGLDocumentSchema.safeParse` for runtime
+validation. Extend built-in props with Zod and `createDeckGLDocumentSchema` for custom layers.
+Live JavaScript callbacks and GPU resources are outside this JSON profile. The package remains private.

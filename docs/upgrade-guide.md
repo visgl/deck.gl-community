@@ -4,6 +4,16 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Private playground schema preview
+
+The layer/view schema preview now rejects unknown props and invalid accessor constants. Extend a
+props schema for custom layers or extension props instead of relying on unknown keys passing through.
+Use `createAccessorSchema(valueSchema)` in place of the former untyped `AccessorSchema`.
+Move camera fields into `viewState`/`initialViewState`; view constructor props no longer accept them.
+Use upstream experimental names (`_GlobeView`, `_WMSLayer`, `_MultiIconLayer`, `_TextBackgroundLayer`)
+in `@@type`. Abstract `View` is no longer accepted. See the
+[schema reference](./modules/playground/api-reference/deckgl-schema.md) for the supported JSON profile.
+
 ## v9.4
 
 Update deck.gl and luma.gl packages to `~9.4.0`. Modules that use loaders.gl require
