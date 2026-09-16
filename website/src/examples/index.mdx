@@ -2,28 +2,37 @@ import {ExamplesIndex} from '../components';
 
 export const thumbnailOverrides = {
   'layers/path-outline-and-markers': '/images/examples/layers/path-outline-and-markers.svg',
-  'layers/skybox-map-view': '/images/layers.png',
-  'layers/skybox-globe': '/images/layers.png',
-  'layers/skybox-first-person': '/images/layers.png',
-  'layers/basemap-layer-map-view': '/images/maps.jpg',
-  'infovis-layers/layer-primitives': '/images/layers.png',
-  'geo-layers/shared-tile-2d-layer': '/images/layers.png',
-  'geo-layers/wind': '/images/layers.png',
+  'layers/skybox-map-view': '/images/examples/layers/skybox-map-view.png',
+  'layers/skybox-globe': '/images/examples/layers/skybox-globe.png',
+  'layers/skybox-first-person': '/images/examples/layers/skybox-first-person.png',
+  'layers/basemap-layer-map-view': '/images/examples/layers/basemap-layer-map-view.png',
+  'infovis-layers/layer-primitives': '/images/examples/infovis-layers/layer-primitives.png',
+  'geo-layers/shared-tile-2d-layer': '/images/examples/geo-layers/shared-tile-2d-layer.png',
+  'geo-layers/wind': '/images/examples/geo-layers/wind.png',
+  'geo-layers/global-grid-layer': '/images/examples/geo-layers/global-grid-layer.png',
+  'graph-layers/simple-graph': '/images/examples/graph-layers/simple-graph.jpg',
+  'graph-layers/multi-graph': '/images/examples/graph-layers/multi-graph.jpg',
+  'graph-layers/radial': '/images/examples/graph-layers/radial.jpg',
+  'graph-layers/hive-plot': '/images/examples/graph-layers/hive-plot.jpg',
+  'graph-layers/dag': '/images/examples/graph-layers/dag.jpg',
   'timeline-layers/horizon-graph-layer': '/images/examples/infovis-layers/horizon-graph-layer.jpg',
   'timeline-layers/multi-horizon-graph-layer': '/images/examples/infovis-layers/horizon-graph-layer.jpg',
-  'trace-layers/tracevis': '/images/layers.png',
-  'trace-layers/trace-graph-layer': '/images/layers.png',
-  'editable-layers/getting-started': '/images/examples/editable-layers/editor.jpg',
-  'editable-layers/editor-react': '/images/examples/editable-layers/editor.jpg',
+  'editable-layers/getting-started': '/images/examples/editable-layers/getting-started.png',
+  'editable-layers/editor': '/images/examples/editable-layers/editor.png',
+  'editable-layers/editor-react': '/images/examples/editable-layers/editor-react.png',
   'editable-layers/3d-tiles': '/images/maps.jpg',
-  'editable-layers/sf': '/images/examples/editable-layers/advanced.jpg',
-  'editable-layers/no-map': '/images/examples/editable-layers/editor.jpg',
-  'editable-layers/editable-h3-cluster-layer': '/images/examples/editable-layers/advanced.jpg',
-  'widgets/html-overlays': '/images/layers.png',
-  'widgets/overlays': '/images/layers.png',
-  'widgets/pan-and-zoom-controls': '/images/layers.png',
-  'widgets/widget-panels': '/images/layers.png',
-  'leaflet/scripting': '/images/examples/leaflet/scripting.png'
+  'editable-layers/advanced': '/images/examples/editable-layers/advanced.png',
+  'editable-layers/sf': '/images/examples/editable-layers/sf.png',
+  'editable-layers/no-map': '/images/examples/editable-layers/no-map.png',
+  'editable-layers/editable-h3-cluster-layer': '/images/examples/editable-layers/editable-h3-cluster-layer.png',
+  'widgets/html-overlays': '/images/examples/widgets/html-overlays.png',
+  'widgets/overlays': '/images/examples/widgets/overlays.png',
+  'widgets/pan-and-zoom-controls': '/images/examples/widgets/pan-and-zoom-controls.png',
+  'widgets/standalone-widgets': '/images/examples/widgets/standalone-widgets.png',
+  'widgets/widget-panels': '/images/examples/widgets/widget-panels.png',
+  'leaflet/scripting': '/images/examples/leaflet/scripting.png',
+  'leaflet/get-started': '/images/examples/leaflet/get-started.jpg',
+  'react-fiber/overview': '/images/examples/react-fiber/overview.png'
 };
 
 ## EXAMPLES
@@ -31,6 +40,6 @@ export const thumbnailOverrides = {
 <ExamplesIndex
   getThumbnail={item =>
     thumbnailOverrides[item.docId || item.label.toLowerCase()] ??
-    `/images/examples/${item.docId || item.label.toLowerCase()}.jpg`
+    '/images/layers.png'
   }
 />
