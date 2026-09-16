@@ -1,5 +1,18 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.0-alpha.3
+
+- feat(widgets): add async search lifecycle controls to OmniBoxWidget (#723)
+- feat(widgets): add a JSON-safe ColorLegendWidget (#722)
+- feat(widgets): allow editing completed ranges in TimeMeasureWidget (#724)
+- feat(infovis-layers): add dense block controls to BlockLayer (#721)
+
+## v9.4.0-alpha.2
+
+- feat(three): render detailed palms (#716)
+- chore: migrate to dev-tools v2 (#711)
+- feat: expand WebGPU layer coverage and documentation (#705)
+
 ## v9.4.0-alpha.1
 
 - chore: target deck.gl 9.4.0-alpha.2 and luma.gl 9.4.0-alpha.1 (#701)
@@ -17,9 +30,6 @@ finish draw-polygon mode cartesian and add tests (#641)
 Fix editable terrain no-pick events
 fix: double-offset fallback with TerrainExtension
 Remove unused test PNGs (#657)
-feat(trace-layers) Add trace-layers implementation (#653)
-chore(infovis-layers) Upstream helpers needed for trace-layers (#650)
-chore(trace-layers) Scaffold trace-layers module (#649)
 fix(panels) remove unused widgets dependency (#648)
 
 ## v9.3.5

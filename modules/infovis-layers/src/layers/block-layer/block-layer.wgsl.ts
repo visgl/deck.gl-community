@@ -7,9 +7,13 @@ export default /* wgsl */ `
 struct BlockUniforms {
   sizeUnits: i32,
   widthMinPixels: f32,
+  widthMaxPixels: f32,
+  widthCutoffPixels: f32,
   heightMinPixels: f32,
   sizeMaxPixels: f32,
   lineWidthUnits: i32,
+  strokeOffset: f32,
+  overrideColor: vec4<f32>,
 };
 
 @group(0) @binding(auto) var<uniform> blockLayer: BlockUniforms;
@@ -21,7 +25,9 @@ struct BlockAttributes {
   @location(3) instanceLineWidths: f32,
   @location(4) instanceLineColors: vec4<f32>,
   @location(5) instanceFillColors: vec4<f32>,
-  @location(6) instancePickingColors: vec3<f32>,
+  @location(6) instanceOpacities: f32,
+  @location(7) instanceColorOverrides: f32,
+  @location(8) instancePickingColors: vec3<f32>,
 };
 
 struct BlockVaryings {
@@ -52,19 +58,30 @@ fn vertexMain(attributes: BlockAttributes) -> BlockVaryings {
   geometry.uv = attributes.positions.xy;
 
   var pixelSize = block_size_to_pixels(attributes.instanceSizes, blockLayer.sizeUnits);
+  let widthBelowCutoff = abs(pixelSize.x) < blockLayer.widthCutoffPixels;
+  let effectiveWidthMaxPixels = min(blockLayer.widthMaxPixels, blockLayer.sizeMaxPixels);
   pixelSize.x = block_clamp_signed_size(
     pixelSize.x,
     blockLayer.widthMinPixels,
-    blockLayer.sizeMaxPixels
+    effectiveWidthMaxPixels
   );
   pixelSize.y = block_clamp_signed_size(
     pixelSize.y,
     blockLayer.heightMinPixels,
     blockLayer.sizeMaxPixels
   );
+  let lineWidth = project_unit_size_to_pixel(
+    attributes.instanceLineWidths,
+    blockLayer.lineWidthUnits
+  );
+  let strokePadding = vec2<f32>(lineWidth * blockLayer.strokeOffset);
+  pixelSize = pixelSize + 2.0 * strokePadding;
+  if (widthBelowCutoff) {
+    pixelSize = vec2<f32>(0.0);
+  }
 
   let offset = vec3<f32>(
-    attributes.positions.xy * project_pixel_size_vec2(pixelSize),
+    project_pixel_size_vec2(attributes.positions.xy * pixelSize - strokePadding),
     0.0
   );
   let projected = project_position_to_clipspace_and_commonspace(
@@ -77,18 +94,25 @@ fn vertexMain(attributes: BlockAttributes) -> BlockVaryings {
   var varyings: BlockVaryings;
   varyings.position = projected.clipPosition;
   varyings.unitPosition = attributes.positions.xy;
-  varyings.fillColor = vec4<f32>(
+  let fillColor = mix(
     attributes.instanceFillColors.rgb,
-    attributes.instanceFillColors.a * layer.opacity
+    blockLayer.overrideColor.rgb,
+    attributes.instanceColorOverrides
+  );
+  varyings.fillColor = vec4<f32>(
+    fillColor,
+    attributes.instanceFillColors.a * attributes.instanceOpacities * layer.opacity
+  );
+  let lineColor = mix(
+    attributes.instanceLineColors.rgb,
+    blockLayer.overrideColor.rgb,
+    attributes.instanceColorOverrides
   );
   varyings.lineColor = vec4<f32>(
-    attributes.instanceLineColors.rgb,
-    attributes.instanceLineColors.a * layer.opacity
+    lineColor,
+    attributes.instanceLineColors.a * attributes.instanceOpacities * layer.opacity
   );
-  varyings.lineWidth = project_unit_size_to_pixel(
-    attributes.instanceLineWidths,
-    blockLayer.lineWidthUnits
-  );
+  varyings.lineWidth = lineWidth;
   varyings.size = pixelSize;
   varyings.pickingColor = attributes.instancePickingColors;
   return varyings;

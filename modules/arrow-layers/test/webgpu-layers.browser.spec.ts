@@ -11,12 +11,25 @@ import {
   FixedSizeList,
   Float32,
   List,
+  Utf8,
   tableFromArrays,
   vectorFromArray
 } from 'apache-arrow';
 import {describe, expect, it} from 'vitest';
 
-import {GeoArrowPathLayer, GeoArrowSolidPolygonLayer} from '../src';
+import {
+  GeoArrowColumnLayer,
+  GeoArrowArcLayer,
+  _GeoArrowH3HexagonLayer as GeoArrowH3HexagonLayer,
+  GeoArrowHeatmapLayer,
+  GeoArrowPathLayer,
+  GeoArrowPointCloudLayer,
+  GeoArrowPolygonLayer,
+  GeoArrowScatterplotLayer,
+  GeoArrowSolidPolygonLayer,
+  _GeoArrowTextLayer as GeoArrowTextLayer,
+  GeoArrowTripsLayer
+} from '../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 type NativeGpuError = {error?: {message?: string}};
@@ -27,9 +40,18 @@ type NativeGpuDevice = {
 };
 
 const pointType = new FixedSizeList(2, new Field('xy', new Float32()));
+const point3DType = new FixedSizeList(3, new Field('xyz', new Float32()));
 const lineStringType = new List(new Field('vertices', pointType));
 const polygonType = new List(new Field('rings', lineStringType));
+const timestampsType = new List(new Field('timestamps', new Float32()));
 const table = tableFromArrays({id: [0]});
+const points = vectorFromArray([[0, 0]], pointType);
+const sourcePoints = vectorFromArray([[-24, 8]], pointType);
+const targetPoints = vectorFromArray([[24, 8]], pointType);
+const pointCloudPoints = vectorFromArray([[0, 0, 8]], point3DType);
+const h3Indexes = vectorFromArray(['8928308280fffff'], new Utf8());
+const text = vectorFromArray(['GPU'], new Utf8());
+const timestamps = vectorFromArray([[0, 50, 100]], timestampsType);
 const lineStrings = vectorFromArray(
   [
     [
@@ -82,6 +104,111 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     material: false,
     pickable: true
   });
+  const layers = [
+    new GeoArrowArcLayer({
+      id: `geoarrow-arc-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getSourcePosition: sourcePoints,
+      getTargetPosition: targetPoints,
+      getSourceColor: [14, 165, 233, 255],
+      getTargetColor: [168, 85, 247, 255],
+      getWidth: 3,
+      widthUnits: 'pixels',
+      pickable: true
+    }),
+    new GeoArrowColumnLayer({
+      id: `geoarrow-column-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getPosition: points,
+      getFillColor: [16, 185, 129, 180],
+      getElevation: 10,
+      radius: 5,
+      diskResolution: 8,
+      material: false,
+      pickable: true
+    }),
+    new GeoArrowHeatmapLayer({
+      id: `geoarrow-heatmap-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getPosition: points,
+      getWeight: 1,
+      radiusPixels: 24,
+      pickable: false
+    }),
+    new GeoArrowH3HexagonLayer({
+      id: `geoarrow-h3-${type}`,
+      data: table,
+      getHexagon: h3Indexes,
+      highPrecision: true,
+      getFillColor: [245, 158, 11, 180],
+      material: false,
+      pickable: true
+    }),
+    new GeoArrowPointCloudLayer({
+      id: `geoarrow-point-cloud-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getPosition: pointCloudPoints,
+      getColor: [244, 63, 94, 255],
+      pointSize: 6,
+      material: false,
+      pickable: true
+    }),
+    new GeoArrowPolygonLayer({
+      id: `geoarrow-composite-polygon-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getPolygon: polygons,
+      getFillColor: [168, 85, 247, 90],
+      getLineColor: [88, 28, 135, 255],
+      getLineWidth: 2,
+      lineWidthUnits: 'pixels',
+      earcutWorkerUrl: null,
+      material: false,
+      pickable: true
+    }),
+    new GeoArrowScatterplotLayer({
+      id: `geoarrow-scatterplot-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getPosition: points,
+      getRadius: 7,
+      radiusUnits: 'common',
+      getFillColor: [6, 182, 212, 200],
+      getLineColor: [8, 47, 73, 255],
+      stroked: true,
+      pickable: true
+    }),
+    polygonLayer,
+    pathLayer,
+    new GeoArrowTextLayer({
+      id: `geoarrow-text-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getPosition: points,
+      getText: text,
+      getColor: [15, 23, 42, 255],
+      getSize: 14,
+      sizeUnits: 'pixels',
+      pickable: true
+    }),
+    new GeoArrowTripsLayer({
+      id: `geoarrow-trips-${type}`,
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: table,
+      getPath: lineStrings,
+      getTimestamps: timestamps,
+      currentTime: 75,
+      trailLength: 100,
+      getColor: [244, 63, 94, 255],
+      getWidth: 4,
+      widthUnits: 'pixels',
+      pickable: true
+    })
+  ];
 
   let device: Device | undefined;
   let deck: Deck<OrthographicView> | undefined;
@@ -114,7 +241,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
         height: 128,
         views: new OrthographicView({id: 'geoarrow-webgpu-test', flipY: false}),
         initialViewState: {target: [0, 0, 0], zoom: 0},
-        layers: [polygonLayer, pathLayer],
+        layers,
         onAfterRender: () => {
           if (!polygonLayer.state.table || !polygonLayer.state.triangles) {
             return;
@@ -142,16 +269,16 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 }
 
 describe('GeoArrow graphics backend compatibility', () => {
-  it('renders binary path and polygon attributes on WebGL2', async () => {
+  it('renders binary attributes through portable upstream renderers on WebGL2', async () => {
     await renderGeoArrowLayers('webgl');
-  }, 20_000);
+  }, 60_000);
 
-  it('renders binary path and polygon attributes on WebGPU', async ({skip}) => {
+  it('renders binary attributes through portable upstream renderers on WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       skip('This browser does not expose an available WebGPU adapter.');
     }
 
     await renderGeoArrowLayers('webgpu');
-  }, 20_000);
+  }, 60_000);
 });

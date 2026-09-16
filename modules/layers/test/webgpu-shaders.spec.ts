@@ -11,8 +11,8 @@ import {blockUniforms} from '../../infovis-layers/src/layers/block-layer/block-l
 import fastTextSource from '../../infovis-layers/src/layers/fast-text-layer/fast-text-layer.wgsl';
 import {fastTextUniforms} from '../../infovis-layers/src/layers/fast-text-layer/fast-text-layer';
 import windTriangleSource from '../../geo-layers/src/wind-layer/wind-triangle-layer.wgsl';
-import horizonSource from '../../../dev/timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
-import {horizonLayerUniforms} from '../../../dev/timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer-uniforms';
+import horizonSource from '../../timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer.wgsl';
+import {horizonLayerUniforms} from '../../timeline-layers/src/layers/horizon-graph-layer/horizon-graph-layer-uniforms';
 import geometrySource from '../src/dependency-arrow-layer/geometry-layer.wgsl';
 
 const WEBGPU_PLATFORM = {

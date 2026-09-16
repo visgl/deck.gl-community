@@ -21,24 +21,11 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Enable Corepack / Yarn 4
-        run: |
-          corepack enable
-          corepack prepare yarn@4.10.3 --activate
-
-      - name: Cache Yarn 4 artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            .yarn/cache
-            .pnp.*
-            .yarn/install-state.gz
-          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            yarn-cache-${{ runner.os }}-
+      - name: Enable Corepack
+        run: corepack enable yarn
 
       - name: Install dependencies
-        run: yarn
+        run: yarn install --immutable
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 
@@ -62,24 +49,11 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Enable Corepack / Yarn 4
-        run: |
-          corepack enable
-          corepack prepare yarn@4.10.3 --activate
-
-      - name: Cache Yarn 4 artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            .yarn/cache
-            .pnp.*
-            .yarn/install-state.gz
-          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            yarn-cache-${{ runner.os }}-
+      - name: Enable Corepack
+        run: corepack enable yarn
 
       - name: Install dependencies
-        run: yarn
+        run: yarn install --immutable
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 
@@ -234,29 +208,19 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Enable Corepack / Yarn 4
-        run: |
-          corepack enable
-          corepack prepare yarn@4.10.3 --activate
-
-      - name: Cache Yarn 4 artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            .yarn/cache
-            .pnp.*
-            .yarn/install-state.gz
-          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            yarn-cache-${{ runner.os }}-
+      - name: Enable Corepack
+        run: corepack enable yarn
 
       - name: Install dependencies
-        run: yarn
+        run: yarn install --immutable
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 
       - name: Build packages
         run: yarn build
+
+      - name: Install Playwright Chromium
+        run: yarn playwright:install --with-deps
 
       - name: Run headless browser tests
         run: yarn test-headless
@@ -273,29 +237,16 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Enable Corepack / Yarn 4
-        run: |
-          corepack enable
-          corepack prepare yarn@4.10.3 --activate
-
-      - name: Cache Yarn 4 artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            .yarn/cache
-            .pnp.*
-            .yarn/install-state.gz
-          key: yarn-cache-${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            yarn-cache-${{ runner.os }}-
+      - name: Enable Corepack
+        run: corepack enable yarn
 
       - name: Install root workspace dependencies
-        run: yarn
+        run: yarn install --immutable
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 
       - name: Install website dependencies
-        run: cd website && yarn
+        run: cd website && yarn install --immutable
         env:
           YARN_ENABLE_HARDENED_MODE: 0
 

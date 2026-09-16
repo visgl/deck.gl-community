@@ -4,7 +4,7 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 :::caution Work in progress
 The station-surface appearance and API may change. Its native triangle primitive works on WebGL2
-and WebGPU; image-derived mountain terrain remains dependent on upstream `TerrainLayer` support.
+and WebGPU; deck.gl 9.4 also supports the separate image-derived terrain path.
 :::
 
 `DelaunayCoverLayer` renders one elevation-colored polygon for each triangle in a shared

@@ -13,6 +13,8 @@ This module packages UI widgets that integrate with [deck.gl](https://deck.gl) v
 
 For renderer lifecycle management, the package also exports `DeviceManager` and `DeviceTabsWidget`. Together they let applications choose WebGPU or WebGL, reuse one cached luma device per backend, and reparent the managed canvas between host elements.
 
+`ColorLegendWidget` renders caller-supplied JSON-safe categorical, continuous, and palette color keys while keeping large categorical lists bounded.
+
 Panel definitions, panel containers, specialized toolbar/toast components, and
 standalone mounting live in `@deck.gl-community/panels`. Import components from
 `panels`, then pass them through `PanelWidget` or one of the thin named
@@ -61,6 +63,8 @@ For the deck-facing panel widget APIs, see the [Widget Panels example](../../exa
 - reusable panel definitions imported from `@deck.gl-community/panels`
 
 Use `DeviceManager` directly when your application wants custom backend-selection UI or needs to move the managed canvas between containers. Use `DeviceTabsWidget` when you want a ready-made widget for switching between `webgpu` and `webgl2`.
+
+Use `ColorLegendWidget` when a view needs a serializable color key that can be prepared independently from its deck.gl rendering lifecycle.
 
 Standalone UI such as `ToolbarComponent`, `ToastComponent`, and `toastManager`
 is exported from `@deck.gl-community/panels`. The widgets package exports

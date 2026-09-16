@@ -25,8 +25,7 @@ This module exports geospatial deck.gl layers developed by the community.
 
 :::caution Work in progress
 The wind-layer API and historical showcase are experimental. `ParticleLayer`, filled arrows, and
-station-triangulated terrain are verified on WebGL2 and WebGPU. The original image-derived mountain
-terrain remains WebGL2-only because upstream `TerrainLayer` does not yet support WebGPU.
+both station-triangulated and image-derived terrain are verified on WebGL2 and WebGPU.
 :::
 
 The [wind showcase guide](./developer-guide/wind-showcase.md) recreates Nicolas Belmonte's

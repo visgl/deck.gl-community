@@ -5,7 +5,7 @@ import {CommandManager, toastManager} from '@deck.gl-community/panels';
 
 import {OmniBoxWidget} from './omni-box-widget';
 
-import type {OmniBoxWidgetProps} from './omni-box-widget';
+import type {OmniBoxOption, OmniBoxWidgetProps} from './omni-box-widget';
 
 function renderWidget(props: OmniBoxWidgetProps = {}) {
   const root = document.createElement('div');
@@ -36,6 +36,7 @@ function renderWidget(props: OmniBoxWidgetProps = {}) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   toastManager.clear();
   document.body.innerHTML = '';
   window.localStorage.clear();
@@ -329,6 +330,291 @@ describe('OmniBoxWidget', () => {
 
     expect(getOptions).toHaveBeenCalledWith('alpha');
     expect(root.querySelector('button[role="option"]')?.textContent).toContain('Alpha item');
+
+    cleanup();
+  });
+
+  it('allows callers to sort and bound ordinary search results', async () => {
+    const {root, cleanup} = renderWidget({
+      minQueryLength: 1,
+      getOptions: () => [
+        {id: 'short', label: 'Short item', data: {duration: 5}},
+        {id: 'long', label: 'Long item', data: {duration: 125}}
+      ],
+      sortOptions: options =>
+        [...options]
+          .sort(
+            (left, right) =>
+              (right.data as {duration: number}).duration -
+              (left.data as {duration: number}).duration
+          )
+          .slice(0, 1)
+    });
+
+    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
+      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+      input.value = 'item';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 0));
+    });
+
+    const options = root.querySelectorAll<HTMLButtonElement>('button[role="option"]');
+    expect(options).toHaveLength(1);
+    expect(options[0]?.textContent).toContain('Long item');
+
+    cleanup();
+  });
+
+  it('reruns the current query when its search refresh key changes', async () => {
+    let loadCount = 0;
+    const getOptions = vi.fn(() => {
+      loadCount += 1;
+      return [{id: `result-${loadCount}`, label: `Result ${loadCount}`}];
+    });
+    const {root, widget, cleanup} = renderWidget({
+      minQueryLength: 1,
+      searchRefreshKey: 0,
+      getOptions
+    });
+
+    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
+      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+      input.value = 'alpha';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 0));
+    });
+
+    expect(getOptions).toHaveBeenCalledOnce();
+    expect(root.querySelector('button[role="option"]')?.textContent).toContain('Result 1');
+
+    await act(async () => {
+      widget.setProps({searchRefreshKey: 1});
+      widget.onRenderHTML(root);
+    });
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 0));
+    });
+
+    expect(getOptions).toHaveBeenCalledTimes(2);
+    expect(getOptions).toHaveBeenLastCalledWith('alpha');
+    expect(root.querySelector('button[role="option"]')?.textContent).toContain('Result 2');
+
+    cleanup();
+  });
+
+  it('rejects stale asynchronous results after the query changes', async () => {
+    const resolvers = new Map<
+      string,
+      (options: ReadonlyArray<{id: string; label: string}>) => void
+    >();
+    const getOptions = vi.fn(
+      (query: string) =>
+        new Promise<ReadonlyArray<{id: string; label: string}>>(resolve => {
+          resolvers.set(query, resolve);
+        })
+    );
+    const onResultsStateChange = vi.fn();
+    const {root, cleanup} = renderWidget({
+      minQueryLength: 1,
+      getOptions,
+      onResultsStateChange
+    });
+
+    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
+      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+      input.value = 'alpha';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      input.value = 'beta';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolvers.get('alpha')?.([{id: 'alpha', label: 'Alpha item'}]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(root.querySelector('button[role="option"]')).toBeNull();
+    expect(onResultsStateChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'beta',
+        options: [],
+        isLoading: true
+      })
+    );
+
+    await act(async () => {
+      resolvers.get('beta')?.([{id: 'beta', label: 'Beta item'}]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(root.querySelector('button[role="option"]')?.textContent).toContain('Beta item');
+    expect(onResultsStateChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'beta',
+        options: [expect.objectContaining({id: 'beta'})],
+        isLoading: false
+      })
+    );
+
+    cleanup();
+  });
+
+  it('debounces ordinary searches and reports loading state while typing', async () => {
+    vi.useFakeTimers();
+    const getOptions = vi.fn((query: string) => [{id: query, label: query + ' item'}]);
+    const onResultsStateChange = vi.fn();
+    const {root, cleanup} = renderWidget({
+      minQueryLength: 1,
+      searchDebounceMs: 150,
+      getOptions,
+      onResultsStateChange
+    });
+
+    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
+      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+      input.value = 'a';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      input.value = 'ab';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      input.value = 'abc';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+
+    expect(getOptions).not.toHaveBeenCalled();
+    expect(onResultsStateChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'abc',
+        options: [],
+        isLoading: true
+      })
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(149);
+    });
+    expect(getOptions).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getOptions).toHaveBeenCalledOnce();
+    expect(getOptions).toHaveBeenCalledWith('abc');
+    expect(onResultsStateChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        query: 'abc',
+        options: [expect.objectContaining({id: 'abc'})],
+        isLoading: false
+      })
+    );
+
+    cleanup();
+  });
+
+  it('reschedules a cancelled debounced search when the input is focused again', async () => {
+    vi.useFakeTimers();
+    const getOptions = vi.fn((query: string) => [{id: query, label: query + ' item'}]);
+    const {root, cleanup} = renderWidget({
+      minQueryLength: 1,
+      searchDebounceMs: 150,
+      getOptions
+    });
+
+    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
+      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+      input.value = 'alpha';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(getOptions).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(input);
+
+    await act(async () => {
+      input.focus();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(150);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getOptions).toHaveBeenCalledOnce();
+    expect(getOptions).toHaveBeenCalledWith('alpha');
+
+    cleanup();
+  });
+
+  it('keeps command suggestions immediate when search debouncing is enabled', async () => {
+    const commandManager = new CommandManager();
+    commandManager.registerCommand({
+      id: 'view.toggleOverview',
+      label: 'Toggle overview',
+      do: vi.fn()
+    });
+    const getOptions = vi.fn(() => []);
+    const sortOptions = vi.fn((options: ReadonlyArray<OmniBoxOption>) => options);
+    const {root, cleanup} = renderWidget({
+      commandManager,
+      minQueryLength: 1,
+      searchDebounceMs: 150,
+      getOptions,
+      sortOptions
+    });
+
+    const input = root.querySelector('input[aria-label="OmniBox"]') as HTMLInputElement;
+    await act(async () => {
+      input.focus();
+      input.dispatchEvent(new FocusEvent('focus', {bubbles: false}));
+      input.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+      input.value = '>toggle';
+      input.dispatchEvent(new InputEvent('input', {bubbles: true}));
+    });
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 0));
+    });
+
+    expect(getOptions).not.toHaveBeenCalled();
+    expect(sortOptions).not.toHaveBeenCalled();
+    expect(root.querySelector('button[role="option"]')?.textContent).toContain('Toggle overview');
 
     cleanup();
   });

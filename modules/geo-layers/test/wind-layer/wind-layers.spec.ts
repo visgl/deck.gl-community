@@ -107,7 +107,7 @@ describe('reusable wind showcase layers', () => {
     expect((terrain.props.data as {polygon: number[][]}[])[0].polygon[0][2]).toBeGreaterThan(0);
   });
 
-  it('does not instantiate upstream WebGL-only height-map terrain on WebGPU', () => {
+  it('instantiates height-map terrain on WebGPU', () => {
     const layer = new ElevationLayer({
       id: 'webgpu-elevation-test',
       elevationData: 'https://example.com/elevation.png',
@@ -115,7 +115,7 @@ describe('reusable wind showcase layers', () => {
     });
     Object.defineProperty(layer, 'context', {value: {device: {type: 'webgpu'}}});
 
-    expect(layer.renderLayers()).toBeNull();
+    expect(layer.renderLayers()).toBeInstanceOf(TerrainLayer);
   });
 
   it('advects particles a visible, elapsed-time-scaled distance through the wind field', () => {

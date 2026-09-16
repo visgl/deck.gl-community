@@ -42,7 +42,7 @@ import type {
 } from '@deck.gl/core';
 import type {ShaderModule} from '@luma.gl/shadertools';
 
-/** Fast text layer props that intentionally cover dense Tracevis-style span labels. */
+/** Fast text layer props that intentionally cover dense timeline-style span labels. */
 export type _FastTextLayerProps<DataT> = {
   /** Source label rows. */
   data: LayerDataSource<DataT>;
@@ -533,7 +533,7 @@ const FAST_TEXT_ALIGN_START = FAST_TEXT_CONTENT_ALIGN.start;
 const FAST_TEXT_ALIGN_CENTER = FAST_TEXT_CONTENT_ALIGN.center;
 const FAST_TEXT_ALIGN_END = FAST_TEXT_CONTENT_ALIGN.end;
 const FAST_TEXT_SDF_BUFFER = 192.0 / 256.0;
-const fastTextLog = new Log({id: 'trace-layers'});
+const fastTextLog = new Log({id: 'infovis-layers'});
 const FAST_TEXT_PROBE_LABEL_STYLE =
   'background:#f59e0b;color:#111827;font-weight:700;padding:2px 8px;border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;';
 
@@ -1128,13 +1128,12 @@ function formatFastTextDurationMs(durationMs: number): string {
   return `${durationMs.toFixed(durationMs < 10 ? 2 : 1)}ms`;
 }
 
-/** Return the shared Tracevis debug log when it is available in the page. */
+/** Return the package-local debug log for fast-text probes. */
 function getFastTextProbeLog(): {
   /** Probe.gl-compatible timing probe method. */
   probe: (logLevel: unknown, message?: unknown, ...args: unknown[]) => () => void;
 } {
-  const globalLog = (globalThis as {traceLayers?: {log?: typeof fastTextLog}}).traceLayers?.log;
-  return globalLog ?? fastTextLog;
+  return fastTextLog;
 }
 
 /** Create luma buffers for every per-glyph typed array. */

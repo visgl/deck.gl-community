@@ -42,8 +42,7 @@ const defaultProps: DefaultProps<ElevationLayerProps> = {
  *
  * @remarks
  * This API is a work in progress. Smooth the source height map before applying strong
- * exaggeration; use a smaller `meshMaxError` to preserve mountain detail. WebGPU support
- * depends on the upstream `TerrainLayer` and active loaders.gl rendering path.
+ * exaggeration; use a smaller `meshMaxError` to preserve mountain detail.
  *
  * @example
  * ```ts
@@ -65,7 +64,7 @@ export class ElevationLayer extends CompositeLayer<ElevationLayerProps> {
   renderLayers(): TerrainLayer | null {
     const {elevationData, bounds, elevationRange, elevationScale, meshMaxError, color, texture} =
       this.props;
-    if (!elevationData || this.context?.device?.type === 'webgpu') {
+    if (!elevationData) {
       return null;
     }
 

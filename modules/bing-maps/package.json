@@ -2,7 +2,7 @@
   "name": "@deck.gl-community/bing-maps",
   "description": "deck.gl integration with Bing Maps",
   "license": "MIT",
-  "version": "9.4.0-alpha.1",
+  "version": "9.4.0-alpha.3",
   "publishConfig": {
     "access": "public"
   },
@@ -13,7 +13,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/visgl/deck.gl-community.gl.git"
+    "url": "https://github.com/visgl/deck.gl-community.git"
   },
   "type": "module",
   "sideEffects": false,
@@ -36,6 +36,6 @@
     "test-watch": "vitest"
   },
   "peerDependencies": {
-    "@deck.gl/core": "~9.4.0-alpha.2"
+    "@deck.gl/core": "~9.4.0"
   }
 }

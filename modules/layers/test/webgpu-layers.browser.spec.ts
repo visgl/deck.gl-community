@@ -13,7 +13,7 @@ import {
   MultiHorizonGraphLayer,
   TimelineLayer,
   VerticalGridLayer
-} from '../../../dev/timeline-layers/src';
+} from '../../timeline-layers/src';
 import {BlockLayer, FastTextLayer, TimeDeltaLayer} from '../../infovis-layers/src';
 import {EditableGeoJsonLayer, ModifyMode} from '../../editable-layers/src';
 import {EdgeArrowLayer} from '../../graph-layers/src/layers/edge-layers/edge-arrow-layer';
@@ -425,7 +425,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
 describe('community graphics backend compatibility', () => {
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGL2', async () => {
     await renderPortableLayers('webgl');
-  }, 20_000);
+  }, 60_000);
 
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGPU', async ({
     skip
@@ -436,5 +436,5 @@ describe('community graphics backend compatibility', () => {
     }
 
     await renderPortableLayers('webgpu');
-  }, 20_000);
+  }, 60_000);
 });

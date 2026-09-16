@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {
+  color as colorModule,
   Layer,
   project32,
   type Color,
@@ -105,7 +106,7 @@ fn vertexMain(@location(0) particlePosition: vec4<f32>) -> WindParticlePointVary
 
 @fragment
 fn fragmentMain(varyings: WindParticlePointVaryings) -> @location(0) vec4<f32> {
-  return varyings.color;
+  return deckgl_premultiplied_alpha(varyings.color);
 }
 `;
 
@@ -135,7 +136,7 @@ export class GpuParticlePointLayer extends Layer<Required<GpuParticlePointLayerP
       source: POINT_WEBGPU_SHADER,
       vs: POINT_VERTEX_SHADER,
       fs: POINT_FRAGMENT_SHADER,
-      modules: [project32, gpuParticlePointUniforms]
+      modules: [project32, colorModule, gpuParticlePointUniforms]
     });
   }
 

@@ -6,6 +6,10 @@ import react from '@vitejs/plugin-react';
 const ALIASES = [
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
+    find: '@deck.gl-community/three',
+    replacement: fileURLToPath(new URL('./modules/three/src/index.ts', import.meta.url))
+  },
+  {
     find: '@deck.gl-community/basemap-layers/style-spec',
     replacement: fileURLToPath(
       new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)
@@ -37,15 +41,7 @@ const ALIASES = [
   },
   {
     find: /^@deck\.gl-community\/timeline-layers$/,
-    replacement: fileURLToPath(new URL('./dev/timeline-layers/src/index.ts', import.meta.url))
-  },
-  {
-    find: /^@deck\.gl-community\/trace-layers\/(.+)$/,
-    replacement: fileURLToPath(new URL('./modules/trace-layers/src/$1', import.meta.url))
-  },
-  {
-    find: /^@deck\.gl-community\/trace-layers$/,
-    replacement: fileURLToPath(new URL('./modules/trace-layers/src/index.ts', import.meta.url))
+    replacement: fileURLToPath(new URL('./modules/timeline-layers/src/index.ts', import.meta.url))
   },
   {
     find: '@deck.gl-community/basemaps/style-spec',
@@ -77,7 +73,7 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  include: ['apache-arrow', 'protobufjs/dist/light/protobuf.js', 'zod']
+  include: ['@deck.gl/mesh-layers', 'apache-arrow', 'three', 'zod']
 };
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
@@ -136,6 +132,7 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
@@ -158,6 +155,7 @@ const CONFIG = defineConfig({
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
@@ -178,7 +176,8 @@ const CONFIG = defineConfig({
         test: {
           name: 'examples',
           environment: 'node',
-          include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}']
+          include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+          exclude: ['examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}']
         }
       }
     ]

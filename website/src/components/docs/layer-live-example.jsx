@@ -170,18 +170,18 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       return mountGettingStartedExample(container, {showControlsWidget: false, ...mountProps});
     }
     case 'tree-layer': {
-      const {mountWildForestExample} = await import('../../../../examples/three/wild-forest/app');
-      return mountWildForestExample(container, {showControlsWidget: false, ...mountProps});
+      const {mountSeasonalFarmExample} = await import('../../../../examples/three/seasonal-farm/app');
+      return mountSeasonalFarmExample(container, mountProps);
     }
     case 'horizon-graph-layer': {
       const {mountHorizonGraphLayerExample} = await import(
-        '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
+        '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'
       );
       return mountHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }
     case 'multi-horizon-graph-layer': {
       const {mountMultiHorizonGraphLayerExample} = await import(
-        '../../../../dev/timeline-layers/examples/horizon-graph-layer/app'
+        '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'
       );
       return mountMultiHorizonGraphLayerExample(container, {showInfoWidget: false, ...mountProps});
     }

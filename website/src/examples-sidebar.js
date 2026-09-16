@@ -54,13 +54,13 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/timeline-layers',
-      items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
+      label: '@deck.gl-community/three',
+      items: ['three/seasonal-farm']
     },
     {
       type: 'category',
-      label: '@deck.gl-community/trace-layers',
-      items: ['trace-layers/tracevis', 'trace-layers/trace-graph-layer']
+      label: '@deck.gl-community/timeline-layers',
+      items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
     },
     {
       type: 'category',
