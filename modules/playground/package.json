@@ -1,0 +1,44 @@
+{
+  "name": "@deck.gl-community/playground",
+  "version": "9.4.1",
+  "description": "An installable JSON playground for deck.gl built on the panels module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "deck.gl",
+    "playground",
+    "json",
+    "visualization"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "prepack": "yarn --cwd ../.. build",
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "peerDependencies": {
+    "@deck.gl-community/panels": "~9.4.0-alpha.0",
+    "@deck.gl/core": "~9.4.0"
+  }
+}
