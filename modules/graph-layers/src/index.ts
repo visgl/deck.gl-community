@@ -124,3 +124,5 @@ export {
   EDGE_DECORATOR_TYPE,
   LAYOUT_STATE
 } from './_deprecated/old-constants';
+
+export {MarkerLayer} from './layers/common-layers/marker-layer/marker-layer';

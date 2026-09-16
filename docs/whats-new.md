@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `MarkerLayer` is exported from graph-layers and has a website gallery example using workspace dependencies.
+
 - [Seasonal Farm](/examples/three/seasonal-farm) shows seven labelled plots with varied trees,
   seasonal crops, and hover details.
 - [`@deck.gl-community/playground`](/docs/modules/playground) adds an installable panels-based JSON
