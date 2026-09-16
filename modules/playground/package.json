@@ -28,7 +28,8 @@
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
-    "./geojson-schema.json": "./dist/geojson-schema.json"
+    "./geojson-schema.json": "./dist/geojson-schema.json",
+    "./deckgl-schema.json": "./dist/deckgl-schema.json"
   },
   "files": [
     "dist",
@@ -36,8 +37,8 @@
   ],
   "scripts": {
     "prepack": "yarn --cwd ../.. build",
-    "build": "node ./scripts/generate-geojson-schema.mjs",
-    "build:schema": "node ./scripts/generate-geojson-schema.mjs",
+    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
+    "build:schema": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
   },

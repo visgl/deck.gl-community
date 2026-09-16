@@ -171,6 +171,7 @@ export class Playground {
 
 export {PanelManager, TextEditorPanel};
 export * from './geojson/index';
+export * from './schemas/index';
 
 function ensurePlaygroundStyles(document: Document): void {
   if (document.getElementById('deckgl-playground-styles')) {

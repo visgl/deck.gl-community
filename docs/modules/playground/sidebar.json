@@ -8,6 +8,7 @@
   "items": [
     "modules/playground/README",
     "modules/playground/api-reference/playground",
-    "modules/playground/api-reference/geojson-schema"
+    "modules/playground/api-reference/geojson-schema",
+    "modules/playground/api-reference/deckgl-schema"
   ]
 }

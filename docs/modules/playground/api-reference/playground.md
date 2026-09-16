@@ -34,3 +34,7 @@ Call `finalize()` when the host is no longer needed.
 The package also exports the GeoJSON Zod schemas and inferred TypeScript types from its main entry.
 For editor and tooling integrations, use the generated [`geojson-schema.json`](./geojson-schema.md)
 sub-export.
+
+The main entry also exports `DeckGLDocumentSchema`, `DeckGLLayerSchemas`, and `DeckGLViewSchemas`.
+The generated deck.gl document schema is available from the `deckgl-schema.json` sub-export and can
+be supplied as `PlaygroundProps.jsonSchema` for Monaco diagnostics and completion.

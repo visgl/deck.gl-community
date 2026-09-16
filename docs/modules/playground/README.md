@@ -33,6 +33,5 @@ playground.finalize();
 ```
 
 The generated [`geojson-schema.json`](./api-reference/geojson-schema.md) artifact can be loaded by
-Monaco, editors, and other JSON tooling. The [deck.gl playground example](/examples/playground) shows the package driving a live
-`ScatterplotLayer` preview. See the [Playground API reference](./api-reference/playground.md) for
-the complete lifecycle and callback options.
+Monaco, editors, and other JSON tooling. See the [Playground API reference](./api-reference/playground.md)
+for the complete lifecycle and callback options.
