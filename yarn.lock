@@ -1026,7 +1026,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/panels@workspace:*, @deck.gl-community/panels@workspace:modules/panels":
+"@deck.gl-community/panels@npm:~9.4.0-alpha.0, @deck.gl-community/panels@workspace:*, @deck.gl-community/panels@workspace:modules/panels":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/panels@workspace:modules/panels"
   dependencies:
@@ -1038,6 +1038,16 @@ __metadata:
   peerDependenciesMeta:
     apache-arrow:
       optional: true
+  languageName: unknown
+  linkType: soft
+
+"@deck.gl-community/playground@workspace:modules/playground":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/playground@workspace:modules/playground"
+  dependencies:
+    "@deck.gl-community/panels": "npm:~9.4.0-alpha.0"
+  peerDependencies:
+    "@deck.gl/core": ">=9.0.0"
   languageName: unknown
   linkType: soft
 
