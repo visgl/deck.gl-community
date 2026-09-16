@@ -27,7 +27,6 @@ describe('deck.gl schemas', () => {
 
   test('includes every core view shape', () => {
     expect(Object.keys(DeckGLViewSchemas)).toEqual([
-      'View',
       'MapView',
       'FirstPersonView',
       'OrbitView',
@@ -43,7 +42,7 @@ describe('deck.gl schemas', () => {
           '@@type': 'ScatterplotLayer',
           id: 'points',
           data: 'points.json',
-          getPosition: {'@@function': 'd => d.position'},
+          getPosition: '@@=position',
           getFillColor: [255, 0, 0]
         }
       ],
@@ -55,8 +54,9 @@ describe('deck.gl schemas', () => {
   });
 
   test('accepts function references as accessors', () => {
-    expect(JsonFunctionSchema.parse({'@@function': 'd => d.value'})).toEqual({
-      '@@function': 'd => d.value'
+    expect(JsonFunctionSchema.parse({'@@function': 'calculateRadius', base: 2})).toEqual({
+      '@@function': 'calculateRadius',
+      base: 2
     });
   });
 

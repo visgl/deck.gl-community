@@ -1,36 +1,43 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
-import {dirname, join} from 'node:path';
-import {fileURLToPath, pathToFileURL} from 'node:url';
+import {mkdir, writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import ts from 'typescript';
+import {createDeckGLJSONSchema} from '../dist/schemas/deckgl.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const packageRoot = join(__dirname, '..');
-const distDir = join(packageRoot, 'dist');
-
-async function generate() {
-  const module = await import(pathToFileURL(join(distDir, 'schemas', 'deckgl.js')).href);
-  const packageJson = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'));
-  const schema = module.DeckGLDocumentSchema;
-  if (!schema) {
-    throw new Error('DeckGLDocumentSchema export not found.');
-  }
-
-  const jsonSchema = module.z?.toJSONSchema
-    ? module.z.toJSONSchema(schema, {target: 'draft-2020-12'})
-    : (await import('zod')).z.toJSONSchema(schema, {target: 'draft-2020-12'});
-  jsonSchema.$id = `urn:deck.gl-community:playground:${packageJson.version}:deckgl-schema`;
-  jsonSchema.title = 'Deck.gl JSON configuration';
-  jsonSchema.description =
-    'JSON schema for deck.gl layers, views, and document configuration supported by the playground.';
-  jsonSchema.$schema = 'https://json-schema.org/draft/2020-12/schema';
-
-  await mkdir(distDir, {recursive: true});
-  await writeFile(join(distDir, 'deckgl-schema.json'), JSON.stringify(jsonSchema, null, 2));
-}
-
-generate().catch(error => {
-  console.error(error);
-  process.exitCode = 1;
+const dist = new URL('../dist/', import.meta.url);
+const schema = createDeckGLJSONSchema();
+// Include upstream descriptions in editor completions without importing deck.gl or TypeScript
+// in runtime schemas. The checker resolves inherited props and aliases.
+const root = new URL('../../../', import.meta.url);
+const sources = ['core', 'layers', 'aggregation-layers', 'geo-layers', 'mesh-layers'].map(name =>
+  fileURLToPath(new URL(`node_modules/@deck.gl/${name}/src/index.ts`, root))
+);
+const program = ts.createProgram(sources, {
+  strict: true,
+  skipLibCheck: true,
+  target: ts.ScriptTarget.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  module: ts.ModuleKind.ESNext
 });
+const checker = program.getTypeChecker();
+const exports = sources.flatMap(source => {
+  const file = program.getSourceFile(source);
+  if (!file) throw new Error(`Missing upstream schema documentation source: ${source}`);
+  return checker.getExportsOfModule(checker.getSymbolAtLocation(file));
+});
+for (const [name, definition] of Object.entries(schema.$defs)) {
+  const typeName = name.replace(/^_/, '').replace(/Schema$/, 'Props');
+  const symbol = exports.find(item => item.name === typeName || item.name === name);
+  if (!symbol || !definition.properties) continue;
+  const target = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  for (const prop of checker.getPropertiesOfType(checker.getDeclaredTypeOfSymbol(target))) {
+    const description = ts.displayPartsToString(prop.getDocumentationComment(checker));
+    if (description && definition.properties[prop.name]) {
+      definition.properties[prop.name].description = description;
+    }
+  }
+}
+await mkdir(dist, {recursive: true});
+await writeFile(new URL('deckgl-schema.json', dist), `${JSON.stringify(schema, null, 2)}\n`);

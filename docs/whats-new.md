@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
+  including single states and state-ID maps in `initialViewState` and `viewState`.
+
+- The private playground schema catalog now validates all official concrete deck.gl layer and view
+  prop names, inherited props, typed accessors, and separate camera states. Generated JSON Schema
+  includes named definitions and upstream prop descriptions for editor completions.
+
 - `MarkerLayer` is exported from graph-layers and has a website gallery example using workspace dependencies.
 
 - [Seasonal Farm](/examples/three/seasonal-farm) shows seven labelled plots with varied trees,
