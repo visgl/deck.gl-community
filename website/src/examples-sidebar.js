@@ -104,6 +104,11 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/leaflet',
       items: ['leaflet/get-started', 'leaflet/scripting']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/react-fiber',
+      items: ['react-fiber/overview']
     }
   ]
 };

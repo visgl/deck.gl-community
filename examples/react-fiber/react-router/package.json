@@ -1,0 +1,37 @@
+{
+  "name": "examples-react-router",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev",
+    "build": "react-router build",
+    "start": "react-router-serve ./build/server/index.js"
+  },
+  "dependencies": {
+    "@deck.gl-community/react-fiber": "workspace:*",
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/widgets": "~9.4.0",
+    "@loaders.gl/core": "^4.4.3",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0",
+    "@react-router/node": "^7.14.1",
+    "@react-router/serve": "^7.14.1",
+    "isbot": "^5.1.39",
+    "maplibre-gl": "^5.0.0",
+    "nuqs": "^2.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^7.14.1",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@react-router/dev": "^7.14.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "typescript": "6.0.3",
+    "vite": "^7.3.1"
+  }
+}
