@@ -1,0 +1,12 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/playground",
+  "link": {
+    "type": "doc",
+    "id": "modules/playground/README"
+  },
+  "items": [
+    "modules/playground/README",
+    "modules/playground/api-reference/playground"
+  ]
+}

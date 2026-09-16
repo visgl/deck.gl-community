@@ -39,6 +39,7 @@ export class Playground {
   private currentTemplate: string;
   private editorPanel?: TextEditorPanel;
   private previewCleanup?: () => void;
+  private readonly resizeObserver: ResizeObserver;
 
   constructor(props: PlaygroundProps) {
     this.props = props;
@@ -73,6 +74,8 @@ export class Playground {
     this.previewElement.className = 'deckgl-playground-preview';
     this.parentElement.append(editorPane, this.previewElement);
     this.panelManager = new PanelManager({parentElement: this.editorElement});
+    this.resizeObserver = new ResizeObserver(this.handleEditorResize);
+    this.resizeObserver.observe(this.editorElement);
     this.setTemplate(this.currentTemplate);
   }
 
@@ -98,6 +101,7 @@ export class Playground {
     });
     this.editorPanel.placement = 'fill';
     this.panelManager.setProps({components: [this.editorPanel]});
+    this.handleEditorResize();
     this.handleTextChange(text);
   }
 
@@ -124,6 +128,7 @@ export class Playground {
   /** Unmounts the editor and removes all playground-owned DOM. */
   finalize(): void {
     this.selectorElement.removeEventListener('change', this.handleTemplateChange);
+    this.resizeObserver.disconnect();
     this.previewCleanup?.();
     this.panelManager.finalize();
     this.parentElement.replaceChildren();
@@ -131,6 +136,21 @@ export class Playground {
   }
 
   private readonly handleTemplateChange = () => this.setTemplate(this.selectorElement.value);
+
+  private readonly handleEditorResize = () => {
+    this.panelManager.onRedraw({
+      viewports: [
+        {
+          id: 'root',
+          x: 0,
+          y: 0,
+          width: this.editorElement.clientWidth,
+          height: this.editorElement.clientHeight
+        }
+      ],
+      layers: []
+    });
+  };
 
   private readonly handleTextChange = (text: string) => {
     let value: unknown;
