@@ -1,4 +1,5 @@
 {
+  "metadata": {"title": "Skybox GlobeView", "description": "A globe scene with a camera-centered skybox and flight arcs."},
   "views": {"@@type": "_GlobeView", "id": "globe"},
   "initialViewState": {"longitude": -10, "latitude": 25, "zoom": 0.9},
   "layers": [
