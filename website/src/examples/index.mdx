@@ -11,13 +11,13 @@ export const thumbnailOverrides = {
   'geo-layers/shared-tile-2d-layer': '/images/examples/geo-layers/shared-tile-2d-layer.png',
   'geo-layers/wind': '/images/examples/geo-layers/wind.png',
   'geo-layers/global-grid-layer': '/images/examples/geo-layers/global-grid-layer.png',
-  'graph-layers/simple-graph': '/images/examples/graph-layers/simple-graph.jpg',
-  'graph-layers/multi-graph': '/images/examples/graph-layers/multi-graph.jpg',
-  'graph-layers/radial': '/images/examples/graph-layers/radial.jpg',
-  'graph-layers/hive-plot': '/images/examples/graph-layers/hive-plot.jpg',
+  'graph-layers/simple-graph': '/images/examples/graph-layers/simple-graph.png',
+  'graph-layers/multi-graph': '/images/examples/graph-layers/multi-graph.png',
+  'graph-layers/radial': '/images/examples/graph-layers/radial.png',
+  'graph-layers/hive-plot': '/images/examples/graph-layers/hive-plot.png',
   'graph-layers/dag': '/images/examples/graph-layers/dag.jpg',
-  'timeline-layers/horizon-graph-layer': '/images/examples/infovis-layers/horizon-graph-layer.jpg',
-  'timeline-layers/multi-horizon-graph-layer': '/images/examples/infovis-layers/horizon-graph-layer.jpg',
+  'timeline-layers/horizon-graph-layer': '/images/examples/timeline-layers/horizon-graph-layer.png',
+  'timeline-layers/multi-horizon-graph-layer': '/images/examples/timeline-layers/multi-horizon-graph-layer.png',
   'editable-layers/getting-started': '/images/examples/editable-layers/getting-started.png',
   'editable-layers/editor': '/images/examples/editable-layers/editor.png',
   'editable-layers/editor-react': '/images/examples/editable-layers/editor-react.png',
@@ -26,6 +26,7 @@ export const thumbnailOverrides = {
   'editable-layers/sf': '/images/examples/editable-layers/sf.png',
   'editable-layers/no-map': '/images/examples/editable-layers/no-map.png',
   'editable-layers/editable-h3-cluster-layer': '/images/examples/editable-layers/editable-h3-cluster-layer.png',
+  'graph-layers/marker-layer': '/images/examples/graph-layers/marker-layer.png',
   'widgets/html-overlays': '/images/examples/widgets/html-overlays.png',
   'widgets/overlays': '/images/examples/widgets/overlays.png',
   'widgets/pan-and-zoom-controls': '/images/examples/widgets/pan-and-zoom-controls.png',
@@ -36,9 +37,53 @@ export const thumbnailOverrides = {
   'react-fiber/overview': '/images/examples/react-fiber/overview.png'
 };
 
+export const descriptionOverrides = {
+  playground: 'Build and preview deck.gl layers and views from a JSON-driven playground.',
+  'geo-layers/global-grid-layer':
+    'Compare H3, A5, Geohash, Quadkey, and S2 cells while testing antimeridian handling.',
+  'geo-layers/shared-tile-2d-layer':
+    'Share one tiled data source across multiple styled map views and a synchronized minimap.',
+  'geo-layers/wind':
+    'Explore a three-dimensional wind forecast with GPU particles, arrows, terrain, and map labels.',
+  'graph-layers/simple-graph': 'Render a compact graph of connected nodes and edges with interactive styling.',
+  'graph-layers/multi-graph': 'Compare multiple graph layouts and datasets in a coordinated visualization.',
+  'graph-layers/radial': 'Arrange graph nodes around a radial layout to reveal connectivity and hierarchy.',
+  'graph-layers/hive-plot': 'Explore a hive plot that groups graph connections along radial axes.',
+  'graph-layers/dag': 'Visualize directed acyclic graph structure with layered nodes and dependency edges.',
+  'graph-layers/marker-layer': 'Place interactive markers on graph nodes and inspect their relationships.',
+  'layers/path-outline-and-markers':
+    'Combine outlined paths, point markers, and dependency arrows in one layered map.',
+  'layers/skybox-map-view': 'View a skybox backdrop in a conventional interactive map view.',
+  'layers/skybox-globe': 'Wrap a skybox around a globe view for an immersive planetary scene.',
+  'layers/skybox-first-person': 'Navigate a skybox scene from a first-person camera perspective.',
+  'layers/basemap-layer-map-view': 'Switch basemap styles while validating a standard MapView render path.',
+  'infovis-layers/layer-primitives':
+    'Explore reusable information-visualization primitives for blocks, arrows, and linked marks.',
+  'three/seasonal-farm': 'Tour a seasonal farm scene populated with varied three-dimensional trees.',
+  'timeline-layers/horizon-graph-layer': 'Encode a time series as a compact horizon graph with stacked bands.',
+  'timeline-layers/multi-horizon-graph-layer': 'Compare several horizon graphs in a coordinated timeline view.',
+  'editable-layers/getting-started': 'Start editing GeoJSON features with the community editable-layer tools.',
+  'editable-layers/editor': 'Edit map features with a widget-based toolbar and interactive selection.',
+  'editable-layers/editor-react': 'Build the editable-layer workflow with React components and state.',
+  'editable-layers/3d-tiles': 'Select and edit features from a three-dimensional tileset scene.',
+  'editable-layers/advanced': 'Combine editable layers, modes, and custom controls in an advanced workflow.',
+  'editable-layers/sf': 'Draw and edit polygon features over a San Francisco map.',
+  'editable-layers/no-map': 'Use editable-layer interactions without a geographic basemap.',
+  'editable-layers/editable-h3-cluster-layer':
+    'Edit clustered H3 cells and inspect selections across a hexagonal spatial index.',
+  'widgets/html-overlays': 'Attach HTML callouts and controls to positions in a live deck.gl view.',
+  'widgets/overlays': 'Compose lightweight overlays that sit above the deck.gl canvas.',
+  'widgets/pan-and-zoom-controls': 'Control a non-geographic view with reusable pan and zoom widgets.',
+  'widgets/standalone-widgets': 'Mount panel and control widgets independently of a Deck instance.',
+  'widgets/widget-panels': 'Combine markdown, tabs, probes, and collapsible panels around a deck view.',
+  'leaflet/get-started': 'Use Leaflet for the basemap while deck.gl renders the visualization layers.',
+  'leaflet/scripting': 'Run deck.gl with Leaflet from a standalone HTML page loaded entirely from a CDN.'
+};
+
 ## EXAMPLES
 
 <ExamplesIndex
+  descriptionOverrides={descriptionOverrides}
   getThumbnail={item =>
     thumbnailOverrides[item.docId || item.label.toLowerCase()] ??
     '/images/layers.png'
