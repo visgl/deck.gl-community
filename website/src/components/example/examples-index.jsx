@@ -73,7 +73,7 @@ function buildCatalog(items, docs, parentCategory = 'Examples') {
       description:
         (item.docId ? docs[item.docId]?.description : null) ||
         item.description ||
-        `Interactive ${item.label} example from ${parentCategory}.`
+        `Interactive ${item.label} example.`
     }];
   });
 }
