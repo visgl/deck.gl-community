@@ -70,7 +70,10 @@ function buildCatalog(items, docs, parentCategory = 'Examples') {
     return [{
       ...item,
       category: parentCategory,
-      description: item.docId ? docs[item.docId]?.description || '' : ''
+      description:
+        (item.docId ? docs[item.docId]?.description : null) ||
+        item.description ||
+        `Interactive ${item.label} example from ${parentCategory}.`
     }];
   });
 }
