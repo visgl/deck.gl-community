@@ -1,0 +1,8 @@
+{
+  "views": {"@@type": "_GlobeView", "id": "globe"},
+  "initialViewState": {"longitude": -10, "latitude": 25, "zoom": 0.9},
+  "layers": [
+    {"@@type": "SkyboxLayer", "id": "tycho-sky", "orientation": "y-up", "cubemap": {"shape": "image-texture-cube", "faces": {"+X": "https://raw.githubusercontent.com/visgl/luma.gl/master/examples/api/cubemap/sky-posx.png", "-X": "https://raw.githubusercontent.com/visgl/luma.gl/master/examples/api/cubemap/sky-negx.png", "+Y": "https://raw.githubusercontent.com/visgl/luma.gl/master/examples/api/cubemap/sky-posy.png", "-Y": "https://raw.githubusercontent.com/visgl/luma.gl/master/examples/api/cubemap/sky-negy.png", "+Z": "https://raw.githubusercontent.com/visgl/luma.gl/master/examples/api/cubemap/sky-posz.png", "-Z": "https://raw.githubusercontent.com/visgl/luma.gl/master/examples/api/cubemap/sky-negz.png"}}},
+    {"@@type": "ArcLayer", "id": "routes", "data": [{"source": [-122.42, 37.78], "target": [103.82, 1.35], "color": [114, 234, 255]}, {"source": [-21.82, 64.13], "target": [36.82, -1.29], "color": [255, 159, 67]}], "getSourcePosition": "@@=source", "getTargetPosition": "@@=target", "getSourceColor": "@@=color", "getTargetColor": "@@=color", "getWidth": 3}
+  ]
+}

@@ -2,40 +2,116 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck} from '@deck.gl/core';
-import {ScatterplotLayer} from '@deck.gl/layers';
+import {Deck, FirstPersonView, OrthographicView, _GlobeView} from '@deck.gl/core';
+import {
+  ArcLayer,
+  GeoJsonLayer,
+  LineLayer,
+  PolygonLayer,
+  ScatterplotLayer,
+  TextLayer
+} from '@deck.gl/layers';
+import {HeatmapLayer} from '@deck.gl/aggregation-layers';
+import {GraphLayer, MarkerLayer, SimpleLayout} from '@deck.gl-community/graph-layers';
+import {GlobalGridLayer, H3Grid} from '@deck.gl-community/geo-layers';
+import {PathMarkerLayer, SkyboxLayer} from '@deck.gl-community/layers';
+import {BlockLayer, FastTextLayer} from '@deck.gl-community/infovis-layers';
+import {HorizonGraphLayer} from '@deck.gl-community/timeline-layers';
+import {DrawPolygonMode, EditableGeoJsonLayer, ViewMode} from '@deck.gl-community/editable-layers';
 import {Playground, type PlaygroundTemplate} from '@deck.gl-community/playground';
 
-type PlaygroundDocument = {
-  initialViewState: {
-    latitude: number;
-    longitude: number;
-    zoom: number;
-  };
-  points: Array<{position: [number, number]; color: [number, number, number]; radius: number}>;
+const exampleFiles = import.meta.glob('./examples/*.json', {eager: true, import: 'default'});
+const TEMPLATES: Record<string, PlaygroundTemplate> = Object.fromEntries(
+  Object.entries(exampleFiles).map(([path, value]) => [
+    path.split('/').pop()!.replace('.json', '').replace(/^\d+-/, ''),
+    value as PlaygroundTemplate
+  ])
+);
+
+const LAYERS = {
+  ArcLayer,
+  GeoJsonLayer,
+  HeatmapLayer,
+  LineLayer,
+  PolygonLayer,
+  ScatterplotLayer,
+  TextLayer,
+  MarkerLayer,
+  GlobalGridLayer,
+  PathMarkerLayer,
+  BlockLayer,
+  FastTextLayer,
+  HorizonGraphLayer,
+  GraphLayer,
+  SkyboxLayer,
+  EditableGeoJsonLayer
 };
 
-const TEMPLATES: Record<string, PlaygroundTemplate> = {
-  'Hello world': {
-    initialViewState: {latitude: 37.78, longitude: -122.42, zoom: 11},
-    points: [
-      {position: [-122.42, 37.78], color: [255, 80, 80], radius: 800},
-      {position: [-122.45, 37.76], color: [80, 160, 255], radius: 500},
-      {position: [-122.4, 37.8], color: [80, 220, 140], radius: 650}
-    ]
-  },
-  'Many points': {
-    initialViewState: {latitude: 37.78, longitude: -122.42, zoom: 10},
-    points: Array.from({length: 20}, (_, index) => ({
-      position: [-122.52 + (index % 5) * 0.05, 37.68 + Math.floor(index / 5) * 0.06] as [
-        number,
-        number
-      ],
-      color: [255, 180 - index * 5, 80] as [number, number, number],
-      radius: 350 + index * 20
-    }))
+function resolveValue(value: unknown): unknown {
+  if (typeof value === 'string' && value.startsWith('@@#')) {
+    return {H3Grid, SimpleLayout: new SimpleLayout(), DrawPolygonMode, ViewMode}[
+      value.slice(3) as 'H3Grid'
+    ];
   }
-};
+  if (typeof value === 'string' && value.startsWith('@@=')) {
+    const expression = value.slice(3).trim();
+    const arithmetic = expression.match(/^([\w$.]+)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)$/);
+    if (arithmetic) {
+      const [, path, operator, operandText] = arithmetic;
+      const operand = Number(operandText);
+      return (object: Record<string, unknown>) => {
+        const source = getPath(object, path);
+        if (typeof source !== 'number') return undefined;
+        if (operator === '+') return source + operand;
+        if (operator === '-') return source - operand;
+        if (operator === '*') return source * operand;
+        return source / operand;
+      };
+    }
+    return (object: Record<string, unknown>) => getPath(object, expression);
+  }
+  if (Array.isArray(value)) return value.map(resolveValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, resolveValue(child)])
+    );
+  }
+  return value;
+}
+
+function getPath(object: Record<string, unknown>, path: string): unknown {
+  return path
+    .split('.')
+    .reduce(
+      (current, key) =>
+        current && typeof current === 'object'
+          ? (current as Record<string, unknown>)[key]
+          : undefined,
+      object as unknown
+    );
+}
+
+function createLayer(document: Record<string, unknown>, index: number) {
+  const type = String(document['@@type']);
+  const Layer = LAYERS[type as keyof typeof LAYERS];
+  if (!Layer) throw new Error(`No playground layer registered for ${type}`);
+  const props = resolveValue({...document, id: document.id ?? `${type.toLowerCase()}-${index}`});
+  return new Layer(props as never);
+}
+
+function createView(document: Record<string, unknown>) {
+  const type = document['@@type'];
+  if (type === 'OrthographicView') {
+    return new OrthographicView(resolveValue({...document, '@@type': undefined}) as never);
+  }
+  if (type === '_GlobeView') {
+    return new _GlobeView(resolveValue({...document, '@@type': undefined}) as never);
+  }
+  if (type === 'FirstPersonView') {
+    return new FirstPersonView(resolveValue({...document, '@@type': undefined}) as never);
+  }
+  return undefined;
+}
 
 export function mountPlaygroundExample(container: HTMLElement): () => void {
   let deck: Deck | undefined;
@@ -43,24 +119,28 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
     parentElement: container,
     templates: TEMPLATES,
     render: (previewElement, value) => {
-      const document = value as PlaygroundDocument;
+      const document = value as {
+        initialViewState?: Record<string, unknown>;
+        layers?: unknown[];
+        views?: unknown;
+      };
       deck?.finalize();
+      const views = Array.isArray(document.views)
+        ? document.views
+        : document.views
+          ? [document.views]
+          : [];
       deck = new Deck({
         parent: previewElement as HTMLDivElement,
         controller: true,
         initialViewState: document.initialViewState,
-        layers: [
-          new ScatterplotLayer({
-            id: 'points',
-            data: document.points,
-            getPosition: point => point.position,
-            getFillColor: point => point.color,
-            getRadius: point => point.radius,
-            radiusMinPixels: 4,
-            pickable: true
-          })
-        ],
-        getTooltip: ({object}) => (object ? `Radius: ${object.radius}` : null)
+        ...(views.length
+          ? {views: views.map(view => createView(view as Record<string, unknown>)).filter(Boolean)}
+          : {}),
+        layers: (document.layers ?? []).map((layer, index) =>
+          createLayer(layer as Record<string, unknown>, index)
+        ),
+        getTooltip: ({object}) => (object ? JSON.stringify(object) : null)
       });
       return () => {
         deck?.finalize();
