@@ -1,0 +1,20 @@
+{
+  "initialViewState": {"longitude": -122.42, "latitude": 37.77, "zoom": 10},
+  "layers": [
+    {
+      "@@type": "HeatmapLayer",
+      "id": "activity",
+      "data": [
+        {"position": [-122.42, 37.78], "weight": 1},
+        {"position": [-122.42, 37.78], "weight": 0.8},
+        {"position": [-122.45, 37.76], "weight": 0.6},
+        {"position": [-122.4, 37.8], "weight": 0.4}
+      ],
+      "getPosition": "@@=position",
+      "getWeight": "@@=weight",
+      "radiusPixels": 45,
+      "intensity": 1,
+      "threshold": 0.05
+    }
+  ]
+}

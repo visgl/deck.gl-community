@@ -1,0 +1,7 @@
+{
+  "initialViewState": {"longitude": -98, "latitude": 39, "zoom": 3},
+  "layers": [
+    {"@@type": "ScatterplotLayer", "id": "cities", "data": [{"position": [-122.42, 37.78], "name": "San Francisco"}, {"position": [-73.98, 40.75], "name": "New York"}], "getPosition": "@@=position", "getRadius": 70000, "getFillColor": [245, 158, 11, 210]},
+    {"@@type": "MarkerLayer", "id": "labels", "data": [{"position": [-122.42, 37.78], "marker": "pin-filled", "color": [220, 38, 38, 255], "size": 30}, {"position": [-73.98, 40.75], "marker": "star-filled", "color": [37, 99, 235, 255], "size": 30}], "getPosition": "@@=position", "getMarker": "@@=marker", "getColor": "@@=color", "getSize": "@@=size"}
+  ]
+}
