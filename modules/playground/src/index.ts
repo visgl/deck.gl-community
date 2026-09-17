@@ -76,9 +76,11 @@ export class Playground {
     this.parentElement.replaceChildren();
     this.previewElement = this.parentElement.ownerDocument.createElement('div');
     this.previewElement.className = 'deckgl-playground-preview';
+    const pickerHost = this.parentElement.ownerDocument.createElement('div');
+    pickerHost.className = 'deckgl-playground-example-trigger';
     const panelRoot = this.parentElement.ownerDocument.createElement('div');
     panelRoot.className = 'deckgl-playground-panels';
-    this.parentElement.append(this.previewElement, panelRoot);
+    this.parentElement.append(this.previewElement, pickerHost, panelRoot);
     this.panelManager = new PanelManager({parentElement: panelRoot});
     this.pickerPanel = new CustomPanel({
       id: 'playground-example-picker',
@@ -92,7 +94,8 @@ export class Playground {
       title: 'Examples',
       triggerLabel: 'Choose example',
       triggerIcon: '▦',
-      placement: 'top-right',
+      placement: 'top-left',
+      _container: pickerHost,
       dialogStyle: {
         width: 'min(760px, calc(100vw - 32px))',
         maxHeight: 'min(720px, calc(100vh - 32px))'
@@ -262,6 +265,7 @@ function ensurePlaygroundStyles(document: Document): void {
   style.id = 'deckgl-playground-styles';
   style.textContent = `
     .deckgl-playground { position: relative; width: 100%; height: 100%; overflow: hidden; }
+    .deckgl-playground-example-trigger { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 40; pointer-events: auto; }
     .deckgl-playground-panels { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
     .deckgl-playground-template-picker-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 4px; }
     .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid #d5dbe3; border-radius: 6px; background: #fff center / cover no-repeat; color: #172033; text-align: left; cursor: pointer; }
