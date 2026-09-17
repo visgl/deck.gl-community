@@ -1,4 +1,5 @@
 {
+  "metadata": {"title": "GeoJSON neighborhoods", "description": "Fill and stroke a small RFC 7946 feature collection."},
   "initialViewState": {"longitude": -122.42, "latitude": 37.77, "zoom": 11},
   "layers": [
     {

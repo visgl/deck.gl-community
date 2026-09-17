@@ -1,4 +1,5 @@
 {
+  "metadata": {"title": "Skybox FirstPersonView", "description": "Explore a simple Cartesian floor under a cubemap."},
   "views": {"@@type": "FirstPersonView", "id": "first-person", "fovy": 75, "near": 0.1, "far": 2000},
   "initialViewState": {"position": [0, 1.7, 36], "bearing": 8, "pitch": 8},
   "layers": [
