@@ -4,12 +4,22 @@
 
 import {PanelManager, TextEditorPanel} from '@deck.gl-community/panels';
 
+export type PlaygroundTemplateMetadata = {
+  /** Human-readable card title; defaults to the template key. */
+  title?: string;
+  /** Short explanation shown below the card title. */
+  description?: string;
+  /** Optional screenshot URL used as the card thumbnail. */
+  screencap?: string;
+};
 export type PlaygroundTemplate = Record<string, unknown> | string;
+
+type TemplateWithMetadata = Record<string, unknown> & {metadata?: PlaygroundTemplateMetadata};
 
 export type PlaygroundProps = {
   /** Element into which the playground UI is mounted. */
   parentElement: HTMLElement;
-  /** Named JSON documents shown in the template selector. */
+  /** Named JSON documents shown in the example card picker. */
   templates: Record<string, PlaygroundTemplate>;
   /** Optional template selected on startup; defaults to the first template. */
   initialTemplate?: string;
@@ -34,7 +44,7 @@ export class Playground {
   readonly parentElement: HTMLElement;
   readonly previewElement: HTMLDivElement;
   private readonly editorElement: HTMLDivElement;
-  private readonly selectorElement: HTMLSelectElement;
+  private readonly selectorElement: HTMLDivElement;
   private readonly panelManager: PanelManager;
   private readonly props: PlaygroundProps;
   private templates: Record<string, PlaygroundTemplate>;
@@ -60,16 +70,12 @@ export class Playground {
     editorPane.className = 'deckgl-playground-editor-pane';
     this.editorElement = this.parentElement.ownerDocument.createElement('div');
     this.editorElement.className = 'deckgl-playground-editor';
-    this.selectorElement = this.parentElement.ownerDocument.createElement('select');
-    this.selectorElement.setAttribute('aria-label', 'JSON template');
-    for (const name of templateNames) {
-      const option = this.parentElement.ownerDocument.createElement('option');
-      option.value = name;
-      option.textContent = name;
-      this.selectorElement.append(option);
-    }
-    this.selectorElement.value = this.currentTemplate;
-    this.selectorElement.addEventListener('change', this.handleTemplateChange);
+    this.selectorElement = this.parentElement.ownerDocument.createElement('div');
+    this.selectorElement.className = 'deckgl-playground-template-picker';
+    this.selectorElement.setAttribute('role', 'listbox');
+    this.selectorElement.setAttribute('aria-label', 'JSON examples');
+    this.renderTemplateCards();
+    this.selectorElement.addEventListener('click', this.handleTemplateClick);
     editorPane.append(this.selectorElement, this.editorElement);
 
     this.previewElement = this.parentElement.ownerDocument.createElement('div');
@@ -88,8 +94,9 @@ export class Playground {
       throw new Error(`Unknown playground template: ${name}`);
     }
     this.currentTemplate = name;
-    this.selectorElement.value = name;
-    this.setText(typeof template === 'string' ? template : JSON.stringify(template, null, 2));
+    this.renderTemplateCards();
+    const document = getTemplateDocument(template);
+    this.setText(typeof document === 'string' ? document : JSON.stringify(document, null, 2));
   }
 
   /** Replaces the current document text. */
@@ -111,13 +118,7 @@ export class Playground {
   /** Updates the available documents while retaining the current selection when possible. */
   setTemplates(templates: Record<string, PlaygroundTemplate>): void {
     this.templates = templates;
-    this.selectorElement.replaceChildren();
-    for (const name of Object.keys(templates)) {
-      const option = this.parentElement.ownerDocument.createElement('option');
-      option.value = name;
-      option.textContent = name;
-      this.selectorElement.append(option);
-    }
+    this.renderTemplateCards();
     const nextTemplate =
       templates[this.currentTemplate] !== undefined
         ? this.currentTemplate
@@ -130,7 +131,7 @@ export class Playground {
 
   /** Unmounts the editor and removes all playground-owned DOM. */
   finalize(): void {
-    this.selectorElement.removeEventListener('change', this.handleTemplateChange);
+    this.selectorElement.removeEventListener('click', this.handleTemplateClick);
     this.resizeObserver.disconnect();
     this.previewCleanup?.();
     this.panelManager.finalize();
@@ -138,7 +139,34 @@ export class Playground {
     this.parentElement.classList.remove('deckgl-playground');
   }
 
-  private readonly handleTemplateChange = () => this.setTemplate(this.selectorElement.value);
+  private readonly handleTemplateClick = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    const card = target.closest<HTMLElement>('[data-template]');
+    if (card?.dataset.template) this.setTemplate(card.dataset.template);
+  };
+
+  private renderTemplateCards(): void {
+    const document = this.parentElement.ownerDocument;
+    this.selectorElement.replaceChildren();
+    for (const [name, template] of Object.entries(this.templates)) {
+      const metadata = getTemplateMetadata(name, template);
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'deckgl-playground-template-card';
+      card.dataset.template = name;
+      card.setAttribute('role', 'option');
+      card.setAttribute('aria-selected', String(name === this.currentTemplate));
+      if (metadata.screencap) {
+        card.style.backgroundImage = `linear-gradient(180deg, rgba(9,16,29,0.05), rgba(9,16,29,0.8)), url(${JSON.stringify(metadata.screencap)})`;
+      }
+      const title = document.createElement('strong');
+      title.textContent = metadata.title ?? name;
+      const description = document.createElement('span');
+      description.textContent = metadata.description ?? '';
+      card.append(title, description);
+      this.selectorElement.append(card);
+    }
+  }
 
   private readonly handleEditorResize = () => {
     this.panelManager.onRedraw({
@@ -181,10 +209,31 @@ function ensurePlaygroundStyles(document: Document): void {
   style.id = 'deckgl-playground-styles';
   style.textContent = `
     .deckgl-playground { display: flex; flex-direction: row; align-items: stretch; width: 100%; height: 100%; overflow: hidden; }
-    .deckgl-playground-editor-pane { flex: 0 1 40%; min-width: 240px; display: flex; flex-direction: column; align-items: stretch; }
-    .deckgl-playground-editor-pane select { flex: 0 0 34px; box-sizing: border-box; padding: 5px 35px 5px 5px; font-size: 16px; border: 1px solid #ccc; }
+    .deckgl-playground-editor-pane { flex: 0 1 40%; min-width: 240px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+    .deckgl-playground-template-picker { flex: 0 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 210px; overflow: auto; padding: 8px; background: #f5f7fa; }
+    .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid #d5dbe3; border-radius: 6px; background: #fff center / cover no-repeat; color: #172033; text-align: left; cursor: pointer; }
+    .deckgl-playground-template-card:hover, .deckgl-playground-template-card[aria-selected="true"] { border-color: #2878d8; box-shadow: 0 0 0 2px rgba(40,120,216,0.2); }
+    .deckgl-playground-template-card span { font-size: 11px; line-height: 1.3; opacity: 0.78; }
     .deckgl-playground-editor { position: relative; flex: 1 1 auto; min-height: 0; }
     .deckgl-playground-preview { position: relative; flex: 1 1 60%; min-width: 0; }
   `;
   document.head.append(style);
+}
+
+function getTemplateMetadata(
+  name: string,
+  template: PlaygroundTemplate
+): PlaygroundTemplateMetadata {
+  if (typeof template === 'object' && template && 'metadata' in template) {
+    return (template as TemplateWithMetadata).metadata ?? {title: name};
+  }
+  return {title: name};
+}
+
+function getTemplateDocument(template: PlaygroundTemplate): PlaygroundTemplate {
+  if (typeof template === 'object' && template && 'metadata' in template) {
+    const {metadata: _metadata, ...document} = template as TemplateWithMetadata;
+    return document;
+  }
+  return template;
 }
