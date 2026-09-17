@@ -1,0 +1,17 @@
+{
+  "initialViewState": {"longitude": 0, "latitude": 15, "zoom": 1.7},
+  "layers": [
+    {
+      "@@type": "GlobalGridLayer",
+      "id": "h3-cells",
+      "data": [{"cellId": "8928308280fffff"}, {"cellId": "8928308280bffff"}, {"cellId": "89283082877ffff"}],
+      "globalGrid": "@@#H3Grid",
+      "getCellId": "@@=cellId",
+      "filled": true,
+      "stroked": true,
+      "getFillColor": [30, 120, 220, 150],
+      "getLineColor": [30, 80, 160, 230],
+      "getLineWidth": 2
+    }
+  ]
+}

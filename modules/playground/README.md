@@ -4,6 +4,11 @@ An installable (but currently private) JSON playground surface for deck.gl appli
 Monaco-backed editor and template selector using `@deck.gl-community/panels`,
 and leaves preview rendering to the host application.
 
+The repository example in [`examples/playground`](../../examples/playground) includes a rich starter
+set of JSON documents: core deck.gl scatterplots, arcs, GeoJSON, and heatmaps, plus community marker,
+global-grid, path-marker, infovis, horizon-graph, and mixed-layer scenes. These documents are useful
+as templates for applications that register their own layer constructors.
+
 ```ts
 import {Playground} from '@deck.gl-community/playground';
 
