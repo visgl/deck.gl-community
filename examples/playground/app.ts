@@ -54,12 +54,21 @@ function resolveValue(value: unknown): unknown {
     ];
   }
   if (typeof value === 'string' && value.startsWith('@@=')) {
-    const path = value.slice(3).trim().split('.');
-    return (object: Record<string, unknown>) =>
-      path.reduce(
-        (current, key) => (current && typeof current === 'object' ? current[key] : undefined),
-        object
-      );
+    const expression = value.slice(3).trim();
+    const arithmetic = expression.match(/^([\w$.]+)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)$/);
+    if (arithmetic) {
+      const [, path, operator, operandText] = arithmetic;
+      const operand = Number(operandText);
+      return (object: Record<string, unknown>) => {
+        const source = getPath(object, path);
+        if (typeof source !== 'number') return undefined;
+        if (operator === '+') return source + operand;
+        if (operator === '-') return source - operand;
+        if (operator === '*') return source * operand;
+        return source / operand;
+      };
+    }
+    return (object: Record<string, unknown>) => getPath(object, expression);
   }
   if (Array.isArray(value)) return value.map(resolveValue);
   if (value && typeof value === 'object') {
@@ -68,6 +77,18 @@ function resolveValue(value: unknown): unknown {
     );
   }
   return value;
+}
+
+function getPath(object: Record<string, unknown>, path: string): unknown {
+  return path
+    .split('.')
+    .reduce(
+      (current, key) =>
+        current && typeof current === 'object'
+          ? (current as Record<string, unknown>)[key]
+          : undefined,
+      object as unknown
+    );
 }
 
 function createLayer(document: Record<string, unknown>, index: number) {
@@ -113,7 +134,9 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
         parent: previewElement as HTMLDivElement,
         controller: true,
         initialViewState: document.initialViewState,
-        views: views.map(view => createView(view as Record<string, unknown>)).filter(Boolean),
+        ...(views.length
+          ? {views: views.map(view => createView(view as Record<string, unknown>)).filter(Boolean)}
+          : {}),
         layers: (document.layers ?? []).map((layer, index) =>
           createLayer(layer as Record<string, unknown>, index)
         ),

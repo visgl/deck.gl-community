@@ -1,5 +1,5 @@
 {
-  "initialViewState": {"longitude": 0, "latitude": 15, "zoom": 1.7},
+  "initialViewState": {"longitude": -122.42, "latitude": 37.78, "zoom": 10},
   "layers": [
     {
       "@@type": "GlobalGridLayer",

@@ -10581,6 +10581,7 @@ __metadata:
     "@luma.gl/shadertools": "npm:~9.4.0"
     "@luma.gl/webgl": "npm:~9.4.0"
     "@luma.gl/webgpu": "npm:~9.4.0"
+    h3-js: "npm:^4.2.1"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
