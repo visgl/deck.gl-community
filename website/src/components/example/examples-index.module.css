@@ -1,0 +1,112 @@
+.mainExamples {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0.35rem 0 3rem;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 1rem 1.5rem;
+  padding: 20px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 16px;
+  background: radial-gradient(ellipse at 8% 0, rgb(45 212 191 / 10%), transparent 42%),
+    var(--ifm-background-surface-color);
+  box-shadow: 0 16px 38px rgb(15 23 42 / 8%);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--ifm-color-primary-darkest);
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.introduction {
+  margin: 5px 0 0;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.84rem;
+}
+
+.controls input {
+  width: min(360px, 100%);
+  min-height: 44px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 9px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  font: inherit;
+  padding: 0 12px;
+}
+
+.controls input:focus-visible {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px rgb(45 212 191 / 18%);
+  outline: none;
+}
+
+.resultsSummary {
+  margin: 0 1rem 1.65rem;
+  color: var(--ifm-color-emphasis-700);
+  font-size: 0.84rem;
+}
+
+.exampleSection {
+  margin: 0 1rem 2.8rem;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  padding-bottom: 12px;
+}
+
+.sectionHeading h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.sectionHeading span {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.83rem;
+}
+
+.examplesGroup {
+  display: grid;
+  gap: 17px;
+  grid-template-columns: repeat(auto-fill, minmax(min(285px, 100%), 1fr));
+}
+
+.emptyState {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  margin: 0 1rem;
+  border: 1px dashed var(--ifm-color-emphasis-300);
+  border-radius: 14px;
+  color: var(--ifm-color-emphasis-700);
+}
+
+@media screen and (max-width: 640px) {
+  .controls {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .controls input {
+    width: 100%;
+  }
+}
