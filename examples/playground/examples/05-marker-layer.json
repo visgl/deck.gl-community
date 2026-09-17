@@ -1,0 +1,19 @@
+{
+  "initialViewState": {"longitude": -98, "latitude": 39, "zoom": 3},
+  "layers": [
+    {
+      "@@type": "MarkerLayer",
+      "id": "markers",
+      "data": [
+        {"position": [-122.42, 37.78], "marker": "pin-filled", "label": "San Francisco", "color": [220, 38, 38, 255], "size": 32},
+        {"position": [-73.98, 40.75], "marker": "star-filled", "label": "New York", "color": [37, 99, 235, 255], "size": 36},
+        {"position": [-87.62, 41.88], "marker": "location-marker-filled", "label": "Chicago", "color": [16, 185, 129, 255], "size": 28}
+      ],
+      "getPosition": "@@=position",
+      "getMarker": "@@=marker",
+      "getColor": "@@=color",
+      "getSize": "@@=size",
+      "pickable": true
+    }
+  ]
+}
