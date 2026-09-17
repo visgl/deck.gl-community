@@ -157,6 +157,7 @@ export class Playground {
       card.setAttribute('role', 'option');
       card.setAttribute('aria-selected', String(name === this.currentTemplate));
       if (metadata.screencap) {
+        card.classList.add('has-screencap');
         card.style.backgroundImage = `linear-gradient(180deg, rgba(9,16,29,0.05), rgba(9,16,29,0.8)), url(${JSON.stringify(metadata.screencap)})`;
       }
       const title = document.createElement('strong');
@@ -214,6 +215,7 @@ function ensurePlaygroundStyles(document: Document): void {
     .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid #d5dbe3; border-radius: 6px; background: #fff center / cover no-repeat; color: #172033; text-align: left; cursor: pointer; }
     .deckgl-playground-template-card:hover, .deckgl-playground-template-card[aria-selected="true"] { border-color: #2878d8; box-shadow: 0 0 0 2px rgba(40,120,216,0.2); }
     .deckgl-playground-template-card span { font-size: 11px; line-height: 1.3; opacity: 0.78; }
+    .deckgl-playground-template-card.has-screencap { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     .deckgl-playground-editor { position: relative; flex: 1 1 auto; min-height: 0; }
     .deckgl-playground-preview { position: relative; flex: 1 1 60%; min-width: 0; }
   `;
