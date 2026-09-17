@@ -94,6 +94,7 @@ export class Playground {
       title: 'Examples',
       triggerLabel: 'Choose example',
       triggerIcon: '▦',
+      triggerText: 'Select Example',
       button: true,
       placement: 'top-left',
       _container: pickerHost,
@@ -268,7 +269,9 @@ function ensurePlaygroundStyles(document: Document): void {
     .deckgl-playground { position: relative; width: 100%; height: 100%; overflow: hidden; }
     .deckgl-playground-example-trigger { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
     .deckgl-playground-example-trigger .deck-widget-modal { position: absolute; inset: 0; }
-    .deckgl-playground-example-trigger .deck-widget-button { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); pointer-events: auto; }
+    .deckgl-playground-example-trigger .deck-widget-button { position: absolute; top: 12px; left: 50%; width: auto; height: auto; transform: translateX(-50%); pointer-events: auto; }
+    .deckgl-playground-example-trigger .deck-widget-button button { display: flex; width: auto; min-height: 28px; align-items: center; gap: 6px; padding: 0 10px; }
+    .deckgl-playground-example-trigger .deck-widget-button button > span:first-child { width: auto; height: auto; }
     .deckgl-playground-panels { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
     .deckgl-playground-template-picker-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 4px; }
     .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid #d5dbe3; border-radius: 6px; background: #fff center / cover no-repeat; color: #172033; text-align: left; cursor: pointer; }

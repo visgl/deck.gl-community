@@ -43,6 +43,8 @@ export type ModalPanelContainerProps = PanelContainerProps & {
   triggerLabel?: string;
   /** Optional trigger icon glyph or data/http(s) mask image URL. */
   triggerIcon?: string;
+  /** Optional visible trigger text rendered alongside the icon. */
+  triggerText?: string;
   /** Whether to render modal title bar chrome. */
   showTitleBar?: boolean;
   /** Controls whether the open panel blocks pointer interaction outside itself. */
@@ -124,6 +126,7 @@ function ModalPanelContainerView({
   hideTrigger,
   triggerLabel,
   triggerIcon,
+  triggerText,
   showTitleBar,
   presentation,
   draggable,
@@ -139,6 +142,7 @@ function ModalPanelContainerView({
   title: string;
   hideTrigger: boolean;
   triggerIcon: string;
+  triggerText?: string;
   triggerLabel: string;
   showTitleBar: boolean;
   presentation: ModalPanelContainerPresentation;
@@ -243,6 +247,7 @@ function ModalPanelContainerView({
             <span aria-hidden="true" style={getModalTriggerIconStyle(triggerIcon, open)}>
               {!isMaskIcon(triggerIcon) ? triggerIcon : null}
             </span>
+            {triggerText ? <span className="deck-widget-button-label">{triggerText}</span> : null}
           </button>
         </div>
       )}
@@ -317,6 +322,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
     title: 'Panel',
     triggerLabel: 'Open panel',
     triggerIcon: DEFAULT_TRIGGER_ICON,
+    triggerText: undefined!,
     showTitleBar: true,
     presentation: 'modal',
     draggable: false,
@@ -345,6 +351,8 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
   triggerLabel = ModalPanelContainer.defaultProps.triggerLabel;
   /** Trigger icon glyph. */
   triggerIcon = ModalPanelContainer.defaultProps.triggerIcon;
+  /** Optional visible trigger text. */
+  triggerText: string | undefined = ModalPanelContainer.defaultProps.triggerText;
   /** Whether modal title bar chrome is rendered. */
   showTitleBar = ModalPanelContainer.defaultProps.showTitleBar;
   /** Whether the modal blocks or floats over outside pointer interaction. */
@@ -398,6 +406,9 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
     }
     if (props.triggerIcon !== undefined) {
       this.triggerIcon = props.triggerIcon;
+    }
+    if (props.triggerText !== undefined) {
+      this.triggerText = props.triggerText;
     }
     if (props.showTitleBar !== undefined) {
       this.showTitleBar = props.showTitleBar;
@@ -568,6 +579,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
         hideTrigger={this.hideTrigger}
         triggerLabel={this.triggerLabel}
         triggerIcon={this.triggerIcon}
+        triggerText={this.triggerText}
         showTitleBar={this.showTitleBar}
         presentation={this.presentation}
         draggable={this.draggable}
