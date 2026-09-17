@@ -13,6 +13,6 @@ yarn start
 To run against the local workspace packages, use `yarn start-local` from the repository root after installing dependencies.
 
 Included templates cover core deck.gl layers and community layers from `@deck.gl-community/geo-layers`,
-`graph-layers`, `infovis-layers`, `layers`, and `timeline-layers`. The example registers those
-constructors in its host application; production applications can provide their own registry and
-rendering policy through `Playground`.
+`graph-layers`, `infovis-layers`, `layers`, `timeline-layers`, and `editable-layers`. The example
+registers those constructors, layouts, and edit modes in its host application; production
+applications can provide their own registry and rendering policy through `Playground`.

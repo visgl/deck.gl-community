@@ -6,8 +6,9 @@ and leaves preview rendering to the host application.
 
 The repository example in [`examples/playground`](../../examples/playground) includes a rich starter
 set of JSON documents: core deck.gl scatterplots, arcs, GeoJSON, and heatmaps, plus community marker,
-global-grid, path-marker, infovis, horizon-graph, and mixed-layer scenes. These documents are useful
-as templates for applications that register their own layer constructors.
+global-grid, path-marker, skybox, graph, editable GeoJSON, infovis, horizon-graph, and mixed-layer
+scenes. These documents are useful as templates for applications that register their own layer
+constructors and host-side resources.
 
 ```ts
 import {Playground} from '@deck.gl-community/playground';

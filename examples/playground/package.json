@@ -10,6 +10,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@deck.gl-community/editable-layers": "workspace:*",
     "@deck.gl-community/geo-layers": "workspace:*",
     "@deck.gl-community/graph-layers": "workspace:*",
     "@deck.gl-community/infovis-layers": "workspace:*",
@@ -31,6 +32,7 @@
     "@luma.gl/shadertools": "~9.4.0",
     "@luma.gl/webgl": "~9.4.0",
     "@luma.gl/webgpu": "~9.4.0",
+    "h3-js": "^4.2.1",
     "vite": "^7.3.1"
   }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, OrthographicView} from '@deck.gl/core';
+import {Deck, FirstPersonView, OrthographicView, _GlobeView} from '@deck.gl/core';
 import {
   ArcLayer,
   GeoJsonLayer,
@@ -12,11 +12,12 @@ import {
   TextLayer
 } from '@deck.gl/layers';
 import {HeatmapLayer} from '@deck.gl/aggregation-layers';
-import {MarkerLayer} from '@deck.gl-community/graph-layers';
+import {GraphLayer, MarkerLayer, SimpleLayout} from '@deck.gl-community/graph-layers';
 import {GlobalGridLayer, H3Grid} from '@deck.gl-community/geo-layers';
-import {PathMarkerLayer} from '@deck.gl-community/layers';
+import {PathMarkerLayer, SkyboxLayer} from '@deck.gl-community/layers';
 import {BlockLayer, FastTextLayer} from '@deck.gl-community/infovis-layers';
 import {HorizonGraphLayer} from '@deck.gl-community/timeline-layers';
+import {DrawPolygonMode, EditableGeoJsonLayer, ViewMode} from '@deck.gl-community/editable-layers';
 import {Playground, type PlaygroundTemplate} from '@deck.gl-community/playground';
 
 const exampleFiles = import.meta.glob('./examples/*.json', {eager: true, import: 'default'});
@@ -40,12 +41,17 @@ const LAYERS = {
   PathMarkerLayer,
   BlockLayer,
   FastTextLayer,
-  HorizonGraphLayer
+  HorizonGraphLayer,
+  GraphLayer,
+  SkyboxLayer,
+  EditableGeoJsonLayer
 };
 
 function resolveValue(value: unknown): unknown {
   if (typeof value === 'string' && value.startsWith('@@#')) {
-    return {H3Grid}[value.slice(3) as 'H3Grid'];
+    return {H3Grid, SimpleLayout: new SimpleLayout(), DrawPolygonMode, ViewMode}[
+      value.slice(3) as 'H3Grid'
+    ];
   }
   if (typeof value === 'string' && value.startsWith('@@=')) {
     const path = value.slice(3).trim().split('.');
@@ -76,6 +82,12 @@ function createView(document: Record<string, unknown>) {
   const type = document['@@type'];
   if (type === 'OrthographicView') {
     return new OrthographicView(resolveValue({...document, '@@type': undefined}) as never);
+  }
+  if (type === '_GlobeView') {
+    return new _GlobeView(resolveValue({...document, '@@type': undefined}) as never);
+  }
+  if (type === 'FirstPersonView') {
+    return new FirstPersonView(resolveValue({...document, '@@type': undefined}) as never);
   }
   return undefined;
 }
