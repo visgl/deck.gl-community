@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14b8a6" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity=".55"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect x="84" y="86" width="1112" height="548" rx="18" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+  <path d="M140 174H1140M140 270H1140M140 366H1140M140 462H1140M140 558H1140" stroke="#e2e8f0" stroke-width="2"/>
+  <path d="M140 560 C220 520 245 430 302 444 S392 542 446 470 S522 238 590 328 S672 504 728 418 S818 188 872 290 S946 514 1002 400 S1070 280 1140 332 V560 H140Z" fill="url(#area)" opacity=".82"/>
+  <path d="M140 560 C220 520 245 430 302 444 S392 542 446 470 S522 238 590 328 S672 504 728 418 S818 188 872 290 S946 514 1002 400 S1070 280 1140 332" fill="none" stroke="#0f766e" stroke-width="6"/>
+  <path d="M140 560V150M140 560H1140" stroke="#475569" stroke-width="4"/>
+  <g fill="#475569" font-family="system-ui, sans-serif" font-size="24"><text x="140" y="112" font-weight="700">Horizon Graph Layer</text><text x="140" y="604">0</text><text x="1090" y="604">Time</text><text x="52" y="190">+</text><text x="52" y="548">−</text></g>
+  <g fill="#2563eb" opacity=".25"><path d="M182 560V496H222V560ZM246 560V430H286V560ZM320 560V470H360V560ZM394 560V402H434V560Z"/></g>
+</svg>

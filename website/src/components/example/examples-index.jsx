@@ -5,11 +5,14 @@ import {useDocsSidebar, useDocsVersion} from '@docusaurus/plugin-content-docs/cl
 import ExampleCard from './example-card';
 import styles from './examples-index.module.css';
 
-export default function ExamplesIndex({getThumbnail}) {
+export default function ExamplesIndex({getThumbnail, descriptionOverrides = {}}) {
   const sidebar = useDocsSidebar();
   const {docs} = useDocsVersion();
   const [query, setQuery] = useState('');
-  const catalog = useMemo(() => buildCatalog(sidebar.items, docs), [docs, sidebar.items]);
+  const catalog = useMemo(
+    () => buildCatalog(sidebar.items, docs, descriptionOverrides),
+    [descriptionOverrides, docs, sidebar.items]
+  );
   const normalizedQuery = query.trim().toLowerCase();
   const filteredCatalog = catalog.filter(item => {
     if (!normalizedQuery) return true;
@@ -63,14 +66,17 @@ export default function ExamplesIndex({getThumbnail}) {
   );
 }
 
-function buildCatalog(items, docs, parentCategory = 'Examples') {
+function buildCatalog(items, docs, descriptionOverrides, parentCategory = 'Examples') {
   return items.flatMap(item => {
-    if (item.type === 'category') return buildCatalog(item.items, docs, item.label);
+    if (item.type === 'category') {
+      return buildCatalog(item.items, docs, descriptionOverrides, item.label);
+    }
     if (item.docId === 'index' || !item.href) return [];
     return [{
       ...item,
       category: parentCategory,
       description:
+        descriptionOverrides[item.docId] ||
         (item.docId ? docs[item.docId]?.description : null) ||
         item.description ||
         `Interactive ${item.label} example.`
