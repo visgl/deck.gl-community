@@ -74,15 +74,20 @@
 
 .category {
   left: 12px;
+  max-width: calc(100% - 52px);
+  overflow: hidden;
   border: 1px solid rgb(255 255 255 / 26%);
   border-radius: 999px;
   background: rgb(6 12 23 / 76%);
   color: #d1fae5;
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   font-weight: 750;
   letter-spacing: 0.04em;
-  padding: 6px 8px;
+  line-height: 1.1;
+  padding: 4px 6px;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .openIcon {
