@@ -3,7 +3,11 @@
 // Copyright (c) vis.gl contributors
 
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {DeckPlayground, ScatterplotLayerSchema} from '@deck.gl-community/playground';
+import {
+  DeckPlayground,
+  PlaygroundDataSourceRegistry,
+  ScatterplotLayerSchema
+} from '@deck.gl-community/playground';
 
 type PointRow = {id: string; position: [number, number]};
 
@@ -13,8 +17,21 @@ const POINTS: PointRow[] = [
   {id: 'east', position: [30, 0]}
 ];
 
-/** Mounts a playground with host-owned rows, stable picking identities, and camera reset. */
-export function mountHostBindingsExample(container: HTMLElement): () => void {
+/** Registers example rows independently of any playground that consumes them. */
+export function createHostDataSources(): PlaygroundDataSourceRegistry {
+  const dataSources = new PlaygroundDataSourceRegistry();
+  dataSources.register('points', {
+    data: POINTS,
+    getRowId: (row: PointRow) => row.id
+  });
+  return dataSources;
+}
+
+/** Mounts a playground using a source registry that can be shared with other previews. */
+export function mountHostBindingsExample(
+  container: HTMLElement,
+  dataSources = createHostDataSources()
+): () => void {
   const document = container.ownerDocument;
   const root = document.createElement('div');
   root.style.cssText = 'display:flex;flex-direction:column;width:100%;height:100%';
@@ -35,16 +52,12 @@ export function mountHostBindingsExample(container: HTMLElement): () => void {
   root.append(toolbar, previewHost);
   container.append(root);
 
-  const createBindings = (rows: PointRow[]) => ({
-    points: {data: rows, getRowId: (row: unknown) => (row as PointRow).id}
-  });
-  let rows = POINTS;
   const playground = new DeckPlayground({
     parentElement: previewHost,
     registry: {
       layers: {ScatterplotLayer: {type: ScatterplotLayer, schema: ScatterplotLayerSchema}}
     },
-    bindings: createBindings(rows),
+    dataSources,
     templates: {
       Points: {
         views: {'@@type': 'OrthographicView', id: 'plot'},
@@ -73,9 +86,9 @@ export function mountHostBindingsExample(container: HTMLElement): () => void {
   });
 
   const reverseRows = () => {
-    const nextRows = [...rows].reverse();
-    if (playground.setBindings(createBindings(nextRows))) {
-      rows = nextRows;
+    const points = dataSources.get('points');
+    if (points) {
+      dataSources.register('points', {...points, data: [...points.data].reverse()});
     }
   };
   const resetView = () => playground.resetView();
@@ -86,6 +99,7 @@ export function mountHostBindingsExample(container: HTMLElement): () => void {
     replaceButton.removeEventListener('click', reverseRows);
     resetButton.removeEventListener('click', resetView);
     playground.finalize();
+    // Registered sources remain available to other previews sharing this registry.
     root.remove();
   };
 }

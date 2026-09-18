@@ -18,6 +18,7 @@ import {
   OrthographicViewSchema
 } from '../schemas/views';
 import type {PlaygroundBindings, PlaygroundRegistry} from './playground-registry';
+import type {PlaygroundDataSourceRegistry} from './playground-data-source-registry';
 
 const CORE_VIEWS: NonNullable<PlaygroundRegistry['views']> = {
   MapView: {type: MapView, schema: MapViewSchema},
@@ -38,14 +39,50 @@ export type ResolvedPlaygroundConfiguration = {
   props: Partial<DeckProps>;
   /** Layer IDs associated with external bindings, used to report picked row identity. */
   layerBindings: Map<string, string>;
+  /** Accepted row descriptors for referenced sources, including per-instance overrides. */
+  bindings: PlaygroundBindings;
 };
+
+/** An unavailable external source, distinct from an invalid visualization document. */
+export class PlaygroundDataSourceError extends Error {
+  /** The source whose availability prevented rendering. */
+  readonly sourceId: string;
+  /** Whether the source is missing, still loading, or failed to load. */
+  readonly status: 'missing' | 'loading' | 'error';
+  /** All source names referenced by the validated document, for automatic recovery. */
+  readonly sourceIds: readonly string[];
+
+  constructor(
+    sourceId: string,
+    status: 'missing' | 'loading' | 'error',
+    sourceIds: readonly string[],
+    cause?: Error
+  ) {
+    super(
+      status === 'missing'
+        ? `Missing playground data binding: ${sourceId}`
+        : status === 'loading'
+          ? `Loading playground data source: ${sourceId}`
+          : `Failed playground data source: ${sourceId}: ${cause?.message}`,
+      {cause}
+    );
+    this.name = 'PlaygroundDataSourceError';
+    this.sourceId = sourceId;
+    this.status = status;
+    this.sourceIds = sourceIds;
+  }
+}
 
 /** Runtime validation and editor diagnostics derived from one constructor registry. */
 export type PlaygroundResolver = {
   /** JSON Schema containing only registered layers and supported views. */
   jsonSchema: Record<string, unknown>;
   /** Validates before constructing layers/views; preserves inline and external row references. */
-  resolve: (value: unknown, bindings: PlaygroundBindings) => ResolvedPlaygroundConfiguration;
+  resolve: (
+    value: unknown,
+    bindings: PlaygroundBindings,
+    dataSources?: PlaygroundDataSourceRegistry
+  ) => ResolvedPlaygroundConfiguration;
 };
 
 /**
@@ -124,10 +161,14 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
 
   return {
     jsonSchema,
-    resolve(value, bindings) {
+    resolve(value, bindings, dataSources) {
       const document = schema.parse(value) as Record<string, unknown>;
       const sourceLayers = (value as {layers?: Record<string, unknown>[]}).layers ?? [];
       const layerBindings = new Map<string, string>();
+      const resolvedBindings: PlaygroundBindings = Object.create(null);
+      const sourceIds = new Set<string>();
+      const unavailable: {id: string; status: 'missing' | 'loading' | 'error'; error?: Error}[] =
+        [];
       const ids = new Set<string>();
       const layerDefinitions = (document.layers ?? []) as Record<string, unknown>[];
       const preparedLayers = layerDefinitions.map((definition, index) => {
@@ -147,14 +188,23 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
           const data = source && Object.hasOwn(source, 'data') ? source.data : definition.data;
           if (isRecord(data) && Object.hasOwn(data, '@@data')) {
             const bindingName = String(data['@@data']);
-            if (!Object.hasOwn(bindings, bindingName)) {
-              throw new Error(`Missing playground data binding: ${bindingName}`);
+            sourceIds.add(bindingName);
+            const hasOverride = Object.hasOwn(bindings, bindingName);
+            const binding = hasOverride ? bindings[bindingName] : dataSources?.get(bindingName);
+            if (!hasOverride && binding === undefined) {
+              const state = dataSources?.getState(bindingName);
+              unavailable.push({
+                id: bindingName,
+                status: state?.status === 'ready' ? 'missing' : (state?.status ?? 'missing'),
+                error: state?.status === 'error' ? state.error : undefined
+              });
+            } else {
+              if (!binding || !Array.isArray(binding.data)) {
+                throw new Error(`Playground data binding must contain a row array: ${bindingName}`);
+              }
+              props.data = binding.data;
+              resolvedBindings[bindingName] = binding;
             }
-            const binding = bindings[bindingName];
-            if (!binding || !Array.isArray(binding.data)) {
-              throw new Error(`Playground data binding must contain a row array: ${bindingName}`);
-            }
-            props.data = binding.data;
             layerBindings.set(id, bindingName);
           } else {
             // Payloads are opaque: a row's expression-like text is ordinary data.
@@ -174,11 +224,15 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         return {registration: getRegistration(views, String(definition['@@type']), 'view'), props};
       });
       const props = resolveProperties(document, ['layers', 'views']);
+      if (unavailable.length) {
+        const source = unavailable.find(item => item.status !== 'loading') ?? unavailable[0];
+        throw new PlaygroundDataSourceError(source.id, source.status, [...sourceIds], source.error);
+      }
       props.layers = preparedLayers.map(entry => new entry.registration.type(entry.props));
       if (Object.hasOwn(document, 'views')) {
         props.views = preparedViews.map(entry => new entry.registration.type(entry.props));
       }
-      return {props: props as Partial<DeckProps>, layerBindings};
+      return {props: props as Partial<DeckProps>, layerBindings, bindings: resolvedBindings};
     }
   };
 }

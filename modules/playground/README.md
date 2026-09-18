@@ -12,16 +12,21 @@ constructors and host-side resources.
 
 ```ts
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {DeckPlayground, ScatterplotLayerSchema} from '@deck.gl-community/playground';
+import {
+  DeckPlayground,
+  PlaygroundDataSourceRegistry,
+  ScatterplotLayerSchema
+} from '@deck.gl-community/playground';
+
+const dataSources = new PlaygroundDataSourceRegistry();
+dataSources.register('points', {data: [{id: 'harbor', position: [-122.4, 37.8]}]});
 
 const playground = new DeckPlayground({
   parentElement: document.querySelector('#app')!,
   registry: {
     layers: {ScatterplotLayer: {type: ScatterplotLayer, schema: ScatterplotLayerSchema}}
   },
-  bindings: {
-    points: {data: [{id: 'harbor', position: [-122.4, 37.8]}]}
-  },
+  dataSources,
   templates: {
     Points: {
       initialViewState: {longitude: -122.4, latitude: 37.8, zoom: 10},
@@ -39,11 +44,11 @@ const playground = new DeckPlayground({
   }
 });
 
-// Replace host-owned rows without rewriting the JSON document.
-playground.setBindings({points: {data: [{id: 'pier', position: [-122.41, 37.81]}]}});
+// Replace rows for every consumer without rewriting their JSON documents.
+dataSources.register('points', {data: [{id: 'pier', position: [-122.41, 37.81]}]});
 // Restore the latest accepted document's initial camera.
 playground.resetView();
-// Release the editor, preview, and graphics resources when removing the host.
+// Release this editor and preview; the shared source registry remains available.
 playground.finalize();
 ```
 
@@ -52,7 +57,13 @@ layer constructor with its matching schema. The five core view classes are avail
 Valid edits update the existing Deck instance and canvas. Parse and validation failures report
 `onError` and retain the last accepted preview.
 
-Bindings may supply `getRowId` to give `onSelect` stable application row identities. Selection state,
+Sources can be registered before or after a playground mounts, using row bindings or asynchronous
+loaders. A registry is independently owned and can serve multiple playgrounds; loaders run once
+per registration and source changes refresh each affected preview. Instance-local `bindings`
+override registered sources of the same name. Loading retains the last accepted preview; missing
+or failed sources report `onError` and recover when the source becomes available.
+
+Sources may supply `getRowId` to give `onSelect` stable application row identities. Selection state,
 highlighting, and keyboard interactions belong to the host. See the [API reference](../../docs/modules/playground/api-reference/playground.md)
 and the [host bindings example](../../examples/playground/host-bindings.ts).
 

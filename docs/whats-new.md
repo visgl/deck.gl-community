@@ -6,6 +6,11 @@
   registries, host-owned row bindings, picking and camera callbacks, and camera reset. Existing
   `Playground` render callbacks remain supported alongside a persistent renderer lifecycle.
 
+- Playground adds `PlaygroundDataSourceRegistry` for independently registered row sources and
+  asynchronous loaders shared across previews. Source registration, replacement, and loading
+  automatically refresh affected playgrounds while preserving their canvas and camera;
+  instance-local bindings can override shared sources.
+
 - Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
   including single states and state-ID maps in `initialViewState` and `viewState`.
 

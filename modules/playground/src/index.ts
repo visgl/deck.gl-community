@@ -19,7 +19,13 @@ export type {
   PlaygroundBindings,
   PlaygroundDataBinding
 } from './runtime/playground-registry';
-export {createPlaygroundResolver} from './runtime/playground-resolver';
+export {createPlaygroundResolver, PlaygroundDataSourceError} from './runtime/playground-resolver';
+export {
+  PlaygroundDataSourceRegistry,
+  type PlaygroundDataSource,
+  type PlaygroundDataSourceLoader,
+  type PlaygroundDataSourceState
+} from './runtime/playground-data-source-registry';
 export {PanelManager, TextEditorPanel} from '@deck.gl-community/panels';
 export * from './geojson/index';
 export * from './schemas/index';

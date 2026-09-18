@@ -26,8 +26,8 @@ type TemplateWithMetadata = Record<string, unknown> & {metadata?: PlaygroundTemp
 
 /** Persistent preview lifecycle, shared by all accepted editor updates. */
 export type PlaygroundRenderer = {
-  /** Updates the existing preview; throw to report an invalid configuration. */
-  update: (previewElement: HTMLDivElement, value: unknown) => void;
+  /** Updates the preview with a parsed value and its original text; throw for invalid input. */
+  update: (previewElement: HTMLDivElement, value: unknown, text?: string) => void;
   /** Releases all renderer resources when the playground unmounts. */
   finalize: () => void;
 };
@@ -287,7 +287,7 @@ export class Playground {
     try {
       value = this.props.parse ? this.props.parse(text) : JSON.parse(text);
       if (this.props.renderer) {
-        this.props.renderer.update(this.previewElement, value);
+        this.props.renderer.update(this.previewElement, value, text);
       } else {
         const cleanup = this.previewCleanup;
         this.previewCleanup = undefined;

@@ -8,19 +8,24 @@ APIs and do not require React.
 
 ```ts
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {DeckPlayground, ScatterplotLayerSchema} from '@deck.gl-community/playground';
+import {
+  DeckPlayground,
+  PlaygroundDataSourceRegistry,
+  ScatterplotLayerSchema
+} from '@deck.gl-community/playground';
+
+const dataSources = new PlaygroundDataSourceRegistry();
+dataSources.register('points', {
+  data: [{id: 'harbor', position: [-122.4, 37.8]}],
+  getRowId: row => row.id
+});
 
 const playground = new DeckPlayground({
   parentElement,
   registry: {
     layers: {ScatterplotLayer: {type: ScatterplotLayer, schema: ScatterplotLayerSchema}}
   },
-  bindings: {
-    points: {
-      data: [{id: 'harbor', position: [-122.4, 37.8]}],
-      getRowId: row => row.id
-    }
-  },
+  dataSources,
   templates: {
     Points: {
       controller: true,
@@ -45,7 +50,7 @@ const playground = new DeckPlayground({
 });
 ```
 
-### Registry
+### Constructor registry
 
 `registry.layers` maps each JSON `@@type` name to `{type, schema}`: the layer constructor and the
 matching Zod layer schema. Only explicitly registered layers can be instantiated. No layer package
@@ -75,9 +80,75 @@ bindings, unsupported expression syntax or nested class resources, and duplicate
 The managed runtime rejects `mapStyle` because it does not include a basemap adapter, and rejects
 an explicitly empty `views` array; omit `views` to use the default map view.
 
-### Bindings and picking
+### Independently registered sources
 
-Use `data: {'@@data': 'points'}` in a layer document to refer to the `points` entry in `bindings`:
+`PlaygroundDataSourceRegistry` owns named row sources independently of any playground. Pass it as
+`DeckPlayground`'s `dataSources` option and use `data: {'@@data': 'points'}` in a layer document to
+refer to its `points` source. The same registry can serve multiple playgrounds and other consumers.
+It is separate from `registry`, which supplies layer and view constructors.
+
+Register an existing `PlaygroundDataBinding` with `{data: rows, getRowId?}`, or register a loader
+that returns that binding synchronously or asynchronously:
+
+```ts
+const unregisterPoints = dataSources.register('points', async ({signal}) => {
+  const response = await fetch('/points.json', {signal});
+  if (!response.ok) {
+    throw new Error(`Could not load points (${response.status})`);
+  }
+  return {
+    data: await response.json(),
+    getRowId: row => row.id
+  };
+});
+```
+
+A loader starts once in the microtask after registration, even when no playground is mounted.
+All consumers share its resolved binding. Registering the same name again replaces or reloads the
+source and aborts the previous loader's signal. Results from an older registration are discarded,
+even if its loader ignores the signal. Supply the signal to abortable work such as `fetch`.
+
+The registry exposes these methods:
+
+- `register(name, source): () => void`: registers or replaces a source and returns a cleanup
+  function. Cleanup removes only that registration; calling an old cleanup cannot remove a newer
+  registration under the same name.
+- `unregister(name): boolean`: removes the current registration and aborts its pending loader.
+  Returns whether the name was registered.
+- `get(name): PlaygroundDataBinding | undefined`: returns the binding when the source is ready.
+- `getState(name)`: returns `{status: 'loading' | 'ready' | 'error', error?: Error}`, or `undefined`
+  when the name is unregistered. Loader failures are available as the error state's `error`.
+- `subscribe(listener): () => void`: observes changes through `listener(name)` and returns a
+  function that unsubscribes the listener.
+
+Sources can be registered before or after a playground mounts. Changes to a referenced source
+automatically refresh the current or pending document without replacing its editor text, canvas,
+or interactive camera. While a source is loading, the playground retains its last accepted preview
+without reporting an error. Missing or failed sources report `onError`; registering or successfully
+loading the source retries the document automatically. An invalid document does not replace the
+last accepted document or its preview.
+
+Missing and failed sources report a `PlaygroundDataSourceError` with `sourceId`, `status`, and
+the document's referenced `sourceIds`. Failed loaders also supply the original error as `cause`.
+The standalone `createPlaygroundResolver` throws this error for loading sources as well; the
+managed playground handles that state while awaiting the source.
+
+Finalizing a playground removes its subscription and releases its preview resources. It does not
+unregister shared sources or abort their loaders. The source owner uses the registration cleanup
+or `unregister` when a source is no longer needed.
+
+Rows remain host-owned values and are not serialized into the JSON editor. A source binding's
+`data` must be a row array; source registration does not add a binary or columnar payload format.
+Supply a new row array when contents change so deck.gl can update its attributes:
+
+```ts
+dataSources.register('points', {data: nextRows, getRowId: row => row.id});
+```
+
+### Local bindings and picking
+
+The optional `bindings` map supplies instance-local overrides. A local binding takes precedence
+over a registered source of the same name; all other names resolve through `dataSources`.
 
 ```ts
 const accepted = playground.setBindings({
@@ -88,35 +159,39 @@ const accepted = playground.setBindings({
 });
 ```
 
-`setBindings(bindings): boolean` replaces the entire binding map. It re-evaluates the latest accepted
-document without replacing the editor text. Before the first successful preview, it retries the
-pending initial document so the host can provide missing bindings. Supply every binding that the
-document references. A missing binding or synchronous validation/conversion failure reports
-`onError`, returns `false`, and retains the previous bindings and preview. A successful replacement returns `true`. Rows remain host-owned
-values and are not serialized into the JSON editor. Supply a new row array when contents change so
-deck.gl can detect the replacement and update attributes.
+`setBindings(bindings): boolean` replaces the entire local binding map without changing the shared
+registry. Passing `{}` removes all local overrides and restores source-registry lookup. It
+retries the latest pending validated document, or re-evaluates the accepted document when none is
+pending, without replacing the editor text. A missing source or synchronous validation/conversion
+failure reports `onError`, returns `false`, and retains the previous local bindings and preview.
+Loading sources also return `false` and retain the previous local bindings, but do not report an
+error. A successful replacement returns `true`.
 
 For a pickable layer using a binding, `onSelect` receives
 `{bindingId, layerId, rowId, index, object}`. `object` is the original bound row, and `index` is its
-index in the current binding. `layerId` identifies the registered layer, including the parent layer for
-composite-layer picks. `getRowId(row, index)` supplies a string or numeric row identity; without it,
-`rowId` falls back to the index. Index identities are ephemeral and may change when rows are
+index in the accepted binding. `bindingId` is the source or local binding name. `layerId` identifies
+the registered layer, including the parent layer for composite-layer picks. `getRowId(row, index)`
+supplies a string or numeric row identity; without it, `rowId` falls back to the index.
+Index identities are ephemeral and may change when rows are
 reordered or filtered. Empty picks and picks on inline, unbound content report `null`.
 
-Row selection requires the picked object to be an original row in the current binding. Aggregated
-or transformed picking objects that no longer identify an original row report `null`. Pending picks
-whose row has been filtered out also report `null`; retained row objects are matched to their current
-index after reordering.
+Row selection uses the binding snapshot from the last accepted preview and requires the picked
+object to be an original row in that snapshot. Aggregated or transformed picking objects that no
+longer identify an original row report `null`. Pending picks whose row has been filtered out also
+report `null`; retained row objects are matched to their accepted index after reordering. If a
+shared source is currently missing, loading, failed, or replaced since the preview was accepted, picks
+from its retained preview report `null`. Local overrides are unaffected by changes to a shared
+source of the same name.
 
 This callback reports events. The host owns selection persistence, highlighting, keyboard
 interactions, and coordination with other views.
 
 ### Camera and rendering lifecycle
 
-Ordinary accepted edits and binding replacements call `Deck.setProps` on the existing instance,
-preserving the canvas and interactive camera. Stable layer IDs allow deck.gl to reuse layer state;
-resource reuse still depends on the layer's changed props. Keep IDs stable for layers representing
-the same content.
+Ordinary accepted edits, source updates, and binding replacements call `Deck.setProps` on the
+existing instance, preserving the canvas and interactive camera. Stable layer IDs allow deck.gl to
+reuse layer state; resource reuse still depends on the layer's changed props. Keep IDs stable for
+layers representing the same content.
 
 `resetView(): void` restores the latest accepted document's `initialViewState`. Editing
 `initialViewState` updates that reset target without immediately moving the camera. Changing the
@@ -128,12 +203,14 @@ controller settings are retained when the document omits its top-level `controll
 ### Callbacks
 
 `DeckPlayground` accepts `parentElement`, `templates`, and `initialTemplate` as described below,
-plus `registry`, optional `bindings`, and these callbacks:
+plus `registry`, optional `dataSources` and `bindings`, and these callbacks:
 
-- `onChange(value, text)`: observes accepted document edits.
-- `onError(error)`: receives an `Error` for parse, configuration, or rendering failures. Synchronous
-  parse and validation failures retain the last accepted preview. Later graphics failures may
-  leave rendering incomplete.
+- `onChange(value, text)`: observes accepted document edits. When an edit awaits a source, this
+  callback runs once the document is accepted, using the original edited value and text. Source
+  updates to an already accepted document do not call it again.
+- `onError(error)`: receives an `Error` for parse, configuration, source, or rendering failures.
+  Synchronous parse and validation failures retain the last accepted preview. Later graphics
+  failures may leave rendering incomplete.
 - `onSelect(selection)`: observes bound-row picks or `null`, as described above.
 - `onViewStateChange(params)`: observes deck.gl's view-state callback parameters. Its return value
   is ignored; observing the camera does not make it controlled.
@@ -178,9 +255,10 @@ const playground = new Playground({
 - `onError`: receives an `Error` for parsing or synchronous renderer failures.
 - `render`: called for valid documents; may return a cleanup function. Before the next successful
   parse is rendered, the previous cleanup runs and the preview area is cleared.
-- `renderer`: optional persistent renderer with `update(previewElement, value): void` and
+- `renderer`: optional persistent renderer with `update(previewElement, value, text?): void` and
   `finalize(): void`. It owns its preview resources across valid edits and releases them during
-  playground finalization. Use either `render` or `renderer`.
+  playground finalization. The optional third argument receives the document text; renderers
+  accepting only the first two arguments remain supported. Use either `render` or `renderer`.
 
 A persistent renderer is useful for a preview that can update in place:
 
