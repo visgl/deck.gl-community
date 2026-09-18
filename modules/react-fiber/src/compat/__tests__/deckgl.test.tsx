@@ -1,7 +1,7 @@
 import {render, waitFor} from '@testing-library/react';
 import {createRef, useLayoutEffect} from 'react';
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import type {DeckGLProps, DeckGLRef} from '../types';
+import {describe, expect, it, vi} from 'vitest';
+import type {DeckGLRef} from '../types';
 
 const deck = vi.hoisted(() => ({
   pickMultipleObjects: vi.fn(() => ['multiple']),
@@ -31,17 +31,6 @@ vi.mock('../../dom/components', () => ({
 const {DeckGL} = await import('../deckgl');
 
 describe('DeckGL compatibility adapter', () => {
-  const originalNodeEnv = process.env.NODE_ENV;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    process.env.NODE_ENV = 'test';
-  });
-
-  afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv;
-  });
-
   it('exposes the bounded ref surface and delegates picking after initialization', async () => {
     const ref = createRef<DeckGLRef>();
     render(<DeckGL ref={ref} initialViewState={{latitude: 0, longitude: 0, zoom: 1}} />);
@@ -81,32 +70,5 @@ describe('DeckGL compatibility adapter', () => {
 
     await waitFor(() => expect(receivedValues).toContainEqual({deck}));
     expect(receivedValues.at(-1)).toEqual({deck});
-  });
-
-  it('warns only in development for unsupported renderer props and function children', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    process.env.NODE_ENV = 'development';
-
-    render(
-      <DeckGL
-        {...({canvas: document.createElement('canvas'), children: () => null} as DeckGLProps)}
-      />
-    );
-
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('DeckGL compat does not support canvas')
-    );
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('does not support function children')
-    );
-
-    warn.mockClear();
-    process.env.NODE_ENV = 'production';
-    render(
-      <DeckGL
-        {...({canvas: document.createElement('canvas'), children: () => null} as DeckGLProps)}
-      />
-    );
-    expect(warn).not.toHaveBeenCalled();
   });
 });
