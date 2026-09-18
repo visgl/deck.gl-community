@@ -6,6 +6,12 @@ import {GraphLayout, GraphLayoutProps} from '../../core/graph-layout';
 import type {Graph, NodeInterface, EdgeInterface} from '../../graph/graph';
 import * as d3 from 'd3-force';
 
+type D3Node = {
+  id: string | number;
+  x?: number;
+  y?: number;
+};
+
 export type ForceMultiGraphLayoutProps = GraphLayoutProps & {
   alpha?: number;
   nBodyStrength?: number;
@@ -27,8 +33,8 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
 
   // d3 part
   // custom graph data
-  _d3Graph: {nodes: any[]; edges: any[]} = {nodes: [], edges: []};
-  _nodeMap = new Map<string | number, any>();
+  _d3Graph: {nodes: D3Node[]; edges: any[]} = {nodes: [], edges: []};
+  _nodeMap = new Map<string | number, D3Node>();
   _edgeMap = new Map<string | number, any>();
   _simulator: d3.Simulation<any, undefined> | null = null;
 
@@ -102,7 +108,7 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this._graph = graph;
 
     // nodes
-    const newNodeMap = new Map<string | number, any>();
+    const newNodeMap = new Map<string | number, D3Node>();
     const nodes = Array.from(graph.getNodes());
     const newD3Nodes = nodes.map(node => {
       const id = node.getId();
@@ -184,13 +190,15 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     this._d3Graph.edges = newD3Edges;
   }
 
-  getNodePosition = (node: NodeInterface): [number, number] => {
-    const d3Node = this._nodeMap.get(node.getId());
-    if (d3Node) {
-      return [d3Node.x, d3Node.y];
+  private _getNodeCoordinates(d3Node: D3Node | undefined): [number, number] {
+    if (!d3Node) {
+      return [0, 0];
     }
-    // default value
-    return [0, 0];
+    return [Number.isFinite(d3Node.x) ? d3Node.x : 0, Number.isFinite(d3Node.y) ? d3Node.y : 0];
+  }
+
+  getNodePosition = (node: NodeInterface): [number, number] => {
+    return this._getNodeCoordinates(this._nodeMap.get(node.getId()));
   };
 
   getEdgePosition = (edge: EdgeInterface) => {
@@ -199,8 +207,8 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
       if (!d3Edge.isVirtual) {
         return {
           type: 'line',
-          sourcePosition: [d3Edge.source.x, d3Edge.source.y],
-          targetPosition: [d3Edge.target.x, d3Edge.target.y],
+          sourcePosition: this._getNodeCoordinates(d3Edge.source),
+          targetPosition: this._getNodeCoordinates(d3Edge.target),
           controlPoints: []
         };
       }
@@ -211,8 +219,8 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
       }
       const edgeCount = virtualEdge.edgeCount;
       // get the position of source and target nodes
-      const sourcePosition = [virtualEdge.source.x, virtualEdge.source.y];
-      const targetPosition = [virtualEdge.target.x, virtualEdge.target.y];
+      const sourcePosition = this._getNodeCoordinates(virtualEdge.source);
+      const targetPosition = this._getNodeCoordinates(virtualEdge.target);
       // calculate a symmetric curve
       const distance = Math.hypot(
         sourcePosition[0] - targetPosition[0],
@@ -275,7 +283,7 @@ function computeControlPoint(source, target, direction, offset) {
   const dy = target[1] - source[1];
   const normal = [dy, -dx];
   const length = Math.sqrt(Math.pow(normal[0], 2.0) + Math.pow(normal[1], 2.0));
-  const normalized = [normal[0] / length, normal[1] / length];
+  const normalized = length > 0 ? [normal[0] / length, normal[1] / length] : [0, 0];
   return [
     midPoint[0] + normalized[0] * offset * direction,
     midPoint[1] + normalized[1] * offset * direction
