@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, FirstPersonView, OrthographicView, _GlobeView} from '@deck.gl/core';
+import {
+  Deck,
+  FirstPersonView,
+  OrthographicView,
+  _GlobeView,
+  type Layer,
+  type View
+} from '@deck.gl/core';
 import {
   ArcLayer,
   GeoJsonLayer,
@@ -53,7 +60,7 @@ const TEMPLATES: Record<string, PlaygroundTemplate> = {
   'editable-geojson': editableGeojsonExample
 };
 
-const LAYERS = {
+const LAYERS: Record<string, new (props: any) => Layer> = {
   ArcLayer,
   GeoJsonLayer,
   HeatmapLayer,
@@ -139,7 +146,7 @@ function createView(document: Record<string, unknown>) {
 }
 
 export function mountPlaygroundExample(container: HTMLElement): () => void {
-  let deck: Deck | undefined;
+  let deck: Deck<View[]> | undefined;
   const playground = new Playground({
     parentElement: container,
     templates: TEMPLATES,

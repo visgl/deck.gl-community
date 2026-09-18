@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Playground adds `DeckPlayground` with a persistent deck.gl preview, explicit constructor/schema
+  registries, host-owned row bindings, picking and camera callbacks, and camera reset. Existing
+  `Playground` render callbacks remain supported alongside a persistent renderer lifecycle.
+
 - Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
   including single states and state-ID maps in `initialViewState` and `viewState`.
 
