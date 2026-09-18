@@ -1,6 +1,6 @@
 import {useEffect} from 'react';
 import type {ReactNode} from 'react';
-import {Deckgl, useDeckgl} from '@deck.gl-community/react-fiber';
+import {DeckGL, useDeckgl} from '@deck.gl-community/react-fiber';
 import {PARAMETERS} from './constants';
 import {connect} from './maplibre';
 import {useSelected} from '@/hooks/use-selected';
@@ -31,9 +31,9 @@ export function MapClient({children}: MapClientProps) {
 
   return (
     <div id="maplibre" style={{inset: 0, position: 'absolute'}}>
-      <Deckgl interleaved parameters={PARAMETERS} onClick={handleClick}>
+      <DeckGL interleaved parameters={PARAMETERS} onClick={handleClick}>
         {children}
-      </Deckgl>
+      </DeckGL>
     </div>
   );
 }

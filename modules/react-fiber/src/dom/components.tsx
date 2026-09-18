@@ -7,6 +7,8 @@ import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
 import {useEffect, useMemo, useRef} from 'react';
 import type {ReactNode} from 'react';
+import type {Deck} from '@deck.gl/core';
+import type {MapboxOverlay} from '@deck.gl/mapbox';
 import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
 
 function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | undefined {
@@ -23,8 +25,13 @@ function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | un
   return undefined;
 }
 
-function DeckglComponent(props: DeckglProps) {
-  const {children, debug} = props;
+interface DeckGLComponentProps extends DeckglProps {
+  /** @internal Used by the compat adapter to receive the root-specific deck instance. */
+  onDeckglChange?: (deckgl: Deck | MapboxOverlay | null) => void;
+}
+
+function DeckGLComponent(props: DeckGLComponentProps) {
+  const {children, debug, onDeckglChange, ...deckglProps} = props;
 
   const Bridge: ContextBridge = useContextBridge();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -38,7 +45,7 @@ function DeckglComponent(props: DeckglProps) {
   }, [debug]);
 
   // Memoize config to prevent recreation on every render
-  const config = useMemo(() => props, [props]);
+  const config = useMemo(() => deckglProps, [deckglProps]);
 
   useIsomorphicLayoutEffect(() => {
     const actualCanvas = (config.canvas ||
@@ -58,9 +65,10 @@ function DeckglComponent(props: DeckglProps) {
         canvas: actualCanvas,
         parent: actualParent
       });
+      onDeckglChange?.(root.store.getState().deckgl);
       root.render(<Bridge>{children}</Bridge>);
     }
-  }, [children, config, Bridge]);
+  }, [children, config, Bridge, onDeckglChange]);
 
   useEffect(() => {
     const actualCanvas = (config.canvas ||
@@ -69,10 +77,11 @@ function DeckglComponent(props: DeckglProps) {
 
     if (actualCanvas) {
       return () => {
+        onDeckglChange?.(null);
         unmountAtNode(actualCanvas);
       };
     }
-  }, [config.canvas]);
+  }, [config.canvas, onDeckglChange]);
 
   // NOTE: interleaved prop is a hint that we are utilizing an external renderer such as Mapbox/Maplibre
   // so we want to avoid rendering another container / canvas element if that is true.
@@ -92,10 +101,10 @@ function DeckglComponent(props: DeckglProps) {
   );
 }
 
-export function Deckgl(props: DeckglProps & {children: ReactNode}) {
+export function DeckGL(props: DeckGLComponentProps & {children: ReactNode}) {
   return (
     <FiberProvider>
-      <DeckglComponent {...props} />
+      <DeckGLComponent {...props} />
     </FiberProvider>
   );
 }
