@@ -43,3 +43,11 @@ import {MapView} from '@deck.gl/core';
 
 Use `useDeckgl()` inside a descendant component when direct access to the
 underlying `Deck` or `MapboxOverlay` instance is needed.
+
+## Migrating from `@deck.gl/react`
+
+The root package continues to provide the native `Deckgl` API shown above.
+For the supported React-style migration adapter, import `DeckGL` from
+`@deck.gl-community/react-fiber/compat` and layer components from its explicit
+family subpaths. See [Migrate from @deck.gl/react](./migrate-from-deckgl-react.md)
+for the compatibility matrix and limitations.

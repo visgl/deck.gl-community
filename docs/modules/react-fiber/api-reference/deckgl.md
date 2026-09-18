@@ -15,5 +15,13 @@ universal `<layer>` and `<view>` children.
 `useDeckgl()` returns the current `Deck` or `MapboxOverlay` instance, or
 `null` before the renderer has mounted.
 
+## Migrating from `@deck.gl/react`
+
+This page documents the native `Deckgl` component from the root package. The
+separate `DeckGL` migration adapter is available only from
+`@deck.gl-community/react-fiber/compat`; it has a bounded wrapper, ref, and
+context contract. See [Migrate from @deck.gl/react](../developer-guide/migrate-from-deckgl-react.md)
+for supported imports and limitations.
+
 Advanced reconciler APIs are available from
 `@deck.gl-community/react-fiber/reconciler`.

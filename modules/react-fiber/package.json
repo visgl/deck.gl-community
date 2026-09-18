@@ -37,6 +37,31 @@
       "require": "./dist/dom/index.cjs",
       "import": "./dist/dom/index.js"
     },
+    "./compat": {
+      "types": "./dist/compat/index.d.ts",
+      "require": "./dist/compat/index.cjs",
+      "import": "./dist/compat/index.js"
+    },
+    "./compat/layers": {
+      "types": "./dist/compat/layers.d.ts",
+      "require": "./dist/compat/layers.cjs",
+      "import": "./dist/compat/layers.js"
+    },
+    "./compat/geo-layers": {
+      "types": "./dist/compat/geo-layers.d.ts",
+      "require": "./dist/compat/geo-layers.cjs",
+      "import": "./dist/compat/geo-layers.js"
+    },
+    "./compat/aggregation-layers": {
+      "types": "./dist/compat/aggregation-layers.d.ts",
+      "require": "./dist/compat/aggregation-layers.cjs",
+      "import": "./dist/compat/aggregation-layers.js"
+    },
+    "./compat/mesh-layers": {
+      "types": "./dist/compat/mesh-layers.d.ts",
+      "require": "./dist/compat/mesh-layers.cjs",
+      "import": "./dist/compat/mesh-layers.js"
+    },
     "./dom/components": {
       "types": "./dist/dom/components.d.ts",
       "require": "./dist/dom/components.cjs",
@@ -131,6 +156,7 @@
     "zustand": "^5.0.0"
   },
   "peerDependencies": {
+    "@deck.gl/aggregation-layers": "~9.4.0",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/geo-layers": "~9.4.0",
@@ -145,6 +171,7 @@
     "react-dom": ">=19.0.0"
   },
   "devDependencies": {
+    "@deck.gl/aggregation-layers": "~9.4.0",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/geo-layers": "~9.4.0",
