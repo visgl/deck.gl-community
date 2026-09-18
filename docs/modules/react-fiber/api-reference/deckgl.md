@@ -1,10 +1,10 @@
-# Deckgl
+# DeckGL
 
 ```tsx
-import {Deckgl, useDeckgl} from '@deck.gl-community/react-fiber';
+import {DeckGL, useDeckgl} from '@deck.gl-community/react-fiber';
 ```
 
-`Deckgl` mounts a deck.gl renderer and reconciles its children as deck.gl
+`DeckGL` mounts a deck.gl renderer and reconciles its children as deck.gl
 layers and views. It accepts deck.gl `DeckProps` together with the
 `MapboxOverlay` options used for interleaved rendering.
 
@@ -17,10 +17,10 @@ universal `<layer>` and `<view>` children.
 
 ## Migrating from `@deck.gl/react`
 
-This page documents the native `Deckgl` component from the root package. The
+This page documents the native `DeckGL` component from the root package. The
 separate `DeckGL` migration adapter is available only from
-`@deck.gl-community/react-fiber/compat`; it has a bounded wrapper, ref, and
-context contract. See [Migrate from @deck.gl/react](../developer-guide/migrate-from-deckgl-react.md)
+`@deck.gl-community/react-fiber/compat`; the import path distinguishes it from
+the native component, and it has a bounded wrapper, ref, and context contract. See [Migrate from @deck.gl/react](../developer-guide/migrate-from-deckgl-react.md)
 for supported imports and limitations.
 
 Advanced reconciler APIs are available from

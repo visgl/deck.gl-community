@@ -1,7 +1,7 @@
 import {render, waitFor} from '@testing-library/react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {Deckgl} from '../components';
+import {DeckGL} from '../components';
 
 // Mock the shared module for log
 vi.mock(import('../../shared'), () => {
@@ -62,7 +62,7 @@ const {mockEnableLogging, mockDisableLogging} = (await import('../../shared')) a
   mockDisableLogging: ReturnType<typeof vi.fn>;
 };
 
-describe('Deckgl Component Tests', () => {
+describe('DeckGL Component Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRoots.clear();
@@ -71,9 +71,9 @@ describe('Deckgl Component Tests', () => {
   describe('Basic rendering', () => {
     it('should create reconciler root on mount', () => {
       render(
-        <Deckgl>
+        <DeckGL>
           <div>Test content</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockCreateRoot).toHaveBeenCalledWith(expect.any(HTMLCanvasElement));
@@ -81,9 +81,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should render canvas in standalone mode', () => {
       render(
-        <Deckgl>
+        <DeckGL>
           <div>Content</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       const canvas = document.querySelector('#deckgl-fiber-canvas');
@@ -93,9 +93,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should render hidden div in interleaved mode', () => {
       render(
-        <Deckgl interleaved>
+        <DeckGL interleaved>
           <div>Content</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       const interleaveDiv = document.querySelector('#deckgl-fiber-interleave');
@@ -105,9 +105,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should not render canvas or wrapper elements in interleaved mode', () => {
       const {container} = render(
-        <Deckgl interleaved>
+        <DeckGL interleaved>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       const canvas = container.querySelector('#deckgl-fiber-canvas');
@@ -128,9 +128,9 @@ describe('Deckgl Component Tests', () => {
       };
 
       render(
-        <Deckgl {...props}>
+        <DeckGL {...props}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockConfigure).toHaveBeenCalledWith(
@@ -142,15 +142,15 @@ describe('Deckgl Component Tests', () => {
 
     it('should handle prop updates without debug', () => {
       const {rerender} = render(
-        <Deckgl initialViewState={{latitude: 0, longitude: 0, zoom: 1}}>
+        <DeckGL initialViewState={{latitude: 0, longitude: 0, zoom: 1}}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       rerender(
-        <Deckgl initialViewState={{latitude: 10, longitude: 10, zoom: 2}}>
+        <DeckGL initialViewState={{latitude: 10, longitude: 10, zoom: 2}}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockConfigure).toHaveBeenCalledWith(
@@ -164,9 +164,9 @@ describe('Deckgl Component Tests', () => {
   describe('Canvas ref timing', () => {
     it('should pass canvas ref to root.configure after ref is set', async () => {
       render(
-        <Deckgl>
+        <DeckGL>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       await waitFor(() => {
@@ -183,9 +183,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should pass parent ref to root.configure after ref is set', async () => {
       render(
-        <Deckgl>
+        <DeckGL>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       await waitFor(() => {
@@ -206,9 +206,9 @@ describe('Deckgl Component Tests', () => {
       document.body.append(explicitCanvas);
 
       render(
-        <Deckgl canvas={explicitCanvas}>
+        <DeckGL canvas={explicitCanvas}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockConfigure).toHaveBeenCalledWith(
@@ -230,9 +230,9 @@ describe('Deckgl Component Tests', () => {
       document.body.append(explicitParent);
 
       render(
-        <Deckgl parent={explicitParent}>
+        <DeckGL parent={explicitParent}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockConfigure).toHaveBeenCalledWith(
@@ -252,9 +252,9 @@ describe('Deckgl Component Tests', () => {
   describe('Interleaved mode ref handling', () => {
     it('should use interleave div ref for root creation in interleaved mode', () => {
       render(
-        <Deckgl interleaved>
+        <DeckGL interleaved>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockCreateRoot).toHaveBeenCalledWith(expect.any(HTMLDivElement));
@@ -264,9 +264,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should use canvas ref for root creation in standalone mode', () => {
       render(
-        <Deckgl>
+        <DeckGL>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockCreateRoot).toHaveBeenCalledWith(expect.any(HTMLCanvasElement));
@@ -278,9 +278,9 @@ describe('Deckgl Component Tests', () => {
   describe('Debug logging', () => {
     it('should enable logging when debug prop is true', () => {
       render(
-        <Deckgl debug>
+        <DeckGL debug>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockEnableLogging).toHaveBeenCalledWith();
@@ -288,9 +288,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should disable logging when debug prop is false', () => {
       render(
-        <Deckgl debug={false}>
+        <DeckGL debug={false}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockDisableLogging).toHaveBeenCalledWith();
@@ -298,9 +298,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should handle undefined debug prop as falsy', () => {
       render(
-        <Deckgl>
+        <DeckGL>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockDisableLogging).toHaveBeenCalledWith();
@@ -309,15 +309,15 @@ describe('Deckgl Component Tests', () => {
 
     it('should toggle debug mode', () => {
       const {rerender} = render(
-        <Deckgl debug={false}>
+        <DeckGL debug={false}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       rerender(
-        <Deckgl debug>
+        <DeckGL debug>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockEnableLogging).toHaveBeenCalledWith();
@@ -325,21 +325,21 @@ describe('Deckgl Component Tests', () => {
 
     it('should toggle logging multiple times', () => {
       const {rerender} = render(
-        <Deckgl debug={false}>
+        <DeckGL debug={false}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       rerender(
-        <Deckgl debug>
+        <DeckGL debug>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       rerender(
-        <Deckgl debug={false}>
+        <DeckGL debug={false}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockEnableLogging).toHaveBeenCalledOnce();
@@ -350,15 +350,15 @@ describe('Deckgl Component Tests', () => {
   describe('Children updates', () => {
     it('should handle children updates', () => {
       const {rerender} = render(
-        <Deckgl>
+        <DeckGL>
           <div>Initial</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       rerender(
-        <Deckgl>
+        <DeckGL>
           <div>Updated</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockRender).toHaveBeenCalledTimes(2);
@@ -368,9 +368,9 @@ describe('Deckgl Component Tests', () => {
   describe('Cleanup behavior', () => {
     it('should call unmountAtNode with correct node in standalone mode', () => {
       const {unmount} = render(
-        <Deckgl>
+        <DeckGL>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       unmount();
@@ -382,9 +382,9 @@ describe('Deckgl Component Tests', () => {
 
     it('should call unmountAtNode with correct node in interleaved mode', () => {
       const {unmount} = render(
-        <Deckgl interleaved>
+        <DeckGL interleaved>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       unmount();
@@ -399,15 +399,15 @@ describe('Deckgl Component Tests', () => {
     it('should call configure when children change', () => {
       const props = {initialViewState: {latitude: 0, longitude: 0, zoom: 1}};
       const {rerender} = render(
-        <Deckgl {...props}>
+        <DeckGL {...props}>
           <div>Initial</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       rerender(
-        <Deckgl {...props}>
+        <DeckGL {...props}>
           <div>Updated</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockConfigure).toHaveBeenCalledTimes(2);
@@ -415,15 +415,15 @@ describe('Deckgl Component Tests', () => {
 
     it('should call configure with updated props', () => {
       const {rerender} = render(
-        <Deckgl initialViewState={{latitude: 0, longitude: 0, zoom: 1}}>
+        <DeckGL initialViewState={{latitude: 0, longitude: 0, zoom: 1}}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       rerender(
-        <Deckgl initialViewState={{latitude: 10, longitude: 10, zoom: 2}}>
+        <DeckGL initialViewState={{latitude: 10, longitude: 10, zoom: 2}}>
           <div>Test</div>
-        </Deckgl>
+        </DeckGL>
       );
 
       expect(mockConfigure).toHaveBeenCalledTimes(2);

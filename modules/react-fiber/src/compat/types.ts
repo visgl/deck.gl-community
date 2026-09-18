@@ -19,7 +19,7 @@ export interface DeckGLContextValue {
  * Props supported by the `DeckGL` compatibility adapter.
  *
  * Low-level renderer ownership props are intentionally unsupported. Use the native
- * `Deckgl` component when an application needs to provide `gl`, `canvas`, `parent`,
+ * `DeckGL` component when an application needs to provide `gl`, `canvas`, `parent`,
  * or `_customRender` directly.
  */
 export type DeckGLProps = Omit<

@@ -635,11 +635,11 @@ export function createContainerChildSet(): ChildSet {
  * Appends a root-level child to the container's child set during commit phase.
  *
  * React calls this for each root child when building the new container children array.
- * Only direct children of the container (root `<Deckgl>`) are added here - nested
+ * Only direct children of the container (root `<DeckGL>`) are added here - nested
  * children are already attached via the `children` property of their parent instances.
  *
  * **Container vs Parent Children:**
- * - **Container children**: Root elements directly under `<Deckgl>` - go through this method
+ * - **Container children**: Root elements directly under `<DeckGL>` - go through this method
  * - **Parent children**: Nested elements - handled via `appendChildToSet` during instance cloning
  *
  * The distinction exists because container operations happen in commit phase (can mutate),
@@ -784,7 +784,7 @@ export function finalizeContainerChildren(container: Container, newChildren: Chi
  * **Hybrid Layers:**
  * Supports "mix mode" where layers come from both:
  * - JSX children: `<layer layer={...} />`
- * - Direct prop: `<Deckgl layers={[...]} />`
+ * - Direct prop: `<DeckGL layers={[...]} />`
  *
  * The `_passedLayers` from the store are prepended to JSX layers.
  *
@@ -824,7 +824,7 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
     // NOTE: splits views and layers into separate arrays
     const types = organizeList(list);
 
-    // NOTE: apply layers passed to the `layers` prop on `<Deckgl />` component
+    // NOTE: apply layers passed to the `layers` prop on `<DeckGL />` component
     // oxlint-disable-next-line unicorn/prefer-spread
     const combinedLayers = state._passedLayers.concat(types.layers);
 

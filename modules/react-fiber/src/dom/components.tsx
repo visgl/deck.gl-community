@@ -25,12 +25,12 @@ function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | un
   return undefined;
 }
 
-interface DeckglComponentProps extends DeckglProps {
+interface DeckGLComponentProps extends DeckglProps {
   /** @internal Used by the compat adapter to receive the root-specific deck instance. */
   onDeckglChange?: (deckgl: Deck | MapboxOverlay | null) => void;
 }
 
-function DeckglComponent(props: DeckglComponentProps) {
+function DeckGLComponent(props: DeckGLComponentProps) {
   const {children, debug, onDeckglChange, ...deckglProps} = props;
 
   const Bridge: ContextBridge = useContextBridge();
@@ -101,10 +101,10 @@ function DeckglComponent(props: DeckglComponentProps) {
   );
 }
 
-export function Deckgl(props: DeckglComponentProps & {children: ReactNode}) {
+export function DeckGL(props: DeckGLComponentProps & {children: ReactNode}) {
   return (
     <FiberProvider>
-      <DeckglComponent {...props} />
+      <DeckGLComponent {...props} />
     </FiberProvider>
   );
 }

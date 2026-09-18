@@ -1,5 +1,5 @@
 import type {Deck} from '@deck.gl/core';
-import {Deckgl} from '../dom/components';
+import {DeckGL as NativeDeckGL} from '../dom/components';
 import {forwardRef, useCallback, useImperativeHandle, useMemo, useState} from 'react';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
 import {EMPTY_CONTEXT_VALUE} from './context';
@@ -58,7 +58,7 @@ function warnForUnsupportedUsage(props: RuntimeDeckGLProps): void {
   if (unsupportedProps.length > 0) {
     console.warn(
       `DeckGL compat does not support ${unsupportedProps.join(', ')}. ` +
-        'Use the native Deckgl component for low-level renderer ownership.'
+        'Use the native DeckGL component for low-level renderer ownership.'
     );
   }
 
@@ -115,8 +115,8 @@ export const DeckGL = forwardRef<DeckGLRef, DeckGLProps>(function DeckGL(props, 
   );
 
   return (
-    <Deckgl {...deckglProps} onDeckglChange={onDeckglChange}>
+    <NativeDeckGL {...deckglProps} onDeckglChange={onDeckglChange}>
       {content}
-    </Deckgl>
+    </NativeDeckGL>
   );
 });

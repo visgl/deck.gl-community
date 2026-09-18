@@ -14,14 +14,14 @@ export interface State {
   /**
    * Current deck.gl instance (Deck or MapboxOverlay)
    *
-   * Null until the Deckgl component mounts and creates the instance.
+   * Null until the DeckGL component mounts and creates the instance.
    */
   deckgl: Deck | MapboxOverlay | null;
 
   /**
    * Updates the deck.gl instance reference
    *
-   * Called during Deckgl component mount/update lifecycle.
+   * Called during DeckGL component mount/update lifecycle.
    */
   setDeckgl: (instance: Deck | MapboxOverlay) => void;
 

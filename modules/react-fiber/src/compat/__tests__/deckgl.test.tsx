@@ -12,7 +12,7 @@ const deck = vi.hoisted(() => ({
 }));
 
 vi.mock('../../dom/components', () => ({
-  Deckgl: ({
+  DeckGL: ({
     children,
     onDeckglChange
   }: {

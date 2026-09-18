@@ -9,12 +9,12 @@ nested composition, hooks, persistence-mode reconciliation, and TypeScript JSX
 types.
 
 ```tsx
-import {Deckgl} from '@deck.gl-community/react-fiber';
+import {DeckGL} from '@deck.gl-community/react-fiber';
 import {ScatterplotLayer} from '@deck.gl/layers';
 
 export function Map() {
   return (
-    <Deckgl initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}>
+    <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}>
       <layer
         layer={
           new ScatterplotLayer({
@@ -24,7 +24,7 @@ export function Map() {
           })
         }
       />
-    </Deckgl>
+    </DeckGL>
   );
 }
 ```
@@ -34,7 +34,7 @@ The implementation is copied from `deckgl-fiber-renderer/fiber.gl` version
 licensed. The source layout is preserved under `src/dom`, `src/reconciler`,
 `src/shared`, and `src/types`.
 
-The root entry point exposes `Deckgl`, `useDeckgl`, and `extend`. Advanced
+The root entry point exposes `DeckGL`, `useDeckgl`, and `extend`. Advanced
 entrypoints are available directly through the `/reconciler`, `/shared`, and
 `/types` subpaths.
 
@@ -48,10 +48,11 @@ import {DeckGL} from '@deck.gl-community/react-fiber/compat';
 import {ScatterplotLayer} from '@deck.gl-community/react-fiber/compat/layers';
 ```
 
-`DeckGL` lowers the approved component subset to this package's native renderer.
-It is not full `@deck.gl/react` parity. Compatible layer families are available
+`DeckGL` from `/compat` lowers the approved component subset to the native `DeckGL`
+component exported by the root package. The shared name is distinguished by import path;
+the compatibility adapter is not full `@deck.gl/react` parity. Compatible layer families are available
 from `/compat/layers`, `/compat/geo-layers`, `/compat/aggregation-layers`, and
-`/compat/mesh-layers`. Keep using the root `Deckgl` API when your application
+`/compat/mesh-layers`. Keep using the root `DeckGL` API when your application
 owns `gl`, `canvas`, `parent`, or `_customRender`.
 
 Read the [migration guide](https://github.com/visgl/deck.gl-community/blob/master/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md)

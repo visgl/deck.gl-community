@@ -6,7 +6,7 @@ layer and view components to React Fiber's native `<layer>` and `<view>`
 primitives. It is not full `@deck.gl/react` parity.
 
 The adapter is client-bound because it uses the local DOM renderer. Keep it
-inside the same client boundary as `Deckgl` in applications with SSR.
+inside the same client boundary as `DeckGL` in applications with SSR.
 
 ## Replace the root import
 
@@ -74,9 +74,10 @@ export function Map({data}: {data: Array<{position: [number, number]}>}) {
 }
 ```
 
-The native `Deckgl`, `<layer>`, and `<view>` APIs remain available from the
-root package. Use them when you need a renderer feature that compat does not
-support.
+The native `DeckGL`, `<layer>`, and `<view>` APIs remain available from the
+root package. Both the native renderer and the compatibility adapter are named
+`DeckGL`; choose the intended component by its import path. Use the native
+component when you need a renderer feature that compat does not support.
 
 ## Ref and context
 
@@ -125,7 +126,7 @@ official context fields such as `viewport`, `container`, `eventManager`,
 Before changing imports, review the application for these patterns:
 
 - `gl`, `canvas`, `parent`, and `_customRender`: compat does not accept these
-  low-level renderer ownership props. Continue using the native `Deckgl`
+  low-level renderer ownership props. Continue using the native `DeckGL`
   component when they are required.
 - Function children: compat does not support function-child render callbacks.
   Render supported layers and views directly instead.

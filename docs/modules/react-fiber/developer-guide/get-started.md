@@ -10,12 +10,12 @@ Create layers as React elements using the universal `layer` element. The layer
 instance should have a stable ID so deck.gl can diff updates efficiently:
 
 ```tsx
-import {Deckgl} from '@deck.gl-community/react-fiber';
+import {DeckGL} from '@deck.gl-community/react-fiber';
 import {ScatterplotLayer} from '@deck.gl/layers';
 
 export function App({data}) {
   return (
-    <Deckgl initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
+    <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}} controller>
       <layer
         layer={
           new ScatterplotLayer({
@@ -26,7 +26,7 @@ export function App({data}) {
           })
         }
       />
-    </Deckgl>
+    </DeckGL>
   );
 }
 ```
@@ -46,7 +46,7 @@ underlying `Deck` or `MapboxOverlay` instance is needed.
 
 ## Migrating from `@deck.gl/react`
 
-The root package continues to provide the native `Deckgl` API shown above.
+The root package continues to provide the native `DeckGL` API shown above.
 For the supported React-style migration adapter, import `DeckGL` from
 `@deck.gl-community/react-fiber/compat` and layer components from its explicit
 family subpaths. See [Migrate from @deck.gl/react](./migrate-from-deckgl-react.md)
