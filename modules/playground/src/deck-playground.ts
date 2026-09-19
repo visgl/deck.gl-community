@@ -4,7 +4,11 @@
 
 import {Deck, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {Playground, type PlaygroundProps, type PlaygroundRenderer} from './playground';
-import {createPlaygroundResolver, PlaygroundDataSourceError} from './runtime/playground-resolver';
+import {
+  createPlaygroundResolver,
+  PlaygroundDataSourceError,
+  type ResolvedPlaygroundConfiguration
+} from './runtime/playground-resolver';
 import type {PlaygroundDataSourceRegistry} from './runtime/playground-data-source-registry';
 import type {PlaygroundBindings, PlaygroundRegistry} from './runtime/playground-registry';
 
@@ -83,22 +87,15 @@ export class DeckPlayground extends Playground {
 class DeckPlaygroundRenderer implements PlaygroundRenderer {
   readonly jsonSchema: Record<string, unknown>;
   private readonly resolver: ReturnType<typeof createPlaygroundResolver>;
-  private readonly props: DeckPlaygroundProps;
   private bindings: PlaygroundBindings;
-  private renderedBindings: PlaygroundBindings = {};
-  private sourceIds = new Set<string>();
+  private resolved?: ResolvedPlaygroundConfiguration;
+  private request?: {value: unknown; sourceIds: Set<string>; text?: string};
   private unsubscribeSources?: () => void;
-  private pendingChange?: {value: unknown; text: string};
-  private deck?: Deck;
+  private deck?: Deck<any>;
   private element?: HTMLDivElement;
-  private requestedDocument?: unknown;
-  private resolvedProps: Partial<DeckProps> = {};
-  private layerBindings = new Map<string, string>();
-  private viewTopology: {type: Function; id: string}[] = [];
   private finalized = false;
 
-  constructor(props: DeckPlaygroundProps) {
-    this.props = props;
+  constructor(private readonly props: DeckPlaygroundProps) {
     this.bindings = props.bindings ?? {};
     this.resolver = createPlaygroundResolver(props.registry);
     this.jsonSchema = this.resolver.jsonSchema;
@@ -108,66 +105,53 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     this.element = element;
     this.unsubscribeSources ??= this.props.dataSources?.subscribe(this.handleSourceChange);
     try {
-      this.applyDocument(value, this.bindings);
+      const resolved = this.applyDocument(value, this.bindings);
+      this.request = {value, sourceIds: new Set(resolved.layerBindings.values())};
     } catch (error) {
       if (error instanceof PlaygroundDataSourceError && (this.props.dataSources || !this.deck)) {
-        // Availability can change independently of the editor. Keep the validated document
-        // pending so a later registration/completion can replace even an existing preview.
-        this.requestedDocument = value;
-        this.sourceIds = new Set(error.sourceIds);
-        this.pendingChange = text === undefined ? undefined : {value, text};
+        // Retry a valid document when its sources become available.
+        this.request = {value, sourceIds: new Set(error.sourceIds), text};
       }
       throw error;
     }
-    this.requestedDocument = value;
-    this.pendingChange = undefined;
   }
 
   setBindings(bindings: PlaygroundBindings): boolean {
     try {
-      if (this.requestedDocument !== undefined) {
-        this.applyDocument(this.requestedDocument, bindings);
+      if (this.request) {
+        this.applyDocument(this.request.value, bindings);
       } else {
         this.bindings = bindings;
       }
     } catch (error) {
-      this.reportError(error instanceof Error ? error : new Error(String(error)));
+      this.reportError(error);
       return false;
     }
-    this.notifyPendingChange();
+    if (this.request?.text !== undefined) {
+      const {value, text} = this.request;
+      this.request.text = undefined;
+      this.props.onChange?.(value, text);
+    }
     return true;
   }
 
   private readonly handleSourceChange = (sourceId: string): void => {
     if (
       this.finalized ||
-      !this.sourceIds.has(sourceId) ||
-      Object.hasOwn(this.bindings, sourceId) ||
-      this.requestedDocument === undefined
+      !this.request?.sourceIds.has(sourceId) ||
+      Object.hasOwn(this.bindings, sourceId)
     ) {
       return;
     }
-    try {
-      this.applyDocument(this.requestedDocument, this.bindings);
-    } catch (error) {
-      this.reportError(error instanceof Error ? error : new Error(String(error)));
-      return;
-    }
-    this.notifyPendingChange();
+    this.setBindings(this.bindings);
   };
-
-  private notifyPendingChange(): void {
-    const change = this.pendingChange;
-    this.pendingChange = undefined;
-    if (change) this.props.onChange?.(change.value, change.text);
-  }
 
   resetView(): void {
     if (this.deck) {
       // Deck compares against the previous initial value, not its interactive camera state.
       this.deck.setProps({initialViewState: null});
       this.deck.setProps({
-        initialViewState: this.resolvedProps.initialViewState ?? DEFAULT_VIEW_STATE
+        initialViewState: this.resolved?.props.initialViewState ?? DEFAULT_VIEW_STATE
       });
     }
   }
@@ -177,50 +161,46 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     this.finalized = true;
     this.unsubscribeSources?.();
     this.unsubscribeSources = undefined;
-    this.pendingChange = undefined;
-    this.sourceIds.clear();
-    this.renderedBindings = {};
     this.deck?.finalize();
     this.deck = undefined;
     this.element = undefined;
-    this.requestedDocument = undefined;
+    this.request = undefined;
+    this.resolved = undefined;
     this.bindings = {};
-    this.layerBindings.clear();
-    this.resolvedProps = {};
-    this.viewTopology = [];
   }
 
-  reportError(error: Error): void {
+  reportError(error: unknown): void {
     if (
       this.finalized ||
       (error instanceof PlaygroundDataSourceError && error.status === 'loading')
     )
       return;
-    if (this.props.onError) this.props.onError(error);
-    else console.error(error);
+    (this.props.onError ?? console.error)(
+      error instanceof Error ? error : new Error(String(error))
+    );
   }
 
-  private applyDocument(value: unknown, bindings: PlaygroundBindings): void {
+  private applyDocument(
+    value: unknown,
+    bindings: PlaygroundBindings
+  ): ResolvedPlaygroundConfiguration {
     // Validate and resolve before modifying the live renderer or accepted binding map.
     const resolved = this.resolver.resolve(value, bindings, this.props.dataSources);
     const nextProps = resolved.props;
-    const views = nextProps.views
-      ? Array.isArray(nextProps.views)
-        ? nextProps.views
-        : [nextProps.views]
-      : [];
+    const views = nextProps.views ?? [];
     if (nextProps.controller === undefined) {
       nextProps.controller = views.length ? null : true;
       for (const view of views) {
         if (view.props.controller === undefined) view.props.controller = true;
       }
     }
-    const topology = views.map(view => ({type: view.constructor, id: view.id}));
+    const previousProps = this.resolved?.props ?? {};
+    const previousViews = previousProps.views ?? [];
     const topologyChanged =
-      topology.length !== this.viewTopology.length ||
-      topology.some((view, index) => {
-        const previous = this.viewTopology[index];
-        return view.type !== previous.type || view.id !== previous.id;
+      views.length !== previousViews.length ||
+      views.some((view, index) => {
+        const previous = previousViews[index];
+        return view.constructor !== previous.constructor || view.id !== previous.id;
       });
     const callbacks: Partial<DeckProps> = {
       onClick: this.handleClick,
@@ -237,7 +217,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     };
     if (this.deck) {
       const removedProps = Object.fromEntries(
-        Object.keys(this.resolvedProps)
+        Object.keys(previousProps)
           .filter(key => key !== 'initialViewState' && !(key in nextProps))
           .map(key => [key, key === 'controller' ? true : Deck.defaultProps[key]])
       );
@@ -252,7 +232,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
         ...(topologyChanged ? {initialViewState: initialViewState ?? DEFAULT_VIEW_STATE} : {})
       });
     } else {
-      this.deck = new Deck({
+      this.deck = new Deck<any>({
         parent: this.element,
         controller: true,
         initialViewState: DEFAULT_VIEW_STATE,
@@ -261,24 +241,23 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       });
     }
     this.bindings = bindings;
-    this.layerBindings = resolved.layerBindings;
-    this.renderedBindings = resolved.bindings;
-    this.sourceIds = new Set(resolved.layerBindings.values());
-    this.resolvedProps = nextProps;
-    this.viewTopology = topology;
+    this.resolved = resolved;
+    return resolved;
   }
 
   private readonly handleClick: NonNullable<DeckProps['onClick']> = (info, event) => {
     if (this.finalized) return;
-    this.resolvedProps.onClick?.(info, event);
+    this.resolved?.props.onClick?.(info, event);
     this.props.onSelect?.(this.getSelection(info));
   };
 
   private getSelection(info: PickingInfo): PlaygroundSelection | null {
+    if (!this.resolved || !info.picked) return null;
+    const {layerBindings, bindings} = this.resolved;
     let layer = info.layer;
-    while (layer && !this.layerBindings.has(layer.id)) layer = layer.parent;
-    const bindingId = layer && this.layerBindings.get(layer.id);
-    const binding = bindingId && this.renderedBindings[bindingId];
+    while (layer && !layerBindings.has(layer.id)) layer = layer.parent;
+    const bindingId = layer && layerBindings.get(layer.id);
+    const binding = bindingId && bindings[bindingId];
     if (
       bindingId &&
       !Object.hasOwn(this.bindings, bindingId) &&
@@ -287,7 +266,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     ) {
       return null;
     }
-    if (!binding || !info.picked) return null;
+    if (!binding) return null;
     // Composite/aggregate layers and in-flight picks need not retain the current source index.
     // Only identify a source row when the picked object is actually present in the binding.
     const index =

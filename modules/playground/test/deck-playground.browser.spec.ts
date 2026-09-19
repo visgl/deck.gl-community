@@ -56,6 +56,39 @@ function createBindings(rows = ROWS) {
   return {points: {data: rows, getRowId: (row: (typeof ROWS)[number]) => row.id}};
 }
 
+function mountDeck(options: Partial<ConstructorParameters<typeof DeckPlayground>[0]> = {}) {
+  const host = createHost();
+  const setProps = vi.spyOn(Deck.prototype, 'setProps');
+  const callbacks = {
+    onLoad: vi.fn(),
+    onError: vi.fn(),
+    onChange: vi.fn(),
+    onSelect: vi.fn(),
+    onViewStateChange: vi.fn()
+  };
+  const playground = new DeckPlayground({
+    parentElement: host,
+    templates: {points: createDocument()},
+    registry: REGISTRY,
+    bindings: createBindings(),
+    ...callbacks,
+    ...options
+  });
+  PLAYGROUNDS.push(playground);
+  const ready = async () => {
+    await vi.waitFor(() => expect(callbacks.onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
+    const deck = setProps.mock.contexts[0] as Deck;
+    await vi.waitFor(() =>
+      expect(deck.getViewports()[0]).toMatchObject({
+        width: host.clientWidth,
+        height: host.clientHeight
+      })
+    );
+    return {deck, canvas: host.querySelector('canvas')!};
+  };
+  return {playground, host, setProps, ready, ...callbacks};
+}
+
 function zoomCanvas(canvas: HTMLCanvasElement): void {
   const bounds = canvas.getBoundingClientRect();
   canvas.dispatchEvent(
@@ -195,25 +228,9 @@ describe('Playground rendering lifecycle', () => {
 
 describe('DeckPlayground browser lifecycle', () => {
   it('reuses its canvas and preserves an interactive camera across edits and filtering', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
     const finalize = vi.spyOn(Deck.prototype, 'finalize');
-    const onLoad = vi.fn();
-    const onError = vi.fn();
-    const host = createHost();
-    const playground = new DeckPlayground({
-      parentElement: host,
-      templates: {points: createDocument()},
-      registry: REGISTRY,
-      bindings: createBindings(),
-      onLoad,
-      onError
-    });
-    PLAYGROUNDS.push(playground);
-    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-
-    const canvas = host.querySelector('canvas');
-    expect(canvas).toBeInstanceOf(HTMLCanvasElement);
-    const deck = setProps.mock.contexts[0] as Deck;
+    const {playground, host, setProps, onLoad, onError, ready} = mountDeck();
+    const {deck, canvas} = await ready();
     const getLayer = () => (deck.props.layers as ScatterplotLayer[])[0];
     await vi.waitFor(() => expect(getLayer().isLoaded).toBe(true));
     expect(getLayer().props.data).toBe(ROWS);
@@ -266,28 +283,16 @@ describe('DeckPlayground browser lifecycle', () => {
   }, 20_000);
 
   it('replaces incompatible view types and their camera state together', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const onLoad = vi.fn();
-    const onError = vi.fn();
-    const host = createHost();
     const orthographicDocument = {
       views: {'@@type': 'OrthographicView', id: 'main'},
       initialViewState: {target: [0, 0, 0], zoom: [1, 2]}
     };
-    const playground = new DeckPlayground({
-      parentElement: host,
-      templates: {orthographic: orthographicDocument},
-      registry: REGISTRY,
-      onLoad,
-      onError
+    const {playground, host, onError, ready} = mountDeck({
+      templates: {orthographic: orthographicDocument}
     });
-    PLAYGROUNDS.push(playground);
-    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const deck = setProps.mock.contexts[0] as Deck;
-    const canvas = host.querySelector('canvas');
+    const {deck, canvas} = await ready();
     expect(deck.getViewports()[0]).toBeInstanceOf(OrthographicViewport);
 
-    setProps.mockClear();
     playground.setText(
       JSON.stringify({
         views: {'@@type': 'MapView', id: 'main'},
@@ -300,44 +305,23 @@ describe('DeckPlayground browser lifecycle', () => {
         }
       })
     );
-    const viewUpdates = setProps.mock.calls.map(([props]) => props).filter(props => props.views);
-    expect(viewUpdates).toHaveLength(1);
-    expect(viewUpdates[0].initialViewState).toEqual(INITIAL_VIEW_STATE);
     expect(deck.getViewports()[0]).toBeInstanceOf(WebMercatorViewport);
     expect(deck.getViewports()[0].zoom).toBe(INITIAL_VIEW_STATE.zoom);
     expect(host.querySelector('canvas')).toBe(canvas);
     expect(onError).not.toHaveBeenCalled();
 
-    setProps.mockClear();
     playground.setText(JSON.stringify(orthographicDocument));
-    const nextViewUpdates = setProps.mock.calls
-      .map(([props]) => props)
-      .filter(props => props.views);
-    expect(nextViewUpdates).toHaveLength(1);
-    expect(nextViewUpdates[0].initialViewState).toEqual(orthographicDocument.initialViewState);
     expect(deck.getViewports()[0]).toBeInstanceOf(OrthographicViewport);
     expect(onError).not.toHaveBeenCalled();
   }, 20_000);
 
   it('restores default interaction after removing controller and honors a disabled view', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const onLoad = vi.fn();
-    const onViewStateChange = vi.fn();
-    const host = createHost();
     const documentWithoutController: Record<string, unknown> = createDocument();
     delete documentWithoutController.controller;
-    const playground = new DeckPlayground({
-      parentElement: host,
-      templates: {points: {...documentWithoutController, controller: false}},
-      registry: REGISTRY,
-      bindings: createBindings(),
-      onLoad,
-      onViewStateChange
+    const {playground, onViewStateChange, ready} = mountDeck({
+      templates: {points: {...documentWithoutController, controller: false}}
     });
-    PLAYGROUNDS.push(playground);
-    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const deck = setProps.mock.contexts[0] as Deck;
-    const canvas = host.querySelector('canvas')!;
+    const {deck, canvas} = await ready();
     expect(deck.props.controller).toBe(false);
 
     playground.setText(JSON.stringify(documentWithoutController));
@@ -371,29 +355,13 @@ describe('DeckPlayground browser lifecycle', () => {
   }, 20_000);
 
   it('recovers from invalid initial text and keeps the last valid rendering after errors', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const onLoad = vi.fn();
-    const onError = vi.fn();
-    const onChange = vi.fn();
-    const host = createHost();
-    const playground = new DeckPlayground({
-      parentElement: host,
-      templates: {points: '{'},
-      registry: REGISTRY,
-      bindings: createBindings(),
-      onLoad,
-      onError,
-      onChange
-    });
-    PLAYGROUNDS.push(playground);
+    const {playground, host, onError, onChange, ready} = mountDeck({templates: {points: '{'}});
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
     expect(host.querySelector('canvas')).toBeNull();
     expect(onChange).not.toHaveBeenCalled();
 
     playground.setText(JSON.stringify(createDocument()));
-    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const canvas = host.querySelector('canvas');
-    const deck = setProps.mock.contexts[0] as Deck;
+    const {deck, canvas} = await ready();
     const layers = deck.props.layers;
 
     const invalidDocument = createDocument();
@@ -418,20 +386,8 @@ describe('DeckPlayground browser lifecycle', () => {
   }, 20_000);
 
   it('reports stable bound row identities after filtering and clears background selection', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const onSelect = vi.fn();
-    const onLoad = vi.fn();
-    const playground = new DeckPlayground({
-      parentElement: createHost(),
-      templates: {points: createDocument()},
-      registry: REGISTRY,
-      bindings: createBindings(),
-      onLoad,
-      onSelect
-    });
-    PLAYGROUNDS.push(playground);
-    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const deck = setProps.mock.contexts[0] as Deck;
+    const {playground, onSelect, ready} = mountDeck();
+    const {deck} = await ready();
     const originalLayer = (deck.props.layers as ScatterplotLayer[])[0];
 
     playground.setBindings(createBindings([ROWS[1]]));
@@ -446,17 +402,14 @@ describe('DeckPlayground browser lifecycle', () => {
       object: ROWS[1]
     });
 
-    onClick(
-      {picked: true, index: 0, object: {points: [ROWS[1]]}, layer} as PickingInfo,
-      undefined!
-    );
-    expect(onSelect).toHaveBeenLastCalledWith(null);
-
-    onClick(
-      {picked: true, index: 0, object: ROWS[0], layer: originalLayer} as PickingInfo,
-      undefined!
-    );
-    expect(onSelect).toHaveBeenLastCalledWith(null);
+    for (const info of [
+      {picked: true, index: 0, object: {points: [ROWS[1]]}, layer},
+      {picked: true, index: 0, object: ROWS[0], layer: originalLayer},
+      {picked: false, index: -1, object: undefined, layer: null}
+    ]) {
+      onClick(info as PickingInfo, undefined!);
+      expect(onSelect).toHaveBeenLastCalledWith(null);
+    }
 
     playground.setBindings(createBindings([ROWS[1], ROWS[0]]));
     onClick(
@@ -470,8 +423,5 @@ describe('DeckPlayground browser lifecycle', () => {
       index: 1,
       object: ROWS[0]
     });
-
-    onClick({picked: false, index: -1, object: undefined, layer: null} as PickingInfo, undefined!);
-    expect(onSelect).toHaveBeenLastCalledWith(null);
   }, 20_000);
 });

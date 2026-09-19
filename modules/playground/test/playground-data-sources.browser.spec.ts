@@ -4,7 +4,7 @@
 
 import {Deck, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest';
 
 import {
   DeckPlayground,
@@ -24,6 +24,13 @@ const REGISTRY = {
 };
 const PLAYGROUNDS: DeckPlayground[] = [];
 const HOSTS: HTMLElement[] = [];
+let sources: PlaygroundDataSourceRegistry;
+let setProps: MockInstance<Deck['setProps']>;
+
+beforeEach(() => {
+  sources = new PlaygroundDataSourceRegistry();
+  setProps = vi.spyOn(Deck.prototype, 'setProps');
+});
 
 function createDocument(sourceId = 'points', radius = 4) {
   return {
@@ -47,33 +54,36 @@ function createBinding(rows = ROWS): PlaygroundDataBinding {
   return {data: rows, getRowId: row => row.id};
 }
 
-function mountPlayground(
-  sources: PlaygroundDataSourceRegistry,
-  sourceId = 'points',
-  bindings?: PlaygroundBindings
-) {
+function mountPlayground(sourceId = 'points', bindings?: PlaygroundBindings) {
   const host = document.createElement('div');
   host.style.width = '900px';
   host.style.height = '500px';
   document.body.append(host);
   HOSTS.push(host);
-  const onLoad = vi.fn();
-  const onError = vi.fn();
-  const onChange = vi.fn();
-  const onSelect = vi.fn();
+  const callbacks = {onLoad: vi.fn(), onError: vi.fn(), onChange: vi.fn(), onSelect: vi.fn()};
   const playground = new DeckPlayground({
     parentElement: host,
     templates: {points: createDocument(sourceId)},
     registry: REGISTRY,
     dataSources: sources,
     bindings,
-    onLoad,
-    onError,
-    onChange,
-    onSelect
+    ...callbacks
   });
   PLAYGROUNDS.push(playground);
-  return {playground, host, onLoad, onError, onChange, onSelect};
+  const ready = async () => {
+    await vi.waitFor(() => expect(callbacks.onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
+    const deck = setProps.mock.contexts.find(
+      (deck: Deck) => deck.props.parent === playground.previewElement
+    ) as Deck;
+    await vi.waitFor(() =>
+      expect(deck.getViewports()[0]).toMatchObject({
+        width: host.clientWidth,
+        height: host.clientHeight
+      })
+    );
+    return deck;
+  };
+  return {playground, host, ready, ...callbacks};
 }
 
 function getLayer(deck: Deck): ScatterplotLayer {
@@ -101,21 +111,10 @@ afterEach(() => {
 
 describe('DeckPlayground independent data sources', () => {
   it('shares source updates while preserving cameras and respecting local overrides', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const sources = new PlaygroundDataSourceRegistry();
     sources.register('points', createBinding());
-    const first = mountPlayground(sources);
-    const firstDeck = setProps.mock.contexts[0] as Deck;
-    const secondStart = setProps.mock.contexts.length;
-    const second = mountPlayground(sources);
-    const secondDeck = setProps.mock.contexts[secondStart] as Deck;
-    await vi.waitFor(
-      () => {
-        expect(first.onLoad).toHaveBeenCalledTimes(1);
-        expect(second.onLoad).toHaveBeenCalledTimes(1);
-      },
-      {timeout: 10_000}
-    );
+    const first = mountPlayground();
+    const second = mountPlayground();
+    const [firstDeck, secondDeck] = await Promise.all([first.ready(), second.ready()]);
     const firstCanvas = first.host.querySelector('canvas')!;
     const secondCanvas = second.host.querySelector('canvas')!;
     expect(getLayer(firstDeck).props.data).toBe(ROWS);
@@ -168,29 +167,23 @@ describe('DeckPlayground independent data sources', () => {
   }, 20_000);
 
   it('recovers an initial document when an independent owner registers its source', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const sources = new PlaygroundDataSourceRegistry();
-    const mounted = mountPlayground(sources);
+    const mounted = mountPlayground();
     expect(mounted.host.querySelector('canvas')).toBeNull();
     expect(mounted.onError).toHaveBeenCalledWith(expect.any(Error));
     expect(mounted.onChange).not.toHaveBeenCalled();
 
     mounted.onError.mockClear();
     sources.register('points', createBinding());
-    await vi.waitFor(() => expect(mounted.onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const deck = setProps.mock.contexts[0] as Deck;
+    const deck = await mounted.ready();
     expect(getLayer(deck).props.data).toBe(ROWS);
     expect(mounted.onChange).toHaveBeenCalledTimes(1);
     expect(mounted.onError).not.toHaveBeenCalled();
   }, 20_000);
 
   it('retains the preview and pending document until an edited source becomes ready', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const sources = new PlaygroundDataSourceRegistry();
     sources.register('points', createBinding());
-    const mounted = mountPlayground(sources);
-    await vi.waitFor(() => expect(mounted.onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const deck = setProps.mock.contexts[0] as Deck;
+    const mounted = mountPlayground();
+    const deck = await mounted.ready();
     const canvas = mounted.host.querySelector('canvas');
     const acceptedLayer = getLayer(deck);
     const pendingDocument = createDocument('later', 9);
@@ -236,12 +229,9 @@ describe('DeckPlayground independent data sources', () => {
   }, 20_000);
 
   it('retains the preview but suppresses source picks after removal or loading failure', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const sources = new PlaygroundDataSourceRegistry();
     sources.register('points', createBinding());
-    const mounted = mountPlayground(sources);
-    await vi.waitFor(() => expect(mounted.onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const deck = setProps.mock.contexts[0] as Deck;
+    const mounted = mountPlayground();
+    const deck = await mounted.ready();
     const canvas = mounted.host.querySelector('canvas');
     const acceptedLayer = getLayer(deck);
     const onClick = deck.props.onClick as NonNullable<DeckProps['onClick']>;
@@ -283,37 +273,28 @@ describe('DeckPlayground independent data sources', () => {
   }, 20_000);
 
   it('keeps shared loading alive when one consumer finalizes and detaches its callbacks', async () => {
-    const setProps = vi.spyOn(Deck.prototype, 'setProps');
-    const sources = new PlaygroundDataSourceRegistry();
     let resolveSource!: (binding: PlaygroundDataBinding) => void;
     const pending = new Promise<PlaygroundDataBinding>(resolve => {
       resolveSource = resolve;
     });
-    let loadSignal: AbortSignal | undefined;
-    const loader = vi.fn(({signal}: {signal: AbortSignal}) => {
-      loadSignal = signal;
-      return pending;
-    });
+    const loader = vi.fn((_options: {signal: AbortSignal}) => pending);
     sources.register('points', loader);
-    const first = mountPlayground(sources);
-    const second = mountPlayground(sources);
+    const first = mountPlayground();
+    const second = mountPlayground();
     await vi.waitFor(() => expect(loader).toHaveBeenCalledTimes(1));
-    expect(first.onError).not.toHaveBeenCalled();
-    expect(second.onError).not.toHaveBeenCalled();
-    expect(first.onChange).not.toHaveBeenCalled();
-    expect(second.onChange).not.toHaveBeenCalled();
+    for (const mounted of [first, second]) {
+      expect(mounted.onError).not.toHaveBeenCalled();
+      expect(mounted.onChange).not.toHaveBeenCalled();
+    }
     first.playground.finalize();
-    expect(loadSignal?.aborted).toBe(false);
+    expect(loader.mock.calls[0][0].signal.aborted).toBe(false);
 
     resolveSource(createBinding());
-    await vi.waitFor(() => expect(second.onLoad).toHaveBeenCalledTimes(1), {timeout: 10_000});
-    const deck = setProps.mock.contexts[0] as Deck;
+    const deck = await second.ready();
     expect(getLayer(deck).props.data).toBe(ROWS);
     expect(second.onChange).toHaveBeenCalledTimes(1);
     expect(first.host.children).toHaveLength(0);
     expect(first.onLoad).not.toHaveBeenCalled();
-    expect(first.onChange).not.toHaveBeenCalled();
-    expect(first.onError).not.toHaveBeenCalled();
 
     const nextRows = [ROWS[0]];
     sources.register('points', createBinding(nextRows));

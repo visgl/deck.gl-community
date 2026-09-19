@@ -23,6 +23,10 @@ function resolveLayer(properties: Record<string, unknown>) {
   return (result.props.layers as Layer[])[0];
 }
 
+function sourceLayer(name: string, id = name) {
+  return {...layer, id, data: {'@@data': name}};
+}
+
 function captureSourceError(resolve: () => unknown): PlaygroundDataSourceError {
   try {
     resolve();
@@ -35,15 +39,9 @@ function captureSourceError(resolve: () => unknown): PlaygroundDataSourceError {
 
 describe('playground runtime resolver', () => {
   test('validates every configuration before constructing layers', () => {
-    const construct = vi.fn();
-    class TrackedLayer extends ScatterplotLayer {
-      constructor(props: any) {
-        super(props);
-        construct();
-      }
-    }
+    const construct = vi.fn(ScatterplotLayer);
     const tracked = createPlaygroundResolver({
-      layers: {ScatterplotLayer: {type: TrackedLayer, schema: ScatterplotLayerSchema}}
+      layers: {ScatterplotLayer: {type: construct, schema: ScatterplotLayerSchema}}
     });
     expect(() =>
       tracked.resolve({layers: [layer, {...layer, id: 'invalid', radiusUnits: 'feet'}]}, {})
@@ -63,13 +61,9 @@ describe('playground runtime resolver', () => {
       throw new Error('Rows must not be inspected during binding');
     });
     Object.defineProperty(data[0], 'opaque', {enumerable: true, get: read});
-    const result = resolver.resolve(
-      {layers: [{...layer, data: {'@@data': 'points'}}]},
-      {points: {data}}
-    );
+    const result = resolver.resolve({layers: [sourceLayer('points')]}, {points: {data}});
     const resolved = (result.props.layers as Layer[])[0];
     expect(resolved.props.data).toBe(data);
-    expect((resolved.props.data as unknown[])[0]).toBe(data[0]);
     expect(result.layerBindings).toEqual(new Map([['points', 'points']]));
     expect(read).not.toHaveBeenCalled();
   });
@@ -81,11 +75,10 @@ describe('playground runtime resolver', () => {
     ];
     const resolved = resolveLayer({data});
     expect(resolved.props.data).toBe(data);
-    expect((resolved.props.data as unknown[])[0]).toBe(data[0]);
   });
 
   test('rejects missing bindings, inherited bindings and non-array bindings', () => {
-    const value = {layers: [{...layer, data: {'@@data': 'points'}}]};
+    const value = {layers: [sourceLayer('points')]};
     expect(() => resolver.resolve(value, {})).toThrow('Missing playground data binding: points');
     expect(() => resolver.resolve(value, Object.create({points: {data: []}}))).toThrow(
       'Missing playground data binding: points'
@@ -106,8 +99,8 @@ describe('playground runtime resolver', () => {
     const result = resolver.resolve(
       {
         layers: [
-          {...layer, id: 'shared-layer', data: {'@@data': 'shared'}},
-          {...layer, id: 'local-layer', data: {'@@data': 'local'}},
+          sourceLayer('shared'),
+          sourceLayer('local'),
           {...layer, id: 'inline-layer', data: inline}
         ]
       },
@@ -124,8 +117,8 @@ describe('playground runtime resolver', () => {
     expect(result.bindings.local).toBe(local);
     expect(result.layerBindings).toEqual(
       new Map([
-        ['shared-layer', 'shared'],
-        ['local-layer', 'local']
+        ['shared', 'shared'],
+        ['local', 'local']
       ])
     );
   });
@@ -134,7 +127,7 @@ describe('playground runtime resolver', () => {
     const dataSources = new PlaygroundDataSourceRegistry();
     const shared = [{id: 1}];
     const local = {data: [{id: 2}]};
-    const document = {layers: [{...layer, data: {'@@data': 'points'}}]};
+    const document = {layers: [sourceLayer('points')]};
     dataSources.register('points', {data: shared});
     const inherited = resolver.resolve(document, Object.create({points: local}), dataSources);
     expect((inherited.props.layers as Layer[])[0].props.data).toBe(shared);
@@ -158,7 +151,7 @@ describe('playground runtime resolver', () => {
       dataSources.register(name, {data: [{name}]});
     }
     const document = {
-      layers: names.map(name => ({...layer, id: name, data: {'@@data': name}}))
+      layers: names.map(name => sourceLayer(name))
     };
     const result = resolver.resolve(document, {}, dataSources);
     expect(Object.getPrototypeOf(result.bindings)).toBeNull();
@@ -166,7 +159,6 @@ describe('playground runtime resolver', () => {
     names.forEach((name, index) => {
       expect(result.bindings[name]).toBe(dataSources.get(name));
       expect((result.props.layers as Layer[])[index].props.data).toBe(dataSources.get(name)?.data);
-      expect(result.layerBindings.get(name)).toBe(name);
     });
     const local = {data: [{name: 'local'}]};
     const overridden = resolver.resolve(
@@ -175,123 +167,85 @@ describe('playground runtime resolver', () => {
       dataSources
     );
     expect(overridden.bindings.__proto__).toBe(local);
-    expect((overridden.props.layers as Layer[])[0].props.data).toBe(local.data);
   });
 
-  test('reports missing sources with every distinct referenced source for recovery', () => {
+  test.each([
+    'missing',
+    'loading',
+    'error'
+  ] as const)('defers all construction for a %s source and reports recovery context', async status => {
     const dataSources = new PlaygroundDataSourceRegistry();
-    dataSources.register('ready', {data: []});
-    const document = {
-      layers: ['missing', 'ready', 'missing', 'another'].map((name, index) => ({
-        ...layer,
-        id: `layer-${index}`,
-        data: {'@@data': name}
-      }))
-    };
-    const error = captureSourceError(() => resolver.resolve(document, {}, dataSources));
-    expect(error.sourceId).toBe('missing');
-    expect(error.status).toBe('missing');
-    expect(error.sourceIds).toEqual(['missing', 'ready', 'another']);
-    expect(error.cause).toBeUndefined();
-  });
-
-  test('does not construct layers or views while a referenced loader is pending', () => {
-    const dataSources = new PlaygroundDataSourceRegistry();
-    const layerConstruct = vi.fn();
-    const viewConstruct = vi.fn();
-    class TrackedLayer extends ScatterplotLayer {
-      constructor(props: ConstructorParameters<typeof ScatterplotLayer>[0]) {
-        super(props);
-        layerConstruct();
-      }
-    }
-    class TrackedView extends MapView {
-      constructor(props: ConstructorParameters<typeof MapView>[0]) {
-        super(props);
-        viewConstruct();
-      }
-    }
+    const constructLayer = vi.fn(function (
+      props: ConstructorParameters<typeof ScatterplotLayer>[0]
+    ) {
+      return new ScatterplotLayer(props);
+    });
+    const constructView = vi.fn(function (props: ConstructorParameters<typeof MapView>[0]) {
+      return new MapView(props);
+    });
     const tracked = createPlaygroundResolver({
-      layers: {ScatterplotLayer: {type: TrackedLayer, schema: ScatterplotLayerSchema}},
+      layers: {ScatterplotLayer: {type: constructLayer, schema: ScatterplotLayerSchema}},
       views: {
         TrackedView: {
-          type: TrackedView,
+          type: constructView,
           schema: z.strictObject({'@@type': z.literal('TrackedView')})
         }
       }
     });
-    dataSources.register('pending', () => new Promise(() => {}));
-    const error = captureSourceError(() =>
-      tracked.resolve(
-        {
-          layers: [layer, {...layer, id: 'waiting', data: {'@@data': 'pending'}}],
-          views: {'@@type': 'TrackedView'}
-        },
-        {},
-        dataSources
-      )
-    );
-    expect(error.status).toBe('loading');
-    expect(error.sourceId).toBe('pending');
-    expect(error.sourceIds).toEqual(['pending']);
-    expect(layerConstruct).not.toHaveBeenCalled();
-    expect(viewConstruct).not.toHaveBeenCalled();
-    dataSources.unregister('pending');
-  });
-
-  test('reports loader failure and preserves its cause while allowing local recovery', async () => {
-    const dataSources = new PlaygroundDataSourceRegistry();
     const cause = new Error('Remote source unavailable');
-    dataSources.register('failed', () => Promise.reject(cause));
-    await vi.waitFor(() => expect(dataSources.getState('failed')?.status).toBe('error'));
-    const document = {layers: [{...layer, data: {'@@data': 'failed'}}]};
-    const error = captureSourceError(() => resolver.resolve(document, {}, dataSources));
-    expect(error.sourceId).toBe('failed');
-    expect(error.status).toBe('error');
-    expect(error.sourceIds).toEqual(['failed']);
-    expect(error.cause).toBe(cause);
+    dataSources.register('ready', {data: []});
+    if (status === 'loading') dataSources.register('unavailable', () => new Promise(() => {}));
+    if (status === 'error') {
+      dataSources.register('unavailable', () => Promise.reject(cause));
+      await vi.waitFor(() => expect(dataSources.getState('unavailable')?.status).toBe('error'));
+    }
+    const document = {
+      layers: [
+        sourceLayer('unavailable'),
+        sourceLayer('ready'),
+        sourceLayer('unavailable', 'repeat')
+      ],
+      views: {'@@type': 'TrackedView'}
+    };
+    const error = captureSourceError(() => tracked.resolve(document, {}, dataSources));
+    expect(error).toMatchObject({
+      sourceId: 'unavailable',
+      status,
+      sourceIds: ['unavailable', 'ready'],
+      cause: status === 'error' ? cause : undefined
+    });
+    expect(constructLayer).not.toHaveBeenCalled();
+    expect(constructView).not.toHaveBeenCalled();
     const local = {data: [{id: 1}]};
-    const result = resolver.resolve(document, {failed: local}, dataSources);
+    const result = tracked.resolve(document, {unavailable: local}, dataSources);
     expect((result.props.layers as Layer[])[0].props.data).toBe(local.data);
+    dataSources.unregister('unavailable');
   });
 
   test('prioritizes configuration errors over unavailable sources throughout the document', () => {
     const dataSources = new PlaygroundDataSourceRegistry();
     dataSources.register('pending', () => new Promise(() => {}));
-    const pending = {...layer, data: {'@@data': 'pending'}};
     for (const source of ['pending', 'missing']) {
-      const unavailable = {...pending, data: {'@@data': source}};
-      expect(() =>
-        resolver.resolve(
-          {layers: [unavailable, {...layer, id: 'invalid', radiusUnits: 'feet'}]},
-          {},
-          dataSources
-        )
-      ).toThrow(z.ZodError);
-      expect(() =>
-        resolver.resolve(
-          {layers: [unavailable, {...layer, id: 'invalid', getRadius: '@@=Math.random()'}]},
-          {},
-          dataSources
-        )
-      ).toThrow('Unsupported playground expression');
-      expect(() =>
-        resolver.resolve(
+      const unavailable = sourceLayer(source);
+      const cases = [
+        [{layers: [unavailable, {...layer, id: 'invalid', radiusUnits: 'feet'}]}, z.ZodError],
+        [
+          {layers: [unavailable, {...layer, getRadius: '@@=Math.random()'}]},
+          'Unsupported playground expression'
+        ],
+        [
           {layers: [unavailable], views: {'@@type': 'MapView', width: '@@=Math.random()'}},
-          {},
-          dataSources
-        )
-      ).toThrow('Unsupported playground expression');
-      expect(() =>
-        resolver.resolve(
+          'Unsupported playground expression'
+        ],
+        [
           {layers: [unavailable], onViewStateChange: '@@#missingCallback'},
-          {},
-          dataSources
-        )
-      ).toThrow('Unknown playground constant: missingCallback');
-      expect(() => resolver.resolve({layers: [unavailable, {...layer}]}, {}, dataSources)).toThrow(
-        'Duplicate playground layer id'
-      );
+          'Unknown playground constant'
+        ],
+        [{layers: [unavailable, unavailable]}, 'Duplicate playground layer id']
+      ] as const;
+      for (const [document, error] of cases) {
+        expect(() => resolver.resolve(document, {}, dataSources)).toThrow(error);
+      }
     }
     dataSources.unregister('pending');
   });

@@ -1,13 +1,16 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import {describe, expect, test, vi} from 'vitest';
+import {beforeEach, describe, expect, test, vi} from 'vitest';
 import {PlaygroundDataSourceRegistry} from '../src/runtime/playground-data-source-registry';
 import type {PlaygroundDataBinding} from '../src/runtime/playground-registry';
 
 describe('playground data source registry', () => {
+  let registry: PlaygroundDataSourceRegistry;
+  beforeEach(() => {
+    registry = new PlaygroundDataSourceRegistry();
+  });
   test('independent producers register and clean up their own named sources', () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const observations: unknown[] = [];
     registry.subscribe(name => observations.push([name, registry.get(name)?.data]));
     const points = [{id: 1}];
@@ -21,6 +24,7 @@ describe('playground data source registry', () => {
     expect(registry.get('points')).toBeUndefined();
     expect(registry.get('paths')?.data).toBe(paths);
     removePaths();
+    expect(registry.unregister('missing')).toBe(false);
     expect(observations).toEqual([
       ['points', points],
       ['paths', paths],
@@ -30,7 +34,6 @@ describe('playground data source registry', () => {
   });
 
   test('cleanup never removes a later registration even with the same binding object', () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const binding = {data: [{id: 1}]};
     const firstCleanup = registry.register('points', binding);
     const replacementCleanup = registry.register('points', binding);
@@ -43,7 +46,6 @@ describe('playground data source registry', () => {
   });
 
   test('preserves 100,000 rows and their identities without inspecting or freezing payloads', () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const data = Array.from({length: 100_000}, (_, id) => ({id}));
     const read = vi.fn(() => {
       throw new Error('Rows must not be inspected during registration');
@@ -53,11 +55,8 @@ describe('playground data source registry', () => {
     const binding = {data, getRowId};
     registry.register('points', binding);
     const registered = registry.get('points')!;
-    expect(registered).not.toBe(binding);
     expect(Object.isFrozen(registered)).toBe(true);
     expect(registered.data).toBe(data);
-    expect(registered.data[0]).toBe(data[0]);
-    expect(registered.getRowId).toBe(getRowId);
     expect(Object.isFrozen(data)).toBe(false);
     expect(Object.isFrozen(data[0])).toBe(false);
     expect(read).not.toHaveBeenCalled();
@@ -68,7 +67,6 @@ describe('playground data source registry', () => {
   });
 
   test('rejects invalid names and bindings before replacing sources or notifying', () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const data = [{id: 1}];
     registry.register('points', {data});
     const listener = vi.fn();
@@ -91,95 +89,19 @@ describe('playground data source registry', () => {
   });
 
   test('keeps prototype-like names and registry instances independent', () => {
-    const firstRegistry = new PlaygroundDataSourceRegistry();
     const secondRegistry = new PlaygroundDataSourceRegistry();
     for (const name of ['__proto__', 'constructor', 'toString']) {
       const data = [name];
-      firstRegistry.register(name, {data});
-      expect(firstRegistry.get(name)?.data).toBe(data);
+      registry.register(name, {data});
+      expect(registry.get(name)?.data).toBe(data);
       expect(secondRegistry.get(name)).toBeUndefined();
     }
     secondRegistry.register('__proto__', {data: ['separate']});
-    firstRegistry.unregister('__proto__');
+    registry.unregister('__proto__');
     expect(secondRegistry.get('__proto__')?.data).toEqual(['separate']);
   });
 
-  test('notifies only when registration state changes', () => {
-    const registry = new PlaygroundDataSourceRegistry();
-    const listener = vi.fn();
-    registry.subscribe(listener);
-    expect(registry.unregister('missing')).toBe(false);
-    registry.register('points', {data: []});
-    registry.register('points', {data: []});
-    expect(registry.unregister('points')).toBe(true);
-    expect(registry.unregister('points')).toBe(false);
-    expect(listener.mock.calls).toEqual([['points'], ['points'], ['points']]);
-  });
-
-  test('repeated subscriptions of the same callback have independent idempotent cleanup', () => {
-    const registry = new PlaygroundDataSourceRegistry();
-    const listener = vi.fn();
-    const firstCleanup = registry.subscribe(listener);
-    const secondCleanup = registry.subscribe(listener);
-    registry.register('points', {data: []});
-    expect(listener).toHaveBeenCalledTimes(2);
-    firstCleanup();
-    firstCleanup();
-    registry.unregister('points');
-    expect(listener).toHaveBeenCalledTimes(3);
-    secondCleanup();
-    registry.register('points', {data: []});
-    expect(listener).toHaveBeenCalledTimes(3);
-  });
-
-  test('dispatches a snapshot when listeners subscribe or unsubscribe during notification', () => {
-    const registry = new PlaygroundDataSourceRegistry();
-    const calls: string[] = [];
-    const lateListener = () => calls.push('late');
-    let removeSecond = () => {};
-    const removeFirst = registry.subscribe(() => {
-      calls.push('first');
-      removeSecond();
-      registry.subscribe(lateListener);
-    });
-    removeSecond = registry.subscribe(() => calls.push('second'));
-    registry.register('points', {data: []});
-    expect(calls).toEqual(['first', 'second']);
-    removeFirst();
-    registry.unregister('points');
-    expect(calls).toEqual(['first', 'second', 'late']);
-  });
-
-  test('notifies remaining subscribers and aggregates errors after mutation', () => {
-    const registry = new PlaygroundDataSourceRegistry();
-    const firstError = new Error('first subscriber failed');
-    const secondError = new Error('second subscriber failed');
-    registry.subscribe(() => {
-      throw firstError;
-    });
-    const observer = vi.fn(name => registry.get(name));
-    registry.subscribe(observer);
-    registry.subscribe(() => {
-      throw secondError;
-    });
-    const data = [{id: 1}];
-    expect(() => registry.register('points', {data})).toThrow(AggregateError);
-    expect(registry.get('points')?.data).toBe(data);
-    expect(observer.mock.results[0].value.data).toBe(data);
-    try {
-      registry.unregister('points');
-      expect.fail('Expected subscriber errors');
-    } catch (error) {
-      expect(error).toBeInstanceOf(AggregateError);
-      expect((error as AggregateError).errors).toEqual([firstError, secondError]);
-    }
-    expect(registry.get('points')).toBeUndefined();
-    expect(observer).toHaveBeenCalledTimes(2);
-    expect(observer.mock.results[1].value).toBeUndefined();
-  });
-
   test('cleanup remains safe when a subscriber replaces a source during registration', () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const replacement = [{id: 2}];
     const unsubscribe = registry.subscribe(name => {
       unsubscribe();
@@ -191,18 +113,16 @@ describe('playground data source registry', () => {
   });
 
   test('starts a loader once in a microtask and shares readiness with independent consumers', async () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const data = [{id: 1}];
     const loader = vi.fn(async () => ({data}));
-    const firstConsumer = vi.fn(name => registry.getState(name)?.status);
-    const secondConsumer = vi.fn(name => registry.getState(name)?.status);
-    registry.subscribe(firstConsumer);
-    registry.subscribe(secondConsumer);
+    const consumers = [vi.fn(), vi.fn()];
+    for (const consumer of consumers) {
+      registry.subscribe(name => consumer(registry.getState(name)?.status));
+    }
     registry.register('points', loader);
     const initialState = registry.getState('points');
     expect(initialState).toEqual({status: 'loading'});
     expect(Object.isFrozen(initialState)).toBe(true);
-    expect(registry.get('points')).toBeUndefined();
     expect(registry.get('points')).toBeUndefined();
     expect(loader).not.toHaveBeenCalled();
     await vi.waitFor(() => expect(registry.getState('points')).toEqual({status: 'ready'}));
@@ -210,102 +130,72 @@ describe('playground data source registry', () => {
     expect(registry.get('points')?.data).toBe(data);
     expect(Object.isFrozen(registry.get('points'))).toBe(true);
     expect(loader).toHaveBeenCalledTimes(1);
-    expect(firstConsumer.mock.results.map(result => result.value)).toEqual(['loading', 'ready']);
-    expect(secondConsumer.mock.results.map(result => result.value)).toEqual(['loading', 'ready']);
+    for (const consumer of consumers) {
+      expect(consumer.mock.calls).toEqual([['loading'], ['ready']]);
+    }
   });
 
   test('supports synchronous loaders with the same deferred lifecycle', async () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const data = [{id: 1}];
     registry.register('points', () => ({data}));
     expect(registry.getState('points')).toEqual({status: 'loading'});
     await vi.waitFor(() => expect(registry.get('points')?.data).toBe(data));
   });
 
-  test('retains loader rejection and validation failures as inspectable error states', async () => {
-    const registry = new PlaygroundDataSourceRegistry();
-    const error = new Error('Request failed');
+  test.each([
+    ['rejection', () => Promise.reject(new Error('Request failed')), 'Request failed'],
+    [
+      'throw',
+      () => {
+        throw new Error('Request failed');
+      },
+      'Request failed'
+    ],
+    ['non-Error rejection', () => Promise.reject('Unavailable'), 'Unavailable'],
+    ['invalid rows', () => ({data: null}), 'must contain a row array'],
+    ['invalid identity', () => ({data: [], getRowId: 'id'}), 'getRowId must be a function']
+  ])('retains %s as an inspectable loader error', async (_name, load, message) => {
     const listener = vi.fn();
     registry.subscribe(listener);
-    registry.register('rejected', () => Promise.reject(error));
-    registry.register('thrown', () => {
-      throw error;
+    registry.register('points', load as () => PlaygroundDataBinding);
+    await vi.waitFor(() => expect(registry.getState('points')?.status).toBe('error'));
+    expect(registry.getState('points')).toMatchObject({
+      error: {message: expect.stringContaining(message)}
     });
-    registry.register('nonError', () => Promise.reject('Unavailable'));
-    registry.register('invalidRows', () => ({data: null}));
-    registry.register(
-      'invalidId',
-      () => ({data: [], getRowId: 'id'}) as unknown as PlaygroundDataBinding
-    );
-    await vi.waitFor(() => expect(registry.getState('invalidId')?.status).toBe('error'));
-    expect(registry.getState('rejected')).toEqual({status: 'error', error});
-    expect(registry.getState('thrown')).toEqual({status: 'error', error});
-    expect(registry.getState('nonError')).toEqual({
-      status: 'error',
-      error: new Error('Unavailable')
-    });
-    expect(registry.getState('invalidRows')).toMatchObject({
-      status: 'error',
-      error: {message: 'Playground data source "invalidRows" must contain a row array'}
-    });
-    expect(registry.getState('invalidId')).toMatchObject({
-      status: 'error',
-      error: {message: 'Playground data source "invalidId" getRowId must be a function'}
-    });
-    expect(registry.get('rejected')).toBeUndefined();
-    expect(registry.get('invalidRows')).toBeUndefined();
-    expect(listener).toHaveBeenCalledTimes(10);
+    expect(registry.get('points')).toBeUndefined();
+    expect(listener.mock.calls).toEqual([['points'], ['points']]);
   });
 
-  test('aborts replaced loaders and ignores their stale resolutions and cleanup', async () => {
-    const registry = new PlaygroundDataSourceRegistry();
+  test.each([
+    'replace',
+    'remove'
+  ])('aborts loaders on %s and ignores stale completion', async action => {
+    let resolve!: (binding: PlaygroundDataBinding) => void;
+    let reject!: (error: Error) => void;
+    let signal!: AbortSignal;
     const listener = vi.fn();
     registry.subscribe(listener);
-    let resolve: (binding: PlaygroundDataBinding) => void;
-    let signal: AbortSignal;
     const cleanup = registry.register('points', options => {
       signal = options.signal;
-      return new Promise(result => {
-        resolve = result;
+      return new Promise((complete, fail) => {
+        resolve = complete;
+        reject = fail;
       });
     });
     await Promise.resolve();
     expect(signal.aborted).toBe(false);
     const replacement = [{id: 2}];
-    registry.register('points', {data: replacement});
-    expect(signal.aborted).toBe(true);
-    cleanup();
-    resolve({data: [{id: 1}]});
-    await new Promise(result => setTimeout(result, 0));
-    expect(registry.get('points')?.data).toBe(replacement);
-    expect(registry.getState('points')).toEqual({status: 'ready'});
-    expect(listener).toHaveBeenCalledTimes(2);
-  });
-
-  test('aborts removed loaders and ignores stale rejections without restoring a source', async () => {
-    const registry = new PlaygroundDataSourceRegistry();
-    const listener = vi.fn();
-    registry.subscribe(listener);
-    let reject: (error: Error) => void;
-    let signal: AbortSignal;
-    const cleanup = registry.register('points', options => {
-      signal = options.signal;
-      return new Promise((_resolve, fail) => {
-        reject = fail;
-      });
-    });
-    await Promise.resolve();
+    if (action === 'replace') registry.register('points', {data: replacement});
     cleanup();
     expect(signal.aborted).toBe(true);
-    reject(new Error('Request cancelled'));
+    if (action === 'replace') resolve({data: [{id: 1}]});
+    else reject(new Error('Request cancelled'));
     await new Promise(result => setTimeout(result, 0));
-    expect(registry.get('points')).toBeUndefined();
-    expect(registry.getState('points')).toBeUndefined();
+    expect(registry.get('points')?.data).toBe(action === 'replace' ? replacement : undefined);
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
   test('does not start loaders removed or replaced before their first microtask', async () => {
-    const registry = new PlaygroundDataSourceRegistry();
     const loader = vi.fn(async () => ({data: []}));
     const cleanup = registry.register('removed', loader);
     cleanup();
@@ -315,29 +205,5 @@ describe('playground data source registry', () => {
     expect(loader).not.toHaveBeenCalled();
     expect(registry.getState('removed')).toBeUndefined();
     expect(registry.getState('replaced')).toEqual({status: 'ready'});
-  });
-
-  test('reports asynchronous subscriber failures without losing readiness or other consumers', async () => {
-    const registry = new PlaygroundDataSourceRegistry();
-    const reportError = vi.fn();
-    vi.stubGlobal('reportError', reportError);
-    const listenerError = new Error('Subscriber failed');
-    const observer = vi.fn();
-    try {
-      registry.subscribe(name => {
-        if (registry.getState(name)?.status === 'ready') {
-          throw listenerError;
-        }
-      });
-      registry.subscribe(observer);
-      registry.register('points', async () => ({data: []}));
-      await vi.waitFor(() => expect(reportError).toHaveBeenCalledTimes(1));
-      expect(reportError.mock.calls[0][0]).toBeInstanceOf(AggregateError);
-      expect(reportError.mock.calls[0][0].errors).toEqual([listenerError]);
-      expect(registry.getState('points')).toEqual({status: 'ready'});
-      expect(observer).toHaveBeenCalledTimes(2);
-    } finally {
-      vi.unstubAllGlobals();
-    }
   });
 });

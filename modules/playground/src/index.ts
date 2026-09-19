@@ -19,7 +19,6 @@ export type {
   PlaygroundBindings,
   PlaygroundDataBinding
 } from './runtime/playground-registry';
-export {createPlaygroundResolver, PlaygroundDataSourceError} from './runtime/playground-resolver';
 export {
   PlaygroundDataSourceRegistry,
   type PlaygroundDataSource,

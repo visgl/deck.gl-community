@@ -6,7 +6,8 @@ import {
   FirstPersonView,
   MapView,
   OrbitView,
-  OrthographicView
+  OrthographicView,
+  type View
 } from '@deck.gl/core';
 import {z} from 'zod';
 import {createDeckGLDocumentSchema} from '../schemas/deckgl';
@@ -36,7 +37,7 @@ const EXPRESSION_PATTERN = new RegExp(
 /** A validated configuration ready to apply to a persistent Deck instance. */
 export type ResolvedPlaygroundConfiguration = {
   /** Constructed layers/views and resolved renderer options. */
-  props: Partial<DeckProps>;
+  props: Omit<Partial<DeckProps>, 'views'> & {views?: View[]};
   /** Layer IDs associated with external bindings, used to report picked row identity. */
   layerBindings: Map<string, string>;
   /** Accepted row descriptors for referenced sources, including per-instance overrides. */
@@ -45,17 +46,13 @@ export type ResolvedPlaygroundConfiguration = {
 
 /** An unavailable external source, distinct from an invalid visualization document. */
 export class PlaygroundDataSourceError extends Error {
-  /** The source whose availability prevented rendering. */
-  readonly sourceId: string;
-  /** Whether the source is missing, still loading, or failed to load. */
-  readonly status: 'missing' | 'loading' | 'error';
-  /** All source names referenced by the validated document, for automatic recovery. */
-  readonly sourceIds: readonly string[];
-
   constructor(
-    sourceId: string,
-    status: 'missing' | 'loading' | 'error',
-    sourceIds: readonly string[],
+    /** The source whose availability prevented rendering. */
+    readonly sourceId: string,
+    /** Whether the source is missing, still loading, or failed to load. */
+    readonly status: 'missing' | 'loading' | 'error',
+    /** All source names referenced by the validated document, for automatic recovery. */
+    readonly sourceIds: readonly string[],
     cause?: Error
   ) {
     super(
@@ -67,9 +64,6 @@ export class PlaygroundDataSourceError extends Error {
       {cause}
     );
     this.name = 'PlaygroundDataSourceError';
-    this.sourceId = sourceId;
-    this.status = status;
-    this.sourceIds = sourceIds;
   }
 }
 
@@ -166,14 +160,11 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       const sourceLayers = (value as {layers?: Record<string, unknown>[]}).layers ?? [];
       const layerBindings = new Map<string, string>();
       const resolvedBindings: PlaygroundBindings = Object.create(null);
-      const sourceIds = new Set<string>();
-      const unavailable: {id: string; status: 'missing' | 'loading' | 'error'; error?: Error}[] =
-        [];
       const ids = new Set<string>();
       const layerDefinitions = (document.layers ?? []) as Record<string, unknown>[];
       const preparedLayers = layerDefinitions.map((definition, index) => {
         const name = String(definition['@@type']);
-        const registration = getRegistration(layers, name, 'layer');
+        const {type} = getRegistration(layers, name, 'layer');
         const id = definition.id;
         if (typeof id !== 'string' || !id) {
           throw new Error(`Playground layer requires a nonempty id: ${name}`);
@@ -188,17 +179,9 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
           const data = source && Object.hasOwn(source, 'data') ? source.data : definition.data;
           if (isRecord(data) && Object.hasOwn(data, '@@data')) {
             const bindingName = String(data['@@data']);
-            sourceIds.add(bindingName);
             const hasOverride = Object.hasOwn(bindings, bindingName);
             const binding = hasOverride ? bindings[bindingName] : dataSources?.get(bindingName);
-            if (!hasOverride && binding === undefined) {
-              const state = dataSources?.getState(bindingName);
-              unavailable.push({
-                id: bindingName,
-                status: state?.status === 'ready' ? 'missing' : (state?.status ?? 'missing'),
-                error: state?.status === 'error' ? state.error : undefined
-              });
-            } else {
+            if (hasOverride || binding !== undefined) {
               if (!binding || !Array.isArray(binding.data)) {
                 throw new Error(`Playground data binding must contain a row array: ${bindingName}`);
               }
@@ -211,7 +194,7 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
             props.data = data;
           }
         }
-        return {registration, props};
+        return {type, props};
       });
       const viewDefinitions = document.views
         ? Array.isArray(document.views)
@@ -221,18 +204,33 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       const preparedViews = viewDefinitions.map((definition: Record<string, unknown>) => {
         const props = resolveProperties(definition, ['@@type', 'id']);
         if (Object.hasOwn(definition, 'id')) props.id = definition.id;
-        return {registration: getRegistration(views, String(definition['@@type']), 'view'), props};
+        const {type} = getRegistration(views, String(definition['@@type']), 'view');
+        return {type, props};
       });
       const props = resolveProperties(document, ['layers', 'views']);
+      const sourceIds = [...new Set(layerBindings.values())];
+      const unavailable = sourceIds.filter(name => !Object.hasOwn(resolvedBindings, name));
       if (unavailable.length) {
-        const source = unavailable.find(item => item.status !== 'loading') ?? unavailable[0];
-        throw new PlaygroundDataSourceError(source.id, source.status, [...sourceIds], source.error);
+        const sourceId =
+          unavailable.find(name => dataSources?.getState(name)?.status !== 'loading') ??
+          unavailable[0];
+        const state = dataSources?.getState(sourceId);
+        throw new PlaygroundDataSourceError(
+          sourceId,
+          state?.status === 'ready' ? 'missing' : (state?.status ?? 'missing'),
+          sourceIds,
+          state?.status === 'error' ? state.error : undefined
+        );
       }
-      props.layers = preparedLayers.map(entry => new entry.registration.type(entry.props));
+      props.layers = preparedLayers.map(({type, props}) => new type(props));
       if (Object.hasOwn(document, 'views')) {
-        props.views = preparedViews.map(entry => new entry.registration.type(entry.props));
+        props.views = preparedViews.map(({type, props}) => new type(props));
       }
-      return {props: props as Partial<DeckProps>, layerBindings, bindings: resolvedBindings};
+      return {
+        props: props as ResolvedPlaygroundConfiguration['props'],
+        layerBindings,
+        bindings: resolvedBindings
+      };
     }
   };
 }
