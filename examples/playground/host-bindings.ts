@@ -5,28 +5,35 @@
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {
   DeckPlayground,
-  PlaygroundDataSourceRegistry,
+  PlaygroundDataSourceManager,
   ScatterplotLayerSchema
 } from '@deck.gl-community/playground';
 
-/** Registers example rows independently of their consumers. */
-export function createHostDataSources(): PlaygroundDataSourceRegistry {
-  const dataSources = new PlaygroundDataSourceRegistry();
-  dataSources.register('points', {
+/** Owns example rows and publishes updates independently of their consumers. */
+export function createHostDataSources() {
+  let points = {
     data: [
       {id: 'west', position: [-30, 0]},
       {id: 'center', position: [0, 20]},
       {id: 'east', position: [30, 0]}
     ],
-    getRowId: row => row.id
-  });
-  return dataSources;
+    getRowId: (row: {id: string}) => row.id
+  };
+  const dataSources = new PlaygroundDataSourceManager();
+  dataSources.add({dataSourceId: 'points', dataSource: points});
+  return {
+    dataSources,
+    reverseRows() {
+      points = {...points, data: [...points.data].reverse()};
+      dataSources.add({dataSourceId: 'points', dataSource: points});
+    }
+  };
 }
 
-/** Mounts a playground using a registry that can be shared with other previews. */
+/** Mounts a playground using a producer that can be shared with other previews. */
 export function mountHostBindingsExample(
   container: HTMLElement,
-  dataSources = createHostDataSources()
+  {dataSources, reverseRows} = createHostDataSources()
 ): () => void {
   const root = container.ownerDocument.createElement('div');
   root.style.cssText = 'display:flex;flex-direction:column;width:100%;height:100%';
@@ -72,10 +79,7 @@ export function mountHostBindingsExample(
       status.textContent = error.message;
     }
   });
-  reverseButton.onclick = () => {
-    const points = dataSources.get('points');
-    if (points) dataSources.register('points', {...points, data: [...points.data].reverse()});
-  };
+  reverseButton.onclick = reverseRows;
   resetButton.onclick = () => playground.resetView();
 
   return () => {

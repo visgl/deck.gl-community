@@ -9,7 +9,8 @@ import {
   PlaygroundDataSourceError,
   type ResolvedPlaygroundConfiguration
 } from './runtime/playground-resolver';
-import type {PlaygroundDataSourceRegistry} from './runtime/playground-data-source-registry';
+import type {PlaygroundDataSourceManagerLike} from './runtime/playground-data-source-manager';
+import {PlaygroundSourceBindings} from './runtime/playground-source-bindings';
 import type {PlaygroundBindings, PlaygroundRegistry} from './runtime/playground-registry';
 
 const DEFAULT_VIEW_STATE = {longitude: 0, latitude: 0, zoom: 0};
@@ -38,7 +39,7 @@ export type DeckPlaygroundProps = Omit<
   /** External rows referenced from JSON; the host retains ownership. */
   bindings?: PlaygroundBindings;
   /** Independently owned sources shared across playgrounds; local bindings take precedence. */
-  dataSources?: PlaygroundDataSourceRegistry;
+  dataSources?: PlaygroundDataSourceManagerLike;
   /** Reports bound row picks, or null for a pick without a bound row. */
   onSelect?: (selection: PlaygroundSelection | null) => void;
   /** Observes camera interaction. Return values do not control the camera. */
@@ -90,7 +91,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   private bindings: PlaygroundBindings;
   private resolved?: ResolvedPlaygroundConfiguration;
   private request?: {value: unknown; sourceIds: Set<string>; text?: string};
-  private unsubscribeSources?: () => void;
+  private readonly sourceBindings?: PlaygroundSourceBindings;
   private deck?: Deck<any>;
   private element?: HTMLDivElement;
   private finalized = false;
@@ -99,11 +100,16 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     this.bindings = props.bindings ?? {};
     this.resolver = createPlaygroundResolver(props.registry);
     this.jsonSchema = this.resolver.jsonSchema;
+    if (props.dataSources) {
+      this.sourceBindings = new PlaygroundSourceBindings(
+        props.dataSources,
+        this.handleSourceChange
+      );
+    }
   }
 
   update(element: HTMLDivElement, value: unknown, text?: string): void {
     this.element = element;
-    this.unsubscribeSources ??= this.props.dataSources?.subscribe(this.handleSourceChange);
     try {
       const resolved = this.applyDocument(value, this.bindings);
       this.request = {value, sourceIds: new Set(resolved.layerBindings.values())};
@@ -113,6 +119,8 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
         this.request = {value, sourceIds: new Set(error.sourceIds), text};
       }
       throw error;
+    } finally {
+      this.retainSources();
     }
   }
 
@@ -132,7 +140,16 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       this.request.text = undefined;
       this.props.onChange?.(value, text);
     }
+    this.retainSources();
     return true;
+  }
+
+  private retainSources(): void {
+    this.sourceBindings?.retain(
+      [...(this.request?.sourceIds ?? []), ...(this.resolved?.layerBindings.values() ?? [])].filter(
+        name => !Object.hasOwn(this.bindings, name)
+      )
+    );
   }
 
   private readonly handleSourceChange = (sourceId: string): void => {
@@ -159,8 +176,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   finalize(): void {
     if (this.finalized) return;
     this.finalized = true;
-    this.unsubscribeSources?.();
-    this.unsubscribeSources = undefined;
+    this.sourceBindings?.finalize();
     this.deck?.finalize();
     this.deck = undefined;
     this.element = undefined;
@@ -185,7 +201,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     bindings: PlaygroundBindings
   ): ResolvedPlaygroundConfiguration {
     // Validate and resolve before modifying the live renderer or accepted binding map.
-    const resolved = this.resolver.resolve(value, bindings, this.props.dataSources);
+    const resolved = this.resolver.resolve(value, bindings, this.sourceBindings);
     const nextProps = resolved.props;
     const views = nextProps.views ?? [];
     if (nextProps.controller === undefined) {
@@ -261,8 +277,8 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     if (
       bindingId &&
       !Object.hasOwn(this.bindings, bindingId) &&
-      this.props.dataSources &&
-      this.props.dataSources.get(bindingId) !== binding
+      this.sourceBindings &&
+      this.sourceBindings.get(bindingId) !== binding
     ) {
       return null;
     }

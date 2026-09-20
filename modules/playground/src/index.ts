@@ -20,11 +20,11 @@ export type {
   PlaygroundDataBinding
 } from './runtime/playground-registry';
 export {
-  PlaygroundDataSourceRegistry,
-  type PlaygroundDataSource,
-  type PlaygroundDataSourceLoader,
-  type PlaygroundDataSourceState
-} from './runtime/playground-data-source-registry';
+  PlaygroundDataSourceManager,
+  type PlaygroundDataSourceManagerLike,
+  type PlaygroundDataSourceEntryInfo,
+  type PlaygroundDataSourceSubscription
+} from './runtime/playground-data-source-manager';
 export {PanelManager, TextEditorPanel} from '@deck.gl-community/panels';
 export * from './geojson/index';
 export * from './schemas/index';

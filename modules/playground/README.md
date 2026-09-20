@@ -4,7 +4,7 @@ A private workspace package for embedding a JSON editor and live preview in deck
 Built on `@deck.gl-community/panels`; no React required.
 
 - `DeckPlayground` manages validation, a persistent deck.gl preview, picking, and camera events.
-- `PlaygroundDataSourceRegistry` shares independently registered rows and async loaders across previews.
+- `PlaygroundDataSourceManager` shares independently registered rows and promises across previews.
 - `Playground` supports application-owned renderers.
 - GeoJSON and deck.gl Zod schemas, TypeScript types, and generated JSON Schema support validation
   and editor tooling.

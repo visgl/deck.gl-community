@@ -8,7 +8,7 @@ import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from
 
 import {
   DeckPlayground,
-  PlaygroundDataSourceRegistry,
+  PlaygroundDataSourceManager,
   ScatterplotLayerSchema,
   type PlaygroundBindings,
   type PlaygroundDataBinding
@@ -24,13 +24,17 @@ const REGISTRY = {
 };
 const PLAYGROUNDS: DeckPlayground[] = [];
 const HOSTS: HTMLElement[] = [];
-let sources: PlaygroundDataSourceRegistry;
+let sources: PlaygroundDataSourceManager;
 let setProps: MockInstance<Deck['setProps']>;
 
 beforeEach(() => {
-  sources = new PlaygroundDataSourceRegistry();
+  sources = new PlaygroundDataSourceManager();
   setProps = vi.spyOn(Deck.prototype, 'setProps');
 });
+
+function addSource(dataSourceId: string, dataSource: object | Promise<object> | null) {
+  sources.add({dataSourceId, dataSource});
+}
 
 function createDocument(sourceId = 'points', radius = 4) {
   return {
@@ -103,15 +107,16 @@ function zoomCanvas(canvas: HTMLCanvasElement): void {
   );
 }
 
-afterEach(() => {
+afterEach(async () => {
   for (const playground of PLAYGROUNDS.splice(0)) playground.finalize();
   for (const host of HOSTS.splice(0)) host.remove();
+  await sources.finalize();
   vi.restoreAllMocks();
 });
 
 describe('DeckPlayground independent data sources', () => {
   it('shares source updates while preserving cameras and respecting local overrides', async () => {
-    sources.register('points', createBinding());
+    addSource('points', createBinding());
     const first = mountPlayground();
     const second = mountPlayground();
     const [firstDeck, secondDeck] = await Promise.all([first.ready(), second.ready()]);
@@ -126,11 +131,11 @@ describe('DeckPlayground independent data sources', () => {
     );
     const zoom = firstDeck.getViewports()[0].zoom;
     setProps.mockClear();
-    sources.register('unrelated', createBinding());
+    addSource('unrelated', createBinding());
     expect(setProps).not.toHaveBeenCalled();
 
     const filteredRows = [ROWS[1]];
-    sources.register('points', createBinding(filteredRows));
+    addSource('points', createBinding(filteredRows));
     expect(getLayer(firstDeck).props.data).toBe(filteredRows);
     expect(getLayer(secondDeck).props.data).toBe(filteredRows);
     expect(first.host.querySelector('canvas')).toBe(firstCanvas);
@@ -155,7 +160,7 @@ describe('DeckPlayground independent data sources', () => {
     const overrideRows = [ROWS[0]];
     expect(first.playground.setBindings({points: createBinding(overrideRows)})).toBe(true);
     const overriddenLayer = getLayer(firstDeck);
-    sources.register('points', createBinding());
+    addSource('points', createBinding());
     expect(getLayer(firstDeck)).toBe(overriddenLayer);
     expect(getLayer(firstDeck).props.data).toBe(overrideRows);
     expect(getLayer(secondDeck).props.data).toBe(ROWS);
@@ -173,7 +178,7 @@ describe('DeckPlayground independent data sources', () => {
     expect(mounted.onChange).not.toHaveBeenCalled();
 
     mounted.onError.mockClear();
-    sources.register('points', createBinding());
+    addSource('points', createBinding());
     const deck = await mounted.ready();
     expect(getLayer(deck).props.data).toBe(ROWS);
     expect(mounted.onChange).toHaveBeenCalledTimes(1);
@@ -181,7 +186,7 @@ describe('DeckPlayground independent data sources', () => {
   }, 20_000);
 
   it('retains the preview and pending document until an edited source becomes ready', async () => {
-    sources.register('points', createBinding());
+    addSource('points', createBinding());
     const mounted = mountPlayground();
     const deck = await mounted.ready();
     const canvas = mounted.host.querySelector('canvas');
@@ -204,10 +209,8 @@ describe('DeckPlayground independent data sources', () => {
     const pending = new Promise<PlaygroundDataBinding>(resolve => {
       resolveSource = resolve;
     });
-    const loader = vi.fn(() => pending);
     mounted.onError.mockClear();
-    sources.register('later', loader);
-    await vi.waitFor(() => expect(loader).toHaveBeenCalledTimes(1));
+    addSource('later', pending);
     expect(getLayer(deck)).toBe(acceptedLayer);
     expect(mounted.host.querySelector('canvas')).toBe(canvas);
     expect(mounted.onError).not.toHaveBeenCalled();
@@ -223,13 +226,13 @@ describe('DeckPlayground independent data sources', () => {
     expect(mounted.onLoad).toHaveBeenCalledTimes(1);
     expect(mounted.onError).not.toHaveBeenCalled();
 
-    sources.register('later', createBinding());
+    addSource('later', createBinding());
     expect(getLayer(deck).props.data).toBe(ROWS);
     expect(mounted.onChange).toHaveBeenCalledTimes(2);
   }, 20_000);
 
-  it('retains the preview but suppresses source picks after removal or loading failure', async () => {
-    sources.register('points', createBinding());
+  it('retains the preview but suppresses source picks while unavailable or after loading failure', async () => {
+    addSource('points', createBinding());
     const mounted = mountPlayground();
     const deck = await mounted.ready();
     const canvas = mounted.host.querySelector('canvas');
@@ -243,13 +246,13 @@ describe('DeckPlayground independent data sources', () => {
     pick();
     expect(mounted.onSelect).toHaveBeenLastCalledWith(expect.objectContaining({rowId: 'west'}));
 
-    sources.unregister('points');
+    sources.add({dataSourceId: 'points', dataSource: null, forceUpdate: true});
     expect(mounted.onError).toHaveBeenCalledTimes(1);
     expect(getLayer(deck)).toBe(acceptedLayer);
     pick();
     expect(mounted.onSelect).toHaveBeenLastCalledWith(null);
 
-    sources.register('points', () => Promise.reject(new Error('Source failed to load')));
+    addSource('points', Promise.reject(new Error('Source failed to load')));
     expect(mounted.onError).toHaveBeenCalledTimes(1);
     pick();
     expect(mounted.onSelect).toHaveBeenLastCalledWith(null);
@@ -260,7 +263,7 @@ describe('DeckPlayground independent data sources', () => {
     expect(mounted.onSelect).toHaveBeenLastCalledWith(null);
 
     const nextRows = [ROWS[1]];
-    sources.register('points', createBinding(nextRows));
+    addSource('points', createBinding(nextRows));
     expect(getLayer(deck).props.data).toBe(nextRows);
     onClick(
       {picked: true, index: 0, object: ROWS[1], layer: getLayer(deck)} as PickingInfo,
@@ -277,17 +280,15 @@ describe('DeckPlayground independent data sources', () => {
     const pending = new Promise<PlaygroundDataBinding>(resolve => {
       resolveSource = resolve;
     });
-    const loader = vi.fn((_options: {signal: AbortSignal}) => pending);
-    sources.register('points', loader);
+    addSource('points', pending);
     const first = mountPlayground();
     const second = mountPlayground();
-    await vi.waitFor(() => expect(loader).toHaveBeenCalledTimes(1));
     for (const mounted of [first, second]) {
       expect(mounted.onError).not.toHaveBeenCalled();
       expect(mounted.onChange).not.toHaveBeenCalled();
     }
     first.playground.finalize();
-    expect(loader.mock.calls[0][0].signal.aborted).toBe(false);
+    expect(sources.listDataSources()).toEqual([{dataSourceId: 'points', status: 'pending'}]);
 
     resolveSource(createBinding());
     const deck = await second.ready();
@@ -297,7 +298,7 @@ describe('DeckPlayground independent data sources', () => {
     expect(first.onLoad).not.toHaveBeenCalled();
 
     const nextRows = [ROWS[0]];
-    sources.register('points', createBinding(nextRows));
+    addSource('points', createBinding(nextRows));
     expect(getLayer(deck).props.data).toBe(nextRows);
     expect(second.onChange).toHaveBeenCalledTimes(1);
     expect(second.onError).not.toHaveBeenCalled();

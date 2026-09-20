@@ -3,9 +3,10 @@
 
 import {Layer, MapView, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {describe, expect, test, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest';
 import {z} from 'zod';
-import {PlaygroundDataSourceRegistry} from '../src/runtime/playground-data-source-registry';
+import {PlaygroundDataSourceManager} from '../src/runtime/playground-data-source-manager';
+import {PlaygroundSourceBindings} from '../src/runtime/playground-source-bindings';
 import {
   createPlaygroundResolver,
   PlaygroundDataSourceError
@@ -17,6 +18,21 @@ const registry = {
 };
 const resolver = createPlaygroundResolver(registry);
 const layer = {id: 'points', '@@type': 'ScatterplotLayer'};
+
+let manager: PlaygroundDataSourceManager;
+let dataSources: PlaygroundSourceBindings;
+beforeEach(() => {
+  manager = new PlaygroundDataSourceManager();
+  dataSources = new PlaygroundSourceBindings(manager, () => {});
+});
+afterEach(async () => {
+  dataSources.finalize();
+  await manager.finalize();
+});
+
+function addSource(dataSourceId: string, dataSource: object | Promise<object> | null) {
+  manager.add({dataSourceId, dataSource});
+}
 
 function resolveLayer(properties: Record<string, unknown>) {
   const result = resolver.resolve({layers: [{...layer, ...properties}]}, {});
@@ -89,11 +105,10 @@ describe('playground runtime resolver', () => {
   });
 
   test('resolves shared sources and returns only descriptors referenced by the document', () => {
-    const dataSources = new PlaygroundDataSourceRegistry();
     const data = [{id: 17, position: [0, 0]}];
     const getRowId = (row: {id: number}) => row.id;
-    dataSources.register('shared', {data, getRowId});
-    dataSources.register('unusedShared', {data: []});
+    addSource('shared', {data, getRowId});
+    addSource('unusedShared', {data: []});
     const local = {data: [{id: 19}]};
     const inline = [{id: 21}];
     const result = resolver.resolve(
@@ -123,32 +138,29 @@ describe('playground runtime resolver', () => {
     );
   });
 
-  test('prioritizes own local bindings over shared sources including pending loaders', () => {
-    const dataSources = new PlaygroundDataSourceRegistry();
+  test('prioritizes own local bindings over shared sources including pending sources', () => {
     const shared = [{id: 1}];
     const local = {data: [{id: 2}]};
     const document = {layers: [sourceLayer('points')]};
-    dataSources.register('points', {data: shared});
+    addSource('points', {data: shared});
     const inherited = resolver.resolve(document, Object.create({points: local}), dataSources);
     expect((inherited.props.layers as Layer[])[0].props.data).toBe(shared);
     const override = resolver.resolve(document, {points: local}, dataSources);
     expect((override.props.layers as Layer[])[0].props.data).toBe(local.data);
     expect(override.bindings.points).toBe(local);
-    dataSources.register('points', () => new Promise(() => {}));
+    addSource('points', new Promise<object>(() => {}));
     const pendingOverride = resolver.resolve(document, {points: local}, dataSources);
     expect((pendingOverride.props.layers as Layer[])[0].props.data).toBe(local.data);
     expect(pendingOverride.bindings.points).toBe(local);
     expect(() => resolver.resolve(document, {points: undefined}, dataSources)).toThrow(
       'must contain a row array'
     );
-    dataSources.unregister('points');
   });
 
   test('resolves prototype-like source names without inherited properties or prototype mutation', () => {
-    const dataSources = new PlaygroundDataSourceRegistry();
     const names = ['__proto__', 'constructor', 'toString'];
     for (const name of names) {
-      dataSources.register(name, {data: [{name}]});
+      addSource(name, {data: [{name}]});
     }
     const document = {
       layers: names.map(name => sourceLayer(name))
@@ -174,7 +186,6 @@ describe('playground runtime resolver', () => {
     'loading',
     'error'
   ] as const)('defers all construction for a %s source and reports recovery context', async status => {
-    const dataSources = new PlaygroundDataSourceRegistry();
     const constructLayer = vi.fn(function (
       props: ConstructorParameters<typeof ScatterplotLayer>[0]
     ) {
@@ -193,10 +204,11 @@ describe('playground runtime resolver', () => {
       }
     });
     const cause = new Error('Remote source unavailable');
-    dataSources.register('ready', {data: []});
-    if (status === 'loading') dataSources.register('unavailable', () => new Promise(() => {}));
+    addSource('ready', {data: []});
+    if (status === 'loading') addSource('unavailable', new Promise<object>(() => {}));
     if (status === 'error') {
-      dataSources.register('unavailable', () => Promise.reject(cause));
+      addSource('unavailable', Promise.reject(cause));
+      dataSources.get('unavailable');
       await vi.waitFor(() => expect(dataSources.getState('unavailable')?.status).toBe('error'));
     }
     const document = {
@@ -219,12 +231,10 @@ describe('playground runtime resolver', () => {
     const local = {data: [{id: 1}]};
     const result = tracked.resolve(document, {unavailable: local}, dataSources);
     expect((result.props.layers as Layer[])[0].props.data).toBe(local.data);
-    dataSources.unregister('unavailable');
   });
 
   test('prioritizes configuration errors over unavailable sources throughout the document', () => {
-    const dataSources = new PlaygroundDataSourceRegistry();
-    dataSources.register('pending', () => new Promise(() => {}));
+    addSource('pending', new Promise<object>(() => {}));
     for (const source of ['pending', 'missing']) {
       const unavailable = sourceLayer(source);
       const cases = [
@@ -247,7 +257,6 @@ describe('playground runtime resolver', () => {
         expect(() => resolver.resolve(document, {}, dataSources)).toThrow(error);
       }
     }
-    dataSources.unregister('pending');
   });
 
   test('supports own-property paths, array indices and numeric arithmetic', () => {

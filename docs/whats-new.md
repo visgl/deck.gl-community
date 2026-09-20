@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Playground adds `DeckPlayground` for persistent previews, picking, and camera control, plus
-  `PlaygroundDataSourceRegistry` for shared rows and async loaders. Source updates preserve the
+  `PlaygroundDataSourceManager` for shared rows and promises. Source updates preserve the
   canvas and camera; `Playground` also supports persistent custom renderers.
 
 - Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,

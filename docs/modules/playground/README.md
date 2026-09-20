@@ -12,12 +12,15 @@ Register rows independently, then connect them to a `DeckPlayground`:
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {
   DeckPlayground,
-  PlaygroundDataSourceRegistry,
+  PlaygroundDataSourceManager,
   ScatterplotLayerSchema
 } from '@deck.gl-community/playground';
 
-const dataSources = new PlaygroundDataSourceRegistry();
-dataSources.register('points', {data: [{id: 'pier', position: [-122.4, 37.8]}]});
+const dataSources = new PlaygroundDataSourceManager();
+dataSources.add({
+  dataSourceId: 'points',
+  dataSource: {data: [{id: 'pier', position: [-122.4, 37.8]}]}
+});
 
 const playground = new DeckPlayground({
   parentElement: document.getElementById('playground')!,
@@ -45,10 +48,15 @@ const playground = new DeckPlayground({
 });
 
 // Refresh all consumers while preserving their cameras.
-dataSources.register('points', {data: [{id: 'harbor', position: [-122.41, 37.81]}]});
+dataSources.add({
+  dataSourceId: 'points',
+  dataSource: {data: [{id: 'harbor', position: [-122.41, 37.81]}]}
+});
 
 // Release this playground. Shared sources remain registered.
 playground.finalize();
+// Release the manager when all consumers are finished.
+await dataSources.finalize();
 ```
 
 Accepted edits reuse the preview; invalid edits retain the last accepted document. Sources can

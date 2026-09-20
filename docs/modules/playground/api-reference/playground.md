@@ -8,7 +8,7 @@
 Accepts `parentElement`, `templates`, and `initialTemplate`, plus:
 
 - `registry`: layer and view constructors with matching schemas, as described below.
-- `dataSources`: optional `PlaygroundDataSourceRegistry` shared with other consumers.
+- `dataSources`: optional `PlaygroundDataSourceManagerLike` shared with other consumers.
 - `bindings`: optional local row bindings that override sources of the same name.
 - `onChange(value, text)`: runs once an edit is accepted, after loading any required sources,
   with the original edited value and text. Source updates alone do not emit changes.
@@ -46,7 +46,7 @@ Omit `views` to use the default map view.
 `setBindings(bindings): boolean` replaces the local binding map and retries the pending validated
 or accepted document without changing editor text. It returns `true` on success; otherwise it
 retains the previous bindings and preview. Loading sources return `false` silently; other failures
-report `onError`. Pass `{}` to restore source-registry lookup.
+report `onError`. Pass `{}` to restore source-manager lookup.
 
 ### Picking
 
@@ -68,47 +68,53 @@ changing view types or IDs resets the camera. An explicit `viewState` remains au
 Interactivity defaults to enabled, preserving explicit per-view controller settings.
 
 `resetView(): void` restores the accepted document's `initialViewState`, defaulting to longitude 0,
-latitude 0, and zoom 0. `finalize()` releases the editor, preview, and registry subscription;
+latitude 0, and zoom 0. `finalize()` releases the editor, preview, and source subscriptions;
 shared sources remain registered.
 
-## `PlaygroundDataSourceRegistry`
+## `PlaygroundDataSourceManager`
 
-Register sources independently and pass the registry as `dataSources`. JSON layers reference them
-with `data: {'@@data': 'points'}`. A source is a `PlaygroundDataBinding` (`{data: rows, getRowId?}`)
-or a loader returning that binding:
+Register sources independently and pass the manager as `dataSources`. JSON layers reference them
+with `data: {'@@data': 'points'}`. The preview accepts a `PlaygroundDataBinding`
+(`{data: rows, getRowId?}`), a promise of that binding, or `null` while unavailable:
 
 ```ts
-const dataSources = new PlaygroundDataSourceRegistry();
-const unregister = dataSources.register('points', async ({signal}) => {
-  const response = await fetch('/points.json', {signal});
+const dataSources = new PlaygroundDataSourceManager();
+const points = fetch('/points.json').then(async response => {
   if (!response.ok) throw new Error(`Could not load points (${response.status})`);
-  return {data: await response.json(), getRowId: row => row.id};
+  return {data: await response.json(), getRowId: (row: {id: string}) => row.id};
 });
+dataSources.add({dataSourceId: 'points', dataSource: points});
 ```
 
-- `register(name, source): () => void`: replaces a source and returns cleanup for that registration.
-  An older cleanup cannot remove its replacement.
-- `unregister(name): boolean`: removes a source, aborts pending work, and reports whether it existed.
-- `get(name): PlaygroundDataBinding | undefined`: returns the ready binding.
-- `getState(name)`: returns `{status: 'loading' | 'ready' | 'error', error?: Error}` or `undefined`
-  for an unregistered name.
-- `subscribe(listener): () => void`: calls `listener(name)` on changes; returns an unsubscribe function.
+- `add({dataSourceId, dataSource, forceUpdate?})`: registers or replaces an owned source. Use
+  `forceUpdate: true` to notify consumers when passing the same object again.
+- `contains(id)`: checks registration; names prefixed with `datasource://` also support deferred sources.
+- `subscribe({dataSourceId, consumerId, requestId?, onChange})`: returns the current source,
+  promise, placeholder, or `undefined`; `onChange(source)` receives replacements.
+  The default request ID is `'default'`.
+- `unsubscribe({consumerId})`: detaches all requests for a consumer without releasing sources.
+- `listDataSources()`: returns entries with `dataSourceId`, `status`
+  (`'ready' | 'pending' | 'placeholder' | 'error'`), and optional `error`.
+- `remove(id): Promise<void>`: releases a source and silently removes its subscriptions permanently.
+- `finalize(): Promise<void>`: releases all sources and subscriptions.
 
-Loaders start in a microtask after registration, once per registration regardless of consumers.
-Replacing or removing a source aborts its signal; results from superseded loads are ignored.
-Rows remain host-owned arrays outside the JSON document. Register a new array to publish changes:
+Playgrounds subscribe through `datasource://` placeholders, so sources may be added after mounting.
+Use a null placeholder for temporary unavailability; unlike `remove`, this preserves subscriptions:
 
 ```ts
-dataSources.register('points', {data: nextRows, getRowId: row => row.id});
+dataSources.add({dataSourceId: 'points', dataSource: null});
+dataSources.add({dataSourceId: 'points', dataSource: {data: nextRows}});
 ```
 
-Referenced sources automatically refresh the current or pending document. Loading retains the
-last accepted preview without an error. Missing or failed sources report an `Error` through
-`onError` and retry when available. Failed loader errors are available as `cause`; use `getState`
-to observe source loading and failure states.
+Referenced source updates refresh the current or pending document. Pending promises retain the
+last accepted preview without an error; failures report `onError`. Supply new row arrays when
+contents change. Producers own request cancellation. The manager owns source handles and invokes
+their `close`, `finalize`, or `destroy` hook when released; playground cleanup only unsubscribes.
 
-The source owner calls registration cleanup or `unregister` when finished. Finalizing a playground
-does not remove sources or cancel their loaders.
+This local class implements a narrow loaders.gl v5 manager subset without adding a dependency.
+The structural `PlaygroundDataSourceManagerLike` interface allows compatible upstream managers
+to be substituted later. Arbitrary `TableScanSource` handles still need an adapter that materializes
+rows into `PlaygroundDataBinding`.
 
 ## `Playground` {/* #playground */}
 

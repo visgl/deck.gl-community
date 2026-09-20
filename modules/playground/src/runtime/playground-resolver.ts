@@ -19,7 +19,7 @@ import {
   OrthographicViewSchema
 } from '../schemas/views';
 import type {PlaygroundBindings, PlaygroundRegistry} from './playground-registry';
-import type {PlaygroundDataSourceRegistry} from './playground-data-source-registry';
+import type {PlaygroundBindingProvider} from './playground-source-bindings';
 
 const CORE_VIEWS: NonNullable<PlaygroundRegistry['views']> = {
   MapView: {type: MapView, schema: MapViewSchema},
@@ -75,7 +75,7 @@ export type PlaygroundResolver = {
   resolve: (
     value: unknown,
     bindings: PlaygroundBindings,
-    dataSources?: PlaygroundDataSourceRegistry
+    dataSources?: PlaygroundBindingProvider
   ) => ResolvedPlaygroundConfiguration;
 };
 
