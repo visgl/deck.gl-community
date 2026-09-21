@@ -59,14 +59,10 @@ describe('compat entrypoint export matrices', () => {
       'TripsLayer',
       'WMSLayer',
       'mVTLayer',
-      'mvtLayer',
-      'wMSLayer',
-      'wmsLayer'
+      'wMSLayer'
     ]);
     expect(geoLayers.mVTLayer).toBe(geoLayers.MVTLayer);
-    expect(geoLayers.mvtLayer).toBe(geoLayers.MVTLayer);
     expect(geoLayers.wMSLayer).toBe(geoLayers.WMSLayer);
-    expect(geoLayers.wmsLayer).toBe(geoLayers.WMSLayer);
     expect(Object.keys(meshLayers).sort()).toEqual(['ScenegraphLayer', 'SimpleMeshLayer']);
   });
 });

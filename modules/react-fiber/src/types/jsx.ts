@@ -147,12 +147,8 @@ export interface DeckglElements {
   tripsLayer: TripsLayerProps;
   /** @deprecated Use <layer layer={new MVTLayer({...})} /> instead */
   mVTLayer: MVTLayerProps;
-  /** @deprecated Use <layer layer={new MVTLayer({...})} /> instead */
-  mvtLayer: MVTLayerProps;
   /** @deprecated Use <layer layer={new WMSLayer({...})} /> instead */
   wMSLayer: WMSLayerProps;
-  /** @deprecated Use <layer layer={new WMSLayer({...})} /> instead */
-  wmsLayer: WMSLayerProps;
 
   // @deck.gl/mesh-layers
   /** @deprecated Use <layer layer={new ScenegraphLayer({...})} /> instead */

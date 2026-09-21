@@ -72,9 +72,5 @@ export const WMSLayer: LayerComponent<WMSLayerProps> = createLayerComponent(
 
 /** @deprecated Use MVTLayer. */
 export const mVTLayer = MVTLayer;
-/** @deprecated Use MVTLayer. */
-export const mvtLayer = MVTLayer;
 /** @deprecated Use WMSLayer. */
 export const wMSLayer = WMSLayer;
-/** @deprecated Use WMSLayer. */
-export const wmsLayer = WMSLayer;
