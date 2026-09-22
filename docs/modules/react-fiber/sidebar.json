@@ -3,8 +3,21 @@
   "label": "@deck.gl-community/react-fiber",
   "items": [
     "modules/react-fiber/README",
-    "modules/react-fiber/developer-guide/get-started",
-    "modules/react-fiber/developer-guide/migrate-from-deckgl-react",
-    "modules/react-fiber/api-reference/deckgl"
+    {
+      "type": "category",
+      "label": "Developer Guide",
+      "items": [
+        "modules/react-fiber/developer-guide/get-started",
+        "modules/react-fiber/developer-guide/migrate-from-deckgl-react"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference",
+      "items": [
+        "modules/react-fiber/api-reference/deckgl",
+        "modules/react-fiber/api-reference/native-elements"
+      ]
+    }
   ]
 }
