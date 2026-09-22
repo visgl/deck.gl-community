@@ -47,6 +47,10 @@
     "@deck.gl/core": "~9.4.0"
   },
   "dependencies": {
+    "@deck.gl/json": "~9.4.0",
     "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@deck.gl/core": "~9.4.0"
   }
 }

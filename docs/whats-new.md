@@ -5,6 +5,8 @@
 - Playground adds `DeckPlayground` for persistent previews, picking, and camera control, plus
   `PlaygroundDataSourceManager` for shared rows and promises. Source updates preserve the
   canvas and camera; `Playground` also supports persistent custom renderers.
+  Configuration conversion uses `@deck.gl/json`, including array and conditional expressions
+  and registered constants, enumerations, and factories, while keeping row payloads unchanged.
 
 - Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
   including single states and state-ID maps in `initialViewState` and `viewState`.

@@ -61,6 +61,8 @@ await dataSources.finalize();
 
 Accepted edits reuse the preview; invalid edits retain the last accepted document. Sources can
 load asynchronously and serve multiple playgrounds. Use `Playground` for a custom renderer.
+Configuration props follow the [deck.gl JSON syntax](https://deck.gl/docs/api-reference/json/conversion-reference),
+including array and conditional accessor expressions. Inline rows and bound rows remain unchanged.
 
 The [API reference](./api-reference/playground.md) covers registration, picking, camera control,
 and standalone schemas. The

@@ -177,6 +177,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     if (this.finalized) return;
     this.finalized = true;
     this.sourceBindings?.finalize();
+    this.resolver.finalize();
     this.deck?.finalize();
     this.deck = undefined;
     this.element = undefined;

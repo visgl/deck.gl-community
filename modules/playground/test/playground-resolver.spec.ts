@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import {Layer, MapView, OrthographicView} from '@deck.gl/core';
+import {JSONConfiguration} from '@deck.gl/json';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest';
 import {z} from 'zod';
@@ -138,6 +139,24 @@ describe('playground runtime resolver', () => {
     );
   });
 
+  test('refreshes row references when resolving the same document after a source replacement', () => {
+    const document = {layers: [sourceLayer('points')]};
+    const originalRows = [{id: 1}];
+    const nextRows = [{id: 2}];
+    addSource('points', {data: originalRows});
+    const original = resolver.resolve(document, {}, dataSources);
+    addSource('points', {data: nextRows});
+    const refreshed = resolver.resolve(document, {}, dataSources);
+    expect((original.props.layers as Layer[])[0].props.data).toBe(originalRows);
+    expect((refreshed.props.layers as Layer[])[0].props.data).toBe(nextRows);
+    expect(refreshed.bindings.points.data).toBe(nextRows);
+
+    const localRows = [{id: 3}];
+    const overridden = resolver.resolve(document, {points: {data: localRows}}, dataSources);
+    expect((overridden.props.layers as Layer[])[0].props.data).toBe(localRows);
+    expect(overridden.bindings.points.data).toBe(localRows);
+  });
+
   test('prioritizes own local bindings over shared sources including pending sources', () => {
     const shared = [{id: 1}];
     const local = {data: [{id: 2}]};
@@ -241,11 +260,11 @@ describe('playground runtime resolver', () => {
         [{layers: [unavailable, {...layer, id: 'invalid', radiusUnits: 'feet'}]}, z.ZodError],
         [
           {layers: [unavailable, {...layer, getRadius: '@@=Math.random()'}]},
-          'Unsupported playground expression'
+          'Function calls not allowed in JSON expressions'
         ],
         [
           {layers: [unavailable], views: {'@@type': 'MapView', width: '@@=Math.random()'}},
-          'Unsupported playground expression'
+          'Function calls not allowed in JSON expressions'
         ],
         [
           {layers: [unavailable], onViewStateChange: '@@#missingCallback'},
@@ -259,42 +278,36 @@ describe('playground runtime resolver', () => {
     }
   });
 
-  test('supports own-property paths, array indices and numeric arithmetic', () => {
-    const row = {position: [4, 9], properties: {size: 12}};
+  test('supports standard accessor expressions, arrays, conditionals and computed properties', () => {
+    const row = {lng: 4, lat: 9, properties: {size: 12}, field: 'size'};
     const resolved = resolveLayer({
-      getPosition: '@@=position',
-      getRadius: '@@=properties.size / 3',
-      getLineWidth: '@@=position[0] * -2'
+      getPosition: '@@=[lng, lat]',
+      getRadius: '@@=properties.size > 10 ? properties.size / 3 : 1',
+      getLineWidth: '@@=properties[field] + lng + 2'
     });
-    expect((resolved.props as any).getPosition(row)).toBe(row.position);
+    expect((resolved.props as any).getPosition(row)).toEqual([4, 9]);
     expect((resolved.props as any).getRadius(row)).toBe(4);
-    expect((resolved.props as any).getLineWidth(row)).toBe(-8);
-    expect((resolveLayer({getRadius: '@@=0'}).props as any).getRadius([17])).toBe(17);
-    const getRadius = (resolveLayer({getRadius: '@@=size + 1'}).props as any).getRadius;
-    expect(getRadius(Object.create({size: 5}))).toBeUndefined();
-    expect(getRadius({size: '5'})).toBeUndefined();
-    expect((resolveLayer({getRadius: '@@=size + 1'}).props as any).getRadius).toBe(getRadius);
-  });
-
-  test('rejects unsupported expressions and prototype traversal before rendering', () => {
-    for (const expression of [
-      'Math.random()',
-      'a = 2',
-      'a; sideEffect()',
-      'a + b',
-      'a + 1 + 2',
-      'a ? b : c',
-      'a["name"]',
-      '__proto__.value',
-      'a.constructor',
-      'a.prototype.value',
-      'size * 1e999'
-    ]) {
-      expect(() => resolveLayer({getRadius: `@@=${expression}`})).toThrow();
+    expect((resolved.props as any).getRadius({...row, properties: {size: 3}})).toBe(1);
+    expect((resolved.props as any).getLineWidth(row)).toBe(18);
+    expect((resolveLayer({getRadius: '@@=0'}).props as any).getRadius([17])).toBe(0);
+    for (const expression of ['this', '-']) {
+      const getPosition = (resolveLayer({getPosition: `@@=${expression}`}).props as any)
+        .getPosition;
+      expect(getPosition(row)).toBe(row);
     }
   });
 
-  test('resolves registered constants and factories using only own properties', () => {
+  test('rejects executable expressions and disallowed member access', () => {
+    for (const expression of ['Math.random()', 'a = 2', 'a; sideEffect()']) {
+      expect(() => resolveLayer({getRadius: `@@=${expression}`})).toThrow();
+    }
+    const getRadius = (resolveLayer({getRadius: '@@=properties[field]'}).props as any).getRadius;
+    expect(() => getRadius({properties: {}, field: 'constructor'})).toThrow(
+      'Access to member "constructor" disallowed.'
+    );
+  });
+
+  test('resolves registered constants, enumerations and factories', () => {
     const getRadius = () => 7;
     const factory = vi.fn(
       ({scale}) =>
@@ -303,7 +316,8 @@ describe('playground runtime resolver', () => {
     );
     const configured = createPlaygroundResolver({
       ...registry,
-      constants: {palette: {fill: [1, 2, 3]}, getRadius, scale: 3},
+      constants: {getRadius, scale: 3},
+      enumerations: {palette: {fill: [1, 2, 3]}},
       functions: {scaled: factory}
     });
     const result = configured.resolve(
@@ -333,6 +347,97 @@ describe('playground runtime resolver', () => {
     ]) {
       expect(() => configured.resolve({layers: [{...layer, getRadius}]}, {})).toThrow();
     }
+  });
+
+  test('preserves zero and false constant values', () => {
+    const configured = createPlaygroundResolver({
+      ...registry,
+      constants: {zero: 0, disabled: false, 'palette.fill': [1, 2, 3]}
+    });
+    const result = configured.resolve(
+      {
+        controller: '@@#disabled',
+        layers: [{...layer, getRadius: '@@#zero', getFillColor: '@@#palette.fill'}]
+      },
+      {}
+    );
+    const props = (result.props.layers as ScatterplotLayer[])[0].props;
+    expect(result.props.controller).toBe(false);
+    expect(props.getRadius).toBe(0);
+    expect(props.getFillColor).toEqual([1, 2, 3]);
+  });
+
+  test('isolates resolver registrations and releases only its own catalogs on finalize', () => {
+    const catalogs = JSONConfiguration.defaultProps;
+    const originalEnumerations = Object.keys(catalogs.enumerations);
+    const originalFunctions = Object.keys(catalogs.functions);
+    const createResolver = (radius: number) =>
+      createPlaygroundResolver({
+        ...registry,
+        constants: {radius},
+        enumerations: {palette: {fill: [radius, 0, 0]}},
+        functions: {'width.fixed': () => () => radius + 1}
+      });
+    const first = createResolver(2);
+    const second = createResolver(7);
+    const document = {
+      layers: [
+        {
+          ...layer,
+          getRadius: '@@#radius',
+          getFillColor: '@@#palette.fill',
+          getLineWidth: {'@@function': 'width.fixed'}
+        }
+      ]
+    };
+    for (const [configured, radius] of [
+      [first, 2],
+      [second, 7],
+      [first, 2]
+    ] as const) {
+      const result = configured.resolve(document, {});
+      const props = (result.props.layers as ScatterplotLayer[])[0].props;
+      expect(props.getRadius).toBe(radius);
+      expect(props.getFillColor).toEqual([radius, 0, 0]);
+      expect((props.getLineWidth as () => number)()).toBe(radius + 1);
+    }
+    first.finalize();
+    first.finalize();
+    expect(Object.keys(catalogs.enumerations)).toHaveLength(originalEnumerations.length + 1);
+    expect(Object.keys(catalogs.functions)).toHaveLength(originalFunctions.length + 1);
+    const result = second.resolve(document, {});
+    const props = (result.props.layers as ScatterplotLayer[])[0].props;
+    expect(props.getRadius).toBe(7);
+    expect((props.getLineWidth as () => number)()).toBe(8);
+    second.finalize();
+    expect(Object.keys(catalogs.enumerations)).toEqual(originalEnumerations);
+    expect(Object.keys(catalogs.functions)).toEqual(originalFunctions);
+  });
+
+  test('keeps factory-returned arrays and objects opaque without cloning them', () => {
+    const array = ['@@=untrusted()', {'@@type': 'Unknown'}];
+    const object = {label: '@@#missing', nested: {'@@function': 'missing'}};
+    const configured = createPlaygroundResolver({
+      ...registry,
+      functions: {makeArray: () => array, makeObject: () => object}
+    });
+    const result = configured.resolve(
+      {
+        layers: [
+          {
+            ...layer,
+            updateTriggers: {
+              getRadius: {'@@function': 'makeArray'},
+              getFillColor: {'@@function': 'makeObject'}
+            }
+          }
+        ]
+      },
+      {}
+    );
+    const triggers = (result.props.layers as Layer[])[0].props.updateTriggers;
+    expect(triggers.getRadius).toBe(array);
+    expect(triggers.getFillColor).toBe(object);
   });
 
   test('rejects duplicate layer IDs and unsupported nested resource constructors', () => {

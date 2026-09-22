@@ -30,16 +30,24 @@ The five core views (`MapView`, `OrthographicView`, `OrbitView`, `FirstPersonVie
 are available by default. `registry.views` adds constructors with matching schemas; custom views
 currently use the built-in camera-state schemas.
 
-`registry.constants` supplies values referenced by `"@@#name"` or an own-property path.
-`registry.functions` supplies factories for `{"@@function": "name", ...options}` descriptors.
-Accessor expressions support own-property paths, optionally followed by one numeric arithmetic
-operation: `"@@=position"`, `"@@=coordinates[0]"`, or `"@@=weight * 2"`.
-They do not evaluate arbitrary JavaScript. Supply nested resources through constants rather than
-nested `@@type` descriptors.
+Configuration conversion uses `JSONConverter` from `@deck.gl/json` and its
+[standard JSON syntax](https://deck.gl/docs/api-reference/json/conversion-reference):
+
+- `registry.constants` supplies exact named values for `"@@#name"`.
+- `registry.enumerations` supplies named value maps; for example,
+  `{palette: {fill: [40, 120, 220]}}` resolves `"@@#palette.fill"`.
+- `registry.functions` supplies exact named factories for
+  `{"@@function": "name", ...options}` descriptors.
+
+`@@=` expressions support property paths, arrays, arithmetic, conditionals, and numeric literals,
+such as `"@@=position"`, `"@@=[longitude, latitude]"`, `"@@=weight > 10 ? 8 : 4"`, and `"@@=5"`.
+Function calls are not supported inside expressions. Supply nested resources through constants
+rather than nested `@@type` descriptors.
 
 Registered schemas drive validation and Monaco diagnostics. The runtime also rejects unavailable
 references, duplicate layer IDs, `mapStyle` (no basemap adapter), and empty `views` arrays.
-Omit `views` to use the default map view.
+Omit `views` to use the default map view. Inline rows and external bindings bypass conversion:
+their values remain opaque and preserve row identity, including strings beginning with `@@`.
 
 ### Local bindings
 

@@ -9,6 +9,7 @@ import {
   OrthographicView,
   type View
 } from '@deck.gl/core';
+import {JSONConverter} from '@deck.gl/json';
 import {z} from 'zod';
 import {createDeckGLDocumentSchema} from '../schemas/deckgl';
 import {
@@ -28,11 +29,7 @@ const CORE_VIEWS: NonNullable<PlaygroundRegistry['views']> = {
   OrthographicView: {type: OrthographicView, schema: OrthographicViewSchema},
   FirstPersonView: {type: FirstPersonView, schema: FirstPersonViewSchema}
 };
-const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
-const PATH_PATTERN = '(?:[A-Za-z_$][\\w$]*|\\d+)(?:\\.(?:[A-Za-z_$][\\w$]*|\\d+)|\\[\\d+\\])*';
-const EXPRESSION_PATTERN = new RegExp(
-  `^(${PATH_PATTERN})(?:\\s*([+\\-*/])\\s*(-?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+\\-]?\\d+)?))?$`
-);
+let nextConverterId = 0;
 
 /** A validated configuration ready to apply to a persistent Deck instance. */
 export type ResolvedPlaygroundConfiguration = {
@@ -71,6 +68,8 @@ export class PlaygroundDataSourceError extends Error {
 export type PlaygroundResolver = {
   /** JSON Schema containing only registered layers and supported views. */
   jsonSchema: Record<string, unknown>;
+  /** Releases this resolver's registrations from JSONConverter's shared catalogs. */
+  finalize: () => void;
   /** Validates before constructing layers/views; preserves inline and external row references. */
   resolve: (
     value: unknown,
@@ -82,15 +81,39 @@ export type PlaygroundResolver = {
 /**
  * Creates a schema-backed resolver for the built-in renderer.
  *
- * Accessors support own-property paths and one numeric arithmetic operation. This resolver
- * never evaluates JavaScript source. Registered factories and constructors are trusted host
- * code. Nested class resources must be supplied through constants rather than `@@type`.
+ * Expressions and deferred values use deck.gl's JSONConverter. Row payloads and constructor
+ * identifiers remain opaque. Registered factories and constructors are trusted host code.
+ * Nested class resources must be supplied through constants rather than `@@type`.
  * The runtime schema excludes basemap styling and requires a nonempty view list when supplied.
  */
 export function createPlaygroundResolver(registry: PlaygroundRegistry): PlaygroundResolver {
   const layers = {...registry.layers};
   const views = {...CORE_VIEWS, ...registry.views};
-  const accessors = new Map<string, (row: unknown) => unknown>();
+  const namespace = `playground-${nextConverterId++}`;
+  const constants = new Map([
+    ...Object.entries(registry.enumerations ?? {}).flatMap(([group, values]) =>
+      Object.entries(values).map(([name, value]) => [`${group}.${name}`, value] as const)
+    ),
+    ...Object.entries(registry.constants ?? {})
+  ]);
+  const constantIds = new Map([...constants.keys()].map((name, index) => [name, String(index)]));
+  const functionIds = new Map(
+    Object.keys(registry.functions ?? {}).map((name, index) => [name, `${namespace}.${index}`])
+  );
+  // JSONConverter 9.4 shares catalog storage; namespace entries to isolate playgrounds.
+  // Enum slots also preserve falsy constants, which its direct constant lookup skips.
+  const converter = new JSONConverter({
+    configuration: {
+      enumerations: {
+        [namespace]: Object.fromEntries(
+          [...constants.values()].map((value, index) => [index, value])
+        )
+      },
+      functions: Object.fromEntries(
+        [...functionIds].map(([name, id]) => [id, registry.functions![name]])
+      )
+    }
+  });
   const viewSchema = createSchemaUnion(Object.values(views).map(entry => entry.schema));
   const schema = createDeckGLDocumentSchema(
     createSchemaUnion(Object.values(layers).map(entry => entry.schema)),
@@ -111,23 +134,13 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
     }
   });
 
-  function resolveValue(value: unknown): unknown {
+  function prepareValue(value: unknown): unknown {
     if (typeof value === 'string') {
-      if (value.startsWith('@@=')) {
-        const expression = value.slice(3).trim();
-        let accessor = accessors.get(expression);
-        if (!accessor) {
-          accessor = createAccessor(expression);
-          accessors.set(expression, accessor);
-        }
-        return accessor;
-      }
-      if (value.startsWith('@@#')) {
-        return resolveReference(registry.constants ?? {}, value.slice(3), 'constant');
-      }
-      return value;
+      return value.startsWith('@@#')
+        ? `@@#${namespace}.${getReference(constantIds, value.slice(3), 'constant')}`
+        : value;
     }
-    if (Array.isArray(value)) return value.map(resolveValue);
+    if (Array.isArray(value)) return value.map(prepareValue);
     if (!isRecord(value)) return value;
     if (Object.hasOwn(value, '@@type')) {
       throw new Error('Nested @@type resources are unsupported; register a constant instead');
@@ -136,25 +149,29 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       throw new Error('External bindings are only supported in a layer data property');
     }
     if (Object.hasOwn(value, '@@function')) {
-      const name = value['@@function'];
-      if (typeof name !== 'string') throw new Error('A function reference requires a name');
-      const factory = resolveReference(registry.functions ?? {}, name, 'function');
-      if (typeof factory !== 'function') throw new Error(`Invalid registered function: ${name}`);
-      return factory(resolveProperties(value, ['@@function']));
+      return {
+        ...prepareProperties(value, ['@@function']),
+        '@@function': getReference(functionIds, value['@@function'], 'function')
+      };
     }
-    return resolveProperties(value);
+    return prepareProperties(value);
   }
 
-  function resolveProperties(value: Record<string, unknown>, omit: string[] = []) {
+  function prepareProperties(value: Record<string, unknown>, omit: string[] = []) {
     return Object.fromEntries(
       Object.entries(value)
         .filter(([key]) => !omit.includes(key))
-        .map(([key, child]) => [key, resolveValue(child)])
+        .map(([key, child]) => [key, prepareValue(child)])
     );
   }
 
   return {
     jsonSchema,
+    finalize() {
+      delete converter.configuration.config.enumerations[namespace];
+      for (const id of functionIds.values()) delete converter.configuration.config.functions[id];
+      converter.finalize();
+    },
     resolve(value, bindings, dataSources) {
       const document = schema.parse(value) as Record<string, unknown>;
       const sourceLayers = (value as {layers?: Record<string, unknown>[]}).layers ?? [];
@@ -171,8 +188,8 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         }
         if (ids.has(id)) throw new Error(`Duplicate playground layer id: ${id}`);
         ids.add(id);
-        const props = resolveProperties(definition, ['@@type', 'data', 'id']);
-        props.id = id;
+        const props = prepareProperties(definition, ['@@type', 'data', 'id']);
+        const literalProps: Record<string, unknown> = {id};
         if (Object.hasOwn(definition, 'data')) {
           // Keep the original rows: schema parsing may apply defaults, but also clones JSON.
           const source = sourceLayers[index];
@@ -185,16 +202,16 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
               if (!binding || !Array.isArray(binding.data)) {
                 throw new Error(`Playground data binding must contain a row array: ${bindingName}`);
               }
-              props.data = binding.data;
+              literalProps.data = binding.data;
               resolvedBindings[bindingName] = binding;
             }
             layerBindings.set(id, bindingName);
           } else {
             // Payloads are opaque: a row's expression-like text is ordinary data.
-            props.data = data;
+            literalProps.data = data;
           }
         }
-        return {type, props};
+        return {type, props, literalProps};
       });
       const viewDefinitions = document.views
         ? Array.isArray(document.views)
@@ -202,12 +219,21 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
           : [document.views]
         : [];
       const preparedViews = viewDefinitions.map((definition: Record<string, unknown>) => {
-        const props = resolveProperties(definition, ['@@type', 'id']);
-        if (Object.hasOwn(definition, 'id')) props.id = definition.id;
+        const props = prepareProperties(definition, ['@@type', 'id']);
+        const literalProps = Object.hasOwn(definition, 'id') ? {id: definition.id} : {};
         const {type} = getRegistration(views, String(definition['@@type']), 'view');
-        return {type, props};
+        return {type, props, literalProps};
       });
-      const props = resolveProperties(document, ['layers', 'views']);
+      // A fresh envelope bypasses JSONConverter's input-identity cache on source updates/retries.
+      const converted = converter.convert({
+        props: prepareProperties(document, ['layers', 'views']),
+        layers: preparedLayers.map(({props}) => props),
+        views: preparedViews.map(({props}) => props)
+      }) as {
+        props: Record<string, unknown>;
+        layers: Record<string, unknown>[];
+        views: Record<string, unknown>[];
+      };
       const sourceIds = [...new Set(layerBindings.values())];
       const unavailable = sourceIds.filter(name => !Object.hasOwn(resolvedBindings, name));
       if (unavailable.length) {
@@ -222,9 +248,14 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
           state?.status === 'error' ? state.error : undefined
         );
       }
-      props.layers = preparedLayers.map(({type, props}) => new type(props));
+      const {props} = converted;
+      props.layers = preparedLayers.map(
+        ({type, literalProps}, index) => new type({...converted.layers[index], ...literalProps})
+      );
       if (Object.hasOwn(document, 'views')) {
-        props.views = preparedViews.map(({type, props}) => new type(props));
+        props.views = preparedViews.map(
+          ({type, literalProps}, index) => new type({...converted.views[index], ...literalProps})
+        );
       }
       return {
         props: props as ResolvedPlaygroundConfiguration['props'],
@@ -250,47 +281,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function splitPath(path: string): string[] {
-  const keys = path.replace(/\[(\d+)\]/g, '.$1').split('.');
-  if (keys.some(key => FORBIDDEN_KEYS.has(key))) {
-    throw new Error(`Forbidden playground property path: ${path}`);
+function getReference(ids: Map<string, string>, name: unknown, kind: string): string {
+  if (typeof name !== 'string' || !ids.has(name)) {
+    throw new Error(`Unknown playground ${kind}: ${String(name)}`);
   }
-  return keys;
-}
-
-function readPath(value: unknown, keys: string[]): unknown {
-  let current = value;
-  for (const key of keys) {
-    if (!current || typeof current !== 'object' || !Object.hasOwn(current, key)) return undefined;
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
-}
-
-function resolveReference(registry: Record<string, unknown>, name: string, kind: string): unknown {
-  const keys = splitPath(name);
-  if (Object.hasOwn(registry, name)) return registry[name];
-  const result = readPath(registry, keys);
-  if (result === undefined) throw new Error(`Unknown playground ${kind}: ${name}`);
-  return result;
-}
-
-function createAccessor(expression: string): (row: unknown) => unknown {
-  const match = EXPRESSION_PATTERN.exec(expression);
-  if (!match) throw new Error(`Unsupported playground expression: ${expression}`);
-  const [, path, operator, operandText] = match;
-  const keys = splitPath(path);
-  if (!operator) return row => readPath(row, keys);
-  const operand = Number(operandText);
-  if (!Number.isFinite(operand)) {
-    throw new Error(`Unsupported playground numeric operand: ${operandText}`);
-  }
-  return row => {
-    const value = readPath(row, keys);
-    if (typeof value !== 'number') return undefined;
-    if (operator === '+') return value + operand;
-    if (operator === '-') return value - operand;
-    if (operator === '*') return value * operand;
-    return value / operand;
-  };
+  return ids.get(name)!;
 }

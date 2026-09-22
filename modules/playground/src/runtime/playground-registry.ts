@@ -20,8 +20,10 @@ export type PlaygroundRegistry = {
   layers: Record<string, {type: new (props: any) => Layer; schema: z.ZodType}>;
   /** Additional view constructors; five deck.gl core views are always available. */
   views?: Record<string, {type: new (props: any) => View; schema: z.ZodType}>;
-  /** Trusted host values addressed by `@@#name` or an own-property path. */
+  /** Trusted host values addressed by `@@#name`. */
   constants?: Record<string, unknown>;
+  /** Named groups of host values addressed by `@@#group.member`. */
+  enumerations?: Record<string, Record<string, unknown>>;
   /** Trusted factories invoked by `{"@@function": "name", ...options}`. */
   functions?: Record<string, (options: Record<string, unknown>) => unknown>;
 };
