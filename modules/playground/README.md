@@ -1,36 +1,15 @@
 # @deck.gl-community/playground
 
-An installable (but currently private) JSON playground surface for deck.gl applications. It provides a
-Monaco-backed editor and template selector using `@deck.gl-community/panels`,
-and leaves preview rendering to the host application.
+An unpublished workspace package for embedding a JSON editor and live preview in deck.gl applications.
+Built on `@deck.gl-community/panels`; no React required.
 
-The repository example in [`examples/playground`](../../examples/playground) includes a rich starter
-set of JSON documents: core deck.gl scatterplots, arcs, GeoJSON, and heatmaps, plus community marker,
-global-grid, path-marker, skybox, graph, editable GeoJSON, infovis, horizon-graph, and mixed-layer
-scenes. These documents are useful as templates for applications that register their own layer
-constructors and host-side resources.
+- `DeckPlayground` manages validation, standard `@deck.gl/json` conversion, a persistent deck.gl
+  preview, picking, and camera events. Inline rows and external bindings preserve row identity.
+- `PlaygroundDataSourceManager` shares independently registered rows and promises across previews.
+- `Playground` supports application-owned renderers.
+- GeoJSON and deck.gl Zod schemas, TypeScript types, and generated JSON Schema support validation
+  and editor tooling.
 
-```ts
-import {Playground} from '@deck.gl-community/playground';
-
-const playground = new Playground({
-  parentElement: document.querySelector('#app')!,
-  templates: {scatterplot: {layers: []}},
-  render: (element, value) => {
-    // Create or update a Deck instance in element using value.
-  }
-});
-```
-
-The package does not require React. Install `@deck.gl/core` alongside it when
-the preview is rendered with deck.gl.
-
-The package also exports RFC 7946 GeoJSON schemas and inferred TypeScript types. The generated
-JSON Schema artifact is available from `@deck.gl-community/playground/geojson-schema.json` for
-Monaco and other JSON tooling.
-
-The deck.gl catalog exports concrete layer props schemas, inferred JSON prop types, typed accessors,
-and separate view constructor/state schemas. Unknown props fail validation. Import
-`deckgl-schema.json` for editor diagnostics, or use `DeckGLDocumentSchema.safeParse` for runtime
-validation. Extend built-in props with Zod and `createDeckGLDocumentSchema` for custom layers.
-Live JavaScript callbacks and GPU resources are outside this JSON profile. The package remains private.
+See the [usage guide](../../docs/modules/playground/README.md),
+[API reference](../../docs/modules/playground/api-reference/playground.md),
+and [host bindings example](../../examples/playground/host-bindings.ts).
