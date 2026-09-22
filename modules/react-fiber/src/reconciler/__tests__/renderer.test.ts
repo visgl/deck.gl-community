@@ -1,8 +1,9 @@
-import {ScatterplotLayer} from '@deck.gl/layers';
+import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
+import {PolygonLayer as CompatPolygonLayer} from '../../compat/layers';
 import {createRoot, roots, unmountAtNode} from '../renderer';
 import type {RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
@@ -207,6 +208,28 @@ describe('renderer', () => {
 
       // Act & Assert
       expect(() => root.render(children)).not.toThrow();
+    });
+
+    it('renders native layer primitives and compat layer wrappers together', async () => {
+      const {deck, flush, root} = createTestRoot();
+      const nativePoints = new ScatterplotLayer({data: [], id: 'native-points'});
+
+      await React.act(async () => {
+        root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('layer', {layer: nativePoints}),
+            React.createElement(CompatPolygonLayer, {data: [], id: 'compat-polygons'})
+          )
+        );
+        await flush();
+      });
+
+      expect(deck.getLayerIds()).toStrictEqual(['native-points', 'compat-polygons']);
+      expect(deck.layers[0]).toBe(nativePoints);
+      expect(deck.layers[1]).toBeInstanceOf(PolygonLayer);
+      expect(deck.layers[1]?.id).toBe('compat-polygons');
     });
   });
 

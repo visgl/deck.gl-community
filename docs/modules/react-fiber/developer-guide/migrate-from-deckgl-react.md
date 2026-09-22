@@ -72,6 +72,38 @@ export function Map({data}: {data: Array<{position: [number, number]}>}) {
 }
 ```
 
+## Mix native and compat APIs during migration
+
+Compat components turn into the same native `<layer>` and `<view>` elements
+used by React Fiber. You can use both styles in the same `DeckGL` tree. This
+lets you move to compat one layer at a time:
+
+```tsx
+import {ScatterplotLayer} from '@deck.gl/layers';
+import {DeckGL} from '@deck.gl-community/react-fiber/compat';
+import {PolygonLayer} from '@deck.gl-community/react-fiber/compat/layers';
+
+export function MixedLayers() {
+  return (
+    <DeckGL initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}>
+      <layer layer={new ScatterplotLayer({id: 'native-points', data: []})} />
+      <PolygonLayer id="compat-polygons" data={[]} />
+    </DeckGL>
+  );
+}
+```
+
+Keep the native `<layer>` form when you already have a deck.gl layer instance,
+or when you need behavior that compat does not support. Change supported layers
+to compat components when you are ready.
+
+Use the native root `DeckGL` when you need to control the renderer with props
+such as `gl`, `canvas`, `parent`, or `_customRender`.
+
+Using both styles does not add compat support for other APIs. Unsupported
+wrappers, widgets, function children, and renderer-control props are still not
+available from compat.
+
 The native `DeckGL`, `<layer>`, and `<view>` APIs remain available from the
 root package. Both the native renderer and the compatibility adapter are named
 `DeckGL`; choose the intended component by its import path. Use the native

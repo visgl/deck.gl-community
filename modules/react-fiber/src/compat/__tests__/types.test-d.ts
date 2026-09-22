@@ -1,8 +1,10 @@
 import type {Deck} from '@deck.gl/core';
+import {ScatterplotLayer} from '@deck.gl/layers';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
-import {createRef} from 'react';
+import {createElement, createRef} from 'react';
 import type {ComponentProps} from 'react';
 import {DeckGL} from '../deckgl';
+import {PolygonLayer as CompatPolygonLayer} from '../layers';
 import type {DeckGLContextValue, DeckGLProps, DeckGLRef} from '../types';
 import {expectTypeOf} from 'vitest';
 
@@ -31,3 +33,11 @@ const refProps = {
   ref: createRef<DeckGLRef>()
 } satisfies ComponentProps<typeof DeckGL>;
 void refProps;
+
+const mixedLayerTree = createElement(
+  DeckGL,
+  {initialViewState: {latitude: 0, longitude: 0, zoom: 1}},
+  createElement('layer', {layer: new ScatterplotLayer({data: [], id: 'native-points'})}),
+  createElement(CompatPolygonLayer, {data: [], id: 'compat-polygons'})
+);
+void mixedLayerTree;
