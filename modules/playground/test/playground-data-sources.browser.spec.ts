@@ -4,6 +4,7 @@
 
 import {Deck, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
+import {tableFromArrays, tableToIPC} from 'apache-arrow';
 import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest';
 
 import {
@@ -115,6 +116,51 @@ afterEach(async () => {
 });
 
 describe('DeckPlayground independent data sources', () => {
+  it('imports and replaces shared rows through WebMCP without replacing the preview', async () => {
+    const original = Object.getOwnPropertyDescriptor(document, 'modelContext');
+    const tools = new Map<string, any>();
+    Object.defineProperty(document, 'modelContext', {
+      configurable: true,
+      value: {
+        async registerTool(tool, {signal}) {
+          tools.set(tool.name, tool);
+          signal.addEventListener('abort', () => tools.delete(tool.name), {once: true});
+        }
+      }
+    });
+    try {
+      const mounted = mountPlayground();
+      const unregister = await mounted.playground.registerWebMCP({
+        templates: ['points'],
+        dataSources: {manager: sources, read: ['points'], write: ['points']}
+      });
+      const set = tools.get('playground.set_source');
+      await set.execute({id: 'points', format: 'json', data: JSON.stringify(ROWS)});
+      const deck = await mounted.ready();
+      const canvas = mounted.host.querySelector('canvas');
+      expect(getLayer(deck).props.data).toEqual(ROWS);
+
+      const bytes = tableToIPC(
+        tableFromArrays({position: [[-122.2, 37.8]], label: ['@@=ignored']})
+      );
+      const data = btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join(''));
+      await set.execute({id: 'points', format: 'arrow', data});
+      expect(getLayer(deck).props.data).toEqual([{position: [-122.2, 37.8], label: '@@=ignored'}]);
+      expect(mounted.host.querySelector('canvas')).toBe(canvas);
+      expect(mounted.onLoad).toHaveBeenCalledTimes(1);
+      expect(await tools.get('playground.inspect_source').execute({id: 'points'})).toMatchObject({
+        rowCount: 1,
+        sample: [{position: [-122.2, 37.8], label: '@@=ignored'}]
+      });
+      unregister!();
+      expect(tools.size).toBe(0);
+      expect(sources.listDataSources()).toEqual([{dataSourceId: 'points', status: 'ready'}]);
+    } finally {
+      if (original) Object.defineProperty(document, 'modelContext', original);
+      else Reflect.deleteProperty(document, 'modelContext');
+    }
+  }, 20_000);
+
   it('shares source updates while preserving cameras and respecting local overrides', async () => {
     addSource('points', createBinding());
     const first = mountPlayground();

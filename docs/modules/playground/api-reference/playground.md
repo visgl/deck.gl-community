@@ -167,6 +167,115 @@ Parse failures retain the preview. Custom renderers own recovery from errors dur
 - `finalize()`: unmounts the editor and releases resources. Repeated calls are safe; other methods
   throw after finalization.
 
+## WebMCP tools
+
+`registerWebMCP({templates, name?, dataSources?}): Promise<(() => void) | null>` explicitly enables tools for a
+`Playground` or `DeckPlayground`. It uses the experimental `document.modelContext` API from the
+[WebMCP draft](https://webmachinelearning.github.io/webmcp/), without a legacy fallback or polyfill.
+Unsupported browsers resolve to `null`. Successful registration returns an unregister function;
+`finalize()` also unregisters these tools. Registration failures reject and roll back only the
+tools created by that registration.
+
+Execution cancellation is checked when supplied by the browser; some previews omit it. Unregistering
+or finalizing always prevents subsequent calls, but does not undo a completed synchronous action.
+
+```ts
+const unregister = await playground.registerWebMCP({name: 'preview', templates: ['Points']});
+// Disable tools while keeping the playground mounted.
+unregister?.();
+```
+
+The required `templates: readonly string[]` allows 1–32 known template IDs. Each ID must start
+with an ASCII letter or digit and contain at most 32 ASCII letters, digits, underscores, or hyphens.
+The optional `name` defaults to `playground` and prefixes each tool name. It follows the same
+character rules, also permits dots, and has a 48-character limit. Choose unique prefixes when
+registering multiple instances in one document.
+
+Registered tools are:
+
+- `<name>.list_templates` with `{}`: lists only the allowed template IDs.
+- `<name>.select_template` with `{template: 'Points'}`: selects an allowed template, replacing
+  the current editor text. A `requested` result does not confirm rendering has completed.
+- `<name>.reset_view` with `{}`: available on `DeckPlayground`; resets the preview camera.
+
+### Source access
+
+`dataSources: {manager, read?, write?}` grants access to a host-owned source manager. Both lists
+default to empty and accept up to 32 bare source IDs with the same character limits as template IDs.
+Pass the same manager to `DeckPlayground` so imported rows refresh its preview. Local bindings still
+take precedence. Sources may be registered independently, before or after the playground mounts.
+
+```ts
+const sources = new PlaygroundDataSourceManager();
+const playground = new DeckPlayground({
+  parentElement,
+  templates,
+  registry,
+  dataSources: sources
+});
+await playground.registerWebMCP({
+  templates: ['Points'],
+  dataSources: {manager: sources, read: ['reference', 'points'], write: ['points']}
+});
+```
+
+This adds three tools:
+
+- `<name>.list_sources` with `{}`: lists only granted IDs and their access permissions. Status
+  is included for readable sources; unregistered readable IDs report `missing`.
+- `<name>.inspect_source` with `{id, limit?}`: inspects a readable source's row count, sampled
+  field names, and a copy of its first rows. `limit` defaults to 5, permits 0–10, and the sample
+  must fit in 16 KiB. Pending and failed sources return status without rows or error details.
+  Sources that are not row bindings report `inspectable: false`.
+- `<name>.set_source` with `{id, format, data}`: creates or fully replaces a writable source.
+  `format: 'json'` takes a JSON row-array string; `format: 'arrow'` takes base64 Arrow IPC.
+  Returns `{id, rowCount, status: 'registered'}`; this confirms registration, not completed rendering.
+
+For example, `set_source({id: 'points', format: 'json', data: '[{"position":[0,0]}]'})` supplies
+rows to a template layer with `data: {'@@data': 'points'}`. Replacement refreshes all subscribed
+consumers and releases the previous source handle, including its lifecycle hooks. It replaces the
+entire binding, including any `getRowId` function. Unregistering tools leaves sources with their
+manager; the application owns their removal and finalization.
+
+Imports accept at most 1 MiB of UTF-8 JSON or decoded IPC and 10,000 rows. Normalized JSON must
+also fit in 1 MiB, with at most 100,000 values, 16 nesting levels, and 128 fields per object.
+Field names have a 128-character limit; `__proto__`, `prototype`, and `constructor` are rejected.
+Rows remain opaque to configuration conversion. Imports take inline content; there is no URL-fetch
+or executable-configuration tool. One import runs at a time per registration. Invalid imports, cancellation,
+or a source replacement during decoding leave the existing source intact.
+
+Arrow decoding uses `@loaders.gl/arrow` in a dedicated worker with a five-second timeout and no
+main-thread fallback. Scalar columns, scalar dictionaries, lists, and structs become JSON rows;
+64-bit integers become exact decimal strings, and dates and second/millisecond timestamps become
+UTC epoch milliseconds. Binary, decimal, map, union, time, duration, and sub-millisecond timestamp
+columns are rejected. This adapter materializes rows; it does not preserve columnar buffers.
+
+The application must serve the bundled worker and allow it through its content security policy.
+The relative worker URL uses `import.meta.url`: Arrow imports require browser ESM, including ESM
+bundler entry points. They are unavailable through the CommonJS entry.
+Worker termination bounds execution time but does not impose a hard memory ceiling on the IPC
+decoder. Keep imports within these limits and expose the capability only where appropriate.
+
+### Security boundary
+
+Tools require strict input objects and reject extra properties. Results omit current editor JSON
+and raw error messages; source rows are disclosed only through explicit read grants. Samples and
+field names are untrusted content. The integration adds no cross-origin `exposedTo`.
+Same-origin scripts and frames, as well as browser agents, can access the registered tools.
+The `Permissions-Policy: tools=()` response header disables WebMCP for a document and its
+descendants. These access rules follow the [WebMCP draft](https://webmachinelearning.github.io/webmcp/).
+
+Treat agent input as untrusted. The allowed template bodies, renderers, factories, and callbacks
+remain trusted application code: selecting a template or replacing a source may load URLs or
+perform host actions through callbacks and source lifecycle hooks. Allow only capabilities whose
+effects are appropriate for tool invocation. A write grant permits replacing an existing source;
+use dedicated source IDs when that is undesirable. A read grant discloses samples to tool callers.
+Imported values may become resource URLs through host-configured accessors; constrain the exposed
+layers and callbacks accordingly.
+Selection carries a consequential hint because it replaces editor text; camera reset also changes
+state. Annotation hints describe effects; the application remains responsible for authorization.
+See [WebMCP tool security](https://developer.chrome.com/docs/ai/webmcp/secure-tools).
+
 ## Schemas
 
 The main entry exports GeoJSON schemas and types, `DeckGLDocumentSchema`, `DeckGLLayerSchemas`, and

@@ -9,6 +9,7 @@ import {
   SidebarPanelContainer,
   TextEditorPanel
 } from '@deck.gl-community/panels';
+import {registerPlaygroundTools, type PlaygroundWebMCPOptions} from './playground-webmcp';
 
 let playgroundCount = 0;
 
@@ -76,6 +77,7 @@ export class Playground {
   private previewCleanup?: () => void;
   private readonly resizeObserver: ResizeObserver;
   private finalized = false;
+  private readonly toolLifetime = new AbortController();
 
   constructor(props: PlaygroundProps) {
     if (props.renderer && props.render) {
@@ -151,7 +153,7 @@ export class Playground {
   setTemplate(name: string): void {
     this.assertActive();
     const template = this.templates[name];
-    if (template === undefined) {
+    if (!Object.hasOwn(this.templates, name) || template === undefined) {
       throw new Error(`Unknown playground template: ${name}`);
     }
     this.currentTemplate = name;
@@ -192,10 +194,27 @@ export class Playground {
     this.setTemplate(nextTemplate);
   }
 
+  /**
+   * Exposes approved templates, optional source grants and camera reset through WebMCP.
+   * Returns an unregister function, or null when the browser API is unavailable.
+   * Registration is opt-in and also ends when this playground is finalized.
+   * Exposed templates, renderers and callbacks must be trusted by the application.
+   */
+  async registerWebMCP(options: PlaygroundWebMCPOptions): Promise<(() => void) | null> {
+    this.assertActive();
+    for (const name of options.templates) {
+      if (!Object.hasOwn(this.templates, name)) {
+        throw new Error('WebMCP templates must exist in the playground');
+      }
+    }
+    return registerPlaygroundTools(this, options, this.toolLifetime.signal);
+  }
+
   /** Unmounts the editor and removes all playground-owned DOM. */
   finalize(): void {
     if (this.finalized) return;
     this.finalized = true;
+    this.toolLifetime.abort();
     this.resizeObserver.disconnect();
     try {
       this.previewCleanup?.();
