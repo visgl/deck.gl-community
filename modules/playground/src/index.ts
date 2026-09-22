@@ -9,6 +9,7 @@ export {
   type PlaygroundTemplate,
   type PlaygroundTemplateMetadata
 } from './playground';
+export type {PlaygroundWebMCPOptions} from './playground-webmcp';
 export {
   DeckPlayground,
   type DeckPlaygroundProps,

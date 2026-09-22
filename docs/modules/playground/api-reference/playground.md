@@ -167,6 +167,50 @@ Parse failures retain the preview. Custom renderers own recovery from errors dur
 - `finalize()`: unmounts the editor and releases resources. Repeated calls are safe; other methods
   throw after finalization.
 
+## WebMCP tools
+
+`registerWebMCP({templates, name?}): Promise<(() => void) | null>` explicitly enables tools for a
+`Playground` or `DeckPlayground`. It uses the experimental `document.modelContext` API from the
+[WebMCP draft](https://webmachinelearning.github.io/webmcp/), without a legacy fallback or polyfill.
+Unsupported browsers resolve to `null`. Successful registration returns an unregister function;
+`finalize()` also unregisters these tools. Registration failures reject and roll back only the
+tools created by that registration.
+
+Execution cancellation is checked when supplied by the browser; some previews omit it. Unregistering
+or finalizing always prevents subsequent calls, but does not undo a completed synchronous action.
+
+```ts
+const unregister = await playground.registerWebMCP({name: 'preview', templates: ['Points']});
+// Disable tools while keeping the playground mounted.
+unregister?.();
+```
+
+The required `templates: readonly string[]` allows 1–32 known template IDs. Each ID must start
+with an ASCII letter or digit and contain at most 32 ASCII letters, digits, underscores, or hyphens.
+The optional `name` defaults to `playground` and prefixes each tool name. It follows the same
+character rules, also permits dots, and has a 48-character limit. Choose unique prefixes when
+registering multiple instances in one document.
+
+Registered tools are:
+
+- `<name>.list_templates` with `{}`: lists only the allowed template IDs.
+- `<name>.select_template` with `{template: 'Points'}`: selects an allowed template, replacing
+  the current editor text. A `requested` result does not confirm rendering has completed.
+- `<name>.reset_view` with `{}`: available on `DeckPlayground`; resets the preview camera.
+
+Tools require strict input objects and reject extra properties. Their results omit source rows,
+current editor JSON, and raw error messages. The integration adds no cross-origin `exposedTo`.
+Same-origin scripts and frames, as well as browser agents, can access the registered tools.
+The `Permissions-Policy: tools=()` response header disables WebMCP for a document and its
+descendants. These access rules follow the [WebMCP draft](https://webmachinelearning.github.io/webmcp/).
+
+Treat agent input as untrusted. The allowed template bodies, renderers, factories, and callbacks
+remain trusted application code: selecting a template may load URLs or perform host actions
+through `onChange`. Allow only templates whose effects are appropriate for tool invocation.
+Selection carries a consequential hint because it replaces editor text; camera reset also changes
+state. Annotation hints describe effects; the application remains responsible for authorization.
+See [WebMCP tool security](https://developer.chrome.com/docs/ai/webmcp/secure-tools).
+
 ## Schemas
 
 The main entry exports GeoJSON schemas and types, `DeckGLDocumentSchema`, `DeckGLLayerSchemas`, and

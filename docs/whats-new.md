@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and
+  resetting a `DeckPlayground` camera, with automatic cleanup when the playground is finalized.
+
 - Playground adds `DeckPlayground` for persistent previews, picking, and camera control, plus
   `PlaygroundDataSourceManager` for shared rows and promises. Source updates preserve the
   canvas and camera; `Playground` also supports persistent custom renderers.
