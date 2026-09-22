@@ -1,6 +1,6 @@
 # @deck.gl-community/playground
 
-A private workspace package for embedding a JSON editor and live preview in deck.gl applications.
+An unpublished workspace package for embedding a JSON editor and live preview in deck.gl applications.
 Built on `@deck.gl-community/panels`; no React required.
 
 - `DeckPlayground` manages validation, standard `@deck.gl/json` conversion, a persistent deck.gl

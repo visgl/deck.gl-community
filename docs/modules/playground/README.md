@@ -1,7 +1,7 @@
 # `@deck.gl-community/playground`
 
 A JSON editor, template picker, and live deck.gl preview built on
-[`@deck.gl-community/panels`](/docs/modules/panels), without React. This package is private;
+[`@deck.gl-community/panels`](/docs/modules/panels), without React. This package is unpublished;
 use it from this repository as a workspace.
 
 ## Usage
