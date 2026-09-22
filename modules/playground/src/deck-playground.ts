@@ -114,7 +114,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       const resolved = this.applyDocument(value, this.bindings);
       this.request = {value, sourceIds: new Set(resolved.layerBindings.values())};
     } catch (error) {
-      if (error instanceof PlaygroundDataSourceError && (this.props.dataSources || !this.deck)) {
+      if (error instanceof PlaygroundDataSourceError) {
         // Retry a valid document when its sources become available.
         this.request = {value, sourceIds: new Set(error.sourceIds), text};
       }

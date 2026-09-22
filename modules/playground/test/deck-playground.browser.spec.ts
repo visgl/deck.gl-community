@@ -385,6 +385,41 @@ describe('DeckPlayground browser lifecycle', () => {
     expect(host.querySelector('canvas')).toBe(canvas);
   }, 20_000);
 
+  it('recovers an edited document when a missing local binding is supplied', async () => {
+    const {playground, host, onError, onChange, ready} = mountDeck();
+    const {deck, canvas} = await ready();
+    const originalLayers = deck.props.layers;
+    zoomCanvas(canvas);
+    await vi.waitFor(() => expect(deck.getViewports()[0].zoom).not.toBe(INITIAL_VIEW_STATE.zoom));
+    const interactiveZoom = deck.getViewports()[0].zoom;
+
+    const edited = createDocument(9, {...INITIAL_VIEW_STATE, zoom: 6});
+    edited.layers[0].data = {'@@data': 'replacement'};
+    const text = JSON.stringify(edited);
+    playground.setText(text);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({message: 'Missing playground data binding: replacement'})
+    );
+    expect(deck.props.layers).toBe(originalLayers);
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    const rows = [{id: 'replacement', position: [-122.2, 37.9]}];
+    const bindings = {...createBindings(), replacement: {data: rows}};
+    expect(playground.setBindings(bindings)).toBe(true);
+    const layer = (deck.props.layers as ScatterplotLayer[])[0];
+    expect(layer.props.getRadius).toBe(9);
+    expect(layer.props.data).toBe(rows);
+    expect(host.querySelector('canvas')).toBe(canvas);
+    expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange).toHaveBeenLastCalledWith(edited, text);
+
+    const refreshedRows = [...rows];
+    expect(playground.setBindings({...bindings, replacement: {data: refreshedRows}})).toBe(true);
+    expect((deck.props.layers as ScatterplotLayer[])[0].props.data).toBe(refreshedRows);
+    expect(onChange).toHaveBeenCalledTimes(2);
+  }, 20_000);
+
   it('reports stable bound row identities after filtering and clears background selection', async () => {
     const {playground, onSelect, ready} = mountDeck();
     const {deck} = await ready();
