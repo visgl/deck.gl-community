@@ -59,7 +59,9 @@ function Map() {
 }
 ```
 
-The callback receives `null` when its `DeckGL` root cleans up.
+The lifecycle notification receives `null` when its `DeckGL` root cleans up. It is
+not a callback ref: changing only its identity neither reconfigures nor unmounts
+the root.
 
 ## Migrating from `@deck.gl/react`
 

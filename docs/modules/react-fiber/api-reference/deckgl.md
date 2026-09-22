@@ -16,7 +16,9 @@ universal `<layer>` and `<view>` children.
 
 `onDeckglChange` receives the `Deck` or `MapboxOverlay` instance owned by this
 `DeckGL` root after configuration. It receives `null` when the root cleans up.
-Use local state when another component needs the instance:
+It is a lifecycle notification, not a callback ref: changing only its identity
+neither reconfigures nor unmounts the root, and the current callback receives
+later cleanup notifications. Use local state when another component needs the instance:
 
 ```tsx
 import {useEffect, useState} from 'react';

@@ -37,13 +37,15 @@ function callPickingMethod<Method extends PickingMethod>(
   args: Parameters<Deck[Method]>
 ): ReturnType<Deck[Method]> {
   const instance = getDeckOrThrow(deck) as Deck & Partial<MapboxOverlay>;
-  const pick = instance[method];
+  const pick = instance[method] as
+    | ((...callArgs: Parameters<Deck[Method]>) => ReturnType<Deck[Method]>)
+    | undefined;
 
-  if (typeof pick !== 'function') {
+  if (!pick) {
     throw new Error(`DeckGL does not support ${method} for this renderer.`);
   }
 
-  return pick.apply(instance, args) as ReturnType<Deck[Method]>;
+  return pick.apply(instance, args);
 }
 
 function warnForUnsupportedUsage(props: RuntimeDeckGLProps): void {

@@ -55,6 +55,18 @@ describe('DeckGL compatibility adapter', () => {
     );
   });
 
+  it('keeps the initialized ref available after an ordinary parent rerender', async () => {
+    const ref = createRef<DeckGLRef>();
+    const props = {initialViewState: {latitude: 0, longitude: 0, zoom: 1}};
+    const {rerender} = render(<DeckGL ref={ref} {...props} />);
+
+    await waitFor(() => expect(ref.current?.deck).toBe(deck));
+    rerender(<DeckGL ref={ref} {...props} />);
+
+    expect(ref.current?.deck).toBe(deck);
+    expect(ref.current?.pickObject({x: 1, y: 2})).toBe('object');
+  });
+
   it('provides only the supported deck context value', async () => {
     const receivedValues: unknown[] = [];
     function ContextProvider({children, value}: React.ProviderProps<{deck: unknown}>) {

@@ -197,6 +197,37 @@ describe('DeckGL Component Tests', () => {
       expect(onDeckglChange).toHaveBeenCalledTimes(2);
       expect(onDeckglChange).toHaveBeenLastCalledWith(mockDeckgl);
     });
+
+    it('does not reconfigure, rerender, or unmount when only the callback changes', () => {
+      const child = <div>Test</div>;
+      const firstCallback = vi.fn();
+      const replacementCallback = vi.fn();
+      const {rerender} = render(<DeckGL onDeckglChange={firstCallback}>{child}</DeckGL>);
+
+      rerender(<DeckGL onDeckglChange={replacementCallback}>{child}</DeckGL>);
+
+      expect(mockConfigure).toHaveBeenCalledOnce();
+      expect(mockRender).toHaveBeenCalledOnce();
+      expect(mockUnmountAtNode).not.toHaveBeenCalled();
+      expect(firstCallback).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(replacementCallback).not.toHaveBeenCalled();
+    });
+
+    it('uses the replacement callback for cleanup before unmounting', () => {
+      const child = <div>Test</div>;
+      const firstCallback = vi.fn();
+      const replacementCallback = vi.fn();
+      const {rerender, unmount} = render(<DeckGL onDeckglChange={firstCallback}>{child}</DeckGL>);
+
+      rerender(<DeckGL onDeckglChange={replacementCallback}>{child}</DeckGL>);
+      unmount();
+
+      expect(firstCallback).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(replacementCallback).toHaveBeenCalledExactlyOnceWith(null);
+      expect(replacementCallback.mock.invocationCallOrder[0]).toBeLessThan(
+        mockUnmountAtNode.mock.invocationCallOrder[0]
+      );
+    });
   });
 
   describe('Canvas ref timing', () => {
@@ -431,6 +462,20 @@ describe('DeckGL Component Tests', () => {
       expect(onDeckglChange).toHaveBeenLastCalledWith(null);
       expect(onDeckglChange.mock.invocationCallOrder[1]).toBeLessThan(
         mockUnmountAtNode.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('unmounts the old root once and configures the replacement canvas', () => {
+      const firstCanvas = document.createElement('canvas');
+      const secondCanvas = document.createElement('canvas');
+      const child = <div>Test</div>;
+      const {rerender} = render(<DeckGL canvas={firstCanvas}>{child}</DeckGL>);
+
+      rerender(<DeckGL canvas={secondCanvas}>{child}</DeckGL>);
+
+      expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(firstCanvas);
+      expect(mockConfigure).toHaveBeenLastCalledWith(
+        expect.objectContaining({canvas: secondCanvas})
       );
     });
 

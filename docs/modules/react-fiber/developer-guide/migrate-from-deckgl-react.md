@@ -79,6 +79,10 @@ component when you need a renderer feature that compat does not support.
 
 ## Ref and context
 
+The `/compat` adapter supports an imperative `ref` and optional `ContextProvider`
+as its instance-access paths. It does not accept the native `onDeckglChange`
+lifecycle notification.
+
 `DeckGLRef` has exactly these members:
 
 - `deck`

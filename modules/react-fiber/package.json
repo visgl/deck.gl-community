@@ -127,7 +127,7 @@
   ],
   "scripts": {
     "test": "yarn test-types && vitest run --config vite.config.js",
-    "test-types": "tsc --ignoreConfig --noEmit --jsx react-jsx --module esnext --moduleResolution bundler --target es2022 --skipLibCheck src/types/__tests__/jsx-types.test-d.ts src/types/__tests__/props-types.test-d.ts src/types/__tests__/view-element-types.test-d.ts",
+    "test-types": "tsc --ignoreConfig --noEmit --jsx react-jsx --module esnext --moduleResolution bundler --target es2022 --skipLibCheck src/compat/__tests__/types.test-d.ts src/types/__tests__/jsx-types.test-d.ts src/types/__tests__/props-types.test-d.ts src/types/__tests__/view-element-types.test-d.ts",
     "test-watch": "vitest --config vite.config.js"
   },
   "dependencies": {

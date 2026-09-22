@@ -36,7 +36,8 @@ licensed. The source layout is preserved under `src/dom`, `src/reconciler`,
 
 The root entry point exposes the native `DeckGL` component. Render directly
 constructed deck.gl descriptors through `<layer>` and `<view>`. To access the
-root-specific `Deck` or `MapboxOverlay` instance, use `onDeckglChange`:
+root-specific `Deck` or `MapboxOverlay` instance, use the `onDeckglChange`
+lifecycle notification:
 
 ```tsx
 import {useEffect, useState} from 'react';
@@ -53,6 +54,10 @@ export function Map() {
   return <DeckGL onDeckglChange={setDeckgl}>{null}</DeckGL>;
 }
 ```
+
+This is a lifecycle notification, not a callback ref: changing only the callback
+identity neither reconfigures nor unmounts the root. The current callback receives
+`null` when that root is cleaned up.
 
 ## Migrate from `@deck.gl/react`
 

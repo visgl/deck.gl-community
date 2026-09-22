@@ -2,10 +2,12 @@ import 'client-only';
 import {createRoot, roots, unmountAtNode} from '../reconciler/index';
 import type {ReconcilerRoot} from '../reconciler/index';
 import {log} from '../shared/index';
-import type {DeckglProps} from '../types/index';
+import {hasSameConfigProperties} from '../shared/has-same-config-properties';
+import {useEffectEvent} from '../shared/use-effect-event';
+import type {DeckglProps, OnDeckglChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
-import {useEffect, useMemo, useRef} from 'react';
+import {useEffect, useRef} from 'react';
 import type {ReactNode} from 'react';
 import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
 
@@ -25,6 +27,9 @@ function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | un
 
 function DeckGLComponent(props: DeckglProps) {
   const {children, debug, onDeckglChange, ...deckglProps} = props;
+  const notifyDeckglChange = useEffectEvent<Parameters<OnDeckglChange>, void>(deckgl => {
+    onDeckglChange?.(deckgl);
+  });
 
   const Bridge: ContextBridge = useContextBridge();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -37,8 +42,16 @@ function DeckGLComponent(props: DeckglProps) {
     debug ? log.enableLogging() : log.disableLogging();
   }, [debug]);
 
-  // Memoize config to prevent recreation on every render
-  const config = useMemo(() => deckglProps, [deckglProps]);
+  // Object-rest creates a new config object each render. Preserve the committed
+  // config while its values are unchanged so a lifecycle callback replacement is non-reactive.
+  const configCache = useRef(deckglProps);
+  const config = hasSameConfigProperties(configCache.current, deckglProps)
+    ? configCache.current
+    : deckglProps;
+
+  useIsomorphicLayoutEffect(() => {
+    configCache.current = config;
+  });
 
   useIsomorphicLayoutEffect(() => {
     const actualCanvas = (config.canvas ||
@@ -58,10 +71,10 @@ function DeckGLComponent(props: DeckglProps) {
         canvas: actualCanvas,
         parent: actualParent
       });
-      onDeckglChange?.(root.store.getState().deckgl);
+      notifyDeckglChange(root.store.getState().deckgl);
       root.render(<Bridge>{children}</Bridge>);
     }
-  }, [children, config, Bridge, onDeckglChange]);
+  }, [children, config, Bridge]);
 
   useEffect(() => {
     const actualCanvas = (config.canvas ||
@@ -70,11 +83,11 @@ function DeckGLComponent(props: DeckglProps) {
 
     if (actualCanvas) {
       return () => {
-        onDeckglChange?.(null);
+        notifyDeckglChange(null);
         unmountAtNode(actualCanvas);
       };
     }
-  }, [config.canvas, onDeckglChange]);
+  }, [config.canvas]);
 
   // NOTE: interleaved prop is a hint that we are utilizing an external renderer such as Mapbox/Maplibre
   // so we want to avoid rendering another container / canvas element if that is true.
