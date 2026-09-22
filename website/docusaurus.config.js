@@ -86,6 +86,8 @@ const config = {
       {
         debug: true,
         resolve: {
+          // Source packages use .js worker URLs that refer to TypeScript before building.
+          extensionAlias: {'.js': ['.js', '.ts']},
           // Resolve each importer's dependencies before the shared fallbacks. In
           // particular, loaders.gl and MapLibre may require different pbf majors.
           modules: ['node_modules', resolve('node_modules'), resolve('../node_modules')],

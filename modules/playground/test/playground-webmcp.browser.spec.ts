@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {afterEach, expect, test, vi} from 'vitest';
-import {Playground} from '../src/index';
+import {Playground, PlaygroundDataSourceManager} from '../src/index';
 
 const ORIGINAL_CONTEXT = Object.getOwnPropertyDescriptor(document, 'modelContext');
 const PLAYGROUNDS: Playground[] = [];
@@ -67,7 +67,12 @@ test.skipIf(!('modelContext' in document))(
   async () => {
     const context = (document as any).modelContext;
     const {playground, onChange} = mountPlayground();
-    const unregister = await playground.registerWebMCP({name: 'native', templates: ['second']});
+    const sources = new PlaygroundDataSourceManager();
+    const unregister = await playground.registerWebMCP({
+      name: 'native',
+      templates: ['second'],
+      dataSources: {manager: sources, read: ['points'], write: ['points']}
+    });
     const registered = await context.getTools();
     const select = registered.find(
       (tool: {name: string}) => tool.name === 'native.select_template'
@@ -80,6 +85,16 @@ test.skipIf(!('modelContext' in document))(
       typeof select.inputSchema === 'string' ? JSON.stringify(input) : input
     );
     expect(onChange).toHaveBeenLastCalledWith({value: 2}, expect.any(String));
+    const set = registered.find((tool: {name: string}) => tool.name === 'native.set_source');
+    const upload = {id: 'points', format: 'json', data: '[{"position":[0,0]}]'};
+    await context.executeTool(
+      set,
+      typeof set.inputSchema === 'string' ? JSON.stringify(upload) : upload
+    );
+    expect(sources.subscribe({dataSourceId: 'points', consumerId: 'test', onChange() {}})).toEqual({
+      data: [{position: [0, 0]}]
+    });
+    await sources.finalize();
     unregister!();
     const remaining = await context.getTools();
     expect(remaining.some((tool: {name: string}) => tool.name.startsWith('native.'))).toBe(false);

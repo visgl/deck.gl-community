@@ -195,7 +195,7 @@ export class Playground {
   }
 
   /**
-   * Exposes approved templates and, for DeckPlayground, camera reset through WebMCP.
+   * Exposes approved templates, optional source grants and camera reset through WebMCP.
    * Returns an unregister function, or null when the browser API is unavailable.
    * Registration is opt-in and also ends when this playground is finalized.
    * Exposed templates, renderers and callbacks must be trusted by the application.

@@ -2,8 +2,12 @@
 
 ## Unreleased
 
+- Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
+
 - Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and
-  resetting a `DeckPlayground` camera, with automatic cleanup when the playground is finalized.
+  resetting a `DeckPlayground` camera, plus explicit source grants for inspection and JSON or
+  Arrow imports. Tools unregister when the playground is finalized; shared sources remain owned
+  by their manager.
 
 - Playground adds `DeckPlayground` for persistent previews, picking, and camera control, plus
   `PlaygroundDataSourceManager` for shared rows and promises. Source updates preserve the
