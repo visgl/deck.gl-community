@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The [standalone playground](/playground) provides a full-screen editor and preview with five core
+  templates and a page-local `points` source for JSON and Arrow imports. Browser tools register
+  automatically with status and disable/re-enable controls that preserve imported rows. Browsers
+  without WebMCP can still use the editor and preview.
+
 - Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
 
 - Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and

@@ -392,13 +392,14 @@ export class SidebarPanelContainer extends PanelContainer<SidebarPanelContainerP
     }
     if (this.#rootElement) {
       render(null, this.#rootElement);
+      this.#rootElement = null;
     }
   }
 
   /** Renders sidebar trigger, backdrop, and panel content into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
+    if (this.#rootElement !== rootElement) reparentToOverlayRoot(rootElement);
     this.#rootElement = rootElement;
-    reparentToOverlayRoot(rootElement);
     rootElement.style.position = 'absolute';
     rootElement.style.top = 'var(--widget-margin, 12px)';
     rootElement.style.bottom = 'var(--widget-margin, 12px)';

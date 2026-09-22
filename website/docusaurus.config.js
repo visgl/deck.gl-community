@@ -262,6 +262,11 @@ const config = {
             label: 'Examples'
           },
           {
+            to: '/playground',
+            position: 'left',
+            label: 'Playground'
+          },
+          {
             href: 'https://github.com/visgl/deck.gl-community',
             label: 'GitHub',
             position: 'right'
