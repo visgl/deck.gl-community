@@ -6,6 +6,10 @@ import react from '@vitejs/plugin-react';
 const ALIASES = [
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
+    find: /^@deck\.gl-community\/playground$/,
+    replacement: fileURLToPath(new URL('./modules/playground/src/index.ts', import.meta.url))
+  },
+  {
     find: '@deck.gl-community/three',
     replacement: fileURLToPath(new URL('./modules/three/src/index.ts', import.meta.url))
   },

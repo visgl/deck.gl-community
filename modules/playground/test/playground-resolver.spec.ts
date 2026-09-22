@@ -13,6 +13,7 @@ import {
   PlaygroundDataSourceError
 } from '../src/runtime/playground-resolver';
 import {ScatterplotLayerSchema} from '../src/schemas/deckgl';
+import {AnimationLayerSchema, BasemapLayerSchema, GraphLayerSchema} from '../src/schemas/community';
 
 const registry = {
   layers: {ScatterplotLayer: {type: ScatterplotLayer, schema: ScatterplotLayerSchema}}
@@ -55,6 +56,148 @@ function captureSourceError(resolve: () => unknown): PlaygroundDataSourceError {
 }
 
 describe('playground runtime resolver', () => {
+  test('matches selected constructors to bundled schemas without enabling other layers', () => {
+    const selected = createPlaygroundResolver({layers: {ScatterplotLayer}});
+    try {
+      const result = selected.resolve({layers: [{...layer, getRadius: 4}]}, {});
+      expect((result.props.layers as Layer[])[0]).toBeInstanceOf(ScatterplotLayer);
+      expect(() => selected.resolve({layers: [{...layer, '@@type': 'ArcLayer'}]}, {})).toThrow();
+      expect(() => selected.resolve({layers: [{...layer, radiusUnits: 'feet'}]}, {})).toThrow();
+      expect(() => createPlaygroundResolver({layers: {CustomLayer: Layer}})).toThrow(
+        'register {type, schema}'
+      );
+    } finally {
+      selected.finalize();
+    }
+  });
+
+  test('passes a registered data resource by reference without converting its contents', () => {
+    const data = [{label: '@@#missing', nested: {'@@function': 'missing'}}];
+    const selected = createPlaygroundResolver({layers: {ScatterplotLayer}, constants: {data}});
+    try {
+      const result = selected.resolve({layers: [{...layer, data: '@@#data'}]}, {});
+      expect((result.props.layers as Layer[])[0].props.data).toBe(data);
+      expect(result.layerBindings.size).toBe(0);
+      expect(() => selected.resolve({layers: [{...layer, data: '@@#missing'}]}, {})).toThrow(
+        'Unknown playground constant'
+      );
+    } finally {
+      selected.finalize();
+    }
+  });
+
+  test('keeps an embedded basemap style opaque while resolving host resource references', () => {
+    const style = {
+      version: 8,
+      sources: {
+        places: {
+          type: 'geojson',
+          data: {type: 'FeatureCollection', features: [], label: '@@=label'}
+        }
+      },
+      layers: [],
+      metadata: {'@@type': 'literal', nested: {'@@function': 'literal'}}
+    };
+    const selected = createPlaygroundResolver({
+      layers: {BasemapLayer: {type: ScatterplotLayer, schema: BasemapLayerSchema}},
+      constants: {style}
+    });
+    try {
+      for (const value of [style, '@@#style']) {
+        const result = selected.resolve(
+          {layers: [{'@@type': 'BasemapLayer', id: 'basemap', style: value}]},
+          {}
+        );
+        expect((result.props.layers as Layer[])[0].props.style).toBe(style);
+      }
+    } finally {
+      selected.finalize();
+    }
+  });
+
+  test('preserves nested animation rows and releases temporary data references after failures', () => {
+    const rows = [
+      {
+        label: '@@=radius',
+        constant: '@@#missing',
+        nested: {'@@function': 'readData'},
+        metadata: {'@@type': 'Unknown', '@@data': 'literal'}
+      }
+    ];
+    const readData = vi.fn(() => rows);
+    const fail = vi.fn(() => {
+      throw new Error('Factory failed');
+    });
+    const selected = createPlaygroundResolver({
+      layers: {AnimationLayer: {type: ScatterplotLayer, schema: AnimationLayerSchema}},
+      constants: {child: new ScatterplotLayer({id: 'child'}), rows},
+      functions: {readData, fail}
+    });
+    const catalogs = JSONConfiguration.defaultProps.enumerations;
+    const registeredKeys = Object.keys(catalogs);
+    const document = (data: unknown, props: object = {}) => ({
+      layers: [
+        {
+          id: 'animation',
+          '@@type': 'AnimationLayer',
+          layer: '@@#child',
+          frames: {
+            type: 'sequence',
+            frames: [{type: 'sequence', frames: [{props: {data, ...props}, duration: 100}]}]
+          }
+        }
+      ]
+    });
+    try {
+      for (const value of [rows, rows[0], rows, '@@#rows', '@@=literal', null]) {
+        const result = selected.resolve(document(value, {getRadius: '@@=radius'}), {});
+        const props = (result.props.layers as Layer[])[0].props.frames.frames[0].frames[0].props;
+        expect(props.data).toBe(value === '@@#rows' ? rows : value);
+        expect(props.getRadius({radius: 7})).toBe(7);
+        expect(readData).not.toHaveBeenCalled();
+        expect(Object.keys(catalogs)).toEqual(registeredKeys);
+      }
+      expect(() =>
+        selected.resolve(document(rows, {getRadius: {'@@function': 'fail'}}), {})
+      ).toThrow('Factory failed');
+      expect(fail).toHaveBeenCalledOnce();
+      expect(Object.keys(catalogs)).toEqual(registeredKeys);
+      expect(() => selected.resolve(document('@@#missing'), {})).toThrow('Unknown playground');
+      expect(Object.keys(catalogs)).toEqual(registeredKeys);
+      expect(() => selected.resolve(document(rows), {})).not.toThrow();
+      expect(Object.keys(catalogs)).toEqual(registeredKeys);
+    } finally {
+      selected.finalize();
+    }
+  });
+
+  test('still converts graph stylesheet data factories outside layer-prop containers', () => {
+    const dataAccessor = () => [];
+    const createAccessor = vi.fn(() => dataAccessor);
+    const selected = createPlaygroundResolver({
+      layers: {GraphLayer: {type: ScatterplotLayer, schema: GraphLayerSchema}},
+      functions: {createAccessor}
+    });
+    try {
+      const result = selected.resolve(
+        {
+          layers: [
+            {
+              id: 'graph',
+              '@@type': 'GraphLayer',
+              stylesheet: {nodes: [{type: 'circle', data: {'@@function': 'createAccessor'}}]}
+            }
+          ]
+        },
+        {}
+      );
+      expect((result.props.layers as Layer[])[0].props.stylesheet.nodes[0].data).toBe(dataAccessor);
+      expect(createAccessor).toHaveBeenCalledOnce();
+    } finally {
+      selected.finalize();
+    }
+  });
+
   test('validates every configuration before constructing layers', () => {
     const construct = vi.fn(ScatterplotLayer);
     const tracked = createPlaygroundResolver({

@@ -18,6 +18,8 @@ export {
 } from './deck-playground';
 export type {
   PlaygroundRegistry,
+  PlaygroundLayerConstructor,
+  PlaygroundLayerRegistration,
   PlaygroundBindings,
   PlaygroundDataBinding
 } from './runtime/playground-registry';

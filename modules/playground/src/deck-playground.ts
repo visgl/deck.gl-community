@@ -34,7 +34,7 @@ export type DeckPlaygroundProps = Omit<
   PlaygroundProps,
   'parse' | 'render' | 'renderer' | 'jsonSchema'
 > & {
-  /** Constructors paired with their JSON validation schemas. */
+  /** Application-selected constructors; known layers use bundled schemas, custom layers supply one. */
   registry: PlaygroundRegistry;
   /** External rows referenced from JSON; the host retains ownership. */
   bindings?: PlaygroundBindings;

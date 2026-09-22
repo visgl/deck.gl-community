@@ -2,20 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {ArcLayer, GeoJsonLayer, ScatterplotLayer} from '@deck.gl/layers';
-import {HeatmapLayer} from '@deck.gl/aggregation-layers';
-import {
-  ArcLayerSchema,
-  DeckPlayground,
-  GeoJsonLayerSchema,
-  HeatmapLayerSchema,
-  PlaygroundDataSourceManager,
-  ScatterplotLayerSchema
-} from '@deck.gl-community/playground';
-import scatterplot from './examples/01-scatterplot.json';
-import arcs from './examples/02-arc-network.json';
-import geojson from './examples/03-geojson.json';
-import heatmap from './examples/04-heatmap.json';
+import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
+import {createPlaygroundRegistry} from './registry';
+import {TEMPLATES as GALLERY_TEMPLATES} from './templates';
+
+const TOOL_TEMPLATES = ['imported-points', 'scatterplot', 'arcs', 'geojson', 'heatmap'];
 
 const TEMPLATES = {
   'imported-points': {
@@ -38,10 +29,7 @@ const TEMPLATES = {
       }
     ]
   },
-  scatterplot,
-  arcs,
-  geojson,
-  heatmap
+  ...GALLERY_TEMPLATES
 };
 
 /** Mounts a page-owned editor, preview and browser tools with one shared source. */
@@ -79,14 +67,7 @@ export function mountStandalonePlayground(
   const playground = new DeckPlayground({
     parentElement: root.querySelector<HTMLElement>('[data-preview]')!,
     templates: TEMPLATES,
-    registry: {
-      layers: {
-        ArcLayer: {type: ArcLayer, schema: ArcLayerSchema},
-        GeoJsonLayer: {type: GeoJsonLayer, schema: GeoJsonLayerSchema},
-        HeatmapLayer: {type: HeatmapLayer, schema: HeatmapLayerSchema},
-        ScatterplotLayer: {type: ScatterplotLayer, schema: ScatterplotLayerSchema}
-      }
-    },
+    registry: createPlaygroundRegistry(),
     dataSources: sources,
     onChange() {
       errorStatus.hidden = true;
@@ -110,7 +91,7 @@ export function mountStandalonePlayground(
     status.textContent = 'Connecting browser tools…';
     try {
       unregister = await playground.registerWebMCP({
-        templates: Object.keys(TEMPLATES),
+        templates: TOOL_TEMPLATES,
         dataSources: {manager: sources, read: ['points'], write: ['points']}
       });
       if (!active) {

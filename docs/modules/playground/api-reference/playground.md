@@ -22,9 +22,15 @@ errors occurring later during rendering may leave a frame incomplete.
 
 ### Constructor registry
 
-`registry.layers` maps each JSON `@@type` to `{type, schema}`: a layer constructor and its Zod
-schema. Only registered layers are available. Use or extend the exported layer schemas, keeping
-their `@@type` discriminator equal to the registry key.
+`registry.layers` maps each JSON `@@type` to a layer constructor or an explicit `{type, schema}`
+registration. Only registered layers are available. Constructor shorthand such as
+`layers: {ScatterplotLayer}` matches the constructor's static `layerName` to a bundled official or
+community schema. The registry key must match the schema's `@@type` discriminator.
+
+Use `{type, schema}` for custom layers, schema extensions, or aliases. For example,
+`GraphGridLayer: {type: GridLayer, schema: GraphGridLayerSchema}` registers the graph package's grid
+without colliding with deck.gl's aggregation `GridLayer`. Schemas are bundled independently of
+constructors; importing the playground does not enable or import the full layer catalog.
 
 The five core views (`MapView`, `OrthographicView`, `OrbitView`, `FirstPersonView`, and `_GlobeView`)
 are available by default. `registry.views` adds constructors with matching schemas; custom views
@@ -48,6 +54,9 @@ Registered schemas drive validation and Monaco diagnostics. The runtime also rej
 references, duplicate layer IDs, `mapStyle` (no basemap adapter), and empty `views` arrays.
 Omit `views` to use the default map view. Inline rows and external bindings bypass conversion:
 their values remain opaque and preserve row identity, including strings beginning with `@@`.
+A layer's `data: '@@#table'` instead resolves a registered host resource by reference, allowing
+native Arrow tables and other layer-specific data objects. This form does not subscribe to a source
+manager or provide bound-row selection.
 
 ### Local bindings
 
@@ -278,7 +287,9 @@ See [WebMCP tool security](https://developer.chrome.com/docs/ai/webmcp/secure-to
 
 ## Schemas
 
-The main entry exports GeoJSON schemas and types, `DeckGLDocumentSchema`, `DeckGLLayerSchemas`, and
-`DeckGLViewSchemas`. Extend built-in schemas with Zod and `createDeckGLDocumentSchema` for custom
-layers. The [`geojson-schema.json`](./geojson-schema.md) and `deckgl-schema.json` sub-exports provide
-standalone JSON Schema catalogs for editor tooling, independent of a runtime's constructor registry.
+The main entry exports GeoJSON schemas and types, `DeckGLDocumentSchema`, `DeckGLLayerSchemas`,
+`CommunityLayerSchemas`, `DeckGLViewSchemas`, and individual layer schemas. Extend them with Zod
+and `createDeckGLDocumentSchema` for custom layers. `DeckPlayground` generates editor diagnostics
+from its registered layers. The [`geojson-schema.json`](./geojson-schema.md) and `deckgl-schema.json`
+sub-exports provide standalone GeoJSON and official deck.gl catalogs; community schemas are available
+through the main entry.

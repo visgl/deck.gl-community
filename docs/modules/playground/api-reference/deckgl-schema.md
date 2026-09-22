@@ -1,7 +1,8 @@
 # deck.gl Schema
 
-The playground exports Zod schemas for JSON-encoded deck.gl documents, official layers, and core
-views. The generated JSON Schema artifact is available from:
+The playground bundles Zod schemas for JSON-encoded deck.gl documents, official and community
+layers, and core views, without importing layer constructors. The generated official deck.gl JSON
+Schema artifact is available from:
 
 ```ts
 import deckglSchema from '@deck.gl-community/playground/deckgl-schema.json';
@@ -17,11 +18,12 @@ new Playground({
 ## Runtime validation and inferred types
 
 The catalog covers the 35 concrete layers exported by deck.gl 9.4's `layers`,
-`aggregation-layers`, `geo-layers`, and `mesh-layers` packages, plus all five concrete core views.
-Abstract `View`, `Layer`, `_AggregationLayer`, and `_GeoCellLayer` are not document variants.
-The package remains private.
+`aggregation-layers`, `geo-layers`, and `mesh-layers` packages, all 44 public community layers, and
+all five concrete core views. Abstract `View`, `Layer`, `_AggregationLayer`, and `_GeoCellLayer`
+are not document variants. The package remains private.
 
-Each layer exports a props schema, a discriminated document schema, and an inferred JSON props type:
+Each layer exports a props schema and a discriminated configuration schema. Official layers also
+export inferred JSON props types:
 
 ```ts
 import {
@@ -44,8 +46,13 @@ ScatterplotLayerSchema.parse({'@@type': 'ScatterplotLayer', ...props});
 DeckGLDocumentSchema.parse({layers: [{'@@type': 'ScatterplotLayer', ...props}]});
 ```
 
-`DeckGLLayerSchemas` and `DeckGLViewSchemas` provide named lookups. Unknown prop names are rejected,
-including typos and props belonging to another layer. Inheritance is preserved: Trips includes Path
+`DeckGLLayerSchemas`, `CommunityLayerSchemas`, and `DeckGLViewSchemas` provide named lookups.
+`DeckGLDocumentSchema` covers official layers; the managed renderer composes a document schema
+from explicitly registered constructors. Constructor shorthand uses the bundled schema matching
+`layerName`; custom layers or aliases supply `{type, schema}`. Community graph `GridLayer` uses the
+`GraphGridLayerSchema` and the `GraphGridLayer` discriminator to avoid the official name collision.
+
+Unknown prop names are rejected, including typos and props belonging to another layer. Inheritance is preserved: Trips includes Path
 props, GridCell includes Column props, H3 includes Polygon props, and MVT includes Tile and GeoJSON
 props. An upstream TypeScript coverage test detects missing or extra props when deck.gl changes.
 
@@ -70,9 +77,12 @@ return value. The host supplies conversion and rendering. See deck.gl's
 [conversion reference](https://deck.gl/docs/api-reference/json/conversion-reference).
 
 Textures and meshes use URLs or registered class descriptors; constants can refer to host-owned
-resources. A5 IDs use strings in JSON because JSON cannot represent bigint. GPU `parameters`,
-`loadOptions`, inline row contents, and composite `_subLayerProps` remain explicitly opaque JSON
-escape hatches. Built-in extension prop catalogs and live binary resource validation are not included.
+resources. The managed renderer requires constants for live resources and does not construct nested
+`@@type` descriptors. For native GeoArrow layers, register an Arrow table as a constant and use
+`data: '@@#table'`; geometry vectors can also be registered constants. Browser-tool Arrow imports
+materialize JSON rows and do not supply native tables. A5 IDs use strings in JSON because JSON
+cannot represent bigint. GPU `parameters`, `loadOptions`, inline row contents, and composite
+`_subLayerProps` remain explicitly opaque JSON escape hatches. Built-in extension prop catalogs and live binary resource validation are not included.
 
 ## Views and camera state
 
