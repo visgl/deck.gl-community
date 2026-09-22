@@ -7,8 +7,6 @@ import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
 import {useEffect, useMemo, useRef} from 'react';
 import type {ReactNode} from 'react';
-import type {Deck} from '@deck.gl/core';
-import type {MapboxOverlay} from '@deck.gl/mapbox';
 import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
 
 function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | undefined {
@@ -25,12 +23,7 @@ function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | un
   return undefined;
 }
 
-interface DeckGLComponentProps extends DeckglProps {
-  /** @internal Used by the compat adapter to receive the root-specific deck instance. */
-  onDeckglChange?: (deckgl: Deck | MapboxOverlay | null) => void;
-}
-
-function DeckGLComponent(props: DeckGLComponentProps) {
+function DeckGLComponent(props: DeckglProps) {
   const {children, debug, onDeckglChange, ...deckglProps} = props;
 
   const Bridge: ContextBridge = useContextBridge();
@@ -101,7 +94,7 @@ function DeckGLComponent(props: DeckGLComponentProps) {
   );
 }
 
-export function DeckGL(props: DeckGLComponentProps & {children: ReactNode}) {
+export function DeckGL(props: DeckglProps & {children: ReactNode}) {
   return (
     <FiberProvider>
       <DeckGLComponent {...props} />

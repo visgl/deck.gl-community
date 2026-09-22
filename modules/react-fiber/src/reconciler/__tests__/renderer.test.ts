@@ -186,7 +186,7 @@ describe('renderer', () => {
       // Assert
       expect(deck.finalize).toHaveBeenCalledOnce();
       expect(roots.has(rootElement)).toBeFalsy();
-      expect(root.store.getState().deckgl).toBeUndefined();
+      expect(root.store.getState().deckgl).toBeNull();
     });
 
     it('should handle unmounting non-existent node gracefully', () => {

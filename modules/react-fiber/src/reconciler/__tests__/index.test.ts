@@ -1,7 +1,6 @@
 import {describe, expect, expectTypeOf, it} from 'vitest';
 
 import * as reconcilerModule from '../index';
-import {catalogue} from '../extend';
 
 describe('index', () => {
   it('should export createRoot', () => {
@@ -19,14 +18,7 @@ describe('index', () => {
     expect(reconcilerModule.roots).toBeInstanceOf(Map);
   });
 
-  it('should export extend', () => {
-    expect(reconcilerModule).toHaveProperty('extend');
-    expectTypeOf(reconcilerModule.extend).toBeFunction();
-  });
-
-  it('should import side-effects automatically', () => {
-    expect(reconcilerModule).toBeDefined();
-    expect(catalogue.ScatterplotLayer).toBeDefined();
-    expect(catalogue.MapView).toBeDefined();
+  it('should export only root lifecycle APIs', () => {
+    expect(Object.keys(reconcilerModule).sort()).toEqual(['createRoot', 'roots', 'unmountAtNode']);
   });
 });

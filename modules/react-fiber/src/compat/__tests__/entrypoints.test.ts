@@ -44,7 +44,7 @@ describe('compat entrypoint export matrices', () => {
     expect(aggregationLayers).not.toHaveProperty('WebGLAggregator');
   });
 
-  it('exports the approved geo and mesh wrappers, including geo aliases', () => {
+  it('exports the approved geo and mesh wrappers', () => {
     expect(Object.keys(geoLayers).sort()).toEqual([
       'GeohashLayer',
       'GreatCircleLayer',
@@ -57,12 +57,8 @@ describe('compat entrypoint export matrices', () => {
       'Tile3DLayer',
       'TileLayer',
       'TripsLayer',
-      'WMSLayer',
-      'mVTLayer',
-      'wMSLayer'
+      'WMSLayer'
     ]);
-    expect(geoLayers.mVTLayer).toBe(geoLayers.MVTLayer);
-    expect(geoLayers.wMSLayer).toBe(geoLayers.WMSLayer);
     expect(Object.keys(meshLayers).sort()).toEqual(['ScenegraphLayer', 'SimpleMeshLayer']);
   });
 });

@@ -41,8 +41,25 @@ import {MapView} from '@deck.gl/core';
 </view>;
 ```
 
-Use `useDeckgl()` inside a descendant component when direct access to the
-underlying `Deck` or `MapboxOverlay` instance is needed.
+When application code needs the root-specific `Deck` or `MapboxOverlay`
+instance, keep it in local state with `onDeckglChange`:
+
+```tsx
+import {useState} from 'react';
+import {DeckGL, type DeckglInstance} from '@deck.gl-community/react-fiber';
+
+function Map() {
+  const [deckgl, setDeckgl] = useState<DeckglInstance | null>(null);
+
+  return (
+    <DeckGL onDeckglChange={setDeckgl}>
+      <layer layer={/* a deck.gl Layer instance */} />
+    </DeckGL>
+  );
+}
+```
+
+The callback receives `null` when its `DeckGL` root cleans up.
 
 ## Migrating from `@deck.gl/react`
 

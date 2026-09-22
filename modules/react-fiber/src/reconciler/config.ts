@@ -1,5 +1,5 @@
 import type {Layer, LayersList, View} from '@deck.gl/core';
-import {log, toPascal} from '../shared/index';
+import {log} from '../shared/index';
 import {globalScope} from '../shared/constants';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {createContext} from 'react';
@@ -10,7 +10,6 @@ import {
   DiscreteEventPriority
 } from 'react-reconciler/constants.js';
 
-import {catalogue} from './extend';
 import type {
   ChildSet,
   Container,
@@ -24,8 +23,6 @@ import type {
   UpdatePayload
 } from './types';
 import {flattenTree, isView, organizeList} from './utils';
-
-const VIEW_REGEX = /view/i;
 
 type EventPriority = number;
 
@@ -114,70 +111,13 @@ export const cancelTimeout = clearTimeout;
 export const scheduleMicrotask = queueMicrotask;
 
 /**
- * Cache for available elements list to avoid repeated Object.keys() computation.
- * Invalidated when catalogue changes (rare - only on side-effects import).
- */
-let availableElementsCache: string | null = null;
-
-/**
- * Returns comma-separated list of available element types from catalogue.
- * Caches result to avoid repeated Object.keys() calls in error paths.
+ * Creates the supported native deck.gl elements.
  *
- * @returns Comma-separated string of available element names
- */
-function getAvailableElements(): string {
-  if (availableElementsCache === null) {
-    availableElementsCache = Object.keys(catalogue).join(', ');
-  }
-  return availableElementsCache;
-}
-
-/**
- * Internal factory that creates Deck.gl Layer or View instances wrapped in reconciler format.
- *
- * This function handles both the new `<layer>` element (v2+) and legacy typed elements
- * (e.g., `<scatterplotLayer>`). It's shared between `createInstance` and `cloneInstance`
- * because Deck.gl layers are cheap descriptor objects that are always recreated rather
- * than mutated.
- *
- * **Two Creation Paths:**
- *
- * 1. **New `<layer>` element (recommended):**
- *    ```tsx
- *    <layer layer={new ScatterplotLayer({ id: "points", ... })} />
- *    ```
- *    - Direct pass-through of pre-instantiated layer
- *    - Better type safety and tree-shaking
- *    - Validates layer ID in development mode
- *
- * 2. **Legacy typed elements (deprecated):**
- *    ```tsx
- *    <scatterplotLayer id="points" ... />
- *    ```
- *    - Looks up layer class from catalogue
- *    - Requires side-effects import
- *    - Shows deprecation warning in development
- *
- * **Catalogue Pattern:**
- * The catalogue is a registry mapping PascalCase names to Deck.gl constructors.
- * Populated by importing `"@deck.gl-community/react-fiber/reconciler/side-effects"`.
- *
- * **Validation:**
- * - Development mode: warns if layer ID is missing or "unknown"
- * - Development mode: warns when using deprecated element syntax
- * - Throws error with helpful message for unsupported element types
- *
- * @param type - Element type ("layer" for new syntax, or "scatterplotLayer" etc. for legacy)
- * @param props - Element props (either `{ layer: Layer }` or Deck.gl layer props)
- * @returns Instance wrapper `{ node: Layer | View, children: [] }`
- *
- * @throws {Error} If `<layer>` element is missing `layer` prop
- * @throws {Error} If legacy element type is not in catalogue
- *
- * @see {@link extend} For registering custom layers in the catalogue
+ * The reconciler accepts only pre-instantiated descriptors through `<layer>`
+ * and `<view>`, so JavaScript callers receive the same runtime contract as
+ * TypeScript callers.
  */
 function createDeckglObject(type: Type, props: Props): Instance {
-  // New <view> element (v2+): pass-through pre-instantiated View
   if (type === 'view') {
     if (!props.view) {
       throw new Error("<view> element requires a 'view' prop");
@@ -205,7 +145,6 @@ function createDeckglObject(type: Type, props: Props): Instance {
     };
   }
 
-  // New <layer> element (v2+): pass-through pre-instantiated Layer
   if (type === 'layer') {
     if (!props.layer) {
       throw new Error("<layer> element requires a 'layer' prop");
@@ -244,37 +183,7 @@ function createDeckglObject(type: Type, props: Props): Instance {
     };
   }
 
-  // Legacy path with deprecation warning (v2 backwards compatibility)
-  const name = toPascal(type);
-
-  if (process.env.NODE_ENV === 'development') {
-    // Detect if this is a view-related element
-    const isViewType = VIEW_REGEX.test(type);
-    const elementName = isViewType ? 'view' : 'layer';
-    const propName = isViewType ? 'view' : 'layer';
-
-    console.warn(
-      `Using deprecated <${type}> element. Migrate to <${elementName} ${propName}={new ${name}({...})} /> for better type safety and code-splitting. This syntax will be removed in v3.`
-    );
-  }
-
-  if (!catalogue[name]) {
-    const availableElements = getAvailableElements();
-
-    throw new Error(
-      `Unsupported element type: "${type}"\n\n` +
-        `Available elements: ${availableElements}\n\n` +
-        `Did you forget to import side-effects?\n` +
-        `import "@deck.gl-community/react-fiber/reconciler/side-effects";\n`
-    );
-  }
-
-  const instance = new catalogue[name](props);
-
-  return {
-    children: [],
-    node: instance
-  };
+  throw new Error(`Unsupported element type: "${type}". Only <layer> and <view> are supported.`);
 }
 
 /**
@@ -300,7 +209,7 @@ function createDeckglObject(type: Type, props: Props): Instance {
  * We don't need `commitMount` because Deck.gl layers don't have initialization side effects
  * that depend on being in the tree. They're just data descriptors.
  *
- * @param type - Element type (e.g., "scatterplotLayer", "layer")
+ * @param type - Element type (`"layer"` or `"view"`)
  * @param props - Initial props for the instance
  * @param rootContainerInfo - Root container with Zustand store
  * @param hostContext - Context from parent (tracks View nesting, provides store access)
@@ -494,7 +403,7 @@ export function cloneInstance(
  * diffing handles visibility updates automatically when `unhideInstance` is called.
  *
  * @param instance - The instance to hide while Suspense is active
- * @param type - Element type (e.g., "scatterplotLayer")
+ * @param type - Element type (`"layer"` or `"view"`)
  * @param props - Current props for the instance
  * @returns Instance structure with same node and children (Deck.gl handles visibility internally)
  *
@@ -1254,9 +1163,7 @@ export function getRootHostContext(rootContainer: Container): HostContext {
  * Similar to how DOM tracks whether you're inside SVG vs HTML context, we track
  * whether we're inside a View element.
  *
- * Currently detects Views by checking if type name includes "view".
- * Future enhancement: After single-layer-element implementation lands,
- * add runtime `instanceof View` check for the `<layer>` element case.
+ * The native `<view>` element marks its descendants as being inside a view.
  *
  * @param parentHostContext - Context from parent element
  * @param type - Type of element being created
@@ -1264,9 +1171,9 @@ export function getRootHostContext(rootContainer: Container): HostContext {
  *
  * @example
  * ```tsx
- * <mapView>           // insideView: true
- *   <layer ... />     // inherits insideView: true
- * </mapView>
+ * <view view={new MapView({id: 'main'})}> // insideView: true
+ *   <layer layer={new ScatterplotLayer({id: 'points'})} />
+ * </view>
  * ```
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-reconciler/README.md#getchildhostcontext React Reconciler Docs}
@@ -1279,10 +1186,7 @@ export function getChildHostContext(parentHostContext: HostContext, type: Type):
     })
     .debug('getChildHostContext');
 
-  // Detect if we are inside of a View instance
-  // Note: This currently checks type string. Once single-layer-element lands,
-  // we should also check instance.node instanceof View for runtime detection.
-  const isViewInstance = VIEW_REGEX.test(type);
+  const isViewInstance = type === 'view';
 
   // Avoids redundant allocations in nested view hierarchies
   if (isViewInstance && !parentHostContext.insideView) {
@@ -1568,7 +1472,7 @@ export function resolveUpdatePriority(): EventPriority {
  * (e.g., tile layers loading tiles, data layers loading resources). The layer creation
  * itself is synchronous - layers are descriptor objects that don't block.
  *
- * @param type - Element type (e.g., "scatterplotLayer")
+ * @param type - Element type (`"layer"` or `"view"`)
  * @param props - Props for the instance
  * @returns `false` - Deck.gl layers never block commits
  *
@@ -1634,7 +1538,7 @@ export function startSuspendingCommit(): SuspendedState {
  *
  * @param state - Suspended state object from startSuspendingCommit
  * @param instance - The instance being suspended
- * @param type - Element type (e.g., "scatterplotLayer")
+ * @param type - Element type (`"layer"` or `"view"`)
  * @param props - Props for the instance
  *
  * @see {@link https://github.com/facebook/react/blob/main/packages/react-noop-renderer/src/createReactNoop.js#L367 React Noop Renderer implementation}
@@ -1707,7 +1611,7 @@ export function waitForCommitToBeReady(
  * props reference URLs or Promises, the layer descriptor is created synchronously
  * and deck.gl manages loading behind the scenes.
  *
- * @param type - Element type (e.g., "scatterplotLayer")
+ * @param type - Element type (`"layer"` or `"view"`)
  * @param oldProps - Previous props
  * @param newProps - New props
  * @returns `false` - Updates never suspend
@@ -1742,7 +1646,7 @@ export function maySuspendCommitOnUpdate(type: Type, oldProps: Props, newProps: 
  * Returns `false` because deck.gl layer creation is always synchronous. Layers are
  * lightweight descriptor objects that don't block rendering even with async data.
  *
- * @param type - Element type (e.g., "scatterplotLayer")
+ * @param type - Element type (`"layer"` or `"view"`)
  * @param props - Props for the instance
  * @returns `false` - Never suspends in sync renders
  *
@@ -1776,7 +1680,7 @@ export function maySuspendCommitInSyncRender(type: Type, props: Props): boolean 
  * descriptors that can be committed immediately. Async loading (if any) happens
  * after the layer is created, managed by deck.gl internally.
  *
- * @param type - Element type (e.g., "scatterplotLayer")
+ * @param type - Element type (`"layer"` or `"view"`)
  * @param props - Props for the instance
  * @returns `true` - Layers are always ready
  *

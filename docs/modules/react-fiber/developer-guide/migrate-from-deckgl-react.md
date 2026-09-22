@@ -40,8 +40,6 @@ import {ScatterplotLayer} from '@deck.gl-community/react-fiber/compat/layers';
 | `/compat/aggregation-layers` | `ScreenGridLayer`, `HexagonLayer`, `ContourLayer`, `GridLayer`, `HeatmapLayer` |
 | `/compat/mesh-layers` | `ScenegraphLayer`, `SimpleMeshLayer` |
 
-`mVTLayer` is a deprecated alias for `MVTLayer`. `wMSLayer` is a deprecated alias for
-`WMSLayer`.
 
 The compatibility subpaths export only this matrix. They do not export
 aggregation internals, aggregators, widgets, or `useWidget`.

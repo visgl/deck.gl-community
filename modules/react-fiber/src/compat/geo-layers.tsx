@@ -69,8 +69,3 @@ export const MVTLayer: LayerComponent<MVTLayerProps> = createLayerComponent(
 export const WMSLayer: LayerComponent<WMSLayerProps> = createLayerComponent(
   DeckWMSLayer as LayerConstructor<WMSLayerProps>
 );
-
-/** @deprecated Use MVTLayer. */
-export const mVTLayer = MVTLayer;
-/** @deprecated Use WMSLayer. */
-export const wMSLayer = WMSLayer;

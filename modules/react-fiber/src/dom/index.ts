@@ -1,3 +1,2 @@
 export {DeckGL} from './components';
-export {useDeckgl} from './hooks';
-export {extend} from '../reconciler/index';
+export type {DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';

@@ -22,11 +22,13 @@ vi.mock(import('../../shared'), () => {
 vi.mock(import('../../reconciler'), () => {
   const mockRender = vi.fn<() => void>();
   const mockConfigure = vi.fn<() => void>();
+  const mockDeckgl = {};
   const mockCreateRoot = vi.fn<() => unknown>(() => ({
     configure: mockConfigure,
     render: mockRender,
     store: {
-      getState: vi.fn<() => unknown>(),
+      getState: vi.fn(() => ({deckgl: mockDeckgl})),
+
       setState: vi.fn<() => void>(),
       subscribe: vi.fn<() => void>()
     }
@@ -38,6 +40,7 @@ vi.mock(import('../../reconciler'), () => {
     createRoot: mockCreateRoot,
     mockConfigure,
     mockCreateRoot,
+    mockDeckgl,
     mockRender,
     mockRoots,
     mockUnmountAtNode,
@@ -47,15 +50,15 @@ vi.mock(import('../../reconciler'), () => {
 });
 
 // Get the mocks after they've been set up
-const {mockRender, mockConfigure, mockCreateRoot, mockUnmountAtNode, mockRoots} = (await import(
-  '../../reconciler'
-)) as unknown as {
-  mockRender: ReturnType<typeof vi.fn>;
-  mockConfigure: ReturnType<typeof vi.fn>;
-  mockCreateRoot: ReturnType<typeof vi.fn>;
-  mockUnmountAtNode: ReturnType<typeof vi.fn>;
-  mockRoots: Map<unknown, unknown>;
-};
+const {mockRender, mockConfigure, mockCreateRoot, mockDeckgl, mockUnmountAtNode, mockRoots} =
+  (await import('../../reconciler')) as unknown as {
+    mockRender: ReturnType<typeof vi.fn>;
+    mockConfigure: ReturnType<typeof vi.fn>;
+    mockCreateRoot: ReturnType<typeof vi.fn>;
+    mockDeckgl: object;
+    mockUnmountAtNode: ReturnType<typeof vi.fn>;
+    mockRoots: Map<unknown, unknown>;
+  };
 
 const {mockEnableLogging, mockDisableLogging} = (await import('../../shared')) as unknown as {
   mockEnableLogging: ReturnType<typeof vi.fn>;
@@ -158,6 +161,41 @@ describe('DeckGL Component Tests', () => {
           initialViewState: {latitude: 10, longitude: 10, zoom: 2}
         })
       );
+    });
+  });
+
+  describe('onDeckglChange', () => {
+    it('should receive the configured root instance without forwarding the callback to deck.gl', () => {
+      const onDeckglChange = vi.fn();
+
+      render(
+        <DeckGL onDeckglChange={onDeckglChange}>
+          <div>Test</div>
+        </DeckGL>
+      );
+
+      expect(onDeckglChange).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(mockConfigure).toHaveBeenCalledWith(
+        expect.not.objectContaining({onDeckglChange: expect.anything()})
+      );
+    });
+
+    it('should notify updates with the root-specific instance', () => {
+      const onDeckglChange = vi.fn();
+      const {rerender} = render(
+        <DeckGL onDeckglChange={onDeckglChange}>
+          <div>Initial</div>
+        </DeckGL>
+      );
+
+      rerender(
+        <DeckGL onDeckglChange={onDeckglChange}>
+          <div>Updated</div>
+        </DeckGL>
+      );
+
+      expect(onDeckglChange).toHaveBeenCalledTimes(2);
+      expect(onDeckglChange).toHaveBeenLastCalledWith(mockDeckgl);
     });
   });
 
@@ -378,6 +416,22 @@ describe('DeckGL Component Tests', () => {
       expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(expect.any(HTMLCanvasElement));
       const unmountCall = mockUnmountAtNode.mock.calls[0][0] as HTMLCanvasElement;
       expect(unmountCall.id).toBe('deckgl-fiber-canvas');
+    });
+
+    it('should notify cleanup before unmounting the root', () => {
+      const onDeckglChange = vi.fn();
+      const {unmount} = render(
+        <DeckGL onDeckglChange={onDeckglChange}>
+          <div>Test</div>
+        </DeckGL>
+      );
+
+      unmount();
+
+      expect(onDeckglChange).toHaveBeenLastCalledWith(null);
+      expect(onDeckglChange.mock.invocationCallOrder[1]).toBeLessThan(
+        mockUnmountAtNode.mock.invocationCallOrder[0]
+      );
     });
 
     it('should call unmountAtNode with correct node in interleaved mode', () => {

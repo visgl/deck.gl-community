@@ -34,9 +34,25 @@ The implementation is copied from `deckgl-fiber-renderer/fiber.gl` version
 licensed. The source layout is preserved under `src/dom`, `src/reconciler`,
 `src/shared`, and `src/types`.
 
-The root entry point exposes `DeckGL`, `useDeckgl`, and `extend`. Advanced
-entrypoints are available directly through the `/reconciler`, `/shared`, and
-`/types` subpaths.
+The root entry point exposes the native `DeckGL` component. Render directly
+constructed deck.gl descriptors through `<layer>` and `<view>`. To access the
+root-specific `Deck` or `MapboxOverlay` instance, use `onDeckglChange`:
+
+```tsx
+import {useEffect, useState} from 'react';
+import {DeckGL, type DeckglInstance} from '@deck.gl-community/react-fiber';
+
+export function Map() {
+  const [deckgl, setDeckgl] = useState<DeckglInstance | null>(null);
+
+  useEffect(() => {
+    if (!deckgl) return;
+    // Use the instance owned by this DeckGL root.
+  }, [deckgl]);
+
+  return <DeckGL onDeckglChange={setDeckgl}>{null}</DeckGL>;
+}
+```
 
 ## Migrate from `@deck.gl/react`
 

@@ -1,7 +1,7 @@
 # DeckGL
 
 ```tsx
-import {DeckGL, useDeckgl} from '@deck.gl-community/react-fiber';
+import {DeckGL} from '@deck.gl-community/react-fiber';
 ```
 
 `DeckGL` mounts a deck.gl renderer and reconciles its children as deck.gl
@@ -12,15 +12,40 @@ The component supports standalone rendering, interleaved rendering through the
 `interleaved` prop, explicitly supplied canvas or parent elements, and
 universal `<layer>` and `<view>` children.
 
-`useDeckgl()` returns the current `Deck` or `MapboxOverlay` instance, or
-`null` before the renderer has mounted.
+## Access the root instance
+
+`onDeckglChange` receives the `Deck` or `MapboxOverlay` instance owned by this
+`DeckGL` root after configuration. It receives `null` when the root cleans up.
+Use local state when another component needs the instance:
+
+```tsx
+import {useEffect, useState} from 'react';
+import {DeckGL, type DeckglInstance} from '@deck.gl-community/react-fiber';
+
+export function Map() {
+  const [deckgl, setDeckgl] = useState<DeckglInstance | null>(null);
+
+  useEffect(() => {
+    if (deckgl) {
+      // Connect behavior to this root only.
+    }
+  }, [deckgl]);
+
+  return (
+    <DeckGL onDeckglChange={setDeckgl}>
+      <layer layer={/* a deck.gl Layer instance */} />
+    </DeckGL>
+  );
+}
+```
 
 ## Migrating from `@deck.gl/react`
 
 This page documents the native `DeckGL` component from the root package. The
 separate `DeckGL` migration adapter is available only from
 `@deck.gl-community/react-fiber/compat`; the import path distinguishes it from
-the native component, and it has a bounded wrapper, ref, and context contract. See [Migrate from @deck.gl/react](../developer-guide/migrate-from-deckgl-react.md)
+the native component, and it has a bounded wrapper, ref, and context contract.
+See [Migrate from @deck.gl/react](../developer-guide/migrate-from-deckgl-react.md)
 for supported imports and limitations.
 
 Advanced reconciler APIs are available from
