@@ -6,15 +6,13 @@ use it from this repository as a workspace.
 
 ## Usage
 
-Register rows independently, then connect them to a `DeckPlayground`:
+Import the layer constructors you need and register them explicitly. Bundled official and community
+schemas are matched by each constructor's `layerName`; the library imports no layer implementations.
+Then register rows independently and connect them to a `DeckPlayground`:
 
 ```ts
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {
-  DeckPlayground,
-  PlaygroundDataSourceManager,
-  ScatterplotLayerSchema
-} from '@deck.gl-community/playground';
+import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
 
 const dataSources = new PlaygroundDataSourceManager();
 dataSources.add({
@@ -25,7 +23,7 @@ dataSources.add({
 const playground = new DeckPlayground({
   parentElement: document.getElementById('playground')!,
   registry: {
-    layers: {ScatterplotLayer: {type: ScatterplotLayer, schema: ScatterplotLayerSchema}}
+    layers: {ScatterplotLayer}
   },
   dataSources,
   templates: {
@@ -63,6 +61,11 @@ Accepted edits reuse the preview; invalid edits retain the last accepted documen
 load asynchronously and serve multiple playgrounds. Use `Playground` for a custom renderer.
 Configuration props follow the [deck.gl JSON syntax](https://deck.gl/docs/api-reference/json/conversion-reference),
 including array and conditional accessor expressions. Inline rows and bound rows remain unchanged.
+Use registered constants for live resources, such as `data: '@@#table'` for a host-owned Arrow table.
+
+The website's [standalone playground](/playground) and [gallery](/examples/playground) register all
+79 concrete official and community layers. Library consumers select their own constructor set;
+custom schemas and aliases use explicit `{type, schema}` registrations.
 
 The [API reference](./api-reference/playground.md) covers registration, picking, camera control,
 and standalone schemas. The

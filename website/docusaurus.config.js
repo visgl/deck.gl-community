@@ -104,6 +104,7 @@ const config = {
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
+            '@deck.gl-community/experimental': resolve('../modules/experimental/src'),
             '@deck.gl-community/panels': resolve('../modules/panels/src'),
             '@deck.gl-community/playground': resolve('../modules/playground/src'),
             '@deck.gl-community/widgets': resolve('../modules/widgets/src'),
@@ -260,6 +261,11 @@ const config = {
             to: '/examples',
             position: 'left',
             label: 'Examples'
+          },
+          {
+            to: '/playground',
+            position: 'left',
+            label: 'Playground'
           },
           {
             href: 'https://github.com/visgl/deck.gl-community',

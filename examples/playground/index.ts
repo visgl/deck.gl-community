@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {mountPlaygroundExample} from './app';
+import {mountStandalonePlayground} from './standalone';
 
 const container = document.getElementById('app');
 if (!(container instanceof HTMLElement)) {
@@ -15,4 +15,4 @@ document.body.style.height = '100%';
 container.style.width = '100vw';
 container.style.height = '100vh';
 
-mountPlaygroundExample(container);
+mountStandalonePlayground(container);

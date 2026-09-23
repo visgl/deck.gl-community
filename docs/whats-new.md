@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Both website playgrounds register all 35 concrete official and 44 public community layers, with
+  shared templates and schema validation. The library bundles these schemas while keeping layer
+  constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
+  custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references
+  such as `data: '@@#table'` preserve native Arrow tables.
+
+- The [standalone playground](/playground) provides a full-screen editor and preview with a page-local
+  `points` source for JSON and Arrow row imports. Browser tools expose five selected templates and
+  register automatically with status and disable/re-enable controls that preserve imported rows.
+  Browsers without WebMCP can still use the editor and preview.
+
 - Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
 
 - Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and

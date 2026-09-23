@@ -136,7 +136,7 @@ export class Playground {
       triggerIcon: '{}',
       button: true,
       defaultOpen: true,
-      dockTriggerWhenOpen: true
+      dockTriggerWhenOpen: false
     });
     this.panelManager.setProps({components: [this.sidebarContainer, this.pickerContainer]});
     this.resizeObserver = new ResizeObserver(this.handleEditorResize);
@@ -286,6 +286,7 @@ export class Playground {
   }
 
   private readonly handleEditorResize = () => {
+    this.sidebarContainer?.setProps({widthPx: Math.min(440, this.parentElement.clientWidth * 0.8)});
     this.panelManager.onRedraw({
       viewports: [
         {

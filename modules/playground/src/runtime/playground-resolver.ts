@@ -11,7 +11,8 @@ import {
 } from '@deck.gl/core';
 import {JSONConverter} from '@deck.gl/json';
 import {z} from 'zod';
-import {createDeckGLDocumentSchema} from '../schemas/deckgl';
+import {createDeckGLDocumentSchema, DeckGLLayerSchemas} from '../schemas/deckgl';
+import {CommunityLayerSchemas} from '../schemas/community';
 import {
   FirstPersonViewSchema,
   GlobeViewSchema,
@@ -19,7 +20,11 @@ import {
   OrbitViewSchema,
   OrthographicViewSchema
 } from '../schemas/views';
-import type {PlaygroundBindings, PlaygroundRegistry} from './playground-registry';
+import type {
+  PlaygroundBindings,
+  PlaygroundLayerRegistration,
+  PlaygroundRegistry
+} from './playground-registry';
 import type {PlaygroundBindingProvider} from './playground-source-bindings';
 
 const CORE_VIEWS: NonNullable<PlaygroundRegistry['views']> = {
@@ -28,6 +33,10 @@ const CORE_VIEWS: NonNullable<PlaygroundRegistry['views']> = {
   OrbitView: {type: OrbitView, schema: OrbitViewSchema},
   OrthographicView: {type: OrthographicView, schema: OrthographicViewSchema},
   FirstPersonView: {type: FirstPersonView, schema: FirstPersonViewSchema}
+};
+const LAYER_SCHEMAS: Record<string, z.ZodObject> = {
+  ...DeckGLLayerSchemas,
+  ...CommunityLayerSchemas
 };
 let nextConverterId = 0;
 
@@ -87,7 +96,7 @@ export type PlaygroundResolver = {
  * The runtime schema excludes basemap styling and requires a nonempty view list when supplied.
  */
 export function createPlaygroundResolver(registry: PlaygroundRegistry): PlaygroundResolver {
-  const layers = {...registry.layers};
+  const layers = resolveLayerRegistry(registry.layers);
   const views = {...CORE_VIEWS, ...registry.views};
   const namespace = `playground-${nextConverterId++}`;
   const constants = new Map([
@@ -134,37 +143,6 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
     }
   });
 
-  function prepareValue(value: unknown): unknown {
-    if (typeof value === 'string') {
-      return value.startsWith('@@#')
-        ? `@@#${namespace}.${getReference(constantIds, value.slice(3), 'constant')}`
-        : value;
-    }
-    if (Array.isArray(value)) return value.map(prepareValue);
-    if (!isRecord(value)) return value;
-    if (Object.hasOwn(value, '@@type')) {
-      throw new Error('Nested @@type resources are unsupported; register a constant instead');
-    }
-    if (Object.hasOwn(value, '@@data')) {
-      throw new Error('External bindings are only supported in a layer data property');
-    }
-    if (Object.hasOwn(value, '@@function')) {
-      return {
-        ...prepareProperties(value, ['@@function']),
-        '@@function': getReference(functionIds, value['@@function'], 'function')
-      };
-    }
-    return prepareProperties(value);
-  }
-
-  function prepareProperties(value: Record<string, unknown>, omit: string[] = []) {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([key]) => !omit.includes(key))
-        .map(([key, child]) => [key, prepareValue(child)])
-    );
-  }
-
   return {
     jsonSchema,
     finalize() {
@@ -173,6 +151,62 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       converter.finalize();
     },
     resolve(value, bindings, dataSources) {
+      const literalData = new Map<string, unknown>();
+      const literalNamespace = `${namespace}-data-${nextConverterId++}`;
+
+      function prepareValue(value: unknown, source = value, layerProps = false): unknown {
+        if (typeof value === 'string') {
+          return value.startsWith('@@#')
+            ? `@@#${namespace}.${getReference(constantIds, value.slice(3), 'constant')}`
+            : value;
+        }
+        if (Array.isArray(value)) {
+          return value.map((child, index) =>
+            prepareValue(child, Array.isArray(source) ? source[index] : child, layerProps)
+          );
+        }
+        if (!isRecord(value)) return value;
+        if (Object.hasOwn(value, '@@type')) {
+          throw new Error('Nested @@type resources are unsupported; register a constant instead');
+        }
+        if (Object.hasOwn(value, '@@data')) {
+          throw new Error('External bindings are only supported in a layer data property');
+        }
+        const original = isRecord(source) ? source : value;
+        if (Object.hasOwn(value, '@@function')) {
+          return {
+            ...prepareProperties(value, ['@@function'], original, layerProps),
+            '@@function': getReference(functionIds, value['@@function'], 'function')
+          };
+        }
+        return prepareProperties(value, [], original, layerProps);
+      }
+
+      function prepareProperties(
+        value: Record<string, unknown>,
+        omit: string[] = [],
+        source = value,
+        layerProps = false
+      ) {
+        return Object.fromEntries(
+          Object.entries(value)
+            .filter(([key]) => !omit.includes(key))
+            .map(([key, child]) => {
+              const original = Object.hasOwn(source, key) ? source[key] : child;
+              if (
+                layerProps &&
+                key === 'data' &&
+                !(typeof child === 'string' && child.startsWith('@@#'))
+              ) {
+                const id = String(literalData.size);
+                literalData.set(id, original);
+                return [key, `@@#${literalNamespace}.${id}`];
+              }
+              return [key, prepareValue(child, original, layerProps)];
+            })
+        );
+      }
+
       const document = schema.parse(value) as Record<string, unknown>;
       const sourceLayers = (value as {layers?: Record<string, unknown>[]}).layers ?? [];
       const layerBindings = new Map<string, string>();
@@ -181,19 +215,43 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       const layerDefinitions = (document.layers ?? []) as Record<string, unknown>[];
       const preparedLayers = layerDefinitions.map((definition, index) => {
         const name = String(definition['@@type']);
-        const {type} = getRegistration(layers, name, 'layer');
+        const {type, schema: layerSchema} = getRegistration(layers, name, 'layer');
         const id = definition.id;
         if (typeof id !== 'string' || !id) {
           throw new Error(`Playground layer requires a nonempty id: ${name}`);
         }
         if (ids.has(id)) throw new Error(`Duplicate playground layer id: ${id}`);
         ids.add(id);
-        const props = prepareProperties(definition, ['@@type', 'data', 'id']);
+        // Embedded data formats own their syntax; schema metadata keeps them out of JSONConverter.
+        const literalKeys = Object.keys(definition).filter(
+          key =>
+            layerSchema instanceof z.ZodObject &&
+            layerSchema.shape[key]?.meta()?.['x-playground-literal'] &&
+            typeof definition[key] === 'object'
+        );
+        const layerPropsKeys = Object.keys(definition).filter(
+          key =>
+            layerSchema instanceof z.ZodObject &&
+            layerSchema.shape[key]?.meta()?.['x-playground-layer-props']
+        );
+        const props = prepareProperties(definition, [
+          '@@type',
+          'data',
+          'id',
+          ...literalKeys,
+          ...layerPropsKeys
+        ]);
+        const source = sourceLayers[index] ?? definition;
+        for (const key of layerPropsKeys) {
+          props[key] = prepareValue(definition[key], source[key], true);
+        }
         const literalProps: Record<string, unknown> = {id};
+        for (const key of literalKeys) {
+          literalProps[key] = Object.hasOwn(source, key) ? source[key] : definition[key];
+        }
         if (Object.hasOwn(definition, 'data')) {
           // Keep the original rows: schema parsing may apply defaults, but also clones JSON.
-          const source = sourceLayers[index];
-          const data = source && Object.hasOwn(source, 'data') ? source.data : definition.data;
+          const data = Object.hasOwn(source, 'data') ? source.data : definition.data;
           if (isRecord(data) && Object.hasOwn(data, '@@data')) {
             const bindingName = String(data['@@data']);
             const hasOverride = Object.hasOwn(bindings, bindingName);
@@ -206,6 +264,10 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
               resolvedBindings[bindingName] = binding;
             }
             layerBindings.set(id, bindingName);
+          } else if (typeof data === 'string' && data.startsWith('@@#')) {
+            const name = data.slice(3);
+            getReference(constantIds, name, 'constant');
+            literalProps.data = constants.get(name);
           } else {
             // Payloads are opaque: a row's expression-like text is ordinary data.
             literalProps.data = data;
@@ -225,15 +287,24 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         return {type, props, literalProps};
       });
       // A fresh envelope bypasses JSONConverter's input-identity cache on source updates/retries.
-      const converted = converter.convert({
+      const prepared = {
         props: prepareProperties(document, ['layers', 'views']),
         layers: preparedLayers.map(({props}) => props),
         views: preparedViews.map(({props}) => props)
-      }) as {
+      };
+      let converted: {
         props: Record<string, unknown>;
         layers: Record<string, unknown>[];
         views: Record<string, unknown>[];
       };
+      // Temporary enum slots preserve nested row identity and cannot be named by document refs.
+      const enumerations = converter.configuration.config.enumerations;
+      enumerations[literalNamespace] = Object.fromEntries(literalData);
+      try {
+        converted = converter.convert(prepared) as typeof converted;
+      } finally {
+        delete enumerations[literalNamespace];
+      }
       const sourceIds = [...new Set(layerBindings.values())];
       const unavailable = sourceIds.filter(name => !Object.hasOwn(resolvedBindings, name));
       if (unavailable.length) {
@@ -266,9 +337,30 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
   };
 }
 
+function resolveLayerRegistry(entries: PlaygroundRegistry['layers']) {
+  return Object.fromEntries(
+    Object.entries(entries).map(([name, entry]): [string, PlaygroundLayerRegistration] => {
+      if (typeof entry !== 'function') return [name, entry];
+      const layerName = entry.layerName ?? '';
+      const schema = LAYER_SCHEMAS[layerName] ?? LAYER_SCHEMAS[`_${layerName}`];
+      if (!schema || !schema.shape['@@type']?.safeParse(name).success) {
+        throw new Error(`No matching playground schema for ${name}; register {type, schema}`);
+      }
+      return [name, {type: entry, schema}];
+    })
+  );
+}
+
 function createSchemaUnion(schemas: z.ZodType[]): z.ZodType {
   if (schemas.length === 0) return z.never();
   if (schemas.length === 1) return schemas[0];
+  const objects = schemas.filter(
+    (schema): schema is z.ZodObject =>
+      schema instanceof z.ZodObject && schema.shape['@@type'] instanceof z.ZodLiteral
+  );
+  if (objects.length === schemas.length) {
+    return z.discriminatedUnion('@@type', [objects[0], objects[1], ...objects.slice(2)]);
+  }
   return z.union([schemas[0], schemas[1], ...schemas.slice(2)]);
 }
 
