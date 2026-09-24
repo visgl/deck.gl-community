@@ -2,10 +2,12 @@ import 'client-only';
 import {createRoot, roots, unmountAtNode} from '../reconciler/index';
 import type {ReconcilerRoot} from '../reconciler/index';
 import {log} from '../shared/index';
-import type {DeckglProps} from '../types/index';
+import {hasSameConfigProperties} from '../shared/has-same-config-properties';
+import {useEffectEvent} from '../shared/use-effect-event';
+import type {DeckglProps, OnDeckglChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
-import {useEffect, useMemo, useRef} from 'react';
+import {useEffect, useRef} from 'react';
 import type {ReactNode} from 'react';
 import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
 
@@ -23,8 +25,11 @@ function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | un
   return undefined;
 }
 
-function DeckglComponent(props: DeckglProps) {
-  const {children, debug} = props;
+function DeckGLComponent(props: DeckglProps) {
+  const {children, debug, onDeckglChange, ...deckglProps} = props;
+  const notifyDeckglChange = useEffectEvent<Parameters<OnDeckglChange>, void>(deckgl => {
+    onDeckglChange?.(deckgl);
+  });
 
   const Bridge: ContextBridge = useContextBridge();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -37,8 +42,16 @@ function DeckglComponent(props: DeckglProps) {
     debug ? log.enableLogging() : log.disableLogging();
   }, [debug]);
 
-  // Memoize config to prevent recreation on every render
-  const config = useMemo(() => props, [props]);
+  // Object-rest creates a new config object each render. Preserve the committed
+  // config while its values are unchanged so a lifecycle callback replacement is non-reactive.
+  const configCache = useRef(deckglProps);
+  const config = hasSameConfigProperties(configCache.current, deckglProps)
+    ? configCache.current
+    : deckglProps;
+
+  useIsomorphicLayoutEffect(() => {
+    configCache.current = config;
+  });
 
   useIsomorphicLayoutEffect(() => {
     const actualCanvas = (config.canvas ||
@@ -58,6 +71,7 @@ function DeckglComponent(props: DeckglProps) {
         canvas: actualCanvas,
         parent: actualParent
       });
+      notifyDeckglChange(root.store.getState().deckgl);
       root.render(<Bridge>{children}</Bridge>);
     }
   }, [children, config, Bridge]);
@@ -69,6 +83,7 @@ function DeckglComponent(props: DeckglProps) {
 
     if (actualCanvas) {
       return () => {
+        notifyDeckglChange(null);
         unmountAtNode(actualCanvas);
       };
     }
@@ -92,10 +107,10 @@ function DeckglComponent(props: DeckglProps) {
   );
 }
 
-export function Deckgl(props: DeckglProps & {children: ReactNode}) {
+export function DeckGL(props: DeckglProps & {children: ReactNode}) {
   return (
     <FiberProvider>
-      <DeckglComponent {...props} />
+      <DeckGLComponent {...props} />
     </FiberProvider>
   );
 }

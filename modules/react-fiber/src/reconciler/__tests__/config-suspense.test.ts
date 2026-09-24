@@ -42,7 +42,6 @@ describe('config-suspense', () => {
       // Act & Assert
       expect(maySuspendCommit('layer', {})).toBeFalsy();
       expect(maySuspendCommit('view', {})).toBeFalsy();
-      expect(maySuspendCommit('scatterplotLayer', {})).toBeFalsy();
     });
   });
 
@@ -108,7 +107,6 @@ describe('config-suspense', () => {
       // Act & Assert
       expect(preloadInstance('layer', {})).toBeTruthy();
       expect(preloadInstance('view', {})).toBeTruthy();
-      expect(preloadInstance('scatterplotLayer', {})).toBeTruthy();
     });
   });
 

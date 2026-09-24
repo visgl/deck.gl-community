@@ -3,7 +3,7 @@ import {ScatterplotLayer} from '@deck.gl/layers';
 import type {ReactNode} from 'react';
 import {describe, expect, expectTypeOf, it} from 'vitest';
 
-import type {DeckglProps} from '../react';
+import type {DeckglInstance, DeckglProps} from '../react';
 
 describe('Props Type Tests', () => {
   it('should DeckglProps accept initialViewState', () => {
@@ -39,6 +39,17 @@ describe('Props Type Tests', () => {
     };
 
     // Assert - views array is accepted
+    expectTypeOf(props).toMatchTypeOf<DeckglProps>();
+  });
+
+  it('should DeckglProps accept onDeckglChange', () => {
+    const props: DeckglProps = {
+      onDeckglChange: deckgl => {
+        const instance: DeckglInstance | null = deckgl;
+        expect(instance).toBeDefined();
+      }
+    };
+
     expectTypeOf(props).toMatchTypeOf<DeckglProps>();
   });
 

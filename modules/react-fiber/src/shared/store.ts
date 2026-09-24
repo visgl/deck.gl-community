@@ -1,6 +1,5 @@
 import type {Deck, LayersList} from '@deck.gl/core';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
-import {create} from 'zustand';
 import {createStore as createVanillaStore} from 'zustand/vanilla';
 import type {StateCreator, StoreApi} from 'zustand/vanilla';
 
@@ -14,16 +13,16 @@ export interface State {
   /**
    * Current deck.gl instance (Deck or MapboxOverlay)
    *
-   * Null until the Deckgl component mounts and creates the instance.
+   * Null until the DeckGL component mounts and creates the instance.
    */
   deckgl: Deck | MapboxOverlay | null;
 
   /**
    * Updates the deck.gl instance reference
    *
-   * Called during Deckgl component mount/update lifecycle.
+   * Called during DeckGL component mount/update lifecycle.
    */
-  setDeckgl: (instance: Deck | MapboxOverlay) => void;
+  setDeckgl: (instance: Deck | MapboxOverlay | null) => void;
 
   /**
    * Layers passed directly via the `layers` prop (internal use)
@@ -43,23 +42,6 @@ export interface State {
  */
 export type Store = StoreApi<State>;
 
-/**
- * Zustand hook for accessing deckgl-fiber global state
- *
- * Used internally by the reconciler. External consumers should use
- * the selectors object for optimized state access.
- *
- * @example
- * ```typescript
- * import { useStore, selectors } from '@deck.gl-community/react-fiber/shared';
- *
- * // Optimized selector usage (recommended)
- * const deckgl = useStore(selectors.deckgl);
- *
- * // Direct state access (causes re-render on any state change)
- * const state = useStore();
- * ```
- */
 const createState: StateCreator<State> = set => ({
   // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
   // traditional usage of creating layers as JSX children.
@@ -76,38 +58,8 @@ const createState: StateCreator<State> = set => ({
  * Creates an isolated store for a reconciler root.
  *
  * Each root owns its deck.gl instance and the layers supplied through its
- * component props. The exported React hook below is retained for backwards
- * compatibility, but must not be used as the reconciler's root state.
+ * component props.
  */
 export function createStore(): Store {
   return createVanillaStore<State>(createState);
 }
-
-/**
- * Legacy shared React store used by `useDeckgl()`.
- * @deprecated Reconciler roots use isolated stores internally.
- */
-export const useStore = create<State>()(createState);
-
-/**
- * Optimized selectors for deckgl-fiber state access
- *
- * Use these with useStore() to prevent unnecessary re-renders. Each
- * selector only triggers re-renders when its specific slice of state changes.
- *
- * @example
- * ```typescript
- * import { useStore, selectors } from '@deck.gl-community/react-fiber/shared';
- *
- * function MyComponent() {
- *   const deckgl = useStore(selectors.deckgl);
- *   const setDeckgl = useStore(selectors.setDeckgl);
- *
- *   // Component only re-renders when deckgl instance changes
- * }
- * ```
- */
-export const selectors = {
-  deckgl: (s: State): Deck | MapboxOverlay | null => s.deckgl,
-  setDeckgl: (s: State): ((instance: Deck | MapboxOverlay) => void) => s.setDeckgl
-} satisfies Record<string, (state: State) => State[keyof State]>;

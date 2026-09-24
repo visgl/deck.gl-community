@@ -158,6 +158,8 @@ Highlights:
 
 - New direct community fork of Brandon Pierce's React Fiber renderer for
   composing deck.gl layers and views as React elements.
+- Adds a bounded [`/compat` migration API](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
+  for a supported subset of `@deck.gl/react` applications. It is not full `@deck.gl/react` parity.
 
 ### `@deck.gl-community/three`
 

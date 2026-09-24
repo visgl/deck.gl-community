@@ -1,7 +1,7 @@
 import type {Layer, View} from '@deck.gl/core';
 import {Deck} from '@deck.gl/core';
 import {MapboxOverlay} from '@deck.gl/mapbox';
-import {createStore, noop, log, useStore as legacyStore} from '../shared/index';
+import {createStore, noop, log} from '../shared/index';
 import type {DeckglProps} from '../types/index';
 import type {ReactNode} from 'react';
 import reactReconciler from 'react-reconciler';
@@ -149,11 +149,7 @@ export function unmountAtNode(node: RootElement) {
       deckgl?.finalize();
     } finally {
       // Always clear state and remove from registry, even on error
-      // oxlint-disable-next-line typescript/no-explicit-any
-      state.setDeckgl(undefined as any);
-      if (legacyStore.getState().deckgl === deckgl) {
-        legacyStore.setState({deckgl: null, _passedLayers: []});
-      }
+      state.setDeckgl(null);
       roots.delete(node);
     }
   }
@@ -250,7 +246,6 @@ export function createRoot(node: RootElement): ReconcilerRoot {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
         deckgl.setProps(props as Parameters<typeof deckgl.setProps>[0]);
-        legacyStore.setState({deckgl});
       }
       return;
     }
@@ -270,7 +265,6 @@ export function createRoot(node: RootElement): ReconcilerRoot {
     const deckgl = isOverlay ? new MapboxOverlay(props) : new Deck(props);
 
     state.setDeckgl(deckgl);
-    legacyStore.setState({deckgl});
 
     configured = true;
   }

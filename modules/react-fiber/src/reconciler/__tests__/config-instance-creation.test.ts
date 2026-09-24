@@ -85,6 +85,14 @@ describe('config-instance-creation', () => {
       );
     });
 
+    it('should reject unsupported element types', () => {
+      const hostContext = createMockHostContext();
+
+      expect(() =>
+        createInstance('unsupported', {}, {} as never, hostContext, {} as never)
+      ).toThrow('Unsupported element type: "unsupported". Only <layer> and <view> are supported.');
+    });
+
     it('should warn in dev mode for missing layer ID', () => {
       // Arrange
       process.env.NODE_ENV = 'development';

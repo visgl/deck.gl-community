@@ -5,10 +5,10 @@ import {ConsoleTransport, LogLayer} from 'loglayer';
  *
  * Provides structured logging with automatic object serialization and
  * consistent prefixing. Logging is disabled by default and controlled
- * via the `debug` prop on the Deckgl component.
+ * via the `debug` prop on the DeckGL component.
  */
 export const log = new LogLayer({
-  // Dynamically controlled via prop on Deckgl React component
+  // Dynamically controlled via prop on DeckGL React component
   enabled: false,
 
   prefix: '[deckgl-fiber]',
