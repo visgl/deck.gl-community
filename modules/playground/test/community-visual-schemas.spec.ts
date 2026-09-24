@@ -17,6 +17,18 @@ const REQUIRED_PROPS: Partial<Record<LayerName, Record<string, unknown>>> = {
 };
 
 describe('community visual layer schemas', () => {
+  it('accepts a separate flame clock alongside TripsLayer props', () => {
+    expect(
+      parseLayer('NewHeatLayer', {
+        getTimestamps: '@@=timestamps',
+        currentTime: 180,
+        flameTime: 0,
+        fadeTrail: false
+      }).success
+    ).toBe(true);
+    expect(parseLayer('NewHeatLayer', {flameTime: 'automatic'}).success).toBe(false);
+  });
+
   it.each(
     Object.keys(CommunityVisualLayerSchemas) as LayerName[]
   )('validates %s configuration and rejects unknown props', name => {

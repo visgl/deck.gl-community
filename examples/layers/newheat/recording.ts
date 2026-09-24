@@ -13,6 +13,9 @@ type RecordingOptions = {
   scene: SceneOptions;
   viewState: OrbitViewState;
   orbit: boolean;
+  playTrip: boolean;
+  animateFlame: boolean;
+  speed: number;
   onProgress: (seconds: number) => void;
 };
 
@@ -58,8 +61,7 @@ export function recordScene(container: HTMLElement, options: RecordingOptions) {
       rotationX: options.viewState.rotationX,
       rotationOrbit: options.viewState.rotationOrbit
     };
-    // A continuous passage with no loop reset or empty opening frame.
-    const scene = {...options.scene, currentTime: 90};
+    const scene = {...options.scene};
     function cleanup() {
       cancelAnimationFrame(frame);
       clearTimeout(timeout);
@@ -83,7 +85,13 @@ export function recordScene(container: HTMLElement, options: RecordingOptions) {
       if (now - lastFrame >= 1000 / 30 - 1) {
         lastFrame = now;
         renderer.setProps({
-          layers: createSceneLayers({...scene, currentTime: 90 + elapsed * 11.5}),
+          layers: createSceneLayers({
+            ...scene,
+            currentTime: options.playTrip
+              ? (scene.currentTime + elapsed * 18 * options.speed) % 300
+              : scene.currentTime,
+            flameTime: scene.flameTime + (options.animateFlame ? elapsed : 0)
+          }),
           viewState: {
             ...viewState,
             rotationOrbit: (viewState.rotationOrbit ?? 0) + (options.orbit ? elapsed * 1.4 : 0)

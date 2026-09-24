@@ -48,8 +48,10 @@ const boundsProps = {
   yMax: z.number().optional()
 };
 
-/** NewHeatLayer shares TripsLayer's JSON props without additional flame controls. */
-export const NewHeatLayerPropsSchema = TripsLayerPropsSchema;
+/** TripsLayer props plus an optional independent flame clock in seconds. */
+export const NewHeatLayerPropsSchema = TripsLayerPropsSchema.extend({
+  flameTime: z.number().optional()
+});
 /** JSON configuration for NewHeatLayer. */
 export const NewHeatLayerSchema = defineLayer('NewHeatLayer', NewHeatLayerPropsSchema);
 

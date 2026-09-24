@@ -9,7 +9,13 @@ out float vFlameWeight;
 out vec2 vEmberUV;
 
 float newheat_vertexHash(float n) {
-  return fract(sin(n * 127.1 + 311.7) * 43758.5453);
+  // Integer mixing keeps sparse emission schedules stable across GPU drivers.
+  // A sine hash amplifies small transcendental differences into different bursts.
+  uint bits = uint(int(floor(n * 256.0)));
+  bits = (bits ^ (bits >> 16u)) * 0x7feb352du;
+  bits = (bits ^ (bits >> 15u)) * 0x846ca68bu;
+  bits ^= bits >> 16u;
+  return float(bits & 0x00ffffffu) / 16777216.0;
 }
 
 // TerrainExtension's GPU height map is in common space. Sample each slice's
@@ -35,13 +41,13 @@ export const FLAME_VERTEX = /* glsl */ `
     float emissionTime = (floor(instanceTimestamps / interval) + 1.0 + flameSlices.x) * interval;
     float anchorSeed = newheat_vertexHash(emissionTime * 0.73);
     float period = 28.0 + anchorSeed * 35.0;
-    float elapsed = trips.currentTime - emissionTime - anchorSeed * 13.0;
+    float elapsed = newheat.time * 45.0 + anchorSeed * period;
     float cycle = floor(max(elapsed, 0.0) / period);
     float seed = newheat_vertexHash(emissionTime * 1.37 + cycle * 9.21);
     float lifetime = 10.0 + seed * 11.0;
     float progress = mod(max(elapsed, 0.0), period) / lifetime;
     bool emberActive = instanceTypes < 3.5 && duration > 0.0001
-      && emissionTime <= instanceNextTimestamps && elapsed >= 0.0
+      && emissionTime <= instanceNextTimestamps && emissionTime <= trips.currentTime
       && progress < 1.0 && seed > 0.5;
     vTime = emissionTime;
     vPathPosition = vec2(0.0, 0.5);

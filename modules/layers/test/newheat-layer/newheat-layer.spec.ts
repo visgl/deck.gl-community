@@ -38,5 +38,7 @@ describe('NewHeatLayer API', () => {
       expect(layer.props[name]).toEqual(trips.props[name]);
     }
     expect(new NewHeatLayer().props.getColor).toEqual([255, 255, 255, 255]);
+    expect(new NewHeatLayer().props.flameTime).toBeUndefined();
+    expect(new NewHeatLayer({flameTime: 0}).props.flameTime).toBe(0);
   });
 });

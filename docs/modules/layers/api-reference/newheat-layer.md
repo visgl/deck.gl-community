@@ -28,9 +28,11 @@ const layer = new NewHeatLayer({
 });
 ```
 
-Use the same animation loop you use for `TripsLayer`: update `currentTime` each
-frame. Keeping `currentTime` fixed freezes both playback and the flame. There
-is no internal timer or random seed, so scrubbing back recreates the same fire.
+Update `currentTime` to move the trip playhead. The flame keeps burning when
+`currentTime` is static: it uses deck.gl's animation timeline by default.
+Set `flameTime` to a number of seconds to control that clock yourself. Holding
+both times fixed freezes the result; driving both explicitly gives repeatable
+recordings without a separate particle simulation.
 
 ## How it works
 
@@ -44,8 +46,9 @@ The implementation is a TripsLayer subclass with four small source files:
 | `newheat-layer-fragment.ts` | Turns scrolling noise into curling flame shapes, then maps heat to color and density to opacity. |
 
 The sheets overlap to approximate a volume. Two crossing directions keep it
-visible from above and from the side. `currentTime` drives every moving part,
-so the layer needs no simulation state, internal timer, or CPU particle updates.
+visible from above and from the side. `currentTime` controls route clipping and
+fuel age. The independent `flameTime` uniform moves noise and embers, with no
+CPU particle updates or extra draw calls.
 The terrain generator, controls, and video recorder live entirely in the example.
 
 ## Properties
@@ -56,7 +59,8 @@ width units, rounded joints, `opacity`, and update triggers.
 
 | Property | Behavior |
 | --- | --- |
-| `currentTime` | Controls the trip playhead and flame animation. |
+| `currentTime` | Controls the trip playhead, trail clipping, and fuel age. Holding it fixed leaves the flame animated. |
+| `flameTime` | Optional animation time in seconds, independent of trip timestamp units. Omit it to follow deck.gl's timeline and request continuous redraws. Set a fixed number (including `0`) to freeze turbulence and embers. |
 | `getTimestamps` | One timestamp per path vertex, in the same units as `currentTime`. |
 | `trailLength` | Length of the fading trail, in timestamp units. A zero-length fading trail is empty. |
 | `fadeTrail` | Defaults to `true`. When `false`, all visited segments keep burning and `trailLength` has no effect. Future segments remain hidden. |
@@ -108,7 +112,7 @@ GPU fitting. It does not require a terrain provider or elevation API.
   Small, short-lived flecks rise close to the plume and cool from orange to red,
   with quiet intervals and varied trajectories between bursts. They obey the
   same time window, color tint, and opacity. Their lifetimes are deterministic
-  when scrubbing.
+  when `flameTime` is supplied.
 - Depth writes are disabled and both sides render by default for translucent
   volume slices. Explicit `parameters` can override these defaults.
 - Wider paths (roughly 12–60 pixels) reveal the detail. Narrow paths still work,
@@ -116,17 +120,20 @@ GPU fitting. It does not require a terrain provider or elevation API.
   reveal slices; transparent intersecting flames use ordinary alpha blending.
 - Relative timestamps in seconds are a useful starting point. The initial flame
   tuning uses timestamp units directly: multiplying all timestamps and playback
-  values changes the noise frequency and flicker speed as well as playback units.
+  values changes the spatial noise frequency and emission spacing. Flame animation
+  speed is independent of those units.
   Subtract an epoch offset before passing timestamps to avoid float32 precision loss.
 - Respect reduced-motion preferences in the application animation loop. The example
-  starts paused when the browser requests reduced motion.
+  starts both clocks paused when the browser requests reduced motion. Set
+  `flameTime: 0` to disable automatic flame animation in your own application.
 
 ## Example
 
 [Open the NewHeat demo](/examples/layers/newheat) to compare the shader with
 TripsLayer, scrub time, change width and tint, or keep the whole visited path burning.
-The small Settings panel switches between rugged terrain and flat ground. Use
+The standard example panel has independent Play trip and Animate flame toggles,
+plus controls for terrain, width, tint, speed, and trail fading. Use
 Follow surface to compare fitting, Low angle to inspect contact and occlusion,
 and Show grid / mesh to inspect the surface. Hide UI (or H) clears the frame;
-Escape brings the controls back. Record 12s creates a local 1920 × 1080 canvas
-recording without controls, using MP4 where supported and WebM otherwise.
+Escape brings the controls back. Record 12s respects the playback toggles and
+creates a local 1920 × 1080 canvas recording without controls, using MP4 where supported and WebM otherwise.

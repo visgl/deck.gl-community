@@ -58,6 +58,7 @@ function renderFrame(
     getPath: d => d.path,
     getTimestamps: d => d.timestamps,
     currentTime: 100,
+    flameTime: 1,
     trailLength: 100,
     widthUnits: 'pixels',
     getWidth: 60,
@@ -150,9 +151,35 @@ function createTerrain(height: (x: number, y: number) => number, draw = false) {
 }
 
 describe('NewHeatLayer WebGL rendering', () => {
+  it('animates a static trip and freezes when an explicit flame clock is held', async () => {
+    const props = {currentTime: 50, fadeTrail: false};
+    const frozen = await renderFrame({...props, flameTime: 0});
+    expect(await renderFrame({...props, flameTime: 0})).toEqual(frozen);
+    const advanced = await renderFrame({...props, flameTime: 1});
+    expect(advanced).not.toEqual(frozen);
+    // The independent flame clock never exposes future path segments.
+    for (let x = 135; x < SIZE; x++) expect(brightness(advanced, x)).toBe(0);
+
+    const live = await renderFrame({...props, flameTime: undefined});
+    // No prop updates and no forced Deck animation: the layer requests redraws.
+    deck!.setProps({_animate: false});
+    const later = await new Promise<Uint8Array>(resolve => {
+      let frames = 0;
+      deck!.setProps({
+        onAfterRender: ({gl}: {gl: WebGL2RenderingContext}) => {
+          if (++frames < 3) return;
+          const pixels = new Uint8Array(SIZE * SIZE * 4);
+          gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          resolve(pixels);
+        }
+      });
+    });
+    expect(later).not.toEqual(live);
+  });
+
   it('fits the full flame and its embers to GPU terrain heights', async () => {
     const height = (x: number) => 40 + x * 0.15;
-    const props = {currentTime: 180, fadeTrail: false, getWidth: 20};
+    const props = {currentTime: 180, flameTime: 0, fadeTrail: false, getWidth: 20};
     const extensions = [new TerrainExtension()];
     const elevatedData = [{...DATA[0], path: DATA[0].path.map(([x, y]) => [x, y, height(x)])}];
     for (const embersOnly of [false, true]) {
@@ -214,9 +241,10 @@ describe('NewHeatLayer WebGL rendering', () => {
     expect(difference / samples).toBeLessThan(3);
   });
 
+  // Sample an active burst; quiet intervals intentionally contain no particles.
   it('renders sparse, warm embers that stay near the plume', async () => {
     const pixels = await renderFrame(
-      {currentTime: 180, fadeTrail: false, getWidth: 20},
+      {currentTime: 180, flameTime: 0, fadeTrail: false, getWidth: 20},
       true,
       0,
       true
@@ -236,7 +264,7 @@ describe('NewHeatLayer WebGL rendering', () => {
     expect(emberPixels).toBeGreaterThan(0);
     expect(emberPixels).toBeLessThan(40);
     const later = await renderFrame(
-      {currentTime: 190, fadeTrail: false, getWidth: 20},
+      {currentTime: 180, flameTime: 1.25, fadeTrail: false, getWidth: 20},
       true,
       0,
       true

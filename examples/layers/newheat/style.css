@@ -5,193 +5,21 @@
   min-height: 420px;
   overflow: hidden;
   background: #050607;
-  color: #d5d6d8;
-  font:
-    13px/1.4 -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  outline: none;
+  font: 13px/1.4 system-ui, sans-serif;
 }
-.newheat-demo * {
-  box-sizing: border-box;
-}
-.newheat-demo [hidden] {
-  display: none;
-}
-.nh-stage {
-  position: absolute;
-  inset: 0;
-}
-.nh-header {
-  position: absolute;
-  top: 20px;
-  left: 24px;
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  pointer-events: none;
-}
-.nh-header strong {
+.newheat-demo [hidden] { display: none; }
+.nh-stage { position: absolute; inset: 0; }
+.nh-controls input[type=range] { min-width: 0 !important; }
+.nh-actions { padding: 0 12px 12px; }
+.nh-actions p { margin: 8px 0; }
+.nh-actions button, .nh-recording-status button {
   font: inherit;
-  font-weight: 600;
-  margin: 0;
-  color: #eeeeef;
-}
-.nh-header span {
-  color: #707278;
-  font-size: 12px;
-}
-.newheat-demo button,
-.newheat-demo select,
-.nh-settings summary,
-.nh-download {
-  color: inherit;
-  font: inherit;
-  background: #17181b;
-  border: 1px solid #33353a;
-  border-radius: 5px;
-  padding: 7px 11px;
   cursor: pointer;
+  margin-bottom: 4px;
 }
-.newheat-demo button:hover,
-.nh-settings summary:hover,
-.nh-download:hover {
-  background: #25272b;
-}
-.newheat-demo button:focus-visible,
-.newheat-demo input:focus-visible,
-.newheat-demo select:focus-visible,
-.nh-settings summary:focus-visible,
-.nh-download:focus-visible {
-  outline: 2px solid #c3c5c9;
-  outline-offset: 3px;
-}
-.nh-settings {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  z-index: 2;
-  width: 232px;
-}
-.nh-settings summary {
-  width: max-content;
-  margin-left: auto;
-  list-style: none;
-}
-.nh-settings summary::-webkit-details-marker {
-  display: none;
-}
-.nh-settings-body {
-  max-height: calc(100vh - 160px);
-  overflow-y: auto;
-  margin-top: 8px;
-  padding: 16px;
-  border: 1px solid #303237;
-  border-radius: 6px;
-  background: #131417f2;
-}
-.nh-view-controls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-.nh-settings label {
-  display: block;
-  margin-bottom: 17px;
-  font-size: 12px;
-}
-.nh-settings output {
-  float: right;
-  font-variant-numeric: tabular-nums;
-  color: #8d9098;
-}
-.nh-settings select {
-  display: block;
-  width: 100%;
-  margin-top: 7px;
-  padding: 6px 8px;
-}
-.newheat-demo input[type=range] {
-  accent-color: #b9bbc0;
-  height: 3px;
-  cursor: pointer;
-}
-.nh-settings input[type=range] {
-  display: block;
-  margin-top: 12px;
-  width: 100%;
-}
-.nh-settings .nh-check {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 12px;
-}
-.nh-check input {
-  margin: 0;
-  accent-color: #b9bbc0;
-}
-.nh-settings p {
-  color: #7d8088;
-  font-size: 11px;
-  line-height: 1.7;
-  margin: 18px 0 0;
-}
-.nh-toolbar {
-  position: absolute;
-  bottom: 20px;
-  left: 24px;
-  right: 24px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: max-content;
-  max-width: calc(100% - 48px);
-  padding: 7px;
-  background: #101114e8;
-  border: 1px solid #292b30;
-  border-radius: 7px;
-}
-.nh-toolbar button {
-  white-space: nowrap;
-}
-.nh-toolbar [data-action=record] {
-  color: #eee;
-}
-.nh-time {
-  width: clamp(80px, 18vw, 260px);
-  margin: 0 7px;
-}
-.nh-clock {
-  width: 40px;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: #858892;
-}
-.nh-clean .nh-ui {
-  display: none;
-}
-.nh-clean {
-  cursor: none;
-}
-.nh-message {
-  position: absolute;
-  left: 24px;
-  bottom: 86px;
-  font-size: 12px;
-  color: #a9abb1;
-}
-.nh-download {
-  position: absolute;
-  bottom: 20px;
-  right: 24px;
-  text-decoration: none;
-}
-.nh-recording .nh-ui,
-.nh-recording .nh-stage {
-  visibility: hidden;
-}
+.nh-clean .nh-controls { display: none; }
+.nh-clean { cursor: none; }
+.nh-recording .nh-stage { visibility: hidden; }
 .nh-recording-stage {
   position: absolute;
   top: 50%;
@@ -207,48 +35,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 8px 10px 8px 16px;
-  background: #141519ed;
-  border: 1px solid #36383e;
-  border-radius: 6px;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-@media (max-width: 650px) {
-  .nh-header {
-    top: 22px;
-    left: 16px;
-  }
-  .nh-settings {
-    right: 16px;
-  }
-  .nh-toolbar {
-    left: 12px;
-    right: 12px;
-    bottom: 14px;
-    max-width: calc(100% - 24px);
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .nh-time {
-    flex: 1;
-    width: 70px;
-    min-width: 35px;
-  }
-  .nh-toolbar button {
-    font-size: 12px;
-    padding: 7px 9px;
-  }
-  .nh-clock {
-    display: none;
-  }
-  .nh-download {
-    bottom: 70px;
-    right: 16px;
-    font-size: 12px;
-  }
-  .nh-message {
-    left: 16px;
-    bottom: 114px;
-  }
+  padding: 8px 12px;
+  background: white;
+  color: #222;
 }

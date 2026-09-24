@@ -47,7 +47,7 @@ export const FLAME_COLOR = /* glsl */ `
     color.a *= (1.0 - smoothstep(0.15, 1.0, radius)) * envelope * flicker * 0.65;
   } else {
   float age = max(trips.currentTime - vTime, 0.0);
-  float fireTime = trips.currentTime * 0.09;
+  float fireTime = newheat.time * 1.5;
   float along = vTime * 0.34;
   float height = vFlame.x;
   float across = vFlame.z > 0.5 ? vFlame.y : geometry.uv.x;

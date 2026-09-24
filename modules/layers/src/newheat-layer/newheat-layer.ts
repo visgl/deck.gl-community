@@ -5,14 +5,32 @@
 import {TripsLayer, type TripsLayerProps} from '@deck.gl/geo-layers';
 import type {DefaultProps} from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
+import type {ShaderModule} from '@luma.gl/shadertools';
 import {FLAME_FUNCTIONS, FLAME_COLOR} from './newheat-layer-fragment';
 import {FLAME_VERTEX, FLAME_VERTEX_DECLARATIONS} from './newheat-layer-vertex';
 import {createFlameGeometry} from './newheat-geometry';
 
-/** TripsLayer's API, with getColor tinting the procedural flame palette. */
-export type NewHeatLayerProps<DataT = unknown> = TripsLayerProps<DataT>;
+/** TripsLayer's API, with an independent flame clock and palette tinting. */
+export type NewHeatLayerProps<DataT = unknown> = TripsLayerProps<DataT> & {
+  /** Animation time in seconds. Omit to animate with deck.gl's timeline;
+   * hold a number fixed to freeze turbulence and embers independently of the trip. */
+  flameTime?: number;
+};
+
+const CLOCK_DECLARATION = 'layout(std140) uniform newheatUniforms { float time; } newheat;';
+const FLAME_CLOCK = {
+  name: 'newheat',
+  vs: CLOCK_DECLARATION,
+  fs: CLOCK_DECLARATION,
+  uniformTypes: {time: 'f32'}
+} as const satisfies ShaderModule<{time: number}>;
 
 const defaultProps: DefaultProps<NewHeatLayerProps> = {
+  flameTime: {
+    type: 'number',
+    value: undefined,
+    validate: value => value === undefined || Number.isFinite(value)
+  },
   // White leaves every hue in the flame palette visible. Alpha still controls opacity.
   getColor: {type: 'accessor', value: [255, 255, 255, 255]},
   parameters: {depthWriteEnabled: false, cullMode: 'none'}
@@ -21,15 +39,15 @@ const defaultProps: DefaultProps<NewHeatLayerProps> = {
 /**
  * A procedural 3D flame along timestamped paths, using the TripsLayer API.
  *
- * `currentTime` drives both playback and turbulence; a fixed time freezes the
- * result. `getColor` tints the palette, and path width also controls flame height.
+ * `currentTime` controls the visited path; `flameTime` animates turbulence and
+ * embers independently. `getColor` tints the palette; width controls flame height.
  * Uses crossed translucent slices and GPU embers in one instanced draw.
  * TerrainExtension supports ground fitting with `terrainDrawMode: 'offset'`
  * and `billboard: false`. Requires WebGL2; depth writes are disabled by default.
  */
 export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends TripsLayer<
   DataT,
-  ExtraProps
+  ExtraProps & NewHeatLayerProps<DataT>
 > {
   static layerName = 'NewHeatLayer';
   static defaultProps = defaultProps;
@@ -41,6 +59,7 @@ export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends Trips
     const shaders = super.getShaders();
     return {
       ...shaders,
+      modules: [...shaders.modules, FLAME_CLOCK],
       defines: {
         ...shaders.defines,
         ...(shaders.modules.some(module => module.name === 'terrain') && {NEWHEAT_TERRAIN: 1})
@@ -59,6 +78,13 @@ export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends Trips
         `
       }
     };
+  }
+
+  override draw(params): void {
+    const time = this.props.flameTime ?? (this.context.timeline?.getTime() ?? 0) / 1000;
+    this.state.model!.shaderInputs.setProps({newheat: {time}});
+    super.draw(params);
+    if (this.props.flameTime === undefined) this.setNeedsRedraw();
   }
 
   protected _getModel(): Model {
