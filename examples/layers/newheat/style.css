@@ -32,7 +32,7 @@
   gap: 12px;
   pointer-events: none;
 }
-.newheat-demo .nh-header h1 {
+.nh-header strong {
   font: inherit;
   font-weight: 600;
   margin: 0;

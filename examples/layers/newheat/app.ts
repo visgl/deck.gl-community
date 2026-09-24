@@ -14,7 +14,7 @@ export function mountNewHeatExample(container: HTMLElement): () => void {
   root.tabIndex = -1;
   root.innerHTML = `
     <div class="nh-stage" aria-label="Interactive burning path visualization"></div>
-    <header class="nh-header nh-ui"><h1>NewHeatLayer</h1><span data-label="surface">Synthetic terrain</span></header>
+    <header class="nh-header nh-ui"><strong role="heading" aria-level="1">NewHeatLayer</strong><span data-label="surface">Synthetic terrain</span></header>
     <details class="nh-settings nh-ui">
       <summary>Settings</summary>
       <div class="nh-settings-body">
