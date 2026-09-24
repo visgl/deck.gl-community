@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {z} from 'zod';
+import {TripsLayerPropsSchema} from './geo-layers';
 import {
   BaseLayerPropsSchema,
   CompositeLayerPropsSchema,
@@ -46,6 +47,11 @@ const boundsProps = {
   yMin: z.number().optional(),
   yMax: z.number().optional()
 };
+
+/** NewHeatLayer shares TripsLayer's JSON props without additional flame controls. */
+export const NewHeatLayerPropsSchema = TripsLayerPropsSchema;
+/** JSON configuration for NewHeatLayer. */
+export const NewHeatLayerSchema = defineLayer('NewHeatLayer', NewHeatLayerPropsSchema);
 
 /** JSON props for outlined paths, including inherited PathLayer styling. */
 export const PathOutlineLayerPropsSchema = PathLayerPropsSchema.extend({
@@ -604,6 +610,7 @@ export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSche
 
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
+  NewHeatLayer: NewHeatLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
   DependencyArrowLayer: DependencyArrowLayerSchema,
