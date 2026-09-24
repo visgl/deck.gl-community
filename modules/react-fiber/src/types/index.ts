@@ -1,2 +1,2 @@
 import './jsx';
-export type {DeckglProps} from './react';
+export type {DeckglInstance, DeckglProps, OnDeckglChange} from './react';

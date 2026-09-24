@@ -1045,6 +1045,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/react-fiber@workspace:modules/react-fiber"
   dependencies:
+    "@deck.gl/aggregation-layers": "npm:~9.4.0"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/extensions": "npm:~9.4.0"
     "@deck.gl/geo-layers": "npm:~9.4.0"
@@ -1073,6 +1074,7 @@ __metadata:
     vitest: "npm:^4.0.18"
     zustand: "npm:^5.0.0"
   peerDependencies:
+    "@deck.gl/aggregation-layers": ~9.4.0
     "@deck.gl/core": ~9.4.0
     "@deck.gl/extensions": ~9.4.0
     "@deck.gl/geo-layers": ~9.4.0

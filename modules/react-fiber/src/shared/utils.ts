@@ -66,7 +66,7 @@ export function isFn(a: unknown): a is (...args: unknown[]) => unknown {
  *
  * @example
  * ```typescript
- * toPascal('scatterplotLayer'); // 'ScatterplotLayer'
+ * toPascal('myLayer'); // 'MyLayer'
  * toPascal('myComponent');      // 'MyComponent'
  * toPascal('');                 // ''
  * ```

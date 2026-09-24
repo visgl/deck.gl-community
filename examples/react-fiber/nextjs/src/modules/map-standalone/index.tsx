@@ -1,7 +1,7 @@
 'use client';
 
 import type {ReactNode} from 'react';
-import {Deckgl} from '@deck.gl-community/react-fiber';
+import {DeckGL} from '@deck.gl-community/react-fiber';
 import {useSelected} from '@/hooks/use-selected';
 import {INITIAL_VIEW_STATE, PARAMETERS} from './constants';
 import {DeckProps} from '@deck.gl/core';
@@ -23,7 +23,7 @@ export function MapClient({children, ...etc}: MapClientProps) {
   };
 
   return (
-    <Deckgl
+    <DeckGL
       controller
       initialViewState={INITIAL_VIEW_STATE}
       parameters={PARAMETERS}
@@ -31,6 +31,6 @@ export function MapClient({children, ...etc}: MapClientProps) {
       {...etc}
     >
       {children}
-    </Deckgl>
+    </DeckGL>
   );
 }

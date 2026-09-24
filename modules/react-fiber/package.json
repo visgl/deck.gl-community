@@ -19,10 +19,7 @@
     "renderer"
   ],
   "type": "module",
-  "sideEffects": [
-    "dist/reconciler/side-effects.*",
-    "dist/types/jsx.*"
-  ],
+  "sideEffects": ["dist/types/jsx.*"],
   "types": "./dist/dom/index.d.ts",
   "main": "./dist/dom/index.cjs",
   "module": "./dist/dom/index.js",
@@ -37,15 +34,35 @@
       "require": "./dist/dom/index.cjs",
       "import": "./dist/dom/index.js"
     },
+    "./compat": {
+      "types": "./dist/compat/index.d.ts",
+      "require": "./dist/compat/index.cjs",
+      "import": "./dist/compat/index.js"
+    },
+    "./compat/layers": {
+      "types": "./dist/compat/layers.d.ts",
+      "require": "./dist/compat/layers.cjs",
+      "import": "./dist/compat/layers.js"
+    },
+    "./compat/geo-layers": {
+      "types": "./dist/compat/geo-layers.d.ts",
+      "require": "./dist/compat/geo-layers.cjs",
+      "import": "./dist/compat/geo-layers.js"
+    },
+    "./compat/aggregation-layers": {
+      "types": "./dist/compat/aggregation-layers.d.ts",
+      "require": "./dist/compat/aggregation-layers.cjs",
+      "import": "./dist/compat/aggregation-layers.js"
+    },
+    "./compat/mesh-layers": {
+      "types": "./dist/compat/mesh-layers.d.ts",
+      "require": "./dist/compat/mesh-layers.cjs",
+      "import": "./dist/compat/mesh-layers.js"
+    },
     "./dom/components": {
       "types": "./dist/dom/components.d.ts",
       "require": "./dist/dom/components.cjs",
       "import": "./dist/dom/components.js"
-    },
-    "./dom/hooks": {
-      "types": "./dist/dom/hooks.d.ts",
-      "require": "./dist/dom/hooks.cjs",
-      "import": "./dist/dom/hooks.js"
     },
     "./reconciler": {
       "types": "./dist/reconciler/index.d.ts",
@@ -57,20 +74,10 @@
       "require": "./dist/reconciler/config.cjs",
       "import": "./dist/reconciler/config.js"
     },
-    "./reconciler/extend": {
-      "types": "./dist/reconciler/extend.d.ts",
-      "require": "./dist/reconciler/extend.cjs",
-      "import": "./dist/reconciler/extend.js"
-    },
     "./reconciler/renderer": {
       "types": "./dist/reconciler/renderer.d.ts",
       "require": "./dist/reconciler/renderer.cjs",
       "import": "./dist/reconciler/renderer.js"
-    },
-    "./reconciler/side-effects": {
-      "types": "./dist/reconciler/side-effects.d.ts",
-      "require": "./dist/reconciler/side-effects.cjs",
-      "import": "./dist/reconciler/side-effects.js"
     },
     "./reconciler/types": {
       "types": "./dist/reconciler/types.d.ts",
@@ -119,7 +126,8 @@
     "src"
   ],
   "scripts": {
-    "test": "vitest run --config vite.config.js",
+    "test": "yarn test-types && vitest run --config vite.config.js",
+    "test-types": "tsc --ignoreConfig --noEmit --jsx react-jsx --module esnext --moduleResolution bundler --target es2022 --skipLibCheck src/compat/__tests__/types.test-d.ts src/types/__tests__/jsx-types.test-d.ts src/types/__tests__/props-types.test-d.ts src/types/__tests__/view-element-types.test-d.ts",
     "test-watch": "vitest --config vite.config.js"
   },
   "dependencies": {
@@ -131,6 +139,7 @@
     "zustand": "^5.0.0"
   },
   "peerDependencies": {
+    "@deck.gl/aggregation-layers": "~9.4.0",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/geo-layers": "~9.4.0",
@@ -145,6 +154,7 @@
     "react-dom": ">=19.0.0"
   },
   "devDependencies": {
+    "@deck.gl/aggregation-layers": "~9.4.0",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/geo-layers": "~9.4.0",
