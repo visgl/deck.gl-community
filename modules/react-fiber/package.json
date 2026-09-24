@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/react-fiber",
-  "version": "9.4.1",
+  "version": "9.4.0-alpha.3",
   "description": "A React Fiber renderer for deck.gl",
   "license": "MIT",
   "author": "Brandon Pierce (https://github.com/brandonjpierce)",
@@ -19,7 +19,9 @@
     "renderer"
   ],
   "type": "module",
-  "sideEffects": ["dist/types/jsx.*"],
+  "sideEffects": [
+    "dist/types/jsx.*"
+  ],
   "types": "./dist/dom/index.d.ts",
   "main": "./dist/dom/index.cjs",
   "module": "./dist/dom/index.js",
