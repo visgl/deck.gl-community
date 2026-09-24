@@ -4,6 +4,7 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample(
   {
     title: 'NewHeatLayer',
+    deviceTabs: false,
     code: `${GITHUB_TREE}/examples/layers/newheat`,
     async mount(container) {
       const {mountNewHeatExample} = await import('../../../../examples/layers/newheat/app');

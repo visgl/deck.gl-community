@@ -3,11 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {CompositeLayer} from '@deck.gl/core';
-import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-
-import {Arrow2DGeometry} from './arrow-2d-geometry';
-
-const DEFAULT_ARROW_GEOMETRY = new Arrow2DGeometry({length: 1, headWidth: 0.6});
+import {PolygonLayer} from '@deck.gl/layers';
 
 type LayoutInfo = {
   sourcePosition: number[];
@@ -112,6 +108,48 @@ export function getArrowTransform({
   return {position, angle};
 }
 
+/** Returns the world-space triangle used for one directed edge arrow. */
+export function getArrowPolygon({
+  layout,
+  size,
+  offset = null
+}: {
+  layout: LayoutInfo;
+  size: number;
+  offset?: number[] | null;
+}): [number[], number[], number[]] {
+  const {target, direction} = getTerminalDirection(layout);
+  const unit = normalizeVector(direction);
+  const resolvedSize = resolveSize(size);
+  const {along, perpendicular} = getOffsetComponents(offset);
+  const perpendicularUnit = [-unit[1], unit[0], 0];
+  const tip = [
+    (target[0] ?? 0) - unit[0] * along + perpendicularUnit[0] * perpendicular,
+    (target[1] ?? 0) - unit[1] * along + perpendicularUnit[1] * perpendicular,
+    (target[2] ?? DEFAULT_Z) - unit[2] * along
+  ];
+  const baseCenter = [
+    tip[0] - unit[0] * resolvedSize,
+    tip[1] - unit[1] * resolvedSize,
+    tip[2] - unit[2] * resolvedSize
+  ];
+  const halfWidth = resolvedSize * 0.3;
+
+  return [
+    tip,
+    [
+      baseCenter[0] + perpendicularUnit[0] * halfWidth,
+      baseCenter[1] + perpendicularUnit[1] * halfWidth,
+      baseCenter[2]
+    ],
+    [
+      baseCenter[0] - perpendicularUnit[0] * halfWidth,
+      baseCenter[1] - perpendicularUnit[1] * halfWidth,
+      baseCenter[2]
+    ]
+  ];
+}
+
 export class EdgeArrowLayer extends CompositeLayer {
   static layerName = 'EdgeArrowLayer';
 
@@ -127,42 +165,26 @@ export class EdgeArrowLayer extends CompositeLayer {
     const updateTriggers = stylesheet.getDeckGLUpdateTriggers();
 
     return [
-      new SimpleMeshLayer(
+      new PolygonLayer(
         this.getSubLayerProps({
           id: '__edge-arrow-layer',
           data: directedEdges,
-          mesh: DEFAULT_ARROW_GEOMETRY,
-          getColor,
-          getScale: edge => {
-            const size = resolveSize(getSize(edge));
-            return [size, size, size];
-          },
-          getOrientation: edge => {
+          filled: true,
+          stroked: false,
+          getFillColor: getColor,
+          getPolygon: edge => {
             const layout = getLayoutInfo(edge);
             const size = resolveSize(getSize(edge));
             const offset = getOffset ? getOffset(edge) : null;
-            const {angle} = getArrowTransform({layout, size, offset});
-            return [0, -angle, 0];
-          },
-          getPosition: edge => {
-            const layout = getLayoutInfo(edge);
-            const size = resolveSize(getSize(edge));
-            const offset = getOffset ? getOffset(edge) : null;
-            const {position} = getArrowTransform({layout, size, offset});
-            return position;
+            return getArrowPolygon({layout, size, offset});
           },
           parameters: {
-            depthTest: false
+            depthCompare: 'always',
+            depthWriteEnabled: false
           },
           updateTriggers: {
-            getColor: updateTriggers.getColor,
-            getScale: updateTriggers.getSize,
-            getOrientation: [
-              positionUpdateTrigger,
-              updateTriggers.getSize,
-              updateTriggers.getOffset
-            ],
-            getPosition: [positionUpdateTrigger, updateTriggers.getSize, updateTriggers.getOffset]
+            getFillColor: updateTriggers.getColor,
+            getPolygon: [positionUpdateTrigger, updateTriggers.getSize, updateTriggers.getOffset]
           }
         })
       )

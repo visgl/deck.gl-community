@@ -45,23 +45,23 @@ new SharedTile2DLayer({
 
 ## Props
 
-#### `tile` (`SharedTile2DHeader`) {#tile}
+#### `tile` (`SharedTile2DHeader`) {/* #tile */}
 
 Tile header whose bounds and index should be visualized.
 
-#### `showBorder` (`boolean`, optional) {#showborder}
+#### `showBorder` (`boolean`, optional) {/* #showborder */}
 
 - Default: `true`
 
 Whether to draw the tile border.
 
-#### `showLabel` (`boolean`, optional) {#showlabel}
+#### `showLabel` (`boolean`, optional) {/* #showlabel */}
 
 - Default: `true`
 
 Whether to render a label at the tile center.
 
-#### `getLabel` (`string | (tile) => string`, optional) {#getlabel}
+#### `getLabel` (`string | (tile) => string`, optional) {/* #getlabel */}
 
 - Default:
 
@@ -71,31 +71,31 @@ tile => `z${tile.index.z} x${tile.index.x} y${tile.index.y}`
 
 Static label text or formatter for per-tile label content.
 
-#### `borderColor` (`Color`, optional) {#bordercolor}
+#### `borderColor` (`Color`, optional) {/* #bordercolor */}
 
 - Default: `[255, 255, 255, 180]`
 
 Stroke color used for the tile border.
 
-#### `labelColor` (`Color`, optional) {#labelcolor}
+#### `labelColor` (`Color`, optional) {/* #labelcolor */}
 
 - Default: `[255, 255, 255, 255]`
 
 Text color used for the tile label.
 
-#### `labelBackgroundColor` (`Color`, optional) {#labelbackgroundcolor}
+#### `labelBackgroundColor` (`Color`, optional) {/* #labelbackgroundcolor */}
 
 - Default: `[15, 23, 42, 210]`
 
 Background color shown behind the tile label.
 
-#### `borderWidthMinPixels` (`number`, optional) {#borderwidthminpixels}
+#### `borderWidthMinPixels` (`number`, optional) {/* #borderwidthminpixels */}
 
 - Default: `1`
 
 Minimum screen-space width of the tile border.
 
-#### `labelSize` (`number`, optional) {#labelsize}
+#### `labelSize` (`number`, optional) {/* #labelsize */}
 
 - Default: `12`
 

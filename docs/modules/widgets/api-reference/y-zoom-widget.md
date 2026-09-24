@@ -37,7 +37,7 @@ Default props:
 
 ## Usage
 
-Within the repo this widget is typically mounted next to reset/fullscreen controls for `DeckTraceGraph` and bound to the main orthographic trace view.
+Within the repo this widget is typically mounted next to reset/fullscreen controls and bound to an orthographic view.
 
 ## Remarks
 

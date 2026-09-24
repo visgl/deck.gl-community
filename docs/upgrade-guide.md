@@ -4,79 +4,63 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Private playground schema preview
+
+The layer/view schema preview now rejects unknown props and invalid accessor constants. Extend a
+props schema for custom layers or extension props instead of relying on unknown keys passing through.
+Use `createAccessorSchema(valueSchema)` in place of the former untyped `AccessorSchema`.
+Move camera fields into `viewState`/`initialViewState`; view constructor props no longer accept them.
+Use upstream experimental names (`_GlobeView`, `_WMSLayer`, `_MultiIconLayer`, `_TextBackgroundLayer`)
+in `@@type`. Abstract `View` is no longer accepted. See the
+[schema reference](./modules/playground/api-reference/deckgl-schema.md) for the supported JSON profile.
+
 ## v9.4
+
+Update deck.gl and luma.gl packages to `~9.4.0`. Modules that use loaders.gl require
+`@loaders.gl/*@^4.4.3`.
 
 ### `@deck.gl-community/panels`
 
-- Breaking change: panel composition APIs no longer expose `Widget*` names from `@deck.gl-community/panels`.
-- Breaking change: composite panel constructors now accept ordered `Panel[]` arrays instead of `PanelRecord` maps.
-- Breaking change: `PanelComponent` is now the root mountable panels API.
-- Breaking change: `Panel` now extends `PanelComponent`; leaf and composite
-  panels inherit from `Panel`.
-- Breaking change: shell containers were renamed to
-  `BoxPanelContainer`, `ModalPanelContainer`, `SidebarPanelContainer`, and
-  `FullScreenPanelContainer`.
-- Breaking change: shell containers accept `panel` only; descriptor-style
-  `container` inputs were removed.
-- Breaking change: `PanelContentContainer`, `PanelContentRenderer`, and `asPanelContainer` were removed.
-- Breaking change: `WidgetHost` was removed. Use `PanelManager` outside deck.gl
-  and `PanelWidget` adapters inside deck.gl.
-- Breaking change: `ToolbarPanelContainer` and `ToastPanelContainer` were
-  renamed to `ToolbarComponent` and `ToastComponent`; they are specialized
-  `PanelComponent` instances, not panel containers.
-- Breaking change: `BoxWidget`, `ModalWidget`, `SidebarWidget`,
-  `createStudioSettingsWidget`, `updateStudioSettingsWidget`, and widget-owned
-  panel aliases were removed.
-- Breaking change: modal and sidebar trigger icons use `triggerIcon`; the
-  legacy `icon` aliases were removed.
-- Migration:
-  - `WidgetPanel` -> `Panel`
-  - `WidgetPanelTheme` -> `PanelTheme`
-  - `WidgetPanelThemeMode` -> `PanelThemeMode`
-  - `AccordeonWidgetContainer` -> `AccordeonPanelContainer`
-  - `TabbedWidgetContainer` -> `TabbedPanelContainer`
-  - `ColumnWidgetContainer` -> `ColumnPanelContainer`
-  - `PanelBox` -> `BoxPanelContainer`
-  - `PanelModal` -> `ModalPanelContainer`
-  - `PanelSidebar` -> `SidebarPanelContainer`
-  - `PanelFullScreen` -> `FullScreenPanelContainer`
-  - `ToolbarPanelContainer` -> `ToolbarComponent`
-  - `ToastPanelContainer` -> `ToastComponent`
-  - `useEffectiveWidgetPanelThemeMode` -> `useEffectivePanelThemeMode`
-- Deck migration: wrap any `PanelComponent` with `new PanelWidget({component})`,
-  or use the thin named adapters `BoxPanelWidget`, `ModalPanelWidget`,
-  `SidebarPanelWidget`, `FullScreenPanelWidget`, `ToolbarWidget`, and
-  `ToastWidget`.
-- Deck migration: import `createStudioSettingsWidget` and
-  `updateStudioSettingsWidget` from `@deck.gl-community/widgets` instead of
-  `@deck.gl-community/panels`.
-- New API: `SplitterPanel` composes the first panel in one resizable pane and the remaining panels in a second pane.
+Panel APIs now use panel-oriented names consistently:
 
-### `@deck.gl-community/trace-layers`
+| v9.3 name | v9.4 replacement |
+| --- | --- |
+| `WidgetPanel` | [`Panel`](/docs/modules/panels/api-reference/panel) |
+| `WidgetPanelTheme` | [`PanelTheme`](/docs/modules/panels/api-reference/panel-theme) |
+| `WidgetPanelThemeMode` | `PanelThemeMode` |
+| `AccordeonWidgetContainer` | [`AccordeonPanelContainer`](/docs/modules/panels/api-reference/composite-panels/accordeon-panel) |
+| `TabbedWidgetContainer` | [`TabbedPanelContainer`](/docs/modules/panels/api-reference/composite-panels/tabbed-panel) |
+| `ColumnWidgetContainer` | [`ColumnPanelContainer`](/docs/modules/panels/api-reference/composite-panels/column-panel) |
+| `PanelBox` | [`BoxPanelContainer`](/docs/modules/panels/api-reference/panel-containers/box-panel-container) |
+| `PanelModal` | [`ModalPanelContainer`](/docs/modules/panels/api-reference/panel-containers/modal-panel-container) |
+| `PanelSidebar` | [`SidebarPanelContainer`](/docs/modules/panels/api-reference/panel-containers/sidebar-panel-container) |
+| `PanelFullScreen` | [`FullScreenPanelContainer`](/docs/modules/panels/api-reference/panel-containers/full-screen-panel-container) |
+| `ToolbarPanelContainer` | [`ToolbarComponent`](/docs/modules/panels/api-reference/panel-components/toolbar-component) |
+| `ToastPanelContainer` | [`ToastComponent`](/docs/modules/panels/api-reference/panel-components/toast-component) |
+| `useEffectiveWidgetPanelThemeMode` | `useEffectivePanelThemeMode` |
 
-- Breaking change: package subpaths were normalized:
-  - `@deck.gl-community/trace-layers/trace-graph` -> `@deck.gl-community/trace-layers/trace`
-  - `@deck.gl-community/trace-layers/deck-trace-layers` -> `@deck.gl-community/trace-layers/layers`
-  - `@deck.gl-community/trace-layers/trace-loaders` -> `@deck.gl-community/trace-layers/loaders`
-  - `@deck.gl-community/trace-layers/tracevis` -> `@deck.gl-community/trace-layers/react`
-- Breaking change: trace-layers no longer owns vendored community panel/widget
-  helpers or vendored deck fast-text/view-layout helpers.
-- Migration:
-  - Import panel definitions, settings managers, commands, keyboard shortcuts,
-    and panel containers from `@deck.gl-community/panels`.
-  - Import deck widget adapters, `OmniBoxWidget`, toast/time/heap widgets, and
-    Studio settings widget helpers from `@deck.gl-community/widgets`.
-  - Import `FastTextLayer`, UTF8 Arrow string-view helpers, and view-layout
-    helpers from `@deck.gl-community/infovis-layers`.
+Additional migration steps:
+
+- Pass ordered `Panel[]` arrays to composite panels instead of `PanelRecord` maps.
+- Pass a `panel` directly to shell containers. The descriptor-style `container` input and the
+  `PanelContentContainer`, `PanelContentRenderer`, and `asPanelContainer` helpers were removed.
+- Replace `WidgetHost` with
+  [`PanelManager`](/docs/modules/panels/api-reference/managers/panel-manager) outside deck.gl. Inside
+  deck.gl, wrap a component with
+  [`PanelWidget`](/docs/modules/widgets/api-reference/panel-widget) or use a named panel widget.
+- Import `createStudioSettingsWidget` and `updateStudioSettingsWidget` from
+  `@deck.gl-community/widgets`.
+- Rename the `icon` prop on modal and sidebar containers to `triggerIcon`.
 
 ### `@deck.gl-community/react`
 
-- Breaking change: `WidgetPanel` was renamed to `Panel`.
-- Migration:
-  - `WidgetPanel` -> `Panel`
-  - `WidgetPanelProps` -> `PanelProps`
-  - `WidgetPanelThemeMode` -> `PanelHostThemeMode`
-- The React `Panel` host now uses `@deck.gl-community/panels` theme variables directly and no longer has an `@deck.gl/widgets` peer dependency.
+Rename the React panel exports:
+
+| v9.3 name | v9.4 replacement |
+| --- | --- |
+| `WidgetPanel` | [`Panel`](/docs/modules/react/api-reference/panel) |
+| `WidgetPanelProps` | `PanelProps` |
+| `WidgetPanelThemeMode` | `PanelHostThemeMode` |
 
 ## v9.3
 

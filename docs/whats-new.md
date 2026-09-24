@@ -1,68 +1,164 @@
 # What's New
 
-## v9.4 - In Planning
+## Unreleased
 
-Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community/milestone/5).
+- Both website playgrounds register all 35 concrete official and 44 public community layers, with
+  shared templates and schema validation. The library bundles these schemas while keeping layer
+  constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
+  custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references
+  such as `data: '@@#table'` preserve native Arrow tables.
+
+- The [standalone playground](/playground) provides a full-screen editor and preview with a page-local
+  `points` source for JSON and Arrow row imports. Browser tools expose five selected templates and
+  register automatically with status and disable/re-enable controls that preserve imported rows.
+  Browsers without WebMCP can still use the editor and preview.
+
+- Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
+
+- Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and
+  resetting a `DeckPlayground` camera, plus explicit source grants for inspection and JSON or
+  Arrow imports. Tools unregister when the playground is finalized; shared sources remain owned
+  by their manager.
+
+- Playground adds `DeckPlayground` for persistent previews, picking, and camera control, plus
+  `PlaygroundDataSourceManager` for shared rows and promises. Source updates preserve the
+  canvas and camera; `Playground` also supports persistent custom renderers.
+  Configuration conversion uses `@deck.gl/json`, including array and conditional expressions
+  and registered constants, enumerations, and factories, while keeping row payloads unchanged.
+
+- Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
+  including single states and state-ID maps in `initialViewState` and `viewState`.
+
+- The private playground schema catalog now validates all official concrete deck.gl layer and view
+  prop names, inherited props, typed accessors, and separate camera states. Generated JSON Schema
+  includes named definitions and upstream prop descriptions for editor completions.
+
+- `MarkerLayer` is exported from graph-layers and has a website gallery example using workspace dependencies.
+
+- [Seasonal Farm](/examples/three/seasonal-farm) shows seven labelled plots with varied trees,
+  seasonal crops, and hover details.
+- [`@deck.gl-community/playground`](/docs/modules/playground) adds an installable panels-based JSON
+  editor and live preview surface, with a standalone [deck.gl playground example](/examples/playground).
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
+  reuses pine geometry when attributes change.
+
+## v9.4
+
+Release Date: Sep 7, 2026
+
+Highlights:
+
+- Updated the community modules for deck.gl and luma.gl 9.4.
+- Expanded WebGPU support across the layer catalog. See the
+  [WebGPU support matrix](./webgpu.md) for current support and known limitations.
+- Added reusable wind visualization layers and new panel and widget APIs.
+
+### `@deck.gl-community/arrow-layers`
+
+- All [GeoArrow layers](/docs/modules/arrow-layers/api-reference/layers) now support WebGPU.
+
+### `@deck.gl-community/editable-layers`
+
+- [`EditableGeoJsonLayer`](/docs/modules/editable-layers/api-reference/layers/editable-geojson-layer)
+  now supports WebGPU, including polygon, path, and edit-handle picking.
+
+### `@deck.gl-community/geo-layers`
+
+- [`WindLayer`](/docs/modules/geo-layers/api-reference/wind-layer) (new) renders
+  interpolated, speed-colored wind arrows.
+- [`ParticleLayer`](/docs/modules/geo-layers/api-reference/particle-layer) (new) animates up to one
+  million particles on the GPU with WebGL2 or WebGPU, including GPU-resident particle heads and
+  trails on both backends.
+- [`ElevationLayer`](/docs/modules/geo-layers/api-reference/elevation-layer) (new) renders smooth,
+  image-based terrain on WebGL2 and WebGPU.
+- [`DelaunayCoverLayer`](/docs/modules/geo-layers/api-reference/delaunay-cover-layer) (new) renders
+  the triangulated weather-station surface.
+- [`DelaunayInterpolation`](/docs/modules/geo-layers/api-reference/delaunay-interpolation) (new)
+  samples and rasterizes weather fields independently of the rendering backend.
+- [`GlobalGridLayer`](/docs/modules/geo-layers/api-reference/global-grid-layer) now supports WebGPU.
+- [`TileGridLayer`](/docs/modules/geo-layers/api-reference/tile-grid-layer) now renders tile borders
+  on WebGPU.
+- The [Wind Map](/examples/geo-layers/wind) includes original forecast data, three-dimensional
+  mountains, tilt-and-rotate camera controls, and a 1,000-to-1,000,000-particle density slider.
+
+### `@deck.gl-community/graph-layers`
+
+- [`RoundedRectangleLayer`](/docs/modules/graph-layers/api-reference/layers/rounded-rectangle-layer)
+  now supports WebGPU.
+- [`PathEdgeLayer`](/docs/modules/graph-layers/api-reference/layers/path-edge-layer) now supports
+  WebGPU.
+- [`EdgeArrowLayer`](/docs/modules/graph-layers/api-reference/layers/edge-arrow-layer) now supports
+  WebGPU.
 
 ### `@deck.gl-community/layers`
 
-- `NewHeatLayer` - rising 3D flames, drifting embers, and a hot leading head with the TripsLayer API.
-- `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
+- [`NewHeatLayer`](/docs/modules/layers/api-reference/newheat-layer) (new) renders rising 3D flames and drifting embers with the TripsLayer API.
+- [`DependencyArrowLayer`](/docs/modules/layers/api-reference/dependency-arrow-layer) (new) renders
+  dependency links with path, line, or arc routing on WebGL2 and WebGPU.
+- [`PathOutlineLayer`](/docs/modules/layers/api-reference/path-outline-layer) now uses deck.gl
+  v9-native sublayers and supports WebGPU.
+- [`PathMarkerLayer`](/docs/modules/layers/api-reference/path-marker-layer) now supports dashed
+  strokes and pixel-sized directional markers on WebGL2 and WebGPU.
 
 ### `@deck.gl-community/infovis-layers`
 
-- Added generic animation, block, fast-text, UTF8 Arrow string-view, view-layout, and viewport-bounds helpers for trace-style visualizations.
+- [`AnimationLayer`](/docs/modules/infovis-layers/api-reference/animation-layer) (new) animates a
+  child layer from a frame schedule.
+- [`BlockLayer`](/docs/modules/infovis-layers/api-reference/block-layer) (new) renders dense interval
+  blocks on WebGL2 and WebGPU, with width cutoffs, stroke alignment, opacity, and color overrides.
+- [`TimeDeltaLayer`](/docs/modules/infovis-layers/api-reference/time-delta-layer) (new) renders
+  interval guides and labels on WebGL2 and WebGPU.
 
 ### `@deck.gl-community/timeline-layers`
 
-- `TimeAxisLayer` now supports adaptive trace-style duration and timestamp grids plus exported tick formatting helpers.
-
-### `@deck.gl-community/trace-layers`
-
-- Trace graph data, layout, style, runtime-ref, Chrome trace, Perfetto trace, and Arrow ingestion APIs now ship from normalized `trace`, `layers`, `loaders`, and `react` package subpaths.
-- `DeckTraceGraph`, deck controllers/layers, trace loaders, and the Tracevis React surface now consume shared `@deck.gl-community/panels`, `@deck.gl-community/widgets`, and `@deck.gl-community/infovis-layers` APIs instead of vendored upstream copies.
-- Added the website Tracevis example for exercising trace loading, selection, catalog, and Studio visualization settings workflows.
-
-### `@deck.gl-community/react`
-
-- `<Panel />` - NEW React component for rendering reusable `@deck.gl-community/panels` definitions in React and MDX trees.
+- [`TimeAxisLayer`](/docs/modules/timeline-layers/api-reference/time-axis-layer) now supports
+  adaptive duration and timestamp grids.
+- [`HorizonGraphLayer`](/docs/modules/timeline-layers/api-reference/horizon-graph-layer) now supports
+  WebGPU.
+- [`MultiHorizonGraphLayer`](/docs/modules/timeline-layers/api-reference/multi-horizon-graph-layer)
+  now supports WebGPU.
+- [`VerticalGridLayer`](/docs/modules/timeline-layers/api-reference/vertical-grid-layer) now
+  supports WebGPU.
 
 ### `@deck.gl-community/widgets`
 
-- `PanelWidget` - NEW generic deck adapter for any panel-owned `PanelComponent`.
-- Thin named adapters now cover real panel containers plus specialized toolbar
-  and toast components without duplicating panel rendering logic.
-- `OmniBoxWidget` now accepts `renderResultsSummary` for rendering a compact caller-provided summary above dropdown results.
-- `OmniBoxWidget` now accepts shared command manager search prefixes for command-mode Tracevis integrations.
-- `ModalPanelWidget` inherits floating, draggable, custom-styled modal support from `ModalPanelContainer`.
-- `createStudioSettingsWidget` and `updateStudioSettingsWidget` now host the shared Studio settings panel through deck widget chrome.
+- Device-managed examples now preserve transparent canvas backgrounds across WebGPU and WebGL2,
+  and keep only the active backend canvas mounted in the visible example host.
+- [`ColorLegendWidget`](/docs/modules/widgets/api-reference/color-legend-widget) (new) renders
+  categorical, continuous, and compact color legends.
+- [`PanelWidget`](/docs/modules/widgets/api-reference/panel-widget) (new) hosts any panel component
+  as a deck.gl widget.
+- [`OmniBoxWidget`](/docs/modules/widgets/api-reference/omni-box-widget) adds debounced asynchronous
+  search, refresh reruns, result-state callbacks, and custom result summaries.
+- [`TimeMeasureWidget`](/docs/modules/widgets/api-reference/time-measure-widget) lets users adjust
+  either boundary of a completed time range.
 
-### `@deck.gl-community/panels` (NEW module)
+### `@deck.gl-community/panels`
 
-A new module for deck-independent panel composition and small application UI.
+- [`PanelComponent`](/docs/modules/panels/api-reference/panel-components/panel-component) (new) is the
+  common lifecycle for directly mountable panel UI.
+- [`Panel`](/docs/modules/panels/api-reference/panel) now extends `PanelComponent`, providing a
+  consistent base for leaf and composite panels.
+- [`ModalPanelContainer`](/docs/modules/panels/api-reference/panel-containers/modal-panel-container)
+  adds non-blocking floating dialogs, drag handles, custom placement, and custom styling.
+- [`BinaryDataPanel`](/docs/modules/panels/api-reference/binary-data-panel) (new) previews binary
+  data as hexadecimal and ASCII rows.
+- [`ArrowTablePanel`](/docs/modules/panels/api-reference/arrow-table-panel) (new) previews Apache
+  Arrow tables.
+- [`ArrowSchemaPanel`](/docs/modules/panels/api-reference/arrow-schema-panel) (new) inspects Apache
+  Arrow schemas and metadata.
+- [`ArrowBatchesPanel`](/docs/modules/panels/api-reference/arrow-batches-panel) (new) summarizes
+  Apache Arrow record batches.
 
-- `PanelManager` - mount compatible panel-managed UI into a plain `HTMLElement`
-- `PanelComponent` - NEW root lifecycle for mountable panel-owned UI.
-- `Panel` now inherits the shared `PanelComponent` lifecycle, including direct mounting.
-- Panel/container composition APIs extracted into a dedicated package
-- Stand-alone documentation and examples for panel composition outside deck.gl
-- Composite panels now accept ordered `Panel[]` arrays, shell containers render direct `panel` inputs.
-- `ModalPanelContainer` now supports floating non-blocking dialogs, draggable dialog handles, left placement, custom dialog/content styles, and content-rendered close controls.
+### `@deck.gl-community/react`
 
-- `SplitterPanel` - NEW composite panel for resizing two panel groups horizontally or vertically.
+- [`Panel`](/docs/modules/react/api-reference/panel) (new) renders reusable
+  `@deck.gl-community/panels` definitions in React and MDX trees.
 
-- `BinaryDataPanel` - NEW reusable panel for compact hex and ASCII previews of caller-supplied binary data.
-- `ArrowTablePanel` - NEW reusable panel for bounded Apache Arrow table previews with row, column, batch, nested-list, matrix, temporal, and loaders.gl wrapper support.
-- `ArrowSchemaPanel` - NEW reusable panel for Apache Arrow schema inspection, including schema, field, child, matrix, and temporal metadata with JSON metadata formatting.
-- `ArrowBatchesPanel` - NEW reusable panel for inspecting Arrow record batches, row counts, cumulative row ranges, and column counts.
-- `StudioSettingsPanel` - NEW schema-driven settings surface with grouped controls, compact navigation, and visual routing-shape controls.
-- `SettingsPanel` now renders `multi-select` descriptors through the shared searchable panel selector.
-- `SettingsPanel` numeric range inputs can apply descriptor-level trailing debounce via `sliderDebounceMs`.
-- `SettingsPanel` and `StudioSettingsPanel` select menus can render option descriptions and grow to fit long labels; `StudioSettingsPanel` also accepts `settingRowLayout: 'fit-labels'` when controls should claim width from short labels.
-- `ModalPanelContainer` and `SidebarPanelContainer` trigger icons can render data/http(s) image URLs as CSS mask icons.
+### `@deck.gl-community/three`
 
-- `CommandManager` - NEW shared command registry for keyboard shortcuts, widgets, and host automation surfaces.
-- `SettingsManager` - NEW UI-agnostic helper for settings snapshots, structured change descriptors, and descriptor-aware local storage persistence.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) improves the `palm` silhouette with a
+  detailed frond crown and ring-scarred trunk, and now supports WebGPU.
 
 ## v9.3
 
@@ -70,9 +166,12 @@ Released: April 15, 2026
 
 ### `@deck.gl-community/geo-layers`
 
-- `SharedTile2DLayer` - NEW experimental tiled `CompositeLayer` that can share one `SharedTileset2D` across multiple layer instances and multiple views.
-- `SharedTileset2D` - NEW shared tile cache and loading engine for coordinated multi-view / multi-layer tile loading.
-- `TileGridLayer` - NEW helper overlay for visualizing tile loading, tile bounds, and tile zoom depth while debugging tiled rendering.
+- [`SharedTile2DLayer`](/docs/modules/geo-layers/api-reference/shared-tile-2d-layer) (new) shares one
+  tiled data source across multiple layer instances and views.
+- [`SharedTileset2D`](/docs/modules/geo-layers/api-reference/shared-tileset-2d) (new) coordinates tile
+  caching and loading across layers and views.
+- [`TileGridLayer`](/docs/modules/geo-layers/api-reference/tile-grid-layer) (new) visualizes tile
+  loading, bounds, and zoom depth.
 - New [`SharedTile2DLayer` example](/examples/geo-layers/shared-tile-2d-layer) showing one shared auto-tiled GeoJSON `TableTileSource` and one shared `SharedTileset2D` feeding multiple styled comparisons plus a minimap.
 
 <img src="/images/icon-no-react.svg" alt="No React example UI initiative" width="72" align="right" />
@@ -85,10 +184,8 @@ Highlights:
 
 ### `@deck.gl-community/layers`
 
-- [`SkyboxLayer`](/docs/modules/layers/api-reference/skybox-layer) - NEW experimental layer for rendering a camera-centered cubemap background in deck.gl.
-  - Supports `MapView`, `GlobeView`, `FirstPersonView`, and other 3D-capable views.
-  - Accepts either a cubemap manifest URL or an in-memory cubemap manifest.
-  - Includes cubemap normalization utilities for converting loaded cubemap faces into runtime texture data.
+- [`SkyboxLayer`](/docs/modules/layers/api-reference/skybox-layer) (new) renders a camera-centered
+  cubemap in 3D-capable views from a URL or in-memory manifest.
 
 Examples:
 
@@ -100,33 +197,24 @@ Examples:
 
 A new experimental basemap module for rendering style-defined basemaps directly with deck.gl.
 
-- `BasemapLayer` - NEW `CompositeLayer` that loads a MapLibre / Mapbox style document and renders background, raster, vector, and label content using deck.gl sublayers.
-- `getBasemapLayers` - Generate deck.gl sublayers from an already-resolved basemap style definition.
-- `getGlobeBaseLayers` - Convenience helper for generating the globe-surface basemap layers.
-- `getGlobeTopLayers` - Convenience helper for generating globe overlay layers such as atmosphere.
+- [`BasemapLayer`](/docs/modules/basemap-layers/api-reference/basemap-layer) (new) renders MapLibre or
+  Mapbox style documents with deck.gl sublayers.
 - [BasemapLayer MapView](/examples/layers/basemap-layer-map-view) - Interactive flat-map control example with style switching and globe/flat runtime validation.
 
 **`@deck.gl-community/basemap-layers/map-style`** - Utilities for loading and working with map styles available as a separate deck.gl independent sub-export:
 
-- `MapStyleLoader` - loaders.gl-compatible loader wrapper for resolving and validating style documents.
-- `BasemapSourceSchema`, `BasemapStyleLayerSchema`, `BasemapStyleSchema`, `ResolvedBasemapStyleSchema` - Zod schemas for strongly typed style validation.
-- `parseProperties` - Resolve style paint/layout properties for a given zoom level.
-- `filterFeatures` - Apply Mapbox-style feature filters to decoded features.
-- `findFeaturesStyledByLayer` - Inspect which features match a specific style layer.
-- `resolveBasemapStyle` - Resolve style URLs, in-memory style objects, relative TileJSON references, and source URLs into a validated runtime style definition.
+- [`MapStyleLoader`](/docs/modules/basemap-layers/api-reference/map-style-loader) (new) resolves and
+  validates style documents through loaders.gl.
+- [Map style utilities](/docs/modules/basemap-layers/api-reference/map-style) provide schemas,
+  property evaluation, feature filtering, and URL resolution.
 
 ### `@deck.gl-community/three` (NEW module)
 
-New module for THREE.js integration experiments
+New module for THREE.js integration experiments.
 
-- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) - NEW layer for rendering 3D tree/forest datasets using Three.js instanced meshes.
-  - 5 species / silhouettes: pine, oak, palm, birch, cherry.
-  - Organic canopy geometry with smooth low-frequency vertex jitter.
-  - Per-tree variety via position-derived random bearing and asymmetric XY scale.
-  - Season-driven canopy colours (spring / summer / autumn / winter).
-  - Pine tier density control (`getBranchLevels` 1–5) with per-tier drift.
-  - Crop / fruit / flower visualisation (`getCrop`) with live and dropped crop spheres.
-  - [Wild Forest example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/wild-forest) with 9 forest zones and interactive controls.
+- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) (new) renders varied, seasonal 3D
+  forests with five tree silhouettes and optional crops. See the
+  [Seasonal Farm example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/seasonal-farm).
 
 ## v9.2
 

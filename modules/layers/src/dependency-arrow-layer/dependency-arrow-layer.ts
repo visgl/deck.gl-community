@@ -28,6 +28,8 @@ import type {
 } from '@deck.gl/core';
 import type {ArcLayerProps, LineLayerProps, PathLayerProps} from '@deck.gl/layers';
 
+const DEFAULT_OUTLINE_COLOR: Color = [255, 255, 255, 220];
+
 export {PathDirection};
 export type {
   MarkerPlacementsAccessor,
@@ -51,6 +53,8 @@ type _DependencyArrowLayerProps<DataT = unknown> = {
   getPath?: PathLayerProps<DataT>['getPath'];
   /** Accessor returning dependency line color. */
   getColor?: LineLayerProps<DataT>['getColor'];
+  /** Accessor returning dependency outline color. */
+  getOutlineColor?: Accessor<DataT, Color>;
   /** Accessor returning dependency line width. */
   getWidth?: LineLayerProps<DataT>['getWidth'];
   /** Units used by dependency line width. */
@@ -61,6 +65,8 @@ type _DependencyArrowLayerProps<DataT = unknown> = {
   widthMinPixels?: LineLayerProps<DataT>['widthMinPixels'];
   /** Maximum rendered dependency line width in pixels. */
   widthMaxPixels?: LineLayerProps<DataT>['widthMaxPixels'];
+  /** Multiplier applied to the optional dependency outline pass. @defaultValue 1 */
+  outlineWidthScale?: number;
 
   /** Arc segment count used when `mode` is `'arc'`. */
   arcNumSegments?: ArcLayerProps<DataT>['numSegments'];
@@ -88,11 +94,13 @@ type _DependencyArrowLayerProps<DataT = unknown> = {
 const defaultProps: DefaultProps<_DependencyArrowLayerProps> = {
   getPath: PathLayer.defaultProps.getPath,
   getColor: LineLayer.defaultProps.getColor,
+  getOutlineColor: {type: 'accessor', value: DEFAULT_OUTLINE_COLOR},
   getWidth: LineLayer.defaultProps.getWidth,
   widthUnits: LineLayer.defaultProps.widthUnits,
   widthScale: LineLayer.defaultProps.widthScale,
   widthMinPixels: LineLayer.defaultProps.widthMinPixels,
   widthMaxPixels: LineLayer.defaultProps.widthMaxPixels,
+  outlineWidthScale: {type: 'number', min: 1, value: 1},
   arcNumSegments: ArcLayer.defaultProps.numSegments,
   getArcHeight: ArcLayer.defaultProps.getHeight,
   getArcTilt: ArcLayer.defaultProps.getTilt,
@@ -164,24 +172,48 @@ export class DependencyArrowLayer<
       mode,
       getPath,
       getColor,
+      getOutlineColor,
       getMarkerColor,
       getMarkerSize,
       markerSizeScale,
+      outlineWidthScale,
+      widthScale,
       updateTriggers = {}
     } = this.props;
 
-    let pathLayer: Layer | null = null;
+    const layers: Layer[] = [];
+    const shouldRenderOutline = outlineWidthScale > 1;
+    const outlineScale = (widthScale ?? 1) * outlineWidthScale;
     if (mode === 'path') {
-      pathLayer = new PathLayer(
-        this.props,
-        this.getSubLayerProps({
-          id: 'links-path',
-          updateTriggers: {
-            getPath: updateTriggers['getPath'],
-            getColor: updateTriggers['getColor'],
-            getWidth: updateTriggers['getWidth']
-          }
-        })
+      if (shouldRenderOutline) {
+        layers.push(
+          new PathLayer(
+            this.props,
+            this.getSubLayerProps({
+              id: 'links-path-outline',
+              getColor: getOutlineColor,
+              widthScale: outlineScale,
+              updateTriggers: {
+                getPath: updateTriggers['getPath'],
+                getColor: updateTriggers['getOutlineColor'],
+                getWidth: updateTriggers['getWidth']
+              }
+            })
+          )
+        );
+      }
+      layers.push(
+        new PathLayer(
+          this.props,
+          this.getSubLayerProps({
+            id: 'links-path',
+            updateTriggers: {
+              getPath: updateTriggers['getPath'],
+              getColor: updateTriggers['getColor'],
+              getWidth: updateTriggers['getWidth']
+            }
+          })
+        )
       );
     } else {
       const positionSize = this.props.positionFormat.length;
@@ -198,46 +230,94 @@ export class DependencyArrowLayer<
         }
       } satisfies LineLayerProps<DataT>;
       if (mode === 'arc') {
-        pathLayer = new ArcLayer<DataT>(
-          sharedProps,
-          {
-            getSourceColor: this.props.getColor,
-            getTargetColor: this.props.getColor,
-            numSegments: this.props.arcNumSegments,
-            getHeight: this.props.getArcHeight,
-            getTilt: this.props.getArcTilt
-          },
-          this.getSubLayerProps({
-            id: 'links-arc',
-            updateTriggers: {
-              getSourcePosition: updateTriggers['getPath'],
-              getTargetPosition: updateTriggers['getPath'],
-              getSourceColor: updateTriggers['getColor'],
-              getTargetColor: updateTriggers['getColor'],
-              getWidth: updateTriggers['getWidth'],
-              getHeight: updateTriggers['getArcHeight'],
-              getTilt: updateTriggers['getArcTilt']
-            }
-          })
+        if (shouldRenderOutline) {
+          layers.push(
+            new ArcLayer<DataT>(
+              sharedProps,
+              {
+                getSourceColor: getOutlineColor,
+                getTargetColor: getOutlineColor,
+                numSegments: this.props.arcNumSegments,
+                getHeight: this.props.getArcHeight,
+                getTilt: this.props.getArcTilt,
+                widthScale: outlineScale
+              },
+              this.getSubLayerProps({
+                id: 'links-arc-outline',
+                updateTriggers: {
+                  getSourcePosition: updateTriggers['getPath'],
+                  getTargetPosition: updateTriggers['getPath'],
+                  getSourceColor: updateTriggers['getOutlineColor'],
+                  getTargetColor: updateTriggers['getOutlineColor'],
+                  getWidth: updateTriggers['getWidth'],
+                  getHeight: updateTriggers['getArcHeight'],
+                  getTilt: updateTriggers['getArcTilt']
+                }
+              })
+            )
+          );
+        }
+        layers.push(
+          new ArcLayer<DataT>(
+            sharedProps,
+            {
+              getSourceColor: this.props.getColor,
+              getTargetColor: this.props.getColor,
+              numSegments: this.props.arcNumSegments,
+              getHeight: this.props.getArcHeight,
+              getTilt: this.props.getArcTilt
+            },
+            this.getSubLayerProps({
+              id: 'links-arc',
+              updateTriggers: {
+                getSourcePosition: updateTriggers['getPath'],
+                getTargetPosition: updateTriggers['getPath'],
+                getSourceColor: updateTriggers['getColor'],
+                getTargetColor: updateTriggers['getColor'],
+                getWidth: updateTriggers['getWidth'],
+                getHeight: updateTriggers['getArcHeight'],
+                getTilt: updateTriggers['getArcTilt']
+              }
+            })
+          )
         );
       } else {
-        pathLayer = new LineLayer<DataT>(
-          sharedProps,
-          this.getSubLayerProps({
-            id: 'links-line',
-            updateTriggers: {
-              getSourcePosition: updateTriggers['getPath'],
-              getTargetPosition: updateTriggers['getPath'],
-              getColor: updateTriggers['getColor'],
-              getWidth: updateTriggers['getWidth']
-            }
-          })
+        if (shouldRenderOutline) {
+          layers.push(
+            new LineLayer<DataT>(
+              sharedProps,
+              this.getSubLayerProps({
+                id: 'links-line-outline',
+                getColor: getOutlineColor,
+                widthScale: outlineScale,
+                updateTriggers: {
+                  getSourcePosition: updateTriggers['getPath'],
+                  getTargetPosition: updateTriggers['getPath'],
+                  getColor: updateTriggers['getOutlineColor'],
+                  getWidth: updateTriggers['getWidth']
+                }
+              })
+            )
+          );
+        }
+        layers.push(
+          new LineLayer<DataT>(
+            sharedProps,
+            this.getSubLayerProps({
+              id: 'links-line',
+              updateTriggers: {
+                getSourcePosition: updateTriggers['getPath'],
+                getTargetPosition: updateTriggers['getPath'],
+                getColor: updateTriggers['getColor'],
+                getWidth: updateTriggers['getWidth']
+              }
+            })
+          )
         );
       }
     }
 
-    return [
-      pathLayer,
+    layers.push(
       new GeometryLayer<PathMarker<DataT>>(
         this.getSubLayerProps({
           id: 'arrows',
@@ -277,7 +357,9 @@ export class DependencyArrowLayer<
           getPickingColor: d => this.encodePickingColor(d.__source.index)
         }
       )
-    ];
+    );
+
+    return layers;
   }
 }
 

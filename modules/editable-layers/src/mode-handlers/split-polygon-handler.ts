@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import turfDifference from '@turf/difference';
-import turfBuffer from '@turf/buffer';
-import lineIntersect from '@turf/line-intersect';
+import {booleanPointInPolygon} from '@turf/boolean-point-in-polygon';
+import {difference} from '@turf/difference';
+import {buffer as turfBuffer} from '@turf/buffer';
+import {lineIntersect} from '@turf/line-intersect';
 import {feature as turfFeature, featureCollection, lineString} from '@turf/helpers';
-import turfBearing from '@turf/bearing';
-import turfDistance from '@turf/distance';
-import turfDestination from '@turf/destination';
-import turfPolygonToLine from '@turf/polygon-to-line';
-import nearestPointOnLine from '@turf/nearest-point-on-line';
+import {bearing} from '@turf/bearing';
+import {distance} from '@turf/distance';
+import {destination} from '@turf/destination';
+import {polygonToLine} from '@turf/polygon-to-line';
+import {nearestPointOnLine} from '@turf/nearest-point-on-line';
 import {generatePointsParallelToLinePoints} from '../utils/utils';
 import {EditAction, ModeHandler} from './mode-handler';
 import {ClickEvent, PointerMoveEvent} from '../edit-modes/types';
@@ -29,7 +29,7 @@ export class SplitPolygonHandler extends ModeHandler {
       const firstPoint = clickSequence[0];
       const selectedGeometry = this.getSelectedGeometry();
       // @ts-expect-error turf type diff
-      const feature = turfPolygonToLine(selectedGeometry);
+      const feature = polygonToLine(selectedGeometry);
 
       const lines = feature.type === 'FeatureCollection' ? feature.features : [feature];
       let minDistance = Number.MAX_SAFE_INTEGER;
@@ -37,7 +37,7 @@ export class SplitPolygonHandler extends ModeHandler {
       // If Multipolygon, then we should find nearest polygon line and stick split to it.
       lines.forEach(line => {
         const snapPoint = nearestPointOnLine(line, firstPoint);
-        const distanceFromOrigin = turfDistance(snapPoint, firstPoint);
+        const distanceFromOrigin = distance(snapPoint, firstPoint);
         if (minDistance > distanceFromOrigin) {
           minDistance = distanceFromOrigin;
           closestPoint = snapPoint;
@@ -46,9 +46,9 @@ export class SplitPolygonHandler extends ModeHandler {
 
       if (closestPoint) {
         // closest point is used as 90degree entry to the polygon
-        const lastBearing = turfBearing(firstPoint, closestPoint);
-        const currentDistance = turfDistance(firstPoint, mapCoords, {units: 'meters'});
-        return turfDestination(firstPoint, currentDistance, lastBearing, {
+        const lastBearing = bearing(firstPoint, closestPoint);
+        const currentDistance = distance(firstPoint, mapCoords, {units: 'meters'});
+        return destination(firstPoint, currentDistance, lastBearing, {
           units: 'meters'
         }).geometry.coordinates;
       }
@@ -140,7 +140,7 @@ export class SplitPolygonHandler extends ModeHandler {
       units = 'centimeters';
     }
     const buffer = turfBuffer(tentativeFeature, gap, {units});
-    const updatedGeometry = turfDifference(
+    const updatedGeometry = difference(
       featureCollection([turfFeature(selectedGeometry as PolygonGeometry), buffer])
     );
     this._setTentativeFeature(null);

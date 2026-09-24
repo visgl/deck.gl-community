@@ -1,0 +1,7 @@
+{
+  "metadata": {"title": "Editable GeoJSON", "description": "Select and transform a feature with editable-layers."},
+  "initialViewState": {"longitude": -122.43, "latitude": 37.775, "zoom": 12},
+  "layers": [
+    {"@@type": "EditableGeoJsonLayer", "id": "editable-area", "data": {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"name": "Editable area"}, "geometry": {"type": "Polygon", "coordinates": [[[-122.45, 37.77], [-122.42, 37.8], [-122.39, 37.77], [-122.42, 37.74], [-122.45, 37.77]]]}}]}, "mode": "@@#ViewMode", "selectedFeatureIndexes": [0], "filled": true, "stroked": true, "getFillColor": [37, 99, 235, 100], "getLineColor": [15, 23, 42, 255], "getLineWidth": 3, "pickable": true}
+  ]
+}

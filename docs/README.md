@@ -28,7 +28,7 @@ common modules type are:
 Some practical goals for this repo:
 - The community modules in this repo are expected to be used with deck.gl v9.0 or later releases. 
 - The version of the published npm modules will follow deck.gl's major and minor version numbering, making it easy to see at a glance which deck.gl version is supported by a specific `@deck.gl-community/...` module.
-- Community modules are expected to support WebGL2 rendering in deck.gl, and will hopefully gradually start supporting WebGPU rendering over time, see detailed documentation for each module / layer.
+- Community modules are expected to support WebGL2 rendering in deck.gl and are gradually adding WebGPU support. See the [WebGPU compatibility and migration roadmap](./webgpu.md) for layer-specific support, backend selection, and remaining porting work.
 
 # Official Support
 

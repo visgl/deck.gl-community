@@ -128,15 +128,16 @@ describe('ModalPanelContainer', () => {
     cleanup();
   });
 
-  it('renders the configured trigger icon and hides the trigger when button is false', () => {
+  it('renders configured trigger text and icon and hides the trigger when button is false', () => {
     const visibleModal = renderModal({
       button: true,
       defaultOpen: false,
-      triggerIcon: 'icon'
+      triggerIcon: 'icon',
+      triggerText: 'Choose example'
     });
-    expect(visibleModal.root.querySelector('.deck-widget-icon-button')?.textContent).toContain(
-      'icon'
-    );
+    const trigger = visibleModal.root.querySelector('.deck-widget-icon-button');
+    expect(trigger?.textContent).toContain('icon');
+    expect(trigger?.textContent).toContain('Choose example');
     visibleModal.cleanup();
 
     const hiddenModal = renderModal({button: false});

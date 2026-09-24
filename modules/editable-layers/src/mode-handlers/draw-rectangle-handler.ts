@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import bboxPolygon from '@turf/bbox-polygon';
+import {bboxPolygon} from '@turf/bbox-polygon';
 import {PointerMoveEvent} from '../edit-modes/types';
 import {EditAction} from './mode-handler';
 import {TwoClickPolygonHandler} from './two-click-polygon-handler';

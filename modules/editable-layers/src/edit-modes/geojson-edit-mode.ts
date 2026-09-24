@@ -3,10 +3,10 @@
 // Copyright (c) vis.gl contributors
 
 import {featureCollection} from '@turf/helpers';
-import turfUnion from '@turf/union';
-import turfDifference from '@turf/difference';
-import turfIntersect from '@turf/intersect';
-import turfRewind from '@turf/rewind';
+import {union} from '@turf/union';
+import {difference} from '@turf/difference';
+import {intersect} from '@turf/intersect';
+import {rewind} from '@turf/rewind';
 
 import {
   EditAction,
@@ -123,7 +123,7 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
     const isPolygonal = geometry.type === 'Polygon' || geometry.type === 'MultiPolygon';
     if (isPolygonal) {
-      return turfRewind(feature) as SimpleFeature;
+      return rewind(feature) as SimpleFeature;
     }
 
     return feature;
@@ -222,11 +222,11 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
 
       let updatedGeometry: Feature<Polygon | MultiPolygon> | null;
       if (modeConfig.booleanOperation === 'union') {
-        updatedGeometry = turfUnion(featureCollection([selectedFeature, feature]));
+        updatedGeometry = union(featureCollection([selectedFeature, feature]));
       } else if (modeConfig.booleanOperation === 'difference') {
-        updatedGeometry = turfDifference(featureCollection([selectedFeature, feature]));
+        updatedGeometry = difference(featureCollection([selectedFeature, feature]));
       } else if (modeConfig.booleanOperation === 'intersection') {
-        updatedGeometry = turfIntersect(featureCollection([selectedFeature, feature]));
+        updatedGeometry = intersect(featureCollection([selectedFeature, feature]));
       } else {
         // eslint-disable-next-line no-console,no-undef
         console.warn(`Invalid booleanOperation ${modeConfig.booleanOperation}`);

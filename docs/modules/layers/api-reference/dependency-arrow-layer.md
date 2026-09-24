@@ -18,6 +18,8 @@ const layer = new DependencyArrowLayer({
   positionFormat: 'XY',
   getPath: d => d.path,
   getColor: d => d.color,
+  getOutlineColor: [255, 255, 255, 220],
+  outlineWidthScale: 3,
   getDirection: d => (d.bidirectional ? PathDirection.BOTH : PathDirection.FORWARD),
   getMarkerPlacements: () => [0.5],
   getMarkerSize: [2, 1],
@@ -46,6 +48,17 @@ and flat numeric arrays are accepted. Defaults to deck.gl `PathLayer` behavior.
 
 Line color and width forwarded to the path, line, or arc sublayer. Width units,
 scale, and pixel clamps use the matching deck.gl line props.
+
+### `getOutlineColor` (`Accessor<Color>`, optional)
+
+Color accessor for the optional outline pass rendered underneath the dependency
+line. Defaults to `[255, 255, 255, 220]`.
+
+### `outlineWidthScale` (`number`, optional)
+
+Multiplier applied to the optional outline pass relative to `widthScale`.
+Defaults to `1`, which disables the outline. Set it above `1` when dependency
+links need to sit visibly above route or trail strokes.
 
 ### `getDirection` (`Accessor<PathDirection>`, optional)
 
@@ -79,6 +92,7 @@ highlight sublayer.
 
 ## Sublayers
 
+- Optional `PathLayer`, `LineLayer`, or `ArcLayer` outline for the dependency line.
 - `PathLayer`, `LineLayer`, or `ArcLayer` for the dependency line.
 - Internal marker geometry layer for directional arrowheads.
 

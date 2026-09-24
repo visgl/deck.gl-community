@@ -1,0 +1,60 @@
+{
+  "name": "@deck.gl-community/playground",
+  "version": "9.4.1",
+  "private": true,
+  "description": "An installable JSON playground for deck.gl built on the panels module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "deck.gl",
+    "playground",
+    "json",
+    "visualization"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    },
+    "./geojson-schema.json": "./dist/geojson-schema.json",
+    "./deckgl-schema.json": "./dist/deckgl-schema.json"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "prepack": "yarn --cwd ../.. build",
+    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs && node ./scripts/build-arrow-worker.mjs",
+    "build:schema": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "peerDependencies": {
+    "@deck.gl-community/panels": "~9.4.0-alpha.0",
+    "@deck.gl/core": "~9.4.0"
+  },
+  "dependencies": {
+    "@deck.gl/json": "~9.4.0",
+    "@loaders.gl/arrow": "4.5.1",
+    "@loaders.gl/core": "4.5.1",
+    "apache-arrow": "^17.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@deck.gl/core": "~9.4.0",
+    "esbuild": "^0.28.1"
+  }
+}

@@ -4,10 +4,10 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample({
   title: 'Editable H3 Cluster Layer',
   code: `${GITHUB_TREE}/examples/editable-layers/editable-h3-cluster-layer`,
-  async mount(container) {
+  async mount(container, props) {
     const {mountEditableH3ClusterLayerExample} = await import(
       '../../../../examples/editable-layers/editable-h3-cluster-layer/app'
     );
-    return mountEditableH3ClusterLayerExample(container);
+    return mountEditableH3ClusterLayerExample(container, props);
   }
 }, {addInfoPanel: false});

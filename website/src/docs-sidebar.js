@@ -14,7 +14,6 @@ const basemapLayerDocs = require('../../docs/modules/basemap-layers/sidebar.json
 
 const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
 const timelineLayerDocs = require('../../docs/modules/timeline-layers/sidebar.json');
-const traceLayerDocs = require('../../docs/modules/trace-layers/sidebar.json');
 const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 const editableLayerDocs = require('../../docs/modules/editable-layers/sidebar.json');
 // const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
@@ -29,6 +28,7 @@ const reactDocs = require('../../docs/modules/react/sidebar.json');
 
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
 const panelsDocs = require('../../docs/modules/panels/sidebar.json');
+const playgroundDocs = require('../../docs/modules/playground/sidebar.json');
 const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 
 const sidebars = {
@@ -37,7 +37,7 @@ const sidebars = {
       type: 'category',
       label: 'Overview',
       className: 'heading_bold',
-      items: ['README', 'whats-new', 'upgrade-guide', 'CONTRIBUTING']
+      items: ['README', 'whats-new', 'webgpu', 'upgrade-guide', 'CONTRIBUTING']
     },
     {
       type: 'category',
@@ -55,7 +55,6 @@ const sidebars = {
         layerDocs,
         infovisLayerDocs,
         timelineLayerDocs,
-        traceLayerDocs,
         graphLayerDocs,
         geoLayerDocs,
         editableLayerDocs,
@@ -73,7 +72,7 @@ const sidebars = {
         title: 'Components',
         description: 'deck.gl-community component packages and integrations.'
       },
-      items: [widgetsDocs, panelsDocs, reactDocs, experimentalDocs]
+      items: [widgetsDocs, panelsDocs, playgroundDocs, reactDocs, experimentalDocs]
     }
   ]
 };

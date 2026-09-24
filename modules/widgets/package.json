@@ -1,8 +1,12 @@
 {
   "name": "@deck.gl-community/widgets",
-  "version": "9.3.7",
+  "version": "9.4.0-alpha.3",
   "description": "UI widgets for deck.gl",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community.git"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -38,10 +42,10 @@
     "supercluster": "^8.0.1"
   },
   "peerDependencies": {
-    "@deck.gl-community/panels": "~9.3.2",
-    "@deck.gl/core": "~9.3.0",
-    "@luma.gl/core": "~9.3.2",
-    "@luma.gl/webgl": "~9.3.2",
-    "@luma.gl/webgpu": "~9.3.2"
+    "@deck.gl-community/panels": "~9.4.0-alpha.0",
+    "@deck.gl/core": "~9.4.0",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/webgl": "~9.4.0",
+    "@luma.gl/webgpu": "~9.4.0"
   }
 }

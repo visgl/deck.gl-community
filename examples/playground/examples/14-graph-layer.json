@@ -1,0 +1,8 @@
+{
+  "metadata": {"title": "Graph layout", "description": "A small knowledge graph positioned by SimpleLayout."},
+  "views": {"@@type": "OrthographicView", "id": "graph", "flipY": false},
+  "initialViewState": {"target": [0, 0, 0], "zoom": 0},
+  "layers": [
+    {"@@type": "GraphLayer", "id": "knowledge-graph", "data": {"nodes": [{"id": "deck", "name": "deck.gl", "x": 0, "y": 120}, {"id": "layers", "name": "Layers", "x": -180, "y": -40}, {"id": "views", "name": "Views", "x": 0, "y": -40}, {"id": "data", "name": "Data", "x": 180, "y": -40}], "edges": [{"id": "e1", "sourceId": "deck", "targetId": "layers"}, {"id": "e2", "sourceId": "deck", "targetId": "views"}, {"id": "e3", "sourceId": "deck", "targetId": "data"}]}, "layout": "@@#SimpleLayout", "enableDragging": true}
+  ]
+}

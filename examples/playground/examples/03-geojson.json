@@ -1,0 +1,23 @@
+{
+  "metadata": {"title": "GeoJSON neighborhoods", "description": "Fill and stroke a small RFC 7946 feature collection."},
+  "initialViewState": {"longitude": -122.42, "latitude": 37.77, "zoom": 11},
+  "layers": [
+    {
+      "@@type": "GeoJsonLayer",
+      "id": "neighborhoods",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {"type": "Feature", "properties": {"name": "North"}, "geometry": {"type": "Polygon", "coordinates": [[[-122.45, 37.8], [-122.39, 37.8], [-122.39, 37.75], [-122.45, 37.75], [-122.45, 37.8]]]}},
+          {"type": "Feature", "properties": {"name": "South"}, "geometry": {"type": "Polygon", "coordinates": [[[-122.45, 37.75], [-122.39, 37.75], [-122.39, 37.7], [-122.45, 37.7], [-122.45, 37.75]]]}}
+        ]
+      },
+      "filled": true,
+      "stroked": true,
+      "getFillColor": [37, 99, 235, 90],
+      "getLineColor": [15, 23, 42, 220],
+      "getLineWidth": 2,
+      "pickable": true
+    }
+  ]
+}

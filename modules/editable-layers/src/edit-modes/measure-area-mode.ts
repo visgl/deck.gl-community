@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfArea from '@turf/area';
-import turfCentroid from '@turf/centroid';
+import {area as turfArea} from '@turf/area';
+import {centroid as turfCentroid} from '@turf/centroid';
 import {ClickEvent, Tooltip, ModeProps} from './types';
 import {FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 import {DrawPolygonMode} from './draw-polygon-mode';

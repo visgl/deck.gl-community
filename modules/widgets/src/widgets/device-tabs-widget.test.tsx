@@ -56,6 +56,11 @@ class MockDeviceManager {
     return Promise.resolve();
   }
 
+  setDeviceError(message: string): void {
+    this.#state = {...this.#state, deviceError: message};
+    this.#emit();
+  }
+
   #emit(): void {
     const state = this.getState();
     for (const listener of this.#listeners) {
@@ -118,5 +123,78 @@ describe('DeviceTabsWidget', () => {
     root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')?.click();
 
     expect(setDeviceTypeSpy).toHaveBeenCalledWith('webgl');
+  });
+
+  it('reports when neither graphics backend is available', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const manager = new MockDeviceManager();
+    manager.availability.webgpu = false;
+    manager.availability.webgl = false;
+    const widget = new DeviceTabsWidget({
+      devices: ['webgpu', 'webgl2'],
+      manager: manager as never
+    });
+
+    widget.onRenderHTML(root);
+
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-device-tabs-message="unavailable"]')?.textContent).toBe(
+        'No supported graphics backend is available.'
+      );
+    });
+    expect(root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgpu"]')?.disabled).toBe(
+      true
+    );
+    expect(root.querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')?.disabled).toBe(
+      true
+    );
+  });
+
+  it('displays device creation errors', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const manager = new MockDeviceManager();
+    const widget = new DeviceTabsWidget({
+      devices: ['webgpu', 'webgl2'],
+      manager: manager as never
+    });
+
+    widget.onRenderHTML(root);
+    manager.setDeviceError('WebGPU device creation failed');
+
+    await vi.waitFor(() => {
+      expect(root.querySelector('[data-device-tabs-message="error"]')?.textContent).toBe(
+        'WebGPU device creation failed'
+      );
+    });
+  });
+
+  it('keeps independently managed backend selections separate', async () => {
+    const firstRoot = document.createElement('div');
+    const secondRoot = document.createElement('div');
+    document.body.append(firstRoot, secondRoot);
+    const firstManager = new MockDeviceManager();
+    const secondManager = new MockDeviceManager();
+    const firstWidget = new DeviceTabsWidget({
+      devices: ['webgpu', 'webgl2'],
+      manager: firstManager as never
+    });
+    const secondWidget = new DeviceTabsWidget({
+      devices: ['webgpu', 'webgl2'],
+      manager: secondManager as never
+    });
+
+    firstWidget.onRenderHTML(firstRoot);
+    secondWidget.onRenderHTML(secondRoot);
+    await vi.waitFor(() => {
+      expect(firstManager.getState().deviceType).toBe('webgpu');
+      expect(secondManager.getState().deviceType).toBe('webgpu');
+    });
+
+    firstRoot.querySelector<HTMLButtonElement>('[data-device-tab-id="webgl"]')?.click();
+
+    expect(firstManager.getState().deviceType).toBe('webgl');
+    expect(secondManager.getState().deviceType).toBe('webgpu');
   });
 });

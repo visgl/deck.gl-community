@@ -17,7 +17,7 @@
   box-sizing: border-box;
 }
 .newheat-demo [hidden] {
-  display: none !important;
+  display: none;
 }
 .nh-stage {
   position: absolute;

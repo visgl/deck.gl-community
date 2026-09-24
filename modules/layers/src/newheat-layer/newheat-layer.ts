@@ -19,17 +19,13 @@ const defaultProps: DefaultProps<NewHeatLayerProps> = {
 };
 
 /**
- * A rising, sliced flame volume along timestamped paths, using the TripsLayer API.
+ * A procedural 3D flame along timestamped paths, using the TripsLayer API.
  *
- * Advance currentTime to animate both the trail and the flame. Keeping it fixed
- * freezes the result for reproducible frames. getColor multiplies the flame's
- * RGB palette; its alpha and the layer's opacity are preserved.
- * Path width also controls flame height. Uses 160 crossed volume slices in a
- * single draw with sparse drifting embers. Both use currentTime, including
- * ember lifetimes. Depth writes are disabled by default for translucent rendering.
- * TerrainExtension offset mode samples ground height for the volume and embers;
- * use billboard: false and a terrain source with operation: 'terrain+draw'.
- * Requires WebGL2, like the upstream TripsLayer shader.
+ * `currentTime` drives both playback and turbulence; a fixed time freezes the
+ * result. `getColor` tints the palette, and path width also controls flame height.
+ * Uses crossed translucent slices and GPU embers in one instanced draw.
+ * TerrainExtension supports ground fitting with `terrainDrawMode: 'offset'`
+ * and `billboard: false`. Requires WebGL2; depth writes are disabled by default.
  */
 export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends TripsLayer<
   DataT,
@@ -39,6 +35,9 @@ export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends Trips
   static defaultProps = defaultProps;
 
   getShaders() {
+    if (this.context.device.type !== 'webgl') {
+      throw new Error('NewHeatLayer requires a WebGL2 device.');
+    }
     const shaders = super.getShaders();
     return {
       ...shaders,
@@ -51,12 +50,10 @@ export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends Trips
         'vs:#decl': `${shaders.inject['vs:#decl']}\n${FLAME_VERTEX_DECLARATIONS}`,
         'vs:#main-end': `${shaders.inject['vs:#main-end']}\n${FLAME_VERTEX}`,
         'fs:#decl': `${shaders.inject['fs:#decl']}\n${FLAME_FUNCTIONS}`,
-        'fs:#main-start': `
+        'fs:DECKGL_FILTER_COLOR': `
+          // Evaluate PathLayer's coverage derivatives before discarding fragments.
           // A zero-length fading trail is empty; avoid upstream division by zero.
           if (trips.fadeTrail && trips.trailLength <= 0.0) discard;
-          ${shaders.inject['fs:#main-start']}
-        `,
-        'fs:DECKGL_FILTER_COLOR': `
           ${shaders.inject['fs:DECKGL_FILTER_COLOR']}
           ${FLAME_COLOR}
         `

@@ -102,6 +102,10 @@ const PANEL_BASE_STYLES = `.deck-widget {
   background-color: var(--button-icon-hover, rgb(24, 24, 26));
 }
 
+.deck-widget-button-label {
+  white-space: nowrap;
+}
+
 /* Icon menu styles */
 .deck-widget .deck-widget-icon-menu {
   position: absolute;

@@ -4,79 +4,114 @@
 
 import {Vector2} from '@math.gl/core';
 
-/** GeoJSON style position coordinate vector */
-export type Position = [number, number] | [number, number, number];
+import type {Color, Position} from '@deck.gl/core';
 
-/** [red, green, blue, alpha] in premultiplied alpha format */
-export type Color = [number, number, number, number];
+export type {Color, Position};
 
-export interface PathMarker {
+/** Direction flags supported by {@link PathMarkerLayer}. */
+export type PathMarkerDirection = {
+  forward?: boolean;
+  backward?: boolean;
+};
+
+/** One directional marker resolved against a path segment. */
+export interface PathMarker<DataT = unknown> {
+  /** Marker anchor position retained for legacy custom `MarkerLayer` implementations. */
   position: Position;
+  /** Marker angle in screen-space degrees retained for legacy custom `MarkerLayer` implementations. */
   angle: number;
+  /** Marker color. */
   color: Color;
-  object: unknown;
+  /** Original source datum. */
+  object: DataT;
+  /** Original source datum index. */
+  index: number;
+  /** Source metadata used by deck.gl composite-layer accessor forwarding. */
+  __source: {
+    object: DataT;
+    index: number;
+  };
+  /** Path segment start used by the default pixel-sized marker layer. */
+  source: Position;
+  /** Path segment end used by the default pixel-sized marker layer. */
+  target: Position;
+  /** Marker ratio within the source/target segment. */
+  percentage: number;
 }
 
-function getLineLength(vPoints) {
-  // calculate total length
-  let lineLength = 0;
-  for (let i = 0; i < vPoints.length - 1; i++) {
-    lineLength += vPoints[i].distance(vPoints[i + 1]);
-  }
-  return lineLength;
-}
+type ProjectFlat = (position: Position) => [number, number] | number[];
+type AccessorValue<DataT, ValueT> = ValueT | ((datum: DataT, context: {index: number}) => ValueT);
 
-const DEFAULT_COLOR = [0, 0, 0, 255];
-const DEFAULT_DIRECTION = {forward: true, backward: false};
+const DEFAULT_COLOR: Color = [0, 0, 0, 255];
+const DEFAULT_DIRECTION: Required<PathMarkerDirection> = {forward: true, backward: false};
 
-export function createPathMarkers({
+export function createPathMarkers<DataT>({
   data,
-  getPath = (x, context) => x.path,
-  getDirection = x => x.direction,
-  getColor = _x => DEFAULT_COLOR,
-  getMarkerPercentages = (x, info) => [0.5],
+  getPath = (x: any) => x.path,
+  getDirection = (x: any) => x.direction,
+  getColor = () => DEFAULT_COLOR,
+  getMarkerPercentages = () => [0.5],
   projectFlat
-}): PathMarker[] {
-  const markers: PathMarker[] = [];
+}: {
+  data: Iterable<DataT>;
+  getPath?: AccessorValue<DataT, Position[]>;
+  getDirection?: (datum: DataT, context: {index: number}) => PathMarkerDirection | null | undefined;
+  getColor?: AccessorValue<DataT, Color>;
+  getMarkerPercentages?: (datum: DataT, context: {index: number; lineLength: number}) => number[];
+  projectFlat: ProjectFlat;
+}): PathMarker<DataT>[] {
+  const markers: PathMarker<DataT>[] = [];
+  if (!data || typeof data === 'string' || !(Symbol.iterator in Object(data))) {
+    return markers;
+  }
 
+  let index = -1;
   for (const object of data) {
-    const path = getPath(object, null);
-    const direction = getDirection(object) || DEFAULT_DIRECTION;
-    const color = getColor(object);
+    index++;
+    const context = {index};
+    const path = resolveAccessor(getPath, object, context);
+    if (!path || path.length < 2) {
+      continue;
+    }
 
-    const vPoints = path.map(p => new Vector2(p));
-    const vPointsReverse = vPoints.slice(0).reverse();
+    const projectedPath = path.map(position => new Vector2(projectFlat(position)));
+    const lineLength = getLineLength(projectedPath);
+    if (!Number.isFinite(lineLength) || lineLength <= 0) {
+      continue;
+    }
 
-    // calculate total length
-    const lineLength = getLineLength(vPoints);
+    const direction = getDirection(object, context) ?? DEFAULT_DIRECTION;
+    const color = resolveAccessor(getColor, object, context);
+    const markerContext = {index, lineLength};
+    const percentages = getMarkerPercentages(object, markerContext);
 
-    // Ask for where to put markers
-    const percentages = getMarkerPercentages(object, {lineLength});
-
-    // Create the markers
     for (const percentage of percentages) {
       if (direction.forward) {
-        const marker = createMarkerAlongPath({
-          path: vPoints,
-          percentage,
-          lineLength,
-          color,
-          object,
-          projectFlat
-        });
-        markers.push(marker);
+        markers.push(
+          createMarkerAlongPath({
+            path,
+            projectedPath,
+            percentage,
+            lineLength,
+            color,
+            object,
+            index
+          })
+        );
       }
 
       if (direction.backward) {
-        const marker = createMarkerAlongPath({
-          path: vPointsReverse,
-          percentage,
-          lineLength,
-          color,
-          object,
-          projectFlat
-        });
-        markers.push(marker);
+        markers.push(
+          createMarkerAlongPath({
+            path: path.slice().reverse(),
+            projectedPath: projectedPath.slice().reverse(),
+            percentage,
+            lineLength,
+            color,
+            object,
+            index
+          })
+        );
       }
     }
   }
@@ -84,39 +119,88 @@ export function createPathMarkers({
   return markers;
 }
 
-function createMarkerAlongPath({
+function resolveAccessor<DataT, ValueT>(
+  accessor: AccessorValue<DataT, ValueT>,
+  datum: DataT,
+  context: {index: number}
+): ValueT {
+  return typeof accessor === 'function'
+    ? (accessor as (datum: DataT, context: {index: number}) => ValueT)(datum, context)
+    : accessor;
+}
+
+function getLineLength(points: Vector2[]): number {
+  let lineLength = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    lineLength += points[i]!.distance(points[i + 1]!);
+  }
+  return lineLength;
+}
+
+function createMarkerAlongPath<DataT>({
   path,
+  projectedPath,
   percentage,
   lineLength,
   color,
   object,
-  projectFlat
-}): PathMarker {
+  index
+}: {
+  path: Position[];
+  projectedPath: Vector2[];
+  percentage: number;
+  lineLength: number;
+  color: Color;
+  object: DataT;
+  index: number;
+}): PathMarker<DataT> {
   const distanceAlong = lineLength * percentage;
   let currentDistance = 0;
   let previousDistance = 0;
-  let i = 0;
-  for (i = 0; i < path.length - 1; i++) {
-    currentDistance += path[i].distance(path[i + 1]);
-    if (currentDistance > distanceAlong) {
+  let segmentIndex = 0;
+
+  for (segmentIndex = 0; segmentIndex < projectedPath.length - 1; segmentIndex++) {
+    currentDistance += projectedPath[segmentIndex]!.distance(projectedPath[segmentIndex + 1]!);
+    if (currentDistance >= distanceAlong) {
       break;
     }
     previousDistance = currentDistance;
   }
 
-  // If reached the end of the loop without exiting early,
-  // undo the final increment to avoid a null-pointer exception
-  if (i === path.length - 1) {
-    i -= 1;
+  if (segmentIndex === projectedPath.length - 1) {
+    segmentIndex -= 1;
   }
 
-  const vDirection = path[i + 1].clone().subtract(path[i]).normalize();
-  const along = distanceAlong - previousDistance;
-  const vCenter = vDirection.clone().multiply(new Vector2(along, along)).add(path[i]);
+  const segmentLength = projectedPath[segmentIndex + 1]!.distance(projectedPath[segmentIndex]!);
+  const segmentPercentage =
+    segmentLength > 0 ? (distanceAlong - previousDistance) / segmentLength : 0;
+  const source = path[segmentIndex]!;
+  const target = path[segmentIndex + 1]!;
+  const position = interpolatePosition(source, target, segmentPercentage);
+  const projectedDirection = projectedPath[segmentIndex + 1]!.clone().subtract(
+    projectedPath[segmentIndex]!
+  );
+  const angle = (projectedDirection.verticalAngle() * 180) / Math.PI;
 
-  const vDirection2 = new Vector2(projectFlat(path[i + 1])).subtract(projectFlat(path[i]));
+  return {
+    position,
+    angle,
+    color,
+    object,
+    index,
+    __source: {object, index},
+    source,
+    target,
+    percentage: segmentPercentage
+  };
+}
 
-  const angle = (vDirection2.verticalAngle() * 180) / Math.PI;
+function interpolatePosition(source: Position, target: Position, percentage: number): Position {
+  const z = (source[2] ?? 0) + ((target[2] ?? 0) - (source[2] ?? 0)) * percentage;
 
-  return {position: [vCenter.x, vCenter.y, 0], angle, color, object};
+  return [
+    source[0] + (target[0] - source[0]) * percentage,
+    source[1] + (target[1] - source[1]) * percentage,
+    z
+  ];
 }

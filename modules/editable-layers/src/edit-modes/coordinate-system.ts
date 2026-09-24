@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBearing from '@turf/bearing';
-import turfDistance from '@turf/distance';
-import turfDestination from '@turf/destination';
-import turfMidpoint from '@turf/midpoint';
+import {bearing as turfBearing} from '@turf/bearing';
+import {distance as turfDistance} from '@turf/distance';
+import {destination} from '@turf/destination';
+import {midpoint} from '@turf/midpoint';
 import {point} from '@turf/helpers';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import type {CoordinateSystem} from '@deck.gl/core';
@@ -66,11 +66,11 @@ export class GeoCoordinateSystem implements EditModeCoordinateSystem {
   }
 
   destination(origin: Position, distance: number, bearing: number): Position {
-    return turfDestination(point(origin), distance, bearing).geometry.coordinates;
+    return destination(point(origin), distance, bearing).geometry.coordinates;
   }
 
   midpoint(a: Position, b: Position): Position {
-    return turfMidpoint(point(a), point(b)).geometry.coordinates;
+    return midpoint(point(a), point(b)).geometry.coordinates;
   }
 }
 

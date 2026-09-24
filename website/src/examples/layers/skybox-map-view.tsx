@@ -5,11 +5,12 @@ export default makeImperativeExample(
   {
     title: 'SkyboxLayer MapView',
     code: `${GITHUB_TREE}/examples/layers/skybox-map-view`,
-    async mount(container) {
+    deviceTabs: true,
+    async mount(container, props) {
       const {mountSkyboxMapViewExample} = await import(
         '../../../../examples/layers/skybox-map-view/app'
       );
-      return mountSkyboxMapViewExample(container);
+      return mountSkyboxMapViewExample(container, props);
     }
   },
   {addInfoPanel: false}

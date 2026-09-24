@@ -14,12 +14,21 @@ uniform pickingLineWidthUniforms {
 } pickingLineWidth;
 `;
 
+const uniformBlockWGSL = /* wgsl */ `\
+struct PickingLineWidthUniforms {
+  extraPixels: f32,
+};
+
+@group(0) @binding(auto) var<uniform> pickingLineWidth: PickingLineWidthUniforms;
+`;
+
 export type PickingLineWidthProps = {
   extraPixels: number;
 };
 
 export const pickingUniforms = {
   name: 'pickingLineWidth',
+  source: uniformBlockWGSL,
   vs: uniformBlock,
   fs: uniformBlock,
   uniformTypes: {
@@ -48,6 +57,16 @@ export class EditablePathLayer extends PathLayer<any, EditablePathLayerProps> {
         widthPixels.xy += pickingLineWidth.extraPixels;
        }
       `
+    );
+    shaders.source = insertBefore(
+      shaders.source.replace('let widthPixels =', 'var widthPixels ='),
+      'if (path.billboard != 0.0) {',
+      `
+  if (picking.isActive > 0.5) {
+    widthPixels += pickingLineWidth.extraPixels;
+  }
+
+`
     );
 
     return {

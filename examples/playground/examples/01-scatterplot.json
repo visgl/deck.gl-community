@@ -1,0 +1,20 @@
+{
+  "metadata": {"title": "Population scatterplot", "description": "A first look at typed accessors and proportional point sizes."},
+  "initialViewState": {"longitude": -122.42, "latitude": 37.78, "zoom": 10},
+  "layers": [
+    {
+      "@@type": "ScatterplotLayer",
+      "id": "cities",
+      "data": [
+        {"name": "San Francisco", "position": [-122.42, 37.78], "population": 873000},
+        {"name": "Oakland", "position": [-122.27, 37.8], "population": 433000},
+        {"name": "San Jose", "position": [-121.89, 37.34], "population": 1013000}
+      ],
+      "getPosition": "@@=position",
+      "getRadius": "@@=population / 1000",
+      "getFillColor": [30, 120, 220, 190],
+      "radiusMinPixels": 5,
+      "pickable": true
+    }
+  ]
+}

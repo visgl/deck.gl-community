@@ -7,7 +7,7 @@
   "compilerOptions": {
     "target": "es2022",
     "module": "es2022",
-    "jsx": "react",
+    "jsx": "react-jsx",
     // "types": ["vitest/globals"],
     // "strict": true,
     // "noImplicitAny": false,
@@ -29,17 +29,16 @@
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
       "@deck.gl-community/experimental": ["./modules/experimental/src"],
       "@deck.gl-community/panels": ["./modules/panels/src"],
+      "@deck.gl-community/playground": ["./modules/playground/src"],
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
       "@deck.gl-community/layers": ["./modules/layers/src"],
       "@deck.gl-community/geo-layers": ["./modules/geo-layers/src"],
       "@deck.gl-community/infovis-layers": ["./modules/infovis-layers/src"],
       "@deck.gl-community/react": ["./modules/react/src"],
       "@deck.gl-community/template": ["./modules/template/src"],
-      "@deck.gl-community/trace-layers": ["./modules/trace-layers/src"],
-      "@deck.gl-community/trace-layers/*": ["./modules/trace-layers/src/*"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
       "@deck.gl-community/three": ["./modules/three/src"],
-      "@deck.gl-community/timeline-layers": ["./dev/timeline-layers/src"]
+      "@deck.gl-community/timeline-layers": ["./modules/timeline-layers/src"]
     },
     "typeRoots": ["./node_modules/@types"],
     "plugins": [

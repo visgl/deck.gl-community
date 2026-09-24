@@ -319,6 +319,8 @@ const TEXT_EDITOR_MONACO_OPTIONS: EditorNamespace.IStandaloneEditorConstructionO
   lineHeight: 18,
   wordWrap: 'on',
   lineNumbers: 'on',
+  // Monaco leaves a delayed occurrence-highlight rejection unhandled on rapid disposal.
+  occurrencesHighlight: 'off',
   glyphMargin: false,
   folding: false,
   scrollBeyondLastLine: false,

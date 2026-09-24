@@ -2,9 +2,24 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, OrthographicView, type Color, type Position} from '@deck.gl/core';
-import {LineLayer, TextLayer} from '@deck.gl/layers';
-import {AnimationLayer, BlockLayer, TimeDeltaLayer} from '@deck.gl-community/infovis-layers';
+import {
+  COORDINATE_SYSTEM,
+  Deck,
+  OrthographicView,
+  type Color,
+  type OrthographicViewState,
+  type Position,
+  type ViewStateChangeParameters,
+  type Widget
+} from '@deck.gl/core';
+import {LineLayer} from '@deck.gl/layers';
+import {
+  AnimationLayer,
+  BlockLayer,
+  FastTextLayer,
+  TimeDeltaLayer
+} from '@deck.gl-community/infovis-layers';
+import type {Device} from '@luma.gl/core';
 
 type InfovisLayerHighlight = 'all' | 'animation-layer' | 'block-layer' | 'time-delta-layer';
 
@@ -14,6 +29,18 @@ export type InfovisLayerPrimitivesExampleProps = {
   highlight?: InfovisLayerHighlight;
   /** Whether to render the title overlay. @defaultValue true */
   showInfoOverlay?: boolean;
+  /** Optional rendering device supplied by the website example host. */
+  device?: Device;
+  /** Optional widgets supplied by the website example host. */
+  widgets?: Widget[];
+  /** Camera state preserved when the website recreates the graphics backend. */
+  initialViewState?: OrthographicViewState;
+  /** Reports camera changes to the website example host. */
+  onViewStateChange?: <ViewStateT extends OrthographicViewState>(
+    params: ViewStateChangeParameters<ViewStateT>
+  ) => ViewStateT;
+  /** Receives the deck instance so the host can attach its managed canvas. */
+  onDeckInitialized?: (deck: Deck<OrthographicView>) => void;
 };
 
 type TraceBlock = {
@@ -34,23 +61,28 @@ const TRACE_BLOCKS: TraceBlock[] = [
  */
 export function mountInfovisLayerPrimitivesExample(
   container: HTMLElement,
-  {highlight = 'all', showInfoOverlay = true}: InfovisLayerPrimitivesExampleProps = {}
+  options: InfovisLayerPrimitivesExampleProps = {}
 ): () => void {
+  const {highlight = 'all', showInfoOverlay = true} = options;
   const rootElement = createRoot(container);
   if (showInfoOverlay) {
     rootElement.appendChild(createInfoOverlay(rootElement.ownerDocument));
   }
 
   const deck = new Deck({
+    device: options.device,
     parent: rootElement,
     views: new OrthographicView({id: 'infovis-layer-primitives', flipY: false}),
-    initialViewState: {
+    initialViewState: options.initialViewState ?? {
       target: [0, 0, 0],
       zoom: 0
     },
+    onViewStateChange: options.onViewStateChange,
     controller: true,
+    widgets: options.widgets ?? [],
     layers: createLayers(highlight)
   });
+  options.onDeckInitialized?.(deck);
 
   return () => {
     deck.finalize();
@@ -72,16 +104,16 @@ function createLayers(highlight: InfovisLayerHighlight) {
     getLineColor: [15, 23, 42, 240],
     getLineWidth: 2
   });
-  const labelLayer = new TextLayer<TraceBlock>({
+  const labelLayer = new FastTextLayer<TraceBlock>({
     id: `${highlight}-example-labels`,
     data: TRACE_BLOCKS,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
     getPosition: datum => [datum.position[0] + datum.size[0] / 2, datum.position[1] + 27],
     getText: datum => datum.label,
-    getSize: 17,
+    size: 17,
     getColor: [255, 255, 255, 255],
-    getTextAnchor: 'middle',
-    getAlignmentBaseline: 'center'
+    textAnchor: 'middle',
+    alignmentBaseline: 'center'
   });
   const animatedBlocks = new AnimationLayer({
     id: 'animation-layer-example',
@@ -139,7 +171,7 @@ function createTimeDeltaLayers() {
       yMax: 72,
       color: [99, 102, 241, 210]
     }),
-    new TextLayer({
+    new FastTextLayer({
       id: 'time-delta-example-labels',
       data: [
         {position: [-160, 54], label: 'selection start'},
@@ -148,10 +180,10 @@ function createTimeDeltaLayers() {
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
       getPosition: datum => datum.position,
       getText: datum => datum.label,
-      getSize: 15,
+      size: 15,
       getColor: [30, 41, 59, 255],
-      getTextAnchor: 'middle',
-      getAlignmentBaseline: 'center'
+      textAnchor: 'middle',
+      alignmentBaseline: 'center'
     })
   ];
 }

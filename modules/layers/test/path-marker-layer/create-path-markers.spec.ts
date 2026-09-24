@@ -2,127 +2,69 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {it, expect} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
+
 import {createPathMarkers} from '../../src/path-marker-layer/create-path-markers';
 
 const data = [
   {
-    path: [
-      [-122.419385, 37.775412],
-      [-122.4196034, 37.7753836],
-      [-122.419815, 37.775356],
-      [-122.4199019, 37.7753448],
-      [-122.420337, 37.775289],
-      [-122.420432, 37.7752776]
-    ],
+    path: [[0, 0] as [number, number], [10, 0] as [number, number]],
     direction: {
       forward: true,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.4239121, 37.7739008],
-      [-122.424018, 37.773888]
-    ],
-    direction: {
-      forward: false,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.419556, 37.776966],
-      [-122.419631, 37.777297]
-    ],
-    direction: {
-      forward: true,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.4232649, 37.7715712],
-      [-122.4231892, 37.7714474],
-      [-122.4230516, 37.7712495],
-      [-122.4229364, 37.7711068],
-      [-122.4228177, 37.7709811],
-      [-122.4226595, 37.770835],
-      [-122.4225099, 37.7707146],
-      [-122.4224446, 37.7706699]
-    ],
-    direction: {
-      forward: true,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.421459, 37.7756509],
-      [-122.4214451, 37.7755683],
-      [-122.4214282, 37.7755459],
-      [-122.4213833, 37.7755382],
-      [-122.4212633, 37.7755543]
-    ],
-    direction: {
-      forward: false,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.41515, 37.77588],
-      [-122.415508, 37.775601]
-    ],
-    direction: {
-      forward: false,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.417263, 37.7763419],
-      [-122.417163, 37.776264],
-      [-122.4169496, 37.7761011]
-    ],
-    direction: {
-      forward: true,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.4205054, 37.7733851],
-      [-122.4203894, 37.773298]
-    ],
-    direction: {
-      forward: false,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.4245033, 37.7762476],
-      [-122.4244959, 37.7762071]
-    ],
-    direction: {
-      forward: false,
-      backward: false
-    }
-  },
-  {
-    path: [
-      [-122.415898, 37.777819],
-      [-122.416311, 37.777494]
-    ],
-    direction: {
-      forward: false,
       backward: false
     }
   }
 ];
 
-it('test createPathMarkers', () => {
-  const result = createPathMarkers({data, projectFlat: x => x});
-  expect(result).toMatchSnapshot();
+describe('createPathMarkers', () => {
+  it('uses projected line length when resolving marker percentages', () => {
+    const getMarkerPercentages = vi.fn((_object, {lineLength}) =>
+      lineLength > 100 ? [0.25, 0.75] : [0.5]
+    );
+
+    const markers = createPathMarkers({
+      data,
+      getMarkerPercentages,
+      projectFlat: ([x, y]) => [x * 20, y]
+    });
+
+    expect(getMarkerPercentages).toHaveBeenCalledWith(data[0], {index: 0, lineLength: 200});
+    expect(markers).toHaveLength(2);
+    expect(markers[0]).toMatchObject({
+      position: [2.5, 0, 0],
+      source: [0, 0],
+      target: [10, 0],
+      percentage: 0.25,
+      object: data[0],
+      index: 0,
+      __source: {
+        object: data[0],
+        index: 0
+      }
+    });
+    expect(markers[1]?.position).toEqual([7.5, 0, 0]);
+  });
+
+  it('reverses segment endpoints for backward markers', () => {
+    const [marker] = createPathMarkers({
+      data: [
+        {
+          path: [[0, 0] as [number, number], [10, 0] as [number, number]],
+          direction: {
+            forward: false,
+            backward: true
+          }
+        }
+      ],
+      getMarkerPercentages: () => [0.25],
+      projectFlat: ([x, y]) => [x, y]
+    });
+
+    expect(marker).toMatchObject({
+      position: [7.5, 0, 0],
+      source: [10, 0],
+      target: [0, 0],
+      percentage: 0.25
+    });
+  });
 });

@@ -32,6 +32,22 @@ Use the same animation loop you use for `TripsLayer`: update `currentTime` each
 frame. Keeping `currentTime` fixed freezes both playback and the flame. There
 is no internal timer or random seed, so scrubbing back recreates the same fire.
 
+## How it works
+
+The implementation is a TripsLayer subclass with four small source files:
+
+| File | Responsibility |
+| --- | --- |
+| `newheat-layer.ts` | Reuses TripsLayer's attributes, time clipping, fading, and picking; installs the geometry and shader injections. |
+| `newheat-geometry.ts` | Builds 96 horizontal sheets, 64 upright sheets, and eight ember quads per segment, all in one instanced draw. |
+| `newheat-layer-vertex.ts` | Raises the sheets above the path, fits their feet to terrain, blends viewing directions, and moves embers. |
+| `newheat-layer-fragment.ts` | Turns scrolling noise into curling flame shapes, then maps heat to color and density to opacity. |
+
+The sheets overlap to approximate a volume. Two crossing directions keep it
+visible from above and from the side. `currentTime` drives every moving part,
+so the layer needs no simulation state, internal timer, or CPU particle updates.
+The terrain generator, controls, and video recorder live entirely in the example.
+
 ## Properties
 
 All [TripsLayer properties](https://deck.gl/docs/api-reference/geo-layers/trips-layer#properties)
@@ -83,9 +99,8 @@ GPU fitting. It does not require a terrain provider or elevation API.
   with the path width. A rounded, hotter combustion front marks the playhead.
 - This is a procedural volume approximation, not a fluid simulation. It does
   not produce smoke, cast light on surrounding geometry, or simulate wind.
-- The shader integrates three-octave noise over 96 horizontal and 64 upright
-  slices in one instanced draw call. It needs no textures, but uses more geometry
-  and fragment shading than TripsLayer; benchmark dense datasets on target devices.
+- The flame uses three-octave noise without a flame texture. The slices cost more
+  geometry and fragment shading than TripsLayer; benchmark dense datasets on target devices.
 - The two slice directions blend by their camera-facing weights to suppress
   edge-on bands. Upright slices share a continuous join across path segments;
   flame edges use derivative-based antialiasing.

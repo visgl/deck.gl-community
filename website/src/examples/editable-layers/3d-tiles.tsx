@@ -4,10 +4,10 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample({
   title: '3D Tiles',
   code: `${GITHUB_TREE}/examples/editable-layers/3d-tiles`,
-  async mount(container) {
+  async mount(container, props) {
     const {mountEditableLayers3DTilesExample} = await import(
       '../../../../examples/editable-layers/3d-tiles/app'
     );
-    return mountEditableLayers3DTilesExample(container);
+    return mountEditableLayers3DTilesExample(container, props);
   }
 }, {addInfoPanel: false});

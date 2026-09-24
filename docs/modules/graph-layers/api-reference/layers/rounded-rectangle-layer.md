@@ -5,8 +5,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 <LayerLiveExample highlight="rounded-rectangle-layer" size="tall" />
 
 `RoundedRectangleLayer` renders rectangles with programmable corner radii. It
-extends [`RectangleLayer`](./rectangle-layer.md) and injects a fragment shader
-uniform so each instance can round corners independently.
+CPU-tessellates each rounded outline and renders it through deck.gl's
+dual-backend `PolygonLayer`, so the same geometry works on WebGL2 and WebGPU.
 
 ## Usage
 
@@ -37,19 +37,17 @@ const layer = new RoundedRectangleLayer({
 
 ## Properties
 
-All [`RectangleLayer` props](./rectangle-layer.md#properties) apply, plus the
-options below.
+The options below control the generated polygon geometry.
 
 ### `cornerRadius` (number, optional)
 
-Controls how round each corner should be. The shader expects a normalized value:
-`0` renders a sharp corner while `1` approximates a circle. The stylesheet may
-supply a constant or accessor via the `cornerRadius` attribute.
+Controls the radius of each CPU-tessellated corner in the layer's coordinate
+units. The stylesheet may supply a constant or accessor.
 
 ### `stylesheet` ([`GraphStylesheetEngine`](../internal/graph-stylesheet-engine.md), required)
 
 Must expose `getCornerRadius`, `getWidth`, and `getHeight` accessors so the layer
-can size each node and update its shader uniforms.
+can rebuild each node polygon when its style changes.
 
 ### `positionUpdateTrigger` (any, optional)
 

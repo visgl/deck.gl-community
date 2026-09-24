@@ -1,0 +1,9 @@
+{
+  "metadata": {"title": "Infovis blocks", "description": "A compact Cartesian scene using blocks and fast text."},
+  "views": {"@@type": "OrthographicView", "id": "timeline", "flipY": false},
+  "initialViewState": {"target": [0, 0, 0], "zoom": 0},
+  "layers": [
+    {"@@type": "BlockLayer", "id": "blocks", "data": [{"position": [-250, 0], "size": [130, 60], "color": [37, 99, 235, 220]}, {"position": [-60, 0], "size": [150, 60], "color": [14, 165, 233, 220]}, {"position": [150, 0], "size": [130, 60], "color": [16, 185, 129, 220]}], "coordinateSystem": 2, "getPosition": "@@=position", "getSize": "@@=size", "getFillColor": "@@=color", "getLineColor": [15, 23, 42, 240], "getLineWidth": 2},
+    {"@@type": "FastTextLayer", "id": "labels", "data": [{"position": [-185, 30], "label": "parse"}, {"position": [15, 30], "label": "layout"}, {"position": [215, 30], "label": "draw"}], "coordinateSystem": 2, "getPosition": "@@=position", "getText": "@@=label", "size": 17, "getColor": [255, 255, 255, 255], "textAnchor": "middle", "alignmentBaseline": "center"}
+  ]
+}

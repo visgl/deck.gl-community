@@ -5,9 +5,9 @@
 // TODO edit-modes: delete handlers once EditMode fully implemented
 
 import {featureCollection as turfFeatureCollection} from '@turf/helpers';
-import turfUnion from '@turf/union';
-import turfDifference from '@turf/difference';
-import turfIntersect from '@turf/intersect';
+import {union} from '@turf/union';
+import {difference} from '@turf/difference';
+import {intersect} from '@turf/intersect';
 
 import {
   FeatureCollection,
@@ -236,15 +236,15 @@ export class ModeHandler {
 
       let updatedGeometry;
       if (modeConfig.booleanOperation === 'union') {
-        updatedGeometry = turfUnion(
+        updatedGeometry = union(
           turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature])
         );
       } else if (modeConfig.booleanOperation === 'difference') {
-        updatedGeometry = turfDifference(
+        updatedGeometry = difference(
           turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature])
         );
       } else if (modeConfig.booleanOperation === 'intersection') {
-        updatedGeometry = turfIntersect(
+        updatedGeometry = intersect(
           turfFeatureCollection([selectedFeature as Feature<PolygonGeometry>, feature])
         );
       } else {

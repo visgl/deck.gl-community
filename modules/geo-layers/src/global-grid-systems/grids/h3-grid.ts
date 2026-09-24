@@ -30,7 +30,7 @@ export const H3Grid = {
     h3IndexToBigInt(latLngToCell(lngLat[1], lngLat[0], resolution)),
 
   cellToLngLat: (cell: string | bigint) => reverseLatLngInPlace(cellToLatLng(cell)),
-  cellToBoundary: (cell: string | bigint) => cellToBoundary(cell),
+  cellToBoundary: (cell: string | bigint) => cellToBoundary(cell, true),
   cellsToBoundaryMultiPolygon: (cells: string[] | bigint[]) => cellsToMultiPolygon(cells, true)
 } as const satisfies GlobalGrid;
 

@@ -1,0 +1,18 @@
+{
+  "metadata": {"title": "H3 global grid", "description": "Render geospatial cells with geo-layers GlobalGridLayer.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/geo-layers/global-grid-layer.png"},
+  "initialViewState": {"longitude": -122.42, "latitude": 37.78, "zoom": 10},
+  "layers": [
+    {
+      "@@type": "GlobalGridLayer",
+      "id": "h3-cells",
+      "data": [{"cellId": "8928308280fffff"}, {"cellId": "8928308280bffff"}, {"cellId": "89283082877ffff"}],
+      "globalGrid": "@@#H3Grid",
+      "getCellId": "@@=cellId",
+      "filled": true,
+      "stroked": true,
+      "getFillColor": [30, 120, 220, 150],
+      "getLineColor": [30, 80, 160, 230],
+      "getLineWidth": 2
+    }
+  ]
+}

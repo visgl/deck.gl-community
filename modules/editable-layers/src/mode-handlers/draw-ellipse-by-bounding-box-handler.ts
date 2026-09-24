@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import bboxPolygon from '@turf/bbox-polygon';
-import distance from '@turf/distance';
-import ellipse from '@turf/ellipse';
+import {bboxPolygon} from '@turf/bbox-polygon';
+import {distance} from '@turf/distance';
+import {ellipse} from '@turf/ellipse';
 import {point} from '@turf/helpers';
 import {PointerMoveEvent} from '../edit-modes/types';
 import {EditAction, getIntermediatePosition} from './mode-handler';

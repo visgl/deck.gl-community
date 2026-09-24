@@ -1,0 +1,158 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+/** WebGPU vertex and fragment shaders for {@link BlockLayer}. */
+export default /* wgsl */ `
+struct BlockUniforms {
+  sizeUnits: i32,
+  widthMinPixels: f32,
+  widthMaxPixels: f32,
+  widthCutoffPixels: f32,
+  heightMinPixels: f32,
+  sizeMaxPixels: f32,
+  lineWidthUnits: i32,
+  strokeOffset: f32,
+  overrideColor: vec4<f32>,
+};
+
+@group(0) @binding(auto) var<uniform> blockLayer: BlockUniforms;
+
+struct BlockAttributes {
+  @location(0) positions: vec3<f32>,
+  @location(1) instancePositions: vec3<f32>,
+  @location(2) instanceSizes: vec2<f32>,
+  @location(3) instanceLineWidths: f32,
+  @location(4) instanceLineColors: vec4<f32>,
+  @location(5) instanceFillColors: vec4<f32>,
+  @location(6) instanceOpacities: f32,
+  @location(7) instanceColorOverrides: f32,
+  @location(8) instancePickingColors: vec3<f32>,
+};
+
+struct BlockVaryings {
+  @builtin(position) position: vec4<f32>,
+  @location(0) unitPosition: vec2<f32>,
+  @location(1) @interpolate(flat) fillColor: vec4<f32>,
+  @location(2) @interpolate(flat) lineColor: vec4<f32>,
+  @location(3) @interpolate(flat) lineWidth: f32,
+  @location(4) @interpolate(flat) size: vec2<f32>,
+  @location(5) @interpolate(flat) pickingColor: vec3<f32>,
+};
+
+fn block_size_to_pixels(size: vec2<f32>, unit: i32) -> vec2<f32> {
+  return vec2<f32>(
+    project_unit_size_to_pixel(size.x, unit),
+    project_unit_size_to_pixel(size.y, unit)
+  );
+}
+
+fn block_clamp_signed_size(size: f32, minimum: f32, maximum: f32) -> f32 {
+  return select(1.0, -1.0, size < 0.0) * clamp(abs(size), minimum, maximum);
+}
+
+@vertex
+fn vertexMain(attributes: BlockAttributes) -> BlockVaryings {
+  geometry.worldPosition = attributes.instancePositions;
+  geometry.pickingColor = attributes.instancePickingColors;
+  geometry.uv = attributes.positions.xy;
+
+  var pixelSize = block_size_to_pixels(attributes.instanceSizes, blockLayer.sizeUnits);
+  let widthBelowCutoff = abs(pixelSize.x) < blockLayer.widthCutoffPixels;
+  let effectiveWidthMaxPixels = min(blockLayer.widthMaxPixels, blockLayer.sizeMaxPixels);
+  pixelSize.x = block_clamp_signed_size(
+    pixelSize.x,
+    blockLayer.widthMinPixels,
+    effectiveWidthMaxPixels
+  );
+  pixelSize.y = block_clamp_signed_size(
+    pixelSize.y,
+    blockLayer.heightMinPixels,
+    blockLayer.sizeMaxPixels
+  );
+  let lineWidth = project_unit_size_to_pixel(
+    attributes.instanceLineWidths,
+    blockLayer.lineWidthUnits
+  );
+  let strokePadding = vec2<f32>(lineWidth * blockLayer.strokeOffset);
+  pixelSize = pixelSize + 2.0 * strokePadding;
+  if (widthBelowCutoff) {
+    pixelSize = vec2<f32>(0.0);
+  }
+
+  let offset = vec3<f32>(
+    project_pixel_size_vec2(attributes.positions.xy * pixelSize - strokePadding),
+    0.0
+  );
+  let projected = project_position_to_clipspace_and_commonspace(
+    attributes.instancePositions,
+    vec3<f32>(0.0),
+    offset
+  );
+  geometry.position = projected.commonPosition;
+
+  var varyings: BlockVaryings;
+  varyings.position = projected.clipPosition;
+  varyings.unitPosition = attributes.positions.xy;
+  let fillColor = mix(
+    attributes.instanceFillColors.rgb,
+    blockLayer.overrideColor.rgb,
+    attributes.instanceColorOverrides
+  );
+  varyings.fillColor = vec4<f32>(
+    fillColor,
+    attributes.instanceFillColors.a * attributes.instanceOpacities * layer.opacity
+  );
+  let lineColor = mix(
+    attributes.instanceLineColors.rgb,
+    blockLayer.overrideColor.rgb,
+    attributes.instanceColorOverrides
+  );
+  varyings.lineColor = vec4<f32>(
+    lineColor,
+    attributes.instanceLineColors.a * attributes.instanceOpacities * layer.opacity
+  );
+  varyings.lineWidth = lineWidth;
+  varyings.size = pixelSize;
+  varyings.pickingColor = attributes.instancePickingColors;
+  return varyings;
+}
+
+@fragment
+fn fragmentMain(varyings: BlockVaryings) -> @location(0) vec4<f32> {
+  let relativePosition = varyings.unitPosition * varyings.size;
+  let distanceToBorder = min(
+    min(relativePosition.x, relativePosition.y),
+    min(varyings.size.x - relativePosition.x, varyings.size.y - relativePosition.y)
+  );
+  var fragColor = select(
+    varyings.fillColor,
+    varyings.lineColor,
+    varyings.lineWidth > 0.0 && distanceToBorder <= varyings.lineWidth
+  );
+
+  if (picking.isActive > 0.5) {
+    if (!picking_isColorValid(varyings.pickingColor)) {
+      discard;
+    }
+    return vec4<f32>(picking_normalizeColor(varyings.pickingColor), 1.0);
+  }
+
+  if (picking.isHighlightActive > 0.5) {
+    let highlightedColor = picking_normalizeColor(picking.highlightedObjectColor);
+    let objectColor = picking_normalizeColor(varyings.pickingColor);
+    if (picking_isColorZero(abs(objectColor - highlightedColor))) {
+      let highlightAlpha = picking.highlightColor.a;
+      let blendedAlpha = highlightAlpha + fragColor.a * (1.0 - highlightAlpha);
+      if (blendedAlpha > 0.0) {
+        fragColor = vec4<f32>(
+          mix(fragColor.rgb, picking.highlightColor.rgb, highlightAlpha / blendedAlpha),
+          blendedAlpha
+        );
+      }
+    }
+  }
+
+  return deckgl_premultiplied_alpha(fragColor);
+}
+`;

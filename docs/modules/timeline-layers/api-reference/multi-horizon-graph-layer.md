@@ -56,7 +56,7 @@ Position and size of the entire chart. Defaults: `x:0`, `y:0`, `width:800`, `hei
 ## Sub Layers
 
 - One `HorizonGraphLayer` per series
-- Optional `SolidPolygonLayer` for divider rectangles
+- Optional dual-backend `LineLayer` for divider bands
 
 ## Source
 
