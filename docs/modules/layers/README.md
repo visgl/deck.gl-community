@@ -1,7 +1,7 @@
 # Overview
 
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square")
+![WebGPU partial](https://img.shields.io/badge/webgpu-partial-orange.svg?style=flat-square)
 
 This module provides a suite of reusable layers for [deck.gl](https://deck.gl).
 The layers in this module are generic primitives that are intended to be usable in both geospatial and non-geospatial visualizations.
@@ -32,7 +32,7 @@ Release date: 2023
 
 ## Exports
 
-- `NewHeatLayer`
+- [`NewHeatLayer`](./api-reference/newheat-layer.md) (WebGL2 only)
 - `DependencyArrowLayer`
 - `PathMarkerLayer`
 - `PathOutlineLayer`

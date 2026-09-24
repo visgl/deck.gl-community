@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Both website playgrounds register all 35 concrete official and 44 public community layers, with
+- [`NewHeatLayer`](/docs/modules/layers/api-reference/newheat-layer) (new) renders rising 3D flames and drifting embers with the TripsLayer API.
+
+- Both website playgrounds register all 35 concrete official and 45 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer
   constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
   custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references
@@ -92,7 +94,6 @@ Highlights:
 
 ### `@deck.gl-community/layers`
 
-- [`NewHeatLayer`](/docs/modules/layers/api-reference/newheat-layer) (new) renders rising 3D flames and drifting embers with the TripsLayer API.
 - [`DependencyArrowLayer`](/docs/modules/layers/api-reference/dependency-arrow-layer) (new) renders
   dependency links with path, line, or arc routing on WebGL2 and WebGPU.
 - [`PathOutlineLayer`](/docs/modules/layers/api-reference/path-outline-layer) now uses deck.gl
