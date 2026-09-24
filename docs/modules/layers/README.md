@@ -32,6 +32,7 @@ Release date: 2023
 
 ## Exports
 
+- `NewHeatLayer`
 - `DependencyArrowLayer`
 - `PathMarkerLayer`
 - `PathOutlineLayer`
@@ -44,6 +45,7 @@ Release date: 2023
 
 ## Examples
 
+- [NewHeatLayer](/examples/layers/newheat)
 - [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)
 - [SkyboxLayer GlobeView](/examples/layers/skybox-globe)

@@ -21,3 +21,6 @@ export {
 
 export type {SkyboxLayerProps} from './skybox-layer/skybox-layer';
 export {SkyboxLayer} from './skybox-layer/skybox-layer';
+
+export type {NewHeatLayerProps} from './newheat-layer/newheat-layer';
+export {NewHeatLayer} from './newheat-layer/newheat-layer';

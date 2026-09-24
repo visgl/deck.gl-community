@@ -6,6 +6,7 @@ Scope tracked in the [v9.4 milestone](https://github.com/visgl/deck.gl-community
 
 ### `@deck.gl-community/layers`
 
+- `NewHeatLayer` - rising 3D flames, drifting embers, and a hot leading head with the TripsLayer API.
 - `DependencyArrowLayer` - NEW directional marker layer for dependency links with path, line, or arc routing.
 
 ### `@deck.gl-community/infovis-layers`

@@ -40,6 +40,8 @@
   },
   "peerDependencies": {
     "@deck.gl/core": "~9.3.0",
+    "@deck.gl/extensions": "~9.3.0",
+    "@deck.gl/geo-layers": "~9.3.0",
     "@deck.gl/layers": "~9.3.0",
     "@deck.gl/mesh-layers": "~9.3.0",
     "@loaders.gl/core": "^4.4.1",
@@ -48,6 +50,10 @@
   },
   "devDependencies": {
     "@deck.gl/core": "~9.3.0",
+    "@deck.gl/extensions": "~9.3.0",
+    "@deck.gl/geo-layers": "~9.3.0",
+    "@deck.gl/layers": "~9.3.0",
+    "@deck.gl/mesh-layers": "~9.3.0",
     "@deck.gl/test-utils": "~9.3.0",
     "@loaders.gl/core": "^4.4.1",
     "@luma.gl/core": "~9.3.2",
