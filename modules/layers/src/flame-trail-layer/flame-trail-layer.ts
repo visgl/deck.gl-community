@@ -6,26 +6,26 @@ import {TripsLayer, type TripsLayerProps} from '@deck.gl/geo-layers';
 import type {DefaultProps} from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
 import type {ShaderModule} from '@luma.gl/shadertools';
-import {FLAME_FUNCTIONS, FLAME_COLOR} from './newheat-layer-fragment';
-import {FLAME_VERTEX, FLAME_VERTEX_DECLARATIONS} from './newheat-layer-vertex';
-import {createFlameGeometry} from './newheat-geometry';
+import {FLAME_FUNCTIONS, FLAME_COLOR} from './flame-trail-layer-fragment';
+import {FLAME_VERTEX, FLAME_VERTEX_DECLARATIONS} from './flame-trail-layer-vertex';
+import {createFlameGeometry} from './flame-trail-geometry';
 
 /** TripsLayer's API, with an independent flame clock and palette tinting. */
-export type NewHeatLayerProps<DataT = unknown> = TripsLayerProps<DataT> & {
+export type FlameTrailLayerProps<DataT = unknown> = TripsLayerProps<DataT> & {
   /** Animation time in seconds. Omit to animate with deck.gl's timeline;
    * hold a number fixed to freeze turbulence and embers independently of the trip. */
   flameTime?: number;
 };
 
-const CLOCK_DECLARATION = 'layout(std140) uniform newheatUniforms { float time; } newheat;';
+const CLOCK_DECLARATION = 'layout(std140) uniform flameTrailUniforms { float time; } flameTrail;';
 const FLAME_CLOCK = {
-  name: 'newheat',
+  name: 'flameTrail',
   vs: CLOCK_DECLARATION,
   fs: CLOCK_DECLARATION,
   uniformTypes: {time: 'f32'}
 } as const satisfies ShaderModule<{time: number}>;
 
-const defaultProps: DefaultProps<NewHeatLayerProps> = {
+const defaultProps: DefaultProps<FlameTrailLayerProps> = {
   flameTime: {
     type: 'number',
     value: undefined,
@@ -45,16 +45,16 @@ const defaultProps: DefaultProps<NewHeatLayerProps> = {
  * TerrainExtension supports ground fitting with `terrainDrawMode: 'offset'`
  * and `billboard: false`. Requires WebGL2; depth writes are disabled by default.
  */
-export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends TripsLayer<
+export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends TripsLayer<
   DataT,
-  ExtraProps & NewHeatLayerProps<DataT>
+  ExtraProps & FlameTrailLayerProps<DataT>
 > {
-  static layerName = 'NewHeatLayer';
+  static layerName = 'FlameTrailLayer';
   static defaultProps = defaultProps;
 
   getShaders() {
     if (this.context.device.type !== 'webgl') {
-      throw new Error('NewHeatLayer requires a WebGL2 device.');
+      throw new Error('FlameTrailLayer requires a WebGL2 device.');
     }
     const shaders = super.getShaders();
     return {
@@ -62,7 +62,7 @@ export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends Trips
       modules: [...shaders.modules, FLAME_CLOCK],
       defines: {
         ...shaders.defines,
-        ...(shaders.modules.some(module => module.name === 'terrain') && {NEWHEAT_TERRAIN: 1})
+        ...(shaders.modules.some(module => module.name === 'terrain') && {FLAME_TRAIL_TERRAIN: 1})
       },
       inject: {
         ...shaders.inject,
@@ -82,7 +82,7 @@ export class NewHeatLayer<DataT = any, ExtraProps extends {} = {}> extends Trips
 
   override draw(params): void {
     const time = this.props.flameTime ?? (this.context.timeline?.getTime() ?? 0) / 1000;
-    this.state.model!.shaderInputs.setProps({newheat: {time}});
+    this.state.model!.shaderInputs.setProps({flameTrail: {time}});
     super.draw(params);
     if (this.props.flameTime === undefined) this.setNeedsRedraw();
   }

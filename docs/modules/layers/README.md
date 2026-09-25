@@ -32,7 +32,7 @@ Release date: 2023
 
 ## Exports
 
-- [`NewHeatLayer`](./api-reference/newheat-layer.md) (WebGL2 only)
+- [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 only)
 - `DependencyArrowLayer`
 - `PathMarkerLayer`
 - `PathOutlineLayer`
@@ -45,7 +45,6 @@ Release date: 2023
 
 ## Examples
 
-- [NewHeatLayer](/examples/layers/newheat)
 - [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)
 - [SkyboxLayer GlobeView](/examples/layers/skybox-globe)

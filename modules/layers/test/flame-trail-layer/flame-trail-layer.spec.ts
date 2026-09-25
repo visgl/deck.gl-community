@@ -4,9 +4,9 @@
 
 import {describe, expect, it} from 'vitest';
 import {TripsLayer, type TripsLayerProps} from '@deck.gl/geo-layers';
-import {NewHeatLayer} from '../../src/index';
+import {FlameTrailLayer} from '../../src/index';
 
-describe('NewHeatLayer API', () => {
+describe('FlameTrailLayer API', () => {
   it('accepts unchanged TripsLayer props and inherits its defaults', () => {
     const trip = {
       path: [
@@ -23,7 +23,7 @@ describe('NewHeatLayer API', () => {
       widthMinPixels: 5,
       pickable: true
     };
-    const layer = new NewHeatLayer(props);
+    const layer = new FlameTrailLayer(props);
     const trips = new TripsLayer(props);
     expect(layer).toBeInstanceOf(TripsLayer);
     for (const name of [
@@ -37,8 +37,8 @@ describe('NewHeatLayer API', () => {
     ]) {
       expect(layer.props[name]).toEqual(trips.props[name]);
     }
-    expect(new NewHeatLayer().props.getColor).toEqual([255, 255, 255, 255]);
-    expect(new NewHeatLayer().props.flameTime).toBeUndefined();
-    expect(new NewHeatLayer({flameTime: 0}).props.flameTime).toBe(0);
+    expect(new FlameTrailLayer().props.getColor).toEqual([255, 255, 255, 255]);
+    expect(new FlameTrailLayer().props.flameTime).toBeUndefined();
+    expect(new FlameTrailLayer({flameTime: 0}).props.flameTime).toBe(0);
   });
 });

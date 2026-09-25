@@ -49,11 +49,11 @@ const boundsProps = {
 };
 
 /** TripsLayer props plus an optional independent flame clock in seconds. */
-export const NewHeatLayerPropsSchema = TripsLayerPropsSchema.extend({
+export const FlameTrailLayerPropsSchema = TripsLayerPropsSchema.extend({
   flameTime: z.number().optional()
 });
-/** JSON configuration for NewHeatLayer. */
-export const NewHeatLayerSchema = defineLayer('NewHeatLayer', NewHeatLayerPropsSchema);
+/** JSON configuration for FlameTrailLayer. */
+export const FlameTrailLayerSchema = defineLayer('FlameTrailLayer', FlameTrailLayerPropsSchema);
 
 /** JSON props for outlined paths, including inherited PathLayer styling. */
 export const PathOutlineLayerPropsSchema = PathLayerPropsSchema.extend({
@@ -612,7 +612,7 @@ export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSche
 
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
-  NewHeatLayer: NewHeatLayerSchema,
+  FlameTrailLayer: FlameTrailLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
   DependencyArrowLayer: DependencyArrowLayerSchema,

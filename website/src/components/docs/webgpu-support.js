@@ -23,7 +23,7 @@ const SUPPORTED_DOC_IDS = new Set([
 ]);
 
 const UNSUPPORTED_DOC_IDS = new Set([
-  'modules/layers/api-reference/newheat-layer',
+  'modules/layers/api-reference/flame-trail-layer',
   'modules/graph-layers/api-reference/layers/flow-layer',
   'modules/graph-layers/api-reference/layers/flow-path-layer'
 ]);

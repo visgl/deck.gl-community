@@ -8,7 +8,7 @@ out vec3 vFlame;
 out float vFlameWeight;
 out vec2 vEmberUV;
 
-float newheat_vertexHash(float n) {
+float flameTrail_vertexHash(float n) {
   // Integer mixing keeps sparse emission schedules stable across GPU drivers.
   // A sine hash amplifies small transcendental differences into different bursts.
   uint bits = uint(int(floor(n * 256.0)));
@@ -20,8 +20,8 @@ float newheat_vertexHash(float n) {
 
 // TerrainExtension's GPU height map is in common space. Sample each slice's
 // footprint, rather than anchoring the entire flame width at the path center.
-float newheat_terrainHeight(vec3 foot) {
-#ifdef NEWHEAT_TERRAIN
+float flameTrail_terrainHeight(vec3 foot) {
+#ifdef FLAME_TRAIL_TERRAIN
   if (terrain.mode == TERRAIN_MODE_USE_HEIGHT_MAP) {
     vec2 uv = (foot.xy - terrain.bounds.xy) / terrain.bounds.zw;
     if (all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)))) {
@@ -39,11 +39,11 @@ export const FLAME_VERTEX = /* glsl */ `
     float duration = instanceNextTimestamps - instanceTimestamps;
     float interval = max(4.0, duration / 8.0);
     float emissionTime = (floor(instanceTimestamps / interval) + 1.0 + flameSlices.x) * interval;
-    float anchorSeed = newheat_vertexHash(emissionTime * 0.73);
+    float anchorSeed = flameTrail_vertexHash(emissionTime * 0.73);
     float period = 28.0 + anchorSeed * 35.0;
-    float elapsed = newheat.time * 45.0 + anchorSeed * period;
+    float elapsed = flameTrail.time * 45.0 + anchorSeed * period;
     float cycle = floor(max(elapsed, 0.0) / period);
-    float seed = newheat_vertexHash(emissionTime * 1.37 + cycle * 9.21);
+    float seed = flameTrail_vertexHash(emissionTime * 1.37 + cycle * 9.21);
     float lifetime = 10.0 + seed * 11.0;
     float progress = mod(max(elapsed, 0.0), period) / lifetime;
     bool emberActive = instanceTypes < 3.5 && duration > 0.0001
@@ -63,7 +63,7 @@ export const FLAME_VERTEX = /* glsl */ `
       mix(instanceStartPositions, instanceEndPositions, fraction),
       mix(instanceStartPositions64Low, instanceEndPositions64Low, fraction)
     );
-    emberBase.z += newheat_terrainHeight(emberBase);
+    emberBase.z += flameTrail_terrainHeight(emberBase);
     vec3 emberUp = vec3(0.0, 0.0, 1.0);
     mat3 emberRotation;
     if (project_needs_rotation(emberBase, emberRotation)) emberUp = emberRotation * emberUp;
@@ -103,10 +103,10 @@ export const FLAME_VERTEX = /* glsl */ `
   // The upstream clip position has a center-line offset, but geometry is passed
   // to that hook by value. Its common-space position is still the raw footprint.
   // Re-project it with terrain sampled across the full flame width.
-#ifdef NEWHEAT_TERRAIN
+#ifdef FLAME_TRAIL_TERRAIN
   if (!path.billboard && terrain.mode == TERRAIN_MODE_USE_HEIGHT_MAP) {
     vec3 foot = geometry.position.xyz;
-    foot.z += newheat_terrainHeight(foot);
+    foot.z += flameTrail_terrainHeight(foot);
     gl_Position = project_common_position_to_clipspace(vec4(foot, 1.0));
   }
 #endif
@@ -133,7 +133,7 @@ export const FLAME_VERTEX = /* glsl */ `
     float miterScale = min(1.0 / max(abs(dot(miter, sideNormal)), 0.01), path.miterLimit);
     vec3 offset = -miter * miterScale * flameHalfWidth * flameSlices.y;
     vec3 foot = flameBase + offset;
-    foot.z += newheat_terrainHeight(foot);
+    foot.z += flameTrail_terrainHeight(foot);
     gl_Position = project_common_position_to_clipspace(vec4(foot, 1.0));
     flameNormal = sideNormal;
     vTime = mix(instanceTimestamps, instanceNextTimestamps, positions.x);
@@ -146,7 +146,7 @@ export const FLAME_VERTEX = /* glsl */ `
   gl_Position += project.viewProjectionMatrix * vec4(lift, 0.0);
   vFlame = flameSlices.xyz;
   vec3 fittedBase = flameBase;
-  fittedBase.z += newheat_terrainHeight(fittedBase);
+  fittedBase.z += flameTrail_terrainHeight(fittedBase);
   vec3 viewDirection = project.cameraPosition - fittedBase - lift;
   float viewLength = length(viewDirection);
   viewDirection = viewLength > 0.00001 ? viewDirection / viewLength : flameUp;

@@ -10,8 +10,8 @@ import {
 } from '@deck.gl/extensions';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {Geometry} from '@luma.gl/engine';
-import type {NewHeatLayerProps} from '../../src/index';
-import {NewHeatLayer} from '../../src/index';
+import type {FlameTrailLayerProps} from '../../src/index';
+import {FlameTrailLayer} from '../../src/index';
 
 const SIZE = 256;
 const DATA = [
@@ -27,7 +27,7 @@ let deck: Deck | undefined;
 let container: HTMLDivElement | undefined;
 
 // Isolate the real particle shader so the volume cannot satisfy the assertions.
-class EmberTestLayer extends NewHeatLayer {
+class EmberTestLayer extends FlameTrailLayer {
   static layerName = 'EmberTestLayer';
 
   getShaders() {
@@ -44,13 +44,13 @@ afterEach(() => {
 });
 
 function renderFrame(
-  props: Partial<NewHeatLayerProps & TerrainExtensionProps> = {},
+  props: Partial<FlameTrailLayerProps & TerrainExtensionProps> = {},
   sideView: boolean | number = false,
   rotationOrbit = 0,
   embersOnly = false,
   terrain?: Layer
 ): Promise<Uint8Array> {
-  const LayerClass = embersOnly ? EmberTestLayer : NewHeatLayer;
+  const LayerClass = embersOnly ? EmberTestLayer : FlameTrailLayer;
   const layer = new LayerClass({
     id: `fire-${props.terrainDrawMode ?? 'xyz'}-${embersOnly ? 'embers' : 'volume'}`,
     data: DATA,
@@ -150,7 +150,7 @@ function createTerrain(height: (x: number, y: number) => number, draw = false) {
   });
 }
 
-describe('NewHeatLayer WebGL rendering', () => {
+describe('FlameTrailLayer WebGL rendering', () => {
   it('animates a static trip and freezes when an explicit flame clock is held', async () => {
     const props = {currentTime: 50, fadeTrail: false};
     const frozen = await renderFrame({...props, flameTime: 0});

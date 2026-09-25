@@ -7,5 +7,5 @@ This module contains a suite of non-official deck.gl layers.
 
 They can be quite useful in applications, however they are not officially supported by the deck.gl team, so use at your own risk.
 
-[`NewHeatLayer`](../../docs/modules/layers/api-reference/newheat-layer.md) renders
+[`FlameTrailLayer`](../../docs/modules/layers/api-reference/flame-trail-layer.md) renders
 3D flames and embers with the TripsLayer API. It requires WebGL2.

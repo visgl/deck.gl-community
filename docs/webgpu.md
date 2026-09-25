@@ -9,7 +9,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | Module | Layer or integration | WebGL2 | WebGPU | Notes |
 | --- | --- | :---: | :---: | --- |
 | `@deck.gl-community/layers` | `SkyboxLayer` | ✅ | ✅ | Native GLSL and WGSL cubemap shaders. |
-| `@deck.gl-community/layers` | `NewHeatLayer` | ✅ | ❌ | Procedural flame volume and embers use GLSL shader injections. |
+| `@deck.gl-community/layers` | `FlameTrailLayer` | ✅ | ❌ | Procedural flame volume and embers use GLSL shader injections. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `line` mode | ✅ | ✅ | Portable `LineLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `arc` mode | ✅ | ✅ | Browser-verified upstream `ArcLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |

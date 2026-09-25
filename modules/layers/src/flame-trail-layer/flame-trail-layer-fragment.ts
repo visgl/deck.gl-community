@@ -7,28 +7,28 @@ in vec3 vFlame;
 in float vFlameWeight;
 in vec2 vEmberUV;
 
-float newheat_hash(vec2 p) {
+float flameTrail_hash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
   return fract((p3.x + p3.y) * p3.z);
 }
 
-float newheat_noise(vec2 p) {
+float flameTrail_noise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
   vec2 u = f * f * (3.0 - 2.0 * f);
   return mix(
-    mix(newheat_hash(i), newheat_hash(i + vec2(1.0, 0.0)), u.x),
-    mix(newheat_hash(i + vec2(0.0, 1.0)), newheat_hash(i + vec2(1.0)), u.x), u.y
+    mix(flameTrail_hash(i), flameTrail_hash(i + vec2(1.0, 0.0)), u.x),
+    mix(flameTrail_hash(i + vec2(0.0, 1.0)), flameTrail_hash(i + vec2(1.0)), u.x), u.y
   );
 }
 
-float newheat_fbm(vec2 p) {
+float flameTrail_fbm(vec2 p) {
   // Fixed-cost turbulence: three octaves, no textures or extra draw calls.
-  float n = 0.57 * newheat_noise(p);
+  float n = 0.57 * flameTrail_noise(p);
   p = mat2(1.6, -1.2, 1.2, 1.6) * p + 17.3;
-  n += 0.28 * newheat_noise(p);
-  n += 0.15 * newheat_noise(p * 2.03 + 9.2);
+  n += 0.28 * flameTrail_noise(p);
+  n += 0.15 * flameTrail_noise(p * 2.03 + 9.2);
   return n;
 }
 
@@ -47,7 +47,7 @@ export const FLAME_COLOR = /* glsl */ `
     color.a *= (1.0 - smoothstep(0.15, 1.0, radius)) * envelope * flicker * 0.65;
   } else {
   float age = max(trips.currentTime - vTime, 0.0);
-  float fireTime = newheat.time * 1.5;
+  float fireTime = flameTrail.time * 1.5;
   float along = vTime * 0.34;
   float height = vFlame.x;
   float across = vFlame.z > 0.5 ? vFlame.y : geometry.uv.x;
@@ -57,9 +57,9 @@ export const FLAME_COLOR = /* glsl */ `
   // Advect the noise upward. Two decorrelated fields curl and split the tongues
   // as they rise; the density genuinely varies across the depth of the volume.
   vec2 flow = vec2(along + across * 0.45, height * 4.5 - fireTime * 2.7);
-  float curl = newheat_fbm(flow * 0.63 + vec2(fireTime * 0.3, across));
-  float turbulence = newheat_fbm(flow + vec2(curl * 2.3, across * 2.4));
-  float detail = newheat_noise(flow * 2.7 + across * 3.2);
+  float curl = flameTrail_fbm(flow * 0.63 + vec2(fireTime * 0.3, across));
+  float turbulence = flameTrail_fbm(flow + vec2(curl * 2.3, across * 2.4));
+  float detail = flameTrail_noise(flow * 2.7 + across * 3.2);
   float bend = (curl - 0.5) * (0.12 + height * 1.8)
     + sin(along * 0.5 - fireTime * 2.0 + height * 8.0) * height * height * 0.3;
   float radius = abs(across - bend);
@@ -70,7 +70,7 @@ export const FLAME_COLOR = /* glsl */ `
   float nose = sqrt(max(0.0, 1.0 - pow(1.0 - clamp(age / 5.0, 0.0, 1.0), 2.0)));
   // Let the tip field travel upward and sideways instead of imposing a fixed
   // sawtooth height profile. Tongues bend, split, and pinch off as fuel rises.
-  float lick = newheat_noise(vec2(along * 1.45 + height * 1.8 + curl * 0.7,
+  float lick = flameTrail_noise(vec2(along * 1.45 + height * 1.8 + curl * 0.7,
     fireTime * 1.4 - height * 4.5));
   float plumeHeight = (0.2 + pow(lick, 1.5) * 0.65 + head * 0.38) * pow(fuel, 0.7);
   float taper = pow(max(0.0, 1.0 - height / max(plumeHeight, 0.001)), 0.65);

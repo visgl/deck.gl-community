@@ -1,8 +1,0 @@
-{
-  "extends": "../../../tsconfig.json",
-  "include": ["./*.ts"],
-  "compilerOptions": {
-    "typeRoots": ["../../../node_modules/@types", "../../../node_modules"],
-    "types": ["vite/client"]
-  }
-}

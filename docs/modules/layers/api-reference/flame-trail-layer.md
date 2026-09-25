@@ -1,10 +1,10 @@
 ---
-title: NewHeatLayer
+title: FlameTrailLayer
 ---
 
-# NewHeatLayer
+# FlameTrailLayer
 
-`NewHeatLayer` renders timestamped paths as rising 3D fire: a white-hot leading
+`FlameTrailLayer` renders timestamped paths as rising 3D fire: a white-hot leading
 head, curling orange tongues, a blue reaction zone, and drifting ember particles.
 It subclasses deck.gl's [TripsLayer](https://deck.gl/docs/api-reference/geo-layers/trips-layer)
 and accepts the same props. No additional flame props are required.
@@ -12,9 +12,9 @@ and accepts the same props. No additional flame props are required.
 ## Usage
 
 ```typescript
-import {NewHeatLayer} from '@deck.gl-community/layers';
+import {FlameTrailLayer} from '@deck.gl-community/layers';
 
-const layer = new NewHeatLayer({
+const layer = new FlameTrailLayer({
   id: 'burning-trips',
   data: trips,
   getPath: d => d.path,
@@ -40,16 +40,15 @@ The implementation is a TripsLayer subclass with four small source files:
 
 | File | Responsibility |
 | --- | --- |
-| `newheat-layer.ts` | Reuses TripsLayer's attributes, time clipping, fading, and picking; installs the geometry and shader injections. |
-| `newheat-geometry.ts` | Builds 96 horizontal sheets, 64 upright sheets, and eight ember quads per segment, all in one instanced draw. |
-| `newheat-layer-vertex.ts` | Raises the sheets above the path, fits their feet to terrain, blends viewing directions, and moves embers. |
-| `newheat-layer-fragment.ts` | Turns scrolling noise into curling flame shapes, then maps heat to color and density to opacity. |
+| `flame-trail-layer.ts` | Reuses TripsLayer's attributes, time clipping, fading, and picking; installs the geometry and shader injections. |
+| `flame-trail-geometry.ts` | Builds 96 horizontal sheets, 64 upright sheets, and eight ember quads per segment, all in one instanced draw. |
+| `flame-trail-layer-vertex.ts` | Raises the sheets above the path, fits their feet to terrain, blends viewing directions, and moves embers. |
+| `flame-trail-layer-fragment.ts` | Turns scrolling noise into curling flame shapes, then maps heat to color and density to opacity. |
 
 The sheets overlap to approximate a volume. Two crossing directions keep it
 visible from above and from the side. `currentTime` controls route clipping and
 fuel age. The independent `flameTime` uniform moves noise and embers, with no
 CPU particle updates or extra draw calls.
-The terrain generator, controls, and video recorder live entirely in the example.
 
 ## Properties
 
@@ -78,7 +77,7 @@ buffer occludes flames behind ridges.
 ```typescript
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 
-new NewHeatLayer({
+new FlameTrailLayer({
   data: trips,
   getPath: d => d.path, // XY coordinates; Z may supply an offset above terrain
   getTimestamps: d => d.timestamps,
@@ -92,8 +91,6 @@ new NewHeatLayer({
 Use `offset` to retain the flame's 3D height. TerrainExtension's `drape` mode
 flattens the layer into a texture on the surface. Provide enough path vertices
 to follow the terrain between samples; the layer does not resample sparse paths.
-The demo uses a synthetic mesh with peaks and gullies and a 2D route to exercise
-GPU fitting. It does not require a terrain provider or elevation API.
 
 ## Rendering notes
 
@@ -123,17 +120,5 @@ GPU fitting. It does not require a terrain provider or elevation API.
   values changes the spatial noise frequency and emission spacing. Flame animation
   speed is independent of those units.
   Subtract an epoch offset before passing timestamps to avoid float32 precision loss.
-- Respect reduced-motion preferences in the application animation loop. The example
-  starts both clocks paused when the browser requests reduced motion. Set
-  `flameTime: 0` to disable automatic flame animation in your own application.
-
-## Example
-
-[Open the NewHeat demo](/examples/layers/newheat) to compare the shader with
-TripsLayer, scrub time, change width and tint, or keep the whole visited path burning.
-The standard example panel has independent Play trip and Animate flame toggles,
-plus controls for terrain, width, tint, speed, and trail fading. Use
-Follow surface to compare fitting, Low angle to inspect contact and occlusion,
-and Show grid / mesh to inspect the surface. Hide UI (or H) clears the frame;
-Escape brings the controls back. Record 12s respects the playback toggles and
-creates a local 1920 × 1080 canvas recording without controls, using MP4 where supported and WebM otherwise.
+- Respect reduced-motion preferences in your application. Set `flameTime: 0` to
+  disable automatic flame animation.
