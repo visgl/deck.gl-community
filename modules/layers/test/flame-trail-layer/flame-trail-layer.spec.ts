@@ -38,7 +38,5 @@ describe('FlameTrailLayer API', () => {
       expect(layer.props[name]).toEqual(trips.props[name]);
     }
     expect(new FlameTrailLayer().props.getColor).toEqual([255, 255, 255, 255]);
-    expect(new FlameTrailLayer().props.flameTime).toBeUndefined();
-    expect(new FlameTrailLayer({flameTime: 0}).props.flameTime).toBe(0);
   });
 });

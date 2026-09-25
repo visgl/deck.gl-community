@@ -10,27 +10,18 @@ import {FLAME_FUNCTIONS, FLAME_COLOR} from './flame-trail-layer-fragment';
 import {FLAME_VERTEX, FLAME_VERTEX_DECLARATIONS} from './flame-trail-layer-vertex';
 import {createFlameGeometry} from './flame-trail-geometry';
 
-/** TripsLayer's API, with an independent flame clock and palette tinting. */
-export type FlameTrailLayerProps<DataT = unknown> = TripsLayerProps<DataT> & {
-  /** Animation time in seconds. Omit to animate with deck.gl's timeline;
-   * hold a number fixed to freeze turbulence and embers independently of the trip. */
-  flameTime?: number;
-};
+/** TripsLayer's API, rendered as automatically animated flames. */
+export type FlameTrailLayerProps<DataT = unknown> = TripsLayerProps<DataT>;
 
-const CLOCK_DECLARATION = 'layout(std140) uniform flameTrailUniforms { float time; } flameTrail;';
-const FLAME_CLOCK = {
+const UNIFORM_DECLARATION = 'layout(std140) uniform flameTrailUniforms { float time; } flameTrail;';
+const FLAME_UNIFORMS = {
   name: 'flameTrail',
-  vs: CLOCK_DECLARATION,
-  fs: CLOCK_DECLARATION,
+  vs: UNIFORM_DECLARATION,
+  fs: UNIFORM_DECLARATION,
   uniformTypes: {time: 'f32'}
 } as const satisfies ShaderModule<{time: number}>;
 
 const defaultProps: DefaultProps<FlameTrailLayerProps> = {
-  flameTime: {
-    type: 'number',
-    value: undefined,
-    validate: value => value === undefined || Number.isFinite(value)
-  },
   // White leaves every hue in the flame palette visible. Alpha still controls opacity.
   getColor: {type: 'accessor', value: [255, 255, 255, 255]},
   parameters: {depthWriteEnabled: false, cullMode: 'none'}
@@ -39,15 +30,15 @@ const defaultProps: DefaultProps<FlameTrailLayerProps> = {
 /**
  * A procedural 3D flame along timestamped paths, using the TripsLayer API.
  *
- * `currentTime` controls the visited path; `flameTime` animates turbulence and
- * embers independently. `getColor` tints the palette; width controls flame height.
+ * `currentTime` controls the visited path; turbulence and embers animate
+ * automatically. `getColor` tints the palette; width controls flame height.
  * Uses crossed translucent slices and GPU embers in one instanced draw.
  * TerrainExtension supports ground fitting with `terrainDrawMode: 'offset'`
  * and `billboard: false`. Requires WebGL2; depth writes are disabled by default.
  */
 export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends TripsLayer<
   DataT,
-  ExtraProps & FlameTrailLayerProps<DataT>
+  ExtraProps
 > {
   static layerName = 'FlameTrailLayer';
   static defaultProps = defaultProps;
@@ -59,7 +50,7 @@ export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends Tr
     const shaders = super.getShaders();
     return {
       ...shaders,
-      modules: [...shaders.modules, FLAME_CLOCK],
+      modules: [...shaders.modules, FLAME_UNIFORMS],
       defines: {
         ...shaders.defines,
         ...(shaders.modules.some(module => module.name === 'terrain') && {FLAME_TRAIL_TERRAIN: 1})
@@ -81,10 +72,10 @@ export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends Tr
   }
 
   override draw(params): void {
-    const time = this.props.flameTime ?? (this.context.timeline?.getTime() ?? 0) / 1000;
+    const time = this.context.timeline.getTime() / 1000;
     this.state.model!.shaderInputs.setProps({flameTrail: {time}});
     super.draw(params);
-    if (this.props.flameTime === undefined) this.setNeedsRedraw();
+    this.setNeedsRedraw();
   }
 
   protected _getModel(): Model {
