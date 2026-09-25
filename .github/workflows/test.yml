@@ -233,6 +233,22 @@ jobs:
         env:
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
+      - name: Check out the upstream WebGPU terrain port
+        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: visgl/deck.gl
+          # Temporary integration pin until deck.gl#10751 is released.
+          ref: d4186ba778351e3d00e1745b39e013dbbb984f6f
+          path: .terrain-sdk
+
+      - name: Verify WebGPU terrain fitting against the upstream port
+        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        run: yarn vitest run --project headless modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts -t webgpu
+        env:
+          DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
+          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
+
   website-build:
     runs-on: ubuntu-22.04
     timeout-minutes: 15

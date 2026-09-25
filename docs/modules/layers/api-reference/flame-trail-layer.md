@@ -67,7 +67,7 @@ width units, rounded joints, `opacity`, and update triggers.
 
 ## Following terrain
 
-On WebGL2, add deck.gl's experimental `TerrainExtension` with `terrainDrawMode: 'offset'`
+Add deck.gl's experimental `TerrainExtension` with `terrainDrawMode: 'offset'`
 and `billboard: false`. Mark the terrain source with `operation: 'terrain+draw'`.
 The flame samples its footprint from the GPU height map, including across its
 width, and embers start at the sampled ground elevation. The terrain's depth
@@ -91,11 +91,22 @@ Use `offset` to retain the flame's 3D height. TerrainExtension's `drape` mode
 flattens the layer into a texture on the surface. Provide enough path vertices
 to follow the terrain between samples; the layer does not resample sparse paths.
 
-The upstream `TerrainExtension` currently has no WGSL height-map implementation.
-On WebGPU, supply ground elevation in each path vertex (`[x, y, z]`) and draw the
-terrain mesh normally. Flame height, embers, and depth occlusion work on both
-backends. Sample enough vertices to follow the surface; XYZ paths fit the
-centerline, while WebGL2 height-map fitting also samples across the flame width.
+WebGPU height-map fitting requires the upstream
+[TerrainExtension WGSL port](https://github.com/visgl/deck.gl/pull/10751), which is
+not yet in the published SDK dependency. With that port, the same `offset`
+configuration samples the full flame footprint on both backends. WebGPU texture
+`drape` mode is not supported.
+
+With the published SDK, supply ground elevation in each WebGPU path vertex
+(`[x, y, z]`) and draw the terrain mesh normally. XYZ paths fit the centerline;
+height-map fitting also samples across the flame width. Flame height, embers,
+and depth occlusion work on both backends.
+
+For source integration tests, set `DECK_GL_SOURCE` to a checkout containing the
+upstream port and run `yarn vitest run --project headless
+modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts`.
+CI tests both the published dependency and the pinned upstream port; its required
+software WebGPU adapter must run the terrain checks without skipping them.
 
 ## Rendering notes
 

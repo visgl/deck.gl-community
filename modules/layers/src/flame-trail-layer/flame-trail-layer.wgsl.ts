@@ -5,6 +5,15 @@
 // Native WGSL equivalents of the GLSL volume and ember math. Path geometry,
 // timestamp packing and projection stay owned by upstream TripsLayer.
 const FLAME_WGSL = /* wgsl */ `
+fn flameTrail_terrainHeight(foot: vec3<f32>) -> f32 {
+#ifdef FLAME_TRAIL_TERRAIN
+  if (terrain.mode == TERRAIN_MODE_USE_HEIGHT_MAP) {
+    return terrain_get_height(foot);
+  }
+#endif
+  return 0.0;
+}
+
 fn flameTrail_vertexHash(n: f32) -> f32 {
   var bits = u32(i32(floor(n * 256.0)));
   bits = (bits ^ (bits >> 16u)) * 0x7feb352du;
@@ -70,6 +79,7 @@ fn flameTrail_vertex(attributes: Attributes, widthPixels: f32, input: Varyings) 
       mix(attributes.instanceStartPositions, attributes.instanceEndPositions, fraction),
       mix(attributes.instanceStartPositions64Low, attributes.instanceEndPositions64Low, fraction)
     );
+    emberBase.z += flameTrail_terrainHeight(emberBase);
     var emberUp: vec3<f32> = vec3<f32>(0.0, 0.0, 1.0);
     let emberRotation = project_needs_rotation(emberBase);
     if (emberRotation.needsRotation) { emberUp = emberRotation.transform * emberUp; }
@@ -107,6 +117,13 @@ fn flameTrail_vertex(attributes: Attributes, widthPixels: f32, input: Varyings) 
   sideNormal = select(flameUp, normalize(sideNormal), length(sideNormal) > 0.00001);
   var flameNormal: vec3<f32> = flameUp;
 
+#ifdef FLAME_TRAIL_TERRAIN
+  if (path.billboard == 0 && terrain.mode == TERRAIN_MODE_USE_HEIGHT_MAP) {
+    var foot = geometry.position.xyz;
+    foot.z += flameTrail_terrainHeight(foot);
+    result.position = project_common_position_to_clipspace(vec4<f32>(foot, 1.0));
+  }
+#endif
   if (attributes.flameSlices.z > 0.5) {
     // Both heights share the same miter. Reusing the two sides of PathLayer's
     // bevel here gave the top and bottom different joins, exposing a rib at
@@ -130,6 +147,7 @@ fn flameTrail_vertex(attributes: Attributes, widthPixels: f32, input: Varyings) 
     var miterScale: f32 = min(1.0 / max(abs(dot(miter, sideNormal)), 0.01), path.miterLimit);
     var offset: vec3<f32> = -miter * miterScale * flameHalfWidth * attributes.flameSlices.y;
     var foot: vec3<f32> = flameBase + offset;
+    foot.z += flameTrail_terrainHeight(foot);
     result.position = project_common_position_to_clipspace(vec4<f32>(foot, 1.0));
     flameNormal = sideNormal;
     result.vTime = mix(attributes.instanceTimestamps.x, attributes.instanceTimestamps.y, attributes.positions.x);
@@ -141,7 +159,9 @@ fn flameTrail_vertex(attributes: Attributes, widthPixels: f32, input: Varyings) 
   // Offsets must not include project.center a second time (including its w).
   result.position += project.viewProjectionMatrix * vec4<f32>(lift, 0.0);
   result.vFlame = attributes.flameSlices.xyz;
-  var viewDirection: vec3<f32> = project.cameraPosition - flameBase - lift;
+  var fittedBase = flameBase;
+  fittedBase.z += flameTrail_terrainHeight(fittedBase);
+  var viewDirection: vec3<f32> = project.cameraPosition - fittedBase - lift;
   var viewLength: f32 = length(viewDirection);
   viewDirection = select(flameUp, viewDirection / viewLength, viewLength > 0.00001);
   var facing: f32 = abs(dot(viewDirection, flameNormal));
