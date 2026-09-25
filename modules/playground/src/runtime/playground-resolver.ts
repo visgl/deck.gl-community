@@ -11,7 +11,7 @@ import {
 } from '@deck.gl/core';
 import {JSONConverter} from '@deck.gl/json';
 import {z} from 'zod';
-import {createDeckGLDocumentSchema, DeckGLLayerSchemas} from '../schemas/deckgl';
+import {createDeckGLDocumentSchema, DeckGLLayerSchemas, JsonValueSchema} from '../schemas/deckgl';
 import {CommunityLayerSchemas} from '../schemas/community';
 import {
   FirstPersonViewSchema,
@@ -129,6 +129,16 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
     viewSchema
   )
     .omit({mapStyle: true})
+    .extend({
+      mapStyle: z
+        .union([z.string(), z.record(z.string(), JsonValueSchema), z.null()])
+        .optional()
+        .describe('Basemap style URL, style object, or null.'),
+      mapboxApiAccessToken: z
+        .string()
+        .optional()
+        .describe('Access token appended to Mapbox style and tile requests.')
+    })
     .extend({views: z.union([viewSchema, z.array(viewSchema).min(1)]).optional()});
   const jsonSchema = z.toJSONSchema(schema, {
     target: 'draft-2020-12',
@@ -288,7 +298,7 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       });
       // A fresh envelope bypasses JSONConverter's input-identity cache on source updates/retries.
       const prepared = {
-        props: prepareProperties(document, ['layers', 'views']),
+        props: prepareProperties(document, ['layers', 'views', 'mapStyle', 'mapboxApiAccessToken']),
         layers: preparedLayers.map(({props}) => props),
         views: preparedViews.map(({props}) => props)
       };

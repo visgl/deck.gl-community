@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Graph layout", "description": "A small knowledge graph positioned by SimpleLayout."},
+  "metadata": {"title": "Graph layout", "description": "A small knowledge graph positioned by SimpleLayout.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/graph-layers/simple-graph.png"},
   "views": {"@@type": "OrthographicView", "id": "graph", "flipY": false},
   "initialViewState": {"target": [0, 0, 0], "zoom": 0},
   "layers": [

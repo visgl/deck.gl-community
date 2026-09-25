@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Community markers", "description": "Named marker glyphs from graph-layers."},
+  "metadata": {"title": "Community markers", "description": "Named marker glyphs from graph-layers.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/graph-layers/marker-layer.png"},
   "initialViewState": {"longitude": -98, "latitude": 39, "zoom": 3},
   "layers": [
     {

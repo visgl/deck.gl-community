@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, type DeckProps, type PickingInfo} from '@deck.gl/core';
+import {Deck, MapView, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {Playground, type PlaygroundProps, type PlaygroundRenderer} from './playground';
 import {
   createPlaygroundResolver,
@@ -14,6 +14,12 @@ import {PlaygroundSourceBindings} from './runtime/playground-source-bindings';
 import type {PlaygroundBindings, PlaygroundRegistry} from './runtime/playground-registry';
 
 const DEFAULT_VIEW_STATE = {longitude: 0, latitude: 0, zoom: 0};
+const DEFAULT_BASEMAP = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const BASEMAP_STYLES = [
+  {label: 'Positron', style: DEFAULT_BASEMAP},
+  {label: 'Dark Matter', style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'},
+  {label: 'Voyager', style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'}
+];
 
 /** A picked row in the current externally supplied binding. */
 export type PlaygroundSelection = {
@@ -94,6 +100,12 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   private readonly sourceBindings?: PlaygroundSourceBindings;
   private deck?: Deck<any>;
   private element?: HTMLDivElement;
+  private controls?: HTMLDivElement;
+  private controlLabel?: HTMLLabelElement;
+  private controlSelect?: HTMLSelectElement;
+  private attribution?: HTMLElement;
+  private selectedBasemap = DEFAULT_BASEMAP;
+  private activeDocument?: unknown;
   private finalized = false;
 
   constructor(private readonly props: DeckPlaygroundProps) {
@@ -179,8 +191,14 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     this.sourceBindings?.finalize();
     this.resolver.finalize();
     this.deck?.finalize();
+    this.controls?.remove();
     this.deck = undefined;
     this.element = undefined;
+    this.controls = undefined;
+    this.controlLabel = undefined;
+    this.controlSelect = undefined;
+    this.attribution = undefined;
+    this.activeDocument = undefined;
     this.request = undefined;
     this.resolved = undefined;
     this.bindings = {};
@@ -203,6 +221,13 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   ): ResolvedPlaygroundConfiguration {
     // Validate and resolve before modifying the live renderer or accepted binding map.
     const resolved = this.resolver.resolve(value, bindings, this.sourceBindings);
+    const input = value as Record<string, unknown>;
+    const hasDocumentMapStyle = Object.hasOwn(input, 'mapStyle');
+    const mapStyle = hasDocumentMapStyle
+      ? resolveBasemapStyle(input.mapStyle, input.mapboxApiAccessToken)
+      : this.props.registry.layers.BasemapLayer
+        ? this.selectedBasemap
+        : null;
     const nextProps = resolved.props;
     const views = nextProps.views ?? [];
     if (nextProps.controller === undefined) {
@@ -210,6 +235,22 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       for (const view of views) {
         if (view.props.controller === undefined) view.props.controller = true;
       }
+    }
+    const mapViewOnly = views.length === 0 || views.every(view => view instanceof MapView);
+    if (mapViewOnly && mapStyle) {
+      const registration = this.props.registry.layers.BasemapLayer;
+      const BasemapLayer = typeof registration === 'function' ? registration : registration?.type;
+      if (!BasemapLayer) {
+        throw new Error('Register BasemapLayer to render a document mapStyle');
+      }
+      nextProps.layers = [
+        new BasemapLayer({
+          id: 'playground-basemap',
+          style: mapStyle,
+          loadOptions: createMapboxLoadOptions(input.mapboxApiAccessToken)
+        }),
+        ...(nextProps.layers ?? [])
+      ];
     }
     const previousProps = this.resolved?.props ?? {};
     const previousViews = previousProps.views ?? [];
@@ -259,8 +300,83 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     }
     this.bindings = bindings;
     this.resolved = resolved;
+    this.activeDocument = value;
+    this.syncBasemapControl(mapViewOnly, hasDocumentMapStyle, mapStyle);
     return resolved;
   }
+
+  private syncBasemapControl(
+    mapViewOnly: boolean,
+    hasDocumentMapStyle: boolean,
+    mapStyle: string | Record<string, unknown> | null
+  ): void {
+    if (!this.element || !this.props.registry.layers.BasemapLayer) return;
+    if (!this.controls) {
+      const document = this.element.ownerDocument;
+      const controls = document.createElement('div');
+      Object.assign(controls.style, {
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        zIndex: '20',
+        display: 'grid',
+        gap: '4px',
+        padding: '8px 10px',
+        borderRadius: '6px',
+        background: 'rgba(255, 255, 255, 0.94)',
+        color: '#172033',
+        font: '12px/1.3 system-ui, sans-serif',
+        boxShadow: '0 1px 5px rgba(0, 0, 0, 0.24)',
+        pointerEvents: 'auto'
+      });
+      const label = document.createElement('label');
+      label.textContent = 'Basemap';
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', 'Basemap');
+      for (const option of [...BASEMAP_STYLES, {label: 'None', style: ''}]) {
+        const element = document.createElement('option');
+        element.textContent = option.label;
+        element.value = option.style;
+        select.append(element);
+      }
+      select.value = this.selectedBasemap;
+      select.addEventListener('change', this.handleBasemapChange);
+      const attribution = document.createElement('small');
+      controls.append(label, select, attribution);
+      this.element.append(controls);
+      this.controls = controls;
+      this.controlLabel = label;
+      this.controlSelect = select;
+      this.attribution = attribution;
+    }
+    this.controls.style.display = mapViewOnly ? 'grid' : 'none';
+    if (this.controlLabel) {
+      this.controlLabel.style.display = mapViewOnly && !hasDocumentMapStyle ? 'block' : 'none';
+    }
+    if (this.controlSelect) {
+      this.controlSelect.style.display = mapViewOnly && !hasDocumentMapStyle ? 'block' : 'none';
+    }
+    if (this.controlSelect) this.controlSelect.value = this.selectedBasemap;
+    if (this.attribution) {
+      const labels = hasDocumentMapStyle
+        ? getBasemapAttribution(mapStyle)
+        : this.selectedBasemap
+          ? ['© CARTO', '© OpenStreetMap']
+          : [];
+      this.attribution.textContent = labels.join(' · ');
+      this.attribution.style.display = labels.length && mapViewOnly ? 'block' : 'none';
+    }
+  }
+
+  private readonly handleBasemapChange = () => {
+    this.selectedBasemap = this.controlSelect?.value ?? '';
+    if (this.activeDocument === undefined) return;
+    try {
+      this.applyDocument(this.activeDocument, this.bindings);
+    } catch (error) {
+      this.reportError(error);
+    }
+  };
 
   private readonly handleClick: NonNullable<DeckProps['onClick']> = (info, event) => {
     if (this.finalized) return;
@@ -302,4 +418,97 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       object
     };
   }
+}
+
+function addMapboxAccessTokenToUrl(url: string, accessToken: string): string {
+  if (url.startsWith('mapbox://styles/')) {
+    url = `https://api.mapbox.com/styles/v1/${url.slice('mapbox://styles/'.length)}`;
+  } else if (url.startsWith('mapbox://sprites/')) {
+    url = `https://api.mapbox.com/styles/v1/${url.slice('mapbox://sprites/'.length)}/sprite`;
+  } else if (url.startsWith('mapbox://fonts/')) {
+    url = `https://api.mapbox.com/fonts/v1/${url.slice('mapbox://fonts/'.length)}`;
+  } else if (url.startsWith('mapbox://')) {
+    url = `https://api.mapbox.com/v4/${url.slice('mapbox://'.length)}.json?secure`;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname === 'api.mapbox.com') {
+      parsedUrl.searchParams.set('access_token', accessToken);
+      return parsedUrl.toString();
+    }
+  } catch {
+    // Leave relative URLs and other non-URL values unchanged.
+  }
+  return url;
+}
+
+function resolveBasemapStyle(
+  style: unknown,
+  accessToken: unknown
+): string | Record<string, unknown> | null {
+  if (style === null) return null;
+  if (typeof style === 'string') {
+    return typeof accessToken === 'string' ? addMapboxAccessTokenToUrl(style, accessToken) : style;
+  }
+  if (!style || typeof style !== 'object' || Array.isArray(style)) {
+    throw new Error('mapStyle must be a URL, a style object, or null');
+  }
+  if (typeof accessToken !== 'string') return style as Record<string, unknown>;
+  const addToken = (value: unknown): unknown => {
+    if (typeof value === 'string') return addMapboxAccessTokenToUrl(value, accessToken);
+    if (Array.isArray(value)) return value.map(addToken);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, child]) => [key, addToken(child)])
+      );
+    }
+    return value;
+  };
+  return addToken(style) as Record<string, unknown>;
+}
+
+function createMapboxLoadOptions(accessToken: unknown): Record<string, unknown> | null {
+  if (typeof accessToken !== 'string') return null;
+  return {
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const response = await fetch(addMapboxAccessTokenToUrl(url, accessToken), init);
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('json')) return response;
+      const json = await response.json();
+      return new Response(JSON.stringify(rewriteMapboxUrls(json, accessToken)), {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+      });
+    }
+  };
+}
+
+function rewriteMapboxUrls(value: unknown, accessToken: string): unknown {
+  if (typeof value === 'string') return addMapboxAccessTokenToUrl(value, accessToken);
+  if (Array.isArray(value)) return value.map(child => rewriteMapboxUrls(child, accessToken));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, rewriteMapboxUrls(child, accessToken)])
+    );
+  }
+  return value;
+}
+
+function getBasemapAttribution(style: unknown): string[] {
+  if (style && typeof style === 'object' && !Array.isArray(style)) {
+    const sources = (style as {sources?: Record<string, {attribution?: unknown}>}).sources;
+    return Object.values(sources ?? {}).flatMap(source =>
+      source && typeof source === 'object' && typeof source.attribution === 'string'
+        ? [source.attribution]
+        : []
+    );
+  }
+  if (typeof style === 'string' && style.includes('mapbox')) return ['© Mapbox'];
+  if (typeof style === 'string' && style.includes('cartocdn')) {
+    return ['© CARTO', '© OpenStreetMap'];
+  }
+  return [];
 }

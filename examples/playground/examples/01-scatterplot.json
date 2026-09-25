@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Population scatterplot", "description": "A first look at typed accessors and proportional point sizes."},
+  "metadata": {"title": "Population scatterplot", "description": "A first look at typed accessors and proportional point sizes.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/geo-layers/global-grid-layer.png"},
   "initialViewState": {"longitude": -122.42, "latitude": 37.78, "zoom": 10},
   "layers": [
     {

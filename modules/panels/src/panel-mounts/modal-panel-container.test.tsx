@@ -145,6 +145,16 @@ describe('ModalPanelContainer', () => {
     hiddenModal.cleanup();
   });
 
+  it('clears trigger text when the optional prop is removed', () => {
+    const {root, modal, cleanup} = renderModal({button: true, triggerText: 'Choose example'});
+    expect(root.querySelector('.deck-widget-button-label')?.textContent).toBe('Choose example');
+
+    modal.setProps({triggerText: undefined});
+
+    expect(root.querySelector('.deck-widget-button-label')).toBeNull();
+    cleanup();
+  });
+
   it('renders a configured trigger icon URL as a mask', () => {
     const triggerIcon =
       "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E";

@@ -106,6 +106,24 @@ The document schema covers the playground configuration fields, not every option
 Experimental `@@type` values match upstream export names: `_GlobeView`, `_WMSLayer`,
 `_MultiIconLayer`, and `_TextBackgroundLayer`. The lookup keys omit the underscore for convenience.
 
+## Basemaps
+
+Map documents can specify `mapStyle` as a style URL, an inline MapLibre or Mapbox style object,
+or `null` to disable the basemap. Mapbox styles can use `mapboxApiAccessToken`; the playground
+adds the token to Mapbox style and tile requests. A document `mapStyle` takes precedence over
+the playground's basemap selector.
+
+```json
+{
+  "mapStyle": "mapbox://styles/mapbox/streets-v12",
+  "mapboxApiAccessToken": "pk.example-token",
+  "layers": []
+}
+```
+
+Tokens are used in browser requests, so provide a public token restricted to the hosted site.
+CARTO style URLs do not require a token.
+
 ## Custom layers
 
 Extend a props schema and compose an application document schema:

@@ -116,6 +116,7 @@ export class Playground {
       triggerLabel: 'Choose example',
       triggerIcon: '▦',
       triggerText: 'Select Example',
+      onOpenChange: open => this.pickerContainer?.setProps({open}),
       button: true,
       placement: 'top-left',
       _container: pickerHost,
@@ -157,6 +158,8 @@ export class Playground {
       throw new Error(`Unknown playground template: ${name}`);
     }
     this.currentTemplate = name;
+    const metadata = getTemplateMetadata(name, template);
+    this.pickerContainer?.setProps({triggerText: metadata.title ?? name});
     this.renderPickerCards();
     const document = getTemplateDocument(template);
     this.setText(typeof document === 'string' ? document : JSON.stringify(document, null, 2));

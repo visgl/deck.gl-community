@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Path markers", "description": "A route with directional markers from the community layers package."},
+  "metadata": {"title": "Path markers", "description": "A route with directional markers from the community layers package.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/layers/path-outline-and-markers.svg"},
   "initialViewState": {"longitude": -122.42, "latitude": 37.77, "zoom": 10},
   "layers": [
     {"@@type": "PathMarkerLayer", "id": "route", "data": [{"path": [[-122.5, 37.72], [-122.42, 37.78], [-122.35, 37.82]], "color": [37, 99, 235, 220], "direction": {"forward": true, "backward": false}}], "getPath": "@@=path", "getColor": "@@=color", "getMarkerColor": [239, 68, 68, 255], "getWidth": 5, "pickable": true}

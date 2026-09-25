@@ -106,6 +106,26 @@ const PANEL_BASE_STYLES = `.deck-widget {
   white-space: nowrap;
 }
 
+.deck-widget-button-with-text {
+  width: auto;
+}
+
+.deck-widget-button-with-text button {
+  display: flex;
+  width: auto;
+  min-width: var(--button-size, 28px);
+  height: calc(var(--button-size, 28px) - 2px);
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.deck-widget-button-with-text button > span:first-child {
+  width: auto;
+  height: auto;
+  flex: 0 0 auto;
+}
+
 /* Icon menu styles */
 .deck-widget .deck-widget-icon-menu {
   position: absolute;
