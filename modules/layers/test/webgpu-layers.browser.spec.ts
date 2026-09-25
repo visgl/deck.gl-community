@@ -6,7 +6,7 @@ import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, inject, it} from 'vitest';
 import {requireWebGPUAdapter} from './webgpu-test-utils';
 
 import {
@@ -379,6 +379,20 @@ function createPortableLayers() {
   ];
 }
 
+class BackendTestDeck extends Deck<OrthographicView> {
+  pauseAfterReady(): boolean {
+    if (
+      this.device.type === 'webgpu' &&
+      this.layerManager
+        ?.getLayers()
+        .some(layer => !layer.isLoaded || layer.getModels().some(model => model.pipeline.isPending))
+    )
+      return false;
+    this.animationLoop?.stop();
+    return true;
+  }
+}
+
 async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   const parent = document.createElement('div');
   parent.style.width = '128px';
@@ -386,7 +400,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   document.body.append(parent);
 
   let device: Device | undefined;
-  let deck: Deck<OrthographicView> | undefined;
+  let deck: BackendTestDeck | undefined;
   let nativeDevice: NativeGpuDevice | undefined;
   const validationErrors: string[] = [];
   const captureValidationError = (event: NativeGpuError): void => {
@@ -405,11 +419,14 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }
 
     await new Promise<void>((resolve, reject) => {
-      const timeout = window.setTimeout(() => {
-        reject(new Error(`Timed out while rendering community layers with ${type}.`));
-      }, 10_000);
+      const timeout = window.setTimeout(
+        () => {
+          reject(new Error(`Timed out while rendering community layers with ${type}.`));
+        },
+        inject('requireWebGPU') ? 60_000 : 10_000
+      );
 
-      deck = new Deck({
+      deck = new BackendTestDeck({
         device,
         parent,
         width: 128,
@@ -418,6 +435,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
         initialViewState: {target: [0, 0, 0], zoom: 0},
         layers: createPortableLayers(),
         onAfterRender: () => {
+          if (!deck?.pauseAfterReady()) return;
           window.clearTimeout(timeout);
           resolve();
         },
@@ -428,8 +446,6 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       });
     });
 
-    deck.finalize();
-    deck = undefined;
     await nativeDevice?.queue.onSubmittedWorkDone();
     expect(device.type).toBe(type);
     expect(validationErrors).toEqual([]);
