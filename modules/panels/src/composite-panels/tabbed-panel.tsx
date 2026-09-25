@@ -15,6 +15,10 @@ export type TabbedPanelProps = {
   title?: string;
   tabListLayout?: 'wrap' | 'scroll';
   theme?: PanelTheme;
+  /** Initially selected panel, or the selected panel when controlled. */
+  activePanelId?: PanelId;
+  /** Called when the selected panel changes. */
+  onActivePanelIdChange?: (activePanelId: PanelId | undefined) => void;
 };
 
 /** Props for the rendered tabbed panel list. */
@@ -32,13 +36,22 @@ export class TabbedPanel extends Panel {
     id = 'tabbed-panels',
     title = 'Panels',
     tabListLayout = 'wrap',
-    theme = 'inherit'
+    theme = 'inherit',
+    activePanelId,
+    onActivePanelIdChange
   }: TabbedPanelProps) {
     super({
       id,
       title,
       theme,
-      content: <TabbedPanelContainer panels={panels} tabListLayout={tabListLayout} />
+      content: (
+        <TabbedPanelContainer
+          panels={panels}
+          tabListLayout={tabListLayout}
+          activePanelId={activePanelId}
+          onActivePanelIdChange={onActivePanelIdChange}
+        />
+      )
     });
   }
 }
@@ -99,12 +112,10 @@ export function TabbedPanelContainer({
                 boxShadow: isActive ? '0 1px 2px rgba(15, 23, 42, 0.08)' : 'none'
               }}
               disabled={panel.disabled}
-              onPointerDown={event => {
+              onClick={() => {
                 if (panel.disabled) {
-                  event.stopPropagation();
                   return;
                 }
-                event.preventDefault();
                 setCurrentActivePanelId(panel.id);
                 onActivePanelIdChange?.(panel.id);
               }}

@@ -4,9 +4,9 @@
 
 import {
   CustomPanel,
-  ModalPanelContainer,
   PanelManager,
   SidebarPanelContainer,
+  TabbedPanel,
   TextEditorPanel
 } from '@deck.gl-community/panels';
 import {registerPlaygroundTools, type PlaygroundWebMCPOptions} from './playground-webmcp';
@@ -66,13 +66,13 @@ export class Playground {
   readonly previewElement: HTMLDivElement;
   private readonly panelManager: PanelManager;
   private readonly editorId = `playground-editor-${++playgroundCount}`;
+  private activeSidebarPanelId = this.editorId;
   private readonly props: PlaygroundProps;
   private templates: Record<string, PlaygroundTemplate>;
   private currentTemplate: string;
   private editorPanel?: TextEditorPanel;
   private sidebarContainer?: SidebarPanelContainer;
   private pickerPanel?: CustomPanel;
-  private pickerContainer?: ModalPanelContainer;
   private pickerElement?: HTMLElement;
   private previewCleanup?: () => void;
   private readonly resizeObserver: ResizeObserver;
@@ -97,35 +97,15 @@ export class Playground {
     this.parentElement.replaceChildren();
     this.previewElement = this.parentElement.ownerDocument.createElement('div');
     this.previewElement.className = 'deckgl-playground-preview';
-    const pickerHost = this.parentElement.ownerDocument.createElement('div');
-    pickerHost.className = 'deckgl-playground-example-trigger';
     const panelRoot = this.parentElement.ownerDocument.createElement('div');
     panelRoot.className = 'deckgl-playground-panels';
-    this.parentElement.append(this.previewElement, pickerHost, panelRoot);
+    this.parentElement.append(this.previewElement, panelRoot);
     this.panelManager = new PanelManager({parentElement: panelRoot});
     this.pickerPanel = new CustomPanel({
       id: 'playground-example-picker',
       title: 'Examples',
       className: 'deckgl-playground-template-picker-panel',
       onRenderHTML: this.renderPicker
-    });
-    this.pickerContainer = new ModalPanelContainer({
-      id: 'playground-example-picker-container',
-      panel: this.pickerPanel,
-      title: 'Examples',
-      triggerLabel: 'Choose example',
-      triggerIcon: '▦',
-      triggerText: 'Select Example',
-      onOpenChange: open => this.pickerContainer?.setProps({open}),
-      button: true,
-      placement: 'top-left',
-      _container: pickerHost,
-      dialogStyle: {
-        width: 'min(760px, calc(100vw - 32px))',
-        maxHeight: 'min(720px, calc(100vh - 32px))'
-      },
-      contentStyle: {overflow: 'auto'},
-      defaultOpen: false
     });
     this.sidebarContainer = new SidebarPanelContainer({
       id: 'playground-json-sidebar',
@@ -139,7 +119,7 @@ export class Playground {
       defaultOpen: true,
       dockTriggerWhenOpen: false
     });
-    this.panelManager.setProps({components: [this.sidebarContainer, this.pickerContainer]});
+    this.panelManager.setProps({components: [this.sidebarContainer]});
     this.resizeObserver = new ResizeObserver(this.handleEditorResize);
     this.resizeObserver.observe(this.parentElement);
     try {
@@ -158,8 +138,7 @@ export class Playground {
       throw new Error(`Unknown playground template: ${name}`);
     }
     this.currentTemplate = name;
-    const metadata = getTemplateMetadata(name, template);
-    this.pickerContainer?.setProps({triggerText: metadata.title ?? name});
+    this.activeSidebarPanelId = this.editorId;
     this.renderPickerCards();
     const document = getTemplateDocument(template);
     this.setText(typeof document === 'string' ? document : JSON.stringify(document, null, 2));
@@ -178,9 +157,29 @@ export class Playground {
     });
     editorPanel.placement = 'fill';
     this.editorPanel = editorPanel;
-    this.sidebarContainer?.setProps({panel: editorPanel});
+    this.sidebarContainer?.setProps({panel: this.createTabbedPanel(editorPanel)});
     this.handleEditorResize();
     this.handleTextChange(text);
+  }
+
+  private createTabbedPanel(editorPanel: TextEditorPanel): TabbedPanel {
+    return new TabbedPanel({
+      id: 'playground-sidebar-tabs',
+      title: 'Playground',
+      panels: [editorPanel, this.pickerPanel!],
+      tabListLayout: 'scroll',
+      activePanelId: this.activeSidebarPanelId,
+      onActivePanelIdChange: activePanelId => {
+        if (!activePanelId || activePanelId === this.activeSidebarPanelId) {
+          return;
+        }
+        this.activeSidebarPanelId = activePanelId;
+        const currentEditorPanel = this.editorPanel;
+        if (currentEditorPanel) {
+          this.sidebarContainer?.setProps({panel: this.createTabbedPanel(currentEditorPanel)});
+        }
+      }
+    });
   }
 
   /** Updates the available documents while retaining the current selection when possible. */
@@ -254,7 +253,6 @@ export class Playground {
     const card = target.closest<HTMLElement>('[data-template]');
     if (card?.dataset.template) {
       this.setTemplate(card.dataset.template);
-      this.pickerContainer?.setProps({open: false});
     }
   };
 
@@ -334,11 +332,6 @@ function ensurePlaygroundStyles(document: Document): void {
   style.id = 'deckgl-playground-styles';
   style.textContent = `
     .deckgl-playground { position: relative; width: 100%; height: 100%; overflow: hidden; }
-    .deckgl-playground-example-trigger { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
-    .deckgl-playground-example-trigger .deck-widget-modal { position: absolute; inset: 0; }
-    .deckgl-playground-example-trigger .deck-widget-button { position: absolute; top: 12px; left: 50%; width: auto; height: auto; transform: translateX(-50%); pointer-events: auto; }
-    .deckgl-playground-example-trigger .deck-widget-button button { display: flex; width: auto; min-height: 28px; align-items: center; gap: 6px; padding: 0 10px; }
-    .deckgl-playground-example-trigger .deck-widget-button button > span:first-child { width: auto; height: auto; }
     .deckgl-playground-panels { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
     .deckgl-playground-template-picker-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 4px; }
     .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid #d5dbe3; border-radius: 6px; background: #fff center / cover no-repeat; color: #172033; text-align: left; cursor: pointer; }
