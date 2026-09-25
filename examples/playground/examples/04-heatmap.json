@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Activity heatmap", "description": "Aggregate weighted point observations into a heatmap."},
+  "metadata": {"title": "Activity heatmap", "description": "Aggregate weighted point observations into a heatmap.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/geo-layers/wind.png"},
   "initialViewState": {"longitude": -122.42, "latitude": 37.77, "zoom": 10},
   "layers": [
     {

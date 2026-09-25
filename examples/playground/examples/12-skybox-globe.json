@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Skybox GlobeView", "description": "A globe scene with a camera-centered skybox and flight arcs."},
+  "metadata": {"title": "Skybox GlobeView", "description": "A globe scene with a camera-centered skybox and flight arcs.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/layers/skybox-globe.png"},
   "views": {"@@type": "_GlobeView", "id": "globe"},
   "initialViewState": {"longitude": -10, "latitude": 25, "zoom": 0.9},
   "layers": [

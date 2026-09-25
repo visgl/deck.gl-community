@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Infovis blocks", "description": "A compact Cartesian scene using blocks and fast text."},
+  "metadata": {"title": "Infovis blocks", "description": "A compact Cartesian scene using blocks and fast text.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/infovis-layers/layer-primitives.png"},
   "views": {"@@type": "OrthographicView", "id": "timeline", "flipY": false},
   "initialViewState": {"target": [0, 0, 0], "zoom": 0},
   "layers": [

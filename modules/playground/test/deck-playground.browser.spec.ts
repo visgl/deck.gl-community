@@ -113,6 +113,32 @@ afterEach(() => {
 });
 
 describe('Playground rendering lifecycle', () => {
+  it('reopens the example picker and shows the selected example in its trigger', () => {
+    const playground = new Playground({
+      parentElement: createHost(),
+      templates: {
+        first: {metadata: {title: 'First example'}, layers: []},
+        second: {metadata: {title: 'Second example'}, layers: []}
+      }
+    });
+    PLAYGROUNDS.push(playground);
+
+    const picker = playground.parentElement.querySelector('.deckgl-playground-example-trigger')!;
+    const getTrigger = () =>
+      picker.querySelector<HTMLButtonElement>('[aria-label="Open Choose example"]');
+    getTrigger()?.click();
+    expect(picker.querySelector('[role="dialog"]')).not.toBeNull();
+
+    playground.parentElement.querySelector<HTMLElement>('[data-template="second"]')?.click();
+    expect(picker.querySelector('[role="dialog"]')).toBeNull();
+    expect(playground.parentElement.querySelector('.deck-widget-button-label')?.textContent).toBe(
+      'Second example'
+    );
+
+    getTrigger()?.click();
+    expect(picker.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
   it('keeps simultaneously mounted editor models independent through edits and disposal', async () => {
     const {editor} = await import('monaco-editor');
     const originalModels = new Set(editor.getModels());

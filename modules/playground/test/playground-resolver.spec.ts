@@ -590,8 +590,13 @@ describe('playground runtime resolver', () => {
     ).toThrow('Nested @@type resources are unsupported');
   });
 
-  test('rejects unsupported basemap styling and empty view lists', () => {
-    expect(() => resolver.resolve({mapStyle: 'style.json'}, {})).toThrow();
+  test('accepts basemap settings and rejects empty view lists', () => {
+    const result = resolver.resolve(
+      {mapStyle: 'style.json', mapboxApiAccessToken: 'pk.example-token'},
+      {}
+    );
+    expect(result.props).not.toHaveProperty('mapStyle');
+    expect(result.props).not.toHaveProperty('mapboxApiAccessToken');
     expect(() => resolver.resolve({views: []}, {})).toThrow();
     expect(resolver.resolve({}, {}).props.views).toBeUndefined();
   });
