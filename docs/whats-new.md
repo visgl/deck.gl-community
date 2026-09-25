@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers with the TripsLayer API. Its independent `flameTime` clock keeps static trips burning and supports deterministic captures.
+- [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers with the TripsLayer API. Flames keep burning when trip playback is paused.
 
 - Both website playgrounds register all 35 concrete official and 45 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer

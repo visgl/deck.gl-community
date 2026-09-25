@@ -7,7 +7,7 @@ title: FlameTrailLayer
 `FlameTrailLayer` renders timestamped paths as rising 3D fire: a white-hot leading
 head, curling orange tongues, a blue reaction zone, and drifting ember particles.
 It subclasses deck.gl's [TripsLayer](https://deck.gl/docs/api-reference/geo-layers/trips-layer)
-and accepts the same props. No additional flame props are required.
+and accepts the same props.
 
 ## Usage
 
@@ -29,10 +29,8 @@ const layer = new FlameTrailLayer({
 ```
 
 Update `currentTime` to move the trip playhead. The flame keeps burning when
-`currentTime` is static: it uses deck.gl's animation timeline by default.
-Set `flameTime` to a number of seconds to control that clock yourself. Holding
-both times fixed freezes the result; driving both explicitly gives repeatable
-recordings without a separate particle simulation.
+`currentTime` is static, with turbulence and embers driven automatically by
+deck.gl's animation timeline. No animation props or per-frame updates are needed.
 
 ## How it works
 
@@ -47,9 +45,9 @@ The implementation is a TripsLayer subclass with four small source files:
 
 The sheets overlap to approximate a volume. Two crossing directions keep it
 visible from above and from the side. `currentTime` controls route clipping and
-fuel age. The independent `flameTime` uniform moves noise and embers, with no
-CPU particle updates or extra draw calls.
-The terrain generator, controls, and video recorder live entirely in the example.
+fuel age. Each draw passes deck.gl's elapsed time to the shader to move noise
+and embers, then requests another frame. No CPU particle updates or extra draw
+calls are needed.
 
 ## Properties
 
@@ -60,7 +58,6 @@ width units, rounded joints, `opacity`, and update triggers.
 | Property | Behavior |
 | --- | --- |
 | `currentTime` | Controls the trip playhead, trail clipping, and fuel age. Holding it fixed leaves the flame animated. |
-| `flameTime` | Optional animation time in seconds, independent of trip timestamp units. Omit it to follow deck.gl's timeline and request continuous redraws. Set a fixed number (including `0`) to freeze turbulence and embers. |
 | `getTimestamps` | One timestamp per path vertex, in the same units as `currentTime`. |
 | `trailLength` | Length of the fading trail, in timestamp units. A zero-length fading trail is empty. |
 | `fadeTrail` | Defaults to `true`. When `false`, all visited segments keep burning and `trailLength` has no effect. Future segments remain hidden. |
@@ -92,8 +89,6 @@ new FlameTrailLayer({
 Use `offset` to retain the flame's 3D height. TerrainExtension's `drape` mode
 flattens the layer into a texture on the surface. Provide enough path vertices
 to follow the terrain between samples; the layer does not resample sparse paths.
-The demo uses a synthetic mesh with peaks and gullies and a 2D route to exercise
-GPU fitting. It does not require a terrain provider or elevation API.
 
 ## Rendering notes
 
@@ -111,8 +106,7 @@ GPU fitting. It does not require a terrain provider or elevation API.
 - Embers spawn in timestamp bins with at most eight emitters per path segment.
   Small, short-lived flecks rise close to the plume and cool from orange to red,
   with quiet intervals and varied trajectories between bursts. They obey the
-  same time window, color tint, and opacity. Their lifetimes are deterministic
-  when `flameTime` is supplied.
+  same time window, color tint, and opacity.
 - Depth writes are disabled and both sides render by default for translucent
   volume slices. Explicit `parameters` can override these defaults.
 - Wider paths (roughly 12–60 pixels) reveal the detail. Narrow paths still work,
@@ -123,17 +117,16 @@ GPU fitting. It does not require a terrain provider or elevation API.
   values changes the spatial noise frequency and emission spacing. Flame animation
   speed is independent of those units.
   Subtract an epoch offset before passing timestamps to avoid float32 precision loss.
-- Respect reduced-motion preferences in the application animation loop. The example
-  starts both clocks paused when the browser requests reduced motion. Set
-  `flameTime: 0` to disable automatic flame animation in your own application.
+- For reduced-motion preferences, applications can render a TripsLayer instead
+  of the continuously animated flame.
 
 ## Example
 
-[Open the FlameTrail demo](/examples/layers/flame-trail) to compare the shader with
-TripsLayer, scrub time, change width and tint, or keep the whole visited path burning.
-The standard example panel has independent Play trip and Animate flame toggles,
-plus controls for terrain, width, tint, speed, and trail fading. Use
-Follow surface to compare fitting, Low angle to inspect contact and occlusion,
-and Show grid / mesh to inspect the surface. Hide UI (or H) clears the frame;
-Escape brings the controls back. Record 12s respects the playback toggles and
-creates a local 1920 × 1080 canvas recording without controls, using MP4 where supported and WebM otherwise.
+[Open the interactive demo](/examples/layers/flame-trail) or run
+`yarn workspace @deck.gl-community/example-flame-trail start-local`.
+The standard example panel controls trip playback, time, tint, width, fading,
+terrain fitting, and the TripsLayer comparison. Flames animate automatically
+while the trip is paused. Reduced-motion preferences start with TripsLayer.
+The example also includes a Hide UI action and a 12-second 1080p recorder that
+follows Play trip and Trip speed. Terrain generation, controls, and recording
+live entirely in the example workspace.

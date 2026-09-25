@@ -33,16 +33,16 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
     width: 18,
     fadeTrail: true,
     grid: false,
-    mode: 'fire' as SceneOptions['mode'],
+    mode: (window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'trips'
+      : 'fire') as SceneOptions['mode'],
     tint: 'Natural',
     surface: 'terrain' as SceneOptions['surface'],
     followSurface: true,
     playing: false,
-    animateFlame: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     speed: 1,
     orbit: true
   };
-  let flameTime = 0;
   let frame = 0;
   let previousTime = 0;
   let panelTime = 0;
@@ -70,7 +70,7 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
       viewState = next as OrbitViewState;
     }
   });
-  const scene = (): SceneOptions => ({...settings, flameTime, tint: TINTS[settings.tint]});
+  const scene = (): SceneOptions => ({...settings, tint: TINTS[settings.tint]});
   const renderFrame = () => deck.setProps({layers: createSceneLayers(scene())});
   function resetView(low = false) {
     viewState = fitSceneView(stage.clientWidth, stage.clientHeight, settings.surface);
@@ -119,7 +119,7 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
               for (const name of Object.keys(displayed)) {
                 if (next[name] === displayed[name]) continue;
                 settings = {...settings, [name]: next[name]};
-                // Scrubbing pauses only the trip; the flame remains independent.
+                // Scrubbing pauses only the trip; the flame keeps burning.
                 if (name === 'currentTime') {
                   settings.playing = false;
                   next.playing = false;
@@ -147,7 +147,6 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
       viewState: {...viewState},
       orbit: settings.orbit,
       playTrip: settings.playing,
-      animateFlame: settings.animateFlame,
       speed: settings.speed,
       onProgress: seconds => {
         status.querySelector('span')!.textContent = `Recording ${seconds.toFixed(1)} / 12s`;
@@ -175,12 +174,10 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
   }
   function animate(now: number) {
     const seconds = previousTime ? Math.min(now - previousTime, 100) / 1000 : 0;
-    if (!recording && (settings.playing || settings.animateFlame)) {
-      if (settings.playing)
-        settings.currentTime = (settings.currentTime + seconds * 18 * settings.speed) % 300;
-      if (settings.animateFlame) flameTime += seconds;
+    if (!recording && settings.playing) {
+      settings.currentTime = (settings.currentTime + seconds * 18 * settings.speed) % 300;
       renderFrame();
-      if (settings.playing && now - panelTime > 200) {
+      if (now - panelTime > 200) {
         syncPanel();
         panelTime = now;
       }

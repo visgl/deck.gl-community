@@ -14,7 +14,6 @@ type RecordingOptions = {
   viewState: OrbitViewState;
   orbit: boolean;
   playTrip: boolean;
-  animateFlame: boolean;
   speed: number;
   onProgress: (seconds: number) => void;
 };
@@ -89,8 +88,7 @@ export function recordScene(container: HTMLElement, options: RecordingOptions) {
             ...scene,
             currentTime: options.playTrip
               ? (scene.currentTime + elapsed * 18 * options.speed) % 300
-              : scene.currentTime,
-            flameTime: scene.flameTime + (options.animateFlame ? elapsed : 0)
+              : scene.currentTime
           }),
           viewState: {
             ...viewState,

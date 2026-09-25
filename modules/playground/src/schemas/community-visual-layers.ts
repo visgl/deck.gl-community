@@ -48,10 +48,8 @@ const boundsProps = {
   yMax: z.number().optional()
 };
 
-/** TripsLayer props plus an optional independent flame clock in seconds. */
-export const FlameTrailLayerPropsSchema = TripsLayerPropsSchema.extend({
-  flameTime: z.number().optional()
-});
+/** FlameTrailLayer uses the unchanged TripsLayer props. */
+export const FlameTrailLayerPropsSchema = TripsLayerPropsSchema;
 /** JSON configuration for FlameTrailLayer. */
 export const FlameTrailLayerSchema = defineLayer('FlameTrailLayer', FlameTrailLayerPropsSchema);
 

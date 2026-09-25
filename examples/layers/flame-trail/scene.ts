@@ -12,7 +12,6 @@ import {createTerrainLayers} from './terrain';
 type Trip = {path: [number, number][]; timestamps: number[]};
 export type SceneOptions = {
   currentTime: number;
-  flameTime: number;
   trailLength: number;
   width: number;
   fadeTrail: boolean;
@@ -89,7 +88,6 @@ export function createSceneLayers(options: SceneOptions) {
       ...fitting,
       id: `route-${options.mode}-${terrain && options.followSurface ? 'surface' : 'flat'}`,
       currentTime: options.currentTime,
-      ...(options.mode === 'fire' && {flameTime: options.flameTime}),
       trailLength: options.trailLength,
       fadeTrail: options.fadeTrail,
       getColor: options.mode === 'fire' ? options.tint : [255, 118, 49],

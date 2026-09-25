@@ -12,7 +12,6 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
       initiallyCollapsed: false,
       settings: [
         {name: 'playing', label: 'Play trip', type: 'boolean'},
-        {name: 'animateFlame', label: 'Animate flame', type: 'boolean'},
         {name: 'currentTime', label: 'Current time', type: 'number', min: 0, max: 300, step: 0.1},
         {name: 'speed', label: 'Trip speed', type: 'number', min: 0.1, max: 3, step: 0.1}
       ]

@@ -48,7 +48,8 @@ function renderFrame(
   sideView: boolean | number = false,
   rotationOrbit = 0,
   embersOnly = false,
-  terrain?: Layer
+  terrain?: Layer,
+  timelineTime: number | null = 1000
 ): Promise<Uint8Array> {
   const LayerClass = embersOnly ? EmberTestLayer : FlameTrailLayer;
   const layer = new LayerClass({
@@ -58,7 +59,6 @@ function renderFrame(
     getPath: d => d.path,
     getTimestamps: d => d.timestamps,
     currentTime: 100,
-    flameTime: 1,
     trailLength: 100,
     widthUnits: 'pixels',
     getWidth: 60,
@@ -66,6 +66,13 @@ function renderFrame(
     ...props
   });
   return new Promise((resolve, reject) => {
+    // Freeze the renderer timeline for pixel comparisons, not the layer API.
+    const onBeforeRender = () => {
+      if (timelineTime !== null) {
+        layer.context.timeline.pause();
+        layer.context.timeline.setTime(timelineTime);
+      }
+    };
     let renderedFrames = 0;
     const onAfterRender = ({gl}: {gl: WebGL2RenderingContext}) => {
       // TerrainEffect registers a default shader module, which rebuilds the
@@ -76,7 +83,7 @@ function renderFrame(
       resolve(pixels);
     };
     if (deck) {
-      deck.setProps({layers: [terrain, layer], onAfterRender, onError: reject});
+      deck.setProps({layers: [terrain, layer], onBeforeRender, onAfterRender, onError: reject});
     } else {
       container = document.createElement('div');
       document.body.appendChild(container);
@@ -94,6 +101,7 @@ function renderFrame(
           rotationOrbit
         },
         layers: [terrain, layer],
+        onBeforeRender,
         onAfterRender,
         onError: reject
       });
@@ -151,16 +159,9 @@ function createTerrain(height: (x: number, y: number) => number, draw = false) {
 }
 
 describe('FlameTrailLayer WebGL rendering', () => {
-  it('animates a static trip and freezes when an explicit flame clock is held', async () => {
+  it('keeps a static trip burning without prop updates or forced Deck animation', async () => {
     const props = {currentTime: 50, fadeTrail: false};
-    const frozen = await renderFrame({...props, flameTime: 0});
-    expect(await renderFrame({...props, flameTime: 0})).toEqual(frozen);
-    const advanced = await renderFrame({...props, flameTime: 1});
-    expect(advanced).not.toEqual(frozen);
-    // The independent flame clock never exposes future path segments.
-    for (let x = 135; x < SIZE; x++) expect(brightness(advanced, x)).toBe(0);
-
-    const live = await renderFrame({...props, flameTime: undefined});
+    const live = await renderFrame(props, false, 0, false, undefined, null);
     // No prop updates and no forced Deck animation: the layer requests redraws.
     deck!.setProps({_animate: false});
     const later = await new Promise<Uint8Array>(resolve => {
@@ -175,21 +176,31 @@ describe('FlameTrailLayer WebGL rendering', () => {
       });
     });
     expect(later).not.toEqual(live);
+    // Automatic animation never exposes future path segments.
+    for (let x = 135; x < SIZE; x++) expect(brightness(later, x)).toBe(0);
   });
 
   it('fits the full flame and its embers to GPU terrain heights', async () => {
     const height = (x: number) => 40 + x * 0.15;
-    const props = {currentTime: 180, flameTime: 0, fadeTrail: false, getWidth: 20};
+    const props = {currentTime: 180, fadeTrail: false, getWidth: 20};
     const extensions = [new TerrainExtension()];
     const elevatedData = [{...DATA[0], path: DATA[0].path.map(([x, y]) => [x, y, height(x)])}];
     for (const embersOnly of [false, true]) {
-      const reference = await renderFrame({...props, data: elevatedData}, 35, 0, embersOnly);
+      const reference = await renderFrame(
+        {...props, data: elevatedData},
+        35,
+        0,
+        embersOnly,
+        undefined,
+        0
+      );
       const fitted = await renderFrame(
         {...props, extensions, terrainDrawMode: 'offset'},
         35,
         0,
         embersOnly,
-        createTerrain(height)
+        createTerrain(height),
+        0
       );
       expect(totalBrightness(reference)).toBeGreaterThan(50);
       let difference = 0;
@@ -244,10 +255,12 @@ describe('FlameTrailLayer WebGL rendering', () => {
   // Sample an active burst; quiet intervals intentionally contain no particles.
   it('renders sparse, warm embers that stay near the plume', async () => {
     const pixels = await renderFrame(
-      {currentTime: 180, flameTime: 0, fadeTrail: false, getWidth: 20},
+      {currentTime: 180, fadeTrail: false, getWidth: 20},
       true,
       0,
-      true
+      true,
+      undefined,
+      0
     );
     let emberPixels = 0;
     for (let y = 0; y < SIZE; y++) {
@@ -264,10 +277,12 @@ describe('FlameTrailLayer WebGL rendering', () => {
     expect(emberPixels).toBeGreaterThan(0);
     expect(emberPixels).toBeLessThan(40);
     const later = await renderFrame(
-      {currentTime: 180, flameTime: 1.25, fadeTrail: false, getWidth: 20},
+      {currentTime: 180, fadeTrail: false, getWidth: 20},
       true,
       0,
-      true
+      true,
+      undefined,
+      1250
     );
     expect(later).not.toEqual(pixels);
   });
@@ -326,7 +341,7 @@ describe('FlameTrailLayer WebGL rendering', () => {
     expect(deck!.pickObject({x: 218, y: 128})).toBeNull();
   });
 
-  it('animates deterministically and ignores trailLength when fadeTrail is false', async () => {
+  it('ignores trailLength when fadeTrail is false', async () => {
     const first = await renderFrame({currentTime: 150, fadeTrail: false, trailLength: 10});
     const repeat = await renderFrame({currentTime: 150, fadeTrail: false, trailLength: 900});
     expect(repeat).toEqual(first);
