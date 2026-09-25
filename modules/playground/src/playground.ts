@@ -66,6 +66,7 @@ export class Playground {
   readonly previewElement: HTMLDivElement;
   private readonly panelManager: PanelManager;
   private readonly editorId = `playground-editor-${++playgroundCount}`;
+  private activeSidebarPanelId = this.editorId;
   private readonly props: PlaygroundProps;
   private templates: Record<string, PlaygroundTemplate>;
   private currentTemplate: string;
@@ -137,6 +138,7 @@ export class Playground {
       throw new Error(`Unknown playground template: ${name}`);
     }
     this.currentTemplate = name;
+    this.activeSidebarPanelId = this.editorId;
     this.renderPickerCards();
     const document = getTemplateDocument(template);
     this.setText(typeof document === 'string' ? document : JSON.stringify(document, null, 2));
@@ -155,15 +157,29 @@ export class Playground {
     });
     editorPanel.placement = 'fill';
     this.editorPanel = editorPanel;
-    const tabbedPanel = new TabbedPanel({
+    this.sidebarContainer?.setProps({panel: this.createTabbedPanel(editorPanel)});
+    this.handleEditorResize();
+    this.handleTextChange(text);
+  }
+
+  private createTabbedPanel(editorPanel: TextEditorPanel): TabbedPanel {
+    return new TabbedPanel({
       id: 'playground-sidebar-tabs',
       title: 'Playground',
       panels: [editorPanel, this.pickerPanel!],
-      tabListLayout: 'scroll'
+      tabListLayout: 'scroll',
+      activePanelId: this.activeSidebarPanelId,
+      onActivePanelIdChange: activePanelId => {
+        if (!activePanelId || activePanelId === this.activeSidebarPanelId) {
+          return;
+        }
+        this.activeSidebarPanelId = activePanelId;
+        const currentEditorPanel = this.editorPanel;
+        if (currentEditorPanel) {
+          this.sidebarContainer?.setProps({panel: this.createTabbedPanel(currentEditorPanel)});
+        }
+      }
     });
-    this.sidebarContainer?.setProps({panel: tabbedPanel});
-    this.handleEditorResize();
-    this.handleTextChange(text);
   }
 
   /** Updates the available documents while retaining the current selection when possible. */

@@ -129,8 +129,12 @@ describe('Playground rendering lifecycle', () => {
     const tabs = Array.from(tabList.querySelectorAll<HTMLButtonElement>('button'));
     expect(tabs.map(tab => tab.textContent)).toEqual(['JSON', 'Examples']);
     const examplesTab = tabs[1];
-    examplesTab.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+    examplesTab.click();
     expect(playground.parentElement.querySelector('[data-template="second"]')).not.toBeNull();
+    const pickerPanel = Array.from(tabList.parentElement?.children[1].children ?? []).find(
+      child => child.getAttribute('aria-hidden') === 'false'
+    );
+    expect(pickerPanel?.querySelector('[data-template="second"]')).not.toBeNull();
 
     playground.parentElement.querySelector<HTMLElement>('[data-template="second"]')?.click();
     expect(onChange).toHaveBeenLastCalledWith({layers: []}, expect.stringContaining('"layers"'));
