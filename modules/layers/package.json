@@ -45,6 +45,7 @@
   "peerDependencies": {
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
+    "@deck.gl/geo-layers": "~9.4.0",
     "@deck.gl/layers": "~9.4.0",
     "@deck.gl/mesh-layers": "~9.4.0",
     "@loaders.gl/core": "^4.5.1",
@@ -54,6 +55,9 @@
   "devDependencies": {
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
+    "@deck.gl/geo-layers": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
     "@deck.gl/test-utils": "~9.4.0",
     "@loaders.gl/core": "^4.5.1",
     "@luma.gl/core": "~9.4.0",

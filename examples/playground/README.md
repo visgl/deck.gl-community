@@ -6,7 +6,7 @@ deck.gl JSON convention, for example `"getPosition": "@@=position"`.
 
 Open the [standalone playground](https://visgl.github.io/deck.gl-community/playground) for a
 full-screen editor and preview. It shares the gallery's templates and constructor registry: all
-35 concrete official deck.gl layers and 44 public community layers. The graph package's `GridLayer`
+35 concrete official deck.gl layers and 45 public community layers. The graph package's `GridLayer`
 is named `GraphGridLayer` to distinguish it from deck.gl's aggregation layer. Abstract base classes
 are excluded. Layers that require live resources, such as GeoArrow tables, also need host-provided
 constants; registering a constructor does not create those resources.

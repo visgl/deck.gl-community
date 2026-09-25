@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Both website playgrounds register all 35 concrete official and 44 public community layers, with
+- [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
+
+- Both website playgrounds register all 35 concrete official and 45 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer
   constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
   custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references
