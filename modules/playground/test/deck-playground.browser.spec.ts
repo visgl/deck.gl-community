@@ -113,30 +113,32 @@ afterEach(() => {
 });
 
 describe('Playground rendering lifecycle', () => {
-  it('reopens the example picker and shows the selected example in its trigger', () => {
+  it('shows the example picker as a sidebar tab and returns to the JSON editor after selection', () => {
+    const onChange = vi.fn();
     const playground = new Playground({
       parentElement: createHost(),
       templates: {
         first: {metadata: {title: 'First example'}, layers: []},
         second: {metadata: {title: 'Second example'}, layers: []}
-      }
+      },
+      onChange
     });
     PLAYGROUNDS.push(playground);
 
-    const picker = playground.parentElement.querySelector('.deckgl-playground-example-trigger')!;
-    const getTrigger = () =>
-      picker.querySelector<HTMLButtonElement>('[aria-label="Open Choose example"]');
-    getTrigger()?.click();
-    expect(picker.querySelector('[role="dialog"]')).not.toBeNull();
+    const tabList = playground.parentElement.querySelector('[data-panel-tabs]')!;
+    const tabs = Array.from(tabList.querySelectorAll<HTMLButtonElement>('button'));
+    expect(tabs.map(tab => tab.textContent)).toEqual(['JSON', 'Examples']);
+    const examplesTab = tabs[1];
+    examplesTab.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+    expect(playground.parentElement.querySelector('[data-template="second"]')).not.toBeNull();
 
     playground.parentElement.querySelector<HTMLElement>('[data-template="second"]')?.click();
-    expect(picker.querySelector('[role="dialog"]')).toBeNull();
-    expect(playground.parentElement.querySelector('.deck-widget-button-label')?.textContent).toBe(
-      'Second example'
+    expect(onChange).toHaveBeenLastCalledWith({layers: []}, expect.stringContaining('"layers"'));
+    const panelStack = tabList.parentElement?.children[1];
+    const activePanel = Array.from(panelStack?.children ?? []).find(
+      child => child.getAttribute('aria-hidden') === 'false'
     );
-
-    getTrigger()?.click();
-    expect(picker.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(activePanel?.querySelector('[data-text-editor-root]')).not.toBeNull();
   });
 
   it('keeps simultaneously mounted editor models independent through edits and disposal', async () => {
