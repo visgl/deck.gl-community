@@ -49,6 +49,7 @@ The sheets overlap to approximate a volume. Two crossing directions keep it
 visible from above and from the side. `currentTime` controls route clipping and
 fuel age. The independent `flameTime` uniform moves noise and embers, with no
 CPU particle updates or extra draw calls.
+The terrain generator, controls, and video recorder live entirely in the example.
 
 ## Properties
 
@@ -91,6 +92,8 @@ new FlameTrailLayer({
 Use `offset` to retain the flame's 3D height. TerrainExtension's `drape` mode
 flattens the layer into a texture on the surface. Provide enough path vertices
 to follow the terrain between samples; the layer does not resample sparse paths.
+The demo uses a synthetic mesh with peaks and gullies and a 2D route to exercise
+GPU fitting. It does not require a terrain provider or elevation API.
 
 ## Rendering notes
 
@@ -120,5 +123,17 @@ to follow the terrain between samples; the layer does not resample sparse paths.
   values changes the spatial noise frequency and emission spacing. Flame animation
   speed is independent of those units.
   Subtract an epoch offset before passing timestamps to avoid float32 precision loss.
-- Respect reduced-motion preferences in your application. Set `flameTime: 0` to
-  disable automatic flame animation.
+- Respect reduced-motion preferences in the application animation loop. The example
+  starts both clocks paused when the browser requests reduced motion. Set
+  `flameTime: 0` to disable automatic flame animation in your own application.
+
+## Example
+
+[Open the FlameTrail demo](/examples/layers/flame-trail) to compare the shader with
+TripsLayer, scrub time, change width and tint, or keep the whole visited path burning.
+The standard example panel has independent Play trip and Animate flame toggles,
+plus controls for terrain, width, tint, speed, and trail fading. Use
+Follow surface to compare fitting, Low angle to inspect contact and occlusion,
+and Show grid / mesh to inspect the surface. Hide UI (or H) clears the frame;
+Escape brings the controls back. Record 12s respects the playback toggles and
+creates a local 1920 × 1080 canvas recording without controls, using MP4 where supported and WebM otherwise.
