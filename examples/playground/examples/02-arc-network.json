@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Arc network", "description": "Great-circle connections between major cities."},
+  "metadata": {"title": "Arc network", "description": "Great-circle connections between major cities.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/graph-layers/multi-graph.png"},
   "initialViewState": {"longitude": -96, "latitude": 37, "zoom": 3.2},
   "layers": [
     {

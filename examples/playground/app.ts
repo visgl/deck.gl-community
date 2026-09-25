@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, FirstPersonView, OrthographicView, _GlobeView} from '@deck.gl/core';
+import {Deck, FirstPersonView, MapView, OrthographicView, _GlobeView} from '@deck.gl/core';
 import {
   ArcLayer,
   GeoJsonLayer,
@@ -12,6 +12,7 @@ import {
   TextLayer
 } from '@deck.gl/layers';
 import {HeatmapLayer} from '@deck.gl/aggregation-layers';
+import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {GraphLayer, MarkerLayer, SimpleLayout} from '@deck.gl-community/graph-layers';
 import {GlobalGridLayer, H3Grid} from '@deck.gl-community/geo-layers';
 import {PathMarkerLayer, SkyboxLayer} from '@deck.gl-community/layers';
@@ -52,6 +53,12 @@ const TEMPLATES: Record<string, PlaygroundTemplate> = {
   'graph-layer': graphLayerExample,
   'editable-geojson': editableGeojsonExample
 };
+
+const BASEMAP_STYLES = [
+  {label: 'Positron', style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'},
+  {label: 'Dark Matter', style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'},
+  {label: 'Voyager', style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'}
+];
 
 const LAYERS = {
   ArcLayer,
@@ -126,6 +133,9 @@ function createLayer(document: Record<string, unknown>, index: number) {
 
 function createView(document: Record<string, unknown>) {
   const type = document['@@type'];
+  if (type === 'MapView') {
+    return new MapView(resolveValue({...document, '@@type': undefined}) as never);
+  }
   if (type === 'OrthographicView') {
     return new OrthographicView(resolveValue({...document, '@@type': undefined}) as never);
   }
@@ -138,8 +148,81 @@ function createView(document: Record<string, unknown>) {
   return undefined;
 }
 
+function addMapboxAccessTokenToUrl(url: string, accessToken: string): string {
+  if (url.startsWith('mapbox://styles/')) {
+    url = `https://api.mapbox.com/styles/v1/${url.slice('mapbox://styles/'.length)}`;
+  } else if (url.startsWith('mapbox://sprites/')) {
+    url = `https://api.mapbox.com/styles/v1/${url.slice('mapbox://sprites/'.length)}/sprite`;
+  } else if (url.startsWith('mapbox://fonts/')) {
+    url = `https://api.mapbox.com/fonts/v1/${url.slice('mapbox://fonts/'.length)}`;
+  } else if (url.startsWith('mapbox://')) {
+    url = `https://api.mapbox.com/v4/${url.slice('mapbox://'.length)}.json?secure`;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname === 'api.mapbox.com') {
+      parsedUrl.searchParams.set('access_token', accessToken);
+      return parsedUrl.toString();
+    }
+  } catch {
+    // Leave relative URLs and other non-URL values unchanged.
+  }
+  return url;
+}
+
+function resolveBasemapStyle(
+  style: unknown,
+  accessToken?: string
+): string | Record<string, unknown> | null {
+  if (style === null) {
+    return null;
+  }
+  if (typeof style === 'string') {
+    return accessToken ? addMapboxAccessTokenToUrl(style, accessToken) : style;
+  }
+  if (!style || typeof style !== 'object' || Array.isArray(style)) {
+    throw new Error('mapStyle must be a URL, a style object, or null');
+  }
+  if (!accessToken) {
+    return style as Record<string, unknown>;
+  }
+  const addToken = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      return addMapboxAccessTokenToUrl(value, accessToken);
+    }
+    if (Array.isArray(value)) {
+      return value.map(addToken);
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, child]) => [key, addToken(child)])
+      );
+    }
+    return value;
+  };
+  return addToken(style) as Record<string, unknown>;
+}
+
+function getBasemapAttribution(style: unknown): string[] {
+  if (style && typeof style === 'object' && !Array.isArray(style)) {
+    const sources = (style as {sources?: Record<string, {attribution?: unknown}>}).sources;
+    return Object.values(sources ?? {}).flatMap(source =>
+      typeof source.attribution === 'string' ? [source.attribution] : []
+    );
+  }
+  if (typeof style === 'string' && style.includes('mapbox')) {
+    return ['© Mapbox'];
+  }
+  if (typeof style === 'string' && style.includes('cartocdn')) {
+    return ['© CARTO', '© OpenStreetMap'];
+  }
+  return [];
+}
+
 export function mountPlaygroundExample(container: HTMLElement): () => void {
   let deck: Deck | undefined;
+  let selectedBasemap = BASEMAP_STYLES[0].style;
   const playground = new Playground({
     parentElement: container,
     templates: TEMPLATES,
@@ -148,6 +231,8 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
         initialViewState?: Record<string, unknown>;
         layers?: unknown[];
         views?: unknown;
+        mapStyle?: unknown;
+        mapboxApiAccessToken?: string;
       };
       deck?.finalize();
       const views = Array.isArray(document.views)
@@ -155,6 +240,21 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
         : document.views
           ? [document.views]
           : [];
+      const mapViewOnly =
+        views.length === 0 ||
+        views.every(view => (view as Record<string, unknown>)['@@type'] === 'MapView');
+      const hasDocumentMapStyle = Object.hasOwn(document, 'mapStyle');
+      const mapStyle = hasDocumentMapStyle
+        ? resolveBasemapStyle(document.mapStyle, document.mapboxApiAccessToken)
+        : selectedBasemap;
+      const createLayers = () => [
+        ...(mapViewOnly && mapStyle
+          ? [new BasemapLayer({id: 'playground-basemap', style: mapStyle})]
+          : []),
+        ...(document.layers ?? []).map((layer, index) =>
+          createLayer(layer as Record<string, unknown>, index)
+        )
+      ];
       deck = new Deck({
         parent: previewElement as HTMLDivElement,
         controller: true,
@@ -162,12 +262,56 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
         ...(views.length
           ? {views: views.map(view => createView(view as Record<string, unknown>)).filter(Boolean)}
           : {}),
-        layers: (document.layers ?? []).map((layer, index) =>
-          createLayer(layer as Record<string, unknown>, index)
-        ),
+        layers: createLayers(),
         getTooltip: ({object}) => (object ? JSON.stringify(object) : null)
       });
+      const controls = previewElement.ownerDocument.createElement('div');
+      Object.assign(controls.style, {
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        zIndex: '20',
+        display: mapViewOnly && !hasDocumentMapStyle ? 'grid' : 'none',
+        gap: '4px',
+        padding: '8px 10px',
+        borderRadius: '6px',
+        background: 'rgba(255, 255, 255, 0.94)',
+        color: '#172033',
+        font: '12px/1.3 system-ui, sans-serif',
+        boxShadow: '0 1px 5px rgba(0, 0, 0, 0.24)',
+        pointerEvents: 'auto'
+      });
+      const basemapLabel = previewElement.ownerDocument.createElement('label');
+      basemapLabel.textContent = 'Basemap';
+      const basemapSelect = previewElement.ownerDocument.createElement('select');
+      basemapSelect.setAttribute('aria-label', 'Basemap');
+      for (const option of [...BASEMAP_STYLES, {label: 'None', style: ''}]) {
+        const element = previewElement.ownerDocument.createElement('option');
+        element.textContent = option.label;
+        element.value = option.style;
+        basemapSelect.append(element);
+      }
+      basemapSelect.value = selectedBasemap;
+      const attribution = previewElement.ownerDocument.createElement('small');
+      const attributionLabels = hasDocumentMapStyle
+        ? getBasemapAttribution(document.mapStyle)
+        : selectedBasemap
+          ? ['© CARTO', '© OpenStreetMap']
+          : [];
+      attribution.textContent = attributionLabels.join(' · ');
+      attribution.style.display = attributionLabels.length && mapViewOnly ? 'block' : 'none';
+      controls.append(basemapLabel, basemapSelect, attribution);
+      previewElement.append(controls);
+      const handleBasemapChange = () => {
+        selectedBasemap = basemapSelect.value;
+        attribution.textContent = selectedBasemap ? '© CARTO · © OpenStreetMap' : '';
+        attribution.style.display = selectedBasemap && mapViewOnly ? 'block' : 'none';
+        deck?.setProps({layers: createLayers()});
+      };
+      basemapSelect.addEventListener('change', handleBasemapChange);
       return () => {
+        basemapSelect.removeEventListener('change', handleBasemapChange);
+        controls.remove();
         deck?.finalize();
         deck = undefined;
       };

@@ -10,6 +10,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@deck.gl-community/basemap-layers": "workspace:*",
     "@deck.gl-community/editable-layers": "workspace:*",
     "@deck.gl-community/geo-layers": "workspace:*",
     "@deck.gl-community/graph-layers": "workspace:*",

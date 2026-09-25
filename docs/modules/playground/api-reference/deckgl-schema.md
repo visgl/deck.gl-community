@@ -93,6 +93,25 @@ Inside a view, `viewState` can be a state ID or a partial state override. At doc
 validated against the concrete state union; matching IDs to views remains the host's responsibility.
 The document schema covers the playground configuration fields, not every option in `DeckProps`.
 
+## Basemaps
+
+Map documents can specify `mapStyle` as a style URL, an inline MapLibre/Mapbox style object, or
+`null` to disable the basemap. A Mapbox style can use `mapboxApiAccessToken`; the playground adds
+the token to Mapbox style and tile requests. When `mapStyle` is present, it takes precedence over
+the playground's basemap selector.
+
+```json
+{
+  "mapStyle": "mapbox://styles/mapbox/streets-v12",
+  "mapboxApiAccessToken": "pk.example-token",
+  "initialViewState": {"longitude": -122.42, "latitude": 37.78, "zoom": 10},
+  "layers": []
+}
+```
+
+The token is used in browser requests, so provide a public token restricted for the site where the
+playground is hosted. CARTO style URLs are available without a token.
+
 Experimental `@@type` values match upstream export names: `_GlobeView`, `_WMSLayer`,
 `_MultiIconLayer`, and `_TextBackgroundLayer`. The lookup keys omit the underscore for convenience.
 
