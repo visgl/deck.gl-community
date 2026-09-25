@@ -43,6 +43,7 @@ const sidebars = {
       label: '@deck.gl-community/layers',
       items: [
         'layers/path-outline-and-markers',
+        'layers/flame-trail',
         'layers/skybox-map-view',
         'layers/skybox-globe',
         'layers/skybox-first-person'
