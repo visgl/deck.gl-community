@@ -10,14 +10,26 @@ import {DrawPolygonMode} from './draw-polygon-mode';
 
 type DraggingHandler = (event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) => void;
 
+function isPrimaryButton(event: StartDraggingEvent): boolean {
+  const {sourceEvent} = event;
+  return sourceEvent?.button === undefined || sourceEvent.button === 0;
+}
+
 export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   handleDraggingThrottled: DraggingHandler | null | undefined = null;
+  isDrawingWithPrimaryButton = false;
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     // No-op
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
+    this.isDrawingWithPrimaryButton = isPrimaryButton(event);
+    if (!this.isDrawingWithPrimaryButton) {
+      this.handleDraggingThrottled = null;
+      return;
+    }
+
     event.cancelPan();
     if (props.modeConfig && props.modeConfig.throttleMs) {
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -29,6 +41,10 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   }
 
   handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
+    if (!this.isDrawingWithPrimaryButton) {
+      return;
+    }
+
     this.addClickSequence(event);
     const clickSequence = this.getClickSequence();
     // @ts-expect-error cancel() not typed
@@ -50,6 +66,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
       }
     }
     this.resetClickSequence();
+    this.isDrawingWithPrimaryButton = false;
   }
 
   handleDraggingAux(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -70,7 +87,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   }
 
   handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
-    if (this.handleDraggingThrottled) {
+    if (this.isDrawingWithPrimaryButton && this.handleDraggingThrottled) {
       this.handleDraggingThrottled(event, props);
     }
   }
@@ -92,6 +109,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
       }
     } else if (event.key === 'Escape') {
       this.resetClickSequence();
+      this.isDrawingWithPrimaryButton = false;
       if (this.handleDraggingThrottled) {
         this.handleDraggingThrottled = null;
       }
