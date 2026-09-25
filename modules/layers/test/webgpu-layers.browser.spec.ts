@@ -7,6 +7,7 @@ import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
+import {requireWebGPUAdapter} from './webgpu-test-utils';
 
 import {
   HorizonGraphLayer,
@@ -21,6 +22,7 @@ import {PathEdgeLayer} from '../../graph-layers/src/layers/edge-layers/path-edge
 import {RoundedRectangleLayer} from '../../graph-layers/src/layers/node-layers/rounded-rectangle-layer';
 import {
   DependencyArrowLayer,
+  FlameTrailLayer,
   PathDirection,
   PathMarkerLayer,
   PathOutlineLayer,
@@ -28,9 +30,6 @@ import {
 } from '../src';
 import {GeometryLayer} from '../src/dependency-arrow-layer/geometry-layer';
 
-type BrowserGpu = {
-  requestAdapter: () => Promise<unknown>;
-};
 type NativeGpuError = {error?: {message?: string}};
 type NativeGpuDevice = {
   addEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
@@ -67,6 +66,24 @@ function createPortableLayers() {
   };
 
   return [
+    new FlameTrailLayer({
+      id: 'webgpu-test-flame',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: [
+        {
+          path: [
+            [-25, -40, 0],
+            [25, -40, 5]
+          ],
+          timestamps: [0, 100]
+        }
+      ],
+      getPath: d => d.path,
+      getTimestamps: d => d.timestamps,
+      currentTime: 75,
+      getWidth: 5,
+      widthUnits: 'pixels'
+    }),
     new SkyboxLayer({id: 'webgpu-test-skybox', cubemap: null}),
     new BlockLayer({
       id: 'webgpu-test-block',
@@ -411,6 +428,8 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
       });
     });
 
+    deck.finalize();
+    deck = undefined;
     await nativeDevice?.queue.onSubmittedWorkDone();
     expect(device.type).toBe(type);
     expect(validationErrors).toEqual([]);
@@ -430,10 +449,7 @@ describe('community graphics backend compatibility', () => {
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGPU', async ({
     skip
   }) => {
-    const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
-    if (!gpu || !(await gpu.requestAdapter())) {
-      skip('This browser does not expose an available WebGPU adapter.');
-    }
+    await requireWebGPUAdapter(skip);
 
     await renderPortableLayers('webgpu');
   }, 60_000);

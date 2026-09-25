@@ -9,6 +9,7 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 import {FLAME_FUNCTIONS, FLAME_COLOR} from './flame-trail-layer-fragment';
 import {FLAME_VERTEX, FLAME_VERTEX_DECLARATIONS} from './flame-trail-layer-vertex';
 import {createFlameGeometry} from './flame-trail-geometry';
+import {getFlameInjectionsWGSL} from './flame-trail-layer.wgsl';
 
 /** TripsLayer's API, rendered as automatically animated flames. */
 export type FlameTrailLayerProps<DataT = unknown> = TripsLayerProps<DataT>;
@@ -16,6 +17,8 @@ export type FlameTrailLayerProps<DataT = unknown> = TripsLayerProps<DataT>;
 const UNIFORM_DECLARATION = 'layout(std140) uniform flameTrailUniforms { float time; } flameTrail;';
 const FLAME_UNIFORMS = {
   name: 'flameTrail',
+  source: `struct FlameTrailUniforms { time: f32 };
+    @group(0) @binding(auto) var<uniform> flameTrail: FlameTrailUniforms;`,
   vs: UNIFORM_DECLARATION,
   fs: UNIFORM_DECLARATION,
   uniformTypes: {time: 'f32'}
@@ -34,7 +37,8 @@ const defaultProps: DefaultProps<FlameTrailLayerProps> = {
  * automatically. `getColor` tints the palette; width controls flame height.
  * Uses crossed translucent slices and GPU embers in one instanced draw.
  * TerrainExtension supports ground fitting with `terrainDrawMode: 'offset'`
- * and `billboard: false`. Requires WebGL2; depth writes are disabled by default.
+ * and `billboard: false` on WebGL2. WebGPU accepts elevated XYZ paths.
+ * Depth writes are disabled by default on both backends.
  */
 export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends TripsLayer<
   DataT,
@@ -44,10 +48,19 @@ export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends Tr
   static defaultProps = defaultProps;
 
   getShaders() {
-    if (this.context.device.type !== 'webgl') {
-      throw new Error('FlameTrailLayer requires a WebGL2 device.');
-    }
     const shaders = super.getShaders();
+    if (this.context.device.type === 'webgpu') {
+      return {
+        ...shaders,
+        // Preserve both PathLayer antialiasing variants, then apply flame tint and picking.
+        source: shaders.source.replace(
+          /return deckgl_premultiplied_alpha\((color|varyings.vColor)\);/g,
+          'return flameTrail_output($1, flameColor, varyings.flamePickingColor);'
+        ),
+        modules: [...shaders.modules, FLAME_UNIFORMS],
+        inject: getFlameInjectionsWGSL(shaders.inject)
+      };
+    }
     return {
       ...shaders,
       modules: [...shaders.modules, FLAME_UNIFORMS],

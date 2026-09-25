@@ -82,21 +82,22 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
 
-const HEADLESS_BROWSER_PROVIDER =
-  process.env.GITHUB_ACTIONS === 'true'
+const REQUIRE_WEBGPU = process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true';
+const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
+  ? playwright({
+      launchOptions: {
+        channel: 'chrome',
+        args: [
+          '--enable-unsafe-webgpu',
+          '--enable-unsafe-swiftshader',
+          '--use-angle=swiftshader',
+          '--use-webgpu-adapter=swiftshader'
+        ]
+      }
+    })
+  : process.env.GITHUB_ACTIONS === 'true'
     ? playwright({launchOptions: {channel: 'chrome'}})
-    : process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true'
-      ? playwright({
-          launchOptions: {
-            args: [
-              '--enable-unsafe-webgpu',
-              '--enable-unsafe-swiftshader',
-              '--use-angle=swiftshader',
-              '--enable-features=Vulkan,WebGPU'
-            ]
-          }
-        })
-      : playwright();
+    : playwright();
 
 const CONFIG = defineConfig({
   resolve: NODE_RESOLVE_CONFIG,
@@ -133,6 +134,7 @@ const CONFIG = defineConfig({
         plugins: [react()],
         test: {
           name: 'browser',
+          provide: {requireWebGPU: false},
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
@@ -156,6 +158,9 @@ const CONFIG = defineConfig({
         plugins: [react()],
         test: {
           name: 'headless',
+          // SwiftShader's cold WGSL compilation is much slower than native GPU compilation.
+          ...(REQUIRE_WEBGPU && {testTimeout: 60000}),
+          provide: {requireWebGPU: REQUIRE_WEBGPU},
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
