@@ -220,6 +220,35 @@ function getBasemapAttribution(style: unknown): string[] {
   return [];
 }
 
+function createMapboxLoadOptions(accessToken: unknown): Record<string, unknown> | null {
+  if (typeof accessToken !== 'string') return null;
+  return {
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const response = await fetch(addMapboxAccessTokenToUrl(url, accessToken), init);
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('json')) return response;
+      const json = await response.json();
+      return new Response(JSON.stringify(rewriteMapboxUrls(json, accessToken)), {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+      });
+    }
+  };
+}
+
+function rewriteMapboxUrls(value: unknown, accessToken: string): unknown {
+  if (typeof value === 'string') return addMapboxAccessTokenToUrl(value, accessToken);
+  if (Array.isArray(value)) return value.map(child => rewriteMapboxUrls(child, accessToken));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, rewriteMapboxUrls(child, accessToken)])
+    );
+  }
+  return value;
+}
+
 export function mountPlaygroundExample(container: HTMLElement): () => void {
   let deck: Deck | undefined;
   let selectedBasemap = BASEMAP_STYLES[0].style;
@@ -249,7 +278,13 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
         : selectedBasemap;
       const createLayers = () => [
         ...(mapViewOnly && mapStyle
-          ? [new BasemapLayer({id: 'playground-basemap', style: mapStyle})]
+          ? [
+              new BasemapLayer({
+                id: 'playground-basemap',
+                style: mapStyle,
+                loadOptions: createMapboxLoadOptions(document.mapboxApiAccessToken)
+              })
+            ]
           : []),
         ...(document.layers ?? []).map((layer, index) =>
           createLayer(layer as Record<string, unknown>, index)
@@ -271,7 +306,7 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
         top: '12px',
         right: '12px',
         zIndex: '20',
-        display: mapViewOnly && !hasDocumentMapStyle ? 'grid' : 'none',
+        display: mapViewOnly ? 'grid' : 'none',
         gap: '4px',
         padding: '8px 10px',
         borderRadius: '6px',
@@ -292,6 +327,8 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
         basemapSelect.append(element);
       }
       basemapSelect.value = selectedBasemap;
+      basemapLabel.style.display = mapViewOnly && !hasDocumentMapStyle ? 'block' : 'none';
+      basemapSelect.style.display = mapViewOnly && !hasDocumentMapStyle ? 'block' : 'none';
       const attribution = previewElement.ownerDocument.createElement('small');
       const attributionLabels = hasDocumentMapStyle
         ? getBasemapAttribution(document.mapStyle)

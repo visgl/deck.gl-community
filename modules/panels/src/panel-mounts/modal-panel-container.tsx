@@ -228,7 +228,7 @@ function ModalPanelContainerView({
   return (
     <div>
       {!hideTrigger && (
-        <div className="deck-widget-button">
+        <div className={`deck-widget-button${triggerText ? ' deck-widget-button-with-text' : ''}`}>
           <button
             type="button"
             className={
@@ -407,7 +407,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
     if (props.triggerIcon !== undefined) {
       this.triggerIcon = props.triggerIcon;
     }
-    if (props.triggerText !== undefined) {
+    if ('triggerText' in props) {
       this.triggerText = props.triggerText;
     }
     if (props.showTitleBar !== undefined) {
