@@ -175,7 +175,7 @@ describe('FlameTrailLayer WebGL rendering', () => {
         }
       });
     });
-    expect(later).not.toEqual(live);
+    expect(later.some((value, index) => value !== live[index])).toBe(true);
     // Automatic animation never exposes future path segments.
     for (let x = 135; x < SIZE; x++) expect(brightness(later, x)).toBe(0);
   });
@@ -284,7 +284,7 @@ describe('FlameTrailLayer WebGL rendering', () => {
       undefined,
       1250
     );
-    expect(later).not.toEqual(pixels);
+    expect(later.some((value, index) => value !== pixels[index])).toBe(true);
   });
 
   it('renders above the ground plane when viewed from the side', async () => {
@@ -344,9 +344,9 @@ describe('FlameTrailLayer WebGL rendering', () => {
   it('ignores trailLength when fadeTrail is false', async () => {
     const first = await renderFrame({currentTime: 150, fadeTrail: false, trailLength: 10});
     const repeat = await renderFrame({currentTime: 150, fadeTrail: false, trailLength: 900});
-    expect(repeat).toEqual(first);
+    expect(repeat.every((value, index) => value === first[index])).toBe(true);
     const next = await renderFrame({currentTime: 160, fadeTrail: false});
-    expect(next).not.toEqual(first);
+    expect(next.some((value, index) => value !== first[index])).toBe(true);
     expect(brightness(first, 38)).toBeGreaterThan(20);
   });
 
