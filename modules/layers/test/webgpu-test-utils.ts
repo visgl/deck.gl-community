@@ -7,6 +7,7 @@ import {expect, inject} from 'vitest';
 declare module 'vitest' {
   export interface ProvidedContext {
     requireWebGPU: boolean;
+    terrainWebGPU: boolean;
   }
 }
 
