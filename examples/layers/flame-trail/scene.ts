@@ -9,6 +9,13 @@ import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 import {FlameTrailLayer} from '@deck.gl-community/layers';
 import {createTerrainLayers, sampleTerrainHeight} from './terrain';
 
+// The source preview can opt into the unreleased TerrainExtension WGSL port.
+const WEBGPU_TERRAIN = Boolean(import.meta.env?.DECK_GL_TERRAIN_WEBGPU);
+
+export function supportsGpuTerrain(backend: 'webgl' | 'webgpu') {
+  return backend === 'webgl' || WEBGPU_TERRAIN;
+}
+
 type Trip = {path: ([number, number] | [number, number, number])[]; timestamps: number[]};
 export type SceneOptions = {
   currentTime: number;
@@ -72,14 +79,11 @@ const SHARED_PROPS = {
 export function createSceneLayers(options: SceneOptions, backend: 'webgl' | 'webgpu' = 'webgl') {
   const LayerClass = options.mode === 'fire' ? FlameTrailLayer : TripsLayer;
   const terrain = options.surface === 'terrain';
+  const gpuTerrain = supportsGpuTerrain(backend);
   const fitting =
-    terrain && options.followSurface
-      ? backend === 'webgpu'
-        ? {data: ELEVATED_TRIPS}
-        : TERRAIN_PROPS
-      : {};
+    terrain && options.followSurface ? (gpuTerrain ? TERRAIN_PROPS : {data: ELEVATED_TRIPS}) : {};
   return [
-    ...(terrain ? createTerrainLayers(options.grid, backend === 'webgl') : []),
+    ...(terrain ? createTerrainLayers(options.grid, gpuTerrain) : []),
     !terrain &&
       options.grid &&
       new PathLayer({

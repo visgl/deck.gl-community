@@ -5,7 +5,7 @@
 import {Deck, OrbitView, type Color, type DeckProps, type OrbitViewState} from '@deck.gl/core';
 import {ColumnPanel, CustomPanel, SettingsPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
-import {createSceneLayers, fitSceneView, type SceneOptions} from './scene';
+import {createSceneLayers, fitSceneView, supportsGpuTerrain, type SceneOptions} from './scene';
 import {SETTINGS_SCHEMA} from './settings';
 import {recordScene} from './recording';
 import '@deck.gl/widgets/stylesheet.css';
@@ -110,7 +110,7 @@ export function mountFlameTrailExample(
     onRenderHTML: element => {
       element.className = 'ft-actions';
       element.innerHTML = `<p>Drag to orbit. Scroll to zoom.</p>
-        <p>${backend === 'webgpu' ? 'WebGPU · sampled terrain elevations' : 'WebGL2 · GPU terrain fitting'}</p>
+        <p>${backend === 'webgpu' ? 'WebGPU' : 'WebGL2'} · ${supportsGpuTerrain(backend) ? 'GPU terrain fitting' : 'sampled terrain elevations'}</p>
         <button type="button">Overview</button> <button type="button">Low angle</button>
         <button type="button">Hide UI (H)</button> <button type="button">Record 12s</button>
         <p role="status"></p>`;
