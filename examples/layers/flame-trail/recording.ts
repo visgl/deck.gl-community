@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, OrbitView, type OrbitViewState} from '@deck.gl/core';
+import {webgpuAdapter} from '@luma.gl/webgpu';
 import {createSceneLayers, fitSceneView, type SceneOptions} from './scene';
 
 const WIDTH = 1920;
@@ -11,6 +12,7 @@ const DURATION = 12;
 
 type RecordingOptions = {
   scene: SceneOptions;
+  backend: 'webgl' | 'webgpu';
   viewState: OrbitViewState;
   orbit: boolean;
   playTrip: boolean;
@@ -61,6 +63,7 @@ export function recordScene(container: HTMLElement, options: RecordingOptions) {
       rotationOrbit: options.viewState.rotationOrbit
     };
     const scene = {...options.scene};
+    const layers = createSceneLayers(scene, options.backend);
     function cleanup() {
       cancelAnimationFrame(frame);
       clearTimeout(timeout);
@@ -80,16 +83,19 @@ export function recordScene(container: HTMLElement, options: RecordingOptions) {
     cancel = () => fail(new Error('Recording cancelled.'));
     function animate(now: number) {
       if (settled || !renderer || !recorder) return;
-      const elapsed = Math.min((now - start) / 1000, DURATION);
+      const elapsed = Math.max(0, Math.min((now - start) / 1000, DURATION));
       if (now - lastFrame >= 1000 / 30 - 1) {
         lastFrame = now;
         renderer.setProps({
-          layers: createSceneLayers({
-            ...scene,
-            currentTime: options.playTrip
-              ? (scene.currentTime + elapsed * 18 * options.speed) % 300
-              : scene.currentTime
-          }),
+          layers: createSceneLayers(
+            {
+              ...scene,
+              currentTime: options.playTrip
+                ? (scene.currentTime + elapsed * 18 * options.speed) % 300
+                : scene.currentTime
+            },
+            options.backend
+          ),
           viewState: {
             ...viewState,
             rotationOrbit: (viewState.rotationOrbit ?? 0) + (options.orbit ? elapsed * 1.4 : 0)
@@ -106,18 +112,18 @@ export function recordScene(container: HTMLElement, options: RecordingOptions) {
         width: WIDTH,
         height: HEIGHT,
         useDevicePixels: 1,
-        deviceProps: {webgl: {antialias: true}},
-        views: new OrbitView({
-          orbitAxis: 'Z',
-          orthographic: true,
-          clear: true,
-          clearColor: [5, 6, 7, 255]
-        }),
+        deviceProps: {type: options.backend, adapters: [webgpuAdapter], webgl: {antialias: true}},
+        views: new OrbitView({orbitAxis: 'Z', orthographic: true}),
         initialViewState: viewState,
-        layers: createSceneLayers(scene),
+        layers,
         onError: fail,
         onAfterRender: () => {
           if (recorder || settled) return;
+          if (
+            options.backend === 'webgpu' &&
+            layers.some(layer => layer && layer.getModels().some(model => model.pipeline.isPending))
+          )
+            return;
           try {
             const canvas = stage.querySelector('canvas')!;
             stream = canvas.captureStream(30);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, OrbitView, type Color, type OrbitViewState} from '@deck.gl/core';
+import {Deck, OrbitView, type Color, type DeckProps, type OrbitViewState} from '@deck.gl/core';
 import {ColumnPanel, CustomPanel, SettingsPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {createSceneLayers, fitSceneView, type SceneOptions} from './scene';
@@ -17,8 +17,18 @@ const TINTS: Record<string, Color> = {
   Violet: [135, 100, 255]
 };
 
+type MountOptions = Pick<
+  DeckProps<OrbitView>,
+  'device' | 'initialViewState' | 'widgets' | 'onViewStateChange'
+> & {
+  onDeckInitialized?: (deck: Deck<OrbitView>) => void;
+};
+
 /** Mount the layer example with standard settings and an optional local recorder. */
-export function mountFlameTrailExample(container: HTMLElement): () => void {
+export function mountFlameTrailExample(
+  container: HTMLElement,
+  options: MountOptions = {}
+): () => void {
   const root = container.ownerDocument.createElement('div');
   root.className = 'flame-trail-demo';
   root.tabIndex = -1;
@@ -49,7 +59,10 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
   let disposed = false;
   let recording: ReturnType<typeof recordScene> | undefined;
   let downloadUrl: string | undefined;
-  let viewState = fitSceneView(stage.clientWidth, stage.clientHeight, settings.surface);
+  let viewState =
+    (options.initialViewState as OrbitViewState) ??
+    fitSceneView(stage.clientWidth, stage.clientHeight, settings.surface);
+  const backend = options.device?.type === 'webgpu' ? 'webgpu' : 'webgl';
   const controls = new BoxPanelWidget({
     id: 'flame-trail-controls',
     title: 'FlameTrailLayer',
@@ -58,20 +71,23 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
     collapsible: true,
     className: 'ft-controls'
   });
-  const deck = new Deck({
+  const deck = new Deck<OrbitView>({
+    device: options.device,
     parent: stage,
     views: new OrbitView({id: 'fire', orbitAxis: 'Z', orthographic: true}),
     initialViewState: viewState,
     controller: true,
-    widgets: [controls],
+    widgets: [...(options.widgets ?? []), controls],
     useDevicePixels: Math.min(window.devicePixelRatio, 2),
     deviceProps: {webgl: {antialias: true}},
-    onViewStateChange: ({viewState: next}) => {
-      viewState = next as OrbitViewState;
+    onViewStateChange: params => {
+      viewState = params.viewState as OrbitViewState;
+      return options.onViewStateChange?.(params);
     }
   });
+  options.onDeckInitialized?.(deck);
   const scene = (): SceneOptions => ({...settings, tint: TINTS[settings.tint]});
-  const renderFrame = () => deck.setProps({layers: createSceneLayers(scene())});
+  const renderFrame = () => deck.setProps({layers: createSceneLayers(scene(), backend)});
   function resetView(low = false) {
     viewState = fitSceneView(stage.clientWidth, stage.clientHeight, settings.surface);
     if (low) viewState.rotationX = 18;
@@ -79,6 +95,7 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
   }
   function setClean(clean: boolean) {
     root.classList.toggle('ft-clean', clean);
+    container.querySelector('[data-device-tabs-host]')?.toggleAttribute('hidden', clean);
     if (clean) root.focus();
   }
   root.addEventListener('keydown', event => {
@@ -93,6 +110,7 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
     onRenderHTML: element => {
       element.className = 'ft-actions';
       element.innerHTML = `<p>Drag to orbit. Scroll to zoom.</p>
+        <p>${backend === 'webgpu' ? 'WebGPU · sampled terrain elevations' : 'WebGL2 · GPU terrain fitting'}</p>
         <button type="button">Overview</button> <button type="button">Low angle</button>
         <button type="button">Hide UI (H)</button> <button type="button">Record 12s</button>
         <p role="status"></p>`;
@@ -144,6 +162,7 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
     root.classList.add('ft-recording');
     recording = recordScene(root, {
       scene: scene(),
+      backend,
       viewState: {...viewState},
       orbit: settings.orbit,
       playTrip: settings.playing,
@@ -204,6 +223,7 @@ export function mountFlameTrailExample(container: HTMLElement): () => void {
     resizeObserver.disconnect();
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     deck.finalize();
+    container.querySelector('[data-device-tabs-host]')?.removeAttribute('hidden');
     root.remove();
   };
 }

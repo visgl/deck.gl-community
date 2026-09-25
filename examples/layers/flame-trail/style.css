@@ -17,7 +17,7 @@
   cursor: pointer;
   margin-bottom: 4px;
 }
-.ft-clean .ft-controls { display: none; }
+.ft-clean .deck-widget { display: none; }
 .ft-clean { cursor: none; }
 .ft-recording .ft-stage { visibility: hidden; }
 .ft-recording-stage {

@@ -7,9 +7,9 @@ import {PathLayer} from '@deck.gl/layers';
 import {TripsLayer} from '@deck.gl/geo-layers';
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 import {FlameTrailLayer} from '@deck.gl-community/layers';
-import {createTerrainLayers} from './terrain';
+import {createTerrainLayers, sampleTerrainHeight} from './terrain';
 
-type Trip = {path: [number, number][]; timestamps: number[]};
+type Trip = {path: ([number, number] | [number, number, number])[]; timestamps: number[]};
 export type SceneOptions = {
   currentTime: number;
   trailLength: number;
@@ -33,6 +33,10 @@ for (let i = 0; i <= 600; i++) {
   TRIP.timestamps.push((i / 600) * 240);
 }
 const TRIPS = [TRIP];
+// Elevations are sampled once from the same mesh, never recomputed per animation frame.
+const ELEVATED_TRIPS: Trip[] = [
+  {...TRIP, path: TRIP.path.map(([x, y]) => [x, y, sampleTerrainHeight(x, y)])}
+];
 const TERRAIN_EXTENSIONS = [new TerrainExtension()];
 const TERRAIN_PROPS = {
   extensions: TERRAIN_EXTENSIONS,
@@ -65,12 +69,17 @@ const SHARED_PROPS = {
   parameters: {depthWriteEnabled: false}
 };
 
-export function createSceneLayers(options: SceneOptions) {
+export function createSceneLayers(options: SceneOptions, backend: 'webgl' | 'webgpu' = 'webgl') {
   const LayerClass = options.mode === 'fire' ? FlameTrailLayer : TripsLayer;
   const terrain = options.surface === 'terrain';
-  const fitting = terrain && options.followSurface ? TERRAIN_PROPS : {};
+  const fitting =
+    terrain && options.followSurface
+      ? backend === 'webgpu'
+        ? {data: ELEVATED_TRIPS}
+        : TERRAIN_PROPS
+      : {};
   return [
-    ...(terrain ? createTerrainLayers(options.grid) : []),
+    ...(terrain ? createTerrainLayers(options.grid, backend === 'webgl') : []),
     !terrain &&
       options.grid &&
       new PathLayer({

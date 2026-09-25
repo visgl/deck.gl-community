@@ -67,8 +67,23 @@ function createTerrainMesh(): Geometry {
 const TERRAIN_MESH = createTerrainMesh();
 const TERRAIN_DATA = [{position: [0, 0, 0] as [number, number, number]}];
 
+/** Interpolate the actual mesh triangle, including its small ridges, for an XYZ route. */
+export function sampleTerrainHeight(x: number, y: number): number {
+  const u = Math.max(0, Math.min(SEGMENTS, ((x + EXTENT) / (2 * EXTENT)) * SEGMENTS));
+  const v = Math.max(0, Math.min(SEGMENTS, ((y + EXTENT) / (2 * EXTENT)) * SEGMENTS));
+  const col = Math.min(Math.floor(u), SEGMENTS - 1);
+  const row = Math.min(Math.floor(v), SEGMENTS - 1);
+  const tx = u - col;
+  const ty = v - row;
+  const positions = TERRAIN_MESH.attributes.positions.value;
+  const z = (dx: number, dy: number) => positions[((row + dy) * (SEGMENTS + 1) + col + dx) * 3 + 2];
+  return tx + ty <= 1
+    ? z(0, 0) * (1 - tx - ty) + z(1, 0) * tx + z(0, 1) * ty
+    : z(1, 1) * (tx + ty - 1) + z(1, 0) * (1 - ty) + z(0, 1) * (1 - tx);
+}
+
 /** The visible mesh also supplies the GPU height map used by TerrainExtension. */
-export function createTerrainLayers(wireframe: boolean) {
+export function createTerrainLayers(wireframe: boolean, heightMap = true) {
   const props = {
     data: TERRAIN_DATA,
     mesh: TERRAIN_MESH,
@@ -80,7 +95,11 @@ export function createTerrainLayers(wireframe: boolean) {
     parameters: {cullMode: 'none' as const, depthWriteEnabled: true}
   };
   return [
-    new SimpleMeshLayer({...props, id: 'rugged-terrain', operation: 'terrain+draw'}),
+    new SimpleMeshLayer({
+      ...props,
+      id: 'rugged-terrain',
+      operation: heightMap ? 'terrain+draw' : 'draw'
+    }),
     wireframe &&
       new SimpleMeshLayer({
         ...props,
