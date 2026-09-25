@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, inject, it} from 'vitest';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
@@ -283,7 +283,7 @@ describe.each(['webgl', 'webgpu'] as const)('FlameTrailLayer %s rendering', back
     for (let x = 135; x < SIZE; x++) expect(brightness(later, x)).toBe(0);
   });
 
-  if (backend === 'webgl') {
+  describe.skipIf(backend === 'webgpu' && !inject('terrainWebGPU'))('GPU terrain fitting', () => {
     it('fits the full flame and its embers to GPU terrain heights', async () => {
       const height = (x: number) => 40 + x * 0.15;
       const props = {currentTime: 180, fadeTrail: false, getWidth: 20};
@@ -331,7 +331,7 @@ describe.each(['webgl', 'webgpu'] as const)('FlameTrailLayer %s rendering', back
       expect(totalBrightness(unobstructed)).toBeGreaterThan(1000);
       expect(totalBrightness(occluded)).toBeLessThan(totalBrightness(unobstructed) * 0.5);
     });
-  }
+  });
 
   it('renders elevated XYZ flames and respects terrain depth on either backend', async () => {
     const props = {currentTime: 100, fadeTrail: false, getWidth: 20};

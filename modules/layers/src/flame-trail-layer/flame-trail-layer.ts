@@ -37,7 +37,8 @@ const defaultProps: DefaultProps<FlameTrailLayerProps> = {
  * automatically. `getColor` tints the palette; width controls flame height.
  * Uses crossed translucent slices and GPU embers in one instanced draw.
  * TerrainExtension supports ground fitting with `terrainDrawMode: 'offset'`
- * and `billboard: false` on WebGL2. WebGPU accepts elevated XYZ paths.
+ * and `billboard: false`. WebGPU fitting requires deck.gl's terrain WGSL port
+ * (visgl/deck.gl#10751); released SDKs can use elevated XYZ paths instead.
  * Depth writes are disabled by default on both backends.
  */
 export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends TripsLayer<
@@ -50,15 +51,29 @@ export class FlameTrailLayer<DataT = any, ExtraProps extends {} = {}> extends Tr
   getShaders() {
     const shaders = super.getShaders();
     if (this.context.device.type === 'webgpu') {
+      const inject = getFlameInjectionsWGSL(shaders.inject);
+      let source = shaders.source;
+      // Declare stage I/O before luma allocates extension varying locations.
+      for (const anchor of [
+        '  @location(12) rowIndexes: u32,',
+        '  @location(5) vJointType: f32,'
+      ]) {
+        source = source.replace(anchor, `${anchor}\n${inject[anchor]}`);
+        delete inject[anchor];
+      }
       return {
         ...shaders,
         // Preserve both PathLayer antialiasing variants, then apply flame tint and picking.
-        source: shaders.source.replace(
+        source: source.replace(
           /return deckgl_premultiplied_alpha\((color|varyings.vColor)\);/g,
           'return flameTrail_output($1, flameColor, varyings.flamePickingColor);'
         ),
         modules: [...shaders.modules, FLAME_UNIFORMS],
-        inject: getFlameInjectionsWGSL(shaders.inject)
+        defines: {
+          ...shaders.defines,
+          ...(shaders.modules.some(module => module.name === 'terrain') && {FLAME_TRAIL_TERRAIN: 1})
+        },
+        inject
       };
     }
     return {
