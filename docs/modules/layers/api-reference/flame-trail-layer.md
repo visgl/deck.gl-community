@@ -34,14 +34,15 @@ deck.gl's animation timeline. No animation props or per-frame updates are needed
 
 ## How it works
 
-The implementation is a TripsLayer subclass with four small source files:
+The implementation is a TripsLayer subclass with shared geometry and native shaders for both backends:
 
 | File | Responsibility |
 | --- | --- |
-| `flame-trail-layer.ts` | Reuses TripsLayer's attributes, time clipping, fading, and picking; installs the geometry and shader injections. |
+| `flame-trail-layer.ts` | Reuses TripsLayer's attributes, time clipping, and fading; installs the geometry and shader injections. |
 | `flame-trail-geometry.ts` | Builds 96 horizontal sheets, 64 upright sheets, and eight ember quads per segment, all in one instanced draw. |
 | `flame-trail-layer-vertex.ts` | Raises the sheets above the path, fits their feet to terrain, blends viewing directions, and moves embers. |
 | `flame-trail-layer-fragment.ts` | Turns scrolling noise into curling flame shapes, then maps heat to color and density to opacity. |
+| `flame-trail-layer.wgsl.ts` | Implements the same volume and ember math in native WGSL, with WebGPU picking and highlighting. |
 
 The sheets overlap to approximate a volume. Two crossing directions keep it
 visible from above and from the side. `currentTime` controls route clipping and
@@ -66,7 +67,7 @@ width units, rounded joints, `opacity`, and update triggers.
 
 ## Following terrain
 
-Add deck.gl's experimental `TerrainExtension` with `terrainDrawMode: 'offset'`
+On WebGL2, add deck.gl's experimental `TerrainExtension` with `terrainDrawMode: 'offset'`
 and `billboard: false`. Mark the terrain source with `operation: 'terrain+draw'`.
 The flame samples its footprint from the GPU height map, including across its
 width, and embers start at the sampled ground elevation. The terrain's depth
@@ -90,9 +91,15 @@ Use `offset` to retain the flame's 3D height. TerrainExtension's `drape` mode
 flattens the layer into a texture on the surface. Provide enough path vertices
 to follow the terrain between samples; the layer does not resample sparse paths.
 
+The upstream `TerrainExtension` currently has no WGSL height-map implementation.
+On WebGPU, supply ground elevation in each path vertex (`[x, y, z]`) and draw the
+terrain mesh normally. Flame height, embers, and depth occlusion work on both
+backends. Sample enough vertices to follow the surface; XYZ paths fit the
+centerline, while WebGL2 height-map fitting also samples across the flame width.
+
 ## Rendering notes
 
-- Requires WebGL2; WebGPU is not supported by this shader.
+- Supports WebGL2 and WebGPU with native GLSL and WGSL shaders; no backend fallback is required.
 - Crossed volume slices rise above the path in common space, so pitching or
   orbiting the camera reveals actual height and parallax. Flame height scales
   with the path width. A rounded, hotter combustion front marks the playhead.

@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {afterEach, describe, expect, it} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {requireWebGPUAdapter} from '../webgpu-test-utils';
+import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
+import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
+import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/webgpu';
 import {COORDINATE_SYSTEM, Deck, OrbitView, type Layer} from '@deck.gl/core';
 import {
   _TerrainExtension as TerrainExtension,
@@ -23,8 +27,56 @@ const DATA = [
     timestamps: [0, 100]
   }
 ];
-let deck: Deck | undefined;
+// Keep slow software GPUs from accumulating frames while an async pixel read is pending.
+class TestDeck extends Deck {
+  pause() {
+    this.animationLoop?.stop();
+  }
+  resume() {
+    this.animationLoop?.start();
+  }
+}
+let deck: TestDeck | undefined;
 let container: HTMLDivElement | undefined;
+let device: Device | undefined;
+let framebuffer: Framebuffer | undefined;
+let colorTexture: Texture | undefined;
+const validationErrors: string[] = [];
+
+async function readFrame(): Promise<Uint8Array> {
+  if (device!.type === 'webgl') {
+    const gl = (device as WebGLDevice).gl;
+    const pixels = new Uint8Array(SIZE * SIZE * 4);
+    gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    return pixels;
+  }
+  // Submit the render pass before copying; WebGPU readback is asynchronous.
+  device!.submit();
+  const buffer = device!.createBuffer({
+    byteLength: SIZE * SIZE * 4,
+    usage: Buffer.COPY_DST | Buffer.MAP_READ
+  });
+  try {
+    const encoder = device!.createCommandEncoder();
+    encoder.copyTextureToBuffer({
+      sourceTexture: colorTexture!,
+      destinationBuffer: buffer,
+      bytesPerRow: SIZE * 4,
+      width: SIZE,
+      height: SIZE
+    });
+    device!.submit(encoder.finish());
+    const data = await buffer.readAsync();
+    const pixels = new Uint8Array(data.length);
+    // Normalize texture origin to WebGL's bottom-left pixel coordinates.
+    for (let y = 0; y < SIZE; y++) {
+      pixels.set(data.subarray(y * SIZE * 4, (y + 1) * SIZE * 4), (SIZE - 1 - y) * SIZE * 4);
+    }
+    return pixels;
+  } finally {
+    buffer.destroy();
+  }
+}
 
 // Isolate the real particle shader so the volume cannot satisfy the assertions.
 class EmberTestLayer extends FlameTrailLayer {
@@ -32,15 +84,28 @@ class EmberTestLayer extends FlameTrailLayer {
 
   getShaders() {
     const shaders = super.getShaders();
-    shaders.inject['fs:DECKGL_FILTER_COLOR'] += '\nif (vFlame.z < 1.5) discard;';
+    if (this.context.device.type === 'webgpu') {
+      shaders.inject['  // DECKGL_FILTER_COLOR'] += '\nif (varyings.vFlame.z < 1.5) { discard; }';
+    } else {
+      shaders.inject['fs:DECKGL_FILTER_COLOR'] += '\nif (vFlame.z < 1.5) discard;';
+    }
     return shaders;
   }
 }
 
-afterEach(() => {
+afterEach(async () => {
+  deck?.pause();
+  if (device?.type === 'webgpu') await (device as WebGPUDevice).handle.queue.onSubmittedWorkDone();
   deck?.finalize();
+  framebuffer?.destroy();
+  colorTexture?.destroy();
+  device?.destroy();
   container?.remove();
   deck = undefined;
+  device = undefined;
+  framebuffer = undefined;
+  colorTexture = undefined;
+  expect(validationErrors.splice(0)).toEqual([]);
 });
 
 function renderFrame(
@@ -74,20 +139,27 @@ function renderFrame(
       }
     };
     let renderedFrames = 0;
-    const onAfterRender = ({gl}: {gl: WebGL2RenderingContext}) => {
+    let captured = false;
+    const onAfterRender = () => {
       // TerrainEffect registers a default shader module, which rebuilds the
       // source model on the next update before its height map is valid.
+      if (
+        captured ||
+        (device!.type === 'webgpu' && layer.getModels().some(model => model.pipeline.isPending))
+      )
+        return;
       if (terrain && renderedFrames++ < 2) return;
-      const pixels = new Uint8Array(SIZE * SIZE * 4);
-      gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      resolve(pixels);
+      captured = true;
+      deck!.pause();
+      readFrame().then(resolve, reject);
     };
     if (deck) {
       deck.setProps({layers: [terrain, layer], onBeforeRender, onAfterRender, onError: reject});
+      deck.resume();
     } else {
-      container = document.createElement('div');
-      document.body.appendChild(container);
-      deck = new Deck({
+      deck = new TestDeck({
+        device,
+        _framebuffer: device!.type === 'webgpu' ? framebuffer : undefined,
         parent: container,
         width: SIZE,
         height: SIZE,
@@ -118,7 +190,7 @@ function totalBrightness(pixels: Uint8Array): number {
   return pixels.reduce((sum, value, index) => sum + (index % 4 === 3 ? 0 : value), 0);
 }
 
-function createTerrain(height: (x: number, y: number) => number, draw = false) {
+function createTerrain(height: (x: number, y: number) => number, draw = false, operation?: 'draw') {
   const positions: number[] = [];
   const indices: number[] = [];
   const segments = 20;
@@ -153,78 +225,147 @@ function createTerrain(height: (x: number, y: number) => number, draw = false) {
     getPosition: [0, 0, 0],
     getColor: [0, 0, 0],
     material: false,
-    operation: draw ? 'terrain+draw' : 'terrain',
+    operation: operation ?? (draw ? 'terrain+draw' : 'terrain'),
     parameters: {depthWriteEnabled: true, cullMode: 'none'}
   });
 }
 
-describe('FlameTrailLayer WebGL rendering', () => {
+describe.each(['webgl', 'webgpu'] as const)('FlameTrailLayer %s rendering', backend => {
+  beforeEach(async ({skip}) => {
+    if (backend === 'webgpu') await requireWebGPUAdapter(skip);
+    container = document.createElement('div');
+    container.style.cssText = `width: ${SIZE}px; height: ${SIZE}px`;
+    document.body.appendChild(container);
+    device = await luma.createDevice({
+      type: backend,
+      _cacheShaders: true,
+      _cachePipelines: true,
+      adapters: [webgl2Adapter, webgpuAdapter],
+      createCanvasContext: {container, width: SIZE, height: SIZE, useDevicePixels: false}
+    });
+    expect(device.type).toBe(backend);
+    if (backend === 'webgpu') {
+      (device as WebGPUDevice).handle.addEventListener('uncapturederror', event => {
+        validationErrors.push(event.error.message);
+      });
+    }
+    colorTexture = device.createTexture({
+      width: SIZE,
+      height: SIZE,
+      format: 'rgba8unorm',
+      usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
+    });
+    framebuffer = device.createFramebuffer({
+      width: SIZE,
+      height: SIZE,
+      colorAttachments: [colorTexture],
+      depthStencilAttachment: 'depth24plus'
+    });
+  });
   it('keeps a static trip burning without prop updates or forced Deck animation', async () => {
     const props = {currentTime: 50, fadeTrail: false};
     const live = await renderFrame(props, false, 0, false, undefined, null);
     // No prop updates and no forced Deck animation: the layer requests redraws.
     deck!.setProps({_animate: false});
-    const later = await new Promise<Uint8Array>(resolve => {
+    const later = await new Promise<Uint8Array>((resolve, reject) => {
       let frames = 0;
       deck!.setProps({
-        onAfterRender: ({gl}: {gl: WebGL2RenderingContext}) => {
-          if (++frames < 3) return;
-          const pixels = new Uint8Array(SIZE * SIZE * 4);
-          gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          resolve(pixels);
+        onAfterRender: () => {
+          if (++frames !== 3) return;
+          deck!.pause();
+          readFrame().then(resolve, reject);
         }
       });
+      deck!.resume();
     });
     expect(later.some((value, index) => value !== live[index])).toBe(true);
     // Automatic animation never exposes future path segments.
     for (let x = 135; x < SIZE; x++) expect(brightness(later, x)).toBe(0);
   });
 
-  it('fits the full flame and its embers to GPU terrain heights', async () => {
-    const height = (x: number) => 40 + x * 0.15;
-    const props = {currentTime: 180, fadeTrail: false, getWidth: 20};
-    const extensions = [new TerrainExtension()];
-    const elevatedData = [{...DATA[0], path: DATA[0].path.map(([x, y]) => [x, y, height(x)])}];
-    for (const embersOnly of [false, true]) {
-      const reference = await renderFrame(
-        {...props, data: elevatedData},
-        35,
-        0,
-        embersOnly,
-        undefined,
-        0
-      );
-      const fitted = await renderFrame(
-        {...props, extensions, terrainDrawMode: 'offset'},
-        35,
-        0,
-        embersOnly,
-        createTerrain(height),
-        0
-      );
-      expect(totalBrightness(reference)).toBeGreaterThan(50);
-      let difference = 0;
-      for (let i = 0; i < fitted.length; i++) {
-        if (i % 4 !== 3) difference += Math.abs(fitted[i] - reference[i]);
+  if (backend === 'webgl') {
+    it('fits the full flame and its embers to GPU terrain heights', async () => {
+      const height = (x: number) => 40 + x * 0.15;
+      const props = {currentTime: 180, fadeTrail: false, getWidth: 20};
+      const extensions = [new TerrainExtension()];
+      const elevatedData = [{...DATA[0], path: DATA[0].path.map(([x, y]) => [x, y, height(x)])}];
+      for (const embersOnly of [false, true]) {
+        const reference = await renderFrame(
+          {...props, data: elevatedData},
+          35,
+          0,
+          embersOnly,
+          undefined,
+          0
+        );
+        const fitted = await renderFrame(
+          {...props, extensions, terrainDrawMode: 'offset'},
+          35,
+          0,
+          embersOnly,
+          createTerrain(height),
+          0
+        );
+        expect(totalBrightness(reference)).toBeGreaterThan(50);
+        let difference = 0;
+        for (let i = 0; i < fitted.length; i++) {
+          if (i % 4 !== 3) difference += Math.abs(fitted[i] - reference[i]);
+        }
+        // GPU sampling agrees with the same surface supplied as explicit XYZ.
+        expect(difference / totalBrightness(reference)).toBeLessThan(0.06);
       }
-      // GPU sampling agrees with the same surface supplied as explicit XYZ.
-      expect(difference / totalBrightness(reference)).toBeLessThan(0.06);
-    }
+    });
+
+    it('lets foreground terrain occlude the flame', async () => {
+      const height = (_x: number, y: number) =>
+        20 + 80 * Math.exp(-(((Math.abs(y) - 45) / 20) ** 2));
+      const props = {
+        currentTime: 100,
+        fadeTrail: false,
+        getWidth: 20,
+        extensions: [new TerrainExtension()],
+        terrainDrawMode: 'offset' as const
+      };
+      const unobstructed = await renderFrame(props, 25, 0, false, createTerrain(height));
+      const occluded = await renderFrame(props, 25, 0, false, createTerrain(height, true));
+      expect(totalBrightness(unobstructed)).toBeGreaterThan(1000);
+      expect(totalBrightness(occluded)).toBeLessThan(totalBrightness(unobstructed) * 0.5);
+    });
+  }
+
+  it('renders elevated XYZ flames and respects terrain depth on either backend', async () => {
+    const props = {currentTime: 100, fadeTrail: false, getWidth: 20};
+    const flat = await renderFrame(props, 25);
+    const data = [{...DATA[0], path: DATA[0].path.map(([x, y]) => [x, y, 20])}];
+    const elevated = await renderFrame({...props, data}, 25);
+    const height = (_x: number, y: number) => 20 + 80 * Math.exp(-(((Math.abs(y) - 45) / 20) ** 2));
+    const occluded = await renderFrame(
+      {...props, data},
+      25,
+      0,
+      false,
+      createTerrain(height, true, 'draw')
+    );
+    expect(totalBrightness(elevated)).toBeGreaterThan(1000);
+    expect(elevated.some((value, index) => value !== flat[index])).toBe(true);
+    expect(totalBrightness(occluded)).toBeLessThan(totalBrightness(elevated) * 0.5);
   });
 
-  it('lets foreground terrain occlude the flame', async () => {
-    const height = (_x: number, y: number) => 20 + 80 * Math.exp(-(((Math.abs(y) - 45) / 20) ** 2));
-    const props = {
-      currentTime: 100,
-      fadeTrail: false,
-      getWidth: 20,
-      extensions: [new TerrainExtension()],
-      terrainDrawMode: 'offset' as const
-    };
-    const unobstructed = await renderFrame(props, 25, 0, false, createTerrain(height));
-    const occluded = await renderFrame(props, 25, 0, false, createTerrain(height, true));
-    expect(totalBrightness(unobstructed)).toBeGreaterThan(1000);
-    expect(totalBrightness(occluded)).toBeLessThan(totalBrightness(unobstructed) * 0.5);
+  it('supports analytic antialiasing and highlighted picking colors', async () => {
+    const props = {currentTime: 75, trailLength: 50, antialiasing: true};
+    const normal = await renderFrame(props);
+    expect(brightness(normal, 138)).toBeGreaterThan(20);
+    expect((await deck!.pickObjectAsync({x: 138, y: 128}))?.object).toBe(DATA[0]);
+    const highlighted = await renderFrame({
+      ...props,
+      highlightedObjectIndex: 0,
+      highlightColor: [0, 255, 0, 255]
+    });
+    expect(highlighted.some((value, index) => value !== normal[index])).toBe(true);
+    expect(highlighted[(128 * SIZE + 138) * 4 + 1]).toBeGreaterThan(
+      highlighted[(128 * SIZE + 138) * 4]
+    );
+    expect(brightness(highlighted, 218)).toBe(0);
   });
 
   it('keeps a continuous flame when a path is subdivided into short segments', async () => {
@@ -337,8 +478,8 @@ describe('FlameTrailLayer WebGL rendering', () => {
     for (let x = 90; x < 165; x++)
       colors.add(String(pixels.slice((128 * SIZE + x) * 4, (128 * SIZE + x) * 4 + 3)));
     expect(colors.size).toBeGreaterThan(20);
-    expect(deck!.pickObject({x: 138, y: 128})?.object).toBe(DATA[0]);
-    expect(deck!.pickObject({x: 218, y: 128})).toBeNull();
+    expect((await deck!.pickObjectAsync({x: 138, y: 128}))?.object).toBe(DATA[0]);
+    expect(await deck!.pickObjectAsync({x: 218, y: 128})).toBeNull();
   });
 
   it('ignores trailLength when fadeTrail is false', async () => {

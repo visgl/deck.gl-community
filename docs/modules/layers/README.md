@@ -32,7 +32,7 @@ Release date: 2023
 
 ## Exports
 
-- [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 only)
+- [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
 - `DependencyArrowLayer`
 - `PathMarkerLayer`
 - `PathOutlineLayer`

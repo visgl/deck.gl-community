@@ -225,6 +225,11 @@ jobs:
       - name: Run headless browser tests
         run: yarn test-headless
 
+      - name: Verify WebGPU layers with a required software adapter
+        run: yarn vitest run --project headless modules/layers/test/webgpu-layers.browser.spec.ts modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts -t "webgpu|WebGPU"
+        env:
+          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
+
   website-build:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
