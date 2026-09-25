@@ -130,7 +130,10 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
   )
     .omit({mapStyle: true})
     .extend({
-      mapStyle: JsonValueSchema.optional().describe('Basemap style URL, style object, or null.'),
+      mapStyle: z
+        .union([z.string(), z.record(z.string(), JsonValueSchema), z.null()])
+        .optional()
+        .describe('Basemap style URL, style object, or null.'),
       mapboxApiAccessToken: z
         .string()
         .optional()

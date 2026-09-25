@@ -36,6 +36,9 @@ test('validates binding descriptors consistently in runtime and editor schemas',
   expect(validate({mapStyle: {version: 8, sources: {roads: {tiles: ['mapbox://tileset']}}}})).toBe(
     true
   );
+  expect(validate({mapStyle: null})).toBe(true);
+  expect(validate({mapStyle: 42})).toBe(false);
+  expect(validate({mapStyle: ['style.json']})).toBe(false);
   expect(validate({mapboxApiAccessToken: 42})).toBe(false);
   const resolved = resolver.resolve(
     {
@@ -46,6 +49,7 @@ test('validates binding descriptors consistently in runtime and editor schemas',
   );
   expect(resolved.props).not.toHaveProperty('mapStyle');
   expect(resolved.props).not.toHaveProperty('mapboxApiAccessToken');
+  expect(() => resolver.resolve({mapStyle: 42}, {})).toThrow();
   expect(validate({views: []})).toBe(false);
   expect(validate({})).toBe(true);
 });
