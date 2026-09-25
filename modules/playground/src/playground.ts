@@ -109,6 +109,7 @@ export class Playground {
     });
     this.sidebarContainer = new SidebarPanelContainer({
       id: 'playground-json-sidebar',
+      className: 'deckgl-playground-sidebar',
       title: 'JSON',
       side: 'left',
       widthPx: 440,
@@ -153,7 +154,8 @@ export class Playground {
       value: text,
       onValueChange: this.handleTextChange,
       language: 'json',
-      jsonSchema: this.props.jsonSchema
+      jsonSchema: this.props.jsonSchema,
+      theme: 'invert'
     });
     editorPanel.placement = 'fill';
     this.editorPanel = editorPanel;
@@ -333,6 +335,8 @@ function ensurePlaygroundStyles(document: Document): void {
   style.textContent = `
     .deckgl-playground { position: relative; width: 100%; height: 100%; overflow: hidden; }
     .deckgl-playground-panels { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+    .deckgl-playground-sidebar { --menu-background: #f8fafc; --menu-weak-background: #eef2f7; --menu-text: #172033; --menu-border: 1px solid #d8e0ea; --menu-shadow: -12px 0 36px rgba(15, 23, 42, 0.18); --button-background: #fff; --button-text: #172033; --button-icon-idle: #526174; --button-icon-hover: #172033; --button-inner-stroke: 1px solid #d8e0ea; --button-corner-radius: 10px; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .deckgl-playground-sidebar [data-panel-tabs] { padding: 8px 10px 0 !important; }
     .deckgl-playground-template-picker-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 4px; }
     .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid #d5dbe3; border-radius: 6px; background: #fff center / cover no-repeat; color: #172033; text-align: left; cursor: pointer; }
     .deckgl-playground-template-card:hover, .deckgl-playground-template-card[aria-selected="true"] { border-color: #2878d8; box-shadow: 0 0 0 2px rgba(40,120,216,0.2); }
