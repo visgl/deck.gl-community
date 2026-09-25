@@ -91,7 +91,11 @@ const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
           '--enable-unsafe-webgpu',
           '--enable-unsafe-swiftshader',
           '--use-angle=swiftshader',
-          '--use-webgpu-adapter=swiftshader'
+          '--use-webgpu-adapter=swiftshader',
+          // Linux CI has no Vulkan display surface; use Chromium's SwiftShader presentation path.
+          ...(process.platform === 'linux'
+            ? ['--enable-features=Vulkan', '--use-vulkan=swiftshader', '--disable-vulkan-surface']
+            : [])
         ]
       }
     })
