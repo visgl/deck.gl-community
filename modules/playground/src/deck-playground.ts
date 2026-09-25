@@ -101,6 +101,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   private deck?: Deck<any>;
   private element?: HTMLDivElement;
   private controls?: HTMLDivElement;
+  private controlLabel?: HTMLLabelElement;
   private controlSelect?: HTMLSelectElement;
   private attribution?: HTMLElement;
   private selectedBasemap = DEFAULT_BASEMAP;
@@ -194,6 +195,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     this.deck = undefined;
     this.element = undefined;
     this.controls = undefined;
+    this.controlLabel = undefined;
     this.controlSelect = undefined;
     this.attribution = undefined;
     this.activeDocument = undefined;
@@ -242,7 +244,11 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
         throw new Error('Register BasemapLayer to render a document mapStyle');
       }
       nextProps.layers = [
-        new BasemapLayer({id: 'playground-basemap', style: mapStyle}),
+        new BasemapLayer({
+          id: 'playground-basemap',
+          style: mapStyle,
+          loadOptions: createMapboxLoadOptions(input.mapboxApiAccessToken)
+        }),
         ...(nextProps.layers ?? [])
       ];
     }
@@ -339,10 +345,17 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       controls.append(label, select, attribution);
       this.element.append(controls);
       this.controls = controls;
+      this.controlLabel = label;
       this.controlSelect = select;
       this.attribution = attribution;
     }
-    this.controls.style.display = mapViewOnly && !hasDocumentMapStyle ? 'grid' : 'none';
+    this.controls.style.display = mapViewOnly ? 'grid' : 'none';
+    if (this.controlLabel) {
+      this.controlLabel.style.display = mapViewOnly && !hasDocumentMapStyle ? 'block' : 'none';
+    }
+    if (this.controlSelect) {
+      this.controlSelect.style.display = mapViewOnly && !hasDocumentMapStyle ? 'block' : 'none';
+    }
     if (this.controlSelect) this.controlSelect.value = this.selectedBasemap;
     if (this.attribution) {
       const labels = hasDocumentMapStyle
@@ -453,6 +466,35 @@ function resolveBasemapStyle(
     return value;
   };
   return addToken(style) as Record<string, unknown>;
+}
+
+function createMapboxLoadOptions(accessToken: unknown): Record<string, unknown> | null {
+  if (typeof accessToken !== 'string') return null;
+  return {
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const response = await fetch(addMapboxAccessTokenToUrl(url, accessToken), init);
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('json')) return response;
+      const json = await response.json();
+      return new Response(JSON.stringify(rewriteMapboxUrls(json, accessToken)), {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+      });
+    }
+  };
+}
+
+function rewriteMapboxUrls(value: unknown, accessToken: string): unknown {
+  if (typeof value === 'string') return addMapboxAccessTokenToUrl(value, accessToken);
+  if (Array.isArray(value)) return value.map(child => rewriteMapboxUrls(child, accessToken));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, rewriteMapboxUrls(child, accessToken)])
+    );
+  }
+  return value;
 }
 
 function getBasemapAttribution(style: unknown): string[] {
