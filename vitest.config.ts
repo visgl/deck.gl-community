@@ -158,6 +158,8 @@ const CONFIG = defineConfig({
         plugins: [react()],
         test: {
           name: 'headless',
+          // GPU contexts share one software renderer in CI; concurrent suites starve each other.
+          fileParallelism: !(REQUIRE_WEBGPU || process.env.GITHUB_ACTIONS === 'true'),
           // SwiftShader's cold WGSL compilation is much slower than native GPU compilation.
           ...(REQUIRE_WEBGPU && {testTimeout: 60000}),
           provide: {requireWebGPU: REQUIRE_WEBGPU},

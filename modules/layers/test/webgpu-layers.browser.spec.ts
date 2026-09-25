@@ -380,16 +380,24 @@ function createPortableLayers() {
 }
 
 class BackendTestDeck extends Deck<OrthographicView> {
-  pauseAfterReady(): boolean {
-    if (
-      this.device.type === 'webgpu' &&
+  pause(): void {
+    this.animationLoop?.stop();
+  }
+  resume(): void {
+    this.animationLoop?.start();
+  }
+  getPendingLayers(): string[] {
+    return (
       this.layerManager
         ?.getLayers()
-        .some(layer => !layer.isLoaded || layer.getModels().some(model => model.pipeline.isPending))
-    )
-      return false;
-    this.animationLoop?.stop();
-    return true;
+        .filter(
+          layer =>
+            !layer.isLoaded ||
+            (this.device.type === 'webgpu' &&
+              layer.getModels().some(model => model.pipeline.isPending))
+        )
+        .map(layer => layer.id) ?? []
+    );
   }
 }
 
@@ -411,7 +419,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     device = await luma.createDevice({
       type,
       adapters: [webgl2Adapter, webgpuAdapter],
-      createCanvasContext: {container: parent}
+      createCanvasContext: {container: parent, width: 128, height: 128, useDevicePixels: false}
     });
     if (type === 'webgpu') {
       nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
@@ -419,11 +427,22 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }
 
     await new Promise<void>((resolve, reject) => {
+      let finished = false;
+      const finish = (error?: Error) => {
+        finished = true;
+        window.clearTimeout(timeout);
+        if (error) reject(error);
+        else resolve();
+      };
       const timeout = window.setTimeout(
         () => {
-          reject(new Error(`Timed out while rendering community layers with ${type}.`));
+          finish(
+            new Error(
+              `Timed out rendering ${type}; pending layers: ${deck?.getPendingLayers().join(', ')}.`
+            )
+          );
         },
-        inject('requireWebGPU') ? 60_000 : 10_000
+        inject('requireWebGPU') ? 50_000 : 10_000
       );
 
       deck = new BackendTestDeck({
@@ -431,18 +450,24 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
         parent,
         width: 128,
         height: 128,
+        useDevicePixels: false,
         views: new OrthographicView({id: 'webgpu-layer-test', flipY: false}),
         initialViewState: {target: [0, 0, 0], zoom: 0},
         layers: createPortableLayers(),
-        onAfterRender: () => {
-          if (!deck?.pauseAfterReady()) return;
-          window.clearTimeout(timeout);
-          resolve();
+        onAfterRender: async () => {
+          // Do not queue animated frames faster than a software GPU can finish them.
+          deck!.pause();
+          try {
+            device!.submit();
+            await nativeDevice?.queue.onSubmittedWorkDone();
+            if (finished) return;
+            if (deck!.getPendingLayers().length) deck!.resume();
+            else finish();
+          } catch (error) {
+            finish(error as Error);
+          }
         },
-        onError: error => {
-          window.clearTimeout(timeout);
-          reject(error);
-        }
+        onError: finish
       });
     });
 
@@ -450,6 +475,8 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     expect(device.type).toBe(type);
     expect(validationErrors).toEqual([]);
   } finally {
+    deck?.pause();
+    await nativeDevice?.queue.onSubmittedWorkDone();
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
     device?.destroy();
