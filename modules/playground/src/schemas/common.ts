@@ -120,10 +120,22 @@ export const TransitionSchema = z.union([
     onInterrupt: FunctionSchema.optional()
   })
 ]);
+/** A named host-owned row array, kept separate from the editable document. */
+export const DataBindingSchema = z.strictObject({'@@data': z.string().min(1)});
+export type DataBinding = z.infer<typeof DataBindingSchema>;
+const JsonDataDescriptorSchema = z
+  .object({'@@data': z.never().optional()})
+  .catchall(JsonValueSchema);
 export const DataSchema = z
-  .union([z.string(), z.array(JsonValueSchema), JsonObjectSchema, z.null()])
+  .union([
+    z.string(),
+    z.array(JsonValueSchema),
+    DataBindingSchema,
+    JsonDataDescriptorSchema,
+    z.null()
+  ])
   .describe(
-    'URL, inline JSON rows or JSON data descriptor. Live binary/GPU resources must be supplied by the host.'
+    'URL, inline JSON rows, a named host binding or JSON data descriptor. Live binary/GPU resources must be supplied by the host.'
   );
 /** Shared LayerProps. Unknown prop names are rejected; custom layers must extend the schema. */
 export const BaseLayerPropsSchema = z

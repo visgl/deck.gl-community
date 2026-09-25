@@ -37,7 +37,7 @@
   ],
   "scripts": {
     "prepack": "yarn --cwd ../.. build",
-    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
+    "build": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs && node ./scripts/build-arrow-worker.mjs",
     "build:schema": "node ./scripts/generate-geojson-schema.mjs && node ./scripts/generate-deckgl-schema.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
@@ -47,6 +47,14 @@
     "@deck.gl/core": "~9.4.0"
   },
   "dependencies": {
+    "@deck.gl/json": "~9.4.0",
+    "@loaders.gl/arrow": "4.5.1",
+    "@loaders.gl/core": "4.5.1",
+    "apache-arrow": "^17.0.0",
     "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@deck.gl/core": "~9.4.0",
+    "esbuild": "^0.28.1"
   }
 }

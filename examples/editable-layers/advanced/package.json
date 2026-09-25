@@ -19,7 +19,7 @@
     "@deck.gl/mesh-layers": "~9.4.0",
     "@deck.gl/react": "~9.4.0",
     "@deck.gl/widgets": "~9.4.0",
-    "@loaders.gl/core": "^4.4.3",
+    "@loaders.gl/core": "^4.5.1",
     "@luma.gl/constants": "~9.4.0",
     "@luma.gl/core": "~9.4.0",
     "@luma.gl/engine": "~9.4.0",

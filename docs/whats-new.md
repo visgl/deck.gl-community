@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Both website playgrounds register all 35 concrete official and 44 public community layers, with
+  shared templates and schema validation. The library bundles these schemas while keeping layer
+  constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
+  custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references
+  such as `data: '@@#table'` preserve native Arrow tables.
+
+- The [standalone playground](/playground) provides a full-screen editor and preview with a page-local
+  `points` source for JSON and Arrow row imports. Browser tools expose five selected templates and
+  register automatically with status and disable/re-enable controls that preserve imported rows.
+  Browsers without WebMCP can still use the editor and preview.
+
+- Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
+
+- Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and
+  resetting a `DeckPlayground` camera, plus explicit source grants for inspection and JSON or
+  Arrow imports. Tools unregister when the playground is finalized; shared sources remain owned
+  by their manager.
+
+- Playground adds `DeckPlayground` for persistent previews, picking, and camera control, plus
+  `PlaygroundDataSourceManager` for shared rows and promises. Source updates preserve the
+  canvas and camera; `Playground` also supports persistent custom renderers.
+  Configuration conversion uses `@deck.gl/json`, including array and conditional expressions
+  and registered constants, enumerations, and factories, while keeping row payloads unchanged.
+
 - Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
   including single states and state-ID maps in `initialViewState` and `viewState`.
 

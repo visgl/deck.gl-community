@@ -28,6 +28,9 @@ module.exports = function (
         if (resolve.modules) {
           _config.resolve.modules = resolve.modules;
         }
+        if (resolve.extensionAlias) {
+          _config.resolve.extensionAlias = resolve.extensionAlias;
+        }
         Object.assign(_config.resolve.alias, resolve.alias);
       }
 

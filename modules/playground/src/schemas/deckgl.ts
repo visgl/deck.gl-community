@@ -111,11 +111,7 @@ function createDocumentSchema<L extends z.ZodType, V extends z.ZodType, S extend
     onViewStateChange: FunctionSchema.optional(),
     onHover: FunctionSchema.optional(),
     onClick: FunctionSchema.optional(),
-    mapStyle: JsonValueSchema.optional().describe('Basemap style URL, style object, or null.'),
-    mapboxApiAccessToken: z
-      .string()
-      .optional()
-      .describe('Access token appended to Mapbox style and tile requests.')
+    mapStyle: JsonValueSchema.optional()
   });
 }
 /** JSON-safe configuration, not a validator for live Layer instances or every Deck constructor option. */
