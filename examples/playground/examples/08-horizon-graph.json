@@ -1,5 +1,5 @@
 {
-  "metadata": {"title": "Horizon graph", "description": "A dense timeline chart from timeline-layers."},
+  "metadata": {"title": "Horizon graph", "description": "A dense timeline chart from timeline-layers.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/timeline-layers/horizon-graph-layer.png"},
   "views": {"@@type": "OrthographicView", "id": "chart", "flipY": false},
   "initialViewState": {"target": [400, 150, 0], "zoom": 0},
   "layers": [
