@@ -9,6 +9,7 @@ test/**/*-failed.png
 .nyc_output/
 .reify-cache/
 .cache/
+.pi/
 
 TODO
 
