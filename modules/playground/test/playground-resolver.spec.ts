@@ -306,6 +306,28 @@ describe('playground runtime resolver', () => {
     }
   });
 
+  test('does not execute SQL for a document rejected by runtime validation', () => {
+    const execute = vi.fn(async () => ({data: []}));
+    const queryManager = new PlaygroundDataSourceManager({queryProvider: {execute}});
+    const querySources = new PlaygroundSourceBindings(queryManager, () => {});
+    try {
+      expect(() =>
+        resolver.resolve(
+          {
+            sources: {cities: {'@@sql': 'SELECT * FROM cities'}},
+            layers: [sourceLayer('cities', 'duplicate'), sourceLayer('cities', 'duplicate')]
+          },
+          {},
+          querySources
+        )
+      ).toThrow('Duplicate playground layer id');
+      expect(execute).not.toHaveBeenCalled();
+    } finally {
+      querySources.finalize();
+      void queryManager.finalize();
+    }
+  });
+
   test('refreshes row references when resolving the same document after a source replacement', () => {
     const document = {layers: [sourceLayer('points')]};
     const originalRows = [{id: 1}];

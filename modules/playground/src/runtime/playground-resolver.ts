@@ -229,17 +229,6 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       const sources = document.sources as
         | Record<string, {'@@sql': string; parameters?: unknown}>
         | undefined;
-      if (sources) {
-        if (!dataSources?.addQuery) {
-          throw new Error('SQL sources require a data source manager with a query provider');
-        }
-        for (const [dataSourceId, source] of Object.entries(sources)) {
-          dataSources.addQuery({
-            dataSourceId,
-            query: {sql: source['@@sql'], parameters: source.parameters as any}
-          });
-        }
-      }
       const sourceLayers = (value as {layers?: Record<string, unknown>[]}).layers ?? [];
       const layerBindings = new Map<string, string>();
       const resolvedBindings: PlaygroundBindings = Object.create(null);
@@ -342,6 +331,19 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         converted = converter.convert(prepared) as typeof converted;
       } finally {
         delete enumerations[literalNamespace];
+      }
+      // Complete all synchronous schema, registry, expression, and layer-id validation before
+      // starting host work. Invalid edits must not replace sources used by the accepted preview.
+      if (sources) {
+        if (!dataSources?.addQuery) {
+          throw new Error('SQL sources require a data source manager with a query provider');
+        }
+        for (const [dataSourceId, source] of Object.entries(sources)) {
+          dataSources.addQuery({
+            dataSourceId,
+            query: {sql: source['@@sql'], parameters: source.parameters as any}
+          });
+        }
       }
       const sourceIds = [...new Set(layerBindings.values())];
       const unavailable = sourceIds.filter(name => !Object.hasOwn(resolvedBindings, name));

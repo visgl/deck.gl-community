@@ -155,8 +155,9 @@ const dataSources = new PlaygroundDataSourceManager({
 ```
 
 The provider receives `{sql, parameters?}` and returns `{data, getRowId?}`. It may be backed by
-DuckDB-WASM, Mosaic, a remote SQL endpoint, or another engine. The playground does not parse,
-authorize, or execute SQL and therefore does not require the engine as a dependency.
+DuckDB-WASM, Mosaic, a remote SQL endpoint, or another engine. The optional `AbortSignal` is
+aborted when a query is replaced, removed, or finalized. The playground does not parse, authorize,
+or execute SQL and therefore does not require the engine as a dependency.
 
 Documents can register named query sources. Layers continue to reference them through the normal
 `@@data` binding, which means the same source can be shared by several layers:
@@ -179,7 +180,7 @@ Documents can register named query sources. Layers continue to reference them th
 }
 ```
 
-`sources` are registered when the document is accepted. Until the provider resolves a query, the
+`sources` are registered only after synchronous document validation succeeds. Until the provider resolves a query, the
 preview retains its last accepted frame and reports a loading state through the normal source
 lifecycle. Query failures use the same error path as failed external sources. Reusing the same
 query descriptor does not re-run the query; changing SQL or parameters replaces the source and

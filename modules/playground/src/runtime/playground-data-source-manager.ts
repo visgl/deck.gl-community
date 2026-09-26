@@ -53,6 +53,7 @@ type Registration = {
   status: PlaygroundDataSourceEntryInfo['status'];
   error?: Error;
   queryKey?: string;
+  queryController?: AbortController;
 };
 type Entry = {registration?: Registration; subscribers: Set<Subscription>};
 type Subscription = {entry: Entry; onChange: (source: unknown) => void};
@@ -89,15 +90,22 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
     const id = this.normalizeId(dataSourceId);
     const existing = this.sources.get(id)?.registration;
     if (!forceUpdate && existing?.queryKey === key) return;
-    const promise = this.queryProvider.execute(query).then(result => {
-      if (!result || !Array.isArray(result.data)) {
-        throw new Error('A query provider must return a row array');
-      }
-      return result;
+    const queryController = new AbortController();
+    const promise = this.queryProvider
+      .execute(query, {signal: queryController.signal})
+      .then(result => {
+        if (!result || !Array.isArray(result.data)) {
+          throw new Error('A query provider must return a row array');
+        }
+        return result;
+      });
+    this.add({
+      dataSourceId: id,
+      dataSource: promise,
+      forceUpdate,
+      queryKey: key,
+      queryController
     });
-    this.add({dataSourceId: id, dataSource: promise, forceUpdate});
-    const registration = this.sources.get(id)?.registration;
-    if (registration) registration.queryKey = key;
   }
 
   /** Whether an id is registered or denotes a deferred source. */
@@ -112,11 +120,15 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
   add({
     dataSourceId,
     dataSource,
-    forceUpdate = false
+    forceUpdate = false,
+    queryKey,
+    queryController
   }: {
     dataSourceId: string;
     dataSource: SourceValue;
     forceUpdate?: boolean;
+    queryKey?: string;
+    queryController?: AbortController;
   }): void {
     const id = this.normalizeId(dataSourceId);
     if (!id.trim()) throw new Error('Data source ids must be nonempty');
@@ -132,6 +144,8 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
     const registration: Registration = {
       input: dataSource,
       value: dataSource,
+      queryKey,
+      queryController,
       status:
         dataSource === null ? 'placeholder' : dataSource instanceof Promise ? 'pending' : 'ready'
     };
@@ -145,6 +159,7 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
     if (previous?.status === 'ready' && previous.value !== dataSource) {
       void closeSource(previous.value!).catch(console.error);
     }
+    previous?.queryController?.abort();
     this.notify(entry);
   }
 
@@ -199,6 +214,7 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
     entry.subscribers.clear();
     const registration = entry.registration;
     entry.registration = undefined;
+    registration?.queryController?.abort();
     if (registration?.status === 'ready') await closeSource(registration.value!);
   }
 

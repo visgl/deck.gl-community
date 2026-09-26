@@ -90,9 +90,10 @@ const dataSources = new PlaygroundDataSourceManager({
 ```
 
 SQL is executed by the host, not by the playground. This keeps database credentials, read-only
-policies, cancellation, and result-size limits outside the visualization package. Query sources
-use the same lifecycle, deferred loading, row picking, and WebMCP source permissions as ordinary
-host bindings. The package does not include DuckDB or any other SQL engine.
+policies, and result-size limits outside the visualization package while allowing the playground
+to cancel obsolete queries through the provider's `AbortSignal`. Query sources use the same
+lifecycle, deferred loading, row picking, and WebMCP source permissions as ordinary host bindings.
+The package does not include DuckDB or any other SQL engine.
 
 Accepted edits reuse the preview; invalid edits retain the last accepted document. Sources can
 load asynchronously and serve multiple playgrounds. Use `Playground` for a custom renderer.

@@ -224,10 +224,31 @@ describe('playground data source manager', () => {
       data: [{id: 7, sql: 'SELECT * FROM cities'}],
       getRowId: expect.any(Function)
     });
-    expect(execute).toHaveBeenCalledWith({sql: 'SELECT * FROM cities'});
+    expect(execute).toHaveBeenCalledWith(
+      {sql: 'SELECT * FROM cities'},
+      {signal: expect.any(AbortSignal)}
+    );
     expect(manager.listDataSources()).toEqual([{dataSourceId: 'cities', status: 'ready'}]);
     manager.addQuery({dataSourceId: 'cities', query: {sql: 'SELECT * FROM cities'}});
     expect(execute).toHaveBeenCalledOnce();
+  });
+
+  test('aborts replaced and finalized queries', async () => {
+    const signals: AbortSignal[] = [];
+    manager = new PlaygroundDataSourceManager({
+      queryProvider: {
+        execute: vi.fn(async (_query, {signal} = {}) => {
+          signals.push(signal!);
+          return {data: []};
+        })
+      }
+    });
+    manager.addQuery({dataSourceId: 'cities', query: {sql: 'SELECT 1'}});
+    manager.addQuery({dataSourceId: 'cities', query: {sql: 'SELECT 2'}});
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+    await manager.finalize();
+    expect(signals[1].aborted).toBe(true);
   });
 
   test('rejects SQL sources when no provider is configured', () => {
