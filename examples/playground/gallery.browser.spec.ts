@@ -16,8 +16,43 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// This integration test loads the gallery's real remote basemap and cubemap resources.
+// Exercise the real layers and resource loaders without depending on remote tile/image services.
+async function mockGalleryResources(): Promise<void> {
+  const face = document.createElement('canvas');
+  face.width = face.height = 2;
+  const context = face.getContext('2d')!;
+  context.fillStyle = '#124678';
+  context.fillRect(0, 0, 2, 2);
+  const image = await new Promise<Blob>(resolve => face.toBlob(blob => resolve(blob!)));
+  const cubemapUrls = new Set<string>();
+  for (const template of Object.values(TEMPLATES)) {
+    const configuration = typeof template === 'string' ? JSON.parse(template) : template;
+    for (const layer of configuration.layers) {
+      if (layer['@@type'] === 'SkyboxLayer') {
+        for (const url of Object.values(layer.cubemap.faces)) cubemapUrls.add(url as string);
+      }
+    }
+  }
+  const fetchLocalResource = globalThis.fetch.bind(globalThis);
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.startsWith('data:') || url.startsWith('blob:')) return fetchLocalResource(input, init);
+    if (url === 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json') {
+      return Response.json({
+        version: 8,
+        sources: {},
+        layers: [{id: 'background', type: 'background', paint: {'background-color': '#e2e8f0'}}]
+      });
+    }
+    if (cubemapUrls.has(url)) {
+      return new Response(image, {headers: {'content-type': 'image/png'}});
+    }
+    throw new Error(`Unexpected gallery resource request: ${url}`);
+  });
+}
+
 test('renders every gallery example when selected in sequence', async () => {
+  await mockGalleryResources();
   const host = document.createElement('div');
   host.style.cssText = 'width:1200px;height:800px';
   document.body.append(host);
@@ -60,7 +95,7 @@ test('renders every gallery example when selected in sequence', async () => {
     expect(errorOutput.hidden, `${name}: ${errorOutput.textContent}`).toBe(true);
     expect(host.querySelector('canvas'), name).toBe(canvas);
     const viewport = deck.getViewports()[0];
-    for (const property of ['longitude', 'latitude', 'zoom']) {
+    for (const property of ['longitude', 'latitude', 'zoom'] as const) {
       if (property in configuration.initialViewState) {
         expect(viewport[property], `${name}: ${property}`).toEqual(
           configuration.initialViewState[property]
