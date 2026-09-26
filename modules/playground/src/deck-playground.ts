@@ -84,11 +84,14 @@ export class DeckPlayground extends Playground {
     return this.deckRenderer.setBindings(bindings);
   }
 
-  /** Selects an example and restores its initial camera. */
+  /** Selects an example and restores its initial camera once its document is accepted. */
   override setTemplate(name: string): void {
-    super.setTemplate(name);
     // The base constructor selects the initial template before this field is assigned.
-    this.deckRenderer?.resetView();
+    if (this.deckRenderer) {
+      this.deckRenderer.selectTemplate(() => super.setTemplate(name));
+    } else {
+      super.setTemplate(name);
+    }
   }
 
   /** Resets the camera to the latest accepted document's initialViewState. */
@@ -103,7 +106,8 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   private readonly resolver: ReturnType<typeof createPlaygroundResolver>;
   private bindings: PlaygroundBindings;
   private resolved?: ResolvedPlaygroundConfiguration;
-  private request?: {value: unknown; sourceIds: Set<string>; text?: string};
+  private request?: {value: unknown; sourceIds: Set<string>; text?: string; resetView?: boolean};
+  private resetViewOnUpdate = false;
   private readonly sourceBindings?: PlaygroundSourceBindings;
   private deck?: Deck<any>;
   private element?: HTMLDivElement;
@@ -127,15 +131,27 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     }
   }
 
+  selectTemplate(select: () => void): void {
+    this.resetViewOnUpdate = true;
+    try {
+      select();
+    } finally {
+      // Parsing or template lookup can fail before update is called.
+      this.resetViewOnUpdate = false;
+    }
+  }
+
   update(element: HTMLDivElement, value: unknown, text?: string): void {
     this.element = element;
+    const resetView = this.resetViewOnUpdate;
+    this.resetViewOnUpdate = false;
     try {
-      const resolved = this.applyDocument(value, this.bindings);
+      const resolved = this.applyDocument(value, this.bindings, resetView);
       this.request = {value, sourceIds: new Set(resolved.layerBindings.values())};
     } catch (error) {
       if (error instanceof PlaygroundDataSourceError) {
         // Retry a valid document when its sources become available.
-        this.request = {value, sourceIds: new Set(error.sourceIds), text};
+        this.request = {value, sourceIds: new Set(error.sourceIds), text, resetView};
       }
       throw error;
     } finally {
@@ -144,9 +160,11 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   }
 
   setBindings(bindings: PlaygroundBindings): boolean {
+    const request = this.request;
     try {
-      if (this.request) {
-        this.applyDocument(this.request.value, bindings);
+      if (request) {
+        this.applyDocument(request.value, bindings, request.resetView);
+        request.resetView = false;
       } else {
         this.bindings = bindings;
       }
@@ -224,7 +242,8 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
 
   private applyDocument(
     value: unknown,
-    bindings: PlaygroundBindings
+    bindings: PlaygroundBindings,
+    resetView = false
   ): ResolvedPlaygroundConfiguration {
     // Validate and resolve before modifying the live renderer or accepted binding map.
     const resolved = this.resolver.resolve(value, bindings, this.sourceBindings);
@@ -287,14 +306,16 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
           .map(key => [key, key === 'controller' ? true : Deck.defaultProps[key]])
       );
       const {initialViewState, ...updates} = nextProps;
-      if (topologyChanged) {
+      if (topologyChanged || resetView) {
         this.deck.setProps({initialViewState: null});
       }
       this.deck.setProps({
         ...removedProps,
         ...updates,
         ...callbacks,
-        ...(topologyChanged ? {initialViewState: initialViewState ?? DEFAULT_VIEW_STATE} : {})
+        ...(topologyChanged || resetView
+          ? {initialViewState: initialViewState ?? DEFAULT_VIEW_STATE}
+          : {})
       });
     } else {
       this.deck = new Deck<any>({
