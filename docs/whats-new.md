@@ -33,6 +33,12 @@
   Configuration conversion uses `@deck.gl/json`, including array and conditional expressions
   and registered constants, enumerations, and factories, while keeping row payloads unchanged.
 
+- Playground data sources can now be backed by a host-owned `PlaygroundQueryProvider`. JSON
+  documents declare named `sources` with `@@sql` and continue to reference them through `@@data`.
+  SQL remains engine-neutral and host-controlled, so DuckDB-WASM, Mosaic, server-side SQL, and
+  other query engines can be integrated without adding a database dependency or granting agents
+  implicit query access.
+
 - Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
   including single states and state-ID maps in `initialViewState` and `viewState`.
 

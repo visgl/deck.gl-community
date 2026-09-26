@@ -52,4 +52,9 @@ test('validates binding descriptors consistently in runtime and editor schemas',
   expect(() => resolver.resolve({mapStyle: 42}, {})).toThrow();
   expect(validate({views: []})).toBe(false);
   expect(validate({})).toBe(true);
+  expect(
+    validate({sources: {cities: {'@@sql': 'SELECT * FROM cities', parameters: {limit: 10}}}})
+  ).toBe(true);
+  expect(validate({sources: {cities: {'@@sql': ''}}})).toBe(false);
+  expect(validate({sources: {cities: {'@@sql': 'SELECT 1', extra: true}}})).toBe(false);
 });

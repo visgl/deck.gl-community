@@ -57,6 +57,44 @@ playground.finalize();
 await dataSources.finalize();
 ```
 
+## SQL-backed examples
+
+The playground is an engine-neutral view over host-owned data. Supply a query provider when the
+host uses DuckDB-WASM, Mosaic, a server-side SQL service, or another query engine, then describe
+named SQL sources in the JSON document:
+
+```ts
+const dataSources = new PlaygroundDataSourceManager({
+  queryProvider: {
+    async execute({sql, parameters}) {
+      const table = await appDatabase.query(sql, parameters);
+      return {data: table.toArray(), getRowId: row => row.id};
+    }
+  }
+});
+```
+
+```json
+{
+  "sources": {
+    "cities": {"@@sql": "SELECT longitude, latitude, population FROM cities"}
+  },
+  "layers": [{
+    "@@type": "ScatterplotLayer",
+    "id": "cities",
+    "data": {"@@data": "cities"},
+    "getPosition": "@@=[longitude, latitude]",
+    "getRadius": "@@=population / 100"
+  }]
+}
+```
+
+SQL is executed by the host, not by the playground. This keeps database credentials, read-only
+policies, and result-size limits outside the visualization package while allowing the playground
+to cancel obsolete queries through the provider's `AbortSignal`. Query sources use the same
+lifecycle, deferred loading, row picking, and WebMCP source permissions as ordinary host bindings.
+The package does not include DuckDB or any other SQL engine.
+
 Accepted edits reuse the preview; invalid edits retain the last accepted document. Sources can
 load asynchronously and serve multiple playgrounds. Use `Playground` for a custom renderer.
 Configuration props follow the [deck.gl JSON syntax](https://deck.gl/docs/api-reference/json/conversion-reference),
