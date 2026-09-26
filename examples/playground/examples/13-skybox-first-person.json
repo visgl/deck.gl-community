@@ -4,6 +4,6 @@
   "initialViewState": {"position": [0, 1.7, 36], "bearing": 8, "pitch": 8},
   "layers": [
     {"@@type": "SkyboxLayer", "id": "skybox", "orientation": "y-up", "cubemap": {"shape": "image-texture-cube", "faces": {"+X": "https://raw.githubusercontent.com/uber-common/deck.gl-data/master/luma.gl/examples/gltf/papermill/specular/specular_right_0.jpg", "-X": "https://raw.githubusercontent.com/uber-common/deck.gl-data/master/luma.gl/examples/gltf/papermill/specular/specular_left_0.jpg", "+Y": "https://raw.githubusercontent.com/uber-common/deck.gl-data/master/luma.gl/examples/gltf/papermill/specular/specular_top_0.jpg", "-Y": "https://raw.githubusercontent.com/uber-common/deck.gl-data/master/luma.gl/examples/gltf/papermill/specular/specular_bottom_0.jpg", "+Z": "https://raw.githubusercontent.com/uber-common/deck.gl-data/master/luma.gl/examples/gltf/papermill/specular/specular_front_0.jpg", "-Z": "https://raw.githubusercontent.com/uber-common/deck.gl-data/master/luma.gl/examples/gltf/papermill/specular/specular_back_0.jpg"}}},
-    {"@@type": "PolygonLayer", "id": "floor", "data": [[[-90, -90, 0], [-90, 90, 0], [90, 90, 0], [90, -90, 0]]], "coordinateSystem": "cartesian", "getPolygon": "@@=0", "getFillColor": [14, 24, 34, 255], "stroked": false}
+    {"@@type": "PolygonLayer", "id": "floor", "data": [{"polygon": [[-90, -90, 0], [-90, 90, 0], [90, 90, 0], [90, -90, 0]]}], "coordinateSystem": "cartesian", "getPolygon": "@@=polygon", "getFillColor": [14, 24, 34, 255], "stroked": false}
   ]
 }

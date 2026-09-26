@@ -3,6 +3,6 @@
   "views": {"@@type": "OrthographicView", "id": "graph", "flipY": false},
   "initialViewState": {"target": [0, 0, 0], "zoom": 0},
   "layers": [
-    {"@@type": "GraphLayer", "id": "knowledge-graph", "data": {"nodes": [{"id": "deck", "name": "deck.gl", "x": 0, "y": 120}, {"id": "layers", "name": "Layers", "x": -180, "y": -40}, {"id": "views", "name": "Views", "x": 0, "y": -40}, {"id": "data", "name": "Data", "x": 180, "y": -40}], "edges": [{"id": "e1", "sourceId": "deck", "targetId": "layers"}, {"id": "e2", "sourceId": "deck", "targetId": "views"}, {"id": "e3", "sourceId": "deck", "targetId": "data"}]}, "layout": "@@#SimpleLayout", "enableDragging": true}
+    {"@@type": "GraphLayer", "id": "knowledge-graph", "data": {"nodes": [{"id": "deck", "label": "deck.gl", "attributes": {"x": 0, "y": 120}}, {"id": "layers", "label": "Layers", "attributes": {"x": -180, "y": -40}}, {"id": "views", "label": "Views", "attributes": {"x": 0, "y": -40}}, {"id": "data", "label": "Data", "attributes": {"x": 180, "y": -40}}], "edges": [{"id": "e1", "sourceId": "deck", "targetId": "layers"}, {"id": "e2", "sourceId": "deck", "targetId": "views"}, {"id": "e3", "sourceId": "deck", "targetId": "data"}]}, "layout": "@@#SimpleLayout", "enableDragging": true, "stylesheet": {"nodes": [{"type": "circle", "radius": 18, "fill": "#3b82f6", "stroke": "#1e3a8a", "strokeWidth": 2}, {"type": "label", "text": "@label", "color": "#0f172a", "fontSize": 14, "offset": [0, 24], "textAnchor": "middle", "alignmentBaseline": "top"}], "edges": {"stroke": "#64748b", "strokeWidth": 2}}}
   ]
 }

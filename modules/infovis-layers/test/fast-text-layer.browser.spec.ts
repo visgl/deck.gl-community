@@ -46,8 +46,11 @@ async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<v
     const layer = new FastTextLayer({
       id: `fast-text-${type}-${sdf ? 'sdf' : 'bitmap'}`,
       coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-      data: [{text: 'WebGPU', position: [0, 0]}],
-      characterSet: 'WebGPU',
+      data: [
+        {text: 'WebGPU', position: [0, 20]},
+        {text: 'Text', position: [0, -20]}
+      ],
+      characterSet: 'WebGPUText',
       fontSettings: {fontSize: 32, sdf},
       size: 24,
       getColor: [37, 99, 235, 255],
@@ -81,7 +84,9 @@ async function renderFastText(type: 'webgl' | 'webgpu', sdf: boolean): Promise<v
 
     await nativeDevice?.queue.onSubmittedWorkDone();
     expect(device.type).toBe(type);
-    expect(layer.state.glyphData?.length).toBe(6);
+    expect(layer.state.glyphData?.length).toBe(10);
+    expect(layer.getNumInstances()).toBe(10);
+    expect(layer.state.model?.instanceCount).toBe(10);
     expect(layer.state.atlasTexture?.mipLevels).toBeGreaterThan(1);
     expect(layer.state.model).toBeDefined();
     expect(validationErrors).toEqual([]);
