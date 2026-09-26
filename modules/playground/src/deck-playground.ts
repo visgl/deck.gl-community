@@ -84,6 +84,13 @@ export class DeckPlayground extends Playground {
     return this.deckRenderer.setBindings(bindings);
   }
 
+  /** Selects an example and restores its initial camera. */
+  override setTemplate(name: string): void {
+    super.setTemplate(name);
+    // The base constructor selects the initial template before this field is assigned.
+    this.deckRenderer?.resetView();
+  }
+
   /** Resets the camera to the latest accepted document's initialViewState. */
   resetView(): void {
     this.assertActive();

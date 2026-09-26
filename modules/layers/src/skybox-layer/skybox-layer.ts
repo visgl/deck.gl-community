@@ -144,6 +144,8 @@ export class SkyboxLayer<
       }
     });
 
+    // Deck updates model parameters before draw, so restore the background's depth and cull state.
+    model.setParameters({...model.parameters, ...SKYBOX_PARAMETERS});
     model.draw(this.context.renderPass);
   }
 

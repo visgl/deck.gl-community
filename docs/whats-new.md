@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Playground template selection restores each example's initial camera while JSON edits preserve
+  camera interaction. Gallery examples fix graph node data and styles, first-person floor geometry,
+  skybox backgrounds, and grid, path, and horizon-chart visibility.
+- `FastTextLayer` draws every glyph across all text rows. `SkyboxLayer` preserves its background
+  depth and culling settings when a view supplies different defaults.
+
 - Both website playgrounds register all 35 concrete official and 44 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer
   constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;

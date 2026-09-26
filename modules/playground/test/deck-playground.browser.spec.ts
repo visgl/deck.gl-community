@@ -260,6 +260,23 @@ describe('Playground rendering lifecycle', () => {
 });
 
 describe('DeckPlayground browser lifecycle', () => {
+  it('restores the selected template camera when both examples use the same view', async () => {
+    const nextViewState = {longitude: -96, latitude: 37, zoom: 3};
+    const {playground, host, onError, ready} = mountDeck({
+      templates: {
+        local: createDocument(),
+        national: createDocument(9, nextViewState)
+      }
+    });
+    const {deck, canvas} = await ready();
+    playground.setTemplate('national');
+    expect(deck.getViewports()[0]).toMatchObject(nextViewState);
+    playground.setTemplate('local');
+    expect(deck.getViewports()[0]).toMatchObject(INITIAL_VIEW_STATE);
+    expect(host.querySelector('canvas')).toBe(canvas);
+    expect(onError).not.toHaveBeenCalled();
+  }, 20_000);
+
   it('reuses its canvas and preserves an interactive camera across edits and filtering', async () => {
     const finalize = vi.spyOn(Deck.prototype, 'finalize');
     const {playground, host, setProps, onLoad, onError, ready} = mountDeck();
