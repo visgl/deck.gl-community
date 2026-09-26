@@ -45,11 +45,7 @@ export const ColorSchema = z.union([
 export const MatrixSchema = z.array(z.number()).length(16);
 export const UnitSchema = z.enum(['meters', 'common', 'pixels']);
 export const CoordinateSystemSchema = z.union([
-  z.literal(-1),
-  z.literal(0),
-  z.literal(1),
-  z.literal(2),
-  z.literal(3),
+  z.enum(['default', 'lnglat', 'meter-offsets', 'lnglat-offsets', 'cartesian']),
   ConstantSchema
 ]);
 export const NumberAccessorSchema = createAccessorSchema(z.number());
