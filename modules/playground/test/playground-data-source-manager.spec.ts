@@ -204,4 +204,35 @@ describe('playground data source manager', () => {
       'toString'
     ]);
   });
+
+  test('executes a named SQL source through the host query provider', async () => {
+    const execute = vi.fn(async ({sql}: {sql: string}) => ({
+      data: [{id: 7, sql}],
+      getRowId: (row: {id: number}) => row.id
+    }));
+    manager = new PlaygroundDataSourceManager({queryProvider: {execute}});
+    const changes = vi.fn();
+    manager.subscribe({dataSourceId: 'cities', consumerId: 'view', onChange: changes});
+    manager.addQuery({dataSourceId: 'cities', query: {sql: 'SELECT * FROM cities'}});
+    const source = manager.subscribe({
+      dataSourceId: 'cities',
+      consumerId: 'other',
+      onChange: changes
+    });
+    expect(source).toBeInstanceOf(Promise);
+    await expect(source).resolves.toEqual({
+      data: [{id: 7, sql: 'SELECT * FROM cities'}],
+      getRowId: expect.any(Function)
+    });
+    expect(execute).toHaveBeenCalledWith({sql: 'SELECT * FROM cities'});
+    expect(manager.listDataSources()).toEqual([{dataSourceId: 'cities', status: 'ready'}]);
+    manager.addQuery({dataSourceId: 'cities', query: {sql: 'SELECT * FROM cities'}});
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  test('rejects SQL sources when no provider is configured', () => {
+    expect(() => manager.addQuery({dataSourceId: 'cities', query: {sql: 'SELECT 1'}})).toThrow(
+      'no query provider'
+    );
+  });
 });

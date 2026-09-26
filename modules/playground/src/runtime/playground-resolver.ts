@@ -11,7 +11,12 @@ import {
 } from '@deck.gl/core';
 import {JSONConverter} from '@deck.gl/json';
 import {z} from 'zod';
-import {createDeckGLDocumentSchema, DeckGLLayerSchemas, JsonValueSchema} from '../schemas/deckgl';
+import {
+  createDeckGLDocumentSchema,
+  DeckGLLayerSchemas,
+  JsonValueSchema,
+  QuerySourceSchema
+} from '../schemas/deckgl';
 import {CommunityLayerSchemas} from '../schemas/community';
 import {
   FirstPersonViewSchema,
@@ -140,7 +145,10 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         .describe('Access token appended to Mapbox style and tile requests.')
     })
     .extend({views: z.union([viewSchema, z.array(viewSchema).min(1)]).optional()});
-  const jsonSchema = z.toJSONSchema(schema, {
+  const queryDocumentSchema = schema.extend({
+    sources: z.record(z.string().min(1), QuerySourceSchema).optional()
+  });
+  const jsonSchema = z.toJSONSchema(queryDocumentSchema, {
     target: 'draft-2020-12',
     reused: 'ref',
     override: ({jsonSchema: output, zodSchema}) => {
@@ -217,7 +225,21 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         );
       }
 
-      const document = schema.parse(value) as Record<string, unknown>;
+      const document = queryDocumentSchema.parse(value) as Record<string, unknown>;
+      const sources = document.sources as
+        | Record<string, {'@@sql': string; parameters?: unknown}>
+        | undefined;
+      if (sources) {
+        if (!dataSources?.addQuery) {
+          throw new Error('SQL sources require a data source manager with a query provider');
+        }
+        for (const [dataSourceId, source] of Object.entries(sources)) {
+          dataSources.addQuery({
+            dataSourceId,
+            query: {sql: source['@@sql'], parameters: source.parameters as any}
+          });
+        }
+      }
       const sourceLayers = (value as {layers?: Record<string, unknown>[]}).layers ?? [];
       const layerBindings = new Map<string, string>();
       const resolvedBindings: PlaygroundBindings = Object.create(null);
@@ -298,7 +320,13 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       });
       // A fresh envelope bypasses JSONConverter's input-identity cache on source updates/retries.
       const prepared = {
-        props: prepareProperties(document, ['layers', 'views', 'mapStyle', 'mapboxApiAccessToken']),
+        props: prepareProperties(document, [
+          'layers',
+          'views',
+          'sources',
+          'mapStyle',
+          'mapboxApiAccessToken'
+        ]),
         layers: preparedLayers.map(({props}) => props),
         views: preparedViews.map(({props}) => props)
       };

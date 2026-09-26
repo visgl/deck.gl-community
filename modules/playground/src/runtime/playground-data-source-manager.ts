@@ -8,6 +8,23 @@ export type PlaygroundDataSourceEntryInfo = {
   readonly error?: Error;
 };
 
+/** A host-owned SQL request. The playground never executes SQL itself. */
+export type PlaygroundQuery = {
+  readonly sql: string;
+  readonly parameters?: Record<string, unknown> | readonly unknown[];
+};
+
+/** Rows returned by a host query engine. */
+export type PlaygroundQueryResult = {
+  readonly data: readonly unknown[];
+  readonly getRowId?: (row: any, index: number) => string | number;
+};
+
+/** Adapter contract for DuckDB, Mosaic, server-side SQL, or another host engine. */
+export type PlaygroundQueryProvider = {
+  execute(query: PlaygroundQuery, options?: {signal?: AbortSignal}): Promise<PlaygroundQueryResult>;
+};
+
 /** One source request, identified independently within its consumer. */
 export type PlaygroundDataSourceSubscription = {
   dataSourceId: string;
@@ -25,12 +42,17 @@ export type PlaygroundDataSourceManagerLike = {
   listDataSources(): readonly PlaygroundDataSourceEntryInfo[];
 };
 
+export type PlaygroundQueryableDataSourceManagerLike = PlaygroundDataSourceManagerLike & {
+  addQuery(parameters: {dataSourceId: string; query: PlaygroundQuery; forceUpdate?: boolean}): void;
+};
+
 type SourceValue = object | Promise<object> | null;
 type Registration = {
   input: SourceValue;
   value: SourceValue;
   status: PlaygroundDataSourceEntryInfo['status'];
   error?: Error;
+  queryKey?: string;
 };
 type Entry = {registration?: Registration; subscribers: Set<Subscription>};
 type Subscription = {entry: Entry; onChange: (source: unknown) => void};
@@ -45,8 +67,37 @@ export class PlaygroundDataSourceManager implements PlaygroundDataSourceManagerL
   private sources = new Map<string, Entry>();
   private consumers = new Map<string, Map<string, Subscription>>();
 
-  constructor(props: {protocol?: string} = {}) {
+  constructor(props: {protocol?: string; queryProvider?: PlaygroundQueryProvider} = {}) {
     this.protocol = props.protocol || 'datasource://';
+    this.queryProvider = props.queryProvider;
+  }
+
+  private readonly queryProvider?: PlaygroundQueryProvider;
+
+  /** Executes a host-owned query and registers its result under a normal source ID. */
+  addQuery({
+    dataSourceId,
+    query,
+    forceUpdate = false
+  }: {
+    dataSourceId: string;
+    query: PlaygroundQuery;
+    forceUpdate?: boolean;
+  }): void {
+    if (!this.queryProvider) throw new Error('This data source manager has no query provider');
+    const key = JSON.stringify(query);
+    const id = this.normalizeId(dataSourceId);
+    const existing = this.sources.get(id)?.registration;
+    if (!forceUpdate && existing?.queryKey === key) return;
+    const promise = this.queryProvider.execute(query).then(result => {
+      if (!result || !Array.isArray(result.data)) {
+        throw new Error('A query provider must return a row array');
+      }
+      return result;
+    });
+    this.add({dataSourceId: id, dataSource: promise, forceUpdate});
+    const registration = this.sources.get(id)?.registration;
+    if (registration) registration.queryKey = key;
   }
 
   /** Whether an id is registered or denotes a deferred source. */
