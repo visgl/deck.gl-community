@@ -116,6 +116,91 @@ afterEach(async () => {
 });
 
 describe('DeckPlayground independent data sources', () => {
+  it.each([
+    'template',
+    'edit'
+  ] as const)('applies deferred %s camera behavior once and preserves later source-update interaction', async selection => {
+    addSource('points', createBinding());
+    let resolveSource!: (binding: PlaygroundDataBinding) => void;
+    addSource(
+      'later',
+      new Promise<PlaygroundDataBinding>(resolve => {
+        resolveSource = resolve;
+      })
+    );
+    const mounted = mountPlayground();
+    const deck = await mounted.ready();
+    const nextViewState = {longitude: -96, latitude: 37, zoom: 3};
+    const deferredDocument = {...createDocument('later', 9), initialViewState: nextViewState};
+    mounted.playground.setTemplates({points: createDocument(), later: deferredDocument});
+    const canvas = mounted.host.querySelector('canvas')!;
+    zoomCanvas(canvas);
+    await vi.waitFor(() => expect(deck.getViewports()[0].zoom).not.toBe(INITIAL_VIEW_STATE.zoom));
+    const interactiveViewport = deck.getViewports()[0];
+    const interactiveViewState = {
+      longitude: interactiveViewport.longitude,
+      latitude: interactiveViewport.latitude,
+      zoom: interactiveViewport.zoom
+    };
+    const interactiveZoom = interactiveViewport.zoom;
+    const acceptedLayer = getLayer(deck);
+    if (selection === 'template') mounted.playground.setTemplate('later');
+    else mounted.playground.setText(JSON.stringify(deferredDocument));
+    expect(getLayer(deck)).toBe(acceptedLayer);
+    expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
+    expect(mounted.onError).not.toHaveBeenCalled();
+
+    const nextRows = [ROWS[1]];
+    resolveSource(createBinding(nextRows));
+    await vi.waitFor(() => expect(getLayer(deck).props.data).toBe(nextRows));
+    expect(deck.getViewports()[0]).toMatchObject(
+      selection === 'template' ? nextViewState : interactiveViewState
+    );
+    expect(mounted.host.querySelector('canvas')).toBe(canvas);
+    const acceptedZoom = deck.getViewports()[0].zoom;
+    zoomCanvas(canvas);
+    await vi.waitFor(() => expect(deck.getViewports()[0].zoom).not.toBe(acceptedZoom));
+    const updatedZoom = deck.getViewports()[0].zoom;
+    addSource('later', createBinding());
+    expect(getLayer(deck).props.data).toBe(ROWS);
+    expect(deck.getViewports()[0].zoom).toBe(updatedZoom);
+    expect(mounted.onError).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('discards a pending template camera reset when another document is accepted', async () => {
+    addSource('points', createBinding());
+    let resolveSource!: (binding: PlaygroundDataBinding) => void;
+    addSource(
+      'later',
+      new Promise<PlaygroundDataBinding>(resolve => {
+        resolveSource = resolve;
+      })
+    );
+    const mounted = mountPlayground();
+    const deck = await mounted.ready();
+    mounted.playground.setTemplates({
+      points: createDocument(),
+      later: {
+        ...createDocument('later', 9),
+        initialViewState: {longitude: -96, latitude: 37, zoom: 3}
+      }
+    });
+    mounted.playground.setTemplate('later');
+    mounted.playground.setText(JSON.stringify(createDocument('points', 12)));
+    const canvas = mounted.host.querySelector('canvas')!;
+    zoomCanvas(canvas);
+    await vi.waitFor(() => expect(deck.getViewports()[0].zoom).not.toBe(INITIAL_VIEW_STATE.zoom));
+    const interactiveZoom = deck.getViewports()[0].zoom;
+    resolveSource(createBinding([ROWS[1]]));
+    await vi.waitFor(() =>
+      expect(sources.listDataSources()).toContainEqual({dataSourceId: 'later', status: 'ready'})
+    );
+    expect(getLayer(deck).props.getRadius).toBe(12);
+    expect(getLayer(deck).props.data).toBe(ROWS);
+    expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
+    expect(mounted.onError).not.toHaveBeenCalled();
+  }, 20_000);
+
   it('imports and replaces shared rows through WebMCP without replacing the preview', async () => {
     const original = Object.getOwnPropertyDescriptor(document, 'modelContext');
     const tools = new Map<string, any>();
