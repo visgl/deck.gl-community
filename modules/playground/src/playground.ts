@@ -139,7 +139,6 @@ export class Playground {
       throw new Error(`Unknown playground template: ${name}`);
     }
     this.currentTemplate = name;
-    this.activeSidebarPanelId = this.editorId;
     this.renderPickerCards();
     const document = getTemplateDocument(template);
     this.setText(typeof document === 'string' ? document : JSON.stringify(document, null, 2));

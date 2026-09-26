@@ -113,7 +113,7 @@ afterEach(() => {
 });
 
 describe('Playground rendering lifecycle', () => {
-  it('shows the example picker as a sidebar tab and returns to the JSON editor after selection', () => {
+  it('keeps the example picker active after selecting an example', () => {
     const onChange = vi.fn();
     const playground = new Playground({
       parentElement: createHost(),
@@ -138,11 +138,12 @@ describe('Playground rendering lifecycle', () => {
 
     playground.parentElement.querySelector<HTMLElement>('[data-template="second"]')?.click();
     expect(onChange).toHaveBeenLastCalledWith({layers: []}, expect.stringContaining('"layers"'));
-    const panelStack = tabList.parentElement?.children[1];
+    const updatedTabList = playground.parentElement.querySelector('[data-panel-tabs]')!;
+    const panelStack = updatedTabList.parentElement?.children[1];
     const activePanel = Array.from(panelStack?.children ?? []).find(
       child => child.getAttribute('aria-hidden') === 'false'
     );
-    expect(activePanel?.querySelector('[data-text-editor-root]')).not.toBeNull();
+    expect(activePanel?.querySelector('[data-template="second"]')).not.toBeNull();
   });
 
   it('keeps simultaneously mounted editor models independent through edits and disposal', async () => {

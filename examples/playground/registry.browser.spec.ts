@@ -52,7 +52,7 @@ test('gallery and standalone hosts render a registered community layer in the sa
             getFillColor: [10, 120, 200],
             getStrokeColor: [255, 255, 255],
             radiusUnits: 'pixels',
-            coordinateSystem: 0
+            coordinateSystem: 'cartesian'
           }
         ]
       })
