@@ -282,6 +282,52 @@ describe('playground runtime resolver', () => {
     );
   });
 
+  test('registers document SQL sources through the host query provider', async () => {
+    const queryManager = new PlaygroundDataSourceManager({
+      queryProvider: {
+        execute: vi.fn(async ({sql}) => ({data: [{position: [1, 2], sql}]}))
+      }
+    });
+    const querySources = new PlaygroundSourceBindings(queryManager, () => {});
+    try {
+      const document = {
+        sources: {cities: {'@@sql': 'SELECT longitude, latitude FROM cities'}},
+        layers: [sourceLayer('cities')]
+      };
+      expect(() => resolver.resolve(document, {}, querySources)).toThrow('Loading');
+      await vi.waitFor(() => expect(querySources.getState('cities')).toEqual({status: 'ready'}));
+      const result = resolver.resolve(document, {}, querySources);
+      expect((result.props.layers as Layer[])[0].props.data).toEqual([
+        {position: [1, 2], sql: 'SELECT longitude, latitude FROM cities'}
+      ]);
+    } finally {
+      querySources.finalize();
+      await queryManager.finalize();
+    }
+  });
+
+  test('does not execute SQL for a document rejected by runtime validation', () => {
+    const execute = vi.fn(async () => ({data: []}));
+    const queryManager = new PlaygroundDataSourceManager({queryProvider: {execute}});
+    const querySources = new PlaygroundSourceBindings(queryManager, () => {});
+    try {
+      expect(() =>
+        resolver.resolve(
+          {
+            sources: {cities: {'@@sql': 'SELECT * FROM cities'}},
+            layers: [sourceLayer('cities', 'duplicate'), sourceLayer('cities', 'duplicate')]
+          },
+          {},
+          querySources
+        )
+      ).toThrow('Duplicate playground layer id');
+      expect(execute).not.toHaveBeenCalled();
+    } finally {
+      querySources.finalize();
+      void queryManager.finalize();
+    }
+  });
+
   test('refreshes row references when resolving the same document after a source replacement', () => {
     const document = {layers: [sourceLayer('points')]};
     const originalRows = [{id: 1}];

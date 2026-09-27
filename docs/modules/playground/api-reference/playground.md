@@ -17,6 +17,10 @@ Accepts `parentElement`, `templates`, and `initialTemplate`, plus:
 - `onViewStateChange(params)`: observes camera changes; return values are ignored.
 - `onLoad()`: observes Deck initialization, before asynchronous layers necessarily finish loading.
 
+The package is suitable for embedding in an agent chat: the host owns the database and the
+playground owns the editor, preview, source subscriptions, and selection lifecycle. SQL execution
+is deliberately supplied through a host adapter rather than bundled into this package.
+
 Initial callbacks may run during construction. Invalid edits retain the last accepted preview;
 errors occurring later during rendering may leave a frame incomplete.
 
@@ -132,6 +136,60 @@ This local class implements a narrow loaders.gl v5 manager subset without adding
 The structural `PlaygroundDataSourceManagerLike` interface allows compatible upstream managers
 to be substituted later. Arbitrary `TableScanSource` handles still need an adapter that materializes
 rows into `PlaygroundDataBinding`.
+
+### SQL query sources
+
+Construct the manager with a `PlaygroundQueryProvider` when the host can execute SQL:
+
+```ts
+const dataSources = new PlaygroundDataSourceManager({
+  queryProvider: {
+    async execute({sql, parameters}, {signal} = {}) {
+      return {
+        data: await database.queryRows(sql, parameters, signal),
+        getRowId: row => row.id
+      };
+    }
+  }
+});
+```
+
+The provider receives `{sql, parameters?}` and returns `{data, getRowId?}`. It may be backed by
+DuckDB-WASM, Mosaic, a remote SQL endpoint, or another engine. The optional `AbortSignal` is
+aborted when a query is replaced, removed, or finalized. The playground does not parse, authorize,
+or execute SQL and therefore does not require the engine as a dependency.
+
+Documents can register named query sources. Layers continue to reference them through the normal
+`@@data` binding, which means the same source can be shared by several layers:
+
+```json
+{
+  "sources": {
+    "trips": {
+      "@@sql": "SELECT origin, destination, count(*) AS trips FROM rides GROUP BY 1, 2"
+    }
+  },
+  "layers": [{
+    "@@type": "ArcLayer",
+    "id": "trips",
+    "data": {"@@data": "trips"},
+    "getSourcePosition": "@@=origin",
+    "getTargetPosition": "@@=destination",
+    "getWidth": "@@=trips"
+  }]
+}
+```
+
+`sources` are registered only after synchronous document validation succeeds. Until the provider resolves a query, the
+preview retains its last accepted frame and reports a loading state through the normal source
+lifecycle. Query failures use the same error path as failed external sources. Reusing the same
+query descriptor does not re-run the query; changing SQL or parameters replaces the source and
+refreshes subscribed layers.
+
+For agent integrations, keep query execution host-controlled and read-only by default. Apply
+authorization, statement restrictions, cancellation, and row/byte limits in the provider. Do not
+expose arbitrary SQL execution to WebMCP unless the surrounding application explicitly grants
+that capability and understands the database effects.
 
 ## `Playground` {/* #playground */}
 

@@ -26,8 +26,12 @@ export type {
 export {
   PlaygroundDataSourceManager,
   type PlaygroundDataSourceManagerLike,
+  type PlaygroundQueryableDataSourceManagerLike,
   type PlaygroundDataSourceEntryInfo,
-  type PlaygroundDataSourceSubscription
+  type PlaygroundDataSourceSubscription,
+  type PlaygroundQuery,
+  type PlaygroundQueryProvider,
+  type PlaygroundQueryResult
 } from './runtime/playground-data-source-manager';
 export {PanelManager, TextEditorPanel} from '@deck.gl-community/panels';
 export * from './geojson/index';

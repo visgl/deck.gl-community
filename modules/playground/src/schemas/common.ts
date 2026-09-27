@@ -119,6 +119,12 @@ export const TransitionSchema = z.union([
 /** A named host-owned row array, kept separate from the editable document. */
 export const DataBindingSchema = z.strictObject({'@@data': z.string().min(1)});
 export type DataBinding = z.infer<typeof DataBindingSchema>;
+/** A named SQL source resolved by the host's query provider. */
+export const QuerySourceSchema = z.strictObject({
+  '@@sql': z.string().trim().min(1),
+  parameters: JsonValueSchema.optional()
+});
+export type QuerySource = z.infer<typeof QuerySourceSchema>;
 const JsonDataDescriptorSchema = z
   .object({'@@data': z.never().optional()})
   .catchall(JsonValueSchema);
