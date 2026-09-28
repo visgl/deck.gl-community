@@ -1,10 +1,12 @@
 {
-  "metadata": {"title": "Arc network", "description": "Great-circle connections between major cities.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/graph-layers/multi-graph.png"},
+  "name": "Arc network",
+  "description": "Great-circle connections between major cities.",
+  "metadata": {"screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/graph-layers/multi-graph.png"},
   "initialViewState": {"longitude": -96, "latitude": 37, "zoom": 3.2},
   "layers": [
     {
       "@@type": "ArcLayer",
-      "id": "arc-network-routes",
+      "id": "routes",
       "data": [
         {"source": [-122.42, 37.78], "target": [-73.98, 40.75], "color": [239, 68, 68]},
         {"source": [-122.42, 37.78], "target": [-87.62, 41.88], "color": [16, 185, 129]},

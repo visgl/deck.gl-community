@@ -350,8 +350,21 @@ function getTemplateMetadata(
   name: string,
   template: PlaygroundTemplate
 ): PlaygroundTemplateMetadata {
-  if (typeof template === 'object' && template && 'metadata' in template) {
-    return (template as TemplateWithMetadata).metadata ?? {title: name};
+  if (typeof template === 'string') {
+    try {
+      template = JSON.parse(template);
+    } catch {
+      return {title: name};
+    }
+  }
+  if (typeof template === 'object' && template) {
+    const metadata = (template as TemplateWithMetadata).metadata;
+    return {
+      ...metadata,
+      title: typeof template.name === 'string' ? template.name : (metadata?.title ?? name),
+      description:
+        typeof template.description === 'string' ? template.description : metadata?.description
+    };
   }
   return {title: name};
 }

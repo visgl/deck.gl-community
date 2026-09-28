@@ -2,9 +2,10 @@
 
 ## Unreleased
 
-- Playground gallery templates use distinct layer IDs so switching examples rebuilds incompatible
-  layers and globe geometry. `SkyboxLayer` ignores pending cubemap results after removal and releases
-  its inherited layer resources.
+- Playground documents accept top-level `name` and `description` metadata. A name change resets all
+  preview props, camera, and layer state after the document is accepted, so gallery examples can
+  safely reuse layer IDs across different views and layer types. Description edits preserve state.
+  `SkyboxLayer` ignores pending cubemap results after removal and releases inherited layer resources.
 
 - Playground template selection restores each example's initial camera after its data sources
   resolve and its document is accepted, while JSON edits preserve camera interaction. Gallery

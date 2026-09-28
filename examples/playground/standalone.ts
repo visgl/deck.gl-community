@@ -10,10 +10,8 @@ const TOOL_TEMPLATES = ['imported-points', 'scatterplot', 'arcs', 'geojson', 'he
 
 const TEMPLATES = {
   'imported-points': {
-    metadata: {
-      title: 'Imported points',
-      description: 'Replace the points source with JSON or Arrow rows containing position: [x, y].'
-    },
+    name: 'Imported points',
+    description: 'Replace the points source with JSON or Arrow rows containing position: [x, y].',
     views: {'@@type': 'OrthographicView', id: 'plot'},
     initialViewState: {target: [0, 0, 0], zoom: 1},
     layers: [

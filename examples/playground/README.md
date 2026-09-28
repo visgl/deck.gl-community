@@ -4,9 +4,10 @@ This directory contains a standalone app and a community gallery example built w
 `@deck.gl-community/playground`. Every template is a JSON deck document. Accessors use the
 deck.gl JSON convention, for example `"getPosition": "@@=position"`.
 
-Use distinct layer IDs across gallery templates. The preview keeps one Deck instance, and deck.gl
-matches layer state by ID. Sharing IDs between examples can transfer incompatible state or retain
-flat-map geometry when switching to a globe.
+Each gallery document includes a top-level `name` and `description`. Changing `name` resets the
+entire preview, including renderer props, camera, layers, and the selected basemap. This allows
+different examples to reuse layer IDs safely. Edits with the same name reuse the current preview;
+`description` is informational. The picker displays these fields as the card title and description.
 
 Open the [standalone playground](https://visgl.github.io/deck.gl-community/playground) for a
 full-screen editor and preview. It shares the gallery's templates and constructor registry: all

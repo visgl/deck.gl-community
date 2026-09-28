@@ -73,8 +73,9 @@ test('renders the gallery forward, backward, and across different view types', a
     .find(button => button.textContent === 'Examples')!
     .click();
   await vi.waitFor(() => expect(setProps.mock.contexts.length).toBeGreaterThan(0));
-  const deck = setProps.mock.contexts[0] as Deck;
-  const canvas = host.querySelector('canvas');
+  let deck = setProps.mock.contexts[0] as Deck;
+  const canvasSelector = '.deckgl-playground-preview > canvas';
+  const canvas = host.querySelector(canvasSelector);
   const errorOutput = host.querySelector<HTMLOutputElement>('[data-error]')!;
 
   const names = Object.keys(TEMPLATES);
@@ -95,6 +96,7 @@ test('renders the gallery forward, backward, and across different view types', a
     const template = TEMPLATES[name];
     const configuration = typeof template === 'string' ? JSON.parse(template) : template;
     host.querySelector<HTMLButtonElement>(`[data-template="${name}"]`)!.click();
+    deck = setProps.mock.contexts.at(-1) as Deck;
     await vi.waitFor(
       () => {
         expect(errorOutput.hidden, `${name}: ${errorOutput.textContent}`).toBe(true);
@@ -134,7 +136,8 @@ test('renders the gallery forward, backward, and across different view types', a
       name
     ).toEqual([]);
     expect(errorOutput.hidden, `${name}: ${errorOutput.textContent}`).toBe(true);
-    expect(host.querySelector('canvas'), name).toBe(canvas);
+    expect(host.querySelectorAll(canvasSelector), name).toHaveLength(1);
+    expect(host.querySelector(canvasSelector), name).toBe(canvas);
     const viewport = deck.getViewports()[0];
     for (const property of ['longitude', 'latitude', 'zoom'] as const) {
       if (property in configuration.initialViewState) {

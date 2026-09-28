@@ -56,6 +56,24 @@ function captureSourceError(resolve: () => unknown): PlaygroundDataSourceError {
 }
 
 describe('playground runtime resolver', () => {
+  test('validates document metadata without interpreting it or passing it to Deck', () => {
+    const result = resolver.resolve(
+      {
+        name: '@@#literal-name',
+        description: '@@=literal-description',
+        layers: [layer]
+      },
+      {}
+    );
+    expect(result.props).not.toHaveProperty('name');
+    expect(result.props).not.toHaveProperty('description');
+    expect(() => resolver.resolve({name: 3}, {})).toThrow();
+    expect(() => resolver.resolve({name: ''}, {})).toThrow();
+    expect(() => resolver.resolve({description: {}}, {})).toThrow();
+    expect(resolver.jsonSchema.properties).toHaveProperty('name');
+    expect(resolver.jsonSchema.properties).toHaveProperty('description');
+  });
+
   test('matches selected constructors to bundled schemas without enabling other layers', () => {
     const selected = createPlaygroundResolver({layers: {ScatterplotLayer}});
     try {
