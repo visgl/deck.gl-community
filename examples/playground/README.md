@@ -4,6 +4,10 @@ This directory contains a standalone app and a community gallery example built w
 `@deck.gl-community/playground`. Every template is a JSON deck document. Accessors use the
 deck.gl JSON convention, for example `"getPosition": "@@=position"`.
 
+Use distinct layer IDs across gallery templates. The preview keeps one Deck instance, and deck.gl
+matches layer state by ID. Sharing IDs between examples can transfer incompatible state or retain
+flat-map geometry when switching to a globe.
+
 Open the [standalone playground](https://visgl.github.io/deck.gl-community/playground) for a
 full-screen editor and preview. It shares the gallery's templates and constructor registry: all
 35 concrete official deck.gl layers and 44 public community layers. The graph package's `GridLayer`

@@ -44,6 +44,18 @@ const PACKAGES = {
   '@deck.gl-community/timeline-layers': timeline
 };
 const ABSTRACT_LAYERS = new Set(['_AggregationLayer', '_GeoCellLayer']);
+
+test('gallery examples use distinct layer IDs to prevent incompatible state transfers', () => {
+  const ids = new Set<string>();
+  for (const [name, template] of Object.entries(TEMPLATES)) {
+    const configuration = typeof template === 'string' ? JSON.parse(template) : template;
+    for (const layer of configuration.layers) {
+      expect(ids.has(layer.id), `${name}: ${layer.id}`).toBe(false);
+      ids.add(layer.id);
+    }
+  }
+});
+
 const registry = createPlaygroundRegistry();
 const resolver = createPlaygroundResolver(registry);
 afterAll(() => resolver.finalize());

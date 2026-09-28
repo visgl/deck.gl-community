@@ -9,7 +9,13 @@ import {
   type TextureCubeManifest
 } from '@loaders.gl/textures';
 import {Layer} from '@deck.gl/core';
-import type {DefaultProps, LayerProps, UpdateParameters, Viewport} from '@deck.gl/core';
+import type {
+  DefaultProps,
+  LayerContext,
+  LayerProps,
+  UpdateParameters,
+  Viewport
+} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import type {Device, RenderPipelineParameters} from '@luma.gl/core';
 import {CubeGeometry, DynamicTexture, Model, ShaderInputs} from '@luma.gl/engine';
@@ -122,10 +128,14 @@ export class SkyboxLayer<
     }
   }
 
-  /** Releases GPU resources owned by the layer. */
-  finalizeState(): void {
+  /** Invalidates pending loads and releases GPU resources owned by the layer. */
+  finalizeState(context: LayerContext): void {
+    // A removed skybox must not upload a late texture or report an obsolete load failure.
+    this.state.loadCount++;
     this.state.cubemapTexture?.destroy();
-    this.state.model?.destroy();
+    this.state.cubemapTexture = null;
+    super.finalizeState(context);
+    this.state.model = undefined;
   }
 
   /** Draws the skybox cube for the current viewport. */

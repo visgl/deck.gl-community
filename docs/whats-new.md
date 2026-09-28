@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Playground gallery templates use distinct layer IDs so switching examples rebuilds incompatible
+  layers and globe geometry. `SkyboxLayer` ignores pending cubemap results after removal and releases
+  its inherited layer resources.
+
 - Playground template selection restores each example's initial camera after its data sources
   resolve and its document is accepted, while JSON edits preserve camera interaction. Gallery
   examples fix graph node data and styles, first-person floor geometry,

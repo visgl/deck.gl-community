@@ -4,7 +4,7 @@
   "layers": [
     {
       "@@type": "ScatterplotLayer",
-      "id": "cities",
+      "id": "scatterplot-cities",
       "data": [
         {"name": "San Francisco", "position": [-122.42, 37.78], "population": 873000},
         {"name": "Oakland", "position": [-122.27, 37.8], "population": 433000},
