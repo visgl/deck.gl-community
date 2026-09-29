@@ -532,5 +532,44 @@ describe('DeckGL Component Tests', () => {
         })
       );
     });
+
+    it('should forward replacement controlled view state and callback', () => {
+      const child = <div>Test</div>;
+      const firstViewState = {latitude: 0, longitude: 0, zoom: 1};
+      const secondViewState = {latitude: 10, longitude: 10, zoom: 2};
+      const firstHandler = vi.fn();
+      const secondHandler = vi.fn();
+      const {rerender} = render(
+        <DeckGL viewState={firstViewState} onViewStateChange={firstHandler}>
+          {child}
+        </DeckGL>
+      );
+
+      rerender(
+        <DeckGL viewState={secondViewState} onViewStateChange={firstHandler}>
+          {child}
+        </DeckGL>
+      );
+
+      expect(mockConfigure).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          viewState: secondViewState,
+          onViewStateChange: firstHandler
+        })
+      );
+
+      rerender(
+        <DeckGL viewState={secondViewState} onViewStateChange={secondHandler}>
+          {child}
+        </DeckGL>
+      );
+
+      expect(mockConfigure).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          viewState: secondViewState,
+          onViewStateChange: secondHandler
+        })
+      );
+    });
   });
 });
