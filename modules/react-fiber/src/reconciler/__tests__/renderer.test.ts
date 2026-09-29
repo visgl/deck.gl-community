@@ -5,7 +5,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {PolygonLayer as CompatPolygonLayer} from '../../compat/layers';
 import {createRoot, roots, unmountAtNode} from '../renderer';
-import type {RootElement} from '../types';
+import type {ReconcilerRoot, RootElement} from '../types';
 import {createTestRoot} from './test-renderer';
 
 /**
@@ -14,6 +14,14 @@ import {createTestRoot} from './test-renderer';
  */
 function createTestRootElement(): RootElement {
   return {} as RootElement;
+}
+
+function getRootElement(root: ReconcilerRoot): RootElement {
+  const entry = [...roots.entries()].find(([, candidate]) => candidate === root);
+  if (!entry) {
+    throw new Error('Root element not found');
+  }
+  return entry[0];
 }
 
 describe('renderer', () => {
@@ -224,6 +232,63 @@ describe('renderer', () => {
 
       // Act & Assert
       expect(() => root.render(children)).not.toThrow();
+    });
+
+    it('keeps committed layers and cleanup isolated between two roots', async () => {
+      const first = createTestRoot();
+      const second = createTestRoot();
+      const firstNode = getRootElement(first.root);
+      const secondNode = getRootElement(second.root);
+      const firstLayer = new ScatterplotLayer({data: [], id: 'first-layer'});
+      const secondLayer = new ScatterplotLayer({data: [], id: 'second-layer'});
+
+      await React.act(async () => {
+        first.root.render(React.createElement('layer', {layer: firstLayer}));
+        second.root.render(React.createElement('layer', {layer: secondLayer}));
+        await Promise.all([first.flush(), second.flush()]);
+      });
+
+      expect(first.root).not.toBe(second.root);
+      expect(first.root.store).not.toBe(second.root.store);
+      expect(first.deck).not.toBe(second.deck);
+      expect(first.deck.getLayerIds()).toStrictEqual(['first-layer']);
+      expect(second.deck.getLayerIds()).toStrictEqual(['second-layer']);
+
+      const updatedFirstLayer = new ScatterplotLayer({data: [], id: 'updated-first-layer'});
+      await React.act(async () => {
+        first.root.render(React.createElement('layer', {layer: updatedFirstLayer}));
+        await first.flush();
+      });
+
+      expect(first.deck.getLayerIds()).toStrictEqual(['updated-first-layer']);
+      expect(second.deck.getLayerIds()).toStrictEqual(['second-layer']);
+
+      unmountAtNode(firstNode);
+
+      expect(first.deck.finalize).toHaveBeenCalledOnce();
+      expect(first.root.store.getState().deckgl).toBeNull();
+      expect(roots.has(firstNode)).toBe(false);
+      expect(roots.get(secondNode)).toBe(second.root);
+      expect(second.root.store.getState().deckgl).toBe(second.deck);
+      expect(second.deck.getLayerIds()).toStrictEqual(['second-layer']);
+
+      const additionalSecondLayer = new ScatterplotLayer({data: [], id: 'additional-second-layer'});
+      await React.act(async () => {
+        second.root.render(
+          React.createElement(
+            React.Fragment,
+            null,
+            React.createElement('layer', {layer: secondLayer}),
+            React.createElement('layer', {layer: additionalSecondLayer})
+          )
+        );
+        await second.flush();
+      });
+
+      expect(second.deck.getLayerIds()).toStrictEqual(['second-layer', 'additional-second-layer']);
+
+      unmountAtNode(secondNode);
+      expect(second.deck.finalize).toHaveBeenCalledOnce();
     });
 
     it('renders native layer primitives and compat layer wrappers together', async () => {
