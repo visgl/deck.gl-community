@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `ElevationLayer` keeps height-map mesh decoding separate from texture loading when both use
+  the same URL, fixing terrain updates that could receive cached image data instead of a mesh.
+
 - The Editable GeoJSON playground example supports feature selection, geometry edits, and an
   edit-mode tray for selecting, modifying, transforming, and drawing features. Changes update the
   JSON document. Playground documents can attach host-registered widgets through `widgets`.

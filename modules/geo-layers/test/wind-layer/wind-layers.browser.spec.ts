@@ -165,9 +165,15 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }
 
     await new Promise<void>((resolve, reject) => {
+      let layers = createLayers(field, 0, elevationData);
       const timeout = window.setTimeout(() => {
-        reject(new Error(`Timed out while rendering wind showcase layers with ${type}.`));
-      }, 10_000);
+        const pending = layers.filter(layer => !layer.isLoaded).map(layer => layer.id);
+        reject(
+          new Error(
+            `Timed out while rendering wind showcase layers with ${type}: ${pending.join(', ')}`
+          )
+        );
+      }, 30_000);
       let renderedAnimation = false;
 
       deck = new Deck({
@@ -177,11 +183,13 @@ async function renderWindLayers(type: 'webgl' | 'webgpu'): Promise<void> {
         height: 120,
         views: new MapView({id: 'wind-test'}),
         initialViewState: {longitude: -98, latitude: 37, zoom: 4},
-        layers: createLayers(field, 0, elevationData),
+        layers,
         onAfterRender: () => {
+          // Include asynchronous height-map mesh and texture loads in both frames.
+          if (!layers.every(layer => layer.isLoaded)) return;
           if (!renderedAnimation) {
             renderedAnimation = true;
-            const layers = createLayers(field, 0.5, elevationData);
+            layers = createLayers(field, 0.5, elevationData);
             particleLayer = layers.find(layer => layer instanceof ParticleLayer) as ParticleLayer;
             deck?.setProps({layers});
             return;
