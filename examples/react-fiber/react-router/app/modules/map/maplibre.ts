@@ -7,8 +7,10 @@ import {INITIAL_VIEW_STATE} from './constants';
  */
 export function connect(deckgl: MapLibreOverlay) {
   const map = new MaplibreMap({
+    canvasContextAttributes: {antialias: true},
     center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
     container: 'maplibre',
+    pixelRatio: window.devicePixelRatio,
     style: {
       layers: [
         {
