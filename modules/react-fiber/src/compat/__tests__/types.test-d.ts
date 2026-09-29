@@ -1,4 +1,5 @@
 import type {Deck} from '@deck.gl/core';
+import {createDeckGL} from '../../dom';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
 import type {MapLibreOverlay} from '@deck.gl/maplibre';
@@ -33,6 +34,10 @@ void unsupportedCanvas;
 const unsupportedOnDeckglChange: DeckGLProps = {onDeckglChange: () => undefined};
 void unsupportedOnDeckglChange;
 
+// @ts-expect-error Plain compatibility roots never select a provider from a prop.
+const unsupportedInterleaved: DeckGLProps = {interleaved: true};
+void unsupportedInterleaved;
+
 const refProps = {
   initialViewState: {latitude: 0, longitude: 0, zoom: 1},
   ref: createRef<DeckGLRef>()
@@ -49,6 +54,29 @@ expectTypeOf<MapboxDeckGLRef['deck']>().toEqualTypeOf<MapboxOverlay | null>();
 expectTypeOf<MapLibreDeckGLRef['deck']>().toEqualTypeOf<MapLibreOverlay | null>();
 void mapboxProps;
 void maplibreProps;
+
+interface CustomOverlayProps {
+  enabled?: boolean;
+}
+
+class CustomOverlay {
+  finalize() {}
+
+  setProps(_props: Parameters<Deck['setProps']>[0]) {}
+}
+
+const CustomDeckGL = createDeckGL<CustomOverlayProps, CustomOverlay>({
+  createExternalOverlay: props => {
+    expectTypeOf(props.enabled).toEqualTypeOf<boolean | undefined>();
+    return new CustomOverlay();
+  }
+});
+expectTypeOf<Parameters<typeof CustomDeckGL>[0]['onDeckglChange']>().toEqualTypeOf<
+  ((deckgl: CustomOverlay | null) => void) | undefined
+>();
+
+// @ts-expect-error Custom overlays must implement both Deck renderer lifecycle methods.
+createDeckGL({createExternalOverlay: () => ({setProps: () => undefined})});
 
 const mixedLayerTree = createElement(
   DeckGL,
