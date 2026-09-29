@@ -1,5 +1,7 @@
 {
-  "metadata": {"title": "Skybox MapView", "description": "Tilt and rotate a cubemap behind a geographic view.", "screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/layers/skybox-map-view.png"},
+  "name": "Skybox MapView",
+  "description": "Tilt and rotate a cubemap behind a geographic view.",
+  "metadata": {"screencap": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/website/static/images/examples/layers/skybox-map-view.png"},
   "mapStyle": null,
   "views": {"@@type": "MapView", "id": "map", "repeat": true},
   "initialViewState": {"longitude": -122.42, "latitude": 37.78, "zoom": 10, "pitch": 80, "maxPitch": 85, "bearing": 20},

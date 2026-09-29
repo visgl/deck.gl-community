@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, type Layer} from '@deck.gl/core';
+import {Deck, Layer} from '@deck.gl/core';
+import type {SolidPolygonLayer} from '@deck.gl/layers';
+import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {SkyboxLayer} from '@deck.gl-community/layers';
+import {page} from 'vitest/browser';
 import {afterEach, expect, test, vi} from 'vitest';
 import {mountStandalonePlayground} from './standalone';
 import {TEMPLATES} from './templates';
@@ -51,12 +54,14 @@ async function mockGalleryResources(): Promise<void> {
   });
 }
 
-test('renders every gallery example when selected in sequence', async () => {
+test('renders the gallery forward, backward, and across different view types', async () => {
+  await page.viewport(1200, 850);
   await mockGalleryResources();
   const host = document.createElement('div');
   host.style.cssText = 'width:1200px;height:800px';
   document.body.append(host);
   const setProps = vi.spyOn(Deck.prototype, 'setProps');
+  const errors = vi.spyOn(Layer.prototype, 'raiseError');
   const unmount = mountStandalonePlayground(host, {enableTools: false});
   cleanup = () => {
     unmount();
@@ -68,13 +73,30 @@ test('renders every gallery example when selected in sequence', async () => {
     .find(button => button.textContent === 'Examples')!
     .click();
   await vi.waitFor(() => expect(setProps.mock.contexts.length).toBeGreaterThan(0));
-  const deck = setProps.mock.contexts[0] as Deck;
-  const canvas = host.querySelector('canvas');
+  let deck = setProps.mock.contexts[0] as Deck;
+  const canvasSelector = '.deckgl-playground-preview > canvas';
+  const canvas = host.querySelector(canvasSelector);
   const errorOutput = host.querySelector<HTMLOutputElement>('[data-error]')!;
 
-  for (const [name, template] of Object.entries(TEMPLATES)) {
+  const names = Object.keys(TEMPLATES);
+  const selections = [
+    ...names,
+    ...[...names].reverse(),
+    'skybox-first-person',
+    'skybox-map',
+    'skybox-globe',
+    'skybox-map',
+    'skybox-first-person',
+    'skybox-globe',
+    'infovis-blocks',
+    'community-mix',
+    'infovis-blocks'
+  ];
+  for (const name of selections) {
+    const template = TEMPLATES[name];
     const configuration = typeof template === 'string' ? JSON.parse(template) : template;
     host.querySelector<HTMLButtonElement>(`[data-template="${name}"]`)!.click();
+    deck = setProps.mock.contexts.at(-1) as Deck;
     await vi.waitFor(
       () => {
         expect(errorOutput.hidden, `${name}: ${errorOutput.textContent}`).toBe(true);
@@ -82,8 +104,25 @@ test('renders every gallery example when selected in sequence', async () => {
         for (const definition of configuration.layers) {
           const layer = layers.find(candidate => candidate.id === definition.id);
           expect(layer?.isLoaded, `${name}: ${definition.id} loaded`).toBe(true);
+        }
+        // Include the automatically injected basemap as well as the document's own layers.
+        for (const layer of layers) {
           if (layer instanceof SkyboxLayer) {
             expect(layer.state?.cubemapTexture?.isReady, `${name}: cubemap uploaded`).toBe(true);
+          }
+          if (layer instanceof BasemapLayer) {
+            expect(layer.state?.resolvedStyle, `${name}: basemap style loaded`).toBeTruthy();
+            const background = layer
+              .getSubLayers()
+              .find(candidate => candidate.id === `${layer.id}-background`) as
+              | SolidPolygonLayer
+              | undefined;
+            const tessellator = background?.state?.polygonTesselator;
+            expect(tessellator?.vertexCount, `${name}: background mesh`).toBeGreaterThan(0);
+            // A flat map mesh can report loaded while rendering no globe at all.
+            expect(tessellator?.opts.resolution, `${name}: projection tessellation`).toBe(
+              deck.getViewports()[0].resolution
+            );
           }
         }
       },
@@ -91,9 +130,14 @@ test('renders every gallery example when selected in sequence', async () => {
     );
 
     // Force a frame after async resources settle so draw-time failures reach the error banner.
-    deck.redraw(true);
+    deck.redraw('gallery transition test');
+    expect(
+      errors.mock.calls.map(([error, context]) => `${context}: ${error.message}`),
+      name
+    ).toEqual([]);
     expect(errorOutput.hidden, `${name}: ${errorOutput.textContent}`).toBe(true);
-    expect(host.querySelector('canvas'), name).toBe(canvas);
+    expect(host.querySelectorAll(canvasSelector), name).toHaveLength(1);
+    expect(host.querySelector(canvasSelector), name).toBe(canvas);
     const viewport = deck.getViewports()[0];
     for (const property of ['longitude', 'latitude', 'zoom'] as const) {
       if (property in configuration.initialViewState) {

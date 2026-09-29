@@ -5,15 +5,14 @@
 import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES as GALLERY_TEMPLATES} from './templates';
+import {createEditablePlaygroundControls} from './editable-controls';
 
 const TOOL_TEMPLATES = ['imported-points', 'scatterplot', 'arcs', 'geojson', 'heatmap'];
 
 const TEMPLATES = {
   'imported-points': {
-    metadata: {
-      title: 'Imported points',
-      description: 'Replace the points source with JSON or Arrow rows containing position: [x, y].'
-    },
+    name: 'Imported points',
+    description: 'Replace the points source with JSON or Arrow rows containing position: [x, y].',
     views: {'@@type': 'OrthographicView', id: 'plot'},
     initialViewState: {target: [0, 0, 0], zoom: 1},
     layers: [
@@ -64,19 +63,23 @@ export function mountStandalonePlayground(
       ]
     }
   });
+  const editing = createEditablePlaygroundControls();
   const playground = new DeckPlayground({
     parentElement: root.querySelector<HTMLElement>('[data-preview]')!,
     templates: TEMPLATES,
-    registry: createPlaygroundRegistry(),
+    registry: createPlaygroundRegistry(editing.constants),
     dataSources: sources,
-    onChange() {
+    onChange(value) {
+      editing.onChange(value);
       errorStatus.hidden = true;
     },
     onError(error) {
+      editing.suspend();
       errorStatus.textContent = error.message.slice(0, 300);
       errorStatus.hidden = false;
     }
   });
+  editing.connect(playground);
   let active = true;
   let unregister: (() => void) | null = null;
   toggle.onclick = async () => {

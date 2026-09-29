@@ -2,8 +2,21 @@
 
 ## Unreleased
 
+- `ElevationLayer` keeps height-map mesh decoding separate from texture loading when both use
+  the same URL, fixing terrain updates that could receive cached image data instead of a mesh.
+
+- The Editable GeoJSON playground example supports feature selection, geometry edits, and an
+  edit-mode tray for selecting, modifying, transforming, and drawing features. Changes update the
+  JSON document. Playground documents can attach host-registered widgets through `widgets`.
+
+- Playground documents accept top-level `name` and `description` metadata. A name change resets all
+  preview props, camera, and layer state after the document is accepted, so gallery examples can
+  safely reuse layer IDs across different views and layer types. Description edits preserve state.
+  `SkyboxLayer` ignores pending cubemap results after removal and releases inherited layer resources.
+
 - Playground template selection restores each example's initial camera after its data sources
-  resolve and its document is accepted, while JSON edits preserve camera interaction. Gallery
+  resolve and its document is accepted. Explicit `initialViewState` edits, including pitch and
+  bearing, also update the camera; layer edits and data refreshes preserve camera interaction. Gallery
   examples fix graph node data and styles, first-person floor geometry,
   skybox backgrounds, and grid, path, and horizon-chart visibility.
 - `FastTextLayer` draws every glyph across all text rows. `SkyboxLayer` preserves its background

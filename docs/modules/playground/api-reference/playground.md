@@ -15,7 +15,8 @@ Accepts `parentElement`, `templates`, and `initialTemplate`, plus:
 - `onError(error)`: observes parsing, configuration, source, and rendering failures.
 - `onSelect(selection)`: observes bound-row picks or `null`.
 - `onViewStateChange(params)`: observes camera changes; return values are ignored.
-- `onLoad()`: observes Deck initialization, before asynchronous layers necessarily finish loading.
+- `onLoad()`: observes each Deck initialization, including after a document name change, before
+  asynchronous layers necessarily finish loading.
 
 The package is suitable for embedding in an agent chat: the host owns the database and the
 playground owns the editor, preview, source subscriptions, and selection lifecycle. SQL execution
@@ -54,6 +55,12 @@ such as `"@@=position"`, `"@@=[longitude, latitude]"`, `"@@=weight > 10 ? 8 : 4"
 Function calls are not supported inside expressions. Supply nested resources through constants
 rather than nested `@@type` descriptors.
 
+The top-level `widgets` array accepts registered widget instances, for example
+`"widgets": ["@@#editModeTray"]` with `registry.constants.editModeTray` set to a host-created
+widget. Deck manages their attachment and removal as documents change. Host callbacks can use
+`setText` to reflect widget actions and layer edits in the JSON; the editable gallery example
+demonstrates mode switching, feature selection, and persisting `onEdit` results this way.
+
 Registered schemas drive validation and Monaco diagnostics. The runtime also rejects unavailable
 references, duplicate layer IDs, `mapStyle` (no basemap adapter), and empty `views` arrays.
 Omit `views` to use the default map view. Inline rows and external bindings bypass conversion:
@@ -83,10 +90,33 @@ are unaffected by shared-source changes. The host owns selection state and highl
 
 ### Camera and lifecycle
 
-Accepted edits and source updates reuse the Deck instance and preserve its camera. Keep layer IDs
-stable to allow layer-state reuse. Editing `initialViewState` updates the target for `resetView()`;
-changing view types or IDs resets the camera. An explicit `viewState` remains authoritative.
+Accepted edits with the same document name and source updates reuse the Deck instance. Keep layer
+IDs stable to allow layer-state reuse. Layer edits and source refreshes preserve camera interaction
+when the document's camera props are unchanged. Editing `initialViewState` applies the new camera,
+including pitch and bearing, once the document is accepted, and updates the target for `resetView()`.
+Changing view types or IDs also resets the camera. An explicit `viewState` remains authoritative.
 Interactivity defaults to enabled, preserving explicit per-view controller settings.
+
+Documents may include top-level metadata:
+
+```json
+{
+  "name": "City map",
+  "description": "Locations of selected cities.",
+  "initialViewState": {"longitude": -98, "latitude": 39, "zoom": 3},
+  "layers": []
+}
+```
+
+`name` is an optional, nonempty string identifying the document. Changing, adding, or removing it
+recreates the Deck preview, clearing all previous renderer props, camera interaction, layer state,
+and the basemap selection. The new document's props are applied over the default props. The reset
+occurs only after validation and data-source resolution succeed; invalid or pending documents keep
+the last accepted preview. Shared sources and local bindings remain available.
+
+`description` is optional informational text. Editing it does not reset the preview. Neither field
+is passed to Deck or interpreted as a JSON expression. Templates without a name retain the existing
+behavior of reusing their preview across edits.
 
 `resetView(): void` restores the accepted document's `initialViewState`, defaulting to longitude 0,
 latitude 0, and zoom 0. `finalize()` releases the editor, preview, and source subscriptions;
@@ -198,6 +228,7 @@ that capability and understands the database effects.
 - `parentElement`: host element for the editor and preview.
 - `templates`: named JSON objects or text documents. Object templates may include `metadata` with
   `title`, `description`, and `screencap` for the picker; it is omitted from the editor document.
+  Top-level `name` and `description` take precedence for card labels and remain in the editor JSON.
 - `initialTemplate`: initial template name; defaults to the first template.
 - `jsonSchema`: optional JSON Schema for Monaco diagnostics and completion.
 - `parse`: parser; defaults to `JSON.parse`.

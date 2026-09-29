@@ -26,6 +26,7 @@ import {DeckGLLayerSchemas} from '../../modules/playground/src/schemas/deckgl';
 import {CommunityLayerSchemas} from '../../modules/playground/src/schemas/community';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES} from './templates';
+import {createEditablePlaygroundControls} from './editable-controls';
 
 const PACKAGES = {
   '@deck.gl/layers': layers,
@@ -44,7 +45,19 @@ const PACKAGES = {
   '@deck.gl-community/timeline-layers': timeline
 };
 const ABSTRACT_LAYERS = new Set(['_AggregationLayer', '_GeoCellLayer']);
-const registry = createPlaygroundRegistry();
+
+test('gallery examples use distinct document names to reset state on selection', () => {
+  const names = new Set<string>();
+  for (const [name, template] of Object.entries(TEMPLATES)) {
+    const configuration = typeof template === 'string' ? JSON.parse(template) : template;
+    expect(typeof configuration.name, name).toBe('string');
+    expect(configuration.name.length, name).toBeGreaterThan(0);
+    expect(names.has(configuration.name), name).toBe(false);
+    names.add(configuration.name);
+  }
+});
+
+const registry = createPlaygroundRegistry(createEditablePlaygroundControls().constants);
 const resolver = createPlaygroundResolver(registry);
 afterAll(() => resolver.finalize());
 afterEach(() => vi.unstubAllGlobals());

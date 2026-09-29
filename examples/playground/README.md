@@ -4,6 +4,22 @@ This directory contains a standalone app and a community gallery example built w
 `@deck.gl-community/playground`. Every template is a JSON deck document. Accessors use the
 deck.gl JSON convention, for example `"getPosition": "@@=position"`.
 
+Each gallery document includes a top-level `name` and `description`. Changing `name` resets the
+entire preview, including renderer props, camera, layers, and the selected basemap. This allows
+different examples to reuse layer IDs safely. Edits with the same name reuse the current preview;
+`description` is informational. The picker displays these fields as the card title and description.
+
+Camera edits in `initialViewState` apply immediately after validation, including `pitch` and
+`bearing`. Shift-drag on the preview tilts and rotates the map. Ordinary layer edits keep the
+current interactive camera when the document's camera values are unchanged.
+
+The Editable GeoJSON example includes the existing `EditModeTrayWidget`: select a feature, then
+choose **Edit** for vertices or **Move** for transformations; **Point**, **Line**, and **Area** draw
+new features. Double-click finishes lines and polygons. `editable-controls.ts` registers the widget
+and callbacks as constants, writes feature selection and edits back to the JSON, and keeps the
+active mode button synchronized with JSON changes. Invalid JSON drafts suspend these updates
+until a valid document is accepted.
+
 Open the [standalone playground](https://visgl.github.io/deck.gl-community/playground) for a
 full-screen editor and preview. It shares the gallery's templates and constructor registry: all
 35 concrete official deck.gl layers and 44 public community layers. The graph package's `GridLayer`

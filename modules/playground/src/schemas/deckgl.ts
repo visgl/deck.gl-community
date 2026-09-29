@@ -97,12 +97,19 @@ function createDocumentSchema<L extends z.ZodType, V extends z.ZodType, S extend
 ) {
   const documentState = z.union([stateSchema, z.record(z.string(), stateSchema)]);
   return z.strictObject({
+    name: z
+      .string()
+      .min(1)
+      .describe('Document name. Changing it resets the entire preview.')
+      .optional(),
+    description: z.string().describe('Human-readable description of the document.').optional(),
     layers: z.array(layerSchema).optional(),
     views: z.union([viewSchema, z.array(viewSchema)]).optional(),
     initialViewState: documentState.optional(),
     viewState: documentState.nullable().optional(),
     controller: ControllerSchema.optional(),
     effects: z.array(z.union([ClassSchema, ConstantSchema])).optional(),
+    widgets: z.array(ConstantSchema).optional().describe('Registered host widget instances.'),
     parameters: ParametersSchema.optional(),
     width: z.union([z.number(), z.string()]).optional(),
     height: z.union([z.number(), z.string()]).optional(),
