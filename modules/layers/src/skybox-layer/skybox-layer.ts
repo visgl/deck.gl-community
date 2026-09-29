@@ -134,8 +134,10 @@ export class SkyboxLayer<
     this.state.loadCount++;
     this.state.cubemapTexture?.destroy();
     this.state.cubemapTexture = null;
-    super.finalizeState(context);
+    this.state.model?.destroy();
+    // Clear our model before inherited cleanup so it cannot be destroyed a second time.
     this.state.model = undefined;
+    super.finalizeState(context);
   }
 
   /** Draws the skybox cube for the current viewport. */

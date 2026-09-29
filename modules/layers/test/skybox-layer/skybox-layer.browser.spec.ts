@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, _GlobeView} from '@deck.gl/core';
+import {Deck, Layer, _GlobeView} from '@deck.gl/core';
 import {TextureCubeLoader} from '@loaders.gl/textures';
-import {expect, test, vi} from 'vitest';
+import {afterEach, expect, test, vi} from 'vitest';
 import {SkyboxLayer} from '../../src';
+
+afterEach(() => vi.restoreAllMocks());
 
 test.each([
   'resolve',
@@ -33,8 +35,13 @@ test.each([
   try {
     await vi.waitFor(() => expect(layer.state?.model).toBeTruthy(), {timeout: 10_000});
     const bindings = vi.spyOn(layer.state.model!, 'setBindings');
+    const destroyModel = vi.spyOn(layer.state.model!, 'destroy');
+    const inheritedCleanup = vi.spyOn(Layer.prototype, 'finalizeState');
     deck.setProps({layers: []});
     await vi.waitFor(() => expect(finalize).toHaveBeenCalledOnce());
+    expect(destroyModel).toHaveBeenCalledOnce();
+    expect(inheritedCleanup).toHaveBeenCalledOnce();
+    expect(layer.state.model).toBeUndefined();
     if (result === 'resolve') {
       resolve({
         type: 'cube',
@@ -51,6 +58,7 @@ test.each([
     await new Promise(accept => setTimeout(accept, 0));
     expect(bindings).not.toHaveBeenCalled();
     expect(layer.state.cubemapTexture).toBeNull();
+    expect(destroyModel).toHaveBeenCalledOnce();
     expect(onError).not.toHaveBeenCalled();
   } finally {
     deck.finalize();
@@ -97,6 +105,15 @@ test('preserves skybox depth and culling parameters when the globe view supplies
       depthCompare: 'less-equal'
     });
     expect(onError).not.toHaveBeenCalled();
+    const destroyModel = vi.spyOn(layer.state.model!, 'destroy');
+    const destroyTexture = vi.spyOn(layer.state.cubemapTexture!, 'destroy');
+    const inheritedCleanup = vi.spyOn(Layer.prototype, 'finalizeState');
+    deck.setProps({layers: []});
+    await vi.waitFor(() => expect(destroyModel).toHaveBeenCalledOnce());
+    expect(destroyTexture).toHaveBeenCalledOnce();
+    expect(inheritedCleanup).toHaveBeenCalledOnce();
+    expect(layer.state.model).toBeUndefined();
+    expect(layer.state.cubemapTexture).toBeNull();
   } finally {
     deck.finalize();
     host.remove();
