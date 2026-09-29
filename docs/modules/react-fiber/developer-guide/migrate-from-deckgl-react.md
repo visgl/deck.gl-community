@@ -6,16 +6,25 @@ The adapter uses the local DOM renderer. In an application that uses React Serve
 
 ## Replace the root import
 
+> **Breaking change for interleaved roots:** The plain `/compat` entry now creates only `Deck` and rejects `interleaved`. Replace a previous interleaved default import with `/compat/mapbox` or `/compat/maplibre`, according to the host map. Configure and attach the returned provider control from the application-owned map.
+
 Change this:
 
 ```tsx
 import {DeckGL} from '@deck.gl/react';
 ```
 
-To this:
+To this for a standalone `Deck`:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber/compat';
+```
+
+For an existing provider overlay, choose the matching explicit root:
+
+```tsx
+import {DeckGL as MapboxDeckGL} from '@deck.gl-community/react-fiber/compat/mapbox';
+import {DeckGL as MapLibreDeckGL} from '@deck.gl-community/react-fiber/compat/maplibre';
 ```
 
 Layer wrappers are explicit subpath imports owned by this package. They are not subpaths of `@deck.gl/react`.

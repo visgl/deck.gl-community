@@ -18,7 +18,15 @@ import {DeckGL as MapLibreDeckGL} from '@deck.gl-community/react-fiber/maplibre'
 
 `/mapbox` always creates `MapboxOverlay`; `/maplibre` always creates `MapLibreOverlay`. Their `interleaved` boolean selects the overlay mode and defaults to `false`. It is fixed at construction: remount with a different React `key` to change it. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
 
-Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckglChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views.
+Each provider entry point exposes its concrete overlay contract:
+
+| Entry point | Props and instance |
+| --- | --- |
+| Root or `/dom` | `DeckglProps` and `DeckglInstance`, which is `Deck` |
+| `/mapbox` | `MapboxDeckGLProps`; `onDeckglChange` receives `MapboxOverlay | null` |
+| `/maplibre` | `MapLibreDeckGLProps`; `onDeckglChange` receives `MapLibreOverlay | null` |
+
+Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckglChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views. See [Mapbox and MapLibre integration](../developer-guide/mapbox-maplibre.md) for complete attachment and shared-context guidance.
 
 ## Props and lifecycle
 

@@ -10,7 +10,17 @@ Install React, the renderer, and the deck.gl packages used by the application:
 npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The renderer requires React 19 or later and is built for the deck.gl 9.4 package family. The standalone root imports no provider package. Install `@deck.gl/mapbox` only for `/mapbox` or `@deck.gl/maplibre` only for `/maplibre`, alongside the host map SDK owned by the application.
+The renderer requires React 19 or later and is built for the deck.gl 9.4 package family. The standalone root imports no provider package. Add the matching deck.gl provider and host-map SDK only when using a provider root:
+
+```bash
+# Mapbox provider root
+yarn add @deck.gl/mapbox mapbox-gl
+
+# MapLibre provider root
+yarn add @deck.gl/maplibre maplibre-gl
+```
+
+The application owns the Mapbox or MapLibre map. In a bundled MapLibre application, configure the MapLibre worker before constructing a map; keep that browser-only setup out of server-rendered modules. See [Mapbox and MapLibre integration](./mapbox-maplibre.md) for worker setup and safe control attachment.
 
 ## 2. Render on the client
 
@@ -121,7 +131,7 @@ Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, 
 
 ## Next steps
 
-Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
+Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Mapbox and MapLibre integration](./mapbox-maplibre.md) for host-map lifecycle and worker setup, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
 
 If you are migrating an existing `@deck.gl/react` application, use the bounded compatibility adapter rather than changing native imports in place. See [Migrate from `@deck.gl/react`](./migrate-from-deckgl-react.md) for its supported wrapper matrix and limitations.
 
