@@ -1095,6 +1095,7 @@ __metadata:
     its-fine: "npm:^2.0.0"
     jsdom: "npm:^26.0.0"
     loglayer: "npm:^9.0.0"
+    maplibre-gl: "npm:^6.11.2"
     react: "npm:^19.2.8"
     react-dom: "npm:^19.2.8"
     react-reconciler: "npm:0.33.0"
