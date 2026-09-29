@@ -1,6 +1,5 @@
-import type {Layer, View} from '@deck.gl/core';
-import type {Store} from '../shared/index';
-import type {DeckglProps} from '../types/index';
+import type {Layer, LayersList, View} from '@deck.gl/core';
+import type {DeckglRenderer, Store} from '../shared/index';
 import type {ReactNode} from 'react';
 import type {Fiber} from 'react-reconciler';
 
@@ -129,6 +128,28 @@ export type TransitionStatus = null;
 export type RootElement = HTMLCanvasElement | HTMLDivElement;
 
 /**
+ * Internal configuration accepted by the reconciler.
+ *
+ * Public entry points specialize this broad shape before it reaches the
+ * renderer. The optional `interleaved` property is an overlay mode, never a
+ * request for the renderer to choose a provider.
+ *
+ * @internal
+ */
+export type DeckglConfiguration = {layers?: LayersList; interleaved?: boolean} & Record<
+  string,
+  unknown
+>;
+
+/** @internal Factory bound to an external-overlay root at creation time. */
+export type CreateExternalOverlay = (props: DeckglConfiguration) => DeckglRenderer;
+
+/** @internal Immutable reconciler-root capability configuration. */
+export interface RootOptions {
+  createExternalOverlay?: CreateExternalOverlay;
+}
+
+/**
  * Deck.gl View configuration.
  *
  * Accepts a single View, multiple Views, or null for default MapView.
@@ -152,6 +173,12 @@ export interface ReconcilerRoot {
   /** Renders React elements into the deck.gl scene */
   render: (element: ReactNode) => void;
 
-  /** Configures the underlying Deck or MapboxOverlay instance */
-  configure: (props: DeckglProps) => void;
+  /** Configures the underlying Deck or externally owned overlay instance. */
+  configure: (props: DeckglConfiguration) => void;
+
+  /** @internal Whether this root was created for an external overlay control. */
+  isExternalOverlay: boolean;
+
+  /** @internal Factory permanently bound to this root, if any. */
+  createExternalOverlay?: CreateExternalOverlay;
 }

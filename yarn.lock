@@ -1079,6 +1079,7 @@ __metadata:
     "@deck.gl/geo-layers": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
     "@deck.gl/mapbox": "npm:~9.4.0"
+    "@deck.gl/maplibre": "npm:~9.4.0"
     "@deck.gl/mesh-layers": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
     "@luma.gl/core": "npm:~9.4.0"
@@ -1108,6 +1109,7 @@ __metadata:
     "@deck.gl/geo-layers": ~9.4.0
     "@deck.gl/layers": ~9.4.0
     "@deck.gl/mapbox": ~9.4.0
+    "@deck.gl/maplibre": ~9.4.0
     "@deck.gl/mesh-layers": ~9.4.0
     "@loaders.gl/core": ^4.5.1
     "@luma.gl/core": ~9.4.0
@@ -1115,6 +1117,11 @@ __metadata:
     "@luma.gl/shadertools": ~9.4.0
     react: ">=19.0.0"
     react-dom: ">=19.0.0"
+  peerDependenciesMeta:
+    "@deck.gl/mapbox":
+      optional: true
+    "@deck.gl/maplibre":
+      optional: true
   languageName: unknown
   linkType: soft
 
@@ -1322,6 +1329,17 @@ __metadata:
     "@luma.gl/core": ~9.4.0
     "@math.gl/web-mercator": ^4.1.0
   checksum: 10c0/31332454af93986722440e32644a64bfa30c04ca4b1660aa537966686622b2c1cc0e1097e5f9e944aeaca3fecf836d5cc1ee92ee7c50fdb606eda0ff67686191
+  languageName: node
+  linkType: hard
+
+"@deck.gl/maplibre@npm:~9.4.0":
+  version: 9.4.0
+  resolution: "@deck.gl/maplibre@npm:9.4.0"
+  peerDependencies:
+    "@deck.gl/core": ~9.4.0
+    "@luma.gl/core": ~9.4.0
+    maplibre-gl: ^4.5.1 || ^5.0.0 || ^6.0.0
+  checksum: 10c0/bd742485e20f0924558c7403c4801e2600fed373c58a9efc3ed5955178f24cf808c37339c6357ba0e2b7d66dc68b5849448ff8275ee1243ab9b6760199b69d08
   languageName: node
   linkType: hard
 
@@ -9931,6 +9949,7 @@ __metadata:
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
     "@deck.gl/mapbox": "npm:~9.4.0"
+    "@deck.gl/maplibre": "npm:~9.4.0"
     "@deck.gl/mesh-layers": "npm:~9.4.0"
     "@floating-ui/dom": "npm:^1.7.5"
     "@loaders.gl/core": "npm:^4.5.1"
@@ -11274,6 +11293,7 @@ __metadata:
     "@deck.gl-community/react-fiber": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
+    "@deck.gl/maplibre": "npm:~9.4.0"
     "@deck.gl/widgets": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.4.3"
     "@luma.gl/core": "npm:~9.4.0"
@@ -11302,6 +11322,7 @@ __metadata:
     "@deck.gl-community/react-fiber": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
+    "@deck.gl/maplibre": "npm:~9.4.0"
     "@deck.gl/widgets": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.4.3"
     "@luma.gl/core": "npm:~9.4.0"
@@ -11331,6 +11352,7 @@ __metadata:
     "@deck.gl-community/react-fiber": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
+    "@deck.gl/maplibre": "npm:~9.4.0"
     "@deck.gl/widgets": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.4.3"
     "@luma.gl/core": "npm:~9.4.0"
@@ -11364,6 +11386,7 @@ __metadata:
     "@deck.gl-community/react-fiber": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
+    "@deck.gl/maplibre": "npm:~9.4.0"
     "@deck.gl/widgets": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.4.3"
     "@luma.gl/core": "npm:~9.4.0"

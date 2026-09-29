@@ -1,11 +1,40 @@
 import {MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import type {ReactNode} from 'react';
+import type {MapboxOverlay} from '@deck.gl/mapbox';
+import type {MapLibreOverlay} from '@deck.gl/maplibre';
+import type {ComponentProps, ReactNode} from 'react';
+import {DeckGL as MapboxDeckGL} from '../../dom/mapbox';
+import {DeckGL as MapLibreDeckGL} from '../../dom/maplibre';
 import {describe, expect, expectTypeOf, it} from 'vitest';
 
 import type {DeckglInstance, DeckglProps} from '../react';
 
 describe('Props Type Tests', () => {
+  it('keeps plain and provider root callback types distinct', () => {
+    const mapboxProps = {
+      children: null,
+      interleaved: true,
+      onDeckglChange: deckgl => {
+        const instance: MapboxOverlay | null = deckgl;
+        expect(instance).toBeDefined();
+      }
+    } satisfies ComponentProps<typeof MapboxDeckGL>;
+    const maplibreProps = {
+      children: null,
+      interleaved: false,
+      onDeckglChange: deckgl => {
+        const instance: MapLibreOverlay | null = deckgl;
+        expect(instance).toBeDefined();
+      }
+    } satisfies ComponentProps<typeof MapLibreDeckGL>;
+
+    // @ts-expect-error The plain root never selects a provider from a prop.
+    const plainInterleaved: DeckglProps = {interleaved: true};
+    void mapboxProps;
+    void maplibreProps;
+    void plainInterleaved;
+  });
+
   it('should DeckglProps accept initialViewState', () => {
     // Arrange
     const props: DeckglProps = {

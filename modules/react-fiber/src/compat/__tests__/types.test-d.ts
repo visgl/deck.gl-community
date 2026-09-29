@@ -1,9 +1,14 @@
 import type {Deck} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
+import type {MapLibreOverlay} from '@deck.gl/maplibre';
 import {createElement, createRef} from 'react';
 import type {ComponentProps} from 'react';
 import {DeckGL} from '../deckgl';
+import {DeckGL as MapboxDeckGL} from '../mapbox';
+import type {DeckGLRef as MapboxDeckGLRef} from '../mapbox';
+import {DeckGL as MapLibreDeckGL} from '../maplibre';
+import type {DeckGLRef as MapLibreDeckGLRef} from '../maplibre';
 import {PolygonLayer as CompatPolygonLayer} from '../layers';
 import type {DeckGLContextValue, DeckGLProps, DeckGLRef} from '../types';
 import {expectTypeOf} from 'vitest';
@@ -13,7 +18,7 @@ const props = {
 } satisfies DeckGLProps;
 
 expectTypeOf(props).toMatchTypeOf<DeckGLProps>();
-expectTypeOf<DeckGLContextValue>().toEqualTypeOf<{deck: Deck | MapboxOverlay | null}>();
+expectTypeOf<DeckGLContextValue>().toEqualTypeOf<{deck: Deck | null}>();
 expectTypeOf<DeckGLRef['pickObject']>().toEqualTypeOf<Deck['pickObject']>();
 expectTypeOf<DeckGLRef['pickObjects']>().toEqualTypeOf<Deck['pickObjects']>();
 expectTypeOf<DeckGLRef['pickMultipleObjects']>().toEqualTypeOf<Deck['pickMultipleObjects']>();
@@ -33,6 +38,17 @@ const refProps = {
   ref: createRef<DeckGLRef>()
 } satisfies ComponentProps<typeof DeckGL>;
 void refProps;
+
+const mapboxProps = {children: null, interleaved: true} satisfies ComponentProps<
+  typeof MapboxDeckGL
+>;
+const maplibreProps = {children: null, interleaved: false} satisfies ComponentProps<
+  typeof MapLibreDeckGL
+>;
+expectTypeOf<MapboxDeckGLRef['deck']>().toEqualTypeOf<MapboxOverlay | null>();
+expectTypeOf<MapLibreDeckGLRef['deck']>().toEqualTypeOf<MapLibreOverlay | null>();
+void mapboxProps;
+void maplibreProps;
 
 const mixedLayerTree = createElement(
   DeckGL,

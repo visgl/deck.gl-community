@@ -16,7 +16,7 @@ The native root creates a canvas-backed deck.gl renderer. In an application that
 
 ## How the native API works
 
-`DeckGL` owns one `Deck` instance for standalone rendering, or one `MapboxOverlay` when `interleaved` is present. Its children use two intrinsic React elements:
+The root `DeckGL` entry point owns one standalone `Deck`. Import `/mapbox` or `/maplibre` when an application needs an external provider overlay; `interleaved` then selects that bound overlay's mode. Its children use two intrinsic React elements:
 
 - `<layer>` receives a constructed deck.gl `Layer` instance.
 - `<view>` receives a constructed deck.gl `View` instance.
@@ -52,10 +52,10 @@ export function Map({data}: {data: Array<{coordinates: [number, number]}>) {
 Install React 19 or later, the package, and the deck.gl packages that your application uses. This example installs the packages needed for the native scatterplot example:
 
 ```bash
-npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers @deck.gl/mapbox
+npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The package is built against the deck.gl 9.4 package family. It has non-optional deck.gl, loaders.gl, and luma.gl peer dependencies, including `@deck.gl/mapbox`, because the renderer imports `MapboxOverlay` for its root implementation. Let your package manager satisfy that peer-dependency contract and install the matching deck.gl layer package before importing a compatibility wrapper from that layer family.
+The package is built against the deck.gl 9.4 package family. `@deck.gl/mapbox` and `@deck.gl/maplibre` are optional peers: install the one required by the provider entry point you import. The plain root imports neither provider.
 
 ## Standalone layout
 

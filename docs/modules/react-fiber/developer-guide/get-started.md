@@ -7,10 +7,10 @@
 Install React, the renderer, and the deck.gl packages used by the application:
 
 ```bash
-npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers @deck.gl/mapbox
+npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The renderer requires React 19 or later and is built for the deck.gl 9.4 package family. Its peer-dependency contract includes `@deck.gl/mapbox`, even for standalone roots, because the renderer imports `MapboxOverlay` internally. Let the package manager resolve the package's deck.gl, loaders.gl, and luma.gl peers, and add the matching deck.gl layer package when the application imports layers from it.
+The renderer requires React 19 or later and is built for the deck.gl 9.4 package family. The standalone root imports no provider package. Install `@deck.gl/mapbox` only for `/mapbox` or `@deck.gl/maplibre` only for `/maplibre`, alongside the host map SDK owned by the application.
 
 ## 2. Render on the client
 
@@ -61,7 +61,7 @@ import {MapView} from '@deck.gl/core';
 </DeckGL>;
 ```
 
-The React tree is flattened before deck.gl receives it. Therefore, a `<view>` can contain React children for application composition, but it does not scope its child layers to that view. The standalone renderer supplies the flattened view list to `Deck`; an interleaved `MapboxOverlay` gets its views from the map integration instead.
+The React tree is flattened before deck.gl receives it. Therefore, a `<view>` can contain React children for application composition, but it does not scope its child layers to that view. The standalone renderer supplies the flattened view list to `Deck`; provider overlays get views from their host map integration instead.
 
 ## 6. Combine JSX and `layers` only when needed
 
@@ -78,7 +78,7 @@ The React tree is flattened before deck.gl receives it. Therefore, a `<view>` ca
 
 ## 7. Access the root instance when necessary
 
-Use `onDeckglChange` to receive the root-specific `Deck` or `MapboxOverlay` instance. Store it in React state if another component needs to react to the instance becoming available:
+Use `onDeckglChange` to receive the root-specific `Deck` instance. Store it in React state if another component needs to react to the instance becoming available:
 
 ```tsx
 import {useEffect, useState} from 'react';
@@ -105,9 +105,17 @@ function Map() {
 
 The notification receives `null` when its root is cleaned up. It is not a callback ref: replacing only the callback does not reconfigure or unmount the root, although the replacement receives later lifecycle notifications.
 
-## Interleave with a map renderer
+## Add a provider overlay
 
-Pass `interleaved` when the instance should be a `MapboxOverlay` controlled by a Mapbox- or MapLibre-style map. After `onDeckglChange` provides that instance, add it to the host map as a control and remove the control before destroying the map. Omit `interleaved` for a standalone `Deck`; even `interleaved={false}` selects the overlay path because the renderer checks whether the prop is present. In this mode, the map integration owns views, so do not use JSX `<view>` elements to configure the overlay.
+Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application.
+
+```tsx
+import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
+
+<DeckGL interleaved onDeckglChange={overlay => overlay && map.addControl(overlay)} />;
+```
+
+`interleaved` is the selected overlay's fixed rendering mode, not a constructor switch. It defaults to `false`; remount with another React `key` to change it. Provider roots render no host DOM node and never forward JSX `<view>` descriptors. Remove the same control before map teardown.
 
 Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<view>`.
 

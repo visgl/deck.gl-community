@@ -2,8 +2,8 @@
 
 import {useEffect, useState} from 'react';
 import type {ReactNode} from 'react';
-import {DeckGL} from '@deck.gl-community/react-fiber';
-import type {DeckglInstance} from '@deck.gl-community/react-fiber';
+import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
+import type {MapLibreOverlay} from '@deck.gl/maplibre';
 import {PARAMETERS} from './constants';
 import {connect} from './maplibre';
 import {useSelected} from '@/hooks/use-selected';
@@ -16,7 +16,7 @@ interface MapClientProps {
  * Map component with deck.gl + Maplibre integration
  */
 export function MapClient({children}: MapClientProps) {
-  const [deckglInstance, setDeckglInstance] = useState<DeckglInstance | null>(null);
+  const [deckglInstance, setDeckglInstance] = useState<MapLibreOverlay | null>(null);
   const [, setSelected] = useSelected();
 
   const handleClick = (pickInfo: {picked?: boolean}) => {

@@ -175,22 +175,42 @@ describe('renderer', () => {
       expect(root.store.getState()._passedLayers).toStrictEqual([]);
     });
 
-    it('should create MapboxOverlay when interleaved prop is present', () => {
-      // Arrange
+    it('rejects interleaved mode on a plain root', () => {
+      const root = createRoot(createTestRootElement());
+
+      expect(() => root.configure({interleaved: true})).toThrow(
+        'The default DeckGL root does not support interleaved rendering.'
+      );
+      expect(root.store.getState().deckgl).toBeNull();
+    });
+
+    it('creates a bound external overlay once and preserves its mode', () => {
+      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
+      const createExternalOverlay = vi.fn(() => overlay);
+      const root = createRoot(createTestRootElement(), {createExternalOverlay});
+
+      root.configure({interleaved: true});
+      root.configure({interleaved: true, layers: []});
+
+      expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith({interleaved: true});
+      expect(root.isExternalOverlay).toBe(true);
+      expect(root.store.getState().isExternalOverlay).toBe(true);
+      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({interleaved: true, layers: []});
+      expect(() => root.configure({interleaved: false})).toThrow(
+        'The interleaved mode is fixed when an overlay root is created.'
+      );
+    });
+
+    it('rejects reuse of a root with a different overlay factory', () => {
       const node = createTestRootElement();
-      const root = createRoot(node);
+      const firstFactory = vi.fn(() => ({finalize: vi.fn(), setProps: vi.fn()}));
+      const secondFactory = vi.fn(() => ({finalize: vi.fn(), setProps: vi.fn()}));
 
-      // Act
-      root.configure({
-        interleaved: true
-      });
+      createRoot(node, {createExternalOverlay: firstFactory});
 
-      // Assert
-      const state = root.store.getState();
-      expect(state.deckgl).not.toBeNull();
-      expect(state.deckgl).toBeTypeOf('object');
-      expect(state.deckgl).toHaveProperty('setProps');
-      expect(state.deckgl).toHaveProperty('finalize');
+      expect(() => createRoot(node, {createExternalOverlay: secondFactory})).toThrow(
+        'Cannot reuse a DeckGL root with a different overlay capability.'
+      );
     });
   });
 
