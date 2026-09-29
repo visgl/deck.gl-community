@@ -214,6 +214,21 @@ describe('renderer', () => {
       expect(root.store.getState().deckgl).toBeNull();
     });
 
+    it('does not finalize another root’s deckgl instance', () => {
+      const first = createTestRoot();
+      const second = createTestRoot();
+      const firstNode = getRootElement(first.root);
+      const secondNode = getRootElement(second.root);
+
+      unmountAtNode(firstNode);
+
+      expect(first.deck.finalize).toHaveBeenCalledOnce();
+      expect(second.deck.finalize).not.toHaveBeenCalled();
+      expect(roots.has(firstNode)).toBe(false);
+      expect(roots.get(secondNode)).toBe(second.root);
+      expect(second.root.store.getState().deckgl).toBe(second.deck);
+    });
+
     it('should handle unmounting non-existent node gracefully', () => {
       // Arrange
       const node = createTestRootElement();
