@@ -14,6 +14,11 @@
   safely reuse layer IDs across different views and layer types. Description edits preserve state.
   `SkyboxLayer` ignores pending cubemap results after removal and releases inherited layer resources.
 
+- `@deck.gl-community/layers`, `infovis-layers`, `timeline-layers` and `editable-layers` publish
+  standalone UMD bundles at `dist/dist.min.js`. Use them with `<script>` tags after deck.gl's
+  `dist.min.js`, or with pydeck `custom_libraries`. Each bundle assigns one global, such as
+  `deckCommunityLayers`. See [Script Tags and pydeck](/docs/scripting).
+
 - Playground template selection restores each example's initial camera after its data sources
   resolve and its document is accepted. Explicit `initialViewState` edits, including pitch and
   bearing, also update the camera; layer edits and data refreshes preserve camera interaction. Gallery

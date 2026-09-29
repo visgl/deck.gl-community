@@ -11,8 +11,10 @@
     "url": "https://github.com/visgl/deck.gl-community"
   },
   "scripts": {
+    "build-bundle": "npx ocular-bundle ./src/index.ts --globalName=deckCommunityEditableLayers --output=dist/dist.min.js",
     "test": "vitest run",
-    "test-watch": "vitest"
+    "test-watch": "vitest",
+    "prepublishOnly": "npm run build-bundle"
   },
   "keywords": [
     "webgl",

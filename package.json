@@ -20,7 +20,7 @@
   "scripts": {
     "bootstrap": "yarn && ocular-bootstrap",
     "build": "ocular-clean && ocular-build && npx lerna run build",
-    "build-bundles": "node ./scripts/build-bundles.mjs",
+    "build-bundles": "npx lerna run build-bundle",
     "lint": "ocular-lint",
     "lint-pre-commit": "yarn lint",
     "lint-fix": "ocular-lint fix",

@@ -33,8 +33,10 @@
     "src"
   ],
   "scripts": {
+    "build-bundle": "npx ocular-bundle ./src/index.ts --globalName=deckCommunityTimelineLayers --output=dist/dist.min.js",
     "test": "vitest run",
-    "test-watch": "vitest"
+    "test-watch": "vitest",
+    "prepublishOnly": "npm run build-bundle"
   },
   "dependencies": {
     "@luma.gl/shadertools": "~9.4.0"

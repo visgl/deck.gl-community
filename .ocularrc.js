@@ -20,19 +20,24 @@ const config = {
     '@deck.gl-community/panels': panelsModule
   },
 
+  // Standalone UMD bundles (`dist/dist.min.js`), built by each package's `build-bundle` script
+  // and published by `prepublishOnly`. See docs/scripting.md.
   bundle: {
+    // Fallback only: each package passes its own `--globalName`, e.g. `deckCommunityLayers`
     globalName: 'deckCommunity',
     externals: ['h3-js', 'leaflet', '@deck.gl/core', '@luma.gl/core', '@luma.gl/engine'],
     target: ['chrome110', 'firefox110', 'safari15'],
     format: 'umd',
+    // Keys are matched as regular expressions against the start of each external package name.
+    // Only packages exposed by deck.gl's `dist.min.js` (and pydeck) are mapped to globals; other
+    // peer dependencies, such as `@luma.gl/constants`, are bundled.
     globals: {
-      '@deck.gl-community/*': 'globalThis.deckCommunity',
-      'deck.gl': 'globalThis.deck',
-      '@deck.gl/*': 'globalThis.deck',
-      '@loaders.gl/*': 'globalThis.loaders',
-      '@luma.gl/*': 'globalThis.luma',
-       'h3-js': 'globalThis.h3 || {}',
-       'leaflet': 'globalThis.L'
+      'deck\\.gl$': 'globalThis.deck',
+      '@deck\\.gl/': 'globalThis.deck',
+      '@luma\\.gl/(core|engine)$': 'globalThis.luma',
+      '@loaders\\.gl/core$': 'globalThis.loaders',
+      'h3-js': 'globalThis.h3 || {}',
+      leaflet: 'globalThis.L'
     }
   },
 
