@@ -278,6 +278,73 @@ describe('Playground rendering lifecycle', () => {
 });
 
 describe('DeckPlayground browser lifecycle', () => {
+  it('tilts and rotates with a shift-drag on the preview', async () => {
+    const {ready, onError} = mountDeck();
+    const {deck, canvas} = await ready();
+    const bounds = canvas.getBoundingClientRect();
+    const dispatch = (type: string, x: number, y: number) =>
+      canvas.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          shiftKey: true,
+          clientX: bounds.left + x,
+          clientY: bounds.top + y
+        })
+      );
+    dispatch('pointerdown', 650, 300);
+    for (let step = 1; step <= 5; step++) {
+      dispatch('pointermove', 650 + step * 20, 300 - step * 20);
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    }
+    dispatch('pointerup', 750, 200);
+    await vi.waitFor(() => {
+      const viewport = deck.getViewports()[0] as WebMercatorViewport;
+      expect(viewport.pitch).toBeGreaterThan(0);
+      expect(Math.abs(viewport.bearing)).toBeGreaterThan(0);
+    });
+    expect(onError).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it.each([
+    ['initialViewState', false],
+    ['initialViewState', true],
+    ['viewState', false],
+    ['viewState', true]
+  ] as const)(
+    'applies pitch and bearing edits in %s (keyed: %s)',
+    async (property, keyed) => {
+      const makeDocument = (camera: Record<string, number>) => ({
+        ...createDocument(),
+        name: 'Camera editing',
+        views: {'@@type': 'MapView', id: 'map'},
+        [property]: keyed ? {map: camera} : camera
+      });
+      const {playground, host, onError, ready} = mountDeck({
+        templates: {camera: makeDocument({...INITIAL_VIEW_STATE, pitch: 0, bearing: 0})}
+      });
+      const {deck, canvas} = await ready();
+      const finalize = vi.spyOn(deck, 'finalize');
+      for (const angles of [
+        {pitch: 45, bearing: 65},
+        {pitch: 25, bearing: -30}
+      ]) {
+        playground.setText(JSON.stringify(makeDocument({...INITIAL_VIEW_STATE, ...angles})));
+        expect(deck.getViewports()[0]).toMatchObject(angles);
+      }
+      playground.setText(JSON.stringify(makeDocument(INITIAL_VIEW_STATE)));
+      expect(deck.getViewports()[0]).toMatchObject({pitch: 0, bearing: 0});
+      expect(host.querySelector('canvas')).toBe(canvas);
+      expect(finalize).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+    },
+    20_000
+  );
+
   it('accepts rapid name changes before the initial preview finishes loading', async () => {
     const {playground, host, setProps, onLoad, onError} = mountDeck({
       templates: {first: {...createDocument(), name: 'First'}}
@@ -397,7 +464,7 @@ describe('DeckPlayground browser lifecycle', () => {
 
     setProps.mockClear();
     const nextViewState = {...INITIAL_VIEW_STATE, zoom: 8};
-    playground.setText(JSON.stringify(createDocument(9, nextViewState)));
+    playground.setText(JSON.stringify(createDocument(9)));
     expect(host.querySelector('canvas')).toBe(canvas);
     expect(getLayer().props.getRadius).toBe(9);
     expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
@@ -410,6 +477,8 @@ describe('DeckPlayground browser lifecycle', () => {
     expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
     expect(onLoad).toHaveBeenCalledTimes(1);
 
+    playground.setText(JSON.stringify(createDocument(9, nextViewState)));
+    expect(deck.getViewports()[0].zoom).toBe(nextViewState.zoom);
     playground.resetView();
     expect(deck.getViewports()[0].zoom).toBe(nextViewState.zoom);
 
@@ -557,6 +626,7 @@ describe('DeckPlayground browser lifecycle', () => {
       expect.objectContaining({message: 'Missing playground data binding: replacement'})
     );
     expect(deck.props.layers).toBe(originalLayers);
+    expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
     expect(onChange).toHaveBeenCalledTimes(1);
 
     const rows = [{id: 'replacement', position: [-122.2, 37.9]}];
@@ -566,7 +636,7 @@ describe('DeckPlayground browser lifecycle', () => {
     expect(layer.props.getRadius).toBe(9);
     expect(layer.props.data).toBe(rows);
     expect(host.querySelector('canvas')).toBe(canvas);
-    expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
+    expect(deck.getViewports()[0].zoom).toBe(edited.initialViewState.zoom);
     expect(onChange).toHaveBeenCalledTimes(2);
     expect(onChange).toHaveBeenLastCalledWith(edited, text);
 

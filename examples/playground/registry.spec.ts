@@ -26,6 +26,7 @@ import {DeckGLLayerSchemas} from '../../modules/playground/src/schemas/deckgl';
 import {CommunityLayerSchemas} from '../../modules/playground/src/schemas/community';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES} from './templates';
+import {createEditablePlaygroundControls} from './editable-controls';
 
 const PACKAGES = {
   '@deck.gl/layers': layers,
@@ -56,7 +57,7 @@ test('gallery examples use distinct document names to reset state on selection',
   }
 });
 
-const registry = createPlaygroundRegistry();
+const registry = createPlaygroundRegistry(createEditablePlaygroundControls().constants);
 const resolver = createPlaygroundResolver(registry);
 afterAll(() => resolver.finalize());
 afterEach(() => vi.unstubAllGlobals());

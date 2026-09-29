@@ -55,6 +55,12 @@ such as `"@@=position"`, `"@@=[longitude, latitude]"`, `"@@=weight > 10 ? 8 : 4"
 Function calls are not supported inside expressions. Supply nested resources through constants
 rather than nested `@@type` descriptors.
 
+The top-level `widgets` array accepts registered widget instances, for example
+`"widgets": ["@@#editModeTray"]` with `registry.constants.editModeTray` set to a host-created
+widget. Deck manages their attachment and removal as documents change. Host callbacks can use
+`setText` to reflect widget actions and layer edits in the JSON; the editable gallery example
+demonstrates mode switching, feature selection, and persisting `onEdit` results this way.
+
 Registered schemas drive validation and Monaco diagnostics. The runtime also rejects unavailable
 references, duplicate layer IDs, `mapStyle` (no basemap adapter), and empty `views` arrays.
 Omit `views` to use the default map view. Inline rows and external bindings bypass conversion:
@@ -84,9 +90,11 @@ are unaffected by shared-source changes. The host owns selection state and highl
 
 ### Camera and lifecycle
 
-Accepted edits with the same document name and source updates reuse the Deck instance and preserve
-its camera. Keep layer IDs stable to allow layer-state reuse. Editing `initialViewState` updates the target for `resetView()`;
-changing view types or IDs resets the camera. An explicit `viewState` remains authoritative.
+Accepted edits with the same document name and source updates reuse the Deck instance. Keep layer
+IDs stable to allow layer-state reuse. Layer edits and source refreshes preserve camera interaction
+when the document's camera props are unchanged. Editing `initialViewState` applies the new camera,
+including pitch and bearing, once the document is accepted, and updates the target for `resetView()`.
+Changing view types or IDs also resets the camera. An explicit `viewState` remains authoritative.
 Interactivity defaults to enabled, preserving explicit per-view controller settings.
 
 Documents may include top-level metadata:

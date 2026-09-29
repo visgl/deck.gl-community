@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, MapView, type DeckProps, type PickingInfo} from '@deck.gl/core';
+import {
+  Deck,
+  MapView,
+  _deepEqual as deepEqual,
+  type DeckProps,
+  type PickingInfo
+} from '@deck.gl/core';
 import {Playground, type PlaygroundProps, type PlaygroundRenderer} from './playground';
 import {
   createPlaygroundResolver,
@@ -321,16 +327,24 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
           .map(key => [key, key === 'controller' ? true : Deck.defaultProps[key]])
       );
       const {initialViewState, ...updates} = nextProps;
-      if (topologyChanged || resetView) {
+      // Explicit camera edits should take effect, while layer edits and source refreshes
+      // with unchanged camera props preserve the user's current interaction state.
+      const resetCamera =
+        topologyChanged ||
+        resetView ||
+        !deepEqual(
+          input.initialViewState,
+          (this.activeDocument as Record<string, unknown> | undefined)?.initialViewState,
+          -1
+        );
+      if (resetCamera) {
         this.deck.setProps({initialViewState: null});
       }
       this.deck.setProps({
         ...removedProps,
         ...updates,
         ...callbacks,
-        ...(topologyChanged || resetView
-          ? {initialViewState: initialViewState ?? DEFAULT_VIEW_STATE}
-          : {})
+        ...(resetCamera ? {initialViewState: initialViewState ?? DEFAULT_VIEW_STATE} : {})
       });
     } else {
       // Own the canvas independently so replacing Deck can reuse its GPU device, including

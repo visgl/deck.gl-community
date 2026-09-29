@@ -137,11 +137,6 @@ describe('DeckPlayground independent data sources', () => {
     zoomCanvas(canvas);
     await vi.waitFor(() => expect(deck.getViewports()[0].zoom).not.toBe(INITIAL_VIEW_STATE.zoom));
     const interactiveViewport = deck.getViewports()[0];
-    const interactiveViewState = {
-      longitude: interactiveViewport.longitude,
-      latitude: interactiveViewport.latitude,
-      zoom: interactiveViewport.zoom
-    };
     const interactiveZoom = interactiveViewport.zoom;
     const acceptedLayer = getLayer(deck);
     if (selection === 'template') mounted.playground.setTemplate('later');
@@ -153,9 +148,7 @@ describe('DeckPlayground independent data sources', () => {
     const nextRows = [ROWS[1]];
     resolveSource(createBinding(nextRows));
     await vi.waitFor(() => expect(getLayer(deck).props.data).toBe(nextRows));
-    expect(deck.getViewports()[0]).toMatchObject(
-      selection === 'template' ? nextViewState : interactiveViewState
-    );
+    expect(deck.getViewports()[0]).toMatchObject(nextViewState);
     expect(mounted.host.querySelector('canvas')).toBe(canvas);
     const acceptedZoom = deck.getViewports()[0].zoom;
     zoomCanvas(canvas);

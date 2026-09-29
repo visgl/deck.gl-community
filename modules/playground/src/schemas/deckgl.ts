@@ -109,6 +109,7 @@ function createDocumentSchema<L extends z.ZodType, V extends z.ZodType, S extend
     viewState: documentState.nullable().optional(),
     controller: ControllerSchema.optional(),
     effects: z.array(z.union([ClassSchema, ConstantSchema])).optional(),
+    widgets: z.array(ConstantSchema).optional().describe('Registered host widget instances.'),
     parameters: ParametersSchema.optional(),
     width: z.union([z.number(), z.string()]).optional(),
     height: z.union([z.number(), z.string()]).optional(),
