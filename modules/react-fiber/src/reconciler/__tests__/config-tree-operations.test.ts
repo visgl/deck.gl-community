@@ -327,7 +327,7 @@ describe('config-tree-operations', () => {
       });
     });
 
-    it('omits JSX views for external overlay roots', () => {
+    it.each(['Mapbox', 'MapLibre'])('omits JSX views for a %s external overlay root', () => {
       const layer = new ScatterplotLayer({data: [], id: 'layer'});
       const view = new MapView({id: 'view'});
       const mockDeckgl = {
@@ -344,8 +344,10 @@ describe('config-tree-operations', () => {
       } as unknown as Container;
 
       replaceContainerChildren(container, [createMockInstance(view), createMockInstance(layer)]);
+      replaceContainerChildren(container, [createMockInstance(layer)]);
 
-      expect(mockDeckgl.setProps).toHaveBeenCalledExactlyOnceWith({layers: [layer]});
+      expect(mockDeckgl.setProps).toHaveBeenNthCalledWith(1, {layers: [layer]});
+      expect(mockDeckgl.setProps).toHaveBeenNthCalledWith(2, {layers: [layer]});
     });
 
     it('should combine _passedLayers with JSX layers', () => {
