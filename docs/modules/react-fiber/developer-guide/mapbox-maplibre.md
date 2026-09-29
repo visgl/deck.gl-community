@@ -163,8 +163,8 @@ Install the provider integration and the host SDK:
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The default MapLibre 5 browser entry configures its bundled worker automatically. The examples in
-this repository use that default, so they do not need application worker setup. Keep map creation
+The default MapLibre GL JS 6 browser entry resolves its module worker automatically. The examples
+in this repository use that default, so they do not need application worker setup. Keep map creation
 in client-only code: in a Next.js or TanStack Start application, use a client boundary or a module
 that runs only in the browser.
 

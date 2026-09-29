@@ -20,7 +20,7 @@
     "@luma.gl/shadertools": "~9.4.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "client-only": "^0.0.1",
-    "maplibre-gl": "^5.0.0",
+    "maplibre-gl": "^6.11.2",
     "next": "^16",
     "nuqs": "^2.0.0",
     "react": "^19.2.8",
