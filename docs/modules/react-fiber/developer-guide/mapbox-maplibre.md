@@ -163,18 +163,16 @@ Install the provider integration and the host SDK:
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-Configure the MapLibre worker before constructing any map in a bundled application. The exact
-worker import is bundler-specific. For Vite's CSP worker build, configure it in client-only code:
+The default MapLibre 5 browser entry configures its bundled worker automatically. The examples in
+this repository use that default, so they do not need application worker setup. Keep map creation
+in client-only code: in a Next.js or TanStack Start application, use a client boundary or a module
+that runs only in the browser.
 
-```tsx
-import maplibregl from 'maplibre-gl';
-import MapLibreWorker from 'maplibre-gl/dist/maplibre-gl-csp-worker?worker';
-
-maplibregl.setWorkerClass(MapLibreWorker);
-```
-
-Do not run this setup during server rendering. In a Next.js or TanStack Start application, place
-it behind a client boundary or in the map module that runs only in the browser.
+The default worker uses a blob URL. A deployment whose Content Security Policy forbids `blob:` in
+`worker-src` needs a separate CSP integration. Use MapLibre's CSP distribution artifacts, publish
+its worker asset through the framework, and call the supported `setWorkerUrl(url)` API in the
+browser before creating the first map. The asset path and configuration are deployment-specific,
+so do not copy a Vite-only worker import into Next.js, React Router, or Vinxi.
 
 ### React Map GL
 

@@ -20,7 +20,7 @@ yarn add @deck.gl/mapbox mapbox-gl
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The application owns the Mapbox or MapLibre map. In a bundled MapLibre application, configure the MapLibre worker before constructing a map; keep that browser-only setup out of server-rendered modules. See [Mapbox and MapLibre integration](./mapbox-maplibre.md) for worker setup and safe control attachment.
+The application owns the Mapbox or MapLibre map. MapLibre 5's default browser entry configures its worker automatically; keep map creation in browser-only code. A deployment that prohibits blob workers needs a separate CSP worker integration before it creates a map. See [Mapbox and MapLibre integration](./mapbox-maplibre.md) for safe control attachment and CSP guidance.
 
 ## 2. Render on the client
 
