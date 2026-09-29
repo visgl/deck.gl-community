@@ -1,7 +1,23 @@
 import {render, waitFor} from '@testing-library/react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
+const providerMocks = vi.hoisted(() => {
+  const mapboxOverlay = vi.fn(function MapboxOverlay(props: unknown) {
+    return {finalize: vi.fn(), props, setProps: vi.fn()};
+  });
+  const maplibreOverlay = vi.fn(function MapLibreOverlay(props: unknown) {
+    return {finalize: vi.fn(), props, setProps: vi.fn()};
+  });
+
+  return {mapboxOverlay, maplibreOverlay};
+});
+
+vi.mock('@deck.gl/mapbox', () => ({MapboxOverlay: providerMocks.mapboxOverlay}));
+vi.mock('@deck.gl/maplibre', () => ({MapLibreOverlay: providerMocks.maplibreOverlay}));
+
 import {createDeckGL, DeckGL} from '../components';
+import {DeckGL as MapboxDeckGL} from '../mapbox';
+import {DeckGL as MapLibreDeckGL} from '../maplibre';
 
 // Mock the shared module for log
 vi.mock(import('../../shared'), () => {
@@ -24,21 +40,30 @@ vi.mock(import('../../reconciler'), () => {
   const mockConfigure = vi.fn<() => void>();
   const mockDeckgl = {};
   const mockRoots = new Map();
-  const mockCreateRoot = vi.fn((node: unknown) => {
-    const deckgl = mockRoots.size === 0 ? mockDeckgl : {};
-    const root = {
-      configure: mockConfigure,
-      render: mockRender,
-      store: {
-        getState: vi.fn(() => ({deckgl})),
+  const mockCreateRoot = vi.fn(
+    (node: unknown, options?: {createExternalOverlay?: (props: unknown) => unknown}) => {
+      let deckgl = mockRoots.size === 0 ? mockDeckgl : {};
+      let configured = false;
+      const root = {
+        configure: (props: unknown) => {
+          mockConfigure(props);
+          if (!configured && options?.createExternalOverlay) {
+            deckgl = options.createExternalOverlay(props);
+            configured = true;
+          }
+        },
+        render: mockRender,
+        store: {
+          getState: vi.fn(() => ({deckgl})),
 
-        setState: vi.fn<() => void>(),
-        subscribe: vi.fn<() => void>()
-      }
-    };
-    mockRoots.set(node, root);
-    return root;
-  });
+          setState: vi.fn<() => void>(),
+          subscribe: vi.fn<() => void>()
+        }
+      };
+      mockRoots.set(node, root);
+      return root;
+    }
+  );
   const mockUnmountAtNode = vi.fn<() => void>();
 
   return {
@@ -109,6 +134,35 @@ describe('DeckGL Component Tests', () => {
       ).toThrow('The default DeckGL root does not support interleaved rendering.');
 
       expect(mockCreateRoot).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {DeckGL: MapboxDeckGL, createOverlay: providerMocks.mapboxOverlay, name: 'Mapbox'},
+      {DeckGL: MapLibreDeckGL, createOverlay: providerMocks.maplibreOverlay, name: 'MapLibre'}
+    ])('creates one detached $name overlay root', ({DeckGL: ProviderDeckGL, createOverlay}) => {
+      const onDeckglChange = vi.fn();
+      const {container, unmount} = render(
+        <ProviderDeckGL interleaved onDeckglChange={onDeckglChange}>
+          <div>Content</div>
+        </ProviderDeckGL>
+      );
+
+      const rootElement = mockCreateRoot.mock.calls[0][0] as HTMLDivElement;
+      const overlay = createOverlay.mock.results[0]?.value;
+
+      expect(createOverlay).toHaveBeenCalledExactlyOnceWith({interleaved: true});
+      expect(container.childElementCount).toBe(0);
+      expect(rootElement).toBeInstanceOf(HTMLDivElement);
+      expect(rootElement.isConnected).toBe(false);
+      expect(onDeckglChange).toHaveBeenCalledExactlyOnceWith(overlay);
+      expect(mockConfigure).toHaveBeenCalledWith(
+        expect.not.objectContaining({canvas: expect.anything(), parent: expect.anything()})
+      );
+
+      unmount();
+
+      expect(mockUnmountAtNode).toHaveBeenCalledWith(rootElement);
+      expect(onDeckglChange).toHaveBeenLastCalledWith(null);
     });
 
     it('uses a detached registry key for a bound external overlay', () => {
