@@ -84,6 +84,7 @@ webglTest(
         expect(getDeck(mapOverlay)?.isInitialized).toBe(true);
       });
       expect(mapOverlay.getCanvas()).toBe(map.getCanvas());
+      expect(mapOverlay.pickObject({x: 200, y: 150}).picked).toBe(true);
 
       map.jumpTo({center: [-122.4, 37.8], zoom: 12});
       map.triggerRepaint();
