@@ -23,18 +23,23 @@ vi.mock(import('../../reconciler'), () => {
   const mockRender = vi.fn<() => void>();
   const mockConfigure = vi.fn<() => void>();
   const mockDeckgl = {};
-  const mockCreateRoot = vi.fn<() => unknown>(() => ({
-    configure: mockConfigure,
-    render: mockRender,
-    store: {
-      getState: vi.fn(() => ({deckgl: mockDeckgl})),
-
-      setState: vi.fn<() => void>(),
-      subscribe: vi.fn<() => void>()
-    }
-  }));
-  const mockUnmountAtNode = vi.fn<() => void>();
   const mockRoots = new Map();
+  const mockCreateRoot = vi.fn((node: unknown) => {
+    const deckgl = mockRoots.size === 0 ? mockDeckgl : {};
+    const root = {
+      configure: mockConfigure,
+      render: mockRender,
+      store: {
+        getState: vi.fn(() => ({deckgl})),
+
+        setState: vi.fn<() => void>(),
+        subscribe: vi.fn<() => void>()
+      }
+    };
+    mockRoots.set(node, root);
+    return root;
+  });
+  const mockUnmountAtNode = vi.fn<() => void>();
 
   return {
     createRoot: mockCreateRoot,
@@ -196,6 +201,43 @@ describe('DeckGL Component Tests', () => {
 
       expect(onDeckglChange).toHaveBeenCalledTimes(2);
       expect(onDeckglChange).toHaveBeenLastCalledWith(mockDeckgl);
+    });
+
+    it('keeps lifecycle notifications and cleanup scoped to each sibling root', () => {
+      const firstOnDeckglChange = vi.fn();
+      const secondOnDeckglChange = vi.fn();
+      const {rerender} = render(
+        <>
+          <DeckGL key="first" onDeckglChange={firstOnDeckglChange}>
+            <div>First</div>
+          </DeckGL>
+          <DeckGL key="second" onDeckglChange={secondOnDeckglChange}>
+            <div>Second</div>
+          </DeckGL>
+        </>
+      );
+
+      const firstDeckgl = firstOnDeckglChange.mock.calls[0][0];
+      const secondDeckgl = secondOnDeckglChange.mock.calls[0][0];
+      const firstCanvas = mockCreateRoot.mock.calls[0][0];
+      const secondCanvas = mockCreateRoot.mock.calls[1][0];
+
+      expect(mockCreateRoot).toHaveBeenCalledTimes(2);
+      expect(firstDeckgl).not.toBe(secondDeckgl);
+      expect(mockRoots.get(firstCanvas)?.store.getState().deckgl).toBe(firstDeckgl);
+      expect(mockRoots.get(secondCanvas)?.store.getState().deckgl).toBe(secondDeckgl);
+
+      rerender(
+        <DeckGL key="second" onDeckglChange={secondOnDeckglChange}>
+          <div>Second</div>
+        </DeckGL>
+      );
+
+      expect(firstOnDeckglChange).toHaveBeenLastCalledWith(null);
+      expect(secondOnDeckglChange).not.toHaveBeenCalledWith(null);
+      expect(mockUnmountAtNode).toHaveBeenCalledTimes(1);
+      expect(mockUnmountAtNode.mock.calls[0][0]).toBe(firstCanvas);
+      expect(mockUnmountAtNode.mock.calls[0][0]).not.toBe(secondCanvas);
     });
 
     it('does not reconfigure, rerender, or unmount when only the callback changes', () => {
