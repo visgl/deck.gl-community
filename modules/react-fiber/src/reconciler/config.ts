@@ -1,4 +1,4 @@
-import type {Layer, LayersList, View} from '@deck.gl/core';
+import type {DeckProps, Layer, View} from '@deck.gl/core';
 import {log} from '../shared/index';
 import {globalScope} from '../shared/constants';
 import {createContext} from 'react';
@@ -743,7 +743,7 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
       })
       .debug('deck.setProps views and layers');
 
-    const propsUpdate: {layers: LayersList; views?: View[]} = {
+    const propsUpdate: Pick<DeckProps<View | View[] | null>, 'layers' | 'views'> = {
       layers: combinedLayers
     };
 
@@ -754,7 +754,7 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
       propsUpdate.views = types.views;
     }
 
-    deckgl.setProps(propsUpdate as never);
+    deckgl.setProps(propsUpdate);
   }
 }
 

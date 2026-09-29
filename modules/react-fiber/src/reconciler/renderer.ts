@@ -1,4 +1,4 @@
-import type {DeckProps, Layer, View} from '@deck.gl/core';
+import type {Layer, View} from '@deck.gl/core';
 import {Deck} from '@deck.gl/core';
 import {createStore, noop, log} from '../shared/index';
 import type {ReactNode} from 'react';
@@ -246,6 +246,10 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   let configured = false;
   let initialInterleaved: boolean | undefined;
 
+  function getInterleavedMode(props: object): boolean {
+    return 'interleaved' in props && props.interleaved === true;
+  }
+
   function configure(props: DeckglConfiguration) {
     if (!isExternalOverlay && 'interleaved' in props) {
       throw new Error(
@@ -254,7 +258,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       );
     }
 
-    const interleaved = props.interleaved ?? false;
+    const interleaved = getInterleavedMode(props);
 
     if (configured && isExternalOverlay && initialInterleaved !== interleaved) {
       throw new Error(
@@ -270,7 +274,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
     if (configured) {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
-        deckgl.setProps(props as never);
+        deckgl.setProps(props);
       }
       return;
     }
@@ -280,7 +284,7 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
     const state = store.getState();
     const deckgl = createExternalOverlay
       ? createExternalOverlay(props)
-      : new Deck(props as DeckProps);
+      : new Deck<View | View[] | null>(props);
 
     initialInterleaved = interleaved;
     state.setDeckgl(deckgl);

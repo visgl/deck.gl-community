@@ -1,5 +1,6 @@
 import type {Deck} from '@deck.gl/core';
 import {createDeckGL} from '../../dom';
+import type {DeckglConfiguration} from '../../reconciler/types';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import type {MapboxOverlay} from '@deck.gl/mapbox';
 import type {MapLibreOverlay} from '@deck.gl/maplibre';
@@ -37,6 +38,10 @@ void unsupportedOnDeckglChange;
 // @ts-expect-error Plain compatibility roots never select a provider from a prop.
 const unsupportedInterleaved: DeckGLProps = {interleaved: true};
 void unsupportedInterleaved;
+
+// @ts-expect-error `interleaved` is an external-overlay option, not a Deck configuration prop.
+const unsupportedConfigurationInterleaved: DeckglConfiguration = {interleaved: true};
+void unsupportedConfigurationInterleaved;
 
 const refProps = {
   initialViewState: {latitude: 0, longitude: 0, zoom: 1},

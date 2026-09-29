@@ -100,17 +100,21 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
       const root: ReconcilerRoot = rootOptions.current
         ? createRoot(rootElement, rootOptions.current)
         : createRoot(rootElement);
-      const rootConfig = isExternalOverlay
-        ? config
-        : {
-            ...config,
-            canvas: rootElement,
-            parent:
-              config.parent ||
-              (config.canvas
-                ? getCanvasParent(config.canvas as string | HTMLCanvasElement)
-                : wrapper.current)
-          };
+      let rootConfig: DeckglConfiguration = config;
+      if (!isExternalOverlay) {
+        if (!(rootElement instanceof HTMLCanvasElement)) {
+          return;
+        }
+        rootConfig = {
+          ...config,
+          canvas: rootElement,
+          parent:
+            config.parent ||
+            (config.canvas
+              ? getCanvasParent(config.canvas as string | HTMLCanvasElement)
+              : wrapper.current)
+        };
+      }
 
       root.configure(rootConfig);
       notifyDeckglChange(root.store.getState().deckgl as Instance | null);

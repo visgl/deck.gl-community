@@ -1,4 +1,4 @@
-import type {Layer, LayersList, View} from '@deck.gl/core';
+import type {DeckProps, Layer, View} from '@deck.gl/core';
 import type {DeckglRenderer, Store} from '../shared/index';
 import type {ReactNode} from 'react';
 import type {Fiber} from 'react-reconciler';
@@ -136,10 +136,7 @@ export type RootElement = HTMLCanvasElement | HTMLDivElement;
  *
  * @internal
  */
-export type DeckglConfiguration = {layers?: LayersList; interleaved?: boolean} & Record<
-  string,
-  unknown
->;
+export type DeckglConfiguration = DeckProps<View | View[] | null>;
 
 /** @internal Factory bound to an external-overlay root at creation time. */
 export type CreateExternalOverlay = (props: DeckglConfiguration) => DeckglRenderer;

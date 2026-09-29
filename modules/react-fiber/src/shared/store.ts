@@ -1,4 +1,4 @@
-import type {Deck, LayersList} from '@deck.gl/core';
+import type {Deck, LayersList, View} from '@deck.gl/core';
 import {createStore as createVanillaStore} from 'zustand/vanilla';
 import type {StateCreator, StoreApi} from 'zustand/vanilla';
 
@@ -8,7 +8,7 @@ import type {StateCreator, StoreApi} from 'zustand/vanilla';
  * Manages the deck.gl instance reference and layers passed via props.
  * Used internally by the reconciler to coordinate between React and deck.gl.
  */
-export type DeckglRenderer = Pick<Deck, 'finalize' | 'setProps'>;
+export type DeckglRenderer = Pick<Deck<View | View[] | null>, 'finalize' | 'setProps'>;
 
 export interface State {
   /**
