@@ -3,7 +3,7 @@
 import {useEffect, useState} from 'react';
 import type {ReactNode} from 'react';
 import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
-import type {MapLibreOverlay} from '@deck.gl/maplibre';
+import type {MapLibreOverlay} from '@deck.gl-community/react-fiber/maplibre';
 import {PARAMETERS} from './constants';
 import {connect} from './maplibre';
 import {useSelected} from '@/hooks/use-selected';
