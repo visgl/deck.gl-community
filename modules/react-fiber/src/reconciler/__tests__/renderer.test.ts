@@ -141,6 +141,22 @@ describe('renderer', () => {
       expect(deck.setProps).toHaveBeenCalledWith({layers});
     });
 
+    it('should forward replacement controlled view state and callback', () => {
+      const {root, deck} = createTestRoot();
+      const firstViewState = {latitude: 0, longitude: 0, zoom: 1};
+      const secondViewState = {latitude: 10, longitude: 10, zoom: 2};
+      const firstHandler = vi.fn();
+      const secondHandler = vi.fn();
+
+      root.configure({viewState: firstViewState, onViewStateChange: firstHandler});
+      root.configure({viewState: secondViewState, onViewStateChange: secondHandler});
+
+      expect(deck.setProps).toHaveBeenLastCalledWith({
+        viewState: secondViewState,
+        onViewStateChange: secondHandler
+      });
+    });
+
     it('should clear passed layers when the prop is removed', () => {
       const {root} = createTestRoot();
       const layers = [new ScatterplotLayer({data: [], id: 'stale-layer'})];
