@@ -47,7 +47,9 @@ const LAYERS = Object.fromEntries(
 ) as Record<string, PlaygroundLayerConstructor>;
 
 /** The website opts into every public concrete layer; the library registers none implicitly. */
-export function createPlaygroundRegistry(): PlaygroundRegistry {
+export function createPlaygroundRegistry(
+  constants: PlaygroundRegistry['constants'] = {}
+): PlaygroundRegistry {
   return {
     layers: {
       ...LAYERS,
@@ -64,7 +66,8 @@ export function createPlaygroundRegistry(): PlaygroundRegistry {
       S2Grid: communityGeo.S2Grid,
       GeohashGrid: communityGeo.GeohashGrid,
       QuadkeyGrid: communityGeo.QuadkeyGrid,
-      SimpleLayout: new graph.SimpleLayout()
+      SimpleLayout: new graph.SimpleLayout(),
+      ...constants
     }
   };
 }

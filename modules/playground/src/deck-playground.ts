@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, MapView, type DeckProps, type PickingInfo} from '@deck.gl/core';
+import {
+  Deck,
+  MapView,
+  _deepEqual as deepEqual,
+  type DeckProps,
+  type PickingInfo
+} from '@deck.gl/core';
 import {Playground, type PlaygroundProps, type PlaygroundRenderer} from './playground';
 import {
   createPlaygroundResolver,
@@ -50,12 +56,13 @@ export type DeckPlaygroundProps = Omit<
   onSelect?: (selection: PlaygroundSelection | null) => void;
   /** Observes camera interaction. Return values do not control the camera. */
   onViewStateChange?: (params: Parameters<NonNullable<DeckProps['onViewStateChange']>>[0]) => void;
-  /** Called after Deck initializes; asynchronous layer loading may still be in progress. */
+  /** Called after each preview initializes, including name changes; layers may still be loading. */
   onLoad?: () => void;
 };
 
 /**
- * A JSON playground that owns one Deck instance, its canvas, and its GPU lifecycle.
+ * A JSON playground that owns a Deck preview and its GPU lifecycle.
+ * Edits reuse the preview; changing the document name starts a fresh preview.
  * Layer constructors are supplied explicitly so applications choose their runtime dependencies.
  * Initial document callbacks may run synchronously during construction.
  */
@@ -84,6 +91,16 @@ export class DeckPlayground extends Playground {
     return this.deckRenderer.setBindings(bindings);
   }
 
+  /** Selects an example and restores its initial camera once its document is accepted. */
+  override setTemplate(name: string): void {
+    // The base constructor selects the initial template before this field is assigned.
+    if (this.deckRenderer) {
+      this.deckRenderer.selectTemplate(() => super.setTemplate(name));
+    } else {
+      super.setTemplate(name);
+    }
+  }
+
   /** Resets the camera to the latest accepted document's initialViewState. */
   resetView(): void {
     this.assertActive();
@@ -96,9 +113,11 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   private readonly resolver: ReturnType<typeof createPlaygroundResolver>;
   private bindings: PlaygroundBindings;
   private resolved?: ResolvedPlaygroundConfiguration;
-  private request?: {value: unknown; sourceIds: Set<string>; text?: string};
+  private request?: {value: unknown; sourceIds: Set<string>; text?: string; resetView?: boolean};
+  private resetViewOnUpdate = false;
   private readonly sourceBindings?: PlaygroundSourceBindings;
   private deck?: Deck<any>;
+  private canvas?: HTMLCanvasElement;
   private element?: HTMLDivElement;
   private controls?: HTMLDivElement;
   private controlLabel?: HTMLLabelElement;
@@ -106,6 +125,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   private attribution?: HTMLElement;
   private selectedBasemap = DEFAULT_BASEMAP;
   private activeDocument?: unknown;
+  private activeDocumentName?: string;
   private finalized = false;
 
   constructor(private readonly props: DeckPlaygroundProps) {
@@ -120,15 +140,27 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     }
   }
 
+  selectTemplate(select: () => void): void {
+    this.resetViewOnUpdate = true;
+    try {
+      select();
+    } finally {
+      // Parsing or template lookup can fail before update is called.
+      this.resetViewOnUpdate = false;
+    }
+  }
+
   update(element: HTMLDivElement, value: unknown, text?: string): void {
     this.element = element;
+    const resetView = this.resetViewOnUpdate;
+    this.resetViewOnUpdate = false;
     try {
-      const resolved = this.applyDocument(value, this.bindings);
+      const resolved = this.applyDocument(value, this.bindings, resetView);
       this.request = {value, sourceIds: new Set(resolved.layerBindings.values())};
     } catch (error) {
       if (error instanceof PlaygroundDataSourceError) {
         // Retry a valid document when its sources become available.
-        this.request = {value, sourceIds: new Set(error.sourceIds), text};
+        this.request = {value, sourceIds: new Set(error.sourceIds), text, resetView};
       }
       throw error;
     } finally {
@@ -137,9 +169,11 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
   }
 
   setBindings(bindings: PlaygroundBindings): boolean {
+    const request = this.request;
     try {
-      if (this.request) {
-        this.applyDocument(this.request.value, bindings);
+      if (request) {
+        this.applyDocument(request.value, bindings, request.resetView);
+        request.resetView = false;
       } else {
         this.bindings = bindings;
       }
@@ -191,14 +225,17 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     this.sourceBindings?.finalize();
     this.resolver.finalize();
     this.deck?.finalize();
+    this.canvas?.remove();
     this.controls?.remove();
     this.deck = undefined;
+    this.canvas = undefined;
     this.element = undefined;
     this.controls = undefined;
     this.controlLabel = undefined;
     this.controlSelect = undefined;
     this.attribution = undefined;
     this.activeDocument = undefined;
+    this.activeDocumentName = undefined;
     this.request = undefined;
     this.resolved = undefined;
     this.bindings = {};
@@ -217,16 +254,19 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
 
   private applyDocument(
     value: unknown,
-    bindings: PlaygroundBindings
+    bindings: PlaygroundBindings,
+    resetView = false
   ): ResolvedPlaygroundConfiguration {
     // Validate and resolve before modifying the live renderer or accepted binding map.
     const resolved = this.resolver.resolve(value, bindings, this.sourceBindings);
     const input = value as Record<string, unknown>;
+    const nameChanged = this.activeDocument !== undefined && input.name !== this.activeDocumentName;
+    const selectedBasemap = nameChanged ? DEFAULT_BASEMAP : this.selectedBasemap;
     const hasDocumentMapStyle = Object.hasOwn(input, 'mapStyle');
     const mapStyle = hasDocumentMapStyle
       ? resolveBasemapStyle(input.mapStyle, input.mapboxApiAccessToken)
       : this.props.registry.layers.BasemapLayer
-        ? this.selectedBasemap
+        ? selectedBasemap
         : null;
     const nextProps = resolved.props;
     const views = nextProps.views ?? [];
@@ -273,6 +313,13 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       },
       onError: error => this.reportError(error)
     };
+    if (nameChanged) {
+      // Reset layer state as well as props: identical IDs can describe incompatible layers.
+      // Do this only after resolution succeeds so invalid or pending documents retain the preview.
+      this.deck?.finalize();
+      this.deck = undefined;
+      this.selectedBasemap = selectedBasemap;
+    }
     if (this.deck) {
       const removedProps = Object.fromEntries(
         Object.keys(previousProps)
@@ -280,18 +327,35 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
           .map(key => [key, key === 'controller' ? true : Deck.defaultProps[key]])
       );
       const {initialViewState, ...updates} = nextProps;
-      if (topologyChanged) {
+      // Explicit camera edits should take effect, while layer edits and source refreshes
+      // with unchanged camera props preserve the user's current interaction state.
+      const resetCamera =
+        topologyChanged ||
+        resetView ||
+        !deepEqual(
+          input.initialViewState,
+          (this.activeDocument as Record<string, unknown> | undefined)?.initialViewState,
+          -1
+        );
+      if (resetCamera) {
         this.deck.setProps({initialViewState: null});
       }
       this.deck.setProps({
         ...removedProps,
         ...updates,
         ...callbacks,
-        ...(topologyChanged ? {initialViewState: initialViewState ?? DEFAULT_VIEW_STATE} : {})
+        ...(resetCamera ? {initialViewState: initialViewState ?? DEFAULT_VIEW_STATE} : {})
       });
     } else {
+      // Own the canvas independently so replacing Deck can reuse its GPU device, including
+      // when another named document is accepted before the first device finishes initializing.
+      if (!this.canvas) {
+        this.canvas = this.element!.ownerDocument.createElement('canvas');
+        this.element!.append(this.canvas);
+      }
       this.deck = new Deck<any>({
         parent: this.element,
+        canvas: this.canvas,
         controller: true,
         initialViewState: DEFAULT_VIEW_STATE,
         ...nextProps,
@@ -301,6 +365,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
     this.bindings = bindings;
     this.resolved = resolved;
     this.activeDocument = value;
+    this.activeDocumentName = input.name as string | undefined;
     this.syncBasemapControl(mapViewOnly, hasDocumentMapStyle, mapStyle);
     return resolved;
   }

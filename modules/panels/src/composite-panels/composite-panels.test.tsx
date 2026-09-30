@@ -128,7 +128,7 @@ describe('composite panels', () => {
     expect(firstPanel?.parentElement?.parentElement?.style.visibility).toBe('hidden');
     expect(secondPanel?.parentElement?.parentElement?.style.visibility).toBe('visible');
 
-    firstTab.dispatchEvent(new Event('pointerdown', {bubbles: true}));
+    firstTab.click();
     await Promise.resolve();
 
     const firstPanelAfter = getPanelContent(root, 'first');

@@ -15,7 +15,12 @@ Accepts `parentElement`, `templates`, and `initialTemplate`, plus:
 - `onError(error)`: observes parsing, configuration, source, and rendering failures.
 - `onSelect(selection)`: observes bound-row picks or `null`.
 - `onViewStateChange(params)`: observes camera changes; return values are ignored.
-- `onLoad()`: observes Deck initialization, before asynchronous layers necessarily finish loading.
+- `onLoad()`: observes each Deck initialization, including after a document name change, before
+  asynchronous layers necessarily finish loading.
+
+The package is suitable for embedding in an agent chat: the host owns the database and the
+playground owns the editor, preview, source subscriptions, and selection lifecycle. SQL execution
+is deliberately supplied through a host adapter rather than bundled into this package.
 
 Initial callbacks may run during construction. Invalid edits retain the last accepted preview;
 errors occurring later during rendering may leave a frame incomplete.
@@ -50,6 +55,12 @@ such as `"@@=position"`, `"@@=[longitude, latitude]"`, `"@@=weight > 10 ? 8 : 4"
 Function calls are not supported inside expressions. Supply nested resources through constants
 rather than nested `@@type` descriptors.
 
+The top-level `widgets` array accepts registered widget instances, for example
+`"widgets": ["@@#editModeTray"]` with `registry.constants.editModeTray` set to a host-created
+widget. Deck manages their attachment and removal as documents change. Host callbacks can use
+`setText` to reflect widget actions and layer edits in the JSON; the editable gallery example
+demonstrates mode switching, feature selection, and persisting `onEdit` results this way.
+
 Registered schemas drive validation and Monaco diagnostics. The runtime also rejects unavailable
 references, duplicate layer IDs, `mapStyle` (no basemap adapter), and empty `views` arrays.
 Omit `views` to use the default map view. Inline rows and external bindings bypass conversion:
@@ -79,10 +90,33 @@ are unaffected by shared-source changes. The host owns selection state and highl
 
 ### Camera and lifecycle
 
-Accepted edits and source updates reuse the Deck instance and preserve its camera. Keep layer IDs
-stable to allow layer-state reuse. Editing `initialViewState` updates the target for `resetView()`;
-changing view types or IDs resets the camera. An explicit `viewState` remains authoritative.
+Accepted edits with the same document name and source updates reuse the Deck instance. Keep layer
+IDs stable to allow layer-state reuse. Layer edits and source refreshes preserve camera interaction
+when the document's camera props are unchanged. Editing `initialViewState` applies the new camera,
+including pitch and bearing, once the document is accepted, and updates the target for `resetView()`.
+Changing view types or IDs also resets the camera. An explicit `viewState` remains authoritative.
 Interactivity defaults to enabled, preserving explicit per-view controller settings.
+
+Documents may include top-level metadata:
+
+```json
+{
+  "name": "City map",
+  "description": "Locations of selected cities.",
+  "initialViewState": {"longitude": -98, "latitude": 39, "zoom": 3},
+  "layers": []
+}
+```
+
+`name` is an optional, nonempty string identifying the document. Changing, adding, or removing it
+recreates the Deck preview, clearing all previous renderer props, camera interaction, layer state,
+and the basemap selection. The new document's props are applied over the default props. The reset
+occurs only after validation and data-source resolution succeed; invalid or pending documents keep
+the last accepted preview. Shared sources and local bindings remain available.
+
+`description` is optional informational text. Editing it does not reset the preview. Neither field
+is passed to Deck or interpreted as a JSON expression. Templates without a name retain the existing
+behavior of reusing their preview across edits.
 
 `resetView(): void` restores the accepted document's `initialViewState`, defaulting to longitude 0,
 latitude 0, and zoom 0. `finalize()` releases the editor, preview, and source subscriptions;
@@ -133,6 +167,60 @@ The structural `PlaygroundDataSourceManagerLike` interface allows compatible ups
 to be substituted later. Arbitrary `TableScanSource` handles still need an adapter that materializes
 rows into `PlaygroundDataBinding`.
 
+### SQL query sources
+
+Construct the manager with a `PlaygroundQueryProvider` when the host can execute SQL:
+
+```ts
+const dataSources = new PlaygroundDataSourceManager({
+  queryProvider: {
+    async execute({sql, parameters}, {signal} = {}) {
+      return {
+        data: await database.queryRows(sql, parameters, signal),
+        getRowId: row => row.id
+      };
+    }
+  }
+});
+```
+
+The provider receives `{sql, parameters?}` and returns `{data, getRowId?}`. It may be backed by
+DuckDB-WASM, Mosaic, a remote SQL endpoint, or another engine. The optional `AbortSignal` is
+aborted when a query is replaced, removed, or finalized. The playground does not parse, authorize,
+or execute SQL and therefore does not require the engine as a dependency.
+
+Documents can register named query sources. Layers continue to reference them through the normal
+`@@data` binding, which means the same source can be shared by several layers:
+
+```json
+{
+  "sources": {
+    "trips": {
+      "@@sql": "SELECT origin, destination, count(*) AS trips FROM rides GROUP BY 1, 2"
+    }
+  },
+  "layers": [{
+    "@@type": "ArcLayer",
+    "id": "trips",
+    "data": {"@@data": "trips"},
+    "getSourcePosition": "@@=origin",
+    "getTargetPosition": "@@=destination",
+    "getWidth": "@@=trips"
+  }]
+}
+```
+
+`sources` are registered only after synchronous document validation succeeds. Until the provider resolves a query, the
+preview retains its last accepted frame and reports a loading state through the normal source
+lifecycle. Query failures use the same error path as failed external sources. Reusing the same
+query descriptor does not re-run the query; changing SQL or parameters replaces the source and
+refreshes subscribed layers.
+
+For agent integrations, keep query execution host-controlled and read-only by default. Apply
+authorization, statement restrictions, cancellation, and row/byte limits in the provider. Do not
+expose arbitrary SQL execution to WebMCP unless the surrounding application explicitly grants
+that capability and understands the database effects.
+
 ## `Playground` {/* #playground */}
 
 ### `PlaygroundProps` {/* #playgroundprops */}
@@ -140,6 +228,7 @@ rows into `PlaygroundDataBinding`.
 - `parentElement`: host element for the editor and preview.
 - `templates`: named JSON objects or text documents. Object templates may include `metadata` with
   `title`, `description`, and `screencap` for the picker; it is omitted from the editor document.
+  Top-level `name` and `description` take precedence for card labels and remain in the editor JSON.
 - `initialTemplate`: initial template name; defaults to the first template.
 - `jsonSchema`: optional JSON Schema for Monaco diagnostics and completion.
 - `parse`: parser; defaults to `JSON.parse`.

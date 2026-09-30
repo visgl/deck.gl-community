@@ -197,6 +197,11 @@ export class FastTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Lay
     }
   }
 
+  /** Counts glyph instances so deck.gl does not replace the count with the number of text rows. */
+  override getNumInstances(): number {
+    return this.state?.glyphData?.length ?? 0;
+  }
+
   /** Draw the glyph model when atlas texture and glyph buffers are ready. */
   override draw(): void {
     const {atlasTexture, glyphData, model, fontSize} = this.state;

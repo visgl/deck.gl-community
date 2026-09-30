@@ -103,6 +103,27 @@ test('polygon dash accessors accept deferred values in Zod and JSON Schema', () 
   }
 });
 
+test('coordinate systems use deck.gl string values in Zod and JSON Schema', () => {
+  for (const coordinateSystem of [
+    'default',
+    'lnglat',
+    'meter-offsets',
+    'lnglat-offsets',
+    'cartesian',
+    '@@#COORDINATE_SYSTEM.CARTESIAN'
+  ]) {
+    const document = {layers: [{...base('ScatterplotLayer'), coordinateSystem}]};
+    expect(DeckGLDocumentSchema.safeParse(document).success).toBe(true);
+    expect(validate(document), JSON.stringify(validate.errors)).toBe(true);
+  }
+
+  for (const coordinateSystem of [-1, 0, 1, 2, 3]) {
+    const document = {layers: [{...base('ScatterplotLayer'), coordinateSystem}]};
+    expect(DeckGLDocumentSchema.safeParse(document).success).toBe(false);
+    expect(validate(document)).toBe(false);
+  }
+});
+
 test('custom views compose typed camera states for both document state properties', () => {
   const state = z.strictObject({distance: z.number()});
   const view = z.strictObject({'@@type': z.literal('CustomView')});
