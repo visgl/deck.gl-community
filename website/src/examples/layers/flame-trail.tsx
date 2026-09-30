@@ -4,7 +4,7 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample(
   {
     title: 'FlameTrailLayer',
-    deviceTabs: {placement: 'top-left'},
+    deviceTabs: true,
     code: `${GITHUB_TREE}/examples/layers/flame-trail`,
     async mount(container, props) {
       const {mountFlameTrailExample} = await import('../../../../examples/layers/flame-trail/app');

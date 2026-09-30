@@ -22,7 +22,11 @@ Play trip and scrubbing control route progress in the standard `SettingsPanel` /
 with the stationary TripsLayer view. Select FlameTrailLayer to enable fire.
 
 Use the same panel for the layer comparison, terrain fitting, tint, width, trail,
-and mesh controls.
+and mesh controls. It uses the same top-left settings panel and top-right backend
+tabs as the other layer examples. Expand Playback to play or scrub the trip.
+Tint is shown for FlameTrailLayer, Follow surface for rugged terrain, and Trail
+length when Fade trail is enabled. Inactive values are preserved when switching
+back. On flat ground, Show mesh becomes Show grid.
 Hide UI (or H) removes the controls; Escape restores them.
 
 The terrain scene has two peaks, a saddle, and fine ridges. TerrainExtension

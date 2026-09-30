@@ -12,11 +12,18 @@
 .flame-trail-demo input[type=range] { min-width: 0 !important; }
 .ft-actions { padding: 0 12px 12px; }
 .ft-actions p { margin: 8px 0; }
+.ft-actions p:empty { display: none; }
+.ft-action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .ft-actions button, .ft-recording-status button {
   font: inherit;
   cursor: pointer;
-  margin-bottom: 4px;
+  padding: 4px 8px;
+  border: var(--button-inner-stroke, 1px solid rgba(128, 128, 128, 0.35));
+  border-radius: calc(var(--button-corner-radius, 8px) - 2px);
+  background: var(--button-background, #fff);
+  color: var(--button-text, #222);
 }
+.ft-actions button:hover { background: var(--button-background-hover, #eee); }
 .ft-clean .deck-widget { display: none; }
 .ft-clean { cursor: none; }
 .ft-recording .ft-stage { visibility: hidden; }

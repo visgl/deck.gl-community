@@ -6,7 +6,7 @@ import {Deck, OrbitView, type Color, type DeckProps, type OrbitViewState} from '
 import {ColumnPanel, CustomPanel, SettingsPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {createSceneLayers, fitSceneView, supportsGpuTerrain, type SceneOptions} from './scene';
-import {SETTINGS_SCHEMA} from './settings';
+import {getSettingsSchema} from './settings';
 import {recordScene} from './recording';
 import '@deck.gl/widgets/stylesheet.css';
 import './style.css';
@@ -66,7 +66,7 @@ export function mountFlameTrailExample(
   const controls = new BoxPanelWidget({
     id: 'flame-trail-controls',
     title: 'FlameTrailLayer',
-    placement: 'top-right',
+    placement: 'top-left',
     widthPx: 340,
     collapsible: true
   });
@@ -86,7 +86,16 @@ export function mountFlameTrailExample(
   });
   options.onDeckInitialized?.(deck);
   const scene = (): SceneOptions => ({...settings, tint: TINTS[settings.tint]});
-  const renderFrame = () => deck.setProps({layers: createSceneLayers(scene(), backend)});
+  const terrainStatus = () => {
+    if (settings.surface === 'flat') return 'Flat ground';
+    if (!settings.followSurface) return 'Terrain fitting off';
+    return supportsGpuTerrain(backend) ? 'GPU terrain fitting' : 'Sampled terrain elevations';
+  };
+  const renderFrame = () => {
+    deck.setProps({layers: createSceneLayers(scene(), backend)});
+    const label = root.querySelector('.ft-terrain-status');
+    if (label) label.textContent = terrainStatus();
+  };
   function resetView(low = false) {
     viewState = fitSceneView(stage.clientWidth, stage.clientHeight, settings.surface);
     if (low) viewState.rotationX = 18;
@@ -106,12 +115,14 @@ export function mountFlameTrailExample(
   const actions = new CustomPanel({
     id: 'actions',
     title: '',
+    className: 'ft-actions',
     onRenderHTML: element => {
-      element.className = 'ft-actions';
       element.innerHTML = `<p>Drag to orbit. Scroll to zoom.</p>
-        <p>${backend === 'webgpu' ? 'WebGPU' : 'WebGL2'} · ${supportsGpuTerrain(backend) ? 'GPU terrain fitting' : 'sampled terrain elevations'}</p>
+        <p>${backend === 'webgpu' ? 'WebGPU' : 'WebGL2'} · <span class="ft-terrain-status">${terrainStatus()}</span></p>
+        <div class="ft-action-buttons">
         <button type="button">Overview</button> <button type="button">Low angle</button>
         <button type="button">Hide UI (H)</button> <button type="button">Record 12s</button>
+        </div>
         <p role="status"></p>`;
       const buttons = element.querySelectorAll('button');
       buttons[0].onclick = () => resetView();
@@ -128,7 +139,8 @@ export function mountFlameTrailExample(
         panels: [
           new SettingsPanel({
             id: 'settings',
-            schema: SETTINGS_SCHEMA,
+            label: '',
+            schema: getSettingsSchema(settings),
             settings: displayed,
             onSettingsChange: next => {
               const oldSurface = settings.surface;

@@ -16,7 +16,7 @@ const unsubscribe = manager.subscribe(({device}) => {
   cleanup = mountFlameTrailExample(container, {
     device,
     initialViewState: currentView,
-    widgets: [new DeviceTabsWidget({manager, placement: 'top-left'})],
+    widgets: [new DeviceTabsWidget({manager, placement: 'top-right'})],
     onViewStateChange: params => {
       currentView = params.viewState as OrbitViewState;
       return params.viewState;
