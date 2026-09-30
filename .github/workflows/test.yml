@@ -239,7 +239,7 @@ jobs:
         with:
           repository: visgl/deck.gl
           # Temporary integration pin until deck.gl#10751 is released.
-          ref: b663874d3a51c2ebc5c5cf7b666f5d8ef15ae5ee
+          ref: f1214b4640451a8c4dae4c232687dbd7b4fc6e2b
           path: .terrain-sdk
 
       - name: Verify WebGPU terrain fitting against the upstream port
