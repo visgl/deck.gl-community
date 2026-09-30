@@ -87,6 +87,7 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   }
 
   start() {
+    this._onLayoutStart();
     this._engageWorker();
   }
 
@@ -95,9 +96,9 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
   }
 
   _engageWorker() {
-    // prevent multiple start
     if (this._worker) {
       this._worker.terminate();
+      this._worker = null;
     }
 
     this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
@@ -127,17 +128,34 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
       }
     };
   }
-  ticked(data) {}
+  ticked(data) {
+    const nodesUpdated = this._applyWorkerNodes(data?.nodes);
+    if (!nodesUpdated) {
+      return;
+    }
+
+    if (Array.isArray(data?.edges) && data.edges.length > 0) {
+      this._applyWorkerEdges(data.edges);
+    }
+
+    this._graph?.triggerUpdate?.();
+    this._onLayoutChange();
+  }
   ended(data) {
     const {nodes, edges} = data;
     this.updateD3Graph({nodes, edges});
     this._onLayoutChange();
     this._onLayoutDone();
+    this._disengageWorker();
   }
   resume() {
     throw new Error('Resume unavailable');
   }
   stop() {
+    this._disengageWorker();
+  }
+
+  private _disengageWorker() {
     if (this._worker) {
       this._worker.terminate();
       this._worker = null;
@@ -219,6 +237,73 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._graph?.triggerUpdate?.();
     this._edgeMap = newEdgeMap;
     this._d3Graph.edges = newD3Edges;
+  }
+
+  private _applyWorkerNodes(nodes: any[] | undefined): boolean {
+    if (!Array.isArray(nodes) || nodes.length === 0) {
+      return false;
+    }
+
+    for (const node of nodes) {
+      const existingNode = this._nodeMap.get(node.id);
+      if (existingNode) {
+        existingNode.x = node.x;
+        existingNode.y = node.y;
+        if ('fx' in node) {
+          existingNode.fx = node.fx;
+        }
+        if ('fy' in node) {
+          existingNode.fy = node.fy;
+        }
+        if ('locked' in node) {
+          existingNode.locked = node.locked;
+        }
+        if ('collisionRadius' in node) {
+          existingNode.collisionRadius = node.collisionRadius;
+        }
+      } else {
+        const newNode = {...node};
+        this._nodeMap.set(node.id, newNode);
+        this._d3Graph.nodes.push(newNode);
+      }
+    }
+
+    return true;
+  }
+
+  private _applyWorkerEdges(edges: any[]): void {
+    for (const edge of edges) {
+      const sourceId = this._resolveNodeId(edge.source);
+      const targetId = this._resolveNodeId(edge.target);
+      const source = sourceId === undefined ? undefined : this._nodeMap.get(sourceId);
+      const target = targetId === undefined ? undefined : this._nodeMap.get(targetId);
+
+      if (!source || !target) {
+        continue;
+      }
+
+      const existingEdge = this._edgeMap.get(edge.id);
+      if (existingEdge) {
+        existingEdge.source = source;
+        existingEdge.target = target;
+      } else {
+        const newEdge = {
+          ...edge,
+          source,
+          target
+        };
+        this._edgeMap.set(edge.id, newEdge);
+        this._d3Graph.edges.push(newEdge);
+      }
+    }
+  }
+
+  private _resolveNodeId(node: any): string | number | undefined {
+    if (node && typeof node === 'object') {
+      return node.id;
+    }
+
+    return node;
   }
 
   getNodePosition = (node: NodeInterface): [number, number] => {
