@@ -3,6 +3,28 @@
 ## Unreleased
 
 - [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
+  The [interactive flame demo](/examples/layers/flame-trail) compares backends over rugged terrain
+  with standard controls and a local 1080p recorder.
+
+- `ElevationLayer` keeps height-map mesh decoding separate from texture loading when both use
+  the same URL, fixing terrain updates that could receive cached image data instead of a mesh.
+
+- The Editable GeoJSON playground example supports feature selection, geometry edits, and an
+  edit-mode tray for selecting, modifying, transforming, and drawing features. Changes update the
+  JSON document. Playground documents can attach host-registered widgets through `widgets`.
+
+- Playground documents accept top-level `name` and `description` metadata. A name change resets all
+  preview props, camera, and layer state after the document is accepted, so gallery examples can
+  safely reuse layer IDs across different views and layer types. Description edits preserve state.
+  `SkyboxLayer` ignores pending cubemap results after removal and releases inherited layer resources.
+
+- Playground template selection restores each example's initial camera after its data sources
+  resolve and its document is accepted. Explicit `initialViewState` edits, including pitch and
+  bearing, also update the camera; layer edits and data refreshes preserve camera interaction. Gallery
+  examples fix graph node data and styles, first-person floor geometry,
+  skybox backgrounds, and grid, path, and horizon-chart visibility.
+- `FastTextLayer` draws every glyph across all text rows. `SkyboxLayer` preserves its background
+  depth and culling settings when a view supplies different defaults.
 
 - Both website playgrounds register all 35 concrete official and 45 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer
@@ -27,6 +49,12 @@
   canvas and camera; `Playground` also supports persistent custom renderers.
   Configuration conversion uses `@deck.gl/json`, including array and conditional expressions
   and registered constants, enumerations, and factories, while keeping row payloads unchanged.
+
+- Playground data sources can now be backed by a host-owned `PlaygroundQueryProvider`. JSON
+  documents declare named `sources` with `@@sql` and continue to reference them through `@@data`.
+  SQL remains engine-neutral and host-controlled, so DuckDB-WASM, Mosaic, server-side SQL, and
+  other query engines can be integrated without adding a database dependency or granting agents
+  implicit query access.
 
 - Playground's `createDeckGLDocumentSchema` accepts an optional camera-state schema for custom views,
   including single states and state-ID maps in `initialViewState` and `viewState`.
@@ -155,6 +183,13 @@ Highlights:
 
 - [`Panel`](/docs/modules/react/api-reference/panel) (new) renders reusable
   `@deck.gl-community/panels` definitions in React and MDX trees.
+
+### `@deck.gl-community/react-fiber`
+
+- New direct community fork of Brandon Pierce's React Fiber renderer for
+  composing deck.gl layers and views as React elements.
+- Adds a bounded [`/compat` migration API](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
+  for a supported subset of `@deck.gl/react` applications. It is not full `@deck.gl/react` parity.
 
 ### `@deck.gl-community/three`
 

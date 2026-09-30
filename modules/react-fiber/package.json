@@ -1,0 +1,182 @@
+{
+  "name": "@deck.gl-community/react-fiber",
+  "version": "9.4.0-alpha.3",
+  "description": "A React Fiber renderer for deck.gl",
+  "license": "MIT",
+  "author": "Brandon Pierce (https://github.com/brandonjpierce)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/deck.gl-community"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "deck.gl",
+    "deckgl",
+    "fiber",
+    "react",
+    "renderer"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "dist/types/jsx.*"
+  ],
+  "types": "./dist/dom/index.d.ts",
+  "main": "./dist/dom/index.cjs",
+  "module": "./dist/dom/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/dom/index.d.ts",
+      "require": "./dist/dom/index.cjs",
+      "import": "./dist/dom/index.js"
+    },
+    "./dom": {
+      "types": "./dist/dom/index.d.ts",
+      "require": "./dist/dom/index.cjs",
+      "import": "./dist/dom/index.js"
+    },
+    "./compat": {
+      "types": "./dist/compat/index.d.ts",
+      "require": "./dist/compat/index.cjs",
+      "import": "./dist/compat/index.js"
+    },
+    "./compat/layers": {
+      "types": "./dist/compat/layers.d.ts",
+      "require": "./dist/compat/layers.cjs",
+      "import": "./dist/compat/layers.js"
+    },
+    "./compat/geo-layers": {
+      "types": "./dist/compat/geo-layers.d.ts",
+      "require": "./dist/compat/geo-layers.cjs",
+      "import": "./dist/compat/geo-layers.js"
+    },
+    "./compat/aggregation-layers": {
+      "types": "./dist/compat/aggregation-layers.d.ts",
+      "require": "./dist/compat/aggregation-layers.cjs",
+      "import": "./dist/compat/aggregation-layers.js"
+    },
+    "./compat/mesh-layers": {
+      "types": "./dist/compat/mesh-layers.d.ts",
+      "require": "./dist/compat/mesh-layers.cjs",
+      "import": "./dist/compat/mesh-layers.js"
+    },
+    "./dom/components": {
+      "types": "./dist/dom/components.d.ts",
+      "require": "./dist/dom/components.cjs",
+      "import": "./dist/dom/components.js"
+    },
+    "./reconciler": {
+      "types": "./dist/reconciler/index.d.ts",
+      "require": "./dist/reconciler/index.cjs",
+      "import": "./dist/reconciler/index.js"
+    },
+    "./reconciler/config": {
+      "types": "./dist/reconciler/config.d.ts",
+      "require": "./dist/reconciler/config.cjs",
+      "import": "./dist/reconciler/config.js"
+    },
+    "./reconciler/renderer": {
+      "types": "./dist/reconciler/renderer.d.ts",
+      "require": "./dist/reconciler/renderer.cjs",
+      "import": "./dist/reconciler/renderer.js"
+    },
+    "./reconciler/types": {
+      "types": "./dist/reconciler/types.d.ts",
+      "require": "./dist/reconciler/types.cjs",
+      "import": "./dist/reconciler/types.js"
+    },
+    "./reconciler/utils": {
+      "types": "./dist/reconciler/utils.d.ts",
+      "require": "./dist/reconciler/utils.cjs",
+      "import": "./dist/reconciler/utils.js"
+    },
+    "./shared": {
+      "types": "./dist/shared/index.d.ts",
+      "require": "./dist/shared/index.cjs",
+      "import": "./dist/shared/index.js"
+    },
+    "./shared/constants": {
+      "types": "./dist/shared/constants.d.ts",
+      "require": "./dist/shared/constants.cjs",
+      "import": "./dist/shared/constants.js"
+    },
+    "./shared/log": {
+      "types": "./dist/shared/log.d.ts",
+      "require": "./dist/shared/log.cjs",
+      "import": "./dist/shared/log.js"
+    },
+    "./shared/store": {
+      "types": "./dist/shared/store.d.ts",
+      "require": "./dist/shared/store.cjs",
+      "import": "./dist/shared/store.js"
+    },
+    "./shared/utils": {
+      "types": "./dist/shared/utils.d.ts",
+      "require": "./dist/shared/utils.cjs",
+      "import": "./dist/shared/utils.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "require": "./dist/types/index.cjs",
+      "import": "./dist/types/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "yarn test-types && vitest run --config vite.config.js",
+    "test-types": "tsc --ignoreConfig --noEmit --jsx react-jsx --module esnext --moduleResolution bundler --target es2022 --skipLibCheck src/compat/__tests__/types.test-d.ts src/types/__tests__/jsx-types.test-d.ts src/types/__tests__/props-types.test-d.ts src/types/__tests__/view-element-types.test-d.ts",
+    "test-watch": "vitest --config vite.config.js"
+  },
+  "dependencies": {
+    "client-only": "^0.0.1",
+    "its-fine": "^2.0.0",
+    "loglayer": "^9.0.0",
+    "react-reconciler": "0.33.0",
+    "use-isomorphic-layout-effect": "^1.2.1",
+    "zustand": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@deck.gl/aggregation-layers": "~9.4.0",
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/extensions": "~9.4.0",
+    "@deck.gl/geo-layers": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mapbox": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
+    "@loaders.gl/core": "^4.5.1",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  },
+  "devDependencies": {
+    "@deck.gl/aggregation-layers": "~9.4.0",
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/extensions": "~9.4.0",
+    "@deck.gl/geo-layers": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mapbox": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
+    "@loaders.gl/core": "^4.5.1",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0",
+    "@testing-library/dom": "^10.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@types/react-reconciler": "0.33.0",
+    "fast-check": "^4.0.0",
+    "jsdom": "^26.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "6.0.3",
+    "vitest": "^4.0.18"
+  }
+}

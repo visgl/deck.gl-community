@@ -1,7 +1,11 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 
-import type {PlaygroundDataSourceManagerLike} from './playground-data-source-manager';
+import type {
+  PlaygroundDataSourceManagerLike,
+  PlaygroundQuery,
+  PlaygroundQueryableDataSourceManagerLike
+} from './playground-data-source-manager';
 import type {PlaygroundDataBinding} from './playground-registry';
 
 type SourceState = {status: 'ready' | 'loading'} | {status: 'error'; error: Error};
@@ -10,6 +14,7 @@ type SourceState = {status: 'ready' | 'loading'} | {status: 'error'; error: Erro
 export type PlaygroundBindingProvider = {
   get(name: string): PlaygroundDataBinding | undefined;
   getState(name: string): SourceState | undefined;
+  addQuery?(parameters: {dataSourceId: string; query: PlaygroundQuery}): void;
 };
 
 type Subscription = {
@@ -65,6 +70,13 @@ export class PlaygroundSourceBindings implements PlaygroundBindingProvider {
       return {status: 'error', error: info.error ?? new Error(`Failed data source: ${name}`)};
     }
     return subscription.state;
+  }
+
+  addQuery({dataSourceId, query}: {dataSourceId: string; query: PlaygroundQuery}): void {
+    const manager = this.manager as PlaygroundDataSourceManagerLike &
+      Partial<Pick<PlaygroundQueryableDataSourceManagerLike, 'addQuery'>>;
+    if (!manager.addQuery) throw new Error('This data source manager has no query provider');
+    manager.addQuery({dataSourceId, query});
   }
 
   /** Releases subscriptions left behind by edits or local overrides. */

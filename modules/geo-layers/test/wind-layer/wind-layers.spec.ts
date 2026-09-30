@@ -4,6 +4,8 @@
 
 import {LineLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {TerrainLayer} from '@deck.gl/geo-layers';
+import * as loaderCore from '@loaders.gl/core';
+import {TerrainLoader} from '@loaders.gl/terrain';
 import {describe, expect, it, vi} from 'vitest';
 
 import {
@@ -15,6 +17,11 @@ import {
   type WindStation
 } from '../../src';
 import {WindTriangleLayer} from '../../src/wind-layer/wind-triangle-layer';
+
+vi.mock('@loaders.gl/core', async importOriginal => ({
+  ...(await importOriginal<typeof loaderCore>()),
+  load: vi.fn()
+}));
 
 const STATIONS: WindStation[] = [
   {name: 'southwest', long: 2, lat: 0, elv: 10},
@@ -105,6 +112,46 @@ describe('reusable wind showcase layers', () => {
     expect(terrain.props.id).toBe('terrain');
     expect(terrain.props.data).toHaveLength(FIELD.triangles.length);
     expect((terrain.props.data as {polygon: number[][]}[])[0].polygon[0][2]).toBeGreaterThan(0);
+  });
+
+  it('loads elevation with its parser, decoding options, and abort signal without a URL cache', async () => {
+    const load = vi.mocked(loaderCore.load).mockResolvedValue({} as never);
+    try {
+      const elevation = new ElevationLayer({id: 'elevation-fetch'});
+      const options = {worker: false, terrain: {meshMaxError: 2}};
+      const terrain = new TerrainLayer({
+        id: 'terrain-fetch',
+        elevationData: 'height.png',
+        loaders: [TerrainLoader],
+        loadOptions: options
+      });
+      const {signal} = new AbortController();
+      // An uninitialized layer has no resource manager: loading must not consult Deck's cache.
+      await elevation.props.fetch('height.png', {
+        propName: 'elevationData',
+        layer: terrain,
+        signal
+      });
+      expect(load).toHaveBeenLastCalledWith('height.png', [TerrainLoader], {
+        ...options,
+        core: {fetch: {signal}}
+      });
+      await elevation.props.fetch('height.png', {
+        propName: 'texture',
+        layer: terrain,
+        loaders: [],
+        loadOptions: {worker: false}
+      });
+      expect(load).toHaveBeenLastCalledWith('height.png', [], {worker: false});
+    } finally {
+      load.mockRestore();
+    }
+  });
+
+  it('forwards a host fetch override to terrain and its sublayers', () => {
+    const fetch = vi.fn();
+    const elevation = new ElevationLayer({id: 'custom-fetch', elevationData: 'height.png', fetch});
+    expect(elevation.renderLayers()?.props.fetch).toBe(fetch);
   });
 
   it('instantiates height-map terrain on WebGPU', () => {

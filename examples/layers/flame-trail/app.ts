@@ -68,8 +68,7 @@ export function mountFlameTrailExample(
     title: 'FlameTrailLayer',
     placement: 'top-right',
     widthPx: 340,
-    collapsible: true,
-    className: 'ft-controls'
+    collapsible: true
   });
   const deck = new Deck<OrbitView>({
     device: options.device,

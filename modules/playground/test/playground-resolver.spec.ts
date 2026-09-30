@@ -56,6 +56,24 @@ function captureSourceError(resolve: () => unknown): PlaygroundDataSourceError {
 }
 
 describe('playground runtime resolver', () => {
+  test('validates document metadata without interpreting it or passing it to Deck', () => {
+    const result = resolver.resolve(
+      {
+        name: '@@#literal-name',
+        description: '@@=literal-description',
+        layers: [layer]
+      },
+      {}
+    );
+    expect(result.props).not.toHaveProperty('name');
+    expect(result.props).not.toHaveProperty('description');
+    expect(() => resolver.resolve({name: 3}, {})).toThrow();
+    expect(() => resolver.resolve({name: ''}, {})).toThrow();
+    expect(() => resolver.resolve({description: {}}, {})).toThrow();
+    expect(resolver.jsonSchema.properties).toHaveProperty('name');
+    expect(resolver.jsonSchema.properties).toHaveProperty('description');
+  });
+
   test('matches selected constructors to bundled schemas without enabling other layers', () => {
     const selected = createPlaygroundResolver({layers: {ScatterplotLayer}});
     try {
@@ -280,6 +298,52 @@ describe('playground runtime resolver', () => {
         ['local', 'local']
       ])
     );
+  });
+
+  test('registers document SQL sources through the host query provider', async () => {
+    const queryManager = new PlaygroundDataSourceManager({
+      queryProvider: {
+        execute: vi.fn(async ({sql}) => ({data: [{position: [1, 2], sql}]}))
+      }
+    });
+    const querySources = new PlaygroundSourceBindings(queryManager, () => {});
+    try {
+      const document = {
+        sources: {cities: {'@@sql': 'SELECT longitude, latitude FROM cities'}},
+        layers: [sourceLayer('cities')]
+      };
+      expect(() => resolver.resolve(document, {}, querySources)).toThrow('Loading');
+      await vi.waitFor(() => expect(querySources.getState('cities')).toEqual({status: 'ready'}));
+      const result = resolver.resolve(document, {}, querySources);
+      expect((result.props.layers as Layer[])[0].props.data).toEqual([
+        {position: [1, 2], sql: 'SELECT longitude, latitude FROM cities'}
+      ]);
+    } finally {
+      querySources.finalize();
+      await queryManager.finalize();
+    }
+  });
+
+  test('does not execute SQL for a document rejected by runtime validation', () => {
+    const execute = vi.fn(async () => ({data: []}));
+    const queryManager = new PlaygroundDataSourceManager({queryProvider: {execute}});
+    const querySources = new PlaygroundSourceBindings(queryManager, () => {});
+    try {
+      expect(() =>
+        resolver.resolve(
+          {
+            sources: {cities: {'@@sql': 'SELECT * FROM cities'}},
+            layers: [sourceLayer('cities', 'duplicate'), sourceLayer('cities', 'duplicate')]
+          },
+          {},
+          querySources
+        )
+      ).toThrow('Duplicate playground layer id');
+      expect(execute).not.toHaveBeenCalled();
+    } finally {
+      querySources.finalize();
+      void queryManager.finalize();
+    }
   });
 
   test('refreshes row references when resolving the same document after a source replacement', () => {

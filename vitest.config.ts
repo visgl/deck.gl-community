@@ -97,7 +97,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   include: ['@deck.gl/mesh-layers', '@loaders.gl/arrow', 'apache-arrow', 'three', 'zod']
 };
 
-const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', 'dev/**/dist/**'];
+const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', '**/node_modules/**', 'dev/**/dist/**'];
 
 const REQUIRE_WEBGPU = process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true';
 const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
@@ -138,11 +138,13 @@ const CONFIG = defineConfig({
           include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
           exclude: [
             'modules/**/dist/**',
+            '**/node_modules/**',
             'dev/**/dist/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/widgets/src/widget-panels/toolbar-widget.test.ts',
-            'modules/basemap-layers/**'
+            'modules/basemap-layers/**',
+            'modules/react-fiber/src/reconciler/**'
           ],
           browser: {
             enabled: false

@@ -9,7 +9,7 @@
 }
 .flame-trail-demo [hidden] { display: none; }
 .ft-stage { position: absolute; inset: 0; }
-.ft-controls input[type=range] { min-width: 0 !important; }
+.flame-trail-demo input[type=range] { min-width: 0 !important; }
 .ft-actions { padding: 0 12px 12px; }
 .ft-actions p { margin: 8px 0; }
 .ft-actions button, .ft-recording-status button {
