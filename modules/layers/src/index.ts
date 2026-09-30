@@ -21,3 +21,12 @@ export {
 
 export type {SkyboxLayerProps} from './skybox-layer/skybox-layer';
 export {SkyboxLayer} from './skybox-layer/skybox-layer';
+
+export type {ZoomOpacityExtensionProps} from './zoom-opacity-extension/zoom-opacity-extension';
+export {ZoomOpacityExtension} from './zoom-opacity-extension/zoom-opacity-extension';
+export type {
+  ZoomBandOptions,
+  ZoomOpacityStop,
+  ZoomOpacityStops
+} from './zoom-opacity-extension/zoom-opacity';
+export {interpolateZoom, zoomBand} from './zoom-opacity-extension/zoom-opacity';

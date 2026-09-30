@@ -36,6 +36,7 @@ Release date: 2023
 - `PathMarkerLayer`
 - `PathOutlineLayer`
 - `SkyboxLayer`
+- `ZoomOpacityExtension`, with the `zoomBand` and `interpolateZoom` helpers
 
 <p class="badges">
   <img src="https://img.shields.io/badge/From-v9.3-blue.svg?style=flat-square" alt="From v9.3" />

@@ -14,6 +14,12 @@
   safely reuse layer IDs across different views and layer types. Description edits preserve state.
   `SkyboxLayer` ignores pending cubemap results after removal and releases inherited layer resources.
 
+- `@deck.gl-community/layers` adds [`ZoomOpacityExtension`](/docs/modules/layers/api-reference/zoom-opacity-extension),
+  which fades a layer by viewport zoom using MapLibre-style `zoomOpacity: [zoom, opacity][]` stops.
+  The `zoomBand` helper builds crossfading zoom bands. Fully faded layers are not drawn or
+  pickable. The extension works with aggregation layers, including GPU aggregation, on WebGL2
+  and WebGPU.
+
 - Playground template selection restores each example's initial camera after its data sources
   resolve and its document is accepted. Explicit `initialViewState` edits, including pitch and
   bearing, also update the camera; layer edits and data refreshes preserve camera interaction. Gallery
