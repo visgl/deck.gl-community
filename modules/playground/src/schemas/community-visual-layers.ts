@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {z} from 'zod';
+import {TripsLayerPropsSchema} from './geo-layers';
 import {
   BaseLayerPropsSchema,
   CompositeLayerPropsSchema,
@@ -46,6 +47,11 @@ const boundsProps = {
   yMin: z.number().optional(),
   yMax: z.number().optional()
 };
+
+/** FlameTrailLayer uses the unchanged TripsLayer props. */
+export const FlameTrailLayerPropsSchema = TripsLayerPropsSchema;
+/** JSON configuration for FlameTrailLayer. */
+export const FlameTrailLayerSchema = defineLayer('FlameTrailLayer', FlameTrailLayerPropsSchema);
 
 /** JSON props for outlined paths, including inherited PathLayer styling. */
 export const PathOutlineLayerPropsSchema = PathLayerPropsSchema.extend({
@@ -604,6 +610,7 @@ export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSche
 
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
+  FlameTrailLayer: FlameTrailLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
   DependencyArrowLayer: DependencyArrowLayerSchema,

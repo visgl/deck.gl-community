@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
+
 - `ElevationLayer` keeps height-map mesh decoding separate from texture loading when both use
   the same URL, fixing terrain updates that could receive cached image data instead of a mesh.
 
@@ -22,7 +24,7 @@
 - `FastTextLayer` draws every glyph across all text rows. `SkyboxLayer` preserves its background
   depth and culling settings when a view supplies different defaults.
 
-- Both website playgrounds register all 35 concrete official and 44 public community layers, with
+- Both website playgrounds register all 35 concrete official and 45 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer
   constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
   custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references

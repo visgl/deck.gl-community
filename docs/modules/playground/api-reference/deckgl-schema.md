@@ -18,7 +18,7 @@ new Playground({
 ## Runtime validation and inferred types
 
 The catalog covers the 35 concrete layers exported by deck.gl 9.4's `layers`,
-`aggregation-layers`, `geo-layers`, and `mesh-layers` packages, all 44 public community layers, and
+`aggregation-layers`, `geo-layers`, and `mesh-layers` packages, all 45 public community layers, and
 all five concrete core views. Abstract `View`, `Layer`, `_AggregationLayer`, and `_GeoCellLayer`
 are not document variants. The package remains private.
 

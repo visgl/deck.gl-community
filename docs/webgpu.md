@@ -9,6 +9,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | Module | Layer or integration | WebGL2 | WebGPU | Notes |
 | --- | --- | :---: | :---: | --- |
 | `@deck.gl-community/layers` | `SkyboxLayer` | ✅ | ✅ | Native GLSL and WGSL cubemap shaders. |
+| `@deck.gl-community/layers` | `FlameTrailLayer` | ✅ | ✅ | Native GLSL/WGSL flames and embers. TerrainExtension height-map fitting requires WebGL2; elevated XYZ paths work on both backends. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `line` mode | ✅ | ✅ | Portable `LineLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `arc` mode | ✅ | ✅ | Browser-verified upstream `ArcLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |
@@ -48,7 +49,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 
 ## Selecting a graphics backend
 
-The website injects luma.gl-style WebGPU/WebGL2 tabs into every gallery example and live
+The website injects luma.gl-style WebGPU/WebGL2 tabs into compatible gallery examples and live
 layer-reference example. Its shared imperative-example host owns a separate
 `DeviceManagerController` and standalone `DeviceTabsWidget` for each mounted surface, preserves the
 example's existing widgets and view state, and passes the selected luma.gl device to the actual

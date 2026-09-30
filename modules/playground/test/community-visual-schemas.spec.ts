@@ -17,6 +17,16 @@ const REQUIRED_PROPS: Partial<Record<LayerName, Record<string, unknown>>> = {
 };
 
 describe('community visual layer schemas', () => {
+  it('accepts unchanged TripsLayer props for FlameTrailLayer', () => {
+    expect(
+      parseLayer('FlameTrailLayer', {
+        getTimestamps: '@@=timestamps',
+        currentTime: 180,
+        fadeTrail: false
+      }).success
+    ).toBe(true);
+  });
+
   it.each(
     Object.keys(CommunityVisualLayerSchemas) as LayerName[]
   )('validates %s configuration and rejects unknown props', name => {
