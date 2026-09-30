@@ -93,8 +93,9 @@ A list of `[zoom, opacity]` stops, sorted by ascending zoom.
 - `null` or `[]` leaves the layer at its regular opacity.
 
 The result multiplies the layer's [`opacity`](https://deck.gl/docs/api-reference/core/layer#opacity)
-prop. To avoid confusion with deck.gl's own `minZoom`/`maxZoom` props (on `TileLayer` and view
-states), the extension does not add props with those names.
+prop, so `opacity: 0.8` with a stop value of `0.5` looks the same as `opacity: 0.4`. To avoid
+confusion with deck.gl's own `minZoom`/`maxZoom` props (on `TileLayer` and view states), the
+extension does not add props with those names.
 
 ## Helpers
 
@@ -113,7 +114,9 @@ zoomBand({minZoom: 8, maxZoom: 11, fadeWidth: 1});
 
 Each fade ramp is centered on its band edge, so opacity is exactly `0.5` at `minZoom` and
 `maxZoom`. Two bands that share an edge and a `fadeWidth` therefore crossfade, and their
-opacities sum to `1` throughout the transition.
+opacities sum to `1` throughout the transition. deck.gl applies gamma to opacity, so at the
+midpoint about 7% of the background shows through, the same as when you animate `opacity`
+yourself.
 
 With `fadeWidth: 0`, the band has hard cutoffs that match MapLibre's `minzoom` (inclusive) and
 `maxzoom` (exclusive). If a band is narrower than `fadeWidth`, the ramps are shortened so the
@@ -126,17 +129,6 @@ Evaluates `stops` at `zoom` using the same rules as the `zoomOpacity` prop. It r
 props, such as `pickable` or `visible`, from the same stops.
 
 ## Remarks
-
-### Opacity and gamma
-
-Stop values scale the `opacity` prop before deck.gl's gamma correction. deck.gl renders
-`opacity: o` with an alpha of `o ** (1 / 2.2)`. So a stop value of `0.5` on a layer with
-`opacity: 1` looks exactly the same as `opacity: 0.5` without the extension, and `opacity: 0.8`
-with a stop value of `0.5` looks the same as `opacity: 0.4`.
-
-Crossfade values from `zoomBand` sum to `1` before gamma. At the midpoint of a crossfade, each
-layer renders with an alpha of about `0.73`, so two overlapping layers together cover about 93%
-of the background. This matches what you get when you animate the `opacity` prop yourself.
 
 ### Picking and fully faded layers
 
