@@ -113,6 +113,7 @@ export {
   type DOTGraphLoaderOptions,
   type DOTGraphLoaderMetadata
 } from './loaders/dot-graph-loader';
+export {loadGraphML, parseGraphML} from './loaders/graphml-loader';
 
 // Deprecated exports
 export {
