@@ -125,6 +125,12 @@ type _GeoArrowPolygonLayerProps = {
    */
   getElevation?: FloatAccessor;
 
+  /** URL to the worker used for earcut triangulation, or `null` to triangulate on the main thread. */
+  earcutWorkerUrl?: string | URL | null;
+
+  /** Number of workers used for earcut triangulation. */
+  earcutWorkerPoolSize?: number;
+
   /**
    * If `true`, validate the arrays provided (e.g. chunk lengths)
    * @default true
@@ -258,7 +264,9 @@ export class GeoArrowPolygonLayer<ExtraProps extends {} = {}> extends CompositeL
       getElevation,
       getPolygon,
       updateTriggers,
-      material
+      material,
+      earcutWorkerUrl,
+      earcutWorkerPoolSize
     } = this.props;
 
     const FillLayer = this.getSubLayerClass('fill', GeoArrowSolidPolygonLayer);
@@ -281,7 +289,9 @@ export class GeoArrowPolygonLayer<ExtraProps extends {} = {}> extends CompositeL
         getLineColor: extruded && wireframe ? getLineColor : defaultLineColor,
 
         material,
-        transitions
+        transitions,
+        earcutWorkerUrl,
+        earcutWorkerPoolSize
       },
       this.getSubLayerProps({
         id: 'fill',

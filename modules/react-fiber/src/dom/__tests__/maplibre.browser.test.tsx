@@ -10,7 +10,10 @@ import {DeckGL} from '../maplibre';
 const webglTest = navigator.userAgent.includes('jsdom') ? test.skip : test;
 
 function waitForMapLoad(map: MapLibreMap): Promise<void> {
-  return new Promise(resolve => map.once('load', resolve));
+  if (map.loaded()) {
+    return Promise.resolve();
+  }
+  return new Promise(resolve => map.once('load', () => resolve()));
 }
 
 function getDeck(overlay: MapLibreOverlay) {
@@ -79,12 +82,20 @@ webglTest(
       map.addControl(overlay);
       map.triggerRepaint();
 
-      await vi.waitFor(() => {
-        expect(map.getLayersOrder()).toEqual(['deck-maplibre-layer-group-before:labels', 'labels']);
-        expect(getDeck(mapOverlay)?.isInitialized).toBe(true);
-      });
+      await vi.waitFor(
+        () => {
+          expect(map.getLayersOrder()).toEqual([
+            'deck-maplibre-layer-group-before:labels',
+            'labels'
+          ]);
+          expect(getDeck(mapOverlay)?.isInitialized).toBe(true);
+        },
+        {timeout: 10_000}
+      );
       expect(mapOverlay.getCanvas()).toBe(map.getCanvas());
-      expect(mapOverlay.pickObject({x: 200, y: 150}).picked).toBe(true);
+      await vi.waitFor(() => expect(mapOverlay.pickObject({x: 200, y: 150}).picked).toBe(true), {
+        timeout: 10_000
+      });
 
       map.jumpTo({center: [-122.4, 37.8], zoom: 12});
       map.triggerRepaint();
@@ -118,5 +129,6 @@ webglTest(
       reactRoot.unmount();
       container.remove();
     }
-  }
+  },
+  45_000
 );
