@@ -54,6 +54,7 @@ import {
   type RankAccessor
 } from '../utils/rank-grid';
 import {createGraphFromData} from '../graph/functions/create-graph-from-data';
+import {type GraphData, isGraphData} from '../graph-data/graph-data';
 
 import {warn} from '../utils/log';
 
@@ -122,6 +123,7 @@ export type GraphLayerRawData = {
 export type GraphLayerDataInput =
   | GraphEngine
   | Graph
+  | GraphData
   | GraphLayerRawData
   | unknown[]
   | string
@@ -484,6 +486,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     const graphCandidate = this._coerceGraph(data);
     if (graphCandidate) {
       return this._buildEngineFromGraph(graphCandidate, props.layout);
+    }
+
+    if (isGraphData(data)) {
+      return this._buildEngineFromGraph(createGraphFromData(data), props.layout);
     }
 
     if (typeof data === 'string') {
