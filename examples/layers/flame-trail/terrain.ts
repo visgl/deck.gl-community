@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import {LineLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {Geometry} from '@luma.gl/engine';
 
@@ -66,6 +67,34 @@ function createTerrainMesh(): Geometry {
 
 const TERRAIN_MESH = createTerrainMesh();
 const TERRAIN_DATA = [{position: [0, 0, 0] as [number, number, number]}];
+// Draw each grid edge once with portable LineLayer quads, including triangle diagonals.
+const TERRAIN_EDGES = (() => {
+  const length = SEGMENTS * (3 * SEGMENTS + 2);
+  const source = new Float32Array(length * 3);
+  const target = new Float32Array(length * 3);
+  const positions = TERRAIN_MESH.attributes.positions.value;
+  let offset = 0;
+  const addEdge = (a: number, b: number) => {
+    source.set(positions.subarray(a * 3, a * 3 + 3), offset);
+    target.set(positions.subarray(b * 3, b * 3 + 3), offset);
+    offset += 3;
+  };
+  for (let row = 0; row <= SEGMENTS; row++) {
+    for (let col = 0; col <= SEGMENTS; col++) {
+      const vertex = row * (SEGMENTS + 1) + col;
+      if (col < SEGMENTS) addEdge(vertex, vertex + 1);
+      if (row < SEGMENTS) addEdge(vertex, vertex + SEGMENTS + 1);
+      if (row < SEGMENTS && col < SEGMENTS) addEdge(vertex + 1, vertex + SEGMENTS + 1);
+    }
+  }
+  return {
+    length,
+    attributes: {
+      getSourcePosition: {value: source, size: 3},
+      getTargetPosition: {value: target, size: 3}
+    }
+  };
+})();
 
 /** Interpolate the actual mesh triangle, including its small ridges, for an XYZ route. */
 export function sampleTerrainHeight(x: number, y: number): number {
@@ -101,12 +130,13 @@ export function createTerrainLayers(wireframe: boolean, heightMap = true) {
       operation: heightMap ? 'terrain+draw' : 'draw'
     }),
     wireframe &&
-      new SimpleMeshLayer({
-        ...props,
+      new LineLayer({
         id: 'terrain-wireframe',
-        wireframe: true,
-        opacity: 0.2,
+        data: TERRAIN_EDGES,
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        opacity: 0.05,
         getColor: [150, 165, 160],
+        getWidth: 1,
         parameters: {depthWriteEnabled: false, depthBias: -1, depthBiasSlopeScale: -1}
       })
   ];
