@@ -16,6 +16,10 @@ class SceneTestDeck extends Deck<OrbitView> {
   pause() {
     this.animationLoop?.stop();
   }
+
+  resume() {
+    this.animationLoop?.start();
+  }
 }
 
 it.for(['webgl', 'webgpu'] as const)(
@@ -70,15 +74,27 @@ it.for(['webgl', 'webgpu'] as const)(
           layers,
           onError: reject,
           onAfterRender: () => {
-            if (
-              backend === 'webgpu' &&
-              layers.some(layer => layer && layer.getModels().some(m => m.pipeline.isPending))
-            )
-              return;
-            // TerrainEffect rebuilds source models on the next update.
-            if (++frames < 3) return;
+            // Compilation can take many RAF ticks on software GPUs. Drain each
+            // frame before resuming, including frames with pending pipelines.
             deck!.pause();
-            resolve();
+            let frameDone = Promise.resolve();
+            if (backend === 'webgpu') {
+              device.submit();
+              frameDone = (device as WebGPUDevice).handle.queue.onSubmittedWorkDone();
+            }
+            frameDone
+              .then(() => {
+                const pending =
+                  backend === 'webgpu' &&
+                  layers.some(layer => layer && layer.getModels().some(m => m.pipeline.isPending));
+                // TerrainEffect rebuilds source models on the next update.
+                if (pending || ++frames < 3) {
+                  deck!.resume();
+                } else {
+                  resolve();
+                }
+              })
+              .catch(reject);
           }
         });
       });
