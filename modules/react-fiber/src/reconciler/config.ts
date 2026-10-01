@@ -1,7 +1,6 @@
-import type {Layer, LayersList, View} from '@deck.gl/core';
+import type {DeckProps, Layer, View} from '@deck.gl/core';
 import {log} from '../shared/index';
 import {globalScope} from '../shared/constants';
-import {MapboxOverlay} from '@deck.gl/mapbox';
 import {createContext} from 'react';
 import type {Fiber, ReactContext} from 'react-reconciler';
 import {
@@ -744,26 +743,18 @@ export function replaceContainerChildren(container: Container, newChildren: Chil
       })
       .debug('deck.setProps views and layers');
 
-    const propsUpdate: {layers: LayersList; views?: View[]} = {
+    const propsUpdate: Pick<DeckProps<View | View[] | null>, 'layers' | 'views'> = {
       layers: combinedLayers
     };
 
-    // MapboxOverlay owns its views through the external map renderer. Standalone
-    // Deck must receive an explicit empty list when the last JSX view is removed
-    // so that ViewManager restores its default view.
-    if (!(deckgl instanceof MapboxOverlay)) {
+    // External overlays own views through their host map. Standalone Deck must
+    // receive an explicit empty list when the last JSX view is removed so that
+    // ViewManager restores its default view.
+    if (!state.isExternalOverlay) {
       propsUpdate.views = types.views;
     }
 
-    // Type assertion: The deckgl instance is typed as Deck<null> | MapboxOverlay, where the
-    // generic ViewsT defaults to null, making views?: null. However, deck.gl's runtime
-    // implementation (view-manager.ts) accepts ViewOrViews = View | View[] | null.
-    // When instantiating without specifying the type parameter, the type system is overly
-    // restrictive. This assertion is safe because:
-    // 1. deck.gl's ViewManager.setProps accepts Partial<ViewManagerProps<ViewsT>> where views: ViewsT
-    // 2. ViewsT extends ViewOrViews which includes View[]
-    // 3. Our tests in replace-container-children.test.ts confirm this works at runtime
-    deckgl.setProps(propsUpdate as Parameters<typeof deckgl.setProps>[0]);
+    deckgl.setProps(propsUpdate);
   }
 }
 

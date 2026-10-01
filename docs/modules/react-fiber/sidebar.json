@@ -8,6 +8,7 @@
       "label": "Developer Guide",
       "items": [
         "modules/react-fiber/developer-guide/get-started",
+        "modules/react-fiber/developer-guide/mapbox-maplibre",
         "modules/react-fiber/developer-guide/migrate-from-deckgl-react"
       ]
     },

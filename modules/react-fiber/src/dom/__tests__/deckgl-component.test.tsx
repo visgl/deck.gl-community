@@ -1,7 +1,23 @@
 import {render, waitFor} from '@testing-library/react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {DeckGL} from '../components';
+const providerMocks = vi.hoisted(() => {
+  const mapboxOverlay = vi.fn(function MapboxOverlay(props: unknown) {
+    return {finalize: vi.fn(), props, setProps: vi.fn()};
+  });
+  const maplibreOverlay = vi.fn(function MapLibreOverlay(props: unknown) {
+    return {finalize: vi.fn(), props, setProps: vi.fn()};
+  });
+
+  return {mapboxOverlay, maplibreOverlay};
+});
+
+vi.mock('@deck.gl/mapbox', () => ({MapboxOverlay: providerMocks.mapboxOverlay}));
+vi.mock('@deck.gl/maplibre', () => ({MapLibreOverlay: providerMocks.maplibreOverlay}));
+
+import {createDeckGL, DeckGL} from '../components';
+import {DeckGL as MapboxDeckGL} from '../mapbox';
+import {DeckGL as MapLibreDeckGL} from '../maplibre';
 
 // Mock the shared module for log
 vi.mock(import('../../shared'), () => {
@@ -24,21 +40,30 @@ vi.mock(import('../../reconciler'), () => {
   const mockConfigure = vi.fn<() => void>();
   const mockDeckgl = {};
   const mockRoots = new Map();
-  const mockCreateRoot = vi.fn((node: unknown) => {
-    const deckgl = mockRoots.size === 0 ? mockDeckgl : {};
-    const root = {
-      configure: mockConfigure,
-      render: mockRender,
-      store: {
-        getState: vi.fn(() => ({deckgl})),
+  const mockCreateRoot = vi.fn(
+    (node: unknown, options?: {createExternalOverlay?: (props: unknown) => unknown}) => {
+      let deckgl = mockRoots.size === 0 ? mockDeckgl : {};
+      let configured = false;
+      const root = {
+        configure: (props: unknown) => {
+          mockConfigure(props);
+          if (!configured && options?.createExternalOverlay) {
+            deckgl = options.createExternalOverlay(props);
+            configured = true;
+          }
+        },
+        render: mockRender,
+        store: {
+          getState: vi.fn(() => ({deckgl})),
 
-        setState: vi.fn<() => void>(),
-        subscribe: vi.fn<() => void>()
-      }
-    };
-    mockRoots.set(node, root);
-    return root;
-  });
+          setState: vi.fn<() => void>(),
+          subscribe: vi.fn<() => void>()
+        }
+      };
+      mockRoots.set(node, root);
+      return root;
+    }
+  );
   const mockUnmountAtNode = vi.fn<() => void>();
 
   return {
@@ -99,29 +124,66 @@ describe('DeckGL Component Tests', () => {
       expect(canvas?.tagName).toBe('CANVAS');
     });
 
-    it('should render hidden div in interleaved mode', () => {
-      render(
-        <DeckGL interleaved>
-          <div>Content</div>
-        </DeckGL>
-      );
+    it('rejects a runtime interleaved prop before creating a DOM root', () => {
+      expect(() =>
+        render(
+          <DeckGL {...({interleaved: true} as never)}>
+            <div>Content</div>
+          </DeckGL>
+        )
+      ).toThrow('The default DeckGL root does not support interleaved rendering.');
 
-      const interleaveDiv = document.querySelector('#deckgl-fiber-interleave');
-      expect(interleaveDiv).toBeInstanceOf(HTMLDivElement);
-      expect(interleaveDiv?.hasAttribute('hidden')).toBeTruthy();
+      expect(mockCreateRoot).not.toHaveBeenCalled();
     });
 
-    it('should not render canvas or wrapper elements in interleaved mode', () => {
-      const {container} = render(
-        <DeckGL interleaved>
-          <div>Test</div>
-        </DeckGL>
+    it.each([
+      {DeckGL: MapboxDeckGL, createOverlay: providerMocks.mapboxOverlay, name: 'Mapbox'},
+      {DeckGL: MapLibreDeckGL, createOverlay: providerMocks.maplibreOverlay, name: 'MapLibre'}
+    ])('creates one detached $name overlay root', ({DeckGL: ProviderDeckGL, createOverlay}) => {
+      const onDeckglChange = vi.fn();
+      const {container, unmount} = render(
+        <ProviderDeckGL interleaved onDeckglChange={onDeckglChange}>
+          <div>Content</div>
+        </ProviderDeckGL>
       );
 
-      const canvas = container.querySelector('#deckgl-fiber-canvas');
-      const wrapper = container.querySelector('#deckgl-fiber-wrapper');
-      expect(canvas).toBeNull();
-      expect(wrapper).toBeNull();
+      const rootElement = mockCreateRoot.mock.calls[0][0] as HTMLDivElement;
+      const overlay = createOverlay.mock.results[0]?.value;
+
+      expect(createOverlay).toHaveBeenCalledExactlyOnceWith({interleaved: true});
+      expect(container.childElementCount).toBe(0);
+      expect(rootElement).toBeInstanceOf(HTMLDivElement);
+      expect(rootElement.isConnected).toBe(false);
+      expect(onDeckglChange).toHaveBeenCalledExactlyOnceWith(overlay);
+      expect(mockConfigure).toHaveBeenCalledWith(
+        expect.not.objectContaining({canvas: expect.anything(), parent: expect.anything()})
+      );
+
+      unmount();
+
+      expect(mockUnmountAtNode).toHaveBeenCalledWith(rootElement);
+      expect(onDeckglChange).toHaveBeenLastCalledWith(null);
+    });
+
+    it('uses a detached registry key for a bound external overlay', () => {
+      const overlay = {finalize: () => undefined, setProps: (_props: never) => undefined};
+      const createExternalOverlay = vi.fn(() => overlay);
+      const CustomDeckGL = createDeckGL({createExternalOverlay});
+      const {container} = render(
+        <CustomDeckGL interleaved>
+          <div>Content</div>
+        </CustomDeckGL>
+      );
+
+      expect(container.childElementCount).toBe(0);
+      expect(mockCreateRoot).toHaveBeenCalledWith(
+        expect.any(HTMLDivElement),
+        expect.objectContaining({createExternalOverlay: expect.any(Function)})
+      );
+      expect(mockConfigure).toHaveBeenCalledWith(expect.objectContaining({interleaved: true}));
+      expect(mockConfigure).toHaveBeenCalledWith(
+        expect.not.objectContaining({canvas: expect.anything(), parent: expect.anything()})
+      );
     });
   });
 
@@ -360,19 +422,7 @@ describe('DeckGL Component Tests', () => {
     });
   });
 
-  describe('Interleaved mode ref handling', () => {
-    it('should use interleave div ref for root creation in interleaved mode', () => {
-      render(
-        <DeckGL interleaved>
-          <div>Test</div>
-        </DeckGL>
-      );
-
-      expect(mockCreateRoot).toHaveBeenCalledWith(expect.any(HTMLDivElement));
-      const rootCall = mockCreateRoot.mock.calls[0][0] as HTMLDivElement;
-      expect(rootCall.id).toBe('deckgl-fiber-interleave');
-    });
-
+  describe('Root element handling', () => {
     it('should use canvas ref for root creation in standalone mode', () => {
       render(
         <DeckGL>
@@ -519,20 +569,6 @@ describe('DeckGL Component Tests', () => {
       expect(mockConfigure).toHaveBeenLastCalledWith(
         expect.objectContaining({canvas: secondCanvas})
       );
-    });
-
-    it('should call unmountAtNode with correct node in interleaved mode', () => {
-      const {unmount} = render(
-        <DeckGL interleaved>
-          <div>Test</div>
-        </DeckGL>
-      );
-
-      unmount();
-
-      expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(expect.any(HTMLDivElement));
-      const unmountCall = mockUnmountAtNode.mock.calls[0][0] as HTMLDivElement;
-      expect(unmountCall.id).toBe('deckgl-fiber-interleave');
     });
   });
 
