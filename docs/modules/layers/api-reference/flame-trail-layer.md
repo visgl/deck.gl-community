@@ -137,3 +137,13 @@ software WebGPU adapter must run the terrain checks without skipping them.
   Subtract an epoch offset before passing timestamps to avoid float32 precision loss.
 - For reduced-motion preferences, applications can render a TripsLayer instead
   of the continuously animated flame.
+
+## Example
+
+[Open the interactive demo](/examples/layers/flame-trail) or run
+`yarn workspace @deck.gl-community/example-flame-trail start-local`.
+The standard example panel contains only length, width, and color. Two flame
+heads move half a circuit apart so one stays active while the other loops.
+The shaded terrain makes slopes and ground contact clear, and the standard backend tabs
+switch between WebGL2 and WebGPU. Drag to orbit; scroll to zoom. Terrain
+generation, trip progression, and controls live in the example workspace.

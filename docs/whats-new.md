@@ -3,6 +3,8 @@
 ## Unreleased
 
 - [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
+  The [interactive flame demo](/examples/layers/flame-trail) compares backends over shaded hills
+  with two continuously moving flames and controls for length, width, and color.
 
 - `ElevationLayer` keeps height-map mesh decoding separate from texture loading when both use
   the same URL, fixing terrain updates that could receive cached image data instead of a mesh.
