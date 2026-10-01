@@ -3,30 +3,20 @@
 // Copyright (c) vis.gl contributors
 
 import {COORDINATE_SYSTEM, type Color, type OrbitViewState} from '@deck.gl/core';
-import {PathLayer} from '@deck.gl/layers';
-import {TripsLayer} from '@deck.gl/geo-layers';
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 import {FlameTrailLayer} from '@deck.gl-community/layers';
 import {createTerrainLayers, sampleTerrainHeight} from './terrain';
 
 // The source preview can opt into the unreleased TerrainExtension WGSL port.
 const WEBGPU_TERRAIN = Boolean(import.meta.env?.DECK_GL_TERRAIN_WEBGPU);
-
-export function supportsGpuTerrain(backend: 'webgl' | 'webgpu') {
-  return backend === 'webgl' || WEBGPU_TERRAIN;
-}
+export const TRIP_DURATION = 240;
 
 type Trip = {path: ([number, number] | [number, number, number])[]; timestamps: number[]};
 export type SceneOptions = {
   currentTime: number;
   trailLength: number;
   width: number;
-  fadeTrail: boolean;
-  grid: boolean;
-  mode: 'fire' | 'trips';
-  tint: Color;
-  surface: 'terrain' | 'flat';
-  followSurface: boolean;
+  color: Color;
 };
 
 // Synthetic coordinates: no map service, personal data, or API keys.
@@ -37,7 +27,7 @@ for (let i = 0; i <= 600; i++) {
     340 * Math.cos(t) + 75 * Math.sin(t * 3),
     195 * Math.sin(t) + 42 * Math.sin(t * 2 + 0.5)
   ]);
-  TRIP.timestamps.push((i / 600) * 240);
+  TRIP.timestamps.push((i / 600) * TRIP_DURATION);
 }
 const TRIPS = [TRIP];
 // Elevations are sampled once from the same mesh, never recomputed per animation frame.
@@ -50,77 +40,41 @@ const TERRAIN_PROPS = {
   terrainDrawMode: 'offset' as const,
   billboard: false
 };
-const GRID = Array.from({length: 25}, (_, i) => i * 50 - 600).flatMap(value => [
-  {
-    path: [
-      [value, -600],
-      [value, 600]
-    ]
-  },
-  {
-    path: [
-      [-600, value],
-      [600, value]
-    ]
-  }
-]);
-const SHARED_PROPS = {
-  data: TRIPS,
-  coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-  getPath: (d: Trip) => d.path,
-  getTimestamps: (d: Trip) => d.timestamps,
-  getWidth: 1,
-  widthUnits: 'pixels' as const,
-  capRounded: true,
-  jointRounded: true,
-  parameters: {depthWriteEnabled: false}
-};
 
+/** Keep two flame heads half a circuit apart, including when either trip wraps. */
 export function createSceneLayers(options: SceneOptions, backend: 'webgl' | 'webgpu' = 'webgl') {
-  const LayerClass = options.mode === 'fire' ? FlameTrailLayer : TripsLayer;
-  const terrain = options.surface === 'terrain';
-  const gpuTerrain = supportsGpuTerrain(backend);
-  const fitting =
-    terrain && options.followSurface ? (gpuTerrain ? TERRAIN_PROPS : {data: ELEVATED_TRIPS}) : {};
+  const gpuTerrain = backend === 'webgl' || WEBGPU_TERRAIN;
   return [
-    ...(terrain ? createTerrainLayers(options.grid, gpuTerrain) : []),
-    !terrain &&
-      options.grid &&
-      new PathLayer({
-        id: 'grid',
-        data: GRID,
-        getPath: d => d.path,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        getColor: [38, 41, 46, 65],
-        getWidth: 1,
-        widthUnits: 'pixels',
-        parameters: {depthWriteEnabled: false}
-      }),
-    new LayerClass<Trip>({
-      ...SHARED_PROPS,
-      ...fitting,
-      id: `route-${options.mode}-${terrain && options.followSurface ? 'surface' : 'flat'}`,
-      currentTime: options.currentTime,
-      trailLength: options.trailLength,
-      fadeTrail: options.fadeTrail,
-      getColor: options.mode === 'fire' ? options.tint : [255, 118, 49],
-      widthScale: options.width
-    })
+    ...createTerrainLayers(true, gpuTerrain),
+    ...[0, TRIP_DURATION / 2].map(
+      (offset, index) =>
+        new FlameTrailLayer<Trip>({
+          id: `flame-trail-${index}`,
+          data: gpuTerrain ? TRIPS : ELEVATED_TRIPS,
+          ...(gpuTerrain ? TERRAIN_PROPS : {}),
+          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          getPath: d => d.path,
+          getTimestamps: d => d.timestamps,
+          getWidth: 1,
+          widthUnits: 'pixels',
+          capRounded: true,
+          jointRounded: true,
+          currentTime: (options.currentTime + offset) % TRIP_DURATION,
+          trailLength: options.trailLength,
+          getColor: options.color,
+          widthScale: options.width,
+          parameters: {depthWriteEnabled: false}
+        })
+    )
   ];
 }
 
-export function fitSceneView(
-  width: number,
-  height: number,
-  surface: SceneOptions['surface'] = 'flat'
-): OrbitViewState {
-  const terrain = surface === 'terrain';
+/** Fit the terrain circuit to the example viewport. */
+export function fitSceneView(width: number, height: number): OrbitViewState {
   return {
-    target: [0, 0, terrain ? 95 : 35],
-    zoom: Math.log2(
-      Math.max(0.1, Math.min(width / (terrain ? 1220 : 1000), height / (terrain ? 840 : 620)))
-    ),
-    rotationX: terrain ? 50 : 42,
-    rotationOrbit: terrain ? -30 : -18
+    target: [0, 0, 95],
+    zoom: Math.log2(Math.max(0.1, Math.min(width / 1220, height / 840))),
+    rotationX: 50,
+    rotationOrbit: -30
   };
 }

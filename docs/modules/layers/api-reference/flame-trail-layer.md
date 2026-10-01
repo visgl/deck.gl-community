@@ -142,9 +142,8 @@ software WebGPU adapter must run the terrain checks without skipping them.
 
 [Open the interactive demo](/examples/layers/flame-trail) or run
 `yarn workspace @deck.gl-community/example-flame-trail start-local`.
-The standard example panel controls trip playback, time, tint, width, fading,
-terrain fitting, and the TripsLayer comparison. Flames animate automatically
-while the trip is paused. Reduced-motion preferences start with TripsLayer.
-The example also includes a Hide UI action and a 12-second 1080p recorder that
-follows Play trip and Trip speed. Terrain generation, controls, and recording
-live entirely in the example workspace.
+The standard example panel contains only length, width, and color. Two flame
+heads move half a circuit apart so one stays active while the other loops.
+The terrain mesh and wireframe remain visible, and the standard backend tabs
+switch between WebGL2 and WebGPU. Drag to orbit; scroll to zoom. Terrain
+generation, trip progression, and controls live in the example workspace.
