@@ -144,6 +144,6 @@ software WebGPU adapter must run the terrain checks without skipping them.
 `yarn workspace @deck.gl-community/example-flame-trail start-local`.
 The standard example panel contains only length, width, and color. Two flame
 heads move half a circuit apart so one stays active while the other loops.
-The terrain mesh and wireframe remain visible, and the standard backend tabs
+The shaded terrain makes slopes and ground contact clear, and the standard backend tabs
 switch between WebGL2 and WebGPU. Drag to orbit; scroll to zoom. Terrain
 generation, trip progression, and controls live in the example workspace.

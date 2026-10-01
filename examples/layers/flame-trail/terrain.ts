@@ -3,23 +3,21 @@
 // Copyright (c) vis.gl contributors
 
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
-import {LineLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {Geometry} from '@luma.gl/engine';
 
 const SEGMENTS = 192;
 const EXTENT = 520;
 
-/** A deterministic stress surface with peaks, gullies, and smaller ridges. */
+/** Two hills and a curved ridge make terrain following easy to see. */
 function getTerrainHeight(x: number, y: number): number {
   const peak = (cx: number, cy: number, sx: number, sy: number, height: number) =>
     height * Math.exp(-(((x - cx) / sx) ** 2 + ((y - cy) / sy) ** 2));
   const ridge = y + 65 * Math.sin(x / 115) - 20;
   const broad = peak(-190, 110, 155, 135, 220) + peak(195, -95, 135, 155, 250);
   const spine = 100 * Math.exp(-((ridge / 48) ** 2)) * Math.exp(-((x / 420) ** 4));
-  const detail = 14 * Math.sin(x / 28 + y / 54) * Math.cos(y / 32) + 7 * Math.sin(x / 13 - y / 19);
   const edge = Math.max(0, 1 - (Math.max(Math.abs(x), Math.abs(y)) / EXTENT) ** 6);
-  return 12 + Math.max(0, broad + spine + detail + 24) * edge;
+  return 12 + (broad + spine + 24) * edge;
 }
 
 function createTerrainMesh(): Geometry {
@@ -67,36 +65,8 @@ function createTerrainMesh(): Geometry {
 
 const TERRAIN_MESH = createTerrainMesh();
 const TERRAIN_DATA = [{position: [0, 0, 0] as [number, number, number]}];
-// Draw each grid edge once with portable LineLayer quads, including triangle diagonals.
-const TERRAIN_EDGES = (() => {
-  const length = SEGMENTS * (3 * SEGMENTS + 2);
-  const source = new Float32Array(length * 3);
-  const target = new Float32Array(length * 3);
-  const positions = TERRAIN_MESH.attributes.positions.value;
-  let offset = 0;
-  const addEdge = (a: number, b: number) => {
-    source.set(positions.subarray(a * 3, a * 3 + 3), offset);
-    target.set(positions.subarray(b * 3, b * 3 + 3), offset);
-    offset += 3;
-  };
-  for (let row = 0; row <= SEGMENTS; row++) {
-    for (let col = 0; col <= SEGMENTS; col++) {
-      const vertex = row * (SEGMENTS + 1) + col;
-      if (col < SEGMENTS) addEdge(vertex, vertex + 1);
-      if (row < SEGMENTS) addEdge(vertex, vertex + SEGMENTS + 1);
-      if (row < SEGMENTS && col < SEGMENTS) addEdge(vertex + 1, vertex + SEGMENTS + 1);
-    }
-  }
-  return {
-    length,
-    attributes: {
-      getSourcePosition: {value: source, size: 3},
-      getTargetPosition: {value: target, size: 3}
-    }
-  };
-})();
 
-/** Interpolate the actual mesh triangle, including its small ridges, for an XYZ route. */
+/** Interpolate the actual mesh triangle for an XYZ route. */
 export function sampleTerrainHeight(x: number, y: number): number {
   const u = Math.max(0, Math.min(SEGMENTS, ((x + EXTENT) / (2 * EXTENT)) * SEGMENTS));
   const v = Math.max(0, Math.min(SEGMENTS, ((y + EXTENT) / (2 * EXTENT)) * SEGMENTS));
@@ -112,8 +82,9 @@ export function sampleTerrainHeight(x: number, y: number): number {
 }
 
 /** The visible mesh also supplies the GPU height map used by TerrainExtension. */
-export function createTerrainLayers(wireframe: boolean, heightMap = true) {
-  const props = {
+export function createTerrainLayer(heightMap = true) {
+  return new SimpleMeshLayer({
+    id: 'rugged-terrain',
     data: TERRAIN_DATA,
     mesh: TERRAIN_MESH,
     coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
@@ -121,23 +92,7 @@ export function createTerrainLayers(wireframe: boolean, heightMap = true) {
     getPosition: (d: {position: [number, number, number]}) => d.position,
     getColor: [255, 255, 255] as [number, number, number],
     material: false as const,
-    parameters: {cullMode: 'none' as const, depthWriteEnabled: true}
-  };
-  return [
-    new SimpleMeshLayer({
-      ...props,
-      id: 'rugged-terrain',
-      operation: heightMap ? 'terrain+draw' : 'draw'
-    }),
-    wireframe &&
-      new LineLayer({
-        id: 'terrain-wireframe',
-        data: TERRAIN_EDGES,
-        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-        opacity: 0.05,
-        getColor: [150, 165, 160],
-        getWidth: 1,
-        parameters: {depthWriteEnabled: false, depthBias: -1, depthBiasSlopeScale: -1}
-      })
-  ];
+    parameters: {cullMode: 'none', depthWriteEnabled: true},
+    operation: heightMap ? 'terrain+draw' : 'draw'
+  });
 }

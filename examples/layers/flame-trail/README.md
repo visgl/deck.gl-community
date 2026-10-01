@@ -1,6 +1,6 @@
 # FlameTrailLayer
 
-Two moving flame trails over a rugged terrain mesh. The shared example panel
+Two moving flame trails over shaded hills and a curved ridge. The shared example panel
 contains only **Length**, **Width**, and **Color**. Drag to orbit; scroll to zoom.
 No API keys or external data are required.
 
@@ -17,7 +17,8 @@ Width also controls flame height; color tints the flame palette. The example
 advances the normal TripsLayer `currentTime` prop. Flame turbulence and embers
 animate automatically inside the layer.
 
-The terrain mesh and its wireframe are always visible. TerrainExtension uses
+The shaded terrain makes peaks and gullies visible without a wireframe. Orbit
+the view to inspect the flames following the slopes. TerrainExtension uses
 `offset` to fit the flame footprint while preserving the rising volume.
 WebGPU height maps require the unreleased
 [upstream terrain port](https://github.com/visgl/deck.gl/pull/10751).

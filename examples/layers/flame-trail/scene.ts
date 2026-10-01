@@ -5,7 +5,7 @@
 import {COORDINATE_SYSTEM, type Color, type OrbitViewState} from '@deck.gl/core';
 import {_TerrainExtension as TerrainExtension} from '@deck.gl/extensions';
 import {FlameTrailLayer} from '@deck.gl-community/layers';
-import {createTerrainLayers, sampleTerrainHeight} from './terrain';
+import {createTerrainLayer, sampleTerrainHeight} from './terrain';
 
 // The source preview can opt into the unreleased TerrainExtension WGSL port.
 const WEBGPU_TERRAIN = Boolean(import.meta.env?.DECK_GL_TERRAIN_WEBGPU);
@@ -45,7 +45,7 @@ const TERRAIN_PROPS = {
 export function createSceneLayers(options: SceneOptions, backend: 'webgl' | 'webgpu' = 'webgl') {
   const gpuTerrain = backend === 'webgl' || WEBGPU_TERRAIN;
   return [
-    ...createTerrainLayers(true, gpuTerrain),
+    createTerrainLayer(gpuTerrain),
     ...[0, TRIP_DURATION / 2].map(
       (offset, index) =>
         new FlameTrailLayer<Trip>({

@@ -19,7 +19,7 @@ class SceneTestDeck extends Deck<OrbitView> {
 }
 
 it.for(['webgl', 'webgpu'] as const)(
-  'renders the complete flame scene, including its wireframe, on %s',
+  'renders the flame trails over shaded terrain on %s',
   {timeout: 60000},
   async (backend, {skip}) => {
     if (backend === 'webgpu') await requireWebGPUAdapter(skip);
@@ -109,7 +109,7 @@ it.for(['webgl', 'webgpu'] as const)(
         gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
         expect(gl.getError()).toBe(gl.NO_ERROR);
       }
-      // Bright warm pixels prove the flames survived the terrain + wireframe render pass.
+      // Bright warm pixels prove the flames survived the terrain render pass.
       let flamePixels = 0;
       for (let i = 0; i < pixels.length; i += 4) {
         if (pixels[i] > 120 && pixels[i] > pixels[i + 1] * 1.3) flamePixels++;

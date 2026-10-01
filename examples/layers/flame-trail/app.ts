@@ -53,6 +53,8 @@ export function mountFlameTrailExample(
     views: new OrbitView({id: 'fire', orbitAxis: 'Z', orthographic: true}),
     initialViewState: viewState,
     controller: true,
+    // This example only uses camera interaction, not object selection.
+    _pickable: false,
     widgets: [...(options.widgets ?? []), controls],
     useDevicePixels: Math.min(window.devicePixelRatio, 2),
     deviceProps: {webgl: {antialias: true}},
