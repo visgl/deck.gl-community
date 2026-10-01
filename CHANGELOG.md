@@ -5,7 +5,7 @@
 - Add FlameTrailLayer with the TripsLayer API, rising 3D flames, drifting embers, and animation while the playhead stays still on WebGL2 and WebGPU (#765).
 - Fit the full flame footprint and embers to WebGPU terrain when using the upstream deck.gl TerrainExtension port (#773; visgl/deck.gl#10751). With the published SDK, WebGPU paths use supplied XYZ elevations; WebGL2 supports GPU height-map fitting.
 - Add the FlameTrailLayer terrain example with two continuous flames and Length, Width, and Color controls (#769).
-- Add the react-fiber integration and examples, including fixes for lifecycle and compatibility behavior (#746, #761, #766, #783).
+- Publish only existing npm packages. React Fiber is excluded from this beta pending its initial npm setup; its source and examples remain available.
 - Improve TreeLayer orientation and geometry reuse; add Seasonal Farm and GlobalGridLayer examples (#743, #749, #752).
 - Expand the website gallery and private playground preview with schema validation, managed data sources, host-owned SQL, camera controls, and editing tools. The private playground package is not published in this beta.
 - Align loaders.gl dependencies on 4.5.1 and Apache Arrow on 17; fix layer rendering and resource cleanup.
