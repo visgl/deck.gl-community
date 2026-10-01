@@ -1,5 +1,16 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.2-beta.1
+
+- Add FlameTrailLayer with the TripsLayer API, rising 3D flames, drifting embers, and animation while the playhead stays still on WebGL2 and WebGPU (#765).
+- Fit the full flame footprint and embers to WebGPU terrain when using the upstream deck.gl TerrainExtension port (#773; visgl/deck.gl#10751). With the published SDK, WebGPU paths use supplied XYZ elevations; WebGL2 supports GPU height-map fitting.
+- Add the FlameTrailLayer terrain example with two continuous flames and Length, Width, and Color controls (#769).
+- Add the react-fiber integration and examples, including fixes for lifecycle and compatibility behavior (#746, #761, #766, #783).
+- Improve TreeLayer orientation and geometry reuse; add Seasonal Farm and GlobalGridLayer examples (#743, #749, #752).
+- Expand the website gallery and private playground preview with schema validation, managed data sources, host-owned SQL, camera controls, and editing tools. The private playground package is not published in this beta.
+- Align loaders.gl dependencies on 4.5.1 and Apache Arrow on 17; fix layer rendering and resource cleanup.
+- See [What's New](docs/whats-new.md) and the [Upgrade Guide](docs/upgrade-guide.md) for details.
+
 ## v9.4.0-alpha.3
 
 - feat(widgets): add async search lifecycle controls to OmniBoxWidget (#723)

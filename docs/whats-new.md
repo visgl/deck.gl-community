@@ -1,6 +1,8 @@
 # What's New
 
-## Unreleased
+## v9.4.2-beta.1
+
+Release Date: Oct 1, 2026 (beta)
 
 - [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
   The [interactive flame demo](/examples/layers/flame-trail) compares backends over shaded hills
