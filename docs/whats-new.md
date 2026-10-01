@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `layers`, `infovis-layers`, `timeline-layers`, `geo-layers`, `basemap-layers`, `experimental` and
+  `three` publish a self-contained ES module at `dist/dist.esm.min.js` that uses the page's
+  deck.gl globals. Load it in pydeck with `register_library(name, url, module=True)`. See
+  [ES Module Bundles and pydeck](/docs/esm-bundles).
+
 - [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
   The [interactive flame demo](/examples/layers/flame-trail) compares backends over shaded hills
   with two continuously moving flames and controls for length, width, and color.
