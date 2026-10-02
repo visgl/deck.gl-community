@@ -35,6 +35,7 @@
     "src"
   ],
   "scripts": {
+    "build": "node ../../scripts/build-esm-bundle.mjs",
     "test": "vitest run",
     "test-watch": "vitest"
   },

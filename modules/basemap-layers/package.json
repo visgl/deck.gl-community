@@ -37,6 +37,7 @@
     "src"
   ],
   "scripts": {
+    "build": "node ../../scripts/build-esm-bundle.mjs",
     "test": "yarn --cwd ../.. vitest run --config modules/basemap-layers/vitest.config.ts",
     "test-watch": "yarn --cwd ../.. vitest --config modules/basemap-layers/vitest.config.ts"
   },
