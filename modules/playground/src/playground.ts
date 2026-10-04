@@ -280,7 +280,7 @@ export class Playground {
     const document = this.parentElement.ownerDocument;
     rootElement.replaceChildren();
     rootElement.setAttribute('role', 'listbox');
-    rootElement.setAttribute('aria-label', this.props.examplesTitle ?? 'JSON examples');
+    rootElement.setAttribute('aria-label', this.props.examplesTitle ?? 'Examples');
     for (const [name, template] of Object.entries(this.templates)) {
       const metadata = {
         ...getTemplateMetadata(name, template),

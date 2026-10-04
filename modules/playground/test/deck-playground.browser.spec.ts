@@ -155,6 +155,7 @@ describe('Playground rendering lifecycle', () => {
     const tabs = () =>
       Array.from(host.querySelectorAll<HTMLButtonElement>('[data-panel-tabs] button'));
     expect(tabs().map(tab => tab.textContent)).toEqual(['Document', 'Samples', 'Help']);
+    expect(host.querySelector('[role="listbox"]')?.getAttribute('aria-label')).toBe('Samples');
     expect(host.querySelector('[data-template="first"] strong')?.textContent).toBe('Greeting');
     expect(host.querySelector('[role="dialog"]')?.getAttribute('style')).toContain('360px');
     expect(host.querySelector('[data-sidebar-shell]')?.getAttribute('style')).toContain('right:');
@@ -232,6 +233,9 @@ describe('Playground rendering lifecycle', () => {
     const tabList = playground.parentElement.querySelector('[data-panel-tabs]')!;
     const tabs = Array.from(tabList.querySelectorAll<HTMLButtonElement>('button'));
     expect(tabs.map(tab => tab.textContent)).toEqual(['JSON', 'Examples']);
+    expect(
+      playground.parentElement.querySelector('[role="listbox"]')?.getAttribute('aria-label')
+    ).toBe('Examples');
     const examplesTab = tabs[1];
     examplesTab.click();
     expect(playground.parentElement.querySelector('[data-template="second"]')).not.toBeNull();
