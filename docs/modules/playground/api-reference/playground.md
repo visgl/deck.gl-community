@@ -230,7 +230,17 @@ that capability and understands the database effects.
   `title`, `description`, and `screencap` for the picker; it is omitted from the editor document.
   Top-level `name` and `description` take precedence for card labels and remain in the editor JSON.
 - `initialTemplate`: initial template name; defaults to the first template.
-- `jsonSchema`: optional JSON Schema for Monaco diagnostics and completion.
+- `language`: Monaco language identifier; defaults to `json`. Hosts register additional languages.
+- `editorTitle`, `examplesTitle`: tab labels; default to `JSON` and `Examples`. The editor title
+  also labels the sidebar and its trigger.
+- `sidebarSide`: `left` (default) or `right`.
+- `sidebarWidthPx`: preferred width, default 440; capped at 80% of the host width, subject to the
+  sidebar panel's 220px minimum.
+- `panels`: extra panel instances appended after the editor and examples. Use unique IDs;
+  their mounted content is cleaned up with the playground.
+- `templateMetadata`: card metadata keyed by template name. Supplied fields override embedded
+  metadata and top-level card labels without changing document contents.
+- `jsonSchema`: optional JSON Schema for Monaco diagnostics and completion in JSON mode.
 - `parse`: parser; defaults to `JSON.parse`.
 - `onChange(value, text)`: observes valid edits.
 - `onError(error)`: observes parsing or synchronous rendering failures.

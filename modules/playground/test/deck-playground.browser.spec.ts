@@ -11,6 +11,7 @@ import {
 } from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {CustomPanel} from '@deck.gl-community/panels';
 
 import {DeckPlayground, Playground, ScatterplotLayerSchema} from '../src/index';
 
@@ -113,6 +114,92 @@ afterEach(() => {
 });
 
 describe('Playground rendering lifecycle', () => {
+  it('customizes text documents, metadata, layout and host tabs', async () => {
+    const onChange = vi.fn();
+    const onError = vi.fn();
+    const cleanup = vi.fn();
+    const host = createHost();
+    const playground = new Playground({
+      parentElement: host,
+      templates: {first: 'hello', second: 'world'},
+      language: 'plaintext',
+      editorTitle: 'Document',
+      examplesTitle: 'Samples',
+      sidebarSide: 'right',
+      sidebarWidthPx: 360,
+      templateMetadata: {first: {title: 'Greeting', description: 'Plain text'}},
+      panels: [
+        new CustomPanel({
+          id: 'help',
+          title: 'Help',
+          onRenderHTML: root => {
+            root.textContent = 'Host help';
+            return cleanup;
+          }
+        })
+      ],
+      parse: text => {
+        if (text === 'invalid') throw new Error('Invalid document');
+        return text.toUpperCase();
+      },
+      renderer: {
+        update: (root, value) => {
+          root.textContent = String(value);
+        },
+        finalize: vi.fn()
+      },
+      onChange,
+      onError
+    });
+    PLAYGROUNDS.push(playground);
+    const tabs = () =>
+      Array.from(host.querySelectorAll<HTMLButtonElement>('[data-panel-tabs] button'));
+    expect(tabs().map(tab => tab.textContent)).toEqual(['Document', 'Samples', 'Help']);
+    expect(host.querySelector('[role="listbox"]')?.getAttribute('aria-label')).toBe('Samples');
+    expect(host.querySelector('[data-template="first"] strong')?.textContent).toBe('Greeting');
+    expect(host.querySelector('[role="dialog"]')?.getAttribute('style')).toContain('360px');
+    expect(host.querySelector('[data-sidebar-shell]')?.getAttribute('style')).toContain('right:');
+    expect(playground.previewElement.textContent).toBe('HELLO');
+    playground.setText('invalid');
+    expect(onError).toHaveBeenCalledOnce();
+    expect(playground.previewElement.textContent).toBe('HELLO');
+    tabs()[2].click();
+    playground.setTemplate('second');
+    expect(onChange).toHaveBeenLastCalledWith('WORLD', 'world');
+    const stack = host.querySelector('[data-panel-tabs]')?.parentElement?.children[1];
+    const activePanel = Array.from(stack?.children ?? []).find(
+      child => child.getAttribute('aria-hidden') === 'false'
+    );
+    expect(activePanel?.textContent).toBe('Host help');
+    host.style.width = '300px';
+    await vi.waitFor(() =>
+      expect(host.querySelector('[role="dialog"]')?.getAttribute('style')).toContain('240px')
+    );
+    playground.finalize();
+    expect(cleanup).toHaveBeenCalled();
+    expect(host.children).toHaveLength(0);
+  });
+
+  it('overrides embedded card metadata without changing the document', () => {
+    const onChange = vi.fn();
+    const playground = new Playground({
+      parentElement: createHost(),
+      templates: {
+        example: {name: 'Original', metadata: {title: 'Embedded', description: 'Details'}, value: 1}
+      },
+      templateMetadata: {example: {title: 'Override'}},
+      onChange
+    });
+    PLAYGROUNDS.push(playground);
+    expect(playground.parentElement.querySelector('[data-template] strong')?.textContent).toBe(
+      'Override'
+    );
+    expect(playground.parentElement.querySelector('[data-template] span')?.textContent).toBe(
+      'Details'
+    );
+    expect(onChange).toHaveBeenCalledWith({name: 'Original', value: 1}, expect.any(String));
+  });
+
   it('shows top-level metadata in cards and keeps it in the editor document', () => {
     const onChange = vi.fn();
     const template = {name: 'Named example', description: 'Example description', layers: []};
@@ -146,6 +233,9 @@ describe('Playground rendering lifecycle', () => {
     const tabList = playground.parentElement.querySelector('[data-panel-tabs]')!;
     const tabs = Array.from(tabList.querySelectorAll<HTMLButtonElement>('button'));
     expect(tabs.map(tab => tab.textContent)).toEqual(['JSON', 'Examples']);
+    expect(
+      playground.parentElement.querySelector('[role="listbox"]')?.getAttribute('aria-label')
+    ).toBe('Examples');
     const examplesTab = tabs[1];
     examplesTab.click();
     expect(playground.parentElement.querySelector('[data-template="second"]')).not.toBeNull();
