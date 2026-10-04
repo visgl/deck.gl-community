@@ -7,7 +7,8 @@ import {
   PanelManager,
   SidebarPanelContainer,
   TabbedPanel,
-  TextEditorPanel
+  TextEditorPanel,
+  type Panel
 } from '@deck.gl-community/panels';
 import {registerPlaygroundTools, type PlaygroundWebMCPOptions} from './playground-webmcp';
 
@@ -36,11 +37,25 @@ export type PlaygroundRenderer = {
 export type PlaygroundProps = {
   /** Element into which the playground UI is mounted. */
   parentElement: HTMLElement;
-  /** Named JSON documents shown in the example card picker. */
+  /** Named objects or text documents shown in the example card picker. */
   templates: Record<string, PlaygroundTemplate>;
+  /** Monaco language identifier; defaults to JSON. Hosts register additional languages. */
+  language?: string;
+  /** Editor tab and sidebar title; defaults to JSON. */
+  editorTitle?: string;
+  /** Example picker title; defaults to Examples. */
+  examplesTitle?: string;
+  /** Preferred sidebar width; defaults to 440 and follows the panel's minimum width. */
+  sidebarWidthPx?: number;
+  /** Sidebar edge; defaults to left. */
+  sidebarSide?: 'left' | 'right';
+  /** Extra tabs mounted and cleaned up with the UI; use unique panel IDs. */
+  panels?: Panel[];
+  /** Card metadata by template name; supplied fields override embedded metadata. */
+  templateMetadata?: Record<string, PlaygroundTemplateMetadata>;
   /** Optional template selected on startup; defaults to the first template. */
   initialTemplate?: string;
-  /** Optional JSON Schema passed to Monaco for diagnostics and completion. */
+  /** Optional JSON Schema for diagnostics and completion in JSON mode. */
   jsonSchema?: Record<string, unknown>;
   /** Converts an edited document into the value consumed by the renderer. */
   parse?: (text: string) => unknown;
@@ -55,7 +70,7 @@ export type PlaygroundProps = {
 };
 
 /**
- * A standalone JSON editor and preview surface for deck.gl applications.
+ * A standalone document editor and application-owned preview surface.
  *
  * The editor is implemented with `TextEditorPanel` and lifecycle is managed
  * by `PanelManager`, so applications can install this package without using
@@ -103,18 +118,18 @@ export class Playground {
     this.panelManager = new PanelManager({parentElement: panelRoot});
     this.pickerPanel = new CustomPanel({
       id: 'playground-example-picker',
-      title: 'Examples',
+      title: props.examplesTitle ?? 'Examples',
       className: 'deckgl-playground-template-picker-panel',
       onRenderHTML: this.renderPicker
     });
     this.sidebarContainer = new SidebarPanelContainer({
       id: 'playground-json-sidebar',
       className: 'deckgl-playground-sidebar',
-      title: 'JSON',
-      side: 'left',
-      widthPx: 440,
-      placement: 'top-left',
-      triggerLabel: 'JSON editor',
+      title: props.editorTitle ?? 'JSON',
+      side: props.sidebarSide ?? 'left',
+      widthPx: props.sidebarWidthPx ?? 440,
+      placement: props.sidebarSide === 'right' ? 'top-right' : 'top-left',
+      triggerLabel: `${props.editorTitle ?? 'JSON'} editor`,
       triggerIcon: '{}',
       button: true,
       defaultOpen: true,
@@ -149,11 +164,11 @@ export class Playground {
     this.assertActive();
     const editorPanel = new TextEditorPanel({
       id: this.editorId,
-      title: 'JSON',
+      title: this.props.editorTitle ?? 'JSON',
       value: text,
       onValueChange: this.handleTextChange,
-      language: 'json',
-      jsonSchema: this.props.jsonSchema,
+      language: this.props.language ?? 'json',
+      jsonSchema: (this.props.language ?? 'json') === 'json' ? this.props.jsonSchema : undefined,
       theme: 'invert'
     });
     editorPanel.placement = 'fill';
@@ -167,7 +182,7 @@ export class Playground {
     return new TabbedPanel({
       id: 'playground-sidebar-tabs',
       title: 'Playground',
-      panels: [editorPanel, this.pickerPanel!],
+      panels: [editorPanel, this.pickerPanel!, ...(this.props.panels ?? [])],
       tabListLayout: 'scroll',
       activePanelId: this.activeSidebarPanelId,
       onActivePanelIdChange: activePanelId => {
@@ -265,9 +280,12 @@ export class Playground {
     const document = this.parentElement.ownerDocument;
     rootElement.replaceChildren();
     rootElement.setAttribute('role', 'listbox');
-    rootElement.setAttribute('aria-label', 'JSON examples');
+    rootElement.setAttribute('aria-label', this.props.examplesTitle ?? 'JSON examples');
     for (const [name, template] of Object.entries(this.templates)) {
-      const metadata = getTemplateMetadata(name, template);
+      const metadata = {
+        ...getTemplateMetadata(name, template),
+        ...this.props.templateMetadata?.[name]
+      };
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'deckgl-playground-template-card';
@@ -288,7 +306,9 @@ export class Playground {
   }
 
   private readonly handleEditorResize = () => {
-    this.sidebarContainer?.setProps({widthPx: Math.min(440, this.parentElement.clientWidth * 0.8)});
+    this.sidebarContainer?.setProps({
+      widthPx: Math.min(this.props.sidebarWidthPx ?? 440, this.parentElement.clientWidth * 0.8)
+    });
     this.panelManager.onRedraw({
       viewports: [
         {

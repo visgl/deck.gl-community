@@ -1,6 +1,6 @@
 # `@deck.gl-community/playground`
 
-A JSON editor, template picker, and live deck.gl preview built on
+A customizable document editor, template picker, and preview shell built on
 [`@deck.gl-community/panels`](/docs/modules/panels), without React. This package is unpublished;
 use it from this repository as a workspace.
 
@@ -56,6 +56,48 @@ playground.finalize();
 // Release the manager when all consumers are finished.
 await dataSources.finalize();
 ```
+
+## Custom documents and controls
+
+`Playground` accepts an application-owned parser and renderer. JSON remains the default;
+use string templates for other formats. For example, this plain-text preview needs no
+additional parser or language service:
+
+```ts
+import {CustomPanel} from '@deck.gl-community/panels';
+import {Playground} from '@deck.gl-community/playground';
+
+const playground = new Playground({
+  parentElement,
+  language: 'plaintext',
+  editorTitle: 'Document',
+  examplesTitle: 'Samples',
+  sidebarSide: 'right',
+  sidebarWidthPx: 360,
+  templates: {greeting: 'Hello world'},
+  templateMetadata: {greeting: {title: 'Greeting', description: 'A plain-text sample'}},
+  panels: [new CustomPanel({
+    id: 'help',
+    title: 'Help',
+    onRenderHTML(root) {
+      root.textContent = 'Edit the document to update its preview.';
+    }
+  })],
+  parse: text => text,
+  renderer: {
+    update(root, value) {
+      root.textContent = String(value);
+    },
+    finalize() {}
+  }
+});
+```
+
+Additional panels appear after the editor and example tabs and are cleaned up when the
+playground unmounts. Give each panel a unique ID. Separate `templateMetadata` overrides
+embedded card metadata without changing document text. Custom Monaco language identifiers
+are passed through; hosts register any additional languages and services. JSON schemas apply
+only in JSON mode. `DeckPlayground` always uses JSON but accepts the presentation options.
 
 ## SQL-backed examples
 

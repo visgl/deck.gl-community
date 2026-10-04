@@ -44,7 +44,7 @@ export type PlaygroundSelection = {
 /** Inputs to the managed deck.gl editor and preview. */
 export type DeckPlaygroundProps = Omit<
   PlaygroundProps,
-  'parse' | 'render' | 'renderer' | 'jsonSchema'
+  'parse' | 'render' | 'renderer' | 'jsonSchema' | 'language'
 > & {
   /** Application-selected constructors; known layers use bundled schemas, custom layers supply one. */
   registry: PlaygroundRegistry;
@@ -73,6 +73,7 @@ export class DeckPlayground extends Playground {
     const renderer = new DeckPlaygroundRenderer(props);
     super({
       ...props,
+      language: 'json',
       jsonSchema: renderer.jsonSchema,
       renderer,
       onError: error => renderer.reportError(error)

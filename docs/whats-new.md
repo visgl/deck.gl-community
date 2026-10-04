@@ -6,6 +6,10 @@
   The [interactive flame demo](/examples/layers/flame-trail) compares backends over shaded hills
   with two continuously moving flames and controls for length, width, and color.
 
+- `Playground` supports custom document languages and parsers, editor and example labels,
+  sidebar placement and sizing, additional panel tabs, and separate template card metadata.
+  Existing JSON defaults remain unchanged; `DeckPlayground` continues to use JSON.
+
 - `ElevationLayer` keeps height-map mesh decoding separate from texture loading when both use
   the same URL, fixing terrain updates that could receive cached image data instead of a mesh.
 
