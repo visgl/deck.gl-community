@@ -7,11 +7,13 @@ The deck.gl-community repository is semi-maintained. One of its goals is to coll
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/widgets.svg)](https://www.npmjs.com/package/@deck.gl-community/widgets)
 [![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/widgets.svg)](https://www.npmjs.com/package/@deck.gl-community/widgets)
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square")
 
 This module packages UI widgets that integrate with [deck.gl](https://deck.gl) view state management. It includes classic navigation widgets such as `PanWidget` and `ZoomRangeWidget`, HTML overlays, and `PanelWidget`, the deck adapter for panel-owned UI components.
 
 For renderer lifecycle management, the package also exports `DeviceManager` and `DeviceTabsWidget`. Together they let applications choose WebGPU or WebGL, reuse one cached luma device per backend, and reparent the managed canvas between host elements.
+
+`ColorLegendWidget` renders caller-supplied JSON-safe categorical, continuous, and palette color keys while keeping large categorical lists bounded.
 
 Panel definitions, panel containers, specialized toolbar/toast components, and
 standalone mounting live in `@deck.gl-community/panels`. Import components from
@@ -61,6 +63,8 @@ For the deck-facing panel widget APIs, see the [Widget Panels example](../../exa
 - reusable panel definitions imported from `@deck.gl-community/panels`
 
 Use `DeviceManager` directly when your application wants custom backend-selection UI or needs to move the managed canvas between containers. Use `DeviceTabsWidget` when you want a ready-made widget for switching between `webgpu` and `webgl2`.
+
+Use `ColorLegendWidget` when a view needs a serializable color key that can be prepared independently from its deck.gl rendering lifecycle.
 
 Standalone UI such as `ToolbarComponent`, `ToastComponent`, and `toastManager`
 is exported from `@deck.gl-community/panels`. The widgets package exports

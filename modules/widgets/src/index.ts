@@ -29,11 +29,26 @@ export {
   type DeviceTabsWidgetProps
 } from './widgets/device-tabs-widget';
 export {
+  ColorLegendWidget,
+  type ColorLegendCategoricalEntry,
+  type ColorLegendCategoricalSection,
+  type ColorLegendColor,
+  type ColorLegendContinuousSection,
+  type ColorLegendContinuousStop,
+  type ColorLegendPaletteColor,
+  type ColorLegendPaletteSection,
+  type ColorLegendPayload,
+  type ColorLegendSection,
+  type ColorLegendWidgetProps
+} from './widgets/color-legend-widget';
+export {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
+  type OmniBoxOptionSorter,
   type OmniBoxRenderOptionArgs,
   type OmniBoxResultsSummaryArgs,
+  type OmniBoxResultsState,
   type OmniBoxWidgetProps
 } from './widgets/omni-box-widget';
 export {

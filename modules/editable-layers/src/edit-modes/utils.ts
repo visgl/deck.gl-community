@@ -4,9 +4,9 @@
 
 /* eslint-disable no-shadow */
 
-import turfDestination from '@turf/destination';
-import turfBearing from '@turf/bearing';
-import turfPointToLineDistance from '@turf/point-to-line-distance';
+import {destination} from '@turf/destination';
+import {bearing} from '@turf/bearing';
+import {pointToLineDistance} from '@turf/point-to-line-distance';
 import {point} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
@@ -93,8 +93,8 @@ export function generatePointsParallelToLinePoints(
     coordinates: [p1, p2]
   };
   const pt = point(coords);
-  const ddistance = turfPointToLineDistance(pt, lineString);
-  const lineBearing = turfBearing(p1, p2);
+  const ddistance = pointToLineDistance(pt, lineString);
+  const lineBearing = bearing(p1, p2);
 
   // Check if current point is to the left or right of line
   // Line from A=(x1,y1) to B=(x2,y2) a point P=(x,y)
@@ -107,8 +107,8 @@ export function generatePointsParallelToLinePoints(
 
   // Get coordinates for the point p3 and p4 which are perpendicular to the lineString
   // Add the distance as the current position moves away from the lineString
-  const p3 = turfDestination(p2, ddistance, orthogonalBearing);
-  const p4 = turfDestination(p1, ddistance, orthogonalBearing);
+  const p3 = destination(p2, ddistance, orthogonalBearing);
+  const p4 = destination(p1, ddistance, orthogonalBearing);
 
   return [p3.geometry.coordinates, p4.geometry.coordinates] as Position[];
 }

@@ -22,8 +22,8 @@ export type TextEditorPanelProps = {
   defaultValue?: string;
   /** Called when user edits the current document text. */
   onValueChange?: (nextValue: string) => void;
-  /** Monaco language mode used by the document model. */
-  language?: 'json' | 'plaintext';
+  /** Monaco language identifier; hosts register additional languages. */
+  language?: string;
   /** JSON schema used to drive diagnostics and completion in JSON mode. */
   jsonSchema?: Record<string, unknown>;
   /** If true, prevent editing while still showing Monaco viewer chrome. */
@@ -290,11 +290,7 @@ function getTextEditorModelUri(id: string): string {
  * Maps public panel language names onto Monaco language ids.
  */
 function getTextEditorLanguageId(language: TextEditorPanelProps['language']): string {
-  if (language === 'plaintext') {
-    return 'plaintext';
-  }
-
-  return 'json';
+  return language ?? 'json';
 }
 
 /**
@@ -319,6 +315,8 @@ const TEXT_EDITOR_MONACO_OPTIONS: EditorNamespace.IStandaloneEditorConstructionO
   lineHeight: 18,
   wordWrap: 'on',
   lineNumbers: 'on',
+  // Monaco leaves a delayed occurrence-highlight rejection unhandled on rapid disposal.
+  occurrencesHighlight: 'off',
   glyphMargin: false,
   folding: false,
   scrollBeyondLastLine: false,

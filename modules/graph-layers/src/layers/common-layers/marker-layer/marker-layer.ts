@@ -8,6 +8,7 @@ import {IconLayer} from '@deck.gl/layers';
 import {MarkerMapping} from './marker-mapping';
 import {AtlasDataURL} from './atlas-data-url';
 
+/** Render named glyphs from the bundled marker atlas using IconLayer accessors. */
 export class MarkerLayer extends CompositeLayer {
   static layerName = 'MarkerLayer';
 

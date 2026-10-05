@@ -34,7 +34,7 @@ Default props:
 
 ## Usage
 
-Within this repo it is typically wired to a `DeckTraceGraph` or controller callback that recomputes visible bounds and resets the camera.
+Within this repo it is typically wired to a controller callback that recomputes visible bounds and resets the camera.
 
 ## Remarks
 

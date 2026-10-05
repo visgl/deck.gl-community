@@ -2,6 +2,7 @@
 
 [![NPM Version](https://img.shields.io/npm/v/@deck.gl-community/three.svg)](https://www.npmjs.com/package/@deck.gl-community/three)
 [![NPM Downloads](https://img.shields.io/npm/dw/@deck.gl-community/three.svg)](https://www.npmjs.com/package/@deck.gl-community/three)
+![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square)
 
 A collection of deck.gl layers powered by [Three.js](https://threejs.org/), giving access to Three.js geometry primitives and scene graph tooling directly inside deck.gl visualisations.
 
@@ -21,7 +22,7 @@ Renders richly configurable 3D trees at geographic positions using procedural ge
 
 ### Features
 
-- **5 tree species / silhouettes**: pine (tiered cones), oak (sphere), palm (flat crown), birch (narrow oval), cherry (round sphere)
+- **5 tree species / silhouettes**: pine (tiered cones), oak (sphere), palm (ring-scarred trunk and pinnate fronds), birch (narrow oval), cherry (round sphere)
 - **Organic canopy geometry**: smooth low-frequency vertex jitter baked into each species mesh at init time — no runtime cost, no mesh gaps
 - **Per-tree variety**: position-derived random bearing and asymmetric XY scale give every instance a unique silhouette with zero extra draw calls
 - **Parametric geometry**: per-instance height, trunk-to-canopy ratio, trunk radius, canopy radius
@@ -182,14 +183,8 @@ type CropConfig = {
 
 ---
 
-## Wild-Forest example
+## Seasonal Farm example
 
-A full demo with 9 forest zones (pines, oaks, palms, birches, cherry blossoms, citrus orchards, almond groves) is available at `examples/three/wild-forest/`.
-
-```bash
-cd examples/three/wild-forest
-yarn          # first time only
-yarn start    # opens http://localhost:8080
-```
-
-The example includes a live `sizeScale` slider, a crop toggle, and a zone legend.
+Explore seven labelled plots with seasonal trees and hover details in the
+[Seasonal Farm demo](https://visgl.github.io/deck.gl-community/examples/three/seasonal-farm). See the
+[example README](../../examples/three/seasonal-farm/README.md) for setup and data details.
