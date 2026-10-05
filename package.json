@@ -29,6 +29,7 @@
     "publish-prod": "ocular-publish version-only-prod",
     "test": "ocular-test node",
     "test-node": "ocular-test node",
+    "test-types": "tsc -p modules/editable-layers/test/types/tsconfig.json",
     "test-ci": "ocular-test node --coverage",
     "test-browser": "ocular-test browser",
     "test-headless": "ocular-test headless",

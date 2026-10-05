@@ -22,7 +22,6 @@ import {
   TentativeFeature
 } from './types';
 import {
-  FeatureCollection,
   Feature,
   Polygon,
   SimpleGeometry,
@@ -43,21 +42,26 @@ const DEFAULT_GUIDES: GuideFeatureCollection = {
 };
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
-// Main interface for `EditMode`s that edit GeoJSON
-export type GeoJsonEditModeType = EditMode<FeatureCollection, FeatureCollection>;
+/**
+ * An edit mode for GeoJSON features with simple geometries and typed editing guides.
+ * GeometryCollection is not supported; use SimpleFeatureCollection for editable data.
+ */
+export type GeoJsonEditModeType = EditMode<SimpleFeatureCollection, GuideFeatureCollection>;
 
+/** A zero-argument constructor for a GeoJSON edit mode. */
 export interface GeoJsonEditModeConstructor {
   new (): GeoJsonEditModeType;
 }
 
-export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeatureCollection> {
+/** Base class for custom modes that edit SimpleFeatureCollection data. */
+export class GeoJsonEditMode implements EditMode<SimpleFeatureCollection, GuideFeatureCollection> {
   _clickSequence: Position[] = [];
 
-  getGuides(_props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(_props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     return DEFAULT_GUIDES;
   }
 
-  getTooltips(_props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(_props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
     return DEFAULT_TOOLTIPS;
   }
 
@@ -101,14 +105,16 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     this._clickSequence = [];
   }
 
-  getTentativeGuide(props: ModeProps<FeatureCollection>): TentativeFeature | null | undefined {
+  getTentativeGuide(
+    props: ModeProps<SimpleFeatureCollection>
+  ): TentativeFeature | null | undefined {
     const guides = this.getGuides(props);
     return guides.features.find(
       f => f.properties && f.properties.guideType === 'tentative'
     ) as TentativeFeature;
   }
 
-  isSelectionPicked(picks: Pick[], props: ModeProps<FeatureCollection>): boolean {
+  isSelectionPicked(picks: Pick[], props: ModeProps<SimpleFeatureCollection>): boolean {
     if (!picks.length) return false;
     const pickedFeatures = getNonGuidePicks(picks).map(({index}) => index);
     const pickedHandles = getPickedEditHandles(picks).map(
@@ -258,14 +264,14 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
     return this.getAddFeatureAction(featureOrGeometry, props.data, featureProperties);
   }
 
-  createTentativeFeature(_props: ModeProps<FeatureCollection>): TentativeFeature | null {
+  createTentativeFeature(_props: ModeProps<SimpleFeatureCollection>): TentativeFeature | null {
     return null;
   }
 
-  handleClick(_event: ClickEvent, _props: ModeProps<FeatureCollection>): void {}
-  handleDoubleClick(_event: ClickEvent, _props: ModeProps<FeatureCollection>): void {}
+  handleClick(_event: ClickEvent, _props: ModeProps<SimpleFeatureCollection>): void {}
+  handleDoubleClick(_event: ClickEvent, _props: ModeProps<SimpleFeatureCollection>): void {}
 
-  handlePointerMove(_event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(_event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const tentativeFeature = this.createTentativeFeature(props);
     if (tentativeFeature) {
       props.onEdit({
@@ -277,11 +283,14 @@ export class GeoJsonEditMode implements EditMode<FeatureCollection, GuideFeature
       });
     }
   }
-  handleStartDragging(_event: StartDraggingEvent, _props: ModeProps<FeatureCollection>): void {}
-  handleStopDragging(_event: StopDraggingEvent, _props: ModeProps<FeatureCollection>): void {}
-  handleDragging(_event: DraggingEvent, _props: ModeProps<FeatureCollection>): void {}
+  handleStartDragging(
+    _event: StartDraggingEvent,
+    _props: ModeProps<SimpleFeatureCollection>
+  ): void {}
+  handleStopDragging(_event: StopDraggingEvent, _props: ModeProps<SimpleFeatureCollection>): void {}
+  handleDragging(_event: DraggingEvent, _props: ModeProps<SimpleFeatureCollection>): void {}
 
-  handleKeyUp(event: KeyboardEvent, props: ModeProps<FeatureCollection>): void {
+  handleKeyUp(event: KeyboardEvent, props: ModeProps<SimpleFeatureCollection>): void {
     if (event.key === 'Escape') {
       this.resetClickSequence();
       props.onEdit({
