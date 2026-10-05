@@ -60,6 +60,9 @@ jobs:
       - name: Build packages
         run: yarn build
 
+      - name: Compile strict editable-layers consumer
+        run: yarn test-types
+
       - name: Run node tests with coverage
         run: yarn test-ci 2>&1 | tee /tmp/coverage.txt; exit ${PIPESTATUS[0]}
 
