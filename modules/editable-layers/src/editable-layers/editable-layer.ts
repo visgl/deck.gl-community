@@ -137,6 +137,13 @@ export abstract class EditableLayer<
     const nextTarget = this.props.eventTarget || canvas;
     if (nextTarget !== eventTarget) {
       this._removeEventHandlers();
+      if (this.state._editableLayerState.pointerDownMapCoords) {
+        // onEdit may replace layers; finish Deck's reconciliation before notifying the app.
+        queueMicrotask(() => {
+          const currentLayer = (this.getCurrentLayer() || this) as this;
+          currentLayer._onpancancel({} as MjolnirGestureEvent);
+        });
+      }
       this._resetPointerDownState();
       this.setState({
         _editableLayerState: {...this.state._editableLayerState, eventTarget: nextTarget}

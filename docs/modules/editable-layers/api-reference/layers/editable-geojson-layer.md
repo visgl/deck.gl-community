@@ -108,9 +108,9 @@ new EditableGeoJsonLayer({
 });
 ```
 
-Changing the target removes listeners from the previous element. Removing the layer also
-releases its input recognizer and restores the target's touch style. Map controls retain their
-enabled states; `ViewMode` permits normal map navigation.
+Changing the target cancels an active drag and removes listeners from the previous element.
+Removing the layer also releases its input recognizer and restores the target's touch style.
+Map controls retain their enabled states; `ViewMode` permits normal map navigation.
 
 #### `modeConfig` (Object, optional)
 
