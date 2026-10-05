@@ -15,8 +15,6 @@ import {ViewMode, DrawPolygonMode, EditableGeoJsonLayer} from '@deck.gl-communit
 import maplibregl from 'maplibre-gl';
 import type {FeatureCollection} from 'geojson';
 
-import {syncMapEditInteractions} from '../maplibre-interactions';
-
 import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -137,10 +135,8 @@ export function mountGettingStartedExample(
 
   map.doubleClickZoom.disable();
   map.addControl(deckOverlay);
-  syncMapInteractions();
 
   return () => {
-    syncMapEditInteractions(map, false);
     map.removeControl(deckOverlay);
     deckOverlay.finalize();
     map.remove();
@@ -181,17 +177,12 @@ export function mountGettingStartedExample(
       getCursor: getCursor(state),
       widgets: controlsWidget ? [controlsWidget] : []
     });
-    syncMapInteractions();
   }
 
   function syncWidgets() {
     controlsWidget?.setProps({
       panel: buildControlPanel(state, handleSettingsChange)
     });
-  }
-
-  function syncMapInteractions() {
-    syncMapEditInteractions(map, state.settings.editing.mode !== 'view');
   }
 }
 

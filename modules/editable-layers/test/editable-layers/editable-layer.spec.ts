@@ -129,14 +129,16 @@ test('toBasePointerEvent uses offsetCenter, not clientX/Y', () => {
 });
 
 test('native clicks are immediate, scale-aware, and forwarded to the current layer', () => {
-  const handlers = new Map<string, any>();
+  const handlers = new Map<string, any[]>();
   const canvas = {
     offsetWidth: 128,
     offsetHeight: 256,
     clientLeft: 0,
     clientTop: 0,
     getBoundingClientRect: () => ({left: 50, top: 100, width: 256, height: 512}),
-    addEventListener: vi.fn((type, handler) => handlers.set(type, handler)),
+    addEventListener: vi.fn((type, handler) => {
+      handlers.set(type, [...(handlers.get(type) || []), handler]);
+    }),
     removeEventListener: vi.fn()
   };
   (mockContext.deck as any).getCanvas = () => canvas;
@@ -148,28 +150,31 @@ test('native clicks are immediate, scale-aware, and forwarded to the current lay
   const click = vi.spyOn(currentLayer, 'onLayerClick');
   const doubleClick = vi.spyOn(currentLayer, 'onLayerDoubleClick');
   const event = {type: 'click', button: 0, detail: 1, clientX: 150, clientY: 300};
+  const dispatch = (type, event) => handlers.get(type)?.forEach(handler => handler(event));
 
   expect(handlers.has('click')).toBe(true);
-  handlers.get('pointerdown')?.({...event, type: 'pointerdown'});
-  handlers.get('click')?.(event);
+  dispatch('pointerdown', {...event, type: 'pointerdown'});
+  dispatch('click', event);
   expect(click).toHaveBeenCalledOnce();
   expect(click.mock.calls[0][0].screenCoords).toEqual([50, 100]);
 
-  handlers.get('click')?.({...event, detail: 2});
-  handlers.get('dblclick')?.({...event, type: 'dblclick', detail: 2});
+  dispatch('click', {...event, detail: 2});
+  dispatch('dblclick', {...event, type: 'dblclick', detail: 2});
   expect(click).toHaveBeenCalledOnce();
   expect(doubleClick).toHaveBeenCalledOnce();
   currentLayer.state._editableLayerState.didDrag = true;
-  handlers.get('click')?.(event);
+  dispatch('click', event);
   expect(click).toHaveBeenCalledOnce();
-  handlers.get('pointerdown')?.({...event, type: 'pointerdown'});
-  handlers.get('click')?.(event);
+  dispatch('pointerdown', {...event, type: 'pointerdown'});
+  dispatch('click', event);
   expect(click).toHaveBeenCalledTimes(2);
-  handlers.get('click')?.({...event, button: 2});
+  dispatch('click', {...event, button: 2});
   expect(click).toHaveBeenCalledTimes(2);
   layer.finalizeState();
-  for (const [type, handler] of handlers) {
-    expect(canvas.removeEventListener).toHaveBeenCalledWith(type, handler);
+  for (const [type, listeners] of handlers) {
+    for (const listener of listeners) {
+      expect(canvas.removeEventListener).toHaveBeenCalledWith(type, listener);
+    }
   }
 });
 

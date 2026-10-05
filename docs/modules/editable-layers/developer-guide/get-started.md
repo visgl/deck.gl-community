@@ -95,26 +95,35 @@ See the [getting-started example](https://github.com/visgl/deck.gl-community/tre
 
 ## MapLibre and Mapbox Interleaved Editing
 
-When `EditableGeoJsonLayer` is rendered through `MapboxOverlay` with `interleaved: true`,
-MapLibre/Mapbox and deck.gl both listen to pointer gestures on the same canvas. Drag edit
-modes call `event.cancelPan()`, but MapLibre/Mapbox can still receive its own drag event
-before deck.gl stops propagation. Disable map drag gestures while an edit or selection
-gesture is active, then restore the previous map controls when returning to view mode:
+With `MapboxOverlay({interleaved: true})`, deck.gl and MapLibre/Mapbox share a canvas.
+`EditableGeoJsonLayer` automatically keeps primary mouse presses, double-clicks, and
+single-touch editing gestures from bubbling into the parent map while an edit mode is active.
+`SelectionLayer` applies the same behavior while rectangle or polygon selection is active.
+
+Choose `ViewMode` to return primary gestures to the map. Right-button navigation, wheel
+zoom, and gestures with multiple touches remain available. The layer does not disable
+map controls, so controls that the application disabled stay disabled.
+
+No application interaction helper is required:
 
 ```ts
-function syncMapEditInteractions(map: maplibregl.Map, isEditing: boolean) {
-  if (isEditing) {
-    map.dragPan.disable();
-    map.dragRotate.disable();
-  } else {
-    map.dragPan.enable();
-    map.dragRotate.enable();
-  }
-}
+const overlay = new MapboxOverlay({
+  interleaved: true,
+  layers: [new EditableGeoJsonLayer({
+    id: 'editable',
+    data,
+    mode: DrawPolygonMode,
+    selectedFeatureIndexes: [],
+    onEdit: ({updatedData}) => updateData(updatedData)
+  })]
+});
+map.addControl(overlay);
 ```
 
-The official MapLibre examples use this pattern so drawing, lasso selection, and
-`ModifyMode` handle dragging do not move the base map at the same time.
+Set `autoPreventMapInteractions: false` on `EditableGeoJsonLayer` or `SelectionLayer`
+when the application already coordinates map gestures or intentionally lets edit gestures
+reach the parent map. This option only changes propagation to parent elements; edit-mode
+`event.cancelPan()` continues to coordinate deck.gl's own controller.
 
 ## Widgets
 

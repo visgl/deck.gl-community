@@ -155,3 +155,10 @@ test('polygon selection excludes renderer guides and duplicates but keeps guideT
 
   expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: [feature]});
 });
+
+test('selection forwards the application interaction override to its editable sublayer', () => {
+  const layer = new SelectionLayer({id: 'selection', autoPreventMapInteractions: false});
+  layer.state = {selectionMask: [], isSelecting: false};
+  const editable = layer.renderLayers()[0];
+  expect(editable.props.autoPreventMapInteractions).toBe(false);
+});
