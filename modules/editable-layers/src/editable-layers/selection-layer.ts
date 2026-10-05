@@ -4,11 +4,9 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps, DefaultProps, Layer, PickingInfo} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps, FilterContext} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import lineIntersect from '@turf/line-intersect';
-import {lineString, point, polygon} from '@turf/helpers';
+import {PolygonLayer} from '@deck.gl/layers';
 
 import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
@@ -32,8 +30,11 @@ const MODE_CONFIG_MAP = {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
+  /** IDs of the pickable layers to select, including their sublayers. */
   layerIds: any[];
+  /** Receives deck.gl picking infos after the selection gesture completes. */
   onSelect: (info: any) => any;
+  /** Draw a rectangle or polygon; null disables selection. */
   selectionType: string | null;
 }
 
@@ -48,7 +49,9 @@ const EMPTY_DATA = {
   features: []
 };
 
+const EMPTY_MASK = [];
 const LAYER_ID_GEOJSON = 'selection-geojson';
+const LAYER_ID_BLOCKER = 'selection-blocker';
 
 const PASS_THROUGH_PROPS = [
   'lineWidthScale',
@@ -72,11 +75,17 @@ const PASS_THROUGH_PROPS = [
   'getTentativeFillColor',
   'getTentativeLineWidth'
 ];
+/** Draws a selection gesture over pickable layers placed before this layer. */
 export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   ExtraPropsT & Required<SelectionLayerProps<DataT>>
 > {
   static layerName = 'SelectionLayer';
   static defaultProps = defaultProps;
+
+  state: {
+    selectionMask: number[][][][];
+    isSelecting: boolean;
+  } = undefined!;
 
   _selectRectangleObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
@@ -95,26 +104,58 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
 
   _selectPolygonObjects(coordinates: any) {
     const {layerIds, onSelect} = this.props;
+    const mousePoints = coordinates[0].map(c => this.context.viewport.project(c));
 
-    const selectionPolygon = polygon(coordinates);
-    const pickingInfos: SelectionPickingInfo[] = this.context.layerManager
-      .getLayers()
-      .filter(layer => layerIds.includes(layer.id))
-      .flatMap(layer => {
-        const candidates = getSelectionCandidates(layer);
-        return candidates.flatMap(({object, index, data}): SelectionPickingInfo[] => {
-          if (!isObjectInsideSelection(layer, object, index, data, selectionPolygon)) {
-            return [];
-          }
+    const allX = mousePoints.map(mousePoint => mousePoint[0]);
+    const allY = mousePoints.map(mousePoint => mousePoint[1]);
+    const x = Math.min(...allX);
+    const y = Math.min(...allY);
+    const maxX = Math.max(...allX);
+    const maxY = Math.max(...allY);
 
-          return [{object, layer, index}];
-        });
+    // The blocker must cover the entire picking rectangle, regardless of the
+    // lasso's geographic size or shape. Unproject a padded screen-space rectangle
+    // instead of using a fixed-distance buffer that leaves holes in wide lassos.
+    const outerRing = [
+      [x - 1, y - 1],
+      [maxX + 1, y - 1],
+      [maxX + 1, maxY + 1],
+      [x - 1, maxY + 1],
+      [x - 1, y - 1]
+    ].map(position => this.context.viewport.unproject(position));
+
+    this.setState({selectionMask: [[outerRing, coordinates[0]]], isSelecting: true});
+    let pickingInfos;
+    try {
+      // Picking renders its own framebuffer. Initialize the new blocker now,
+      // rather than guessing when the next animation frame will have rendered it.
+      this.context.layerManager.updateLayers();
+      pickingInfos = this.context.deck.pickObjects({
+        x,
+        y,
+        width: maxX - x,
+        height: maxY - y,
+        layerIds: [`${this.props.id}-${LAYER_ID_BLOCKER}`, ...layerIds]
       });
+    } finally {
+      this.setState({isSelecting: false});
+      this.context.layerManager.updateLayers();
+    }
 
-    onSelect({pickingInfos});
+    onSelect({pickingInfos: pickingInfos.filter(info => info.layer?.id !== this.props.id)});
+  }
+
+  /** Draws the selection mask only during the active GPU picking pass. */
+  filterSubLayer({layer, isPicking}: FilterContext): boolean {
+    if (layer.id === `${this.props.id}-${LAYER_ID_BLOCKER}`) {
+      return isPicking && Boolean(this.state.isSelecting);
+    }
+    return true;
   }
 
   renderLayers() {
+    const {selectionMask} = this.state;
+
     const mode = MODE_MAP[this.props.selectionType] || ViewMode;
     const modeConfig = MODE_CONFIG_MAP[this.props.selectionType];
 
@@ -123,7 +164,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       if (this.props[p] !== undefined) inheritedProps[p] = this.props[p];
     });
 
-    return [
+    const layers: any[] = [
       new EditableGeoJsonLayer(
         this.getSubLayerProps({
           id: LAYER_ID_GEOJSON,
@@ -147,187 +188,28 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
         })
       )
     ];
+
+    // Keep the hidden mask layer initialized between gestures so repeated
+    // selections reuse its GPU model instead of compiling a new one each time.
+    layers.push(
+      new PolygonLayer(
+        this.getSubLayerProps({
+          id: LAYER_ID_BLOCKER,
+          pickable: true,
+          stroked: false,
+          data: selectionMask || EMPTY_MASK,
+          getPolygon: coordinates => coordinates,
+          // Cover elevated and extruded targets too; the SelectionLayer must
+          // follow its target layers in the deck layer list.
+          parameters: {depthCompare: 'always', depthWriteEnabled: false}
+        })
+      )
+    );
+
+    return layers;
   }
 
   shouldUpdateState({changeFlags: {stateChanged, propsOrDataChanged}}: Record<string, any>) {
     return stateChanged || propsOrDataChanged;
   }
-}
-
-type SelectionPickingInfo = Pick<PickingInfo, 'object' | 'layer' | 'index'>;
-type SelectionCandidate = {object: unknown; index: number; data: unknown};
-type Position2D = [number, number];
-type SelectionPolygon = ReturnType<typeof polygon>;
-
-function getSelectionCandidates(layer: Layer): SelectionCandidate[] {
-  const data = layer.props.data;
-  if (Array.isArray(data)) {
-    return data.map((object, index) => ({object, index, data}));
-  }
-
-  if (isFeatureCollection(data)) {
-    return data.features.map((object, index) => ({object, index, data: data.features}));
-  }
-
-  return [];
-}
-
-function isObjectInsideSelection(
-  layer: Layer,
-  object: unknown,
-  index: number,
-  data: unknown,
-  selectionPolygon: SelectionPolygon
-): boolean {
-  const position = extractPosition(layer, object, index, data);
-  if (position !== null) {
-    return booleanPointInPolygon(point(position), selectionPolygon);
-  }
-
-  if (!isFeature(object)) {
-    return false;
-  }
-
-  return isGeometryInsideSelection(object.geometry, selectionPolygon);
-}
-
-function isGeometryInsideSelection(geometry: unknown, selectionPolygon: SelectionPolygon): boolean {
-  if (!isGeometry(geometry)) {
-    return false;
-  }
-
-  if (geometry.type === 'Point') {
-    return isPositionInsideSelection(geometry.coordinates, selectionPolygon);
-  }
-
-  if (geometry.type === 'MultiPoint' || geometry.type === 'LineString') {
-    return positionsContainSelectedPoint(geometry.coordinates, selectionPolygon);
-  }
-
-  if (geometry.type === 'MultiLineString' || geometry.type === 'Polygon') {
-    return geometry.coordinates.some(coordinates =>
-      pathIntersectsSelection(coordinates, selectionPolygon)
-    );
-  }
-
-  if (geometry.type === 'MultiPolygon') {
-    return geometry.coordinates.some(polygonCoordinates =>
-      polygonCoordinates.some(coordinates => pathIntersectsSelection(coordinates, selectionPolygon))
-    );
-  }
-
-  return false;
-}
-
-function pathIntersectsSelection(
-  coordinates: unknown,
-  selectionPolygon: SelectionPolygon
-): boolean {
-  if (!isPositionArray(coordinates)) {
-    return false;
-  }
-
-  if (positionsContainSelectedPoint(coordinates, selectionPolygon)) {
-    return true;
-  }
-
-  const isClosedRing =
-    coordinates.length >= 4 &&
-    coordinates[0][0] === coordinates[coordinates.length - 1][0] &&
-    coordinates[0][1] === coordinates[coordinates.length - 1][1];
-  const selectionRing = selectionPolygon.geometry.coordinates[0];
-  if (
-    isClosedRing &&
-    selectionRing.some(position => booleanPointInPolygon(point(position), polygon([coordinates])))
-  ) {
-    return true;
-  }
-
-  if (coordinates.length < 2) {
-    return false;
-  }
-
-  return lineIntersect(lineString(coordinates), selectionPolygon).features.length > 0;
-}
-
-function extractPosition(
-  layer: Layer,
-  object: unknown,
-  index: number,
-  data: unknown
-): [number, number] | null {
-  const props = layer.props as Record<string, unknown>;
-  const getPosition = props.getPosition;
-
-  if (typeof getPosition === 'function') {
-    const result = getPosition(object, {index, data, target: []});
-    if (isPosition(result)) {
-      return [result[0], result[1]];
-    }
-  }
-
-  if (typeof object === 'object' && object !== null) {
-    if ('position' in object && isPosition(object.position)) {
-      return [object.position[0], object.position[1]];
-    }
-
-    if ('coordinates' in object && isPosition(object.coordinates)) {
-      return [object.coordinates[0], object.coordinates[1]];
-    }
-  }
-
-  return null;
-}
-
-function positionsContainSelectedPoint(
-  coordinates: unknown[],
-  selectionPolygon: SelectionPolygon
-): boolean {
-  return coordinates.some(position => isPositionInsideSelection(position, selectionPolygon));
-}
-
-function isPositionInsideSelection(value: unknown, selectionPolygon: SelectionPolygon): boolean {
-  return isPosition(value) && booleanPointInPolygon(point(value), selectionPolygon);
-}
-
-function isFeatureCollection(value: unknown): value is {
-  type: 'FeatureCollection';
-  features: unknown[];
-} {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    value.type === 'FeatureCollection' &&
-    'features' in value &&
-    Array.isArray(value.features)
-  );
-}
-
-function isFeature(value: unknown): value is {type: 'Feature'; geometry: unknown} {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    value.type === 'Feature' &&
-    'geometry' in value
-  );
-}
-
-function isGeometry(value: unknown): value is {type: string; coordinates: any} {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    typeof value.type === 'string' &&
-    'coordinates' in value
-  );
-}
-
-function isPosition(value: unknown): value is Position2D {
-  return Array.isArray(value) && typeof value[0] === 'number' && typeof value[1] === 'number';
-}
-
-function isPositionArray(value: unknown): value is Position2D[] {
-  return Array.isArray(value) && value.every(isPosition);
 }

@@ -1,169 +1,116 @@
-import {test, expect, vi} from 'vitest';
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
 
-import {SELECTION_TYPE, SelectionLayer} from '../../src/editable-layers/selection-layer';
+import {expect, test, vi} from 'vitest';
+import {SelectionLayer} from '../../src/editable-layers/selection-layer';
 
-const SELECTION_POLYGON = [
+const COORDINATES = [
   [
-    [-1, -1],
-    [3, -1],
-    [3, 3],
-    [-1, 3],
-    [-1, -1]
+    [10, 10],
+    [80, 80],
+    [80, 90],
+    [10, 20],
+    [10, 10]
   ]
 ];
 
-function makeSelectionLayer(onSelect = vi.fn()) {
+function makeSelectionLayer() {
+  const onSelect = vi.fn();
   const layer = new SelectionLayer({
     id: 'selection',
-    selectionType: SELECTION_TYPE.POLYGON,
+    selectionType: 'polygon',
     layerIds: ['points'],
     onSelect
   });
-
+  layer.state = {selectionMask: [], isSelecting: false};
+  layer.setState = vi.fn(update => Object.assign(layer.state, update));
   layer.context = {
-    deck: {
-      pickObjects: vi.fn()
-    },
-    layerManager: {
-      getLayers: vi.fn(() => [])
-    }
+    viewport: {project: position => position, unproject: position => position},
+    layerManager: {updateLayers: vi.fn()},
+    deck: {pickObjects: vi.fn(() => [])}
   } as any;
-
-  return layer;
+  return {
+    layer,
+    onSelect,
+    pickObjects: vi.mocked(layer.context.deck.pickObjects),
+    updateLayers: vi.mocked(layer.context.layerManager.updateLayers)
+  };
 }
 
-test('polygon selection returns only objects with positions inside the drawn polygon', () => {
-  const onSelect = vi.fn();
-  const layer = makeSelectionLayer(onSelect);
-  const pointLayer = {
-    id: 'points',
-    props: {
-      data: [
-        {name: 'inside', position: [1, 1]},
-        {name: 'outside', position: [4, 4]},
-        {name: 'edge', position: [0, 0]}
-      ]
-    }
-  };
-  layer.context.layerManager.getLayers.mockReturnValue([pointLayer]);
+test('polygon picking initializes a blocker covering the entire screen rectangle before GPU picking', () => {
+  const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
+  const info = {object: {name: 'selected'}, layer: {id: 'points'}, index: 3, picked: true};
+  pickObjects.mockImplementation(() => {
+    expect(updateLayers).toHaveBeenCalledOnce();
+    expect(layer.state.selectionMask[0]).toEqual([
+      [
+        [9, 9],
+        [81, 9],
+        [81, 91],
+        [9, 91],
+        [9, 9]
+      ],
+      COORDINATES[0]
+    ]);
+    return [info, {layer, index: 0}] as any;
+  });
+  layer._selectPolygonObjects(COORDINATES);
+  expect(pickObjects).toHaveBeenCalledWith({
+    x: 10,
+    y: 10,
+    width: 70,
+    height: 80,
+    layerIds: ['selection-selection-blocker', 'points']
+  });
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: [info]});
+  expect(onSelect.mock.calls[0][0].pickingInfos[0]).toBe(info);
+  expect(layer.state.isSelecting).toBe(false);
+  expect(updateLayers).toHaveBeenCalledTimes(2);
+});
 
-  layer._selectPolygonObjects(SELECTION_POLYGON);
+test('polygon picking cleans up the blocker if GPU picking throws', () => {
+  const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
+  pickObjects.mockImplementation(() => {
+    throw new Error('picking failed');
+  });
+  expect(() => layer._selectPolygonObjects(COORDINATES)).toThrow('picking failed');
+  expect(layer.state.isSelecting).toBe(false);
+  expect(updateLayers).toHaveBeenCalledTimes(2);
+  expect(onSelect).not.toHaveBeenCalled();
+});
 
-  expect(layer.context.deck.pickObjects).not.toHaveBeenCalled();
-  expect(onSelect).toHaveBeenCalledWith({
-    pickingInfos: [
-      {object: pointLayer.props.data[0], layer: pointLayer, index: 0},
-      {object: pointLayer.props.data[2], layer: pointLayer, index: 2}
+test('the blocker only renders in picking passes while a polygon selection is pending', () => {
+  const {layer} = makeSelectionLayer();
+  const blocker = {id: 'selection-selection-blocker'};
+  const editing = {id: 'selection-selection-geojson'};
+  const filter = (subLayer, isPicking) => layer.filterSubLayer({layer: subLayer, isPicking} as any);
+  expect(filter(blocker, true)).toBe(false);
+  layer.state.isSelecting = true;
+  expect(filter(blocker, false)).toBe(false);
+  expect(filter(blocker, true)).toBe(true);
+  expect(filter(editing, false)).toBe(true);
+  expect(filter(editing, true)).toBe(true);
+});
+
+test('rectangle selection retains deck.gl GPU picking', () => {
+  const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
+  layer._selectRectangleObjects([
+    [
+      [80, 90],
+      [80, 10],
+      [10, 10],
+      [10, 90],
+      [80, 90]
     ]
-  });
-});
-
-test('polygon selection resolves positions with getPosition accessors', () => {
-  const onSelect = vi.fn();
-  const layer = makeSelectionLayer(onSelect);
-  const data = [
-    {name: 'inside', geometry: {coordinates: [2, 2]}},
-    {name: 'outside', geometry: {coordinates: [10, 10]}}
-  ];
-  const pointLayer = {
-    id: 'points',
-    props: {
-      data,
-      getPosition: vi.fn(object => object.geometry.coordinates)
-    }
-  };
-  layer.context.layerManager.getLayers.mockReturnValue([pointLayer]);
-
-  layer._selectPolygonObjects(SELECTION_POLYGON);
-
-  expect(pointLayer.props.getPosition).toHaveBeenCalledWith(data[0], {
-    index: 0,
-    data,
-    target: []
-  });
-  expect(onSelect).toHaveBeenCalledWith({
-    pickingInfos: [{object: data[0], layer: pointLayer, index: 0}]
-  });
-});
-
-test('polygon selection supports GeoJSON feature collection layers', () => {
-  const onSelect = vi.fn();
-  const layer = makeSelectionLayer(onSelect);
-  const data = {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {name: 'inside-polygon'},
-        geometry: {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [0, 0],
-              [2, 0],
-              [2, 2],
-              [0, 2],
-              [0, 0]
-            ]
-          ]
-        }
-      },
-      {
-        type: 'Feature',
-        properties: {name: 'outside-polygon'},
-        geometry: {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [10, 10],
-              [12, 10],
-              [12, 12],
-              [10, 12],
-              [10, 10]
-            ]
-          ]
-        }
-      }
-    ]
-  };
-  const geoJsonLayer = {
-    id: 'points',
-    props: {data}
-  };
-  layer.context.layerManager.getLayers.mockReturnValue([geoJsonLayer]);
-
-  layer._selectPolygonObjects(SELECTION_POLYGON);
-
-  expect(onSelect).toHaveBeenCalledWith({
-    pickingInfos: [{object: data.features[0], layer: geoJsonLayer, index: 0}]
-  });
-});
-
-test('polygon selection ignores non-target layers and unsupported data shapes', () => {
-  const onSelect = vi.fn();
-  const layer = makeSelectionLayer(onSelect);
-  layer.context.layerManager.getLayers.mockReturnValue([
-    {
-      id: 'other',
-      props: {
-        data: [{name: 'inside-other-layer', position: [1, 1]}]
-      }
-    },
-    {
-      id: 'points',
-      props: {
-        data: {not: 'array'}
-      }
-    },
-    {
-      id: 'points',
-      props: {
-        data: [{name: 'missing-position'}]
-      }
-    }
   ]);
-
-  layer._selectPolygonObjects(SELECTION_POLYGON);
-
-  expect(onSelect).toHaveBeenCalledWith({pickingInfos: []});
+  expect(pickObjects).toHaveBeenCalledWith({
+    x: 10,
+    y: 10,
+    width: 70,
+    height: 80,
+    layerIds: ['points']
+  });
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: []});
+  expect(updateLayers).not.toHaveBeenCalled();
 });

@@ -4,10 +4,10 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample({
   title: 'Getting Started',
   code: `${GITHUB_TREE}/examples/editable-layers/getting-started`,
-  async mount(container) {
+  async mount(container, props) {
     const {mountGettingStartedExample} = await import(
       '../../../../examples/editable-layers/getting-started/app'
     );
-    return mountGettingStartedExample(container);
+    return mountGettingStartedExample(container, props);
   }
 }, {addInfoPanel: false});
