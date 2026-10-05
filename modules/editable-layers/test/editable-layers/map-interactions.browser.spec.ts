@@ -94,6 +94,62 @@ test('interleaved editing preserves map controls, view navigation, and the appli
     expect(map.dragPan.isEnabled()).toBe(true);
     expect(map.dragRotate.isEnabled()).toBe(false);
 
+    const finger = (identifier, x, y) =>
+      new Touch({
+        identifier,
+        target: canvas,
+        clientX: bounds.left + x,
+        clientY: bounds.top + y
+      });
+    const sendTouch = async (type, touches, changedTouches) => {
+      canvas.dispatchEvent(
+        new TouchEvent(type, {
+          touches,
+          targetTouches: touches,
+          changedTouches,
+          bubbles: true,
+          cancelable: true
+        })
+      );
+      await frame();
+    };
+    for (const endType of ['touchend', 'touchcancel']) {
+      map.stop();
+      map.jumpTo({center: [0, 0], zoom: 3});
+      let first = finger(1, 180, 140);
+      let second = finger(2, 260, 140);
+      await sendTouch('touchstart', [first], [first]);
+      expect(map.dragPan.isActive()).toBe(false);
+      await sendTouch('touchstart', [first, second], [second]);
+      first = finger(1, 140, 140);
+      second = finger(2, 300, 140);
+      await sendTouch('touchmove', [first, second], [first, second]);
+      await vi.waitFor(() => expect(map.getZoom()).toBeGreaterThan(3.5));
+      await sendTouch(endType, [first], [second]);
+      expect(map.touchZoomRotate.isActive()).toBe(false);
+      await frame();
+      map.stop();
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      for (const [x, y] of [
+        [180, 160],
+        [220, 180],
+        [260, 200]
+      ]) {
+        first = finger(1, x, y);
+        await sendTouch('touchmove', [first], [first]);
+      }
+      expect(map.getCenter().lng).toBeCloseTo(center.lng, 8);
+      expect(map.getCenter().lat).toBeCloseTo(center.lat, 8);
+      expect(map.getZoom()).toBeCloseTo(zoom, 8);
+      await sendTouch(endType, [], [first]);
+      expect(map.dragPan.isActive()).toBe(false);
+      expect(map.dragPan.isEnabled()).toBe(true);
+      expect(map.dragRotate.isEnabled()).toBe(false);
+    }
+    map.stop();
+    map.jumpTo({center: [0, 0], zoom: 3});
+
     mode = ViewMode;
     updateLayer();
     await ready();

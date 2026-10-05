@@ -125,6 +125,12 @@ test('rectangle selection excludes renderer guides and duplicates but keeps guid
   pickObjects.mockReturnValue([
     feature,
     {layer: feature.layer, index: 3, isGuide: true},
+    {
+      layer: feature.layer,
+      index: 7,
+      isGuide: true,
+      object: {properties: {guideType: 'editHandle'}}
+    },
     {...feature}
   ] as any);
 
@@ -146,6 +152,12 @@ test('polygon selection excludes renderer guides and duplicates but keeps guideT
     return [
       feature,
       {layer: feature.layer, index: 3, isGuide: true},
+      {
+        layer: feature.layer,
+        index: 7,
+        isGuide: true,
+        object: {properties: {guideType: 'editHandle'}}
+      },
       {...feature},
       {layer, index: 0}
     ] as any;
