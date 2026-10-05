@@ -8,11 +8,20 @@ import {Polygon, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {DrawPolygonMode} from './draw-polygon-mode';
 
-type DraggingHandler = (event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) => void;
+type DraggingHandler = ((
+  event: DraggingEvent,
+  props: ModeProps<SimpleFeatureCollection>
+) => void) & {
+  cancel?: () => void;
+};
 
 function isPrimaryButton(event: StartDraggingEvent): boolean {
-  const {sourceEvent} = event;
-  return sourceEvent?.button === undefined || sourceEvent.button === 0;
+  const {button, buttons, which} = event.sourceEvent || {};
+  return (
+    (button === undefined || button === 0 || button === -1) &&
+    (buttons === undefined || buttons === 0 || buttons === 1) &&
+    (which === undefined || which === 0 || which === 1)
+  );
 }
 
 export class DrawPolygonByDraggingMode extends DrawPolygonMode {
@@ -24,6 +33,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
+    this.handleDraggingThrottled?.cancel?.();
     this.isDrawingWithPrimaryButton = isPrimaryButton(event);
     if (!this.isDrawingWithPrimaryButton) {
       this.handleDraggingThrottled = null;
@@ -47,11 +57,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
 
     this.addClickSequence(event);
     const clickSequence = this.getClickSequence();
-    // @ts-expect-error cancel() not typed
-    if (this.handleDraggingThrottled && this.handleDraggingThrottled.cancel) {
-      // @ts-expect-error cancel() not typed
-      this.handleDraggingThrottled.cancel();
-    }
+    this.handleDraggingThrottled?.cancel?.();
 
     if (clickSequence.length > 2) {
       // Complete the polygon.
@@ -110,9 +116,8 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
     } else if (event.key === 'Escape') {
       this.resetClickSequence();
       this.isDrawingWithPrimaryButton = false;
-      if (this.handleDraggingThrottled) {
-        this.handleDraggingThrottled = null;
-      }
+      this.handleDraggingThrottled?.cancel?.();
+      this.handleDraggingThrottled = null;
       props.onEdit({
         // Because the new drawing feature is dropped, so the data will keep as the same.
         updatedData: props.data,

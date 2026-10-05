@@ -5,6 +5,7 @@
 /* eslint-env browser */
 
 import type {UpdateParameters, DefaultProps} from '@deck.gl/core';
+import type {MjolnirGestureEvent} from 'mjolnir.js';
 import {GeoJsonLayer, ScatterplotLayer, IconLayer, TextLayer} from '@deck.gl/layers';
 import {
   EditAction,
@@ -72,7 +73,12 @@ const DEFAULT_EDIT_MODE = DrawPolygonMode;
 const PRIMARY_BUTTON = 0;
 
 function isPrimaryButtonEvent(event: {sourceEvent: any}): boolean {
-  return event.sourceEvent?.button === undefined || event.sourceEvent.button === PRIMARY_BUTTON;
+  const {button, buttons, which} = event.sourceEvent || {};
+  return (
+    (button === undefined || button === PRIMARY_BUTTON || button === -1) &&
+    (buttons === undefined || buttons === 0 || buttons === 1) &&
+    (which === undefined || which === 0 || which === 1)
+  );
 }
 
 function guideAccessor(accessor) {
@@ -284,9 +290,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
 > {
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;
-  _isDraggingWithPrimaryButton = false;
 
   state: EditableLayer['state'] & {
+    // deck.gl transfers layer state when replacing an instance during a gesture.
+    isDraggingWithPrimaryButton: boolean;
     cursor?: 'grabbing' | 'grab' | null;
     mode: GeoJsonEditModeType;
     lastPointerMoveEvent: PointerMoveEvent;
@@ -375,7 +382,8 @@ export class EditableGeoJsonLayer extends EditableLayer<
 
     this.setState({
       selectedFeatures: [],
-      editHandles: []
+      editHandles: [],
+      isDraggingWithPrimaryButton: false
     });
   }
 
@@ -419,7 +427,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
         }
 
         if (mode !== this.state.mode) {
-          this.setState({mode, cursor: null});
+          if (this.state.isDraggingWithPrimaryButton) {
+            this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+          }
+          this.setState({mode, cursor: null, isDraggingWithPrimaryButton: false});
         }
       }
     }
@@ -609,33 +620,53 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onLayerKeyUp(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.setState({isDraggingWithPrimaryButton: false});
+      this._resetPointerDownState();
+    }
     this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props));
   }
 
+  _onpancancel(event: MjolnirGestureEvent): void {
+    if (this.state.isDraggingWithPrimaryButton) {
+      // Edit modes expose cancellation through their existing Escape handler.
+      this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+    }
+    super._onpancancel(event);
+  }
+
   onStartDragging(event: StartDraggingEvent): void {
-    this._isDraggingWithPrimaryButton = isPrimaryButtonEvent(event);
-    if (!this._isDraggingWithPrimaryButton) {
+    const isDraggingWithPrimaryButton = isPrimaryButtonEvent(event);
+    this.setState({isDraggingWithPrimaryButton});
+    if (!isDraggingWithPrimaryButton) {
       return;
     }
     this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
   onDragging(event: DraggingEvent): void {
-    if (!this._isDraggingWithPrimaryButton) {
+    if (!this.state.isDraggingWithPrimaryButton || !isPrimaryButtonEvent(event)) {
       return;
     }
     this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 
   onStopDragging(event: StopDraggingEvent): void {
-    if (!this._isDraggingWithPrimaryButton) {
+    if (!this.state.isDraggingWithPrimaryButton) {
+      return;
+    }
+    this.setState({isDraggingWithPrimaryButton: false});
+    if (!isPrimaryButtonEvent(event)) {
+      this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
       return;
     }
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
-    this._isDraggingWithPrimaryButton = false;
   }
 
   onPointerMove(event: PointerMoveEvent): void {
+    if (!isPrimaryButtonEvent(event)) {
+      return;
+    }
     this.setState({lastPointerMoveEvent: event});
     this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props));
   }
