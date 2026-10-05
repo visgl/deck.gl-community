@@ -47,7 +47,13 @@ async function createGestureScene() {
   await expect.poll(() => original.state?.mode).toBe(mode);
   const canvas = parent.querySelector('canvas')!;
   const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-  const sendPointer = async (type: string, x: number, y: number, pointerType: string) => {
+  const sendPointer = async (
+    type: string,
+    x: number,
+    y: number,
+    pointerType: string,
+    sourceEvent: PointerEventInit = {}
+  ) => {
     const rect = canvas.getBoundingClientRect();
     const event = new PointerEvent(type, {
       bubbles: true,
@@ -58,12 +64,14 @@ async function createGestureScene() {
       button: type === 'pointermove' ? -1 : 0,
       buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
       clientX: rect.left + x,
-      clientY: rect.top + y
+      clientY: rect.top + y,
+      ...sourceEvent
     });
     (type === 'pointerdown' ? canvas : window).dispatchEvent(event);
     await frame();
   };
   return {
+    canvas,
     original,
     mode,
     errors,
@@ -95,6 +103,28 @@ test.each([
     expect(scene.edits.filter(type => type === editType)).toHaveLength(1);
     expect(scene.mode.getClickSequence()).toEqual([]);
     expect(scene.original.state.isDraggingWithPrimaryButton).toBe(false);
+    expect(scene.errors).toEqual([]);
+  } finally {
+    scene.cleanup();
+  }
+});
+
+test('context-menu dismissal cannot start drawing from released mouse movement', async () => {
+  const scene = await createGestureScene();
+  try {
+    await scene.sendPointer('pointerdown', 30, 30, 'mouse', {button: 2, buttons: 2});
+    const menu = new MouseEvent('contextmenu', {button: 2, bubbles: true, cancelable: true});
+    scene.canvas.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(false);
+    // Native menus can consume pointerup; Escape dismisses the menu before hover resumes.
+    scene.canvas.dispatchEvent(new KeyboardEvent('keyup', {key: 'Escape', bubbles: true}));
+    await scene.sendPointer('pointermove', 70, 30, 'mouse', {buttons: 0});
+    await scene.sendPointer('pointermove', 180, 30, 'mouse', {buttons: 0});
+    await scene.sendPointer('pointermove', 180, 180, 'mouse', {buttons: 0});
+    expect(scene.edits).not.toContain('addTentativePosition');
+    expect(scene.mode.getClickSequence()).toEqual([]);
+    expect(scene.original.state.isDraggingWithPrimaryButton).toBe(false);
+    expect(scene.getData().features).toHaveLength(0);
     expect(scene.errors).toEqual([]);
   } finally {
     scene.cleanup();

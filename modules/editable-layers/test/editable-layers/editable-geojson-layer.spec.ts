@@ -118,10 +118,10 @@ test.each([
   expect(mode.handleStopDragging).toHaveBeenCalledOnce();
 });
 
-test('non-primary movement and release cannot finish an accepted drag', () => {
+test.each([0, 3])('movement with buttons=%i and non-primary release cannot edit', buttons => {
   const {layer, mode} = createGestureLayer();
   layer._onpanstart(createGestureEvent({button: 0, buttons: 1}));
-  layer._onpanmove(createGestureEvent({button: -1, buttons: 3}));
+  layer._onpanmove(createGestureEvent({button: -1, buttons}));
   layer._onpanend(createGestureEvent({button: 2, buttons: 0}));
   expect(mode.handleDragging).not.toHaveBeenCalled();
   expect(mode.handleStopDragging).not.toHaveBeenCalled();

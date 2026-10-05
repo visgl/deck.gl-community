@@ -636,7 +636,9 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onStartDragging(event: StartDraggingEvent): void {
-    const isDraggingWithPrimaryButton = isPrimaryButtonEvent(event);
+    // A native context menu may swallow pointerup, leaving the recognizer active on hover.
+    const isDraggingWithPrimaryButton =
+      isPrimaryButtonEvent(event) && event.sourceEvent?.buttons !== 0;
     this.setState({isDraggingWithPrimaryButton});
     if (!isDraggingWithPrimaryButton) {
       return;
@@ -645,6 +647,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onDragging(event: DraggingEvent): void {
+    if (this.state.isDraggingWithPrimaryButton && event.sourceEvent?.buttons === 0) {
+      // Recover an accepted drag whose release was consumed outside the canvas.
+      this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+    }
     if (!this.state.isDraggingWithPrimaryButton || !isPrimaryButtonEvent(event)) {
       return;
     }

@@ -19,7 +19,7 @@ function isPrimaryButton(event: StartDraggingEvent): boolean {
   const {button, buttons, which} = event.sourceEvent || {};
   return (
     (button === undefined || button === 0 || button === -1) &&
-    (buttons === undefined || buttons === 0 || buttons === 1) &&
+    (buttons === undefined || buttons === 1) &&
     (which === undefined || which === 0 || which === 1)
   );
 }
