@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import nearestPointOnLine from '@turf/nearest-point-on-line';
+import {nearestPointOnLine} from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
 import {Position, Feature, Point, LineString} from '../utils/geojson-types';
 import {

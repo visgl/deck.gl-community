@@ -1,7 +1,7 @@
 # Overview
 
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU not supported](https://img.shields.io/badge/webgpu-no-red.svg?style=flat-square")
+![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square")
 
 This module provides a suite of layers and view helpers for [deck.gl](https://deck.gl) focused on non-geospatial visualization.
 

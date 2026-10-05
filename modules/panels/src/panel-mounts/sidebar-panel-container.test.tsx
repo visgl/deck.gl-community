@@ -188,6 +188,10 @@ describe('SidebarPanelContainer', () => {
 
     expect(componentRoot.parentElement).toBe(overlayRoot);
     expect(componentRoot.style.zIndex).toBe('2100');
+    container.onRenderHTML(componentRoot);
+    container.onRenderHTML(componentRoot);
+    expect(componentRoot.parentElement).toBe(overlayRoot);
+    expect(overlayRoot.children).toHaveLength(2);
   });
 
   it('keeps the same overlay parent after open state updates', () => {

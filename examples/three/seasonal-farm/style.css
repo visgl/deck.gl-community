@@ -1,0 +1,81 @@
+.seasonal-farm {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  overflow: hidden;
+  background: #f6f7f0;
+  color: #354633;
+  font: 12px / 1.5 system-ui, sans-serif;
+  container: farm / inline-size;
+}
+.seasonal-farm .farm-canvas {
+  position: absolute;
+  inset: 0;
+}
+.seasonal-farm .farm-title {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  pointer-events: none;
+}
+.seasonal-farm .farm-title h1 {
+  font: 600 20px / 1.2 system-ui, sans-serif !important;
+  color: inherit !important;
+  margin: 0 0 5px !important;
+  letter-spacing: -0.5px;
+}
+.seasonal-farm .farm-title p {
+  margin: 0 !important;
+  color: #74806c;
+  font-size: 11px;
+}
+.seasonal-farm .farm-seasons {
+  position: absolute;
+  bottom: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #dce1d1;
+  border-radius: 24px;
+  background: #fffffff2;
+}
+.seasonal-farm .farm-seasons[hidden] {
+  display: none;
+}
+.seasonal-farm button {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.seasonal-farm button:hover {
+  background: #edf1e6;
+}
+.seasonal-farm button[aria-pressed="true"] {
+  background: #385634;
+  color: white;
+}
+.seasonal-farm button:focus-visible {
+  outline: 2px solid #63884f;
+  outline-offset: 2px;
+}
+.seasonal-farm .farm-note {
+  position: absolute;
+  bottom: 12px;
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  color: #808976;
+  pointer-events: none;
+}
+@container farm (max-width: 600px) {
+  .seasonal-farm .farm-title { left: 16px; }
+  .seasonal-farm[data-managed-device="true"] .farm-title { top: 60px; }
+  .seasonal-farm button { padding: 8px 10px; }
+}
