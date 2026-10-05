@@ -67,6 +67,21 @@ const config = {
   ],
 
   plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          {
+            from: ['/docs/modules/three', '/docs/modules/three/api-reference/tree-layer'],
+            to: '/docs/modules/layers/api-reference/tree-layer'
+          },
+          {
+            from: '/examples/three/seasonal-farm',
+            to: '/examples/layers/seasonal-farm'
+          }
+        ]
+      }
+    ],
     // Improve build performance by disabling expensive optimizations
     // https://github.com/facebook/docusaurus/discussions/11199
     function disableExpensiveBundlerOptimizationPlugin() {

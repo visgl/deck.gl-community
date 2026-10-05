@@ -9,6 +9,7 @@ Please refer the documentation of each module for detailed upgrade guides.
 - The `@deck.gl-community/three` compatibility package has been removed from the repository.
   Replace its imports with `@deck.gl-community/layers`, including `TreeLayer`, `TreeLayerProps`,
   `TreeType`, `Season`, `CropConfig` and `TreeDetail`. Previously published versions are unchanged.
+  Existing TreeLayer documentation and Seasonal Farm URLs redirect to their new locations.
   `CropConfig.radius` now renders the actual radius in metres; halve an existing radius to keep
   its old apparent size. Review changed crowns, winter branches and canopy sublayer overrides
   against the [TreeLayer migration notes](./modules/layers/api-reference/tree-layer.md#migration).
