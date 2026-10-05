@@ -20,14 +20,16 @@ import {
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
 
-const MAP_INTERACTION_EVENT_TYPES = [
-  'mousedown',
-  'dblclick',
-  'touchstart',
-  'touchmove',
-  'touchend',
-  'touchcancel'
-];
+const NATIVE_EVENT_HANDLERS: Record<string, keyof EditableLayer> = {
+  pointerdown: '_onNativeClick',
+  click: '_onNativeClick',
+  dblclick: '_onNativeClick',
+  mousedown: '_onNativeMapInteraction',
+  touchstart: '_onNativeMapInteraction',
+  touchmove: '_onNativeMapInteraction',
+  touchend: '_onNativeMapInteraction',
+  touchcancel: '_onNativeMapInteraction'
+};
 
 export const EVENT_TYPES = [
   'click',
@@ -94,6 +96,7 @@ export abstract class EditableLayer<
   // TODO: implement onCancelDragging (e.g. drag off screen)
 
   initializeState() {
+    const canvas = this.context.deck.getCanvas?.();
     this.setState({
       _editableLayerState: {
         // Picked objects at the time the pointer went down
@@ -102,8 +105,15 @@ export abstract class EditableLayer<
         pointerDownScreenCoords: null,
         // Ground coordinates where the pointer went down
         pointerDownMapCoords: null,
+        pressScreenCoords: null,
+        didDrag: false,
+        canvas,
+        // Native clicks bypass the recognizer's 300ms double-click failure delay.
+        gestureEventTypes: canvas
+          ? EVENT_TYPES.filter(type => !NATIVE_EVENT_HANDLERS[type])
+          : EVENT_TYPES,
 
-        // Keep track of the mjolnir.js event handler so it can be deregistered
+        // Retain one callback for registration, layer replacement, and cleanup.
         eventHandler: this._forwardEventToCurrentLayer.bind(this)
       }
     });
@@ -118,37 +128,12 @@ export abstract class EditableLayer<
   _addEventHandlers() {
     // @ts-expect-error accessing protected props
     const {eventManager} = this.context.deck;
-    const {eventHandler} = this.state._editableLayerState;
-    const canvas = this.context.deck.getCanvas?.();
-    if (canvas) {
-      const nativeEventHandler = (event: MouseEvent) => {
-        const currentLayer = (this.getCurrentLayer() || this) as EditableLayer;
-        currentLayer._onNativeClick(event);
-      };
-      const mapInteractionEventHandler = (event: Event) => {
-        const currentLayer = (this.getCurrentLayer() || this) as EditableLayer;
-        currentLayer._onNativeMapInteraction(event);
-      };
-      Object.assign(this.state._editableLayerState, {
-        canvas,
-        nativeEventHandler,
-        mapInteractionEventHandler,
-        didDrag: false
-      });
-      for (const type of MAP_INTERACTION_EVENT_TYPES) {
-        canvas.addEventListener(type, mapInteractionEventHandler);
-      }
-      for (const type of ['pointerdown', 'click', 'dblclick']) {
-        canvas.addEventListener(type, nativeEventHandler);
-      }
+    const {eventHandler, canvas, gestureEventTypes} = this.state._editableLayerState;
+    for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
+      canvas?.addEventListener(eventType, eventHandler);
     }
 
-    for (const eventType of EVENT_TYPES) {
-      // Browser clicks fire immediately. The gesture recognizer waits 300ms
-      // for double-click failure, which leaves drawn vertices behind the pointer.
-      if (canvas && (eventType === 'click' || eventType === 'dblclick')) {
-        continue;
-      }
+    for (const eventType of gestureEventTypes) {
       eventManager.on(eventType, eventHandler, {
         // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
         priority: 100
@@ -159,38 +144,27 @@ export abstract class EditableLayer<
   _removeEventHandlers() {
     // @ts-expect-error accessing protected props
     const {eventManager} = this.context.deck;
-    const {eventHandler, canvas, nativeEventHandler, mapInteractionEventHandler} =
-      this.state._editableLayerState;
-    if (canvas) {
-      for (const type of ['pointerdown', 'click', 'dblclick']) {
-        canvas.removeEventListener(type, nativeEventHandler);
-      }
-      for (const type of MAP_INTERACTION_EVENT_TYPES) {
-        canvas.removeEventListener(type, mapInteractionEventHandler);
-      }
+    const {eventHandler, canvas, gestureEventTypes} = this.state._editableLayerState;
+    for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
+      canvas?.removeEventListener(eventType, eventHandler);
     }
 
-    for (const eventType of EVENT_TYPES) {
-      if (canvas && (eventType === 'click' || eventType === 'dblclick')) {
-        continue;
-      }
+    for (const eventType of gestureEventTypes) {
       eventManager.off(eventType, eventHandler);
     }
   }
 
-  // A new layer instance is created on every render, so forward the event to the current layer
-  // This means that the first layer instance will stick around to be the event listener, but will forward the event
-  // to the latest layer instance.
-  _forwardEventToCurrentLayer(event: MjolnirEvent) {
-    const currentLayer = this.getCurrentLayer();
-
-    // Use a naming convention to find the event handling function for this event type
-    const func = currentLayer[`_on${event.type}`].bind(currentLayer);
-    if (!func) {
+  // The original listener forwards native and recognized events after layer replacement.
+  _forwardEventToCurrentLayer(event: MjolnirEvent | Event) {
+    const currentLayer = this.getCurrentLayer() || this;
+    const handlerName =
+      'srcEvent' in event ? `_on${event.type}` : NATIVE_EVENT_HANDLERS[event.type];
+    const handler = currentLayer[handlerName];
+    if (!handler) {
       console.warn(`no handler for mjolnir.js event ${event.type}`); // eslint-disable-line
       return;
     }
-    func(event);
+    handler.call(currentLayer, event);
   }
 
   _onclick(event: MjolnirGestureEvent) {
@@ -232,6 +206,7 @@ export abstract class EditableLayer<
   }
 
   _onNativeClick(event: MouseEvent) {
+    if (event.type === 'dblclick') this._onNativeMapInteraction(event);
     const editableState = this.state._editableLayerState;
     if (event.type === 'pointerdown') {
       editableState.didDrag = false;
@@ -245,15 +220,8 @@ export abstract class EditableLayer<
     ) {
       return;
     }
-    const screenCoords = this.getScreenCoords(event) as ScreenCoordinates;
-    const mapCoords = this.getMapCoords(screenCoords);
-    if (!mapCoords) return;
-    const pointerEvent = {
-      screenCoords,
-      mapCoords,
-      picks: this.getPicks(screenCoords),
-      sourceEvent: event
-    };
+    const pointerEvent = this.toBasePointerEvent(event);
+    if (!pointerEvent) return;
     if (event.type === 'dblclick') {
       this.onLayerDoubleClick(pointerEvent);
     } else {
@@ -385,8 +353,12 @@ export abstract class EditableLayer<
     });
   }
 
-  toBasePointerEvent(event: MjolnirGestureEvent): BasePointerEvent | null {
-    const screenCoords: ScreenCoordinates = [event.offsetCenter.x, event.offsetCenter.y];
+  /** Converts native or recognized pointer input into an edit-mode event. */
+  toBasePointerEvent(event: MjolnirGestureEvent | MouseEvent): BasePointerEvent | null {
+    const screenCoords: ScreenCoordinates =
+      'offsetCenter' in event
+        ? [event.offsetCenter.x, event.offsetCenter.y]
+        : (this.getScreenCoords(event) as ScreenCoordinates);
     const mapCoords = this.getMapCoords(screenCoords);
     if (!mapCoords) {
       return null;
@@ -396,7 +368,7 @@ export abstract class EditableLayer<
       screenCoords,
       mapCoords,
       picks,
-      sourceEvent: event.srcEvent
+      sourceEvent: 'srcEvent' in event ? event.srcEvent : event
     };
   }
 
