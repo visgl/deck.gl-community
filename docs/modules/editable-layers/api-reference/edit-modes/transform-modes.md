@@ -10,8 +10,9 @@ The following options can be provided in the `modeConfig` object for ModifyMode:
 
 - `lockRectangles` (optional): `<boolean>`
   - If `true`, features with `properties.shape === 'Rectangle'` preserve their rectangular shape and
-    orientation when a corner is dragged, keeping the opposite corner fixed. Resizing operates in
-    the geometry's 2D coordinate plane; it does not construct a geodesic rectangle.
+    orientation when a corner is dragged, keeping the opposite corner fixed. Width and height change
+    independently, so the aspect ratio can change. Resizing operates in the geometry's 2D coordinate
+    plane; it does not construct a geodesic rectangle.
 
 Callbacks:
 

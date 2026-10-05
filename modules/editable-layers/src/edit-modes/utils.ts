@@ -474,6 +474,7 @@ function getEditHandlesForCoordinates(
 /**
  * Resizes a rectangle in its existing 2D coordinate plane.
  * Preserves the adjacent edge axes and keeps the opposite corner fixed.
+ * Allows width and height to change independently, changing the aspect ratio.
  * @param feature Feature before modification.
  * @param editHandleIndex Index of the point to modify.
  * @param coords New position for the point.

@@ -202,6 +202,46 @@ test('Rectangular polygon feature preserves shape', () => {
   expect(props.data.features[0]).not.toEqual(movedFeature);
 });
 
+test('lockRectangles allows width to change independently of height', () => {
+  const rectangle: Feature<Polygon> = {
+    type: 'Feature',
+    properties: {shape: 'Rectangle'},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [6, 0],
+          [6, 4],
+          [0, 4],
+          [0, 0]
+        ]
+      ]
+    }
+  };
+  const props = createFeatureCollectionProps({
+    data: {type: 'FeatureCollection', features: [rectangle]},
+    selectedIndexes: [0],
+    modeConfig: {lockRectangles: true},
+    onEdit: vi.fn()
+  });
+  const mode = new ModifyMode();
+  const picks = [{index: 2, isGuide: true, object: mode.getGuides(props).features[2]}];
+  mode.handleStartDragging(createStartDraggingEvent([6, 4], [6, 4], picks), props);
+  mode.handleStopDragging(createStopDraggingEvent([8, 4], [6, 4], picks, picks), props);
+
+  const resized = vi.mocked(props.onEdit).mock.lastCall[0].updatedData.features[0];
+  expect(resized.geometry.coordinates).toEqual([
+    [
+      [0, 0],
+      [8, 0],
+      [8, 4],
+      [0, 4],
+      [0, 0]
+    ]
+  ]);
+});
+
 describe.each(['clockwise', 'counterclockwise'])('locked rotated rectangle (%s)', winding => {
   test.each([0, 1, 2, 3])('preserves geometry throughout dragging corner %i', cornerIndex => {
     const angle = Math.PI / 5;
