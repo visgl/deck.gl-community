@@ -49,3 +49,29 @@ it.each([
     history.replaceState(null, '', originalUrl);
   }
 });
+
+it('submits all 20,000 requested tree instances to the renderer', async () => {
+  const originalUrl = location.href;
+  const queryUrl = new URL(originalUrl);
+  queryUrl.search = '?count=20000&species=mixed&detail=low&season=winter';
+  history.replaceState(null, '', queryUrl);
+  const parent = document.createElement('div');
+  parent.id = 'app';
+  parent.style.width = '640px';
+  parent.style.height = '480px';
+  document.body.append(parent);
+  mountTreeBenchmark(TreeLayer, 'native');
+  const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
+  try {
+    await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
+    expect(parent.querySelector('h1')!.textContent).toContain('20,000');
+    expect(parent.querySelector('p')!.textContent).toContain('winter');
+    const layers = api.deck.props.layers as TreeLayer[];
+    expect(layers[1].props.data).toHaveLength(20000);
+    expect(api.errors).toEqual([]);
+  } finally {
+    api.deck.finalize();
+    parent.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+}, 45000);

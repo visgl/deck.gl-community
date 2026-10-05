@@ -71,7 +71,7 @@ export function mountTreeLabExample(
           `<label class="toggle"><input type="checkbox" data-option="${key}">${label}</label>`
       )
       .join('')}
-    <label class="toggle"><input id="auto-tour" type="checkbox">Auto tour</label><label class="control">Sun angle <input id="sun-angle" type="range" min="0" max="360" step="1" value="0"></label>${hostOptions.benchmarkLinks !== false ? '<a class="film-link" href="./film.html">Watch / record the film</a>' : ''}
+    <label class="toggle"><input id="auto-tour" type="checkbox">Auto tour</label><label class="control">Sun angle <input id="sun-angle" type="range" min="0" max="360" step="1" value="0"></label>${hostOptions.benchmarkLinks !== false ? '<a class="film-link" href="./film.html">Watch / record the film</a> · <a class="film-link" href="./forest.html">Explore 10K / 20K trees</a>' : ''}
     <button id="wind-clock" disabled>Pause wind</button><label class="control">Wind time <input id="wind-time" type="range" min="0" max="10" step="0.1" value="0" disabled></label>
     <label class="control">Detail <select data-option="detail"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
     <label class="control">Resolution <select data-option="pixelRatio"><option value="1">1× / fast</option><option value="2">2× / sharp</option></select></label>
