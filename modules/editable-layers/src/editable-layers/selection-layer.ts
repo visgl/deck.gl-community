@@ -4,12 +4,9 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps, FilterContext} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {SolidPolygonLayer} from '@deck.gl/layers';
-import {featureCollection, polygon} from '@turf/helpers';
-import {buffer} from '@turf/buffer';
-import {difference} from '@turf/difference';
+import {PolygonLayer} from '@deck.gl/layers';
 
 import {EditableGeoJsonLayer} from './editable-geojson-layer';
 import {DrawRectangleMode} from '../edit-modes/draw-rectangle-mode';
@@ -33,8 +30,11 @@ const MODE_CONFIG_MAP = {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
+  /** IDs of the pickable layers to select, including their sublayers. */
   layerIds: any[];
+  /** Receives deck.gl picking infos after the selection gesture completes. */
   onSelect: (info: any) => any;
+  /** Draw a rectangle or polygon; null disables selection. */
   selectionType: string | null;
   /**
    * Keep selection gestures from bubbling into the parent map.
@@ -56,19 +56,9 @@ const EMPTY_DATA = {
   features: []
 };
 
-const EXPANSION_KM = 50;
+const EMPTY_MASK = [];
 const LAYER_ID_GEOJSON = 'selection-geojson';
 const LAYER_ID_BLOCKER = 'selection-blocker';
-
-// Picking must wait for the mask to be drawn, rather than an arbitrary timer.
-class SelectionBlockerLayer extends SolidPolygonLayer<any, {onRendered: () => void}> {
-  static layerName = 'SelectionBlockerLayer';
-
-  draw(options: Parameters<SolidPolygonLayer['draw']>[0]) {
-    super.draw(options);
-    this.props.onRendered();
-  }
-}
 
 function filterFeaturePicks(pickingInfos: any[]) {
   const seen = new Set<string>();
@@ -104,6 +94,7 @@ const PASS_THROUGH_PROPS = [
   'getTentativeFillColor',
   'getTentativeLineWidth'
 ];
+/** Draws a selection gesture over pickable layers placed before this layer. */
 export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   ExtraPropsT & Required<SelectionLayerProps<DataT>>
 > {
@@ -111,11 +102,8 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   static defaultProps = defaultProps;
 
   state: {
-    pendingPolygonSelection: {
-      bigPolygon: ReturnType<typeof difference>;
-      complete: () => void;
-      scheduled: boolean;
-    } | null;
+    selectionMask: number[][][][];
+    isSelecting: boolean;
   } = undefined!;
 
   _selectRectangleObjects(coordinates: any) {
@@ -144,57 +132,52 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     const maxX = Math.max(...allX);
     const maxY = Math.max(...allY);
 
-    // Use a polygon to hide the outside, because pickObjects()
-    // does not support polygons
-    const landPointsPoly = polygon(coordinates);
-    const bigBuffer = buffer(landPointsPoly, EXPANSION_KM);
-    let bigPolygon;
+    // The blocker must cover the entire picking rectangle, regardless of the
+    // lasso's geographic size or shape. Unproject a padded screen-space rectangle
+    // instead of using a fixed-distance buffer that leaves holes in wide lassos.
+    const outerRing = [
+      [x - 1, y - 1],
+      [maxX + 1, y - 1],
+      [maxX + 1, maxY + 1],
+      [x - 1, maxY + 1],
+      [x - 1, y - 1]
+    ].map(position => this.context.viewport.unproject(position));
+
+    this.setState({selectionMask: [[outerRing, coordinates[0]]], isSelecting: true});
+    let pickingInfos;
     try {
-      // turfDifference throws an exception if the polygon
-      // intersects with itself (TODO: check if true in all versions)
-      bigPolygon = difference(featureCollection([bigBuffer, landPointsPoly]));
-    } catch (e) {
-      // invalid selection polygon
-      console.log('turfDifference() error', e); // eslint-disable-line
-      return;
+      // Picking renders its own framebuffer. Initialize the new blocker now,
+      // rather than guessing when the next animation frame will have rendered it.
+      this.context.layerManager.updateLayers();
+      pickingInfos = this.context.deck.pickObjects({
+        x,
+        y,
+        width: maxX - x,
+        height: maxY - y,
+        layerIds: [`${this.props.id}-${LAYER_ID_BLOCKER}`, ...layerIds]
+      });
+    } finally {
+      this.setState({isSelecting: false});
+      this.context.layerManager.updateLayers();
     }
 
-    const blockerId = `${this.props.id}-${LAYER_ID_BLOCKER}`;
-    const pendingSelection = {
-      bigPolygon,
-      scheduled: false,
-      complete: () => {
-        const currentLayer = (this.getCurrentLayer() || this) as SelectionLayer<DataT, ExtraPropsT>;
-        if (
-          currentLayer.state.pendingPolygonSelection !== pendingSelection ||
-          currentLayer.props.selectionType !== SELECTION_TYPE.POLYGON
-        )
-          return;
-        const pickingInfos = currentLayer.context.deck.pickObjects({
-          x,
-          y,
-          width: maxX - x,
-          height: maxY - y,
-          layerIds: [blockerId, ...layerIds]
-        });
-
-        currentLayer.setState({pendingPolygonSelection: null});
-        onSelect({
-          pickingInfos: filterFeaturePicks(
-            pickingInfos.filter(item => item.layer.id !== this.props.id)
-          )
-        });
-      }
-    };
-    this.setState({pendingPolygonSelection: pendingSelection});
+    onSelect({
+      pickingInfos: filterFeaturePicks(
+        pickingInfos.filter(info => info.layer?.id !== this.props.id)
+      )
+    });
   }
 
-  finalizeState() {
-    this.state.pendingPolygonSelection = null;
+  /** Draws the selection mask only during the active GPU picking pass. */
+  filterSubLayer({layer, isPicking}: FilterContext): boolean {
+    if (layer.id === `${this.props.id}-${LAYER_ID_BLOCKER}`) {
+      return isPicking && Boolean(this.state.isSelecting);
+    }
+    return true;
   }
 
   renderLayers() {
-    const {pendingPolygonSelection} = this.state;
+    const {selectionMask} = this.state;
 
     const mode = MODE_MAP[this.props.selectionType] || ViewMode;
     const modeConfig = MODE_CONFIG_MAP[this.props.selectionType];
@@ -229,28 +212,22 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       )
     ];
 
-    if (pendingPolygonSelection) {
-      const {bigPolygon} = pendingPolygonSelection as any;
-      layers.push(
-        new SelectionBlockerLayer(
-          this.getSubLayerProps({
-            id: LAYER_ID_BLOCKER,
-            pickable: true,
-            opacity: 1.0,
-            data: [bigPolygon],
-            getLineColor: _obj => [0, 0, 0, 1],
-            getFillColor: _obj => [0, 0, 0, 1],
-            getPolygon: o => o.geometry.coordinates,
-            onRendered: () => {
-              if (!pendingPolygonSelection.scheduled) {
-                pendingPolygonSelection.scheduled = true;
-                queueMicrotask(pendingPolygonSelection.complete);
-              }
-            }
-          })
-        )
-      );
-    }
+    // Keep the hidden mask layer initialized between gestures so repeated
+    // selections reuse its GPU model instead of compiling a new one each time.
+    layers.push(
+      new PolygonLayer(
+        this.getSubLayerProps({
+          id: LAYER_ID_BLOCKER,
+          pickable: true,
+          stroked: false,
+          data: selectionMask || EMPTY_MASK,
+          getPolygon: coordinates => coordinates,
+          // Cover elevated and extruded targets too; the SelectionLayer must
+          // follow its target layers in the deck layer list.
+          parameters: {depthCompare: 'always', depthWriteEnabled: false}
+        })
+      )
+    );
 
     return layers;
   }
