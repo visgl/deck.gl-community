@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
+  outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
+  mask synchronously instead of waiting 250 ms.
+
 - Editable-layers edit mode constructors and base classes consistently use
   `SimpleFeatureCollection`, fixing constructor assignments in strict TypeScript
   consumers. Custom mode handlers and editable data typed with the broader GeoJSON
