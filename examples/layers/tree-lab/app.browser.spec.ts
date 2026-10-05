@@ -59,6 +59,7 @@ describe('Tree Lab rendering controls', () => {
     const originalUrl = location.href;
     const reviewUrl = new URL(originalUrl);
     reviewUrl.searchParams.set('auto', '0');
+    reviewUrl.searchParams.set('season', 'invalid');
     reviewUrl.searchParams.delete('backend');
     history.replaceState(null, '', reviewUrl);
     const container = document.createElement('div');
@@ -68,6 +69,7 @@ describe('Tree Lab rendering controls', () => {
     const api = (window as Window & {treeLab?: ReviewApi}).treeLab!;
     const frames = new Map<ReviewSpecimen, Frame>();
     try {
+      expect(api.getOptions().season).toBe('summer');
       await expect.poll(() => api.ready, {timeout: 15000}).toBe(10);
       expect(api.errors).toEqual([]);
       const specimens = api.getDecks();
