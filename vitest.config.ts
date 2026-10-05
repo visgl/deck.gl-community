@@ -21,10 +21,6 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/playground/src/index.ts', import.meta.url))
   },
   {
-    find: '@deck.gl-community/three',
-    replacement: fileURLToPath(new URL('./modules/three/src/index.ts', import.meta.url))
-  },
-  {
     find: '@deck.gl-community/basemap-layers/style-spec',
     replacement: fileURLToPath(
       new URL('./modules/basemap-layers/src/style-spec.ts', import.meta.url)

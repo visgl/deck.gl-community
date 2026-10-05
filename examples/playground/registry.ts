@@ -13,7 +13,6 @@ import * as communityGeo from '@deck.gl-community/geo-layers';
 import * as graph from '@deck.gl-community/graph-layers';
 import * as infovis from '@deck.gl-community/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
-import * as three from '@deck.gl-community/three';
 import * as timeline from '@deck.gl-community/timeline-layers';
 import {
   GraphGridLayerSchema,
@@ -37,7 +36,6 @@ const LAYERS = Object.fromEntries(
     ...graph,
     ...infovis,
     ...communityLayers,
-    ...three,
     ...timeline,
     GridLayer: aggregation.GridLayer
   }).filter(

@@ -20,7 +20,7 @@ These are browser delivery intervals, not GPU execution time or universal FPS cl
 
 ## Verification boundaries
 
-Root package/type/declaration build, Node tests, website build, Tree Lab typecheck/build and lint pass. The Tree Lab browser regression uses actual WebGL pixels to check all ten surfaces through shadows on → off → on, all five native species in four seasons, reduced winter foliage, changed native wind with static original fixtures, and synchronous owning-tree picking. Geometry, crop/cache/update-trigger and compatibility tests check independent source contracts.
+Root package/type/declaration build, Node tests, website build, Tree Lab typecheck/build and lint pass. The Tree Lab browser regression uses actual WebGL pixels to check all ten surfaces through shadows on → off → on, all five native species in four seasons, reduced winter foliage, changed native wind with static original fixtures, and synchronous owning-tree picking. Geometry and crop/cache/update-trigger tests check independent source contracts. PR #794 also verified the former compatibility export with an exact-constructor identity test; the stacked package-removal PR deletes that export and test.
 
 Actual non-fallback WebGPU rendering and wind were separately inspected in the hardware browser. Headless WebGPU cases skip when no adapter exists. deck.gl shadows are WebGL-only. Async picking readback, automated encoder error/concurrency recovery, numerical shader normals and cross-device performance remain unverified. Manual film capture is separate from those automated test lanes.
 

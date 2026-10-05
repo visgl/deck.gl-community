@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- `TreeLayer` moves to `@deck.gl-community/layers` with native vis.gl geometry, branching winter crowns, crop placement against species envelopes, optional GPU wind and shared detail presets. The old package remains a compatibility export. [Tree Lab](/examples/layers/tree-lab) compares every species against the original renderer; see the [migration notes](/docs/modules/layers/api-reference/tree-layer#migration) for crop radius and seasonal overrides.
+- The `@deck.gl-community/three` compatibility package is removed from the repository. Import `TreeLayer` and its types from `@deck.gl-community/layers`. [Seasonal Farm](/examples/layers/seasonal-farm) now lives with the native layers examples. Tree Lab retains its frozen Three.js comparison fixture.
+
+- `TreeLayer` moves to `@deck.gl-community/layers` with native vis.gl geometry, branching winter crowns, crop placement against species envelopes, optional GPU wind and shared detail presets. [Tree Lab](/examples/layers/tree-lab) compares every species against the original renderer; see the [migration notes](/docs/modules/layers/api-reference/tree-layer#migration) for crop radius and seasonal overrides.
 
 - Editable-layers edit mode constructors and base classes consistently use
   `SimpleFeatureCollection`, fixing constructor assignments in strict TypeScript
@@ -80,11 +82,11 @@
 
 - `MarkerLayer` is exported from graph-layers and has a website gallery example using workspace dependencies.
 
-- [Seasonal Farm](/examples/three/seasonal-farm) shows seven labelled plots with varied trees,
+- [Seasonal Farm](/examples/layers/seasonal-farm) shows seven labelled plots with varied trees,
   seasonal crops, and hover details.
 - [`@deck.gl-community/playground`](/docs/modules/playground) adds an installable panels-based JSON
   editor and live preview surface, with a standalone [deck.gl playground example](/examples/playground).
-- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) fixes tree orientation and
+- [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) fixes tree orientation and
   reuses pine geometry when attributes change.
 
 ## v9.4
@@ -208,7 +210,7 @@ Highlights:
 
 ### `@deck.gl-community/three`
 
-- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) improves the `palm` silhouette with a
+- [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) improves the `palm` silhouette with a
   detailed frond crown and ring-scarred trunk, and now supports WebGPU.
 
 ## v9.3
@@ -263,9 +265,9 @@ A new experimental basemap module for rendering style-defined basemaps directly 
 
 New module for THREE.js integration experiments.
 
-- [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) (new) renders varied, seasonal 3D
+- [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) (new) renders varied, seasonal 3D
   forests with five tree silhouettes and optional crops. See the
-  [Seasonal Farm example](https://github.com/visgl/deck.gl-community/tree/master/examples/three/seasonal-farm).
+  [Seasonal Farm example](https://github.com/visgl/deck.gl-community/tree/master/examples/layers/seasonal-farm).
 
 ## v9.2
 

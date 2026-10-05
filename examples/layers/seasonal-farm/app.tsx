@@ -14,7 +14,7 @@ import {
 } from '@deck.gl/core';
 import {LineLayer, PolygonLayer, TextLayer} from '@deck.gl/layers';
 import type {Device} from '@luma.gl/core';
-import {TreeLayer, type Season} from '@deck.gl-community/three';
+import {TreeLayer, type Season} from '@deck.gl-community/layers';
 import {
   createFarmPlots,
   SEASONS,

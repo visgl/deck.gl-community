@@ -8,7 +8,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it} from 'vitest';
 
-import {TreeLayer} from '../src';
+import {TreeLayer} from '../../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 type NativeGpuError = {error?: {message?: string}};

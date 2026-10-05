@@ -15,7 +15,6 @@ import * as communityGeo from '@deck.gl-community/geo-layers';
 import * as graph from '@deck.gl-community/graph-layers';
 import * as infovis from '@deck.gl-community/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
-import * as three from '@deck.gl-community/three';
 import * as timeline from '@deck.gl-community/timeline-layers';
 import {tableFromArrays} from 'apache-arrow';
 import ts from 'typescript';
@@ -41,7 +40,6 @@ const PACKAGES = {
   '@deck.gl-community/graph-layers': graph,
   '@deck.gl-community/infovis-layers': infovis,
   '@deck.gl-community/layers': communityLayers,
-  '@deck.gl-community/three': three,
   '@deck.gl-community/timeline-layers': timeline
 };
 const ABSTRACT_LAYERS = new Set(['_AggregationLayer', '_GeoCellLayer']);

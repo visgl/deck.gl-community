@@ -1168,18 +1168,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/three@workspace:*, @deck.gl-community/three@workspace:modules/three":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/three@workspace:modules/three"
-  dependencies:
-    "@deck.gl-community/layers": "workspace:*"
-  peerDependencies:
-    "@deck.gl-community/layers": ~9.4.3
-    "@deck.gl/core": ~9.4.0
-    "@deck.gl/mesh-layers": ~9.4.0
-  languageName: unknown
-  linkType: soft
-
 "@deck.gl-community/timeline-layers@workspace:*, @deck.gl-community/timeline-layers@workspace:modules/timeline-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/timeline-layers@workspace:modules/timeline-layers"
@@ -16147,7 +16135,6 @@ __metadata:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/playground": "workspace:*"
-    "@deck.gl-community/three": "workspace:*"
     "@deck.gl-community/timeline-layers": "workspace:*"
     "@deck.gl/aggregation-layers": "npm:~9.4.0"
     "@deck.gl/core": "npm:~9.4.0"
@@ -17473,11 +17460,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"seasonal-farm-6a8c04@workspace:examples/three/seasonal-farm":
+"seasonal-farm-7257db@workspace:examples/layers/seasonal-farm":
   version: 0.0.0-use.local
-  resolution: "seasonal-farm-6a8c04@workspace:examples/three/seasonal-farm"
+  resolution: "seasonal-farm-7257db@workspace:examples/layers/seasonal-farm"
   dependencies:
-    "@deck.gl-community/three": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
     "@deck.gl/mesh-layers": "npm:~9.4.0"
