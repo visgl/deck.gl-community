@@ -4,7 +4,7 @@ A customizable document editor, template picker, and preview shell built on
 [`@deck.gl-community/panels`](/docs/modules/panels), without React.
 
 ```sh
-yarn add @deck.gl-community/playground @deck.gl-community/panels @deck.gl/core
+yarn add @deck.gl-community/playground @deck.gl-community/panels @deck.gl/core @deck.gl/json @loaders.gl/core
 ```
 
 ## Usage
