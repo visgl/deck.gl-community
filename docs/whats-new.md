@@ -116,6 +116,8 @@ Highlights:
   automatically. Set `autoPreventMapInteractions: false` for application-owned coordination.
 - Polygon drawing responds immediately to canvas clicks; rectangle selection excludes edit
   handles and starts at the original pointer-down position.
+- Selection preserves application `guideType` properties. Single-finger editing remains
+  isolated after two-finger navigation, while map release and cancel events finish normally.
 
 ### `@deck.gl-community/geo-layers`
 

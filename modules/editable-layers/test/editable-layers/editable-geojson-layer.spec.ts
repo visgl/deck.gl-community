@@ -70,7 +70,10 @@ test('active edit modes own primary map gestures while view mode and overrides a
   expect(hiddenPress.stopPropagation).not.toHaveBeenCalled();
 });
 
-test('single-touch editing is isolated while a two-finger navigation gesture can finish', () => {
+test.each([
+  'touchend',
+  'touchcancel'
+])('single-touch editing resumes while two-finger navigation can finish with %s', endType => {
   const layer = new EditableGeoJsonLayer({data: null, mode: DrawPointMode});
   layer.state = {_editableLayerState: {}, mode: new DrawPointMode()} as any;
   const touch = (type, count) => ({type, touches: {length: count}, stopPropagation: vi.fn()});
@@ -80,17 +83,38 @@ test('single-touch editing is isolated while a two-finger navigation gesture can
   const secondFinger = touch('touchstart', 2);
   layer._onNativeMapInteraction(secondFinger as any);
   expect(secondFinger.stopPropagation).not.toHaveBeenCalled();
-  const oneRemaining = touch('touchend', 1);
+  const twoMoving = touch('touchmove', 2);
+  layer._onNativeMapInteraction(twoMoving as any);
+  expect(twoMoving.stopPropagation).not.toHaveBeenCalled();
+  const oneRemaining = touch(endType, 1);
   layer._onNativeMapInteraction(oneRemaining as any);
   expect(oneRemaining.stopPropagation).not.toHaveBeenCalled();
-  const navigationEnd = touch('touchend', 0);
+  const resumedEdit = touch('touchmove', 1);
+  layer._onNativeMapInteraction(resumedEdit as any);
+  expect(resumedEdit.stopPropagation).toHaveBeenCalledOnce();
+  const navigationEnd = touch(endType, 0);
   layer._onNativeMapInteraction(navigationEnd as any);
   expect(navigationEnd.stopPropagation).not.toHaveBeenCalled();
   const nextSingle = touch('touchstart', 1);
   layer._onNativeMapInteraction(nextSingle as any);
-  const editEnd = touch('touchend', 0);
+  const editEnd = touch(endType, 0);
   layer._onNativeMapInteraction(editEnd as any);
   expect(editEnd.stopPropagation).toHaveBeenCalledOnce();
+});
+
+test('entering an edit mode keeps the release of an existing map touch gesture available', () => {
+  const layer = new EditableGeoJsonLayer({data: null, mode: ViewMode});
+  layer.state = {_editableLayerState: {}, mode: new ViewMode()} as any;
+  const start = {type: 'touchstart', touches: {length: 1}, stopPropagation: vi.fn()};
+  layer._onNativeMapInteraction(start as any);
+  expect(start.stopPropagation).not.toHaveBeenCalled();
+  layer.state.mode = new DrawPointMode();
+  const move = {type: 'touchmove', touches: {length: 1}, stopPropagation: vi.fn()};
+  layer._onNativeMapInteraction(move as any);
+  expect(move.stopPropagation).toHaveBeenCalledOnce();
+  const end = {type: 'touchend', touches: {length: 0}, stopPropagation: vi.fn()};
+  layer._onNativeMapInteraction(end as any);
+  expect(end.stopPropagation).not.toHaveBeenCalled();
 });
 
 test('H3 editing forwards the application interaction override', () => {

@@ -3,9 +3,12 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck} from '@deck.gl/core';
+import type {PickingInfo} from '@deck.gl/core';
 import {GeoJsonLayer, PathLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {expect, test, vi} from 'vitest';
 import {SelectionLayer} from '../../src/editable-layers/selection-layer';
+import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
+import {ModifyMode} from '../../src/edit-modes/modify-mode';
 
 const DIAGONAL_LASSO = [
   [
@@ -132,6 +135,52 @@ async function withTarget(target, run, {size = 600, zoom = 4} = {}) {
     host.remove();
   }
 }
+
+test.each([
+  'rectangle',
+  'polygon'
+])('%s selection keeps application guideType properties while excluding rendered edit handles', async selectionType => {
+  const feature = {
+    type: 'Feature',
+    properties: {guideType: 'editHandle'},
+    geometry: {type: 'Point', coordinates: [0, 0.5]}
+  };
+  await withTarget(
+    new EditableGeoJsonLayer({
+      id: 'editable-points',
+      data: {type: 'FeatureCollection', features: [feature]} as any,
+      mode: ModifyMode,
+      selectedFeatureIndexes: [0],
+      getRadius: 24,
+      pointRadiusMinPixels: 24,
+      getEditHandlePointRadius: 5,
+      pickable: true
+    }),
+    ({selection, onSelect, deck}) => {
+      const picks = deck.pickObjects({x: 0, y: 0, width: 600, height: 600}) as PickingInfo<
+        typeof feature,
+        {isGuide?: boolean}
+      >[];
+      expect(picks.some(info => info.isGuide)).toBe(true);
+      expect(picks.some(info => !info.isGuide && info.object === feature)).toBe(true);
+      const coordinates = [
+        [
+          [-2, -1],
+          [2, -1],
+          [2, 2],
+          [-2, 2],
+          [-2, -1]
+        ]
+      ];
+      if (selectionType === 'rectangle') selection._selectRectangleObjects(coordinates);
+      else selection._selectPolygonObjects(coordinates);
+      const {pickingInfos} = onSelect.mock.calls[0][0];
+      expect(pickingInfos).toHaveLength(1);
+      expect(pickingInfos[0].object).toBe(feature);
+      expect(pickingInfos[0].isGuide).not.toBe(true);
+    }
+  );
+}, 15000);
 
 test('lasso selects a rendered path crossing its edges without any contained vertices', async () => {
   const data = [

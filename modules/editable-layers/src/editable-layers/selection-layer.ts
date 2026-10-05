@@ -63,7 +63,7 @@ const LAYER_ID_BLOCKER = 'selection-blocker';
 function filterFeaturePicks(pickingInfos: any[]) {
   const seen = new Set<string>();
   return pickingInfos.filter(info => {
-    if (info.isGuide || info.object?.properties?.guideType) return false;
+    if (info.isGuide) return false;
     const key = `${info.layer?.id}:${info.index}`;
     if (seen.has(key)) return false;
     seen.add(key);

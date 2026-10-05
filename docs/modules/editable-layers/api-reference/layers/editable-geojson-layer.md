@@ -85,6 +85,10 @@ editing gestures from bubbling from the canvas into a parent MapLibre/Mapbox map
 `ViewMode`, right-button navigation, wheel zoom, and gestures with multiple touches are
 unaffected. Map handler enabled states are not changed.
 
+When two-finger navigation returns to one finger, the remaining finger's movement is
+reserved for editing. Release and cancel events still reach the map to finish navigation
+that already started.
+
 Set to `false` when the application coordinates map gestures itself. Edit-mode
 `event.cancelPan()` still coordinates deck.gl's own controller.
 

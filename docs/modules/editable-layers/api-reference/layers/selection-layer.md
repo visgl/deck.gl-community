@@ -95,6 +95,9 @@ Called when selection is completed with `{pickingInfos}`. Each entry is the orig
 [deck.gl picking info](https://deck.gl/docs/developer-guide/interactivity#the-picking-info-object),
 including the selected object, source layer, and object index.
 
+Edit guides are excluded using the picking info's `isGuide` marker. Application feature
+properties, including `guideType`, do not exclude features from selection.
+
 Both selection modes use deck.gl's WebGL GPU picking. Polygon selection masks pixels outside
 the drawn lasso, including for wide, diagonal, and concave lassos. Objects are selected when visible rendered
 pixels intersect the selection; overlapping objects hidden behind another object are not included.

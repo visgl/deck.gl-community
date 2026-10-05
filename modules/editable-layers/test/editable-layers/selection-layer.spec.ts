@@ -117,7 +117,11 @@ test('rectangle selection retains deck.gl GPU picking', () => {
 
 test('rectangle selection excludes guides and deduplicates feature picks', () => {
   const onSelect = vi.fn();
-  const feature = {layer: {id: 'features'}, index: 0, object: {type: 'Feature'}};
+  const feature = {
+    layer: {id: 'features'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
   const layer = new SelectionLayer({id: 'selection', layerIds: ['features'], onSelect});
   layer.context = {
     viewport: {project: coordinates => coordinates},
@@ -125,7 +129,12 @@ test('rectangle selection excludes guides and deduplicates feature picks', () =>
       pickObjects: vi.fn(() => [
         feature,
         {layer: feature.layer, index: 3, isGuide: true},
-        {layer: feature.layer, index: 7, object: {properties: {guideType: 'editHandle'}}},
+        {
+          layer: feature.layer,
+          index: 7,
+          isGuide: true,
+          object: {properties: {guideType: 'editHandle'}}
+        },
         {...feature}
       ])
     }
@@ -151,14 +160,23 @@ test('selection forwards the application interaction override to its editable su
 
 test('polygon GPU picks exclude guides and duplicates after the mask is initialized', () => {
   const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
-  const feature = {layer: {id: 'points'}, index: 0, object: {type: 'Feature'}};
+  const feature = {
+    layer: {id: 'points'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
   pickObjects.mockImplementation(() => {
     expect(layer.state.isSelecting).toBe(true);
     expect(updateLayers).toHaveBeenCalledOnce();
     return [
       feature,
       {layer: feature.layer, index: 3, isGuide: true},
-      {layer: feature.layer, index: 7, object: {properties: {guideType: 'editHandle'}}},
+      {
+        layer: feature.layer,
+        index: 7,
+        isGuide: true,
+        object: {properties: {guideType: 'editHandle'}}
+      },
       {...feature},
       {layer, index: 0}
     ] as any;

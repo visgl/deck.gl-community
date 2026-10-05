@@ -180,25 +180,24 @@ export abstract class EditableLayer<
   }
 
   _onNativeMapInteraction(event: Event) {
-    if (
-      this.props.autoPreventMapInteractions === false ||
-      !this.props.visible ||
-      !this._isEditing()
-    ) {
-      return;
-    }
+    const preventMapInteractions =
+      this.props.autoPreventMapInteractions !== false && this.props.visible && this._isEditing();
     if (event.type.startsWith('touch')) {
       const touchEvent = event as TouchEvent;
       const editableState = this.state._editableLayerState;
       if (event.type === 'touchstart') {
-        editableState.blockMapTouchGesture = touchEvent.touches.length === 1;
+        editableState.mapTouchGesture = !preventMapInteractions || touchEvent.touches.length > 1;
       }
-      const block = editableState.blockMapTouchGesture;
+      // Preserve map gesture releases, but reserve remaining single-finger movement for editing.
+      const block =
+        preventMapInteractions &&
+        (!editableState.mapTouchGesture ||
+          (event.type === 'touchmove' && touchEvent.touches.length === 1));
       if (touchEvent.touches.length === 0) {
-        editableState.blockMapTouchGesture = false;
+        editableState.mapTouchGesture = false;
       }
       if (block) event.stopPropagation();
-    } else if ((event as MouseEvent).button === 0) {
+    } else if (preventMapInteractions && (event as MouseEvent).button === 0) {
       // MapLibre/Mapbox handle these on the canvas container. Other listeners
       // on the canvas, including deck.gl's pointer recognizer, still receive them.
       event.stopPropagation();
