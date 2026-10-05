@@ -24,6 +24,17 @@ const SHADOW_FILTER = `float shadow_getShadowWeight(vec3 position, sampler2D sha
 }`;
 const SOFT_SHADOW = {
   ...shadow,
+  inject: {
+    ...shadow.inject,
+    // The frozen SimpleMeshLayer path shades after DECKGL_FILTER_COLOR. Restore
+    // raw packed depth at the final output so both comparison columns cast correctly.
+    'fs:#main-end': `
+      if (shadow.drawShadowMap) {
+        fragColor = fract(gl_FragCoord.z * bitPackShift);
+        fragColor -= fragColor.gbaa * bitMask;
+      }
+    `
+  },
   fs: shadow.fs!.replace(
     /float shadow_getShadowWeight\(vec3 position, sampler2D shadowMap\) \{[\s\S]*?\n\}/,
     SHADOW_FILTER

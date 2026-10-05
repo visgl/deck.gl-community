@@ -311,7 +311,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             canopyHeight
           ],
           orientation: [
-            (((seed ^ (seed >>> 7)) & 0xff) / 255 - 0.5) * 24,
+            winter ? 0 : (((seed ^ (seed >>> 7)) & 0xff) / 255 - 0.5) * 24,
             (((seed ^ (seed >>> 13)) & 0xffff) / 65535) * 360,
             0
           ],
@@ -452,6 +452,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             mesh: getTreeMesh('trunk', palm ? 'palm' : 'oak', detail),
             getPosition: (row: TreeRow<DataT>) => row.position,
             getScale: (row: TreeRow<DataT>) => [row.trunkRadius, row.trunkRadius, row.trunkHeight],
+            getOrientation: (row: TreeRow<DataT>) =>
+              row.winter ? [0, row.orientation[1], 0] : [0, 0, 0],
             getColor: trunkColor,
             getWind: (row: TreeRow<DataT>) => row.wind,
             material: {ambient: 0.4, diffuse: 0.7, shininess: 4},
@@ -480,6 +482,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               getPosition: (row: TreeRow<DataT>) => row.position,
               getTranslation: (row: TreeRow<DataT>) => row.translation,
               getScale: (row: TreeRow<DataT>) => row.scale,
+              getStemRadius: (row: TreeRow<DataT>) => (row.winter ? row.trunkRadius * 0.7 : -1),
               getOrientation: (row: TreeRow<DataT>) => row.orientation,
               getWind: (row: TreeRow<DataT>) => row.wind,
               getColor: (row: TreeRow<DataT>) =>
