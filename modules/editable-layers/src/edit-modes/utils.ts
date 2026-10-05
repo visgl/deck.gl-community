@@ -472,7 +472,8 @@ function getEditHandlesForCoordinates(
 }
 
 /**
- * Calculates coordinates for a feature preserving rectangular shape.
+ * Resizes a rectangle in its existing 2D coordinate plane.
+ * Preserves the adjacent edge axes and keeps the opposite corner fixed.
  * @param feature Feature before modification.
  * @param editHandleIndex Index of the point to modify.
  * @param coords New position for the point.
@@ -509,8 +510,15 @@ export function updateRectanglePosition(
   }
 
   const delta = [coords[0] - oppositePoint[0], coords[1] - oppositePoint[1]];
-  const nextDistance = dotProduct(delta, nextAxis);
-  const previousDistance = dotProduct(delta, previousAxis);
+  // Geographic rectangles have perpendicular edges on the map, but their axes
+  // need not be perpendicular in longitude/latitude. Resolve the diagonal in
+  // that basis instead of independently projecting it onto each axis.
+  const determinant = nextAxis[0] * previousAxis[1] - nextAxis[1] * previousAxis[0];
+  if (Math.abs(determinant) < Number.EPSILON) {
+    return null;
+  }
+  const nextDistance = (delta[0] * previousAxis[1] - delta[1] * previousAxis[0]) / determinant;
+  const previousDistance = (nextAxis[0] * delta[1] - nextAxis[1] * delta[0]) / determinant;
 
   points[currentIndex] = coords;
   points[nextIndex] = [
@@ -531,10 +539,6 @@ function normalizeVector(vector: number[]): number[] | null {
     return null;
   }
   return [vector[0] / length, vector[1] / length];
-}
-
-function dotProduct(left: number[], right: number[]): number {
-  return left[0] * right[0] + left[1] * right[1];
 }
 
 /** Creates a copy of feature's coordinates.
