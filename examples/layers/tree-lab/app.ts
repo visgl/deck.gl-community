@@ -35,7 +35,7 @@ export function mountTreeLabExample(
 ): () => void {
   let options: SceneOptions = {...DEFAULT_OPTIONS, pixelRatio: 2};
   const query = new URLSearchParams(location.search);
-  if (query.get('season')) options.season = query.get('season') as SceneOptions['season'];
+  options.season = SEASONS.find(season => season === query.get('season')) ?? DEFAULT_OPTIONS.season;
   if (query.get('shadows') === '1') options.shadows = true;
   if (query.get('backend') === 'webgpu') {
     options.backend = 'webgpu';

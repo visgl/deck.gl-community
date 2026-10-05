@@ -39,7 +39,7 @@
     "test-watch": "vitest"
   },
   "peerDependencies": {
-    "@deck.gl-community/layers": "~9.4.3",
+    "@deck.gl-community/layers": "workspace:~",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/mesh-layers": "~9.4.0"
   },

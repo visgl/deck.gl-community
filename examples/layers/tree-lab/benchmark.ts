@@ -33,12 +33,18 @@ export function mountTreeBenchmark(
     shadows: query.get('shadows') === '1',
     wind: query.get('wind') === '1',
     windTime: null,
-    detail: (query.get('detail') ?? 'high') as SceneOptions['detail'],
+    detail:
+      (['low', 'medium', 'high'] as const).find(detail => detail === query.get('detail')) ??
+      DEFAULT_OPTIONS.detail,
     backend: query.get('backend') === 'webgpu' ? 'webgpu' : 'webgl'
   };
   if (options.backend === 'webgpu') options.shadows = false;
   const parent = document.querySelector('#app')!;
-  parent.innerHTML = `<main class="tree-lab benchmark"><div class="eyebrow">Tree Lab / Performance</div><h1>${renderer === 'native' ? 'Native vis.gl' : 'Original Three.js'} · ${count.toLocaleString()} ${species} trees</h1><p>${options.backend} · ${options.detail} detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer === 'native' ? 'on' : 'unsupported / static') : 'off'}</p><div class="canvas"></div><button id="measure" disabled>Measure 5-second camera orbit</button> <button id="repeat" disabled>Run three samples</button> <a href="./index.html">Visual comparison</a><pre id="result">Ready for measurement.</pre></main>`;
+  parent.innerHTML = `<main class="tree-lab benchmark"><div class="eyebrow">Tree Lab / Performance</div><h1></h1><p></p><div class="canvas"></div><button id="measure" disabled>Measure 5-second camera orbit</button> <button id="repeat" disabled>Run three samples</button> <a href="./index.html">Visual comparison</a><pre id="result">Ready for measurement.</pre></main>`;
+  parent.querySelector('h1')!.textContent =
+    `${renderer === 'native' ? 'Native vis.gl' : 'Original Three.js'} · ${count.toLocaleString()} ${species} trees`;
+  parent.querySelector('p')!.textContent =
+    `${options.backend} · ${options.detail} detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer === 'native' ? 'on' : 'unsupported / static') : 'off'}`;
   let frame = 0;
   let ready = false;
   const errors: string[] = [];
