@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/playground",
-  "version": "9.4.1",
+  "version": "9.4.2",
   "description": "An installable JSON playground for deck.gl built on the panels module",
   "license": "MIT",
   "repository": {
