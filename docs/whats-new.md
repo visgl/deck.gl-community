@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `EditableGeoJsonLayer` supports `eventTarget` for overlaid MapLibre/Mapbox editing. Pass
+  `map.getCanvas()` when using `MapboxOverlay({interleaved: false})` to enable drawing and
+  handle dragging without changing the render canvas's pointer behavior. Input listeners
+  and touch styles are released when the target changes or the layer is removed.
+
 - `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.

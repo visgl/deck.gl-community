@@ -4,9 +4,9 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
+import {EventManager, Pan, MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
 
 import {
   DraggingEvent,
@@ -49,6 +49,12 @@ export type EditableLayerProps<_DataType = any> = CompositeLayerProps & {
   pickingDepth?: number;
   onCancelPan?: () => void;
   /**
+   * Element receiving editing input when it differs from deck.gl's render canvas.
+   * For an overlaid MapboxOverlay, pass the base map's public getCanvas() result.
+   * Defaults to deck.gl's canvas. The element must align with the rendered viewport.
+   */
+  eventTarget?: HTMLElement | null;
+  /**
    * Keep primary mouse and single-touch editing gestures from bubbling into a
    * parent map. ViewMode and multi-touch navigation remain available.
    * Set to false when the application coordinates map interactions itself.
@@ -62,7 +68,10 @@ export abstract class EditableLayer<
   ExtraPropsT = Record<string, unknown>
 > extends CompositeLayer<ExtraPropsT & Required<EditableLayerProps<DataT>>> {
   static layerName = 'EditableLayer';
-  static defaultProps: DefaultProps<EditableLayerProps<any>> = {autoPreventMapInteractions: true};
+  static defaultProps: DefaultProps<EditableLayerProps<any>> = {
+    autoPreventMapInteractions: true,
+    eventTarget: {type: 'object', value: null, compare: 0}
+  };
 
   state: {_editableLayerState: any} = undefined!;
 
@@ -108,6 +117,7 @@ export abstract class EditableLayer<
         pressScreenCoords: null,
         didDrag: false,
         canvas,
+        eventTarget: this.props.eventTarget || canvas,
         // Native clicks bypass the recognizer's 300ms double-click failure delay.
         gestureEventTypes: canvas
           ? EVENT_TYPES.filter(type => !NATIVE_EVENT_HANDLERS[type])
@@ -121,16 +131,40 @@ export abstract class EditableLayer<
     this._addEventHandlers();
   }
 
+  updateState(params: UpdateParameters<this>) {
+    super.updateState(params);
+    const {eventTarget, canvas} = this.state._editableLayerState;
+    const nextTarget = this.props.eventTarget || canvas;
+    if (nextTarget !== eventTarget) {
+      this._removeEventHandlers();
+      this._resetPointerDownState();
+      this.setState({
+        _editableLayerState: {...this.state._editableLayerState, eventTarget: nextTarget}
+      });
+      this._addEventHandlers();
+    }
+  }
+
   finalizeState() {
     this._removeEventHandlers();
   }
 
   _addEventHandlers() {
     // @ts-expect-error accessing protected props
-    const {eventManager} = this.context.deck;
-    const {eventHandler, canvas, gestureEventTypes} = this.state._editableLayerState;
+    const deckEventManager = this.context.deck.eventManager;
+    const editableState = this.state._editableLayerState;
+    const {eventHandler, canvas, eventTarget, gestureEventTypes} = editableState;
+    editableState.previousTouchAction = eventTarget?.style?.touchAction;
+    // MapboxOverlay forwards map callbacks directly to Deck, bypassing its event
+    // manager. Recognize input on the supplied map canvas instead of intercepting
+    // private Deck/Mapbox handlers or changing the render canvas's pointer events.
+    const eventManager =
+      eventTarget && eventTarget !== canvas
+        ? new EventManager(eventTarget, {recognizers: [[Pan, {threshold: 1}]], cssProps: {}})
+        : deckEventManager;
+    editableState.eventManager = eventManager;
     for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
-      canvas?.addEventListener(eventType, eventHandler);
+      eventTarget?.addEventListener(eventType, eventHandler);
     }
 
     for (const eventType of gestureEventTypes) {
@@ -139,18 +173,32 @@ export abstract class EditableLayer<
         priority: 100
       });
     }
+    editableState.managedTouchAction = eventTarget?.style?.touchAction;
   }
 
   _removeEventHandlers() {
-    // @ts-expect-error accessing protected props
-    const {eventManager} = this.context.deck;
-    const {eventHandler, canvas, gestureEventTypes} = this.state._editableLayerState;
+    const {
+      eventHandler,
+      canvas,
+      eventTarget,
+      eventManager,
+      gestureEventTypes,
+      previousTouchAction,
+      managedTouchAction
+    } = this.state._editableLayerState;
+    const touchAction = eventTarget?.style?.touchAction;
     for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
-      canvas?.removeEventListener(eventType, eventHandler);
+      eventTarget?.removeEventListener(eventType, eventHandler);
     }
 
     for (const eventType of gestureEventTypes) {
       eventManager.off(eventType, eventHandler);
+    }
+    if (eventTarget && eventTarget !== canvas) {
+      eventManager.destroy();
+      // Release our recognizer's CSS without overwriting later application changes.
+      eventTarget.style.touchAction =
+        touchAction === managedTouchAction ? previousTouchAction : touchAction;
     }
   }
 
