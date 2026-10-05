@@ -11,6 +11,7 @@ export type TreeMesh = {
     POSITION: {value: Float32Array; size: 3};
     NORMAL: {value: Float32Array; size: 3};
     COLOR_0: {value: Float32Array; size: 3};
+    TEXCOORD_0: {value: Float32Array; size: 2};
   };
   indices: {value: Uint32Array; size: 1};
   topology: 'triangle-list';
@@ -66,7 +67,8 @@ function createMesh(positions: Float32Array, sourceIndices: Uint32Array, shade =
     attributes: {
       POSITION: {value: positions, size: 3},
       NORMAL: {value: new Float32Array(positions.length), size: 3},
-      COLOR_0: {value: new Float32Array(positions.length).fill(shade), size: 3}
+      COLOR_0: {value: new Float32Array(positions.length).fill(shade), size: 3},
+      TEXCOORD_0: {value: new Float32Array((positions.length / 3) * 2), size: 2}
     },
     indices: {value: indices, size: 1},
     topology: 'triangle-list',
@@ -129,7 +131,8 @@ function mergeMeshes(meshes: TreeMesh[]): TreeMesh {
     attributes: {
       POSITION: {value: new Float32Array(length), size: 3},
       NORMAL: {value: new Float32Array(length), size: 3},
-      COLOR_0: {value: new Float32Array(length), size: 3}
+      COLOR_0: {value: new Float32Array(length), size: 3},
+      TEXCOORD_0: {value: new Float32Array((length / 3) * 2), size: 2}
     },
     indices: {value: new Uint32Array(indexLength), size: 1},
     topology: 'triangle-list',
@@ -141,6 +144,7 @@ function mergeMeshes(meshes: TreeMesh[]): TreeMesh {
     for (const key of ['POSITION', 'NORMAL', 'COLOR_0'] as const) {
       mesh.attributes[key].value.set(part.attributes[key].value, vertexOffset * 3);
     }
+    mesh.attributes.TEXCOORD_0.value.set(part.attributes.TEXCOORD_0.value, vertexOffset * 2);
     for (const index of part.indices.value)
       mesh.indices.value[indexOffset++] = index + vertexOffset;
     vertexOffset += part.attributes.POSITION.value.length / 3;
@@ -388,13 +392,50 @@ export function createCherryCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
   return createBroadleafCanopy('cherry', detail);
 }
 
+/** Rings at the trunk join support a smooth per-instance radius transition. */
+function createWinterStem(detail: TreeDetail): TreeMesh {
+  const segments = detail === 'low' ? 8 : 12;
+  const heights = [0, 0.12, 0.22, 0.27, 0.32, 0.37, 0.42, 0.62, 0.85];
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (const [ring, z] of heights.entries()) {
+    const t = Math.max(0, (z - 0.22) / 0.63);
+    const radius = 0.06 - 0.047 * t;
+    const bend = 0.015 * t * t;
+    for (let segment = 0; segment <= segments; segment++) {
+      const angle = (segment / segments) * Math.PI * 2;
+      positions.push(bend + Math.cos(angle) * radius, Math.sin(angle) * radius, z);
+      if (ring > 0 && segment < segments) {
+        const a = (ring - 1) * (segments + 1) + segment;
+        const b = a + segments + 1;
+        indices.push(a, a + 1, b, a + 1, b + 1, b);
+      }
+    }
+  }
+  for (const ring of [0, heights.length - 1]) {
+    const center = positions.length / 3;
+    const t = ring === 0 ? 0 : 1;
+    positions.push(0.015 * t, 0, heights[ring]);
+    for (let segment = 0; segment < segments; segment++) {
+      const a = ring * (segments + 1) + segment;
+      indices.push(...(ring === 0 ? [center, a + 1, a] : [center, a, a + 1]));
+    }
+  }
+  const mesh = createMesh(new Float32Array(positions), new Uint32Array(indices));
+  computeNormals(mesh, true);
+  // UV.x marks only the leader. Side branches retain their original dimensions.
+  for (let i = 0; i < mesh.attributes.TEXCOORD_0.value.length; i += 2)
+    mesh.attributes.TEXCOORD_0.value[i] = 1;
+  return mesh;
+}
+
 /** Actual branching structure is visible when deciduous trees lose their foliage. */
 export function createWinterCanopyMesh(
   type: 'oak' | 'birch' | 'cherry',
   detail: TreeDetail
 ): TreeMesh {
   const segments = detail === 'low' ? 4 : 6;
-  const meshes = [createBranch([0, 0, 0], [0.015, 0, 0.85], 0.06, 0.013, segments)];
+  const meshes = [createWinterStem(detail)];
   for (const [i, lobe] of getCrownLobes(type).entries()) {
     const start: Point = [0, 0, 0.12 + i * 0.055];
     const end: Point = [lobe.center[0] * 1.65, lobe.center[1] * 1.65, lobe.center[2] + 0.18];

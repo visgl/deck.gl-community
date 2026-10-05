@@ -1,5 +1,5 @@
 {
-  "method": "One production renderer per page; three 5-second camera orbits on Apple M4 Pro/ANGLE Metal at 1236x680, 1x pixels. Browser delivery intervals, not GPU timings. Captured before final picking/override/film correctness fixes.",
+  "method": "One production renderer per page; three 5-second camera orbits on Apple M4 Pro/ANGLE Metal at 1236x680, 1x pixels. Browser delivery intervals, not GPU timings. Captured before final picking/override/film/shadow-depth/winter-join correctness fixes.",
   "samples": {
     "production-palm-baseline": [
       {

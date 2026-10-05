@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
+import {Matrix4} from '@math.gl/core';
 import {TreeLayer} from '../../src/tree-layer/tree-layer';
 import {
   getTreeMesh,
@@ -9,12 +10,13 @@ import {
   createTrunkMesh,
   createCropMesh,
   samplePineSurface,
-  sampleCrownSurface
+  sampleCrownSurface,
+  type TreeMesh
 } from '../../src/tree-layer/tree-geometry';
 
 type Datum = {
   position: [number, number];
-  type: 'oak' | 'pine' | 'palm';
+  type: 'oak' | 'pine' | 'palm' | 'birch' | 'cherry';
   season: 'summer' | 'winter';
 };
 function createLayer(data: Datum[], extra = {}) {
@@ -39,6 +41,24 @@ function createLayer(data: Datum[], extra = {}) {
   return {layer, update};
 }
 const OAK: Datum = {position: [0, 0], type: 'oak', season: 'summer'};
+
+function getMeshRing(mesh: TreeMesh, height: number, leaderOnly = false) {
+  const points = new Map<string, [number, number, number]>();
+  const positions = mesh.attributes.POSITION.value;
+  const markers = mesh.attributes.TEXCOORD_0.value;
+  for (let i = 0; i < positions.length; i += 3) {
+    const point: [number, number, number] = [positions[i], positions[i + 1], positions[i + 2]];
+    if (leaderOnly && markers[(i / 3) * 2] !== 1) continue;
+    if (Math.abs(point[2] - height) > 0.000001 || Math.hypot(point[0], point[1]) < 0.000001)
+      continue;
+    const key = point
+      .slice(0, 2)
+      .map(value => Math.round(value * 1e6))
+      .join(',');
+    points.set(key, point);
+  }
+  return [...points.values()];
+}
 
 describe('native tree geometry', () => {
   it('has finite unit normals, valid triangles and correct bounds for every species/detail/season', () => {
@@ -105,6 +125,209 @@ describe('native tree geometry', () => {
       expect(Math.hypot(crop[i], crop[i + 1], crop[i + 2])).toBeCloseTo(1, 5);
     expect(Math.min(...crop.filter((_, i) => i % 3 === 2))).toBeCloseTo(-1, 5);
     expect(Math.max(...crop.filter((_, i) => i % 3 === 2))).toBeCloseTo(1, 5);
+  });
+});
+
+describe('winter trunk and leader join contracts', () => {
+  it('provides centered join rings with the same angular grid as the trunk at every detail', () => {
+    for (const detail of ['low', 'medium', 'high'] as const) {
+      const trunk = getTreeMesh('trunk', 'oak', detail);
+      const top = getMeshRing(trunk, 1);
+      for (const species of ['oak', 'birch', 'cherry'] as const) {
+        const crown = getTreeMesh('canopy', species, detail, true);
+        const join = getMeshRing(crown, 0.22, true);
+        expect(join.length).toBe(detail === 'low' ? 8 : 12);
+        expect(top.length).toBe(join.length);
+        for (const point of join) {
+          const radius = Math.hypot(point[0], point[1]);
+          expect(radius).toBeCloseTo(0.06, 6);
+          const matching = top.find(
+            candidate =>
+              Math.hypot(
+                candidate[0] / 0.7 - point[0] / radius,
+                candidate[1] / 0.7 - point[1] / radius
+              ) < 0.000001
+          );
+          expect(matching).toBeDefined();
+        }
+        for (const axis of [0, 1])
+          expect(join.reduce((sum, point) => sum + point[axis], 0)).toBeCloseTo(0, 6);
+        // A taper needs real rings above the join, not just interpolated shader values.
+        expect(getMeshRing(crown, 0.27, true).length).toBe(join.length);
+        expect(getMeshRing(crown, 0.42, true).length).toBe(join.length);
+        expect(
+          crown.attributes.TEXCOORD_0.value.some((value, i) => i % 2 === 0 && value === 0)
+        ).toBe(true);
+        expect(trunk.attributes.TEXCOORD_0.value.every(value => value === 0)).toBe(true);
+      }
+    }
+  });
+
+  it('anchors the collar to the physical trunk radius and top across sizes, yaw and canopy anisotropy', () => {
+    type Specimen = Datum & {
+      height: number;
+      fraction: number;
+      trunkRadius: number;
+      canopyRadius: number;
+      elevation: number;
+    };
+    const dimensions = [
+      {
+        position: [0, 0],
+        height: 12,
+        fraction: 0.36,
+        trunkRadius: 0.38,
+        canopyRadius: 7,
+        elevation: 0
+      },
+      {
+        position: [-122.415, 37.775],
+        height: 20,
+        fraction: 0.2,
+        trunkRadius: 0.05,
+        canopyRadius: 12,
+        elevation: 130
+      },
+      {
+        position: [12.493, -8.251],
+        height: 5,
+        fraction: 0.7,
+        trunkRadius: 2,
+        canopyRadius: 0.2,
+        elevation: -12
+      }
+    ];
+    const sizeScale = 2.4;
+    for (const detail of ['low', 'medium', 'high'] as const)
+      for (const species of ['oak', 'birch', 'cherry'] as const) {
+        const data: Specimen[] = dimensions.map(d => ({
+          ...d,
+          position: d.position as [number, number],
+          type: species,
+          season: 'winter'
+        }));
+        const {layer} = createLayer(data, {
+          detail,
+          sizeScale,
+          getHeight: (d: Specimen) => d.height,
+          getTrunkHeightFraction: (d: Specimen) => d.fraction,
+          getTrunkRadius: (d: Specimen) => d.trunkRadius,
+          getCanopyRadius: (d: Specimen) => d.canopyRadius,
+          getElevation: (d: Specimen) => d.elevation
+        });
+        const children = layer.renderLayers();
+        const trunk = children.find(child => child.id === 'trees-trunks')!;
+        const crown = children.find(child => child.id.includes('canopy'))!;
+        const top = getMeshRing(trunk.props.mesh, 1);
+        const join = getMeshRing(crown.props.mesh, 0.22, true);
+        expect(crown.props.mesh).toBe(getTreeMesh('canopy', species, detail, true));
+        expect(crown.props.data.some(row => Math.abs(row.scale[0] - row.scale[1]) > 0.001)).toBe(
+          true
+        );
+        for (const row of crown.props.data) {
+          const source = row.object as Specimen;
+          const trunkScale = trunk.props.getScale(row);
+          const crownScale = crown.props.getScale(row);
+          const translation = crown.props.getTranslation(row);
+          const orientation = crown.props.getOrientation(row);
+          const radius = crown.props.getStemRadius(row);
+          expect(orientation[0]).toBe(0);
+          expect(orientation[2]).toBe(0);
+          expect(trunk.props.getOrientation(row)).toEqual(orientation);
+          expect(radius).toBeCloseTo(source.trunkRadius * sizeScale * 0.7, 8);
+          expect(radius).toBeCloseTo(trunkScale[0] * 0.7, 8);
+          expect(trunkScale[2]).toBeCloseTo(source.height * source.fraction * sizeScale, 8);
+          expect(translation[2] + join[0][2] * crownScale[2]).toBeCloseTo(trunkScale[2], 6);
+          expect(trunk.props.getPosition(row)).toEqual(crown.props.getPosition(row));
+          expect(row.position[2]).toBe(source.elevation);
+          // The collar contract is a circular ring of physical radius, independent
+          // of canopy X/Y scale. Check its angular grid against the actual trunk.
+          const rotation = new Matrix4().rotateZ((orientation[1] * Math.PI) / 180);
+          const actualTop = top.map(point =>
+            rotation.transformAsVector([
+              point[0] * trunkScale[0],
+              point[1] * trunkScale[1],
+              trunkScale[2]
+            ])
+          );
+          for (const point of join) {
+            const localRadius = Math.hypot(point[0], point[1]);
+            const target = rotation.transformAsVector([
+              (point[0] / localRadius) * radius,
+              (point[1] / localRadius) * radius,
+              translation[2] + point[2] * crownScale[2]
+            ]);
+            expect(
+              actualTop.some(
+                candidate =>
+                  Math.hypot(...candidate.map((value, i) => value - target[i])) < 0.000001
+              )
+            ).toBe(true);
+          }
+        }
+      }
+  });
+
+  it('keeps accepted zero dimensions finite without allocating instance-specific meshes', () => {
+    const cases = [
+      {getHeight: () => 0},
+      {getCanopyRadius: () => 0},
+      {getTrunkRadius: () => 0},
+      {getTrunkHeightFraction: () => 0},
+      {getTrunkHeightFraction: () => 1},
+      {sizeScale: 0}
+    ];
+    for (const extra of cases) {
+      const {layer} = createLayer([{...OAK, season: 'winter'}], extra);
+      const crown = layer.renderLayers().find(child => child.id.includes('canopy'))!;
+      const row = crown.props.data[0];
+      expect(crown.props.mesh).toBe(getTreeMesh('canopy', 'oak', 'high', true));
+      expect(
+        [
+          ...crown.props.getScale(row),
+          ...crown.props.getTranslation(row),
+          ...crown.props.getOrientation(row),
+          crown.props.getStemRadius(row),
+          ...row.wind
+        ].every(Number.isFinite)
+      ).toBe(true);
+      expect(crown.props.getStemRadius(row)).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('leaves crop dimensions and placement independent of the collar and shares the wind frame', () => {
+    const data: Datum[] = [{...OAK, position: [-122.415, 37.775], season: 'winter'}];
+    const extra = {
+      getCrop: () => ({count: 8, droppedCount: 4, radius: 0.2, color: [200, 80, 40, 255]}),
+      windStrength: 0.025,
+      windTime: 3
+    };
+    const small = createLayer(data, {...extra, getTrunkRadius: () => 0.05}).layer;
+    const large = createLayer(data, {...extra, getTrunkRadius: () => 2}).layer;
+    for (const key of ['liveCrops', 'droppedCrops'] as const)
+      expect(small.state[key].map(row => [row.translation, row.radius])).toEqual(
+        large.state[key].map(row => [row.translation, row.radius])
+      );
+    const children = small.renderLayers();
+    const crown = children.find(child => child.id.includes('canopy'))!;
+    const tree = crown.props.data[0];
+    for (const child of children) {
+      expect(child.props.windStrength).toBe(0.025);
+      expect(child.props.windTime).toBe(3);
+      const row = child.props.data[0];
+      if (child.id.includes('dropped-crops')) expect(row.wind[2]).toBe(0);
+      else expect(child.props.getWind(row)).toEqual(tree.wind);
+      if (!child.id.includes('canopy')) expect(child.props.getStemRadius).toBe(-1);
+    }
+    const groups = small.state.groups;
+    vi.mocked(small.setState).mockClear();
+    small.updateState({
+      props: Object.create(small.props, {windTime: {value: 20}}),
+      oldProps: small.props,
+      changeFlags: {propsChanged: true}
+    });
+    expect(small.setState).not.toHaveBeenCalled();
+    expect(small.state.groups).toBe(groups);
   });
 });
 
