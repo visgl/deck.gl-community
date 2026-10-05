@@ -1,6 +1,7 @@
 {
   "name": "@deck.gl-community/react-fiber",
   "version": "9.4.0-alpha.3",
+  "private": true,
   "description": "A React Fiber renderer for deck.gl",
   "license": "MIT",
   "author": "Brandon Pierce (https://github.com/brandonjpierce)",
