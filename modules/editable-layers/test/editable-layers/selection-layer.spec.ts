@@ -85,3 +85,10 @@ test('finalizing cancels a queued polygon selection', async () => {
   await Promise.resolve();
   expect(onSelect).not.toHaveBeenCalled();
 });
+
+test('selection forwards the application interaction override to its editable sublayer', () => {
+  const layer = new SelectionLayer({id: 'selection', autoPreventMapInteractions: false});
+  layer.state = {pendingPolygonSelection: null};
+  const editable = layer.renderLayers()[0];
+  expect(editable.props.autoPreventMapInteractions).toBe(false);
+});

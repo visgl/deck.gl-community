@@ -76,6 +76,18 @@ The `mode` property defines the mode used to handle user interaction events (e.g
 
 There are a extensive number of modes that come out-of-the-box with from '@deck.gl-community/editable-layers';. 
 
+#### `autoPreventMapInteractions` (Boolean, optional)
+
+- Default: `true`
+
+While an edit mode is active, keeps primary mouse presses, double-clicks, and single-touch
+editing gestures from bubbling from the canvas into a parent MapLibre/Mapbox map.
+`ViewMode`, right-button navigation, wheel zoom, and gestures with multiple touches are
+unaffected. Map handler enabled states are not changed.
+
+Set to `false` when the application coordinates map gestures itself. Edit-mode
+`event.cancelPan()` still coordinates deck.gl's own controller.
+
 #### `modeConfig` (Object, optional)
 
 - Default: `null`

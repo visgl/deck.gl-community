@@ -4,7 +4,7 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
 import {MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
 
@@ -19,6 +19,15 @@ import {
   ScreenCoordinates
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
+
+const MAP_INTERACTION_EVENT_TYPES = [
+  'mousedown',
+  'dblclick',
+  'touchstart',
+  'touchmove',
+  'touchend',
+  'touchcancel'
+];
 
 export const EVENT_TYPES = [
   'click',
@@ -36,6 +45,13 @@ export type EditableLayerProps<_DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
   onCancelPan?: () => void;
+  /**
+   * Keep primary mouse and single-touch editing gestures from bubbling into a
+   * parent map. ViewMode and multi-touch navigation remain available.
+   * Set to false when the application coordinates map interactions itself.
+   * @default true
+   */
+  autoPreventMapInteractions?: boolean;
 };
 
 export abstract class EditableLayer<
@@ -43,6 +59,7 @@ export abstract class EditableLayer<
   ExtraPropsT = Record<string, unknown>
 > extends CompositeLayer<ExtraPropsT & Required<EditableLayerProps<DataT>>> {
   static layerName = 'EditableLayer';
+  static defaultProps: DefaultProps<EditableLayerProps<any>> = {autoPreventMapInteractions: true};
 
   state: {_editableLayerState: any} = undefined!;
 
@@ -107,7 +124,19 @@ export abstract class EditableLayer<
         const currentLayer = (this.getCurrentLayer() || this) as EditableLayer;
         currentLayer._onNativeClick(event);
       };
-      Object.assign(this.state._editableLayerState, {canvas, nativeEventHandler, didDrag: false});
+      const mapInteractionEventHandler = (event: Event) => {
+        const currentLayer = (this.getCurrentLayer() || this) as EditableLayer;
+        currentLayer._onNativeMapInteraction(event);
+      };
+      Object.assign(this.state._editableLayerState, {
+        canvas,
+        nativeEventHandler,
+        mapInteractionEventHandler,
+        didDrag: false
+      });
+      for (const type of MAP_INTERACTION_EVENT_TYPES) {
+        canvas.addEventListener(type, mapInteractionEventHandler);
+      }
       for (const type of ['pointerdown', 'click', 'dblclick']) {
         canvas.addEventListener(type, nativeEventHandler);
       }
@@ -129,10 +158,14 @@ export abstract class EditableLayer<
   _removeEventHandlers() {
     // @ts-expect-error accessing protected props
     const {eventManager} = this.context.deck;
-    const {eventHandler, canvas, nativeEventHandler} = this.state._editableLayerState;
+    const {eventHandler, canvas, nativeEventHandler, mapInteractionEventHandler} =
+      this.state._editableLayerState;
     if (canvas) {
       for (const type of ['pointerdown', 'click', 'dblclick']) {
         canvas.removeEventListener(type, nativeEventHandler);
+      }
+      for (const type of MAP_INTERACTION_EVENT_TYPES) {
+        canvas.removeEventListener(type, mapInteractionEventHandler);
       }
     }
 
@@ -165,6 +198,36 @@ export abstract class EditableLayer<
       return;
     }
     this.onLayerClick(basePointerEvent);
+  }
+
+  _isEditing(): boolean {
+    return false;
+  }
+
+  _onNativeMapInteraction(event: Event) {
+    if (
+      this.props.autoPreventMapInteractions === false ||
+      !this.props.visible ||
+      !this._isEditing()
+    ) {
+      return;
+    }
+    if (event.type.startsWith('touch')) {
+      const touchEvent = event as TouchEvent;
+      const editableState = this.state._editableLayerState;
+      if (event.type === 'touchstart') {
+        editableState.blockMapTouchGesture = touchEvent.touches.length === 1;
+      }
+      const block = editableState.blockMapTouchGesture;
+      if (touchEvent.touches.length === 0) {
+        editableState.blockMapTouchGesture = false;
+      }
+      if (block) event.stopPropagation();
+    } else if ((event as MouseEvent).button === 0) {
+      // MapLibre/Mapbox handle these on the canvas container. Other listeners
+      // on the canvas, including deck.gl's pointer recognizer, still receive them.
+      event.stopPropagation();
+    }
   }
 
   _onNativeClick(event: MouseEvent) {

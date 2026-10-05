@@ -54,6 +54,16 @@ in `@@type`. Abstract `View` is no longer accepted. See the
 Update deck.gl and luma.gl packages to `~9.4.0`. Modules that use loaders.gl require
 `@loaders.gl/*@^4.4.3`.
 
+### `@deck.gl-community/editable-layers`
+
+`EditableGeoJsonLayer` and `SelectionLayer` now prevent primary editing gestures from
+bubbling into an interleaved parent map by default. Remove application helpers that disable
+and re-enable map drag handlers solely for editing. The layer leaves handler enabled states
+unchanged and returns primary navigation to the map in `ViewMode` or inactive selection.
+If the application owns gesture coordination, set `autoPreventMapInteractions: false` on
+both the editable and selection layers. Right-button navigation, wheel zoom, and multi-touch
+gestures retain their existing behavior.
+
 ### `@deck.gl-community/panels`
 
 Panel APIs now use panel-oriented names consistently:

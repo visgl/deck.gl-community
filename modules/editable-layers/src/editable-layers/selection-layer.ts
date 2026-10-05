@@ -36,10 +36,17 @@ export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
   layerIds: any[];
   onSelect: (info: any) => any;
   selectionType: string | null;
+  /**
+   * Keep selection gestures from bubbling into the parent map.
+   * Set to false when the application coordinates map interactions itself.
+   * @default true
+   */
+  autoPreventMapInteractions?: boolean;
 }
 
 const defaultProps: DefaultProps<SelectionLayerProps<any>> = {
   selectionType: SELECTION_TYPE.RECTANGLE,
+  autoPreventMapInteractions: true,
   layerIds: [],
   onSelect: () => {}
 };
@@ -75,6 +82,7 @@ function filterFeaturePicks(pickingInfos: any[]) {
 }
 
 const PASS_THROUGH_PROPS = [
+  'autoPreventMapInteractions',
   'lineWidthScale',
   'lineWidthMinPixels',
   'lineWidthMaxPixels',

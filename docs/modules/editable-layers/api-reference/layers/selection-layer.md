@@ -81,6 +81,14 @@ Also inherites **some** EditableGeoJsonLayer properties.
 
 Either `rectangle` or `polygon`
 
+#### `autoPreventMapInteractions` (Boolean, optional)
+
+- Default: `true`
+
+Keeps primary mouse and single-touch selection gestures from bubbling into the parent map.
+Set to `false` when the application coordinates map gestures itself. This is forwarded to
+SelectionLayer's internal `EditableGeoJsonLayer`; inactive selection uses `ViewMode`.
+
 #### `onSelect` (Function, required)
 
 Called when selection is completed.

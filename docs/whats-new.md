@@ -105,6 +105,11 @@ Highlights:
 - [`EditableGeoJsonLayer`](/docs/modules/editable-layers/api-reference/layers/editable-geojson-layer)
   now supports WebGPU, including polygon, path, and edit-handle picking.
 
+- Edit and selection modes now isolate primary gestures from an interleaved parent map
+  automatically. Set `autoPreventMapInteractions: false` for application-owned coordination.
+- Polygon drawing responds immediately to canvas clicks; rectangle selection excludes edit
+  handles and starts at the original pointer-down position.
+
 ### `@deck.gl-community/geo-layers`
 
 - [`WindLayer`](/docs/modules/geo-layers/api-reference/wind-layer) (new) renders
