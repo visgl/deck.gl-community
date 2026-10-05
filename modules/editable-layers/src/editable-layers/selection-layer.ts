@@ -6,7 +6,7 @@
 
 import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {PolygonLayer} from '@deck.gl/layers';
+import {SolidPolygonLayer} from '@deck.gl/layers';
 import {featureCollection, polygon} from '@turf/helpers';
 import {buffer} from '@turf/buffer';
 import {difference} from '@turf/difference';
@@ -53,6 +53,27 @@ const EXPANSION_KM = 50;
 const LAYER_ID_GEOJSON = 'selection-geojson';
 const LAYER_ID_BLOCKER = 'selection-blocker';
 
+// Picking must wait for the mask to be drawn, rather than an arbitrary timer.
+class SelectionBlockerLayer extends SolidPolygonLayer<any, {onRendered: () => void}> {
+  static layerName = 'SelectionBlockerLayer';
+
+  draw(options: Parameters<SolidPolygonLayer['draw']>[0]) {
+    super.draw(options);
+    this.props.onRendered();
+  }
+}
+
+function filterFeaturePicks(pickingInfos: any[]) {
+  const seen = new Set<string>();
+  return pickingInfos.filter(info => {
+    if (info.isGuide || info.object?.properties?.guideType) return false;
+    const key = `${info.layer?.id}:${info.index}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const PASS_THROUGH_PROPS = [
   'lineWidthScale',
   'lineWidthMinPixels',
@@ -84,7 +105,9 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
   state: {
     pendingPolygonSelection: {
       bigPolygon: ReturnType<typeof difference>;
-    };
+      complete: () => void;
+      scheduled: boolean;
+    } | null;
   } = undefined!;
 
   _selectRectangleObjects(coordinates: any) {
@@ -99,7 +122,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       layerIds
     });
 
-    onSelect({pickingInfos});
+    onSelect({pickingInfos: filterFeaturePicks(pickingInfos)});
   }
 
   _selectPolygonObjects(coordinates: any) {
@@ -128,28 +151,38 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       return;
     }
 
-    this.setState({
-      pendingPolygonSelection: {
-        bigPolygon
-      }
-    });
-
     const blockerId = `${this.props.id}-${LAYER_ID_BLOCKER}`;
+    const pendingSelection = {
+      bigPolygon,
+      scheduled: false,
+      complete: () => {
+        const currentLayer = (this.getCurrentLayer() || this) as SelectionLayer<DataT, ExtraPropsT>;
+        if (
+          currentLayer.state.pendingPolygonSelection !== pendingSelection ||
+          currentLayer.props.selectionType !== SELECTION_TYPE.POLYGON
+        )
+          return;
+        const pickingInfos = currentLayer.context.deck.pickObjects({
+          x,
+          y,
+          width: maxX - x,
+          height: maxY - y,
+          layerIds: [blockerId, ...layerIds]
+        });
 
-    // HACK, find a better way
-    setTimeout(() => {
-      const pickingInfos = this.context.deck.pickObjects({
-        x,
-        y,
-        width: maxX - x,
-        height: maxY - y,
-        layerIds: [blockerId, ...layerIds]
-      });
+        currentLayer.setState({pendingPolygonSelection: null});
+        onSelect({
+          pickingInfos: filterFeaturePicks(
+            pickingInfos.filter(item => item.layer.id !== this.props.id)
+          )
+        });
+      }
+    };
+    this.setState({pendingPolygonSelection: pendingSelection});
+  }
 
-      onSelect({
-        pickingInfos: pickingInfos.filter(item => item.layer.id !== this.props.id)
-      });
-    }, 250);
+  finalizeState() {
+    this.state.pendingPolygonSelection = null;
   }
 
   renderLayers() {
@@ -191,16 +224,21 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
     if (pendingPolygonSelection) {
       const {bigPolygon} = pendingPolygonSelection as any;
       layers.push(
-        new PolygonLayer(
+        new SelectionBlockerLayer(
           this.getSubLayerProps({
             id: LAYER_ID_BLOCKER,
             pickable: true,
-            stroked: false,
             opacity: 1.0,
             data: [bigPolygon],
             getLineColor: _obj => [0, 0, 0, 1],
             getFillColor: _obj => [0, 0, 0, 1],
-            getPolygon: o => o.geometry.coordinates
+            getPolygon: o => o.geometry.coordinates,
+            onRendered: () => {
+              if (!pendingPolygonSelection.scheduled) {
+                pendingPolygonSelection.scheduled = true;
+                queueMicrotask(pendingPolygonSelection.complete);
+              }
+            }
           })
         )
       );

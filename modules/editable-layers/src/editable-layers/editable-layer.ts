@@ -101,8 +101,24 @@ export abstract class EditableLayer<
     // @ts-expect-error accessing protected props
     const {eventManager} = this.context.deck;
     const {eventHandler} = this.state._editableLayerState;
+    const canvas = this.context.deck.getCanvas?.();
+    if (canvas) {
+      const nativeEventHandler = (event: MouseEvent) => {
+        const currentLayer = (this.getCurrentLayer() || this) as EditableLayer;
+        currentLayer._onNativeClick(event);
+      };
+      Object.assign(this.state._editableLayerState, {canvas, nativeEventHandler, didDrag: false});
+      for (const type of ['pointerdown', 'click', 'dblclick']) {
+        canvas.addEventListener(type, nativeEventHandler);
+      }
+    }
 
     for (const eventType of EVENT_TYPES) {
+      // Browser clicks fire immediately. The gesture recognizer waits 300ms
+      // for double-click failure, which leaves drawn vertices behind the pointer.
+      if (canvas && (eventType === 'click' || eventType === 'dblclick')) {
+        continue;
+      }
       eventManager.on(eventType, eventHandler, {
         // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
         priority: 100
@@ -113,9 +129,17 @@ export abstract class EditableLayer<
   _removeEventHandlers() {
     // @ts-expect-error accessing protected props
     const {eventManager} = this.context.deck;
-    const {eventHandler} = this.state._editableLayerState;
+    const {eventHandler, canvas, nativeEventHandler} = this.state._editableLayerState;
+    if (canvas) {
+      for (const type of ['pointerdown', 'click', 'dblclick']) {
+        canvas.removeEventListener(type, nativeEventHandler);
+      }
+    }
 
     for (const eventType of EVENT_TYPES) {
+      if (canvas && (eventType === 'click' || eventType === 'dblclick')) {
+        continue;
+      }
       eventManager.off(eventType, eventHandler);
     }
   }
@@ -143,6 +167,36 @@ export abstract class EditableLayer<
     this.onLayerClick(basePointerEvent);
   }
 
+  _onNativeClick(event: MouseEvent) {
+    const editableState = this.state._editableLayerState;
+    if (event.type === 'pointerdown') {
+      editableState.didDrag = false;
+      editableState.pressScreenCoords = this.getScreenCoords(event);
+      return;
+    }
+    if (
+      event.button !== 0 ||
+      editableState.didDrag ||
+      (event.type === 'click' && event.detail > 1)
+    ) {
+      return;
+    }
+    const screenCoords = this.getScreenCoords(event) as ScreenCoordinates;
+    const mapCoords = this.getMapCoords(screenCoords);
+    if (!mapCoords) return;
+    const pointerEvent = {
+      screenCoords,
+      mapCoords,
+      picks: this.getPicks(screenCoords),
+      sourceEvent: event
+    };
+    if (event.type === 'dblclick') {
+      this.onLayerDoubleClick(pointerEvent);
+    } else {
+      this.onLayerClick(pointerEvent);
+    }
+  }
+
   _ondblclick(event: MjolnirGestureEvent) {
     const basePointerEvent = this.toBasePointerEvent(event);
     if (!basePointerEvent) {
@@ -156,11 +210,18 @@ export abstract class EditableLayer<
   }
 
   _onpanstart(event: MjolnirGestureEvent) {
+    this.state._editableLayerState.didDrag = true;
     const basePointerEvent = this.toBasePointerEvent(event);
     if (!basePointerEvent) {
       return;
     }
-    const {picks, screenCoords, mapCoords} = basePointerEvent;
+    const screenCoords: ScreenCoordinates = this.state._editableLayerState.pressScreenCoords || [
+      basePointerEvent.screenCoords[0] - (event.deltaX || 0),
+      basePointerEvent.screenCoords[1] - (event.deltaY || 0)
+    ];
+    const mapCoords = this.getMapCoords(screenCoords);
+    if (!mapCoords) return;
+    const picks = this.getPicks(screenCoords);
 
     this.setState({
       _editableLayerState: {
@@ -226,7 +287,8 @@ export abstract class EditableLayer<
         ...this.state._editableLayerState,
         pointerDownScreenCoords: null,
         pointerDownMapCoords: null,
-        pointerDownPicks: null
+        pointerDownPicks: null,
+        pressScreenCoords: null
       }
     });
   }
@@ -274,11 +336,14 @@ export abstract class EditableLayer<
   }
 
   getScreenCoords(pointerEvent: any): Position {
+    const canvas = (this.state._editableLayerState.canvas ||
+      this.context.gl.canvas) as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / canvas.offsetWidth || 1;
+    const scaleY = rect.height / canvas.offsetHeight || 1;
     return [
-      pointerEvent.clientX -
-        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().left,
-      pointerEvent.clientY -
-        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().top
+      (pointerEvent.clientX - rect.left - canvas.clientLeft) / scaleX,
+      (pointerEvent.clientY - rect.top - canvas.clientTop) / scaleY
     ];
   }
 

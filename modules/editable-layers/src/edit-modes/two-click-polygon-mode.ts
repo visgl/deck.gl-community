@@ -38,7 +38,10 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
       return;
     }
 
-    this.addClickSequence(event);
+    // Anchor at pointer-down, before the pan recognizer's movement threshold.
+    // Discard any unfinished drag so it cannot offset the next rectangle.
+    this.resetClickSequence();
+    this.addClickSequence({...event, mapCoords: event.pointerDownMapCoords || event.mapCoords});
     event.cancelPan();
   }
 

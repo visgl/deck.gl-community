@@ -117,6 +117,14 @@ describe('dragToDraw=false', () => {
 });
 
 describe('dragToDraw=true', () => {
+  it('starts at pointer-down and discards an unfinished previous drag', () => {
+    const mode = new DrawRectangleMode();
+    const props = createFeatureCollectionProps({modeConfig: {dragToDraw: true}});
+    mode.handleStartDragging(createStartDraggingEvent([2, 3], [1, 2]), props);
+    expect(mode.getClickSequence()).toEqual([[1, 2]]);
+    mode.handleStartDragging(createStartDraggingEvent([8, 9], [7, 8]), props);
+    expect(mode.getClickSequence()).toEqual([[7, 8]]);
+  });
   it('sets tentative feature to a Polygon after start dragging', () => {
     const mode = new DrawRectangleMode();
 
