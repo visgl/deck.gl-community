@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `EditableGeoJsonLayer` supports `eventTarget` for overlaid MapLibre/Mapbox editing. Pass
+  `map.getCanvas()` when using `MapboxOverlay({interleaved: false})` to enable drawing and
+  handle dragging without changing the render canvas's pointer behavior. Input listeners
+  and touch styles are released when the target changes or the layer is removed.
+
 - `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
@@ -111,6 +116,13 @@ Highlights:
 
 - [`EditableGeoJsonLayer`](/docs/modules/editable-layers/api-reference/layers/editable-geojson-layer)
   now supports WebGPU, including polygon, path, and edit-handle picking.
+
+- Edit and selection modes now isolate primary gestures from an interleaved parent map
+  automatically. Set `autoPreventMapInteractions: false` for application-owned coordination.
+- Polygon drawing responds immediately to canvas clicks; rectangle selection excludes edit
+  handles and starts at the original pointer-down position.
+- Selection preserves application `guideType` properties. Single-finger editing remains
+  isolated after two-finger navigation, while map release and cancel events finish normally.
 
 ### `@deck.gl-community/geo-layers`
 

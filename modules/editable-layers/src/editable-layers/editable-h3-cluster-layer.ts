@@ -108,6 +108,7 @@ export class EditableH3ClusterLayer extends EditableLayer<any, EditableH3Cluster
           id: 'editable-geojson',
 
           mode: this.props.mode,
+          autoPreventMapInteractions: this.props.autoPreventMapInteractions,
           data: EMPTY_FEATURE_COLLECTION,
           selectedFeatureIndexes: [],
 

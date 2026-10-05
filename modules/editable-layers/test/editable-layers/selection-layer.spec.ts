@@ -114,3 +114,75 @@ test('rectangle selection retains deck.gl GPU picking', () => {
   expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: []});
   expect(updateLayers).not.toHaveBeenCalled();
 });
+
+test('rectangle selection excludes guides and deduplicates feature picks', () => {
+  const onSelect = vi.fn();
+  const feature = {
+    layer: {id: 'features'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
+  const layer = new SelectionLayer({id: 'selection', layerIds: ['features'], onSelect});
+  layer.context = {
+    viewport: {project: coordinates => coordinates},
+    deck: {
+      pickObjects: vi.fn(() => [
+        feature,
+        {layer: feature.layer, index: 3, isGuide: true},
+        {
+          layer: feature.layer,
+          index: 7,
+          isGuide: true,
+          object: {properties: {guideType: 'editHandle'}}
+        },
+        {...feature}
+      ])
+    }
+  } as any;
+  layer._selectRectangleObjects([
+    [
+      [10, 20],
+      [10, 40],
+      [30, 40],
+      [30, 20],
+      [10, 20]
+    ]
+  ]);
+  expect(onSelect).toHaveBeenCalledWith({pickingInfos: [feature]});
+});
+
+test('selection forwards the application interaction override to its editable sublayer', () => {
+  const layer = new SelectionLayer({id: 'selection', autoPreventMapInteractions: false});
+  layer.state = {selectionMask: [], isSelecting: false};
+  const editable = layer.renderLayers()[0];
+  expect(editable.props.autoPreventMapInteractions).toBe(false);
+});
+
+test('polygon GPU picks exclude guides and duplicates after the mask is initialized', () => {
+  const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
+  const feature = {
+    layer: {id: 'points'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
+  pickObjects.mockImplementation(() => {
+    expect(layer.state.isSelecting).toBe(true);
+    expect(updateLayers).toHaveBeenCalledOnce();
+    return [
+      feature,
+      {layer: feature.layer, index: 3, isGuide: true},
+      {
+        layer: feature.layer,
+        index: 7,
+        isGuide: true,
+        object: {properties: {guideType: 'editHandle'}}
+      },
+      {...feature},
+      {layer, index: 0}
+    ] as any;
+  });
+  layer._selectPolygonObjects(COORDINATES);
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: [feature]});
+  expect(layer.state.isSelecting).toBe(false);
+  expect(updateLayers).toHaveBeenCalledTimes(2);
+});

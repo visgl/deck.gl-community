@@ -128,6 +128,84 @@ test('toBasePointerEvent uses offsetCenter, not clientX/Y', () => {
   assertBasePointerEvent(result!, event);
 });
 
+test('native clicks are immediate, scale-aware, and forwarded to the current layer', () => {
+  const handlers = new Map<string, any[]>();
+  const canvas = {
+    offsetWidth: 128,
+    offsetHeight: 256,
+    clientLeft: 0,
+    clientTop: 0,
+    getBoundingClientRect: () => ({left: 50, top: 100, width: 256, height: 512}),
+    addEventListener: vi.fn((type, handler) => {
+      handlers.set(type, [...(handlers.get(type) || []), handler]);
+    }),
+    removeEventListener: vi.fn()
+  };
+  (mockContext.deck as any).getCanvas = () => canvas;
+  layer.initializeState();
+  const currentLayer = new TestEditableLayer();
+  currentLayer.context = mockContext as any;
+  currentLayer.state = layer.state;
+  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(currentLayer);
+  const click = vi.spyOn(currentLayer, 'onLayerClick');
+  const doubleClick = vi.spyOn(currentLayer, 'onLayerDoubleClick');
+  const mapInteraction = vi.spyOn(currentLayer, '_onNativeMapInteraction');
+  const event = {type: 'click', button: 0, detail: 1, clientX: 150, clientY: 300};
+  const dispatch = (type, event) => handlers.get(type)?.forEach(handler => handler(event));
+
+  expect(handlers.has('click')).toBe(true);
+  dispatch('pointerdown', {...event, type: 'pointerdown'});
+  dispatch('click', event);
+  expect(click).toHaveBeenCalledOnce();
+  expect(click.mock.calls[0][0].screenCoords).toEqual([50, 100]);
+
+  dispatch('click', {...event, detail: 2});
+  dispatch('dblclick', {...event, type: 'dblclick', detail: 2});
+  expect(click).toHaveBeenCalledOnce();
+  expect(doubleClick).toHaveBeenCalledOnce();
+  expect(mapInteraction).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({type: 'dblclick'})
+  );
+  expect(mapInteraction.mock.invocationCallOrder[0]).toBeLessThan(
+    doubleClick.mock.invocationCallOrder[0]
+  );
+  currentLayer.state._editableLayerState.didDrag = true;
+  dispatch('click', event);
+  expect(click).toHaveBeenCalledOnce();
+  dispatch('pointerdown', {...event, type: 'pointerdown'});
+  dispatch('click', event);
+  expect(click).toHaveBeenCalledTimes(2);
+  dispatch('click', {...event, button: 2});
+  expect(click).toHaveBeenCalledTimes(2);
+  layer.finalizeState();
+  for (const [type, listeners] of handlers) {
+    for (const listener of listeners) {
+      expect(canvas.removeEventListener).toHaveBeenCalledWith(type, listener);
+    }
+  }
+});
+
+test('pan start retains the press location before gesture recognition', () => {
+  const start = vi.spyOn(layer, 'onStartDragging');
+  const event = {...makeMockGestureEvent('panstart'), deltaX: 7, deltaY: 10};
+  layer._onpanstart(event);
+  expect(start.mock.calls[0][0].screenCoords).toEqual([50, 100]);
+  expect(start.mock.calls[0][0].pointerDownScreenCoords).toEqual([43, 90]);
+  expect(mockContext.viewport.unproject).toHaveBeenLastCalledWith([43, 90]);
+});
+
+test('a drag suppresses native clicks even when terrain picking misses', () => {
+  mockContext.layerManager.getLayers.mockReturnValue([
+    {id: 'terrain-source', props: {pickable: '3d'}}
+  ] as any);
+  mockContext.deck.pickObject.mockReturnValue(null);
+  layer._onpanstart(makeMockGestureEvent('panstart'));
+  expect(layer.state._editableLayerState.didDrag).toBe(true);
+  const click = vi.spyOn(layer, 'onLayerClick');
+  layer._onNativeClick({type: 'click', button: 0, detail: 1} as MouseEvent);
+  expect(click).not.toHaveBeenCalled();
+});
+
 test('getMapCoords strips Z from terrain pick coordinates', () => {
   mockContext.layerManager.getLayers.mockReturnValue([
     {id: 'terrain-source', props: {pickable: '3d'}}

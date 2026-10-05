@@ -450,6 +450,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
     this.setState({selectedFeatures});
   }
 
+  _isEditing(): boolean {
+    return Boolean(this.state.mode) && !(this.state.mode instanceof ViewMode);
+  }
+
   getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
     return {
       modeConfig: props.modeConfig,

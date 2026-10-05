@@ -93,6 +93,63 @@ export function GeometryEditor() {
 
 See the [getting-started example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/getting-started) for a complete runnable version.
 
+## MapLibre and Mapbox Interleaved Editing
+
+With `MapboxOverlay({interleaved: true})`, deck.gl and MapLibre/Mapbox share a canvas.
+`EditableGeoJsonLayer` automatically keeps primary mouse presses, double-clicks, and
+single-touch editing gestures from bubbling into the parent map while an edit mode is active.
+`SelectionLayer` applies the same behavior while rectangle or polygon selection is active.
+
+Choose `ViewMode` to return primary gestures to the map. Right-button navigation, wheel
+zoom, and gestures with multiple touches remain available. The layer does not disable
+map controls, so controls that the application disabled stay disabled.
+
+No application interaction helper is required:
+
+```ts
+const overlay = new MapboxOverlay({
+  interleaved: true,
+  layers: [new EditableGeoJsonLayer({
+    id: 'editable',
+    data,
+    mode: DrawPolygonMode,
+    selectedFeatureIndexes: [],
+    onEdit: ({updatedData}) => updateData(updatedData)
+  })]
+});
+map.addControl(overlay);
+```
+
+Set `autoPreventMapInteractions: false` on `EditableGeoJsonLayer` or `SelectionLayer`
+when the application already coordinates map gestures or intentionally lets edit gestures
+reach the parent map. This option only changes propagation to parent elements; edit-mode
+`event.cancelPan()` continues to coordinate deck.gl's own controller.
+
+## MapLibre and Mapbox Overlaid Editing
+
+With `MapboxOverlay({interleaved: false})`, the dedicated deck.gl render canvas does not
+receive pointer input. Set `eventTarget` on `EditableGeoJsonLayer` to the base map's canvas
+so drawing, pointer previews, and handle dragging receive native input:
+
+```ts
+const overlay = new MapboxOverlay({
+  interleaved: false,
+  layers: [new EditableGeoJsonLayer({
+    id: 'editable',
+    data,
+    mode: DrawPolygonMode,
+    eventTarget: map.getCanvas(),
+    selectedFeatureIndexes: [],
+    onEdit: ({updatedData}) => updateData(updatedData)
+  })]
+});
+map.addControl(overlay);
+```
+
+The input target is independent of the rendering canvas. Keep `eventTarget` in each replacement
+layer while editing, and choose `ViewMode` to return primary gestures to the map. Interleaved
+editing uses the shared canvas automatically and does not require this prop.
+
 ## Widgets
 
 `editable-layers` ships deck.gl widgets that provide editing UI without requiring you to build custom React components.

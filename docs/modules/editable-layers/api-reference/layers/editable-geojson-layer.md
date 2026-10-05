@@ -76,6 +76,42 @@ The `mode` property defines the mode used to handle user interaction events (e.g
 
 There are a extensive number of modes that come out-of-the-box with from '@deck.gl-community/editable-layers';. 
 
+#### `autoPreventMapInteractions` (Boolean, optional)
+
+- Default: `true`
+
+While an edit mode is active, keeps primary mouse presses, double-clicks, and single-touch
+editing gestures from bubbling from the canvas into a parent MapLibre/Mapbox map.
+`ViewMode`, right-button navigation, wheel zoom, and gestures with multiple touches are
+unaffected. Map handler enabled states are not changed.
+
+When two-finger navigation returns to one finger, the remaining finger's movement is
+reserved for editing. Release and cancel events still reach the map to finish navigation
+that already started.
+
+Set to `false` when the application coordinates map gestures itself. Edit-mode
+`event.cancelPan()` still coordinates deck.gl's own controller.
+
+#### `eventTarget` (HTMLElement, optional) {/* #eventtarget */}
+
+- Default: `null` (use deck.gl's render canvas)
+
+The element receiving editing input when it differs from the render canvas. For
+`MapboxOverlay({interleaved: false})`, pass `map.getCanvas()`. The overlaid deck.gl canvas
+ignores pointer input, while the map's own canvas receives clicks, pointer moves, and drags.
+The input element must align with the rendered viewport.
+
+```ts
+new EditableGeoJsonLayer({
+  // Other editing props...
+  eventTarget: map.getCanvas()
+});
+```
+
+Changing the target cancels an active drag and removes listeners from the previous element.
+Removing the layer also releases its input recognizer and restores the target's touch style.
+Map controls retain their enabled states; `ViewMode` permits normal map navigation.
+
 #### `modeConfig` (Object, optional)
 
 - Default: `null`
