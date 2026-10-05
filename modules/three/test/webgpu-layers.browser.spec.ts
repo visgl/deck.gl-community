@@ -58,9 +58,19 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
         layers: [
           new TreeLayer({
             id: `tree-${type}`,
-            data: [{position: [0, 0] as [number, number]}],
+            data: (['pine', 'oak', 'palm', 'birch', 'cherry'] as const).flatMap((species, i) =>
+              (['summer', 'winter'] as const).map(season => ({
+                position: [i * 0.00002, 0] as [number, number],
+                species,
+                season
+              }))
+            ),
             getPosition: datum => datum.position,
-            getTreeType: () => 'oak',
+            getTreeType: datum => datum.species,
+            getSeason: datum => datum.season,
+            getCrop: () => ({color: [210, 70, 40, 255], count: 2, droppedCount: 1, radius: 0.15}),
+            windStrength: 0.025,
+            windTime: 1.25,
             getHeight: () => 12,
             pickable: true
           })

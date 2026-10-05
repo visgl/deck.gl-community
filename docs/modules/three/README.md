@@ -1,15 +1,5 @@
-# Overview
+# @deck.gl-community/three
 
-![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square)
+Compatibility exports for `TreeLayer`. Import `TreeLayer`, `TreeLayerProps`, `TreeType`, `Season`, `CropConfig` and `TreeDetail` from `@deck.gl-community/layers` in new code. The legacy package re-exports the same native constructor and no longer depends on Three.js.
 
-A collection of deck.gl layers powered by [Three.js](https://threejs.org/), giving access to Three.js geometry primitives and scene graph tooling directly inside deck.gl visualisations.
-
-```bash
-npm install @deck.gl-community/three
-```
-
-## Layers
-
-| Layer | Description |
-|-------|-------------|
-| [`TreeLayer`](/docs/modules/three/api-reference/tree-layer) | Procedural 3D trees with 5 species silhouettes, season colours, and crop/fruit visualisation |
+See the [TreeLayer API](https://visgl.github.io/deck.gl-community/docs/modules/layers/api-reference/tree-layer) and [Tree Lab](https://visgl.github.io/deck.gl-community/examples/layers/tree-lab).

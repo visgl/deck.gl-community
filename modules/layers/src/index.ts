@@ -24,3 +24,12 @@ export {SkyboxLayer} from './skybox-layer/skybox-layer';
 
 export type {FlameTrailLayerProps} from './flame-trail-layer/flame-trail-layer';
 export {FlameTrailLayer} from './flame-trail-layer/flame-trail-layer';
+
+export {TreeLayer} from './tree-layer/tree-layer';
+export type {
+  TreeLayerProps,
+  TreeType,
+  Season,
+  CropConfig,
+  TreeDetail
+} from './tree-layer/tree-layer';

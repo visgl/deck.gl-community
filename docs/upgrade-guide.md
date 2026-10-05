@@ -6,6 +6,12 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+- Import `TreeLayer` and its types from `@deck.gl-community/layers` in new code;
+  `@deck.gl-community/three` still re-exports the same native constructor for compatibility.
+  `CropConfig.radius` now renders the actual radius in metres; halve an existing radius to keep
+  its old apparent size. Review changed crowns, winter branches and canopy sublayer overrides
+  against the [TreeLayer migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,

@@ -42,7 +42,8 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/editable-layers` | GeoJSON paths, polygons, and edit handles | ✅ | ✅ | Browser-verified `EditableGeoJsonLayer` rendering in `ModifyMode`, including the WebGPU picking-width shader path. |
 | `@deck.gl-community/editable-layers` | Editing and selection interactions | ✅ | 🚧 | Pointer, drag, snapping, and selection behavior still require browser interaction coverage on WebGPU. |
 | `@deck.gl-community/basemap-layers` | `BasemapLayer` | ✅ | 🚧 | Support depends on the selected style's polygon, path, and label sublayers. |
-| `@deck.gl-community/three` | `TreeLayer` | ✅ | ✅ | Browser-verified procedural Three.js geometry rendered through upstream `SimpleMeshLayer`. |
+| `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Native vis.gl meshes and GLSL/WGSL wind through `SimpleMeshLayer`. deck.gl shadow effects remain WebGL2-only. |
+| `@deck.gl-community/three` | `TreeLayer` compatibility export | ✅ | ✅ | Re-exports the native `TreeLayer` from `@deck.gl-community/layers`; no Three.js runtime dependency. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/bing-maps` | Bing Maps overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/widgets` | `DeviceManagerController` and `DeviceTabsWidget` | ✅ | ✅ | Selects and attaches an independently managed real rendering device. |

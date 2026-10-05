@@ -9,7 +9,7 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 import {FLAME_FUNCTIONS, FLAME_COLOR} from './flame-trail-layer-fragment';
 import {FLAME_VERTEX, FLAME_VERTEX_DECLARATIONS} from './flame-trail-layer-vertex';
 import {createFlameGeometry} from './flame-trail-geometry';
-import {getFlameInjectionsWGSL} from './flame-trail-layer.wgsl';
+import {getFlameInjectionsWGSL} from './flame-trail-layer.wgsl.js';
 
 /** TripsLayer's API, rendered as automatically animated flames. */
 export type FlameTrailLayerProps<DataT = unknown> = TripsLayerProps<DataT>;

@@ -2,5 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-export type {TreeLayerProps, TreeType, Season, CropConfig} from './tree-layer/tree-layer';
-export {TreeLayer} from './tree-layer/tree-layer';
+/** @deprecated Import TreeLayer from @deck.gl-community/layers. */
+export {TreeLayer} from '@deck.gl-community/layers';
+export type {
+  TreeLayerProps,
+  TreeType,
+  Season,
+  CropConfig,
+  TreeDetail
+} from '@deck.gl-community/layers';

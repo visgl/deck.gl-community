@@ -1,7 +1,7 @@
 {
   "name": "@deck.gl-community/three",
   "version": "9.4.2",
-  "description": "Three.js-powered layers for deck.gl",
+  "description": "Compatibility exports for TreeLayer; use @deck.gl-community/layers",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -38,14 +38,12 @@
     "test": "vitest run",
     "test-watch": "vitest"
   },
-  "dependencies": {
-    "three": "^0.170.0"
-  },
   "peerDependencies": {
+    "@deck.gl-community/layers": "~9.4.3",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/mesh-layers": "~9.4.0"
   },
   "devDependencies": {
-    "@types/three": "^0.170.0"
+    "@deck.gl-community/layers": "workspace:*"
   }
 }

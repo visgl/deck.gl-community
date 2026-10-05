@@ -189,7 +189,11 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   getSeason: FunctionSchema.optional(),
   getBranchLevels: FunctionSchema.optional(),
   getCrop: FunctionSchema.optional(),
-  sizeScale: z.number().nonnegative().optional()
+  sizeScale: z.number().nonnegative().optional(),
+  detail: z.enum(['low', 'medium', 'high']).optional(),
+  windStrength: z.number().nonnegative().optional(),
+  windTime: z.number().nullable().optional(),
+  shadowEnabled: z.boolean().optional()
 });
 
 /** JSON representation of TileSourceLayer. */

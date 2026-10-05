@@ -7,5 +7,10 @@ This module contains a suite of non-official deck.gl layers.
 
 They can be quite useful in applications, however they are not officially supported by the deck.gl team, so use at your own risk.
 
+[`TreeLayer`](../../docs/modules/layers/api-reference/tree-layer.md) renders instanced seasonal
+trees with native vis.gl geometry, shared detail presets and optional GPU wind on WebGL2 and
+WebGPU. Inspect original/native specimens and the recorded film in
+[Tree Lab](../../examples/layers/tree-lab/README.md).
+
 [`FlameTrailLayer`](../../docs/modules/layers/api-reference/flame-trail-layer.md) renders
 3D flames and embers with the TripsLayer API. It requires WebGL2.

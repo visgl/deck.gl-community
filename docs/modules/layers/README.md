@@ -32,6 +32,8 @@ Release date: 2023
 
 ## Exports
 
+- [`TreeLayer`](./api-reference/tree-layer.md) (WebGL2 and WebGPU)
+
 - [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
 - `DependencyArrowLayer`
 - `PathMarkerLayer`
@@ -44,6 +46,8 @@ Release date: 2023
 </p>
 
 ## Examples
+
+- [Tree Lab](/examples/layers/tree-lab)
 
 - [FlameTrailLayer](/examples/layers/flame-trail)
 - [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)

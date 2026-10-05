@@ -14,7 +14,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      '@deck.gl-community/three': path.resolve(__dirname, '../../../modules/three/src/index.ts')
+      '@deck.gl-community/three': path.resolve(__dirname, '../../../modules/three/src/index.ts'),
+      '@deck.gl-community/layers': path.resolve(__dirname, '../../../modules/layers/src/index.ts')
     }
   },
   server: {
