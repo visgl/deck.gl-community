@@ -35,6 +35,7 @@ export const EVENT_TYPES = [
   'panstart',
   'panmove',
   'panend',
+  'pancancel',
   'keyup',
   'dblclick'
 ];
@@ -276,6 +277,7 @@ export abstract class EditableLayer<
     this.state._editableLayerState.didDrag = true;
     const basePointerEvent = this.toBasePointerEvent(event);
     if (!basePointerEvent) {
+      this._onpancancel(event);
       return;
     }
     const screenCoords: ScreenCoordinates = this.state._editableLayerState.pressScreenCoords || [
@@ -343,8 +345,18 @@ export abstract class EditableLayer<
         pointerDownScreenCoords,
         pointerDownMapCoords
       });
+    } else {
+      this._onpancancel(event);
     }
 
+    this._resetPointerDownState();
+  }
+
+  _onpancancel(_event: MjolnirGestureEvent) {
+    this._resetPointerDownState();
+  }
+
+  _resetPointerDownState() {
     this.setState({
       _editableLayerState: {
         ...this.state._editableLayerState,
