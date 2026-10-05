@@ -12,10 +12,16 @@ import {RotateMode} from './rotate-mode';
 import {CompositeMode} from './composite-mode';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {SnappableMode} from './snappable-mode';
+import {SnappingStrategy} from './snapping/snapping-strategy';
 
 export class TransformMode extends CompositeMode {
   constructor() {
     super([new SnappableMode(new TranslateMode()), new ScaleMode(), new RotateMode()]);
+  }
+
+  /** Translation already applies its own snapping policy inside this composite. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
   }
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {

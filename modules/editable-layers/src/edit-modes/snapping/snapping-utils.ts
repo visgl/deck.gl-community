@@ -15,7 +15,8 @@ import {
   Feature,
   SimpleFeatureCollection,
   SimpleFeature,
-  SimpleGeometry
+  SimpleGeometry,
+  Position
 } from '../../utils/geojson-types';
 import {
   getPickedEditHandle,
@@ -77,18 +78,15 @@ export function getPickedSnapTargetEditHandle(
   );
 }
 
-/**
- * Snaps a click event to the picked snap-target handle, stripping the snap-target
- * pick(s) so the wrapped mode does not see it.
- */
+/** Snaps a click to the current target and removes target picks before forwarding. */
 export function snapClickEventToPickedTarget(
   event: ClickEvent,
   props?: ModeProps<SimpleFeatureCollection>,
   excludedFeatureIndexes: number[] = []
 ): ClickEvent {
+  const snapTarget = getCurrentSnapTarget(event, props, excludedFeatureIndexes);
   const pickedTarget = getPickedSnapTargetEditHandle(event.picks);
-  if (!pickedTarget) return event;
-  const snapTarget = getCurrentSnapTarget(event, pickedTarget, props, excludedFeatureIndexes);
+  if (!snapTarget && !pickedTarget) return event;
   return {
     ...event,
     mapCoords: snapTarget?.geometry.coordinates ?? event.mapCoords,
@@ -102,20 +100,17 @@ export function snapMovementEventToPickedTarget<T extends MovementEvent>(
   props?: ModeProps<SimpleFeatureCollection>,
   excludedFeatureIndexes: number[] = []
 ): T {
-  const pickedTarget = getPickedSnapTargetEditHandle(event.picks);
-  if (!pickedTarget) return event;
-  const snapTarget = getCurrentSnapTarget(event, pickedTarget, props, excludedFeatureIndexes);
+  const snapTarget = getCurrentSnapTarget(event, props, excludedFeatureIndexes);
   return snapTarget ? {...event, mapCoords: snapTarget.geometry.coordinates} : event;
 }
 
 function getCurrentSnapTarget(
   event: BasePointerEvent,
-  pickedTarget: EditHandleFeature,
   props: ModeProps<SimpleFeatureCollection> | undefined,
   excludedFeatureIndexes: number[]
 ): EditHandleFeature | undefined {
-  if (!props?.modeConfig?.edgeSnapping) return pickedTarget;
-  // Dynamic edge markers were picked from the previous rendered frame.
+  if (!props?.modeConfig?.viewport) return getPickedSnapTargetEditHandle(event.picks) ?? undefined;
+  // Query the raw current position even before a guide has been rendered or picked.
   return getClosestSnapTargetHandle(
     {...props, lastPointerMoveEvent: {...props.lastPointerMoveEvent, ...event} as PointerMoveEvent},
     excludedFeatureIndexes
@@ -223,21 +218,72 @@ export function getClosestSnapTargetHandle(
   excludedFeatureIndexes: number[]
 ): EditHandleFeature | undefined {
   const screenCoords = props.lastPointerMoveEvent?.screenCoords;
-  const {pickingRadius, modeConfig: {viewport} = {}} = props;
+  const {pickingRadius} = props;
+  const viewport = props.modeConfig?.viewport;
   if (!screenCoords || !viewport || pickingRadius === undefined) {
     return undefined;
   }
   const wmViewport = toWebMercatorViewport(viewport);
   const [cx, cy] = screenCoords;
-  let closest: EditHandleFeature | undefined;
+  if (!Number.isFinite(pickingRadius) || pickingRadius < 0) return undefined;
+  let closestCoordinates: Position | undefined;
+  let closestFeatureIndex = -1;
+  let closestPositionIndexes: number[] = [];
   let minDist = Infinity;
-  for (const handle of getSnapTargetHandles(props, excludedFeatureIndexes)) {
-    const [px, py] = wmViewport.project(handle.geometry.coordinates);
-    const dist = distance2d(cx, cy, px, py);
-    if (dist <= pickingRadius && dist < minDist) {
-      closest = handle;
-      minDist = dist;
+  const excluded = new Set(excludedFeatureIndexes);
+  const additional = props.modeConfig?.additionalSnapTargets || [];
+  const dataCount = props.data.features.length;
+
+  for (let i = 0; i < dataCount + additional.length; i++) {
+    if (excluded.has(i)) continue;
+    const feature = i < dataCount ? props.data.features[i] : additional[i - dataCount];
+    if (!feature?.geometry || feature.geometry.type === 'GeometryCollection') continue;
+    const geometry = feature.geometry as SimpleGeometry;
+    const path: number[] = [];
+    const visit = (coordinates: any[]) => {
+      if (typeof coordinates[0] === 'number') {
+        const [px, py] = wmViewport.project(coordinates);
+        const dist = distance2d(cx, cy, px, py);
+        if (dist <= pickingRadius && dist < minDist) {
+          closestCoordinates = coordinates;
+          closestFeatureIndex = i;
+          closestPositionIndexes = [...path];
+          minDist = dist;
+        }
+        return;
+      }
+      const ring =
+        (geometry.type === 'Polygon' && path.length === 1) ||
+        (geometry.type === 'MultiPolygon' && path.length === 2);
+      const length = coordinates.length - (ring ? 1 : 0);
+      for (let j = 0; j < length; j++) {
+        path.push(j);
+        visit(coordinates[j]);
+        path.pop();
+      }
+    };
+    visit(geometry.coordinates);
+    if (props.modeConfig?.edgeSnapping) {
+      const edge = findEdgeSnapCandidateForFeature(feature, i, props, wmViewport);
+      if (edge && edge.screenDistance < minDist) {
+        closestCoordinates = edge.geometry.coordinates;
+        closestFeatureIndex = i;
+        closestPositionIndexes = [];
+        minDist = edge.screenDistance;
+      }
     }
   }
-  return closest;
+  // Allocate a guide only for the winning candidate, rather than for every vertex.
+  return closestCoordinates
+    ? {
+        type: 'Feature',
+        geometry: {type: 'Point', coordinates: closestCoordinates},
+        properties: {
+          guideType: 'editHandle',
+          editHandleType: 'snap-target',
+          featureIndex: closestFeatureIndex,
+          positionIndexes: closestPositionIndexes
+        }
+      }
+    : undefined;
 }

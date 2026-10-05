@@ -14,7 +14,7 @@ import {SnappingStrategy} from './snapping-strategy';
 
 /**
  * Snapping strategy for draw modes (DrawPolygonMode, DrawLineStringMode, etc.).
- * Snapping is always active: the pointer freely snaps to the nearest target vertex as it moves, and clicks are snapped to picked targets.
+ * Snapping is always active: the pointer freely snaps to the nearest target vertex as it moves, and clicks use the current nearest target.
  */
 export class ClickSnappingStrategy implements SnappingStrategy {
   snapClickEvent(props: ModeProps<SimpleFeatureCollection>, event: ClickEvent): ClickEvent {

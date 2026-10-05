@@ -256,16 +256,20 @@ describe('snapping review regressions', () => {
     props.modeConfig.edgeSnapping = false;
     props.modeConfig.enableSnapping = enabled;
     const raw = Object.freeze(
-      createPointerMoveEvent([5, 1], [{index: 0, isGuide: true, object: handle([0, 0])}], [55, 49])
+      createPointerMoveEvent(
+        [0.5, 1],
+        [{index: 0, isGuide: true, object: handle([0, 0])}],
+        [50.5, 49]
+      )
     );
     props.lastPointerMoveEvent = raw;
     const mode = new SnappableMode(new DrawPointMode());
     mode.handlePointerMove(raw, props);
     expect(
       vi.mocked(props.onEdit).mock.calls[0][0].editContext.feature.geometry.coordinates
-    ).toEqual(enabled ? [0, 0] : [5, 1]);
+    ).toEqual(enabled ? [0, 0] : [0.5, 1]);
     expect(props.lastPointerMoveEvent).toBe(raw);
-    expect(raw.mapCoords).toEqual([5, 1]);
+    expect(raw.mapCoords).toEqual([0.5, 1]);
   });
 
   test('measurement tooltips use the same snapped position as guides', () => {
@@ -274,8 +278,9 @@ describe('snapping review regressions', () => {
     props.modeConfig.edgeSnapping = false;
     mode.handleClick(createClickEvent([10, 0]), props);
     props.lastPointerMoveEvent = createPointerMoveEvent(
-      [5, 1],
-      [{index: 0, isGuide: true, object: handle([0, 0])}]
+      [0.4, 0.4],
+      [{index: 0, isGuide: true, object: handle([0, 0])}],
+      [50.4, 49.6]
     );
     const tips = mode.getTooltips(props);
     expect(tips[0].position).toEqual([0, 0]);

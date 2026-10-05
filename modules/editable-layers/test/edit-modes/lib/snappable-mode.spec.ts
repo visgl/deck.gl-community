@@ -7,9 +7,9 @@ import {SnappableMode} from '../../../src/edit-modes/snappable-mode';
 import {DrawPointMode} from '../../../src/edit-modes/draw-point-mode';
 import {
   createFeatureCollectionProps,
-  createClickEvent,
-  createPointerMoveEvent,
-  createStartDraggingEvent
+  createClickEvent as createRawClickEvent,
+  createPointerMoveEvent as createRawPointerMoveEvent,
+  createStartDraggingEvent as createRawStartDraggingEvent
 } from '../test-utils';
 import {viewport} from '../../mocks';
 import {SimpleFeatureCollection, FeatureCollection} from '../../../src/utils/geojson-types';
@@ -24,6 +24,22 @@ import {toWebMercatorViewport} from '../../../src/edit-modes/utils';
 
 const pickingRadius = 10;
 const webMercatorViewport = toWebMercatorViewport(viewport);
+
+// Actual pointer events carry screen coordinates matching the raw map position.
+const screenFor = (position: number[]) =>
+  webMercatorViewport.project(position).slice(0, 2) as [number, number];
+const createClickEvent = (...args: Parameters<typeof createRawClickEvent>) => ({
+  ...createRawClickEvent(...args),
+  screenCoords: screenFor(args[0])
+});
+const createPointerMoveEvent = (...args: Parameters<typeof createRawPointerMoveEvent>) =>
+  createRawPointerMoveEvent(
+    args[0],
+    args[1],
+    args[2] ?? (args[0] ? screenFor(args[0]) : undefined)
+  );
+const createStartDraggingEvent = (...args: Parameters<typeof createRawStartDraggingEvent>) =>
+  createRawStartDraggingEvent(args[0], args[1], args[2], args[3] ?? screenFor(args[0]));
 
 const pointAScreenCoords: [number, number] = [0, 0];
 const pointAMapCoords = webMercatorViewport.unproject(pointAScreenCoords) as [number, number];
@@ -300,8 +316,8 @@ describe('draw point mode', () => {
     const mockOnEdit = vi.fn();
     const props = {...defaultProps, onEdit: mockOnEdit};
 
-    // Click slightly off the snap target — picks contain the snap-target handle
-    mode.handleClick(createClickEvent(snapToAMapCoords, [targetPick]), props);
+    // Click slightly off C with its rendered target handle picked.
+    mode.handleClick(createClickEvent(snapToCMapCoords, [targetPick]), props);
 
     expect(mockOnEdit).toHaveBeenCalledTimes(1);
     const addedFeature = mockOnEdit.mock.calls[0][0].updatedData.features.at(-1);

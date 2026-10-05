@@ -671,6 +671,22 @@ export class EditableGeoJsonLayer extends EditableLayer<
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
   }
 
+  _resetPointerDownState(): void {
+    super._resetPointerDownState();
+    const previousMove = this.state.lastPointerMoveEvent;
+    if (previousMove) {
+      this.setState({
+        lastPointerMoveEvent: {
+          ...previousMove,
+          pointerDownPicks: null,
+          pointerDownMapCoords: null,
+          pointerDownScreenCoords: null,
+          isDragging: false
+        }
+      });
+    }
+  }
+
   onPointerMove(event: PointerMoveEvent): void {
     if (!isPrimaryButtonEvent(event)) {
       return;

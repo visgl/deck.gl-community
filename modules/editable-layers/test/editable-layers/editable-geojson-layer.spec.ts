@@ -127,3 +127,15 @@ test.each([0, 3])('movement with buttons=%i and non-primary release cannot edit'
   expect(mode.handleStopDragging).not.toHaveBeenCalled();
   expect(layer.state.isDraggingWithPrimaryButton).toBe(false);
 });
+
+test('drag completion clears pointer-down picks from cached move props without another move', () => {
+  const {layer} = createGestureLayer();
+  layer._onpanstart(createGestureEvent());
+  layer._onpointermove(createGestureEvent());
+  const previousMove = layer.state.lastPointerMoveEvent;
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+  layer._onpanend(createGestureEvent());
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toBeNull();
+  expect(layer.state.lastPointerMoveEvent.pointerDownMapCoords).toBeNull();
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+});

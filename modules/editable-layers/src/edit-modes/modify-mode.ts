@@ -194,6 +194,13 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
     const editHandleProperties = editHandle.properties;
     const editedFeature = props.data.features[editHandleProperties.featureIndex];
 
+    if (
+      !editedFeature ||
+      !props.selectedIndexes.includes(editHandleProperties.featureIndex) ||
+      !['existing', 'intermediate'].includes(editHandleProperties.editHandleType)
+    )
+      return;
+
     let updatedData;
     if (props.modeConfig?.lockRectangles && editedFeature.properties.shape === 'Rectangle') {
       const coordinates = updateRectanglePosition(

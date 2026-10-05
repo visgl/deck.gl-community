@@ -141,3 +141,8 @@ class NoSnappingPointMode extends EditableLayers.DrawPointMode {
   }
 }
 new EditableLayers.SnappableMode(new NoSnappingPointMode());
+
+// Legacy public wrapper inspection and replacement remain valid for strict consumers.
+const legacyWrapper = new EditableLayers.SnappableMode(new CustomMode());
+const legacyHandler: EditableLayers.GeoJsonEditMode = legacyWrapper._handler;
+legacyWrapper._handler = legacyHandler;

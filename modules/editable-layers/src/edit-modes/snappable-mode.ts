@@ -22,7 +22,7 @@ type SnappableGeoJsonEditMode = GeoJsonEditMode & Partial<SnappableEditMode>;
 
 /** Wraps a GeoJSON edit mode with mode-specific snapping policies. */
 export class SnappableMode extends GeoJsonEditMode {
-  _wrappedMode: SnappableGeoJsonEditMode;
+  _wrappedMode!: SnappableGeoJsonEditMode;
   _strategy: SnappingStrategy | undefined;
 
   /**
@@ -31,6 +31,16 @@ export class SnappableMode extends GeoJsonEditMode {
    */
   constructor(handler: SnappableGeoJsonEditMode) {
     super();
+    this._handler = handler;
+  }
+
+  /** @deprecated Use _wrappedMode to inspect the wrapped mode. */
+  get _handler(): SnappableGeoJsonEditMode {
+    return this._wrappedMode;
+  }
+
+  /** @deprecated Retained for compatibility with existing wrapper consumers. */
+  set _handler(handler: SnappableGeoJsonEditMode) {
     this._wrappedMode = handler;
     this._strategy = handler.getSnappingStrategy
       ? handler.getSnappingStrategy()
@@ -59,7 +69,11 @@ export class SnappableMode extends GeoJsonEditMode {
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
-    this._wrappedMode.handleStartDragging(event, props);
+    const snappedEvent =
+      props.modeConfig?.enableSnapping && this._strategy
+        ? this._strategy.snapMovementEvent(props, event)
+        : event;
+    this._wrappedMode.handleStartDragging(snappedEvent, props);
   }
 
   handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

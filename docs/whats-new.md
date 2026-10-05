@@ -3,7 +3,8 @@
 ## Unreleased
 
 - `SnappableMode` adds optional edge snapping and mode-specific click, drag, and source-handle
-  strategies for drawing and editing. Existing custom wrappers remain supported. Edge proximity
+  strategies for drawing and editing. Initial clicks and drag-to-draw corners resolve targets before a guide is rendered.
+  Existing custom wrappers remain supported. Edge proximity
   is measured in screen pixels, including Cartesian views and bounded elevated segments.
 
 - `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives

@@ -38,8 +38,10 @@ export class SourceSnappingStrategy implements SnappingStrategy {
       return event;
     }
 
+    const snapped = snapMovementEventToPickedTarget(event, props, props.selectedIndexes);
+    if (snapped === event) return event;
     return {
-      ...snapMovementEventToPickedTarget(event, props, props.selectedIndexes),
+      ...snapped,
       pointerDownMapCoords: snapSource.geometry.coordinates
     };
   }

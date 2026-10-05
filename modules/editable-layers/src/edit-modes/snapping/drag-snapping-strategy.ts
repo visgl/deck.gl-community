@@ -19,6 +19,7 @@ import {SnappingStrategy} from './snapping-strategy';
  */
 export class DragSnappingStrategy implements SnappingStrategy {
   snapClickEvent(props: ModeProps<SimpleFeatureCollection>, event: ClickEvent): ClickEvent {
+    if (!getPickedEditHandle(props.lastPointerMoveEvent?.pointerDownPicks)) return event;
     return snapClickEventToPickedTarget(
       event,
       props,
@@ -32,6 +33,7 @@ export class DragSnappingStrategy implements SnappingStrategy {
     props: ModeProps<SimpleFeatureCollection>,
     event: T
   ): T {
+    if (!getPickedEditHandle(props.lastPointerMoveEvent?.pointerDownPicks)) return event;
     return snapMovementEventToPickedTarget(
       event,
       props,

@@ -46,7 +46,11 @@ Custom modes can implement `SnappableEditMode.getSnappingStrategy()` to choose
 `ClickSnappingStrategy`, `DragSnappingStrategy`, or `SourceSnappingStrategy`; returning
 `undefined` disables snapping. Strategy methods accept `ModeProps<SimpleFeatureCollection>`.
 Enable edge targets with `modeConfig.edgeSnapping` and supply the current viewport.
-`pickingRadius` controls the pixel threshold. `TransformMode` supports snapping directly.
+`pickingRadius` controls the pixel threshold. Events resolve the target from the current screen
+position, including the first touch click and the first corner of drag-to-draw shapes; an existing
+rendered target guide is not required. Source drags keep the real pointer-down origin until a target
+qualifies. `TransformMode` supports snapping directly and remains safe to wrap without duplicate
+snap guides. The legacy `SnappableMode._handler` inspection/replacement property remains available.
 
 #### SelectionLayer polygon selection
 
