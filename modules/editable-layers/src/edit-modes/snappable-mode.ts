@@ -22,6 +22,7 @@ import {GeoJsonEditMode} from './geojson-edit-mode';
 
 type MovementTypeEvent = PointerMoveEvent | StartDraggingEvent | StopDraggingEvent | DraggingEvent;
 
+/** Wraps a GeoJSON edit mode with snapping for SimpleFeatureCollection data. */
 export class SnappableMode extends GeoJsonEditMode {
   _handler: GeoJsonEditMode;
 

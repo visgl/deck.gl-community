@@ -21,3 +21,6 @@ export {
 
 export type {SkyboxLayerProps} from './skybox-layer/skybox-layer';
 export {SkyboxLayer} from './skybox-layer/skybox-layer';
+
+export type {FlameTrailLayerProps} from './flame-trail-layer/flame-trail-layer';
+export {FlameTrailLayer} from './flame-trail-layer/flame-trail-layer';

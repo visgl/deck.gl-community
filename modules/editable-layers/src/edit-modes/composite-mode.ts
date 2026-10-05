@@ -15,6 +15,7 @@ import {
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
+/** Combines GeoJSON edit modes that share SimpleFeatureCollection data. */
 export class CompositeMode extends GeoJsonEditMode {
   _modes: Array<GeoJsonEditMode>;
 

@@ -17,8 +17,10 @@ import {
   OmniBoxWidget,
   type OmniBoxOption,
   type OmniBoxOptionProvider,
+  type OmniBoxOptionSorter,
   type OmniBoxRenderOptionArgs,
-  type OmniBoxResultsSummaryArgs
+  type OmniBoxResultsSummaryArgs,
+  type OmniBoxResultsState
 } from '@deck.gl-community/widgets';
 ```
 
@@ -37,6 +39,10 @@ export type OmniBoxOptionProvider =
   | ((query: string) => Promise<ReadonlyArray<OmniBoxOption>>)
   | ((query: string) => ReadonlyArray<OmniBoxOption>);
 
+export type OmniBoxOptionSorter = (
+  options: ReadonlyArray<OmniBoxOption>
+) => ReadonlyArray<OmniBoxOption>;
+
 export type OmniBoxRenderOptionArgs = {
   option: OmniBoxOption;
   index: number;
@@ -49,6 +55,14 @@ export type OmniBoxResultsSummaryArgs = {
   readonly options: ReadonlyArray<OmniBoxOption>;
   readonly mode: 'search' | 'command' | 'history';
 };
+
+export type OmniBoxResultsState = {
+  readonly query: string;
+  readonly options: ReadonlyArray<OmniBoxOption>;
+  readonly mode: 'search' | 'command' | 'history';
+  readonly isLoading: boolean;
+  readonly isOpen: boolean;
+};
 ```
 
 ## Props
@@ -58,6 +72,8 @@ type OmniBoxWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   placeholder?: string;
   minQueryLength?: number;
+  searchDebounceMs?: number;
+  searchRefreshKey?: unknown;
   defaultOpen?: boolean;
   closeOnSelect?: boolean;
   rememberQueries?: boolean;
@@ -66,12 +82,14 @@ type OmniBoxWidgetProps = WidgetProps & {
   showAnchorButton?: boolean;
   topOffsetPx?: number;
   getOptions?: OmniBoxOptionProvider;
+  sortOptions?: OmniBoxOptionSorter;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
   renderResultsSummary?: (args: OmniBoxResultsSummaryArgs) => ComponentChildren;
   onSelectOption?: (option: OmniBoxOption) => void;
   onActiveOptionChange?: (option: OmniBoxOption | null) => void;
   onNavigateOption?: (option: OmniBoxOption) => void;
   onQueryChange?: (query: string) => void;
+  onResultsStateChange?: (state: OmniBoxResultsState) => void;
 };
 ```
 
@@ -85,10 +103,14 @@ const widget = new OmniBoxWidget({
   rememberQueries: true,
   queryHistoryStorageKey: 'example-search-history',
   minQueryLength: 1,
+  searchDebounceMs: 120,
+  searchRefreshKey: itemCatalogVersion,
   getOptions: (query) => searchItems(query),
+  sortOptions: (options) => options.slice(0, 20),
   renderResultsSummary: ({options}) => `${options.length} matches`,
   onSelectOption: (option) => selectItem((option.data as any).id),
-  onNavigateOption: (option) => previewItem((option.data as any).id)
+  onNavigateOption: (option) => previewItem((option.data as any).id),
+  onResultsStateChange: (state) => updateSearchStatus(state)
 });
 ```
 
@@ -100,6 +122,11 @@ This widget is intentionally generic. Callers provide search options, selection 
 
 - Renders a floating search input centered near the top of the deck canvas.
 - Supports sync or async option providers.
+- Can debounce ordinary option providers while command suggestions remain immediate.
+- Rejects late async results after the query changes.
+- Can rerun the current query when `searchRefreshKey` changes.
+- Can reorder or bound ordinary results with `sortOptions`.
+- Can publish the current dropdown/loading state through `onResultsStateChange`.
 - Caps the dropdown to 4 visible rows and makes it scrollable beyond that.
 - Includes built-in `<` and `>` navigation controls for cycling the active option.
 - Opens and focuses from `/` when focus is not already inside an editable element.

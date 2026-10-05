@@ -68,27 +68,27 @@ Explicitly provided options still win over source metadata.
 
 ### Constructor Props
 
-#### `getTileData` (`Function`, optional) {#gettiledata}
+#### `getTileData` (`Function`, optional) {/* #gettiledata */}
 
 Tile payload loader used when not backing the tileset with a `TileSource`.
 
-#### `tileSource` (`TileSource`, optional) {#tilesource}
+#### `tileSource` (`TileSource`, optional) {/* #tilesource */}
 
 loaders.gl tile source used for both metadata and tile loading.
 
-#### `extent` (`number[4] | null`, optional) {#extent}
+#### `extent` (`number[4] | null`, optional) {/* #extent */}
 
 Bounding box limiting tile generation.
 
-#### `tileSize` (`number`, optional) {#tilesize}
+#### `tileSize` (`number`, optional) {/* #tilesize */}
 
 Tile size in pixels. Defaults to `512`.
 
-#### `minZoom` / `maxZoom` (`number | null`, optional) {#zoom-bounds}
+#### `minZoom` / `maxZoom` (`number | null`, optional) {/* #zoom-bounds */}
 
 Zoom bounds used during tile selection.
 
-#### `maxCacheSize` / `maxCacheByteSize` (`number | null`, optional) {#cache-bounds}
+#### `maxCacheSize` / `maxCacheByteSize` (`number | null`, optional) {/* #cache-bounds */}
 
 Cache limits for retained tiles.
 
@@ -97,35 +97,35 @@ Cache limits for retained tiles.
 - Eviction uses least-recently-used order among tiles that are neither visible nor selected by any attached consumer.
 - If every cached tile is still visible, the cache may temporarily remain above the high-water mark.
 
-#### `maxRequests` / `debounceTime` (`number`, optional) {#request-options}
+#### `maxRequests` / `debounceTime` (`number`, optional) {/* #request-options */}
 
 Request scheduling controls for tile loading.
 
-#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never' | Function`, optional) {#refinementstrategy}
+#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never' | Function`, optional) {/* #refinementstrategy */}
 
 Placeholder strategy used by attached `SharedTile2DView` consumers.
 
 ### Instance Members
 
-#### `tiles` {#tiles}
+#### `tiles` {/* #tiles */}
 
 Current contents of the shared tile cache.
 
-#### `cacheByteSize` {#cachebytesize}
+#### `cacheByteSize` {/* #cachebytesize */}
 
 Estimated byte size of loaded content currently retained in cache.
 
-#### `visibleTiles` / `selectedTiles` {#shared-visible-selected-tiles}
+#### `visibleTiles` / `selectedTiles` {/* #shared-visible-selected-tiles */}
 
 Union views of tiles tracked across all attached consumers.
 
 `visibleTiles` includes unloaded selected tiles so UI counters can reflect pending visibility as view state changes.
 
-#### `loadingTiles` / `unloadedTiles` {#loading-unloaded-tiles}
+#### `loadingTiles` / `unloadedTiles` {/* #loading-unloaded-tiles */}
 
 Current subsets of cached tiles that are loading or not yet loaded.
 
-#### `stats` {#stats}
+#### `stats` {/* #stats */}
 
 Live [`Stats`](https://github.com/visgl/probe.gl/tree/master/modules/stats) object from `@probe.gl/stats`.
 
@@ -139,11 +139,11 @@ The shared tileset currently populates:
 - `Unloaded Tiles` (cumulative evictions)
 - `Consumers`
 
-#### `minZoom` / `maxZoom` {#resolved-zoom-bounds}
+#### `minZoom` / `maxZoom` {/* #resolved-zoom-bounds */}
 
 Resolved zoom bounds after metadata overrides are applied.
 
-#### `subscribe(listener)` {#subscribe}
+#### `subscribe(listener)` {/* #subscribe */}
 
 Subscribes to tile load, unload, error, stats-change, and metadata update notifications.
 
@@ -156,15 +156,15 @@ The listener may provide:
 - `onError`
 - `onStatsChange`
 
-#### `setOptions(opts)` {#setoptions}
+#### `setOptions(opts)` {/* #setoptions */}
 
 Updates runtime configuration and reapplies `TileSource` metadata overrides.
 
-#### `reloadAll()` {#reloadall}
+#### `reloadAll()` {/* #reloadall */}
 
 Marks retained cached tiles stale so they reload on the next traversal.
 
-#### `finalize()` {#finalize}
+#### `finalize()` {/* #finalize */}
 
 Aborts in-flight requests and clears the shared cache.
 

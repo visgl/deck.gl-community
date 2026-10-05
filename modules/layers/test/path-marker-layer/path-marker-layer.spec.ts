@@ -6,7 +6,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {PathMarkerLayer} from '../../src/path-marker-layer/path-marker-layer';
 
-import type {UpdateParameters} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, type UpdateParameters} from '@deck.gl/core';
 
 type Datum = {
   path: [number, number][];
@@ -20,6 +20,7 @@ type TestablePathMarkerLayer = PathMarkerLayer<Datum> & {
   context: {
     viewport: {
       projectFlat: (position: [number, number]) => [number, number];
+      metersToLngLatDelta?: (position: [number, number]) => [number, number];
     };
   };
   state: {
@@ -81,6 +82,33 @@ function updateLayer(
 }
 
 describe('PathMarkerLayer', () => {
+  it('projects meter offsets directly when the viewport has no geospatial conversion', () => {
+    const layer = makeLayer(() => [0.5]);
+
+    expect(
+      layer.projectFlat(
+        [10, 20],
+        layer.context.viewport,
+        COORDINATE_SYSTEM.METER_OFFSETS,
+        [100, 200]
+      )
+    ).toEqual([1100, 220]);
+  });
+
+  it('uses viewport meter conversion when available', () => {
+    const layer = makeLayer(() => [0.5]);
+    layer.context.viewport.metersToLngLatDelta = ([x, y]) => [x / 100, y / 100];
+
+    expect(
+      layer.projectFlat(
+        [10, 20],
+        layer.context.viewport,
+        COORDINATE_SYSTEM.METER_OFFSETS,
+        [100, 200]
+      )
+    ).toEqual([1001, 200.2]);
+  });
+
   it('rebuilds screen-space markers when the viewport changes', () => {
     const getMarkerPercentages = vi.fn((_object: Datum, {lineLength}: {lineLength: number}) =>
       lineLength > 100 ? [0.25, 0.75] : [0.5]

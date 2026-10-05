@@ -337,19 +337,14 @@ export function mountGraphViewerExample(
     },
     darkModeTheme: {
       ...DarkTheme
+    },
+    onThemeModeChange(themeMode) {
+      if (state.themeMode !== themeMode) {
+        state.themeMode = themeMode;
+        syncWidgets();
+      }
     }
-  }) as ThemeWidget & {
-    _applyTheme: (themeMode: 'light' | 'dark') => void;
-    themeMode: 'light' | 'dark';
-  };
-  const originalApplyTheme = themeWidget._applyTheme.bind(themeWidget);
-  themeWidget._applyTheme = (themeMode: 'light' | 'dark') => {
-    originalApplyTheme(themeMode);
-    if (state.themeMode !== themeMode) {
-      state.themeMode = themeMode;
-      syncWidgets();
-    }
-  };
+  });
   const sidebarWidget = new SidebarPanelWidget({
     id: 'graph-viewer-sidebar',
     placement: 'top-right',

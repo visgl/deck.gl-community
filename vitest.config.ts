@@ -1,10 +1,29 @@
+import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {defineConfig} from 'vitest/config';
 import {playwright} from '@vitest/browser-playwright';
 import react from '@vitejs/plugin-react';
 
+// Exercise unreleased terrain support against an explicit deck.gl checkout.
+const DECK_GL_SOURCE = process.env.DECK_GL_SOURCE;
+const TERRAIN_ALIASES = DECK_GL_SOURCE
+  ? ['core', 'layers', 'extensions', 'geo-layers', 'mesh-layers'].map(name => ({
+      find: `@deck.gl/${name}`,
+      replacement: resolve(DECK_GL_SOURCE, 'modules', name, 'src/index.ts')
+    }))
+  : [];
+
 const ALIASES = [
+  ...TERRAIN_ALIASES,
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
+  {
+    find: /^@deck\.gl-community\/playground$/,
+    replacement: fileURLToPath(new URL('./modules/playground/src/index.ts', import.meta.url))
+  },
+  {
+    find: '@deck.gl-community/three',
+    replacement: fileURLToPath(new URL('./modules/three/src/index.ts', import.meta.url))
+  },
   {
     find: '@deck.gl-community/basemap-layers/style-spec',
     replacement: fileURLToPath(
@@ -37,15 +56,7 @@ const ALIASES = [
   },
   {
     find: /^@deck\.gl-community\/timeline-layers$/,
-    replacement: fileURLToPath(new URL('./dev/timeline-layers/src/index.ts', import.meta.url))
-  },
-  {
-    find: /^@deck\.gl-community\/trace-layers\/(.+)$/,
-    replacement: fileURLToPath(new URL('./modules/trace-layers/src/$1', import.meta.url))
-  },
-  {
-    find: /^@deck\.gl-community\/trace-layers$/,
-    replacement: fileURLToPath(new URL('./modules/trace-layers/src/index.ts', import.meta.url))
+    replacement: fileURLToPath(new URL('./modules/timeline-layers/src/index.ts', import.meta.url))
   },
   {
     find: '@deck.gl-community/basemaps/style-spec',
@@ -73,15 +84,39 @@ const NODE_RESOLVE_CONFIG = {
 
 const BROWSER_RESOLVE_CONFIG = {
   alias: ALIASES,
-  dedupe: ['react', 'react-dom']
+  dedupe: [
+    'react',
+    'react-dom',
+    ...(DECK_GL_SOURCE
+      ? ['@luma.gl/core', '@luma.gl/engine', '@luma.gl/webgl', '@luma.gl/webgpu', '@luma.gl/shadertools']
+      : [])
+  ]
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  include: ['apache-arrow', 'protobufjs/dist/light/protobuf.js', 'zod']
+  include: ['@deck.gl/mesh-layers', '@loaders.gl/arrow', 'apache-arrow', 'three', 'zod']
 };
 
-const HEADLESS_BROWSER_PROVIDER =
-  process.env.GITHUB_ACTIONS === 'true'
+const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', '**/node_modules/**', 'dev/**/dist/**'];
+
+const REQUIRE_WEBGPU = process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true';
+const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
+  ? playwright({
+      launchOptions: {
+        channel: 'chrome',
+        args: [
+          '--enable-unsafe-webgpu',
+          '--enable-unsafe-swiftshader',
+          '--use-angle=swiftshader',
+          '--use-webgpu-adapter=swiftshader',
+          // Linux CI has no Vulkan display surface; use Chromium's SwiftShader presentation path.
+          ...(process.platform === 'linux'
+            ? ['--enable-features=Vulkan', '--use-vulkan=swiftshader', '--disable-vulkan-surface']
+            : [])
+        ]
+      }
+    })
+  : process.env.GITHUB_ACTIONS === 'true'
     ? playwright({launchOptions: {channel: 'chrome'}})
     : playwright();
 
@@ -103,11 +138,13 @@ const CONFIG = defineConfig({
           include: ['modules/**/*.{test,spec}.{js,ts}', 'dev/**/*.{test,spec}.{js,ts}'],
           exclude: [
             'modules/**/dist/**',
+            '**/node_modules/**',
             'dev/**/dist/**',
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/widgets/src/widget-panels/toolbar-widget.test.ts',
-            'modules/basemap-layers/**'
+            'modules/basemap-layers/**',
+            'modules/react-fiber/src/reconciler/**'
           ],
           browser: {
             enabled: false
@@ -120,14 +157,17 @@ const CONFIG = defineConfig({
         plugins: [react()],
         test: {
           name: 'browser',
+          provide: {requireWebGPU: false, terrainWebGPU: Boolean(DECK_GL_SOURCE)},
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: BROWSER_TEST_EXCLUDE,
           browser: {
             enabled: true,
             provider: playwright(),
@@ -141,14 +181,21 @@ const CONFIG = defineConfig({
         plugins: [react()],
         test: {
           name: 'headless',
+          // GPU contexts share one software renderer in CI; concurrent suites starve each other.
+          fileParallelism: !(REQUIRE_WEBGPU || process.env.GITHUB_ACTIONS === 'true'),
+          // SwiftShader's cold WGSL compilation is much slower than native GPU compilation.
+          ...(REQUIRE_WEBGPU && {testTimeout: 60000}),
+          provide: {requireWebGPU: REQUIRE_WEBGPU, terrainWebGPU: Boolean(DECK_GL_SOURCE)},
           environment: 'node',
           include: [
             'modules/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
+            'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'modules/panels/test/imports.spec.ts',
             'modules/**/*.{test,spec}.{jsx,tsx}',
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
+          exclude: BROWSER_TEST_EXCLUDE,
           browser: {
             enabled: true,
             headless: true,
@@ -163,7 +210,8 @@ const CONFIG = defineConfig({
         test: {
           name: 'examples',
           environment: 'node',
-          include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}']
+          include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+          exclude: ['examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}']
         }
       }
     ]

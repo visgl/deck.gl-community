@@ -5,6 +5,7 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
 import {PathLayer} from '@deck.gl/layers';
+import {WebGpuDashPathLayer} from './webgpu-dash-path-layer';
 
 import type {Accessor, Color, DefaultProps, Layer, LayerExtension} from '@deck.gl/core';
 import type {PathLayerProps} from '@deck.gl/layers';
@@ -61,8 +62,12 @@ export class PathOutlineLayer<
       getZLevel: _getZLevel
     } = this.props as PathOutlineLayerProps<DataT>;
 
+    const useWebGpuDashLayer = Boolean(getDashArray && this.context?.device?.type === 'webgpu');
+    const PathLayerType = useWebGpuDashLayer ? WebGpuDashPathLayer : PathLayer;
     const pathExtensions = getDashArray
-      ? ensurePathStyleExtension(extensions)
+      ? useWebGpuDashLayer
+        ? removePathStyleExtensions(extensions)
+        : ensurePathStyleExtension(extensions)
       : getLayerExtensions(extensions);
     const pathParameters = getPathRenderParameters(parameters);
     const baseWidthScale = widthScale ?? 1;
@@ -81,7 +86,7 @@ export class PathOutlineLayer<
       : {};
 
     return [
-      new PathLayer<DataT>(
+      new PathLayerType(
         this.props as unknown as PathLayerProps<DataT>,
         this.getSubLayerProps({
           ...outlineDashProps,
@@ -97,7 +102,7 @@ export class PathOutlineLayer<
           widthScale: baseWidthScale * resolvedOutlineWidthScale
         })
       ),
-      new PathLayer<DataT>(
+      new PathLayerType(
         this.props as unknown as PathLayerProps<DataT>,
         this.getSubLayerProps({
           ...pathDashProps,
@@ -127,6 +132,14 @@ function ensurePathStyleExtension(extensions: readonly LayerExtension[] = []): L
 
 function getLayerExtensions(extensions: readonly LayerExtension[] = []): LayerExtension[] {
   return [...extensions];
+}
+
+function removePathStyleExtensions(extensions: readonly LayerExtension[] = []): LayerExtension[] {
+  return extensions.filter(
+    extension =>
+      (extension.constructor as typeof PathStyleExtension).extensionName !==
+      PathStyleExtension.extensionName
+  );
 }
 
 function normalizeDashArrayAccessor<DataT>(

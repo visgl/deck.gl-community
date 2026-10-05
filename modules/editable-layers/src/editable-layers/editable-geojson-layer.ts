@@ -273,6 +273,7 @@ const modeNameMapping = {
   drawPolygonByDragging: DrawPolygonByDraggingMode
 };
 
+/** Edits a SimpleFeatureCollection; GeometryCollection geometries are not supported. */
 export class EditableGeoJsonLayer extends EditableLayer<
   SimpleFeatureCollection,
   EditableGeoJsonLayerProps<SimpleFeatureCollection>

@@ -5,7 +5,7 @@
 import {type AccessorFunction, type DefaultProps} from '@deck.gl/core';
 import {_GeoCellLayer, type _GeoCellLayerProps} from '@deck.gl/geo-layers';
 import {GlobalGrid} from '../global-grid-systems/grids/global-grid';
-import {flattenPolygon} from '../global-grid-systems/utils/geometry-utils';
+import {flattenPolygon, normalizeLongitudes} from '../global-grid-systems/utils/geometry-utils';
 
 /** All properties supported by GlobalGridLayer. */
 export type GlobalGridLayerProps<DataT = unknown> = _GlobalGridLayerProps<DataT> &
@@ -39,16 +39,40 @@ export class GlobalGridLayer<DataT = any, ExtraProps extends {} = {}> extends _G
 
     return {
       data,
-      _normalize: false,
+      // Polygon normalization also enables subdivision along the globe's surface.
+      _normalize: true,
       _windingOrder: 'CCW',
       positionFormat: 'XY',
       getPolygon: (x: DataT, objectInfo) => {
         const {globalGrid} = this.props;
         const cell = getCellId(x, objectInfo);
-        const boundary = globalGrid.cellToBoundary(cell);
-        boundary.push(boundary[0]);
+        // Keep adjacent longitudes continuous before tessellation, without modifying
+        // boundary arrays that a grid adapter may cache and reuse.
+        const boundary = globalGrid
+          .cellToBoundary(cell)
+          .map(([lng, lat]) => [lng, lat] as [number, number]);
+        // Preserve a world-sized ring (for example the empty geohash), whose
+        // -180/180 endpoints intentionally span the full globe.
+        if (!isWorldSizedBoundary(boundary)) {
+          normalizeLongitudes(boundary);
+        }
+        const first = boundary[0];
+        const last = boundary[boundary.length - 1];
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+          boundary.push(first);
+        }
         return flattenPolygon(boundary);
       }
     };
   }
+}
+
+function isWorldSizedBoundary(boundary: number[][]): boolean {
+  let minLongitude = Infinity;
+  let maxLongitude = -Infinity;
+  for (const [longitude] of boundary) {
+    minLongitude = Math.min(minLongitude, longitude);
+    maxLongitude = Math.max(maxLongitude, longitude);
+  }
+  return maxLongitude - minLongitude >= 360 - 1e-6;
 }

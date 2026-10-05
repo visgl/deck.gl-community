@@ -110,87 +110,87 @@ Inherits all [base `Layer`](https://deck.gl/docs/api-reference/core/layer) and [
 
 ### Data Options
 
-#### `data` (`URLTemplate | SharedTileset2D | TileSource`) {#data}
+#### `data` (`URLTemplate | SharedTileset2D | TileSource`) {/* #data */}
 
 Tiled data source for the layer.
 
-#### `TilesetClass` (`typeof SharedTileset2D`, optional) {#tilesetclass}
+#### `TilesetClass` (`typeof SharedTileset2D`, optional) {/* #tilesetclass */}
 
 Tileset constructor used when the layer owns its tileset instance.
 
-#### `getTileData` (`Function`, optional) {#gettiledata}
+#### `getTileData` (`Function`, optional) {/* #gettiledata */}
 
 Tile loader used when `data` is a URL template.
 
-#### `renderSubLayers` (`Function`, optional) {#rendersublayers}
+#### `renderSubLayers` (`Function`, optional) {/* #rendersublayers */}
 
 Called for each loaded tile. Receives the loaded tile payload as `props.data` and the corresponding tile header as `props.tile`.
 
 ### Tile Selection Options
 
-#### `extent` (`number[4] | null`, optional) {#extent}
+#### `extent` (`number[4] | null`, optional) {/* #extent */}
 
 Bounding box limiting generated tiles.
 
-#### `tileSize` (`number`, optional) {#tilesize}
+#### `tileSize` (`number`, optional) {/* #tilesize */}
 
 Tile size in pixels. Defaults to `512`.
 
-#### `minZoom` (`number | null`, optional) {#minzoom}
+#### `minZoom` (`number | null`, optional) {/* #minzoom */}
 
 Minimum zoom level to request.
 
-#### `maxZoom` (`number | null`, optional) {#maxzoom}
+#### `maxZoom` (`number | null`, optional) {/* #maxzoom */}
 
 Maximum zoom level to request.
 
-#### `zoomOffset` (`number`, optional) {#zoomoffset}
+#### `zoomOffset` (`number`, optional) {/* #zoomoffset */}
 
 Integer offset applied to the resolved tile zoom.
 
-#### `zRange` (`[number, number] | null`, optional) {#zrange}
+#### `zRange` (`[number, number] | null`, optional) {/* #zrange */}
 
 Elevation bounds used when selecting geospatial tiles.
 
-#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never' | Function`, optional) {#refinementstrategy}
+#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never' | Function`, optional) {/* #refinementstrategy */}
 
 Controls how ancestor and descendant placeholders are shown while tile content is loading.
 
 ### Cache and Request Options
 
-#### `maxCacheSize` (`number | null`, optional) {#maxcachesize}
+#### `maxCacheSize` (`number | null`, optional) {/* #maxcachesize */}
 
 High-water mark for the backing shared cache. Defaults to `100` when not explicitly set.
 
 The cache only evicts least-recently-used tiles that are neither visible nor selected by any current consumer, so the retained cache can remain above this number while all cached tiles are still visible.
 
-#### `maxCacheByteSize` (`number | null`, optional) {#maxcachebytesize}
+#### `maxCacheByteSize` (`number | null`, optional) {/* #maxcachebytesize */}
 
 Maximum approximate byte size retained by the backing tileset cache.
 
-#### `maxRequests` (`number`, optional) {#maxrequests}
+#### `maxRequests` (`number`, optional) {/* #maxrequests */}
 
 Maximum number of concurrent tile requests.
 
-#### `debounceTime` (`number`, optional) {#debouncetime}
+#### `debounceTime` (`number`, optional) {/* #debouncetime */}
 
 Milliseconds to wait before dispatching queued requests.
 
 ### Callbacks
 
-#### `onViewportLoad` (`Function`, optional) {#onviewportload}
+#### `onViewportLoad` (`Function`, optional) {/* #onviewportload */}
 
 Called when the selected tiles for a viewport finish loading.
 
-#### `onTileLoad` (`Function`, optional) {#ontileload}
+#### `onTileLoad` (`Function`, optional) {/* #ontileload */}
 
 Called when a tile payload loads successfully.
 
-#### `onTileUnload` (`Function`, optional) {#ontileunload}
+#### `onTileUnload` (`Function`, optional) {/* #ontileunload */}
 
 Called when a tile is evicted from the shared cache.
 
-#### `onTileError` (`Function`, optional) {#ontileerror}
+#### `onTileError` (`Function`, optional) {/* #ontileerror */}
 
 Called when a tile request fails.
 

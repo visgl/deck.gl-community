@@ -283,6 +283,11 @@ export type OmniBoxOptionProvider =
   | ((query: string) => Promise<ReadonlyArray<OmniBoxOption>>)
   | ((query: string) => ReadonlyArray<OmniBoxOption>);
 
+/** Reorders or bounds caller-provided search options before they are displayed. */
+export type OmniBoxOptionSorter = (
+  options: ReadonlyArray<OmniBoxOption>
+) => ReadonlyArray<OmniBoxOption>;
+
 export type OmniBoxRenderOptionArgs = {
   option: OmniBoxOption;
   index: number;
@@ -299,10 +304,28 @@ export type OmniBoxResultsSummaryArgs = {
   readonly mode: 'search' | 'command' | 'history';
 };
 
+/** Current result/dropdown state emitted to callers that coordinate external UI. */
+export type OmniBoxResultsState = {
+  /** Current trimmed query used to produce the visible dropdown options. */
+  readonly query: string;
+  /** Options currently rendered in the dropdown. */
+  readonly options: ReadonlyArray<OmniBoxOption>;
+  /** Dropdown mode that produced the visible options. */
+  readonly mode: 'search' | 'command' | 'history';
+  /** Whether async option loading is still in progress for the current query. */
+  readonly isLoading: boolean;
+  /** Whether the result dropdown is currently visible. */
+  readonly isOpen: boolean;
+};
+
 export type OmniBoxWidgetProps = WidgetProps & {
   placement?: WidgetPlacement;
   placeholder?: string;
   minQueryLength?: number;
+  /** Idle delay before loading non-command search options. */
+  searchDebounceMs?: number;
+  /** Stable identity that reruns the current query when its backing search data changes. */
+  searchRefreshKey?: unknown;
   defaultOpen?: boolean;
   /** Whether selecting a suggestion should close the dropdown and copy the selected label into the input. */
   closeOnSelect?: boolean;
@@ -320,6 +343,8 @@ export type OmniBoxWidgetProps = WidgetProps & {
   /** Query prefix that switches the omnibox from search mode into command mode. */
   commandSearchPrefix?: string;
   getOptions?: OmniBoxOptionProvider;
+  /** Reorders or bounds ordinary search results without affecting command or history options. */
+  sortOptions?: OmniBoxOptionSorter;
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
   /** Optional renderer for a compact row above the current dropdown results. */
   renderResultsSummary?: (args: OmniBoxResultsSummaryArgs) => ComponentChildren;
@@ -327,6 +352,8 @@ export type OmniBoxWidgetProps = WidgetProps & {
   onActiveOptionChange?: (option: OmniBoxOption | null) => void;
   onNavigateOption?: (option: OmniBoxOption) => void;
   onQueryChange?: (query: string) => void;
+  /** Called when the visible dropdown result state changes. */
+  onResultsStateChange?: (state: OmniBoxResultsState) => void;
 };
 
 type OmniBoxWidgetViewProps = {
@@ -334,6 +361,10 @@ type OmniBoxWidgetViewProps = {
   placeholder: string;
   /** Minimum trimmed query length required before suggestions are loaded. */
   minQueryLength: number;
+  /** Idle delay before loading non-command search options. */
+  searchDebounceMs: number;
+  /** Stable identity that reruns the current query when its backing search data changes. */
+  searchRefreshKey?: unknown;
   /** Whether the input row is open when the widget first renders. */
   defaultOpen: boolean;
   /** Whether selecting a suggestion should close the dropdown and copy the selected label into the input. */
@@ -352,6 +383,8 @@ type OmniBoxWidgetViewProps = {
   commandSearchPrefix: string;
   /** Provides suggestion options for the current trimmed query. */
   getOptions: OmniBoxOptionProvider;
+  /** Reorders or bounds ordinary search results without affecting command or history options. */
+  sortOptions?: OmniBoxOptionSorter;
   /** Custom renderer for a suggestion row. */
   renderOption?: (args: OmniBoxRenderOptionArgs) => ComponentChildren;
   /** Optional renderer for a compact row above the current dropdown results. */
@@ -364,6 +397,8 @@ type OmniBoxWidgetViewProps = {
   onNavigateOption?: (option: OmniBoxOption) => void;
   /** Called whenever the input query changes. */
   onQueryChange?: (query: string) => void;
+  /** Called when the visible dropdown result state changes. */
+  onResultsStateChange?: (state: OmniBoxResultsState) => void;
 };
 
 /** Returns whether an omnibox query should use command suggestions. */
@@ -478,6 +513,11 @@ function getCommandOptions(
     }));
 }
 
+/** Returns a safe non-negative search debounce delay. */
+function normalizeSearchDebounceMs(searchDebounceMs: number): number {
+  return Number.isFinite(searchDebounceMs) ? Math.max(0, searchDebounceMs) : 0;
+}
+
 function DefaultOptionContent({option}: {option: OmniBoxOption}) {
   return (
     <div style={DEFAULT_OPTION_CONTENT_STYLE}>
@@ -559,6 +599,8 @@ function OmniBoxWidgetStyles() {
 function OmniBoxWidgetView({
   placeholder,
   minQueryLength,
+  searchDebounceMs,
+  searchRefreshKey,
   defaultOpen,
   closeOnSelect,
   rememberQueries,
@@ -568,17 +610,21 @@ function OmniBoxWidgetView({
   commandManager,
   commandSearchPrefix,
   getOptions,
+  sortOptions,
   renderOption,
   renderResultsSummary,
   onSelectOption,
   onActiveOptionChange,
   onNavigateOption,
-  onQueryChange
+  onQueryChange,
+  onResultsStateChange
 }: OmniBoxWidgetViewProps) {
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<ReadonlyArray<OmniBoxOption>>([]);
+  const [resolvedOptionsQuery, setResolvedOptionsQuery] = useState<string | null>('');
   const [activeOptionIndex, setActiveOptionIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchRefreshVersion, setSearchRefreshVersion] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [isHidden, setIsHidden] = useState(() => !defaultOpen);
   const [isQueryHistoryOpen, setIsQueryHistoryOpen] = useState(false);
@@ -590,7 +636,16 @@ function OmniBoxWidgetView({
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const optionElementRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const requestVersionRef = useRef(0);
+  const searchDebounceTimeoutRef = useRef<number | null>(null);
   const blurTimeoutRef = useRef<number | null>(null);
+  const normalizedQuery = query.trim();
+
+  const clearSearchDebounceTimeout = useCallback(() => {
+    if (searchDebounceTimeoutRef.current !== null) {
+      window.clearTimeout(searchDebounceTimeoutRef.current);
+      searchDebounceTimeoutRef.current = null;
+    }
+  }, []);
 
   const clearBlurTimeout = useCallback(() => {
     if (blurTimeoutRef.current !== null) {
@@ -599,11 +654,24 @@ function OmniBoxWidgetView({
     }
   }, []);
 
+  const refreshCurrentQuery = useCallback(() => {
+    if (
+      normalizedQuery.length >= minQueryLength &&
+      resolvedOptionsQuery !== normalizedQuery &&
+      !isLoading &&
+      searchDebounceTimeoutRef.current === null
+    ) {
+      setSearchRefreshVersion(version => version + 1);
+    }
+  }, [isLoading, minQueryLength, normalizedQuery, resolvedOptionsQuery]);
+
   useEffect(() => {
     return () => {
       clearBlurTimeout();
+      clearSearchDebounceTimeout();
+      requestVersionRef.current += 1;
     };
-  }, [clearBlurTimeout]);
+  }, [clearBlurTimeout, clearSearchDebounceTimeout]);
 
   const handleShow = useCallback(
     (event?: Event) => {
@@ -652,10 +720,14 @@ function OmniBoxWidgetView({
 
   useEffect(() => {
     onQueryChange?.(query);
+  }, [onQueryChange, query]);
 
-    const normalizedQuery = query.trim();
+  useEffect(() => {
+    clearSearchDebounceTimeout();
     if (normalizedQuery.length < minQueryLength) {
+      requestVersionRef.current += 1;
       setOptions([]);
+      setResolvedOptionsQuery(normalizedQuery);
       setActiveOptionIndex(-1);
       setIsLoading(false);
       return;
@@ -663,34 +735,82 @@ function OmniBoxWidgetView({
 
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
+    setOptions([]);
+    setResolvedOptionsQuery(null);
+    setActiveOptionIndex(-1);
     setIsLoading(true);
 
-    const nextOptions =
+    const isCommandSearch = Boolean(
       commandManager && isCommandQuery(normalizedQuery, commandManager, commandSearchPrefix)
-        ? getCommandOptions(commandManager, normalizedQuery, commandSearchPrefix)
-        : getOptions(normalizedQuery);
-
-    Promise.resolve(nextOptions)
-      .then(nextOptions => {
-        if (requestVersionRef.current !== requestVersion) {
-          return;
-        }
-        setOptions(nextOptions);
-        setActiveOptionIndex(nextOptions.length > 0 ? 0 : -1);
-      })
-      .catch(() => {
-        if (requestVersionRef.current !== requestVersion) {
-          return;
-        }
-        setOptions([]);
-        setActiveOptionIndex(-1);
-      })
-      .finally(() => {
+    );
+    const loadOptions = () => {
+      let nextOptions: ReadonlyArray<OmniBoxOption> | Promise<ReadonlyArray<OmniBoxOption>>;
+      try {
+        nextOptions =
+          isCommandSearch && commandManager
+            ? getCommandOptions(commandManager, normalizedQuery, commandSearchPrefix)
+            : getOptions(normalizedQuery);
+      } catch {
         if (requestVersionRef.current === requestVersion) {
+          setOptions([]);
+          setResolvedOptionsQuery(normalizedQuery);
+          setActiveOptionIndex(-1);
           setIsLoading(false);
         }
-      });
-  }, [commandManager, commandSearchPrefix, getOptions, minQueryLength, onQueryChange, query]);
+        return;
+      }
+
+      Promise.resolve(nextOptions)
+        .then(nextOptions => {
+          if (requestVersionRef.current !== requestVersion) {
+            return;
+          }
+          const visibleOptions =
+            isCommandSearch || !sortOptions ? nextOptions : sortOptions(nextOptions);
+          setOptions(visibleOptions);
+          setResolvedOptionsQuery(normalizedQuery);
+          setActiveOptionIndex(visibleOptions.length > 0 ? 0 : -1);
+        })
+        .catch(() => {
+          if (requestVersionRef.current !== requestVersion) {
+            return;
+          }
+          setOptions([]);
+          setResolvedOptionsQuery(normalizedQuery);
+          setActiveOptionIndex(-1);
+        })
+        .finally(() => {
+          if (requestVersionRef.current === requestVersion) {
+            setIsLoading(false);
+          }
+        });
+    };
+
+    const normalizedSearchDebounceMs = normalizeSearchDebounceMs(searchDebounceMs);
+    if (isCommandSearch || normalizedSearchDebounceMs === 0) {
+      loadOptions();
+      return;
+    }
+
+    searchDebounceTimeoutRef.current = window.setTimeout(() => {
+      searchDebounceTimeoutRef.current = null;
+      loadOptions();
+    }, normalizedSearchDebounceMs);
+
+    return clearSearchDebounceTimeout;
+  }, [
+    clearSearchDebounceTimeout,
+    commandManager,
+    commandSearchPrefix,
+    getOptions,
+    minQueryLength,
+    normalizedQuery,
+    query,
+    searchDebounceMs,
+    searchRefreshKey,
+    searchRefreshVersion,
+    sortOptions
+  ]);
 
   useEffect(() => {
     if (isQueryHistoryOpen) {
@@ -839,16 +959,18 @@ function OmniBoxWidgetView({
 
       clearBlurTimeout();
       rememberQuery(query);
+      clearSearchDebounceTimeout();
       requestVersionRef.current += 1;
       setQuery('');
       setOptions([]);
+      setResolvedOptionsQuery('');
       setActiveOptionIndex(-1);
       setIsLoading(false);
       setIsFocused(false);
       setIsQueryHistoryOpen(false);
       setIsHidden(true);
     },
-    [clearBlurTimeout, query, rememberQuery]
+    [clearBlurTimeout, clearSearchDebounceTimeout, query, rememberQuery]
   );
 
   const handleInput: JSX.GenericEventHandler<HTMLInputElement> = useCallback(event => {
@@ -861,7 +983,8 @@ function OmniBoxWidgetView({
   const handleFocus: JSX.FocusEventHandler<HTMLInputElement> = useCallback(() => {
     clearBlurTimeout();
     setIsFocused(true);
-  }, [clearBlurTimeout]);
+    refreshCurrentQuery();
+  }, [clearBlurTimeout, refreshCurrentQuery]);
 
   const handleBlur: JSX.FocusEventHandler<HTMLInputElement> = useCallback(() => {
     clearBlurTimeout();
@@ -873,7 +996,6 @@ function OmniBoxWidgetView({
 
   const hasMatches = options.length > 0;
   const hasQueryHistory = queryHistoryOptions.length > 0;
-  const normalizedQuery = query.trim();
   const dropdownMode: OmniBoxResultsSummaryArgs['mode'] = isShowingQueryHistory
     ? 'history'
     : isCommandQuery(normalizedQuery, commandManager, commandSearchPrefix)
@@ -891,6 +1013,23 @@ function OmniBoxWidgetView({
     !isHidden &&
     (isShowingQueryHistory ||
       (isFocused && normalizedQuery.length >= minQueryLength && (isLoading || options.length > 0)));
+
+  useEffect(() => {
+    onResultsStateChange?.({
+      query: normalizedQuery,
+      options: visibleOptions,
+      mode: dropdownMode,
+      isLoading,
+      isOpen: shouldShowDropdown
+    });
+  }, [
+    dropdownMode,
+    isLoading,
+    normalizedQuery,
+    onResultsStateChange,
+    shouldShowDropdown,
+    visibleOptions
+  ]);
 
   const handleKeyDown: JSX.KeyboardEventHandler<HTMLInputElement> = useCallback(
     event => {
@@ -926,9 +1065,11 @@ function OmniBoxWidgetView({
       if (event.key === 'Escape') {
         event.preventDefault();
         if (isShowingQueryHistory || shouldShowDropdown) {
+          clearSearchDebounceTimeout();
           requestVersionRef.current += 1;
           setIsLoading(false);
           setIsFocused(false);
+          inputRef.current?.blur();
           setIsQueryHistoryOpen(false);
           setActiveOptionIndex(-1);
           return;
@@ -938,6 +1079,7 @@ function OmniBoxWidgetView({
     },
     [
       activeOptionIndex,
+      clearSearchDebounceTimeout,
       handleHide,
       isShowingQueryHistory,
       moveActiveOptionBy,
@@ -1252,6 +1394,8 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
     placement: 'top-left',
     placeholder: 'Search…',
     minQueryLength: 1,
+    searchDebounceMs: 0,
+    searchRefreshKey: undefined,
     defaultOpen: true,
     closeOnSelect: true,
     rememberQueries: false,
@@ -1262,12 +1406,14 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
     commandManager: undefined,
     commandSearchPrefix: DEFAULT_COMMAND_SEARCH_PREFIX,
     getOptions: (() => []) as OmniBoxOptionProvider,
+    sortOptions: undefined,
     renderOption: undefined,
     renderResultsSummary: undefined,
     onSelectOption: undefined,
     onActiveOptionChange: undefined,
     onNavigateOption: undefined,
-    onQueryChange: undefined
+    onQueryChange: undefined,
+    onResultsStateChange: undefined
   } satisfies Required<WidgetProps> &
     Required<Pick<OmniBoxWidgetProps, 'placeholder' | 'minQueryLength' | 'placement'>> &
     OmniBoxWidgetProps;
@@ -1311,6 +1457,10 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
       <OmniBoxWidgetView
         placeholder={this.props.placeholder ?? OmniBoxWidget.defaultProps.placeholder}
         minQueryLength={this.props.minQueryLength ?? OmniBoxWidget.defaultProps.minQueryLength}
+        searchDebounceMs={
+          this.props.searchDebounceMs ?? OmniBoxWidget.defaultProps.searchDebounceMs
+        }
+        searchRefreshKey={this.props.searchRefreshKey}
         defaultOpen={this.props.defaultOpen ?? OmniBoxWidget.defaultProps.defaultOpen}
         closeOnSelect={this.props.closeOnSelect ?? OmniBoxWidget.defaultProps.closeOnSelect}
         rememberQueries={this.props.rememberQueries ?? OmniBoxWidget.defaultProps.rememberQueries}
@@ -1326,12 +1476,14 @@ export class OmniBoxWidget extends Widget<OmniBoxWidgetProps> {
           this.props.commandSearchPrefix ?? OmniBoxWidget.defaultProps.commandSearchPrefix
         }
         getOptions={this.props.getOptions ?? OmniBoxWidget.defaultProps.getOptions}
+        sortOptions={this.props.sortOptions}
         renderOption={this.props.renderOption}
         renderResultsSummary={this.props.renderResultsSummary}
         onSelectOption={this.props.onSelectOption}
         onActiveOptionChange={this.props.onActiveOptionChange}
         onNavigateOption={this.props.onNavigateOption}
         onQueryChange={this.props.onQueryChange}
+        onResultsStateChange={this.props.onResultsStateChange}
       />,
       rootElement
     );

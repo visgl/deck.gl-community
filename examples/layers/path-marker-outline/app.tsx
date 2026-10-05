@@ -202,6 +202,7 @@ function getInitialViewState(container: HTMLElement): MapViewState {
  */
 type PathOutlineAndMarkersExampleOptions = {
   showInfoWidget?: boolean;
+  onDeckInitialized?: (deck: Deck) => void;
 };
 
 export function mountPathOutlineAndMarkersExample(
@@ -310,6 +311,8 @@ export function mountPathOutlineAndMarkersExample(
     ],
     getTooltip: (info: PickingInfo<LayerDatum>) => getTooltip(info)
   });
+  options.onDeckInitialized?.(deck);
+
   return () => {
     deck.finalize();
     rootElement.remove();
