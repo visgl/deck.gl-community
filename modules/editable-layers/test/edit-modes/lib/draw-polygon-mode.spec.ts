@@ -36,6 +36,12 @@ beforeEach(() => {
 });
 
 describe('after double-clicking', () => {
+  it('does not finish a second empty polygon after the closing click', () => {
+    expect(() => mode.handleDoubleClick(createClickEvent([0, 2]), props)).not.toThrow();
+    expect(
+      props.onEdit.mock.calls.filter(([action]) => action.editType === 'addFeature')
+    ).toHaveLength(1);
+  });
   beforeEach(() => {
     // Click very close to the first point to close the polygon
     mode.handleClick(createClickEvent([0.00001, 2.00001]), props);

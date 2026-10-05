@@ -200,6 +200,9 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   // eslint-disable-next-line max-statements, complexity
   finishDrawing(props: ModeProps<SimpleFeatureCollection>) {
     const clickSequence = this.getClickSequence();
+    if (clickSequence.length < 3) {
+      return;
+    }
     const polygon = [...clickSequence, clickSequence[0]];
 
     const newPolygon = getPolygonFeature([polygon], props);

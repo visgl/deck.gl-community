@@ -114,3 +114,44 @@ test('rectangle selection retains deck.gl GPU picking', () => {
   expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: []});
   expect(updateLayers).not.toHaveBeenCalled();
 });
+
+test('rectangle selection excludes renderer guides and duplicates but keeps guideType data', () => {
+  const {layer, onSelect, pickObjects} = makeSelectionLayer();
+  const feature = {
+    layer: {id: 'points'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
+  pickObjects.mockReturnValue([
+    feature,
+    {layer: feature.layer, index: 3, isGuide: true},
+    {...feature}
+  ] as any);
+
+  layer._selectRectangleObjects(COORDINATES);
+
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: [feature]});
+});
+
+test('polygon selection excludes renderer guides and duplicates but keeps guideType data', () => {
+  const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
+  const feature = {
+    layer: {id: 'points'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
+  pickObjects.mockImplementation(() => {
+    expect(layer.state.isSelecting).toBe(true);
+    expect(updateLayers).toHaveBeenCalledOnce();
+    return [
+      feature,
+      {layer: feature.layer, index: 3, isGuide: true},
+      {...feature},
+      {layer, index: 0}
+    ] as any;
+  });
+
+  layer._selectPolygonObjects(COORDINATES);
+
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: [feature]});
+});

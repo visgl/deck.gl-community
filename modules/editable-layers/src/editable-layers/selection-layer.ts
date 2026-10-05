@@ -53,6 +53,17 @@ const EMPTY_MASK = [];
 const LAYER_ID_GEOJSON = 'selection-geojson';
 const LAYER_ID_BLOCKER = 'selection-blocker';
 
+function filterFeaturePicks(pickingInfos: any[]) {
+  const seen = new Set<string>();
+  return pickingInfos.filter(info => {
+    if (info.isGuide) return false;
+    const key = `${info.layer?.id}:${info.index}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const PASS_THROUGH_PROPS = [
   'lineWidthScale',
   'lineWidthMinPixels',
@@ -99,7 +110,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       layerIds
     });
 
-    onSelect({pickingInfos});
+    onSelect({pickingInfos: filterFeaturePicks(pickingInfos)});
   }
 
   _selectPolygonObjects(coordinates: any) {
@@ -142,7 +153,11 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       this.context.layerManager.updateLayers();
     }
 
-    onSelect({pickingInfos: pickingInfos.filter(info => info.layer?.id !== this.props.id)});
+    onSelect({
+      pickingInfos: filterFeaturePicks(
+        pickingInfos.filter(info => info.layer?.id !== this.props.id)
+      )
+    });
   }
 
   /** Draws the selection mask only during the active GPU picking pass. */
