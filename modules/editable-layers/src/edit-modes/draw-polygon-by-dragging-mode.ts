@@ -8,16 +8,38 @@ import {Polygon, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {DrawPolygonMode} from './draw-polygon-mode';
 
-type DraggingHandler = (event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) => void;
+type DraggingHandler = ((
+  event: DraggingEvent,
+  props: ModeProps<SimpleFeatureCollection>
+) => void) & {
+  cancel?: () => void;
+};
+
+function isPrimaryButton(event: StartDraggingEvent): boolean {
+  const {button, buttons, which} = event.sourceEvent || {};
+  return (
+    (button === undefined || button === 0 || button === -1) &&
+    (buttons === undefined || buttons === 1) &&
+    (which === undefined || which === 0 || which === 1)
+  );
+}
 
 export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   handleDraggingThrottled: DraggingHandler | null | undefined = null;
+  isDrawingWithPrimaryButton = false;
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     // No-op
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
+    this.handleDraggingThrottled?.cancel?.();
+    this.isDrawingWithPrimaryButton = isPrimaryButton(event);
+    if (!this.isDrawingWithPrimaryButton) {
+      this.handleDraggingThrottled = null;
+      return;
+    }
+
     event.cancelPan();
     if (props.modeConfig && props.modeConfig.throttleMs) {
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -29,13 +51,13 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   }
 
   handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
+    if (!this.isDrawingWithPrimaryButton) {
+      return;
+    }
+
     this.addClickSequence(event);
     const clickSequence = this.getClickSequence();
-    // @ts-expect-error cancel() not typed
-    if (this.handleDraggingThrottled && this.handleDraggingThrottled.cancel) {
-      // @ts-expect-error cancel() not typed
-      this.handleDraggingThrottled.cancel();
-    }
+    this.handleDraggingThrottled?.cancel?.();
 
     if (clickSequence.length > 2) {
       // Complete the polygon.
@@ -50,6 +72,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
       }
     }
     this.resetClickSequence();
+    this.isDrawingWithPrimaryButton = false;
   }
 
   handleDraggingAux(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -70,7 +93,7 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
   }
 
   handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
-    if (this.handleDraggingThrottled) {
+    if (this.isDrawingWithPrimaryButton && this.handleDraggingThrottled) {
       this.handleDraggingThrottled(event, props);
     }
   }
@@ -92,9 +115,9 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
       }
     } else if (event.key === 'Escape') {
       this.resetClickSequence();
-      if (this.handleDraggingThrottled) {
-        this.handleDraggingThrottled = null;
-      }
+      this.isDrawingWithPrimaryButton = false;
+      this.handleDraggingThrottled?.cancel?.();
+      this.handleDraggingThrottled = null;
       props.onEdit({
         // Because the new drawing feature is dropped, so the data will keep as the same.
         updatedData: props.data,
