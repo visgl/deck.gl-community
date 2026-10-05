@@ -149,6 +149,7 @@ test('native clicks are immediate, scale-aware, and forwarded to the current lay
   vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(currentLayer);
   const click = vi.spyOn(currentLayer, 'onLayerClick');
   const doubleClick = vi.spyOn(currentLayer, 'onLayerDoubleClick');
+  const mapInteraction = vi.spyOn(currentLayer, '_onNativeMapInteraction');
   const event = {type: 'click', button: 0, detail: 1, clientX: 150, clientY: 300};
   const dispatch = (type, event) => handlers.get(type)?.forEach(handler => handler(event));
 
@@ -162,6 +163,12 @@ test('native clicks are immediate, scale-aware, and forwarded to the current lay
   dispatch('dblclick', {...event, type: 'dblclick', detail: 2});
   expect(click).toHaveBeenCalledOnce();
   expect(doubleClick).toHaveBeenCalledOnce();
+  expect(mapInteraction).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({type: 'dblclick'})
+  );
+  expect(mapInteraction.mock.invocationCallOrder[0]).toBeLessThan(
+    doubleClick.mock.invocationCallOrder[0]
+  );
   currentLayer.state._editableLayerState.didDrag = true;
   dispatch('click', event);
   expect(click).toHaveBeenCalledOnce();
