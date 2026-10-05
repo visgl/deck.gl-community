@@ -1,5 +1,35 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.2
+
+- Publish the playground package with customizable document languages, panels, template metadata, and cancellable asynchronous renderers (#788, #789).
+- Add FlameTrailLayer with the TripsLayer API, rising 3D flames, drifting embers, and animation while the playhead stays still on WebGL2 and WebGPU (#765).
+- Fit the full flame footprint and embers to WebGPU terrain when using the upstream deck.gl TerrainExtension port (#773; visgl/deck.gl#10751). With the published SDK, WebGPU paths use supplied XYZ elevations; WebGL2 supports GPU height-map fitting.
+- Add the FlameTrailLayer terrain example with two continuous flames and Length, Width, and Color controls (#769).
+- React Fiber remains excluded pending its initial npm setup; its source and examples remain available.
+- Improve TreeLayer orientation and geometry reuse; add Seasonal Farm and GlobalGridLayer examples (#743, #749, #752).
+- Expand the website gallery and playground with schema validation, managed data sources, host-owned SQL, camera controls, and editing tools.
+- Align loaders.gl dependencies on 4.5.1 and Apache Arrow on 17; fix layer rendering and resource cleanup.
+- See [What's New](docs/whats-new.md) and the [Upgrade Guide](docs/upgrade-guide.md) for details.
+
+## v9.4.0-alpha.3
+
+- feat(widgets): add async search lifecycle controls to OmniBoxWidget (#723)
+- feat(widgets): add a JSON-safe ColorLegendWidget (#722)
+- feat(widgets): allow editing completed ranges in TimeMeasureWidget (#724)
+- feat(infovis-layers): add dense block controls to BlockLayer (#721)
+
+## v9.4.0-alpha.2
+
+- feat(three): render detailed palms (#716)
+- chore: migrate to dev-tools v2 (#711)
+- feat: expand WebGPU layer coverage and documentation (#705)
+
+## v9.4.0-alpha.1
+
+- chore: target deck.gl 9.4.0-alpha.2 and luma.gl 9.4.0-alpha.1 (#701)
+- feat: make wind rendering and backend switching WebGPU-portable (#702)
+- feat: port remaining path and polygon layers to WebGPU (#703)
 
 ## v9.3.7
 
@@ -12,9 +42,6 @@ finish draw-polygon mode cartesian and add tests (#641)
 Fix editable terrain no-pick events
 fix: double-offset fallback with TerrainExtension
 Remove unused test PNGs (#657)
-feat(trace-layers) Add trace-layers implementation (#653)
-chore(infovis-layers) Upstream helpers needed for trace-layers (#650)
-chore(trace-layers) Scaffold trace-layers module (#649)
 fix(panels) remove unused widgets dependency (#648)
 
 ## v9.3.5

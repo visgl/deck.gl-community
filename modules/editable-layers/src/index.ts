@@ -104,6 +104,8 @@ export type {Snapper, SnapResult} from './edit-modes/snapping/snapper';
 
 export type {
   ScreenCoordinates,
+  BasePointerEvent,
+  MovementEvent,
   EditAction,
   Pick,
   ClickEvent,

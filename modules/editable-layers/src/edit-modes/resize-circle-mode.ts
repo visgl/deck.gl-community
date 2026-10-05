@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfNearestPointOnLine from '@turf/nearest-point-on-line';
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
+import {nearestPointOnLine} from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
-import turfCircle from '@turf/circle';
-import turfDistance from '@turf/distance';
-import turfCenter from '@turf/center';
+import {circle} from '@turf/circle';
+import {distance} from '@turf/distance';
+import {center as turfCenter} from '@turf/center';
 import {
   recursivelyTraverseNestedArrays,
   nearestPointOnProjectedLine,
@@ -14,13 +16,7 @@ import {
   getPickedEditHandle,
   NearestPointType
 } from './utils';
-import {
-  LineString,
-  Point,
-  FeatureCollection,
-  Feature,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {LineString, Point, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {Viewport} from '../utils/types';
 import {
   ModeProps,
@@ -42,7 +38,7 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
   _isResizing = false;
 
   // eslint-disable-next-line complexity
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const handles: GuideFeature[] = [];
     const selectedFeatureIndexes = props.selectedIndexes;
 
@@ -136,7 +132,7 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
         'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
       );
     }
-    return turfNearestPointOnLine(line, inPoint);
+    return nearestPointOnLine(line, inPoint);
   }
 
   handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
@@ -151,11 +147,11 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
       const feature = this.getSelectedFeature(props);
       const center = turfCenter(feature).geometry.coordinates;
       const numberOfSteps = Object.entries(feature.geometry.coordinates[0]).length - 1;
-      const radius = Math.max(turfDistance(center, event.mapCoords), 0.001);
+      const radius = Math.max(distance(center, event.mapCoords), 0.001);
 
       const {steps = numberOfSteps} = {};
       const options = {steps};
-      const updatedFeature = turfCircle(center, radius, options);
+      const updatedFeature = circle(center, radius, options);
       const geometry = updatedFeature.geometry;
 
       const updatedData = new ImmutableFeatureCollection(props.data)
@@ -172,7 +168,7 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
     }
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     if (!this._isResizing) {
       const selectedEditHandle = getPickedEditHandle(event.picks);
       this._selectedEditHandle =
@@ -185,14 +181,14 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
     props.onUpdateCursor(cursor);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (this._selectedEditHandle) {
       event.cancelPan();
       this._isResizing = true;
     }
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (this._isResizing) {
       this._selectedEditHandle = null;
       this._isResizing = false;
@@ -209,7 +205,8 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
     return null;
   }
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return new DragSnappingStrategy();
   }
 }

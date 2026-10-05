@@ -4,20 +4,13 @@
 
 /* eslint-disable no-shadow */
 
-import turfDestination from '@turf/destination';
-import turfBearing from '@turf/bearing';
-import turfPointToLineDistance from '@turf/point-to-line-distance';
+import {destination} from '@turf/destination';
+import {bearing} from '@turf/bearing';
+import {pointToLineDistance} from '@turf/point-to-line-distance';
 import {point, lineString} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
-import {
-  Viewport,
-  Pick,
-  EditHandleFeature,
-  EditHandleType,
-  StartDraggingEvent,
-  PointWithIndex
-} from './types';
+import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
   SimpleGeometry,
   Position,
@@ -93,8 +86,8 @@ export function generatePointsParallelToLinePoints(
     coordinates: [p1, p2]
   };
   const pt = point(coords);
-  const ddistance = turfPointToLineDistance(pt, lineString);
-  const lineBearing = turfBearing(p1, p2);
+  const ddistance = pointToLineDistance(pt, lineString);
+  const lineBearing = bearing(p1, p2);
 
   // Check if current point is to the left or right of line
   // Line from A=(x1,y1) to B=(x2,y2) a point P=(x,y)
@@ -107,8 +100,8 @@ export function generatePointsParallelToLinePoints(
 
   // Get coordinates for the point p3 and p4 which are perpendicular to the lineString
   // Add the distance as the current position moves away from the lineString
-  const p3 = turfDestination(p2, ddistance, orthogonalBearing);
-  const p4 = turfDestination(p1, ddistance, orthogonalBearing);
+  const p3 = destination(p2, ddistance, orthogonalBearing);
+  const p4 = destination(p1, ddistance, orthogonalBearing);
 
   return [p3.geometry.coordinates, p4.geometry.coordinates] as Position[];
 }
@@ -159,14 +152,19 @@ export function findNearestPointOnGeometry(
   feature: Feature<SimpleGeometry>,
   mapCoords: Position,
   viewport?: Viewport,
-  coordinateSystem?: EditModeCoordinateSystem
+  coordinateSystem?: EditModeCoordinateSystem,
+  resolveNearestPoint: typeof getNearestPoint = getNearestPoint
 ): {nearestPoint: NearestPointType | null; positionIndexPrefix: number[]} {
   let nearestPoint: NearestPointType | null = null;
   let positionIndexPrefix: number[] = [];
+  if (feature.geometry.type === 'Point' || feature.geometry.type === 'MultiPoint') {
+    return {nearestPoint, positionIndexPrefix};
+  }
   const referencePoint = point(mapCoords);
   recursivelyTraverseNestedArrays(feature.geometry.coordinates, [], (feature, prefix) => {
+    if (feature.length < 2) return;
     const lineStringFeature = lineString(feature);
-    const candidate = getNearestPoint(
+    const candidate = resolveNearestPoint(
       lineStringFeature,
       referencePoint,
       viewport,
@@ -186,82 +184,53 @@ export function nearestPointOnProjectedLine(
   viewport: Viewport,
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  // return sentinel value if no coordinates key
-  let minDistance = Infinity;
-  const coordinates = line?.geometry?.coordinates;
-  if (!coordinates)
-    return {
-      type: 'Feature',
-      geometry: {type: 'Point', coordinates: [0, 0, 0]},
-      properties: {dist: minDistance, index: -1}
-    };
-
-  // Project the line to viewport, then find the nearest point
   const wmViewport = toWebMercatorViewport(viewport);
-
   const [x, y] = projectOrUnprojectPoints(
     inPoint.geometry.coordinates,
     coordinateSystem,
     'PROJECT',
     wmViewport
   );
-  const projectedCoords = coordinates.map(([px, py, pz = 0]) =>
-    projectOrUnprojectPoints([px, py, pz], coordinateSystem, 'PROJECT', wmViewport)
+  const coordinates = line.geometry.coordinates;
+  const projectedCoords = coordinates.map(coords =>
+    projectOrUnprojectPoints(coords, coordinateSystem, 'PROJECT', wmViewport)
   );
-
-  let minPointInfo: PointWithIndex = {index: 0, x0: 0, y0: 0};
-
-  projectedCoords.forEach(([x2, y2], index) => {
-    if (index === 0) {
-      return;
-    }
-
-    const [x1, y1] = projectedCoords[index - 1];
-
-    // line from projectedCoords[index - 1] to projectedCoords[index]
-    // convert to Ax + By + C = 0
-    const A = y1 - y2;
-    const B = x2 - x1;
-    const C = x1 * y2 - x2 * y1;
-
-    // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-    const div = A * A + B * B;
-    const distance = Math.abs(A * x + B * y + C) / Math.sqrt(div);
-
-    // TODO: Check if inside bounds
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      minPointInfo = {
-        index,
-        x0: (B * (B * x - A * y) - A * C) / div,
-        y0: (A * (-B * x + A * y) - B * C) / div
+  let nearest: NearestPointType = {
+    type: 'Feature',
+    geometry: {type: 'Point', coordinates: [0, 0, 0]},
+    properties: {dist: Infinity, index: -1}
+  };
+  for (let index = 1; index < projectedCoords.length; index++) {
+    const [x1, y1, z1 = 0] = projectedCoords[index - 1];
+    const [x2, y2, z2 = 0] = projectedCoords[index];
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lengthSquared = dx * dx + dy * dy;
+    // A collapsed segment remains a valid endpoint candidate.
+    const ratio =
+      lengthSquared === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / lengthSquared));
+    const px = mix(x1, x2, ratio);
+    const py = mix(y1, y2, ratio);
+    const dist = distance2d(x, y, px, py);
+    if (dist < nearest.properties.dist) {
+      nearest = {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: projectOrUnprojectPoints(
+            [px, py, mix(z1, z2, ratio)],
+            coordinateSystem,
+            'UNPROJECT',
+            wmViewport
+          )
+        },
+        properties: {dist, index: index - 1}
       };
     }
-  });
-
-  const {index, x0, y0} = minPointInfo;
-  const [x1, y1, z1 = 0] = projectedCoords[index - 1];
-  const [x2, y2, z2 = 0] = projectedCoords[index];
-
-  // calculate what ratio of the line we are on to find the proper z
-  const lineLength = distance2d(x1, y1, x2, y2);
-  const startToPointLength = distance2d(x1, y1, x0, y0);
-  const ratio = startToPointLength / lineLength;
-  const z0 = mix(z1, z2, ratio);
-
-  return {
-    type: 'Feature',
-    geometry: {
-      type: 'Point',
-      coordinates: projectOrUnprojectPoints([x0, y0, z0], coordinateSystem, 'UNPROJECT', wmViewport)
-    },
-    properties: {
-      // TODO: calculate the distance in proper units
-      dist: minDistance,
-      index: index - 1
-    }
-  };
+  }
+  return nearest;
 }
 
 export function nearestPointOnLine(
@@ -509,7 +478,9 @@ function getEditHandlesForCoordinates(
 }
 
 /**
- * Calculates coordinates for a feature preserving rectangular shape.
+ * Resizes a rectangle in its existing 2D coordinate plane.
+ * Preserves the adjacent edge axes and keeps the opposite corner fixed.
+ * Allows width and height to change independently, changing the aspect ratio.
  * @param feature Feature before modification.
  * @param editHandleIndex Index of the point to modify.
  * @param coords New position for the point.
@@ -526,14 +497,55 @@ export function updateRectanglePosition(
   }
 
   const points = coordinates[0].slice(0, 4);
-  points[editHandleIndex % 4] = coords;
+  const currentIndex = editHandleIndex % 4;
+  const nextIndex = (currentIndex + 1) % 4;
+  const oppositeIndex = (currentIndex + 2) % 4;
+  const previousIndex = (currentIndex + 3) % 4;
 
-  const p0 = points[(editHandleIndex + 2) % 4];
-  const p2 = points[editHandleIndex % 4];
-  points[(editHandleIndex + 1) % 4] = [p2[0], p0[1]];
-  points[(editHandleIndex + 3) % 4] = [p0[0], p2[1]];
+  const oppositePoint = points[oppositeIndex];
+  const nextAxis = normalizeVector([
+    points[nextIndex][0] - oppositePoint[0],
+    points[nextIndex][1] - oppositePoint[1]
+  ]);
+  const previousAxis = normalizeVector([
+    points[previousIndex][0] - oppositePoint[0],
+    points[previousIndex][1] - oppositePoint[1]
+  ]);
+
+  if (!nextAxis || !previousAxis) {
+    return null;
+  }
+
+  const delta = [coords[0] - oppositePoint[0], coords[1] - oppositePoint[1]];
+  // Geographic rectangles have perpendicular edges on the map, but their axes
+  // need not be perpendicular in longitude/latitude. Resolve the diagonal in
+  // that basis instead of independently projecting it onto each axis.
+  const determinant = nextAxis[0] * previousAxis[1] - nextAxis[1] * previousAxis[0];
+  if (Math.abs(determinant) < Number.EPSILON) {
+    return null;
+  }
+  const nextDistance = (delta[0] * previousAxis[1] - delta[1] * previousAxis[0]) / determinant;
+  const previousDistance = (nextAxis[0] * delta[1] - nextAxis[1] * delta[0]) / determinant;
+
+  points[currentIndex] = coords;
+  points[nextIndex] = [
+    oppositePoint[0] + nextAxis[0] * nextDistance,
+    oppositePoint[1] + nextAxis[1] * nextDistance
+  ];
+  points[previousIndex] = [
+    oppositePoint[0] + previousAxis[0] * previousDistance,
+    oppositePoint[1] + previousAxis[1] * previousDistance
+  ];
 
   return [[...points, points[0]]];
+}
+
+function normalizeVector(vector: number[]): number[] | null {
+  const length = Math.hypot(vector[0], vector[1]);
+  if (length === 0) {
+    return null;
+  }
+  return [vector[0] / length, vector[1] / length];
 }
 
 /** Creates a copy of feature's coordinates.

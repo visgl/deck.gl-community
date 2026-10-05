@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import lineIntersect from '@turf/line-intersect';
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
+import {lineIntersect} from '@turf/line-intersect';
 import {polygon as turfPolygon} from '@turf/helpers';
-import booleanWithin from '@turf/boolean-within';
+import {booleanWithin} from '@turf/boolean-within';
 import type {Feature, Geometry, Polygon} from 'geojson';
-import kinks from '@turf/kinks';
+import {kinks} from '@turf/kinks';
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -16,7 +18,7 @@ import {
   GuideFeature,
   DoubleClickEvent
 } from './types';
-import {Position, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
+import {Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -33,7 +35,7 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
   holeSequence: Position[] = [];
   isDrawingHole = false;
 
-  createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
+  createTentativeFeature(props: ModeProps<SimpleFeatureCollection>): TentativeFeature {
     const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
     const holeSequence = this.holeSequence;
@@ -70,7 +72,7 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
     };
   }
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
       features: []
@@ -194,12 +196,13 @@ export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMod
     }
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
   }
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return new ClickSnappingStrategy();
   }
 
@@ -357,21 +360,21 @@ function isNearFirstPoint(click: Position, first: Position, threshold = 1e-4): b
 }
 
 // Helper function to determine if a hole can be added to a polygon
-function canAddHoleToPolygon(props: ModeProps<FeatureCollection>): boolean {
+function canAddHoleToPolygon(props: ModeProps<SimpleFeatureCollection>): boolean {
   // For simplicity, always return true in this example.
   // Implement your own logic based on application requirements.
   return props.modeConfig?.allowHoles ?? false;
 }
 
 // Helper function to determine if a polygon can intersect itself
-function canPolygonOverlap(props: ModeProps<FeatureCollection>): boolean {
+function canPolygonOverlap(props: ModeProps<SimpleFeatureCollection>): boolean {
   // Return the value of allowSelfIntersection (defaults to false for safety)
   return props.modeConfig?.allowSelfIntersection ?? false;
 }
 
 function getPolygonFeature(
   polygonGeometry: Position[][],
-  props: ModeProps<FeatureCollection>
+  props: ModeProps<SimpleFeatureCollection>
 ): Feature<Polygon> {
   return props.coordinateSystem instanceof CartesianCoordinateSystem
     ? {type: 'Feature', properties: {}, geometry: {type: 'Polygon', coordinates: polygonGeometry}}

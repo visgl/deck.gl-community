@@ -9,7 +9,7 @@ import {
   ModeProps,
   MovementEvent
 } from '../types';
-import {FeatureCollection, SimpleFeature} from '../../utils/geojson-types';
+import {SimpleFeatureCollection, SimpleFeature} from '../../utils/geojson-types';
 import {
   getPickedSnapSourceEditHandle,
   snapMovementEventToPickedTarget,
@@ -24,23 +24,29 @@ import {SnappingStrategy} from './snapping-strategy';
  * Click events are never snapped — only drag movement applies snapping.
  */
 export class SourceSnappingStrategy implements SnappingStrategy {
-  snapClickEvent(_props: ModeProps<FeatureCollection>, event: ClickEvent): ClickEvent {
+  snapClickEvent(_props: ModeProps<SimpleFeatureCollection>, event: ClickEvent): ClickEvent {
     return event;
   }
 
-  snapMovementEvent<T extends MovementEvent>(props: ModeProps<FeatureCollection>, event: T): T {
+  snapMovementEvent<T extends MovementEvent>(
+    props: ModeProps<SimpleFeatureCollection>,
+    event: T
+  ): T {
     const snapSource = getPickedSnapSourceEditHandle(props.lastPointerMoveEvent?.pointerDownPicks);
 
     if (!snapSource) {
       return event;
     }
 
-    return Object.assign(snapMovementEventToPickedTarget(event), {
+    const snapped = snapMovementEventToPickedTarget(event, props, props.selectedIndexes);
+    if (snapped === event) return event;
+    return {
+      ...snapped,
       pointerDownMapCoords: snapSource.geometry.coordinates
-    });
+    };
   }
 
-  getSnapGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getSnapGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const snapSourceHandle = getPickedSnapSourceEditHandle(
       props.lastPointerMoveEvent?.pointerDownPicks
     );
@@ -48,7 +54,7 @@ export class SourceSnappingStrategy implements SnappingStrategy {
       return {
         type: 'FeatureCollection',
         features: [
-          ...getSnapTargetHandles(props, new Set(props.selectedIndexes)),
+          ...getSnapTargetHandles(props, props.selectedIndexes),
           this._getUpdatedSnapSourceHandle(snapSourceHandle, props.data)
         ]
       };
@@ -62,13 +68,16 @@ export class SourceSnappingStrategy implements SnappingStrategy {
    */
   _getUpdatedSnapSourceHandle(
     snapSourceHandle: EditHandleFeature,
-    data: FeatureCollection
+    data: SimpleFeatureCollection
   ): EditHandleFeature {
     const {featureIndex, positionIndexes} = snapSourceHandle.properties;
     if (!Array.isArray(positionIndexes)) {
       return snapSourceHandle;
     }
     const snapSourceFeature = data.features[featureIndex] as SimpleFeature;
+    if (!snapSourceFeature) {
+      return snapSourceHandle;
+    }
     const snapSourceCoordinates = positionIndexes.reduce(
       (coords: any[], index: number) => coords[index],
       snapSourceFeature.geometry.coordinates

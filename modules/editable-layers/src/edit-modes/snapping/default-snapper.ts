@@ -3,93 +3,64 @@
 // Copyright (c) vis.gl contributors
 
 import {coordEach} from '@turf/meta';
-import {FeatureCollection, Position, SimpleFeature} from '../../utils/geojson-types';
+import {SimpleFeatureCollection, Position} from '../../utils/geojson-types';
 import {BasePointerEvent, ModeProps} from '../types';
 import {Snapper, SnapResult} from './snapper';
-import {getFeatures} from './snapping-utils';
-import {findNearestPointOnGeometry, toWebMercatorViewport} from '../utils';
+import {getFeatures, findEdgeSnapCandidateForFeature} from './snapping-utils';
+import {toWebMercatorViewport} from '../utils';
 
+/** Finds the nearest vertex or bounded edge point in current viewport pixels. */
 export class DefaultSnapper implements Snapper {
+  /** Returns null when no supported target is within the layer's picking radius. */
   snap(
     event: BasePointerEvent,
-    props: ModeProps<FeatureCollection>,
+    props: ModeProps<SimpleFeatureCollection>,
     excludedFeatureIndexes: Set<number>
   ): SnapResult | null {
-    if (props.pickingRadius === undefined || props.modeConfig.viewport === undefined) {
-      return null;
-    }
-
-    const wmViewport = toWebMercatorViewport(props.modeConfig.viewport);
-
+    const radius = props.pickingRadius;
+    const viewport = props.modeConfig?.viewport;
+    if (!viewport || radius === undefined || radius < 0 || !Number.isFinite(radius)) return null;
+    const wmViewport = toWebMercatorViewport(viewport);
     const features = getFeatures(props);
-    const snappingRadiusSquared = props.pickingRadius ** 2;
-
-    let closestSnapPoint: Position | null = null;
+    const radiusSquared = radius ** 2;
+    let closest: SnapResult | null = null;
     let closestDistanceSquared = Infinity;
-    let featureIndex: number | undefined = undefined;
-
-    const eventScreenCoords = event.screenCoords;
-    // Note we can't trust the event.mapCoords because they might have been mutated by previous snap event.
-    const eventMapCoordsFromScreen = wmViewport.unproject(eventScreenCoords);
-
     for (let i = 0; i < features.length; i++) {
-      if (excludedFeatureIndexes.has(i)) {
+      const feature = features[i];
+      if (
+        excludedFeatureIndexes.has(i) ||
+        !feature.geometry ||
+        feature.geometry.type === 'GeometryCollection'
+      )
         continue;
-      }
-
-      const feature = features[i] as SimpleFeature | undefined;
-      if (!feature?.geometry) {
-        continue;
-      }
-
-      const candidateCoords: Position[] = [];
-
-      if (feature.geometry.type === 'Point') {
-        candidateCoords.push(feature.geometry.coordinates);
-      } else if (props.modeConfig?.edgeSnapping) {
-        const nearestPointCoords = findNearestPointOnGeometry(
-          feature,
-          eventMapCoordsFromScreen,
-          wmViewport,
-          props.coordinateSystem
-        ).nearestPoint?.geometry.coordinates;
-
-        if (nearestPointCoords) {
-          candidateCoords.push(nearestPointCoords);
-        }
-      } else {
-        coordEach(
-          feature,
-          currentCoord => {
-            candidateCoords.push(currentCoord);
-          },
-          true
-        );
-      }
-
-      for (const candidateCoord of candidateCoords) {
-        const candidateScreenCoords = wmViewport.project(candidateCoord);
-        const dx = candidateScreenCoords[0] - eventScreenCoords[0];
-        const dy = candidateScreenCoords[1] - eventScreenCoords[1];
+      const consider = (coordinates: Position) => {
+        const projected = wmViewport.project(coordinates);
+        const dx = projected[0] - event.screenCoords[0];
+        const dy = projected[1] - event.screenCoords[1];
         const distanceSquared = dx * dx + dy * dy;
-
-        if (distanceSquared <= snappingRadiusSquared && distanceSquared < closestDistanceSquared) {
-          closestSnapPoint = candidateCoord;
+        if (distanceSquared <= radiusSquared && distanceSquared < closestDistanceSquared) {
+          closest = {
+            mapCoords: coordinates,
+            featureIndex: i < props.data.features.length ? i : undefined
+          };
           closestDistanceSquared = distanceSquared;
-          featureIndex = i;
         }
+      };
+      // MultiPoint has vertices but no connecting edges. Vertices remain eligible with edge snapping.
+      coordEach(feature, consider, true);
+      if (props.modeConfig?.edgeSnapping) {
+        const candidate = findEdgeSnapCandidateForFeature(
+          feature,
+          i,
+          {...props, lastPointerMoveEvent: {...props.lastPointerMoveEvent, ...event}},
+          wmViewport
+        );
+        if (candidate) consider(candidate.geometry.coordinates);
       }
     }
-
-    if (closestSnapPoint) {
-      return {
-        mapCoords: closestSnapPoint,
-        featureIndex: featureIndex < props.data.features.length ? featureIndex : undefined
-      };
-    }
-
-    return null;
+    return closest;
   }
 }
 
+/** Shared stateless policy used when modeConfig.snapper is omitted. */
 export const DEFAULT_SNAPPER = new DefaultSnapper();

@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {FeatureCollection, Position} from '../../utils/geojson-types';
+import {SimpleFeatureCollection, Position} from '../../utils/geojson-types';
 import {BasePointerEvent, ModeProps} from '../types';
 
+/** A chosen position; external targets omit the editable-layer feature index. */
 export interface SnapResult {
+  /** Snapped coordinates in the same coordinate system as the editable data. */
   mapCoords: Position;
+  /** Index in props.data.features, or omitted for external/custom targets. */
   featureIndex?: number;
 }
 
@@ -16,11 +19,13 @@ export interface SnapResult {
  */
 export interface Snapper {
   /**
-   * Snaps the given event to the nearest snapping point based on the provided candidate features.
+   * Uses the raw current event to choose a target; return null when no target qualifies.
+   * excludedFeatureIndexes identifies editable-layer features that must not be targets.
+   * Implementations must preserve the input event, props and exclusion set.
    */
   snap(
     event: BasePointerEvent,
-    props: ModeProps<FeatureCollection>,
+    props: ModeProps<SimpleFeatureCollection>,
     excludedFeatureIndexes: Set<number>
   ): SnapResult | null;
 }

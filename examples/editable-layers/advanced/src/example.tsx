@@ -8,8 +8,11 @@ import {useState, useCallback} from 'react';
 import DeckGL from '@deck.gl/react';
 import {MapView, MapController} from '@deck.gl/core';
 import {Map as StaticMap} from 'react-map-gl/maplibre';
-import {GL} from '@luma.gl/constants';
 import circle from '@turf/circle';
+
+// Keep these WebGL constants local so the example also runs with the website's
+// ESM bundle, where the constants package may be externalized differently.
+const GL = {FUNC_ADD: 0x8006, SRC_ALPHA: 0x0302, ONE_MINUS_SRC_ALPHA: 0x0303};
 
 import {
   EditableGeoJsonLayer,
@@ -126,7 +129,7 @@ const ALL_MODES: any = [
       {label: 'Draw Square', mode: DrawSquareMode},
       {label: 'Draw Square From Center', mode: DrawSquareFromCenterMode},
       {label: 'Draw Circle From Center', mode: new SnappableMode(new DrawCircleFromCenterMode())},
-      {label: 'Draw Circle By Diameter', mode: new SnappableMode(new DrawCircleByDiameterMode())},
+      {label: 'Draw Circle By Diameter', mode: DrawCircleByDiameterMode},
       {label: 'Draw Ellipse By Bounding Box', mode: DrawEllipseByBoundingBoxMode},
       {label: 'Draw Ellipse Using 3 Points', mode: DrawEllipseUsingThreePointsMode}
     ]
@@ -152,6 +155,11 @@ const ALL_MODES: any = [
     modes: [{label: 'Draw LineString + Modify', mode: COMPOSITE_MODE}]
   }
 ];
+
+function getModeConstructor(mode: any) {
+  const wrapped = mode instanceof SnappableMode ? mode._wrappedMode : mode;
+  return typeof wrapped === 'function' ? wrapped : wrapped.constructor;
+}
 
 const POLYGON_DRAWING_MODES = [
   DrawPolygonMode,
@@ -325,7 +333,7 @@ export function Example() {
   }, [infoWidget, mode, selectedFeatureIndexes, selectionTool, showGeoJson, testFeatures]);
 
   const getDefaultModeConfig = useCallback((mode: any) => {
-    if (mode === DrawPolygonMode) {
+    if (getModeConstructor(mode) === DrawPolygonMode) {
       return {allowHoles: true, allowSelfIntersection: false};
     }
     return {};
@@ -754,17 +762,16 @@ export function Example() {
   const renderModeConfigControls = useCallback(() => {
     const controls: React.ReactElement[] = [];
 
-    if (POLYGON_DRAWING_MODES.indexOf(mode) > -1) {
+    if (POLYGON_DRAWING_MODES.indexOf(getModeConstructor(mode)) > -1) {
       controls.push(renderBooleanOperationControls());
     }
-    // @ts-expect-error TODO
-    if (TWO_CLICK_POLYGON_MODES.indexOf(mode) > -1) {
+    if (TWO_CLICK_POLYGON_MODES.indexOf(getModeConstructor(mode)) > -1) {
       controls.push(renderTwoClickPolygonControls());
     }
-    if (mode === ModifyMode) {
+    if (getModeConstructor(mode) === ModifyMode) {
       controls.push(renderModifyModeControls());
     }
-    if (mode === SplitPolygonMode) {
+    if (getModeConstructor(mode) === SplitPolygonMode) {
       controls.push(renderSplitModeControls());
     }
     if (
@@ -774,10 +781,10 @@ export function Example() {
     ) {
       controls.push(renderSnappingControls());
     }
-    if (mode === MeasureDistanceMode) {
+    if (getModeConstructor(mode) === MeasureDistanceMode) {
       controls.push(renderMeasureDistanceControls());
     }
-    if (mode === DrawPolygonMode) {
+    if (getModeConstructor(mode) === DrawPolygonMode) {
       controls.push(renderDrawPolygonModeControls());
     }
 
@@ -1038,14 +1045,14 @@ export function Example() {
 
   let currentModeConfig = modeConfig;
 
-  if (mode === ElevationMode) {
+  if (getModeConstructor(mode) === ElevationMode) {
     currentModeConfig = {
       ...currentModeConfig,
       viewport: currentViewport,
       calculateElevationChange: opts =>
         ElevationMode.calculateElevationChangeWithViewport(currentViewport, opts)
     };
-  } else if (mode === ModifyMode) {
+  } else if (getModeConstructor(mode) === ModifyMode) {
     currentModeConfig = {
       ...currentModeConfig,
       viewport: currentViewport,
@@ -1087,7 +1094,7 @@ export function Example() {
         ]
       };
     }
-  } else if (mode === DrawPolygonByDraggingMode) {
+  } else if (getModeConstructor(mode) === DrawPolygonByDraggingMode) {
     currentModeConfig = {
       ...currentModeConfig,
       throttleMs: 100

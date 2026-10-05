@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {
   getEditHandlesForGeometry,
   getPickedEditHandles,
@@ -14,14 +16,7 @@ import {
   getNearestPoint,
   NearestPointType
 } from './utils';
-import {
-  Polygon,
-  FeatureCollection,
-  Feature,
-  SimpleFeatureCollection,
-  Point,
-  LineString
-} from '../utils/geojson-types';
+import {LineString, Point, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ModeProps,
   ClickEvent,
@@ -78,7 +73,8 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
           featureAsPick.object,
           mapCoords,
           props.modeConfig?.viewport,
-          props.coordinateSystem
+          props.coordinateSystem,
+          this.getNearestPoint.bind(this)
         );
         if (intermediatePoint) {
           const {
@@ -198,6 +194,13 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
     const editHandleProperties = editHandle.properties;
     const editedFeature = props.data.features[editHandleProperties.featureIndex];
 
+    if (
+      !editedFeature ||
+      !props.selectedIndexes.includes(editHandleProperties.featureIndex) ||
+      !['existing', 'intermediate'].includes(editHandleProperties.editHandleType)
+    )
+      return;
+
     let updatedData;
     if (props.modeConfig?.lockRectangles && editedFeature.properties.shape === 'Rectangle') {
       const coordinates = updateRectanglePosition(
@@ -230,7 +233,7 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
     });
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const cursor = this.getCursor(event);
     props.onUpdateCursor(cursor);
   }
@@ -284,7 +287,8 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
     return null;
   }
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return new DragSnappingStrategy();
   }
 }

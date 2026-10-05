@@ -1,9 +1,10 @@
-import turfBearing from '@turf/bearing';
-import turfCenter from '@turf/center';
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+import {bearing} from '@turf/bearing';
+import {center} from '@turf/center';
 import {memoize} from '../utils/memoize';
 
 import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
-import {FeatureCollection, Position} from '../utils/geojson-types';
+import {Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {SnappableEditMode} from './snappable-edit-mode';
 import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
@@ -29,8 +30,8 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
         const {formatTooltip, measurementCallback} = modeConfig || {};
         const units = 'deg';
 
-        const angle1 = turfBearing(vertex, point1);
-        const angle2 = turfBearing(vertex, point2);
+        const angle1 = bearing(vertex, point1);
+        const angle2 = bearing(vertex, point2);
         let angle = Math.abs(angle1 - angle2);
         if (angle > 180) {
           angle = 360 - angle;
@@ -49,7 +50,7 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
           measurementCallback(angle);
         }
 
-        const position = turfCenter({
+        const position = center({
           type: 'FeatureCollection',
           features: [point1, point2].map(p => ({
             type: 'Feature',
@@ -68,7 +69,7 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
     }
   );
 
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>): void {
     if (this.getClickSequence().length >= 3) {
       this.resetClickSequence();
     }
@@ -77,11 +78,11 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
   }
 
   // Called when the pointer moved, regardless of whether the pointer is down, up, and whether something was picked
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     props.onUpdateCursor('cell');
   }
 
-  getPoints(props: ModeProps<FeatureCollection>): Position[] {
+  getPoints(props: ModeProps<SimpleFeatureCollection>): Position[] {
     const clickSequence = this.getClickSequence();
 
     const points = [...clickSequence];
@@ -94,7 +95,7 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
   }
 
   // Return features that can be used as a guide for editing the data
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const guides: GuideFeatureCollection = {type: 'FeatureCollection', features: []};
     const {features} = guides;
 
@@ -123,7 +124,7 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
     return guides;
   }
 
-  getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
     const points = this.getPoints(props);
 
     return this._getTooltips({
@@ -134,7 +135,8 @@ export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMo
     });
   }
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return new ClickSnappingStrategy();
   }
 }

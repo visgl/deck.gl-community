@@ -63,6 +63,9 @@ A [GeoJSON](http://geojson.org) `FeatureCollection` object. The following types 
 - `MultiPolygon`
 - `GeometryCollection` is not supported.
 
+For TypeScript, use `SimpleFeatureCollection` from `@deck.gl-community/editable-layers`
+(or GeoJSON's `FeatureCollection<SimpleGeometry>`) for editable data and edit callbacks.
+
 _Note: passing a single `Feature` is not supported. However, you can pass a `FeatureCollection` containing a single `Feature` and pass `selectedFeatureIndexes: [0]` to achieve the same result._
 
 #### `mode` (Function|Object, optional)
@@ -82,12 +85,13 @@ An arbitrary object used to further configure the current mode.
 Snapping-related `modeConfig` properties (used by `SnappableMode`):
 
 - `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as `TranslateMode`.
-- `edgeSnapping` (Boolean, optional) - When `true`, snap targets include the nearest point on any edge of a candidate feature, not just its vertices. **Requires `viewport` to be set**.
-- `snapper` (`Snapper`, optional) - Custom snapper implementation. Use this to override the default snapping logic.
+- `edgeSnapping` (Boolean, optional) - When `true`, snap targets include the nearest point on any edge of a candidate feature, not just its vertices. **The default policy requires `viewport` to be set**.
+- `snapper` (`Snapper`, optional) - Custom `Snapper` implementation. Its `snap(event, props, excludedFeatureIndexes)` method receives the raw current pointer event, `ModeProps<SimpleFeatureCollection>`, and editable-layer feature indexes to exclude. Return `{mapCoords, featureIndex?}` or `null`; omit `featureIndex` for external targets. The policy governs draw, edit and source-handle targets with or without `edgeSnapping`. Preserve the input event, props and exclusion set.
 - `additionalSnapTargets` (Object[], optional) - An array of GeoJSON Features that can be snapped to. This property only needs to be specified if you want to snap to features in other deck.gl layers. All features in this `EditableGeoJsonLayer` will be snap targets.
 - `viewport` (Viewport, optional) - The current deck.gl viewport. Required for certain snapping behavior.
 
-The snap distance threshold is controlled by the layer's `pickingRadius` prop. Increase it to make snapping easier to trigger.
+The default policy uses the layer's `pickingRadius` prop as its snap distance threshold.
+Custom `snapper` policies can define their own threshold and viewport requirements.
 
 #### `selectedFeatureIndexes` (Array, optional)
 

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfBearing from '@turf/bearing';
-import turfDistance from '@turf/distance';
-import turfTransformTranslate from '@turf/transform-translate';
+import {bearing} from '@turf/bearing';
+import {distance} from '@turf/distance';
+import {transformTranslate} from '@turf/transform-translate';
 import {point} from '@turf/helpers';
 import {SimpleFeatureCollection, Position} from '../utils/geojson-types';
 import {PointerMoveEvent, StartDraggingEvent, StopDraggingEvent} from '../edit-modes/types';
@@ -84,10 +84,10 @@ export class TranslateHandler extends ModeHandler {
     const p1 = point(startDragPoint);
     const p2 = point(currentPoint);
 
-    const distanceMoved = turfDistance(p1, p2);
-    const direction = turfBearing(p1, p2);
+    const distanceMoved = distance(p1, p2);
+    const direction = bearing(p1, p2);
 
-    const movedFeatures: SimpleFeatureCollection = turfTransformTranslate(
+    const movedFeatures: SimpleFeatureCollection = transformTranslate(
       this._geometryBeforeTranslate,
       distanceMoved,
       direction

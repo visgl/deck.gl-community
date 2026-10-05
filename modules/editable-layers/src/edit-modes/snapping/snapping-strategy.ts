@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {FeatureCollection} from '../../utils/geojson-types';
+import {SimpleFeatureCollection} from '../../utils/geojson-types';
 import {ClickEvent, GuideFeatureCollection, ModeProps, MovementEvent} from '../types';
 
 /**
@@ -16,16 +16,19 @@ export interface SnappingStrategy {
    * Return the click event with snapped coordinates applied, or the original
    * event unchanged if snapping does not apply.
    */
-  snapClickEvent(props: ModeProps<FeatureCollection>, event: ClickEvent): ClickEvent;
+  snapClickEvent(props: ModeProps<SimpleFeatureCollection>, event: ClickEvent): ClickEvent;
 
   /**
    * Return the movement event with snapped coordinates applied, or the original
    * event unchanged if snapping does not apply.
    */
-  snapMovementEvent<T extends MovementEvent>(props: ModeProps<FeatureCollection>, event: T): T;
+  snapMovementEvent<T extends MovementEvent>(
+    props: ModeProps<SimpleFeatureCollection>,
+    event: T
+  ): T;
 
   /**
    * Returns the snapping guides for this snapping strategy.
    */
-  getSnapGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection;
+  getSnapGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection;
 }

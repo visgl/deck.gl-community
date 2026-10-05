@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfCenter from '@turf/center';
+import {center} from '@turf/center';
 import {mapCoords} from '../edit-modes/utils';
 import {geoCoordinateSystem} from '../edit-modes/coordinate-system';
 import type {EditModeCoordinateSystem} from '../edit-modes/coordinate-system';
@@ -16,7 +16,7 @@ export function translateFromCenter(
   direction: number,
   coordinateSystem: EditModeCoordinateSystem = geoCoordinateSystem
 ) {
-  const initialCenter = turfCenter(feature).geometry.coordinates;
+  const initialCenter = center(feature).geometry.coordinates;
 
   const movedCenter = coordinateSystem.destination(initialCenter, distance, direction);
 

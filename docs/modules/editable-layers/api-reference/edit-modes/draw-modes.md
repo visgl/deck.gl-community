@@ -217,5 +217,4 @@ The following modes support snapping when wrapped with `SnappableMode`:
 - `DrawRectangleMode`
 - `DrawRectangleUsingThreePointsMode`
 - `DrawCircleFromCenterMode`
-- `DrawCircleByDiameterMode`
 - `SplitPolygonMode`

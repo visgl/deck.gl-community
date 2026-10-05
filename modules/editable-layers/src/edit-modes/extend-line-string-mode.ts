@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  Position,
-  LineString,
-  FeatureCollection,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
+import {Position, LineString, SimpleFeatureCollection} from '../utils/geojson-types';
 import {ClickEvent, PointerMoveEvent, ModeProps, GuideFeatureCollection} from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
@@ -98,11 +95,12 @@ export class ExtendLineStringMode extends GeoJsonEditMode implements SnappableEd
     return guides;
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
   }
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return new ClickSnappingStrategy();
   }
 }

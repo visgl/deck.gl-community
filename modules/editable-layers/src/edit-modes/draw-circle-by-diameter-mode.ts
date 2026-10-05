@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfCircle from '@turf/circle';
-import turfDistance from '@turf/distance';
-import turfArea from '@turf/area';
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
+import {circle} from '@turf/circle';
+import {distance} from '@turf/distance';
+import {area} from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
-import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';
+import {Position, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
@@ -28,13 +30,13 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
 
     const centerCoordinates = getIntermediatePosition(coord1, coord2);
     // setting value of radius as distance of center and other point
-    this.radius = Math.max(turfDistance(coord1, centerCoordinates), 0.001);
+    this.radius = Math.max(distance(coord1, centerCoordinates), 0.001);
     // setting value of diameter as distance of points
-    this.diameter = Math.max(turfDistance(coord1, coord2), 0.001);
+    this.diameter = Math.max(distance(coord1, coord2), 0.001);
     // setting position tooltip as center of circle
     this.position = centerCoordinates;
 
-    const geometry = turfCircle(centerCoordinates, this.radius, options);
+    const geometry = circle(centerCoordinates, this.radius, options);
 
     geometry.properties = geometry.properties || {};
     geometry.properties.shape = 'Circle';
@@ -43,7 +45,7 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
     geometry.properties.editProperties.radius = {value: this.radius, unit: 'kilometers'};
     geometry.properties.editProperties.center = centerCoordinates;
     // calculate area of circle with turf function
-    this.areaCircle = turfArea(geometry);
+    this.areaCircle = area(geometry);
 
     return geometry;
   }
@@ -53,7 +55,7 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
    * nebula geometry mode type
    * @param props properties of geometry nebula mode
    */
-  getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
     return this._getTooltips({
       modeConfig: props.modeConfig,
       radius: this.radius,
@@ -94,7 +96,8 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
     return tooltips;
   });
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return undefined;
   }
 }
