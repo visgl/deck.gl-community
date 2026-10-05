@@ -45,6 +45,13 @@ GeoJSON's `FeatureCollection<SimpleGeometry>` is also compatible. Validate or na
 broader GeoJSON input before editing; `GeometryCollection` is not supported by the
 edit modes. The existing `Feature` and `FeatureCollection` re-exports remain available.
 
+#### SelectionLayer polygon selection
+
+Polygon selection no longer waits 250 ms before calling `onSelect`. If an application relied on
+that delay, schedule its own deferred work in the callback. Keep `SelectionLayer` after its
+pickable target layers. Selection continues to return deck.gl GPU picking infos for visible
+rendered objects, including GeoJSON and binary layer data.
+
 ## Private playground schema preview
 
 The layer/view schema preview now rejects unknown props and invalid accessor constants. Extend a
