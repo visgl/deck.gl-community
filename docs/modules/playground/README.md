@@ -99,6 +99,56 @@ embedded card metadata without changing document text. Custom Monaco language id
 are passed through; hosts register any additional languages and services. JSON schemas apply
 only in JSON mode. `DeckPlayground` always uses JSON but accepts the presentation options.
 
+## Asynchronous application preview
+
+Use the persistent `renderer` contract when a custom preview must load resources before accepting
+an edit. Template identity is supplied independently of the document contents, so even identical
+documents can resolve resources against different source URLs:
+
+```ts
+const templateUrls: Record<string, string> = {
+  first: new URL('/documents/first/config.json', location.href).href,
+  second: new URL('/documents/second/config.json', location.href).href
+};
+
+const playground = new Playground({
+  parentElement,
+  templates: {first: {color: 'blue'}, second: {color: 'green'}},
+  onTemplateChange(name) {
+    // Synchronize external selection UI here; this also runs during construction.
+    selectedTemplateLabel.textContent = name;
+  },
+  onStatusChange(status) {
+    statusLabel.textContent = status;
+  },
+  onError(error) {
+    statusLabel.textContent = error.message;
+  },
+  renderer: {
+    async update(root, value, _text, context) {
+      if (!context) throw new Error('This renderer requires a playground context');
+      const assetUrl = new URL('./preview.json', templateUrls[context.templateId]);
+      const response = await fetch(assetUrl, {signal: context.signal});
+      if (!response.ok) throw new Error(`Unable to load preview (${response.status})`);
+      const asset = await response.json();
+      // Prepare first, then commit only if this revision is still active.
+      const text = JSON.stringify({document: value, asset}, null, 2);
+      context.signal.throwIfAborted();
+      root.textContent = text;
+    },
+    finalize() {
+      // Release application-owned preview resources, if any.
+    }
+  }
+});
+```
+
+New edits, selections, and disposal abort previous work. Obsolete completions and rejections do
+not update status or call `onChange`/`onError`; current failures leave the editor usable. Keep the
+last successful preview until preparation succeeds. An engine that mutates shared resources during
+loading must implement its own serialized update or rollback policy. The host retains control of
+fetching, document URLs, parsing, and renderer-specific behavior.
+
 ## SQL-backed examples
 
 The playground is an engine-neutral view over host-owned data. Supply a query provider when the
