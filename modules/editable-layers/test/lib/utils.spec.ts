@@ -11,13 +11,8 @@ import {
   mix,
   nearestPointOnProjectedLine
 } from '../../src/utils/utils';
-import type {
-  Position,
-  LineString as LineStringType,
-  Point as PointType,
-  Viewport
-} from '@deck.gl-community/editable-layers';
-import {Feature} from 'geojson';
+import type {Viewport} from '@deck.gl-community/editable-layers';
+import type {Feature, Position, LineString as LineStringType, Point as PointType} from 'geojson';
 
 const Point = {
   type: 'Feature',
