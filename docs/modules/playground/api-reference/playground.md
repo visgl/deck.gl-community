@@ -242,11 +242,20 @@ that capability and understands the database effects.
   metadata and top-level card labels without changing document contents.
 - `jsonSchema`: optional JSON Schema for Monaco diagnostics and completion in JSON mode.
 - `parse`: parser; defaults to `JSON.parse`.
-- `onChange(value, text)`: observes valid edits.
-- `onError(error)`: observes parsing or synchronous rendering failures.
+- `onTemplateChange(name)`: observes explicit selection, including startup, before parsing or
+  rendering. Ordinary edits do not emit this callback. The picker, `setTemplate`, and
+  `setTemplates` use the same notification path; selecting the same template again also notifies.
+- `onChange(value, text)`: observes accepted edits after a successful renderer update. For a
+  promise-returning renderer this runs only after the current update resolves.
+- `onStatusChange(status, context)`: observes `'loading'`, `'ready'`, or `'error'` for the current
+  update. Only asynchronous renderer updates emit `'loading'`. This is document acceptance, not
+  confirmation that all GPU resources or tiles have finished loading.
+- `onError(error)`: observes parsing, synchronous rendering, or current asynchronous rendering
+  failures. Obsolete update failures do not notify.
 - `render(previewElement, value)`: renders valid documents and optionally returns cleanup. The
   previous cleanup runs and the preview is cleared before each render.
-- `renderer`: persistent renderer with `update(previewElement, value, text?): void` and
+- `renderer`: persistent renderer with
+  `update(previewElement, value, text?, context?): void | Promise<void>` and
   `finalize(): void`. Use this or `render`, not both.
 
 ```ts
@@ -264,7 +273,38 @@ const playground = new Playground({
 });
 ```
 
-Parse failures retain the preview. Custom renderers own recovery from errors during an update.
+### Template context and asynchronous renderers
+
+Every renderer update receives a `PlaygroundUpdateContext` as its fourth argument:
+
+- `templateId`: the selected template key, retained through ordinary text edits. Hosts can use
+  it to look up a document URL, resolve relative resources, or select camera presets without
+  reading the picker DOM.
+- `templateMetadata`: a snapshot of the resolved card metadata, including host overrides.
+  This presentation metadata is not inserted into the editor document.
+- `revision`: a monotonically increasing update number, local to one playground.
+- `signal`: aborted by any newer edit (even invalid text), explicit template selection, or
+  `finalize()`.
+
+The context argument is optional in the renderer type for compatibility with direct calls to
+existing renderers; `Playground` always supplies it. Existing two- or three-argument synchronous
+renderers remain supported, and their `onChange` notifications remain synchronous.
+
+Return a promise when acceptance requires asynchronous work. Playground consumes its rejection,
+sets `aria-busy` on the preview while pending, and emits acceptance or errors only for the current
+revision. A newer update may start before the previous promise settles. Check `signal` before
+committing prepared work to the shared preview; serialize updates in the renderer if the underlying
+engine cannot safely overlap them. Cancellation is cooperative: Playground cannot undo DOM or GPU
+mutations that a renderer already performed.
+
+Parse failures leave the preview untouched. Persistent renderers own preparation, atomic commit,
+and recovery so that a failed or superseded update retains the last accepted preview. The legacy
+`render` callback is still synchronous and clears its previous preview before rendering.
+
+Callbacks can run during construction. Finalization aborts the current update before calling the
+renderer cleanup. Late success or failure does not emit status, change, or error callbacks.
+
+See the [usage guide](../README.md#asynchronous-application-preview) for a relative-resource example.
 
 ## Shared methods
 
