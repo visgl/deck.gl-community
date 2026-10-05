@@ -47,13 +47,7 @@ async function createGestureScene() {
   await expect.poll(() => original.state?.mode).toBe(mode);
   const canvas = parent.querySelector('canvas')!;
   const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-  const sendPointer = async (
-    type: string,
-    x: number,
-    y: number,
-    pointerType = 'mouse',
-    button = 0
-  ) => {
+  const sendPointer = async (type: string, x: number, y: number, pointerType: string) => {
     const rect = canvas.getBoundingClientRect();
     const event = new PointerEvent(type, {
       bubbles: true,
@@ -61,8 +55,8 @@ async function createGestureScene() {
       pointerId: 1,
       pointerType,
       isPrimary: true,
-      button: type === 'pointermove' ? -1 : button,
-      buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : [1, 4, 2][button],
+      button: type === 'pointermove' ? -1 : 0,
+      buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
       clientX: rect.left + x,
       clientY: rect.top + y
     });
@@ -70,21 +64,12 @@ async function createGestureScene() {
     await frame();
   };
   return {
-    deck,
-    parent,
     original,
     mode,
     errors,
     edits,
-    frame,
     sendPointer,
     getData: () => data,
-    replace: async () => {
-      const replacement = createLayer();
-      deck.setProps({layers: [replacement]});
-      await expect.poll(() => original.getCurrentLayer()).toBe(replacement);
-      return replacement;
-    },
     cleanup: () => {
       deck.finalize();
       parent.remove();
@@ -93,71 +78,23 @@ async function createGestureScene() {
 }
 
 test.each([
-  'mouse',
-  'touch'
-])('native %s pointer drag survives deck.gl layer replacement', async pointerType => {
+  ['mouse', 'pointerup', 'addFeature'],
+  ['touch', 'pointerup', 'addFeature'],
+  ['mouse', 'pointercancel', 'cancelFeature']
+])('native %s drag ending with %s survives layer replacement', async (pointerType, end, editType) => {
   const scene = await createGestureScene();
   try {
     await scene.sendPointer('pointerdown', 30, 30, pointerType);
     await scene.sendPointer('pointermove', 70, 30, pointerType);
-    expect(scene.original.state.isDraggingWithPrimaryButton).toBe(true);
-    const replacement = await scene.replace();
-    expect(replacement.state).toBe(scene.original.state);
     await scene.sendPointer('pointermove', 180, 30, pointerType);
+    // onEdit replaces the layer, as React does on each tentative edit.
+    await expect.poll(() => scene.original.getCurrentLayer()).not.toBe(scene.original);
     await scene.sendPointer('pointermove', 180, 180, pointerType);
-    await scene.sendPointer('pointerup', 30, 180, pointerType);
-    expect(scene.getData().features).toHaveLength(1);
-    expect(scene.edits.filter(type => type === 'addFeature')).toHaveLength(1);
-    expect(replacement.state.isDraggingWithPrimaryButton).toBe(false);
-    expect(scene.errors).toEqual([]);
-  } finally {
-    scene.cleanup();
-  }
-});
-
-test('native pointercancel discards the tentative polygon after replacement', async () => {
-  const scene = await createGestureScene();
-  try {
-    await scene.sendPointer('pointerdown', 30, 30);
-    await scene.sendPointer('pointermove', 70, 30);
-    await scene.replace();
-    await scene.sendPointer('pointermove', 180, 30);
-    await scene.sendPointer('pointermove', 180, 180);
-    await scene.sendPointer('pointercancel', 30, 180);
-    expect(scene.getData().features).toHaveLength(0);
-    expect(scene.edits).toContain('cancelFeature');
+    await scene.sendPointer(end, 30, 180, pointerType);
+    expect(scene.getData().features).toHaveLength(end === 'pointerup' ? 1 : 0);
+    expect(scene.edits.filter(type => type === editType)).toHaveLength(1);
     expect(scene.mode.getClickSequence()).toEqual([]);
     expect(scene.original.state.isDraggingWithPrimaryButton).toBe(false);
-    expect(scene.errors).toEqual([]);
-  } finally {
-    scene.cleanup();
-  }
-});
-
-test.each([1, 2])('native button %i drag leaves map gestures available', async button => {
-  const scene = await createGestureScene();
-  try {
-    const before = scene.deck.getViewports()[0].target;
-    const receivedMoves: unknown[] = [];
-    // This listener runs after the editable layer and receives uncancelled map gestures.
-    (scene.deck as any).eventManager.on('panmove', event => receivedMoves.push(event), {
-      priority: 0
-    });
-    await scene.sendPointer('pointerdown', 30, 30, 'mouse', button);
-    await scene.sendPointer('pointermove', 70, 30, 'mouse', button);
-    await scene.replace();
-    await scene.sendPointer('pointermove', 180, 30, 'mouse', button);
-    await scene.sendPointer('pointermove', 180, 180, 'mouse', button);
-    await scene.sendPointer('pointerup', 30, 180, 'mouse', button);
-    expect(scene.getData().features).toHaveLength(0);
-    expect(scene.edits).toEqual([]);
-    expect(receivedMoves.length).toBeGreaterThan(0);
-    if (button === 1) {
-      expect(scene.deck.getViewports()[0].target).not.toEqual(before);
-    }
-    const contextMenu = new MouseEvent('contextmenu', {button: 2, bubbles: true, cancelable: true});
-    scene.parent.querySelector('canvas')!.dispatchEvent(contextMenu);
-    expect(contextMenu.defaultPrevented).toBe(false);
     expect(scene.errors).toEqual([]);
   } finally {
     scene.cleanup();

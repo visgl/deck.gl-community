@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {beforeEach, describe, expect, it} from 'vitest';
+import {beforeEach, expect, test, vi} from 'vitest';
 import {DrawPolygonByDraggingMode} from '../../../src/edit-modes/draw-polygon-by-dragging-mode';
 import {
   createFeatureCollectionProps,
@@ -35,24 +35,33 @@ beforeEach(() => {
   });
 });
 
-describe('mouse buttons', () => {
-  it('draws a polygon with the primary button', () => {
-    dragToDrawPolygon(0);
-
-    expect(props.onEdit).toHaveBeenCalled();
-    const lastCall = props.onEdit.mock.calls[props.onEdit.mock.calls.length - 1][0];
-    expect(lastCall.editType).toEqual('addFeature');
-  });
-
-  it('does not draw with the middle mouse button', () => {
-    dragToDrawPolygon(1);
-
+test.each([0, 1, 2])('button %i draws only with the primary button', button => {
+  dragToDrawPolygon(button);
+  if (button === 0) {
+    expect(props.onEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({editType: 'addFeature'})
+    );
+  } else {
     expect(props.onEdit).not.toHaveBeenCalled();
-  });
+  }
+});
 
-  it('does not draw with the right mouse button', () => {
-    dragToDrawPolygon(2);
-
-    expect(props.onEdit).not.toHaveBeenCalled();
-  });
+test('Escape cancels queued throttled polygon edits', () => {
+  vi.useFakeTimers();
+  try {
+    props.modeConfig = {throttleMs: 100};
+    mode.handleStartDragging(createStartDraggingEvent([0, 0], [0, 0]), props);
+    mode.handleDragging(createStartDraggingEvent([1, 0], [0, 0]), props);
+    mode.handleDragging(createStartDraggingEvent([1, 1], [0, 0]), props);
+    mode.handleKeyUp({key: 'Escape'} as KeyboardEvent, props);
+    expect(props.onEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({editType: 'cancelFeature'})
+    );
+    const callCount = props.onEdit.mock.calls.length;
+    vi.runAllTimers();
+    expect(props.onEdit).toHaveBeenCalledTimes(callCount);
+    expect(mode.getClickSequence()).toEqual([]);
+  } finally {
+    vi.useRealTimers();
+  }
 });
