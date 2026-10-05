@@ -9,6 +9,7 @@ import {
   VIEW,
   DEFAULT_OPTIONS,
   SPECIES,
+  SEASONS,
   createSpecimens,
   createSceneLayers,
   createLighting,
@@ -16,6 +17,8 @@ import {
   type SceneOptions,
   type TreeLayerConstructor
 } from './scene';
+import {createForestSpecimens, getTreeCount} from './forest-data';
+import {createForestSceneLayers} from './forest-scene';
 import './style.css';
 
 /** Identical single-renderer workloads; frame intervals describe browser delivery, not GPU time. */
@@ -24,10 +27,14 @@ export function mountTreeBenchmark(
   renderer: 'baseline' | 'native'
 ) {
   const query = new URLSearchParams(location.search);
-  const count = Math.max(1, Math.min(10000, Number(query.get('count') ?? 1000)));
-  const species = SPECIES.find(value => value === query.get('species')) ?? 'oak';
+  const count = getTreeCount(query.get('count'));
+  const species =
+    query.get('species') === 'mixed'
+      ? 'mixed'
+      : (SPECIES.find(value => value === query.get('species')) ?? 'oak');
   const options: SceneOptions = {
     ...DEFAULT_OPTIONS,
+    season: SEASONS.find(value => value === query.get('season')) ?? DEFAULT_OPTIONS.season,
     crops: query.get('crops') === '1',
     dropped: query.get('crops') === '1',
     shadows: query.get('shadows') === '1',
@@ -40,18 +47,50 @@ export function mountTreeBenchmark(
   };
   if (options.backend === 'webgpu') options.shadows = false;
   const parent = document.querySelector('#app')!;
-  parent.innerHTML = `<main class="tree-lab benchmark"><div class="eyebrow">Tree Lab / Performance</div><h1></h1><p></p><div class="canvas"></div><button id="measure" disabled>Measure 5-second camera orbit</button> <button id="repeat" disabled>Run three samples</button> <a href="./index.html">Visual comparison</a><pre id="result">Ready for measurement.</pre></main>`;
+  parent.innerHTML = `<main class="tree-lab benchmark"><div class="eyebrow">Tree Lab / Performance</div><h1></h1><p></p><div class="canvas"></div><button id="measure" disabled>Measure 5-second camera orbit</button> <button id="repeat" disabled>Run three samples</button> <a href="./index.html">Visual comparison</a> · <a href="./forest.html">10K / 20K forest</a><div id="summary" aria-live="polite">Ready for measurement.</div><details><summary>Raw measurements</summary><pre id="result">Ready for measurement.</pre></details></main>`;
   parent.querySelector('h1')!.textContent =
     `${renderer === 'native' ? 'Native vis.gl' : 'Original Three.js'} · ${count.toLocaleString()} ${species} trees`;
   parent.querySelector('p')!.textContent =
-    `${options.backend} · ${options.detail} detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer === 'native' ? 'on' : 'unsupported / static') : 'off'}`;
+    `${options.backend} · ${options.season} · ${options.detail} detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer === 'native' ? 'on' : 'unsupported / static') : 'off'}`;
+  const summary = parent.querySelector<HTMLElement>('#summary')!;
+  const showSamples = (
+    samples: {
+      medianFrameMs: number;
+      p95FrameMs: number;
+      deliveredFramesPerSecond: number;
+      longTaskCount: number;
+    }[]
+  ) => {
+    summary.replaceChildren();
+    const table = document.createElement('table');
+    table.innerHTML =
+      '<thead><tr><th>Sample</th><th>Median frame</th><th>p95 frame</th><th>Delivered frames/s</th><th>Long tasks</th></tr></thead>';
+    const body = document.createElement('tbody');
+    for (const [index, sample] of samples.entries()) {
+      const row = document.createElement('tr');
+      for (const value of [
+        index + 1,
+        `${sample.medianFrameMs.toFixed(1)} ms`,
+        `${sample.p95FrameMs.toFixed(1)} ms`,
+        sample.deliveredFramesPerSecond.toFixed(1),
+        sample.longTaskCount
+      ]) {
+        const cell = document.createElement('td');
+        cell.textContent = String(value);
+        row.append(cell);
+      }
+      body.append(row);
+    }
+    table.append(body);
+    summary.append(table);
+  };
   let frame = 0;
   let ready = false;
   const errors: string[] = [];
   const firstStart = performance.now();
   let firstFrameMs: number | null = null;
   let device: Device;
-  const data = createSpecimens(species, count);
+  const data = species === 'mixed' ? createForestSpecimens(count) : createSpecimens(species, count);
   const zoom = count === 1 ? VIEW.zoom : Math.max(13, 20.5 - Math.log2(Math.sqrt(count)));
   const deck = new Deck({
     parent: parent.querySelector('.canvas')!,
@@ -61,7 +100,15 @@ export function mountTreeBenchmark(
     deviceProps: {type: options.backend, adapters: [webgl2Adapter, webgpuAdapter]},
     views: createViews(),
     viewState: {...VIEW, zoom},
-    layers: createSceneLayers(LayerClass, renderer, data, options),
+    layers:
+      species === 'mixed'
+        ? createForestSceneLayers(
+            LayerClass,
+            renderer,
+            data as ReturnType<typeof createForestSpecimens>,
+            options
+          )
+        : createSceneLayers(LayerClass, renderer, data, options),
     effects: [createLighting(options.shadows)],
     onDeviceInitialized: initializedDevice => {
       device = initializedDevice;
@@ -85,9 +132,13 @@ export function mountTreeBenchmark(
   });
   let measuring = false;
   const measure = async (durationMs = 5000) => {
-    if (!ready || measuring)
-      throw new Error('Renderer is not ready or another measurement is running.');
+    if (!ready || measuring || document.hidden)
+      throw new Error(
+        'Keep this benchmark visible; wait for readiness and any running measurement.'
+      );
     measuring = true;
+    const visibilityAtStart = document.visibilityState;
+    const focusedAtStart = document.hasFocus();
     const idleStartFrame = frame;
     const idleStart = performance.now();
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -120,6 +171,10 @@ export function mountTreeBenchmark(
     const sorted = [...gaps].sort((a, b) => a - b);
     const result = {
       renderer,
+      visibilityAtStart,
+      focusedAtStart,
+      visibilityAtEnd: document.visibilityState,
+      camera: {...VIEW, zoom},
       species,
       count,
       options,
@@ -131,6 +186,8 @@ export function mountTreeBenchmark(
       idleDurationMs,
       viewport: {width: deck.width, height: deck.height, devicePixelRatio: 1},
       durationMs: performance.now() - start,
+      deliveredFramesPerSecond: ((frame - startFrame) * 1000) / (performance.now() - start),
+      treeInstances: data.length,
       medianFrameMs: sorted[Math.floor(sorted.length * 0.5)],
       p95FrameMs: sorted[Math.floor(sorted.length * 0.95)],
       maxFrameMs: sorted.at(-1),
@@ -148,22 +205,26 @@ export function mountTreeBenchmark(
     parent.querySelector('#result')!.textContent = JSON.stringify(result, null, 2);
     return result;
   };
-  parent.querySelector('#measure')!.addEventListener('click', () => {
-    parent.querySelector('#result')!.textContent = 'Measuring…';
-    void measure();
-  });
-  parent.querySelector('#repeat')!.addEventListener('click', async () => {
-    const samples = [];
-    for (const button of parent.querySelectorAll<HTMLButtonElement>('button'))
-      button.disabled = true;
-    for (let index = 0; index < 3; index++) {
-      parent.querySelector('#result')!.textContent = `Measuring sample ${index + 1}/3…`;
-      samples.push(await measure());
+  const runSamples = async (count: number) => {
+    const buttons = parent.querySelectorAll<HTMLButtonElement>('button');
+    for (const button of buttons) button.disabled = true;
+    try {
+      const samples = [];
+      for (let index = 0; index < count; index++) {
+        summary.textContent = `Measuring sample ${index + 1}/${count}…`;
+        parent.querySelector('#result')!.textContent = summary.textContent;
+        samples.push(await measure());
+      }
+      parent.querySelector('#result')!.textContent = JSON.stringify({samples}, null, 2);
+      showSamples(samples);
+    } catch (error) {
+      summary.textContent = error instanceof Error ? error.message : String(error);
+    } finally {
+      for (const button of buttons) button.disabled = !ready || errors.length > 0;
     }
-    parent.querySelector('#result')!.textContent = JSON.stringify({samples}, null, 2);
-    for (const button of parent.querySelectorAll<HTMLButtonElement>('button'))
-      button.disabled = false;
-  });
+  };
+  parent.querySelector('#measure')!.addEventListener('click', () => void runSamples(1));
+  parent.querySelector('#repeat')!.addEventListener('click', () => void runSamples(3));
   Object.assign(window, {
     treeBenchmark: {
       get ready() {

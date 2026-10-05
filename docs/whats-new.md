@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [Tree Forest](/examples/layers/tree-forest) explores 10,000 or 20,000 native trees with wind, seasonal sunlight, shadows and a canopy flyover. Matched benchmark entries report actual instance counts and repeated frame-delivery samples.
+
 - `TreeLayer` moves to `@deck.gl-community/layers` with native vis.gl geometry, branching winter crowns, crop placement against species envelopes, optional GPU wind and shared detail presets. The old package remains a compatibility export. [Tree Lab](/examples/layers/tree-lab) compares every species against the original renderer; see the [migration notes](/docs/modules/layers/api-reference/tree-layer#migration) for crop radius and seasonal overrides.
 
 - `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives

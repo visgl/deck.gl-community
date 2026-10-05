@@ -12,6 +12,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
+        forest: fileURLToPath(new URL('./forest.html', import.meta.url)),
         film: fileURLToPath(new URL('./film.html', import.meta.url)),
         lab: fileURLToPath(new URL('./index.html', import.meta.url)),
         native: fileURLToPath(new URL('./native.html', import.meta.url)),

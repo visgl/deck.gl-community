@@ -27,3 +27,17 @@ Root package/type/declaration build, Node tests, website build, Tree Lab typeche
 Actual non-fallback WebGPU rendering and wind were separately inspected in the hardware browser. Headless WebGPU cases skip when no adapter exists. deck.gl shadows are WebGL-only. Async picking readback, automated encoder error/concurrency recovery, numerical shader normals and cross-device performance remain unverified. Manual film capture is separate from those automated test lanes.
 
 Reproduce with the commands and matched benchmark entries in [README](README.md).
+
+## 10K / 20K forest
+
+`forest.html` and the website Tree Forest example use deterministic procedural positions, varied dimensions and all five species. The count controls allocate exactly 10,000 or 20,000 rows. Wind, shadows, detail, seasons and sunlight are independent; the default flyover inspects crowns, while overview fits the full dataset. Browser checks render both counts, every season and shadow state, preserve default flyover during initialization and project the overview corners inside the viewport.
+
+[Retained scale samples](forest-review.json) include the production build fingerprints, actual instance count, M4 Pro/ANGLE Metal device, 1236×680 viewport at 1× pixels, three warmed five-second orbits per workload and a one-tree scheduling control. The following are medians of the three delivered-frame rates:
+
+| Workload | 10,000 trees | 20,000 trees |
+| --- | --- | --- |
+| Original, high detail, static, shadows off | 26.3 frames/s | 19.3 frames/s |
+| Native, high detail, static, shadows off | 27.1 frames/s | 30.6 frames/s |
+| Native, medium detail, wind and shadows on | 30.7 frames/s | 26.9 frames/s |
+
+**These observations are provisional.** The in-app browser remained hidden despite a presentation request, other work was active on the shared host, and the subsequent one-tree control delivered only 19.9–20.3 frames/s. This prevents an isolated throughput or speedup conclusion. No application rendering errors occurred; two long tasks were recorded in one 10K animated sample, with none in the other retained scale samples. Frame delivery is not GPU execution time. Repeat the same benchmark entries in a foreground browser on an otherwise idle host before making a performance claim.
