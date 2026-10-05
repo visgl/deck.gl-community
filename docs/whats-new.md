@@ -6,6 +6,12 @@
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
 
+- Breaking change for the next major release: editable-layers removes nine standard
+  GeoJSON type re-exports, unused `AnyGeoJson` and `Style` aliases, and the generic
+  `toDeckColor`, `utils`, and `_memoize` exports. Import GeoJSON types from `geojson`;
+  use the package's `Simple*` types for editable data. See the
+  [public export migration](./upgrade-guide.md#public-export-cleanup).
+
 - Editable-layers edit mode constructors and base classes consistently use
   `SimpleFeatureCollection`, fixing constructor assignments in strict TypeScript
   consumers. Custom mode handlers and editable data typed with the broader GeoJSON

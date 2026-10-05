@@ -46,6 +46,3 @@ export type SimpleGeometryCoordinates = SimpleGeometry['coordinates'];
 
 /** Polygon and MultiPolygon geometries */
 export type PolygonGeometry = Polygon | MultiPolygon;
-
-/** A Feature or FeatureCollection */
-export type AnyGeoJson = Feature | FeatureCollection;

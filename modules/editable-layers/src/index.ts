@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-// Utils
-export {toDeckColor} from './utils/utils';
-
 // Types
-export type {Color, Style, Viewport} from './utils/types';
+export type {Color, Viewport} from './utils/types';
 
 // Layers
 export {EditableGeoJsonLayer} from './editable-layers/editable-geojson-layer';
@@ -25,15 +22,9 @@ export type {
 export {EditorToolbarWidget} from './widgets/editor-toolbar-widget';
 export type {EditorToolbarWidgetProps, BooleanOperation} from './widgets/editor-toolbar-widget';
 
-// Layers move to deck.gl-community/layers?
 export {JunctionScatterplotLayer} from './editable-layers/junction-scatterplot-layer';
 
-// Types
-
-import * as utils from './utils/utils';
-
-export {utils};
-
+// Edit-mode utilities
 export {getPickedEditHandle, getEditHandlesForGeometry} from './edit-modes/utils';
 
 export type {EditMode} from './edit-modes/edit-mode';
@@ -104,27 +95,15 @@ export type {
   DraggingEvent,
   ModeProps,
   GuideFeatureCollection,
-  // Viewport,
   Tooltip
 } from './edit-modes/types';
 
+// Geometry types specific to the editable data contract.
+// Import standard GeoJSON types directly from 'geojson'.
 export type {
-  Position,
   SimpleFeature,
   SimpleFeatureCollection,
   SimpleGeometry,
   SimpleGeometryCoordinates,
-  Point,
-  LineString,
-  Polygon,
-  MultiPoint,
-  MultiLineString,
-  MultiPolygon,
-  PolygonGeometry,
-  Feature,
-  FeatureCollection,
-  AnyGeoJson
+  PolygonGeometry
 } from './utils/geojson-types';
-
-// Experimental
-export {memoize as _memoize} from './utils/memoize';
