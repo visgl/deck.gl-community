@@ -8,10 +8,11 @@ import maplibregl from 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
+import {DrawPolygonByDraggingMode} from '../../src/edit-modes/draw-polygon-by-dragging-mode';
 import {ModifyMode} from '../../src/edit-modes/modify-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
 
-async function drag(canvas: HTMLCanvasElement, from: number[], to: number[]) {
+async function drag(canvas: HTMLCanvasElement, from: number[], to: number[], release = true) {
   const rect = canvas.getBoundingClientRect();
   const eventAt = (x: number, y: number, buttons: number) => ({
     clientX: rect.left + x,
@@ -34,8 +35,10 @@ async function drag(canvas: HTMLCanvasElement, from: number[], to: number[]) {
     canvas.dispatchEvent(new MouseEvent('mousemove', eventAt(x, y, 1)));
     await frame();
   }
-  canvas.dispatchEvent(new PointerEvent('pointerup', eventAt(to[0], to[1], 0)));
-  canvas.dispatchEvent(new MouseEvent('mouseup', eventAt(to[0], to[1], 0)));
+  if (release) {
+    canvas.dispatchEvent(new PointerEvent('pointerup', eventAt(to[0], to[1], 0)));
+    canvas.dispatchEvent(new MouseEvent('mouseup', eventAt(to[0], to[1], 0)));
+  }
   await frame();
 }
 
@@ -144,9 +147,20 @@ test.each([
       // Replacing the target detaches input from the old map canvas.
       const otherCanvas = document.createElement('canvas');
       document.body.append(otherCanvas);
-      eventTarget = otherCanvas;
-      mode = DrawPolygonMode;
+      mode = DrawPolygonByDraggingMode;
       selectedFeatureIndexes = [];
+      updateLayer();
+      await ready();
+      await drag(canvas, [400, 80], [440, 110], false);
+      await ready();
+      const cancellations = actions.filter(action => action.editType === 'cancelFeature').length;
+      eventTarget = otherCanvas;
+      updateLayer();
+      await ready();
+      expect(actions.filter(action => action.editType === 'cancelFeature')).toHaveLength(
+        cancellations + 1
+      );
+      mode = DrawPolygonMode;
       updateLayer();
       await ready();
       const actionCount = actions.filter(
