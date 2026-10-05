@@ -11,13 +11,7 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {
-  Polygon,
-  FeatureCollection,
-  Feature,
-  Position,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {Polygon, Feature, Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class TwoClickPolygonMode extends GeoJsonEditMode {
@@ -84,7 +78,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     }
   }
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const {lastPointerMoveEvent, modeConfig} = props;
     const clickSequence = this.getClickSequence();
 
@@ -124,12 +118,12 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     return null;
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
   }
 
-  createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
+  createTentativeFeature(props: ModeProps<SimpleFeatureCollection>): TentativeFeature {
     const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 

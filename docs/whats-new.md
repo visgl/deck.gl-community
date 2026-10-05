@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Editable-layers edit mode constructors and base classes consistently use
+  `SimpleFeatureCollection`, fixing constructor assignments in strict TypeScript
+  consumers. Custom mode handlers and editable data typed with the broader GeoJSON
+  `FeatureCollection` should follow the [TypeScript migration guide](./upgrade-guide.md#unreleased).
+
 - `Playground` supports promise-returning application renderers with per-update template identity,
   metadata, revision and cancellation signal. Selection and status callbacks support external
   navigation and loading UI; obsolete completions are ignored without changing synchronous defaults.
