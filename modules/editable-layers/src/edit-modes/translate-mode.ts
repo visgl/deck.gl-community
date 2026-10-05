@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import turfClone from '@turf/clone';
-import {
-  FeatureCollection,
-  Position,
-  SimpleGeometry,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
+import {clone} from '@turf/clone';
+import {Position, SimpleGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -52,7 +49,7 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
     event.cancelPan();
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     this._isTranslatable = this.isSelectionPicked(event.pointerDownPicks || event.picks, props);
 
     this.updateCursor(props);
@@ -85,7 +82,7 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
     }
   }
 
-  updateCursor(props: ModeProps<FeatureCollection>) {
+  updateCursor(props: ModeProps<SimpleFeatureCollection>) {
     if (this._isTranslatable) {
       props.onUpdateCursor('move');
     } else {
@@ -147,7 +144,7 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
       const direction = coordinateSystem.bearing(startDragPoint, currentPoint);
 
       const movedFeatures = this._geometryBeforeTranslate.features.map(feature =>
-        translateFromCenter(turfClone(feature), distanceMoved, direction, coordinateSystem)
+        translateFromCenter(clone(feature), distanceMoved, direction, coordinateSystem)
       );
 
       for (let i = 0; i < selectedIndexes.length; i++) {
@@ -166,7 +163,8 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
     };
   }
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return new SourceSnappingStrategy();
   }
 }

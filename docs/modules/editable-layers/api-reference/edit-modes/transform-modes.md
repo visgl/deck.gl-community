@@ -9,7 +9,10 @@ User can move existing points, add intermediate points along lines, and remove p
 The following options can be provided in the `modeConfig` object for ModifyMode:
 
 - `lockRectangles` (optional): `<boolean>`
-  - If `true`, features with `properties.shape === 'Rectangle'` will preserve rectangular shape.
+  - If `true`, features with `properties.shape === 'Rectangle'` preserve their rectangular shape and
+    orientation when a corner is dragged, keeping the opposite corner fixed. Width and height change
+    independently, so the aspect ratio can change. Resizing operates in the geometry's 2D coordinate
+    plane; it does not construct a geodesic rectangle.
 
 Callbacks:
 
@@ -78,7 +81,9 @@ const mode = new SnappableMode(new TranslateMode());
 
 Snapping is activated via `modeConfig.enableSnapping`. See the [`modeConfig` documentation](../layers/editable-geojson-layer.md#modeconfig-object-optional) for all available options.
 
-To add snapping support to a custom mode, implement the `SnappableEditMode` interface and return the appropriate strategy:
+Existing custom modes without a strategy hook retain source-handle snapping. A hook returning `undefined` explicitly opts out. Strategy methods accept `ModeProps<SimpleFeatureCollection>`.
+
+To choose snapping behavior for a custom mode, implement the `SnappableEditMode` interface and return the appropriate strategy:
 
 ```ts
 import {

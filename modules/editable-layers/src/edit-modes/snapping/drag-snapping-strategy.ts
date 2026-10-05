@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {ClickEvent, GuideFeatureCollection, ModeProps, MovementEvent} from '../types';
-import {FeatureCollection} from '../../utils/geojson-types';
+import {SimpleFeatureCollection} from '../../utils/geojson-types';
 import {getPickedEditHandle} from '../utils';
 import {
   getDraggedEditHandleFeatureIndex,
@@ -18,15 +18,30 @@ import {SnappingStrategy} from './snapping-strategy';
  * Snap target guides are hidden when no snap-source has been picked.
  */
 export class DragSnappingStrategy implements SnappingStrategy {
-  snapClickEvent(_props: ModeProps<FeatureCollection>, event: ClickEvent): ClickEvent {
-    return snapClickEventToPickedTarget(event);
+  snapClickEvent(props: ModeProps<SimpleFeatureCollection>, event: ClickEvent): ClickEvent {
+    return snapClickEventToPickedTarget(
+      event,
+      props,
+      getDraggedEditHandleFeatureIndex(props) !== undefined
+        ? [getDraggedEditHandleFeatureIndex(props)]
+        : []
+    );
   }
 
-  snapMovementEvent<T extends MovementEvent>(_props: ModeProps<FeatureCollection>, event: T): T {
-    return snapMovementEventToPickedTarget(event);
+  snapMovementEvent<T extends MovementEvent>(
+    props: ModeProps<SimpleFeatureCollection>,
+    event: T
+  ): T {
+    return snapMovementEventToPickedTarget(
+      event,
+      props,
+      getDraggedEditHandleFeatureIndex(props) !== undefined
+        ? [getDraggedEditHandleFeatureIndex(props)]
+        : []
+    );
   }
 
-  getSnapGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getSnapGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     if (!getPickedEditHandle(props.lastPointerMoveEvent?.pointerDownPicks)) {
       return {type: 'FeatureCollection', features: []};
     }

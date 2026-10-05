@@ -4,8 +4,6 @@ import {dirname, join} from 'path';
 import {fileURLToPath} from 'url';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
-const devModules = join(packageRoot, 'dev-modules');
-const testDir = join(packageRoot, 'test');
 const panelsModule = join(packageRoot, 'modules/panels/src');
 
 /** @type {OcularConfig} */
@@ -13,27 +11,13 @@ const config = {
   babel: false,
 
   lint: {
-    paths: ['modules', 'test'], // 'docs', 'examples'], module resolution errors
+    paths: ['modules', 'dev', 'docs', 'examples'],
     extensions: ['js', 'ts', 'jsx', 'tsx']
   },
 
-  typescript: {
-    project: 'tsconfig.json'
-  },
-
   aliases: {
-    // DEV MODULES
-    'dev-modules': devModules,
-
     // WORKSPACE MODULES
-    '@deck.gl-community/panels': panelsModule,
-
-    // TEST
-    test: testDir
-  },
-
-  coverage: {
-    test: 'browser'
+    '@deck.gl-community/panels': panelsModule
   },
 
   bundle: {
@@ -53,8 +37,6 @@ const config = {
   },
 
   entry: {
-    test: 'test/node.js',
-    'test-browser': 'index.html',
     bench: 'test/bench/index.js',
     'bench-browser': 'test/bench/index.html',
     size: ['test/size/graph-layers.js']

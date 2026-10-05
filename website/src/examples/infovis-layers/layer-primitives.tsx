@@ -5,11 +5,12 @@ export default makeImperativeExample(
   {
     title: 'Infovis layer primitives',
     code: `${GITHUB_TREE}/examples/infovis-layers/layer-primitives`,
-    async mount(container) {
+    deviceTabs: true,
+    async mount(container, props) {
       const {mountInfovisLayerPrimitivesExample} = await import(
         '../../../../examples/infovis-layers/layer-primitives/app'
       );
-      return mountInfovisLayerPrimitivesExample(container);
+      return mountInfovisLayerPrimitivesExample(container, props);
     }
   },
   {addInfoPanel: false}

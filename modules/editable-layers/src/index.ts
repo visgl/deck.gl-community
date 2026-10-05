@@ -102,6 +102,8 @@ export {SourceSnappingStrategy} from './edit-modes/snapping/source-snapping-stra
 
 export type {
   ScreenCoordinates,
+  BasePointerEvent,
+  MovementEvent,
   EditAction,
   Pick,
   ClickEvent,

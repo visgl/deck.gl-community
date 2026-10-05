@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {ClickEvent, GuideFeatureCollection, ModeProps, MovementEvent} from '../types';
-import {FeatureCollection} from '../../utils/geojson-types';
+import {SimpleFeatureCollection} from '../../utils/geojson-types';
 import {
   getDraggedEditHandleFeatureIndex,
   snapClickEventToPickedTarget,
@@ -17,15 +17,18 @@ import {SnappingStrategy} from './snapping-strategy';
  * Snapping is always active: the pointer freely snaps to the nearest target vertex as it moves, and clicks are snapped to picked targets.
  */
 export class ClickSnappingStrategy implements SnappingStrategy {
-  snapClickEvent(_props: ModeProps<FeatureCollection>, event: ClickEvent): ClickEvent {
-    return snapClickEventToPickedTarget(event);
+  snapClickEvent(props: ModeProps<SimpleFeatureCollection>, event: ClickEvent): ClickEvent {
+    return snapClickEventToPickedTarget(event, props, []);
   }
 
-  snapMovementEvent<T extends MovementEvent>(_props: ModeProps<FeatureCollection>, event: T): T {
-    return snapMovementEventToPickedTarget(event);
+  snapMovementEvent<T extends MovementEvent>(
+    props: ModeProps<SimpleFeatureCollection>,
+    event: T
+  ): T {
+    return snapMovementEventToPickedTarget(event, props, []);
   }
 
-  getSnapGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getSnapGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const draggedIndex = getDraggedEditHandleFeatureIndex(props);
     const excludedFeatureIndexes = draggedIndex !== undefined ? [draggedIndex] : [];
     const snapTarget = getClosestSnapTargetHandle(props, excludedFeatureIndexes);

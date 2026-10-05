@@ -80,6 +80,7 @@ export type PointerMoveEvent = BasePointerEvent & {
   isDragging?: boolean;
 };
 
+/** Pointer movement and drag lifecycle events that can be snapped. */
 export type MovementEvent =
   | PointerMoveEvent
   | StartDraggingEvent

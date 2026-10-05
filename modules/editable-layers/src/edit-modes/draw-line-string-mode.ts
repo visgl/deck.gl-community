@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {memoize} from '../utils/memoize';
-import {
-  LineString,
-  FeatureCollection,
-  Position,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {LineString, Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -107,7 +104,7 @@ export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEdit
     }
   }
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
@@ -154,7 +151,7 @@ export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEdit
     return guides;
   }
 
-  handlePointerMove(_event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(_event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
   }
 
@@ -163,7 +160,7 @@ export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEdit
    * nebula geometry mode type
    * @param props properties of geometry nebula mode
    */
-  getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
     return this._getTooltips({
       modeConfig: props.modeConfig,
       dist: this.dist,
@@ -190,7 +187,8 @@ export class DrawLineStringMode extends GeoJsonEditMode implements SnappableEdit
     }
   }
 
-  getSnappingStrategy() {
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
     return new ClickSnappingStrategy();
   }
 

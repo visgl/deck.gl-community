@@ -2,8 +2,21 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {ClickEvent, EditHandleFeature, ModeProps, MovementEvent, Pick} from '../types';
-import {Feature, FeatureCollection, SimpleFeature, SimpleGeometry} from '../../utils/geojson-types';
+import {
+  ClickEvent,
+  EditHandleFeature,
+  ModeProps,
+  MovementEvent,
+  Pick,
+  BasePointerEvent,
+  PointerMoveEvent
+} from '../types';
+import {
+  Feature,
+  SimpleFeatureCollection,
+  SimpleFeature,
+  SimpleGeometry
+} from '../../utils/geojson-types';
 import {
   getPickedEditHandle,
   getPickedEditHandles,
@@ -11,9 +24,12 @@ import {
   toWebMercatorViewport,
   distance2d,
   findNearestPointOnGeometry,
+  nearestPointOnProjectedLine,
   NearestPointType
 } from '../utils';
 import WebMercatorViewport from '@math.gl/web-mercator';
+import {lineString, point} from '@turf/helpers';
+import {cartesianCoordinateSystem} from '../coordinate-system';
 
 type EdgeSnapCandidate = NearestPointType & {
   index: number;
@@ -25,7 +41,7 @@ type EdgeSnapCandidate = NearestPointType & {
  * undefined when no handle is being dragged.
  */
 export function getDraggedEditHandleFeatureIndex(
-  props: ModeProps<FeatureCollection>
+  props: ModeProps<SimpleFeatureCollection>
 ): number | undefined {
   const handle = getPickedEditHandle(props.lastPointerMoveEvent?.pointerDownPicks);
   return handle?.properties.featureIndex;
@@ -35,7 +51,7 @@ export function getDraggedEditHandleFeatureIndex(
  * Returns snap-source edit handles for all currently selected features.
  */
 export function getSelectedFeatureSnapSourceGuides(
-  props: ModeProps<FeatureCollection>
+  props: ModeProps<SimpleFeatureCollection>
 ): EditHandleFeature[] {
   return props.selectedIndexes.flatMap(index => {
     const feature = props.data.features[index];
@@ -65,33 +81,45 @@ export function getPickedSnapTargetEditHandle(
  * Snaps a click event to the picked snap-target handle, stripping the snap-target
  * pick(s) so the wrapped mode does not see it.
  */
-export function snapClickEventToPickedTarget(event: ClickEvent): ClickEvent {
-  const snapTarget = getPickedSnapTargetEditHandle(event.picks);
-
-  if (!snapTarget) {
-    return event;
-  }
-
+export function snapClickEventToPickedTarget(
+  event: ClickEvent,
+  props?: ModeProps<SimpleFeatureCollection>,
+  excludedFeatureIndexes: number[] = []
+): ClickEvent {
+  const pickedTarget = getPickedSnapTargetEditHandle(event.picks);
+  if (!pickedTarget) return event;
+  const snapTarget = getCurrentSnapTarget(event, pickedTarget, props, excludedFeatureIndexes);
   return {
     ...event,
-    mapCoords: snapTarget.geometry.coordinates,
+    mapCoords: snapTarget?.geometry.coordinates ?? event.mapCoords,
     picks: event.picks.filter(p => p.object?.properties?.editHandleType !== 'snap-target')
   };
 }
 
-/**
- * Snaps a movement event to the picked snap-target handle.
- */
-export function snapMovementEventToPickedTarget<T extends MovementEvent>(event: T): T {
-  const snapTarget = getPickedSnapTargetEditHandle(event.picks);
+/** Snaps movement without modifying the raw event shared by other modes. */
+export function snapMovementEventToPickedTarget<T extends MovementEvent>(
+  event: T,
+  props?: ModeProps<SimpleFeatureCollection>,
+  excludedFeatureIndexes: number[] = []
+): T {
+  const pickedTarget = getPickedSnapTargetEditHandle(event.picks);
+  if (!pickedTarget) return event;
+  const snapTarget = getCurrentSnapTarget(event, pickedTarget, props, excludedFeatureIndexes);
+  return snapTarget ? {...event, mapCoords: snapTarget.geometry.coordinates} : event;
+}
 
-  if (!snapTarget) {
-    return event;
-  }
-
-  return Object.assign(event, {
-    mapCoords: snapTarget.geometry.coordinates
-  });
+function getCurrentSnapTarget(
+  event: BasePointerEvent,
+  pickedTarget: EditHandleFeature,
+  props: ModeProps<SimpleFeatureCollection> | undefined,
+  excludedFeatureIndexes: number[]
+): EditHandleFeature | undefined {
+  if (!props?.modeConfig?.edgeSnapping) return pickedTarget;
+  // Dynamic edge markers were picked from the previous rendered frame.
+  return getClosestSnapTargetHandle(
+    {...props, lastPointerMoveEvent: {...props.lastPointerMoveEvent, ...event} as PointerMoveEvent},
+    excludedFeatureIndexes
+  );
 }
 
 /**
@@ -101,14 +129,30 @@ export function snapMovementEventToPickedTarget<T extends MovementEvent>(event: 
 export function findEdgeSnapCandidateForFeature(
   feature: Feature,
   featureIndex: number,
-  props: ModeProps<FeatureCollection>,
+  props: ModeProps<SimpleFeatureCollection>,
   wmViewport: WebMercatorViewport
 ): EdgeSnapCandidate | undefined {
   const edgeSnap = findNearestPointOnGeometry(
     feature as SimpleFeature,
     props.lastPointerMoveEvent.mapCoords,
     props.modeConfig.viewport,
-    props.coordinateSystem
+    props.coordinateSystem,
+    line => {
+      const projected = lineString(
+        line.geometry.coordinates.map(([x, y, z = 0]) => wmViewport.project([x, y, z]))
+      );
+      const nearest = nearestPointOnProjectedLine(
+        projected,
+        point(props.lastPointerMoveEvent.screenCoords),
+        wmViewport,
+        cartesianCoordinateSystem
+      );
+      const coordinates = wmViewport.unproject(nearest.geometry.coordinates);
+      nearest.geometry.coordinates = line.geometry.coordinates.some(coords => coords.length > 2)
+        ? coordinates
+        : coordinates.slice(0, 2);
+      return nearest;
+    }
   );
   if (!edgeSnap.nearestPoint) {
     return undefined;
@@ -121,7 +165,7 @@ export function findEdgeSnapCandidateForFeature(
     : undefined;
 }
 
-function getFeatures(props: ModeProps<FeatureCollection>): Feature[] {
+function getFeatures(props: ModeProps<SimpleFeatureCollection>): Feature[] {
   const additionalSnapTargets = props.modeConfig?.additionalSnapTargets || [];
   return [...props.data.features, ...additionalSnapTargets];
 }
@@ -131,7 +175,7 @@ function getFeatures(props: ModeProps<FeatureCollection>): Feature[] {
  * including edge-snap candidates when edgeSnapping is enabled.
  */
 export function getSnapTargetHandles(
-  props: ModeProps<FeatureCollection>,
+  props: ModeProps<SimpleFeatureCollection>,
   excludedFeatureIndexes: number[]
 ): EditHandleFeature[] {
   const handles: EditHandleFeature[] = [];
@@ -144,6 +188,7 @@ export function getSnapTargetHandles(
   for (let i = 0; i < features.length; i++) {
     if (!excludedFeatureIndexes.includes(i)) {
       const feature = features[i];
+      if (!feature.geometry || feature.geometry.type === 'GeometryCollection') continue;
       handles.push(
         ...getEditHandlesForGeometry(feature.geometry as SimpleGeometry, i, 'snap-target')
       );
@@ -174,7 +219,7 @@ export function getSnapTargetHandles(
  * or undefined when none qualifies.
  */
 export function getClosestSnapTargetHandle(
-  props: ModeProps<FeatureCollection>,
+  props: ModeProps<SimpleFeatureCollection>,
   excludedFeatureIndexes: number[]
 ): EditHandleFeature | undefined {
   const screenCoords = props.lastPointerMoveEvent?.screenCoords;

@@ -4,7 +4,7 @@
 
 import {featureCollection} from '@turf/helpers';
 import {PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
-import {FeatureCollection} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 import {ScaleMode} from './scale-mode';
 import {RotateMode} from './rotate-mode';
@@ -18,7 +18,7 @@ export class TransformMode extends CompositeMode {
     super([new SnappableMode(new TranslateMode()), new ScaleMode(), new RotateMode()]);
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     let updatedCursor: string | null = null;
     super.handlePointerMove(event, {
       ...props,
@@ -29,7 +29,7 @@ export class TransformMode extends CompositeMode {
     props.onUpdateCursor(updatedCursor);
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     let scaleMode: ScaleMode | null = null;
     let translateMode: GeoJsonEditMode | null = null;
     const filteredModes: GeoJsonEditMode[] = [];
@@ -60,7 +60,7 @@ export class TransformMode extends CompositeMode {
     filteredModes.filter(Boolean).forEach(mode => mode.handleStartDragging(event, props));
   }
 
-  getGuides(props: ModeProps<FeatureCollection>) {
+  getGuides(props: ModeProps<SimpleFeatureCollection>) {
     let compositeGuides = super.getGuides(props);
     const rotateMode = (this._modes || []).find(mode => mode instanceof RotateMode);
 

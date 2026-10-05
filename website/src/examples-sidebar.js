@@ -18,8 +18,13 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: '@deck.gl-community/playground',
+      items: ['playground']
+    },
+    {
+      type: 'category',
       label: '@deck.gl-community/geo-layers',
-      items: ['geo-layers/shared-tile-2d-layer']
+      items: ['geo-layers/global-grid-layer', 'geo-layers/shared-tile-2d-layer', 'geo-layers/wind']
     },
     {
       type: 'category',
@@ -29,7 +34,8 @@ const sidebars = {
         'graph-layers/multi-graph',
         'graph-layers/radial',
         'graph-layers/hive-plot',
-        'graph-layers/dag'
+        'graph-layers/dag',
+        'graph-layers/marker-layer'
       ]
     },
     {
@@ -37,6 +43,7 @@ const sidebars = {
       label: '@deck.gl-community/layers',
       items: [
         'layers/path-outline-and-markers',
+        'layers/flame-trail',
         'layers/skybox-map-view',
         'layers/skybox-globe',
         'layers/skybox-first-person'
@@ -54,13 +61,13 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: '@deck.gl-community/timeline-layers',
-      items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
+      label: '@deck.gl-community/three',
+      items: ['three/seasonal-farm']
     },
     {
       type: 'category',
-      label: '@deck.gl-community/trace-layers',
-      items: ['trace-layers/tracevis', 'trace-layers/trace-graph-layer']
+      label: '@deck.gl-community/timeline-layers',
+      items: ['timeline-layers/horizon-graph-layer', 'timeline-layers/multi-horizon-graph-layer']
     },
     {
       type: 'category',
@@ -109,6 +116,11 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/leaflet',
       items: ['leaflet/get-started', 'leaflet/scripting']
+    },
+    {
+      type: 'category',
+      label: '@deck.gl-community/react-fiber',
+      items: ['react-fiber/overview']
     }
   ]
 };

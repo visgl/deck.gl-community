@@ -438,7 +438,7 @@ describe('modify mode', () => {
       guideType: 'editHandle',
       editHandleType: 'existing',
       featureIndex: 0,
-      positionIndexes: []
+      positionIndexes: [0]
     },
     geometry: {type: 'Point', coordinates: pointAMapCoords}
   };
@@ -510,7 +510,7 @@ describe('modify mode', () => {
     expect(mockOnEdit).toHaveBeenCalledTimes(1);
     const updatedCoords = mockOnEdit.mock.calls[0][0].updatedData.features[0].geometry.coordinates;
     // Only the picked vertex (index 0) should be snapped to offset
-    expect(updatedCoords).toEqual(pointCMapCoords);
+    expect(updatedCoords).toEqual([pointCMapCoords, pointBMapCoords]);
   });
 
   test('no target guides if there is no pointerDownPick', () => {
