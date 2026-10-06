@@ -17,3 +17,5 @@ Open `film.html` for a 1920×1080 side-by-side tour. Each species gets 12 second
 See [review evidence](REVIEW.md) for the film, seasonal contact sheet, measured geometry budgets and qualified performance samples.
 
 Forest pitch is adjustable through 80°. The shared lab lighting fits a finite ground/crown slab, rejects shadow-map samples outside its volume and fades the far boundary; it covers the demo’s trees below 32m without changing the camera pitch.
+
+The shared WebGL filter follows [NVIDIA's percentage-closer filtering](https://developer.nvidia.com/gpugems/gpugems/part-ii-lighting-and-shadows/chapter-11-shadow-map-antialiasing): fetch packed depths without interpolation, compare each depth, then blend shadow coverage. Sixteen unique texel reads reproduce the existing nine bilinear comparison taps. The moving receiver regression checks that a one-texel leaflet shadow retains fractional coverage between texel centers. This corrects filtering; subtexel caster rasterization and changes in the light projection can still cause shimmer.

@@ -12,18 +12,27 @@ import type {Texture} from '@luma.gl/core';
 import {getBoundedShadowUniforms} from './shadow-frustum';
 
 const SHADOW_WEIGHT = `float shadow_getShadowWeight(vec3 position, sampler2D shadowMap) {`;
-const SHADOW_FILTER = `float shadow_getShadowWeight(vec3 position, sampler2D shadowMap, float bias) {
+export const SHADOW_FILTER = `float shadow_getShadowWeight(vec3 position, sampler2D shadowMap, float bias) {
   // Border texels are clamped by WebGL; sampling them outside the light
   // volume repeats unrelated silhouettes across the ground near the horizon.
   if (any(lessThanEqual(position, vec3(0.0))) || any(greaterThanEqual(position, vec3(1.0)))) return 0.0;
-  vec2 texel = 1.0 / vec2(textureSize(shadowMap, 0));
+  ivec2 size = textureSize(shadowMap, 0);
+  vec2 samplePosition = position.xy * vec2(size) - 0.5;
+  ivec2 base = ivec2(floor(samplePosition));
+  vec2 fraction = fract(samplePosition);
+  // PCF compares unfiltered depths, then filters the comparison results.
+  // These 16 unique texels reproduce nine overlapping bilinear comparisons.
+  // See NVIDIA GPU Gems, chapter 11 (Shadow Map Antialiasing).
+  vec4 weightsX = vec4(1.0 - fraction.x, 1.0, 1.0, fraction.x);
+  vec4 weightsY = vec4(1.0 - fraction.y, 1.0, 1.0, fraction.y);
   float weight = 0.0;
-  for (int y = -1; y <= 1; y++) {
-    for (int x = -1; x <= 1; x++) {
-      vec2 uv = position.xy + vec2(float(x), float(y)) * texel;
-      if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) continue;
-      float depth = dot(texture(shadowMap, uv), bitUnpackShift);
-      weight += smoothstep(bias, bias * 3.0, position.z - depth);
+  for (int y = -1; y <= 2; y++) {
+    for (int x = -1; x <= 2; x++) {
+      ivec2 coordinate = base + ivec2(x, y);
+      if (any(lessThan(coordinate, ivec2(0))) || any(greaterThanEqual(coordinate, size))) continue;
+      float depth = dot(texelFetch(shadowMap, coordinate, 0), bitUnpackShift);
+      float occlusion = step(depth + bias, position.z);
+      weight += occlusion * weightsX[x + 1] * weightsY[y + 1];
     }
   }
   vec2 edge = min(position.xy, 1.0 - position.xy);
