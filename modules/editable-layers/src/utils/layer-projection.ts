@@ -5,7 +5,12 @@
 import {COORDINATE_SYSTEM, WebMercatorViewport} from '@deck.gl/core';
 import type {Layer} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
-import {getDistanceScales, lngLatToWorld, pixelsToWorld} from '@math.gl/web-mercator';
+import {
+  getDistanceScales,
+  lngLatToWorld,
+  pixelsToWorld,
+  worldToPixels
+} from '@math.gl/web-mercator';
 import type {EditModeProjection} from '../edit-modes/types';
 import type {Position} from './geojson-types';
 
@@ -17,7 +22,13 @@ export function createLayerProjection(layer: Layer): EditModeProjection | undefi
     (viewport.isGeospatial && !(viewport instanceof WebMercatorViewport))
   )
     return undefined;
-  const {coordinateOrigin: origin, modelMatrix} = layer.props;
+  const {coordinateOrigin, modelMatrix} = layer.props;
+  // Match deck.gl's shader default without modifying the application's origin array.
+  const origin: [number, number, number] = [
+    coordinateOrigin[0],
+    coordinateOrigin[1],
+    coordinateOrigin[2] ?? 0
+  ];
   const coordinateSystem =
     layer.props.coordinateSystem === COORDINATE_SYSTEM.DEFAULT
       ? viewport.isGeospatial
@@ -32,7 +43,15 @@ export function createLayerProjection(layer: Layer): EditModeProjection | undefi
     ? getDistanceScales({longitude: origin[0], latitude: origin[1], highPrecision: true})
     : undefined;
   return {
-    project: position => layer.project(position),
+    project: position =>
+      worldToPixels(
+        layer.projectPosition(position, {
+          viewport,
+          fromCoordinateOrigin: origin,
+          autoOffset: false
+        }),
+        viewport.pixelProjectionMatrix
+      ).slice(0, position.length === 2 ? 2 : 3),
     unproject: screenPosition => {
       if (matrix && !inverse) return undefined;
       const common = pixelsToWorld(screenPosition, viewport.pixelUnprojectionMatrix).slice(0, 3);

@@ -7,7 +7,8 @@
   Committed shapes use the same snapped position as their preview, and drag events provide the
   current handle picks even before a pointer move is cached. Existing custom wrappers remain supported. Edge proximity
   is measured in screen pixels, including Cartesian views and bounded elevated segments. Layer-provided projection accounts for
-  offset origins and model matrices, retaining local coordinates in snap results.
+  offset origins and model matrices, retaining local coordinates in snap results and padding
+  omitted origin altitude with zero. Additional targets must be converted to the editable data frame.
   `modeConfig.snapper` accepts a custom `Snapper` policy; external targets omit editable feature indexes.
 
 - `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives

@@ -7,7 +7,7 @@ import {BasePointerEvent, ModeProps} from '../types';
 
 /** A chosen position; external targets omit the editable-layer feature index. */
 export interface SnapResult {
-  /** Snapped coordinates in the same coordinate system as the editable data. */
+  /** Snapped coordinates in the editable data's local frame, before its model matrix. */
   mapCoords: Position;
   /** Index in props.data.features, or omitted for external/custom targets. */
   featureIndex?: number;
