@@ -58,6 +58,12 @@ targets in planar views. It accounts for `coordinateOrigin`, offset coordinate s
 and `modelMatrix`; elevated edges retain projected depth before converting back to local data.
 Standalone modes without this pair retain viewport-based projection. This does not extend
 the existing unsnapped pointer-to-data conversion for offset editing; globe offsets are unverified.
+Two-element coordinate origins use zero altitude without mutating the supplied array.
+
+`additionalSnapTargets` is an array of features in the editable layer's local data frame,
+before its `modelMatrix`. It carries no source-layer transform metadata. When copying
+targets from a layer with a different coordinate system, origin or model matrix, convert
+their coordinates before supplying them; raw coordinates from another frame are unsupported.
 
 #### SelectionLayer polygon selection
 

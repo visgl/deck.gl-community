@@ -24,7 +24,8 @@ function createProjectionLayer(
   coordinateSystem,
   coordinates,
   modelMatrix?,
-  activeViewport = viewport
+  activeViewport = viewport,
+  coordinateOrigin = origin
 ) {
   const props = createFeatureCollectionProps();
   props.data = {
@@ -44,7 +45,7 @@ function createProjectionLayer(
     id: 'projection-test',
     data: props.data,
     coordinateSystem,
-    coordinateOrigin: origin,
+    coordinateOrigin,
     modelMatrix,
     modeConfig: {enableSnapping: true, edgeSnapping: true, viewport: activeViewport},
     selectedFeatureIndexes: [],
@@ -156,4 +157,120 @@ test('singular model matrices cannot produce an edge snap', () => {
   const projection = layer.getModeProps(layer.props).projection;
   expect(projection).toBeDefined();
   expect(projection!.unproject(layer.project([100, 50, 40]))).toBeUndefined();
+});
+
+const commonOrigin = viewport.projectPosition(origin);
+
+test('Cartesian origin without altitude has a finite local inverse', () => {
+  const position = [0.002, 0.001, 0];
+  const shortOrigin = commonOrigin.slice(0, 2);
+  const layer = createProjectionLayer(
+    COORDINATE_SYSTEM.CARTESIAN,
+    [position],
+    undefined,
+    viewport,
+    shortOrigin as any
+  );
+  const reference = createProjectionLayer(
+    COORDINATE_SYSTEM.CARTESIAN,
+    [position],
+    undefined,
+    viewport,
+    [commonOrigin[0], commonOrigin[1], 0]
+  );
+  const inverse = layer
+    .getModeProps(layer.props)
+    .projection!.unproject(reference.project(position));
+  expect(inverse).toBeDefined();
+  for (let i = 0; i < 3; i++) expect(inverse![i]).toBeCloseTo(position[i], 6);
+  expect(shortOrigin).toHaveLength(2);
+});
+
+test('Cartesian origin without altitude supports bounded 2D edge targets', () => {
+  const positions = [
+    [0, 0],
+    [0.003, 0.002]
+  ];
+  const shortOrigin = commonOrigin.slice(0, 2);
+  const layer = createProjectionLayer(
+    COORDINATE_SYSTEM.CARTESIAN,
+    positions,
+    undefined,
+    viewport,
+    shortOrigin as any
+  );
+  const reference = createProjectionLayer(
+    COORDINATE_SYSTEM.CARTESIAN,
+    positions,
+    undefined,
+    viewport,
+    [commonOrigin[0], commonOrigin[1], 0]
+  );
+  const start = reference.project([...positions[0], 0]);
+  const end = reference.project([...positions[1], 0]);
+  const foot = start.map((value, i) => (value + end[i]) / 2);
+  layer.state.lastPointerMoveEvent = {
+    ...layer.state.lastPointerMoveEvent,
+    screenCoords: foot.slice(0, 2)
+  };
+  const result = getClosestSnapTargetHandle(layer.getModeProps(layer.props), []);
+  expect(result).toBeDefined();
+  expect(result!.geometry.coordinates).toHaveLength(2);
+  const projected = layer
+    .getModeProps(layer.props)
+    .projection!.project(result!.geometry.coordinates);
+  for (let i = 0; i < 2; i++) expect(projected[i]).toBeCloseTo(foot[i], 6);
+  expect(shortOrigin).toHaveLength(2);
+});
+
+test.each([
+  false,
+  true
+])('converted cross-layer additional targets preserve local coordinates (edge: %s)', edge => {
+  const sourcePositions = [
+    [-122.4, 37.8, 70],
+    [-122.398, 37.801, 100]
+  ];
+  const source = createProjectionLayer(
+    COORDINATE_SYSTEM.LNGLAT,
+    sourcePositions,
+    new Matrix4().translate([0.0001, 0.0002, 12])
+  );
+  const layer = createProjectionLayer(
+    COORDINATE_SYSTEM.METER_OFFSETS,
+    [[0, 0, 0]],
+    new Matrix4().translate([20, 30, 10]).rotateZ(0.2)
+  );
+  const props = layer.getModeProps(layer.props);
+  const projection = props.projection!;
+  const converted = sourcePositions.map(
+    position => projection.unproject(source.project(position))!
+  );
+  expect(converted.every(position => position.every(Number.isFinite))).toBe(true);
+  const target = {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: edge
+      ? {type: 'LineString' as const, coordinates: converted}
+      : {type: 'Point' as const, coordinates: converted[0]}
+  };
+  props.modeConfig = {...props.modeConfig, edgeSnapping: edge, additionalSnapTargets: [target]};
+  const start = source.project(sourcePositions[0]);
+  const end = source.project(sourcePositions[1]);
+  const foot = edge ? start.map((value, i) => value + (end[i] - value) * 0.4) : start;
+  props.lastPointerMoveEvent = {...props.lastPointerMoveEvent, screenCoords: [foot[0], foot[1]]};
+  const before = JSON.stringify(target);
+  const result = getClosestSnapTargetHandle(props, [0]);
+  expect(result).toBeDefined();
+  const position = result!.geometry.coordinates;
+  expect(Math.abs(position[0])).toBeLessThan(1000);
+  expect(Math.abs(position[1])).toBeLessThan(1000);
+  const projected = projection.project(position);
+  for (let i = 0; i < 3; i++) expect(projected[i]).toBeCloseTo(foot[i], 6);
+  if (!edge) expect(position).toEqual(converted[0]);
+  expect(JSON.stringify(target)).toBe(before);
+  expect(sourcePositions).toEqual([
+    [-122.4, 37.8, 70],
+    [-122.398, 37.801, 100]
+  ]);
 });

@@ -227,6 +227,7 @@ export function getSnapTargetHandles(
 }
 
 /**
+ * Target coordinates, including additional features, must use the editable data's local frame.
  * Returns the single snap-target handle closest to the pointer within picking radius,
  * or undefined when none qualifies.
  */
