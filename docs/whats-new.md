@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [Citrus Lab](/examples/layers/citrus-lab) drives shared TreeLayer morphology with orange, lemon and lime presets, branch inspection and explicit bloom/fruit stages. TreeLayer adds evergreen citrus and shaped crop meshes; the demo now matches reproductive structures to each species.
+
 - TreeLayer adds evergreen banyan and red mangrove with connected aerial/stilt roots and distinct broad leaves. Broadleaf crowns use bounded space colonization and pipe-model taper; a shared two-mode wind field deforms wood, crops and Gaussian covariance.
 
 - `TreeLayer` composes anisotropic Gaussian foliage with connected trunk-and-branch meshes. The new [SplatLayer](/docs/modules/layers/api-reference/splat-layer) supports prepared shared templates, covariance wind, owner picking and automatic spatial refinement. Wood, leaf clusters and contained attached fruit share one branching structure. Tree Lab compares native meshes and splats with matched seasons and light-space foliage transmission.

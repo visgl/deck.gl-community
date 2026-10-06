@@ -30,7 +30,9 @@ export type {
   TreeLayerProps,
   TreeType,
   Season,
-  CropConfig
+  CropConfig,
+  CropKind,
+  TreeCharacteristics
 } from './tree-layer/tree-layer';
 
 export {SplatLayer} from './splat-layer/splat-layer';

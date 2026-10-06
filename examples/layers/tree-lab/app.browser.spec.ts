@@ -61,7 +61,7 @@ function countChangedPixels(before: Frame, after: Frame): number {
 }
 
 describe('Tree Lab rendering controls', () => {
-  it('keeps all fourteen trees visible across shadow toggles, four seasons and frozen wind poses', async () => {
+  it('keeps all sixteen trees visible across shadow toggles, four seasons and frozen wind poses', async () => {
     const originalUrl = location.href;
     const reviewUrl = new URL(originalUrl);
     reviewUrl.searchParams.set('auto', '0');
@@ -76,10 +76,12 @@ describe('Tree Lab rendering controls', () => {
     const frames = new Map<ReviewSpecimen, Frame>();
     try {
       expect(api.getOptions().season).toBe('summer');
-      await expect.poll(() => api.ready, {timeout: 15000}).toBe(14);
+      // Pixel regressions need matched cameras, not a 2x supersampled sixteen-context workload.
+      api.setOptions({pixelRatio: 1});
+      await expect.poll(() => api.ready, {timeout: 15000}).toBe(16);
       expect(api.errors).toEqual([]);
       const specimens = api.getDecks();
-      expect(specimens).toHaveLength(14);
+      expect(specimens).toHaveLength(16);
       for (const specimen of specimens) {
         const originalAfterRender = specimen.deck.props.onAfterRender;
         specimen.deck.setProps({
@@ -123,7 +125,11 @@ describe('Tree Lab rendering controls', () => {
             countTreePixels(frame),
             `${specimen.renderer}/${specimen.species} tree pixels`
           ).toBeGreaterThan(50);
-          if (specimen.species === 'banyan' || specimen.species === 'mangrove') {
+          if (
+            specimen.species === 'banyan' ||
+            specimen.species === 'mangrove' ||
+            specimen.species === 'citrus'
+          ) {
             let foliage = 0;
             for (let i = 0; i < frame.pixels.length; i += 4) {
               const [r, g, b] = frame.pixels.subarray(i, i + 3);

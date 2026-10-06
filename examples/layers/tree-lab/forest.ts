@@ -35,7 +35,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   const errors: string[] = [];
   const root = document.createElement('div');
   root.className = 'tree-lab tree-forest';
-  root.innerHTML = `<header><div class="eyebrow">Native vis.gl / Forest scale</div><h1></h1><p>Five species. One shared forest. Explore the crowns, wind and seasonal shadows.</p></header>
+  root.innerHTML = `<header><div class="eyebrow">Native vis.gl / Forest scale</div><h1></h1><p>Eight species. One shared forest. Explore the crowns, wind and seasonal shadows.</p></header>
     <div class="toolbar"><div class="seasons" role="group" aria-label="Tree count"><button data-count="10000">10K trees</button><button data-count="20000">20K trees</button></div>
     <label class="control">Pitch <input type="range" aria-label="Pitch" min="0" max="80" step="1"><output id="forest-pitch"></output></label>
     <label class="control">Season <select aria-label="Season">${SEASONS.map(season => `<option value="${season}">${season}</option>`).join('')}</select></label>
@@ -75,7 +75,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     });
   const refreshLabels = () => {
     heading.textContent = `${count.toLocaleString()} trees`;
-    badge.textContent = `${data.length.toLocaleString()} trees · five species`;
+    badge.textContent = `${data.length.toLocaleString()} trees · eight species`;
     pitchControl.value = String(camera.pitch ?? 0);
     pitchLabel.value = `${Math.round(camera.pitch ?? 0)}°`;
     seasonControl.value = options.season;

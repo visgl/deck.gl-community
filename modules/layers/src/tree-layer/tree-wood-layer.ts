@@ -8,6 +8,7 @@ import {intersectsSplatLightVolume} from '../splat-layer/splat-culling';
 import type {SplatShadowProjection} from '../splat-layer/splat-shadow-pass';
 import type {Viewport} from '@deck.gl/core';
 import type {TreeType} from './tree-layer';
+import type {TreeCharacteristics} from './tree-characteristics';
 
 type Row = {
   position: [number, number, number];
@@ -15,6 +16,7 @@ type Row = {
   translation: [number, number, number];
   type: TreeType;
   levels: number;
+  characteristics: TreeCharacteristics;
 };
 /** Automatic woody refinement. The connected full branching mesh is retained for close views. */
 export class TreeWoodLayer extends CompositeLayer<any> {
@@ -95,7 +97,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               data,
               operation: id === 'shadow' ? 'shadow' : 'draw',
               pickable: id !== 'shadow' && this.props.pickable,
-              mesh: getTreeWoodMesh(row.type, row.levels, aggregate)
+              mesh: getTreeWoodMesh(row.type, row.levels, aggregate, row.characteristics)
             })
           ]
         : []

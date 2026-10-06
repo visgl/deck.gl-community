@@ -17,7 +17,16 @@ import type {TreeType, Season, CropConfig} from '@deck.gl-community/layers';
 // explicit props to each renderer; public TreeLayer itself retains its typed API.
 export type TreeLayerConstructor = new (...props: any[]) => CompositeLayer<any>;
 
-export const SPECIES: TreeType[] = ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'];
+export const SPECIES: TreeType[] = [
+  'pine',
+  'oak',
+  'palm',
+  'birch',
+  'cherry',
+  'banyan',
+  'mangrove',
+  'citrus'
+];
 export const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
 export type Specimen = {position: [number, number]; species: TreeType; index: number};
 export type SceneOptions = {
@@ -67,20 +76,27 @@ export function createSpecimens(species: TreeType, count = 1): Specimen[] {
           ]
   }));
 }
+/** Explicit illustrative reproductive structures, matched to each species. No inferred yield. */
 export function getCrop(species: TreeType, options: SceneOptions): CropConfig | null {
-  if ((!options.crops && !options.dropped) || species === 'mangrove') return null;
-  // Mangrove propagules are not spherical fruit. Banyan figs are deliberately small.
-  const color: [number, number, number, number] =
-    species === 'cherry' && options.season === 'spring'
-      ? [255, 208, 226, 255]
-      : species === 'palm'
-        ? [179, 102, 38, 255]
-        : [214, 73, 39, 255];
+  if (!options.crops && !options.dropped) return null;
+  const bare = options.season === 'winter' && ['oak', 'birch', 'cherry'].includes(species);
+  const bloom = species === 'cherry' && options.season === 'spring';
+  const crops: Record<TreeType, Omit<CropConfig, 'count' | 'droppedCount'>> = {
+    pine: {kind: 'cone', color: [132, 91, 49, 255], radius: 0.08},
+    oak: {kind: 'acorn', color: [166, 111, 53, 255], radius: 0.025},
+    palm: {kind: 'fruit', color: [151, 103, 57, 255], radius: 0.14},
+    birch: {kind: 'catkin', color: [165, 150, 73, 255], radius: 0.055},
+    cherry: bloom
+      ? {kind: 'flower', color: [255, 219, 233, 255], radius: 0.025}
+      : {kind: 'fruit', color: [163, 24, 43, 255], radius: 0.015},
+    banyan: {kind: 'fruit', color: [190, 74, 45, 255], radius: 0.012},
+    mangrove: {kind: 'propagule', color: [122, 112, 47, 255], radius: 0.15},
+    citrus: {kind: 'fruit', color: [248, 141, 24, 255], radius: 0.045}
+  };
   return {
-    color,
-    count: options.crops ? 32 : 0,
-    droppedCount: options.dropped ? 12 : 0,
-    radius: species === 'banyan' ? 0.06 : 0.16
+    ...crops[species],
+    count: options.crops && !bare ? 32 : 0,
+    droppedCount: options.dropped && !bloom ? 12 : 0
   };
 }
 export function createSceneLayers(
@@ -103,7 +119,7 @@ export function createSceneLayers(
       data,
       getPosition: (d: Specimen) => d.position,
       getTreeType: (d: Specimen) => d.species,
-      getHeight: () => 12,
+      getHeight: (d: Specimen) => (d.species === 'citrus' ? 5 : 12),
       getTrunkHeightFraction: (d: Specimen) =>
         d.species === 'palm'
           ? 0.72
@@ -111,8 +127,11 @@ export function createSceneLayers(
             ? 0.18
             : d.species === 'mangrove'
               ? 0.27
-              : 0.36,
-      getTrunkRadius: (d: Specimen) => (d.species === 'palm' ? 0.25 : 0.38),
+              : d.species === 'citrus'
+                ? 0.2
+                : 0.36,
+      getTrunkRadius: (d: Specimen) =>
+        d.species === 'palm' ? 0.25 : d.species === 'citrus' ? 0.12 : 0.38,
       getCanopyRadius: (d: Specimen) =>
         d.species === 'palm'
           ? 4.5
@@ -122,7 +141,9 @@ export function createSceneLayers(
               ? 10
               : d.species === 'mangrove'
                 ? 8
-                : 7,
+                : d.species === 'citrus'
+                  ? 4.2
+                  : 7,
       getBranchLevels: () => 4,
       getSeason: () => options.season,
       getCrop: (d: Specimen) => getCrop(d.species, options),

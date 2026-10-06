@@ -12,18 +12,32 @@ import {SplatLayer} from '../splat-layer/splat-layer';
 import {getTreeWoodMesh} from './tree-wood';
 import {sampleTreeFruit} from './tree-botany';
 import {TreeWoodLayer} from './tree-wood-layer';
+import {getTreeCropMesh, type CropKind} from './tree-crop';
+import {resolveTreeCharacteristics, type TreeCharacteristics} from './tree-characteristics';
+export type {CropKind} from './tree-crop';
+export type {TreeCharacteristics} from './tree-characteristics';
 import {getTreeSplatSource, getTreeSplatHierarchy} from './tree-splats';
 
 /** Procedural species silhouette. */
-export type TreeType = 'pine' | 'oak' | 'palm' | 'birch' | 'cherry' | 'banyan' | 'mangrove';
+export type TreeType =
+  | 'pine'
+  | 'oak'
+  | 'palm'
+  | 'birch'
+  | 'cherry'
+  | 'banyan'
+  | 'mangrove'
+  | 'citrus';
 /** Deciduous winter trees have branches; evergreens retain their crowns. */
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 /** Optional, explicitly supplied fruit, nuts, or flowering points. */
 export type CropConfig = {
+  /** Shape of the supplied crop. @default 'fruit' */
+  kind?: CropKind;
   color: Color;
   count: number;
   droppedCount?: number;
-  /** Actual sphere radius in metres. */
+  /** Enclosing sphere radius in metres, including elongated crops and petals. */
   radius: number;
 };
 
@@ -34,7 +48,8 @@ const DEFAULT_TRUNK_COLORS: Record<TreeType, Color> = {
   birch: [220, 215, 205, 255], // white-grey birch bark
   cherry: [100, 60, 40, 255],
   banyan: [145, 137, 117, 255],
-  mangrove: [100, 82, 64, 255]
+  mangrove: [100, 82, 64, 255],
+  citrus: [112, 90, 60, 255]
 };
 
 /** Default canopy colours per (tree type, season) [r, g, b, a]. */
@@ -75,6 +90,12 @@ const DEFAULT_CANOPY_COLORS: Record<TreeType, Record<Season, Color>> = {
     autumn: [39, 119, 52, 255],
     winter: [29, 100, 43, 255]
   },
+  citrus: {
+    spring: [62, 143, 40, 255],
+    summer: [33, 112, 29, 255],
+    autumn: [38, 116, 30, 255],
+    winter: [31, 105, 28, 255]
+  },
   cherry: {
     spring: [255, 180, 205, 255], // pink blossom
     summer: [50, 140, 50, 255],
@@ -102,6 +123,7 @@ type _TreeLayerProps<DataT> = {
    * 'cherry' – round lush canopy, seasonal blossom
    * 'banyan' – spreading evergreen crown and descending aerial roots
    * 'mangrove' – dense evergreen crown, large elliptical leaves and stilt roots
+   * 'citrus' – dense rounded evergreen crown and elliptical leaves
    * @default 'pine'
    */
   getTreeType?: (d: DataT) => TreeType;
@@ -160,12 +182,12 @@ type _TreeLayerProps<DataT> = {
   /**
    * Optional crop configuration for this tree.
    *
-   * Return a `CropConfig` to render spherical crop points on leaf-bearing shoots within the
+   * Return a `CropConfig` to render shaped crops on leaf-bearing shoots within the
    * canopy (live crops) and/or scattered on the ground around the trunk
    * (dropped crops).  Return `null` to show no crops for this tree.
    *
    * The same accessor can express fruit, nuts, or flowering stage — pass
-   * flower-coloured points (e.g. `[255, 200, 220, 255]`) for a blossom effect.
+   * `kind: 'flower'` with a flower colour (e.g. `[255, 200, 220, 255]`) for blossom.
    *
    * Crop positions are randomised deterministically from the tree's geographic
    * coordinates; they are stable across re-renders.
@@ -180,6 +202,8 @@ type _TreeLayerProps<DataT> = {
    * @default 1
    */
   sizeScale?: number;
+  /** Shared broadleaf branching and leaf morphology. Pine/palm retain their specialized skeletons. @default {} */
+  characteristics?: TreeCharacteristics;
   /** Fraction of tree height used for optional GPU wind deformation. Zero stops continuous redraw. @default 0 */
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
@@ -204,6 +228,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getBranchLevels: {type: 'accessor', value: (_d: any) => 3},
   getCrop: {type: 'accessor', value: (_d: any) => null},
   sizeScale: {type: 'number', value: 1, min: 0},
+  characteristics: {type: 'object', value: {}},
   windStrength: {type: 'number', value: 0, min: 0, max: 0.2},
   windTime: null,
   shadowEnabled: true
@@ -215,6 +240,7 @@ type TreeRow<DataT> = {
   type: TreeType;
   winter: boolean;
   levels: number;
+  characteristics: TreeCharacteristics;
   height: number;
   trunkHeight: number;
   trunkRadius: number;
@@ -224,6 +250,7 @@ type TreeRow<DataT> = {
   wind: [number, number, number];
 };
 type CropRow = {
+  kind: CropKind;
   position: Position;
   translation: [number, number, number];
   radius: number;
@@ -249,7 +276,8 @@ const GEOMETRY_PROPS = [
   'getSeason',
   'getBranchLevels',
   'getCrop',
-  'sizeScale'
+  'sizeScale',
+  'characteristics'
 ] as const;
 
 const TREE_MESH_ACCESSORS = Object.entries({
@@ -290,6 +318,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           triggers?.[key]
       );
     if (!changed) return;
+    const characteristics = resolveTreeCharacteristics(props.characteristics);
     const groups = new Map<string, TreeRow<DataT>[]>();
     const trunks: TreeRow<DataT>[] = [];
     const palms: TreeRow<DataT>[] = [];
@@ -299,7 +328,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     for (const object of iterable as Iterable<DataT>) {
       objectInfo.index++;
       const type: TreeType = props.getTreeType(object);
-      if (!['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'].includes(type))
+      if (
+        !['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'].includes(type)
+      )
         continue;
       const position = props.getPosition(object);
       const seed =
@@ -321,6 +352,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           type,
           winter,
           levels,
+          characteristics,
           height,
           trunkHeight: height * fraction + (type === 'palm' ? canopyHeight * 0.24 : 0),
           trunkRadius: Math.max(0, props.getTrunkRadius(object) * props.sizeScale),
@@ -342,7 +374,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       groups.set(key, group);
       (type === 'palm' ? palms : trunks).push(row);
       const crop = props.getCrop(object);
-      if (crop && crop.radius > 0) {
+      if (crop && Number.isFinite(crop.radius) && crop.radius > 0) {
         const cropRadius = crop.radius * props.sizeScale;
         const rng = createTreeRng(seed);
         // SimpleMeshLayer uses yaw about Z and pitch about Y (roll is zero).
@@ -350,9 +382,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           .rotateZ((row.orientation[1] * Math.PI) / 180)
           .rotateY((row.orientation[0] * Math.PI) / 180)
           .scale(row.scale);
-        const count = Math.max(0, Math.floor(crop.count));
+        const count = Number.isFinite(crop.count) ? Math.max(0, Math.floor(crop.count)) : 0;
         for (let i = 0; i < count; i++) {
-          const point = sampleTreeFruit(type, levels, rng, row.scale, cropRadius);
+          const point = sampleTreeFruit(type, levels, rng, row.scale, cropRadius, characteristics);
           if (!point) continue;
           const offset = transform.transformAsVector(point) as [number, number, number];
           offset[2] += row.translation[2];
@@ -361,6 +393,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               {
                 position: row.position,
                 translation: offset,
+                kind: crop.kind ?? 'fruit',
                 radius: cropRadius,
                 color: crop.color,
                 wind: row.wind
@@ -371,7 +404,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           );
         }
         const groundRng = createTreeRng(seed ^ 0x1a2b3c4d);
-        for (let i = 0; i < Math.max(0, Math.floor(crop.droppedCount ?? 0)); i++) {
+        const droppedCount = Number.isFinite(crop.droppedCount)
+          ? Math.max(0, Math.floor(crop.droppedCount!))
+          : 0;
+        for (let i = 0; i < droppedCount; i++) {
           const theta = groundRng() * Math.PI * 2;
           const r = Math.sqrt(groundRng()) * radius * 0.5;
           droppedCrops.push(
@@ -379,6 +415,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               {
                 position: row.position,
                 translation: [Math.cos(theta) * r, Math.sin(theta) * r, cropRadius],
+                kind: crop.kind ?? 'fruit',
                 radius: cropRadius,
                 color: crop.color,
                 wind: [height, row.wind[1], 0]
@@ -468,7 +505,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       true
     );
     for (const [key, data] of this.state.groups) {
-      const {type, winter, levels} = data[0];
+      const {type, winter, levels, characteristics} = data[0];
       const wood = data.filter(row => row.scale.every(value => value > 0));
       if (wood.length)
         layers.push(
@@ -478,7 +515,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
                 id: `wood-${key}`,
                 data: wood,
                 ...shared,
-                mesh: getTreeWoodMesh(type, levels),
+                mesh: getTreeWoodMesh(type, levels, false, characteristics),
                 getPosition: (row: TreeRow<DataT>) => row.position,
                 getScale: (row: TreeRow<DataT>) => row.scale,
                 getTranslation: (row: TreeRow<DataT>) => row.translation,
@@ -506,8 +543,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               id: `canopy-${key}`,
               data,
               ...shared,
-              source: getTreeSplatSource(type, levels),
-              hierarchy: getTreeSplatHierarchy(type, levels),
+              source: getTreeSplatSource(type, levels, characteristics),
+              hierarchy: getTreeSplatHierarchy(type, levels, characteristics),
               pixelError: type === 'palm' ? 0.65 : 2.5,
               deformationStrength: windStrength,
               deformationTime: windTime,
@@ -547,22 +584,32 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       ['dropped-crops', this.state.droppedCrops]
     ] as const) {
       if (!data.length) continue;
-      layers.push(
-        new TreeMeshLayer(
-          this.getTreeSubLayerProps({
-            id,
-            data,
-            ...shared,
-            mesh: getTreeMesh('crop'),
-            getPosition: (row: CropRow) => row.position,
-            getTranslation: (row: CropRow) => row.translation,
-            getScale: (row: CropRow) => [row.radius, row.radius, row.radius],
-            getColor: (row: CropRow) => row.color,
-            getWind: (row: CropRow) => row.wind,
-            material: {ambient: 0.4, diffuse: 0.7, shininess: 24}
-          })
-        )
-      );
+      const byKind = new Map<CropKind, CropRow[]>();
+      for (const row of data) {
+        const group = byKind.get(row.kind) ?? [];
+        group.push(row);
+        byKind.set(row.kind, group);
+      }
+      for (const [kind, rows] of byKind)
+        layers.push(
+          new TreeMeshLayer(
+            this.getTreeSubLayerProps(
+              {
+                id: kind === 'fruit' ? id : `${id}-${kind}`,
+                data: rows,
+                ...shared,
+                mesh: getTreeCropMesh(kind),
+                getPosition: (row: CropRow) => row.position,
+                getTranslation: (row: CropRow) => row.translation,
+                getScale: (row: CropRow) => [row.radius, row.radius, row.radius],
+                getColor: (row: CropRow) => row.color,
+                getWind: (row: CropRow) => row.wind,
+                material: {ambient: 0.4, diffuse: 0.7, shininess: 24}
+              },
+              id
+            )
+          )
+        );
     }
     return [...layers, ...foliage];
   }

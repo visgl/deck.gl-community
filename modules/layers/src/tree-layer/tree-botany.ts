@@ -4,6 +4,12 @@
 import {Vector3} from '@math.gl/core';
 import {createTreeRng, createPineTiers, samplePineSurface} from './tree-geometry';
 import type {TreeType} from './tree-layer';
+import {
+  resolveTreeCharacteristics,
+  getTreeCharacteristicsKey,
+  TreeTemplateCache,
+  type TreeCharacteristics
+} from './tree-characteristics';
 
 export type TreePoint = [number, number, number];
 export type TreeBranch = {
@@ -27,7 +33,7 @@ export type TreeBotany = {
   branches: TreeBranch[];
   clusters: LeafCluster[];
 };
-const CACHE = new Map<TreeType, TreeBotany>();
+const CACHE = new TreeTemplateCache<TreeBotany>();
 
 /** Transport a frame along a tube without the discontinuous vertical-axis switch. */
 export function getTreeFrames(path: TreePoint[]) {
@@ -60,15 +66,20 @@ type GrowthNode = {point: TreePoint; parent: number; children: number[]; load: n
  * Pipe-model radii are accumulated from terminal shoots, rather than fixed fork ratios.
  * This is procedural morphology, not a fitted biological growth simulation.
  */
-export function getTreeBotany(type: TreeType): TreeBotany {
-  const cached = CACHE.get(type);
+export function getTreeBotany(type: TreeType, characteristics?: TreeCharacteristics): TreeBotany {
+  const traits = resolveTreeCharacteristics(characteristics);
+  const key = `${type}-${getTreeCharacteristicsKey(traits)}`;
+  const cached = CACHE.get(key);
   if (cached) return cached;
   const rng = createTreeRng(
-    type.split('').reduce((seed, letter) => seed * 31 + letter.charCodeAt(0), 137) >>> 0
+    (type.split('').reduce((seed, letter) => seed * 31 + letter.charCodeAt(0), 137) +
+      traits.seed) >>>
+      0
   );
   const banyan = type === 'banyan',
     mangrove = type === 'mangrove',
-    birch = type === 'birch';
+    birch = type === 'birch',
+    citrus = type === 'citrus';
   const heights = [
     -1, -0.8, -0.6, -0.4, -0.2, 0, 0.1, 0.22, 0.238, 0.256, 0.274, 0.292, 0.31, 0.328, 0.346
   ];
@@ -81,15 +92,23 @@ export function getTreeBotany(type: TreeType): TreeBotany {
       ? [0.46, 0.42, 0.33]
       : birch
         ? [0.3, 0.31, 0.43]
-        : [0.46, 0.43, 0.38];
+        : citrus
+          ? [0.47, 0.44, 0.34]
+          : [0.46, 0.43, 0.38];
+  extent[0] *= traits.crownSpread;
+  extent[1] *= traits.crownSpread;
+  extent[2] *= traits.crownDepth;
   // Smooth azimuthal harmonics break rotational symmetry without disconnected blobs.
   const phase = rng() * Math.PI * 2;
   const attractors: TreePoint[] = [];
-  for (let i = 0; i < 520; i++) {
+  for (let i = 0; i < Math.round(520 * traits.branchDensity); i++) {
     const z = rng() * 2 - 1,
       angle = rng() * Math.PI * 2;
     const r = Math.cbrt(0.08 + rng() * 0.92);
-    const lobe = 1 + 0.11 * Math.sin(angle * 3 + phase) + 0.055 * Math.cos(angle * 5 - phase);
+    const lobe =
+      1 +
+      traits.crownAsymmetry *
+        (0.11 * Math.sin(angle * 3 + phase) + 0.055 * Math.cos(angle * 5 - phase));
     const xy = Math.sqrt(1 - z * z) * r * lobe;
     attractors.push([
       center[0] + Math.cos(angle) * extent[0] * xy,
@@ -111,7 +130,7 @@ export function getTreeBotany(type: TreeType): TreeBotany {
       load: 0
     });
   }
-  const step = 0.036,
+  const step = 0.036 * traits.internodeLength,
     influence = 0.45,
     kill = 0.055;
   let active = attractors;
@@ -149,7 +168,9 @@ export function getTreeBotany(type: TreeType): TreeBotany {
         direction.add(
           new Vector3(node.point).subtract(nodes[node.parent].point).normalize().scale(0.3)
         );
-      direction.add([0, 0, birch ? 0.16 : banyan ? 0.025 : 0.07]).normalize();
+      direction
+        .add([0, 0, (birch ? 0.16 : banyan ? 0.025 : citrus ? 0.045 : 0.07) * traits.branchLift])
+        .normalize();
       const point = Array.from(new Vector3(node.point).add(direction.scale(step))) as TreePoint;
       if (
         nodes.some(other => {
@@ -285,7 +306,7 @@ export function getTreeBotany(type: TreeType): TreeBotany {
     }
   }
   const botany = {stem, radii, branches, clusters};
-  CACHE.set(type, botany);
+  CACHE.set(key, botany);
   return botany;
 }
 
@@ -295,7 +316,8 @@ export function sampleTreeFruit(
   levels: number,
   rng: () => number,
   scale: TreePoint,
-  fruitRadius: number
+  fruitRadius: number,
+  characteristics?: TreeCharacteristics
 ): TreePoint | null {
   if (!scale.every(value => value > 0)) return null;
   const margin = scale.map(value => fruitRadius / value) as TreePoint;
@@ -316,7 +338,7 @@ export function sampleTreeFruit(
     const ratio = (radial * 0.65 - clearance) / radial;
     return [outer[0] * ratio, outer[1] * ratio, z];
   }
-  const clusters = getTreeBotany(type).clusters;
+  const clusters = getTreeBotany(type, characteristics).clusters;
   const start = Math.floor(rng() * clusters.length);
   const theta = rng() * Math.PI * 2;
   const z = rng() * 2 - 1;

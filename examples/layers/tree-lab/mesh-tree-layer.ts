@@ -599,7 +599,7 @@ function getLeafCardMesh(source: SplatSource): TreeMesh {
   LEAF_MESHES.set(source, mesh);
   return mesh;
 }
-/** Preserve the historical five-species reference and include both newly added species. */
+/** Preserve the historical five-species reference and include newly added species. */
 export class MeshTreeLayer extends CompositeLayer<any> {
   static layerName = 'MeshTreeLayer';
   static defaultProps = NativeTreeLayer.defaultProps;
@@ -618,7 +618,7 @@ export class MeshTreeLayer extends CompositeLayer<any> {
       added: any[] = [];
     for (const object of this.props.data) {
       const type = this.props.getTreeType(object);
-      (type === 'banyan' || type === 'mangrove' ? added : legacy).push(object);
+      (type === 'banyan' || type === 'mangrove' || type === 'citrus' ? added : legacy).push(object);
     }
     this.setState({legacy, added});
   }

@@ -5,7 +5,16 @@ import {describe, expect, it} from 'vitest';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 
 describe('Continuous tree wood', () => {
-  for (const type of ['oak', 'pine', 'birch', 'cherry', 'palm', 'banyan', 'mangrove'] as const)
+  for (const type of [
+    'oak',
+    'pine',
+    'birch',
+    'cherry',
+    'palm',
+    'banyan',
+    'mangrove',
+    'citrus'
+  ] as const)
     for (const aggregate of [false, true])
       it(`${type}/${aggregate ? 'distant' : 'full'} has one closed, connected trunk-and-branch surface`, () => {
         const mesh = getTreeWoodMesh(type, 4, aggregate);

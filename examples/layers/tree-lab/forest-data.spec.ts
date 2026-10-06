@@ -9,7 +9,7 @@ describe('forest workload contracts', () => {
       const trees = createForestSpecimens(getTreeCount(String(count)));
       expect(trees).toHaveLength(count);
       expect(trees.at(-1)!.index).toBe(count - 1);
-      expect(new Set(trees.map(tree => tree.species)).size).toBe(7);
+      expect(new Set(trees.map(tree => tree.species)).size).toBe(8);
       expect(new Set(trees.map(tree => tree.position.join(','))).size).toBe(count);
       expect(
         trees.every(tree => tree.height > 0 && tree.canopyRadius > 0 && tree.trunkRadius > 0)

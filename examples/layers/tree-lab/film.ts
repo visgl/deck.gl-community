@@ -11,7 +11,7 @@ import './style.css';
 
 /** Record actual paired deck.gl canvases; one frame clock drives every visual input. */
 export async function mountTreeFilm(container: HTMLElement) {
-  container.innerHTML = `<main class="tree-lab film"><header><div class="eyebrow">vis.gl / Tree Lab</div><h1>Seven trees. Four seasons. One moving sun.</h1><p>Matched cameras and sunlight. Highest-detail mesh canopy on the left; anisotropic Gaussian leaves on the right. Matched GPU wind.</p></header><canvas id="film" width="1920" height="1080" aria-label="Animated mesh and Gaussian tree comparison"></canvas><div class="toolbar"><button id="play">Pause tour</button><button id="preview" disabled>Record 4-second preview</button><button id="record" disabled>Record ${FILM_DURATION}-second film</button><a href="./index.html">All specimens</a><output id="progress" aria-live="polite">Preparing both renderers…</output><a id="download" hidden>Download video</a></div><div class="film-sources" aria-hidden="true"><canvas width="880" height="800"></canvas><canvas width="880" height="800"></canvas></div></main>`;
+  container.innerHTML = `<main class="tree-lab film"><header><div class="eyebrow">vis.gl / Tree Lab</div><h1>Eight trees. Four seasons. One moving sun.</h1><p>Matched cameras and sunlight. Highest-detail mesh canopy on the left; anisotropic Gaussian leaves on the right. Matched GPU wind.</p></header><canvas id="film" width="1920" height="1080" aria-label="Animated mesh and Gaussian tree comparison"></canvas><div class="toolbar"><button id="play">Pause tour</button><button id="preview" disabled>Record 4-second preview</button><button id="record" disabled>Record ${FILM_DURATION}-second film</button><a href="./index.html">All specimens</a><output id="progress" aria-live="polite">Preparing both renderers…</output><a id="download" hidden>Download video</a></div><div class="film-sources" aria-hidden="true"><canvas width="880" height="800"></canvas><canvas width="880" height="800"></canvas></div></main>`;
   const output = container.querySelector<HTMLCanvasElement>('#film')!;
   const ctx = output.getContext('2d')!;
   const progress = container.querySelector<HTMLOutputElement>('#progress')!;
@@ -105,7 +105,7 @@ export async function mountTreeFilm(container: HTMLElement) {
       ctx.fillText(
         i
           ? 'Gaussian foliage · covariance bends in the wind'
-          : frame.species === 'banyan' || frame.species === 'mangrove'
+          : frame.species === 'banyan' || frame.species === 'mangrove' || frame.species === 'citrus'
             ? 'Leaf-card mesh · shared growth, wood and wind'
             : 'Frozen native mesh · matched GPU wind',
         x + 35,

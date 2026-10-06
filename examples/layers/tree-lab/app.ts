@@ -28,7 +28,8 @@ const DESCRIPTIONS = {
   birch: 'Narrow crown · pale trunk · branching winter silhouette',
   cherry: 'Blossom color · space-grown crown · winter branches',
   banyan: 'Spreading evergreen crown · connected aerial root pillars',
-  mangrove: 'Large elliptical leaves · connected stilt roots'
+  mangrove: 'Large elliptical leaves · connected stilt roots',
+  citrus: 'Rounded evergreen crown · shoot-attached citrus fruit'
 };
 
 /** Interactive visual review of every species with shared controls and synchronized cameras. */
@@ -61,7 +62,7 @@ export function mountTreeLabExample(
     root.style.overflow = 'auto';
   }
   root.innerHTML = `
-    <header><div class="eyebrow">vis.gl / Tree Lab</div><h1>A forest, one tree at a time.</h1><p>Seven species. Organic branching, native wood and Gaussian foliage. Same tree dimensions, camera, light, and supplied crops.</p></header>
+    <header><div class="eyebrow">vis.gl / Tree Lab</div><h1>A forest, one tree at a time.</h1><p>Eight species. Organic branching, native wood and Gaussian foliage. Same tree dimensions, camera, light, and supplied crops.</p></header>
     <div class="toolbar"><div class="seasons" role="group" aria-label="Season">${SEASONS.map(season => `<button data-season="${season}" aria-pressed="false">${season[0].toUpperCase() + season.slice(1)}</button>`).join('')}</div>
     ${[
       ['crops', 'Attached crops'],
@@ -74,11 +75,11 @@ export function mountTreeLabExample(
           `<label class="toggle"><input type="checkbox" data-option="${key}">${label}</label>`
       )
       .join('')}
-    <label class="toggle"><input id="auto-tour" type="checkbox">Auto tour</label><label class="control">Sun angle <input id="sun-angle" type="range" min="0" max="360" step="1" value="0"></label>${hostOptions.benchmarkLinks !== false ? '<a class="film-link" href="./film.html">Watch / record the film</a> · <a class="film-link" href="./forest.html">Explore 10K / 20K trees</a>' : ''}
+    <label class="toggle"><input id="auto-tour" type="checkbox">Auto tour</label><label class="control">Sun angle <input id="sun-angle" type="range" min="0" max="360" step="1" value="0"></label>${hostOptions.benchmarkLinks !== false ? '<a class="film-link" href="./citrus.html">Citrus characteristics lab</a> · <a class="film-link" href="./film.html">Watch / record the film</a> · <a class="film-link" href="./forest.html">Explore 10K / 20K trees</a>' : ''}
     <button id="wind-clock" disabled>Pause wind</button><label class="control">Wind time <input id="wind-time" type="range" min="0" max="10" step="0.1" value="0" disabled></label>
     <label class="control">Resolution <select data-option="pixelRatio"><option value="1">1× / fast</option><option value="2">2× / sharp</option></select></label>
     <label class="control">View <select id="camera"><option value="58">Three-quarter</option><option value="0">Aerial</option><option value="75">Low angle</option></select></label></div>
-    <div class="status" aria-live="polite"></div><main class="board">${SPECIES.map(species => `<section class="row" data-species="${species}"><div class="row-title"><h2>${species[0].toUpperCase() + species.slice(1)}</h2><span class="caption">${DESCRIPTIONS[species]}</span></div><div class="pair">${['baseline', 'native'].map(renderer => `<div class="specimen ${renderer}"><div class="canvas" data-renderer="${renderer}" data-species="${species}"><div class="loading">Preparing specimen…</div></div><span class="label">${renderer === 'baseline' ? 'Mesh / vis.gl' : 'Gaussian / vis.gl'}</span><span class="badge">${renderer === 'baseline' ? (species === 'banyan' || species === 'mangrove' ? 'Leaf-card mesh · shared growth' : 'Frozen mesh reference') : 'Anisotropic leaves · GPU wind'}</span></div>`).join('')}</div></section>`).join('')}</main>
+    <div class="status" aria-live="polite"></div><main class="board">${SPECIES.map(species => `<section class="row" data-species="${species}"><div class="row-title"><h2>${species[0].toUpperCase() + species.slice(1)}</h2><span class="caption">${DESCRIPTIONS[species]}</span></div><div class="pair">${['baseline', 'native'].map(renderer => `<div class="specimen ${renderer}"><div class="canvas" data-renderer="${renderer}" data-species="${species}"><div class="loading">Preparing specimen…</div></div><span class="label">${renderer === 'baseline' ? 'Mesh / vis.gl' : 'Gaussian / vis.gl'}</span><span class="badge">${renderer === 'baseline' ? (species === 'banyan' || species === 'mangrove' || species === 'citrus' ? 'Leaf-card mesh · shared growth' : 'Frozen mesh reference') : 'Anisotropic leaves · GPU wind'}</span></div>`).join('')}</div></section>`).join('')}</main>
     <footer class="footer">Drag either specimen to inspect both cameras. Crops are illustrative and explicitly supplied; seasons do not invent yield.<br>The frozen mesh reference and Gaussian renderer share wind, crop inputs and dimensions. Gaussian foliage bends its centres and covariance together. Shadows use deck.gl’s WebGL shadow maps.<br>${hostOptions.benchmarkLinks !== false ? 'Performance runs use one renderer at a time: <a href="./baseline.html">Original Three.js benchmark</a> · <a href="./native.html">Native benchmark</a>.' : 'Run the standalone Tree Lab workspace for isolated performance measurements.'}</footer>`;
   container.replaceChildren(root);
   const decks: {

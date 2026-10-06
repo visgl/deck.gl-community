@@ -4,6 +4,11 @@
 import {Vector3} from '@math.gl/core';
 import {samplePineSurface, createPineTiers, type TreeMesh} from './tree-geometry';
 import type {TreeType} from './tree-layer';
+import {
+  getTreeCharacteristicsKey,
+  TreeTemplateCache,
+  type TreeCharacteristics
+} from './tree-characteristics';
 import {getTreeBotany, getTreeFrames, type TreeBranch} from './tree-botany';
 
 type Point = [number, number, number];
@@ -18,11 +23,16 @@ type Socket = {
   radii?: number[];
   rooted?: boolean;
 };
-const CACHE = new Map<string, TreeMesh>();
+const CACHE = new TreeTemplateCache<TreeMesh>(32);
 
 /** Watertight branching tubes. Child roots reuse the actual boundary of a hole in the parent tube. */
-export function getTreeWoodMesh(type: TreeType, levels = 3, aggregate = false): TreeMesh {
-  const key = `${type}-${type === 'pine' ? levels : 0}-${aggregate}`;
+export function getTreeWoodMesh(
+  type: TreeType,
+  levels = 3,
+  aggregate = false,
+  characteristics?: TreeCharacteristics
+): TreeMesh {
+  const key = `${type}-${type === 'pine' ? levels : 0}-${aggregate}-${getTreeCharacteristicsKey(characteristics)}`;
   const cached = CACHE.get(key);
   if (cached) return cached;
   const positions: number[] = [],
@@ -34,7 +44,7 @@ export function getTreeWoodMesh(type: TreeType, levels = 3, aggregate = false): 
   const pineTip = createPineTiers(levels).tipEnd[2];
   const height = [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.1, 0.22];
   const broadleaf = type !== 'pine' && type !== 'palm';
-  const botany = broadleaf ? getTreeBotany(type) : null;
+  const botany = broadleaf ? getTreeBotany(type, characteristics) : null;
   const leaderTop = type === 'palm' ? 0.54 : pineTip - 0.025;
   for (let ring = 0; ring < 26; ring++) height.push(0.24 + (ring * (leaderTop - 0.24)) / 25);
   if (aggregate && !broadleaf)

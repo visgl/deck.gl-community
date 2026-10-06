@@ -12,7 +12,7 @@ For comparable performance, use `native.html` and `native.html?renderer=mesh` wi
 
 The default Auto tour moves the sunlight through a full rotation and cycles spring, summer, autumn and winter every 32 seconds. Manual season or sun-angle controls pause the tour; reduced-motion preferences start with the tour off. Shadow toggles retain the trees while switching the matched lighting effect.
 
-Open `film.html` for a 1920×1080 side-by-side tour. Each species gets 12 seconds and visits every season while the sun and camera move. Record a four-second proof before the full 84-second capture. A fixed 30 fps clock drives both renderers; each requested frame waits for both GPU draws before capture. WebCodecs encodes every requested frame with integer presentation timestamps; the download is VP9/IVF. Convert it with `ffmpeg -i tree-lab-84s.ivf -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart tree-lab-84s.mp4` and verify before sharing. Slow rendering increases export time without dropping seasonal stages.
+Open `film.html` for a 1920×1080 side-by-side tour. Each species gets 12 seconds and visits every season while the sun and camera move. Record a four-second proof before the full 96-second capture. A fixed 30 fps clock drives both renderers; each requested frame waits for both GPU draws before capture. WebCodecs encodes every requested frame with integer presentation timestamps; the download is VP9/IVF. Convert it with `ffmpeg -i tree-lab-96s.ivf -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart tree-lab-96s.mp4` and verify before sharing. Slow rendering increases export time without dropping seasonal stages.
 
 See [review evidence](REVIEW.md) for the film, seasonal contact sheet, measured geometry budgets and qualified performance samples.
 
@@ -23,3 +23,8 @@ The shared WebGL lighting follows [NVIDIA's percentage-closer filtering](https:/
 The public prepared-source API and its transparency, optical shadow and receiver limitations are documented in [SplatLayer](../../../docs/modules/layers/api-reference/splat-layer.md). Procedural Gaussians approximate botanical foliage; they are not trained photographic assets.
 
 The native mesh reference is frozen from `1d30abb264e51bd0bf89902fb690246348595d9a`; it retains the previous wood and crop placement. Gaussian broadleaf canopies, connected wood and attached fruit share one space-colonization growth structure. Banyan has descending aerial roots; red mangrove has connected stilt roots and larger elliptical leaves. The new species use leaf-card mesh references because no historical mesh exists.
+
+
+Open `citrus.html` for a focused characteristics workbench. Orchard orange, patio lemon and spreading lime presets expose dimensions, growth seed, crown shape, branching, leaf density and leaf size. Inspect the full crown, faded foliage or branches alone. Crop stages (white blossom, green fruit, ripe fruit, none) are independent of calendar season; citrus stays evergreen. Wind, soft shadows and automatic sunlight/season cycling are independently controlled, and recipe export preserves the chosen parameters. Morphology changes are debounced by 120ms and use bounded shared template caches.
+
+The interactive suite now includes eight species. The committed 84-second film and performance review are the seven-species snapshot from PR #796; they do not measure the added citrus workload. New film exports cycle eight species for 96 seconds.

@@ -7,7 +7,7 @@ import {getTreeSplatSource} from '../../src/tree-layer/tree-splats';
 import {createTreeRng} from '../../src/tree-layer/tree-geometry';
 
 describe('Shared botanical canopy', () => {
-  for (const type of ['oak', 'birch', 'cherry', 'banyan', 'mangrove'] as const) {
+  for (const type of ['oak', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'] as const) {
     it(`${type} divides its bole into tapered forks with leaves around every shoot`, () => {
       const botany = getTreeBotany(type);
       expect(Math.max(...botany.stem.map(point => point[2]))).toBeLessThan(0.35);

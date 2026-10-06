@@ -24,7 +24,7 @@ function getGridPosition(index: number): [number, number] {
   return [radius, radius - (offset - edge * 3)];
 }
 
-/** An explicitly procedural forest: stable positions and dimensions, with all seven species. */
+/** An explicitly procedural forest: stable positions and dimensions, with all eight species. */
 export function createForestSpecimens(count: number, speciesList = SPECIES): ForestSpecimen[] {
   return Array.from({length: count}, (_, index) => {
     const species = speciesList[Math.floor(getNoise(index, 1) * speciesList.length)];
@@ -38,8 +38,15 @@ export function createForestSpecimens(count: number, speciesList = SPECIES): For
         (y * 18 + (getNoise(index, 4) - 0.5) * 10) / 111320
       ],
       height:
-        (species === 'pine' ? 21 : species === 'cherry' ? 11 : species === 'mangrove' ? 10 : 16) *
-        scale,
+        (species === 'pine'
+          ? 21
+          : species === 'cherry'
+            ? 11
+            : species === 'mangrove'
+              ? 10
+              : species === 'citrus'
+                ? 5
+                : 16) * scale,
       canopyRadius:
         (species === 'palm'
           ? 4.5
@@ -49,8 +56,10 @@ export function createForestSpecimens(count: number, speciesList = SPECIES): For
               ? 10
               : species === 'mangrove'
                 ? 8
-                : 7) * scale,
-      trunkRadius: (species === 'palm' ? 0.25 : 0.38) * scale
+                : species === 'citrus'
+                  ? 4.2
+                  : 7) * scale,
+      trunkRadius: (species === 'palm' ? 0.25 : species === 'citrus' ? 0.12 : 0.38) * scale
     };
   });
 }

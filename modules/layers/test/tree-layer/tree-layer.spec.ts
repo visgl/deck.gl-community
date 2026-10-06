@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
-import {TreeLayer} from '../../src/tree-layer/tree-layer';
+import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 import {
@@ -17,7 +17,7 @@ import {
 
 type Datum = {
   position: [number, number];
-  type: 'oak' | 'pine' | 'palm' | 'birch' | 'cherry';
+  type: TreeType;
   season: 'summer' | 'winter';
 };
 function createLayer(data: Datum[], extra = {}) {
@@ -62,21 +62,28 @@ function getMeshRing(mesh: TreeMesh, height: number, leaderOnly = false) {
 }
 
 describe('native tree geometry', () => {
-  it('composes connected wood and the full Gaussian source, ignoring a legacy detail prop', () => {
-    for (const type of ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'] as const) {
-      for (const season of ['summer', 'winter'] as const) {
-        const {layer} = createLayer([{position: [0, 0], type, season}], {detail: 'low'});
-        const children = layer.renderLayers();
-        const wood = children.find(child => child.id.includes('wood'))!;
-        const crown = children.find(child => child.id.includes('canopy'));
-        expect(wood.props.mesh).toBe(getTreeWoodMesh(type));
-        if (season === 'winter' && (type === 'oak' || type === 'birch' || type === 'cherry'))
-          expect(crown).toBeUndefined();
-        else {
-          expect(crown).toBeInstanceOf(SplatLayer);
-          expect(crown!.props.source.opacities.length).toBeGreaterThan(1000);
-          expect(crown!.props.hierarchy[0].source).toBe(crown!.props.source);
-        }
+  it.each([
+    'pine',
+    'oak',
+    'palm',
+    'birch',
+    'cherry',
+    'banyan',
+    'mangrove',
+    'citrus'
+  ] as const)('%s composes connected wood and the full Gaussian source, ignoring a legacy detail prop', type => {
+    for (const season of ['summer', 'winter'] as const) {
+      const {layer} = createLayer([{position: [0, 0], type, season}], {detail: 'low'});
+      const children = layer.renderLayers();
+      const wood = children.find(child => child.id.includes('wood'))!;
+      const crown = children.find(child => child.id.includes('canopy'));
+      expect(wood.props.mesh).toBe(getTreeWoodMesh(type));
+      if (season === 'winter' && (type === 'oak' || type === 'birch' || type === 'cherry'))
+        expect(crown).toBeUndefined();
+      else {
+        expect(crown).toBeInstanceOf(SplatLayer);
+        expect(crown!.props.source.opacities.length).toBeGreaterThan(1000);
+        expect(crown!.props.hierarchy[0].source).toBe(crown!.props.source);
       }
     }
   });

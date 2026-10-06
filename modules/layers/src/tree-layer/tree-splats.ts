@@ -7,13 +7,24 @@ import type {SplatSource} from '../splat-layer/splat-source';
 import {createTreeRng, samplePineSurface, createPineTiers} from './tree-geometry';
 import type {TreeType} from './tree-layer';
 import {getTreeBotany} from './tree-botany';
+import {
+  resolveTreeCharacteristics,
+  getTreeCharacteristicsKey,
+  TreeTemplateCache,
+  type TreeCharacteristics
+} from './tree-characteristics';
 
 type Point = [number, number, number];
-const CACHE = new Map<string, SplatSource>();
+const CACHE = new TreeTemplateCache<SplatSource>();
 
 /** Procedural leaf clusters, not sampled opaque crown triangles. Templates are shared by species/tier. */
-export function getTreeSplatSource(type: TreeType, levels = 3): SplatSource {
-  const key = `${type}-${type === 'pine' ? levels : 0}`;
+export function getTreeSplatSource(
+  type: TreeType,
+  levels = 3,
+  characteristics?: TreeCharacteristics
+): SplatSource {
+  const traits = resolveTreeCharacteristics(characteristics);
+  const key = `${type}-${type === 'pine' ? levels : 0}-${getTreeCharacteristicsKey(traits)}`;
   const cached = CACHE.get(key);
   if (cached) return cached;
   const rng = createTreeRng(
@@ -135,7 +146,7 @@ export function getTreeSplatSource(type: TreeType, levels = 3): SplatSource {
       );
     }
   } else {
-    const clusters = getTreeBotany(type).clusters;
+    const clusters = getTreeBotany(type, traits).clusters;
     // Allocate by leaf-bearing volume, so tiny terminal shoots do not steal density
     // from the large clusters surrounding primary and secondary branches.
     const weights = clusters.map(cluster =>
@@ -144,8 +155,9 @@ export function getTreeSplatSource(type: TreeType, levels = 3): SplatSource {
     const totalWeight = weights.reduce((sum, value) => sum + value, 0);
     let clusterIndex = 0,
       cumulativeWeight = weights[0];
-    for (let i = 0; i < 12288; i++) {
-      const target = ((i + 0.5) / 12288) * totalWeight;
+    const leafCount = Math.round(12288 * traits.leafDensity);
+    for (let i = 0; i < leafCount; i++) {
+      const target = ((i + 0.5) / leafCount) * totalWeight;
       while (target > cumulativeWeight && clusterIndex < clusters.length - 1)
         cumulativeWeight += weights[++clusterIndex];
       const cluster = clusters[clusterIndex];
@@ -168,8 +180,12 @@ export function getTreeSplatSource(type: TreeType, levels = 3): SplatSource {
       // Red mangrove has large opposite leathery elliptical leaves; banyan has
       // broad ovate leaves. Lengths are local one-sigma values, not botanical measurements.
       const largeLeaf = type === 'mangrove' || type === 'banyan';
-      const size = largeLeaf ? 0.011 + rng() * 0.008 : 0.007 + rng() * 0.005;
-      add(point, [size, size * (type === 'mangrove' ? 0.38 : 0.55), size * 0.08], normal);
+      const size = (largeLeaf ? 0.011 + rng() * 0.008 : 0.007 + rng() * 0.005) * traits.leafSize;
+      add(
+        point,
+        [size, size * (type === 'mangrove' || type === 'citrus' ? 0.38 : 0.55), size * 0.08],
+        normal
+      );
     }
   }
   const source: SplatSource = {
@@ -186,8 +202,12 @@ export function getTreeSplatSource(type: TreeType, levels = 3): SplatSource {
 
 const HIERARCHIES = new WeakMap<SplatSource, SplatHierarchy>();
 /** Full leaf templates with progressively merged covariance moments for subpixel crowns. */
-export function getTreeSplatHierarchy(type: TreeType, levels = 3): SplatHierarchy {
-  const source = getTreeSplatSource(type, levels);
+export function getTreeSplatHierarchy(
+  type: TreeType,
+  levels = 3,
+  characteristics?: TreeCharacteristics
+): SplatHierarchy {
+  const source = getTreeSplatSource(type, levels, characteristics);
   let hierarchy = HIERARCHIES.get(source);
   if (!hierarchy) {
     hierarchy = createSplatHierarchy(source, [0.035, 0.075, 0.16, 0.32, 0.64]);
