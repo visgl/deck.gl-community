@@ -10,7 +10,16 @@ import {TreeLayer} from '@deck.gl-community/layers';
 import {expect, it} from 'vitest';
 import {mountTreeBenchmark} from './benchmark';
 
-type BenchmarkApi = {ready: boolean; errors: string[]; deck: Deck};
+type BenchmarkApi = {
+  ready: boolean;
+  errors: string[];
+  deck: Deck;
+  measure: (durationMs?: number) => Promise<{
+    treeInstances: number;
+    view: string;
+    renderCallP95Ms: number | null;
+  }>;
+};
 
 it.each([
   [
@@ -68,6 +77,11 @@ it('submits all 20,000 requested tree instances to the renderer', async () => {
     expect(parent.querySelector('p')!.textContent).toContain('winter');
     const layers = api.deck.props.layers as TreeLayer[];
     expect(layers[1].props.data).toHaveLength(20000);
+    const sample = await api.measure(1000);
+    expect(sample.treeInstances).toBe(20000);
+    expect(sample.view).toBe('canopy');
+    expect(sample.renderCallP95Ms).not.toBeNull();
+    expect(sample.renderCallP95Ms!).toBeGreaterThanOrEqual(0);
     expect(api.errors).toEqual([]);
   } finally {
     api.deck.finalize();

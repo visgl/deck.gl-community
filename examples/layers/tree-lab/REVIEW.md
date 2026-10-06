@@ -32,12 +32,17 @@ Reproduce with the commands and matched benchmark entries in [README](README.md)
 
 `forest.html` and the website Tree Forest example use deterministic procedural positions, varied dimensions and all five species. The count controls allocate exactly 10,000 or 20,000 rows. Wind, shadows, detail, seasons and sunlight are independent; the default flyover inspects crowns, while overview fits the full dataset. Browser checks render both counts, every season and shadow state, preserve default flyover during initialization and project the overview corners inside the viewport.
 
-[Retained scale samples](forest-review.json) include the production build fingerprints, actual instance count, M4 Pro/ANGLE Metal device, 1236×680 viewport at 1× pixels, three warmed five-second orbits per workload and a one-tree scheduling control. The following are medians of the three delivered-frame rates:
+[Retained scale samples](forest-review.json) record source/build fingerprints, exact instance counts and the camera shared with the live canopy view. One production WebGL2 renderer ran at a time on Apple M4 Pro/ANGLE Metal, at 1236×680 and 1× pixels. Each workload used a two-second warmup followed by three five-second 90° camera orbits. Every retained sample started visible and focused and ended visible. No builds or automated rendering tests ran during measurement.
 
-| Workload | 10,000 trees | 20,000 trees |
+| Workload | 10,000 trees: median draws/s (range) | 20,000 trees: median draws/s (range) |
 | --- | --- | --- |
-| Original, high detail, static, shadows off | 26.3 frames/s | 19.3 frames/s |
-| Native, high detail, static, shadows off | 27.1 frames/s | 30.6 frames/s |
-| Native, medium detail, wind and shadows on | 30.7 frames/s | 26.9 frames/s |
+| Original, high detail, static, shadows off | 98.0 (96.8–98.3) | 50.5 (44.7–52.7) |
+| Native, high detail, static, shadows off | 119.8 (119.8–119.8) | 68.6 (65.1–74.1) |
+| Native, medium detail, wind and shadows on | 72.3 (63.2–73.3) | 40.4 (39.1–44.5) |
+| Native, medium detail, wind on, shadows off | — | 93.4 (92.8–93.6) |
 
-**These observations are provisional.** The in-app browser remained hidden despite a presentation request, other work was active on the shared host, and the subsequent one-tree control delivered only 19.9–20.3 frames/s. This prevents an isolated throughput or speedup conclusion. No application rendering errors occurred; two long tasks were recorded in one 10K animated sample, with none in the other retained scale samples. Frame delivery is not GPU execution time. Repeat the same benchmark entries in a foreground browser on an otherwise idle host before making a performance claim.
+The one-tree control before the matrix delivered 119.8–120.1 draws/s, with p95 delivery intervals of 9.1–9.3 ms. Native 10K static samples approach that browser scheduling limit. All retained workloads had zero rendering errors and zero recorded long tasks. For the medium-detail animated workload, p95 frame intervals ranged from 17.1–25.0 ms at 10K and 25.7–33.3 ms at 20K. Disabling shadows at 20K reduced that range to 17.0–17.1 ms while retaining wind and all tree instances.
+
+These samples precede the final count-stability layout and reduced-motion default changes; their source/build fingerprints identify the measured version. The mesh renderer and detail budgets are unchanged. These are submitted draw rates and browser delivery intervals, not GPU execution time or proof of presentation. The raw report also includes synchronous render-call wall time; this measures CPU/driver submission, not GPU elapsed time. The original has no wind feature, so animated native results are not a matched speedup comparison. Keep medium detail for the visual tour, use shadows off when frame pacing matters more, and use high detail for close inspection.
+
+The earlier provisional matrix is retained in Git history at `7134bcf916be37faab029d76231e60cc768755d4`; it used a different camera and a scheduling-limited host and must not be combined with these samples. The browser approval service became unavailable before an ending control, low-detail result, winter performance sample or overview performance sample could be saved. Automated rendering checks cover every season at 20K; those checks establish rendering behavior, not seasonal performance. No mobile, peak-throughput or cross-device performance claim is made.

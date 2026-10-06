@@ -18,7 +18,7 @@ import {
   type TreeLayerConstructor
 } from './scene';
 import {createForestSpecimens, getTreeCount} from './forest-data';
-import {createForestSceneLayers} from './forest-scene';
+import {createForestSceneLayers, getForestViewState} from './forest-scene';
 import './style.css';
 
 /** Identical single-renderer workloads; frame intervals describe browser delivery, not GPU time. */
@@ -59,12 +59,13 @@ export function mountTreeBenchmark(
       p95FrameMs: number;
       deliveredFramesPerSecond: number;
       longTaskCount: number;
+      renderCallP95Ms: number | null;
     }[]
   ) => {
     summary.replaceChildren();
     const table = document.createElement('table');
     table.innerHTML =
-      '<thead><tr><th>Sample</th><th>Median frame</th><th>p95 frame</th><th>Delivered frames/s</th><th>Long tasks</th></tr></thead>';
+      '<thead><tr><th>Sample</th><th>Median frame</th><th>p95 frame</th><th>Draws/s</th><th>Draw call p95</th><th>Long tasks</th></tr></thead>';
     const body = document.createElement('tbody');
     for (const [index, sample] of samples.entries()) {
       const row = document.createElement('tr');
@@ -73,6 +74,7 @@ export function mountTreeBenchmark(
         `${sample.medianFrameMs.toFixed(1)} ms`,
         `${sample.p95FrameMs.toFixed(1)} ms`,
         sample.deliveredFramesPerSecond.toFixed(1),
+        sample.renderCallP95Ms === null ? '—' : `${sample.renderCallP95Ms.toFixed(1)} ms`,
         sample.longTaskCount
       ]) {
         const cell = document.createElement('td');
@@ -92,6 +94,17 @@ export function mountTreeBenchmark(
   let device: Device;
   const data = species === 'mixed' ? createForestSpecimens(count) : createSpecimens(species, count);
   const zoom = count === 1 ? VIEW.zoom : Math.max(13, 20.5 - Math.log2(Math.sqrt(count)));
+  const view =
+    species === 'mixed' ? (query.get('view') === 'overview' ? 'overview' : 'canopy') : 'grid';
+  const {width, height} = parent.querySelector('.canvas')!.getBoundingClientRect();
+  const camera =
+    species === 'mixed'
+      ? getForestViewState(count, width, height, view === 'overview')
+      : {...VIEW, zoom};
+  parent.querySelector('p')!.textContent += ` · ${view} view`;
+  let measuring = false;
+  let drawStart = 0;
+  const renderCalls: number[] = [];
   const deck = new Deck({
     parent: parent.querySelector('.canvas')!,
     width: '100%',
@@ -99,7 +112,7 @@ export function mountTreeBenchmark(
     useDevicePixels: 1,
     deviceProps: {type: options.backend, adapters: [webgl2Adapter, webgpuAdapter]},
     views: createViews(),
-    viewState: {...VIEW, zoom},
+    viewState: camera,
     layers:
       species === 'mixed'
         ? createForestSceneLayers(
@@ -113,8 +126,12 @@ export function mountTreeBenchmark(
     onDeviceInitialized: initializedDevice => {
       device = initializedDevice;
     },
+    onBeforeRender: () => {
+      if (measuring) drawStart = performance.now();
+    },
     onAfterRender: () => {
       frame++;
+      if (measuring) renderCalls.push(performance.now() - drawStart);
       if (!ready) {
         ready = true;
         firstFrameMs = performance.now() - firstStart;
@@ -130,7 +147,6 @@ export function mountTreeBenchmark(
         button.disabled = true;
     }
   });
-  let measuring = false;
   const measure = async (durationMs = 5000) => {
     if (!ready || measuring || document.hidden)
       throw new Error(
@@ -152,6 +168,7 @@ export function mountTreeBenchmark(
     });
     if (PerformanceObserver.supportedEntryTypes.includes('longtask'))
       observer.observe({type: 'longtask'});
+    renderCalls.length = 0;
     const start = performance.now();
     const startFrame = frame;
     let previous = start;
@@ -160,7 +177,9 @@ export function mountTreeBenchmark(
         gaps.push(now - previous);
         previous = now;
         const elapsed = now - start;
-        deck.setProps({viewState: {...VIEW, zoom, bearing: 22 + (elapsed / durationMs) * 90}});
+        deck.setProps({
+          viewState: {...camera, bearing: (camera.bearing ?? 22) + (elapsed / durationMs) * 90}
+        });
         if (elapsed < durationMs) requestAnimationFrame(tick);
         else resolve();
       };
@@ -169,12 +188,14 @@ export function mountTreeBenchmark(
     observer.disconnect();
     measuring = false;
     const sorted = [...gaps].sort((a, b) => a - b);
+    const sortedRenderCalls = [...renderCalls].sort((a, b) => a - b);
     const result = {
       renderer,
       visibilityAtStart,
       focusedAtStart,
       visibilityAtEnd: document.visibilityState,
-      camera: {...VIEW, zoom},
+      camera,
+      view,
       species,
       count,
       options,
@@ -188,6 +209,8 @@ export function mountTreeBenchmark(
       durationMs: performance.now() - start,
       deliveredFramesPerSecond: ((frame - startFrame) * 1000) / (performance.now() - start),
       treeInstances: data.length,
+      renderCallMedianMs: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.5)] ?? null,
+      renderCallP95Ms: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.95)] ?? null,
       medianFrameMs: sorted[Math.floor(sorted.length * 0.5)],
       p95FrameMs: sorted[Math.floor(sorted.length * 0.95)],
       maxFrameMs: sorted.at(-1),
@@ -210,12 +233,17 @@ export function mountTreeBenchmark(
     for (const button of buttons) button.disabled = true;
     try {
       const samples = [];
+      let warmup;
+      if (count > 1) {
+        summary.textContent = 'Warming up…';
+        warmup = await measure(2000);
+      }
       for (let index = 0; index < count; index++) {
         summary.textContent = `Measuring sample ${index + 1}/${count}…`;
         parent.querySelector('#result')!.textContent = summary.textContent;
         samples.push(await measure());
       }
-      parent.querySelector('#result')!.textContent = JSON.stringify({samples}, null, 2);
+      parent.querySelector('#result')!.textContent = JSON.stringify({warmup, samples}, null, 2);
       showSamples(samples);
     } catch (error) {
       summary.textContent = error instanceof Error ? error.message : String(error);

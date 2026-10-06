@@ -12,20 +12,30 @@ function getNoise(index: number, salt: number): number {
   return ((value ^ (value >>> 16)) >>> 0) / 4294967296;
 }
 
+// Grow a square spiral around the same origin; adding trees never moves an existing row.
+function getGridPosition(index: number): [number, number] {
+  if (index === 0) return [0, 0];
+  const radius = Math.ceil((Math.sqrt(index + 1) - 1) / 2);
+  const edge = radius * 2;
+  const offset = (radius * 2 + 1) ** 2 - 1 - index;
+  if (offset < edge) return [radius - offset, -radius];
+  if (offset < edge * 2) return [-radius, -radius + offset - edge];
+  if (offset < edge * 3) return [-radius + offset - edge * 2, radius];
+  return [radius, radius - (offset - edge * 3)];
+}
+
 /** An explicitly procedural forest: stable positions and dimensions, with all five species. */
 export function createForestSpecimens(count: number): ForestSpecimen[] {
-  const width = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / width);
   return Array.from({length: count}, (_, index) => {
     const species = SPECIES[Math.floor(getNoise(index, 1) * SPECIES.length)];
     const scale = 0.75 + getNoise(index, 2) * 0.5;
+    const [x, y] = getGridPosition(index);
     return {
       index,
       species,
       position: [
-        (((index % width) - (width - 1) / 2) * 18 + (getNoise(index, 3) - 0.5) * 10) / 111320,
-        ((Math.floor(index / width) - (rows - 1) / 2) * 18 + (getNoise(index, 4) - 0.5) * 10) /
-          111320
+        (x * 18 + (getNoise(index, 3) - 0.5) * 10) / 111320,
+        (y * 18 + (getNoise(index, 4) - 0.5) * 10) / 111320
       ],
       height: (species === 'pine' ? 21 : species === 'cherry' ? 11 : 16) * scale,
       canopyRadius: (species === 'palm' ? 4.5 : species === 'birch' ? 5.5 : 7) * scale,
