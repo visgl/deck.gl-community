@@ -8,7 +8,7 @@
 import {CompositeLayer, type Deck, type Layer} from '@deck.gl/core';
 import {describe, expect, it} from 'vitest';
 import {mountTreeLabExample} from './app';
-import {SEASONS, type SceneOptions, type Specimen} from './scene';
+import {SEASONS, SPECIES, type SceneOptions, type Specimen} from './scene';
 
 type ReviewSpecimen = {
   deck: Deck;
@@ -61,7 +61,9 @@ function countChangedPixels(before: Frame, after: Frame): number {
 }
 
 describe('Tree Lab rendering controls', () => {
-  it('keeps all sixteen trees visible across shadow toggles, four seasons and frozen wind poses', async () => {
+  it.each(
+    SPECIES
+  )('%s stays visible across shadow toggles, four seasons and frozen wind poses', async species => {
     const originalUrl = location.href;
     const reviewUrl = new URL(originalUrl);
     reviewUrl.searchParams.set('auto', '0');
@@ -71,17 +73,17 @@ describe('Tree Lab rendering controls', () => {
     const container = document.createElement('div');
     container.style.width = '900px';
     document.body.append(container);
-    const cleanup = mountTreeLabExample(container, {benchmarkLinks: false});
+    const cleanup = mountTreeLabExample(container, {benchmarkLinks: false, species: [species]});
     const api = (window as Window & {treeLab?: ReviewApi}).treeLab!;
     const frames = new Map<ReviewSpecimen, Frame>();
     try {
       expect(api.getOptions().season).toBe('summer');
-      // Pixel regressions need matched cameras, not a 2x supersampled sixteen-context workload.
+      // Inspect each matched pair at native resolution, including on software GPUs.
       api.setOptions({pixelRatio: 1});
-      await expect.poll(() => api.ready, {timeout: 15000}).toBe(16);
+      await expect.poll(() => api.ready, {timeout: 15000}).toBe(2);
       expect(api.errors).toEqual([]);
       const specimens = api.getDecks();
-      expect(specimens).toHaveLength(16);
+      expect(specimens).toHaveLength(2);
       for (const specimen of specimens) {
         const originalAfterRender = specimen.deck.props.onAfterRender;
         specimen.deck.setProps({
@@ -245,4 +247,33 @@ describe('Tree Lab rendering controls', () => {
       history.replaceState(null, '', originalUrl);
     }
   }, 90000);
+  it('mounts every comparison together without losing a species or renderer', async () => {
+    const originalUrl = location.href;
+    const url = new URL(originalUrl);
+    url.searchParams.set('auto', '0');
+    history.replaceState(null, '', url);
+    const container = document.createElement('div');
+    container.style.width = '900px';
+    document.body.append(container);
+    const cleanup = mountTreeLabExample(container, {benchmarkLinks: false});
+    const api = (window as Window & {treeLab?: ReviewApi}).treeLab!;
+    try {
+      api.setOptions({pixelRatio: 0.5, wind: false, shadows: false});
+      await expect.poll(() => api.ready, {timeout: 30000}).toBe(SPECIES.length * 2);
+      const specimens = api.getDecks();
+      expect(specimens).toHaveLength(SPECIES.length * 2);
+      for (const species of SPECIES)
+        expect(
+          specimens
+            .filter(specimen => specimen.species === species)
+            .map(specimen => specimen.renderer)
+            .sort()
+        ).toEqual(['baseline', 'native']);
+      expect(api.errors).toEqual([]);
+    } finally {
+      cleanup();
+      container.remove();
+      history.replaceState(null, '', originalUrl);
+    }
+  }, 45000);
 });
