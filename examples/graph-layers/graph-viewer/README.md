@@ -9,14 +9,16 @@ Dataset definitions live in [`examples.ts`](./examples.ts) and use the `ExampleD
 - A `data()` function that returns node and edge arrays for inline samples, or
 - A `dataUrl` paired with optional `loaders`, `loadOptions`, and a `graphLoader` to hydrate remote content into a `Graph` instance.
 
-Remote samples can leverage loaders such as `DOTGraphLoader`:
+Remote samples can leverage loaders such as `DOTLoaderWithParser`:
 
 ```ts
+import {DOTLoaderWithParser} from '@loaders.gl/graphs/dot-loader';
+
 {
   name: 'Cluster workflow (DOT)',
   description: 'Loads a directed workflow with clustered subgraphs defined in DOT format directly from GitHub.',
   dataUrl: `${DOT_FIXTURE_BASE_URL}cluster.dot`,
-  loaders: [DOTGraphLoader],
+  loaders: [DOTLoaderWithParser],
   graphLoader: DOT_RESULT_GRAPH_LOADER,
   layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
   layoutDescriptions: LAYOUT_DESCRIPTIONS,
@@ -26,3 +28,7 @@ Remote samples can leverage loaders such as `DOTGraphLoader`:
 ```
 
 The control panel surfaces basic dataset statistics once the data has been fetched and parsed, and layout option forms automatically pick up the metadata when it becomes available.
+
+The loaders.gl parser returns plain graph records. `DOT_RESULT_GRAPH_LOADER` creates a
+`ClassicGraph` from these records so node attributes, edge directions, and subgraph membership
+remain available to layouts and styles.

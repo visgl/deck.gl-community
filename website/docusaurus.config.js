@@ -127,6 +127,9 @@ const config = {
             // package's UMD main, which breaks default imports in vis.gl S2 code.
             long: resolve('../node_modules/long/index.js'),
             '@loaders.gl/csv': resolve('node_modules/@loaders.gl/csv'),
+            '@loaders.gl/graphs/dot-loader$': resolve(
+              'node_modules/@loaders.gl/graphs/dist/dot-loader.js'
+            ),
             '@loaders.gl/json': resolve('node_modules/@loaders.gl/json'),
             '@loaders.gl/i3s': resolve('node_modules/@loaders.gl/i3s'),
             '@loaders.gl/las': resolve('node_modules/@loaders.gl/las'),

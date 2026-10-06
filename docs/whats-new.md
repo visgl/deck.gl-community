@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
+  `DOTGraphLoader` and its parsing helpers have been removed.
+  Graph loader dependencies require loaders.gl 4.5.3 or later.
 - `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
@@ -57,7 +60,7 @@
   register automatically with status and disable/re-enable controls that preserve imported rows.
   Browsers without WebMCP can still use the editor and preview.
 
-- Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
+- Workspace dependencies use loaders.gl 4.5.3 with a shared Apache Arrow 17 version.
 
 - Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and
   resetting a `DeckPlayground` camera, plus explicit source grants for inspection and JSON or
