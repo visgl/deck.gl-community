@@ -94,8 +94,9 @@ The default policy uses the layer's `pickingRadius` prop as its snap distance th
 Custom `snapper` policies can define their own threshold and viewport requirements.
 Their returned `mapCoords` must use the editable data's local frame, before its model matrix.
 A policy querying another layer may project a source point with that layer, then convert the
-winning pixel XYZ with `props.projection.unproject(pixelXYZ)`; return `null` if conversion
-fails, and omit `featureIndex` for the external result. Do not return raw source-frame coordinates.
+winning pixel XYZ with `props.projection?.unproject(pixelXYZ)`; return `null` if the projection
+is unavailable or conversion fails, and omit `featureIndex` for the external result.
+Do not return raw source-frame coordinates.
 
 #### `selectedFeatureIndexes` (Array, optional)
 
