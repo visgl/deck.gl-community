@@ -30,6 +30,5 @@ export type {
   TreeLayerProps,
   TreeType,
   Season,
-  CropConfig,
-  TreeDetail
+  CropConfig
 } from './tree-layer/tree-layer';

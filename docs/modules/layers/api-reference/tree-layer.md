@@ -1,6 +1,6 @@
 # TreeLayer
 
-An instanced, procedural tree layer built entirely with deck.gl, luma.gl and math.gl. Five species share cached CPU meshes; winter deciduous trees expose branching crowns. No Three.js runtime dependency is required.
+An instanced, procedural tree layer built entirely with deck.gl, luma.gl and math.gl. Five species share cached CPU meshes; winter deciduous trees expose branching crowns. Trunks and crowns always use the highest-quality geometry. No Three.js runtime dependency is required.
 
 ```ts
 import {TreeLayer} from '@deck.gl-community/layers';
@@ -11,7 +11,6 @@ new TreeLayer({
   getTreeType: tree => tree.species,
   getHeight: tree => tree.height,
   getSeason: () => 'summer',
-  detail: 'high',
   windStrength: 0.025,
   pickable: true
 });
@@ -38,7 +37,6 @@ Inherits the deck.gl `CompositeLayer` properties. Accessors are functions of the
 | `getBranchLevels` | `() => 3` | Pine tier count, rounded and clamped to 1–5. |
 | `getCrop` | `() => null` | Explicit crop configuration; the layer never invents seasonal yield. |
 | `sizeScale` | `1` | Multiplier for tree and crop dimensions. |
-| `detail` | `'high'` | `low`, `medium` or `high`. Use separate detail layers for distant and nearby trees; automatic distance selection is not provided. |
 | `windStrength` | `0` | Bend amplitude as a fraction of tree height. Zero stops continuous redraw; a value around `0.025` is a gentle breeze. |
 | `windTime` | `null` | Wind time in seconds. `null` uses deck.gl's timeline; a number freezes the pose for controlled comparisons. |
 | `shadowEnabled` | `true` | Cast shadows when enabled by the host `LightingEffect`. |
@@ -54,6 +52,8 @@ Wind is implemented in GLSL and WGSL. Trunks, crowns, attached crops, picking an
 For WebGL shadows, supply a deck.gl `LightingEffect` with a `DirectionalLight` whose `_shadow` option is enabled, and a receiving ground surface. Shadows are an extra rendering pass. WebGPU shadow effects are not supported by deck.gl; Tree Lab disables that control on WebGPU.
 
 ## Migration
+
+Remove `detail` from TreeLayer props and `TreeDetail` from type imports. Trunks and crowns now always use the former high-detail meshes. Legacy demo `detail` query parameters are ignored.
 
 `@deck.gl-community/three` re-exports the same constructor for compatibility. Change imports to `@deck.gl-community/layers`; Three.js is used only by Tree Lab's frozen development fixture.
 

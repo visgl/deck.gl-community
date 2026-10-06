@@ -73,7 +73,6 @@ export function mountTreeLabExample(
       .join('')}
     <label class="toggle"><input id="auto-tour" type="checkbox">Auto tour</label><label class="control">Sun angle <input id="sun-angle" type="range" min="0" max="360" step="1" value="0"></label>${hostOptions.benchmarkLinks !== false ? '<a class="film-link" href="./film.html">Watch / record the film</a> · <a class="film-link" href="./forest.html">Explore 10K / 20K trees</a>' : ''}
     <button id="wind-clock" disabled>Pause wind</button><label class="control">Wind time <input id="wind-time" type="range" min="0" max="10" step="0.1" value="0" disabled></label>
-    <label class="control">Detail <select data-option="detail"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
     <label class="control">Resolution <select data-option="pixelRatio"><option value="1">1× / fast</option><option value="2">2× / sharp</option></select></label>
     <label class="control">View <select id="camera"><option value="58">Three-quarter</option><option value="0">Aerial</option><option value="75">Low angle</option></select></label></div>
     <div class="status" aria-live="polite"></div><main class="board">${SPECIES.map(species => `<section class="row" data-species="${species}"><div class="row-title"><h2>${species[0].toUpperCase() + species.slice(1)}</h2><span class="caption">${DESCRIPTIONS[species]}</span></div><div class="pair">${['baseline', 'native'].map(renderer => `<div class="specimen ${renderer}"><div class="canvas" data-renderer="${renderer}" data-species="${species}"><div class="loading">Preparing specimen…</div></div><span class="label">${renderer === 'baseline' ? 'Original / Three.js' : 'Native / vis.gl'}</span><span class="badge">${renderer === 'baseline' ? 'Baseline 9.4.2' : 'Shared geometry · GPU wind'}</span></div>`).join('')}</div></section>`).join('')}</main>
@@ -96,7 +95,7 @@ export function mountTreeLabExample(
   const errors: string[] = [];
   const refreshStatus = () => {
     root.querySelector('.status')!.textContent =
-      `${options.backend.toUpperCase()} · ${options.season} · ${options.detail} detail · ${options.shadows ? 'shadows on' : 'shadows off'} · ${options.wind ? 'native wind on / original static' : 'wind off'} · ${ready}/10 specimens ready${errors.length ? ` · ${errors.length} rendering errors` : ''}`;
+      `${options.backend.toUpperCase()} · ${options.season} · ${options.shadows ? 'shadows on' : 'shadows off'} · ${options.wind ? 'native wind on / original static' : 'wind off'} · ${ready}/10 specimens ready${errors.length ? ` · ${errors.length} rendering errors` : ''}`;
   };
   const syncCamera = (view: MapViewState) => {
     camera = view;

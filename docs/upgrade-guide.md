@@ -6,6 +6,9 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+- Remove `detail` from `TreeLayer` props and `TreeDetail` from type imports. Trunks and crowns
+  always use the former high-detail meshes; legacy demo `detail` query parameters are ignored.
+
 - Import `TreeLayer` and its types from `@deck.gl-community/layers` in new code;
   `@deck.gl-community/three` still re-exports the same native constructor for compatibility.
   `CropConfig.radius` now renders the actual radius in metres; halve an existing radius to keep

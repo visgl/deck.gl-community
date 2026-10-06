@@ -4,6 +4,5 @@ export type {
   TreeLayerProps,
   TreeType,
   Season,
-  CropConfig,
-  TreeDetail
+  CropConfig
 } from '@deck.gl-community/layers';

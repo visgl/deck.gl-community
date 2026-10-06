@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import type {Deck} from '@deck.gl/core';
+import type {TreeLayer} from '@deck.gl-community/layers';
 import {expect, it, vi} from 'vitest';
 import {mountTreeForestExample} from './forest';
 
 type ForestApi = {ready: boolean; errors: string[]; count: number; deck: Deck};
 
-it('renders 10K and 20K forests through detail, season, shadow and view changes', async () => {
+it('renders 10K and 20K forests at highest geometry through season, shadow and view changes', async () => {
   const originalUrl = location.href;
   const queryUrl = new URL(originalUrl);
   queryUrl.search = '?count=10000&detail=low&fly=1&sun=0&wind=0&shadows=0';
@@ -39,6 +40,8 @@ it('renders 10K and 20K forests through detail, season, shadow and view changes'
     if (flyover.checked) flyover.click();
     await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
     expect(api.count).toBe(10000);
+    expect(container.querySelector('[aria-label="Detail"]')).toBeNull();
+    expect((api.deck.props.layers[1] as TreeLayer).props).not.toHaveProperty('detail');
     await change(() => container.querySelector<HTMLButtonElement>('[data-count="20000"]')!.click());
     expect(api.count).toBe(20000);
     expect((api.deck.props.layers[1] as {props: {data: unknown[]}}).props.data).toHaveLength(20000);

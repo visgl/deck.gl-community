@@ -5,7 +5,7 @@ import {AmbientLight, DirectionalLight, MapView, type MapViewState} from '@deck.
 import {TreeLightingEffect} from './tree-lighting';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
-import type {TreeType, Season, TreeDetail, CropConfig} from '@deck.gl-community/layers';
+import type {TreeType, Season, CropConfig} from '@deck.gl-community/layers';
 
 export type TreeLayerConstructor =
   | typeof import('@deck.gl-community/layers').TreeLayer
@@ -20,7 +20,6 @@ export type SceneOptions = {
   dropped: boolean;
   shadows: boolean;
   wind: boolean;
-  detail: TreeDetail;
   backend: 'webgl' | 'webgpu';
   windTime: number | null;
   pixelRatio: number;
@@ -31,7 +30,6 @@ export const DEFAULT_OPTIONS: SceneOptions = {
   dropped: true,
   shadows: false,
   wind: false,
-  detail: 'high',
   backend: 'webgl',
   windTime: 0,
   pixelRatio: 1
@@ -107,7 +105,6 @@ export function createSceneLayers(
       getBranchLevels: () => 4,
       getSeason: () => options.season,
       getCrop: (d: Specimen) => getCrop(d.species, options),
-      detail: options.detail,
       windStrength: options.wind ? 0.025 : 0,
       windTime: options.windTime,
       shadowEnabled: true,

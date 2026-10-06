@@ -1,8 +1,8 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-// Value: protects=benchmark query values cannot inject HTML or reach rendering as invalid detail;
-// fails_when=untrusted detail is interpolated into markup or bypasses the supported values;
+// Value: protects=legacy benchmark query values cannot inject HTML or lower geometry quality;
+// fails_when=untrusted detail is interpolated into markup or passed to TreeLayer;
 // why_new=the visual lab regression does not mount the separate benchmark entry point; seam=none
 
 import type {Deck} from '@deck.gl/core';
@@ -22,14 +22,11 @@ type BenchmarkApi = {
 };
 
 it.each([
-  [
-    '<img id="tree-query-injection" src="data:," onerror="document.documentElement.dataset.treeQueryInjected=1">',
-    'high'
-  ],
-  ['invalid', 'high'],
-  ['medium', 'medium'],
-  ['low', 'low']
-])('renders benchmark detail safely for %s', async (detail, expectedDetail) => {
+  '<img id="tree-query-injection" src="data:," onerror="document.documentElement.dataset.treeQueryInjected=1">',
+  'invalid',
+  'medium',
+  'low'
+])('ignores legacy benchmark detail safely for %s', async detail => {
   const originalUrl = location.href;
   const queryUrl = new URL(originalUrl);
   queryUrl.search = '';
@@ -45,11 +42,11 @@ it.each([
   const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
   try {
     expect(parent.querySelector('#tree-query-injection')).toBeNull();
-    expect(parent.querySelector('p')!.textContent).toContain(`${expectedDetail} detail`);
+    expect(parent.querySelector('p')!.textContent).toContain('highest geometry detail');
     await expect.poll(() => api.ready, {timeout: 15000}).toBe(true);
     expect(api.errors).toEqual([]);
     const layers = api.deck.props.layers as TreeLayer[];
-    expect(layers[1].props.detail).toBe(expectedDetail);
+    expect(layers[1].props).not.toHaveProperty('detail');
     expect(document.documentElement.dataset.treeQueryInjected).toBeUndefined();
   } finally {
     api.deck.finalize();
