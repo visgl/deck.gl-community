@@ -5,6 +5,21 @@
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.
   Graph loader dependencies require loaders.gl 4.5.3 or later.
+- `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
+  outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
+  mask synchronously instead of waiting 250 ms.
+
+- Editable-layers edit mode constructors and base classes consistently use
+  `SimpleFeatureCollection`, fixing constructor assignments in strict TypeScript
+  consumers. Custom mode handlers and editable data typed with the broader GeoJSON
+  `FeatureCollection` should follow the [TypeScript migration guide](./upgrade-guide.md#unreleased).
+
+- `ModifyMode` preserves rotated rectangles when `modeConfig.lockRectangles` is enabled. Corner
+  dragging keeps the opposite corner fixed and retains the rectangle's existing edge axes.
+
+- `Playground` supports promise-returning application renderers with per-update template identity,
+  metadata, revision and cancellation signal. Selection and status callbacks support external
+  navigation and loading UI; obsolete completions are ignored without changing synchronous defaults.
 
 - [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
   The [interactive flame demo](/examples/layers/flame-trail) compares backends over shaded hills
@@ -45,7 +60,7 @@
   register automatically with status and disable/re-enable controls that preserve imported rows.
   Browsers without WebMCP can still use the editor and preview.
 
-- Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
+- Workspace dependencies use loaders.gl 4.5.3 with a shared Apache Arrow 17 version.
 
 - Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and
   resetting a `DeckPlayground` camera, plus explicit source grants for inspection and JSON or

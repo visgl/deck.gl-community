@@ -4,6 +4,48 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### `@deck.gl-community/editable-layers`
+
+Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,
+LineString, Polygon and their Multi geometries, and excludes `GeometryCollection`.
+This fixes exported constructors such as `TranslateMode` being incompatible with
+`GeoJsonEditModeConstructor` in strict TypeScript projects.
+
+Use `SimpleFeatureCollection` for editable data and `ModeProps<SimpleFeatureCollection>`
+for custom mode handlers. Use `SimpleFeature` for individual editable features:
+
+```ts
+import type {
+  ModeProps,
+  SimpleFeature,
+  SimpleFeatureCollection
+} from '@deck.gl-community/editable-layers';
+
+const feature: SimpleFeature = {
+  type: 'Feature',
+  geometry: {type: 'Point', coordinates: [0, 0]},
+  properties: {}
+};
+const data: SimpleFeatureCollection = {type: 'FeatureCollection', features: [feature]};
+
+function handleModeData(props: ModeProps<SimpleFeatureCollection>) {
+  return props.data.features;
+}
+```
+
+GeoJSON's `FeatureCollection<SimpleGeometry>` is also compatible. Validate or narrow
+broader GeoJSON input before editing; `GeometryCollection` is not supported by the
+edit modes. The existing `Feature` and `FeatureCollection` re-exports remain available.
+
+#### SelectionLayer polygon selection
+
+Polygon selection no longer waits 250 ms before calling `onSelect`. If an application relied on
+that delay, schedule its own deferred work in the callback. Keep `SelectionLayer` after its
+pickable target layers. Selection continues to return deck.gl GPU picking infos for visible
+rendered objects, including GeoJSON and binary layer data.
+
 ## Private playground schema preview
 
 The layer/view schema preview now rejects unknown props and invalid accessor constants. Extend a
@@ -62,6 +104,19 @@ Rename the React panel exports:
 | `WidgetPanelProps` | `PanelProps` |
 | `WidgetPanelThemeMode` | `PanelHostThemeMode` |
 
+
+### `@deck.gl-community/graph-layers`
+
+#### Graph loader imports
+
+`DOTGraphLoader` from `@deck.gl-community/graph-layers` has been removed. Import
+`DOTLoaderWithParser` from `@loaders.gl/graphs/dot-loader` for synchronous parsing or
+parser-bearing loader use. It returns plain node and edge records; create a
+`ClassicGraph` with `new ClassicGraph({data})` to use them in graph-layers.
+DOT syntax validation and strict-graph behavior follow loaders.gl. The loader returns
+plain graph data instead of Arrow data, and the old `dot.version` option is removed.
+
+
 ## v9.3
 
 ### Dependencies
@@ -112,13 +167,3 @@ Rename the React panel exports:
   `Graph`, or raw `{nodes, edges}`/edge arrays) and supply a `layout` when the layer must build the engine for you.
 - Breaking change: `JSONLoader` only normalizes raw JSON payloads. Pass `Graph` instances directly to `GraphLayer.data` rather than
   routing them through the loader.
-
-
-## Graph loader imports
-
-`DOTGraphLoader` from `@deck.gl-community/graph-layers` has been removed. Import
-`DOTLoaderWithParser` from `@loaders.gl/graphs/dot-loader` for synchronous parsing or
-parser-bearing loader use. It returns plain node and edge records; create a
-`ClassicGraph` with `new ClassicGraph({data})` to use them in graph-layers.
-DOT syntax validation and strict-graph behavior follow loaders.gl. The loader returns
-plain graph data instead of Arrow data, and the old `dot.version` option is removed.

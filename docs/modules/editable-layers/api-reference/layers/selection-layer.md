@@ -77,14 +77,23 @@ Also inherites **some** EditableGeoJsonLayer properties.
 
 #### `selectionType` (String, required)
 
-- Default: `null`
+- Default: `rectangle`
 
-Either `rectangle` or `polygon`
+`rectangle` or `polygon`; `null` disables selection.
 
 #### `onSelect` (Function, required)
 
-Called when selection is completed.
+Called when selection is completed with `{pickingInfos}`. Each entry is the original
+[deck.gl picking info](https://deck.gl/docs/developer-guide/interactivity#the-picking-info-object),
+including the selected object, source layer, and object index.
+
+Both selection modes use deck.gl's WebGL GPU picking. Polygon selection masks pixels outside
+the drawn lasso, including for wide, diagonal, and concave lassos. Objects are selected when visible rendered
+pixels intersect the selection; overlapping objects hidden behind another object are not included.
+The layer does not scan target data or require a `getPosition` accessor.
 
 #### `layerIds` (String[], required)
 
-Array of layer ids where we will search.
+Array of pickable layer IDs to search, including their sublayers. Place the `SelectionLayer`
+after its target layers in the deck layer list so its picking mask covers those layers.
+Layers must have `pickable: true`; hidden or fully occluded objects are not selected.

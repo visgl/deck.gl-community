@@ -26,10 +26,33 @@ export type PlaygroundTemplate = Record<string, unknown> | string;
 
 type TemplateWithMetadata = Record<string, unknown> & {metadata?: PlaygroundTemplateMetadata};
 
+/** Identity and cancellation scope of one document update. */
+export type PlaygroundUpdateContext = {
+  /** Selected template key, unchanged while its document is edited. */
+  readonly templateId: string;
+  /** Snapshot of the selected card's resolved presentation metadata. */
+  readonly templateMetadata: Readonly<PlaygroundTemplateMetadata>;
+  /** Monotonically increasing update number, local to this playground. */
+  readonly revision: number;
+  /** Aborted by any newer edit, template selection or finalization. */
+  readonly signal: AbortSignal;
+};
+
+/** Outcome of the current parse and preview update; not GPU frame completion. */
+export type PlaygroundStatus = 'loading' | 'ready' | 'error';
+
 /** Persistent preview lifecycle, shared by all accepted editor updates. */
 export type PlaygroundRenderer = {
-  /** Updates the preview with a parsed value and its original text; throw for invalid input. */
-  update: (previewElement: HTMLDivElement, value: unknown, text?: string) => void;
+  /**
+   * Updates the preview; resolve only after acceptance and reject invalid input.
+   * Check context.signal before committing asynchronous work to the shared preview.
+   */
+  update: (
+    previewElement: HTMLDivElement,
+    value: unknown,
+    text?: string,
+    context?: PlaygroundUpdateContext
+  ) => void | Promise<void>;
   /** Releases all renderer resources when the playground unmounts. */
   finalize: () => void;
 };
@@ -59,9 +82,13 @@ export type PlaygroundProps = {
   jsonSchema?: Record<string, unknown>;
   /** Converts an edited document into the value consumed by the renderer. */
   parse?: (text: string) => unknown;
-  /** Called whenever the current document changes. */
+  /** Observes every explicit template selection, including startup, before parsing. */
+  onTemplateChange?: (name: string) => void;
+  /** Called after the current parsed document's renderer update succeeds. */
   onChange?: (value: unknown, text: string) => void;
-  /** Reports parse or synchronous preview errors; the editor remains usable. */
+  /** Observes current update outcomes; async updates report loading until settled. */
+  onStatusChange?: (status: PlaygroundStatus, context: PlaygroundUpdateContext) => void;
+  /** Reports current parse or preview errors, including rejected async updates. */
   onError?: (error: Error) => void;
   /** Persistent renderer. Mutually exclusive with the legacy render callback. */
   renderer?: PlaygroundRenderer;
@@ -93,6 +120,8 @@ export class Playground {
   private readonly resizeObserver: ResizeObserver;
   private finalized = false;
   private readonly toolLifetime = new AbortController();
+  private updateRevision = 0;
+  private updateController?: AbortController;
 
   constructor(props: PlaygroundProps) {
     if (props.renderer && props.render) {
@@ -156,12 +185,20 @@ export class Playground {
     this.currentTemplate = name;
     this.renderPickerCards();
     const document = getTemplateDocument(template);
-    this.setText(typeof document === 'string' ? document : JSON.stringify(document, null, 2));
+    this.updateEditor(
+      typeof document === 'string' ? document : JSON.stringify(document, null, 2),
+      true
+    );
   }
 
   /** Replaces the current document text. */
   setText(text: string): void {
     this.assertActive();
+    this.updateEditor(text);
+  }
+
+  /** Mounts controlled editor text and processes its matching selection scope. */
+  private updateEditor(text: string, templateSelected = false): void {
     const editorPanel = new TextEditorPanel({
       id: this.editorId,
       title: this.props.editorTitle ?? 'JSON',
@@ -175,7 +212,7 @@ export class Playground {
     this.editorPanel = editorPanel;
     this.sidebarContainer?.setProps({panel: this.createTabbedPanel(editorPanel)});
     this.handleEditorResize();
-    this.handleTextChange(text);
+    this.handleTextChange(text, templateSelected);
   }
 
   private createTabbedPanel(editorPanel: TextEditorPanel): TabbedPanel {
@@ -232,6 +269,7 @@ export class Playground {
   finalize(): void {
     if (this.finalized) return;
     this.finalized = true;
+    this.updateController?.abort();
     this.toolLifetime.abort();
     this.resizeObserver.disconnect();
     try {
@@ -282,10 +320,7 @@ export class Playground {
     rootElement.setAttribute('role', 'listbox');
     rootElement.setAttribute('aria-label', this.props.examplesTitle ?? 'Examples');
     for (const [name, template] of Object.entries(this.templates)) {
-      const metadata = {
-        ...getTemplateMetadata(name, template),
-        ...this.props.templateMetadata?.[name]
-      };
+      const metadata = this.getTemplateMetadata(name, template);
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'deckgl-playground-template-card';
@@ -323,13 +358,68 @@ export class Playground {
     });
   };
 
-  private readonly handleTextChange = (text: string) => {
+  /** Resolves card metadata without injecting it into the edited document. */
+  private getTemplateMetadata(
+    name: string,
+    template: PlaygroundTemplate
+  ): PlaygroundTemplateMetadata {
+    return {...getTemplateMetadata(name, template), ...this.props.templateMetadata?.[name]};
+  }
+
+  /** Only the newest mounted update may notify observers or change busy state. */
+  private isCurrentUpdate(context: PlaygroundUpdateContext): boolean {
+    return !this.finalized && !context.signal.aborted && context.revision === this.updateRevision;
+  }
+
+  /** Publishes one current outcome and accessible preview loading state. */
+  private updateStatus(status: PlaygroundStatus, context: PlaygroundUpdateContext): void {
+    if (!this.isCurrentUpdate(context)) return;
+    this.previewElement.setAttribute('aria-busy', String(status === 'loading'));
+    this.props.onStatusChange?.(status, context);
+  }
+
+  /** Reports a current failure without clearing the persistent preview. */
+  private reportUpdateError(error: unknown, context: PlaygroundUpdateContext): void {
+    if (!this.isCurrentUpdate(context)) return;
+    this.updateStatus('error', context);
+    if (this.isCurrentUpdate(context)) {
+      this.props.onError?.(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /** Notifies acceptance only after the current renderer has finished its update. */
+  private completeUpdate(value: unknown, text: string, context: PlaygroundUpdateContext): void {
+    if (!this.isCurrentUpdate(context)) return;
+    this.updateStatus('ready', context);
+    if (this.isCurrentUpdate(context)) this.props.onChange?.(value, text);
+  }
+
+  private readonly handleTextChange = (text: string, templateSelected = false) => {
     if (this.finalized) return;
+    const previousController = this.updateController;
+    const controller = new AbortController();
+    this.updateController = controller;
+    const context: PlaygroundUpdateContext = {
+      templateId: this.currentTemplate,
+      templateMetadata: this.getTemplateMetadata(
+        this.currentTemplate,
+        this.templates[this.currentTemplate]
+      ),
+      revision: ++this.updateRevision,
+      signal: controller.signal
+    };
+    // Install the new revision first: an abort listener can synchronously start another edit.
+    previousController?.abort();
+    if (!this.isCurrentUpdate(context)) return;
     let value: unknown;
+    let updating: void | Promise<void>;
     try {
+      if (templateSelected) this.props.onTemplateChange?.(context.templateId);
+      if (!this.isCurrentUpdate(context)) return;
       value = this.props.parse ? this.props.parse(text) : JSON.parse(text);
+      if (!this.isCurrentUpdate(context)) return;
       if (this.props.renderer) {
-        this.props.renderer.update(this.previewElement, value, text);
+        updating = this.props.renderer.update(this.previewElement, value, text, context);
       } else {
         const cleanup = this.previewCleanup;
         this.previewCleanup = undefined;
@@ -338,10 +428,25 @@ export class Playground {
         this.previewCleanup = this.props.render?.(this.previewElement, value) || undefined;
       }
     } catch (error) {
-      this.props.onError?.(error instanceof Error ? error : new Error(String(error)));
+      this.reportUpdateError(error, context);
       return;
     }
-    this.props.onChange?.(value, text);
+    if (updating && typeof updating.then === 'function') {
+      // Attach both handlers even when update() synchronously superseded this revision.
+      void Promise.resolve(updating).then(
+        () => {
+          try {
+            this.completeUpdate(value, text, context);
+          } catch (error) {
+            this.reportUpdateError(error, context);
+          }
+        },
+        error => this.reportUpdateError(error, context)
+      );
+      this.updateStatus('loading', context);
+    } else {
+      this.completeUpdate(value, text, context);
+    }
   };
 }
 

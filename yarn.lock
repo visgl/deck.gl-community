@@ -1087,13 +1087,15 @@ __metadata:
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/json": "npm:~9.4.0"
     "@loaders.gl/arrow": "npm:4.5.1"
-    "@loaders.gl/core": "npm:4.5.1"
+    "@loaders.gl/core": "npm:^4.5.1"
     apache-arrow: "npm:^17.0.0"
     esbuild: "npm:^0.28.1"
     zod: "npm:^4.0.0"
   peerDependencies:
     "@deck.gl-community/panels": ~9.4.0-alpha.0
     "@deck.gl/core": ~9.4.0
+    "@deck.gl/json": ~9.4.0
+    "@loaders.gl/core": ^4.5.1
   languageName: unknown
   linkType: soft
 
