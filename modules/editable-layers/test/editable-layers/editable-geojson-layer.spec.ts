@@ -139,3 +139,18 @@ test('drag completion clears pointer-down picks from cached move props without a
   expect(layer.state.lastPointerMoveEvent.pointerDownMapCoords).toBeNull();
   expect(previousMove.pointerDownPicks).not.toBeNull();
 });
+
+test('fresh drag gestures update the raw pointer cache used by snap guides', () => {
+  const {layer, mode} = createGestureLayer();
+  const start = createStartDraggingEvent([1, 2], [3, 4]);
+  const dragging = {...start, screenCoords: [5, 6] as [number, number], mapCoords: [7, 8]};
+  layer.onStartDragging(start);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(start.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toEqual(start.pointerDownPicks);
+  layer.onDragging(dragging);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(dragging.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.mapCoords).toEqual(dragging.mapCoords);
+  expect(mode.handleDragging.mock.calls[0][1].lastPointerMoveEvent.mapCoords).toEqual(
+    dragging.mapCoords
+  );
+});

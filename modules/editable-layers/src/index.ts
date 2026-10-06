@@ -101,6 +101,7 @@ export {DragSnappingStrategy} from './edit-modes/snapping/drag-snapping-strategy
 export {SourceSnappingStrategy} from './edit-modes/snapping/source-snapping-strategy';
 
 export type {
+  EditModeProjection,
   ScreenCoordinates,
   BasePointerEvent,
   MovementEvent,
