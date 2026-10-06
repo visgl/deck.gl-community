@@ -70,7 +70,6 @@ it('keeps local shadows through the horizon at every season and moving sun angle
               season,
               crops: false,
               dropped: false,
-              detail: 'medium',
               shadows: true,
               wind: true,
               windTime: 1.5

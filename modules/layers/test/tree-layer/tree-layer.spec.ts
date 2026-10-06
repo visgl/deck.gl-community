@@ -61,6 +61,18 @@ function getMeshRing(mesh: TreeMesh, height: number, leaderOnly = false) {
 }
 
 describe('native tree geometry', () => {
+  it('always renders highest-quality trunks and crowns, ignoring a legacy detail prop', () => {
+    for (const type of ['pine', 'oak', 'palm', 'birch', 'cherry'] as const) {
+      for (const season of ['summer', 'winter'] as const) {
+        const {layer} = createLayer([{position: [0, 0], type, season}], {detail: 'low'});
+        const children = layer.renderLayers();
+        const trunk = children.find(child => child.id.includes('trunks'))!;
+        const crown = children.find(child => child.id.includes('canopy'))!;
+        expect(trunk.props.mesh).toBe(getTreeMesh('trunk', type === 'palm' ? 'palm' : 'oak'));
+        expect(crown.props.mesh).toBe(getTreeMesh('canopy', type, 'high', season === 'winter'));
+      }
+    }
+  });
   it('has finite unit normals, valid triangles and correct bounds for every species/detail/season', () => {
     for (const detail of ['low', 'medium', 'high'] as const)
       for (const type of ['pine', 'oak', 'palm', 'birch', 'cherry'] as const)
@@ -198,74 +210,71 @@ describe('winter trunk and leader join contracts', () => {
       }
     ];
     const sizeScale = 2.4;
-    for (const detail of ['low', 'medium', 'high'] as const)
-      for (const species of ['oak', 'birch', 'cherry'] as const) {
-        const data: Specimen[] = dimensions.map(d => ({
-          ...d,
-          position: d.position as [number, number],
-          type: species,
-          season: 'winter'
-        }));
-        const {layer} = createLayer(data, {
-          detail,
-          sizeScale,
-          getHeight: (d: Specimen) => d.height,
-          getTrunkHeightFraction: (d: Specimen) => d.fraction,
-          getTrunkRadius: (d: Specimen) => d.trunkRadius,
-          getCanopyRadius: (d: Specimen) => d.canopyRadius,
-          getElevation: (d: Specimen) => d.elevation
-        });
-        const children = layer.renderLayers();
-        const trunk = children.find(child => child.id === 'trees-trunks')!;
-        const crown = children.find(child => child.id.includes('canopy'))!;
-        const top = getMeshRing(trunk.props.mesh, 1);
-        const join = getMeshRing(crown.props.mesh, 0.22, true);
-        expect(crown.props.mesh).toBe(getTreeMesh('canopy', species, detail, true));
-        expect(crown.props.data.some(row => Math.abs(row.scale[0] - row.scale[1]) > 0.001)).toBe(
-          true
+    for (const species of ['oak', 'birch', 'cherry'] as const) {
+      const data: Specimen[] = dimensions.map(d => ({
+        ...d,
+        position: d.position as [number, number],
+        type: species,
+        season: 'winter'
+      }));
+      const {layer} = createLayer(data, {
+        sizeScale,
+        getHeight: (d: Specimen) => d.height,
+        getTrunkHeightFraction: (d: Specimen) => d.fraction,
+        getTrunkRadius: (d: Specimen) => d.trunkRadius,
+        getCanopyRadius: (d: Specimen) => d.canopyRadius,
+        getElevation: (d: Specimen) => d.elevation
+      });
+      const children = layer.renderLayers();
+      const trunk = children.find(child => child.id === 'trees-trunks')!;
+      const crown = children.find(child => child.id.includes('canopy'))!;
+      const top = getMeshRing(trunk.props.mesh, 1);
+      const join = getMeshRing(crown.props.mesh, 0.22, true);
+      expect(crown.props.mesh).toBe(getTreeMesh('canopy', species, 'high', true));
+      expect(crown.props.data.some(row => Math.abs(row.scale[0] - row.scale[1]) > 0.001)).toBe(
+        true
+      );
+      for (const row of crown.props.data) {
+        const source = row.object as Specimen;
+        const trunkScale = trunk.props.getScale(row);
+        const crownScale = crown.props.getScale(row);
+        const translation = crown.props.getTranslation(row);
+        const orientation = crown.props.getOrientation(row);
+        const radius = crown.props.getStemRadius(row);
+        expect(orientation[0]).toBe(0);
+        expect(orientation[2]).toBe(0);
+        expect(trunk.props.getOrientation(row)).toEqual(orientation);
+        expect(radius).toBeCloseTo(source.trunkRadius * sizeScale * 0.7, 8);
+        expect(radius).toBeCloseTo(trunkScale[0] * 0.7, 8);
+        expect(trunkScale[2]).toBeCloseTo(source.height * source.fraction * sizeScale, 8);
+        expect(translation[2] + join[0][2] * crownScale[2]).toBeCloseTo(trunkScale[2], 6);
+        expect(trunk.props.getPosition(row)).toEqual(crown.props.getPosition(row));
+        expect(row.position[2]).toBe(source.elevation);
+        // The collar contract is a circular ring of physical radius, independent
+        // of canopy X/Y scale. Check its angular grid against the actual trunk.
+        const rotation = new Matrix4().rotateZ((orientation[1] * Math.PI) / 180);
+        const actualTop = top.map(point =>
+          rotation.transformAsVector([
+            point[0] * trunkScale[0],
+            point[1] * trunkScale[1],
+            trunkScale[2]
+          ])
         );
-        for (const row of crown.props.data) {
-          const source = row.object as Specimen;
-          const trunkScale = trunk.props.getScale(row);
-          const crownScale = crown.props.getScale(row);
-          const translation = crown.props.getTranslation(row);
-          const orientation = crown.props.getOrientation(row);
-          const radius = crown.props.getStemRadius(row);
-          expect(orientation[0]).toBe(0);
-          expect(orientation[2]).toBe(0);
-          expect(trunk.props.getOrientation(row)).toEqual(orientation);
-          expect(radius).toBeCloseTo(source.trunkRadius * sizeScale * 0.7, 8);
-          expect(radius).toBeCloseTo(trunkScale[0] * 0.7, 8);
-          expect(trunkScale[2]).toBeCloseTo(source.height * source.fraction * sizeScale, 8);
-          expect(translation[2] + join[0][2] * crownScale[2]).toBeCloseTo(trunkScale[2], 6);
-          expect(trunk.props.getPosition(row)).toEqual(crown.props.getPosition(row));
-          expect(row.position[2]).toBe(source.elevation);
-          // The collar contract is a circular ring of physical radius, independent
-          // of canopy X/Y scale. Check its angular grid against the actual trunk.
-          const rotation = new Matrix4().rotateZ((orientation[1] * Math.PI) / 180);
-          const actualTop = top.map(point =>
-            rotation.transformAsVector([
-              point[0] * trunkScale[0],
-              point[1] * trunkScale[1],
-              trunkScale[2]
-            ])
-          );
-          for (const point of join) {
-            const localRadius = Math.hypot(point[0], point[1]);
-            const target = rotation.transformAsVector([
-              (point[0] / localRadius) * radius,
-              (point[1] / localRadius) * radius,
-              translation[2] + point[2] * crownScale[2]
-            ]);
-            expect(
-              actualTop.some(
-                candidate =>
-                  Math.hypot(...candidate.map((value, i) => value - target[i])) < 0.000001
-              )
-            ).toBe(true);
-          }
+        for (const point of join) {
+          const localRadius = Math.hypot(point[0], point[1]);
+          const target = rotation.transformAsVector([
+            (point[0] / localRadius) * radius,
+            (point[1] / localRadius) * radius,
+            translation[2] + point[2] * crownScale[2]
+          ]);
+          expect(
+            actualTop.some(
+              candidate => Math.hypot(...candidate.map((value, i) => value - target[i])) < 0.000001
+            )
+          ).toBe(true);
         }
       }
+    }
   });
 
   it('keeps accepted zero dimensions finite without allocating instance-specific meshes', () => {

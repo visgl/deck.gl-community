@@ -6,15 +6,8 @@ import {CompositeLayer, createIterable} from '@deck.gl/core';
 import type {Color, DefaultProps, LayerProps, Position} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {
-  getTreeMesh,
-  sampleCrownSurface,
-  samplePineSurface,
-  createTreeRng,
-  type TreeDetail
-} from './tree-geometry';
+import {getTreeMesh, sampleCrownSurface, samplePineSurface, createTreeRng} from './tree-geometry';
 import {TreeMeshLayer} from './tree-mesh-layer';
-export type {TreeDetail} from './tree-geometry';
 
 /** Procedural species silhouette. */
 export type TreeType = 'pine' | 'oak' | 'palm' | 'birch' | 'cherry';
@@ -165,8 +158,6 @@ type _TreeLayerProps<DataT> = {
    * @default 1
    */
   sizeScale?: number;
-  /** Shared mesh detail. Select low for distant trees and high for close inspection. @default 'high' */
-  detail?: TreeDetail;
   /** Fraction of tree height used for optional GPU wind deformation. Zero stops continuous redraw. @default 0 */
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
@@ -191,7 +182,6 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getBranchLevels: {type: 'accessor', value: (_d: any) => 3},
   getCrop: {type: 'accessor', value: (_d: any) => null},
   sizeScale: {type: 'number', value: 1, min: 0},
-  detail: 'high',
   windStrength: {type: 'number', value: 0, min: 0, max: 0.2},
   windTime: null,
   shadowEnabled: true
@@ -427,15 +417,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   }
 
   renderLayers() {
-    const {
-      detail,
-      windStrength,
-      windTime,
-      shadowEnabled,
-      getTrunkColor,
-      getCanopyColor,
-      getSeason
-    } = this.props;
+    const {windStrength, windTime, shadowEnabled, getTrunkColor, getCanopyColor, getSeason} =
+      this.props;
     const shared = {windStrength, windTime, shadowEnabled, pickable: this.props.pickable};
     const layers: TreeMeshLayer<unknown>[] = [];
     const trunkColor = (row: TreeRow<DataT>) =>
@@ -449,7 +432,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             id,
             data,
             ...shared,
-            mesh: getTreeMesh('trunk', palm ? 'palm' : 'oak', detail),
+            mesh: getTreeMesh('trunk', palm ? 'palm' : 'oak'),
             getPosition: (row: TreeRow<DataT>) => row.position,
             getScale: (row: TreeRow<DataT>) => [row.trunkRadius, row.trunkRadius, row.trunkHeight],
             getOrientation: (row: TreeRow<DataT>) =>
@@ -473,7 +456,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               id: `canopy-${key}`,
               data,
               ...shared,
-              mesh: getTreeMesh('canopy', type, detail, winter, levels),
+              mesh: getTreeMesh('canopy', type, 'high', winter, levels),
               doubleSided: type === 'palm',
               parameters:
                 type === 'palm'

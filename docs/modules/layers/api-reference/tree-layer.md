@@ -1,6 +1,6 @@
 # TreeLayer
 
-An instanced, procedural tree layer built entirely with deck.gl, luma.gl and math.gl. Five species share cached CPU meshes; winter deciduous trees expose branching crowns. No Three.js runtime dependency is required.
+An instanced, procedural tree layer built entirely with deck.gl, luma.gl and math.gl. Five species share cached CPU meshes; winter deciduous trees expose branching crowns. Trunks and crowns always use the highest-quality geometry. No Three.js runtime dependency is required.
 
 ```ts
 import {TreeLayer} from '@deck.gl-community/layers';
@@ -11,7 +11,6 @@ new TreeLayer({
   getTreeType: tree => tree.species,
   getHeight: tree => tree.height,
   getSeason: () => 'summer',
-  detail: 'high',
   windStrength: 0.025,
   pickable: true
 });
@@ -38,7 +37,6 @@ Inherits the deck.gl `CompositeLayer` properties. Accessors are functions of the
 | `getBranchLevels` | `() => 3` | Pine tier count, rounded and clamped to 1–5. |
 | `getCrop` | `() => null` | Explicit crop configuration; the layer never invents seasonal yield. |
 | `sizeScale` | `1` | Multiplier for tree and crop dimensions. |
-| `detail` | `'high'` | `low`, `medium` or `high`. Use separate detail layers for distant and nearby trees; automatic distance selection is not provided. |
 | `windStrength` | `0` | Bend amplitude as a fraction of tree height. Zero stops continuous redraw; a value around `0.025` is a gentle breeze. |
 | `windTime` | `null` | Wind time in seconds. `null` uses deck.gl's timeline; a number freezes the pose for controlled comparisons. |
 | `shadowEnabled` | `true` | Cast shadows when enabled by the host `LightingEffect`. |
@@ -55,7 +53,9 @@ For WebGL shadows, supply a deck.gl `LightingEffect` with a `DirectionalLight` w
 
 ## Migration
 
-The legacy `@deck.gl-community/three` package has been removed from this repository. Replace its imports with `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season`, `CropConfig` and `TreeDetail`. Previously published package versions are unchanged. Three.js is used only by Tree Lab's frozen development fixture.
+Remove `detail` from TreeLayer props and `TreeDetail` from type imports. Trunks and crowns now always use the former high-detail meshes. Legacy demo `detail` query parameters are ignored.
+
+The legacy `@deck.gl-community/three` package has been removed from this repository. Replace its imports with `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season` and `CropConfig`. Previously published package versions are unchanged. Three.js is used only by Tree Lab's frozen development fixture.
 
 Native crowns and winter silhouettes deliberately differ from the original geometry. `CropConfig.radius` now matches its documented radius: older geometry rendered half that radius. Halve an existing crop radius to retain its old apparent size. Inspect your explicit seasonal foliage overrides, canopy sublayer overrides and custom winter branches when migrating; the native crown sublayer IDs include foliage/winter and tier information. Legacy species overrides such as `canopy-cherry` remain supported and apply after native defaults. Exact grouped sublayer IDs take precedence over species aliases. Override accessors receive the source tree and its original accessor context; parameters and update triggers merge by key.
 

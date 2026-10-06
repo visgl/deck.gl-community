@@ -10,7 +10,7 @@ import {getTourFrame} from './tour';
 import {createForestSceneLayers, getForestViewState} from './forest-scene';
 import './style.css';
 
-/** One native renderer with a procedural mixed forest, controllable quality and shared sunlight. */
+/** One native renderer with a procedural mixed forest, highest-quality meshes and shared sunlight. */
 export function mountTreeForestExample(container: HTMLElement, standalone = false): () => void {
   const query = new URLSearchParams(location.search);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,8 +23,6 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     shadows: query.get('shadows') !== '0',
     wind: query.get('wind') === '1' || (query.get('wind') !== '0' && !reducedMotion),
     windTime: null,
-    detail:
-      (['high', 'medium', 'low'] as const).find(value => value === query.get('detail')) ?? 'medium',
     season: SEASONS.find(value => value === query.get('season')) ?? 'summer'
   };
   let flyover = !reducedMotion && query.get('fly') !== '0';
@@ -39,7 +37,6 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   root.className = 'tree-lab tree-forest';
   root.innerHTML = `<header><div class="eyebrow">Native vis.gl / Forest scale</div><h1></h1><p>Five species. One shared forest. Explore the crowns, wind and seasonal shadows.</p></header>
     <div class="toolbar"><div class="seasons" role="group" aria-label="Tree count"><button data-count="10000">10K trees</button><button data-count="20000">20K trees</button></div>
-    <label class="control">Detail <select aria-label="Detail"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
     <label class="control">Pitch <input type="range" aria-label="Pitch" min="0" max="80" step="1"><output id="forest-pitch"></output></label>
     <label class="control">Season <select aria-label="Season">${SEASONS.map(season => `<option value="${season}">${season}</option>`).join('')}</select></label>
     <label class="toggle"><input type="checkbox" aria-label="Wind">Wind</label><label class="toggle"><input type="checkbox" aria-label="Shadows">Shadows</label>
@@ -51,7 +48,6 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   const heading = root.querySelector('h1')!;
   const status = root.querySelector('.status')!;
   const badge = root.querySelector('.forest-caption strong')!;
-  const detailControl = root.querySelector<HTMLSelectElement>('[aria-label="Detail"]')!;
   const pitchControl = root.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
   const pitchLabel = root.querySelector<HTMLOutputElement>('#forest-pitch')!;
   const seasonControl = root.querySelector<HTMLSelectElement>('[aria-label="Season"]')!;
@@ -80,7 +76,6 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   const refreshLabels = () => {
     heading.textContent = `${count.toLocaleString()} trees`;
     badge.textContent = `${data.length.toLocaleString()} trees · five species`;
-    detailControl.value = options.detail;
     pitchControl.value = String(camera.pitch ?? 0);
     pitchLabel.value = `${Math.round(camera.pitch ?? 0)}°`;
     seasonControl.value = options.season;
@@ -95,10 +90,10 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     viewControl.textContent = overview ? 'Inspect the canopy' : 'Show entire forest';
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-count]'))
       button.setAttribute('aria-pressed', String(Number(button.dataset.count) === count));
-    status.textContent = `${ready ? 'Ready' : 'Preparing'} · ${count.toLocaleString()} trees · ${options.detail} · ${options.season} · wind ${options.wind ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'}${errors.length ? ` · ${errors.join('; ')}` : ''}`;
+    status.textContent = `${ready ? 'Ready' : 'Preparing'} · ${count.toLocaleString()} trees · ${options.season} · wind ${options.wind ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'}${errors.length ? ` · ${errors.join('; ')}` : ''}`;
     const benchmark = root.querySelector<HTMLAnchorElement>('#forest-benchmark');
     if (benchmark)
-      benchmark.href = `./native.html?count=${count}&species=mixed&detail=${options.detail}&wind=${Number(options.wind)}&shadows=${Number(options.shadows)}&season=${options.season}&view=${overview ? 'overview' : 'canopy'}`;
+      benchmark.href = `./native.html?count=${count}&species=mixed&wind=${Number(options.wind)}&shadows=${Number(options.shadows)}&season=${options.season}&view=${overview ? 'overview' : 'canopy'}`;
   };
   const deck = new Deck({
     parent: root.querySelector('.canvas')!,
@@ -158,10 +153,6 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
       }
       refresh();
     });
-  detailControl.addEventListener('change', () => {
-    options.detail = detailControl.value as SceneOptions['detail'];
-    refresh();
-  });
   pitchControl.addEventListener('input', () => {
     flyover = false;
     camera = {...camera, pitch: Number(pitchControl.value)};

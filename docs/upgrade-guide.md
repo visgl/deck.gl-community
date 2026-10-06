@@ -6,9 +6,12 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+- Remove `detail` from `TreeLayer` props and `TreeDetail` from type imports. Trunks and crowns
+  always use the former high-detail meshes; legacy demo `detail` query parameters are ignored.
+
 - The `@deck.gl-community/three` compatibility package has been removed from the repository.
   Replace its imports with `@deck.gl-community/layers`, including `TreeLayer`, `TreeLayerProps`,
-  `TreeType`, `Season`, `CropConfig` and `TreeDetail`. Previously published versions are unchanged.
+  `TreeType`, `Season` and `CropConfig`. Previously published versions are unchanged.
   Existing TreeLayer documentation and Seasonal Farm URLs redirect to their new locations.
   `CropConfig.radius` now renders the actual radius in metres; halve an existing radius to keep
   its old apparent size. Review changed crowns, winter branches and canopy sublayer overrides

@@ -40,9 +40,6 @@ export function mountTreeBenchmark(
     shadows: query.get('shadows') === '1',
     wind: query.get('wind') === '1',
     windTime: null,
-    detail:
-      (['low', 'medium', 'high'] as const).find(detail => detail === query.get('detail')) ??
-      DEFAULT_OPTIONS.detail,
     backend: query.get('backend') === 'webgpu' ? 'webgpu' : 'webgl'
   };
   if (options.backend === 'webgpu') options.shadows = false;
@@ -51,7 +48,7 @@ export function mountTreeBenchmark(
   parent.querySelector('h1')!.textContent =
     `${renderer === 'native' ? 'Native vis.gl' : 'Original Three.js'} · ${count.toLocaleString()} ${species} trees`;
   parent.querySelector('p')!.textContent =
-    `${options.backend} · ${options.season} · ${options.detail} detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer === 'native' ? 'on' : 'unsupported / static') : 'off'}`;
+    `${options.backend} · ${options.season} · highest geometry detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer === 'native' ? 'on' : 'unsupported / static') : 'off'}`;
   const summary = parent.querySelector<HTMLElement>('#summary')!;
   const showSamples = (
     samples: {
