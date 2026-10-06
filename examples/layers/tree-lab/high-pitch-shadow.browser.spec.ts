@@ -48,7 +48,7 @@ it('keeps local shadows through the horizon at every season and moving sun angle
     }
   });
   try {
-    const data = createSpecimens('oak');
+    let data = createSpecimens('oak');
     const capture = async (casters: boolean) => {
       const before = frame;
       deck.setProps({
@@ -59,55 +59,60 @@ it('keeps local shadows through the horizon at every season and moving sun angle
       expect(errors).toEqual([]);
       return pixels.slice();
     };
-    for (const season of SEASONS) {
-      for (const pitch of [58, 68, 70, 71.4, 71.5, 71.56505117707799, 72, 75, 80]) {
-        deck.setProps({
-          viewState: {...VIEW, zoom: 19.5, pitch, bearing: 0, position: [0, 0, 0]},
-          layers: createSceneLayers(TreeLayer, 'horizon', data, {
-            ...DEFAULT_OPTIONS,
-            season,
-            crops: false,
-            dropped: false,
-            detail: 'medium',
-            shadows: true,
-            wind: true,
-            windTime: 1.5
-          })
-        });
-        for (const direction of [
-          [-1, -0.6, -1.4],
-          [1, 0.8, -0.7]
-        ] as [number, number, number][]) {
-          lighting.setSunDirection(direction);
-          const clear = await capture(false);
-          const shadowed = await capture(true);
-          let localShadowPixels = 0;
-          let distantShadowPixels = 0;
-          const viewport = deck.getViewports()[0];
-          for (let offset = 0; offset < clear.length; offset += 4) {
-            const darkening =
-              clear[offset] -
-              shadowed[offset] +
-              clear[offset + 1] -
-              shadowed[offset + 1] +
-              clear[offset + 2] -
-              shadowed[offset + 2];
-            if (clear[offset + 3] === 0 || darkening <= 15) continue;
-            const index = offset / 4;
-            const [longitude, latitude] = viewport.unproject([
-              (index % width) + 0.5,
-              height - Math.floor(index / width) - 0.5
-            ]);
-            // This single 12m oak and its shadow fit comfortably within 40m.
-            if (Math.hypot(longitude, latitude) * 111320 < 40) localShadowPixels++;
-            else distantShadowPixels++;
+    for (const species of ['oak', 'palm'] as const) {
+      data = createSpecimens(species);
+      for (const season of SEASONS) {
+        for (const pitch of [58, 68, 70, 71.4, 71.5, 71.56505117707799, 72, 75, 80]) {
+          deck.setProps({
+            viewState: {...VIEW, zoom: 19.5, pitch, bearing: 0, position: [0, 0, 0]},
+            layers: createSceneLayers(TreeLayer, 'horizon', data, {
+              ...DEFAULT_OPTIONS,
+              season,
+              crops: false,
+              dropped: false,
+              detail: 'medium',
+              shadows: true,
+              wind: true,
+              windTime: 1.5
+            })
+          });
+          for (const direction of [
+            [-1, -0.6, -1.4],
+            [1, 0.8, -0.7]
+          ] as [number, number, number][]) {
+            lighting.setSunDirection(direction);
+            const clear = await capture(false);
+            const shadowed = await capture(true);
+            let localShadowPixels = 0;
+            let distantShadowPixels = 0;
+            const viewport = deck.getViewports()[0];
+            for (let offset = 0; offset < clear.length; offset += 4) {
+              const darkening =
+                clear[offset] -
+                shadowed[offset] +
+                clear[offset + 1] -
+                shadowed[offset + 1] +
+                clear[offset + 2] -
+                shadowed[offset + 2];
+              if (clear[offset + 3] === 0 || darkening <= 15) continue;
+              const index = offset / 4;
+              const [longitude, latitude] = viewport.unproject([
+                (index % width) + 0.5,
+                height - Math.floor(index / width) - 0.5
+              ]);
+              // Each specimen and its shadow fit comfortably within 40m.
+              if (Math.hypot(longitude, latitude) * 111320 < 40) localShadowPixels++;
+              else distantShadowPixels++;
+            }
+            expect(
+              localShadowPixels,
+              `${species}, ${season}, pitch ${pitch}, sun ${direction}`
+            ).toBeGreaterThan(25);
+            expect(
+              distantShadowPixels,
+              `${species}, ${season}, pitch ${pitch}: no phantom distant shadows`
+            ).toBe(0);
           }
-          expect(localShadowPixels, `${season}, pitch ${pitch}, sun ${direction}`).toBeGreaterThan(
-            25
-          );
-          expect(distantShadowPixels, `${season}, pitch ${pitch}: no phantom distant shadows`).toBe(
-            0
-          );
         }
       }
     }

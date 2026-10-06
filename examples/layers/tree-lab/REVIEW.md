@@ -50,3 +50,18 @@ The earlier provisional matrix is retained in Git history at `7134bcf916be37faab
 ### High-pitch shadows
 
 Screen-corner ground intersections flipped behind the camera above the horizon, making local shadows disappear at 71.5°. The shared Tree Lab lighting now bounds forward rays, includes the 0–32m crown slab and rejects out-of-volume samples with a soft boundary. A physical 2cm receiver bias preserves branch shadows as the light volume grows. Projection work is shared across layers; no extra shadow pass is added. A WebGL pixel regression checks local shadow coverage and absence of distant phantom shadows at nine pitches from 58° to 80°, including the exact horizon, all four seasons and two sun directions, with a fixed wind pose. The prior implementation fails that regression. The 20K forest also renders shadows on/off at 80° through its visible pitch control. This is an example lighting fix; an ordinary upstream LightingEffect retains its own frustum fitting.
+
+
+### Softer ground shadows and native comparison maps
+
+The lab now uses depth-only maps with hardware comparison filtering. A fixed 1024-pixel longest axis caps shadow work independently of display DPR; the depth pass skips material shading. Tree surfaces use four hardware PCF reads. Flat ground uses one lookup into a half-resolution coverage mask, blurred in two reusable passes per light. A 45cm Gaussian scale blends narrow leaflet gaps and softens edges while preserving larger openings. This optimization is specific to the lab's plane at -2cm.
+
+Matched single-renderer camera-orbit samples on Apple M4 Pro / ANGLE Metal, 1236×680 at 1×, with wind and shadows on:
+
+| Workload | Previous filter, draws/s | Updated filter, draws/s |
+| --- | --- | --- |
+| 10K, medium | 36.3–37.8 | 76.5–80.8 |
+| 20K, medium | 29.7–31.6 | 44.1–52.6 |
+| 20K, high | 23.4–24.2 | 40.2–41.5 |
+
+Each run includes a warmup and three five-second orbits; medium detail includes two updated runs to check timing variation. Inactive comparison renderers were unloaded and forest animations paused. All retained samples report zero rendering errors and long tasks. These are browser draw delivery and frame intervals, not GPU execution time; the shared machine varied between runs. The shader/map budget was unchanged by the subsequent resize-resource cleanup. Fourteen browser checks include narrow-gap blending, preserved large openings, fractional leaf coverage, resized texture replacement, shadow toggles, and palm/oak shadows at nine pitches through the horizon in every season and two sun directions. Matched before/after captures and raw measurements are in the local shadow-softening receipt.

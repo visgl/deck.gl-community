@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {project, shadow, type ProjectUniforms, type Viewport} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
+import type {Texture} from '@luma.gl/core';
 
 // The lab's 12m specimens and varied forest dimensions remain below 32m,
 // including wind. Include this entire slab so elevated crowns are not clipped.
@@ -71,10 +72,19 @@ function getShadowProjections(viewport: Viewport, lights: Matrix4[]): Matrix4[] 
 }
 
 /** Use the same finite light volume in the depth pass and the receiving color pass. */
-export function getBoundedShadowUniforms(opts: Parameters<typeof shadow.getUniforms>[0]) {
+type TreeShadowProps = Parameters<typeof shadow.getUniforms>[0] & {
+  groundMaps?: Texture[];
+  dummyGroundMap?: Texture;
+  groundReceiver?: boolean;
+};
+
+export function getBoundedShadowUniforms(opts: TreeShadowProps) {
   const uniforms = {
     ...shadow.getUniforms(opts),
-    depthBias: [0.000015, 0.000015] as [number, number]
+    depthBias: [0.000015, 0.000015] as [number, number],
+    groundFilter: [opts.groundReceiver ? 1 : 0, 0] as [number, number],
+    shadow_uGroundMap0: opts.groundMaps?.[0] ?? opts.dummyGroundMap,
+    shadow_uGroundMap1: opts.groundMaps?.[1] ?? opts.dummyGroundMap
   };
   const viewport = opts.project?.viewport;
   if (!viewport?.isGeospatial || opts.shadowEnabled === false || !opts.shadowMatrices?.length)
@@ -115,4 +125,35 @@ export function getBoundedShadowUniforms(opts: Parameters<typeof shadow.getUnifo
     }
   });
   return uniforms;
+}
+
+/** Ground is planar at -2cm in the lab; express its depth in each light's UV space. */
+export function getGroundShadowSettings(
+  viewport: Viewport,
+  lights: Matrix4[],
+  sizes: [number, number][]
+) {
+  return getShadowProjections(viewport, lights).map((matrix, index) => {
+    const inverse = matrix
+      .clone()
+      .translate(viewport.center.map(value => -value))
+      .invert();
+    const groundHeight = -0.02 * viewport.distanceScales.unitsPerMeter[2];
+    const a = -inverse[2] / inverse[10];
+    const b = -inverse[6] / inverse[10];
+    const c = 0.5 + (inverse[2] + inverse[6] - inverse[14] + groundHeight) / (2 * inverse[10]);
+    const depthScale = Math.hypot(matrix[2], matrix[6], matrix[10]);
+    const bias = Math.max(0.000015, 0.01 * depthScale * viewport.distanceScales.unitsPerMeter[2]);
+    // A 45cm Gaussian standard deviation blends leaflets without filling the crown silhouette.
+    const units = viewport.distanceScales.unitsPerMeter[2];
+    const stepX = (0.45 / 1.69) * 0.5 * Math.hypot(matrix[0], matrix[4], matrix[8]) * units;
+    const stepY = (0.45 / 1.69) * 0.5 * Math.hypot(matrix[1], matrix[5], matrix[9]) * units;
+    return {
+      plane: [a, b, c, bias] as [number, number, number, number],
+      step: [Math.max(1 / sizes[index][0], stepX), Math.max(1 / sizes[index][1], stepY)] as [
+        number,
+        number
+      ]
+    };
+  });
 }
