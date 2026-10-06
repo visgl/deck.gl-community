@@ -48,6 +48,13 @@ it('renders 10K and 20K forests through detail, season, shadow and view changes'
     expect(shadows.checked).toBe(false);
     await change(() => shadows.click());
     expect(shadows.checked).toBe(true);
+    const pitch = container.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
+    await change(() => {
+      pitch.value = '80';
+      pitch.dispatchEvent(new Event('input'));
+    });
+    expect((api.deck.getViewports()[0] as {pitch?: number}).pitch).toBe(80);
+    expect(container.querySelector('#forest-pitch')!.textContent).toBe('80°');
     await change(() => shadows.click());
     expect(shadows.checked).toBe(false);
     const season = container.querySelector<HTMLSelectElement>('[aria-label="Season"]')!;

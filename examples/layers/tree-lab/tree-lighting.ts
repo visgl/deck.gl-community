@@ -9,21 +9,32 @@ import {
   type LightingEffectProps
 } from '@deck.gl/core';
 import type {Texture} from '@luma.gl/core';
+import {getBoundedShadowUniforms} from './shadow-frustum';
 
 const SHADOW_WEIGHT = `float shadow_getShadowWeight(vec3 position, sampler2D shadowMap) {`;
-const SHADOW_FILTER = `float shadow_getShadowWeight(vec3 position, sampler2D shadowMap) {
+const SHADOW_FILTER = `float shadow_getShadowWeight(vec3 position, sampler2D shadowMap, float bias) {
+  // Border texels are clamped by WebGL; sampling them outside the light
+  // volume repeats unrelated silhouettes across the ground near the horizon.
+  if (any(lessThanEqual(position, vec3(0.0))) || any(greaterThanEqual(position, vec3(1.0)))) return 0.0;
   vec2 texel = 1.0 / vec2(textureSize(shadowMap, 0));
   float weight = 0.0;
   for (int y = -1; y <= 1; y++) {
     for (int x = -1; x <= 1; x++) {
-      float depth = dot(texture(shadowMap, position.xy + vec2(float(x), float(y)) * texel), bitUnpackShift);
-      weight += smoothstep(0.0005, 0.002, position.z - depth);
+      vec2 uv = position.xy + vec2(float(x), float(y)) * texel;
+      if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) continue;
+      float depth = dot(texture(shadowMap, uv), bitUnpackShift);
+      weight += smoothstep(bias, bias * 3.0, position.z - depth);
     }
   }
-  return weight / 9.0;
+  vec2 edge = min(position.xy, 1.0 - position.xy);
+  float fade = smoothstep(0.0, 0.04, min(edge.x, edge.y));
+  return weight / 9.0 * fade;
 }`;
 const SOFT_SHADOW = {
   ...shadow,
+  getUniforms: getBoundedShadowUniforms,
+  uniformTypes: {...shadow.uniformTypes, depthBias: 'vec2<f32>'},
+  vs: shadow.vs!.replace('  vec4 projectCenter1;', '  vec4 projectCenter1;\n  vec2 depthBias;'),
   inject: {
     ...shadow.inject,
     // The frozen SimpleMeshLayer path shades after DECKGL_FILTER_COLOR. Restore
@@ -35,13 +46,23 @@ const SOFT_SHADOW = {
       }
     `
   },
-  fs: shadow.fs!.replace(
-    /float shadow_getShadowWeight\(vec3 position, sampler2D shadowMap\) \{[\s\S]*?\n\}/,
-    SHADOW_FILTER
-  )
+  fs: shadow
+    .fs!.replace('  vec4 projectCenter1;', '  vec4 projectCenter1;\n  vec2 depthBias;')
+    .replace(
+      /float shadow_getShadowWeight\(vec3 position, sampler2D shadowMap\) \{[\s\S]*?\n\}/,
+      SHADOW_FILTER
+    )
+    .replace(
+      'shadow_vPosition[0], shadow_uShadowMap0)',
+      'shadow_vPosition[0], shadow_uShadowMap0, shadow.depthBias.x)'
+    )
+    .replace(
+      'shadow_vPosition[1], shadow_uShadowMap1)',
+      'shadow_vPosition[1], shadow_uShadowMap1, shadow.depthBias.y)'
+    )
 };
 
-/** Matched lab lighting: a small PCF kernel smooths the shared WebGL shadow map. */
+/** Matched lab lighting with filtered, bounded WebGL shadows through the camera horizon. */
 export class TreeLightingEffect extends LightingEffect {
   useInPicking = true;
   private neutralShadowMap?: Texture;
