@@ -129,7 +129,10 @@ describe('Tree Lab rendering controls', () => {
               const [r, g, b] = frame.pixels.subarray(i, i + 3);
               if (g > r * 1.2 && g > b * 1.2 && g < 220) foliage++;
             }
-            expect(foliage, `${specimen.renderer}/${specimen.species} evergreen foliage pixels`).toBeGreaterThan(100);
+            expect(
+              foliage,
+              `${specimen.renderer}/${specimen.species} evergreen foliage pixels`
+            ).toBeGreaterThan(100);
           }
           if (verifyPicking && specimen.renderer === 'native') {
             const canvas = specimen.deck.getCanvas()!;

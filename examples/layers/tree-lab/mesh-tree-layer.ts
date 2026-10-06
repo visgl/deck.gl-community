@@ -527,7 +527,6 @@ class LegacyMeshTreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends 
   }
 }
 
-
 /** New species have no historical mesh; their reference uses opaque elliptical leaf cards. */
 class LeafCardLayer extends SplatLayer {
   static layerName = 'LeafCardLayer';
@@ -535,47 +534,68 @@ class LeafCardLayer extends SplatLayer {
     return super.renderLayers().map(layer => {
       const props = layer.props as any;
       return new TreeMeshLayer({
-      ...props,
-      data: props.data,
-      id: `${layer.id}-mesh-reference`,
-      mesh: getLeafCardMesh(props.source),
-      getWind: props.getDeformation as any,
-      windStrength: props.deformationStrength,
-      windTime: props.deformationTime,
-      doubleSided: true,
-      parameters: {...layer.props.parameters, cullMode: 'none'}
-    } as any);
+        ...props,
+        data: props.data,
+        id: `${layer.id}-mesh-reference`,
+        mesh: getLeafCardMesh(props.source),
+        getWind: props.getDeformation as any,
+        windStrength: props.deformationStrength,
+        windTime: props.deformationTime,
+        doubleSided: true,
+        parameters: {...layer.props.parameters, cullMode: 'none'}
+      } as any);
     });
   }
 }
 class NewSpeciesMeshLayer extends NativeTreeLayer {
   static layerName = 'NewSpeciesMeshLayer';
   renderLayers() {
-    return super.renderLayers().map(layer => layer instanceof SplatLayer
-      ? new LeafCardLayer({...layer.props, data: layer.props.data, id: layer.id}) : layer);
+    return super
+      .renderLayers()
+      .map(layer =>
+        layer instanceof SplatLayer
+          ? new LeafCardLayer({...layer.props, data: layer.props.data, id: layer.id})
+          : layer
+      );
   }
 }
 const LEAF_MESHES = new WeakMap<SplatSource, TreeMesh>();
 function getLeafCardMesh(source: SplatSource): TreeMesh {
   const cached = LEAF_MESHES.get(source);
   if (cached) return cached;
-  const positions: number[] = [], normals: number[] = [], colors: number[] = [], indices: number[] = [];
+  const positions: number[] = [],
+    normals: number[] = [],
+    colors: number[] = [],
+    indices: number[] = [];
   for (let leaf = 0; leaf < source.opacities.length; leaf++) {
-    const axes = getSplatAxes(source.rotations.subarray(leaf * 4, leaf * 4 + 4), source.scales.subarray(leaf * 3, leaf * 3 + 3));
+    const axes = getSplatAxes(
+      source.rotations.subarray(leaf * 4, leaf * 4 + 4),
+      source.scales.subarray(leaf * 3, leaf * 3 + 3)
+    );
     for (let corner = 0; corner < 8; corner++) {
-      const angle = corner * Math.PI / 4;
-      for (let axis = 0; axis < 3; axis++) positions.push(source.positions[leaf * 3 + axis] + (axes[0][axis] * Math.cos(angle) + axes[1][axis] * Math.sin(angle)) * 2);
+      const angle = (corner * Math.PI) / 4;
+      for (let axis = 0; axis < 3; axis++)
+        positions.push(
+          source.positions[leaf * 3 + axis] +
+            (axes[0][axis] * Math.cos(angle) + axes[1][axis] * Math.sin(angle)) * 2
+        );
       normals.push(...(source.normals?.subarray(leaf * 3, leaf * 3 + 3) ?? [0, 0, 1]));
       colors.push(...source.colors.subarray(leaf * 4, leaf * 4 + 3));
     }
-    for (let triangle = 1; triangle < 7; triangle++) indices.push(leaf * 8, leaf * 8 + triangle, leaf * 8 + triangle + 1);
+    for (let triangle = 1; triangle < 7; triangle++)
+      indices.push(leaf * 8, leaf * 8 + triangle, leaf * 8 + triangle + 1);
   }
-  const mesh: TreeMesh = {attributes: {
-    POSITION: {value: new Float32Array(positions), size: 3},
-    NORMAL: {value: new Float32Array(normals), size: 3},
-    COLOR_0: {value: new Float32Array(colors), size: 3},
-    TEXCOORD_0: {value: new Float32Array(positions.length / 3 * 2), size: 2}
-  }, indices: {value: new Uint32Array(indices), size: 1}, topology: 'triangle-list', mode: 4};
+  const mesh: TreeMesh = {
+    attributes: {
+      POSITION: {value: new Float32Array(positions), size: 3},
+      NORMAL: {value: new Float32Array(normals), size: 3},
+      COLOR_0: {value: new Float32Array(colors), size: 3},
+      TEXCOORD_0: {value: new Float32Array((positions.length / 3) * 2), size: 2}
+    },
+    indices: {value: new Uint32Array(indices), size: 1},
+    topology: 'triangle-list',
+    mode: 4
+  };
   LEAF_MESHES.set(source, mesh);
   return mesh;
 }
@@ -584,10 +604,18 @@ export class MeshTreeLayer extends CompositeLayer<any> {
   static layerName = 'MeshTreeLayer';
   static defaultProps = NativeTreeLayer.defaultProps;
   declare state: {legacy: any[]; added: any[]};
-  initializeState() { this.state = {legacy: [], added: []}; }
+  initializeState() {
+    this.state = {legacy: [], added: []};
+  }
   updateState({changeFlags}) {
-    if (!changeFlags.dataChanged && !changeFlags.updateTriggersChanged && this.state.legacy.length + this.state.added.length) return;
-    const legacy: any[] = [], added: any[] = [];
+    if (
+      !changeFlags.dataChanged &&
+      !changeFlags.updateTriggersChanged &&
+      this.state.legacy.length + this.state.added.length
+    )
+      return;
+    const legacy: any[] = [],
+      added: any[] = [];
     for (const object of this.props.data) {
       const type = this.props.getTreeType(object);
       (type === 'banyan' || type === 'mangrove' ? added : legacy).push(object);
@@ -596,8 +624,18 @@ export class MeshTreeLayer extends CompositeLayer<any> {
   }
   renderLayers() {
     return [
-      this.state.legacy.length && new LegacyMeshTreeLayer({...this.props, ...this.getSubLayerProps({id: 'legacy'}), data: this.state.legacy}),
-      this.state.added.length && new NewSpeciesMeshLayer({...this.props, ...this.getSubLayerProps({id: 'new-species'}), data: this.state.added})
+      this.state.legacy.length &&
+        new LegacyMeshTreeLayer({
+          ...this.props,
+          ...this.getSubLayerProps({id: 'legacy'}),
+          data: this.state.legacy
+        }),
+      this.state.added.length &&
+        new NewSpeciesMeshLayer({
+          ...this.props,
+          ...this.getSubLayerProps({id: 'new-species'}),
+          data: this.state.added
+        })
     ];
   }
 }

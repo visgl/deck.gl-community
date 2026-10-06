@@ -63,8 +63,18 @@ const DEFAULT_CANOPY_COLORS: Record<TreeType, Record<Season, Color>> = {
     autumn: [230, 185, 40, 255],
     winter: [180, 180, 170, 255] // near-bare
   },
-  banyan: {spring: [72, 145, 58, 255], summer: [42, 116, 39, 255], autumn: [53, 122, 44, 255], winter: [43, 108, 37, 255]},
-  mangrove: {spring: [67, 147, 61, 255], summer: [26, 106, 47, 255], autumn: [39, 119, 52, 255], winter: [29, 100, 43, 255]},
+  banyan: {
+    spring: [72, 145, 58, 255],
+    summer: [42, 116, 39, 255],
+    autumn: [53, 122, 44, 255],
+    winter: [43, 108, 37, 255]
+  },
+  mangrove: {
+    spring: [67, 147, 61, 255],
+    summer: [26, 106, 47, 255],
+    autumn: [39, 119, 52, 255],
+    winter: [29, 100, 43, 255]
+  },
   cherry: {
     spring: [255, 180, 205, 255], // pink blossom
     summer: [50, 140, 50, 255],
@@ -289,7 +299,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     for (const object of iterable as Iterable<DataT>) {
       objectInfo.index++;
       const type: TreeType = props.getTreeType(object);
-      if (!['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'].includes(type)) continue;
+      if (!['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'].includes(type))
+        continue;
       const position = props.getPosition(object);
       const seed =
         ((Math.round(position[0] * 10000) * 92821) ^ (Math.round(position[1] * 10000) * 65537)) >>>
@@ -299,7 +310,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       const canopyHeight = height * (1 - fraction);
       const radius = Math.max(0, props.getCanopyRadius(object) * props.sizeScale);
       const season: Season = props.getSeason(object);
-      const winter = season === 'winter' && (type === 'oak' || type === 'birch' || type === 'cherry');
+      const winter =
+        season === 'winter' && (type === 'oak' || type === 'birch' || type === 'cherry');
       const levels =
         type === 'pine' ? Math.max(1, Math.min(5, Math.round(props.getBranchLevels(object)))) : 3;
       const row = this.getSubLayerRow<TreeRow<DataT>>(

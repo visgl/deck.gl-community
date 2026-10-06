@@ -37,8 +37,19 @@ export function createForestSpecimens(count: number, speciesList = SPECIES): For
         (x * 18 + (getNoise(index, 3) - 0.5) * 10) / 111320,
         (y * 18 + (getNoise(index, 4) - 0.5) * 10) / 111320
       ],
-      height: (species === 'pine' ? 21 : species === 'cherry' ? 11 : species === 'mangrove' ? 10 : 16) * scale,
-      canopyRadius: (species === 'palm' ? 4.5 : species === 'birch' ? 5.5 : species === 'banyan' ? 10 : species === 'mangrove' ? 8 : 7) * scale,
+      height:
+        (species === 'pine' ? 21 : species === 'cherry' ? 11 : species === 'mangrove' ? 10 : 16) *
+        scale,
+      canopyRadius:
+        (species === 'palm'
+          ? 4.5
+          : species === 'birch'
+            ? 5.5
+            : species === 'banyan'
+              ? 10
+              : species === 'mangrove'
+                ? 8
+                : 7) * scale,
       trunkRadius: (species === 'palm' ? 0.25 : 0.38) * scale
     };
   });

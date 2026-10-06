@@ -55,7 +55,6 @@ describe('Continuous tree wood', () => {
 
 it('keeps deciduous leaders inside the dense crown and retains branches in distant winter meshes', () => {
   for (const type of ['oak', 'birch', 'cherry'] as const) {
-
     for (const aggregate of [false, true]) {
       const mesh = getTreeWoodMesh(type, 3, aggregate);
       const points = mesh.attributes.POSITION.value;
@@ -63,7 +62,8 @@ it('keeps deciduous leaders inside the dense crown and retains branches in dista
         branchRadius = 0;
       for (let i = 0; i < points.length; i += 3) {
         const radius = Math.hypot(points[i], points[i + 1]);
-        if (mesh.attributes.TEXCOORD_0.value[(i / 3) * 2 + 1] === 1) leaderTop = Math.max(leaderTop, points[i + 2]);
+        if (mesh.attributes.TEXCOORD_0.value[(i / 3) * 2 + 1] === 1)
+          leaderTop = Math.max(leaderTop, points[i + 2]);
         branchRadius = Math.max(branchRadius, radius);
       }
       expect(leaderTop).toBeLessThan(0.36);

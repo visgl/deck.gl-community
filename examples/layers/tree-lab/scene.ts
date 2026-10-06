@@ -1,7 +1,13 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {AmbientLight, DirectionalLight, MapView, type MapViewState, type CompositeLayer} from '@deck.gl/core';
+import {
+  AmbientLight,
+  DirectionalLight,
+  MapView,
+  type MapViewState,
+  type CompositeLayer
+} from '@deck.gl/core';
 import {TreeLightingEffect} from './tree-lighting';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
@@ -99,10 +105,24 @@ export function createSceneLayers(
       getTreeType: (d: Specimen) => d.species,
       getHeight: () => 12,
       getTrunkHeightFraction: (d: Specimen) =>
-        d.species === 'palm' ? 0.72 : d.species === 'pine' ? 0.18 : d.species === 'mangrove' ? 0.27 : 0.36,
+        d.species === 'palm'
+          ? 0.72
+          : d.species === 'pine'
+            ? 0.18
+            : d.species === 'mangrove'
+              ? 0.27
+              : 0.36,
       getTrunkRadius: (d: Specimen) => (d.species === 'palm' ? 0.25 : 0.38),
       getCanopyRadius: (d: Specimen) =>
-        d.species === 'palm' ? 4.5 : d.species === 'birch' ? 5.5 : d.species === 'banyan' ? 10 : d.species === 'mangrove' ? 8 : 7,
+        d.species === 'palm'
+          ? 4.5
+          : d.species === 'birch'
+            ? 5.5
+            : d.species === 'banyan'
+              ? 10
+              : d.species === 'mangrove'
+                ? 8
+                : 7,
       getBranchLevels: () => 4,
       getSeason: () => options.season,
       getCrop: (d: Specimen) => getCrop(d.species, options),

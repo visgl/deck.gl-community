@@ -121,7 +121,11 @@ export async function mountTreeFilm(container: HTMLElement) {
     );
     ctx.fillStyle = '#233c2c';
     ctx.font = '600 19px system-ui';
-    ctx.fillText(`${Math.floor(seconds).toString().padStart(2, '0')} / ${FILM_DURATION}`, 1742, 1027);
+    ctx.fillText(
+      `${Math.floor(seconds).toString().padStart(2, '0')} / ${FILM_DURATION}`,
+      1742,
+      1027
+    );
     ctx.fillStyle = '#d1dccb';
     ctx.fillRect(60, 1050, 1800, 4);
     ctx.fillStyle = '#233c2c';

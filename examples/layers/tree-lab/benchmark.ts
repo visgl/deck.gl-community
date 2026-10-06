@@ -90,7 +90,10 @@ export function mountTreeBenchmark(
   const firstStart = performance.now();
   let firstFrameMs: number | null = null;
   let device: Device;
-  const data = species === 'mixed' ? createForestSpecimens(count, availableSpecies) : createSpecimens(species, count);
+  const data =
+    species === 'mixed'
+      ? createForestSpecimens(count, availableSpecies)
+      : createSpecimens(species, count);
   const zoom = count === 1 ? VIEW.zoom : Math.max(13, 20.5 - Math.log2(Math.sqrt(count)));
   const view =
     species === 'mixed' ? (query.get('view') === 'overview' ? 'overview' : 'canopy') : 'grid';

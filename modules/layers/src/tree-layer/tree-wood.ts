@@ -111,8 +111,16 @@ export function getTreeWoodMesh(type: TreeType, levels = 3, aggregate = false): 
     const adaptBranch = (branch: TreeBranch): Socket => ({
       ...branch,
       end: branch.path[branch.path.length - 1],
-      path: aggregate ? [branch.path[0], branch.path[Math.floor(branch.path.length / 2)], branch.path[branch.path.length - 1]] : branch.path,
-      radii: aggregate ? [branch.radius, branch.radius * 0.5, branch.radii?.at(-1) ?? branch.radius * 0.13] : branch.radii,
+      path: aggregate
+        ? [
+            branch.path[0],
+            branch.path[Math.floor(branch.path.length / 2)],
+            branch.path[branch.path.length - 1]
+          ]
+        : branch.path,
+      radii: aggregate
+        ? [branch.radius, branch.radius * 0.5, branch.radii?.at(-1) ?? branch.radius * 0.13]
+        : branch.radii,
       children: aggregate ? [] : branch.children
     });
     sockets.push(
@@ -230,9 +238,9 @@ export function getTreeWoodMesh(type: TreeType, levels = 3, aggregate = false): 
           point.z += Math.sin(t * Math.PI) * 0.045;
           return Array.from(point) as Point;
         });
-      const childRadius = socket.radii ?? childPath.map(
-        (_, index) => socket.radius * (1 - (index / (childPath.length - 1)) * 0.87)
-      );
+      const childRadius =
+        socket.radii ??
+        childPath.map((_, index) => socket.radius * (1 - (index / (childPath.length - 1)) * 0.87));
       const forks: Socket[] = socket.children
         ? socket.children.map(branch => ({...branch, end: branch.path[branch.path.length - 1]}))
         : socket.forks

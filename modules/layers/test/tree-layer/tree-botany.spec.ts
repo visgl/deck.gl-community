@@ -12,7 +12,8 @@ describe('Shared botanical canopy', () => {
       const botany = getTreeBotany(type);
       expect(Math.max(...botany.stem.map(point => point[2]))).toBeLessThan(0.35);
       expect(botany.branches.length).toBeGreaterThanOrEqual(4);
-      let terminals = 0, forks = 0;
+      let terminals = 0,
+        forks = 0;
       const visit = (branch: TreeBranch, parentRadius: number) => {
         expect(branch.radius).toBeLessThan(parentRadius);
         expect(branch.path.length).toBeGreaterThanOrEqual(3);
@@ -23,7 +24,14 @@ describe('Shared botanical canopy', () => {
           return;
         }
         const tip = branch.path.at(-1)!;
-        expect(botany.clusters.some(cluster => Math.hypot(...tip.map((value, axis) => (value - cluster.center[axis]) / cluster.radius[axis])) < 0.5)).toBe(true);
+        expect(
+          botany.clusters.some(
+            cluster =>
+              Math.hypot(
+                ...tip.map((value, axis) => (value - cluster.center[axis]) / cluster.radius[axis])
+              ) < 0.5
+          )
+        ).toBe(true);
         terminals++;
         forks += branch.children.filter(child => !child.rooted).length;
         branch.children.forEach(child => visit(child, branch.radius));
@@ -33,9 +41,18 @@ describe('Shared botanical canopy', () => {
       expect(terminals).toBeLessThan(600);
       expect(forks).toBeGreaterThan(25);
       const crowns = botany.clusters.map(cluster => cluster.center);
-      expect(Math.max(...crowns.map(point => point[0])) - Math.min(...crowns.map(point => point[0]))).toBeGreaterThan(0.4);
+      expect(
+        Math.max(...crowns.map(point => point[0])) - Math.min(...crowns.map(point => point[0]))
+      ).toBeGreaterThan(0.4);
       // Attraction-driven paths vary in length: the old fixed ten-ring recursive fan cannot pass.
-      expect(new Set(botany.branches.flatMap(branch => [branch.path.length, ...branch.children.map(child => child.path.length)])).size).toBeGreaterThan(3);
+      expect(
+        new Set(
+          botany.branches.flatMap(branch => [
+            branch.path.length,
+            ...branch.children.map(child => child.path.length)
+          ])
+        ).size
+      ).toBeGreaterThan(3);
       expect(getTreeBotany(type)).toBe(botany);
       const source = getTreeSplatSource(type);
       for (let i = 0; i < source.positions.length / 3; i++) {
