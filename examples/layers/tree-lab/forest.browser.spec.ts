@@ -78,7 +78,7 @@ it('renders 10K and 20K forests through detail, season, shadow and view changes'
   }
 }, 90000);
 
-it('starts all forest animation paused for reduced motion, with an explicit wind opt-in', async () => {
+it('honors reduced motion and the stats toggle, with an explicit wind opt-in', async () => {
   const originalUrl = location.href;
   const matchMedia = window.matchMedia.bind(window);
   const preference = vi
@@ -108,6 +108,12 @@ it('starts all forest animation paused for reduced motion, with an explicit wind
       expect(
         container.querySelector<HTMLInputElement>('[aria-label="Moving sunlight"]')!.checked
       ).toBe(false);
+      const stats = container.querySelector<HTMLInputElement>('[aria-label="Show performance"]')!;
+      const performanceLabel = container.querySelector<HTMLElement>('#forest-performance')!;
+      stats.click();
+      expect(getComputedStyle(performanceLabel).display).toBe('none');
+      stats.click();
+      expect(getComputedStyle(performanceLabel).display).not.toBe('none');
       expect(api.errors).toEqual([]);
       cleanup();
       cleanup = undefined;
