@@ -39,7 +39,6 @@ it('renders 10K and 20K forests through detail, season, shadow and view changes'
     if (flyover.checked) flyover.click();
     await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
     expect(api.count).toBe(10000);
-    console.info('Forest test renderer:', api.deck.device.info.renderer);
     await change(() => container.querySelector<HTMLButtonElement>('[data-count="20000"]')!.click());
     expect(api.count).toBe(20000);
     expect((api.deck.props.layers[1] as {props: {data: unknown[]}}).props.data).toHaveLength(20000);
