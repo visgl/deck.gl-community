@@ -88,6 +88,12 @@ for (const [name, schema] of Object.entries(CommunityGeoLayerSchemas)) {
     expect(validate(bad)).toBe(false);
     expect(schema.safeParse({...good, typoProperty: true}).success).toBe(false);
     expect(validate({...good, typoProperty: true})).toBe(false);
+    if (name === 'TreeLayer') {
+      for (const detail of ['low', 'medium', 'high']) {
+        expect(schema.safeParse({...good, detail}).success).toBe(false);
+        expect(validate({...good, detail})).toBe(false);
+      }
+    }
   });
 }
 
