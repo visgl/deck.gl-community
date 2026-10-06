@@ -53,8 +53,8 @@ import {
   Color,
   FeatureCollection
 } from '@deck.gl-community/editable-layers';
-import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 
 import sampleGeoJson from '../../data/sample-geojson.json';
 
@@ -73,7 +73,10 @@ import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type RGBAColor = Color;
-const COMPOSITE_MODE = new CompositeMode([new DrawLineStringMode(), new ModifyMode()]);
+const COMPOSITE_MODE = new CompositeMode([
+  new SnappableMode(new DrawLineStringMode()),
+  new SnappableMode(new ModifyMode())
+]);
 
 const styles = {
   mapContainer: {
@@ -103,26 +106,29 @@ const ALL_MODES: any = [
       {label: 'View', mode: ViewMode},
       {
         label: 'Measure Distance',
-        mode: MeasureDistanceMode
+        mode: new SnappableMode(new MeasureDistanceMode())
       },
-      {label: 'Measure Area', mode: MeasureAreaMode},
-      {label: 'Measure Angle', mode: MeasureAngleMode}
+      {label: 'Measure Area', mode: new SnappableMode(new MeasureAreaMode())},
+      {label: 'Measure Angle', mode: new SnappableMode(new MeasureAngleMode())}
     ]
   },
   {
     category: 'Draw',
     modes: [
-      {label: 'Draw Point', mode: DrawPointMode},
-      {label: 'Draw LineString', mode: DrawLineStringMode},
-      {label: 'Draw Polygon', mode: DrawPolygonMode},
+      {label: 'Draw Point', mode: new SnappableMode(new DrawPointMode())},
+      {label: 'Draw LineString', mode: new SnappableMode(new DrawLineStringMode())},
+      {label: 'Draw Polygon', mode: new SnappableMode(new DrawPolygonMode())},
       {label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode},
       {label: 'Draw Polygon By Dragging', mode: DrawPolygonByDraggingMode},
-      {label: 'Draw Rectangle', mode: DrawRectangleMode},
+      {label: 'Draw Rectangle', mode: new SnappableMode(new DrawRectangleMode())},
       {label: 'Draw Rectangle From Center', mode: DrawRectangleFromCenterMode},
-      {label: 'Draw Rectangle Using 3 Points', mode: DrawRectangleUsingThreePointsMode},
+      {
+        label: 'Draw Rectangle Using 3 Points',
+        mode: new SnappableMode(new DrawRectangleUsingThreePointsMode())
+      },
       {label: 'Draw Square', mode: DrawSquareMode},
       {label: 'Draw Square From Center', mode: DrawSquareFromCenterMode},
-      {label: 'Draw Circle From Center', mode: DrawCircleFromCenterMode},
+      {label: 'Draw Circle From Center', mode: new SnappableMode(new DrawCircleFromCenterMode())},
       {label: 'Draw Circle By Diameter', mode: DrawCircleByDiameterMode},
       {label: 'Draw Ellipse By Bounding Box', mode: DrawEllipseByBoundingBoxMode},
       {label: 'Draw Ellipse Using 3 Points', mode: DrawEllipseUsingThreePointsMode}
@@ -131,17 +137,17 @@ const ALL_MODES: any = [
   {
     category: 'Alter',
     modes: [
-      {label: 'Modify', mode: ModifyMode},
-      {label: 'Resize Circle', mode: ResizeCircleMode},
+      {label: 'Modify', mode: new SnappableMode(new ModifyMode())},
+      {label: 'Resize Circle', mode: new SnappableMode(new ResizeCircleMode())},
       {label: 'Elevation', mode: ElevationMode},
       {label: 'Translate', mode: new SnappableMode(new TranslateMode())},
       {label: 'Rotate', mode: RotateMode},
       {label: 'Scale', mode: ScaleMode},
       {label: 'Duplicate', mode: DuplicateMode},
-      {label: 'Extend LineString', mode: ExtendLineStringMode},
-      {label: 'Extrude', mode: ExtrudeMode},
-      {label: 'Split', mode: SplitPolygonMode},
-      {label: 'Transform', mode: new SnappableMode(new TransformMode())}
+      {label: 'Extend LineString', mode: new SnappableMode(new ExtendLineStringMode())},
+      {label: 'Extrude', mode: new SnappableMode(new ExtrudeMode())},
+      {label: 'Split', mode: new SnappableMode(new SplitPolygonMode())},
+      {label: 'Transform', mode: new TransformMode()}
     ]
   },
   {
@@ -149,6 +155,11 @@ const ALL_MODES: any = [
     modes: [{label: 'Draw LineString + Modify', mode: COMPOSITE_MODE}]
   }
 ];
+
+function getModeConstructor(mode: any) {
+  const wrapped = mode instanceof SnappableMode ? mode._wrappedMode : mode;
+  return typeof wrapped === 'function' ? wrapped : wrapped.constructor;
+}
 
 const POLYGON_DRAWING_MODES = [
   DrawPolygonMode,
@@ -322,7 +333,7 @@ export function Example() {
   }, [infoWidget, mode, selectedFeatureIndexes, selectionTool, showGeoJson, testFeatures]);
 
   const getDefaultModeConfig = useCallback((mode: any) => {
-    if (mode === DrawPolygonMode) {
+    if (getModeConstructor(mode) === DrawPolygonMode) {
       return {allowHoles: true, allowSelfIntersection: false};
     }
     return {};
@@ -600,6 +611,7 @@ export function Example() {
   }, [modeConfig]);
 
   const renderSnappingControls = useCallback(() => {
+    const snappingEnabled = Boolean(modeConfig && modeConfig.enableSnapping);
     return (
       <div key="snap">
         <ToolboxRow>
@@ -607,13 +619,28 @@ export function Example() {
           <ToolboxControl>
             <input
               type="checkbox"
-              checked={Boolean(modeConfig && modeConfig.enableSnapping)}
+              checked={snappingEnabled}
               onChange={event => {
-                const newModeConfig = {
+                setModeConfig({
                   ...modeConfig,
                   enableSnapping: Boolean(event.target.checked)
-                };
-                setModeConfig(newModeConfig);
+                });
+              }}
+            />
+          </ToolboxControl>
+        </ToolboxRow>
+        <ToolboxRow>
+          <ToolboxTitle>Edge snapping</ToolboxTitle>
+          <ToolboxControl>
+            <input
+              type="checkbox"
+              disabled={!snappingEnabled}
+              checked={Boolean(modeConfig && modeConfig.edgeSnapping)}
+              onChange={event => {
+                setModeConfig({
+                  ...modeConfig,
+                  edgeSnapping: Boolean(event.target.checked)
+                });
               }}
             />
           </ToolboxControl>
@@ -735,26 +762,29 @@ export function Example() {
   const renderModeConfigControls = useCallback(() => {
     const controls: React.ReactElement[] = [];
 
-    if (POLYGON_DRAWING_MODES.indexOf(mode) > -1) {
+    if (POLYGON_DRAWING_MODES.indexOf(getModeConstructor(mode)) > -1) {
       controls.push(renderBooleanOperationControls());
     }
-    // @ts-expect-error TODO
-    if (TWO_CLICK_POLYGON_MODES.indexOf(mode) > -1) {
+    if (TWO_CLICK_POLYGON_MODES.indexOf(getModeConstructor(mode)) > -1) {
       controls.push(renderTwoClickPolygonControls());
     }
-    if (mode === ModifyMode) {
+    if (getModeConstructor(mode) === ModifyMode) {
       controls.push(renderModifyModeControls());
     }
-    if (mode === SplitPolygonMode) {
+    if (getModeConstructor(mode) === SplitPolygonMode) {
       controls.push(renderSplitModeControls());
     }
-    if (mode instanceof SnappableMode) {
+    if (
+      mode instanceof SnappableMode ||
+      mode instanceof TransformMode ||
+      mode instanceof CompositeMode
+    ) {
       controls.push(renderSnappingControls());
     }
-    if (mode === MeasureDistanceMode) {
+    if (getModeConstructor(mode) === MeasureDistanceMode) {
       controls.push(renderMeasureDistanceControls());
     }
-    if (mode === DrawPolygonMode) {
+    if (getModeConstructor(mode) === DrawPolygonMode) {
       controls.push(renderDrawPolygonModeControls());
     }
 
@@ -782,7 +812,11 @@ export function Example() {
                 selected={mode === modeOption}
                 onClick={() => {
                   setMode(() => modeOption);
-                  setModeConfig(getDefaultModeConfig(modeOption));
+                  setModeConfig(prevModeConfig => ({
+                    ...getDefaultModeConfig(modeOption),
+                    enableSnapping: prevModeConfig?.enableSnapping,
+                    edgeSnapping: prevModeConfig?.edgeSnapping
+                  }));
                   setSelectionTool(undefined);
                 }}
               >
@@ -1011,28 +1045,35 @@ export function Example() {
 
   let currentModeConfig = modeConfig;
 
-  if (mode === ElevationMode) {
+  if (getModeConstructor(mode) === ElevationMode) {
     currentModeConfig = {
       ...currentModeConfig,
       viewport: currentViewport,
       calculateElevationChange: opts =>
         ElevationMode.calculateElevationChangeWithViewport(currentViewport, opts)
     };
-  } else if (mode === ModifyMode) {
+  } else if (getModeConstructor(mode) === ModifyMode) {
     currentModeConfig = {
       ...currentModeConfig,
       viewport: currentViewport,
       lockRectangles: true
     };
-  } else if (mode instanceof SnappableMode && currentModeConfig) {
-    if (mode._handler instanceof TranslateMode) {
-      currentModeConfig = {
-        ...currentModeConfig,
-        viewport: currentViewport,
-        screenSpace: true
-      };
-    }
+  } else if (getModeConstructor(mode) === DrawPolygonByDraggingMode) {
+    currentModeConfig = {
+      ...currentModeConfig,
+      throttleMs: 100
+    };
+  }
 
+  if (getModeConstructor(mode) === TranslateMode) {
+    currentModeConfig = {...currentModeConfig, viewport: currentViewport, screenSpace: true};
+  }
+
+  if (currentModeConfig?.enableSnapping) {
+    currentModeConfig = {
+      ...currentModeConfig,
+      viewport: currentViewport
+    };
     if (currentModeConfig && currentModeConfig.enableSnapping) {
       // Snapping can be accomplished to features that aren't rendered in the same layer
       currentModeConfig = {
@@ -1057,11 +1098,6 @@ export function Example() {
         ]
       };
     }
-  } else if (mode === DrawPolygonByDraggingMode) {
-    currentModeConfig = {
-      ...currentModeConfig,
-      throttleMs: 100
-    };
   }
 
   // Demonstrate how to override sub layer properties

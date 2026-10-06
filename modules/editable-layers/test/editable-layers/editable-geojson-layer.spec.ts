@@ -127,3 +127,30 @@ test.each([0, 3])('movement with buttons=%i and non-primary release cannot edit'
   expect(mode.handleStopDragging).not.toHaveBeenCalled();
   expect(layer.state.isDraggingWithPrimaryButton).toBe(false);
 });
+
+test('drag completion clears pointer-down picks from cached move props without another move', () => {
+  const {layer} = createGestureLayer();
+  layer._onpanstart(createGestureEvent());
+  layer._onpointermove(createGestureEvent());
+  const previousMove = layer.state.lastPointerMoveEvent;
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+  layer._onpanend(createGestureEvent());
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toBeNull();
+  expect(layer.state.lastPointerMoveEvent.pointerDownMapCoords).toBeNull();
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+});
+
+test('fresh drag gestures update the raw pointer cache used by snap guides', () => {
+  const {layer, mode} = createGestureLayer();
+  const start = createStartDraggingEvent([1, 2], [3, 4]);
+  const dragging = {...start, screenCoords: [5, 6] as [number, number], mapCoords: [7, 8]};
+  layer.onStartDragging(start);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(start.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toEqual(start.pointerDownPicks);
+  layer.onDragging(dragging);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(dragging.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.mapCoords).toEqual(dragging.mapCoords);
+  expect(mode.handleDragging.mock.calls[0][1].lastPointerMoveEvent.mapCoords).toEqual(
+    dragging.mapCoords
+  );
+});

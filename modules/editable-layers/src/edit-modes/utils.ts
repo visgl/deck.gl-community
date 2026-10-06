@@ -7,17 +7,10 @@
 import {destination} from '@turf/destination';
 import {bearing} from '@turf/bearing';
 import {pointToLineDistance} from '@turf/point-to-line-distance';
-import {point} from '@turf/helpers';
+import {point, lineString} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
-import {
-  Viewport,
-  Pick,
-  EditHandleFeature,
-  EditHandleType,
-  StartDraggingEvent,
-  PointWithIndex
-} from './types';
+import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
 import {
   SimpleGeometry,
   Position,
@@ -136,88 +129,108 @@ export function projectOrUnprojectPoints(
     : wmViewport.unproject([...inputPoints]);
 }
 
+export function getNearestPoint(
+  line: Feature<LineString>,
+  inPoint: Feature<Point>,
+  viewport: Viewport | null | undefined,
+  coordinateSystem?: EditModeCoordinateSystem
+): NearestPointType {
+  const {coordinates} = line.geometry;
+  if (coordinates.some(coord => coord.length > 2)) {
+    if (viewport) {
+      // This line has elevation, we need to use alternative algorithm
+      return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
+    }
+
+    // eslint-disable-next-line no-console,no-undef
+    console.log('Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.');
+  }
+  return nearestPointOnLine(line, inPoint, viewport, coordinateSystem);
+}
+
+export function findNearestPointOnGeometry(
+  feature: Feature<SimpleGeometry>,
+  mapCoords: Position,
+  viewport?: Viewport,
+  coordinateSystem?: EditModeCoordinateSystem,
+  resolveNearestPoint: typeof getNearestPoint = getNearestPoint
+): {nearestPoint: NearestPointType | null; positionIndexPrefix: number[]} {
+  let nearestPoint: NearestPointType | null = null;
+  let positionIndexPrefix: number[] = [];
+  if (feature.geometry.type === 'Point' || feature.geometry.type === 'MultiPoint') {
+    return {nearestPoint, positionIndexPrefix};
+  }
+  const referencePoint = point(mapCoords);
+  recursivelyTraverseNestedArrays(feature.geometry.coordinates, [], (feature, prefix) => {
+    if (feature.length < 2) return;
+    const lineStringFeature = lineString(feature);
+    const candidate = resolveNearestPoint(
+      lineStringFeature,
+      referencePoint,
+      viewport,
+      coordinateSystem
+    );
+    if (!nearestPoint || candidate.properties.dist < nearestPoint.properties.dist) {
+      nearestPoint = candidate;
+      positionIndexPrefix = prefix;
+    }
+  });
+  return {nearestPoint, positionIndexPrefix};
+}
+
 export function nearestPointOnProjectedLine(
   line: Feature<LineString>,
   inPoint: Feature<Point>,
   viewport: Viewport,
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  // return sentinel value if no coordinates key
-  let minDistance = Infinity;
-  const coordinates = line?.geometry?.coordinates;
-  if (!coordinates)
-    return {
-      type: 'Feature',
-      geometry: {type: 'Point', coordinates: [0, 0, 0]},
-      properties: {dist: minDistance, index: -1}
-    };
-
-  // Project the line to viewport, then find the nearest point
-  const wmViewport = new WebMercatorViewport(viewport);
-
+  const wmViewport = toWebMercatorViewport(viewport);
   const [x, y] = projectOrUnprojectPoints(
     inPoint.geometry.coordinates,
     coordinateSystem,
     'PROJECT',
     wmViewport
   );
-  const projectedCoords = coordinates.map(([px, py, pz = 0]) =>
-    projectOrUnprojectPoints([px, py, pz], coordinateSystem, 'PROJECT', wmViewport)
+  const coordinates = line.geometry.coordinates;
+  const projectedCoords = coordinates.map(coords =>
+    projectOrUnprojectPoints(coords, coordinateSystem, 'PROJECT', wmViewport)
   );
-
-  let minPointInfo: PointWithIndex = {index: 0, x0: 0, y0: 0};
-
-  projectedCoords.forEach(([x2, y2], index) => {
-    if (index === 0) {
-      return;
-    }
-
-    const [x1, y1] = projectedCoords[index - 1];
-
-    // line from projectedCoords[index - 1] to projectedCoords[index]
-    // convert to Ax + By + C = 0
-    const A = y1 - y2;
-    const B = x2 - x1;
-    const C = x1 * y2 - x2 * y1;
-
-    // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-    const div = A * A + B * B;
-    const distance = Math.abs(A * x + B * y + C) / Math.sqrt(div);
-
-    // TODO: Check if inside bounds
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      minPointInfo = {
-        index,
-        x0: (B * (B * x - A * y) - A * C) / div,
-        y0: (A * (-B * x + A * y) - B * C) / div
+  let nearest: NearestPointType = {
+    type: 'Feature',
+    geometry: {type: 'Point', coordinates: [0, 0, 0]},
+    properties: {dist: Infinity, index: -1}
+  };
+  for (let index = 1; index < projectedCoords.length; index++) {
+    const [x1, y1, z1 = 0] = projectedCoords[index - 1];
+    const [x2, y2, z2 = 0] = projectedCoords[index];
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lengthSquared = dx * dx + dy * dy;
+    // A collapsed segment remains a valid endpoint candidate.
+    const ratio =
+      lengthSquared === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / lengthSquared));
+    const px = mix(x1, x2, ratio);
+    const py = mix(y1, y2, ratio);
+    const dist = distance2d(x, y, px, py);
+    if (dist < nearest.properties.dist) {
+      nearest = {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: projectOrUnprojectPoints(
+            [px, py, mix(z1, z2, ratio)],
+            coordinateSystem,
+            'UNPROJECT',
+            wmViewport
+          )
+        },
+        properties: {dist, index: index - 1}
       };
     }
-  });
-
-  const {index, x0, y0} = minPointInfo;
-  const [x1, y1, z1 = 0] = projectedCoords[index - 1];
-  const [x2, y2, z2 = 0] = projectedCoords[index];
-
-  // calculate what ratio of the line we are on to find the proper z
-  const lineLength = distance2d(x1, y1, x2, y2);
-  const startToPointLength = distance2d(x1, y1, x0, y0);
-  const ratio = startToPointLength / lineLength;
-  const z0 = mix(z1, z2, ratio);
-
-  return {
-    type: 'Feature',
-    geometry: {
-      type: 'Point',
-      coordinates: projectOrUnprojectPoints([x0, y0, z0], coordinateSystem, 'UNPROJECT', wmViewport)
-    },
-    properties: {
-      // TODO: calculate the distance in proper units
-      dist: minDistance,
-      index: index - 1
-    }
-  };
+  }
+  return nearest;
 }
 
 export function nearestPointOnLine(
@@ -226,7 +239,7 @@ export function nearestPointOnLine(
   viewport?: Viewport,
   coordinateSystem?: EditModeCoordinateSystem
 ): NearestPointType {
-  const wmViewport = viewport ? new WebMercatorViewport(viewport) : undefined;
+  const wmViewport = viewport ? toWebMercatorViewport(viewport) : undefined;
 
   const coords = lines.geometry?.coordinates;
   if (!coords || coords.length < 2) {
@@ -331,13 +344,6 @@ export function getPickedEditHandle(
 ): EditHandleFeature | null | undefined {
   const handles = getPickedEditHandles(picks);
   return handles.length ? handles[0] : null;
-}
-
-export function getPickedSnapSourceEditHandle(
-  picks: Pick[] | null | undefined
-): EditHandleFeature | null | undefined {
-  const handles = getPickedEditHandles(picks);
-  return handles.find(handle => handle.properties.editHandleType === 'snap-source');
 }
 
 export function getNonGuidePicks(picks: Pick[]): Pick[] {
@@ -568,4 +574,13 @@ export function mapCoords(
 
 export function shouldCancelPan(event: StartDraggingEvent) {
   return event.picks.length && event.picks.find(p => p.featureType === 'points');
+}
+
+// Accepts either a plain viewport descriptor or an already-constructed WebMercatorViewport instance
+export function toWebMercatorViewport(
+  viewport: Viewport | WebMercatorViewport
+): WebMercatorViewport {
+  return (viewport as WebMercatorViewport).project
+    ? (viewport as WebMercatorViewport)
+    : new WebMercatorViewport(viewport as Viewport);
 }

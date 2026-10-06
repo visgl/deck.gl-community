@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {bboxPolygon} from '@turf/bbox-polygon';
 import {distance} from '@turf/distance';
 import {along} from '@turf/along';
@@ -35,5 +37,10 @@ export class DrawSquareMode extends TwoClickPolygonMode {
     square.properties.shape = 'Square';
 
     return square;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
   }
 }

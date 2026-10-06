@@ -82,10 +82,21 @@ There are a extensive number of modes that come out-of-the-box with from '@deck.
 
 An arbitrary object used to further configure the current mode.
 
-Snapping-related `modeConfig` properties:
+Snapping-related `modeConfig` properties (used by `SnappableMode`):
 
-- `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as translate mode.
-- `additionalSnapTargets` (Object[], optional) - An array of GeoJSON Features that can be snapped to. This property only needs to be specified if you want to snap to features in other deck.gl layers. All features in this `EditableGeoJsonLayer` will be snap targets.
+- `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as `TranslateMode`.
+- `edgeSnapping` (Boolean, optional) - When `true`, snap targets include the nearest point on any edge of a candidate feature, not just its vertices. **The default policy requires `viewport` to be set**.
+- `snapper` (`Snapper`, optional) - Custom `Snapper` implementation. Its `snap(event, props, excludedFeatureIndexes)` method receives the raw current pointer event, `ModeProps<SimpleFeatureCollection>`, and editable-layer feature indexes to exclude. Return `{mapCoords, featureIndex?}` or `null`; omit `featureIndex` for external targets. The policy governs draw, edit and source-handle targets with or without `edgeSnapping`. Preserve the input event, props and exclusion set.
+- `additionalSnapTargets` (Object[], optional) - An array of GeoJSON Features that can be snapped to. Use this for features outside the edited data, including features rendered by other deck.gl layers. Coordinates must already be converted to this editable layer's local data frame, before its `modelMatrix`. A source layer's coordinate system, origin or model matrix is not inferred from a GeoJSON feature. Convert positions when those transforms differ. All features in this `EditableGeoJsonLayer` will also be snap targets.
+- `viewport` (Viewport, optional) - The current deck.gl viewport. Required for certain snapping behavior.
+
+The default policy uses the layer's `pickingRadius` prop as its snap distance threshold.
+Custom `snapper` policies can define their own threshold and viewport requirements.
+Their returned `mapCoords` must use the editable data's local frame, before its model matrix.
+A policy querying another layer may project a source point with that layer, then convert the
+winning pixel XYZ with `props.projection?.unproject(pixelXYZ)`; return `null` if the projection
+is unavailable or conversion fails, and omit `featureIndex` for the external result.
+Do not return raw source-frame coordinates.
 
 #### `selectedFeatureIndexes` (Array, optional)
 

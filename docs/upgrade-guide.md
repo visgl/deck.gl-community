@@ -39,6 +39,36 @@ GeoJSON's `FeatureCollection<SimpleGeometry>` is also compatible. Validate or na
 broader GeoJSON input before editing; `GeometryCollection` is not supported by the
 edit modes. The existing `Feature` and `FeatureCollection` re-exports remain available.
 
+#### SnappableMode strategies
+
+Existing `new SnappableMode(customMode)` wrappers keep source-handle snapping by default.
+Custom modes can implement `SnappableEditMode.getSnappingStrategy()` to choose
+`ClickSnappingStrategy`, `DragSnappingStrategy`, or `SourceSnappingStrategy`; returning
+`undefined` disables snapping. Strategy methods accept `ModeProps<SimpleFeatureCollection>`.
+Enable edge targets with `modeConfig.edgeSnapping` and supply the current viewport.
+`pickingRadius` controls the pixel threshold. Events resolve the target from the current screen
+position, including the first touch click and the first corner of drag-to-draw shapes; an existing
+rendered target guide is not required. Committed shapes and their preview share the resolved
+pointer position. Current drag-event handle picks take priority over the last hover cache. Source drags keep the real pointer-down origin until a target
+qualifies. `TransformMode` supports snapping directly and remains safe to wrap without duplicate
+snap guides. The legacy `SnappableMode._handler` inspection/replacement property remains available.
+Use `modeConfig.snapper` to provide a custom policy for target lookup, including external
+spatial indexes. Implement `Snapper.snap` with `ModeProps<SimpleFeatureCollection>` and
+omit `SnapResult.featureIndex` for external targets. Returning `null` suppresses targets
+for that lookup, including source-handle translation.
+
+The layer supplies an optional paired `ModeProps.projection` (`EditModeProjection`) for snap
+targets in planar views. It accounts for `coordinateOrigin`, offset coordinate systems,
+and `modelMatrix`; elevated edges retain projected depth before converting back to local data.
+Standalone modes without this pair retain viewport-based projection. This does not extend
+the existing unsnapped pointer-to-data conversion for offset editing; globe offsets are unverified.
+Two-element coordinate origins use zero altitude without mutating the supplied array.
+
+`additionalSnapTargets` is an array of features in the editable layer's local data frame,
+before its `modelMatrix`. It carries no source-layer transform metadata. When copying
+targets from a layer with a different coordinate system, origin or model matrix, convert
+their coordinates before supplying them; raw coordinates from another frame are unsupported.
+
 #### SelectionLayer polygon selection
 
 Polygon selection no longer waits 250 ms before calling `onSelect`. If an application relied on
