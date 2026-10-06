@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -11,8 +13,10 @@ import {
 } from './types';
 import {Position, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class ThreeClickPolygonMode extends GeoJsonEditMode {
+export class ThreeClickPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     this.addClickSequence(event);
 
@@ -108,5 +112,10 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
     }
 
     return tentativeFeature;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new ClickSnappingStrategy();
   }
 }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {nearestPointOnLine} from '@turf/nearest-point-on-line';
 import {point, lineString as toLineString} from '@turf/helpers';
 import {circle} from '@turf/circle';
@@ -28,8 +30,10 @@ import {
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {DragSnappingStrategy} from './snapping/drag-snapping-strategy';
 
-export class ResizeCircleMode extends GeoJsonEditMode {
+export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMode {
   _selectedEditHandle: EditHandleFeature | null | undefined;
   _isResizing = false;
 
@@ -199,5 +203,10 @@ export class ResizeCircleMode extends GeoJsonEditMode {
       return 'cell';
     }
     return null;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new DragSnappingStrategy();
   }
 }

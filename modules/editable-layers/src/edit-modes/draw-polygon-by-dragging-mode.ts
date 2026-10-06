@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import throttle from 'lodash.throttle';
 import {ClickEvent, StartDraggingEvent, StopDraggingEvent, DraggingEvent, ModeProps} from './types';
 import {Polygon, SimpleFeatureCollection} from '../utils/geojson-types';
@@ -125,5 +127,10 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
         editContext: {}
       });
     }
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
   }
 }

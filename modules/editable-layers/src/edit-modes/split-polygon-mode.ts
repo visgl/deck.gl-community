@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {booleanPointInPolygon} from '@turf/boolean-point-in-polygon';
 import {difference} from '@turf/difference';
 import {buffer as turfBuffer} from '@turf/buffer';
@@ -24,8 +26,10 @@ import {
 } from './types';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class SplitPolygonMode extends GeoJsonEditMode {
+export class SplitPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   calculateMapCoords(
     clickSequence: any,
     mapCoords: any,
@@ -205,5 +209,10 @@ export class SplitPolygonMode extends GeoJsonEditMode {
     };
 
     return editAction;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new ClickSnappingStrategy();
   }
 }
