@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- [Tree Forest](/examples/layers/tree-forest) explores 10,000 or 20,000 native trees with wind, seasonal sunlight, shadows and a canopy flyover. Matched benchmark entries report actual instance counts and repeated frame-delivery samples.
+- [Tree Forest](/examples/layers/tree-forest) explores 10,000 or 20,000 native trees with wind, seasonal sunlight, shadows and a canopy flyover. A live stats display reports draw pacing; matched benchmark entries share its camera and report actual instance counts and warmed samples.
 
 - The `@deck.gl-community/three` compatibility package is removed from the repository. Import `TreeLayer` and its types from `@deck.gl-community/layers`. [Seasonal Farm](/examples/layers/seasonal-farm) now lives with the native layers examples. Old documentation and example links redirect to the new paths. Tree Lab retains its frozen Three.js comparison fixture.
 

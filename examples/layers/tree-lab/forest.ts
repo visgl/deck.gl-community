@@ -1,25 +1,19 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck, WebMercatorViewport, type MapViewState} from '@deck.gl/core';
+import {Deck, type MapViewState} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/layers';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {createForestSpecimens, getTreeCount} from './forest-data';
-import {
-  DEFAULT_OPTIONS,
-  SEASONS,
-  VIEW,
-  createViews,
-  createLighting,
-  type SceneOptions
-} from './scene';
+import {DEFAULT_OPTIONS, SEASONS, createViews, createLighting, type SceneOptions} from './scene';
 import {getTourFrame} from './tour';
-import {createForestSceneLayers} from './forest-scene';
+import {createForestSceneLayers, getForestViewState} from './forest-scene';
 import './style.css';
 
 /** One native renderer with a procedural mixed forest, controllable quality and shared sunlight. */
 export function mountTreeForestExample(container: HTMLElement, standalone = false): () => void {
   const query = new URLSearchParams(location.search);
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let count = getTreeCount(query.get('count'), 20000);
   let data = createForestSpecimens(count);
   const options: SceneOptions = {
@@ -27,16 +21,16 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     crops: false,
     dropped: false,
     shadows: query.get('shadows') !== '0',
-    wind: query.get('wind') !== '0',
+    wind: query.get('wind') === '1' || (query.get('wind') !== '0' && !reducedMotion),
     windTime: null,
     detail:
       (['high', 'medium', 'low'] as const).find(value => value === query.get('detail')) ?? 'medium',
     season: SEASONS.find(value => value === query.get('season')) ?? 'summer'
   };
-  let flyover = !matchMedia('(prefers-reduced-motion: reduce)').matches && query.get('fly') !== '0';
-  let sunlight =
-    query.get('sun') !== '0' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let flyover = !reducedMotion && query.get('fly') !== '0';
+  let sunlight = query.get('sun') !== '0' && !reducedMotion;
   let overview = query.get('view') === 'overview';
+  let showStats = query.get('stats') !== '0';
   let request = 0;
   let ready = false;
   let disposed = false;
@@ -48,9 +42,9 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     <label class="control">Detail <select aria-label="Detail"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
     <label class="control">Season <select aria-label="Season">${SEASONS.map(season => `<option value="${season}">${season}</option>`).join('')}</select></label>
     <label class="toggle"><input type="checkbox" aria-label="Wind">Wind</label><label class="toggle"><input type="checkbox" aria-label="Shadows">Shadows</label>
-    <label class="toggle"><input type="checkbox" aria-label="Moving sunlight">Moving sunlight</label><label class="toggle"><input type="checkbox" aria-label="Flyover">Flyover</label>
-    <button id="forest-view">Show entire forest</button></div>
-    <div class="forest-stage"><div class="canvas"></div><div class="forest-caption"><strong>20,000 trees in memory</strong><span>Procedural scene · drag to explore · 1× pixels</span></div></div>
+    <label class="toggle"><input type="checkbox" aria-label="Moving sunlight">Sun &amp; seasons</label><label class="toggle"><input type="checkbox" aria-label="Flyover">Flyover</label>
+    <label class="toggle"><input type="checkbox" aria-label="Show performance">Stats</label><button id="forest-view">Show entire forest</button></div>
+    <div class="forest-stage"><div class="canvas"></div><div class="forest-caption"><strong>20,000 trees in memory</strong><span>Procedural scene · drag to explore · 1× pixels</span><span id="forest-performance" title="Rolling draw count and draw intervals; not GPU execution time.">Measuring draws…</span></div></div>
     <div class="status" aria-live="polite">Preparing forest…</div><footer class="footer">${standalone ? '<a id="forest-benchmark" href="./native.html">Measure this workload</a> · <a href="./index.html">Compare every tree</a> · ' : ''}Overview fits the entire forest; flyover inspects individual crowns. WebGL shadows and GPU wind are independently controlled. This is illustrative data.</footer>`;
   container.replaceChildren(root);
   const heading = root.querySelector('h1')!;
@@ -63,30 +57,18 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   const sunControl = root.querySelector<HTMLInputElement>('[aria-label="Moving sunlight"]')!;
   const flyControl = root.querySelector<HTMLInputElement>('[aria-label="Flyover"]')!;
   const viewControl = root.querySelector<HTMLButtonElement>('#forest-view')!;
+  const statsControl = root.querySelector<HTMLInputElement>('[aria-label="Show performance"]')!;
+  const performanceLabel = root.querySelector<HTMLElement>('#forest-performance')!;
+  const drawTimes = new Float64Array(512);
+  let drawIndex = 0;
+  let drawCount = 0;
+  let lastStats = 0;
   const lighting = createLighting(options.shadows);
-  let camera: MapViewState = {...VIEW, minZoom: 10, zoom: 17.2, pitch: 60, position: [0, 0, 7]};
-  const overviewCamera = (): MapViewState => {
+  const getCamera = (fitOverview = overview): MapViewState => {
     const {width, height} = root.querySelector('.canvas')!.getBoundingClientRect();
-    const halfSide = (Math.ceil(Math.sqrt(count)) * 9 + 20) / 111320;
-    const fitted = new WebMercatorViewport({width, height}).fitBounds(
-      [
-        [-halfSide, -halfSide],
-        [halfSide, halfSide]
-      ],
-      {padding: 40}
-    );
-    return {
-      ...VIEW,
-      minZoom: 10,
-      longitude: fitted.longitude,
-      latitude: fitted.latitude,
-      position: [0, 0, 0],
-      bearing: 0,
-      pitch: 35,
-      zoom: fitted.zoom - 0.55
-    };
+    return getForestViewState(count, width, height, fitOverview);
   };
-  if (overview) camera = overviewCamera();
+  let camera = getCamera();
   const getLayers = () =>
     createForestSceneLayers(TreeLayer, 'forest', data, {
       ...options,
@@ -101,13 +83,15 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     shadowControl.checked = options.shadows;
     sunControl.checked = sunlight;
     flyControl.checked = flyover;
+    statsControl.checked = showStats;
+    performanceLabel.hidden = !showStats;
     viewControl.textContent = overview ? 'Inspect the canopy' : 'Show entire forest';
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-count]'))
       button.setAttribute('aria-pressed', String(Number(button.dataset.count) === count));
     status.textContent = `${ready ? 'Ready' : 'Preparing'} · ${count.toLocaleString()} trees · ${options.detail} · ${options.season} · wind ${options.wind ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'}${errors.length ? ` · ${errors.join('; ')}` : ''}`;
     const benchmark = root.querySelector<HTMLAnchorElement>('#forest-benchmark');
     if (benchmark)
-      benchmark.href = `./native.html?count=${count}&species=mixed&detail=${options.detail}&wind=${Number(options.wind)}&shadows=${Number(options.shadows)}&season=${options.season}`;
+      benchmark.href = `./native.html?count=${count}&species=mixed&detail=${options.detail}&wind=${Number(options.wind)}&shadows=${Number(options.shadows)}&season=${options.season}&view=${overview ? 'overview' : 'canopy'}`;
   };
   const deck = new Deck({
     parent: root.querySelector('.canvas')!,
@@ -131,7 +115,18 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
       deck.setProps({viewState: camera});
       refreshLabels();
     },
+    onResize: () => {
+      if (overview) {
+        camera = getCamera();
+        deck.setProps({viewState: camera});
+      }
+    },
     onAfterRender: () => {
+      if (showStats) {
+        drawTimes[drawIndex] = performance.now();
+        drawIndex = (drawIndex + 1) % drawTimes.length;
+        drawCount = Math.min(drawCount + 1, drawTimes.length);
+      }
       if (!ready) {
         ready = true;
         refreshLabels();
@@ -151,7 +146,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
       count = Number(button.dataset.count);
       data = createForestSpecimens(count);
       if (overview) {
-        camera = overviewCamera();
+        camera = getCamera();
         deck.setProps({viewState: camera});
       }
       refresh();
@@ -186,10 +181,14 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   });
   viewControl.addEventListener('click', () => {
     overview = !overview;
-    camera = overview
-      ? overviewCamera()
-      : {...VIEW, minZoom: 10, zoom: 17.2, pitch: 60, position: [0, 0, 7]};
+    camera = getCamera();
     deck.setProps({viewState: camera});
+    refreshLabels();
+  });
+  statsControl.addEventListener('change', () => {
+    showStats = statsControl.checked;
+    drawCount = 0;
+    lastStats = 0;
     refreshLabels();
   });
   document.addEventListener('visibilitychange', refresh);
@@ -198,6 +197,25 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     if (disposed) return;
     if (!document.hidden) {
       const seconds = (now - start) / 1000;
+      if (showStats && now - lastStats >= 1000) {
+        lastStats = now;
+        const sampleTime = performance.now();
+        const gaps: number[] = [];
+        let previous = 0;
+        let recentDraws = 0;
+        for (let index = 0; index < drawCount; index++) {
+          const time =
+            drawTimes[(drawIndex - drawCount + index + drawTimes.length) % drawTimes.length];
+          if (sampleTime - time > 1000) continue;
+          if (previous) gaps.push(time - previous);
+          previous = time;
+          recentDraws++;
+        }
+        gaps.sort((a, b) => a - b);
+        performanceLabel.textContent = gaps.length
+          ? `${recentDraws} draws/s · p95 ${gaps[Math.floor(gaps.length * 0.95)].toFixed(1)} ms`
+          : 'Idle';
+      }
       if (sunlight) {
         const frame = getTourFrame(seconds);
         if (options.season !== frame.season) {
@@ -209,7 +227,10 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
       }
       if (flyover) {
         const phase = seconds / 35;
-        const next = {...camera, bearing: 22 + Math.sin(phase) * 24};
+        const next = {
+          ...camera,
+          bearing: (overview ? 0 : 22) + Math.sin(phase) * (overview ? 8 : 24)
+        };
         if (!overview) {
           next.longitude = Math.sin(phase * 0.7) * 0.00065;
           next.latitude = Math.cos(phase * 0.7) * 0.00065;
