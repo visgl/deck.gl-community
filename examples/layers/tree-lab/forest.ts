@@ -85,6 +85,8 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     flyControl.checked = flyover;
     statsControl.checked = showStats;
     performanceLabel.hidden = !showStats;
+    // The caption stylesheet sets display:block on spans, overriding HTML hidden.
+    performanceLabel.style.display = showStats ? '' : 'none';
     viewControl.textContent = overview ? 'Inspect the canopy' : 'Show entire forest';
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-count]'))
       button.setAttribute('aria-pressed', String(Number(button.dataset.count) === count));
