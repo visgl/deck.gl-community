@@ -97,12 +97,13 @@ export function mountTreeBenchmark(
   const view =
     species === 'mixed' ? (query.get('view') === 'overview' ? 'overview' : 'canopy') : 'grid';
   const {width, height} = parent.querySelector('.canvas')!.getBoundingClientRect();
-  const camera =
+  let camera =
     species === 'mixed'
       ? getForestViewState(count, width, height, view === 'overview')
       : {...VIEW, zoom};
   parent.querySelector('p')!.textContent += ` · ${view} view`;
   let measuring = false;
+  let resizeRevision = 0;
   let drawStart = 0;
   const renderCalls: number[] = [];
   const deck = new Deck({
@@ -125,6 +126,13 @@ export function mountTreeBenchmark(
     effects: [createLighting(options.shadows)],
     onDeviceInitialized: initializedDevice => {
       device = initializedDevice;
+    },
+    onResize: ({width, height}) => {
+      resizeRevision++;
+      if (view === 'overview') {
+        camera = getForestViewState(count, width, height, true);
+        deck.setProps({viewState: camera});
+      }
     },
     onBeforeRender: () => {
       if (measuring) drawStart = performance.now();
@@ -153,6 +161,7 @@ export function mountTreeBenchmark(
         'Keep this benchmark visible; wait for readiness and any running measurement.'
       );
     measuring = true;
+    const resizeAtStart = resizeRevision;
     const visibilityAtStart = document.visibilityState;
     const focusedAtStart = document.hasFocus();
     const idleStartFrame = frame;
@@ -187,6 +196,8 @@ export function mountTreeBenchmark(
     });
     observer.disconnect();
     measuring = false;
+    if (resizeRevision !== resizeAtStart)
+      throw new Error('Viewport resized during measurement. Rerun at one viewport size.');
     const sorted = [...gaps].sort((a, b) => a - b);
     const sortedRenderCalls = [...renderCalls].sort((a, b) => a - b);
     const result = {
@@ -247,6 +258,7 @@ export function mountTreeBenchmark(
       showSamples(samples);
     } catch (error) {
       summary.textContent = error instanceof Error ? error.message : String(error);
+      parent.querySelector('#result')!.textContent = summary.textContent;
     } finally {
       for (const button of buttons) button.disabled = !ready || errors.length > 0;
     }

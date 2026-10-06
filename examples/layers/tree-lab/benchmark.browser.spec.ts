@@ -89,3 +89,43 @@ it('submits all 20,000 requested tree instances to the renderer', async () => {
     history.replaceState(null, '', originalUrl);
   }
 }, 45000);
+
+it('refits overview after resize and rejects measurements across viewport sizes', async () => {
+  const originalUrl = location.href;
+  const queryUrl = new URL(originalUrl);
+  queryUrl.search = '?count=100&species=mixed&detail=low&wind=0&shadows=0&view=overview';
+  history.replaceState(null, '', queryUrl);
+  const parent = document.createElement('div');
+  parent.id = 'app';
+  parent.style.width = '900px';
+  document.body.append(parent);
+  mountTreeBenchmark(TreeLayer, 'native');
+  const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
+  try {
+    await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
+    const initialZoom = api.deck.getViewports()[0].zoom;
+    parent.style.width = '360px';
+    await expect.poll(() => api.deck.width).toBe(316);
+    const viewport = api.deck.getViewports()[0];
+    expect(viewport.zoom).toBeLessThan(initialZoom);
+    const halfSide = (Math.ceil(Math.sqrt(100)) * 9 + 20) / 111320;
+    for (const longitude of [-halfSide, halfSide]) {
+      for (const latitude of [-halfSide, halfSide]) {
+        const [x, y] = viewport.project([longitude, latitude, 30]);
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(viewport.width);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThanOrEqual(viewport.height);
+      }
+    }
+    const rejected = expect(api.measure(500)).rejects.toThrow('Viewport resized');
+    parent.style.width = '480px';
+    await rejected;
+    await expect(api.measure(250)).resolves.toMatchObject({treeInstances: 100, view: 'overview'});
+    expect(api.errors).toEqual([]);
+  } finally {
+    api.deck.finalize();
+    parent.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+}, 30000);
