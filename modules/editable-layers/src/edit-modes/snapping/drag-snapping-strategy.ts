@@ -7,6 +7,7 @@ import {SimpleFeatureCollection} from '../../utils/geojson-types';
 import {getPickedEditHandle} from '../utils';
 import {
   getDraggedEditHandleFeatureIndex,
+  getPointerDownPicksForEvent,
   snapClickEventToPickedTarget,
   snapMovementEventToPickedTarget,
   getClosestSnapTargetHandle
@@ -33,13 +34,12 @@ export class DragSnappingStrategy implements SnappingStrategy {
     props: ModeProps<SimpleFeatureCollection>,
     event: T
   ): T {
-    if (!getPickedEditHandle(props.lastPointerMoveEvent?.pointerDownPicks)) return event;
+    if (!getPickedEditHandle(getPointerDownPicksForEvent(props, event))) return event;
+    const draggedIndex = getDraggedEditHandleFeatureIndex(props, event);
     return snapMovementEventToPickedTarget(
       event,
       props,
-      getDraggedEditHandleFeatureIndex(props) !== undefined
-        ? [getDraggedEditHandleFeatureIndex(props)]
-        : []
+      draggedIndex !== undefined ? [draggedIndex] : []
     );
   }
 

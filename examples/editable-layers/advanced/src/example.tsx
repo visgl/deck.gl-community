@@ -1058,18 +1058,22 @@ export function Example() {
       viewport: currentViewport,
       lockRectangles: true
     };
-  } else if (currentModeConfig?.enableSnapping) {
+  } else if (getModeConstructor(mode) === DrawPolygonByDraggingMode) {
+    currentModeConfig = {
+      ...currentModeConfig,
+      throttleMs: 100
+    };
+  }
+
+  if (getModeConstructor(mode) === TranslateMode) {
+    currentModeConfig = {...currentModeConfig, viewport: currentViewport, screenSpace: true};
+  }
+
+  if (currentModeConfig?.enableSnapping) {
     currentModeConfig = {
       ...currentModeConfig,
       viewport: currentViewport
     };
-    if (mode instanceof SnappableMode && mode._wrappedMode instanceof TranslateMode) {
-      currentModeConfig = {
-        ...currentModeConfig,
-        screenSpace: true
-      };
-    }
-
     if (currentModeConfig && currentModeConfig.enableSnapping) {
       // Snapping can be accomplished to features that aren't rendered in the same layer
       currentModeConfig = {
@@ -1094,11 +1098,6 @@ export function Example() {
         ]
       };
     }
-  } else if (getModeConstructor(mode) === DrawPolygonByDraggingMode) {
-    currentModeConfig = {
-      ...currentModeConfig,
-      throttleMs: 100
-    };
   }
 
   // Demonstrate how to override sub layer properties

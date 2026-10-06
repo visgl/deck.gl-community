@@ -103,6 +103,7 @@ export {DefaultSnapper, DEFAULT_SNAPPER} from './edit-modes/snapping/default-sna
 export type {Snapper, SnapResult} from './edit-modes/snapping/snapper';
 
 export type {
+  EditModeProjection,
   ScreenCoordinates,
   BasePointerEvent,
   MovementEvent,

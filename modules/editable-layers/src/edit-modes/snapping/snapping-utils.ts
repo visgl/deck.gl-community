@@ -42,10 +42,21 @@ type EdgeSnapCandidate = NearestPointType & {
  * undefined when no handle is being dragged.
  */
 export function getDraggedEditHandleFeatureIndex(
-  props: ModeProps<SimpleFeatureCollection>
+  props: ModeProps<SimpleFeatureCollection>,
+  event?: MovementEvent
 ): number | undefined {
-  const handle = getPickedEditHandle(props.lastPointerMoveEvent?.pointerDownPicks);
+  const handle = getPickedEditHandle(getPointerDownPicksForEvent(props, event));
   return handle?.properties.featureIndex;
+}
+
+/** Uses current lifecycle picks when present; explicit null clears stale cached picks. */
+export function getPointerDownPicksForEvent(
+  props: ModeProps<SimpleFeatureCollection>,
+  event?: MovementEvent
+): Pick[] | null | undefined {
+  return event?.pointerDownPicks !== undefined
+    ? event.pointerDownPicks
+    : props.lastPointerMoveEvent?.pointerDownPicks;
 }
 
 /**
@@ -128,6 +139,8 @@ export function findEdgeSnapCandidateForFeature(
   props: ModeProps<SimpleFeatureCollection>,
   wmViewport: WebMercatorViewport
 ): EdgeSnapCandidate | undefined {
+  const project = props.projection?.project ?? (position => wmViewport.project(position));
+  const unproject = props.projection?.unproject ?? (position => wmViewport.unproject(position));
   const edgeSnap = findNearestPointOnGeometry(
     feature as SimpleFeature,
     props.lastPointerMoveEvent.mapCoords,
@@ -135,7 +148,7 @@ export function findEdgeSnapCandidateForFeature(
     props.coordinateSystem,
     line => {
       const projected = lineString(
-        line.geometry.coordinates.map(([x, y, z = 0]) => wmViewport.project([x, y, z]))
+        line.geometry.coordinates.map(([x, y, z = 0]) => project([x, y, z]))
       );
       const nearest = nearestPointOnProjectedLine(
         projected,
@@ -143,18 +156,22 @@ export function findEdgeSnapCandidateForFeature(
         wmViewport,
         cartesianCoordinateSystem
       );
-      const coordinates = wmViewport.unproject(nearest.geometry.coordinates);
+      const coordinates = unproject(nearest.geometry.coordinates);
+      if (!coordinates || !coordinates.every(Number.isFinite)) {
+        nearest.properties.dist = Infinity;
+        return nearest;
+      }
       nearest.geometry.coordinates = line.geometry.coordinates.some(coords => coords.length > 2)
         ? coordinates
         : coordinates.slice(0, 2);
       return nearest;
     }
   );
-  if (!edgeSnap.nearestPoint) {
+  if (!edgeSnap.nearestPoint || !Number.isFinite(edgeSnap.nearestPoint.properties.dist)) {
     return undefined;
   }
   const [cx, cy] = props.lastPointerMoveEvent.screenCoords;
-  const [px, py] = wmViewport.project(edgeSnap.nearestPoint.geometry.coordinates);
+  const [px, py] = project(edgeSnap.nearestPoint.geometry.coordinates);
   const dist = distance2d(cx, cy, px, py);
   return dist <= props.pickingRadius
     ? {...edgeSnap.nearestPoint, index: featureIndex, screenDistance: dist}

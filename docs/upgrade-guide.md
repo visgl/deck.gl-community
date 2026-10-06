@@ -48,13 +48,20 @@ Custom modes can implement `SnappableEditMode.getSnappingStrategy()` to choose
 Enable edge targets with `modeConfig.edgeSnapping` and supply the current viewport.
 `pickingRadius` controls the pixel threshold. Events resolve the target from the current screen
 position, including the first touch click and the first corner of drag-to-draw shapes; an existing
-rendered target guide is not required. Source drags keep the real pointer-down origin until a target
+rendered target guide is not required. Committed shapes and their preview share the resolved
+pointer position. Current drag-event handle picks take priority over the last hover cache. Source drags keep the real pointer-down origin until a target
 qualifies. `TransformMode` supports snapping directly and remains safe to wrap without duplicate
 snap guides. The legacy `SnappableMode._handler` inspection/replacement property remains available.
 Use `modeConfig.snapper` to provide a custom policy for target lookup, including external
 spatial indexes. Implement `Snapper.snap` with `ModeProps<SimpleFeatureCollection>` and
 omit `SnapResult.featureIndex` for external targets. Returning `null` suppresses targets
 for that lookup, including source-handle translation.
+
+The layer supplies an optional paired `ModeProps.projection` (`EditModeProjection`) for snap
+targets in planar views. It accounts for `coordinateOrigin`, offset coordinate systems,
+and `modelMatrix`; elevated edges retain projected depth before converting back to local data.
+Standalone modes without this pair retain viewport-based projection. This does not extend
+the existing unsnapped pointer-to-data conversion for offset editing; globe offsets are unverified.
 
 #### SelectionLayer polygon selection
 

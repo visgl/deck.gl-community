@@ -34,7 +34,7 @@ export class DefaultSnapper implements Snapper {
       )
         continue;
       const consider = (coordinates: Position) => {
-        const projected = wmViewport.project(coordinates);
+        const projected = props.projection?.project(coordinates) ?? wmViewport.project(coordinates);
         const dx = projected[0] - event.screenCoords[0];
         const dy = projected[1] - event.screenCoords[1];
         const distanceSquared = dx * dx + dy * dy;

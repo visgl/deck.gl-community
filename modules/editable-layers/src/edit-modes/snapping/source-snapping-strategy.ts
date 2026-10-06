@@ -12,6 +12,7 @@ import {
 import {SimpleFeatureCollection, SimpleFeature} from '../../utils/geojson-types';
 import {
   getPickedSnapSourceEditHandle,
+  getPointerDownPicksForEvent,
   snapMovementEventToPickedTarget,
   getSelectedFeatureSnapSourceGuides,
   getSnapTargetHandles
@@ -32,7 +33,7 @@ export class SourceSnappingStrategy implements SnappingStrategy {
     props: ModeProps<SimpleFeatureCollection>,
     event: T
   ): T {
-    const snapSource = getPickedSnapSourceEditHandle(props.lastPointerMoveEvent?.pointerDownPicks);
+    const snapSource = getPickedSnapSourceEditHandle(getPointerDownPicksForEvent(props, event));
 
     if (!snapSource) {
       return event;

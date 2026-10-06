@@ -18,6 +18,7 @@ import {
   ModeProps
 } from '../edit-modes/types';
 import {fromDeckCoordinateSystem} from '../edit-modes/coordinate-system';
+import {createLayerProjection} from '../utils/layer-projection';
 
 import {ViewMode} from '../edit-modes/view-mode';
 import {TranslateMode} from '../edit-modes/translate-mode';
@@ -457,6 +458,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
       selectedIndexes: props.selectedFeatureIndexes,
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
       pickingRadius: props.pickingRadius,
+      projection: createLayerProjection(this),
       cursor: this.state.cursor,
       // Derive edit-mode math from deck.gl's coordinateSystem layer prop.
       // This ensures that when the layer is configured for Cartesian or other
@@ -645,6 +647,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
     if (!isDraggingWithPrimaryButton) {
       return;
     }
+    this.setState({lastPointerMoveEvent: {...event, isDragging: true}});
     this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
@@ -656,6 +659,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
     if (!this.state.isDraggingWithPrimaryButton || !isPrimaryButtonEvent(event)) {
       return;
     }
+    this.setState({lastPointerMoveEvent: {...event, isDragging: true}});
     this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 

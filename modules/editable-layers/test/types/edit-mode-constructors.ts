@@ -5,6 +5,7 @@
 // Compile against the built package exports, without the repository's source aliases.
 import * as EditableLayers from '@deck.gl-community/editable-layers';
 import type {
+  EditModeProjection,
   ClickEvent,
   EditAction,
   GeoJsonEditModeConstructor,
@@ -162,3 +163,11 @@ new EditableLayers.ClickSnappingStrategy().snapMovementEvent(props, movement);
 const legacyWrapper = new EditableLayers.SnappableMode(new CustomMode());
 const legacyHandler: EditableLayers.GeoJsonEditMode = legacyWrapper._handler;
 legacyWrapper._handler = legacyHandler;
+
+// Strict consumers may provide an atomic render transform pair to standalone modes.
+const projection: EditModeProjection = {
+  project: position => position,
+  unproject: position => (position.every(Number.isFinite) ? position : undefined)
+};
+const projectedProps: ModeProps<SimpleFeatureCollection> = {...props, projection};
+void projectedProps;
