@@ -17,12 +17,12 @@ DOT files describe:
 
 ## How graph-layers interprets DOT
 
-The DOT loader shipped with graph-layers preserves the majority of authoring intent:
+The DOT loader in `@loaders.gl/graphs` preserves the majority of authoring intent:
 
 - Graph-level attributes populate loader metadata so applications can inspect labels, layout hints, or custom properties.
-- Nodes and edges retain all declared attributes in their respective `data` bags, including numeric weights, labels, and styles.
+- Nodes and edges retain all declared attributes in their respective `attributes` objects, including numeric weights, labels, and styles.
 - Scoped `node [...]` and `edge [...]` defaults cascade through nested subgraphs, matching Graphviz semantics.
-- Subgraph membership becomes an explicit `subgraphs` array on every node and edge, recording the subgraph identifier, its attributes, and the parent relationship.
+- Subgraph membership becomes an explicit `subgraphs` array on nodes and edges within a subgraph, recording the subgraph identifier, its attributes, and the parent relationship.
 - Directionality derives from the edge operator and honors the `dir=none` override that Graphviz uses to suppress arrowheads inside directed graphs.
 
 ## Additional resources

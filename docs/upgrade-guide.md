@@ -112,3 +112,13 @@ Rename the React panel exports:
   `Graph`, or raw `{nodes, edges}`/edge arrays) and supply a `layout` when the layer must build the engine for you.
 - Breaking change: `JSONLoader` only normalizes raw JSON payloads. Pass `Graph` instances directly to `GraphLayer.data` rather than
   routing them through the loader.
+
+
+## Graph loader imports
+
+`DOTGraphLoader` from `@deck.gl-community/graph-layers` has been removed. Import
+`DOTLoaderWithParser` from `@loaders.gl/graphs/dot-loader` for synchronous parsing or
+parser-bearing loader use. It returns plain node and edge records; create a
+`ClassicGraph` with `new ClassicGraph({data})` to use them in graph-layers.
+DOT syntax validation and strict-graph behavior follow loaders.gl. The loader returns
+plain graph data instead of Arrow data, and the old `dot.version` option is removed.

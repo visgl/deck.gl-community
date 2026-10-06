@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
+  `DOTGraphLoader` and its parsing helpers have been removed.
+  Graph loader dependencies require loaders.gl 4.5.3 or later.
+
 - [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
   The [interactive flame demo](/examples/layers/flame-trail) compares backends over shaded hills
   with two continuously moving flames and controls for length, width, and color.

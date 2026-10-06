@@ -108,12 +108,6 @@ export {
 // graph format loaders
 export {JSONGraphLoader, type JSONGraphLoaderOptions} from './loaders/json-graph-loader';
 
-export {
-  DOTGraphLoader,
-  type DOTGraphLoaderOptions,
-  type DOTGraphLoaderMetadata
-} from './loaders/dot-graph-loader';
-
 // Deprecated exports
 export {
   MARKER_TYPE,
