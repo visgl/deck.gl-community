@@ -15,3 +15,5 @@ The default Auto tour moves the sunlight through a full rotation and cycles spri
 Open `film.html` for a 1920×1080 side-by-side tour. Each species gets 12 seconds and visits every season while the sun and camera move. Record a four-second proof before the full 60-second capture. A fixed 30 fps clock drives both renderers; each requested frame waits for both GPU draws before capture. WebCodecs encodes every requested frame with integer presentation timestamps; the download is VP9/IVF. Convert it with `ffmpeg -i tree-lab-60s.ivf -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart tree-lab-60s.mp4` and verify before sharing. Slow rendering increases export time without dropping seasonal stages.
 
 See [review evidence](REVIEW.md) for the film, seasonal contact sheet, measured geometry budgets and qualified performance samples.
+
+Forest pitch is adjustable through 80°. The shared lab lighting fits a finite ground/crown slab, rejects shadow-map samples outside its volume and fades the far boundary; it covers the demo’s trees below 32m without changing the camera pitch.

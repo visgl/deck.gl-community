@@ -40,6 +40,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   root.innerHTML = `<header><div class="eyebrow">Native vis.gl / Forest scale</div><h1></h1><p>Five species. One shared forest. Explore the crowns, wind and seasonal shadows.</p></header>
     <div class="toolbar"><div class="seasons" role="group" aria-label="Tree count"><button data-count="10000">10K trees</button><button data-count="20000">20K trees</button></div>
     <label class="control">Detail <select aria-label="Detail"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+    <label class="control">Pitch <input type="range" aria-label="Pitch" min="0" max="80" step="1"><output id="forest-pitch"></output></label>
     <label class="control">Season <select aria-label="Season">${SEASONS.map(season => `<option value="${season}">${season}</option>`).join('')}</select></label>
     <label class="toggle"><input type="checkbox" aria-label="Wind">Wind</label><label class="toggle"><input type="checkbox" aria-label="Shadows">Shadows</label>
     <label class="toggle"><input type="checkbox" aria-label="Moving sunlight">Sun &amp; seasons</label><label class="toggle"><input type="checkbox" aria-label="Flyover">Flyover</label>
@@ -51,6 +52,8 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   const status = root.querySelector('.status')!;
   const badge = root.querySelector('.forest-caption strong')!;
   const detailControl = root.querySelector<HTMLSelectElement>('[aria-label="Detail"]')!;
+  const pitchControl = root.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
+  const pitchLabel = root.querySelector<HTMLOutputElement>('#forest-pitch')!;
   const seasonControl = root.querySelector<HTMLSelectElement>('[aria-label="Season"]')!;
   const windControl = root.querySelector<HTMLInputElement>('[aria-label="Wind"]')!;
   const shadowControl = root.querySelector<HTMLInputElement>('[aria-label="Shadows"]')!;
@@ -78,6 +81,8 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     heading.textContent = `${count.toLocaleString()} trees`;
     badge.textContent = `${data.length.toLocaleString()} trees · five species`;
     detailControl.value = options.detail;
+    pitchControl.value = String(camera.pitch ?? 0);
+    pitchLabel.value = `${Math.round(camera.pitch ?? 0)}°`;
     seasonControl.value = options.season;
     windControl.checked = options.wind;
     shadowControl.checked = options.shadows;
@@ -156,6 +161,12 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   detailControl.addEventListener('change', () => {
     options.detail = detailControl.value as SceneOptions['detail'];
     refresh();
+  });
+  pitchControl.addEventListener('input', () => {
+    flyover = false;
+    camera = {...camera, pitch: Number(pitchControl.value)};
+    deck.setProps({viewState: camera});
+    refreshLabels();
   });
   seasonControl.addEventListener('change', () => {
     sunlight = false;
