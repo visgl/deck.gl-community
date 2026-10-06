@@ -26,6 +26,12 @@ type ReviewApi = {
 };
 type Frame = {width: number; height: number; pixels: Uint8Array};
 
+function collectModels(layer: Layer): ReturnType<Layer['getModels']> {
+  return layer instanceof CompositeLayer
+    ? layer.getSubLayers().flatMap(collectModels)
+    : layer.getModels();
+}
+
 function countTreePixels(frame: Frame): number {
   const {pixels} = frame;
   let count = 0;
@@ -55,7 +61,7 @@ function countChangedPixels(before: Frame, after: Frame): number {
 }
 
 describe('Tree Lab rendering controls', () => {
-  it('keeps all ten trees visible across shadow toggles, four seasons and frozen wind poses', async () => {
+  it('keeps all fourteen trees visible across shadow toggles, four seasons and frozen wind poses', async () => {
     const originalUrl = location.href;
     const reviewUrl = new URL(originalUrl);
     reviewUrl.searchParams.set('auto', '0');
@@ -70,10 +76,10 @@ describe('Tree Lab rendering controls', () => {
     const frames = new Map<ReviewSpecimen, Frame>();
     try {
       expect(api.getOptions().season).toBe('summer');
-      await expect.poll(() => api.ready, {timeout: 15000}).toBe(10);
+      await expect.poll(() => api.ready, {timeout: 15000}).toBe(14);
       expect(api.errors).toEqual([]);
       const specimens = api.getDecks();
-      expect(specimens).toHaveLength(10);
+      expect(specimens).toHaveLength(14);
       for (const specimen of specimens) {
         const originalAfterRender = specimen.deck.props.onAfterRender;
         specimen.deck.setProps({
@@ -117,6 +123,14 @@ describe('Tree Lab rendering controls', () => {
             countTreePixels(frame),
             `${specimen.renderer}/${specimen.species} tree pixels`
           ).toBeGreaterThan(50);
+          if (specimen.species === 'banyan' || specimen.species === 'mangrove') {
+            let foliage = 0;
+            for (let i = 0; i < frame.pixels.length; i += 4) {
+              const [r, g, b] = frame.pixels.subarray(i, i + 3);
+              if (g > r * 1.2 && g > b * 1.2 && g < 220) foliage++;
+            }
+            expect(foliage, `${specimen.renderer}/${specimen.species} evergreen foliage pixels`).toBeGreaterThan(100);
+          }
           if (verifyPicking && specimen.renderer === 'native') {
             const canvas = specimen.deck.getCanvas()!;
             expect(canvas.clientWidth).toBeGreaterThan(32);
@@ -150,13 +164,9 @@ describe('Tree Lab rendering controls', () => {
       await assertVisible(initialShadows);
       for (const specimen of specimens.filter(item => item.renderer === 'native')) {
         const layers = specimen.deck.props.layers as Layer[];
-        const models = layers.flatMap(layer =>
-          (layer instanceof CompositeLayer ? layer.getSubLayers() : [layer]).flatMap(child =>
-            child.getModels()
-          )
-        );
+        const models = layers.flatMap(layer => collectModels(layer));
         expect(models.length).toBeGreaterThan(0);
-        for (const model of models) {
+        for (const model of models.filter(model => !model.id.includes('shadow-casters'))) {
           // Inspect the assembled shader, so a misspelled injection hook cannot
           // silently run material shading for every depth-only fragment.
           const main = model.pipeline.fs!.source.match(/void\s+main\s*\([^)]*\)\s*\{([\s\S]*)/)!;
@@ -212,9 +222,10 @@ describe('Tree Lab rendering controls', () => {
       const windLater = await capture(() => api.setOptions({windTime: 2}));
       for (const specimen of specimens) {
         const changed = countChangedPixels(windStart.get(specimen)!, windLater.get(specimen)!);
-        if (specimen.renderer === 'native')
-          expect(changed, `${specimen.species} frozen wind deformation`).toBeGreaterThan(10);
-        else expect(changed, `${specimen.species} static original`).toBe(0);
+        expect(
+          changed,
+          `${specimen.renderer}/${specimen.species} frozen wind deformation`
+        ).toBeGreaterThan(10);
       }
       await assertVisible(windLater, false, true);
       expect(specimens.every(specimen => specimen.rendered > 8)).toBe(true);

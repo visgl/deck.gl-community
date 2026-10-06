@@ -3,6 +3,8 @@
 // Copyright (c) vis.gl contributors
 import {SEASONS, SPECIES} from './scene';
 
+export const FILM_DURATION = SPECIES.length * 12;
+
 /** One shared clock drives seasonal stages, sunlight and wind for repeatable reviews. */
 export function getTourFrame(seconds: number, film = false) {
   const duration = film ? 12 : 32;

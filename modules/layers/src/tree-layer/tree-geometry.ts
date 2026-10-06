@@ -271,7 +271,7 @@ export function createPineCanopyMesh(levels = 3, segments = 12): TreeMesh {
 }
 
 const PINE_TIER_CACHE = new Map<number, ReturnType<typeof generatePineTiers>>();
-function createPineTiers(levels: number) {
+export function createPineTiers(levels: number) {
   levels = Math.max(1, Math.min(5, Math.round(levels) || 3));
   let tiers = PINE_TIER_CACHE.get(levels);
   if (!tiers) {

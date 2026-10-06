@@ -1,17 +1,17 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {AmbientLight, DirectionalLight, MapView, type MapViewState} from '@deck.gl/core';
+import {AmbientLight, DirectionalLight, MapView, type MapViewState, type CompositeLayer} from '@deck.gl/core';
 import {TreeLightingEffect} from './tree-lighting';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
 import type {TreeType, Season, CropConfig} from '@deck.gl-community/layers';
 
-export type TreeLayerConstructor =
-  | typeof import('@deck.gl-community/layers').TreeLayer
-  | typeof import('./baseline/tree-layer').TreeLayer;
+// The historical Three.js fixture has a narrower species union. The lab supplies
+// explicit props to each renderer; public TreeLayer itself retains its typed API.
+export type TreeLayerConstructor = new (...props: any[]) => CompositeLayer<any>;
 
-export const SPECIES: TreeType[] = ['pine', 'oak', 'palm', 'birch', 'cherry'];
+export const SPECIES: TreeType[] = ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'];
 export const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
 export type Specimen = {position: [number, number]; species: TreeType; index: number};
 export type SceneOptions = {
@@ -62,7 +62,8 @@ export function createSpecimens(species: TreeType, count = 1): Specimen[] {
   }));
 }
 export function getCrop(species: TreeType, options: SceneOptions): CropConfig | null {
-  if (!options.crops && !options.dropped) return null;
+  if ((!options.crops && !options.dropped) || species === 'mangrove') return null;
+  // Mangrove propagules are not spherical fruit. Banyan figs are deliberately small.
   const color: [number, number, number, number] =
     species === 'cherry' && options.season === 'spring'
       ? [255, 208, 226, 255]
@@ -73,7 +74,7 @@ export function getCrop(species: TreeType, options: SceneOptions): CropConfig | 
     color,
     count: options.crops ? 32 : 0,
     droppedCount: options.dropped ? 12 : 0,
-    radius: 0.16
+    radius: species === 'banyan' ? 0.06 : 0.16
   };
 }
 export function createSceneLayers(
@@ -81,7 +82,7 @@ export function createSceneLayers(
   id: string,
   data: Specimen[],
   options: SceneOptions
-) {
+): [SimpleMeshLayer, CompositeLayer<any>] {
   return [
     new SimpleMeshLayer({
       id: `${id}-ground`,
@@ -98,10 +99,10 @@ export function createSceneLayers(
       getTreeType: (d: Specimen) => d.species,
       getHeight: () => 12,
       getTrunkHeightFraction: (d: Specimen) =>
-        d.species === 'palm' ? 0.72 : d.species === 'pine' ? 0.18 : 0.36,
+        d.species === 'palm' ? 0.72 : d.species === 'pine' ? 0.18 : d.species === 'mangrove' ? 0.27 : 0.36,
       getTrunkRadius: (d: Specimen) => (d.species === 'palm' ? 0.25 : 0.38),
       getCanopyRadius: (d: Specimen) =>
-        d.species === 'palm' ? 4.5 : d.species === 'birch' ? 5.5 : 7,
+        d.species === 'palm' ? 4.5 : d.species === 'birch' ? 5.5 : d.species === 'banyan' ? 10 : d.species === 'mangrove' ? 8 : 7,
       getBranchLevels: () => 4,
       getSeason: () => options.season,
       getCrop: (d: Specimen) => getCrop(d.species, options),

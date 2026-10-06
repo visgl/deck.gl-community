@@ -51,6 +51,7 @@ export class TreeShadowPass extends _LayersPass {
   }
 
   shouldDrawLayer(layer: Layer) {
+    if (layer.id.includes('-wood-') && !layer.props.operation.includes('shadow')) return false;
     return (layer.props as Layer['props'] & {shadowEnabled?: boolean}).shadowEnabled !== false;
   }
 

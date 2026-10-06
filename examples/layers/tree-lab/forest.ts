@@ -10,7 +10,7 @@ import {getTourFrame} from './tour';
 import {createForestSceneLayers, getForestViewState} from './forest-scene';
 import './style.css';
 
-/** One native renderer with a procedural mixed forest, highest-quality meshes and shared sunlight. */
+/** One native renderer with a procedural mixed forest, Gaussian foliage and connected wood and shared sunlight. */
 export function mountTreeForestExample(container: HTMLElement, standalone = false): () => void {
   const query = new URLSearchParams(location.search);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;

@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {Deck, type MapViewState, type MapView} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/layers';
+import {MeshTreeLayer} from './mesh-tree-layer';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {
@@ -25,7 +26,9 @@ const DESCRIPTIONS = {
   oak: 'Lobed crown · exposed winter branches',
   palm: 'Feathered fronds · ribbed shaft · hanging crop clusters',
   birch: 'Narrow crown · pale trunk · branching winter silhouette',
-  cherry: 'Blossom color · lobed crown · winter branches'
+  cherry: 'Blossom color · space-grown crown · winter branches',
+  banyan: 'Spreading evergreen crown · connected aerial root pillars',
+  mangrove: 'Large elliptical leaves · connected stilt roots'
 };
 
 /** Interactive visual review of every species with shared controls and synchronized cameras. */
@@ -58,7 +61,7 @@ export function mountTreeLabExample(
     root.style.overflow = 'auto';
   }
   root.innerHTML = `
-    <header><div class="eyebrow">vis.gl / Tree Lab</div><h1>A forest, one tree at a time.</h1><p>Original Three.js geometry and native vis.gl geometry. Same tree dimensions, camera, light, and supplied crops.</p></header>
+    <header><div class="eyebrow">vis.gl / Tree Lab</div><h1>A forest, one tree at a time.</h1><p>Seven species. Organic branching, native wood and Gaussian foliage. Same tree dimensions, camera, light, and supplied crops.</p></header>
     <div class="toolbar"><div class="seasons" role="group" aria-label="Season">${SEASONS.map(season => `<button data-season="${season}" aria-pressed="false">${season[0].toUpperCase() + season.slice(1)}</button>`).join('')}</div>
     ${[
       ['crops', 'Attached crops'],
@@ -75,8 +78,8 @@ export function mountTreeLabExample(
     <button id="wind-clock" disabled>Pause wind</button><label class="control">Wind time <input id="wind-time" type="range" min="0" max="10" step="0.1" value="0" disabled></label>
     <label class="control">Resolution <select data-option="pixelRatio"><option value="1">1× / fast</option><option value="2">2× / sharp</option></select></label>
     <label class="control">View <select id="camera"><option value="58">Three-quarter</option><option value="0">Aerial</option><option value="75">Low angle</option></select></label></div>
-    <div class="status" aria-live="polite"></div><main class="board">${SPECIES.map(species => `<section class="row" data-species="${species}"><div class="row-title"><h2>${species[0].toUpperCase() + species.slice(1)}</h2><span class="caption">${DESCRIPTIONS[species]}</span></div><div class="pair">${['baseline', 'native'].map(renderer => `<div class="specimen ${renderer}"><div class="canvas" data-renderer="${renderer}" data-species="${species}"><div class="loading">Preparing specimen…</div></div><span class="label">${renderer === 'baseline' ? 'Original / Three.js' : 'Native / vis.gl'}</span><span class="badge">${renderer === 'baseline' ? 'Baseline 9.4.2' : 'Shared geometry · GPU wind'}</span></div>`).join('')}</div></section>`).join('')}</main>
-    <footer class="footer">Drag either specimen to inspect both cameras. Crops are illustrative and explicitly supplied; seasons do not invent yield.<br>Original has no wind feature. Native wind deforms the trunk, crown, and attached crops together. Shadows use deck.gl’s WebGL shadow maps.<br>${hostOptions.benchmarkLinks !== false ? 'Performance runs use one renderer at a time: <a href="./baseline.html">Original benchmark</a> · <a href="./native.html">Native benchmark</a>.' : 'Run the standalone Tree Lab workspace for isolated performance measurements.'}</footer>`;
+    <div class="status" aria-live="polite"></div><main class="board">${SPECIES.map(species => `<section class="row" data-species="${species}"><div class="row-title"><h2>${species[0].toUpperCase() + species.slice(1)}</h2><span class="caption">${DESCRIPTIONS[species]}</span></div><div class="pair">${['baseline', 'native'].map(renderer => `<div class="specimen ${renderer}"><div class="canvas" data-renderer="${renderer}" data-species="${species}"><div class="loading">Preparing specimen…</div></div><span class="label">${renderer === 'baseline' ? 'Mesh / vis.gl' : 'Gaussian / vis.gl'}</span><span class="badge">${renderer === 'baseline' ? (species === 'banyan' || species === 'mangrove' ? 'Leaf-card mesh · shared growth' : 'Frozen mesh reference') : 'Anisotropic leaves · GPU wind'}</span></div>`).join('')}</div></section>`).join('')}</main>
+    <footer class="footer">Drag either specimen to inspect both cameras. Crops are illustrative and explicitly supplied; seasons do not invent yield.<br>The frozen mesh reference and Gaussian renderer share wind, crop inputs and dimensions. Gaussian foliage bends its centres and covariance together. Shadows use deck.gl’s WebGL shadow maps.<br>${hostOptions.benchmarkLinks !== false ? 'Performance runs use one renderer at a time: <a href="./baseline.html">Original Three.js benchmark</a> · <a href="./native.html">Native benchmark</a>.' : 'Run the standalone Tree Lab workspace for isolated performance measurements.'}</footer>`;
   container.replaceChildren(root);
   const decks: {
     deck: Deck<MapView>;
@@ -95,7 +98,7 @@ export function mountTreeLabExample(
   const errors: string[] = [];
   const refreshStatus = () => {
     root.querySelector('.status')!.textContent =
-      `${options.backend.toUpperCase()} · ${options.season} · ${options.shadows ? 'shadows on' : 'shadows off'} · ${options.wind ? 'native wind on / original static' : 'wind off'} · ${ready}/10 specimens ready${errors.length ? ` · ${errors.length} rendering errors` : ''}`;
+      `${options.backend.toUpperCase()} · ${options.season} · ${options.shadows ? 'shadows on' : 'shadows off'} · ${options.wind ? 'matched GPU wind on' : 'wind off'} · ${ready}/${SPECIES.length * 2} specimens ready${errors.length ? ` · ${errors.length} rendering errors` : ''}`;
   };
   const syncCamera = (view: MapViewState) => {
     camera = view;
@@ -200,7 +203,7 @@ export function mountTreeLabExample(
     refresh();
   });
   const mount = async () => {
-    const {TreeLayer: LegacyTreeLayer} = await import('./baseline/tree-layer');
+    const LegacyTreeLayer = MeshTreeLayer;
     if (disposed) return;
     for (const element of root.querySelectorAll<HTMLDivElement>('.canvas')) {
       const species = element.dataset.species as (typeof SPECIES)[number];

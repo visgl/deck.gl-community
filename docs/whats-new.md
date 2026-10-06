@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- TreeLayer adds evergreen banyan and red mangrove with connected aerial/stilt roots and distinct broad leaves. Broadleaf crowns use bounded space colonization and pipe-model taper; a shared two-mode wind field deforms wood, crops and Gaussian covariance.
+
+- `TreeLayer` composes anisotropic Gaussian foliage with connected trunk-and-branch meshes. The new [SplatLayer](/docs/modules/layers/api-reference/splat-layer) supports prepared shared templates, covariance wind, owner picking and automatic spatial refinement. Wood, leaf clusters and contained attached fruit share one branching structure. Tree Lab compares native meshes and splats with matched seasons and light-space foliage transmission.
+
 - [Tree Forest](/examples/layers/tree-forest) explores 10,000 or 20,000 native trees with wind, seasonal sunlight, shadows and a canopy flyover. A live stats display reports draw pacing; matched benchmark entries share its camera and report actual instance counts and warmed samples.
 
 - The `@deck.gl-community/three` compatibility package is removed from the repository. Import `TreeLayer` and its types from `@deck.gl-community/layers`. [Seasonal Farm](/examples/layers/seasonal-farm) now lives with the native layers examples. Old documentation and example links redirect to the new paths. Tree Lab retains its frozen Three.js comparison fixture.

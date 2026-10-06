@@ -26,6 +26,7 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
 
   let device: Device | undefined;
   let deck: Deck | undefined;
+  let frames = 0;
   let nativeDevice: NativeGpuDevice | undefined;
   const validationErrors: string[] = [];
   const captureValidationError = (event: NativeGpuError): void => {
@@ -53,12 +54,13 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
         parent,
         width: 128,
         height: 128,
+        _animate: true,
         views: new MapView({id: 'tree-webgpu-test'}),
         initialViewState: {longitude: 0, latitude: 0, zoom: 18, pitch: 45},
         layers: [
           new TreeLayer({
             id: `tree-${type}`,
-            data: (['pine', 'oak', 'palm', 'birch', 'cherry'] as const).flatMap((species, i) =>
+            data: (['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'] as const).flatMap((species, i) =>
               (['summer', 'winter'] as const).map(season => ({
                 position: [i * 0.00002, 0] as [number, number],
                 species,
@@ -76,6 +78,7 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
           })
         ],
         onAfterRender: () => {
+          if (++frames < 8) return;
           window.clearTimeout(timeout);
           resolve();
         },
@@ -98,11 +101,11 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
 }
 
 describe('TreeLayer graphics backend compatibility', () => {
-  it('renders procedural SimpleMeshLayer geometry on WebGL2', async () => {
+  it('renders connected mesh wood and Gaussian foliage on WebGL2', async () => {
     await renderTreeLayer('webgl');
   }, 20_000);
 
-  it('renders procedural SimpleMeshLayer geometry on WebGPU', async ({skip}) => {
+  it('renders connected mesh wood and Gaussian foliage on WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
       skip('This browser does not expose an available WebGPU adapter.');

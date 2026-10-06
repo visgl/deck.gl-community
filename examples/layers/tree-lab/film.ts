@@ -4,14 +4,14 @@
 import {Deck, MapView} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {TreeLayer} from '@deck.gl-community/layers';
-import {TreeLayer as OriginalTreeLayer} from './baseline/tree-layer';
+import {MeshTreeLayer as OriginalTreeLayer} from './mesh-tree-layer';
 import {DEFAULT_OPTIONS, VIEW, createSpecimens, createSceneLayers, createLighting} from './scene';
-import {getTourFrame} from './tour';
+import {getTourFrame, FILM_DURATION} from './tour';
 import './style.css';
 
 /** Record actual paired deck.gl canvases; one frame clock drives every visual input. */
 export async function mountTreeFilm(container: HTMLElement) {
-  container.innerHTML = `<main class="tree-lab film"><header><div class="eyebrow">vis.gl / Tree Lab</div><h1>Five trees. Four seasons. One moving sun.</h1><p>Matched cameras and sunlight. Original geometry on the left; native vis.gl and GPU wind on the right.</p></header><canvas id="film" width="1920" height="1080" aria-label="Animated original and native tree comparison"></canvas><div class="toolbar"><button id="play">Pause tour</button><button id="preview" disabled>Record 4-second preview</button><button id="record" disabled>Record 60-second film</button><a href="./index.html">All specimens</a><output id="progress" aria-live="polite">Preparing both renderers…</output><a id="download" hidden>Download video</a></div><div class="film-sources" aria-hidden="true"><canvas width="880" height="800"></canvas><canvas width="880" height="800"></canvas></div></main>`;
+  container.innerHTML = `<main class="tree-lab film"><header><div class="eyebrow">vis.gl / Tree Lab</div><h1>Seven trees. Four seasons. One moving sun.</h1><p>Matched cameras and sunlight. Highest-detail mesh canopy on the left; anisotropic Gaussian leaves on the right. Matched GPU wind.</p></header><canvas id="film" width="1920" height="1080" aria-label="Animated mesh and Gaussian tree comparison"></canvas><div class="toolbar"><button id="play">Pause tour</button><button id="preview" disabled>Record 4-second preview</button><button id="record" disabled>Record ${FILM_DURATION}-second film</button><a href="./index.html">All specimens</a><output id="progress" aria-live="polite">Preparing both renderers…</output><a id="download" hidden>Download video</a></div><div class="film-sources" aria-hidden="true"><canvas width="880" height="800"></canvas><canvas width="880" height="800"></canvas></div></main>`;
   const output = container.querySelector<HTMLCanvasElement>('#film')!;
   const ctx = output.getContext('2d')!;
   const progress = container.querySelector<HTMLOutputElement>('#progress')!;
@@ -29,6 +29,15 @@ export async function mountTreeFilm(container: HTMLElement) {
   const errors: string[] = [];
   const pending: (() => void)[] = [];
   const lights = [createLighting(true), createLighting(true)];
+  const specimenSources = new Map<string, ReturnType<typeof createSpecimens>>();
+  const getSpecimens = (species: Parameters<typeof createSpecimens>[0]) => {
+    let data = specimenSources.get(species);
+    if (!data) {
+      data = createSpecimens(species);
+      specimenSources.set(species, data);
+    }
+    return data;
+  };
   const decks = sourceCanvases.map(
     (canvas, i) =>
       new Deck({
@@ -46,7 +55,7 @@ export async function mountTreeFilm(container: HTMLElement) {
         layers: createSceneLayers(
           i ? TreeLayer : OriginalTreeLayer,
           `film-${i}`,
-          createSpecimens('pine'),
+          getSpecimens('pine'),
           {...DEFAULT_OPTIONS, shadows: true}
         ),
         effects: [lights[i]],
@@ -88,15 +97,17 @@ export async function mountTreeFilm(container: HTMLElement) {
       ctx.fillRect(x + 20, 204, i ? 306 : 316, 47);
       ctx.fillStyle = i ? '#ffffff' : '#435a43';
       ctx.font = '600 22px system-ui';
-      ctx.fillText(i ? 'NATIVE / VIS.GL' : 'ORIGINAL / THREE.JS', x + 36, 235);
+      ctx.fillText(i ? 'GAUSSIAN / VIS.GL' : 'MESH / VIS.GL', x + 36, 235);
       ctx.fillStyle = '#eaf0e4';
       ctx.fillRect(x + 20, 919, 836, 40);
       ctx.fillStyle = '#435a43';
       ctx.font = '18px system-ui';
       ctx.fillText(
         i
-          ? 'Shared geometry · GPU wind · crops follow the crown'
-          : 'Frozen 9.4.2 geometry · original wind is static',
+          ? 'Gaussian foliage · covariance bends in the wind'
+          : frame.species === 'banyan' || frame.species === 'mangrove'
+            ? 'Leaf-card mesh · shared growth, wood and wind'
+            : 'Frozen native mesh · matched GPU wind',
         x + 35,
         945
       );
@@ -110,11 +121,11 @@ export async function mountTreeFilm(container: HTMLElement) {
     );
     ctx.fillStyle = '#233c2c';
     ctx.font = '600 19px system-ui';
-    ctx.fillText(`${Math.floor(seconds).toString().padStart(2, '0')} / 60`, 1742, 1027);
+    ctx.fillText(`${Math.floor(seconds).toString().padStart(2, '0')} / ${FILM_DURATION}`, 1742, 1027);
     ctx.fillStyle = '#d1dccb';
     ctx.fillRect(60, 1050, 1800, 4);
     ctx.fillStyle = '#233c2c';
-    ctx.fillRect(60, 1050, (1800 * (seconds % 60)) / 60, 4);
+    ctx.fillRect(60, 1050, (1800 * (seconds % FILM_DURATION)) / FILM_DURATION, 4);
   };
   const render = async (seconds: number) => {
     if (errors.length) throw new Error(errors[0]);
@@ -137,7 +148,7 @@ export async function mountTreeFilm(container: HTMLElement) {
             layers: createSceneLayers(
               i ? TreeLayer : OriginalTreeLayer,
               `film-${i}`,
-              createSpecimens(frame.species),
+              getSpecimens(frame.species),
               {
                 ...DEFAULT_OPTIONS,
                 season: frame.season,
@@ -159,7 +170,7 @@ export async function mountTreeFilm(container: HTMLElement) {
   const tick = async (now: number) => {
     if (disposed) return;
     if (!recording && playing && ready === 2) {
-      elapsed = (elapsed + Math.min(0.1, (now - previous) / 1000)) % 60;
+      elapsed = (elapsed + Math.min(0.1, (now - previous) / 1000)) % FILM_DURATION;
       try {
         liveRender = render(elapsed);
         await liveRender;
@@ -278,7 +289,7 @@ export async function mountTreeFilm(container: HTMLElement) {
     void startRecord(4);
   });
   container.querySelector('#record')!.addEventListener('click', () => {
-    void startRecord(60);
+    void startRecord(FILM_DURATION);
   });
   container.querySelector('#play')!.addEventListener('click', () => {
     playing = !playing;
@@ -293,7 +304,8 @@ export async function mountTreeFilm(container: HTMLElement) {
   await render(0);
   for (const button of container.querySelectorAll<HTMLButtonElement>('button'))
     button.disabled = false;
-  progress.textContent = 'Ready · live sunlight and seasonal tour · original wind is static';
+  progress.textContent =
+    'Ready · live sunlight and seasonal tour · matched wind · connected trunk and branches';
   request = requestAnimationFrame(tick);
   return () => {
     disposed = true;

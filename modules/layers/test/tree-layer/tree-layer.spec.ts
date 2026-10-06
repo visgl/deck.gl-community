@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
-import {Matrix4} from '@math.gl/core';
 import {TreeLayer} from '../../src/tree-layer/tree-layer';
+import {SplatLayer} from '../../src/splat-layer/splat-layer';
+import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 import {
   getTreeMesh,
   createPalmCanopyMesh,
@@ -61,15 +62,21 @@ function getMeshRing(mesh: TreeMesh, height: number, leaderOnly = false) {
 }
 
 describe('native tree geometry', () => {
-  it('always renders highest-quality trunks and crowns, ignoring a legacy detail prop', () => {
-    for (const type of ['pine', 'oak', 'palm', 'birch', 'cherry'] as const) {
+  it('composes connected wood and the full Gaussian source, ignoring a legacy detail prop', () => {
+    for (const type of ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'] as const) {
       for (const season of ['summer', 'winter'] as const) {
         const {layer} = createLayer([{position: [0, 0], type, season}], {detail: 'low'});
         const children = layer.renderLayers();
-        const trunk = children.find(child => child.id.includes('trunks'))!;
-        const crown = children.find(child => child.id.includes('canopy'))!;
-        expect(trunk.props.mesh).toBe(getTreeMesh('trunk', type === 'palm' ? 'palm' : 'oak'));
-        expect(crown.props.mesh).toBe(getTreeMesh('canopy', type, 'high', season === 'winter'));
+        const wood = children.find(child => child.id.includes('wood'))!;
+        const crown = children.find(child => child.id.includes('canopy'));
+        expect(wood.props.mesh).toBe(getTreeWoodMesh(type));
+        if (season === 'winter' && (type === 'oak' || type === 'birch' || type === 'cherry'))
+          expect(crown).toBeUndefined();
+        else {
+          expect(crown).toBeInstanceOf(SplatLayer);
+          expect(crown!.props.source.opacities.length).toBeGreaterThan(1000);
+          expect(crown!.props.hierarchy[0].source).toBe(crown!.props.source);
+        }
       }
     }
   });
@@ -175,104 +182,37 @@ describe('winter trunk and leader join contracts', () => {
     }
   });
 
-  it('anchors the collar to the physical trunk radius and top across sizes, yaw and canopy anisotropy', () => {
-    type Specimen = Datum & {
-      height: number;
-      fraction: number;
-      trunkRadius: number;
-      canopyRadius: number;
-      elevation: number;
-    };
-    const dimensions = [
-      {
-        position: [0, 0],
-        height: 12,
-        fraction: 0.36,
-        trunkRadius: 0.38,
-        canopyRadius: 7,
-        elevation: 0
-      },
-      {
-        position: [-122.415, 37.775],
-        height: 20,
-        fraction: 0.2,
-        trunkRadius: 0.05,
-        canopyRadius: 12,
-        elevation: 130
-      },
-      {
-        position: [12.493, -8.251],
-        height: 5,
-        fraction: 0.7,
-        trunkRadius: 2,
-        canopyRadius: 0.2,
-        elevation: -12
-      }
-    ];
-    const sizeScale = 2.4;
+  it('anchors the connected root at the tree base across dimensions, yaw and canopy anisotropy', () => {
     for (const species of ['oak', 'birch', 'cherry'] as const) {
-      const data: Specimen[] = dimensions.map(d => ({
-        ...d,
-        position: d.position as [number, number],
-        type: species,
-        season: 'winter'
-      }));
-      const {layer} = createLayer(data, {
-        sizeScale,
-        getHeight: (d: Specimen) => d.height,
-        getTrunkHeightFraction: (d: Specimen) => d.fraction,
-        getTrunkRadius: (d: Specimen) => d.trunkRadius,
-        getCanopyRadius: (d: Specimen) => d.canopyRadius,
-        getElevation: (d: Specimen) => d.elevation
-      });
-      const children = layer.renderLayers();
-      const trunk = children.find(child => child.id === 'trees-trunks')!;
-      const crown = children.find(child => child.id.includes('canopy'))!;
-      const top = getMeshRing(trunk.props.mesh, 1);
-      const join = getMeshRing(crown.props.mesh, 0.22, true);
-      expect(crown.props.mesh).toBe(getTreeMesh('canopy', species, 'high', true));
-      expect(crown.props.data.some(row => Math.abs(row.scale[0] - row.scale[1]) > 0.001)).toBe(
-        true
-      );
-      for (const row of crown.props.data) {
-        const source = row.object as Specimen;
-        const trunkScale = trunk.props.getScale(row);
-        const crownScale = crown.props.getScale(row);
-        const translation = crown.props.getTranslation(row);
-        const orientation = crown.props.getOrientation(row);
-        const radius = crown.props.getStemRadius(row);
-        expect(orientation[0]).toBe(0);
-        expect(orientation[2]).toBe(0);
-        expect(trunk.props.getOrientation(row)).toEqual(orientation);
-        expect(radius).toBeCloseTo(source.trunkRadius * sizeScale * 0.7, 8);
-        expect(radius).toBeCloseTo(trunkScale[0] * 0.7, 8);
-        expect(trunkScale[2]).toBeCloseTo(source.height * source.fraction * sizeScale, 8);
-        expect(translation[2] + join[0][2] * crownScale[2]).toBeCloseTo(trunkScale[2], 6);
-        expect(trunk.props.getPosition(row)).toEqual(crown.props.getPosition(row));
-        expect(row.position[2]).toBe(source.elevation);
-        // The collar contract is a circular ring of physical radius, independent
-        // of canopy X/Y scale. Check its angular grid against the actual trunk.
-        const rotation = new Matrix4().rotateZ((orientation[1] * Math.PI) / 180);
-        const actualTop = top.map(point =>
-          rotation.transformAsVector([
-            point[0] * trunkScale[0],
-            point[1] * trunkScale[1],
-            trunkScale[2]
-          ])
-        );
-        for (const point of join) {
-          const localRadius = Math.hypot(point[0], point[1]);
-          const target = rotation.transformAsVector([
-            (point[0] / localRadius) * radius,
-            (point[1] / localRadius) * radius,
-            translation[2] + point[2] * crownScale[2]
-          ]);
-          expect(
-            actualTop.some(
-              candidate => Math.hypot(...candidate.map((value, i) => value - target[i])) < 0.000001
-            )
-          ).toBe(true);
-        }
+      for (const dimensions of [
+        {height: 12, fraction: 0.36, radius: 0.38, canopy: 7},
+        {height: 20, fraction: 0.2, radius: 0.05, canopy: 12},
+        {height: 5, fraction: 0.7, radius: 2, canopy: 0.2}
+      ]) {
+        const data: Datum[] = [{position: [-122.415, 37.775], type: species, season: 'winter'}];
+        const {layer} = createLayer(data, {
+          sizeScale: 2.4,
+          getHeight: () => dimensions.height,
+          getTrunkHeightFraction: () => dimensions.fraction,
+          getTrunkRadius: () => dimensions.radius,
+          getCanopyRadius: () => dimensions.canopy,
+          getElevation: () => 130
+        });
+        const wood = layer.renderLayers().find(child => child.id.includes('wood'))!;
+        const row = wood.props.data[0];
+        const scale = wood.props.getScale(row);
+        const translation = wood.props.getTranslation(row);
+        const rootLength = wood.props.getRootLength(row);
+        expect(wood.props.mesh).toBe(getTreeWoodMesh(species));
+        expect(rootLength).toBeCloseTo(dimensions.height * dimensions.fraction * 2.4);
+        expect(wood.props.getStemRadius(row)).toBeCloseTo(dimensions.radius * 2.4);
+        expect(translation[2] + 0.22 * scale[2]).toBeCloseTo(rootLength);
+        // The canonical root at -1 is stretched below the first branch socket at 0.22.
+        const rootZ = 0.22 + ((-1 - 0.22) * rootLength) / (1.22 * scale[2]);
+        expect(translation[2] + rootZ * scale[2]).toBeCloseTo(0);
+        expect(wood.props.getOrientation(row)[0]).toBe(0);
+        expect(row.position[2]).toBe(130);
+        expect(layer.renderLayers().some(child => child.id.includes('canopy'))).toBe(false);
       }
     }
   });
@@ -288,19 +228,26 @@ describe('winter trunk and leader join contracts', () => {
     ];
     for (const extra of cases) {
       const {layer} = createLayer([{...OAK, season: 'winter'}], extra);
-      const crown = layer.renderLayers().find(child => child.id.includes('canopy'))!;
-      const row = crown.props.data[0];
-      expect(crown.props.mesh).toBe(getTreeMesh('canopy', 'oak', 'high', true));
-      expect(
-        [
-          ...crown.props.getScale(row),
-          ...crown.props.getTranslation(row),
-          ...crown.props.getOrientation(row),
-          crown.props.getStemRadius(row),
-          ...row.wind
-        ].every(Number.isFinite)
-      ).toBe(true);
-      expect(crown.props.getStemRadius(row)).toBeGreaterThanOrEqual(0);
+      const children = layer.renderLayers();
+      expect(children.some(child => child.id.includes('canopy'))).toBe(false);
+      for (const child of children) {
+        const row = child.props.data[0];
+        expect(
+          [...child.props.getScale(row), ...child.props.getOrientation(row), ...row.wind].every(
+            Number.isFinite
+          )
+        ).toBe(true);
+        if (child.id.includes('wood')) {
+          expect(child.props.mesh).toBe(getTreeWoodMesh('oak'));
+          expect(
+            [
+              ...child.props.getTranslation(row),
+              child.props.getStemRadius(row),
+              child.props.getRootLength(row)
+            ].every(Number.isFinite)
+          ).toBe(true);
+        }
+      }
     }
   });
 
@@ -318,7 +265,7 @@ describe('winter trunk and leader join contracts', () => {
         large.state[key].map(row => [row.translation, row.radius])
       );
     const children = small.renderLayers();
-    const crown = children.find(child => child.id.includes('canopy'))!;
+    const crown = children.find(child => child.id.includes('wood'))!;
     const tree = crown.props.data[0];
     for (const child of children) {
       expect(child.props.windStrength).toBe(0.025);
@@ -326,7 +273,7 @@ describe('winter trunk and leader join contracts', () => {
       const row = child.props.data[0];
       if (child.id.includes('dropped-crops')) expect(row.wind[2]).toBe(0);
       else expect(child.props.getWind(row)).toEqual(tree.wind);
-      if (!child.id.includes('canopy')) expect(child.props.getStemRadius).toBe(-1);
+      if (child.id.includes('crops')) expect(child.props.getStemRadius).toBe(-1);
     }
     const groups = small.state.groups;
     vi.mocked(small.setState).mockClear();
@@ -372,8 +319,12 @@ describe('TreeLayer sublayer override contracts', () => {
     });
     const children = layer.renderLayers();
     for (const id of ['trunks', 'live-crops', 'dropped-crops']) {
-      const child = children.find(candidate => candidate.id === `trees-${id}`)!;
-      const rowIndex = id === 'trunks' ? 1 : 2;
+      const child = children.find(candidate =>
+        id === 'trunks'
+          ? candidate.id === 'trees-wood-oak-foliage-3'
+          : candidate.id === `trees-${id}`
+      )!;
+      const rowIndex = id === 'trunks' ? 0 : 2;
       const row = child.props.data[rowIndex];
       expect(
         child.props.getColor(row, {index: rowIndex, data: child.props.data, target: []})
@@ -395,15 +346,18 @@ describe('TreeLayer sublayer override contracts', () => {
   });
 
   it('applies legacy species overrides last and gives exact canopy IDs precedence', () => {
-    const data: Datum[] = [{...OAK}, {...OAK, position: [2, 0], season: 'winter'}];
+    const data: Datum[] = [
+      {...OAK, type: 'pine'},
+      {...OAK, type: 'pine', position: [2, 0], season: 'winter'}
+    ];
     const getAliasColor = vi.fn((object: Datum, info) => [
-      object.type === 'oak' ? 90 : 0,
+      object.type === 'pine' ? 90 : 0,
       info.index,
       0,
       255
     ]);
     const getExactColor = vi.fn((object: Datum, info) => [
-      object.type === 'oak' ? 120 : 0,
+      object.type === 'pine' ? 120 : 0,
       info.index,
       0,
       255
@@ -414,12 +368,13 @@ describe('TreeLayer sublayer override contracts', () => {
       3
     ]);
     const {layer} = createLayer(data, {
+      getBranchLevels: (d: Datum) => (d.position[0] === 2 ? 4 : 3),
       windStrength: 0.03,
       windTime: 4,
       parameters: {depthCompare: 'less-equal'},
       updateTriggers: {all: 'trees'},
       _subLayerProps: {
-        'canopy-oak': {
+        'canopy-pine': {
           visible: false,
           material: false,
           parameters: {depthWriteEnabled: false},
@@ -427,7 +382,7 @@ describe('TreeLayer sublayer override contracts', () => {
           getScale: getAliasScale,
           updateTriggers: {getColor: 'alias-color', getScale: 'alias-scale'}
         },
-        'canopy-oak-foliage-3': {
+        'canopy-pine-foliage-3': {
           visible: true,
           material: {ambient: 0.2},
           parameters: {blend: false},
@@ -437,8 +392,8 @@ describe('TreeLayer sublayer override contracts', () => {
       }
     });
     const children = layer.renderLayers();
-    const summer = children.find(child => child.id === 'trees-canopy-oak-foliage-3')!;
-    const winter = children.find(child => child.id === 'trees-canopy-oak-winter-3')!;
+    const summer = children.find(child => child.id === 'trees-canopy-pine-foliage-3')!;
+    const winter = children.find(child => child.id === 'trees-canopy-pine-foliage-4')!;
     for (const [child, sourceIndex, expectedColor] of [
       [summer, 0, [120, 0, 0, 255]],
       [winter, 1, [90, 1, 0, 255]]

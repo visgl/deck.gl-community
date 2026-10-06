@@ -15,6 +15,7 @@ import {Matrix4, Vector3} from '@math.gl/core';
 import {getBoundedShadowUniforms, getGroundShadowSettings} from './shadow-frustum';
 import {GroundShadowFilter} from './ground-shadow-filter';
 import {TreeShadowPass} from './tree-shadow-pass';
+import {SplatShadowPass, type SplatShadowProjection} from '@deck.gl-community/layers';
 
 const SHADOW_WEIGHT = `float shadow_getShadowWeight(vec3 position, sampler2D shadowMap) {`;
 export const SHADOW_FILTER = `float shadow_getShadowWeight(vec3 position, highp sampler2DShadow shadowMap, float bias) {
@@ -88,6 +89,7 @@ export class TreeLightingEffect extends LightingEffect {
   private neutralGroundMap?: Texture;
   private filteredShadow = false;
   private treePasses: TreeShadowPass[] = [];
+  private transmissionPasses: SplatShadowPass[] = [];
   private groundFilters: GroundShadowFilter[] = [];
   private treeMatrices: Matrix4[] = [];
   private pendingRedraw?: number;
@@ -140,11 +142,43 @@ export class TreeLightingEffect extends LightingEffect {
       (light): light is DirectionalLight => light.type === 'directional' && light.shadow
     );
     for (const pass of this.treePasses.splice(lights.length)) pass.destroy();
+    for (const pass of this.transmissionPasses.splice(lights.length)) pass.destroy();
     for (const filter of this.groundFilters.splice(lights.length)) filter.destroy();
     if (!lights.length) return;
     this.treeMatrices = lights.map(light =>
       new Matrix4().lookAt({eye: new Vector3(light.direction).negate()})
     );
+    const boundedUniforms = getBoundedShadowUniforms({
+      project: {viewport: options.viewports[0]},
+      shadowMatrices: this.treeMatrices,
+      dummyShadowMap: this.neutralShadowMap!,
+      dummyGroundMap: this.neutralGroundMap!
+    });
+    const lightProjections: SplatShadowProjection[] = lights.map((_, index) => {
+      const viewport = options.viewports[0];
+      const ratio = 1024 / Math.max(viewport.width, viewport.height);
+      return {
+        matrix: Array.from(
+          index === 0
+            ? boundedUniforms.viewProjectionMatrix0
+            : boundedUniforms.viewProjectionMatrix1
+        ),
+        center: Array.from(
+          index === 0 ? boundedUniforms.projectCenter0 : boundedUniforms.projectCenter1
+        ),
+        width: Math.max(1, Math.round(viewport.width * ratio)),
+        height: Math.max(1, Math.round(viewport.height * ratio))
+      };
+    });
+    for (const layer of options.layers) {
+      const caster = layer as Layer & {
+        prepareShadow?: (
+          projections: SplatShadowProjection[],
+          viewport: (typeof options.viewports)[0]
+        ) => void;
+      };
+      caster.prepareShadow?.(lightProjections, options.viewports[0]);
+    }
     for (const [index] of lights.entries()) {
       this.treePasses[index] ??= new TreeShadowPass(this.context.device);
       this.groundFilters[index] ??= new GroundShadowFilter(this.context.device);
@@ -161,13 +195,26 @@ export class TreeLightingEffect extends LightingEffect {
         }
       });
     }
+    for (const [index, pass] of this.treePasses.entries()) {
+      this.transmissionPasses[index] ??= new SplatShadowPass(this.context.device);
+      this.transmissionPasses[index].renderTransmission(options, {
+        ...lightProjections[index],
+        width: pass.depth.width,
+        height: pass.depth.height
+      });
+    }
     const settings = getGroundShadowSettings(
       options.viewports[0],
       this.treeMatrices,
       this.treePasses.map(pass => [pass.depth.width, pass.depth.height])
     );
     for (const [index, setting] of settings.entries()) {
-      this.groundFilters[index].render(this.treePasses[index].depth, setting.plane, setting.step);
+      this.groundFilters[index].render(
+        this.treePasses[index].depth,
+        setting.plane,
+        setting.step,
+        this.transmissionPasses[index].transmission
+      );
     }
     if (this.groundFilters.some(filter => !filter.ready) && this.pendingRedraw === undefined) {
       this.pendingRedraw = requestAnimationFrame(() => {
@@ -205,6 +252,8 @@ export class TreeLightingEffect extends LightingEffect {
     if (this.pendingRedraw !== undefined) cancelAnimationFrame(this.pendingRedraw);
     this.pendingRedraw = undefined;
     for (const pass of this.treePasses) pass.destroy();
+    for (const pass of this.transmissionPasses) pass.destroy();
+    this.transmissionPasses = [];
     for (const filter of this.groundFilters) filter.destroy();
     this.treePasses = [];
     this.groundFilters = [];

@@ -20,7 +20,7 @@ export const GROUND_SHADOW_FILTER = `
     if (any(lessThanEqual(point, vec2(0.0))) || any(greaterThanEqual(point, vec2(1.0)))) return 0.0;
     float depth = dot(groundShadow.plane.xyz, vec3(point, 1.0)) - groundShadow.plane.w;
     if (depth <= 0.0 || depth >= 1.0) return 0.0;
-    return 1.0 - texture(depthMap, vec3(point, depth));
+    return 1.0 - texture(depthMap, vec3(point, depth)) * texture(transmissionMap, point).r;
   }
   void main() {
     float result = getCoverage(uv) * 0.227027;
@@ -42,6 +42,7 @@ export class GroundShadowFilter {
   ready = false;
   private readonly targets: Framebuffer[];
   private readonly models: ClipSpace[];
+  private readonly neutralTransmission: Texture;
 
   constructor(private readonly device: Device) {
     const makeTexture = () =>
@@ -56,6 +57,11 @@ export class GroundShadowFilter {
           addressModeV: 'clamp-to-edge'
         }
       });
+    this.neutralTransmission = device.createTexture({
+      width: 1,
+      height: 1,
+      data: new Uint8Array([255, 255, 255, 255])
+    });
     this.targets = [makeTexture(), makeTexture()].map(texture =>
       device.createFramebuffer({colorAttachments: [texture]})
     );
@@ -66,6 +72,7 @@ export class GroundShadowFilter {
         fs: `#version 300 es
           precision highp float;
           uniform highp sampler2DShadow depthMap;
+          uniform sampler2D transmissionMap;
           in vec2 uv;
           out vec4 color;
           ${GROUND_SHADOW_FILTER}`,
@@ -89,7 +96,12 @@ export class GroundShadowFilter {
     return this.targets[1].colorAttachments[0].texture;
   }
 
-  render(depth: Texture, plane: [number, number, number, number], step: [number, number]) {
+  render(
+    depth: Texture,
+    plane: [number, number, number, number],
+    step: [number, number],
+    transmission?: Texture
+  ) {
     this.ready = false;
     const width = Math.max(1, Math.ceil(depth.width / 2));
     const height = Math.max(1, Math.ceil(depth.height / 2));
@@ -102,7 +114,9 @@ export class GroundShadowFilter {
     }
     for (const [index, model] of this.models.entries()) {
       model.setBindings(
-        index === 0 ? {depthMap: depth} : {coverageMap: this.targets[0].colorAttachments[0].texture}
+        index === 0
+          ? {depthMap: depth, transmissionMap: transmission ?? this.neutralTransmission}
+          : {coverageMap: this.targets[0].colorAttachments[0].texture}
       );
       model.shaderInputs.setProps({
         groundShadow: {plane, step: index === 0 ? [step[0], 0] : [0, step[1]]}
@@ -120,6 +134,7 @@ export class GroundShadowFilter {
   }
 
   destroy() {
+    this.neutralTransmission.destroy();
     for (const model of this.models) model.destroy();
     for (const target of this.targets) {
       const texture = target.colorAttachments[0].texture;

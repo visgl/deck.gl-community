@@ -8,6 +8,7 @@
     "modules/layers/api-reference/dependency-arrow-layer",
     "modules/layers/api-reference/path-marker-layer",
     "modules/layers/api-reference/path-outline-layer",
-    "modules/layers/api-reference/tree-layer"
+    "modules/layers/api-reference/tree-layer",
+    "modules/layers/api-reference/splat-layer"
   ]
 }

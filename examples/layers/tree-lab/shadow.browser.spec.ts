@@ -5,7 +5,7 @@
 // fails_when=lighting or opacity corrupts packed depth and creates material-dependent shadow holes;
 // why_new=the Tree Lab controls test does not isolate and compare ground shadow pixels; seam=none
 
-import {Deck, LightingEffect, type DeckProps} from '@deck.gl/core';
+import {Deck, type DeckProps} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/layers';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {describe, expect, it} from 'vitest';
@@ -70,10 +70,8 @@ describe.sequential('Tree Lab shadow depth', () => {
       document.body.append(container);
       const errors: string[] = [];
       const matchedLighting = createLighting(true);
-      // Native shadows must work in an ordinary host, without the lab's final
-      // depth repair that is needed only by the frozen original SimpleMeshLayer.
-      const lighting =
-        renderer === 'native' ? new LightingEffect(matchedLighting.props) : matchedLighting;
+      // Gaussian canopies use the host's optical transmission pass, combined with mesh depth.
+      const lighting = matchedLighting;
       lighting.shadowColor = matchedLighting.shadowColor;
       let latestFrame: Frame | undefined;
       let frameNumber = 0;
@@ -81,6 +79,7 @@ describe.sequential('Tree Lab shadow depth', () => {
         parent: container,
         width,
         height,
+        _animate: true,
         useDevicePixels: false,
         deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
         views: createViews(),
@@ -112,7 +111,7 @@ describe.sequential('Tree Lab shadow depth', () => {
           latestFrame = undefined;
           deck.setProps(props);
           await expect
-            .poll(() => frameNumber > previousFrame && Boolean(latestFrame), {timeout: 15000})
+            .poll(() => frameNumber > previousFrame + 3 && Boolean(latestFrame), {timeout: 15000})
             .toBe(true);
           expect(errors).toEqual([]);
           expect([latestFrame!.width, latestFrame!.height]).toEqual([width, height]);

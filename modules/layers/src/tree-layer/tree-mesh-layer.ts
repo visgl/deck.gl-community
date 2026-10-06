@@ -5,12 +5,15 @@
 import type {Accessor, DefaultProps} from '@deck.gl/core';
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
+import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
 
 type WindProps<DataT> = {
   /** [tree height in metres, stable wind phase, flex multiplier]. */
   getWind: Accessor<DataT, [number, number, number]>;
-  /** Physical winter leader radius at its trunk join; negative disables the morph. */
+  /** Physical bole radius at its first branch join; negative disables the morph. */
   getStemRadius: Accessor<DataT, number>;
+  /** Physical root-to-first-branch height for the connected woody mesh; negative disables it. */
+  getRootLength: Accessor<DataT, number>;
   windStrength: number;
   windTime: number | null;
   doubleSided: boolean;
@@ -38,6 +41,11 @@ const TREE_WIND = {
 const GLSL_STEM = `
   vec3 treePosition = positions;
   vec3 treeLocalNormal = normals;
+  if (instanceRootLength >= 0.0 && texCoords.y > 0.5 && treePosition.z < 0.22) {
+    float rootScale = max(instanceRootLength / (1.22 * max(length(instanceModelMatrixCol2), 0.000001)), 0.000001);
+    treePosition.z = 0.22 + (treePosition.z - 0.22) * rootScale;
+    treeLocalNormal.z /= rootScale;
+  }
   if (instanceStemRadius >= 0.0 && texCoords.x > 0.5) {
     vec2 treeScale = max(vec2(length(instanceModelMatrixCol0), length(instanceModelMatrixCol1)), vec2(0.000001));
     vec2 treeTarget = instanceStemRadius / (treeScale * 0.06);
@@ -53,6 +61,11 @@ const GLSL_STEM = `
 const WGSL_STEM = `
   var treePosition = attributes.positions;
   var treeLocalNormal = attributes.normals;
+  if (attributes.instanceRootLength >= 0.0 && attributes.texCoords.y > 0.5 && treePosition.z < 0.22) {
+    let rootScale = max(attributes.instanceRootLength / (1.22 * max(length(attributes.instanceModelMatrixCol2), 0.000001)), 0.000001);
+    treePosition.z = 0.22 + (treePosition.z - 0.22) * rootScale;
+    treeLocalNormal.z /= rootScale;
+  }
   if (attributes.instanceStemRadius >= 0.0 && attributes.texCoords.x > 0.5) {
     let treeScale = max(vec2<f32>(length(attributes.instanceModelMatrixCol0), length(attributes.instanceModelMatrixCol1)), vec2<f32>(0.000001));
     let treeTarget = attributes.instanceStemRadius / (treeScale * 0.06);
@@ -71,11 +84,9 @@ const GLSL_WIND = `
   vec3 treeNormal = instanceModelMatrix * (treeLocalNormal / treeSquaredScale);
   if (treeWind.strength > 0.0) {
   float treeHeight = max(instanceTreeWind.x, 0.001);
-  float treeFlex = clamp(pos.z / treeHeight, 0.0, 1.0);
-  float treeWave = sin(treeWind.time * 1.6 + instanceTreeWind.y) + 0.35 * sin(treeWind.time * 2.7 + instanceTreeWind.y * 1.7);
-  vec2 treeBend = vec2(1.0, 0.45) * treeWind.strength * instanceTreeWind.z * treeWave;
-  pos.xy += treeBend * treeHeight * treeFlex * treeFlex;
-  treeNormal.z -= dot(treeNormal.xy, treeBend * 2.0 * treeFlex);
+  vec2 treeWave = vec2(sin(treeWind.time * 1.6 + instanceTreeWind.y), sin(treeWind.time * 3.2 + instanceTreeWind.y * 1.7));
+  mat3 treeJacobian = splatDeform(pos, treeHeight, treeWind.strength * instanceTreeWind.z, treeWave);
+  treeNormal = splatDeformNormal(treeJacobian, treeNormal);
   }
 `;
 const WGSL_WIND = `
@@ -83,11 +94,10 @@ const WGSL_WIND = `
   var treeNormal = instanceModelMatrix * (treeLocalNormal / treeSquaredScale);
   if (treeWind.strength > 0.0) {
   let treeHeight = max(attributes.instanceTreeWind.x, 0.001);
-  let treeFlex = clamp(meshPosition.z / treeHeight, 0.0, 1.0);
-  let treeWave = sin(treeWind.time * 1.6 + attributes.instanceTreeWind.y) + 0.35 * sin(treeWind.time * 2.7 + attributes.instanceTreeWind.y * 1.7);
-  let treeBend = vec2<f32>(1.0, 0.45) * treeWind.strength * attributes.instanceTreeWind.z * treeWave;
-  meshPosition = vec3<f32>(meshPosition.xy + treeBend * treeHeight * treeFlex * treeFlex, meshPosition.z);
-  treeNormal.z -= dot(treeNormal.xy, treeBend * 2.0 * treeFlex);
+  let treeWave = vec2<f32>(sin(treeWind.time * 1.6 + attributes.instanceTreeWind.y), sin(treeWind.time * 3.2 + attributes.instanceTreeWind.y * 1.7));
+  let treeDeformation = splatDeform(meshPosition, treeHeight, treeWind.strength * attributes.instanceTreeWind.z, treeWave);
+  meshPosition = treeDeformation.position;
+  treeNormal = splatDeformNormal(treeDeformation.jacobian, treeNormal);
   }
 `;
 
@@ -95,6 +105,7 @@ const WGSL_WIND = `
 export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT>> {
   static layerName = 'TreeMeshLayer';
   static defaultProps: DefaultProps<SimpleMeshLayerProps<unknown> & WindProps<unknown>> = {
+    getRootLength: {type: 'accessor', value: -1},
     getStemRadius: {type: 'accessor', value: -1},
     getWind: {type: 'accessor', value: [1, 0, 1]},
     windStrength: 0,
@@ -106,6 +117,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     super.initializeState();
     this.getAttributeManager()!.addInstanced({
       instanceTreeWind: {size: 3, accessor: 'getWind', defaultValue: [1, 0, 1]},
+      instanceRootLength: {size: 1, accessor: 'getRootLength', defaultValue: -1},
       instanceStemRadius: {size: 1, accessor: 'getStemRadius', defaultValue: -1}
     });
   }
@@ -119,10 +131,10 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       return {
         ...shaders,
         modules: [...shaders.modules, TREE_WIND],
-        source: shaders.source
+        source: `${SPLAT_DEFORMATION_WGSL}\n${shaders.source}`
           .replace(
             '  @location(10) instanceTranslation: vec3<f32>,',
-            '  @location(10) instanceTranslation: vec3<f32>,\n  @location(11) instanceTreeWind: vec3<f32>,\n  @location(12) instanceStemRadius: f32,'
+            '  @location(10) instanceTranslation: vec3<f32>,\n  @location(11) instanceTreeWind: vec3<f32>,\n  @location(12) instanceStemRadius: f32,\n  @location(13) instanceRootLength: f32,'
           )
           .replace('  let meshPosition =', `${WGSL_STEM}\n  var meshPosition =`)
           .replace(
@@ -164,9 +176,10 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
           'color = vec4(lightColor, color.a * layer.opacity);\n  DECKGL_FILTER_COLOR(color, geometry);\n  fragColor = color;'
         ),
       vs: shaders.vs
+        .replace('void main(void) {', `${SPLAT_DEFORMATION_GLSL}\nvoid main(void) {`)
         .replace(
           'in vec3 instanceTranslation;',
-          'in vec3 instanceTranslation;\nin vec3 instanceTreeWind;\nin float instanceStemRadius;'
+          'in vec3 instanceTranslation;\nin vec3 instanceTreeWind;\nin float instanceStemRadius;\nin float instanceRootLength;'
         )
         .replace(
           anchor,

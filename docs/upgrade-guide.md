@@ -7,7 +7,7 @@ Please refer the documentation of each module for detailed upgrade guides.
 ## Unreleased
 
 - Remove `detail` from `TreeLayer` props and `TreeDetail` from type imports. Trunks and crowns
-  always use the former high-detail meshes; legacy demo `detail` query parameters are ignored.
+  retain the full authored source for close views and refine automatically; legacy demo `detail` query parameters are ignored. Canopy sublayers now use `SplatLayer`; use wood sublayers for bark and mesh overrides. Translucent foliage shadows require the host optical transmission integration, as documented in [SplatLayer](./modules/layers/api-reference/splat-layer.md#shadows).
 
 - The `@deck.gl-community/three` compatibility package has been removed from the repository.
   Replace its imports with `@deck.gl-community/layers`, including `TreeLayer`, `TreeLayerProps`,

@@ -1,5 +1,27 @@
 # Tree Lab review evidence
 
+## Seven-species Gaussian suite
+
+[Watch the 84-second mesh/Gaussian film](../../../website/static/videos/tree-lab-splats.mp4) and inspect [all 28 seasonal stages](../../../website/static/videos/tree-lab-splats-seasons.jpg). The 1920×1080 H.264 film contains exactly 2,520 frames at 30 fps, with zero application rendering errors. Full decode passed. Sunlight and wind share one fixed clock. Pine, oak, palm, birch and cherry retain their frozen native mesh references; the newly added banyan and red mangrove use opaque leaf-card references with the same growth, wood and refinement as their Gaussian counterparts.
+
+Broadleaf crowns grow through bounded space colonization, with pipe-model taper and transported tube frames. Wood, leaf clusters and contained attached fruit share those shoots. Banyan aerial roots and mangrove stilt roots are part of the same closed connected mesh. Mangrove foliage uses larger elliptical leaves. Wind combines clamped cubic bending with a spatial crown mode; the analytic Jacobian deforms covariance and inverse-transpose normals. These are procedural botanical models, not trained photographic trees or a mechanical stress solver. See [growth math and sources](../../../docs/modules/layers/api-reference/tree-layer.md#procedural-growth-and-motion).
+
+[Raw final samples, source/build hashes and geometry budgets](splat-review.json) retain the complete seven-species matrix. One Apple M4 Pro/ANGLE Metal production renderer ran at a time, at 587×680 and 1× pixels. Each workload used a two-second warmup and three five-second 90° camera orbits, summer foliage, wind and shadows on, and crops off. No builds, tests or encodes ran during measurement.
+
+| Renderer | 10,000 trees: median draws/s (range) | 20,000 trees: median draws/s (range) |
+| --- | --- | --- |
+| Gaussian foliage | 34.7 (33.1–35.3) | 31.5 (30.9–31.7) |
+| Mesh reference | 45.7 (45.4–46.4) | 34.7 (34.7–35.6) |
+
+All retained samples had zero rendering errors. One 20K Gaussian sample recorded one long task; the other samples had none. One-tree controls before and after the matrix had 8.3ms median intervals, with median draw rates of 114.7 and 114.9. The richer Gaussian workload remains slower than this mesh reference. Draw rates describe submitted draws and browser delivery, not GPU execution or certified presented FPS. These summer canopy-view measurements do not establish winter, overview, mobile or WebGPU performance.
+
+Verification: 62 Node/example tests, 14 WebGL pixel tests, and two actual backend tests pass. Checks cover all fourteen comparison surfaces, four seasons, evergreen foliage presence, owning-tree picking, wind poses, 10K/20K count/view changes, connected topology, crop containment, optical shadow filtering and pitches through 80°. WebGPU rendering used SwiftShader and is separate from the hardware WebGL performance matrix. Root package/declaration build, Tree Lab typecheck/build and lint pass. Website validation is recorded with this change.
+
+## Historical native mesh implementation
+
+The results below describe earlier five-species mesh versions and are retained as historical evidence. Their films, source fingerprints, detail settings and timings do not describe the current Gaussian suite.
+
+
 The current layer always uses the former high-detail trunk and canopy meshes. Detail selectors and query inputs are removed. Medium/low measurements below are historical; their source fingerprints identify the measured versions.
 
 [Watch the 60-second comparison](../../../website/static/videos/tree-lab-native.mp4) or inspect [all 20 seasonal stages](../../../website/static/videos/tree-lab-seasons.jpg). The website Tree Lab page embeds the film above the interactive comparison. Original geometry is frozen from master c8b25275 (9.4.2). Both columns share camera, light, dimensions and supplied crop configuration; the original has no wind and is labelled static.

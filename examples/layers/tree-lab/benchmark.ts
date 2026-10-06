@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck} from '@deck.gl/core';
+import {Deck, CompositeLayer, type Layer} from '@deck.gl/core';
 import type {Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -24,14 +24,15 @@ import './style.css';
 /** Identical single-renderer workloads; frame intervals describe browser delivery, not GPU time. */
 export function mountTreeBenchmark(
   LayerClass: TreeLayerConstructor,
-  renderer: 'baseline' | 'native'
+  renderer: 'baseline' | 'native' | 'mesh'
 ) {
   const query = new URLSearchParams(location.search);
   const count = getTreeCount(query.get('count'));
+  const availableSpecies = renderer === 'baseline' ? SPECIES.slice(0, 5) : SPECIES;
   const species =
     query.get('species') === 'mixed'
       ? 'mixed'
-      : (SPECIES.find(value => value === query.get('species')) ?? 'oak');
+      : (availableSpecies.find(value => value === query.get('species')) ?? 'oak');
   const options: SceneOptions = {
     ...DEFAULT_OPTIONS,
     season: SEASONS.find(value => value === query.get('season')) ?? DEFAULT_OPTIONS.season,
@@ -46,9 +47,9 @@ export function mountTreeBenchmark(
   const parent = document.querySelector('#app')!;
   parent.innerHTML = `<main class="tree-lab benchmark"><div class="eyebrow">Tree Lab / Performance</div><h1></h1><p></p><div class="canvas"></div><button id="measure" disabled>Measure 5-second camera orbit</button> <button id="repeat" disabled>Run three samples</button> <a href="./index.html">Visual comparison</a> · <a href="./forest.html">10K / 20K forest</a><div id="summary" aria-live="polite">Ready for measurement.</div><details><summary>Raw measurements</summary><pre id="result">Ready for measurement.</pre></details></main>`;
   parent.querySelector('h1')!.textContent =
-    `${renderer === 'native' ? 'Native vis.gl' : 'Original Three.js'} · ${count.toLocaleString()} ${species} trees`;
+    `${renderer === 'native' ? 'Gaussian vis.gl' : renderer === 'mesh' ? 'Mesh vis.gl' : 'Original Three.js'} · ${count.toLocaleString()} ${species} trees`;
   parent.querySelector('p')!.textContent =
-    `${options.backend} · ${options.season} · highest geometry detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer === 'native' ? 'on' : 'unsupported / static') : 'off'}`;
+    `${options.backend} · ${options.season} · highest geometry detail · crops ${options.crops ? 'on' : 'off'} · shadows ${options.shadows ? 'on' : 'off'} · wind ${options.wind ? (renderer !== 'baseline' ? 'on' : 'unsupported / static') : 'off'}`;
   const summary = parent.querySelector<HTMLElement>('#summary')!;
   const showSamples = (
     samples: {
@@ -89,7 +90,7 @@ export function mountTreeBenchmark(
   const firstStart = performance.now();
   let firstFrameMs: number | null = null;
   let device: Device;
-  const data = species === 'mixed' ? createForestSpecimens(count) : createSpecimens(species, count);
+  const data = species === 'mixed' ? createForestSpecimens(count, availableSpecies) : createSpecimens(species, count);
   const zoom = count === 1 ? VIEW.zoom : Math.max(13, 20.5 - Math.log2(Math.sqrt(count)));
   const view =
     species === 'mixed' ? (query.get('view') === 'overview' ? 'overview' : 'canopy') : 'grid';
@@ -217,6 +218,17 @@ export function mountTreeBenchmark(
       durationMs: performance.now() - start,
       deliveredFramesPerSecond: ((frame - startFrame) * 1000) / (performance.now() - start),
       treeInstances: data.length,
+      geometry: (() => {
+        const leaves = (layer: Layer): Layer[] =>
+          layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(leaves) : [layer];
+        return (deck.props.layers as Layer[]).flatMap(leaves).map(layer => ({
+          id: layer.id,
+          operation: layer.props.operation,
+          owners: layer.getNumInstances(),
+          gaussians: (layer.props as any).source?.opacities.length ?? 0,
+          triangles: ((layer.getModels()[0]?.vertexCount ?? 0) / 3) * layer.getNumInstances()
+        }));
+      })(),
       renderCallMedianMs: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.5)] ?? null,
       renderCallP95Ms: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.95)] ?? null,
       medianFrameMs: sorted[Math.floor(sorted.length * 0.5)],
