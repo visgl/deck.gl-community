@@ -5,7 +5,7 @@
 // fails_when=shadow samplers vanish, seasons stop changing, wind stays static, or owner picking breaks;
 // why_new=no existing integration covers these ten WebGL surfaces; seam=none
 
-import type {Deck} from '@deck.gl/core';
+import {CompositeLayer, type Deck, type Layer} from '@deck.gl/core';
 import {describe, expect, it} from 'vitest';
 import {mountTreeLabExample} from './app';
 import {SEASONS, type SceneOptions, type Specimen} from './scene';
@@ -148,6 +148,21 @@ describe('Tree Lab rendering controls', () => {
         })
       );
       await assertVisible(initialShadows);
+      for (const specimen of specimens.filter(item => item.renderer === 'native')) {
+        const layers = specimen.deck.props.layers as Layer[];
+        const models = layers.flatMap(layer =>
+          (layer instanceof CompositeLayer ? layer.getSubLayers() : [layer]).flatMap(child =>
+            child.getModels()
+          )
+        );
+        expect(models.length).toBeGreaterThan(0);
+        for (const model of models) {
+          // Inspect the assembled shader, so a misspelled injection hook cannot
+          // silently run material shading for every depth-only fragment.
+          const main = model.pipeline.fs!.source.match(/void\s+main\s*\([^)]*\)\s*\{([\s\S]*)/)!;
+          expect(main[1]).toMatch(/^\s*if \(shadow.drawShadowMap\) \{ return; \}/);
+        }
+      }
       const shadowToggle = container.querySelector<HTMLInputElement>('[data-option="shadows"]')!;
       const withoutShadows = await capture(() => shadowToggle.click());
       expect(api.getOptions().shadows).toBe(false);

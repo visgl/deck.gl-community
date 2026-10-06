@@ -52,7 +52,7 @@ const GROUND_WEIGHT = `
 const SOFT_SHADOW = {
   ...shadow,
   getUniforms: getBoundedShadowUniforms,
-  inject: {...shadow.inject, 'fs:main-start': 'if (shadow.drawShadowMap) { return; }'},
+  inject: {...shadow.inject, 'fs:#main-start': 'if (shadow.drawShadowMap) { return; }'},
   uniformTypes: {...shadow.uniformTypes, depthBias: 'vec2<f32>', groundFilter: 'vec2<f32>'},
   vs: shadow.vs!.replace(
     '  vec4 projectCenter1;',

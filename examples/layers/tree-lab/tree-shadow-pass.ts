@@ -63,6 +63,7 @@ export class TreeShadowPass extends _LayersPass {
     };
   }
 
+  // _LayersPass merges render overrides last, preserving the light ID and matrices.
   protected getShaderModuleProps(layer: Layer, effects, otherShaderModuleProps) {
     return {shadow: {project: otherShaderModuleProps.project, drawToShadowMap: true}};
   }
