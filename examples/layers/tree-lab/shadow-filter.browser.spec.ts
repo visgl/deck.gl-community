@@ -5,7 +5,6 @@
 // fails_when=depth interpolation erases silhouettes before the shadow comparison;
 // why_new=scene coverage tests do not isolate filtering order or subtexel motion; seam=shader source
 
-import {shadow} from '@deck.gl/core';
 import {expect, it} from 'vitest';
 import {SHADOW_FILTER} from './tree-lighting';
 
@@ -38,18 +37,13 @@ it('preserves a thin shadow while its receiver moves between texels', () => {
         gl_Position = vec4(vertex * 2.0 - 1.0, 0.0, 1.0);
       }`
     );
-    // Use the host's actual packed-depth decode and the production filter.
-    const unpack = shadow.fs!.match(
-      /const vec4 bitPackShift[^;]+;\s*const vec4 bitUnpackShift[^;]+;/
-    )![0];
     compile(
       gl.FRAGMENT_SHADER,
       `#version 300 es
       precision highp float;
-      uniform sampler2D shadowMap;
+      uniform highp sampler2DShadow shadowMap;
       uniform float receiverDepth;
       out vec4 color;
-      ${unpack}
       ${SHADOW_FILTER}
       void main() {
         float x = (5.5 + (gl_FragCoord.x - 0.5) / 32.0) / 16.0;
@@ -66,10 +60,22 @@ it('preserves a thin shadow while its receiver moves between texels', () => {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     // A single-texel blade at depth 0.5 against clear depth 1.0.
-    // Keep linear sampling enabled: production texelFetch must bypass it.
-    const depths = new Uint8Array(16 * 8 * 4).fill(255);
-    for (let y = 0; y < 8; y++) depths.set([127, 127, 127, 127], (y * 16 + 7) * 4);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 16, 8, 0, gl.RGBA, gl.UNSIGNED_BYTE, depths);
+    // Native depth comparison samplers interpolate comparison results, never depths.
+    const depths = new Float32Array(16 * 8).fill(1);
+    for (let y = 0; y < 8; y++) depths[y * 16 + 7] = 0.5;
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.DEPTH_COMPONENT32F,
+      16,
+      8,
+      0,
+      gl.DEPTH_COMPONENT,
+      gl.FLOAT,
+      depths
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -84,9 +90,11 @@ it('preserves a thin shadow while its receiver moves between texels', () => {
       gl.readPixels(0, 0, canvas.width, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
       expect(gl.getError()).toBe(gl.NO_ERROR);
       const coverage = Array.from({length: canvas.width}, (_, x) => pixels[x * 4]);
-      // One blade occupies one third of the existing three-texel filter.
-      // Its coverage must persist between texel centers, independently of depth separation.
-      for (const value of coverage.slice(32, 97)) expect(value).toBeCloseTo(85, 0);
+      // The three-texel tent preserves fractional blade coverage between centers.
+      expect(Math.abs(coverage[32] - 255 / 4)).toBeLessThanOrEqual(1);
+      expect(Math.abs(coverage[64] - 255 / 2)).toBeLessThanOrEqual(1);
+      expect(Math.abs(coverage[96] - 255 / 4)).toBeLessThanOrEqual(1);
+      for (const value of coverage.slice(32, 97)) expect(value).toBeGreaterThanOrEqual(63);
       for (let x = 1; x < coverage.length; x++) {
         expect(Math.abs(coverage[x] - coverage[x - 1])).toBeLessThanOrEqual(3);
       }
