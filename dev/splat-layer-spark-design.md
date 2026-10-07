@@ -33,7 +33,7 @@ with #809's deprecated-workspace cleanup above #808. Neither tip depends on the 
 
 | Stage | Responsibility |
 | --- | --- |
-| luma 9.4 host-pass backport | Borrowed passes and source pages, affine instance uniforms, 32-bit camera depth ordering, native RAD retained refinement |
+| luma #3398 | Borrowed passes and source pages, affine instance uniforms, 32-bit camera depth ordering, native RAD retained refinement |
 | #807 | Prepared CompositeLayer inputs, heterogeneous source roots, affine covariance, shared budgets and statistics |
 | #814 | URL/Blob/static/RAD workers, shared deck/device residency and per-view/domain ordering, source-frame SH/HDR, owner picking and cleanup |
 | #794 | Native TreeLayer traits, wood, crops and explicitly weighted canopies |
