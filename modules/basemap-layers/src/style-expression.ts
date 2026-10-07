@@ -42,7 +42,13 @@ const GEOMETRY_TYPES: Record<string, number> = {
   MultiPolygon: 3
 };
 
-const compiledPropertyCache = new WeakMap<object, Map<string, CompiledStyleProperty | null>>();
+type CompiledPropertyEntry = {
+  propertyType: 'paint' | 'layout';
+  value: unknown;
+  compiled: CompiledStyleProperty | null;
+};
+
+const compiledPropertyCache = new WeakMap<object, Map<string, CompiledPropertyEntry>>();
 const compiledFilterCache = new WeakMap<object, StyleFilter>();
 const warnedValues = new Set<string>();
 
@@ -140,8 +146,9 @@ export function compileStylePropertyValue(
 
 /**
  * Returns a compiled `paint` or `layout` property of a style layer, or `null` when the layer
- * does not set it. Compilation is cached per style layer object, so style layers are treated as
- * immutable once rendered.
+ * does not set it. Compilation is cached per style layer object and property; the cached entry is
+ * reused only while the layer still holds the same value, so editing a property in place
+ * recompiles it.
  */
 export function getCompiledStyleProperty(
   styleLayer: StyleLayerLike,
@@ -153,15 +160,18 @@ export function getCompiledStyleProperty(
     compiledPropertyCache.set(styleLayer, layerCache);
   }
 
-  const key = propertyName;
-  if (!layerCache.has(key)) {
-    const value = styleLayer[getStylePropertyType(propertyName)]?.[propertyName];
-    layerCache.set(
-      key,
-      value === undefined ? null : compileStylePropertyValue(propertyName, value)
-    );
+  let entry = layerCache.get(propertyName);
+  const propertyType = entry?.propertyType ?? getStylePropertyType(propertyName);
+  const value = styleLayer[propertyType]?.[propertyName];
+  if (!entry || entry.value !== value) {
+    entry = {
+      propertyType,
+      value,
+      compiled: value === undefined ? null : compileStylePropertyValue(propertyName, value)
+    };
+    layerCache.set(propertyName, entry);
   }
-  return layerCache.get(key) || null;
+  return entry.compiled;
 }
 
 /**
