@@ -384,8 +384,25 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       this.state.groups = [];
       this.state.shadowGroups = [];
     }
+    let sharedBudget = props.maxTotalSplats;
+    for (let group = props._splatBudgetGroup; group; group = group.parent)
+      sharedBudget = Math.min(sharedBudget, group.maxSplats);
+    // New registrations have not received their joint grant yet. Start from coverage,
+    // including after source replacement, rather than uploading an unbounded first draw.
+    const initialCandidates =
+      !this.state.refinement.entries.size && Number.isFinite(sharedBudget)
+        ? candidates.map(row => ({
+            ...row,
+            level: row.owner.asset.hierarchy.length - 1,
+            blend: 0
+          }))
+        : candidates;
     const membershipChanged = this.state.refinement.reconcile(
-      budgetSplatSelections(candidates, owner => owner.asset.hierarchy, props.maxSplats * 0.75),
+      budgetSplatSelections(
+        initialCandidates,
+        owner => owner.asset.hierarchy,
+        props.maxSplats * 0.75
+      ),
       owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
       props.maxSplats,
       owner => owner.key
