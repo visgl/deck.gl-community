@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Deck, MapView, type MapViewState} from '@deck.gl/core';
-import {WorldTreeLayer} from '@deck.gl-community/layers';
+import {TreeLayer} from '@deck.gl-community/layers';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {createLighting, DEFAULT_OPTIONS, SEASONS, type SceneOptions} from './scene';
 import {
@@ -100,7 +100,7 @@ export function mountTreeWorldExample(
   let lighting = createLighting(options.shadows);
   const getLayers = () => {
     return [
-      new WorldTreeLayer<WorldSpecimen>({
+      new TreeLayer<WorldSpecimen>({
         id: 'world-trees',
         getTileData: tile => getSyntheticWorldTile(tile, sourceOptions),
         getTreeKey: tree => tree.key,
@@ -114,10 +114,11 @@ export function mountTreeWorldExample(
         maxTileRecords: 1024,
         maxTileByteLength: 1024 * 1024,
         maxCanopySplats: 400000,
+        maxCanopyPixels: 4194304,
+        foveationStrength: 1,
         maxShadowSplats: 100000,
         pickable: true,
-        canopyWindStrength: options.wind ? 0.025 : 0,
-        getCanopyColor: canopy => {
+        getDistantCanopyColor: canopy => {
           const tint =
             sourceOptions.profile === 'rainforest'
               ? [1, 1, 1]
@@ -135,31 +136,30 @@ export function mountTreeWorldExample(
             canopy.color[3] ?? 255
           ];
         },
-        updateTriggers: {getCanopyColor: options.season, getTileData: sourceRevision},
-        treeProps: {
-          characteristics:
-            sourceOptions.profile === 'rainforest'
-              ? {leafDensity: 2, leafSize: 1.5, crownAsymmetry: 1.4, crownDepth: 0.85}
-              : {},
-          getTree: tree => ({
-            position: tree.position,
-            species: tree.species,
-            height: tree.height,
-            crownRadius:
-              tree.canopyRadius / (tree.species === 'pine' || tree.species === 'palm' ? 1 : 2),
-            trunkRadius: tree.trunkRadius,
-            trunkHeightFraction: tree.trunkFraction,
-            branchLevels: 4
-          }),
-          getCanopyColor: tree => (sourceOptions.profile === 'rainforest' ? tree.shade : null),
-          getSeason: () => (sourceOptions.profile === 'rainforest' ? 'summer' : options.season),
-          shadowEnabled: options.shadows,
-          windStrength: options.wind ? 0.025 : 0,
-          windTime: null,
-          updateTriggers: {
-            getSeason: [options.season, sourceOptions.profile],
-            getCanopyColor: [options.season, sourceOptions.profile]
-          }
+        characteristics:
+          sourceOptions.profile === 'rainforest'
+            ? {leafDensity: 2, leafSize: 1.5, crownAsymmetry: 1.4, crownDepth: 0.85}
+            : {},
+        getTree: tree => ({
+          position: tree.position,
+          species: tree.species,
+          height: tree.height,
+          crownRadius:
+            tree.canopyRadius / (tree.species === 'pine' || tree.species === 'palm' ? 1 : 2),
+          trunkRadius: tree.trunkRadius,
+          trunkHeightFraction: tree.trunkFraction,
+          branchLevels: 4
+        }),
+        getCanopyColor: tree => (sourceOptions.profile === 'rainforest' ? tree.shade : null),
+        getSeason: () => (sourceOptions.profile === 'rainforest' ? 'summer' : options.season),
+        shadowEnabled: options.shadows,
+        windStrength: options.wind ? 0.025 : 0,
+        windTime: null,
+        updateTriggers: {
+          getDistantCanopyColor: options.season,
+          getTileData: sourceRevision,
+          getSeason: [options.season, sourceOptions.profile],
+          getCanopyColor: [options.season, sourceOptions.profile]
         }
       })
     ];
@@ -220,7 +220,7 @@ export function mountTreeWorldExample(
       }
       if (measuring && lastFrame) measured.push(now - lastFrame);
       lastFrame = now;
-      const world = deck.props.layers[0] as WorldTreeLayer<WorldSpecimen>;
+      const world = deck.props.layers[0] as TreeLayer<WorldSpecimen>;
       if (now - lastStats < 250 && world.isLoaded === lastLoaded) return;
       lastStats = now;
       lastLoaded = world.isLoaded;

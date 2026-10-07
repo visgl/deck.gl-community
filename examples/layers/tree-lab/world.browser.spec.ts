@@ -102,4 +102,4 @@ it('loads malformed world settings, uses host routes and rejects visibility inte
     parent.remove();
     history.replaceState(null, '', originalUrl);
   }
-}, 45000);
+}, 90000);

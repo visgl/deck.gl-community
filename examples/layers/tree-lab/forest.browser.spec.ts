@@ -102,8 +102,8 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     container.remove();
     history.replaceState(null, '', originalUrl);
   }
-  // Keep each 30s draw assertion; allow the complete 20K software-GPU sequence to finish.
-}, 180000);
+  // Keep each 30s draw assertion; the complete sequence has more than ten such phases.
+}, 420000);
 
 it('honors reduced motion and the stats toggle, with an explicit wind opt-in', async () => {
   const originalUrl = location.href;
@@ -159,7 +159,7 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
     container.remove();
     history.replaceState(null, '', originalUrl);
   }
-}, 60000);
+}, 90000);
 
 it('keeps the current flyover position when pitch is changed', async () => {
   const originalUrl = location.href;

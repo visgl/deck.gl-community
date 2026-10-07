@@ -21,6 +21,12 @@ import {
 import {getTourFrame} from './tour';
 import './style.css';
 
+class TreeLabDeck extends Deck<MapView> {
+  getWindTime(): number {
+    return (this.layerManager?.context.timeline.getTime() ?? 0) / 1000;
+  }
+}
+
 const DESCRIPTIONS = {
   pine: 'Layered evergreen crown · tier shading',
   oak: 'Lobed crown · exposed winter branches',
@@ -84,13 +90,14 @@ export function mountTreeLabExample(
     <footer class="footer">Drag either specimen to inspect both cameras. Crops are illustrative and explicitly supplied; seasons do not invent yield.<br>The frozen mesh reference and Gaussian renderer share wind, crop inputs and dimensions. Gaussian foliage bends its centres and covariance together. Shadows use deck.gl’s WebGL shadow maps.<br>${hostOptions.benchmarkLinks !== false ? 'Performance runs use one renderer at a time: <a href="./baseline.html">Original Three.js benchmark</a> · <a href="./native.html">Native benchmark</a>.' : 'Run the standalone Tree Lab workspace for isolated performance measurements.'}</footer>`;
   container.replaceChildren(root);
   const decks: {
-    deck: Deck<MapView>;
+    deck: TreeLabDeck;
     lighting: ReturnType<typeof createLighting>;
     renderer: string;
     species: (typeof SPECIES)[number];
     element: HTMLDivElement;
     LayerClass: TreeLayerConstructor;
     rendered: number;
+    windTime: number;
     onScreen: boolean;
     data: ReturnType<typeof createSpecimens>;
   }[] = [];
@@ -161,7 +168,7 @@ export function mountTreeLabExample(
     if ((event.target as HTMLElement).id === 'wind-clock') {
       if (options.windTime === null) {
         const specimen = decks.find(item => item.onScreen) ?? decks[0];
-        options.windTime = (specimen?.deck.layerManager?.context.timeline.getTime() ?? 0) / 1000;
+        options.windTime = specimen?.windTime ?? 0;
         const slider = root.querySelector<HTMLInputElement>('#wind-time')!;
         slider.max = String(Math.max(10, Math.ceil(options.windTime)));
         slider.value = String(options.windTime);
@@ -223,13 +230,14 @@ export function mountTreeLabExample(
         LayerClass,
         lighting: createLighting(options.shadows),
         rendered: 0,
+        windTime: 0,
         onScreen:
           element.getBoundingClientRect().top < window.innerHeight &&
           element.getBoundingClientRect().bottom > 0,
         data: createSpecimens(species),
-        deck: undefined as unknown as Deck<MapView>
+        deck: undefined as unknown as TreeLabDeck
       };
-      item.deck = new Deck({
+      item.deck = new TreeLabDeck({
         parent: element,
         width: '100%',
         height: '100%',
@@ -242,6 +250,7 @@ export function mountTreeLabExample(
         onViewStateChange: ({viewState}) => syncCamera(viewState as MapViewState),
         onAfterRender: () => {
           item.rendered++;
+          item.windTime = item.deck.getWindTime();
           if (firstFrame) {
             firstFrame = false;
             ready++;
