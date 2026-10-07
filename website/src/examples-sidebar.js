@@ -48,7 +48,7 @@ const sidebars = {
         'layers/citrus-lab',
         'layers/tree-forest',
         'layers/tree-world',
-        'three/seasonal-farm',
+        'layers/seasonal-farm',
         'layers/skybox-map-view',
         'layers/skybox-globe',
         'layers/skybox-first-person'

@@ -67,6 +67,21 @@ const config = {
   ],
 
   plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          {
+            from: ['/docs/modules/three', '/docs/modules/three/api-reference/tree-layer'],
+            to: '/docs/modules/layers/api-reference/tree-layer'
+          },
+          {
+            from: '/examples/three/seasonal-farm',
+            to: '/examples/layers/seasonal-farm'
+          }
+        ]
+      }
+    ],
     // Improve build performance by disabling expensive optimizations
     // https://github.com/facebook/docusaurus/discussions/11199
     function disableExpensiveBundlerOptimizationPlugin() {
@@ -99,7 +114,6 @@ const config = {
             '@deck.gl-community/graph-layers': resolve('../modules/graph-layers/src'),
             '@deck.gl-community/infovis-layers': resolve('../modules/infovis-layers/src'),
             '@deck.gl-community/timeline-layers': resolve('../modules/timeline-layers/src'),
-            '@deck.gl-community/three': resolve('../modules/three/src'),
             '@deck.gl-community/react': resolve('../modules/react/src'),
             '@deck.gl-community/react-fiber': resolve('../modules/react-fiber/src/dom'),
             '@deck.gl-community/layers': resolve('../modules/layers/src'),
@@ -175,7 +189,6 @@ const config = {
               test: /\.[jt]sx?$/,
               include: [
                 resolve('../modules/panels/src'),
-                resolve('../modules/three/src'),
                 resolve('../modules/widgets/src'),
                 resolve('../modules/editable-layers/src')
               ],
@@ -204,7 +217,7 @@ const config = {
             // Modules using TypeScript `declare` class fields need allowDeclareFields
             {
               test: /\.[jt]sx?$/,
-              include: [resolve('../modules/three/src'), resolve('../modules/arrow-layers/src')],
+              include: [resolve('../modules/layers/src'), resolve('../modules/arrow-layers/src')],
               use: [
                 {
                   loader: require.resolve('babel-loader'),

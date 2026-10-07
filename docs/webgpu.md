@@ -44,7 +44,6 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/basemap-layers` | `BasemapLayer` | ✅ | 🚧 | Support depends on the selected style's polygon, path, and label sublayers. |
 | `@deck.gl-community/layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with instanced deformation and owner picking; optical shadow integration remains WebGL-only. |
 | `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Connected wood and Gaussian foliage with GLSL/WGSL wind; deck.gl shadows remain WebGL-only. |
-| `@deck.gl-community/three` | `TreeLayer` | ✅ | ✅ | Compatibility import for the canonical native TreeLayer. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/bing-maps` | Bing Maps overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/widgets` | `DeviceManagerController` and `DeviceTabsWidget` | ✅ | ✅ | Selects and attaches an independently managed real rendering device. |
