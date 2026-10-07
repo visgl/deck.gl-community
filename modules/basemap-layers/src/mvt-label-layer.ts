@@ -44,6 +44,12 @@ export type MVTLabelLayerProps = {
   zoom?: number;
   /** Text fill color. */
   textColor?: number[];
+  /**
+   * `[min, max)` collision priorities this layer's labels are mapped into. `BasemapLayer` gives
+   * each symbol style layer its own band, so style order decides between layers. Default: deck.gl's
+   * full range, -1000 to 1000.
+   */
+  collisionPriorityRange?: [number, number];
   /** Optional text halo/background color. */
   labelBackground?: number[] | null;
   /** Text size units forwarded to `TextLayer`. */
@@ -179,7 +185,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /**
    * Returns the text color for a decoded feature label, from `text-color` and `text-opacity`.
-   * Falls back to the `textColor` prop when the style layer does not set `text-color`.
+   * Falls back to the `textColor` prop, then to the style spec's default black, when the style
+   * layer does not set `text-color`.
    */
   getLabelColor(feature: FeatureLike): number[] {
     const textColor = this.evaluateStyleProperty('text-color', feature) as number[] | undefined;
@@ -188,20 +195,25 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return withOpacity(textColor, opacity ?? 1);
     }
 
-    const fallbackColor = this.props.textColor || [255, 255, 255];
+    // The style spec's default `text-color` is black.
+    const fallbackColor = this.props.textColor || [0, 0, 0, 255];
     return opacity === undefined ? fallbackColor : withOpacity(fallbackColor, opacity);
   }
 
   /**
-   * Returns the collision priority of a label: from `symbol-sort-key` when the style layer sets
-   * one, otherwise a coarse built-in priority. Lower sort keys win in the style specification,
-   * while higher priorities win in `CollisionFilterExtension`, so the sort key is negated.
+   * Returns the collision priority of a label within `collisionPriorityRange`: ordered by
+   * `symbol-sort-key` when the style layer sets one, otherwise by a coarse built-in priority.
+   * Lower sort keys win in the style specification and higher priorities win in
+   * `CollisionFilterExtension`, so the key is mapped through a decreasing function. That mapping
+   * keeps every key inside the range, at the cost of compressing keys far from zero.
    */
   getLabelCollisionPriority(feature: FeatureLike): number {
-    if (!this.getStyleProperty('symbol-sort-key')) {
-      return getCollisionPriority(feature);
-    }
-    return -(Number(this.evaluateStyleProperty('symbol-sort-key', feature)) || 0);
+    const [min, max] = this.props.collisionPriorityRange || [-1000, 1000];
+    const fraction = this.getStyleProperty('symbol-sort-key')
+      ? 0.5 -
+        Math.atan(Number(this.evaluateStyleProperty('symbol-sort-key', feature)) || 0) / Math.PI
+      : getCollisionPriority(feature) / 1001;
+    return min + fraction * (max - min);
   }
 
   /** Update triggers for the text accessors: the integer zoom for zoom-dependent properties. */

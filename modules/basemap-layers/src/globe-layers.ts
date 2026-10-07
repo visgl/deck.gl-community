@@ -312,7 +312,8 @@ function createStyledVectorSubLayer({
   props,
   zoom,
   config,
-  mode
+  mode,
+  collisionPriorityRange
 }: {
   idPrefix: string;
   sourceId: string;
@@ -322,6 +323,7 @@ function createStyledVectorSubLayer({
   zoom: number;
   config: BasemapLayerConfig;
   mode: BasemapMode;
+  collisionPriorityRange?: [number, number];
 }) {
   if (features.length === 0) {
     return null;
@@ -337,7 +339,8 @@ function createStyledVectorSubLayer({
       mode,
       zoom,
       opacity: 1,
-      paint
+      paint,
+      collisionPriorityRange
     });
   }
 
@@ -352,7 +355,8 @@ function createVectorLayerGroup({
   zoom,
   config,
   loadOptions,
-  mode
+  mode,
+  labelPriorityRanges
 }: {
   idPrefix: string;
   sourceId: string;
@@ -362,6 +366,7 @@ function createVectorLayerGroup({
   config: BasemapLayerConfig;
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
+  labelPriorityRanges?: Map<BasemapStyleLayer, [number, number]>;
 }) {
   // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
   const minZoom = source.minzoom ?? 0;
@@ -428,7 +433,8 @@ function createVectorLayerGroup({
             props,
             zoom,
             config,
-            mode
+            mode,
+            collisionPriorityRange: labelPriorityRanges?.get(styleLayer)
           });
         })
         .filter(layer => Boolean(layer));
@@ -535,7 +541,8 @@ function createSymbolSubLayer({
   mode,
   zoom,
   opacity,
-  paint
+  paint,
+  collisionPriorityRange
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
@@ -545,6 +552,7 @@ function createSymbolSubLayer({
   zoom: number;
   opacity: number;
   paint: Record<string, any>;
+  collisionPriorityRange?: [number, number];
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
@@ -553,6 +561,7 @@ function createSymbolSubLayer({
     config,
     mode,
     styleLayer,
+    collisionPriorityRange,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
@@ -640,6 +649,26 @@ function getBackgroundLayers({
     .map(layer => createBackgroundLayer({idPrefix, layer, zoom, mode}));
 }
 
+/** deck.gl's `CollisionFilterExtension` supports priorities from -1000 to 1000. */
+const COLLISION_PRIORITY_RANGE: [number, number] = [-1000, 1000];
+
+/**
+ * Splits the collision priority range into one band per symbol layer, in style order. All labels
+ * share one collision group, so a later style layer's band is above an earlier one's: MapLibre
+ * places symbol layers from the top of the style down, and `symbol-sort-key` only orders labels
+ * within a layer.
+ */
+function getLabelPriorityRanges(
+  styleLayers: BasemapStyleLayer[]
+): Map<BasemapStyleLayer, [number, number]> {
+  const symbolLayers = styleLayers.filter(layer => layer.type === 'symbol');
+  const [min, max] = COLLISION_PRIORITY_RANGE;
+  const width = (max - min) / Math.max(symbolLayers.length, 1);
+  return new Map(
+    symbolLayers.map((layer, index) => [layer, [min + index * width, min + (index + 1) * width]])
+  );
+}
+
 function getVectorLayers({
   idPrefix,
   styleLayers,
@@ -664,6 +693,7 @@ function getVectorLayers({
   // A group keeps all of its source's style layers, visible or not: its tile regeneration key
   // must change when any of them crosses its own limits, and `renderSubLayers` gates each layer
   // by zoom. Skip a source only when none of its layers are visible.
+  const labelPriorityRanges = getLabelPriorityRanges(vectorLayers);
   return getVectorSourceGroups(vectorLayers, styleDefinition)
     .filter(group => group.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom)))
     .map(group =>
@@ -675,7 +705,8 @@ function getVectorLayers({
         zoom,
         config,
         loadOptions,
-        mode
+        mode,
+        labelPriorityRanges
       })
     );
 }
