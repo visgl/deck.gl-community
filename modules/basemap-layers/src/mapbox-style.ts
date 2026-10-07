@@ -1,4 +1,14 @@
-import {Color, expression, featureFilter, latest as Reference} from '@mapbox/mapbox-gl-style-spec';
+import {
+  Color,
+  expression,
+  featureFilter,
+  latest as Reference
+} from '@maplibre/maplibre-gl-style-spec';
+import type {
+  Feature as StyleFeature,
+  FilterSpecification,
+  GlobalProperties as StyleGlobalProperties
+} from '@maplibre/maplibre-gl-style-spec';
 
 type GlobalProperties = {
   zoom?: number;
@@ -68,14 +78,16 @@ export function filterFeatures({
     return [];
   }
 
-  const filterFn = featureFilter(filter).filter;
+  const filterFn = featureFilter(filter as FilterSpecification).filter;
 
   return features.filter(feature => {
     if (![1, 2, 3].includes(Number(feature.type))) {
       feature.type = GEOM_TYPES[feature.geometry?.type || ''] ?? feature.type;
     }
 
-    return filterFn(globalProperties, feature);
+    // Filters read `type` and `properties`. The style-spec `Feature` also types `geometry` as
+    // tile-local points, used only by `within`/`distance`, which GeoJSON features cannot satisfy.
+    return filterFn(globalProperties as StyleGlobalProperties, feature as unknown as StyleFeature);
   });
 }
 
@@ -186,11 +198,21 @@ function parseProperty(
   globalProperties: GlobalProperties
 ): Record<string, unknown> {
   const exp = expression.normalizePropertyExpression(property.value, property.reference as any);
-  const result = exp.evaluate(globalProperties);
+  const result = exp.evaluate(globalProperties as StyleGlobalProperties);
 
   if (result instanceof Color) {
-    return {[property.key]: result.toArray()};
+    return {[property.key]: colorToArray(result)};
   }
 
   return {[property.key]: result};
+}
+
+/**
+ * Converts a style-spec color to `[r, g, b, a]` with RGB in 0-255 and alpha in 0-1, the shape
+ * `@mapbox/mapbox-gl-style-spec`'s `Color#toArray()` returned. MapLibre's `Color` stores
+ * premultiplied components; its `rgb` getter returns them un-premultiplied in 0-1.
+ */
+export function colorToArray(color: Color): [number, number, number, number] {
+  const [r, g, b, a] = color.rgb;
+  return a === 0 ? [0, 0, 0, 0] : [r * 255, g * 255, b * 255, a];
 }

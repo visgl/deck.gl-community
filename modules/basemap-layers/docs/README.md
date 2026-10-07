@@ -168,11 +168,10 @@ Mapbox layers have a deck.gl equivalent:
 | `hillshade`       | N/A                         |
 | `sky` (v2 only)   | N/A                         |
 
-Mapbox GL JS [exposes a standalone parser][mapbox-style-spec-js] for their style specification. (This is apparently [still open source][mapbox-style-spec-js-license] in v2). This parser is quite helpful, it:
+The module evaluates styles with [`@maplibre/maplibre-gl-style-spec`][maplibre-style-spec-js], the standalone style-spec package from MapLibre GL JS. It:
 
 - parses all permissible color descriptions into an rgba array
 - Evaluates filter expressions for each GeoJSON `Feature` input
 - Evaluates paint expressions given the zoom level
 
-[mapbox-style-spec-js]: https://github.com/mapbox/mapbox-gl-js/blob/main/src/style-spec/README.md
-[mapbox-style-spec-js-license]: https://github.com/mapbox/mapbox-gl-js/blob/0063cbd10a97218fb6a0f64c99bf18609b918f4c/src/style-spec/package.json#L11
+[maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec
