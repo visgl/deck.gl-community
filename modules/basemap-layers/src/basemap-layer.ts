@@ -58,6 +58,23 @@ export type BasemapLayerProps = {
   };
 };
 
+const fractionalZoomLimitsCache = new WeakMap<ResolvedBasemapStyle, number[]>();
+
+/**
+ * The fractional `minzoom`/`maxzoom` limits of a style, computed once per resolved style:
+ * `shouldUpdateState` reads them on every viewport change, but they only change with the style.
+ */
+function getFractionalZoomLimits(resolvedStyle: ResolvedBasemapStyle): number[] {
+  let limits = fractionalZoomLimitsCache.get(resolvedStyle);
+  if (!limits) {
+    limits = getStyleDefinitionZoomLimits(resolvedStyle).filter(
+      (limit): limit is number => limit !== undefined && !Number.isInteger(limit)
+    );
+    fractionalZoomLimitsCache.set(resolvedStyle, limits);
+  }
+  return limits;
+}
+
 /**
  * Internal state tracked by {@link BasemapLayer}.
  */
@@ -128,7 +145,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
 
   /** Returns the zoom key of `zoom` for a resolved style. */
   getZoomKey(resolvedStyle: ResolvedBasemapStyle, zoom: number): string {
-    return getStyleZoomKey(zoom, getStyleDefinitionZoomLimits(resolvedStyle));
+    return getStyleZoomKey(zoom, getFractionalZoomLimits(resolvedStyle));
   }
 
   /** Reacts to changes in the input style definition. */

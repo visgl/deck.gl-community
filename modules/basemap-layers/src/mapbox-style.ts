@@ -1,6 +1,6 @@
 import {
   compileStyleFilter,
-  compileStylePropertyValue,
+  getCompiledStyleProperty,
   getStylePropertyReference
 } from './style-expression';
 
@@ -51,15 +51,6 @@ type VisitOptions = {
   layout?: boolean;
 };
 
-const GEOM_TYPES: Record<string, number> = {
-  Point: 1,
-  MultiPoint: 1,
-  LineString: 2,
-  MultiLineString: 2,
-  Polygon: 3,
-  MultiPolygon: 3
-};
-
 /**
  * Applies a Mapbox style-spec filter expression to a set of features.
  */
@@ -74,13 +65,8 @@ export function filterFeatures({
 
   const filterFn = compileStyleFilter(filter);
 
-  return features.filter(feature => {
-    if (![1, 2, 3].includes(Number(feature.type))) {
-      feature.type = GEOM_TYPES[feature.geometry?.type || ''] ?? feature.type;
-    }
-
-    return filterFn(globalProperties, feature);
-  });
+  // `compileStyleFilter` derives the geometry type itself, so the features are not modified.
+  return features.filter(feature => filterFn(globalProperties, feature));
 }
 
 /**
@@ -166,8 +152,8 @@ function parseProperty(
   property: VisitedProperty,
   globalProperties: GlobalProperties
 ): Record<string, unknown> {
-  const compiled = compileStylePropertyValue(property.key, property.value);
-  return {[property.key]: compiled.evaluate(globalProperties.zoom ?? 0)};
+  const compiled = getCompiledStyleProperty(property.layer, property.key);
+  return {[property.key]: compiled?.evaluate(globalProperties.zoom ?? 0)};
 }
 
 export {colorToArray} from './style-expression';
