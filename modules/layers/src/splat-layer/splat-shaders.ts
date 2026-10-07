@@ -68,8 +68,13 @@ void main() {
   mat3 transform = mat3(instanceModelMatrixCol0, instanceModelMatrixCol1, instanceModelMatrixCol2);
   vec3 position = transform * splatCenters + instanceTranslation;
   mat3 covariance = transform * mat3(splatAxisX, splatAxisY, splatAxisZ);
-  vec3 squaredScale = max(vec3(dot(transform[0],transform[0]), dot(transform[1],transform[1]), dot(transform[2],transform[2])), vec3(1e-12));
-  vec3 normal = transform * (splatNormals / squaredScale);
+  vec3 normalAxisX = cross(transform[1], transform[2]);
+  vec3 normalAxisY = cross(transform[2], transform[0]);
+  vec3 normalAxisZ = cross(transform[0], transform[1]);
+  float normalDeterminant = dot(transform[0], normalAxisX);
+  // Cofactors form the inverse transpose, including shear and reflections.
+  vec3 normal = mat3(normalAxisX, normalAxisY, normalAxisZ) * splatNormals;
+  normal *= (normalDeterminant < 0.0 ? -1.0 : 1.0) / max(abs(normalDeterminant), 1e-20);
   float height = max(instanceDeformation.x, 0.001);
   vec2 wave = vec2(splat.wave.x * instanceDeformation.w + splat.wave.y * instanceDeformation.z,
     splat.wave.z * instanceCoverageWeight.z + splat.wave.w * instanceCoverageWeight.y);
