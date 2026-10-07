@@ -24,7 +24,9 @@ type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 describe('Seasonal Farm integration', () => {
   it.for(['webgl', 'webgpu'] as const)(
     'renders seasons, plot inspection, and responsive remounts on %s',
-    {timeout: 60_000},
+    // Full native foliage across 416 trees and camera/remount checks is slower on CI's software GPU.
+    // Individual readiness and interaction assertions retain their five-second bounds.
+    {timeout: 180_000},
     async (type, {skip}) => {
       if (type === 'webgpu') {
         const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
