@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
+  Blue Marble raster tiles. Other basemap providers are unchanged. Blue Marble tiles
+  use a maximum native zoom of 8.
+
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.
   Graph loader dependencies require loaders.gl 4.5.3 or later.

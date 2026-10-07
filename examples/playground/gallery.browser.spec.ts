@@ -40,7 +40,7 @@ async function mockGalleryResources(): Promise<void> {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (url.startsWith('data:') || url.startsWith('blob:')) return fetchLocalResource(input, init);
-    if (url === 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json') {
+    if (url === 'https://tiles.openfreemap.org/styles/positron') {
       return Response.json({
         version: 8,
         sources: {},

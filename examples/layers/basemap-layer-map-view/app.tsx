@@ -12,22 +12,13 @@ import {
   type SettingsState
 } from '../../../modules/panels/src';
 import {BoxPanelWidget} from '../../../modules/widgets/src';
-import deckLightStyle from '../../../website/static/mapstyle/deck-light.json';
 
 import '@deck.gl/widgets/stylesheet.css';
 
-type ExampleBasemapStyle = typeof deckLightStyle | string | RasterBasemapStyle;
+type ExampleBasemapStyle = string | RasterBasemapStyle;
 
 type ExampleStyleOption = {
-  id:
-    | 'light'
-    | 'carto-positron'
-    | 'carto-dark-matter'
-    | 'carto-voyager'
-    | 'carto-positron-nolabels'
-    | 'raster-positron'
-    | 'raster-dark-matter'
-    | 'raster-voyager';
+  id: 'positron' | 'dark' | 'liberty' | 'blue-marble';
   label: string;
   style: ExampleBasemapStyle;
 };
@@ -39,6 +30,7 @@ type RasterBasemapStyle = {
     basemap: {
       type: 'raster';
       tileSize: number;
+      maxzoom: number;
       tiles: string[];
       attribution?: string;
     };
@@ -76,50 +68,24 @@ type ExampleStatus = {
 
 const STYLE_OPTIONS: ExampleStyleOption[] = [
   {
-    id: 'carto-positron',
-    label: 'Positron',
-    style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+    id: 'positron',
+    label: 'OpenFreeMap Positron',
+    style: 'https://tiles.openfreemap.org/styles/positron'
+  },
+  {id: 'dark', label: 'OpenFreeMap Dark', style: 'https://tiles.openfreemap.org/styles/dark'},
+  {
+    id: 'liberty',
+    label: 'OpenFreeMap Liberty',
+    style: 'https://tiles.openfreemap.org/styles/liberty'
   },
   {
-    id: 'carto-dark-matter',
-    label: 'Dark Matter',
-    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
-  },
-  {
-    id: 'carto-voyager',
-    label: 'Voyager',
-    style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
-  },
-  {
-    id: 'carto-positron-nolabels',
-    label: 'Positron (No Labels)',
-    style: 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json'
-  },
-  {
-    id: 'raster-positron',
-    label: 'Raster Positron',
+    id: 'blue-marble',
+    label: 'NASA Blue Marble',
     style: createRasterStyle(
-      'Raster Positron',
-      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+      'NASA Blue Marble',
+      'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg'
     )
-  },
-  {
-    id: 'raster-dark-matter',
-    label: 'Raster Dark Matter',
-    style: createRasterStyle(
-      'Raster Dark Matter',
-      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-    )
-  },
-  {
-    id: 'raster-voyager',
-    label: 'Raster Voyager',
-    style: createRasterStyle(
-      'Raster Voyager',
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
-    )
-  },
-  {id: 'light', label: 'Deck Light', style: deckLightStyle}
+  }
 ];
 
 const FLAT_VIEW_STATE = {
@@ -161,15 +127,15 @@ const SETTINGS_SCHEMA: SettingsSchema = {
           label: 'Map Style',
           type: 'select',
           options: STYLE_OPTIONS.map(option => ({label: option.label, value: option.id})),
-          description: 'Swap between local demo styles and CARTO-hosted style JSON documents.'
+          description: 'Choose an OpenFreeMap vector style or NASA Blue Marble raster tiles.'
         }
       ]
     }
   ]
 };
 
-const DEFAULT_FLAT_STYLE_ID: ExampleStyleOption['id'] = 'carto-voyager';
-const DEFAULT_GLOBE_STYLE_ID: ExampleStyleOption['id'] = 'light';
+const DEFAULT_FLAT_STYLE_ID: ExampleStyleOption['id'] = 'liberty';
+const DEFAULT_GLOBE_STYLE_ID: ExampleStyleOption['id'] = 'blue-marble';
 
 export function mountBasemapLayerMapViewExample(container: HTMLElement): () => void {
   const rootElement = createRoot(container);
@@ -439,8 +405,9 @@ function createRasterStyle(name: string, tileTemplate: string): RasterBasemapSty
       basemap: {
         type: 'raster',
         tileSize: 256,
-        tiles: ['a', 'b', 'c', 'd'].map(subdomain => tileTemplate.replace('{s}', subdomain)),
-        attribution: '&copy; CARTO'
+        maxzoom: 8,
+        tiles: [tileTemplate],
+        attribution: 'Imagery courtesy NASA GIBS'
       }
     },
     layers: [
