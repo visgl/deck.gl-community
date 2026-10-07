@@ -1,7 +1,8 @@
 import {CompositeLayer, log, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
-import {getBasemapLayers} from './globe-layers';
+import {getBasemapLayers, getStyleDefinitionZoomLimits} from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
+import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
 
 /**
@@ -67,6 +68,8 @@ type BasemapLayerState = {
   loadError: Error | null;
   /** Monotonic token used to discard stale async style loads. */
   loadToken: number;
+  /** `getStyleZoomKey` of the zoom the current sublayers were generated at. */
+  zoomKey: string | null;
 };
 
 /**
@@ -102,8 +105,30 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     this.state = {
       resolvedStyle: null,
       loadError: null,
-      loadToken: 0
+      loadToken: 0,
+      zoomKey: null
     };
+  }
+
+  /**
+   * Sublayers depend on the zoom, but only through `getStyleZoomKey`: style values step at integer
+   * zooms and layer visibility changes at `minzoom`/`maxzoom`. Re-render when that key changes, not
+   * on every viewport change.
+   */
+  shouldUpdateState(params: UpdateParameters<this>): boolean {
+    if (super.shouldUpdateState(params)) {
+      return true;
+    }
+    const {resolvedStyle, zoomKey} = this.state;
+    if (!resolvedStyle || !params.changeFlags.viewportChanged) {
+      return false;
+    }
+    return this.getZoomKey(resolvedStyle, params.context.viewport.zoom) !== zoomKey;
+  }
+
+  /** Returns the zoom key of `zoom` for a resolved style. */
+  getZoomKey(resolvedStyle: ResolvedBasemapStyle, zoom: number): string {
+    return getStyleZoomKey(zoom, getStyleDefinitionZoomLimits(resolvedStyle));
   }
 
   /** Reacts to changes in the input style definition. */
@@ -167,16 +192,21 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
 
   /** Renders the sublayers generated from the resolved style definition. */
   renderLayers() {
-    if (!this.state.resolvedStyle) {
+    const {resolvedStyle} = this.state;
+    if (!resolvedStyle) {
       return [];
     }
+
+    const zoom = this.context.viewport?.zoom || 0;
+    // Recorded without setState: this only tracks what the current sublayers were built from.
+    this.state.zoomKey = this.getZoomKey(resolvedStyle, zoom);
 
     return getBasemapLayers({
       idPrefix: this.props.id,
       mode: this.props.mode,
       globe: this.props.globe,
-      styleDefinition: this.state.resolvedStyle,
-      zoom: this.context.viewport?.zoom || 0,
+      styleDefinition: resolvedStyle,
+      zoom,
       loadOptions: this.props.loadOptions
     });
   }

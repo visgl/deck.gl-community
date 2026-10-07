@@ -169,3 +169,5 @@ function parseProperty(
   const compiled = compileStylePropertyValue(property.key, property.value);
   return {[property.key]: compiled.evaluate(globalProperties.zoom ?? 0)};
 }
+
+export {colorToArray} from './style-expression';

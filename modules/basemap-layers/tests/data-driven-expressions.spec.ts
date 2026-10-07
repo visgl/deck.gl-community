@@ -113,24 +113,58 @@ describe('data-driven paint properties', () => {
     expect(sublayer.props.getLineWidth(features[0])).toBeCloseTo(5.2, 6);
   });
 
-  test('keeps feature-independent values as constants evaluated at the exact zoom', () => {
+  test('evaluates feature-independent values as constants at the integer zoom', () => {
+    const styleLayer = {
+      id: 'land',
+      type: 'line',
+      paint: {
+        'line-color': '#ff0000',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 6]
+      }
+    };
+    const features = [feature('LineString', {})];
+    // Neighbouring tiles generated at z7.2 and z7.9 must agree: both evaluate at zoom 7.
+    const early = renderStyleLayer(styleLayer, features, 7.2).sublayer;
+    const late = renderStyleLayer(styleLayer, features, 7.9).sublayer;
+
+    expect(early.props.getLineColor).toEqual([255, 0, 0, 255]);
+    // 1 + (6 - 1) * (7 - 5) / 5.
+    expect(early.props.getLineWidth).toBeCloseTo(3, 6);
+    expect(late.props.getLineWidth).toBeCloseTo(3, 6);
+    expect(early.props.updateTriggers.getLineWidth).toBeUndefined();
+  });
+
+  test('evaluates zoom in filters at the integer zoom', () => {
     const features = [feature('LineString', {})];
     const {sublayer} = renderStyleLayer(
-      {
-        id: 'land',
-        type: 'line',
-        paint: {
-          'line-color': '#ff0000',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 6]
-        }
-      },
+      {id: 'land', type: 'line', filter: ['>=', ['zoom'], 7.5]},
       features,
-      7.5
+      7.9
     );
+    // The style spec evaluates zoom expressions in filters only at integer zoom levels, so at
+    // z7.9 the filter sees zoom 7 and the tile renders nothing for this style layer.
+    expect(sublayer).toBeUndefined();
+  });
 
-    expect(sublayer.props.getLineColor).toEqual([255, 0, 0, 255]);
-    expect(sublayer.props.getLineWidth).toBeCloseTo(3.5, 6);
-    expect(sublayer.props.updateTriggers.getLineWidth).toBeUndefined();
+  test('regenerates tile sublayers when the zoom crosses a fractional minzoom', () => {
+    const vectorLayerAt = (zoom: number): any =>
+      getBasemapLayers({
+        idPrefix: 'test',
+        mode: 'map',
+        zoom,
+        styleDefinition: {
+          version: 8,
+          sources: SOURCES,
+          layers: [
+            {id: 'land', type: 'line', source: 'tiles', 'source-layer': 'land'},
+            {id: 'late', type: 'line', source: 'tiles', 'source-layer': 'land', minzoom: 7.5}
+          ]
+        } as any
+      }).find(layer => layer.id === 'test-tiles');
+
+    expect(vectorLayerAt(7.2).props.updateTriggers.renderSubLayers).not.toEqual(
+      vectorLayerAt(7.9).props.updateTriggers.renderSubLayers
+    );
   });
 
   test('regenerates tile sublayers when the integer zoom changes', () => {
