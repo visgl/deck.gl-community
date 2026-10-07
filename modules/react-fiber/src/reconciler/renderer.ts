@@ -1,8 +1,6 @@
 import type {Layer, View} from '@deck.gl/core';
 import {Deck} from '@deck.gl/core';
-import {MapboxOverlay} from '@deck.gl/mapbox';
 import {createStore, noop, log} from '../shared/index';
-import type {DeckglProps} from '../types/index';
 import type {ReactNode} from 'react';
 import reactReconciler from 'react-reconciler';
 import type {HostConfig} from 'react-reconciler';
@@ -12,11 +10,13 @@ import * as config from './config';
 import type {
   ChildSet,
   Container,
+  DeckglConfiguration,
   HostContext,
   Instance,
   Props,
   ReconcilerRoot,
-  RootElement
+  RootElement,
+  RootOptions
 } from './types';
 
 /**
@@ -190,21 +190,31 @@ export function unmountAtNode(node: RootElement) {
  * );
  * ```
  */
-export function createRoot(node: RootElement): ReconcilerRoot {
+export function createRoot(node: RootElement, options: RootOptions = {}): ReconcilerRoot {
   log
     .withMetadata({
       node
     })
     .debug('renderer.createRoot');
 
-  // Early return if root already exists for this node
+  const createExternalOverlay = options.createExternalOverlay;
+  const isExternalOverlay = Boolean(createExternalOverlay);
+
+  // A registry key has one immutable rendering capability. Reusing it with a
+  // different provider could otherwise retain the wrong external control.
   const existingRoot = roots.get(node);
   if (existingRoot) {
+    if (
+      existingRoot.isExternalOverlay !== isExternalOverlay ||
+      existingRoot.createExternalOverlay !== createExternalOverlay
+    ) {
+      throw new Error('Cannot reuse a DeckGL root with a different overlay capability.');
+    }
     return existingRoot;
   }
 
   // Create new root
-  const store = createStore();
+  const store = createStore(isExternalOverlay);
 
   /**
    * Create a new React reconciler container with the following configuration:
@@ -234,36 +244,49 @@ export function createRoot(node: RootElement): ReconcilerRoot {
   );
 
   let configured = false;
+  let initialInterleaved: boolean | undefined;
 
-  function configure(props: DeckglProps) {
+  function getInterleavedMode(props: object): boolean {
+    return 'interleaved' in props && props.interleaved === true;
+  }
+
+  function configure(props: DeckglConfiguration) {
+    if (!isExternalOverlay && 'interleaved' in props) {
+      throw new Error(
+        'The default DeckGL root does not support interleaved rendering. ' +
+          'Import /mapbox or /maplibre, or create a custom overlay root with createDeckGL.'
+      );
+    }
+
+    const interleaved = getInterleavedMode(props);
+
+    if (configured && isExternalOverlay && initialInterleaved !== interleaved) {
+      throw new Error(
+        'The interleaved mode is fixed when an overlay root is created. ' +
+          'Remount DeckGL with a different React key to change it.'
+      );
+    }
+
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
-    store.setState({
-      _passedLayers: props?.layers ?? []
-    });
+    store.setState({_passedLayers: props.layers ?? []});
 
     if (configured) {
       const deckgl = store.getState().deckgl;
       if (deckgl) {
-        deckgl.setProps(props as Parameters<typeof deckgl.setProps>[0]);
+        deckgl.setProps(props);
       }
       return;
-    }
-
-    if (props?.layers && props.layers.length > 0) {
-      // IDEA: we could do some complex diffing logic here but since we don't expose the full store there are
-      // no footguns to just updating it all the time.
-      store.setState({_passedLayers: props.layers});
     }
 
     log.withMetadata(props).debug('renderer.configure');
 
     const state = store.getState();
+    const deckgl = createExternalOverlay
+      ? createExternalOverlay(props)
+      : new Deck<View | View[] | null>(props);
 
-    // NOTE: interleaved prop is a hint that we are utilizing an external renderer such as Mapbox/Maplibre
-    const isOverlay = 'interleaved' in props;
-    const deckgl = isOverlay ? new MapboxOverlay(props) : new Deck(props);
-
+    initialInterleaved = interleaved;
     state.setDeckgl(deckgl);
 
     configured = true;
@@ -279,7 +302,14 @@ export function createRoot(node: RootElement): ReconcilerRoot {
     renderer.updateContainer(children, container, null, noop);
   }
 
-  const root: ReconcilerRoot = {configure, container, render, store};
+  const root: ReconcilerRoot = {
+    configure,
+    container,
+    createExternalOverlay,
+    isExternalOverlay,
+    render,
+    store
+  };
   roots.set(node, root);
 
   return root;

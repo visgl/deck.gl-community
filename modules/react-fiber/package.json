@@ -37,10 +37,30 @@
       "require": "./dist/dom/index.cjs",
       "import": "./dist/dom/index.js"
     },
+    "./mapbox": {
+      "types": "./dist/dom/mapbox.d.ts",
+      "require": "./dist/dom/mapbox.cjs",
+      "import": "./dist/dom/mapbox.js"
+    },
+    "./maplibre": {
+      "types": "./dist/dom/maplibre.d.ts",
+      "require": "./dist/dom/maplibre.cjs",
+      "import": "./dist/dom/maplibre.js"
+    },
     "./compat": {
       "types": "./dist/compat/index.d.ts",
       "require": "./dist/compat/index.cjs",
       "import": "./dist/compat/index.js"
+    },
+    "./compat/mapbox": {
+      "types": "./dist/compat/mapbox.d.ts",
+      "require": "./dist/compat/mapbox.cjs",
+      "import": "./dist/compat/mapbox.js"
+    },
+    "./compat/maplibre": {
+      "types": "./dist/compat/maplibre.d.ts",
+      "require": "./dist/compat/maplibre.cjs",
+      "import": "./dist/compat/maplibre.js"
     },
     "./compat/layers": {
       "types": "./dist/compat/layers.d.ts",
@@ -148,6 +168,7 @@
     "@deck.gl/geo-layers": "~9.4.0",
     "@deck.gl/layers": "~9.4.0",
     "@deck.gl/mapbox": "~9.4.0",
+    "@deck.gl/maplibre": "~9.4.0",
     "@deck.gl/mesh-layers": "~9.4.0",
     "@loaders.gl/core": "^4.5.1",
     "@luma.gl/core": "~9.4.0",
@@ -156,6 +177,14 @@
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
   },
+  "peerDependenciesMeta": {
+    "@deck.gl/mapbox": {
+      "optional": true
+    },
+    "@deck.gl/maplibre": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@deck.gl/aggregation-layers": "~9.4.0",
     "@deck.gl/core": "~9.4.0",
@@ -163,6 +192,7 @@
     "@deck.gl/geo-layers": "~9.4.0",
     "@deck.gl/layers": "~9.4.0",
     "@deck.gl/mapbox": "~9.4.0",
+    "@deck.gl/maplibre": "~9.4.0",
     "@deck.gl/mesh-layers": "~9.4.0",
     "@loaders.gl/core": "^4.5.1",
     "@luma.gl/core": "~9.4.0",
@@ -175,6 +205,7 @@
     "@types/react-reconciler": "0.33.0",
     "fast-check": "^4.0.0",
     "jsdom": "^26.0.0",
+    "maplibre-gl": "^6.11.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "6.0.3",

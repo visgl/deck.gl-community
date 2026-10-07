@@ -6,16 +6,25 @@ The adapter uses the local DOM renderer. In an application that uses React Serve
 
 ## Replace the root import
 
+> **Breaking change for interleaved roots:** The plain `/compat` entry now creates only `Deck` and rejects `interleaved`. Replace a previous interleaved default import with `/compat/mapbox` or `/compat/maplibre`, according to the host map. Configure and attach the returned provider control from the application-owned map.
+
 Change this:
 
 ```tsx
 import {DeckGL} from '@deck.gl/react';
 ```
 
-To this:
+To this for a standalone `Deck`:
 
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber/compat';
+```
+
+For an existing provider overlay, choose the matching explicit root:
+
+```tsx
+import {DeckGL as MapboxDeckGL} from '@deck.gl-community/react-fiber/compat/mapbox';
+import {DeckGL as MapLibreDeckGL} from '@deck.gl-community/react-fiber/compat/maplibre';
 ```
 
 Layer wrappers are explicit subpath imports owned by this package. They are not subpaths of `@deck.gl/react`.
@@ -29,7 +38,9 @@ import {ScatterplotLayer} from '@deck.gl-community/react-fiber/compat/layers';
 
 | Import | Exports |
 | --- | --- |
-| `@deck.gl-community/react-fiber/compat` | `DeckGL`, `MapView`, `OrthographicView`, `OrbitView`, `FirstPersonView`, `GlobeView`; types `DeckGLProps`, `DeckGLRef`, `DeckGLContextValue` |
+| `@deck.gl-community/react-fiber/compat` | Standalone `Deck` adapter: `DeckGL`, views, and compatibility types |
+| `@deck.gl-community/react-fiber/compat/mapbox` | `MapboxOverlay` compatibility adapter with concrete ref and context types |
+| `@deck.gl-community/react-fiber/compat/maplibre` | `MapLibreOverlay` compatibility adapter with concrete ref and context types |
 | `/compat/layers` | `ArcLayer`, `BitmapLayer`, `IconLayer`, `LineLayer`, `PointCloudLayer`, `ScatterplotLayer`, `ColumnLayer`, `GridCellLayer`, `PathLayer`, `PolygonLayer`, `GeoJsonLayer`, `TextLayer`, `SolidPolygonLayer` |
 | `/compat/geo-layers` | `S2Layer`, `QuadkeyLayer`, `TileLayer`, `H3ClusterLayer`, `H3HexagonLayer`, `Tile3DLayer`, `TerrainLayer`, `GeohashLayer`, `GreatCircleLayer`, `TripsLayer`, `MVTLayer`, `WMSLayer` |
 | `/compat/aggregation-layers` | `ScreenGridLayer`, `HexagonLayer`, `ContourLayer`, `GridLayer`, `HeatmapLayer` |
@@ -150,6 +161,6 @@ Before changing imports, review the application for these patterns:
 - Function children: compat does not support function-child render callbacks. Render supported layers and views directly instead.
 - Widgets, JSX widget wrappers, and `useWidget`: these APIs are deferred and unavailable from compat.
 - Extra layer or view components: only the export matrix above is supported.
-- Interleaved rendering: `MapboxOverlay` owns its views. Compat view wrappers do not change the existing interleaved view limitation.
+- Provider overlays: use `/compat/mapbox` or `/compat/maplibre`, not the plain `/compat` entry. The host map owns views, so compat view wrappers do not configure an external overlay.
 
 In development, detectable unsupported low-level props and function children issue concise migration warnings. Production is silent; a missing warning does not make an unsupported pattern work.

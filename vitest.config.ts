@@ -94,6 +94,7 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
+  exclude: ['maplibre-gl'],
   include: ['@deck.gl/mesh-layers', '@loaders.gl/arrow', 'apache-arrow', 'three', 'zod']
 };
 
