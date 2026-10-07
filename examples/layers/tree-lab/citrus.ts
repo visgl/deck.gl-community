@@ -310,9 +310,11 @@ export function mountCitrusLabExample(
       deck.setProps({layers: getLayers(), effects: [lighting]});
     }
   }
+  let sunDirection: [number, number, number] = [0, 0, -1];
   const applySun = (direction?: [number, number, number]) => {
     const angle = (sunAngle * Math.PI) / 180;
-    lighting.setSunDirection(direction ?? [-Math.cos(angle), -Math.sin(angle), -1.2]);
+    sunDirection = direction ?? [-Math.cos(angle), -Math.sin(angle), -1.2];
+    lighting.setSunDirection(sunDirection);
     deck.setProps({effects: [lighting]});
     deck.redraw('citrus sunlight');
   };
@@ -362,7 +364,7 @@ export function mountCitrusLabExample(
   checkbox('Shadows').addEventListener('change', () => {
     shadows = checkbox('Shadows').checked;
     lighting.setProps(createLighting(shadows).props);
-    applySun();
+    applySun(sunDirection);
     refresh();
   });
   checkbox('Cycle light and seasons').addEventListener('change', () => {

@@ -75,6 +75,14 @@ describe('Citrus lab', () => {
       await expect.poll(() => renders, {timeout: 15000}).toBeGreaterThan(0);
       checkbox('Cycle light and seasons', false);
       checkbox('Wind', false);
+      const cycledDirection = [
+        ...(spy.mock.instances.at(-1) as Deck).props.effects![0].props.key.direction
+      ];
+      checkbox('Shadows', false);
+      checkbox('Shadows', true);
+      expect((spy.mock.instances.at(-1) as Deck).props.effects![0].props.key.direction).toEqual(
+        cycledDirection
+      );
       const sun = container.querySelector<HTMLInputElement>('[aria-label="Sun angle"]')!;
       sun.value = '137';
       sun.dispatchEvent(new Event('input', {bubbles: true}));
