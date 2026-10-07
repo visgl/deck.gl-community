@@ -11,12 +11,13 @@ const SOURCE = {
   colors: new Uint8Array([30, 120, 40, 255]),
   opacities: new Float32Array([0.8])
 };
-function make(data: {position: [number, number, number]}[], flex = 1) {
+function make(data: {position: [number, number, number]}[], flex = 1, extra = {}) {
   const layer = new SplatLayer({
     data,
     source: SOURCE,
     deformationStrength: 0.1,
-    getDeformation: [10, 0, flex]
+    getDeformation: [10, 0, flex],
+    ...extra
   });
   layer.initializeState();
   vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
@@ -46,6 +47,27 @@ it('includes absolute flex in both wind allowances for camera and light bounds',
     (normal.state.owners[0].radius - base) * 4,
     10
   );
+});
+
+it('starts shared capped registrations at coverage before their first joint grant', () => {
+  const fine = Object.fromEntries(
+    Object.entries(SOURCE).map(([key, array]) => [
+      key,
+      new (array.constructor as typeof Float32Array)([...array, ...array, ...array])
+    ])
+  );
+  const layer = make([{position: [256, 256, 0]}], 0, {
+    source: fine,
+    hierarchy: [
+      {source: fine, error: 0},
+      {source: SOURCE, error: 1}
+    ],
+    pixelError: 0.001,
+    _splatBudgetGroup: {maxSplats: 100, maxShadowSplats: 100}
+  });
+  expect(layer.state.candidates[0].level).toBe(0);
+  expect(layer.splatStats.renderedSplats).toBe(1);
+  expect(layer.splatStats.coverageFloor).toBe(1);
 });
 it('reconciles fallback shadow membership on replacement without retaining removed owners', () => {
   const a = {position: [0, 0, 0] as [number, number, number]},
