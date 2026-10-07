@@ -5,7 +5,7 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
-import {getStyleAccessor, getZoomBucket} from './style-accessor';
+import {getStyleAccessor, getZoomBucket, withOpacity} from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
@@ -85,18 +85,6 @@ const BACKGROUND_NORTH_POLE_DATA = [
 
 const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster']);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
-function withOpacity(
-  color: number[] | null | undefined,
-  opacity = 1
-): [number, number, number, number] {
-  if (!color) {
-    return [0, 0, 0, 0];
-  }
-
-  const alpha = color.length > 3 ? (color[3] <= 1 ? color[3] * 255 : color[3]) : 255;
-  return [color[0], color[1], color[2], Math.round(alpha * opacity)];
-}
-
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
   const properties = parseProperties(layer, {zoom});
   return Object.fromEntries(

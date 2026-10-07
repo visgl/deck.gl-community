@@ -6,6 +6,9 @@
   expressions (`["get", ...]`, `match`, `case`) style each feature instead of resolving to one
   value per style layer. `findFeaturesStyledByLayer` returns the source-layer features when the
   style layer has no `filter`, instead of none.
+- `basemap-layers` labels evaluate `text-field`, `text-size`, `text-color` and `text-opacity`
+  expressions per feature, and use `symbol-sort-key` for collision priority (lower keys win, as
+  in the style specification). Styles without a sort key keep the built-in priority.
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.
   Graph loader dependencies require loaders.gl 4.5.3 or later.
