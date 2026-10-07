@@ -280,7 +280,10 @@ export function getTreeBotany(type: TreeType, characteristics?: TreeCharacterist
   if (banyan) {
     // Aerial roots descend from spreading limbs, becoming connected woody pillars.
     for (const branch of branches) {
-      let ring = Math.max(2, Math.floor(branch.path.length * 0.45));
+      let ring = Math.min(
+        branch.path.length - 2,
+        Math.max(2, Math.floor(branch.path.length * 0.45))
+      );
       while (branch.children.some(child => child.ring === ring) && ring < branch.path.length - 2)
         ring++;
       if (branch.children.some(child => child.ring === ring)) continue;
