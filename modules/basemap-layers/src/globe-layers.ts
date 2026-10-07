@@ -665,29 +665,27 @@ function getVectorLayers({
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
 }) {
-  const visibleVectorLayers = styleLayers.filter(layer => {
-    if (!isStyleLayerVisibleAtZoom(layer, zoom)) {
-      return false;
-    }
-
-    if (layer.type === 'symbol') {
-      return config.labels;
-    }
-    return layer.type === 'fill' || layer.type === 'line';
-  });
-
-  return getVectorSourceGroups(visibleVectorLayers, styleDefinition).map(group =>
-    createVectorLayerGroup({
-      idPrefix,
-      sourceId: group.sourceId,
-      source: group.source,
-      styleLayers: group.styleLayers,
-      zoom,
-      config,
-      loadOptions,
-      mode
-    })
+  const vectorLayers = styleLayers.filter(layer =>
+    layer.type === 'symbol' ? config.labels : layer.type === 'fill' || layer.type === 'line'
   );
+
+  // A group keeps all of its source's style layers, visible or not: its tile regeneration key
+  // must change when any of them crosses its own limits, and `renderSubLayers` gates each layer
+  // by zoom. Skip a source only when none of its layers are visible.
+  return getVectorSourceGroups(vectorLayers, styleDefinition)
+    .filter(group => group.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom)))
+    .map(group =>
+      createVectorLayerGroup({
+        idPrefix,
+        sourceId: group.sourceId,
+        source: group.source,
+        styleLayers: group.styleLayers,
+        zoom,
+        config,
+        loadOptions,
+        mode
+      })
+    );
 }
 
 function getRasterLayers({

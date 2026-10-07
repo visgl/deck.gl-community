@@ -54,3 +54,28 @@ describe('zoom ranges', () => {
     expect(rasterLayer.props.maxZoom).toBe(10);
   });
 });
+
+describe('tile regeneration at layer limits', () => {
+  test('regenerates when a layer drops out at a fractional maxzoom', () => {
+    const layers = [
+      {...road, id: 'b', maxzoom: 10.5},
+      {...road, id: 'c'}
+    ];
+    const keyAt = (zoom: number) =>
+      render(layers, zoom).find(layer => layer.id === 'test-vector').props.updateTriggers
+        .renderSubLayers;
+    expect(keyAt(10.2)).not.toEqual(keyAt(10.6));
+  });
+
+  test('a tile regenerated past the fractional maxzoom no longer draws the layer', () => {
+    const layers = [
+      {...road, id: 'b', maxzoom: 10.5},
+      {...road, id: 'c'}
+    ];
+    const vectorLayer = render(layers, 10.6).find(layer => layer.id === 'test-vector');
+    const sublayers = vectorLayer.props
+      .renderSubLayers({id: 'tile', data: [], tile: {index: {x: 0, y: 0, z: 10}}})
+      .filter(Boolean);
+    expect(sublayers.map((sublayer: any) => sublayer.id).join()).not.toContain('-b');
+  });
+});
