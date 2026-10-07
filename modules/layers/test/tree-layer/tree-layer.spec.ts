@@ -717,4 +717,10 @@ it('preserves legacy source and hierarchy overrides while sharing one canopy quo
     maxSplats: 1234,
     maxShadowSplats: 567
   });
+  const withoutHierarchy = createLayer([OAK], {
+    _subLayerProps: {'canopy-oak': {hierarchy: null}}
+  })
+    .layer.renderLayers()
+    .find(child => child instanceof SplatLayer)!;
+  expect(withoutHierarchy.props.getSource.hierarchy).toBeUndefined();
 });

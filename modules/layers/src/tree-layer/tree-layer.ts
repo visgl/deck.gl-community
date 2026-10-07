@@ -712,7 +712,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         type: 'prepared-splats',
         source,
         hierarchy:
-          overrides.hierarchy ?? (source === prepared.source ? prepared.hierarchy : undefined)
+          'hierarchy' in overrides
+            ? (overrides.hierarchy ?? undefined)
+            : source === prepared.source
+              ? prepared.hierarchy
+              : undefined
       };
       delete props.source;
       delete props.hierarchy;
