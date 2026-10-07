@@ -3631,14 +3631,14 @@ __metadata:
 
 "@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch":
   version: 9.4.2
-  resolution: "@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch::version=9.4.2&hash=be40cc"
+  resolution: "@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch::version=9.4.2&hash=086a73"
   dependencies:
     "@luma.gl/core": "npm:9.4.2"
     "@luma.gl/engine": "npm:9.4.2"
     "@luma.gl/experimental": "npm:9.4.2"
     "@luma.gl/gpgpu": "npm:9.4.2"
     "@luma.gl/shadertools": "npm:9.4.2"
-  checksum: 10c0/e3ffb04d27df4807fddf8545f34cb666cb6caa87a5991f03f3a5aa0a5bab850527c279b98ae03e9352bced31bb0c1f1b4677c0f7259f02b2bb6606a297f8b638
+  checksum: 10c0/a63a77147b2a081294bbdc3f12efda9fdcd01a7d54d68e061b0b0b870ca9fd296c8253e158acd7889b85ddec495aa71dc9ce758b9174866c58288e5893a5384d
   languageName: node
   linkType: hard
 

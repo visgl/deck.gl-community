@@ -348,6 +348,67 @@ index 5f96ea99..13b06775 100644
 +export declare const GPU_PAGED_SPLAT_FEATURE_SHADER: string;
  //# sourceMappingURL=gpu-paged-splat-shaders.d.ts.map
 \ No newline at end of file
+diff --git a/dist/gpu-paged-splat-shaders.js b/dist/gpu-paged-splat-shaders.js
+index 316314a8..b254099e 100644
+--- a/dist/gpu-paged-splat-shaders.js
++++ b/dist/gpu-paged-splat-shaders.js
+@@ -4,6 +4,8 @@
+ // Spark-compatible RAD opacity and support behavior is adapted from Spark:
+ // https://github.com/sparkjsdev/spark (MIT, Copyright © 2025 WORLD LABS TECHNOLOGIES, INC.)
+ import { GPU_SPLAT_FEATURE_SHADER, GPU_SPLAT_PROJECTION_SHADER, GPU_SPLAT_RENDER_SHADER } from "./gpu-splat-graph-shaders.js";
++/** Sentinel sorted after every finite paged depth key. */
++export const GPU_PAGED_SPLAT_INVALID_DEPTH_KEY = 0xffffffff;
+ /** Sparse source projection retains every original column within eight storage bindings. */
+ export const GPU_PAGED_SPLAT_PROJECTION_SHADER_LAYOUT = {
+     attributes: [],
+@@ -62,9 +64,9 @@ const GPU_PAGED_SPLAT_SPARSE_PROJECTION_SHADER = replacePagedShaderSource(replac
+     batchRowIndex = activeRows[projectedRowIndex];
+   }`), '  depthKeys[projectedRowIndex] = MAXIMUM_VALID_DEPTH_KEY - quantizedDepth;', '  depthKeys[graphUniforms.batchOffset + projectedRowIndex] = MAXIMUM_VALID_DEPTH_KEY - quantizedDepth;'), '  atomicAdd(&drawCommands[1u], 1u);\n', '');
+ /** Analytic perspective covariance and compensated filtering preserve Spark RAD appearance. */
+-export const GPU_PAGED_SPLAT_PROJECTION_SHADER = makeCalibratedPagedProjectionShader(GPU_PAGED_SPLAT_SPARSE_PROJECTION_SHADER);
++export const GPU_PAGED_SPLAT_PROJECTION_SHADER = makeCalibratedPagedProjectionShader(makePagedDepthShader(GPU_PAGED_SPLAT_SPARSE_PROJECTION_SHADER));
+ /** Sparse source feature evaluation publishes the exact globally visible indirect count. */
+-export const GPU_PAGED_SPLAT_FEATURE_SHADER = replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(GPU_SPLAT_FEATURE_SHADER, '  isFloatColor: u32,\n};', PAGED_UNIFORM_FIELDS), `@group(0) @binding(7) var<uniform> graphUniforms: GraphSplatUniforms;
++const GPU_PAGED_SPLAT_UNTINTED_FEATURE_SHADER = replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(replacePagedShaderSource(GPU_SPLAT_FEATURE_SHADER.replace('const INVALID_FEATURE_DEPTH_KEY: u32 = 65535u;', `const INVALID_FEATURE_DEPTH_KEY: u32 = ${GPU_PAGED_SPLAT_INVALID_DEPTH_KEY}u;`), '  isFloatColor: u32,\n};', PAGED_UNIFORM_FIELDS), `@group(0) @binding(7) var<uniform> graphUniforms: GraphSplatUniforms;
+ @group(0) @binding(8) var<uniform> featureUniforms: GraphSplatFeatureUniforms;`, `@group(0) @binding(7) var<storage, read> activeRows: array<u32>;
+ @group(0) @binding(8) var<uniform> graphUniforms: GraphSplatUniforms;
+ @group(0) @binding(9) var<uniform> featureUniforms: GraphSplatFeatureUniforms;`), `  let batchRowIndex = globalInvocationId.x;
+@@ -102,6 +104,21 @@ export const GPU_PAGED_SPLAT_FEATURE_SHADER = replacePagedShaderSource(replacePa
+ const GPU_PAGED_SPLAT_ORDERED_RENDER_SHADER = replacePagedShaderSource(replacePagedShaderSource(GPU_SPLAT_RENDER_SHADER, '@group(0) @binding(2) var<storage, read> sortedIds: array<u32>;\n', ''), '  let projected = projectedRecords[sortedIds[instanceIndex]];', '  let projected = projectedRecords[instanceIndex];');
+ /** Spark's nonlinear parent opacity stays opt-in and preserves the existing record layout. */
+ export const GPU_PAGED_SPLAT_RENDER_SHADER = makeCalibratedPagedRenderShader(GPU_PAGED_SPLAT_ORDERED_RENDER_SHADER);
++/** Sorts finite linear camera depths without projection-dependent quantization. */
++function makePagedDepthShader(source) {
++    const depthSource = replacePagedShaderSource(source, 'const INVALID_DEPTH_KEY: u32 = 65535u;\nconst MAXIMUM_VALID_DEPTH_KEY: u32 = 65534u;', `const INVALID_DEPTH_KEY: u32 = ${GPU_PAGED_SPLAT_INVALID_DEPTH_KEY}u;`);
++    return replacePagedShaderSource(depthSource, `  let normalizedDepth = clamp(clipCenter.z / clipCenter.w * 0.5 + 0.5, 0.0, 1.0);
++  let quantizedDepth = u32(round(normalizedDepth * f32(MAXIMUM_VALID_DEPTH_KEY)));
++  depthKeys[graphUniforms.batchOffset + projectedRowIndex] = MAXIMUM_VALID_DEPTH_KEY - quantizedDepth;`, `  // Perspective W is linear camera depth. Dividing Z by W compresses distant
++  // surfaces into ties, especially with a close near plane. Orthographic Z is
++  // already linear and may be negative, so preserve signed floating-point order.
++  let matrix = graphUniforms.modelViewProjectionMatrix;
++  let isPerspective = any(vec3<f32>(matrix[0].w, matrix[1].w, matrix[2].w) != vec3<f32>(0.0));
++  let depth = select(clipCenter.z, clipCenter.w, isPerspective);
++  let depthBits = bitcast<u32>(depth);
++  let orderedDepth = select(depthBits ^ 0x80000000u, ~depthBits, (depthBits & 0x80000000u) != 0u);
++  depthKeys[graphUniforms.batchOffset + projectedRowIndex] = ~orderedDepth;`);
++}
+ /** Applies the exact homogeneous-coordinate projection Jacobian without extra source bindings. */
+ function makeCalibratedPagedProjectionShader(source) {
+     let calibratedSource = replacePagedShaderSource(source, `fn getProjectedScreenPosition(position: vec3<f32>) -> vec2<f32> {
+@@ -208,8 +225,13 @@ fn getProjectedRotation(quaternion: vec4<f32>)`);
+     (graphUniforms.isFloatColor & 2u) != 0u
+   );`);
+ }
++/** Shared source radiance receives each instance tint after directional evaluation. */
++export const GPU_PAGED_SPLAT_FEATURE_SHADER = replacePagedShaderSource(replacePagedShaderSource(GPU_PAGED_SPLAT_UNTINTED_FEATURE_SHADER, '  semanticFilterActive: u32,\n  padding: u32,\n};', '  semanticFilterActive: u32,\n  padding: u32,\n  colorScale: vec3<f32>,\n};'), '  atomicAdd(&drawCommands[1u], 1u);', '  projectedRecords[projectedRowIndex].color = vec4<f32>(projectedRecords[projectedRowIndex].color.rgb * featureUniforms.colorScale, projectedRecords[projectedRowIndex].color.a);\n  atomicAdd(&drawCommands[1u], 1u);');
+ /** Preserves Spark's finite circular support and nonlinear opaque hierarchy-parent profile. */
+ function makeCalibratedPagedRenderShader(source) {
++    // Cameras use the same [-w, w] depth convention as projection/culling and depth keys.
++    // WebGPU presentation must convert that depth to its [0, w] rasterization range.
++    source = replacePagedShaderSource(source, '    projected.clipCenter.z,', '    (projected.clipCenter.z + projected.clipCenter.w) * 0.5,');
+     let calibratedSource = replacePagedShaderSource(source, '  output.gaussianCoordinate = corner * graphUniforms.gaussianSupportRadius;', `  let adjustedSupportRadius = graphUniforms.gaussianSupportRadius + select(
+     0.0,
+     0.7 * max(projected.color.a - 1.0, 0.0),
 diff --git a/dist/index.cjs b/dist/index.cjs
 index 1b44b328..ab5710e1 100644
 --- a/dist/index.cjs
@@ -2672,6 +2733,1971 @@ index 39d368f6..f7168aaa 100644
 +export declare function getSplatRADPageBounds<TData extends SplatRADHierarchyData>(page: Pick<SplatRADHierarchyPage<TData>, 'data' | 'bounds'>): SplatResidencyBounds;
  //# sourceMappingURL=splat-rad-hierarchy.d.ts.map
 \ No newline at end of file
+diff --git a/dist/splat-rad-hierarchy.js b/dist/splat-rad-hierarchy.js
+index 3123ff81..5fdf8880 100644
+--- a/dist/splat-rad-hierarchy.js
++++ b/dist/splat-rad-hierarchy.js
+@@ -4,7 +4,7 @@
+ // Spark-compatible RAD opacity and support behavior is adapted from Spark's MIT-licensed shaders:
+ // https://github.com/sparkjsdev/spark/blob/main/src/shaders/splatVertex.glsl
+ // Copyright © 2025 WORLD LABS TECHNOLOGIES, INC.
+-import { getSplatHierarchyFoveatedPriority, isSplatHierarchyNodeVisible } from "./splat-hierarchy.js";
++import { getSplatHierarchyFoveatedPriority } from "./splat-hierarchy.js";
+ import { SplatResidencyManager } from "./splat-residency.js";
+ const DEFAULT_RAD_PAGE_SIZE = 65_536;
+ const GAUSSIAN_SUPPORT_RADIUS = 3;
+@@ -27,12 +27,21 @@ export class SplatRADHierarchyManager {
+     pagesById = new Map();
+     ownedPinnedIds = new Set();
+     pendingRequests = new Map();
++    blockedCandidates = new Map();
++    deferredCandidates = new Map();
++    requiresRefinement = false;
++    protectTraversalDependencies = false;
++    deferFrontierUntilComplete = false;
++    progressiveView = false;
++    coarseningQueue = new SplatRADPriorityQueue((first, second) => compareSplatRADCandidates(second, first));
+     onFrontierChange;
+     onPageRequest;
+     onPageCancel;
+     ownsResidencyManager;
+     maximumScreenSpaceError;
+     maximumActiveRows;
++    maximumResidentPages;
++    maximumPendingPages;
+     maxTraversalRows;
+     pageSize;
+     foveation;
+@@ -46,12 +55,21 @@ export class SplatRADHierarchyManager {
+     sortedPages = [];
+     rootRows;
+     currentView;
++    clipPlanes;
++    focalLengthPixels = 0;
++    forwardLength = 0;
+     currentFrontier = [];
++    publishedPages = new Map();
++    changedPageIds = new Set();
++    rebuildPublishedPages = true;
+     previouslyRefinedRows = new Set();
+     visibleRowCount = 0;
+     culledRowCount = 0;
++    missingRowCount = 0;
+     fallbackRowCount = 0;
+     requiresRefresh = true;
++    frustumCulling;
++    requiresRetarget = false;
+     incrementalTraversal;
+     isDestroyed = false;
+     /** Creates a loader-neutral global-row hierarchy without fetching or decoding source pages. */
+@@ -63,6 +81,9 @@ export class SplatRADHierarchyManager {
+         this.pageSize = props.pageSize ?? DEFAULT_RAD_PAGE_SIZE;
+         this.maximumScreenSpaceError = Math.max(props.maximumScreenSpaceError ?? props.lodRenderScale ?? 8, 0);
+         this.maximumActiveRows = props.maximumActiveRows ?? Number.POSITIVE_INFINITY;
++        this.frustumCulling = props.frustumCulling ?? true;
++        this.maximumResidentPages = props.maximumResidentPages ?? Number.POSITIVE_INFINITY;
++        this.maximumPendingPages = props.maximumPendingPages ?? Number.POSITIVE_INFINITY;
+         this.maxTraversalRows = props.maxTraversalRows ?? Number.POSITIVE_INFINITY;
+         this.foveation = props.foveation;
+         this.lodOpacity = props.lodOpacity ?? false;
+@@ -89,6 +110,8 @@ export class SplatRADHierarchyManager {
+             throw new RangeError('Gaussian traversal capacity must be a positive safe integer');
+         }
+         this.validateRootRows(this.rootRows);
++        validateSplatRADTraversalBudget(this.maximumResidentPages);
++        validateSplatRADTraversalBudget(this.maximumPendingPages);
+         for (const page of props.pages ?? []) {
+             this.registerPage(page);
+         }
+@@ -108,7 +131,14 @@ export class SplatRADHierarchyManager {
+     /** Whether the current camera can advance another bounded best-first traversal slice. */
+     get hasPendingTraversal() {
+         return Boolean(this.currentView &&
+-            (this.requiresRefresh || (this.incrementalTraversal?.refinementQueue.length ?? 0) > 0));
++            (this.requiresRefresh ||
++                this.requiresRetarget ||
++                (this.incrementalTraversal?.retargetQueue.length ?? 0) > 0 ||
++                (this.incrementalTraversal?.refinementQueue.length ?? 0) > 0));
++    }
++    /** Whether active-row capacity prevented a requested visible parent replacement. */
++    get isCapacityLimited() {
++        return (this.incrementalTraversal?.state.capacityPriority ?? 0) > 0;
+     }
+     /** Global source rows belonging to the missing pages currently requested by this view. */
+     get requestedRows() {
+@@ -200,10 +230,61 @@ export class SplatRADHierarchyManager {
+         this.pagesById.set(page.id, registeredPage);
+         this.sortedPages.push(registeredPage);
+         this.sortedPages.sort((firstPage, secondPage) => firstPage.page.data.rowIndexBase - secondPage.page.data.rowIndexBase);
+-        this.pruneEvictedPages();
++        const removedResidentPage = this.pruneEvictedPages();
+         this.pendingRequests.delete(Math.floor(page.data.rowIndexBase / this.pageSize));
+-        this.invalidateIncrementalTraversal();
+-        this.requiresRefresh = true;
++        const registersMissingRoot = this.rootRows.some(rootRow => rootRow >= page.data.rowIndexBase &&
++            rootRow < page.data.rowIndexBase + page.data.length &&
++            !this.incrementalTraversal?.rootCandidates.some(candidate => candidate.globalRowIndex === rootRow));
++        if (removedResidentPage || !this.incrementalTraversal || registersMissingRoot) {
++            this.invalidateIncrementalTraversal();
++            this.requiresRefresh = true;
++        }
++        else {
++            // A page changes residency, not the camera. Resume only the parents whose authored
++            // child ranges intersect it instead of reprojecting the entire resolved tree.
++            const traversal = this.incrementalTraversal;
++            for (const [pageIndex, request] of traversal.state.requestedPages) {
++                if (request.rowIndex >= page.data.rowIndexBase &&
++                    request.rowIndex < registeredPage.endRowIndex) {
++                    traversal.state.requestedPages.delete(pageIndex);
++                }
++            }
++            let nextRequestCandidate;
++            for (const [rowIndex, candidate] of this.deferredCandidates) {
++                if (traversal.selectedRows.get(rowIndex) !== candidate) {
++                    this.deferredCandidates.delete(rowIndex);
++                    continue;
++                }
++                const childStart = candidate.registeredPage.page.childStarts[candidate.localRowIndex];
++                const childEnd = childStart + candidate.registeredPage.page.childCounts[candidate.localRowIndex];
++                if (childStart < registeredPage.endRowIndex && childEnd > page.data.rowIndexBase) {
++                    traversal.refinementQueue.push(candidate);
++                    this.deferredCandidates.delete(rowIndex);
++                    this.requiresRefinement = true;
++                }
++                else if ((!nextRequestCandidate ||
++                    compareSplatRADCandidates(candidate, nextRequestCandidate) > 0) &&
++                    this.reserveChildPages(childStart, childEnd - childStart, traversal.state, false)) {
++                    nextRequestCandidate = candidate;
++                }
++            }
++            // One admission frees one demand slot. Wake its best waiting replacement, not every
++            // unrelated deferred row (potentially hundreds of thousands) on every downloaded page.
++            if (nextRequestCandidate) {
++                this.deferredCandidates.delete(nextRequestCandidate.globalRowIndex);
++                traversal.refinementQueue.push(nextRequestCandidate);
++                this.requiresRefinement = true;
++            }
++            for (const candidate of this.blockedCandidates.values()) {
++                const childStart = candidate.registeredPage.page.childStarts[candidate.localRowIndex];
++                const childEnd = childStart + candidate.registeredPage.page.childCounts[candidate.localRowIndex];
++                if (childStart < registeredPage.endRowIndex && childEnd > page.data.rowIndexBase) {
++                    traversal.refinementProgress.delete(candidate.globalRowIndex);
++                    traversal.refinementQueue.push(candidate);
++                    this.requiresRefinement = true;
++                }
++            }
++        }
+         return true;
+     }
+     /** Removes one registered source page and immediately restores any available parent coverage. */
+@@ -226,27 +307,256 @@ export class SplatRADHierarchyManager {
+     }
+     /** Allows an externally cancelled or failed source-page request to be retried by the view. */
+     clearRequestedPage(pageIndex) {
++        const clearedRequest = this.pendingRequests.get(pageIndex);
+         this.pendingRequests.delete(pageIndex);
+-        this.invalidateIncrementalTraversal();
+-        this.requiresRefresh = true;
++        if (this.incrementalTraversal && clearedRequest?.parentRowIndex !== undefined) {
++            this.requiresRetarget = true;
++        }
++        else {
++            this.invalidateIncrementalTraversal();
++            this.requiresRefresh = true;
++        }
+     }
+-    /** Computes coherent camera-selected original source rows without copying source page buffers. */
++    /**
++     * Computes coherent camera-selected original source rows without copying source page buffers.
++     * Camera changes retarget the retained hierarchy tree instead of restarting from its roots.
++     * Resolved visible detail remains selected until visibility or active capacity requires a change.
++     */
+     update(view) {
+         this.assertLive();
++        this.protectTraversalDependencies = false;
++        this.progressiveView = false;
++        this.deferFrontierUntilComplete = false;
++        const removedResidentPage = this.pruneEvictedPages();
+         const sourceRowsChanged = this.haveSourceRowsChanged();
++        const viewChanged = !this.currentView || !areSplatRADViewsEqual(this.currentView, view);
+         if (this.currentView &&
+             !this.requiresRefresh &&
++            !this.requiresRetarget &&
++            !this.requiresRefinement &&
++            !removedResidentPage &&
+             areSplatRADViewsEqual(this.currentView, view) &&
+             !sourceRowsChanged) {
+             return this.currentFrontier;
+         }
+-        if (!this.currentView || !areSplatRADViewsEqual(this.currentView, view) || sourceRowsChanged) {
++        if (removedResidentPage || sourceRowsChanged) {
+             this.invalidateIncrementalTraversal();
++            this.requiresRefresh = true;
+         }
+-        this.currentView = view;
+-        this.refresh();
++        this.prepareView(view);
++        if (viewChanged && this.incrementalTraversal) {
++            // Network demand is small compared with the retained leaf frontier. Retarget it now,
++            // even if a bounded traversal has not finished walking the previous view's tree.
++            for (const candidate of this.blockedCandidates.values()) {
++                this.updateFrontierCandidate(candidate, this.incrementalTraversal, false);
++            }
++        }
++        if (this.requiresRefresh || !this.incrementalTraversal) {
++            this.refresh();
++        }
++        else if (viewChanged || this.requiresRetarget) {
++            this.retarget(this.maxTraversalRows);
++        }
++        else if (this.requiresRefinement) {
++            this.continueTraversal();
++        }
++        return this.currentFrontier;
++    }
++    /**
++     * Computes a complete best-first cut for the latest viewpoint and resident pages.
++     *
++     * Unlike bounded {@link update}, this redistributes the entire active-row budget from the
++     * roots, allowing distant old-view detail to yield capacity to nearer detail. Run it in a
++     * worker: it publishes only the completed coherent cut. An optional per-call row budget yields
++     * current page demand and residency pins before completion; resume with {@link continueTraversal}.
++     * The previous frontier remains intact between slices; an empty scene publishes coarse coverage
++     * on its first slice. Once that cut completes, later page arrivals publish coherent refinements
++     * after each slice instead of waiting for the entire refinement queue. Omitting the budget
++     * completes synchronously.
++     */
++    selectView(view, maxTraversalRows = Number.POSITIVE_INFINITY) {
++        this.assertLive();
++        this.progressiveView = false;
++        validateSplatRADTraversalBudget(maxTraversalRows);
++        this.protectTraversalDependencies = true;
++        this.deferFrontierUntilComplete = true;
++        this.prepareView(view);
++        this.refresh(maxTraversalRows);
++        return this.currentFrontier;
++    }
++    /**
++     * Retargets the displayed coherent cut and publishes each completed sibling replacement.
++     * Unlike {@link selectView}, camera motion never replaces resolved branches with a root-built
++     * intermediate cut. Offscreen release tests the selected descendants, not the parent bounds;
++     * visible branches are coarsened only when required by the active-row budget.
++     * Run in a worker: retargeting visits the retained cut once;
++     * subsequent refinement is bounded by `maxTraversalRows` and {@link continueTraversal}.
++     */
++    refineView(view, maxTraversalRows = Number.POSITIVE_INFINITY) {
++        this.assertLive();
++        validateSplatRADTraversalBudget(maxTraversalRows);
++        const canRetain = this.protectTraversalDependencies;
++        this.protectTraversalDependencies = true;
++        this.deferFrontierUntilComplete = false;
++        this.progressiveView = true;
++        const invalidated = this.pruneEvictedPages() || this.haveSourceRowsChanged();
++        const viewChanged = !this.currentView || !areSplatRADViewsEqual(this.currentView, view);
++        this.prepareView(view);
++        if (!canRetain || invalidated || !this.incrementalTraversal || this.requiresRefresh) {
++            this.refresh(maxTraversalRows);
++            return this.currentFrontier;
++        }
++        const traversal = this.incrementalTraversal;
++        if (viewChanged || this.requiresRetarget) {
++            this.requiresRetarget = false;
++            this.requiresRefinement = false;
++            this.blockedCandidates.clear();
++            this.deferredCandidates.clear();
++            traversal.refinementProgress.clear();
++            traversal.retargetProgress.clear();
++            // Progressive retargeting visits retained branches directly below. Its retarget queue
++            // stays empty, so do not walk every selected leaf's ancestors to build an unused index.
++            traversal.retargetQueue = new SplatRADPriorityQueue();
++            traversal.refinementQueue = new SplatRADPriorityQueue();
++            this.coarseningQueue = new SplatRADPriorityQueue((first, second) => compareSplatRADCandidates(second, first));
++            traversal.state.protectedPageIds.clear();
++            traversal.state.requestedPages.clear();
++            traversal.state.capacityPriority = 0;
++            this.visibleRowCount = 0;
++            this.culledRowCount = 0;
++            this.missingRowCount = 0;
++            for (const page of traversal.state.selectedPages.values())
++                page.priority = 0;
++            for (const root of traversal.rootCandidates)
++                this.retargetSelectedBranch(root, traversal);
++            // Culling-enabled callers can reveal more retained leaves than the active-row budget.
++            // Enforce capacity only after all visibility changes and offscreen releases are accounted for.
++            this.coarsenRetainedGroupsForCapacity(traversal);
++            for (const candidate of traversal.selectedRows.values()) {
++                if (traversal.state.allocatedRowCount <= this.maximumActiveRows)
++                    break;
++                this.collapseFrontierForCapacity(candidate, traversal);
++            }
++            this.resetRequiredPages(traversal.state);
++        }
++        this.advanceTraversal(traversal, maxTraversalRows, false);
++        this.publishTraversal(traversal);
+         return this.currentFrontier;
+     }
++    /** Returns visibility of actual selected descendants, never the parent's approximation. */
++    retargetSelectedBranch(candidate, traversal) {
++        const view = this.currentView;
++        // Explicit post-order frames keep deep retained trees off the JavaScript call stack.
++        const stack = [
++            {
++                candidate,
++                childIndex: -1,
++                hasVisibleDescendant: false,
++                hasUnknownDescendant: false,
++                bounds: candidate.node.bounds
++            }
++        ];
++        while (stack.length) {
++            const frame = stack[stack.length - 1];
++            const branchCandidate = frame.candidate;
++            if (frame.childIndex === -1) {
++                branchCandidate.suppressRefinement = false;
++                const screenSpaceError = getSplatRADScreenSpaceError(branchCandidate.node, view, this.focalLengthPixels);
++                const selected = traversal.selectedRows.get(branchCandidate.globalRowIndex) === branchCandidate;
++                const wasVisible = branchCandidate.isVisible;
++                const isVisible = this.isRowVisible(branchCandidate.node);
++                if (selected && wasVisible !== isVisible)
++                    this.recordSelectedRow(branchCandidate, traversal.state, false);
++                branchCandidate.isVisible = isVisible;
++                if (selected && wasVisible !== isVisible) {
++                    this.recordSelectedRow(branchCandidate, traversal.state, true);
++                    traversal.state.allocatedRowCount += Number(isVisible) - Number(wasVisible);
++                }
++                branchCandidate.priority =
++                    getSplatHierarchyFoveatedPriority(branchCandidate.node, view, view.foveation ?? this.foveation, screenSpaceError) *
++                        this.getAngularFoveation(branchCandidate.node, view) *
++                        this.lodSplatScale;
++                if (selected) {
++                    const selectedPage = traversal.state.selectedPages.get(branchCandidate.registeredPage.page.id);
++                    if (isVisible && selectedPage) {
++                        selectedPage.priority = Math.max(selectedPage.priority, branchCandidate.priority);
++                    }
++                    // Dormant children are not display dependencies and may already have been evicted.
++                    branchCandidate.children = undefined;
++                    const childCount = branchCandidate.registeredPage.page.childCounts?.[branchCandidate.localRowIndex] ?? 0;
++                    frame.hasUnknownDescendant = childCount > 0 && !branchCandidate.resolvedSubtreeBounds;
++                    frame.bounds = branchCandidate.resolvedSubtreeBounds ?? branchCandidate.node.bounds;
++                    frame.hasVisibleDescendant = this.isRowInFrustum({
++                        ...branchCandidate.node,
++                        bounds: frame.bounds
++                    });
++                    if (childCount &&
++                        (frame.hasVisibleDescendant || frame.hasUnknownDescendant) &&
++                        (!branchCandidate.isVisible ||
++                            branchCandidate.priority > this.getRefinementThreshold(branchCandidate))) {
++                        traversal.refinementQueue.push(branchCandidate);
++                    }
++                }
++                frame.childIndex = 0;
++            }
++            const children = branchCandidate.children;
++            if (children && frame.childIndex < children.length) {
++                stack.push({
++                    candidate: children[frame.childIndex++],
++                    childIndex: -1,
++                    hasVisibleDescendant: false,
++                    hasUnknownDescendant: false,
++                    bounds: children[frame.childIndex - 1].node.bounds
++                });
++                continue;
++            }
++            if (!frame.hasVisibleDescendant && !frame.hasUnknownDescendant && children?.length) {
++                this.collapseFrontierCandidate(branchCandidate, traversal);
++                branchCandidate.resolvedSubtreeBounds = frame.bounds;
++                branchCandidate.children = undefined;
++                branchCandidate.suppressRefinement = true;
++            }
++            else if (children?.every(child => traversal.selectedRows.get(child.globalRowIndex) === child)) {
++                this.coarseningQueue.push(branchCandidate);
++            }
++            stack.pop();
++            if (!stack.length)
++                return frame.hasVisibleDescendant || frame.hasUnknownDescendant;
++            const parentFrame = stack[stack.length - 1];
++            parentFrame.hasVisibleDescendant ||= frame.hasVisibleDescendant;
++            parentFrame.hasUnknownDescendant ||= frame.hasUnknownDescendant;
++            parentFrame.bounds = mergeSplatRADBounds(parentFrame.bounds, frame.bounds);
++        }
++        return false;
++    }
++    resetRequiredPages(state) {
++        state.requiredPageIndices.clear();
++        for (const rootRow of this.rootRows)
++            state.requiredPageIndices.add(Math.floor(rootRow / this.pageSize));
++        for (const page of state.selectedPages.values()) {
++            if (page.selectedRows?.size)
++                state.requiredPageIndices.add(Math.floor(page.registeredPage.page.data.rowIndexBase / this.pageSize));
++        }
++        for (const pageId of state.dependencyPageCounts.keys()) {
++            const page = this.pagesById.get(pageId);
++            if (page)
++                state.requiredPageIndices.add(Math.floor(page.page.data.rowIndexBase / this.pageSize));
++        }
++        const traversal = this.incrementalTraversal;
++        if (traversal?.state === state) {
++            for (const candidate of this.blockedCandidates.values()) {
++                if (traversal.selectedRows.get(candidate.globalRowIndex) !== candidate)
++                    continue;
++                const page = candidate.registeredPage.page;
++                this.reserveChildPages(page.childStarts[candidate.localRowIndex], page.childCounts[candidate.localRowIndex], state);
++            }
++            for (const progress of traversal.refinementProgress.values()) {
++                for (const child of progress.childCandidates) {
++                    state.requiredPageIndices.add(Math.floor(child.globalRowIndex / this.pageSize));
++                }
++            }
++        }
++    }
+     /**
+      * Advances one bounded best-first slice for an unchanged camera without rebuilding prior work.
+      *
+@@ -257,10 +567,11 @@ export class SplatRADHierarchyManager {
+     continueTraversal(maxTraversalRows = this.maxTraversalRows) {
+         this.assertLive();
+         validateSplatRADTraversalBudget(maxTraversalRows);
++        this.requiresRefinement = false;
+         if (!this.currentView) {
+             return this.currentFrontier;
+         }
+-        if (this.haveSourceRowsChanged()) {
++        if (this.pruneEvictedPages() || this.haveSourceRowsChanged()) {
+             this.invalidateIncrementalTraversal();
+             this.requiresRefresh = true;
+         }
+@@ -268,10 +579,19 @@ export class SplatRADHierarchyManager {
+             this.refresh(maxTraversalRows);
+             return this.currentFrontier;
+         }
++        if (this.requiresRetarget) {
++            if (this.progressiveView)
++                return this.refineView(this.currentView, maxTraversalRows);
++            this.retarget(maxTraversalRows);
++            return this.currentFrontier;
++        }
+         const traversal = this.incrementalTraversal;
+         if (!traversal) {
+             return this.currentFrontier;
+         }
++        if (traversal.refinementQueue.length === 0 && traversal.retargetQueue.length === 0) {
++            return this.currentFrontier;
++        }
+         this.advanceTraversal(traversal, maxTraversalRows, false);
+         this.publishTraversal(traversal);
+         return this.currentFrontier;
+@@ -286,10 +606,14 @@ export class SplatRADHierarchyManager {
+             this.onPageCancel?.(request);
+         }
+         this.pendingRequests.clear();
++        this.blockedCandidates.clear();
++        this.deferredCandidates.clear();
+         this.releaseInactivePins(new Set());
+         this.pagesById.clear();
+         this.sortedPages = [];
+         this.currentFrontier = [];
++        this.publishedPages.clear();
++        this.changedPageIds.clear();
+         this.incrementalTraversal = undefined;
+         if (this.ownsResidencyManager) {
+             this.residencyManager.destroy();
+@@ -303,25 +627,70 @@ export class SplatRADHierarchyManager {
+         this.invalidateIncrementalTraversal();
+         this.visibleRowCount = 0;
+         this.culledRowCount = 0;
++        this.missingRowCount = 0;
+         this.fallbackRowCount = 0;
+         const traversal = this.makeIncrementalTraversal();
+         this.incrementalTraversal = traversal;
+         this.advanceTraversal(traversal, maxTraversalRows, true);
+         this.publishTraversal(traversal);
+     }
++    /** Retargets the retained coherent tree before refining it for a changed camera. */
++    retarget(maxTraversalRows) {
++        const traversal = this.incrementalTraversal;
++        if (!traversal || !this.currentView) {
++            this.refresh(maxTraversalRows);
++            return;
++        }
++        this.visibleRowCount = 0;
++        this.culledRowCount = 0;
++        this.missingRowCount = 0;
++        this.fallbackRowCount = 0;
++        if (traversal.retargetQueue.length > 0 || traversal.refinementQueue.length > 0) {
++            this.requiresRetarget = true;
++            this.advanceTraversal(traversal, maxTraversalRows, false);
++            this.publishTraversal(traversal);
++            return;
++        }
++        traversal.state.protectedPageIds.clear();
++        traversal.state.requestedPages.clear();
++        traversal.state.capacityPriority = 0;
++        traversal.refinementQueue = new SplatRADPriorityQueue();
++        traversal.refinementProgress.clear();
++        traversal.retargetQueue = this.makeRetargetQueue(traversal.selectedRows);
++        traversal.retargetProgress.clear();
++        for (const rootCandidate of traversal.rootCandidates) {
++            this.updateFrontierCandidate(rootCandidate, traversal, false);
++            traversal.retargetQueue.push(rootCandidate);
++        }
++        this.requiresRetarget = false;
++        this.advanceTraversal(traversal, maxTraversalRows, false);
++        this.publishTraversal(traversal);
++    }
+     /** Starts one deterministic best-first queue from the current roots and resident pages. */
+     makeIncrementalTraversal() {
+         const rootRows = this.rootRows.slice(0, this.maximumActiveRows);
+         const state = {
+             selectedPages: new Map(),
+             protectedPageIds: new Set(),
++            dependencyPageIds: new Set(),
++            dependencyPageCounts: new Map(),
++            inputPageIds: new Set(),
++            requiredPageIndices: new Set(rootRows.map(rowIndex => Math.floor(rowIndex / this.pageSize))),
+             requestedPages: new Map(),
+             allocatedRowCount: 0,
+-            refinedRows: new Set()
++            refinedRows: new Set(),
++            retainedCapacityRows: new Set(),
++            capacityPriority: 0
+         };
+-        const selectedRows = new Map();
++        const selectedRows = new SplatRADSelectedRows((candidate, selected) => {
++            if (this.protectTraversalDependencies)
++                this.recordSelectedRow(candidate, state, selected);
++        });
++        const rootCandidates = [];
+         const refinementQueue = new SplatRADPriorityQueue();
+         const refinementProgress = new Map();
++        const retargetQueue = this.makeRetargetQueue(selectedRows);
++        const retargetProgress = new Map();
+         for (const rootRow of rootRows) {
+             const rootPage = this.getRegisteredPageForRow(rootRow);
+             if (!rootPage) {
+@@ -330,18 +699,76 @@ export class SplatRADHierarchyManager {
+             }
+             const candidate = this.makeFrontierCandidate(rootPage, rootRow);
+             if (candidate) {
+-                state.allocatedRowCount++;
++                state.inputPageIds.add(rootPage.page.id);
++                rootCandidates.push(candidate);
++                state.allocatedRowCount += candidate.isVisible ? 1 : 0;
+                 this.addFrontierCandidate(candidate, selectedRows, refinementQueue);
+             }
+         }
+-        return { state, selectedRows, refinementQueue, refinementProgress };
++        return {
++            state,
++            rootCandidates,
++            selectedRows,
++            refinementQueue,
++            refinementProgress,
++            retargetQueue,
++            retargetProgress,
++            preferRefinementNext: false
++        };
+     }
+     /** Spends one row-evaluation slice while retaining the queue for the next settled frame. */
+     advanceTraversal(traversal, maxTraversalRows, countExistingRows) {
+-        const rowCountAtSliceStart = countExistingRows ? 0 : this.visibleRowCount + this.culledRowCount;
++        const rowCountAtSliceStart = countExistingRows ? 0 : this.getTraversalWorkCount();
++        const { refinementQueue, retargetQueue } = traversal;
++        if (maxTraversalRows === 1) {
++            if (refinementQueue.length > 0 && retargetQueue.length > 0) {
++                if (traversal.preferRefinementNext) {
++                    this.advanceRefinementTraversal(traversal, 1, rowCountAtSliceStart);
++                }
++                else {
++                    this.advanceRetargetTraversal(traversal, 1, rowCountAtSliceStart);
++                }
++                traversal.preferRefinementNext = !traversal.preferRefinementNext;
++                return;
++            }
++            if (retargetQueue.length > 0) {
++                this.advanceRetargetTraversal(traversal, 1, rowCountAtSliceStart);
++                traversal.preferRefinementNext = refinementQueue.length > 0 && retargetQueue.length > 0;
++                return;
++            }
++            this.advanceRefinementTraversal(traversal, 1, rowCountAtSliceStart);
++            return;
++        }
++        const refinementReservation = maxTraversalRows === Number.POSITIVE_INFINITY || retargetQueue.length === 0
++            ? 0
++            : Math.max(1, Math.floor(maxTraversalRows / 2));
++        if (refinementQueue.length > 0 && refinementReservation > 0) {
++            this.advanceRefinementTraversal(traversal, refinementReservation, rowCountAtSliceStart);
++            this.advanceRetargetTraversal(traversal, maxTraversalRows, rowCountAtSliceStart);
++            return;
++        }
++        if (refinementReservation > 0) {
++            const initialRetargetLimit = maxTraversalRows - refinementReservation;
++            this.advanceRetargetTraversal(traversal, initialRetargetLimit, rowCountAtSliceStart);
++            if (refinementQueue.length === 0 &&
++                retargetQueue.length > 0 &&
++                initialRetargetLimit < maxTraversalRows - 1) {
++                this.advanceRetargetTraversal(traversal, maxTraversalRows - 1, rowCountAtSliceStart);
++            }
++            this.advanceRefinementTraversal(traversal, maxTraversalRows, rowCountAtSliceStart);
++            if (refinementQueue.length === 0) {
++                this.advanceRetargetTraversal(traversal, maxTraversalRows, rowCountAtSliceStart);
++            }
++            return;
++        }
++        this.advanceRetargetTraversal(traversal, maxTraversalRows, rowCountAtSliceStart);
++        this.advanceRefinementTraversal(traversal, maxTraversalRows, rowCountAtSliceStart);
++    }
++    /** Reserves bounded work for current-view refinement while retained-tree retargeting continues. */
++    advanceRefinementTraversal(traversal, maxTraversalRows, rowCountAtSliceStart) {
+         const { selectedRows, refinementQueue, refinementProgress, state } = traversal;
+         while (refinementQueue.length > 0) {
+-            const evaluatedRowCount = this.visibleRowCount + this.culledRowCount - rowCountAtSliceStart;
++            const evaluatedRowCount = this.getTraversalWorkCount() - rowCountAtSliceStart;
+             if (evaluatedRowCount >= maxTraversalRows) {
+                 break;
+             }
+@@ -351,22 +778,600 @@ export class SplatRADHierarchyManager {
+                 refinementQueue.push(candidate);
+                 break;
+             }
++            if (this.protectTraversalDependencies && candidate.isVisible && candidate.isCapacityLimited) {
++                // A best-first complete cut has reached its budget. The remaining heap already
++                // belongs to the selected frontier; exploring lower-priority descendants only creates
++                // unusable page demand and makes the cost scale with residency instead of the cut.
++                traversal.refinementQueue = new SplatRADPriorityQueue();
++                break;
++            }
++        }
++    }
++    /** Reprioritizes the retained tree from its roots without replacing its selected leaves. */
++    advanceRetargetTraversal(traversal, maxTraversalRows, rowCountAtSliceStart) {
++        const { retargetProgress, retargetQueue, refinementQueue, selectedRows } = traversal;
++        while (retargetQueue.length > 0) {
++            const evaluatedRowCount = this.getTraversalWorkCount() - rowCountAtSliceStart;
++            if (evaluatedRowCount >= maxTraversalRows) {
++                break;
++            }
++            const candidate = retargetQueue.pop();
++            if (this.hasSelectedFrontierAncestor(candidate, selectedRows)) {
++                retargetProgress.delete(candidate.globalRowIndex);
++                continue;
++            }
++            let progress = retargetProgress.get(candidate.globalRowIndex);
++            if (!progress) {
++                this.updateFrontierCandidate(candidate, traversal, true);
++                if (traversal.state.allocatedRowCount > this.maximumActiveRows) {
++                    this.collapseFrontierForCapacity(candidate, traversal);
++                    continue;
++                }
++                if (!candidate.children) {
++                    const childCount = candidate.registeredPage.page.childCounts?.[candidate.localRowIndex] ?? 0;
++                    if (selectedRows.get(candidate.globalRowIndex) === candidate &&
++                        childCount > 0 &&
++                        (!candidate.isVisible || candidate.priority > this.getRefinementThreshold(candidate))) {
++                        refinementQueue.push(candidate);
++                    }
++                    continue;
++                }
++                progress = { nextChildOffset: 0 };
++            }
++            const children = candidate.children;
++            if (!children) {
++                retargetProgress.delete(candidate.globalRowIndex);
++                continue;
++            }
++            const remainingTraversalRows = maxTraversalRows - (this.getTraversalWorkCount() - rowCountAtSliceStart);
++            const childOffsetLimit = Math.min(children.length, progress.nextChildOffset + remainingTraversalRows);
++            for (; progress.nextChildOffset < childOffsetLimit; progress.nextChildOffset++) {
++                const child = children[progress.nextChildOffset];
++                this.updateFrontierCandidate(child, traversal, true);
++                if (traversal.state.allocatedRowCount > this.maximumActiveRows) {
++                    this.collapseFrontierForCapacity(child, traversal);
++                }
++                const childCount = child.registeredPage.page.childCounts?.[child.localRowIndex] ?? 0;
++                if (child.isVisible || child.children || childCount > 0) {
++                    retargetQueue.push(child);
++                }
++            }
++            if (progress.nextChildOffset < children.length) {
++                retargetProgress.set(candidate.globalRowIndex, progress);
++                retargetQueue.push(candidate);
++                break;
++            }
++            retargetProgress.delete(candidate.globalRowIndex);
++            if (selectedRows.get(candidate.globalRowIndex) === candidate) {
++                this.activateFrontierCandidateChildren(candidate, traversal);
++            }
++            else if (candidate.isCapacityLimited) {
++                this.selectCapacityLimitedChildren(candidate, traversal);
++            }
++        }
++    }
++    /** Recomputes one retained source row for the current camera without changing tree topology. */
++    updateFrontierCandidate(candidate, traversal, countDiagnosticRow) {
++        const view = this.currentView;
++        if (!view) {
++            return;
++        }
++        if (traversal.selectedRows.get(candidate.globalRowIndex) === candidate) {
++            this.changedPageIds.add(candidate.registeredPage.page.id);
++        }
++        const wasVisible = candidate.isVisible;
++        const node = this.makeRowNode(candidate.registeredPage, candidate.localRowIndex);
++        const isVisible = this.isRowVisible(node);
++        if (countDiagnosticRow) {
++            if (isVisible) {
++                this.visibleRowCount++;
++            }
++            else {
++                this.culledRowCount++;
++            }
++        }
++        const screenSpaceError = getSplatRADScreenSpaceError(node, view, this.focalLengthPixels);
++        candidate.node = node;
++        candidate.isVisible = isVisible;
++        candidate.priority = isVisible
++            ? getSplatHierarchyFoveatedPriority(node, view, view.foveation ?? this.foveation, screenSpaceError) *
++                this.getAngularFoveation(node, view) *
++                this.lodSplatScale
++            : 0;
++        this.clearResolvedFallback(candidate);
++        if (wasVisible !== isVisible &&
++            traversal.selectedRows.get(candidate.globalRowIndex) === candidate) {
++            traversal.state.allocatedRowCount += isVisible ? 1 : -1;
++        }
++        if (wasVisible !== isVisible) {
++            const capacityLimitedAncestor = this.getCapacityLimitedAncestor(candidate);
++            if (capacityLimitedAncestor) {
++                this.selectCapacityLimitedChildren(capacityLimitedAncestor, traversal);
++            }
++        }
++    }
++    /** Clears missing-page diagnostics once every authored direct child is resident. */
++    clearResolvedFallback(candidate) {
++        if (!candidate.isFallback) {
++            return;
++        }
++        const page = candidate.registeredPage.page;
++        const childCount = page.childCounts?.[candidate.localRowIndex] ?? 0;
++        const childStart = page.childStarts?.[candidate.localRowIndex] ?? 0;
++        if (childCount === 0 ||
++            !Number.isSafeInteger(childStart + childCount) ||
++            childStart + childCount > 0x8000_0000) {
++            candidate.isFallback = false;
++            return;
++        }
++        for (let childOffset = 0; childOffset < childCount; childOffset++) {
++            if (!this.getRegisteredPageForRow(childStart + childOffset)) {
++                return;
++            }
++        }
++        candidate.isFallback = false;
++    }
++    /** Coarsens one retained branch only when active-row capacity requires fewer visible leaves. */
++    collapseFrontierCandidate(candidate, traversal) {
++        const wasSelected = traversal.selectedRows.get(candidate.globalRowIndex) === candidate;
++        // Keep ancestor coverage alive while the parent replaces its selected descendants.
++        traversal.selectedRows.set(candidate.globalRowIndex, candidate);
++        for (const child of candidate.children ?? []) {
++            this.removeSelectedCandidateBranch(child, traversal.selectedRows, traversal.state);
++        }
++        candidate.isFallback = false;
++        candidate.isCapacityLimited = false;
++        traversal.state.refinedRows.delete(candidate.globalRowIndex);
++        this.changedPageIds.add(candidate.registeredPage.page.id);
++        if (!wasSelected) {
++            traversal.state.allocatedRowCount += candidate.isVisible ? 1 : 0;
++        }
++        this.resetRequiredPages(traversal.state);
++    }
++    /** Trades the least valuable complete sibling group for higher-error newly resident detail. */
++    reclaimRefinementCapacity(candidate, visibleChildCount, selectedRows, state) {
++        const additionalRows = visibleChildCount - Number(candidate.isVisible);
++        let availableRows = this.maximumActiveRows - state.allocatedRowCount;
++        const replacements = [];
++        const replacementRows = new Set();
++        const deferredAncestors = [];
++        while (availableRows < additionalRows) {
++            const replacement = this.coarseningQueue.pop();
++            if (!replacement)
++                break;
++            if (replacement.priority >= candidate.priority) {
++                this.coarseningQueue.push(replacement);
++                break;
++            }
++            if (!replacement.isVisible ||
++                !replacement.children ||
++                replacementRows.has(replacement.globalRowIndex) ||
++                selectedRows.get(replacement.globalRowIndex) === replacement ||
++                !replacement.children.every(child => selectedRows.get(child.globalRowIndex) === child) ||
++                replacement.children.filter(child => child.isVisible).length < 2)
++                continue;
++            if (this.progressiveView &&
++                (!this.isRowInFrustum(replacement.node) ||
++                    getSplatRADScreenSpaceError(replacement.node, this.currentView, this.focalLengthPixels) >
++                        Math.max(8, this.maximumScreenSpaceError * 4)))
++                continue;
++            if (hasSplatRADAncestor(candidate, replacement.globalRowIndex)) {
++                deferredAncestors.push(replacement);
++                continue;
++            }
++            replacements.push(replacement);
++            replacementRows.add(replacement.globalRowIndex);
++            availableRows += replacement.children.filter(child => child.isVisible).length - 1;
++        }
++        for (const ancestor of deferredAncestors)
++            this.coarseningQueue.push(ancestor);
++        if (availableRows < additionalRows) {
++            for (const replacement of replacements)
++                this.coarseningQueue.push(replacement);
++            return;
++        }
++        for (const replacement of replacements) {
++            this.collapseFrontierCandidate(replacement, { selectedRows, state });
++            if (replacement.parent)
++                this.coarseningQueue.push(replacement.parent);
++        }
++    }
++    /** Reactivates retained direct children as one coherent parent replacement. */
++    activateFrontierCandidateChildren(candidate, traversal) {
++        const children = candidate.children;
++        if (!children) {
++            return false;
++        }
++        const visibleChildCount = children.reduce((visibleRowCount, child) => visibleRowCount + (child.isVisible ? 1 : 0), 0);
++        const nextAllocatedRowCount = traversal.state.allocatedRowCount - (candidate.isVisible ? 1 : 0) + visibleChildCount;
++        if (nextAllocatedRowCount > this.maximumActiveRows) {
++            if (!candidate.isVisible) {
++                return this.selectCapacityLimitedChildren(candidate, traversal);
++            }
++            return false;
++        }
++        candidate.isCapacityLimited = false;
++        this.changedPageIds.add(candidate.registeredPage.page.id);
++        traversal.state.allocatedRowCount = nextAllocatedRowCount;
++        traversal.state.refinedRows.add(candidate.globalRowIndex);
++        for (const child of children) {
++            traversal.selectedRows.set(child.globalRowIndex, child);
++            this.changedPageIds.add(child.registeredPage.page.id);
++        }
++        traversal.selectedRows.delete(candidate.globalRowIndex);
++        return true;
++    }
++    /** Reclaims the least valuable complete groups before the offscreen-parent fallback. */
++    coarsenRetainedGroupsForCapacity(traversal) {
++        while (traversal.state.allocatedRowCount > this.maximumActiveRows) {
++            const candidate = this.coarseningQueue.pop();
++            if (!candidate)
++                break;
++            if (!candidate.isVisible ||
++                !candidate.children ||
++                traversal.selectedRows.get(candidate.globalRowIndex) === candidate ||
++                !candidate.children.every(child => traversal.selectedRows.get(child.globalRowIndex) === child) ||
++                candidate.children.filter(child => child.isVisible).length < 2)
++                continue;
++            // This is a hard budget repair, not an optional quality exchange: even a
++            // high-error parent may be necessary, but less valuable groups yield first.
++            this.collapseFrontierCandidate(candidate, traversal);
++            if (candidate.parent)
++                this.coarseningQueue.push(candidate.parent);
++        }
++    }
++    /** Keeps newly visible rows inside capacity when no complete visible group can cover them. */
++    collapseFrontierForCapacity(candidate, traversal) {
++        let highestOffscreenAncestor;
++        for (let ancestor = candidate.parent; ancestor; ancestor = ancestor.parent) {
++            if (!ancestor.isVisible && ancestor.children) {
++                highestOffscreenAncestor = ancestor;
++            }
++        }
++        if (highestOffscreenAncestor) {
++            this.selectCapacityLimitedChildren(highestOffscreenAncestor, traversal, candidate);
++            if (traversal.state.allocatedRowCount <= this.maximumActiveRows) {
++                return;
++            }
++        }
++        let ancestor = candidate.parent;
++        while (ancestor && traversal.state.allocatedRowCount > this.maximumActiveRows) {
++            if (!ancestor.isVisible && ancestor.children) {
++                this.selectCapacityLimitedChildren(ancestor, traversal);
++            }
++            else {
++                this.collapseFrontierCandidate(ancestor, traversal);
++            }
++            ancestor = ancestor.parent;
++        }
++    }
++    /** Keeps the highest-priority visible descendants when their offscreen parent cannot cover them. */
++    selectCapacityLimitedChildren(candidate, traversal, preferredDescendant) {
++        const { selectedRows, refinementQueue, state } = traversal;
++        const children = candidate.children;
++        if (!children) {
++            return false;
++        }
++        if (selectedRows.delete(candidate.globalRowIndex)) {
++            this.changedPageIds.add(candidate.registeredPage.page.id);
++            state.allocatedRowCount -= candidate.isVisible ? 1 : 0;
++        }
++        const selectedBranchVisibleRowCount = this.getSelectedBranchCounts(candidate, selectedRows).visible;
++        let remainingVisibleCapacity = Math.max(this.maximumActiveRows - (state.allocatedRowCount - selectedBranchVisibleRowCount), 0);
++        const orderedChildren = [...children].sort((left, right) => Number(this.isCandidateInBranch(right, preferredDescendant)) -
++            Number(this.isCandidateInBranch(left, preferredDescendant)) ||
++            Number(left.isVisible) - Number(right.isVisible) ||
++            right.priority - left.priority ||
++            left.globalRowIndex - right.globalRowIndex);
++        let omittedVisibleChildCount = 0;
++        for (const child of orderedChildren) {
++            const currentSelection = this.getSelectedBranchCounts(child, selectedRows);
++            const currentVisibleRowCount = currentSelection.visible;
++            const hasCurrentSelection = currentSelection.total > 0;
++            const shouldKeepVisibleBranch = !child.isVisible || remainingVisibleCapacity > 0;
++            if (hasCurrentSelection &&
++                shouldKeepVisibleBranch &&
++                currentVisibleRowCount <= remainingVisibleCapacity &&
++                (!child.isVisible || currentVisibleRowCount > 0)) {
++                remainingVisibleCapacity -= currentVisibleRowCount;
++                continue;
++            }
++            if (hasCurrentSelection) {
++                this.rememberCapacitySelectedBranch(child, selectedRows, state);
++                this.removeSelectedCandidateBranch(child, selectedRows, state);
++            }
++            if (!shouldKeepVisibleBranch) {
++                omittedVisibleChildCount++;
++                continue;
++            }
++            const restoredVisibleRowCount = this.restoreCapacitySelectedBranch(child, traversal, remainingVisibleCapacity);
++            if (restoredVisibleRowCount !== undefined) {
++                remainingVisibleCapacity -= restoredVisibleRowCount;
++                continue;
++            }
++            this.addFrontierCandidate(child, selectedRows, refinementQueue);
++            state.allocatedRowCount += child.isVisible ? 1 : 0;
++            remainingVisibleCapacity -= child.isVisible ? 1 : 0;
++        }
++        state.refinedRows.add(candidate.globalRowIndex);
++        candidate.isCapacityLimited ||= omittedVisibleChildCount > 0;
++        return true;
++    }
++    isCandidateInBranch(branch, candidate) {
++        while (candidate) {
++            if (candidate === branch) {
++                return true;
++            }
++            candidate = candidate.parent;
++        }
++        return false;
++    }
++    /** Retargets dormant retained branches before touching the leaf currently carrying continuity. */
++    makeRetargetQueue(selectedRows) {
++        const visibleSelectedBranches = new Set();
++        for (const candidate of selectedRows.values()) {
++            if (!candidate.isVisible) {
++                continue;
++            }
++            let ancestor = candidate;
++            while (ancestor) {
++                visibleSelectedBranches.add(ancestor.globalRowIndex);
++                ancestor = ancestor.parent;
++            }
++        }
++        return new SplatRADPriorityQueue((first, second) => {
++            const firstHasVisibleSelection = visibleSelectedBranches.has(first.globalRowIndex);
++            const secondHasVisibleSelection = visibleSelectedBranches.has(second.globalRowIndex);
++            return (Number(secondHasVisibleSelection) - Number(firstHasVisibleSelection) ||
++                compareSplatRADCandidates(first, second));
++        });
++    }
++    getCapacityLimitedAncestor(candidate) {
++        let ancestor = candidate.parent;
++        while (ancestor) {
++            if (ancestor.isCapacityLimited) {
++                return ancestor;
++            }
++            ancestor = ancestor.parent;
++        }
++        return undefined;
++    }
++    rememberCapacitySelectedBranch(candidate, selectedRows, state) {
++        this.clearCapacityRetainedBranch(candidate, state.retainedCapacityRows);
++        this.captureSelectedBranch(candidate, selectedRows, state.retainedCapacityRows);
++    }
++    clearCapacityRetainedBranch(candidate, retainedRows) {
++        this.visitCandidateBranch(candidate, branchCandidate => {
++            retainedRows.delete(branchCandidate.globalRowIndex);
++        });
++    }
++    captureSelectedBranch(candidate, selectedRows, retainedRows) {
++        this.visitCandidateBranch(candidate, branchCandidate => {
++            if (selectedRows.get(branchCandidate.globalRowIndex) === branchCandidate) {
++                retainedRows.add(branchCandidate.globalRowIndex);
++                return false;
++            }
++            return true;
++        });
++    }
++    /** Restores a previously resolved dormant branch without republishing its coarse direct row. */
++    restoreCapacitySelectedBranch(candidate, traversal, maximumVisibleRows) {
++        const retainedCandidates = [];
++        this.collectCapacityRetainedCandidates(candidate, traversal.state.retainedCapacityRows, retainedCandidates);
++        const visibleRowCount = retainedCandidates.reduce((count, retainedCandidate) => count + (retainedCandidate.isVisible ? 1 : 0), 0);
++        if (retainedCandidates.length === 0 ||
++            visibleRowCount > maximumVisibleRows ||
++            (candidate.isVisible && visibleRowCount === 0)) {
++            return undefined;
++        }
++        for (const retainedCandidate of retainedCandidates) {
++            this.addFrontierCandidate(retainedCandidate, traversal.selectedRows, traversal.refinementQueue);
++        }
++        traversal.state.allocatedRowCount += visibleRowCount;
++        return visibleRowCount;
++    }
++    collectCapacityRetainedCandidates(candidate, retainedRows, retainedCandidates) {
++        this.visitCandidateBranch(candidate, branchCandidate => {
++            if (retainedRows.has(branchCandidate.globalRowIndex)) {
++                retainedCandidates.push(branchCandidate);
++                return false;
++            }
++            return true;
++        });
++    }
++    removeSelectedCandidateBranch(candidate, selectedRows, state) {
++        this.visitCandidateBranch(candidate, branchCandidate => {
++            if (selectedRows.delete(branchCandidate.globalRowIndex)) {
++                this.changedPageIds.add(branchCandidate.registeredPage.page.id);
++                state.allocatedRowCount -= branchCandidate.isVisible ? 1 : 0;
++            }
++            state.refinedRows.delete(branchCandidate.globalRowIndex);
++        });
++    }
++    getSelectedBranchCounts(candidate, selectedRows) {
++        let total = 0;
++        let visible = 0;
++        this.visitCandidateBranch(candidate, branchCandidate => {
++            if (selectedRows.get(branchCandidate.globalRowIndex) === branchCandidate) {
++                total++;
++                visible += branchCandidate.isVisible ? 1 : 0;
++            }
++        });
++        return { total, visible };
++    }
++    visitCandidateBranch(candidate, visit) {
++        const candidates = [candidate];
++        while (candidates.length > 0) {
++            const branchCandidate = candidates.pop();
++            if (visit(branchCandidate) === false) {
++                continue;
++            }
++            const children = branchCandidate.children ?? [];
++            for (let childIndex = children.length - 1; childIndex >= 0; childIndex--) {
++                candidates.push(children[childIndex]);
++            }
++        }
++    }
++    /** Returns whether a queued retained row is now covered by a coherently selected ancestor. */
++    hasSelectedFrontierAncestor(candidate, selectedRows) {
++        let ancestor = candidate.parent;
++        while (ancestor) {
++            if (selectedRows.get(ancestor.globalRowIndex) === ancestor) {
++                return true;
++            }
++            ancestor = ancestor.parent;
+         }
++        return false;
+     }
+     /** Publishes one coherent partial or complete frontier without changing source ownership. */
+     publishTraversal(traversal) {
+-        const { selectedRows, refinementQueue, state } = traversal;
+-        state.selectedPages.clear();
++        const { selectedRows, state } = traversal;
++        this.requiresRefresh = false;
++        if (this.deferFrontierUntilComplete &&
++            (traversal.refinementQueue.length > 0 || traversal.retargetQueue.length > 0)) {
++            if (this.currentFrontier.length === 0) {
++                if (!this.protectTraversalDependencies)
++                    state.selectedPages.clear();
++                this.fallbackRowCount = 0;
++                for (const candidate of this.protectTraversalDependencies ? [] : selectedRows.values()) {
++                    if (candidate.isVisible) {
++                        this.selectRow(candidate.registeredPage, candidate.localRowIndex, candidate.node.geometricError, candidate.priority, candidate.isFallback, state);
++                    }
++                }
++                const initialFrontier = this.makeFrontier(state);
++                this.fallbackRowCount = Array.from(state.selectedPages.values()).reduce((count, page) => count + page.fallbackRowCount, 0);
++                this.updateFrontier(initialFrontier);
++            }
++            // A partial current-view search is not a replacement for the displayed cut. Publish
++            // only demand and its small page-level lease, without rescanning millions of selected
++            // rows or withholding requests until the complete search finishes.
++            const protectedIds = new Set([
++                ...state.inputPageIds,
++                ...state.protectedPageIds,
++                ...this.currentFrontier.map(entry => entry.id)
++            ]);
++            for (const pageId of protectedIds) {
++                const chunk = this.residencyManager.getChunk(pageId);
++                if (chunk)
++                    this.protectChunk(chunk);
++            }
++            this.releaseInactivePins(protectedIds);
++            for (const [pageIndex, request] of state.requestedPages) {
++                if (this.getRegisteredPageForRow(request.rowIndex))
++                    state.requestedPages.delete(pageIndex);
++            }
++            this.synchronizeRequests(state.requestedPages);
++            for (const page of this.sortedPages)
++                page.lastDataRevision = page.page.data.revision;
++            return;
++        }
++        if (!this.protectTraversalDependencies)
++            state.selectedPages.clear();
++        state.dependencyPageIds.clear();
+         this.fallbackRowCount = 0;
+-        for (const candidate of selectedRows.values()) {
+-            this.selectRow(candidate.registeredPage, candidate.localRowIndex, candidate.node.geometricError, candidate.priority, candidate.isFallback, state);
++        if (this.protectTraversalDependencies) {
++            if (this.rebuildPublishedPages)
++                this.publishedPages.clear();
++            for (const pageId of this.changedPageIds)
++                this.publishedPages.delete(pageId);
++        }
++        else if (this.rebuildPublishedPages) {
++            for (const candidate of selectedRows.values())
++                this.collectPublishedRow(candidate, state);
++            this.publishedPages.clear();
++        }
++        else {
++            // Apply a source-page delta to the actual published selection. An arriving page must
++            // not rebuild, sort, compare, or re-lease every unchanged visible source row.
++            for (const pageId of this.changedPageIds) {
++                const page = this.pagesById.get(pageId);
++                if (page) {
++                    for (let rowIndex = page.page.data.rowIndexBase; rowIndex < page.endRowIndex; rowIndex++) {
++                        const candidate = selectedRows.get(rowIndex);
++                        if (candidate)
++                            this.collectPublishedRow(candidate, state);
++                    }
++                }
++                this.publishedPages.delete(pageId);
++            }
++        }
++        for (const entry of this.makeFrontier(state, this.protectTraversalDependencies ? this.changedPageIds : undefined)) {
++            const selectedPage = state.selectedPages.get(entry.id);
++            this.publishedPages.set(entry.id, {
++                entry,
++                dependencyPageIds: selectedPage.dependencyPageIds,
++                fallbackRowCount: selectedPage.fallbackRowCount
++            });
++        }
++        this.fallbackRowCount = 0;
++        for (const publishedPage of this.publishedPages.values()) {
++            // Camera-only retargeting updates metadata in place. Rebuilding activeRows
++            // for unchanged membership would turn every pan into another GPU upload.
++            const selectedPage = state.selectedPages.get(publishedPage.entry.id);
++            if (selectedPage)
++                publishedPage.entry.priority = selectedPage.priority;
++            this.fallbackRowCount += publishedPage.fallbackRowCount;
++            for (const pageId of publishedPage.dependencyPageIds)
++                state.dependencyPageIds.add(pageId);
++        }
++        this.changedPageIds.clear();
++        this.rebuildPublishedPages = false;
++        if (!this.protectTraversalDependencies)
++            state.selectedPages.clear();
++        this.previouslyRefinedRows = this.protectTraversalDependencies
++            ? state.refinedRows
++            : new Set(state.refinedRows);
++        const selectedFrontier = Array.from(this.publishedPages.values(), page => page.entry).sort((first, second) => first.data.rowIndexBase - second.data.rowIndexBase);
++        // Reconstruct current demand and partial replacement pins, not a union of every earlier
++        // view. Completed replacements are already protected by the published frontier.
++        state.protectedPageIds.clear();
++        state.requestedPages.clear();
++        for (const rootRow of this.rootRows) {
++            if (!this.getRegisteredPageForRow(rootRow)) {
++                this.requestRow(state, rootRow, Number.MAX_SAFE_INTEGER);
++            }
++        }
++        for (const [rowIndex, candidate] of this.blockedCandidates) {
++            if (selectedRows.get(rowIndex) !== candidate) {
++                this.blockedCandidates.delete(rowIndex);
++                continue;
++            }
++            if (candidate.isVisible && candidate.priority <= this.getRefinementThreshold(candidate)) {
++                continue;
++            }
++            if (candidate.priority < state.capacityPriority)
++                continue;
++            const page = candidate.registeredPage.page;
++            const childStart = page.childStarts[candidate.localRowIndex];
++            const childEnd = childStart + page.childCounts[candidate.localRowIndex];
++            for (let childRow = childStart; childRow < childEnd;) {
++                const childPage = this.getRegisteredPageForRow(childRow);
++                if (childPage) {
++                    state.protectedPageIds.add(childPage.page.id);
++                    childRow = Math.min(childEnd, childPage.endRowIndex);
++                }
++                else {
++                    this.requestRow(state, childRow, candidate.priority, rowIndex);
++                    childRow = Math.min(childEnd, (Math.floor(childRow / this.pageSize) + 1) * this.pageSize);
++                }
++            }
++        }
++        for (const progress of traversal.refinementProgress.values()) {
++            for (const child of progress.childCandidates) {
++                state.protectedPageIds.add(child.registeredPage.page.id);
++            }
+         }
+-        this.previouslyRefinedRows = new Set(state.refinedRows);
+-        const selectedFrontier = this.makeFrontier(state);
+         const activePageIds = new Set([
+             ...state.protectedPageIds,
++            ...state.dependencyPageIds,
++            ...(this.protectTraversalDependencies ? state.dependencyPageCounts.keys() : []),
+             ...selectedFrontier.map(entry => entry.id)
+         ]);
++        for (const pageId of activePageIds) {
++            const chunk = this.residencyManager.getChunk(pageId);
++            if (chunk)
++                this.protectChunk(chunk);
++        }
+         for (const entry of selectedFrontier) {
+             const chunk = this.residencyManager.getChunk(entry.id);
+             if (chunk) {
+@@ -375,33 +1380,41 @@ export class SplatRADHierarchyManager {
+             }
+         }
+         this.releaseInactivePins(activePageIds);
++        this.requiresRefresh = false;
+         this.updateFrontier(selectedFrontier);
++        // Only a new camera cut can downgrade the displayed selection while it is being built.
++        // Subsequent page arrivals replace complete sibling groups within the same view, so their
++        // improvements must be visible now even when more refinement remains queued.
++        this.deferFrontierUntilComplete = false;
++        for (const entry of this.currentFrontier)
++            this.publishedPages.get(entry.id).entry = entry;
++        this.resetRequiredPages(state);
+         this.synchronizeRequests(state.requestedPages);
+         for (const page of this.sortedPages) {
+             page.lastDataRevision = page.page.data.revision;
+         }
+-        if (refinementQueue.length === 0) {
+-            this.incrementalTraversal = undefined;
+-        }
+-        this.requiresRefresh = false;
+     }
+     makeFrontierCandidate(registeredPage, globalRowIndex, parent) {
+         const page = registeredPage.page;
+         const localRowIndex = globalRowIndex - page.data.rowIndexBase;
+         const node = this.makeRowNode(registeredPage, localRowIndex);
+-        if (!isSplatHierarchyNodeVisible(node, this.currentView?.modelViewProjectionMatrix)) {
+-            this.culledRowCount++;
+-            return undefined;
+-        }
+-        this.visibleRowCount++;
+         const view = this.currentView;
+         if (!view) {
+             return undefined;
+         }
+-        const screenSpaceError = getSplatRADScreenSpaceError(node, view);
+-        const priority = getSplatHierarchyFoveatedPriority(node, view, view.foveation ?? this.foveation, screenSpaceError) *
+-            this.getAngularFoveation(node, view) *
+-            this.lodSplatScale;
++        const isVisible = this.isRowVisible(node);
++        if (isVisible) {
++            this.visibleRowCount++;
++        }
++        else {
++            this.culledRowCount++;
++        }
++        const screenSpaceError = getSplatRADScreenSpaceError(node, view, this.focalLengthPixels);
++        const priority = isVisible
++            ? getSplatHierarchyFoveatedPriority(node, view, view.foveation ?? this.foveation, screenSpaceError) *
++                this.getAngularFoveation(node, view) *
++                this.lodSplatScale
++            : 0;
+         return {
+             registeredPage,
+             globalRowIndex,
+@@ -409,25 +1422,46 @@ export class SplatRADHierarchyManager {
+             node,
+             priority,
+             isFallback: false,
++            isCapacityLimited: false,
++            isVisible,
+             ...(parent ? { parent } : {})
+         };
+     }
+     addFrontierCandidate(candidate, selectedRows, refinementQueue) {
+         selectedRows.set(candidate.globalRowIndex, candidate);
++        this.changedPageIds.add(candidate.registeredPage.page.id);
+         const childCount = candidate.registeredPage.page.childCounts?.[candidate.localRowIndex] ?? 0;
+-        if (childCount > 0 && candidate.priority > this.getRefinementThreshold(candidate)) {
++        if (childCount > 0 &&
++            (!candidate.isVisible || candidate.priority > this.getRefinementThreshold(candidate))) {
+             refinementQueue.push(candidate);
+         }
+     }
+     refineFrontierCandidate(candidate, selectedRows, refinementQueue, refinementProgress, state, remainingTraversalRows) {
+         const { registeredPage, globalRowIndex, localRowIndex, priority } = candidate;
++        if (selectedRows.get(globalRowIndex) !== candidate)
++            return false;
++        if (candidate.suppressRefinement)
++            return false;
+         const page = registeredPage.page;
+         const childCount = page.childCounts?.[localRowIndex] ?? 0;
+         const childStart = page.childStarts?.[localRowIndex] ?? 0;
++        const hasValidChildRange = Number.isSafeInteger(childStart + childCount) && childStart + childCount <= 0x8000_0000;
+         if (childCount === 0 ||
+-            priority <= this.getRefinementThreshold(candidate) ||
+-            !Number.isSafeInteger(childStart + childCount) ||
+-            childStart + childCount > 0x8000_0000) {
++            (candidate.isVisible && priority <= this.getRefinementThreshold(candidate)) ||
++            !hasValidChildRange) {
++            refinementProgress.delete(globalRowIndex);
++            return false;
++        }
++        if (this.protectTraversalDependencies &&
++            !this.canRequestChildPages(childStart, childCount, state)) {
++            this.deferredCandidates.set(globalRowIndex, candidate);
++            refinementProgress.delete(globalRowIndex);
++            return false;
++        }
++        if (this.protectTraversalDependencies &&
++            !this.reserveChildPages(childStart, childCount, state)) {
++            // Keep this coherent coarse parent. Asking for only part of a replacement can fill every
++            // free slot with pinned siblings while its final child remains permanently inadmissible.
+             refinementProgress.delete(globalRowIndex);
+             return false;
+         }
+@@ -445,18 +1479,27 @@ export class SplatRADHierarchyManager {
+                 continue;
+             }
+             if (!childPage) {
++                this.missingRowCount++;
++                this.blockedCandidates.set(globalRowIndex, candidate);
+                 this.requestRow(state, childRowIndex, priority, globalRowIndex);
+                 continue;
+             }
+             progress.residentChildCount++;
+-            if (childPage.page.id !== page.id) {
++            state.inputPageIds.add(childPage.page.id);
++            const child = this.makeFrontierCandidate(childPage, childStart + childOffset, candidate);
++            const childHierarchyCount = childPage.page.childCounts?.[childStart + childOffset - childPage.page.data.rowIndexBase] ??
++                0;
++            const needsPublishedFallbackProtection = candidate.isVisible || Boolean(child?.isVisible);
++            if (childPage.page.id !== page.id &&
++                (needsPublishedFallbackProtection || childHierarchyCount > 0)) {
+                 const chunk = this.residencyManager.getChunk(childPage.page.id);
+                 if (chunk) {
+                     this.protectChunk(chunk);
+-                    state.protectedPageIds.add(chunk.id);
++                    if (needsPublishedFallbackProtection) {
++                        state.protectedPageIds.add(chunk.id);
++                    }
+                 }
+             }
+-            const child = this.makeFrontierCandidate(childPage, childStart + childOffset, candidate);
+             if (child) {
+                 progress.childCandidates.push(child);
+             }
+@@ -467,20 +1510,47 @@ export class SplatRADHierarchyManager {
+         }
+         refinementProgress.delete(globalRowIndex);
+         if (progress.residentChildCount !== childCount) {
++            if (!candidate.isFallback)
++                this.changedPageIds.add(page.id);
+             candidate.isFallback = true;
+             return false;
+         }
++        this.blockedCandidates.delete(globalRowIndex);
++        if (candidate.isFallback)
++            this.changedPageIds.add(page.id);
++        candidate.isFallback = false;
+         const { childCandidates } = progress;
+-        if (childCandidates.length === 0 ||
+-            state.allocatedRowCount + childCandidates.length - 1 > this.maximumActiveRows) {
++        const visibleChildCount = childCandidates.reduce((visibleRowCount, child) => visibleRowCount + (child.isVisible ? 1 : 0), 0);
++        if (childCandidates.length === 0) {
+             return false;
+         }
+-        selectedRows.delete(globalRowIndex);
+-        state.allocatedRowCount += childCandidates.length - 1;
++        candidate.children = childCandidates;
++        if (this.protectTraversalDependencies) {
++            this.reclaimRefinementCapacity(candidate, visibleChildCount, selectedRows, state);
++        }
++        const nextAllocatedRowCount = state.allocatedRowCount - (candidate.isVisible ? 1 : 0) + visibleChildCount;
++        if (nextAllocatedRowCount > this.maximumActiveRows) {
++            if (candidate.isVisible) {
++                state.capacityPriority = Math.max(state.capacityPriority, candidate.priority);
++                if (this.protectTraversalDependencies)
++                    candidate.isCapacityLimited = true;
++            }
++            if (!candidate.isVisible) {
++                this.selectCapacityLimitedChildren(candidate, { selectedRows, refinementQueue, state });
++            }
++            return false;
++        }
++        this.changedPageIds.add(page.id);
++        state.allocatedRowCount = nextAllocatedRowCount;
+         state.refinedRows.add(globalRowIndex);
++        if (this.protectTraversalDependencies)
++            this.coarseningQueue.push(candidate);
++        candidate.isCapacityLimited = false;
+         for (const child of childCandidates) {
+             this.addFrontierCandidate(child, selectedRows, refinementQueue);
+         }
++        // Add the replacement before removing its parent so shared ancestor leases never drop to zero.
++        selectedRows.delete(globalRowIndex);
+         return false;
+     }
+     getRefinementThreshold(candidate) {
+@@ -490,6 +1560,116 @@ export class SplatRADHierarchyManager {
+             : 1 + this.refinementHysteresis;
+         return this.maximumScreenSpaceError * hysteresisFactor;
+     }
++    getTraversalWorkCount() {
++        return this.visibleRowCount + this.culledRowCount + this.missingRowCount;
++    }
++    reserveChildPages(childStart, childCount, state, reserve = true) {
++        if (this.maximumResidentPages === Number.POSITIVE_INFINITY)
++            return true;
++        const firstPageIndex = Math.floor(childStart / this.pageSize);
++        const lastPageIndex = Math.floor((childStart + childCount - 1) / this.pageSize);
++        if (lastPageIndex - firstPageIndex + 1 > this.maximumResidentPages)
++            return false;
++        let requiredPageCount = state.requiredPageIndices.size;
++        for (let pageIndex = firstPageIndex; pageIndex <= lastPageIndex; pageIndex++) {
++            if (!state.requiredPageIndices.has(pageIndex) &&
++                ++requiredPageCount > this.maximumResidentPages) {
++                return false;
++            }
++        }
++        if (reserve) {
++            for (let pageIndex = firstPageIndex; pageIndex <= lastPageIndex; pageIndex++) {
++                state.requiredPageIndices.add(pageIndex);
++            }
++        }
++        return true;
++    }
++    canRequestChildPages(childStart, childCount, state) {
++        if (this.maximumPendingPages === Number.POSITIVE_INFINITY || state.requestedPages.size === 0)
++            return true;
++        let pendingPageCount = state.requestedPages.size;
++        const lastPageIndex = Math.floor((childStart + childCount - 1) / this.pageSize);
++        for (let pageIndex = Math.floor(childStart / this.pageSize); pageIndex <= lastPageIndex; pageIndex++) {
++            if (!state.requestedPages.has(pageIndex) &&
++                !this.getRegisteredPageForRow(Math.max(childStart, pageIndex * this.pageSize)) &&
++                ++pendingPageCount > this.maximumPendingPages)
++                return false;
++        }
++        return true;
++    }
++    /** Maintains the actual page selection and dependency leases as sibling groups change. */
++    recordSelectedRow(candidate, state, selected) {
++        if (!candidate.isVisible)
++            return;
++        const pageId = candidate.registeredPage.page.id;
++        let selectedPage = state.selectedPages.get(pageId);
++        if (!selectedPage && selected) {
++            selectedPage = {
++                registeredPage: candidate.registeredPage,
++                activeRows: [],
++                activeMask: new Uint8Array(0),
++                geometricError: 0,
++                priority: 0,
++                isFallback: false,
++                fallbackRowCount: 0,
++                dependencyPageIds: new Set(),
++                dependencyRows: new Set(),
++                selectedRows: new Map()
++            };
++            state.selectedPages.set(pageId, selectedPage);
++        }
++        if (selected)
++            selectedPage.selectedRows.set(candidate.localRowIndex, candidate);
++        else
++            selectedPage?.selectedRows?.delete(candidate.localRowIndex);
++        this.changedPageIds.add(pageId);
++        candidate.isSelected = selected;
++        // Selection can temporarily include both sides of an atomic sibling replacement. If children
++        // already cover this subtree, selecting or deselecting its parent does not change its ancestors.
++        if (candidate.selectedChildCount)
++            return;
++        // Count covered child branches, not all descendant leaves. Propagate only a subtree's
++        // zero/nonzero transition; replacing a deep leaf must not revisit every unchanged ancestor.
++        for (let ancestor = candidate.parent; ancestor; ancestor = ancestor.parent) {
++            const previousCount = ancestor.selectedChildCount ?? 0;
++            const nextCount = previousCount + (selected ? 1 : -1);
++            ancestor.selectedChildCount = nextCount;
++            if (previousCount > 0 && nextCount > 0)
++                break;
++            if (nextCount > 0) {
++                ancestor.dependencyPageIds = Array.from(new Set([
++                    ancestor.registeredPage.page.id,
++                    ...(ancestor.children ?? []).map(child => child.registeredPage.page.id)
++                ]));
++            }
++            for (const dependencyId of ancestor.dependencyPageIds ?? []) {
++                const count = (state.dependencyPageCounts.get(dependencyId) ?? 0) + (selected ? 1 : -1);
++                if (count > 0)
++                    state.dependencyPageCounts.set(dependencyId, count);
++                else
++                    state.dependencyPageCounts.delete(dependencyId);
++            }
++            if (nextCount === 0)
++                ancestor.dependencyPageIds = undefined;
++            if (ancestor.isSelected)
++                break;
++        }
++    }
++    collectPublishedRow(candidate, state) {
++        if (!candidate.isVisible)
++            return;
++        const selectedPage = this.selectRow(candidate.registeredPage, candidate.localRowIndex, candidate.node.geometricError, candidate.priority, candidate.isFallback, state);
++        if (this.protectTraversalDependencies) {
++            for (let ancestor = candidate.parent; ancestor; ancestor = ancestor.parent) {
++                if (selectedPage.dependencyRows.has(ancestor.globalRowIndex))
++                    break;
++                selectedPage.dependencyRows.add(ancestor.globalRowIndex);
++                selectedPage.dependencyPageIds.add(ancestor.registeredPage.page.id);
++                for (const child of ancestor.children ?? [])
++                    selectedPage.dependencyPageIds.add(child.registeredPage.page.id);
++            }
++        }
++    }
+     selectRow(registeredPage, localRowIndex, geometricError, priority, isFallback, state) {
+         const page = registeredPage.page;
+         let selectedPage = state.selectedPages.get(page.id);
+@@ -500,7 +1680,10 @@ export class SplatRADHierarchyManager {
+                 activeMask: new Uint8Array(page.data.length),
+                 geometricError: 0,
+                 priority: 0,
+-                isFallback: false
++                isFallback: false,
++                fallbackRowCount: 0,
++                dependencyPageIds: new Set(),
++                dependencyRows: new Set()
+             };
+             state.selectedPages.set(page.id, selectedPage);
+         }
+@@ -509,11 +1692,13 @@ export class SplatRADHierarchyManager {
+             selectedPage.activeMask[localRowIndex] = 1;
+             if (isFallback) {
+                 this.fallbackRowCount++;
++                selectedPage.fallbackRowCount++;
+             }
+         }
+         selectedPage.geometricError = Math.max(selectedPage.geometricError, geometricError);
+         selectedPage.priority = Math.max(selectedPage.priority, priority);
+         selectedPage.isFallback ||= isFallback;
++        return selectedPage;
+     }
+     requestRow(state, rowIndex, priority, parentRowIndex) {
+         const pageIndex = Math.floor(rowIndex / this.pageSize);
+@@ -543,16 +1728,32 @@ export class SplatRADHierarchyManager {
+             }
+         }
+     }
+-    makeFrontier(state) {
++    makeFrontier(state, changedPageIds) {
+         return Array.from(state.selectedPages.values())
++            .filter(page => (!changedPageIds || changedPageIds.has(page.registeredPage.page.id)) &&
++            (!page.selectedRows || page.selectedRows.size > 0))
+             .sort((firstPage, secondPage) => firstPage.registeredPage.page.data.rowIndexBase -
+             secondPage.registeredPage.page.data.rowIndexBase)
+             .map(selectedPage => {
+-            selectedPage.activeRows.sort((firstRow, secondRow) => firstRow - secondRow);
++            if (selectedPage.selectedRows) {
++                selectedPage.activeRows = [];
++                selectedPage.activeMask = new Uint8Array(selectedPage.registeredPage.page.data.length);
++                selectedPage.geometricError = 0;
++                selectedPage.priority = 0;
++                selectedPage.fallbackRowCount = 0;
++                for (const candidate of selectedPage.selectedRows.values()) {
++                    selectedPage.activeRows.push(candidate.localRowIndex);
++                    selectedPage.activeMask[candidate.localRowIndex] = 1;
++                    selectedPage.geometricError = Math.max(selectedPage.geometricError, candidate.node.geometricError);
++                    selectedPage.priority = Math.max(selectedPage.priority, candidate.priority);
++                    selectedPage.fallbackRowCount += Number(candidate.isFallback);
++                }
++                selectedPage.isFallback = selectedPage.fallbackRowCount > 0;
++            }
+             return {
+                 id: selectedPage.registeredPage.page.id,
+                 data: selectedPage.registeredPage.page.data,
+-                activeRows: Uint32Array.from(selectedPage.activeRows),
++                activeRows: Uint32Array.from(selectedPage.activeRows).sort(),
+                 activeMask: selectedPage.activeMask,
+                 bounds: selectedPage.registeredPage.bounds,
+                 geometricError: selectedPage.geometricError,
+@@ -565,6 +1766,8 @@ export class SplatRADHierarchyManager {
+         const hasChanged = selectedFrontier.length !== this.currentFrontier.length ||
+             selectedFrontier.some((entry, entryIndex) => {
+                 const previousEntry = this.currentFrontier[entryIndex];
++                if (entry === previousEntry)
++                    return false;
+                 return (entry.id !== previousEntry.id ||
+                     entry.data !== previousEntry.data ||
+                     entry.isFallback !== previousEntry.isFallback ||
+@@ -606,6 +1809,57 @@ export class SplatRADHierarchyManager {
+             geometricError: geometricError ?? 2 * averageScale * opacityExpansion
+         };
+     }
++    /** Hoists camera-only arithmetic out of the per-source-row traversal. */
++    prepareView(view) {
++        this.currentView = view;
++        const verticalFieldOfView = Math.min(Math.max(view.verticalFieldOfView ?? Math.PI / 3, 1e-6), Math.PI - 1e-6);
++        this.focalLengthPixels =
++            Math.max(view.viewportSize[1], 0) / (2 * Math.tan(verticalFieldOfView / 2));
++        const matrix = view.modelViewProjectionMatrix;
++        this.clipPlanes = matrix ? new Float64Array(30) : undefined;
++        this.forwardLength = matrix ? Math.hypot(matrix[3], matrix[7], matrix[11]) : 0;
++        if (!matrix || !this.clipPlanes) {
++            return;
++        }
++        let planeOffset = 0;
++        for (let coordinateIndex = 0; coordinateIndex < 3; coordinateIndex++) {
++            for (const direction of [-1, 1]) {
++                const planeX = matrix[3] + direction * matrix[coordinateIndex];
++                const planeY = matrix[7] + direction * matrix[4 + coordinateIndex];
++                const planeZ = matrix[11] + direction * matrix[8 + coordinateIndex];
++                this.clipPlanes[planeOffset++] = planeX;
++                this.clipPlanes[planeOffset++] = planeY;
++                this.clipPlanes[planeOffset++] = planeZ;
++                this.clipPlanes[planeOffset++] = matrix[15] + direction * matrix[12 + coordinateIndex];
++                // Preserve unnormalized distances, including degenerate planes, exactly as the
++                // generic isSplatHierarchyNodeVisible predicate does.
++                this.clipPlanes[planeOffset++] = Math.hypot(planeX, planeY, planeZ);
++            }
++        }
++    }
++    isRowVisible(node) {
++        if (!this.frustumCulling)
++            return true;
++        return this.isRowInFrustum(node);
++    }
++    isRowInFrustum(node) {
++        const planes = this.clipPlanes;
++        if (!planes) {
++            return true;
++        }
++        const radius = Math.max(node.bounds.radius ?? 0, 0);
++        const center = node.bounds.center;
++        for (let planeOffset = 0; planeOffset < planes.length; planeOffset += 5) {
++            const signedDistance = planes[planeOffset] * center[0] +
++                planes[planeOffset + 1] * center[1] +
++                planes[planeOffset + 2] * center[2] +
++                planes[planeOffset + 3];
++            if (signedDistance < -radius * planes[planeOffset + 4]) {
++                return false;
++            }
++        }
++        return true;
++    }
+     /**
+      * Maps angular distance from the view axis to the documented full, peripheral, and rear detail
+      * levels. Angle-space easing avoids coupling the hierarchy policy to a renderer implementation.
+@@ -615,7 +1869,7 @@ export class SplatRADHierarchyManager {
+         if (!matrix) {
+             return 1;
+         }
+-        const forwardLength = Math.hypot(matrix[3], matrix[7], matrix[11]);
++        const forwardLength = this.forwardLength;
+         if (!Number.isFinite(forwardLength) || forwardLength <= Number.EPSILON) {
+             return 1;
+         }
+@@ -683,23 +1937,55 @@ export class SplatRADHierarchyManager {
+         }
+     }
+     pruneEvictedPages() {
+-        let removedPage = false;
++        const removedPageIds = new Set();
+         for (const [pageId, registeredPage] of this.pagesById) {
+             if (registeredPage.page.data.destroyed || !this.residencyManager.has(pageId)) {
+                 this.pagesById.delete(pageId);
+                 this.ownedPinnedIds.delete(pageId);
+-                removedPage = true;
++                removedPageIds.add(pageId);
+             }
+         }
+-        if (removedPage) {
++        if (removedPageIds.size) {
+             this.sortedPages = this.sortedPages.filter(page => this.pagesById.has(page.page.id));
+         }
++        if (!removedPageIds.size)
++            return false;
++        const traversal = this.incrementalTraversal;
++        if (!traversal)
++            return true;
++        if (!Array.from(removedPageIds).some(pageId => traversal.state.inputPageIds.has(pageId))) {
++            return false;
++        }
++        // Admission may displace unused prefetched pages. Only loss of a retained traversal input
++        // invalidates the tree; restarting for unrelated eviction repeatedly destroys visible detail.
++        const candidates = traversal.rootCandidates.slice();
++        for (const progress of traversal.refinementProgress.values()) {
++            for (const child of progress.childCandidates)
++                candidates.push(child);
++        }
++        while (candidates.length) {
++            const candidate = candidates.pop();
++            if (removedPageIds.has(candidate.registeredPage.page.id))
++                return true;
++            if (traversal.selectedRows.get(candidate.globalRowIndex) === candidate)
++                continue;
++            for (const child of candidate.children ?? [])
++                candidates.push(child);
++        }
++        return false;
+     }
+     haveSourceRowsChanged() {
+         return this.sortedPages.some(page => page.lastDataRevision !== page.page.data.revision);
+     }
+     invalidateIncrementalTraversal() {
++        this.rebuildPublishedPages = true;
++        this.changedPageIds.clear();
+         this.incrementalTraversal = undefined;
++        this.blockedCandidates.clear();
++        this.deferredCandidates.clear();
++        this.requiresRefinement = false;
++        this.coarseningQueue = new SplatRADPriorityQueue((first, second) => compareSplatRADCandidates(second, first));
++        this.requiresRetarget = false;
+     }
+     validateRootRows(rootRows) {
+         if (rootRows.some(rowIndex => !Number.isSafeInteger(rowIndex) || rowIndex < 0 || rowIndex > 0x7fff_ffff)) {
+@@ -728,9 +2014,39 @@ export class SplatRADHierarchyManager {
+         }
+     }
+ }
++/** A selected row owns one entry in the page frontier and its ancestor-page leases. */
++class SplatRADSelectedRows extends Map {
++    onSelectionChange;
++    constructor(onSelectionChange) {
++        super();
++        this.onSelectionChange = onSelectionChange;
++    }
++    set(rowIndex, candidate) {
++        const previous = this.get(rowIndex);
++        if (previous === candidate)
++            return this;
++        if (previous)
++            this.onSelectionChange(previous, false);
++        super.set(rowIndex, candidate);
++        this.onSelectionChange(candidate, true);
++        return this;
++    }
++    delete(rowIndex) {
++        const candidate = this.get(rowIndex);
++        if (!candidate)
++            return false;
++        super.delete(rowIndex);
++        this.onSelectionChange(candidate, false);
++        return true;
++    }
++}
+ /** Keeps the highest-value original source row at the frontier without sorting every update. */
+ class SplatRADPriorityQueue {
++    compareCandidates;
+     candidates = [];
++    constructor(compareCandidates = compareSplatRADCandidates) {
++        this.compareCandidates = compareCandidates;
++    }
+     get length() {
+         return this.candidates.length;
+     }
+@@ -738,7 +2054,7 @@ class SplatRADPriorityQueue {
+         let index = this.candidates.push(candidate) - 1;
+         while (index > 0) {
+             const parentIndex = Math.floor((index - 1) / 2);
+-            if (compareSplatRADCandidates(this.candidates[parentIndex], candidate) >= 0) {
++            if (this.compareCandidates(this.candidates[parentIndex], candidate) >= 0) {
+                 break;
+             }
+             this.candidates[index] = this.candidates[parentIndex];
+@@ -760,10 +2076,10 @@ class SplatRADPriorityQueue {
+             }
+             const secondChildIndex = firstChildIndex + 1;
+             const largestChildIndex = secondChildIndex < this.candidates.length &&
+-                compareSplatRADCandidates(this.candidates[secondChildIndex], this.candidates[firstChildIndex]) > 0
++                this.compareCandidates(this.candidates[secondChildIndex], this.candidates[firstChildIndex]) > 0
+                 ? secondChildIndex
+                 : firstChildIndex;
+-            if (compareSplatRADCandidates(last, this.candidates[largestChildIndex]) >= 0) {
++            if (this.compareCandidates(last, this.candidates[largestChildIndex]) >= 0) {
+                 break;
+             }
+             this.candidates[index] = this.candidates[largestChildIndex];
+@@ -803,10 +2119,8 @@ function hasSplatRADAncestor(candidate, rowIndex) {
+     }
+     return false;
+ }
+-function getSplatRADScreenSpaceError(node, view) {
++function getSplatRADScreenSpaceError(node, view, focalLengthPixels) {
+     const distance = Math.max(Math.hypot(node.bounds.center[0] - view.cameraPosition[0], node.bounds.center[1] - view.cameraPosition[1], node.bounds.center[2] - view.cameraPosition[2]), 1e-6);
+-    const verticalFieldOfView = Math.min(Math.max(view.verticalFieldOfView ?? Math.PI / 3, 1e-6), Math.PI - 1e-6);
+-    const focalLengthPixels = Math.max(view.viewportSize[1], 0) / (2 * Math.tan(verticalFieldOfView / 2));
+     return (Math.max(node.geometricError, 0) * focalLengthPixels) / distance;
+ }
+ function areSplatRADViewsEqual(first, second) {
+@@ -881,4 +2195,21 @@ export function getSplatRADPageBounds(page) {
+     }
+     return { center, radius };
+ }
++/** Merges sphere bounds conservatively without retaining evictable source data. */
++function mergeSplatRADBounds(first, second) {
++    const firstRadius = first.radius ?? 0;
++    const secondRadius = second.radius ?? 0;
++    const distance = Math.hypot(...first.center.map((value, axis) => value - second.center[axis]));
++    if (firstRadius >= distance + secondRadius)
++        return first;
++    if (secondRadius >= distance + firstRadius)
++        return second;
++    const radius = (distance + firstRadius + secondRadius) / 2;
++    const fraction = (radius - firstRadius) / distance;
++    const center = [0, 0, 0];
++    for (let axis = 0; axis < 3; axis++) {
++        center[axis] = first.center[axis] + (second.center[axis] - first.center[axis]) * fraction;
++    }
++    return { center, radius };
++}
+ //# sourceMappingURL=splat-rad-hierarchy.js.map
+\ No newline at end of file
+diff --git a/dist/splat-residency.d.ts b/dist/splat-residency.d.ts
+index eb503ed7..cc6a8332 100644
+--- a/dist/splat-residency.d.ts
++++ b/dist/splat-residency.d.ts
+@@ -1,4 +1,6 @@
+ import type { GPUSplatData } from "./splat-data.js";
++/** Minimal allocation and ownership metadata, usable on the CPU or GPU. */
++export type SplatResidencyData = Pick<GPUSplatData, 'length' | 'byteLength' | 'destroyed' | 'destroy' | 'sourceBatchIndex' | 'rowIndexBase'>;
+ /** Independent limits applied to intact, independently uploaded Gaussian source batches. */
+ export type SplatResidencyBudget = {
+     /** Maximum allocated bytes retained across resident Gaussian source batches. */
+@@ -35,11 +37,11 @@ export type SplatResidencyChunkOptions = {
+     estimatedSplatCount?: number;
+ };
+ /** Explicit residency metadata stored directly on each independently retained source chunk. */
+-export type SplatResidencyChunk = {
++export type SplatResidencyChunk<TData extends SplatResidencyData = GPUSplatData> = {
+     /** Stable caller-supplied tile identity or source batch and global-row identity. */
+     id: string;
+     /** Original independently prepared Gaussian source batch, never copied or combined. */
+-    data: GPUSplatData;
++    data: TData;
+     /** Retention priority; larger values are more valuable. */
+     priority: number;
+     /** Whether automatic and non-forced eviction must preserve this chunk. */
+@@ -85,22 +87,22 @@ export type SplatResidencyStats = {
+     overBudget: boolean;
+ };
+ /** Optional integration hooks for updating a borrowing renderer or tile scheduler. */
+-export type SplatResidencyCallbacks = {
++export type SplatResidencyCallbacks<TData extends SplatResidencyData = GPUSplatData> = {
+     /** Called after one intact source batch enters the residency window. */
+-    onAdd?: (chunk: SplatResidencyChunk) => void;
+-    /** Called after removal but before manager-owned source GPU buffers are destroyed. */
+-    onEvict?: (chunk: SplatResidencyChunk, reason: SplatResidencyEvictionReason) => void;
++    onAdd?: (chunk: SplatResidencyChunk<TData>) => void;
++    /** Called after removal but before manager-owned source data is destroyed. */
++    onEvict?: (chunk: SplatResidencyChunk<TData>, reason: SplatResidencyEvictionReason) => void;
+     /** Called with the current exact source-batch list after every residency change. */
+-    onResidencyChange?: (batches: readonly GPUSplatData[], stats: SplatResidencyStats) => void;
++    onResidencyChange?: (batches: readonly TData[], stats: SplatResidencyStats) => void;
+ };
+ /** Allocation budgets, default ownership, and optional renderer or scheduler integration. */
+-export type SplatResidencyManagerProps = SplatResidencyBudget & SplatResidencyCallbacks & {
++export type SplatResidencyManagerProps<TData extends SplatResidencyData = GPUSplatData> = SplatResidencyBudget & SplatResidencyCallbacks<TData> & {
+     /** Whether admitted source batches are owned by default. Borrowing is the default. */
+     ownsData?: boolean;
+     /** Optional callback collection, useful when composing renderer integrations. */
+-    callbacks?: SplatResidencyCallbacks;
++    callbacks?: SplatResidencyCallbacks<TData>;
+ };
+-type SplatResidencyTarget = string | GPUSplatData | SplatResidencyChunk;
++type SplatResidencyTarget<TData extends SplatResidencyData = GPUSplatData> = string | TData | SplatResidencyChunk<TData>;
+ /**
+  * Keeps intact Gaussian source batches within bounded GPU, row, and chunk budgets.
+  *
+@@ -108,7 +110,7 @@ type SplatResidencyTarget = string | GPUSplatData | SplatResidencyChunk;
+  * eviction, and pinned batches are never automatically removed. No source batch is
+  * combined, repacked, or destroyed unless its explicit ownership has been transferred.
+  */
+-export declare class SplatResidencyManager {
++export declare class SplatResidencyManager<TData extends SplatResidencyData = GPUSplatData> {
+     private readonly chunks;
+     private readonly chunksByData;
+     private readonly pendingLoads;
+@@ -128,31 +130,31 @@ export declare class SplatResidencyManager {
+     private accessCounter;
+     private isDestroyed;
+     /** Creates an initially empty, borrowing residency window with optional finite budgets. */
+-    constructor(props?: SplatResidencyManagerProps);
++    constructor(props?: SplatResidencyManagerProps<TData>);
+     /** Whether this residency manager has already released its retained source batches. */
+     get destroyed(): boolean;
+     /** Original caller-owned source batches in stable admission order. */
+-    get residentBatches(): GPUSplatData[];
++    get residentBatches(): TData[];
+     /** Explicit source chunk, tile, priority, hierarchy, and ownership metadata. */
+-    get residentChunks(): SplatResidencyChunk[];
++    get residentChunks(): SplatResidencyChunk<TData>[];
+     /** Current exact GPU allocations, logical rows, source batches, and budget diagnostics. */
+     get stats(): SplatResidencyStats;
+-    /** Returns the original intact GPU source batches without copying or combining their buffers. */
+-    getResidentBatches(): GPUSplatData[];
++    /** Returns the original intact source batches without copying or combining their data. */
++    getResidentBatches(): TData[];
+     /** Returns every admitted source chunk and its directly stored residency metadata. */
+-    getResidentChunks(): SplatResidencyChunk[];
++    getResidentChunks(): SplatResidencyChunk<TData>[];
+     /** Returns one retained chunk using its tile identity or exact source-batch object. */
+-    getChunk(target: SplatResidencyTarget): SplatResidencyChunk | undefined;
++    getChunk(target: SplatResidencyTarget<TData>): SplatResidencyChunk<TData> | undefined;
+     /** Whether the exact source batch or source tile identity is currently resident. */
+-    has(target: SplatResidencyTarget): boolean;
++    has(target: SplatResidencyTarget<TData>): boolean;
+     /**
+      * Admits one intact source batch, evicting only lower-priority or older equal-priority chunks.
+      *
+      * Returns `undefined` without changing existing residency when the source batch cannot fit.
+      */
+-    add(data: GPUSplatData, options?: SplatResidencyChunkOptions): SplatResidencyChunk | undefined;
++    add(data: TData, options?: SplatResidencyChunkOptions): SplatResidencyChunk<TData> | undefined;
+     /** Alias for registering one intact source tile or independently prepared streaming batch. */
+-    register(data: GPUSplatData, options?: SplatResidencyChunkOptions): SplatResidencyChunk | undefined;
++    register(data: TData, options?: SplatResidencyChunkOptions): SplatResidencyChunk<TData> | undefined;
+     /**
+      * Loads one source tile at most once, retaining its exact source-batch boundaries.
+      *
+@@ -161,21 +163,21 @@ export declare class SplatResidencyManager {
+      * Manager-owned asynchronous results are destroyed if final admission fails or the manager
+      * has already been destroyed. Borrowed results always remain owned by their source loader.
+      */
+-    load(id: string, loadData: () => GPUSplatData | Promise<GPUSplatData>, options?: Omit<SplatResidencyChunkOptions, 'id'>): Promise<SplatResidencyChunk | undefined>;
++    load(id: string, loadData: () => TData | Promise<TData>, options?: Omit<SplatResidencyChunkOptions, 'id'>): Promise<SplatResidencyChunk<TData> | undefined>;
+     /** Marks one source tile as recently used without changing its source buffers or identity. */
+-    touch(target: SplatResidencyTarget): boolean;
++    touch(target: SplatResidencyTarget<TData>): boolean;
+     /** Updates the eviction priority of one source tile without moving or repacking its data. */
+-    setPriority(target: SplatResidencyTarget, priority: number): boolean;
++    setPriority(target: SplatResidencyTarget<TData>, priority: number): boolean;
+     /** Protects a retained source tile against automatic and non-forced explicit eviction. */
+-    pin(target: SplatResidencyTarget, pinned?: boolean): boolean;
++    pin(target: SplatResidencyTarget<TData>, pinned?: boolean): boolean;
+     /** Removes explicit eviction protection and immediately enforces any reduced budgets. */
+-    unpin(target: SplatResidencyTarget): boolean;
++    unpin(target: SplatResidencyTarget<TData>): boolean;
+     /** Updates any combination of exact GPU-byte, source-row, and independent-chunk budgets. */
+     setBudget(budget: SplatResidencyBudget | number): void;
+     /** Evicts one unpinned source tile, defaulting to the least valuable and oldest resident. */
+-    evict(target?: SplatResidencyTarget): boolean;
++    evict(target?: SplatResidencyTarget<TData>): boolean;
+     /** Explicitly removes one source tile, including chunks protected against automatic eviction. */
+-    remove(target: SplatResidencyTarget): boolean;
++    remove(target: SplatResidencyTarget<TData>): boolean;
+     /** Removes the least valuable unpinned chunks until every active residency budget is met. */
+     trim(): number;
+     /** Removes all retained source tiles while respecting each batch's explicit ownership. */
 diff --git a/dist/splat-residency.js b/dist/splat-residency.js
 index 4f06579d..5bd8f90d 100644
 --- a/dist/splat-residency.js
