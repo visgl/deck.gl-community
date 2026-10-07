@@ -83,9 +83,8 @@ export class SplatSceneLayer extends Layer<
   getOwnerMatrix(owner: unknown, index: number, data: unknown[], viewport: Viewport): Matrix4 {
     if (
       viewport.isGeospatial ||
-      ![COORDINATE_SYSTEM.DEFAULT, COORDINATE_SYSTEM.CARTESIAN].includes(
-        this.props.coordinateSystem
-      )
+      (this.props.coordinateSystem !== COORDINATE_SYSTEM.DEFAULT &&
+        this.props.coordinateSystem !== COORDINATE_SYSTEM.CARTESIAN)
     ) {
       throw new Error('Sorted SplatLayer currently requires Cartesian coordinates.');
     }
