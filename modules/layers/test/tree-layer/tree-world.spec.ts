@@ -1,12 +1,58 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {expect, it} from 'vitest';
+import {expect, it, vi} from 'vitest';
 import {WebMercatorViewport} from '@deck.gl/core';
 import {WorldTreeLayer} from '../../src/tree-layer/world-tree-layer';
+import {TreeLayer} from '../../src/tree-layer/tree-layer';
+import {TreeTileLayer} from '../../src/tree-layer/tree-tile-layer';
 import {TreeTileset} from '../../src/tree-layer/tree-tileset';
 import {TreeFrameBudget} from '../../src/tree-layer/tree-frame-budget';
 import {validateTreeTile} from '../../src/tree-layer/tree-tile-data';
+
+it('uses the same public TreeLayer for rows and streamed inventories without recursive tile sources', () => {
+  const tree = {position: [0, 0] as [number, number], species: 'oak' as const};
+  const getTileData = vi.fn(() => ({trees: [tree], canopies: [], byteLength: 64}));
+  const getCanopyColor = () => [20, 140, 40, 255] as [number, number, number, number];
+  const getDistantCanopyColor = () => [80, 150, 60, 255] as [number, number, number, number];
+  const layer = new TreeLayer({
+    id: 'one-tree-api',
+    getTileData,
+    getCanopyColor,
+    getDistantCanopyColor,
+    getHeight: 16,
+    getSeason: 'winter',
+    maxVisibleTiles: 12,
+    windStrength: 0.03,
+    updateTriggers: {getDistantCanopyColor: 'winter', getTileData: 1}
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
+  const inventory = layer.renderLayers()[0] as TreeTileLayer<typeof tree>;
+  expect(inventory).toBeInstanceOf(TreeTileLayer);
+  expect(inventory.props.getTileData).toBe(getTileData);
+  expect(inventory.props.maxVisibleTiles).toBe(12);
+  expect(inventory.props.getCanopyColor).toBe(getDistantCanopyColor);
+  expect(inventory.props.updateTriggers.getCanopyColor).toBe('winter');
+  expect(inventory.props.canopyWindStrength).toBe(0.03);
+  expect(inventory.props.treeProps?.getCanopyColor).toBe(getCanopyColor);
+  expect(inventory.props.treeProps?.getHeight).toBe(16);
+  expect(inventory.props.treeProps?.getTileData).toBeUndefined();
+  expect(getTileData).not.toHaveBeenCalled();
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({getTileData: undefined, data: [tree]}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}});
+  expect(layer.renderLayers().some(child => child.id.includes('wood'))).toBe(true);
+  expect(layer.renderLayers().some(child => child instanceof TreeTileLayer)).toBe(false);
+  expect(() =>
+    layer.updateState({
+      props: {...layer.props, getTileData},
+      oldProps,
+      changeFlags: {dataChanged: true}
+    })
+  ).toThrow('either data rows or getTileData');
+});
 
 it('caps the geographic frontier by coarsening, including pitched horizon and antimeridian views', () => {
   const tileset = new TreeTileset({

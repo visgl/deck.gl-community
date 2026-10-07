@@ -1,11 +1,11 @@
-# WorldTreeLayer
+# TreeLayer geographic streaming
 
-`WorldTreeLayer` streams a geographic inventory and batches visible trees into one `TreeLayer`. Nearby trees retain connected wood and full leaf templates; unresolved distant groups use overlapping three-dimensional Gaussian crowns. Geographic packets manage requests and cache residency internally. There are no ground polygons or visible packet rectangles.
+`TreeLayer` accepts either supplied `data` rows or an abortable `getTileData` inventory. Both modes share the same top-level tree accessors and renderer. An internal tile component streams geographic pages and batches visible trees. `WorldTreeLayer` is a deprecated compatibility wrapper for earlier callers. Nearby trees retain connected wood and full leaf templates; unresolved distant groups use overlapping three-dimensional Gaussian crowns. Geographic packets manage requests and cache residency internally. There are no ground polygons or visible packet rectangles.
 
 ```ts
-import {WorldTreeLayer} from '@deck.gl-community/layers';
+import {TreeLayer} from '@deck.gl-community/layers';
 
-new WorldTreeLayer({
+new TreeLayer({
   id: 'world-trees',
   maxZoom: 20,
   getTreeKey: tree => tree.id,
@@ -14,13 +14,11 @@ new WorldTreeLayer({
     if (!response.ok) throw new Error(`Tree source ${response.status}`);
     return response.json(); // {byteLength, trees: [...], canopies: [...]}
   },
-  treeProps: {
-    getPosition: tree => tree.position,
-    getTreeType: tree => tree.species,
-    getHeight: tree => tree.height,
-    windStrength: 0.025
-  },
-  canopyWindStrength: 0.025
+  getPosition: tree => tree.position,
+  getTreeType: tree => tree.species,
+  getHeight: tree => tree.height,
+  windStrength: 0.025,
+  foveationStrength: 1
 });
 ```
 
@@ -32,7 +30,7 @@ A source must partition the inventory spatially and prepare distant representati
 
 Declared bytes must include nested data and retained buffers. Bound encoded responses and decoding work in the adapter too; validation after decoding cannot retroactively limit a response. Source refinement should preserve individual tree positions and replacement coverage. Supply `getTreeKey` for rows representing the same tree and pose across source levels. Changing `getTreeKey` or its update trigger rebuilds identity grouping immediately. Matching identities share one rendered owner during replacement and retain it after the old page retires; use different identities when geometry changes incompatibly. `transitionDuration` defaults to 800 ms. Loaded outgoing and incoming crowns blend optical depth, and wood uses complementary coverage anchored in tree space. `isLoaded` becomes true after request loading and the visual transition settle. Set the duration to zero for instantaneous replacement.
 
-Use `treeProps` for ordinary species, season, crops, connected wood, wind and picking. `foveationStrength` defaults to one in this wrapper: actual projected crown centers smoothly prioritize central detail without removing peripheral trees. Light-map refinement remains independent. Distant groups have simplified crown silhouettes; they do not contain individual branches, fruit or cast individual-tree shadows. `getCanopyColor` can update their seasonal tint, and `canopyWindStrength` bends their stable templates. These are distant approximations; inspect individual TreeLayer rows for botanical detail.
+Use ordinary top-level tree accessors for species, season, crops, connected wood, wind and picking. Set `foveationStrength: 1` to prioritize central detail: actual projected crown centers smoothly prioritize central detail without removing peripheral trees. Light-map refinement remains independent. Distant groups have simplified crown silhouettes; they do not contain individual branches, fruit or cast individual-tree shadows. `getDistantCanopyColor` updates their seasonal tint, and `windStrength` bends their stable templates. These are distant approximations; inspect individual TreeLayer rows for botanical detail.
 
 ## Budgets
 
@@ -41,9 +39,9 @@ Use `treeProps` for ordinary species, season, crops, connected wood, wind and pi
 | `maxVisibleTiles` | 32 | Bound internal requests while prioritizing nearby footprints; retain coverage of every requested region. |
 | `maxTileRecords` | 1024 | Maximum combined individual-tree and distant-crown records in one decoded page. |
 | `maxTileByteLength` | 1 MiB | Maximum declared decoded page bytes. |
-| `maxCanopySplats` | 400,000 | Shared Gaussian quota across distant crowns and individual species. |
-| `maxShadowSplats` | 50,000 | Independent light-space Gaussian quota. |
-| `maxCanopyPixels` | 4,194,304 | Shared accumulation pixel limit; raster resolution remains fixed as geometry quality adapts. |
+| `maxCanopySplats` | 250,000 | Shared Gaussian quota across distant crowns and individual species. |
+| `maxShadowSplats` | 125,000 | Independent light-space Gaussian quota. |
+| `maxCanopyPixels` | Infinity | Shared accumulation pixel limit; raster resolution remains fixed as geometry quality adapts. |
 | `targetFrameTime` | 16.67 ms | Quality feedback with hysteresis. Zero disables feedback for controlled comparisons. |
 | `minBudgetScale` | 0.125 | Lowest Gaussian budget fraction selected by feedback. |
 | `maxCacheSize` | 64 | Deck cache eviction target. |
@@ -73,3 +71,13 @@ remain effective, and allocation favors projected error reduction across their s
 Geographic inventory pages retain their TileLayer lifecycle and coverage transitions; they are
 separate from Gaussian template assets. `streamingStats` reads SplatLayer's supported counters
 and includes actual camera/light submissions and their coarsest coverage floors.
+
+## Compatibility
+
+Existing `WorldTreeLayer` calls still work through a wrapper around the internal tile component.
+Migrate to `TreeLayer`, move `treeProps` to the top level, rename the distant group
+`getCanopyColor` to `getDistantCanopyColor`, and use `windStrength` for both near and distant trees.
+The wrapper preserves its earlier 400,000/50,000 canopy/shadow defaults; canonical `TreeLayer`
+uses its normal 250,000/125,000 defaults in both modes. Do not provide nonempty `data` together
+with `getTileData`. `streamingStats` is available on the public TreeLayer and reports zero
+residency until the inventory child is initialized.

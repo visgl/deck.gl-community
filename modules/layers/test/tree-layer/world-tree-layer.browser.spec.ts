@@ -5,6 +5,7 @@ import {Deck, MapView, CompositeLayer, type Layer} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it} from 'vitest';
 import {WorldTreeLayer, TreeLayer} from '../../src';
+import {TreeTileLayer} from '../../src/tree-layer/tree-tile-layer';
 import {getTestTreeTile, TEST_LEAF_ZOOM, type TestTree} from './fixtures/tree-inventory';
 
 it('streams an independent inventory through region, forest and close views with one batched tree renderer and bounded submissions', async () => {
@@ -20,28 +21,30 @@ it('streams an independent inventory through region, forest and close views with
   const getTreeKey = (tree: TestTree) =>
     mergeIdentities ? 'one-owner' : (tree as TestTree & {key: string}).key;
   const makeLayer = () =>
-    new WorldTreeLayer<TestTree>({
+    new TreeLayer<TestTree>({
       id: 'world',
       getTileData: getTestTreeTile,
       getTreeKey,
-      updateTriggers: {getTreeKey: identityRevision},
+
       transitionDuration: 100,
       maxZoom: TEST_LEAF_ZOOM,
       targetFrameTime: 0,
       maxCanopySplats: 50000,
       maxShadowSplats: 30000,
       maxVisibleTiles: 16,
-      treeProps: {
-        getPosition: tree => tree.position,
-        getTreeType: tree => tree.species,
-        getHeight: tree => tree.height,
-        getCanopyRadius: tree => tree.canopyRadius,
-        getTrunkRadius: tree => tree.trunkRadius,
-        getSeason: () => season,
-        windStrength: 0,
-        shadowEnabled: false,
-        getCoverageWeight: (_tree, info) => authoredCoverage * (info.index >= 0 ? 1 : 0),
-        updateTriggers: {getSeason: season, getCoverageWeight: coverageRevision}
+      getPosition: tree => tree.position,
+      getTreeType: tree => tree.species,
+      getHeight: tree => tree.height,
+      getCanopyRadius: tree => tree.canopyRadius,
+      getTrunkRadius: tree => tree.trunkRadius,
+      getSeason: () => season,
+      windStrength: 0,
+      shadowEnabled: false,
+      getCoverageWeight: (_tree, info) => authoredCoverage * (info.index >= 0 ? 1 : 0),
+      updateTriggers: {
+        getTreeKey: identityRevision,
+        getSeason: season,
+        getCoverageWeight: coverageRevision
       }
     });
   const deck = new Deck({
@@ -55,15 +58,20 @@ it('streams an independent inventory through region, forest and close views with
     layers: [makeLayer()],
     onError: error => errors.push(error.message)
   });
-  const current = () => deck.props.layers[0] as WorldTreeLayer<TestTree>;
+  const publicLayer = () => deck.props.layers[0] as TreeLayer<TestTree>;
+  const current = () =>
+    publicLayer()
+      .getSubLayers()
+      .find(layer => layer instanceof TreeTileLayer) as TreeTileLayer<TestTree>;
   const leaves = (layer: Layer): Layer[] =>
     layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(leaves) : [layer];
   try {
-    await expect.poll(() => current().isLoaded, {timeout: 30000}).toBe(true);
+    await expect.poll(() => publicLayer().isLoaded, {timeout: 30000}).toBe(true);
     expect(current().streamingStats.residentTrees).toBe(0);
     await expect
       .poll(() => current().streamingStats.distantCrowns, {timeout: 30000})
       .toBeGreaterThan(0);
+    expect(publicLayer().streamingStats.distantCrowns).toBe(current().streamingStats.distantCrowns);
     for (const zoom of [19, 21, 19, 10, 21]) {
       deck.setProps({
         viewState: {
@@ -96,6 +104,7 @@ it('streams an independent inventory through region, forest and close views with
         )
         .toBe(zoom < 15 ? 0 : 1);
       const stats = current().streamingStats;
+      expect(publicLayer().streamingStats.visibleTrees).toBe(stats.visibleTrees);
       expect(stats.selectedTiles).toBeLessThanOrEqual(16);
       expect(stats.cachedTiles).toBeLessThanOrEqual(80);
       expect(stats.residentTrees).toBeLessThan(65536);

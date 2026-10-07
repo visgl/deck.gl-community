@@ -30,6 +30,12 @@ export type {CropKind} from './tree-crop';
 export type {TreeCharacteristics} from './tree-characteristics';
 import {getTreeSplatData} from './tree-splats';
 import type {SplatBudgetGroup} from '../splat-layer/splat-runtime';
+import {
+  TreeTileLayer,
+  type TreeTileLayerProps,
+  type TreeTileStats,
+  type TreeCanopyCluster
+} from './tree-tile-layer';
 
 /** Procedural species silhouette. */
 export type TreeType =
@@ -164,7 +170,37 @@ const DEFAULT_CANOPY_COLORS: Record<TreeType, Record<Season, Color>> = {
   }
 };
 
-type _TreeLayerProps<DataT> = {
+/** Optional geographic inventory controls; tree accessors stay on TreeLayer itself. */
+type TreeStreamingProps<DataT> = Pick<
+  Partial<TreeTileLayerProps<DataT>>,
+  | 'getTileData'
+  | 'getTreeKey'
+  | 'transitionDuration'
+  | 'maxVisibleTiles'
+  | 'maxTileRecords'
+  | 'maxTileByteLength'
+  | 'targetFrameTime'
+  | 'minBudgetScale'
+  | 'minZoom'
+  | 'maxZoom'
+  | 'zoomOffset'
+  | 'tileSize'
+  | 'maxCacheSize'
+  | 'maxCacheByteSize'
+  | 'maxRequests'
+  | 'debounceTime'
+  | 'zRange'
+  | 'extent'
+  | 'refinementStrategy'
+  | 'onTileLoad'
+  | 'onTileUnload'
+  | 'onTileError'
+  | 'onViewportLoad'
+> & {
+  /** Seasonal tint for source-authored distant crown groups. Defaults to their source color. */
+  getDistantCanopyColor?: Accessor<TreeCanopyCluster, Color>;
+};
+type _TreeLayerProps<DataT> = TreeStreamingProps<DataT> & {
   /** @internal Shared canopy allocation inherited from an inventory layer. */
   _splatBudgetGroup?: SplatBudgetGroup;
   /** Source data. */
@@ -287,9 +323,15 @@ type _TreeLayerProps<DataT> = {
   shadowEnabled?: boolean;
 };
 
-export type TreeLayerProps<DataT = unknown> = _TreeLayerProps<DataT> & CompositeLayerProps;
+export type TreeLayerProps<DataT = unknown> = Omit<_TreeLayerProps<DataT>, 'data'> & {
+  data?: DataT[];
+} & CompositeLayerProps;
 
 const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
+  ...TreeTileLayer.defaultProps,
+  data: {type: 'data', value: []},
+  getTileData: {type: 'function', value: null, optional: true},
+  getDistantCanopyColor: {type: 'accessor', value: (canopy: TreeCanopyCluster) => canopy.color},
   getTree: {type: 'accessor', value: (d: any) => d},
   getPosition: {type: 'accessor', value: (d: any) => d.position},
   getElevation: {type: 'accessor', value: (_d: any) => 0},
@@ -441,8 +483,14 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   }
 
   updateState({props, oldProps, changeFlags}) {
+    if (props.getTileData) {
+      if (props.data.length)
+        throw new Error('TreeLayer accepts either data rows or getTileData, not both.');
+      return;
+    }
     const triggers = changeFlags.updateTriggersChanged;
     const changed =
+      Boolean(oldProps.getTileData) ||
       changeFlags.dataChanged ||
       GEOMETRY_PROPS.some(
         key =>
@@ -724,7 +772,50 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     return {...props, parameters, updateTriggers};
   }
 
+  /** Geographic residency and submission diagnostics; zero until a streaming child is ready. */
+  get streamingStats(): TreeTileStats {
+    const inventory = this.getSubLayers().find(layer => layer instanceof TreeTileLayer) as
+      | TreeTileLayer<DataT>
+      | undefined;
+    return (
+      inventory?.streamingStats ?? {
+        cachedTiles: 0,
+        selectedTiles: 0,
+        decodedBytes: 0,
+        residentTrees: 0,
+        visibleTrees: 0,
+        distantCrowns: 0,
+        transitioningPages: 0,
+        canopySplats: 0,
+        shadowSplats: 0,
+        coverageFloorExceeded: false,
+        budgetExceeded: false,
+        refiningCrowns: 0,
+        budgetScale: 1
+      }
+    );
+  }
+
   renderLayers() {
+    if (this.props.getTileData) {
+      const {id: _id, data: _data, getTileData: _getTileData, ...treeProps} = this.props;
+      return [
+        new TreeTileLayer<DataT>({
+          ...this.props,
+          ...this.getSubLayerProps({id: 'inventory'}),
+          data: [],
+          getTileData: this.props.getTileData,
+          _TreeLayerClass: TreeLayer,
+          getCanopyColor: this.props.getDistantCanopyColor,
+          canopyWindStrength: this.props.windStrength,
+          treeProps,
+          updateTriggers: {
+            ...this.props.updateTriggers,
+            getCanopyColor: this.props.updateTriggers?.getDistantCanopyColor
+          }
+        })
+      ];
+    }
     const {windTime, shadowEnabled, getTrunkColor, getCanopyColor, getSeason} = this.props;
     const windStrength = Math.max(
       this.state.hasDefaultWind ? getFiniteDimension(this.props.windStrength, 0) : 0,

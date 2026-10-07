@@ -73,8 +73,8 @@ export class TreeBudgetEffect implements Effect {
   preRender(options: PreRenderOptions) {
     const now = performance.now();
     for (const layer of options.layers) {
-      if ((layer.constructor as {layerName?: string}).layerName === 'WorldTreeLayer')
-        (layer as unknown as {updateFrameBudget(now: number): void}).updateFrameBudget(now);
+      if ('updateFrameBudget' in layer && typeof layer.updateFrameBudget === 'function')
+        layer.updateFrameBudget(now);
     }
   }
   cleanup({deck}: EffectContext) {

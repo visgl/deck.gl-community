@@ -31,7 +31,7 @@ new TreeLayer({
 });
 ```
 
-`TreeLayer` is the canonical renderer. `WorldTreeLayer` is an optional geographic streaming adapter that batches into this renderer; `TreeWoodLayer` and `TreeMeshLayer` are internal sublayers, not alternate public tree renderers. Comparison fixtures live only in examples.
+`TreeLayer` is the public renderer for both supplied rows and streamed geographic inventories. Supply `getTileData` instead of a global `data` array to stream through its internal tile component. `WorldTreeLayer` remains a deprecated compatibility wrapper; `TreeWoodLayer` and `TreeMeshLayer` are internal sublayers, not alternate public tree renderers. Comparison fixtures live only in examples.
 
 ## Authored tree traits
 
@@ -141,11 +141,11 @@ The highest source detail remains available. Cost depends on the visible crowns,
 
 ### Automatic submission budgets
 
-`maxCanopySplats` (default 250,000) and `maxShadowSplats` (default 125,000) apportion independent Gaussian submission budgets across species. They preserve every visible owner using the existing covariance hierarchy, prioritize projected error reductions, and retain finest leaf templates. If the coarsest owner coverage exceeds a budget, coverage wins; use [WorldTreeLayer](./world-tree-layer.md) with regional source aggregation for world-scale residency and automatic frame feedback. Large inventories should never be supplied as one global `TreeLayer.data` array.
+`maxCanopySplats` (default 250,000) and `maxShadowSplats` (default 125,000) apportion independent Gaussian submission budgets across species. They preserve every visible owner using the existing covariance hierarchy, prioritize projected error reductions, and retain finest leaf templates. If the coarsest owner coverage exceeds a budget, coverage wins; use [TreeLayer geographic streaming](./world-tree-layer.md) with `getTileData` and regional source aggregation for world-scale residency and automatic frame feedback. Large inventories should never be supplied as one global `TreeLayer.data` array.
 
-`maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. WorldTreeLayer keeps this raster target fixed while geometry budgets adapt; an explicitly low target softens leaf edges and reduces branch-occlusion precision.
+`maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. The streaming mode keeps this raster target fixed while geometry budgets adapt; an explicitly low target softens leaf edges and reduces branch-occlusion precision.
 
-`foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation, preserves visible owners, and leaves light-space shadow refinement independent. `WorldTreeLayer` enables it by default.
+`foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation, preserves visible owners, and leaves light-space shadow refinement independent. Set it to one in streamed inventories to favor central crowns.
 
 `getCoverageWeight` applies to wood, fallback trunks, foliage and every crop kind, including their picking and shadow passes. It defaults to one and supports optical canopy fades and matching wood coverage during streamed replacement. Automatic wood refinement blends the connected fine and coarse skeletons with complementary pixel coverage. Native wood cross-sections follow `getTrunkRadius` independently of canopy spread; branch centerlines remain aligned with the leaf growth structure.
 
@@ -156,3 +156,13 @@ Canopy sublayers use `SplatLayer` with owner rows, cached `prepared-splats` desc
 remain stable. The shared runtime allocates `maxCanopySplats` and `maxShadowSplats` across all
 canopy roots. An explicit child quota still limits that child. Wood and crops use their existing
 mesh paths; tree traits, seasons and original-tree picking remain TreeLayer responsibilities.
+
+### Geographic inventories
+
+Use `new TreeLayer({getTileData, getTreeKey, ...})` for a bounded source inventory. Species,
+season, wind, crop, picking and material accessors remain at the top level, as in row mode.
+`getDistantCanopyColor` tints unresolved source-built groups separately from individual-tree
+`getCanopyColor`. Request/cache controls, continuous replacement, automatic frame budgets and
+`streamingStats` are described in the [geographic streaming reference](./world-tree-layer.md).
+The same public layer works at specimen, forest and world scales; it never materializes a global
+inventory to manufacture rows. Coit depends on SplatLayer alone and does not use this tree API.
