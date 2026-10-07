@@ -5,6 +5,7 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
+import {getStyleAccessor, getZoomBucket} from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
@@ -331,22 +332,21 @@ function createStyledVectorSubLayer({
     return null;
   }
 
-  const paint = getPaint(styleLayer, zoom);
-  const opacity =
-    paint[`${styleLayer.type}-opacity`] ??
-    (styleLayer.type === 'fill' ? paint['fill-opacity'] : paint['line-opacity']) ??
-    1;
-  const fillColor = withOpacity(paint['fill-color'], opacity);
-  const lineColor = withOpacity(
-    paint['line-color'] || paint['fill-outline-color'] || [0, 0, 0, 0],
-    opacity
-  );
-
   if (styleLayer.type === 'symbol') {
-    return createSymbolSubLayer({props, styleLayer, features, config, mode, zoom, opacity, paint});
+    const paint = getPaint(styleLayer, zoom);
+    return createSymbolSubLayer({
+      props,
+      styleLayer,
+      features,
+      config,
+      mode,
+      zoom,
+      opacity: 1,
+      paint
+    });
   }
 
-  return createGeometrySubLayer({props, styleLayer, features, mode, fillColor, lineColor, paint});
+  return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
 }
 
 function createVectorLayerGroup({
@@ -400,6 +400,8 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
+    // `renderSubLayers` reads `zoom`, so regenerate tile sublayers when the integer zoom changes.
+    updateTriggers: {renderSubLayers: getZoomBucket(zoom)},
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers = styleLayers
@@ -559,20 +561,35 @@ function createGeometrySubLayer({
   styleLayer,
   features,
   mode,
-  fillColor,
-  lineColor,
-  paint
+  zoom
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
   mode: BasemapMode;
-  fillColor: [number, number, number, number];
-  lineColor: [number, number, number, number];
-  paint: Record<string, any>;
+  zoom: number;
 }) {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
+  const opacityProperty = isFill ? 'fill-opacity' : 'line-opacity';
+
+  const fillColor = getStyleAccessor(
+    styleLayer,
+    ['fill-color', opacityProperty],
+    zoom,
+    ([color, opacity]) => getGlobeFillColor(withOpacity(color, opacity ?? 1), mode)
+  );
+  const lineColor = getStyleAccessor(
+    styleLayer,
+    ['line-color', 'fill-outline-color', opacityProperty],
+    zoom,
+    ([color, outlineColor, opacity]) =>
+      withOpacity(color || outlineColor || [0, 0, 0, 0], opacity ?? 1)
+  );
+  const lineWidthScale = getLineWidthScale(styleLayer);
+  const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
+    Math.max(0.25, Number(width ?? 1) * lineWidthScale)
+  );
 
   return new GeoJsonLayer({
     ...getSubLayerBaseProps(props),
@@ -580,11 +597,14 @@ function createGeometrySubLayer({
     data: features,
     stroked: isLine,
     filled: isFill,
-    getFillColor: isFill ? getGlobeFillColor(fillColor, mode) : [0, 0, 0, 0],
-    getLineColor: lineColor,
-    getLineWidth: isLine
-      ? Math.max(0.25, Number(paint['line-width'] ?? 1) * getLineWidthScale(styleLayer))
-      : 0,
+    getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
+    getLineColor: lineColor.value as any,
+    getLineWidth: isLine ? (lineWidth.value as any) : 0,
+    updateTriggers: {
+      getFillColor: isFill ? fillColor.updateTrigger : undefined,
+      getLineColor: lineColor.updateTrigger,
+      getLineWidth: isLine ? lineWidth.updateTrigger : undefined
+    },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
     lineWidthMaxPixels: 20,
