@@ -87,6 +87,40 @@ it('reconciles fallback shadow membership on replacement without retaining remov
   expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual([b]);
 });
 
+it('refreshes light-space owner offsets before regrouping replaced or cleared assets', () => {
+  const first = {position: [0, 0, 0] as [number, number, number], splats: SOURCE};
+  const second = {
+    position: [0.1, 0, 0] as [number, number, number],
+    splats: {...SOURCE, colors: new Uint8Array([200, 20, 50, 255])}
+  };
+  const layer = make([first, second], 0, {source: undefined, getSource: row => row.splats});
+  layer.prepareShadow(
+    [
+      {
+        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        center: [0, 0, 0, 0],
+        width: 256,
+        height: 256
+      }
+    ],
+    layer.context.viewport
+  );
+  expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual([first, second]);
+  const retained = [...layer.state.shadowRefinement.entries.values()][1];
+  for (const data of [[second], []]) {
+    const oldProps = layer.props;
+    Object.assign(layer, {props: layer.clone({data}).props});
+    layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+    expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual(data);
+    if (data.length) {
+      expect([...layer.state.shadowRefinement.entries.values()]).toEqual([retained]);
+      expect(retained.owner.offset).toBe(0);
+    }
+  }
+  expect(layer.state.shadowRefinement.entries.size).toBe(0);
+  expect(layer.renderLayers()).toEqual([]);
+});
+
 it('retains light-space selections on camera-only changes and invalidates changed source geometry', () => {
   const layer = make([{position: [0, 0, 0]}], 0);
   const viewport = layer.context.viewport;

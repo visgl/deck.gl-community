@@ -424,11 +424,17 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         props.maxShadowSplats,
         owner => owner.key
       );
+    if ((rebuild || refinementChanged) && this.state.shadowProjections) {
+      // Reconcile retained light owners against the new hierarchy before regrouping:
+      // removed assets can shorten it and shift every surviving owner's offset.
+      this.state.spatialIndex = spatialIndex;
+      this.shadowKey = '';
+      this.prepareShadow(this.state.shadowProjections, viewport);
+    }
     const shadowGroups =
       rebuild || !this.state.shadowGroups.length
         ? this.getRefinementGroups(this.state.shadowRefinement)
         : this.state.shadowGroups;
-    if (rebuild || refinementChanged) this.shadowKey = '';
     this.setState({
       groups: rebuild
         ? groups
@@ -453,8 +459,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       }));
       this.publishDemand(true, this.state.shadowCandidates);
     }
-    if ((rebuild || refinementChanged) && this.state.shadowProjections)
-      this.prepareShadow(this.state.shadowProjections, viewport);
   }
 
   private publishDemand(shadow: boolean, candidates: SplatSelection<PreparedOwner<DataT>>[]) {
