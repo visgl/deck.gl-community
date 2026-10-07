@@ -19,7 +19,6 @@ import './styles.css';
 
 const COIT_URL =
   'https://storage.googleapis.com/download/storage/v1/b/forge-dev-public/o/asundqui%2Frad%2F260217%2Fcoit-40m-sh1-lod.rad?alt=media';
-const DIAGNOSTIC = new URLSearchParams(location.search).has('diagnostic');
 const INITIAL_STATUS: SplatLayerStatus = {
   phase: 'loading',
   message: 'Starting deck.gl with WebGPU…',
@@ -30,6 +29,7 @@ const INITIAL_STATUS: SplatLayerStatus = {
 };
 
 export default function App() {
+  const [diagnostic] = useState(() => new URLSearchParams(location.search).has('diagnostic'));
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<Deck<FirstPersonView> | undefined>(undefined);
   const [status, setStatus] = useState(INITIAL_STATUS);
@@ -42,7 +42,7 @@ export default function App() {
   const loadMilestonesRef = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!DIAGNOSTIC) return;
+    if (!diagnostic) return;
     const milestones: [string, boolean][] = [
       ['first-coverage', status.activeSplats > 0],
       ['half-budget', status.activeSplats >= 500_000],
@@ -60,7 +60,7 @@ export default function App() {
         );
       }
     }
-  }, [status]);
+  }, [status, diagnostic]);
 
   useEffect(() => {
     const container = containerRef.current!;
@@ -72,7 +72,7 @@ export default function App() {
       controller: {type: SplatCameraController},
       onViewStateChange: ({viewState}) => {
         deck.setProps({viewState});
-        if (DIAGNOSTIC) console.debug('COIT_CAMERA', JSON.stringify(viewState));
+        if (diagnostic) console.debug('COIT_CAMERA', JSON.stringify(viewState));
       },
       onAfterRender: () => {
         if (animationRef.current) frameTimesRef.current.push(performance.now());
@@ -80,13 +80,13 @@ export default function App() {
       onError: error => setStatus(current => ({...current, phase: 'error', message: error.message}))
     });
     deckRef.current = deck;
-    if (DIAGNOSTIC) (window as unknown as {coitDeck?: Deck<FirstPersonView>}).coitDeck = deck;
+    if (diagnostic) (window as unknown as {coitDeck?: Deck<FirstPersonView>}).coitDeck = deck;
     return () => {
       cancelAnimationFrame(animationRef.current);
       deckRef.current = undefined;
       deck.finalize();
     };
-  }, []);
+  }, [diagnostic]);
 
   useEffect(() => {
     deckRef.current?.setProps({
@@ -226,7 +226,7 @@ export default function App() {
         >
           Reset authored view
         </button>
-        {DIAGNOSTIC && (
+        {diagnostic && (
           <p>
             <button type="button" onClick={() => runCameraTest()}>
               Run camera test
