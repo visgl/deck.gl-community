@@ -174,4 +174,11 @@ The module evaluates styles with [`@maplibre/maplibre-gl-style-spec`][maplibre-s
 - Evaluates filter expressions for each GeoJSON `Feature` input
 - Evaluates paint expressions given the zoom level
 
+Zoom-dependent paint and layout values are evaluated at the zoom rounded down to a 0.25 step
+(`STYLE_ZOOM_STEP`), and every visible tile uses the same evaluation zoom, so tiles agree at their
+seams. Filters use the integer zoom, as the style spec specifies, and layer visibility uses the
+exact zoom. MapLibre instead evaluates zoom expressions at the integer zooms on either side of
+the current zoom and interpolates on the GPU; moving interpolation to the GPU remains the
+long-term plan.
+
 [maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec

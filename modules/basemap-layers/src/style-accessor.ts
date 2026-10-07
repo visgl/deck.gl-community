@@ -6,21 +6,34 @@ type StyleLayerLike = {
 };
 
 /**
- * Integer zoom at which style values are evaluated.
+ * Zoom step at which style values are evaluated. Paint and layout values step every
+ * `STYLE_ZOOM_STEP` zoom levels instead of following the zoom continuously.
+ */
+export const STYLE_ZOOM_STEP = 0.25;
+
+/**
+ * Zoom at which paint and layout values are evaluated: the zoom rounded down to a
+ * `STYLE_ZOOM_STEP`.
  *
  * This is a temporary simplification, not MapLibre's behaviour. MapLibre evaluates zoom-dependent
  * expressions at the integer zooms on either side of the current zoom and interpolates between
- * them on the GPU. Here every value steps at integer zooms, so tiles generated at different
- * fractional zooms within one integer zoom agree.
+ * them on the GPU, which remains the long-term plan here. Stepping keeps every tile on the same
+ * evaluation zoom, so neighbouring tiles agree at their seams.
  */
 export function getZoomBucket(zoom: number): number {
+  return Math.floor(zoom / STYLE_ZOOM_STEP) * STYLE_ZOOM_STEP;
+}
+
+/** Zoom at which filters are evaluated: the integer zoom, as the style spec specifies. */
+export function getFilterZoom(zoom: number): number {
   return Math.floor(zoom);
 }
 
 /**
- * A key that changes whenever style evaluation or layer visibility changes: at every integer
- * zoom, and at every fractional `minzoom`/`maxzoom` in `zoomLimits`. Layer visibility uses the
- * exact zoom, as in MapLibre, so crossing a fractional limit must regenerate sublayers too.
+ * A key that changes whenever style evaluation or layer visibility changes: at every
+ * `STYLE_ZOOM_STEP` (which includes every integer zoom, where filters change), and at every
+ * fractional `minzoom`/`maxzoom` in `zoomLimits`. Layer visibility uses the exact zoom, as in
+ * MapLibre, so crossing a fractional limit must regenerate sublayers too.
  */
 export function getStyleZoomKey(zoom: number, zoomLimits: readonly (number | undefined)[]): string {
   const crossed = zoomLimits.filter(
@@ -33,12 +46,12 @@ export function getStyleZoomKey(zoom: number, zoomLimits: readonly (number | und
 export type StyleAccessor<T> = {
   /** A constant when no property depends on feature data, otherwise a per-feature function. */
   value: T | ((feature: StyleFeature) => T);
-  /** Set to the integer zoom when a per-feature value also depends on zoom. */
+  /** Set to the evaluation zoom (`getZoomBucket`) when a per-feature value also depends on zoom. */
   updateTrigger?: number;
 };
 
 /**
- * Builds a deck.gl accessor from style properties, evaluated at the integer zoom
+ * Builds a deck.gl accessor from style properties, evaluated at the stepped zoom
  * (`getZoomBucket`). Feature-independent values become constants. Data-driven values become
  * per-feature functions, with an update trigger when they also depend on zoom.
  */

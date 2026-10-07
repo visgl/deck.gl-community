@@ -5,7 +5,13 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
-import {getStyleAccessor, getStyleZoomKey, getZoomBucket, withOpacity} from './style-accessor';
+import {
+  getFilterZoom,
+  getStyleAccessor,
+  getStyleZoomKey,
+  getZoomBucket,
+  withOpacity
+} from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
@@ -87,7 +93,7 @@ const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
 const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
 
-/** Evaluates a style layer's paint at the integer zoom (see `getZoomBucket`). */
+/** Evaluates a style layer's paint at the stepped zoom (see `getZoomBucket`). */
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
   const properties = parseProperties(layer, {zoom: getZoomBucket(zoom)});
   return Object.fromEntries(
@@ -95,22 +101,48 @@ function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
   );
 }
 
+/**
+ * Filtered features per tile content, style layer and filter zoom. Tile sublayers regenerate at
+ * every style zoom step, and handing them the same array keeps deck.gl from seeing a data change,
+ * so only zoom-dependent accessors recompute instead of every feature being re-tessellated.
+ */
+const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, Map<number, any[]>>>();
+
 function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
   const sourceLayer = styleLayer['source-layer'];
-  const sourceFeatures = sourceLayer
-    ? features.filter(feature => feature.properties?.layerName === sourceLayer)
-    : features;
-
-  if (!styleLayer.filter) {
-    return sourceFeatures;
+  if (!sourceLayer && !styleLayer.filter) {
+    return features;
   }
 
   // MapLibre evaluates `["zoom"]` in filters at integer zooms.
-  return filterFeatures({
-    features: sourceFeatures,
-    filter: styleLayer.filter,
-    globalProperties: {zoom: getZoomBucket(zoom)}
-  });
+  const filterZoom = getFilterZoom(zoom);
+  let byStyleLayer = filteredFeatureCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    filteredFeatureCache.set(features, byStyleLayer);
+  }
+  let byZoom = byStyleLayer.get(styleLayer);
+  if (!byZoom) {
+    byZoom = new Map();
+    byStyleLayer.set(styleLayer, byZoom);
+  }
+  const cached = byZoom.get(filterZoom);
+  if (cached) {
+    return cached;
+  }
+
+  const sourceFeatures = sourceLayer
+    ? features.filter(feature => feature.properties?.layerName === sourceLayer)
+    : features;
+  const filtered = styleLayer.filter
+    ? filterFeatures({
+        features: sourceFeatures,
+        filter: styleLayer.filter,
+        globalProperties: {zoom: filterZoom}
+      })
+    : sourceFeatures;
+  byZoom.set(filterZoom, filtered);
+  return filtered;
 }
 
 /** The `minzoom`/`maxzoom` limits that `isStyleLayerVisibleAtZoom` compares against. */
@@ -404,8 +436,8 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
-    // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at integer zooms
-    // (evaluation), at fractional layer limits (visibility), and when the style changes. Two styles
+    // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at each style zoom
+    // step (evaluation and filters), at fractional layer limits (visibility), and when the style changes. Two styles
     // can share a source id and so this layer's id; deck.gl compares the style by identity.
     updateTriggers: {
       renderSubLayers: [getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)), styleDefinition]

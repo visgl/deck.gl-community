@@ -67,13 +67,14 @@ describe('text-size', () => {
     expect(layer.getLabelSize(feature({size: 21}) as any)).toBe(21);
   });
 
-  test('interpolates zoom expressions at the integer zoom', () => {
+  test('interpolates zoom expressions at the 0.25 zoom step', () => {
     const layer = labelLayer(
       {'text-field': 'x', 'text-size': ['interpolate', ['linear'], ['zoom'], 5, 10, 10, 20]},
       {},
       7.6
     );
-    expect(layer.getLabelSize(feature({}) as any)).toBe(14);
+    // Evaluated at z7.5: 10 + (20 - 10) * (7.5 - 5) / 5.
+    expect(layer.getLabelSize(feature({}) as any)).toBe(15);
   });
 });
 
@@ -144,7 +145,7 @@ describe('symbol-sort-key', () => {
 });
 
 describe('update triggers', () => {
-  test('re-evaluates only zoom-dependent label accessors when the integer zoom changes', () => {
+  test('re-evaluates only zoom-dependent label accessors when the zoom step changes', () => {
     const layer = labelLayer(
       {
         'text-field': ['get', 'name'],
@@ -156,8 +157,8 @@ describe('update triggers', () => {
     );
     expect(layer.getLabelUpdateTriggers()).toEqual({
       getText: undefined,
-      getSize: 7,
-      getColor: 7,
+      getSize: 7.5,
+      getColor: 7.5,
       getCollisionPriority: undefined
     });
   });

@@ -148,7 +148,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return styleLayer ? getCompiledStyleProperty(styleLayer, propertyName) : null;
   }
 
-  /** Evaluates a style property for a feature at the integer zoom. */
+  /** Evaluates a style property for a feature at the stepped zoom (`getZoomBucket`). */
   private evaluateStyleProperty(propertyName: string, feature: FeatureLike): unknown {
     return this.getStyleProperty(propertyName)?.evaluate(
       getZoomBucket(this.props.zoom || 0),
@@ -216,7 +216,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return min + fraction * (max - min);
   }
 
-  /** Update triggers for the text accessors: the integer zoom for zoom-dependent properties. */
+  /** Update triggers for the text accessors: the stepped zoom for zoom-dependent properties. */
   getLabelUpdateTriggers(): Record<string, number | undefined> {
     const zoomBucket = getZoomBucket(this.props.zoom || 0);
     const getTrigger = (...propertyNames: string[]) =>
