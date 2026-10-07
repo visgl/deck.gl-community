@@ -241,10 +241,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       Boolean(changeFlags.dataChanged || geometryChanged) ||
       this.state.projectionKey !== projectionKey;
     let {owners, spatialIndex} = this.state;
-    if (assetsChanged) {
-      this.state.refinement = new SplatRefinementTransition();
-      this.state.shadowRefinement = new SplatRefinementTransition();
-    }
     if (rebuild) {
       owners = [];
       const duplicates = new Map<string, number>();
@@ -380,7 +376,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     this.state.hierarchy = hierarchy;
     // deck.gl suppresses updateTriggers when dataChanged has partial ranges.
     // Authored transform changes must refresh every retained owner's attributes.
-    if (geometryChanged) {
+    if (geometryChanged || assetsChanged) {
       this.state.groups = [];
       this.state.shadowGroups = [];
     }
@@ -408,7 +404,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       owner => owner.key
     );
     const groups =
-      membershipChanged || geometryChanged
+      membershipChanged || geometryChanged || assetsChanged
         ? this.getRefinementGroups(this.state.refinement)
         : this.state.groups;
     // A standalone layer has conservative casters before a host supplies a light volume.

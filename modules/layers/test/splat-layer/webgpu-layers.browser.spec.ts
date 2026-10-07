@@ -206,6 +206,25 @@ async function renderSplatLayer(
           ?.object
       ).toBe(other);
     }
+    const empty = (deck!.props.layers[0] as SplatLayer).clone({data: []});
+    const nextFrame = frames + 2;
+    await new Promise<void>(resolve => {
+      deck!.setProps({
+        layers: [empty],
+        onAfterRender: () => {
+          if (++frames >= nextFrame) {
+            deck!.pause();
+            resolve();
+          }
+        }
+      });
+      deck!.resume();
+    });
+    expect(empty.getSubLayers()).toEqual([]);
+    expect(empty.splatStats.renderedSplats).toBe(0);
+    const cleared = await readFrame(device, colorTexture);
+    expect(cleared.some((channel, index) => index % 4 === 3 && channel > 1)).toBe(false);
+    expect(validationErrors).toEqual([]);
   } finally {
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();

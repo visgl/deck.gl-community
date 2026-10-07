@@ -39,8 +39,13 @@ struct Varyings {
  let transform = mat3x3<f32>(attributes.instanceModelMatrixCol0, attributes.instanceModelMatrixCol1, attributes.instanceModelMatrixCol2);
  var position = transform * attributes.splatCenters + attributes.instanceTranslation;
  var covariance = transform * mat3x3<f32>(attributes.splatAxisX, attributes.splatAxisY, attributes.splatAxisZ);
- let squaredScale = max(vec3<f32>(dot(transform[0],transform[0]), dot(transform[1],transform[1]), dot(transform[2],transform[2])), vec3<f32>(1e-12));
- var normal = transform * (attributes.splatNormals / squaredScale);
+ let normalAxisX = cross(transform[1], transform[2]);
+ let normalAxisY = cross(transform[2], transform[0]);
+ let normalAxisZ = cross(transform[0], transform[1]);
+ let normalDeterminant = dot(transform[0], normalAxisX);
+ // Cofactors form the inverse transpose, including shear and reflections.
+ var normal = mat3x3<f32>(normalAxisX, normalAxisY, normalAxisZ) * attributes.splatNormals;
+ normal *= select(1.0, -1.0, normalDeterminant < 0.0) / max(abs(normalDeterminant), 1e-20);
  let height = max(attributes.instanceDeformation.x, 0.001);
  let wave = vec2<f32>(splat.wave.x * attributes.instanceDeformation.w + splat.wave.y * attributes.instanceDeformation.z,
    splat.wave.z * attributes.instanceCoverageWeight.z + splat.wave.w * attributes.instanceCoverageWeight.y);

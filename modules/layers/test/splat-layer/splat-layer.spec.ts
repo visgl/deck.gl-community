@@ -163,3 +163,51 @@ it('keeps heterogeneous source identity and original accessor contexts through r
   } as any);
   expect(getSource).toHaveBeenCalledTimes(2);
 });
+
+it('preserves a moving owner when other assets enter or leave and safely clears all owners', () => {
+  const fine = Object.fromEntries(
+    Object.entries(SOURCE).map(([key, array]) => [
+      key,
+      new (array.constructor as typeof Float32Array)([...array, ...array, ...array])
+    ])
+  );
+  const firstAsset = {
+    type: 'prepared-splats' as const,
+    source: fine,
+    hierarchy: [
+      {source: fine, error: 0},
+      {source: SOURCE, error: 1}
+    ]
+  };
+  const secondAsset = {...SOURCE, colors: new Uint8Array([200, 20, 50, 255])};
+  const first = {position: [256, 256, 0] as [number, number, number], splats: firstAsset};
+  const second = {position: [257, 256, 0] as [number, number, number], splats: secondAsset};
+  const layer = make([first], 0, {
+    source: undefined,
+    getSource: row => row.splats,
+    pixelError: 0.001
+  });
+  const transition = layer.state.refinement;
+  const owner = layer.state.owners[0];
+  transition.reconcile([{owner, pixels: 1, level: 1, blend: 0}], [3, 1], Infinity, row => row.key);
+  transition.sample(1);
+  transition.sample(17);
+  const entry = transition.entries.get(owner.key)!;
+  const weights = [...entry.weights];
+  expect(weights[0]).toBeGreaterThan(0);
+  expect(weights[1]).toBeGreaterThan(0);
+  for (const data of [[first, second], [first], []]) {
+    const oldProps = layer.props;
+    Object.assign(layer, {props: layer.clone({data}).props});
+    layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+    expect(layer.state.refinement).toBe(transition);
+    if (data.length) {
+      expect(transition.entries.get(owner.key)).toBe(entry);
+      expect(entry.weights).toEqual(weights);
+    }
+  }
+  expect(layer.state.hierarchy).toEqual([]);
+  expect(layer.state.groups.flat()).toEqual([]);
+  expect(layer.state.shadowGroups.flat()).toEqual([]);
+  expect(layer.renderLayers()).toEqual([]);
+});
