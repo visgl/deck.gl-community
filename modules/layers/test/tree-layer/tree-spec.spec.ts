@@ -112,3 +112,25 @@ it('normalizes independent wind amplitudes without rebuilding geometry on global
     0
   );
 });
+
+it('derives matching dimensions from species traits and explicit getTreeType accessors', () => {
+  const position: [number, number] = [0, 0];
+  const traits = prepare([{position, species: 'citrus'}]);
+  const accessor = prepare([{position}], {getTreeType: 'citrus'});
+  const mapped = prepare([{position, kind: 'citrus'}], {getTreeType: row => row.kind});
+  const expected = traits.state.groups.get('citrus-foliage-3')![0];
+  for (const layer of [accessor, mapped]) {
+    const row = layer.state.groups.get('citrus-foliage-3')![0];
+    expect(row.height).toBe(expected.height);
+    expect(row.trunkHeight).toBe(expected.trunkHeight);
+    expect(row.trunkRadius).toBe(expected.trunkRadius);
+    expect(row.scale).toEqual(expected.scale);
+  }
+  const override = prepare([{position}], {
+    getTreeType: 'citrus',
+    getHeight: 9,
+    getTrunkRadius: 0.2
+  });
+  expect(override.state.groups.get('citrus-foliage-3')![0].height).toBe(9);
+  expect(override.state.groups.get('citrus-foliage-3')![0].trunkRadius).toBe(0.2);
+});

@@ -488,7 +488,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         ((Math.round(position[0] * 10000) * 92821) ^ (Math.round(position[1] * 10000) * 65537)) >>>
         0;
       const proportions = TREE_PROPORTIONS[type];
-      const authored = tree.species !== undefined;
+      const authored = tree.species !== undefined || !isDefaultTreeAccessor(props, 'getTreeType');
       const characteristics = tree.characteristics
         ? resolveTreeCharacteristics({...props.characteristics, ...tree.characteristics})
         : defaultCharacteristics;
