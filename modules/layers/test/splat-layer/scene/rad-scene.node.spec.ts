@@ -406,3 +406,26 @@ it('shares residency across view selections and splits the active grant without 
   scene.destroy();
   device.destroy();
 });
+
+it('retargets foveation with a fixed camera instead of retaining the old selection controls', async () => {
+  const {device, scene, select} = makeScene();
+  select.mockResolvedValue(makeSelection(1, 1));
+  const first = {
+    ...view,
+    foveation: {center: [0.5, 0.5] as [number, number], radius: 0.5, strength: 0}
+  };
+  scene.updateViews(new Map([['camera', first]]), 0);
+  for (let index = 0; index < 12; index++) await Promise.resolve();
+  scene.updateViews(
+    new Map([['camera', {...first, foveation: {...first.foveation, strength: 12}}]]),
+    16
+  );
+  for (let index = 0; index < 12; index++) await Promise.resolve();
+  scene.updateViews(
+    new Map([['camera', {...first, foveation: {...first.foveation, strength: 12}}]]),
+    32
+  );
+  expect(select.mock.calls.at(-1)![0].foveation?.strength).toBe(12);
+  scene.destroy();
+  device.destroy();
+});

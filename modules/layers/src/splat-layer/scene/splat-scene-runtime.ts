@@ -153,8 +153,8 @@ export class SplatSceneRuntime implements Effect {
   isLoaded(id: string): boolean {
     return (this.owners.get(id) ?? []).every(owner => {
       const asset = this.assets.get(owner.asset);
-      return Boolean(
-        asset?.data || asset?.status?.phase === 'ready' || asset?.status?.phase === 'budget-limited'
+      return (
+        asset?.status?.phase !== 'error' && Boolean(asset?.data || asset?.scene?.frontier.length)
       );
     });
   }
@@ -203,20 +203,27 @@ export class SplatSceneRuntime implements Effect {
     const radCount = new Set(
       visible.flatMap(layer =>
         (this.owners.get(layer.id) ?? [])
-          .filter(owner => isSplatSceneData(owner.asset))
+          .filter(owner => isRADAsset(owner.asset))
           .map(owner => owner.asset)
       )
     ).size;
     const limit = Math.min(...visible.map(layer => layer.props.maxTotalSplats), Infinity);
+    const coverage = (owner: Owner) =>
+      this.assets.get(owner.asset)?.data?.length ??
+      (isSplatSceneData(owner.asset) ? 1 : (owner.asset as SplatSource).opacities.length);
+    const staticCosts = new Map(
+      visible.map(layer => [
+        layer.id,
+        (this.owners.get(layer.id) ?? []).reduce(
+          (sum, owner) => sum + (isRADAsset(owner.asset) ? 0 : coverage(owner)),
+          0
+        )
+      ])
+    );
+    const staticFloor = [...staticCosts.values()].reduce((sum, cost) => sum + cost, 0);
     const sceneFloor = visible.reduce(
       (sum, layer) =>
-        sum +
-        (this.owners.get(layer.id) ?? []).reduce(
-          (cost, owner) =>
-            cost +
-            (isSplatSceneData(owner.asset) ? 1 : (owner.asset as SplatSource).opacities.length),
-          0
-        ),
+        sum + (this.owners.get(layer.id) ?? []).reduce((cost, owner) => cost + coverage(owner), 0),
       0
     );
     const sceneDesired = visible.reduce(
@@ -241,16 +248,17 @@ export class SplatSceneRuntime implements Effect {
     prepared.reconcile(ids);
     const residentCap = Math.min(...visible.map(layer => layer.props.maxResidentSplats), Infinity);
     const assetCaps = new Map<SplatDataInput, number>();
-    for (const layer of visible)
-      for (const owner of this.owners.get(layer.id) ?? []) {
-        let localCap = layer.props.maxSplats;
-        for (let group = layer.props._splatBudgetGroup; group; group = group.parent)
-          localCap = Math.min(localCap, group.maxSplats);
-        assetCaps.set(
-          owner.asset,
-          Math.min(assetCaps.get(owner.asset) ?? Infinity, localCap, cap / Math.max(radCount, 1))
-        );
-      }
+    for (const layer of visible) {
+      const sources = new Set((this.owners.get(layer.id) ?? []).map(owner => owner.asset));
+      const localRadCount = [...sources].filter(isRADAsset).length;
+      let localCap = layer.props.maxSplats;
+      for (let group = layer.props._splatBudgetGroup; group; group = group.parent)
+        localCap = Math.min(localCap, group.maxSplats);
+      const localGrant = (localCap - staticCosts.get(layer.id)!) / Math.max(localRadCount, 1);
+      const sharedGrant = (cap - staticFloor) / Math.max(radCount, 1);
+      for (const input of sources)
+        assetCaps.set(input, Math.min(assetCaps.get(input) ?? Infinity, localGrant, sharedGrant));
+    }
     const assetViews = new Map<Asset, Map<string, SplatHierarchyView>>();
     const submissions = new Map<
       string,
@@ -423,7 +431,9 @@ export class SplatSceneRuntime implements Effect {
       shadowSplats: 0,
       coverageFloor: owners.reduce(
         (sum, owner) =>
-          sum + (isSplatSceneData(owner.asset) ? 1 : (owner.asset as SplatSource).opacities.length),
+          sum +
+          (this.assets.get(owner.asset)?.data?.length ??
+            (isSplatSceneData(owner.asset) ? 1 : (owner.asset as SplatSource).opacities.length)),
         0
       ),
       shadowCoverageFloor: 0,
@@ -542,4 +552,10 @@ export class SplatSceneRuntime implements Effect {
       }
     }
   }
+}
+
+function isRADAsset(input: SplatDataInput): boolean {
+  if (!isSplatSceneData(input)) return false;
+  if (typeof input === 'object' && 'type' in input) return input.type === 'rad';
+  return typeof input !== 'string' || /\.rad(?:$|[?#])/i.test(input);
 }

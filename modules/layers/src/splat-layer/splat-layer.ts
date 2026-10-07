@@ -185,8 +185,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   get isLoaded(): boolean {
     return (
       super.isLoaded &&
-      !this.state.refinement.active &&
-      (!this.props.shadowEnabled || !this.state.shadowRefinement.active)
+      (this.state.scene ||
+        (!this.state.refinement.active &&
+          (!this.props.shadowEnabled || !this.state.shadowRefinement.active)))
     );
   }
   shouldUpdateState({changeFlags}) {
@@ -211,6 +212,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
             : props.getSource)
       );
     }
+    if (!Array.isArray(props.data)) this.state.rowSources = null;
     const scene =
       props.transparency === 'sorted' ||
       isSplatSceneData(props.data) ||
@@ -228,7 +230,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       this.setState({scene: true});
       return;
     }
-    if (this.state.scene) this.setState({scene: false});
+    const leavingScene = this.state.scene;
+    if (leavingScene) this.setState({scene: false});
     const keys = [
       'source',
       'getSource',
@@ -261,6 +264,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       props.maxSplats !== oldProps.maxSplats ||
       props.maxShadowSplats !== oldProps.maxShadowSplats;
     if (
+      !leavingScene &&
+      Boolean(this.state.runtime) &&
       !changeFlags.dataChanged &&
       !changeFlags.viewportChanged &&
       !geometryChanged &&
@@ -278,7 +283,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       throw new Error(
         'Sorted SplatLayer rendering requires the upstream paged-instance backend; weighted rendering cannot substitute for it.'
       );
-    const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || !this.state.runtime);
+    const inputChanged = Boolean(
+      changeFlags.dataChanged || geometryChanged || leavingScene || !this.state.runtime
+    );
     const input = inputChanged
       ? resolveSplatInput({
           data: props.data,
@@ -307,7 +314,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const viewport = this.context.viewport;
     const projectionKey = getSplatProjectionKey(viewport);
     const rebuild =
-      Boolean(changeFlags.dataChanged || geometryChanged) ||
+      Boolean(changeFlags.dataChanged || geometryChanged || leavingScene) ||
       this.state.projectionKey !== projectionKey;
     let {owners, spatialIndex} = this.state;
     if (rebuild) {

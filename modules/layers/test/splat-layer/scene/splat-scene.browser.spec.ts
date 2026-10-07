@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, OrthographicView} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
 import {luma, Buffer, Texture, type Device} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -121,7 +121,8 @@ async function renderSorted(
         getColor: () =>
           shared ? (owner === blue ? [0, 0, 255, 255] : [255, 0, 0, 255]) : [255, 255, 255, 255],
         transparency: 'sorted',
-        coordinateSystem: 'cartesian',
+        coordinateSystem: shared ? COORDINATE_SYSTEM.DEFAULT : COORDINATE_SYSTEM.CARTESIAN,
+        maxActiveSplats: 100,
         pickable: true
       });
     const layers = [make(red, 'red'), make(blue, 'blue')];

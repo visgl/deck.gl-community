@@ -1,7 +1,13 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Layer, type DefaultProps, type UpdateParameters, type Viewport} from '@deck.gl/core';
+import {
+  COORDINATE_SYSTEM,
+  Layer,
+  type DefaultProps,
+  type UpdateParameters,
+  type Viewport
+} from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import type {SplatLayerProps} from '../splat-layer';
 import {SplatPrimitiveLayer} from '../splat-primitive-layer';
@@ -75,7 +81,12 @@ export class SplatSceneLayer extends Layer<
   }
   /** Clip transform includes the layer pose and the complete instance affine transform. */
   getOwnerMatrix(owner: unknown, index: number, data: unknown[], viewport: Viewport): Matrix4 {
-    if (viewport.isGeospatial || !['default', 'cartesian'].includes(this.props.coordinateSystem)) {
+    if (
+      viewport.isGeospatial ||
+      ![COORDINATE_SYSTEM.DEFAULT, COORDINATE_SYSTEM.CARTESIAN].includes(
+        this.props.coordinateSystem
+      )
+    ) {
       throw new Error('Sorted SplatLayer currently requires Cartesian coordinates.');
     }
     const position = this.getOwnerValue('getPosition', owner, index, data) as number[];

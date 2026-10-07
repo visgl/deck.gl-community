@@ -469,13 +469,16 @@ export class RADScene {
 }
 
 function sameView(left: SplatHierarchyView, right: SplatHierarchyView): boolean {
+  const equal = (a?: readonly number[], b?: readonly number[]) =>
+    a === b ||
+    Boolean(a && b && a.length === b.length && a.every((value, index) => value === b[index]));
   return (
-    left.viewportSize[0] === right.viewportSize[0] &&
-    left.viewportSize[1] === right.viewportSize[1] &&
-    Boolean(
-      left.modelViewProjectionMatrix?.every(
-        (value, index) => value === right.modelViewProjectionMatrix?.[index]
-      )
-    )
+    equal(left.viewportSize, right.viewportSize) &&
+    equal(left.cameraPosition, right.cameraPosition) &&
+    equal(left.modelViewProjectionMatrix, right.modelViewProjectionMatrix) &&
+    left.verticalFieldOfView === right.verticalFieldOfView &&
+    equal(left.foveation?.center, right.foveation?.center) &&
+    left.foveation?.radius === right.foveation?.radius &&
+    left.foveation?.strength === right.foveation?.strength
   );
 }
