@@ -159,11 +159,6 @@ void main() {
   }
 
   preRender(options: PreRenderOptions) {
-    // Composite refinement keeps moving after the camera stops, with wind disabled too.
-    const now = performance.now();
-    for (const layer of options.layers)
-      if ((layer.constructor as {layerName?: string}).layerName === 'SplatLayer')
-        (layer as unknown as {updateRefinement(now: number): void}).updateRefinement(now);
     this.ready = false;
     this.last.clear();
     if (

@@ -6,7 +6,7 @@ This page lists module additions and major changes in each release. For detailed
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
 
-- Added reusable `SplatLayer` with prepared Gaussian sources, instanced owners, automatic refinement, optical transitions and WebGL2/WebGPU rendering.
+- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Existing `source` callers remain compatible; streamed RAD and sorted scene rendering remain separate upstream work.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 

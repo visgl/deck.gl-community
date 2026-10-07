@@ -53,7 +53,7 @@ it('reconciles fallback shadow membership on replacement without retaining remov
   const layer = make([a, b]);
   const next = [b];
   // updateState reads the current layer props, matching deck's state-transfer lifecycle.
-  Object.assign(layer, {props: Object.assign(Object.create(layer.props), {data: next})});
+  Object.assign(layer, {props: layer.clone({data: next}).props});
   layer.updateState({
     props: layer.props,
     oldProps: layer.props,
@@ -117,4 +117,27 @@ it('includes translated source centers in prepared camera and light wind bounds'
   // Compare in the same owner's common-space metre scale: the old allowance was only 0.465m.
   expect(layer.state.owners[0].radius).toBeGreaterThan((rigidRadius * 2) / 3);
   expect(layer.state.owners[0].center[0]).toBeGreaterThan(0);
+});
+
+it('keeps heterogeneous source identity and original accessor contexts through refinement', () => {
+  const layer = make([{position: [0, 0, 0]}, {position: [1, 0, 0]}], 0);
+  const data = layer.props.data;
+  const second = {...SOURCE, colors: new Uint8Array([200, 20, 50, 255])};
+  const oldProps = layer.props;
+  const getSource = vi.fn((_row, info) => {
+    expect(info.data).toBe(data);
+    return info.index ? second : SOURCE;
+  });
+  Object.assign(layer, {props: layer.clone({source: undefined, getSource}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  expect(layer.state.owners.map(owner => owner.row.object)).toEqual(data);
+  expect(layer.state.owners.map(owner => owner.asset.source)).toEqual([SOURCE, second]);
+  expect(layer.state.hierarchy).toHaveLength(2);
+  expect(getSource).toHaveBeenCalledTimes(2);
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {viewportChanged: true}
+  } as any);
+  expect(getSource).toHaveBeenCalledTimes(2);
 });

@@ -178,3 +178,23 @@ test('basemap font overrides accept CSS families and registered callbacks', () =
     expect(schema.safeParse({...layer, fontFamily}).success).toBe(false);
   }
 });
+
+test('flat splat inputs accept host assets, typed affine transforms and explicit transparency', () => {
+  const schema = CommunityGeoLayerSchemas.SplatLayer;
+  const layer = {
+    id: 'splats',
+    '@@type': 'SplatLayer',
+    getSource: '@@#asset',
+    transparency: 'weighted',
+    maxTotalSplats: 1000
+  };
+  expect(schema.safeParse(layer).success).toBe(true);
+  expect(
+    schema.safeParse({
+      ...layer,
+      getTransformMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    }).success
+  ).toBe(true);
+  expect(schema.safeParse({...layer, getTransformMatrix: [1, 2, 3]}).success).toBe(false);
+  expect(schema.safeParse({...layer, transparency: 'automatic'}).success).toBe(false);
+});

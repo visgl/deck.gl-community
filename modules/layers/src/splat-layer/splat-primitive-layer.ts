@@ -37,6 +37,8 @@ export type PreparedSplatProps<DataT> = {
   getScale?: Accessor<DataT, number[]>;
   /** Local translation in metres, applied after scale and orientation. */
   getTranslation?: Accessor<DataT, number[]>;
+  /** Affine source-local transform. When supplied, replaces orientation, scale and translation. */
+  getTransformMatrix?: Accessor<DataT, number[] | null>;
   /** RGBA owner tint. Template and owner alpha each multiply opacity once. */
   getColor?: Accessor<DataT, Color>;
   /** Bend height, stable phase, and flex multiplier. Defaults to a rigid source. */
@@ -83,6 +85,7 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   getOrientation: {type: 'accessor', value: [0, 0, 0]},
   getScale: {type: 'accessor', value: [1, 1, 1]},
   getTranslation: {type: 'accessor', value: [0, 0, 0]},
+  getTransformMatrix: {type: 'accessor', value: null},
   getColor: {type: 'accessor', value: [255, 255, 255, 255]},
   getDeformation: {type: 'accessor', value: [1, 0, 0]},
   deformationStrength: 0,
@@ -132,7 +135,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
       },
       instanceModelMatrix: {
         size: 12,
-        accessor: ['getOrientation', 'getScale', 'getTranslation'],
+        accessor: ['getOrientation', 'getScale', 'getTranslation', 'getTransformMatrix'],
         shaderAttributes: {
           instanceModelMatrixCol0: {size: 3, elementOffset: 0},
           instanceModelMatrixCol1: {size: 3, elementOffset: 3},
@@ -227,7 +230,8 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
         getSplatTransform(
           get(this.props.getOrientation, object),
           get(this.props.getScale, object),
-          get(this.props.getTranslation, object)
+          get(this.props.getTranslation, object),
+          get(this.props.getTransformMatrix, object)
         ),
         objectInfo.index * 12
       );
