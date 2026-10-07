@@ -171,7 +171,10 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   });
   shadowControl.addEventListener('change', () => {
     options.shadows = shadowControl.checked;
+    const key = lighting.props.key;
+    const direction = key?.type === 'directional' ? key.direction : undefined;
     lighting.setProps(createLighting(options.shadows).props);
+    if (direction) lighting.setSunDirection(direction);
     deck.setProps({effects: [lighting]});
     deck.redraw('forest shadows');
     refreshLabels();

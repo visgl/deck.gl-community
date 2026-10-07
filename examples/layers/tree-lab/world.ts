@@ -214,7 +214,7 @@ export function mountTreeWorldExample(
       if (measuring) renderCalls.push(performance.now() - drawStart);
       ready = true;
       const now = performance.now();
-      if (lastFrame && now - lastFrame < 100) {
+      if (lastFrame && document.visibilityState === 'visible') {
         intervals.push(now - lastFrame);
         if (intervals.length > 180) intervals.shift();
       }
@@ -334,6 +334,8 @@ export function mountTreeWorldExample(
     button.disabled = true;
   };
   const onVisibilityChange = () => {
+    lastFrame = 0;
+    intervals.length = 0;
     if (measuring && document.visibilityState !== 'visible') {
       interruptMeasurement(
         'Visibility changed during measurement. Keep the page visible and rerun.'
