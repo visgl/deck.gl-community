@@ -34,6 +34,7 @@ Release date: 2023
 
 - [`SplatLayer`](./api-reference/splat-layer.md): prepared Gaussian and native RAD scene composite
 - [`TreeLayer`](./api-reference/tree-layer.md): canonical procedural tree renderer
+- [`WorldTreeLayer`](./api-reference/world-tree-layer.md): streaming adapter around TreeLayer
 
 - [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
 - `DependencyArrowLayer`

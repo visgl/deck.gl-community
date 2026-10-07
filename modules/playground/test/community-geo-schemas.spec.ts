@@ -63,6 +63,14 @@ const cases = {
     {source: '@@#leaves', getScale: [2, 2, 3], maxSplats: 2000},
     {source: {positions: [0, 0, 0]}}
   ],
+  WorldTreeLayer: [
+    {
+      getTileData: '@@#inventory',
+      treeProps: {getTreeType: 'citrus', getHeight: 5},
+      maxVisibleTiles: 16
+    },
+    {getTileData: '@@#inventory', treeProps: {getTreeType: 'maple'}}
+  ],
   TreeLayer: [
     {getPosition: '@@=position', getTreeType: "@@='oak'", getHeight: '@@=10', sizeScale: 2},
     {getTreeType: 'maple'}

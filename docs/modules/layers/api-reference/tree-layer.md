@@ -31,7 +31,7 @@ new TreeLayer({
 });
 ```
 
-`TreeLayer` is the canonical renderer. `TreeWoodLayer` and `TreeMeshLayer` are internal sublayers, not alternate public tree renderers. Comparison fixtures live only in examples.
+`TreeLayer` is the canonical renderer. `WorldTreeLayer` is an optional geographic streaming adapter that batches into this renderer; `TreeWoodLayer` and `TreeMeshLayer` are internal sublayers, not alternate public tree renderers. Comparison fixtures live only in examples.
 
 ## Authored tree traits
 
@@ -141,11 +141,11 @@ The highest source detail remains available. Cost depends on the visible crowns,
 
 ### Automatic submission budgets
 
-`maxCanopySplats` (default 250,000) and `maxShadowSplats` (default 125,000) apportion independent Gaussian submission budgets across species. They preserve every visible owner using the existing covariance hierarchy, prioritize projected error reductions, and retain finest leaf templates. If the coarsest owner coverage exceeds a budget, coverage wins; use regional source aggregation for world-scale residency. Large inventories should never be supplied as one global `TreeLayer.data` array.
+`maxCanopySplats` (default 250,000) and `maxShadowSplats` (default 125,000) apportion independent Gaussian submission budgets across species. They preserve every visible owner using the existing covariance hierarchy, prioritize projected error reductions, and retain finest leaf templates. If the coarsest owner coverage exceeds a budget, coverage wins; use [WorldTreeLayer](./world-tree-layer.md) with regional source aggregation for world-scale residency and automatic frame feedback. Large inventories should never be supplied as one global `TreeLayer.data` array.
 
-`maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. an explicitly low target softens leaf edges and reduces branch-occlusion precision.
+`maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. WorldTreeLayer keeps this raster target fixed while geometry budgets adapt; an explicitly low target softens leaf edges and reduces branch-occlusion precision.
 
-`foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation, preserves visible owners, and leaves light-space shadow refinement independent.
+`foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation, preserves visible owners, and leaves light-space shadow refinement independent. `WorldTreeLayer` enables it by default.
 
 `getCoverageWeight` applies to wood, fallback trunks, foliage and every crop kind, including their picking and shadow passes. It defaults to one and supports optical canopy fades and matching wood coverage during streamed replacement. Automatic wood refinement blends the connected fine and coarse skeletons with complementary pixel coverage. Native wood cross-sections follow `getTrunkRadius` independently of canopy spread; branch centerlines remain aligned with the leaf growth structure.
 
