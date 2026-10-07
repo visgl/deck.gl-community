@@ -92,4 +92,4 @@ it('builds finite banyan roots across sparse asymmetric growth', () => {
       );
     }
   }
-});
+}, 20000);

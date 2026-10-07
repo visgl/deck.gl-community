@@ -64,7 +64,7 @@ jobs:
         run: yarn test-types
 
       - name: Run node tests with coverage
-        run: yarn test-ci 2>&1 | tee /tmp/coverage.txt; exit ${PIPESTATUS[0]}
+        run: yarn test-ci --maxWorkers=2 2>&1 | tee /tmp/coverage.txt; exit ${PIPESTATUS[0]}
 
       - name: Save coverage summary
         if: always()
