@@ -2,6 +2,34 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+/** Conservative radius around the undeformed transformed center, including covariance shear.
+ * Both shader waves have unit amplitude. The branch-mode operator norm is bounded
+ * by its Frobenius norm; derivatives vanish above the bend height and below zero.
+ */
+export function getSplatDeformationRadius(
+  center: number[],
+  radius: number,
+  height: number,
+  strength: number
+): number {
+  if (!strength || center[2] + radius <= 0) return radius;
+  const bendHeight = Math.max(height, 0.001);
+  const u = Math.min(1, Math.max(0, (center[2] + radius) / bendHeight));
+  const v = Math.max((u - 0.3) / 0.7, 0);
+  const f = 0.5 * u * u * (3 - u);
+  const g = v * v;
+  const lateral = Math.hypot(center[0], center[1]) + radius;
+  const bend = Math.hypot(1, 0.45);
+  const branch = 0.35 * Math.hypot(0.65, 0.25, 0.3, 0.8);
+  const derivatives = center[2] - radius < bendHeight;
+  const shear = derivatives ? bend * 1.5 + (branch * 2 * v * lateral) / (0.7 * bendHeight) : 0;
+  return (
+    radius +
+    Math.abs(strength) *
+      (bend * bendHeight * f + branch * g * lateral + radius * (branch * g + shear))
+  );
+}
+
 /**
  * Reduced cantilever motion: a clamped cubic bending shape plus a spatial crown
  * mode at twice the fundamental frequency. It is an animation approximation,

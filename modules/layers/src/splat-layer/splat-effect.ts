@@ -104,7 +104,7 @@ void main() {
 @group(0) @binding(auto) var transmissionMap: texture_2d<f32>;
 @group(0) @binding(auto) var linearSampler: sampler;
 @fragment fn fragmentMain(v: FragmentInputs) -> @location(0) vec4<f32> {
-  let uv = v.position.xy / splatComposite.size;
+  let uv = v.Position.xy / splatComposite.size;
   let accum = textureSample(accumulationMap, linearSampler, uv);
   let alpha = 1.0 - exp(-max(textureSample(transmissionMap, linearSampler, uv).r, 0.0));
   return vec4<f32>(accum.rgb / max(accum.a, 0.00001) * alpha, alpha);

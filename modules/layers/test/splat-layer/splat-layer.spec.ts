@@ -64,3 +64,57 @@ it('reconciles fallback shadow membership on replacement without retaining remov
   ).toEqual([b]);
   expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual([b]);
 });
+
+it('retains light-space selections on camera-only changes and invalidates changed source geometry', () => {
+  const layer = make([{position: [0, 0, 0]}], 0);
+  const viewport = layer.context.viewport;
+  const projections = [
+    {
+      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      center: [0, 0, 0, 0],
+      width: 256,
+      height: 256
+    }
+  ];
+  layer.prepareShadow(projections, viewport);
+  const recull = vi.spyOn(layer.state.shadowRefinement, 'reconcile');
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {viewportChanged: true}
+  } as any);
+  layer.prepareShadow(projections, viewport);
+  expect(recull).not.toHaveBeenCalled();
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {dataChanged: true}
+  } as any);
+  expect(recull).toHaveBeenCalledOnce();
+  // Identical input light matrices in a different precision origin still select a new volume.
+  vi.mocked(layer.projectPosition).mockImplementation(point => [
+    point[0] + 0.5,
+    point[1],
+    point[2] ?? 0
+  ]);
+  layer.prepareShadow(projections, viewport);
+  expect(recull).toHaveBeenCalledTimes(2);
+});
+
+it('includes translated source centers in prepared camera and light wind bounds', () => {
+  const data = [{position: [0, 0, 0] as [number, number, number]}];
+  const layer = make(data, 1);
+  const rigidRadius = make(data, 0).state.owners[0].radius;
+  const oldProps = layer.props;
+  Object.assign(layer, {
+    props: layer.clone({
+      source: {...SOURCE, scales: new Float32Array([0.1, 0.1, 0.1])},
+      getTranslation: [100, 0, 1],
+      getDeformation: [1, 0, 1]
+    }).props
+  });
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  // Compare in the same owner's common-space metre scale: the old allowance was only 0.465m.
+  expect(layer.state.owners[0].radius).toBeGreaterThan((rigidRadius * 2) / 3);
+  expect(layer.state.owners[0].center[0]).toBeGreaterThan(0);
+});
