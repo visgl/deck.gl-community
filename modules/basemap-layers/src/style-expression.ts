@@ -1,6 +1,11 @@
 // The only module that imports the style-spec package, so the expression engine can be swapped
 // in one place.
-import {Color, expression, featureFilter, latest as Reference} from '@mapbox/mapbox-gl-style-spec';
+import {
+  Color,
+  expression,
+  featureFilter,
+  latest as Reference
+} from '@maplibre/maplibre-gl-style-spec';
 
 /** A feature as seen by style expressions: a GeoJSON feature or a numeric-typed tile feature. */
 export type StyleFeature = {
@@ -73,8 +78,18 @@ function toEvaluationFeature(feature?: StyleFeature) {
   };
 }
 
+/**
+ * Converts a style-spec color to `[r, g, b, a]` with RGB in 0-255 and alpha in 0-1, the shape
+ * `@mapbox/mapbox-gl-style-spec`'s `Color#toArray()` returned. MapLibre's `Color` stores
+ * premultiplied components; its `rgb` getter returns them un-premultiplied in 0-1.
+ */
+export function colorToArray(color: Color): [number, number, number, number] {
+  const [r, g, b, a] = color.rgb;
+  return a === 0 ? [0, 0, 0, 0] : [r * 255, g * 255, b * 255, a];
+}
+
 function toPlainValue(value: any): unknown {
-  return value instanceof Color ? value.toArray() : value;
+  return value instanceof Color ? colorToArray(value) : value;
 }
 
 /** Compiles a single property value against its style-spec reference. */
