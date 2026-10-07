@@ -85,6 +85,8 @@ const BACKGROUND_NORTH_POLE_DATA = [
 
 const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster']);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
+const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
+
 function withOpacity(
   color: number[] | null | undefined,
   opacity = 1
@@ -564,9 +566,11 @@ function createSymbolSubLayer({
     mode,
     styleLayer,
     zoom: getZoomBucket(zoom),
-    textColor: withOpacity(paint['text-color'], opacity),
+    // The style spec's default `text-color` is black.
+    textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
+    // The halo keeps its own alpha, scaled by the layer opacity like the text.
     labelBackground: paint['text-halo-color']
-      ? withOpacity(paint['text-halo-color'], paint['text-halo-width'] ? 255 : opacity)
+      ? withOpacity(paint['text-halo-color'], opacity)
       : null,
     billboard: true
   });
