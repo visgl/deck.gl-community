@@ -99,7 +99,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@deck.gl/mesh-layers',
     '@loaders.gl/arrow',
     'apache-arrow',
-    'three',
     'zod',
     'vega',
     '@deck.gl/core',

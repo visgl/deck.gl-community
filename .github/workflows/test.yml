@@ -232,7 +232,7 @@ jobs:
       - name: Verify WebGPU layers with a required software adapter
         # Unrelated browser failures must not suppress the backend verification.
         if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
-        run: yarn vitest run --project headless modules/layers/test/webgpu-layers.browser.spec.ts modules/layers/test/splat-layer/webgpu-layers.browser.spec.ts modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts examples/layers/flame-trail/scene.browser.spec.ts -t "webgpu|WebGPU"
+        run: yarn vitest run --project headless modules/layers/test/webgpu-layers.browser.spec.ts modules/layers/test/splat-layer/webgpu-layers.browser.spec.ts modules/layers/test/tree-layer/webgpu-layers.browser.spec.ts modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts examples/layers/flame-trail/scene.browser.spec.ts -t "webgpu|WebGPU"
         env:
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
