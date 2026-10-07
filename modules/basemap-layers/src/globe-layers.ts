@@ -93,12 +93,28 @@ const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
 const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
 
-/** Evaluates a style layer's paint at the stepped zoom (see `getZoomBucket`). */
+/** The latest evaluated paint per style layer, reused across tiles within one zoom step. */
+const paintCache = new WeakMap<
+  BasemapStyleLayer,
+  {zoomBucket: number; paint: Record<string, any>}
+>();
+
+/**
+ * Evaluates a style layer's paint at the stepped zoom (see `getZoomBucket`). Every tile
+ * regenerated at one step gets the same result, so it is computed once per style layer and step.
+ */
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
-  const properties = parseProperties(layer, {zoom: getZoomBucket(zoom)});
-  return Object.fromEntries(
+  const zoomBucket = getZoomBucket(zoom);
+  const cached = paintCache.get(layer);
+  if (cached && cached.zoomBucket === zoomBucket) {
+    return cached.paint;
+  }
+  const properties = parseProperties(layer, {zoom: zoomBucket});
+  const paint = Object.fromEntries(
     properties.map(entry => [Object.keys(entry)[0], Object.values(entry)[0]])
   );
+  paintCache.set(layer, {zoomBucket, paint});
+  return paint;
 }
 
 /** Whether a filter reads `["zoom"]` anywhere. Filters are treated as immutable once seen. */
