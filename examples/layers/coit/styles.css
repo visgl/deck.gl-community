@@ -30,6 +30,9 @@
   left: 20px;
   z-index: 1;
   width: min(360px, calc(100% - 40px));
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px;
   border: 1px solid rgb(255 255 255 / 68%);
   border-radius: 18px;
@@ -148,6 +151,7 @@
     top: 12px;
     left: 12px;
     width: calc(100% - 24px);
+    max-height: calc(100% - 24px);
     padding: 15px;
     border-radius: 15px;
   }
