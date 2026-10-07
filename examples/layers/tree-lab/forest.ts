@@ -35,6 +35,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   const errors: string[] = [];
   const root = document.createElement('div');
   root.className = 'tree-lab tree-forest';
+  if (!standalone) Object.assign(root.style, {height: '100%', overflow: 'auto'});
   root.innerHTML = `<header><div class="eyebrow">Native vis.gl / Forest scale</div><h1></h1><p>Eight species. One shared forest. Explore the crowns, wind and seasonal shadows.</p></header>
     <div class="toolbar"><div class="seasons" role="group" aria-label="Tree count"><button data-count="10000">10K trees</button><button data-count="20000">20K trees</button></div>
     <label class="control">Pitch <input type="range" aria-label="Pitch" min="0" max="80" step="1"><output id="forest-pitch"></output></label>

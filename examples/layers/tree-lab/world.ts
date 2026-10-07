@@ -19,7 +19,7 @@ import './style.css';
 /** Synthetic global address space, bounded tile residency and batched native tree rendering. */
 export function mountTreeWorldExample(
   container: HTMLElement,
-  {forestHref = './forest.html', comparisonHref = './index.html'} = {}
+  {forestHref = './forest.html', comparisonHref = './index.html', scroll = false} = {}
 ): () => void {
   const query = new URLSearchParams(location.search);
   const getQueryNumber = (key: string, fallback: number) => {
@@ -74,6 +74,7 @@ export function mountTreeWorldExample(
     measureHeight = 0;
   const root = document.createElement('div');
   root.className = 'tree-lab tree-forest tree-world';
+  if (scroll) Object.assign(root.style, {height: '100%', overflow: 'auto'});
   root.innerHTML = `<header><div class="eyebrow">Native vis.gl / Streaming world</div><h1>A forest without an edge</h1><p><span id="world-capacity">3.04 trillion</span> synthetic tree positions. Individual crowns refine continuously through the forest.</p></header>
     <div class="toolbar"><div class="seasons" role="group" aria-label="World scale"><button data-zoom="1">World</button><button data-zoom="10">Region</button><button data-zoom="19">Forest</button><button data-zoom="21">Crowns</button></div>
     <label class="control">Count <input type="number" aria-label="Global tree count in trillions" min="0.1" max="10" step="0.01" value="${(sourceOptions.count ?? WORLD_TREE_COUNT) / 1e12}" style="width:72px"> trillion</label>
@@ -164,9 +165,10 @@ export function mountTreeWorldExample(
     ];
   };
   let currentStats: Record<string, number> = {};
-  let lastCameraUrl = 0;
-  const saveCamera = () => {
-    if (performance.now() - lastCameraUrl < 250) return;
+  let lastCameraUrl = 0,
+    cameraUrlTimer = 0;
+  const writeCamera = () => {
+    cameraUrlTimer = 0;
     lastCameraUrl = performance.now();
     const params = new URLSearchParams(location.search);
     for (const key of ['longitude', 'latitude', 'zoom', 'pitch', 'bearing'] as const)
@@ -176,6 +178,18 @@ export function mountTreeWorldExample(
     params.set('shadows', options.shadows ? '1' : '0');
     params.set('season', options.season);
     history.replaceState(null, '', `${location.pathname}?${params}`);
+  };
+  const saveCamera = () => {
+    clearTimeout(cameraUrlTimer);
+    const delay = Math.max(0, 250 - (performance.now() - lastCameraUrl));
+    if (delay) cameraUrlTimer = window.setTimeout(writeCamera, delay);
+    else writeCamera();
+  };
+  const interruptMeasurement = (message: string) => {
+    if (!measuring) return;
+    measuring = false;
+    button.disabled = false;
+    root.querySelector('#world-results')!.textContent = message;
   };
   const deck = new Deck({
     parent: stage,
@@ -188,6 +202,7 @@ export function mountTreeWorldExample(
     layers: getLayers(),
     effects: [lighting],
     onViewStateChange: ({viewState}) => {
+      interruptMeasurement('Camera changed during measurement. Rerun at one configuration.');
       camera = viewState as MapViewState;
       saveCamera();
       deck.setProps({viewState: camera});
@@ -226,7 +241,11 @@ export function mountTreeWorldExample(
       status.textContent = error.message;
     }
   });
-  const refresh = () => deck.setProps({layers: getLayers()});
+  const refresh = () => {
+    interruptMeasurement('Render settings changed during measurement. Rerun at one configuration.');
+    deck.setProps({layers: getLayers()});
+    saveCamera();
+  };
   const density = root.querySelector<HTMLInputElement>('[aria-label="Forest density"]')!;
   const count = root.querySelector<HTMLInputElement>(
     '[aria-label="Global tree count in trillions"]'
@@ -277,14 +296,17 @@ export function mountTreeWorldExample(
     refresh();
   };
   pitch.oninput = () => {
+    interruptMeasurement('Camera changed during measurement. Rerun at one configuration.');
     camera = {...camera, pitch: Number(pitch.value)};
     root
       .querySelector<HTMLLabelElement>('[aria-label="Pitch"]')!
       .parentElement!.querySelector('output')!.value = `${pitch.value}°`;
     deck.setProps({viewState: camera});
+    saveCamera();
   };
   for (const zoom of root.querySelectorAll<HTMLButtonElement>('[data-zoom]'))
     zoom.onclick = () => {
+      interruptMeasurement('Camera changed during measurement. Rerun at one configuration.');
       camera = {
         ...camera,
         zoom: Number(zoom.dataset.zoom),
@@ -295,6 +317,7 @@ export function mountTreeWorldExample(
         .querySelector<HTMLLabelElement>('[aria-label="Pitch"]')!
         .parentElement!.querySelector('output')!.value = `${camera.pitch}°`;
       deck.setProps({viewState: camera});
+      saveCamera();
     };
   button.onclick = () => {
     if (!ready || measuring || document.visibilityState !== 'visible') return;
@@ -312,10 +335,9 @@ export function mountTreeWorldExample(
   };
   const onVisibilityChange = () => {
     if (measuring && document.visibilityState !== 'visible') {
-      measuring = false;
-      button.disabled = false;
-      root.querySelector('#world-results')!.textContent =
-        'Visibility changed during measurement. Keep the page visible and rerun.';
+      interruptMeasurement(
+        'Visibility changed during measurement. Keep the page visible and rerun.'
+      );
     }
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
@@ -334,6 +356,7 @@ export function mountTreeWorldExample(
       if (t >= 1) {
         measuring = false;
         button.disabled = false;
+        saveCamera();
         const sorted = [...measured].sort((a, b) => a - b);
         if (
           sourceRevision !== measureSourceRevision ||
@@ -346,6 +369,11 @@ export function mountTreeWorldExample(
           root.querySelector('#world-results')!.textContent = JSON.stringify(
             {
               source: 'synthetic',
+              renderSettings: {
+                wind: options.wind,
+                shadows: options.shadows,
+                season: options.season
+              },
               cpuProfile: profiler?.read(),
               renderCallMedianMs: [...renderCalls].sort((a, b) => a - b)[
                 Math.floor(renderCalls.length * 0.5)
@@ -379,6 +407,7 @@ export function mountTreeWorldExample(
     disposed = true;
     cancelAnimationFrame(request);
     clearTimeout(densityTimer);
+    clearTimeout(cameraUrlTimer);
     document.removeEventListener('visibilitychange', onVisibilityChange);
     profiler?.dispose();
     deck.finalize();

@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck, MapView} from '@deck.gl/core';
+import {Deck, MapView, type Layer, type MapViewState} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {TreeLayer} from '@deck.gl-community/layers';
 import {ReferenceMeshTreeLayer} from './baseline/reference-mesh-tree-layer';
@@ -27,7 +27,27 @@ export async function mountTreeFilm(container: HTMLElement) {
   let liveRender: Promise<void> | undefined;
   let downloadUrl: string | undefined;
   const errors: string[] = [];
-  const pending: (() => void)[] = [];
+  type PairedFrame = {
+    viewState: MapViewState;
+    layers: Layer[];
+    resolve: () => void;
+    reject: (error: Error) => void;
+  };
+  const pending: (PairedFrame | undefined)[] = [];
+  const drawing: (PairedFrame | undefined)[] = [];
+  const matchedFrames = [0, 0];
+  const redraws = [0, 0];
+  const decks: Deck<MapView>[] = [];
+  const cleanup = () => {
+    if (disposed) return;
+    disposed = true;
+    cancelAnimationFrame(request);
+    for (const redraw of redraws) cancelAnimationFrame(redraw);
+    for (const frame of pending) frame?.reject(new Error('Film renderer was closed.'));
+    for (const deck of decks) deck.finalize();
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    container.replaceChildren();
+  };
   const lights = [createLighting(true), createLighting(true)];
   const specimenSources = new Map<string, ReturnType<typeof createSpecimens>>();
   const getSpecimens = (species: Parameters<typeof createSpecimens>[0]) => {
@@ -38,40 +58,66 @@ export async function mountTreeFilm(container: HTMLElement) {
     }
     return data;
   };
-  const decks = sourceCanvases.map(
-    (canvas, i) =>
-      new Deck({
-        canvas,
-        width: 880,
-        height: 800,
-        useDevicePixels: 1,
-        deviceProps: {
-          type: 'webgl',
-          adapters: [webgl2Adapter],
-          webgl: {preserveDrawingBuffer: true}
-        },
-        views: new MapView({id: `film-${i}`}),
-        viewState: {...VIEW, zoom: 21.5},
-        layers: createSceneLayers(
-          i ? TreeLayer : ReferenceMeshTreeLayer,
-          `film-${i}`,
-          getSpecimens('pine'),
-          {...DEFAULT_OPTIONS, shadows: true}
-        ),
-        effects: [lights[i]],
-        onLoad: () => {
-          ready++;
-        },
-        onAfterRender: () => {
-          pending[i]?.();
-          pending[i] = undefined;
-        },
-        onError: error => {
-          errors.push(error.message);
-          progress.textContent = error.message;
-        }
-      })
-  );
+  try {
+    for (const [i, canvas] of sourceCanvases.entries())
+      decks.push(
+        new Deck({
+          canvas,
+          width: 880,
+          height: 800,
+          useDevicePixels: 1,
+          deviceProps: {
+            type: 'webgl',
+            adapters: [webgl2Adapter],
+            webgl: {preserveDrawingBuffer: true}
+          },
+          views: new MapView({id: `film-${i}`}),
+          viewState: {...VIEW, zoom: 21.5},
+          layers: createSceneLayers(
+            i ? TreeLayer : ReferenceMeshTreeLayer,
+            `film-${i}`,
+            getSpecimens('pine'),
+            {...DEFAULT_OPTIONS, shadows: true}
+          ),
+          effects: [lights[i]],
+          onLoad: () => {
+            ready++;
+          },
+          onBeforeRender: () => {
+            const frame = pending[i];
+            const deck = decks[i];
+            drawing[i] =
+              frame &&
+              deck.props.viewState === frame.viewState &&
+              frame.layers.every((layer, index) => layer === deck.props.layers[index])
+                ? frame
+                : undefined;
+          },
+          onAfterRender: () => {
+            const frame = pending[i];
+            if (frame && drawing[i] === frame && lights[i].groundShadowsReady) {
+              // A second matching draw also lets newly compiled foliage pipelines settle.
+              if (++matchedFrames[i] >= 2) frame.resolve();
+            } else matchedFrames[i] = 0;
+            if (pending[i] && !redraws[i]) {
+              redraws[i] = requestAnimationFrame(() => {
+                redraws[i] = 0;
+                if (!disposed && pending[i]) decks[i].redraw('paired film frame readiness');
+              });
+            }
+            drawing[i] = undefined;
+          },
+          onError: error => {
+            errors.push(error.message);
+            progress.textContent = error.message;
+            for (const frame of pending) frame?.reject(error);
+          }
+        })
+      );
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
   const draw = (seconds: number) => {
     const frame = getTourFrame(seconds, true);
     ctx.fillStyle = '#f4f5ee';
@@ -138,36 +184,46 @@ export async function mountTreeFilm(container: HTMLElement) {
     const promises = decks.map(
       (deck, i) =>
         new Promise<void>((resolve, reject) => {
+          const viewState = {...VIEW, zoom: 21.5, bearing: frame.cameraBearing};
+          const layers = createSceneLayers(
+            i ? TreeLayer : ReferenceMeshTreeLayer,
+            `film-${i}`,
+            getSpecimens(frame.species),
+            {
+              ...DEFAULT_OPTIONS,
+              season: frame.season,
+              shadows: true,
+              crops: frame.season !== 'winter',
+              dropped: frame.season === 'autumn',
+              wind: true,
+              windTime: seconds
+            }
+          );
+          const settle = (error?: Error) => {
+            clearTimeout(timeout);
+            cancelAnimationFrame(redraws[i]);
+            redraws[i] = 0;
+            pending[i] = undefined;
+            if (error) reject(error);
+            else resolve();
+          };
           const timeout = setTimeout(
-            () => reject(new Error('Timed out waiting for paired GPU frames.')),
+            () => settle(new Error('Timed out waiting for paired GPU frames.')),
             10000
           );
-          pending[i] = () => {
-            clearTimeout(timeout);
-            resolve();
-          };
+          matchedFrames[i] = 0;
+          pending[i] = {viewState, layers, resolve: () => settle(), reject: settle};
           lights[i].setSunDirection(frame.direction);
-          deck.setProps({
-            viewState: {...VIEW, zoom: 21.5, bearing: frame.cameraBearing},
-            layers: createSceneLayers(
-              i ? TreeLayer : ReferenceMeshTreeLayer,
-              `film-${i}`,
-              getSpecimens(frame.species),
-              {
-                ...DEFAULT_OPTIONS,
-                season: frame.season,
-                shadows: true,
-                crops: frame.season !== 'winter',
-                dropped: frame.season === 'autumn',
-                wind: true,
-                windTime: seconds
-              }
-            )
-          });
+          deck.setProps({viewState, layers});
         })
     );
     currentKey = key;
-    await Promise.all(promises);
+    try {
+      await Promise.all(promises);
+    } catch (error) {
+      for (const frame of pending) frame?.reject(error as Error);
+      throw error;
+    }
     if (disposed) return;
     draw(seconds);
   };
@@ -186,7 +242,7 @@ export async function mountTreeFilm(container: HTMLElement) {
       }
     }
     previous = now;
-    request = requestAnimationFrame(tick);
+    if (!disposed) request = requestAnimationFrame(tick);
   };
   const startRecord = async (duration: number) => {
     if (recording || ready !== 2) return;
@@ -300,22 +356,21 @@ export async function mountTreeFilm(container: HTMLElement) {
     previous = performance.now();
     container.querySelector('#play')!.textContent = playing ? 'Pause tour' : 'Play tour';
   });
-  const initializationDeadline = performance.now() + 10000;
-  while (ready < 2 && !errors.length && performance.now() < initializationDeadline)
-    await new Promise(resolve => setTimeout(resolve, 50));
-  if (errors.length) throw new Error(errors[0]);
-  if (ready < 2) throw new Error('Timed out initializing paired renderers.');
-  await render(0);
+  try {
+    const initializationDeadline = performance.now() + 10000;
+    while (ready < 2 && !errors.length && performance.now() < initializationDeadline)
+      await new Promise(resolve => setTimeout(resolve, 50));
+    if (errors.length) throw new Error(errors[0]);
+    if (ready < 2) throw new Error('Timed out initializing paired renderers.');
+    await render(0);
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
   for (const button of container.querySelectorAll<HTMLButtonElement>('button'))
     button.disabled = false;
   progress.textContent =
     'Ready · live sunlight and seasonal tour · matched wind · connected trunk and branches';
   request = requestAnimationFrame(tick);
-  return () => {
-    disposed = true;
-    cancelAnimationFrame(request);
-    for (const deck of decks) deck.finalize();
-    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
-    container.replaceChildren();
-  };
+  return cleanup;
 }

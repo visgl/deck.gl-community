@@ -102,7 +102,8 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     container.remove();
     history.replaceState(null, '', originalUrl);
   }
-}, 90000);
+  // Keep each 30s draw assertion; allow the complete 20K software-GPU sequence to finish.
+}, 180000);
 
 it('honors reduced motion and the stats toggle, with an explicit wind opt-in', async () => {
   const originalUrl = location.href;
@@ -115,6 +116,7 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
         : matchMedia(query)
     );
   const container = document.createElement('div');
+  container.style.cssText = 'width:400px;height:300px';
   document.body.append(container);
   let cleanup: (() => void) | undefined;
   try {
@@ -140,6 +142,13 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
       expect(getComputedStyle(performanceLabel).display).toBe('none');
       stats.click();
       expect(getComputedStyle(performanceLabel).display).not.toBe('none');
+      const root = container.querySelector<HTMLElement>('.tree-forest')!;
+      expect(getComputedStyle(root).overflowY).toBe('auto');
+      expect(root.scrollHeight).toBeGreaterThan(root.clientHeight);
+      root.scrollTop = root.scrollHeight;
+      expect(root.querySelector('.footer')!.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        root.getBoundingClientRect().bottom + 1
+      );
       expect(api.errors).toEqual([]);
       cleanup();
       cleanup = undefined;

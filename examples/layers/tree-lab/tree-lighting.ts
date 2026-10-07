@@ -99,6 +99,17 @@ export class TreeLightingEffect extends LightingEffect {
     super.setProps(props);
   }
 
+  /** Capture may use ground maps only after both filter draws completed. */
+  get groundShadowsReady(): boolean {
+    const lights = Object.values(this.props).filter(
+      light => light.type === 'directional' && light.shadow
+    );
+    return (
+      this.groundFilters.length === lights.length &&
+      this.groundFilters.every(filter => filter.ready)
+    );
+  }
+
   setSunDirection(direction: [number, number, number]) {
     const key = this.props.key;
     if (key?.type === 'directional') key.direction = direction;
