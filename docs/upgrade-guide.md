@@ -8,6 +8,19 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 - `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`. Remove `detail` / `TreeDetail`. Canopy overrides now target `SplatLayer`; wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
 
+### Prepared SplatLayer inputs
+
+Existing `new SplatLayer({data: owners, source, hierarchy})` calls remain supported. New code uses
+`data: source` for one prepared asset or `data: owners, getSource: source` for shared instances.
+Move a supplied hierarchy into `{type: 'prepared-splats', source, hierarchy}` and pass that descriptor
+through `getSource`. Do not supply both `source` and explicit `getSource`.
+
+All currently supported forms retain weighted optical blending. Streamed RAD, file decoding,
+SH and sorted scene presentation are not enabled by this migration. `getTransformMatrix` takes
+precedence over orientation/scale/translation, and picking keeps original owner rows and indices.
+Tree canopy quotas are allocated jointly by projected error; species no longer receive fixed
+shares proportional to their row counts.
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,
