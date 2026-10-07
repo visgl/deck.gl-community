@@ -80,3 +80,16 @@ it('keeps deciduous leaders inside the dense crown and retains branches in dista
     }
   }
 });
+
+it('builds finite banyan roots across sparse asymmetric growth', () => {
+  for (let seed = 0; seed < 64; seed++) {
+    const traits = {seed, branchDensity: 0.5, crownAsymmetry: 2, crownSpread: 0.6, crownDepth: 0.6};
+    for (const aggregate of [false, true]) {
+      const mesh = getTreeWoodMesh('banyan', 4, aggregate, traits);
+      expect(mesh.attributes.POSITION.value.every(Number.isFinite), `seed ${seed}`).toBe(true);
+      expect(Math.max(...mesh.indices.value)).toBeLessThan(
+        mesh.attributes.POSITION.value.length / 3
+      );
+    }
+  }
+});
