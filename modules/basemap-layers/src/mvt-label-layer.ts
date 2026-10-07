@@ -201,6 +201,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * Returns the halo (background) color for a decoded feature label: `labelBackground` faded by
+   * the same `text-opacity` as the text, so a hidden or faded label leaves no halo box.
+   */
+  getLabelBackgroundColor(feature: FeatureLike): number[] {
+    const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
+    return withOpacity(this.props.labelBackground, opacity ?? 1);
+  }
+
+  /**
    * Returns the collision priority of a label within `collisionPriorityRange`: ordered by
    * `symbol-sort-key` when the style layer sets one, otherwise by a coarse built-in priority.
    * Lower sort keys win in the style specification and higher priorities win in
@@ -228,6 +237,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getText: getTrigger('text-field'),
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
+      getBackgroundColor: getTrigger('text-opacity'),
       getCollisionPriority: getTrigger('symbol-sort-key')
     };
   }
@@ -308,7 +318,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           fontFamily: this.props.fontFamily,
           sizeUnits: labelSizeUnits,
           background: hasBackground,
-          getBackgroundColor: (hasBackground ? labelBackground : [0, 0, 0, 0]) as any,
+          getBackgroundColor: (hasBackground
+            ? this.getSubLayerAccessor((feature: FeatureLike) =>
+                this.getLabelBackgroundColor(feature)
+              )
+            : [0, 0, 0, 0]) as any,
           getPosition: (d: LabelRow) => d.position,
           getText: this.getSubLayerAccessor((feature: FeatureLike) =>
             this.getLabel(feature)
