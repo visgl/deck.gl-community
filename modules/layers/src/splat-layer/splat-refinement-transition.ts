@@ -118,7 +118,7 @@ export class SplatRefinementTransition<T> {
   }
   /** Slow frames cannot turn a detail change into one large optical step.
    * Forced quota reductions retain old work until faded, admitting at most one
-   * additional demoted representation above that existing work to make progress.
+   * additional owner representation above that existing work to make progress.
    */
   sample(now: number, duration = 900): boolean {
     const elapsed = this.previous ? Math.max(0, Math.min(16, now - this.previous)) : 0;
@@ -128,7 +128,18 @@ export class SplatRefinementTransition<T> {
     let reserve = 0;
     for (const entry of this.moving)
       if (entry.targetCost <= entry.cost) reserve = Math.max(reserve, entry.missingCost);
-    const ceiling = Math.max(this.budget, this.used + reserve);
+    let ceiling = Math.max(this.budget, this.used + reserve);
+    // A target can fit the quota while its old/new overlap cannot. If all fades
+    // are blocked, temporarily admit the smallest missing owner representation.
+    // It retains coverage and frees its old cost when the continuous fade ends.
+    let canAdvance = false;
+    for (const entry of this.moving) canAdvance ||= this.used + entry.missingCost <= ceiling;
+    if (!canAdvance) {
+      let fallback = Infinity;
+      for (const entry of this.moving)
+        if (entry.targetCost <= this.budget) fallback = Math.min(fallback, entry.missingCost);
+      if (Number.isFinite(fallback)) ceiling = Math.max(ceiling, this.used + fallback);
+    }
     let changed = false;
     for (const demote of [true, false])
       for (const entry of this.moving) {

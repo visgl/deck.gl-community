@@ -57,7 +57,7 @@ export type PreparedSplatProps<DataT> = {
   pixelError?: number;
   /** Screen-center refinement priority. Zero is uniform; one reduces peripheral error weight smoothly. @default 0 */
   foveationStrength?: number;
-  /** Gaussian submissions allowed for this layer's visible owners. Coarsest coverage is the minimum. @default Infinity */
+  /** Settled Gaussian submission budget. Optical fades can temporarily admit one extra owner representation to avoid stalling. Coarsest coverage is the minimum. @default Infinity */
   maxSplats?: number;
   /** Independent light-space submission budget. @default Infinity */
   maxShadowSplats?: number;

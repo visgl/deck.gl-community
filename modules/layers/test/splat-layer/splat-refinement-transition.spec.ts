@@ -72,3 +72,39 @@ it('does not deadlock a forced reduction to an intermediate aggregate that costs
   expect(transition.active).toBe(false);
   expect(cost(transition)).toBe(100);
 });
+
+it('finishes a promotion whose settled target fits but whose overlap exceeds the quota', () => {
+  const levels = [1000, 600, 10];
+  const transition = new SplatRefinementTransition<string>();
+  transition.reconcile(target(1), levels, 1400, owner => owner);
+  transition.sample(1);
+  transition.reconcile(target(0), levels, 1400, owner => owner);
+  for (let now = 17; now < 6000; now += 16) {
+    transition.sample(now);
+    const weights = transition.entries.get('tree')!.weights;
+    expect(weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 6);
+    expect(
+      weights.reduce((sum, weight, level) => sum + (weight > 0 ? levels[level] : 0), 0)
+    ).toBeLessThanOrEqual(1600);
+  }
+  expect(transition.active).toBe(false);
+  expect(transition.entries.get('tree')!.weights).toEqual([1, 0, 0]);
+});
+
+it('admits only one extra owner representation when several promotions are blocked', () => {
+  const levels = [1000, 600, 10];
+  const transition = new SplatRefinementTransition<string>();
+  const rows = (level: number) => ['a', 'b'].map(owner => ({owner, pixels: 10, level, blend: 0}));
+  transition.reconcile(rows(1), levels, 2200, owner => owner);
+  transition.sample(1);
+  transition.reconcile(rows(0), levels, 2200, owner => owner);
+  for (let now = 17; now < 12000; now += 16) {
+    transition.sample(now);
+    const entries = [...transition.entries.values()];
+    expect(entries.reduce((sum, entry) => sum + entry.cost, 0)).toBeLessThanOrEqual(2600);
+    for (const entry of entries)
+      expect(entry.weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 6);
+  }
+  expect(transition.active).toBe(false);
+  expect([...transition.entries.values()].every(entry => entry.weights[0] === 1)).toBe(true);
+});

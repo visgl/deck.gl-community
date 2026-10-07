@@ -29,6 +29,7 @@ import type {SplatShadowProjection} from './splat-shadow-pass';
 import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform} from './splat-transform';
+import {getSplatDeformationRadius} from './splat-deformation';
 import {budgetSplatSelections, type SplatSelection} from './splat-budget';
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges} from './splat-row-diff';
@@ -185,10 +186,6 @@ export class SplatLayer<DataT = unknown> extends CompositeLayer<
         const maximumScale = Math.max(...scale.map(Math.abs));
         const deformation = get(this.props.getDeformation, object, objectInfo);
         const strength = Math.abs(this.props.deformationStrength * deformation[2]);
-        const radius =
-          maximumScale * sourceRadius +
-          strength * Math.abs(deformation[0]) * 1.5 +
-          strength * maximumScale * sourceRadius * 0.5;
         const transform = getSplatTransform(
           get(this.props.getOrientation, object, objectInfo),
           scale,
@@ -197,15 +194,20 @@ export class SplatLayer<DataT = unknown> extends CompositeLayer<
         const {common, units} = getSplatCachedPosition(position, viewport, previous, next, point =>
           this.projectPosition(point, {viewport, autoOffset: false})
         );
-        const center = [0, 1, 2].map(
+        const localCenter = [0, 1, 2].map(
           axis =>
-            common[axis] +
-            (transform[axis] * sourceCenter[0] +
-              transform[axis + 3] * sourceCenter[1] +
-              transform[axis + 6] * sourceCenter[2] +
-              translation[axis]) *
-              units[axis]
+            transform[axis] * sourceCenter[0] +
+            transform[axis + 3] * sourceCenter[1] +
+            transform[axis + 6] * sourceCenter[2] +
+            translation[axis]
         );
+        const radius = getSplatDeformationRadius(
+          localCenter,
+          maximumScale * sourceRadius,
+          deformation[0],
+          strength
+        );
+        const center = localCenter.map((value, axis) => common[axis] + value * units[axis]);
         // Physical pose survives streamed wrapper/index replacement. Duplicate poses
         // remain separate owners; the template/hierarchy belongs to this layer.
         const pose = [...position, ...transform, ...deformation].join(',');
@@ -304,7 +306,7 @@ export class SplatLayer<DataT = unknown> extends CompositeLayer<
       rebuild || !this.state.shadowGroups.length
         ? this.getRefinementGroups(this.state.shadowRefinement)
         : this.state.shadowGroups;
-    this.shadowKey = '';
+    if (rebuild || refinementChanged) this.shadowKey = '';
     this.setState({
       groups: rebuild
         ? groups
@@ -325,23 +327,28 @@ export class SplatLayer<DataT = unknown> extends CompositeLayer<
   /** Query light-space bounds and choose light-map refinement independently of the camera. */
   prepareShadow(projections: SplatShadowProjection[], viewport: Viewport) {
     this.state.shadowProjections = projections;
-    const key = projections
-      .map(projection => [
-        ...projection.matrix,
-        ...projection.center,
-        projection.width,
-        projection.height
-      ])
-      .join(',');
-    if (key === this.shadowKey) return;
-    this.shadowKey = key;
-
     const first = this.state.owners[0];
     // Light matrices use deck's precision-preserving common-space origin. The BVH uses absolute common space.
     const relative = first
       ? this.projectPosition(Array.from(first.position), {viewport})
       : [0, 0, 0];
     const origin = first ? first.common.map((value, axis) => value - relative[axis]) : [0, 0, 0];
+    const key =
+      origin.join(',') +
+      ':' +
+      viewport.distanceScales.unitsPerMeter[2] +
+      ':' +
+      projections
+        .map(projection => [
+          ...projection.matrix,
+          ...projection.center,
+          projection.width,
+          projection.height
+        ])
+        .join(',');
+    if (key === this.shadowKey) return;
+    this.shadowKey = key;
+
     const absoluteProjections = projections.map(projection => ({
       ...projection,
       center: projection.center.map(
@@ -502,7 +509,7 @@ export class SplatLayer<DataT = unknown> extends CompositeLayer<
             next as Owner<DataT>[],
             previous as Owner<DataT>[] | undefined
           );
-          return ranges.length ? ranges : null;
+          return ranges;
         },
         source: this.state.hierarchy[level].source,
         operation: shadow ? 'shadow' : 'draw',

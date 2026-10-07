@@ -255,3 +255,59 @@ describe('Gaussian canopy rendering', () => {
     }
   }, 20000);
 });
+
+it('truncates culled owner tails without re-uploading unchanged instance attributes', async () => {
+  const parent = document.createElement('div');
+  parent.style.cssText = 'width:256px;height:256px';
+  document.body.append(parent);
+  const data = [{position: [0, 0, 0]}, {position: [20, 0, 0]}];
+  let frames = 0;
+  const errors: string[] = [];
+  const layer = new SplatLayer({
+    id: 'tail',
+    data,
+    source: SOURCE,
+    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateOrigin: [0, 0, 0],
+    getTranslation: [0, 0, 5],
+    material: {unlit: true}
+  });
+  const deck = new Deck({
+    parent,
+    width: 256,
+    height: 256,
+    useDevicePixels: false,
+    _animate: true,
+    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
+    views: new MapView(),
+    initialViewState: {longitude: 0, latitude: 0, zoom: 18, pitch: 0},
+    layers: [layer],
+    onAfterRender: () => frames++,
+    onError: error => errors.push(error.message)
+  });
+  const writes: ReturnType<typeof vi.spyOn>[] = [];
+  try {
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(8);
+    expect(layer.state.groups[0]).toHaveLength(2);
+    const visual = collectLeaves(layer).find(leaf => leaf.id.includes('refinement'))!;
+    const attributes = visual.getAttributeManager()!.getAttributes();
+    for (const name of [
+      'instancePositions',
+      'instanceColors',
+      'instanceModelMatrix',
+      'instanceWindData'
+    ])
+      writes.push(vi.spyOn(attributes[name].getBuffer()!, 'write'));
+    const before = frames;
+    deck.setProps({viewState: {longitude: -30 / 111320, latitude: 0, zoom: 18, pitch: 0}});
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(before + 3);
+    expect(layer.state.groups[0]).toHaveLength(1);
+    expect(layer.state.groups[0][0].object).toBe(data[0]);
+    for (const write of writes) expect(write).not.toHaveBeenCalled();
+    expect(errors).toEqual([]);
+  } finally {
+    for (const write of writes) write.mockRestore();
+    deck.finalize();
+    parent.remove();
+  }
+}, 20000);
