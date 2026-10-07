@@ -59,6 +59,10 @@ const cases = {
     },
     {data: '/tileset.json', filtersByAttribute: {attributeName: 'height', value: '100'}}
   ],
+  SplatLayer: [
+    {source: '@@#leaves', getScale: [2, 2, 3], maxSplats: 2000},
+    {source: {positions: [0, 0, 0]}}
+  ],
   TreeLayer: [
     {getPosition: '@@=position', getTreeType: "@@='oak'", getHeight: '@@=10', sizeScale: 2},
     {getTreeType: 'oak'}

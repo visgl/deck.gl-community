@@ -6,7 +6,10 @@ This page lists module additions and major changes in each release. For detailed
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
 
+- Added reusable `SplatLayer` with prepared Gaussian sources, instanced owners, automatic refinement, optical transitions and WebGL2/WebGPU rendering.
+
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
+
 
 - A private, unpublished [Vega renderer experiment](./modules/vega/README.md) ports SandDance’s MIT-licensed Vega/deck.gl renderer to vis.gl 9.4, with animated unit-layout examples and upstream attribution.
 

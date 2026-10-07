@@ -9,3 +9,5 @@ They can be quite useful in applications, however they are not officially suppor
 
 [`FlameTrailLayer`](../../docs/modules/layers/api-reference/flame-trail-layer.md) renders
 3D flames and embers with the TripsLayer API. It requires WebGL2.
+
+[`SplatLayer`](../../docs/modules/layers/api-reference/splat-layer.md) renders prepared Gaussian sources with shared instancing, automatic refinement, deformation and owner picking on WebGL2 and WebGPU. It has no TreeLayer dependency.
