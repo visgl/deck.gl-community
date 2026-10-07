@@ -259,6 +259,20 @@ it('bounds interrupted transition history while retaining every current source p
   expect(blend.entries.has(99)).toBe(true);
 });
 
+it('retains full regional coverage when a third page interrupts an existing replacement', () => {
+  const blend = new TreeCoverageTransition<string>();
+  blend.reconcile(['a'], 0, 1000);
+  blend.reconcile(['b'], 100, 1000);
+  blend.reconcile(['c'], 600, 1000);
+  for (const now of [650, 850, 1100, 1400, 1600]) {
+    blend.sample(now, 1000);
+    expect([...blend.entries.values()].reduce((sum, entry) => sum + entry.weight, 0)).toBeCloseTo(
+      1
+    );
+  }
+  expect([...blend.entries.keys()]).toEqual(['c']);
+});
+
 it('retains full quality at a stable 60Hz delivery interval', () => {
   const controller = new TreeFrameBudget();
   for (let i = 0; i < 600; i++) controller.sample((i * 1000) / 60, 1000 / 60, 0.125);

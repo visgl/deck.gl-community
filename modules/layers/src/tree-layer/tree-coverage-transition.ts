@@ -30,7 +30,16 @@ export class TreeCoverageTransition<T> {
         this.entries.set(value, {value, weight, from: weight, target: 1, started: now});
         changed = true;
       }
-    if (changed) this.revision++;
+    if (changed) {
+      // Every contributor to the same replacement must use the same new fade
+      // interval. Otherwise an older outgoing page disappears ahead of the new
+      // page's incoming weight when a third page interrupts the transition.
+      for (const entry of this.entries.values()) {
+        entry.from = entry.weight;
+        entry.started = now;
+      }
+      this.revision++;
+    }
     return changed;
   }
   /** Keep transition history finite during rapid retargets; current coverage is always retained. */

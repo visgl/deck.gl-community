@@ -18,6 +18,7 @@ it('streams an independent inventory through region, forest and close views with
   let identityRevision = 0;
   let authoredCoverage = 1,
     coverageRevision = 0;
+  let constantCoverage = false;
   const getTreeKey = (tree: TestTree) =>
     mergeIdentities ? 'one-owner' : (tree as TestTree & {key: string}).key;
   const makeLayer = () =>
@@ -40,7 +41,9 @@ it('streams an independent inventory through region, forest and close views with
       getSeason: () => season,
       windStrength: 0,
       shadowEnabled: false,
-      getCoverageWeight: (_tree, info) => authoredCoverage * (info.index >= 0 ? 1 : 0),
+      getCoverageWeight: constantCoverage
+        ? authoredCoverage
+        : (_tree, info) => authoredCoverage * (info.index >= 0 ? 1 : 0),
       updateTriggers: {
         getTreeKey: identityRevision,
         getSeason: season,
@@ -161,6 +164,21 @@ it('streams an independent inventory through region, forest and close views with
         .getSubLayers()
         .find(layer => layer instanceof TreeLayer)!;
       expect(trees.props.updateTriggers.getCoverageWeight).toContain(coverageRevision);
+    }
+    // Constant accessors invalidate cached wood/crown attributes without an explicit trigger.
+    constantCoverage = true;
+    for (const value of [1, 0]) {
+      authoredCoverage = value;
+      deck.setProps({layers: [makeLayer()]});
+      await expect
+        .poll(
+          () =>
+            leaves(current())
+              .filter(layer => layer.id.includes('-wood-'))
+              .reduce((count, layer) => count + layer.getNumInstances(), 0),
+          {timeout: 30000}
+        )
+        .toSatisfy(count => (value > 0 ? count > 0 : count === 0));
     }
     // A changed identity rule must regroup the already-loaded pages immediately.
     const loadedPages = current().state.batch.contents.slice();

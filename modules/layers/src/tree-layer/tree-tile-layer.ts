@@ -340,6 +340,9 @@ export class TreeTileLayer<DataT = unknown> extends TileLayer<
             ...this.props.treeProps?.updateTriggers,
             getCoverageWeight: [
               coverage.revision,
+              typeof this.props.treeProps?.getCoverageWeight === 'number'
+                ? this.props.treeProps.getCoverageWeight
+                : undefined,
               this.props.treeProps?.updateTriggers?.getCoverageWeight
             ]
           },
