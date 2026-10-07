@@ -35,9 +35,9 @@ describe('Coit world-space camera', () => {
       [0.05, -0.1, 0.2]
     ]) {
       const oldPixel = oldViewport.project(
-        new Matrix4().rotateX(-Math.PI / 2).transformAsPoint(point)
+        Array.from(new Matrix4().rotateX(-Math.PI / 2).transformAsPoint(point))
       );
-      const pixel = viewport.project(MODEL_MATRIX.transformAsPoint(point));
+      const pixel = viewport.project(Array.from(MODEL_MATRIX.transformAsPoint(point)));
       expect(pixel[0]).toBeCloseTo(oldPixel[0], 6);
       expect(pixel[1]).toBeCloseTo(oldPixel[1], 6);
     }
@@ -80,7 +80,15 @@ describe('Coit world-space camera', () => {
         ...moved.getViewportProps(),
         makeViewport: props => new FirstPersonViewport({...CAMERA_PROPS, ...props})
       });
-      const viewport = new FirstPersonViewport({...CAMERA_PROPS, ...state.getViewportProps()});
+      const viewportProps = state.getViewportProps();
+      const viewport = new FirstPersonViewport({
+        ...CAMERA_PROPS,
+        width: 1200,
+        height: 720,
+        position: [viewportProps.position[0], viewportProps.position[1], viewportProps.position[2]],
+        bearing: viewportProps.bearing,
+        pitch: viewportProps.pitch
+      });
       eyes.push(Array.from(viewport.cameraPosition));
       projections.push(Array.from(viewport.projectionMatrix));
     }
