@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {expect, it} from 'vitest';
 import {WebMercatorViewport} from '@deck.gl/core';
+import {WorldTreeLayer} from '../../src/tree-layer/world-tree-layer';
 import {TreeTileset} from '../../src/tree-layer/tree-tileset';
 import {TreeFrameBudget} from '../../src/tree-layer/tree-frame-budget';
 import {validateTreeTile} from '../../src/tree-layer/tree-tile-data';
@@ -235,4 +236,44 @@ it('gradually restores reduced quality at 60Hz after sustained pressure clears',
   for (let i = 1; i <= 600; i++) controller.sample(12000 + (i * 1000) / 60, 1000 / 60, 0.125, true);
   expect(controller.scale).toBeGreaterThan(reduced);
   expect(controller.scale).toBeLessThan(reduced * 1.25);
+});
+
+it('maps species-local picks by original owner and selects its strongest replacement page', () => {
+  const a = {species: 'oak'},
+    b = {species: 'palm'};
+  const pageA = {trees: [a], canopies: [], byteLength: 1};
+  const pageB = {trees: [b], canopies: [], byteLength: 1};
+  const replacement = {trees: [b], canopies: [], byteLength: 1};
+  const tileA = {id: 'a', content: pageA},
+    tileB = {id: 'b', content: pageB};
+  const tileReplacement = {id: 'replacement', content: replacement};
+  const layer = new WorldTreeLayer({id: 'picking', getTileData: () => pageA});
+  Object.assign(layer, {
+    state: {
+      treePages: new Map([
+        [a, [pageA]],
+        [b, [pageB, replacement]]
+      ]),
+      pageTiles: new Map([
+        [pageA, tileA],
+        [pageB, tileB],
+        [replacement, tileReplacement]
+      ]),
+      coverage: {
+        entries: new Map([
+          [pageA, {weight: 1}],
+          [pageB, {weight: 0.2}],
+          [replacement, {weight: 0.8}]
+        ])
+      }
+    }
+  });
+  const sourceLayer = {id: 'picking-trees-canopy-palm-0'};
+  const info = {object: b, index: 0};
+  const picked = layer.getPickingInfo({info, sourceLayer} as any);
+  expect(picked.object).toBe(b);
+  expect(picked.tile).toBe(tileReplacement);
+  expect(picked.sourceTile).toBe(tileReplacement);
+  expect(picked.sourceTileSubLayer).toBe(sourceLayer);
+  expect(layer.getPickingInfo({info: {object: a, index: 99}, sourceLayer} as any).tile).toBe(tileA);
 });

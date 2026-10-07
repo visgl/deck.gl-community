@@ -67,7 +67,7 @@ type WorldTreeProps<DataT> = {
   getTreeKey?: (tree: DataT) => unknown;
   /** Milliseconds to blend loaded replacement coverage. Zero disables blending. @default 800 */
   transitionDuration?: number;
-  /** Standard tree accessors, wind, season and material options, shared across loaded pages. */
+  /** Standard tree accessors, wind, season and material options, shared across loaded pages. Authored coverage is multiplied by page replacement coverage. */
   treeProps?: Omit<
     TreeLayerProps<DataT>,
     'data' | 'id' | 'maxCanopySplats' | 'maxShadowSplats' | 'maxCanopyPixels'
@@ -137,7 +137,6 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
       tiles: _Tile2DHeader<TreeTileData<DataT>>[];
       contents: TreeTileData<DataT>[];
       trees: DataT[];
-      rowTiles: _Tile2DHeader<TreeTileData<DataT>>[];
       canopies: TreeCanopyCluster[];
     };
   };
@@ -148,7 +147,7 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
     this.state.pageTiles = new Map();
     this.state.treePages = new Map();
     this.state.canopyPages = new Map();
-    this.state.batch = {tiles: [], contents: [], trees: [], rowTiles: [], canopies: []};
+    this.state.batch = {tiles: [], contents: [], trees: [], canopies: []};
     TreeBudgetEffect.get(this.context.deck);
   }
   get isLoaded(): boolean {
@@ -223,13 +222,11 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
         this.state.batch.trees.map(row => [this.props.getTreeKey?.(row) ?? row, row])
       );
       this.state.batch.trees = [];
-      this.state.batch.rowTiles = [];
       this.state.batch.canopies = [];
       this.state.treePages.clear();
       this.state.canopyPages.clear();
       const keys = new Map<unknown, DataT>();
       for (const page of pages) {
-        const tile = this.state.pageTiles.get(page)!;
         for (const canopy of page.canopies) {
           this.state.batch.canopies.push(canopy);
           this.state.canopyPages.set(canopy, page);
@@ -244,7 +241,6 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
             const canonical = retained ?? row;
             keys.set(key, canonical);
             this.state.batch.trees.push(canonical);
-            this.state.batch.rowTiles.push(tile);
             this.state.treePages.set(canonical, [page]);
           }
         }
@@ -312,17 +308,25 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
           foveationStrength: 1,
           ...this.props.treeProps,
           data: this.state.batch.trees,
-          getCoverageWeight: row =>
-            Math.min(
-              1,
-              (this.state.treePages.get(row) ?? []).reduce(
-                (weight, page) => weight + (coverage.entries.get(page)?.weight ?? 0),
-                0
+          getCoverageWeight: (row, info) => {
+            const authored = this.props.treeProps?.getCoverageWeight ?? 1;
+            return (
+              (typeof authored === 'function' ? authored(row, info) : authored) *
+              Math.min(
+                1,
+                (this.state.treePages.get(row) ?? []).reduce(
+                  (weight, page) => weight + (coverage.entries.get(page)?.weight ?? 0),
+                  0
+                )
               )
-            ),
+            );
+          },
           updateTriggers: {
             ...this.props.treeProps?.updateTriggers,
-            getCoverageWeight: coverage.revision
+            getCoverageWeight: [
+              coverage.revision,
+              this.props.treeProps?.updateTriggers?.getCoverageWeight
+            ]
           },
           maxCanopyPixels: pixelBudget,
           maxCanopySplats: Math.max(0, canopyBudget - distantCost),
@@ -398,7 +402,17 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
   getPickingInfo(params: GetPickingInfoParams): TileLayerPickingInfo<TreeTileData<DataT>> {
     const info = params.info as TileLayerPickingInfo<TreeTileData<DataT>>;
     if (params.sourceLayer?.id.includes('-distant-crowns-')) return info;
-    const tile = this.state.batch.rowTiles[info.index];
+    // Composite picking has already restored the original owner. Its index can
+    // belong to a species/refinement child rather than the merged batch.
+    let tile: _Tile2DHeader<TreeTileData<DataT>> | undefined;
+    let weight = -1;
+    for (const page of this.state.treePages.get(info.object as DataT) ?? []) {
+      const pageWeight = this.state.coverage.entries.get(page)?.weight ?? 0;
+      if (pageWeight > weight) {
+        tile = this.state.pageTiles.get(page);
+        weight = pageWeight;
+      }
+    }
     if (tile) {
       info.tile = tile;
       info.sourceTile = tile;

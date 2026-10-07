@@ -15,6 +15,8 @@ it('streams an independent inventory through region, forest and close views with
   let season = 'summer' as 'summer' | 'winter';
   let mergeIdentities = false;
   let identityRevision = 0;
+  let authoredCoverage = 1,
+    coverageRevision = 0;
   const getTreeKey = (tree: TestTree) =>
     mergeIdentities ? 'one-owner' : (tree as TestTree & {key: string}).key;
   const makeLayer = () =>
@@ -38,7 +40,8 @@ it('streams an independent inventory through region, forest and close views with
         getSeason: () => season,
         windStrength: 0,
         shadowEnabled: false,
-        updateTriggers: {getSeason: season}
+        getCoverageWeight: (_tree, info) => authoredCoverage * (info.index >= 0 ? 1 : 0),
+        updateTriggers: {getSeason: season, getCoverageWeight: coverageRevision}
       }
     });
   const deck = new Deck({
@@ -128,6 +131,28 @@ it('streams an independent inventory through region, forest and close views with
         .find(layer => layer instanceof TreeLayer)!.props.data
     ).toBe(before);
     expect(leaves(current()).filter(layer => layer.id.includes('canopy-oak')).length).toBe(0);
+    // Ordinary accessors and their triggers survive the geographic wrapper.
+    for (const value of [0.25, 0]) {
+      authoredCoverage = value;
+      coverageRevision++;
+      deck.setProps({layers: [makeLayer()]});
+      await expect
+        .poll(
+          () => {
+            const trees = current()
+              .getSubLayers()
+              .find(layer => layer instanceof TreeLayer)!;
+            const data = current().state.batch.trees;
+            return trees.props.getCoverageWeight(data[0], {index: 0, data, target: []});
+          },
+          {timeout: 30000}
+        )
+        .toBe(value);
+      const trees = current()
+        .getSubLayers()
+        .find(layer => layer instanceof TreeLayer)!;
+      expect(trees.props.updateTriggers.getCoverageWeight).toContain(coverageRevision);
+    }
     // A changed identity rule must regroup the already-loaded pages immediately.
     const loadedPages = current().state.batch.contents.slice();
     mergeIdentities = true;
