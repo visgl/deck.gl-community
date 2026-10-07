@@ -244,9 +244,12 @@ it('maps species-local picks by original owner and selects its strongest replace
   const pageA = {trees: [a], canopies: [], byteLength: 1};
   const pageB = {trees: [b], canopies: [], byteLength: 1};
   const replacement = {trees: [b], canopies: [], byteLength: 1};
+  const canopy = {position: [0, 0, 0], scale: [1, 1, 1], color: [100, 150, 100, 255]};
+  const canopyPage = {trees: [], canopies: [canopy], byteLength: 1};
   const tileA = {id: 'a', content: pageA},
     tileB = {id: 'b', content: pageB};
   const tileReplacement = {id: 'replacement', content: replacement};
+  const canopyTile = {id: 'coarse-canopy', content: canopyPage};
   const layer = new WorldTreeLayer({id: 'picking', getTileData: () => pageA});
   Object.assign(layer, {
     state: {
@@ -254,16 +257,19 @@ it('maps species-local picks by original owner and selects its strongest replace
         [a, [pageA]],
         [b, [pageB, replacement]]
       ]),
+      canopyPages: new Map([[canopy, canopyPage]]),
       pageTiles: new Map([
         [pageA, tileA],
         [pageB, tileB],
-        [replacement, tileReplacement]
+        [replacement, tileReplacement],
+        [canopyPage, canopyTile]
       ]),
       coverage: {
         entries: new Map([
           [pageA, {weight: 1}],
           [pageB, {weight: 0.2}],
-          [replacement, {weight: 0.8}]
+          [replacement, {weight: 0.8}],
+          [canopyPage, {weight: 1}]
         ])
       }
     }
@@ -276,4 +282,13 @@ it('maps species-local picks by original owner and selects its strongest replace
   expect(picked.sourceTile).toBe(tileReplacement);
   expect(picked.sourceTileSubLayer).toBe(sourceLayer);
   expect(layer.getPickingInfo({info: {object: a, index: 99}, sourceLayer} as any).tile).toBe(tileA);
+  const canopySource = {id: 'picking-distant-crowns-refinement-0'};
+  const canopyPick = layer.getPickingInfo({
+    info: {object: canopy, index: 99},
+    sourceLayer: canopySource
+  } as any);
+  expect(canopyPick.object).toBe(canopy);
+  expect(canopyPick.tile).toBe(canopyTile);
+  expect(canopyPick.sourceTile).toBe(canopyTile);
+  expect(canopyPick.sourceTileSubLayer).toBe(canopySource);
 });

@@ -407,12 +407,17 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
 
   getPickingInfo(params: GetPickingInfoParams): TileLayerPickingInfo<TreeTileData<DataT>> {
     const info = params.info as TileLayerPickingInfo<TreeTileData<DataT>>;
-    if (params.sourceLayer?.id.includes('-distant-crowns-')) return info;
     // Composite picking has already restored the original owner. Its index can
     // belong to a species/refinement child rather than the merged batch.
     let tile: _Tile2DHeader<TreeTileData<DataT>> | undefined;
     let weight = -1;
-    for (const page of this.state.treePages.get(info.object as DataT) ?? []) {
+    const canopyPage = params.sourceLayer?.id.includes('-distant-crowns-')
+      ? this.state.canopyPages.get(info.object as TreeCanopyCluster)
+      : undefined;
+    const pages = canopyPage
+      ? [canopyPage]
+      : (this.state.treePages.get(info.object as DataT) ?? []);
+    for (const page of pages) {
       const pageWeight = this.state.coverage.entries.get(page)?.weight ?? 0;
       if (pageWeight > weight) {
         tile = this.state.pageTiles.get(page);
