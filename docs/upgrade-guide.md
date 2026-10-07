@@ -167,3 +167,14 @@ plain graph data instead of Arrow data, and the old `dot.version` option is remo
   `Graph`, or raw `{nodes, edges}`/edge arrays) and supply a `layout` when the layer must build the engine for you.
 - Breaking change: `JSONLoader` only normalizes raw JSON payloads. Pass `Graph` instances directly to `GraphLayer.data` rather than
   routing them through the loader.
+
+
+### Composite SplatLayer scenes
+
+Keep existing procedural/TreeLayer sources on `transparency: 'weighted'`. `auto` remains weighted
+for decoded prepared assets and selects sorted rendering for scene files. Import the public
+`SplatLayer` from `@deck.gl-community/layers` instead of the old experimental deck Coit primitive.
+Use `data` for the asset or owner rows with `getSource`, and Cartesian coordinates for sorted
+scenes. Preserve opaque-before-splat layer order. See the [scene installation and residency
+contract](./modules/layers/api-reference/splat-layer.md#scene-assets-and-installation), including
+the upstream luma release prerequisite and ESM worker packaging.

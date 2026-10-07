@@ -73,7 +73,7 @@ it('rejects conflicting channels, missing assets and unsupported scene inputs ex
   ).toThrow('Put a hierarchy');
   expect(() =>
     resolveSplatInput({data: '/scene.rad' as any, getSource: DEFAULT_GET_SOURCE})
-  ).toThrow('prepared asset');
+  ).toThrow('scene assets');
   expect(resolveSplatInput({data: [], source, getSource: DEFAULT_GET_SOURCE}).data).toEqual([]);
 });
 

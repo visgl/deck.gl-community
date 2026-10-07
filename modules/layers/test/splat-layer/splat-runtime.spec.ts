@@ -90,3 +90,37 @@ it('reallocates when a shared cap changes or its restrictive registration disapp
   runtime.reconcile(new Set(['b']));
   expect(selected.get('b')![0].level).toBe(1);
 });
+
+it('shares a strict host cap with scene demand and releases the reservation when scenes hide', () => {
+  const runtime = SplatRuntime.get({}, {});
+  const levels = hierarchy([100, 10]);
+  let rows: any[] = [];
+  runtime.set('prepared', false, {
+    rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
+    hierarchy: () => levels,
+    maxSplats: 100,
+    maxTotalSplats: 100,
+    apply: selected => {
+      rows = selected;
+    }
+  });
+  const ids = new Set(['prepared']);
+  expect(runtime.setSceneDemand(ids, 100, 10, 100)).toBe(50);
+  runtime.reconcile(ids);
+  expect(rows[0].level).toBe(1);
+  expect(runtime.setSceneDemand(ids, 0, 0, Infinity)).toBe(0);
+  runtime.reconcile(ids);
+  expect(rows[0].level).toBe(1);
+  runtime.set('prepared', false, {
+    rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
+    hierarchy: () => levels,
+    maxSplats: Infinity,
+    maxTotalSplats: Infinity,
+    apply: selected => {
+      rows = selected;
+    }
+  });
+  runtime.setSceneDemand(ids, 0, 0, Infinity);
+  runtime.reconcile(ids);
+  expect(rows[0].level).toBe(0);
+});

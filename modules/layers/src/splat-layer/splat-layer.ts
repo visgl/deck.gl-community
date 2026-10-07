@@ -38,6 +38,7 @@ import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges} from './splat-row-diff';
 import {
   DEFAULT_GET_SOURCE,
+  isSplatSceneData,
   resolveSplatInput,
   type ResolvedSplatInput,
   type ResolvedSplatAsset,
@@ -46,6 +47,8 @@ import {
 } from './splat-input';
 import {SplatRuntime, SplatSelectionEffect, type SplatBudgetGroup} from './splat-runtime';
 import type {SplatSource} from './splat-source';
+import {SplatSceneLayer} from './scene/splat-scene-layer';
+import type {SplatLayerStatus} from './scene/rad-scene';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
@@ -62,14 +65,26 @@ type PreparedOwner<DataT> = {
   radius: number;
 };
 type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'> & {
-  /** One prepared asset, or application-owned instance rows. */
+  /** A Gaussian asset, scene URL/Blob, or application-owned instance rows. */
   data: DataT[] | SplatDataInput;
   /** Reusable asset per owner. Defaults to the row's splats field. */
   getSource?: Accessor<DataT, SplatDataInput>;
   /** Legacy constant-template input. Cannot be combined with explicit getSource. */
   source?: SplatSource;
-  /** Weighted optical blending; sorted scene rendering requires the upstream backend. */
-  transparency?: 'weighted' | 'sorted';
+  /** auto uses sorted scenes and weighted prepared assets; sorted globally orders one view/domain. */
+  transparency?: 'auto' | 'weighted' | 'sorted';
+  /** Optional worker factory for CommonJS or hosts that manage worker URLs explicitly. */
+  workerFactory?: (type: 'rad' | 'static') => Worker;
+  /** Coit compatibility alias for maxSplats. Conflicting finite values are rejected. */
+  maxActiveSplats?: number;
+  /** Maximum admitted source rows; scene refinement has bounded transition headroom. */
+  maxResidentSplats?: number;
+  /** Concurrent RAD page downloads, decoded off the rendering thread. */
+  maxConcurrentLoads?: number;
+  /** Independently ordered transparent domain. Layers in the same domain share one order. */
+  sortDomain?: string;
+  /** Source loading, residency and refinement diagnostics. */
+  onStatusChange?: (status: SplatLayerStatus) => void;
   /** Aggregate settled submission cap across visible SplatLayers on this deck/device. */
   maxTotalSplats?: number;
   /** @internal Shared cap inherited from a composing layer. */
@@ -102,18 +117,26 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   // Asset URLs must not fall through the ordinary JSON data loader.
   data: {type: 'data', value: [], async: false},
   getSource: {type: 'accessor', value: DEFAULT_GET_SOURCE},
-  transparency: 'weighted',
+  transparency: 'auto',
+  workerFactory: {type: 'function', value: null, optional: true},
+  maxActiveSplats: Infinity,
+  maxResidentSplats: 8_000_000,
+  maxConcurrentLoads: 8,
+  sortDomain: 'default',
+  onStatusChange: {type: 'function', value: null, optional: true},
   maxTotalSplats: Infinity,
   _splatBudgetGroup: null
 };
 
-/** Prepared Gaussian templates with shared instances, spatial visibility and screen-error refinement. */
+/** Composite Gaussian assets and native scenes sharing instance ownership and host resources. */
 export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   Required<_SplatLayerProps<DataT>>
 > {
   static layerName = 'SplatLayer';
   static defaultProps = defaultProps;
   declare state: {
+    scene: boolean;
+    rowSources: SplatDataInput[] | null;
     groups: Owner<DataT>[][];
     shadowGroups: Owner<DataT>[][];
     members: Owner<DataT>[][];
@@ -138,6 +161,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   private shadowKey = '';
   initializeState() {
     this.state = {
+      scene: false,
+      rowSources: null,
       groups: [],
       shadowGroups: [],
       members: [],
@@ -169,6 +194,41 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
 
   updateState({changeFlags, props, oldProps}: UpdateParameters<this>) {
+    const sourceTriggers = changeFlags.updateTriggersChanged;
+    if (
+      Array.isArray(props.data) &&
+      (!this.state.rowSources ||
+        changeFlags.dataChanged ||
+        props.getSource !== oldProps.getSource ||
+        props.source !== oldProps.source ||
+        (sourceTriggers && (sourceTriggers.all || sourceTriggers.getSource)))
+    ) {
+      this.state.rowSources = props.data.map(
+        (row, index) =>
+          props.source ??
+          (typeof props.getSource === 'function'
+            ? props.getSource(row, {index, data: props.data as DataT[], target: []})
+            : props.getSource)
+      );
+    }
+    const scene =
+      props.transparency === 'sorted' ||
+      isSplatSceneData(props.data) ||
+      Boolean(this.state.rowSources?.some(isSplatSceneData));
+    if (scene) {
+      if (
+        Number.isFinite(props.maxActiveSplats) &&
+        Number.isFinite(props.maxSplats) &&
+        props.maxActiveSplats !== props.maxSplats
+      )
+        throw new Error('maxActiveSplats and maxSplats must agree when both are specified.');
+      if (props.transparency === 'weighted')
+        throw new Error('RAD scenes require sorted transparency.');
+      this.state.runtime?.delete(this.id);
+      this.setState({scene: true});
+      return;
+    }
+    if (this.state.scene) this.setState({scene: false});
     const keys = [
       'source',
       'getSource',
@@ -206,7 +266,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       !geometryChanged &&
       !refinementChanged
     ) {
-      if (props.transparency !== 'weighted')
+      if (props.transparency !== 'weighted' && props.transparency !== 'auto')
         throw new Error(
           'Sorted SplatLayer rendering requires the upstream paged-instance backend.'
         );
@@ -214,12 +274,20 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       this.publishDemand(true, this.state.shadowCandidates);
       return;
     }
-    if (props.transparency !== 'weighted')
+    if (props.transparency !== 'weighted' && props.transparency !== 'auto')
       throw new Error(
         'Sorted SplatLayer rendering requires the upstream paged-instance backend; weighted rendering cannot substitute for it.'
       );
     const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || !this.state.runtime);
-    const input = inputChanged ? resolveSplatInput(props) : this.state.input;
+    const input = inputChanged
+      ? resolveSplatInput({
+          data: props.data,
+          source: props.source,
+          hierarchy: props.hierarchy,
+          getSource: props.getSource,
+          rowSources: this.state.rowSources ?? undefined
+        })
+      : this.state.input;
     const assetsChanged =
       input.assets.length !== this.state.input.assets.length ||
       input.assets.some((asset, i) => asset !== this.state.input.assets[i]);
@@ -502,6 +570,21 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
   /** Current submitted work and minimum retained coverage, including optical transition overlap. */
   get splatStats(): SplatLayerStats {
+    if (this.state.scene)
+      return (
+        this.getSubLayers()
+          .find(layer => layer instanceof SplatSceneLayer)
+          ?.state.runtime.getStats(`${this.id}-scene`) ?? {
+          sourceCount: 0,
+          visibleInstances: 0,
+          shadowInstances: 0,
+          renderedSplats: 0,
+          shadowSplats: 0,
+          coverageFloor: 0,
+          shadowCoverageFloor: 0,
+          refiningInstances: 0
+        }
+      );
     const count = (groups: Owner<DataT>[][]) =>
       groups.reduce(
         (sum, rows, i) => sum + rows.length * (this.state.hierarchy[i].source.positions.length / 3),
@@ -671,6 +754,19 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
 
   renderLayers(): Layer[] {
+    if (this.state.scene)
+      return [
+        new SplatSceneLayer({
+          ...this.props,
+          ...this.getSubLayerProps({id: 'scene', updateTriggers: this.props.updateTriggers}),
+          data: this.props.data,
+          maxSplats: Number.isFinite(this.props.maxActiveSplats)
+            ? this.props.maxActiveSplats
+            : this.props.maxSplats,
+          _resolvedAssets: this.state.rowSources,
+          onStatusChange: this.props.onStatusChange
+        })
+      ];
     const makeLayer = (data: Owner<DataT>[], level: number, shadow: boolean) => {
       const memberGroups = shadow ? this.state.shadowMembers : this.state.members;
       // Coverage changes do not change ownership or transforms. Keep the data list stable

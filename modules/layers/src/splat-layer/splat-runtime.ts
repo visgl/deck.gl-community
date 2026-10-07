@@ -37,6 +37,56 @@ export class SplatRuntime {
     }
     return runtime;
   }
+  private sceneDemand = 0;
+  private sceneFloor = 0;
+  private sceneLimit = Infinity;
+  private sceneGrant = 0;
+  /** Reserve a proportional source-row grant for scene refinement on the same host. */
+  setSceneDemand(ids: Set<string>, desired: number, floor: number, limit: number): number {
+    const prepared = [...this.demands[0]].filter(([id]) => ids.has(id)).map(([, demand]) => demand);
+    const preparedFloor = prepared.reduce(
+      (sum, demand) =>
+        sum +
+        demand.rows.reduce(
+          (cost, row) => cost + demand.hierarchy(row.owner).at(-1)!.source.positions.length / 3,
+          0
+        ),
+      0
+    );
+    const preparedDesired = prepared.reduce(
+      (sum, demand) =>
+        sum +
+        Math.min(
+          demand.maxSplats,
+          demand.rows.reduce(
+            (cost, row) =>
+              cost + demand.hierarchy(row.owner)[row.level].source.positions.length / 3,
+            0
+          )
+        ),
+      0
+    );
+    const total = Math.min(limit, ...prepared.map(demand => demand.maxTotalSplats));
+    const extra = Math.max(0, total - preparedFloor - floor);
+    const sceneExtra = Math.max(0, desired - floor);
+    const preparedExtra = Math.max(0, preparedDesired - preparedFloor);
+    const grant = Number.isFinite(total)
+      ? floor + Math.min(sceneExtra, extra * (sceneExtra / Math.max(1, sceneExtra + preparedExtra)))
+      : desired;
+    if (
+      grant !== this.sceneGrant ||
+      limit !== this.sceneLimit ||
+      desired !== this.sceneDemand ||
+      floor !== this.sceneFloor
+    ) {
+      this.sceneDemand = desired;
+      this.sceneFloor = floor;
+      this.sceneLimit = limit;
+      this.sceneGrant = grant;
+      this.snapshots[0].clear();
+    }
+    return grant;
+  }
   private snapshots: Map<string, unknown[]>[] = [new Map(), new Map()];
   private demands = [new Map<string, Demand>(), new Map<string, Demand>()];
 
@@ -58,7 +108,14 @@ export class SplatRuntime {
       const participating = [...demands].filter(([id]) => ids.has(id));
       const snapshot = new Map<string, unknown[]>();
       for (const [id, demand] of participating) {
-        const values: unknown[] = [demand.rows, demand.maxSplats, demand.maxTotalSplats];
+        const values: unknown[] = [
+          demand.rows,
+          demand.maxSplats,
+          demand.maxTotalSplats,
+          ...(operation === 0 && (this.sceneDemand > 0 || Number.isFinite(this.sceneLimit))
+            ? [this.sceneGrant, this.sceneLimit]
+            : [])
+        ];
         for (let group = demand.group; group; group = group.parent)
           values.push(group, operation ? group.maxShadowSplats : group.maxSplats);
         snapshot.set(id, values);
@@ -85,7 +142,13 @@ export class SplatRuntime {
       const rows = participating.flatMap(([, demand]) =>
         demand.rows.map(row => ({...row, owner: {demand, row}}))
       );
-      const total = Math.min(...participating.map(([, demand]) => demand.maxTotalSplats));
+      const total = Math.max(
+        0,
+        Math.min(
+          ...participating.map(([, demand]) => demand.maxTotalSplats),
+          operation === 0 ? this.sceneLimit : Infinity
+        ) - (operation === 0 ? this.sceneGrant : 0)
+      );
       const limits = ({demand}: {demand: Demand}): SplatBudgetLimit[] => {
         const result: SplatBudgetLimit[] = [{key: demand, budget: demand.maxSplats * 0.75}];
         for (let group = demand.group; group; group = group.parent)
