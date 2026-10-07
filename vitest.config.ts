@@ -103,6 +103,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@luma.gl/webgl',
     '@luma.gl/webgpu',
     'apache-arrow',
+    'three',
     'zod'
   ]
 };
@@ -221,7 +222,7 @@ const CONFIG = defineConfig({
           name: 'examples',
           environment: 'node',
           include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-          exclude: ['examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}']
+          exclude: ['**/node_modules/**', 'examples/**/dist/**', 'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}']
         }
       }
     ]

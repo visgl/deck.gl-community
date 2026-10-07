@@ -62,7 +62,7 @@ The allocator retains every visible owner and spends remaining submissions on pr
 
 ## Example
 
-Streaming sources are supplied by the host. Performance observations depend on hardware, visible crown support and the source workload.
+[Tree World](/examples/layers/tree-world) uses an explicitly synthetic inventory with count and density controls. Its performance observations are hardware and workload dependent.
 
 ### Shared canopy selection
 

@@ -149,6 +149,10 @@ The highest source detail remains available. Cost depends on the visible crowns,
 
 `getCoverageWeight` applies to wood, fallback trunks, foliage and every crop kind, including their picking and shadow passes. It defaults to one and supports optical canopy fades and matching wood coverage during streamed replacement. Automatic wood refinement blends the connected fine and coarse skeletons with complementary pixel coverage. Native wood cross-sections follow `getTrunkRadius` independently of canopy spread; branch centerlines remain aligned with the leaf growth structure.
 
+## Examples
+
+[Tree Lab](/examples/layers/tree-lab) compares Gaussian crowns with an explicitly named mesh reference. [Citrus Lab](/examples/layers/citrus-lab) edits botanical traits, crops, sun and seasons. [Tree Forest](/examples/layers/tree-forest) and [Tree World](/examples/layers/tree-world) exercise bounded rendering and synthetic streaming.
+
 ### Prepared canopy assets
 
 Canopy sublayers use `SplatLayer` with owner rows, cached `prepared-splats` descriptors through

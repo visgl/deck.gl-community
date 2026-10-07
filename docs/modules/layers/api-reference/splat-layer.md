@@ -160,7 +160,7 @@ A Gaussian is translucent; an ordinary depth-only shadow map cannot represent it
 
 The pass accepts deck.gl layer-pass options and exposes `transmission`, a texture that a host combines with opaque shadow coverage. This API represents a planar receiver below all foliage. It does not provide volumetric self-shadowing or receiver-depth-dependent transmission on arbitrary terrain. A host must allocate bounded light maps and combine this transmission with opaque coverage. Ordinary `LightingEffect` still casts opaque tree wood and crop shadows, but needs this host integration to include translucent foliage. Optical shadow integration is WebGL-only; WebGPU foliage rendering and wind are supported.
 
-See `TreeLayer` for procedural leaf templates, connected branches and seasons.
+See [TreeLayer](./tree-layer.md) for procedural leaf templates, connected branches and seasons.
 
 ### Bounded refinement
 
@@ -172,7 +172,7 @@ See `TreeLayer` for procedural leaf templates, connected branches and seasons.
 
 Prepared `SplatSource.opticalDepths` optionally overrides peak `opacities`: transmission is `exp(-opticalDepth * Gaussian * coverageWeight)`. Color alpha scales this density once. This avoids saturation loss in dense aggregates and needs no additional vertex attribute. Authored sources without optical depths retain peak-alpha Gaussian semantics. Covariance aggregation preserves approximate projected mass averaged over orientation; it does not exactly reproduce every view of anisotropic leaves.
 
-A host can combine `SplatShadowPass` transmission with opaque mesh depth on a planar receiver. The source renderer is independent of any tree or example layer.
+The [Tree Lab](/examples/layers/tree-lab) host demonstrates planar optical foliage shadows with `SplatShadowPass`.
 
 ## Statistics
 
@@ -180,4 +180,5 @@ Read `layer.splatStats` after deck initializes the layer. It exposes `sourceCoun
 `visibleInstances`, `shadowInstances`, `renderedSplats`, `shadowSplats`, `coverageFloor`,
 `shadowCoverageFloor`, and `refiningInstances`. Submission counts include optical transition
 overlap. Source counts describe resolved source/hierarchy pairs, rather than GPU byte residency.
-These counters do not establish a hard GPU memory or frame-time cap. Sorted ordering applies within each viewport/domain.
+Use TreeLayer's `streamingStats` for geographic inventory cache statistics. These counters
+do not establish a hard GPU memory or frame-time cap. Sorted ordering applies within each viewport/domain.
