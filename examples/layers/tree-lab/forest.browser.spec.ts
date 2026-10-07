@@ -21,13 +21,17 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
   let frames = 0;
   const originalAfterRender = api.deck.props.onAfterRender;
   api.deck.setProps({
+    // Exercise all 20K native instances and controls without filling a full-size
+    // framebuffer on Linux SwiftShader. Dedicated lab tests assert full-resolution pixels.
+    useDevicePixels: 0.25,
     onAfterRender(context) {
       originalAfterRender?.(context);
       frames++;
     }
   });
-  const change = async (action: () => void) => {
+  const change = async (phase: string, action: () => void) => {
     const before = frames;
+    console.info(`Forest contract: ${phase}`);
     action();
     await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(before);
     expect(api.errors).toEqual([]);
@@ -42,17 +46,19 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     expect(api.count).toBe(10000);
     expect(container.querySelector('[aria-label="Detail"]')).toBeNull();
     expect((api.deck.props.layers[1] as TreeLayer).props).not.toHaveProperty('detail');
-    await change(() => container.querySelector<HTMLButtonElement>('[data-count="20000"]')!.click());
+    await change('20K source', () =>
+      container.querySelector<HTMLButtonElement>('[data-count="20000"]')!.click()
+    );
     expect(api.count).toBe(20000);
     expect((api.deck.props.layers[1] as {props: {data: unknown[]}}).props.data).toHaveLength(20000);
     const shadows = container.querySelector<HTMLInputElement>('[aria-label="Shadows"]')!;
     // Keep the actual 20K shadow on/off regression. Seasonal behavior is drawn
     // without shadows here; matched shadow pixels are covered by the lab tests.
     expect(shadows.checked).toBe(false);
-    await change(() => shadows.click());
+    await change('20K shadows', () => shadows.click());
     expect(shadows.checked).toBe(true);
     const pitch = container.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
-    await change(() => {
+    await change('80 degree pitch', () => {
       pitch.value = '80';
       pitch.dispatchEvent(new Event('input'));
     });
@@ -74,16 +80,18 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
       )
       .toBeLessThan(10000);
 
-    await change(() => shadows.click());
+    await change('shadows off', () => shadows.click());
     expect(shadows.checked).toBe(false);
     const season = container.querySelector<HTMLSelectElement>('[aria-label="Season"]')!;
     for (const value of ['winter', 'spring', 'summer', 'autumn']) {
-      await change(() => {
+      await change(value, () => {
         season.value = value;
         season.dispatchEvent(new Event('change'));
       });
     }
-    await change(() => container.querySelector<HTMLButtonElement>('#forest-view')!.click());
+    await change('forest overview', () =>
+      container.querySelector<HTMLButtonElement>('#forest-view')!.click()
+    );
     const viewport = api.deck.getViewports()[0];
     const halfSide = (Math.ceil(Math.sqrt(20000)) * 9 + 20) / 111320;
     for (const longitude of [-halfSide, halfSide]) {
