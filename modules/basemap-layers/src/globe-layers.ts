@@ -5,7 +5,7 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
-import {getStyleAccessor, getZoomBucket} from './style-accessor';
+import {getStyleAccessor, getStyleZoomKey, getZoomBucket} from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
@@ -97,8 +97,9 @@ function withOpacity(
   return [color[0], color[1], color[2], Math.round(alpha * opacity)];
 }
 
+/** Evaluates a style layer's paint at the integer zoom (see `getZoomBucket`). */
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
-  const properties = parseProperties(layer, {zoom});
+  const properties = parseProperties(layer, {zoom: getZoomBucket(zoom)});
   return Object.fromEntries(
     properties.map(entry => [Object.keys(entry)[0], Object.values(entry)[0]])
   );
@@ -114,11 +115,23 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
     return sourceFeatures;
   }
 
+  // MapLibre evaluates `["zoom"]` in filters at integer zooms.
   return filterFeatures({
     features: sourceFeatures,
     filter: styleLayer.filter,
-    globalProperties: {zoom}
+    globalProperties: {zoom: getZoomBucket(zoom)}
   });
+}
+
+/** The `minzoom`/`maxzoom` limits that `isStyleLayerVisibleAtZoom` compares against. */
+export function getStyleZoomLimits(
+  styleLayers: BasemapStyleLayer[],
+  source?: BasemapSource
+): (number | undefined)[] {
+  return styleLayers.flatMap(layer => [
+    layer.minzoom ?? source?.minzoom,
+    layer.maxzoom ?? source?.maxzoom
+  ]);
 }
 
 function isStyleLayerVisibleAtZoom(
@@ -400,8 +413,11 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
-    // `renderSubLayers` reads `zoom`, so regenerate tile sublayers when the integer zoom changes.
-    updateTriggers: {renderSubLayers: getZoomBucket(zoom)},
+    // `renderSubLayers` reads `zoom`: regenerate tile sublayers at integer zooms (evaluation) and at
+    // fractional layer limits (visibility).
+    updateTriggers: {
+      renderSubLayers: getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers, source))
+    },
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers = styleLayers
@@ -470,6 +486,15 @@ function getVectorSourceGroups(
   }
 
   return [...groups.values()];
+}
+
+/** All `minzoom`/`maxzoom` limits in a style, with each layer's source limits as fallback. */
+export function getStyleDefinitionZoomLimits(
+  styleDefinition: BasemapLayerGroup['styleDefinition']
+): (number | undefined)[] {
+  return (styleDefinition.layers || []).flatMap(layer =>
+    getStyleZoomLimits([layer], styleDefinition.sources?.[layer.source || ''])
+  );
 }
 
 export function getBasemapLayers({
@@ -547,7 +572,7 @@ function createSymbolSubLayer({
     config,
     mode,
     styleLayer,
-    zoom,
+    zoom: getZoomBucket(zoom),
     textColor: withOpacity(paint['text-color'], opacity),
     labelBackground: paint['text-halo-color']
       ? withOpacity(paint['text-halo-color'], paint['text-halo-width'] ? 255 : opacity)
