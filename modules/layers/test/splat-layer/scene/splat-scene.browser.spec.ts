@@ -194,7 +194,10 @@ describe('shared sorted SplatLayer domains', () => {
   }, 60_000);
   it('shares one affine-instanced source with independent tint and owner picking on both backends', async () => {
     await renderSorted('webgl', false, true);
-    if ((navigator as Navigator & {gpu?: unknown}).gpu) await renderSorted('webgpu', false, true);
+    const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
+    if (gpu && (await gpu.requestAdapter())) await renderSorted('webgpu', false, true);
+    else if (inject('requireWebGPU'))
+      throw new Error('A WebGPU adapter is required for this gate.');
   }, 60_000);
   it('globally orders overlapping sources independently of layer order on WebGL2', async () => {
     const first = await renderSorted('webgl', false);
@@ -204,7 +207,8 @@ describe('shared sorted SplatLayer domains', () => {
   it('globally orders overlapping sources independently of layer order on WebGPU', async ({
     skip
   }) => {
-    if (!(navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu) {
+    const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
+    if (!gpu || !(await gpu.requestAdapter())) {
       if (inject('requireWebGPU')) throw new Error('WebGPU required');
       skip();
     }
