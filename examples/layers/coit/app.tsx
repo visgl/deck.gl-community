@@ -159,7 +159,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <div className="coit-example">
       <div className="canvas-host" ref={containerRef} />
       <aside className="panel" aria-live="polite">
         <p className="eyebrow">deck.gl community · Composite SplatLayer</p>
@@ -218,6 +218,7 @@ export default function App() {
           onClick={() => {
             cancelAnimationFrame(animationRef.current);
             animationRef.current = 0;
+            setCameraTest('');
             deckRef.current?.setProps({
               viewState: getInitialViewState()
             });
@@ -237,7 +238,7 @@ export default function App() {
           </p>
         )}
       </aside>
-    </>
+    </div>
   );
 }
 

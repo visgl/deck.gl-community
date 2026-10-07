@@ -1,4 +1,8 @@
-:root {
+.coit-example {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   color: #152b31;
   background: #07151a;
   font-family:
@@ -6,35 +10,26 @@
   font-synthesis: none;
 }
 
-* {
+.coit-example * {
   box-sizing: border-box;
 }
 
-html,
-body,
-#app {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-}
-
-canvas {
+.coit-example canvas {
   display: block;
 }
 
-.canvas-host {
+.coit-example .canvas-host {
   background: #cafefe;
   width: 100%;
   height: 100%;
 }
 
-.panel {
+.coit-example .panel {
   position: absolute;
   top: 20px;
   left: 20px;
   z-index: 1;
-  width: min(360px, calc(100vw - 40px));
+  width: min(360px, calc(100% - 40px));
   padding: 18px;
   border: 1px solid rgb(255 255 255 / 68%);
   border-radius: 18px;
@@ -44,7 +39,7 @@ canvas {
   backdrop-filter: blur(18px);
 }
 
-.eyebrow {
+.coit-example .eyebrow {
   margin: 0 0 7px;
   color: #9fe7de;
   font-size: 11px;
@@ -53,27 +48,27 @@ canvas {
   text-transform: uppercase;
 }
 
-h1 {
+.coit-example h1 {
   margin: 0;
   font-size: 22px;
   font-weight: 650;
   letter-spacing: -0.025em;
 }
 
-.description {
+.coit-example .description {
   margin: 8px 0 16px;
   color: rgb(247 251 251 / 72%);
   font-size: 16px;
   line-height: 1.55;
 }
 
-.metrics {
+.coit-example .metrics {
   display: grid;
   gap: 9px;
   margin: 0;
 }
 
-.metric {
+.coit-example .metric {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -81,18 +76,18 @@ h1 {
   font-size: 12px;
 }
 
-.metric dt {
+.coit-example .metric dt {
   color: rgb(247 251 251 / 58%);
 }
 
-.metric dd {
+.coit-example .metric dd {
   margin: 0;
   color: #fff;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.status {
+.coit-example .status {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -104,7 +99,7 @@ h1 {
   line-height: 1.4;
 }
 
-.status::before {
+.coit-example .status::before {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;
@@ -114,19 +109,19 @@ h1 {
   content: "";
 }
 
-.status[data-phase="loading"]::before,
-.status[data-phase="refining"]::before,
-.status[data-phase="budget-limited"]::before {
+.coit-example .status[data-phase="loading"]::before,
+.coit-example .status[data-phase="refining"]::before,
+.coit-example .status[data-phase="budget-limited"]::before {
   background: #ffd08a;
   box-shadow: 0 0 0 4px rgb(255 208 138 / 14%);
 }
 
-.status[data-phase="error"]::before {
+.coit-example .status[data-phase="error"]::before {
   background: #ff9ba5;
   box-shadow: 0 0 0 4px rgb(255 155 165 / 14%);
 }
 
-button {
+.coit-example button {
   min-height: 44px;
   margin-top: 13px;
   padding: 8px 11px;
@@ -139,25 +134,25 @@ button {
   cursor: pointer;
 }
 
-button:hover {
+.coit-example button:hover {
   background: rgb(255 255 255 / 14%);
 }
 
-button:focus-visible {
+.coit-example button:focus-visible {
   outline: 2px solid #9fe7de;
   outline-offset: 2px;
 }
 
 @media (max-width: 600px) {
-  .panel {
+  .coit-example .panel {
     top: 12px;
     left: 12px;
-    width: calc(100vw - 24px);
+    width: calc(100% - 24px);
     padding: 15px;
     border-radius: 15px;
   }
 
-  h1 {
+  .coit-example h1 {
     font-size: 19px;
   }
 }
