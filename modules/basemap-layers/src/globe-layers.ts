@@ -464,8 +464,9 @@ function createVectorLayerGroup({
     },
     parameters: getTileParameters(mode),
     // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at each style zoom
-    // step (evaluation and filters), at fractional layer limits (visibility), and when the style changes. Two styles
-    // can share a source id and so this layer's id; deck.gl compares the style by identity.
+    // step (evaluation and filters), at fractional layer limits (visibility), and when the style
+    // changes. Two styles can share a source id and so this layer's id; deck.gl compares the
+    // style by identity.
     updateTriggers: {
       renderSubLayers: [getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)), styleDefinition]
     },

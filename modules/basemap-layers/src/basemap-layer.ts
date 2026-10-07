@@ -129,8 +129,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
 
   /**
    * Sublayers depend on the zoom, but only through `getStyleZoomKey`: style values step every
-   * `STYLE_ZOOM_STEP`, filters at integer zooms, and layer visibility changes at `minzoom`/`maxzoom`. Re-render when that key changes, not
-   * on every viewport change.
+   * `STYLE_ZOOM_STEP`, filters at integer zooms, and layer visibility changes at
+   * `minzoom`/`maxzoom`. Re-render when that key changes, not on every viewport change.
    */
   shouldUpdateState(params: UpdateParameters<this>): boolean {
     if (super.shouldUpdateState(params)) {
