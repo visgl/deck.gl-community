@@ -55,9 +55,15 @@ export function getWorldPosition(x: number, y: number, z: number): [number, numb
 export function getWorldSourceSettings(options: WorldSourceOptions = {}) {
   const count = Math.max(
     1,
-    Math.min(Number.MAX_SAFE_INTEGER, Math.round(options.count ?? WORLD_TREE_COUNT))
+    Math.min(
+      Number.MAX_SAFE_INTEGER,
+      Math.round(Number.isFinite(options.count) ? options.count! : WORLD_TREE_COUNT)
+    )
   );
-  const density = Math.max(0, Math.min(800, options.density ?? 0));
+  const density = Math.max(
+    0,
+    Math.min(800, Number.isFinite(options.density) ? options.density! : 0)
+  );
   const [west, north] = getWorldPosition(127, 127, PATCH_ZOOM),
     [east, south] = getWorldPosition(128, 128, PATCH_ZOOM);
   const hectares = Math.abs((east - west) * 111320 * (north - south) * 111320) / 10000;

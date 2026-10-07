@@ -7,7 +7,7 @@ export default makeImperativeExample(
     code: `${GITHUB_TREE}/examples/layers/tree-lab`,
     async mount(container) {
       const {mountTreeWorldExample} = await import('../../../../examples/layers/tree-lab/world');
-      return mountTreeWorldExample(container);
+      return mountTreeWorldExample(container, {forestHref: './tree-forest', comparisonHref: './tree-lab'});
     }
   },
   {addInfoPanel: false}

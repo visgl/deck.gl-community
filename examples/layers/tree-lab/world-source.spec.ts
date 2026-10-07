@@ -89,3 +89,23 @@ it('keeps distant crown volumes physical rather than stretching them above the r
     expect(crown.scale[1]).toBeLessThan(36);
   }
 });
+
+it.each([
+  NaN,
+  Infinity,
+  -Infinity
+])('falls back from non-finite source settings %s', async value => {
+  const options = {count: value, density: value};
+  expect(getWorldTileCount(0, 0, 0, options)).toBe(WORLD_TREE_COUNT);
+  expect(getWorldSourceSettings(options)).toEqual(getWorldSourceSettings());
+  await expect(
+    getSyntheticWorldTile(
+      {
+        index: {x: 0, y: 0, z: 0},
+        id: 'world',
+        bbox: {west: -180, east: 180, south: -85, north: 85}
+      },
+      options
+    )
+  ).resolves.toHaveProperty('canopies');
+});

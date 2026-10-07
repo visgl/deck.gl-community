@@ -17,14 +17,23 @@ import {createTreeProfiler} from './tree-profiler';
 import './style.css';
 
 /** Synthetic global address space, bounded tile residency and batched native tree rendering. */
-export function mountTreeWorldExample(container: HTMLElement): () => void {
+export function mountTreeWorldExample(
+  container: HTMLElement,
+  {forestHref = './forest.html', comparisonHref = './index.html'} = {}
+): () => void {
   const query = new URLSearchParams(location.search);
+  const getQueryNumber = (key: string, fallback: number) => {
+    const value = Number(query.get(key) ?? fallback);
+    return Number.isFinite(value) ? value : fallback;
+  };
   const profiler = query.get('profileCpu') === '1' ? createTreeProfiler() : null;
   let drawStart = 0;
   const renderCalls: number[] = [];
   const sourceOptions: WorldSourceOptions = {
-    count: Number(query.get('count') ?? WORLD_TREE_COUNT),
-    density: Number(query.get('density') ?? 400),
+    count: Math.round(
+      Math.max(1, Math.min(Number.MAX_SAFE_INTEGER, getQueryNumber('count', WORLD_TREE_COUNT)))
+    ),
+    density: Math.max(0, Math.min(800, getQueryNumber('density', 400))),
     profile: query.get('profile') === 'mixed' ? 'mixed' : 'rainforest'
   };
   let sourceRevision = 0,
@@ -39,16 +48,12 @@ export function mountTreeWorldExample(container: HTMLElement): () => void {
     season: SEASONS.find(season => season === query.get('season')) ?? 'summer'
   };
   let camera: MapViewState = {
-    longitude: Number(query.get('longitude') ?? 0.00055),
-    latitude: Number(query.get('latitude') ?? 0.00055),
-    zoom: Number(query.get('zoom') ?? 18),
-    position: [
-      0,
-      0,
-      Number(query.get('target') ?? (sourceOptions.profile === 'rainforest' ? 42 : 12))
-    ],
-    pitch: Number(query.get('pitch') ?? 70),
-    bearing: Number(query.get('bearing') ?? 20),
+    longitude: getQueryNumber('longitude', 0.00055),
+    latitude: getQueryNumber('latitude', 0.00055),
+    zoom: getQueryNumber('zoom', 18),
+    position: [0, 0, getQueryNumber('target', sourceOptions.profile === 'rainforest' ? 42 : 12)],
+    pitch: getQueryNumber('pitch', 70),
+    bearing: getQueryNumber('bearing', 20),
     minZoom: 0,
     maxZoom: 23,
     maxPitch: 80
@@ -79,8 +84,10 @@ export function mountTreeWorldExample(container: HTMLElement): () => void {
     <label class="toggle"><input type="checkbox" aria-label="Wind">Wind</label><label class="toggle"><input type="checkbox" aria-label="Shadows">Shadows</label><button id="world-measure">Measure moving view</button></div>
     <div class="forest-stage"><div class="canvas"></div><div class="forest-caption"><strong id="world-residency">Loading the forest…</strong><span id="world-work">Waiting for crowns…</span><span id="world-frame">Measuring draws…</span></div></div>
     <div class="status" aria-live="polite">Preparing source…</div><details><summary>Measurements</summary><pre id="world-results">Measure the current scale to capture raw frame intervals and residency.</pre></details>
-    <footer class="footer"><a href="./forest.html">20K forest</a> · <a href="./index.html">Species comparison</a> · Synthetic capacity of <span id="world-total-count">${(sourceOptions.count ?? WORLD_TREE_COUNT).toLocaleString()}</span> records; this is not a real global inventory. Rainforest structure uses synthetic broadleaf forms, inspired by closed tropical canopies; it is not Jaú inventory or species data. Web Mercator does not cover the poles.</footer>`;
+    <footer class="footer"><a data-world-link="forest">20K forest</a> · <a data-world-link="comparison">Species comparison</a> · Synthetic capacity of <span id="world-total-count">${(sourceOptions.count ?? WORLD_TREE_COUNT).toLocaleString()}</span> records; this is not a real global inventory. Rainforest structure uses synthetic broadleaf forms, inspired by closed tropical canopies; it is not Jaú inventory or species data. Web Mercator does not cover the poles.</footer>`;
   container.replaceChildren(root);
+  root.querySelector<HTMLAnchorElement>('[data-world-link="forest"]')!.href = forestHref;
+  root.querySelector<HTMLAnchorElement>('[data-world-link="comparison"]')!.href = comparisonHref;
   const stage = root.querySelector<HTMLDivElement>('.canvas')!;
   stage.style.background = '#f3f4f2';
   const status = root.querySelector('.status')!;
@@ -290,7 +297,7 @@ export function mountTreeWorldExample(container: HTMLElement): () => void {
       deck.setProps({viewState: camera});
     };
   button.onclick = () => {
-    if (!ready) return;
+    if (!ready || measuring || document.visibilityState !== 'visible') return;
     measuring = true;
     lastFrame = 0;
     measured.length = 0;
@@ -303,6 +310,15 @@ export function mountTreeWorldExample(container: HTMLElement): () => void {
     measureHeight = stage.clientHeight;
     button.disabled = true;
   };
+  const onVisibilityChange = () => {
+    if (measuring && document.visibilityState !== 'visible') {
+      measuring = false;
+      button.disabled = false;
+      root.querySelector('#world-results')!.textContent =
+        'Visibility changed during measurement. Keep the page visible and rerun.';
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
   const tick = (now: number) => {
     if (disposed) return;
     if (measuring) {
@@ -363,6 +379,8 @@ export function mountTreeWorldExample(container: HTMLElement): () => void {
     disposed = true;
     cancelAnimationFrame(request);
     clearTimeout(densityTimer);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    profiler?.dispose();
     deck.finalize();
     container.replaceChildren();
   };

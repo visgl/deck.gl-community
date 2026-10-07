@@ -151,3 +151,38 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
     history.replaceState(null, '', originalUrl);
   }
 }, 60000);
+
+it('keeps the current flyover position when pitch is changed', async () => {
+  const originalUrl = location.href;
+  const queryUrl = new URL(originalUrl);
+  queryUrl.search = '?count=1&fly=0&sun=0&wind=0&shadows=0';
+  history.replaceState(null, '', queryUrl);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const cleanup = mountTreeForestExample(container);
+  const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+  try {
+    await expect.poll(() => api.ready, {timeout: 15000}).toBe(true);
+    const flyover = container.querySelector<HTMLInputElement>('[aria-label="Flyover"]')!;
+    flyover.click();
+    const pose = () =>
+      api.deck.props.viewState as {
+        longitude: number;
+        latitude: number;
+        bearing: number;
+        pitch: number;
+      };
+    await expect.poll(() => pose().latitude).not.toBe(0);
+    flyover.click();
+    const current = {...pose()};
+    const pitch = container.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
+    pitch.value = '75';
+    pitch.dispatchEvent(new Event('input'));
+    expect(pose()).toMatchObject({...current, pitch: 75});
+    expect(api.errors).toEqual([]);
+  } finally {
+    cleanup();
+    container.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+});

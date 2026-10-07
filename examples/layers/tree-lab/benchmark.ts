@@ -174,118 +174,130 @@ export function mountTreeBenchmark(
     }
   });
   const measure = async (durationMs = 5000) => {
-    if (!ready || measuring || document.hidden)
+    if (!ready || measuring || document.visibilityState !== 'visible')
       throw new Error(
         'Keep this benchmark visible; wait for readiness and any running measurement.'
       );
     measuring = true;
-    const resizeAtStart = resizeRevision;
-    const visibilityAtStart = document.visibilityState;
-    const focusedAtStart = document.hasFocus();
-    const idleStartFrame = frame;
-    const idleStart = performance.now();
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const idleRenderedFrames = frame - idleStartFrame;
-    const idleDurationMs = performance.now() - idleStart;
-    const gaps: number[] = [];
-    const longTasks: {duration: number; startTime: number}[] = [];
-    const observer = new PerformanceObserver(list => {
-      for (const entry of list.getEntries())
-        longTasks.push({duration: entry.duration, startTime: entry.startTime});
-    });
-    if (PerformanceObserver.supportedEntryTypes.includes('longtask'))
-      observer.observe({type: 'longtask'});
-    renderCalls.length = 0;
-    metrics.length = 0;
-    profiler?.reset();
-    const start = performance.now();
-    const startFrame = frame;
-    let previous = start;
-    await new Promise<void>(resolve => {
-      const tick = (now: number) => {
-        gaps.push(now - previous);
-        previous = now;
-        const elapsed = now - start;
-        deck.setProps({
-          viewState: {
-            ...camera,
-            bearing: (camera.bearing ?? 22) + (elapsed / durationMs) * 90,
-            ...(motion === 'flyover'
-              ? {
-                  longitude:
-                    (camera.longitude ?? 0) +
-                    ((Math.cos((elapsed / durationMs) * Math.PI * 2) - 1) * 40) / 111320,
-                  latitude:
-                    (camera.latitude ?? 0) +
-                    (Math.sin((elapsed / durationMs) * Math.PI * 2) * 40) / 111320
-                }
-              : {})
-          }
-        });
-        if (elapsed < durationMs) requestAnimationFrame(tick);
-        else resolve();
-      };
-      requestAnimationFrame(tick);
-    });
-    observer.disconnect();
-    measuring = false;
-    if (resizeRevision !== resizeAtStart)
-      throw new Error('Viewport resized during measurement. Rerun at one viewport size.');
-    const sorted = [...gaps].sort((a, b) => a - b);
-    const sortedRenderCalls = [...renderCalls].sort((a, b) => a - b);
-    const result = {
-      renderer,
-      profile: profiler?.read(),
-      metrics: [...metrics],
-      timestampQueriesSupported: device.features.has('timestamp-query'),
-      visibilityAtStart,
-      focusedAtStart,
-      visibilityAtEnd: document.visibilityState,
-      camera,
-      view,
-      motion,
-      species,
-      count,
-      options,
-      backend: device.type,
-      device: device.info,
-      firstFrameMs,
-      renderedFrames: frame - startFrame,
-      idleRenderedFrames,
-      idleDurationMs,
-      viewport: {width: deck.width, height: deck.height, devicePixelRatio: 1},
-      durationMs: performance.now() - start,
-      deliveredFramesPerSecond: ((frame - startFrame) * 1000) / (performance.now() - start),
-      treeInstances: data.length,
-      geometry: (() => {
-        const leaves = (layer: Layer): Layer[] =>
-          layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(leaves) : [layer];
-        return (deck.props.layers as Layer[]).flatMap(leaves).map(layer => ({
-          id: layer.id,
-          operation: layer.props.operation,
-          owners: layer.getNumInstances(),
-          gaussians: (layer.props as any).source?.opacities.length ?? 0,
-          triangles: ((layer.getModels()[0]?.vertexCount ?? 0) / 3) * layer.getNumInstances()
-        }));
-      })(),
-      renderCallMedianMs: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.5)] ?? null,
-      renderCallP95Ms: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.95)] ?? null,
-      medianFrameMs: sorted[Math.floor(sorted.length * 0.5)],
-      p95FrameMs: sorted[Math.floor(sorted.length * 0.95)],
-      maxFrameMs: sorted.at(-1),
-      over33ms: gaps.filter(gap => gap > 33.3).length,
-      longTaskCount: longTasks.length,
-      longTaskMs: longTasks.reduce((sum, entry) => sum + entry.duration, 0),
-      heapBytes:
-        (performance as Performance & {memory?: {usedJSHeapSize: number}}).memory?.usedJSHeapSize ??
-        null,
-      userAgent: navigator.userAgent,
-      navigation: performance.getEntriesByType('navigation')[0]?.toJSON(),
-      resources: performance.getEntriesByType('resource').map(entry => entry.toJSON()),
-      errors: [...errors]
+    let visibilityInterrupted = false;
+    let observer: PerformanceObserver | undefined;
+    const onVisibilityChange = () => {
+      visibilityInterrupted ||= document.visibilityState !== 'visible';
     };
-    parent.querySelector('#result')!.textContent = JSON.stringify(result, null, 2);
-    return result;
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    try {
+      const resizeAtStart = resizeRevision;
+      const visibilityAtStart = document.visibilityState;
+      const focusedAtStart = document.hasFocus();
+      const idleStartFrame = frame;
+      const idleStart = performance.now();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const idleRenderedFrames = frame - idleStartFrame;
+      const idleDurationMs = performance.now() - idleStart;
+      const gaps: number[] = [];
+      const longTasks: {duration: number; startTime: number}[] = [];
+      observer = new PerformanceObserver(list => {
+        for (const entry of list.getEntries())
+          longTasks.push({duration: entry.duration, startTime: entry.startTime});
+      });
+      if (PerformanceObserver.supportedEntryTypes.includes('longtask'))
+        observer.observe({type: 'longtask'});
+      renderCalls.length = 0;
+      metrics.length = 0;
+      profiler?.reset();
+      const start = performance.now();
+      const startFrame = frame;
+      let previous = start;
+      await new Promise<void>(resolve => {
+        const tick = (now: number) => {
+          gaps.push(now - previous);
+          previous = now;
+          const elapsed = now - start;
+          deck.setProps({
+            viewState: {
+              ...camera,
+              bearing: (camera.bearing ?? 22) + (elapsed / durationMs) * 90,
+              ...(motion === 'flyover'
+                ? {
+                    longitude:
+                      (camera.longitude ?? 0) +
+                      ((Math.cos((elapsed / durationMs) * Math.PI * 2) - 1) * 40) / 111320,
+                    latitude:
+                      (camera.latitude ?? 0) +
+                      (Math.sin((elapsed / durationMs) * Math.PI * 2) * 40) / 111320
+                  }
+                : {})
+            }
+          });
+          if (elapsed < durationMs) requestAnimationFrame(tick);
+          else resolve();
+        };
+        requestAnimationFrame(tick);
+      });
+      if (resizeRevision !== resizeAtStart)
+        throw new Error('Viewport resized during measurement. Rerun at one viewport size.');
+      if (visibilityInterrupted || document.visibilityState !== 'visible')
+        throw new Error('Visibility changed during measurement. Keep the page visible and rerun.');
+      const sorted = [...gaps].sort((a, b) => a - b);
+      const sortedRenderCalls = [...renderCalls].sort((a, b) => a - b);
+      const result = {
+        renderer,
+        profile: profiler?.read(),
+        metrics: [...metrics],
+        timestampQueriesSupported: device.features.has('timestamp-query'),
+        visibilityAtStart,
+        focusedAtStart,
+        visibilityAtEnd: document.visibilityState,
+        camera,
+        view,
+        motion,
+        species,
+        count,
+        options,
+        backend: device.type,
+        device: device.info,
+        firstFrameMs,
+        renderedFrames: frame - startFrame,
+        idleRenderedFrames,
+        idleDurationMs,
+        viewport: {width: deck.width, height: deck.height, devicePixelRatio: 1},
+        durationMs: performance.now() - start,
+        deliveredFramesPerSecond: ((frame - startFrame) * 1000) / (performance.now() - start),
+        treeInstances: data.length,
+        geometry: (() => {
+          const leaves = (layer: Layer): Layer[] =>
+            layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(leaves) : [layer];
+          return (deck.props.layers as Layer[]).flatMap(leaves).map(layer => ({
+            id: layer.id,
+            operation: layer.props.operation,
+            owners: layer.getNumInstances(),
+            gaussians: (layer.props as any).source?.opacities.length ?? 0,
+            triangles: ((layer.getModels()[0]?.vertexCount ?? 0) / 3) * layer.getNumInstances()
+          }));
+        })(),
+        renderCallMedianMs: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.5)] ?? null,
+        renderCallP95Ms: sortedRenderCalls[Math.floor(sortedRenderCalls.length * 0.95)] ?? null,
+        medianFrameMs: sorted[Math.floor(sorted.length * 0.5)],
+        p95FrameMs: sorted[Math.floor(sorted.length * 0.95)],
+        maxFrameMs: sorted.at(-1),
+        over33ms: gaps.filter(gap => gap > 33.3).length,
+        longTaskCount: longTasks.length,
+        longTaskMs: longTasks.reduce((sum, entry) => sum + entry.duration, 0),
+        heapBytes:
+          (performance as Performance & {memory?: {usedJSHeapSize: number}}).memory
+            ?.usedJSHeapSize ?? null,
+        userAgent: navigator.userAgent,
+        navigation: performance.getEntriesByType('navigation')[0]?.toJSON(),
+        resources: performance.getEntriesByType('resource').map(entry => entry.toJSON()),
+        errors: [...errors]
+      };
+      parent.querySelector('#result')!.textContent = JSON.stringify(result, null, 2);
+      return result;
+    } finally {
+      observer?.disconnect();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      measuring = false;
+    }
   };
   const runSamples = async (count: number) => {
     const buttons = parent.querySelectorAll<HTMLButtonElement>('button');
@@ -313,16 +325,21 @@ export function mountTreeBenchmark(
   };
   parent.querySelector('#measure')!.addEventListener('click', () => void runSamples(1));
   parent.querySelector('#repeat')!.addEventListener('click', () => void runSamples(3));
-  Object.assign(window, {
-    treeBenchmark: {
-      get ready() {
-        return ready;
-      },
-      get errors() {
-        return [...errors];
-      },
-      measure,
-      deck
-    }
-  });
+  const api = {
+    get ready() {
+      return ready;
+    },
+    get errors() {
+      return [...errors];
+    },
+    measure,
+    deck
+  };
+  Object.assign(window, {treeBenchmark: api});
+  return () => {
+    profiler?.dispose();
+    deck.finalize();
+    const reviewWindow = window as Window & {treeBenchmark?: typeof api};
+    if (reviewWindow.treeBenchmark === api) delete reviewWindow.treeBenchmark;
+  };
 }

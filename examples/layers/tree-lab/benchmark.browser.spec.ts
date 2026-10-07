@@ -7,7 +7,7 @@
 
 import type {Deck} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/layers';
-import {expect, it} from 'vitest';
+import {expect, it, vi} from 'vitest';
 import {mountTreeBenchmark} from './benchmark';
 
 type BenchmarkApi = {
@@ -38,7 +38,7 @@ it.each([
   parent.style.width = '640px';
   parent.style.height = '480px';
   document.body.append(parent);
-  mountTreeBenchmark(TreeLayer, 'native');
+  const cleanup = mountTreeBenchmark(TreeLayer, 'native');
   const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
   try {
     expect(parent.querySelector('#tree-query-injection')).toBeNull();
@@ -51,7 +51,7 @@ it.each([
     expect(layers[1].props).not.toHaveProperty('detail');
     expect(document.documentElement.dataset.treeQueryInjected).toBeUndefined();
   } finally {
-    api.deck.finalize();
+    cleanup();
     parent.remove();
     delete document.documentElement.dataset.treeQueryInjected;
     history.replaceState(null, '', originalUrl);
@@ -68,7 +68,7 @@ it('submits all 20,000 requested tree instances to the renderer', async () => {
   parent.style.width = '640px';
   parent.style.height = '480px';
   document.body.append(parent);
-  mountTreeBenchmark(TreeLayer, 'native');
+  const cleanup = mountTreeBenchmark(TreeLayer, 'native');
   const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
   try {
     await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
@@ -83,7 +83,7 @@ it('submits all 20,000 requested tree instances to the renderer', async () => {
     expect(sample.renderCallP95Ms!).toBeGreaterThanOrEqual(0);
     expect(api.errors).toEqual([]);
   } finally {
-    api.deck.finalize();
+    cleanup();
     parent.remove();
     history.replaceState(null, '', originalUrl);
   }
@@ -98,7 +98,7 @@ it('refits overview after resize and rejects measurements across viewport sizes'
   parent.id = 'app';
   parent.style.width = '900px';
   document.body.append(parent);
-  mountTreeBenchmark(TreeLayer, 'native');
+  const cleanup = mountTreeBenchmark(TreeLayer, 'native');
   const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
   try {
     await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
@@ -123,8 +123,36 @@ it('refits overview after resize and rejects measurements across viewport sizes'
     await expect(api.measure(250)).resolves.toMatchObject({treeInstances: 100, view: 'overview'});
     expect(api.errors).toEqual([]);
   } finally {
-    api.deck.finalize();
+    cleanup();
     parent.remove();
     history.replaceState(null, '', originalUrl);
   }
 }, 30000);
+
+it('rejects hidden and visible interruptions even when both endpoints are visible', async () => {
+  const originalUrl = location.href;
+  const queryUrl = new URL(originalUrl);
+  queryUrl.search = '?count=1&wind=0&shadows=0';
+  history.replaceState(null, '', queryUrl);
+  const parent = document.createElement('div');
+  parent.id = 'app';
+  document.body.append(parent);
+  const cleanup = mountTreeBenchmark(TreeLayer, 'native');
+  const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
+  const visibility = vi.spyOn(document, 'visibilityState', 'get');
+  try {
+    await expect.poll(() => api.ready, {timeout: 15000}).toBe(true);
+    const rejected = expect(api.measure(100)).rejects.toThrow('Visibility changed');
+    visibility.mockReturnValue('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    visibility.mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await rejected;
+    await expect(api.measure(100)).resolves.toMatchObject({treeInstances: 1});
+  } finally {
+    visibility.mockRestore();
+    cleanup();
+    parent.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+});

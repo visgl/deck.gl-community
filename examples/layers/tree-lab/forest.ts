@@ -239,7 +239,8 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
           next.longitude = Math.sin(phase * 0.7) * 0.00065;
           next.latitude = Math.cos(phase * 0.7) * 0.00065;
         }
-        deck.setProps({viewState: next});
+        camera = next;
+        deck.setProps({viewState: camera});
       }
     }
     request = requestAnimationFrame(tick);
