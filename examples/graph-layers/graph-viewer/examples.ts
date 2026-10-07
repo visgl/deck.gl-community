@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {DOTGraphLoader, ArrowGraph} from '@deck.gl-community/graph-layers';
-import type {ArrowGraphData} from '@deck.gl-community/graph-layers';
+import {DOTLoaderWithParser} from '@loaders.gl/graphs/dot-loader';
+import {ClassicGraph} from '@deck.gl-community/graph-layers';
+import type {PlainGraphData} from '@deck.gl-community/graph-layers';
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 import type {
   ExampleDefinition,
@@ -537,35 +538,12 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 const DOT_FIXTURE_BASE_URL =
   'https://raw.githubusercontent.com/visgl/deck.gl-community/refs/heads/master/modules/graph-layers/test/data/__fixtures__/dot/';
 
-type DotGraphLoaderResult = {graph?: ArrowGraph | null};
-
-function isDotGraphLoaderResult(value: unknown): value is DotGraphLoaderResult {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  return (
-    'graph' in (value as DotGraphLoaderResult) && Boolean((value as DotGraphLoaderResult).graph)
-  );
-}
-
-function isArrowGraphData(value: unknown): value is ArrowGraphData {
-  const candidate = value as ArrowGraphData;
-  return Boolean(
-    candidate && typeof candidate === 'object' && candidate.shape === 'arrow-graph-data'
-  );
-}
-
 const DOT_RESULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
-  if (isArrowGraphData(json)) {
-    return new ArrowGraph({data: json});
+  const data = json as PlainGraphData;
+  if (!data || data.shape !== 'plain-graph-data') {
+    return null;
   }
-
-  if (isDotGraphLoaderResult(json)) {
-    return json.graph ?? null;
-  }
-
-  return null;
+  return new ClassicGraph({data});
 };
 
 const DOT_UNDIRECTED_STYLE: ExampleStyles = {
@@ -921,9 +899,9 @@ export const EXAMPLES: ExampleDefinition[] = [
   {
     name: 'Karate club (DOT)',
     description:
-      "Fetches the Zachary karate club social network from the repository's DOT fixtures using the DOTGraphLoader.",
+      "Fetches the Zachary karate club social network from the repository's DOT fixtures using the DOTLoaderWithParser.",
     dataUrl: `${DOT_FIXTURE_BASE_URL}karate.dot`,
-    loaders: [DOTGraphLoader],
+    loaders: [DOTLoaderWithParser],
     graphLoader: DOT_RESULT_GRAPH_LOADER,
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
@@ -935,7 +913,7 @@ export const EXAMPLES: ExampleDefinition[] = [
     description:
       'Loads a directed workflow with clustered subgraphs defined in DOT format directly from GitHub.',
     dataUrl: `${DOT_FIXTURE_BASE_URL}cluster.dot`,
-    loaders: [DOTGraphLoader],
+    loaders: [DOTLoaderWithParser],
     graphLoader: DOT_RESULT_GRAPH_LOADER,
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,

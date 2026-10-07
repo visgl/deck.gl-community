@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {
-  Position,
-  FeatureCollection,
-  SimpleFeatureCollection,
-  SimpleFeature
-} from '../utils/geojson-types';
+import {Position, SimpleFeatureCollection, SimpleFeature} from '../utils/geojson-types';
 import {
   PointerMoveEvent,
   StartDraggingEvent,
@@ -27,6 +22,7 @@ import {GeoJsonEditMode} from './geojson-edit-mode';
 
 type MovementTypeEvent = PointerMoveEvent | StartDraggingEvent | StopDraggingEvent | DraggingEvent;
 
+/** Wraps a GeoJSON edit mode with snapping for SimpleFeatureCollection data. */
 export class SnappableMode extends GeoJsonEditMode {
   _handler: GeoJsonEditMode;
 
@@ -155,7 +151,7 @@ export class SnappableMode extends GeoJsonEditMode {
 
   _getSnapAwareEvent<T extends MovementTypeEvent>(
     event: T,
-    props: ModeProps<FeatureCollection>
+    props: ModeProps<SimpleFeatureCollection>
   ): T {
     const snapSource = this._getPickedSnapSource(props.lastPointerMoveEvent.pointerDownPicks);
     const snapTarget = this._getPickedSnapTarget(event.picks);
@@ -165,19 +161,19 @@ export class SnappableMode extends GeoJsonEditMode {
       : event;
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     this._handler.handleStartDragging(event, props);
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     this._handler.handleStopDragging(this._getSnapAwareEvent(event, props), props);
   }
 
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     this._handler.handleDragging(this._getSnapAwareEvent(event, props), props);
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     this._handler.handlePointerMove(this._getSnapAwareEvent(event, props), props);
   }
 }

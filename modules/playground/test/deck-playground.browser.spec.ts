@@ -11,6 +11,7 @@ import {
 } from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {CustomPanel} from '@deck.gl-community/panels';
 
 import {DeckPlayground, Playground, ScatterplotLayerSchema} from '../src/index';
 
@@ -113,6 +114,110 @@ afterEach(() => {
 });
 
 describe('Playground rendering lifecycle', () => {
+  it('customizes text documents, metadata, layout and host tabs', async () => {
+    const onChange = vi.fn();
+    const onError = vi.fn();
+    const cleanup = vi.fn();
+    const host = createHost();
+    const playground = new Playground({
+      parentElement: host,
+      templates: {first: 'hello', second: 'world'},
+      language: 'plaintext',
+      editorTitle: 'Document',
+      examplesTitle: 'Samples',
+      sidebarSide: 'right',
+      sidebarWidthPx: 360,
+      templateMetadata: {first: {title: 'Greeting', description: 'Plain text'}},
+      panels: [
+        new CustomPanel({
+          id: 'help',
+          title: 'Help',
+          onRenderHTML: root => {
+            root.textContent = 'Host help';
+            return cleanup;
+          }
+        })
+      ],
+      parse: text => {
+        if (text === 'invalid') throw new Error('Invalid document');
+        return text.toUpperCase();
+      },
+      renderer: {
+        update: (root, value) => {
+          root.textContent = String(value);
+        },
+        finalize: vi.fn()
+      },
+      onChange,
+      onError
+    });
+    PLAYGROUNDS.push(playground);
+    const tabs = () =>
+      Array.from(host.querySelectorAll<HTMLButtonElement>('[data-panel-tabs] button'));
+    expect(tabs().map(tab => tab.textContent)).toEqual(['Document', 'Samples', 'Help']);
+    expect(host.querySelector('[role="listbox"]')?.getAttribute('aria-label')).toBe('Samples');
+    expect(host.querySelector('[data-template="first"] strong')?.textContent).toBe('Greeting');
+    expect(host.querySelector('[role="dialog"]')?.getAttribute('style')).toContain('360px');
+    expect(host.querySelector('[data-sidebar-shell]')?.getAttribute('style')).toContain('right:');
+    expect(playground.previewElement.textContent).toBe('HELLO');
+    playground.setText('invalid');
+    expect(onError).toHaveBeenCalledOnce();
+    expect(playground.previewElement.textContent).toBe('HELLO');
+    tabs()[2].click();
+    playground.setTemplate('second');
+    expect(onChange).toHaveBeenLastCalledWith('WORLD', 'world');
+    const stack = host.querySelector('[data-panel-tabs]')?.parentElement?.children[1];
+    const activePanel = Array.from(stack?.children ?? []).find(
+      child => child.getAttribute('aria-hidden') === 'false'
+    );
+    expect(activePanel?.textContent).toBe('Host help');
+    host.style.width = '300px';
+    await vi.waitFor(() =>
+      expect(host.querySelector('[role="dialog"]')?.getAttribute('style')).toContain('240px')
+    );
+    playground.finalize();
+    expect(cleanup).toHaveBeenCalled();
+    expect(host.children).toHaveLength(0);
+  });
+
+  it('overrides embedded card metadata without changing the document', () => {
+    const onChange = vi.fn();
+    const playground = new Playground({
+      parentElement: createHost(),
+      templates: {
+        example: {name: 'Original', metadata: {title: 'Embedded', description: 'Details'}, value: 1}
+      },
+      templateMetadata: {example: {title: 'Override'}},
+      onChange
+    });
+    PLAYGROUNDS.push(playground);
+    expect(playground.parentElement.querySelector('[data-template] strong')?.textContent).toBe(
+      'Override'
+    );
+    expect(playground.parentElement.querySelector('[data-template] span')?.textContent).toBe(
+      'Details'
+    );
+    expect(onChange).toHaveBeenCalledWith({name: 'Original', value: 1}, expect.any(String));
+  });
+
+  it('shows top-level metadata in cards and keeps it in the editor document', () => {
+    const onChange = vi.fn();
+    const template = {name: 'Named example', description: 'Example description', layers: []};
+    const playground = new Playground({
+      parentElement: createHost(),
+      templates: {named: template, text: JSON.stringify(template)},
+      onChange
+    });
+    PLAYGROUNDS.push(playground);
+    for (const key of ['named', 'text']) {
+      const card = playground.parentElement.querySelector(`[data-template="${key}"]`);
+      expect(card?.textContent).toContain(template.name);
+      expect(card?.textContent).toContain(template.description);
+      playground.setTemplate(key);
+      expect(onChange).toHaveBeenLastCalledWith(template, expect.stringContaining('"name"'));
+    }
+  });
+
   it('keeps the example picker active after selecting an example', () => {
     const onChange = vi.fn();
     const playground = new Playground({
@@ -128,6 +233,9 @@ describe('Playground rendering lifecycle', () => {
     const tabList = playground.parentElement.querySelector('[data-panel-tabs]')!;
     const tabs = Array.from(tabList.querySelectorAll<HTMLButtonElement>('button'));
     expect(tabs.map(tab => tab.textContent)).toEqual(['JSON', 'Examples']);
+    expect(
+      playground.parentElement.querySelector('[role="listbox"]')?.getAttribute('aria-label')
+    ).toBe('Examples');
     const examplesTab = tabs[1];
     examplesTab.click();
     expect(playground.parentElement.querySelector('[data-template="second"]')).not.toBeNull();
@@ -260,6 +368,161 @@ describe('Playground rendering lifecycle', () => {
 });
 
 describe('DeckPlayground browser lifecycle', () => {
+  it('tilts and rotates with a shift-drag on the preview', async () => {
+    const {ready, onError} = mountDeck();
+    const {deck, canvas} = await ready();
+    const bounds = canvas.getBoundingClientRect();
+    const dispatch = (type: string, x: number, y: number) =>
+      canvas.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          shiftKey: true,
+          clientX: bounds.left + x,
+          clientY: bounds.top + y
+        })
+      );
+    dispatch('pointerdown', 650, 300);
+    for (let step = 1; step <= 5; step++) {
+      dispatch('pointermove', 650 + step * 20, 300 - step * 20);
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    }
+    dispatch('pointerup', 750, 200);
+    await vi.waitFor(() => {
+      const viewport = deck.getViewports()[0] as WebMercatorViewport;
+      expect(viewport.pitch).toBeGreaterThan(0);
+      expect(Math.abs(viewport.bearing)).toBeGreaterThan(0);
+    });
+    expect(onError).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it.each([
+    ['initialViewState', false],
+    ['initialViewState', true],
+    ['viewState', false],
+    ['viewState', true]
+  ] as const)(
+    'applies pitch and bearing edits in %s (keyed: %s)',
+    async (property, keyed) => {
+      const makeDocument = (camera: Record<string, number>) => ({
+        ...createDocument(),
+        name: 'Camera editing',
+        views: {'@@type': 'MapView', id: 'map'},
+        [property]: keyed ? {map: camera} : camera
+      });
+      const {playground, host, onError, ready} = mountDeck({
+        templates: {camera: makeDocument({...INITIAL_VIEW_STATE, pitch: 0, bearing: 0})}
+      });
+      const {deck, canvas} = await ready();
+      const finalize = vi.spyOn(deck, 'finalize');
+      for (const angles of [
+        {pitch: 45, bearing: 65},
+        {pitch: 25, bearing: -30}
+      ]) {
+        playground.setText(JSON.stringify(makeDocument({...INITIAL_VIEW_STATE, ...angles})));
+        expect(deck.getViewports()[0]).toMatchObject(angles);
+      }
+      playground.setText(JSON.stringify(makeDocument(INITIAL_VIEW_STATE)));
+      expect(deck.getViewports()[0]).toMatchObject({pitch: 0, bearing: 0});
+      expect(host.querySelector('canvas')).toBe(canvas);
+      expect(finalize).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+    },
+    20_000
+  );
+
+  it('accepts rapid name changes before the initial preview finishes loading', async () => {
+    const {playground, host, setProps, onLoad, onError} = mountDeck({
+      templates: {first: {...createDocument(), name: 'First'}}
+    });
+    playground.setText(JSON.stringify({...createDocument(7), name: 'Second'}));
+    playground.setText(JSON.stringify({...createDocument(11), name: 'Third'}));
+    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledOnce(), {timeout: 10_000});
+    const deck = setProps.mock.contexts.at(-1) as Deck;
+    await vi.waitFor(() =>
+      expect((deck.props.layers as ScatterplotLayer[])[0].isLoaded).toBe(true)
+    );
+    expect((deck.props.layers as ScatterplotLayer[])[0].props.getRadius).toBe(11);
+    expect(host.querySelectorAll('.deckgl-playground-preview > canvas')).toHaveLength(1);
+    expect(onError).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('resets all preview state on a name change but preserves it for description edits', async () => {
+    const original = {
+      ...createDocument(),
+      name: 'First',
+      description: 'Original scene',
+      parameters: {cullMode: 'front'},
+      pickingRadius: 20,
+      useDevicePixels: 1
+    };
+    const {playground, host, setProps, onLoad, onError, ready} = mountDeck({
+      templates: {first: original}
+    });
+    const {deck, canvas} = await ready();
+    await vi.waitFor(() =>
+      expect((deck.props.layers as ScatterplotLayer[])[0].isLoaded).toBe(true)
+    );
+    const state = (deck.props.layers as ScatterplotLayer[])[0].state;
+    const finalize = vi.spyOn(deck, 'finalize');
+    zoomCanvas(canvas);
+    await vi.waitFor(() => expect(deck.getViewports()[0].zoom).not.toBe(INITIAL_VIEW_STATE.zoom));
+    const zoom = deck.getViewports()[0].zoom;
+    playground.setText(JSON.stringify({...original, description: 'Edited description'}));
+    await vi.waitFor(() =>
+      expect((deck.props.layers as ScatterplotLayer[])[0].isLoaded).toBe(true)
+    );
+    expect((deck.props.layers as ScatterplotLayer[])[0].state).toBe(state);
+    expect(deck.getViewports()[0].zoom).toBe(zoom);
+    expect(host.querySelector('canvas')).toBe(canvas);
+    expect(finalize).not.toHaveBeenCalled();
+
+    playground.setText(JSON.stringify({...createDocument(9), name: 'Second'}));
+    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledTimes(2), {timeout: 10_000});
+    const nextDeck = setProps.mock.contexts.at(-1) as Deck;
+    await vi.waitFor(() =>
+      expect((nextDeck.props.layers as ScatterplotLayer[])[0].isLoaded).toBe(true)
+    );
+    expect(nextDeck).not.toBe(deck);
+    expect(finalize).toHaveBeenCalledOnce();
+    expect(host.querySelector('canvas')).toBe(canvas);
+    expect((nextDeck.props.layers as ScatterplotLayer[])[0].state).not.toBe(state);
+    expect(nextDeck.getViewports()[0].zoom).toBe(INITIAL_VIEW_STATE.zoom);
+    expect(nextDeck.props.parameters).toEqual(Deck.defaultProps.parameters);
+    expect(nextDeck.props.pickingRadius).toBe(Deck.defaultProps.pickingRadius);
+    expect(nextDeck.props.useDevicePixels).toBe(Deck.defaultProps.useDevicePixels);
+    expect(nextDeck.props).not.toHaveProperty('name');
+    expect(nextDeck.props).not.toHaveProperty('description');
+    expect(onError).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('waits for a renamed document to be accepted before resetting the preview', async () => {
+    const {playground, host, onLoad, ready, setProps} = mountDeck({
+      templates: {first: {...createDocument(), name: 'First'}}
+    });
+    const {deck, canvas} = await ready();
+    const finalize = vi.spyOn(deck, 'finalize');
+    playground.setText(JSON.stringify({name: 'Invalid', layers: [{id: 'unknown'}]}));
+    expect(finalize).not.toHaveBeenCalled();
+    const next = {...createDocument(), name: 'Pending'};
+    next.layers[0].data = {'@@data': 'next'};
+    playground.setText(JSON.stringify(next));
+    expect(host.querySelector('canvas')).toBe(canvas);
+    expect(finalize).not.toHaveBeenCalled();
+    expect(playground.setBindings({next: {data: ROWS}})).toBe(true);
+    await vi.waitFor(() => expect(onLoad).toHaveBeenCalledTimes(2), {timeout: 10_000});
+    const nextDeck = setProps.mock.contexts.at(-1) as Deck;
+    expect(finalize).toHaveBeenCalledOnce();
+    expect(nextDeck).not.toBe(deck);
+    const nextFinalize = vi.spyOn(nextDeck, 'finalize');
+    expect(playground.setBindings({next: {data: [ROWS[1]]}})).toBe(true);
+    expect(nextFinalize).not.toHaveBeenCalled();
+  }, 20_000);
+
   it('restores the selected template camera when both examples use the same view', async () => {
     const nextViewState = {longitude: -96, latitude: 37, zoom: 3};
     const {playground, host, onError, ready} = mountDeck({
@@ -291,7 +554,7 @@ describe('DeckPlayground browser lifecycle', () => {
 
     setProps.mockClear();
     const nextViewState = {...INITIAL_VIEW_STATE, zoom: 8};
-    playground.setText(JSON.stringify(createDocument(9, nextViewState)));
+    playground.setText(JSON.stringify(createDocument(9)));
     expect(host.querySelector('canvas')).toBe(canvas);
     expect(getLayer().props.getRadius).toBe(9);
     expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
@@ -304,6 +567,8 @@ describe('DeckPlayground browser lifecycle', () => {
     expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
     expect(onLoad).toHaveBeenCalledTimes(1);
 
+    playground.setText(JSON.stringify(createDocument(9, nextViewState)));
+    expect(deck.getViewports()[0].zoom).toBe(nextViewState.zoom);
     playground.resetView();
     expect(deck.getViewports()[0].zoom).toBe(nextViewState.zoom);
 
@@ -451,6 +716,7 @@ describe('DeckPlayground browser lifecycle', () => {
       expect.objectContaining({message: 'Missing playground data binding: replacement'})
     );
     expect(deck.props.layers).toBe(originalLayers);
+    expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
     expect(onChange).toHaveBeenCalledTimes(1);
 
     const rows = [{id: 'replacement', position: [-122.2, 37.9]}];
@@ -460,7 +726,7 @@ describe('DeckPlayground browser lifecycle', () => {
     expect(layer.props.getRadius).toBe(9);
     expect(layer.props.data).toBe(rows);
     expect(host.querySelector('canvas')).toBe(canvas);
-    expect(deck.getViewports()[0].zoom).toBe(interactiveZoom);
+    expect(deck.getViewports()[0].zoom).toBe(edited.initialViewState.zoom);
     expect(onChange).toHaveBeenCalledTimes(2);
     expect(onChange).toHaveBeenLastCalledWith(edited, text);
 

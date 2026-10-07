@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {CompositeLayer, type Color, type DefaultProps} from '@deck.gl/core';
+import {CompositeLayer, type Color, type DefaultProps, type LayerProps} from '@deck.gl/core';
 import {TerrainLayer} from '@deck.gl/geo-layers';
+import {load} from '@loaders.gl/core';
 import {TerrainLoader} from '@loaders.gl/terrain';
 
 /** Configuration for the work-in-progress, height-map-based {@link ElevationLayer}. */
@@ -24,21 +25,38 @@ export type ElevationLayerProps = {
   texture?: string;
 };
 
-const defaultProps: DefaultProps<ElevationLayerProps> = {
+/** Loads each resource with its own parser and options, without Deck's URL-only result cache. */
+const fetchElevationResource: NonNullable<LayerProps['fetch']> = (
+  url,
+  {layer, loaders, loadOptions, signal}
+) => {
+  const options = loadOptions ?? layer.getLoadOptions();
+  return load(url, loaders ?? layer.props.loaders, {
+    ...options,
+    ...(signal && {
+      core: {...options?.core, fetch: {...options?.core?.fetch, signal}}
+    })
+  });
+};
+
+const defaultProps: DefaultProps<ElevationLayerProps & Pick<LayerProps, 'fetch'>> = {
   elevationData: '',
   bounds: {type: 'array', value: [-125, 24.4, -66.7, 49.6]},
   elevationRange: {type: 'array', value: [-100, 4126]},
   elevationScale: 1,
   meshMaxError: 80,
   color: [42, 58, 72, 255],
-  texture: ''
+  texture: '',
+  fetch: fetchElevationResource
 };
 
 /**
  * Renders the original wind showcase's elevation image as an actual 3D terrain mesh.
  *
  * The image is decoded with the in-process loaders.gl terrain parser so the standalone
- * showcase does not rely on an externally hosted terrain-worker bundle.
+ * showcase does not rely on an externally hosted terrain-worker bundle. Its default fetch
+ * bypasses URL-only result caching because the same image can supply both a terrain mesh and
+ * a texture. A custom `fetch` callback must likewise keep these parsed resources separate.
  *
  * @remarks
  * This API is a work in progress. Smooth the source height map before applying strong

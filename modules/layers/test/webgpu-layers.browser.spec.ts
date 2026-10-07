@@ -6,7 +6,8 @@ import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, inject, it} from 'vitest';
+import {requireWebGPUAdapter} from './webgpu-test-utils';
 
 import {
   HorizonGraphLayer,
@@ -21,6 +22,7 @@ import {PathEdgeLayer} from '../../graph-layers/src/layers/edge-layers/path-edge
 import {RoundedRectangleLayer} from '../../graph-layers/src/layers/node-layers/rounded-rectangle-layer';
 import {
   DependencyArrowLayer,
+  FlameTrailLayer,
   PathDirection,
   PathMarkerLayer,
   PathOutlineLayer,
@@ -28,9 +30,6 @@ import {
 } from '../src';
 import {GeometryLayer} from '../src/dependency-arrow-layer/geometry-layer';
 
-type BrowserGpu = {
-  requestAdapter: () => Promise<unknown>;
-};
 type NativeGpuError = {error?: {message?: string}};
 type NativeGpuDevice = {
   addEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
@@ -67,6 +66,24 @@ function createPortableLayers() {
   };
 
   return [
+    new FlameTrailLayer({
+      id: 'webgpu-test-flame',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      data: [
+        {
+          path: [
+            [-25, -40, 0],
+            [25, -40, 5]
+          ],
+          timestamps: [0, 100]
+        }
+      ],
+      getPath: d => d.path,
+      getTimestamps: d => d.timestamps,
+      currentTime: 75,
+      getWidth: 5,
+      widthUnits: 'pixels'
+    }),
     new SkyboxLayer({id: 'webgpu-test-skybox', cubemap: null}),
     new BlockLayer({
       id: 'webgpu-test-block',
@@ -362,6 +379,28 @@ function createPortableLayers() {
   ];
 }
 
+class BackendTestDeck extends Deck<OrthographicView> {
+  pause(): void {
+    this.animationLoop?.stop();
+  }
+  resume(): void {
+    this.animationLoop?.start();
+  }
+  getPendingLayers(): string[] {
+    return (
+      this.layerManager
+        ?.getLayers()
+        .filter(
+          layer =>
+            !layer.isLoaded ||
+            (this.device.type === 'webgpu' &&
+              layer.getModels().some(model => model.pipeline.isPending))
+        )
+        .map(layer => layer.id) ?? []
+    );
+  }
+}
+
 async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   const parent = document.createElement('div');
   parent.style.width = '128px';
@@ -369,7 +408,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
   document.body.append(parent);
 
   let device: Device | undefined;
-  let deck: Deck<OrthographicView> | undefined;
+  let deck: BackendTestDeck | undefined;
   let nativeDevice: NativeGpuDevice | undefined;
   const validationErrors: string[] = [];
   const captureValidationError = (event: NativeGpuError): void => {
@@ -380,7 +419,7 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     device = await luma.createDevice({
       type,
       adapters: [webgl2Adapter, webgpuAdapter],
-      createCanvasContext: {container: parent}
+      createCanvasContext: {container: parent, width: 128, height: 128, useDevicePixels: false}
     });
     if (type === 'webgpu') {
       nativeDevice = (device as Device & {handle?: NativeGpuDevice}).handle;
@@ -388,26 +427,47 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     }
 
     await new Promise<void>((resolve, reject) => {
-      const timeout = window.setTimeout(() => {
-        reject(new Error(`Timed out while rendering community layers with ${type}.`));
-      }, 10_000);
+      let finished = false;
+      const finish = (error?: Error) => {
+        finished = true;
+        window.clearTimeout(timeout);
+        if (error) reject(error);
+        else resolve();
+      };
+      const timeout = window.setTimeout(
+        () => {
+          finish(
+            new Error(
+              `Timed out rendering ${type}; pending layers: ${deck?.getPendingLayers().join(', ')}.`
+            )
+          );
+        },
+        inject('requireWebGPU') ? 50_000 : 10_000
+      );
 
-      deck = new Deck({
+      deck = new BackendTestDeck({
         device,
         parent,
         width: 128,
         height: 128,
+        useDevicePixels: false,
         views: new OrthographicView({id: 'webgpu-layer-test', flipY: false}),
         initialViewState: {target: [0, 0, 0], zoom: 0},
         layers: createPortableLayers(),
-        onAfterRender: () => {
-          window.clearTimeout(timeout);
-          resolve();
+        onAfterRender: async () => {
+          // Do not queue animated frames faster than a software GPU can finish them.
+          deck!.pause();
+          try {
+            device!.submit();
+            await nativeDevice?.queue.onSubmittedWorkDone();
+            if (finished) return;
+            if (deck!.getPendingLayers().length) deck!.resume();
+            else finish();
+          } catch (error) {
+            finish(error as Error);
+          }
         },
-        onError: error => {
-          window.clearTimeout(timeout);
-          reject(error);
-        }
+        onError: finish
       });
     });
 
@@ -415,6 +475,8 @@ async function renderPortableLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     expect(device.type).toBe(type);
     expect(validationErrors).toEqual([]);
   } finally {
+    deck?.pause();
+    await nativeDevice?.queue.onSubmittedWorkDone();
     nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
     deck?.finalize();
     device?.destroy();
@@ -430,10 +492,7 @@ describe('community graphics backend compatibility', () => {
   it('renders custom shaders, paths, polygons, graph, timeline, and editing on WebGPU', async ({
     skip
   }) => {
-    const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
-    if (!gpu || !(await gpu.requestAdapter())) {
-      skip('This browser does not expose an available WebGPU adapter.');
-    }
+    await requireWebGPUAdapter(skip);
 
     await renderPortableLayers('webgpu');
   }, 60_000);

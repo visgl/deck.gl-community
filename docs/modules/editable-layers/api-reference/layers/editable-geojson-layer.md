@@ -63,6 +63,9 @@ A [GeoJSON](http://geojson.org) `FeatureCollection` object. The following types 
 - `MultiPolygon`
 - `GeometryCollection` is not supported.
 
+For TypeScript, use `SimpleFeatureCollection` from `@deck.gl-community/editable-layers`
+(or GeoJSON's `FeatureCollection<SimpleGeometry>`) for editable data and edit callbacks.
+
 _Note: passing a single `Feature` is not supported. However, you can pass a `FeatureCollection` containing a single `Feature` and pass `selectedFeatureIndexes: [0]` to achieve the same result._
 
 #### `mode` (Function|Object, optional)

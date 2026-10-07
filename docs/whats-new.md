@@ -2,14 +2,54 @@
 
 ## Unreleased
 
+- Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
+  `DOTGraphLoader` and its parsing helpers have been removed.
+  Graph loader dependencies require loaders.gl 4.5.3 or later.
+- `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
+  outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
+  mask synchronously instead of waiting 250 ms.
+
+- Editable-layers edit mode constructors and base classes consistently use
+  `SimpleFeatureCollection`, fixing constructor assignments in strict TypeScript
+  consumers. Custom mode handlers and editable data typed with the broader GeoJSON
+  `FeatureCollection` should follow the [TypeScript migration guide](./upgrade-guide.md#unreleased).
+
+- `ModifyMode` preserves rotated rectangles when `modeConfig.lockRectangles` is enabled. Corner
+  dragging keeps the opposite corner fixed and retains the rectangle's existing edge axes.
+
+- `Playground` supports promise-returning application renderers with per-update template identity,
+  metadata, revision and cancellation signal. Selection and status callbacks support external
+  navigation and loading UI; obsolete completions are ignored without changing synchronous defaults.
+
+- [`FlameTrailLayer`](/docs/modules/layers/api-reference/flame-trail-layer) (new) renders rising 3D flames and drifting embers on WebGL2 and WebGPU with the TripsLayer API. Flames keep burning when trip playback is paused.
+  The [interactive flame demo](/examples/layers/flame-trail) compares backends over shaded hills
+  with two continuously moving flames and controls for length, width, and color.
+
+- `Playground` supports custom document languages and parsers, editor and example labels,
+  sidebar placement and sizing, additional panel tabs, and separate template card metadata.
+  Existing JSON defaults remain unchanged; `DeckPlayground` continues to use JSON.
+
+- `ElevationLayer` keeps height-map mesh decoding separate from texture loading when both use
+  the same URL, fixing terrain updates that could receive cached image data instead of a mesh.
+
+- The Editable GeoJSON playground example supports feature selection, geometry edits, and an
+  edit-mode tray for selecting, modifying, transforming, and drawing features. Changes update the
+  JSON document. Playground documents can attach host-registered widgets through `widgets`.
+
+- Playground documents accept top-level `name` and `description` metadata. A name change resets all
+  preview props, camera, and layer state after the document is accepted, so gallery examples can
+  safely reuse layer IDs across different views and layer types. Description edits preserve state.
+  `SkyboxLayer` ignores pending cubemap results after removal and releases inherited layer resources.
+
 - Playground template selection restores each example's initial camera after its data sources
-  resolve and its document is accepted, while JSON edits preserve camera interaction. Gallery
+  resolve and its document is accepted. Explicit `initialViewState` edits, including pitch and
+  bearing, also update the camera; layer edits and data refreshes preserve camera interaction. Gallery
   examples fix graph node data and styles, first-person floor geometry,
   skybox backgrounds, and grid, path, and horizon-chart visibility.
 - `FastTextLayer` draws every glyph across all text rows. `SkyboxLayer` preserves its background
   depth and culling settings when a view supplies different defaults.
 
-- Both website playgrounds register all 35 concrete official and 44 public community layers, with
+- Both website playgrounds register all 35 concrete official and 45 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer
   constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
   custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references
@@ -20,7 +60,7 @@
   register automatically with status and disable/re-enable controls that preserve imported rows.
   Browsers without WebMCP can still use the editor and preview.
 
-- Workspace dependencies use loaders.gl 4.5.1 with a shared Apache Arrow 17 version.
+- Workspace dependencies use loaders.gl 4.5.3 with a shared Apache Arrow 17 version.
 
 - Playground adds opt-in WebMCP tools for listing allowed templates, selecting a template, and
   resetting a `DeckPlayground` camera, plus explicit source grants for inspection and JSON or

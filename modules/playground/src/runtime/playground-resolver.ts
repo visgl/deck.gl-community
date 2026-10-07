@@ -310,6 +310,8 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
       // A fresh envelope bypasses JSONConverter's input-identity cache on source updates/retries.
       const prepared = {
         props: prepareProperties(document, [
+          'name',
+          'description',
           'layers',
           'views',
           'sources',
