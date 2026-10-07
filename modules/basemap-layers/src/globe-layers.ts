@@ -101,47 +101,73 @@ function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
   );
 }
 
+/** Whether a filter reads `["zoom"]` anywhere. Filters are treated as immutable once seen. */
+const filterZoomDependence = new WeakMap<object, boolean>();
+
+function filterUsesZoom(filter: unknown): boolean {
+  if (!Array.isArray(filter)) {
+    return false;
+  }
+  let usesZoom = filterZoomDependence.get(filter);
+  if (usesZoom === undefined) {
+    usesZoom = JSON.stringify(filter).includes('["zoom"]');
+    filterZoomDependence.set(filter, usesZoom);
+  }
+  return usesZoom;
+}
+
+type FilteredFeatures = {
+  filter: unknown;
+  sourceLayer: string | undefined;
+  filterZoom: number | null;
+  features: any[];
+};
+
 /**
- * Filtered features per tile content, style layer and filter zoom. Tile sublayers regenerate at
- * every style zoom step, and handing them the same array keeps deck.gl from seeing a data change,
- * so only zoom-dependent accessors recompute instead of every feature being re-tessellated.
+ * The latest filtered features per tile content and style layer. Tile sublayers regenerate at
+ * every style zoom step; handing them the same array keeps deck.gl from seeing a data change, so
+ * only zoom-dependent accessors recompute instead of every feature being re-tessellated. The
+ * entry is reused while the style layer's `filter` array, `source-layer` and (for filters that
+ * read `["zoom"]`) the integer zoom are unchanged. Style layers are treated as immutable once
+ * rendered, as in `getCompiledStyleProperty`; replacing `filter` with a new array is detected.
  */
-const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, Map<number, any[]>>>();
+const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, FilteredFeatures>>();
 
 function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
   const sourceLayer = styleLayer['source-layer'];
-  if (!sourceLayer && !styleLayer.filter) {
+  const {filter} = styleLayer;
+  if (!sourceLayer && !filter) {
     return features;
   }
 
   // MapLibre evaluates `["zoom"]` in filters at integer zooms.
-  const filterZoom = getFilterZoom(zoom);
+  const filterZoom = filterUsesZoom(filter) ? getFilterZoom(zoom) : null;
   let byStyleLayer = filteredFeatureCache.get(features);
   if (!byStyleLayer) {
     byStyleLayer = new WeakMap();
     filteredFeatureCache.set(features, byStyleLayer);
   }
-  let byZoom = byStyleLayer.get(styleLayer);
-  if (!byZoom) {
-    byZoom = new Map();
-    byStyleLayer.set(styleLayer, byZoom);
-  }
-  const cached = byZoom.get(filterZoom);
-  if (cached) {
-    return cached;
+  const cached = byStyleLayer.get(styleLayer);
+  if (
+    cached &&
+    cached.filter === filter &&
+    cached.sourceLayer === sourceLayer &&
+    cached.filterZoom === filterZoom
+  ) {
+    return cached.features;
   }
 
   const sourceFeatures = sourceLayer
     ? features.filter(feature => feature.properties?.layerName === sourceLayer)
     : features;
-  const filtered = styleLayer.filter
+  const filtered = filter
     ? filterFeatures({
         features: sourceFeatures,
-        filter: styleLayer.filter,
-        globalProperties: {zoom: filterZoom}
+        filter: filter as unknown[],
+        globalProperties: {zoom: getFilterZoom(zoom)}
       })
     : sourceFeatures;
-  byZoom.set(filterZoom, filtered);
+  byStyleLayer.set(styleLayer, {filter, sourceLayer, filterZoom, features: filtered});
   return filtered;
 }
 
@@ -625,7 +651,7 @@ function createGeometrySubLayer({
       withOpacity(color || outlineColor || [0, 0, 0, 0], opacity ?? 1)
   );
   const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
-    Math.max(0.25, Number(width ?? 1))
+    Math.max(0, Number(width ?? 1))
   );
 
   return new GeoJsonLayer({
@@ -644,7 +670,6 @@ function createGeometrySubLayer({
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
-    lineWidthMaxPixels: 20,
     lineCapRounded: isLine,
     lineJointRounded: isLine,
     getPointRadius: 0,

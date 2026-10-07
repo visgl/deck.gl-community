@@ -31,11 +31,11 @@ function vectorLayerAt(styleDefinition: any, zoom: number): any {
   );
 }
 
-function renderTile(vectorLayer: any, features: unknown[], x = 0): any {
+function renderTile(vectorLayer: any, features: unknown[], x = 0, z = 15): any {
   const [sublayer] = vectorLayer.props.renderSubLayers({
-    id: `test-tiles-${x}`,
+    id: `test-tiles-${x}-${z}`,
     data: features,
-    tile: {index: {x, y: 0, z: 15}}
+    tile: {index: {x, y: 0, z}}
   });
   return sublayer;
 }
@@ -69,13 +69,18 @@ describe('fractional zoom steps', () => {
     expect(sublayer.props.updateTriggers.getLineWidth).toBe(15.5);
   });
 
-  test('two tiles regenerated at the same zoom get the same value', () => {
+  test('tiles from different pyramid levels get the value of the viewport zoom step', () => {
+    // While zooming, placeholder tiles from the levels above and below are drawn next to tiles of
+    // the current level. All of them must use the viewport's zoom step, not their own level.
     const style = makeStyle(LINEAR_WIDTH);
     const vectorLayer = vectorLayerAt(style, 15.6);
-    const left = renderTile(vectorLayer, [feature('LineString', {})], 0);
-    const right = renderTile(vectorLayer, [feature('LineString', {})], 1);
+    const parent = renderTile(vectorLayer, [feature('LineString', {})], 0, 14);
+    const current = renderTile(vectorLayer, [feature('LineString', {})], 1, 15);
+    const child = renderTile(vectorLayer, [feature('LineString', {})], 2, 16);
 
-    expect(left.props.getLineWidth).toBeCloseTo(right.props.getLineWidth, 9);
+    for (const sublayer of [parent, current, child]) {
+      expect(sublayer.props.getLineWidth).toBeCloseTo(4.5, 9);
+    }
   });
 
   test('filters still see the integer zoom', () => {
@@ -101,7 +106,40 @@ describe('fractional zoom steps', () => {
     expect(first).toHaveLength(1);
     // Same data reference: deck.gl sees no data change and does not re-tessellate.
     expect(dataAt(15.6)).toBe(first);
-    expect(dataAt(16.1)).not.toBe(first);
+    // The filter does not read the zoom, so crossing an integer zoom reuses the array too.
+    expect(dataAt(16.1)).toBe(first);
+  });
+
+  test('a filter that reads the zoom is re-evaluated when the integer zoom changes', () => {
+    const style = makeStyle({...LINEAR_WIDTH, filter: ['>=', ['zoom'], 16]});
+    const features = [feature('LineString', {})];
+
+    expect(renderTile(vectorLayerAt(style, 15.7), features)).toBeUndefined();
+    expect(renderTile(vectorLayerAt(style, 16.1), features).props.data).toHaveLength(1);
+    // Back below the limit: the result is recomputed, not served from the z16 entry.
+    expect(renderTile(vectorLayerAt(style, 15.2), features)).toBeUndefined();
+  });
+
+  test('a filter replaced in place misses the cache', () => {
+    const style = makeStyle({...LINEAR_WIDTH, filter: ['==', ['get', 'kind'], 'road']});
+    const features = [feature('LineString', {kind: 'road'}), feature('LineString', {kind: 'rail'})];
+    const dataAt = () => renderTile(vectorLayerAt(style, 15.3), features).props.data;
+
+    expect(dataAt().map((f: any) => f.properties.kind)).toEqual(['road']);
+    style.layers[0].filter = ['==', ['get', 'kind'], 'rail'];
+    expect(dataAt().map((f: any) => f.properties.kind)).toEqual(['rail']);
+  });
+
+  test('a different style misses the cache', () => {
+    const features = [feature('LineString', {kind: 'road'}), feature('LineString', {kind: 'rail'})];
+    const kindsFor = (kind: string) =>
+      renderTile(
+        vectorLayerAt(makeStyle({...LINEAR_WIDTH, filter: ['==', ['get', 'kind'], kind]}), 15.3),
+        features
+      ).props.data.map((f: any) => f.properties.kind);
+
+    expect(kindsFor('road')).toEqual(['road']);
+    expect(kindsFor('rail')).toEqual(['rail']);
   });
 
   test('source-layer selections are reused within an integer zoom', () => {

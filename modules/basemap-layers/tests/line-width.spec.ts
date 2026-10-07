@@ -5,7 +5,11 @@ import {getBasemapLayers} from '../src/index.ts';
 const SOURCES = {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}};
 
 /** Renders one line style layer for one tile and returns its line width. */
-function lineWidthFor(sourceLayer: string, id: string): number {
+function lineWidthFor(sourceLayer: string, id: string, width = 4): number {
+  return lineSublayerFor(sourceLayer, id, width).props.getLineWidth;
+}
+
+function lineSublayerFor(sourceLayer: string, id: string, width: number): any {
   const vectorLayer: any = getBasemapLayers({
     idPrefix: 'test',
     mode: 'map',
@@ -14,7 +18,13 @@ function lineWidthFor(sourceLayer: string, id: string): number {
       version: 8,
       sources: SOURCES,
       layers: [
-        {id, type: 'line', source: 'tiles', 'source-layer': sourceLayer, paint: {'line-width': 4}}
+        {
+          id,
+          type: 'line',
+          source: 'tiles',
+          'source-layer': sourceLayer,
+          paint: {'line-width': width}
+        }
       ]
     } as any
   }).find(layer => layer.id === 'test-tiles');
@@ -29,7 +39,7 @@ function lineWidthFor(sourceLayer: string, id: string): number {
     ],
     tile: {index: {x: 0, y: 0, z: 12}}
   });
-  return sublayer.props.getLineWidth;
+  return sublayer;
 }
 
 describe('line-width', () => {
@@ -41,5 +51,15 @@ describe('line-width', () => {
     ['landuse', 'road-like-id']
   ])('draws the style line-width unscaled for source layer %s', (sourceLayer, id) => {
     expect(lineWidthFor(sourceLayer, id)).toBe(4);
+  });
+
+  test('a line-width of 0 draws nothing', () => {
+    expect(lineWidthFor('transportation', 'road_hidden', 0)).toBe(0);
+  });
+
+  test('wide lines are not capped', () => {
+    const sublayer = lineSublayerFor('transportation', 'road_casing', 40);
+    expect(sublayer.props.getLineWidth).toBe(40);
+    expect(sublayer.props.lineWidthMaxPixels).toBeGreaterThanOrEqual(40);
   });
 });
