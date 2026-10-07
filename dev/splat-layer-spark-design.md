@@ -95,6 +95,9 @@ not hard GPU memory or frame-time guarantees.
 matrix, including covariance and conservative shear bounds. `splatStats` reports source/hierarchy
 pairs, selected owners, submitted camera/shadow work, coarsest coverage and moving refinements.
 Geographic inventory residency remains TreeLayer's separate `streamingStats` lane.
+Use `data` for supplied rows or `getTileData` for a bounded inventory, with ordinary tree accessors
+at the top level. WorldTreeLayer remains a deprecated compatibility wrapper around the internal
+tile component. Coit depends on the shared SplatLayer runtime alone.
 
 ### Scene backend and remaining acceptance work
 

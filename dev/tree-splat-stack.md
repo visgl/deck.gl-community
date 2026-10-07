@@ -1,7 +1,7 @@
 # TreeLayer, Composite SplatLayer and Coit stack
 
 Revised October 7, 2026. Arrows show landing order; dashed arrows cross repositories.
-The seven community PRs form one linear Git stack from current `master`.
+The community stack branches above the shared SplatLayer runtime. Coit has no TreeLayer prerequisite; the tree chain ends with its own migration cleanup.
 
 ```mermaid
 flowchart TD
@@ -10,10 +10,10 @@ flowchart TD
   P807 --> P814["#814 · shared static/RAD scenes, workers, residency and global ordering"]
   H -. "compatible luma 9.4 prerequisite" .-> P814
   P814 --> P794["#794 · native TreeLayer"]
-  P794 --> P806["#806 · WorldTreeLayer streaming"]
+  P794 --> P806["#806 · unified TreeLayer inventory streaming"]
   P806 --> P808["#808 · Tree Lab, Citrus, forest and world examples"]
-  P808 --> P815["#815 · public Coit RAD example and website"]
-  P815 --> P809["#809 · Seasonal Farm migration and three workspace removal"]
+  P814 --> P815["#815 · independent Coit RAD example and website"]
+  P808 --> P809["#809 · Seasonal Farm migration and three workspace removal"]
   click H "https://github.com/visgl/luma.gl/pull/3398"
   click P807 "https://github.com/visgl/deck.gl-community/pull/807"
   click P814 "https://github.com/visgl/deck.gl-community/pull/814"
@@ -31,8 +31,8 @@ flowchart TD
 | [#794](https://github.com/visgl/deck.gl-community/pull/794) | `codex/splat-scene-foundation` | `codex/native-tree-lab` |
 | [#806](https://github.com/visgl/deck.gl-community/pull/806) | `codex/native-tree-lab` | `codex/tree-forest-performance` |
 | [#808](https://github.com/visgl/deck.gl-community/pull/808) | `codex/tree-forest-performance` | `codex/citrus-tree-lab` |
-| [#815](https://github.com/visgl/deck.gl-community/pull/815) | `codex/citrus-tree-lab` | `codex/coit-community` |
-| [#809](https://github.com/visgl/deck.gl-community/pull/809) | `codex/coit-community` | `codex/remove-three-module` |
+| [#815](https://github.com/visgl/deck.gl-community/pull/815) | `codex/splat-scene-foundation` | `codex/coit-community` |
+| [#809](https://github.com/visgl/deck.gl-community/pull/809) | `codex/citrus-tree-lab` | `codex/remove-three-module` |
 
 ## Implemented behavior
 
@@ -40,14 +40,23 @@ flowchart TD
 constant/default/per-row `getSource`. The prepared weighted path retains TreeLayer wind, optical
 refinement, materials and shadows. Sorted Cartesian scenes share source loading and source-page
 uploads across owners, views and layers, with one order per view/domain and deck-owned rendering.
-RAD workers retain native authored hierarchy and HTTP ranges. Coit uses the public built package,
+TreeLayer accepts supplied rows or `getTileData` inventory streaming with the same top-level tree
+accessors. Its internal tile component handles traversal; WorldTreeLayer is a deprecated compatibility
+wrapper. RAD workers retain native authored hierarchy and HTTP ranges. Coit uses the public built package,
 bundled workers, authored FirstPerson camera and the real 50,937,127-row asset.
 
 ## Verification and landing boundaries
 
+An isolated Coit checkout contains only #807 and #814; its public package, example and website
+builds verify that no TreeLayer implementation is required. A local integration checkout combines
+both PR branches for the full website and consumer checks.
+
 The final checks include root install/build, strict public consumers, Coit strict types and camera
 regressions, production Coit Vite build, website workspace install/build, full Node tests, and
 WebGL2/WebGPU pixels for ordering, tint/affine ownership, picking, Blob decode and teardown.
+Regression gates also cover retained light selections during asset removal, empty/singular sorted
+domains, nested scene/prepared budget groups, distant-crown tile metadata, the wind pause clock,
+and controls inside short Coit embeds.
 The dedicated CI software-adapter step requires the new scene fixtures; ordinary browser runs
 skip WebGPU only when no adapter exists. Review fixes stay in their owning PRs, and range-diff
 preserves every earlier stack commit apart from intended workflow conflict resolution.
