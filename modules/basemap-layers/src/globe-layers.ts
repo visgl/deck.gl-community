@@ -696,10 +696,16 @@ function getVectorLayers({
 
   // A group keeps all of its source's style layers, visible or not: its tile regeneration key
   // must change when any of them crosses its own limits, and `renderSubLayers` gates each layer
-  // by zoom. Skip a source only when none of its layers are visible.
+  // by zoom. Skip a source only when none of its layers are visible, and draw sources in the
+  // order of their first visible layer, so a hidden layer does not move its source forward.
   const labelPriorityRanges = getLabelPriorityRanges(vectorLayers);
+  const firstVisibleIndex = (group: VectorSourceGroup): number =>
+    vectorLayers.findIndex(
+      layer => layer.source === group.sourceId && isStyleLayerVisibleAtZoom(layer, zoom)
+    );
   return getVectorSourceGroups(vectorLayers, styleDefinition)
-    .filter(group => group.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom)))
+    .filter(group => firstVisibleIndex(group) >= 0)
+    .sort((a, b) => firstVisibleIndex(a) - firstVisibleIndex(b))
     .map(group =>
       createVectorLayerGroup({
         idPrefix,
