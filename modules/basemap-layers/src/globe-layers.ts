@@ -205,21 +205,6 @@ function getSubLayerBaseProps(props: any) {
   };
 }
 
-function getLineWidthScale(styleLayer: BasemapStyleLayer): number {
-  const sourceLayer = styleLayer['source-layer'] || '';
-  const id = styleLayer.id || '';
-
-  if (sourceLayer === 'transportation' || sourceLayer === 'boundary' || id.includes('road-')) {
-    return 0.55;
-  }
-
-  if (sourceLayer === 'waterway' || sourceLayer === 'aeroway') {
-    return 0.75;
-  }
-
-  return 1;
-}
-
 function getGlobeFillColor(color: [number, number, number, number], mode: BasemapMode) {
   if (mode !== 'globe') {
     return color;
@@ -639,9 +624,8 @@ function createGeometrySubLayer({
     ([color, outlineColor, opacity]) =>
       withOpacity(color || outlineColor || [0, 0, 0, 0], opacity ?? 1)
   );
-  const lineWidthScale = getLineWidthScale(styleLayer);
   const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
-    Math.max(0.25, Number(width ?? 1) * lineWidthScale)
+    Math.max(0.25, Number(width ?? 1))
   );
 
   return new GeoJsonLayer({
