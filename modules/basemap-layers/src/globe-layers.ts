@@ -364,7 +364,8 @@ function createVectorLayerGroup({
   zoom,
   config,
   loadOptions,
-  mode
+  mode,
+  styleDefinition
 }: {
   idPrefix: string;
   sourceId: string;
@@ -374,6 +375,8 @@ function createVectorLayerGroup({
   config: BasemapLayerConfig;
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
+  /** The resolved style, compared by identity to regenerate tiles when the style changes. */
+  styleDefinition?: ResolvedBasemapStyle;
 }) {
   // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
   const minZoom = source.minzoom ?? 0;
@@ -408,10 +411,11 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
-    // `renderSubLayers` reads `zoom`: regenerate tile sublayers at integer zooms (evaluation) and at
-    // fractional layer limits (visibility).
+    // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at integer zooms
+    // (evaluation), at fractional layer limits (visibility), and when the style changes. Two styles
+    // can share a source id and so this layer's id; deck.gl compares the style by identity.
     updateTriggers: {
-      renderSubLayers: getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers))
+      renderSubLayers: [getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)), styleDefinition]
     },
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
@@ -687,7 +691,8 @@ function getVectorLayers({
         zoom,
         config,
         loadOptions,
-        mode
+        mode,
+        styleDefinition
       })
     );
 }
