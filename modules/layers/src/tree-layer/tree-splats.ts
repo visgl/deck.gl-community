@@ -4,6 +4,7 @@
 import {Quaternion, Matrix3, Vector3} from '@math.gl/core';
 import {createSplatHierarchy, type SplatHierarchy} from '../splat-layer/splat-hierarchy';
 import type {SplatSource} from '../splat-layer/splat-source';
+import type {PreparedSplatData} from '../splat-layer/splat-input';
 import {createTreeRng, samplePineSurface, createPineTiers} from './tree-geometry';
 import type {TreeType} from './tree-layer';
 import {getTreeBotany} from './tree-botany';
@@ -214,4 +215,24 @@ export function getTreeSplatHierarchy(
     HIERARCHIES.set(source, hierarchy);
   }
   return hierarchy;
+}
+
+const ASSETS = new WeakMap<SplatSource, PreparedSplatData>();
+/** Reusable prepared canopy asset including its source-local refinement hierarchy. */
+export function getTreeSplatData(
+  type: TreeType,
+  levels: number,
+  characteristics: TreeCharacteristics
+): PreparedSplatData {
+  const source = getTreeSplatSource(type, levels, characteristics);
+  let asset = ASSETS.get(source);
+  if (!asset) {
+    asset = {
+      type: 'prepared-splats',
+      source,
+      hierarchy: getTreeSplatHierarchy(type, levels, characteristics)
+    };
+    ASSETS.set(source, asset);
+  }
+  return asset;
 }
