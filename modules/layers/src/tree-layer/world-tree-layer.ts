@@ -19,6 +19,8 @@ import {
 } from '@deck.gl/geo-layers';
 import {retainSplatRows} from '../splat-layer/splat-row-diff';
 import {SplatLayer} from '../splat-layer/splat-layer';
+import type {SplatBudgetGroup} from '../splat-layer/splat-runtime';
+import type {PreparedSplatData} from '../splat-layer/splat-input';
 import {TREE_CLUSTER_SOURCE, TREE_CLUSTER_HIERARCHY} from './tree-canopy-clusters';
 import {TreeLayer, type TreeLayerProps} from './tree-layer';
 import {TreeTileset} from './tree-tileset';
@@ -56,6 +58,12 @@ export type TreeTileStats = {
   /** Current fraction of Gaussian quotas selected by frame-time feedback. */
   budgetScale: number;
 };
+const TREE_CLUSTER_DATA: PreparedSplatData = {
+  type: 'prepared-splats',
+  source: TREE_CLUSTER_SOURCE,
+  hierarchy: TREE_CLUSTER_HIERARCHY
+};
+
 type WorldTreeProps<DataT> = {
   /** Abortable source adapter. Coarse tiles must contain summaries, not global inventories. */
   getTileData: (tile: _TileLoadProps) => TreeTileData<DataT> | Promise<TreeTileData<DataT>>;
@@ -126,6 +134,7 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
     zRange: [0, 100]
   };
   declare state: TileLayer<TreeTileData<DataT>>['state'] & {
+    splatBudgetGroup: SplatBudgetGroup;
     frameBudget: TreeFrameBudget;
     coverage: TreeCoverageTransition<TreeTileData<DataT>>;
     pageTiles: Map<TreeTileData<DataT>, _Tile2DHeader<TreeTileData<DataT>>>;
@@ -142,6 +151,7 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
   };
   initializeState() {
     super.initializeState();
+    this.state.splatBudgetGroup = {maxSplats: Infinity, maxShadowSplats: Infinity};
     this.state.frameBudget = new TreeFrameBudget();
     this.state.coverage = new TreeCoverageTransition();
     this.state.pageTiles = new Map();
@@ -254,9 +264,9 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
     const canopyBudget = Math.floor(
       (this.props.maxCanopySplats ?? 400000) * this.state.frameBudget.scale
     );
-    const distantCost = Math.min(
-      (this.state.batch.canopies.length * TREE_CLUSTER_SOURCE.positions.length) / 3,
-      Math.floor(canopyBudget * 0.3)
+    this.state.splatBudgetGroup.maxSplats = canopyBudget;
+    this.state.splatBudgetGroup.maxShadowSplats = Math.floor(
+      (this.props.maxShadowSplats ?? 50000) * this.state.frameBudget.scale
     );
     const pixelBudget = Math.floor(
       Math.min(
@@ -271,8 +281,9 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
         new SplatLayer<TreeCanopyCluster>({
           ...this.getSubLayerProps({id: 'distant-crowns'}),
           data: this.state.batch.canopies,
-          source: TREE_CLUSTER_SOURCE,
-          hierarchy: TREE_CLUSTER_HIERARCHY,
+          getSource: TREE_CLUSTER_DATA,
+          transparency: 'weighted',
+          _splatBudgetGroup: this.state.splatBudgetGroup,
           pixelError: 2.5,
           foveationStrength: 1,
           getPosition: canopy => canopy.position,
@@ -296,7 +307,7 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
           },
           getCoverageWeight: canopy =>
             coverage.entries.get(this.state.canopyPages.get(canopy)!)?.weight ?? 0,
-          maxSplats: distantCost,
+          maxSplats: Infinity,
           maxRenderPixels: pixelBudget,
           shadowEnabled: false
         })
@@ -329,7 +340,8 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
             ]
           },
           maxCanopyPixels: pixelBudget,
-          maxCanopySplats: Math.max(0, canopyBudget - distantCost),
+          maxCanopySplats: canopyBudget,
+          _splatBudgetGroup: this.state.splatBudgetGroup,
           maxShadowSplats: Math.floor(
             (this.props.maxShadowSplats ?? 50000) * this.state.frameBudget.scale
           )
@@ -368,21 +380,15 @@ export class WorldTreeLayer<DataT = unknown> extends TileLayer<
       shadowFloor = 0;
     const visit = (layer: Layer) => {
       if (layer instanceof SplatLayer) {
-        const count = (layer.state.hierarchy.at(-1)?.source.positions.length ?? 0) / 3;
-        canopyFloor += layer.state.refinement.entries.size * count;
-        if (layer.props.shadowEnabled)
-          shadowFloor += layer.state.shadowRefinement.entries.size * count;
-        stats.refiningCrowns += layer.state.refinement.activeCount;
-      }
-      if (layer instanceof CompositeLayer) {
-        layer.getSubLayers().forEach(visit);
+        const splats = layer.splatStats;
+        canopyFloor += splats.coverageFloor;
+        shadowFloor += splats.shadowCoverageFloor;
+        stats.refiningCrowns += splats.refiningInstances;
+        stats.canopySplats += splats.renderedSplats;
+        stats.shadowSplats += splats.shadowSplats;
         return;
       }
-      if ((layer.constructor as {layerName?: string}).layerName !== 'SplatPrimitiveLayer') return;
-      const props = layer.props as unknown as {source: {positions: Float32Array}};
-      const count = (layer.getNumInstances() * props.source.positions.length) / 3;
-      if (layer.props.operation.includes('draw')) stats.canopySplats += count;
-      else stats.shadowSplats += count;
+      if (layer instanceof CompositeLayer) layer.getSubLayers().forEach(visit);
     };
     this.getSubLayers().forEach(visit);
     stats.coverageFloorExceeded =

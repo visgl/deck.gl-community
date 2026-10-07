@@ -65,3 +65,11 @@ The allocator retains every visible owner and spends remaining submissions on pr
 ## Example
 
 Streaming sources are supplied by the host. Performance observations depend on hardware, visible crown support and the source workload.
+
+### Shared canopy selection
+
+Near-tree foliage and distant crown groups share one parent Gaussian quota. Nested tree caps
+remain effective, and allocation favors projected error reduction across their sources.
+Geographic inventory pages retain their TileLayer lifecycle and coverage transitions; they are
+separate from Gaussian template assets. `streamingStats` reads SplatLayer's supported counters
+and includes actual camera/light submissions and their coarsest coverage floors.
