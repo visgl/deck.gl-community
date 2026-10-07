@@ -158,6 +158,7 @@ describe('update triggers', () => {
       getText: undefined,
       getSize: 7,
       getColor: 7,
+      getBackgroundColor: '|',
       getCollisionPriority: undefined
     });
   });

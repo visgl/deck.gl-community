@@ -206,7 +206,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   getLabelBackgroundColor(feature: FeatureLike): number[] {
     const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
-    return withOpacity(this.props.labelBackground, opacity ?? 1);
+    const background = this.props.labelBackground;
+    if (!background) {
+      return [0, 0, 0, 0];
+    }
+    // `labelBackground` is already RGBA with alpha in 0-255; scale that alpha directly.
+    // (`withOpacity` would read a 0-255 alpha of 1 as fully opaque.)
+    const alpha = background.length > 3 ? background[3] : 255;
+    return [background[0], background[1], background[2], Math.round(alpha * (opacity ?? 1))];
   }
 
   /**
@@ -226,7 +233,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /** Update triggers for the text accessors: the integer zoom for zoom-dependent properties. */
-  getLabelUpdateTriggers(): Record<string, number | undefined> {
+  getLabelUpdateTriggers(): Record<string, number | string | undefined> {
     const zoomBucket = getZoomBucket(this.props.zoom || 0);
     const getTrigger = (...propertyNames: string[]) =>
       propertyNames.some(name => this.getStyleProperty(name)?.isZoomDependent)
@@ -237,7 +244,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getText: getTrigger('text-field'),
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
-      getBackgroundColor: getTrigger('text-opacity'),
+      // The halo color comes from `labelBackground` (evaluated per style layer and zoom step), so
+      // its value is part of the trigger as well as a zoom-dependent `text-opacity`.
+      getBackgroundColor: `${getTrigger('text-opacity') ?? ''}|${
+        this.props.labelBackground ? this.props.labelBackground.join(',') : ''
+      }`,
       getCollisionPriority: getTrigger('symbol-sort-key')
     };
   }
