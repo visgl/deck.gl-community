@@ -82,8 +82,8 @@ describe('native tree geometry', () => {
         expect(crown).toBeUndefined();
       else {
         expect(crown).toBeInstanceOf(SplatLayer);
-        expect(crown!.props.source.opacities.length).toBeGreaterThan(1000);
-        expect(crown!.props.hierarchy[0].source).toBe(crown!.props.source);
+        expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(1000);
+        expect(crown!.props.getSource.hierarchy[0].source).toBe(crown!.props.getSource.source);
       }
     }
   });
@@ -691,4 +691,30 @@ it('propagates optical coverage to trunk-only trees and every supplied crop part
     expect(child.props.getCoverageWeight).toBe(0);
     expect(child.props.updateTriggers.getCoverageWeight).toBe('hidden');
   }
+});
+
+it('preserves legacy source and hierarchy overrides while sharing one canopy quota', () => {
+  const customSource = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([30, 120, 40, 255]),
+    opacities: new Float32Array([1])
+  };
+  const hierarchy = [{source: customSource, error: 0}];
+  const {layer} = createLayer([OAK, {...OAK, type: 'pine'}], {
+    maxCanopySplats: 1234,
+    maxShadowSplats: 567,
+    _subLayerProps: {'canopy-oak': {source: customSource, hierarchy, maxSplats: 99}}
+  });
+  const canopies = layer.renderLayers().filter(child => child instanceof SplatLayer);
+  const oak = canopies.find(child => child.id.includes('canopy-oak'))!;
+  expect(oak.props.getSource).toEqual({type: 'prepared-splats', source: customSource, hierarchy});
+  expect(oak.props.source).toBeNull();
+  expect(oak.props.maxSplats).toBe(99);
+  expect(canopies[0].props._splatBudgetGroup).toBe(canopies[1].props._splatBudgetGroup);
+  expect(canopies[0].props._splatBudgetGroup).toMatchObject({
+    maxSplats: 1234,
+    maxShadowSplats: 567
+  });
 });
