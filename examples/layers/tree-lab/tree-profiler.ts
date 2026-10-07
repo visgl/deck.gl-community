@@ -5,7 +5,8 @@ import {SplatLayer} from '../../../modules/layers/src/splat-layer/splat-layer';
 import {TreeWoodLayer} from '../../../modules/layers/src/tree-layer/tree-wood-layer';
 
 type ProfileLayer = {
-  props: {data: unknown[]};
+  props: {data: unknown};
+  splatStats?: {shadowInstances: number};
   state: {shadow?: unknown[]; shadowGroups?: unknown[][]};
 };
 type ProfileMethod = (this: ProfileLayer, ...args: unknown[]) => unknown;
@@ -64,13 +65,13 @@ export function createTreeProfiler() {
         const sample = samples[label];
         sample.calls++;
         sample.milliseconds += milliseconds;
-        sample.inputOwners += layer.props.data.length;
+        sample.inputOwners += Array.isArray(layer.props.data) ? layer.props.data.length : 1;
         if (method === 'prepareShadow') {
           const state = layer.state;
           sample.selectedOwners +=
             prefix === 'wood'
               ? (state.shadow?.length ?? 0)
-              : (state.shadowGroups ?? []).reduce((sum, rows) => sum + rows.length, 0);
+              : (layer.splatStats?.shadowInstances ?? 0);
         }
       };
       entry.listeners.add(listener);

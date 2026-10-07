@@ -20,7 +20,7 @@ Forest pitch is adjustable through 80°. The shared lab lighting fits a finite g
 
 The shared WebGL lighting follows [NVIDIA's percentage-closer filtering](https://developer.nvidia.com/gpugems/gpugems/part-ii-lighting-and-shadows/chapter-11-shadow-map-antialiasing): native depth comparison samplers compare before interpolating. Four hardware reads reproduce a three-texel tent on tree surfaces. The lab's flat ground uses a reusable, half-resolution coverage mask, filtered horizontally and vertically once per light, then sampled once per ground fragment. This softens small leaflet gaps and silhouette edges without filtering raw depths. Depth maps have a fixed 1024-pixel longest axis, independent of display DPR; the depth pass skips material shading. The ground filter is specific to the lab's plane at -2cm; arbitrary terrain still needs receiver-aware filtering. WebGL regressions cover fractional leaf motion, narrow gaps versus large openings, resized texture replacement, shadow toggles and high pitches in every season.
 
-The public prepared-source API and its transparency, optical shadow and receiver limitations are documented in [SplatLayer](../../../docs/modules/layers/api-reference/splat-layer.md). Procedural Gaussians approximate botanical foliage; they are not trained photographic assets.
+Canopy consumers use the flat prepared API (`data` owner rows plus `getSource` assets). Tree Lab species share one projected-error allocation instead of fixed row-count shares; World uses the same quota for near and distant crowns. Recorded review videos retain their original renderer and budget fingerprints. The public prepared-source API and its transparency, optical shadow and receiver limitations are documented in [SplatLayer](../../../docs/modules/layers/api-reference/splat-layer.md). Procedural Gaussians approximate botanical foliage; they are not trained photographic assets.
 
 The native mesh reference is frozen from `1d30abb264e51bd0bf89902fb690246348595d9a`; it retains the previous wood and crop placement. Gaussian broadleaf canopies, connected wood and attached fruit share one space-colonization growth structure. Banyan has descending aerial roots; red mangrove has connected stilt roots and larger elliptical leaves. The new species use leaf-card mesh references because no historical mesh exists.
 
@@ -42,3 +42,24 @@ Use `world.html?zoom=18&pitch=80&density=400&wind=1&shadows=1` and **Measure mov
 Crown LOD keeps optical mixtures across camera movement and budget changes. Small view changes retain geographic refinement splits and tree identity, and Gaussian raster resolution stays fixed while geometry feedback adapts. The world demo renders trees against a neutral background without a ground plane. The shadow toggle retains opaque wood self-shadowing; planar canopy transmission and its filter are skipped when there is no ground receiver. World URLs include camera/target settings after interaction, making a problematic view reproducible.
 
 Production examples use the single public `TreeLayer` from `@deck.gl-community/layers`; `WorldTreeLayer` batches streamed data into it. Explicit `ReferenceMeshTreeLayer` and `ReferenceThreeTreeLayer` comparisons are private fixtures under `baseline/`. Existing review videos and JSON fingerprints describe their recorded snapshots.
+
+## Reusing prepared canopy assets
+
+A canopy source and its supplied hierarchy form one reusable asset. The same flat layer can
+instance one asset repeatedly or select different assets from row traits:
+
+```ts
+import {SplatLayer, createSplatHierarchy, type PreparedSplatData} from '@deck.gl-community/layers';
+
+const asset: PreparedSplatData = {
+  type: 'prepared-splats',
+  source: canopySource,
+  hierarchy: createSplatHierarchy(canopySource, [0.2, 0.5, 1])
+};
+new SplatLayer({data: trees, getSource: asset, getPosition: tree => tree.position});
+new SplatLayer({data: trees, getSource: tree => assets[tree.species], getPosition: tree => tree.position});
+```
+
+This is the prepared weighted backend. It does not imply streamed capture loading or sorted
+RAD/template overlap. Backend pixel regressions exercise heterogeneous prepared sources and
+original-owner picking separately from these historical performance captures.
