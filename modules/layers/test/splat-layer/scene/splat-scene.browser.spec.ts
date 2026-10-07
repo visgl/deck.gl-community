@@ -55,7 +55,8 @@ async function renderSorted(
   type: 'webgl' | 'webgpu',
   reverse: boolean,
   shared = false,
-  blob = false
+  blob = false,
+  clear?: 'empty' | 'singular'
 ): Promise<number[]> {
   const parent = document.createElement('div');
   document.body.append(parent);
@@ -167,11 +168,34 @@ async function renderSorted(
     const scene = deck!
       .layerManager!.getLayers()
       .find(layer => layer.id === 'blue-scene') as unknown as {
-      state: {runtime: {assets: Map<unknown, unknown>}};
+      state: {runtime: {assets: Map<unknown, unknown>; domains: Map<unknown, unknown>}};
     };
     expect(scene.state.runtime.assets.size).toBe(shared ? 1 : 2);
     const layersNow = deck!.props.layers as SplatLayer[];
     expect(layersNow[0].splatStats.renderedSplats).toBe(1);
+    if (clear) {
+      await new Promise<void>((resolve, reject) => {
+        let clearedFrames = 0;
+        const timeout = setTimeout(() => reject(new Error('empty scene render timeout')), 5000);
+        deck!.setProps({
+          layers: layersNow.map(layer =>
+            layer.clone(clear === 'empty' ? {data: []} : {getScale: [0, 0, 0]})
+          ),
+          onAfterRender: () => {
+            if (++clearedFrames >= 3) {
+              deck!.pause();
+              clearTimeout(timeout);
+              resolve();
+            }
+          }
+        });
+        deck!.resume();
+      });
+      const emptyPixels = await readFrame(device, texture);
+      expect(Array.from(emptyPixels.subarray(offset, offset + 4))).toEqual([0, 0, 0, 0]);
+      expect(scene.state.runtime.domains.size).toBe(0);
+      expect(await deck!.pickObjectAsync({x: 64, y: 64})).toBeNull();
+    }
     deck!.setProps({layers: []});
     deck!.resume();
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -189,6 +213,16 @@ async function renderSorted(
 }
 
 describe('shared sorted SplatLayer domains', () => {
+  it('clears previously drawn and pickable domains when owners disappear or all transforms become singular', async () => {
+    for (const clear of ['empty', 'singular'] as const) {
+      await renderSorted('webgl', false, false, false, clear);
+      const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
+      if (gpu && (await gpu.requestAdapter()))
+        await renderSorted('webgpu', false, false, false, clear);
+      else if (inject('requireWebGPU'))
+        throw new Error('A WebGPU adapter is required for this gate.');
+    }
+  }, 60_000);
   it('decodes a Blob through the bundled worker and retains application picking ownership', async () => {
     await renderSorted('webgl', false, false, true);
   }, 60_000);

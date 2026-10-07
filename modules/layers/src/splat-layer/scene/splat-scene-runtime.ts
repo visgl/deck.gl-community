@@ -221,15 +221,16 @@ export class SplatSceneRuntime implements Effect {
       ])
     );
     const staticFloor = [...staticCosts.values()].reduce((sum, cost) => sum + cost, 0);
-    const sceneFloor = visible.reduce(
-      (sum, layer) =>
-        sum + (this.owners.get(layer.id) ?? []).reduce((cost, owner) => cost + coverage(owner), 0),
-      0
-    );
-    const sceneDesired = visible.reduce(
-      (sum, layer) =>
-        sum +
-        Math.min(
+    const ids = new Set(layers.filter(layer => layer.props.visible).map(layer => layer.id));
+    const prepared = SplatRuntime.get(this.deck, this.device);
+    const grants = prepared.setSceneDemands(
+      ids,
+      visible.map(layer => ({
+        id: layer.id,
+        maxTotalSplats: limit,
+        group: layer.props._splatBudgetGroup,
+        floor: (this.owners.get(layer.id) ?? []).reduce((cost, owner) => cost + coverage(owner), 0),
+        desired: Math.min(
           Number.isFinite(layer.props.maxSplats) ? layer.props.maxSplats : 2_000_000,
           (this.owners.get(layer.id) ?? []).reduce(
             (cost, owner) =>
@@ -239,22 +240,18 @@ export class SplatSceneRuntime implements Effect {
                 : (owner.asset as SplatSource).opacities.length),
             0
           )
-        ),
-      0
+        )
+      }))
     );
-    const ids = new Set(layers.filter(layer => layer.props.visible).map(layer => layer.id));
-    const prepared = SplatRuntime.get(this.deck, this.device);
-    const cap = prepared.setSceneDemand(ids, sceneDesired, sceneFloor, limit);
+    const cap = [...grants.values()].reduce((sum, grant) => sum + grant, 0);
     prepared.reconcile(ids);
     const residentCap = Math.min(...visible.map(layer => layer.props.maxResidentSplats), Infinity);
     const assetCaps = new Map<SplatDataInput, number>();
     for (const layer of visible) {
       const sources = new Set((this.owners.get(layer.id) ?? []).map(owner => owner.asset));
       const localRadCount = [...sources].filter(isRADAsset).length;
-      let localCap = layer.props.maxSplats;
-      for (let group = layer.props._splatBudgetGroup; group; group = group.parent)
-        localCap = Math.min(localCap, group.maxSplats);
-      const localGrant = (localCap - staticCosts.get(layer.id)!) / Math.max(localRadCount, 1);
+      const localGrant =
+        (grants.get(layer.id)! - staticCosts.get(layer.id)!) / Math.max(localRadCount, 1);
       const sharedGrant = (cap - staticFloor) / Math.max(radCount, 1);
       for (const input of sources)
         assetCaps.set(input, Math.min(assetCaps.get(input) ?? Infinity, localGrant, sharedGrant));
@@ -337,7 +334,7 @@ export class SplatSceneRuntime implements Effect {
     for (const asset of this.assets.values())
       asset.scene?.updateViews(assetViews.get(asset) ?? new Map(), performance.now());
     for (const [key, domain] of this.domains)
-      if (!submissions.has(key)) {
+      if (!submissions.get(key)?.length) {
         domain.renderer.destroy();
         this.domains.delete(key);
       }

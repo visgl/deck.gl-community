@@ -70,3 +70,34 @@ it('keeps a covered RAD asset loaded while camera refinement continues', () => {
   runtime.cleanup();
   device.destroy();
 });
+
+it('shares a nested parent allowance across two independent RAD scene layers', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const parent = {maxSplats: 1_000_000, maxShadowSplats: Infinity};
+  const layers = ['a', 'b'].map(
+    id =>
+      new SplatSceneLayer({
+        id,
+        data: `/${id}.rad`,
+        maxSplats: 1_000_000,
+        maxTotalSplats: Infinity,
+        _splatBudgetGroup: {maxSplats: 2_000_000, maxShadowSplats: Infinity, parent}
+      })
+  );
+  layers.forEach(layer => runtime.register(layer));
+  const stopped = new Error('grant captured before GPU preparation');
+  vi.spyOn(runtime as any, 'acquireAsset').mockImplementation((_input, _layer, active) => {
+    expect(active).toBe(500_000);
+    throw stopped;
+  });
+  expect(() =>
+    runtime.preRender({
+      layers,
+      viewports: [new OrthographicViewport({width: 128, height: 128})],
+      isPicking: false
+    } as PreRenderOptions)
+  ).toThrow(stopped);
+  runtime.cleanup();
+  device.destroy();
+});

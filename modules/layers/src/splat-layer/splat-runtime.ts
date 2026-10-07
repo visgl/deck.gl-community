@@ -11,6 +11,13 @@ export type SplatBudgetGroup = {
   maxShadowSplats: number;
   parent?: SplatBudgetGroup;
 };
+type SceneDemand = {
+  id: string;
+  desired: number;
+  floor: number;
+  maxTotalSplats: number;
+  group?: SplatBudgetGroup;
+};
 type Demand = {
   rows: SplatSelection<any>[];
   hierarchy: (owner: any) => SplatHierarchy;
@@ -37,55 +44,78 @@ export class SplatRuntime {
     }
     return runtime;
   }
-  private sceneDemand = 0;
-  private sceneFloor = 0;
   private sceneLimit = Infinity;
   private sceneGrant = 0;
-  /** Reserve a proportional source-row grant for scene refinement on the same host. */
-  setSceneDemand(ids: Set<string>, desired: number, floor: number, limit: number): number {
+  private sceneGroupGrants = new Map<SplatBudgetGroup, number>();
+  /** Share global and nested parent allowances across prepared and scene registrations. */
+  setSceneDemands(ids: Set<string>, scenes: SceneDemand[]): Map<string, number> {
     const prepared = [...this.demands[0]].filter(([id]) => ids.has(id)).map(([, demand]) => demand);
-    const preparedFloor = prepared.reduce(
-      (sum, demand) =>
-        sum +
-        demand.rows.reduce(
+    const records = [
+      ...scenes,
+      ...prepared.map(demand => ({
+        id: '',
+        group: demand.group,
+        maxTotalSplats: demand.maxTotalSplats,
+        floor: demand.rows.reduce(
           (cost, row) => cost + demand.hierarchy(row.owner).at(-1)!.source.positions.length / 3,
           0
         ),
-      0
-    );
-    const preparedDesired = prepared.reduce(
-      (sum, demand) =>
-        sum +
-        Math.min(
+        desired: Math.min(
           demand.maxSplats,
           demand.rows.reduce(
             (cost, row) =>
               cost + demand.hierarchy(row.owner)[row.level].source.positions.length / 3,
             0
           )
-        ),
-      0
-    );
-    const total = Math.min(limit, ...prepared.map(demand => demand.maxTotalSplats));
-    const extra = Math.max(0, total - preparedFloor - floor);
-    const sceneExtra = Math.max(0, desired - floor);
-    const preparedExtra = Math.max(0, preparedDesired - preparedFloor);
-    const grant = Number.isFinite(total)
-      ? floor + Math.min(sceneExtra, extra * (sceneExtra / Math.max(1, sceneExtra + preparedExtra)))
-      : desired;
+        )
+      }))
+    ];
+    const total = Math.min(Infinity, ...records.map(record => record.maxTotalSplats));
+    const constraints = new Map<object, {budget: number; records: SceneDemand[]}>();
+    constraints.set(this, {budget: total, records});
+    for (const record of records)
+      for (let group = record.group; group; group = group.parent) {
+        let constraint = constraints.get(group);
+        if (!constraint) {
+          constraint = {budget: group.maxSplats, records: []};
+          constraints.set(group, constraint);
+        }
+        constraint.records.push(record);
+      }
+    const factors = new Map(records.map(record => [record, 1]));
+    for (const {budget, records: members} of constraints.values()) {
+      if (!Number.isFinite(budget)) continue;
+      const floor = members.reduce((sum, record) => sum + record.floor, 0);
+      const extra = members.reduce(
+        (sum, record) => sum + Math.max(0, record.desired - record.floor),
+        0
+      );
+      const factor = Math.min(1, Math.max(0, budget - floor) / Math.max(1, extra));
+      for (const record of members) factors.set(record, Math.min(factors.get(record)!, factor));
+    }
+    const grants = new Map<string, number>();
+    const groupGrants = new Map<SplatBudgetGroup, number>();
+    let grant = 0;
+    for (const scene of scenes) {
+      const allowance =
+        scene.floor + Math.max(0, scene.desired - scene.floor) * factors.get(scene)!;
+      grants.set(scene.id, allowance);
+      grant += allowance;
+      for (let group = scene.group; group; group = group.parent)
+        groupGrants.set(group, (groupGrants.get(group) ?? 0) + allowance);
+    }
     if (
       grant !== this.sceneGrant ||
-      limit !== this.sceneLimit ||
-      desired !== this.sceneDemand ||
-      floor !== this.sceneFloor
+      total !== this.sceneLimit ||
+      groupGrants.size !== this.sceneGroupGrants.size ||
+      [...groupGrants].some(([group, value]) => this.sceneGroupGrants.get(group) !== value)
     ) {
-      this.sceneDemand = desired;
-      this.sceneFloor = floor;
-      this.sceneLimit = limit;
+      this.sceneLimit = total;
       this.sceneGrant = grant;
+      this.sceneGroupGrants = groupGrants;
       this.snapshots[0].clear();
     }
-    return grant;
+    return grants;
   }
   private snapshots: Map<string, unknown[]>[] = [new Map(), new Map()];
   private demands = [new Map<string, Demand>(), new Map<string, Demand>()];
@@ -112,7 +142,7 @@ export class SplatRuntime {
           demand.rows,
           demand.maxSplats,
           demand.maxTotalSplats,
-          ...(operation === 0 && (this.sceneDemand > 0 || Number.isFinite(this.sceneLimit))
+          ...(operation === 0 && (this.sceneGrant > 0 || Number.isFinite(this.sceneLimit))
             ? [this.sceneGrant, this.sceneLimit]
             : [])
         ];
@@ -154,7 +184,12 @@ export class SplatRuntime {
         for (let group = demand.group; group; group = group.parent)
           result.push({
             key: group,
-            budget: (operation ? group.maxShadowSplats : group.maxSplats) * 0.75
+            budget:
+              Math.max(
+                0,
+                (operation ? group.maxShadowSplats : group.maxSplats) -
+                  (operation ? 0 : (this.sceneGroupGrants.get(group) ?? 0))
+              ) * 0.75
           });
         return result;
       };
