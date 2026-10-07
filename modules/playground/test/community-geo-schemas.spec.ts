@@ -65,7 +65,7 @@ const cases = {
   ],
   TreeLayer: [
     {getPosition: '@@=position', getTreeType: "@@='oak'", getHeight: '@@=10', sizeScale: 2},
-    {getTreeType: 'oak'}
+    {getTreeType: 'maple'}
   ]
 } satisfies Record<keyof typeof CommunityGeoLayerSchemas, [object, object]>;
 
@@ -92,6 +92,12 @@ for (const [name, schema] of Object.entries(CommunityGeoLayerSchemas)) {
     expect(validate(bad)).toBe(false);
     expect(schema.safeParse({...good, typoProperty: true}).success).toBe(false);
     expect(validate({...good, typoProperty: true})).toBe(false);
+    if (name === 'TreeLayer') {
+      for (const detail of ['low', 'medium', 'high']) {
+        expect(schema.safeParse({...good, detail}).success).toBe(false);
+        expect(validate({...good, detail})).toBe(false);
+      }
+    }
   });
 }
 
@@ -172,19 +178,57 @@ test('prepared wind fields, tile sources, headers and grid adapters require host
   }
 });
 
-test('tree accessors must be callable after JSON conversion', () => {
+test('tree accessors accept typed constants and serialized functions', () => {
   const schema = CommunityGeoLayerSchemas.TreeLayer;
   const layer = {id: 'trees', '@@type': 'TreeLayer'};
+  const constants = {
+    getPosition: [1, 2, 3],
+    getTreeType: 'citrus',
+    getSeason: 'winter',
+    getHeight: 12,
+    getTrunkColor: null,
+    getCanopyColor: [30, 120, 40],
+    getCrop: {kind: 'lemon', color: [255, 220, 10], count: 4, radius: 0.1},
+    getCoverageWeight: 0.5
+  };
+  expect(schema.safeParse({...layer, ...constants}).success).toBe(true);
   for (const key of Object.keys(schema.shape).filter(
     name => name.startsWith('get') && name !== 'getPolygonOffset'
   )) {
-    for (const value of [10, 'oak', null, [1, 2, 3], {color: [255, 0, 0], count: 4, radius: 0.1}]) {
-      expect(schema.safeParse({...layer, [key]: value}).success).toBe(false);
-    }
     for (const value of ['@@=value', '@@#accessor', {'@@function': 'createAccessor', value: 10}]) {
       expect(schema.safeParse({...layer, [key]: value}).success).toBe(true);
     }
   }
+  for (const invalid of [
+    {getTreeType: 'maple'},
+    {getPosition: [1]},
+    {getSeason: 'monsoon'},
+    {getCrop: {kind: 'orange', color: [255, 0, 0], count: 4, radius: 0.1}},
+    {foveationStrength: 2},
+    {characteristics: {leafColor: 1}},
+    {maxCanopyPixels: 0}
+  ]) {
+    expect(schema.safeParse({...layer, ...invalid}).success).toBe(false);
+  }
+});
+
+test('supports unified authored traits without requiring renderer configuration', () => {
+  const valid = {
+    id: 'trees',
+    '@@type': 'TreeLayer',
+    getTree: {
+      species: 'citrus',
+      height: 5,
+      crownRadius: 2,
+      season: 'winter',
+      wind: true,
+      characteristics: {leafSize: 1.2}
+    }
+  };
+  expect(CommunityGeoLayerSchemas.TreeLayer.safeParse(valid).success).toBe(true);
+  expect(
+    CommunityGeoLayerSchemas.TreeLayer.safeParse({...valid, getTree: {species: 'maple'}}).success
+  ).toBe(false);
 });
 
 test('flat splat inputs accept host assets, typed affine transforms and explicit transparency', () => {

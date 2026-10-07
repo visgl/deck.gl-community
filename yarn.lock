@@ -1022,7 +1022,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers":
+"@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers, @deck.gl-community/layers@workspace:~":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
@@ -1175,9 +1175,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/three@workspace:modules/three"
   dependencies:
-    "@types/three": "npm:^0.170.0"
-    three: "npm:^0.170.0"
+    "@deck.gl-community/layers": "workspace:~"
   peerDependencies:
+    "@deck.gl-community/layers": ~9.4.2
     "@deck.gl/core": ~9.4.0
     "@deck.gl/mesh-layers": ~9.4.0
   languageName: unknown
@@ -7151,13 +7151,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tweenjs/tween.js@npm:~23.1.3":
-  version: 23.1.3
-  resolution: "@tweenjs/tween.js@npm:23.1.3"
-  checksum: 10c0/811b30f5f0e7409fb41833401c501c2d6f600eb5f43039dd9067a7f70aff6dad5f5ce1233848e13f0b33a269a160d9c133f344d986cbff4f1f6b72ddecd06c89
-  languageName: node
-  linkType: hard
-
 "@tybys/wasm-util@npm:0.9.0, @tybys/wasm-util@npm:^0.9.0":
   version: 0.9.0
   resolution: "@tybys/wasm-util@npm:0.9.0"
@@ -7481,13 +7474,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/stats.js@npm:*":
-  version: 0.17.4
-  resolution: "@types/stats.js@npm:0.17.4"
-  checksum: 10c0/4fe0429998519f0476f03a25b4900b4d4a1474606478657271e40a884f7936ba902ea564b1c95cfd33a8e84af46cef6e1e98bb23e86fd3b6676cd5b974987151
-  languageName: node
-  linkType: hard
-
 "@types/supercluster@npm:^7.1.3":
   version: 7.1.3
   resolution: "@types/supercluster@npm:7.1.3"
@@ -7497,31 +7483,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/three@npm:^0.170.0":
-  version: 0.170.0
-  resolution: "@types/three@npm:0.170.0"
-  dependencies:
-    "@tweenjs/tween.js": "npm:~23.1.3"
-    "@types/stats.js": "npm:*"
-    "@types/webxr": "npm:*"
-    "@webgpu/types": "npm:*"
-    fflate: "npm:~0.8.2"
-    meshoptimizer: "npm:~0.18.1"
-  checksum: 10c0/6f96f57f70884fac6e1f62a4bd032462e052bb8a62cccad3a3101f86f47b698062d8070551dc45560c1a7b16f7d0ee911bd75d0abefc17610b29f39e7c83a2a4
-  languageName: node
-  linkType: hard
-
 "@types/trusted-types@npm:^1.0.6":
   version: 1.0.6
   resolution: "@types/trusted-types@npm:1.0.6"
   checksum: 10c0/4bc61ac65b8e42d17c77a23f29cdf94e498acd2e23f4c00cf15c8281de94263ac313d46cbcd7cd1d03c066d497f9396845e3210ff0074f5f90f212cb3e8aac28
-  languageName: node
-  linkType: hard
-
-"@types/webxr@npm:*":
-  version: 0.5.24
-  resolution: "@types/webxr@npm:0.5.24"
-  checksum: 10c0/ff59ffd390d06ca3f89ab2531d583ac10bc5e2ab82e5a01ecc40fbc365224a3375e7caa5b14649cf6141db21fb024940da7ad2bd8faa3cd497a6665257cb53b5
   languageName: node
   linkType: hard
 
@@ -7923,7 +7888,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@webgpu/types@npm:*, @webgpu/types@npm:^0.1.69":
+"@webgpu/types@npm:^0.1.69":
   version: 0.1.69
   resolution: "@webgpu/types@npm:0.1.69"
   checksum: 10c0/52b95a176de5ee918fd1d7132103c35029006a0b4eb321767479a9e430560d272926c0994c3795a5bbaa22cebcc7dce71e66ba8b6496e01c90c0d179a02bd968
@@ -11721,13 +11686,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fflate@npm:~0.8.2":
-  version: 0.8.2
-  resolution: "fflate@npm:0.8.2"
-  checksum: 10c0/03448d630c0a583abea594835a9fdb2aaf7d67787055a761515bf4ed862913cfd693b4c4ffd5c3f3b355a70cf1e19033e9ae5aedcca103188aaff91b8bd6e293
-  languageName: node
-  linkType: hard
-
 "figures@npm:3.2.0":
   version: 3.2.0
   resolution: "figures@npm:3.2.0"
@@ -14259,13 +14217,6 @@ __metadata:
   version: 1.2.0
   resolution: "meshoptimizer@npm:1.2.0"
   checksum: 10c0/6cfb115dd5af02d2f590266078c609dd3236ee5fada87be3f9b7e9178860b7bf5bec4a1f8c7fc924663489e822688ef91db7c2de854205cd3bb223ecd9fc8234
-  languageName: node
-  linkType: hard
-
-"meshoptimizer@npm:~0.18.1":
-  version: 0.18.1
-  resolution: "meshoptimizer@npm:0.18.1"
-  checksum: 10c0/8a825c58b20b65585e8d00788843929b60c66ba4297e89afaa49f7c51ab9a0f7b9130f90cc9ad1b9b48b3d1bee3beb1bc93608acba0d73e78995c3e6e5ca436b
   languageName: node
   linkType: hard
 
@@ -18746,13 +18697,6 @@ __metadata:
     tiny-worker:
       optional: true
   checksum: 10c0/34114075c5eb253e937c01e0e51babb71eb1571c2fd4a8170645aa20c10186422324537d017d64bfd3de655cbb6647bf70d1d602260273b1e9750719d67f359a
-  languageName: node
-  linkType: hard
-
-"three@npm:^0.170.0":
-  version: 0.170.0
-  resolution: "three@npm:0.170.0"
-  checksum: 10c0/eeaa1eccb31467654a044fb90634b3b6bb8d0768a4f029c082fb6aa22aec0d6362d0e3af74938caa1db512b7823a031b54a76e88fba6cfd535054165ea9667c9
   languageName: node
   linkType: hard
 

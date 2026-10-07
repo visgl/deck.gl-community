@@ -103,7 +103,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@luma.gl/webgl',
     '@luma.gl/webgpu',
     'apache-arrow',
-    'three',
     'zod'
   ]
 };

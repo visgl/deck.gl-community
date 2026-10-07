@@ -6,6 +6,8 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,

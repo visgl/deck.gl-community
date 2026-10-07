@@ -6,7 +6,6 @@ import {
   createAccessorSchema,
   NumberAccessorSchema,
   PositionAccessorSchema,
-  MaterialSchema,
   ColorSchema,
   CompositeLayerPropsSchema,
   ConstantSchema,
@@ -16,6 +15,7 @@ import {
   StringAccessorSchema,
   Vector2Schema,
   Vector3Schema,
+  MaterialSchema,
   Vector4Schema,
   defineLayer
 } from './common';
@@ -180,21 +180,78 @@ export const DataDrivenTile3DLayerPropsSchema = Tile3DLayerPropsSchema.extend({
     .optional()
 });
 
-/** JSON props for procedural trees; accessors must be functions because TreeLayer calls them. */
+/** JSON props for procedural tree crops. */
+const TreeCropSchema = z
+  .object({
+    kind: z.enum(['fruit', 'lemon', 'cone', 'acorn', 'catkin', 'flower', 'propagule']).optional(),
+    color: ColorSchema,
+    count: z.number(),
+    radius: z.number(),
+    droppedCount: z.number().optional()
+  })
+  .strict();
+const TreeCharacteristicsSchema = z
+  .object({
+    seed: z.number().optional(),
+    crownSpread: z.number().optional(),
+    crownDepth: z.number().optional(),
+    crownAsymmetry: z.number().optional(),
+    branchDensity: z.number().optional(),
+    branchLift: z.number().optional(),
+    internodeLength: z.number().optional(),
+    leafSize: z.number().optional(),
+    leafDensity: z.number().optional()
+  })
+  .strict();
+/** Authored traits consumed by TreeLayer's unified getTree accessor. */
+export const TreeSpecSchema = z
+  .object({
+    position: z.union([Vector2Schema, Vector3Schema]).optional(),
+    species: z
+      .enum(['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'])
+      .optional(),
+    height: z.number().nonnegative().optional(),
+    crownRadius: z.number().nonnegative().optional(),
+    trunkRadius: z.number().nonnegative().optional(),
+    trunkHeightFraction: z.number().min(0).max(1).optional(),
+    elevation: z.number().optional(),
+    season: z.enum(['spring', 'summer', 'autumn', 'winter']).optional(),
+    characteristics: TreeCharacteristicsSchema.optional(),
+    crop: TreeCropSchema.nullable().optional(),
+    wind: z.union([z.boolean(), z.number().min(0).max(0.2)]).optional(),
+    trunkColor: ColorSchema.nullable().optional(),
+    canopyColor: ColorSchema.nullable().optional(),
+    branchLevels: z.number().optional()
+  })
+  .strict();
+
+/** JSON props for the canonical TreeLayer, including constants and serialized accessors. */
 export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
-  getPosition: FunctionSchema.optional(),
-  getElevation: FunctionSchema.optional(),
-  getTreeType: FunctionSchema.optional(),
-  getHeight: FunctionSchema.optional(),
-  getTrunkHeightFraction: FunctionSchema.optional(),
-  getTrunkRadius: FunctionSchema.optional(),
-  getCanopyRadius: FunctionSchema.optional(),
-  getTrunkColor: FunctionSchema.optional(),
-  getCanopyColor: FunctionSchema.optional(),
-  getSeason: FunctionSchema.optional(),
-  getBranchLevels: FunctionSchema.optional(),
-  getCrop: FunctionSchema.optional(),
-  sizeScale: z.number().nonnegative().optional()
+  getTree: createAccessorSchema(TreeSpecSchema).optional(),
+  getPosition: PositionAccessorSchema.optional(),
+  getElevation: NumberAccessorSchema.optional(),
+  getTreeType: createAccessorSchema(
+    z.enum(['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'])
+  ).optional(),
+  getHeight: NumberAccessorSchema.optional(),
+  getTrunkHeightFraction: NumberAccessorSchema.optional(),
+  getTrunkRadius: NumberAccessorSchema.optional(),
+  getCanopyRadius: NumberAccessorSchema.optional(),
+  getTrunkColor: createAccessorSchema(ColorSchema.nullable()).optional(),
+  getCanopyColor: createAccessorSchema(ColorSchema.nullable()).optional(),
+  getSeason: createAccessorSchema(z.enum(['spring', 'summer', 'autumn', 'winter'])).optional(),
+  getBranchLevels: NumberAccessorSchema.optional(),
+  getCrop: createAccessorSchema(TreeCropSchema.nullable()).optional(),
+  getCoverageWeight: NumberAccessorSchema.optional(),
+  sizeScale: z.number().nonnegative().optional(),
+  characteristics: TreeCharacteristicsSchema.optional(),
+  windStrength: z.number().min(0).max(0.2).optional(),
+  windTime: z.number().nullable().optional(),
+  foveationStrength: z.number().min(0).max(1).optional(),
+  maxCanopySplats: z.number().nonnegative().optional(),
+  maxShadowSplats: z.number().nonnegative().optional(),
+  maxCanopyPixels: z.number().positive().optional(),
+  shadowEnabled: z.boolean().optional()
 });
 
 /** Gaussian buffers remain host-owned constants; file and RAD scenes use ordinary URL data. */
