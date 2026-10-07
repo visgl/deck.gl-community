@@ -159,10 +159,13 @@ export function mountTreeLabExample(
   };
   root.addEventListener('click', event => {
     if ((event.target as HTMLElement).id === 'wind-clock') {
-      options.windTime =
-        options.windTime === null
-          ? Number(root.querySelector<HTMLInputElement>('#wind-time')!.value)
-          : null;
+      if (options.windTime === null) {
+        const specimen = decks.find(item => item.onScreen) ?? decks[0];
+        options.windTime = (specimen?.deck.layerManager?.context.timeline.getTime() ?? 0) / 1000;
+        const slider = root.querySelector<HTMLInputElement>('#wind-time')!;
+        slider.max = String(Math.max(10, Math.ceil(options.windTime)));
+        slider.value = String(options.windTime);
+      } else options.windTime = null;
       refresh();
       return;
     }

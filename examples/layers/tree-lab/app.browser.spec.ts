@@ -61,6 +61,39 @@ function countChangedPixels(before: Frame, after: Frame): number {
 }
 
 describe('Tree Lab rendering controls', () => {
+  it('pauses wind at the rendered clock instead of the stale scrubber value', async () => {
+    const originalUrl = location.href;
+    const url = new URL(originalUrl);
+    url.searchParams.set('auto', '0');
+    history.replaceState(null, '', url);
+    const container = document.createElement('div');
+    container.style.width = '900px';
+    document.body.append(container);
+    const cleanup = mountTreeLabExample(container, {benchmarkLinks: false, species: ['oak']});
+    const api = (window as Window & {treeLab?: ReviewApi}).treeLab!;
+    try {
+      api.setOptions({pixelRatio: 1, wind: true, windTime: null});
+      await expect.poll(() => api.ready, {timeout: 15000}).toBe(2);
+      const timeline = api.getDecks()[0].deck.layerManager!.context.timeline;
+      await expect.poll(() => timeline.getTime(), {timeout: 5000}).toBeGreaterThan(200);
+      const slider = container.querySelector<HTMLInputElement>('#wind-time')!;
+      slider.value = '0';
+      const before = timeline.getTime() / 1000;
+      const button = container.querySelector<HTMLButtonElement>('#wind-clock')!;
+      button.click();
+      expect(api.getOptions().windTime).toBeCloseTo(before, 1);
+      expect(Number(slider.value)).toBeCloseTo(before, 0);
+      expect(button.textContent).toBe('Play wind');
+      button.click();
+      expect(api.getOptions().windTime).toBeNull();
+      expect(button.textContent).toBe('Pause wind');
+      expect(api.errors).toEqual([]);
+    } finally {
+      cleanup();
+      container.remove();
+      history.replaceState(null, '', originalUrl);
+    }
+  }, 30000);
   it.each(
     SPECIES
   )('%s stays visible across shadow toggles, four seasons and frozen wind poses', async species => {
