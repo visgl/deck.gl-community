@@ -1,5 +1,6 @@
 // The only module that imports the style-spec package, so the expression engine can be swapped
 // in one place.
+import {log} from '@deck.gl/core';
 import {
   Color,
   expression,
@@ -42,6 +43,19 @@ const GEOMETRY_TYPES: Record<string, number> = {
 };
 
 const compiledPropertyCache = new WeakMap<object, Map<string, CompiledStyleProperty | null>>();
+const compiledFilterCache = new WeakMap<object, StyleFilter>();
+const warnedValues = new Set<string>();
+
+type StyleFilter = (globalProperties: Record<string, unknown>, feature: StyleFeature) => boolean;
+
+/** Logs an invalid style value once per property and value. */
+function warnInvalidValue(propertyName: string, value: unknown, error: unknown): void {
+  const key = `${propertyName}:${JSON.stringify(value)}`;
+  if (!warnedValues.has(key)) {
+    warnedValues.add(key);
+    log.warn(`Ignoring invalid style value for ${propertyName}: ${String(error)}`)();
+  }
+}
 
 /** Returns whether a style property is a `layout` or a `paint` property. */
 export function getStylePropertyType(propertyName: string): 'layout' | 'paint' {
@@ -92,15 +106,28 @@ function toPlainValue(value: any): unknown {
   return value instanceof Color ? colorToArray(value) : value;
 }
 
-/** Compiles a single property value against its style-spec reference. */
+/**
+ * Compiles a single property value against its style-spec reference. Returns `null` and logs a
+ * warning once for a value the style spec rejects, so the property is treated as unset, as
+ * MapLibre skips invalid properties.
+ */
 export function compileStylePropertyValue(
   propertyName: string,
   value: unknown
-): CompiledStyleProperty {
-  const compiled = expression.normalizePropertyExpression(
-    value as any,
-    getStylePropertyReference(propertyName) as any
-  ) as any;
+): CompiledStyleProperty | null {
+  const reference = getStylePropertyReference(propertyName);
+  let compiled: any;
+  try {
+    // An array whose first element is not a known operator is read as a literal. That is only
+    // valid for array-typed properties (`text-font`, `line-dasharray`, ...).
+    if (Array.isArray(value) && reference?.type !== 'array' && !expression.isExpression(value)) {
+      throw new Error(`Unknown expression "${String(value[0])}"`);
+    }
+    compiled = expression.normalizePropertyExpression(value as any, reference as any);
+  } catch (error) {
+    warnInvalidValue(propertyName, value, error);
+    return null;
+  }
   const kind: string = compiled.kind;
 
   return {
@@ -120,7 +147,6 @@ export function getCompiledStyleProperty(
   styleLayer: StyleLayerLike,
   propertyName: string
 ): CompiledStyleProperty | null {
-  const propertyType = getStylePropertyType(propertyName);
   let layerCache = compiledPropertyCache.get(styleLayer);
   if (!layerCache) {
     layerCache = new Map();
@@ -129,7 +155,7 @@ export function getCompiledStyleProperty(
 
   const key = propertyName;
   if (!layerCache.has(key)) {
-    const value = styleLayer[propertyType]?.[propertyName];
+    const value = styleLayer[getStylePropertyType(propertyName)]?.[propertyName];
     layerCache.set(
       key,
       value === undefined ? null : compileStylePropertyValue(propertyName, value)
@@ -138,11 +164,28 @@ export function getCompiledStyleProperty(
   return layerCache.get(key) || null;
 }
 
-/** Compiles a style-spec filter into a feature predicate. */
-export function compileStyleFilter(
-  filter: unknown
-): (globalProperties: Record<string, unknown>, feature: StyleFeature) => boolean {
-  const filterFn = featureFilter(filter as any).filter;
-  return (globalProperties, feature) =>
-    filterFn(globalProperties as any, toEvaluationFeature(feature) as any);
+/**
+ * Compiles a style-spec filter into a feature predicate, cached per filter array. A filter the
+ * style spec rejects logs a warning once and matches no features.
+ */
+export function compileStyleFilter(filter: unknown): StyleFilter {
+  const cached = filter && typeof filter === 'object' ? compiledFilterCache.get(filter) : undefined;
+  if (cached) {
+    return cached;
+  }
+
+  let compiled: StyleFilter;
+  try {
+    const filterFn = featureFilter(filter as any).filter;
+    compiled = (globalProperties, feature) =>
+      filterFn(globalProperties as any, toEvaluationFeature(feature) as any);
+  } catch (error) {
+    warnInvalidValue('filter', filter, error);
+    compiled = () => false;
+  }
+
+  if (filter && typeof filter === 'object') {
+    compiledFilterCache.set(filter, compiled);
+  }
+  return compiled;
 }

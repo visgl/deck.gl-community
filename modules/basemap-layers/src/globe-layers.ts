@@ -85,6 +85,7 @@ const BACKGROUND_NORTH_POLE_DATA = [
 
 const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster']);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
+const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
 
 /** Evaluates a style layer's paint at the integer zoom (see `getZoomBucket`). */
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
@@ -553,9 +554,11 @@ function createSymbolSubLayer({
     mode,
     styleLayer,
     zoom: getZoomBucket(zoom),
-    textColor: withOpacity(paint['text-color'], opacity),
+    // The style spec's default `text-color` is black.
+    textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
+    // The halo keeps its own alpha, scaled by the layer opacity like the text.
     labelBackground: paint['text-halo-color']
-      ? withOpacity(paint['text-halo-color'], paint['text-halo-width'] ? 255 : opacity)
+      ? withOpacity(paint['text-halo-color'], opacity)
       : null,
     billboard: true
   });
@@ -654,29 +657,27 @@ function getVectorLayers({
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
 }) {
-  const visibleVectorLayers = styleLayers.filter(layer => {
-    if (!isStyleLayerVisibleAtZoom(layer, zoom)) {
-      return false;
-    }
-
-    if (layer.type === 'symbol') {
-      return config.labels;
-    }
-    return layer.type === 'fill' || layer.type === 'line';
-  });
-
-  return getVectorSourceGroups(visibleVectorLayers, styleDefinition).map(group =>
-    createVectorLayerGroup({
-      idPrefix,
-      sourceId: group.sourceId,
-      source: group.source,
-      styleLayers: group.styleLayers,
-      zoom,
-      config,
-      loadOptions,
-      mode
-    })
+  const vectorLayers = styleLayers.filter(layer =>
+    layer.type === 'symbol' ? config.labels : layer.type === 'fill' || layer.type === 'line'
   );
+
+  // A group keeps all of its source's style layers, visible or not: its tile regeneration key
+  // must change when any of them crosses its own limits, and `renderSubLayers` gates each layer
+  // by zoom. Skip a source only when none of its layers are visible.
+  return getVectorSourceGroups(vectorLayers, styleDefinition)
+    .filter(group => group.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom)))
+    .map(group =>
+      createVectorLayerGroup({
+        idPrefix,
+        sourceId: group.sourceId,
+        source: group.source,
+        styleLayers: group.styleLayers,
+        zoom,
+        config,
+        loadOptions,
+        mode
+      })
+    );
 }
 
 function getRasterLayers({
