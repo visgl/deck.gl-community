@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added reusable `SplatLayer` with prepared Gaussian sources, instanced owners, automatic refinement, optical transitions and WebGL2/WebGPU rendering.
+- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Existing `source` callers remain compatible; streamed RAD and sorted scene rendering remain separate upstream work.
 
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.

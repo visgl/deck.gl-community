@@ -199,12 +199,16 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
 
 /** Prepared Gaussian buffers and hierarchies remain host-owned constants. */
 export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
-  source: ConstantSchema,
+  source: ConstantSchema.optional(),
+  getSource: createAccessorSchema(ConstantSchema).optional(),
+  transparency: z.enum(['weighted', 'sorted']).optional(),
+  maxTotalSplats: z.number().nonnegative().optional(),
   hierarchy: ConstantSchema.optional(),
   getPosition: PositionAccessorSchema.optional(),
   getOrientation: createAccessorSchema(Vector3Schema).optional(),
   getScale: createAccessorSchema(Vector3Schema).optional(),
   getTranslation: createAccessorSchema(Vector3Schema).optional(),
+  getTransformMatrix: createAccessorSchema(z.array(z.number()).length(16).nullable()).optional(),
   getColor: createAccessorSchema(ColorSchema).optional(),
   getDeformation: createAccessorSchema(Vector3Schema).optional(),
   getCoverageWeight: NumberAccessorSchema.optional(),

@@ -5,6 +5,7 @@ import type {SplatSelection} from './splat-budget';
 
 type Entry<T> = {
   owner: T;
+  counts: number[];
   weights: number[];
   target: number[];
   level: number;
@@ -21,7 +22,6 @@ export class SplatRefinementTransition<T> {
   entries = new Map<string, Entry<T>>();
   private moving = new Set<Entry<T>>();
   private previous = 0;
-  private counts: number[] = [];
   private budget = Infinity;
   private used = 0;
   private epoch = 0;
@@ -35,34 +35,35 @@ export class SplatRefinementTransition<T> {
 
   reconcile(
     rows: SplatSelection<T>[],
-    counts: number[],
+    counts: number[] | ((owner: T) => number[]),
     budget: number,
     key: (owner: T) => string
   ) {
-    this.counts = counts;
     this.budget = budget;
     let membershipChanged = false;
     const initial = this.entries.size === 0;
     const epoch = ++this.epoch;
     for (const row of rows) {
+      const rowCounts = typeof counts === 'function' ? counts(row.owner) : counts;
       const id = key(row.owner);
       // Quantize only the target; optical output still moves continuously. This
       // deadband stops tiny projection changes from keeping thousands of fades alive.
       const blend = Math.round(row.blend * 64) / 64;
       let entry = this.entries.get(id);
       if (!entry) {
-        const target = counts.map((_, level) =>
+        const target = rowCounts.map((_, level) =>
           level === row.level ? 1 - blend : level === row.level + 1 ? blend : 0
         );
         const weights = initial
           ? [...target]
-          : counts.map((_, level) => (level === counts.length - 1 ? 1 : 0));
+          : rowCounts.map((_, level) => (level === rowCounts.length - 1 ? 1 : 0));
         const cost = weights.reduce(
-          (sum, weight, level) => sum + (weight > 0 ? counts[level] : 0),
+          (sum, weight, level) => sum + (weight > 0 ? rowCounts[level] : 0),
           0
         );
         entry = {
           owner: row.owner,
+          counts: rowCounts,
           weights,
           target,
           level: row.level,
@@ -81,6 +82,7 @@ export class SplatRefinementTransition<T> {
       } else {
         membershipChanged ||= entry.owner !== row.owner;
         entry.owner = row.owner;
+        entry.counts = rowCounts;
         entry.seen = epoch;
         if (entry.level !== row.level || entry.blend !== blend) {
           entry.level = row.level;
@@ -106,10 +108,10 @@ export class SplatRefinementTransition<T> {
     entry.targetCost = 0;
     entry.missingCost = 0;
     let changing = false;
-    for (let i = 0; i < this.counts.length; i++) {
+    for (let i = 0; i < entry.counts.length; i++) {
       if (entry.target[i] > 0) {
-        entry.targetCost += this.counts[i];
-        if (entry.weights[i] === 0) entry.missingCost += this.counts[i];
+        entry.targetCost += entry.counts[i];
+        if (entry.weights[i] === 0) entry.missingCost += entry.counts[i];
       }
       changing ||= entry.weights[i] !== entry.target[i];
     }
@@ -157,7 +159,7 @@ export class SplatRefinementTransition<T> {
               Math.abs(delta) < 0.0001 ? entry.target[i] : entry.weights[i] + delta * alpha;
             changed = true;
           }
-          if (entry.weights[i] > 0) cost += this.counts[i];
+          if (entry.weights[i] > 0) cost += entry.counts[i];
           if (entry.weights[i] > largest) {
             largest = entry.weights[i];
             dominant = i;
