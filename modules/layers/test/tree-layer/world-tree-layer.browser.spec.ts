@@ -13,6 +13,8 @@ it('streams an independent inventory through region, forest and close views with
   parent.style.cssText = 'width:512px;height:512px';
   document.body.append(parent);
   const errors: string[] = [];
+  let drawnPixels = 0;
+  let frames = 0;
   let season = 'summer' as 'summer' | 'winter';
   let mergeIdentities = false;
   let identityRevision = 0;
@@ -24,6 +26,7 @@ it('streams an independent inventory through region, forest and close views with
   const makeLayer = () =>
     new TreeLayer<TestTree>({
       id: 'world',
+      pickable: true,
       getTileData: getTestTreeTile,
       getTreeKey,
 
@@ -59,6 +62,15 @@ it('streams an independent inventory through region, forest and close views with
     views: new MapView({controller: true}),
     initialViewState: {longitude: 0.00055, latitude: 0.00055, zoom: 1, pitch: 0},
     layers: [makeLayer()],
+    onAfterRender: ({gl}) => {
+      frames++;
+      const pixels = new Uint8Array(512 * 512 * 4);
+      gl.readPixels(0, 0, 512, 512, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      drawnPixels = 0;
+      for (let index = 3; index < pixels.length; index += 4) {
+        if (pixels[index] > 0) drawnPixels++;
+      }
+    },
     onError: error => errors.push(error.message)
   });
   const publicLayer = () => deck.props.layers[0] as TreeLayer<TestTree>;
@@ -166,21 +178,31 @@ it('streams an independent inventory through region, forest and close views with
       expect(trees.props.updateTriggers.getCoverageWeight).toContain(coverageRevision);
     }
     // Constant accessors invalidate cached wood/crown attributes without an explicit trigger.
+    const focus = current().state.batch.trees[0].position;
+    const beforeFocus = frames;
+    deck.setProps({
+      viewState: {longitude: focus[0], latitude: focus[1], zoom: 19, pitch: 45, bearing: 0}
+    });
+    await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(beforeFocus);
+    await expect.poll(() => current().isLoaded, {timeout: 30000}).toBe(true);
+    await expect.poll(() => current().state.coverage.active, {timeout: 30000}).toBe(false);
+    const coverageTrees = current().state.batch.trees;
+    // Accessor type switches use deck's explicit trigger; numeric edits below do not.
     constantCoverage = true;
+    coverageRevision++;
     for (const value of [1, 0]) {
       authoredCoverage = value;
+      const beforeCoverage = frames;
       deck.setProps({layers: [makeLayer()]});
+      await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(beforeCoverage);
       await expect
-        .poll(
-          () =>
-            leaves(current())
-              .filter(layer => layer.id.includes('-wood-'))
-              .reduce((count, layer) => count + layer.getNumInstances(), 0),
-          {timeout: 30000}
-        )
+        .poll(() => drawnPixels, {timeout: 30000})
         .toSatisfy(count => (value > 0 ? count > 0 : count === 0));
+      if (value === 0) expect(deck.pickObjects({x: 0, y: 0, width: 512, height: 512})).toEqual([]);
     }
+    expect(current().state.batch.trees).toBe(coverageTrees);
     // A changed identity rule must regroup the already-loaded pages immediately.
+    const identityCount = current().state.batch.trees.length;
     const loadedPages = current().state.batch.contents.slice();
     mergeIdentities = true;
     identityRevision++;
@@ -192,7 +214,7 @@ it('streams an independent inventory through region, forest and close views with
     deck.setProps({layers: [makeLayer()]});
     await expect
       .poll(() => current().state.batch.trees.length, {timeout: 30000})
-      .toBe(before.length);
+      .toBe(identityCount);
     expect(errors).toEqual([]);
   } finally {
     deck.finalize();
