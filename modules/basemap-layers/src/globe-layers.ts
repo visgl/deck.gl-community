@@ -124,25 +124,17 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
 }
 
 /** The `minzoom`/`maxzoom` limits that `isStyleLayerVisibleAtZoom` compares against. */
-export function getStyleZoomLimits(
-  styleLayers: BasemapStyleLayer[],
-  source?: BasemapSource
-): (number | undefined)[] {
-  return styleLayers.flatMap(layer => [
-    layer.minzoom ?? source?.minzoom,
-    layer.maxzoom ?? source?.maxzoom
-  ]);
+export function getStyleZoomLimits(styleLayers: BasemapStyleLayer[]): (number | undefined)[] {
+  return styleLayers.flatMap(layer => [layer.minzoom, layer.maxzoom]);
 }
 
-function isStyleLayerVisibleAtZoom(
-  styleLayer: BasemapStyleLayer,
-  zoom: number,
-  source?: BasemapSource
-): boolean {
-  const minZoom = styleLayer.minzoom ?? source?.minzoom ?? 0;
-  const maxZoom = styleLayer.maxzoom ?? source?.maxzoom ?? 22;
-
-  return zoom >= minZoom && zoom < maxZoom;
+/**
+ * A style layer is visible within its own `minzoom`/`maxzoom` only, as in MapLibre. A source's
+ * `maxzoom` limits which tiles exist, not which layers draw: past it, the tile layer overzooms.
+ */
+function isStyleLayerVisibleAtZoom(styleLayer: BasemapStyleLayer, zoom: number): boolean {
+  const {minzoom, maxzoom} = styleLayer;
+  return (minzoom === undefined || zoom >= minzoom) && (maxzoom === undefined || zoom < maxzoom);
 }
 
 function getTileFeatures(data: unknown): any[] {
@@ -256,8 +248,8 @@ function createRasterLayer({
   return new TileLayer({
     id: `${idPrefix}-${layer.id}`,
     data: source.tiles,
-    minZoom: layer.minzoom ?? source.minzoom ?? 0,
-    maxZoom: layer.maxzoom ?? source.maxzoom ?? 22,
+    minZoom: source.minzoom ?? 0,
+    maxZoom: source.maxzoom ?? 22,
     tileSize: source.tileSize || 512,
     renderSubLayers: props => {
       const {west, south, east, north} = (props.tile?.bbox || {}) as {
@@ -381,8 +373,9 @@ function createVectorLayerGroup({
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
 }) {
-  const minZoom = Math.min(...styleLayers.map(layer => layer.minzoom ?? source.minzoom ?? 0));
-  const maxZoom = Math.max(...styleLayers.map(layer => layer.maxzoom ?? source.maxzoom ?? 22));
+  // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
+  const minZoom = source.minzoom ?? 0;
+  const maxZoom = source.maxzoom ?? 22;
 
   return new StyledMVTLayer({
     id: `${idPrefix}-${sourceId}`,
@@ -416,13 +409,13 @@ function createVectorLayerGroup({
     // `renderSubLayers` reads `zoom`: regenerate tile sublayers at integer zooms (evaluation) and at
     // fractional layer limits (visibility).
     updateTriggers: {
-      renderSubLayers: getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers, source))
+      renderSubLayers: getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers))
     },
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers = styleLayers
         .map(styleLayer => {
-          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom, source)) {
+          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom)) {
             return null;
           }
 
@@ -488,13 +481,11 @@ function getVectorSourceGroups(
   return [...groups.values()];
 }
 
-/** All `minzoom`/`maxzoom` limits in a style, with each layer's source limits as fallback. */
+/** All style-layer `minzoom`/`maxzoom` limits in a style. */
 export function getStyleDefinitionZoomLimits(
   styleDefinition: BasemapLayerGroup['styleDefinition']
 ): (number | undefined)[] {
-  return (styleDefinition.layers || []).flatMap(layer =>
-    getStyleZoomLimits([layer], styleDefinition.sources?.[layer.source || ''])
-  );
+  return getStyleZoomLimits(styleDefinition.layers || []);
 }
 
 export function getBasemapLayers({
@@ -675,7 +666,7 @@ function getVectorLayers({
   mode: BasemapMode;
 }) {
   const visibleVectorLayers = styleLayers.filter(layer => {
-    if (!isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])) {
+    if (!isStyleLayerVisibleAtZoom(layer, zoom)) {
       return false;
     }
 
@@ -715,10 +706,7 @@ function getRasterLayers({
   const rasterLayers = [];
 
   for (const layer of styleLayers) {
-    if (
-      layer.type === 'raster' &&
-      isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])
-    ) {
+    if (layer.type === 'raster' && isStyleLayerVisibleAtZoom(layer, zoom)) {
       const source = styleDefinition.sources?.[layer.source];
       if (!source?.tiles) {
         logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {
