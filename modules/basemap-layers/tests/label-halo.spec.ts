@@ -34,8 +34,9 @@ describe('label halo opacity', () => {
     const layer = haloLayer({
       'text-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0, 10, 1]
     });
-    expect(layer.getLabelUpdateTriggers().getBackgroundColor).toBeDefined();
-    expect(haloLayer({}).getLabelUpdateTriggers().getBackgroundColor).toBeUndefined();
+    expect(layer.getLabelUpdateTriggers().getBackgroundColor).not.toEqual(
+      haloLayer({}).getLabelUpdateTriggers().getBackgroundColor
+    );
   });
 });
 
@@ -51,5 +52,39 @@ describe('label halo wiring', () => {
     expect(
       getBackgroundColor({position: [0, 0], feature}, {index: 0, data: [], target: []})[3]
     ).toBe(0);
+  });
+});
+
+describe('label halo color', () => {
+  function layerWithBackground(
+    labelBackground: number[],
+    paint: Record<string, unknown> = {}
+  ): any {
+    return new MVTLabelLayer({
+      id: 'labels',
+      config: {labels: true},
+      styleLayer: {layout: {'text-field': 'Label'}, paint},
+      zoom: 7.6,
+      labelBackground
+    } as any);
+  }
+
+  test('keeps a faint halo faint', () => {
+    // `rgba(255,255,255,0.004)` arrives as a 0-255 alpha of 1.
+    expect(layerWithBackground([255, 255, 255, 1]).getLabelBackgroundColor(feature)).toEqual([
+      255, 255, 255, 1
+    ]);
+    expect(
+      layerWithBackground([255, 255, 255, 200], {'text-opacity': 0.5}).getLabelBackgroundColor(
+        feature
+      )
+    ).toEqual([255, 255, 255, 100]);
+  });
+
+  test('the halo trigger follows the halo color', () => {
+    const trigger = (labelBackground: number[]) =>
+      layerWithBackground(labelBackground).getLabelUpdateTriggers().getBackgroundColor;
+    expect(trigger([255, 255, 255, 255])).not.toEqual(trigger([0, 0, 0, 255]));
+    expect(trigger([255, 255, 255, 255])).toEqual(trigger([255, 255, 255, 255]));
   });
 });
