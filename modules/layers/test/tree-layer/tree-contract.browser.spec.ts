@@ -60,6 +60,10 @@ it('casts wood shadows with ordinary LightingEffect and removes every tree part 
       windStrength: 0,
       shadowEnabled: shadows,
       getCoverageWeight: coverage,
+      // This fixture checks wood shadows and owner coverage. Retain coarse crowns
+      // so software adapters do not spend its deadline on unrelated LoD promotions.
+      maxCanopySplats: 0,
+      maxShadowSplats: 0,
       maxCanopyPixels: 256 * 256,
       pickable: true
     })
