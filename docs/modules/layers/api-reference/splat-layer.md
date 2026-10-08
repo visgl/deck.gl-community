@@ -87,8 +87,9 @@ Each viewport and `sortDomain` has one global ordering renderer. Owners retain o
 identity even when source pages are shared. **Place opaque layers before the sorted domain and
 keep its layers contiguous**; the renderer draws once into deck's existing color/depth pass.
 The host owns the canvas, device, render pass and presentation. Separate domains do not intersort.
-The first layer in a domain supplies its draw `parameters`, including depth comparison; keep
-those parameters consistent across layers sharing that domain. Picking retains its own depth state.
+The first layer in a domain supplies draw `parameters`, `alphaCutoff`, `kernelVariance` and
+`support`; keep those settings consistent across layers sharing that domain. Picking uses the
+same appearance settings with its own depth state.
 Prepared hierarchies forced to sorted currently submit their finest source; weighted optical
 hierarchy blending, wind/material lighting and foliage shadow passes remain on the prepared path.
 

@@ -185,6 +185,9 @@ export class SplatSceneRuntime implements Effect {
                   .map(channel => channel / 255)
               })) ?? [];
           picker.setProps({
+            alphaCutoff: layer.props.alphaCutoff,
+            kernel2DSize: Math.sqrt(layer.props.kernelVariance),
+            gaussianSupportRadius: layer.props.support,
             viewportSize: [
               viewport.width * (canvasContext?.cssToDeviceRatio() ?? 1),
               viewport.height * (canvasContext?.cssToDeviceRatio() ?? 1)
@@ -392,6 +395,9 @@ export class SplatSceneRuntime implements Effect {
       }
       domain.pages = pages;
       domain.renderer.setProps({
+        alphaCutoff: entries[0].layer.props.alphaCutoff,
+        kernel2DSize: Math.sqrt(entries[0].layer.props.kernelVariance),
+        gaussianSupportRadius: entries[0].layer.props.support,
         viewportSize: entries[0].view.viewportSize,
         sphericalHarmonicsDegree: 3
       });

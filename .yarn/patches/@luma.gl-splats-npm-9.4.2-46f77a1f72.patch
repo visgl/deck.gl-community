@@ -62,7 +62,7 @@ index 271d0010..dc2384ee 100644
      getStats(): GPUPagedSplatRendererStats;
      /** Releases graph-owned scratch and renderer-owned allocations without touching source pages. */
 diff --git a/dist/gpu-paged-splat-renderer.js b/dist/gpu-paged-splat-renderer.js
-index 77dba0e4..07b373e2 100644
+index 77dba0e4..9d65d72f 100644
 --- a/dist/gpu-paged-splat-renderer.js
 +++ b/dist/gpu-paged-splat-renderer.js
 @@ -4,12 +4,13 @@
@@ -112,7 +112,7 @@ index 77dba0e4..07b373e2 100644
              }
          }
          else if (nextSegments.length > 0) {
-@@ -286,11 +294,67 @@ export class GPUPagedSplatRenderer {
+@@ -286,11 +294,69 @@ export class GPUPagedSplatRenderer {
      }
      /** Encodes sparse projection, exact cross-page ordering, segmented gather, and one render pass. */
      encode(commandEncoder) {
@@ -136,9 +136,11 @@ index 77dba0e4..07b373e2 100644
 +        const colorAttachmentFormats = framebuffer?.colorAttachments.map(attachment => attachment ? attachment.texture.format : null) ?? [this.device.preferredColorFormat];
 +        const depthStencilAttachmentFormat = framebuffer?.depthStencilAttachment?.texture.format;
 +        const resolvedParameters = { ...this.model.pipeline.props.parameters, ...parameters };
-+        if (!depthStencilAttachmentFormat) {
-+            delete resolvedParameters.depthWriteEnabled;
-+            delete resolvedParameters.depthCompare;
++        for (const parameter of Object.keys(resolvedParameters)) {
++            if ((!depthStencilAttachmentFormat &&
++                (parameter.startsWith('depth') || parameter.startsWith('stencil'))) ||
++                (parameters?.blend === false && parameter !== 'blend' && parameter.startsWith('blend')))
++                delete resolvedParameters[parameter];
 +        }
 +        const pipelineKey = `${colorAttachmentFormats.join(',')}/${depthStencilAttachmentFormat ?? ''}/${JSON.stringify(resolvedParameters)}`;
 +        let pipeline = this.hostPipelines.get(pipelineKey);
@@ -180,7 +182,7 @@ index 77dba0e4..07b373e2 100644
              if (!this.requiresEncoding || !this.hasPresentedContent) {
                  return undefined;
              }
-@@ -332,6 +396,8 @@ export class GPUPagedSplatRenderer {
+@@ -332,6 +398,8 @@ export class GPUPagedSplatRenderer {
              return undefined;
          }
          this.writeSourceUniforms();
@@ -189,7 +191,7 @@ index 77dba0e4..07b373e2 100644
          this.lastEncoding = this.compiledGraph.encode(commandEncoder, { parameters: undefined });
          this.hasPresentedContent = true;
          this.requiresEncoding = false;
-@@ -421,7 +487,7 @@ export class GPUPagedSplatRenderer {
+@@ -421,7 +489,7 @@ export class GPUPagedSplatRenderer {
              outputValues: sortedIndices,
              algorithm: 'radix',
              direction: 'ascending',
@@ -198,7 +200,7 @@ index 77dba0e4..07b373e2 100644
          }).addToGraph(graph);
          this.addInversePermutationPass(graph, sortedIndices, inverseIndices);
          for (let segmentIndex = 0; segmentIndex < outputSegmentCount; segmentIndex++) {
-@@ -449,9 +515,10 @@ export class GPUPagedSplatRenderer {
+@@ -449,9 +517,10 @@ export class GPUPagedSplatRenderer {
          const activeRowBuffer = this.createOwnedBuffer(`paged-gaussian-active-rows-${planned.id}`, Math.max(planned.capacityRowCount * Uint32Array.BYTES_PER_ELEMENT, 4));
          const projectedRecordBuffer = this.createOwnedBuffer(`paged-gaussian-projected-${planned.id}`, planned.capacityRowCount * GPU_SPLAT_PROJECTED_RECORD_BYTE_LENGTH);
          const uniformBuffer = this.createUniformBuffer(`paged-gaussian-uniforms-${planned.id}`, GPU_SPLAT_GRAPH_UNIFORM_BYTE_LENGTH);
@@ -210,7 +212,7 @@ index 77dba0e4..07b373e2 100644
              activeRowBuffer,
              projectedRecordBuffer,
              uniformBuffer,
-@@ -467,7 +534,7 @@ export class GPUPagedSplatRenderer {
+@@ -467,7 +536,7 @@ export class GPUPagedSplatRenderer {
          const shader = /* wgsl */ `
  const ROW_COUNT: u32 = ${this.globalSortCapacity}u;
  const WORKGROUPS_X: u32 = ${dispatch.x}u;
@@ -219,7 +221,7 @@ index 77dba0e4..07b373e2 100644
  @group(0) @binding(0) var<storage, read_write> values: array<u32>;
  @group(0) @binding(1) var<storage, read_write> depthKeys: array<u32>;
  @group(0) @binding(2) var<storage, read_write> drawCommands: array<atomic<u32>>;
-@@ -770,6 +837,9 @@ fn main() {
+@@ -770,6 +839,9 @@ fn main() {
                  blendAlphaDstFactor: 'one-minus-src-alpha'
              }
          });
@@ -229,7 +231,7 @@ index 77dba0e4..07b373e2 100644
          graph.addRenderPass({
              id: 'paged-gaussian-segmented-render',
              resources: [
-@@ -787,20 +857,7 @@ fn main() {
+@@ -787,20 +859,7 @@ fn main() {
                      clearDepth: 1,
                      clearStencil: false
                  }),
@@ -251,7 +253,7 @@ index 77dba0e4..07b373e2 100644
              })
          });
      }
-@@ -850,16 +907,17 @@ fn main() {
+@@ -850,16 +909,17 @@ fn main() {
              this.semanticSelectionBuffer?.write(this.semanticSelectionValues);
          }
          for (const segment of this.sourceSegments) {
@@ -272,7 +274,7 @@ index 77dba0e4..07b373e2 100644
              floatValues[20] = this.props.alphaCutoff;
              floatValues[21] = this.props.screenSizeCutoffPixels;
              floatValues[22] = this.props.gaussianSupportRadius;
-@@ -875,16 +933,17 @@ fn main() {
+@@ -875,16 +935,17 @@ fn main() {
              integerValues[29] =
                  (hasFloatColor ? 1 : 0) | (this.props.lodOpacity ? 2 : 0) | (encodeLinearColor ? 4 : 0);
              integerValues[30] = segment.activeRows ? 1 : 0;
@@ -293,7 +295,7 @@ index 77dba0e4..07b373e2 100644
              featureIntegerValues[3] = degree;
              featureIntegerValues[4] = getSplatSphericalHarmonicCoefficientCount(batch.sphericalHarmonicsDegree);
              featureIntegerValues[5] = batch.semanticIds ? 1 : 0;
-@@ -941,13 +1000,17 @@ fn main() {
+@@ -941,13 +1002,17 @@ fn main() {
                      const segmentSourceRowEnd = Math.min(segmentSourceRowStart + maximumProjectedSegmentRows, sourceWindowEnd);
                      const capacityRowCount = segmentSourceRowEnd - segmentSourceRowStart;
                      const selectedRows = page.activeRows
@@ -313,7 +315,7 @@ index 77dba0e4..07b373e2 100644
                          capacityRowCount,
                          activeRowCount,
                          sourceRowOffset: usesSourceRanges
-@@ -1027,6 +1090,12 @@ fn main() {
+@@ -1027,6 +1092,12 @@ fn main() {
          this.compiledGraph?.destroy();
          this.compiledGraph = undefined;
          this.lastEncoding = undefined;
@@ -410,7 +412,7 @@ index 316314a8..b254099e 100644
      0.0,
      0.7 * max(projected.color.a - 1.0, 0.0),
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 1b44b328..d1615d19 100644
+index 1b44b328..27ddeabb 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -1465,7 +1465,7 @@ var SplatResidencyManager = class {
@@ -2233,9 +2235,9 @@ index 1b44b328..d1615d19 100644
 +    const colorAttachmentFormats = (framebuffer == null ? void 0 : framebuffer.colorAttachments.map((attachment) => attachment ? attachment.texture.format : null)) ?? [this.device.preferredColorFormat];
 +    const depthStencilAttachmentFormat = (_a = framebuffer == null ? void 0 : framebuffer.depthStencilAttachment) == null ? void 0 : _a.texture.format;
 +    const resolvedParameters = { ...this.model.pipeline.props.parameters, ...parameters };
-+    if (!depthStencilAttachmentFormat) {
-+      delete resolvedParameters.depthWriteEnabled;
-+      delete resolvedParameters.depthCompare;
++    for (const parameter of Object.keys(resolvedParameters)) {
++      if (!depthStencilAttachmentFormat && (parameter.startsWith("depth") || parameter.startsWith("stencil")) || (parameters == null ? void 0 : parameters.blend) === false && parameter !== "blend" && parameter.startsWith("blend"))
++        delete resolvedParameters[parameter];
 +    }
 +    const pipelineKey = `${colorAttachmentFormats.join(",")}/${depthStencilAttachmentFormat ?? ""}/${JSON.stringify(resolvedParameters)}`;
 +    let pipeline = this.hostPipelines.get(pipelineKey);
@@ -4737,7 +4739,7 @@ index 4f06579d..5bd8f90d 100644
          return Array.from(this.chunks.values(), chunk => chunk.data);
      }
 diff --git a/src/gpu-paged-splat-renderer.ts b/src/gpu-paged-splat-renderer.ts
-index ee52022d..24ef51e2 100644
+index ee52022d..9c3a44b8 100644
 --- a/src/gpu-paged-splat-renderer.ts
 +++ b/src/gpu-paged-splat-renderer.ts
 @@ -8,6 +8,12 @@ import {
@@ -4831,7 +4833,7 @@ index ee52022d..24ef51e2 100644
        }
      } else if (nextSegments.length > 0) {
        this.requiresGraphRebuild = true;
-@@ -478,14 +500,81 @@ export class GPUPagedSplatRenderer {
+@@ -478,14 +500,85 @@ export class GPUPagedSplatRenderer {
  
    /** Encodes sparse projection, exact cross-page ordering, segmented gather, and one render pass. */
    encode(commandEncoder: CommandEncoder): GPUCommandGraphEncoding | undefined {
@@ -4862,9 +4864,13 @@ index ee52022d..24ef51e2 100644
 +      | TextureFormatDepthStencil
 +      | undefined;
 +    const resolvedParameters = {...this.model.pipeline.props.parameters, ...parameters};
-+    if (!depthStencilAttachmentFormat) {
-+      delete resolvedParameters.depthWriteEnabled;
-+      delete resolvedParameters.depthCompare;
++    for (const parameter of Object.keys(resolvedParameters) as (keyof RenderPipelineParameters)[]) {
++      if (
++        (!depthStencilAttachmentFormat &&
++          (parameter.startsWith('depth') || parameter.startsWith('stencil'))) ||
++        (parameters?.blend === false && parameter !== 'blend' && parameter.startsWith('blend'))
++      )
++        delete resolvedParameters[parameter];
 +    }
 +    const pipelineKey = `${colorAttachmentFormats.join(',')}/${depthStencilAttachmentFormat ?? ''}/${JSON.stringify(resolvedParameters)}`;
 +    let pipeline = this.hostPipelines.get(pipelineKey);
@@ -4913,7 +4919,7 @@ index ee52022d..24ef51e2 100644
        if (!this.requiresEncoding || !this.hasPresentedContent) {
          return undefined;
        }
-@@ -533,6 +622,8 @@ export class GPUPagedSplatRenderer {
+@@ -533,6 +626,8 @@ export class GPUPagedSplatRenderer {
        return undefined;
      }
      this.writeSourceUniforms();
@@ -4922,7 +4928,7 @@ index ee52022d..24ef51e2 100644
      this.lastEncoding = this.compiledGraph.encode(commandEncoder, {parameters: undefined});
      this.hasPresentedContent = true;
      this.requiresEncoding = false;
-@@ -680,7 +771,7 @@ export class GPUPagedSplatRenderer {
+@@ -680,7 +775,7 @@ export class GPUPagedSplatRenderer {
        outputValues: sortedIndices,
        algorithm: 'radix',
        direction: 'ascending',
@@ -4931,7 +4937,7 @@ index ee52022d..24ef51e2 100644
      }).addToGraph(graph);
      this.addInversePermutationPass(graph, sortedIndices, inverseIndices);
  
-@@ -730,10 +821,11 @@ export class GPUPagedSplatRenderer {
+@@ -730,10 +825,11 @@ export class GPUPagedSplatRenderer {
      );
      const featureUniformBuffer = this.createUniformBuffer(
        `paged-gaussian-features-${planned.id}`,
@@ -4944,7 +4950,7 @@ index ee52022d..24ef51e2 100644
        activeRowBuffer,
        projectedRecordBuffer,
        uniformBuffer,
-@@ -755,7 +847,7 @@ export class GPUPagedSplatRenderer {
+@@ -755,7 +851,7 @@ export class GPUPagedSplatRenderer {
      const shader = /* wgsl */ `
  const ROW_COUNT: u32 = ${this.globalSortCapacity}u;
  const WORKGROUPS_X: u32 = ${dispatch.x}u;
@@ -4953,7 +4959,7 @@ index ee52022d..24ef51e2 100644
  @group(0) @binding(0) var<storage, read_write> values: array<u32>;
  @group(0) @binding(1) var<storage, read_write> depthKeys: array<u32>;
  @group(0) @binding(2) var<storage, read_write> drawCommands: array<atomic<u32>>;
-@@ -1120,6 +1212,9 @@ fn main() {
+@@ -1120,6 +1216,9 @@ fn main() {
          blendAlphaDstFactor: 'one-minus-src-alpha'
        }
      });
@@ -4963,7 +4969,7 @@ index ee52022d..24ef51e2 100644
      graph.addRenderPass({
        id: 'paged-gaussian-segmented-render',
        resources: [
-@@ -1137,20 +1232,7 @@ fn main() {
+@@ -1137,20 +1236,7 @@ fn main() {
            clearDepth: 1,
            clearStencil: false
          }),
@@ -4985,7 +4991,7 @@ index ee52022d..24ef51e2 100644
        })
      });
    }
-@@ -1235,16 +1317,20 @@ fn main() {
+@@ -1235,16 +1321,20 @@ fn main() {
        this.semanticSelectionBuffer?.write(this.semanticSelectionValues);
      }
      for (const segment of this.sourceSegments) {
@@ -5009,7 +5015,7 @@ index ee52022d..24ef51e2 100644
        floatValues[20] = this.props.alphaCutoff;
        floatValues[21] = this.props.screenSizeCutoffPixels;
        floatValues[22] = this.props.gaussianSupportRadius;
-@@ -1261,10 +1347,10 @@ fn main() {
+@@ -1261,10 +1351,10 @@ fn main() {
        integerValues[29] =
          (hasFloatColor ? 1 : 0) | (this.props.lodOpacity ? 2 : 0) | (encodeLinearColor ? 4 : 0);
        integerValues[30] = segment.activeRows ? 1 : 0;
@@ -5022,7 +5028,7 @@ index ee52022d..24ef51e2 100644
        const featureFloatValues = new Float32Array(featureData);
        const featureIntegerValues = new Uint32Array(featureData);
        const batch = segment.page.data;
-@@ -1272,7 +1358,8 @@ fn main() {
+@@ -1272,7 +1362,8 @@ fn main() {
          batch.sphericalHarmonics && this.props.sphericalHarmonicsDegree > 0
            ? Math.min(batch.sphericalHarmonicsDegree, this.props.sphericalHarmonicsDegree)
            : 0;
@@ -5032,7 +5038,7 @@ index ee52022d..24ef51e2 100644
        featureIntegerValues[3] = degree;
        featureIntegerValues[4] = getSplatSphericalHarmonicCoefficientCount(
          batch.sphericalHarmonicsDegree
-@@ -1346,18 +1433,19 @@ fn main() {
+@@ -1346,18 +1437,19 @@ fn main() {
            );
            const capacityRowCount = segmentSourceRowEnd - segmentSourceRowStart;
            const selectedRows = page.activeRows
@@ -5059,7 +5065,7 @@ index ee52022d..24ef51e2 100644
              capacityRowCount,
              activeRowCount,
              sourceRowOffset: usesSourceRanges
-@@ -1455,6 +1543,12 @@ fn main() {
+@@ -1455,6 +1547,12 @@ fn main() {
      this.compiledGraph?.destroy();
      this.compiledGraph = undefined;
      this.lastEncoding = undefined;

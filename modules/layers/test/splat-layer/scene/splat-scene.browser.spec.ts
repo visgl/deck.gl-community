@@ -57,7 +57,8 @@ async function renderSorted(
   shared = false,
   blob = false,
   clear?: 'empty' | 'singular',
-  hostParameters = false
+  hostParameters = false,
+  appearanceControls = false
 ): Promise<number[]> {
   const parent = document.createElement('div');
   document.body.append(parent);
@@ -174,6 +175,37 @@ async function renderSorted(
     expect(scene.state.runtime.assets.size).toBe(shared ? 1 : 2);
     const layersNow = deck!.props.layers as SplatLayer[];
     expect(layersNow[0].splatStats.renderedSplats).toBe(1);
+    if (appearanceControls) {
+      const capture = async (props: Partial<SplatLayer['props']>) => {
+        await new Promise<void>((resolve, reject) => {
+          let nextFrames = 0;
+          const timeout = setTimeout(() => reject(new Error('appearance render timeout')), 30000);
+          deck!.setProps({
+            layers: layersNow.map(layer => layer.clone(props)),
+            onAfterRender: () => {
+              if (++nextFrames >= 3) {
+                deck!.pause();
+                clearTimeout(timeout);
+                resolve();
+              }
+            }
+          });
+          deck!.resume();
+        });
+        return readFrame(device, texture);
+      };
+      const count = (frame: Uint8Array) =>
+        frame.filter((value, index) => index % 4 === 3 && value > 0).length;
+      expect(count(await capture({alphaCutoff: 1}))).toBe(0);
+      expect(await deck!.pickObjectAsync({x: 64, y: 64})).toBeNull();
+      const small = await capture({support: 1});
+      expect(await deck!.pickObjectAsync({x: 64, y: 64})).toMatchObject({object: blue});
+      const large = await capture({support: 6});
+      expect(count(large)).toBeGreaterThan(count(small));
+      const blurred = await capture({kernelVariance: 64});
+      expect(blurred[offset + 3]).toBeGreaterThan(0);
+      expect(blurred[offset + 3]).toBeLessThan(pixels[offset + 3]);
+    }
     if (hostParameters) {
       for (const depthCompare of ['never', 'always', 'less-equal'] as const) {
         await new Promise<void>((resolve, reject) => {
@@ -239,14 +271,21 @@ async function renderSorted(
 }
 
 describe('shared sorted SplatLayer domains', () => {
-  it('applies and restores host depth parameters on both sorted backends', async () => {
+  it('WebGPU and WebGL2 update cutoff, support and kernel controls for pixels and picking', async () => {
+    await renderSorted('webgl', false, false, false, undefined, false, true);
+    const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
+    if (gpu && (await gpu.requestAdapter()))
+      await renderSorted('webgpu', false, false, false, undefined, false, true);
+    else if (inject('requireWebGPU')) throw new Error('WebGPU required');
+  }, 60000);
+  it('WebGPU and WebGL2 apply and restore host depth parameters on sorted backends', async () => {
     await renderSorted('webgl', false, false, false, undefined, true);
     const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
     if (gpu && (await gpu.requestAdapter()))
       await renderSorted('webgpu', false, false, false, undefined, true);
     else if (inject('requireWebGPU')) throw new Error('WebGPU required');
   }, 60000);
-  it('clears previously drawn and pickable domains when owners disappear or all transforms become singular', async () => {
+  it('WebGPU and WebGL2 clear drawn and pickable domains when owners disappear or transforms become singular', async () => {
     for (const clear of ['empty', 'singular'] as const) {
       await renderSorted('webgl', false, false, false, clear);
       const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
@@ -259,7 +298,7 @@ describe('shared sorted SplatLayer domains', () => {
   it('decodes a Blob through the bundled worker and retains application picking ownership', async () => {
     await renderSorted('webgl', false, false, true);
   }, 60_000);
-  it('shares one affine-instanced source with independent tint and owner picking on both backends', async () => {
+  it('WebGPU and WebGL2 share one affine-instanced source with independent tint and owner picking', async () => {
     await renderSorted('webgl', false, true);
     const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
     if (gpu && (await gpu.requestAdapter())) await renderSorted('webgpu', false, true);
