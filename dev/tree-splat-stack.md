@@ -57,11 +57,16 @@ WebGL2/WebGPU pixels for ordering, tint/affine ownership, picking, Blob decode a
 Regression gates also cover retained light selections during asset removal, empty/singular sorted
 domains, nested scene/prepared budget groups, distant-crown tile metadata, the wind pause clock,
 and controls inside short Coit embeds.
-Interrupted inventory replacements now restart all contributing page fades from their current
-weights on one shared interval, preserving regional coverage when a third page arrives. Numeric
+Interrupted inventory replacements now restart contributing page fades from their current
+weights on one interval per region, preserving coverage when a third page arrives without delaying
+independent neighboring fades. Numeric
 coverage accessors invalidate cached tree attributes without a manual trigger. Citrus shadow
 toggles retain the last cycled sun direction, and Coit rereads diagnostic options on each website
 mount. Browser adapter dependencies are pre-optimized to avoid module reloads during cold tests.
+Final review gates cover owner-local geographic error, nonmonotonic supplied hierarchy counts,
+shifted shadow origins after an empty inventory, worker eviction acknowledgements, atomic rejection
+of stale RAD frontiers, static decode error status, host depth state on both sorted backends,
+strict public scene/inventory schemas, large grid framing and film startup error reporting.
 The dedicated CI software-adapter step requires the new scene fixtures; ordinary browser runs
 skip WebGPU only when no adapter exists. Review fixes stay in their owning PRs, and range-diff
 preserves every earlier stack commit apart from intended workflow conflict resolution.
