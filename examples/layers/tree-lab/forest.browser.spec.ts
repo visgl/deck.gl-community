@@ -83,7 +83,7 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
       // this grazing angle. Keep every source row and native mesh, and restore full
       // inventory framing with the overview action below.
       const viewState = api.deck.props.viewState as MapViewState;
-      api.deck.setProps({viewState: {...viewState, zoom: (viewState.zoom ?? 0) + 3}});
+      api.deck.setProps({viewState: {...viewState, zoom: (viewState.zoom ?? 0) + 5}});
     });
     expect((api.deck.getViewports()[0] as {pitch?: number}).pitch).toBe(80);
     expect(container.querySelector('#forest-pitch')!.textContent).toBe('80°');
@@ -101,7 +101,7 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
         },
         {timeout: 30000}
       )
-      .toBeLessThan(1000);
+      .toBeLessThan(256);
 
     await change('shadows off', () => shadows.click());
     expect(shadows.checked).toBe(false);
