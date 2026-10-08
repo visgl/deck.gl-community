@@ -9,6 +9,12 @@
 - `basemap-layers` labels evaluate `text-field`, `text-size`, `text-color` and `text-opacity`
   expressions per feature, and use `symbol-sort-key` for collision priority (lower keys win, as
   in the style specification). Styles without a sort key keep the built-in priority.
+- `basemap-layers` draws `fill-extrusion` layers as extruded polygons (`fill-extrusion-color`,
+  `-height`, `-base` per feature, and the layer-wide `fill-extrusion-opacity`), dashes lines with
+  `line-dasharray`, and draws `fill-outline-color` as a 1 pixel polygon outline. Line layers
+  without `line-color` now draw black, the style specification's default, instead of nothing.
+  Flat map layers are depth-tested without writing depth, so they no longer paint over
+  extrusions from other tiles.
 - Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
   Blue Marble raster tiles. Other basemap providers are unchanged. Blue Marble tiles
   use a maximum native zoom of 8 and stay visible when overzoomed. Basemap labels
