@@ -56,7 +56,8 @@ async function renderSorted(
   reverse: boolean,
   shared = false,
   blob = false,
-  clear?: 'empty' | 'singular'
+  clear?: 'empty' | 'singular',
+  hostParameters = false
 ): Promise<number[]> {
   const parent = document.createElement('div');
   document.body.append(parent);
@@ -173,6 +174,31 @@ async function renderSorted(
     expect(scene.state.runtime.assets.size).toBe(shared ? 1 : 2);
     const layersNow = deck!.props.layers as SplatLayer[];
     expect(layersNow[0].splatStats.renderedSplats).toBe(1);
+    if (hostParameters) {
+      for (const depthCompare of ['never', 'always', 'less-equal'] as const) {
+        await new Promise<void>((resolve, reject) => {
+          let nextFrames = 0;
+          const timeout = setTimeout(
+            () => reject(new Error('host parameter render timeout')),
+            30000
+          );
+          deck!.setProps({
+            layers: layersNow.map(layer => layer.clone({parameters: {depthCompare}})),
+            onAfterRender: () => {
+              if (++nextFrames >= 3) {
+                deck!.pause();
+                clearTimeout(timeout);
+                resolve();
+              }
+            }
+          });
+          deck!.resume();
+        });
+        const nextPixels = await readFrame(device, texture);
+        const alpha = nextPixels[offset + 3];
+        expect(alpha).toSatisfy(value => (depthCompare === 'never' ? value === 0 : value > 0));
+      }
+    }
     if (clear) {
       await new Promise<void>((resolve, reject) => {
         let clearedFrames = 0;
@@ -213,6 +239,13 @@ async function renderSorted(
 }
 
 describe('shared sorted SplatLayer domains', () => {
+  it('applies and restores host depth parameters on both sorted backends', async () => {
+    await renderSorted('webgl', false, false, false, undefined, true);
+    const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
+    if (gpu && (await gpu.requestAdapter()))
+      await renderSorted('webgpu', false, false, false, undefined, true);
+    else if (inject('requireWebGPU')) throw new Error('WebGPU required');
+  }, 60000);
   it('clears previously drawn and pickable domains when owners disappear or all transforms become singular', async () => {
     for (const clear of ['empty', 'singular'] as const) {
       await renderSorted('webgl', false, false, false, clear);

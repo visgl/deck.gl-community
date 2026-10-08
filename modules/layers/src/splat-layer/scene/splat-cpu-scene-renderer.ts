@@ -238,12 +238,17 @@ export class SplatCPUSceneRenderer {
     return undefined;
   }
   draw(pass: RenderPass, parameters?: RenderPipelineParameters): void {
-    if (parameters)
-      this.model.setParameters({
-        ...parameters,
-        depthWriteEnabled: this.picking,
-        depthCompare: 'less-equal'
-      });
+    this.model.setParameters({
+      depthWriteEnabled: this.picking,
+      depthCompare: 'less-equal',
+      blend: true,
+      blendColorSrcFactor: 'src-alpha',
+      blendColorDstFactor: 'one-minus-src-alpha',
+      blendAlphaSrcFactor: 'one',
+      blendAlphaDstFactor: 'one-minus-src-alpha',
+      ...parameters,
+      ...(this.picking && {depthWriteEnabled: true, depthCompare: 'less-equal'})
+    });
     this.model.draw(pass);
   }
   destroy(): void {
