@@ -18,17 +18,18 @@ export function loadGraphData(input: unknown): Graph | null {
     return null;
   }
 
-  const nodes = new Map<string | number, GraphNodeData>();
+  const nodes = new Map<string, GraphNodeData>();
   for (const value of Array.isArray(json.nodes) ? json.nodes : []) {
     const node = asRecord(value);
     if (isId(node.id)) {
-      nodes.set(node.id, {...node, id: node.id, attributes: getAttributes(node)});
+      nodes.set(String(node.id), {...node, id: node.id, attributes: getAttributes(node)});
     }
   }
 
   const edgeRecords = Array.isArray(input) ? input : Array.isArray(json.edges) ? json.edges : [];
   const edges: GraphEdgeData[] = [];
   const edgeIds = new Set(edgeRecords.map(value => asRecord(value).id).filter(isId));
+  let nextEdgeId = 0;
   for (const value of edgeRecords) {
     const edge = asRecord(value);
     if (!isId(edge.sourceId) || !isId(edge.targetId)) {
@@ -38,9 +39,8 @@ export function loadGraphData(input: unknown): Graph | null {
     if (isId(edge.id)) {
       id = edge.id;
     } else {
-      let index = edges.length;
       do {
-        id = `edge-${index++}`;
+        id = `edge-${nextEdgeId++}`;
       } while (edgeIds.has(id));
     }
     edgeIds.add(id);
@@ -52,8 +52,8 @@ export function loadGraphData(input: unknown): Graph | null {
       attributes: getAttributes(edge)
     });
     for (const nodeId of [edge.sourceId, edge.targetId]) {
-      if (!nodes.has(nodeId)) {
-        nodes.set(nodeId, {id: nodeId, attributes: {id: nodeId}});
+      if (!nodes.has(String(nodeId))) {
+        nodes.set(String(nodeId), {id: nodeId, attributes: {id: nodeId}});
       }
     }
   }

@@ -105,6 +105,20 @@ describe('GraphLayer data inputs', () => {
     expect(edges[0].getPropertyValue('type')).toBe('link');
   });
 
+  it('preserves declared nodes when endpoint IDs use a different numeric representation', () => {
+    const graph = loadGraphData({
+      nodes: [{id: 1, attributes: {x: 10, y: 20, name: 'Declared'}}, {id: 2}],
+      edges: [{id: 'e', sourceId: '1', targetId: 2}]
+    })!;
+    const nodes = [...graph.getNodes()];
+    expect(nodes).toHaveLength(2);
+    expect(nodes[0].getId()).toBe(1);
+    expect(nodes[0].getPropertyValue('name')).toBe('Declared');
+    const layout = new SimpleLayout();
+    layout.initializeGraph(graph);
+    expect(layout.getNodePosition(nodes[0])).toEqual([10, 20]);
+  });
+
   it('skips malformed raw records and accepts empty graphs', () => {
     const graph = loadGraphData({nodes: [null, {id: 'a'}], edges: [null, {sourceId: 'a'}]})!;
     expect([...graph.getNodes()]).toHaveLength(1);

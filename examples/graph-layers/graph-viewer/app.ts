@@ -798,7 +798,7 @@ export function mountGraphViewerExample(
       layout,
       rankGrid: buildRankGrid(selectedLayout, layoutOptions, dagLayout),
       onLayoutStart: detail => {
-        state.loading = {...INITIAL_LOADING_STATE, loaded: true};
+        state.loading = {...INITIAL_LOADING_STATE};
         syncLoadingOverlay();
         viewportController.handleLayoutEvent(detail);
       },
