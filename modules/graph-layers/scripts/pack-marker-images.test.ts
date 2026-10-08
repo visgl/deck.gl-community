@@ -3,6 +3,7 @@ import {mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {promisify} from 'node:util';
+import {fileURLToPath} from 'node:url';
 import {PNG} from 'pngjs';
 import {expect, test} from 'vitest';
 
@@ -16,7 +17,7 @@ test('packs PNG pixels and emits matching metadata and data URL', async () => {
     gray.data = Buffer.from([100, 100, 100, 255, 200, 200, 200, 255]);
     await writeFile(join(directory, 'gray.png'), PNG.sync.write(gray, {colorType: 0}));
     await promisify(execFile)(process.execPath, [
-      new URL('./pack-marker-images.ts', import.meta.url).pathname,
+      fileURLToPath(new URL('./pack-marker-images.ts', import.meta.url)),
       directory,
       directory
     ]);
