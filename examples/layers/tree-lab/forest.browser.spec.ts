@@ -169,9 +169,23 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
       const queryUrl = new URL(originalUrl);
       queryUrl.search = `?count=1&shadows=0${wind}`;
       history.replaceState(null, '', queryUrl);
+      console.info(`Forest wind contract: ${wind ? 'live' : 'off'} mount`);
       cleanup = mountTreeForestExample(container);
       const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+      // This fixture verifies controls and timeline suspension. Bound its live
+      // wind raster work; full-size wind deformation is covered by species pixels.
+      Object.assign(container.querySelector<HTMLElement>('.forest-stage .canvas')!.style, {
+        width: '160px',
+        height: '120px'
+      });
+      api.deck.setProps({
+        width: 160,
+        height: 120,
+        useDevicePixels: false,
+        viewState: {...(api.deck.props.viewState as MapViewState), zoom: 15, position: [0, 0, 0]}
+      });
       await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
+      expect(api.count).toBe(1);
       expect(container.querySelector<HTMLInputElement>('[aria-label="Wind"]')!.checked).toBe(
         Boolean(wind)
       );
@@ -185,6 +199,14 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
       if (wind) {
         await expect.poll(() => api.deck.getWindTime()).toBeGreaterThan(0);
       }
+      const renderer = api.deck as unknown as {
+        animationLoop: {stop(): void};
+        layerManager: {updateLayers(): void};
+      };
+      // This is a clock contract, so stop automatic raster work once the real
+      // live pose exists, then explicitly draw the settled frozen source below.
+      renderer.animationLoop.stop();
+      console.info(`Forest wind contract: ${wind ? 'live' : 'off'} ready`);
       const renderedClock = api.deck.getWindTime();
       hidden.mockReturnValue(true);
       document.dispatchEvent(new Event('visibilitychange'));
@@ -192,7 +214,9 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
         const frozen = (api.deck.props.layers[1] as TreeLayer).props.windTime;
         expect(frozen).toBeGreaterThan(0);
         expect(frozen).toBeCloseTo(renderedClock, 6);
+        renderer.layerManager.updateLayers();
         api.deck.redraw('hidden wind contract');
+        console.info('Forest wind contract: frozen draw');
         await new Promise(resolve => setTimeout(resolve, 100));
         expect(api.deck.getWindTime()).toBe(frozen);
       } else expect(api.deck.props.layers).toBe(layers);
