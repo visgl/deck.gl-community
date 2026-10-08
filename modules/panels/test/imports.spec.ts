@@ -88,3 +88,7 @@ it('exports ArrowBatchesPanel', () => {
 it('exports SourcePickerPanel', () => {
   expect(Panels.SourcePickerPanel).toBeDefined();
 });
+
+it('exports MetricsPanel', () => {
+  expect(Panels.MetricsPanel).toBeDefined();
+});

@@ -56,6 +56,7 @@
         "modules/panels/api-reference/markdown-panel",
         "modules/panels/api-reference/stats-panel",
         "modules/panels/api-reference/source-picker-panel",
+        "modules/panels/api-reference/metrics-panel",
         "modules/panels/api-reference/settings-panel",
         "modules/panels/api-reference/studio-settings-panel",
         "modules/panels/api-reference/documentation-links-panel",
