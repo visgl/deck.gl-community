@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The playground includes a declarative radial graph template using the public `RadialLayout`
+  export. Radial layouts use maximum hierarchy depth and leaf sectors to keep shallow and uneven
+  trees finite and within `radius`, and route edges correctly between unequal depths.
+
 - `GPUForceLayout` emits start events for worker calculations, releases completed workers,
   and ignores results from stopped or replaced calculations.
 

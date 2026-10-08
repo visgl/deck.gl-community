@@ -3,7 +3,9 @@
 > Experimental layouts may change between releases. They are provided to showcase
 > alternative ways of arranging dense graphs.
 
-`RadialLayout` arranges vertices on concentric circles derived from a hierarchy. Nodes near the root are closer to the centre while leaves radiate towards the outer ring. The layout can optionally route edges through intermediate ancestors to reduce line crossings.
+`RadialLayout` arranges vertices on concentric circles derived from a hierarchy. Nodes near the root are closer to the centre while leaves radiate towards the outer ring. Ring spacing uses the deepest branch, and leaf sectors cover the full circle even when graph data
+includes internal hierarchy nodes. A single root stays at the centre, and shallow trees remain finite.
+The layout can optionally route edges through intermediate ancestors to reduce line crossings.
 
 ## Usage
 
@@ -24,3 +26,7 @@ const layout = new RadialLayout({
 
 - `radius` (`number`, default `500`) - radius of the outer-most ring in screen units.
 - `tree` (`Array<{id: string; children?: string[]}>`) - flattened hierarchical structure used to determine the placement of each node. Each entry represents a tree node with a unique `id` and an optional list of child node identifiers. The first element is treated as the root.
+
+The playground includes a **Radial graph layout** template using the public package export and
+an inline `{"@@function": "RadialLayout", "radius": 160, "tree": [...]}` definition.
+Nodes absent from the hierarchy have no position; edges with absent endpoints have no geometry.

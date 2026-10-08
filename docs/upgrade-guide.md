@@ -6,6 +6,11 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+`RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
+compensated for oversized rings may need their radius retuned. Angular sectors use the leaf
+count rather than all graph nodes, so hierarchies with visible internal nodes fill the circle.
+Nodes outside the hierarchy return no position, and edges with absent endpoints return no geometry.
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,

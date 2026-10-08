@@ -163,3 +163,14 @@ test('tree accessors must be callable after JSON conversion', () => {
     }
   }
 });
+
+test('basemap font overrides accept CSS families and registered callbacks', () => {
+  const schema = CommunityGeoLayerSchemas.BasemapLayer;
+  const layer = {id: 'basemap', '@@type': 'BasemapLayer', style: '/style.json'};
+  for (const fontFamily of [null, 'serif', '@@#chooseFont', {'@@function': 'chooseFont'}]) {
+    expect(schema.safeParse({...layer, fontFamily}).success).toBe(true);
+  }
+  for (const fontFamily of [12, {}, () => 'serif']) {
+    expect(schema.safeParse({...layer, fontFamily}).success).toBe(false);
+  }
+});

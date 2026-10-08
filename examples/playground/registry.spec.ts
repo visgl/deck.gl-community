@@ -240,3 +240,19 @@ test('DOT URL template resolves loader constants and creates independent layouts
   expect(firstProps.layout).not.toBe(secondProps.layout);
   expect(firstProps.engine).toBeUndefined();
 });
+
+test('radial template creates independent package layouts with declarative hierarchy options', () => {
+  const first = resolver.resolve(TEMPLATES['radial-graph'], {}).props.layers as graph.GraphLayer[];
+  const second = resolver.resolve(TEMPLATES['radial-graph'], {}).props.layers as graph.GraphLayer[];
+  const layout = first[0].props.layout!;
+  expect(layout).toBeInstanceOf(graph.RadialLayout);
+  expect(layout).not.toBe(second[0].props.layout);
+  expect(first[0].props.engine).toBeUndefined();
+  const data = first[0].props.data as graph.PlainGraphData;
+  const loaded = new graph.ClassicGraph({data});
+  layout.initializeGraph(loaded);
+  layout.start();
+  const positions = [...loaded.getNodes()].map(node => layout.getNodePosition(node)!);
+  expect(positions.every(point => point.every(Number.isFinite))).toBe(true);
+  expect(Math.max(...positions.map(point => Math.hypot(...point)))).toBeCloseTo(160);
+});

@@ -9,6 +9,10 @@ entire preview, including renderer props, camera, layers, and the selected basem
 different examples to reuse layer IDs safely. Edits with the same name reuse the current preview;
 `description` is informational. The picker displays these fields as the card title and description.
 
+The **Radial graph layout** template passes inline graph records directly to `GraphLayer.data`
+and creates the package layout with `"layout": {"@@function": "RadialLayout", "radius": 160,
+"tree": [...]}`. Each resolution creates its own layout; no graph engine is required.
+
 Camera edits in `initialViewState` apply immediately after validation, including `pitch` and
 `bearing`. Shift-drag on the preview tilts and rotates the map. Ordinary layer edits keep the
 current interactive camera when the document's camera values are unchanged.

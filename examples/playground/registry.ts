@@ -57,7 +57,8 @@ export function createPlaygroundRegistry(
       GraphGridLayer: {type: graph.GridLayer, schema: GraphGridLayerSchema}
     },
     functions: {
-      D3ForceLayout: props => new graph.D3ForceLayout(props)
+      D3ForceLayout: props => new graph.D3ForceLayout(props),
+      RadialLayout: props => new graph.RadialLayout(props)
     },
     constants: {
       ...Object.fromEntries(

@@ -117,6 +117,21 @@ test('renders the gallery forward, backward, and across different view types', a
             expect(layer.state.graphEngine?.getNodes()).toHaveLength(8);
             expect(layer.state.graphEngine?.getEdges()).toHaveLength(12);
           }
+          if (layer instanceof GraphLayer && layer.id === 'radial-graph') {
+            const engine = layer.state.graphEngine!;
+            expect(engine.getNodes()).toHaveLength(6);
+            expect(engine.getEdges()).toHaveLength(6);
+            const edgeLayers = layer
+              .getSubLayers()
+              .filter(child => (child.constructor as typeof Layer).layerName === 'EdgeLayer');
+            expect(edgeLayers).toHaveLength(1);
+            const renderedEdges = edgeLayers[0].state.typedEdgeData as Record<string, unknown[]>;
+            expect(renderedEdges.line).toHaveLength(5);
+            expect(renderedEdges['spline-curve']).toHaveLength(1);
+            const positions = engine.getNodes().map(node => engine.getNodePosition(node)!);
+            expect(positions.every(point => point.every(Number.isFinite))).toBe(true);
+            expect(Math.max(...positions.map(point => Math.hypot(...point)))).toBeCloseTo(160);
+          }
           if (layer instanceof SkyboxLayer) {
             expect(layer.state?.cubemapTexture?.isReady, `${name}: cubemap uploaded`).toBe(true);
           }

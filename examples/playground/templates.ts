@@ -16,6 +16,7 @@ import skyboxGlobeExample from './examples/12-skybox-globe.json';
 import skyboxFirstPersonExample from './examples/13-skybox-first-person.json';
 import graphLayerExample from './examples/14-graph-layer.json';
 import graphUrlExample from './examples/16-graph-url.json';
+import radialGraphExample from './examples/17-radial-graph.json';
 import editableGeojsonExample from './examples/15-editable-geojson.json';
 
 export const TEMPLATES: Record<string, PlaygroundTemplate> = {
@@ -34,5 +35,6 @@ export const TEMPLATES: Record<string, PlaygroundTemplate> = {
   'skybox-first-person': skyboxFirstPersonExample,
   'graph-layer': graphLayerExample,
   'graph-url': graphUrlExample,
+  'radial-graph': radialGraphExample,
   'editable-geojson': editableGeojsonExample
 };
