@@ -6,7 +6,7 @@
 // why_new=no existing integration covers these ten WebGL surfaces; seam=none
 
 import {CompositeLayer, type Deck, type Layer} from '@deck.gl/core';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {mountTreeLabExample} from './app';
 import {SEASONS, SPECIES, type SceneOptions, type Specimen} from './scene';
 
@@ -88,6 +88,23 @@ describe('Tree Lab rendering controls', () => {
       button.click();
       expect(api.getOptions().windTime).toBeNull();
       expect(button.textContent).toBe('Pause wind');
+      const hidden = vi.spyOn(document, 'hidden', 'get');
+      try {
+        const getTreeLayer = () =>
+          specimen.deck.props.layers[1] as Layer & {props: {windTime: number | null}};
+        const frozen = specimen.windTime;
+        const rendered = specimen.rendered;
+        hidden.mockReturnValue(true);
+        document.dispatchEvent(new Event('visibilitychange'));
+        expect(getTreeLayer().props.windTime).toBe(frozen);
+        await expect.poll(() => specimen.rendered, {timeout: 5000}).toBeGreaterThan(rendered);
+        expect(specimen.windTime).toBe(frozen);
+        hidden.mockReturnValue(false);
+        document.dispatchEvent(new Event('visibilitychange'));
+        expect(getTreeLayer().props.windTime).toBeNull();
+      } finally {
+        hidden.mockRestore();
+      }
       expect(api.errors).toEqual([]);
     } finally {
       cleanup();

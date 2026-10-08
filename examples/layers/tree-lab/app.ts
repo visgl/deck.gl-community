@@ -115,7 +115,7 @@ export function mountTreeLabExample(
   };
   const getSpecimenOptions = (item: (typeof decks)[number]): SceneOptions => ({
     ...options,
-    windTime: options.windTime ?? (item.onScreen && !document.hidden ? null : 0)
+    windTime: options.windTime ?? (item.onScreen && !document.hidden ? null : item.windTime)
   });
   const refreshSpecimen = (item: (typeof decks)[number]) => {
     item.lighting.setProps(createLighting(options.shadows).props);
@@ -250,7 +250,7 @@ export function mountTreeLabExample(
         onViewStateChange: ({viewState}) => syncCamera(viewState as MapViewState),
         onAfterRender: () => {
           item.rendered++;
-          item.windTime = item.deck.getWindTime();
+          item.windTime = getSpecimenOptions(item).windTime ?? item.deck.getWindTime();
           if (firstFrame) {
             firstFrame = false;
             ready++;
