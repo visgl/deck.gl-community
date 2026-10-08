@@ -67,6 +67,7 @@ export function mountTreeWorldExample(
   const intervals: number[] = [],
     measured: number[] = [];
   let measuring = false,
+    measuredDraws = 0,
     measureStart = 0,
     measureCamera = camera;
   let measureSourceRevision = 0,
@@ -218,7 +219,10 @@ export function mountTreeWorldExample(
         intervals.push(now - lastFrame);
         if (intervals.length > 180) intervals.shift();
       }
-      if (measuring && lastFrame) measured.push(now - lastFrame);
+      if (measuring) {
+        measuredDraws++;
+        if (lastFrame) measured.push(now - lastFrame);
+      }
       lastFrame = now;
       const world = deck.props.layers[0] as TreeLayer<WorldSpecimen>;
       if (now - lastStats < 250 && world.isLoaded === lastLoaded) return;
@@ -324,6 +328,7 @@ export function mountTreeWorldExample(
     measuring = true;
     lastFrame = 0;
     measured.length = 0;
+    measuredDraws = 0;
     renderCalls.length = 0;
     profiler?.reset();
     measureStart = performance.now();
@@ -388,8 +393,8 @@ export function mountTreeWorldExample(
               camera: measureCamera,
               viewport: {width: stage.clientWidth, height: stage.clientHeight, pixelRatio: 1},
               durationMs: now - measureStart,
-              draws: measured.length,
-              drawsPerSecond: measured.length / ((now - measureStart) / 1000),
+              draws: measuredDraws,
+              drawsPerSecond: measuredDraws / ((now - measureStart) / 1000),
               medianMs: sorted[Math.floor(sorted.length / 2)],
               p95Ms: sorted[Math.floor(sorted.length * 0.95)],
               maxMs: sorted.at(-1),

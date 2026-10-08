@@ -7,6 +7,14 @@ import {mountTreeWorldExample} from './world';
 import {WORLD_TREE_COUNT} from './world-source';
 import {TreeWoodLayer} from '../../../modules/layers/src/tree-layer/tree-wood-layer';
 
+// These cases exercise controls and report accounting. Keep the real Deck and tiled TreeLayer,
+// but use empty pages so software CI does not render a dense rainforest before testing the UI.
+// The source, streamed coverage and actual pixels have separate world-source/TreeLayer contracts.
+vi.mock('./world-source', async importOriginal => {
+  const source = await importOriginal<typeof import('./world-source')>();
+  return {...source, getSyntheticWorldTile: async () => ({trees: [], canopies: []})};
+});
+
 it('loads malformed world settings, uses host routes and rejects visibility interruptions', async () => {
   const originalUrl = location.href;
   const queryUrl = new URL(originalUrl);
@@ -103,3 +111,36 @@ it('loads malformed world settings, uses host routes and rejects visibility inte
     history.replaceState(null, '', originalUrl);
   }
 }, 90000);
+
+it('counts the first measured draw independently of its frame intervals', async () => {
+  const originalUrl = location.href;
+  history.replaceState(null, '', '?wind=0&shadows=0&zoom=21');
+  const parent = document.createElement('div');
+  parent.style.cssText = 'width:400px;height:300px';
+  document.body.append(parent);
+  const deckProps = vi.spyOn(Deck.prototype, 'setProps');
+  const cleanup = mountTreeWorldExample(parent);
+  try {
+    await expect
+      .poll(() => parent.querySelector('.status')!.textContent, {timeout: 30000})
+      .toContain('Ready');
+    const deck = (deckProps.mock.contexts as Deck[]).find(
+      instance => instance.props?.parent === parent.querySelector('.canvas')
+    )!;
+    (deck as unknown as {animationLoop: {stop(): void}}).animationLoop.stop();
+    parent.querySelector<HTMLButtonElement>('#world-measure')!.click();
+    // Exercise one completion callback. This verifies report accounting, not frame-time performance.
+    (deck.props.onAfterRender as Function)();
+    await expect
+      .poll(() => parent.querySelector('#world-results')!.textContent, {timeout: 10000})
+      .toContain('"draws": 1');
+    const report = JSON.parse(parent.querySelector('#world-results')!.textContent!);
+    expect(report.intervals).toEqual([]);
+    expect(report.drawsPerSecond).toBeGreaterThan(0);
+  } finally {
+    deckProps.mockRestore();
+    cleanup();
+    parent.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+}, 45000);
