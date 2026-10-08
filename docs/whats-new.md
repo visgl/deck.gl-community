@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `ForceMultiGraphLayout` returns finite node and edge coordinates before simulation starts and
+  handles coincident parallel-edge endpoints without producing invalid control points.
+
 - `GraphLayer` accepts graph URLs with loaders.gl graph loaders and loaded graphs through
   `data`, creating its own engine from `layout`. Raw JSON preserves custom attributes,
   and the playground includes a declarative DOT URL example.
