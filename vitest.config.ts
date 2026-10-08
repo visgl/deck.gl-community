@@ -128,7 +128,14 @@ const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
       }
     })
   : process.env.GITHUB_ACTIONS === 'true'
-    ? playwright({launchOptions: {channel: 'chrome'}})
+    ? playwright({
+        launchOptions: {
+          channel: 'chrome',
+          // CI has no hardware GPU. Use the same explicit WebGL software backend
+          // as the required-adapter lane instead of Chromium's platform fallback.
+          args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader']
+        }
+      })
     : playwright();
 
 const CONFIG = defineConfig({
