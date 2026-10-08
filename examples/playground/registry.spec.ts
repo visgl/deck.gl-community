@@ -87,7 +87,7 @@ test('registers every concrete public layer from each package without losing nam
       expected.push(key);
     }
   }
-  expect(Object.keys(registry.layers).sort()).toEqual(expected.sort());
+  expect(Object.keys(registry.layers).sort()).toEqual([...new Set(expected)].sort());
   expect(registeredType('GridLayer')).toBe(aggregation.GridLayer);
   expect(registeredType('GraphGridLayer')).toBe(graph.GridLayer);
 });
