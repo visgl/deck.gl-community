@@ -4,6 +4,8 @@ import {getBasemapLayers, getStyleDefinitionZoomLimits} from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
+import {loadSpriteAtlases} from './sprite';
+import type {SpriteAtlas} from './sprite';
 
 /**
  * Logs a non-error basemap-layer runtime event to deck.gl logging.
@@ -87,6 +89,8 @@ type BasemapLayerState = {
   loadToken: number;
   /** `getStyleZoomKey` of the zoom the current sublayers were generated at. */
   zoomKey: string | null;
+  /** Sprites of the resolved style, once loaded. */
+  spriteAtlases: SpriteAtlas[] | null;
 };
 
 /**
@@ -123,7 +127,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       resolvedStyle: null,
       loadError: null,
       loadToken: 0,
-      zoomKey: null
+      zoomKey: null,
+      spriteAtlases: null
     };
   }
 
@@ -170,7 +175,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     if (!style) {
       const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
-      this.setState({resolvedStyle: null, loadError: null, loadToken});
+      this.setState({resolvedStyle: null, loadError: null, loadToken, spriteAtlases: null});
       return;
     }
 
@@ -196,7 +201,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
             sources: Object.keys(resolvedStyle.sources || {}),
             layers: resolvedStyle.layers?.length || 0
           });
-          this.setState({resolvedStyle, loadError: null});
+          this.setState({resolvedStyle, loadError: null, spriteAtlases: null});
+          this.loadSprites(resolvedStyle, style, loadOptions, loadToken);
         }
       })
       .catch((error: Error) => {
@@ -205,6 +211,36 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
           this.setState({resolvedStyle: null, loadError: error});
         }
       });
+  }
+
+  /**
+   * Loads the resolved style's sprites, if it has any, and stores them for the icon layers.
+   * Relative sprite URLs resolve against the style URL.
+   */
+  loadSprites(
+    resolvedStyle: ResolvedBasemapStyle,
+    style: BasemapLayerProps['style'],
+    loadOptions: BasemapLayerProps['loadOptions'],
+    loadToken: number
+  ): void {
+    if (!resolvedStyle.sprite) {
+      return;
+    }
+    const options = (loadOptions || {}) as {
+      baseUrl?: string;
+      fetch?: typeof fetch;
+      fetchOptions?: RequestInit;
+    };
+    loadSpriteAtlases(resolvedStyle.sprite, {
+      baseUrl: typeof style === 'string' ? style : options.baseUrl,
+      fetch: options.fetch,
+      fetchOptions: options.fetchOptions,
+      pixelRatio: typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+    }).then(spriteAtlases => {
+      if (this.state.loadToken === loadToken) {
+        this.setState({spriteAtlases});
+      }
+    });
   }
 
   /** Renders the sublayers generated from the resolved style definition. */
@@ -224,7 +260,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       globe: this.props.globe,
       styleDefinition: resolvedStyle,
       zoom,
-      loadOptions: this.props.loadOptions
+      loadOptions: this.props.loadOptions,
+      spriteAtlases: this.state.spriteAtlases
     });
   }
 }

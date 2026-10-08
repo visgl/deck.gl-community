@@ -181,4 +181,28 @@ exact zoom. MapLibre instead evaluates zoom expressions at the integer zooms on 
 the current zoom and interpolates on the GPU; moving interpolation to the GPU remains the
 long-term plan.
 
+### Icons and sprites
+
+When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index and image after the
+style resolves, through the same `fetch` as the style and its tiles. The image is decoded once
+and shared by every tile's icon layer. It requests the `@2x` sprite first
+on high-density screens and falls back to `@1x`. A relative `sprite` URL resolves against the
+style URL, and the array form (`[{id, url}]`) is supported: images from a sprite other than
+`default` are named `id:name`.
+
+Symbol layers with `icon-image` draw a deck.gl `IconLayer` per sprite under their labels.
+`icon-image` accepts expressions and legacy `{token}` names; `icon-size`, `icon-opacity`,
+`icon-anchor` and `icon-offset` are applied, and SDF images take `icon-color`. An image that no
+sprite contains is skipped with one warning per name, and a sprite that fails to load is skipped
+with a warning.
+
+`text-offset` (in ems of `text-size`) and `text-anchor` position labels relative to their point.
+
+Approximations:
+
+- Icons are not collision-filtered: every icon whose style layer is visible is drawn, so dense
+  icon layers can overlap. Labels keep their collision filtering. MapLibre places an icon and
+  its text as one unit and hides both on collision.
+- `icon-rotate`, `icon-text-fit`, `icon-padding` and `icon-allow-overlap` are not applied.
+
 [maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec
