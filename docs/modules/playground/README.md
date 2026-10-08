@@ -197,7 +197,7 @@ including array and conditional accessor expressions. Inline rows and bound rows
 Use registered constants for live resources, such as `data: '@@#table'` for a host-owned Arrow table.
 
 The website's [standalone playground](/playground) and [gallery](/examples/playground) register all
-79 concrete official and community layers. Library consumers select their own constructor set;
+81 concrete official and community layers. Library consumers select their own constructor set;
 custom schemas and aliases use explicit `{type, schema}` registrations.
 
 The [API reference](./api-reference/playground.md) covers registration, picking, camera control,

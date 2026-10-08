@@ -20,6 +20,7 @@ import {
   UnitSchema,
   Vector2AccessorSchema,
   Vector2Schema,
+  Vector3Schema,
   Vector4Schema,
   createAccessorSchema,
   defineLayer
@@ -52,6 +53,32 @@ const boundsProps = {
 export const FlameTrailLayerPropsSchema = TripsLayerPropsSchema;
 /** JSON configuration for FlameTrailLayer. */
 export const FlameTrailLayerSchema = defineLayer('FlameTrailLayer', FlameTrailLayerPropsSchema);
+
+/** JSON props for a time volume; File/Blob sources and callbacks use host references. */
+export const VolumetricVideoLayerPropsSchema = BaseLayerPropsSchema.extend({
+  video: z.string().nullable().optional(),
+  currentFrame: nonnegative.optional(),
+  frameTrail: nonnegative.optional(),
+  maxFrameTrail: nonnegative.nullable().optional(),
+  resolution: nonnegative.max(16384).optional(),
+  renderMode: z.enum(['auto', 'instanced']).optional(),
+  maxTextureBytes: z.number().min(1).optional(),
+  width: nonnegative.optional(),
+  frameSpacing: nonnegative.optional(),
+  splatSize: z.number().min(0.01).optional(),
+  frameOpacity: fraction.optional(),
+  trailFade: fraction.optional(),
+  luminanceThreshold: fraction.optional(),
+  staticPixelRemoval: fraction.optional(),
+  position: Vector3Schema.optional(),
+  onVideoLoad: CallbackSchema,
+  onFrameLoad: CallbackSchema
+});
+/** JSON configuration for VolumetricVideoLayer. */
+export const VolumetricVideoLayerSchema = defineLayer(
+  'VolumetricVideoLayer',
+  VolumetricVideoLayerPropsSchema
+);
 
 /** JSON props for outlined paths, including inherited PathLayer styling. */
 export const PathOutlineLayerPropsSchema = PathLayerPropsSchema.extend({
@@ -611,6 +638,7 @@ export const MarkerLayerSchema = defineLayer('MarkerLayer', MarkerLayerPropsSche
 /** All public visual, information, timeline and graph layer constructors. */
 export const CommunityVisualLayerSchemas = {
   FlameTrailLayer: FlameTrailLayerSchema,
+  VolumetricVideoLayer: VolumetricVideoLayerSchema,
   PathOutlineLayer: PathOutlineLayerSchema,
   PathMarkerLayer: PathMarkerLayerSchema,
   DependencyArrowLayer: DependencyArrowLayerSchema,
