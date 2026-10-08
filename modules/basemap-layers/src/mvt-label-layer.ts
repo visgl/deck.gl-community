@@ -72,6 +72,13 @@ export type MVTLabelLayerProps = {
   iconLoadOptions?: Record<string, unknown> | null;
 };
 
+/**
+ * Pixels around a label's anchor that the collision filter samples: deck.gl's
+ * `CollisionFilterExtension` tests a 5x5 pixel area. Two more pixels absorb rasterization at the
+ * box edge; with only one, a `top`-aligned label still misses a row of the samples and fades.
+ */
+const COLLISION_SAMPLE_RADIUS = 4;
+
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
   center: [0, 0],
@@ -256,6 +263,34 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     const size = this.getLabelSize(feature);
     return [offset[0] * size, offset[1] * size];
+  }
+
+  /**
+   * Padding, `[left, top, right, bottom]` in pixels, that makes each label's collision box cover
+   * the area around its anchor that deck.gl's collision filter samples (5x5 pixels). Without it,
+   * a label moved off its anchor by `text-offset` is always hidden, and one whose anchor is at its
+   * edge (`text-anchor: left`, `top`, ...) is faded. The text box always lies on the far side of
+   * its offset, so padding the box by the offset plus the sample radius reaches the anchor.
+   */
+  getCollisionPadding(): [number, number, number, number] {
+    const rows = this.state.labelData || [];
+    const isPerFeature = ['text-offset', 'text-size'].some(
+      name => this.getStyleProperty(name)?.isFeatureDependent
+    );
+    let [left, top, right, bottom] = [0, 0, 0, 0];
+    for (const row of isPerFeature ? rows : rows.slice(0, 1)) {
+      const [x, y] = this.getLabelPixelOffset((row as any).__source?.object ?? row);
+      left = Math.max(left, x);
+      top = Math.max(top, y);
+      right = Math.max(right, -x);
+      bottom = Math.max(bottom, -y);
+    }
+    return [
+      left + COLLISION_SAMPLE_RADIUS,
+      top + COLLISION_SAMPLE_RADIUS,
+      right + COLLISION_SAMPLE_RADIUS,
+      bottom + COLLISION_SAMPLE_RADIUS
+    ];
   }
 
   /** Update triggers for the icon accessors: the stepped zoom for zoom-dependent properties. */
@@ -515,7 +550,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ) as any,
           fontFamily: this.props.fontFamily,
           sizeUnits: labelSizeUnits,
-          background: hasBackground,
+          // The collision filter keeps a label only where the label itself covers its anchor in
+          // the collision map. The background box is always drawn (transparent without a halo)
+          // and, in the collision pass, padded to reach the anchor (see getCollisionPadding).
+          background: true,
+          collisionTestProps: {padding: this.getCollisionPadding()},
           getBackgroundColor: (hasBackground
             ? this.getSubLayerAccessor((feature: FeatureLike) =>
                 this.getLabelBackgroundColor(feature)
