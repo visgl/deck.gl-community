@@ -19,7 +19,8 @@ box, modal, sidebar, or full-screen chrome.
 
 - Core: [Panel](./api-reference/panel.md),
   [Panel Themes](./api-reference/panel-theme.md)
-- Leaf panels: [MarkdownPanel](./api-reference/markdown-panel.md),
+- Leaf panels: [MetricsPanel](./api-reference/metrics-panel.md),
+  [MarkdownPanel](./api-reference/markdown-panel.md),
   [SettingsPanel](./api-reference/settings-panel.md),
   [KeyboardShortcutsPanel](./api-reference/keyboard-shortcuts-panel.md),
   [URLParametersPanel](./api-reference/url-parameters-panel.md), Arrow
