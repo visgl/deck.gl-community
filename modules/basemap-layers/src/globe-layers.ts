@@ -117,23 +117,9 @@ function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
   return paint;
 }
 
-/** Whether a filter reads `["zoom"]` anywhere. Filters are treated as immutable once seen. */
-const filterZoomDependence = new WeakMap<object, boolean>();
-
-function filterUsesZoom(filter: unknown): boolean {
-  if (!Array.isArray(filter)) {
-    return false;
-  }
-  let usesZoom = filterZoomDependence.get(filter);
-  if (usesZoom === undefined) {
-    usesZoom = JSON.stringify(filter).includes('["zoom"]');
-    filterZoomDependence.set(filter, usesZoom);
-  }
-  return usesZoom;
-}
-
 type FilteredFeatures = {
-  filter: unknown;
+  /** The filter's contents when the entry was made, so an in-place edit is detected. */
+  filterSnapshot: string;
   sourceLayer: string | undefined;
   filterZoom: number | null;
   features: any[];
@@ -143,9 +129,9 @@ type FilteredFeatures = {
  * The latest filtered features per tile content and style layer. Tile sublayers regenerate at
  * every style zoom step; handing them the same array keeps deck.gl from seeing a data change, so
  * only zoom-dependent accessors recompute instead of every feature being re-tessellated. The
- * entry is reused while the style layer's `filter` array, `source-layer` and (for filters that
- * read `["zoom"]`) the integer zoom are unchanged. Style layers are treated as immutable once
- * rendered, as in `getCompiledStyleProperty`; replacing `filter` with a new array is detected.
+ * entry is reused while the contents of the style layer's `filter`, its `source-layer` and (for
+ * filters that read `["zoom"]`) the integer zoom are unchanged, so a filter edited in place is
+ * re-applied, as `compileStyleFilter` recompiles it.
  */
 const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, FilteredFeatures>>();
 
@@ -156,8 +142,9 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
     return features;
   }
 
+  const filterSnapshot = filter === undefined ? '' : JSON.stringify(filter);
   // MapLibre evaluates `["zoom"]` in filters at integer zooms.
-  const filterZoom = filterUsesZoom(filter) ? getFilterZoom(zoom) : null;
+  const filterZoom = filterSnapshot.includes('["zoom"]') ? getFilterZoom(zoom) : null;
   let byStyleLayer = filteredFeatureCache.get(features);
   if (!byStyleLayer) {
     byStyleLayer = new WeakMap();
@@ -166,7 +153,7 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
   const cached = byStyleLayer.get(styleLayer);
   if (
     cached &&
-    cached.filter === filter &&
+    cached.filterSnapshot === filterSnapshot &&
     cached.sourceLayer === sourceLayer &&
     cached.filterZoom === filterZoom
   ) {
@@ -183,7 +170,7 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
         globalProperties: {zoom: getFilterZoom(zoom)}
       })
     : sourceFeatures;
-  byStyleLayer.set(styleLayer, {filter, sourceLayer, filterZoom, features: filtered});
+  byStyleLayer.set(styleLayer, {filterSnapshot, sourceLayer, filterZoom, features: filtered});
   return filtered;
 }
 
