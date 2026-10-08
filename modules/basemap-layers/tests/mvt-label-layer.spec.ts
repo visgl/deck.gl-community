@@ -50,3 +50,28 @@ test('preserves legacy token labels and zoom stops', () => {
     })
   ).toBe('London');
 });
+
+test('evaluates geometry-dependent labels and sizes for multipart features', () => {
+  const layer = new MVTLabelLayer({
+    id: 'geometry-labels',
+    config: {labels: true},
+    styleLayer: {
+      layout: {
+        'text-field': ['geometry-type'],
+        'text-size': ['match', ['geometry-type'], 'Point', 12, 'LineString', 16, 'Polygon', 20, 10]
+      }
+    }
+  });
+  for (const [type, label, size] of [
+    ['Point', 'Point', 12],
+    ['MultiPoint', 'Point', 12],
+    ['LineString', 'LineString', 16],
+    ['MultiLineString', 'LineString', 16],
+    ['Polygon', 'Polygon', 20],
+    ['MultiPolygon', 'Polygon', 20]
+  ] as const) {
+    const feature = {geometry: {type, coordinates: []}};
+    expect(layer.getLabel(feature)).toBe(label);
+    expect(layer.getLabelSize(feature)).toBe(size);
+  }
+});

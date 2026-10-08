@@ -69,6 +69,15 @@ const geoJsonDefaultProps = {...GeoJsonLayer.defaultProps} as Omit<
 >;
 delete (geoJsonDefaultProps as typeof GeoJsonLayer.defaultProps).data;
 
+const GEOMETRY_TYPES: Record<string, 1 | 2 | 3> = {
+  Point: 1,
+  MultiPoint: 1,
+  LineString: 2,
+  MultiLineString: 2,
+  Polygon: 3,
+  MultiPolygon: 3
+};
+
 const STYLE_EXPRESSIONS = new WeakMap<object, ReturnType<typeof expression.createExpression>>();
 
 /**
@@ -82,7 +91,13 @@ function evaluateStyleValue(value: unknown, zoom: number, feature?: FeatureLike)
       STYLE_EXPRESSIONS.set(value, compiled);
     }
     return compiled.result === 'success'
-      ? compiled.value.evaluate({zoom}, {type: 1, properties: feature?.properties || {}})
+      ? compiled.value.evaluate(
+          {zoom},
+          {
+            type: GEOMETRY_TYPES[feature?.geometry.type || ''] ?? 0,
+            properties: feature?.properties || {}
+          }
+        )
       : undefined;
   }
   if (typeof value === 'number' || typeof value === 'string') {
