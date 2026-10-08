@@ -5,6 +5,7 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
+import {getStyleAccessor, getStyleZoomKey, getZoomBucket} from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
@@ -84,6 +85,8 @@ const BACKGROUND_NORTH_POLE_DATA = [
 
 const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster']);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
+const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
+
 function withOpacity(
   color: number[] | null | undefined,
   opacity = 1
@@ -96,8 +99,9 @@ function withOpacity(
   return [color[0], color[1], color[2], Math.round(alpha * opacity)];
 }
 
+/** Evaluates a style layer's paint at the integer zoom (see `getZoomBucket`). */
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
-  const properties = parseProperties(layer, {zoom});
+  const properties = parseProperties(layer, {zoom: getZoomBucket(zoom)});
   return Object.fromEntries(
     properties.map(entry => [Object.keys(entry)[0], Object.values(entry)[0]])
   );
@@ -113,24 +117,26 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
     return sourceFeatures;
   }
 
+  // MapLibre evaluates `["zoom"]` in filters at integer zooms.
   return filterFeatures({
     features: sourceFeatures,
     filter: styleLayer.filter,
-    globalProperties: {zoom}
+    globalProperties: {zoom: getZoomBucket(zoom)}
   });
 }
 
-function isStyleLayerVisibleAtZoom(
-  styleLayer: BasemapStyleLayer,
-  zoom: number,
-  source?: BasemapSource
-): boolean {
-  const minZoom = styleLayer.minzoom ?? source?.minzoom ?? 0;
-  // Source maxzoom caps native tile requests; it does not hide overzoomed imagery.
-  const maxZoom =
-    styleLayer.maxzoom ?? (styleLayer.type === 'raster' ? 24 : (source?.maxzoom ?? 22));
+/** The `minzoom`/`maxzoom` limits that `isStyleLayerVisibleAtZoom` compares against. */
+export function getStyleZoomLimits(styleLayers: BasemapStyleLayer[]): (number | undefined)[] {
+  return styleLayers.flatMap(layer => [layer.minzoom, layer.maxzoom]);
+}
 
-  return zoom >= minZoom && zoom < maxZoom;
+/**
+ * A style layer is visible within its own `minzoom`/`maxzoom` only, as in MapLibre. A source's
+ * `maxzoom` limits which tiles exist, not which layers draw: past it, the tile layer overzooms.
+ */
+function isStyleLayerVisibleAtZoom(styleLayer: BasemapStyleLayer, zoom: number): boolean {
+  const {minzoom, maxzoom} = styleLayer;
+  return (minzoom === undefined || zoom >= minzoom) && (maxzoom === undefined || zoom < maxzoom);
 }
 
 function getTileFeatures(data: unknown): any[] {
@@ -244,8 +250,8 @@ function createRasterLayer({
   return new TileLayer({
     id: `${idPrefix}-${layer.id}`,
     data: source.tiles,
-    minZoom: layer.minzoom ?? source.minzoom ?? 0,
-    maxZoom: source.maxzoom ?? layer.maxzoom ?? 22,
+    minZoom: source.minzoom ?? 0,
+    maxZoom: source.maxzoom ?? 22,
     tileSize: source.tileSize || 512,
     renderSubLayers: props => {
       const {west, south, east, north} = (props.tile?.bbox || {}) as {
@@ -333,22 +339,21 @@ function createStyledVectorSubLayer({
     return null;
   }
 
-  const paint = getPaint(styleLayer, zoom);
-  const opacity =
-    paint[`${styleLayer.type}-opacity`] ??
-    (styleLayer.type === 'fill' ? paint['fill-opacity'] : paint['line-opacity']) ??
-    1;
-  const fillColor = withOpacity(paint['fill-color'], opacity);
-  const lineColor = withOpacity(
-    paint['line-color'] || paint['fill-outline-color'] || [0, 0, 0, 0],
-    opacity
-  );
-
   if (styleLayer.type === 'symbol') {
-    return createSymbolSubLayer({props, styleLayer, features, config, mode, zoom, opacity, paint});
+    const paint = getPaint(styleLayer, zoom);
+    return createSymbolSubLayer({
+      props,
+      styleLayer,
+      features,
+      config,
+      mode,
+      zoom,
+      opacity: 1,
+      paint
+    });
   }
 
-  return createGeometrySubLayer({props, styleLayer, features, mode, fillColor, lineColor, paint});
+  return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
 }
 
 function createVectorLayerGroup({
@@ -359,7 +364,8 @@ function createVectorLayerGroup({
   zoom,
   config,
   loadOptions,
-  mode
+  mode,
+  styleDefinition
 }: {
   idPrefix: string;
   sourceId: string;
@@ -369,9 +375,12 @@ function createVectorLayerGroup({
   config: BasemapLayerConfig;
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
+  /** The resolved style, compared by identity to regenerate tiles when the style changes. */
+  styleDefinition?: ResolvedBasemapStyle;
 }) {
-  const minZoom = Math.min(...styleLayers.map(layer => layer.minzoom ?? source.minzoom ?? 0));
-  const maxZoom = Math.max(...styleLayers.map(layer => layer.maxzoom ?? source.maxzoom ?? 22));
+  // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
+  const minZoom = source.minzoom ?? 0;
+  const maxZoom = source.maxzoom ?? 22;
 
   return new StyledMVTLayer({
     id: `${idPrefix}-${sourceId}`,
@@ -402,11 +411,17 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
+    // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at integer zooms
+    // (evaluation), at fractional layer limits (visibility), and when the style changes. Two styles
+    // can share a source id and so this layer's id; deck.gl compares the style by identity.
+    updateTriggers: {
+      renderSubLayers: [getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)), styleDefinition]
+    },
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers = styleLayers
         .map(styleLayer => {
-          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom, source)) {
+          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom)) {
             return null;
           }
 
@@ -470,6 +485,13 @@ function getVectorSourceGroups(
   }
 
   return [...groups.values()];
+}
+
+/** All style-layer `minzoom`/`maxzoom` limits in a style. */
+export function getStyleDefinitionZoomLimits(
+  styleDefinition: BasemapLayerGroup['styleDefinition']
+): (number | undefined)[] {
+  return getStyleZoomLimits(styleDefinition.layers || []);
 }
 
 export function getBasemapLayers({
@@ -547,10 +569,12 @@ function createSymbolSubLayer({
     config,
     mode,
     styleLayer,
-    zoom,
-    textColor: withOpacity(paint['text-color'], opacity),
+    zoom: getZoomBucket(zoom),
+    // The style spec's default `text-color` is black.
+    textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
+    // The halo keeps its own alpha, scaled by the layer opacity like the text.
     labelBackground: paint['text-halo-color']
-      ? withOpacity(paint['text-halo-color'], paint['text-halo-width'] ? 255 : opacity)
+      ? withOpacity(paint['text-halo-color'], opacity)
       : null,
     billboard: true
   });
@@ -561,20 +585,35 @@ function createGeometrySubLayer({
   styleLayer,
   features,
   mode,
-  fillColor,
-  lineColor,
-  paint
+  zoom
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
   mode: BasemapMode;
-  fillColor: [number, number, number, number];
-  lineColor: [number, number, number, number];
-  paint: Record<string, any>;
+  zoom: number;
 }) {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
+  const opacityProperty = isFill ? 'fill-opacity' : 'line-opacity';
+
+  const fillColor = getStyleAccessor(
+    styleLayer,
+    ['fill-color', opacityProperty],
+    zoom,
+    ([color, opacity]) => getGlobeFillColor(withOpacity(color, opacity ?? 1), mode)
+  );
+  const lineColor = getStyleAccessor(
+    styleLayer,
+    ['line-color', 'fill-outline-color', opacityProperty],
+    zoom,
+    ([color, outlineColor, opacity]) =>
+      withOpacity(color || outlineColor || [0, 0, 0, 0], opacity ?? 1)
+  );
+  const lineWidthScale = getLineWidthScale(styleLayer);
+  const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
+    Math.max(0.25, Number(width ?? 1) * lineWidthScale)
+  );
 
   return new GeoJsonLayer({
     ...getSubLayerBaseProps(props),
@@ -582,11 +621,14 @@ function createGeometrySubLayer({
     data: features,
     stroked: isLine,
     filled: isFill,
-    getFillColor: isFill ? getGlobeFillColor(fillColor, mode) : [0, 0, 0, 0],
-    getLineColor: lineColor,
-    getLineWidth: isLine
-      ? Math.max(0.25, Number(paint['line-width'] ?? 1) * getLineWidthScale(styleLayer))
-      : 0,
+    getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
+    getLineColor: lineColor.value as any,
+    getLineWidth: isLine ? (lineWidth.value as any) : 0,
+    updateTriggers: {
+      getFillColor: isFill ? fillColor.updateTrigger : undefined,
+      getLineColor: lineColor.updateTrigger,
+      getLineWidth: isLine ? lineWidth.updateTrigger : undefined
+    },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
     lineWidthMaxPixels: 20,
@@ -631,29 +673,34 @@ function getVectorLayers({
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
 }) {
-  const visibleVectorLayers = styleLayers.filter(layer => {
-    if (!isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])) {
-      return false;
-    }
-
-    if (layer.type === 'symbol') {
-      return config.labels;
-    }
-    return layer.type === 'fill' || layer.type === 'line';
-  });
-
-  return getVectorSourceGroups(visibleVectorLayers, styleDefinition).map(group =>
-    createVectorLayerGroup({
-      idPrefix,
-      sourceId: group.sourceId,
-      source: group.source,
-      styleLayers: group.styleLayers,
-      zoom,
-      config,
-      loadOptions,
-      mode
-    })
+  const vectorLayers = styleLayers.filter(layer =>
+    layer.type === 'symbol' ? config.labels : layer.type === 'fill' || layer.type === 'line'
   );
+
+  // A group keeps all of its source's style layers, visible or not: its tile regeneration key
+  // must change when any of them crosses its own limits, and `renderSubLayers` gates each layer
+  // by zoom. Skip a source only when none of its layers are visible, and draw sources in the
+  // order of their first visible layer, so a hidden layer does not move its source forward.
+  const firstVisibleIndex = (group: VectorSourceGroup): number =>
+    vectorLayers.findIndex(
+      layer => layer.source === group.sourceId && isStyleLayerVisibleAtZoom(layer, zoom)
+    );
+  return getVectorSourceGroups(vectorLayers, styleDefinition)
+    .filter(group => firstVisibleIndex(group) >= 0)
+    .sort((a, b) => firstVisibleIndex(a) - firstVisibleIndex(b))
+    .map(group =>
+      createVectorLayerGroup({
+        idPrefix,
+        sourceId: group.sourceId,
+        source: group.source,
+        styleLayers: group.styleLayers,
+        zoom,
+        config,
+        loadOptions,
+        mode,
+        styleDefinition
+      })
+    );
 }
 
 function getRasterLayers({
@@ -672,10 +719,7 @@ function getRasterLayers({
   const rasterLayers = [];
 
   for (const layer of styleLayers) {
-    if (
-      layer.type === 'raster' &&
-      isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])
-    ) {
+    if (layer.type === 'raster' && isStyleLayerVisibleAtZoom(layer, zoom)) {
       const source = styleDefinition.sources?.[layer.source];
       if (!source?.tiles) {
         logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `basemap-layers` evaluates fill and line paint properties per feature, so data-driven
+  expressions (`["get", ...]`, `match`, `case`) style each feature instead of resolving to one
+  value per style layer. `findFeaturesStyledByLayer` returns the source-layer features when the
+  style layer has no `filter`, instead of none.
 - `SourcePickerPanel` provides URL, preset, file input, and drag-and-drop controls with host-owned loading callbacks.
 - `MetricsPanel` displays plain telemetry snapshots with ordered labels and host-defined value formatting.
 
@@ -9,7 +13,6 @@
   Blue Marble raster tiles. Other basemap providers are unchanged. Blue Marble tiles
   use a maximum native zoom of 8 and stay visible when overzoomed. Basemap labels
   evaluate OpenFreeMap text and size expressions.
-
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.
   Graph loader dependencies require loaders.gl 4.5.3 or later.

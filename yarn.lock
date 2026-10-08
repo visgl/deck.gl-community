@@ -833,6 +833,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/basemap-layers@workspace:modules/basemap-layers"
   dependencies:
+    "@deck.gl/test-utils": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
     "@loaders.gl/loader-utils": "npm:^4.5.1"
     "@loaders.gl/mvt": "npm:^4.5.1"
