@@ -14,6 +14,7 @@ import {
 } from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {SpriteAtlas} from './sprite';
+import type {LabelFontFamily} from './text-font';
 import type {
   BasemapLoadOptions,
   BasemapSource,
@@ -38,6 +39,8 @@ type BasemapLayerGroup = {
   loadOptions?: BasemapLoadOptions;
   /** Sprites loaded for the style; symbol layers draw `icon-image` from them. */
   spriteAtlases?: SpriteAtlas[] | null;
+  /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
+  fontFamily?: LabelFontFamily | null;
 };
 
 type VectorSourceGroup = {
@@ -364,7 +367,8 @@ function createStyledVectorSubLayer({
   mode,
   collisionPriorityRange,
   spriteAtlases,
-  loadOptions
+  loadOptions,
+  fontFamily
 }: {
   idPrefix: string;
   sourceId: string;
@@ -377,6 +381,7 @@ function createStyledVectorSubLayer({
   collisionPriorityRange?: [number, number];
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
+  fontFamily?: LabelFontFamily | null;
 }) {
   if (features.length === 0) {
     return null;
@@ -395,7 +400,8 @@ function createStyledVectorSubLayer({
       paint,
       collisionPriorityRange,
       spriteAtlases,
-      loadOptions
+      loadOptions,
+      fontFamily
     });
   }
 
@@ -413,7 +419,8 @@ function createVectorLayerGroup({
   mode,
   labelPriorityRanges,
   styleDefinition,
-  spriteAtlases
+  spriteAtlases,
+  fontFamily
 }: {
   idPrefix: string;
   sourceId: string;
@@ -428,6 +435,8 @@ function createVectorLayerGroup({
   styleDefinition?: ResolvedBasemapStyle;
   /** Sprites for `icon-image`; tiles regenerate when they finish loading. */
   spriteAtlases?: SpriteAtlas[] | null;
+  /** Label font override; tiles regenerate when it changes. */
+  fontFamily?: LabelFontFamily | null;
 }) {
   // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
   const minZoom = source.minzoom ?? 0;
@@ -470,7 +479,8 @@ function createVectorLayerGroup({
       renderSubLayers: [
         getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)),
         styleDefinition,
-        spriteAtlases
+        spriteAtlases,
+        fontFamily
       ]
     },
     renderSubLayers: props => {
@@ -503,7 +513,8 @@ function createVectorLayerGroup({
             mode,
             collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
             spriteAtlases,
-            loadOptions
+            loadOptions,
+            fontFamily
           });
         })
         .filter(layer => Boolean(layer));
@@ -560,7 +571,8 @@ export function getBasemapLayers({
   styleDefinition,
   zoom = 0,
   loadOptions,
-  spriteAtlases
+  spriteAtlases,
+  fontFamily
 }: BasemapLayerGroup) {
   const config = getConfig(globe);
   const styleLayers = (styleDefinition.layers || []).filter(layer =>
@@ -586,7 +598,8 @@ export function getBasemapLayers({
         config,
         loadOptions,
         mode,
-        spriteAtlases
+        spriteAtlases,
+        fontFamily
       })
     );
     layers.push(...getRasterLayers({idPrefix, styleLayers, styleDefinition, zoom, mode}));
@@ -603,7 +616,8 @@ export function getGlobeBaseLayers({
   idPrefix = 'globe-basemap',
   zoom = 0,
   loadOptions,
-  spriteAtlases
+  spriteAtlases,
+  fontFamily
 }: Omit<BasemapLayerGroup, 'mode'>) {
   return getBasemapLayers({
     idPrefix,
@@ -612,7 +626,8 @@ export function getGlobeBaseLayers({
     styleDefinition,
     zoom,
     loadOptions,
-    spriteAtlases
+    spriteAtlases,
+    fontFamily
   });
 }
 
@@ -632,7 +647,8 @@ function createSymbolSubLayer({
   paint,
   collisionPriorityRange,
   spriteAtlases,
-  loadOptions
+  loadOptions,
+  fontFamily
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
@@ -645,6 +661,7 @@ function createSymbolSubLayer({
   collisionPriorityRange?: [number, number];
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
+  fontFamily?: LabelFontFamily | null;
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
@@ -657,6 +674,7 @@ function createSymbolSubLayer({
     spriteAtlases,
     // The sprite atlas images load through the same fetch as the style and its tiles.
     iconLoadOptions: loadOptions,
+    fontFamily,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
@@ -770,7 +788,8 @@ function getVectorLayers({
   config,
   loadOptions,
   mode,
-  spriteAtlases
+  spriteAtlases,
+  fontFamily
 }: {
   idPrefix: string;
   styleLayers: BasemapStyleLayer[];
@@ -780,6 +799,7 @@ function getVectorLayers({
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
   spriteAtlases?: SpriteAtlas[] | null;
+  fontFamily?: LabelFontFamily | null;
 }) {
   const vectorLayers = styleLayers.filter(layer =>
     layer.type === 'symbol' ? config.labels : layer.type === 'fill' || layer.type === 'line'
@@ -809,7 +829,8 @@ function getVectorLayers({
         mode,
         labelPriorityRanges,
         styleDefinition,
-        spriteAtlases
+        spriteAtlases,
+        fontFamily
       })
     );
 }
