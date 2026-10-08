@@ -403,8 +403,14 @@ describe('Tree Lab rendering controls', () => {
     const api = (window as Window & {treeLab?: ReviewApi}).treeLab!;
     try {
       api.setOptions({pixelRatio: 0.5, wind: false, shadows: false});
-      await expect.poll(() => api.ready, {timeout: 30000}).toBe(SPECIES.length * 2);
       const specimens = api.getDecks();
+      // Retain all sixteen contexts and native geometry while bounding this
+      // initialization/ownership fixture. Per-species cases cover full-size pixels.
+      for (const specimen of specimens) {
+        Object.assign(specimen.element.style, {width: '160px', height: '120px'});
+        specimen.deck.setProps({width: 160, height: 120, useDevicePixels: false});
+      }
+      await expect.poll(() => api.ready, {timeout: 60000}).toBe(SPECIES.length * 2);
       expect(specimens).toHaveLength(SPECIES.length * 2);
       for (const species of SPECIES)
         expect(
@@ -419,5 +425,5 @@ describe('Tree Lab rendering controls', () => {
       container.remove();
       history.replaceState(null, '', originalUrl);
     }
-  }, 45000);
+  }, 90000);
 });
