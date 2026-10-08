@@ -13,6 +13,7 @@ import {
   withOpacity
 } from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
+import type {SpriteAtlas} from './sprite';
 import type {
   BasemapLoadOptions,
   BasemapSource,
@@ -35,6 +36,8 @@ type BasemapLayerGroup = {
   styleDefinition: ResolvedBasemapStyle;
   zoom?: number;
   loadOptions?: BasemapLoadOptions;
+  /** Sprites loaded for the style; symbol layers draw `icon-image` from them. */
+  spriteAtlases?: SpriteAtlas[] | null;
 };
 
 type VectorSourceGroup = {
@@ -359,7 +362,9 @@ function createStyledVectorSubLayer({
   zoom,
   config,
   mode,
-  collisionPriorityRange
+  collisionPriorityRange,
+  spriteAtlases,
+  loadOptions
 }: {
   idPrefix: string;
   sourceId: string;
@@ -370,6 +375,8 @@ function createStyledVectorSubLayer({
   config: BasemapLayerConfig;
   mode: BasemapMode;
   collisionPriorityRange?: [number, number];
+  spriteAtlases?: SpriteAtlas[] | null;
+  loadOptions?: BasemapLoadOptions;
 }) {
   if (features.length === 0) {
     return null;
@@ -386,7 +393,9 @@ function createStyledVectorSubLayer({
       zoom,
       opacity: 1,
       paint,
-      collisionPriorityRange
+      collisionPriorityRange,
+      spriteAtlases,
+      loadOptions
     });
   }
 
@@ -403,7 +412,8 @@ function createVectorLayerGroup({
   loadOptions,
   mode,
   labelPriorityRanges,
-  styleDefinition
+  styleDefinition,
+  spriteAtlases
 }: {
   idPrefix: string;
   sourceId: string;
@@ -416,6 +426,8 @@ function createVectorLayerGroup({
   labelPriorityRanges?: Map<BasemapStyleLayer, [number, number]>;
   /** The resolved style, compared by identity to regenerate tiles when the style changes. */
   styleDefinition?: ResolvedBasemapStyle;
+  /** Sprites for `icon-image`; tiles regenerate when they finish loading. */
+  spriteAtlases?: SpriteAtlas[] | null;
 }) {
   // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
   const minZoom = source.minzoom ?? 0;
@@ -455,7 +467,11 @@ function createVectorLayerGroup({
     // changes. Two styles can share a source id and so this layer's id; deck.gl compares the
     // style by identity.
     updateTriggers: {
-      renderSubLayers: [getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)), styleDefinition]
+      renderSubLayers: [
+        getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)),
+        styleDefinition,
+        spriteAtlases
+      ]
     },
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
@@ -485,7 +501,9 @@ function createVectorLayerGroup({
             zoom,
             config,
             mode,
-            collisionPriorityRange: labelPriorityRanges?.get(styleLayer)
+            collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
+            spriteAtlases,
+            loadOptions
           });
         })
         .filter(layer => Boolean(layer));
@@ -541,7 +559,8 @@ export function getBasemapLayers({
   globe,
   styleDefinition,
   zoom = 0,
-  loadOptions
+  loadOptions,
+  spriteAtlases
 }: BasemapLayerGroup) {
   const config = getConfig(globe);
   const styleLayers = (styleDefinition.layers || []).filter(layer =>
@@ -559,7 +578,16 @@ export function getBasemapLayers({
   if (config.basemap) {
     layers.push(...getBackgroundLayers({idPrefix, styleLayers, zoom, mode}));
     layers.push(
-      ...getVectorLayers({idPrefix, styleLayers, styleDefinition, zoom, config, loadOptions, mode})
+      ...getVectorLayers({
+        idPrefix,
+        styleLayers,
+        styleDefinition,
+        zoom,
+        config,
+        loadOptions,
+        mode,
+        spriteAtlases
+      })
     );
     layers.push(...getRasterLayers({idPrefix, styleLayers, styleDefinition, zoom, mode}));
   }
@@ -574,9 +602,18 @@ export function getGlobeBaseLayers({
   styleDefinition,
   idPrefix = 'globe-basemap',
   zoom = 0,
-  loadOptions
+  loadOptions,
+  spriteAtlases
 }: Omit<BasemapLayerGroup, 'mode'>) {
-  return getBasemapLayers({idPrefix, mode: 'globe', globe, styleDefinition, zoom, loadOptions});
+  return getBasemapLayers({
+    idPrefix,
+    mode: 'globe',
+    globe,
+    styleDefinition,
+    zoom,
+    loadOptions,
+    spriteAtlases
+  });
 }
 
 export function getGlobeTopLayers({globe}: {globe: {config: BasemapGlobeConfig}}) {
@@ -593,7 +630,9 @@ function createSymbolSubLayer({
   zoom,
   opacity,
   paint,
-  collisionPriorityRange
+  collisionPriorityRange,
+  spriteAtlases,
+  loadOptions
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
@@ -604,6 +643,8 @@ function createSymbolSubLayer({
   opacity: number;
   paint: Record<string, any>;
   collisionPriorityRange?: [number, number];
+  spriteAtlases?: SpriteAtlas[] | null;
+  loadOptions?: BasemapLoadOptions;
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
@@ -613,6 +654,9 @@ function createSymbolSubLayer({
     mode,
     styleLayer,
     collisionPriorityRange,
+    spriteAtlases,
+    // The sprite atlas images load through the same fetch as the style and its tiles.
+    iconLoadOptions: loadOptions,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
@@ -725,7 +769,8 @@ function getVectorLayers({
   zoom,
   config,
   loadOptions,
-  mode
+  mode,
+  spriteAtlases
 }: {
   idPrefix: string;
   styleLayers: BasemapStyleLayer[];
@@ -734,6 +779,7 @@ function getVectorLayers({
   config: BasemapLayerConfig;
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
+  spriteAtlases?: SpriteAtlas[] | null;
 }) {
   const vectorLayers = styleLayers.filter(layer =>
     layer.type === 'symbol' ? config.labels : layer.type === 'fill' || layer.type === 'line'
@@ -762,7 +808,8 @@ function getVectorLayers({
         loadOptions,
         mode,
         labelPriorityRanges,
-        styleDefinition
+        styleDefinition,
+        spriteAtlases
       })
     );
 }
