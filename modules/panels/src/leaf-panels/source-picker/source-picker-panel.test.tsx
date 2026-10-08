@@ -112,6 +112,13 @@ test('file input and drops pass files through, enforce single selection, and res
     }).content,
     root
   );
+  const enabledDragOver = new DragEvent('dragover', {
+    dataTransfer: dropTransfer,
+    bubbles: true,
+    cancelable: true
+  });
+  root.firstElementChild!.dispatchEvent(enabledDragOver);
+  expect(enabledDragOver.defaultPrevented).toBe(true);
   root.firstElementChild!.dispatchEvent(
     new DragEvent('drop', {dataTransfer: dropTransfer, bubbles: true, cancelable: true})
   );
@@ -126,8 +133,15 @@ test('file input and drops pass files through, enforce single selection, and res
     }).content,
     root
   );
+  const disabledDragOver = new DragEvent('dragover', {
+    dataTransfer: dropTransfer,
+    bubbles: true,
+    cancelable: true
+  });
+  root.firstElementChild!.dispatchEvent(disabledDragOver);
+  expect(disabledDragOver.defaultPrevented).toBe(false);
   root.firstElementChild!.dispatchEvent(
-    new DragEvent('drop', {dataTransfer: transfer, bubbles: true, cancelable: true})
+    new DragEvent('drop', {dataTransfer: dropTransfer, bubbles: true, cancelable: true})
   );
   expect(onSelectFiles).toHaveBeenCalledTimes(2);
 });

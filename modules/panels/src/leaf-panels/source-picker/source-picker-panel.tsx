@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import {useState} from 'preact/hooks';
 import {Panel} from '../../panels/panel';
+import type {JSX} from 'preact';
 import type {PanelTheme} from '../../panels/panel';
 
 /** A named source URL offered by a source picker. */
@@ -97,6 +98,7 @@ function SourcePickerContent({
         <label>
           Preset
           <select
+            style={SOURCE_CONTROL_STYLE}
             aria-label="Preset"
             value={selectedPreset}
             disabled={disabled}
@@ -124,13 +126,18 @@ function SourcePickerContent({
         <label htmlFor={`${id}-url`}>Source URL</label>
         <input
           id={`${id}-url`}
+          style={SOURCE_CONTROL_STYLE}
           type="url"
           required
           value={currentUrl}
           disabled={disabled}
           onInput={event => changeUrl(event.currentTarget.value)}
         />
-        <button type="submit" disabled={disabled || !currentUrl.trim()}>
+        <button
+          style={SOURCE_CONTROL_STYLE}
+          type="submit"
+          disabled={disabled || !currentUrl.trim()}
+        >
           Load URL
         </button>
       </form>
@@ -153,3 +160,16 @@ function SourcePickerContent({
     </div>
   );
 }
+
+/** Shared theme-aware appearance for native source controls. */
+const SOURCE_CONTROL_STYLE: JSX.CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  border: 'var(--button-inner-stroke, 1px solid rgba(128, 128, 128, 0.35))',
+  borderRadius: 'calc(var(--button-corner-radius, 8px) - 2px)',
+  backgroundColor: 'var(--button-background, #fff)',
+  color: 'var(--button-text, currentColor)',
+  fontSize: '12px',
+  padding: '4px 6px',
+  boxSizing: 'border-box'
+};
