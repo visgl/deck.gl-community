@@ -1,6 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {Layer} from '@deck.gl/core';
+import {DOTLoaderWithParser} from '@loaders.gl/graphs/dot-loader';
 import * as layers from '@deck.gl/layers';
 import * as aggregation from '@deck.gl/aggregation-layers';
 import * as geo from '@deck.gl/geo-layers';
@@ -55,6 +56,9 @@ export function createPlaygroundRegistry(
       ...LAYERS,
       GraphGridLayer: {type: graph.GridLayer, schema: GraphGridLayerSchema}
     },
+    functions: {
+      D3ForceLayout: props => new graph.D3ForceLayout(props)
+    },
     constants: {
       ...Object.fromEntries(
         Object.entries(editable).filter(
@@ -66,6 +70,7 @@ export function createPlaygroundRegistry(
       S2Grid: communityGeo.S2Grid,
       GeohashGrid: communityGeo.GeohashGrid,
       QuadkeyGrid: communityGeo.QuadkeyGrid,
+      DOTLoader: DOTLoaderWithParser,
       SimpleLayout: new graph.SimpleLayout(),
       ...constants
     }

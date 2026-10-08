@@ -12,6 +12,7 @@ import {
   DataBindingSchema,
   DeckGLPositionSchema,
   FunctionSchema,
+  JsonFunctionSchema,
   JsonObjectSchema,
   JsonValueSchema,
   NumberAccessorSchema,
@@ -541,10 +542,10 @@ const edgeStyle = withStyleSelectors(
   }),
   z.strictObject({stroke: styleValue.optional(), strokeWidth: styleValue.optional()})
 );
-/** JSON props for graph rendering; graph engines and layout instances are supplied by the host. */
+/** JSON props for graph rendering; layouts use host constants or registered factories. */
 export const GraphLayerPropsSchema = CompositeLayerPropsSchema.extend({
   graph: ConstantSchema.optional(),
-  layout: ConstantSchema.optional(),
+  layout: z.union([ConstantSchema, JsonFunctionSchema]).optional(),
   engine: ConstantSchema.optional(),
   graphLoader: FunctionSchema.optional(),
   onLayoutStart: CallbackSchema,

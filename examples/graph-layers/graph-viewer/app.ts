@@ -536,14 +536,6 @@ export function mountGraphViewerExample(
       syncLoadingOverlay();
       return;
     }
-    if (!state.loading.rendered && state.resolvedEngine) {
-      state.loading = {
-        loaded: true,
-        rendered: true,
-        isLoading: false
-      };
-      syncLoadingOverlay();
-    }
   }
 
   function updateResolvedEngineFromLayer() {
@@ -806,7 +798,7 @@ export function mountGraphViewerExample(
       layout,
       rankGrid: buildRankGrid(selectedLayout, layoutOptions, dagLayout),
       onLayoutStart: detail => {
-        state.loading = {...INITIAL_LOADING_STATE};
+        state.loading = {...INITIAL_LOADING_STATE, loaded: true};
         syncLoadingOverlay();
         viewportController.handleLayoutEvent(detail);
       },
