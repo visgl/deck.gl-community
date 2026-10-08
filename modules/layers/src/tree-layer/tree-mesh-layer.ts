@@ -75,6 +75,21 @@ const GLSL_STEM = `
     treeLocalNormal.z -= dot(treeLocalNormal.xy, positions.xy * (treeTarget - 1.0) * treeDerivative);
   }
 `;
+// Coverage must run before host depth-only shortcuts, which enter at the default order.
+const TREE_COVERAGE = {
+  name: 'treeCoverageFilter',
+  fs: 'in vec2 treeCoverage;\nin vec3 treeDitherPosition;',
+  inject: {
+    'fs:#main-start': {
+      order: -100,
+      injection: `if (treeCoverage.x > 0.0 || treeCoverage.y < 1.0) {
+        float coverageNoise = fract(sin(dot(floor(treeDitherPosition * 40.0), vec3(12.9898,78.233,37.719))) * 43758.5453);
+        if (coverageNoise < treeCoverage.x || coverageNoise >= treeCoverage.y) discard;
+      }`
+    }
+  }
+} as const;
+
 const WGSL_STEM = `
   var treePosition = attributes.positions;
   var treeLocalNormal = attributes.normals;
@@ -216,14 +231,10 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       throw new Error('Unsupported SimpleMeshLayer GLSL wind anchor.');
     return {
       ...shaders,
-      modules: [...shaders.modules, TREE_WIND],
+      modules: [...shaders.modules, TREE_WIND, TREE_COVERAGE],
       // Filter the final shaded color. In a shadow pass the filter writes packed
       // depth; lighting or opacity must never modify those RGBA bytes afterward.
       fs: shaders.fs
-        .replace(
-          'void main(void) {',
-          'in vec2 treeCoverage;\nin vec3 treeDitherPosition;\nvoid main(void) {\n  if (treeCoverage.x > 0.0 || treeCoverage.y < 1.0) { float coverageNoise=fract(sin(dot(floor(treeDitherPosition * 40.0),vec3(12.9898,78.233,37.719))) * 43758.5453); if(coverageNoise < treeCoverage.x || coverageNoise >= treeCoverage.y) discard; }'
-        )
         .replace('  DECKGL_FILTER_COLOR(color, geometry);', '')
         .replace(
           'vec3 lightColor =',
