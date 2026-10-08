@@ -43,6 +43,13 @@ describe('D3ForceLayout', () => {
     const close = vi.fn();
     const context = {
       d3,
+      performance: {
+        now: vi
+          .fn()
+          .mockImplementationOnce(() => 0)
+          .mockImplementationOnce(() => 1)
+          .mockImplementation(() => 32)
+      },
       importScripts: vi.fn(),
       postMessage: (data: unknown) => messages.push(structuredClone(data)),
       self: {close},
@@ -67,6 +74,7 @@ describe('D3ForceLayout', () => {
     });
     const ticks = messages.filter(message => message.type === 'tick');
     expect(ticks.length).toBeGreaterThan(1);
+    expect(ticks).toHaveLength(2);
     expect(ticks[0].nodes).not.toEqual(ticks.at(-1).nodes);
     expect(
       ticks.every(message =>
@@ -74,9 +82,9 @@ describe('D3ForceLayout', () => {
       )
     ).toBe(true);
     expect(ticks.every(message => !('edges' in message))).toBe(true);
-    expect(ticks.at(-1).progress).toBe(1);
+    expect(ticks.at(-1).progress).toBeLessThan(1);
     expect(messages.at(-1).type).toBe('end');
-    expect(messages.at(-1).nodes).toEqual(ticks.at(-1).nodes);
+    expect(messages.at(-1).nodes).not.toEqual(ticks.at(-1).nodes);
     expect(close).toHaveBeenCalledOnce();
   });
 
