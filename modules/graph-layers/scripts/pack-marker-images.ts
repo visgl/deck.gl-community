@@ -1,5 +1,5 @@
 /**
- * Generate texture atlas from images
+ * Generate texture atlas from PNG images
  * ```
  * # default input/output
  * npx tsx ./pack-marker-images.ts
@@ -14,10 +14,8 @@
 import {readFile, writeFile, readdir} from 'node:fs/promises';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ndarray, {NdArray} from 'ndarray';
-import {getPixels, savePixels} from 'ndarray-pixels';
+import {PNG} from 'pngjs';
 import pack from 'bin-pack';
-import Datauri from 'datauri';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageRoot = join(__dirname, '..');
@@ -30,19 +28,19 @@ const OUTPUT_IMAGE = resolve(packageRoot, outputDir, 'marker-atlas.png');
 const OUTPUT_MAPPING = resolve(packageRoot, outputDir, 'marker-mapping.ts');
 const OUTPUT_DATA_URL = resolve(packageRoot, outputDir, 'atlas-data-url.ts');
 const OUTPUT_LIST = resolve(packageRoot, outputDir, 'marker-list.ts');
-const IMAGE_PATTERN = /\.(png|jpg|jpeg|gif|bmp|tiff)$/i;
+const IMAGE_PATTERN = /\.png$/i;
 
 // Get all images in the input path
 const fileNames = (await readdir(INPUT_DIR)).filter(name => IMAGE_PATTERN.test(name));
 
-Promise.all(fileNames.map((name: string) => readImage(resolve(INPUT_DIR, name)))).then(
+await Promise.all(fileNames.map((name: string) => readImage(resolve(INPUT_DIR, name)))).then(
   async images => {
     // Images are loaded
-    const nodes = images.map((pixels: NdArray, index: number) => ({
+    const nodes = images.map((pixels: PNG, index: number) => ({
       name: fileNames[index],
       pixels,
-      width: pixels.shape[0],
-      height: pixels.shape[1]
+      width: pixels.width,
+      height: pixels.height
     }));
 
     // Bin pack
@@ -50,7 +48,10 @@ Promise.all(fileNames.map((name: string) => readImage(resolve(INPUT_DIR, name)))
     // console.log(result.items.length + ' items packed.');
 
     // Convert to texture atlas
-    const outputJSON = {};
+    const outputJSON: Record<
+      string,
+      {x: number; y: number; width: number; height: number; mask: boolean}
+    > = {};
     const outputImage = createImage(result.width, result.height);
     result.items.forEach(item => {
       outputJSON[item.item.name.replace(IMAGE_PATTERN, '')] = {
@@ -65,38 +66,29 @@ Promise.all(fileNames.map((name: string) => readImage(resolve(INPUT_DIR, name)))
 
     // Write to disk
     await writeMapping(OUTPUT_MAPPING, outputJSON);
-    await writeImage(OUTPUT_IMAGE, outputImage, () => writeDataURL(OUTPUT_IMAGE, OUTPUT_DATA_URL));
+    const imageBuffer = PNG.sync.write(outputImage);
+    await writeFile(OUTPUT_IMAGE, imageBuffer);
+    await writeDataURL(imageBuffer, OUTPUT_DATA_URL);
     await writeList(OUTPUT_LIST, outputJSON);
   }
 );
 
 /* Utils */
 
-function copyPixels(fromImage: NdArray, toImage: NdArray, x: number, y: number): void {
-  const width = fromImage.shape[0];
-  const height = fromImage.shape[1];
-  const channels = fromImage.shape[2];
-
-  for (let i = 0; i < width; i++) {
-    for (let j = 0; j < height; j++) {
-      for (let k = 0; k < channels; k++) {
-        const value = fromImage.get(i, j, k);
-        toImage.set(i + x, j + y, k, value);
-      }
-    }
-  }
+function copyPixels(fromImage: PNG, toImage: PNG, x: number, y: number): void {
+  PNG.bitblt(fromImage, toImage, 0, 0, fromImage.width, fromImage.height, x, y);
 }
 
 async function writeMapping(filePath: string, content: unknown): Promise<void> {
   await exportJSFile(filePath, 'MarkerMapping', JSON.stringify(content, null, 2));
 }
 
-function createImage(width: number, height: number): NdArray<Uint8ClampedArray> {
-  return ndarray(new Uint8ClampedArray(width * height * 4), [width, height, 4]);
+function createImage(width: number, height: number): PNG {
+  return new PNG({width, height, fill: true});
 }
 
-async function writeDataURL(imagePath: string, outputFilePath: string): Promise<void> {
-  const content = {dataURL: await Datauri(imagePath)};
+async function writeDataURL(imageBuffer: Buffer, outputFilePath: string): Promise<void> {
+  const content = {dataURL: `data:image/png;base64,${imageBuffer.toString('base64')}`};
   await exportJSFile(outputFilePath, 'AtlasDataURL', JSON.stringify(content, null, 2));
 }
 
@@ -121,17 +113,8 @@ async function exportJSFile(
   );
 }
 
-async function readImage(filePath: string): Promise<NdArray> {
-  return readFile(filePath).then(buffer => getPixels(buffer, 'image/png'));
-}
-
-async function writeImage(
-  filePath: string,
-  pixelArr: NdArray<Uint8ClampedArray>,
-  createDataURL: () => void
-): Promise<void> {
-  await writeFile(filePath, await savePixels(pixelArr, 'image/png'));
-  createDataURL();
+async function readImage(filePath: string): Promise<PNG> {
+  return PNG.sync.read(await readFile(filePath));
 }
 
 /* eslint-enable */
