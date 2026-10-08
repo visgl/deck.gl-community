@@ -66,7 +66,9 @@ mount. Browser adapter dependencies are pre-optimized to avoid module reloads du
 Final review gates cover owner-local geographic error, nonmonotonic supplied hierarchy counts,
 shifted shadow origins after an empty inventory, worker eviction acknowledgements, atomic rejection
 of stale RAD frontiers, static decode error status, host depth state on both sorted backends,
-strict public scene/inventory schemas, large grid framing and film startup error reporting.
+strict public scene/inventory schemas, large grid framing, film startup error reporting, scene
+appearance/picking controls on both backends and accurate world draw counts. World control fixtures
+use bounded empty pages; source and pixel contracts validate actual streamed rendering separately.
 The dedicated CI software-adapter step requires the new scene fixtures; ordinary browser runs
 skip WebGPU only when no adapter exists. Review fixes stay in their owning PRs, and range-diff
 preserves every earlier stack commit apart from intended workflow conflict resolution.
