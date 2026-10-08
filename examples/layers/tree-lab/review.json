@@ -1,0 +1,456 @@
+{
+  "method": "One production renderer per page; three 5-second camera orbits on Apple M4 Pro/ANGLE Metal at 1236x680, 1x pixels. Browser delivery intervals, not GPU timings. Captured before final picking/override/film/shadow-depth/winter-join correctness fixes.",
+  "samples": {
+    "production-palm-baseline": [
+      {
+        "renderer": "baseline",
+        "species": "palm",
+        "count": 5000,
+        "options": {
+          "season": "summer",
+          "crops": false,
+          "dropped": false,
+          "shadows": false,
+          "wind": false,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 382,
+        "idleRenderedFrames": 0,
+        "idleDurationMs": 501.10000002384186,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5008.199999988079,
+        "medianFrameMs": 15.899999999999636,
+        "p95FrameMs": 17.5,
+        "maxFrameMs": 26,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      },
+      {
+        "renderer": "baseline",
+        "species": "palm",
+        "count": 5000,
+        "options": {
+          "season": "summer",
+          "crops": false,
+          "dropped": false,
+          "shadows": false,
+          "wind": false,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 380,
+        "idleRenderedFrames": 1,
+        "idleDurationMs": 501.9000000357628,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5013.599999964237,
+        "medianFrameMs": 16.200000000000728,
+        "p95FrameMs": 17.299999999999272,
+        "maxFrameMs": 25.399999999999636,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      },
+      {
+        "renderer": "baseline",
+        "species": "palm",
+        "count": 5000,
+        "options": {
+          "season": "summer",
+          "crops": false,
+          "dropped": false,
+          "shadows": false,
+          "wind": false,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 390,
+        "idleRenderedFrames": 1,
+        "idleDurationMs": 501.69999998807907,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5013.800000011921,
+        "medianFrameMs": 15.700000000000728,
+        "p95FrameMs": 17.599999999998545,
+        "maxFrameMs": 33.29999999999927,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      }
+    ],
+    "production-palm-native": [
+      {
+        "renderer": "native",
+        "species": "palm",
+        "count": 5000,
+        "options": {
+          "season": "summer",
+          "crops": false,
+          "dropped": false,
+          "shadows": false,
+          "wind": false,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 588,
+        "idleRenderedFrames": 0,
+        "idleDurationMs": 501,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5003.400000035763,
+        "medianFrameMs": 8.300000000000182,
+        "p95FrameMs": 9.199999999999818,
+        "maxFrameMs": 24.900000000001455,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      },
+      {
+        "renderer": "native",
+        "species": "palm",
+        "count": 5000,
+        "options": {
+          "season": "summer",
+          "crops": false,
+          "dropped": false,
+          "shadows": false,
+          "wind": false,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 539,
+        "idleRenderedFrames": 1,
+        "idleDurationMs": 501,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5007.100000023842,
+        "medianFrameMs": 8.300000000001091,
+        "p95FrameMs": 16.700000000000728,
+        "maxFrameMs": 17.700000000000728,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      },
+      {
+        "renderer": "native",
+        "species": "palm",
+        "count": 5000,
+        "options": {
+          "season": "summer",
+          "crops": false,
+          "dropped": false,
+          "shadows": false,
+          "wind": false,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 600,
+        "idleRenderedFrames": 1,
+        "idleDurationMs": 501.2000000476837,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5002.199999988079,
+        "medianFrameMs": 8.300000000001091,
+        "p95FrameMs": 9.200000000000728,
+        "maxFrameMs": 9.400000000001455,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      }
+    ],
+    "final-animated-forest-pcf": [
+      {
+        "renderer": "native",
+        "species": "oak",
+        "count": 1000,
+        "options": {
+          "season": "summer",
+          "crops": true,
+          "dropped": true,
+          "shadows": true,
+          "wind": true,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 601,
+        "idleRenderedFrames": 60,
+        "idleDurationMs": 501.4000000357628,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5002.600000023842,
+        "medianFrameMs": 8.300000000000182,
+        "p95FrameMs": 9.100000000000364,
+        "maxFrameMs": 9.399999999999636,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      },
+      {
+        "renderer": "native",
+        "species": "oak",
+        "count": 1000,
+        "options": {
+          "season": "summer",
+          "crops": true,
+          "dropped": true,
+          "shadows": true,
+          "wind": true,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 601,
+        "idleRenderedFrames": 60,
+        "idleDurationMs": 500.80000001192093,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5007,
+        "medianFrameMs": 8.300000000001091,
+        "p95FrameMs": 9.100000000000364,
+        "maxFrameMs": 9.399999999999636,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      },
+      {
+        "renderer": "native",
+        "species": "oak",
+        "count": 1000,
+        "options": {
+          "season": "summer",
+          "crops": true,
+          "dropped": true,
+          "shadows": true,
+          "wind": true,
+          "detail": "high",
+          "backend": "webgl",
+          "windTime": null,
+          "pixelRatio": 1
+        },
+        "backend": "webgl",
+        "device": {
+          "type": "webgl",
+          "gpu": "apple",
+          "gpuType": "integrated",
+          "gpuBackend": "metal",
+          "vendor": "Google Inc. (Apple)",
+          "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)",
+          "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+          "shadingLanguage": "glsl",
+          "shadingLanguageVersion": 300
+        },
+        "renderedFrames": 601,
+        "idleRenderedFrames": 60,
+        "idleDurationMs": 501.10000002384186,
+        "viewport": {
+          "width": 1236,
+          "height": 680,
+          "devicePixelRatio": 1
+        },
+        "durationMs": 5007.199999988079,
+        "medianFrameMs": 8.299999999999272,
+        "p95FrameMs": 9.299999999999272,
+        "maxFrameMs": 9.400000000001455,
+        "over33ms": 0,
+        "longTaskCount": 0,
+        "longTaskMs": 0,
+        "errors": []
+      }
+    ]
+  },
+  "implementationChunks": [
+    {
+      "bytes": 101543,
+      "gzipBytes": 28903,
+      "sha256": "b05ed92a7e5aa568ecb86b9bce32f0fbecee7b1a5f4b3cc4d101fd0638088b5c"
+    },
+    {
+      "bytes": 20653,
+      "gzipBytes": 7815,
+      "sha256": "c793b2356f0b56b04bab3db8023cb60e6f46f8222254f048a8ed68e267d12827"
+    }
+  ],
+  "geometry": [
+    {
+      "species": "pine",
+      "baselineTriangles": 76,
+      "highTriangles": 140,
+      "mediumTriangles": 108,
+      "lowTriangles": 76
+    },
+    {
+      "species": "oak",
+      "baselineTriangles": 252,
+      "highTriangles": 288,
+      "mediumTriangles": 168,
+      "lowTriangles": 64
+    },
+    {
+      "species": "palm",
+      "baselineTriangles": 4448,
+      "highTriangles": 1760,
+      "mediumTriangles": 1224,
+      "lowTriangles": 648
+    },
+    {
+      "species": "birch",
+      "baselineTriangles": 140,
+      "highTriangles": 288,
+      "mediumTriangles": 168,
+      "lowTriangles": 64
+    },
+    {
+      "species": "cherry",
+      "baselineTriangles": 168,
+      "highTriangles": 288,
+      "mediumTriangles": 168,
+      "lowTriangles": 64
+    }
+  ]
+}

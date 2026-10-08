@@ -1,0 +1,331 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+import {CompositeLayer, type Layer, type Deck, type MapViewState} from '@deck.gl/core';
+import type {TreeLayer} from '@deck.gl-community/layers';
+import {expect, it, vi} from 'vitest';
+import {mountTreeForestExample} from './forest';
+import {TreeLightingEffect} from './tree-lighting';
+
+type ForestApi = {
+  ready: boolean;
+  errors: string[];
+  count: number;
+  deck: Deck & {getWindTime(): number};
+};
+
+it('renders 10K and 20K forests at highest geometry through season, shadow and view changes', async () => {
+  const originalUrl = location.href;
+  const queryUrl = new URL(originalUrl);
+  queryUrl.search = '?count=10000&detail=low&fly=1&sun=0&wind=0&shadows=0';
+  history.replaceState(null, '', queryUrl);
+  const container = document.createElement('div');
+  container.style.width = '900px';
+  document.body.append(container);
+  const cleanup = mountTreeForestExample(container, true);
+  const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+  // Bound shadow raster work too: the default 1024px maps remain full size even on a 160px
+  // canvas, and the grazing 20K view can monopolize Linux's software adapter for minutes.
+  // All records, native wood geometry, shadow toggles and caster-culling assertions remain.
+  (api.deck.props.effects![0] as TreeLightingEffect).shadowMapSize = 128;
+  Object.assign(container.querySelector<HTMLElement>('.forest-stage .canvas')!.style, {
+    width: '160px',
+    height: '120px'
+  });
+  const renderer = api.deck as unknown as {
+    animationLoop: {stop(): void};
+    layerManager: {updateLayers(): void};
+  };
+  let frames = 0;
+  const originalAfterRender = api.deck.props.onAfterRender;
+  api.deck.setProps({
+    // Keep the full 20K inventory and native geometry, but bound both raster work
+    // and the close-view geometry footprint on Linux SwiftShader. Dedicated lab
+    // fixtures verify full-size pixels; the final overview still covers all trees.
+    width: 160,
+    height: 120,
+    useDevicePixels: false,
+    onAfterRender(context) {
+      originalAfterRender?.(context);
+      frames++;
+    }
+  });
+  const change = async (phase: string, action: () => void) => {
+    const before = frames;
+    console.info(`Forest contract: ${phase}`);
+    action();
+    // Render a settled source frame explicitly, including changes that only
+    // affect culled/distant species and need no automatic visible redraw.
+    renderer.layerManager.updateLayers();
+    api.deck.redraw(`forest contract: ${phase}`);
+    await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(before);
+    expect(api.errors).toEqual([]);
+  };
+  try {
+    // Check the initialization contract, then pause before the first GPU draw.
+    // A continuous flyover otherwise queues large software-renderer draws in CI.
+    const flyover = container.querySelector<HTMLInputElement>('[aria-label="Flyover"]')!;
+    expect(flyover.checked).toBe(!matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (flyover.checked) flyover.click();
+    await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
+    renderer.animationLoop.stop();
+    expect(api.count).toBe(10000);
+    expect(container.querySelector('[aria-label="Detail"]')).toBeNull();
+    expect((api.deck.props.layers[1] as TreeLayer).props).not.toHaveProperty('detail');
+    await change('20K source', () =>
+      container.querySelector<HTMLButtonElement>('[data-count="20000"]')!.click()
+    );
+    expect(api.count).toBe(20000);
+    expect((api.deck.props.layers[1] as {props: {data: unknown[]}}).props.data).toHaveLength(20000);
+    const shadows = container.querySelector<HTMLInputElement>('[aria-label="Shadows"]')!;
+    // Keep the actual 20K shadow on/off regression. Seasonal behavior is drawn
+    // without shadows here; matched shadow pixels are covered by the lab tests.
+    expect(shadows.checked).toBe(false);
+    const pitch = container.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
+    await change('80 degree pitch', () => {
+      pitch.value = '80';
+      pitch.dispatchEvent(new Event('input'));
+      // Bound the light-volume geometry footprint independently of framebuffer/map pixels.
+      // Linux's software driver otherwise submits thousands of fine woody skeletons at
+      // this grazing angle. Keep every source row and native mesh, and restore full
+      // inventory framing with the overview action below.
+      const viewState = api.deck.props.viewState as MapViewState;
+      api.deck.setProps({viewState: {...viewState, zoom: (viewState.zoom ?? 0) + 5}});
+    });
+    expect((api.deck.getViewports()[0] as {pitch?: number}).pitch).toBe(80);
+    expect(container.querySelector('#forest-pitch')!.textContent).toBe('80°');
+    // Enable shadows only after entering the bounded close view. Enabling them
+    // in the overview first queues a full-inventory native shadow draw even if
+    // the next camera update immediately narrows its caster footprint.
+    await change('20K shadows', () => shadows.click());
+    expect(shadows.checked).toBe(true);
+    await expect
+      .poll(
+        () => {
+          const leaves = (layer: Layer): Layer[] =>
+            layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(leaves) : [layer];
+          const casters = (api.deck.props.layers as Layer[])
+            .flatMap(leaves)
+            .filter(
+              layer => layer.id.includes('-wood-') && layer.props.operation.includes('shadow')
+            );
+          const count = casters.reduce((sum, layer) => sum + layer.getNumInstances(), 0);
+          return count > 0 && count < 256;
+        },
+        {timeout: 30000}
+      )
+      .toBe(true);
+
+    await change('shadows off', () => shadows.click());
+    expect(shadows.checked).toBe(false);
+    await change('forest overview', () =>
+      container.querySelector<HTMLButtonElement>('#forest-view')!.click()
+    );
+    const season = container.querySelector<HTMLSelectElement>('[aria-label="Season"]')!;
+    for (const value of ['winter', 'spring', 'summer', 'autumn']) {
+      await change(value, () => {
+        season.value = value;
+        season.dispatchEvent(new Event('change'));
+      });
+    }
+    const viewport = api.deck.getViewports()[0];
+    const halfSide = (Math.ceil(Math.sqrt(20000)) * 9 + 20) / 111320;
+    for (const longitude of [-halfSide, halfSide]) {
+      for (const latitude of [-halfSide, halfSide]) {
+        const [x, y] = viewport.project([longitude, latitude, 0]);
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThanOrEqual(viewport.width);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThanOrEqual(viewport.height);
+      }
+    }
+    expect(container.querySelector('.status')!.textContent).toContain('20,000');
+    expect(api.errors).toEqual([]);
+  } finally {
+    cleanup();
+    container.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+  // Keep each 30s draw assertion; the complete sequence has more than ten such phases.
+}, 420000);
+
+it('honors reduced motion and the stats toggle, with an explicit wind opt-in', async () => {
+  const originalUrl = location.href;
+  const matchMedia = window.matchMedia.bind(window);
+  const preference = vi
+    .spyOn(window, 'matchMedia')
+    .mockImplementation(query =>
+      query === '(prefers-reduced-motion: reduce)'
+        ? ({matches: true} as MediaQueryList)
+        : matchMedia(query)
+    );
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  const container = document.createElement('div');
+  container.style.cssText = 'width:400px;height:300px';
+  document.body.append(container);
+  let cleanup: (() => void) | undefined;
+  try {
+    for (const wind of ['', '&wind=1']) {
+      const queryUrl = new URL(originalUrl);
+      queryUrl.search = `?count=1&shadows=0${wind}`;
+      history.replaceState(null, '', queryUrl);
+      console.info(`Forest wind contract: ${wind ? 'live' : 'off'} mount`);
+      cleanup = mountTreeForestExample(container);
+      const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+      // This fixture verifies controls and timeline suspension. Bound its live
+      // wind raster work; full-size wind deformation is covered by species pixels.
+      Object.assign(container.querySelector<HTMLElement>('.forest-stage .canvas')!.style, {
+        width: '160px',
+        height: '120px'
+      });
+      api.deck.setProps({
+        width: 160,
+        height: 120,
+        useDevicePixels: false,
+        viewState: {...(api.deck.props.viewState as MapViewState), zoom: 15, position: [0, 0, 0]}
+      });
+      await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
+      expect(api.count).toBe(1);
+      expect(container.querySelector<HTMLInputElement>('[aria-label="Wind"]')!.checked).toBe(
+        Boolean(wind)
+      );
+      expect(container.querySelector<HTMLInputElement>('[aria-label="Flyover"]')!.checked).toBe(
+        false
+      );
+      expect(
+        container.querySelector<HTMLInputElement>('[aria-label="Moving sunlight"]')!.checked
+      ).toBe(false);
+      const layers = api.deck.props.layers;
+      if (wind) {
+        await expect.poll(() => api.deck.getWindTime()).toBeGreaterThan(0);
+      }
+      const renderer = api.deck as unknown as {
+        animationLoop: {stop(): void};
+        layerManager: {updateLayers(): void};
+      };
+      // This is a clock contract, so stop automatic raster work once the real
+      // live pose exists, then explicitly draw the settled frozen source below.
+      renderer.animationLoop.stop();
+      console.info(`Forest wind contract: ${wind ? 'live' : 'off'} ready`);
+      const renderedClock = api.deck.getWindTime();
+      hidden.mockReturnValue(true);
+      document.dispatchEvent(new Event('visibilitychange'));
+      if (wind) {
+        const frozen = (api.deck.props.layers[1] as TreeLayer).props.windTime;
+        expect(frozen).toBeGreaterThan(0);
+        expect(frozen).toBeCloseTo(renderedClock, 6);
+        renderer.layerManager.updateLayers();
+        api.deck.redraw('hidden wind contract');
+        console.info('Forest wind contract: frozen draw');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        expect(api.deck.getWindTime()).toBe(frozen);
+      } else expect(api.deck.props.layers).toBe(layers);
+      hidden.mockReturnValue(false);
+      document.dispatchEvent(new Event('visibilitychange'));
+      if (wind) {
+        expect((api.deck.props.layers[1] as TreeLayer).props.windTime).toBeNull();
+        expect(api.deck.getWindTime()).toBeCloseTo(renderedClock, 6);
+        // Exercise the first engine update after a long hidden interval, rather
+        // than checking only the synchronous value immediately after play().
+        const internal = api.deck as unknown as {
+          animationLoop: {stop(): void};
+          layerManager: {context: {timeline: {update(engineTime: number): void}}};
+        };
+        internal.animationLoop.stop();
+        const resumedEngineTime = performance.now() + 60000;
+        internal.layerManager.context.timeline.update(resumedEngineTime);
+        expect(api.deck.getWindTime()).toBeCloseTo(renderedClock, 6);
+        internal.layerManager.context.timeline.update(resumedEngineTime + 16);
+        expect(api.deck.getWindTime() - renderedClock).toBeCloseTo(0.016, 6);
+      } else expect(api.deck.props.layers).toBe(layers);
+      const stats = container.querySelector<HTMLInputElement>('[aria-label="Show performance"]')!;
+      const performanceLabel = container.querySelector<HTMLElement>('#forest-performance')!;
+      stats.click();
+      expect(getComputedStyle(performanceLabel).display).toBe('none');
+      stats.click();
+      expect(getComputedStyle(performanceLabel).display).not.toBe('none');
+      const root = container.querySelector<HTMLElement>('.tree-forest')!;
+      expect(getComputedStyle(root).overflowY).toBe('auto');
+      expect(root.scrollHeight).toBeGreaterThan(root.clientHeight);
+      root.scrollTop = root.scrollHeight;
+      expect(root.querySelector('.footer')!.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+        root.getBoundingClientRect().bottom + 1
+      );
+      expect(api.errors).toEqual([]);
+      cleanup();
+      cleanup = undefined;
+    }
+  } finally {
+    cleanup?.();
+    preference.mockRestore();
+    hidden.mockRestore();
+    container.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+}, 90000);
+
+it('keeps the current flyover position when pitch is changed', async () => {
+  const originalUrl = location.href;
+  const queryUrl = new URL(originalUrl);
+  queryUrl.search = '?count=1&fly=0&sun=0&wind=0&shadows=0';
+  history.replaceState(null, '', queryUrl);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const cleanup = mountTreeForestExample(container);
+  const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  let restoreClock = () => {};
+  try {
+    await expect.poll(() => api.ready, {timeout: 15000}).toBe(true);
+    const flyover = container.querySelector<HTMLInputElement>('[aria-label="Flyover"]')!;
+    flyover.click();
+    const pose = () =>
+      api.deck.props.viewState as {
+        longitude: number;
+        latitude: number;
+        bearing: number;
+        pitch: number;
+      };
+    await expect.poll(() => pose().latitude).not.toBe(0);
+    flyover.click();
+    const current = {...pose()};
+    const pitch = container.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
+    pitch.value = '75';
+    pitch.dispatchEvent(new Event('input'));
+    expect(pose()).toMatchObject({...current, pitch: 75});
+    (api.deck as unknown as {animationLoop: {stop(): void}}).animationLoop.stop();
+    const queue: FrameRequestCallback[] = [];
+    const realRequest = window.requestAnimationFrame.bind(window);
+    const clock = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      queue.push(callback);
+      return queue.length;
+    });
+    restoreClock = () => clock.mockRestore();
+    await new Promise<void>(resolve => realRequest(() => realRequest(() => resolve())));
+    const advance = (now: number) => queue.splice(0).forEach(callback => callback(now));
+    flyover.click();
+    container.querySelector<HTMLInputElement>('[aria-label="Moving sunlight"]')!.click();
+    advance(10000);
+    advance(11000);
+    const resumedPose = {...pose()};
+    const sunlight = [...api.deck.props.effects![0].props.key.direction];
+    hidden.mockReturnValue(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+    advance(21000);
+    hidden.mockReturnValue(false);
+    document.dispatchEvent(new Event('visibilitychange'));
+    advance(100000);
+    expect(pose()).toMatchObject(resumedPose);
+    expect(api.deck.props.effects![0].props.key.direction).toEqual(sunlight);
+    advance(101000);
+    expect(pose().bearing).not.toBe(resumedPose.bearing);
+    expect(api.deck.props.effects![0].props.key.direction).not.toEqual(sunlight);
+    expect(api.errors).toEqual([]);
+  } finally {
+    cleanup();
+    restoreClock();
+    hidden.mockRestore();
+    container.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+});

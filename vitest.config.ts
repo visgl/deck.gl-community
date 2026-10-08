@@ -103,6 +103,7 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@luma.gl/webgl',
     '@luma.gl/webgpu',
     'apache-arrow',
+    'three',
     'zod'
   ]
 };
@@ -127,7 +128,14 @@ const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
       }
     })
   : process.env.GITHUB_ACTIONS === 'true'
-    ? playwright({launchOptions: {channel: 'chrome'}})
+    ? playwright({
+        launchOptions: {
+          channel: 'chrome',
+          // CI has no hardware GPU. Use the same explicit WebGL software backend
+          // as the required-adapter lane instead of Chromium's platform fallback.
+          args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader']
+        }
+      })
     : playwright();
 
 const CONFIG = defineConfig({
@@ -221,7 +229,7 @@ const CONFIG = defineConfig({
           name: 'examples',
           environment: 'node',
           include: ['examples/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-          exclude: ['examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}']
+          exclude: ['**/node_modules/**', 'examples/**/dist/**', 'examples/**/*.browser.{test,spec}.{js,ts,jsx,tsx}']
         }
       }
     ]
