@@ -5,6 +5,7 @@ import {CompositeLayer, type Layer, type Deck} from '@deck.gl/core';
 import type {TreeLayer} from '@deck.gl-community/layers';
 import {expect, it, vi} from 'vitest';
 import {mountTreeForestExample} from './forest';
+import {TreeLightingEffect} from './tree-lighting';
 
 type ForestApi = {ready: boolean; errors: string[]; count: number; deck: Deck};
 
@@ -18,6 +19,10 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
   document.body.append(container);
   const cleanup = mountTreeForestExample(container, true);
   const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+  // Bound shadow raster work too: the default 1024px maps remain full size even on a 160px
+  // canvas, and the grazing 20K view can monopolize Linux's software adapter for minutes.
+  // All records, native wood geometry, shadow toggles and caster-culling assertions remain.
+  (api.deck.props.effects![0] as TreeLightingEffect).shadowMapSize = 128;
   Object.assign(container.querySelector<HTMLElement>('.forest-stage .canvas')!.style, {
     width: '160px',
     height: '120px'

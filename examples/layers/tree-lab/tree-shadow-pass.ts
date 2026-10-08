@@ -30,10 +30,10 @@ export class TreeShadowPass extends _LayersPass {
     return this.target.depthStencilAttachment!.texture;
   }
 
-  render(options: LayersPassRenderOptions) {
+  render(options: LayersPassRenderOptions, mapSize = 1024) {
     const viewport = options.viewports[0];
     // A fixed budget keeps maps independent of display DPR and limits blur work.
-    const ratio = 1024 / Math.max(viewport.width, viewport.height);
+    const ratio = mapSize / Math.max(viewport.width, viewport.height);
     const width = Math.max(1, Math.round(viewport.width * ratio));
     const height = Math.max(1, Math.round(viewport.height * ratio));
     if (width !== this.target.width || height !== this.target.height) {

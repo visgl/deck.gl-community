@@ -85,6 +85,8 @@ const SOFT_SHADOW = {
 /** Native comparison depth maps and prefiltered coverage for the lab's planar ground. */
 export class TreeLightingEffect extends LightingEffect {
   useInPicking = true;
+  /** Maximum shadow map edge in pixels; presentation and source geometry retain their own sizes. */
+  shadowMapSize = 1024;
   private neutralShadowMap?: Texture;
   private neutralGroundMap?: Texture;
   private filteredShadow = false;
@@ -174,7 +176,7 @@ export class TreeLightingEffect extends LightingEffect {
     });
     const lightProjections: SplatShadowProjection[] = lights.map((_, index) => {
       const viewport = options.viewports[0];
-      const ratio = 1024 / Math.max(viewport.width, viewport.height);
+      const ratio = this.shadowMapSize / Math.max(viewport.width, viewport.height);
       return {
         matrix: Array.from(
           index === 0
@@ -201,18 +203,21 @@ export class TreeLightingEffect extends LightingEffect {
     }
     for (const [index] of lights.entries()) {
       this.treePasses[index] ??= new TreeShadowPass(this.context.device);
-      this.treePasses[index].render({
-        ...options,
-        effects: [],
-        shaderModuleProps: {
-          shadow: {
-            shadowLightId: index,
-            dummyShadowMap: this.neutralShadowMap,
-            dummyGroundMap: this.neutralGroundMap,
-            shadowMatrices: this.treeMatrices
+      this.treePasses[index].render(
+        {
+          ...options,
+          effects: [],
+          shaderModuleProps: {
+            shadow: {
+              shadowLightId: index,
+              dummyShadowMap: this.neutralShadowMap,
+              dummyGroundMap: this.neutralGroundMap,
+              shadowMatrices: this.treeMatrices
+            }
           }
-        }
-      });
+        },
+        this.shadowMapSize
+      );
     }
     if (!hasGroundReceiver) return;
     for (const [index, pass] of this.treePasses.entries()) {
