@@ -237,6 +237,8 @@ it('keeps the current flyover position when pitch is changed', async () => {
   document.body.append(container);
   const cleanup = mountTreeForestExample(container);
   const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  let restoreClock = () => {};
   try {
     await expect.poll(() => api.ready, {timeout: 15000}).toBe(true);
     const flyover = container.querySelector<HTMLInputElement>('[aria-label="Flyover"]')!;
@@ -255,9 +257,38 @@ it('keeps the current flyover position when pitch is changed', async () => {
     pitch.value = '75';
     pitch.dispatchEvent(new Event('input'));
     expect(pose()).toMatchObject({...current, pitch: 75});
+    (api.deck as unknown as {animationLoop: {stop(): void}}).animationLoop.stop();
+    const queue: FrameRequestCallback[] = [];
+    const realRequest = window.requestAnimationFrame.bind(window);
+    const clock = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      queue.push(callback);
+      return queue.length;
+    });
+    restoreClock = () => clock.mockRestore();
+    await new Promise<void>(resolve => realRequest(() => realRequest(() => resolve())));
+    const advance = (now: number) => queue.splice(0).forEach(callback => callback(now));
+    flyover.click();
+    container.querySelector<HTMLInputElement>('[aria-label="Moving sunlight"]')!.click();
+    advance(10000);
+    advance(11000);
+    const resumedPose = {...pose()};
+    const sunlight = [...api.deck.props.effects![0].props.key.direction];
+    hidden.mockReturnValue(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+    advance(21000);
+    hidden.mockReturnValue(false);
+    document.dispatchEvent(new Event('visibilitychange'));
+    advance(100000);
+    expect(pose()).toMatchObject(resumedPose);
+    expect(api.deck.props.effects![0].props.key.direction).toEqual(sunlight);
+    advance(101000);
+    expect(pose().bearing).not.toBe(resumedPose.bearing);
+    expect(api.deck.props.effects![0].props.key.direction).not.toEqual(sunlight);
     expect(api.errors).toEqual([]);
   } finally {
     cleanup();
+    restoreClock();
+    hidden.mockRestore();
     container.remove();
     history.replaceState(null, '', originalUrl);
   }

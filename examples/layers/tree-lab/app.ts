@@ -55,7 +55,8 @@ export function mountTreeLabExample(
   let autoTour =
     query.get('auto') !== '0' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
   let sunAngle = 0;
-  let tourStart = performance.now();
+  let tourSeconds = 0;
+  let lastTourFrame: number | null = null;
   let tourRequest = 0;
   if (autoTour) {
     options.wind = true;
@@ -137,10 +138,15 @@ export function mountTreeLabExample(
       if (item && item.onScreen !== entry.isIntersecting) {
         item.onScreen = entry.isIntersecting;
         if (options.wind && options.windTime === null) refreshSpecimen(item);
+        else if (item.onScreen) {
+          item.lighting.setSunDirection(getTourFrame((sunAngle / 360) * 32).direction);
+          item.deck.redraw('visible specimen sunlight');
+        }
       }
     }
   });
   const refreshVisibility = () => {
+    lastTourFrame = null;
     if (options.wind && options.windTime === null) for (const item of decks) refreshSpecimen(item);
   };
   document.addEventListener('visibilitychange', refreshVisibility);
@@ -187,13 +193,15 @@ export function mountTreeLabExample(
     const control = event.target as HTMLInputElement;
     if (control.id === 'auto-tour') {
       autoTour = control.checked;
-      tourStart = performance.now();
+      lastTourFrame = null;
       refresh();
       return;
     }
     if (control.id === 'sun-angle') {
       autoTour = false;
       sunAngle = Number(control.value);
+      tourSeconds = (sunAngle / 360) * 32;
+      lastTourFrame = null;
       refresh();
       return;
     }
@@ -272,7 +280,9 @@ export function mountTreeLabExample(
   const tickTour = (now: number) => {
     if (disposed) return;
     if (autoTour && !document.hidden) {
-      const frame = getTourFrame((now - tourStart) / 1000);
+      if (lastTourFrame !== null) tourSeconds += (now - lastTourFrame) / 1000;
+      lastTourFrame = now;
+      const frame = getTourFrame(tourSeconds);
       sunAngle = frame.sunAngle;
       if (frame.season !== options.season) {
         options.season = frame.season;
@@ -284,7 +294,7 @@ export function mountTreeLabExample(
         item.lighting.setSunDirection(frame.direction);
         item.deck.redraw('sun tour');
       }
-    }
+    } else lastTourFrame = null;
     tourRequest = requestAnimationFrame(tickTour);
   };
   tourRequest = requestAnimationFrame(tickTour);

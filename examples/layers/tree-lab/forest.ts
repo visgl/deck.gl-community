@@ -215,18 +215,24 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     lastStats = 0;
     refreshLabels();
   });
+  let tourSeconds = 0;
+  let lastTourFrame: number | null = null;
   const visibility = () => {
+    lastTourFrame = null;
     // Freeze the deck-local wind clock as well as its rendered pose. Resuming the tab
     // continues from that phase instead of advancing through the hidden interval.
     deck.setWindClockPaused(document.hidden);
     if (options.wind) refresh();
   };
   document.addEventListener('visibilitychange', visibility);
-  const start = performance.now();
   const tick = (now: number) => {
     if (disposed) return;
     if (!document.hidden) {
-      const seconds = (now - start) / 1000;
+      if (flyover || sunlight) {
+        if (lastTourFrame !== null) tourSeconds += (now - lastTourFrame) / 1000;
+        lastTourFrame = now;
+      } else lastTourFrame = null;
+      const seconds = tourSeconds;
       if (showStats && now - lastStats >= 1000) {
         lastStats = now;
         const sampleTime = performance.now();
@@ -268,7 +274,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
         camera = next;
         deck.setProps({viewState: camera});
       }
-    }
+    } else lastTourFrame = null;
     request = requestAnimationFrame(tick);
   };
   request = requestAnimationFrame(tick);

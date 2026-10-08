@@ -17,6 +17,8 @@ type ReviewSpecimen = {
   data: Specimen[];
   rendered: number;
   windTime: number;
+  element: HTMLDivElement;
+  onScreen: boolean;
 };
 type ReviewApi = {
   readonly ready: number;
@@ -108,6 +110,89 @@ describe('Tree Lab rendering controls', () => {
       expect(api.errors).toEqual([]);
     } finally {
       cleanup();
+      container.remove();
+      history.replaceState(null, '', originalUrl);
+    }
+  }, 30000);
+  it('excludes hidden tour time and refreshes sunlight when wind-off specimens re-enter', async () => {
+    const originalUrl = location.href;
+    history.replaceState(null, '', '?auto=0');
+    const container = document.createElement('div');
+    container.style.width = '900px';
+    document.body.append(container);
+    const OriginalObserver = window.IntersectionObserver;
+    let notify: (entries: Partial<IntersectionObserverEntry>[]) => void = () => {};
+    let captured = false;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class extends OriginalObserver {
+        private readonly reviewObserver: boolean;
+        constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+          super(callback, options);
+          this.reviewObserver = !captured;
+          if (this.reviewObserver) {
+            captured = true;
+            notify = entries => callback(entries as IntersectionObserverEntry[], this);
+          }
+        }
+        observe(target: Element) {
+          if (!this.reviewObserver) super.observe(target);
+        }
+      }
+    );
+    const cleanup = mountTreeLabExample(container, {benchmarkLinks: false, species: ['oak']});
+    const api = (window as Window & {treeLab?: ReviewApi}).treeLab!;
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    let restoreClock = () => {};
+    try {
+      api.setOptions({pixelRatio: 1, wind: false, windTime: 0, shadows: false});
+      await expect.poll(() => api.ready, {timeout: 15000}).toBe(2);
+      for (const item of api.getDecks()) {
+        (item.deck as unknown as {animationLoop: {stop(): void}}).animationLoop.stop();
+        notify([{target: item.element, isIntersecting: true}]);
+      }
+      const queue: FrameRequestCallback[] = [];
+      const realRequest = window.requestAnimationFrame.bind(window);
+      const clock = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+        queue.push(callback);
+        return queue.length;
+      });
+      restoreClock = () => clock.mockRestore();
+      await new Promise<void>(resolve => realRequest(() => realRequest(() => resolve())));
+      const advance = (now: number) => queue.splice(0).forEach(callback => callback(now));
+      const direction = (item: ReviewSpecimen) => item.deck.props.effects![0].props.key.direction;
+      const sun = container.querySelector<HTMLInputElement>('#sun-angle')!;
+      sun.value = '180';
+      sun.dispatchEvent(new Event('change', {bubbles: true}));
+      const auto = container.querySelector<HTMLInputElement>('#auto-tour')!;
+      auto.checked = true;
+      auto.dispatchEvent(new Event('change', {bubbles: true}));
+      advance(10000);
+      advance(11000);
+      const specimen = api.getDecks()[0];
+      const previousSun = [...direction(specimen)];
+      notify([{target: specimen.element, isIntersecting: false}]);
+      advance(12000);
+      expect(direction(specimen)).toEqual(previousSun);
+      const currentSun = [...direction(api.getDecks()[1])];
+      expect(currentSun).not.toEqual(previousSun);
+      notify([{target: specimen.element, isIntersecting: true}]);
+      expect(direction(specimen)).toEqual(currentSun);
+      hidden.mockReturnValue(true);
+      document.dispatchEvent(new Event('visibilitychange'));
+      advance(21000);
+      hidden.mockReturnValue(false);
+      document.dispatchEvent(new Event('visibilitychange'));
+      advance(100000);
+      expect(direction(specimen)).toEqual(currentSun);
+      advance(101000);
+      expect(direction(specimen)).not.toEqual(currentSun);
+      expect(api.errors).toEqual([]);
+    } finally {
+      cleanup();
+      restoreClock();
+      hidden.mockRestore();
+      vi.unstubAllGlobals();
       container.remove();
       history.replaceState(null, '', originalUrl);
     }
