@@ -3,6 +3,10 @@
 import {z} from 'zod';
 import {
   CallbackSchema,
+  createAccessorSchema,
+  NumberAccessorSchema,
+  PositionAccessorSchema,
+  MaterialSchema,
   ColorSchema,
   CompositeLayerPropsSchema,
   ConstantSchema,
@@ -11,6 +15,7 @@ import {
   JsonValueSchema,
   StringAccessorSchema,
   Vector2Schema,
+  Vector3Schema,
   Vector4Schema,
   defineLayer
 } from './common';
@@ -192,6 +197,38 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   sizeScale: z.number().nonnegative().optional()
 });
 
+/** Prepared Gaussian buffers and hierarchies remain host-owned constants. */
+export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  source: ConstantSchema.optional(),
+  getSource: createAccessorSchema(ConstantSchema).optional(),
+  transparency: z.enum(['weighted', 'sorted']).optional(),
+  maxTotalSplats: z.number().nonnegative().optional(),
+  hierarchy: ConstantSchema.optional(),
+  getPosition: PositionAccessorSchema.optional(),
+  getOrientation: createAccessorSchema(Vector3Schema).optional(),
+  getScale: createAccessorSchema(Vector3Schema).optional(),
+  getTranslation: createAccessorSchema(Vector3Schema).optional(),
+  getTransformMatrix: createAccessorSchema(z.array(z.number()).length(16).nullable()).optional(),
+  getColor: createAccessorSchema(ColorSchema).optional(),
+  getDeformation: createAccessorSchema(Vector3Schema).optional(),
+  getCoverageWeight: NumberAccessorSchema.optional(),
+  deformationStrength: z.number().nonnegative().optional(),
+  deformationTime: z.number().nullable().optional(),
+  kernelVariance: z.number().nonnegative().optional(),
+  alphaCutoff: z.number().min(0).max(1).optional(),
+  support: z.number().positive().optional(),
+  pixelError: z.number().positive().optional(),
+  foveationStrength: z.number().min(0).max(1).optional(),
+  maxSplats: z.number().nonnegative().optional(),
+  maxShadowSplats: z.number().nonnegative().optional(),
+  maxRenderPixels: z.number().positive().optional(),
+  material: MaterialSchema.optional(),
+  shadowEnabled: z.boolean().optional()
+});
+
+/** JSON representation of SplatLayer with host-owned source buffers. */
+export const SplatLayerSchema = defineLayer('SplatLayer', SplatLayerPropsSchema);
+
 /** JSON representation of TileSourceLayer. */
 export const TileSourceLayerSchema = defineLayer('TileSourceLayer', TileSourceLayerPropsSchema);
 /** JSON representation of SharedTile2DLayer. */
@@ -236,5 +273,6 @@ export const CommunityGeoLayerSchemas = {
   GlobalGridLayer: GlobalGridLayerSchema,
   BasemapLayer: BasemapLayerSchema,
   DataDrivenTile3DLayer: DataDrivenTile3DLayerSchema,
-  TreeLayer: TreeLayerSchema
+  TreeLayer: TreeLayerSchema,
+  SplatLayer: SplatLayerSchema
 };

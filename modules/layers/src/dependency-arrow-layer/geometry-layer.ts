@@ -4,7 +4,7 @@
 
 import {color, Layer, picking, project32, UNIT} from '@deck.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
-import source from './geometry-layer.wgsl';
+import source from './geometry-layer.wgsl.js';
 
 import type {
   Accessor,
