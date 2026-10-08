@@ -153,7 +153,12 @@ function parseProperty(
   globalProperties: GlobalProperties
 ): Record<string, unknown> {
   const compiled = getCompiledStyleProperty(property.layer, property.key);
-  return {[property.key]: compiled?.evaluate(globalProperties.zoom ?? 0)};
+  return {
+    [property.key]: compiled?.evaluateWithGlobals({
+      ...globalProperties,
+      zoom: globalProperties.zoom ?? 0
+    })
+  };
 }
 
 export {colorToArray} from './style-expression';
