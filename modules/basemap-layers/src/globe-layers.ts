@@ -602,9 +602,18 @@ export function getGlobeBaseLayers({
   styleDefinition,
   idPrefix = 'globe-basemap',
   zoom = 0,
-  loadOptions
+  loadOptions,
+  spriteAtlases
 }: Omit<BasemapLayerGroup, 'mode'>) {
-  return getBasemapLayers({idPrefix, mode: 'globe', globe, styleDefinition, zoom, loadOptions});
+  return getBasemapLayers({
+    idPrefix,
+    mode: 'globe',
+    globe,
+    styleDefinition,
+    zoom,
+    loadOptions,
+    spriteAtlases
+  });
 }
 
 export function getGlobeTopLayers({globe}: {globe: {config: BasemapGlobeConfig}}) {

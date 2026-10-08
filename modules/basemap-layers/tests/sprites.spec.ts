@@ -1,7 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import {afterEach, describe, expect, test, vi} from 'vitest';
 import {log} from '@deck.gl/core';
-import {getBasemapLayers} from '../src/index.ts';
+import {getBasemapLayers, getGlobeBaseLayers} from '../src/index.ts';
 import {MVTLabelLayer} from '../src/mvt-label-layer.ts';
 import {
   getSpriteIconMapping,
@@ -298,22 +298,37 @@ describe('icon size, color and offset', () => {
   });
 
   test('icon update triggers follow the zoom step only for zoom-dependent properties', () => {
-    const constant = iconLayer({'icon-image': 'circle-11', 'icon-size': 0.4});
-    expect(constant.getIconUpdateTriggers()).toEqual({
-      getIcon: undefined,
-      getSize: undefined,
-      getColor: undefined,
-      getPixelOffset: undefined
-    });
-    const zoomDependent = iconLayer({
+    const triggersAt = (layout: Record<string, unknown>, zoom: number) =>
+      new MVTLabelLayer({
+        id: 'labels',
+        config: {labels: true},
+        styleLayer: {layout, paint: {}},
+        zoom,
+        spriteAtlases: [DEFAULT_ATLAS]
+      } as any).getIconUpdateTriggers();
+    const constant = {'icon-image': 'circle-11', 'icon-size': 0.4};
+    expect(triggersAt(constant, 7.6)).toEqual(triggersAt(constant, 8.6));
+    const zoomDependent = {
       'icon-image': 'circle-11',
       'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.2, 10, 1]
-    });
-    expect(zoomDependent.getIconUpdateTriggers()).toMatchObject({
-      getIcon: undefined,
-      getSize: 7.5,
-      getPixelOffset: 7.5
-    });
+    };
+    expect(triggersAt(zoomDependent, 7.6).getIcon).toEqual(triggersAt(zoomDependent, 8.6).getIcon);
+    expect(triggersAt(zoomDependent, 7.6).getSize).not.toEqual(
+      triggersAt(zoomDependent, 8.6).getSize
+    );
+    expect(triggersAt(zoomDependent, 7.6).getPixelOffset).not.toEqual(
+      triggersAt(zoomDependent, 8.6).getPixelOffset
+    );
+  });
+
+  test('icon update triggers change when a style value is edited', () => {
+    const layout: Record<string, unknown> = {'icon-image': 'circle-11', 'icon-offset': [0, 0]};
+    const layer = iconLayer(layout);
+    const before = layer.getIconUpdateTriggers();
+    layout['icon-offset'] = [4, 0];
+    const after = layer.getIconUpdateTriggers();
+    expect(after.getPixelOffset).not.toEqual(before.getPixelOffset);
+    expect(after.getIcon).toEqual(before.getIcon);
   });
 });
 
@@ -360,6 +375,27 @@ describe('sprite plumbing', () => {
     }).find(layer => layer.id === 'test-tiles');
     return vectorLayer;
   }
+
+  test('the globe helper forwards the sprites', () => {
+    const vectorLayer: any = getGlobeBaseLayers({
+      idPrefix: 'globe',
+      zoom: 6,
+      styleDefinition: style,
+      spriteAtlases: [DEFAULT_ATLAS],
+      globe: {config: {atmosphere: false, basemap: true, labels: true}}
+    } as any).find((layer: any) => layer.id === 'globe-tiles');
+    const sublayers = vectorLayer.props
+      .renderSubLayers({
+        id: 'globe-tiles-tile',
+        data: [feature({})],
+        tile: {index: {x: 0, y: 0, z: 6}}
+      })
+      .filter(Boolean);
+    const symbolLayer = sublayers.find(
+      (sublayer: any) => sublayer.props.spriteAtlases !== undefined
+    );
+    expect(symbolLayer?.props.spriteAtlases).toEqual([DEFAULT_ATLAS]);
+  });
 
   test('symbol sublayers receive the sprites', () => {
     const [labels] = render([DEFAULT_ATLAS]).props.renderSubLayers({
