@@ -37,18 +37,23 @@ onmessage = function (event) {
     // @ts-expect-error TODO
     .force('collision', d3.forceCollide().radius(getCollisionRadius))
     .stop();
-  for (
-    let i = 0,
-      n = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay()));
-    i < n;
-    ++i
-  ) {
+  const n = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay()));
+  // Publish at most one intermediate snapshot per animation frame.
+  const UPDATE_INTERVAL = 16;
+  let lastUpdateTime = -Infinity;
+  for (let i = 0; i < n; ++i) {
+    simulation.tick();
+    const now = performance.now();
+    if (now - lastUpdateTime < UPDATE_INTERVAL) {
+      continue;
+    }
+    lastUpdateTime = now;
     postMessage({
       type: 'tick',
-      progress: i / n,
+      progress: n === 0 ? 1 : (i + 1) / n,
+      nodes,
       options: event.data.options
     });
-    simulation.tick();
   }
   postMessage({
     type: 'end',

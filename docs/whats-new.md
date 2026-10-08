@@ -5,6 +5,9 @@
 - `ForceMultiGraphLayout` returns finite node and edge coordinates before simulation starts and
   handles coincident parallel-edge endpoints without producing invalid control points.
 
+- `D3ForceLayout` publishes intermediate worker positions and bounds during simulation.
+  Completed workers are released, and messages from stopped or replaced workers are ignored.
+
 - `GraphLayer` accepts graph URLs with loaders.gl graph loaders and loaded graphs through
   `data`, creating its own engine from `layout`. Raw JSON preserves custom attributes,
   and the playground includes a declarative DOT URL example.
