@@ -898,7 +898,7 @@ export function Example() {
     getDefaultModeConfig
   ]);
 
-  const mapStyle = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+  const mapStyle = 'https://tiles.openfreemap.org/styles/positron';
 
   const featureMenuClick = useCallback(
     (action: string) => {
