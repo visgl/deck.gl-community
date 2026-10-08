@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `SourcePickerPanel` provides URL, preset, file input, and drag-and-drop controls with host-owned loading callbacks.
 - `MetricsPanel` displays plain telemetry snapshots with ordered labels and host-defined value formatting.
 
 - Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
