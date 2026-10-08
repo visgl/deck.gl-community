@@ -76,7 +76,9 @@ geometry. Its grazing close view also bounds the light-volume footprint to fewer
 casters; shadows are enabled only after reaching that view, then the full-forest overview
 checks all four seasons without shadows using explicitly settled source frames for each control; production maps and the dedicated receiver pixel contract retain the 1024-pixel default.
 The all-species ownership fixture retains all sixteen renderers at 160 by 120 pixels; individual
-species regressions retain full-size pixel rendering.
+species regressions retain full-size pixel rendering. The wind-clock fixture uses a bounded real
+view, stops automatic raster work after the live pose exists, and draws the settled frozen source
+before verifying engine-time updates across hide/resume.
 Wood coverage executes before host depth-only shortcuts, and constant coverage changes invalidate
 derived mesh attributes; winter ground pixels verify fractional shadows. Renderer failures abort
 world measurements and reject benchmark samples. Benchmark cleanup cancels pending idle timers,
