@@ -197,10 +197,12 @@ export class ForceMultiGraphLayout extends GraphLayout<ForceMultiGraphLayoutProp
     return [Number.isFinite(d3Node.x) ? d3Node.x : 0, Number.isFinite(d3Node.y) ? d3Node.y : 0];
   }
 
+  /** Returns finite coordinates, using zero for coordinates not assigned by the simulation. */
   getNodePosition = (node: NodeInterface): [number, number] => {
     return this._getNodeCoordinates(this._nodeMap.get(node.getId()));
   };
 
+  /** Returns finite edge geometry, including when parallel endpoints coincide. */
   getEdgePosition = (edge: EdgeInterface) => {
     const d3Edge = this._edgeMap.get(edge.getId());
     if (d3Edge) {
@@ -282,7 +284,7 @@ function computeControlPoint(source, target, direction, offset) {
   const dx = target[0] - source[0];
   const dy = target[1] - source[1];
   const normal = [dy, -dx];
-  const length = Math.sqrt(Math.pow(normal[0], 2.0) + Math.pow(normal[1], 2.0));
+  const length = Math.hypot(normal[0], normal[1]);
   const normalized = length > 0 ? [normal[0] / length, normal[1] / length] : [0, 0];
   return [
     midPoint[0] + normalized[0] * offset * direction,

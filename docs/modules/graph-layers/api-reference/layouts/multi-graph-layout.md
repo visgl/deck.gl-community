@@ -18,6 +18,10 @@ const layout = new ForceMultiGraphLayout({
 });
 ```
 
+Before the simulation assigns positions, missing or non-finite coordinate components resolve
+to zero. Parallel edges with coincident endpoints use their common position as the control
+point, keeping their geometry finite.
+
 ## ForceMultiGraphLayoutProps
 
 - `alpha` (`number`, default `3`) - initial alpha value passed to the force simulation. Higher values take longer to cool down
