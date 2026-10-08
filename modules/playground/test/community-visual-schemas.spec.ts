@@ -27,6 +27,39 @@ describe('community visual layer schemas', () => {
     ).toBe(true);
   });
 
+  // Value: protects=public video settings and host-owned media/callback references survive JSON validation;
+  // fails_when=video schema is omitted or accepts invalid reservations, strengths, or live functions;
+  // why_new=gallery regressions check registration but do not validate the video prop contract; seam=none
+  it('validates video volumes and host-owned media without accepting invalid settings', () => {
+    expect(
+      parseLayer('VolumetricVideoLayer', {
+        video: '@@#localVideo',
+        currentFrame: 12,
+        frameTrail: 120,
+        maxFrameTrail: null,
+        resolution: 0,
+        renderMode: 'auto',
+        maxTextureBytes: 536870912,
+        position: [0, 0, -1],
+        staticPixelRemoval: 1,
+        onVideoLoad: '@@#videoLoaded',
+        onFrameLoad: '@@#frameLoaded'
+      }).success
+    ).toBe(true);
+    for (const props of [
+      {video: {}},
+      {maxFrameTrail: -1},
+      {resolution: 16385},
+      {renderMode: 'other'},
+      {maxTextureBytes: 0},
+      {staticPixelRemoval: 1.1},
+      {position: [0, 0]},
+      {onVideoLoad: () => {}},
+      {onFrameLoad: () => {}}
+    ])
+      expect(parseLayer('VolumetricVideoLayer', props).success).toBe(false);
+  });
+
   it.each(
     Object.keys(CommunityVisualLayerSchemas) as LayerName[]
   )('validates %s configuration and rejects unknown props', name => {

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new)
+  turns MP4/MOV frames into a GPU-rendered image-X/image-Y/time volume with `currentFrame`,
+  `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
+  [local-file demo](/examples/layers/volumetric-video) includes stabilized camera controls
+  and bounded GPU history that preserves the last working volume on allocation failure.
+
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.
   Graph loader dependencies require loaders.gl 4.5.3 or later.
@@ -49,7 +55,7 @@
 - `FastTextLayer` draws every glyph across all text rows. `SkyboxLayer` preserves its background
   depth and culling settings when a view supplies different defaults.
 
-- Both website playgrounds register all 35 concrete official and 45 public community layers, with
+- Both website playgrounds register all 35 concrete official and 46 public community layers, with
   shared templates and schema validation. The library bundles these schemas while keeping layer
   constructors opt-in: `registry.layers: {ScatterplotLayer}` uses its matching bundled schema;
   custom layers and aliases accept explicit `{type, schema}` registrations. Host resource references

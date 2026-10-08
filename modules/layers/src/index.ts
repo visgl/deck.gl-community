@@ -24,3 +24,12 @@ export {SkyboxLayer} from './skybox-layer/skybox-layer';
 
 export type {FlameTrailLayerProps} from './flame-trail-layer/flame-trail-layer';
 export {FlameTrailLayer} from './flame-trail-layer/flame-trail-layer';
+
+export {VolumetricVideoLayer} from './volumetric-video-layer/volumetric-video-layer';
+export type {
+  VolumetricVideoLayerProps,
+  VolumetricVideoInfo,
+  VolumetricVideoFrameInfo
+} from './volumetric-video-layer/volumetric-video-layer';
+
+export {getFrameHistoryBytes as getVolumetricVideoHistoryBytes} from './volumetric-video-layer/frame-utils';

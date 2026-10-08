@@ -916,6 +916,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/example-volumetric-video@workspace:examples/layers/volumetric-video":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/example-volumetric-video@workspace:examples/layers/volumetric-video"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.4.0"
+    "@deck.gl/layers": "npm:~9.4.0"
+    "@deck.gl/mesh-layers": "npm:~9.4.0"
+    "@loaders.gl/core": "npm:^4.5.3"
+    "@luma.gl/core": "npm:~9.4.0"
+    "@luma.gl/engine": "npm:~9.4.0"
+    "@luma.gl/shadertools": "npm:~9.4.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/experimental@workspace:*, @deck.gl-community/experimental@workspace:modules/experimental":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/experimental@workspace:modules/experimental"
@@ -1041,6 +1057,7 @@ __metadata:
     "@luma.gl/webgpu": "npm:~9.4.0"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.1.1"
+    mediabunny: "npm:^1.61.3"
   peerDependencies:
     "@deck.gl/core": ~9.4.0
     "@deck.gl/extensions": ~9.4.0
@@ -7188,6 +7205,29 @@ __metadata:
   version: 4.0.2
   resolution: "@types/deep-eql@npm:4.0.2"
   checksum: 10c0/bf3f811843117900d7084b9d0c852da9a044d12eb40e6de73b552598a6843c21291a8a381b0532644574beecd5e3491c5ff3a0365ab86b15d59862c025384844
+  languageName: node
+  linkType: hard
+
+"@types/dom-mediacapture-transform@npm:^0.1.11":
+  version: 0.1.12
+  resolution: "@types/dom-mediacapture-transform@npm:0.1.12"
+  dependencies:
+    "@types/dom-webcodecs": "npm:*"
+  checksum: 10c0/340d31b37dd12c4c145d9cb1e10057376bcbefeb32833bb829a9cea430e04ddc6f5a942479f92ad9f33adb8ee0fe208675cb1f3f1ad501c8e8c50f0a14cd496c
+  languageName: node
+  linkType: hard
+
+"@types/dom-webcodecs@npm:*":
+  version: 0.1.19
+  resolution: "@types/dom-webcodecs@npm:0.1.19"
+  checksum: 10c0/bb6e04daf5c22eda547db38ddc000d978b5af6203a519962859439a14c3455ce89edeea33d9464f698872a3540971c20c7cda354a5535b1a3bc18cbdddcdf843
+  languageName: node
+  linkType: hard
+
+"@types/dom-webcodecs@npm:0.1.13":
+  version: 0.1.13
+  resolution: "@types/dom-webcodecs@npm:0.1.13"
+  checksum: 10c0/16683fd0330fdfbb867affec1c18fd493d88433a4ec66257579adc5d07b07e9492268b4401e9017b7388b13750722365b0392b375e39c84e74f564d5b4f634a4
   languageName: node
   linkType: hard
 
@@ -14136,6 +14176,16 @@ __metadata:
   version: 0.3.0
   resolution: "media-typer@npm:0.3.0"
   checksum: 10c0/d160f31246907e79fed398470285f21bafb45a62869dc469b1c8877f3f064f5eabc4bcc122f9479b8b605bc5c76187d7871cf84c4ee3ecd3e487da1993279928
+  languageName: node
+  linkType: hard
+
+"mediabunny@npm:^1.61.3":
+  version: 1.61.3
+  resolution: "mediabunny@npm:1.61.3"
+  dependencies:
+    "@types/dom-mediacapture-transform": "npm:^0.1.11"
+    "@types/dom-webcodecs": "npm:0.1.13"
+  checksum: 10c0/91a4db185da543f12da681aba5afd692f947bc9ee839122722b3a32cb6115c10ec493e0926aa74c1240464d44737c450cee9758beb9c5d34938f63d056b1d284
   languageName: node
   linkType: hard
 
