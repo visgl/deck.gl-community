@@ -666,6 +666,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         onLayoutDone: undefined,
         onLayoutError: undefined
       });
+      engine.stop();
       engine.clear();
       this.state.graphEngine = null;
       this._updateLayoutSnapshot(null);

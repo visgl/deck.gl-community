@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {beforeAll, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
 import {load} from '@loaders.gl/core';
 import {DOTLoaderWithParser} from '@loaders.gl/graphs/dot-loader';
 import {GraphLayer} from '../../src/layers/graph-layer';
 import {ClassicGraph} from '../../src/graph/classic-graph';
+import {D3ForceLayout} from '../../src/layouts/d3-force/d3-force-layout';
 import {SimpleLayout} from '../../src/layouts/simple-layout';
 import {loadGraphData} from '../../src/loaders/load-graph-data';
 import karateDot from '../data/__fixtures__/dot/karate.dot?raw';
@@ -21,6 +22,7 @@ function initializeLayer(layer: GraphLayer): void {
 }
 
 describe('GraphLayer data inputs', () => {
+  afterEach(() => vi.unstubAllGlobals());
   beforeAll(() => {
     globalThis.CustomEvent ??= Event as any;
   });
@@ -117,6 +119,40 @@ describe('GraphLayer data inputs', () => {
     const layout = new SimpleLayout();
     layout.initializeGraph(graph);
     expect(layout.getNodePosition(nodes[0])).toEqual([10, 20]);
+  });
+
+  it('terminates outgoing layout workers on replacement and finalization', () => {
+    const workers: Array<{terminate: ReturnType<typeof vi.fn>}> = [];
+    class PendingWorker {
+      terminate = vi.fn();
+      postMessage = vi.fn();
+      onmessage = null;
+      constructor() {
+        workers.push(this);
+      }
+    }
+    vi.stubGlobal('Worker', PendingWorker);
+    const layer = new GraphLayer({
+      id: 'worker-lifecycle',
+      data: {nodes: [{id: 'a'}], edges: []},
+      layout: new D3ForceLayout()
+    });
+    initializeLayer(layer);
+    try {
+      expect(workers).toHaveLength(1);
+      layer.updateState({
+        props: layer.clone({layout: new D3ForceLayout()}).props,
+        oldProps: layer.props,
+        changeFlags: {propsChanged: true}
+      });
+      expect(workers).toHaveLength(2);
+      expect(workers[0].terminate).toHaveBeenCalledOnce();
+      expect(workers[1].terminate).not.toHaveBeenCalled();
+      layer.finalize();
+      expect(workers[1].terminate).toHaveBeenCalledOnce();
+    } finally {
+      layer.finalize();
+    }
   });
 
   it('skips malformed raw records and accepts empty graphs', () => {

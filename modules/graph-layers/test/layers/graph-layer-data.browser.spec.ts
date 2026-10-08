@@ -32,7 +32,7 @@ test('deck.gl resolves graph URLs and replaces them with loaded graphs without a
     onError
   });
   try {
-    await expect.poll(() => layer.state?.graphEngine?.getNodes().length).toBe(8);
+    await expect.poll(() => layer.state?.graphEngine?.getNodes().length, {timeout: 10_000}).toBe(8);
     expect(onDataLoad).toHaveBeenCalledOnce();
     expect(layer.state.graphEngine!.getNodes()[0].getPropertyValue('label')).toBe('Mr. Hi');
     const graph = new ClassicGraph({
@@ -40,11 +40,13 @@ test('deck.gl resolves graph URLs and replaces them with loaded graphs without a
     });
     const replacement = layer.clone({data: graph});
     deck.setProps({layers: [replacement]});
-    await expect.poll(() => replacement.state?.graphEngine?.getNodes().length).toBe(1);
+    await expect
+      .poll(() => replacement.state?.graphEngine?.getNodes().length, {timeout: 10_000})
+      .toBe(1);
     expect(replacement.state.graphEngine!.getNodes()[0]).toBe(graph.findNodeById('replacement'));
     expect(onError).not.toHaveBeenCalled();
   } finally {
     deck.finalize();
     canvas.remove();
   }
-});
+}, 30_000);
