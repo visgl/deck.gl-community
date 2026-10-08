@@ -51,7 +51,7 @@ function MetricsContent({metrics, metricNames, labels, formatValue}: MetricsPane
     >
       {names.map(name => (
         <div key={name} style={{display: 'contents'}}>
-          <dt>{labels?.[name] ?? name}</dt>
+          <dt>{labels && Object.hasOwn(labels, name) ? (labels[name] ?? name) : name}</dt>
           <dd style={{margin: 0, textAlign: 'right', fontVariantNumeric: 'tabular-nums'}}>
             {formatValue ? formatValue(metrics[name], name) : String(metrics[name] ?? '—')}
           </dd>

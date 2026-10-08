@@ -58,3 +58,29 @@ test('orders a subset, labels metrics, formats units, and renders replacement sn
   );
   expect(root.textContent).toBe('elapsed42');
 });
+
+test('uses only own labels for metric names that match prototype properties', () => {
+  const metrics = Object.fromEntries(
+    ['toString', 'constructor', '__proto__'].map(name => [name, 1])
+  );
+  mountPanel(new MetricsPanel({id: 'metrics', title: 'Telemetry', metrics, labels: {}}));
+  expect(Array.from(root.querySelectorAll('dt'), element => element.textContent)).toEqual([
+    'toString',
+    'constructor',
+    '__proto__'
+  ]);
+  render(
+    new MetricsPanel({
+      id: 'metrics',
+      title: 'Telemetry',
+      metrics,
+      labels: {constructor: 'Constructor count'}
+    }).content,
+    root
+  );
+  expect(Array.from(root.querySelectorAll('dt'), element => element.textContent)).toEqual([
+    'toString',
+    'Constructor count',
+    '__proto__'
+  ]);
+});
