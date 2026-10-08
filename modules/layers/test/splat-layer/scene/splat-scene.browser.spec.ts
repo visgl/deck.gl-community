@@ -163,6 +163,9 @@ async function renderSorted(
     if (texture?.format === 'bgra8unorm') [result[0], result[2]] = [result[2], result[0]];
     expect(result[0] + result[2]).toBeGreaterThan(80);
     expect(Math.min(result[0], result[2])).toBeGreaterThan(10);
+    // Red and blue source colors each sum to one. Compositing onto transparent black must
+    // therefore retain that equality with accumulated alpha, including at translucent edges.
+    expect(Math.abs(result[0] + result[2] - result[3])).toBeLessThanOrEqual(3);
     expect(result[1]).toBeLessThan(5);
     expect(errors).toEqual([]);
     const picked = await deck!.pickObjectAsync({x: 64, y: 64});
@@ -207,7 +210,13 @@ async function renderSorted(
       expect(blurred[offset + 3]).toBeLessThan(pixels[offset + 3]);
     }
     if (hostParameters) {
-      for (const depthCompare of ['never', 'always', 'less-equal'] as const) {
+      for (const parameters of [
+        {depthCompare: 'never'},
+        {depthCompare: 'always'},
+        {depthCompare: 'less-equal'},
+        {depthCompare: 'always', blendColorSrcFactor: 'one'},
+        {depthCompare: 'less-equal'}
+      ] as const) {
         await new Promise<void>((resolve, reject) => {
           let nextFrames = 0;
           const timeout = setTimeout(
@@ -215,7 +224,7 @@ async function renderSorted(
             30000
           );
           deck!.setProps({
-            layers: layersNow.map(layer => layer.clone({parameters: {depthCompare}})),
+            layers: layersNow.map(layer => layer.clone({parameters})),
             onAfterRender: () => {
               if (++nextFrames >= 3) {
                 deck!.pause();
@@ -228,7 +237,12 @@ async function renderSorted(
         });
         const nextPixels = await readFrame(device, texture);
         const alpha = nextPixels[offset + 3];
-        expect(alpha).toSatisfy(value => (depthCompare === 'never' ? value === 0 : value > 0));
+        expect(alpha).toSatisfy(value =>
+          parameters.depthCompare === 'never' ? value === 0 : value > 0
+        );
+        const colorExcess = nextPixels[offset] + nextPixels[offset + 2] - alpha;
+        if ('blendColorSrcFactor' in parameters) expect(colorExcess).toBeGreaterThan(50);
+        else expect(Math.abs(colorExcess)).toBeLessThanOrEqual(3);
       }
     }
     if (clear) {
@@ -278,7 +292,7 @@ describe('shared sorted SplatLayer domains', () => {
       await renderSorted('webgpu', false, false, false, undefined, false, true);
     else if (inject('requireWebGPU')) throw new Error('WebGPU required');
   }, 60000);
-  it('WebGPU and WebGL2 apply and restore host depth parameters on sorted backends', async () => {
+  it('WebGPU and WebGL2 apply and restore host depth and blend parameters on sorted backends', async () => {
     await renderSorted('webgl', false, false, false, undefined, true);
     const gpu = (navigator as Navigator & {gpu?: {requestAdapter(): Promise<unknown>}}).gpu;
     if (gpu && (await gpu.requestAdapter()))

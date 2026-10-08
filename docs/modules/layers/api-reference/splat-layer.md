@@ -90,6 +90,10 @@ The host owns the canvas, device, render pass and presentation. Separate domains
 The first layer in a domain supplies draw `parameters`, `alphaCutoff`, `kernelVariance` and
 `support`; keep those settings consistent across layers sharing that domain. Picking uses the
 same appearance settings with its own depth state.
+Sorted scene shaders output straight color and alpha. Their default draw parameters use
+`blendColorSrcFactor: 'src-alpha'` and `depthWriteEnabled: false`; explicit layer `parameters`
+override those defaults. Both backends apply blend factors together with their operations and
+restore defaults when an override is removed.
 Prepared hierarchies forced to sorted currently submit their finest source; weighted optical
 hierarchy blending, wind/material lighting and foliage shadow passes remain on the prepared path.
 

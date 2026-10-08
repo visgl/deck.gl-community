@@ -768,6 +768,13 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         new SplatSceneLayer({
           ...this.props,
           ...this.getSubLayerProps({id: 'scene', updateTriggers: this.props.updateTriggers}),
+          // Scene shaders output straight RGB/alpha; deck's default blend assumes premultiplied RGB.
+          // Keep transparent depth behavior and allow explicit caller parameters to override it.
+          parameters: {
+            depthWriteEnabled: false,
+            blendColorSrcFactor: 'src-alpha',
+            ...this.props.parameters
+          },
           data: this.props.data,
           maxSplats: Number.isFinite(this.props.maxActiveSplats)
             ? this.props.maxActiveSplats

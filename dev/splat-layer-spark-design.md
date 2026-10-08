@@ -22,22 +22,24 @@ animation loop. Performance targets are measured separately for each backend.
 
 ## Implementation across the TreeLayer stack
 
-The existing five PRs retain their order, with scene support below TreeLayer and Coit below the final migration. The source contract in this
+The existing tree PRs retain their order. Shared scene support sits below both TreeLayer and the
+independent Coit branch; Coit has no TreeLayer prerequisite. The source contract in this
 specification uses `data` for an asset or owner rows and `getSource` for per-owner asset resolution.
 The implementation now includes a generic sorted scene runtime and the migrated Coit example,
 with the prepared TreeLayer path retaining weighted optical blending. The stack adds a luma 9.4
-host-pass prerequisite and two community PRs: generic scene runtime immediately above #807,
-and Coit above the tree demonstrations and below #809's deprecated-workspace cleanup.
+host-pass prerequisite and two community PRs: shared scene runtime #814 immediately above #807,
+and independent Coit #815 directly above #814. The tree chain starts at #794 above #814 and ends
+with #809's deprecated-workspace cleanup above #808. Neither tip depends on the other.
 
 | Stage | Responsibility |
 | --- | --- |
 | luma 9.4 host-pass backport | Borrowed passes and source pages, affine instance uniforms, 32-bit camera depth ordering, native RAD retained refinement |
 | #807 | Prepared CompositeLayer inputs, heterogeneous source roots, affine covariance, shared budgets and statistics |
-| Generic scene runtime | URL/Blob/static/RAD workers, shared deck/device residency and per-view/domain ordering, source-frame SH/HDR, owner picking and cleanup |
+| #814 | URL/Blob/static/RAD workers, shared deck/device residency and per-view/domain ordering, source-frame SH/HDR, owner picking and cleanup |
 | #794 | Native TreeLayer traits, wood, crops and explicitly weighted canopies |
-| #806 | WorldTreeLayer inventory streaming and parent quota sharing |
+| #806 | Unified TreeLayer supplied rows/inventory streaming and parent quotas; deprecated WorldTreeLayer compatibility wrapper |
 | #808 | Tree Lab, Citrus, forest/world examples and historical evidence |
-| Coit migration | Public community SplatLayer, authored FirstPerson camera, native RAD ranges, diagnostics and website example |
+| #815 | Independent public community SplatLayer Coit example, authored FirstPerson camera, native RAD ranges, diagnostics and website wiring |
 | #809 | Seasonal Farm migration and removal of the deprecated three workspace |
 
 The sorted scene path is Cartesian, requires contiguous domains after opaque layers, and submits
@@ -83,7 +85,7 @@ The existing prepared primitive and `SplatEffect` present weighted output. Immut
 continue to be reference-counted per source and device.
 
 Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats` and
-`maxShadowSplats`; nested WorldTreeLayer consumers inherit the world ceiling. Local child caps
+`maxShadowSplats`; tiled TreeLayer inventories inherit their parent ceiling. Local child caps
 remain effective. `maxTotalSplats` applies the strictest participating shared cap. Allocator
 priorities compare projected error reduction across source roots, preserving coarsest coverage.
 Optical transitions retain the existing soft overlap allowance. These are submission budgets,
@@ -92,7 +94,7 @@ not hard GPU memory or frame-time guarantees.
 `getTransformMatrix` replaces orientation, scale and translation with a finite affine local
 matrix, including covariance and conservative shear bounds. `splatStats` reports source/hierarchy
 pairs, selected owners, submitted camera/shadow work, coarsest coverage and moving refinements.
-Geographic inventory residency remains WorldTreeLayer's separate statistics lane.
+Geographic inventory residency remains TreeLayer's separate `streamingStats` lane.
 
 ### Scene backend and remaining acceptance work
 
