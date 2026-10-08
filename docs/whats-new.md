@@ -6,6 +6,8 @@
   expressions (`["get", ...]`, `match`, `case`) style each feature instead of resolving to one
   value per style layer. `findFeaturesStyledByLayer` returns the source-layer features when the
   style layer has no `filter`, instead of none.
+- `MetricsPanel` displays plain telemetry snapshots with ordered labels and host-defined value formatting.
+
 - Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
   Blue Marble raster tiles. Other basemap providers are unchanged. Blue Marble tiles
   use a maximum native zoom of 8 and stay visible when overzoomed. Basemap labels
