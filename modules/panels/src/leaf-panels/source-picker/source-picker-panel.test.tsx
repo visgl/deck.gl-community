@@ -27,6 +27,9 @@ test('preset and manual edits update an uncontrolled URL without loading until s
       onUrlChange
     })
   );
+  const loadButton = root.querySelector('button')!;
+  expect(loadButton.disabled).toBe(true);
+  expect(Number(getComputedStyle(loadButton).opacity)).toBeLessThan(1);
   const select = root.querySelector('select')!;
   select.value = 'earth';
   select.dispatchEvent(new Event('change', {bubbles: true}));
@@ -35,6 +38,8 @@ test('preset and manual edits update an uncontrolled URL without loading until s
       'https://example.test/catalog.json'
     )
   );
+  expect(loadButton.disabled).toBe(false);
+  expect(getComputedStyle(loadButton).opacity).toBe('1');
   expect(onLoadUrl).not.toHaveBeenCalled();
   root.querySelector('form')!.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
   expect(onLoadUrl).toHaveBeenCalledWith('https://example.test/catalog.json');
@@ -144,4 +149,7 @@ test('file input and drops pass files through, enforce single selection, and res
     new DragEvent('drop', {dataTransfer: dropTransfer, bubbles: true, cancelable: true})
   );
   expect(onSelectFiles).toHaveBeenCalledTimes(2);
+  for (const control of root.querySelectorAll('input, select, button')) {
+    expect(Number(getComputedStyle(control).opacity)).toBeLessThan(1);
+  }
 });

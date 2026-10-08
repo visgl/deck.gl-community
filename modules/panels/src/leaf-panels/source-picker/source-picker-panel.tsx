@@ -70,6 +70,7 @@ function SourcePickerContent({
 }: SourcePickerPanelProps) {
   const [localUrl, setLocalUrl] = useState(defaultUrl);
   const currentUrl = url ?? localUrl;
+  const isLoadDisabled = disabled || !currentUrl.trim();
   const selectedPreset = presets.find(preset => preset.url === currentUrl)?.id ?? '';
   /** Updates the field and notifies the host without starting a load. */
   function changeUrl(nextUrl: string): void {
@@ -98,7 +99,7 @@ function SourcePickerContent({
         <label>
           Preset
           <select
-            style={SOURCE_CONTROL_STYLE}
+            style={getSourceControlStyle(disabled)}
             aria-label="Preset"
             value={selectedPreset}
             disabled={disabled}
@@ -126,7 +127,7 @@ function SourcePickerContent({
         <label htmlFor={`${id}-url`}>Source URL</label>
         <input
           id={`${id}-url`}
-          style={SOURCE_CONTROL_STYLE}
+          style={getSourceControlStyle(disabled)}
           type="url"
           required
           value={currentUrl}
@@ -134,9 +135,9 @@ function SourcePickerContent({
           onInput={event => changeUrl(event.currentTarget.value)}
         />
         <button
-          style={SOURCE_CONTROL_STYLE}
+          style={getSourceControlStyle(isLoadDisabled)}
           type="submit"
-          disabled={disabled || !currentUrl.trim()}
+          disabled={isLoadDisabled}
         >
           Load URL
         </button>
@@ -145,6 +146,7 @@ function SourcePickerContent({
         <label>
           Choose files or drop them here
           <input
+            style={getSourceControlStyle(disabled)}
             aria-label="Choose files"
             type="file"
             accept={accept}
@@ -173,3 +175,12 @@ const SOURCE_CONTROL_STYLE: JSX.CSSProperties = {
   padding: '4px 6px',
   boxSizing: 'border-box'
 };
+
+/** Preserves theme colors while making unavailable native controls visibly disabled. */
+function getSourceControlStyle(isDisabled: boolean): JSX.CSSProperties {
+  return {
+    ...SOURCE_CONTROL_STYLE,
+    opacity: isDisabled ? 0.5 : 1,
+    cursor: isDisabled ? 'not-allowed' : undefined
+  };
+}
