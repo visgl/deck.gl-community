@@ -25,15 +25,18 @@ export type SpriteIconMappingEntry = {
   pixelRatio: number;
 };
 
-/** A loaded sprite: the atlas image URL and its deck.gl icon mapping. */
+/** A loaded sprite: the atlas image and its deck.gl icon mapping. */
 export type SpriteAtlas = {
   /**
    * Sprite id. `'default'` for a style whose `sprite` is a single URL; otherwise the id from the
    * style's sprite array, which prefixes its image names as `id:name`.
    */
   id: string;
-  /** URL of the atlas PNG, loaded by `IconLayer`. */
-  image: string;
+  /**
+   * The atlas image, decoded once and shared by every icon layer, or its URL where
+   * `createImageBitmap` is unavailable (each `IconLayer` then loads the URL itself).
+   */
+  image: ImageBitmap | string;
   /** Icon mapping keyed by image name, without the `id:` prefix. */
   mapping: Record<string, SpriteIconMappingEntry>;
 };
@@ -90,6 +93,25 @@ export function getSpriteIconMapping(
   return mapping;
 }
 
+/**
+ * Decodes the atlas PNG once, so the per-tile icon layers share one image instead of each
+ * requesting it. Without `createImageBitmap` (e.g. in Node), returns the URL.
+ */
+async function loadSpriteImage(
+  url: string,
+  fetchFn: typeof fetch,
+  fetchOptions?: RequestInit
+): Promise<ImageBitmap | string> {
+  if (typeof createImageBitmap !== 'function') {
+    return url;
+  }
+  const response = await fetchFn(url, fetchOptions);
+  if (!response.ok) {
+    throw new Error(`Failed to load sprite image: ${url} (${response.status})`);
+  }
+  return await createImageBitmap(await response.blob());
+}
+
 /** Loads one sprite: the `@2x` variant first at high pixel ratios, falling back to `@1x`. */
 async function loadSpriteAtlas(
   source: SpriteSource,
@@ -108,7 +130,7 @@ async function loadSpriteAtlas(
       const index = (await response.json()) as Record<string, SpriteImage>;
       return {
         id: source.id,
-        image: `${source.url}${suffix}.png`,
+        image: await loadSpriteImage(`${source.url}${suffix}.png`, fetchFn, options.fetchOptions),
         mapping: getSpriteIconMapping(index)
       };
     } catch (error) {

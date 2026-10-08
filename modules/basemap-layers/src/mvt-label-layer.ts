@@ -299,13 +299,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           billboard,
           sizeUnits: 'pixels',
           parameters: {depthTest: false},
-          // Icons collide among themselves; a label's own icon does not hide its text.
-          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-          collisionEnabled: true,
-          collisionGroup: 'basemap-icons',
-          getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelCollisionPriority(feature)
-          ) as any,
+          // Icons are not collision-filtered (see the module docs): with deck.gl's
+          // CollisionFilterExtension the icon layers drew nothing.
+          extensions: this.props.extensions || [],
           getPosition: (d: LabelRow) => d.position,
           getIcon: this.getSubLayerAccessor(
             (feature: FeatureLike) => this.getIcon(feature)?.name

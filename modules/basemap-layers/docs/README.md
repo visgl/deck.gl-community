@@ -183,8 +183,9 @@ long-term plan.
 
 ### Icons and sprites
 
-When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index after the style
-resolves, through the same `fetch` as the style and its tiles. It requests the `@2x` sprite first
+When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index and image after the
+style resolves, through the same `fetch` as the style and its tiles. The image is decoded once
+and shared by every tile's icon layer. It requests the `@2x` sprite first
 on high-density screens and falls back to `@1x`. A relative `sprite` URL resolves against the
 style URL, and the array form (`[{id, url}]`) is supported: images from a sprite other than
 `default` are named `id:name`.
@@ -199,8 +200,9 @@ with a warning.
 
 Approximations:
 
-- Icons collide only with other icons (collision group `basemap-icons`), not with labels, so a
-  label's own icon never hides its text. MapLibre places an icon and its text as one unit.
+- Icons are not collision-filtered: every icon whose style layer is visible is drawn, so dense
+  icon layers can overlap. Labels keep their collision filtering. MapLibre places an icon and
+  its text as one unit and hides both on collision.
 - `icon-rotate`, `icon-text-fit`, `icon-padding` and `icon-allow-overlap` are not applied.
 
 [maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec

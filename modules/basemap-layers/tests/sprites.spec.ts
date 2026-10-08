@@ -136,6 +136,28 @@ describe('sprite loading', () => {
   });
 });
 
+describe('sprite image', () => {
+  test('is fetched and decoded once per sprite where createImageBitmap exists', async () => {
+    const bitmap = {width: 17, height: 17};
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => bitmap)
+    );
+    const requested: string[] = [];
+    const fetchFn = (async (url: string) => {
+      requested.push(url);
+      return {ok: true, status: 200, json: async () => SPRITE_INDEX, blob: async () => ({})};
+    }) as unknown as typeof fetch;
+    const [atlas] = await loadSpriteAtlases('https://example.com/sprite', {fetch: fetchFn});
+    vi.unstubAllGlobals();
+    expect(requested).toEqual([
+      'https://example.com/sprite.json',
+      'https://example.com/sprite.png'
+    ]);
+    expect(atlas.image).toBe(bitmap);
+  });
+});
+
 describe('sprite mapping', () => {
   test('marks SDF images as masks and defaults the pixel ratio to 1', () => {
     expect(DEFAULT_ATLAS.mapping['circle-11']).toEqual({
@@ -205,6 +227,12 @@ describe('icon-image', () => {
       ['labels-icons-poi', 1]
     ]);
     expect(iconLayers[0].props.iconMapping).toBe(DEFAULT_ATLAS.mapping);
+    // Icons are drawn without the collision filter (see the module docs).
+    expect(
+      iconLayers[0].props.extensions.some(
+        (extension: any) => extension.constructor.extensionName === 'CollisionFilterExtension'
+      )
+    ).toBe(false);
     expect(iconLayers[1].props.iconMapping).toBe(POI_ATLAS.mapping);
   });
 });
