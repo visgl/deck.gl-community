@@ -12,12 +12,11 @@ that graph applications can focus on supplying data and high-level behavior.
 ## Usage
 
 ```js
-import {GraphLayer, JSONLoader, D3ForceLayout} from '@deck.gl-community/graph-layers';
+import {GraphLayer, D3ForceLayout} from '@deck.gl-community/graph-layers';
 
 const layer = new GraphLayer({
   id: 'graph',
   data: graphJson,
-  graphLoader: JSONLoader,
   layout: new D3ForceLayout(),
   stylesheet: {
     nodes: [
@@ -40,6 +39,30 @@ or `{nodes, edges}` objects). When the layer receives new data it rebuilds the
 internal `GraphEngine`, re-runs the layout, and updates interactions
 automatically. Supplying raw data requires a `layout` so the layer can derive
 positions for you.
+
+### Load a graph URL with loaders.gl
+
+```js
+import {DOTLoaderWithParser} from '@loaders.gl/graphs/dot-loader';
+
+const layer = new GraphLayer({
+  id: 'karate-club',
+  data: 'https://raw.githubusercontent.com/visgl/deck.gl-community/master/modules/graph-layers/test/data/__fixtures__/dot/karate.dot',
+  loaders: [DOTLoaderWithParser],
+  layout: new D3ForceLayout()
+});
+```
+
+Deck.gl fetches `data` and parses it with `loaders`. The default graph conversion
+accepts the DOT loader's normalized graph data; no `graphLoader` callback or
+application-created `GraphEngine` is needed. JSON URLs with `{nodes, edges}` data
+use deck.gl's default JSON loading. Already loaded graphs can be supplied as
+`data: graph` with the same `layout` prop.
+
+The [community playground](/examples/playground) includes **Graph from a DOT URL**.
+Its JSON uses `"loaders": ["@@#DOTLoader"]` and
+`"layout": {"@@function": "D3ForceLayout"}`. The example registry supplies the published
+DOT loader constant and creates a fresh layout for each resolved configuration.
 
 ## Properties
 
@@ -68,9 +91,12 @@ releases will remove this prop.
 
 #### `graphLoader` (function, optional)
 
-Custom loader that converts raw `data` into a `Graph`. Defaults to the bundled
-`JSONLoader`, which accepts arrays of edges or `{nodes, edges}` collections and
-automatically synthesizes missing nodes. Graph instances are no longer
+Custom loader that converts raw `data` into a `Graph`. The default converter accepts
+normalized plain/Arrow graph data, arrays of edges,
+or `{nodes, edges}` collections and synthesizes missing endpoint nodes for raw JSON.
+Raw records use `id`, `sourceId`, and `targetId`; missing edge IDs are generated.
+Custom properties at the top level and in `attributes` are preserved, with nested
+`attributes` taking precedence for custom properties. Graph instances are no longer
 normalized by the loader—pass them directly to `data`.
 
 #### `engine` (`GraphEngine`, optional)

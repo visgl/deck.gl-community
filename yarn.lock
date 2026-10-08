@@ -15982,6 +15982,7 @@ __metadata:
     "@deck.gl/mesh-layers": "npm:~9.4.0"
     "@deck.gl/widgets": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
+    "@loaders.gl/graphs": "npm:^4.5.3"
     "@luma.gl/constants": "npm:~9.4.0"
     "@luma.gl/core": "npm:~9.4.0"
     "@luma.gl/engine": "npm:~9.4.0"

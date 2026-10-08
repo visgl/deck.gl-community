@@ -5,6 +5,9 @@
 import {Deck, Layer} from '@deck.gl/core';
 import type {SolidPolygonLayer} from '@deck.gl/layers';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
+import {GraphLayer} from '@deck.gl-community/graph-layers';
+import karateDot from '../../modules/graph-layers/test/data/__fixtures__/dot/karate.dot?raw';
+import graphUrlExample from './examples/16-graph-url.json';
 import {SkyboxLayer} from '@deck.gl-community/layers';
 import {page} from 'vitest/browser';
 import {afterEach, expect, test, vi} from 'vitest';
@@ -46,6 +49,9 @@ async function mockGalleryResources(): Promise<void> {
         sources: {},
         layers: [{id: 'background', type: 'background', paint: {'background-color': '#e2e8f0'}}]
       });
+    }
+    if (url === graphUrlExample.layers[0].data) {
+      return new Response(karateDot, {headers: {'content-type': 'text/vnd.graphviz'}});
     }
     if (cubemapUrls.has(url)) {
       return new Response(image, {headers: {'content-type': 'image/png'}});
@@ -107,6 +113,10 @@ test('renders the gallery forward, backward, and across different view types', a
         }
         // Include the automatically injected basemap as well as the document's own layers.
         for (const layer of layers) {
+          if (layer instanceof GraphLayer && layer.id === 'karate-club') {
+            expect(layer.state.graphEngine?.getNodes()).toHaveLength(8);
+            expect(layer.state.graphEngine?.getEdges()).toHaveLength(12);
+          }
           if (layer instanceof SkyboxLayer) {
             expect(layer.state?.cubemapTexture?.isReady, `${name}: cubemap uploaded`).toBe(true);
           }

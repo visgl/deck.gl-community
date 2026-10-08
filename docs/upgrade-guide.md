@@ -111,8 +111,10 @@ Rename the React panel exports:
 
 `DOTGraphLoader` from `@deck.gl-community/graph-layers` has been removed. Import
 `DOTLoaderWithParser` from `@loaders.gl/graphs/dot-loader` for synchronous parsing or
-parser-bearing loader use. It returns plain node and edge records; create a
-`ClassicGraph` with `new ClassicGraph({data})` to use them in graph-layers.
+parser-bearing loader use. Pass graph URLs directly to `GraphLayer.data` with
+`loaders: [DOTLoaderWithParser]` and a `layout`; the layer converts the parsed
+records and creates its own engine. Already loaded graphs can also be passed to
+`data`. A custom `graphLoader` callback is unnecessary for normalized loader output.
 DOT syntax validation and strict-graph behavior follow loaders.gl. The loader returns
 plain graph data instead of Arrow data, and the old `dot.version` option is removed.
 

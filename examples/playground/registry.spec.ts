@@ -188,8 +188,12 @@ for (const [name, template] of Object.entries(TEMPLATES)) {
     definitions.forEach((definition, index) => {
       expect(resolved[index]).toBeInstanceOf(registeredType(definition['@@type'])!);
       expect(resolved[index].id).toBe(definition.id);
-      if (Object.hasOwn(definition, 'data'))
-        expect(resolved[index].props.data).toBe(definition.data);
+      if (Object.hasOwn(definition, 'data')) {
+        // deck.gl exposes the default value until an async URL prop is initialized.
+        expect(resolved[index].props.data).toBe(
+          typeof definition.data === 'string' ? null : definition.data
+        );
+      }
     });
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -224,4 +228,15 @@ test('host Arrow resources and edit modes resolve by reference through the share
   } finally {
     native.finalize();
   }
+});
+
+test('DOT URL template resolves loader constants and creates independent layouts', () => {
+  const first = resolver.resolve(TEMPLATES['graph-url'], {}).props.layers as Layer[];
+  const second = resolver.resolve(TEMPLATES['graph-url'], {}).props.layers as Layer[];
+  const firstProps = (first[0] as graph.GraphLayer).props;
+  const secondProps = (second[0] as graph.GraphLayer).props;
+  expect(firstProps.loaders).toEqual([registry.constants!.DOTLoader]);
+  expect(firstProps.layout).toBeInstanceOf(graph.D3ForceLayout);
+  expect(firstProps.layout).not.toBe(secondProps.layout);
+  expect(firstProps.engine).toBeUndefined();
 });

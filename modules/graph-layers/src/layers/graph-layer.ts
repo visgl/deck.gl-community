@@ -53,7 +53,8 @@ import {
   type LabelAccessor,
   type RankAccessor
 } from '../utils/rank-grid';
-import {createGraphFromData} from '../graph/functions/create-graph-from-data';
+import type {GraphData} from '../graph-data/graph-data';
+import {loadGraphData} from '../loaders/load-graph-data';
 
 import {warn} from '../utils/log';
 
@@ -105,23 +106,21 @@ let NODE_STYLE_DEPRECATION_WARNED = false;
 let EDGE_STYLE_DEPRECATION_WARNED = false;
 let GRAPH_PROP_DEPRECATION_WARNED = false;
 let LAYOUT_REQUIRED_WARNED = false;
-const DEFAULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
-  if (!json || typeof json !== 'object') {
-    return null;
-  }
+const DEFAULT_GRAPH_LOADER = ({json}: {json: unknown}) => loadGraphData(json);
 
-  return createGraphFromData(json as any);
-};
-
+/** JSON records with custom properties at the top level or in `attributes`. */
 export type GraphLayerRawData = {
+  version?: number;
   name?: string;
   nodes?: unknown[] | null;
   edges?: unknown[] | null;
 };
 
+/** URL, loaded graph, normalized graph data, or raw JSON consumed by GraphLayer. */
 export type GraphLayerDataInput =
   | GraphEngine
   | Graph
+  | GraphData
   | GraphLayerRawData
   | unknown[]
   | string
@@ -129,6 +128,7 @@ export type GraphLayerDataInput =
 
 export type GraphLayerProps = CompositeLayerProps &
   _GraphLayerProps & {
+    /** Graph input. URLs and promises resolve through deck.gl; supply `layout` for graphs. */
     data?: GraphLayerDataInput | Promise<GraphLayerDataInput>;
   };
 
@@ -142,9 +142,13 @@ type EngineResolutionFlags = {
 };
 
 export type _GraphLayerProps = {
+  /** @deprecated Pass graphs through `data`. */
   graph?: Graph;
+  /** Layout used by the internally created engine for loaded or raw graphs. */
   layout?: GraphLayout;
+  /** Converts resolved raw payloads to graphs; graph instances bypass this callback. */
   graphLoader?: (opts: {json: unknown}) => Graph | null;
+  /** Optional existing engine. Supplying `data` takes precedence. */
   engine?: GraphEngine;
 
   onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
@@ -662,6 +666,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         onLayoutDone: undefined,
         onLayoutError: undefined
       });
+      engine.stop();
       engine.clear();
       this.state.graphEngine = null;
       this._updateLayoutSnapshot(null);

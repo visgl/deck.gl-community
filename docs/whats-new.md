@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `GraphLayer` accepts graph URLs with loaders.gl graph loaders and loaded graphs through
+  `data`, creating its own engine from `layout`. Raw JSON preserves custom attributes,
+  and the playground includes a declarative DOT URL example.
+
 - `basemap-layers` evaluates fill and line paint properties per feature, so data-driven
   expressions (`["get", ...]`, `match`, `case`) style each feature instead of resolving to one
   value per style layer. `findFeaturesStyledByLayer` returns the source-layer features when the
