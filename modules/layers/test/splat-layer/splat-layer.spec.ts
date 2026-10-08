@@ -121,6 +121,27 @@ it('refreshes light-space owner offsets before regrouping replaced or cleared as
   expect(layer.renderLayers()).toEqual([]);
 });
 
+it('restores shifted-origin shadow casters immediately after an empty inventory', () => {
+  const layer = make([{position: [0, 0, 0]}], 0);
+  const projections = [
+    {
+      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      center: [0, 0, 0, 0],
+      width: 256,
+      height: 256
+    }
+  ];
+  layer.prepareShadow(projections, layer.context.viewport);
+  for (const data of [[], [{position: [100, 0, 0] as [number, number, number]}]]) {
+    const oldProps = layer.props;
+    Object.assign(layer, {props: layer.clone({data}).props});
+    // A precision-preserving host origin shifts with the replacement owner's pose.
+    vi.mocked(layer.projectPosition).mockImplementation(() => [0, 0, 0]);
+    layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+    expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual(data);
+  }
+});
+
 it('retains light-space selections on camera-only changes and invalidates changed source geometry', () => {
   const layer = make([{position: [0, 0, 0]}], 0);
   const viewport = layer.context.viewport;

@@ -20,6 +20,7 @@ import {
   getSplatFocusWeight,
   getSplatProjectionKey,
   getSplatCachedPosition,
+  getSplatCommonUnits,
   type SplatProjectedPosition
 } from './splat-culling';
 import {
@@ -428,6 +429,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       // Reconcile retained light owners against the new hierarchy before regrouping:
       // removed assets can shorten it and shift every surviving owner's offset.
       this.state.spatialIndex = spatialIndex;
+      this.state.owners = owners;
       this.shadowKey = '';
       this.prepareShadow(this.state.shadowProjections, viewport);
     }
@@ -534,7 +536,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const key =
       origin.join(',') +
       ':' +
-      viewport.distanceScales.unitsPerMeter[2] +
+      getSplatProjectionKey(viewport) +
       ':' +
       projections
         .map(projection => [
@@ -565,16 +567,19 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
             projection.width,
           Math.hypot(projection.matrix[1], projection.matrix[5], projection.matrix[9]) *
             projection.height
-        ) *
-        0.5 *
-        viewport.distanceScales.unitsPerMeter[2]
+        ) * 0.5
     );
     const candidates: SplatSelection<PreparedOwner<DataT>>[] = [];
     for (const owner of querySplatSpatialIndex(this.state.spatialIndex, absoluteProjections)) {
       let pixels = 0;
       for (let light = 0; light < frusta.length; light++)
         if (intersectsSplatFrustum(owner.center, owner.radius, frusta[light]))
-          pixels = Math.max(pixels, lightPixels[light] * owner.scale);
+          pixels = Math.max(
+            pixels,
+            lightPixels[light] *
+              Math.max(...getSplatCommonUnits(owner.center, viewport)) *
+              owner.scale
+          );
       const hierarchy = owner.asset.hierarchy;
       let level = 0;
       for (let i = 1; i < hierarchy.length; i++)

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Matrix4} from '@math.gl/core';
-import type {Viewport} from '@deck.gl/core';
+import {WebMercatorViewport, type Viewport} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {
   getSplatPixelsPerMeter,
+  getSplatCommonUnits,
   getSplatCachedPosition,
   type SplatProjectedPosition,
   getSplatBoundedPixelsPerMeter,
@@ -15,6 +16,21 @@ import {
 const matrix = new Matrix4().perspective({fovy: Math.PI / 2, aspect: 1, near: 0.1, far: 100});
 const projection = {matrix, center: [0, 0, 0, 0], width: 100, height: 100};
 describe('Gaussian projection refinement', () => {
+  it('uses each geographic owner latitude for projected metre error', () => {
+    const viewport = new WebMercatorViewport({width: 800, height: 600, latitude: 0, zoom: 1});
+    const position = viewport.projectPosition([0, 60, 0]);
+    const local = getSplatCommonUnits(position, viewport);
+    const reference = {
+      viewProjectionMatrix: viewport.viewProjectionMatrix,
+      width: viewport.width,
+      height: viewport.height,
+      distanceScales: {unitsPerMeter: local}
+    } as unknown as Viewport;
+    expect(local[0] / viewport.distanceScales.unitsPerMeter[0]).toBeCloseTo(2);
+    expect(getSplatPixelsPerMeter(position, viewport)).toBeCloseTo(
+      getSplatPixelsPerMeter(position, reference)
+    );
+  });
   it('excludes spheres behind the eye and beyond the near plane while retaining intersecting bounds', () => {
     expect(intersectsSplatLightVolume([0, 0, 5], 0.5, projection)).toBe(false);
     expect(intersectsSplatLightVolume([0, 0, -0.05], 0.02, projection)).toBe(false);

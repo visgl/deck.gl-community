@@ -104,16 +104,25 @@ export function budgetSplatSelections<T>(
     const row = rows[index];
     const counts = sourceCounts[index];
     const levels = getHierarchy(row);
+    const nextLevel = () => {
+      let level = row.level - 1;
+      // A finer representation with no greater cost dominates an intermediate
+      // level. Supplied hierarchies need not have monotonic row counts.
+      for (let finer = level - 1; finer >= desired[index].level; finer--)
+        if (counts[finer] <= counts[level]) level = finer;
+      return level;
+    };
     // Equal-count (or cheaper) refinements need no scheduling or budget. Advancing
     // these immediately avoids thousands of useless heap operations per camera frame.
-    while (row.level > desired[index].level && counts[row.level - 1] <= counts[row.level]) {
-      const delta = counts[row.level - 1] - counts[row.level];
+    while (row.level > desired[index].level && counts[nextLevel()] <= counts[row.level]) {
+      const level = nextLevel();
+      const delta = counts[level] - counts[row.level];
       used += delta;
       charge(index, delta);
-      row.level--;
+      row.level = level;
     }
     if (row.level <= desired[index].level) return;
-    const level = row.level - 1;
+    const level = nextLevel();
     const delta = counts[level] - counts[row.level];
     const error = (levels[row.level].error - levels[level].error) * row.pixels;
     push({

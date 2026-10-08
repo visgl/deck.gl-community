@@ -64,3 +64,16 @@ it('advances equal-cost refinement levels even when the budget is at its coverag
   const rows = budgetSplatSelections([{owner: 1, pixels: 1, level: 0, blend: 0}], duplicate, 10);
   expect(rows[0].level).toBe(2);
 });
+
+it('reaches fitting finer levels across expensive supplied intermediate representations', () => {
+  const nonmonotonic = [hierarchy[1], {...hierarchy[0], error: 1}, hierarchy[2]];
+  const rows = budgetSplatSelections(
+    [0, 1].map(owner => ({owner, pixels: owner ? 1 : 10, level: 0, blend: 0})),
+    nonmonotonic,
+    150
+  );
+  expect(rows.map(row => row.level)).toEqual([0, 2]);
+  expect(rows.reduce((sum, row) => sum + nonmonotonic[row.level].source.opacities.length, 0)).toBe(
+    110
+  );
+});
