@@ -18,12 +18,19 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
   document.body.append(container);
   const cleanup = mountTreeForestExample(container, true);
   const api = (window as Window & {treeForest?: ForestApi}).treeForest!;
+  Object.assign(container.querySelector<HTMLElement>('.forest-stage .canvas')!.style, {
+    width: '160px',
+    height: '120px'
+  });
   let frames = 0;
   const originalAfterRender = api.deck.props.onAfterRender;
   api.deck.setProps({
-    // Exercise all 20K native instances and controls without filling a full-size
-    // framebuffer on Linux SwiftShader. Dedicated lab tests assert full-resolution pixels.
-    useDevicePixels: 0.25,
+    // Keep the full 20K inventory and native geometry, but bound both raster work
+    // and the close-view geometry footprint on Linux SwiftShader. Dedicated lab
+    // fixtures verify full-size pixels; the final overview still covers all trees.
+    width: 160,
+    height: 120,
+    useDevicePixels: false,
     onAfterRender(context) {
       originalAfterRender?.(context);
       frames++;
