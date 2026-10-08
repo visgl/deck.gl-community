@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {mountTreeFilm} from './film';
-void mountTreeFilm(document.querySelector<HTMLDivElement>('#app')!).catch(error => {
-  document.querySelector('#progress')!.textContent = error.message;
+const container = document.querySelector<HTMLDivElement>('#app')!;
+void mountTreeFilm(container).catch(error => {
+  const progress = document.createElement('p');
+  progress.id = 'progress';
+  progress.setAttribute('role', 'alert');
+  progress.textContent = error instanceof Error ? error.message : String(error);
+  container.replaceChildren(progress);
 });

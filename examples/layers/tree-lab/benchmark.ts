@@ -111,7 +111,7 @@ export function mountTreeBenchmark(
   let camera =
     species === 'mixed'
       ? getForestViewState(count, width, height, view === 'overview')
-      : {...VIEW, zoom};
+      : {...VIEW, zoom, minZoom: Math.min(VIEW.minZoom, zoom)};
   parent.querySelector('p')!.textContent += ` · ${view} view · ${motion}`;
   let measuring = false;
   let resizeRevision = 0;

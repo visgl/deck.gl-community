@@ -39,6 +39,21 @@ afterEach(() => {
   harness.failSecondConstructor = false;
   vi.restoreAllMocks();
 });
+it('shows the original initialization error after failed film cleanup removes the controls', async () => {
+  const parent = document.createElement('div');
+  parent.id = 'app';
+  document.body.append(parent);
+  harness.failSecondConstructor = true;
+  try {
+    await import('./film-entry');
+    await expect
+      .poll(() => parent.querySelector('[role="alert"]')?.textContent)
+      .toBe('Device creation failed');
+    expect(harness.decks[0].finalized).toBe(true);
+  } finally {
+    parent.remove();
+  }
+});
 it('waits for the requested paired pose and ready shadow maps, ignoring stale callbacks', async () => {
   const parent = document.createElement('div');
   document.body.append(parent);

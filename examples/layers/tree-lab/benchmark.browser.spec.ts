@@ -89,6 +89,31 @@ it('submits all 20,000 requested tree instances to the renderer', async () => {
   }
 }, 45000);
 
+it('uses the computed pullback zoom for a large single-species grid', async () => {
+  const originalUrl = location.href;
+  history.replaceState(null, '', '?count=20000&species=pine&season=winter&wind=0&shadows=0');
+  const parent = document.createElement('div');
+  parent.id = 'app';
+  document.body.append(parent);
+  const cleanup = mountTreeBenchmark(TreeLayer, 'native');
+  const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
+  Object.assign(parent.querySelector<HTMLElement>('.canvas')!.style, {
+    width: '160px',
+    height: '120px'
+  });
+  api.deck.setProps({width: 160, height: 120, useDevicePixels: false});
+  try {
+    await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
+    expect(api.deck.getViewports()[0].zoom).toBeCloseTo(20.5 - Math.log2(Math.sqrt(20000)));
+    expect((api.deck.props.layers as TreeLayer[])[1].props.data).toHaveLength(20000);
+    expect(api.errors).toEqual([]);
+  } finally {
+    cleanup();
+    parent.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+}, 45000);
+
 it('refits overview after resize and rejects measurements across viewport sizes', async () => {
   const originalUrl = location.href;
   const queryUrl = new URL(originalUrl);
