@@ -104,6 +104,15 @@ it('casts wood shadows with ordinary LightingEffect and removes every tree part 
     shadows = true;
     deck.setProps({layers: make()});
     await settle();
+    const woodChildren = deck
+      .layerManager!.getLayers()
+      .filter(layer => !layer.isComposite && layer.id.includes('-wood-'));
+    const cameraWood = woodChildren.filter(layer => layer.props.operation === 'draw');
+    const lightWood = woodChildren.filter(layer => layer.props.operation === 'shadow');
+    expect(cameraWood.length).toBeGreaterThan(0);
+    expect(lightWood.length).toBeGreaterThan(0);
+    expect(cameraWood.every(layer => layer.props.shadowEnabled === false)).toBe(true);
+    expect(lightWood.every(layer => layer.props.shadowEnabled === true)).toBe(true);
     let darkened = 0;
     for (let i = 0; i < pixels.length; i += 4) if (unshadowed[i] - pixels[i] > 12) darkened++;
     expect(darkened).toBeGreaterThan(30);
