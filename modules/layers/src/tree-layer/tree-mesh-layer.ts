@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {createIterable, type Accessor, type DefaultProps} from '@deck.gl/core';
+import {
+  createIterable,
+  type Accessor,
+  type DefaultProps,
+  type UpdateParameters
+} from '@deck.gl/core';
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {Model} from '@luma.gl/engine';
 import {getPickingShadowProps} from '../splat-layer/splat-picking-shadow';
@@ -173,6 +178,21 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       instanceRootLength: {size: 1, accessor: 'getRootLength', defaultValue: -1},
       instanceStemRadius: {size: 1, accessor: 'getStemRadius', defaultValue: -1}
     });
+  }
+
+  updateState(params: UpdateParameters<this>) {
+    super.updateState(params);
+    // This derived attribute combines two accessors. Constants do not pass through
+    // the attribute manager's single-accessor value path and need invalidation.
+    for (const name of ['getCoverageWeight', 'getCoverageRange'] as const) {
+      if (
+        typeof params.props[name] !== 'function' &&
+        params.props[name] !== params.oldProps[name]
+      ) {
+        this.getAttributeManager()!.invalidate('instanceTreeCoverage');
+        break;
+      }
+    }
   }
 
   getShaders() {
