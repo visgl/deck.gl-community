@@ -47,10 +47,13 @@ const getLeafNodeCount = (node, count) => {
 };
 
 const getTreeDepth = (node, depth = 0) => {
-  if (node.isLeaf) {
+  if (!node.children?.length) {
     return depth;
   }
-  return getTreeDepth(node.children[0], depth + 1);
+  return node.children.reduce(
+    (maxDepth, child) => Math.max(maxDepth, getTreeDepth(child, depth + 1)),
+    depth
+  );
 };
 
 const getPath = (node, targetId, path) => {
@@ -79,7 +82,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   _name = 'RadialLayout';
   _graph: Graph | null = null;
   // custom layout data structure
-  _hierarchicalPoints = {};
+  _hierarchicalPoints: Record<string, [number, number]> = Object.create(null);
   nestedTree;
 
   constructor(props: RadialLayoutProps = {}) {
@@ -94,26 +97,24 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     this._graph = graph;
   }
 
+  /** Computes concentric rings using maximum hierarchy depth and evenly spaced leaf sectors. */
   start(): void {
     if (!this._graph) {
       return;
     }
+    this._hierarchicalPoints = Object.create(null);
+    this.nestedTree = null;
+    this._onLayoutStart();
     const nodes = Array.from(this._graph.getNodes());
     const nodeCount = nodes.length;
-    if (nodeCount === 0) {
-      return;
-    }
-
     const {tree} = this.props;
-
-    if (!tree || tree.length === 0) {
+    if (nodeCount === 0 || !tree?.length) {
+      this._onLayoutChange();
+      this._onLayoutDone();
       return;
     }
-
-    this._onLayoutStart();
 
     const {radius} = this.props;
-    const unitAngle = 360 / nodeCount;
 
     // hierarchical positions
     const rootNode = tree[0];
@@ -124,12 +125,13 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
         isLeaf: !node.children || node.children.length === 0
       };
       return res;
-    }, {});
+    }, Object.create(null));
     // nested structure
     this.nestedTree = traverseTree(rootNode.id, nodeMap);
 
     const totalLevels = getTreeDepth(this.nestedTree, 0);
-    const distanceBetweenLevels = radius / (totalLevels - 1);
+    const distanceBetweenLevels = radius / Math.max(totalLevels, 1);
+    const unitAngle = 360 / getLeafNodeCount(this.nestedTree, 0);
 
     const calculatePosition = (node, level, startAngle, positionMap) => {
       const isRoot = node.id === rootNode.id;
@@ -143,7 +145,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
               0,
               0,
               0,
-              distanceBetweenLevels * (level + 1),
+              distanceBetweenLevels * level,
               startAngle + unitAngle * (groupSize / 2)
             );
         // calculate children position
@@ -153,17 +155,12 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
           tempAngle += getLeafNodeCount(n, 0) * unitAngle;
         });
       } else {
-        positionMap[node.id] = rotate(
-          0,
-          0,
-          0,
-          distanceBetweenLevels * (level + 1),
-          startAngle + unitAngle
-        );
+        positionMap[node.id] = isRoot
+          ? [0, 0]
+          : rotate(0, 0, 0, distanceBetweenLevels * level, startAngle + unitAngle / 2);
       }
     };
 
-    this._hierarchicalPoints = {};
     calculatePosition(this.nestedTree, 0, 0, this._hierarchicalPoints);
     // layout completes: notifiy component to re-render
     this._onLayoutChange();
@@ -176,40 +173,42 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
 
   update() {}
 
+  /** Returns null when the node is absent from the configured hierarchy. */
   getNodePosition = (node: NodeInterface) => {
-    return this._hierarchicalPoints[node.getId()];
+    return this._hierarchicalPoints[node.getId()] ?? null;
   };
 
-  // spline curve version
+  /** Routes edges through their shared ancestor, excluding either endpoint from control points. */
   getEdgePosition = (edge: EdgeInterface) => {
     const sourceNodeId = edge.getSourceNodeId();
     const targetNodeId = edge.getTargetNodeId();
     const sourceNodePos = this._hierarchicalPoints[sourceNodeId];
     const targetNodePos = this._hierarchicalPoints[targetNodeId];
+    if (!sourceNodePos || !targetNodePos) {
+      return null;
+    }
 
     const sourcePath = [];
     getPath(this.nestedTree, sourceNodeId, sourcePath);
     const targetPath = [];
     getPath(this.nestedTree, targetNodeId, targetPath);
 
-    const totalLevels = sourcePath.length;
-    let commonAncestorLevel = totalLevels - 1; // root
-    for (let i = 0; i < totalLevels; i++) {
-      if (sourcePath[i] === targetPath[i]) {
-        commonAncestorLevel = i;
-        break;
-      }
+    let sourceAncestor = sourcePath.length - 1;
+    let targetAncestor = targetPath.length - 1;
+    while (
+      sourceAncestor >= 0 &&
+      targetAncestor >= 0 &&
+      sourcePath[sourceAncestor] === targetPath[targetAncestor]
+    ) {
+      sourceAncestor--;
+      targetAncestor--;
     }
-
-    const wayPoints = [];
-    for (let i = 1; i <= commonAncestorLevel; i++) {
-      const nodeId = sourcePath[i];
-      wayPoints.push(this._hierarchicalPoints[nodeId]);
-    }
-    for (let i = commonAncestorLevel - 1; i > 0; i--) {
-      const nodeId = targetPath[i];
-      wayPoints.push(this._hierarchicalPoints[nodeId]);
-    }
+    const wayPoints = [
+      ...sourcePath.slice(1, sourceAncestor + 2),
+      ...targetPath.slice(1, targetAncestor + 1).reverse()
+    ]
+      .filter(nodeId => nodeId !== sourceNodeId && nodeId !== targetNodeId)
+      .map(nodeId => this._hierarchicalPoints[nodeId]);
 
     return {
       type: 'spline-curve',
@@ -233,7 +232,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
   }
 }
 
-function rotate(cx, cy, x, y, angle) {
+function rotate(cx: number, cy: number, x: number, y: number, angle: number): [number, number] {
   const radians = (Math.PI / 180) * angle;
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);

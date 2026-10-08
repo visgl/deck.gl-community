@@ -139,6 +139,7 @@ const BasemapStyleSchema = z
 export const BasemapLayerPropsSchema = CompositeLayerPropsSchema.extend({
   style: z.union([z.string(), BasemapStyleSchema]).nullable().meta({'x-playground-literal': true}),
   loadOptions: JsonObjectSchema.nullable().optional(),
+  fontFamily: z.union([z.string(), CallbackSchema]).nullable().optional(),
   mode: z.enum(['map', 'globe']).optional(),
   globe: z
     .strictObject({
