@@ -92,7 +92,7 @@ describe('data-driven paint properties', () => {
     expect(sublayer.props.getLineWidth(features[1])).toBe(6);
   });
 
-  test('keys updateTriggers on the integer zoom only for zoom-dependent data-driven values', () => {
+  test('keys updateTriggers on the zoom step only for zoom-dependent data-driven values', () => {
     const features = [feature('LineString', {w: 2})];
     const {sublayer} = renderStyleLayer(
       {
@@ -107,13 +107,13 @@ describe('data-driven paint properties', () => {
       7.6
     );
 
-    expect(sublayer.props.updateTriggers.getLineWidth).toBe(7);
+    expect(sublayer.props.updateTriggers.getLineWidth).toBe(7.5);
     expect(sublayer.props.updateTriggers.getLineColor).toBeUndefined();
-    // Evaluated at the integer zoom: 2 + (10 - 2) * (7 - 5) / 5.
-    expect(sublayer.props.getLineWidth(features[0])).toBeCloseTo(5.2, 6);
+    // Evaluated at the zoom step: 2 + (10 - 2) * (7.5 - 5) / 5.
+    expect(sublayer.props.getLineWidth(features[0])).toBeCloseTo(6, 6);
   });
 
-  test('evaluates feature-independent values as constants at the integer zoom', () => {
+  test('evaluates feature-independent values as constants at the zoom step', () => {
     const styleLayer = {
       id: 'land',
       type: 'line',
@@ -123,14 +123,14 @@ describe('data-driven paint properties', () => {
       }
     };
     const features = [feature('LineString', {})];
-    // Neighbouring tiles generated at z7.2 and z7.9 must agree: both evaluate at zoom 7.
-    const early = renderStyleLayer(styleLayer, features, 7.2).sublayer;
-    const late = renderStyleLayer(styleLayer, features, 7.9).sublayer;
+    // Neighbouring tiles generated at z7.55 and z7.7 must agree: both evaluate at zoom 7.5.
+    const early = renderStyleLayer(styleLayer, features, 7.55).sublayer;
+    const late = renderStyleLayer(styleLayer, features, 7.7).sublayer;
 
     expect(early.props.getLineColor).toEqual([255, 0, 0, 255]);
-    // 1 + (6 - 1) * (7 - 5) / 5.
-    expect(early.props.getLineWidth).toBeCloseTo(3, 6);
-    expect(late.props.getLineWidth).toBeCloseTo(3, 6);
+    // 1 + (6 - 1) * (7.5 - 5) / 5.
+    expect(early.props.getLineWidth).toBeCloseTo(3.5, 6);
+    expect(late.props.getLineWidth).toBeCloseTo(3.5, 6);
     expect(early.props.updateTriggers.getLineWidth).toBeUndefined();
   });
 
@@ -167,15 +167,15 @@ describe('data-driven paint properties', () => {
     );
   });
 
-  test('regenerates tile sublayers when the integer zoom changes', () => {
+  test('regenerates tile sublayers when the zoom step changes, not within one', () => {
     const styleLayer = {
       id: 'land',
       type: 'line',
       paint: {'line-width': ['interpolate', ['linear'], ['zoom'], 5, ['get', 'w'], 10, 10]}
     };
     const features = [feature('LineString', {w: 2})];
-    const at7 = renderStyleLayer(styleLayer, features, 7.2).vectorLayer;
-    const at7b = renderStyleLayer(styleLayer, features, 7.9).vectorLayer;
+    const at7 = renderStyleLayer(styleLayer, features, 7.3).vectorLayer;
+    const at7b = renderStyleLayer(styleLayer, features, 7.45).vectorLayer;
     const at8 = renderStyleLayer(styleLayer, features, 8.1).vectorLayer;
 
     expect(at7.props.updateTriggers.renderSubLayers).toEqual(

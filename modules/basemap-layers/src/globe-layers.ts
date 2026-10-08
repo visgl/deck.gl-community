@@ -5,7 +5,13 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
-import {getStyleAccessor, getStyleZoomKey, getZoomBucket, withOpacity} from './style-accessor';
+import {
+  getFilterZoom,
+  getStyleAccessor,
+  getStyleZoomKey,
+  getZoomBucket,
+  withOpacity
+} from './style-accessor';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {
   BasemapLoadOptions,
@@ -87,30 +93,85 @@ const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
 const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
 
-/** Evaluates a style layer's paint at the integer zoom (see `getZoomBucket`). */
+/** The latest evaluated paint per style layer, reused across tiles within one zoom step. */
+const paintCache = new WeakMap<
+  BasemapStyleLayer,
+  {zoomBucket: number; paint: Record<string, any>}
+>();
+
+/**
+ * Evaluates a style layer's paint at the stepped zoom (see `getZoomBucket`). Every tile
+ * regenerated at one step gets the same result, so it is computed once per style layer and step.
+ */
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
-  const properties = parseProperties(layer, {zoom: getZoomBucket(zoom)});
-  return Object.fromEntries(
+  const zoomBucket = getZoomBucket(zoom);
+  const cached = paintCache.get(layer);
+  if (cached && cached.zoomBucket === zoomBucket) {
+    return cached.paint;
+  }
+  const properties = parseProperties(layer, {zoom: zoomBucket});
+  const paint = Object.fromEntries(
     properties.map(entry => [Object.keys(entry)[0], Object.values(entry)[0]])
   );
+  paintCache.set(layer, {zoomBucket, paint});
+  return paint;
 }
+
+type FilteredFeatures = {
+  /** The filter's contents when the entry was made, so an in-place edit is detected. */
+  filterSnapshot: string;
+  sourceLayer: string | undefined;
+  filterZoom: number | null;
+  features: any[];
+};
+
+/**
+ * The latest filtered features per tile content and style layer. Tile sublayers regenerate at
+ * every style zoom step; handing them the same array keeps deck.gl from seeing a data change, so
+ * only zoom-dependent accessors recompute instead of every feature being re-tessellated. The
+ * entry is reused while the contents of the style layer's `filter`, its `source-layer` and (for
+ * filters that read `["zoom"]`) the integer zoom are unchanged, so a filter edited in place is
+ * re-applied, as `compileStyleFilter` recompiles it.
+ */
+const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, FilteredFeatures>>();
 
 function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
   const sourceLayer = styleLayer['source-layer'];
+  const {filter} = styleLayer;
+  if (!sourceLayer && !filter) {
+    return features;
+  }
+
+  const filterSnapshot = filter === undefined ? '' : JSON.stringify(filter);
+  // MapLibre evaluates `["zoom"]` in filters at integer zooms.
+  const filterZoom = filterSnapshot.includes('["zoom"]') ? getFilterZoom(zoom) : null;
+  let byStyleLayer = filteredFeatureCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    filteredFeatureCache.set(features, byStyleLayer);
+  }
+  const cached = byStyleLayer.get(styleLayer);
+  if (
+    cached &&
+    cached.filterSnapshot === filterSnapshot &&
+    cached.sourceLayer === sourceLayer &&
+    cached.filterZoom === filterZoom
+  ) {
+    return cached.features;
+  }
+
   const sourceFeatures = sourceLayer
     ? features.filter(feature => feature.properties?.layerName === sourceLayer)
     : features;
-
-  if (!styleLayer.filter) {
-    return sourceFeatures;
-  }
-
-  // MapLibre evaluates `["zoom"]` in filters at integer zooms.
-  return filterFeatures({
-    features: sourceFeatures,
-    filter: styleLayer.filter,
-    globalProperties: {zoom: getZoomBucket(zoom)}
-  });
+  const filtered = filter
+    ? filterFeatures({
+        features: sourceFeatures,
+        filter: filter as unknown[],
+        globalProperties: {zoom: getFilterZoom(zoom)}
+      })
+    : sourceFeatures;
+  byStyleLayer.set(styleLayer, {filterSnapshot, sourceLayer, filterZoom, features: filtered});
+  return filtered;
 }
 
 /** The `minzoom`/`maxzoom` limits that `isStyleLayerVisibleAtZoom` compares against. */
@@ -171,21 +232,6 @@ function getSubLayerBaseProps(props: any) {
     parameters,
     wrapLongitude
   };
-}
-
-function getLineWidthScale(styleLayer: BasemapStyleLayer): number {
-  const sourceLayer = styleLayer['source-layer'] || '';
-  const id = styleLayer.id || '';
-
-  if (sourceLayer === 'transportation' || sourceLayer === 'boundary' || id.includes('road-')) {
-    return 0.55;
-  }
-
-  if (sourceLayer === 'waterway' || sourceLayer === 'aeroway') {
-    return 0.75;
-  }
-
-  return 1;
 }
 
 function getGlobeFillColor(color: [number, number, number, number], mode: BasemapMode) {
@@ -404,9 +450,10 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
-    // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at integer zooms
-    // (evaluation), at fractional layer limits (visibility), and when the style changes. Two styles
-    // can share a source id and so this layer's id; deck.gl compares the style by identity.
+    // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at each style zoom
+    // step (evaluation and filters), at fractional layer limits (visibility), and when the style
+    // changes. Two styles can share a source id and so this layer's id; deck.gl compares the
+    // style by identity.
     updateTriggers: {
       renderSubLayers: [getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)), styleDefinition]
     },
@@ -607,9 +654,8 @@ function createGeometrySubLayer({
     ([color, outlineColor, opacity]) =>
       withOpacity(color || outlineColor || [0, 0, 0, 0], opacity ?? 1)
   );
-  const lineWidthScale = getLineWidthScale(styleLayer);
   const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
-    Math.max(0.25, Number(width ?? 1) * lineWidthScale)
+    Math.max(0, Number(width ?? 1))
   );
 
   return new GeoJsonLayer({
@@ -628,7 +674,6 @@ function createGeometrySubLayer({
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
-    lineWidthMaxPixels: 20,
     lineCapRounded: isLine,
     lineJointRounded: isLine,
     getPointRadius: 0,

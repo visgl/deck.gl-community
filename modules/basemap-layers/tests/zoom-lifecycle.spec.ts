@@ -39,7 +39,7 @@ function fillColorOf(subLayers: any[], id: string) {
 }
 
 describe('BasemapLayer zoom lifecycle', () => {
-  test('regenerates sublayers at integer zooms and at fractional minzoom, not in between', async () => {
+  test('regenerates sublayers at zoom steps and at fractional minzoom, not in between', async () => {
     const renderCounts: number[] = [];
     await testLayerAsync({
       Layer: LoadedBasemapLayer as any,
@@ -61,23 +61,25 @@ describe('BasemapLayer zoom lifecycle', () => {
           }
         },
         {
-          title: 'z7.9: crossing the fractional minzoom regenerates; color still evaluated at 7',
+          title: 'z7.9: crossing the fractional minzoom regenerates; color evaluated at 7.75',
           viewport: viewportAt(7.9),
           onAfterUpdate: ({subLayers}) => {
             expect(backgroundIds(subLayers)).toEqual(['bg', 'bg-late']);
-            expect(fillColorOf(subLayers, 'bg')).toEqual([255, 0, 0, 255]);
+            const [red, , blue] = fillColorOf(subLayers, 'bg');
+            expect(red).toBeLessThan(255);
+            expect(blue).toBeGreaterThan(0);
           }
         },
         {
-          title: 'z8.1: crossing an integer zoom re-evaluates at zoom 8',
-          viewport: viewportAt(8.1),
+          title: 'z8.05: crossing an integer zoom re-evaluates at zoom 8',
+          viewport: viewportAt(8.05),
           onAfterUpdate: ({subLayers}) => {
             expect(fillColorOf(subLayers, 'bg')).toEqual([0, 0, 255, 255]);
           }
         },
         {
-          title: 'z8.4: same zoom key, no regeneration',
-          viewport: viewportAt(8.4),
+          title: 'z8.2: same zoom step, no regeneration',
+          viewport: viewportAt(8.2),
           onAfterUpdate: ({spies}) => {
             renderCounts.push(spies.renderLayers.mock.calls.length);
           }
