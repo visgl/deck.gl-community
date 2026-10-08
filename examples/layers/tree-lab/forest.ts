@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck, type MapViewState} from '@deck.gl/core';
+import {Deck, type MapView, type MapViewState} from '@deck.gl/core';
 import {TreeLayer} from '@deck.gl-community/layers';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {createForestSpecimens, getTreeCount} from './forest-data';
@@ -10,7 +10,21 @@ import {getTourFrame} from './tour';
 import {createForestSceneLayers, getForestViewState} from './forest-scene';
 import './style.css';
 
-/** One native renderer with a procedural mixed forest, Gaussian foliage and connected wood and shared sunlight. */
+/** Forest-local wind timeline controls. */
+class ForestDeck extends Deck<MapView> {
+  /** Last local timeline phase used by automatic wind shaders, in seconds. */
+  getWindTime(): number {
+    return (this.layerManager?.context.timeline.getTime() ?? 0) / 1000;
+  }
+  /** Suspend hidden-tab wind without accumulating elapsed wall time. */
+  setWindClockPaused(paused: boolean): void {
+    const timeline = this.layerManager?.context.timeline;
+    if (paused) timeline?.pause();
+    else timeline?.play();
+  }
+}
+
+/** One native renderer with a procedural mixed forest, Gaussian foliage, connected wood and shared sunlight. */
 export function mountTreeForestExample(container: HTMLElement, standalone = false): () => void {
   const query = new URLSearchParams(location.search);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -31,6 +45,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   let showStats = query.get('stats') !== '0';
   let request = 0;
   let ready = false;
+  let windTime = 0;
   let disposed = false;
   const errors: string[] = [];
   const root = document.createElement('div');
@@ -72,7 +87,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   const getLayers = () =>
     createForestSceneLayers(TreeLayer, 'forest', data, {
       ...options,
-      windTime: options.wind && !document.hidden ? null : 0
+      windTime: options.wind ? (document.hidden ? windTime : null) : 0
     });
   const refreshLabels = () => {
     heading.textContent = `${count.toLocaleString()} trees`;
@@ -96,7 +111,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     if (benchmark)
       benchmark.href = `./native.html?count=${count}&species=mixed&wind=${Number(options.wind)}&shadows=${Number(options.shadows)}&season=${options.season}&view=${overview ? 'overview' : 'canopy'}`;
   };
-  const deck = new Deck({
+  const deck = new ForestDeck({
     parent: root.querySelector('.canvas')!,
     width: '100%',
     height: '100%',
@@ -125,6 +140,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
       }
     },
     onAfterRender: () => {
+      windTime = (deck.props.layers[1] as TreeLayer).props.windTime ?? deck.getWindTime();
       if (showStats) {
         drawTimes[drawIndex] = performance.now();
         drawIndex = (drawIndex + 1) % drawTimes.length;
@@ -199,7 +215,13 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
     lastStats = 0;
     refreshLabels();
   });
-  document.addEventListener('visibilitychange', refresh);
+  const visibility = () => {
+    // Freeze the deck-local wind clock as well as its rendered pose. Resuming the tab
+    // continues from that phase instead of advancing through the hidden interval.
+    deck.setWindClockPaused(document.hidden);
+    if (options.wind) refresh();
+  };
+  document.addEventListener('visibilitychange', visibility);
   const start = performance.now();
   const tick = (now: number) => {
     if (disposed) return;
@@ -267,7 +289,7 @@ export function mountTreeForestExample(container: HTMLElement, standalone = fals
   return () => {
     disposed = true;
     cancelAnimationFrame(request);
-    document.removeEventListener('visibilitychange', refresh);
+    document.removeEventListener('visibilitychange', visibility);
     deck.finalize();
     root.remove();
     const reviewWindow = window as Window & {treeForest?: typeof api};

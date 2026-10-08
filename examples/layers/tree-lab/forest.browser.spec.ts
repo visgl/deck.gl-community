@@ -7,7 +7,12 @@ import {expect, it, vi} from 'vitest';
 import {mountTreeForestExample} from './forest';
 import {TreeLightingEffect} from './tree-lighting';
 
-type ForestApi = {ready: boolean; errors: string[]; count: number; deck: Deck};
+type ForestApi = {
+  ready: boolean;
+  errors: string[];
+  count: number;
+  deck: Deck & {getWindTime(): number};
+};
 
 it('renders 10K and 20K forests at highest geometry through season, shadow and view changes', async () => {
   const originalUrl = location.href;
@@ -135,6 +140,7 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
         ? ({matches: true} as MediaQueryList)
         : matchMedia(query)
     );
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
   const container = document.createElement('div');
   container.style.cssText = 'width:400px;height:300px';
   document.body.append(container);
@@ -156,6 +162,27 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
       expect(
         container.querySelector<HTMLInputElement>('[aria-label="Moving sunlight"]')!.checked
       ).toBe(false);
+      const layers = api.deck.props.layers;
+      if (wind) {
+        await expect.poll(() => api.deck.getWindTime()).toBeGreaterThan(0);
+      }
+      const renderedClock = api.deck.getWindTime();
+      hidden.mockReturnValue(true);
+      document.dispatchEvent(new Event('visibilitychange'));
+      if (wind) {
+        const frozen = (api.deck.props.layers[1] as TreeLayer).props.windTime;
+        expect(frozen).toBeGreaterThan(0);
+        expect(frozen).toBeCloseTo(renderedClock, 6);
+        api.deck.redraw('hidden wind contract');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        expect(api.deck.getWindTime()).toBe(frozen);
+      } else expect(api.deck.props.layers).toBe(layers);
+      hidden.mockReturnValue(false);
+      document.dispatchEvent(new Event('visibilitychange'));
+      if (wind) {
+        expect((api.deck.props.layers[1] as TreeLayer).props.windTime).toBeNull();
+        expect(api.deck.getWindTime()).toBeCloseTo(renderedClock, 6);
+      } else expect(api.deck.props.layers).toBe(layers);
       const stats = container.querySelector<HTMLInputElement>('[aria-label="Show performance"]')!;
       const performanceLabel = container.querySelector<HTMLElement>('#forest-performance')!;
       stats.click();
@@ -176,6 +203,7 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
   } finally {
     cleanup?.();
     preference.mockRestore();
+    hidden.mockRestore();
     container.remove();
     history.replaceState(null, '', originalUrl);
   }
