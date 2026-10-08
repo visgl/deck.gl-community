@@ -66,6 +66,7 @@ export class RADScene {
   private readonly pendingUploads: Array<() => void> = [];
   private uploadsSinceSelection = 0;
   private requests: RADSelection['requests'] = [];
+  private readonly pendingRemovals = new Set<Promise<void>>();
   private presentedFrontier: readonly GPUPagedSplatPage[] = [];
   private lastStatus = '';
   private error?: Error;
@@ -93,7 +94,9 @@ export class RADScene {
       onEvict: chunk => {
         if (!this.destroyed) {
           this.selectionNeeded = true;
-          void this.source.remove(chunk.id).catch(error => this.fail(error));
+          const removal = this.source.remove(chunk.id).catch(error => this.fail(error));
+          this.pendingRemovals.add(removal);
+          void removal.finally(() => this.pendingRemovals.delete(removal));
         }
       }
     });
@@ -232,18 +235,25 @@ export class RADScene {
     for (const id of leasedIds) this.residency.pin(id);
     const views = this.views.size ? [...this.views] : [['default', this.currentView] as const];
     const viewVersion = this.viewVersion;
-    void Promise.all(
-      views.map(async ([key, view]) => ({
-        key,
-        result: await this.source.select(
-          view,
-          viewVersion,
+    // Eviction notifications must reach the worker before a new traversal can
+    // reuse its retained frontier. The host leases only pages still resident.
+    const dispatch = () =>
+      Promise.all(
+        views.map(async ([key, view]) => ({
           key,
-          Math.max(1, Math.floor(this.options.maxActiveSplats / views.length)),
-          this.options.maxResidentSplats
-        )
-      }))
-    )
+          result: await this.source.select(
+            view,
+            viewVersion,
+            key,
+            Math.max(1, Math.floor(this.options.maxActiveSplats / views.length)),
+            this.options.maxResidentSplats
+          )
+        }))
+      );
+    const selection = this.pendingRemovals.size
+      ? Promise.all([...this.pendingRemovals]).then(() => (this.destroyed ? [] : dispatch()))
+      : dispatch();
+    void selection
       .then(results => {
         if (this.destroyed) return;
         const rows = new Map<string, Set<number>>();
@@ -292,6 +302,26 @@ export class RADScene {
     this.pendingSelection = undefined;
     this.selecting = false;
     const {result, leasedIds} = pending;
+    const referencedIds = [
+      ...(result.frontier ?? []).map(entry => entry.id),
+      ...[...(pending.frontiers?.values() ?? [])].flatMap(frontier =>
+        (frontier ?? []).map(entry => entry.id)
+      )
+    ];
+    if (referencedIds.some(id => !this.residency.has(id))) {
+      // Reject the entire stale reply, retaining the last coherent visible
+      // frontier instead of publishing a partial frontier or aborting a frame.
+      const protectedIds = new Set([
+        'rad:0',
+        ...this.presentedFrontier.map(entry => entry.id),
+        ...[...this.frontiers.values()].flatMap(frontier => frontier.map(entry => entry.id))
+      ]);
+      for (const id of leasedIds) if (!protectedIds.has(id)) this.residency.unpin(id);
+      this.selectionNeeded = true;
+      this.scheduler.invalidate();
+      this.options.onChange();
+      return;
+    }
     if (pending.frontiers)
       for (const [key, frontier] of pending.frontiers) {
         if (frontier)

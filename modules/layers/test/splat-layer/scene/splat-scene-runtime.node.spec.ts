@@ -12,6 +12,31 @@ import {expect, it, vi} from 'vitest';
 import {SplatSceneLayer} from '../../../src/splat-layer/scene/splat-scene-layer';
 import {SplatSceneRuntime} from '../../../src/splat-layer/scene/splat-scene-runtime';
 
+it('publishes an error status when off-thread static decoding fails', async () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const worker = {postMessage: vi.fn(), terminate: vi.fn(), onmessage: undefined as any};
+  const onStatusChange = vi.fn();
+  const layer = new SplatSceneLayer({
+    id: 'broken',
+    data: '/broken.splat',
+    workerFactory: () => worker as never,
+    onStatusChange
+  });
+  runtime.register(layer);
+  const raise = vi.spyOn(layer, 'raiseError').mockImplementation(() => {});
+  runtime['acquireAsset']('/broken.splat', layer, 10, 10);
+  worker.onmessage({data: {error: 'Malformed source'}});
+  await vi.waitFor(() =>
+    expect(onStatusChange).toHaveBeenCalledWith(
+      expect.objectContaining({phase: 'error', pendingPages: 0, message: 'Malformed source'})
+    )
+  );
+  expect(raise).toHaveBeenCalled();
+  runtime.cleanup();
+  device.destroy();
+});
+
 it.each([
   1, 2
 ])('reserves decoded static coverage before granting detail to %i RAD assets', radCount => {

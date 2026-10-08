@@ -61,6 +61,51 @@ function makeSelection(version: number, viewVersion: number): RADSelection {
 }
 
 describe('SplatLayer off-thread refinement', () => {
+  it('retains a coherent frontier and retries a stale reply that names an evicted page', () => {
+    const {device, scene, onError} = makeScene();
+    const source = {
+      positions: new Float32Array([0, 0, 0]),
+      scales: new Float32Array([1, 1, 1]),
+      rotations: new Float32Array([1, 0, 0, 0]),
+      colors: new Uint8Array([255, 255, 255, 255]),
+      opacities: new Float32Array([1])
+    };
+    const data = makeGPUSplatData(device, source);
+    scene.residency.add(data, {id: 'rad:0'});
+    scene.residency.pin('rad:0');
+    const frontier = [{id: 'rad:0', data, activeRows: new Uint32Array([0])}];
+    scene['presentedFrontier'] = frontier;
+    scene['frontiers'].set('camera', frontier);
+    scene['pendingSelection'] = {
+      result: {...makeSelection(1, 1), frontier: [{id: 'rad:1', activeRows: new Uint32Array([0])}]},
+      leasedIds: new Set(['rad:0']),
+      frontiers: new Map([['camera', [{id: 'rad:1', activeRows: new Uint32Array([0])}]]])
+    };
+    expect(() => scene['applySelection']()).not.toThrow();
+    expect(scene.frontier).toBe(frontier);
+    expect(scene.getFrontier('camera')).toBe(frontier);
+    expect(scene.residency.getChunk('rad:0')?.pinned).toBe(true);
+    expect(scene['selectionNeeded']).toBe(true);
+    expect(onError).not.toHaveBeenCalled();
+    scene.destroy();
+    device.destroy();
+  });
+
+  it('waits for worker eviction acknowledgements before traversing again', async () => {
+    const {device, scene, select} = makeScene();
+    let complete: () => void = () => {};
+    scene['pendingRemovals'].add(
+      new Promise<void>(resolve => {
+        complete = resolve;
+      })
+    );
+    scene.update(view, 1, 0);
+    expect(select).not.toHaveBeenCalled();
+    complete();
+    await vi.waitFor(() => expect(select).toHaveBeenCalledTimes(1));
+    scene.destroy();
+    device.destroy();
+  });
   it('configures selection from metadata and admits the root before becoming ready', async () => {
     const {device, scene, onChange} = makeScene();
     scene['rootReady'] = false;

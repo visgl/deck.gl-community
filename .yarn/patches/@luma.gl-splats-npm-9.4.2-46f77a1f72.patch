@@ -1,10 +1,10 @@
 diff --git a/dist/gpu-paged-splat-renderer.d.ts b/dist/gpu-paged-splat-renderer.d.ts
-index 271d0010..76b9cd48 100644
+index 271d0010..dc2384ee 100644
 --- a/dist/gpu-paged-splat-renderer.d.ts
 +++ b/dist/gpu-paged-splat-renderer.d.ts
 @@ -1,4 +1,4 @@
 -import { Buffer, type CommandEncoder, type Device } from '@luma.gl/core';
-+import { Buffer, type CommandEncoder, type Device, type RenderPass } from '@luma.gl/core';
++import { Buffer, type CommandEncoder, type Device, type RenderPass, type RenderPipelineParameters } from '@luma.gl/core';
  import { DrawCommandBuffer, GPUCommandGraphEncoding, type CompiledGPUCommandGraph, type GPUCommandGraphStats } from '@luma.gl/gpgpu/gpu-core';
  import type { GPUSplatGraphRendererProps } from "./gpu-splat-graph-renderer.js";
  import { GPUSplatData } from "./splat-data.js";
@@ -55,14 +55,14 @@ index 271d0010..76b9cd48 100644
 +     * Call before the host begins its render pass, then call {@link draw} inside that pass.
 +     */
 +    prepare(commandEncoder: CommandEncoder): GPUCommandGraphEncoding | undefined;
-+    /** Draws prepared splats into a caller-owned pass without clearing, ending, or submitting it. */
-+    draw(renderPass: RenderPass): void;
++    /** Draws prepared splats into a caller-owned pass, applying optional host pipeline parameters. */
++    draw(renderPass: RenderPass, parameters?: RenderPipelineParameters): void;
 +    private encodeFrame;
      /** Counts unique caller-owned pages separately from renderer-owned bounded working storage. */
      getStats(): GPUPagedSplatRendererStats;
      /** Releases graph-owned scratch and renderer-owned allocations without touching source pages. */
 diff --git a/dist/gpu-paged-splat-renderer.js b/dist/gpu-paged-splat-renderer.js
-index 77dba0e4..7a2fbfb2 100644
+index 77dba0e4..07b373e2 100644
 --- a/dist/gpu-paged-splat-renderer.js
 +++ b/dist/gpu-paged-splat-renderer.js
 @@ -4,12 +4,13 @@
@@ -125,8 +125,8 @@ index 77dba0e4..7a2fbfb2 100644
 +    prepare(commandEncoder) {
 +        return this.encodeFrame(commandEncoder, false);
 +    }
-+    /** Draws prepared splats into a caller-owned pass without clearing, ending, or submitting it. */
-+    draw(renderPass) {
++    /** Draws prepared splats into a caller-owned pass, applying optional host pipeline parameters. */
++    draw(renderPass, parameters) {
 +        if (this.isDestroyed || !this.hasPresentedContent || !this.model) {
 +            return;
 +        }
@@ -135,19 +135,19 @@ index 77dba0e4..7a2fbfb2 100644
 +            renderPass.props.framebuffer;
 +        const colorAttachmentFormats = framebuffer?.colorAttachments.map(attachment => attachment ? attachment.texture.format : null) ?? [this.device.preferredColorFormat];
 +        const depthStencilAttachmentFormat = framebuffer?.depthStencilAttachment?.texture.format;
-+        const pipelineKey = `${colorAttachmentFormats.join(',')}/${depthStencilAttachmentFormat ?? ''}`;
++        const resolvedParameters = { ...this.model.pipeline.props.parameters, ...parameters };
++        if (!depthStencilAttachmentFormat) {
++            delete resolvedParameters.depthWriteEnabled;
++            delete resolvedParameters.depthCompare;
++        }
++        const pipelineKey = `${colorAttachmentFormats.join(',')}/${depthStencilAttachmentFormat ?? ''}/${JSON.stringify(resolvedParameters)}`;
 +        let pipeline = this.hostPipelines.get(pipelineKey);
 +        if (!pipeline) {
-+            const parameters = { ...this.model.pipeline.props.parameters };
-+            if (!depthStencilAttachmentFormat) {
-+                delete parameters.depthWriteEnabled;
-+                delete parameters.depthCompare;
-+            }
 +            pipeline = this.model.pipelineFactory.createRenderPipeline({
 +                ...this.model.pipeline.props,
 +                colorAttachmentFormats,
 +                depthStencilAttachmentFormat,
-+                parameters
++                parameters: resolvedParameters
 +            });
 +            this.hostPipelines.set(pipelineKey, pipeline);
 +        }
@@ -410,7 +410,7 @@ index 316314a8..b254099e 100644
      0.0,
      0.7 * max(projected.color.a - 1.0, 0.0),
 diff --git a/dist/index.cjs b/dist/index.cjs
-index 1b44b328..57e1ec9b 100644
+index 1b44b328..d1615d19 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
 @@ -1465,7 +1465,7 @@ var SplatResidencyManager = class {
@@ -632,8 +632,8 @@ index 1b44b328..57e1ec9b 100644
 +    this.deferFrontierUntilComplete = true;
 +    this.prepareView(view);
 +    this.refresh(maxTraversalRows);
-     return this.currentFrontier;
-   }
++    return this.currentFrontier;
++  }
 +  /**
 +   * Retargets the displayed coherent cut and publishes each completed sibling replacement.
 +   * Unlike {@link selectView}, camera motion never replaces resolved branches with a root-built
@@ -687,8 +687,8 @@ index 1b44b328..57e1ec9b 100644
 +    }
 +    this.advanceTraversal(traversal, maxTraversalRows, false);
 +    this.publishTraversal(traversal);
-+    return this.currentFrontier;
-+  }
+     return this.currentFrontier;
+   }
 +  /** Returns visibility of actual selected descendants, never the parent's approximation. */
 +  retargetSelectedBranch(candidate, traversal) {
 +    var _a;
@@ -2223,8 +2223,8 @@ index 1b44b328..57e1ec9b 100644
 +  prepare(commandEncoder) {
 +    return this.encodeFrame(commandEncoder, false);
 +  }
-+  /** Draws prepared splats into a caller-owned pass without clearing, ending, or submitting it. */
-+  draw(renderPass) {
++  /** Draws prepared splats into a caller-owned pass, applying optional host pipeline parameters. */
++  draw(renderPass, parameters) {
 +    var _a;
 +    if (this.isDestroyed || !this.hasPresentedContent || !this.model) {
 +      return;
@@ -2232,19 +2232,19 @@ index 1b44b328..57e1ec9b 100644
 +    const framebuffer = renderPass.framebuffer ?? renderPass.props.framebuffer;
 +    const colorAttachmentFormats = (framebuffer == null ? void 0 : framebuffer.colorAttachments.map((attachment) => attachment ? attachment.texture.format : null)) ?? [this.device.preferredColorFormat];
 +    const depthStencilAttachmentFormat = (_a = framebuffer == null ? void 0 : framebuffer.depthStencilAttachment) == null ? void 0 : _a.texture.format;
-+    const pipelineKey = `${colorAttachmentFormats.join(",")}/${depthStencilAttachmentFormat ?? ""}`;
++    const resolvedParameters = { ...this.model.pipeline.props.parameters, ...parameters };
++    if (!depthStencilAttachmentFormat) {
++      delete resolvedParameters.depthWriteEnabled;
++      delete resolvedParameters.depthCompare;
++    }
++    const pipelineKey = `${colorAttachmentFormats.join(",")}/${depthStencilAttachmentFormat ?? ""}/${JSON.stringify(resolvedParameters)}`;
 +    let pipeline = this.hostPipelines.get(pipelineKey);
 +    if (!pipeline) {
-+      const parameters = { ...this.model.pipeline.props.parameters };
-+      if (!depthStencilAttachmentFormat) {
-+        delete parameters.depthWriteEnabled;
-+        delete parameters.depthCompare;
-+      }
 +      pipeline = this.model.pipelineFactory.createRenderPipeline({
 +        ...this.model.pipeline.props,
 +        colorAttachmentFormats,
 +        depthStencilAttachmentFormat,
-+        parameters
++        parameters: resolvedParameters
 +      });
 +      this.hostPipelines.set(pipelineKey, pipeline);
 +    }
@@ -4737,22 +4737,23 @@ index 4f06579d..5bd8f90d 100644
          return Array.from(this.chunks.values(), chunk => chunk.data);
      }
 diff --git a/src/gpu-paged-splat-renderer.ts b/src/gpu-paged-splat-renderer.ts
-index ee52022d..8347d190 100644
+index ee52022d..24ef51e2 100644
 --- a/src/gpu-paged-splat-renderer.ts
 +++ b/src/gpu-paged-splat-renderer.ts
-@@ -8,6 +8,11 @@ import {
+@@ -8,6 +8,12 @@ import {
    type Binding,
    type CommandEncoder,
    type Device,
 +  type RenderPass,
 +  type RenderPipeline,
++  type RenderPipelineParameters,
 +  type Framebuffer,
 +  type TextureFormatColor,
 +  type TextureFormatDepthStencil,
    type ShaderLayout
  } from '@luma.gl/core';
  import {Computation, Model} from '@luma.gl/engine';
-@@ -23,14 +28,13 @@ import {
+@@ -23,14 +29,13 @@ import {
  } from '@luma.gl/gpgpu/gpu-core';
  import type {GPUSplatGraphRendererProps} from './gpu-splat-graph-renderer';
  import {
@@ -4768,7 +4769,7 @@ index ee52022d..8347d190 100644
    GPU_PAGED_SPLAT_PROJECTION_SHADER,
    GPU_PAGED_SPLAT_PROJECTION_SHADER_LAYOUT,
    GPU_PAGED_SPLAT_RENDER_SHADER,
-@@ -47,6 +51,7 @@ import {
+@@ -47,6 +52,7 @@ import {
  
  const WORKGROUP_SIZE = 256;
  const MINIMUM_SEMANTIC_SELECTION_CAPACITY = 64;
@@ -4776,7 +4777,7 @@ index ee52022d..8347d190 100644
  
  /** One intact caller-owned source page and its optional batch-local active-row frontier. */
  export type GPUPagedSplatPage = {
-@@ -58,6 +63,14 @@ export type GPUPagedSplatPage = {
+@@ -58,6 +64,14 @@ export type GPUPagedSplatPage = {
    activeRows?: Uint32Array;
    /** Optional source bounds retained for hierarchy and application diagnostics. */
    bounds?: SplatResidencyBounds;
@@ -4791,7 +4792,7 @@ index ee52022d..8347d190 100644
  };
  
  /** Shared camera/style controls plus independently projected page and output segment limits. */
-@@ -140,6 +153,7 @@ type PlannedSourceSegment = {
+@@ -140,6 +154,7 @@ type PlannedSourceSegment = {
  };
  
  type SourceSegment = PlannedSourceSegment & {
@@ -4799,7 +4800,7 @@ index ee52022d..8347d190 100644
    activeRowBuffer: Buffer;
    projectedRecordBuffer: Buffer;
    uniformBuffer: Buffer;
-@@ -226,7 +240,9 @@ export class GPUPagedSplatRenderer {
+@@ -226,7 +241,9 @@ export class GPUPagedSplatRenderer {
    private readonly outputSegments: OutputSegment[] = [];
    private readonly pageRevisions = new Map<string, number>();
    private plannedSegments: PlannedSourceSegment[] = [];
@@ -4809,7 +4810,7 @@ index ee52022d..8347d190 100644
    private sortedValuesBuffer?: Buffer;
    private semanticSelectionBuffer?: Buffer;
    private semanticSelectionValues = new Uint32Array(0);
-@@ -324,7 +340,11 @@ export class GPUPagedSplatRenderer {
+@@ -324,7 +341,11 @@ export class GPUPagedSplatRenderer {
      return this.isDestroyed;
    }
  
@@ -4822,7 +4823,7 @@ index ee52022d..8347d190 100644
    setFrontier(pages: readonly GPUPagedSplatPage[]): void {
      if (this.isDestroyed) {
        throw new Error('Cannot update a destroyed paged Gaussian splat renderer');
-@@ -384,6 +404,7 @@ export class GPUPagedSplatRenderer {
+@@ -384,6 +405,7 @@ export class GPUPagedSplatRenderer {
      if (canReuseGraph) {
        for (let segmentIndex = 0; segmentIndex < this.sourceSegments.length; segmentIndex++) {
          Object.assign(this.sourceSegments[segmentIndex], nextSegments[segmentIndex]);
@@ -4830,7 +4831,7 @@ index ee52022d..8347d190 100644
        }
      } else if (nextSegments.length > 0) {
        this.requiresGraphRebuild = true;
-@@ -478,14 +499,81 @@ export class GPUPagedSplatRenderer {
+@@ -478,14 +500,81 @@ export class GPUPagedSplatRenderer {
  
    /** Encodes sparse projection, exact cross-page ordering, segmented gather, and one render pass. */
    encode(commandEncoder: CommandEncoder): GPUCommandGraphEncoding | undefined {
@@ -4845,8 +4846,8 @@ index ee52022d..8347d190 100644
 +    return this.encodeFrame(commandEncoder, false);
 +  }
 +
-+  /** Draws prepared splats into a caller-owned pass without clearing, ending, or submitting it. */
-+  draw(renderPass: RenderPass): void {
++  /** Draws prepared splats into a caller-owned pass, applying optional host pipeline parameters. */
++  draw(renderPass: RenderPass, parameters?: RenderPipelineParameters): void {
 +    if (this.isDestroyed || !this.hasPresentedContent || !this.model) {
 +      return;
 +    }
@@ -4860,19 +4861,19 @@ index ee52022d..8347d190 100644
 +    const depthStencilAttachmentFormat = framebuffer?.depthStencilAttachment?.texture.format as
 +      | TextureFormatDepthStencil
 +      | undefined;
-+    const pipelineKey = `${colorAttachmentFormats.join(',')}/${depthStencilAttachmentFormat ?? ''}`;
++    const resolvedParameters = {...this.model.pipeline.props.parameters, ...parameters};
++    if (!depthStencilAttachmentFormat) {
++      delete resolvedParameters.depthWriteEnabled;
++      delete resolvedParameters.depthCompare;
++    }
++    const pipelineKey = `${colorAttachmentFormats.join(',')}/${depthStencilAttachmentFormat ?? ''}/${JSON.stringify(resolvedParameters)}`;
 +    let pipeline = this.hostPipelines.get(pipelineKey);
 +    if (!pipeline) {
-+      const parameters = {...this.model.pipeline.props.parameters};
-+      if (!depthStencilAttachmentFormat) {
-+        delete parameters.depthWriteEnabled;
-+        delete parameters.depthCompare;
-+      }
 +      pipeline = this.model.pipelineFactory.createRenderPipeline({
 +        ...this.model.pipeline.props,
 +        colorAttachmentFormats,
 +        depthStencilAttachmentFormat,
-+        parameters
++        parameters: resolvedParameters
 +      });
 +      this.hostPipelines.set(pipelineKey, pipeline);
 +    }
@@ -4912,7 +4913,7 @@ index ee52022d..8347d190 100644
        if (!this.requiresEncoding || !this.hasPresentedContent) {
          return undefined;
        }
-@@ -533,6 +621,8 @@ export class GPUPagedSplatRenderer {
+@@ -533,6 +622,8 @@ export class GPUPagedSplatRenderer {
        return undefined;
      }
      this.writeSourceUniforms();
@@ -4921,7 +4922,7 @@ index ee52022d..8347d190 100644
      this.lastEncoding = this.compiledGraph.encode(commandEncoder, {parameters: undefined});
      this.hasPresentedContent = true;
      this.requiresEncoding = false;
-@@ -680,7 +770,7 @@ export class GPUPagedSplatRenderer {
+@@ -680,7 +771,7 @@ export class GPUPagedSplatRenderer {
        outputValues: sortedIndices,
        algorithm: 'radix',
        direction: 'ascending',
@@ -4930,7 +4931,7 @@ index ee52022d..8347d190 100644
      }).addToGraph(graph);
      this.addInversePermutationPass(graph, sortedIndices, inverseIndices);
  
-@@ -730,10 +820,11 @@ export class GPUPagedSplatRenderer {
+@@ -730,10 +821,11 @@ export class GPUPagedSplatRenderer {
      );
      const featureUniformBuffer = this.createUniformBuffer(
        `paged-gaussian-features-${planned.id}`,
@@ -4943,7 +4944,7 @@ index ee52022d..8347d190 100644
        activeRowBuffer,
        projectedRecordBuffer,
        uniformBuffer,
-@@ -755,7 +846,7 @@ export class GPUPagedSplatRenderer {
+@@ -755,7 +847,7 @@ export class GPUPagedSplatRenderer {
      const shader = /* wgsl */ `
  const ROW_COUNT: u32 = ${this.globalSortCapacity}u;
  const WORKGROUPS_X: u32 = ${dispatch.x}u;
@@ -4952,7 +4953,7 @@ index ee52022d..8347d190 100644
  @group(0) @binding(0) var<storage, read_write> values: array<u32>;
  @group(0) @binding(1) var<storage, read_write> depthKeys: array<u32>;
  @group(0) @binding(2) var<storage, read_write> drawCommands: array<atomic<u32>>;
-@@ -1120,6 +1211,9 @@ fn main() {
+@@ -1120,6 +1212,9 @@ fn main() {
          blendAlphaDstFactor: 'one-minus-src-alpha'
        }
      });
@@ -4962,7 +4963,7 @@ index ee52022d..8347d190 100644
      graph.addRenderPass({
        id: 'paged-gaussian-segmented-render',
        resources: [
-@@ -1137,20 +1231,7 @@ fn main() {
+@@ -1137,20 +1232,7 @@ fn main() {
            clearDepth: 1,
            clearStencil: false
          }),
@@ -4984,7 +4985,7 @@ index ee52022d..8347d190 100644
        })
      });
    }
-@@ -1235,16 +1316,20 @@ fn main() {
+@@ -1235,16 +1317,20 @@ fn main() {
        this.semanticSelectionBuffer?.write(this.semanticSelectionValues);
      }
      for (const segment of this.sourceSegments) {
@@ -5008,7 +5009,7 @@ index ee52022d..8347d190 100644
        floatValues[20] = this.props.alphaCutoff;
        floatValues[21] = this.props.screenSizeCutoffPixels;
        floatValues[22] = this.props.gaussianSupportRadius;
-@@ -1261,10 +1346,10 @@ fn main() {
+@@ -1261,10 +1347,10 @@ fn main() {
        integerValues[29] =
          (hasFloatColor ? 1 : 0) | (this.props.lodOpacity ? 2 : 0) | (encodeLinearColor ? 4 : 0);
        integerValues[30] = segment.activeRows ? 1 : 0;
@@ -5021,7 +5022,7 @@ index ee52022d..8347d190 100644
        const featureFloatValues = new Float32Array(featureData);
        const featureIntegerValues = new Uint32Array(featureData);
        const batch = segment.page.data;
-@@ -1272,7 +1357,8 @@ fn main() {
+@@ -1272,7 +1358,8 @@ fn main() {
          batch.sphericalHarmonics && this.props.sphericalHarmonicsDegree > 0
            ? Math.min(batch.sphericalHarmonicsDegree, this.props.sphericalHarmonicsDegree)
            : 0;
@@ -5031,7 +5032,7 @@ index ee52022d..8347d190 100644
        featureIntegerValues[3] = degree;
        featureIntegerValues[4] = getSplatSphericalHarmonicCoefficientCount(
          batch.sphericalHarmonicsDegree
-@@ -1346,18 +1432,19 @@ fn main() {
+@@ -1346,18 +1433,19 @@ fn main() {
            );
            const capacityRowCount = segmentSourceRowEnd - segmentSourceRowStart;
            const selectedRows = page.activeRows
@@ -5058,7 +5059,7 @@ index ee52022d..8347d190 100644
              capacityRowCount,
              activeRowCount,
              sourceRowOffset: usesSourceRanges
-@@ -1455,6 +1542,12 @@ fn main() {
+@@ -1455,6 +1543,12 @@ fn main() {
      this.compiledGraph?.destroy();
      this.compiledGraph = undefined;
      this.lastEncoding = undefined;

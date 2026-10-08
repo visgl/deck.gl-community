@@ -43,6 +43,7 @@
     "build": "node ../../scripts/build-splat-worker.mjs"
   },
   "dependencies": {
+    "@loaders.gl/loader-utils": "^4.5.3",
     "@loaders.gl/splats": "^4.5.3",
     "@loaders.gl/textures": "^4.5.1",
     "@luma.gl/constants": "~9.4.0",

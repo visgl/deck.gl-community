@@ -1033,6 +1033,7 @@ __metadata:
     "@deck.gl/mesh-layers": "npm:~9.4.0"
     "@deck.gl/test-utils": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
+    "@loaders.gl/loader-utils": "npm:^4.5.3"
     "@loaders.gl/splats": "npm:^4.5.3"
     "@loaders.gl/textures": "npm:^4.5.1"
     "@luma.gl/constants": "npm:~9.4.0"
@@ -3631,14 +3632,14 @@ __metadata:
 
 "@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch":
   version: 9.4.2
-  resolution: "@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch::version=9.4.2&hash=153ac7"
+  resolution: "@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch::version=9.4.2&hash=ea8820"
   dependencies:
     "@luma.gl/core": "npm:9.4.2"
     "@luma.gl/engine": "npm:9.4.2"
     "@luma.gl/experimental": "npm:9.4.2"
     "@luma.gl/gpgpu": "npm:9.4.2"
     "@luma.gl/shadertools": "npm:9.4.2"
-  checksum: 10c0/d05e2bd5346b907ac3f5e62e89e3a9e7ff94715feab8d6e7de058bdb6be0370adb876b3ee3309aef511b64bc36afb64ce7df72d55c56585fbd2b76c802af4bc1
+  checksum: 10c0/c4e8222f8661addd90631ef9d6bb759ec8f80bc710f8034d656bc9ebeba10ed12b843756d58436f478958ca6d75176e3b4559a15dc17cb20a0904c3d6454e627
   languageName: node
   linkType: hard
 

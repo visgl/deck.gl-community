@@ -411,7 +411,7 @@ export class SplatSceneRuntime implements Effect {
       return;
     }
     const domain = this.domains.get(`${viewport.id}:${layer.props.sortDomain}`);
-    if (domain?.leader === layer.id) domain.renderer.draw(renderPass);
+    if (domain?.leader === layer.id) domain.renderer.draw(renderPass, parameters);
   }
   getStats(id: string) {
     const owners = this.owners.get(id) ?? [];
@@ -503,9 +503,18 @@ export class SplatSceneRuntime implements Effect {
               }
             })
             .catch(error => {
-              if (this.assets.get(input) === target)
-                for (const id of target.users)
-                  this.layers.get(id)?.raiseError(error, 'decoding splat asset');
+              if (this.assets.get(input) !== target) return;
+              target.status = {
+                ...target.status!,
+                phase: 'error',
+                message: error instanceof Error ? error.message : String(error),
+                pendingPages: 0
+              };
+              for (const id of target.users) {
+                const user = this.layers.get(id);
+                user?.props.onStatusChange?.(target.status);
+                user?.raiseError(error, 'decoding splat asset');
+              }
             });
         } else
           asset.scene = new RADScene(this.device, {
