@@ -1,5 +1,9 @@
 # What's New
 
+## October 2026
+
+- Style evaluation uses `@maplibre/maplibre-gl-style-spec` instead of `@mapbox/mapbox-gl-style-spec`. Evaluated colors keep the same `[r, g, b, a]` shape (RGB 0-255, alpha 0-1).
+
 ## April 2026
 
 - Renamed the runtime package surface to `@deck.gl-community/basemap-layers`
