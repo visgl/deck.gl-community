@@ -12,6 +12,8 @@
 - `basemap-layers` labels take their font from `text-font` (family, weight and italic style, with
   a generic fallback family) instead of `Monaco, monospace`. The new `BasemapLayer` `fontFamily`
   prop overrides it.
+- `MetricsPanel` displays plain telemetry snapshots with ordered labels and host-defined value formatting.
+
 - Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
   Blue Marble raster tiles. Other basemap providers are unchanged. Blue Marble tiles
   use a maximum native zoom of 8 and stay visible when overzoomed. Basemap labels
