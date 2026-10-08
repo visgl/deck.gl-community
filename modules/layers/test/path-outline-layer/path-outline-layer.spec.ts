@@ -7,6 +7,7 @@ import {PathLayer} from '@deck.gl/layers';
 import {describe, expect, it, vi} from 'vitest';
 
 import {PathOutlineLayer} from '../../src/path-outline-layer/path-outline-layer';
+import {WebGpuDashPathLayer} from '../../src/path-outline-layer/webgpu-dash-path-layer';
 
 type PathOutlineHarness = PathOutlineLayer & {
   getSubLayerProps: ReturnType<typeof vi.fn>;
@@ -45,6 +46,10 @@ function createRenderHarness(props: Record<string, unknown> = {}): PathOutlineHa
     widthScale: 2,
     ...props
   };
+  Object.defineProperty(layer, 'context', {
+    configurable: true,
+    value: {device: {type: 'webgl'}}
+  });
   return layer;
 }
 
@@ -90,6 +95,22 @@ describe('PathOutlineLayer', () => {
     const [outlineLayer] = layer.renderLayers() as PathLayer[];
 
     expect(outlineLayer.props.extensions).toEqual([extension]);
+  });
+
+  it('uses the native-WGSL dash layer without the GLSL-only extension on WebGPU', () => {
+    const extension = new PathStyleExtension({dash: true});
+    const layer = createRenderHarness({extensions: [extension], getDashArray: () => [4, 2]});
+    Object.defineProperty(layer, 'context', {
+      configurable: true,
+      value: {device: {type: 'webgpu'}}
+    });
+
+    const [outlineLayer, pathLayer] = layer.renderLayers() as PathLayer[];
+
+    expect(outlineLayer).toBeInstanceOf(WebGpuDashPathLayer);
+    expect(pathLayer).toBeInstanceOf(WebGpuDashPathLayer);
+    expect(outlineLayer.props.extensions).toEqual([]);
+    expect(pathLayer.props.extensions).toEqual([]);
   });
 
   it('does not attach dash extension for solid paths', () => {

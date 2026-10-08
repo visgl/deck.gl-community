@@ -108,12 +108,6 @@ export {
 // graph format loaders
 export {JSONGraphLoader, type JSONGraphLoaderOptions} from './loaders/json-graph-loader';
 
-export {
-  DOTGraphLoader,
-  type DOTGraphLoaderOptions,
-  type DOTGraphLoaderMetadata
-} from './loaders/dot-graph-loader';
-
 // Deprecated exports
 export {
   MARKER_TYPE,
@@ -124,3 +118,5 @@ export {
   EDGE_DECORATOR_TYPE,
   LAYOUT_STATE
 } from './_deprecated/old-constants';
+
+export {MarkerLayer} from './layers/common-layers/marker-layer/marker-layer';

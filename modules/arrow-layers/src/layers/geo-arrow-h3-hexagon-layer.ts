@@ -85,7 +85,6 @@ export class GeoArrowH3HexagonLayer<ExtraProps extends {} = {}> extends Composit
     const layers: H3HexagonLayer[] = [];
     for (let recordBatchIdx = 0; recordBatchIdx < table.batches.length; recordBatchIdx++) {
       const hexData = hexagonColumn.data[recordBatchIdx];
-      const hexValues = hexData.values;
 
       const props: H3HexagonLayerProps = {
         // Note: because this is a composite layer and not doing the rendering
@@ -97,19 +96,18 @@ export class GeoArrowH3HexagonLayer<ExtraProps extends {} = {}> extends Composit
         recordBatchIdx,
         tableOffsets,
 
-        id: `${this.props.id}-geoarrow-arc-${recordBatchIdx}`,
+        id: `${this.props.id}-geoarrow-h3-${recordBatchIdx}`,
+
+        // H3HexagonLayer converts indexes to polygons/centroids on the CPU before forwarding
+        // data to its renderable sublayers. Unlike shader attributes, the string index therefore
+        // needs to remain available as an accessor while iterating binary data.
+        getHexagon: (_object, objectInfo) =>
+          hexagonColumn.get(tableOffsets[recordBatchIdx] + objectInfo.index)!,
 
         data: {
           // @ts-expect-error passed through to enable use by function accessors
           data: table.batches[recordBatchIdx],
-          length: hexData.length,
-          attributes: {
-            getHexagon: {
-              value: hexValues,
-              // h3 cells should always be 15 characters...?
-              size: 15
-            }
-          }
+          length: hexData.length
         }
       };
 

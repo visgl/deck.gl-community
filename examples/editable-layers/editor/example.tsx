@@ -275,7 +275,7 @@ export function Example() {
       }}
       widgets={widgets}
     >
-      <Map mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
+      <Map mapStyle="https://tiles.openfreemap.org/styles/positron" />
     </DeckGL>
   );
 }

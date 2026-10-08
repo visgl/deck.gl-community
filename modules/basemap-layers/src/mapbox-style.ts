@@ -1,4 +1,8 @@
-import {Color, expression, featureFilter, latest as Reference} from '@mapbox/mapbox-gl-style-spec';
+import {
+  compileStyleFilter,
+  getCompiledStyleProperty,
+  getStylePropertyReference
+} from './style-expression';
 
 type GlobalProperties = {
   zoom?: number;
@@ -47,15 +51,6 @@ type VisitOptions = {
   layout?: boolean;
 };
 
-const GEOM_TYPES: Record<string, number> = {
-  Point: 1,
-  MultiPoint: 1,
-  LineString: 2,
-  MultiLineString: 2,
-  Polygon: 3,
-  MultiPolygon: 3
-};
-
 /**
  * Applies a Mapbox style-spec filter expression to a set of features.
  */
@@ -68,15 +63,10 @@ export function filterFeatures({
     return [];
   }
 
-  const filterFn = featureFilter(filter).filter;
+  const filterFn = compileStyleFilter(filter);
 
-  return features.filter(feature => {
-    if (![1, 2, 3].includes(Number(feature.type))) {
-      feature.type = GEOM_TYPES[feature.geometry?.type || ''] ?? feature.type;
-    }
-
-    return filterFn(globalProperties, feature);
-  });
+  // `compileStyleFilter` derives the geometry type itself, so the features are not modified.
+  return features.filter(feature => filterFn(globalProperties, feature));
 }
 
 /**
@@ -101,7 +91,7 @@ export function findFeaturesStyledByLayer({
     });
   }
 
-  return [];
+  return sourceLayerFeatures;
 }
 
 /**
@@ -139,7 +129,7 @@ function visitProperties(
         path: [targetLayer.id, propertyType, key],
         key,
         value: properties[key],
-        reference: getPropertyReference(key),
+        reference: getStylePropertyReference(key),
         set(value) {
           properties[key] = value;
         }
@@ -156,41 +146,19 @@ function visitProperties(
 }
 
 /**
- * Resolves the style-spec reference metadata for a property name.
- */
-function getPropertyReference(propertyName: string): PropertyReference {
-  for (let i = 0; i < Reference.layout.length; i++) {
-    for (const key in Reference[Reference.layout[i]]) {
-      if (key === propertyName) {
-        return Reference[Reference.layout[i]][key] as PropertyReference;
-      }
-    }
-  }
-
-  for (let i = 0; i < Reference.paint.length; i++) {
-    for (const key in Reference[Reference.paint[i]]) {
-      if (key === propertyName) {
-        return Reference[Reference.paint[i]][key] as PropertyReference;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
  * Evaluates a single style property expression.
  */
 function parseProperty(
   property: VisitedProperty,
   globalProperties: GlobalProperties
 ): Record<string, unknown> {
-  const exp = expression.normalizePropertyExpression(property.value, property.reference as any);
-  const result = exp.evaluate(globalProperties);
-
-  if (result instanceof Color) {
-    return {[property.key]: result.toArray()};
-  }
-
-  return {[property.key]: result};
+  const compiled = getCompiledStyleProperty(property.layer, property.key);
+  return {
+    [property.key]: compiled?.evaluateWithGlobals({
+      ...globalProperties,
+      zoom: globalProperties.zoom ?? 0
+    })
+  };
 }
+
+export {colorToArray} from './style-expression';

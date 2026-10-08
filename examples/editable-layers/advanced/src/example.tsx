@@ -8,8 +8,11 @@ import {useState, useCallback} from 'react';
 import DeckGL from '@deck.gl/react';
 import {MapView, MapController} from '@deck.gl/core';
 import {Map as StaticMap} from 'react-map-gl/maplibre';
-import {GL} from '@luma.gl/constants';
 import circle from '@turf/circle';
+
+// Keep these WebGL constants local so the example also runs with the website's
+// ESM bundle, where the constants package may be externalized differently.
+const GL = {FUNC_ADD: 0x8006, SRC_ALPHA: 0x0302, ONE_MINUS_SRC_ALPHA: 0x0303};
 
 import {
   EditableGeoJsonLayer,
@@ -895,7 +898,7 @@ export function Example() {
     getDefaultModeConfig
   ]);
 
-  const mapStyle = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+  const mapStyle = 'https://tiles.openfreemap.org/styles/positron';
 
   const featureMenuClick = useCallback(
     (action: string) => {

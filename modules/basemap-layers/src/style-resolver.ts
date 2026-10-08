@@ -1,4 +1,4 @@
-import {derefLayers} from '@mapbox/mapbox-gl-style-spec';
+import {derefLayers} from '@maplibre/maplibre-gl-style-spec';
 import {BasemapStyleSchema, ResolvedBasemapStyleSchema} from './map-style-schema';
 
 /**
@@ -177,6 +177,8 @@ export async function resolveBasemapStyle(
   return ResolvedBasemapStyleSchema.parse({
     ...styleDefinition,
     sources: resolvedSources,
-    layers: derefLayers([...(styleDefinition.layers || [])]) as ResolvedBasemapStyleLayer[]
+    layers: derefLayers([...(styleDefinition.layers || [])] as Parameters<
+      typeof derefLayers
+    >[0]) as ResolvedBasemapStyleLayer[]
   });
 }

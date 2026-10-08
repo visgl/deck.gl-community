@@ -1,5 +1,7 @@
 # @deck.gl-community/timeline-layers
 
+![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square)
+
 Layers for compact timeline visualizations in deck.gl.
 
 ```bash
