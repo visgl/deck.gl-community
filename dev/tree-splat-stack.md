@@ -78,7 +78,9 @@ Wood coverage executes before host depth-only shortcuts, and constant coverage c
 derived mesh attributes; winter ground pixels verify fractional shadows. Renderer failures abort
 world measurements and reject benchmark samples. Benchmark cleanup cancels pending idle timers,
 camera callbacks and repeated samples. The first engine update after a long hidden interval
-verifies that the installed timeline excludes hidden wall time when wind resumes.
+verifies that the installed timeline excludes hidden wall time when wind resumes. Tree Lab and
+Forest tours preserve their phase across hidden tabs; returning wind-off specimens receive current
+sunlight. The inventory fixture waits for destination pages before checking coverage-only row identity.
 The dedicated CI software-adapter step requires the new scene fixtures; ordinary browser runs
 skip WebGPU only when no adapter exists. Review fixes stay in their owning PRs, and range-diff
 preserves every earlier stack commit apart from intended workflow conflict resolution.
