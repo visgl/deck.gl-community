@@ -1,8 +1,9 @@
-import {expression} from '@maplibre/maplibre-gl-style-spec';
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
 import {GeoJsonLayer, TextLayer} from '@deck.gl/layers';
+import {getZoomBucket, withOpacity} from './style-accessor';
+import {getCompiledStyleProperty, type CompiledStyleProperty} from './style-expression';
 
 type GeometryType = 'Point' | 'MultiPoint' | 'LineString' | 'MultiLineString' | string;
 
@@ -22,6 +23,7 @@ type LabelRow = {
 
 type StyleLayerLike = {
   layout?: Record<string, any>;
+  paint?: Record<string, any>;
 };
 
 type LabelConfig = {
@@ -38,10 +40,16 @@ export type MVTLabelLayerProps = {
   config: LabelConfig;
   /** Style layer that contributes label rules. */
   styleLayer?: StyleLayerLike;
-  /** Zoom level used to resolve style expressions and legacy stops. */
+  /** Zoom level used to evaluate style expressions. */
   zoom?: number;
   /** Text fill color. */
   textColor?: number[];
+  /**
+   * `[min, max)` collision priorities this layer's labels are mapped into. `BasemapLayer` gives
+   * each symbol style layer its own band, so style order decides between layers. Default: deck.gl's
+   * full range, -1000 to 1000.
+   */
+  collisionPriorityRange?: [number, number];
   /** Optional text halo/background color. */
   labelBackground?: number[] | null;
   /** Text size units forwarded to `TextLayer`. */
@@ -68,54 +76,6 @@ const geoJsonDefaultProps = {...GeoJsonLayer.defaultProps} as Omit<
   'data'
 >;
 delete (geoJsonDefaultProps as typeof GeoJsonLayer.defaultProps).data;
-
-const GEOMETRY_TYPES: Record<string, 1 | 2 | 3> = {
-  Point: 1,
-  MultiPoint: 1,
-  LineString: 2,
-  MultiLineString: 2,
-  Polygon: 3,
-  MultiPolygon: 3
-};
-
-const STYLE_EXPRESSIONS = new WeakMap<object, ReturnType<typeof expression.createExpression>>();
-
-/**
- * Evaluates a style expression or legacy stop definition for a feature.
- */
-function evaluateStyleValue(value: unknown, zoom: number, feature?: FeatureLike): unknown {
-  if (Array.isArray(value)) {
-    let compiled = STYLE_EXPRESSIONS.get(value);
-    if (!compiled) {
-      compiled = expression.createExpression(value);
-      STYLE_EXPRESSIONS.set(value, compiled);
-    }
-    return compiled.result === 'success'
-      ? compiled.value.evaluate(
-          {zoom},
-          {
-            type: GEOMETRY_TYPES[feature?.geometry.type || ''] ?? 0,
-            properties: feature?.properties || {}
-          }
-        )
-      : undefined;
-  }
-  if (typeof value === 'number' || typeof value === 'string') {
-    return value;
-  }
-
-  if (value && typeof value === 'object' && Array.isArray((value as {stops?: unknown[]}).stops)) {
-    let resolved = (value as {stops: [number, unknown][]}).stops[0]?.[1];
-    for (const stop of (value as {stops: [number, unknown][]}).stops) {
-      if (zoom >= stop[0]) {
-        resolved = stop[1];
-      }
-    }
-    return resolved;
-  }
-
-  return value;
-}
 
 /**
  * Replaces style-spec token placeholders in a label template.
@@ -182,13 +142,37 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /** Current label-row state. */
   state: MVTLabelLayerState = undefined!;
 
+  /** Returns a compiled `layout` or `paint` property of the style layer, if it sets one. */
+  private getStyleProperty(propertyName: string): CompiledStyleProperty | null {
+    const {styleLayer} = this.props;
+    return styleLayer ? getCompiledStyleProperty(styleLayer, propertyName) : null;
+  }
+
+  /** Evaluates a style property for a feature at the integer zoom. */
+  private evaluateStyleProperty(propertyName: string, feature: FeatureLike): unknown {
+    return this.getStyleProperty(propertyName)?.evaluate(
+      getZoomBucket(this.props.zoom || 0),
+      feature
+    );
+  }
+
   /**
-   * Extracts the visible label text for a decoded feature.
+   * Extracts the visible label text for a decoded feature. Legacy `{token}` placeholders are
+   * resolved only in literal and zoom-function values, as in the style specification.
    */
   getLabel(feature: FeatureLike): string | undefined {
-    const {styleLayer, zoom = 0} = this.props;
-    const textField = evaluateStyleValue(styleLayer?.layout?.['text-field'], zoom, feature);
-    const label = resolveTokenString(textField, feature.properties)?.trim();
+    const textField = this.getStyleProperty('text-field');
+    if (!textField) {
+      return undefined;
+    }
+
+    const value = this.evaluateStyleProperty('text-field', feature);
+    const text = value === null || value === undefined ? '' : String(value);
+    const isExpression = Array.isArray(this.props.styleLayer?.layout?.['text-field']);
+    const label =
+      isExpression || textField.isFeatureDependent
+        ? text.trim()
+        : resolveTokenString(text, feature.properties)?.trim();
     return label || undefined;
   }
 
@@ -196,15 +180,77 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * Returns the font size for a decoded feature label.
    */
   getLabelSize(feature: FeatureLike): number {
-    const {styleLayer, zoom = 0} = this.props;
-    return Number(evaluateStyleValue(styleLayer?.layout?.['text-size'], zoom, feature) || 14);
+    return Number(this.evaluateStyleProperty('text-size', feature) || 14);
   }
 
   /**
-   * Returns the text color for a decoded feature label.
+   * Returns the text color for a decoded feature label, from `text-color` and `text-opacity`.
+   * Falls back to the `textColor` prop, then to the style spec's default black, when the style
+   * layer does not set `text-color`.
    */
-  getLabelColor(_feature: FeatureLike): number[] {
-    return this.props.textColor || [255, 255, 255];
+  getLabelColor(feature: FeatureLike): number[] {
+    const textColor = this.evaluateStyleProperty('text-color', feature) as number[] | undefined;
+    const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
+    if (textColor) {
+      return withOpacity(textColor, opacity ?? 1);
+    }
+
+    // The style spec's default `text-color` is black.
+    const fallbackColor = this.props.textColor || [0, 0, 0, 255];
+    return opacity === undefined ? fallbackColor : withOpacity(fallbackColor, opacity);
+  }
+
+  /**
+   * Returns the halo (background) color for a decoded feature label: `labelBackground` faded by
+   * the same `text-opacity` as the text, so a hidden or faded label leaves no halo box.
+   */
+  getLabelBackgroundColor(feature: FeatureLike): number[] {
+    const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
+    const background = this.props.labelBackground;
+    if (!background) {
+      return [0, 0, 0, 0];
+    }
+    // `labelBackground` is already RGBA with alpha in 0-255; scale that alpha directly.
+    // (`withOpacity` would read a 0-255 alpha of 1 as fully opaque.)
+    const alpha = background.length > 3 ? background[3] : 255;
+    return [background[0], background[1], background[2], Math.round(alpha * (opacity ?? 1))];
+  }
+
+  /**
+   * Returns the collision priority of a label within `collisionPriorityRange`: ordered by
+   * `symbol-sort-key` when the style layer sets one, otherwise by a coarse built-in priority.
+   * Lower sort keys win in the style specification and higher priorities win in
+   * `CollisionFilterExtension`, so the key is mapped through a decreasing function. That mapping
+   * keeps every key inside the range, at the cost of compressing keys far from zero.
+   */
+  getLabelCollisionPriority(feature: FeatureLike): number {
+    const [min, max] = this.props.collisionPriorityRange || [-1000, 1000];
+    const fraction = this.getStyleProperty('symbol-sort-key')
+      ? 0.5 -
+        Math.atan(Number(this.evaluateStyleProperty('symbol-sort-key', feature)) || 0) / Math.PI
+      : getCollisionPriority(feature) / 1001;
+    return min + fraction * (max - min);
+  }
+
+  /** Update triggers for the text accessors: the integer zoom for zoom-dependent properties. */
+  getLabelUpdateTriggers(): Record<string, number | string | undefined> {
+    const zoomBucket = getZoomBucket(this.props.zoom || 0);
+    const getTrigger = (...propertyNames: string[]) =>
+      propertyNames.some(name => this.getStyleProperty(name)?.isZoomDependent)
+        ? zoomBucket
+        : undefined;
+
+    return {
+      getText: getTrigger('text-field'),
+      getSize: getTrigger('text-size'),
+      getColor: getTrigger('text-color', 'text-opacity'),
+      // The halo color comes from `labelBackground` (evaluated per style layer and zoom step), so
+      // its value is part of the trigger as well as a zoom-dependent `text-opacity`.
+      getBackgroundColor: `${getTrigger('text-opacity') ?? ''}|${
+        this.props.labelBackground ? this.props.labelBackground.join(',') : ''
+      }`,
+      getCollisionPriority: getTrigger('symbol-sort-key')
+    };
   }
 
   /**
@@ -278,12 +324,16 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           collisionEnabled: true,
           collisionGroup: 'basemap-labels',
           getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
-            getCollisionPriority(feature)
+            this.getLabelCollisionPriority(feature)
           ) as any,
           fontFamily: this.props.fontFamily,
           sizeUnits: labelSizeUnits,
           background: hasBackground,
-          getBackgroundColor: (hasBackground ? labelBackground : [0, 0, 0, 0]) as any,
+          getBackgroundColor: (hasBackground
+            ? this.getSubLayerAccessor((feature: FeatureLike) =>
+                this.getLabelBackgroundColor(feature)
+              )
+            : [0, 0, 0, 0]) as any,
           getPosition: (d: LabelRow) => d.position,
           getText: this.getSubLayerAccessor((feature: FeatureLike) =>
             this.getLabel(feature)
@@ -293,7 +343,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ) as any,
           getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
             this.getLabelColor(feature)
-          ) as any
+          ) as any,
+          updateTriggers: this.getLabelUpdateTriggers()
         })
       );
     }

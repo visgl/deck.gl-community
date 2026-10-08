@@ -10,6 +10,9 @@
   expressions (`["get", ...]`, `match`, `case`) style each feature instead of resolving to one
   value per style layer. `findFeaturesStyledByLayer` returns the source-layer features when the
   style layer has no `filter`, instead of none.
+- `basemap-layers` labels evaluate `text-field`, `text-size`, `text-color` and `text-opacity`
+  expressions per feature, and use `symbol-sort-key` for collision priority (lower keys win, as
+  in the style specification). Styles without a sort key keep the built-in priority.
 - `SourcePickerPanel` provides URL, preset, file input, and drag-and-drop controls with host-owned loading callbacks.
 - `MetricsPanel` displays plain telemetry snapshots with ordered labels and host-defined value formatting.
 

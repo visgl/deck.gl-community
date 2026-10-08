@@ -63,3 +63,16 @@ export function getStyleAccessor<T>(
     updateTrigger: isZoomDependent ? zoomBucket : undefined
   };
 }
+
+/** Converts a style color (alpha 0-1 or 0-255) and opacity into a deck.gl RGBA color. */
+export function withOpacity(
+  color: number[] | null | undefined,
+  opacity = 1
+): [number, number, number, number] {
+  if (!color) {
+    return [0, 0, 0, 0];
+  }
+
+  const alpha = color.length > 3 ? (color[3] <= 1 ? color[3] * 255 : color[3]) : 255;
+  return [color[0], color[1], color[2], Math.round(alpha * opacity)];
+}
