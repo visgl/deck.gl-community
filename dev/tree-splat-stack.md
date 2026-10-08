@@ -69,6 +69,10 @@ of stale RAD frontiers, static decode error status, host depth state on both sor
 strict public scene/inventory schemas, large grid framing, film startup error reporting, scene
 appearance/picking controls on both backends and accurate world draw counts. World control fixtures
 use bounded empty pages; source and pixel contracts validate actual streamed rendering separately.
+Sorted scenes use straight-alpha color blending by default, with explicit caller blend overrides
+retained on both backends. Hidden Tree Lab specimens preserve their last rendered wind pose. The
+20K forest fixture bounds shadow maps to 128 pixels independently of presentation size and source
+geometry; production maps and the dedicated receiver pixel contract retain the 1024-pixel default.
 The dedicated CI software-adapter step requires the new scene fixtures; ordinary browser runs
 skip WebGPU only when no adapter exists. Review fixes stay in their owning PRs, and range-diff
 preserves every earlier stack commit apart from intended workflow conflict resolution.
