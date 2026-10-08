@@ -95,6 +95,25 @@ for (const [name, schema] of Object.entries(CommunityGeoLayerSchemas)) {
   });
 }
 
+test('accepts the public static and RAD scene controls in SplatLayer documents', () => {
+  const document = {
+    id: 'scene',
+    '@@type': 'SplatLayer',
+    data: '/scene.rad',
+    transparency: 'auto',
+    maxActiveSplats: 1000,
+    maxResidentSplats: 4000,
+    maxConcurrentLoads: 4,
+    workerFactory: '@@#workers',
+    onStatusChange: '@@#status',
+    sortDomain: 'scene'
+  };
+  expect(CommunityGeoLayerSchemas.SplatLayer.safeParse(document).success).toBe(true);
+  expect(
+    CommunityGeoLayerSchemas.SplatLayer.safeParse({...document, maxConcurrentLoads: -1}).success
+  ).toBe(false);
+});
+
 test('the existing global-grid gallery document uses the strict community schema', () => {
   const example = JSON.parse(
     readFileSync(

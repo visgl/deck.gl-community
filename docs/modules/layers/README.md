@@ -32,7 +32,7 @@ Release date: 2023
 
 ## Exports
 
-- [`SplatLayer`](./api-reference/splat-layer.md): reusable prepared Gaussian renderer
+- [`SplatLayer`](./api-reference/splat-layer.md): prepared Gaussian and native RAD scene composite
 
 - [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
 - `DependencyArrowLayer`

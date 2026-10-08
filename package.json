@@ -49,7 +49,9 @@
     "@luma.gl/core": "~9.4.0",
     "@luma.gl/engine": "~9.4.0",
     "@luma.gl/shadertools": "~9.4.0",
+    "@luma.gl/test-utils": "~9.4.0",
     "@luma.gl/webgl": "~9.4.0",
+    "@luma.gl/webgpu": "~9.4.0",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/bin-pack": "^1.0.3",
@@ -64,6 +66,7 @@
     "apache-arrow": "^17.0.0",
     "bin-pack": "^1.0.2",
     "datauri": "^4.1.0",
+    "esbuild": "^0.28.1",
     "ndarray": "^1.0.19",
     "ndarray-pixels": "^3.1.0",
     "playwright": "^1.58.0",
@@ -114,7 +117,8 @@
     "@luma.gl/webgpu": "~9.4.0",
     "fast-xml-parser": "5.5.3",
     "fast-uri": "3.1.7",
-    "mjolnir.js": "3.1.1"
+    "mjolnir.js": "3.1.1",
+    "@luma.gl/splats": "patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch"
   },
   "packageExtensions": {
     "deck.gl@*": {

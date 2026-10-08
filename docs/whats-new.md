@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Existing `source` callers remain compatible; streamed RAD and sorted scene rendering remain separate upstream work.
+- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Existing `source` callers remain compatible.
+- Added sorted Composite SplatLayer scenes with off-thread RAD/static loading, shared source residency, global per-view/domain ordering, affine/SH instance handling, owner picking and host-pass presentation. A repository luma compatibility patch requires an upstream 9.4 release before package publication.
 
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.

@@ -1,7 +1,7 @@
 # Composite SplatLayer design and TreeLayer stack revision
 
 Status: target architecture and migration contract, revised October 7, 2026. The API examples below describe the target;
-they are not claims about the implementation in PR #807.
+the implementation record below separates supported behavior from remaining acceptance limits.
 
 ## Objective
 
@@ -22,27 +22,44 @@ animation loop. Performance targets are measured separately for each backend.
 
 ## Implementation across the TreeLayer stack
 
-The delivery order remains #807 → #794 → #806 → #808 → #809. The source contract in this
+The existing tree PRs retain their order. Shared scene support sits below both TreeLayer and the
+independent Coit branch; Coit has no TreeLayer prerequisite. The source contract in this
 specification uses `data` for an asset or owner rows and `getSource` for per-owner asset resolution.
-The current implementation revision establishes that contract for prepared assets. Streamed
-RAD, SH, globally sorted presentation and paged residency remain upstream integration gates.
+The implementation now includes a generic sorted scene runtime and the migrated Coit example,
+with the prepared TreeLayer path retaining weighted optical blending. The stack adds a luma 9.4
+host-pass prerequisite and two community PRs: shared scene runtime #814 immediately above #807,
+and independent Coit #815 directly above #814. The tree chain starts at #794 above #814 and ends
+with #809's deprecated-workspace cleanup above #808. Neither tip depends on the other.
 
-| PR | Implementation responsibility |
+| Stage | Responsibility |
 | --- | --- |
-| [#807](https://github.com/visgl/deck.gl-community/pull/807) | Public CompositeLayer input normalization; prepared descriptors; heterogeneous source roots; affine covariance transforms; a deck/device runtime for joint prepared budgets; a selection effect separate from weighted presentation; public statistics; generic Node, strict-type and backend pixel fixtures |
-| [#794](https://github.com/visgl/deck.gl-community/pull/794) | Cached canopy descriptors through `getSource`; explicit weighted rendering; one parent allocation group across species; stable canopy IDs and legacy source/hierarchy overrides; unchanged botany, wood, seasons, crops and picking |
-| [#806](https://github.com/visgl/deck.gl-community/pull/806) | Nearby trees and distant crowns share a parent quota; geographic inventory pages retain their existing tile lifecycle; streaming statistics consume the SplatLayer counters instead of private renderer state |
-| [#808](https://github.com/visgl/deck.gl-community/pull/808) | Examples explain the new prepared API and quota behavior; historical films and timing fingerprints retain their original scope |
-| [#809](https://github.com/visgl/deck.gl-community/pull/809) | Package and Seasonal Farm migration retain the same native TreeLayer; upgrade guidance covers the new flat asset inputs and compatibility rules |
+| luma 9.4 host-pass backport | Borrowed passes and source pages, affine instance uniforms, 32-bit camera depth ordering, native RAD retained refinement |
+| #807 | Prepared CompositeLayer inputs, heterogeneous source roots, affine covariance, shared budgets and statistics |
+| #814 | URL/Blob/static/RAD workers, shared deck/device residency and per-view/domain ordering, source-frame SH/HDR, owner picking and cleanup |
+| #794 | Native TreeLayer traits, wood, crops and explicitly weighted canopies |
+| #806 | Unified TreeLayer supplied rows/inventory streaming and parent quotas; deprecated WorldTreeLayer compatibility wrapper |
+| #808 | Tree Lab, Citrus, forest/world examples and historical evidence |
+| #815 | Independent public community SplatLayer Coit example, authored FirstPerson camera, native RAD ranges, diagnostics and website wiring |
+| #809 | Seasonal Farm migration and removal of the deprecated three workspace |
 
-The live PR heads checked for this revision are #807 `cae0ddd1`, #794 `92916af9`, #806 `4216f6e7`,
-#808 `a3220808`, and #809 `825ed4ef`; `master` is `bc8e1139`. They are open PRs, not a merge-readiness
-assertion. Implementation changes must be restacked into their owning PRs after verification.
+The sorted scene path is Cartesian, requires contiguous domains after opaque layers, and submits
+finest prepared sources when forced to sorted. It does not yet provide sorted geospatial/globe
+projection or Tree wind/material/shadow semantics. Those remain target acceptance limits; they
+are not silently substituted. WebGL2 exact CPU ordering serves small frontiers; Coit uses the
+WebGPU graph. Source loading and RAD traversal run off-thread on both backends. The root Yarn
+compatibility patch permits reproducible development; an upstream compatible luma 9.4 release
+and patch removal are required before publishing community packages.
+
+Real WebGL2/WebGPU pixels validate order reversal, shared-source affine/tint ownership, picking,
+Blob decoding and teardown. Real Coit HTTP ranges and first coverage are separate from settled
+million-row, hardware frame-time or Spark visual parity evidence. Historical tree films retain
+their original source and commit fingerprints.
 
 ### Prepared backend now implemented
 
-`SplatDataInput` currently includes a raw immutable `SplatSource` or the descriptor below. Broader
-URL, Blob, loader handle and decoded-table inputs are the target contract in later sections.
+`SplatDataInput` includes raw immutable `SplatSource`, the prepared descriptor below, URL/Blob,
+and explicit RAD/static file descriptors. Arbitrary loader handles and decoded tables remain
+target adapter work; they are not accepted simply because a loader exists.
 
 ```ts
 type PreparedSplatData = {
@@ -52,9 +69,10 @@ type PreparedSplatData = {
 };
 ```
 
-All prepared input forms retain weighted rendering, including direct assets and heterogeneous
-rows. A request for sorted rendering fails explicitly. The scene backend must establish its
-sorted/depth defaults when it is implemented; the prepared revision does not adopt those defaults.
+Prepared input forms default to weighted rendering, including direct assets and heterogeneous
+rows. Explicit sorted rendering routes prepared sources into the scene domain at their finest
+level. URL/Blob inputs default to sorted rendering. TreeLayer explicitly retains weighted
+rendering to preserve optical hierarchy transitions, wind and shadows.
 A direct asset has one stable implicit owner `{splats: asset, position: [0, 0, 0]}`. Instance rows
 keep their caller-owned object and accessor context. Explicit `getSource` conflicts with legacy
 `source`; descriptors carry the hierarchy in the new form.
@@ -67,7 +85,7 @@ The existing prepared primitive and `SplatEffect` present weighted output. Immut
 continue to be reference-counted per source and device.
 
 Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats` and
-`maxShadowSplats`; nested WorldTreeLayer consumers inherit the world ceiling. Local child caps
+`maxShadowSplats`; tiled TreeLayer inventories inherit their parent ceiling. Local child caps
 remain effective. `maxTotalSplats` applies the strictest participating shared cap. Allocator
 priorities compare projected error reduction across source roots, preserving coarsest coverage.
 Optical transitions retain the existing soft overlap allowance. These are submission budgets,
@@ -76,15 +94,20 @@ not hard GPU memory or frame-time guarantees.
 `getTransformMatrix` replaces orientation, scale and translation with a finite affine local
 matrix, including covariance and conservative shear bounds. `splatStats` reports source/hierarchy
 pairs, selected owners, submitted camera/shadow work, coarsest coverage and moving refinements.
-Geographic inventory residency remains WorldTreeLayer's separate statistics lane.
+Geographic inventory residency remains TreeLayer's separate `streamingStats` lane.
 
-### Required scene backend work
+### Scene backend and remaining acceptance work
 
-Extend the existing loaders/luma contracts for native RAD pages, source/instance namespaces,
-transformed joint selection, reference-counted page demand and one global order per view/domain.
-The currently published paged renderer owns its presentation pass; it cannot be inserted into
-deck's borrowed pass unchanged. WebGL's prepared global renderer still has the interleaved
-batch/slab limitation identified below. Neither obstacle is solved by a composite wrapper.
+The scene runtime integrates native RAD pages, source/instance namespaces, reference-counted
+page demand and one global order per view/domain. The luma 9.4 backport provides a borrowed
+presentation pass and per-instance projection. WebGL2 uses exact projected-row ordering for
+small frontiers; it does not use the prepared renderer's depth-slab shortcut. RAD selectors
+retain each view's coherent cut while sharing a source allocation and union residency.
+
+Full byte accounting, shared best-first RAD selection across different source hierarchies,
+scalable worker ordering on WebGL2, sorted geographic/globe projection, and matched-camera
+hardware performance/visual parity remain acceptance work. Per-source/view grants bound
+refinement; they are not a claim that a global RAD node queue has been implemented.
 
 Use a compatible publication or upstream backport for these extensions. Keep the Coit source and
 lifecycle comparison until the supported scene path reproduces them. Do not copy the private

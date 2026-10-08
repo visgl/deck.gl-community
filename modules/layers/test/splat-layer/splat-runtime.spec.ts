@@ -90,3 +90,76 @@ it('reallocates when a shared cap changes or its restrictive registration disapp
   runtime.reconcile(new Set(['b']));
   expect(selected.get('b')![0].level).toBe(1);
 });
+
+it('shares a strict host cap with scene demand and releases the reservation when scenes hide', () => {
+  const runtime = SplatRuntime.get({}, {});
+  const levels = hierarchy([100, 10]);
+  let rows: any[] = [];
+  runtime.set('prepared', false, {
+    rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
+    hierarchy: () => levels,
+    maxSplats: 100,
+    maxTotalSplats: 100,
+    apply: selected => {
+      rows = selected;
+    }
+  });
+  const ids = new Set(['prepared']);
+  expect(
+    runtime
+      .setSceneDemands(ids, [{id: 'scene', desired: 100, floor: 10, maxTotalSplats: 100}])
+      .get('scene')
+  ).toBe(50);
+  runtime.reconcile(ids);
+  expect(rows[0].level).toBe(1);
+  expect(runtime.setSceneDemands(ids, []).size).toBe(0);
+  runtime.reconcile(ids);
+  expect(rows[0].level).toBe(1);
+  runtime.set('prepared', false, {
+    rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
+    hierarchy: () => levels,
+    maxSplats: Infinity,
+    maxTotalSplats: Infinity,
+    apply: selected => {
+      rows = selected;
+    }
+  });
+  runtime.setSceneDemands(ids, []).size;
+  runtime.reconcile(ids);
+  expect(rows[0].level).toBe(0);
+});
+
+it('charges sibling scenes and prepared members once against their nested parent cap', () => {
+  const runtime = SplatRuntime.get({}, {});
+  const parent = {maxSplats: 120, maxShadowSplats: Infinity};
+  const first = {maxSplats: 1000, maxShadowSplats: Infinity, parent};
+  const second = {maxSplats: 1000, maxShadowSplats: Infinity, parent};
+  const scenes = [
+    {id: 'a', desired: 100, floor: 10, maxTotalSplats: Infinity, group: first},
+    {id: 'b', desired: 100, floor: 10, maxTotalSplats: Infinity, group: second}
+  ];
+  expect([...runtime.setSceneDemands(new Set(), scenes).values()]).toEqual([60, 60]);
+  let selected: any[] = [];
+  let preparedBudget = Infinity;
+  runtime.set('prepared', false, {
+    rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
+    hierarchy: () => hierarchy([100, 10]),
+    maxSplats: Infinity,
+    maxTotalSplats: Infinity,
+    group: first,
+    apply: (rows, budget) => {
+      selected = rows;
+      preparedBudget = budget;
+    }
+  });
+  const ids = new Set(['prepared']);
+  expect([...runtime.setSceneDemands(ids, scenes).values()]).toEqual([40, 40]);
+  runtime.reconcile(ids);
+  expect(selected[0].level).toBe(1);
+  expect(preparedBudget + 80).toBeLessThanOrEqual(parent.maxSplats);
+  expect(runtime.setSceneDemands(new Set(), [scenes[0]]).get('a')).toBe(100);
+  parent.maxSplats = 50;
+  expect([...runtime.setSceneDemands(new Set(), scenes).values()]).toEqual([25, 25]);
+  // Complete static/coarse coverage is retained when a soft cap is below the floor.
+  expect(runtime.setSceneDemands(new Set(), [{...scenes[0], floor: 60}]).get('a')).toBe(60);
+});

@@ -266,3 +266,55 @@ it('preserves a moving owner when other assets enter or leave and safely clears 
   expect(layer.state.shadowGroups.flat()).toEqual([]);
   expect(layer.renderLayers()).toEqual([]);
 });
+
+it('replaces scene owner rows with a direct prepared asset without retaining scene sources', () => {
+  const row = {position: [256, 256, 0] as [number, number, number], splats: '/scene.rad'};
+  const layer = make([row], 0, {source: undefined});
+  expect(layer.state.scene).toBe(true);
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({data: SOURCE}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  expect(layer.state.scene).toBe(false);
+  expect(layer.state.rowSources).toBeNull();
+  expect(layer.state.input.assets[0].source).toBe(SOURCE);
+});
+
+it('keeps sibling prepared grants cached after a layer enters scene mode', () => {
+  const layer = make([{position: [256, 256, 0]}], 0);
+  const runtime = layer.state.runtime;
+  const apply = vi.fn();
+  runtime.set('prepared-sibling', false, {
+    rows: [{owner: {}, pixels: 1, level: 0, blend: 0}],
+    hierarchy: () => layer.state.hierarchy,
+    maxSplats: Infinity,
+    maxTotalSplats: Infinity,
+    apply
+  });
+  runtime.reconcile(new Set([layer.id, 'prepared-sibling']));
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({data: '/scene.rad'}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  runtime.reconcile(new Set(['prepared-sibling']));
+  const grants = apply.mock.calls.length;
+  expect(grants).toBeGreaterThan(0);
+  for (const changeFlags of [{viewportChanged: true}, {propsChanged: true}]) {
+    layer.updateState({props: layer.props, oldProps: layer.props, changeFlags} as any);
+    runtime.reconcile(new Set(['prepared-sibling']));
+    expect(apply).toHaveBeenCalledTimes(grants);
+  }
+});
+
+it('initializes prepared rendering when only the blending mode changes from sorted to weighted', () => {
+  const layer = make([{position: [256, 256, 0]}], 0, {
+    source: undefined,
+    getSource: SOURCE,
+    transparency: 'sorted'
+  });
+  expect(layer.state.runtime).toBeUndefined();
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({transparency: 'weighted'}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {propsChanged: true}} as any);
+  expect(layer.state.scene).toBe(false);
+  expect(layer.splatStats.renderedSplats).toBe(1);
+  expect(layer.renderLayers().some(child => child.id.includes('refinement'))).toBe(true);
+});

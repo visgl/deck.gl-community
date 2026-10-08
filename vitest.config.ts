@@ -94,7 +94,18 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  include: ['@deck.gl/mesh-layers', '@loaders.gl/arrow', 'apache-arrow', 'three', 'zod']
+  // Scene fixtures load both adapters dynamically. Optimize them before tests start
+  // so a cold WebGPU import cannot invalidate an in-flight WebGL module URL.
+  include: [
+    '@deck.gl/mesh-layers',
+    '@loaders.gl/arrow',
+    '@loaders.gl/splats',
+    '@luma.gl/webgl',
+    '@luma.gl/webgpu',
+    'apache-arrow',
+    'three',
+    'zod'
+  ]
 };
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', '**/node_modules/**', 'dev/**/dist/**'];

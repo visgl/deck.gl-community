@@ -19,6 +19,8 @@ export type SplatSource = {
   opacities: Float32Array;
   /** Optional nonnegative peak optical depth. Overrides opacities; alpha scales density. */
   opticalDepths?: Float32Array;
+  /** Optional source-frame spherical harmonic coefficients for sorted scene rendering. */
+  sphericalHarmonics?: Float32Array;
   /** Optional local shading normals. They do not flip toward the camera; covariance is independent. */
   normals?: Float32Array;
 };

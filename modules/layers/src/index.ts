@@ -32,4 +32,11 @@ export {createSplatHierarchy} from './splat-layer/splat-hierarchy';
 export type {SplatHierarchy, SplatHierarchyLevel} from './splat-layer/splat-hierarchy';
 export {SplatShadowPass} from './splat-layer/splat-shadow-pass';
 export type {SplatShadowProjection} from './splat-layer/splat-shadow-pass';
-export type {SplatDataInput, PreparedSplatData, SplatInstance} from './splat-layer/splat-input';
+export type {
+  SplatDataInput,
+  PreparedSplatData,
+  RADSplatData,
+  StaticSplatData,
+  SplatInstance
+} from './splat-layer/splat-input';
+export type {SplatLayerStatus} from './splat-layer/scene/rad-scene';

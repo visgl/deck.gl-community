@@ -17,7 +17,10 @@
     "deck.gl"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/splat-layer/scene/*-worker.*",
+    "./dist/splat-layer/scene/*-worker.js"
+  ],
   "types": "./dist/index.d.ts",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -26,7 +29,9 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
-    }
+    },
+    "./workers/rad": "./dist/splat-layer/scene/rad-source-worker.js",
+    "./workers/static": "./dist/splat-layer/scene/static-source-worker.js"
   },
   "files": [
     "dist",
@@ -34,12 +39,16 @@
   ],
   "scripts": {
     "test": "vitest run",
-    "test-watch": "vitest"
+    "test-watch": "vitest",
+    "build": "node ../../scripts/build-splat-worker.mjs"
   },
   "dependencies": {
+    "@loaders.gl/loader-utils": "^4.5.3",
+    "@loaders.gl/splats": "^4.5.3",
     "@loaders.gl/textures": "^4.5.1",
     "@luma.gl/constants": "~9.4.0",
     "@luma.gl/shadertools": "~9.4.0",
+    "@luma.gl/splats": "~9.4.2",
     "@math.gl/core": "^4.0.0"
   },
   "peerDependencies": {

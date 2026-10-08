@@ -16,8 +16,39 @@ export type PreparedSplatData = {
   hierarchy?: SplatHierarchy;
 };
 
-/** Assets supported by the prepared rendering backend. */
-export type SplatDataInput = SplatSource | PreparedSplatData;
+/** Range-loaded RAD asset. Native hierarchy columns remain attached to their original pages. */
+export type RADSplatData = {type: 'rad'; url: string | Blob};
+/** Static file decoded by the splat loaders without applying native RAD hierarchy traversal. */
+export type StaticSplatData = {
+  type: 'splats';
+  url: string | Blob;
+  format?: 'splat' | 'ksplat' | 'spz';
+};
+/** Direct scene assets or reusable prepared Gaussian columns. */
+export type SplatDataInput =
+  | SplatSource
+  | PreparedSplatData
+  | RADSplatData
+  | StaticSplatData
+  | string
+  | Blob;
+
+/** Whether an input must use scene loading rather than deck's ordinary table loader. */
+export function isSplatSceneData(
+  input: unknown
+): input is RADSplatData | StaticSplatData | string | Blob {
+  return (
+    typeof input === 'string' ||
+    (typeof Blob !== 'undefined' && input instanceof Blob) ||
+    Boolean(
+      input &&
+        typeof input === 'object' &&
+        'type' in input &&
+        (input.type === 'rad' || input.type === 'splats') &&
+        'url' in input
+    )
+  );
+}
 
 /** Owner returned by accessors and picking for a directly supplied asset. */
 export type SplatInstance = {splats: SplatDataInput; position: Position};
@@ -34,7 +65,7 @@ export type ResolvedSplatInput<DataT> = {
 };
 
 const ASSETS = new WeakMap<SplatSource, Map<SplatHierarchy | undefined, ResolvedSplatAsset>>();
-const INSTANCES = new WeakMap<SplatDataInput, SplatInstance[]>();
+const INSTANCES = new WeakMap<SplatSource | PreparedSplatData, SplatInstance[]>();
 let nextAssetId = 0;
 
 /** The conventional row accessor; explicit source compatibility overrides only this default. */
@@ -47,6 +78,7 @@ function isPreparedSource(input: unknown): input is SplatSource {
 }
 export function isSplatDataInput(input: unknown): input is SplatDataInput {
   return (
+    isSplatSceneData(input) ||
     isPreparedSource(input) ||
     Boolean(
       input && typeof input === 'object' && 'type' in input && input.type === 'prepared-splats'
@@ -56,11 +88,14 @@ export function isSplatDataInput(input: unknown): input is SplatDataInput {
 
 /** Validate one source/hierarchy pair once without allocating a GPU resource. */
 export function resolveSplatAsset(input: SplatDataInput): ResolvedSplatAsset {
-  if (!isSplatDataInput(input))
+  if (!isSplatDataInput(input) || isSplatSceneData(input))
     throw new Error(
       'SplatLayer requires a prepared Gaussian asset. RAD and sorted scene rendering require the upstream paged-instance backend.'
     );
-  const descriptor = 'type' in input ? input : undefined;
+  const descriptor =
+    typeof input === 'object' && 'type' in input && input.type === 'prepared-splats'
+      ? input
+      : undefined;
   const source = descriptor ? descriptor.source : (input as SplatSource);
   if (!isPreparedSource(source))
     throw new Error('Prepared splat data requires Gaussian source columns.');
@@ -99,7 +134,9 @@ export function resolveSplatInput<DataT>(props: {
   source?: SplatSource;
   hierarchy?: SplatHierarchy | null;
   getSource: Accessor<DataT, SplatDataInput>;
+  rowSources?: SplatDataInput[];
 }): ResolvedSplatInput<DataT> {
+  if (isSplatSceneData(props.data)) throw new Error('Use sorted SplatLayer for scene assets.');
   const direct = isSplatDataInput(props.data);
   if (props.source && (direct || props.getSource !== DEFAULT_GET_SOURCE))
     throw new Error(
@@ -113,10 +150,10 @@ export function resolveSplatInput<DataT>(props: {
   if (direct) {
     if (props.getSource !== DEFAULT_GET_SOURCE)
       throw new Error('SplatLayer getSource applies to instance rows, not direct asset data.');
-    let instances = INSTANCES.get(props.data as SplatDataInput);
+    let instances = INSTANCES.get(props.data as SplatSource | PreparedSplatData);
     if (!instances) {
       instances = [{splats: props.data as SplatDataInput, position: [0, 0, 0]}];
-      INSTANCES.set(props.data as SplatDataInput, instances);
+      INSTANCES.set(props.data as SplatSource | PreparedSplatData, instances);
     }
     data = instances as DataT[];
   } else {
@@ -140,9 +177,10 @@ export function resolveSplatInput<DataT>(props: {
       resolveSplatAsset(
         direct
           ? (props.data as SplatDataInput)
-          : typeof props.getSource === 'function'
-            ? props.getSource(row, info)
-            : props.getSource
+          : (props.rowSources?.[index] ??
+              (typeof props.getSource === 'function'
+                ? props.getSource(row, info)
+                : props.getSource))
       );
     assets.add(asset);
     return asset;

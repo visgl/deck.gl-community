@@ -1033,11 +1033,14 @@ __metadata:
     "@deck.gl/mesh-layers": "npm:~9.4.0"
     "@deck.gl/test-utils": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
+    "@loaders.gl/loader-utils": "npm:^4.5.3"
+    "@loaders.gl/splats": "npm:^4.5.3"
     "@loaders.gl/textures": "npm:^4.5.1"
     "@luma.gl/constants": "npm:~9.4.0"
     "@luma.gl/core": "npm:~9.4.0"
     "@luma.gl/engine": "npm:~9.4.0"
     "@luma.gl/shadertools": "npm:~9.4.0"
+    "@luma.gl/splats": "npm:~9.4.2"
     "@luma.gl/webgpu": "npm:~9.4.0"
     "@math.gl/core": "npm:^4.0.0"
     "@probe.gl/test-utils": "npm:^4.1.1"
@@ -3327,6 +3330,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@loaders.gl/splats@npm:^4.5.3":
+  version: 4.5.3
+  resolution: "@loaders.gl/splats@npm:4.5.3"
+  dependencies:
+    "@loaders.gl/compression": "npm:4.5.3"
+    "@loaders.gl/loader-utils": "npm:4.5.3"
+    "@loaders.gl/schema": "npm:4.5.3"
+    apache-arrow: "npm:>= 17.0.0"
+    zod: "npm:^4.1.12"
+  peerDependencies:
+    "@loaders.gl/core": ~4.5.0
+  checksum: 10c0/3af294d435cbee540cdd8c92f600b56293b99bd2bad62c867dd2af7d4f62340c53de9502ef0398e1b0e518d0849567a6479638c8d7e2adb338b144ecd57daf5b
+  languageName: node
+  linkType: hard
+
 "@loaders.gl/terrain@npm:4.5.3":
   version: 4.5.3
   resolution: "@loaders.gl/terrain@npm:4.5.3"
@@ -3522,6 +3540,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@luma.gl/experimental@npm:9.4.2":
+  version: 9.4.2
+  resolution: "@luma.gl/experimental@npm:9.4.2"
+  dependencies:
+    "@luma.gl/gpgpu": "npm:9.4.2"
+    "@math.gl/core": "npm:^4.1.0"
+    "@math.gl/types": "npm:^4.1.0"
+  peerDependencies:
+    "@luma.gl/core": ~9.4.0
+    "@luma.gl/engine": ~9.4.0
+    "@luma.gl/shadertools": ~9.4.0
+  checksum: 10c0/8b2f0186d05158b05b5c18eef6817cdfe2e770632009016c851ea258243435680916bcb74ad13981bdba98586f3c9c37d8f3eda20d846fb39e588659c2d2342b
+  languageName: node
+  linkType: hard
+
 "@luma.gl/gltf@npm:^9.4.0":
   version: 9.4.0
   resolution: "@luma.gl/gltf@npm:9.4.0"
@@ -3535,6 +3568,23 @@ __metadata:
     "@luma.gl/engine": ~9.4.0
     "@luma.gl/shadertools": ~9.4.0
   checksum: 10c0/3d4c815eb4a3ce0b6e9517992ad94cf9a49d5434c80990ca8974f776702272609029691fd3908f4bcc8b7b621dc97b3e5dfd5c5ac9b168b3446f243f89052e66
+  languageName: node
+  linkType: hard
+
+"@luma.gl/gpgpu@npm:9.4.2":
+  version: 9.4.2
+  resolution: "@luma.gl/gpgpu@npm:9.4.2"
+  dependencies:
+    "@math.gl/core": "npm:^4.1.0"
+    "@math.gl/types": "npm:^4.1.0"
+    "@probe.gl/log": "npm:^4.0.8"
+    "@probe.gl/stats": "npm:^4.0.8"
+  peerDependencies:
+    "@luma.gl/core": ~9.4.0
+    "@luma.gl/engine": ~9.4.0
+    "@luma.gl/shadertools": ~9.4.0
+    "@luma.gl/webgpu": ~9.4.0
+  checksum: 10c0/e97d94748c771e76ebf2985c9ca5ddebfe78ca5081eaa78b38249eba9fb0186e4b022b67e4f6f8966b6675394e2097cb755ed9ce4172aa8d27f1c106e51ea81d
   languageName: node
   linkType: hard
 
@@ -3567,6 +3617,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@luma.gl/splats@npm:9.4.2":
+  version: 9.4.2
+  resolution: "@luma.gl/splats@npm:9.4.2"
+  dependencies:
+    "@luma.gl/core": "npm:9.4.2"
+    "@luma.gl/engine": "npm:9.4.2"
+    "@luma.gl/experimental": "npm:9.4.2"
+    "@luma.gl/gpgpu": "npm:9.4.2"
+    "@luma.gl/shadertools": "npm:9.4.2"
+  checksum: 10c0/ba59f4d26ad30954ce18a3e22a3fb73f4a14b66084c6451cbe83343873015b0ca2bcc1183d0c7f1a8cfe48160e05f2a8c546ab74e1b4be194b9d3a78d970fbbc
+  languageName: node
+  linkType: hard
+
+"@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch":
+  version: 9.4.2
+  resolution: "@luma.gl/splats@patch:@luma.gl/splats@npm%3A9.4.2#~/.yarn/patches/@luma.gl-splats-npm-9.4.2-46f77a1f72.patch::version=9.4.2&hash=678be0"
+  dependencies:
+    "@luma.gl/core": "npm:9.4.2"
+    "@luma.gl/engine": "npm:9.4.2"
+    "@luma.gl/experimental": "npm:9.4.2"
+    "@luma.gl/gpgpu": "npm:9.4.2"
+    "@luma.gl/shadertools": "npm:9.4.2"
+  checksum: 10c0/bb0f229cb4484b25946b435c3e8a6eb7610015af0b59ab43f0d92abd77a8916803ebfa3255ef4e0392dd7ed5bedf30d5d9246b751447a64ab69cd3bcb302d34f
+  languageName: node
+  linkType: hard
+
 "@luma.gl/test-utils@npm:^9.4.0":
   version: 9.4.0
   resolution: "@luma.gl/test-utils@npm:9.4.0"
@@ -3580,6 +3656,22 @@ __metadata:
     "@luma.gl/webgl": ~9.4.0
     "@luma.gl/webgpu": ~9.4.0
   checksum: 10c0/06c28017698845bd44c3e70dbaf9b8a1b37d7b9e049c4cdca14fc7b81cea9c7978a6d40e47b971e7c634340fd7fb7b130275e1c6babe48e4f02c363f1b0e88d8
+  languageName: node
+  linkType: hard
+
+"@luma.gl/test-utils@npm:~9.4.0":
+  version: 9.4.2
+  resolution: "@luma.gl/test-utils@npm:9.4.2"
+  dependencies:
+    "@probe.gl/env": "npm:^4.1.1"
+    "@probe.gl/stats": "npm:^4.1.1"
+  peerDependencies:
+    "@luma.gl/core": ~9.4.0
+    "@luma.gl/engine": ~9.4.0
+    "@luma.gl/shadertools": ~9.4.0
+    "@luma.gl/webgl": ~9.4.0
+    "@luma.gl/webgpu": ~9.4.0
+  checksum: 10c0/5a9fb12335c875c3a420228cb13250d85c092521c9380a1561cd1c3a5ef11435e88808be95e76f1de41d88eb4c68d12477542e67605800d2486c2c696b81bd5e
   languageName: node
   linkType: hard
 
@@ -9946,7 +10038,9 @@ __metadata:
     "@luma.gl/core": "npm:~9.4.0"
     "@luma.gl/engine": "npm:~9.4.0"
     "@luma.gl/shadertools": "npm:~9.4.0"
+    "@luma.gl/test-utils": "npm:~9.4.0"
     "@luma.gl/webgl": "npm:~9.4.0"
+    "@luma.gl/webgpu": "npm:~9.4.0"
     "@testing-library/dom": "npm:^10.0.0"
     "@testing-library/react": "npm:^16.3.2"
     "@types/bin-pack": "npm:^1.0.3"
@@ -9961,6 +10055,7 @@ __metadata:
     apache-arrow: "npm:^17.0.0"
     bin-pack: "npm:^1.0.2"
     datauri: "npm:^4.1.0"
+    esbuild: "npm:^0.28.1"
     ndarray: "npm:^1.0.19"
     ndarray-pixels: "npm:^3.1.0"
     playwright: "npm:^1.58.0"
