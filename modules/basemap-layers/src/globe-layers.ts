@@ -1,4 +1,5 @@
 import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
+import {PathStyleExtension} from '@deck.gl/extensions';
 import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
@@ -6,6 +7,7 @@ import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
 import {
+  type StyleAccessor,
   getFilterZoom,
   getStyleAccessor,
   getStyleZoomKey,
@@ -65,11 +67,17 @@ function getBackgroundParameters(mode: BasemapMode) {
   ) as any;
 }
 
+/**
+ * Flat map layers draw in style order without writing depth, but are depth-tested so that
+ * extrusions hide the ground behind them. MapLibre draws a tile's layers interleaved with every
+ * other tile's; here each tile draws all of its layers in turn, so without the test a later tile's
+ * roads would paint over an earlier tile's buildings.
+ */
 function getTileParameters(mode: BasemapMode) {
   return (
     mode === 'globe'
       ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
-      : {depthTest: false, cullMode: 'none'}
+      : {depthTest: true, depthWriteEnabled: false, depthCompare: 'less-equal', cullMode: 'none'}
   ) as any;
 }
 
@@ -95,9 +103,33 @@ const BACKGROUND_NORTH_POLE_DATA = [
   ]
 ];
 
-const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster']);
+const SUPPORTED_TYPES = new Set([
+  'background',
+  'fill',
+  'fill-extrusion',
+  'line',
+  'symbol',
+  'raster'
+]);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
 const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
+// The style spec's default `line-color` and `fill-extrusion-color`.
+const DEFAULT_COLOR = [0, 0, 0, 1];
+
+/**
+ * Dashes for `line-dasharray`, shared by every dashed sublayer so deck.gl does not see their
+ * extensions change. `dashMode: 'path'` runs the pattern continuously along each line, as MapLibre
+ * does, instead of restarting it at every vertex.
+ */
+const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
+
+/** Extrusions are depth-tested against each other; flat layers draw in style order. */
+const EXTRUSION_PARAMETERS = {
+  depthTest: true,
+  depthWriteEnabled: true,
+  depthCompare: 'less-equal',
+  cullMode: 'none'
+} as any;
 
 /** The latest evaluated paint per style layer, reused across tiles within one zoom step. */
 const paintCache = new WeakMap<
@@ -405,6 +437,10 @@ function createStyledVectorSubLayer({
     });
   }
 
+  if (styleLayer.type === 'fill-extrusion') {
+    return createExtrusionSubLayer({props, styleLayer, features, zoom});
+  }
+
   return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
 }
 
@@ -686,6 +722,30 @@ function createSymbolSubLayer({
   });
 }
 
+/**
+ * Converts a style `line-dasharray` into deck.gl's `[dash, gap]`. MapLibre measures dashes in line
+ * widths; deck.gl's `widths` unit is half the line width, so lengths double. deck.gl draws one dash
+ * and one gap per period, so a longer pattern keeps its period and total dash length, but merges
+ * its dashes. In an odd-length pattern the last dash runs into the first, as in MapLibre. An empty
+ * pattern, or one without gaps, draws a solid line.
+ */
+export function getDashArray(dasharray: unknown): [number, number] {
+  if (!Array.isArray(dasharray)) {
+    return [0, 0];
+  }
+  let dash = 0;
+  let gap = 0;
+  dasharray.forEach((value, index) => {
+    const length = Math.max(0, Number(value) || 0);
+    if (index % 2 === 0) {
+      dash += length;
+    } else {
+      gap += length;
+    }
+  });
+  return [dash * 2, gap * 2];
+}
+
 function createGeometrySubLayer({
   props,
   styleLayer,
@@ -701,38 +761,63 @@ function createGeometrySubLayer({
 }) {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
-  const opacityProperty = isFill ? 'fill-opacity' : 'line-opacity';
+  const baseProps = getSubLayerBaseProps(props);
 
   const fillColor = getStyleAccessor(
     styleLayer,
-    ['fill-color', opacityProperty],
+    ['fill-color', 'fill-opacity'],
     zoom,
     ([color, opacity]) => getGlobeFillColor(withOpacity(color, opacity ?? 1), mode)
   );
-  const lineColor = getStyleAccessor(
-    styleLayer,
-    ['line-color', 'fill-outline-color', opacityProperty],
-    zoom,
-    ([color, outlineColor, opacity]) =>
-      withOpacity(color || outlineColor || [0, 0, 0, 0], opacity ?? 1)
-  );
+  // MapLibre draws a fill's outline only with `fill-antialias`; without `fill-outline-color` the
+  // outline is in `fill-color` and only antialiases the edge, which deck.gl's fill does not need.
+  const hasOutline =
+    isFill &&
+    styleLayer.paint?.['fill-outline-color'] !== undefined &&
+    getPaint(styleLayer, zoom)['fill-antialias'] !== false;
+  const lineColor = isLine
+    ? getStyleAccessor(styleLayer, ['line-color', 'line-opacity'], zoom, ([color, opacity]) =>
+        withOpacity(color ?? DEFAULT_COLOR, opacity ?? 1)
+      )
+    : getStyleAccessor(
+        styleLayer,
+        ['fill-outline-color', 'fill-opacity'],
+        zoom,
+        ([color, opacity]) => withOpacity(color, opacity ?? 1)
+      );
   const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
     Math.max(0, Number(width ?? 1))
   );
+  // The style spec evaluates zoom in `line-dasharray` at integer zooms only.
+  const dashArray: StyleAccessor<[number, number]> | null =
+    isLine && styleLayer.paint?.['line-dasharray'] !== undefined
+      ? getStyleAccessor(styleLayer, ['line-dasharray'], Math.floor(zoom), ([dasharray]) =>
+          getDashArray(dasharray)
+        )
+      : null;
 
   return new GeoJsonLayer({
-    ...getSubLayerBaseProps(props),
+    ...baseProps,
     id: `${props.id}-${styleLayer.id}`,
     data: features,
-    stroked: isLine,
+    stroked: isLine || hasOutline,
     filled: isFill,
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
-    getLineWidth: isLine ? (lineWidth.value as any) : 0,
+    // A fill's outline is MapLibre's 1 pixel antialiasing line.
+    getLineWidth: isLine ? (lineWidth.value as any) : hasOutline ? 1 : 0,
+    ...(dashArray
+      ? {
+          extensions: [...(baseProps.extensions || []), DASH_EXTENSION],
+          getDashArray: dashArray.value as any,
+          dashJustified: false
+        }
+      : {}),
     updateTriggers: {
       getFillColor: isFill ? fillColor.updateTrigger : undefined,
       getLineColor: lineColor.updateTrigger,
-      getLineWidth: isLine ? lineWidth.updateTrigger : undefined
+      getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
+      getDashArray: dashArray?.updateTrigger
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
@@ -741,6 +826,131 @@ function createGeometrySubLayer({
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
     parameters: getTileParameters(mode)
+  });
+}
+
+/** The latest features raised to their `fill-extrusion-base`, per tile content and style layer. */
+const raisedFeatureCache = new WeakMap<
+  any[],
+  WeakMap<BasemapStyleLayer, {key: unknown[]; features: any[]}>
+>();
+
+function raiseCoordinates(coordinates: any, base: number): any {
+  return typeof coordinates[0] === 'number'
+    ? [coordinates[0], coordinates[1], base]
+    : coordinates.map((child: any) => raiseCoordinates(child, base));
+}
+
+/**
+ * Returns the features with their polygons raised to `fill-extrusion-base`: deck.gl extrudes a
+ * polygon from its own `z` by `getElevation`. Features with a base of 0 are returned as they are,
+ * and so is the array when every base is 0. The result is reused while the base is unchanged.
+ */
+function getRaisedFeatures(
+  features: any[],
+  styleLayer: BasemapStyleLayer,
+  base: StyleAccessor<number>
+): any[] {
+  const {value} = base;
+  if (value === 0) {
+    return features;
+  }
+  const key = [
+    styleLayer.paint?.['fill-extrusion-base'],
+    styleLayer.paint?.['fill-extrusion-height'],
+    typeof value === 'function' ? base.updateTrigger : value
+  ];
+  let byStyleLayer = raisedFeatureCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    raisedFeatureCache.set(features, byStyleLayer);
+  }
+  const cached = byStyleLayer.get(styleLayer);
+  if (cached && cached.key.every((entry, index) => entry === key[index])) {
+    return cached.features;
+  }
+
+  let raisedAny = false;
+  const raised = features.map(feature => {
+    const geometryType = feature.geometry?.type;
+    const featureBase = typeof value === 'function' ? value(feature) : value;
+    if (featureBase === 0 || (geometryType !== 'Polygon' && geometryType !== 'MultiPolygon')) {
+      return feature;
+    }
+    raisedAny = true;
+    return {
+      ...feature,
+      geometry: {
+        ...feature.geometry,
+        coordinates: raiseCoordinates(feature.geometry.coordinates, featureBase)
+      }
+    };
+  });
+  const result = raisedAny ? raised : features;
+  byStyleLayer.set(styleLayer, {key, features: result});
+  return result;
+}
+
+function getExtrusionBounds(height: unknown, base: unknown): [number, number] {
+  const top = Math.max(0, Number(height ?? 0) || 0);
+  return [Math.min(Math.max(0, Number(base ?? 0) || 0), top), top];
+}
+
+/**
+ * Draws a `fill-extrusion` style layer as extruded polygons, from `fill-extrusion-base` to
+ * `fill-extrusion-height`, in meters. `fill-extrusion-opacity` applies to the whole layer, as in
+ * MapLibre, and the alpha of `fill-extrusion-color` is ignored.
+ */
+function createExtrusionSubLayer({
+  props,
+  styleLayer,
+  features,
+  zoom
+}: {
+  props: any;
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  zoom: number;
+}) {
+  const paint = getPaint(styleLayer, zoom);
+  const color = getStyleAccessor(styleLayer, ['fill-extrusion-color'], zoom, ([value]) =>
+    withOpacity([...(value ?? DEFAULT_COLOR).slice(0, 3), 1])
+  );
+  const base = getStyleAccessor(
+    styleLayer,
+    ['fill-extrusion-height', 'fill-extrusion-base'],
+    zoom,
+    ([height, baseValue]) => getExtrusionBounds(height, baseValue)[0]
+  );
+  const elevation = getStyleAccessor(
+    styleLayer,
+    ['fill-extrusion-height', 'fill-extrusion-base'],
+    zoom,
+    ([height, baseValue]) => {
+      const [bottom, top] = getExtrusionBounds(height, baseValue);
+      return top - bottom;
+    }
+  );
+  const baseProps = getSubLayerBaseProps(props);
+
+  return new GeoJsonLayer({
+    ...baseProps,
+    id: `${props.id}-${styleLayer.id}`,
+    data: getRaisedFeatures(features, styleLayer, base),
+    opacity: (baseProps.opacity ?? 1) * (paint['fill-extrusion-opacity'] ?? 1),
+    extruded: true,
+    filled: true,
+    stroked: false,
+    wireframe: false,
+    getFillColor: color.value as any,
+    getElevation: elevation.value as any,
+    updateTriggers: {
+      getFillColor: color.updateTrigger,
+      getElevation: elevation.updateTrigger
+    },
+    getPointRadius: 0,
+    pointRadiusMinPixels: 0,
+    parameters: EXTRUSION_PARAMETERS
   });
 }
 
@@ -802,7 +1012,9 @@ function getVectorLayers({
   fontFamily?: LabelFontFamily | null;
 }) {
   const vectorLayers = styleLayers.filter(layer =>
-    layer.type === 'symbol' ? config.labels : layer.type === 'fill' || layer.type === 'line'
+    layer.type === 'symbol'
+      ? config.labels
+      : layer.type === 'fill' || layer.type === 'fill-extrusion' || layer.type === 'line'
   );
 
   // A group keeps all of its source's style layers, visible or not: its tile regeneration key

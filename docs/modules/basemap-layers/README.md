@@ -142,7 +142,7 @@ layer.
 Overview of each key:
 
 - `id`: must be unique to each layer
-- `type`: one of: `background`, `fill`, `line`, `symbol`, `raster`, `circle`, `fill`,-extrusion `heatmap`, `hillshade`, `sky` (v2 only).
+- `type`: one of: `background`, `fill`, `line`, `symbol`, `raster`, `circle`, `fill-extrusion`, `heatmap`, `hillshade`, `sky` (v2 only).
 - `source`: must be one of the keys defined in the initial `sources` object. So here each must be either `satellite-source` or `vector-source`.
 - `source-layer`: For vector sources, each styling layer is rendered on only a single vector tile layer within the source. So when `source-layer` is `landuse`, the vector tiles provided by the `vector-source` source are expected to contain a layer named `landuse`, and this styling layer will apply only to that layer. This is required for vector sources.
 - `minzoom`, `maxzoom`: zoom range in which the layer draws. Without them the layer draws at every zoom, as in MapLibre. The source's `minzoom`/`maxzoom` only limit which tiles are requested: past the source `maxzoom`, the last tiles are overzoomed.
@@ -224,5 +224,44 @@ Approximations:
   icon layers can overlap. Labels keep their collision filtering. MapLibre places an icon and
   its text as one unit and hides both on collision.
 - `icon-rotate`, `icon-text-fit`, `icon-padding` and `icon-allow-overlap` are not applied.
+
+### Extrusions, dashes and fill outlines
+
+`fill-extrusion` layers draw as extruded polygons (`GeoJsonLayer` with `extruded: true`).
+`fill-extrusion-color`, `fill-extrusion-height` and `fill-extrusion-base` are evaluated per
+feature; heights are in meters. The walls rise from the base, which is clamped to the height, so
+a feature with a base draws as a block raised off the ground. `fill-extrusion-opacity` applies to
+the whole layer, and the alpha of `fill-extrusion-color` is ignored, as in MapLibre. Extrusions are
+depth-tested against each other, and flat layers are depth-tested against them without writing
+depth, so flat layers keep drawing in style order but do not paint over a building from another
+tile. In a flat view, the roofs draw.
+
+`line-dasharray` dashes lines with deck.gl's `PathStyleExtension`. Lengths are in line widths, as
+in MapLibre, and the pattern runs continuously along each line. Zoom-dependent patterns are
+evaluated at integer zooms, as the style specification says.
+
+`fill-outline-color` draws a 1 pixel outline around each polygon, multiplied by `fill-opacity`.
+As in MapLibre, no outline is drawn when `fill-antialias` is `false`.
+
+Approximations:
+
+- Extrusions are lit by deck.gl's default lighting, not the style's `light`, and
+  `fill-extrusion-vertical-gradient` is not applied. `fill-extrusion-pattern` is not supported.
+- `fill-extrusion-opacity` scales each surface's opacity. MapLibre composites the layer as a
+  whole, so with an opacity below 1 MapLibre hides the walls behind a building, which deck.gl can
+  show.
+- deck.gl draws one dash and one gap per period. A pattern longer than two values keeps its period
+  and its total dash length, but its dashes merge into one. In an odd-length pattern the last
+  dash runs into the first, as in MapLibre.
+- `line-cap` is not applied: lines and their dashes have round ends, so a short dash such as a
+  rail hatching draws as a dot rather than a tick.
+- A flat layer that comes after a `fill-extrusion` layer in the style is hidden behind the
+  buildings; MapLibre draws it over them.
+- MapLibre cross-fades a zoom-dependent `line-dasharray` between integer zooms; here it switches
+  at each integer zoom.
+- The outline is 1 CSS pixel wide; MapLibre's is one device pixel.
+- `fill-translate`, `line-translate` and `fill-extrusion-translate` (and their `-anchor`
+  properties) are not applied. They offset geometry in screen pixels, which deck.gl's polygon
+  and path layers have no prop for.
 
 [maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec

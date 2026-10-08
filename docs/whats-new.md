@@ -13,6 +13,12 @@
 - `basemap-layers` labels evaluate `text-field`, `text-size`, `text-color` and `text-opacity`
   expressions per feature, and use `symbol-sort-key` for collision priority (lower keys win, as
   in the style specification). Styles without a sort key keep the built-in priority.
+- `basemap-layers` draws `fill-extrusion` layers as extruded polygons (`fill-extrusion-color`,
+  `-height`, `-base` per feature, and the layer-wide `fill-extrusion-opacity`), dashes lines with
+  `line-dasharray`, and draws `fill-outline-color` as a 1 pixel polygon outline. Line layers
+  without `line-color` now draw black, the style specification's default, instead of nothing.
+  Flat map layers are depth-tested without writing depth, so they no longer paint over
+  extrusions from other tiles.
 - `basemap-layers` labels take their font from `text-font` (family, weight and italic style, with
   a generic fallback family) instead of `Monaco, monospace`. The new `BasemapLayer` `fontFamily`
   prop overrides it.
