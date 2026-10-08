@@ -153,3 +153,28 @@ test('file input and drops pass files through, enforce single selection, and res
     expect(Number(getComputedStyle(control).opacity)).toBeLessThan(1);
   }
 });
+
+test.each(['text/plain', 'text/uri-list'])('preserves native URL drops for %s', type => {
+  const onSelectFiles = vi.fn();
+  mountPanel(
+    new SourcePickerPanel({
+      id: 'text-drop',
+      title: 'Source',
+      onLoadUrl: vi.fn(),
+      onSelectFiles
+    })
+  );
+  const transfer = new DataTransfer();
+  transfer.setData(type, 'https://example.test/source.json');
+  const input = root.querySelector<HTMLInputElement>('input[type=url]')!;
+  for (const eventType of ['dragover', 'drop']) {
+    const event = new DragEvent(eventType, {
+      dataTransfer: transfer,
+      bubbles: true,
+      cancelable: true
+    });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  }
+  expect(onSelectFiles).not.toHaveBeenCalled();
+});

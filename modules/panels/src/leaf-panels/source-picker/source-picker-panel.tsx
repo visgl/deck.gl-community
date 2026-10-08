@@ -86,10 +86,12 @@ function SourcePickerContent({
     <div
       style={{display: 'grid', gap: '8px'}}
       onDragOver={event => {
-        if (onSelectFiles && !disabled) event.preventDefault();
+        if (onSelectFiles && !disabled && event.dataTransfer?.types.includes('Files')) {
+          event.preventDefault();
+        }
       }}
       onDrop={event => {
-        if (onSelectFiles) {
+        if (onSelectFiles && event.dataTransfer?.files.length) {
           event.preventDefault();
           selectFiles(event.dataTransfer?.files ?? null);
         }
