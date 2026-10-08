@@ -87,6 +87,20 @@ describe('RadialLayout hierarchy geometry', () => {
     ]);
   });
 
+  it('renders direct parent-child edges as lines in both directions', () => {
+    const graph = createGraph(
+      ['root', 'child'],
+      [
+        ['root', 'child'],
+        ['child', 'root']
+      ]
+    );
+    const layout = createLayout([{id: 'root', children: ['child']}], graph);
+    for (const edge of graph.getEdges()) {
+      expect(layout.getEdgePosition(edge)).toMatchObject({type: 'line', controlPoints: []});
+    }
+  });
+
   it('supports ordinary string IDs that match Object prototype names', () => {
     const graph = createGraph(['root', 'constructor', '__proto__']);
     const layout = createLayout([{id: 'root', children: ['constructor', '__proto__']}], graph);

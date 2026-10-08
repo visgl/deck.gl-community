@@ -211,7 +211,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
       .map(nodeId => this._hierarchicalPoints[nodeId]);
 
     return {
-      type: 'spline-curve',
+      type: wayPoints.length > 0 ? 'spline-curve' : 'line',
       sourcePosition: sourceNodePos,
       targetPosition: targetNodePos,
       controlPoints: wayPoints
