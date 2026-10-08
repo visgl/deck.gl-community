@@ -47,6 +47,7 @@ Release date: 2023
 
 ## Examples
 
+- [Coit native RAD scene](/examples/layers/coit)
 - [FlameTrailLayer](/examples/layers/flame-trail)
 - [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)

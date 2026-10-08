@@ -836,6 +836,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community/coit-example@workspace:examples/layers/coit":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community/coit-example@workspace:examples/layers/coit"
+  dependencies:
+    "@deck.gl-community/layers": "workspace:*"
+    "@deck.gl/core": "npm:~9.4.0"
+    "@deck.gl/layers": "npm:~9.4.0"
+    "@loaders.gl/core": "npm:^4.5.3"
+    "@luma.gl/core": "npm:~9.4.0"
+    "@luma.gl/engine": "npm:~9.4.0"
+    "@luma.gl/shadertools": "npm:~9.4.0"
+    "@luma.gl/webgpu": "npm:~9.4.0"
+    "@math.gl/core": "npm:^4.0.0"
+    "@types/react": "npm:^19.2.18"
+    "@types/react-dom": "npm:^19.2.5"
+    react: "npm:^19.2.8"
+    react-dom: "npm:^19.2.8"
+    typescript: "npm:6.0.3"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community/editable-layers@workspace:*, @deck.gl-community/editable-layers@workspace:modules/editable-layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/editable-layers@workspace:modules/editable-layers"
