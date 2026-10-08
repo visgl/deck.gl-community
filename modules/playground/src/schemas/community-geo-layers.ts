@@ -227,6 +227,32 @@ export const TreeSpecSchema = z
 
 /** JSON props for the canonical TreeLayer, including constants and serialized accessors. */
 export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  ...TileLayerPropsSchema.pick({
+    minZoom: true,
+    maxZoom: true,
+    zoomOffset: true,
+    tileSize: true,
+    maxCacheSize: true,
+    maxCacheByteSize: true,
+    maxRequests: true,
+    debounceTime: true,
+    zRange: true,
+    extent: true,
+    refinementStrategy: true,
+    onTileLoad: true,
+    onTileUnload: true,
+    onTileError: true,
+    onViewportLoad: true
+  }).shape,
+  getTileData: FunctionSchema.optional(),
+  getTreeKey: FunctionSchema.optional(),
+  getDistantCanopyColor: createAccessorSchema(ColorSchema).optional(),
+  transitionDuration: z.number().nonnegative().optional(),
+  maxVisibleTiles: z.number().int().positive().optional(),
+  maxTileRecords: z.number().int().positive().optional(),
+  maxTileByteLength: z.number().int().positive().optional(),
+  targetFrameTime: z.number().nonnegative().optional(),
+  minBudgetScale: z.number().positive().max(1).optional(),
   getTree: createAccessorSchema(TreeSpecSchema).optional(),
   getPosition: PositionAccessorSchema.optional(),
   getElevation: NumberAccessorSchema.optional(),
@@ -289,8 +315,34 @@ export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
   shadowEnabled: z.boolean().optional()
 });
 
+/** Streaming sources are supplied by the host; ordinary tree traits remain editable. */
+export const WorldTreeLayerPropsSchema = TileLayerPropsSchema.omit({renderSubLayers: true}).extend({
+  getTileData: FunctionSchema,
+  getTreeKey: FunctionSchema.optional(),
+  getCanopyColor: createAccessorSchema(ColorSchema).optional(),
+  canopyWindStrength: z.number().min(0).max(0.2).optional(),
+  treeProps: TreeLayerPropsSchema.omit({
+    id: true,
+    data: true,
+    maxCanopySplats: true,
+    maxShadowSplats: true,
+    maxCanopyPixels: true
+  }).optional(),
+  transitionDuration: z.number().nonnegative().optional(),
+  maxVisibleTiles: z.number().int().positive().optional(),
+  maxTileRecords: z.number().int().positive().optional(),
+  maxTileByteLength: z.number().int().positive().optional(),
+  targetFrameTime: z.number().nonnegative().optional(),
+  minBudgetScale: z.number().positive().max(1).optional(),
+  maxCanopySplats: z.number().nonnegative().optional(),
+  maxShadowSplats: z.number().nonnegative().optional(),
+  maxCanopyPixels: z.number().positive().optional()
+});
+
 /** JSON representation of SplatLayer with host-owned source buffers. */
 export const SplatLayerSchema = defineLayer('SplatLayer', SplatLayerPropsSchema);
+/** JSON representation of WorldTreeLayer with a host source adapter. */
+export const WorldTreeLayerSchema = defineLayer('WorldTreeLayer', WorldTreeLayerPropsSchema);
 
 /** JSON representation of TileSourceLayer. */
 export const TileSourceLayerSchema = defineLayer('TileSourceLayer', TileSourceLayerPropsSchema);
@@ -337,5 +389,6 @@ export const CommunityGeoLayerSchemas = {
   BasemapLayer: BasemapLayerSchema,
   DataDrivenTile3DLayer: DataDrivenTile3DLayerSchema,
   TreeLayer: TreeLayerSchema,
-  SplatLayer: SplatLayerSchema
+  SplatLayer: SplatLayerSchema,
+  WorldTreeLayer: WorldTreeLayerSchema
 };

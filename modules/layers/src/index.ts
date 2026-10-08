@@ -51,3 +51,11 @@ export type {
   SplatInstance
 } from './splat-layer/splat-input';
 export type {SplatLayerStatus} from './splat-layer/scene/rad-scene';
+
+export {WorldTreeLayer} from './tree-layer/world-tree-layer';
+export type {
+  WorldTreeLayerProps,
+  TreeTileData,
+  TreeCanopyCluster,
+  TreeTileStats
+} from './tree-layer/world-tree-layer';

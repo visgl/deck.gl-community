@@ -63,6 +63,14 @@ const cases = {
     {source: '@@#leaves', getScale: [2, 2, 3], maxSplats: 2000},
     {source: {positions: [0, 0, 0]}}
   ],
+  WorldTreeLayer: [
+    {
+      getTileData: '@@#inventory',
+      treeProps: {getTreeType: 'citrus', getHeight: 5},
+      maxVisibleTiles: 16
+    },
+    {getTileData: '@@#inventory', treeProps: {getTreeType: 'maple'}}
+  ],
   TreeLayer: [
     {getPosition: '@@=position', getTreeType: "@@='oak'", getHeight: '@@=10', sizeScale: 2},
     {getTreeType: 'maple'}
@@ -118,6 +126,26 @@ test('accepts the public static and RAD scene controls in SplatLayer documents',
   expect(
     CommunityGeoLayerSchemas.SplatLayer.safeParse({...document, maxConcurrentLoads: -1}).success
   ).toBe(false);
+});
+
+test('accepts the unified TreeLayer inventory API with flat tree accessors', () => {
+  const schema = CommunityGeoLayerSchemas.TreeLayer;
+  const document = {
+    id: 'inventory',
+    '@@type': 'TreeLayer',
+    getTileData: '@@#inventory',
+    getTreeKey: '@@#key',
+    getHeight: 12,
+    getDistantCanopyColor: [10, 100, 30],
+    transitionDuration: 600,
+    maxVisibleTiles: 16,
+    minZoom: 0,
+    maxZoom: 20,
+    maxRequests: 4
+  };
+  expect(schema.safeParse(document).success).toBe(true);
+  expect(schema.safeParse({...document, treeProps: {getHeight: 12}}).success).toBe(false);
+  expect(schema.safeParse({...document, _TreeLayerClass: '@@#internal'}).success).toBe(false);
 });
 
 test('the existing global-grid gallery document uses the strict community schema', () => {

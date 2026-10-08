@@ -5,6 +5,7 @@
 - Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Existing `source` callers remain compatible.
 - Added sorted Composite SplatLayer scenes with off-thread RAD/static loading, shared source residency, global per-view/domain ordering, affine/SH instance handling, owner picking and host-pass presentation. A repository luma compatibility patch requires an upstream 9.4 release before package publication.
 - `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. The old import temporarily re-exports the same constructor.
+- `TreeLayer` also accepts `getTileData` for bounded geographic streaming, continuous crown refinement and automatic frame budgets, using the same top-level tree accessors as supplied rows. `WorldTreeLayer` remains a deprecated compatibility wrapper.
 
 - Graph examples use the published `@loaders.gl/graphs` DOT loader. The community
   `DOTGraphLoader` and its parsing helpers have been removed.
