@@ -338,8 +338,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           billboard,
           sizeUnits: 'pixels',
           parameters: {depthTest: false},
-          // Icons are not collision-filtered (see the module docs): with deck.gl's
-          // CollisionFilterExtension the icon layers drew nothing.
+          // Icons are not collision-filtered (see the module docs). The collision filter matches
+          // entries by row index, and this layer holds only the rows its sprite has, so an icon
+          // and its own label would not be recognized as one placement.
           extensions: this.props.extensions || [],
           getPosition: (d: LabelRow) => d.position,
           getIcon: this.getSubLayerAccessor(
