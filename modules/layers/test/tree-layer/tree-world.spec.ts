@@ -273,6 +273,21 @@ it('retains full regional coverage when a third page interrupts an existing repl
   expect([...blend.entries.keys()]).toEqual(['c']);
 });
 
+it('finishes an independent regional fade on time while neighboring pages arrive', () => {
+  const blend = new TreeCoverageTransition<string>();
+  const related = (a: string, b: string) => a[0] === b[0];
+  blend.reconcile(['a-parent', 'b-parent'], 0, 1000, related);
+  blend.reconcile(['a-child', 'b-parent'], 100, 1000, related);
+  blend.reconcile(['a-child', 'b-child'], 600, 1000, related);
+  blend.sample(1100, 1000);
+  expect(blend.entries.has('a-parent')).toBe(false);
+  expect(blend.entries.get('a-child')!.weight).toBe(1);
+  expect(blend.entries.get('b-parent')!.weight + blend.entries.get('b-child')!.weight).toBeCloseTo(
+    1
+  );
+  expect(blend.active).toBe(true);
+});
+
 it('retains full quality at a stable 60Hz delivery interval', () => {
   const controller = new TreeFrameBudget();
   for (let i = 0; i < 600; i++) controller.sample((i * 1000) / 60, 1000 / 60, 0.125);

@@ -128,6 +128,26 @@ test('accepts the public static and RAD scene controls in SplatLayer documents',
   ).toBe(false);
 });
 
+test('accepts the unified TreeLayer inventory API with flat tree accessors', () => {
+  const schema = CommunityGeoLayerSchemas.TreeLayer;
+  const document = {
+    id: 'inventory',
+    '@@type': 'TreeLayer',
+    getTileData: '@@#inventory',
+    getTreeKey: '@@#key',
+    getHeight: 12,
+    getDistantCanopyColor: [10, 100, 30],
+    transitionDuration: 600,
+    maxVisibleTiles: 16,
+    minZoom: 0,
+    maxZoom: 20,
+    maxRequests: 4
+  };
+  expect(schema.safeParse(document).success).toBe(true);
+  expect(schema.safeParse({...document, treeProps: {getHeight: 12}}).success).toBe(false);
+  expect(schema.safeParse({...document, _TreeLayerClass: '@@#internal'}).success).toBe(false);
+});
+
 test('the existing global-grid gallery document uses the strict community schema', () => {
   const example = JSON.parse(
     readFileSync(

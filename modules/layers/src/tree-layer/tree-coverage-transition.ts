@@ -10,11 +10,17 @@ export class TreeCoverageTransition<T> {
   get active() {
     return [...this.entries.values()].some(entry => entry.weight !== entry.target);
   }
-  reconcile(values: T[], now: number, duration: number) {
+  reconcile(
+    values: T[],
+    now: number,
+    duration: number,
+    isRelated: (a: T, b: T) => boolean = () => true
+  ) {
     this.sample(now, duration);
     const selected = new Set(values);
     const initial = this.entries.size === 0;
     let changed = false;
+    const affected = new Set<T>();
     for (const entry of this.entries.values()) {
       const target = selected.has(entry.value) ? 1 : 0;
       if (target !== entry.target) {
@@ -22,6 +28,7 @@ export class TreeCoverageTransition<T> {
         entry.target = target;
         entry.started = now;
         changed = true;
+        affected.add(entry.value);
       }
     }
     for (const value of values)
@@ -29,12 +36,25 @@ export class TreeCoverageTransition<T> {
         const weight = initial ? 1 : 0;
         this.entries.set(value, {value, weight, from: weight, target: 1, started: now});
         changed = true;
+        affected.add(value);
       }
     if (changed) {
+      // Expand to all contributors to the interrupted region, without retiming
+      // independent neighboring fades whenever another inventory page arrives.
+      for (let expanded = true; expanded; ) {
+        expanded = false;
+        for (const value of this.entries.keys()) {
+          if (!affected.has(value) && [...affected].some(other => isRelated(value, other))) {
+            affected.add(value);
+            expanded = true;
+          }
+        }
+      }
       // Every contributor to the same replacement must use the same new fade
       // interval. Otherwise an older outgoing page disappears ahead of the new
       // page's incoming weight when a third page interrupts the transition.
       for (const entry of this.entries.values()) {
+        if (!affected.has(entry.value)) continue;
         entry.from = entry.weight;
         entry.started = now;
       }

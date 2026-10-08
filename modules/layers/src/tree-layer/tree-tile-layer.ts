@@ -213,7 +213,14 @@ export class TreeTileLayer<DataT = unknown> extends TileLayer<
     coverage.reconcile(
       tiles.map(tile => tile.content!),
       now,
-      this.props.transitionDuration ?? 800
+      this.props.transitionDuration ?? 800,
+      (a, b) => {
+        const first = this.state.pageTiles.get(a)!.index;
+        const second = this.state.pageTiles.get(b)!.index;
+        const [parent, child] = first.z <= second.z ? [first, second] : [second, first];
+        const scale = 2 ** (child.z - parent.z);
+        return Math.floor(child.x / scale) === parent.x && Math.floor(child.y / scale) === parent.y;
+      }
     );
     coverage.trim(
       Math.max(tiles.length, (this.props.maxVisibleTiles ?? 32) * 2),
