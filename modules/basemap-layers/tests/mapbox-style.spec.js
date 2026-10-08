@@ -465,3 +465,41 @@ describe('getBasemapLayers', () => {
     }
   });
 });
+
+describe('raster overzoom', () => {
+  for (const mode of ['map', 'globe']) {
+    for (const zoom of [7, 8, 12]) {
+      test(`${mode} keeps native zoom 8 imagery visible at zoom ${zoom}`, () => {
+        const layers = getBasemapLayers({
+          mode,
+          zoom,
+          globe: {config: {atmosphere: false}},
+          styleDefinition: {
+            version: 8,
+            sources: {
+              earth: {type: 'raster', tiles: ['https://example.com/{z}/{x}/{y}.jpeg'], maxzoom: 8}
+            },
+            layers: [{id: 'earth', type: 'raster', source: 'earth'}]
+          }
+        });
+        const raster = layers.find(layer => layer.id === 'basemap-earth');
+        expect(raster).toBeTruthy();
+        expect(raster.props.maxZoom).toBe(8);
+      });
+    }
+  }
+  test('respects an explicit raster layer visibility limit', () => {
+    expect(
+      getBasemapLayers({
+        zoom: 10,
+        styleDefinition: {
+          version: 8,
+          sources: {
+            earth: {type: 'raster', tiles: ['https://example.com/{z}/{x}/{y}.jpeg'], maxzoom: 8}
+          },
+          layers: [{id: 'earth', type: 'raster', source: 'earth', maxzoom: 10}]
+        }
+      })
+    ).toEqual([]);
+  });
+});

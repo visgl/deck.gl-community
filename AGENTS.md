@@ -20,6 +20,17 @@ This file applies to the entire `deck.gl-community` repository. Directories may 
   - finish with `yarn lint-fix`, then review the resulting diff before preparing the PR
   - prepare a copyable Markdown pull request description based on the branch diff compared to `master`
 
+## Babysitting pull requests
+
+- After opening a PR, or when asked to address reviews or babysit it, own the work until the latest revision is ready for merge. Continue after pushing fixes; local success alone does not finish the task.
+- Wait 15 minutes after opening a PR for review comments, as in luma.gl. Use that time to inspect CI and coverage, and address comments as they arrive.
+- Close the loop on every actionable review thread: implement the fix, add focused regression coverage when appropriate, run the required build/tests/formatting after the final changes, reply with what changed and how it was verified, then resolve the thread. Recheck for newly posted comments after each push.
+- Keep the branch current with `master`, resolve merge conflicts promptly, and recheck mergeability after every push.
+- Inspect all required CI checks and coverage on the latest head commit. Investigate failures; rerun transient jobs when the evidence supports it. Never lower coverage thresholds or add exclusions merely to make the PR pass.
+- Treat CI as the final gate after review changes. Older successful runs and focused local checks do not replace green required checks on the current revision. Do not declare readiness while checks are failing or pending.
+- Before finishing, recheck review threads, current `master`, mergeability, and the latest checks. A ready PR has no outstanding actionable review threads, passes every required check and coverage gate, and has an accurate Markdown description.
+- Report the PR link, review fixes, verification, and any remaining blockers. Do not merge unless the user asks to merge.
+
 ## Documentation and release process
 - Follow the contribution flow in `docs/CONTRIBUTING.md` before landing breaking changes.
 - When adding or removing packages or examples, update any related documentation, sidebars, or release notes under `docs/`.
