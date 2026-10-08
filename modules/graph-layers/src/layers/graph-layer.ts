@@ -147,7 +147,7 @@ export type _GraphLayerProps = {
   graph?: Graph;
   /** Layout used by the internally created engine for loaded or raw graphs. */
   layout?: GraphLayout;
-  /** Converts resolved raw payloads to graphs; graph instances bypass this callback. */
+  /** Converts resolved raw payloads to graphs; graph instances and normalized GraphData bypass it. */
   graphLoader?: (opts: {json: unknown}) => Graph | null;
   /** Optional existing engine. Supplying `data` takes precedence. */
   engine?: GraphEngine;
