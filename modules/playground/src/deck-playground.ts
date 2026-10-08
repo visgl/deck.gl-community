@@ -20,11 +20,11 @@ import {PlaygroundSourceBindings} from './runtime/playground-source-bindings';
 import type {PlaygroundBindings, PlaygroundRegistry} from './runtime/playground-registry';
 
 const DEFAULT_VIEW_STATE = {longitude: 0, latitude: 0, zoom: 0};
-const DEFAULT_BASEMAP = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const DEFAULT_BASEMAP = 'https://tiles.openfreemap.org/styles/positron';
 const BASEMAP_STYLES = [
   {label: 'Positron', style: DEFAULT_BASEMAP},
-  {label: 'Dark Matter', style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'},
-  {label: 'Voyager', style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'}
+  {label: 'Dark', style: 'https://tiles.openfreemap.org/styles/dark'},
+  {label: 'Liberty', style: 'https://tiles.openfreemap.org/styles/liberty'}
 ];
 
 /** A picked row in the current externally supplied binding. */
@@ -427,7 +427,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       const labels = hasDocumentMapStyle
         ? getBasemapAttribution(mapStyle)
         : this.selectedBasemap
-          ? ['© CARTO', '© OpenStreetMap']
+          ? getBasemapAttribution(this.selectedBasemap)
           : [];
       this.attribution.textContent = labels.join(' · ');
       this.attribution.style.display = labels.length && mapViewOnly ? 'block' : 'none';
@@ -571,6 +571,9 @@ function getBasemapAttribution(style: unknown): string[] {
         ? [source.attribution]
         : []
     );
+  }
+  if (typeof style === 'string' && style.includes('openfreemap.org')) {
+    return ['OpenFreeMap', '© OpenMapTiles', '© OpenStreetMap contributors'];
   }
   if (typeof style === 'string' && style.includes('mapbox')) return ['© Mapbox'];
   if (typeof style === 'string' && style.includes('cartocdn')) {

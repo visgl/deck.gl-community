@@ -35,7 +35,7 @@ type Stopover = {
 
 type TooltipDatum = Destination | Stopover;
 
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
 const DESTINATIONS: Destination[] = [
   {
