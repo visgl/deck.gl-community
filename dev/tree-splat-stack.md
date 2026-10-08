@@ -72,7 +72,7 @@ use bounded empty pages; source and pixel contracts validate actual streamed ren
 Sorted scenes use straight-alpha color blending by default, with explicit caller blend overrides
 retained on both backends. Hidden Tree Lab specimens preserve their last rendered wind pose. The
 20K forest fixture bounds shadow maps to 128 pixels independently of presentation size and source
-geometry. Its grazing close view also bounds the light-volume footprint to fewer than 1,000 wood
+geometry. Its grazing close view also bounds the light-volume footprint to fewer than 256 wood
 casters before restoring the full-forest overview; production maps and the dedicated receiver pixel contract retain the 1024-pixel default.
 The dedicated CI software-adapter step requires the new scene fixtures; ordinary browser runs
 skip WebGPU only when no adapter exists. Review fixes stay in their owning PRs, and range-diff
