@@ -73,7 +73,8 @@ Sorted scenes use straight-alpha color blending by default, with explicit caller
 retained on both backends. Hidden Tree Lab specimens preserve their last rendered wind pose. The
 20K forest fixture bounds shadow maps to 128 pixels independently of presentation size and source
 geometry. Its grazing close view also bounds the light-volume footprint to fewer than 256 wood
-casters before restoring the full-forest overview; production maps and the dedicated receiver pixel contract retain the 1024-pixel default.
+casters; shadows are enabled only after reaching that view, then the full-forest overview
+checks all four seasons without shadows; production maps and the dedicated receiver pixel contract retain the 1024-pixel default.
 Wood coverage executes before host depth-only shortcuts, and constant coverage changes invalidate
 derived mesh attributes; winter ground pixels verify fractional shadows. Renderer failures abort
 world measurements and reject benchmark samples. Benchmark cleanup cancels pending idle timers,
