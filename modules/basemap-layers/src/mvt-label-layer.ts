@@ -6,6 +6,8 @@ import {getZoomBucket, withOpacity} from './style-accessor';
 import {getCompiledStyleProperty, type CompiledStyleProperty} from './style-expression';
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
+import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
+import type {LabelFont, LabelFontFamily} from './text-font';
 
 type GeometryType = 'Point' | 'MultiPoint' | 'LineString' | 'MultiLineString' | string;
 
@@ -56,8 +58,11 @@ export type MVTLabelLayerProps = {
   labelBackground?: number[] | null;
   /** Text size units forwarded to `TextLayer`. */
   labelSizeUnits?: 'pixels' | 'meters' | 'common';
-  /** Font family used by `TextLayer`. */
-  fontFamily?: string;
+  /**
+   * Overrides the font derived from the style layer's `text-font`: a CSS family list, or a
+   * function from the `text-font` names to a family list or {@link LabelFont} fields.
+   */
+  fontFamily?: LabelFontFamily | null;
   /** Enables billboard rendering in the text sublayer. */
   billboard?: boolean;
   /** When `true`, renders the source geometries for debugging. */
@@ -174,7 +179,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     renderGeometry: false,
     labelSizeUnits: 'pixels',
     labelBackground: {type: 'color', value: null, optional: true},
-    fontFamily: 'Monaco, monospace'
+    fontFamily: null
   };
 
   /** Current label-row state. */
@@ -375,6 +380,22 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * The CSS font of this layer's labels, from `text-font` at the stepped zoom, or the style
+   * spec's default font when the layer does not set it, with the `fontFamily` override applied.
+   * `TextLayer` takes one font per layer, so a data-driven `text-font` is evaluated for the first
+   * label feature only.
+   */
+  getFont(): LabelFont {
+    const textFont = this.getStyleProperty('text-font');
+    const row = this.state.labelData?.[0] as
+      | (LabelRow & {__source?: {object: FeatureLike}})
+      | undefined;
+    const value = textFont?.evaluate(getZoomBucket(this.props.zoom || 0), row?.__source?.object);
+    const fontStack = Array.isArray(value) && value.length ? value.map(String) : DEFAULT_TEXT_FONT;
+    return resolveLabelFont(fontStack, this.props.fontFamily);
+  }
+
+  /**
    * Extracts the visible label text for a decoded feature. Legacy `{token}` placeholders are
    * resolved only in literal and zoom-function values, as in the style specification.
    */
@@ -534,6 +555,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       // Icons draw under their labels.
       layers.push(...this.renderIconLayers());
       const hasBackground = Array.isArray(labelBackground) && labelBackground.length >= 3;
+      const font = this.getFont();
       layers.push(
         new TextLayer({
           ...this.getSubLayerProps({id: 'text'}),
@@ -549,7 +571,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
             this.getLabelCollisionPriority(feature)
           ) as any,
-          fontFamily: this.props.fontFamily,
+          fontFamily: font.fontFamily,
+          fontWeight: getTextLayerFontWeight(font),
           sizeUnits: labelSizeUnits,
           // The collision filter keeps a label only where the label itself covers its anchor in
           // the collision map. The background box is always drawn (transparent without a halo)

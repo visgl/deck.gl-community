@@ -9,6 +9,9 @@
 - `basemap-layers` labels evaluate `text-field`, `text-size`, `text-color` and `text-opacity`
   expressions per feature, and use `symbol-sort-key` for collision priority (lower keys win, as
   in the style specification). Styles without a sort key keep the built-in priority.
+- `basemap-layers` labels take their font from `text-font` (family, weight and italic style, with
+  a generic fallback family) instead of `Monaco, monospace`. The new `BasemapLayer` `fontFamily`
+  prop overrides it.
 - Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
   Blue Marble raster tiles. Other basemap providers are unchanged. Blue Marble tiles
   use a maximum native zoom of 8 and stay visible when overzoomed. Basemap labels

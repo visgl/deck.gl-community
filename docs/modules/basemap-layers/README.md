@@ -181,6 +181,26 @@ exact zoom. MapLibre instead evaluates zoom expressions at the integer zooms on 
 the current zoom and interpolates on the GPU; moving interpolation to the GPU remains the
 long-term plan.
 
+### Label fonts
+
+Labels take their font from the symbol layer's `text-font`, or from the style spec's default
+(`Open Sans Regular`, `Arial Unicode MS Regular`) when the layer does not set it. Each font name
+is split into a family and its trailing weight and style words (`Thin`, `Light`, `Regular`,
+`Medium`, `Semibold`, `Bold`, `ExtraBold`, `Black`, `Italic`, `Oblique`, and their variants), so
+`["Open Sans Semibold Italic", "Arial Unicode MS Bold"]` becomes the CSS family list
+`"Open Sans", "Arial Unicode MS", sans-serif` at weight 600, italic. The list ends with `serif` or
+`monospace` when the first name says `Serif` or `Mono`, and `sans-serif` otherwise, so labels
+still draw when none of the fonts is installed. No web fonts are loaded: the fonts must be
+installed or loaded by the page.
+
+`TextLayer` takes one font per layer, so the weight and style come from the first font of the
+stack, and `text-font` is evaluated once per style layer and zoom step. A data-driven
+`text-font` uses the value of the first label feature in each tile.
+
+The [`fontFamily`](/docs/modules/basemap-layers/api-reference/basemap-layer#fontfamily) prop
+overrides the mapping, with a fixed family list or a function from the font names to a family
+list, weight and style. `getLabelFont(fontStack)` exposes the default mapping.
+
 ### Icons and sprites
 
 When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index and image after the
