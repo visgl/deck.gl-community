@@ -1,3 +1,4 @@
+import {expression} from '@maplibre/maplibre-gl-style-spec';
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
@@ -37,7 +38,7 @@ export type MVTLabelLayerProps = {
   config: LabelConfig;
   /** Style layer that contributes label rules. */
   styleLayer?: StyleLayerLike;
-  /** Zoom level used to resolve stop-based style values. */
+  /** Zoom level used to resolve style expressions and legacy stops. */
   zoom?: number;
   /** Text fill color. */
   textColor?: number[];
@@ -68,10 +69,22 @@ const geoJsonDefaultProps = {...GeoJsonLayer.defaultProps} as Omit<
 >;
 delete (geoJsonDefaultProps as typeof GeoJsonLayer.defaultProps).data;
 
+const STYLE_EXPRESSIONS = new WeakMap<object, ReturnType<typeof expression.createExpression>>();
+
 /**
- * Evaluates a style value that may contain stop definitions.
+ * Evaluates a style expression or legacy stop definition for a feature.
  */
-function evaluateStyleValue(value: unknown, zoom: number): unknown {
+function evaluateStyleValue(value: unknown, zoom: number, feature?: FeatureLike): unknown {
+  if (Array.isArray(value)) {
+    let compiled = STYLE_EXPRESSIONS.get(value);
+    if (!compiled) {
+      compiled = expression.createExpression(value);
+      STYLE_EXPRESSIONS.set(value, compiled);
+    }
+    return compiled.result === 'success'
+      ? compiled.value.evaluate({zoom}, {type: 1, properties: feature?.properties || {}})
+      : undefined;
+  }
   if (typeof value === 'number' || typeof value === 'string') {
     return value;
   }
@@ -159,7 +172,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   getLabel(feature: FeatureLike): string | undefined {
     const {styleLayer, zoom = 0} = this.props;
-    const textField = evaluateStyleValue(styleLayer?.layout?.['text-field'], zoom);
+    const textField = evaluateStyleValue(styleLayer?.layout?.['text-field'], zoom, feature);
     const label = resolveTokenString(textField, feature.properties)?.trim();
     return label || undefined;
   }
@@ -167,9 +180,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Returns the font size for a decoded feature label.
    */
-  getLabelSize(_feature: FeatureLike): number {
+  getLabelSize(feature: FeatureLike): number {
     const {styleLayer, zoom = 0} = this.props;
-    return Number(evaluateStyleValue(styleLayer?.layout?.['text-size'], zoom) || 14);
+    return Number(evaluateStyleValue(styleLayer?.layout?.['text-size'], zoom, feature) || 14);
   }
 
   /**

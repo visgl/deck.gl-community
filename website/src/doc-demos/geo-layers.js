@@ -230,7 +230,7 @@ export const MVTLayerDemo = makeLayerDemo({
     pointRadiusUnits: 'pixels',
     getLineWidth: f => {
       switch (f.properties.class) {
-        case 'street':
+        case 'minor':
           return 6;
         case 'motorway':
           return 10;

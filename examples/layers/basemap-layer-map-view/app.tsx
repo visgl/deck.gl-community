@@ -197,9 +197,12 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
   const trackedFetch: typeof fetch = async (input, init) => {
     const url =
       typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
-    const isTileMetadataRequest = url.endsWith('/tiles.json') || url.includes('tilejson');
+    const isTileMetadataRequest =
+      /\/(tiles\.json|planet)(?:$|\?)/.test(url) || url.includes('tilejson');
     const isTileRequest =
-      /\.mvt(?:$|\?)/.test(url) || /\.(png|jpg|jpeg|webp|avif)(?:$|\?)/.test(url);
+      /\.mvt(?:$|\?)/.test(url) ||
+      /\/\d+\/\d+\/\d+\.pbf(?:$|\?)/.test(url) ||
+      /\.(png|jpg|jpeg|webp|avif)(?:$|\?)/.test(url);
 
     if (isTileMetadataRequest) {
       status.styleMetadataRequests += 1;

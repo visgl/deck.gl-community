@@ -67,7 +67,7 @@ export function mountLeafletGetStartedExample(container: HTMLElement): () => voi
           markdown: [
             'Use Leaflet as the basemap while deck.gl renders airport points and connection arcs on top.',
             '',
-            '- Basemap: **Carto Dark Matter**',
+            '- Basemap: **NASA Blue Marble**',
             '- Overlay: **GeoJsonLayer + ArcLayer**',
             '- Interaction: **hover tooltips and click details**'
           ].join('\n')

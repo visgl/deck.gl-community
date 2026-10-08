@@ -126,7 +126,9 @@ function isStyleLayerVisibleAtZoom(
   source?: BasemapSource
 ): boolean {
   const minZoom = styleLayer.minzoom ?? source?.minzoom ?? 0;
-  const maxZoom = styleLayer.maxzoom ?? source?.maxzoom ?? 22;
+  // Source maxzoom caps native tile requests; it does not hide overzoomed imagery.
+  const maxZoom =
+    styleLayer.maxzoom ?? (styleLayer.type === 'raster' ? 24 : (source?.maxzoom ?? 22));
 
   return zoom >= minZoom && zoom < maxZoom;
 }
@@ -243,7 +245,7 @@ function createRasterLayer({
     id: `${idPrefix}-${layer.id}`,
     data: source.tiles,
     minZoom: layer.minzoom ?? source.minzoom ?? 0,
-    maxZoom: layer.maxzoom ?? source.maxzoom ?? 22,
+    maxZoom: source.maxzoom ?? layer.maxzoom ?? 22,
     tileSize: source.tileSize || 512,
     renderSubLayers: props => {
       const {west, south, east, north} = (props.tile?.bbox || {}) as {

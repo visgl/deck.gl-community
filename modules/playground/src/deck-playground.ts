@@ -427,7 +427,7 @@ class DeckPlaygroundRenderer implements PlaygroundRenderer {
       const labels = hasDocumentMapStyle
         ? getBasemapAttribution(mapStyle)
         : this.selectedBasemap
-          ? ['© CARTO', '© OpenStreetMap']
+          ? getBasemapAttribution(this.selectedBasemap)
           : [];
       this.attribution.textContent = labels.join(' · ');
       this.attribution.style.display = labels.length && mapViewOnly ? 'block' : 'none';
