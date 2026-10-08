@@ -114,6 +114,8 @@ export function mountTreeBenchmark(
       : {...VIEW, zoom, minZoom: Math.min(VIEW.minZoom, zoom)};
   parent.querySelector('p')!.textContent += ` · ${view} view · ${motion}`;
   let measuring = false;
+  let disposed = false;
+  const lifetime = new AbortController();
   let resizeRevision = 0;
   let drawStart = 0;
   const renderCalls: number[] = [];
@@ -146,6 +148,7 @@ export function mountTreeBenchmark(
       device = initializedDevice;
     },
     onResize: ({width, height}) => {
+      if (disposed) return;
       resizeRevision++;
       if (view === 'overview') {
         camera = getForestViewState(count, width, height, true);
@@ -156,6 +159,7 @@ export function mountTreeBenchmark(
       if (measuring) drawStart = performance.now();
     },
     onAfterRender: () => {
+      if (disposed) return;
       frame++;
       if (measuring) renderCalls.push(performance.now() - drawStart);
       if (!ready) {
@@ -167,13 +171,16 @@ export function mountTreeBenchmark(
       }
     },
     onError: error => {
+      if (disposed) return;
       errors.push(error.message);
+      lifetime.abort(new Error(`Rendering failed during measurement: ${error.message}`));
       parent.querySelector('#result')!.textContent = errors.join('\n');
       for (const button of parent.querySelectorAll<HTMLButtonElement>('button'))
         button.disabled = true;
     }
   });
   const measure = async (durationMs = 5000) => {
+    lifetime.signal.throwIfAborted();
     if (!ready || measuring || document.visibilityState !== 'visible')
       throw new Error(
         'Keep this benchmark visible; wait for readiness and any running measurement.'
@@ -191,7 +198,18 @@ export function mountTreeBenchmark(
       const focusedAtStart = document.hasFocus();
       const idleStartFrame = frame;
       const idleStart = performance.now();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          clearTimeout(timer);
+          reject(lifetime.signal.reason);
+        };
+        const timer = window.setTimeout(() => {
+          lifetime.signal.removeEventListener('abort', abort);
+          resolve();
+        }, 500);
+        lifetime.signal.addEventListener('abort', abort, {once: true});
+      });
+      lifetime.signal.throwIfAborted();
       const idleRenderedFrames = frame - idleStartFrame;
       const idleDurationMs = performance.now() - idleStart;
       const gaps: number[] = [];
@@ -208,8 +226,15 @@ export function mountTreeBenchmark(
       const start = performance.now();
       const startFrame = frame;
       let previous = start;
-      await new Promise<void>(resolve => {
+      await new Promise<void>((resolve, reject) => {
+        let request = 0;
+        const abort = () => {
+          cancelAnimationFrame(request);
+          reject(lifetime.signal.reason);
+        };
+        lifetime.signal.addEventListener('abort', abort, {once: true});
         const tick = (now: number) => {
+          if (lifetime.signal.aborted) return;
           gaps.push(now - previous);
           previous = now;
           const elapsed = now - start;
@@ -229,11 +254,16 @@ export function mountTreeBenchmark(
                 : {})
             }
           });
-          if (elapsed < durationMs) requestAnimationFrame(tick);
-          else resolve();
+          if (lifetime.signal.aborted) return;
+          if (elapsed < durationMs) request = requestAnimationFrame(tick);
+          else {
+            lifetime.signal.removeEventListener('abort', abort);
+            resolve();
+          }
         };
-        requestAnimationFrame(tick);
+        request = requestAnimationFrame(tick);
       });
+      lifetime.signal.throwIfAborted();
       if (resizeRevision !== resizeAtStart)
         throw new Error('Viewport resized during measurement. Rerun at one viewport size.');
       if (visibilityInterrupted || document.visibilityState !== 'visible')
@@ -317,10 +347,11 @@ export function mountTreeBenchmark(
       parent.querySelector('#result')!.textContent = JSON.stringify({warmup, samples}, null, 2);
       showSamples(samples);
     } catch (error) {
+      if (disposed) return;
       summary.textContent = error instanceof Error ? error.message : String(error);
       parent.querySelector('#result')!.textContent = summary.textContent;
     } finally {
-      for (const button of buttons) button.disabled = !ready || errors.length > 0;
+      if (!disposed) for (const button of buttons) button.disabled = !ready || errors.length > 0;
     }
   };
   parent.querySelector('#measure')!.addEventListener('click', () => void runSamples(1));
@@ -337,6 +368,8 @@ export function mountTreeBenchmark(
   };
   Object.assign(window, {treeBenchmark: api});
   return () => {
+    disposed = true;
+    lifetime.abort(new Error('Benchmark closed during measurement.'));
     profiler?.dispose();
     deck.finalize();
     const reviewWindow = window as Window & {treeBenchmark?: typeof api};

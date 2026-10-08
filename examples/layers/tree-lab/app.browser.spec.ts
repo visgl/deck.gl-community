@@ -234,7 +234,13 @@ describe('Tree Lab rendering controls', () => {
           // Inspect the assembled shader, so a misspelled injection hook cannot
           // silently run material shading for every depth-only fragment.
           const main = model.pipeline.fs!.source.match(/void\s+main\s*\([^)]*\)\s*\{([\s\S]*)/)!;
-          expect(main[1]).toMatch(/^\s*if \(shadow.drawShadowMap\) \{ return; \}/);
+          const shortcut = main[1].indexOf('if (shadow.drawShadowMap) { return; }');
+          expect(shortcut).toBeGreaterThanOrEqual(0);
+          if (model.id.includes('-wood-') || model.id.includes('-trunks')) {
+            const coverage = main[1].indexOf('if (treeCoverage.x > 0.0');
+            expect(coverage).toBeGreaterThanOrEqual(0);
+            expect(coverage).toBeLessThan(shortcut);
+          } else expect(main[1]).toMatch(/^\s*if \(shadow.drawShadowMap\) \{ return; \}/);
         }
       }
       const shadowToggle = container.querySelector<HTMLInputElement>('[data-option="shadows"]')!;

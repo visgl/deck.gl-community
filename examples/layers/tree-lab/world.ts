@@ -62,6 +62,7 @@ export function mountTreeWorldExample(
     disposed = false,
     request = 0,
     lastStats = 0;
+  let renderError: string | undefined;
   let lastFrame = 0;
   let lastLoaded = false;
   const intervals: number[] = [],
@@ -239,10 +240,15 @@ export function mountTreeWorldExample(
       root.querySelector('#world-frame')!.textContent = sorted.length
         ? `${(1000 / sorted[Math.floor(sorted.length / 2)]).toFixed(1)} draws/s · p95 ${sorted[Math.floor(sorted.length * 0.95)].toFixed(1)} ms · zoom ${camera.zoom.toFixed(1)}`
         : 'Warming up…';
-      status.textContent = `${world?.isLoaded ? 'Ready' : 'Streaming'} · foveated trees · ${options.season} · ${options.wind ? 'wind on' : 'wind off'} · ${options.shadows ? 'shadows on' : 'shadows off'}`;
+      status.textContent =
+        renderError ??
+        `${world?.isLoaded ? 'Ready' : 'Streaming'} · foveated trees · ${options.season} · ${options.wind ? 'wind on' : 'wind off'} · ${options.shadows ? 'shadows on' : 'shadows off'}`;
     },
     onError: error => {
-      status.textContent = error.message;
+      renderError = error.message;
+      interruptMeasurement(`Rendering failed during measurement: ${error.message}`);
+      button.disabled = true;
+      status.textContent = renderError;
     }
   });
   const refresh = () => {
@@ -324,7 +330,7 @@ export function mountTreeWorldExample(
       saveCamera();
     };
   button.onclick = () => {
-    if (!ready || measuring || document.visibilityState !== 'visible') return;
+    if (!ready || measuring || renderError || document.visibilityState !== 'visible') return;
     measuring = true;
     lastFrame = 0;
     measured.length = 0;

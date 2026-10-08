@@ -21,6 +21,58 @@ type BenchmarkApi = {
   }>;
 };
 
+it('rejects failed measurements and cancels pending work when the benchmark closes', async () => {
+  const originalUrl = location.href;
+  history.replaceState(null, '', '?count=1&season=winter&wind=0&shadows=0');
+  try {
+    for (const phase of ['render-error', 'idle-close', 'motion-close', 'repeat-close']) {
+      const parent = document.createElement('div');
+      parent.id = 'app';
+      parent.style.cssText = 'width:320px;height:240px';
+      document.body.append(parent);
+      const cleanup = mountTreeBenchmark(TreeLayer, 'native');
+      const api = (window as Window & {treeBenchmark?: BenchmarkApi}).treeBenchmark!;
+      let closed = false;
+      const setProps = vi.spyOn(api.deck, 'setProps');
+      try {
+        await expect.poll(() => api.ready, {timeout: 15000}).toBe(true);
+        const failure = phase === 'render-error' ? 'Rendering failed' : 'Benchmark closed';
+        const rejected =
+          phase === 'repeat-close' ? undefined : expect(api.measure(1000)).rejects.toThrow(failure);
+        if (phase === 'repeat-close') parent.querySelector<HTMLButtonElement>('#repeat')!.click();
+        if (phase !== 'idle-close') await new Promise(resolve => setTimeout(resolve, 600));
+        if (phase === 'render-error') {
+          (api.deck.props.onError as (error: Error) => void)(
+            new Error('benchmark renderer failed')
+          );
+          await rejected;
+          expect(parent.querySelector('#result')!.textContent).toContain(
+            'benchmark renderer failed'
+          );
+          expect(parent.querySelector('#summary table')).toBeNull();
+          await expect(api.measure(1)).rejects.toThrow('Rendering failed');
+        } else {
+          cleanup();
+          closed = true;
+          await rejected;
+          const calls = setProps.mock.calls.length;
+          const summary = parent.querySelector('#summary')!.textContent;
+          await new Promise(resolve => setTimeout(resolve, 200));
+          expect(setProps.mock.calls.length).toBe(calls);
+          expect(parent.querySelector('#summary')!.textContent).toBe(summary);
+          await expect(api.measure(1)).rejects.toThrow('Benchmark closed');
+        }
+      } finally {
+        setProps.mockRestore();
+        if (!closed) cleanup();
+        parent.remove();
+      }
+    }
+  } finally {
+    history.replaceState(null, '', originalUrl);
+  }
+}, 45000);
+
 it.each([
   '<img id="tree-query-injection" src="data:," onerror="document.documentElement.dataset.treeQueryInjected=1">',
   'invalid',

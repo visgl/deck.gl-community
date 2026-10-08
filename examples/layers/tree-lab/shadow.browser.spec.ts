@@ -182,6 +182,20 @@ describe.sequential('Tree Lab shadow depth', () => {
             unlitMask.reduce((sum, value) => sum + value, 0),
             `${renderer} at ${seconds}s has a nonempty ground shadow`
           ).toBeGreaterThan(120);
+          if (renderer === 'native' && tour.season === 'winter') {
+            const faded = await capture({
+              layers: [unlitLayers[0], unlitLayers[1].clone({getCoverageWeight: 0.15})],
+              layerFilter: filter(false, true)
+            });
+            expect(
+              countChangedPixels(unlit, faded),
+              'partial wood coverage changes ground pixels'
+            ).toBeGreaterThan(30);
+            const fadedMask = getShadowMask(clear, faded);
+            expect(fadedMask.reduce((sum, value) => sum + value, 0)).toBeLessThan(
+              unlitMask.reduce((sum, value) => sum + value, 0) * 0.9
+            );
+          }
           for (const opacity of [1, 0.35]) {
             const visibleLit = await capture({
               layers: makeLayers(false, opacity),

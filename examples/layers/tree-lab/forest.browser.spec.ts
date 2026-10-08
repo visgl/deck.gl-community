@@ -188,6 +188,19 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
       if (wind) {
         expect((api.deck.props.layers[1] as TreeLayer).props.windTime).toBeNull();
         expect(api.deck.getWindTime()).toBeCloseTo(renderedClock, 6);
+        // Exercise the first engine update after a long hidden interval, rather
+        // than checking only the synchronous value immediately after play().
+        const internal = api.deck as unknown as {
+          animationLoop: {stop(): void};
+          layerManager: {context: {timeline: {update(engineTime: number): void}}};
+        };
+        internal.animationLoop.stop();
+        const resumedEngineTime = performance.now() + 60000;
+        internal.layerManager.context.timeline.update(resumedEngineTime);
+        expect(api.deck.getWindTime()).toBeCloseTo(renderedClock, 6);
+        internal.layerManager.context.timeline.update(resumedEngineTime + 16);
+        expect(api.deck.getWindTime() - renderedClock).toBeGreaterThanOrEqual(0.016);
+        expect(api.deck.getWindTime() - renderedClock).toBeLessThan(0.03);
       } else expect(api.deck.props.layers).toBe(layers);
       const stats = container.querySelector<HTMLInputElement>('[aria-label="Show performance"]')!;
       const performanceLabel = container.querySelector<HTMLElement>('#forest-performance')!;

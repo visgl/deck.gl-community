@@ -102,6 +102,17 @@ it('loads malformed world settings, uses host routes and rejects visibility inte
         .toBe(label === 'Season' ? 'winter' : '1');
     }
     expect(target.prepareShadow).not.toBe(original);
+    measure.click();
+    expect(measure.disabled).toBe(true);
+    (deck.props.onError as (error: Error) => void)(new Error('world renderer failed'));
+    expect(parent.querySelector('#world-results')!.textContent).toContain(
+      'Rendering failed during measurement: world renderer failed'
+    );
+    (deck.props.onAfterRender as Function)();
+    expect(parent.querySelector('.status')!.textContent).toBe('world renderer failed');
+    expect(measure.disabled).toBe(true);
+    measure.click();
+    expect(parent.querySelector('#world-results')!.textContent).not.toContain('"draws":');
   } finally {
     visibility.mockRestore();
     deckProps.mockRestore();
