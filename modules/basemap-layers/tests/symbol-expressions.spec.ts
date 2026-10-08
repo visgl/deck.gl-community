@@ -145,27 +145,33 @@ describe('symbol-sort-key', () => {
 });
 
 describe('update triggers', () => {
+  const layout = {
+    'text-field': ['get', 'name'],
+    'text-size': ['interpolate', ['linear'], ['zoom'], 5, 10, 10, 20],
+    'symbol-sort-key': ['get', 'rank']
+  };
+  const paint = {'text-color': ['step', ['zoom'], '#000000', 8, '#ffffff']};
+
   test('re-evaluates only zoom-dependent label accessors when the zoom step changes', () => {
-    const layer = labelLayer(
-      {
-        'text-field': ['get', 'name'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 5, 10, 10, 20],
-        'symbol-sort-key': ['get', 'rank']
-      },
-      {'text-color': ['step', ['zoom'], '#000000', 8, '#ffffff']},
-      7.6
-    );
-    expect(layer.getLabelUpdateTriggers()).toEqual({
-      getText: undefined,
-      getSize: 7.5,
-      getColor: 7.5,
-      getBackgroundColor: '|',
-      getCollisionPriority: undefined,
-      // `text-offset` is in ems of `text-size`, which depends on zoom here.
-      getPixelOffset: 7.5,
-      getTextAnchor: undefined,
-      getAlignmentBaseline: undefined
-    });
+    const at = labelLayer(layout, paint, 7.6).getLabelUpdateTriggers();
+    const next = labelLayer(layout, paint, 8.6).getLabelUpdateTriggers();
+    const changed = Object.keys(at).filter(key => at[key] !== next[key]);
+    // `text-offset` is in ems of `text-size`, which depends on zoom here.
+    expect(changed.sort()).toEqual(['getColor', 'getPixelOffset', 'getSize']);
+    expect(labelLayer(layout, paint, 7.7).getLabelUpdateTriggers()).toEqual(at);
+  });
+
+  test('re-evaluates label placement when text-offset or text-anchor is edited', () => {
+    const editable: Record<string, unknown> = {'text-field': 'A', 'text-offset': [0, 0.5]};
+    const layer = labelLayer(editable, {}, 8);
+    const before = layer.getLabelUpdateTriggers();
+    editable['text-offset'] = [0, 1];
+    editable['text-anchor'] = 'top';
+    const after = layer.getLabelUpdateTriggers();
+    expect(after.getPixelOffset).not.toEqual(before.getPixelOffset);
+    expect(after.getTextAnchor).not.toEqual(before.getTextAnchor);
+    expect(after.getAlignmentBaseline).not.toEqual(before.getAlignmentBaseline);
+    expect(after.getText).toEqual(before.getText);
   });
 });
 

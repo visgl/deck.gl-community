@@ -298,13 +298,26 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     ];
   }
 
-  /** Update triggers for the icon accessors: the stepped zoom for zoom-dependent properties. */
-  getIconUpdateTriggers(): Record<string, number | undefined> {
-    const zoomBucket = getZoomBucket(this.props.zoom || 0);
-    const getTrigger = (...propertyNames: string[]) =>
-      propertyNames.some(name => this.getStyleProperty(name)?.isZoomDependent)
-        ? zoomBucket
-        : undefined;
+  /**
+   * Update trigger for accessors that read `propertyNames`: the properties' style values, plus the
+   * stepped zoom when any of them depends on zoom. A value edited in place, or a new zoom step for a
+   * zoom-dependent value, re-evaluates the accessor; other zoom changes do not.
+   */
+  getStyleUpdateTrigger(...propertyNames: string[]): string {
+    const {styleLayer} = this.props;
+    const values = propertyNames.map(name => {
+      const value = styleLayer?.layout?.[name] ?? styleLayer?.paint?.[name];
+      return value === undefined ? '' : JSON.stringify(value);
+    });
+    const isZoomDependent = propertyNames.some(
+      name => this.getStyleProperty(name)?.isZoomDependent
+    );
+    return `${isZoomDependent ? getZoomBucket(this.props.zoom || 0) : ''}|${values.join('|')}`;
+  }
+
+  /** Update triggers for the icon accessors (see `getStyleUpdateTrigger`). */
+  getIconUpdateTriggers(): Record<string, string> {
+    const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
     return {
       getIcon: getTrigger('icon-image'),
       getSize: getTrigger('icon-image', 'icon-size'),
@@ -471,13 +484,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return min + fraction * (max - min);
   }
 
-  /** Update triggers for the text accessors: the stepped zoom for zoom-dependent properties. */
-  getLabelUpdateTriggers(): Record<string, number | string | undefined> {
-    const zoomBucket = getZoomBucket(this.props.zoom || 0);
-    const getTrigger = (...propertyNames: string[]) =>
-      propertyNames.some(name => this.getStyleProperty(name)?.isZoomDependent)
-        ? zoomBucket
-        : undefined;
+  /** Update triggers for the text accessors (see `getStyleUpdateTrigger`). */
+  getLabelUpdateTriggers(): Record<string, string> {
+    const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
 
     return {
       getText: getTrigger('text-field'),
@@ -485,7 +494,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getColor: getTrigger('text-color', 'text-opacity'),
       // The halo color comes from `labelBackground` (evaluated per style layer and zoom step), so
       // its value is part of the trigger as well as a zoom-dependent `text-opacity`.
-      getBackgroundColor: `${getTrigger('text-opacity') ?? ''}|${
+      getBackgroundColor: `${getTrigger('text-opacity')}|${
         this.props.labelBackground ? this.props.labelBackground.join(',') : ''
       }`,
       getCollisionPriority: getTrigger('symbol-sort-key'),
