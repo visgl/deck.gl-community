@@ -82,8 +82,9 @@ export function getSplatPixelsPerMeter(position: number[], viewport: Viewport): 
   let a = 0,
     b = 0,
     c = 0;
+  const units = getSplatCommonUnits(position, viewport);
   for (let axis = 0; axis < 3; axis++) {
-    const factor = viewport.distanceScales.unitsPerMeter[axis] / (2 * w * w);
+    const factor = units[axis] / (2 * w * w);
     const u = (m[axis * 4] * w - x * m[3 + axis * 4]) * viewport.width * factor;
     const v = (m[1 + axis * 4] * w - y * m[3 + axis * 4]) * viewport.height * factor;
     a += u * u;
@@ -99,7 +100,7 @@ export function getSplatBoundedPixelsPerMeter(
   radius: number,
   viewport: Viewport
 ): number {
-  const units = Math.max(...viewport.distanceScales.unitsPerMeter);
+  const units = Math.max(...getSplatCommonUnits(position, viewport));
   const maximum = (2 * Math.max(viewport.width, viewport.height) * units) / Math.max(radius, 1e-12);
   return Math.min(maximum, getSplatPixelsPerMeter(position, viewport));
 }
