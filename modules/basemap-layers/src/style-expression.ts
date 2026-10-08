@@ -24,6 +24,11 @@ export type CompiledStyleProperty = {
   isFeatureDependent: boolean;
   /** Evaluates the property. Colors are returned as `[r, g, b, a]`, with `a` in 0-1. */
   evaluate: (zoom: number, feature?: StyleFeature) => unknown;
+  /**
+   * Evaluates the property with every global input, such as `heatmapDensity` or `lineProgress`
+   * as well as `zoom`. Colors are returned as in `evaluate`.
+   */
+  evaluateWithGlobals: (globals: Record<string, unknown>, feature?: StyleFeature) => unknown;
 };
 
 type StyleLayerLike = {
@@ -49,7 +54,8 @@ type CompiledPropertyEntry = {
 };
 
 const compiledPropertyCache = new WeakMap<object, Map<string, CompiledPropertyEntry>>();
-const compiledFilterCache = new WeakMap<object, StyleFilter>();
+/** Compiled filters per filter array, with the array's contents when it was compiled. */
+const compiledFilterCache = new WeakMap<object, {snapshot: string; compiled: StyleFilter}>();
 const warnedValues = new Set<string>();
 
 type StyleFilter = (globalProperties: Record<string, unknown>, feature: StyleFeature) => boolean;
@@ -140,7 +146,9 @@ export function compileStylePropertyValue(
     isZoomDependent: kind === 'camera' || kind === 'composite',
     isFeatureDependent: kind === 'source' || kind === 'composite',
     evaluate: (zoom, feature) =>
-      toPlainValue(compiled.evaluate({zoom}, toEvaluationFeature(feature) as any))
+      toPlainValue(compiled.evaluate({zoom}, toEvaluationFeature(feature) as any)),
+    evaluateWithGlobals: (globals, feature) =>
+      toPlainValue(compiled.evaluate(globals as any, toEvaluationFeature(feature) as any))
   };
 }
 
@@ -175,13 +183,16 @@ export function getCompiledStyleProperty(
 }
 
 /**
- * Compiles a style-spec filter into a feature predicate, cached per filter array. A filter the
- * style spec rejects logs a warning once and matches no features.
+ * Compiles a style-spec filter into a feature predicate, cached per filter array. The cached
+ * predicate is reused only while the array's contents are unchanged, so a filter edited in place
+ * is recompiled. A filter the style spec rejects logs a warning once and matches no features.
  */
 export function compileStyleFilter(filter: unknown): StyleFilter {
-  const cached = filter && typeof filter === 'object' ? compiledFilterCache.get(filter) : undefined;
-  if (cached) {
-    return cached;
+  const isCacheable = Boolean(filter) && typeof filter === 'object';
+  const snapshot = isCacheable ? JSON.stringify(filter) : '';
+  const cached = isCacheable ? compiledFilterCache.get(filter as object) : undefined;
+  if (cached && cached.snapshot === snapshot) {
+    return cached.compiled;
   }
 
   let compiled: StyleFilter;
@@ -194,8 +205,8 @@ export function compileStyleFilter(filter: unknown): StyleFilter {
     compiled = () => false;
   }
 
-  if (filter && typeof filter === 'object') {
-    compiledFilterCache.set(filter, compiled);
+  if (isCacheable) {
+    compiledFilterCache.set(filter as object, {snapshot, compiled});
   }
   return compiled;
 }
