@@ -6,6 +6,7 @@ import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
 import {loadSpriteAtlases} from './sprite';
 import type {SpriteAtlas} from './sprite';
+import type {LabelFontFamily} from './text-font';
 
 /**
  * Logs a non-error basemap-layer runtime event to deck.gl logging.
@@ -58,6 +59,13 @@ export type BasemapLayerProps = {
     /** Rendering toggles for globe-specific basemap behavior. */
     config?: BasemapGlobeConfig;
   };
+  /**
+   * Overrides the label font. By default each symbol layer's `text-font` is mapped to a CSS
+   * family list, weight and style (see the module docs). A string replaces the family list for
+   * every label; a function receives the `text-font` names and returns a family list or
+   * `LabelFont` fields. Pass a stable function: tiles regenerate when it changes.
+   */
+  fontFamily?: LabelFontFamily | null;
 };
 
 const fractionalZoomLimitsCache = new WeakMap<ResolvedBasemapStyle, number[]>();
@@ -115,7 +123,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       }
     },
     style: null,
-    loadOptions: null
+    loadOptions: null,
+    fontFamily: null
   };
 
   /** Current layer state. */
@@ -261,7 +270,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       styleDefinition: resolvedStyle,
       zoom,
       loadOptions: this.props.loadOptions,
-      spriteAtlases: this.state.spriteAtlases
+      spriteAtlases: this.state.spriteAtlases,
+      fontFamily: this.props.fontFamily
     });
   }
 }
