@@ -6,7 +6,33 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
-- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`. Remove `detail` / `TreeDetail`. Canopy overrides now target `SplatLayer`; wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+
+### One TreeLayer API for rows and inventories
+
+Use `TreeLayer` with either `data` rows or `getTileData` for geographic streaming. Move the old
+`WorldTreeLayer.treeProps` accessors to the top level, rename the distant-group `getCanopyColor`
+to `getDistantCanopyColor`, and use `windStrength` for near and distant trees. `streamingStats`
+is available on TreeLayer. The deprecated WorldTreeLayer wrapper preserves old calls and defaults.
+See the [streaming reference](./modules/layers/api-reference/world-tree-layer.md#compatibility).
+
+### Prepared SplatLayer inputs
+
+Existing `new SplatLayer({data: owners, source, hierarchy})` calls remain supported. New code uses
+`data: source` for one prepared asset or `data: owners, getSource: source` for shared instances.
+Move a supplied hierarchy into `{type: 'prepared-splats', source, hierarchy}` and pass that descriptor
+through `getSource`. Do not supply both `source` and explicit `getSource`.
+
+Prepared assets default to weighted optical blending; TreeLayer selects it explicitly for wind,
+materials and shadows. URL/Blob assets and RAD scenes default to sorted rendering, with worker
+decoding, native RAD paging and source-frame SH. Prepared assets can also select
+`transparency: 'sorted'`, which presents their finest supplied level in the shared scene domain.
+Sorted scenes currently require Cartesian coordinates and the compatible upstream luma 9.4
+host-pass release. See [scene assets and installation](./modules/layers/api-reference/splat-layer.md#scene-assets-and-installation)
+for worker packaging and the publication prerequisite. `getTransformMatrix` takes precedence
+over orientation/scale/translation, and picking keeps original owner rows and indices.
+Tree canopy quotas are allocated jointly by projected error; species no longer receive fixed
+shares proportional to their row counts.
 
 ### `@deck.gl-community/editable-layers`
 

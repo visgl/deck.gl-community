@@ -17,7 +17,6 @@ const timelineLayerDocs = require('../../docs/modules/timeline-layers/sidebar.js
 const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 const editableLayerDocs = require('../../docs/modules/editable-layers/sidebar.json');
 // const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
-const threeModuleDocs = require('../../docs/modules/three/sidebar.json');
 
 const geoLayerDocs = require('../../docs/modules/geo-layers/sidebar.json');
 
@@ -58,8 +57,7 @@ const sidebars = {
         timelineLayerDocs,
         graphLayerDocs,
         geoLayerDocs,
-        editableLayerDocs,
-        threeModuleDocs
+        editableLayerDocs
         // arrowLayerDocs,
       ]
     },
