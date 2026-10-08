@@ -254,3 +254,8 @@ export {
   type WidgetTooltipPlacement,
   type WidgetTooltipProps
 } from './preact/widget-tooltip';
+export {
+  MetricsPanel,
+  type MetricsPanelProps,
+  type MetricValue
+} from './leaf-panels/metrics/metrics-panel';
