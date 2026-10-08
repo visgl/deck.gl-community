@@ -122,7 +122,7 @@ the playground's basemap selector.
 ```
 
 Tokens are used in browser requests, so provide a public token restricted to the hosted site.
-CARTO style URLs do not require a token.
+OpenFreeMap style URLs do not require a token.
 
 ## Custom layers
 
