@@ -184,8 +184,20 @@ it('streams an independent inventory through region, forest and close views with
       viewState: {longitude: focus[0], latitude: focus[1], zoom: 19, pitch: 45, bearing: 0}
     });
     await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(beforeFocus);
-    await expect.poll(() => current().isLoaded, {timeout: 30000}).toBe(true);
-    await expect.poll(() => current().state.coverage.active, {timeout: 30000}).toBe(false);
+    // A draw and isLoaded can describe the preceding inventory while the new
+    // camera selection is debounced. Wait for the destination pages before
+    // asserting that later coverage-only edits preserve this array identity.
+    await expect
+      .poll(
+        () =>
+          current().isLoaded &&
+          !current().state.coverage.active &&
+          current().state.batch.trees.length > 0 &&
+          current().state.batch.tiles.length > 0 &&
+          current().state.batch.tiles.every(tile => tile.index.z === 19),
+        {timeout: 30000}
+      )
+      .toBe(true);
     const coverageTrees = current().state.batch.trees;
     // Accessor type switches use deck's explicit trigger; numeric edits below do not.
     constantCoverage = true;
