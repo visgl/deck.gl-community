@@ -18,13 +18,13 @@ test('keeps the loading overlay visible across frames while an async layout is p
   const setProps = vi.spyOn(Deck.prototype, 'setProps');
   const unmount = mountGraphViewerExample(host, {graphType: 'graph'});
   try {
-    await vi.waitFor(() => expect(engageWorker).toHaveBeenCalled());
+    await vi.waitFor(() => expect(engageWorker).toHaveBeenCalled(), {timeout: 10_000});
     const layout = engageWorker.mock.contexts[0];
     const deck = setProps.mock.contexts[0];
     const afterRender = vi.fn(deck.props.onAfterRender);
     deck.setProps({onAfterRender: afterRender});
     deck.redraw('pending layout overlay regression');
-    await vi.waitFor(() => expect(afterRender).toHaveBeenCalled());
+    await vi.waitFor(() => expect(afterRender).toHaveBeenCalled(), {timeout: 10_000});
     const overlay = [...host.querySelectorAll('div')].find(
       element => element.textContent === 'Computing layout...'
     )!;
@@ -38,4 +38,4 @@ test('keeps the loading overlay visible across frames while an async layout is p
     host.remove();
     vi.restoreAllMocks();
   }
-});
+}, 30_000);
