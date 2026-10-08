@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `SourcePickerPanel` provides URL, preset, file input, and drag-and-drop controls with host-owned loading callbacks.
+
 - Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
   Blue Marble raster tiles. Other basemap providers are unchanged. Blue Marble tiles
   use a maximum native zoom of 8 and stay visible when overzoomed. Basemap labels

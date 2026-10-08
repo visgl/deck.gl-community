@@ -84,3 +84,7 @@ it('exports ArrowSchemaPanel', () => {
 it('exports ArrowBatchesPanel', () => {
   expect(Panels.ArrowBatchesPanel).toBeDefined();
 });
+
+it('exports SourcePickerPanel', () => {
+  expect(Panels.SourcePickerPanel).toBeDefined();
+});
