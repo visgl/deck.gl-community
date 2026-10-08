@@ -15,6 +15,9 @@
   without `line-color` now draw black, the style specification's default, instead of nothing.
   Flat map layers are depth-tested without writing depth, so they no longer paint over
   extrusions from other tiles.
+- `basemap-layers` labels take their font from `text-font` (family, weight and italic style, with
+  a generic fallback family) instead of `Monaco, monospace`. The new `BasemapLayer` `fontFamily`
+  prop overrides it.
 - `SourcePickerPanel` provides URL, preset, file input, and drag-and-drop controls with host-owned loading callbacks.
 - `MetricsPanel` displays plain telemetry snapshots with ordered labels and host-defined value formatting.
 

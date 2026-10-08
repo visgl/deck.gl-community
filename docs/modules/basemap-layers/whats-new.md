@@ -2,6 +2,7 @@
 
 ## October 2026
 
+- Labels take their font from `text-font` instead of a fixed `Monaco, monospace`: each font name maps to a CSS family list with a generic fallback, plus a weight and style (`Noto Sans Bold` is `"Noto Sans", sans-serif` at weight 700). `BasemapLayer`'s new `fontFamily` prop overrides the family, or maps the font names with a function; `fontFamily: 'Monaco, monospace'` keeps the previous look.
 - Symbol layers draw `icon-image` from the style's sprite (`@2x` on high-density screens, the `[{id, url}]` sprite array, `icon-size`, `icon-opacity`, `icon-anchor`, `icon-offset`, and `icon-color` for SDF images). Labels honor `text-offset` and `text-anchor`. Missing sprites and images are skipped with a warning.
 - `line-width` is drawn as the style sets it: the OpenMapTiles-specific scaling (0.55 for `transportation`/`boundary`, 0.75 for `waterway`/`aeroway`) is removed, a width of 0 draws nothing, and wide lines are no longer capped at 20 px.
 - Style evaluation uses `@maplibre/maplibre-gl-style-spec` instead of `@mapbox/mapbox-gl-style-spec`. Evaluated colors keep the same `[r, g, b, a]` shape (RGB 0-255, alpha 0-1).
