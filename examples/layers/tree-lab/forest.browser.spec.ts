@@ -72,8 +72,6 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     // Keep the actual 20K shadow on/off regression. Seasonal behavior is drawn
     // without shadows here; matched shadow pixels are covered by the lab tests.
     expect(shadows.checked).toBe(false);
-    await change('20K shadows', () => shadows.click());
-    expect(shadows.checked).toBe(true);
     const pitch = container.querySelector<HTMLInputElement>('[aria-label="Pitch"]')!;
     await change('80 degree pitch', () => {
       pitch.value = '80';
@@ -87,6 +85,11 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     });
     expect((api.deck.getViewports()[0] as {pitch?: number}).pitch).toBe(80);
     expect(container.querySelector('#forest-pitch')!.textContent).toBe('80°');
+    // Enable shadows only after entering the bounded close view. Enabling them
+    // in the overview first queues a full-inventory native shadow draw even if
+    // the next camera update immediately narrows its caster footprint.
+    await change('20K shadows', () => shadows.click());
+    expect(shadows.checked).toBe(true);
     await expect
       .poll(
         () => {
@@ -97,14 +100,18 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
             .filter(
               layer => layer.id.includes('-wood-') && layer.props.operation.includes('shadow')
             );
-          return casters.reduce((sum, layer) => sum + layer.getNumInstances(), 0);
+          const count = casters.reduce((sum, layer) => sum + layer.getNumInstances(), 0);
+          return count > 0 && count < 256;
         },
         {timeout: 30000}
       )
-      .toBeLessThan(256);
+      .toBe(true);
 
     await change('shadows off', () => shadows.click());
     expect(shadows.checked).toBe(false);
+    await change('forest overview', () =>
+      container.querySelector<HTMLButtonElement>('#forest-view')!.click()
+    );
     const season = container.querySelector<HTMLSelectElement>('[aria-label="Season"]')!;
     for (const value of ['winter', 'spring', 'summer', 'autumn']) {
       await change(value, () => {
@@ -112,9 +119,6 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
         season.dispatchEvent(new Event('change'));
       });
     }
-    await change('forest overview', () =>
-      container.querySelector<HTMLButtonElement>('#forest-view')!.click()
-    );
     const viewport = api.deck.getViewports()[0];
     const halfSide = (Math.ceil(Math.sqrt(20000)) * 9 + 20) / 111320;
     for (const longitude of [-halfSide, halfSide]) {
@@ -199,8 +203,7 @@ it('honors reduced motion and the stats toggle, with an explicit wind opt-in', a
         internal.layerManager.context.timeline.update(resumedEngineTime);
         expect(api.deck.getWindTime()).toBeCloseTo(renderedClock, 6);
         internal.layerManager.context.timeline.update(resumedEngineTime + 16);
-        expect(api.deck.getWindTime() - renderedClock).toBeGreaterThanOrEqual(0.016);
-        expect(api.deck.getWindTime() - renderedClock).toBeLessThan(0.03);
+        expect(api.deck.getWindTime() - renderedClock).toBeCloseTo(0.016, 6);
       } else expect(api.deck.props.layers).toBe(layers);
       const stats = container.querySelector<HTMLInputElement>('[aria-label="Show performance"]')!;
       const performanceLabel = container.querySelector<HTMLElement>('#forest-performance')!;
