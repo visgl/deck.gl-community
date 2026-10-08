@@ -1,9 +1,11 @@
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
-import {GeoJsonLayer, TextLayer} from '@deck.gl/layers';
+import {GeoJsonLayer, IconLayer, TextLayer} from '@deck.gl/layers';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {getCompiledStyleProperty, type CompiledStyleProperty} from './style-expression';
+import {resolveSpriteIcon, warnMissingIcon} from './sprite';
+import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 
 type GeometryType = 'Point' | 'MultiPoint' | 'LineString' | 'MultiLineString' | string;
 
@@ -64,7 +66,36 @@ export type MVTLabelLayerProps = {
   extensions?: any[];
   /** Active basemap mode. */
   mode?: 'map' | 'globe';
+  /** Sprites loaded for the style; `icon-image` names resolve against them. */
+  spriteAtlases?: SpriteAtlas[] | null;
+  /** Load options for the sprite atlas images, so they use the same fetch as the style. */
+  iconLoadOptions?: Record<string, unknown> | null;
 };
+
+/** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
+const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
+  center: [0, 0],
+  left: [-0.5, 0],
+  right: [0.5, 0],
+  top: [0, -0.5],
+  bottom: [0, 0.5],
+  'top-left': [-0.5, -0.5],
+  'top-right': [0.5, -0.5],
+  'bottom-left': [-0.5, 0.5],
+  'bottom-right': [0.5, 0.5]
+};
+
+/** `text-anchor` as deck.gl `TextLayer` text anchor and alignment baseline. */
+function getTextAnchorProps(anchor: unknown): {
+  textAnchor: 'start' | 'middle' | 'end';
+  alignmentBaseline: 'top' | 'center' | 'bottom';
+} {
+  const [x, y] = ANCHOR_FRACTIONS[String(anchor)] || ANCHOR_FRACTIONS.center;
+  return {
+    textAnchor: x < 0 ? 'start' : x > 0 ? 'end' : 'middle',
+    alignmentBaseline: y < 0 ? 'top' : y > 0 ? 'bottom' : 'center'
+  };
+}
 
 type MVTLabelLayerState = {
   /** Flattened label rows generated from the current tile data. */
@@ -141,6 +172,157 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /** Current label-row state. */
   state: MVTLabelLayerState = undefined!;
+
+  /**
+   * Resolves `icon-image` for a feature against the loaded sprites. Legacy `{token}` names are
+   * resolved as in `text-field`. Returns `null`, and warns once per name, when no sprite has it.
+   */
+  getIcon(feature: FeatureLike): ResolvedSpriteIcon | null {
+    const iconImage = this.getStyleProperty('icon-image');
+    if (!iconImage) {
+      return null;
+    }
+    const value = this.evaluateStyleProperty('icon-image', feature);
+    const isExpression = Array.isArray(this.props.styleLayer?.layout?.['icon-image']);
+    const name =
+      value === null || value === undefined
+        ? ''
+        : isExpression || iconImage.isFeatureDependent
+          ? String(value)
+          : resolveTokenString(String(value), feature.properties) || '';
+    if (!name) {
+      return null;
+    }
+    const icon = resolveSpriteIcon(this.props.spriteAtlases || undefined, name);
+    if (!icon) {
+      warnMissingIcon(name);
+    }
+    return icon;
+  }
+
+  /** On-screen icon height in pixels: the image's CSS-pixel height scaled by `icon-size`. */
+  getIconSize(feature: FeatureLike): number {
+    const icon = this.getIcon(feature);
+    if (!icon) {
+      return 0;
+    }
+    const scale = Number(this.evaluateStyleProperty('icon-size', feature) ?? 1);
+    return (icon.entry.height / icon.entry.pixelRatio) * scale;
+  }
+
+  /**
+   * Icon color: `icon-color` for SDF images, white otherwise (deck.gl draws unmasked icons in
+   * their own colors), with `icon-opacity` as alpha.
+   */
+  getIconColor(feature: FeatureLike): number[] {
+    const opacity = Number(this.evaluateStyleProperty('icon-opacity', feature) ?? 1);
+    const icon = this.getIcon(feature);
+    const color = icon?.entry.mask
+      ? (this.evaluateStyleProperty('icon-color', feature) as number[] | undefined) || [0, 0, 0, 1]
+      : [255, 255, 255, 1];
+    return withOpacity(color, opacity);
+  }
+
+  /**
+   * Icon pixel offset: `icon-anchor` places that edge or corner of the icon on the point, and
+   * `icon-offset` shifts it by pixels scaled with `icon-size`, as in MapLibre.
+   */
+  getIconPixelOffset(feature: FeatureLike): [number, number] {
+    const icon = this.getIcon(feature);
+    if (!icon) {
+      return [0, 0];
+    }
+    const scale = Number(this.evaluateStyleProperty('icon-size', feature) ?? 1);
+    const width = (icon.entry.width / icon.entry.pixelRatio) * scale;
+    const height = (icon.entry.height / icon.entry.pixelRatio) * scale;
+    const [ax, ay] =
+      ANCHOR_FRACTIONS[String(this.evaluateStyleProperty('icon-anchor', feature) ?? 'center')] ||
+      ANCHOR_FRACTIONS.center;
+    const offset = (this.evaluateStyleProperty('icon-offset', feature) as number[] | undefined) || [
+      0, 0
+    ];
+    return [-ax * width + offset[0] * scale, -ay * height + offset[1] * scale];
+  }
+
+  /** Text pixel offset from `text-offset`, which is in ems of `text-size`. */
+  getLabelPixelOffset(feature: FeatureLike): [number, number] {
+    const offset = this.evaluateStyleProperty('text-offset', feature) as number[] | undefined;
+    if (!offset) {
+      return [0, 0];
+    }
+    const size = this.getLabelSize(feature);
+    return [offset[0] * size, offset[1] * size];
+  }
+
+  /** Update triggers for the icon accessors: the stepped zoom for zoom-dependent properties. */
+  getIconUpdateTriggers(): Record<string, number | undefined> {
+    const zoomBucket = getZoomBucket(this.props.zoom || 0);
+    const getTrigger = (...propertyNames: string[]) =>
+      propertyNames.some(name => this.getStyleProperty(name)?.isZoomDependent)
+        ? zoomBucket
+        : undefined;
+    return {
+      getIcon: getTrigger('icon-image'),
+      getSize: getTrigger('icon-image', 'icon-size'),
+      getColor: getTrigger('icon-image', 'icon-color', 'icon-opacity'),
+      getPixelOffset: getTrigger('icon-image', 'icon-size', 'icon-anchor', 'icon-offset')
+    };
+  }
+
+  /**
+   * One `IconLayer` per sprite that this layer's icons come from. Rows whose `icon-image` no
+   * sprite contains are left out, so they draw nothing.
+   */
+  renderIconLayers(): any[] {
+    const {spriteAtlases, iconLoadOptions, billboard} = this.props;
+    const labelData = this.state.labelData || [];
+    if (!spriteAtlases?.length || !this.getStyleProperty('icon-image') || !labelData.length) {
+      return [];
+    }
+    const rowsByAtlas = new Map<SpriteAtlas, LabelRow[]>();
+    for (const row of labelData) {
+      const icon = this.getIcon((row as any).__source?.object ?? row);
+      if (icon) {
+        const rows = rowsByAtlas.get(icon.atlas) || [];
+        rows.push(row);
+        rowsByAtlas.set(icon.atlas, rows);
+      }
+    }
+    return [...rowsByAtlas].map(
+      ([atlas, rows]) =>
+        new IconLayer({
+          ...this.getSubLayerProps({id: `icons-${atlas.id}`}),
+          data: rows,
+          iconAtlas: atlas.image,
+          iconMapping: atlas.mapping,
+          loadOptions: iconLoadOptions || undefined,
+          billboard,
+          sizeUnits: 'pixels',
+          parameters: {depthTest: false},
+          // Icons collide among themselves; a label's own icon does not hide its text.
+          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
+          collisionEnabled: true,
+          collisionGroup: 'basemap-icons',
+          getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getLabelCollisionPriority(feature)
+          ) as any,
+          getPosition: (d: LabelRow) => d.position,
+          getIcon: this.getSubLayerAccessor(
+            (feature: FeatureLike) => this.getIcon(feature)?.name
+          ) as any,
+          getSize: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getIconSize(feature)
+          ) as any,
+          getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getIconColor(feature)
+          ) as any,
+          getPixelOffset: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getIconPixelOffset(feature)
+          ) as any,
+          updateTriggers: {...this.getIconUpdateTriggers(), all: atlas}
+        })
+    );
+  }
 
   /** Returns a compiled `layout` or `paint` property of the style layer, if it sets one. */
   private getStyleProperty(propertyName: string): CompiledStyleProperty | null {
@@ -249,7 +431,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getBackgroundColor: `${getTrigger('text-opacity') ?? ''}|${
         this.props.labelBackground ? this.props.labelBackground.join(',') : ''
       }`,
-      getCollisionPriority: getTrigger('symbol-sort-key')
+      getCollisionPriority: getTrigger('symbol-sort-key'),
+      getPixelOffset: getTrigger('text-offset', 'text-size'),
+      getTextAnchor: getTrigger('text-anchor'),
+      getAlignmentBaseline: getTrigger('text-anchor')
     };
   }
 
@@ -310,6 +495,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
 
     if (config.labels) {
+      // Icons draw under their labels.
+      layers.push(...this.renderIconLayers());
       const hasBackground = Array.isArray(labelBackground) && labelBackground.length >= 3;
       layers.push(
         new TextLayer({
@@ -343,6 +530,18 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ) as any,
           getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
             this.getLabelColor(feature)
+          ) as any,
+          getPixelOffset: this.getSubLayerAccessor((feature: FeatureLike) =>
+            this.getLabelPixelOffset(feature)
+          ) as any,
+          getTextAnchor: this.getSubLayerAccessor(
+            (feature: FeatureLike) =>
+              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor
+          ) as any,
+          getAlignmentBaseline: this.getSubLayerAccessor(
+            (feature: FeatureLike) =>
+              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
+                .alignmentBaseline
           ) as any,
           updateTriggers: this.getLabelUpdateTriggers()
         })

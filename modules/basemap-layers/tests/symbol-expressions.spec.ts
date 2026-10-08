@@ -160,7 +160,11 @@ describe('update triggers', () => {
       getSize: 7.5,
       getColor: 7.5,
       getBackgroundColor: '|',
-      getCollisionPriority: undefined
+      getCollisionPriority: undefined,
+      // `text-offset` is in ems of `text-size`, which depends on zoom here.
+      getPixelOffset: 7.5,
+      getTextAnchor: undefined,
+      getAlignmentBaseline: undefined
     });
   });
 });
