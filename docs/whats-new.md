@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `GPUForceLayout` emits start events for worker calculations, releases completed workers,
+  and ignores results from stopped or replaced calculations.
+
 - `ForceMultiGraphLayout` returns finite node and edge coordinates before simulation starts and
   handles coincident parallel-edge endpoints without producing invalid control points.
 

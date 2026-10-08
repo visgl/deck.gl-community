@@ -86,25 +86,38 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     };
   }
 
+  /** Starts a worker calculation and emits onLayoutStart before submitting the graph. */
   start() {
-    this._onLayoutStart();
     this._engageWorker();
   }
 
+  /** Replaces the pending calculation and emits a new onLayoutStart event. */
   update() {
     this._engageWorker();
   }
 
   _engageWorker() {
-    if (this._worker) {
-      this._worker.terminate();
-      this._worker = null;
+    this.stop();
+    if (!this._graph) {
+      return;
     }
-
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    this._worker = worker;
+    worker.onmessage = event => {
+      if (this._worker !== worker) {
+        return;
+      }
+      if (event.data.type === 'end') {
+        this.ended(event.data);
+      }
+    };
+    this._onLayoutStart();
+    if (this._worker !== worker) {
+      return;
+    }
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this.props;
-    this._worker.postMessage({
+    worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,
       options: {
@@ -115,47 +128,19 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
         getCollisionRadius
       }
     });
-    this._worker.onmessage = event => {
-      switch (event.data.type) {
-        case 'tick':
-          this.ticked(event.data);
-          break;
-        case 'end':
-          this.ended(event.data);
-          break;
-        default:
-          break;
-      }
-    };
   }
-  ticked(data) {
-    const nodesUpdated = this._applyWorkerNodes(data?.nodes);
-    if (!nodesUpdated) {
-      return;
-    }
-
-    if (Array.isArray(data?.edges) && data.edges.length > 0) {
-      this._applyWorkerEdges(data.edges);
-    }
-
-    this._graph?.triggerUpdate?.();
-    this._onLayoutChange();
-  }
+  ticked(data) {}
   ended(data) {
     const {nodes, edges} = data;
+    this.stop();
     this.updateD3Graph({nodes, edges});
     this._onLayoutChange();
     this._onLayoutDone();
-    this._disengageWorker();
   }
   resume() {
     throw new Error('Resume unavailable');
   }
   stop() {
-    this._disengageWorker();
-  }
-
-  private _disengageWorker() {
     if (this._worker) {
       this._worker.terminate();
       this._worker = null;
@@ -237,73 +222,6 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     this._graph?.triggerUpdate?.();
     this._edgeMap = newEdgeMap;
     this._d3Graph.edges = newD3Edges;
-  }
-
-  private _applyWorkerNodes(nodes: any[] | undefined): boolean {
-    if (!Array.isArray(nodes) || nodes.length === 0) {
-      return false;
-    }
-
-    for (const node of nodes) {
-      const existingNode = this._nodeMap.get(node.id);
-      if (existingNode) {
-        existingNode.x = node.x;
-        existingNode.y = node.y;
-        if ('fx' in node) {
-          existingNode.fx = node.fx;
-        }
-        if ('fy' in node) {
-          existingNode.fy = node.fy;
-        }
-        if ('locked' in node) {
-          existingNode.locked = node.locked;
-        }
-        if ('collisionRadius' in node) {
-          existingNode.collisionRadius = node.collisionRadius;
-        }
-      } else {
-        const newNode = {...node};
-        this._nodeMap.set(node.id, newNode);
-        this._d3Graph.nodes.push(newNode);
-      }
-    }
-
-    return true;
-  }
-
-  private _applyWorkerEdges(edges: any[]): void {
-    for (const edge of edges) {
-      const sourceId = this._resolveNodeId(edge.source);
-      const targetId = this._resolveNodeId(edge.target);
-      const source = sourceId === undefined ? undefined : this._nodeMap.get(sourceId);
-      const target = targetId === undefined ? undefined : this._nodeMap.get(targetId);
-
-      if (!source || !target) {
-        continue;
-      }
-
-      const existingEdge = this._edgeMap.get(edge.id);
-      if (existingEdge) {
-        existingEdge.source = source;
-        existingEdge.target = target;
-      } else {
-        const newEdge = {
-          ...edge,
-          source,
-          target
-        };
-        this._edgeMap.set(edge.id, newEdge);
-        this._d3Graph.edges.push(newEdge);
-      }
-    }
-  }
-
-  private _resolveNodeId(node: any): string | number | undefined {
-    if (node && typeof node === 'object') {
-      return node.id;
-    }
-
-    return node;
   }
 
   getNodePosition = (node: NodeInterface): [number, number] => {
