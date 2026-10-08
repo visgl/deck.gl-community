@@ -75,6 +75,8 @@ retained on both backends. Hidden Tree Lab specimens preserve their last rendere
 geometry. Its grazing close view also bounds the light-volume footprint to fewer than 256 wood
 casters; shadows are enabled only after reaching that view, then the full-forest overview
 checks all four seasons without shadows using explicitly settled source frames for each control; production maps and the dedicated receiver pixel contract retain the 1024-pixel default.
+The all-species ownership fixture retains all sixteen renderers at 160 by 120 pixels; individual
+species regressions retain full-size pixel rendering.
 Wood coverage executes before host depth-only shortcuts, and constant coverage changes invalidate
 derived mesh attributes; winter ground pixels verify fractional shadows. Renderer failures abort
 world measurements and reject benchmark samples. Benchmark cleanup cancels pending idle timers,
