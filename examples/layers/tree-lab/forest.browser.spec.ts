@@ -32,6 +32,10 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     width: '160px',
     height: '120px'
   });
+  const renderer = api.deck as unknown as {
+    animationLoop: {stop(): void};
+    layerManager: {updateLayers(): void};
+  };
   let frames = 0;
   const originalAfterRender = api.deck.props.onAfterRender;
   api.deck.setProps({
@@ -50,6 +54,10 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     const before = frames;
     console.info(`Forest contract: ${phase}`);
     action();
+    // Render a settled source frame explicitly, including changes that only
+    // affect culled/distant species and need no automatic visible redraw.
+    renderer.layerManager.updateLayers();
+    api.deck.redraw(`forest contract: ${phase}`);
     await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(before);
     expect(api.errors).toEqual([]);
   };
@@ -60,6 +68,7 @@ it('renders 10K and 20K forests at highest geometry through season, shadow and v
     expect(flyover.checked).toBe(!matchMedia('(prefers-reduced-motion: reduce)').matches);
     if (flyover.checked) flyover.click();
     await expect.poll(() => api.ready, {timeout: 30000}).toBe(true);
+    renderer.animationLoop.stop();
     expect(api.count).toBe(10000);
     expect(container.querySelector('[aria-label="Detail"]')).toBeNull();
     expect((api.deck.props.layers[1] as TreeLayer).props).not.toHaveProperty('detail');
