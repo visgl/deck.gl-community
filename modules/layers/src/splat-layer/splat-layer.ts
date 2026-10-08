@@ -763,18 +763,24 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
 
   renderLayers(): Layer[] {
-    if (this.state.scene)
+    if (this.state.scene) {
+      // Scene shaders output straight RGB/alpha; deck defaults to premultiplied RGB.
+      // Preserve defaults and parent settings beneath per-key Composite child overrides.
+      const parameters = {
+        depthWriteEnabled: false,
+        blendColorSrcFactor: 'src-alpha' as const,
+        ...this.props.parameters,
+        ...this.props._subLayerProps?.scene?.parameters
+      };
       return [
         new SplatSceneLayer({
           ...this.props,
-          ...this.getSubLayerProps({id: 'scene', updateTriggers: this.props.updateTriggers}),
-          // Scene shaders output straight RGB/alpha; deck's default blend assumes premultiplied RGB.
-          // Keep transparent depth behavior and allow explicit caller parameters to override it.
-          parameters: {
-            depthWriteEnabled: false,
-            blendColorSrcFactor: 'src-alpha',
-            ...this.props.parameters
-          },
+          ...this.getSubLayerProps({
+            id: 'scene',
+            updateTriggers: this.props.updateTriggers,
+            parameters
+          }),
+          parameters,
           data: this.props.data,
           maxSplats: Number.isFinite(this.props.maxActiveSplats)
             ? this.props.maxActiveSplats
@@ -783,6 +789,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           onStatusChange: this.props.onStatusChange
         })
       ];
+    }
     const makeLayer = (data: Owner<DataT>[], level: number, shadow: boolean) => {
       const memberGroups = shadow ? this.state.shadowMembers : this.state.members;
       // Coverage changes do not change ownership or transforms. Keep the data list stable

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {COORDINATE_SYSTEM, Deck, OrthographicView} from '@deck.gl/core';
-import {luma, Buffer, Texture, type Device} from '@luma.gl/core';
+import {luma, Buffer, Texture, type Device, type Parameters} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, inject, it} from 'vitest';
@@ -210,13 +210,20 @@ async function renderSorted(
       expect(blurred[offset + 3]).toBeLessThan(pixels[offset + 3]);
     }
     if (hostParameters) {
-      for (const parameters of [
-        {depthCompare: 'never'},
-        {depthCompare: 'always'},
-        {depthCompare: 'less-equal'},
-        {depthCompare: 'always', blendColorSrcFactor: 'one'},
-        {depthCompare: 'less-equal'}
-      ] as const) {
+      const cases: {parameters: Parameters; sceneParameters?: Parameters}[] = [
+        {parameters: {depthCompare: 'never'}},
+        {parameters: {depthCompare: 'always'}},
+        {parameters: {depthCompare: 'less-equal'}},
+        {parameters: {depthCompare: 'always', blendColorSrcFactor: 'one'}},
+        {parameters: {depthCompare: 'less-equal'}},
+        {parameters: {depthCompare: 'never'}, sceneParameters: {depthCompare: 'always'}},
+        {parameters: {depthCompare: 'always'}, sceneParameters: {depthCompare: 'never'}},
+        {parameters: {depthCompare: 'always'}, sceneParameters: {blendColorSrcFactor: 'one'}},
+        {parameters: {depthCompare: 'never'}, sceneParameters: {blendColorSrcFactor: 'src-alpha'}},
+        {parameters: {depthCompare: 'less-equal'}}
+      ];
+      for (const {parameters, sceneParameters} of cases) {
+        const effectiveParameters = {...parameters, ...sceneParameters};
         await new Promise<void>((resolve, reject) => {
           let nextFrames = 0;
           const timeout = setTimeout(
@@ -224,7 +231,12 @@ async function renderSorted(
             30000
           );
           deck!.setProps({
-            layers: layersNow.map(layer => layer.clone({parameters})),
+            layers: layersNow.map(layer =>
+              layer.clone({
+                parameters,
+                _subLayerProps: sceneParameters ? {scene: {parameters: sceneParameters}} : undefined
+              })
+            ),
             onAfterRender: () => {
               if (++nextFrames >= 3) {
                 deck!.pause();
@@ -238,10 +250,11 @@ async function renderSorted(
         const nextPixels = await readFrame(device, texture);
         const alpha = nextPixels[offset + 3];
         expect(alpha).toSatisfy(value =>
-          parameters.depthCompare === 'never' ? value === 0 : value > 0
+          effectiveParameters.depthCompare === 'never' ? value === 0 : value > 0
         );
         const colorExcess = nextPixels[offset] + nextPixels[offset + 2] - alpha;
-        if ('blendColorSrcFactor' in parameters) expect(colorExcess).toBeGreaterThan(50);
+        if (effectiveParameters.blendColorSrcFactor === 'one')
+          expect(colorExcess).toBeGreaterThan(50);
         else expect(Math.abs(colorExcess)).toBeLessThanOrEqual(3);
       }
     }
