@@ -112,6 +112,14 @@ async function loadSpriteImage(
   return await createImageBitmap(await response.blob());
 }
 
+/** Appends a suffix and extension to a sprite URL's path, keeping its query string and hash. */
+function getSpriteFileUrl(url: string, suffix: string, extension: string): string {
+  const pathEnd = url.search(/[?#]/);
+  return pathEnd < 0
+    ? `${url}${suffix}${extension}`
+    : `${url.slice(0, pathEnd)}${suffix}${extension}${url.slice(pathEnd)}`;
+}
+
 /** Loads one sprite: the `@2x` variant first at high pixel ratios, falling back to `@1x`. */
 async function loadSpriteAtlas(
   source: SpriteSource,
@@ -121,7 +129,7 @@ async function loadSpriteAtlas(
   const suffixes = (options.pixelRatio ?? 1) >= 2 ? ['@2x', ''] : [''];
   let lastError: unknown;
   for (const suffix of suffixes) {
-    const jsonUrl = `${source.url}${suffix}.json`;
+    const jsonUrl = getSpriteFileUrl(source.url, suffix, '.json');
     try {
       const response = await fetchFn(jsonUrl, options.fetchOptions);
       if (!response.ok) {
@@ -130,7 +138,11 @@ async function loadSpriteAtlas(
       const index = (await response.json()) as Record<string, SpriteImage>;
       return {
         id: source.id,
-        image: await loadSpriteImage(`${source.url}${suffix}.png`, fetchFn, options.fetchOptions),
+        image: await loadSpriteImage(
+          getSpriteFileUrl(source.url, suffix, '.png'),
+          fetchFn,
+          options.fetchOptions
+        ),
         mapping: getSpriteIconMapping(index)
       };
     } catch (error) {
@@ -161,6 +173,28 @@ export async function loadSpriteAtlases(
     )
   );
   return atlases.filter((atlas): atlas is SpriteAtlas => Boolean(atlas));
+}
+
+const imageNamesCache = new WeakMap<readonly SpriteAtlas[], string[]>();
+
+/**
+ * The image names `icon-image` can reference: unprefixed for the `'default'` sprite and `id:name`
+ * for the others. Passed to expression evaluation so `["image", ...]` sees which images exist.
+ */
+export function getSpriteImageNames(atlases: readonly SpriteAtlas[] | null | undefined): string[] {
+  if (!atlases) {
+    return [];
+  }
+  let names = imageNamesCache.get(atlases);
+  if (!names) {
+    names = atlases.flatMap(atlas =>
+      Object.keys(atlas.mapping).map(name =>
+        atlas.id === 'default' ? name : `${atlas.id}:${name}`
+      )
+    );
+    imageNamesCache.set(atlases, names);
+  }
+  return names;
 }
 
 /** An icon resolved against the loaded sprites. */

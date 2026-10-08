@@ -126,6 +126,16 @@ describe('sprite loading', () => {
     expect(requested).toEqual(['https://example.com/sprite.json']);
   });
 
+  test('keeps the query string after the suffix and extension', async () => {
+    const {fetchFn, requested} = spriteFetch(['https://example.com/sprite@2x.json?token=secret']);
+    const [atlas] = await loadSpriteAtlases('https://example.com/sprite?token=secret', {
+      fetch: fetchFn,
+      pixelRatio: 2
+    });
+    expect(requested).toEqual(['https://example.com/sprite@2x.json?token=secret']);
+    expect(atlas.image).toBe('https://example.com/sprite@2x.png?token=secret');
+  });
+
   test('a sprite that fails to load is skipped with a warning, not thrown', async () => {
     const warn = vi.spyOn(log, 'warn').mockReturnValue(() => {});
     const {fetchFn} = spriteFetch([]);
@@ -190,6 +200,24 @@ describe('icon-image', () => {
     });
     expect(layer.getIcon(feature({class: 'museum'}))?.name).toBe('museum');
     expect(layer.getIcon(feature({class: 'town'}))?.name).toBe('circle-11');
+  });
+
+  test('coalesce falls through to an image the sprites hold', () => {
+    const layer = iconLayer({
+      'icon-image': [
+        'coalesce',
+        ['image', 'missing'],
+        ['image', 'poi:museum'],
+        ['image', 'circle-11']
+      ]
+    });
+    const icon = layer.getIcon(feature({}));
+    expect(icon?.atlas.id).toBe('poi');
+    expect(icon?.name).toBe('museum');
+    const unprefixed = iconLayer({
+      'icon-image': ['coalesce', ['image', 'missing'], ['image', 'circle-11']]
+    });
+    expect(unprefixed.getIcon(feature({}))?.name).toBe('circle-11');
   });
 
   test('resolves legacy {token} names', () => {

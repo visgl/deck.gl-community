@@ -4,7 +4,7 @@ import {CollisionFilterExtension} from '@deck.gl/extensions';
 import {GeoJsonLayer, IconLayer, TextLayer} from '@deck.gl/layers';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {getCompiledStyleProperty, type CompiledStyleProperty} from './style-expression';
-import {resolveSpriteIcon, warnMissingIcon} from './sprite';
+import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 
 type GeometryType = 'Point' | 'MultiPoint' | 'LineString' | 'MultiLineString' | string;
@@ -182,7 +182,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!iconImage) {
       return null;
     }
-    const value = this.evaluateStyleProperty('icon-image', feature);
+    const value = iconImage.evaluate(
+      getZoomBucket(this.props.zoom || 0),
+      feature,
+      getSpriteImageNames(this.props.spriteAtlases)
+    );
     const isExpression = Array.isArray(this.props.styleLayer?.layout?.['icon-image']);
     const name =
       value === null || value === undefined

@@ -22,8 +22,11 @@ export type CompiledStyleProperty = {
   isZoomDependent: boolean;
   /** True when the value depends on feature data (`["get", ...]`, `match`, ...). */
   isFeatureDependent: boolean;
-  /** Evaluates the property. Colors are returned as `[r, g, b, a]`, with `a` in 0-1. */
-  evaluate: (zoom: number, feature?: StyleFeature) => unknown;
+  /**
+   * Evaluates the property. Colors are returned as `[r, g, b, a]`, with `a` in 0-1.
+   * `availableImages` lists the loaded sprite image names, which `["image", ...]` checks.
+   */
+  evaluate: (zoom: number, feature?: StyleFeature, availableImages?: string[]) => unknown;
 };
 
 type StyleLayerLike = {
@@ -139,8 +142,16 @@ export function compileStylePropertyValue(
   return {
     isZoomDependent: kind === 'camera' || kind === 'composite',
     isFeatureDependent: kind === 'source' || kind === 'composite',
-    evaluate: (zoom, feature) =>
-      toPlainValue(compiled.evaluate({zoom}, toEvaluationFeature(feature) as any))
+    evaluate: (zoom, feature, availableImages) =>
+      toPlainValue(
+        compiled.evaluate(
+          {zoom},
+          toEvaluationFeature(feature) as any,
+          undefined,
+          undefined,
+          availableImages
+        )
+      )
   };
 }
 
