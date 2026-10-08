@@ -226,8 +226,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         throw new Error('maxActiveSplats and maxSplats must agree when both are specified.');
       if (props.transparency === 'weighted')
         throw new Error('RAD scenes require sorted transparency.');
-      this.state.runtime?.delete(this.id);
-      this.setState({scene: true});
+      if (!this.state.scene) {
+        this.state.runtime?.delete(this.id);
+        this.setState({scene: true});
+      }
       return;
     }
     const leavingScene = this.state.scene;

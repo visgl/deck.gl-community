@@ -279,6 +279,31 @@ it('replaces scene owner rows with a direct prepared asset without retaining sce
   expect(layer.state.input.assets[0].source).toBe(SOURCE);
 });
 
+it('keeps sibling prepared grants cached after a layer enters scene mode', () => {
+  const layer = make([{position: [256, 256, 0]}], 0);
+  const runtime = layer.state.runtime;
+  const apply = vi.fn();
+  runtime.set('prepared-sibling', false, {
+    rows: [{owner: {}, pixels: 1, level: 0, blend: 0}],
+    hierarchy: () => layer.state.hierarchy,
+    maxSplats: Infinity,
+    maxTotalSplats: Infinity,
+    apply
+  });
+  runtime.reconcile(new Set([layer.id, 'prepared-sibling']));
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({data: '/scene.rad'}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  runtime.reconcile(new Set(['prepared-sibling']));
+  const grants = apply.mock.calls.length;
+  expect(grants).toBeGreaterThan(0);
+  for (const changeFlags of [{viewportChanged: true}, {propsChanged: true}]) {
+    layer.updateState({props: layer.props, oldProps: layer.props, changeFlags} as any);
+    runtime.reconcile(new Set(['prepared-sibling']));
+    expect(apply).toHaveBeenCalledTimes(grants);
+  }
+});
+
 it('initializes prepared rendering when only the blending mode changes from sorted to weighted', () => {
   const layer = make([{position: [256, 256, 0]}], 0, {
     source: undefined,
