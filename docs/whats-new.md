@@ -6,6 +6,7 @@
   expressions (`["get", ...]`, `match`, `case`) style each feature instead of resolving to one
   value per style layer. `findFeaturesStyledByLayer` returns the source-layer features when the
   style layer has no `filter`, instead of none.
+- `SourcePickerPanel` provides URL, preset, file input, and drag-and-drop controls with host-owned loading callbacks.
 - `MetricsPanel` displays plain telemetry snapshots with ordered labels and host-defined value formatting.
 
 - Examples that used CARTO basemaps now use OpenFreeMap vector styles or NASA GIBS
