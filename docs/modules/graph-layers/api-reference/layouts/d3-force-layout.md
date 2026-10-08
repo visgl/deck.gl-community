@@ -1,5 +1,9 @@
 # D3ForceLayout
 
+During simulation, worker ticks update node positions, edge positions, and bounds before
+`onLayoutChange` fires. The final positions are published before `onLayoutDone`. Stopping or
+replacing a simulation prevents its queued messages from changing the layout.
+
 This layout is an integration between [d3-force](https://github.com/d3/d3-force) and graph-layers to render the layout in a WebGL context.
 
 ## Usage

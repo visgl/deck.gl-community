@@ -44,7 +44,6 @@ onmessage = function (event) {
       type: 'tick',
       progress: n === 0 ? 1 : (i + 1) / n,
       nodes,
-      edges,
       options: event.data.options
     });
   }

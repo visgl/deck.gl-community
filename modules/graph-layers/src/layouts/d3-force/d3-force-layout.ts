@@ -51,6 +51,7 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     );
   }
 
+  /** Starts a worker simulation and publishes positions as it progresses. */
   start() {
     this._engageWorker();
 
@@ -95,13 +96,18 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       options
     });
 
-    this._worker.onmessage = event => {
+    const worker = this._worker;
+    worker.onmessage = event => {
+      if (this._worker !== worker) {
+        return;
+      }
       log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
       if (event.data.type === 'tick') {
         this._applyWorkerNodes(event.data.nodes);
         this._onLayoutChange();
       } else if (event.data.type === 'end') {
         this._applyWorkerNodes(event.data.nodes);
+        this.stop();
         this._onLayoutChange();
         this._onLayoutDone();
       }
