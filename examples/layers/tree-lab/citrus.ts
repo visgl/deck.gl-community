@@ -131,6 +131,8 @@ export function mountCitrusLabExample(
     disposed = false,
     request = 0,
     debounce = 0;
+  let tourSeconds = (sunAngle / 360) * 32,
+    lastTourFrame = 0;
   const errors: string[] = [];
   let frames = 0,
     lastFrame = 0,
@@ -312,8 +314,7 @@ export function mountCitrusLabExample(
   }
   let sunDirection: [number, number, number] = [0, 0, -1];
   const applySun = (direction?: [number, number, number]) => {
-    const angle = (sunAngle * Math.PI) / 180;
-    sunDirection = direction ?? [-Math.cos(angle), -Math.sin(angle), -1.2];
+    sunDirection = direction ?? getTourFrame((sunAngle / 360) * 32).direction;
     lighting.setSunDirection(sunDirection);
     deck.setProps({effects: [lighting]});
     deck.redraw('citrus sunlight');
@@ -355,6 +356,7 @@ export function mountCitrusLabExample(
   select('Season').addEventListener('change', () => {
     season = select('Season').value as Season;
     cycle = false;
+    lastTourFrame = 0;
     refresh();
   });
   checkbox('Wind').addEventListener('change', () => {
@@ -369,11 +371,14 @@ export function mountCitrusLabExample(
   });
   checkbox('Cycle light and seasons').addEventListener('change', () => {
     cycle = checkbox('Cycle light and seasons').checked;
+    lastTourFrame = 0;
     refresh();
   });
   checkbox('Sun angle').addEventListener('input', () => {
     sunAngle = Number(checkbox('Sun angle').value);
+    tourSeconds = (sunAngle / 360) * 32;
     cycle = false;
+    lastTourFrame = 0;
     applySun();
     syncControls();
   });
@@ -389,14 +394,16 @@ export function mountCitrusLabExample(
   });
   const visibility = () => {
     lastFrame = 0;
+    lastTourFrame = 0;
     refresh();
   };
   document.addEventListener('visibilitychange', visibility);
-  const start = performance.now();
   const animate = (now: number) => {
     if (disposed) return;
     if (cycle && !document.hidden) {
-      const frame = getTourFrame((now - start) / 1000);
+      if (lastTourFrame) tourSeconds += Math.max(0, now - lastTourFrame) / 1000;
+      lastTourFrame = now;
+      const frame = getTourFrame(tourSeconds);
       sunAngle = frame.sunAngle;
       applySun(frame.direction);
       if (season !== frame.season) {
@@ -405,7 +412,7 @@ export function mountCitrusLabExample(
       } else {
         checkbox('Sun angle').value = String(Math.round(sunAngle));
       }
-    }
+    } else lastTourFrame = 0;
     request = requestAnimationFrame(animate);
   };
   syncControls();

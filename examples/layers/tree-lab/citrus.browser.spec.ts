@@ -4,6 +4,7 @@
 import {Deck} from '@deck.gl/core';
 import {describe, expect, it, vi} from 'vitest';
 import {mountCitrusLabExample} from './citrus';
+import {getTourFrame} from './tour';
 
 describe('Citrus lab', () => {
   it('changes actual tree pixels through crown controls, winter, crops and shadow toggles', async () => {
@@ -44,6 +45,7 @@ describe('Citrus lab', () => {
       return original.call(this, next);
     });
     const cleanup = mountCitrusLabExample(container);
+    let restoreClock = () => {};
     const select = (label: string, value: string) => {
       const element = container.querySelector<HTMLSelectElement>(`[aria-label="${label}"]`)!;
       element.value = value;
@@ -89,6 +91,7 @@ describe('Citrus lab', () => {
       const beforeShadowDirection = [
         ...(spy.mock.instances.at(-1) as Deck).props.effects![0].props.key.direction
       ];
+      expect(beforeShadowDirection).toEqual(getTourFrame((137 / 360) * 32).direction);
       checkbox('Shadows', false);
       checkbox('Shadows', true);
       expect((spy.mock.instances.at(-1) as Deck).props.effects![0].props.key.direction).toEqual(
@@ -134,9 +137,37 @@ describe('Citrus lab', () => {
       expect(container.querySelector('footer')!.getBoundingClientRect().bottom).toBeLessThanOrEqual(
         hostBounds.bottom + 1
       );
+      // Control elapsed frame time after pixel checks. Paused intervals must never enter
+      // the tour clock, and enabling cycling must continue from the manual sunlight phase.
+      const queue: FrameRequestCallback[] = [];
+      const realRequest = window.requestAnimationFrame.bind(window);
+      const clock = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+        queue.push(callback);
+        return queue.length;
+      });
+      restoreClock = () => clock.mockRestore();
+      await new Promise<void>(resolve => realRequest(() => realRequest(() => resolve())));
+      const advance = (now: number) => queue.splice(0).forEach(callback => callback(now));
+      const direction = () =>
+        (spy.mock.instances.at(-1) as Deck).props.effects![0].props.key.direction;
+      sun.value = '180';
+      sun.dispatchEvent(new Event('input', {bubbles: true}));
+      checkbox('Cycle light and seasons', true);
+      advance(10000);
+      expect(direction()).toEqual(getTourFrame(16).direction);
+      advance(11000);
+      expect(direction()).toEqual(getTourFrame(17).direction);
+      checkbox('Cycle light and seasons', false);
+      advance(21000);
+      checkbox('Cycle light and seasons', true);
+      advance(100000);
+      expect(direction()).toEqual(getTourFrame(17).direction);
+      advance(101000);
+      expect(direction()).toEqual(getTourFrame(18).direction);
       expect(errors).toEqual([]);
     } finally {
       cleanup();
+      restoreClock();
       spy.mockRestore();
       container.remove();
     }
