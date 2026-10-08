@@ -334,6 +334,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
                   : this.state.nearWeights
               },
               operation: id.startsWith('shadow-') ? 'shadow' : 'draw',
+              // Light-space children own casting; camera LoD children only receive shadows.
+              shadowEnabled: id.startsWith('shadow-') && this.props.shadowEnabled !== false,
               pickable: !id.startsWith('shadow-') && this.props.pickable,
               woodMorph: !this.hasCustomMesh(),
               ...(this.hasCustomMesh() ? {getStemRadius: -1, getRootLength: -1} : {}),
