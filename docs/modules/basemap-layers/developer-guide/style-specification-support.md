@@ -54,11 +54,11 @@ See [Expressions][expressions].
 
 ## Layer visibility and zoom range
 
-| Feature                        | Status        | Notes                                                 |
-| ------------------------------ | ------------- | ----------------------------------------------------- |
-| `minzoom` / `maxzoom`          | Supported     | Compared with the exact zoom.                         |
-| Overzoom past source `maxzoom` | Supported     | The deepest tiles are scaled up; layers keep drawing. |
-| `layout.visibility`            | Not supported | A layer with `visibility: "none"` is still drawn.     |
+| Feature                        | Status    | Notes                                                                                                            |
+| ------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------- |
+| `minzoom` / `maxzoom`          | Supported | Compared with the exact zoom.                                                                                    |
+| Overzoom past source `maxzoom` | Supported | The deepest tiles are scaled up; layers keep drawing.                                                            |
+| `layout.visibility`            | Supported | A layer with `visibility: "none"` is not drawn. To change it, pass a new style object, as for other style edits. |
 
 ## Paint properties
 
