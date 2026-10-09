@@ -58,7 +58,8 @@ export interface CreateDeckGLOptions<Props, Instance extends DeckglRenderer> {
   /**
    * Props that the overlay reads only when it is constructed or attached, so a later
    * `setProps` cannot apply them. List a prop here when the upstream overlay ignores or
-   * mishandles changes to it after construction, such as `interleaved`.
+   * mishandles changes to it after construction, such as a rendering mode that is
+   * wired up when the overlay attaches to its map.
    *
    * When any listed prop changes (compared with `Object.is`), the component finalizes the
    * current overlay and creates a new one with the full props. `onDeckglChange` receives
@@ -93,13 +94,6 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
   }
 
   function DeckGLComponent(props: ComponentProps<Props, Instance>) {
-    if (!isExternalOverlay && 'interleaved' in props) {
-      throw new Error(
-        'The default DeckGL root does not support interleaved rendering. ' +
-          'Import /mapbox or /maplibre, or create a custom overlay root with createDeckGL.'
-      );
-    }
-
     const {children, debug, onDeckglChange, ...deckglProps} = props;
     const notifyDeckglChange = useEffectEvent<Parameters<OnDeckglChange<Instance>>, void>(
       deckgl => {

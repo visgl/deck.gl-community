@@ -9,7 +9,9 @@ export type MapboxDeckGLProps = DeckGLRootProps<MapboxOverlay, MapboxOverlayProp
 
 /** A React Fiber root backed by one MapboxOverlay control. */
 export const DeckGL = createDeckGL<MapboxOverlayProps, MapboxOverlay>({
-  createExternalOverlay: props => new MapboxOverlay(props)
+  createExternalOverlay: props => new MapboxOverlay(props),
+  /** `MapboxOverlay` reads `interleaved` only in its constructor. */
+  recreateOnChange: ['interleaved']
 });
 
 export type {MapboxOverlay, MapboxOverlayProps};

@@ -9,7 +9,9 @@ export type MapLibreDeckGLProps = DeckGLRootProps<MapLibreOverlay, MapLibreOverl
 
 /** A React Fiber root backed by one MapLibreOverlay control. */
 export const DeckGL = createDeckGL<MapLibreOverlayProps, MapLibreOverlay>({
-  createExternalOverlay: props => new MapLibreOverlay(props)
+  createExternalOverlay: props => new MapLibreOverlay(props),
+  /** `MapLibreOverlay` reads `interleaved` only in its constructor. */
+  recreateOnChange: ['interleaved']
 });
 
 export type {MapLibreOverlay, MapLibreOverlayProps};

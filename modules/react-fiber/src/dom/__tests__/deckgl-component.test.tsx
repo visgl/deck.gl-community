@@ -131,16 +131,45 @@ describe('DeckGL Component Tests', () => {
       expect(canvas?.tagName).toBe('CANVAS');
     });
 
-    it('rejects a runtime interleaved prop before creating a DOM root', () => {
-      expect(() =>
-        render(
-          <DeckGL {...({interleaved: true} as never)}>
-            <div>Content</div>
-          </DeckGL>
-        )
-      ).toThrow('The default DeckGL root does not support interleaved rendering.');
+    it('forwards an interleaved prop on the plain root unchanged', () => {
+      render(
+        <DeckGL {...({interleaved: true} as never)}>
+          <div>Content</div>
+        </DeckGL>
+      );
 
-      expect(mockCreateRoot).not.toHaveBeenCalled();
+      expect(mockCreateRoot).toHaveBeenCalledExactlyOnceWith(expect.any(HTMLCanvasElement));
+      expect(mockConfigure).toHaveBeenCalledWith(expect.objectContaining({interleaved: true}));
+    });
+
+    it.each([
+      {DeckGL: MapboxDeckGL, createOverlay: providerMocks.mapboxOverlay, name: 'Mapbox'},
+      {DeckGL: MapLibreDeckGL, createOverlay: providerMocks.maplibreOverlay, name: 'MapLibre'}
+    ])('recreates the $name overlay when interleaved changes', ({
+      DeckGL: ProviderDeckGL,
+      createOverlay
+    }) => {
+      const onDeckglChange = vi.fn();
+      const child = <div>Content</div>;
+      const {rerender} = render(
+        <ProviderDeckGL interleaved={false} onDeckglChange={onDeckglChange}>
+          {child}
+        </ProviderDeckGL>
+      );
+      const firstRoot = mockCreateRoot.mock.calls[0][0] as HTMLDivElement;
+      const firstOverlay = createOverlay.mock.results[0]?.value;
+
+      rerender(
+        <ProviderDeckGL interleaved onDeckglChange={onDeckglChange}>
+          {child}
+        </ProviderDeckGL>
+      );
+      const secondOverlay = createOverlay.mock.results[1]?.value;
+
+      expect(createOverlay).toHaveBeenCalledTimes(2);
+      expect(createOverlay).toHaveBeenLastCalledWith({interleaved: true});
+      expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(firstRoot);
+      expect(onDeckglChange.mock.calls).toEqual([[firstOverlay], [null], [secondOverlay]]);
     });
 
     it.each([
