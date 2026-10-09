@@ -10,6 +10,9 @@
 - Graph text labels preserve finite scalar wrapping widths and fall back to their existing
   default for unsupported values, including functions and nonfinite numbers.
 
+- `D3ForceLayout` starts lifecycle events before worker dispatch for start, update and resume.
+  Resume restarts from cached positions using `resumeAlpha`; the worker honors `alpha`.
+
 - `GraphLayer.layoutUpdateInterval` coalesces intermediate layout snapshots while
   forwarding every lifecycle callback. Start, completion and error snapshots remain
   immediate; the playground schema accepts the new prop.
