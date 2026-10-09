@@ -14,18 +14,18 @@ not listed are not supported. Follow-up changes update the table as gaps close.
 
 See [Layers][layers]. Layers of an unsupported type are skipped.
 
-| Layer type       | Status        | Notes                                                                                                       |
-| ---------------- | ------------- | ----------------------------------------------------------------------------------------------------------- |
-| `background`     | Partial       | `background-color` and `background-opacity`. `background-pattern` is not supported.                         |
-| `fill`           | Partial       | `fill-pattern` and `fill-translate` are not supported. See [Paint properties](#paint-properties).           |
-| `line`           | Partial       | See [Paint properties](#paint-properties) and [Layout properties](#layout-properties).                      |
-| `symbol`         | Partial       | Text and icons at one anchor per feature. Polygon features are not labelled. See [Symbols](#symbols).       |
-| `fill-extrusion` | Partial       | Patterns, translation and the style's `light` are not supported. See [Paint properties](#paint-properties). |
-| `raster`         | Partial       | Tiles are drawn; `raster-*` paint properties are not applied.                                               |
-| `circle`         | Not supported |                                                                                                             |
-| `heatmap`        | Not supported |                                                                                                             |
-| `hillshade`      | Not supported |                                                                                                             |
-| `color-relief`   | Not supported |                                                                                                             |
+| Layer type       | Status        | Notes                                                                                                                                                                              |
+| ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `background`     | Partial       | `background-color` and `background-opacity`. `background-pattern` is not drawn and, as in the specification, disables `background-color`, so a patterned background draws nothing. |
+| `fill`           | Partial       | `fill-pattern` and `fill-translate` are not supported; a patterned fill draws nothing. See [Paint properties](#paint-properties).                                                  |
+| `line`           | Partial       | See [Paint properties](#paint-properties) and [Layout properties](#layout-properties).                                                                                             |
+| `symbol`         | Partial       | Text and icons at one anchor per feature. Polygon features are not labelled. See [Symbols](#symbols).                                                                              |
+| `fill-extrusion` | Partial       | Patterns, translation and the style's `light` are not supported. See [Paint properties](#paint-properties).                                                                        |
+| `raster`         | Partial       | Tiles are drawn; `raster-*` paint properties are not applied.                                                                                                                      |
+| `circle`         | Not supported |                                                                                                                                                                                    |
+| `heatmap`        | Not supported |                                                                                                                                                                                    |
+| `hillshade`      | Not supported |                                                                                                                                                                                    |
+| `color-relief`   | Not supported |                                                                                                                                                                                    |
 
 ## Sources
 
@@ -66,9 +66,9 @@ See [Layers][layers] for the properties of each type.
 
 | Property                                                     | Status        | Notes                                                                                                                   |
 | ------------------------------------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `fill-color`, `fill-opacity`                                 | Supported     | Per feature. On a globe, fills are drawn opaque.                                                                        |
+| `fill-color`, `fill-opacity`                                 | Supported     | Per feature. On a globe, fills are drawn opaque. A `fill-pattern` disables `fill-color`, as in the specification.       |
 | `fill-outline-color`                                         | Partial       | A 1 CSS pixel outline; MapLibre's is one device pixel. Not drawn when `fill-antialias` is `false`.                      |
-| `fill-pattern`, `fill-translate`                             | Not supported |                                                                                                                         |
+| `fill-pattern`, `fill-translate`                             | Not supported | A fill with `fill-pattern` draws nothing, rather than its color.                                                        |
 | `line-color`, `line-opacity`, `line-width`                   | Supported     | Per feature.                                                                                                            |
 | `line-dasharray`                                             | Partial       | One dash and one gap per period; longer patterns merge their dashes. Switches at integer zooms instead of cross-fading. |
 | `line-offset`, `line-gap-width`, `line-blur`                 | Not supported |                                                                                                                         |
@@ -97,7 +97,7 @@ See [Layers][layers] for the properties of each type.
 | `text-size`                                                                 | Supported     | Per feature. A size of 0 hides the label.                                                                                                                                                                                                                 |
 | `text-offset`, `text-anchor`                                                | Supported     | Per feature.                                                                                                                                                                                                                                              |
 | `text-font`                                                                 | Partial       | Mapped to a CSS font family list, weight and style; no glyphs are loaded. One font per style layer and zoom step. See [Label fonts](/docs/modules/basemap-layers#label-fonts).                                                                            |
-| `text-halo-color`                                                           | Partial       | Drawn as a background box behind the text, not as a halo around the glyphs, and only when `text-halo-width` is greater than 0. Evaluated once per style layer and zoom step, not per feature.                                                             |
+| `text-halo-color`                                                           | Partial       | Drawn as a background box behind the text, not as a halo around the glyphs, and only when `text-halo-width` is greater than 0. Evaluated once per style layer and zoom step, not per feature. A data-driven `text-halo-width` always draws the box.       |
 | `text-halo-width`, `text-halo-blur`                                         | Not supported |                                                                                                                                                                                                                                                           |
 | `text-justify`, `text-max-width`, `text-line-height`, `text-letter-spacing` | Not supported | Text is not wrapped. Line breaks (`\n`) in `text-field` are kept, with a line height of 1.0 rather than the default 1.2.                                                                                                                                  |
 | `text-rotate`, `text-transform`, `text-variable-anchor`, `text-padding`     | Not supported |                                                                                                                                                                                                                                                           |
