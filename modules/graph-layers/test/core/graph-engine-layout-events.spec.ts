@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {InteractionManager} from '../../src/core/interaction-manager';
 import {GraphEngine} from '../../src/core/graph-engine';
 import {D3ForceLayout} from '../../src/layouts/d3-force/d3-force-layout';
 import {ClassicGraph} from '../../src/graph/classic-graph';
@@ -65,6 +66,47 @@ describe('GraphEngine D3 lifecycle', () => {
     expect(events).toEqual(['start']);
     expect(FakeWorker.latest.postMessage.mock.calls[0][0].nodes).toHaveLength(2);
     expect(FakeWorker.latest.postMessage.mock.calls[0][0].options.alpha).toBe(0.4);
+    engine.stop();
+    engine.clear();
+  });
+
+  it.each([
+    true,
+    false
+  ])('releases drag pins before optional resume (%s)', resumeLayoutAfterDragging => {
+    vi.stubGlobal('Worker', FakeWorker);
+    const graph = new ClassicGraph({data: {shape: 'plain-graph-data', nodes: [{id: 'a'}]}});
+    const layout = new D3ForceLayout();
+    const engine = new GraphEngine({graph, layout});
+    engine.run();
+    FakeWorker.latest.emit({type: 'end', nodes: [{id: 'a', x: 1, y: 2}]});
+    const node = graph.findNode('a')!;
+    engine.lockNodePosition(node, 10, 20);
+    const previousWorker = FakeWorker.latest;
+    const manager = new InteractionManager(
+      {engine, enableDragging: true, resumeLayoutAfterDragging},
+      () => {}
+    );
+    manager.onDragEnd({object: node}, {});
+    if (!resumeLayoutAfterDragging) {
+      expect(FakeWorker.latest).toBe(previousWorker);
+      engine.resume();
+    }
+    const resumed = FakeWorker.latest;
+    expect(resumed.postMessage.mock.calls[0][0].nodes[0]).toMatchObject({
+      x: 10,
+      y: 20,
+      fx: null,
+      fy: null
+    });
+    resumed.emit({type: 'end', nodes: [{id: 'a', x: 30, y: 40, fx: null, fy: null}]});
+    engine.resume();
+    expect(FakeWorker.latest.postMessage.mock.calls[0][0].nodes[0]).toMatchObject({
+      x: 30,
+      y: 40,
+      fx: null,
+      fy: null
+    });
     engine.stop();
     engine.clear();
   });

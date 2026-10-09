@@ -277,10 +277,10 @@ export class InteractionManager {
     if (!info.object.isNode || !this.enableDragging) {
       return;
     }
+    setNodeState(info.object as NodeInterface, 'default');
+    this.engine.unlockNodePosition(info.object as NodeInterface);
     if (this.resumeLayoutAfterDragging) {
       this.engine.resume();
     }
-    setNodeState(info.object as NodeInterface, 'default');
-    this.engine.unlockNodePosition(info.object as NodeInterface);
   }
 }
