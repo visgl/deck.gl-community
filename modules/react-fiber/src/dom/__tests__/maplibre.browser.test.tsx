@@ -132,3 +132,92 @@ webglTest(
   },
   45_000
 );
+
+webglTest(
+  'MapLibre v6 provider root recreates its control when interleaved changes',
+  async () => {
+    const container = document.createElement('div');
+    Object.assign(container.style, {height: '300px', width: '400px'});
+    Object.defineProperties(container, {
+      clientHeight: {value: 300},
+      clientWidth: {value: 400}
+    });
+    document.body.append(container);
+
+    const map = new MapLibreMap({
+      attributionControl: false,
+      canvasContextAttributes: {antialias: true},
+      center: [-122.45, 37.78],
+      container,
+      pixelRatio: window.devicePixelRatio,
+      style: {layers: [{id: 'labels', type: 'background'}], sources: {}, version: 8},
+      zoom: 14
+    });
+    await waitForMapLoad(map);
+
+    const reactHost = document.createElement('div');
+    document.body.append(reactHost);
+    const reactRoot = createRoot(reactHost);
+    const overlays: MapLibreOverlay[] = [];
+    // `finalize` detaches a replaced overlay, so the app only attaches each new one.
+    const onDeckglChange = (deckgl: MapLibreOverlay | null) => {
+      if (deckgl && !overlays.includes(deckgl)) {
+        overlays.push(deckgl);
+        map.addControl(deckgl);
+      }
+    };
+    const image = new ImageData(new Uint8ClampedArray([255, 0, 0, 255]), 1, 1);
+    const layer = new BitmapLayer({
+      beforeId: 'labels',
+      bounds: [-122.46, 37.77, -122.44, 37.79],
+      id: 'points',
+      image,
+      pickable: true
+    });
+    const renderDeckGL = (interleaved: boolean) =>
+      act(async () => {
+        reactRoot.render(
+          <DeckGL interleaved={interleaved} onDeckglChange={onDeckglChange}>
+            <layer layer={layer} />
+          </DeckGL>
+        );
+      });
+
+    try {
+      await renderDeckGL(false);
+      const [overlaidControl] = overlays;
+      expect(overlaidControl.getCanvas()).not.toBe(map.getCanvas());
+
+      await renderDeckGL(true);
+      expect(overlays).toHaveLength(2);
+      const interleavedControl = overlays[1];
+      expect(overlaidControl.getCanvas()).toBeNull();
+
+      map.triggerRepaint();
+      await vi.waitFor(
+        () => {
+          expect(map.getLayersOrder()).toEqual([
+            'deck-maplibre-layer-group-before:labels',
+            'labels'
+          ]);
+          expect(getDeck(interleavedControl)?.isInitialized).toBe(true);
+        },
+        {timeout: 10_000}
+      );
+      expect(interleavedControl.getCanvas()).toBe(map.getCanvas());
+      expect(getDeck(interleavedControl)?.props.layers).toContain(layer);
+      await vi.waitFor(
+        () => expect(interleavedControl.pickObject({x: 200, y: 150}).picked).toBe(true),
+        {timeout: 10_000}
+      );
+
+      expect(() => map.removeControl(overlaidControl)).not.toThrow();
+    } finally {
+      await act(async () => reactRoot.unmount());
+      map.remove();
+      reactHost.remove();
+      container.remove();
+    }
+  },
+  45_000
+);
