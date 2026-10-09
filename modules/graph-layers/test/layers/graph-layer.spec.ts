@@ -89,6 +89,23 @@ describe('GraphLayer layout redraw cadence', () => {
     layer.finalize();
   });
 
+  it('waits through bounded timers for intervals beyond the JavaScript timer range', () => {
+    const interval = 3_000_000_000;
+    const {layer, layout} = createLayer(interval);
+    vi.advanceTimersByTime(10);
+    layout.change();
+    vi.advanceTimersByTime(2_147_483_647);
+    expect(layer.setState).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(interval - 2_147_483_647 - 11);
+    expect(layer.setState).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(layer.setState).toHaveBeenCalledOnce();
+    expect(layer.state.layoutVersion).toBe(layout.version);
+    expect(vi.getTimerCount()).toBe(0);
+    layer.finalize();
+  });
+
   it('coalesces a burst into the latest snapshot while forwarding every callback', () => {
     const {layer, layout, onLayoutChange} = createLayer(50);
     // Start at monotonic time zero must not disable throttling.

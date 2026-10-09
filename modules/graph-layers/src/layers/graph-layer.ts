@@ -661,7 +661,15 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     if (delay === 0) {
       this._flushLayoutSnapshotUpdate();
     } else if (updates.timer === null) {
-      updates.timer = setTimeout(() => this._flushLayoutSnapshotUpdate(), delay);
+      // JavaScript timers cannot represent delays greater than a signed 32-bit integer.
+      // Recheck the deadline after each bounded wait (including timers that fire early).
+      updates.timer = setTimeout(
+        () => {
+          updates.timer = null;
+          this._scheduleLayoutSnapshotUpdate();
+        },
+        Math.min(delay, 2_147_483_647)
+      );
     }
   }
 
