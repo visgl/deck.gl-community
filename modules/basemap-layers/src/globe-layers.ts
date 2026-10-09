@@ -14,6 +14,7 @@ import {
   getZoomBucket,
   withOpacity
 } from './style-accessor';
+import {compileStylePropertyValue, getStylePropertyDefault} from './style-expression';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {SpriteAtlas} from './sprite';
 import type {LabelFontFamily} from './text-font';
@@ -115,6 +116,7 @@ const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, la
 const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
 // The style spec's default `line-color` and `fill-extrusion-color`.
 const DEFAULT_COLOR = [0, 0, 0, 1];
+const TRANSPARENT_COLOR: [number, number, number, number] = [0, 0, 0, 0];
 
 /**
  * Dashes for `line-dasharray`, shared by every dashed sublayer so deck.gl does not see their
@@ -308,7 +310,15 @@ function createBackgroundLayer({
     getPolygon: d => d,
     stroked: false,
     filled: true,
-    getFillColor: withOpacity(paint['background-color'], paint['background-opacity'] ?? 1),
+    // A `background-pattern` disables `background-color`. Patterns are not drawn, so a patterned
+    // background draws nothing rather than its color or the default black.
+    getFillColor:
+      paint['background-pattern'] !== undefined
+        ? TRANSPARENT_COLOR
+        : withOpacity(
+            (paint['background-color'] ?? getStylePropertyDefault('background-color')) as number[],
+            paint['background-opacity'] ?? 1
+          ),
     parameters: getBackgroundParameters(mode)
   });
 }
@@ -722,11 +732,29 @@ function createSymbolSubLayer({
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
     // The halo keeps its own alpha, scaled by the layer opacity like the text.
-    labelBackground: paint['text-halo-color']
-      ? withOpacity(paint['text-halo-color'], opacity)
-      : null,
+    // The halo is drawn only with a positive `text-halo-width`, whose default is 0.
+    labelBackground:
+      paint['text-halo-color'] && hasHaloWidth(styleLayer, paint)
+        ? withOpacity(paint['text-halo-color'], opacity)
+        : null,
     billboard: true
   });
+}
+
+/**
+ * Whether a label layer can have a visible halo. The box is drawn once per style layer, so a
+ * data-driven `text-halo-width` cannot be checked per feature; it keeps the box. A constant or
+ * zoom-dependent width hides it when the evaluated width is 0, its default.
+ */
+function hasHaloWidth(styleLayer: BasemapStyleLayer, paint: Record<string, any>): boolean {
+  const width = styleLayer.paint?.['text-halo-width'];
+  if (
+    width !== undefined &&
+    compileStylePropertyValue('text-halo-width', width)?.isFeatureDependent
+  ) {
+    return true;
+  }
+  return Number(paint['text-halo-width'] ?? 0) > 0;
 }
 
 /**
@@ -770,12 +798,17 @@ function createGeometrySubLayer({
   const isFill = styleLayer.type === 'fill';
   const baseProps = getSubLayerBaseProps(props);
 
-  const fillColor = getStyleAccessor(
-    styleLayer,
-    ['fill-color', 'fill-opacity'],
-    zoom,
-    ([color, opacity]) => getGlobeFillColor(withOpacity(color, opacity ?? 1), mode)
-  );
+  // A `fill-pattern` disables `fill-color`. Patterns are not drawn, so a patterned fill draws
+  // nothing rather than its color or the default black.
+  const hasFillPattern = isFill && styleLayer.paint?.['fill-pattern'] !== undefined;
+  const fillColor = hasFillPattern
+    ? {value: TRANSPARENT_COLOR}
+    : getStyleAccessor(styleLayer, ['fill-color', 'fill-opacity'], zoom, ([color, opacity]) =>
+        getGlobeFillColor(
+          withOpacity(color ?? getStylePropertyDefault('fill-color'), opacity ?? 1),
+          mode
+        )
+      );
   // MapLibre draws a fill's outline only with `fill-antialias`; without `fill-outline-color` the
   // outline is in `fill-color` and only antialiases the edge, which deck.gl's fill does not need.
   const hasOutline =

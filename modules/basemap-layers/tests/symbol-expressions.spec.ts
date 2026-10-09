@@ -156,8 +156,9 @@ describe('update triggers', () => {
     const at = labelLayer(layout, paint, 7.6).getLabelUpdateTriggers();
     const next = labelLayer(layout, paint, 8.6).getLabelUpdateTriggers();
     const changed = Object.keys(at).filter(key => at[key] !== next[key]);
-    // `text-offset` is in ems of `text-size`, which depends on zoom here.
-    expect(changed.sort()).toEqual(['getColor', 'getPixelOffset', 'getSize']);
+    // `text-offset` is in ems of `text-size`, which depends on zoom here, and a `text-size` of 0
+    // hides the text.
+    expect(changed.sort()).toEqual(['getColor', 'getPixelOffset', 'getSize', 'getText']);
     expect(labelLayer(layout, paint, 7.7).getLabelUpdateTriggers()).toEqual(at);
   });
 
