@@ -15,6 +15,37 @@ for (const route of ['docs.md', 'docs/working-with-ai.md', 'docs/whats-new.md'])
   assert.ok(index.includes(`${siteUrl}${route}`), `Index is missing ${route}`);
 }
 
+// Sample prose, fenced examples, migration tables and rendered admonitions.
+// File existence alone does not prove that HTML-to-Markdown extraction succeeded.
+const requiredContent = {
+  'docs.md': ['Some modules may no longer have dedicated maintainers.'],
+  'docs/working-with-ai.md': [
+    'Check local versions and capabilities',
+    'Inspect the application',
+    'Community support is limited'
+  ],
+  'docs/modules/layers/api-reference/path-marker-layer.md': [
+    'Create directional markers along a path',
+    '```',
+    "import {PathMarkerLayer} from '@deck.gl-community/layers';",
+    'const layer = new PathMarkerLayer({',
+    'Accessor that returns the RGBA color of each marker.'
+  ],
+  'docs/modules/editable-layers.md': [
+    '| nebula.gl import',
+    '| deck.gl-community import',
+    '| Optional edit modes',
+    'Some modules may no longer have dedicated maintainers.'
+  ]
+};
+for (const [route, snippets] of Object.entries(requiredContent)) {
+  const content = readFileSync(path.join(buildDirectory, route), 'utf8');
+  for (const snippet of snippets) {
+    assert.ok(content.includes(snippet), `Missing extracted content in ${route}: ${snippet}`);
+  }
+  assert.ok(!/<(?:LayerLiveExample|Tabs|TabItem)\b/.test(content), `Unprocessed MDX in ${route}`);
+}
+
 function findMarkdownFiles(directory) {
   return readdirSync(directory, {withFileTypes: true}).flatMap((entry) => {
     const entryPath = path.join(directory, entry.name);
