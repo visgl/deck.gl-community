@@ -1,6 +1,12 @@
 import 'client-only';
+import {assert} from '@deck.gl/core';
 import {createRoot, unmountAtNode} from '../reconciler/index';
-import type {DeckglConfiguration, ReconcilerRoot, RootOptions} from '../reconciler/types';
+import type {
+  DeckglConfiguration,
+  ReconcilerRoot,
+  RootElement,
+  RootOptions
+} from '../reconciler/types';
 import {log} from '../shared/index';
 import type {DeckglRenderer} from '../shared/store';
 import {hasSameConfigProperties} from '../shared/has-same-config-properties';
@@ -12,18 +18,37 @@ import {useEffect, useRef} from 'react';
 import type {ReactNode, RefObject} from 'react';
 import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
 
-function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | undefined {
-  if (value instanceof HTMLCanvasElement) {
-    return value.parentElement as HTMLDivElement;
+type CanvasSource = string | HTMLCanvasElement;
+
+interface ResolvedCanvas {
+  source: CanvasSource;
+  element: HTMLCanvasElement;
+}
+
+function findCanvasById(id: string): HTMLCanvasElement {
+  const element = document.getElementById(id);
+  // Like Deck, a string `canvas` is an element id that must name a mounted <canvas>.
+  assert(element instanceof HTMLCanvasElement);
+  return element;
+}
+
+// Call only from effects. The resolved element is cached per source so the root
+// is configured and unmounted with the same registry key.
+function getCanvasRoot(
+  source: CanvasSource | null | undefined,
+  ownCanvas: RefObject<HTMLCanvasElement | null>,
+  resolvedCanvas: RefObject<ResolvedCanvas | null>
+): HTMLCanvasElement | null {
+  if (!source) {
+    return ownCanvas.current;
+  }
+  if (resolvedCanvas.current?.source === source) {
+    return resolvedCanvas.current.element;
   }
 
-  const el = document.querySelector(value);
-
-  if (el instanceof HTMLElement) {
-    return el.parentElement as HTMLDivElement;
-  }
-
-  return undefined;
+  const element = typeof source === 'string' ? findCanvasById(source) : source;
+  resolvedCanvas.current = {source, element};
+  return element;
 }
 
 /** Configuration for an externally owned deck.gl overlay root. */
@@ -77,6 +102,7 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     const canvas = useRef<HTMLCanvasElement>(null);
     const detachedRoot = useRef<HTMLDivElement | null>(null);
     const rootOptions = useRef<RootOptions | undefined>(undefined);
+    const resolvedCanvas = useRef<ResolvedCanvas | null>(null);
 
     // NOTE: enable/disable logging based on debug prop
     useEffect(() => {
@@ -97,32 +123,28 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     });
 
     useIsomorphicLayoutEffect(() => {
-      const rootElement = isExternalOverlay
-        ? getDetachedRoot(detachedRoot, rootOptions)
-        : ((config.canvas || canvas.current) as HTMLCanvasElement | null);
-
-      if (!rootElement) {
-        return;
+      let rootElement: RootElement;
+      let rootConfig: DeckglConfiguration = config;
+      if (isExternalOverlay) {
+        rootElement = getDetachedRoot(detachedRoot, rootOptions);
+      } else {
+        const canvasElement = getCanvasRoot(config.canvas, canvas, resolvedCanvas);
+        if (!canvasElement) {
+          return;
+        }
+        rootElement = canvasElement;
+        rootConfig = {
+          ...config,
+          canvas: canvasElement,
+          parent:
+            config.parent ||
+            (config.canvas ? (canvasElement.parentElement as HTMLDivElement) : wrapper.current)
+        };
       }
 
       const root: ReconcilerRoot = rootOptions.current
         ? createRoot(rootElement, rootOptions.current)
         : createRoot(rootElement);
-      let rootConfig: DeckglConfiguration = config;
-      if (!isExternalOverlay) {
-        if (!(rootElement instanceof HTMLCanvasElement)) {
-          return;
-        }
-        rootConfig = {
-          ...config,
-          canvas: rootElement,
-          parent:
-            config.parent ||
-            (config.canvas
-              ? getCanvasParent(config.canvas as string | HTMLCanvasElement)
-              : wrapper.current)
-        };
-      }
 
       root.configure(rootConfig);
       notifyDeckglChange(root.store.getState().deckgl as Instance | null);
@@ -132,7 +154,7 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     useEffect(() => {
       const rootElement = isExternalOverlay
         ? getDetachedRoot(detachedRoot, rootOptions)
-        : ((config.canvas || canvas.current) as HTMLCanvasElement | null);
+        : getCanvasRoot(config.canvas, canvas, resolvedCanvas);
 
       if (rootElement) {
         return () => {

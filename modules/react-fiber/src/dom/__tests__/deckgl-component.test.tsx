@@ -601,6 +601,120 @@ describe('DeckGL Component Tests', () => {
     });
   });
 
+  describe('String canvas', () => {
+    function mountCanvasHost(canvasId: string): {host: HTMLDivElement; element: HTMLCanvasElement} {
+      const host = document.createElement('div');
+      host.id = 'host';
+      const element = document.createElement('canvas');
+      element.id = canvasId;
+      host.append(element);
+      document.body.append(host);
+      return {host, element};
+    }
+
+    beforeEach(() => {
+      document.body.replaceChildren();
+    });
+
+    it('resolves the id to its canvas element for the root, canvas, and parent', () => {
+      const {host, element} = mountCanvasHost('test-canvas');
+      const onDeckglChange = vi.fn();
+
+      render(
+        <DeckGL canvas="test-canvas" onDeckglChange={onDeckglChange}>
+          <div>Test</div>
+        </DeckGL>
+      );
+
+      expect(mockCreateRoot).toHaveBeenCalledExactlyOnceWith(element);
+      expect(mockConfigure).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({canvas: element, parent: host})
+      );
+      expect(onDeckglChange).toHaveBeenCalledExactlyOnceWith(mockDeckgl);
+      expect(mockRender).toHaveBeenCalledOnce();
+    });
+
+    it('keeps an explicit parent prop', () => {
+      mountCanvasHost('test-canvas');
+      const explicitParent = document.createElement('div');
+
+      render(
+        <DeckGL canvas="test-canvas" parent={explicitParent}>
+          <div>Test</div>
+        </DeckGL>
+      );
+
+      expect(mockConfigure).toHaveBeenCalledWith(expect.objectContaining({parent: explicitParent}));
+    });
+
+    it('resolves ids that are not valid CSS selectors', () => {
+      const {element} = mountCanvasHost('1map');
+
+      render(
+        <DeckGL canvas="1map">
+          <div>Test</div>
+        </DeckGL>
+      );
+
+      expect(mockCreateRoot).toHaveBeenCalledExactlyOnceWith(element);
+      expect(mockConfigure).toHaveBeenCalledWith(expect.objectContaining({canvas: element}));
+    });
+
+    it('unmounts the resolved element once', () => {
+      const {element} = mountCanvasHost('test-canvas');
+      const {unmount} = render(
+        <DeckGL canvas="test-canvas">
+          <div>Test</div>
+        </DeckGL>
+      );
+
+      unmount();
+
+      expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(element);
+    });
+
+    it('unmounts the resolved element once when switching to another canvas', () => {
+      const {element} = mountCanvasHost('test-canvas');
+      const secondCanvas = document.createElement('canvas');
+      const child = <div>Test</div>;
+      const {rerender} = render(<DeckGL canvas="test-canvas">{child}</DeckGL>);
+
+      rerender(<DeckGL canvas={secondCanvas}>{child}</DeckGL>);
+
+      expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(element);
+      expect(mockConfigure).toHaveBeenLastCalledWith(
+        expect.objectContaining({canvas: secondCanvas})
+      );
+    });
+
+    it.each([
+      ['a missing id', () => {}],
+      [
+        'a non-canvas element',
+        () => {
+          const div = document.createElement('div');
+          div.id = 'test-canvas';
+          document.body.append(div);
+        }
+      ]
+    ])('throws for %s without creating a root', (_label, setup) => {
+      setup();
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() =>
+        render(
+          <DeckGL canvas="test-canvas">
+            <div>Test</div>
+          </DeckGL>
+        )
+      ).toThrow();
+      consoleError.mockRestore();
+
+      expect(mockCreateRoot).not.toHaveBeenCalled();
+      expect(mockConfigure).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Config memoization', () => {
     it('should call configure when children change', () => {
       const props = {initialViewState: {latitude: 0, longitude: 0, zoom: 1}};
