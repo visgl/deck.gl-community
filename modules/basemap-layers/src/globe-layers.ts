@@ -220,10 +220,15 @@ export function getStyleZoomLimits(styleLayers: BasemapStyleLayer[]): (number | 
 }
 
 /**
- * A style layer is visible within its own `minzoom`/`maxzoom` only, as in MapLibre. A source's
- * `maxzoom` limits which tiles exist, not which layers draw: past it, the tile layer overzooms.
+ * A style layer is visible unless its `layout.visibility` is `"none"`, and within its own
+ * `minzoom`/`maxzoom` only, as in MapLibre. A source's `maxzoom` limits which tiles exist, not
+ * which layers draw: past it, the tile layer overzooms. `visibility` is a constant in the style
+ * spec, so it is read directly rather than evaluated.
  */
 function isStyleLayerVisibleAtZoom(styleLayer: BasemapStyleLayer, zoom: number): boolean {
+  if (styleLayer.layout?.visibility === 'none') {
+    return false;
+  }
   const {minzoom, maxzoom} = styleLayer;
   return (minzoom === undefined || zoom >= minzoom) && (maxzoom === undefined || zoom < maxzoom);
 }
@@ -631,7 +636,7 @@ export function getBasemapLayers({
     sourceCount: Object.keys(styleDefinition.sources || {}).length
   });
 
-  layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers}));
+  layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers, zoom}));
 
   if (config.basemap) {
     layers.push(...getBackgroundLayers({idPrefix, styleLayers, zoom, mode}));
@@ -721,6 +726,8 @@ function createSymbolSubLayer({
     // The sprite atlas images load through the same fetch as the style and its tiles.
     iconLoadOptions: loadOptions,
     fontFamily,
+    // Polygon labels outside the tile's own extent are left to the neighbouring tile.
+    tileBoundingBox: props.tile?.bbox ?? null,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
@@ -1135,12 +1142,14 @@ function getGlobePreLayers({
   idPrefix,
   mode,
   config,
-  styleLayers
+  styleLayers,
+  zoom
 }: {
   idPrefix: string;
   mode: BasemapMode;
   config: BasemapLayerConfig;
   styleLayers: BasemapStyleLayer[];
+  zoom: number;
 }) {
   const layers = [];
 
@@ -1148,7 +1157,10 @@ function getGlobePreLayers({
     layers.push(getGlobeAtmosphereSkyLayer());
   }
 
-  const hasBackground = styleLayers.some(layer => layer.type === 'background');
+  // A hidden or out-of-range background draws nothing, so it does not replace the fallback.
+  const hasBackground = styleLayers.some(
+    layer => layer.type === 'background' && isStyleLayerVisibleAtZoom(layer, zoom)
+  );
   if (mode === 'globe' && !hasBackground) {
     layers.push(
       new SolidPolygonLayer({

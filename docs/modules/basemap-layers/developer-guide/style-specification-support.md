@@ -19,7 +19,7 @@ See [Layers][layers]. Layers of an unsupported type are skipped.
 | `background`     | Partial       | `background-color` and `background-opacity`. `background-pattern` is not drawn and, as in the specification, disables `background-color`, so a patterned background draws nothing. |
 | `fill`           | Partial       | `fill-pattern` and `fill-translate` are not supported; a patterned fill draws nothing. See [Paint properties](#paint-properties).                                                  |
 | `line`           | Partial       | See [Paint properties](#paint-properties) and [Layout properties](#layout-properties).                                                                                             |
-| `symbol`         | Partial       | Text and icons at one anchor per feature. Polygon features are not labelled. See [Symbols](#symbols).                                                                              |
+| `symbol`         | Partial       | Text and icons at anchor points: one per point, line and polygon. See [Symbols](#symbols).                                                                           |
 | `fill-extrusion` | Partial       | Patterns, translation and the style's `light` are not supported. See [Paint properties](#paint-properties).                                                                        |
 | `raster`         | Partial       | Tiles are drawn; `raster-*` paint properties are not applied.                                                                                                                      |
 | `circle`         | Not supported |                                                                                                                                                                                    |
@@ -55,10 +55,10 @@ See [Expressions][expressions].
 ## Layer visibility and zoom range
 
 | Feature                        | Status        | Notes                                                 |
-| ------------------------------ | ------------- | ----------------------------------------------------- |
+| ------------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------- |
 | `minzoom` / `maxzoom`          | Supported     | Compared with the exact zoom.                         |
 | Overzoom past source `maxzoom` | Supported     | The deepest tiles are scaled up; layers keep drawing. |
-| `layout.visibility`            | Not supported | A layer with `visibility: "none"` is still drawn.     |
+| `layout.visibility`            | Supported | A layer with `visibility: "none"` is not drawn. To change it, pass a new style object, as for other style edits. |
 
 ## Paint properties
 
@@ -89,9 +89,9 @@ See [Layers][layers] for the properties of each type.
 ## Symbols
 
 | Feature                                                                     | Status        | Notes                                                                                                                                                                                                                                                     |
-| --------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `symbol-placement: point`                                                   | Partial       | `symbol-placement` is not read. Point features are labelled at the point, line features at the middle vertex of their first part, and polygon features get no label or icon.                                                                              |
-| `symbol-placement: line` / `line-center`                                    | Partial       | Placed as above: one upright label at the middle vertex of the first part. Labels do not follow the line.                                                                                                                                                 |
+| --------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `symbol-placement: point`                                                   | Partial       | Points are labelled at the point, and each polygon at its pole of inaccessibility, as in MapLibre. Line features are labelled at the middle vertex of their first part. A polygon in two tiles' buffers is labelled by the tile that holds its pole. Polygon label search is bounded per tile; on a tile with unusually heavy polygon geometry, the remaining polygons are not labelled. |
+| `symbol-placement: line` / `line-center`                                    | Partial       | Line features get one upright label at the middle vertex of their first part. Labels do not follow the line. Polygon features are not labelled.                                                                                                                                                                                                                                          |
 | `text-field`                                                                | Supported     | Expressions and legacy `{token}` strings.                                                                                                                                                                                                                 |
 | `text-color`, `text-opacity`                                                | Supported     | Per feature.                                                                                                                                                                                                                                              |
 | `text-size`                                                                 | Supported     | Per feature. A size of 0 hides the label.                                                                                                                                                                                                                 |
@@ -113,8 +113,8 @@ See [Layers][layers] for the properties of each type.
 ## Style resources
 
 | Feature                            | Status        | Notes                                                                                                                            |
-| ---------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| [`sprite`][sprite]                 | Supported     | A single URL or the array form. `@2x` is requested first when the device pixel ratio is 2 or more. URLs may carry query strings. |
+| ---------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`sprite`][sprite]                 | Supported     | A single URL or the array form. `@2x` is requested first when the device pixel ratio is above 1, as in MapLibre. URLs may carry query strings. |
 | [`glyphs`][glyphs]                 | Not supported | Labels use browser fonts (see `text-font`).                                                                                      |
 | [`light`][light]                   | Not supported |                                                                                                                                  |
 | [`sky`][sky], [`terrain`][terrain] | Not supported |                                                                                                                                  |
