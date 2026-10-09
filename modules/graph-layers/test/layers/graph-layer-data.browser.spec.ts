@@ -13,12 +13,16 @@ import karateDot from '../data/__fixtures__/dot/karate.dot?raw';
 test('deck.gl resolves graph URLs and replaces them with loaded graphs without an engine prop', async () => {
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
+  const graphLoader = vi.fn(() => {
+    throw new Error('normalized data should bypass the raw converter');
+  });
   const onDataLoad = vi.fn();
   const onError = vi.fn();
   const layer = new GraphLayer({
     id: 'graph-url',
     data: `data:text/vnd.graphviz,${encodeURIComponent(karateDot)}`,
     loaders: [DOTLoaderWithParser],
+    graphLoader,
     layout: new SimpleLayout(),
     onDataLoad
   });
@@ -34,6 +38,7 @@ test('deck.gl resolves graph URLs and replaces them with loaded graphs without a
   try {
     await expect.poll(() => layer.state?.graphEngine?.getNodes().length, {timeout: 10_000}).toBe(8);
     expect(onDataLoad).toHaveBeenCalledOnce();
+    expect(graphLoader).not.toHaveBeenCalled();
     expect(layer.state.graphEngine!.getNodes()[0].getPropertyValue('label')).toBe('Mr. Hi');
     const graph = new ClassicGraph({
       data: {shape: 'plain-graph-data', nodes: [{id: 'replacement', attributes: {x: 10, y: 20}}]}

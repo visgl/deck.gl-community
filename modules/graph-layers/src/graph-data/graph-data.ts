@@ -55,3 +55,8 @@ export function isPlainGraphData(value: unknown): value is PlainGraphData {
   const candidate = value as PlainGraphData;
   return typeof value === 'object' && candidate?.shape === 'plain-graph-data';
 }
+
+/** Recognizes normalized graph data by its shape tag; does not validate records or tables. */
+export function isGraphData(value: unknown): value is GraphData {
+  return isPlainGraphData(value) || isArrowGraphData(value);
+}

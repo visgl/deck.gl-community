@@ -53,8 +53,9 @@ import {
   type LabelAccessor,
   type RankAccessor
 } from '../utils/rank-grid';
-import type {GraphData} from '../graph-data/graph-data';
+import {type GraphData, isGraphData} from '../graph-data/graph-data';
 import {loadGraphData} from '../loaders/load-graph-data';
+import {createGraphFromData} from '../graph/functions/create-graph-from-data';
 
 import {warn} from '../utils/log';
 
@@ -146,7 +147,7 @@ export type _GraphLayerProps = {
   graph?: Graph;
   /** Layout used by the internally created engine for loaded or raw graphs. */
   layout?: GraphLayout;
-  /** Converts resolved raw payloads to graphs; graph instances bypass this callback. */
+  /** Converts resolved raw payloads to graphs; graph instances and normalized GraphData bypass it. */
   graphLoader?: (opts: {json: unknown}) => Graph | null;
   /** Optional existing engine. Supplying `data` takes precedence. */
   engine?: GraphEngine;
@@ -507,6 +508,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     const graphCandidate = this._coerceGraph(data);
     if (graphCandidate) {
       return this._buildEngineFromGraph(graphCandidate, props.layout);
+    }
+
+    if (isGraphData(data)) {
+      return this._buildEngineFromGraph(createGraphFromData(data), props.layout);
     }
 
     if (typeof data === 'string') {

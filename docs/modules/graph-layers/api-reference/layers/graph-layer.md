@@ -92,12 +92,12 @@ releases will remove this prop.
 #### `graphLoader` (function, optional)
 
 Custom loader that converts raw `data` into a `Graph`. The default converter accepts
-normalized plain/Arrow graph data, arrays of edges,
-or `{nodes, edges}` collections and synthesizes missing endpoint nodes for raw JSON.
+arrays of edges or `{nodes, edges}` collections and synthesizes missing endpoint nodes for raw JSON.
 Raw records use `id`, `sourceId`, and `targetId`; missing edge IDs are generated.
 Custom properties at the top level and in `attributes` are preserved, with nested
-`attributes` taking precedence for custom properties. Graph instances are no longer
-normalized by the loader—pass them directly to `data`.
+`attributes` taking precedence for custom properties. Graph instances and normalized
+`PlainGraphData`/`ArrowGraphData` bypass `graphLoader` and are passed directly to the graph
+factory. Custom loaders only receive raw inputs.
 
 #### `engine` (`GraphEngine`, optional)
 
