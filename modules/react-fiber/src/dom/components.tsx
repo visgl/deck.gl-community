@@ -14,7 +14,7 @@ import {useEffectEvent} from '../shared/use-effect-event';
 import type {DeckGLRootProps, DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
-import {useEffect, useRef} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import type {ReactNode, RefObject} from 'react';
 import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
 
@@ -55,6 +55,16 @@ function getCanvasRoot(
 export interface CreateDeckGLOptions<Props, Instance extends DeckglRenderer> {
   /** Creates the one external-overlay instance bound to the returned component. */
   createExternalOverlay: (props: Props) => Instance;
+  /**
+   * Props that the overlay reads only when it is constructed or attached, so a later
+   * `setProps` cannot apply them. List a prop here when the upstream overlay ignores or
+   * mishandles changes to it after construction, such as `interleaved`.
+   *
+   * When any listed prop changes (compared with `Object.is`), the component finalizes the
+   * current overlay and creates a new one with the full props. `onDeckglChange` receives
+   * `null` for the old instance and then the new instance, which the app must attach.
+   */
+  recreateOnChange?: readonly (keyof Props & string)[];
 }
 
 type ComponentProps<Props, Instance extends DeckglRenderer> = DeckGLRootProps<Instance, Props> & {
@@ -151,7 +161,9 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
       root.render(<Bridge>{children}</Bridge>);
     }, [children, config, Bridge]);
 
-    useEffect(() => {
+    // A layout cleanup releases the old root before a replacement root's layout effect
+    // configures it, so `onDeckglChange` reports `null` before the new instance.
+    useIsomorphicLayoutEffect(() => {
       const rootElement = isExternalOverlay
         ? getDetachedRoot(detachedRoot, rootOptions)
         : getCanvasRoot(config.canvas, canvas, resolvedCanvas);
@@ -175,13 +187,29 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     );
   }
 
+  const recreateOnChange: readonly PropertyKey[] = options?.recreateOnChange ?? [];
+
   return function DeckGL(props: ComponentProps<Props, Instance> & {children: ReactNode}) {
+    const generation = useRecreateGeneration(props, recreateOnChange);
     return (
       <FiberProvider>
-        <DeckGLComponent {...props} />
+        <DeckGLComponent key={generation} {...props} />
       </FiberProvider>
     );
   };
+}
+
+// Counts changes to the listed props. Uses the store-previous-render-state pattern
+// so StrictMode's repeated renders compute the same generation.
+function useRecreateGeneration(props: object, keys: readonly PropertyKey[]): number {
+  const values = keys.map(key => (props as Record<PropertyKey, unknown>)[key]);
+  const [committed, setCommitted] = useState({generation: 0, values});
+  if (values.some((value, index) => !Object.is(value, committed.values[index]))) {
+    const next = {generation: committed.generation + 1, values};
+    setCommitted(next);
+    return next.generation;
+  }
+  return committed.generation;
 }
 
 const PlainDeckGLComponent = createDeckGLComponent<DeckglProps, DeckglInstance>();

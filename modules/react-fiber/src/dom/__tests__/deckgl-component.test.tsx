@@ -43,6 +43,10 @@ vi.mock(import('../../reconciler'), () => {
   const mockRoots = new Map();
   const mockCreateRoot = vi.fn(
     (node: unknown, options?: {createExternalOverlay?: (props: unknown) => unknown}) => {
+      const existingRoot = mockRoots.get(node);
+      if (existingRoot) {
+        return existingRoot;
+      }
       let deckgl = mockRoots.size === 0 ? mockDeckgl : {};
       let configured = false;
       const root = {
@@ -65,7 +69,9 @@ vi.mock(import('../../reconciler'), () => {
       return root;
     }
   );
-  const mockUnmountAtNode = vi.fn<() => void>();
+  const mockUnmountAtNode = vi.fn((node: unknown) => {
+    mockRoots.delete(node);
+  });
 
   return {
     createRoot: mockCreateRoot,
@@ -185,6 +191,75 @@ describe('DeckGL Component Tests', () => {
       expect(mockConfigure).toHaveBeenCalledWith(
         expect.not.objectContaining({canvas: expect.anything(), parent: expect.anything()})
       );
+    });
+
+    it('recreates the overlay in a new detached root when a recreateOnChange prop changes', () => {
+      const createExternalOverlay = vi.fn(
+        (_props: {enabled?: boolean; pickingRadius?: number}) => ({
+          finalize: vi.fn(),
+          setProps: vi.fn()
+        })
+      );
+      const CustomDeckGL = createDeckGL({createExternalOverlay, recreateOnChange: ['enabled']});
+      const onDeckglChange = vi.fn();
+      const child = <div>Content</div>;
+      const {rerender} = render(
+        <CustomDeckGL enabled={false} onDeckglChange={onDeckglChange}>
+          {child}
+        </CustomDeckGL>
+      );
+      const firstRoot = mockCreateRoot.mock.calls[0][0] as HTMLDivElement;
+      const firstOverlay = createExternalOverlay.mock.results[0].value;
+
+      rerender(
+        <CustomDeckGL enabled={false} pickingRadius={5} onDeckglChange={onDeckglChange}>
+          {child}
+        </CustomDeckGL>
+      );
+      expect(createExternalOverlay).toHaveBeenCalledOnce();
+      expect(mockUnmountAtNode).not.toHaveBeenCalled();
+
+      rerender(
+        <CustomDeckGL enabled pickingRadius={5} onDeckglChange={onDeckglChange}>
+          {child}
+        </CustomDeckGL>
+      );
+      const secondRoot = mockCreateRoot.mock.calls.at(-1)?.[0] as HTMLDivElement;
+      const secondOverlay = createExternalOverlay.mock.results[1].value;
+
+      expect(secondRoot).toBeInstanceOf(HTMLDivElement);
+      expect(secondRoot).not.toBe(firstRoot);
+      expect(mockUnmountAtNode).toHaveBeenCalledExactlyOnceWith(firstRoot);
+      expect(createExternalOverlay).toHaveBeenLastCalledWith({enabled: true, pickingRadius: 5});
+      expect(onDeckglChange.mock.calls).toEqual([
+        [firstOverlay],
+        [firstOverlay],
+        [null],
+        [secondOverlay]
+      ]);
+      expect(onDeckglChange.mock.invocationCallOrder[2]).toBeLessThan(
+        mockUnmountAtNode.mock.invocationCallOrder[0]
+      );
+      expect(mockUnmountAtNode.mock.invocationCallOrder[0]).toBeLessThan(
+        createExternalOverlay.mock.invocationCallOrder[1]
+      );
+      expect(mockRender).toHaveBeenCalledTimes(3);
+    });
+
+    it('keeps the overlay when no recreateOnChange props are declared', () => {
+      const createExternalOverlay = vi.fn((_props: {enabled?: boolean}) => ({
+        finalize: vi.fn(),
+        setProps: vi.fn()
+      }));
+      const CustomDeckGL = createDeckGL({createExternalOverlay});
+      const child = <div>Content</div>;
+      const {rerender} = render(<CustomDeckGL enabled={false}>{child}</CustomDeckGL>);
+
+      rerender(<CustomDeckGL enabled>{child}</CustomDeckGL>);
+
+      expect(createExternalOverlay).toHaveBeenCalledOnce();
+      expect(mockUnmountAtNode).not.toHaveBeenCalled();
+      expect(mockConfigure).toHaveBeenLastCalledWith({enabled: true});
     });
 
     it('keeps one detached registry key across StrictMode effect replay', () => {
@@ -584,6 +659,30 @@ describe('DeckGL Component Tests', () => {
       expect(onDeckglChange.mock.invocationCallOrder[1]).toBeLessThan(
         mockUnmountAtNode.mock.invocationCallOrder[0]
       );
+    });
+
+    it('reports null for the old canvas root before the replacement instance', () => {
+      const firstCanvas = document.createElement('canvas');
+      const secondCanvas = document.createElement('canvas');
+      const onDeckglChange = vi.fn();
+      const child = <div>Test</div>;
+      const {rerender} = render(
+        <DeckGL canvas={firstCanvas} onDeckglChange={onDeckglChange}>
+          {child}
+        </DeckGL>
+      );
+
+      rerender(
+        <DeckGL canvas={secondCanvas} onDeckglChange={onDeckglChange}>
+          {child}
+        </DeckGL>
+      );
+
+      expect(onDeckglChange.mock.calls.map(([deckgl]) => deckgl === null)).toEqual([
+        false,
+        true,
+        false
+      ]);
     });
 
     it('unmounts the old root once and configures the replacement canvas', () => {
