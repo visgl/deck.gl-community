@@ -1,6 +1,11 @@
 import type {MapLibreOverlay} from '@deck.gl-community/react-fiber/maplibre';
-import {Map as MaplibreMap} from 'maplibre-gl';
+import {Map as MaplibreMap, setWorkerUrl} from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import {INITIAL_VIEW_STATE} from './constants';
+
+// MapLibre v6 cannot locate its worker inside a bundle. Vite's `?worker&url` emits a bundled,
+// same-origin worker; see https://maplibre.org/maplibre-gl-js/docs/#esm.
+setWorkerUrl(workerUrl);
 
 /**
  * Connect deck.gl to a Maplibre map instance for interleaved rendering
