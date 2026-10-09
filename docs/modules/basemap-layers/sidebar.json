@@ -8,7 +8,8 @@
       "type": "category",
       "label": "Developer Guide",
       "items": [
-        "modules/basemap-layers/developer-guide/get-started"
+        "modules/basemap-layers/developer-guide/get-started",
+        "modules/basemap-layers/developer-guide/style-specification-support"
       ]
     },
     {
