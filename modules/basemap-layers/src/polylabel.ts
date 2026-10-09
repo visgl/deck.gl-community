@@ -1,14 +1,23 @@
 // The pole-of-inaccessibility search follows mapbox/polylabel (ISC License,
 // Copyright (c) 2016 Mapbox), which MapLibre uses to place point labels on polygons.
-// Tile geometry is untrusted input, so the search is bounded: at most MAX_GRID_CELLS_PER_AXIS
-// initial cells along the longer side, a precision floor relative to the polygon's size, and at
-// most MAX_VISITED_CELLS cells examined in total, fewer for polygons with many vertices.
+//
+// Tile geometry is untrusted input, so the search is bounded by the work it does. Every cell the
+// search scores costs one point-to-segment distance test per polygon vertex; the search counts
+// those tests against a budget and returns the best point found when the budget runs out. A
+// caller can share one budget across all polygons of a tile, so a tile with many large polygons
+// cannot hold the main thread either. The initial grid is also capped at
+// MAX_GRID_CELLS_PER_AXIS cells along the longer side, and the precision has a floor relative to
+// the polygon's size.
 
 const MAX_GRID_CELLS_PER_AXIS = 64;
 const MIN_RELATIVE_PRECISION = 1e-6;
-const MAX_VISITED_CELLS = 10000;
-/** Upper bound on point-to-segment distance evaluations, which each examined cell costs. */
-const MAX_SEGMENT_TESTS = 5e7;
+/** Default budget for one search: point-to-segment distance tests. */
+export const DEFAULT_POLE_SEARCH_SEGMENT_TESTS = 5e6;
+
+/** Remaining work, in point-to-segment distance tests, shared by the searches that use it. */
+export type PoleSearchBudget = {
+  segmentTests: number;
+};
 
 type Cell = {
   /** Cell center. */
@@ -25,11 +34,17 @@ type Cell = {
 /**
  * Returns the point inside a polygon farthest from its outline, to within `precision` in the
  * polygon's units. `polygon` is GeoJSON-style: an outer ring followed by hole rings. Coordinates
- * must be planar. Returns null for a polygon without vertices or with a non-finite coordinate.
+ * must be planar.
+ *
+ * The search spends at most `budget.segmentTests` point-to-segment distance tests and deducts
+ * what it spends, so one budget can bound several searches. When the budget runs out the best
+ * point found so far is returned. Returns null for a polygon without vertices, with a non-finite
+ * coordinate, or when the budget cannot pay for the first scored point.
  */
 export function getPoleOfInaccessibility(
   polygon: number[][][],
-  precision: number
+  precision: number,
+  budget: PoleSearchBudget = {segmentTests: DEFAULT_POLE_SEARCH_SEGMENT_TESTS}
 ): [number, number] | null {
   const outer = polygon[0];
   if (!outer || outer.length === 0) {
@@ -62,6 +77,26 @@ export function getPoleOfInaccessibility(
   if (Math.min(width, height) === 0) {
     return [minX, minY];
   }
+
+  // Each scored cell costs one distance test per vertex.
+  const score = (x: number, y: number, half: number): Cell | null => {
+    if (budget.segmentTests < vertexCount) {
+      return null;
+    }
+    budget.segmentTests -= vertexCount;
+    return createCell(x, y, half, polygon);
+  };
+
+  // Start from the centroid, or the bounding box center when that is better.
+  let best = getCentroidCell(polygon, score);
+  if (!best) {
+    return null;
+  }
+  const boxCell = score(minX + width / 2, minY + height / 2, 0);
+  if (boxCell && boxCell.distance > best.distance) {
+    best = boxCell;
+  }
+
   // A long, thin polygon would otherwise get extent / min(width, height) initial cells.
   const cellSize = Math.max(Math.min(width, height), extent / MAX_GRID_CELLS_PER_AXIS);
   const minimumPrecision = Number.isFinite(precision) && precision > 0 ? precision : 0;
@@ -71,40 +106,42 @@ export function getPoleOfInaccessibility(
   const half = cellSize / 2;
   for (let x = minX; x < maxX; x += cellSize) {
     for (let y = minY; y < maxY; y += cellSize) {
-      queue.push(createCell(x + half, y + half, half, polygon));
+      const cell = score(x + half, y + half, half);
+      if (!cell) {
+        return [best.x, best.y];
+      }
+      queue.push(cell);
     }
   }
 
-  // Start from the centroid, or the bounding box center when that is better.
-  let best = getCentroidCell(polygon);
-  const boxCell = createCell(minX + width / 2, minY + height / 2, 0, polygon);
-  if (boxCell.distance > best.distance) {
-    best = boxCell;
-  }
-
-  const maxVisitedCells = Math.max(
-    16,
-    Math.min(MAX_VISITED_CELLS, Math.floor(MAX_SEGMENT_TESTS / vertexCount))
-  );
-  let visited = 0;
   let cell = queue.pop();
-  while (cell && visited++ < maxVisitedCells) {
+  while (cell) {
     if (cell.distance > best.distance) {
       best = cell;
     }
     // Split the cell only if it can hold a meaningfully better point.
     if (cell.max - best.distance > effectivePrecision) {
       const quarter = cell.half / 2;
-      queue.push(createCell(cell.x - quarter, cell.y - quarter, quarter, polygon));
-      queue.push(createCell(cell.x + quarter, cell.y - quarter, quarter, polygon));
-      queue.push(createCell(cell.x - quarter, cell.y + quarter, quarter, polygon));
-      queue.push(createCell(cell.x + quarter, cell.y + quarter, quarter, polygon));
+      for (const [dx, dy] of CHILD_OFFSETS) {
+        const child = score(cell.x + dx * quarter, cell.y + dy * quarter, quarter);
+        if (!child) {
+          return [best.x, best.y];
+        }
+        queue.push(child);
+      }
     }
     cell = queue.pop();
   }
 
   return [best.x, best.y];
 }
+
+const CHILD_OFFSETS = [
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [1, 1]
+] as const;
 
 function createCell(x: number, y: number, half: number, polygon: number[][][]): Cell {
   const distance = getSignedDistance(x, y, polygon);
@@ -152,7 +189,10 @@ function getSegmentDistanceSquared(px: number, py: number, a: number[], b: numbe
   return dx * dx + dy * dy;
 }
 
-function getCentroidCell(polygon: number[][][]): Cell {
+function getCentroidCell(
+  polygon: number[][][],
+  score: (x: number, y: number, half: number) => Cell | null
+): Cell | null {
   const ring = polygon[0];
   let area = 0;
   let x = 0;
@@ -165,9 +205,7 @@ function getCentroidCell(polygon: number[][][]): Cell {
     y += (a[1] + b[1]) * f;
     area += f * 3;
   }
-  return area === 0
-    ? createCell(ring[0][0], ring[0][1], 0, polygon)
-    : createCell(x / area, y / area, 0, polygon);
+  return area === 0 ? score(ring[0][0], ring[0][1], 0) : score(x / area, y / area, 0);
 }
 
 /** A binary max-heap of cells ordered by `max`. */
