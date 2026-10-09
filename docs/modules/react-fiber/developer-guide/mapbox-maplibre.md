@@ -14,13 +14,19 @@ workers, and CSP configuration on the map creator or React Map GL `<Map>`, not o
 
 ## Choose the overlay mode
 
-Both provider roots accept `interleaved?: boolean` when they are first created:
+Both provider roots pass `interleaved?: boolean` to the overlay unchanged:
 
-- Omit it, or pass `false`, for the provider overlay's default dedicated deck canvas.
+- Omit it, or pass `false`, for a dedicated deck canvas. This is the default of both
+  [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and
+  [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview).
 - Pass `true` to share the map's WebGL context.
 
-The mode is fixed when the overlay is constructed. To change it, remount `DeckGL` with a different
-React `key`. It does not select the provider; select Mapbox or MapLibre through the import path.
+Both overlays read `interleaved` only in their constructors. When the prop changes, `DeckGL`
+finalizes the current overlay, which removes it from the map, and creates a new one.
+`onDeckglChange` receives `null` and then the new instance. The attachment effects below handle
+the replacement because they depend on the overlay instance. The new overlay starts without the
+old one's internal state, such as the hovered object. `interleaved` does not select the provider;
+select Mapbox or MapLibre through the import path.
 
 Provider roots render no host DOM node. You can place them inside a React Map GL `<Map>`, or beside
 a manual `new Map({container})` integration without adding a child to the map container. JSX

@@ -5,7 +5,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber';
 import type {DeckglInstance, DeckglProps, OnDeckglChange} from '@deck.gl-community/react-fiber';
 ```
 
-The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, sends JSX `<view>` descriptors to deck.gl, and rejects `interleaved` at both type-check and runtime.
+The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl. Its props are `DeckProps`, which has no `interleaved` option.
 
 ## Provider roots
 
@@ -16,7 +16,7 @@ import {DeckGL as MapboxDeckGL} from '@deck.gl-community/react-fiber/mapbox';
 import {DeckGL as MapLibreDeckGL} from '@deck.gl-community/react-fiber/maplibre';
 ```
 
-`/mapbox` always creates `MapboxOverlay`; `/maplibre` always creates `MapLibreOverlay`. Their `interleaved` boolean selects the overlay mode and defaults to `false`. It is fixed at construction: remount with a different React `key` to change it. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
+`/mapbox` always creates `MapboxOverlay`; `/maplibre` always creates `MapLibreOverlay`. They pass `interleaved` to the overlay unchanged, so the overlay's own default applies: `false` for [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview). Both overlays read `interleaved` only in their constructors. When the prop changes, the root finalizes the current overlay, which removes it from the map, and creates a new one. `onDeckglChange` receives `null` and then the new instance, which the application attaches. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
 
 Each provider entry point exposes its concrete overlay contract:
 
@@ -50,7 +50,18 @@ const DeckGL = createDeckGL({
 });
 ```
 
-The factory runs only when the root is initially configured. It is not a render prop, never reaches `setProps`, and cannot replace an established instance. The result must implement deck.gl's `setProps` and `finalize` lifecycle.
+The factory runs only when the root is initially configured. It is not a render prop and never reaches `setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle.
+
+`recreateOnChange` lists props that the overlay reads only at construction or attach time. When one of them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory again with the full props. `onDeckglChange` receives `null` and then the new instance. The provider roots declare `recreateOnChange: ['interleaved']`.
+
+```tsx
+const DeckGL = createDeckGL({
+  createExternalOverlay: props => new MyCompatibleOverlay(props),
+  recreateOnChange: ['interleaved']
+});
+```
+
+Recreating an overlay discards its internal state, such as the hovered object.
 
 ## Advanced reconciler APIs
 

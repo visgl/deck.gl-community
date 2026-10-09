@@ -125,7 +125,7 @@ import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
 <DeckGL interleaved onDeckglChange={overlay => overlay && map.addControl(overlay)} />;
 ```
 
-`interleaved` is the selected overlay's fixed rendering mode, not a constructor switch. It defaults to `false`; remount with another React `key` to change it. Provider roots render no host DOM node and never forward JSX `<view>` descriptors. Remove the same control before map teardown.
+`interleaved` is passed to the overlay unchanged and uses the overlay's default, `false`. Changing it replaces the overlay: `onDeckglChange` receives `null`, then the new instance to attach. Provider roots render no host DOM node and never forward JSX `<view>` descriptors. Remove the same control before map teardown.
 
 Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<view>`.
 

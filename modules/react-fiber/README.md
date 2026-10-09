@@ -108,14 +108,18 @@ Choose the renderer from its import path. Do not select a provider through a pro
 | `@deck.gl-community/react-fiber/mapbox` | `MapboxOverlay` | The application owns a Mapbox map and attaches a deck.gl control. |
 | `@deck.gl-community/react-fiber/maplibre` | `MapLibreOverlay` | The application owns a MapLibre map and attaches a deck.gl control. |
 
-The root and `/dom` entry points create only `Deck`. Their props reject `interleaved`, and
-`onDeckglChange` receives `Deck | null`. Provider roots always create their matching overlay.
-Their `interleaved` prop is an overlay-only boolean that defaults to `false`. It selects a
-separate deck canvas (`false`) or shared-context rendering (`true`). It does not select the
+The root and `/dom` entry points create only `Deck`. Their props are `DeckProps`, which has no
+`interleaved` option, and `onDeckglChange` receives `Deck | null`. Provider roots always create
+their matching overlay and pass `interleaved` to it unchanged. The overlay applies its own default
+(`false` for
+[`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and
+[`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview)). `false` renders
+to a separate deck canvas, and `true` shares the map's WebGL context. The prop does not select the
 provider.
 
-`interleaved` is fixed when an overlay is constructed. To change it, remount the provider root
-with a different React `key`.
+Both overlays read `interleaved` only in their constructors. When the prop changes, the provider
+root finalizes the current overlay, which removes it from the map, and creates a new one.
+`onDeckglChange` receives `null` and then the new instance, which the application attaches.
 
 ## Use layers and views
 
@@ -202,9 +206,10 @@ Choose its root with the same import-path rule:
 | `@deck.gl-community/react-fiber/compat/mapbox` | `MapboxOverlay` |
 | `@deck.gl-community/react-fiber/compat/maplibre` | `MapLibreOverlay` |
 
-The plain `/compat` root rejects `interleaved`. Provider-specific compatibility roots retain the
-same host-map ownership, fixed `interleaved` behavior, and view limitations as their native
-counterparts.
+The plain `/compat` root accepts `DeckProps`, which has no `interleaved` option.
+Provider-specific compatibility roots keep the same host-map ownership, `interleaved` behavior, and
+view limitations as their native counterparts. When a provider root recreates its overlay,
+`ref.deck` points at the new instance.
 
 Layer wrappers are split across these public entry points:
 
@@ -232,9 +237,21 @@ const DeckGL = createDeckGL({
 });
 ```
 
-The factory runs once when its root is first configured. It is not a render prop, does not reach
-`setProps`, and cannot replace an established instance. The result must implement deck.gl's
-`setProps` and `finalize` lifecycle. This advanced native API is for compatible custom overlays;
+The factory runs once when its root is first configured. It is not a render prop and does not reach
+`setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle.
+
+If the overlay reads some props only at construction, list them in `recreateOnChange`. When one of
+them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory
+again with the full props. `onDeckglChange` receives `null` and then the new instance:
+
+```tsx
+const DeckGL = createDeckGL({
+  createExternalOverlay: props => new MyCompatibleOverlay(props),
+  recreateOnChange: ['interleaved']
+});
+```
+
+Recreating an overlay discards its internal state, such as the hovered object. This advanced native API is for compatible custom overlays;
 normal applications should use the standalone, Mapbox, or MapLibre import path.
 
 ## Advanced reconciler API
