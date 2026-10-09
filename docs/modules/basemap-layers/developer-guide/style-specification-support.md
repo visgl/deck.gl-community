@@ -112,13 +112,13 @@ See [Layers][layers] for the properties of each type.
 
 ## Style resources
 
-| Feature                            | Status        | Notes                                                                                                                            |
+| Feature                            | Status        | Notes                                                                                                                                          |
 | ---------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`sprite`][sprite]                 | Supported     | A single URL or the array form. `@2x` is requested first when the device pixel ratio is above 1, as in MapLibre. URLs may carry query strings. |
-| [`glyphs`][glyphs]                 | Not supported | Labels use browser fonts (see `text-font`).                                                                                      |
-| [`light`][light]                   | Not supported |                                                                                                                                  |
-| [`sky`][sky], [`terrain`][terrain] | Not supported |                                                                                                                                  |
-| [`projection`][projection]         | Not supported | Use deck.gl's `MapView` or `GlobeView`, with the `mode` prop.                                                                    |
+| [`glyphs`][glyphs]                 | Not supported | Labels use browser fonts (see `text-font`).                                                                                                    |
+| [`light`][light]                   | Not supported |                                                                                                                                                |
+| [`sky`][sky], [`terrain`][terrain] | Not supported |                                                                                                                                                |
+| [`projection`][projection]         | Not supported | Use deck.gl's `MapView` or `GlobeView`, with the `mode` prop.                                                                                  |
 
 ## Rendering
 
