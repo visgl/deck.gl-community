@@ -63,11 +63,19 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     const detachedRoot = useRef<HTMLDivElement | null>(null);
     const rootOptions = useRef<RootOptions | undefined>(undefined);
 
-    if (isExternalOverlay && !detachedRoot.current) {
-      detachedRoot.current = document.createElement('div');
-      rootOptions.current = {
-        createExternalOverlay: config => overlayFactory?.(config as Props) as DeckglRenderer
-      };
+    // Call only from effects: roots must server-render without touching `document`.
+    function getRootElement(): HTMLCanvasElement | HTMLDivElement | null {
+      if (!isExternalOverlay) {
+        return (config.canvas || canvas.current) as HTMLCanvasElement | null;
+      }
+      if (!detachedRoot.current) {
+        detachedRoot.current = document.createElement('div');
+        rootOptions.current = {
+          createExternalOverlay: overlayConfig =>
+            overlayFactory?.(overlayConfig as Props) as DeckglRenderer
+        };
+      }
+      return detachedRoot.current;
     }
 
     // NOTE: enable/disable logging based on debug prop
@@ -89,9 +97,7 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     });
 
     useIsomorphicLayoutEffect(() => {
-      const rootElement = isExternalOverlay
-        ? detachedRoot.current
-        : ((config.canvas || canvas.current) as HTMLCanvasElement);
+      const rootElement = getRootElement();
 
       if (!rootElement) {
         return;
@@ -122,9 +128,7 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     }, [children, config, Bridge]);
 
     useEffect(() => {
-      const rootElement = isExternalOverlay
-        ? detachedRoot.current
-        : ((config.canvas || canvas.current) as HTMLCanvasElement);
+      const rootElement = getRootElement();
 
       if (rootElement) {
         return () => {
