@@ -21,7 +21,7 @@
     "@react-router/node": "^7.14.1",
     "@react-router/serve": "^7.14.1",
     "isbot": "^5.1.39",
-    "maplibre-gl": "^6.11.2",
+    "maplibre-gl": "^6.13.0",
     "nuqs": "^2.0.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
