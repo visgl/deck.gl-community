@@ -716,6 +716,8 @@ function createSymbolSubLayer({
     // The sprite atlas images load through the same fetch as the style and its tiles.
     iconLoadOptions: loadOptions,
     fontFamily,
+    // Polygon labels outside the tile's own extent are left to the neighbouring tile.
+    tileBoundingBox: props.tile?.bbox ?? null,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),

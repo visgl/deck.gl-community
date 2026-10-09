@@ -7,9 +7,21 @@ import {getCompiledStyleProperty, type CompiledStyleProperty} from './style-expr
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
+import {
+  DEFAULT_POLE_SEARCH_SEGMENT_TESTS,
+  getPoleOfInaccessibility,
+  type PoleSearchBudget
+} from './polylabel';
 import type {LabelFont, LabelFontFamily} from './text-font';
 
-type GeometryType = 'Point' | 'MultiPoint' | 'LineString' | 'MultiLineString' | string;
+type GeometryType =
+  | 'Point'
+  | 'MultiPoint'
+  | 'LineString'
+  | 'MultiLineString'
+  | 'Polygon'
+  | 'MultiPolygon'
+  | string;
 
 type FeatureGeometry = {
   type: GeometryType;
@@ -75,6 +87,12 @@ export type MVTLabelLayerProps = {
   spriteAtlases?: SpriteAtlas[] | null;
   /** Load options for the sprite atlas images, so they use the same fetch as the style. */
   iconLoadOptions?: Record<string, unknown> | null;
+  /**
+   * The tile's own bounding box, as deck.gl's `TileLayer` reports it. In longitude/latitude (globe
+   * tiles), polygon labels outside it are dropped, so a polygon in two tiles' buffers is labelled
+   * by one tile. Tile-local coordinates always use the tile's `[0, 1)` square.
+   */
+  tileBoundingBox?: {west: number; south: number; east: number; north: number} | null;
 };
 
 /**
@@ -112,7 +130,15 @@ function getTextAnchorProps(anchor: unknown): {
 type MVTLabelLayerState = {
   /** Flattened label rows generated from the current tile data. */
   labelData?: LabelRow[];
+  /** The non-data inputs `labelData` was computed with; a change recomputes it. */
+  anchorKey?: string;
 };
+
+/**
+ * Work, in point-to-segment distance tests, that polygon label searches may spend per tile and
+ * style layer. Tile geometry is untrusted; past this budget, remaining polygons get no label.
+ */
+const TILE_POLE_SEARCH_SEGMENT_TESTS = 2e7;
 
 const geoJsonDefaultProps = {...GeoJsonLayer.defaultProps} as Omit<
   typeof GeoJsonLayer.defaultProps,
@@ -143,6 +169,71 @@ function getLineMidpoint(coordinates: number[][]): number[] | null {
   }
 
   return coordinates[Math.floor(coordinates.length / 2)] || coordinates[0] || null;
+}
+
+/**
+ * MapLibre places a point label on a polygon at its pole of inaccessibility, found to within 16
+ * units of the tile's 8192-unit extent.
+ */
+const POLE_PRECISION_TILE_FRACTION = 16 / 8192;
+
+/**
+ * Returns one point-label anchor per polygon, at its pole of inaccessibility. Tile-local
+ * coordinates are planar already; longitude/latitude (globe tiles) are searched in Web Mercator
+ * world units, with the precision of a tile at `zoom`, and converted back. Each search draws on
+ * the shared `budget`; once it is spent, the remaining polygons get no anchor. Anchors outside
+ * `bounds` (`[minX, minY, maxX, maxY)`, the tile's own extent) are dropped, so a polygon that lies
+ * in the buffer of two tiles is labelled once.
+ */
+function getPolygonAnchors(
+  polygons: number[][][][],
+  geographic: boolean,
+  zoom: number,
+  budget: PoleSearchBudget,
+  bounds: number[] | null
+): number[][] {
+  const precision = geographic
+    ? POLE_PRECISION_TILE_FRACTION / 2 ** Math.max(0, Math.floor(zoom))
+    : POLE_PRECISION_TILE_FRACTION;
+  const anchors: number[][] = [];
+  for (const polygon of polygons) {
+    if (!Array.isArray(polygon) || polygon.length === 0) {
+      continue;
+    }
+    const rings = geographic ? polygon.map(ring => ring.map(lngLatToWorld)) : polygon;
+    // One polygon may spend at most the single-search default, and never more than the tile has.
+    const polygonBudget = {
+      segmentTests: Math.min(DEFAULT_POLE_SEARCH_SEGMENT_TESTS, budget.segmentTests)
+    };
+    const start = polygonBudget.segmentTests;
+    const pole = getPoleOfInaccessibility(rings, precision, polygonBudget);
+    budget.segmentTests -= start - polygonBudget.segmentTests;
+    if (!pole) {
+      continue;
+    }
+    const anchor = geographic ? worldToLngLat(pole) : pole;
+    if (!bounds || isInsideBounds(anchor, bounds)) {
+      anchors.push(anchor);
+    }
+  }
+  return anchors;
+}
+
+/** Half-open bounds test, so a point on a shared tile edge belongs to exactly one tile. */
+function isInsideBounds([x, y]: number[], [minX, minY, maxX, maxY]: number[]): boolean {
+  return x >= minX && x < maxX && y >= minY && y < maxY;
+}
+
+/** Longitude/latitude to Web Mercator world units, `[0, 1]` across the world. */
+function lngLatToWorld([lng, lat]: number[]): number[] {
+  const latitude = Math.max(-85.051129, Math.min(85.051129, lat));
+  const y = Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360));
+  return [(lng + 180) / 360, 0.5 - y / (2 * Math.PI)];
+}
+
+function worldToLngLat([x, y]: number[]): number[] {
+  const latitude = (360 / Math.PI) * Math.atan(Math.exp((0.5 - y) * 2 * Math.PI)) - 90;
+  return [x * 360 - 180, latitude];
 }
 
 /**
@@ -505,10 +596,47 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Extracts candidate label anchor positions from a feature geometry.
+   * The layer's `symbol-placement` at the stepped zoom. It is not data-driven, so it is evaluated
+   * once per style layer rather than per feature.
    */
-  getLabelAnchors(feature: FeatureLike): number[][] {
+  getSymbolPlacement(): string {
+    const placement = this.getStyleProperty('symbol-placement')?.evaluate(
+      getZoomBucket(this.props.zoom || 0)
+    );
+    return typeof placement === 'string' ? placement : 'point';
+  }
+
+  /**
+   * The tile's own extent in feature coordinates: the `[0, 1)` square for tile-local coordinates,
+   * the tile's longitude/latitude box for globe tiles, or null when it is not known.
+   */
+  getTileBounds(geographic: boolean): number[] | null {
+    if (!geographic) {
+      return [0, 0, 1, 1];
+    }
+    const bbox = this.props.tileBoundingBox;
+    return bbox && Number.isFinite(bbox.west)
+      ? [bbox.west, bbox.south, bbox.east, bbox.north]
+      : null;
+  }
+
+  /**
+   * Extracts candidate label anchor positions from a feature geometry. Points are labelled where
+   * they are. Lines are labelled at the middle vertex of their first part, whatever the
+   * `symbol-placement`. With `symbol-placement: point`, each polygon of a feature is labelled at
+   * its pole of inaccessibility, as in MapLibre, if that point lies in this tile; polygons are not
+   * labelled along their outline. `geographic` says whether coordinates are longitude/latitude
+   * (globe tiles) or tile-local. `budget` bounds the polygon searches; pass one budget for all
+   * features of a tile.
+   */
+  getLabelAnchors(
+    feature: FeatureLike,
+    geographic: boolean = Boolean(this.context?.viewport?.resolution),
+    placement: string = this.getSymbolPlacement(),
+    budget: PoleSearchBudget = {segmentTests: TILE_POLE_SEARCH_SEGMENT_TESTS}
+  ): number[][] {
     const {type, coordinates} = feature.geometry;
+    const zoom = this.props.zoom || 0;
     switch (type) {
       case 'Point':
         return [coordinates];
@@ -522,24 +650,66 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const midpoint = getLineMidpoint(coordinates[0]);
         return midpoint ? [midpoint] : [];
       }
+      case 'Polygon':
+        return placement === 'point'
+          ? getPolygonAnchors(
+              [coordinates],
+              geographic,
+              zoom,
+              budget,
+              this.getTileBounds(geographic)
+            )
+          : [];
+      case 'MultiPolygon':
+        return placement === 'point'
+          ? getPolygonAnchors(coordinates, geographic, zoom, budget, this.getTileBounds(geographic))
+          : [];
       default:
         return [];
     }
   }
 
   /**
-   * Recomputes label anchor rows when the source tile data changes.
+   * Label rows for every anchor of `features`: `symbol-placement` is evaluated once, and one
+   * search budget is shared by all polygons of the tile.
+   */
+  getLabelData(features: FeatureLike[], geographic: boolean): LabelRow[] {
+    const placement = this.getSymbolPlacement();
+    const budget = {segmentTests: TILE_POLE_SEARCH_SEGMENT_TESTS};
+    return features.flatMap((feature, index) =>
+      this.getLabelAnchors(feature, geographic, placement, budget).map(position =>
+        this.getSubLayerRow({position}, feature, index)
+      )
+    );
+  }
+
+  /**
+   * The inputs besides the tile data that the anchors depend on: `symbol-placement`, the
+   * coordinate mode, the tile's extent and, for globe tiles, the search precision's zoom.
+   */
+  getAnchorKey(geographic: boolean): string {
+    return JSON.stringify([
+      this.getSymbolPlacement(),
+      geographic,
+      geographic ? Math.floor(this.props.zoom || 0) : null,
+      this.getTileBounds(geographic)
+    ]);
+  }
+
+  /**
+   * Recomputes label anchor rows when the source tile data, or an input the anchors depend on,
+   * changes.
    */
   updateState({changeFlags}: UpdateParameters<this>): void {
     const {data} = this.props;
-    if (changeFlags.dataChanged && data) {
+    if (!data) {
+      return;
+    }
+    const geographic = Boolean(this.context?.viewport?.resolution);
+    const anchorKey = this.getAnchorKey(geographic);
+    if (changeFlags.dataChanged || anchorKey !== this.state.anchorKey) {
       const features = Array.isArray(data) ? data : data.features || [];
-      const labelData = features.flatMap((feature, index) => {
-        const labelAnchors = this.getLabelAnchors(feature);
-        return labelAnchors.map(position => this.getSubLayerRow({position}, feature, index));
-      });
-
-      this.setState({labelData});
+      this.setState({labelData: this.getLabelData(features, geographic), anchorKey});
     }
   }
 
