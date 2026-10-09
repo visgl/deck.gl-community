@@ -1,5 +1,14 @@
 // The pole-of-inaccessibility search follows mapbox/polylabel (ISC License,
 // Copyright (c) 2016 Mapbox), which MapLibre uses to place point labels on polygons.
+// Tile geometry is untrusted input, so the search is bounded: at most MAX_GRID_CELLS_PER_AXIS
+// initial cells along the longer side, a precision floor relative to the polygon's size, and at
+// most MAX_VISITED_CELLS cells examined in total, fewer for polygons with many vertices.
+
+const MAX_GRID_CELLS_PER_AXIS = 64;
+const MIN_RELATIVE_PRECISION = 1e-6;
+const MAX_VISITED_CELLS = 10000;
+/** Upper bound on point-to-segment distance evaluations, which each examined cell costs. */
+const MAX_SEGMENT_TESTS = 5e7;
 
 type Cell = {
   /** Cell center. */
@@ -16,7 +25,7 @@ type Cell = {
 /**
  * Returns the point inside a polygon farthest from its outline, to within `precision` in the
  * polygon's units. `polygon` is GeoJSON-style: an outer ring followed by hole rings. Coordinates
- * must be planar. Returns null for a polygon without vertices.
+ * must be planar. Returns null for a polygon without vertices or with a non-finite coordinate.
  */
 export function getPoleOfInaccessibility(
   polygon: number[][][],
@@ -31,6 +40,15 @@ export function getPoleOfInaccessibility(
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
+  let vertexCount = 0;
+  for (const ring of polygon) {
+    vertexCount += ring.length;
+    for (const vertex of ring) {
+      if (!Number.isFinite(vertex[0]) || !Number.isFinite(vertex[1])) {
+        return null;
+      }
+    }
+  }
   for (const [x, y] of outer) {
     minX = Math.min(minX, x);
     minY = Math.min(minY, y);
@@ -40,10 +58,14 @@ export function getPoleOfInaccessibility(
 
   const width = maxX - minX;
   const height = maxY - minY;
-  const cellSize = Math.min(width, height);
-  if (cellSize === 0) {
+  const extent = Math.max(width, height);
+  if (Math.min(width, height) === 0) {
     return [minX, minY];
   }
+  // A long, thin polygon would otherwise get extent / min(width, height) initial cells.
+  const cellSize = Math.max(Math.min(width, height), extent / MAX_GRID_CELLS_PER_AXIS);
+  const minimumPrecision = Number.isFinite(precision) && precision > 0 ? precision : 0;
+  const effectivePrecision = Math.max(minimumPrecision, extent * MIN_RELATIVE_PRECISION);
 
   const queue = new CellQueue();
   const half = cellSize / 2;
@@ -60,13 +82,18 @@ export function getPoleOfInaccessibility(
     best = boxCell;
   }
 
+  const maxVisitedCells = Math.max(
+    16,
+    Math.min(MAX_VISITED_CELLS, Math.floor(MAX_SEGMENT_TESTS / vertexCount))
+  );
+  let visited = 0;
   let cell = queue.pop();
-  while (cell) {
+  while (cell && visited++ < maxVisitedCells) {
     if (cell.distance > best.distance) {
       best = cell;
     }
     // Split the cell only if it can hold a meaningfully better point.
-    if (cell.max - best.distance > precision) {
+    if (cell.max - best.distance > effectivePrecision) {
       const quarter = cell.half / 2;
       queue.push(createCell(cell.x - quarter, cell.y - quarter, quarter, polygon));
       queue.push(createCell(cell.x + quarter, cell.y - quarter, quarter, polygon));
