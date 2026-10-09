@@ -40,6 +40,17 @@ function formatStylesheetError(error: ZodError) {
 }
 
 export class GraphStylesheetEngine extends StylesheetEngine {
+  /** Keeps text wrapping widths scalar because TextLayer does not support width accessors. */
+  override getDeckGLAccessor(deckglAccessor: string) {
+    if (deckglAccessor === 'textMaxWidth') {
+      const value = this._getProperty(deckglAccessor)?.getValue();
+      if (typeof value === 'number') {
+        return value;
+      }
+    }
+    return super.getDeckGLAccessor(deckglAccessor);
+  }
+
   constructor(
     style: GraphStyleRule | GraphStyleRuleParsed,
     {stateUpdateTrigger}: {stateUpdateTrigger?: unknown} = {}
