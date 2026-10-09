@@ -1,6 +1,11 @@
 import type {MapLibreOverlay} from '@deck.gl-community/react-fiber/maplibre';
-import {Map as MaplibreMap} from 'maplibre-gl';
+import {Map as MaplibreMap, setWorkerUrl} from 'maplibre-gl';
 import {INITIAL_VIEW_STATE} from './constants';
+
+// MapLibre v6 cannot locate its worker inside a bundle. Turbopack and webpack emit this
+// literal `new URL(..., import.meta.url)` as a hashed asset; see
+// https://maplibre.org/maplibre-gl-js/docs/#esm. Requires maplibre-gl >= 6.13.
+setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).toString());
 
 /**
  * Connect deck.gl to a Maplibre map instance for interleaved rendering
