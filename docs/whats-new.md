@@ -7,6 +7,9 @@
 
 - The website provides `llms.txt` and Markdown documentation for AI coding agents.
 
+- Graph text labels preserve finite scalar wrapping widths and fall back to their existing
+  default for unsupported values, including functions and nonfinite numbers.
+
 - `GraphLayer.layoutUpdateInterval` coalesces intermediate layout snapshots while
   forwarding every lifecycle callback. Start, completion and error snapshots remain
   immediate; the playground schema accepts the new prop.
