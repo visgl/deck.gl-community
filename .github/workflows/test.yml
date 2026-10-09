@@ -252,6 +252,57 @@ jobs:
           DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
+  examples-react-fiber:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # next build type-checks itself; Turbopack emits worker files with or without setWorkerUrl.
+          - example: nextjs
+          - example: react-router
+            typecheck: true
+            worker-asset: build/client/assets/maplibre-gl-worker-*.js
+          - example: tanstack-start
+            typecheck: true
+            worker-asset: dist/client/assets/maplibre-gl-worker-*.js
+          - example: vite
+            typecheck: true
+            worker-asset: dist/assets/maplibre-gl-worker-*.js
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Enable Corepack
+        run: corepack enable yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Type-check example
+        if: matrix.typecheck
+        run: yarn tsc --noEmit -p examples/react-fiber/${{ matrix.example }}/tsconfig.json
+
+      - name: Build example
+        working-directory: examples/react-fiber/${{ matrix.example }}
+        run: yarn build
+
+      - name: Check the bundled MapLibre worker was emitted
+        if: matrix.worker-asset
+        working-directory: examples/react-fiber/${{ matrix.example }}
+        run: ls ${{ matrix.worker-asset }}
+
   website-build:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
