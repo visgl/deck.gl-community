@@ -148,7 +148,7 @@ you need—they are all optional.
 When `true`, nodes can be repositioned by dragging. The interaction manager
 updates the layout and stylesheet state automatically during drags.
 
-#### `layoutUpdateInterval` (number, optional) {#layoutupdateinterval}
+#### `layoutUpdateInterval` (number, optional) {/* #layoutupdateinterval */}
 
 Minimum time in milliseconds between intermediate layout snapshots. Defaults to
 `0`, which updates on every layout change. For example, `layoutUpdateInterval: 50`
