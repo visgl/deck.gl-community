@@ -177,14 +177,22 @@ export async function resolveBasemapStyle(
       try {
         resolvedSources[sourceId] = (await resolveSource(source, baseUrl, loadOptions)) || {};
       } catch (error) {
-        // One source that cannot be loaded must not fail the whole style. The source keeps no
-        // tile templates, so the layers that use it are skipped.
+        // An aborted load rejects the whole style, as before.
+        if ((error as Error)?.name === 'AbortError') {
+          throw error;
+        }
+        // One source that cannot be loaded must not fail the whole style. A source that also
+        // lists its own `tiles` keeps them; otherwise it keeps no tile templates, and the layers
+        // that use it are skipped.
+        const inlineTiles = source?.tiles?.length
+          ? normalizeTiles(source.tiles, baseUrl)
+          : undefined;
         log.warn(
-          `[BasemapLayer] Source "${sourceId}" could not be loaded; its layers are skipped: ${
-            (error as Error).message
-          }`
+          `[BasemapLayer] Source "${sourceId}" could not be loaded; ${
+            inlineTiles ? 'using its inline tiles' : 'its layers are skipped'
+          }: ${(error as Error).message}`
         )();
-        resolvedSources[sourceId] = {...source, url: undefined, tiles: undefined};
+        resolvedSources[sourceId] = {...source, url: undefined, tiles: inlineTiles};
       }
     })
   );

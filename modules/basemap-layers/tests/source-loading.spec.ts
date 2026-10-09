@@ -91,4 +91,52 @@ describe('source loading', () => {
     expect(ids).toContain('test-streets');
     expect(ids).not.toContain('test-missing');
   });
+
+  test('a source keeps its inline tiles when its TileJSON cannot be fetched', async () => {
+    const warn = vi.spyOn(log, 'warn');
+    const {fetch} = fakeFetch({});
+    const inlineTiles = ['https://tiles.example.com/inline/{z}/{x}/{y}.mvt'];
+    const style = await resolveBasemapStyle(
+      {
+        version: 8,
+        sources: {
+          streets: {
+            type: 'vector',
+            url: 'https://tiles.example.com/missing.json',
+            tiles: inlineTiles
+          }
+        },
+        layers: [{id: 'roads', type: 'line', source: 'streets', 'source-layer': 'roads'}]
+      } as any,
+      {fetch}
+    );
+
+    expect(style.sources.streets.tiles).toEqual(inlineTiles);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('using its inline tiles'));
+    const ids = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 5,
+      styleDefinition: style
+    }).map(layer => layer.id);
+    expect(ids).toContain('test-streets');
+  });
+
+  test('an aborted TileJSON fetch rejects the style', async () => {
+    const fetch = (async () => {
+      const error = new Error('The operation was aborted.');
+      error.name = 'AbortError';
+      throw error;
+    }) as unknown as typeof globalThis.fetch;
+    await expect(
+      resolveBasemapStyle(
+        {
+          version: 8,
+          sources: {streets: {type: 'vector', url: TILEJSON_URL}},
+          layers: [{id: 'roads', type: 'line', source: 'streets', 'source-layer': 'roads'}]
+        } as any,
+        {fetch}
+      )
+    ).rejects.toMatchObject({name: 'AbortError'});
+  });
 });

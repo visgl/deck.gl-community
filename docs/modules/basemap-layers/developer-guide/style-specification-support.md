@@ -31,14 +31,14 @@ See [Layers][layers]. Layers of an unsupported type are skipped.
 
 See [Sources][sources].
 
-| Source type  | Status        | Notes                                                                                                                                                                          |
-| ------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `vector`     | Partial       | Inline `tiles`, or a TileJSON `url`. `scheme: "tms"` and `bounds` are not applied. If the TileJSON cannot be fetched, the source's layers are skipped and a warning is logged. |
-| `raster`     | Partial       | Inline `tiles`, or a TileJSON `url`. `scheme: "tms"` and `bounds` are not applied. If the TileJSON cannot be fetched, the source's layers are skipped and a warning is logged. |
-| `raster-dem` | Not supported |                                                                                                                                                                                |
-| `geojson`    | Not supported | Layers that use a GeoJSON source are skipped.                                                                                                                                  |
-| `image`      | Not supported |                                                                                                                                                                                |
-| `video`      | Not supported |                                                                                                                                                                                |
+| Source type  | Status        | Notes                                                                                                                                                                                                                         |
+| ------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vector`     | Partial       | Inline `tiles`, or a TileJSON `url`. `scheme: "tms"` and `bounds` are not applied. If the TileJSON cannot be fetched, a warning is logged and the source falls back to its own `tiles`; without them, its layers are skipped. |
+| `raster`     | Partial       | Inline `tiles`, or a TileJSON `url`. `scheme: "tms"` and `bounds` are not applied. If the TileJSON cannot be fetched, a warning is logged and the source falls back to its own `tiles`; without them, its layers are skipped. |
+| `raster-dem` | Not supported |                                                                                                                                                                                                                               |
+| `geojson`    | Not supported | Layers that use a GeoJSON source are skipped.                                                                                                                                                                                 |
+| `image`      | Not supported |                                                                                                                                                                                                                               |
+| `video`      | Not supported |                                                                                                                                                                                                                               |
 
 ## Expressions and filters
 
