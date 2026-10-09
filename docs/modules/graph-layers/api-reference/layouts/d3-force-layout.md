@@ -30,3 +30,8 @@ new D3ForceLayout({
 - `nBodyDistanceMin` (Number, optional) - Sets the minimum distance between nodes over which this force is considered. If distance is not 'nBodyDistanceMin', returns the current minimum distance, which defaults to 100.
 - `nBodyDistanceMax` (Number, optional) - Sets the maximum distance between nodes over which this force is considered. If distance is not 'nBodyDistanceMin', returns the current minimum distance, which defaults to 400.
 - `getCollisionRadius` (Number, optional) - Sets the radius for collision detection. If getCollisionRadius is not specified, it defaults to zero radius for all nodes. The [collision force](https://github.com/d3/d3-force#collision) treats nodes as circles with a given radius, rather than points, and prevents nodes from overlapping.
+
+Start, graph updates, and resume emit `onLayoutStart` before dispatching worker calculations.
+A start callback can stop the layout to cancel dispatch. Resume uses cached positions and
+`resumeAlpha`; normal starts and updates use `alpha`. The worker applies this initial alpha
+and stops after cooling to its minimum, publishing final geometry before completion callbacks.

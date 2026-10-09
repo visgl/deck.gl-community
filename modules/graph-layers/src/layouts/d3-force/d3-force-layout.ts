@@ -54,47 +54,25 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
   /** Starts a worker simulation and publishes positions as it progresses. */
   start() {
     this._engageWorker();
-
-    this._onLayoutStart();
   }
 
+  /** Recomputes a changed graph and starts a new lifecycle cycle. */
   update() {
     this._engageWorker();
   }
 
-  _engageWorker() {
-    // prevent multiple start
-    if (this._worker) {
-      this._worker.terminate();
-    }
-
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
-
+  _engageWorker(isResume = false) {
+    this.stop();
     if (!this._graph) {
       return;
     }
 
-    const options = {...this.props};
+    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const options = {...this.props, alpha: isResume ? this.props.resumeAlpha : this.props.alpha};
     delete options.onLayoutStart;
     delete options.onLayoutChange;
     delete options.onLayoutDone;
     delete options.onLayoutError;
-
-    this._worker.postMessage({
-      nodes: Array.from(this._graph.getNodes(), node => {
-        const id = node.getId();
-        return {
-          id,
-          ...this._positionsByNodeId.get(id)
-        };
-      }),
-      edges: Array.from(this._graph.getEdges(), edge => ({
-        id: edge.getId(),
-        source: edge.getSourceNodeId(),
-        target: edge.getTargetNodeId()
-      })),
-      options
-    });
 
     const worker = this._worker;
     worker.onmessage = event => {
@@ -112,10 +90,32 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
         this._onLayoutDone();
       }
     };
+
+    this._onLayoutStart();
+    // A start callback may stop or replace the calculation before it is dispatched.
+    if (this._worker !== worker) {
+      return;
+    }
+    worker.postMessage({
+      nodes: Array.from(this._graph.getNodes(), node => {
+        const id = node.getId();
+        return {
+          id,
+          ...this._positionsByNodeId.get(id)
+        };
+      }),
+      edges: Array.from(this._graph.getEdges(), edge => ({
+        id: edge.getId(),
+        source: edge.getSourceNodeId(),
+        target: edge.getTargetNodeId()
+      })),
+      options
+    });
   }
 
+  /** Restarts from cached positions using resumeAlpha. */
   resume() {
-    throw new Error('Resume unavailable');
+    this._engageWorker(true);
   }
 
   stop() {

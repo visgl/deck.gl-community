@@ -38,6 +38,39 @@ function createGraph(): ClassicGraph {
 }
 
 describe('D3ForceLayout', () => {
+  it('uses the configured alpha in the actual worker loop', () => {
+    const snapshots: any[] = [];
+    const context = {
+      d3,
+      performance: {now: () => 0},
+      importScripts: vi.fn(),
+      postMessage: (data: unknown) => snapshots.push(structuredClone(data)),
+      self: {close: vi.fn()},
+      onmessage: null as ((event: unknown) => void) | null
+    };
+    runInNewContext(
+      readFileSync(new URL('../../src/layouts/d3-force/worker.js', import.meta.url), 'utf8'),
+      context
+    );
+    context.onmessage!({
+      data: {
+        nodes: [{id: 'a'}, {id: 'b'}],
+        edges: [],
+        options: {
+          alpha: 0,
+          nBodyStrength: -900,
+          nBodyDistanceMin: 1,
+          nBodyDistanceMax: 400,
+          getCollisionRadius: 0
+        }
+      }
+    });
+    expect(snapshots.map(snapshot => snapshot.type)).toEqual(['end']);
+    expect(
+      snapshots[0].nodes.every(node => Number.isFinite(node.x) && Number.isFinite(node.y))
+    ).toBe(true);
+  });
+
   it('posts changing finite positions from the actual worker loop', () => {
     const messages: any[] = [];
     const close = vi.fn();
