@@ -1,4 +1,5 @@
 import {render, waitFor} from '@testing-library/react';
+import {StrictMode} from 'react';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const providerMocks = vi.hoisted(() => {
@@ -184,6 +185,34 @@ describe('DeckGL Component Tests', () => {
       expect(mockConfigure).toHaveBeenCalledWith(
         expect.not.objectContaining({canvas: expect.anything(), parent: expect.anything()})
       );
+    });
+
+    it('keeps one detached registry key across StrictMode effect replay', () => {
+      render(
+        <StrictMode>
+          <MapLibreDeckGL interleaved>
+            <div>Content</div>
+          </MapLibreDeckGL>
+        </StrictMode>
+      );
+
+      // StrictMode replays effects, so the root is created more than once.
+      expect(mockCreateRoot.mock.calls.length).toBeGreaterThan(1);
+      expect(mockUnmountAtNode).toHaveBeenCalled();
+
+      const [rootElement, rootOptions] = mockCreateRoot.mock.calls[0] as [
+        HTMLDivElement,
+        {createExternalOverlay: unknown}
+      ];
+      expect(rootElement).toBeInstanceOf(HTMLDivElement);
+      expect(rootElement.isConnected).toBe(false);
+      for (const [node, options] of mockCreateRoot.mock.calls) {
+        expect(node).toBe(rootElement);
+        expect(options.createExternalOverlay).toBe(rootOptions.createExternalOverlay);
+      }
+      for (const [node] of mockUnmountAtNode.mock.calls) {
+        expect(node).toBe(rootElement);
+      }
     });
   });
 
