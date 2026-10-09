@@ -173,7 +173,11 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
-  /** Minimum time between layout-driven layer updates in milliseconds. */
+  /**
+   * Minimum milliseconds between intermediate layout snapshots.
+   * Start, done and error flush immediately. Defaults to 0.
+   * Nonpositive or nonfinite values disable throttling.
+   */
   layoutUpdateInterval?: number;
   rankGrid?: boolean | RankGridConfig;
   resumeLayoutAfterDragging?: boolean;
@@ -221,13 +225,14 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     layoutVersion: number;
     layoutState?: string;
     interactionVersion: number;
+    layoutUpdates: {
+      lastUpdateTime: number | null;
+      timer: ReturnType<typeof setTimeout> | null;
+    };
   };
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
   private _suppressNextDeckDataChange = false;
-  private _lastLayoutUpdateTime = 0;
-  private _pendingLayoutSnapshotEngine: GraphEngine | null | undefined;
-  private _layoutUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
   forceUpdate = () => {
     if (!this.state) {
@@ -261,7 +266,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       graphEngine: null,
       layoutVersion: 0,
       layoutState: undefined,
-      interactionVersion: 0
+      interactionVersion: 0,
+      layoutUpdates: {lastUpdateTime: null, timer: null}
     } as typeof this.state;
 
     this._syncInteractionManager(this.props, null);
@@ -301,11 +307,17 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       this._syncInteractionManager(props, this.state.graphEngine ?? null);
     }
 
+    // deck.gl transfers state to replacement layer instances. Rebind any pending timer
+    // to this instance, using its latest props and callbacks.
+    if (!engineRefreshed && changeFlags.propsChanged && this.state.layoutUpdates.timer !== null) {
+      this._clearLayoutUpdateTimer();
+      this._scheduleLayoutSnapshotUpdate();
+    }
+
     this._suppressNextDeckDataChange = false;
   }
 
   finalize() {
-    this._clearLayoutUpdateTimer();
     this._removeGraphEngine();
     this._syncInteractionManager(this.props, null);
   }
@@ -638,54 +650,33 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this.setNeedsRedraw();
   }
 
-  private _handleLayoutEvent = () => {
-    this._scheduleLayoutSnapshotUpdate();
-  };
-
-  private _scheduleLayoutSnapshotUpdate(engine?: GraphEngine | null) {
-    const interval = Math.max(0, this.props.layoutUpdateInterval ?? 0);
-
-    if (interval === 0) {
-      this._clearLayoutUpdateTimer();
-      this._lastLayoutUpdateTime = Date.now();
-      this._updateLayoutSnapshot(engine);
-      return;
-    }
-
-    this._pendingLayoutSnapshotEngine = engine;
-
-    if (this._layoutUpdateTimer) {
-      return;
-    }
-
-    const now = Date.now();
-    const elapsed = this._lastLayoutUpdateTime === 0 ? interval : now - this._lastLayoutUpdateTime;
+  private _scheduleLayoutSnapshotUpdate() {
+    const {layoutUpdateInterval = 0} = this.props;
+    const interval = Number.isFinite(layoutUpdateInterval) ? Math.max(0, layoutUpdateInterval) : 0;
+    const updates = this.state.layoutUpdates;
+    const now = performance.now();
+    const elapsed = updates.lastUpdateTime === null ? interval : now - updates.lastUpdateTime;
     const delay = Math.max(0, interval - elapsed);
 
     if (delay === 0) {
-      this._flushLayoutSnapshotUpdate(now);
-      return;
-    }
-
-    this._layoutUpdateTimer = setTimeout(() => {
-      this._layoutUpdateTimer = null;
       this._flushLayoutSnapshotUpdate();
-    }, delay);
+    } else if (updates.timer === null) {
+      updates.timer = setTimeout(() => this._flushLayoutSnapshotUpdate(), delay);
+    }
   }
 
-  private _flushLayoutSnapshotUpdate(timestamp = Date.now()) {
-    this._lastLayoutUpdateTime = timestamp;
-    const engine = this._pendingLayoutSnapshotEngine;
-    this._pendingLayoutSnapshotEngine = undefined;
-    this._updateLayoutSnapshot(engine);
+  private _flushLayoutSnapshotUpdate() {
+    this._clearLayoutUpdateTimer();
+    this.state.layoutUpdates.lastUpdateTime = performance.now();
+    this._updateLayoutSnapshot();
   }
 
   private _clearLayoutUpdateTimer() {
-    if (this._layoutUpdateTimer) {
-      clearTimeout(this._layoutUpdateTimer);
-      this._layoutUpdateTimer = null;
+    const updates = this.state.layoutUpdates;
+    if (updates.timer !== null) {
+      clearTimeout(updates.timer);
+      updates.timer = null;
     }
-    this._pendingLayoutSnapshotEngine = undefined;
   }
 
   _setGraphEngine(graphEngine: GraphEngine | null) {
@@ -712,6 +703,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
   _removeGraphEngine() {
     this._clearLayoutUpdateTimer();
+    this.state.layoutUpdates.lastUpdateTime = null;
     const engine = this.state.graphEngine;
     if (engine) {
       engine.setProps({
@@ -730,19 +722,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   private _applyGraphEngineCallbacks(engine: GraphEngine) {
     engine.setProps({
       onLayoutStart: detail => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutStart?.(detail);
       },
       onLayoutChange: detail => {
-        this._handleLayoutEvent();
+        this._scheduleLayoutSnapshotUpdate();
         this.props.onLayoutChange?.(detail);
       },
       onLayoutDone: detail => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutDone?.(detail);
       },
       onLayoutError: error => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutError?.(error);
       }
     });

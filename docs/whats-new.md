@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `GraphLayer.layoutUpdateInterval` coalesces intermediate layout snapshots while
+  forwarding every lifecycle callback. Start, completion and error snapshots remain
+  immediate; the playground schema accepts the new prop.
+
 - The playground includes a declarative radial graph template using the public `RadialLayout`
   export. Radial layouts use maximum hierarchy depth and leaf sectors to keep shallow and uneven
   trees finite and within `radius`, and route edges correctly between unequal depths.
@@ -200,10 +204,6 @@ Highlights:
   blocks on WebGL2 and WebGPU, with width cutoffs, stroke alignment, opacity, and color overrides.
 - [`TimeDeltaLayer`](/docs/modules/infovis-layers/api-reference/time-delta-layer) (new) renders
   interval guides and labels on WebGL2 and WebGPU.
-
-### `@deck.gl-community/graph-layers`
-
-- `GraphLayer` now accepts `layoutUpdateInterval` to throttle layout-driven redraws while preserving layout lifecycle callbacks.
 
 ### `@deck.gl-community/timeline-layers`
 
