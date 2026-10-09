@@ -120,13 +120,16 @@ function getSpriteFileUrl(url: string, suffix: string, extension: string): strin
     : `${url.slice(0, pathEnd)}${suffix}${extension}${url.slice(pathEnd)}`;
 }
 
-/** Loads one sprite: the `@2x` variant first at high pixel ratios, falling back to `@1x`. */
+/**
+ * Loads one sprite: the `@2x` variant first at any pixel ratio above 1, as MapLibre does, falling
+ * back to `@1x`.
+ */
 async function loadSpriteAtlas(
   source: SpriteSource,
   options: SpriteLoadOptions
 ): Promise<SpriteAtlas> {
   const fetchFn = options.fetch || fetch;
-  const suffixes = (options.pixelRatio ?? 1) >= 2 ? ['@2x', ''] : [''];
+  const suffixes = (options.pixelRatio ?? 1) > 1 ? ['@2x', ''] : [''];
   let lastError: unknown;
   for (const suffix of suffixes) {
     const jsonUrl = getSpriteFileUrl(source.url, suffix, '.json');
