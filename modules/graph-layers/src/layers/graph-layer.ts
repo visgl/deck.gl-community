@@ -173,6 +173,12 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  /**
+   * Minimum milliseconds between intermediate layout snapshots.
+   * Start, done and error flush immediately. Defaults to 0.
+   * Nonpositive or nonfinite values disable throttling.
+   */
+  layoutUpdateInterval?: number;
   rankGrid?: boolean | RankGridConfig;
   resumeLayoutAfterDragging?: boolean;
 };
@@ -207,6 +213,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onHover: () => {}
     },
     enableDragging: false,
+    layoutUpdateInterval: 0,
     rankGrid: false,
     resumeLayoutAfterDragging: true
   };
@@ -218,6 +225,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     layoutVersion: number;
     layoutState?: string;
     interactionVersion: number;
+    layoutUpdates: {
+      lastUpdateTime: number | null;
+      timer: ReturnType<typeof setTimeout> | null;
+    };
   };
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
@@ -255,7 +266,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       graphEngine: null,
       layoutVersion: 0,
       layoutState: undefined,
-      interactionVersion: 0
+      interactionVersion: 0,
+      layoutUpdates: {lastUpdateTime: null, timer: null}
     } as typeof this.state;
 
     this._syncInteractionManager(this.props, null);
@@ -293,6 +305,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (!engineRefreshed && (changeFlags.propsChanged || changeFlags.stateChanged)) {
       this._syncInteractionManager(props, this.state.graphEngine ?? null);
+    }
+
+    // deck.gl transfers state to replacement layer instances. Rebind any pending timer
+    // to this instance, using its latest props and callbacks.
+    if (!engineRefreshed && changeFlags.propsChanged && this.state.layoutUpdates.timer !== null) {
+      this._clearLayoutUpdateTimer();
+      this._scheduleLayoutSnapshotUpdate();
     }
 
     this._suppressNextDeckDataChange = false;
@@ -631,9 +650,42 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this.setNeedsRedraw();
   }
 
-  private _handleLayoutEvent = () => {
+  private _scheduleLayoutSnapshotUpdate() {
+    const {layoutUpdateInterval = 0} = this.props;
+    const interval = Number.isFinite(layoutUpdateInterval) ? Math.max(0, layoutUpdateInterval) : 0;
+    const updates = this.state.layoutUpdates;
+    const now = performance.now();
+    const elapsed = updates.lastUpdateTime === null ? interval : now - updates.lastUpdateTime;
+    const delay = Math.max(0, interval - elapsed);
+
+    if (delay === 0) {
+      this._flushLayoutSnapshotUpdate();
+    } else if (updates.timer === null) {
+      // JavaScript timers cannot represent delays greater than a signed 32-bit integer.
+      // Recheck the deadline after each bounded wait (including timers that fire early).
+      updates.timer = setTimeout(
+        () => {
+          updates.timer = null;
+          this._scheduleLayoutSnapshotUpdate();
+        },
+        Math.min(delay, 2_147_483_647)
+      );
+    }
+  }
+
+  private _flushLayoutSnapshotUpdate() {
+    this._clearLayoutUpdateTimer();
+    this.state.layoutUpdates.lastUpdateTime = performance.now();
     this._updateLayoutSnapshot();
-  };
+  }
+
+  private _clearLayoutUpdateTimer() {
+    const updates = this.state.layoutUpdates;
+    if (updates.timer !== null) {
+      clearTimeout(updates.timer);
+      updates.timer = null;
+    }
+  }
 
   _setGraphEngine(graphEngine: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
@@ -658,6 +710,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   _removeGraphEngine() {
+    this._clearLayoutUpdateTimer();
+    this.state.layoutUpdates.lastUpdateTime = null;
     const engine = this.state.graphEngine;
     if (engine) {
       engine.setProps({
@@ -676,19 +730,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   private _applyGraphEngineCallbacks(engine: GraphEngine) {
     engine.setProps({
       onLayoutStart: detail => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutStart?.(detail);
       },
       onLayoutChange: detail => {
-        this._handleLayoutEvent();
+        this._scheduleLayoutSnapshotUpdate();
         this.props.onLayoutChange?.(detail);
       },
       onLayoutDone: detail => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutDone?.(detail);
       },
       onLayoutError: error => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutError?.(error);
       }
     });

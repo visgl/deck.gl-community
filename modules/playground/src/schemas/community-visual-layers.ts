@@ -573,6 +573,7 @@ export const GraphLayerPropsSchema = CompositeLayerPropsSchema.extend({
   edgeEvents: z.strictObject({onClick: CallbackSchema, onHover: CallbackSchema}).optional(),
   enableDragging: z.boolean().optional(),
   resumeLayoutAfterDragging: z.boolean().optional(),
+  layoutUpdateInterval: z.number().nonnegative().optional(),
   rankGrid: z
     .union([
       z.boolean(),

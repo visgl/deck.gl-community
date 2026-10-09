@@ -148,6 +148,21 @@ you need—they are all optional.
 When `true`, nodes can be repositioned by dragging. The interaction manager
 updates the layout and stylesheet state automatically during drags.
 
+#### `layoutUpdateInterval` (number, optional) {/* #layoutupdateinterval */}
+
+Minimum time in milliseconds between intermediate layout snapshots. Defaults to
+`0`, which updates on every layout change. For example, `layoutUpdateInterval: 50`
+coalesces intermediate changes into at most one snapshot every 50 milliseconds.
+The trailing snapshot uses the latest layout geometry, and every lifecycle callback
+still runs immediately. Start, completion and error events update immediately and
+cancel pending work so the final geometry and status are available in the callback.
+
+Changing the interval reschedules pending work. Replacing the graph engine or
+finalizing the layer cancels it. Nonpositive or nonfinite values disable throttling.
+The interval controls layout-driven updates; interactions and other deck.gl redraws
+can still render between snapshots. JSON playground configurations accept finite,
+nonnegative intervals.
+
 ### Miscellaneous
 
 #### `pickable` (boolean, optional)

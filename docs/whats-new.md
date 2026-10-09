@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `GraphLayer.layoutUpdateInterval` coalesces intermediate layout snapshots while
+  forwarding every lifecycle callback. Start, completion and error snapshots remain
+  immediate; the playground schema accepts the new prop.
+
 - The playground includes a declarative radial graph template using the public `RadialLayout`
   export. Radial layouts use maximum hierarchy depth and leaf sectors to keep shallow and uneven
   trees finite and within `radius`, and route edges correctly between unequal depths.
