@@ -244,29 +244,8 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   );
 
   let configured = false;
-  let initialInterleaved: boolean | undefined;
-
-  function getInterleavedMode(props: object): boolean {
-    return 'interleaved' in props && props.interleaved === true;
-  }
 
   function configure(props: DeckglConfiguration) {
-    if (!isExternalOverlay && 'interleaved' in props) {
-      throw new Error(
-        'The default DeckGL root does not support interleaved rendering. ' +
-          'Import /mapbox or /maplibre, or create a custom overlay root with createDeckGL.'
-      );
-    }
-
-    const interleaved = getInterleavedMode(props);
-
-    if (configured && isExternalOverlay && initialInterleaved !== interleaved) {
-      throw new Error(
-        'The interleaved mode is fixed when an overlay root is created. ' +
-          'Remount DeckGL with a different React key to change it.'
-      );
-    }
-
     // NOTE: we want to support a "mix-mode" of sorts where a user can pass an explicit `layers` prop alongside
     // traditional usage of creating layers as JSX children.
     store.setState({_passedLayers: props.layers ?? []});
@@ -286,7 +265,6 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
       ? createExternalOverlay(props)
       : new Deck<View | View[] | null>(props);
 
-    initialInterleaved = interleaved;
     state.setDeckgl(deckgl);
 
     configured = true;

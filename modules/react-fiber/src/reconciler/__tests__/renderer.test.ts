@@ -1,3 +1,4 @@
+import {Deck} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
@@ -175,16 +176,15 @@ describe('renderer', () => {
       expect(root.store.getState()._passedLayers).toStrictEqual([]);
     });
 
-    it('rejects interleaved mode on a plain root', () => {
-      const root = createRoot(createTestRootElement());
+    it('creates a plain Deck root without inspecting interleaved', () => {
+      const canvas = document.createElement('canvas');
+      const root = createRoot(canvas);
 
-      expect(() => root.configure({interleaved: true})).toThrow(
-        'The default DeckGL root does not support interleaved rendering.'
-      );
-      expect(root.store.getState().deckgl).toBeNull();
+      expect(() => root.configure({canvas, interleaved: true} as never)).not.toThrow();
+      expect(root.store.getState().deckgl).toBeInstanceOf(Deck);
     });
 
-    it('creates a bound external overlay once and preserves its mode', () => {
+    it('creates a bound external overlay once and forwards later props', () => {
       const overlay = {finalize: vi.fn(), setProps: vi.fn()};
       const createExternalOverlay = vi.fn(() => overlay);
       const root = createRoot(createTestRootElement(), {createExternalOverlay});
@@ -196,11 +196,10 @@ describe('renderer', () => {
       expect(root.isExternalOverlay).toBe(true);
       expect(root.store.getState().isExternalOverlay).toBe(true);
       expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({interleaved: true, layers: []});
-      expect(() => root.configure({interleaved: false})).toThrow(
-        'The interleaved mode is fixed when an overlay root is created.'
-      );
     });
 
+    // Recreating the overlay for a construction-only prop is the component's job
+    // (`createDeckGL({recreateOnChange})`); the root itself only forwards props.
     it.each([
       {initialProps: {}, name: 'omitted interleaved', updateProps: {interleaved: false}},
       {
@@ -212,6 +211,16 @@ describe('renderer', () => {
         initialProps: {interleaved: true},
         name: 'interleaved true',
         updateProps: {interleaved: true}
+      },
+      {
+        initialProps: {interleaved: false},
+        name: 'interleaved false then true',
+        updateProps: {interleaved: true}
+      },
+      {
+        initialProps: {interleaved: true},
+        name: 'interleaved true then false',
+        updateProps: {interleaved: false}
       }
     ])('creates an external overlay once when $name', ({initialProps, updateProps}) => {
       const overlay = {finalize: vi.fn(), setProps: vi.fn()};
@@ -223,26 +232,6 @@ describe('renderer', () => {
 
       expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith(initialProps);
       expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({...updateProps, layers: []});
-    });
-
-    it('cleans up a provider root after rejecting an interleaved mode change', () => {
-      const node = createTestRootElement();
-      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
-      const root = createRoot(node, {createExternalOverlay: vi.fn(() => overlay)});
-
-      root.configure({interleaved: false});
-
-      expect(() => root.configure({interleaved: true})).toThrow(
-        'The interleaved mode is fixed when an overlay root is created.'
-      );
-      expect(root.store.getState().deckgl).toBe(overlay);
-      expect(overlay.setProps).not.toHaveBeenCalled();
-
-      unmountAtNode(node);
-
-      expect(overlay.finalize).toHaveBeenCalledOnce();
-      expect(root.store.getState().deckgl).toBeNull();
-      expect(roots.has(node)).toBe(false);
     });
 
     it('rejects reuse of a root with a different overlay factory', () => {
