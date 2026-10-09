@@ -5,6 +5,8 @@
 - `GraphLayer` bypasses raw `graphLoader` converters for normalized `PlainGraphData`
   and `ArrowGraphData`, allowing loaded graph URLs to coexist with custom raw converters.
 
+- The website provides `llms.txt` and Markdown documentation for AI coding agents.
+
 - `GraphLayer.layoutUpdateInterval` coalesces intermediate layout snapshots while
   forwarding every lifecycle callback. Start, completion and error snapshots remain
   immediate; the playground schema accepts the new prop.
