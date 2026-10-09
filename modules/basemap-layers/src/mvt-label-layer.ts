@@ -7,9 +7,17 @@ import {getCompiledStyleProperty, type CompiledStyleProperty} from './style-expr
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
+import {getPoleOfInaccessibility} from './polylabel';
 import type {LabelFont, LabelFontFamily} from './text-font';
 
-type GeometryType = 'Point' | 'MultiPoint' | 'LineString' | 'MultiLineString' | string;
+type GeometryType =
+  | 'Point'
+  | 'MultiPoint'
+  | 'LineString'
+  | 'MultiLineString'
+  | 'Polygon'
+  | 'MultiPolygon'
+  | string;
 
 type FeatureGeometry = {
   type: GeometryType;
@@ -143,6 +151,51 @@ function getLineMidpoint(coordinates: number[][]): number[] | null {
   }
 
   return coordinates[Math.floor(coordinates.length / 2)] || coordinates[0] || null;
+}
+
+/**
+ * MapLibre places a point label on a polygon at its pole of inaccessibility, found to within 16
+ * units of the tile's 8192-unit extent.
+ */
+const POLE_PRECISION_TILE_FRACTION = 16 / 8192;
+
+/**
+ * Returns one point-label anchor per polygon, at its pole of inaccessibility. Tile-local
+ * coordinates are planar already; longitude/latitude (globe tiles) are searched in Web Mercator
+ * world units, with the precision of a tile at `zoom`, and converted back.
+ */
+function getPolygonAnchors(
+  polygons: number[][][][],
+  geographic: boolean,
+  zoom: number
+): number[][] {
+  const precision = geographic
+    ? POLE_PRECISION_TILE_FRACTION / 2 ** Math.max(0, Math.floor(zoom))
+    : POLE_PRECISION_TILE_FRACTION;
+  const anchors: number[][] = [];
+  for (const polygon of polygons) {
+    if (!Array.isArray(polygon) || polygon.length === 0) {
+      continue;
+    }
+    const rings = geographic ? polygon.map(ring => ring.map(lngLatToWorld)) : polygon;
+    const pole = getPoleOfInaccessibility(rings, precision);
+    if (pole) {
+      anchors.push(geographic ? worldToLngLat(pole) : pole);
+    }
+  }
+  return anchors;
+}
+
+/** Longitude/latitude to Web Mercator world units, `[0, 1]` across the world. */
+function lngLatToWorld([lng, lat]: number[]): number[] {
+  const latitude = Math.max(-85.051129, Math.min(85.051129, lat));
+  const y = Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360));
+  return [(lng + 180) / 360, 0.5 - y / (2 * Math.PI)];
+}
+
+function worldToLngLat([x, y]: number[]): number[] {
+  const latitude = (360 / Math.PI) * Math.atan(Math.exp((0.5 - y) * 2 * Math.PI)) - 90;
+  return [x * 360 - 180, latitude];
 }
 
 /**
@@ -505,10 +558,22 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Extracts candidate label anchor positions from a feature geometry.
+   * Extracts candidate label anchor positions from a feature geometry. Points are labelled where
+   * they are. Lines are labelled at the middle vertex of their first part, whatever the
+   * `symbol-placement`. With `symbol-placement: point`, each polygon of a feature is labelled at
+   * its pole of inaccessibility, as in MapLibre; polygons are not labelled along their outline.
+   * `geographic` says whether coordinates are longitude/latitude (globe tiles) or tile-local.
    */
-  getLabelAnchors(feature: FeatureLike): number[][] {
+  getLabelAnchors(
+    feature: FeatureLike,
+    geographic: boolean = Boolean(this.context?.viewport?.resolution)
+  ): number[][] {
     const {type, coordinates} = feature.geometry;
+    const placement =
+      this.getStyleProperty('symbol-placement')?.evaluate(
+        getZoomBucket(this.props.zoom || 0),
+        feature
+      ) ?? 'point';
     switch (type) {
       case 'Point':
         return [coordinates];
@@ -522,6 +587,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const midpoint = getLineMidpoint(coordinates[0]);
         return midpoint ? [midpoint] : [];
       }
+      case 'Polygon':
+        return placement === 'point'
+          ? getPolygonAnchors([coordinates], geographic, this.props.zoom || 0)
+          : [];
+      case 'MultiPolygon':
+        return placement === 'point'
+          ? getPolygonAnchors(coordinates, geographic, this.props.zoom || 0)
+          : [];
       default:
         return [];
     }
