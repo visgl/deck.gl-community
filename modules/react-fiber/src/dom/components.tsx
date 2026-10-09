@@ -9,7 +9,7 @@ import type {DeckGLRootProps, DeckglInstance, DeckglProps, OnDeckglChange} from 
 import {FiberProvider, useContextBridge} from 'its-fine';
 import type {ContextBridge} from 'its-fine';
 import {useEffect, useRef} from 'react';
-import type {ReactNode} from 'react';
+import type {ReactNode, RefObject} from 'react';
 import useIsomorphicLayoutEffect from 'use-isomorphic-layout-effect';
 
 function getCanvasParent(value: string | HTMLCanvasElement): HTMLDivElement | undefined {
@@ -42,6 +42,21 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
   const overlayFactory = options?.createExternalOverlay;
   const isExternalOverlay = Boolean(overlayFactory);
 
+  // Call only from effects: roots must server-render without touching `document`.
+  // Factory scope keeps this non-reactive; the element is a stable registry key held in a ref.
+  function getDetachedRoot(
+    detachedRoot: RefObject<HTMLDivElement | null>,
+    rootOptions: RefObject<RootOptions | undefined>
+  ): HTMLDivElement {
+    if (!detachedRoot.current) {
+      detachedRoot.current = document.createElement('div');
+      rootOptions.current = {
+        createExternalOverlay: config => overlayFactory?.(config as Props) as DeckglRenderer
+      };
+    }
+    return detachedRoot.current;
+  }
+
   function DeckGLComponent(props: ComponentProps<Props, Instance>) {
     if (!isExternalOverlay && 'interleaved' in props) {
       throw new Error(
@@ -63,21 +78,6 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     const detachedRoot = useRef<HTMLDivElement | null>(null);
     const rootOptions = useRef<RootOptions | undefined>(undefined);
 
-    // Call only from effects: roots must server-render without touching `document`.
-    function getRootElement(): HTMLCanvasElement | HTMLDivElement | null {
-      if (!isExternalOverlay) {
-        return (config.canvas || canvas.current) as HTMLCanvasElement | null;
-      }
-      if (!detachedRoot.current) {
-        detachedRoot.current = document.createElement('div');
-        rootOptions.current = {
-          createExternalOverlay: overlayConfig =>
-            overlayFactory?.(overlayConfig as Props) as DeckglRenderer
-        };
-      }
-      return detachedRoot.current;
-    }
-
     // NOTE: enable/disable logging based on debug prop
     useEffect(() => {
       // oxlint-disable-next-line no-unused-expressions
@@ -97,7 +97,9 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     });
 
     useIsomorphicLayoutEffect(() => {
-      const rootElement = getRootElement();
+      const rootElement = isExternalOverlay
+        ? getDetachedRoot(detachedRoot, rootOptions)
+        : ((config.canvas || canvas.current) as HTMLCanvasElement | null);
 
       if (!rootElement) {
         return;
@@ -128,7 +130,9 @@ function createDeckGLComponent<Props, Instance extends DeckglRenderer>(
     }, [children, config, Bridge]);
 
     useEffect(() => {
-      const rootElement = getRootElement();
+      const rootElement = isExternalOverlay
+        ? getDetachedRoot(detachedRoot, rootOptions)
+        : ((config.canvas || canvas.current) as HTMLCanvasElement | null);
 
       if (rootElement) {
         return () => {
