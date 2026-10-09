@@ -30,6 +30,13 @@ test('the shipped D3 v1 worker publishes intermediate and final positions', asyn
     expect(snapshots[0]).not.toEqual(snapshots.at(-1));
     expect(snapshots.every(position => position.every(Number.isFinite))).toBe(true);
     expect(layout.getNodePosition(graph.findNode('a'))).toEqual(snapshots.at(-1));
+    snapshots.length = 0;
+    done = false;
+    layout.resume();
+    expect(layout.state).toBe('calculating');
+    await expect.poll(() => done, {timeout: 20_000}).toBe(true);
+    expect(snapshots.length).toBeGreaterThanOrEqual(2);
+    expect(snapshots.every(position => position.every(Number.isFinite))).toBe(true);
   } finally {
     layout.stop();
   }

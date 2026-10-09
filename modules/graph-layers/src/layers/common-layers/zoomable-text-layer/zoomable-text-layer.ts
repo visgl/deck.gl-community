@@ -5,6 +5,13 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 
+const DEFAULT_TEXT_MAX_WIDTH = 12;
+
+/** Resolves the scalar wrapping width expected by TextLayer, preserving finite no-wrap values. */
+export function normalizeTextMaxWidth(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : DEFAULT_TEXT_MAX_WIDTH;
+}
+
 export class ZoomableTextLayer extends CompositeLayer {
   static layerName = 'ZoomableTextLayer';
 
@@ -39,6 +46,7 @@ export class ZoomableTextLayer extends CompositeLayer {
     const sizeUpdateTrigger = scaleWithZoom ? [getSize, this.context.viewport.zoom] : false;
     // getText only expects function not plain value (string)
     const newGetText = typeof getText === 'function' ? getText : () => getText;
+    const resolvedMaxWidth = normalizeTextMaxWidth(textMaxWidth);
 
     // Filter data to items that have non-empty text to avoid deck.gl 9.3
     // MultiIconLayer attribute validation errors with undefined/empty labels
@@ -72,7 +80,7 @@ export class ZoomableTextLayer extends CompositeLayer {
           getAlignmentBaseline,
           getAngle,
           getText: safeGetText,
-          maxWidth: textMaxWidth ?? 12,
+          maxWidth: resolvedMaxWidth,
           wordBreak: textWordBreak ?? 'break-all',
           fontFamily: fontFamily ?? 'sans-serif',
           wordUnits: textWordUnits ?? 'pixels',
