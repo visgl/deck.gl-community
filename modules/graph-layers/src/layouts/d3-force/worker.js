@@ -11,10 +11,9 @@ importScripts('https://d3js.org/d3-timer.v1.min.js');
 importScripts('https://d3js.org/d3-force.v1.min.js');
 
 onmessage = function (event) {
-  const {nodes, edges} = event.data;
+  const {nodes, edges, options} = event.data;
 
-  const {nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
-    event.data.options;
+  const {nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} = options;
   // @ts-expect-error TODO
   const simulation = d3
     .forceSimulation(nodes)
@@ -37,7 +36,12 @@ onmessage = function (event) {
     // @ts-expect-error TODO
     .force('collision', d3.forceCollide().radius(getCollisionRadius))
     .stop();
-  const n = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay()));
+  const alpha = Number.isFinite(options.alpha) && options.alpha >= 0 ? options.alpha : 1;
+  simulation.alpha(alpha);
+  const n =
+    alpha <= simulation.alphaMin()
+      ? 0
+      : Math.ceil(Math.log(simulation.alphaMin() / alpha) / Math.log(1 - simulation.alphaDecay()));
   // Publish at most one intermediate snapshot per animation frame.
   const UPDATE_INTERVAL = 16;
   let lastUpdateTime = -Infinity;

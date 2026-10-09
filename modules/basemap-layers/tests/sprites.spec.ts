@@ -120,6 +120,18 @@ describe('sprite loading', () => {
     expect(atlas.image).toBe('https://example.com/sprite.png');
   });
 
+  test.each([
+    1.25, 1.5, 1.75
+  ])('requests the @2x sprite at a fractional pixel ratio of %s, as MapLibre does', async pixelRatio => {
+    const {fetchFn, requested} = spriteFetch(['https://example.com/sprite@2x.json']);
+    const [atlas] = await loadSpriteAtlases('https://example.com/sprite', {
+      fetch: fetchFn,
+      pixelRatio
+    });
+    expect(requested).toEqual(['https://example.com/sprite@2x.json']);
+    expect(atlas.image).toBe('https://example.com/sprite@2x.png');
+  });
+
   test('requests only the @1x sprite at a pixel ratio of 1', async () => {
     const {fetchFn, requested} = spriteFetch(['https://example.com/sprite.json']);
     await loadSpriteAtlases('https://example.com/sprite', {fetch: fetchFn, pixelRatio: 1});
