@@ -139,4 +139,184 @@ describe('source loading', () => {
       )
     ).rejects.toMatchObject({name: 'AbortError'});
   });
+
+  test('an aborted caller signal rejects the style, with the default and a custom reason', async () => {
+    for (const reason of [undefined, new Error('superseded')]) {
+      const controller = new AbortController();
+      const fetch = (async (_url: string, init?: RequestInit) => {
+        controller.abort(reason);
+        throw init?.signal?.reason ?? new Error('aborted');
+      }) as unknown as typeof globalThis.fetch;
+      const load = resolveBasemapStyle(
+        {
+          version: 8,
+          sources: {streets: {type: 'vector', url: TILEJSON_URL}},
+          layers: []
+        } as any,
+        {fetch, fetchOptions: {signal: controller.signal}}
+      );
+      await expect(load).rejects.toBe(controller.signal.reason);
+    }
+  });
+
+  test('a timeout inside fetch, without an aborted caller signal, only skips the source', async () => {
+    vi.spyOn(log, 'warn');
+    const fetch = (async () => {
+      const error = new Error('timed out');
+      error.name = 'TimeoutError';
+      throw error;
+    }) as unknown as typeof globalThis.fetch;
+    const style = await resolveBasemapStyle(
+      {version: 8, sources: {streets: {type: 'vector', url: TILEJSON_URL}}, layers: []} as any,
+      {fetch}
+    );
+    expect(style.sources.streets.tiles).toBeUndefined();
+  });
+
+  test('a malformed TileJSON skips that source instead of failing the style', async () => {
+    const warn = vi.spyOn(log, 'warn');
+    const {fetch} = fakeFetch({
+      'https://tiles.example.com/null-maxzoom.json': {tiles: TILEJSON.tiles, maxzoom: null},
+      'https://tiles.example.com/string-tiles.json': {
+        tiles: 'https://tiles.example.com/{z}/{x}/{y}.mvt'
+      },
+      [TILEJSON_URL]: TILEJSON
+    });
+    const style = await resolveBasemapStyle(
+      {
+        version: 8,
+        sources: {
+          streets: {type: 'vector', url: TILEJSON_URL},
+          nullMaxzoom: {type: 'vector', url: 'https://tiles.example.com/null-maxzoom.json'},
+          stringTiles: {type: 'vector', url: 'https://tiles.example.com/string-tiles.json'}
+        },
+        layers: []
+      } as any,
+      {fetch}
+    );
+    expect(style.sources.streets.tiles).toEqual(TILEJSON.tiles);
+    expect(style.sources.nullMaxzoom.tiles).toBeUndefined();
+    expect(style.sources.stringTiles.tiles).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Source "nullMaxzoom"'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Source "stringTiles"'));
+  });
+
+  test("the style's own source properties take precedence over the TileJSON", async () => {
+    const {fetch} = fakeFetch({
+      [TILEJSON_URL]: {tiles: TILEJSON.tiles, minzoom: 2, maxzoom: 14, attribution: 'TileJSON'}
+    });
+    const inlineTiles = ['https://cdn.example.com/{z}/{x}/{y}.mvt'];
+    const style = await resolveBasemapStyle(
+      {
+        version: 8,
+        sources: {streets: {type: 'vector', url: TILEJSON_URL, tiles: inlineTiles, maxzoom: 12}},
+        layers: []
+      } as any,
+      {fetch}
+    );
+    expect(style.sources.streets.tiles).toEqual(inlineTiles);
+    expect(style.sources.streets.maxzoom).toBe(12);
+    // Fields the style leaves out still come from the TileJSON.
+    expect(style.sources.streets.minzoom).toBe(2);
+    expect(style.sources.streets.attribution).toBe('TileJSON');
+  });
+
+  test('TileJSON fields other than the source fields are ignored', async () => {
+    const tileJson = JSON.parse(
+      `{"type": "baselayer", "url": "https://elsewhere.example.com/", "name": "x", "__proto__": {"polluted": true}, "tiles": ${JSON.stringify(TILEJSON.tiles)}}`
+    );
+    const {fetch} = fakeFetch({[TILEJSON_URL]: tileJson});
+    const style = await resolveBasemapStyle(
+      {
+        version: 8,
+        sources: {streets: {type: 'vector', url: TILEJSON_URL}},
+        layers: [{id: 'roads', type: 'line', source: 'streets', 'source-layer': 'roads'}]
+      } as any,
+      {fetch}
+    );
+    const source = style.sources.streets;
+    expect(source.type).toBe('vector');
+    expect(source.url).toBe(TILEJSON_URL);
+    expect(source.name).toBeUndefined();
+    expect(Object.getPrototypeOf(source)).toBe(Object.prototype);
+    expect((source as any).polluted).toBeUndefined();
+    const ids = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 5,
+      styleDefinition: style
+    }).map(layer => layer.id);
+    expect(ids).toContain('test-streets');
+  });
+
+  test('raster-dem, image and video sources are not fetched', async () => {
+    const {fetch, requested} = fakeFetch({});
+    await resolveBasemapStyle(
+      {
+        version: 8,
+        sources: {
+          terrain: {type: 'raster-dem', url: 'https://tiles.example.com/terrain.json'},
+          clip: {type: 'video', url: 'https://media.example.com/clip.mp4'}
+        },
+        layers: []
+      } as any,
+      {fetch}
+    );
+    expect(requested).toEqual([]);
+  });
+
+  test('relative inline tiles resolve against the style URL whether or not the TileJSON loads', async () => {
+    const style = {
+      version: 8,
+      sources: {
+        streets: {
+          type: 'vector',
+          url: 'https://b.example.com/tiles.json',
+          tiles: ['tiles/{z}/{x}/{y}.mvt']
+        }
+      },
+      layers: []
+    } as any;
+    const expected = ['https://a.example.com/styles/tiles/{z}/{x}/{y}.mvt'];
+    const options = {baseUrl: 'https://a.example.com/styles/style.json'};
+
+    const loaded = await resolveBasemapStyle(style, {
+      ...options,
+      fetch: fakeFetch({'https://b.example.com/tiles.json': {minzoom: 0}}).fetch
+    });
+    expect(loaded.sources.streets.tiles).toEqual(expected);
+
+    vi.spyOn(log, 'warn');
+    const failed = await resolveBasemapStyle(style, {...options, fetch: fakeFetch({}).fetch});
+    expect(failed.sources.streets.tiles).toEqual(expected);
+  });
+
+  test('a raster source whose TileJSON fails skips its raster layer', async () => {
+    vi.spyOn(log, 'warn');
+    const style = await resolveBasemapStyle(
+      {
+        version: 8,
+        sources: {imagery: {type: 'raster', url: 'https://tiles.example.com/imagery.json'}},
+        layers: [{id: 'satellite', type: 'raster', source: 'imagery'}]
+      } as any,
+      {fetch: fakeFetch({}).fetch}
+    );
+    const ids = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 5,
+      styleDefinition: style
+    }).map(layer => layer.id);
+    expect(ids).not.toContain('test-satellite');
+  });
+
+  test('a fetch that rejects with no error still skips only that source', async () => {
+    vi.spyOn(log, 'warn');
+    const fetch = (async () => Promise.reject()) as unknown as typeof globalThis.fetch;
+    const style = await resolveBasemapStyle(
+      {version: 8, sources: {streets: {type: 'vector', url: TILEJSON_URL}}, layers: []} as any,
+      {fetch}
+    );
+    expect(style.sources.streets.tiles).toBeUndefined();
+  });
 });

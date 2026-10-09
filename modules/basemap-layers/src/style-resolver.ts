@@ -1,6 +1,10 @@
 import {log} from '@deck.gl/core';
 import {derefLayers} from '@maplibre/maplibre-gl-style-spec';
-import {BasemapStyleSchema, ResolvedBasemapStyleSchema} from './map-style-schema';
+import {
+  BasemapSourceSchema,
+  BasemapStyleSchema,
+  ResolvedBasemapStyleSchema
+} from './map-style-schema';
 
 /**
  * A basemap source entry from a style document.
@@ -127,10 +131,47 @@ async function fetchJson(url: string, loadOptions?: BasemapLoadOptions) {
   return await response.json();
 }
 
-/** Source types whose `url` points to TileJSON. For `image` and `video`, `url` is the media itself. */
-const TILEJSON_SOURCE_TYPES = new Set(['vector', 'raster', 'raster-dem']);
+/**
+ * Source types whose `url` is fetched as TileJSON. Only the types this module renders are fetched:
+ * `raster-dem` is unsupported, and for `image` and `video` the `url` is the media itself.
+ */
+const TILEJSON_SOURCE_TYPES = new Set(['vector', 'raster']);
 
-/** Resolves a single source, including optional TileJSON indirection. */
+/**
+ * TileJSON fields that may fill in a source, as MapLibre picks them. Every other TileJSON field,
+ * including `type` and `url`, is ignored.
+ */
+const TILEJSON_SOURCE_KEYS = [
+  'tiles',
+  'minzoom',
+  'maxzoom',
+  'attribution',
+  'bounds',
+  'scheme',
+  'tileSize',
+  'encoding'
+] as const;
+
+/** Copies the TileJSON fields a source may take into a fresh object. */
+function pickTileJsonFields(tileJson: unknown): Partial<BasemapSource> {
+  const fields: Record<string, unknown> = {};
+  if (!tileJson || typeof tileJson !== 'object' || Array.isArray(tileJson)) {
+    return fields;
+  }
+  for (const key of TILEJSON_SOURCE_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(tileJson, key)) {
+      fields[key] = (tileJson as Record<string, unknown>)[key];
+    }
+  }
+  return fields as Partial<BasemapSource>;
+}
+
+/**
+ * Resolves a single source, including optional TileJSON indirection. As in MapLibre, the style's
+ * own source properties take precedence over the TileJSON's. Inline `tiles` resolve against the
+ * style's base URL and TileJSON `tiles` against the TileJSON URL. Throws if the TileJSON cannot be
+ * fetched or the resolved source is invalid.
+ */
 async function resolveSource(
   source: BasemapSource | undefined,
   baseUrl: string | undefined,
@@ -140,22 +181,42 @@ async function resolveSource(
     return source;
   }
 
-  const resolvedSource: BasemapSource = {...source};
-  let sourceBaseUrl = baseUrl;
-
-  if (resolvedSource.url && TILEJSON_SOURCE_TYPES.has(String(resolvedSource.type))) {
-    const tileJsonUrl = normalizeUrl(resolvedSource.url, baseUrl);
-    const tileJson = await fetchJson(tileJsonUrl || resolvedSource.url, loadOptions);
-    Object.assign(resolvedSource, tileJson);
-    resolvedSource.url = tileJsonUrl;
-    sourceBaseUrl = tileJsonUrl;
+  if (!source.url || !TILEJSON_SOURCE_TYPES.has(String(source.type))) {
+    return source.tiles ? {...source, tiles: normalizeTiles(source.tiles, baseUrl)} : {...source};
   }
 
-  if (resolvedSource.tiles) {
-    resolvedSource.tiles = normalizeTiles(resolvedSource.tiles, sourceBaseUrl);
-  }
+  const tileJsonUrl = normalizeUrl(source.url, baseUrl);
+  const tileJsonFields = pickTileJsonFields(
+    await fetchJson(tileJsonUrl || source.url, loadOptions)
+  );
+  const resolvedSource: BasemapSource = {
+    ...tileJsonFields,
+    ...source,
+    url: tileJsonUrl,
+    tiles: source.tiles
+      ? normalizeTiles(source.tiles, baseUrl)
+      : normalizeTiles(tileJsonFields.tiles as string[] | undefined, tileJsonUrl)
+  };
 
+  const result = BasemapSourceSchema.safeParse(resolvedSource);
+  if (!result.success) {
+    throw new Error(`Invalid TileJSON: ${tileJsonUrl} (${result.error.issues[0]?.message})`);
+  }
+  if (!resolvedSource.tiles?.length) {
+    throw new Error(`TileJSON has no tiles: ${tileJsonUrl}`);
+  }
   return resolvedSource;
+}
+
+/**
+ * Whether a source failure means the whole load was cancelled. The caller's signal decides; an
+ * `AbortError` is also treated as a cancellation. A timeout raised inside a custom `fetch`
+ * (`TimeoutError`) is an ordinary source failure, unless it aborted the caller's own signal.
+ */
+function isLoadCancelled(error: unknown, loadOptions?: BasemapLoadOptions) {
+  return (
+    Boolean(loadOptions?.fetchOptions?.signal?.aborted) || (error as Error)?.name === 'AbortError'
+  );
 }
 
 /**
@@ -177,9 +238,10 @@ export async function resolveBasemapStyle(
       try {
         resolvedSources[sourceId] = (await resolveSource(source, baseUrl, loadOptions)) || {};
       } catch (error) {
-        // An aborted load rejects the whole style, as before.
-        if ((error as Error)?.name === 'AbortError') {
-          throw error;
+        if (isLoadCancelled(error, loadOptions)) {
+          throw loadOptions?.fetchOptions?.signal?.aborted
+            ? (loadOptions.fetchOptions.signal.reason ?? error)
+            : error;
         }
         // One source that cannot be loaded must not fail the whole style. A source that also
         // lists its own `tiles` keeps them; otherwise it keeps no tile templates, and the layers
@@ -190,7 +252,7 @@ export async function resolveBasemapStyle(
         log.warn(
           `[BasemapLayer] Source "${sourceId}" could not be loaded; ${
             inlineTiles ? 'using its inline tiles' : 'its layers are skipped'
-          }: ${(error as Error).message}`
+          }: ${String((error as Error)?.message ?? error)}`
         )();
         resolvedSources[sourceId] = {...source, url: undefined, tiles: inlineTiles};
       }
