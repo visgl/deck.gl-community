@@ -59,7 +59,9 @@ native root import adds the JSX declarations for `<layer>` and `<view>`.
 The native root runs in the browser. In an application that uses React Server Components, put
 `'use client'` at the top of the module that imports `DeckGL`, or import it from an existing
 client-marked module. In other server-rendered applications, create browser-only map work after
-hydration.
+hydration. Server rendering a `DeckGL` root does not require `ssr: false`: the standalone root
+renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay
+is created only after hydration.
 
 Give the standalone root a sized container. Without a caller-provided `canvas`, it creates an
 unstyled wrapper and canvas. An unsized canvas defaults to 300 × 150 pixels.

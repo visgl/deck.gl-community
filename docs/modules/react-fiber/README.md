@@ -12,7 +12,7 @@ The package has two deliberately different public surfaces:
 
 ## Client-only renderer
 
-The native root creates a canvas-backed deck.gl renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports and renders `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In a traditional SSR application without React Server Components, create the map or overlay after hydration in an effect.
+The native root creates a canvas-backed deck.gl renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports and renders `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In a traditional SSR application without React Server Components, create the map or overlay after hydration in an effect. Server rendering a `DeckGL` root does not require `ssr: false`: the standalone root renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay is created only after hydration.
 
 ## How the native API works
 

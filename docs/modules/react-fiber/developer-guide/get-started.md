@@ -24,7 +24,7 @@ The application owns the Mapbox or MapLibre map. MapLibre GL JS 6's default brow
 
 ## 2. Render on the client
 
-The native root creates a browser renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In traditional SSR without React Server Components, initialize a map or overlay after hydration in an effect.
+The native root creates a browser renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In traditional SSR without React Server Components, initialize a map or overlay after hydration in an effect. Server rendering a `DeckGL` root does not require `ssr: false`: the standalone root renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay is created only after hydration.
 
 ## 3. Size a standalone root
 
