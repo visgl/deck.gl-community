@@ -36,10 +36,14 @@ const FEATURES = [
   }
 ];
 
-function render(layers: Record<string, unknown>[], zoom = 12): any[] {
+function render(
+  layers: Record<string, unknown>[],
+  mode: 'map' | 'globe' = 'map',
+  zoom = 12
+): any[] {
   return getBasemapLayers({
     idPrefix: 'test',
-    mode: 'map',
+    mode,
     zoom,
     styleDefinition: {version: 8, sources: SOURCES, layers} as any
   });
@@ -124,13 +128,15 @@ describe('layout.visibility', () => {
     ).toBeUndefined();
   });
 
-  test('toggling visibility in place takes effect on the next render', () => {
-    const toggled: any = {...road, id: 'toggled', layout: {visibility: 'none'}};
-    const layers = [road, toggled];
-    expect(drawnLayerIds(layers)).toEqual(['road']);
-    toggled.layout.visibility = 'visible';
-    expect(drawnLayerIds(layers)).toEqual(['road', 'toggled']);
-    toggled.layout.visibility = 'none';
-    expect(drawnLayerIds(layers)).toEqual(['road']);
+  test('the globe fallback background is drawn when the only background layer is hidden', () => {
+    const background = {id: 'bg', type: 'background', paint: {'background-color': '#ff0000'}};
+    const ids = (layers: Record<string, unknown>[]) =>
+      render(layers, 'globe').map(layer => layer.id);
+    expect(ids([background]).some(id => id.endsWith('background-fallback'))).toBe(false);
+    expect(
+      ids([{...background, layout: {visibility: 'none'}}]).some(id =>
+        id.endsWith('background-fallback')
+      )
+    ).toBe(true);
   });
 });

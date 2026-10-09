@@ -626,7 +626,7 @@ export function getBasemapLayers({
     sourceCount: Object.keys(styleDefinition.sources || {}).length
   });
 
-  layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers}));
+  layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers, zoom}));
 
   if (config.basemap) {
     layers.push(...getBackgroundLayers({idPrefix, styleLayers, zoom, mode}));
@@ -1107,12 +1107,14 @@ function getGlobePreLayers({
   idPrefix,
   mode,
   config,
-  styleLayers
+  styleLayers,
+  zoom
 }: {
   idPrefix: string;
   mode: BasemapMode;
   config: BasemapLayerConfig;
   styleLayers: BasemapStyleLayer[];
+  zoom: number;
 }) {
   const layers = [];
 
@@ -1120,7 +1122,10 @@ function getGlobePreLayers({
     layers.push(getGlobeAtmosphereSkyLayer());
   }
 
-  const hasBackground = styleLayers.some(layer => layer.type === 'background');
+  // A hidden or out-of-range background draws nothing, so it does not replace the fallback.
+  const hasBackground = styleLayers.some(
+    layer => layer.type === 'background' && isStyleLayerVisibleAtZoom(layer, zoom)
+  );
   if (mode === 'globe' && !hasBackground) {
     layers.push(
       new SolidPolygonLayer({
