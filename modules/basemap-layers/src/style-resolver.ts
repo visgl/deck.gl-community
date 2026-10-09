@@ -1,3 +1,4 @@
+import {log} from '@deck.gl/core';
 import {derefLayers} from '@maplibre/maplibre-gl-style-spec';
 import {BasemapStyleSchema, ResolvedBasemapStyleSchema} from './map-style-schema';
 
@@ -126,6 +127,9 @@ async function fetchJson(url: string, loadOptions?: BasemapLoadOptions) {
   return await response.json();
 }
 
+/** Source types whose `url` points to TileJSON. For `image` and `video`, `url` is the media itself. */
+const TILEJSON_SOURCE_TYPES = new Set(['vector', 'raster', 'raster-dem']);
+
 /** Resolves a single source, including optional TileJSON indirection. */
 async function resolveSource(
   source: BasemapSource | undefined,
@@ -139,7 +143,7 @@ async function resolveSource(
   const resolvedSource: BasemapSource = {...source};
   let sourceBaseUrl = baseUrl;
 
-  if (resolvedSource.url) {
+  if (resolvedSource.url && TILEJSON_SOURCE_TYPES.has(String(resolvedSource.type))) {
     const tileJsonUrl = normalizeUrl(resolvedSource.url, baseUrl);
     const tileJson = await fetchJson(tileJsonUrl || resolvedSource.url, loadOptions);
     Object.assign(resolvedSource, tileJson);
@@ -170,7 +174,18 @@ export async function resolveBasemapStyle(
 
   await Promise.all(
     Object.entries(styleDefinition.sources || {}).map(async ([sourceId, source]) => {
-      resolvedSources[sourceId] = (await resolveSource(source, baseUrl, loadOptions)) || {};
+      try {
+        resolvedSources[sourceId] = (await resolveSource(source, baseUrl, loadOptions)) || {};
+      } catch (error) {
+        // One source that cannot be loaded must not fail the whole style. The source keeps no
+        // tile templates, so the layers that use it are skipped.
+        log.warn(
+          `[BasemapLayer] Source "${sourceId}" could not be loaded; its layers are skipped: ${
+            (error as Error).message
+          }`
+        )();
+        resolvedSources[sourceId] = {...source, url: undefined, tiles: undefined};
+      }
     })
   );
 
