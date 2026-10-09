@@ -131,8 +131,8 @@ export type RootElement = HTMLCanvasElement | HTMLDivElement;
  * Internal configuration accepted by the reconciler.
  *
  * Public entry points specialize this broad shape before it reaches the
- * renderer. The optional `interleaved` property is an overlay mode, never a
- * request for the renderer to choose a provider.
+ * renderer. The renderer forwards it unchanged to the Deck or external-overlay
+ * constructor and to later `setProps` calls.
  *
  * @internal
  */

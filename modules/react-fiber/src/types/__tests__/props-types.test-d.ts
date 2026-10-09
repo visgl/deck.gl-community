@@ -29,7 +29,7 @@ describe('Props Type Tests', () => {
       }
     } satisfies ComponentProps<typeof MapLibreDeckGL>;
 
-    // @ts-expect-error The plain root never selects a provider from a prop.
+    // @ts-expect-error `interleaved` is an overlay option that `DeckProps` does not declare.
     const plainInterleaved: DeckglProps = {interleaved: true};
     void mapboxProps;
     void maplibreProps;

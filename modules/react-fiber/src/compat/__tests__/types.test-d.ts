@@ -35,7 +35,7 @@ void unsupportedCanvas;
 const unsupportedOnDeckglChange: DeckGLProps = {onDeckglChange: () => undefined};
 void unsupportedOnDeckglChange;
 
-// @ts-expect-error Plain compatibility roots never select a provider from a prop.
+// @ts-expect-error `interleaved` is an overlay option that `DeckProps` does not declare.
 const unsupportedInterleaved: DeckGLProps = {interleaved: true};
 void unsupportedInterleaved;
 
@@ -79,6 +79,17 @@ const CustomDeckGL = createDeckGL<CustomOverlayProps, CustomOverlay>({
 expectTypeOf<Parameters<typeof CustomDeckGL>[0]['onDeckglChange']>().toEqualTypeOf<
   ((deckgl: CustomOverlay | null) => void) | undefined
 >();
+
+createDeckGL<CustomOverlayProps, CustomOverlay>({
+  createExternalOverlay: () => new CustomOverlay(),
+  recreateOnChange: ['enabled']
+});
+
+createDeckGL<CustomOverlayProps, CustomOverlay>({
+  createExternalOverlay: () => new CustomOverlay(),
+  // @ts-expect-error recreateOnChange lists only props of the bound overlay.
+  recreateOnChange: ['notAProp']
+});
 
 // @ts-expect-error Custom overlays must implement both Deck renderer lifecycle methods.
 createDeckGL({createExternalOverlay: () => ({setProps: () => undefined})});

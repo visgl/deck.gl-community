@@ -28,5 +28,5 @@ export type DeckGLRootProps<Instance, Props> = Props & {
  */
 export type DeckglProps<ViewsT extends ViewOrViews = null> = DeckGLRootProps<
   Deck,
-  DeckProps<ViewsT> & {interleaved?: never}
+  DeckProps<ViewsT>
 >;
