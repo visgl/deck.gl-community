@@ -23,7 +23,6 @@ export default function Home() {
 
   return (
     <NuqsAdapter>
-      <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@^6/dist/maplibre-gl.css" />
       <MapClient>
         <AirportsLayer data={airports} />
       </MapClient>
