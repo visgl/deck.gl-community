@@ -152,21 +152,11 @@ Overview of each key:
 
 ## Implementation Notes
 
-The simplest approach would be to map each Mapbox layer to a deck.gl layer. Most
-Mapbox layers have a deck.gl equivalent:
-
-| Mapbox Layer Type | deck.gl Layer               |
-| ----------------- | --------------------------- |
-| `background`      | `BitmapLayer`               |
-| `fill`            | `MVTLayer` (`PolygonLayer`) |
-| `line`            | `MVTLayer` (`LineLayer`)    |
-| `symbol`          | `IconLayer/TextLayer`       |
-| `raster`          | `BitmapLayer`               |
-| `circle`          | `MVTLayer` ?                |
-| `fill-extrusion`  | `MVTLayer` (`PolygonLayer`) |
-| `heatmap`         | `HeatmapLayer`              |
-| `hillshade`       | N/A                         |
-| `sky` (v2 only)   | N/A                         |
+Each supported style layer type is drawn with a deck.gl layer: `background` with a
+`SolidPolygonLayer`, `fill`, `line` and `fill-extrusion` with a `GeoJsonLayer` per vector tile,
+`symbol` with `TextLayer` and `IconLayer`, and `raster` with a `TileLayer` of `BitmapLayer`s.
+See [Style Specification Support](/docs/modules/basemap-layers/developer-guide/style-specification-support)
+for what is supported in each part of the specification.
 
 The module evaluates styles with [`@maplibre/maplibre-gl-style-spec`][maplibre-style-spec-js], the standalone style-spec package from MapLibre GL JS. It:
 
@@ -206,7 +196,7 @@ list, weight and style. `getLabelFont(fontStack)` exposes the default mapping.
 When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index and image after the
 style resolves, through the same `fetch` as the style and its tiles. The image is decoded once
 and shared by every tile's icon layer. It requests the `@2x` sprite first
-on high-density screens and falls back to `@1x`. A relative `sprite` URL resolves against the
+when the device pixel ratio is 2 or more, and falls back to `@1x`. A relative `sprite` URL resolves against the
 style URL, and the array form (`[{id, url}]`) is supported: images from a sprite other than
 `default` are named `id:name`.
 
