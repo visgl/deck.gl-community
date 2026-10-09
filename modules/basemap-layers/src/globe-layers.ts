@@ -14,6 +14,7 @@ import {
   getZoomBucket,
   withOpacity
 } from './style-accessor';
+import {getStylePropertyDefault} from './style-expression';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {SpriteAtlas} from './sprite';
 import type {LabelFontFamily} from './text-font';
@@ -303,7 +304,10 @@ function createBackgroundLayer({
     getPolygon: d => d,
     stroked: false,
     filled: true,
-    getFillColor: withOpacity(paint['background-color'], paint['background-opacity'] ?? 1),
+    getFillColor: withOpacity(
+      (paint['background-color'] ?? getStylePropertyDefault('background-color')) as number[],
+      paint['background-opacity'] ?? 1
+    ),
     parameters: getBackgroundParameters(mode)
   });
 }
@@ -715,9 +719,11 @@ function createSymbolSubLayer({
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
     // The halo keeps its own alpha, scaled by the layer opacity like the text.
-    labelBackground: paint['text-halo-color']
-      ? withOpacity(paint['text-halo-color'], opacity)
-      : null,
+    // The halo is drawn only with a positive `text-halo-width`, whose default is 0.
+    labelBackground:
+      paint['text-halo-color'] && Number(paint['text-halo-width'] ?? 0) > 0
+        ? withOpacity(paint['text-halo-color'], opacity)
+        : null,
     billboard: true
   });
 }
@@ -767,7 +773,11 @@ function createGeometrySubLayer({
     styleLayer,
     ['fill-color', 'fill-opacity'],
     zoom,
-    ([color, opacity]) => getGlobeFillColor(withOpacity(color, opacity ?? 1), mode)
+    ([color, opacity]) =>
+      getGlobeFillColor(
+        withOpacity(color ?? getStylePropertyDefault('fill-color'), opacity ?? 1),
+        mode
+      )
   );
   // MapLibre draws a fill's outline only with `fill-antialias`; without `fill-outline-color` the
   // outline is in `fill-color` and only antialiases the edge, which deck.gl's fill does not need.

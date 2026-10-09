@@ -3,7 +3,11 @@ import type {DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
 import {GeoJsonLayer, IconLayer, TextLayer} from '@deck.gl/layers';
 import {getZoomBucket, withOpacity} from './style-accessor';
-import {getCompiledStyleProperty, type CompiledStyleProperty} from './style-expression';
+import {
+  getCompiledStyleProperty,
+  getStylePropertyDefault,
+  type CompiledStyleProperty
+} from './style-expression';
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
@@ -418,6 +422,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return undefined;
     }
 
+    // A `text-size` of 0 hides the label.
+    if (!(this.getLabelSize(feature) > 0)) {
+      return undefined;
+    }
     const value = this.evaluateStyleProperty('text-field', feature);
     const text = value === null || value === undefined ? '' : String(value);
     const isExpression = Array.isArray(this.props.styleLayer?.layout?.['text-field']);
@@ -432,7 +440,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * Returns the font size for a decoded feature label.
    */
   getLabelSize(feature: FeatureLike): number {
-    return Number(this.evaluateStyleProperty('text-size', feature) || 14);
+    const size = this.evaluateStyleProperty('text-size', feature);
+    return Number(size ?? getStylePropertyDefault('text-size'));
   }
 
   /**
@@ -489,7 +498,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
 
     return {
-      getText: getTrigger('text-field'),
+      getText: getTrigger('text-field', 'text-size'),
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
       // The halo color comes from `labelBackground` (evaluated per style layer and zoom step), so

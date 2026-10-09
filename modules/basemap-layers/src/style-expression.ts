@@ -117,6 +117,20 @@ export function colorToArray(color: Color): [number, number, number, number] {
   return a === 0 ? [0, 0, 0, 0] : [r * 255, g * 255, b * 255, a];
 }
 
+/**
+ * Returns the style specification's default for a property, in the shape `evaluate` returns:
+ * colors as `[r, g, b, a]`. Undefined for a property without a default.
+ */
+export function getStylePropertyDefault(propertyName: string): unknown {
+  const reference = getStylePropertyReference(propertyName);
+  const value = reference?.default;
+  if (reference?.type === 'color' && typeof value === 'string') {
+    const color = Color.parse(value);
+    return color ? colorToArray(color) : undefined;
+  }
+  return value;
+}
+
 function toPlainValue(value: any): unknown {
   return value instanceof Color ? colorToArray(value) : value;
 }
