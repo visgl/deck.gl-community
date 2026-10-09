@@ -196,7 +196,7 @@ list, weight and style. `getLabelFont(fontStack)` exposes the default mapping.
 When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index and image after the
 style resolves, through the same `fetch` as the style and its tiles. The image is decoded once
 and shared by every tile's icon layer. It requests the `@2x` sprite first
-on high-density screens and falls back to `@1x`. A relative `sprite` URL resolves against the
+when the device pixel ratio is 2 or more, and falls back to `@1x`. A relative `sprite` URL resolves against the
 style URL, and the array form (`[{id, url}]`) is supported: images from a sprite other than
 `default` are named `id:name`.
 
