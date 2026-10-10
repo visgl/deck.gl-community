@@ -250,8 +250,8 @@ describe('icon-image', () => {
     expect(layer.renderIconLayers()).toEqual([]);
   });
 
-  test('draws one icon layer per sprite, with only the rows whose icon it holds', () => {
-    const layer = iconLayer({'icon-image': ['get', 'icon']});
+  test('draws one icon layer per sprite, each over every row, drawing only its own icons', () => {
+    const layer = iconLayer({'icon-image': ['get', 'icon'], 'text-field': 'A'});
     const rows = [
       {position: [0, 0], __source: {object: feature({icon: 'circle-11'}), index: 0}},
       {position: [1, 1], __source: {object: feature({icon: 'poi:museum'}), index: 1}},
@@ -262,18 +262,49 @@ describe('icon-image', () => {
     layer.internalState = {subLayers: []} as any;
     const iconLayers = layer.renderIconLayers();
     // `iconAtlas` is an async prop (null until the image loads), so identify each layer by id.
-    expect(iconLayers.map((sublayer: any) => [sublayer.id, sublayer.props.data.length])).toEqual([
-      ['labels-icons-default', 2],
-      ['labels-icons-poi', 1]
+    // Every layer holds every row, so an icon's row index matches its label's.
+    expect(iconLayers.map((sublayer: any) => [sublayer.id, sublayer.props.data])).toEqual([
+      ['labels-icons-default', rows],
+      ['labels-icons-poi', rows]
     ]);
     expect(iconLayers[0].props.iconMapping).toBe(DEFAULT_ATLAS.mapping);
-    // Icons are drawn without the collision filter (see the module docs).
+    expect(iconLayers[1].props.iconMapping).toBe(POI_ATLAS.mapping);
+    const info = (index: number) => ({index, data: rows, target: []});
+    const [defaultIcons, poiIcons] = iconLayers;
+    expect(rows.map((row, i) => defaultIcons.props.getIcon(row, info(i)))).toEqual([
+      'circle-11',
+      null,
+      'circle-11'
+    ]);
+    expect(rows.map((row, i) => poiIcons.props.getSize(row, info(i)))).toEqual([0, 20, 0]);
+  });
+
+  test("icons share the labels' collision group and priority", () => {
+    const layer = iconLayer({
+      'icon-image': 'circle-11',
+      'text-field': 'A',
+      'symbol-sort-key': ['get', 'rank']
+    });
+    const rows = [{position: [0, 0], __source: {object: feature({rank: 3}), index: 0}}];
+    layer.state = {labelData: rows};
+    layer.context = {} as any;
+    layer.internalState = {subLayers: []} as any;
+    const sublayers = layer.renderLayers();
+    const icons = sublayers.find((sublayer: any) => sublayer.id === 'labels-icons-default');
+    const text = sublayers.find((sublayer: any) => sublayer.id === 'labels-text');
     expect(
-      iconLayers[0].props.extensions.some(
+      icons.props.extensions.some(
         (extension: any) => extension.constructor.extensionName === 'CollisionFilterExtension'
       )
-    ).toBe(false);
-    expect(iconLayers[1].props.iconMapping).toBe(POI_ATLAS.mapping);
+    ).toBe(true);
+    expect(icons.props.collisionEnabled).toBe(true);
+    expect(icons.props.collisionGroup).toBe(text.props.collisionGroup);
+    const info = {index: 0, data: rows, target: []};
+    expect(icons.props.getCollisionPriority(rows[0], info)).toBe(
+      text.props.getCollisionPriority(rows[0], info)
+    );
+    // The whole icon box collides, transparent pixels included.
+    expect(icons.props.collisionTestProps).toEqual({alphaCutoff: 0});
   });
 });
 
