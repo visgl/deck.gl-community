@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # MultiHorizonGraphLayer
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="multi-horizon-graph-layer" size="tall" />
 
 Render multiple horizon graphs stacked vertically. Each series is drawn using an underlying `HorizonGraphLayer` and optional divider lines.

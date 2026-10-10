@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # VerticalGridLayer
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="vertical-grid-layer" size="tall" />
 
 ```ts

@@ -1,5 +1,7 @@
 # Outline (Shader Module)
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 The `outline` module is useful when you are rendering 2D elements in the same plane (on top of each other), but want to show some kind of outline or shadow to indicate which element is logically on top.
 
 Implementation note: This module works by rendering your graphics into a sample "outline" shadow map, and then darkens the color on pixels in your graphics when they are drawn close to another object with a higher "logical z order", giving a shadow outline effect.

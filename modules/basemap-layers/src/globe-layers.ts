@@ -129,6 +129,9 @@ const TRANSPARENT_COLOR: [number, number, number, number] = [0, 0, 0, 0];
  * does, instead of restarting it at every vertex.
  */
 const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
+/** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
+const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
+const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
 
 /** Applies the `raster-*` color adjustments, shared by every raster layer that sets them. */
 const RASTER_COLOR_EXTENSION = new RasterColorExtension();
@@ -511,6 +514,10 @@ function createStyledVectorSubLayer({
     return createExtrusionSubLayer({props, styleLayer, features, zoom});
   }
 
+  if (styleLayer.type === 'line') {
+    return createLineSubLayers({props, styleLayer, features, mode, zoom});
+  }
+
   return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
 }
 
@@ -836,7 +843,60 @@ export function getDashArray(dasharray: unknown): [number, number] {
   return [dash * 2, gap * 2];
 }
 
-function createGeometrySubLayer({
+/**
+ * Converts `line-offset` and `line-gap-width` into deck.gl's `getOffset`, which is in line widths.
+ * A gap draws two lines of `width` with their centers `gapWidth / 2 + width / 2` either side of
+ * the offset line: `side` is 1 or -1 for them. Without a gap, `side` is ignored. Positive is to
+ * the right of the line's direction in both. Dividing by `width` assumes deck.gl draws the line
+ * `width` pixels wide, that is, no `lineWidthMinPixels`/`lineWidthMaxPixels` clamp applies.
+ *
+ * deck.gl offsets by widening the stroke and masking it across the line, not by offsetting the
+ * path, so the outside of a sharp corner breaks open and the two lines of a gap end in separate
+ * stubs rather than one cap. Offsetting the path belongs in deck.gl's `PathStyleExtension`.
+ */
+export function getLineOffset(
+  offset: number,
+  gapWidth: number,
+  width: number,
+  side: number
+): number {
+  if (!(width > 0)) {
+    return 0;
+  }
+  return (offset + (gapWidth > 0 ? side * (gapWidth / 2 + width / 2) : 0)) / width;
+}
+
+/** deck.gl path props for a line's `line-cap`, `line-join` and `line-miter-limit`. */
+export type LineShape = {
+  lineCapRounded: boolean;
+  lineJointRounded: boolean;
+  lineMiterLimit: number;
+};
+
+/**
+ * Converts `line-cap`, `line-join` and `line-miter-limit` into deck.gl path props.
+ *
+ * - `round` caps and joins are drawn round. `butt` caps end at the endpoint. deck.gl has no square
+ *   cap, so `square` is drawn as `butt`: the line ends half its width short of MapLibre's.
+ * - deck.gl cuts a joint flat at `miterLimit + 1` half widths from the vertex. MapLibre draws a
+ *   `miter` join in full while its tip is within `line-miter-limit` half widths of the vertex, so
+ *   passing `line-miter-limit - 1` draws the same joins in full. A sharper corner, which MapLibre
+ *   bevels, is cut flat at that distance instead.
+ * - deck.gl has no bevel join. A `bevel` join is cut flat half the line width from the vertex,
+ *   which matches a bevel at shallow corners; at sharp corners a true bevel cuts closer.
+ */
+export function getLineShape([cap, join, miterLimit]: unknown[]): LineShape {
+  const lineJoin = join ?? getStylePropertyDefault('line-join');
+  const limit = Number(miterLimit ?? getStylePropertyDefault('line-miter-limit'));
+  return {
+    lineCapRounded: (cap ?? getStylePropertyDefault('line-cap')) === 'round',
+    lineJointRounded: lineJoin === 'round',
+    lineMiterLimit: lineJoin === 'miter' && Number.isFinite(limit) ? Math.max(0, limit - 1) : 0
+  };
+}
+
+/** The sublayers for a `line` style layer: one, or one per shape when the shape is per feature. */
+function createLineSubLayers({
   props,
   styleLayer,
   features,
@@ -848,6 +908,106 @@ function createGeometrySubLayer({
   features: any[];
   mode: BasemapMode;
   zoom: number;
+}) {
+  const lineShape = getStyleAccessor(
+    styleLayer,
+    ['line-cap', 'line-join', 'line-miter-limit'],
+    zoom,
+    getLineShape
+  );
+  if (typeof lineShape.value !== 'function') {
+    return createGeometrySubLayer({
+      props,
+      styleLayer,
+      features,
+      mode,
+      zoom,
+      lineShape: lineShape.value
+    });
+  }
+
+  return getLineShapeGroups(features, styleLayer, lineShape).map(group =>
+    createGeometrySubLayer({
+      props,
+      styleLayer,
+      features: group.features,
+      mode,
+      zoom,
+      lineShape: group.shape,
+      idSuffix: `-${group.key}`
+    })
+  );
+}
+
+type LineShapeGroup = {key: string; shape: LineShape; features: any[]};
+
+/** The latest line shape groups per tile content and style layer. */
+const lineShapeGroupCache = new WeakMap<
+  any[],
+  WeakMap<BasemapStyleLayer, {key: unknown[]; groups: LineShapeGroup[]}>
+>();
+
+/**
+ * Splits features by their per-feature line shape, since deck.gl applies caps and joins to a
+ * whole layer. Groups are in the order each shape first appears, so features draw group by group
+ * rather than in source order. The groups, and so their feature arrays, are reused while the
+ * layout values (and, when they depend on zoom, the style zoom) are unchanged, so deck.gl does not
+ * re-tessellate the features at every zoom step.
+ */
+function getLineShapeGroups(
+  features: any[],
+  styleLayer: BasemapStyleLayer,
+  lineShape: StyleAccessor<LineShape>
+): LineShapeGroup[] {
+  const key = [
+    styleLayer.layout?.['line-cap'],
+    styleLayer.layout?.['line-join'],
+    styleLayer.layout?.['line-miter-limit'],
+    lineShape.updateTrigger
+  ];
+  let byStyleLayer = lineShapeGroupCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    lineShapeGroupCache.set(features, byStyleLayer);
+  }
+  const cached = byStyleLayer.get(styleLayer);
+  if (cached && cached.key.every((entry, index) => entry === key[index])) {
+    return cached.groups;
+  }
+
+  const getShape = lineShape.value as (feature: any) => LineShape;
+  const groups = new Map<string, LineShapeGroup>();
+  for (const feature of features) {
+    const shape = getShape(feature);
+    const groupKey = `${shape.lineCapRounded}-${shape.lineJointRounded}-${shape.lineMiterLimit}`;
+    let group = groups.get(groupKey);
+    if (!group) {
+      group = {key: groupKey, shape, features: []};
+      groups.set(groupKey, group);
+    }
+    group.features.push(feature);
+  }
+  const result = [...groups.values()];
+  byStyleLayer.set(styleLayer, {key, groups: result});
+  return result;
+}
+
+function createGeometrySubLayer({
+  props,
+  styleLayer,
+  features,
+  mode,
+  zoom,
+  lineShape,
+  idSuffix = ''
+}: {
+  props: any;
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  mode: BasemapMode;
+  zoom: number;
+  lineShape?: LineShape;
+  idSuffix?: string;
 }) {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
@@ -890,10 +1050,35 @@ function createGeometrySubLayer({
           getDashArray(dasharray)
         )
       : null;
+  const hasOffset =
+    isLine &&
+    (styleLayer.paint?.['line-offset'] !== undefined ||
+      styleLayer.paint?.['line-gap-width'] !== undefined);
+  const lineOffset = hasOffset
+    ? getStyleAccessor<[number, number, number]>(
+        styleLayer,
+        ['line-offset', 'line-gap-width', 'line-width'],
+        zoom,
+        ([offset, gap, width]) => [
+          Number(offset ?? 0),
+          Math.max(0, Number(gap ?? 0)),
+          Math.max(0, Number(width ?? 1))
+        ]
+      )
+    : null;
+  const offsetValue = lineOffset?.value;
+  const getOffset = (side: number) => (feature: any) => {
+    const [offset, gap, width] =
+      typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue!;
+    return getLineOffset(offset, gap, width, side);
+  };
+  const gapWidth = hasOffset
+    ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
+    : null;
 
-  return new GeoJsonLayer({
+  const layer = new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}`,
+    id: `${props.id}-${styleLayer.id}${idSuffix}`,
     data: features,
     stroked: isLine || hasOutline,
     filled: isFill,
@@ -901,9 +1086,17 @@ function createGeometrySubLayer({
     getLineColor: lineColor.value as any,
     // A fill's outline is MapLibre's 1 pixel antialiasing line.
     getLineWidth: isLine ? (lineWidth.value as any) : hasOutline ? 1 : 0,
+    ...(dashArray || lineOffset
+      ? {
+          extensions: [
+            ...(baseProps.extensions || []),
+            dashArray ? (lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION) : OFFSET_EXTENSION
+          ]
+        }
+      : {}),
+    ...(offsetValue ? {getOffset: getOffset(1)} : {}),
     ...(dashArray
       ? {
-          extensions: [...(baseProps.extensions || []), DASH_EXTENSION],
           getDashArray: dashArray.value as any,
           dashJustified: false
         }
@@ -912,16 +1105,51 @@ function createGeometrySubLayer({
       getFillColor: isFill ? fillColor.updateTrigger : undefined,
       getLineColor: lineColor.updateTrigger,
       getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
-      getDashArray: dashArray?.updateTrigger
+      getDashArray: dashArray?.updateTrigger,
+      getOffset: typeof offsetValue === 'function' ? lineOffset?.updateTrigger : offsetValue
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
-    lineCapRounded: isLine,
-    lineJointRounded: isLine,
+    lineCapRounded: false,
+    lineJointRounded: false,
+    ...lineShape,
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
     parameters: getTileParameters(mode)
   });
+  if (!gapWidth || (typeof gapWidth.value !== 'function' && !(gapWidth.value > 0))) {
+    return layer;
+  }
+
+  // A gap draws a second line on the other side, from the same data so that tile data, picked
+  // objects and indices stay those of the features. Features without a gap draw only once.
+  const getGap = gapWidth.value;
+  const getWidth = lineWidth.value;
+  return [
+    layer,
+    layer.clone({
+      id: `${layer.id}-gap`,
+      getOffset: getOffset(-1),
+      ...(typeof getGap === 'function'
+        ? {
+            getLineWidth: (feature: any) =>
+              getGap(feature) > 0
+                ? typeof getWidth === 'function'
+                  ? getWidth(feature)
+                  : getWidth
+                : 0,
+            updateTriggers: {
+              ...layer.props.updateTriggers,
+              // A width that is not per feature is a value with no trigger of its own.
+              getLineWidth: [
+                typeof getWidth === 'function' ? lineWidth.updateTrigger : getWidth,
+                gapWidth.updateTrigger
+              ]
+            }
+          }
+        : {})
+    } as any)
+  ];
 }
 
 /** The latest features raised to their `fill-extrusion-base`, per tile content and style layer. */

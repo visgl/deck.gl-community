@@ -574,6 +574,7 @@ export const GraphLayerPropsSchema = CompositeLayerPropsSchema.extend({
   enableDragging: z.boolean().optional(),
   resumeLayoutAfterDragging: z.boolean().optional(),
   layoutUpdateInterval: z.number().nonnegative().optional(),
+  layoutTransitionDuration: z.number().nonnegative().optional(),
   rankGrid: z
     .union([
       z.boolean(),

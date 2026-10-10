@@ -2,6 +2,8 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 # PanWidget
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <WidgetLiveExample highlight="pan-widget" />
 
 A directional pad that pans the target view by a fixed number of screen pixels per interaction.
