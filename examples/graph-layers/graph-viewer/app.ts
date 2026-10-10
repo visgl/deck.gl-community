@@ -534,7 +534,7 @@ export function mountGraphViewerExample(
 
   function handleAfterRender() {
     updateResolvedEngineFromLayer();
-    miniMap.update(state.resolvedEngine, deck?.getViewports()[0]);
+    miniMap.update(state.resolvedEngine, deck?.getViewports()[0], state.isSidebarOpen ? 360 : 0);
     if (state.loading.loaded && !state.loading.rendered) {
       state.loading = {
         loaded: true,
