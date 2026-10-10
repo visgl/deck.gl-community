@@ -37,7 +37,7 @@ export class ElevationHandler extends ModifyHandler {
     // $FlowFixMe - really, I know it has something at index 2
     let elevation = position.length === 3 ? position[2] : 0;
 
-    // calculateElevationChange is configurable becase (at this time) modes are not aware of the viewport
+    // calculateElevationChange is configurable because (at this time) modes are not aware of the viewport
     elevation += calculateElevationChange({
       pointerDownScreenCoords: event.pointerDownScreenCoords,
       screenCoords: event.screenCoords

@@ -26,7 +26,7 @@ common modules type are:
 ## Goals
 
 Some practical goals for this repo:
-- The community modules in this repo are expected to be used with deck.gl v9.0 or later releases. 
+- The community modules in this repo are expected to be used with deck.gl v9.4 or later releases.
 - The version of the published npm modules will follow deck.gl's major and minor version numbering, making it easy to see at a glance which deck.gl version is supported by a specific `@deck.gl-community/...` module.
 - Community modules are expected to support WebGL2 rendering in deck.gl and are gradually adding WebGPU support. See the [WebGPU compatibility and migration roadmap](./webgpu.md) for layer-specific support, backend selection, and remaining porting work.
 
@@ -37,7 +37,7 @@ but the overall repository setup is expected to have at least intermittent, part
 
 ## Community Support
 
-The continued inclusion of a specific module into this repository can depend ton whether there is sufficient community support for the module. 
+The continued inclusion of a specific module into this repository can depend on whether there is sufficient community support for the module.
 This means that modules could be removed from this repository if the core deck.gl team feels that the community is no longer able to provide sufficient support.
 If a module was to be removed, applications can of course copy the module's source code, but will need to maintain the code on their own.
 
@@ -48,7 +48,7 @@ Bug fixes are highly encouraged!
 For feature extensions to existing modules, it is generally recommended to start a discussion before you open a PR.
 
 If you have a new module that you think could fit into this repository, please start by opening a GitHub issue to start a discussion, or reach out in the OpenJS slack.
-Note that for a new module you will also be asked to asses what level of maintenance you will be able to provide over the longer term.
+Note that for a new module you will also be asked to assess what level of maintenance you will be able to provide over the longer term.
 
 ## Maintainers
 
@@ -56,4 +56,4 @@ We are always looking for long-term or short-term maintainers. If you'd like to 
 
 ## Governance
 
-Final decisions ultimately rest with the OpenJS Open Visualization TSC (Technical Steering Committee), but decisions are often made in the bi-weekly Linux Foundation / OpenJS OpenVisualization meetings which are open to anyone.
+Final decisions ultimately rest with the OpenJS Open Visualization TSC (Technical Steering Committee), but decisions are often made in the bi-weekly Linux Foundation / OpenJS OpenVisualization meetings which are open to everyone.

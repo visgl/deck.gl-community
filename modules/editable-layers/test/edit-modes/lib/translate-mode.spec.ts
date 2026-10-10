@@ -70,7 +70,7 @@ test('Selected polygon feature can be translated in screen space', () => {
   expect(props.data.features[2]).not.toEqual(movedFeature);
 });
 
-test('Non-picked selected polygon feature cannnot be translated', () => {
+test('Non-picked selected polygon feature cannot be translated', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [2],
@@ -80,7 +80,7 @@ test('Non-picked selected polygon feature cannnot be translated', () => {
   expect(mockOnEdit).toHaveBeenCalledTimes(0);
 });
 
-test('Picked non-selected polygon feature cannnot be translated', () => {
+test('Picked non-selected polygon feature cannot be translated', () => {
   const mockOnEdit = vi.fn();
   const props = createFeatureCollectionProps({
     selectedIndexes: [0],

@@ -62,7 +62,7 @@ Formatting and linting are enforced by Biome via `yarn lint` / `yarn lint-fix`.
 
 ## Dependencies
 
-- Generally we want to be restrictive with external dependencies, unless they provide a major capability and not just some minor utilitiy.
+- Generally we want to be restrictive with external dependencies, unless they provide a major capability and not just some minor utility.
 - vis.gl ecosystem dependencies are acceptable, as long as they respect the layering of those frameworks (a math library should not include luma.gl or deck.gl for instance).
 - For math use math.gl modules. Do not introduce d3-extents or similar to save just a few lines
 - Try to avoid lodash dependencies.

@@ -25,12 +25,12 @@ onmessage = function (event) {
   }
 
   function forceCollide(nodes, currentNode, nodesSize, radius) {
-    let collisons = true;
-    while (collisons) {
-      collisons = false;
+    let collisions = true;
+    while (collisions) {
+      collisions = false;
       for (let i = 0; i < nodesSize; i++) {
         while (nodes[i][0] !== currentNode[0] && isCollision(currentNode, nodes[i], radius)) {
-          collisons = true;
+          collisions = true;
           const xMove = currentNode[1] + Math.random() - 0.5;
           currentNode[1] = currentNode[1] + xMove;
           const yMove = currentNode[2] + Math.random() - 0.5;
