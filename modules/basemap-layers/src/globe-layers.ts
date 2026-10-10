@@ -5,6 +5,12 @@ import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
+import {
+  RASTER_COLOR_BLEND_PARAMETERS,
+  type RasterColorAdjustments,
+  RasterColorExtension,
+  hasRasterColorAdjustments
+} from './raster-color-extension';
 import {filterFeatures, parseProperties} from './map-style';
 import {
   type StyleAccessor,
@@ -124,6 +130,15 @@ const TRANSPARENT_COLOR: [number, number, number, number] = [0, 0, 0, 0];
  * does, instead of restarting it at every vertex.
  */
 const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
+
+/** Applies the `raster-*` color adjustments, shared by every raster layer that sets them. */
+const RASTER_COLOR_EXTENSION = new RasterColorExtension();
+
+/**
+ * The texture filters of `raster-resampling: nearest`. MapLibre magnifies with the nearest texel
+ * and keeps a linear filter for minification.
+ */
+const NEAREST_TEXTURE_PARAMETERS = {magFilter: 'nearest'} as const;
 
 /** Extrusions are depth-tested against each other; flat layers draw in style order. */
 const EXTRUSION_PARAMETERS = {
@@ -323,23 +338,54 @@ function createBackgroundLayer({
   });
 }
 
+/** A raster paint value, or the style specification's default when the layer does not set it. */
+function getRasterPaintValue(paint: Record<string, any>, propertyName: string): any {
+  return paint[propertyName] ?? getStylePropertyDefault(propertyName);
+}
+
+function getRasterColorAdjustments(paint: Record<string, any>): RasterColorAdjustments {
+  return {
+    brightnessMin: getRasterPaintValue(paint, 'raster-brightness-min'),
+    brightnessMax: getRasterPaintValue(paint, 'raster-brightness-max'),
+    saturation: getRasterPaintValue(paint, 'raster-saturation'),
+    contrast: getRasterPaintValue(paint, 'raster-contrast'),
+    hueRotate: getRasterPaintValue(paint, 'raster-hue-rotate')
+  };
+}
+
 function createRasterLayer({
   idPrefix,
   layer,
   source,
+  zoom,
   mode
 }: {
   idPrefix: string;
   layer: BasemapStyleLayer;
   source: BasemapSource;
+  zoom: number;
   mode: BasemapMode;
 }) {
+  const paint = getPaint(layer, zoom);
+  const rasterColorAdjustments = getRasterColorAdjustments(paint);
+  const isColorAdjusted = hasRasterColorAdjustments(rasterColorAdjustments);
+  // MapLibre magnifies with nearest-neighbour sampling when either property is `nearest`.
+  const isNearest =
+    getRasterPaintValue(paint, 'raster-resampling') === 'nearest' ||
+    getRasterPaintValue(paint, 'resampling') === 'nearest';
+
   return new TileLayer({
     id: `${idPrefix}-${layer.id}`,
     data: source.tiles,
     minZoom: source.minzoom ?? 0,
     maxZoom: source.maxzoom ?? 22,
     tileSize: source.tileSize || 512,
+    // deck.gl draws with `opacity ** (1 / 2.2)`. Undo that, so the alpha is `raster-opacity`, as
+    // in MapLibre.
+    opacity: getRasterPaintValue(paint, 'raster-opacity') ** 2.2,
+    // The color adjustments and texture filter are passed down to each tile's bitmap layer.
+    ...(isColorAdjusted ? {extensions: [RASTER_COLOR_EXTENSION], rasterColorAdjustments} : {}),
+    textureParameters: isNearest ? NEAREST_TEXTURE_PARAMETERS : null,
     renderSubLayers: props => {
       const {west, south, east, north} = (props.tile?.bbox || {}) as {
         west: number;
@@ -350,11 +396,15 @@ function createRasterLayer({
 
       return new BitmapLayer({
         ...props,
+        // A texture keeps the filter it was created with, so a filter change needs a new layer.
+        id: isNearest ? `${props.id}-nearest` : props.id,
         _imageCoordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         data: null,
         image: props.data,
         bounds: [west, south, east, north],
-        parameters: getTileParameters(mode)
+        parameters: isColorAdjusted
+          ? {...getTileParameters(mode), ...RASTER_COLOR_BLEND_PARAMETERS}
+          : getTileParameters(mode)
       } as any);
     },
     onTileError: error => {
@@ -1111,7 +1161,7 @@ function getRasterLayers({
           sourceId: layer.source
         });
       } else {
-        rasterLayers.push(createRasterLayer({idPrefix, layer, source, mode}));
+        rasterLayers.push(createRasterLayer({idPrefix, layer, source, zoom, mode}));
       }
     }
   }
