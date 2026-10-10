@@ -57,9 +57,32 @@ export class SimpleLayout extends GraphLayout<SimpleLayoutProps> {
     );
   }
 
-  setNodePositionAccessor = accessor => {
-    (this.props as any).nodePositionAccessor = accessor;
+  setNodePositionAccessor = (accessor: SimpleLayoutProps['nodePositionAccessor']) => {
+    this.setProps({nodePositionAccessor: accessor});
   };
+
+  protected override _validateProps(
+    nextProps: Required<SimpleLayoutProps>
+  ): Required<SimpleLayoutProps> {
+    const accessor =
+      nextProps.nodePositionAccessor === undefined
+        ? SimpleLayout.defaultProps.nodePositionAccessor
+        : nextProps.nodePositionAccessor;
+    if (typeof accessor !== 'function') {
+      throw new TypeError('SimpleLayout.nodePositionAccessor must be a function');
+    }
+    return {...nextProps, nodePositionAccessor: accessor};
+  }
+
+  protected override _onPropsUpdated(
+    previousProps: Readonly<Required<SimpleLayoutProps>>,
+    nextProps: Readonly<Required<SimpleLayoutProps>>
+  ): void {
+    if (previousProps.nodePositionAccessor !== nextProps.nodePositionAccessor && this._graph) {
+      this.updateGraph(this._graph);
+      this.update();
+    }
+  }
 
   getNodePosition = (node: NodeInterface | null): [number, number] => {
     if (!node) {

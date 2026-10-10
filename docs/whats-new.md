@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Graph layouts support validated prop-update hooks; `SimpleLayout` refreshes positions when its accessor changes.
+
 - `GraphLayer` bypasses raw `graphLoader` converters for normalized `PlainGraphData`
   and `ArrowGraphData`, allowing loaded graph URLs to coexist with custom raw converters.
 
