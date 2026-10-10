@@ -11,6 +11,7 @@ import {
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
+import {getCharacterWidthMeasurer, transformText, wrapText} from './text-layout';
 import {
   DEFAULT_POLE_SEARCH_SEGMENT_TESTS,
   getPoleOfInaccessibility,
@@ -495,7 +496,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   getFont(): LabelFont {
     const textFont = this.getStyleProperty('text-font');
-    const row = this.state.labelData?.[0] as
+    const row = this.state?.labelData?.[0] as
       | (LabelRow & {__source?: {object: FeatureLike}})
       | undefined;
     const value = textFont?.evaluate(getZoomBucket(this.props.zoom || 0), row?.__source?.object);
@@ -506,6 +507,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Extracts the visible label text for a decoded feature. Legacy `{token}` placeholders are
    * resolved only in literal and zoom-function values, as in the style specification.
+   * Applies `text-transform` and balanced `text-max-width` wrapping for point labels.
    */
   getLabel(feature: FeatureLike): string | undefined {
     const textField = this.getStyleProperty('text-field');
@@ -520,10 +522,27 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const value = this.evaluateStyleProperty('text-field', feature);
     const text = value === null || value === undefined ? '' : String(value);
     const isExpression = Array.isArray(this.props.styleLayer?.layout?.['text-field']);
-    const label =
+    let label =
       isExpression || textField.isFeatureDependent
         ? text.trim()
         : resolveTokenString(text, feature.properties)?.trim();
+    if (label) {
+      label = transformText(label, this.evaluateStyleProperty('text-transform', feature));
+      if (this.getSymbolPlacement() === 'point') {
+        const maxWidth = Number(
+          this.evaluateStyleProperty('text-max-width', feature) ??
+            getStylePropertyDefault('text-max-width')
+        );
+        let measure: ((character: string) => number) | undefined;
+        label = wrapText(label, maxWidth, character => {
+          if (!measure) {
+            const font = this.getFont();
+            measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+          }
+          return measure(character);
+        });
+      }
+    }
     return label || undefined;
   }
 
@@ -587,9 +606,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /** Update triggers for the text accessors (see `getStyleUpdateTrigger`). */
   getLabelUpdateTriggers(): Record<string, string> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
+    const {fontFamily} = this.props;
+    const fontFamilyKey = String(
+      typeof fontFamily === 'function' ? 'fn' : JSON.stringify(fontFamily ?? null)
+    );
 
     return {
-      getText: getTrigger('text-field', 'text-size'),
+      getText: `${getTrigger(
+        'text-field',
+        'text-size',
+        'text-transform',
+        'text-max-width',
+        'symbol-placement',
+        'text-font'
+      )}|${fontFamilyKey}`,
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
       // The halo color comes from `labelBackground` (evaluated per style layer and zoom step), so
@@ -613,6 +643,17 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getZoomBucket(this.props.zoom || 0)
     );
     return typeof placement === 'string' ? placement : 'point';
+  }
+
+  /**
+   * Line height in ems. It is not data-driven in the spec, so one value per style layer and
+   * zoom step is exact.
+   */
+  getLineHeight(): number {
+    return Number(
+      this.getStyleProperty('text-line-height')?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
+        getStylePropertyDefault('text-line-height')
+    );
   }
 
   /**
@@ -762,6 +803,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           fontFamily: font.fontFamily,
           fontWeight: getTextLayerFontWeight(font),
           sizeUnits: labelSizeUnits,
+          lineHeight: this.getLineHeight(),
           // The collision filter keeps a label only where the label itself covers its anchor in
           // the collision map. The background box is always drawn (transparent without a halo)
           // and, in the collision pass, padded to reach the anchor (see getCollisionPadding).
