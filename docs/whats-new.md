@@ -2,6 +2,11 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- The graph viewer includes a live mini-map with click-to-recenter navigation. The playground
+  adds a declarative graph overview using two `OrthographicView`s and one shared `GraphLayer`.
+
 ## v10 — In Development
 
 Support for the upcoming deck.gl v10 is in development.
