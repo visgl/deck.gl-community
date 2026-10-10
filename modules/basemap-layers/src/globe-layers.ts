@@ -728,6 +728,9 @@ function createSymbolSubLayer({
     fontFamily,
     // Polygon labels outside the tile's own extent are left to the neighbouring tile.
     tileBoundingBox: props.tile?.bbox ?? null,
+    // Labels along lines are spaced in pixels at the tile's own zoom.
+    tileZoom: props.tile?.index?.z ?? null,
+    tileSize: props.tileSize ?? null,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
