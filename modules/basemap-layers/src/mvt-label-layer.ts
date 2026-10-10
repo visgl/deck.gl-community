@@ -70,8 +70,6 @@ export type MVTLabelLayerProps = {
    * full range, -1000 to 1000.
    */
   collisionPriorityRange?: [number, number];
-  /** Optional text halo/background color. */
-  labelBackground?: number[] | null;
   /** Text size units forwarded to `TextLayer`. */
   labelSizeUnits?: 'pixels' | 'meters' | 'common';
   /**
@@ -136,7 +134,71 @@ type MVTLabelLayerState = {
   labelData?: LabelRow[];
   /** The non-data inputs `labelData` was computed with; a change recomputes it. */
   anchorKey?: string;
+  /** The halos of the label rows: one entry per distinct halo, and each row's entry index. */
+  halos?: LabelHalos;
+  /** The `labelData` and style inputs `halos` was computed with; a change recomputes it. */
+  haloKey?: [LabelRow[] | undefined, string];
 };
+
+/** A label halo as deck.gl `TextLayer` draws it: an SDF outline color and width. */
+export type LabelHalo = {
+  /** Halo color, RGBA with alpha in 0-255. */
+  outlineColor: number[];
+  /** `TextLayer` `outlineWidth` (see {@link getOutlineWidth}). */
+  outlineWidth: number;
+};
+
+type LabelHalos = {
+  /** Distinct halos, `null` for labels without one. */
+  halos: (LabelHalo | null)[];
+  /** For each label row, its index in `halos`. */
+  rowHalos: number[];
+};
+
+/**
+ * Font atlas settings for label text. Glyphs are drawn as signed distance fields, so `TextLayer`
+ * can outline them for `text-halo-*`. The distance field reaches as far as the widest halo:
+ * MapLibre caps `text-halo-width` at a quarter of the text size, 16 pixels of a 64-pixel glyph.
+ * `TextLayer` outlines no further out than `(0.75 - smoothing) * radius` pixels, 15.6 here, and
+ * its halo edge fades over another `smoothing * radius` pixels, which the `buffer` keeps.
+ * `TextLayer` draws the glyph edge at a fixed distance value, so a `cutoff` below the default 0.25
+ * moves the drawn edge `(0.25 - cutoff) * radius` pixels outward, and the halo with it. At 0.24,
+ * small text matches the stroke weight of a plain bitmap atlas more closely.
+ */
+const LABEL_FONT_SETTINGS = {
+  sdf: true,
+  fontSize: 64,
+  buffer: 18,
+  radius: 24,
+  cutoff: 0.24,
+  smoothing: 0.1
+};
+
+/**
+ * Most text sublayers one label layer draws for halos. Each sublayer holds every label row (see
+ * `renderLayers`), so the cap bounds the work per tile when every feature has its own halo.
+ */
+export const MAX_HALO_SUBLAYERS = 8;
+
+/** `text-halo-width` is rounded to this step, in pixels, so that close widths share a sublayer. */
+const HALO_WIDTH_STEP = 0.25;
+
+/**
+ * `TextLayer` draws an outline of width `w` at `0.75 * w` atlas pixels outside the drawn glyph
+ * edge, whatever the `cutoff`.
+ */
+const SDF_OUTLINE_SCALE = 0.75;
+
+/**
+ * Converts a `text-halo-width`, in pixels, to `TextLayer`'s `outlineWidth` for text of `textSize`
+ * pixels. An atlas pixel is `textSize / fontSize` screen pixels, so the same halo needs a wider
+ * outline on smaller text. As in MapLibre, the halo is at most a quarter of the text size.
+ */
+export function getOutlineWidth(haloWidth: number, textSize: number): number {
+  const atlasPixels = (Math.min(haloWidth, textSize / 4) * LABEL_FONT_SETTINGS.fontSize) / textSize;
+  // Rounded so that labels whose halos differ imperceptibly share one text sublayer.
+  return Math.round((atlasPixels / SDF_OUTLINE_SCALE) * 100) / 100;
+}
 
 /**
  * Work, in point-to-segment distance tests, that polygon label searches may spend per tile and
@@ -273,7 +335,6 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     billboard: true,
     renderGeometry: false,
     labelSizeUnits: 'pixels',
-    labelBackground: {type: 'color', value: null, optional: true},
     fontFamily: null
   };
 
@@ -553,19 +614,56 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Returns the halo (background) color for a decoded feature label: `labelBackground` faded by
-   * the same `text-opacity` as the text, so a hidden or faded label leaves no halo box.
+   * Returns the halo of a decoded feature label from `text-halo-color` and `text-halo-width`, or
+   * `null` when it has none: a width of 0 (the default) or a transparent color (the default). The
+   * color is faded by the same `text-opacity` as the text, so a hidden or faded label leaves no
+   * halo. `text-halo-blur` is not drawn.
    */
-  getLabelBackgroundColor(feature: FeatureLike): number[] {
-    const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
-    const background = this.props.labelBackground;
-    if (!background) {
-      return [0, 0, 0, 0];
+  getLabelHalo(feature: FeatureLike): LabelHalo | null {
+    const value = Number(this.evaluateStyleProperty('text-halo-width', feature) ?? 0);
+    const size = this.getLabelSize(feature);
+    if (!(value > 0) || !(size > 0)) {
+      return null;
     }
-    // `labelBackground` is already RGBA with alpha in 0-255; scale that alpha directly.
-    // (`withOpacity` would read a 0-255 alpha of 1 as fully opaque.)
-    const alpha = background.length > 3 ? background[3] : 255;
-    return [background[0], background[1], background[2], Math.round(alpha * (opacity ?? 1))];
+    // Rounded to a step, but a positive width keeps at least one step.
+    const width = Math.max(HALO_WIDTH_STEP, Math.round(value / HALO_WIDTH_STEP) * HALO_WIDTH_STEP);
+    const color = this.evaluateStyleProperty('text-halo-color', feature) as number[] | undefined;
+    const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
+    const outlineColor = withOpacity(color, opacity ?? 1).map(Math.round);
+    if (!(outlineColor[3] > 0)) {
+      return null;
+    }
+    return {outlineColor, outlineWidth: getOutlineWidth(width, size)};
+  }
+
+  /**
+   * Groups the label rows by halo. `TextLayer` takes one outline color and width per layer, so
+   * each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
+   * kept, the most common ones; labels with any other halo are drawn with the most common halo.
+   * Kept halos are ordered by their first label, so sublayer ids stay stable.
+   */
+  getLabelHalos(rows: LabelRow[]): LabelHalos {
+    const groups = new Map<string, {halo: LabelHalo | null; count: number; first: number}>();
+    const rowKeys = rows.map((row, index) => {
+      const halo = this.getLabelHalo((row as any).__source?.object ?? row);
+      const key = halo ? `${halo.outlineColor.join(',')}|${halo.outlineWidth}` : '';
+      const group = groups.get(key);
+      if (group) {
+        group.count++;
+      } else {
+        groups.set(key, {halo, count: 1, first: index});
+      }
+      return key;
+    });
+    // A stable sort: equally common halos keep the order of their first label.
+    const byCount = [...groups].sort(([, a], [, b]) => b.count - a.count);
+    const kept = byCount.slice(0, MAX_HALO_SUBLAYERS).sort(([, a], [, b]) => a.first - b.first);
+    const indices = new Map(kept.map(([key], index) => [key, index]));
+    const fallback = byCount.length ? indices.get(byCount[0][0])! : 0;
+    return {
+      halos: kept.map(([, group]) => group.halo),
+      rowHalos: rowKeys.map(key => indices.get(key) ?? fallback)
+    };
   }
 
   /**
@@ -592,11 +690,6 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getText: getTrigger('text-field', 'text-size'),
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
-      // The halo color comes from `labelBackground` (evaluated per style layer and zoom step), so
-      // its value is part of the trigger as well as a zoom-dependent `text-opacity`.
-      getBackgroundColor: `${getTrigger('text-opacity')}|${
-        this.props.labelBackground ? this.props.labelBackground.join(',') : ''
-      }`,
       getCollisionPriority: getTrigger('symbol-sort-key'),
       getPixelOffset: getTrigger('text-offset', 'text-size'),
       getTextAnchor: getTrigger('text-anchor'),
@@ -720,13 +813,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       const features = Array.isArray(data) ? data : data.features || [];
       this.setState({labelData: this.getLabelData(features, geographic), anchorKey});
     }
+    const haloKey: [LabelRow[] | undefined, string] = [
+      this.state.labelData,
+      this.getStyleUpdateTrigger('text-halo-color', 'text-halo-width', 'text-opacity', 'text-size')
+    ];
+    if (haloKey[0] !== this.state.haloKey?.[0] || haloKey[1] !== this.state.haloKey?.[1]) {
+      this.setState({halos: this.getLabelHalos(this.state.labelData || []), haloKey});
+    }
   }
 
   /**
    * Renders the optional debug geometry and the text labels.
    */
   renderLayers(): any {
-    const {config, labelSizeUnits, labelBackground, billboard, renderGeometry} = this.props;
+    const {config, labelSizeUnits, billboard, renderGeometry} = this.props;
     const layers: any[] = [];
 
     if (renderGeometry) {
@@ -742,60 +842,81 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (config.labels) {
       // Icons draw under their labels.
       layers.push(...this.renderIconLayers());
-      const hasBackground = Array.isArray(labelBackground) && labelBackground.length >= 3;
       const font = this.getFont();
+      const textProps = {
+        data: this.state.labelData,
+        extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
+        parameters: {
+          depthTest: false
+        },
+        billboard,
+        characterSet: 'auto',
+        // Glyphs are signed distance fields, which `TextLayer` outlines for halos.
+        fontSettings: LABEL_FONT_SETTINGS,
+        collisionEnabled: true,
+        collisionGroup: 'basemap-labels',
+        getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
+          this.getLabelCollisionPriority(feature)
+        ) as any,
+        fontFamily: font.fontFamily,
+        fontWeight: getTextLayerFontWeight(font),
+        sizeUnits: labelSizeUnits,
+        // The collision filter keeps a label only where the label itself covers its anchor in
+        // the collision map. A transparent background box is drawn for that and, in the collision
+        // pass, padded to reach the anchor (see getCollisionPadding).
+        background: true,
+        collisionTestProps: {padding: this.getCollisionPadding()},
+        getBackgroundColor: [0, 0, 0, 0],
+        getPosition: (d: LabelRow) => d.position,
+        getSize: this.getSubLayerAccessor((feature: FeatureLike) =>
+          this.getLabelSize(feature)
+        ) as any,
+        getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
+          this.getLabelColor(feature)
+        ) as any,
+        getPixelOffset: this.getSubLayerAccessor((feature: FeatureLike) =>
+          this.getLabelPixelOffset(feature)
+        ) as any,
+        getTextAnchor: this.getSubLayerAccessor(
+          (feature: FeatureLike) =>
+            getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor
+        ) as any,
+        getAlignmentBaseline: this.getSubLayerAccessor(
+          (feature: FeatureLike) =>
+            getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).alignmentBaseline
+        ) as any
+      };
+      const getLabel = this.getSubLayerAccessor((feature: FeatureLike) =>
+        this.getLabel(feature)
+      ) as any;
+      const updateTriggers = this.getLabelUpdateTriggers();
+      const {halos = [null], rowHalos = []} = this.state.halos || {};
+      // One text sublayer per halo. Each gets every row, with text only for the rows of its halo,
+      // so a row keeps its index, which the collision filter identifies labels by (deck.gl derives
+      // picking colors from the data index, so a sublayer cannot hold only its own rows). The
+      // number of halos is capped (see getLabelHalos), so the work stays linear in the rows.
       layers.push(
-        new TextLayer({
-          ...this.getSubLayerProps({id: 'text'}),
-          data: this.state.labelData,
-          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-          parameters: {
-            depthTest: false
-          },
-          billboard,
-          characterSet: 'auto',
-          collisionEnabled: true,
-          collisionGroup: 'basemap-labels',
-          getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelCollisionPriority(feature)
-          ) as any,
-          fontFamily: font.fontFamily,
-          fontWeight: getTextLayerFontWeight(font),
-          sizeUnits: labelSizeUnits,
-          // The collision filter keeps a label only where the label itself covers its anchor in
-          // the collision map. The background box is always drawn (transparent without a halo)
-          // and, in the collision pass, padded to reach the anchor (see getCollisionPadding).
-          background: true,
-          collisionTestProps: {padding: this.getCollisionPadding()},
-          getBackgroundColor: (hasBackground
-            ? this.getSubLayerAccessor((feature: FeatureLike) =>
-                this.getLabelBackgroundColor(feature)
-              )
-            : [0, 0, 0, 0]) as any,
-          getPosition: (d: LabelRow) => d.position,
-          getText: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabel(feature)
-          ) as any,
-          getSize: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelSize(feature)
-          ) as any,
-          getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelColor(feature)
-          ) as any,
-          getPixelOffset: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelPixelOffset(feature)
-          ) as any,
-          getTextAnchor: this.getSubLayerAccessor(
-            (feature: FeatureLike) =>
-              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor
-          ) as any,
-          getAlignmentBaseline: this.getSubLayerAccessor(
-            (feature: FeatureLike) =>
-              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
-                .alignmentBaseline
-          ) as any,
-          updateTriggers: this.getLabelUpdateTriggers()
-        })
+        ...halos.map(
+          (halo, haloIndex) =>
+            new TextLayer({
+              ...this.getSubLayerProps({id: haloIndex ? `text-${haloIndex}` : 'text'}),
+              ...textProps,
+              outlineWidth: halo?.outlineWidth ?? 0,
+              outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+              getText:
+                halos.length > 1
+                  ? (row: LabelRow, info: any) =>
+                      rowHalos[info.index] === haloIndex ? getLabel(row, info) : undefined
+                  : getLabel,
+              updateTriggers: {
+                ...updateTriggers,
+                getText:
+                  halos.length > 1
+                    ? `${updateTriggers.getText}|${this.state.haloKey?.[1]}`
+                    : updateTriggers.getText
+              }
+            })
+        )
       );
     }
 

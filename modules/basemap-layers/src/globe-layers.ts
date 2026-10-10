@@ -14,7 +14,7 @@ import {
   getZoomBucket,
   withOpacity
 } from './style-accessor';
-import {compileStylePropertyValue, getStylePropertyDefault} from './style-expression';
+import {getStylePropertyDefault} from './style-expression';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {SpriteAtlas} from './sprite';
 import type {LabelFontFamily} from './text-font';
@@ -731,30 +731,8 @@ function createSymbolSubLayer({
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
-    // The halo keeps its own alpha, scaled by the layer opacity like the text.
-    // The halo is drawn only with a positive `text-halo-width`, whose default is 0.
-    labelBackground:
-      paint['text-halo-color'] && hasHaloWidth(styleLayer, paint)
-        ? withOpacity(paint['text-halo-color'], opacity)
-        : null,
     billboard: true
   });
-}
-
-/**
- * Whether a label layer can have a visible halo. The box is drawn once per style layer, so a
- * data-driven `text-halo-width` cannot be checked per feature; it keeps the box. A constant or
- * zoom-dependent width hides it when the evaluated width is 0, its default.
- */
-function hasHaloWidth(styleLayer: BasemapStyleLayer, paint: Record<string, any>): boolean {
-  const width = styleLayer.paint?.['text-halo-width'];
-  if (
-    width !== undefined &&
-    compileStylePropertyValue('text-halo-width', width)?.isFeatureDependent
-  ) {
-    return true;
-  }
-  return Number(paint['text-halo-width'] ?? 0) > 0;
 }
 
 /**

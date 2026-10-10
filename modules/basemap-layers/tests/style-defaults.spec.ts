@@ -127,7 +127,7 @@ describe('text halo width', () => {
 
   test('no halo is drawn without a text-halo-width', () => {
     const sublayer = renderSubLayer({...symbol, paint: {'text-halo-color': '#ffffff'}}, [point]);
-    expect(sublayer.props.labelBackground).toBeNull();
+    expect(sublayer.getLabelHalo(point)).toBeNull();
   });
 
   test('no halo is drawn with a text-halo-width of 0', () => {
@@ -135,15 +135,23 @@ describe('text halo width', () => {
       {...symbol, paint: {'text-halo-color': '#ffffff', 'text-halo-width': 0}},
       [point]
     );
-    expect(sublayer.props.labelBackground).toBeNull();
+    expect(sublayer.getLabelHalo(point)).toBeNull();
   });
 
-  test('a data-driven text-halo-width keeps the halo', () => {
+  test('no halo is drawn without a text-halo-color', () => {
+    // The default `text-halo-color` is transparent.
+    const sublayer = renderSubLayer({...symbol, paint: {'text-halo-width': 1}}, [point]);
+    expect(sublayer.getLabelHalo(point)).toBeNull();
+  });
+
+  test('a data-driven text-halo-width is evaluated per feature', () => {
     const sublayer = renderSubLayer(
       {...symbol, paint: {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']}},
       [point]
     );
-    expect(sublayer.props.labelBackground).toEqual([255, 255, 255, 255]);
+    const withHalo = (halo: number) => ({...point, properties: {...point.properties, halo}});
+    expect(sublayer.getLabelHalo(withHalo(0))).toBeNull();
+    expect(sublayer.getLabelHalo(withHalo(2))?.outlineColor).toEqual([255, 255, 255, 255]);
   });
 
   test('a zoom-dependent text-halo-width of 0 at this zoom hides the halo', () => {
@@ -157,7 +165,7 @@ describe('text halo width', () => {
       },
       [point]
     );
-    expect(sublayer.props.labelBackground).toBeNull();
+    expect(sublayer.getLabelHalo(point)).toBeNull();
   });
 
   test('a halo is drawn with a positive text-halo-width', () => {
@@ -165,6 +173,6 @@ describe('text halo width', () => {
       {...symbol, paint: {'text-halo-color': '#ffffff', 'text-halo-width': 1}},
       [point]
     );
-    expect(sublayer.props.labelBackground).toEqual([255, 255, 255, 255]);
+    expect(sublayer.getLabelHalo(point)?.outlineColor).toEqual([255, 255, 255, 255]);
   });
 });
