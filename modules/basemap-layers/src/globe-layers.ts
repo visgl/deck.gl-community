@@ -456,6 +456,10 @@ function createStyledVectorSubLayer({
     return createExtrusionSubLayer({props, styleLayer, features, zoom});
   }
 
+  if (styleLayer.type === 'line') {
+    return createLineSubLayers({props, styleLayer, features, mode, zoom});
+  }
+
   return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
 }
 
@@ -781,7 +785,37 @@ export function getDashArray(dasharray: unknown): [number, number] {
   return [dash * 2, gap * 2];
 }
 
-function createGeometrySubLayer({
+/** deck.gl path props for a line's `line-cap`, `line-join` and `line-miter-limit`. */
+export type LineShape = {
+  lineCapRounded: boolean;
+  lineJointRounded: boolean;
+  lineMiterLimit: number;
+};
+
+/**
+ * Converts `line-cap`, `line-join` and `line-miter-limit` into deck.gl path props.
+ *
+ * - `round` caps and joins are drawn round. `butt` caps end at the endpoint. deck.gl has no square
+ *   cap, so `square` is drawn as `butt`: the line ends half its width short of MapLibre's.
+ * - deck.gl cuts a joint flat at `miterLimit + 1` half widths from the vertex. MapLibre draws a
+ *   `miter` join in full while its tip is within `line-miter-limit` half widths of the vertex, so
+ *   passing `line-miter-limit - 1` draws the same joins in full. A sharper corner, which MapLibre
+ *   bevels, is cut flat at that distance instead.
+ * - deck.gl has no bevel join. A `bevel` join is cut flat half the line width from the vertex,
+ *   which matches a bevel at shallow corners; at sharp corners a true bevel cuts closer.
+ */
+export function getLineShape([cap, join, miterLimit]: unknown[]): LineShape {
+  const lineJoin = join ?? getStylePropertyDefault('line-join');
+  const limit = Number(miterLimit ?? getStylePropertyDefault('line-miter-limit'));
+  return {
+    lineCapRounded: (cap ?? getStylePropertyDefault('line-cap')) === 'round',
+    lineJointRounded: lineJoin === 'round',
+    lineMiterLimit: lineJoin === 'miter' && Number.isFinite(limit) ? Math.max(0, limit - 1) : 0
+  };
+}
+
+/** The sublayers for a `line` style layer: one, or one per shape when the shape is per feature. */
+function createLineSubLayers({
   props,
   styleLayer,
   features,
@@ -793,6 +827,67 @@ function createGeometrySubLayer({
   features: any[];
   mode: BasemapMode;
   zoom: number;
+}) {
+  const lineShape = getStyleAccessor(
+    styleLayer,
+    ['line-cap', 'line-join', 'line-miter-limit'],
+    zoom,
+    getLineShape
+  );
+  if (typeof lineShape.value !== 'function') {
+    return createGeometrySubLayer({
+      props,
+      styleLayer,
+      features,
+      mode,
+      zoom,
+      lineShape: lineShape.value
+    });
+  }
+
+  // deck.gl applies caps and joins to a whole layer, so per-feature values split the features
+  // into one sublayer per distinct shape, in the order each shape first appears.
+  const getShape = lineShape.value;
+  const groups = new Map<string, {shape: LineShape; features: any[]}>();
+  for (const feature of features) {
+    const shape = getShape(feature);
+    const key = `${shape.lineCapRounded}-${shape.lineJointRounded}-${shape.lineMiterLimit}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = {shape, features: []};
+      groups.set(key, group);
+    }
+    group.features.push(feature);
+  }
+  return [...groups].map(([key, group]) =>
+    createGeometrySubLayer({
+      props,
+      styleLayer,
+      features: group.features,
+      mode,
+      zoom,
+      lineShape: group.shape,
+      idSuffix: `-${key}`
+    })
+  );
+}
+
+function createGeometrySubLayer({
+  props,
+  styleLayer,
+  features,
+  mode,
+  zoom,
+  lineShape,
+  idSuffix = ''
+}: {
+  props: any;
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  mode: BasemapMode;
+  zoom: number;
+  lineShape?: LineShape;
+  idSuffix?: string;
 }) {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
@@ -838,7 +933,7 @@ function createGeometrySubLayer({
 
   return new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}`,
+    id: `${props.id}-${styleLayer.id}${idSuffix}`,
     data: features,
     stroked: isLine || hasOutline,
     filled: isFill,
@@ -861,8 +956,9 @@ function createGeometrySubLayer({
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
-    lineCapRounded: isLine,
-    lineJointRounded: isLine,
+    lineCapRounded: false,
+    lineJointRounded: false,
+    ...lineShape,
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
     parameters: getTileParameters(mode)
