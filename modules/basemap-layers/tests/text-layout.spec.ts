@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {describe, expect, test, vi} from 'vitest';
+import {afterEach, describe, expect, test, vi} from 'vitest';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
 import {
   FALLBACK_CHARACTER_WIDTH,
+  MAX_CACHED_CHARACTERS,
+  MAX_CACHED_FONTS,
+  MAX_WRAPPED_TEXT_LENGTH,
   getCharacterWidthMeasurer,
   transformText,
   wrapText
@@ -175,5 +178,69 @@ describe('MVTLabelLayer text layout', () => {
     expect(
       labelLayer(layout, 7.6, {fontFamily: 'serif'}).getLabelUpdateTriggers().getText
     ).not.toBe(trigger);
+  });
+});
+
+describe('resource bounds on untrusted labels', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const HUGE_LENGTH = 100_000;
+
+  test('wraps text up to the length cap', () => {
+    const text = 'ab '.repeat(MAX_WRAPPED_TEXT_LENGTH).slice(0, MAX_WRAPPED_TEXT_LENGTH);
+    expect(wrapText(text, 10, measure)).toContain('\n');
+  });
+
+  test('returns a 100k-character label unwrapped without measuring it', () => {
+    for (const text of ['ab '.repeat(HUGE_LENGTH / 3), '天'.repeat(HUGE_LENGTH)]) {
+      const counted = vi.fn(measure);
+      const start = performance.now();
+      expect(wrapText(text, 10, counted)).toBe(text);
+      expect(performance.now() - start).toBeLessThan(1000);
+      expect(counted).not.toHaveBeenCalled();
+    }
+  });
+
+  test('getLabel on a 100k-character label finishes quickly', () => {
+    const layer = labelLayer({'text-field': ['get', 'name'], 'text-transform': 'uppercase'});
+    const name = 'ab '.repeat(HUGE_LENGTH / 3);
+    const start = performance.now();
+    const label = layer.getLabel(feature({name}));
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(label).toBe(name.trim().toUpperCase());
+  });
+
+  test('bounds the per-font character width cache', () => {
+    const measureText = vi.fn(() => ({width: 32}));
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        getContext() {
+          return {font: '', measureText};
+        }
+      }
+    );
+    const measureWidth = getCharacterWidthMeasurer(400, 'cache-bound-test');
+    measureWidth('a');
+    measureWidth('a');
+    expect(measureText).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < MAX_CACHED_CHARACTERS; i++) {
+      measureWidth(String.fromCodePoint(0x4e00 + i));
+    }
+    measureText.mockClear();
+    // The cache filled and was cleared, so 'a' is measured again.
+    expect(measureWidth('a')).toBe(0.5);
+    expect(measureText).toHaveBeenCalledTimes(1);
+  });
+
+  test('bounds the number of cached fonts', () => {
+    const first = getCharacterWidthMeasurer(400, 'font-bound-test-0');
+    expect(getCharacterWidthMeasurer(400, 'font-bound-test-0')).toBe(first);
+    for (let i = 1; i <= MAX_CACHED_FONTS; i++) {
+      getCharacterWidthMeasurer(400, `font-bound-test-${i}`);
+    }
+    expect(getCharacterWidthMeasurer(400, 'font-bound-test-0')).not.toBe(first);
   });
 });

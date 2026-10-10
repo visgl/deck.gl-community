@@ -170,15 +170,27 @@ function determineLineBreaks(
 }
 
 /**
+ * Longest label, in UTF-16 code units, that {@link wrapText} wraps. Line breaking is quadratic in
+ * the number of break opportunities, and tile data is untrusted, so longer text is returned
+ * unwrapped. Real labels are far shorter; at this length even ideographic text, where every
+ * character is a break opportunity, costs tens of thousands of steps.
+ */
+export const MAX_WRAPPED_TEXT_LENGTH = 256;
+
+/**
  * Breaks `text` into lines no wider than `maxWidth` ems where it can, with MapLibre's balanced
  * line breaking, and returns the lines joined by '\n'. Advances from `measure` are in ems;
  * words without break opportunities stay intact, even when they exceed the requested width.
+ * Text longer than {@link MAX_WRAPPED_TEXT_LENGTH} is returned unchanged.
  */
 export function wrapText(
   text: string,
   maxWidth: number,
   measure: (character: string) => number
 ): string {
+  if (text.length > MAX_WRAPPED_TEXT_LENGTH) {
+    return text;
+  }
   const characters = Array.from(text);
   if (
     !characters.some(character => {
@@ -208,12 +220,19 @@ export function wrapText(
 /** Advance in ems used when canvas measurement is unavailable, as for missing atlas glyphs. */
 export const FALLBACK_CHARACTER_WIDTH = 0.5;
 const FONT_SIZE = 64;
+/**
+ * Bounds on the measurement caches: fonts and characters both come from untrusted style and tile
+ * data. A full cache is cleared rather than grown.
+ */
+export const MAX_CACHED_FONTS = 32;
+export const MAX_CACHED_CHARACTERS = 4096;
 const CHARACTER_WIDTH_MEASURERS = new Map<string, (character: string) => number>();
 
 /**
  * Returns a function giving a character's advance width in ems for a CSS font, measured the way
  * deck.gl's TextLayer builds its font atlas: at 64px, then divided by 64. Measurers and character
- * advances are cached; environments without a canvas 2D context use a half-em advance.
+ * advances are cached, up to {@link MAX_CACHED_FONTS} and {@link MAX_CACHED_CHARACTERS}.
+ * Environments without a canvas 2D context use a half-em advance.
  */
 export function getCharacterWidthMeasurer(
   fontWeight: number | string,
@@ -235,10 +254,16 @@ export function getCharacterWidthMeasurer(
     let width = widths.get(character);
     if (width === undefined) {
       width = context ? context.measureText(character).width / FONT_SIZE : FALLBACK_CHARACTER_WIDTH;
+      if (widths.size >= MAX_CACHED_CHARACTERS) {
+        widths.clear();
+      }
       widths.set(character, width);
     }
     return width;
   };
+  if (CHARACTER_WIDTH_MEASURERS.size >= MAX_CACHED_FONTS) {
+    CHARACTER_WIDTH_MEASURERS.clear();
+  }
   CHARACTER_WIDTH_MEASURERS.set(font, measure);
   return measure;
 }
