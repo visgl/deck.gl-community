@@ -14,11 +14,13 @@ export class ImageLayer extends CompositeLayer {
     return [
       new IconLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__icon-layer',
           data,
           getPosition,
           ...stylesheet.getDeckGLAccessors(),
           updateTriggers: {
+            all: this.props.transitions,
             getPosition: positionUpdateTrigger,
             ...stylesheet.getDeckGLUpdateTriggers()
           }

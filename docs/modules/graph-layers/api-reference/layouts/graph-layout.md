@@ -1,5 +1,7 @@
 # GraphLayout
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 Create a subclass of the `GraphLayout` class to implement a custom layout for the `GraphLayer`.
 
 ## Usage

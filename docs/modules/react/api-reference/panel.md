@@ -4,6 +4,8 @@ import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
 
 # Panel
 
+![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
+
 `Panel` renders a `@deck.gl-community/panels` panel definition inside a React tree.
 
 ## Import

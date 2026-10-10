@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # HorizonGraphLayer
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="horizon-graph-layer" size="tall" />
 
 Render a single time series using the [horizon graph](https://en.wikipedia.org/wiki/Horizon_graph) visualization technique.

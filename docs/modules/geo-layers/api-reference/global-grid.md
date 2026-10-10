@@ -1,5 +1,7 @@
 # GlobalGrid
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ## Purpose
 
 `GlobalGrid` defines the shared interface that the `GlobalGridLayer` expects when it works with Discrete Global Grid System (DGGS) helpers. Implementations expose common capabilities—converting between string tokens and numeric cell identifiers, retrieving center coordinates, and generating boundary polygons—so different grid systems can be rendered with the same layer contract.

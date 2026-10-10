@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # GraphLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="graph-layer" size="tall" />
 
 `GraphLayer` is a composite Deck.gl layer that renders graph nodes, edges, and
@@ -220,3 +222,18 @@ configuration supports:
   underlying Deck.gl sublayers.
 - Reusing the same `GraphEngine` instance across renders preserves layout state
   and interaction history. Provide the `engine` prop to opt into that workflow.
+
+### layoutTransitionDuration (number, default: 0)
+
+Duration in milliseconds for interpolating node, edge, and decorator positions between layout snapshots. Zero, negative, and nonfinite values disable interpolation. Configure `layoutUpdateInterval` separately to coalesce intermediate snapshots; all lifecycle callbacks still fire.
+
+```ts
+new GraphLayer({
+  data: graphData,
+  layout: new D3ForceLayout(),
+  layoutUpdateInterval: 100,
+  layoutTransitionDuration: 100
+});
+```
+
+Entries supplied through deck.gl's `transitions` prop override the generated position settings. For example, `transitions: {getPosition: 0}` disables node-position interpolation while retaining the duration for edge endpoints. Path and polygon interpolation uses deck.gl's normal geometry transition behavior, including its rules for topology changes.

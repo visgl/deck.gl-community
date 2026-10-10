@@ -46,7 +46,7 @@ export class SplineLayer extends CompositeLayer {
       const serializedControlPoints = controlPoints.toString().split(',');
 
       // NOTE: we might change the number of points according to the length.
-      // so we can render less segements.
+      // so we can render less segments.
       // points = [x1, y1, x2, y2, ...];
       const points = getCurvePoints(
         [...sourcePosition, ...serializedControlPoints, ...targetPosition],
@@ -70,11 +70,12 @@ export class SplineLayer extends CompositeLayer {
     return new PathLayer({
       id: `${id}-splines`,
       data: paths as any,
+      transitions: this.props.transitions,
       getPath: d => d,
       getColor,
       getWidth,
       coordinateSystem,
-      updateTriggers
+      updateTriggers: {...updateTriggers, all: this.props.transitions}
     });
   }
 }

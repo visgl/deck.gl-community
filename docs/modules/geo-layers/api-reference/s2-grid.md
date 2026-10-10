@@ -1,5 +1,7 @@
 # S2Grid
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ## Purpose
 
 `S2Grid` adapts S2 cell utilities so that the `GlobalGridLayer` can consume S2 tokens and numeric cell IDs directly. It exposes conversion helpers for tokens, center coordinates, and polygon boundaries built from the math.gl S2 geometry utilities.

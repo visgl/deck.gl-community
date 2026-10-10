@@ -1,5 +1,7 @@
 # MarkerLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 This layer provides the basic marker functionality. This marker layer provided by Deck.gl only has one marker (circle) while this layer provides numerous markers.
 
 ## Example
@@ -72,10 +74,12 @@ Method called to retrieve the marker name of each object, returns string.
 Available markers:
 location-marker-filled, bell-filled, bookmark-filled, bookmark, cd-filled, cd, checkmark, circle-check-filled, circle-check, circle-filled, circle-i-filled, circle-i, circle-minus-filled, circle-minus, circle-plus-filled, circle-plus, circle-questionmark-filled, circle-questionmark, circle-slash-filled, circle-slash, circle-x-filled, circle-x, circle, diamond-filled, diamond, flag-filled, flag, gear, heart-filled, heart, bell, location-marker, octagonal-star-filled, octagonal-star, person-filled, person, pin-filled, pin, plus-small, plus, rectangle-filled, rectangle, star-filled, star, tag-filled, tag, thumb-down-filled, thumb-down, thumb-up, thumb_up-filled, triangle-down-filled, triangle-down, triangle-left-filled, triangle-left, triangle-right-filled, triangle-right, triangle-up-filled, triangle-up, x-small, x
 
-Or you can import the marker list file:
+Use the exported `Marker` type to type-check marker names:
 
 ```ts
-import {MarkerList} from '@deck.gl-community/graph-layers/src/layers/common-layers/marker-layer/marker-list';
+import type {Marker} from '@deck.gl-community/graph-layers';
+
+const marker: Marker = 'circle-filled';
 ```
 
 ##### `getSize` (Function|Number, optional) ![transition-enabled](https://img.shields.io/badge/transition-enabled-green.svg?style=flat-square")

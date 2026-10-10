@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square")
 
@@ -8,7 +10,7 @@ This module provides a suite of layers and view helpers for [deck.gl](https://de
 Recommended example: [Infovis layer primitives](/examples/infovis-layers/layer-primitives).
 
 :::caution
-The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
+The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 ## Installation

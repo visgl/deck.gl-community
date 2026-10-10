@@ -18,7 +18,7 @@ for (const route of ['docs.md', 'docs/working-with-ai.md', 'docs/whats-new.md'])
 // Sample prose, fenced examples, migration tables and rendered admonitions.
 // File existence alone does not prove that HTML-to-Markdown extraction succeeded.
 const requiredContent = {
-  'docs.md': ['Some modules may no longer have dedicated maintainers.'],
+  'docs.md': ['Official vis.gl / Open Visualization maintainer support is not guaranteed.'],
   'docs/working-with-ai.md': [
     'Check local versions and capabilities',
     'Inspect the application',
