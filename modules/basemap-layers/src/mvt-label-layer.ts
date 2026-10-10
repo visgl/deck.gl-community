@@ -165,6 +165,40 @@ const BEARING_STEP = 5;
  */
 const LINE_LABEL_EM_PER_CHARACTER = 0.6;
 
+/** Advance, in ems, of a wide character (CJK, Hangul, fullwidth forms), which is about square. */
+const LINE_LABEL_EM_PER_WIDE_CHARACTER = 1;
+
+/** Code point ranges of wide characters: East Asian scripts and fullwidth forms. */
+const WIDE_CHARACTER_RANGES: [number, number][] = [
+  [0x1100, 0x115f],
+  [0x2e80, 0xa4cf],
+  [0xac00, 0xd7a3],
+  [0xf900, 0xfaff],
+  [0xfe30, 0xfe4f],
+  [0xff00, 0xff60],
+  [0xffe0, 0xffe6],
+  [0x20000, 0x3fffd]
+];
+
+/** The estimated length of `text` in ems: about square for wide characters, narrower for others. */
+export function getTextLengthEms(text: string): number {
+  let ems = 0;
+  for (const character of text) {
+    const code = character.codePointAt(0)!;
+    const wide = WIDE_CHARACTER_RANGES.some(([start, end]) => code >= start && code <= end);
+    ems += wide ? LINE_LABEL_EM_PER_WIDE_CHARACTER : LINE_LABEL_EM_PER_CHARACTER;
+  }
+  return ems;
+}
+
+/**
+ * Whether a symbol's text or icon turns with the line it is placed along: with
+ * `*-rotation-alignment: map`, or `auto` (the default) under line placement, as in MapLibre.
+ */
+function isAlignedToMap(alignment: unknown, placement: string): boolean {
+  return alignment === 'map' || ((alignment ?? 'auto') === 'auto' && isLinePlacement(placement));
+}
+
 /**
  * Work, in point-to-segment distance tests, that polygon label searches may spend per tile and
  * style layer. Tile geometry is untrusted; past this budget, remaining polygons get no label.
@@ -477,7 +511,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getIcon: getTrigger('icon-image'),
       getSize: getTrigger('icon-image', 'icon-size'),
       getColor: getTrigger('icon-image', 'icon-color', 'icon-opacity'),
-      getPixelOffset: getTrigger('icon-image', 'icon-size', 'icon-anchor', 'icon-offset')
+      getPixelOffset: getTrigger('icon-image', 'icon-size', 'icon-anchor', 'icon-offset'),
+      getAngle: `${this.state?.bearingStep}|${getTrigger('icon-rotate', 'icon-keep-upright')}`
     };
   }
 
@@ -509,6 +544,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           iconMapping: atlas.mapping,
           loadOptions: iconLoadOptions || undefined,
           billboard,
+          ...this.getLineIconProps(),
           sizeUnits: 'pixels',
           parameters: {depthTest: false},
           // Icons are not collision-filtered (see the module docs). The collision filter matches
@@ -695,10 +731,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * they are. Lines are labelled at the middle vertex of their first part here; with
    * `symbol-placement: line` or `line-center`, `getLabelData` places them along the line instead
    * (see `getLineLabelPlacements`). With `symbol-placement: point`, each polygon of a feature is
-   * labelled at its pole of inaccessibility, as in MapLibre, if that point lies in this tile; polygons are not
-   * labelled along their outline. `geographic` says whether coordinates are longitude/latitude
-   * (globe tiles) or tile-local. `budget` bounds the polygon searches; pass one budget for all
-   * features of a tile.
+   * labelled at its pole of inaccessibility, as in MapLibre, if that point lies in this tile;
+   * polygons are not labelled along their outline. `geographic` says whether coordinates are
+   * longitude/latitude (globe tiles) or tile-local. `budget` bounds the polygon searches; pass one
+   * budget for all features of a tile.
    */
   getLabelAnchors(
     feature: FeatureLike,
@@ -771,20 +807,28 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const {type, coordinates} = feature.geometry;
     const lines: number[][][] =
       type === 'LineString' ? [coordinates] : type === 'MultiLineString' ? coordinates : [];
-    const text = this.getLabel(feature);
-    if (!text || !lines.length) {
+    if (!lines.length) {
       return [];
     }
     const {zoom, tileSize} = this.getLinePlacementScale();
     const evaluate = (name: string) =>
       Number(this.getStyleProperty(name)?.evaluate(zoom, feature) ?? getStylePropertyDefault(name));
     const textSize = evaluate('text-size');
+    const text = this.getLabel(feature);
+    // Icons are known once the sprites have loaded; the anchors are recomputed then.
+    const icon = this.props.spriteAtlases?.length ? this.getIcon(feature) : null;
+    // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
+    // neither has no length, and is not placed.
+    const textLength = text ? getTextLengthEms(text) * textSize : 0;
+    const iconLength = icon
+      ? (icon.entry.width / icon.entry.pixelRatio) * evaluate('icon-size')
+      : 0;
     const options = {
       placement: placement === 'line-center' ? ('line-center' as const) : ('line' as const),
       spacing: evaluate('symbol-spacing'),
       maxAngle: evaluate('text-max-angle'),
       textSize,
-      labelLength: [...text].length * textSize * LINE_LABEL_EM_PER_CHARACTER
+      labelLength: Math.max(textLength, iconLength)
     };
     const scale = geographic ? tileSize * 2 ** zoom : tileSize;
     const bounds = this.getTileBounds(geographic);
@@ -852,8 +896,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       isLinePlacement(placement)
         ? [
             this.getLinePlacementScale(),
-            this.getStyleUpdateTrigger('text-field'),
-            ...['text-size', 'symbol-spacing', 'text-max-angle'].map(name =>
+            this.getStyleUpdateTrigger('text-field', 'icon-image'),
+            (this.props.spriteAtlases || []).map(atlas => atlas.id),
+            ...['text-size', 'icon-size', 'symbol-spacing', 'text-max-angle'].map(name =>
               JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)
             )
           ]
@@ -894,7 +939,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * placement; on a globe they stay billboards, turned in screen space.
    */
   getLineLabelProps(): Record<string, unknown> {
-    if (!isLinePlacement(this.getSymbolPlacement())) {
+    const placement = this.getSymbolPlacement();
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    const alignment = this.getStyleProperty('text-rotation-alignment')?.evaluate(zoom);
+    // With `text-rotation-alignment: viewport` the text stays upright on screen, as a billboard.
+    if (!isLinePlacement(placement) || !isAlignedToMap(alignment, placement)) {
       return {};
     }
     const bearingStep = this.getBearingStep();
@@ -907,6 +956,34 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return {
       billboard: geographic ? this.props.billboard : false,
       getAngle: (row: LabelRow) => getUprightAngle(row.angle ?? 0, bearingStep, keepUpright)
+    };
+  }
+
+  /**
+   * Icon layer props for symbols along lines whose icons turn with the line
+   * (`icon-rotation-alignment: map`, or `auto`): the icon is turned to the line's direction plus
+   * `icon-rotate`, and drawn flat on a flat map. `icon-keep-upright` (default false) turns it
+   * upright as for text. Icons of other symbols are unchanged.
+   */
+  getLineIconProps(): Record<string, unknown> {
+    const placement = this.getSymbolPlacement();
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    const alignment = this.getStyleProperty('icon-rotation-alignment')?.evaluate(zoom);
+    if (!isLinePlacement(placement) || !isAlignedToMap(alignment, placement)) {
+      return {};
+    }
+    const bearingStep = this.getBearingStep();
+    this.state.bearingStep = bearingStep;
+    const keepUpright =
+      (this.getStyleProperty('icon-keep-upright')?.evaluate(zoom) ??
+        getStylePropertyDefault('icon-keep-upright')) === true;
+    const geographic = Boolean(this.context?.viewport?.resolution);
+    return {
+      billboard: geographic ? this.props.billboard : false,
+      // `icon-rotate` is clockwise; deck.gl angles are counter-clockwise.
+      getAngle: (row: LabelRow) =>
+        getUprightAngle(row.angle ?? 0, bearingStep, keepUpright) -
+        Number(this.evaluateStyleProperty('icon-rotate', (row as any).__source?.object ?? row) ?? 0)
     };
   }
 

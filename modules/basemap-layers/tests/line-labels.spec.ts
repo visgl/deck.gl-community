@@ -1,6 +1,7 @@
 import {describe, expect, test} from 'vitest';
 import {clipLine, getLineAnchors, getUprightAngle, MIN_LABEL_GAP} from '../src/line-placement';
-import {MVTLabelLayer} from '../src/mvt-label-layer';
+import {getTextLengthEms, MVTLabelLayer} from '../src/mvt-label-layer';
+import {getSpriteIconMapping, type SpriteAtlas} from '../src/sprite';
 
 const STRAIGHT = [
   [0, 0],
@@ -406,5 +407,115 @@ describe('line placement on hostile input', () => {
         [0.7, expect.closeTo(0.2, 9)]
       ]
     ]);
+  });
+});
+
+const ARROWS: SpriteAtlas = {
+  id: 'default',
+  image: 'https://example.com/sprite.png',
+  mapping: getSpriteIconMapping({
+    arrow: {x: 0, y: 0, width: 40, height: 20, pixelRatio: 1},
+    shield: {x: 40, y: 0, width: 240, height: 20, pixelRatio: 1}
+  })
+};
+
+describe('icons along lines', () => {
+  const arrows = (layout: Record<string, unknown> = {}, props: Record<string, unknown> = {}) =>
+    new MVTLabelLayer({
+      id: 'arrows',
+      config: {labels: true},
+      zoom: 14,
+      tileZoom: 14,
+      tileSize: 512,
+      spriteAtlases: [ARROWS],
+      styleLayer: {layout: {'icon-image': 'arrow', 'symbol-placement': 'line', ...layout}},
+      ...props
+    });
+
+  test('places a symbol with an icon and no text', () => {
+    const rows = arrows().getLabelData([ACROSS_TILE], false) as any[];
+    expect(rows.map(row => row.position[0])).toEqual([
+      expect.closeTo(125 / 512, 9),
+      expect.closeTo(375 / 512, 9)
+    ]);
+    // Until the sprites load, the icon has no size and nothing is placed.
+    expect(arrows({}, {spriteAtlases: null}).getLabelData([ACROSS_TILE], false)).toEqual([]);
+  });
+
+  test('measures a symbol by the longer of its text and its icon', () => {
+    const shield = {'icon-image': 'shield', 'text-field': '{name}', 'text-size': 10};
+    const name = {...ACROSS_TILE, properties: {name: 'A'}};
+    // A 240 px icon widens the 250 px spacing to 302.5 px: one label fits in the tile, at 151 px.
+    expect(arrows(shield).getLabelData([name], false)).toHaveLength(1);
+    expect(
+      arrows({'text-field': '{name}', 'text-size': 10, 'icon-image': ''}).getLabelData(
+        [name],
+        false
+      )
+    ).toHaveLength(2);
+  });
+
+  test('changes the anchor key when the sprites load', () => {
+    expect(arrows().getAnchorKey(false)).not.toBe(
+      arrows({}, {spriteAtlases: null}).getAnchorKey(false)
+    );
+  });
+
+  function renderIcons(layer: MVTLabelLayer, angle: number): any {
+    const feature = {...ACROSS_TILE, properties: {}};
+    layer.state = {labelData: [{position: [0.5, 0.5], angle, __source: {object: feature}} as any]};
+    layer.context = {viewport: {bearing: 0}} as any;
+    layer.internalState = {subLayers: []} as any;
+    return layer.renderIconLayers()[0];
+  }
+
+  test('turns icons to the line, plus icon-rotate, without keeping them upright', () => {
+    const icons = renderIcons(arrows(), 170);
+    expect(icons.props.billboard).toBe(false);
+    expect(icons.props.getAngle(icons.props.data[0])).toBe(170);
+    const rotated = renderIcons(arrows({'icon-rotate': 90}), 30);
+    // `icon-rotate` is clockwise.
+    expect(rotated.props.getAngle(rotated.props.data[0])).toBe(-60);
+    const upright = renderIcons(arrows({'icon-keep-upright': true}), 170);
+    expect(upright.props.getAngle(upright.props.data[0])).toBe(350);
+  });
+
+  test('keeps viewport-aligned icons upright billboards', () => {
+    const icons = renderIcons(arrows({'icon-rotation-alignment': 'viewport'}), 30);
+    expect(icons.props.billboard).toBe(true);
+    expect(typeof icons.props.getAngle).not.toBe('function');
+  });
+});
+
+describe('text-rotation-alignment', () => {
+  function renderText(layout: Record<string, unknown>): any {
+    const layer = lineLayer({}, layout);
+    layer.state = {labelData: [{position: [0.5, 0.5], angle: 30} as any]};
+    layer.context = {viewport: {bearing: 0}} as any;
+    layer.internalState = {subLayers: []} as any;
+    return layer.renderLayers().at(-1);
+  }
+
+  test('keeps viewport-aligned text an upright billboard along a line', () => {
+    const text = renderText({'text-rotation-alignment': 'viewport'});
+    expect(text.props.billboard).toBe(true);
+    expect(typeof text.props.getAngle).not.toBe('function');
+  });
+
+  test('turns map-aligned and auto-aligned text to the line', () => {
+    for (const alignment of ['map', 'auto']) {
+      const text = renderText({'text-rotation-alignment': alignment});
+      expect(text.props.billboard).toBe(false);
+      expect(text.props.getAngle({angle: 30})).toBe(30);
+    }
+  });
+});
+
+describe('label length estimate', () => {
+  test('counts wide characters as about one em and others as 0.6', () => {
+    expect(getTextLengthEms('東京')).toBe(2);
+    expect(getTextLengthEms('서울')).toBe(2);
+    expect(getTextLengthEms('ab')).toBeCloseTo(1.2, 9);
+    expect(getTextLengthEms('Ｎ1')).toBeCloseTo(1.6, 9);
   });
 });
