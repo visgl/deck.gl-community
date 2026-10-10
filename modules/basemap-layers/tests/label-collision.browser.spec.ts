@@ -135,13 +135,23 @@ function haloPixels(image: ImageData): Array<[number, number]> {
   return pixels;
 }
 
-/** Whether a text-colored pixel lies within `radius` pixels of `[x, y]`. */
+/**
+ * Whether the pixel at `[x, y]` is opaque and darker than the red halo: covered, at least in part,
+ * by the black text. Glyph edges and thin stems blend the text with the halo, so they are rarely
+ * as dark as `isTextPixel` requires; how much depends on the font and the renderer.
+ */
+function isInkPixel(image: ImageData, x: number, y: number): boolean {
+  const i = (y * SIZE + x) * 4;
+  return image.data[i + 3] > 200 && image.data[i] <= 200;
+}
+
+/** Whether a pixel covered by the text lies within `radius` pixels of `[x, y]`. */
 function isNearText(image: ImageData, [x, y]: [number, number], radius: number): boolean {
   for (let dy = -radius; dy <= radius; dy++) {
     for (let dx = -radius; dx <= radius; dx++) {
       const px = x + dx;
       const py = y + dy;
-      if (px >= 0 && py >= 0 && px < SIZE && py < SIZE && isTextPixel(image, px, py)) {
+      if (px >= 0 && py >= 0 && px < SIZE && py < SIZE && isInkPixel(image, px, py)) {
         return true;
       }
     }
@@ -154,10 +164,15 @@ describe('label halos in the browser', () => {
   const RED_HALO = {'text-halo-color': '#ff0000'};
 
   test('a halo outlines the glyphs instead of filling a box', async () => {
-    const image = await renderLabel(layout, {...RED_HALO, 'text-halo-width': 2});
+    // Large text, so that a box around the label would fill space well away from the glyphs:
+    // between and inside the letters, and in the corners of the box.
+    const image = await renderLabel(
+      {...layout, 'text-size': 32},
+      {...RED_HALO, 'text-halo-width': 2}
+    );
     const halo = haloPixels(image);
     expect(halo.length).toBeGreaterThan(50);
-    // Every halo pixel is next to the text; a box would also fill the space around the letters.
+    // Every halo pixel is within the halo width, plus a pixel of antialiasing, of the text.
     expect(halo.filter(pixel => !isNearText(image, pixel, 3))).toEqual([]);
     expect(textPixels(image)).toBeGreaterThan(20);
   });
