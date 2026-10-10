@@ -12,6 +12,7 @@ import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite'
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {getCharacterWidthMeasurer, transformText, wrapText} from './text-layout';
+import type {WrapBudget} from './text-layout';
 import {
   DEFAULT_POLE_SEARCH_SEGMENT_TESTS,
   getPoleOfInaccessibility,
@@ -137,6 +138,16 @@ type MVTLabelLayerState = {
   labelData?: LabelRow[];
   /** The non-data inputs `labelData` was computed with; a change recomputes it. */
   anchorKey?: string;
+  /**
+   * Label text for the current text update trigger and label rows, per feature, and the wrap
+   * budget left for them. deck.gl reads each label's text several times per update; the cache
+   * keeps every read the same once the budget runs out, and wraps each label once.
+   */
+  labelText?: {
+    key: [string, LabelRow[] | undefined];
+    budget: WrapBudget;
+    labels: WeakMap<FeatureLike, string | undefined>;
+  };
 };
 
 /**
@@ -145,11 +156,31 @@ type MVTLabelLayerState = {
  */
 const TILE_POLE_SEARCH_SEGMENT_TESTS = 2e7;
 
+/**
+ * Line-breaking steps (see `WrapBudget`) that label wrapping may spend per tile and style layer
+ * each time the labels' text is evaluated: about 60 labels of the longest wrapped length in
+ * ideographs, far more than real labels need. Past it, labels are drawn unwrapped.
+ */
+const TILE_WRAP_BUDGET_STEPS = 2e6;
+
 const geoJsonDefaultProps = {...GeoJsonLayer.defaultProps} as Omit<
   typeof GeoJsonLayer.defaultProps,
   'data'
 >;
 delete (geoJsonDefaultProps as typeof GeoJsonLayer.defaultProps).data;
+
+const functionIds = new WeakMap<object, number>();
+let lastFunctionId = 0;
+
+/** A stable number per function object, so a replaced function changes an update trigger. */
+function getFunctionId(value: object): number {
+  let id = functionIds.get(value);
+  if (id === undefined) {
+    id = ++lastFunctionId;
+    functionIds.set(value, id);
+  }
+  return id;
+}
 
 /**
  * Replaces style-spec token placeholders in a label template.
@@ -528,20 +559,31 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         : resolveTokenString(text, feature.properties)?.trim();
     if (label) {
       label = transformText(label, this.evaluateStyleProperty('text-transform', feature));
+      const labels = this.state?.labelText?.labels;
+      const wrapped = labels?.get(feature);
+      if (wrapped !== undefined) {
+        return wrapped;
+      }
       if (this.getSymbolPlacement() === 'point') {
         const maxWidth = Number(
           this.evaluateStyleProperty('text-max-width', feature) ??
             getStylePropertyDefault('text-max-width')
         );
         let measure: ((character: string) => number) | undefined;
-        label = wrapText(label, maxWidth, character => {
-          if (!measure) {
-            const font = this.getFont();
-            measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
-          }
-          return measure(character);
-        });
+        label = wrapText(
+          label,
+          maxWidth,
+          character => {
+            if (!measure) {
+              const font = this.getFont();
+              measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+            }
+            return measure(character);
+          },
+          this.state?.labelText?.budget
+        );
       }
+      labels?.set(feature, label);
     }
     return label || undefined;
   }
@@ -607,9 +649,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   getLabelUpdateTriggers(): Record<string, string> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
     const {fontFamily} = this.props;
-    const fontFamilyKey = String(
-      typeof fontFamily === 'function' ? 'fn' : JSON.stringify(fontFamily ?? null)
-    );
+    const fontFamilyKey =
+      typeof fontFamily === 'function'
+        ? `fn${getFunctionId(fontFamily)}`
+        : JSON.stringify(fontFamily ?? null);
 
     return {
       getText: `${getTrigger(
@@ -760,6 +803,18 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (changeFlags.dataChanged || anchorKey !== this.state.anchorKey) {
       const features = Array.isArray(data) ? data : data.features || [];
       this.setState({labelData: this.getLabelData(features, geographic), anchorKey});
+    }
+    // deck.gl re-evaluates every label's text when the rows or the text trigger change; each
+    // evaluation starts a new text cache with a fresh wrap budget.
+    const key: [string, LabelRow[] | undefined] = [
+      this.getLabelUpdateTriggers().getText,
+      this.state.labelData
+    ];
+    const [lastTrigger, lastRows] = this.state.labelText?.key || [];
+    if (key[0] !== lastTrigger || key[1] !== lastRows) {
+      this.setState({
+        labelText: {key, budget: {steps: TILE_WRAP_BUDGET_STEPS}, labels: new WeakMap()}
+      });
     }
   }
 

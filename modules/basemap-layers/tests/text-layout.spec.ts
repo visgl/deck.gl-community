@@ -244,3 +244,65 @@ describe('resource bounds on untrusted labels', () => {
     expect(getCharacterWidthMeasurer(400, 'font-bound-test-0')).not.toBe(first);
   });
 });
+
+describe('per-tile wrap budget', () => {
+  test('charges each wrap its cost and skips a wrap the budget cannot pay', () => {
+    // 9 characters and 2 break opportunities: 9 + 2 * 3 / 2 = 12 steps.
+    const budget = {steps: 12};
+    expect(wrapText('aaa bb cc', 6, measure, budget)).toBe('aaa\nbb cc');
+    expect(budget.steps).toBe(0);
+    expect(wrapText('aaa bb cc', 6, measure, budget)).toBe('aaa bb cc');
+    expect(budget.steps).toBe(0);
+  });
+
+  /** A label layer that has gone through `updateState` with one feature per name. */
+  function updatedLayer(layout: Record<string, unknown>, names: string[]) {
+    const data = names.map(name => feature({name}));
+    const layer = labelLayer(layout, 7.6, {data});
+    layer.state = {};
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    return {layer, data};
+  }
+
+  const IDEOGRAPHS = '天'.repeat(MAX_WRAPPED_TEXT_LENGTH);
+
+  test('bounds the wrapping work of one tile and keeps every read of a label the same', () => {
+    const {layer, data} = updatedLayer(
+      {'text-field': ['get', 'name']},
+      Array.from({length: 500}, () => IDEOGRAPHS)
+    );
+    const start = performance.now();
+    const first = data.map(object => layer.getLabel(object));
+    expect(performance.now() - start).toBeLessThan(1000);
+    const wrapped = first.filter(label => label?.includes('\n')).length;
+    expect(wrapped).toBeGreaterThan(0);
+    expect(wrapped).toBeLessThan(data.length);
+    // deck.gl reads each label several times per update; the reads must agree.
+    expect(data.map(object => layer.getLabel(object))).toEqual(first);
+  });
+
+  test('grants a fresh budget when the text trigger changes', () => {
+    const layout: Record<string, unknown> = {'text-field': ['get', 'name']};
+    const {layer, data} = updatedLayer(
+      layout,
+      Array.from({length: 500}, () => IDEOGRAPHS)
+    );
+    const last = data[data.length - 1];
+    data.forEach(object => layer.getLabel(object));
+    // The budget ran out before the last label.
+    expect(layer.getLabel(last)).toBe(IDEOGRAPHS);
+    layout['text-max-width'] = 20;
+    layer.updateState({changeFlags: {}} as any);
+    expect(layer.getLabel(last)).toContain('\n');
+  });
+});
+
+describe('fontFamily in the text trigger', () => {
+  test('keys a function by identity', () => {
+    const font = () => 'serif';
+    const trigger = (fontFamily: unknown) =>
+      labelLayer({'text-field': 'x'}, 7.6, {fontFamily}).getLabelUpdateTriggers().getText;
+    expect(trigger(font)).toBe(trigger(font));
+    expect(trigger(() => 'serif')).not.toBe(trigger(font));
+  });
+});

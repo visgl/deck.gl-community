@@ -178,31 +178,46 @@ function determineLineBreaks(
 export const MAX_WRAPPED_TEXT_LENGTH = 256;
 
 /**
+ * Line-breaking work that {@link wrapText} may still spend, shared by the labels of one tile and
+ * style layer. Each wrap costs an upper bound of its steps: one per character plus one per pair of
+ * break opportunities. A label whose cost exceeds what is left is returned unwrapped.
+ */
+export type WrapBudget = {steps: number};
+
+/**
  * Breaks `text` into lines no wider than `maxWidth` ems where it can, with MapLibre's balanced
  * line breaking, and returns the lines joined by '\n'. Advances from `measure` are in ems;
  * words without break opportunities stay intact, even when they exceed the requested width.
- * Text longer than {@link MAX_WRAPPED_TEXT_LENGTH} is returned unchanged.
+ * Text longer than {@link MAX_WRAPPED_TEXT_LENGTH}, or whose cost exceeds `budget`, is returned
+ * unchanged.
  */
 export function wrapText(
   text: string,
   maxWidth: number,
-  measure: (character: string) => number
+  measure: (character: string) => number,
+  budget?: WrapBudget
 ): string {
   if (text.length > MAX_WRAPPED_TEXT_LENGTH) {
     return text;
   }
   const characters = Array.from(text);
-  if (
-    !characters.some(character => {
-      const codePoint = character.codePointAt(0)!;
-      return (
-        BREAKABLE.has(codePoint) ||
-        BREAKABLE_BEFORE.has(codePoint) ||
-        charAllowsIdeographicBreaking(codePoint)
-      );
-    })
-  )
-    return text;
+  let breakOpportunities = 0;
+  for (const character of characters) {
+    const codePoint = character.codePointAt(0)!;
+    if (
+      BREAKABLE.has(codePoint) ||
+      BREAKABLE_BEFORE.has(codePoint) ||
+      charAllowsIdeographicBreaking(codePoint)
+    ) {
+      breakOpportunities++;
+    }
+  }
+  if (!breakOpportunities) return text;
+  if (budget) {
+    const cost = characters.length + (breakOpportunities * (breakOpportunities + 1)) / 2;
+    if (cost > budget.steps) return text;
+    budget.steps -= cost;
+  }
 
   const lines: string[] = [];
   let start = 0;
