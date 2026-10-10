@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 A collection of generic react components to use with deck.gl
 
 > After the introduction of widgets in deck.gl 9.1, the general direction is to develop components as widgets (these work in all deck.gl environments, not just React) and phase out older React components.

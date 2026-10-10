@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # GridLayer
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="grid-layer" size="tall" />
 
 `GridLayer` renders labeled reference lines that align with graph ranks or any

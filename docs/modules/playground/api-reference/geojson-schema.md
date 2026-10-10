@@ -1,5 +1,7 @@
 # GeoJSON Schema
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 The private playground workspace includes RFC 7946 GeoJSON schemas for positions, bounding boxes,
 all standard geometry types, features, and feature collections.
 

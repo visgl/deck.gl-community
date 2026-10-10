@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # PathBasedRoundedRectangleLayer
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="path-rounded-rectangle-layer" size="tall" />
 
 `PathBasedRoundedRectangleLayer` renders rounded rectangles by tessellating a

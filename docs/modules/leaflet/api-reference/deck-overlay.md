@@ -1,5 +1,7 @@
 # DeckOverlay
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 A `DeckOverlay` is a leaflet layer that renders deck.gl layers on top of a leaflet base map. `DeckOverlay` is an implementation of [L.Layer](https://leafletjs.com/reference.html#layer) and can be interleaved with other Leaflet layers.
 
 ```js

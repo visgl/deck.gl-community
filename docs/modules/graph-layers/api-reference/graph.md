@@ -4,6 +4,8 @@ title: Graph Interface
 
 # Graph Interface
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 The `Graph` interface is the runtime abstraction consumed by the graph-layers module. It presents a
 stable API for enumerating nodes and edges plus inspecting or mutating their state through
 [`NodeInterface`](./node.md) and [`EdgeInterface`](./edge.md). Concrete implementations such as

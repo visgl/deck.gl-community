@@ -1,5 +1,7 @@
 # MetricsPanel
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 `MetricsPanel` displays a plain telemetry snapshot as a semantic description list. Use it for counts, bytes, timings, ratios, status strings, or release names. Use `StatsPanel` when your application already has a probe.gl `Stats` bag.
 
 ```ts

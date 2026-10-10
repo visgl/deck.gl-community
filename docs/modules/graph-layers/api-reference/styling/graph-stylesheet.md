@@ -1,5 +1,7 @@
 # Graph stylesheet reference
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 `GraphLayer` accepts a single `stylesheet` prop that describes how every node,
 edge, and decorator should render. A stylesheet is a declarative bundle of
 **style layers** that the `GraphLayer` uses to render the graphics for nodes and edges.

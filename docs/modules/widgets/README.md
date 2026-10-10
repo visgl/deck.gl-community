@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 This package bundles widgets that integrate with deck.gl's built-in widget system. Widgets are small UI controls that the `Deck` class can mount in a view to manipulate the current view state.
 
 Alongside classic navigation and overlay widgets, the package exports

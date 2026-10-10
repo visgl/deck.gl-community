@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 
 This module allows [Leaflet](https://leafletjs.com/) to be used as a [deck.gl](https://deck.gl) basemap. 
 

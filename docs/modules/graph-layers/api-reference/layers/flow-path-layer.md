@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # FlowPathLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="flow-path-layer" size="tall" />
 
 `FlowPathLayer` extends Deck.gl's `LineLayer` to add instanced attributes for

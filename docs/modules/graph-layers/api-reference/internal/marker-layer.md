@@ -1,5 +1,7 @@
 # MarkerLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 This layer provides the basic marker functionality. This marker layer provided by Deck.gl only has one marker (circle) while this layer provides numerous markers.
 
 ## Example

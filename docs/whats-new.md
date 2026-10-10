@@ -1,6 +1,6 @@
 # What's New
 
-Major module additions and changes by release. Modules are independently maintained; see each module's documentation for API details and compatibility.
+This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
 ## v10 — In Development
 

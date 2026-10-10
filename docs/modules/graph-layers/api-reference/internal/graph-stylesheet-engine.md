@@ -1,5 +1,7 @@
 ## GraphStylesheetEngine
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 > Looking for stylesheet authoring guidance? Start with the [graph stylesheet reference](../styling/graph-stylesheet.md), which documents the structure of the style objects you pass into `GraphLayer`.
 
 `GraphStylesheetEngine` is the runtime helper that turns user-authored `GraphStylesheet` objects into the Deck.gl accessors consumed by the graph layers. It extends the reusable `StylesheetEngine` utility, so advanced renderers can reuse the parsing, state-selector handling, and update-trigger wiring outside of `GraphLayer`. The class is still exported as `GraphStyleEngine` for backwards compatibility, but new code should prefer `GraphStylesheetEngine`.
