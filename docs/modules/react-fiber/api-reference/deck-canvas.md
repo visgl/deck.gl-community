@@ -73,3 +73,10 @@ registry temporarily wraps this Deck instance's `setProps` method and restores
 it when the last panel unmounts. Call `deck.setProps` through the instance while
 panels are mounted; previously captured references bypass the registry. Do not
 replace `deck.setProps` while panels are attached.
+
+## Example
+
+The [multi-canvas cities example](https://github.com/visgl/deck.gl-community/tree/master/examples/react-fiber/multi-canvas)
+ports deck.gl's four-city demo to React Fiber, including independent basemap
+styles, controllers, zoom widgets and shared hover state. Run it with
+`yarn workspace example-react-fiber-multi-canvas start` from the repository root.
