@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import {describe, expect, test} from 'vitest';
-import {MVTLabelLayer} from '../src/mvt-label-layer.ts';
+import {getOutlineWidth, MVTLabelLayer} from '../src/mvt-label-layer.ts';
 
 const feature = {
   type: 'Feature',
@@ -8,83 +8,133 @@ const feature = {
   properties: {layerName: 'place', rank: 2}
 };
 
-function haloLayer(paint: Record<string, unknown>, zoom = 7.6): any {
+const WHITE_HALO = {'text-halo-color': '#ffffff', 'text-halo-width': 1};
+
+function haloLayer(
+  paint: Record<string, unknown>,
+  zoom = 7.6,
+  data: unknown[] = [],
+  layout: Record<string, unknown> = {}
+): any {
   return new MVTLabelLayer({
     id: 'labels',
     config: {labels: true},
-    styleLayer: {layout: {'text-field': 'Label'}, paint},
+    styleLayer: {layout: {'text-field': 'Label', ...layout}, paint},
     zoom,
-    labelBackground: [255, 255, 255, 255]
+    data
   } as any);
+}
+
+/** Runs `updateState` outside deck.gl and returns the layer's text sublayers. */
+function renderTextLayers(layer: any, dataChanged = true): any[] {
+  layer.context = {} as any;
+  layer.internalState = {subLayers: []} as any;
+  layer.state = layer.state || {};
+  layer.setState = (partial: Record<string, unknown>) => Object.assign(layer.state, partial);
+  layer.updateState({changeFlags: {dataChanged}} as any);
+  return layer.renderLayers().filter((sublayer: any) => /-text(-\d+)?$/.test(sublayer.id));
+}
+
+/** The label a text sublayer draws for each row. */
+function drawnText(text: any, rows: unknown[]): unknown[] {
+  return rows.map((row, index) => text.props.getText(row, {index, data: rows, target: []}));
 }
 
 describe('label halo opacity', () => {
   test('a hidden label leaves no halo', () => {
-    const layer = haloLayer({'text-opacity': 0, 'text-halo-color': '#ffffff'});
+    const layer = haloLayer({...WHITE_HALO, 'text-opacity': 0});
     expect(layer.getLabelColor(feature)[3]).toBe(0);
-    expect(layer.getLabelBackgroundColor(feature)[3]).toBe(0);
+    expect(layer.getLabelHalo(feature)).toBeNull();
   });
 
   test('the halo fades with a data-driven text-opacity', () => {
-    const layer = haloLayer({'text-opacity': ['/', ['get', 'rank'], 4]});
-    expect(layer.getLabelBackgroundColor(feature)).toEqual([255, 255, 255, 128]);
+    const layer = haloLayer({...WHITE_HALO, 'text-opacity': ['/', ['get', 'rank'], 4]});
+    expect(layer.getLabelHalo(feature).outlineColor).toEqual([255, 255, 255, 128]);
   });
 
-  test('a zoom-dependent text-opacity also triggers the halo', () => {
-    const layer = haloLayer({
-      'text-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0, 10, 1]
-    });
-    expect(layer.getLabelUpdateTriggers().getBackgroundColor).not.toEqual(
-      haloLayer({}).getLabelUpdateTriggers().getBackgroundColor
-    );
+  test('keeps a faint halo faint', () => {
+    // `rgba(255,255,255,0.004)` keeps a 0-255 alpha of 1.
+    const faint = {'text-halo-color': 'rgba(255,255,255,0.004)', 'text-halo-width': 1};
+    expect(haloLayer(faint).getLabelHalo(feature).outlineColor).toEqual([255, 255, 255, 1]);
+    const translucent = {'text-halo-color': 'rgba(255,255,255,0.8)', 'text-halo-width': 1};
+    expect(
+      haloLayer({...translucent, 'text-opacity': 0.5}).getLabelHalo(feature).outlineColor
+    ).toEqual([255, 255, 255, 102]);
+  });
+});
+
+describe('label halo width', () => {
+  test('converts text-halo-width pixels to a TextLayer outline width', () => {
+    // A 1 px halo on 16 px text is 4 pixels of the 64 px atlas glyph, drawn at 0.75 per unit.
+    expect(getOutlineWidth(1, 16)).toBeCloseTo(5.33, 2);
+    // The same halo on text twice the size is half as wide relative to the glyph.
+    expect(getOutlineWidth(1, 32)).toBeCloseTo(2.67, 2);
+    expect(getOutlineWidth(2, 16)).toBeCloseTo(10.67, 2);
+  });
+
+  test('caps the halo at a quarter of the text size, as MapLibre does', () => {
+    expect(getOutlineWidth(10, 16)).toEqual(getOutlineWidth(4, 16));
+    expect(getOutlineWidth(4, 16)).toBeGreaterThan(getOutlineWidth(3, 16));
+  });
+
+  test('uses the text size of the feature', () => {
+    const layer = haloLayer({...WHITE_HALO}, 7.6, [], {'text-size': 20});
+    expect(layer.getLabelHalo(feature).outlineWidth).toEqual(getOutlineWidth(1, 20));
   });
 });
 
 describe('label halo wiring', () => {
-  test('the text sublayer draws the faded halo, not the constant one', () => {
-    const layer = haloLayer({'text-opacity': 0});
-    layer.state = {labelData: [{position: [0, 0], feature}]};
-    layer.context = {} as any;
-    layer.internalState = {subLayers: []} as any;
-    const [text] = layer.renderLayers();
-    const getBackgroundColor = text.props.getBackgroundColor;
-    expect(typeof getBackgroundColor).toBe('function');
-    expect(
-      getBackgroundColor({position: [0, 0], feature}, {index: 0, data: [], target: []})[3]
-    ).toBe(0);
+  test('one halo draws one text sublayer with an outline', () => {
+    const texts = renderTextLayers(haloLayer({...WHITE_HALO}, 7.6, [feature, feature]));
+    expect(texts).toHaveLength(1);
+    expect(texts[0].props.fontSettings.sdf).toBe(true);
+    expect(texts[0].props.outlineWidth).toEqual(getOutlineWidth(1, 16));
+    expect(texts[0].props.outlineColor).toEqual([255, 255, 255, 255]);
+    // The background box is only for the collision pass, never a visible halo.
+    expect(texts[0].props.getBackgroundColor).toEqual([0, 0, 0, 0]);
   });
-});
 
-describe('label halo color', () => {
-  function layerWithBackground(
-    labelBackground: number[],
-    paint: Record<string, unknown> = {}
-  ): any {
-    return new MVTLabelLayer({
-      id: 'labels',
-      config: {labels: true},
-      styleLayer: {layout: {'text-field': 'Label'}, paint},
-      zoom: 7.6,
-      labelBackground
-    } as any);
-  }
+  test('without a halo the text has no outline', () => {
+    const texts = renderTextLayers(haloLayer({'text-halo-color': '#ffffff'}, 7.6, [feature]));
+    expect(texts).toHaveLength(1);
+    expect(texts[0].props.outlineWidth).toBe(0);
+  });
 
-  test('keeps a faint halo faint', () => {
-    // `rgba(255,255,255,0.004)` arrives as a 0-255 alpha of 1.
-    expect(layerWithBackground([255, 255, 255, 1]).getLabelBackgroundColor(feature)).toEqual([
-      255, 255, 255, 1
+  test('each distinct halo draws its own rows, keeping row indices', () => {
+    const features = [1, 2, 0, 2].map(halo => ({
+      ...feature,
+      properties: {...feature.properties, halo}
+    }));
+    const layer = haloLayer(
+      {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']},
+      7.6,
+      features
+    );
+    const texts = renderTextLayers(layer);
+    const rows = layer.state.labelData;
+    expect(texts.map(text => text.props.outlineWidth)).toEqual([
+      getOutlineWidth(1, 16),
+      getOutlineWidth(2, 16),
+      0
     ]);
-    expect(
-      layerWithBackground([255, 255, 255, 200], {'text-opacity': 0.5}).getLabelBackgroundColor(
-        feature
-      )
-    ).toEqual([255, 255, 255, 100]);
+    // Every sublayer gets all rows, so the collision filter sees the same row indices.
+    expect(texts.every(text => text.props.data === rows)).toBe(true);
+    expect(texts.map(text => drawnText(text, rows))).toEqual([
+      ['Label', undefined, undefined, undefined],
+      [undefined, 'Label', undefined, 'Label'],
+      [undefined, undefined, 'Label', undefined]
+    ]);
   });
 
-  test('the halo trigger follows the halo color', () => {
-    const trigger = (labelBackground: number[]) =>
-      layerWithBackground(labelBackground).getLabelUpdateTriggers().getBackgroundColor;
-    expect(trigger([255, 255, 255, 255])).not.toEqual(trigger([0, 0, 0, 255]));
-    expect(trigger([255, 255, 255, 255])).toEqual(trigger([255, 255, 255, 255]));
+  test('a zoom-dependent halo is re-evaluated at a new zoom step', () => {
+    const paint = {'text-halo-color': '#ffffff', 'text-halo-width': ['step', ['zoom'], 0, 10, 2]};
+    const layer = haloLayer(paint, 8, [feature]);
+    expect(renderTextLayers(layer)[0].props.outlineWidth).toBe(0);
+    const rows = layer.state.labelData;
+    // deck.gl carries the state over to the layer with the new props; the tile data is unchanged.
+    const zoomed = haloLayer(paint, 11, [feature]);
+    zoomed.state = layer.state;
+    expect(renderTextLayers(zoomed, false)[0].props.outlineWidth).toEqual(getOutlineWidth(2, 16));
+    expect(zoomed.state.labelData).toBe(rows);
   });
 });
