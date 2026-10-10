@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {expect, test, vi} from 'vitest';
+import {coordCenter} from 'd3-dag';
 import {ClassicGraph} from '../../src/graph/classic-graph';
 import {GraphEngine} from '../../src/core/graph-engine';
 import {SimpleLayout, type SimpleLayoutProps} from '../../src/layouts/simple-layout';
@@ -127,4 +128,58 @@ test('does not rerun collapsed DAG geometry for an unchanged collapse prop', () 
   expect(onLayoutDone).not.toHaveBeenCalled();
   layout.setProps({collapseLinearChains: true});
   expect(onLayoutDone).toHaveBeenCalledTimes(1);
+});
+
+test('preserves pinned SimpleLayout geometry across accessor changes until unlocked', () => {
+  const graph = createGraph();
+  const layout = new SimpleLayout();
+  const engine = new GraphEngine({graph, layout});
+  engine.run();
+  try {
+    const node = graph.findNode('a')!;
+    layout.lockNodePosition(node, 100, 200);
+    layout.setNodePositionAccessor(item => [
+      item.getPropertyValue('x') + 10,
+      item.getPropertyValue('y') + 20
+    ]);
+    expect(engine.getNodePosition(node)).toEqual([100, 200]);
+    expect(engine.getNodePosition(graph.findNode('b')!)).toEqual([13, 24]);
+    expect(engine.getEdgePosition(graph.findEdge('ab')!).sourcePosition).toEqual([100, 200]);
+    expect(engine.getLayoutBounds()).toEqual([
+      [13, 24],
+      [100, 200]
+    ]);
+    layout.unlockNodePosition(node);
+    expect(engine.getNodePosition(node)).toEqual([11, 22]);
+    expect(engine.getEdgePosition(graph.findEdge('ab')!).sourcePosition).toEqual([11, 22]);
+    expect(engine.getLayoutBounds()).toEqual([
+      [11, 22],
+      [15, 26]
+    ]);
+    layout.lockNodePosition(node, 100, 200);
+    graph.removeNode(node.getId());
+    layout.updateGraph(graph);
+    // Reusing a removed ID must not inherit its old pin.
+    const nextGraph = createGraph();
+    layout.updateGraph(nextGraph);
+    layout.update();
+    expect(layout.getNodePosition(nextGraph.findNode('a')!)).toEqual([11, 22]);
+  } finally {
+    engine.clear();
+  }
+});
+
+test('uses a replacement custom DAG coordinate operator after the initial layout run', () => {
+  const graph = createGraph();
+  const firstCoord = vi.fn(coordCenter());
+  const secondCoord = vi.fn(coordCenter());
+  const layout = new D3DagLayout({customCoord: firstCoord});
+  layout.initializeGraph(graph);
+  layout.start();
+  expect(firstCoord).toHaveBeenCalledTimes(1);
+  layout.setProps({customCoord: secondCoord});
+  expect(secondCoord).not.toHaveBeenCalled();
+  layout.update();
+  expect(secondCoord).toHaveBeenCalledTimes(1);
+  expect(firstCoord).toHaveBeenCalledTimes(1);
 });
