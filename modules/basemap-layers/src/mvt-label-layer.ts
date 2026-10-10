@@ -810,7 +810,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!lines.length) {
       return [];
     }
-    const {zoom, tileSize} = this.getLinePlacementScale();
+    const {zoom, tileZoom, tileSize} = this.getLinePlacementScale();
     const evaluate = (name: string) =>
       Number(this.getStyleProperty(name)?.evaluate(zoom, feature) ?? getStylePropertyDefault(name));
     const textSize = evaluate('text-size');
@@ -830,7 +830,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       textSize,
       labelLength: Math.max(textLength, iconLength)
     };
-    const scale = geographic ? tileSize * 2 ** zoom : tileSize;
+    // `tileSize` is the tile's size at the placement zoom, so the world is `2 ** tileZoom` tiles
+    // across: globe coordinates, `[0, 1]` across the world, take the overzoom factor only once.
+    const scale = geographic ? tileSize * 2 ** tileZoom : tileSize;
     const bounds = this.getTileBounds(geographic);
     const clipBounds = bounds && getLineClipBounds(bounds, options.placement);
     // One feature may spend at most the single-feature default, and never more than the tile has.

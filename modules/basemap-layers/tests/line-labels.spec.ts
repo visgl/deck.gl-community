@@ -233,6 +233,30 @@ describe('MVTLabelLayer line placement', () => {
     expect(north.angle).toBeCloseTo(90, 6);
   });
 
+  test('spaces an overzoomed globe tile at the map zoom', () => {
+    // A zoom-8 tile at map zoom 10: 2 degrees of longitude is 2912.7 px, labels every 250 px.
+    const rows = lineLayer({tileZoom: 8, zoom: 10}).getLabelData(
+      [
+        {
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [-1, 0],
+              [1, 0]
+            ]
+          },
+          properties: {name: 'Main'}
+        }
+      ],
+      true
+    ) as any[];
+    const pixels = (2 / 360) * 512 * 2 ** 10;
+    expect(rows).toHaveLength(12);
+    rows.slice(1).forEach((row, i) => {
+      expect(row.position[0] - rows[i].position[0]).toBeCloseTo((2 * 250) / pixels, 6);
+    });
+  });
+
   test('keeps point placement on lines at the middle vertex', () => {
     const rows = lineLayer({}, {'symbol-placement': 'point'}).getLabelData(
       [ACROSS_TILE],
