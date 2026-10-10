@@ -845,21 +845,7 @@ function createLineSubLayers({
     });
   }
 
-  // deck.gl applies caps and joins to a whole layer, so per-feature values split the features
-  // into one sublayer per distinct shape, in the order each shape first appears.
-  const getShape = lineShape.value;
-  const groups = new Map<string, {shape: LineShape; features: any[]}>();
-  for (const feature of features) {
-    const shape = getShape(feature);
-    const key = `${shape.lineCapRounded}-${shape.lineJointRounded}-${shape.lineMiterLimit}`;
-    let group = groups.get(key);
-    if (!group) {
-      group = {shape, features: []};
-      groups.set(key, group);
-    }
-    group.features.push(feature);
-  }
-  return [...groups].map(([key, group]) =>
+  return getLineShapeGroups(features, styleLayer, lineShape).map(group =>
     createGeometrySubLayer({
       props,
       styleLayer,
@@ -867,9 +853,62 @@ function createLineSubLayers({
       mode,
       zoom,
       lineShape: group.shape,
-      idSuffix: `-${key}`
+      idSuffix: `-${group.key}`
     })
   );
+}
+
+type LineShapeGroup = {key: string; shape: LineShape; features: any[]};
+
+/** The latest line shape groups per tile content and style layer. */
+const lineShapeGroupCache = new WeakMap<
+  any[],
+  WeakMap<BasemapStyleLayer, {key: unknown[]; groups: LineShapeGroup[]}>
+>();
+
+/**
+ * Splits features by their per-feature line shape, since deck.gl applies caps and joins to a
+ * whole layer. Groups are in the order each shape first appears, so features draw group by group
+ * rather than in source order. The groups, and so their feature arrays, are reused while the
+ * layout values (and, when they depend on zoom, the style zoom) are unchanged, so deck.gl does not
+ * re-tessellate the features at every zoom step.
+ */
+function getLineShapeGroups(
+  features: any[],
+  styleLayer: BasemapStyleLayer,
+  lineShape: StyleAccessor<LineShape>
+): LineShapeGroup[] {
+  const key = [
+    styleLayer.layout?.['line-cap'],
+    styleLayer.layout?.['line-join'],
+    styleLayer.layout?.['line-miter-limit'],
+    lineShape.updateTrigger
+  ];
+  let byStyleLayer = lineShapeGroupCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    lineShapeGroupCache.set(features, byStyleLayer);
+  }
+  const cached = byStyleLayer.get(styleLayer);
+  if (cached && cached.key.every((entry, index) => entry === key[index])) {
+    return cached.groups;
+  }
+
+  const getShape = lineShape.value as (feature: any) => LineShape;
+  const groups = new Map<string, LineShapeGroup>();
+  for (const feature of features) {
+    const shape = getShape(feature);
+    const groupKey = `${shape.lineCapRounded}-${shape.lineJointRounded}-${shape.lineMiterLimit}`;
+    let group = groups.get(groupKey);
+    if (!group) {
+      group = {key: groupKey, shape, features: []};
+      groups.set(groupKey, group);
+    }
+    group.features.push(feature);
+  }
+  const result = [...groups.values()];
+  byStyleLayer.set(styleLayer, {key, groups: result});
+  return result;
 }
 
 function createGeometrySubLayer({

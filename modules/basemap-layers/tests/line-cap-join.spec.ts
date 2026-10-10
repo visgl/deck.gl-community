@@ -141,6 +141,66 @@ describe('line-cap and line-join', () => {
     expect(new Set(sublayers.map(sublayer => sublayer.id)).size).toBe(3);
   });
 
+  describe('per-feature shape groups across zoom steps', () => {
+    const features = [lineFeature({kind: 'road'}), lineFeature({kind: 'rail'})];
+
+    /** Renders the same style and tile at each zoom and returns each zoom's sublayer data. */
+    function groupDataAt(layout: Record<string, unknown>, zooms: number[]): any[][][] {
+      const style = {
+        version: 8,
+        sources: SOURCES,
+        layers: [
+          {id: 'road', type: 'line', source: 'tiles', 'source-layer': 'transportation', layout}
+        ]
+      } as any;
+      return zooms.map(zoom => {
+        const vectorLayer: any = getBasemapLayers({
+          idPrefix: 'test',
+          mode: 'map',
+          zoom,
+          styleDefinition: style
+        }).find(layer => layer.id === 'test-tiles');
+        return vectorLayer.props
+          .renderSubLayers({
+            id: 'test-tiles-tile',
+            data: features,
+            tile: {index: {x: 0, y: 0, z: 12}}
+          })
+          .flat()
+          .map((sublayer: any) => sublayer.props.data);
+      });
+    }
+
+    test('reuse their feature arrays when the values do not depend on zoom', () => {
+      const [first, second] = groupDataAt(
+        {'line-cap': ['match', ['get', 'kind'], 'road', 'round', 'butt']},
+        [12, 12.5]
+      );
+      expect(first).toHaveLength(2);
+      expect(second[0]).toBe(first[0]);
+      expect(second[1]).toBe(first[1]);
+    });
+
+    test('regroup at each zoom step when the values depend on zoom', () => {
+      const [first, second, third] = groupDataAt(
+        {
+          'line-cap': [
+            'step',
+            ['zoom'],
+            ['match', ['get', 'kind'], 'road', 'round', 'butt'],
+            13,
+            'round'
+          ]
+        },
+        [12, 12, 13]
+      );
+      expect(second[0]).toBe(first[0]);
+      expect(first).toHaveLength(2);
+      expect(third).toHaveLength(1);
+      expect(third[0]).toHaveLength(2);
+    });
+  });
+
   test('per-feature values that agree draw one sublayer', () => {
     const sublayers = sublayersFor(
       {type: 'line', layout: {'line-join': ['coalesce', ['get', 'join'], 'round']}},

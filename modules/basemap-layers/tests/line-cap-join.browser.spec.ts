@@ -109,10 +109,10 @@ function isInked(image: ImageData, x: number, y: number): boolean {
 
 const CENTER = SIZE / 2;
 
-/** Renders a black 10 pixel wide line with the given layout. */
-function renderLine(coordinates: number[][], layout: Record<string, unknown>) {
+/** Renders a black line, 10 pixels wide by default, with the given layout. */
+function renderLine(coordinates: number[][], layout: Record<string, unknown>, width = 10) {
   return renderFlat(
-    styleSublayers({layout, paint: {'line-color': '#000000', 'line-width': 10}}, [
+    styleSublayers({layout, paint: {'line-color': '#000000', 'line-width': width}}, [
       feature('LineString', coordinates)
     ])
   );
@@ -159,9 +159,9 @@ describe('line-join in the browser', () => {
   ];
 
   /** How far above the vertex the joint reaches along the middle column, in pixels. */
-  function jointReach(image: ImageData): number {
+  function jointReach(image: ImageData, x = CENTER): number {
     for (let y = 0; y < SIZE; y++) {
-      if (isInked(image, CENTER, y)) {
+      if (isInked(image, x, y)) {
         return CENTER - y;
       }
     }
@@ -193,5 +193,16 @@ describe('line-join in the browser', () => {
     const reach = jointReach(await renderLine(CORNER, {'line-join': 'round'}));
     expect(reach).toBeGreaterThanOrEqual(4);
     expect(reach).toBeLessThanOrEqual(5);
+  });
+
+  test('a bevel is cut flat where a round join curves away', async () => {
+    // A 30 pixel line: both reach 15 pixels above the vertex, but 8 pixels to the side the
+    // round join has curved down to sqrt(15^2 - 8^2) = 12.7 pixels, while the flat cut stays at 15.
+    const bevel = jointReach(await renderLine(CORNER, {'line-join': 'bevel'}, 30), CENTER + 8);
+    const round = jointReach(await renderLine(CORNER, {'line-join': 'round'}, 30), CENTER + 8);
+    expect(bevel).toBeGreaterThanOrEqual(14);
+    expect(bevel).toBeLessThanOrEqual(15);
+    expect(round).toBeGreaterThanOrEqual(12);
+    expect(round).toBeLessThanOrEqual(13);
   });
 });
