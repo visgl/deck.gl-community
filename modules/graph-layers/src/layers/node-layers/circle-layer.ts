@@ -14,11 +14,13 @@ export class CircleLayer extends CompositeLayer {
     return [
       new ScatterplotLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__scatterplot-layer',
           data,
           getPosition,
           ...stylesheet.getDeckGLAccessors(),
           updateTriggers: {
+            all: this.props.transitions,
             getPosition: positionUpdateTrigger,
             ...stylesheet.getDeckGLUpdateTriggers()
           }

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `GraphLayer.layoutTransitionDuration` enables opt-in position interpolation independently of layout redraw throttling.
+
 - `GraphLayer` bypasses raw `graphLoader` converters for normalized `PlainGraphData`
   and `ArrowGraphData`, allowing loaded graph URLs to coexist with custom raw converters.
 

@@ -14,11 +14,13 @@ export class LabelLayer extends CompositeLayer {
     return [
       new ZoomableTextLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__text-layer',
           data,
           getPosition,
           ...stylesheet.getDeckGLAccessors(),
           updateTriggers: {
+            all: this.props.transitions,
             ...stylesheet.getDeckGLUpdateTriggers(),
             getPosition: positionUpdateTrigger
           }
