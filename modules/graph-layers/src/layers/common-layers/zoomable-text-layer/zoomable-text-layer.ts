@@ -18,9 +18,16 @@ export class ZoomableTextLayer extends CompositeLayer {
   shouldUpdateState({props, changeFlags}) {
     const {scaleWithZoom} = this.props as any;
     if (!scaleWithZoom) {
-      return changeFlags.dataChanged || changeFlags.propsChanged;
+      return (
+        changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.updateTriggersChanged
+      );
     }
-    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged;
+    return (
+      changeFlags.dataChanged ||
+      changeFlags.propsChanged ||
+      changeFlags.updateTriggersChanged ||
+      changeFlags.viewportChanged
+    );
   }
 
   // eslint-disable-next-line complexity
@@ -69,6 +76,7 @@ export class ZoomableTextLayer extends CompositeLayer {
     return [
       new TextLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__text-layer',
           data: filteredData,
           sizeScale: scaleWithZoom ? Math.pow(2, this.context.viewport.zoom - 1) : 1,
@@ -86,6 +94,7 @@ export class ZoomableTextLayer extends CompositeLayer {
           wordUnits: textWordUnits ?? 'pixels',
           sizeMinPixels: textSizeMinPixels ?? 9,
           updateTriggers: {
+            all: this.props.transitions,
             getSize: sizeUpdateTrigger,
             getAngle: [sizeUpdateTrigger, updateTriggers.getPosition],
             ...updateTriggers

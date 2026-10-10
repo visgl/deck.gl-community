@@ -1,5 +1,7 @@
 # H3Grid
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ## Purpose
 
 `H3Grid` exposes deck.gl's bigint-aware integration with the H3 DGGS. It wraps the helper utilities that convert between H3 index strings, bigint identifiers, and polygon geometry so the `GlobalGridLayer` can render H3 cells without additional glue code.

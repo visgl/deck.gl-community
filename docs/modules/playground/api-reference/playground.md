@@ -1,5 +1,7 @@
 # Playground
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 `DeckPlayground` combines a template selector, JSON editor, and persistent deck.gl preview.
 `Playground` uses an application-owned renderer. See the [usage guide](../README.md) for setup.
 

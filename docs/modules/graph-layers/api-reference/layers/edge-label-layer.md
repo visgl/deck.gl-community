@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # EdgeLabelLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="edge-label-layer" size="tall" />
 
 `EdgeLabelLayer` renders text annotations along edges. It wraps the reusable

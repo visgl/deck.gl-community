@@ -4,6 +4,8 @@ sidebar_label: DOT Graph Loader
 description: Load Graphviz DOT files through loaders.gl.
 ---
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 Use the published `@loaders.gl/graphs` package (4.5.3 or later) to parse DOT files.
 
 ```ts

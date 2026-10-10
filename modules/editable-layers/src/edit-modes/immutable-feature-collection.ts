@@ -24,7 +24,7 @@ export class ImmutableFeatureCollection {
   }
 
   /**
-   * Replaces the position deeply nested withing the given feature's geometry.
+   * Replaces the position deeply nested within the given feature's geometry.
    * Works with Point, MultiPoint, LineString, MultiLineString, Polygon, and MultiPolygon.
    *
    * @param featureIndex The index of the feature to update
@@ -59,7 +59,7 @@ export class ImmutableFeatureCollection {
    * Works with MultiPoint, LineString, MultiLineString, Polygon, and MultiPolygon.
    *
    * @param featureIndex The index of the feature to update
-   * @param positionIndexes An array containing the indexes of the postion to remove
+   * @param positionIndexes An array containing the indexes of the position to remove
    *
    * @returns A new `ImmutableFeatureCollection` with the given coordinate removed. Does not modify this `ImmutableFeatureCollection`.
    *

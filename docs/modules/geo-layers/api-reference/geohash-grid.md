@@ -1,5 +1,7 @@
 # GeohashGrid
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ## Purpose
 
 `GeohashGrid` decodes Geohash strings into the center points and boundary polygons required by `GlobalGridLayer`. It provides a lightweight bridge between Geohash tokens and deck.gl geometry without introducing bigint handling.

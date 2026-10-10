@@ -65,9 +65,9 @@ function decodeSequence(str) {
 }
 
 function decodeBbox(str) {
-  const multiplyer = Math.pow(10, COORDINATE_PRECISION);
+  const multiplier = Math.pow(10, COORDINATE_PRECISION);
   return decodeNumberArr(str, 90, 32, 5).map(function (x) {
-    return x / multiplyer - 180;
+    return x / multiplier - 180;
   });
 }
 
