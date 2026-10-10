@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # WindLayer
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 :::caution Work in progress
 The wind arrow API and styling are experimental. Native triangle glyphs and portable line
 segments render on WebGL2 and WebGPU, as does the showcase's image-based mountain terrain.

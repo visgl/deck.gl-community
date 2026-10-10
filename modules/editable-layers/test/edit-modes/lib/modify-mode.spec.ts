@@ -675,7 +675,7 @@ describe('getGuides()', () => {
     expect(intermediate).toMatchSnapshot();
   });
 
-  it('does not add intermeidate edit handle when no picks provided', () => {
+  it('does not add intermediate edit handle when no picks provided', () => {
     const mode = new ModifyMode();
     const props = createFeatureCollectionProps({
       data: {
@@ -694,7 +694,7 @@ describe('getGuides()', () => {
     expect(intermediate).toBeUndefined();
   });
 
-  it('does not add intermeidate edit handle when too close to existing edit handle', () => {
+  it('does not add intermediate edit handle when too close to existing edit handle', () => {
     const mode = new ModifyMode();
     const props = createFeatureCollectionProps({
       data: {
@@ -730,7 +730,7 @@ describe('getGuides()', () => {
     expect(intermediate).toBeUndefined();
   });
 
-  it('does not add intermeidate edit handle when pick is not a selected feature', () => {
+  it('does not add intermediate edit handle when pick is not a selected feature', () => {
     const mode = new ModifyMode();
     const props = createFeatureCollectionProps({
       data: {
@@ -748,7 +748,7 @@ describe('getGuides()', () => {
     expect(intermediate).toBeUndefined();
   });
 
-  it('does not add intermeidate edit handle when pick is a Point / MultiPoint', () => {
+  it('does not add intermediate edit handle when pick is a Point / MultiPoint', () => {
     const mode = new ModifyMode();
     const props = createFeatureCollectionProps({
       data: {

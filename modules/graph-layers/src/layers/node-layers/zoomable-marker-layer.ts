@@ -31,6 +31,7 @@ export class ZoomableMarkerLayer extends CompositeLayer {
     return [
       new MarkerLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: 'zoomable-marker-layer',
           data,
           getPosition,
@@ -38,6 +39,7 @@ export class ZoomableMarkerLayer extends CompositeLayer {
           ...stylesheet.getDeckGLAccessors(),
           getMarker,
           updateTriggers: {
+            all: this.props.transitions,
             ...stylesheet.getDeckGLUpdateTriggers(),
             getPosition: positionUpdateTrigger,
             getSize: sizeUpdateTrigger

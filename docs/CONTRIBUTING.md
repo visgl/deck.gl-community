@@ -7,7 +7,7 @@ Bug fixes are highly encouraged!
 For feature extensions to existing modules, it is generally recommended to start a discussion before you open a PR.
 
 If you have a new module that you think could fit into this repository, please start by opening a GitHub issue to start a discussion, or reach out in the OpenJS slack.
-Note that for a new module you will also be asked to asses what level of maintenance you will be able to provide over the longer term.
+Note that for a new module you will also be asked to assess what level of maintenance you will be able to provide over the longer term.
 
 ## Setup
 
@@ -43,7 +43,7 @@ Unfortunately, many good PRs are closed. By far the most common reason is that t
 Note that CI can usually be fixed in 1-2 minutes as follows:
 
 - `yarn lint-fix` - will run Biome formatting and lint fixes, and fixes most failed CI checks.
-- `yarn` - also make sure you run `yarn` to update `yarn.lock` after making changes depdencies in any `package.json` files. For security reasons, GitHub CI will reject your PR if your `yarn.lock` file is out of date with your `package.json` files.
+- `yarn` - also make sure you run `yarn` to update `yarn.lock` after making changes to dependencies in any `package.json` files. For security reasons, GitHub CI will reject your PR if your `yarn.lock` file is out of date with your `package.json` files.
 
 After running these commands just commit and push your PR again and it will likely run green.
 

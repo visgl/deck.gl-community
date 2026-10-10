@@ -172,7 +172,7 @@ function computeControlPoint({
   // curve direction
   const direction = sameSide && sourceNodeAxis <= halfAxis && targetNodeAxis <= halfAxis ? 1 : -1;
 
-  // flip the source/target to follow the clockwise diretion
+  // flip the source/target to follow the clockwise direction
   const source = sourceNodeAxis < targetNodeAxis && sameSide ? sourcePosition : targetPosition;
   const target = sourceNodeAxis < targetNodeAxis && sameSide ? targetPosition : sourcePosition;
 

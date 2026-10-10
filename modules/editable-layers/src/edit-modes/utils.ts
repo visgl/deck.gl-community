@@ -546,7 +546,7 @@ function normalizeVector(vector: number[]): number[] | null {
  * Each position in coordinates is transformed by calling the provided function.
  * @param coords Coordinates of a feature.
  * @param callback A function to transform each coordinate.
- * @retuns Transformed coordinates.
+ * @returns Transformed coordinates.
  */
 export function mapCoords(
   coords: SimpleGeometryCoordinates,

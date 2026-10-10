@@ -2,6 +2,8 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 # ZoomRangeWidget
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <WidgetLiveExample highlight="zoom-range-widget" />
 
 A vertical slider with increment/decrement buttons that adjusts the zoom level of the target view.
