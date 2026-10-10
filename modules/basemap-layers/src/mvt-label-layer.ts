@@ -17,6 +17,7 @@ import {
   type PoleSearchBudget
 } from './polylabel';
 import type {LabelFont, LabelFontFamily} from './text-font';
+import {getLineAnchors, getUprightAngle} from './line-placement';
 
 type GeometryType =
   | 'Point'
@@ -39,6 +40,8 @@ type FeatureLike = {
 
 type LabelRow = {
   position: number[];
+  /** For labels along a line: the line's direction, in degrees counter-clockwise from east. */
+  angle?: number;
 };
 
 type StyleLayerLike = {
@@ -97,6 +100,10 @@ export type MVTLabelLayerProps = {
    * by one tile. Tile-local coordinates always use the tile's `[0, 1)` square.
    */
   tileBoundingBox?: {west: number; south: number; east: number; north: number} | null;
+  /** The tile's zoom level, at which labels along lines are spaced. Default: the integer `zoom`. */
+  tileZoom?: number | null;
+  /** The tile's size in pixels at its own zoom. Default: 512. */
+  tileSize?: number | null;
 };
 
 /**
@@ -136,7 +143,21 @@ type MVTLabelLayerState = {
   labelData?: LabelRow[];
   /** The non-data inputs `labelData` was computed with; a change recomputes it. */
   anchorKey?: string;
+  /** The map bearing, in `BEARING_STEP` steps, that upright line labels were turned for. */
+  bearingStep?: number;
 };
+
+/**
+ * Bearing step, in degrees, at which labels along lines are re-checked for `text-keep-upright`
+ * while the map rotates. A label may read upside down by up to this much before it turns.
+ */
+const BEARING_STEP = 5;
+
+/**
+ * Average glyph advance, in ems, used to estimate a label's length when placing it along a line.
+ * The text is laid out by `TextLayer` only after placement, so its exact width is not known here.
+ */
+const LINE_LABEL_EM_PER_CHARACTER = 0.6;
 
 /**
  * Work, in point-to-segment distance tests, that polygon label searches may spend per tile and
@@ -238,6 +259,15 @@ function lngLatToWorld([lng, lat]: number[]): number[] {
 function worldToLngLat([x, y]: number[]): number[] {
   const latitude = (360 / Math.PI) * Math.atan(Math.exp((0.5 - y) * 2 * Math.PI)) - 90;
   return [x * 360 - 180, latitude];
+}
+
+function isLinePlacement(placement: string): boolean {
+  return placement === 'line' || placement === 'line-center';
+}
+
+function isLineGeometry(feature: FeatureLike): boolean {
+  const type = feature.geometry?.type;
+  return type === 'LineString' || type === 'MultiLineString';
 }
 
 /**
@@ -599,6 +629,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       }`,
       getCollisionPriority: getTrigger('symbol-sort-key'),
       getPixelOffset: getTrigger('text-offset', 'text-size'),
+      getAngle: `${this.state?.bearingStep}|${getTrigger('text-keep-upright')}`,
       getTextAnchor: getTrigger('text-anchor'),
       getAlignmentBaseline: getTrigger('text-anchor')
     };
@@ -631,9 +662,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /**
    * Extracts candidate label anchor positions from a feature geometry. Points are labelled where
-   * they are. Lines are labelled at the middle vertex of their first part, whatever the
-   * `symbol-placement`. With `symbol-placement: point`, each polygon of a feature is labelled at
-   * its pole of inaccessibility, as in MapLibre, if that point lies in this tile; polygons are not
+   * they are. Lines are labelled at the middle vertex of their first part here; with
+   * `symbol-placement: line` or `line-center`, `getLabelData` places them along the line instead
+   * (see `getLineLabelPlacements`). With `symbol-placement: point`, each polygon of a feature is
+   * labelled at its pole of inaccessibility, as in MapLibre, if that point lies in this tile; polygons are not
    * labelled along their outline. `geographic` says whether coordinates are longitude/latitude
    * (globe tiles) or tile-local. `budget` bounds the polygon searches; pass one budget for all
    * features of a tile.
@@ -679,30 +711,159 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * The zoom at which labels along lines are placed, and the tile's size in pixels there. As in
+   * MapLibre, placement uses the tile's own zoom, so labels stay put while the map zooms within a
+   * tile; an overzoomed tile is placed at the integer map zoom.
+   */
+  getLinePlacementScale(): {zoom: number; tileZoom: number; tileSize: number} {
+    const mapZoom = Math.floor(this.props.zoom || 0);
+    const tileZoom = this.props.tileZoom ?? mapZoom;
+    const zoom = Math.max(tileZoom, mapZoom);
+    return {zoom, tileZoom, tileSize: (this.props.tileSize || 512) * 2 ** (zoom - tileZoom)};
+  }
+
+  /**
+   * Label anchors along the lines of a `LineString` or `MultiLineString` feature, for
+   * `symbol-placement: line` or `line-center`, with the direction of the line at each. Lines are
+   * measured in pixels at the tile's zoom (see `getLinePlacementScale`); `symbol-spacing`,
+   * `text-max-angle` and `text-size` are evaluated there too. The label's length is estimated from
+   * its character count. Anchors outside the tile's own extent are left to the neighbouring tile.
+   */
+  getLineLabelPlacements(
+    feature: FeatureLike,
+    geographic: boolean,
+    placement: string
+  ): {position: number[]; angle: number}[] {
+    const {type, coordinates} = feature.geometry;
+    const lines: number[][][] =
+      type === 'LineString' ? [coordinates] : type === 'MultiLineString' ? coordinates : [];
+    const text = this.getLabel(feature);
+    if (!text || !lines.length) {
+      return [];
+    }
+    const {zoom, tileSize} = this.getLinePlacementScale();
+    const evaluate = (name: string) =>
+      Number(this.getStyleProperty(name)?.evaluate(zoom, feature) ?? getStylePropertyDefault(name));
+    const textSize = evaluate('text-size');
+    const options = {
+      placement: placement === 'line-center' ? ('line-center' as const) : ('line' as const),
+      spacing: evaluate('symbol-spacing'),
+      maxAngle: evaluate('text-max-angle'),
+      textSize,
+      labelLength: [...text].length * textSize * LINE_LABEL_EM_PER_CHARACTER
+    };
+    const scale = geographic ? tileSize * 2 ** zoom : tileSize;
+    const bounds = this.getTileBounds(geographic);
+
+    return lines.flatMap(line => {
+      if (!Array.isArray(line) || line.length < 2) {
+        return [];
+      }
+      const pixels = line.map(point => {
+        const [x, y] = geographic ? lngLatToWorld(point) : point;
+        return [x * scale, y * scale];
+      });
+      const isContinued = Boolean(bounds) && !isInsideBounds(line[0], bounds!);
+      return getLineAnchors(pixels, {...options, isContinued})
+        .map(({segment, t, angle}) => {
+          const [a, b] = [line[segment], line[segment + 1]];
+          return {position: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], angle};
+        })
+        .filter(({position}) => !bounds || isInsideBounds(position, bounds));
+    });
+  }
+
+  /**
    * Label rows for every anchor of `features`: `symbol-placement` is evaluated once, and one
-   * search budget is shared by all polygons of the tile.
+   * search budget is shared by all polygons of the tile. With `line` or `line-center` placement,
+   * line features get rows along their lines, each with the line's direction.
    */
   getLabelData(features: FeatureLike[], geographic: boolean): LabelRow[] {
     const placement = this.getSymbolPlacement();
     const budget = {segmentTests: TILE_POLE_SEARCH_SEGMENT_TESTS};
     return features.flatMap((feature, index) =>
-      this.getLabelAnchors(feature, geographic, placement, budget).map(position =>
-        this.getSubLayerRow({position}, feature, index)
-      )
+      isLinePlacement(placement) && isLineGeometry(feature)
+        ? this.getLineLabelPlacements(feature, geographic, placement).map(row =>
+            this.getSubLayerRow(row, feature, index)
+          )
+        : this.getLabelAnchors(feature, geographic, placement, budget).map(position =>
+            this.getSubLayerRow({position}, feature, index)
+          )
     );
   }
 
   /**
    * The inputs besides the tile data that the anchors depend on: `symbol-placement`, the
-   * coordinate mode, the tile's extent and, for globe tiles, the search precision's zoom.
+   * coordinate mode, the tile's extent and, for globe tiles, the search precision's zoom. Labels
+   * along lines also depend on the placement scale and on the style values that size and space
+   * them.
    */
   getAnchorKey(geographic: boolean): string {
+    const placement = this.getSymbolPlacement();
     return JSON.stringify([
-      this.getSymbolPlacement(),
+      placement,
       geographic,
       geographic ? Math.floor(this.props.zoom || 0) : null,
-      this.getTileBounds(geographic)
+      this.getTileBounds(geographic),
+      isLinePlacement(placement)
+        ? [
+            this.getLinePlacementScale(),
+            this.getStyleUpdateTrigger('text-field'),
+            ...['text-size', 'symbol-spacing', 'text-max-angle'].map(name =>
+              JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)
+            )
+          ]
+        : null
     ]);
+  }
+
+  /**
+   * The map bearing in `BEARING_STEP` steps, against which upright line labels are turned. Globe
+   * labels are billboards, drawn in screen space, so their bearing is 0.
+   */
+  getBearingStep(
+    viewport: {bearing?: number; resolution?: number} = this.context?.viewport
+  ): number {
+    if (!viewport || viewport.resolution) {
+      return 0;
+    }
+    return Math.round((viewport.bearing || 0) / BEARING_STEP) * BEARING_STEP;
+  }
+
+  /**
+   * Labels along lines turn upright as the map rotates (`text-keep-upright`), so a layer of them
+   * updates when the bearing crosses a `BEARING_STEP`.
+   */
+  shouldUpdateState(params: UpdateParameters<this>): boolean {
+    return (
+      super.shouldUpdateState(params) ||
+      (params.changeFlags.viewportChanged &&
+        isLinePlacement(this.getSymbolPlacement()) &&
+        this.getBearingStep(params.context.viewport) !== this.state.bearingStep)
+    );
+  }
+
+  /**
+   * Text layer props for labels along lines: each label is turned to its line, upright when
+   * `text-keep-upright` is set (the default). On a flat map they are drawn in the map plane, as
+   * MapLibre does with the `auto` `text-rotation-alignment` and `text-pitch-alignment` of line
+   * placement; on a globe they stay billboards, turned in screen space.
+   */
+  getLineLabelProps(): Record<string, unknown> {
+    if (!isLinePlacement(this.getSymbolPlacement())) {
+      return {};
+    }
+    const bearingStep = this.getBearingStep();
+    // Recorded without setState: this only tracks what the angles were computed for.
+    this.state.bearingStep = bearingStep;
+    const keepUpright =
+      (this.getStyleProperty('text-keep-upright')?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
+        getStylePropertyDefault('text-keep-upright')) !== false;
+    const geographic = Boolean(this.context?.viewport?.resolution);
+    return {
+      billboard: geographic ? this.props.billboard : false,
+      getAngle: (row: LabelRow) => getUprightAngle(row.angle ?? 0, bearingStep, keepUpright)
+    };
   }
 
   /**
@@ -753,6 +914,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             depthTest: false
           },
           billboard,
+          ...this.getLineLabelProps(),
           characterSet: 'auto',
           collisionEnabled: true,
           collisionGroup: 'basemap-labels',
