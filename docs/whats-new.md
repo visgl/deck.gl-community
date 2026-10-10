@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- The graph viewer includes a live mini-map with click-to-recenter navigation.
+- The graph viewer includes a live mini-map with click-to-recenter navigation. The playground
+  adds a declarative graph overview using two `OrthographicView`s and one shared `GraphLayer`.
 
 - `GraphLayer` bypasses raw `graphLoader` converters for normalized `PlainGraphData`
   and `ArrowGraphData`, allowing loaded graph URLs to coexist with custom raw converters.
