@@ -1,25 +1,26 @@
-main .container {
+/* Override the ID specificity added by Docusaurus CSS cascade-layer transpilation. */
+main .container:not(#community-theme):not(#community-theme):not(#community-theme) {
   position: relative;
   min-height: calc(100vh - var(--ifm-navbar-height));
 }
 
-.markdown {
+.markdown:not(#community-theme):not(#community-theme):not(#community-theme) {
   position: relative;
 }
 
-.markdown .badges {
+.markdown .badges:not(#community-theme):not(#community-theme):not(#community-theme) {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
 }
 
-.markdown .badges img {
+.markdown .badges img:not(#community-theme):not(#community-theme):not(#community-theme) {
   display: block;
   margin: 0;
 }
 
-.markdown .docs-markdown-table {
+.markdown .docs-markdown-table:not(#community-theme):not(#community-theme):not(#community-theme) {
   margin: 1.75rem 0;
   width: fit-content;
   max-width: 100%;
@@ -33,7 +34,7 @@ main .container {
   margin-right: auto;
 }
 
-.markdown .docs-markdown-table__table {
+.markdown .docs-markdown-table__table:not(#community-theme):not(#community-theme):not(#community-theme) {
   width: max-content;
   min-width: min(100%, 40rem);
   margin: 0;
@@ -45,59 +46,59 @@ main .container {
   overflow: hidden;
 }
 
-.markdown .docs-markdown-table__table thead {
+.markdown .docs-markdown-table__table thead:not(#community-theme):not(#community-theme):not(#community-theme) {
   background: var(--docs-table-header-background);
 }
 
-.markdown .docs-markdown-table__table thead tr {
+.markdown .docs-markdown-table__table thead tr:not(#community-theme):not(#community-theme):not(#community-theme) {
   background: transparent;
 }
 
-.markdown .docs-markdown-table__table tbody tr,
-.markdown .docs-markdown-table__table tbody tr:nth-child(2n),
-.markdown .docs-markdown-table__table tbody tr:nth-child(2n + 1) {
+.markdown .docs-markdown-table__table tbody tr:not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table tbody tr:nth-child(2n):not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table tbody tr:nth-child(2n + 1):not(#community-theme):not(#community-theme):not(#community-theme) {
   background: transparent;
 }
 
-.markdown .docs-markdown-table__table th,
-.markdown .docs-markdown-table__table td {
+.markdown .docs-markdown-table__table th:not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table td:not(#community-theme):not(#community-theme):not(#community-theme) {
   padding: 0.8rem 0.95rem;
   border: 0;
   border-bottom: 1px solid var(--docs-table-divider);
   vertical-align: top;
 }
 
-.markdown .docs-markdown-table__table tbody td,
-.markdown .docs-markdown-table__table tbody tr:nth-child(2n) td,
-.markdown .docs-markdown-table__table tbody tr:nth-child(2n + 1) td {
+.markdown .docs-markdown-table__table tbody td:not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table tbody tr:nth-child(2n) td:not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table tbody tr:nth-child(2n + 1) td:not(#community-theme):not(#community-theme):not(#community-theme) {
   background: transparent;
 }
 
-.markdown .docs-markdown-table__table th {
+.markdown .docs-markdown-table__table th:not(#community-theme):not(#community-theme):not(#community-theme) {
   font-size: 0.83rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   text-transform: none;
 }
 
-.markdown .docs-markdown-table__table thead th[colspan] {
+.markdown .docs-markdown-table__table thead th[colspan]:not(#community-theme):not(#community-theme):not(#community-theme) {
   font-size: 1.66rem;
   font-weight: 800;
   line-height: 1.2;
   text-align: center;
 }
 
-.markdown .docs-markdown-table__table tbody tr:last-child td {
+.markdown .docs-markdown-table__table tbody tr:last-child td:not(#community-theme):not(#community-theme):not(#community-theme) {
   border-bottom: 0;
 }
 
-.markdown .docs-markdown-table__table th + th,
-.markdown .docs-markdown-table__table td + td {
+.markdown .docs-markdown-table__table th + th:not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table td + td:not(#community-theme):not(#community-theme):not(#community-theme) {
   border-left: 1px solid var(--docs-table-divider);
 }
 
-.markdown .docs-markdown-table__table td code,
-.markdown .docs-markdown-table__table th code {
+.markdown .docs-markdown-table__table td code:not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table th code:not(#community-theme):not(#community-theme):not(#community-theme) {
   white-space: nowrap;
   padding: 0;
   border: 0;
@@ -108,54 +109,54 @@ main .container {
   font-weight: 700;
 }
 
-html[data-theme='dark'] .markdown .docs-markdown-table__table td code,
-html[data-theme='dark'] .markdown .docs-markdown-table__table th code {
+html[data-theme='dark'] .markdown .docs-markdown-table__table td code:not(#community-theme):not(#community-theme):not(#community-theme),
+html[data-theme='dark'] .markdown .docs-markdown-table__table th code:not(#community-theme):not(#community-theme):not(#community-theme) {
   color: rgba(226, 232, 240, 0.92);
 }
 
-.markdown .docs-markdown-table__table a {
+.markdown .docs-markdown-table__table a:not(#community-theme):not(#community-theme):not(#community-theme) {
   color: var(--docs-table-link);
   font-weight: 600;
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.14em;
 }
 
-.markdown .docs-markdown-table__table a:hover,
-.markdown .docs-markdown-table__table a:focus {
+.markdown .docs-markdown-table__table a:hover:not(#community-theme):not(#community-theme):not(#community-theme),
+.markdown .docs-markdown-table__table a:focus:not(#community-theme):not(#community-theme):not(#community-theme) {
   color: var(--docs-table-link-hover);
 }
 
 @media (max-width: 996px) {
-  .markdown .docs-markdown-table {
+  .markdown .docs-markdown-table:not(#community-theme):not(#community-theme):not(#community-theme) {
     margin-left: 0;
     margin-right: 0;
   }
 
-  .markdown .docs-markdown-table__table {
+  .markdown .docs-markdown-table__table:not(#community-theme):not(#community-theme):not(#community-theme) {
     min-width: 40rem;
   }
 }
 
-.menu__link {
+.menu__link:not(#community-theme):not(#community-theme):not(#community-theme) {
   line-height: 1.5;
 }
 
-.menu__list {
+.menu__list:not(#community-theme):not(#community-theme):not(#community-theme) {
   padding-bottom: 0.5rem;
 }
 
-.docusaurus-highlight-code-line {
+.docusaurus-highlight-code-line:not(#community-theme):not(#community-theme):not(#community-theme) {
   background-color: rgba(0, 0, 0, 0.1);
   display: block;
   margin: 0 calc(-1 * var(--pre-padding));
   padding: 0 var(--pre-padding);
 }
 
-html[data-theme='dark'] .docusaurus-highlight-code-line {
+html[data-theme='dark'] .docusaurus-highlight-code-line:not(#community-theme):not(#community-theme):not(#community-theme) {
   background-color: rgba(0, 0, 0, 0.3);
 }
 
-.heading_bold {
+.heading_bold:not(#community-theme):not(#community-theme):not(#community-theme) {
 }
 
 @font-face {
@@ -190,7 +191,7 @@ html[data-theme='dark'] .docusaurus-highlight-code-line {
  */
 
 /* You can override the default Infima variables here. */
-:root {
+:root:not(#community-theme):not(#community-theme):not(#community-theme) {
   --ifm-font-family-base: 'Source Sans 3', 'Avenir Next', system-ui, sans-serif;
   --ifm-heading-font-family: 'Space Grotesk', 'Avenir Next', system-ui, sans-serif;
   --ifm-font-family-monospace: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
@@ -236,7 +237,7 @@ html[data-theme='dark'] .docusaurus-highlight-code-line {
   --docs-table-link-hover: var(--ifm-color-primary-dark);
 }
 
-html[data-theme='dark'] {
+html[data-theme='dark']:not(#community-theme):not(#community-theme):not(#community-theme) {
   --ifm-background-color: #120E1C;
   --ifm-background-surface-color: #1A1427;
   --ifm-navbar-background-color: rgba(18, 14, 28, 0.9);
@@ -274,12 +275,12 @@ html[data-theme='dark'] {
 
 
 /* Community identity uses violet instead of the official framework's cyan. */
-:root {
+:root:not(#community-theme):not(#community-theme):not(#community-theme) {
   --ifm-background-color: #fcfafd;
   --docs-surface-muted: #f4f0f8;
   --doc-sidebar-width: 300px;
 }
-html[data-theme='dark'] {
+html[data-theme='dark']:not(#community-theme):not(#community-theme):not(#community-theme) {
   --ifm-color-primary: #b69aee;
   --ifm-color-primary-dark: #a583e7;
   --ifm-color-primary-darker: #9b75e3;
@@ -289,13 +290,13 @@ html[data-theme='dark'] {
   --ifm-color-primary-lightest: #e1d6f9;
   --ifm-background-color: #120e1c;
 }
-.navbar {
+.navbar:not(#community-theme):not(#community-theme):not(#community-theme) {
   backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--docs-border-subtle);
   box-shadow: none;
 }
-.navbar__title { font-family: var(--ifm-heading-font-family); letter-spacing: -0.035em; }
-.community-label {
+.navbar__title:not(#community-theme):not(#community-theme):not(#community-theme) { font-family: var(--ifm-heading-font-family); letter-spacing: -0.035em; }
+.community-label:not(#community-theme):not(#community-theme):not(#community-theme) {
   border: 1px solid var(--docs-border-subtle);
   border-radius: 999px;
   color: var(--docs-accent-text);
@@ -303,23 +304,23 @@ html[data-theme='dark'] {
   font-weight: 600;
   padding: 0.25rem 0.65rem;
 }
-.theme-doc-sidebar-container {
+.theme-doc-sidebar-container:not(#community-theme):not(#community-theme):not(#community-theme) {
   background: var(--docs-surface-muted);
   border-right-color: var(--docs-border-subtle);
 }
-main:has(.theme-doc-markdown) {
+main:has(.theme-doc-markdown):not(#community-theme):not(#community-theme):not(#community-theme) {
   background: radial-gradient(circle at 52% -8rem, color-mix(in srgb, var(--ifm-color-primary) 10%, transparent), transparent 34rem), var(--ifm-background-color);
 }
-main .container { position: relative; min-height: calc(100vh - var(--ifm-navbar-height)); }
-.markdown { position: relative; }
-.theme-doc-markdown { font-size: 1.075rem; line-height: 1.72; }
-.theme-doc-markdown h1 { font-size: clamp(2.2rem, 4vw, 3.2rem); letter-spacing: -0.045em; line-height: 1.12; }
-.theme-doc-markdown h2 { font-size: clamp(1.8rem, 3.2vw, 2.6rem); letter-spacing: -0.045em; line-height: 1.12; margin-top: 3.5rem; }
-.theme-doc-markdown h3 { font-size: clamp(1.3rem, 2vw, 1.65rem); letter-spacing: -0.025em; line-height: 1.2; margin-top: 2.5rem; }
-.theme-doc-markdown strong { color: var(--ifm-heading-color); }
-.theme-doc-markdown code { border: 0; box-shadow: none; }
-.theme-doc-markdown .theme-code-block { border: 1px solid var(--docs-border-subtle); border-radius: 14px; box-shadow: 0 12px 28px rgba(35, 27, 46, 0.12); overflow: hidden; }
-.theme-doc-markdown table {
+main .container:not(#community-theme):not(#community-theme):not(#community-theme) { position: relative; min-height: calc(100vh - var(--ifm-navbar-height)); }
+.markdown:not(#community-theme):not(#community-theme):not(#community-theme) { position: relative; }
+.theme-doc-markdown:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: 1.075rem; line-height: 1.72; }
+.theme-doc-markdown h1:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: clamp(2.2rem, 4vw, 3.2rem); letter-spacing: -0.045em; line-height: 1.12; }
+.theme-doc-markdown h2:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: clamp(1.8rem, 3.2vw, 2.6rem); letter-spacing: -0.045em; line-height: 1.12; margin-top: 3.5rem; }
+.theme-doc-markdown h3:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: clamp(1.3rem, 2vw, 1.65rem); letter-spacing: -0.025em; line-height: 1.2; margin-top: 2.5rem; }
+.theme-doc-markdown strong:not(#community-theme):not(#community-theme):not(#community-theme) { color: var(--ifm-heading-color); }
+.theme-doc-markdown code:not(#community-theme):not(#community-theme):not(#community-theme) { border: 0; box-shadow: none; }
+.theme-doc-markdown .theme-code-block:not(#community-theme):not(#community-theme):not(#community-theme) { border: 1px solid var(--docs-border-subtle); border-radius: 14px; box-shadow: 0 12px 28px rgba(35, 27, 46, 0.12); overflow: hidden; }
+.theme-doc-markdown table:not(#community-theme):not(#community-theme):not(#community-theme) {
   background: var(--docs-table-background);
   border: 1px solid var(--docs-table-border);
   border-collapse: separate;
@@ -331,23 +332,23 @@ main .container { position: relative; min-height: calc(100vh - var(--ifm-navbar-
   max-width: 100%;
   overflow: auto;
 }
-.theme-doc-markdown table th, .theme-doc-markdown table td { border: 0; padding: 0.65rem 0.85rem; }
-.theme-doc-markdown table th { background: var(--docs-table-header-background); color: var(--docs-accent-text); font-weight: 700; text-align: left; }
-.theme-doc-markdown table tr { background: transparent; border: 0; }
-.theme-doc-markdown table tr:nth-child(2n) { background: color-mix(in srgb, var(--ifm-color-primary) 4%, transparent); }
-.theme-doc-markdown table tbody tr + tr td { border-top: 1px solid var(--docs-table-divider); }
-.theme-doc-markdown table td:first-child { font-weight: 600; }
-.table-of-contents__link { font-size: 0.84rem; line-height: 1.45; }
-.menu__link { line-height: 1.5; }
-.menu__list { padding-bottom: 0.5rem; }
-.docusaurus-highlight-code-line {
+.theme-doc-markdown table th:not(#community-theme):not(#community-theme):not(#community-theme), .theme-doc-markdown table td:not(#community-theme):not(#community-theme):not(#community-theme) { border: 0; padding: 0.65rem 0.85rem; }
+.theme-doc-markdown table th:not(#community-theme):not(#community-theme):not(#community-theme) { background: var(--docs-table-header-background); color: var(--docs-accent-text); font-weight: 700; text-align: left; }
+.theme-doc-markdown table tr:not(#community-theme):not(#community-theme):not(#community-theme) { background: transparent; border: 0; }
+.theme-doc-markdown table tr:nth-child(2n):not(#community-theme):not(#community-theme):not(#community-theme) { background: color-mix(in srgb, var(--ifm-color-primary) 4%, transparent); }
+.theme-doc-markdown table tbody tr + tr td:not(#community-theme):not(#community-theme):not(#community-theme) { border-top: 1px solid var(--docs-table-divider); }
+.theme-doc-markdown table td:first-child:not(#community-theme):not(#community-theme):not(#community-theme) { font-weight: 600; }
+.table-of-contents__link:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: 0.84rem; line-height: 1.45; }
+.menu__link:not(#community-theme):not(#community-theme):not(#community-theme) { line-height: 1.5; }
+.menu__list:not(#community-theme):not(#community-theme):not(#community-theme) { padding-bottom: 0.5rem; }
+.docusaurus-highlight-code-line:not(#community-theme):not(#community-theme):not(#community-theme) {
   background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
   display: block;
   margin: 0 calc(-1 * var(--ifm-pre-padding));
   padding: 0 var(--ifm-pre-padding);
 }
-@media (max-width: 996px) { .community-label { display: none; } }
+@media (max-width: 996px) { .community-label:not(#community-theme):not(#community-theme):not(#community-theme) { display: none; } }
 @media (max-width: 760px) {
-  .theme-doc-markdown { font-size: 1rem; }
-  .theme-doc-markdown h2 { margin-top: 2.5rem; }
+  .theme-doc-markdown:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: 1rem; }
+  .theme-doc-markdown h2:not(#community-theme):not(#community-theme):not(#community-theme) { margin-top: 2.5rem; }
 }
