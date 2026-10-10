@@ -17,7 +17,13 @@ import {
   type PoleSearchBudget
 } from './polylabel';
 import type {LabelFont, LabelFontFamily} from './text-font';
-import {getLineAnchors, getUprightAngle} from './line-placement';
+import {
+  DEFAULT_LINE_ANCHOR_STEPS,
+  clipLine,
+  getLineAnchors,
+  getUprightAngle,
+  type LineAnchorBudget
+} from './line-placement';
 
 type GeometryType =
   | 'Point'
@@ -165,6 +171,12 @@ const LINE_LABEL_EM_PER_CHARACTER = 0.6;
  */
 const TILE_POLE_SEARCH_SEGMENT_TESTS = 2e7;
 
+/**
+ * Work, in steps along lines and vertices checked for bends, that labels along lines may spend
+ * per tile and style layer. Past this budget, remaining placements on the tile are skipped.
+ */
+const TILE_LINE_ANCHOR_STEPS = 1e6;
+
 const geoJsonDefaultProps = {...GeoJsonLayer.defaultProps} as Omit<
   typeof GeoJsonLayer.defaultProps,
   'data'
@@ -247,6 +259,24 @@ function getPolygonAnchors(
 /** Half-open bounds test, so a point on a shared tile edge belongs to exactly one tile. */
 function isInsideBounds([x, y]: number[], [minX, minY, maxX, maxY]: number[]): boolean {
   return x >= minX && x < maxX && y >= minY && y < maxY;
+}
+
+/** Whether a point lies strictly inside bounds, off their edges. */
+function isStrictlyInsideBounds([x, y]: number[], [minX, minY, maxX, maxY]: number[]): boolean {
+  return x > minX && x < maxX && y > minY && y < maxY;
+}
+
+/**
+ * The box lines are clipped to before labels are placed along them: the tile's own extent for
+ * `line` placement, which MapLibre clips to, and a margin of one tile around it for `line-center`,
+ * which measures the whole line.
+ */
+function getLineClipBounds([minX, minY, maxX, maxY]: number[], placement: string): number[] {
+  if (placement !== 'line-center') {
+    return [minX, minY, maxX, maxY];
+  }
+  const [width, height] = [maxX - minX, maxY - minY];
+  return [minX - width, minY - height, maxX + width, maxY + height];
 }
 
 /** Longitude/latitude to Web Mercator world units, `[0, 1]` across the world. */
@@ -728,11 +758,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * measured in pixels at the tile's zoom (see `getLinePlacementScale`); `symbol-spacing`,
    * `text-max-angle` and `text-size` are evaluated there too. The label's length is estimated from
    * its character count. Anchors outside the tile's own extent are left to the neighbouring tile.
+   * With `line` placement, lines are clipped to the tile's extent first, as in MapLibre; with
+   * `line-center`, to a margin of one tile around it, so a line's far reaches cost nothing. Each
+   * feature draws on the shared `budget`, at most `DEFAULT_LINE_ANCHOR_STEPS` of it.
    */
   getLineLabelPlacements(
     feature: FeatureLike,
     geographic: boolean,
-    placement: string
+    placement: string,
+    budget: LineAnchorBudget = {steps: TILE_LINE_ANCHOR_STEPS}
   ): {position: number[]; angle: number}[] {
     const {type, coordinates} = feature.geometry;
     const lines: number[][][] =
@@ -754,23 +788,32 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     };
     const scale = geographic ? tileSize * 2 ** zoom : tileSize;
     const bounds = this.getTileBounds(geographic);
+    const clipBounds = bounds && getLineClipBounds(bounds, options.placement);
+    // One feature may spend at most the single-feature default, and never more than the tile has.
+    const featureBudget = {steps: Math.min(DEFAULT_LINE_ANCHOR_STEPS, budget.steps)};
+    const start = featureBudget.steps;
 
-    return lines.flatMap(line => {
+    const placements = lines.flatMap(line => {
       if (!Array.isArray(line) || line.length < 2) {
         return [];
       }
-      const pixels = line.map(point => {
-        const [x, y] = geographic ? lngLatToWorld(point) : point;
-        return [x * scale, y * scale];
+      const parts = clipBounds ? clipLine(line, clipBounds) : [line];
+      return parts.flatMap(part => {
+        const pixels = part.map(point => {
+          const [x, y] = geographic ? lngLatToWorld(point) : point;
+          return [x * scale, y * scale];
+        });
+        const isContinued = Boolean(bounds) && !isStrictlyInsideBounds(part[0], bounds!);
+        return getLineAnchors(pixels, {...options, isContinued, budget: featureBudget})
+          .map(({segment, t, angle}) => {
+            const [a, b] = [part[segment], part[segment + 1]];
+            return {position: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], angle};
+          })
+          .filter(({position}) => !bounds || isInsideBounds(position, bounds));
       });
-      const isContinued = Boolean(bounds) && !isInsideBounds(line[0], bounds!);
-      return getLineAnchors(pixels, {...options, isContinued})
-        .map(({segment, t, angle}) => {
-          const [a, b] = [line[segment], line[segment + 1]];
-          return {position: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], angle};
-        })
-        .filter(({position}) => !bounds || isInsideBounds(position, bounds));
     });
+    budget.steps -= start - Math.max(0, featureBudget.steps);
+    return placements;
   }
 
   /**
@@ -781,9 +824,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   getLabelData(features: FeatureLike[], geographic: boolean): LabelRow[] {
     const placement = this.getSymbolPlacement();
     const budget = {segmentTests: TILE_POLE_SEARCH_SEGMENT_TESTS};
+    const lineBudget = {steps: TILE_LINE_ANCHOR_STEPS};
     return features.flatMap((feature, index) =>
       isLinePlacement(placement) && isLineGeometry(feature)
-        ? this.getLineLabelPlacements(feature, geographic, placement).map(row =>
+        ? this.getLineLabelPlacements(feature, geographic, placement, lineBudget).map(row =>
             this.getSubLayerRow(row, feature, index)
           )
         : this.getLabelAnchors(feature, geographic, placement, budget).map(position =>

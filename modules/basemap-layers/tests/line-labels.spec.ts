@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest';
-import {getLineAnchors, getUprightAngle} from '../src/line-placement';
+import {clipLine, getLineAnchors, getUprightAngle, MIN_LABEL_GAP} from '../src/line-placement';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
 
 const STRAIGHT = [
@@ -161,10 +161,11 @@ const ACROSS_TILE = {
 describe('MVTLabelLayer line placement', () => {
   test('places rows along the line in pixels at the tile zoom, with the line direction', () => {
     const rows = lineLayer().getLabelData([ACROSS_TILE], false) as any[];
-    // The line starts at -51.2 px; labels at 125 and 375 px along it.
+    // Clipped to the tile, as in MapLibre, the line starts at its edge and continues beyond it:
+    // labels at 125 and 375 px.
     expect(rows.map(row => row.position[0])).toEqual([
-      expect.closeTo((125 - 51.2) / 512, 9),
-      expect.closeTo((375 - 51.2) / 512, 9)
+      expect.closeTo(125 / 512, 9),
+      expect.closeTo(375 / 512, 9)
     ]);
     expect(rows.every(row => row.position[1] === 0.5 && row.angle === 0)).toBe(true);
   });
@@ -178,14 +179,14 @@ describe('MVTLabelLayer line placement', () => {
   });
 
   test('spaces an overzoomed tile at the map zoom and drops anchors outside the tile', () => {
-    // At zoom 16 the zoom-14 tile is 2048 px wide: anchors every 250 px from -204.8 + 125.
+    // At zoom 16 the zoom-14 tile is 2048 px wide: anchors every 250 px from 125.
     const rows = lineLayer({zoom: 16}).getLabelData([ACROSS_TILE], false) as any[];
     expect(rows).toHaveLength(8);
     expect(rows.every(row => row.position[0] >= 0 && row.position[0] < 1)).toBe(true);
   });
 
   test('evaluates symbol-spacing', () => {
-    // Every 100 px from 50 px along the line: the first, at -1.2 px, is outside the tile.
+    // Every 100 px from 50 px along the clipped line, up to 450 px.
     const rows = lineLayer({}, {'symbol-spacing': 100}).getLabelData([ACROSS_TILE], false);
     expect(rows).toHaveLength(5);
   });
@@ -286,5 +287,124 @@ describe('MVTLabelLayer line label rendering', () => {
     expect(update(lineLayer(), 7)).toBe(true);
     expect(update(lineLayer(), 2)).toBe(false);
     expect(update(lineLayer({}, {'symbol-placement': 'point'}), 90)).toBe(false);
+  });
+});
+
+describe('line placement on hostile input', () => {
+  test('keeps a gap between labels when symbol-spacing is 1 and the label is tiny', () => {
+    const bent = [
+      [0, 0],
+      [500, 0],
+      [1000, 0]
+    ];
+    expect(getLineAnchors(bent, {...OPTIONS, spacing: 1, labelLength: 0})).toEqual([]);
+    const anchors = getLineAnchors(STRAIGHT, {...OPTIONS, spacing: 1, labelLength: 0.01});
+    const placed = distances(anchors, STRAIGHT);
+    expect(placed.length).toBeLessThanOrEqual(1000 / MIN_LABEL_GAP + 1);
+    expect(placed.slice(1).every((distance, i) => distance - placed[i] >= MIN_LABEL_GAP)).toBe(
+      true
+    );
+  });
+
+  test('gives labels with empty text no rows', () => {
+    const rows = lineLayer({}, {'symbol-spacing': 1}).getLabelData(
+      [{...ACROSS_TILE, properties: {name: ''}}],
+      false
+    );
+    expect(rows).toEqual([]);
+  });
+
+  test('stops placing once the budget is spent', () => {
+    const line = [
+      [0, 0],
+      [1e7, 0]
+    ];
+    const budget = {steps: 1000};
+    const anchors = getLineAnchors(line, {...OPTIONS, spacing: 1, labelLength: 0.01, budget});
+    expect(anchors.length).toBeGreaterThan(0);
+    expect(anchors.length).toBeLessThanOrEqual(1000);
+    // It stops at once, rather than walking the rest of the line.
+    expect(budget.steps).toBeLessThanOrEqual(0);
+    expect(budget.steps).toBeGreaterThan(-10);
+  });
+
+  test('clips a huge line to the tile before placing labels along it', () => {
+    const huge = {
+      ...ACROSS_TILE,
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [-1e9, 0.5],
+          [1e9, 0.5]
+        ]
+      }
+    };
+    const rows = lineLayer().getLabelData([huge], false) as any[];
+    expect(rows.map(row => row.position[0])).toEqual([
+      expect.closeTo(125 / 512, 9),
+      expect.closeTo(375 / 512, 9)
+    ]);
+  });
+
+  test('shares one budget across the features of a tile', () => {
+    const layer = lineLayer({tileZoom: 8, zoom: 8}, {'symbol-spacing': 1});
+    // Longitude/latitude without a tile box is not clipped: 360 degrees is 131072 px at zoom 8.
+    const world = {
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [-180, 0],
+          [180, 0]
+        ]
+      },
+      properties: {name: 'Main'}
+    };
+    const budget = {steps: 500};
+    const rows = layer.getLineLabelPlacements(world, true, 'line', budget);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThanOrEqual(500);
+    expect(budget.steps).toBeLessThanOrEqual(0);
+    expect(layer.getLineLabelPlacements(world, true, 'line', budget)).toEqual([]);
+  });
+
+  test('places nothing for non-finite spacing, size, angle or coordinates', () => {
+    const center = {...OPTIONS, placement: 'line-center' as const};
+    expect(getLineAnchors(STRAIGHT, {...center, maxAngle: Number.NaN})).toEqual([]);
+    expect(getLineAnchors(STRAIGHT, {...center, textSize: Number.NaN})).toEqual([]);
+    expect(getLineAnchors(STRAIGHT, {...center, labelLength: Number.NaN})).toEqual([]);
+    expect(getLineAnchors(STRAIGHT, {...OPTIONS, spacing: Number.POSITIVE_INFINITY})).toEqual([]);
+    expect(
+      getLineAnchors(
+        [
+          [0, 0],
+          [Number.POSITIVE_INFINITY, 0]
+        ],
+        OPTIONS
+      )
+    ).toEqual([]);
+  });
+
+  test('clipLine keeps the parts of a line inside the box', () => {
+    const parts = clipLine(
+      [
+        [-1, 0.5],
+        [0.5, 0.5],
+        [0.5, 2],
+        [0.7, 2],
+        [0.7, 0.2]
+      ],
+      [0, 0, 1, 1]
+    );
+    expect(parts).toEqual([
+      [
+        [0, 0.5],
+        [0.5, 0.5],
+        [0.5, 1]
+      ],
+      [
+        [0.7, 1],
+        [0.7, expect.closeTo(0.2, 9)]
+      ]
+    ]);
   });
 });

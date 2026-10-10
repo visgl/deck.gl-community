@@ -33,7 +33,26 @@ export type LineAnchorOptions = {
    * a spacing in, so labels line up across tile edges, and does not fall back to the middle.
    */
   isContinued: boolean;
+  /**
+   * Work the placement may spend, in steps along the line and vertices checked for bends. It is
+   * drawn down as the placement runs; once it is spent, no further anchors are placed. Tile
+   * geometry is untrusted, so callers share one budget across a tile.
+   */
+  budget?: LineAnchorBudget;
 };
+
+/** Remaining placement work; see `LineAnchorOptions.budget`. */
+export type LineAnchorBudget = {steps: number};
+
+/** Work one feature's line labels may spend, unless the tile's budget has less left. */
+export const DEFAULT_LINE_ANCHOR_STEPS = 1e5;
+
+/**
+ * The least distance, in pixels, between two labels of a line beyond the label's own length. It
+ * only matters for a `symbol-spacing` far below any label's length: with a spacing of 1, a short
+ * or empty label would otherwise be placed at every pixel of the line.
+ */
+export const MIN_LABEL_GAP = 16;
 
 /**
  * MapLibre's first label on a line that starts in this tile is placed `2 * glyphSize` pixels past
@@ -68,7 +87,8 @@ function checkMaxAngle(
   anchor: {point: number[]; segment: number},
   labelLength: number,
   windowSize: number,
-  maxAngle: number
+  maxAngle: number,
+  budget: LineAnchorBudget
 ): boolean {
   let point = anchor.point;
   let index = anchor.segment + 1;
@@ -77,11 +97,14 @@ function checkMaxAngle(
   // Move back along the line to the first vertex under the label.
   while (anchorDistance > -labelLength / 2) {
     index--;
-    if (index < 0) {
+    if (index < 0 || --budget.steps < 0) {
       return false;
     }
     anchorDistance -= distance(line[index], point);
     point = line[index];
+  }
+  if (!line[index + 1]) {
+    return false;
   }
   anchorDistance += distance(line[index], line[index + 1]);
   index++;
@@ -93,7 +116,7 @@ function checkMaxAngle(
     const previous = line[index - 1];
     const current = line[index];
     const next = line[index + 1];
-    if (!next) {
+    if (!next || --budget.steps < 0) {
       return false;
     }
     let angleDelta = direction(previous, current) - direction(current, next);
@@ -122,7 +145,8 @@ function resample(
   offset: number,
   spacing: number,
   options: LineAnchorOptions,
-  placeAtMiddle: boolean
+  placeAtMiddle: boolean,
+  budget: LineAnchorBudget
 ): LineAnchor[] {
   const {labelLength, isContinued} = options;
   const windowSize = (options.textSize * 3) / 5;
@@ -136,7 +160,13 @@ function resample(
     const a = line[i];
     const b = line[i + 1];
     const segmentLength = distance(a, b);
+    if (--budget.steps < 0) {
+      return anchors;
+    }
     while (segmentLength > 0 && markedDistance + spacing < travelled + segmentLength) {
+      if (--budget.steps < 0) {
+        return anchors;
+      }
       markedDistance += spacing;
       const t = (markedDistance - travelled) / segmentLength;
       const fits =
@@ -148,7 +178,8 @@ function resample(
           {point: interpolate(a, b, t), segment: i},
           labelLength,
           windowSize,
-          maxAngle
+          maxAngle,
+          budget
         )
       ) {
         anchors.push({segment: i, t, angle: (direction(a, b) * 180) / Math.PI});
@@ -160,7 +191,7 @@ function resample(
   // No label fits at the regular positions: try one at the middle of a line that starts and ends
   // in this tile.
   if (!placeAtMiddle && anchors.length === 0 && !isContinued) {
-    return resample(line, travelled / 2, spacing, options, true);
+    return resample(line, travelled / 2, spacing, options, true, budget);
   }
   return anchors;
 }
@@ -172,21 +203,31 @@ function resample(
  * `maxAngle` within the label.
  */
 export function getLineAnchors(line: number[][], options: LineAnchorOptions): LineAnchor[] {
-  if (!Array.isArray(line) || line.length < 2 || !line.every(isFinitePoint)) {
+  const {labelLength, textSize} = options;
+  if (
+    !Array.isArray(line) ||
+    line.length < 2 ||
+    !line.every(isFinitePoint) ||
+    ![options.spacing, options.maxAngle, labelLength, textSize].every(Number.isFinite) ||
+    !(labelLength > 0)
+  ) {
     return [];
   }
-  const {labelLength, textSize} = options;
+  const budget = options.budget || {steps: DEFAULT_LINE_ANCHOR_STEPS};
 
   if (options.placement === 'line-center') {
     const center = getLineLength(line) / 2;
     let travelled = 0;
     for (let i = 0; i < line.length - 1; i++) {
       const segmentLength = distance(line[i], line[i + 1]);
+      if (--budget.steps < 0) {
+        return [];
+      }
       if (travelled + segmentLength > center) {
         const t = (center - travelled) / segmentLength;
         const anchor = {point: interpolate(line[i], line[i + 1], t), segment: i};
         const maxAngle = (options.maxAngle * Math.PI) / 180;
-        return checkMaxAngle(line, anchor, labelLength, (textSize * 3) / 5, maxAngle)
+        return checkMaxAngle(line, anchor, labelLength, (textSize * 3) / 5, maxAngle, budget)
           ? [{segment: i, t, angle: (direction(line[i], line[i + 1]) * 180) / Math.PI}]
           : [];
       }
@@ -195,15 +236,17 @@ export function getLineAnchors(line: number[][], options: LineAnchorOptions): Li
     return [];
   }
 
-  // A spacing shorter than the label is widened, as in MapLibre.
+  // A spacing shorter than the label is widened, as in MapLibre, and never leaves less than
+  // `MIN_LABEL_GAP` between labels.
   let spacing = Math.max(1, options.spacing);
   if (spacing - labelLength < spacing / 4) {
     spacing = labelLength + spacing / 4;
   }
+  spacing = Math.max(spacing, labelLength + MIN_LABEL_GAP);
   const offset = options.isContinued
     ? (spacing / 2) % spacing
     : (labelLength / 2 + FIXED_EXTRA_OFFSET_EMS * textSize) % spacing;
-  return resample(line, offset, spacing, options, false);
+  return resample(line, offset, spacing, options, false, budget);
 }
 
 /**
@@ -221,4 +264,52 @@ export function getUprightAngle(angle: number, bearing: number, keepUpright: boo
 
 function isFinitePoint(point: number[]): boolean {
   return Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]);
+}
+
+/**
+ * The parts of `line` inside `[minX, minY, maxX, maxY]`, clipped segment by segment
+ * (Liang-Barsky). A line that leaves the box and comes back gives one part per stay inside.
+ */
+export function clipLine(line: number[][], [minX, minY, maxX, maxY]: number[]): number[][][] {
+  const parts: number[][][] = [];
+  let part: number[][] | null = null;
+  for (let i = 0; i < line.length - 1; i++) {
+    const [ax, ay] = line[i];
+    const [bx, by] = line[i + 1];
+    const dx = bx - ax;
+    const dy = by - ay;
+    let t0 = 0;
+    let t1 = 1;
+    const edges: [number, number][] = [
+      [-dx, ax - minX],
+      [dx, maxX - ax],
+      [-dy, ay - minY],
+      [dy, maxY - ay]
+    ];
+    let inside = true;
+    for (const [p, q] of edges) {
+      if (p === 0) {
+        inside = inside && q >= 0;
+      } else if (p < 0) {
+        t0 = Math.max(t0, q / p);
+      } else {
+        t1 = Math.min(t1, q / p);
+      }
+    }
+    if (!inside || t0 > t1) {
+      part = null;
+      continue;
+    }
+    const start = [ax + dx * t0, ay + dy * t0];
+    const end = [ax + dx * t1, ay + dy * t1];
+    if (!part || t0 > 0) {
+      part = [start];
+      parts.push(part);
+    }
+    part.push(end);
+    if (t1 < 1) {
+      part = null;
+    }
+  }
+  return parts.filter(clipped => clipped.length > 1);
 }
