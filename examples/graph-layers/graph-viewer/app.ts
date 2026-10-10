@@ -365,6 +365,7 @@ export function mountGraphViewerExample(
       }
       state.isSidebarOpen = nextOpen;
       syncWidgets();
+      miniMap.update(state.resolvedEngine, deck?.getViewports()[0], nextOpen ? 360 : 0);
     }
   });
   const boxWidget =

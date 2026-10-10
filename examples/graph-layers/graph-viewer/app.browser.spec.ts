@@ -86,6 +86,18 @@ test('mini-map clicks recenter the mounted viewer, preserve zoom, and avoid navi
       expect(viewState.target[1]).toBeCloseTo(expectedTarget[1]);
       expect(viewState.zoom).toBe(2);
     });
+    // Toggling the sidebar must refresh even with the deck animation loop stopped.
+    (deck as any).animationLoop.stop();
+    host.style.width = '600px';
+    const sidebar = (deck.props.widgets as any[]).find(
+      widget => widget.id === 'graph-viewer-sidebar'
+    );
+    sidebar.component.props.onOpenChange(false);
+    expect(canvas.hidden).toBe(false);
+    sidebar.component.props.onOpenChange(true);
+    expect(canvas.hidden).toBe(true);
+    sidebar.component.props.onOpenChange(false);
+    expect(canvas.hidden).toBe(false);
   } finally {
     unmount();
     expect(host.querySelector('.graph-mini-map')).toBeNull();
