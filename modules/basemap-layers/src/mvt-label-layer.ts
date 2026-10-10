@@ -165,6 +165,15 @@ type LabelHalos = {
 const LABEL_FONT_SETTINGS = {sdf: true, fontSize: 64, buffer: 18, radius: 24, smoothing: 0.1};
 
 /**
+ * Most text sublayers one label layer draws for halos. Each sublayer holds every label row (see
+ * `renderLayers`), so the cap bounds the work per tile when every feature has its own halo.
+ */
+export const MAX_HALO_SUBLAYERS = 8;
+
+/** `text-halo-width` is rounded to this step, in pixels, so that close widths share a sublayer. */
+const HALO_WIDTH_STEP = 0.25;
+
+/**
  * `TextLayer` draws the SDF edge of a glyph at 0.75 of its distance range, and an outline of width
  * `w` at `0.75 * w` atlas pixels outside that edge.
  */
@@ -601,14 +610,16 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * halo. `text-halo-blur` is not drawn.
    */
   getLabelHalo(feature: FeatureLike): LabelHalo | null {
-    const width = Number(this.evaluateStyleProperty('text-halo-width', feature) ?? 0);
+    const value = Number(this.evaluateStyleProperty('text-halo-width', feature) ?? 0);
     const size = this.getLabelSize(feature);
-    if (!(width > 0) || !(size > 0)) {
+    if (!(value > 0) || !(size > 0)) {
       return null;
     }
+    // Rounded to a step, but a positive width keeps at least one step.
+    const width = Math.max(HALO_WIDTH_STEP, Math.round(value / HALO_WIDTH_STEP) * HALO_WIDTH_STEP);
     const color = this.evaluateStyleProperty('text-halo-color', feature) as number[] | undefined;
     const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
-    const outlineColor = withOpacity(color, opacity ?? 1);
+    const outlineColor = withOpacity(color, opacity ?? 1).map(Math.round);
     if (!(outlineColor[3] > 0)) {
       return null;
     }
@@ -617,23 +628,32 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /**
    * Groups the label rows by halo. `TextLayer` takes one outline color and width per layer, so
-   * each distinct halo is drawn by its own text sublayer.
+   * each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
+   * kept, the most common ones; labels with any other halo are drawn with the most common halo.
+   * Kept halos are ordered by their first label, so sublayer ids stay stable.
    */
   getLabelHalos(rows: LabelRow[]): LabelHalos {
-    const halos: (LabelHalo | null)[] = [];
-    const indices = new Map<string, number>();
-    const rowHalos = rows.map(row => {
+    const groups = new Map<string, {halo: LabelHalo | null; count: number; first: number}>();
+    const rowKeys = rows.map((row, index) => {
       const halo = this.getLabelHalo((row as any).__source?.object ?? row);
       const key = halo ? `${halo.outlineColor.join(',')}|${halo.outlineWidth}` : '';
-      let index = indices.get(key);
-      if (index === undefined) {
-        index = halos.length;
-        halos.push(halo);
-        indices.set(key, index);
+      const group = groups.get(key);
+      if (group) {
+        group.count++;
+      } else {
+        groups.set(key, {halo, count: 1, first: index});
       }
-      return index;
+      return key;
     });
-    return {halos, rowHalos};
+    // A stable sort: equally common halos keep the order of their first label.
+    const byCount = [...groups].sort(([, a], [, b]) => b.count - a.count);
+    const kept = byCount.slice(0, MAX_HALO_SUBLAYERS).sort(([, a], [, b]) => a.first - b.first);
+    const indices = new Map(kept.map(([key], index) => [key, index]));
+    const fallback = byCount.length ? indices.get(byCount[0][0])! : 0;
+    return {
+      halos: kept.map(([, group]) => group.halo),
+      rowHalos: rowKeys.map(key => indices.get(key) ?? fallback)
+    };
   }
 
   /**
@@ -861,8 +881,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       ) as any;
       const updateTriggers = this.getLabelUpdateTriggers();
       const {halos = [null], rowHalos = []} = this.state.halos || {};
-      // One text sublayer per distinct halo. Each gets every row, with text only for the rows of
-      // its halo, so a row keeps its index, which the collision filter identifies labels by.
+      // One text sublayer per halo. Each gets every row, with text only for the rows of its halo,
+      // so a row keeps its index, which the collision filter identifies labels by (deck.gl derives
+      // picking colors from the data index, so a sublayer cannot hold only its own rows). The
+      // number of halos is capped (see getLabelHalos), so the work stays linear in the rows.
       layers.push(
         ...halos.map(
           (halo, haloIndex) =>

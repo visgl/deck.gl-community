@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import {describe, expect, test} from 'vitest';
-import {getOutlineWidth, MVTLabelLayer} from '../src/mvt-label-layer.ts';
+import {getOutlineWidth, MAX_HALO_SUBLAYERS, MVTLabelLayer} from '../src/mvt-label-layer.ts';
 
 const feature = {
   type: 'Feature',
@@ -136,5 +136,65 @@ describe('label halo wiring', () => {
     zoomed.state = layer.state;
     expect(renderTextLayers(zoomed, false)[0].props.outlineWidth).toEqual(getOutlineWidth(2, 16));
     expect(zoomed.state.labelData).toBe(rows);
+  });
+
+  test('a tile where every label has its own halo draws a bounded number of sublayers', () => {
+    // 1,000 labels with unique halo colors, except the last 20, which share the most common one.
+    const features = Array.from({length: 1000}, (_, index) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        red: index % 256,
+        green: index >> 8,
+        blue: index < 980 ? 255 : 0
+      }
+    }));
+    const layer = haloLayer(
+      {
+        'text-halo-color': [
+          'case',
+          ['==', ['get', 'blue'], 0],
+          'black',
+          ['rgb', ['get', 'red'], ['get', 'green'], ['get', 'blue']]
+        ],
+        'text-halo-width': 1
+      },
+      7.6,
+      features
+    );
+    const texts = renderTextLayers(layer);
+    const rows = layer.state.labelData;
+    expect(texts).toHaveLength(MAX_HALO_SUBLAYERS);
+    // Every label is still drawn, by exactly one sublayer.
+    const drawn = texts.map(text => drawnText(text, rows));
+    for (let index = 0; index < rows.length; index++) {
+      expect(drawn.filter(labels => labels[index] === 'Label')).toHaveLength(1);
+    }
+    // A label whose halo did not get a sublayer is drawn with the most common halo.
+    const common = texts.findIndex(text => text.props.outlineColor.join() === '0,0,0,255');
+    expect(common).toBeGreaterThanOrEqual(0);
+    expect(drawn[common][999]).toBe('Label');
+    expect(drawn[common][500]).toBe('Label');
+    // The other sublayers keep the halos of the first labels. The common halo's sublayer comes
+    // last, and draws its first label at row 7, the first one whose halo was not kept.
+    expect(common).toBe(MAX_HALO_SUBLAYERS - 1);
+    expect(drawn.map(labels => labels.indexOf('Label'))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  test('halo widths are rounded to quarter pixels, so close widths share a sublayer', () => {
+    const features = [1, 1.05, 1.1, 0.05].map(halo => ({
+      ...feature,
+      properties: {...feature.properties, halo}
+    }));
+    const layer = haloLayer(
+      {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']},
+      7.6,
+      features
+    );
+    expect(renderTextLayers(layer).map(text => text.props.outlineWidth)).toEqual([
+      getOutlineWidth(1, 16),
+      // A positive width keeps at least a quarter pixel.
+      getOutlineWidth(0.25, 16)
+    ]);
   });
 });
