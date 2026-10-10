@@ -210,10 +210,13 @@ with a warning.
 
 Approximations:
 
-- Icons are not collision-filtered: every icon whose style layer is visible is drawn, so dense
-  icon layers can overlap. Labels keep their collision filtering. MapLibre places an icon and
-  its text as one unit and hides both on collision.
-- `icon-rotate`, `icon-text-fit`, `icon-padding` and `icon-allow-overlap` are not applied.
+- Icons share the labels' collision filtering, and an icon and its text are placed or hidden as
+  one unit, as in MapLibre. The test is the labels' one: a symbol is hidden where a
+  higher-priority symbol's box (the whole icon box, or the text box) covers its anchor.
+  `*-allow-overlap` (or `*-overlap: always`), `*-ignore-placement` and `*-optional` follow
+  MapLibre's rules, except that text and icon share one test, so an optional part is shown
+  without its partner only when it allows overlap.
+- `icon-rotate`, `icon-text-fit` and `icon-padding` are not applied.
 
 ### Extrusions, dashes and fill outlines
 
