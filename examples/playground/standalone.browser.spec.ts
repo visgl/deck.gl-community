@@ -31,7 +31,7 @@ function mount() {
     unmount();
     host.remove();
   });
-  const status = host.querySelector('header output')!;
+  const tooltip = host.querySelector<HTMLElement>('[role=tooltip]')!;
   const toggle = host.querySelector<HTMLButtonElement>('header button')!;
   const ready = async () => {
     await vi.waitFor(() => expect(setProps.mock.contexts.length).toBeGreaterThan(0));
@@ -40,7 +40,7 @@ function mount() {
     await vi.waitFor(() => expect(layer()?.isLoaded).toBe(true), {timeout: 10_000});
     return {layer, canvas: host.querySelector('canvas')!};
   };
-  return {host, status, toggle, ready, unmount};
+  return {host, tooltip, toggle, ready, unmount};
 }
 
 afterEach(() => {
@@ -59,9 +59,13 @@ test('grants only the page templates and points source, preserves imports across
       signal.addEventListener('abort', () => tools.delete(tool.name), {once: true});
     }
   });
-  const {host, status, toggle, ready, unmount} = mount();
+  const {host, tooltip, toggle, ready, unmount} = mount();
   const {layer, canvas} = await ready();
-  await vi.waitFor(() => expect(status.textContent).toBe('Browser tools ready'));
+  await vi.waitFor(() => expect(toggle.dataset.state).toBe('active'));
+  expect(toggle.textContent).toBe('WebMCP✅');
+  toggle.focus();
+  expect(tooltip.hidden).toBe(false);
+  expect(tooltip.textContent).toContain('Click to disable');
   const getTool = (name: string) => tools.get(`playground.${name}`)!;
   expect([...tools.keys()].sort()).toEqual([
     'playground.inspect_source',
@@ -102,11 +106,12 @@ test('grants only the page templates and points source, preserves imports across
   expect(host.querySelector('canvas')).toBe(canvas);
 
   toggle.click();
-  expect(status.textContent).toBe('Browser tools disabled');
+  expect(toggle.dataset.state).toBe('disabled');
+  expect(toggle.textContent).toBe('WebMCP🚫');
   expect(tools.size).toBe(0);
   expect(layer().props.data).toBe(importedRows);
   toggle.click();
-  await vi.waitFor(() => expect(status.textContent).toBe('Browser tools ready'));
+  await vi.waitFor(() => expect(toggle.dataset.state).toBe('active'));
   await expect(setSource.execute({id: 'points', format: 'json', data: '[]'})).rejects.toThrow(
     'unavailable'
   );
@@ -130,10 +135,16 @@ test('keeps the editor usable without browser tools and across narrow resizes', 
   setContext(undefined);
   const {editor} = await import('monaco-editor');
   const originalModels = new Set(editor.getModels());
-  const {host, status, toggle, ready} = mount();
+  const {host, tooltip, toggle, ready} = mount();
   const {layer, canvas} = await ready();
-  await vi.waitFor(() => expect(status.textContent).toBe('Browser tools unavailable'));
-  expect(toggle.disabled).toBe(true);
+  await vi.waitFor(() => expect(toggle.dataset.state).toBe('unavailable'));
+  expect(toggle.getAttribute('aria-disabled')).toBe('true');
+  expect(toggle.textContent).toBe('WebMCP❌');
+  toggle.focus();
+  expect(tooltip.hidden).toBe(false);
+  expect(tooltip.textContent).toContain('This browser does not provide WebMCP');
+  toggle.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+  expect(tooltip.hidden).toBe(true);
   await vi.waitFor(() => {
     expect(editor.getModels().filter(model => !originalModels.has(model))).toHaveLength(1);
   });
@@ -189,4 +200,27 @@ test('keeps the editor usable without browser tools and across narrow resizes', 
   expect(layer().props.getRadius).toBe(13);
   model.setValue(JSON.stringify(document));
   expect(host.querySelector<HTMLOutputElement>('[data-error]')!.hidden).toBe(true);
+}, 20_000);
+
+test('shows initialization and prevents duplicate registrations while connecting', async () => {
+  let release!: () => void;
+  const connection = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const registerTool = vi.fn(async () => connection);
+  setContext({registerTool});
+  const {toggle, tooltip} = mount();
+  await vi.waitFor(() => expect(registerTool).toHaveBeenCalled());
+  expect(toggle.dataset.state).toBe('initializing');
+  expect(toggle.textContent).toBe('WebMCP🚧');
+  expect(toggle.getAttribute('aria-busy')).toBe('true');
+  const registrations = registerTool.mock.calls.length;
+  toggle.click();
+  expect(registerTool).toHaveBeenCalledTimes(registrations);
+  toggle.focus();
+  expect(tooltip.hidden).toBe(false);
+  expect(tooltip.textContent).toContain('Registering');
+  release();
+  await vi.waitFor(() => expect(toggle.dataset.state).toBe('active'));
+  expect(toggle.getAttribute('aria-busy')).toBe('false');
 }, 20_000);
