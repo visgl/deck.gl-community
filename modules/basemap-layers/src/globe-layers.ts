@@ -4,6 +4,7 @@ import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
+import {createCircleSubLayer} from './circle-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {filterFeatures, parseProperties} from './map-style';
 import {
@@ -106,6 +107,7 @@ const BACKGROUND_NORTH_POLE_DATA = [
 
 const SUPPORTED_TYPES = new Set([
   'background',
+  'circle',
   'fill',
   'fill-extrusion',
   'line',
@@ -449,6 +451,20 @@ function createStyledVectorSubLayer({
       spriteAtlases,
       loadOptions,
       fontFamily
+    });
+  }
+
+  if (styleLayer.type === 'circle') {
+    return createCircleSubLayer({
+      baseProps: getSubLayerBaseProps(props),
+      id: `${props.id}-${styleLayer.id}`,
+      styleLayer,
+      features,
+      zoom,
+      globe: mode === 'globe',
+      // Depth-tested against the globe without writing depth: a circle's quad, blur and
+      // antialiased edge included, would otherwise cut holes in the circles drawn after it.
+      parameters: {...getTileParameters(mode), depthWriteEnabled: false}
     });
   }
 
@@ -1054,7 +1070,10 @@ function getVectorLayers({
   const vectorLayers = styleLayers.filter(layer =>
     layer.type === 'symbol'
       ? config.labels
-      : layer.type === 'fill' || layer.type === 'fill-extrusion' || layer.type === 'line'
+      : layer.type === 'fill' ||
+        layer.type === 'fill-extrusion' ||
+        layer.type === 'line' ||
+        layer.type === 'circle'
   );
 
   // A group keeps all of its source's style layers, visible or not: its tile regeneration key
