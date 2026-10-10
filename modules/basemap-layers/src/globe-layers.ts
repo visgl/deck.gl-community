@@ -124,6 +124,11 @@ const TRANSPARENT_COLOR: [number, number, number, number] = [0, 0, 0, 0];
  * does, instead of restarting it at every vertex.
  */
 const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
+/** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
+const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
+const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
+/** Marks the copies of a feature drawn on either side of its `line-gap-width`: 1 or -1. */
+const LINE_GAP_SIDE = Symbol('line-gap-side');
 
 /** Extrusions are depth-tested against each other; flat layers draw in style order. */
 const EXTRUSION_PARAMETERS = {
@@ -781,6 +786,21 @@ export function getDashArray(dasharray: unknown): [number, number] {
   return [dash * 2, gap * 2];
 }
 
+/**
+ * Converts `line-offset` and `line-gap-width` into deck.gl's `getOffset`, which is in line widths.
+ * A gap draws two lines of `width` with their centers `gapWidth / 2 + width / 2` either side of
+ * the offset line: `side` is 1 or -1 for them, 0 for a line without a gap. Positive is to the
+ * right of the line's direction in both.
+ */
+export function getLineOffset(
+  offset: number,
+  gapWidth: number,
+  width: number,
+  side: number
+): number {
+  return width > 0 ? (offset + side * (Math.max(0, gapWidth) / 2 + width / 2)) / width : 0;
+}
+
 function createGeometrySubLayer({
   props,
   styleLayer,
@@ -835,20 +855,68 @@ function createGeometrySubLayer({
           getDashArray(dasharray)
         )
       : null;
+  const hasOffset =
+    isLine &&
+    (styleLayer.paint?.['line-offset'] !== undefined ||
+      styleLayer.paint?.['line-gap-width'] !== undefined);
+  const lineOffset = hasOffset
+    ? getStyleAccessor<[number, number, number]>(
+        styleLayer,
+        ['line-offset', 'line-gap-width', 'line-width'],
+        zoom,
+        ([offset, gap, width]) => [
+          Number(offset ?? 0),
+          Math.max(0, Number(gap ?? 0)),
+          Math.max(0, Number(width ?? 1))
+        ]
+      )
+    : null;
+  // A feature with a gap is drawn twice, once on either side of it.
+  const gapWidth = hasOffset
+    ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
+    : null;
+  const data =
+    gapWidth && (typeof gapWidth.value === 'function' || gapWidth.value > 0)
+      ? features.flatMap(feature =>
+          (typeof gapWidth.value === 'function' ? gapWidth.value(feature) : gapWidth.value) > 0
+            ? [
+                {...feature, [LINE_GAP_SIDE]: 1},
+                {...feature, [LINE_GAP_SIDE]: -1}
+              ]
+            : [feature]
+        )
+      : features;
+  const offsetValue = lineOffset?.value;
 
   return new GeoJsonLayer({
     ...baseProps,
     id: `${props.id}-${styleLayer.id}`,
-    data: features,
+    data,
     stroked: isLine || hasOutline,
     filled: isFill,
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     // A fill's outline is MapLibre's 1 pixel antialiasing line.
     getLineWidth: isLine ? (lineWidth.value as any) : hasOutline ? 1 : 0,
+    ...(dashArray || lineOffset
+      ? {
+          extensions: [
+            ...(baseProps.extensions || []),
+            dashArray ? (lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION) : OFFSET_EXTENSION
+          ]
+        }
+      : {}),
+    ...(offsetValue
+      ? {
+          getOffset: (feature: any) => {
+            const [offset, gap, width] =
+              typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue;
+            return getLineOffset(offset, gap, width, feature[LINE_GAP_SIDE] ?? 0);
+          }
+        }
+      : {}),
     ...(dashArray
       ? {
-          extensions: [...(baseProps.extensions || []), DASH_EXTENSION],
           getDashArray: dashArray.value as any,
           dashJustified: false
         }
@@ -857,7 +925,8 @@ function createGeometrySubLayer({
       getFillColor: isFill ? fillColor.updateTrigger : undefined,
       getLineColor: lineColor.updateTrigger,
       getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
-      getDashArray: dashArray?.updateTrigger
+      getDashArray: dashArray?.updateTrigger,
+      getOffset: typeof offsetValue === 'function' ? lineOffset?.updateTrigger : offsetValue
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
