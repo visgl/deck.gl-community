@@ -22,6 +22,11 @@ function line(properties: Record<string, unknown> = {}) {
 }
 
 function renderLine(paint: Record<string, unknown>, features = [line()], zoom = 12): any {
+  return renderLines(paint, features, zoom)[0];
+}
+
+/** Renders one line style layer for one tile and returns all its sublayers. */
+function renderLines(paint: Record<string, unknown>, features = [line()], zoom = 12): any[] {
   const vectorLayer: any = getBasemapLayers({
     idPrefix: 'test',
     mode: 'map',
@@ -37,12 +42,25 @@ function renderLine(paint: Record<string, unknown>, features = [line()], zoom = 
       layers: [{id: 'line', type: 'line', source: 'tiles', paint}]
     } as any
   }).find(layer => layer.id === 'test-tiles');
-  const [sublayer] = vectorLayer.props.renderSubLayers({
-    id: 'test-tile',
-    data: features,
-    tile: {index: {x: 0, y: 0, z: Math.floor(zoom)}}
-  });
-  return sublayer;
+  return vectorLayer.props
+    .renderSubLayers({
+      id: 'test-tile',
+      data: features,
+      tile: {index: {x: 0, y: 0, z: Math.floor(zoom)}}
+    })
+    .flat();
+}
+
+/** The offset of each feature in each sublayer, and each feature's line width. */
+function getSides(layers: any[]): {offsets: number[]; widths: number[]}[] {
+  return layers.map(layer => ({
+    offsets: getOffsets(layer),
+    widths: layer.props.data.map((feature: any, index: number) =>
+      typeof layer.props.getLineWidth === 'function'
+        ? layer.props.getLineWidth(feature, {index})
+        : layer.props.getLineWidth
+    )
+  }));
 }
 
 function getOffsets(layer: any): number[] {
@@ -76,34 +94,68 @@ describe('line-offset and line-gap-width', () => {
 
   test.each([0, 2])('draws both gap sides with offset %s', offset => {
     const features = [line(), line()];
-    const layer = renderLine(
+    const layers = renderLines(
       {'line-gap-width': 4, 'line-width': 2, 'line-offset': offset},
       features
     );
-    expect(getOffsets(layer)).toEqual([
-      offset / 2 + 1.5,
-      offset / 2 - 1.5,
-      offset / 2 + 1.5,
-      offset / 2 - 1.5
+    expect(getSides(layers)).toEqual([
+      {offsets: [offset / 2 + 1.5, offset / 2 + 1.5], widths: [2, 2]},
+      {offsets: [offset / 2 - 1.5, offset / 2 - 1.5], widths: [2, 2]}
     ]);
-    expect(layer.props.data[0]).not.toBe(features[0]);
-    expect(layer.props.data[0].geometry).toBe(features[0].geometry);
-    expect(layer.props.data[0].properties).toBe(features[0].properties);
-    expect(Object.getOwnPropertySymbols(features[0])).toEqual([]);
+    // Both sides draw the tile's features themselves, so picking reports them and their indices.
+    expect(layers.map(layer => layer.props.data)).toEqual([features, features]);
+    expect(layers[1].props.data).toBe(features);
+    expect(layers[1].id).not.toBe(layers[0].id);
+    expect(layers[1].props.extensions).toBe(layers[0].props.extensions);
   });
 
-  test('duplicates only features with a positive data-driven gap', () => {
+  test('draws a second side only for features with a positive data-driven gap', () => {
     const features = [line({gap: 0}), line({gap: 4})];
-    const layer = renderLine({'line-gap-width': ['get', 'gap'], 'line-width': 2}, features);
-    expect(getOffsets(layer)).toEqual([0, 1.5, -1.5]);
-    expect(layer.props.data[0]).toBe(features[0]);
+    const layers = renderLines({'line-gap-width': ['get', 'gap'], 'line-width': 2}, features);
+    expect(getSides(layers)).toEqual([
+      {offsets: [0, 1.5], widths: [2, 2]},
+      {offsets: [0, -1.5], widths: [0, 2]}
+    ]);
+    expect(layers[1].props.data).toBe(features);
   });
 
-  test.each([undefined, 0])('preserves the array with gap %s and data-driven offset', gap => {
+  test.each([
+    ['constant', 4],
+    ['zoom-dependent', ['interpolate', ['linear'], ['zoom'], 10, 2, 16, 8]],
+    ['data-driven', ['get', 'gap']]
+  ])('keeps the tile data across zoom steps with a %s gap', (_, gap) => {
+    const features = [line({gap: 4})];
+    const paint = {'line-gap-width': gap, 'line-width': 2};
+    const layers = [12, 12.25, 12.5, 13].flatMap(zoom => renderLines(paint, features, zoom));
+    expect(layers).toHaveLength(8);
+    for (const layer of layers) {
+      expect(layer.props.data).toBe(features);
+    }
+  });
+
+  test('re-evaluates the second side when a data-driven gap changes with zoom', () => {
+    const paint = {
+      'line-gap-width': ['interpolate', ['linear'], ['zoom'], 10, 0, 14, ['get', 'gap']],
+      'line-width': 2
+    };
+    const features = [line({gap: 4})];
+    const [, low] = renderLines(paint, features, 10);
+    const [, high] = renderLines(paint, features, 14);
+    expect(getSides([low, high])).toEqual([
+      {offsets: [0], widths: [0]},
+      {offsets: [-1.5], widths: [2]}
+    ]);
+    expect(low.props.updateTriggers.getLineWidth).not.toEqual(
+      high.props.updateTriggers.getLineWidth
+    );
+  });
+
+  test.each([undefined, 0])('draws one line with gap %s and a data-driven offset', gap => {
     const features = [line({offset: 6})];
-    const layer = renderLine({'line-gap-width': gap, 'line-offset': ['get', 'offset']}, features);
-    expect(layer.props.data).toBe(features);
-    expect(getOffsets(layer)).toEqual([6]);
+    const layers = renderLines({'line-gap-width': gap, 'line-offset': ['get', 'offset']}, features);
+    expect(layers).toHaveLength(1);
+    expect(layers[0].props.data).toBe(features);
+    expect(getOffsets(layers[0])).toEqual([6]);
   });
 
   test('updates constant offsets and triggers with zoom', () => {
@@ -152,20 +204,23 @@ describe('line-offset and line-gap-width', () => {
   });
 
   test.each([0, -2])('returns zero offset for width %s', width => {
-    const layer = renderLine({
+    const layers = renderLines({
       'line-offset': 6,
       'line-gap-width': 4,
       'line-width': width
     });
-    expect(getOffsets(layer)).toEqual([0, 0]);
-    expect(layer.props.getLineWidth).toBe(0);
+    expect(getSides(layers)).toEqual([
+      {offsets: [0], widths: [0]},
+      {offsets: [0], widths: [0]}
+    ]);
   });
 
   test('clamps negative gaps to zero', () => {
     const features = [line()];
-    const layer = renderLine({'line-gap-width': -4, 'line-offset': 2}, features);
-    expect(layer.props.data).toBe(features);
-    expect(getOffsets(layer)).toEqual([2]);
+    const layers = renderLines({'line-gap-width': -4, 'line-offset': 2}, features);
+    expect(layers).toHaveLength(1);
+    expect(layers[0].props.data).toBe(features);
+    expect(getOffsets(layers[0])).toEqual([2]);
   });
 });
 
@@ -177,6 +232,8 @@ describe('getLineOffset', () => {
     [0, 4, 2, -1, -1.5],
     [2, 4, 2, 1, 2.5],
     [2, 4, 2, -1, -0.5],
+    [6, 0, 3, 1, 2],
+    [6, 0, 3, -1, 2],
     [6, 4, 0, 1, 0],
     [6, 4, -2, -1, 0]
   ])('converts (%s, %s, %s, %s) to %s', (offset, gap, width, side, expected) => {

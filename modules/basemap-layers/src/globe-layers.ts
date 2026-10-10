@@ -127,8 +127,6 @@ const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
 /** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
 const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
 const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
-/** Marks the copies of a feature drawn on either side of its `line-gap-width`: 1 or -1. */
-const LINE_GAP_SIDE = Symbol('line-gap-side');
 
 /** Extrusions are depth-tested against each other; flat layers draw in style order. */
 const EXTRUSION_PARAMETERS = {
@@ -789,8 +787,13 @@ export function getDashArray(dasharray: unknown): [number, number] {
 /**
  * Converts `line-offset` and `line-gap-width` into deck.gl's `getOffset`, which is in line widths.
  * A gap draws two lines of `width` with their centers `gapWidth / 2 + width / 2` either side of
- * the offset line: `side` is 1 or -1 for them, 0 for a line without a gap. Positive is to the
- * right of the line's direction in both.
+ * the offset line: `side` is 1 or -1 for them. Without a gap, `side` is ignored. Positive is to
+ * the right of the line's direction in both. Dividing by `width` assumes deck.gl draws the line
+ * `width` pixels wide, that is, no `lineWidthMinPixels`/`lineWidthMaxPixels` clamp applies.
+ *
+ * deck.gl offsets by widening the stroke and masking it across the line, not by offsetting the
+ * path, so the outside of a sharp corner breaks open and the two lines of a gap end in separate
+ * stubs rather than one cap. Offsetting the path belongs in deck.gl's `PathStyleExtension`.
  */
 export function getLineOffset(
   offset: number,
@@ -798,7 +801,10 @@ export function getLineOffset(
   width: number,
   side: number
 ): number {
-  return width > 0 ? (offset + side * (Math.max(0, gapWidth) / 2 + width / 2)) / width : 0;
+  if (!(width > 0)) {
+    return 0;
+  }
+  return (offset + (gapWidth > 0 ? side * (gapWidth / 2 + width / 2) : 0)) / width;
 }
 
 function createGeometrySubLayer({
@@ -871,27 +877,20 @@ function createGeometrySubLayer({
         ]
       )
     : null;
-  // A feature with a gap is drawn twice, once on either side of it.
+  const offsetValue = lineOffset?.value;
+  const getOffset = (side: number) => (feature: any) => {
+    const [offset, gap, width] =
+      typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue!;
+    return getLineOffset(offset, gap, width, side);
+  };
   const gapWidth = hasOffset
     ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
     : null;
-  const data =
-    gapWidth && (typeof gapWidth.value === 'function' || gapWidth.value > 0)
-      ? features.flatMap(feature =>
-          (typeof gapWidth.value === 'function' ? gapWidth.value(feature) : gapWidth.value) > 0
-            ? [
-                {...feature, [LINE_GAP_SIDE]: 1},
-                {...feature, [LINE_GAP_SIDE]: -1}
-              ]
-            : [feature]
-        )
-      : features;
-  const offsetValue = lineOffset?.value;
 
-  return new GeoJsonLayer({
+  const layer = new GeoJsonLayer({
     ...baseProps,
     id: `${props.id}-${styleLayer.id}`,
-    data,
+    data: features,
     stroked: isLine || hasOutline,
     filled: isFill,
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
@@ -906,15 +905,7 @@ function createGeometrySubLayer({
           ]
         }
       : {}),
-    ...(offsetValue
-      ? {
-          getOffset: (feature: any) => {
-            const [offset, gap, width] =
-              typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue;
-            return getLineOffset(offset, gap, width, feature[LINE_GAP_SIDE] ?? 0);
-          }
-        }
-      : {}),
+    ...(offsetValue ? {getOffset: getOffset(1)} : {}),
     ...(dashArray
       ? {
           getDashArray: dashArray.value as any,
@@ -936,6 +927,35 @@ function createGeometrySubLayer({
     pointRadiusMinPixels: 0,
     parameters: getTileParameters(mode)
   });
+  if (!gapWidth || (typeof gapWidth.value !== 'function' && !(gapWidth.value > 0))) {
+    return layer;
+  }
+
+  // A gap draws a second line on the other side, from the same data so that tile data, picked
+  // objects and indices stay those of the features. Features without a gap draw only once.
+  const getGap = gapWidth.value;
+  const getWidth = lineWidth.value;
+  return [
+    layer,
+    layer.clone({
+      id: `${layer.id}-gap`,
+      getOffset: getOffset(-1),
+      ...(typeof getGap === 'function'
+        ? {
+            getLineWidth: (feature: any) =>
+              getGap(feature) > 0
+                ? typeof getWidth === 'function'
+                  ? getWidth(feature)
+                  : getWidth
+                : 0,
+            updateTriggers: {
+              ...layer.props.updateTriggers,
+              getLineWidth: [lineWidth.updateTrigger, gapWidth.updateTrigger]
+            }
+          }
+        : {})
+    } as any)
+  ];
 }
 
 /** The latest features raised to their `fill-extrusion-base`, per tile content and style layer. */
