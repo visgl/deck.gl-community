@@ -4,7 +4,7 @@ import * as dom from '../index';
 describe('native entrypoint export matrix', () => {
   it('exports DeckGL, but not Deckgl, from the shared root and /dom entrypoint', () => {
     // package.json maps both `.` and `/dom` to this module.
-    expect(Object.keys(dom).sort()).toEqual(['DeckGL']);
+    expect(Object.keys(dom).sort()).toEqual(['DeckCanvas', 'DeckGL']);
     expect(dom).not.toHaveProperty('Deckgl');
   });
 });

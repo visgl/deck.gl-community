@@ -13,3 +13,5 @@ export {DeckGL} from './components';
  * ```
  */
 export type {DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';
+export {DeckCanvas} from './deck-canvas';
+export type {DeckCanvasProps} from './deck-canvas';
