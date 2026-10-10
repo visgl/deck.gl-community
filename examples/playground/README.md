@@ -76,7 +76,9 @@ Batches inspectors. Reference an imported file in a layer with `"data": "datasou
 choose a compatible layer and accessors for its columns. GeoJSON feature arrays work with
 `GeoJsonLayer`. Existing `{"@@data":"source-id"}` bindings remain supported.
 
-Tabular imports retain an Apache Arrow table and a plain row adapter for deck.gl 9. GeoJSON
+Tabular imports retain an Apache Arrow table and a plain row adapter for deck.gl 9. Sparse or
+heterogeneous rows that cannot round-trip unchanged through inferred Arrow types use a lossless
+JSON `row` column; rendering still receives the original row structure. GeoJSON
 features are stored losslessly as JSON strings in Arrow feature/geometry/properties columns and
 restored as feature objects for rendering; this is not a native GeoArrow geometry encoding.
 File parsing uses the pinned loaders.gl loaders, with Apache Arrow handling table construction.

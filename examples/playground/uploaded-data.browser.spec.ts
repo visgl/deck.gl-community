@@ -118,16 +118,32 @@ test('composed panel shows upload controls, source references, and existing Arro
   expect(root.querySelector<HTMLInputElement>('[aria-label="Source URL reference"]')!.value).toBe(
     'datasource://sample'
   );
-  expect(root.querySelector('[data-arrow-table-panel]')).not.toBeNull();
+  expect(getComputedStyle(root.querySelector('[data-arrow-table-panel]')!).visibility).toBe(
+    'visible'
+  );
   const buttons = () => Array.from(root.querySelectorAll('button'));
   buttons()
     .find(button => button.textContent === 'Schema')!
     .click();
-  await vi.waitFor(() => expect(root.querySelector('[data-arrow-schema-panel]')).not.toBeNull());
+  await vi.waitFor(() => {
+    expect(getComputedStyle(root.querySelector('[data-arrow-schema-panel]')!).visibility).toBe(
+      'visible'
+    );
+    expect(getComputedStyle(root.querySelector('[data-arrow-table-panel]')!).visibility).toBe(
+      'hidden'
+    );
+  });
   buttons()
     .find(button => button.textContent === 'Batches')!
     .click();
-  await vi.waitFor(() => expect(root.querySelector('[data-arrow-batches-panel]')).not.toBeNull());
+  await vi.waitFor(() => {
+    expect(getComputedStyle(root.querySelector('[data-arrow-batches-panel]')!).visibility).toBe(
+      'visible'
+    );
+    expect(getComputedStyle(root.querySelector('[data-arrow-schema-panel]')!).visibility).toBe(
+      'hidden'
+    );
+  });
   render(null, root);
   render(panel.content, root);
   expect(root.textContent).toContain('sample.json');
@@ -196,4 +212,70 @@ test('uploaded source URLs refresh a persistent preview and survive template cha
   );
   expect((deck.props.layers as ScatterplotLayer[])[0].props.data).toEqual([{position: [1, 2]}]);
   expect(host.querySelector('canvas')).toBe(canvas);
+});
+
+test('sparse and heterogeneous JSON rows preserve original values through lossless Arrow storage', async () => {
+  const rows = [
+    {number: 1, nested: {value: 'one'}},
+    {label: 'missing-number', nested: {other: [1, 2]}},
+    {number: 'mixed', nested: null}
+  ];
+  const imported = await loadUploadedData(new File([JSON.stringify(rows)], 'mixed.json'));
+  expect(imported.data).toEqual(rows);
+  expect(Object.hasOwn(imported.data[1], 'number')).toBe(false);
+  expect(imported.table.schema.fields.map(field => field.name)).toEqual(['row']);
+  expect(Array.from(imported.table, row => JSON.parse(row.row))).toEqual(rows);
+});
+
+test('GeoJSON feature arrays preserve mixed geometries, nesting, and differing properties', async () => {
+  const features = [
+    {type: 'Feature', geometry: {type: 'Point', coordinates: [1, 2]}, properties: {name: 'Point'}},
+    {
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [1, 2],
+          [3, 4]
+        ]
+      },
+      properties: {count: 2}
+    },
+    {
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0]
+          ]
+        ]
+      },
+      properties: {area: true}
+    }
+  ];
+  const imported = await loadUploadedData(new File([JSON.stringify(features)], 'features.json'));
+  expect(imported.data).toEqual(features);
+  expect(imported.format).toBe('GeoJSON');
+  expect(Array.from(imported.table, row => JSON.parse(row.feature))).toEqual(features);
+});
+
+test('unsupported JSON objects and malformed GeoJSON report readable upload errors', async () => {
+  await expect(
+    loadUploadedData(new File(['{"data": [{"value": 1}]}'], 'wrapped.json'))
+  ).rejects.toThrow('JSON data must be an array of row objects or GeoJSON.');
+  await expect(
+    loadUploadedData(
+      new File(
+        ['{"type":"Feature","geometry":{"type":"Point","coordinates":[1]},"properties":{}}'],
+        'invalid.geojson'
+      )
+    )
+  ).rejects.toThrow('Invalid GeoJSON.');
+  await expect(
+    loadUploadedData(new File(['[{"type":"Feature"}]'], 'invalid-features.json'))
+  ).rejects.toThrow('Invalid GeoJSON.');
 });
