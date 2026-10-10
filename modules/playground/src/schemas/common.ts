@@ -137,7 +137,7 @@ export const DataSchema = z
     z.null()
   ])
   .describe(
-    'URL, inline JSON rows, a named host binding or JSON data descriptor. Live binary/GPU resources must be supplied by the host.'
+    'URL (including datasource://source-id), inline JSON rows, a named host binding or JSON data descriptor. Live binary/GPU resources must be supplied by the host.'
   );
 /** Shared LayerProps. Unknown prop names are rejected; custom layers must extend the schema. */
 export const BaseLayerPropsSchema = z

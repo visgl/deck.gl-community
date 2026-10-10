@@ -727,3 +727,27 @@ describe('playground runtime resolver', () => {
     expect((resolved.props.views as any[])[0]).toBeInstanceOf(OrthographicView);
   });
 });
+
+test('datasource URLs use managed bindings, deferred registration, and existing overrides', () => {
+  const value = {layers: [{...layer, data: 'datasource://uploaded'}]};
+  expect(() => resolver.resolve(value, {}, dataSources)).toThrow(
+    'Missing playground data binding: uploaded'
+  );
+  const rows = [{position: [1, 2]}];
+  addSource('uploaded', {data: rows});
+  const result = resolver.resolve(value, {}, dataSources);
+  expect((result.props.layers as Layer[])[0].props.data).toBe(rows);
+  expect(result.layerBindings.get('points')).toBe('uploaded');
+  const replacement = {data: [{position: [3, 4]}]};
+  expect(
+    (resolver.resolve(value, {uploaded: replacement}, dataSources).props.layers as Layer[])[0].props
+      .data
+  ).toBe(replacement.data);
+  expect(() => resolver.resolve({layers: [{...layer, data: 'datasource://'}]}, {})).toThrow(
+    'source ID'
+  );
+  expect(
+    resolver.resolve({layers: [{...layer, data: 'https://example.test/points.json'}]}, {})
+      .layerBindings.size
+  ).toBe(0);
+});

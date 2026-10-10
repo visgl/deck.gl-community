@@ -4,5 +4,8 @@
     "noEmit": true,
     "moduleResolution": "bundler"
   },
-  "include": ["*.ts"]
+  "include": [
+    "*.ts",
+    "*.tsx"
+  ]
 }

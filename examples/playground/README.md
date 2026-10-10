@@ -63,3 +63,22 @@ The [gallery example](https://visgl.github.io/deck.gl-community/examples/playgro
 `app.ts`, uses the same managed renderer and `registry.ts` as the standalone app. The website owns
 these constructor imports. The playground library bundles schemas and enables only constructors
 explicitly supplied in `registry.layers`.
+
+## Uploaded data sources
+
+The standalone playground adds a **Data Sources** tab. Choose or drop JSON row arrays, GeoJSON,
+CSV, or Arrow IPC files (`.arrow`, `.feather`, `.ipc`). Imports remain local to the current page
+and survive template changes; closing or reloading the page clears them. Duplicate filenames
+receive distinct source IDs. Failed imports report errors without replacing existing sources.
+
+The tab shows a selectable source URL, row count, and the existing Arrow Rows, Schema, and
+Batches inspectors. Reference an imported file in a layer with `"data": "datasource://source-id"`;
+choose a compatible layer and accessors for its columns. GeoJSON feature arrays work with
+`GeoJsonLayer`. Existing `{"@@data":"source-id"}` bindings remain supported.
+
+Tabular imports retain an Apache Arrow table and a plain row adapter for deck.gl 9. GeoJSON
+features are stored losslessly as JSON strings in Arrow feature/geometry/properties columns and
+restored as feature objects for rendering; this is not a native GeoArrow geometry encoding.
+File parsing uses the pinned loaders.gl loaders, with Apache Arrow handling table construction.
+Browser tools retain their existing explicit access to the points source; uploading files does
+not grant browser tools access to additional sources.

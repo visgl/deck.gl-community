@@ -273,8 +273,12 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
         if (Object.hasOwn(definition, 'data')) {
           // Keep the original rows: schema parsing may apply defaults, but also clones JSON.
           const data = Object.hasOwn(source, 'data') ? source.data : definition.data;
-          if (isRecord(data) && Object.hasOwn(data, '@@data')) {
-            const bindingName = String(data['@@data']);
+          const sourceUrl = typeof data === 'string' && data.startsWith('datasource://');
+          if (sourceUrl || (isRecord(data) && Object.hasOwn(data, '@@data'))) {
+            const bindingName = sourceUrl
+              ? data.slice('datasource://'.length)
+              : String(data['@@data']);
+            if (!bindingName.trim()) throw new Error('A datasource URL must contain a source ID');
             const hasOverride = Object.hasOwn(bindings, bindingName);
             const binding = hasOverride ? bindings[bindingName] : dataSources?.get(bindingName);
             if (hasOverride || binding !== undefined) {

@@ -20,7 +20,7 @@ export type PlaygroundDataBinding = {
   getRowId?: (row: any, index: number) => string | number;
 };
 
-/** Named row arrays referenced by a layer's `data: {"@@data": "name"}` configuration. */
+/** Named row arrays referenced by `data: {"@@data": "name"}` or `data: "datasource://name"`. */
 export type PlaygroundBindings = Record<string, PlaygroundDataBinding>;
 
 /** Constructors and deferred values available to the built-in playground renderer. */
