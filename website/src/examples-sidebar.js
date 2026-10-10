@@ -120,7 +120,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/react-fiber',
-      items: ['react-fiber/overview']
+      items: ['react-fiber/overview', 'react-fiber/multi-canvas']
     }
   ]
 };

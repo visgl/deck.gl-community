@@ -1,0 +1,25 @@
+---
+title: Multi-canvas cities
+---
+
+Four city maps share one Deck through React Fiber's `DeckCanvas`: New York,
+London, Tokyo and Sydney each have their own presentation canvas, basemap style,
+landmarks, controller and zoom widget. Hovering updates shared React state.
+Sydney can be removed and re-added to demonstrate canvas cleanup.
+
+This is a React port of [deck.gl's multi-canvas cities example](https://github.com/visgl/deck.gl/pull/10492),
+using the [DeckCanvas RFC](https://github.com/visgl/deck.gl/issues/10392).
+
+Run the standalone application from the repository root:
+
+```sh
+yarn
+yarn workspace example-react-fiber-multi-canvas start
+```
+
+[Example source](https://github.com/visgl/deck.gl-community/tree/master/examples/react-fiber/multi-canvas)
+· [DeckCanvas API](../../docs/modules/react-fiber/api-reference/deck-canvas)
+
+Each `DeckCanvas` contributes its `views`, `layers` and `widgets` props. The
+application owns the shared Deck and its view states. The example aliases local
+workspace sources and requires internet access for Carto tiles and fonts.

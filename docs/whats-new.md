@@ -4,6 +4,10 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
+  one shared Deck, with scoped views, layers and widgets. A four-city standalone
+  example demonstrates independent maps, shared hover state and canvas cleanup.
+
 - The graph viewer includes a live mini-map with click-to-recenter navigation. The playground
   adds a declarative graph overview using two `OrthographicView`s and one shared `GraphLayer`.
 

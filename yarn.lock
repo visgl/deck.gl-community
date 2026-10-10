@@ -11220,6 +11220,31 @@ __metadata:
   languageName: node
   linkType: hard
 
+"example-react-fiber-multi-canvas@workspace:examples/react-fiber/multi-canvas":
+  version: 0.0.0-use.local
+  resolution: "example-react-fiber-multi-canvas@workspace:examples/react-fiber/multi-canvas"
+  dependencies:
+    "@deck.gl-community/basemap-layers": "workspace:*"
+    "@deck.gl-community/react-fiber": "workspace:*"
+    "@deck.gl/core": "npm:~9.4.0"
+    "@deck.gl/extensions": "npm:~9.4.0"
+    "@deck.gl/geo-layers": "npm:~9.4.0"
+    "@deck.gl/layers": "npm:~9.4.0"
+    "@deck.gl/mesh-layers": "npm:~9.4.0"
+    "@deck.gl/widgets": "npm:~9.4.0"
+    "@loaders.gl/core": "npm:^4.5.1"
+    "@luma.gl/core": "npm:~9.4.0"
+    "@luma.gl/engine": "npm:~9.4.0"
+    "@luma.gl/shadertools": "npm:~9.4.0"
+    "@types/react": "npm:^19.2.18"
+    "@types/react-dom": "npm:^19.2.5"
+    "@vitejs/plugin-react": "npm:^5.1.4"
+    react: "npm:^19.2.8"
+    react-dom: "npm:^19.2.8"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "examples-nextjs@workspace:examples/react-fiber/nextjs":
   version: 0.0.0-use.local
   resolution: "examples-nextjs@workspace:examples/react-fiber/nextjs"
