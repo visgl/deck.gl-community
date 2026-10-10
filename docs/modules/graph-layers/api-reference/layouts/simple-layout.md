@@ -1,5 +1,7 @@
 # SimpleLayout
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 The `SimpleLayout` allows an application to render a pre-layouted graph. This is useful when the application already has or is able to calculated positions for nodes.
 
 ## Usage 

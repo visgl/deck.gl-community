@@ -2,6 +2,8 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 # HtmlOverlayItem
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <WidgetLiveExample highlight="html-overlay-item" />
 
 An HTML element that will be positioned by [`HtmlOverlayWidget`](./html-overlay-widget.md) or

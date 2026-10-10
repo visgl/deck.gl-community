@@ -275,6 +275,11 @@ const config = {
         {property: 'og:image:type', content: 'image/jpeg'},
         {name: 'twitter:card', content: 'summary_large_image'}
       ],
+      colorMode: {
+        defaultMode: 'dark',
+        disableSwitch: false,
+        respectPrefersColorScheme: false
+      },
       navbar: {
         title: 'deck.gl-community',
         logo: {
@@ -283,6 +288,11 @@ const config = {
           srcDark: 'images/visgl-logo-light.png'
         },
         items: [
+          {
+            type: 'html',
+            position: 'left',
+            value: '<span class="community-label">Unofficial modules</span>'
+          },
           {
             to: '/docs',
             position: 'left',

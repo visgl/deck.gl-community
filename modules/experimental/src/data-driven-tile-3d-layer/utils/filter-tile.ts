@@ -13,7 +13,7 @@ type I3STileAttributes = Record<string, string[] | TypedArray | null>;
 /**
  * Filter tile indices by attribute value
  * @param tile - tile to be filtered
- * @param filtersByAttribute - custom filters patameters
+ * @param filtersByAttribute - custom filters parameters
  * @returns {Promise<{isFiltered: boolean; id: string}>} Result of the tile filtering - isFiltered: true/false and tile id
  */
 export const filterTile = async (

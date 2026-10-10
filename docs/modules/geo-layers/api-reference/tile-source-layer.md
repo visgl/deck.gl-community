@@ -15,7 +15,7 @@ The `TileSourceLayer` is a composite layer that connects with an image service t
 
 In contrast to the [TileLayer](https://deck.gl/docs/api-reference/geo-layers/tile-layer) which loads many small image tiles, the `TileSourceLayer` loads a single image that covers the entire viewport in one single request, and updates the image by performing additional requests when the viewport changes.
 
-To use this layer, an *image source* must be specified. Image sources are specified by supplying a URL to the `TileSourceLayer` `data` property. See the section on image sources below for mor information.
+To use this layer, an *image source* must be specified. Image sources are specified by supplying a URL to the `TileSourceLayer` `data` property. See the section on image sources below for more information.
 
 
 import Tabs from '@theme/Tabs';
@@ -123,10 +123,10 @@ new TileSourceLayer(...props: TileSourceLayerProps[]);
 To use pre-bundled scripts:
 
 ```html
-<script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+<script src="https://unpkg.com/deck.gl@^9.4.0/dist.min.js"></script>
 <!-- or -->
-<script src="https://unpkg.com/@deck.gl/core@^9.0.0/dist.min.js"></script>
-<script src="https://unpkg.com/@deck.gl/layers@^9.0.0/dist.min.js"></script>
+<script src="https://unpkg.com/@deck.gl/core@^9.4.0/dist.min.js"></script>
+<script src="https://unpkg.com/@deck.gl/layers@^9.4.0/dist.min.js"></script>
 <script src="https://unpkg.com/@deck.gl-community/layers@^9.0.0/dist.min.js"></script>
 ```
 
@@ -138,7 +138,7 @@ new deck.TileSourceLayer({});
 
 The `TileSourceLayer` accepts a `TileSource` and loads and renders tiles from that TileSource to cover the current viewport.
 
-`loaders.gl` provides a variety of `TileSource` classes for various protocols and tile services. Generally thes sources can be created with a URL from which it can start loading map images. 
+`loaders.gl` provides a variety of `TileSource` classes for various protocols and tile services. Generally these sources can be created with a URL from which it can start loading map images.
 
 
 However, it is also possible to connect the TileSourceLayer to any other REST based service that can render map images from a set of web mercator bounds and a given pixel resolution (perhaps an ArcGIS image server) by specify a custom URL template.

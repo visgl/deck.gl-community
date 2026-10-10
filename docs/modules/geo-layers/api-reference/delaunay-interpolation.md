@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # DelaunayInterpolation
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 :::caution Work in progress
 The wind raster layout and interpolation options may evolve. This utility performs explicit CPU
 sampling; GPU particle advection is implemented separately by

@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # GraphLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="graph-layer" size="tall" />
 
 `GraphLayer` is a composite Deck.gl layer that renders graph nodes, edges, and

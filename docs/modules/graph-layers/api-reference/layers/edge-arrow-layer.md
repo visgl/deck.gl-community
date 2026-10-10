@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # EdgeArrowLayer
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="edge-arrow-layer" size="tall" />
 
 `EdgeArrowLayer` draws arrowheads at the end of directed edges. It uses Deck.gl's

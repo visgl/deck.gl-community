@@ -1,5 +1,7 @@
 # Node Class
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 The `Node` class is the base class of the node, which provides a list of basic util functions to be used through out the applications.
 
 

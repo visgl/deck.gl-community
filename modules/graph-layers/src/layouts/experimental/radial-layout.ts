@@ -162,7 +162,7 @@ export class RadialLayout extends GraphLayout<RadialLayoutProps> {
     };
 
     calculatePosition(this.nestedTree, 0, 0, this._hierarchicalPoints);
-    // layout completes: notifiy component to re-render
+    // layout completes: notify component to re-render
     this._onLayoutChange();
     this._onLayoutDone();
   }
