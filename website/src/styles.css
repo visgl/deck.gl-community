@@ -26,8 +26,8 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--docs-table-border);
-  border-radius: 12px;
-  padding: 0.75rem;
+  border-radius: 14px;
+  padding: 0;
   background: var(--docs-table-shell-background);
   box-shadow: var(--docs-table-shadow);
   margin-left: auto;
@@ -41,9 +41,12 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   border-collapse: separate;
   border-spacing: 0;
   color: var(--docs-table-text);
-  border-radius: 8px;
+  border-radius: 14px;
   background: var(--docs-table-background);
   overflow: hidden;
+  border: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .markdown .docs-markdown-table__table thead:not(#community-theme):not(#community-theme):not(#community-theme) {
@@ -54,15 +57,13 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   background: transparent;
 }
 
-.markdown .docs-markdown-table__table tbody tr:not(#community-theme):not(#community-theme):not(#community-theme),
-.markdown .docs-markdown-table__table tbody tr:nth-child(2n):not(#community-theme):not(#community-theme):not(#community-theme),
-.markdown .docs-markdown-table__table tbody tr:nth-child(2n + 1):not(#community-theme):not(#community-theme):not(#community-theme) {
+.markdown .docs-markdown-table__table tbody tr:not(#community-theme):not(#community-theme):not(#community-theme) {
   background: transparent;
 }
 
 .markdown .docs-markdown-table__table th:not(#community-theme):not(#community-theme):not(#community-theme),
 .markdown .docs-markdown-table__table td:not(#community-theme):not(#community-theme):not(#community-theme) {
-  padding: 0.8rem 0.95rem;
+  padding: 0.65rem 0.85rem;
   border: 0;
   border-bottom: 1px solid var(--docs-table-divider);
   vertical-align: top;
@@ -79,6 +80,7 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   font-weight: 700;
   letter-spacing: 0.01em;
   text-transform: none;
+  color: var(--docs-accent-text);
 }
 
 .markdown .docs-markdown-table__table thead th[colspan]:not(#community-theme):not(#community-theme):not(#community-theme) {
@@ -134,6 +136,9 @@ html[data-theme='dark'] .markdown .docs-markdown-table__table th code:not(#commu
 
   .markdown .docs-markdown-table__table:not(#community-theme):not(#community-theme):not(#community-theme) {
     min-width: 40rem;
+    border: 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
   }
 }
 
@@ -320,7 +325,7 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
 .theme-doc-markdown strong:not(#community-theme):not(#community-theme):not(#community-theme) { color: var(--ifm-heading-color); }
 .theme-doc-markdown code:not(#community-theme):not(#community-theme):not(#community-theme) { border: 0; box-shadow: none; }
 .theme-doc-markdown .theme-code-block:not(#community-theme):not(#community-theme):not(#community-theme) { border: 1px solid var(--docs-border-subtle); border-radius: 14px; box-shadow: 0 12px 28px rgba(35, 27, 46, 0.12); overflow: hidden; }
-.theme-doc-markdown table:not(#community-theme):not(#community-theme):not(#community-theme) {
+.theme-doc-markdown table:not(.docs-markdown-table__table):not(#community-theme):not(#community-theme):not(#community-theme) {
   background: var(--docs-table-background);
   border: 1px solid var(--docs-table-border);
   border-collapse: separate;
@@ -332,12 +337,12 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   max-width: 100%;
   overflow: auto;
 }
-.theme-doc-markdown table th:not(#community-theme):not(#community-theme):not(#community-theme), .theme-doc-markdown table td:not(#community-theme):not(#community-theme):not(#community-theme) { border: 0; padding: 0.65rem 0.85rem; }
-.theme-doc-markdown table th:not(#community-theme):not(#community-theme):not(#community-theme) { background: var(--docs-table-header-background); color: var(--docs-accent-text); font-weight: 700; text-align: left; }
-.theme-doc-markdown table tr:not(#community-theme):not(#community-theme):not(#community-theme) { background: transparent; border: 0; }
-.theme-doc-markdown table tr:nth-child(2n):not(#community-theme):not(#community-theme):not(#community-theme) { background: color-mix(in srgb, var(--ifm-color-primary) 4%, transparent); }
-.theme-doc-markdown table tbody tr + tr td:not(#community-theme):not(#community-theme):not(#community-theme) { border-top: 1px solid var(--docs-table-divider); }
-.theme-doc-markdown table td:first-child:not(#community-theme):not(#community-theme):not(#community-theme) { font-weight: 600; }
+.theme-doc-markdown table:not(.docs-markdown-table__table) th:not(#community-theme):not(#community-theme):not(#community-theme), .theme-doc-markdown table:not(.docs-markdown-table__table) td:not(#community-theme):not(#community-theme):not(#community-theme) { border: 0; padding: 0.65rem 0.85rem; }
+.theme-doc-markdown table:not(.docs-markdown-table__table) th:not(#community-theme):not(#community-theme):not(#community-theme) { background: var(--docs-table-header-background); color: var(--docs-accent-text); font-weight: 700; text-align: left; }
+.theme-doc-markdown table:not(.docs-markdown-table__table) tr:not(#community-theme):not(#community-theme):not(#community-theme) { background: transparent; border: 0; }
+.theme-doc-markdown table:not(.docs-markdown-table__table) tr:nth-child(2n):not(#community-theme):not(#community-theme):not(#community-theme) { background: color-mix(in srgb, var(--ifm-color-primary) 4%, transparent); }
+.theme-doc-markdown table:not(.docs-markdown-table__table) tbody tr + tr td:not(#community-theme):not(#community-theme):not(#community-theme) { border-top: 1px solid var(--docs-table-divider); }
+.theme-doc-markdown table:not(.docs-markdown-table__table) td:first-child:not(#community-theme):not(#community-theme):not(#community-theme) { font-weight: 600; }
 .table-of-contents__link:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: 0.84rem; line-height: 1.45; }
 .menu__link:not(#community-theme):not(#community-theme):not(#community-theme) { line-height: 1.5; }
 .menu__list:not(#community-theme):not(#community-theme):not(#community-theme) { padding-bottom: 0.5rem; }
@@ -352,3 +357,4 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   .theme-doc-markdown:not(#community-theme):not(#community-theme):not(#community-theme) { font-size: 1rem; }
   .theme-doc-markdown h2:not(#community-theme):not(#community-theme):not(#community-theme) { margin-top: 2.5rem; }
 }
+.markdown .docs-markdown-table__table tbody tr:nth-child(even):not(#community-theme):not(#community-theme):not(#community-theme) { background: color-mix(in srgb, var(--ifm-color-primary) 4%, transparent); }
