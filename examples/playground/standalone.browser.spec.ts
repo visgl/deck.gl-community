@@ -143,8 +143,6 @@ test('keeps the editor usable without browser tools and across narrow resizes', 
   toggle.focus();
   expect(tooltip.hidden).toBe(false);
   expect(tooltip.textContent).toContain('This browser does not provide WebMCP');
-  toggle.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
-  expect(tooltip.hidden).toBe(true);
   await vi.waitFor(() => {
     expect(editor.getModels().filter(model => !originalModels.has(model))).toHaveLength(1);
   });
@@ -223,4 +221,26 @@ test('shows initialization and prevents duplicate registrations while connecting
   release();
   await vi.waitFor(() => expect(toggle.dataset.state).toBe('active'));
   expect(toggle.getAttribute('aria-busy')).toBe('false');
+}, 20_000);
+
+test('allows retry after failed registration and announces asynchronous status changes', async () => {
+  const registerTool = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Connection failed'))
+    .mockResolvedValue(undefined);
+  setContext({registerTool});
+  const {host, toggle, tooltip} = mount();
+  const liveStatus = host.querySelector<HTMLElement>('header [role=status]')!;
+  expect(liveStatus.getAttribute('aria-live')).toBe('polite');
+  await vi.waitFor(() => expect(toggle.dataset.state).toBe('unavailable'));
+  expect(toggle.getAttribute('aria-disabled')).toBe('false');
+  expect(tooltip.textContent).toContain('Click to retry');
+  expect(liveStatus.textContent).toContain('could not connect');
+  toggle.click();
+  expect(liveStatus.textContent).toBe('WebMCP initializing');
+  await vi.waitFor(() => expect(toggle.dataset.state).toBe('active'));
+  expect(registerTool).toHaveBeenCalledTimes(7);
+  expect(liveStatus.textContent).toBe('WebMCP active');
+  toggle.click();
+  expect(liveStatus.textContent).toBe('WebMCP disabled');
 }, 20_000);

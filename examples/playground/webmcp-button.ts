@@ -34,7 +34,7 @@ let nextTooltipId = 0;
 /** A single status toggle with a tooltip available to mouse and keyboard users. */
 export function createWebMcpButton(parent: HTMLElement) {
   const document = parent.ownerDocument;
-  const wrapper = document.createElement('span');
+  const wrapper = document.createElement('div');
   wrapper.style.cssText = 'position:relative;display:inline-flex';
   const button = document.createElement('button');
   button.type = 'button';
@@ -43,24 +43,37 @@ export function createWebMcpButton(parent: HTMLElement) {
   const indicator = document.createElement('span');
   indicator.setAttribute('aria-hidden', 'true');
   button.append('WebMCP', indicator);
+  const tooltipRegion = document.createElement('div');
+  tooltipRegion.hidden = true;
+  tooltipRegion.style.cssText =
+    'position:absolute;right:0;top:100%;padding-top:8px;width:260px;max-width:calc(100vw - 32px);z-index:1000';
   const tooltip = document.createElement('div');
   tooltip.id = `playground-webmcp-tooltip-${++nextTooltipId}`;
   tooltip.setAttribute('role', 'tooltip');
   tooltip.hidden = true;
   tooltip.style.cssText =
-    'position:absolute;right:0;top:calc(100% + 8px);width:260px;max-width:calc(100vw - 32px);box-sizing:border-box;padding:12px 14px;border:1px solid #334155;border-radius:12px;background:#0f172a;color:#f8fafc;box-shadow:0 8px 24px rgba(15,23,42,0.22);font:12px/1.5 system-ui;z-index:1000;pointer-events:none';
+    'width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #334155;border-radius:12px;background:#0f172a;color:#f8fafc;box-shadow:0 8px 24px rgba(15,23,42,0.22);font:12px/1.5 system-ui;pointer-events:auto';
   const title = document.createElement('strong');
   title.style.cssText = 'display:block;margin-bottom:4px;font-size:13px';
   const description = document.createElement('div');
   description.style.color = '#cbd5e1';
   tooltip.append(title, description);
   button.setAttribute('aria-describedby', tooltip.id);
-  wrapper.append(button, tooltip);
+  const liveStatus = document.createElement('span');
+  liveStatus.setAttribute('role', 'status');
+  liveStatus.setAttribute('aria-live', 'polite');
+  liveStatus.setAttribute('aria-atomic', 'true');
+  liveStatus.style.cssText =
+    'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0';
+  tooltipRegion.append(tooltip);
+  wrapper.append(button, tooltipRegion, liveStatus);
   parent.append(wrapper);
   let hovered = false;
   let focused = false;
+  let dismissed = false;
   const showTooltip = () => {
-    tooltip.hidden = !(hovered || focused);
+    if (!hovered && !focused) dismissed = false;
+    tooltip.hidden = tooltipRegion.hidden = dismissed || !(hovered || focused);
   };
   wrapper.onmouseenter = () => {
     hovered = true;
@@ -78,9 +91,13 @@ export function createWebMcpButton(parent: HTMLElement) {
     focused = false;
     showTooltip();
   };
-  button.onkeydown = event => {
-    if (event.key === 'Escape') tooltip.hidden = true;
-  };
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && !tooltip.hidden) {
+      dismissed = true;
+      showTooltip();
+    }
+  }
+  document.addEventListener('keydown', handleKeyDown, true);
 
   function setState(state: WebMcpState, errorDescription?: string) {
     const status = STATES[state];
@@ -93,10 +110,20 @@ export function createWebMcpButton(parent: HTMLElement) {
       'aria-disabled',
       String(state === 'initializing' || (state === 'unavailable' && !errorDescription))
     );
+    liveStatus.textContent = errorDescription
+      ? `${status.title}. ${errorDescription}`
+      : status.title;
     title.textContent = status.title;
     description.textContent = errorDescription ?? status.description;
     button.style.cursor = button.getAttribute('aria-disabled') === 'true' ? 'default' : 'pointer';
   }
   setState('disabled');
-  return {button, setState};
+  return {
+    button,
+    setState,
+    destroy() {
+      document.removeEventListener('keydown', handleKeyDown, true);
+      wrapper.remove();
+    }
+  };
 }

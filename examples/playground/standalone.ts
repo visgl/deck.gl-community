@@ -50,9 +50,11 @@ export function mountStandalonePlayground(
   `;
   container.append(root);
   const errorStatus = root.querySelector<HTMLOutputElement>('[data-error]')!;
-  const {button: toggle, setState: setToolState} = createWebMcpButton(
-    root.querySelector<HTMLElement>('[data-webmcp]')!
-  );
+  const {
+    button: toggle,
+    setState: setToolState,
+    destroy: destroyToolButton
+  } = createWebMcpButton(root.querySelector<HTMLElement>('[data-webmcp]')!);
   const sources = new PlaygroundDataSourceManager();
   sources.add({
     dataSourceId: 'points',
@@ -111,6 +113,7 @@ export function mountStandalonePlayground(
 
   return () => {
     active = false;
+    destroyToolButton();
     playground.finalize();
     void sources.finalize();
     root.remove();
