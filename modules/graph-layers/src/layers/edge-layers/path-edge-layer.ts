@@ -20,6 +20,7 @@ export class PathEdgeLayer extends CompositeLayer {
     return [
       new PathLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__line-layer',
           data,
           getPath: e => {
@@ -27,6 +28,7 @@ export class PathEdgeLayer extends CompositeLayer {
             return [sourcePosition, ...controlPoints, targetPosition];
           },
           updateTriggers: {
+            all: this.props.transitions,
             getColor: colorUpdateTrigger,
             getPath: positionUpdateTrigger,
             getWidth: widthUpdateTrigger

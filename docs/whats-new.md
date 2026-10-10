@@ -5,6 +5,7 @@ This page lists module additions and major changes in each release. For detailed
 ## Unreleased
 
 - The standalone playground adds local JSON, GeoJSON, CSV, and Arrow IPC uploads with Arrow inspection and `datasource://source-id` layer references.
+- `GraphLayer.layoutTransitionDuration` enables opt-in position interpolation independently of layout redraw throttling.
 
 - The graph viewer includes a live mini-map with click-to-recenter navigation. The playground
   adds a declarative graph overview using two `OrthographicView`s and one shared `GraphLayer`.

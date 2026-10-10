@@ -25,6 +25,7 @@ export class MarkerLayer extends CompositeLayer {
     return [
       new IconLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: 'marker-layer',
           iconAtlas: AtlasDataURL.dataURL,
           iconMapping: MarkerMapping,

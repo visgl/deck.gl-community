@@ -180,6 +180,8 @@ export type _GraphLayerProps = {
    * Nonpositive or nonfinite values disable throttling.
    */
   layoutUpdateInterval?: number;
+  /** Milliseconds to interpolate layout positions. Defaults to 0 (disabled). */
+  layoutTransitionDuration?: number;
   rankGrid?: boolean | RankGridConfig;
   resumeLayoutAfterDragging?: boolean;
 };
@@ -215,6 +217,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     },
     enableDragging: false,
     layoutUpdateInterval: 0,
+    layoutTransitionDuration: 0,
     rankGrid: false,
     resumeLayoutAfterDragging: true
   };
@@ -275,8 +278,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this._refreshEngineFromProps(this.props, {force: true});
   }
 
-  shouldUpdateState({changeFlags}) {
-    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.stateChanged;
+  shouldUpdateState({props, oldProps, changeFlags}) {
+    return (
+      changeFlags.dataChanged ||
+      changeFlags.propsChanged ||
+      changeFlags.stateChanged ||
+      props?.transitions !== oldProps?.transitions
+    );
   }
 
   updateState({props, oldProps, changeFlags}) {
@@ -880,6 +888,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return 'rank';
   }
 
+  private _getLayoutTransitions() {
+    const value = this.props.layoutTransitionDuration ?? 0;
+    const duration = Number.isFinite(value) ? Math.max(0, value) : 0;
+    return {
+      getPosition: duration,
+      getSourcePosition: duration,
+      getTargetPosition: duration,
+      getPath: duration,
+      getPolygon: duration,
+      ...this.props.transitions
+    };
+  }
+
   createNodeLayers() {
     const engine = this.state.graphEngine;
     const {nodes: nodeStyles} = this._getResolvedStylesheet();
@@ -907,6 +928,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const getOffset = stylesheet.getDeckGLAccessor('getOffset');
         return new LayerType({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: `node-rule-${idx}`,
           data: data(engine.getNodes()),
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
@@ -962,6 +984,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
       const edgeLayer = new EdgeLayer({
         ...SHARED_LAYER_PROPS,
+        transitions: this._getLayoutTransitions(),
         id: `edge-layer-${idx}`,
         data: data(engine.getEdges()),
         getLayoutInfo,
@@ -993,6 +1016,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           }
           return new DecoratorLayer({
             ...SHARED_LAYER_PROPS,
+            transitions: this._getLayoutTransitions(),
             id: `edge-decorator-${idx2}`,
             data: data(engine.getEdges()),
             getLayoutInfo,
@@ -1068,6 +1092,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new PolygonLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'collapsed-chain-outlines',
           data: collapsedOutlineNodes,
           getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
@@ -1102,6 +1127,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new ZoomableMarkerLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'collapsed-chain-markers',
           data: collapsedNodes,
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
@@ -1121,6 +1147,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new PolygonLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'expanded-chain-outlines',
           data: expandedOutlineNodes,
           getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
@@ -1155,6 +1182,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new ZoomableMarkerLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'expanded-chain-markers',
           data: expandedNodes,
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
