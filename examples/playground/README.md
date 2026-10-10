@@ -44,8 +44,9 @@ Browser tools expose five templates: `imported-points`, `scatterplot`, `arcs`, `
 base64 Arrow IPC; the imported-points template expects `position: [x, y]`. Arrow imports become
 rows, not native GeoArrow tables. Imported rows last only for the current page session.
 
-Tools register automatically when WebMCP is available. The toolbar shows their status and offers
-**Disable tools** and **Enable tools**; disabling or re-enabling tools preserves imported rows.
+Tools register automatically when WebMCP is available. The rounded **WebMCP** toolbar button shows ✅ active, ❌ unavailable, 🚫 disabled, or
+🚧 initializing. Hover or focus it for a styled tooltip explaining the status and click action.
+Clicking toggles tools; disabling or re-enabling them preserves imported rows.
 Browsers without WebMCP still support the editor and preview.
 
 Run the standalone app from this directory:

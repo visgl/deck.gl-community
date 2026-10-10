@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # MarkerLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="marker-layer" size="tall" />
 
 `MarkerLayer` renders a packed atlas of 32×32 SVG-inspired glyphs on top of

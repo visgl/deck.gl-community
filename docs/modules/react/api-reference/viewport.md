@@ -1,5 +1,7 @@
 # Viewport
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 ### initialViewState (Object, optional)
 
 ```js

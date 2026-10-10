@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # GlobalGridLayer
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="global-grid-layer" />
 
 {/*
@@ -168,11 +170,11 @@ new GlobalGridLayer<DataT>(...props: GlobalGridLayerProps<DataT>[]);
 To use pre-bundled scripts:
 
 ```html
-<script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
+<script src="https://unpkg.com/deck.gl@^9.4.0/dist.min.js"></script>
 <!-- or -->
-<script src="https://unpkg.com/@deck.gl/core@^9.0.0/dist.min.js"></script>
-<script src="https://unpkg.com/@deck.gl/layers@^9.0.0/dist.min.js"></script>
-<script src="https://unpkg.com/@deck.gl/geo-layers@^9.0.0/dist.min.js"></script>
+<script src="https://unpkg.com/@deck.gl/core@^9.4.0/dist.min.js"></script>
+<script src="https://unpkg.com/@deck.gl/layers@^9.4.0/dist.min.js"></script>
+<script src="https://unpkg.com/@deck.gl/geo-layers@^9.4.0/dist.min.js"></script>
 ```
 
 ```js

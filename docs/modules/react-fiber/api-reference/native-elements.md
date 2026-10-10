@@ -1,5 +1,7 @@
 # Native elements
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 The native renderer accepts exactly two deck.gl JSX elements: `<layer>` and `<view>`. They are available after importing the root package:
 
 ```tsx

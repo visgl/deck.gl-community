@@ -4,6 +4,8 @@ title: TabularGraph
 
 # TabularGraph
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 `TabularGraph` adapts tabular datasets to the [`Graph`](./graph.md) interface. It accepts a
 `TabularGraphSource` with iterable node and edge handles plus accessor functions for reading and
 writing state back to the underlying records.

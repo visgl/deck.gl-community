@@ -4,6 +4,8 @@ title: FlameTrailLayer
 
 # FlameTrailLayer
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 `FlameTrailLayer` renders timestamped paths as rising 3D fire: a white-hot leading
 head, curling orange tongues, a blue reaction zone, and drifting ember particles.
 It subclasses deck.gl's [TripsLayer](https://deck.gl/docs/api-reference/geo-layers/trips-layer)

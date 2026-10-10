@@ -2,6 +2,8 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 # HtmlOverlayWidget
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <WidgetLiveExample highlight="html-overlay-widget" />
 
 Use this widget to render HTML items anchored to geographic coordinates. It projects every
