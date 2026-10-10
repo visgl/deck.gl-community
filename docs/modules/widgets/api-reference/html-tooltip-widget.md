@@ -2,6 +2,8 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 # HtmlTooltipWidget
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <WidgetLiveExample highlight="html-tooltip-widget" />
 
 Display a tooltip built from picking info returned by deck.gl hover events. Tooltips are rendered

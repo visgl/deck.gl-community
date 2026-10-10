@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # CurvedEdgeLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="curved-edge-layer" size="tall" />
 
 `CurvedEdgeLayer` renders Catmull–Rom spline curves between nodes. It relies on

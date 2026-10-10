@@ -1,5 +1,7 @@
 # A5Grid
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ## Purpose
 
 `A5Grid` wraps the [A5 discrete global grid system](https://www.ogc.org/standards/dggs) and exposes it through the shared `GlobalGrid` contract. It bridges the `a5-js` utilities used by deck.gl into a uniform API so the `GlobalGridLayer` can fetch cell centers and polygon boundaries for A5 indices.

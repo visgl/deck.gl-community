@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # DelaunayCoverLayer
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 :::caution Work in progress
 The station-surface appearance and API may change. Its native triangle primitive works on WebGL2
 and WebGPU; deck.gl 9.4 also supports the separate image-derived terrain path.

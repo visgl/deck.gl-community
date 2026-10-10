@@ -1,5 +1,7 @@
 # D3ForceLayout
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 During simulation, intermediate snapshots are limited to one every 16 ms. Worker ticks update node positions, edge positions, and bounds before
 `onLayoutChange` fires. The final positions are published before `onLayoutDone`. Stopping or
 replacing a simulation prevents its queued messages from changing the layout.

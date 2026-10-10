@@ -1,5 +1,7 @@
 # D3DagLayout
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 `D3DagLayout` wraps the [d3-dag](https://github.com/erikbrinkman/d3-dag) pipeline so you can generate layered layouts for directed graphs inside `GraphLayer`. It lets you pick from the built-in d3-dag operators or supply your own functions, and adds convenience utilities such as orientation transforms and chain collapsing to tame long linear stretches of nodes.
 
 ## Usage

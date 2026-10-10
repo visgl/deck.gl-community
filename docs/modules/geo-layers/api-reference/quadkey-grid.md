@@ -1,5 +1,7 @@
 # QuadkeyGrid
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ## Purpose
 
 `QuadkeyGrid` turns Bing-style Quadkey tiles into the center coordinates and polygon outlines consumed by `GlobalGridLayer`. It provides a thin wrapper around quadkey-to-world math, exposing a unified API for string tiles and experimental bigint encodings.

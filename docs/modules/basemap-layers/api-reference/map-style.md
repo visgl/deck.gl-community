@@ -1,5 +1,7 @@
 # `map-style` Export
 
+![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
+
 The map-style helpers are exported from the separate package entrypoint:
 
 ```ts

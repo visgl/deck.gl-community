@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # EdgeLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="edge-layer" size="tall" />
 
 `EdgeLayer` renders graph connections using the reusable edge sublayers that

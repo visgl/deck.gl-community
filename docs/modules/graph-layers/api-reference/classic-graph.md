@@ -4,6 +4,8 @@ title: ClassicGraph
 
 # ClassicGraph
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 `ClassicGraph` is a mutable in-memory implementation of the [`Graph`](./graph.md) interface. It is the
 backing structure used by existing layouts and widgets that expect the original deck.gl graph API.
 
