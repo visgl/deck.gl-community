@@ -4,6 +4,7 @@
 
 import {expect, test, vi} from 'vitest';
 import {coordCenter} from 'd3-dag';
+import {Node} from '../../src/graph/node';
 import {ClassicGraph} from '../../src/graph/classic-graph';
 import {GraphEngine} from '../../src/core/graph-engine';
 import {SimpleLayout, type SimpleLayoutProps} from '../../src/layouts/simple-layout';
@@ -150,6 +151,13 @@ test('preserves pinned SimpleLayout geometry across accessor changes until unloc
       [100, 200]
     ]);
     layout.unlockNodePosition(node);
+    expect(engine.getNodePosition(node)).toEqual([100, 200]);
+    expect(engine.getEdgePosition(graph.findEdge('ab')!).sourcePosition).toEqual([100, 200]);
+    // The released node adopts the accessor on the next refresh, not at drag end.
+    layout.setNodePositionAccessor(item => [
+      item.getPropertyValue('x') + 10,
+      item.getPropertyValue('y') + 20
+    ]);
     expect(engine.getNodePosition(node)).toEqual([11, 22]);
     expect(engine.getEdgePosition(graph.findEdge('ab')!).sourcePosition).toEqual([11, 22]);
     expect(engine.getLayoutBounds()).toEqual([
@@ -182,4 +190,28 @@ test('uses a replacement custom DAG coordinate operator after the initial layout
   layout.update();
   expect(secondCoord).toHaveBeenCalledTimes(1);
   expect(firstCoord).toHaveBeenCalledTimes(1);
+});
+
+test('does not transfer a pin to a replacement node with the same ID in a transaction', () => {
+  const graph = createGraph();
+  const layout = new SimpleLayout();
+  const engine = new GraphEngine({graph, layout});
+  engine.run();
+  try {
+    const original = graph.findNode('a')!;
+    layout.lockNodePosition(original, 100, 200);
+    graph.transaction(() => {
+      graph.removeNode('a');
+      graph.addNode(new Node({id: 'a', data: {x: 7, y: 8}}));
+    });
+    const replacement = graph.findNode('a')!;
+    expect(replacement).not.toBe(original);
+    expect(engine.getNodePosition(replacement)).toEqual([7, 8]);
+    expect(engine.getLayoutBounds()).toEqual([
+      [3, 4],
+      [7, 8]
+    ]);
+  } finally {
+    engine.clear();
+  }
 });
