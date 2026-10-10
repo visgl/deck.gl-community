@@ -461,7 +461,10 @@ function createStyledVectorSubLayer({
       styleLayer,
       features,
       zoom,
-      parameters: getTileParameters(mode)
+      globe: mode === 'globe',
+      // Depth-tested against the globe without writing depth: a circle's quad, blur and
+      // antialiased edge included, would otherwise cut holes in the circles drawn after it.
+      parameters: {...getTileParameters(mode), depthWriteEnabled: false}
     });
   }
 

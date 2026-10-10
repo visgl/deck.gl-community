@@ -1,6 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import {LayerExtension} from '@deck.gl/core';
 import {describe, expect, test} from 'vitest';
+import {CircleBlurExtension} from '../src/circle-layer.ts';
 import {getBasemapLayers} from '../src/index.ts';
 
 const SOURCES = {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}};
@@ -17,10 +18,15 @@ function circle(paint = {}, layout = {}): any {
   return {id: 'circles', type: 'circle', source: 'tiles', 'source-layer': 'poi', paint, layout};
 }
 
-function render(layers = [circle()], features = [point()], zoom = 12): any[] {
+function render(
+  layers = [circle()],
+  features = [point()],
+  zoom = 12,
+  {mode = 'map', extensions}: {mode?: 'map' | 'globe'; extensions?: unknown[]} = {}
+): any[] {
   const vectorLayer: any = getBasemapLayers({
     idPrefix: 'test',
-    mode: 'map',
+    mode,
     zoom,
     styleDefinition: {version: 8, sources: SOURCES, layers} as any
   }).find(layer => layer.id === 'test-tiles');
@@ -29,9 +35,16 @@ function render(layers = [circle()], features = [point()], zoom = 12): any[] {
       .renderSubLayers({
         id: 'test-tiles-tile',
         data: features,
+        extensions,
         tile: {index: {x: 0, y: 0, z: 12}}
       })
       .filter(Boolean) ?? []
+  );
+}
+
+function hasBlurExtension(layerProps: any): boolean {
+  return (layerProps.extensions || []).some(
+    (extension: unknown) => extension instanceof CircleBlurExtension
   );
 }
 
@@ -40,9 +53,9 @@ function props(paint = {}, layout = {}): any {
 }
 
 describe('circle layers', () => {
-  test('creates a CircleStyleLayer with pixel units', () => {
+  test('creates a ScatterplotLayer with pixel units', () => {
     const [layer] = render();
-    expect(layer.constructor.layerName).toBe('CircleStyleLayer');
+    expect(layer.constructor.layerName).toBe('ScatterplotLayer');
     expect(layer.props.radiusUnits).toBe('pixels');
     expect(layer.props.lineWidthUnits).toBe('pixels');
   });
@@ -54,7 +67,7 @@ describe('circle layers', () => {
     expect(p.getLineColor).toEqual([0, 0, 0, 255]);
     expect(p.getLineWidth).toBe(0);
     expect(p.stroked).toBe(false);
-    expect(p.getBlur).toBe(0);
+    expect(hasBlurExtension(p)).toBe(false);
   });
 
   test('evaluates constant paint and places the stroke outside the radius', () => {
@@ -103,6 +116,7 @@ describe('circle layers', () => {
 
   test('clamps data-driven blur', () => {
     const p = props({'circle-blur': ['get', 'blur']});
+    expect(hasBlurExtension(p)).toBe(true);
     expect(p.getBlur(point({blur: -1}))).toBe(0);
     expect(p.getBlur(point({blur: 0.4}))).toBe(0.4);
     expect(p.getBlur(point({blur: 2}))).toBe(1);
@@ -258,20 +272,44 @@ describe('circle layers', () => {
     }
   });
 
-  test('keeps the shader injections of extensions, such as the tile clip', () => {
+  test('appends the blur to the tile extensions and their shader injections', () => {
     const HOOKS = ['vs:#decl', 'vs:#main-end', 'fs:#decl', 'fs:DECKGL_FILTER_COLOR'];
     class InjectingExtension extends LayerExtension {
       getShaders() {
         return {modules: [], inject: Object.fromEntries(HOOKS.map(hook => [hook, '// extension']))};
       }
     }
-    const [layer] = render();
-    const extended = layer.clone({extensions: [new InjectingExtension()]});
-    extended.context = {device: {type: 'webgl'}, defaultShaderModules: []};
-    const {inject} = extended.getShaders();
+    const tileExtension = new InjectingExtension();
+    const [layer] = render([circle({'circle-blur': 0.5})], [point()], 12, {
+      extensions: [tileExtension]
+    });
+    expect(layer.props.extensions[0]).toBe(tileExtension);
+    expect(hasBlurExtension(layer.props)).toBe(true);
+    layer.context = {device: {type: 'webgl'}, defaultShaderModules: []};
+    const {inject} = layer.getShaders();
     for (const hook of HOOKS) {
       expect(inject[hook]).toContain('// extension');
-      expect(inject[hook]).toContain('CircleBlur');
+      expect(inject[hook]).toContain('circleBlur_blur');
     }
+  });
+
+  test('the blur extension adds no shader code on WebGPU', () => {
+    const extension = new CircleBlurExtension();
+    const layer: any = {context: {device: {type: 'webgpu'}}};
+    expect(extension.getShaders.call(layer, extension)).toEqual({});
+  });
+
+  test.each([
+    'map',
+    'globe'
+  ] as const)('circles are depth-tested without writing depth in %s mode', mode => {
+    const [layer] = render([circle()], [point()], 12, {mode});
+    expect(layer.props.parameters.depthTest).toBe(true);
+    expect(layer.props.parameters.depthWriteEnabled).toBe(false);
+  });
+
+  test('circles face the viewer on a globe, whatever their pitch alignment', () => {
+    const layers = [circle({'circle-pitch-alignment': 'map'})];
+    expect(render(layers, [point()], 12, {mode: 'globe'})[0].props.billboard).toBe(true);
   });
 });

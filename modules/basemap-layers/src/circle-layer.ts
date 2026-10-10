@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Accessor, DefaultProps} from '@deck.gl/core';
-import {ScatterplotLayer, type ScatterplotLayerProps} from '@deck.gl/layers';
+import {LayerExtension} from '@deck.gl/core';
+import type {Layer} from '@deck.gl/core';
+import {ScatterplotLayer} from '@deck.gl/layers';
 import {getStyleAccessor, withOpacity} from './style-accessor';
 import {getStylePropertyDefault} from './style-expression';
 import type {ResolvedBasemapStyleLayer as BasemapStyleLayer} from './style-resolver';
@@ -16,42 +17,46 @@ const DEFAULT_STROKE_COLOR = getStylePropertyDefault('circle-stroke-color') as n
 const DEFAULT_STROKE_OPACITY = getStylePropertyDefault('circle-stroke-opacity') as number;
 const DEFAULT_BLUR = getStylePropertyDefault('circle-blur') as number;
 
-/** A `ScatterplotLayer` with a per-circle `getBlur` (`circle-blur`, a fraction of the radius). */
-class CircleStyleLayer extends ScatterplotLayer<any, {getBlur: Accessor<any, number>}> {
-  static layerName = 'CircleStyleLayer';
-  static defaultProps: DefaultProps<ScatterplotLayerProps & {getBlur: Accessor<any, number>}> = {
-    getBlur: {type: 'accessor', value: 0}
-  };
+/**
+ * Adds `getBlur` to a `ScatterplotLayer`: per circle, the outer fraction of the circle (stroke
+ * included) that fades out, as MapLibre GL JS draws `circle-blur`. WebGL only; on WebGPU circles
+ * draw without blur.
+ */
+export class CircleBlurExtension extends LayerExtension {
+  static extensionName = 'CircleBlurExtension';
+  static defaultProps = {getBlur: {type: 'accessor', value: 0}};
 
-  initializeState(): void {
-    super.initializeState();
-    this.getAttributeManager()!.addInstanced({
-      instanceBlur: {size: 1, accessor: 'getBlur', defaultValue: 0}
+  initializeState(this: Layer) {
+    if (this.context.device.type === 'webgpu') {
+      return;
+    }
+    this.getAttributeManager()?.addInstanced({
+      instanceCircleBlur: {size: 1, accessor: 'getBlur', defaultValue: 0}
     });
   }
 
-  getShaders() {
-    const shaders = super.getShaders();
-    // The blur is written in GLSL only; on WebGPU circles draw without it.
+  getShaders(this: Layer) {
     if (this.context.device.type === 'webgpu') {
-      return shaders;
+      return {};
     }
-    // Append to existing injections: extensions such as the tile clip use the same hooks.
-    const inject: Record<string, string> = {...shaders.inject};
-    const append = (hook: string, code: string) => {
-      inject[hook] = `${inject[hook] ?? ''}\n${code}`;
+    // deck.gl appends these to the layer's and other extensions' code for the same hooks.
+    return {
+      inject: {
+        'vs:#decl': 'in float instanceCircleBlur;\nout float circleBlur_blur;',
+        'vs:#main-end': 'circleBlur_blur = instanceCircleBlur;',
+        'fs:#decl': 'in float circleBlur_blur;',
+        'fs:DECKGL_FILTER_COLOR': `
+  if (circleBlur_blur > 0.0) {
+    color.a *= 1.0 - smoothstep(1.0 - circleBlur_blur, 1.0, length(geometry.uv));
+  }
+`
+      }
     };
-    append('vs:#decl', 'in float instanceBlur;\nout float vCircleBlur;');
-    append('vs:#main-end', 'vCircleBlur = instanceBlur;');
-    append('fs:#decl', 'in float vCircleBlur;');
-    // MapLibre fades the outer `circle-blur` fraction of the circle, stroke included.
-    append(
-      'fs:DECKGL_FILTER_COLOR',
-      'if (vCircleBlur > 0.0) { color.a *= 1.0 - smoothstep(1.0 - vCircleBlur, 1.0, length(geometry.uv)); }'
-    );
-    return {...shaders, inject};
   }
 }
+
+/** Shared by every blurred circle sublayer, so deck.gl does not see their extensions change. */
+const CIRCLE_BLUR_EXTENSION = new CircleBlurExtension();
 
 const pointFeatureCache = new WeakMap<any[], any[]>();
 const sortedFeatureCache = new WeakMap<
@@ -125,6 +130,7 @@ export function createCircleSubLayer({
   styleLayer,
   features,
   zoom,
+  globe,
   parameters
 }: {
   baseProps: any;
@@ -132,6 +138,11 @@ export function createCircleSubLayer({
   styleLayer: BasemapStyleLayer;
   features: any[];
   zoom: number;
+  /**
+   * On a globe, circles always face the viewer: `circle-pitch-alignment: map` is not verified
+   * there.
+   */
+  globe: boolean;
   parameters: any;
 }) {
   const points = getPointFeatures(features);
@@ -177,7 +188,9 @@ export function createCircleSubLayer({
   );
   const alignment = getStyleAccessor(styleLayer, ['circle-pitch-alignment'], zoom, ([v]) => v);
 
-  return new CircleStyleLayer({
+  const hasBlur = styleLayer.paint?.['circle-blur'] !== undefined;
+
+  return new ScatterplotLayer({
     ...baseProps,
     id,
     data: getSortedFeatures(points, styleLayer, zoom),
@@ -186,16 +199,17 @@ export function createCircleSubLayer({
     getLineWidth: lineWidth.value,
     getFillColor: fillColor.value,
     getLineColor: lineColor.value,
-    getBlur: blur.value,
+    extensions: [...(baseProps.extensions || []), ...(hasBlur ? [CIRCLE_BLUR_EXTENSION] : [])],
+    ...(hasBlur ? {getBlur: blur.value} : {}),
     getPixelOffset: pixelOffset.value,
-    billboard: alignment.value !== 'map',
+    billboard: globe || alignment.value !== 'map',
     stroked: styleLayer.paint?.['circle-stroke-width'] !== undefined && lineWidth.value !== 0,
     updateTriggers: {
       getRadius: radius.updateTrigger,
       getLineWidth: lineWidth.updateTrigger,
       getFillColor: fillColor.updateTrigger,
       getLineColor: lineColor.updateTrigger,
-      getBlur: blur.updateTrigger,
+      getBlur: hasBlur ? blur.updateTrigger : undefined,
       getPixelOffset: pixelOffset.updateTrigger
     },
     radiusUnits: 'pixels',
