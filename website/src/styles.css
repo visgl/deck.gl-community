@@ -163,7 +163,7 @@ html[data-theme='dark'] .docusaurus-highlight-code-line {
   font-style: normal;
   font-weight: 200 900;
   font-display: swap;
-  src: url('../../static/fonts/source-sans-3-latin-wght-normal.woff2') format('woff2');
+  src: url('../static/fonts/source-sans-3-latin-wght-normal.woff2') format('woff2');
 }
 
 @font-face {
@@ -171,7 +171,7 @@ html[data-theme='dark'] .docusaurus-highlight-code-line {
   font-style: normal;
   font-weight: 300 700;
   font-display: swap;
-  src: url('../../static/fonts/space-grotesk-latin-wght-normal.woff2') format('woff2');
+  src: url('../static/fonts/space-grotesk-latin-wght-normal.woff2') format('woff2');
 }
 
 @font-face {
@@ -179,7 +179,7 @@ html[data-theme='dark'] .docusaurus-highlight-code-line {
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('../../static/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+  src: url('../static/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
 }
 
 /* Adapted from loaders.gl/website/src/styles.css. */
