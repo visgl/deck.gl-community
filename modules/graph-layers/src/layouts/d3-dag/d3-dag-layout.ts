@@ -200,17 +200,24 @@ export class D3DagLayout<
     super(props, defaultProps || D3DagLayout.defaultProps);
   }
 
-  setProps(options: Partial<D3DagLayoutProps>): void {
-    this.props = {...this.props, ...options};
-    if (
-      options.layout !== undefined ||
-      options.layering !== undefined ||
-      options.decross !== undefined ||
-      options.coord !== undefined ||
-      options.nodeSize !== undefined ||
-      options.gap !== undefined ||
-      options.separation !== undefined
-    ) {
+  protected override _onPropsUpdated(
+    previousProps: Readonly<Required<PropsT>>,
+    nextProps: Readonly<Required<PropsT>>
+  ): void {
+    const operatorKeys: (keyof D3DagLayoutProps)[] = [
+      'layout',
+      'layering',
+      'decross',
+      'coord',
+      'nodeSize',
+      'gap',
+      'separation',
+      'nodeRank',
+      'customLayering',
+      'customDecross',
+      'customCoord'
+    ];
+    if (operatorKeys.some(key => previousProps[key] !== nextProps[key])) {
       this._layoutOperator = null;
     }
   }
