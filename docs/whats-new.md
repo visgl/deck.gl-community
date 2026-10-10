@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The graph viewer includes a live mini-map with click-to-recenter navigation.
+
 - `GraphLayer` bypasses raw `graphLoader` converters for normalized `PlainGraphData`
   and `ArrowGraphData`, allowing loaded graph URLs to coexist with custom raw converters.
 

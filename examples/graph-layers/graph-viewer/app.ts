@@ -66,6 +66,7 @@ import {
   type LayoutType
 } from './layout-options';
 import {EXAMPLES, filterExamplesByType} from './examples';
+import {createMiniMap} from './mini-map';
 import type {PropDescription} from './props-form';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -312,6 +313,11 @@ export function mountGraphViewerExample(
     themeMode: 'light'
   };
 
+  const miniMap = createMiniMap(rootElement, target => {
+    state.viewState = {...state.viewState, target};
+    applyDeckViewState();
+  });
+
   let deck: Deck | null = null;
   let currentRuntime: GraphViewerRuntime | null = null;
   let isApplyingViewState = false;
@@ -474,6 +480,7 @@ export function mountGraphViewerExample(
   applyState();
 
   return () => {
+    miniMap.destroy();
     deck?.finalize();
     styleElement.remove();
     loadingElement.remove();
@@ -527,6 +534,7 @@ export function mountGraphViewerExample(
 
   function handleAfterRender() {
     updateResolvedEngineFromLayer();
+    miniMap.update(state.resolvedEngine, deck?.getViewports()[0]);
     if (state.loading.loaded && !state.loading.rendered) {
       state.loading = {
         loaded: true,
