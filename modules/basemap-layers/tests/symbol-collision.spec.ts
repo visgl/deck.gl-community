@@ -78,13 +78,18 @@ const ATLAS = {
   mapping: getSpriteIconMapping({dot: {x: 0, y: 0, width: 8, height: 8}})
 };
 
-function symbolLayer(layout: Record<string, unknown>, zoom = 8): any {
+function symbolLayer(
+  layout: Record<string, unknown>,
+  zoom = 8,
+  props: Record<string, unknown> = {}
+): any {
   const layer: any = new MVTLabelLayer({
     id: 'labels',
     config: {labels: true},
     styleLayer: {layout, paint: {}},
     zoom,
-    spriteAtlases: [ATLAS]
+    spriteAtlases: [ATLAS],
+    ...props
   } as any);
   layer.state = {
     labelData: [
@@ -168,6 +173,25 @@ describe('MVTLabelLayer symbol collision', () => {
     expect(describeSublayers(symbolLayer(ignoring))).toEqual([
       ['labels-icons-default-overlap', false, 1, 0],
       ['labels-text-overlap', false, 1, 0]
+    ]);
+  });
+
+  test('collision footprints of always-placed parts are not pickable', () => {
+    const layout = {
+      'icon-image': 'dot',
+      'text-field': 'A',
+      'icon-allow-overlap': true,
+      'text-allow-overlap': true
+    };
+    const layer = symbolLayer(layout, 8, {pickable: true});
+    const pickable = layer
+      .renderLayers()
+      .map((sublayer: any) => [sublayer.id, sublayer.props.pickable]);
+    expect(pickable).toEqual([
+      ['labels-icons-default-overlap', true],
+      ['labels-icons-default', false],
+      ['labels-text-overlap', true],
+      ['labels-text', false]
     ]);
   });
 

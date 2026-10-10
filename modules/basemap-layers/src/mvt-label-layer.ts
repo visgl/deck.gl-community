@@ -282,7 +282,8 @@ function placeSymbolPart(
     id: `${layer.id}-overlap`,
     collisionEnabled: false
   });
-  return keepFootprint ? [placed, layer.clone({opacity: 0})] : [placed];
+  // The footprint is not pickable, so picking resolves to the drawn copy only.
+  return keepFootprint ? [placed, layer.clone({opacity: 0, pickable: false})] : [placed];
 }
 
 /**

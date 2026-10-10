@@ -21,16 +21,23 @@ afterEach(() => {
   parent = null;
 });
 
-/** A one-image sprite: `square`, a solid red 16x16 square. */
+/**
+ * A two-image sprite: `square`, a solid red 16x16 square, and `framed`, a 32x32 image whose red
+ * 16x16 center has an 8-pixel transparent border.
+ */
 async function createSquareAtlas(): Promise<SpriteAtlas> {
-  const canvas = new OffscreenCanvas(16, 16);
+  const canvas = new OffscreenCanvas(48, 32);
   const context = canvas.getContext('2d')!;
   context.fillStyle = 'rgb(255, 0, 0)';
   context.fillRect(0, 0, 16, 16);
+  context.fillRect(24, 8, 16, 16);
   return {
     id: 'default',
     image: await createImageBitmap(canvas),
-    mapping: getSpriteIconMapping({square: {x: 0, y: 0, width: 16, height: 16, pixelRatio: 1}})
+    mapping: getSpriteIconMapping({
+      square: {x: 0, y: 0, width: 16, height: 16, pixelRatio: 1},
+      framed: {x: 16, y: 0, width: 32, height: 32, pixelRatio: 1}
+    })
   };
 }
 
@@ -139,6 +146,17 @@ describe('icon collision in the browser', () => {
       [[12, 0], {rank: 1, name: 'MMMM'}]
     ]);
     expect(iconPixels(image)).toBeGreaterThan(1000);
+    expect(textPixels(image)).toBe(0);
+  });
+
+  test("an icon's transparent border still hides a lower-priority label", async () => {
+    // At icon-size 2 the image is 64 pixels wide: opaque within 16 pixels of its center,
+    // transparent from 16 to 32. The label's anchor, 24 pixels away, is under the border only.
+    const image = await renderSymbols(LAYOUT, [
+      [[0, 0], {rank: 0, icon: 'framed', iconSize: 2}],
+      [[24, 0], {rank: 1, name: 'MMMM'}]
+    ]);
+    expect(iconPixels(image)).toBeGreaterThan(500);
     expect(textPixels(image)).toBe(0);
   });
 
