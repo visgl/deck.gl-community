@@ -227,3 +227,12 @@ describe('community visual layer schemas', () => {
     }
   });
 });
+
+it('accepts declarative graph transition duration and rejects invalid JSON durations', () => {
+  expect(
+    parseLayer('GraphLayer', {layoutTransitionDuration: 100, layoutUpdateInterval: 100}).success
+  ).toBe(true);
+  for (const duration of [-1, NaN, Infinity]) {
+    expect(parseLayer('GraphLayer', {layoutTransitionDuration: duration}).success).toBe(false);
+  }
+});

@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # ParticleLayer
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 :::caution Work in progress
 The wind-layer API, GPU simulation, particle appearance, and tuning controls are experimental and
 may change. WebGL2 and WebGPU particle simulation, wind arrows, and station surfaces are

@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # SelectionLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="selection-layer" />
 
 This layer can be used to select deck.gl objects using mouse drawing.

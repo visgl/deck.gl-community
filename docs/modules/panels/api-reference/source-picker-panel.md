@@ -1,5 +1,7 @@
 # SourcePickerPanel
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 `SourcePickerPanel` provides URL entry, named presets, and optional local file selection and dropping. The host owns loading, errors, URL persistence, file validation, and source discovery. The panel does not fetch URLs or read files.
 
 ```ts

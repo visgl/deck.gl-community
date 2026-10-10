@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
 ![WebGPU partial](https://img.shields.io/badge/webgpu-partial-orange.svg?style=flat-square)
 
@@ -7,7 +9,7 @@ This module provides a suite of reusable layers for [deck.gl](https://deck.gl).
 The layers in this module are generic primitives that are intended to be usable in both geospatial and non-geospatial visualizations.
 
 :::caution
-The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
+The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 ## Installation
