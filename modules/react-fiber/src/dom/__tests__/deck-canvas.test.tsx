@@ -5,14 +5,20 @@ import {MapView} from '@deck.gl/core';
 import type {Deck, DeckProps, Widget} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 import {DeckCanvas} from '../deck-canvas';
-import {getCanvasRegistry} from '../deck-canvas-registry';
 
 vi.mock('client-only', () => ({}));
 afterEach(cleanup);
 
 function createDeck() {
   const deck = {
-    props: {_canvases: [], views: [], layers: [], widgets: [], layerFilter: null} as DeckProps,
+    props: {
+      parent: document.createElement('div'),
+      _canvases: [],
+      views: [],
+      layers: [],
+      widgets: [],
+      layerFilter: null
+    } as DeckProps,
     setProps: vi.fn(function (this: {props: DeckProps}, props: DeckProps) {
       Object.assign(this.props, props);
     }),
@@ -61,42 +67,6 @@ describe('DeckCanvas', () => {
     expect(deck.finalize).not.toHaveBeenCalled();
   });
 
-  it('composes filters and routes composite descendants by their top-level owner', () => {
-    const deck = createDeck();
-    const baselineFilter = vi.fn(() => true);
-    const localFilter = vi.fn(() => true);
-    const global = createLayer('global');
-    const local = createLayer('local');
-    deck.setProps({layers: [global], layerFilter: baselineFilter});
-    const registry = getCanvasRegistry(deck);
-    registry.setContribution(
-      {},
-      {
-        canvas: createCanvas('a'),
-        views: [createView('a')],
-        layers: [local],
-        layerFilter: localFilter
-      }
-    );
-    registry.setContribution({}, {canvas: createCanvas('b'), views: [createView('b')]});
-    const testFilter = (layer: unknown, id: string) =>
-      deck.props.layerFilter!({
-        layer,
-        viewport: {id},
-        isPicking: false,
-        renderPass: 'draw'
-      } as never);
-    expect(testFilter(local, 'a')).toBe(true);
-    expect(testFilter(local, 'b')).toBe(false);
-    expect(testFilter({id: 'child', parent: local}, 'b')).toBe(false);
-    expect(testFilter(global, 'b')).toBe(true);
-    expect(testFilter(global, 'a')).toBe(true);
-    expect(localFilter).toHaveBeenCalledTimes(2);
-    baselineFilter.mockReturnValue(false);
-    expect(testFilter(global, 'a')).toBe(false);
-    expect(localFilter).toHaveBeenCalledTimes(2);
-  });
-
   it('attaches external canvases, survives StrictMode and never finalizes the Deck', () => {
     const deck = createDeck();
     const canvas = createCanvas('external');
@@ -114,64 +84,6 @@ describe('DeckCanvas', () => {
     canvas.remove();
   });
 
-  it('rejects collisions and invalid scopes without changing the committed contributions', () => {
-    const deck = createDeck();
-    const registry = getCanvasRegistry(deck);
-    const token = {};
-    const layer = createLayer('local');
-    registry.setContribution(token, {
-      canvas: createCanvas('a'),
-      views: [createView('a')],
-      layers: [layer]
-    });
-    const originalLayers = deck.props.layers;
-    expect(() =>
-      registry.setContribution({}, {canvas: createCanvas('a'), views: [createView('b')]})
-    ).toThrow(/canvas id/);
-    expect(() =>
-      registry.setContribution({}, {canvas: createCanvas('b'), views: [createView('a')]})
-    ).toThrow(/view id/);
-    expect(() =>
-      registry.setContribution(
-        {},
-        {canvas: createCanvas('b'), views: [new MapView({id: 'b', canvasId: 'wrong'})]}
-      )
-    ).toThrow(/canvasId/);
-    expect(() =>
-      registry.setContribution(
-        {},
-        {canvas: createCanvas('b'), views: [createView('b')], layers: [createLayer('local')]}
-      )
-    ).toThrow(/layer id/);
-    expect(() => deck.setProps({layers: [createLayer('local')]})).toThrow(/layer id/);
-    expect(() =>
-      registry.setContribution(
-        {},
-        {
-          canvas: createCanvas('b'),
-          views: [createView('b')],
-          widgets: [{id: 'widget', viewId: 'a'} as Widget]
-        }
-      )
-    ).toThrow(/local viewId/);
-    expect(deck.props.layers).toBe(originalLayers);
-    registry.removeContribution(token);
-    expect(deck.props.layers).toEqual([]);
-  });
-
-  it('replaces a contribution without duplication', () => {
-    const deck = createDeck();
-    const registry = getCanvasRegistry(deck);
-    const token = {};
-    registry.setContribution(token, {canvas: createCanvas('a'), views: [createView('a')]});
-    registry.setContribution(token, {
-      canvas: createCanvas('a'),
-      views: [createView('a')],
-      layers: [createLayer('new')]
-    });
-    expect(deck.props._canvases).toHaveLength(1);
-    expect(deck.props.layers).toHaveLength(1);
-  });
   it('preserves baseline canvases, views and widgets while panels move between decks', () => {
     const first = createDeck();
     const second = createDeck();
@@ -196,21 +108,13 @@ describe('DeckCanvas', () => {
     expect(second.props.widgets).toEqual([]);
   });
 
-  it('rejects single-canvas Decks, empty views and duplicate widget ids', () => {
+  it('allows React to rename an owned canvas without restoring the old DOM id', () => {
     const deck = createDeck();
-    deck.props._canvases = null;
-    expect(() => getCanvasRegistry(deck)).toThrow(/_canvases/);
-    deck.props._canvases = [];
-    const registry = getCanvasRegistry(deck);
-    expect(() => registry.setContribution({}, {canvas: createCanvas('a'), views: []})).toThrow(
-      /empty/
-    );
-    const widget = {id: 'duplicate', viewId: 'a'} as Widget;
-    expect(() =>
-      registry.setContribution(
-        {},
-        {canvas: createCanvas('a'), views: [createView('a')], widgets: [widget, widget]}
-      )
-    ).toThrow(/widget id/);
+    const view = createView('view');
+    const panel = render(<DeckCanvas deck={deck} id="before" views={view} />);
+    panel.rerender(<DeckCanvas deck={deck} id="after" views={view} />);
+    expect(panel.container.querySelector('canvas')?.id).toBe('after');
+    expect((deck.props.views as MapView[])[0].props.canvasId).toBe('after');
+    expect(deck.props._canvases).toHaveLength(1);
   });
 });

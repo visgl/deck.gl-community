@@ -7,12 +7,14 @@ layers and widgets.
 ```tsx
 import {Deck, MapView} from '@deck.gl/core';
 import {DeckCanvas} from '@deck.gl-community/react-fiber';
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 
 function Panels({londonLayers, tokyoLayers}) {
+  const parent = useRef<HTMLDivElement>(null);
   const [deck, setDeck] = useState<Deck | null>(null);
   useEffect(() => {
     const instance = new Deck({
+      parent: parent.current!,
       _canvases: [],
       views: [],
       initialViewState: {
@@ -23,15 +25,16 @@ function Panels({londonLayers, tokyoLayers}) {
     setDeck(instance);
     return () => instance.finalize();
   }, []);
-  if (!deck) return null;
-  return <>
+  return <div ref={parent} style={{position: 'relative'}}>
+    {deck && <>
     <DeckCanvas deck={deck} id="london-canvas"
       views={new MapView({id: 'london', controller: true})}
       layers={londonLayers} style={{width: 400, height: 300}} />
     <DeckCanvas deck={deck} id="tokyo-canvas"
       views={new MapView({id: 'tokyo', controller: true})}
       layers={tokyoLayers} style={{width: 400, height: 300}} />
-  </>;
+    </>}
+  </div>;
 }
 ```
 
@@ -53,6 +56,9 @@ by `DeckGL` or a Mapbox overlay.
 - `layers`: local layers, rendered only in this panel's views, including composite
   sublayers. Top-level layer IDs must be unique across all panels and global layers.
 - `widgets`: local widgets with unique IDs and a `viewId` belonging to this panel.
+  The Deck must be initialized with a `parent` DOM element containing the panels.
+  deck.gl captures the widget parent during initialization; setting `parent` later
+  does not attach widgets. Without an explicit parent, panel widgets throw.
 - `layerFilter`: additional filter for this panel's views. The Deck's global filter
   runs first. Global layers also pass through the panel filter in these views.
 

@@ -15,7 +15,7 @@ export type DeckCanvasProps = Omit<CanvasHTMLAttributes<HTMLCanvasElement>, 'chi
   views: View | View[];
   /** Layers that render only in this canvas's views. */
   layers?: LayersList;
-  /** Each widget must specify one of this canvas's view ids. */
+  /** Local widgets. Require a Deck initialized with a parent and a local viewId. */
   widgets?: Widget[];
   /** Additional filter applied in this canvas's views, after the shared Deck filter. */
   layerFilter?: DeckProps<any>['layerFilter'];
@@ -60,7 +60,7 @@ export function DeckCanvas({
     try {
       registry = getCanvasRegistry(deck);
     } catch (error) {
-      canvas.id = previousId;
+      if (externalCanvas) canvas.id = previousId;
       throw error;
     }
     attachment.current = {canvas, registry};
@@ -68,7 +68,7 @@ export function DeckCanvas({
     return () => {
       registry.removeContribution(contributionToken);
       attachment.current = null;
-      canvas.id = previousId;
+      if (externalCanvas) canvas.id = previousId;
     };
   }, [deck, externalCanvas, canvasId]);
 

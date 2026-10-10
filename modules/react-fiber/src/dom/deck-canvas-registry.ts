@@ -121,6 +121,9 @@ export class DeckCanvasRegistry {
         if (!widget.viewId || !localViews.has(widget.viewId)) {
           throw new Error(`DeckCanvas: widget '${widget.id}' requires a local viewId`);
         }
+        if (!this.deck.props.parent) {
+          throw new Error('DeckCanvas: widgets require a Deck initialized with a parent element');
+        }
         widgets.push(widget);
       }
     }

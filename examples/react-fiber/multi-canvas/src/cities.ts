@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
 // Ported from visgl/deck.gl PR #10492 (MIT, vis.gl contributors).
 export type Landmark = {
   id: string;
