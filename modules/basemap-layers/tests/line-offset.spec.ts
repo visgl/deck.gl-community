@@ -150,6 +150,20 @@ describe('line-offset and line-gap-width', () => {
     );
   });
 
+  test('re-evaluates the second side when a zoom-dependent width changes', () => {
+    const paint = {
+      'line-gap-width': ['get', 'gap'],
+      'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 6]
+    };
+    const features = [line({gap: 4})];
+    const [, low] = renderLines(paint, features, 10);
+    const [, high] = renderLines(paint, features, 14);
+    expect(getSides([low, high]).map(side => side.widths)).toEqual([[2], [6]]);
+    expect(low.props.updateTriggers.getLineWidth).not.toEqual(
+      high.props.updateTriggers.getLineWidth
+    );
+  });
+
   test.each([undefined, 0])('draws one line with gap %s and a data-driven offset', gap => {
     const features = [line({offset: 6})];
     const layers = renderLines({'line-gap-width': gap, 'line-offset': ['get', 'offset']}, features);

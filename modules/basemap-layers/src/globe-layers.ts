@@ -1085,7 +1085,11 @@ function createGeometrySubLayer({
                 : 0,
             updateTriggers: {
               ...layer.props.updateTriggers,
-              getLineWidth: [lineWidth.updateTrigger, gapWidth.updateTrigger]
+              // A width that is not per feature is a value with no trigger of its own.
+              getLineWidth: [
+                typeof getWidth === 'function' ? lineWidth.updateTrigger : getWidth,
+                gapWidth.updateTrigger
+              ]
             }
           }
         : {})
