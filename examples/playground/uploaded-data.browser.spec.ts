@@ -85,6 +85,7 @@ test('upload state assigns unique IDs, reports invalid files, and stops registra
     ['points-2', 'ready'],
     ['broken', 'error']
   ]);
+  expect(sources.entries.map(entry => entry.tableName)).toEqual(['points', 'points-2', 'broken']);
   expect(manager.listDataSources().map(entry => entry.dataSourceId)).toEqual([
     'points',
     'points-2'
@@ -115,8 +116,12 @@ test('composed panel shows upload controls, source references, and existing Arro
   input.files = transfer.files;
   input.dispatchEvent(new Event('change', {bubbles: true}));
   await vi.waitFor(() => expect(root.textContent).toContain('JSON: 1 rows'));
+  expect(root.querySelector<HTMLInputElement>('[aria-label="Table name"]')!.value).toBe('sample');
   expect(root.querySelector<HTMLInputElement>('[aria-label="Source URL reference"]')!.value).toBe(
     'datasource://sample'
+  );
+  expect(root.querySelector<HTMLInputElement>('[aria-label="Table query reference"]')!.value).toBe(
+    'SELECT * FROM sample;'
   );
   expect(getComputedStyle(root.querySelector('[data-arrow-table-panel]')!).visibility).toBe(
     'visible'
@@ -149,7 +154,7 @@ test('composed panel shows upload controls, source references, and existing Arro
   expect(root.textContent).toContain('sample.json');
 });
 
-test('uploaded source URLs refresh a persistent preview and survive template changes', async () => {
+test('uploaded table queries refresh a persistent preview and survive template changes', async () => {
   const manager = new PlaygroundDataSourceManager();
   const uploads = new UploadedSources(manager);
   const host = document.createElement('div');
@@ -188,7 +193,7 @@ test('uploaded source URLs refresh a persistent preview and survive template cha
   const deck = setProps.mock.contexts[0] as Deck;
   const before = deck.props.layers;
   playground.setText(
-    JSON.stringify({...initial, layers: [{...initial.layers[0], data: 'datasource://uploaded'}]})
+    JSON.stringify({...initial, layers: [{...initial.layers[0], data: 'SELECT * FROM uploaded;'}]})
   );
   expect(deck.props.layers).toBe(before);
   const tab = Array.from(host.querySelectorAll('button')).find(
@@ -208,7 +213,7 @@ test('uploaded source URLs refresh a persistent preview and survive template cha
   playground.setTemplate('Other');
   expect(manager.contains('uploaded')).toBe(true);
   playground.setText(
-    JSON.stringify({...initial, layers: [{...initial.layers[0], data: 'datasource://uploaded'}]})
+    JSON.stringify({...initial, layers: [{...initial.layers[0], data: 'SELECT * FROM uploaded;'}]})
   );
   expect((deck.props.layers as ScatterplotLayer[])[0].props.data).toEqual([{position: [1, 2]}]);
   expect(host.querySelector('canvas')).toBe(canvas);

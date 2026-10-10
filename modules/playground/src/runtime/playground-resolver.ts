@@ -274,10 +274,16 @@ export function createPlaygroundResolver(registry: PlaygroundRegistry): Playgrou
           // Keep the original rows: schema parsing may apply defaults, but also clones JSON.
           const data = Object.hasOwn(source, 'data') ? source.data : definition.data;
           const sourceUrl = typeof data === 'string' && data.startsWith('datasource://');
-          if (sourceUrl || (isRecord(data) && Object.hasOwn(data, '@@data'))) {
+          const tableQuery =
+            typeof data === 'string'
+              ? /^\s*SELECT\s+\*\s+FROM\s+(?:"([^"\r\n]+)"|([a-zA-Z0-9_-]+))\s*;?\s*$/i.exec(data)
+              : null;
+          if (sourceUrl || tableQuery || (isRecord(data) && Object.hasOwn(data, '@@data'))) {
             const bindingName = sourceUrl
               ? data.slice('datasource://'.length)
-              : String(data['@@data']);
+              : tableQuery
+                ? (tableQuery[1] ?? tableQuery[2])
+                : String(data['@@data']);
             if (!bindingName.trim()) throw new Error('A datasource URL must contain a source ID');
             const hasOverride = Object.hasOwn(bindings, bindingName);
             const binding = hasOverride ? bindings[bindingName] : dataSources?.get(bindingName);

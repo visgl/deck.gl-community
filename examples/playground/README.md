@@ -69,11 +69,15 @@ explicitly supplied in `registry.layers`.
 The standalone playground adds a **Data Sources** tab. Choose or drop JSON row arrays, GeoJSON,
 CSV, or Arrow IPC files (`.arrow`, `.feather`, `.ipc`). Imports remain local to the current page
 and survive template changes; closing or reloading the page clears them. Duplicate filenames
-receive distinct source IDs. Failed imports report errors without replacing existing sources.
+receive distinct table names and source IDs. Table names are derived from filenames without
+the extension, with unsupported characters replaced by hyphens and numeric suffixes for collisions.
+The table name is also its `datasource://` identifier. Failed imports report errors without replacing existing sources.
 
-The tab shows a selectable source URL, row count, and the existing Arrow Rows, Schema, and
+The tab shows the assigned table name, a selectable source URL, row count, and the existing Arrow Rows, Schema, and
 Batches inspectors. Reference an imported file in a layer with `"data": "datasource://source-id"`;
-choose a compatible layer and accessors for its columns. GeoJSON feature arrays work with
+Alternatively, use `"data": "SELECT * FROM table_name;"` to select every row of the named table.
+Only whole-table SELECT is supported, with optional semicolon and case-insensitive keywords.
+Choose a compatible layer and accessors for its columns. GeoJSON feature arrays work with
 `GeoJsonLayer`. Existing `{"@@data":"source-id"}` bindings remain supported.
 
 Tabular imports retain an Apache Arrow table and a plain row adapter for deck.gl 9. Sparse or

@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 // deck.gl-community
 // SPDX-License-Identifier: MIT
-import {useEffect, useState} from 'preact/hooks';
+import {useLayoutEffect, useState} from 'preact/hooks';
 import {
   Panel,
   SourcePickerPanel,
@@ -16,6 +16,8 @@ import {loadUploadedData, type UploadedData} from './uploaded-data';
 type SourceEntry = {
   id: string;
   filename: string;
+  /** Unique table name, also used as the datasource URL identifier. */
+  tableName: string;
   status: 'loading' | 'ready' | 'error';
   value?: UploadedData;
   error?: string;
@@ -54,7 +56,7 @@ export class UploadedSources {
         );
         while (existing.has(id) || this.entries.some(entry => entry.id === id))
           id = `${base}-${suffix++}`;
-        const entry: SourceEntry = {id, filename: file.name, status: 'loading'};
+        const entry: SourceEntry = {id, tableName: id, filename: file.name, status: 'loading'};
         this.entries.push(entry);
         this.notify();
         try {
@@ -93,7 +95,7 @@ export function createDataSourcesPanel(sources: UploadedSources): Panel {
 function DataSourcesContent({sources}: {sources: UploadedSources}) {
   const [, refresh] = useState(0);
   const [selectedId, setSelectedId] = useState('');
-  useEffect(() => sources.subscribe(() => refresh(value => value + 1)), [sources]);
+  useLayoutEffect(() => sources.subscribe(() => refresh(value => value + 1)), [sources]);
   const picker = new SourcePickerPanel({
     id: 'uploaded-files',
     title: 'Upload data',
@@ -128,8 +130,8 @@ function DataSourcesContent({sources}: {sources: UploadedSources}) {
   return (
     <div style={{display: 'grid', gap: '12px'}}>
       <p>
-        Files stay in this page until it closes or reloads. Use the source URL in a layer’s data
-        property.
+        Files stay in this page until it closes or reloads. In a layer’s data property, use
+        datasource://table_name or SELECT * FROM table_name; to load all rows.
       </p>
       {picker.content}
       <label style={{display: 'grid', gap: '4px'}}>
@@ -143,7 +145,7 @@ function DataSourcesContent({sources}: {sources: UploadedSources}) {
         >
           {sources.entries.map(entry => (
             <option key={entry.id} value={entry.id}>
-              {entry.filename} ({entry.id}) — {entry.status}
+              {entry.tableName} ({entry.filename}) — {entry.status}
             </option>
           ))}
         </select>
@@ -151,12 +153,32 @@ function DataSourcesContent({sources}: {sources: UploadedSources}) {
       {selected ? (
         <>
           <label style={{display: 'grid', gap: '4px'}}>
+            Table name
+            <input
+              aria-label="Table name"
+              style={{width: '100%', boxSizing: 'border-box'}}
+              readOnly
+              value={selected.tableName}
+              onFocus={event => event.currentTarget.select()}
+            />
+          </label>
+          <label style={{display: 'grid', gap: '4px'}}>
             Source URL
             <input
               aria-label="Source URL reference"
               style={{width: '100%', boxSizing: 'border-box'}}
               readOnly
               value={`datasource://${selected.id}`}
+              onFocus={event => event.currentTarget.select()}
+            />
+          </label>
+          <label style={{display: 'grid', gap: '4px'}}>
+            Table query (alternative to Source URL)
+            <input
+              aria-label="Table query reference"
+              style={{width: '100%', boxSizing: 'border-box'}}
+              readOnly
+              value={`SELECT * FROM ${selected.tableName};`}
               onFocus={event => event.currentTarget.select()}
             />
           </label>
