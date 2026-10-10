@@ -24,6 +24,8 @@ export type SourcePickerPanelProps = {
   presets?: ReadonlyArray<SourcePickerPreset>;
   /** Controlled URL field value. */
   url?: string;
+  /** Whether to show URL entry and presets. Defaults to true; false leaves file controls only. */
+  showUrlInput?: boolean;
   /** Initial URL when the field is uncontrolled. */
   defaultUrl?: string;
   /** Called when the URL field or selected preset changes. */
@@ -61,6 +63,7 @@ function SourcePickerContent({
   presets = [],
   url,
   defaultUrl = '',
+  showUrlInput = true,
   onUrlChange,
   onLoadUrl,
   onSelectFiles,
@@ -97,7 +100,7 @@ function SourcePickerContent({
         }
       }}
     >
-      {presets.length > 0 ? (
+      {showUrlInput && presets.length > 0 ? (
         <label>
           Preset
           <select
@@ -119,31 +122,33 @@ function SourcePickerContent({
           </select>
         </label>
       ) : null}
-      <form
-        style={{display: 'grid', gap: '8px'}}
-        onSubmit={event => {
-          event.preventDefault();
-          if (!disabled && currentUrl.trim()) onLoadUrl(currentUrl.trim());
-        }}
-      >
-        <label htmlFor={`${id}-url`}>Source URL</label>
-        <input
-          id={`${id}-url`}
-          style={getSourceControlStyle(disabled)}
-          type="url"
-          required
-          value={currentUrl}
-          disabled={disabled}
-          onInput={event => changeUrl(event.currentTarget.value)}
-        />
-        <button
-          style={getSourceControlStyle(isLoadDisabled)}
-          type="submit"
-          disabled={isLoadDisabled}
+      {showUrlInput ? (
+        <form
+          style={{display: 'grid', gap: '8px'}}
+          onSubmit={event => {
+            event.preventDefault();
+            if (!disabled && currentUrl.trim()) onLoadUrl(currentUrl.trim());
+          }}
         >
-          Load URL
-        </button>
-      </form>
+          <label htmlFor={`${id}-url`}>Source URL</label>
+          <input
+            id={`${id}-url`}
+            style={getSourceControlStyle(disabled)}
+            type="url"
+            required
+            value={currentUrl}
+            disabled={disabled}
+            onInput={event => changeUrl(event.currentTarget.value)}
+          />
+          <button
+            style={getSourceControlStyle(isLoadDisabled)}
+            type="submit"
+            disabled={isLoadDisabled}
+          >
+            Load URL
+          </button>
+        </form>
+      ) : null}
       {onSelectFiles ? (
         <label>
           Choose files or drop them here

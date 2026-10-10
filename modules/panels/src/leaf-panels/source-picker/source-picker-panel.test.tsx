@@ -178,3 +178,19 @@ test.each(['text/plain', 'text/uri-list'])('preserves native URL drops for %s', 
   }
   expect(onSelectFiles).not.toHaveBeenCalled();
 });
+
+test('file-only mode hides URL entry and presets while retaining file selection', () => {
+  mountPanel(
+    new SourcePickerPanel({
+      id: 'files-only',
+      title: 'Files',
+      showUrlInput: false,
+      presets: [{id: 'hidden', label: 'Hidden', url: 'https://example.test'}],
+      onLoadUrl: vi.fn(),
+      onSelectFiles: vi.fn()
+    })
+  );
+  expect(root.querySelector('form')).toBeNull();
+  expect(root.querySelector('select')).toBeNull();
+  expect(root.querySelector('input[type=file]')).not.toBeNull();
+});

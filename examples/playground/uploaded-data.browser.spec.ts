@@ -1,0 +1,286 @@
+import {Deck} from '@deck.gl/core';
+import {ScatterplotLayer} from '@deck.gl/layers';
+/** @jsxImportSource preact */
+import {render} from 'preact';
+import {tableFromArrays, tableToIPC} from 'apache-arrow';
+import {afterEach, expect, test, vi} from 'vitest';
+import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
+import {loadUploadedData} from './uploaded-data';
+import {UploadedSources, createDataSourcesPanel} from './data-sources-panel';
+
+const cleanups: (() => void)[] = [];
+afterEach(() => {
+  for (const cleanup of cleanups.splice(0)) cleanup();
+});
+
+test('JSON and CSV imports retain Arrow tables with plain nested rows for deck.gl', async () => {
+  const rows = [
+    {position: [1, 2], info: {name: 'One'}, value: 7},
+    {position: [3, 4], info: {name: 'Two'}, value: 9}
+  ];
+  const json = await loadUploadedData(new File([JSON.stringify(rows)], 'points.json'));
+  expect(json.table.numRows).toBe(2);
+  expect(json.data).toEqual(rows);
+  const csv = await loadUploadedData(new File(['x,y,label\n1,2,One\n3,4,Two'], 'points.csv'));
+  expect(csv.table.numRows).toBe(2);
+  expect(csv.data).toEqual([
+    {x: 1, y: 2, label: 'One'},
+    {x: 3, y: 4, label: 'Two'}
+  ]);
+});
+
+test('Arrow IPC retains its schema and adapts list values without JSON coercion', async () => {
+  const table = tableFromArrays({
+    position: [
+      [1, 2],
+      [3, 4]
+    ],
+    id: [1n, 2n]
+  });
+  const value = await loadUploadedData(
+    new File([tableToIPC(table) as Uint8Array<ArrayBuffer>], 'points.arrow')
+  );
+  expect(value.table.schema.fields.map(field => field.name)).toEqual(['position', 'id']);
+  expect(value.data).toEqual([
+    {position: [1, 2], id: 1n},
+    {position: [3, 4], id: 2n}
+  ]);
+});
+
+test('GeoJSON uses lossless Arrow feature rows and restores geometry, properties, and foreign members', async () => {
+  const features = [
+    {
+      type: 'Feature',
+      id: 3,
+      geometry: {type: 'Point', coordinates: [1, 2]},
+      properties: {label: 'A'},
+      extra: 'kept'
+    },
+    {type: 'Feature', geometry: null, properties: null}
+  ];
+  const value = await loadUploadedData(
+    new File([JSON.stringify({type: 'FeatureCollection', features})], 'shapes.geojson')
+  );
+  expect(value.table.numRows).toBe(2);
+  expect(value.data).toEqual(features);
+  const empty = await loadUploadedData(new File(['[]'], 'empty.json'));
+  expect(empty.table.numRows).toBe(0);
+  expect(empty.data).toEqual([]);
+});
+
+test('upload state assigns unique IDs, reports invalid files, and stops registrations after teardown', async () => {
+  const manager = new PlaygroundDataSourceManager();
+  const sources = new UploadedSources(manager);
+  cleanups.push(() => {
+    sources.finalize();
+    void manager.finalize();
+  });
+  await sources.upload([
+    new File(['[{"value":1}]'], 'points.json'),
+    new File(['[{"value":2}]'], 'points.json'),
+    new File(['invalid'], 'broken.json')
+  ]);
+  expect(sources.entries.map(entry => [entry.id, entry.status])).toEqual([
+    ['points', 'ready'],
+    ['points-2', 'ready'],
+    ['broken', 'error']
+  ]);
+  expect(sources.entries.map(entry => entry.tableName)).toEqual(['points', 'points-2', 'broken']);
+  expect(manager.listDataSources().map(entry => entry.dataSourceId)).toEqual([
+    'points',
+    'points-2'
+  ]);
+  const late = sources.upload([new File(['[]'], 'late.json')]);
+  sources.finalize();
+  await late;
+  expect(manager.contains('late')).toBe(false);
+});
+
+test('composed panel shows upload controls, source references, and existing Arrow inspectors across remounts', async () => {
+  const manager = new PlaygroundDataSourceManager();
+  const sources = new UploadedSources(manager);
+  const root = document.createElement('div');
+  document.body.append(root);
+  cleanups.push(() => {
+    render(null, root);
+    root.remove();
+    sources.finalize();
+    void manager.finalize();
+  });
+  const panel = createDataSourcesPanel(sources);
+  render(panel.content, root);
+  expect(root.querySelector('input[type=url]')).toBeNull();
+  const transfer = new DataTransfer();
+  transfer.items.add(new File(['[{"value":42}]'], 'sample.json'));
+  const input = root.querySelector<HTMLInputElement>('input[type=file]')!;
+  input.files = transfer.files;
+  input.dispatchEvent(new Event('change', {bubbles: true}));
+  await vi.waitFor(() => expect(root.textContent).toContain('JSON: 1 rows'));
+  expect(root.querySelector<HTMLInputElement>('[aria-label="Table name"]')!.value).toBe('sample');
+  expect(root.querySelector<HTMLInputElement>('[aria-label="Source URL reference"]')!.value).toBe(
+    'datasource://sample'
+  );
+  expect(root.querySelector<HTMLInputElement>('[aria-label="Table query reference"]')!.value).toBe(
+    'SELECT * FROM sample;'
+  );
+  expect(getComputedStyle(root.querySelector('[data-arrow-table-panel]')!).visibility).toBe(
+    'visible'
+  );
+  const buttons = () => Array.from(root.querySelectorAll('button'));
+  buttons()
+    .find(button => button.textContent === 'Schema')!
+    .click();
+  await vi.waitFor(() => {
+    expect(getComputedStyle(root.querySelector('[data-arrow-schema-panel]')!).visibility).toBe(
+      'visible'
+    );
+    expect(getComputedStyle(root.querySelector('[data-arrow-table-panel]')!).visibility).toBe(
+      'hidden'
+    );
+  });
+  buttons()
+    .find(button => button.textContent === 'Batches')!
+    .click();
+  await vi.waitFor(() => {
+    expect(getComputedStyle(root.querySelector('[data-arrow-batches-panel]')!).visibility).toBe(
+      'visible'
+    );
+    expect(getComputedStyle(root.querySelector('[data-arrow-schema-panel]')!).visibility).toBe(
+      'hidden'
+    );
+  });
+  render(null, root);
+  render(panel.content, root);
+  expect(root.textContent).toContain('sample.json');
+});
+
+test('uploaded table queries refresh a persistent preview and survive template changes', async () => {
+  const manager = new PlaygroundDataSourceManager();
+  const uploads = new UploadedSources(manager);
+  const host = document.createElement('div');
+  host.style.cssText = 'width:900px;height:550px';
+  document.body.append(host);
+  const setProps = vi.spyOn(Deck.prototype, 'setProps');
+  const initial = {
+    views: {'@@type': 'OrthographicView'},
+    initialViewState: {target: [0, 0, 0], zoom: 1},
+    layers: [
+      {
+        '@@type': 'ScatterplotLayer',
+        id: 'points',
+        data: [{position: [0, 0]}],
+        getPosition: '@@=position'
+      }
+    ]
+  };
+  const playground = new DeckPlayground({
+    parentElement: host,
+    registry: {layers: {ScatterplotLayer}},
+    templates: {Initial: initial, Other: initial},
+    dataSources: manager,
+    panels: [createDataSourcesPanel(uploads)],
+    onError: vi.fn()
+  });
+  cleanups.push(() => {
+    uploads.finalize();
+    playground.finalize();
+    void manager.finalize();
+    host.remove();
+    setProps.mockRestore();
+  });
+  await vi.waitFor(() => expect(host.querySelector('canvas')).not.toBeNull());
+  const canvas = host.querySelector('canvas');
+  const deck = setProps.mock.contexts[0] as Deck;
+  const before = deck.props.layers;
+  playground.setText(
+    JSON.stringify({...initial, layers: [{...initial.layers[0], data: 'SELECT * FROM uploaded;'}]})
+  );
+  expect(deck.props.layers).toBe(before);
+  const tab = Array.from(host.querySelectorAll('button')).find(
+    button => button.textContent === 'Data Sources'
+  )!;
+  tab.click();
+  await vi.waitFor(() => expect(host.querySelector('input[type=file]')).not.toBeNull());
+  const transfer = new DataTransfer();
+  transfer.items.add(new File(['[{"position":[1,2]}]'], 'uploaded.json'));
+  const input = host.querySelector<HTMLInputElement>('input[type=file]')!;
+  input.files = transfer.files;
+  input.dispatchEvent(new Event('change', {bubbles: true}));
+  await vi.waitFor(() =>
+    expect((deck.props.layers as ScatterplotLayer[])[0].props.data).toEqual([{position: [1, 2]}])
+  );
+  expect(host.querySelector('canvas')).toBe(canvas);
+  playground.setTemplate('Other');
+  expect(manager.contains('uploaded')).toBe(true);
+  playground.setText(
+    JSON.stringify({...initial, layers: [{...initial.layers[0], data: 'SELECT * FROM uploaded;'}]})
+  );
+  expect((deck.props.layers as ScatterplotLayer[])[0].props.data).toEqual([{position: [1, 2]}]);
+  expect(host.querySelector('canvas')).toBe(canvas);
+});
+
+test('sparse and heterogeneous JSON rows preserve original values through lossless Arrow storage', async () => {
+  const rows = [
+    {number: 1, nested: {value: 'one'}},
+    {label: 'missing-number', nested: {other: [1, 2]}},
+    {number: 'mixed', nested: null}
+  ];
+  const imported = await loadUploadedData(new File([JSON.stringify(rows)], 'mixed.json'));
+  expect(imported.data).toEqual(rows);
+  expect(Object.hasOwn(imported.data[1], 'number')).toBe(false);
+  expect(imported.table.schema.fields.map(field => field.name)).toEqual(['row']);
+  expect(Array.from(imported.table, row => JSON.parse(row.row))).toEqual(rows);
+});
+
+test('GeoJSON feature arrays preserve mixed geometries, nesting, and differing properties', async () => {
+  const features = [
+    {type: 'Feature', geometry: {type: 'Point', coordinates: [1, 2]}, properties: {name: 'Point'}},
+    {
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [1, 2],
+          [3, 4]
+        ]
+      },
+      properties: {count: 2}
+    },
+    {
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0]
+          ]
+        ]
+      },
+      properties: {area: true}
+    }
+  ];
+  const imported = await loadUploadedData(new File([JSON.stringify(features)], 'features.json'));
+  expect(imported.data).toEqual(features);
+  expect(imported.format).toBe('GeoJSON');
+  expect(Array.from(imported.table, row => JSON.parse(row.feature))).toEqual(features);
+});
+
+test('unsupported JSON objects and malformed GeoJSON report readable upload errors', async () => {
+  await expect(
+    loadUploadedData(new File(['{"data": [{"value": 1}]}'], 'wrapped.json'))
+  ).rejects.toThrow('JSON data must be an array of row objects or GeoJSON.');
+  await expect(
+    loadUploadedData(
+      new File(
+        ['{"type":"Feature","geometry":{"type":"Point","coordinates":[1]},"properties":{}}'],
+        'invalid.geojson'
+      )
+    )
+  ).rejects.toThrow('Invalid GeoJSON.');
+  await expect(
+    loadUploadedData(new File(['[{"type":"Feature"}]'], 'invalid-features.json'))
+  ).rejects.toThrow('Invalid GeoJSON.');
+});
