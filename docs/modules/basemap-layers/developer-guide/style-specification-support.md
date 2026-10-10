@@ -71,7 +71,7 @@ See [Layers][layers] for the properties of each type.
 | `fill-pattern`, `fill-translate`                             | Not supported | A fill with `fill-pattern` draws nothing, rather than its color.                                                        |
 | `line-color`, `line-opacity`, `line-width`                   | Supported     | Per feature.                                                                                                            |
 | `line-dasharray`                                             | Partial       | One dash and one gap per period; longer patterns merge their dashes. Switches at integer zooms instead of cross-fading. |
-| `line-offset`, `line-gap-width`                              | Supported     | Per feature.                                                                                                            |
+| `line-offset`, `line-gap-width`                              | Partial       | Per feature. Sharp corners break open on the outside, and a gap's two lines end apart instead of capped together.       |
 | `line-blur`                                                  | Not supported |                                                                                                                         |
 | `line-gradient`, `line-pattern`, `line-translate`            | Not supported |                                                                                                                         |
 | `fill-extrusion-color`, `-height`, `-base`                   | Supported     | Per feature, heights in meters. The alpha of the color is ignored, as in MapLibre.                                      |
