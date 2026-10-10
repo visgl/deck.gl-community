@@ -167,6 +167,7 @@ export class EdgeArrowLayer extends CompositeLayer {
     return [
       new PolygonLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__edge-arrow-layer',
           data: directedEdges,
           filled: true,
@@ -174,7 +175,7 @@ export class EdgeArrowLayer extends CompositeLayer {
           getFillColor: getColor,
           getPolygon: edge => {
             const layout = getLayoutInfo(edge);
-            const size = resolveSize(getSize(edge));
+            const size = resolveSize(typeof getSize === 'function' ? getSize(edge) : getSize);
             const offset = getOffset ? getOffset(edge) : null;
             return getArrowPolygon({layout, size, offset});
           },
@@ -183,6 +184,7 @@ export class EdgeArrowLayer extends CompositeLayer {
             depthWriteEnabled: false
           },
           updateTriggers: {
+            all: this.props.transitions,
             getFillColor: updateTriggers.getColor,
             getPolygon: [positionUpdateTrigger, updateTriggers.getSize, updateTriggers.getOffset]
           }

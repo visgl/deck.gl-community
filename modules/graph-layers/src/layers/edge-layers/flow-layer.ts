@@ -14,6 +14,7 @@ export class FlowLayer extends CompositeLayer {
     return [
       new FlowPathLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__flow-layer',
           data,
           ...stylesheet.getDeckGLAccessors(),
@@ -23,6 +24,7 @@ export class FlowLayer extends CompositeLayer {
             depthTest: false
           },
           updateTriggers: {
+            all: this.props.transitions,
             ...stylesheet.getDeckGLUpdateTriggers(),
             getSourcePosition: positionUpdateTrigger,
             getTargetPosition: positionUpdateTrigger
