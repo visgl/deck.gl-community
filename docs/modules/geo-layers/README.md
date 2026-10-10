@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square)
 ![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square)
 

@@ -13,6 +13,7 @@ export class EdgeLabelLayer extends CompositeLayer {
     return [
       new ZoomableTextLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: 'edge-label-layer',
           data,
           getPosition: e => {
@@ -38,6 +39,7 @@ export class EdgeLabelLayer extends CompositeLayer {
           },
           ...stylesheet.getDeckGLAccessors(),
           updateTriggers: {
+            all: this.props.transitions,
             ...stylesheet.getDeckGLUpdateTriggers(),
             getPosition: positionUpdateTrigger
           }

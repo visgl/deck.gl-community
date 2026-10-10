@@ -163,7 +163,7 @@ fix(panels) remove unused widgets dependency (#648)
 
 ## v9.2.1
 
-- See all beta releases below, the whats new and upgrade guide in website for full v9.1 -> 9.2 changelog
+- See all beta releases below, the what's new and upgrade guide in website for full v9.1 -> 9.2 changelog
 
 ## v9.2.0-beta.10
 
@@ -265,7 +265,7 @@ fix(panels) remove unused widgets dependency (#648)
 - chore: Mark geo-layers for public publishing (#376)
 - Add Charles as the editable-layer maintainer (#371)
 - feat(graph-layers): Layered DAG support (#375)
-- feat(graph-layers): break out collapsable D3 DAG layout subclass (#373)
+- feat(graph-layers): break out collapsible D3 DAG layout subclass (#373)
 
 ## v9.2.0-beta.2
 
@@ -273,7 +273,7 @@ fix(panels) remove unused widgets dependency (#648)
 - chore: Mark geo-layers for public publishing (#376)
 - Add Charles as the editable-layer maintainer (#371)
 - feat(graph-layers): Layered DAG support (#375)
-- feat(graph-layers): break out collapsable D3 DAG layout subclass (#373)
+- feat(graph-layers): break out collapsible D3 DAG layout subclass (#373)
 
 ## v9.2.0-beta.1
 
@@ -281,7 +281,7 @@ fix(panels) remove unused widgets dependency (#648)
 - feat(graph-viewer): add dag layout configuration controls (#359)
 - feat(graph-layers) add bounds calculation to layouts and graph-viewer (#357)
 - chore(graph-layers): refactor collapsed chain utilities (#353)
-- feat(graph-layers): collapsable linear DAG chains (#337)
+- feat(graph-layers): collapsible linear DAG chains (#337)
 - fix(graph-layers): restore dag arrow decorator color property (#343)
 - [editable-layers] Real double-click used to finish drawing (#225)
 - feat(experimental): add pan and zoom widget (#341)
