@@ -22,10 +22,15 @@ function getRasterLayer(paint: Record<string, unknown> | undefined, zoom = 5): a
   return layers.find(layer => layer.id === 'test-imagery');
 }
 
-/** The bitmap layer that a raster tile layer draws for one tile. */
-function renderTile(rasterLayer: any): any {
+/**
+ * The bitmap layer that a raster tile layer draws for one tile, on a device of `deviceType`. As in
+ * `TileLayer.renderLayers`, the tile receives the layer's props and its sublayer props.
+ */
+function renderTile(rasterLayer: any, deviceType = 'webgl'): any {
+  rasterLayer.context = {device: {type: deviceType}};
   return rasterLayer.props.renderSubLayers({
     ...rasterLayer.props,
+    ...rasterLayer.getSubLayerProps({id: 'tile'}),
     id: 'test-imagery-tile',
     data: null,
     tile: {index: {x: 0, y: 0, z: 5}, bbox: {west: 0, south: 0, east: 1, north: 1}}
@@ -85,6 +90,35 @@ describe('raster color adjustments', () => {
       contrast: 0,
       hueRotate: 90
     });
+  });
+
+  test('tiles blend premultiplied colors on WebGL, where the shader premultiplies them', () => {
+    const tile = renderTile(getRasterLayer({'raster-contrast': 0.5}), 'webgl');
+    expect(tile.props.parameters).toMatchObject({
+      blendColorSrcFactor: 'one',
+      blendColorDstFactor: 'one-minus-src-alpha',
+      blendAlphaSrcFactor: 'one',
+      blendAlphaDstFactor: 'one-minus-src-alpha',
+      depthTest: true
+    });
+  });
+
+  test('tiles keep the default blending on WebGPU, where the shader does not run', () => {
+    const rasterLayer = getRasterLayer({'raster-contrast': 0.5});
+    const tile = renderTile(rasterLayer, 'webgpu');
+    expect(tile.props.parameters).not.toHaveProperty('blendColorSrcFactor');
+    expect(tile.props.parameters).not.toHaveProperty('blendAlphaSrcFactor');
+    expect(tile.props.parameters).toEqual(
+      renderTile(getRasterLayer(undefined), 'webgpu').props.parameters
+    );
+    // The extension adds no shader code there either.
+    const extension = tile.props.extensions[0];
+    expect(extension.getShaders.call({context: {device: {type: 'webgpu'}}}, extension)).toEqual({});
+  });
+
+  test('tiles without adjustments keep the default blending', () => {
+    const tile = renderTile(getRasterLayer(undefined), 'webgl');
+    expect(tile.props.parameters).not.toHaveProperty('blendColorSrcFactor');
   });
 
   test('each adjustment is read from its own property', () => {

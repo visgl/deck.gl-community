@@ -125,11 +125,20 @@ type RasterColorExtensionProps = {
   rasterColorAdjustments?: RasterColorAdjustments;
 };
 
+/** Whether the extension's shader runs on a layer's device. It is written in GLSL only. */
+function isRasterColorSupported(layer: Layer): boolean {
+  return layer.context.device.type !== 'webgpu';
+}
+
 /**
  * Applies a raster style layer's `raster-brightness-min`, `raster-brightness-max`,
  * `raster-saturation`, `raster-contrast` and `raster-hue-rotate` to a `BitmapLayer`, with the
- * formulas of MapLibre GL JS's raster shader. WebGL only. The layer must blend with
- * `RASTER_COLOR_BLEND_PARAMETERS`.
+ * formulas of MapLibre GL JS's raster shader. WebGL only.
+ *
+ * The adjusted colors are premultiplied, so the layer must blend with
+ * `RASTER_COLOR_BLEND_PARAMETERS` exactly where the shader runs. Added to a composite layer, the
+ * extension passes them to its sublayers as `rasterColorBlendParameters`, decided by the same
+ * device check as the shader; on WebGPU they are `null` and the sublayers keep their blending.
  */
 export class RasterColorExtension extends LayerExtension {
   static extensionName = 'RasterColorExtension';
@@ -138,14 +147,23 @@ export class RasterColorExtension extends LayerExtension {
   };
 
   getShaders(this: Layer<RasterColorExtensionProps>) {
-    if (this.context.device.type === 'webgpu') {
+    if (!isRasterColorSupported(this)) {
       return {};
     }
     return {modules: [rasterColorModule], inject: injection};
   }
 
+  getSubLayerProps(this: Layer<RasterColorExtensionProps>, extension: this) {
+    return {
+      ...LayerExtension.prototype.getSubLayerProps.call(this, extension),
+      rasterColorBlendParameters: isRasterColorSupported(this)
+        ? RASTER_COLOR_BLEND_PARAMETERS
+        : null
+    };
+  }
+
   draw(this: Layer<RasterColorExtensionProps>) {
-    if (this.context.device.type === 'webgpu') {
+    if (!isRasterColorSupported(this)) {
       return;
     }
     const adjustments = this.props.rasterColorAdjustments ?? DEFAULT_RASTER_COLOR_ADJUSTMENTS;

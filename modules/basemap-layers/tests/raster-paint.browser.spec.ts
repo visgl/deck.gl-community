@@ -49,8 +49,11 @@ function rasterTile(paint: Record<string, unknown>, image: HTMLCanvasElement) {
   });
   const rasterLayer: any = layers.find(layer => layer.id === 'test-imagery');
   const half = SIZE / 2;
+  // As in `TileLayer.renderLayers`, the tile receives the layer's props and its sublayer props.
+  rasterLayer.context = {device: {type: 'webgl'}};
   return rasterLayer.props.renderSubLayers({
     ...rasterLayer.props,
+    ...rasterLayer.getSubLayerProps({id: 'tile'}),
     id: 'test-imagery-tile',
     data: image,
     tile: {index: {x: 0, y: 0, z: 5}, bbox: {west: -half, south: -half, east: half, north: half}}

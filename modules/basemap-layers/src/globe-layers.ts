@@ -6,7 +6,6 @@ import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {
-  RASTER_COLOR_BLEND_PARAMETERS,
   type RasterColorAdjustments,
   RasterColorExtension,
   hasRasterColorAdjustments
@@ -368,6 +367,8 @@ function createRasterLayer({
 }) {
   const paint = getPaint(layer, zoom);
   const rasterColorAdjustments = getRasterColorAdjustments(paint);
+  // A zoom-interpolated adjustment that crosses its default value adds or removes the extension
+  // at that zoom step, which recompiles the tiles' shaders once.
   const isColorAdjusted = hasRasterColorAdjustments(rasterColorAdjustments);
   // MapLibre magnifies with nearest-neighbour sampling when either property is `nearest`.
   const isNearest =
@@ -394,6 +395,10 @@ function createRasterLayer({
         north: number;
       };
 
+      // Set by `RasterColorExtension` where its shader runs, which outputs premultiplied colors.
+      const blendParameters = (props as {rasterColorBlendParameters?: object | null})
+        .rasterColorBlendParameters;
+
       return new BitmapLayer({
         ...props,
         // A texture keeps the filter it was created with, so a filter change needs a new layer.
@@ -402,8 +407,8 @@ function createRasterLayer({
         data: null,
         image: props.data,
         bounds: [west, south, east, north],
-        parameters: isColorAdjusted
-          ? {...getTileParameters(mode), ...RASTER_COLOR_BLEND_PARAMETERS}
+        parameters: blendParameters
+          ? {...getTileParameters(mode), ...blendParameters}
           : getTileParameters(mode)
       } as any);
     },
