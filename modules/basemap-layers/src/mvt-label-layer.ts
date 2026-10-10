@@ -452,6 +452,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * an icon has the same row index, and so the same collision-filter identity, as its own label:
    * the two are placed or hidden as one unit. Rows whose icon is in another sprite, or in none,
    * draw nothing.
+   *
+   * `icon-image` is evaluated once per row. Each sprite's layer evaluates the other style
+   * properties only for its own rows and gives every other row constants, so the style evaluation
+   * across all layers is linear in the rows. The instance count is rows times the sprites a tile
+   * uses, and only the style's `sprite` list adds sprites: tile data cannot.
    */
   renderIconLayers(): any[] {
     const {spriteAtlases, iconLoadOptions, billboard} = this.props;
@@ -459,18 +464,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!spriteAtlases?.length || !this.getStyleProperty('icon-image') || !labelData.length) {
       return [];
     }
+    const icons = labelData.map(row => this.getIcon((row as any).__source?.object ?? row));
     const atlases = new Set<SpriteAtlas>();
-    for (const row of labelData) {
-      const icon = this.getIcon((row as any).__source?.object ?? row);
+    for (const icon of icons) {
       if (icon) {
         atlases.add(icon.atlas);
       }
     }
     const {icon: collision} = this.getSymbolCollision();
     return [...atlases].flatMap(atlas => {
-      const getAtlasIcon = (feature: FeatureLike) => {
-        const icon = this.getIcon(feature);
-        return icon?.atlas === atlas ? icon : null;
+      // Accessors over every row: `fallback` for rows whose icon is not in this sprite.
+      const forOwnRows = <T>(accessor: (feature: FeatureLike) => T, fallback: T) => {
+        const getValue = this.getSubLayerAccessor(accessor) as any;
+        return (row: LabelRow, info: {index: number}) =>
+          icons[info.index]?.atlas === atlas ? getValue(row, info) : fallback;
       };
       const layer = new IconLayer({
         ...this.getSubLayerProps({id: `icons-${atlas.id}`}),
@@ -484,25 +491,22 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
         collisionEnabled: true,
         collisionGroup: LABEL_COLLISION_GROUP,
-        getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
-          this.getLabelCollisionPriority(feature)
+        getCollisionPriority: forOwnRows(
+          feature => this.getLabelCollisionPriority(feature),
+          0
         ) as any,
         // The icon's whole box collides, as in MapLibre, including its transparent pixels. An
         // icon that ignores placement draws nothing in the collision pass.
         collisionTestProps: collision.blocks ? {alphaCutoff: 0} : {alphaCutoff: 0, sizeScale: 0},
         getPosition: (d: LabelRow) => d.position,
-        getIcon: this.getSubLayerAccessor(
-          (feature: FeatureLike) => getAtlasIcon(feature)?.name ?? null
-        ) as any,
-        getSize: this.getSubLayerAccessor((feature: FeatureLike) =>
-          getAtlasIcon(feature) ? this.getIconSize(feature) : 0
-        ) as any,
-        getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
-          this.getIconColor(feature)
-        ) as any,
-        getPixelOffset: this.getSubLayerAccessor((feature: FeatureLike) =>
-          this.getIconPixelOffset(feature)
-        ) as any,
+        getIcon: ((_: LabelRow, {index}: {index: number}) =>
+          icons[index]?.atlas === atlas ? icons[index]!.name : null) as any,
+        getSize: forOwnRows(feature => this.getIconSize(feature), 0) as any,
+        getColor: forOwnRows(feature => this.getIconColor(feature), [0, 0, 0, 0]) as any,
+        getPixelOffset: forOwnRows(feature => this.getIconPixelOffset(feature), [0, 0] as [
+          number,
+          number
+        ]) as any,
         updateTriggers: {
           ...this.getIconUpdateTriggers(),
           getCollisionPriority: this.getStyleUpdateTrigger('symbol-sort-key'),

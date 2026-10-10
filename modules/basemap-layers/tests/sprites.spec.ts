@@ -308,6 +308,74 @@ describe('icon-image', () => {
   });
 });
 
+describe('icon layer cost', () => {
+  const COUNT = 1000;
+  const names = Array.from({length: COUNT}, (_, i) => `icon-${i}`);
+  const imageIndex = (selected: string[]) =>
+    Object.fromEntries(selected.map(name => [name, {x: 0, y: 0, width: 8, height: 8}]));
+
+  /** Renders the icon layers of `COUNT` rows, row `i` with icon `icon-i` (or `prefix:icon-i`). */
+  function renderHostile(atlases: SpriteAtlas[], iconName: (i: number) => string) {
+    const layer = iconLayer({'icon-image': ['get', 'icon'], 'text-field': 'A'}, {}, atlases);
+    const rows = names.map((_, i) => ({
+      position: [i, 0],
+      __source: {object: feature({icon: iconName(i)}), index: i}
+    }));
+    layer.state = {labelData: rows};
+    layer.context = {} as any;
+    layer.internalState = {subLayers: []} as any;
+    const getIcon = vi.spyOn(layer, 'getIcon');
+    const getIconColor = vi.spyOn(layer, 'getIconColor');
+    const iconLayers = layer.renderIconLayers();
+    // Run every accessor over every row, as deck.gl does when it fills the attributes.
+    for (const sublayer of iconLayers) {
+      const {
+        getIcon: icon,
+        getSize,
+        getColor,
+        getPixelOffset,
+        getCollisionPriority
+      } = sublayer.props;
+      rows.forEach((row, index) => {
+        const info = {index, data: rows, target: []};
+        for (const accessor of [icon, getSize, getColor, getPixelOffset, getCollisionPriority]) {
+          accessor(row, info);
+        }
+      });
+    }
+    return {iconLayers, getIcon, getIconColor};
+  }
+
+  test('1,000 distinct icon names in one sprite make one icon layer', () => {
+    const atlas = {
+      id: 'default',
+      image: 'sprite.png',
+      mapping: getSpriteIconMapping(imageIndex(names))
+    };
+    const {iconLayers, getIcon, getIconColor} = renderHostile([atlas], i => names[i]);
+    expect(iconLayers.map((sublayer: any) => sublayer.id)).toEqual(['labels-icons-default']);
+    expect(getIconColor).toHaveBeenCalledTimes(COUNT);
+    // One resolution per row up front, then size, color and offset of each own row.
+    expect(getIcon.mock.calls.length).toBeLessThanOrEqual(4 * COUNT);
+  });
+
+  test('rows spread over several sprites are evaluated once each, not once per sprite', () => {
+    const sprites = Array.from({length: 4}, (_, s) => ({
+      id: s === 0 ? 'default' : `s${s}`,
+      image: `s${s}.png`,
+      mapping: getSpriteIconMapping(imageIndex(names.filter((_, i) => i % 4 === s)))
+    }));
+    const {iconLayers, getIcon, getIconColor} = renderHostile(sprites, i =>
+      i % 4 === 0 ? names[i] : `s${i % 4}:${names[i]}`
+    );
+    expect(iconLayers).toHaveLength(4);
+    // Each layer still holds every row, for the shared collision identity.
+    expect(iconLayers.every((sublayer: any) => sublayer.props.data.length === COUNT)).toBe(true);
+    expect(getIconColor).toHaveBeenCalledTimes(COUNT);
+    expect(getIcon.mock.calls.length).toBeLessThanOrEqual(4 * COUNT);
+  });
+});
+
 describe('icon size, color and offset', () => {
   test('icon-size scales the image height in CSS pixels', () => {
     // 34 device pixels at a pixel ratio of 2 is 17 CSS pixels.
