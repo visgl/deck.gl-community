@@ -1,57 +1,3 @@
-/**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
- */
-
-/* You can override the default Infima variables here. */
-:root {
-  --ifm-color-primary: #00ade6;
-  --ifm-color-primary-dark: #009ccf;
-  --ifm-color-primary-darker: #0093c4;
-  --ifm-color-primary-darkest: #0079a1;
-  --ifm-color-primary-light: #00befd;
-  --ifm-color-primary-lighter: #0ac2ff;
-  --ifm-color-primary-lightest: #2ccbff;
-  --ifm-color-white: #FFFFFF;
-  --ifm-color-gray-200: #F7FAFC;
-  --ifm-color-gray-300: #ECF2F7;
-  --ifm-color-gray-400: #E1E8F0;
-  --ifm-color-gray-500: #CAD5E0;
-  --ifm-color-gray-600: #9EAEC0;
-  --ifm-color-gray-700: #6F8196;
-  --ifm-color-gray-800: #485668;
-  --ifm-color-gray-900: #2B3848;
-  --ifm-color-black: #19202C;
-  --code-font-size: 95%;
-  --docs-table-background: rgba(255, 255, 255, 0.92);
-  --docs-table-shell-background: rgba(247, 250, 252, 0.92);
-  --docs-table-header-background: var(--ifm-color-gray-200);
-  --docs-table-border: var(--ifm-color-gray-400);
-  --docs-table-divider: rgba(43, 56, 72, 0.1);
-  --docs-table-shadow:
-    0 20px 44px rgba(43, 56, 72, 0.12),
-    0 6px 18px rgba(43, 56, 72, 0.08);
-  --docs-table-text: var(--ifm-color-gray-900);
-  --docs-table-link: var(--ifm-color-primary-darkest);
-  --docs-table-link-hover: var(--ifm-color-primary-dark);
-  --doc-sidebar-width: 350px !important;
-}
-
-html[data-theme='dark'] {
-  --docs-table-background: rgba(36, 46, 58, 0.92);
-  --docs-table-shell-background: rgba(29, 38, 49, 0.94);
-  --docs-table-header-background: rgba(72, 86, 104, 0.72);
-  --docs-table-border: rgba(158, 174, 192, 0.26);
-  --docs-table-divider: rgba(225, 232, 240, 0.12);
-  --docs-table-shadow:
-    0 18px 42px rgba(0, 0, 0, 0.3),
-    0 4px 12px rgba(0, 0, 0, 0.24);
-  --docs-table-text: rgba(255, 255, 255, 0.92);
-  --docs-table-link: #66d6ff;
-  --docs-table-link-hover: #8ae0ff;
-}
-
 main .container {
   position: relative;
   min-height: calc(100vh - var(--ifm-navbar-height));
@@ -210,4 +156,198 @@ html[data-theme='dark'] .docusaurus-highlight-code-line {
 }
 
 .heading_bold {
+}
+
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url('../../static/fonts/source-sans-3-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('../../static/fonts/space-grotesk-latin-wght-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../static/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+}
+
+/* Adapted from loaders.gl/website/src/styles.css. */
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-font-family-base: 'Source Sans 3', 'Avenir Next', system-ui, sans-serif;
+  --ifm-heading-font-family: 'Space Grotesk', 'Avenir Next', system-ui, sans-serif;
+  --ifm-font-family-monospace: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  --ifm-font-size-base: 100%;
+  --ifm-line-height-base: 1.68;
+  --ifm-heading-font-weight: 680;
+  --ifm-navbar-height: 4.25rem;
+  --ifm-color-primary: #7653b5;
+  --ifm-color-primary-dark: #6948a4;
+  --ifm-color-primary-darker: #624398;
+  --ifm-color-primary-darkest: #50367e;
+  --ifm-color-primary-light: #8868c2;
+  --ifm-color-primary-lighter: #9376c9;
+  --ifm-color-primary-lightest: #ab94d7;
+  --ifm-color-white: #FFFFFF;
+  --ifm-color-gray-200: #F7FAFC;
+  --ifm-color-gray-300: #ECF2F7;
+  --ifm-color-gray-400: #E1E8F0;
+  --ifm-color-gray-500: #CAD5E0;
+  --ifm-color-gray-600: #9EAEC0;
+  --ifm-color-gray-700: #6F8196;
+  --ifm-color-gray-800: #485668;
+  --ifm-color-gray-900: #2B3848;
+  --ifm-color-black: #19202C;
+  --code-font-size: 95%;
+  --docs-surface: rgba(255, 255, 255, 0.94);
+  --docs-surface-raised: #FFFFFF;
+  --docs-surface-muted: #F7FAFC;
+  --docs-border-subtle: rgba(72, 86, 104, 0.18);
+  --docs-accent-text: var(--ifm-color-primary-darkest);
+  --docs-text-strong: #19202C;
+  --docs-text-muted: #5B6B7D;
+  --docs-table-background: rgba(255, 255, 255, 0.92);
+  --docs-table-shell-background: rgba(247, 250, 252, 0.92);
+  --docs-table-header-background: var(--ifm-color-gray-200);
+  --docs-table-border: rgba(118, 131, 150, 0.32);
+  --docs-table-divider: rgba(92, 101, 122, 0.14);
+  --docs-table-shadow:
+    0 20px 44px rgba(43, 56, 72, 0.12),
+    0 6px 18px rgba(43, 56, 72, 0.08);
+  --docs-table-text: var(--ifm-color-gray-900);
+  --docs-table-link: var(--ifm-color-primary-darkest);
+  --docs-table-link-hover: var(--ifm-color-primary-dark);
+}
+
+html[data-theme='dark'] {
+  --ifm-background-color: #120E1C;
+  --ifm-background-surface-color: #1A1427;
+  --ifm-navbar-background-color: rgba(18, 14, 28, 0.9);
+  --ifm-footer-background-color: #100C18;
+  --ifm-font-color-base: #DDD5E8;
+  --ifm-font-color-secondary: #B4A5C5;
+  --ifm-heading-color: #F8F5FC;
+  --ifm-link-color: #C7B1F3;
+  --ifm-menu-color: #C9BDD8;
+  --ifm-menu-color-active: #C7B1F3;
+  --ifm-color-emphasis-100: #211A30;
+  --ifm-color-emphasis-200: #2C223E;
+  --ifm-color-emphasis-300: #3A2E4D;
+  --ifm-code-background: rgba(182, 154, 238, 0.1);
+  --ifm-toc-border-color: rgba(180, 165, 197, 0.16);
+  --docs-surface: rgba(33, 26, 48, 0.94);
+  --docs-surface-raised: #211A30;
+  --docs-surface-muted: #1A1427;
+  --docs-border-subtle: rgba(180, 165, 197, 0.18);
+  --docs-accent-text: #C7B1F3;
+  --docs-text-strong: #F8F5FC;
+  --docs-text-muted: #B4A5C5;
+  --docs-table-background: rgba(26, 20, 39, 0.72);
+  --docs-table-shell-background: rgba(26, 20, 39, 0.96);
+  --docs-table-header-background: rgba(44, 34, 62, 0.94);
+  --docs-table-border: rgba(111, 120, 145, 0.34);
+  --docs-table-divider: rgba(165, 151, 184, 0.12);
+  --docs-table-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.24);
+  --docs-table-text: rgba(244, 248, 251, 0.9);
+  --docs-table-link: #C7B1F3;
+  --docs-table-link-hover: #E1D6F9;
+}
+
+
+/* Community identity uses violet instead of the official framework's cyan. */
+:root {
+  --ifm-background-color: #fcfafd;
+  --docs-surface-muted: #f4f0f8;
+  --doc-sidebar-width: 300px;
+}
+html[data-theme='dark'] {
+  --ifm-color-primary: #b69aee;
+  --ifm-color-primary-dark: #a583e7;
+  --ifm-color-primary-darker: #9b75e3;
+  --ifm-color-primary-darkest: #8050d8;
+  --ifm-color-primary-light: #c7b1f3;
+  --ifm-color-primary-lighter: #cfbdf5;
+  --ifm-color-primary-lightest: #e1d6f9;
+  --ifm-background-color: #120e1c;
+}
+.navbar {
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--docs-border-subtle);
+  box-shadow: none;
+}
+.navbar__title { font-family: var(--ifm-heading-font-family); letter-spacing: -0.035em; }
+.community-label {
+  border: 1px solid var(--docs-border-subtle);
+  border-radius: 999px;
+  color: var(--docs-accent-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+}
+.theme-doc-sidebar-container {
+  background: var(--docs-surface-muted);
+  border-right-color: var(--docs-border-subtle);
+}
+main:has(.theme-doc-markdown) {
+  background: radial-gradient(circle at 52% -8rem, color-mix(in srgb, var(--ifm-color-primary) 10%, transparent), transparent 34rem), var(--ifm-background-color);
+}
+main .container { position: relative; min-height: calc(100vh - var(--ifm-navbar-height)); }
+.markdown { position: relative; }
+.theme-doc-markdown { font-size: 1.075rem; line-height: 1.72; }
+.theme-doc-markdown h1 { font-size: clamp(2.2rem, 4vw, 3.2rem); letter-spacing: -0.045em; line-height: 1.12; }
+.theme-doc-markdown h2 { font-size: clamp(1.8rem, 3.2vw, 2.6rem); letter-spacing: -0.045em; line-height: 1.12; margin-top: 3.5rem; }
+.theme-doc-markdown h3 { font-size: clamp(1.3rem, 2vw, 1.65rem); letter-spacing: -0.025em; line-height: 1.2; margin-top: 2.5rem; }
+.theme-doc-markdown strong { color: var(--ifm-heading-color); }
+.theme-doc-markdown code { border: 0; box-shadow: none; }
+.theme-doc-markdown .theme-code-block { border: 1px solid var(--docs-border-subtle); border-radius: 14px; box-shadow: 0 12px 28px rgba(35, 27, 46, 0.12); overflow: hidden; }
+.theme-doc-markdown table {
+  background: var(--docs-table-background);
+  border: 1px solid var(--docs-table-border);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin: 2rem 0;
+  max-width: 100%;
+  overflow: auto;
+}
+.theme-doc-markdown table th, .theme-doc-markdown table td { border: 0; padding: 0.65rem 0.85rem; }
+.theme-doc-markdown table th { background: var(--docs-table-header-background); color: var(--docs-accent-text); font-weight: 700; text-align: left; }
+.theme-doc-markdown table tr { background: transparent; border: 0; }
+.theme-doc-markdown table tr:nth-child(2n) { background: color-mix(in srgb, var(--ifm-color-primary) 4%, transparent); }
+.theme-doc-markdown table tbody tr + tr td { border-top: 1px solid var(--docs-table-divider); }
+.theme-doc-markdown table td:first-child { font-weight: 600; }
+.table-of-contents__link { font-size: 0.84rem; line-height: 1.45; }
+.menu__link { line-height: 1.5; }
+.menu__list { padding-bottom: 0.5rem; }
+.docusaurus-highlight-code-line {
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+  display: block;
+  margin: 0 calc(-1 * var(--ifm-pre-padding));
+  padding: 0 var(--ifm-pre-padding);
+}
+@media (max-width: 996px) { .community-label { display: none; } }
+@media (max-width: 760px) {
+  .theme-doc-markdown { font-size: 1rem; }
+  .theme-doc-markdown h2 { margin-top: 2.5rem; }
 }
