@@ -161,8 +161,18 @@ type LabelHalos = {
  * MapLibre caps `text-halo-width` at a quarter of the text size, 16 pixels of a 64-pixel glyph.
  * `TextLayer` outlines no further out than `(0.75 - smoothing) * radius` pixels, 15.6 here, and
  * its halo edge fades over another `smoothing * radius` pixels, which the `buffer` keeps.
+ * `TextLayer` draws the glyph edge at a fixed distance value, so a `cutoff` below the default 0.25
+ * moves the drawn edge `(0.25 - cutoff) * radius` pixels outward, and the halo with it. At 0.24,
+ * small text matches the stroke weight of a plain bitmap atlas more closely.
  */
-const LABEL_FONT_SETTINGS = {sdf: true, fontSize: 64, buffer: 18, radius: 24, smoothing: 0.1};
+const LABEL_FONT_SETTINGS = {
+  sdf: true,
+  fontSize: 64,
+  buffer: 18,
+  radius: 24,
+  cutoff: 0.24,
+  smoothing: 0.1
+};
 
 /**
  * Most text sublayers one label layer draws for halos. Each sublayer holds every label row (see
@@ -174,8 +184,8 @@ export const MAX_HALO_SUBLAYERS = 8;
 const HALO_WIDTH_STEP = 0.25;
 
 /**
- * `TextLayer` draws the SDF edge of a glyph at 0.75 of its distance range, and an outline of width
- * `w` at `0.75 * w` atlas pixels outside that edge.
+ * `TextLayer` draws an outline of width `w` at `0.75 * w` atlas pixels outside the drawn glyph
+ * edge, whatever the `cutoff`.
  */
 const SDF_OUTLINE_SCALE = 0.75;
 
