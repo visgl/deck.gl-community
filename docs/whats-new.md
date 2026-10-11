@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- The BasemapLayers overview includes a synchronized comparison with MapLibre, with map, globe, and first-person views.
+
 - The standalone playground adds local JSON, GeoJSON, CSV, and Arrow IPC uploads with Arrow inspection and `datasource://source-id` layer references.
 - `GraphLayer.layoutTransitionDuration` enables opt-in position interpolation independently of layout redraw throttling.
 
