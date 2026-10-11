@@ -1,6 +1,6 @@
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, Layer, LayerContext, UpdateParameters} from '@deck.gl/core';
-import {CollisionFilterExtension} from '@deck.gl/extensions';
+import {LabelCollisionFilterExtension} from './collision-extension';
 import {GeoJsonLayer, IconLayer, _TextBackgroundLayer} from '@deck.gl/layers';
 import {LabelTextLayer} from './label-text-layer';
 import type {LabelTextJustify} from './label-text-layer';
@@ -895,7 +895,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           parameters: LABEL_PARAMETERS,
           extensions: [
             ...(this.props.extensions || []),
-            new CollisionFilterExtension(),
+            new LabelCollisionFilterExtension(),
             GLOBE_HORIZON_EXTENSION
           ],
           collisionEnabled: true,
@@ -961,7 +961,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       data: this.getRows(),
       extensions: [
         ...(this.props.extensions || []),
-        new CollisionFilterExtension(),
+        new LabelCollisionFilterExtension(),
         GLOBE_HORIZON_EXTENSION
       ],
       parameters: LABEL_PARAMETERS,
@@ -1977,7 +1977,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           data: this.getRows(),
           extensions: [
             ...(this.props.extensions || []),
-            new CollisionFilterExtension(),
+            new LabelCollisionFilterExtension(),
             GLOBE_HORIZON_EXTENSION,
             TEXT_HALO_BLUR_EXTENSION
           ],
