@@ -88,8 +88,9 @@ describe('hidden tiles', () => {
     hidden.isVisible = true;
     renderSubLayers.mockClear();
     layer.renderLayers();
+    // Regenerated; a sublayer whose props did not change keeps its instance (see
+    // tile-layer-reuse.spec).
     expect(layersOf(hidden)).toHaveLength(1);
-    expect(layersOf(hidden)[0]).not.toBe(hiddenLayers[0]);
     expect(renderSubLayers.calls).toBe(1);
   });
 
@@ -167,14 +168,14 @@ describe('hidden tiles', () => {
     const tile = createTile(0, true);
     const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([tile]);
     renderAfterUpdate();
-    const before = layersOf(tile);
-    // Hidden in the first view, shown in a second one.
+    // Hidden in the first view, shown in a second one. Regenerated; a sublayer whose props did not
+    // change keeps its instance (see tile-layer-reuse.spec).
     tile.isVisible = false;
     layer.state.tilesetViews.set('second', {isTileVisible: () => true});
     renderSubLayers.mockClear();
     renderAfterUpdate();
     expect(renderSubLayers.calls).toBe(1);
-    expect(layersOf(tile)[0]).not.toBe(before[0]);
+    expect(layersOf(tile)).toHaveLength(1);
   });
 
   test.each([

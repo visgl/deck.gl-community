@@ -837,7 +837,10 @@ class StyledMVTLayer extends SharedMVTLayer {
     return Array.isArray(layers) ? sortTileSubLayers(layers as (Layer[] | null)[]) : layers;
   }
 
-  /** A hidden tile that has no sublayers yet gets them when it is shown. */
+  /**
+   * A hidden tile that has no sublayers yet gets them when it is shown. A tile's new sublayers can
+   * keep those it last rendered (see `getTileGeoJsonLayer`).
+   */
   renderSubLayers(props: Parameters<SharedMVTLayer['renderSubLayers']>[0]) {
     if (!this.isTileShown(props.tile)) {
       this.state.staleTiles?.add(props.tile.id);
@@ -846,10 +849,14 @@ class StyledMVTLayer extends SharedMVTLayer {
     this.state.zoomPaintContext ||= new ZoomPaintContext();
     const {zoomPaintContext} = this.state;
     zoomPaintContext.zoom = getZoomBucket((this.props as {styleZoom?: number}).styleZoom ?? 0);
+    const previous = this.state.keptTileLayers?.get(props.tile.id);
     // `SharedMVTLayer` turns `autoHighlight` off for the tile sublayers, which it highlights itself.
     return super.renderSubLayers({
       ...props,
       [ZOOM_PAINT_CONTEXT]: this.context.device?.type === 'webgpu' ? null : zoomPaintContext,
+      [PREVIOUS_TILE_LAYERS]: previous
+        ? new Map(previous.map((layer: Layer) => [layer.id, layer]))
+        : undefined,
       [AUTO_HIGHLIGHT]: Boolean(this.props.autoHighlight)
     } as typeof props);
   }
@@ -924,6 +931,26 @@ class StyledGeoJsonLayer extends GeoJsonLayer<any, {drawsLineStrings?: boolean}>
   static layerName = 'StyledGeoJsonLayer';
   static defaultProps = {...GeoJsonLayer.defaultProps, drawsLineStrings: true};
 
+  /**
+   * `TileLayer` clones each tile sublayer to add the tile's own props. A sublayer kept from the
+   * tile's previous sublayers has them already, and stays the same instance.
+   */
+  clone(newProps: Record<string, unknown>) {
+    if (keptTileLayers.has(this)) {
+      keptTileLayers.delete(this);
+      const props = this.props as Record<string, unknown>;
+      if (Object.keys(newProps).every(key => props[key] === newProps[key])) {
+        return this;
+      }
+    }
+    const layer = super.clone(newProps);
+    const inputs = tileLayerInputs.get(this);
+    if (inputs) {
+      tileLayerInputs.set(layer, 'tile' in newProps ? inputs : {...inputs, ...newProps});
+    }
+    return layer;
+  }
+
   protected shouldRenderSubLayer(subLayerId: string, data: any): boolean {
     if (
       subLayerId.startsWith('points-') ||
@@ -935,6 +962,97 @@ class StyledGeoJsonLayer extends GeoJsonLayer<any, {drawsLineStrings?: boolean}>
     }
     return super.shouldRenderSubLayer(subLayerId, data);
   }
+}
+
+/** The prop that hands a tile's previous sublayers, by id, to `renderSubLayers`. */
+const PREVIOUS_TILE_LAYERS = 'previousTileLayers';
+/** The props each tile sublayer was created with, for `getTileGeoJsonLayer`. */
+const tileLayerInputs = new WeakMap<object, Record<string, unknown>>();
+/** Previous tile sublayers that `getTileGeoJsonLayer` has just kept, until `TileLayer` adds them. */
+const keptTileLayers = new WeakSet<object>();
+
+/**
+ * Whether two prop values are the same to deck.gl: equal, or arrays and plain objects of the
+ * same values, or objects that `equals` each other (deck.gl's layer extensions and matrices).
+ */
+function isSameValue(a: any, b: any, depth = 3): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (depth === 0 || !a || !b || typeof a !== 'object' || typeof b !== 'object') {
+    return false;
+  }
+  if (Array.isArray(a) || ArrayBuffer.isView(a)) {
+    if (!(Array.isArray(b) || ArrayBuffer.isView(b))) {
+      return false;
+    }
+    const x = a as unknown as ArrayLike<unknown>;
+    const y = b as unknown as ArrayLike<unknown>;
+    if (x.length !== y.length) {
+      return false;
+    }
+    for (let i = 0; i < x.length; i++) {
+      if (!isSameValue(x[i], y[i], depth - 1)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (Object.getPrototypeOf(a) !== Object.prototype) {
+    return a.constructor === b.constructor && typeof a.equals === 'function' && a.equals(b);
+  }
+  // Functions in a nested object are not accessors: they must be the same.
+  return Object.getPrototypeOf(b) === Object.prototype && isSameProps(a, b, depth - 1, false);
+}
+
+/**
+ * Whether two sets of layer props are the same to deck.gl. Per-feature accessors (`get*`) that
+ * are both functions count as the same, unless `accessors` is false: with the same data, deck.gl
+ * reads them again only when their update trigger, compared with the other props, changes.
+ */
+export function isSameProps(
+  a: Record<string, any>,
+  b: Record<string, any>,
+  depth = 3,
+  accessors = true
+): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) {
+    return false;
+  }
+  for (const key of keys) {
+    if (!(key in b)) {
+      return false;
+    }
+    const x = a[key];
+    const y = b[key];
+    const isAccessor =
+      accessors && key.startsWith('get') && typeof x === 'function' && typeof y === 'function';
+    // deck.gl compares data by identity, and recomputes every accessor for new data.
+    if (key === 'data' ? x !== y : !isAccessor && !isSameValue(x, y, depth)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * A fill, line or fill-extrusion sublayer of a tile. Tile sublayers regenerate at every style
+ * zoom step, while many of them, a constant fill or a line whose width does not change between
+ * the two steps, get the same props as before. Such a sublayer keeps the instance the tile last
+ * rendered, which deck.gl then neither diffs nor updates; a new one would be created, cloned by
+ * `TileLayer`, matched and diffed, only to change nothing.
+ */
+function getTileGeoJsonLayer(tileProps: any, props: Record<string, any>): StyledGeoJsonLayer {
+  const previous = (tileProps[PREVIOUS_TILE_LAYERS] as Map<string, any> | undefined)?.get(props.id);
+  const inputs = previous && tileLayerInputs.get(previous);
+  if (inputs && isSameProps(props, inputs)) {
+    keptTileLayers.add(previous);
+    return previous;
+  }
+  const layer = new StyledGeoJsonLayer(props);
+  tileLayerInputs.set(layer, props);
+  return layer;
 }
 
 /** Whether a style accessor is a constant, fully transparent color. */
@@ -2130,7 +2248,7 @@ function createGeometrySubLayer({
       ? getFillStyleProps(first.styleLayer, zoom, baseProps.extensions, pattern)
       : {};
 
-  const layer = new StyledGeoJsonLayer({
+  const layerProps = {
     ...baseProps,
     id: `${getStyleSubLayerId(props.id, styleLayerIds)}${idSuffix}`,
     data,
@@ -2196,7 +2314,8 @@ function createGeometrySubLayer({
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
     parameters: getTileParameters(mode, depthTested)
-  });
+  };
+  const layer = getTileGeoJsonLayer(props, layerProps);
   if (!gapWidth || (typeof gapWidth.value !== 'function' && !(gapWidth.value > 0))) {
     return layer;
   }
@@ -2207,8 +2326,9 @@ function createGeometrySubLayer({
   const getWidth = styles[0].lineWidth.value;
   return [
     layer,
-    layer.clone({
-      id: `${layer.id}-gap`,
+    getTileGeoJsonLayer(props, {
+      ...layerProps,
+      id: `${layerProps.id}-gap`,
       getOffset: getOffset(-1),
       ...getBlurGap(-1),
       ...(typeof getGap === 'function'
@@ -2220,7 +2340,7 @@ function createGeometrySubLayer({
                   : getWidth
                 : 0,
             updateTriggers: {
-              ...layer.props.updateTriggers,
+              ...layerProps.updateTriggers,
               // A width that is not per feature is a value with no trigger of its own.
               getLineWidth: [
                 typeof getWidth === 'function' ? lineWidth.updateTrigger : getWidth,
@@ -2229,7 +2349,7 @@ function createGeometrySubLayer({
             }
           }
         : {})
-    } as any)
+    })
   ];
 }
 
@@ -2337,7 +2457,7 @@ function createExtrusionSubLayer({
   );
   const baseProps = getSubLayerBaseProps(props);
 
-  return new StyledGeoJsonLayer({
+  return getTileGeoJsonLayer(props, {
     ...baseProps,
     id: getStyleSubLayerId(props.id, styleLayer.id),
     data: getRaisedFeatures(features, styleLayer, base),
