@@ -271,7 +271,25 @@ describe('MVTLabelLayer line placement', () => {
     expect(lineLayer({}, {'symbol-spacing': 100}).getAnchorKey(false)).not.toBe(key);
     expect(lineLayer({}, {'text-max-angle': 10}).getAnchorKey(false)).not.toBe(key);
     expect(lineLayer({}, {'text-size': 12}).getAnchorKey(false)).not.toBe(key);
+    // Upper-casing can lengthen the text ('ß' becomes 'SS').
+    expect(lineLayer({}, {'text-transform': 'uppercase'}).getAnchorKey(false)).not.toBe(key);
     expect(lineLayer({zoom: 14.5}).getAnchorKey(false)).toBe(key);
+  });
+  test('places labels with the new text when text-field changes', () => {
+    const layer = lineLayer({data: [ACROSS_TILE]});
+    const layout = layer.props.styleLayer!.layout as Record<string, unknown>;
+    layer.state = {};
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    // Labels of 'Main' fit twice; a label too long for the spacing widens it, as in MapLibre.
+    expect(layer.state.labelData).toHaveLength(2);
+    // The text layer reads the label, which caches it for the current text trigger.
+    expect(layer.getLabel(ACROSS_TILE as any)).toBe('Main');
+    layout['text-field'] = 'x'.repeat(60);
+    layer.updateState({changeFlags: {}} as any);
+    const expected = lineLayer({}, {...layout}).getLabelData([ACROSS_TILE], false);
+    expect(expected).toHaveLength(1);
+    const positions = (rows: any) => rows.map((row: any) => row.position);
+    expect(positions(layer.state.labelData)).toEqual(positions(expected));
   });
 });
 

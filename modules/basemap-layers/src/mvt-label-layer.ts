@@ -982,7 +982,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       isLinePlacement(placement)
         ? [
             this.getLinePlacementScale(),
-            this.getStyleUpdateTrigger('text-field', 'icon-image'),
+            this.getStyleUpdateTrigger('text-field', 'text-transform', 'icon-image'),
             (this.props.spriteAtlases || []).map(atlas => atlas.id),
             ...['text-size', 'icon-size', 'symbol-spacing', 'text-max-angle'].map(name =>
               JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)
@@ -1083,6 +1083,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return;
     }
     const geographic = Boolean(this.context?.viewport?.resolution);
+    const textTrigger = this.getLabelUpdateTriggers().getText;
+    if (textTrigger !== this.state.labelText?.key[0]) {
+      // Labels along lines are placed by their text's length, so they must not read text cached
+      // for the previous trigger.
+      this.setState({labelText: undefined});
+    }
     const anchorKey = this.getAnchorKey(geographic);
     if (changeFlags.dataChanged || anchorKey !== this.state.anchorKey) {
       const features = Array.isArray(data) ? data : data.features || [];
@@ -1090,10 +1096,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     // deck.gl re-evaluates every label's text when the rows or the text trigger change; each
     // evaluation starts a new text cache with a fresh wrap budget.
-    const key: [string, LabelRow[] | undefined] = [
-      this.getLabelUpdateTriggers().getText,
-      this.state.labelData
-    ];
+    const key: [string, LabelRow[] | undefined] = [textTrigger, this.state.labelData];
     const [lastTrigger, lastRows] = this.state.labelText?.key || [];
     if (key[0] !== lastTrigger || key[1] !== lastRows) {
       this.setState({
