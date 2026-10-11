@@ -4,7 +4,7 @@
 
 import {TextLayer} from '@deck.gl/layers';
 import type {TextLayerProps} from '@deck.gl/layers';
-import type {Accessor, AccessorContext, DefaultProps} from '@deck.gl/core';
+import type {Accessor, AccessorContext, DefaultProps, FilterContext} from '@deck.gl/core';
 import type {Texture} from '@luma.gl/core';
 import {SharedTextureSet} from './shared-texture';
 
@@ -149,6 +149,26 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
       props.iconAtlas = this.state.atlasTexture;
     }
     return props;
+  }
+
+  /**
+   * A transparent background without a border draws nothing on screen: it only marks the labels in
+   * the collision map and the picking buffer. It is left out of the screen pass, which saves a draw
+   * per label layer and frame.
+   */
+  filterSubLayer({layer, renderPass, isPicking}: FilterContext): boolean {
+    return !(
+      renderPass === 'screen' &&
+      !isPicking &&
+      layer.id === `${this.id}-background` &&
+      this.hasInvisibleBackground()
+    );
+  }
+
+  /** Whether the background box is a constant transparent color without a border. */
+  hasInvisibleBackground(): boolean {
+    const {getBackgroundColor, getBorderWidth} = this.props;
+    return Array.isArray(getBackgroundColor) && getBackgroundColor[3] === 0 && getBorderWidth === 0;
   }
 
   finalizeState(context: any): void {
