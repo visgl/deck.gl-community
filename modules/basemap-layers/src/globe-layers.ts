@@ -1639,6 +1639,58 @@ function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig
 }
 
 /**
+ * The source layers drawn from each vector source, over all of its runs, sorted; `null` for a
+ * source with a style layer that names none. Tiles decode only these: OpenMapTiles tiles, for
+ * one, carry house numbers and peaks that few styles draw, and points of interest, most of a
+ * street-level tile, that a style without them, or with labels off, does not draw.
+ */
+export function getRunSourceLayers(runs: StyleLayerRun[]): Map<BasemapSource, string[] | null> {
+  const names = new Map<BasemapSource, Set<string> | null>();
+  for (const run of runs) {
+    if (run.type !== 'vector') {
+      continue;
+    }
+    let set = names.has(run.source!) ? names.get(run.source!) : new Set<string>();
+    for (const layer of run.styleLayers) {
+      const sourceLayer = layer['source-layer'];
+      if (typeof sourceLayer !== 'string') {
+        set = null;
+      }
+      set?.add(sourceLayer as string);
+    }
+    names.set(run.source!, set ?? null);
+  }
+  return new Map([...names].map(([source, set]) => [source, set ? [...set].sort() : null]));
+}
+
+/** The source layers each vector source of a style decodes (see `getRunSourceLayers`). */
+export function getStyleSourceLayers(
+  styleDefinition: ResolvedBasemapStyle,
+  globe?: {config?: BasemapGlobeConfig}
+): Map<BasemapSource, string[] | null> {
+  const config = getConfig(globe);
+  if (!config.basemap) {
+    return new Map();
+  }
+  const styleLayers = (styleDefinition.layers || []).filter(layer =>
+    SUPPORTED_TYPES.has(layer.type)
+  );
+  return getRunSourceLayers(getStyleLayerRuns(styleLayers, styleDefinition, config));
+}
+
+/** `loadOptions` for a vector source's tiles, decoding only `sourceLayers` when given. */
+export function getSourceLoadOptions(
+  loadOptions: BasemapLoadOptions | undefined,
+  sourceLayers: string[] | null | undefined
+): BasemapLoadOptions | undefined {
+  if (!sourceLayers) {
+    return loadOptions;
+  }
+  const mvt = (loadOptions as {mvt?: Record<string, unknown>} | undefined)?.mvt;
+  return {...loadOptions, mvt: {...mvt, layers: sourceLayers}} as BasemapLoadOptions;
+}
+
+/**
  * Splits the style into runs that draw in style order, as in MapLibre: each background and raster
  * layer on its own, and consecutive layers of one vector source together, so that a raster
  * layer between two vector layers draws between them. Layers that cannot draw (a source without
@@ -1745,7 +1797,8 @@ function getStyleLayers({
   const labelPriorityRanges = getLabelPriorityRanges(
     styleLayers.filter(layer => isVectorStyleLayer(layer, config))
   );
-  const runs = getStyleLayerRuns(styleLayers, styleDefinition, config).filter(run =>
+  const allRuns = getStyleLayerRuns(styleLayers, styleDefinition, config);
+  const runs = allRuns.filter(run =>
     run.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom))
   );
 
@@ -1759,6 +1812,7 @@ function getStyleLayers({
   const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
 
   const ownedTilesets = new Map<BasemapSource, SourceTilesetOwner>();
+  let sourceLayers: Map<BasemapSource, string[] | null> | undefined;
   return runs.map(run => {
     const [layer] = run.styleLayers;
     if (run.type === 'background') {
@@ -1779,7 +1833,12 @@ function getStyleLayers({
     if (!tileset) {
       owner = ownedTilesets.get(run.source!);
       if (!owner) {
-        const loader = new SharedMVTLayer({data: run.source!.tiles!, loadOptions});
+        // Tiles decode the source layers of all of the source's runs, at every zoom.
+        sourceLayers ??= getRunSourceLayers(allRuns);
+        const loader = new SharedMVTLayer({
+          data: run.source!.tiles!,
+          loadOptions: getSourceLoadOptions(loadOptions, sourceLayers.get(run.source!))
+        });
         tileset = new SharedTileset2D({
           ...loader._getTilesetOptions(),
           ...getTilePyramidProps(run.source!),

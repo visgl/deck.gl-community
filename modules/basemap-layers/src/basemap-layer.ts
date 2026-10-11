@@ -8,7 +8,13 @@ import {
   type Viewport
 } from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
-import {getBasemapLayers, getStyleDefinitionZoomLimits, getTilePyramidProps} from './globe-layers';
+import {
+  getBasemapLayers,
+  getSourceLoadOptions,
+  getStyleDefinitionZoomLimits,
+  getStyleSourceLayers,
+  getTilePyramidProps
+} from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
@@ -109,6 +115,8 @@ type BasemapLayerState = {
   spriteAtlases: SpriteAtlas[] | null;
   /** Decoded data caches owned by this basemap, shared across style runs. */
   tilesets: Map<BasemapSource, SharedTileset2D>;
+  /** The source layers each tileset decodes, as JSON (see `getStyleSourceLayers`). */
+  tilesetSourceLayers: Map<BasemapSource, string>;
   /** Loading configuration used to construct the current source caches. */
   tileLoadOptions: unknown;
   /** Fetch identity, kept separate from render-only props such as view mode. */
@@ -152,6 +160,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       loadToken: 0,
       zoomKey: null,
       tilesets: new Map(),
+      tilesetSourceLayers: new Map(),
       tileLoadOptions: null,
       tileFetch: null,
       spriteAtlases: null
@@ -293,6 +302,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
   private clearSourceTilesets(): void {
     for (const tileset of this.state.tilesets.values()) tileset.finalize();
     this.state.tilesets.clear();
+    this.state.tilesetSourceLayers.clear();
   }
 
   private updateSourceTilesets(style: ResolvedBasemapStyle): void {
@@ -302,8 +312,18 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     const optionsChanged =
       this.state.tileLoadOptions !== this.props.loadOptions ||
       this.state.tileFetch !== this.props.fetch;
+    // Tiles decode only the source layers the style draws: a style edit or a labels toggle that
+    // changes them reloads the source's tiles.
+    const sourceLayers = getStyleSourceLayers(style, this.props.globe);
+    const sourceLayerKeys = new Map(
+      [...sources].map(source => [source, JSON.stringify(sourceLayers.get(source) ?? null)])
+    );
     for (const [source, tileset] of this.state.tilesets) {
-      if (!sources.has(source) || optionsChanged) {
+      if (
+        !sources.has(source) ||
+        optionsChanged ||
+        this.state.tilesetSourceLayers.get(source) !== sourceLayerKeys.get(source)
+      ) {
         tileset.finalize();
         this.state.tilesets.delete(source);
       }
@@ -316,7 +336,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
           id: `${this.id}-loader`,
           data: source.tiles!,
           fetch: this.props.fetch,
-          loadOptions: this.props.loadOptions
+          loadOptions: getSourceLoadOptions(this.props.loadOptions, sourceLayers.get(source))
         });
         loader.context = this.context;
         const tileset = new SharedTileset2D({
@@ -326,6 +346,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
           getTileData: tile => loader.getTileData(tile)
         });
         this.state.tilesets.set(source, tileset);
+        this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);
       }
     }
   }
