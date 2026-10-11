@@ -144,6 +144,21 @@ describe('consecutive style layers share a sublayer', () => {
     expect(typeof layers[0].props.getLineColor).toBe('function');
   });
 
+  test('solid and dashed lines share a sublayer; the solid ones have no gaps', () => {
+    const rail = feature('LineString');
+    const layers = renderTile(
+      [line('rail', {}), line('hatching', {'line-dasharray': [0.5, 4]}), line('next', {})],
+      [rail]
+    );
+    expect(idsOf(layers)).toEqual([['rail', 'hatching', 'next']]);
+    expect(layers[0].props.extensions).toHaveLength(1);
+    expect(valuesOf(layers[0], 'getDashArray')).toEqual([
+      [0, 0],
+      [1, 8],
+      [0, 0]
+    ]);
+  });
+
   test('a fill or line without features in the tile does not separate its neighbours', () => {
     const layers = renderTile(
       [fill('a', '#ff0000'), {...line('road', {}), 'source-layer': 'other'}, fill('b', '#0000ff')],
@@ -215,7 +230,6 @@ describe('style layers that draw alone', () => {
 
   test.each([
     ['a different line-cap', {}, {'line-cap': 'round'}],
-    ['a dash array', {'line-dasharray': [2, 1]}, {}],
     ['an offset', {'line-offset': 2}, {}],
     ['a gap', {'line-gap-width': 2}, {}]
   ])('a line with %s', (_, paint, layout) => {

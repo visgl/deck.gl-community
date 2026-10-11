@@ -168,6 +168,8 @@ const TRANSPARENT_COLOR: [number, number, number, number] = [0, 0, 0, 0];
  * does, instead of restarting it at every vertex.
  */
 const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
+/** The dash array of a solid line in a dashed sublayer: no gaps. */
+const SOLID_DASH_ARRAY: StyleAccessor<[number, number]> = {value: [0, 0]};
 /** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
 const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
 const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
@@ -1696,9 +1698,9 @@ function getGeometryStyle({
 /**
  * The key under which consecutive style layers can draw as one sublayer, or null when this one
  * draws alone. Style layers share a sublayer when everything deck.gl applies to a whole layer is
- * the same: a fill without an outline; a line's cap, join and miter limit, and whether it is
- * dashed. Lines with an offset, a gap or a blur, and fills with a pattern or a translation, draw
- * alone.
+ * the same: a fill without an outline, or a line's cap, join and miter limit. Solid and dashed
+ * lines share a sublayer: the solid ones draw with a dash array without gaps. Lines with an
+ * offset, a gap or a blur, and fills with a pattern or a translation, draw alone.
  */
 function getBatchKey(style: GeometryStyle): string | null {
   if (style.isFill) {
@@ -1708,7 +1710,7 @@ function getBatchKey(style: GeometryStyle): string | null {
     return null;
   }
   const {lineCapRounded, lineJointRounded, lineMiterLimit} = style.lineShape;
-  return `line-${Boolean(style.dashArray)}-${lineCapRounded}-${lineJointRounded}-${lineMiterLimit}`;
+  return `line-${lineCapRounded}-${lineJointRounded}-${lineMiterLimit}`;
 }
 
 /** Whether features include polygons and lines, per tile content and style layer. */
@@ -1864,7 +1866,10 @@ function createGeometrySubLayer({
   const fillColor = merge(style => style.fillColor);
   const lineColor = merge(style => style.lineColor);
   const lineWidth = merge(style => style.lineWidth);
-  const dashArray = styles[0].dashArray ? merge(style => style.dashArray!) : null;
+  // A dash array without gaps draws a solid line.
+  const dashArray = styles.some(style => style.dashArray)
+    ? merge(style => style.dashArray ?? SOLID_DASH_ARRAY)
+    : null;
 
   const offsetValue = lineOffset?.value;
   const getOffset = (side: number) => (feature: any) => {
