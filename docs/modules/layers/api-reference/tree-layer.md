@@ -35,6 +35,11 @@ new TreeLayer({
 
 ## Authored tree traits
 
+Start with `getTree` for the complete authored tree and add granular accessors only for fields
+that need an override. For a crown specified in metres, use `getTree: row => ({...row,
+crownRadius: 2})`. `getCanopyRadius: 2` retains the legacy canopy scale convention and is not an
+equivalent physical radius; broadleaf crowns use approximately half that scale.
+
 `getTree` defaults to the source row and accepts a constant `TreeSpec` or `(row, accessorContext) => TreeSpec`. Supply a position and species; height, crown dimensions, first-branch height and bole thickness have species defaults. `height` and nominal `crownRadius` use metres. Per-tree `characteristics` selects a shared wood/leaf morphology, `season` controls foliage, `crop` is explicit, and `wind` accepts `true` (0.025), `false`, or a bend fraction up to 0.2. Omitted wind uses the layer's `windStrength`. Optional colors and elevation also live in the same object.
 
 Explicit granular accessors override corresponding `getTree` fields, so hosts can change a global season or bind a single field without rebuilding their inventory. Function accessors follow deck.gl's `updateTriggers` convention; use `updateTriggers.getTree` when a mapped trait function's captured values change. Position changes, species, crops and morphology rebuild prepared owner rows; global wind and animation time retain geometry. Default transforms and deterministic variation are shared across wood, leaves, crops, picking and shadows.
