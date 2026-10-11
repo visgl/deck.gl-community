@@ -449,20 +449,27 @@ export class SharedTileRequests {
   consumers = 1;
   private requests = new Map<string, {promise: Promise<unknown>; remaining: number}>();
 
-  request(url: string, load: () => Promise<unknown>): Promise<unknown> {
-    let entry = this.requests.get(url);
+  /** `key` identifies the decoded tile: its URL and anything else its decoding depends on. */
+  request(key: string, load: () => Promise<unknown>): Promise<unknown> {
+    let entry = this.requests.get(key);
     if (!entry) {
       const promise = load();
-      entry = {promise, remaining: this.consumers};
-      this.requests.set(url, entry);
-      promise.catch(() => this.requests.delete(url));
+      const created = {promise, remaining: this.consumers};
+      entry = created;
+      this.requests.set(key, entry);
+      // A failed request is dropped, unless a newer request for the tile has replaced it.
+      promise.catch(() => {
+        if (this.requests.get(key) === created) {
+          this.requests.delete(key);
+        }
+      });
       if (this.requests.size > MAX_SHARED_REQUESTS) {
         this.requests.delete(this.requests.keys().next().value!);
       }
     }
     entry.remaining--;
     if (entry.remaining <= 0) {
-      this.requests.delete(url);
+      this.requests.delete(key);
     }
     return entry.promise;
   }
@@ -508,7 +515,11 @@ class StyledMVTLayer extends MVTLayer<any> {
       return this.loadTile(url, loadProps);
     }
     // A shared request is not aborted with one layer's tile: another layer may still need it.
-    return tileRequests.request(url, () => this.loadTile(url, {index: loadProps.index}));
+    // Tiles decode to longitude/latitude on a globe and to tile coordinates on a map.
+    return tileRequests.request(
+      `${this.context.viewport.resolution ? 'wgs84' : 'local'} ${url}`,
+      () => this.loadTile(url, {index: loadProps.index})
+    );
   }
 
   loadTile(

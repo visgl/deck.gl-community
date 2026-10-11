@@ -135,6 +135,19 @@ describe('SharedTileRequests', () => {
     expect(await requests.request('t/1', load)).toBe(2);
   });
 
+  test('a failed request does not drop a newer request for the tile', async () => {
+    const requests = new SharedTileRequests();
+    let fail!: (error: Error) => void;
+    // The only consumer takes the request at once, so it is no longer kept.
+    const failing = requests.request('t/1', () => new Promise((_, reject) => (fail = reject)));
+    requests.consumers = 2;
+    const newer = requests.request('t/1', () => new Promise(() => {}));
+    fail(new Error('offline'));
+    await expect(failing).rejects.toThrow('offline');
+    // The newer request survives the failure, and its second consumer reuses it.
+    expect(requests.request('t/1', () => Promise.resolve('other'))).toBe(newer);
+  });
+
   test('a failed request is not reused', async () => {
     const requests = new SharedTileRequests();
     requests.consumers = 3;
