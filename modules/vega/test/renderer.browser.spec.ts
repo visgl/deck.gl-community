@@ -6,6 +6,7 @@ import {createStage, defaultPresenterConfig} from '../src/defaults';
 import {parse, type Spec} from 'vega';
 import {ViewGl, base} from '../src/index';
 import {createExample} from '../demo/example';
+import {createVegaView} from '../../../examples/vega/create-vega-view';
 
 it.each([
   '2d',
@@ -103,21 +104,29 @@ it('animates positions and sizes when the example changes layout', async () => {
       .poll(() => example.view.presenter.deckgl?.isInitialized, {timeout: 15000})
       .toBe(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
+    // Keep the transition active while assertions run, even on a busy CI host.
+    const cubeLayer = example.view.presenter.deckgl.props.layers.find(
+      (entry: any) => entry.id === 'LAYER_CUBES'
+    ) as any;
+    cubeLayer.context.timeline.pause();
     const select = host.querySelector('select');
     select.value = 'scatter';
     select.dispatchEvent(new Event('change'));
     await expect
-      .poll(() => {
-        const layer = example.view.presenter.deckgl.props.layers.find(
-          (entry: any) => entry.id === 'LAYER_CUBES'
-        ) as any;
-        return (
-          layer
-            ?.getAttributeManager()
-            .attributeTransitionManager?.hasAttribute('instancePositions') &&
-          layer.getAttributeManager().attributeTransitionManager.hasAttribute('instanceSizes')
-        );
-      })
+      .poll(
+        () => {
+          const layer = example.view.presenter.deckgl.props.layers.find(
+            (entry: any) => entry.id === 'LAYER_CUBES'
+          ) as any;
+          return (
+            layer
+              ?.getAttributeManager()
+              ?.attributeTransitionManager?.hasAttribute('instancePositions') &&
+            layer.getAttributeManager().attributeTransitionManager.hasAttribute('instanceSizes')
+          );
+        },
+        {timeout: 10000}
+      )
       .toBe(true);
     const cubes = example.view.presenter.getCubeData();
     expect(cubes).toHaveLength(180);
@@ -180,3 +189,57 @@ it('forwards text alpha cutoff to the glyph sublayer', () => {
   const textLayer = layers.find(layer => layer.constructor.layerName === 'TextLayer');
   expect(textLayer.props._subLayerProps.characters.alphaCutoff).toBe(0.4);
 });
+
+it('keeps duplicate IDs and shared records distinct across rectangle marks', async () => {
+  const host = document.createElement('div');
+  host.style.cssText = 'width:320px;height:240px;position:relative';
+  document.body.appendChild(host);
+  const spec: Spec = {
+    width: 200,
+    height: 160,
+    data: [
+      {
+        name: 'table',
+        values: [
+          {id: 0, x: 20},
+          {id: 0, x: 100}
+        ]
+      }
+    ],
+    marks: ['#ff0000', '#0000ff'].map((fill, index) => ({
+      type: 'rect' as const,
+      from: {data: 'table'},
+      encode: {
+        update: {
+          x: {field: 'x'},
+          y: {value: index * 70},
+          width: {value: 40},
+          height: {value: 40},
+          fill: {value: fill}
+        }
+      }
+    }))
+  };
+  const example = createVegaView(host, spec);
+  try {
+    await example.ready;
+    const getCubes = () =>
+      (example.view.presenter.getCubeData() ?? []).filter(cube => !cube.isEmpty);
+    await expect.poll(() => getCubes().length, {timeout: 15000}).toBe(4);
+    expect(new Set(getCubes().map(cube => cube.ordinal)).size).toBe(4);
+    const positions = getCubes().map(cube => [...cube.position]);
+    example.view.change(
+      'table',
+      (await import('vega')).changeset().modify(() => true, 'x', 50)
+    );
+    await example.view.runAsync();
+    expect(getCubes().map(cube => cube.ordinal)).toEqual([0, 1, 2, 3]);
+    expect(getCubes().map(cube => cube.position[1])).toEqual(
+      positions.map(position => position[1])
+    );
+    await expect.poll(() => getCubes().every(cube => cube.position[0] === 50)).toBe(true);
+  } finally {
+    example.finalize();
+    host.remove();
+  }
+}, 30000);

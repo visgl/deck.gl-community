@@ -16317,6 +16317,7 @@ __metadata:
     apache-arrow: "npm:^17.0.0"
     h3-js: "npm:^4.2.1"
     preact: "npm:^10.17.0"
+    vega: "npm:^6.2.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft
