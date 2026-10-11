@@ -1,5 +1,7 @@
 ## ForceMultiGraphLayout (Experimental)
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 > Experimental layouts may change between releases. They are provided to showcase
 > alternative ways of arranging dense graphs.
 
@@ -17,6 +19,10 @@ const layout = new ForceMultiGraphLayout({
   nBodyDistanceMax: 1200
 });
 ```
+
+Before the simulation assigns positions, missing or non-finite coordinate components resolve
+to zero. Parallel edges with coincident endpoints use their common position as the control
+point, keeping their geometry finite.
 
 ## ForceMultiGraphLayoutProps
 

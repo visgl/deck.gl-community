@@ -67,6 +67,33 @@ const config = {
   ],
 
   plugins: [
+    [
+      '@signalwire/docusaurus-plugin-llms-txt',
+      {
+        siteTitle: 'deck.gl-community',
+        siteDescription: 'Community-supported layers, basemaps and components for deck.gl.',
+        depth: 5,
+        enableDescriptions: true,
+        onRouteError: 'throw',
+        content: {
+          enableMarkdownFiles: true,
+          enableLlmsFullTxt: false,
+          relativePaths: false,
+          includeBlog: false,
+          includePages: false,
+          includeDocs: true,
+          includeVersionedDocs: false,
+          includeGeneratedIndex: true,
+          // Omit repository instructions and pages with no prose beyond a heading/demo.
+          excludeRoutes: [
+            '/deck.gl-community/examples/**',
+            '/deck.gl-community/docs/AGENTS',
+            '/deck.gl-community/docs/modules/experimental/api-reference/data-driven-tile-3d-layer',
+            '/deck.gl-community/docs/modules/graph-layers/developer-guide/visualizing-graphs'
+          ]
+        }
+      }
+    ],
     // Improve build performance by disabling expensive optimizations
     // https://github.com/facebook/docusaurus/discussions/11199
     function disableExpensiveBundlerOptimizationPlugin() {
@@ -162,6 +189,14 @@ const config = {
         ],
         module: {
           rules: [
+            // Vega and its d3 dependencies need native package exports and versions.
+            {
+              include: [
+                resolve('../modules/vega'),
+                /[\\/]node_modules[\\/](?:vega(?:-[^\\/]*)?|d3-[^\\/]*)[\\/]/
+              ],
+              resolve: {alias: [], modules: ['node_modules']}
+            },
             // https://github.com/Esri/calcite-components/issues/2865
             {
               test: /\.m?js/,
@@ -248,6 +283,11 @@ const config = {
         {property: 'og:image:type', content: 'image/jpeg'},
         {name: 'twitter:card', content: 'summary_large_image'}
       ],
+      colorMode: {
+        defaultMode: 'dark',
+        disableSwitch: false,
+        respectPrefersColorScheme: false
+      },
       navbar: {
         title: 'deck.gl-community',
         logo: {
@@ -256,6 +296,11 @@ const config = {
           srcDark: 'images/visgl-logo-light.png'
         },
         items: [
+          {
+            type: 'html',
+            position: 'left',
+            value: '<span class="community-label">Unofficial modules</span>'
+          },
           {
             to: '/docs',
             position: 'left',

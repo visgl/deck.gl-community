@@ -115,7 +115,6 @@ void main() {
       resident.forEach((frame, slot) => {
         if (frame !== undefined) this.dirty.add(slot);
       });
-      this.settings = {...settings};
     }
     if (!this.dirty.size) return;
     this.model.setBindings({videoFrames: frames, pixelChanges: changes});
@@ -132,9 +131,11 @@ void main() {
         pass.end();
       }
     }
-    this.dirty.clear();
     this.texture.generateMipmapsWebGL();
     assertGPUVideoResources(this.device);
+    // Commit settings and invalidation only after every GPU operation succeeds.
+    this.settings = {...settings};
+    this.dirty.clear();
     this.revision++;
   }
 

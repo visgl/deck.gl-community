@@ -24,7 +24,7 @@ import {load} from '@loaders.gl/core';
 import {MapStyleLoader} from '@deck.gl-community/basemap-layers/map-style';
 
 const style = await load(
-  'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  'https://tiles.openfreemap.org/styles/positron',
   MapStyleLoader
 );
 ```

@@ -1,14 +1,8 @@
 import {
-  Color,
-  expression,
-  featureFilter,
-  latest as Reference
-} from '@maplibre/maplibre-gl-style-spec';
-import type {
-  Feature as StyleFeature,
-  FilterSpecification,
-  GlobalProperties as StyleGlobalProperties
-} from '@maplibre/maplibre-gl-style-spec';
+  compileStyleFilter,
+  getCompiledStyleProperty,
+  getStylePropertyReference
+} from './style-expression';
 
 type GlobalProperties = {
   zoom?: number;
@@ -57,15 +51,6 @@ type VisitOptions = {
   layout?: boolean;
 };
 
-const GEOM_TYPES: Record<string, number> = {
-  Point: 1,
-  MultiPoint: 1,
-  LineString: 2,
-  MultiLineString: 2,
-  Polygon: 3,
-  MultiPolygon: 3
-};
-
 /**
  * Applies a Mapbox style-spec filter expression to a set of features.
  */
@@ -78,17 +63,10 @@ export function filterFeatures({
     return [];
   }
 
-  const filterFn = featureFilter(filter as FilterSpecification).filter;
+  const filterFn = compileStyleFilter(filter);
 
-  return features.filter(feature => {
-    if (![1, 2, 3].includes(Number(feature.type))) {
-      feature.type = GEOM_TYPES[feature.geometry?.type || ''] ?? feature.type;
-    }
-
-    // Filters read `type` and `properties`. The style-spec `Feature` also types `geometry` as
-    // tile-local points, used only by `within`/`distance`, which GeoJSON features cannot satisfy.
-    return filterFn(globalProperties as StyleGlobalProperties, feature as unknown as StyleFeature);
-  });
+  // `compileStyleFilter` derives the geometry type itself, so the features are not modified.
+  return features.filter(feature => filterFn(globalProperties, feature));
 }
 
 /**
@@ -113,7 +91,7 @@ export function findFeaturesStyledByLayer({
     });
   }
 
-  return [];
+  return sourceLayerFeatures;
 }
 
 /**
@@ -151,7 +129,7 @@ function visitProperties(
         path: [targetLayer.id, propertyType, key],
         key,
         value: properties[key],
-        reference: getPropertyReference(key),
+        reference: getStylePropertyReference(key),
         set(value) {
           properties[key] = value;
         }
@@ -168,51 +146,19 @@ function visitProperties(
 }
 
 /**
- * Resolves the style-spec reference metadata for a property name.
- */
-function getPropertyReference(propertyName: string): PropertyReference {
-  for (let i = 0; i < Reference.layout.length; i++) {
-    for (const key in Reference[Reference.layout[i]]) {
-      if (key === propertyName) {
-        return Reference[Reference.layout[i]][key] as PropertyReference;
-      }
-    }
-  }
-
-  for (let i = 0; i < Reference.paint.length; i++) {
-    for (const key in Reference[Reference.paint[i]]) {
-      if (key === propertyName) {
-        return Reference[Reference.paint[i]][key] as PropertyReference;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
  * Evaluates a single style property expression.
  */
 function parseProperty(
   property: VisitedProperty,
   globalProperties: GlobalProperties
 ): Record<string, unknown> {
-  const exp = expression.normalizePropertyExpression(property.value, property.reference as any);
-  const result = exp.evaluate(globalProperties as StyleGlobalProperties);
-
-  if (result instanceof Color) {
-    return {[property.key]: colorToArray(result)};
-  }
-
-  return {[property.key]: result};
+  const compiled = getCompiledStyleProperty(property.layer, property.key);
+  return {
+    [property.key]: compiled?.evaluateWithGlobals({
+      ...globalProperties,
+      zoom: globalProperties.zoom ?? 0
+    })
+  };
 }
 
-/**
- * Converts a style-spec color to `[r, g, b, a]` with RGB in 0-255 and alpha in 0-1, the shape
- * `@mapbox/mapbox-gl-style-spec`'s `Color#toArray()` returned. MapLibre's `Color` stores
- * premultiplied components; its `rgb` getter returns them un-premultiplied in 0-1.
- */
-export function colorToArray(color: Color): [number, number, number, number] {
-  const [r, g, b, a] = color.rgb;
-  return a === 0 ? [0, 0, 0, 0] : [r * 255, g * 255, b * 255, a];
-}
+export {colorToArray} from './style-expression';

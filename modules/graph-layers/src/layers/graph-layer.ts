@@ -53,6 +53,8 @@ import {
   type LabelAccessor,
   type RankAccessor
 } from '../utils/rank-grid';
+import {type GraphData, isGraphData} from '../graph-data/graph-data';
+import {loadGraphData} from '../loaders/load-graph-data';
 import {createGraphFromData} from '../graph/functions/create-graph-from-data';
 
 import {warn} from '../utils/log';
@@ -105,23 +107,21 @@ let NODE_STYLE_DEPRECATION_WARNED = false;
 let EDGE_STYLE_DEPRECATION_WARNED = false;
 let GRAPH_PROP_DEPRECATION_WARNED = false;
 let LAYOUT_REQUIRED_WARNED = false;
-const DEFAULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
-  if (!json || typeof json !== 'object') {
-    return null;
-  }
+const DEFAULT_GRAPH_LOADER = ({json}: {json: unknown}) => loadGraphData(json);
 
-  return createGraphFromData(json as any);
-};
-
+/** JSON records with custom properties at the top level or in `attributes`. */
 export type GraphLayerRawData = {
+  version?: number;
   name?: string;
   nodes?: unknown[] | null;
   edges?: unknown[] | null;
 };
 
+/** URL, loaded graph, normalized graph data, or raw JSON consumed by GraphLayer. */
 export type GraphLayerDataInput =
   | GraphEngine
   | Graph
+  | GraphData
   | GraphLayerRawData
   | unknown[]
   | string
@@ -129,6 +129,7 @@ export type GraphLayerDataInput =
 
 export type GraphLayerProps = CompositeLayerProps &
   _GraphLayerProps & {
+    /** Graph input. URLs and promises resolve through deck.gl; supply `layout` for graphs. */
     data?: GraphLayerDataInput | Promise<GraphLayerDataInput>;
   };
 
@@ -142,9 +143,13 @@ type EngineResolutionFlags = {
 };
 
 export type _GraphLayerProps = {
+  /** @deprecated Pass graphs through `data`. */
   graph?: Graph;
+  /** Layout used by the internally created engine for loaded or raw graphs. */
   layout?: GraphLayout;
+  /** Converts resolved raw payloads to graphs; graph instances and normalized GraphData bypass it. */
   graphLoader?: (opts: {json: unknown}) => Graph | null;
+  /** Optional existing engine. Supplying `data` takes precedence. */
   engine?: GraphEngine;
 
   onLayoutStart?: (detail?: GraphLayoutEventDetail) => void;
@@ -169,6 +174,14 @@ export type _GraphLayerProps = {
     onHover: () => void;
   };
   enableDragging?: boolean;
+  /**
+   * Minimum milliseconds between intermediate layout snapshots.
+   * Start, done and error flush immediately. Defaults to 0.
+   * Nonpositive or nonfinite values disable throttling.
+   */
+  layoutUpdateInterval?: number;
+  /** Milliseconds to interpolate layout positions. Defaults to 0 (disabled). */
+  layoutTransitionDuration?: number;
   rankGrid?: boolean | RankGridConfig;
   resumeLayoutAfterDragging?: boolean;
 };
@@ -203,6 +216,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       onHover: () => {}
     },
     enableDragging: false,
+    layoutUpdateInterval: 0,
+    layoutTransitionDuration: 0,
     rankGrid: false,
     resumeLayoutAfterDragging: true
   };
@@ -214,6 +229,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     layoutVersion: number;
     layoutState?: string;
     interactionVersion: number;
+    layoutUpdates: {
+      lastUpdateTime: number | null;
+      timer: ReturnType<typeof setTimeout> | null;
+    };
   };
 
   private readonly _edgeAttachmentHelper = new EdgeAttachmentHelper();
@@ -251,15 +270,21 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       graphEngine: null,
       layoutVersion: 0,
       layoutState: undefined,
-      interactionVersion: 0
+      interactionVersion: 0,
+      layoutUpdates: {lastUpdateTime: null, timer: null}
     } as typeof this.state;
 
     this._syncInteractionManager(this.props, null);
     this._refreshEngineFromProps(this.props, {force: true});
   }
 
-  shouldUpdateState({changeFlags}) {
-    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.stateChanged;
+  shouldUpdateState({props, oldProps, changeFlags}) {
+    return (
+      changeFlags.dataChanged ||
+      changeFlags.propsChanged ||
+      changeFlags.stateChanged ||
+      props?.transitions !== oldProps?.transitions
+    );
   }
 
   updateState({props, oldProps, changeFlags}) {
@@ -289,6 +314,13 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
     if (!engineRefreshed && (changeFlags.propsChanged || changeFlags.stateChanged)) {
       this._syncInteractionManager(props, this.state.graphEngine ?? null);
+    }
+
+    // deck.gl transfers state to replacement layer instances. Rebind any pending timer
+    // to this instance, using its latest props and callbacks.
+    if (!engineRefreshed && changeFlags.propsChanged && this.state.layoutUpdates.timer !== null) {
+      this._clearLayoutUpdateTimer();
+      this._scheduleLayoutSnapshotUpdate();
     }
 
     this._suppressNextDeckDataChange = false;
@@ -486,6 +518,10 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       return this._buildEngineFromGraph(graphCandidate, props.layout);
     }
 
+    if (isGraphData(data)) {
+      return this._buildEngineFromGraph(createGraphFromData(data), props.layout);
+    }
+
     if (typeof data === 'string') {
       return undefined;
     }
@@ -627,9 +663,42 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     this.setNeedsRedraw();
   }
 
-  private _handleLayoutEvent = () => {
+  private _scheduleLayoutSnapshotUpdate() {
+    const {layoutUpdateInterval = 0} = this.props;
+    const interval = Number.isFinite(layoutUpdateInterval) ? Math.max(0, layoutUpdateInterval) : 0;
+    const updates = this.state.layoutUpdates;
+    const now = performance.now();
+    const elapsed = updates.lastUpdateTime === null ? interval : now - updates.lastUpdateTime;
+    const delay = Math.max(0, interval - elapsed);
+
+    if (delay === 0) {
+      this._flushLayoutSnapshotUpdate();
+    } else if (updates.timer === null) {
+      // JavaScript timers cannot represent delays greater than a signed 32-bit integer.
+      // Recheck the deadline after each bounded wait (including timers that fire early).
+      updates.timer = setTimeout(
+        () => {
+          updates.timer = null;
+          this._scheduleLayoutSnapshotUpdate();
+        },
+        Math.min(delay, 2_147_483_647)
+      );
+    }
+  }
+
+  private _flushLayoutSnapshotUpdate() {
+    this._clearLayoutUpdateTimer();
+    this.state.layoutUpdates.lastUpdateTime = performance.now();
     this._updateLayoutSnapshot();
-  };
+  }
+
+  private _clearLayoutUpdateTimer() {
+    const updates = this.state.layoutUpdates;
+    if (updates.timer !== null) {
+      clearTimeout(updates.timer);
+      updates.timer = null;
+    }
+  }
 
   _setGraphEngine(graphEngine: GraphEngine | null) {
     if (graphEngine === this.state.graphEngine) {
@@ -654,6 +723,8 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   }
 
   _removeGraphEngine() {
+    this._clearLayoutUpdateTimer();
+    this.state.layoutUpdates.lastUpdateTime = null;
     const engine = this.state.graphEngine;
     if (engine) {
       engine.setProps({
@@ -662,6 +733,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         onLayoutDone: undefined,
         onLayoutError: undefined
       });
+      engine.stop();
       engine.clear();
       this.state.graphEngine = null;
       this._updateLayoutSnapshot(null);
@@ -671,19 +743,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
   private _applyGraphEngineCallbacks(engine: GraphEngine) {
     engine.setProps({
       onLayoutStart: detail => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutStart?.(detail);
       },
       onLayoutChange: detail => {
-        this._handleLayoutEvent();
+        this._scheduleLayoutSnapshotUpdate();
         this.props.onLayoutChange?.(detail);
       },
       onLayoutDone: detail => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutDone?.(detail);
       },
       onLayoutError: error => {
-        this._handleLayoutEvent();
+        this._flushLayoutSnapshotUpdate();
         this.props.onLayoutError?.(error);
       }
     });
@@ -816,6 +888,19 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
     return 'rank';
   }
 
+  private _getLayoutTransitions() {
+    const value = this.props.layoutTransitionDuration ?? 0;
+    const duration = Number.isFinite(value) ? Math.max(0, value) : 0;
+    return {
+      getPosition: duration,
+      getSourcePosition: duration,
+      getTargetPosition: duration,
+      getPath: duration,
+      getPolygon: duration,
+      ...this.props.transitions
+    };
+  }
+
   createNodeLayers() {
     const engine = this.state.graphEngine;
     const {nodes: nodeStyles} = this._getResolvedStylesheet();
@@ -843,6 +928,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
         const getOffset = stylesheet.getDeckGLAccessor('getOffset');
         return new LayerType({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: `node-rule-${idx}`,
           data: data(engine.getNodes()),
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
@@ -898,6 +984,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
 
       const edgeLayer = new EdgeLayer({
         ...SHARED_LAYER_PROPS,
+        transitions: this._getLayoutTransitions(),
         id: `edge-layer-${idx}`,
         data: data(engine.getEdges()),
         getLayoutInfo,
@@ -929,6 +1016,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
           }
           return new DecoratorLayer({
             ...SHARED_LAYER_PROPS,
+            transitions: this._getLayoutTransitions(),
             id: `edge-decorator-${idx2}`,
             data: data(engine.getEdges()),
             getLayoutInfo,
@@ -1004,6 +1092,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new PolygonLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'collapsed-chain-outlines',
           data: collapsedOutlineNodes,
           getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
@@ -1038,6 +1127,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new ZoomableMarkerLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'collapsed-chain-markers',
           data: collapsedNodes,
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),
@@ -1057,6 +1147,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new PolygonLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'expanded-chain-outlines',
           data: expandedOutlineNodes,
           getPolygon: (node: NodeInterface) => getChainOutlinePolygon(node),
@@ -1091,6 +1182,7 @@ export class GraphLayer extends CompositeLayer<GraphLayerProps> {
       layers.push(
         new ZoomableMarkerLayer({
           ...SHARED_LAYER_PROPS,
+          transitions: this._getLayoutTransitions(),
           id: 'expanded-chain-markers',
           data: expandedNodes,
           getPosition: mixedGetPosition(engine.getNodePosition, getOffset),

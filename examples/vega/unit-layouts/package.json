@@ -1,0 +1,11 @@
+{
+  "name": "@deck.gl-community-examples/vega-unit-layouts",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "yarn --cwd ../../.. vite modules/vega/demo"
+  },
+  "dependencies": {
+    "react": "^18.3.1"
+  }
+}

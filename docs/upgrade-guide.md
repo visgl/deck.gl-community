@@ -6,6 +6,11 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+`RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
+compensated for oversized rings may need their radius retuned. Angular sectors use the leaf
+count rather than all graph nodes, so hierarchies with visible internal nodes fill the circle.
+Nodes outside the hierarchy return no position, and edges with absent endpoints return no geometry.
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,
@@ -111,8 +116,10 @@ Rename the React panel exports:
 
 `DOTGraphLoader` from `@deck.gl-community/graph-layers` has been removed. Import
 `DOTLoaderWithParser` from `@loaders.gl/graphs/dot-loader` for synchronous parsing or
-parser-bearing loader use. It returns plain node and edge records; create a
-`ClassicGraph` with `new ClassicGraph({data})` to use them in graph-layers.
+parser-bearing loader use. Pass graph URLs directly to `GraphLayer.data` with
+`loaders: [DOTLoaderWithParser]` and a `layout`; the layer converts the parsed
+records and creates its own engine. Already loaded graphs can also be passed to
+`data`. A custom `graphLoader` callback is unnecessary for normalized loader output.
 DOT syntax validation and strict-graph behavior follow loaders.gl. The loader returns
 plain graph data instead of Arrow data, and the old `dot.version` option is removed.
 

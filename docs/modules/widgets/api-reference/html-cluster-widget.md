@@ -2,6 +2,8 @@ import WidgetLiveExample from '@site/src/components/docs/widget-live-example';
 
 # HtmlClusterWidget
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <WidgetLiveExample highlight="html-cluster-widget" />
 
 Cluster HTML overlay items based on zoom level. Subclass this widget and implement the abstract

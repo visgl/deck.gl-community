@@ -1,5 +1,7 @@
 # deck.gl Schema
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 The playground bundles Zod schemas for JSON-encoded deck.gl documents, official and community
 layers, and core views, without importing layer constructors. The generated official deck.gl JSON
 Schema artifact is available from:
@@ -124,7 +126,7 @@ the playground's basemap selector.
 ```
 
 Tokens are used in browser requests, so provide a public token restricted to the hosted site.
-CARTO style URLs do not require a token.
+OpenFreeMap style URLs do not require a token.
 
 ## Custom layers
 

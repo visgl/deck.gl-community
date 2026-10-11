@@ -21,6 +21,9 @@ case $MODE in
     ;;
 esac
 
+node scripts/normalize-llm-output.mjs
+node scripts/check-llm-output.mjs
+
 # transpile workers
 (
   cd ..

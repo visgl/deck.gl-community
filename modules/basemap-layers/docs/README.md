@@ -145,7 +145,7 @@ Overview of each key:
 - `type`: one of: `background`, `fill`, `line`, `symbol`, `raster`, `circle`, `fill`,-extrusion `heatmap`, `hillshade`, `sky` (v2 only).
 - `source`: must be one of the keys defined in the initial `sources` object. So here each must be either `satellite-source` or `vector-source`.
 - `source-layer`: For vector sources, each styling layer is rendered on only a single vector tile layer within the source. So when `source-layer` is `landuse`, the vector tiles provided by the `vector-source` source are expected to contain a layer named `landuse`, and this styling layer will apply only to that layer. This is required for vector sources.
-- `minzoom`, `maxzoom`: zoom range for layer. Falls back to source's available zoom range, but can be a narrower range than the source provides
+- `minzoom`, `maxzoom`: zoom range in which the layer draws. Without them the layer draws at every zoom, as in MapLibre. The source's `minzoom`/`maxzoom` only limit which tiles are requested: past the source `maxzoom`, the last tiles are overzoomed.
 - `filter`: A filter expression that is tested against every object within the vector tile layer.
 - `layout`: A layout expression. These are less commonly used, and usually don't have a great equivalent in deck.gl.
 - `paint`: Properties used for styling. Each layer type has a list of available paint properties. All properties except `visibility` are prefixed by the layer's type, hence `fill-color` and `line-width`. The value of each paint property can be either a constant value or color, or a styling expression that changes appearance based on zoom.
@@ -173,5 +173,39 @@ The module evaluates styles with [`@maplibre/maplibre-gl-style-spec`][maplibre-s
 - parses all permissible color descriptions into an rgba array
 - Evaluates filter expressions for each GeoJSON `Feature` input
 - Evaluates paint expressions given the zoom level
+
+Zoom-dependent paint and layout values are evaluated at the zoom rounded down to a 0.25 step
+(`STYLE_ZOOM_STEP`), and every visible tile uses the same evaluation zoom, so tiles agree at their
+seams. Filters use the integer zoom, as the style spec specifies, and layer visibility uses the
+exact zoom. MapLibre instead evaluates zoom expressions at the integer zooms on either side of
+the current zoom and interpolates on the GPU; moving interpolation to the GPU remains the
+long-term plan.
+
+### Icons and sprites
+
+When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index and image after the
+style resolves, through the same `fetch` as the style and its tiles. The image is decoded once
+and shared by every tile's icon layer. It requests the `@2x` sprite first
+on high-density screens and falls back to `@1x`. A relative `sprite` URL resolves against the
+style URL, and the array form (`[{id, url}]`) is supported: images from a sprite other than
+`default` are named `id:name`.
+
+Symbol layers with `icon-image` draw a deck.gl `IconLayer` per sprite under their labels.
+`icon-image` accepts expressions and legacy `{token}` names; `icon-size`, `icon-opacity`,
+`icon-anchor` and `icon-offset` are applied, and SDF images take `icon-color`. An image that no
+sprite contains is skipped with one warning per name, and a sprite that fails to load is skipped
+with a warning.
+
+`text-offset` (in ems of `text-size`) and `text-anchor` position labels relative to their point.
+
+Approximations:
+
+- Icons share the labels' collision filtering, and an icon and its text are placed or hidden as
+  one unit, as in MapLibre. The test is the labels' one: a symbol is hidden where a
+  higher-priority symbol's box (the whole icon box, or the text box) covers its anchor.
+  `*-allow-overlap` (or `*-overlap: always`), `*-ignore-placement` and `*-optional` follow
+  MapLibre's rules, except that text and icon share one test, so a part is shown without its
+  optional partner only when that part allows overlap.
+- `icon-rotate`, `icon-text-fit` and `icon-padding` are not applied.
 
 [maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec

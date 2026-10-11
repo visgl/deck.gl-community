@@ -17,6 +17,15 @@ const REQUIRED_PROPS: Partial<Record<LayerName, Record<string, unknown>>> = {
 };
 
 describe('community visual layer schemas', () => {
+  it('accepts finite nonnegative graph layout intervals in JSON', () => {
+    for (const interval of [0, 16, 100]) {
+      expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(true);
+    }
+    for (const interval of [-1, Number.NaN, Number.POSITIVE_INFINITY, '16']) {
+      expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(false);
+    }
+  });
+
   it('accepts unchanged TripsLayer props for FlameTrailLayer', () => {
     expect(
       parseLayer('FlameTrailLayer', {
@@ -250,4 +259,13 @@ describe('community visual layer schemas', () => {
       expect(() => z.toJSONSchema(schema)).not.toThrow();
     }
   });
+});
+
+it('accepts declarative graph transition duration and rejects invalid JSON durations', () => {
+  expect(
+    parseLayer('GraphLayer', {layoutTransitionDuration: 100, layoutUpdateInterval: 100}).success
+  ).toBe(true);
+  for (const duration of [-1, NaN, Infinity]) {
+    expect(parseLayer('GraphLayer', {layoutTransitionDuration: duration}).success).toBe(false);
+  }
 });

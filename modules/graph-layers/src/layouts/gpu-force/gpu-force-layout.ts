@@ -86,24 +86,38 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
     };
   }
 
+  /** Starts a worker calculation and emits onLayoutStart before submitting the graph. */
   start() {
     this._engageWorker();
   }
 
+  /** Replaces the pending calculation and emits a new onLayoutStart event. */
   update() {
     this._engageWorker();
   }
 
   _engageWorker() {
-    // prevent multiple start
-    if (this._worker) {
-      this._worker.terminate();
+    this.stop();
+    if (!this._graph) {
+      return;
     }
-
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    this._worker = worker;
+    worker.onmessage = event => {
+      if (this._worker !== worker) {
+        return;
+      }
+      if (event.data.type === 'end') {
+        this.ended(event.data);
+      }
+    };
+    this._onLayoutStart();
+    if (this._worker !== worker) {
+      return;
+    }
     const {alpha, nBodyStrength, nBodyDistanceMin, nBodyDistanceMax, getCollisionRadius} =
       this.props;
-    this._worker.postMessage({
+    worker.postMessage({
       nodes: this._d3Graph.nodes,
       edges: this._d3Graph.edges,
       options: {
@@ -114,22 +128,11 @@ export class GPUForceLayout extends GraphLayout<GPUForceLayoutOptions> {
         getCollisionRadius
       }
     });
-    this._worker.onmessage = event => {
-      switch (event.data.type) {
-        case 'tick':
-          this.ticked(event.data);
-          break;
-        case 'end':
-          this.ended(event.data);
-          break;
-        default:
-          break;
-      }
-    };
   }
   ticked(data) {}
   ended(data) {
     const {nodes, edges} = data;
+    this.stop();
     this.updateD3Graph({nodes, edges});
     this._onLayoutChange();
     this._onLayoutDone();

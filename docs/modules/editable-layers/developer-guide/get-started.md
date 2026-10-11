@@ -85,7 +85,7 @@ export function GeometryEditor() {
       layers={[layer]}
       getCursor={layer.getCursor.bind(layer)}
     >
-      <StaticMap mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
+      <StaticMap mapStyle="https://tiles.openfreemap.org/styles/positron" />
     </DeckGL>
   );
 }

@@ -1,8 +1,12 @@
 import {CompositeLayer, log, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
-import {getBasemapLayers} from './globe-layers';
+import {getBasemapLayers, getStyleDefinitionZoomLimits} from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
+import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
+import {loadSpriteAtlases} from './sprite';
+import type {SpriteAtlas} from './sprite';
+import type {LabelFontFamily} from './text-font';
 
 /**
  * Logs a non-error basemap-layer runtime event to deck.gl logging.
@@ -55,7 +59,31 @@ export type BasemapLayerProps = {
     /** Rendering toggles for globe-specific basemap behavior. */
     config?: BasemapGlobeConfig;
   };
+  /**
+   * Overrides the label font. By default each symbol layer's `text-font` is mapped to a CSS
+   * family list, weight and style (see the module docs). A string replaces the family list for
+   * every label; a function receives the `text-font` names and returns a family list or
+   * `LabelFont` fields. Pass a stable function: tiles regenerate when it changes.
+   */
+  fontFamily?: LabelFontFamily | null;
 };
+
+const fractionalZoomLimitsCache = new WeakMap<ResolvedBasemapStyle, number[]>();
+
+/**
+ * The fractional `minzoom`/`maxzoom` limits of a style, computed once per resolved style:
+ * `shouldUpdateState` reads them on every viewport change, but they only change with the style.
+ */
+function getFractionalZoomLimits(resolvedStyle: ResolvedBasemapStyle): number[] {
+  let limits = fractionalZoomLimitsCache.get(resolvedStyle);
+  if (!limits) {
+    limits = getStyleDefinitionZoomLimits(resolvedStyle).filter(
+      (limit): limit is number => limit !== undefined && !Number.isInteger(limit)
+    );
+    fractionalZoomLimitsCache.set(resolvedStyle, limits);
+  }
+  return limits;
+}
 
 /**
  * Internal state tracked by {@link BasemapLayer}.
@@ -67,6 +95,10 @@ type BasemapLayerState = {
   loadError: Error | null;
   /** Monotonic token used to discard stale async style loads. */
   loadToken: number;
+  /** `getStyleZoomKey` of the zoom the current sublayers were generated at. */
+  zoomKey: string | null;
+  /** Sprites of the resolved style, once loaded. */
+  spriteAtlases: SpriteAtlas[] | null;
 };
 
 /**
@@ -91,7 +123,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       }
     },
     style: null,
-    loadOptions: null
+    loadOptions: null,
+    fontFamily: null
   };
 
   /** Current layer state. */
@@ -102,8 +135,31 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     this.state = {
       resolvedStyle: null,
       loadError: null,
-      loadToken: 0
+      loadToken: 0,
+      zoomKey: null,
+      spriteAtlases: null
     };
+  }
+
+  /**
+   * Sublayers depend on the zoom, but only through `getStyleZoomKey`: style values step every
+   * `STYLE_ZOOM_STEP`, filters at integer zooms, and layer visibility changes at
+   * `minzoom`/`maxzoom`. Re-render when that key changes, not on every viewport change.
+   */
+  shouldUpdateState(params: UpdateParameters<this>): boolean {
+    if (super.shouldUpdateState(params)) {
+      return true;
+    }
+    const {resolvedStyle, zoomKey} = this.state;
+    if (!resolvedStyle || !params.changeFlags.viewportChanged) {
+      return false;
+    }
+    return this.getZoomKey(resolvedStyle, params.context.viewport.zoom) !== zoomKey;
+  }
+
+  /** Returns the zoom key of `zoom` for a resolved style. */
+  getZoomKey(resolvedStyle: ResolvedBasemapStyle, zoom: number): string {
+    return getStyleZoomKey(zoom, getFractionalZoomLimits(resolvedStyle));
   }
 
   /** Reacts to changes in the input style definition. */
@@ -128,7 +184,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     if (!style) {
       const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
-      this.setState({resolvedStyle: null, loadError: null, loadToken});
+      this.setState({resolvedStyle: null, loadError: null, loadToken, spriteAtlases: null});
       return;
     }
 
@@ -154,7 +210,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
             sources: Object.keys(resolvedStyle.sources || {}),
             layers: resolvedStyle.layers?.length || 0
           });
-          this.setState({resolvedStyle, loadError: null});
+          this.setState({resolvedStyle, loadError: null, spriteAtlases: null});
+          this.loadSprites(resolvedStyle, style, loadOptions, loadToken);
         }
       })
       .catch((error: Error) => {
@@ -165,19 +222,58 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       });
   }
 
+  /**
+   * Loads the resolved style's sprites, if it has any, and stores them for the icon layers.
+   * Relative sprite URLs resolve against the style URL.
+   */
+  loadSprites(
+    resolvedStyle: ResolvedBasemapStyle,
+    style: BasemapLayerProps['style'],
+    loadOptions: BasemapLayerProps['loadOptions'],
+    loadToken: number
+  ): void {
+    if (!resolvedStyle.sprite) {
+      // No sprites to wait for (`null` means loading, see `MVTLabelLayerProps.spriteAtlases`).
+      this.setState({spriteAtlases: []});
+      return;
+    }
+    const options = (loadOptions || {}) as {
+      baseUrl?: string;
+      fetch?: typeof fetch;
+      fetchOptions?: RequestInit;
+    };
+    loadSpriteAtlases(resolvedStyle.sprite, {
+      baseUrl: typeof style === 'string' ? style : options.baseUrl,
+      fetch: options.fetch,
+      fetchOptions: options.fetchOptions,
+      pixelRatio: typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+    }).then(spriteAtlases => {
+      if (this.state.loadToken === loadToken) {
+        this.setState({spriteAtlases});
+      }
+    });
+  }
+
   /** Renders the sublayers generated from the resolved style definition. */
   renderLayers() {
-    if (!this.state.resolvedStyle) {
+    const {resolvedStyle} = this.state;
+    if (!resolvedStyle) {
       return [];
     }
+
+    const zoom = this.context.viewport?.zoom || 0;
+    // Recorded without setState: this only tracks what the current sublayers were built from.
+    this.state.zoomKey = this.getZoomKey(resolvedStyle, zoom);
 
     return getBasemapLayers({
       idPrefix: this.props.id,
       mode: this.props.mode,
       globe: this.props.globe,
-      styleDefinition: this.state.resolvedStyle,
-      zoom: this.context.viewport?.zoom || 0,
-      loadOptions: this.props.loadOptions
+      styleDefinition: resolvedStyle,
+      zoom,
+      loadOptions: this.props.loadOptions,
+      spriteAtlases: this.state.spriteAtlases,
+      fontFamily: this.props.fontFamily
     });
   }
 }

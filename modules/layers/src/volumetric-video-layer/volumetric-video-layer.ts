@@ -32,7 +32,9 @@ export type VolumetricVideoFrameInfo = FrameWindow & {
 type VideoProps = {
   /** MP4 or MOV URL, File or Blob. Codec support depends on the browser. */
   video: string | Blob | null;
-  /** Zero-based source frame index in presentation order. @default 0 */
+  /** Zero-based source frame index in presentation order. Changing it retries a failed decode
+   * or replacement preparation; allocation errors require valid history settings. @default 0
+   */
   currentFrame?: number;
   /** Number of preceding frames to include, in addition to currentFrame. @default 24 */
   frameTrail?: number;
@@ -188,7 +190,7 @@ export class VolumetricVideoLayer<
     source: VideoFrameSource | null;
     frames: GPUVideoFrames | null;
     pendingFrames: GPUVideoFrames | null;
-    cacheError: boolean;
+    cacheError: 'allocation' | 'preparation' | null;
   };
 
   getShaders() {
@@ -209,7 +211,7 @@ export class VolumetricVideoLayer<
       source: null,
       frames: null,
       pendingFrames: null,
-      cacheError: false
+      cacheError: null
     });
   }
 
@@ -223,7 +225,8 @@ export class VolumetricVideoLayer<
       void this.loadVideo();
     } else if (
       this.state.source?.info &&
-      (props.resolution !== oldProps.resolution ||
+      ((this.state.cacheError === 'preparation' && props.currentFrame !== oldProps.currentFrame) ||
+        props.resolution !== oldProps.resolution ||
         props.maxFrameTrail !== oldProps.maxFrameTrail ||
         props.maxTextureBytes !== oldProps.maxTextureBytes ||
         (props.maxFrameTrail === null &&
@@ -289,10 +292,20 @@ export class VolumetricVideoLayer<
       }
     });
     if (raster) {
-      frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
-        luminanceThreshold,
-        staticPixelRemoval
-      });
+      try {
+        frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
+          luminanceThreshold,
+          staticPixelRemoval
+        });
+      } catch (error) {
+        // Dirty slots remain queued until the complete filter/mip commit succeeds.
+        this.setNeedsRedraw();
+        this.raiseError(
+          error instanceof Error ? error : new Error(String(error)),
+          'filtering video history'
+        );
+        return;
+      }
       model.setBindings({
         videoFrames: frames.texture,
         pixelChanges: frames.changes.texture,
@@ -344,7 +357,7 @@ export class VolumetricVideoLayer<
     this.state.source?.destroy();
     this.state.pendingFrames?.destroy();
     this.state.frames?.destroy();
-    this.setState({source: null, frames: null, pendingFrames: null, cacheError: false});
+    this.setState({source: null, frames: null, pendingFrames: null, cacheError: null});
     if (!this.props.video) return;
     const source = new VideoFrameSource(this.props.video);
     this.setState({source});
@@ -376,7 +389,7 @@ export class VolumetricVideoLayer<
       source.info!.frameCount
     );
     if (capacity > this.context.device.limits.maxTextureArrayLayers) {
-      this.setState({cacheError: true});
+      this.setState({cacheError: 'allocation'});
       this.raiseError(
         new Error(
           `This trail requires ${capacity} frames; this GPU supports ${this.context.device.limits.maxTextureArrayLayers} texture-array layers. Shorten the trail.`
@@ -391,7 +404,7 @@ export class VolumetricVideoLayer<
       textureBytes > this.props.maxTextureBytes ||
       Math.max(size.width, size.height) > this.context.device.limits.maxTextureDimension2D
     ) {
-      this.setState({cacheError: true});
+      this.setState({cacheError: 'allocation'});
       this.raiseError(
         new Error(
           `This sampling grid and trail require ${(textureBytes / 1048576).toFixed(0)} MiB of history. Shorten frameTrail, choose a smaller grid or lower maxFrameTrail, or increase maxTextureBytes within your GPU's budget.`
@@ -407,7 +420,7 @@ export class VolumetricVideoLayer<
       previous.width === size.width &&
       previous.height === size.height
     ) {
-      this.setState({cacheError: false});
+      this.setState({cacheError: null});
       this.requestFrames();
       return;
     }
@@ -463,23 +476,24 @@ export class VolumetricVideoLayer<
         }
       );
     } catch (error) {
-      this.setState({cacheError: true});
+      this.setState({cacheError: 'allocation'});
       this.raiseError(
         error instanceof Error ? error : new Error(String(error)),
         'allocating video history'
       );
       return;
     }
-    this.setState({pendingFrames: frames, cacheError: false});
+    this.setState({pendingFrames: frames, cacheError: null});
     this.requestFrames();
   }
 
   private failFrameCache(frames: GPUVideoFrames, error: Error): void {
     if (this.state.pendingFrames === frames) {
-      this.setState({pendingFrames: null});
+      // A later seek can rebuild this candidate without changing the history settings.
+      this.setState({pendingFrames: null, cacheError: 'preparation'});
       frames.destroy();
     }
-    this.setState({cacheError: true});
+    // Resident decode errors leave the allocated ring usable by the next request.
     this.raiseError(error, 'preparing video history');
   }
 

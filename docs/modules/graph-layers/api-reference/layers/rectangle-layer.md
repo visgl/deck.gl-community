@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # RectangleLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="rectangle-layer" size="tall" />
 
 `RectangleLayer` renders axis-aligned rectangles around graph nodes. It derives

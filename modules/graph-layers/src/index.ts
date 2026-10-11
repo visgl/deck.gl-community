@@ -4,6 +4,8 @@
 
 // Graph Data - output from loaders, input to writers
 
+export {isGraphData} from './graph-data/graph-data';
+
 export type {
   GraphData,
   PlainGraphData,

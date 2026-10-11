@@ -107,6 +107,13 @@ bounded by the requested trail rather than video duration. Native pixels are ret
 by default. Shorten the trail or increase `maxTextureBytes` if the requested history
 exceeds its budget. Requests above the device's actual texture-array layer limit
 report an error and keep the previous cache.
+Decode and preparation failures report through `onError`. Changing `currentFrame` after
+a decode error retries the seek using the resident ring. If a replacement history fails during
+preparation, the completed history remains owned and a later seek can rebuild the replacement
+without changing sampling or trail settings. Allocation rejections require valid history settings
+or a sufficient budget. Failed GPU visibility/filter commits retain their dirty slots and settings
+for a later redraw; draw-time errors are reported without escaping the layer's draw call.
+
 The layer does not silently lower the requested sampling grid to fit the budget.
 The allocation check includes all retained history textures; it does not guarantee that
 the decoder and other applications have enough free GPU memory. Source changes and layer finalization release

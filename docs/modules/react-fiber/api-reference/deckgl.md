@@ -1,5 +1,7 @@
 # DeckGL
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 ```tsx
 import {DeckGL} from '@deck.gl-community/react-fiber';
 import type {DeckglInstance, DeckglProps, OnDeckglChange} from '@deck.gl-community/react-fiber';

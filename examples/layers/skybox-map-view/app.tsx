@@ -69,7 +69,7 @@ export function mountSkyboxMapViewExample(
             new BasemapLayer({
               id: 'basemap',
               mode: 'map',
-              style: 'https://basemaps.cartocdn.com/gl/voyager-nolabels-gl-style/style.json'
+              style: 'https://tiles.openfreemap.org/styles/liberty'
             })
           ])
     ]

@@ -1,11 +1,29 @@
 import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
+import {PathStyleExtension} from '@deck.gl/extensions';
 import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
+import {createCircleSubLayer} from './circle-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
+import {
+  type RasterColorAdjustments,
+  RasterColorExtension,
+  hasRasterColorAdjustments
+} from './raster-color-extension';
 import {filterFeatures, parseProperties} from './map-style';
+import {
+  type StyleAccessor,
+  getFilterZoom,
+  getStyleAccessor,
+  getStyleZoomKey,
+  getZoomBucket,
+  withOpacity
+} from './style-accessor';
+import {compileStylePropertyValue, getStylePropertyDefault} from './style-expression';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
+import type {SpriteAtlas} from './sprite';
+import type {LabelFontFamily} from './text-font';
 import type {
   BasemapLoadOptions,
   BasemapSource,
@@ -28,6 +46,14 @@ type BasemapLayerGroup = {
   styleDefinition: ResolvedBasemapStyle;
   zoom?: number;
   loadOptions?: BasemapLoadOptions;
+  /**
+   * Sprites loaded for the style; symbol layers draw `icon-image` from them. `null` means the
+   * sprites are still loading: no icons are drawn, and labels are placed as if each symbol had its
+   * icon. Omit it, or pass `[]`, for a style without sprites.
+   */
+  spriteAtlases?: SpriteAtlas[] | null;
+  /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
+  fontFamily?: LabelFontFamily | null;
 };
 
 type VectorSourceGroup = {
@@ -52,11 +78,17 @@ function getBackgroundParameters(mode: BasemapMode) {
   ) as any;
 }
 
+/**
+ * Flat map layers draw in style order without writing depth, but are depth-tested so that
+ * extrusions hide the ground behind them. MapLibre draws a tile's layers interleaved with every
+ * other tile's; here each tile draws all of its layers in turn, so without the test a later tile's
+ * roads would paint over an earlier tile's buildings.
+ */
 function getTileParameters(mode: BasemapMode) {
   return (
     mode === 'globe'
       ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
-      : {depthTest: false, cullMode: 'none'}
+      : {depthTest: true, depthWriteEnabled: false, depthCompare: 'less-equal', cullMode: 'none'}
   ) as any;
 }
 
@@ -82,53 +114,146 @@ const BACKGROUND_NORTH_POLE_DATA = [
   ]
 ];
 
-const SUPPORTED_TYPES = new Set(['background', 'fill', 'line', 'symbol', 'raster']);
+const SUPPORTED_TYPES = new Set([
+  'background',
+  'circle',
+  'fill',
+  'fill-extrusion',
+  'line',
+  'symbol',
+  'raster'
+]);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
-function withOpacity(
-  color: number[] | null | undefined,
-  opacity = 1
-): [number, number, number, number] {
-  if (!color) {
-    return [0, 0, 0, 0];
-  }
+const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
+// The style spec's default `line-color` and `fill-extrusion-color`.
+const DEFAULT_COLOR = [0, 0, 0, 1];
+const TRANSPARENT_COLOR: [number, number, number, number] = [0, 0, 0, 0];
 
-  const alpha = color.length > 3 ? (color[3] <= 1 ? color[3] * 255 : color[3]) : 255;
-  return [color[0], color[1], color[2], Math.round(alpha * opacity)];
-}
+/**
+ * Dashes for `line-dasharray`, shared by every dashed sublayer so deck.gl does not see their
+ * extensions change. `dashMode: 'path'` runs the pattern continuously along each line, as MapLibre
+ * does, instead of restarting it at every vertex.
+ */
+const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
+/** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
+const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
+const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
 
+/** Applies the `raster-*` color adjustments, shared by every raster layer that sets them. */
+const RASTER_COLOR_EXTENSION = new RasterColorExtension();
+
+/**
+ * The texture filters of `raster-resampling: nearest`. MapLibre magnifies with the nearest texel
+ * and keeps a linear filter for minification.
+ */
+const NEAREST_TEXTURE_PARAMETERS = {magFilter: 'nearest'} as const;
+
+/** Extrusions are depth-tested against each other; flat layers draw in style order. */
+const EXTRUSION_PARAMETERS = {
+  depthTest: true,
+  depthWriteEnabled: true,
+  depthCompare: 'less-equal',
+  cullMode: 'none'
+} as any;
+
+/** The latest evaluated paint per style layer, reused across tiles within one zoom step. */
+const paintCache = new WeakMap<
+  BasemapStyleLayer,
+  {zoomBucket: number; paint: Record<string, any>}
+>();
+
+/**
+ * Evaluates a style layer's paint at the stepped zoom (see `getZoomBucket`). Every tile
+ * regenerated at one step gets the same result, so it is computed once per style layer and step.
+ */
 function getPaint(layer: BasemapStyleLayer, zoom: number): Record<string, any> {
-  const properties = parseProperties(layer, {zoom});
-  return Object.fromEntries(
+  const zoomBucket = getZoomBucket(zoom);
+  const cached = paintCache.get(layer);
+  if (cached && cached.zoomBucket === zoomBucket) {
+    return cached.paint;
+  }
+  const properties = parseProperties(layer, {zoom: zoomBucket});
+  const paint = Object.fromEntries(
     properties.map(entry => [Object.keys(entry)[0], Object.values(entry)[0]])
   );
+  paintCache.set(layer, {zoomBucket, paint});
+  return paint;
 }
+
+type FilteredFeatures = {
+  /** The filter's contents when the entry was made, so an in-place edit is detected. */
+  filterSnapshot: string;
+  sourceLayer: string | undefined;
+  filterZoom: number | null;
+  features: any[];
+};
+
+/**
+ * The latest filtered features per tile content and style layer. Tile sublayers regenerate at
+ * every style zoom step; handing them the same array keeps deck.gl from seeing a data change, so
+ * only zoom-dependent accessors recompute instead of every feature being re-tessellated. The
+ * entry is reused while the contents of the style layer's `filter`, its `source-layer` and (for
+ * filters that read `["zoom"]`) the integer zoom are unchanged, so a filter edited in place is
+ * re-applied, as `compileStyleFilter` recompiles it.
+ */
+const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, FilteredFeatures>>();
 
 function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
   const sourceLayer = styleLayer['source-layer'];
+  const {filter} = styleLayer;
+  if (!sourceLayer && !filter) {
+    return features;
+  }
+
+  const filterSnapshot = filter === undefined ? '' : JSON.stringify(filter);
+  // MapLibre evaluates `["zoom"]` in filters at integer zooms.
+  const filterZoom = filterSnapshot.includes('["zoom"]') ? getFilterZoom(zoom) : null;
+  let byStyleLayer = filteredFeatureCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    filteredFeatureCache.set(features, byStyleLayer);
+  }
+  const cached = byStyleLayer.get(styleLayer);
+  if (
+    cached &&
+    cached.filterSnapshot === filterSnapshot &&
+    cached.sourceLayer === sourceLayer &&
+    cached.filterZoom === filterZoom
+  ) {
+    return cached.features;
+  }
+
   const sourceFeatures = sourceLayer
     ? features.filter(feature => feature.properties?.layerName === sourceLayer)
     : features;
-
-  if (!styleLayer.filter) {
-    return sourceFeatures;
-  }
-
-  return filterFeatures({
-    features: sourceFeatures,
-    filter: styleLayer.filter,
-    globalProperties: {zoom}
-  });
+  const filtered = filter
+    ? filterFeatures({
+        features: sourceFeatures,
+        filter: filter as unknown[],
+        globalProperties: {zoom: getFilterZoom(zoom)}
+      })
+    : sourceFeatures;
+  byStyleLayer.set(styleLayer, {filterSnapshot, sourceLayer, filterZoom, features: filtered});
+  return filtered;
 }
 
-function isStyleLayerVisibleAtZoom(
-  styleLayer: BasemapStyleLayer,
-  zoom: number,
-  source?: BasemapSource
-): boolean {
-  const minZoom = styleLayer.minzoom ?? source?.minzoom ?? 0;
-  const maxZoom = styleLayer.maxzoom ?? source?.maxzoom ?? 22;
+/** The `minzoom`/`maxzoom` limits that `isStyleLayerVisibleAtZoom` compares against. */
+export function getStyleZoomLimits(styleLayers: BasemapStyleLayer[]): (number | undefined)[] {
+  return styleLayers.flatMap(layer => [layer.minzoom, layer.maxzoom]);
+}
 
-  return zoom >= minZoom && zoom < maxZoom;
+/**
+ * A style layer is visible unless its `layout.visibility` is `"none"`, and within its own
+ * `minzoom`/`maxzoom` only, as in MapLibre. A source's `maxzoom` limits which tiles exist, not
+ * which layers draw: past it, the tile layer overzooms. `visibility` is a constant in the style
+ * spec, so it is read directly rather than evaluated.
+ */
+function isStyleLayerVisibleAtZoom(styleLayer: BasemapStyleLayer, zoom: number): boolean {
+  if (styleLayer.layout?.visibility === 'none') {
+    return false;
+  }
+  const {minzoom, maxzoom} = styleLayer;
+  return (minzoom === undefined || zoom >= minzoom) && (maxzoom === undefined || zoom < maxzoom);
 }
 
 function getTileFeatures(data: unknown): any[] {
@@ -145,6 +270,16 @@ function getTileFeatures(data: unknown): any[] {
   }
 
   return [];
+}
+
+/**
+ * The id of a style layer's sublayer in a tile. Style layer ids are arbitrary strings, and
+ * generated layers append `-<suffix>` to it: deck.gl's own composite sublayers, the second side of
+ * a `line-gap-width` and the per-feature line shape groups. Quoting the style layer id as a JSON
+ * string ends it at an unescaped quote, so no suffix can turn one style layer's id into another's.
+ */
+function getStyleSubLayerId(parentId: string, styleLayerId: string): string {
+  return `${parentId}-${JSON.stringify(styleLayerId)}`;
 }
 
 function getSubLayerBaseProps(props: any) {
@@ -175,21 +310,6 @@ function getSubLayerBaseProps(props: any) {
     parameters,
     wrapLongitude
   };
-}
-
-function getLineWidthScale(styleLayer: BasemapStyleLayer): number {
-  const sourceLayer = styleLayer['source-layer'] || '';
-  const id = styleLayer.id || '';
-
-  if (sourceLayer === 'transportation' || sourceLayer === 'boundary' || id.includes('road-')) {
-    return 0.55;
-  }
-
-  if (sourceLayer === 'waterway' || sourceLayer === 'aeroway') {
-    return 0.75;
-  }
-
-  return 1;
 }
 
 function getGlobeFillColor(color: [number, number, number, number], mode: BasemapMode) {
@@ -223,28 +343,69 @@ function createBackgroundLayer({
     getPolygon: d => d,
     stroked: false,
     filled: true,
-    getFillColor: withOpacity(paint['background-color'], paint['background-opacity'] ?? 1),
+    // A `background-pattern` disables `background-color`. Patterns are not drawn, so a patterned
+    // background draws nothing rather than its color or the default black.
+    getFillColor:
+      paint['background-pattern'] !== undefined
+        ? TRANSPARENT_COLOR
+        : withOpacity(
+            (paint['background-color'] ?? getStylePropertyDefault('background-color')) as number[],
+            paint['background-opacity'] ?? 1
+          ),
     parameters: getBackgroundParameters(mode)
   });
+}
+
+/** A raster paint value, or the style specification's default when the layer does not set it. */
+function getRasterPaintValue(paint: Record<string, any>, propertyName: string): any {
+  return paint[propertyName] ?? getStylePropertyDefault(propertyName);
+}
+
+function getRasterColorAdjustments(paint: Record<string, any>): RasterColorAdjustments {
+  return {
+    brightnessMin: getRasterPaintValue(paint, 'raster-brightness-min'),
+    brightnessMax: getRasterPaintValue(paint, 'raster-brightness-max'),
+    saturation: getRasterPaintValue(paint, 'raster-saturation'),
+    contrast: getRasterPaintValue(paint, 'raster-contrast'),
+    hueRotate: getRasterPaintValue(paint, 'raster-hue-rotate')
+  };
 }
 
 function createRasterLayer({
   idPrefix,
   layer,
   source,
+  zoom,
   mode
 }: {
   idPrefix: string;
   layer: BasemapStyleLayer;
   source: BasemapSource;
+  zoom: number;
   mode: BasemapMode;
 }) {
+  const paint = getPaint(layer, zoom);
+  const rasterColorAdjustments = getRasterColorAdjustments(paint);
+  // A zoom-interpolated adjustment that crosses its default value adds or removes the extension
+  // at that zoom step, which recompiles the tiles' shaders once.
+  const isColorAdjusted = hasRasterColorAdjustments(rasterColorAdjustments);
+  // MapLibre magnifies with nearest-neighbour sampling when either property is `nearest`.
+  const isNearest =
+    getRasterPaintValue(paint, 'raster-resampling') === 'nearest' ||
+    getRasterPaintValue(paint, 'resampling') === 'nearest';
+
   return new TileLayer({
     id: `${idPrefix}-${layer.id}`,
     data: source.tiles,
-    minZoom: layer.minzoom ?? source.minzoom ?? 0,
-    maxZoom: layer.maxzoom ?? source.maxzoom ?? 22,
+    minZoom: source.minzoom ?? 0,
+    maxZoom: source.maxzoom ?? 22,
     tileSize: source.tileSize || 512,
+    // deck.gl draws with `opacity ** (1 / 2.2)`. Undo that, so the alpha is `raster-opacity`, as
+    // in MapLibre.
+    opacity: getRasterPaintValue(paint, 'raster-opacity') ** 2.2,
+    // The color adjustments and texture filter are passed down to each tile's bitmap layer.
+    ...(isColorAdjusted ? {extensions: [RASTER_COLOR_EXTENSION], rasterColorAdjustments} : {}),
+    textureParameters: isNearest ? NEAREST_TEXTURE_PARAMETERS : null,
     renderSubLayers: props => {
       const {west, south, east, north} = (props.tile?.bbox || {}) as {
         west: number;
@@ -253,13 +414,21 @@ function createRasterLayer({
         north: number;
       };
 
+      // Set by `RasterColorExtension` where its shader runs, which outputs premultiplied colors.
+      const blendParameters = (props as {rasterColorBlendParameters?: object | null})
+        .rasterColorBlendParameters;
+
       return new BitmapLayer({
         ...props,
+        // A texture keeps the filter it was created with, so a filter change needs a new layer.
+        id: isNearest ? `${props.id}-nearest` : props.id,
         _imageCoordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         data: null,
         image: props.data,
         bounds: [west, south, east, north],
-        parameters: getTileParameters(mode)
+        parameters: blendParameters
+          ? {...getTileParameters(mode), ...blendParameters}
+          : getTileParameters(mode)
       } as any);
     },
     onTileError: error => {
@@ -316,7 +485,11 @@ function createStyledVectorSubLayer({
   props,
   zoom,
   config,
-  mode
+  mode,
+  collisionPriorityRange,
+  spriteAtlases,
+  loadOptions,
+  fontFamily
 }: {
   idPrefix: string;
   sourceId: string;
@@ -326,27 +499,56 @@ function createStyledVectorSubLayer({
   zoom: number;
   config: BasemapLayerConfig;
   mode: BasemapMode;
+  collisionPriorityRange?: [number, number];
+  spriteAtlases?: SpriteAtlas[] | null;
+  loadOptions?: BasemapLoadOptions;
+  fontFamily?: LabelFontFamily | null;
 }) {
   if (features.length === 0) {
     return null;
   }
 
-  const paint = getPaint(styleLayer, zoom);
-  const opacity =
-    paint[`${styleLayer.type}-opacity`] ??
-    (styleLayer.type === 'fill' ? paint['fill-opacity'] : paint['line-opacity']) ??
-    1;
-  const fillColor = withOpacity(paint['fill-color'], opacity);
-  const lineColor = withOpacity(
-    paint['line-color'] || paint['fill-outline-color'] || [0, 0, 0, 0],
-    opacity
-  );
-
   if (styleLayer.type === 'symbol') {
-    return createSymbolSubLayer({props, styleLayer, features, config, mode, zoom, opacity, paint});
+    const paint = getPaint(styleLayer, zoom);
+    return createSymbolSubLayer({
+      props,
+      styleLayer,
+      features,
+      config,
+      mode,
+      zoom,
+      opacity: 1,
+      paint,
+      collisionPriorityRange,
+      spriteAtlases,
+      loadOptions,
+      fontFamily
+    });
   }
 
-  return createGeometrySubLayer({props, styleLayer, features, mode, fillColor, lineColor, paint});
+  if (styleLayer.type === 'circle') {
+    return createCircleSubLayer({
+      baseProps: getSubLayerBaseProps(props),
+      id: getStyleSubLayerId(props.id, styleLayer.id),
+      styleLayer,
+      features,
+      zoom,
+      globe: mode === 'globe',
+      // Depth-tested against the globe without writing depth: a circle's quad, blur and
+      // antialiased edge included, would otherwise cut holes in the circles drawn after it.
+      parameters: {...getTileParameters(mode), depthWriteEnabled: false}
+    });
+  }
+
+  if (styleLayer.type === 'fill-extrusion') {
+    return createExtrusionSubLayer({props, styleLayer, features, zoom});
+  }
+
+  if (styleLayer.type === 'line') {
+    return createLineSubLayers({props, styleLayer, features, mode, zoom});
+  }
+
+  return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
 }
 
 function createVectorLayerGroup({
@@ -357,7 +559,11 @@ function createVectorLayerGroup({
   zoom,
   config,
   loadOptions,
-  mode
+  mode,
+  labelPriorityRanges,
+  styleDefinition,
+  spriteAtlases,
+  fontFamily
 }: {
   idPrefix: string;
   sourceId: string;
@@ -367,9 +573,17 @@ function createVectorLayerGroup({
   config: BasemapLayerConfig;
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
+  labelPriorityRanges?: Map<BasemapStyleLayer, [number, number]>;
+  /** The resolved style, compared by identity to regenerate tiles when the style changes. */
+  styleDefinition?: ResolvedBasemapStyle;
+  /** Sprites for `icon-image`; tiles regenerate when they finish loading. */
+  spriteAtlases?: SpriteAtlas[] | null;
+  /** Label font override; tiles regenerate when it changes. */
+  fontFamily?: LabelFontFamily | null;
 }) {
-  const minZoom = Math.min(...styleLayers.map(layer => layer.minzoom ?? source.minzoom ?? 0));
-  const maxZoom = Math.max(...styleLayers.map(layer => layer.maxzoom ?? source.maxzoom ?? 22));
+  // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
+  const minZoom = source.minzoom ?? 0;
+  const maxZoom = source.maxzoom ?? 22;
 
   return new StyledMVTLayer({
     id: `${idPrefix}-${sourceId}`,
@@ -400,11 +614,23 @@ function createVectorLayerGroup({
       }
     },
     parameters: getTileParameters(mode),
+    // `renderSubLayers` reads `zoom` and the style: regenerate tile sublayers at each style zoom
+    // step (evaluation and filters), at fractional layer limits (visibility), and when the style
+    // changes. Two styles can share a source id and so this layer's id; deck.gl compares the
+    // style by identity.
+    updateTriggers: {
+      renderSubLayers: [
+        getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)),
+        styleDefinition,
+        spriteAtlases,
+        fontFamily
+      ]
+    },
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers = styleLayers
         .map(styleLayer => {
-          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom, source)) {
+          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom)) {
             return null;
           }
 
@@ -427,7 +653,11 @@ function createVectorLayerGroup({
             props,
             zoom,
             config,
-            mode
+            mode,
+            collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
+            spriteAtlases,
+            loadOptions,
+            fontFamily
           });
         })
         .filter(layer => Boolean(layer));
@@ -470,13 +700,22 @@ function getVectorSourceGroups(
   return [...groups.values()];
 }
 
+/** All style-layer `minzoom`/`maxzoom` limits in a style. */
+export function getStyleDefinitionZoomLimits(
+  styleDefinition: BasemapLayerGroup['styleDefinition']
+): (number | undefined)[] {
+  return getStyleZoomLimits(styleDefinition.layers || []);
+}
+
 export function getBasemapLayers({
   idPrefix = 'basemap',
   mode = 'map',
   globe,
   styleDefinition,
   zoom = 0,
-  loadOptions
+  loadOptions,
+  spriteAtlases,
+  fontFamily
 }: BasemapLayerGroup) {
   const config = getConfig(globe);
   const styleLayers = (styleDefinition.layers || []).filter(layer =>
@@ -489,12 +728,22 @@ export function getBasemapLayers({
     sourceCount: Object.keys(styleDefinition.sources || {}).length
   });
 
-  layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers}));
+  layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers, zoom}));
 
   if (config.basemap) {
     layers.push(...getBackgroundLayers({idPrefix, styleLayers, zoom, mode}));
     layers.push(
-      ...getVectorLayers({idPrefix, styleLayers, styleDefinition, zoom, config, loadOptions, mode})
+      ...getVectorLayers({
+        idPrefix,
+        styleLayers,
+        styleDefinition,
+        zoom,
+        config,
+        loadOptions,
+        mode,
+        spriteAtlases,
+        fontFamily
+      })
     );
     layers.push(...getRasterLayers({idPrefix, styleLayers, styleDefinition, zoom, mode}));
   }
@@ -509,9 +758,20 @@ export function getGlobeBaseLayers({
   styleDefinition,
   idPrefix = 'globe-basemap',
   zoom = 0,
-  loadOptions
+  loadOptions,
+  spriteAtlases,
+  fontFamily
 }: Omit<BasemapLayerGroup, 'mode'>) {
-  return getBasemapLayers({idPrefix, mode: 'globe', globe, styleDefinition, zoom, loadOptions});
+  return getBasemapLayers({
+    idPrefix,
+    mode: 'globe',
+    globe,
+    styleDefinition,
+    zoom,
+    loadOptions,
+    spriteAtlases,
+    fontFamily
+  });
 }
 
 export function getGlobeTopLayers({globe}: {globe: {config: BasemapGlobeConfig}}) {
@@ -527,7 +787,11 @@ function createSymbolSubLayer({
   mode,
   zoom,
   opacity,
-  paint
+  paint,
+  collisionPriorityRange,
+  spriteAtlases,
+  loadOptions,
+  fontFamily
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
@@ -537,21 +801,228 @@ function createSymbolSubLayer({
   zoom: number;
   opacity: number;
   paint: Record<string, any>;
+  collisionPriorityRange?: [number, number];
+  spriteAtlases?: SpriteAtlas[] | null;
+  loadOptions?: BasemapLoadOptions;
+  fontFamily?: LabelFontFamily | null;
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
-    id: `${props.id}-${styleLayer.id}`,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
     data: features,
     config,
     mode,
     styleLayer,
-    zoom,
-    textColor: withOpacity(paint['text-color'], opacity),
-    labelBackground: paint['text-halo-color']
-      ? withOpacity(paint['text-halo-color'], paint['text-halo-width'] ? 255 : opacity)
-      : null,
+    collisionPriorityRange,
+    spriteAtlases,
+    // The sprite atlas images load through the same fetch as the style and its tiles.
+    iconLoadOptions: loadOptions,
+    fontFamily,
+    // Polygon labels outside the tile's own extent are left to the neighbouring tile.
+    tileBoundingBox: props.tile?.bbox ?? null,
+    // Labels along lines are spaced in pixels at the tile's own zoom.
+    tileZoom: props.tile?.index?.z ?? null,
+    tileSize: props.tileSize ?? null,
+    zoom: getZoomBucket(zoom),
+    // The style spec's default `text-color` is black.
+    textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
+    // The halo keeps its own alpha, scaled by the layer opacity like the text.
+    // The halo is drawn only with a positive `text-halo-width`, whose default is 0.
+    labelBackground:
+      paint['text-halo-color'] && hasHaloWidth(styleLayer, paint)
+        ? withOpacity(paint['text-halo-color'], opacity)
+        : null,
     billboard: true
   });
+}
+
+/**
+ * Whether a label layer can have a visible halo. The box is drawn once per style layer, so a
+ * data-driven `text-halo-width` cannot be checked per feature; it keeps the box. A constant or
+ * zoom-dependent width hides it when the evaluated width is 0, its default.
+ */
+function hasHaloWidth(styleLayer: BasemapStyleLayer, paint: Record<string, any>): boolean {
+  const width = styleLayer.paint?.['text-halo-width'];
+  if (
+    width !== undefined &&
+    compileStylePropertyValue('text-halo-width', width)?.isFeatureDependent
+  ) {
+    return true;
+  }
+  return Number(paint['text-halo-width'] ?? 0) > 0;
+}
+
+/**
+ * Converts a style `line-dasharray` into deck.gl's `[dash, gap]`. MapLibre measures dashes in line
+ * widths; deck.gl's `widths` unit is half the line width, so lengths double. deck.gl draws one dash
+ * and one gap per period, so a longer pattern keeps its period and total dash length, but merges
+ * its dashes. In an odd-length pattern the last dash runs into the first, as in MapLibre. An empty
+ * pattern, or one without gaps, draws a solid line.
+ */
+export function getDashArray(dasharray: unknown): [number, number] {
+  if (!Array.isArray(dasharray)) {
+    return [0, 0];
+  }
+  let dash = 0;
+  let gap = 0;
+  dasharray.forEach((value, index) => {
+    const length = Math.max(0, Number(value) || 0);
+    if (index % 2 === 0) {
+      dash += length;
+    } else {
+      gap += length;
+    }
+  });
+  return [dash * 2, gap * 2];
+}
+
+/**
+ * Converts `line-offset` and `line-gap-width` into deck.gl's `getOffset`, which is in line widths.
+ * A gap draws two lines of `width` with their centers `gapWidth / 2 + width / 2` either side of
+ * the offset line: `side` is 1 or -1 for them. Without a gap, `side` is ignored. Positive is to
+ * the right of the line's direction in both. Dividing by `width` assumes deck.gl draws the line
+ * `width` pixels wide, that is, no `lineWidthMinPixels`/`lineWidthMaxPixels` clamp applies.
+ *
+ * deck.gl offsets by widening the stroke and masking it across the line, not by offsetting the
+ * path, so the outside of a sharp corner breaks open and the two lines of a gap end in separate
+ * stubs rather than one cap. Offsetting the path belongs in deck.gl's `PathStyleExtension`.
+ */
+export function getLineOffset(
+  offset: number,
+  gapWidth: number,
+  width: number,
+  side: number
+): number {
+  if (!(width > 0)) {
+    return 0;
+  }
+  return (offset + (gapWidth > 0 ? side * (gapWidth / 2 + width / 2) : 0)) / width;
+}
+
+/** deck.gl path props for a line's `line-cap`, `line-join` and `line-miter-limit`. */
+export type LineShape = {
+  lineCapRounded: boolean;
+  lineJointRounded: boolean;
+  lineMiterLimit: number;
+};
+
+/**
+ * Converts `line-cap`, `line-join` and `line-miter-limit` into deck.gl path props.
+ *
+ * - `round` caps and joins are drawn round. `butt` caps end at the endpoint. deck.gl has no square
+ *   cap, so `square` is drawn as `butt`: the line ends half its width short of MapLibre's.
+ * - deck.gl cuts a joint flat at `miterLimit + 1` half widths from the vertex. MapLibre draws a
+ *   `miter` join in full while its tip is within `line-miter-limit` half widths of the vertex, so
+ *   passing `line-miter-limit - 1` draws the same joins in full. A sharper corner, which MapLibre
+ *   bevels, is cut flat at that distance instead.
+ * - deck.gl has no bevel join. A `bevel` join is cut flat half the line width from the vertex,
+ *   which matches a bevel at shallow corners; at sharp corners a true bevel cuts closer.
+ */
+export function getLineShape([cap, join, miterLimit]: unknown[]): LineShape {
+  const lineJoin = join ?? getStylePropertyDefault('line-join');
+  const limit = Number(miterLimit ?? getStylePropertyDefault('line-miter-limit'));
+  return {
+    lineCapRounded: (cap ?? getStylePropertyDefault('line-cap')) === 'round',
+    lineJointRounded: lineJoin === 'round',
+    lineMiterLimit: lineJoin === 'miter' && Number.isFinite(limit) ? Math.max(0, limit - 1) : 0
+  };
+}
+
+/** The sublayers for a `line` style layer: one, or one per shape when the shape is per feature. */
+function createLineSubLayers({
+  props,
+  styleLayer,
+  features,
+  mode,
+  zoom
+}: {
+  props: any;
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  mode: BasemapMode;
+  zoom: number;
+}) {
+  const lineShape = getStyleAccessor(
+    styleLayer,
+    ['line-cap', 'line-join', 'line-miter-limit'],
+    zoom,
+    getLineShape
+  );
+  if (typeof lineShape.value !== 'function') {
+    return createGeometrySubLayer({
+      props,
+      styleLayer,
+      features,
+      mode,
+      zoom,
+      lineShape: lineShape.value
+    });
+  }
+
+  return getLineShapeGroups(features, styleLayer, lineShape).map(group =>
+    createGeometrySubLayer({
+      props,
+      styleLayer,
+      features: group.features,
+      mode,
+      zoom,
+      lineShape: group.shape,
+      idSuffix: `-${group.key}`
+    })
+  );
+}
+
+type LineShapeGroup = {key: string; shape: LineShape; features: any[]};
+
+/** The latest line shape groups per tile content and style layer. */
+const lineShapeGroupCache = new WeakMap<
+  any[],
+  WeakMap<BasemapStyleLayer, {key: unknown[]; groups: LineShapeGroup[]}>
+>();
+
+/**
+ * Splits features by their per-feature line shape, since deck.gl applies caps and joins to a
+ * whole layer. Groups are in the order each shape first appears, so features draw group by group
+ * rather than in source order. The groups, and so their feature arrays, are reused while the
+ * layout values (and, when they depend on zoom, the style zoom) are unchanged, so deck.gl does not
+ * re-tessellate the features at every zoom step.
+ */
+function getLineShapeGroups(
+  features: any[],
+  styleLayer: BasemapStyleLayer,
+  lineShape: StyleAccessor<LineShape>
+): LineShapeGroup[] {
+  const key = [
+    styleLayer.layout?.['line-cap'],
+    styleLayer.layout?.['line-join'],
+    styleLayer.layout?.['line-miter-limit'],
+    lineShape.updateTrigger
+  ];
+  let byStyleLayer = lineShapeGroupCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    lineShapeGroupCache.set(features, byStyleLayer);
+  }
+  const cached = byStyleLayer.get(styleLayer);
+  if (cached && cached.key.every((entry, index) => entry === key[index])) {
+    return cached.groups;
+  }
+
+  const getShape = lineShape.value as (feature: any) => LineShape;
+  const groups = new Map<string, LineShapeGroup>();
+  for (const feature of features) {
+    const shape = getShape(feature);
+    const groupKey = `${shape.lineCapRounded}-${shape.lineJointRounded}-${shape.lineMiterLimit}`;
+    let group = groups.get(groupKey);
+    if (!group) {
+      group = {key: groupKey, shape, features: []};
+      groups.set(groupKey, group);
+    }
+    group.features.push(feature);
+  }
+  const result = [...groups.values()];
+  byStyleLayer.set(styleLayer, {key, groups: result});
+  return result;
 }
 
 function createGeometrySubLayer({
@@ -559,40 +1030,283 @@ function createGeometrySubLayer({
   styleLayer,
   features,
   mode,
-  fillColor,
-  lineColor,
-  paint
+  zoom,
+  lineShape,
+  idSuffix = ''
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
   mode: BasemapMode;
-  fillColor: [number, number, number, number];
-  lineColor: [number, number, number, number];
-  paint: Record<string, any>;
+  zoom: number;
+  lineShape?: LineShape;
+  idSuffix?: string;
 }) {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
+  const baseProps = getSubLayerBaseProps(props);
 
-  return new GeoJsonLayer({
-    ...getSubLayerBaseProps(props),
-    id: `${props.id}-${styleLayer.id}`,
+  // A `fill-pattern` disables `fill-color`. Patterns are not drawn, so a patterned fill draws
+  // nothing rather than its color or the default black.
+  const hasFillPattern = isFill && styleLayer.paint?.['fill-pattern'] !== undefined;
+  const fillColor = hasFillPattern
+    ? {value: TRANSPARENT_COLOR}
+    : getStyleAccessor(styleLayer, ['fill-color', 'fill-opacity'], zoom, ([color, opacity]) =>
+        getGlobeFillColor(
+          withOpacity(color ?? getStylePropertyDefault('fill-color'), opacity ?? 1),
+          mode
+        )
+      );
+  // MapLibre draws a fill's outline only with `fill-antialias`; without `fill-outline-color` the
+  // outline is in `fill-color` and only antialiases the edge, which deck.gl's fill does not need.
+  const hasOutline =
+    isFill &&
+    styleLayer.paint?.['fill-outline-color'] !== undefined &&
+    getPaint(styleLayer, zoom)['fill-antialias'] !== false;
+  const lineColor = isLine
+    ? getStyleAccessor(styleLayer, ['line-color', 'line-opacity'], zoom, ([color, opacity]) =>
+        withOpacity(color ?? DEFAULT_COLOR, opacity ?? 1)
+      )
+    : getStyleAccessor(
+        styleLayer,
+        ['fill-outline-color', 'fill-opacity'],
+        zoom,
+        ([color, opacity]) => withOpacity(color, opacity ?? 1)
+      );
+  const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
+    Math.max(0, Number(width ?? 1))
+  );
+  // The style spec evaluates zoom in `line-dasharray` at integer zooms only.
+  const dashArray: StyleAccessor<[number, number]> | null =
+    isLine && styleLayer.paint?.['line-dasharray'] !== undefined
+      ? getStyleAccessor(styleLayer, ['line-dasharray'], Math.floor(zoom), ([dasharray]) =>
+          getDashArray(dasharray)
+        )
+      : null;
+  const hasOffset =
+    isLine &&
+    (styleLayer.paint?.['line-offset'] !== undefined ||
+      styleLayer.paint?.['line-gap-width'] !== undefined);
+  const lineOffset = hasOffset
+    ? getStyleAccessor<[number, number, number]>(
+        styleLayer,
+        ['line-offset', 'line-gap-width', 'line-width'],
+        zoom,
+        ([offset, gap, width]) => [
+          Number(offset ?? 0),
+          Math.max(0, Number(gap ?? 0)),
+          Math.max(0, Number(width ?? 1))
+        ]
+      )
+    : null;
+  const offsetValue = lineOffset?.value;
+  const getOffset = (side: number) => (feature: any) => {
+    const [offset, gap, width] =
+      typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue!;
+    return getLineOffset(offset, gap, width, side);
+  };
+  const gapWidth = hasOffset
+    ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
+    : null;
+
+  const layer = new GeoJsonLayer({
+    ...baseProps,
+    id: `${getStyleSubLayerId(props.id, styleLayer.id)}${idSuffix}`,
     data: features,
-    stroked: isLine,
+    stroked: isLine || hasOutline,
     filled: isFill,
-    getFillColor: isFill ? getGlobeFillColor(fillColor, mode) : [0, 0, 0, 0],
-    getLineColor: lineColor,
-    getLineWidth: isLine
-      ? Math.max(0.25, Number(paint['line-width'] ?? 1) * getLineWidthScale(styleLayer))
-      : 0,
+    getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
+    getLineColor: lineColor.value as any,
+    // A fill's outline is MapLibre's 1 pixel antialiasing line.
+    getLineWidth: isLine ? (lineWidth.value as any) : hasOutline ? 1 : 0,
+    ...(dashArray || lineOffset
+      ? {
+          extensions: [
+            ...(baseProps.extensions || []),
+            dashArray ? (lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION) : OFFSET_EXTENSION
+          ]
+        }
+      : {}),
+    ...(offsetValue ? {getOffset: getOffset(1)} : {}),
+    ...(dashArray
+      ? {
+          getDashArray: dashArray.value as any,
+          dashJustified: false
+        }
+      : {}),
+    updateTriggers: {
+      getFillColor: isFill ? fillColor.updateTrigger : undefined,
+      getLineColor: lineColor.updateTrigger,
+      getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
+      getDashArray: dashArray?.updateTrigger,
+      getOffset: typeof offsetValue === 'function' ? lineOffset?.updateTrigger : offsetValue
+    },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,
-    lineWidthMaxPixels: 20,
-    lineCapRounded: isLine,
-    lineJointRounded: isLine,
+    lineCapRounded: false,
+    lineJointRounded: false,
+    ...lineShape,
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
     parameters: getTileParameters(mode)
+  });
+  if (!gapWidth || (typeof gapWidth.value !== 'function' && !(gapWidth.value > 0))) {
+    return layer;
+  }
+
+  // A gap draws a second line on the other side, from the same data so that tile data, picked
+  // objects and indices stay those of the features. Features without a gap draw only once.
+  const getGap = gapWidth.value;
+  const getWidth = lineWidth.value;
+  return [
+    layer,
+    layer.clone({
+      id: `${layer.id}-gap`,
+      getOffset: getOffset(-1),
+      ...(typeof getGap === 'function'
+        ? {
+            getLineWidth: (feature: any) =>
+              getGap(feature) > 0
+                ? typeof getWidth === 'function'
+                  ? getWidth(feature)
+                  : getWidth
+                : 0,
+            updateTriggers: {
+              ...layer.props.updateTriggers,
+              // A width that is not per feature is a value with no trigger of its own.
+              getLineWidth: [
+                typeof getWidth === 'function' ? lineWidth.updateTrigger : getWidth,
+                gapWidth.updateTrigger
+              ]
+            }
+          }
+        : {})
+    } as any)
+  ];
+}
+
+/** The latest features raised to their `fill-extrusion-base`, per tile content and style layer. */
+const raisedFeatureCache = new WeakMap<
+  any[],
+  WeakMap<BasemapStyleLayer, {key: unknown[]; features: any[]}>
+>();
+
+function raiseCoordinates(coordinates: any, base: number): any {
+  return typeof coordinates[0] === 'number'
+    ? [coordinates[0], coordinates[1], base]
+    : coordinates.map((child: any) => raiseCoordinates(child, base));
+}
+
+/**
+ * Returns the features with their polygons raised to `fill-extrusion-base`: deck.gl extrudes a
+ * polygon from its own `z` by `getElevation`. Features with a base of 0 are returned as they are,
+ * and so is the array when every base is 0. The result is reused while the base is unchanged.
+ */
+function getRaisedFeatures(
+  features: any[],
+  styleLayer: BasemapStyleLayer,
+  base: StyleAccessor<number>
+): any[] {
+  const {value} = base;
+  if (value === 0) {
+    return features;
+  }
+  const key = [
+    styleLayer.paint?.['fill-extrusion-base'],
+    styleLayer.paint?.['fill-extrusion-height'],
+    typeof value === 'function' ? base.updateTrigger : value
+  ];
+  let byStyleLayer = raisedFeatureCache.get(features);
+  if (!byStyleLayer) {
+    byStyleLayer = new WeakMap();
+    raisedFeatureCache.set(features, byStyleLayer);
+  }
+  const cached = byStyleLayer.get(styleLayer);
+  if (cached && cached.key.every((entry, index) => entry === key[index])) {
+    return cached.features;
+  }
+
+  let raisedAny = false;
+  const raised = features.map(feature => {
+    const geometryType = feature.geometry?.type;
+    const featureBase = typeof value === 'function' ? value(feature) : value;
+    if (featureBase === 0 || (geometryType !== 'Polygon' && geometryType !== 'MultiPolygon')) {
+      return feature;
+    }
+    raisedAny = true;
+    return {
+      ...feature,
+      geometry: {
+        ...feature.geometry,
+        coordinates: raiseCoordinates(feature.geometry.coordinates, featureBase)
+      }
+    };
+  });
+  const result = raisedAny ? raised : features;
+  byStyleLayer.set(styleLayer, {key, features: result});
+  return result;
+}
+
+function getExtrusionBounds(height: unknown, base: unknown): [number, number] {
+  const top = Math.max(0, Number(height ?? 0) || 0);
+  return [Math.min(Math.max(0, Number(base ?? 0) || 0), top), top];
+}
+
+/**
+ * Draws a `fill-extrusion` style layer as extruded polygons, from `fill-extrusion-base` to
+ * `fill-extrusion-height`, in meters. `fill-extrusion-opacity` applies to the whole layer, as in
+ * MapLibre, and the alpha of `fill-extrusion-color` is ignored.
+ */
+function createExtrusionSubLayer({
+  props,
+  styleLayer,
+  features,
+  zoom
+}: {
+  props: any;
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  zoom: number;
+}) {
+  const paint = getPaint(styleLayer, zoom);
+  const color = getStyleAccessor(styleLayer, ['fill-extrusion-color'], zoom, ([value]) =>
+    withOpacity([...(value ?? DEFAULT_COLOR).slice(0, 3), 1])
+  );
+  const base = getStyleAccessor(
+    styleLayer,
+    ['fill-extrusion-height', 'fill-extrusion-base'],
+    zoom,
+    ([height, baseValue]) => getExtrusionBounds(height, baseValue)[0]
+  );
+  const elevation = getStyleAccessor(
+    styleLayer,
+    ['fill-extrusion-height', 'fill-extrusion-base'],
+    zoom,
+    ([height, baseValue]) => {
+      const [bottom, top] = getExtrusionBounds(height, baseValue);
+      return top - bottom;
+    }
+  );
+  const baseProps = getSubLayerBaseProps(props);
+
+  return new GeoJsonLayer({
+    ...baseProps,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
+    data: getRaisedFeatures(features, styleLayer, base),
+    opacity: (baseProps.opacity ?? 1) * (paint['fill-extrusion-opacity'] ?? 1),
+    extruded: true,
+    filled: true,
+    stroked: false,
+    wireframe: false,
+    getFillColor: color.value as any,
+    getElevation: elevation.value as any,
+    updateTriggers: {
+      getFillColor: color.updateTrigger,
+      getElevation: elevation.updateTrigger
+    },
+    getPointRadius: 0,
+    pointRadiusMinPixels: 0,
+    parameters: EXTRUSION_PARAMETERS
   });
 }
 
@@ -612,6 +1326,26 @@ function getBackgroundLayers({
     .map(layer => createBackgroundLayer({idPrefix, layer, zoom, mode}));
 }
 
+/** deck.gl's `CollisionFilterExtension` supports priorities from -1000 to 1000. */
+const COLLISION_PRIORITY_RANGE: [number, number] = [-1000, 1000];
+
+/**
+ * Splits the collision priority range into one band per symbol layer, in style order. All labels
+ * share one collision group, so a later style layer's band is above an earlier one's: MapLibre
+ * places symbol layers from the top of the style down, and `symbol-sort-key` only orders labels
+ * within a layer.
+ */
+function getLabelPriorityRanges(
+  styleLayers: BasemapStyleLayer[]
+): Map<BasemapStyleLayer, [number, number]> {
+  const symbolLayers = styleLayers.filter(layer => layer.type === 'symbol');
+  const [min, max] = COLLISION_PRIORITY_RANGE;
+  const width = (max - min) / Math.max(symbolLayers.length, 1);
+  return new Map(
+    symbolLayers.map((layer, index) => [layer, [min + index * width, min + (index + 1) * width]])
+  );
+}
+
 function getVectorLayers({
   idPrefix,
   styleLayers,
@@ -619,7 +1353,9 @@ function getVectorLayers({
   zoom,
   config,
   loadOptions,
-  mode
+  mode,
+  spriteAtlases,
+  fontFamily
 }: {
   idPrefix: string;
   styleLayers: BasemapStyleLayer[];
@@ -628,30 +1364,46 @@ function getVectorLayers({
   config: BasemapLayerConfig;
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
+  spriteAtlases?: SpriteAtlas[] | null;
+  fontFamily?: LabelFontFamily | null;
 }) {
-  const visibleVectorLayers = styleLayers.filter(layer => {
-    if (!isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])) {
-      return false;
-    }
-
-    if (layer.type === 'symbol') {
-      return config.labels;
-    }
-    return layer.type === 'fill' || layer.type === 'line';
-  });
-
-  return getVectorSourceGroups(visibleVectorLayers, styleDefinition).map(group =>
-    createVectorLayerGroup({
-      idPrefix,
-      sourceId: group.sourceId,
-      source: group.source,
-      styleLayers: group.styleLayers,
-      zoom,
-      config,
-      loadOptions,
-      mode
-    })
+  const vectorLayers = styleLayers.filter(layer =>
+    layer.type === 'symbol'
+      ? config.labels
+      : layer.type === 'fill' ||
+        layer.type === 'fill-extrusion' ||
+        layer.type === 'line' ||
+        layer.type === 'circle'
   );
+
+  // A group keeps all of its source's style layers, visible or not: its tile regeneration key
+  // must change when any of them crosses its own limits, and `renderSubLayers` gates each layer
+  // by zoom. Skip a source only when none of its layers are visible, and draw sources in the
+  // order of their first visible layer, so a hidden layer does not move its source forward.
+  const labelPriorityRanges = getLabelPriorityRanges(vectorLayers);
+  const firstVisibleIndex = (group: VectorSourceGroup): number =>
+    vectorLayers.findIndex(
+      layer => layer.source === group.sourceId && isStyleLayerVisibleAtZoom(layer, zoom)
+    );
+  return getVectorSourceGroups(vectorLayers, styleDefinition)
+    .filter(group => firstVisibleIndex(group) >= 0)
+    .sort((a, b) => firstVisibleIndex(a) - firstVisibleIndex(b))
+    .map(group =>
+      createVectorLayerGroup({
+        idPrefix,
+        sourceId: group.sourceId,
+        source: group.source,
+        styleLayers: group.styleLayers,
+        zoom,
+        config,
+        loadOptions,
+        mode,
+        labelPriorityRanges,
+        styleDefinition,
+        spriteAtlases,
+        fontFamily
+      })
+    );
 }
 
 function getRasterLayers({
@@ -670,10 +1422,7 @@ function getRasterLayers({
   const rasterLayers = [];
 
   for (const layer of styleLayers) {
-    if (
-      layer.type === 'raster' &&
-      isStyleLayerVisibleAtZoom(layer, zoom, styleDefinition.sources?.[layer.source || ''])
-    ) {
+    if (layer.type === 'raster' && isStyleLayerVisibleAtZoom(layer, zoom)) {
       const source = styleDefinition.sources?.[layer.source];
       if (!source?.tiles) {
         logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {
@@ -681,7 +1430,7 @@ function getRasterLayers({
           sourceId: layer.source
         });
       } else {
-        rasterLayers.push(createRasterLayer({idPrefix, layer, source, mode}));
+        rasterLayers.push(createRasterLayer({idPrefix, layer, source, zoom, mode}));
       }
     }
   }
@@ -712,12 +1461,14 @@ function getGlobePreLayers({
   idPrefix,
   mode,
   config,
-  styleLayers
+  styleLayers,
+  zoom
 }: {
   idPrefix: string;
   mode: BasemapMode;
   config: BasemapLayerConfig;
   styleLayers: BasemapStyleLayer[];
+  zoom: number;
 }) {
   const layers = [];
 
@@ -725,7 +1476,10 @@ function getGlobePreLayers({
     layers.push(getGlobeAtmosphereSkyLayer());
   }
 
-  const hasBackground = styleLayers.some(layer => layer.type === 'background');
+  // A hidden or out-of-range background draws nothing, so it does not replace the fallback.
+  const hasBackground = styleLayers.some(
+    layer => layer.type === 'background' && isStyleLayerVisibleAtZoom(layer, zoom)
+  );
   if (mode === 'globe' && !hasBackground) {
     layers.push(
       new SolidPolygonLayer({

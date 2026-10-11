@@ -10,6 +10,7 @@ import {VideoSample} from 'mediabunny';
 import {getFrameWindow} from '../../src/volumetric-video-layer/frame-utils';
 import {GPUPixelChanges} from '../../src/volumetric-video-layer/gpu-pixel-changes';
 import {GPUVideoFrames} from '../../src/volumetric-video-layer/gpu-video-frames';
+import {GPUVideoAppearance} from '../../src/volumetric-video-layer/gpu-video-appearance';
 import {VideoFrameSource} from '../../src/volumetric-video-layer/video-frame-source';
 import {VolumetricVideoLayer} from '../../src/volumetric-video-layer/volumetric-video-layer';
 
@@ -282,6 +283,239 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       cache?.destroy();
       reference?.destroy();
       source.destroy();
+      device.destroy();
+    }
+  });
+
+  // Value: protects=a failed active seek does not permanently freeze later valid frames;
+  // fails_when=decode errors block resident requests or prevent replacement retry;
+  // why_new=stale-iterator tests bypass the layer's active failure handler; seam=none
+  it.each([
+    {failure: 'null', replacement: false},
+    {failure: 'rejection', replacement: false},
+    {failure: 'null', replacement: true},
+    {failure: 'rejection', replacement: true}
+  ])('recovers a valid seek after active $failure (replacement=$replacement)', async ({
+    failure,
+    replacement
+  }) => {
+    const device = await createDevice();
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer;
+    let reference: GPUVideoFrames | undefined;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'decode-recovery',
+          video: MP4_URL,
+          resolution: 32,
+          currentFrame: 30,
+          frameTrail: 2,
+          maxFrameTrail: 2,
+          onFrameLoad: () => resolve()
+        });
+        deck = new Deck({
+          device,
+          width: 320,
+          height: 240,
+          views: [new OrbitView({id: 'recovery'})],
+          initialViewState: {recovery: {target: [0, 0, 0], zoom: 6}},
+          layers: [layer],
+          onError: reject
+        });
+      });
+      const previous = layer!.state.frames!;
+      const source = layer!.state.source!;
+      const decode = source.sink!.samplesAtTimestamps.bind(source.sink!);
+      const decoder = vi
+        .spyOn(source.sink!, 'samplesAtTimestamps')
+        .mockImplementation(async function* (timestamps) {
+          let uploaded = 0;
+          for await (const sample of decode(timestamps)) {
+            yield sample;
+            if (++uploaded === 2) break;
+          }
+          if (failure === 'rejection') throw new Error('Active seek failed');
+          yield null;
+        });
+      const errors = vi.fn();
+      const loaded = vi.fn();
+      layer = layer!.clone({
+        currentFrame: 60,
+        frameTrail: replacement ? 4 : 2,
+        maxFrameTrail: replacement ? 4 : 2,
+        onFrameLoad: loaded
+      });
+      deck!.setProps({layers: [layer], onError: errors});
+      await vi.waitFor(() => expect(errors).toHaveBeenCalled(), {timeout: 2000});
+      expect(loaded).not.toHaveBeenCalled();
+      expect(layer.state.frames).toBe(previous);
+      expect(previous.texture.destroyed).toBe(false);
+      decoder.mockRestore();
+      layer = layer.clone({currentFrame: 88});
+      deck!.setProps({layers: [layer]});
+      await vi.waitFor(
+        () => expect(loaded).toHaveBeenCalledWith(expect.objectContaining({currentFrame: 88})),
+        {timeout: 1500}
+      );
+      expect(errors).toHaveBeenCalledTimes(1);
+      const frames = layer.state.frames!;
+      expect(frames.capacity).toBe(replacement ? 5 : 3);
+      expect(previous.texture.destroyed).toBe(replacement);
+      if (!replacement) expect(frames).toBe(previous);
+      const window = getFrameWindow(
+        88,
+        replacement ? 4 : 2,
+        source.info!.frameCount,
+        frames.capacity
+      );
+      await new Promise<void>((resolve, reject) => {
+        reference = new GPUVideoFrames(
+          device,
+          source,
+          32,
+          frames.capacity,
+          () => resolve(),
+          reject
+        );
+        reference.request(window);
+      });
+      for (let frame = window.firstFrame; frame <= window.currentFrame; frame++) {
+        expect(readFrame(frames, frame)).toEqual(readFrame(reference!, frame));
+        const options = {z: frame % frames.capacity, depthOrArrayLayers: 1};
+        expect(frames.changes.texture.readDataSyncWebGL(options)).toEqual(
+          reference!.changes.texture.readDataSyncWebGL(options)
+        );
+      }
+    } finally {
+      vi.restoreAllMocks();
+      reference?.destroy();
+      deck?.finalize();
+      device.destroy();
+    }
+  });
+
+  // Value: protects=failed visibility commits retain enough state to retry unchanged settings;
+  // fails_when=dirty slots or settings are committed before mip generation and validation;
+  // why_new=allocation failure tests never reach resident appearance commits; seam=none
+  it.each([
+    'mipmap',
+    'validation'
+  ])('retries the full visibility pyramid after %s failure', async failure => {
+    const device = await createDevice();
+    const frames = device.createTexture({
+      dimension: '2d-array',
+      format: 'rgba8unorm',
+      width: 8,
+      height: 8,
+      depth: 1
+    });
+    const changes = device.createTexture({
+      dimension: '2d-array',
+      format: 'rgba8unorm',
+      width: 8,
+      height: 8,
+      depth: 1
+    });
+    const appearance = new GPUVideoAppearance(device, 8, 8, 1);
+    try {
+      const color = new Uint8Array(8 * 8 * 4);
+      for (let i = 0; i < color.length; i += 4) color.set([160, 80, 40, 255], i);
+      frames.writeData(color);
+      changes.writeData(new Uint8Array(color.length));
+      const showAll = {luminanceThreshold: 0, staticPixelRemoval: 0};
+      const removeStatic = {luminanceThreshold: 0, staticPixelRemoval: 1};
+      appearance.update(frames, changes, [30], showAll);
+      const revision = appearance.revision;
+      if (failure === 'mipmap') {
+        vi.spyOn(
+          Object.getPrototypeOf(appearance.texture),
+          'generateMipmapsWebGL'
+        ).mockImplementationOnce(() => {
+          throw new Error('Simulated mipmap failure');
+        });
+      } else {
+        const gl = (device as Device & {gl: WebGL2RenderingContext}).gl;
+        vi.spyOn(gl, 'getError').mockReturnValueOnce(gl.INVALID_OPERATION);
+      }
+      expect(() => appearance.update(frames, changes, [30], removeStatic)).toThrow();
+      expect(appearance.revision).toBe(revision);
+      vi.restoreAllMocks();
+      appearance.update(frames, changes, [30], removeStatic);
+      expect(appearance.revision).toBe(revision + 1);
+      for (let mipLevel = 0; mipLevel < 4; mipLevel++) {
+        const size = 8 >> mipLevel;
+        const pixels = new Uint8Array(
+          appearance.texture.readDataSyncWebGL({
+            mipLevel,
+            width: size,
+            height: size,
+            depthOrArrayLayers: 1
+          }) as ArrayBuffer
+        );
+        expect(pixels).toEqual(new Uint8Array(size * size * 4));
+      }
+      appearance.update(frames, changes, [30], showAll);
+      expect(new Uint8Array(appearance.texture.readDataSyncWebGL() as ArrayBuffer)).toEqual(color);
+    } finally {
+      vi.restoreAllMocks();
+      appearance.destroy();
+      changes.destroy();
+      frames.destroy();
+      device.destroy();
+    }
+  });
+
+  // Value: protects=a draw-time filter error is reported without escaping the layer draw;
+  // fails_when=the exception aborts the draw or no later redraw retries dirty work;
+  // why_new=direct pyramid tests cannot establish deck's error and redraw integration; seam=none
+  it('reports draw-time filter failures and retries on the next redraw', async () => {
+    const device = await createDevice();
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'filter-recovery',
+          video: MP4_URL,
+          resolution: 32,
+          currentFrame: 30,
+          frameTrail: 0,
+          maxFrameTrail: 0,
+          onFrameLoad: () => resolve()
+        });
+        deck = new Deck({
+          device,
+          width: 320,
+          height: 240,
+          views: [new OrbitView({id: 'filter'})],
+          initialViewState: {filter: {target: [0, 0, 0], zoom: 6}},
+          layers: [layer],
+          onError: reject
+        });
+      });
+      const appearance = layer!.state.frames!.appearance;
+      const revision = appearance.revision;
+      appearance.invalidate(0);
+      const errors = vi.fn();
+      deck!.setProps({onError: errors});
+      vi.spyOn(
+        Object.getPrototypeOf(appearance.texture),
+        'generateMipmapsWebGL'
+      ).mockImplementationOnce(() => {
+        throw new Error('Draw-time filter failure');
+      });
+      expect(() => layer!.draw()).not.toThrow();
+      expect(errors).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({message: expect.stringContaining('Draw-time filter failure')}),
+        layer!
+      );
+      expect(appearance.revision).toBe(revision);
+      await vi.waitFor(() => expect(appearance.revision).toBe(revision + 1), {timeout: 2000});
+      expect(layer!.state.frames!.getReadyWindow()?.currentFrame).toBe(30);
+    } finally {
+      vi.restoreAllMocks();
+      deck?.finalize();
       device.destroy();
     }
   });
