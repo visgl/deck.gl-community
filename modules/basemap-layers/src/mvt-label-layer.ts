@@ -637,13 +637,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * Applies `text-transform` and balanced `text-max-width` wrapping for point labels.
    */
   getLabel(feature: FeatureLike): string | undefined {
-    const textField = this.getStyleProperty('text-field');
-    if (!textField) {
-      return undefined;
-    }
-
     // A `text-size` of 0 hides the label.
     if (!(this.getLabelSize(feature) > 0)) {
+      return undefined;
+    }
+    return this.getLabelText(feature);
+  }
+
+  /**
+   * The label text of a feature as `getLabel` returns it, whatever its `text-size` at the map's
+   * zoom. Labels along lines are placed at the tile's zoom, where the text may be visible.
+   */
+  getLabelText(feature: FeatureLike): string | undefined {
+    const textField = this.getStyleProperty('text-field');
+    if (!textField) {
       return undefined;
     }
     const value = this.evaluateStyleProperty('text-field', feature);
@@ -898,7 +905,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const evaluate = (name: string) =>
       Number(this.getStyleProperty(name)?.evaluate(zoom, feature) ?? getStylePropertyDefault(name));
     const textSize = evaluate('text-size');
-    const text = this.getLabel(feature);
+    const text = this.getLabelText(feature);
     // Icons are known once the sprites have loaded; the anchors are recomputed then.
     const icon = this.props.spriteAtlases?.length ? this.getIcon(feature) : null;
     // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
@@ -1013,8 +1020,23 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return (
       super.shouldUpdateState(params) ||
       (params.changeFlags.viewportChanged &&
-        isLinePlacement(this.getSymbolPlacement()) &&
+        this.turnsWithLines() &&
         this.getBearingStep(params.context.viewport) !== this.state.bearingStep)
+    );
+  }
+
+  /**
+   * Whether the text or icons of this layer turn with the lines they are placed along (see
+   * `getLineLabelProps` and `getLineIconProps`). Only then do they depend on the bearing.
+   */
+  turnsWithLines(): boolean {
+    const placement = this.getSymbolPlacement();
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    return (
+      isLinePlacement(placement) &&
+      ['text-rotation-alignment', 'icon-rotation-alignment'].some(name =>
+        isAlignedToMap(this.getStyleProperty(name)?.evaluate(zoom), placement)
+      )
     );
   }
 

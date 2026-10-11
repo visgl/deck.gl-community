@@ -110,7 +110,9 @@ function checkMaxAngle(
   index++;
 
   // Move forward along the label, summing the bends within the window.
+  // A queue: corners leave from `oldest` rather than by `shift`, which moves every later entry.
   const recentCorners: {distance: number; angleDelta: number}[] = [];
+  let oldest = 0;
   let recentAngleDelta = 0;
   while (anchorDistance < labelLength / 2) {
     const previous = line[index - 1];
@@ -123,8 +125,8 @@ function checkMaxAngle(
     angleDelta = Math.abs(((angleDelta + 3 * Math.PI) % (Math.PI * 2)) - Math.PI);
     recentCorners.push({distance: anchorDistance, angleDelta});
     recentAngleDelta += angleDelta;
-    while (anchorDistance - recentCorners[0].distance > windowSize) {
-      recentAngleDelta -= recentCorners.shift()!.angleDelta;
+    while (anchorDistance - recentCorners[oldest].distance > windowSize) {
+      recentAngleDelta -= recentCorners[oldest++].angleDelta;
     }
     if (recentAngleDelta > maxAngle) {
       return false;
@@ -267,10 +269,24 @@ function isFinitePoint(point: number[]): boolean {
 }
 
 /**
+ * `point` with the coordinate of box `edge` (0 to 3: min x, max x, min y, max y) set exactly, as
+ * rounding can leave a point clipped to that edge just inside or outside it.
+ */
+function snapToEdge(point: number[], edge: number, [minX, minY, maxX, maxY]: number[]): number[] {
+  if (edge === 0 || edge === 1) {
+    point[0] = edge === 0 ? minX : maxX;
+  } else if (edge === 2 || edge === 3) {
+    point[1] = edge === 2 ? minY : maxY;
+  }
+  return point;
+}
+
+/**
  * The parts of `line` inside `[minX, minY, maxX, maxY]`, clipped segment by segment
  * (Liang-Barsky). A line that leaves the box and comes back gives one part per stay inside.
  */
-export function clipLine(line: number[][], [minX, minY, maxX, maxY]: number[]): number[][][] {
+export function clipLine(line: number[][], box: number[]): number[][][] {
+  const [minX, minY, maxX, maxY] = box;
   const parts: number[][][] = [];
   let part: number[][] | null = null;
   for (let i = 0; i < line.length - 1; i++) {
@@ -287,21 +303,26 @@ export function clipLine(line: number[][], [minX, minY, maxX, maxY]: number[]): 
       [dy, maxY - ay]
     ];
     let inside = true;
-    for (const [p, q] of edges) {
+    // The edges a clipped segment starts and ends on, -1 where it is not clipped.
+    let startEdge = -1;
+    let endEdge = -1;
+    edges.forEach(([p, q], edge) => {
       if (p === 0) {
         inside = inside && q >= 0;
-      } else if (p < 0) {
-        t0 = Math.max(t0, q / p);
-      } else {
-        t1 = Math.min(t1, q / p);
+      } else if (p < 0 && q / p > t0) {
+        t0 = q / p;
+        startEdge = edge;
+      } else if (p > 0 && q / p < t1) {
+        t1 = q / p;
+        endEdge = edge;
       }
-    }
+    });
     if (!inside || t0 > t1) {
       part = null;
       continue;
     }
-    const start = [ax + dx * t0, ay + dy * t0];
-    const end = [ax + dx * t1, ay + dy * t1];
+    const start = snapToEdge([ax + dx * t0, ay + dy * t0], startEdge, box);
+    const end = snapToEdge([ax + dx * t1, ay + dy * t1], endEdge, box);
     if (!part || t0 > 0) {
       part = [start];
       parts.push(part);

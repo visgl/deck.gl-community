@@ -275,6 +275,19 @@ describe('MVTLabelLayer line placement', () => {
     expect(lineLayer({}, {'text-transform': 'uppercase'}).getAnchorKey(false)).not.toBe(key);
     expect(lineLayer({zoom: 14.5}).getAnchorKey(false)).toBe(key);
   });
+  test('places labels hidden at the map zoom but sized at the tile zoom', () => {
+    // A zoom-15 tile shown at zoom 14.75, where the text is 0 pixels tall; it shows from zoom 15
+    // on, with the same anchors.
+    const layer = lineLayer(
+      {data: [ACROSS_TILE], zoom: 14.75, tileZoom: 15},
+      {'text-size': ['step', ['zoom'], 0, 15, 10]}
+    );
+    layer.state = {};
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    expect(layer.getLabel(ACROSS_TILE as any)).toBeUndefined();
+    expect(layer.state.labelData?.length).toBeGreaterThan(0);
+  });
+
   test('places labels with the new text when text-field changes', () => {
     const layer = lineLayer({data: [ACROSS_TILE]});
     const layout = layer.props.styleLayer!.layout as Record<string, unknown>;
@@ -330,6 +343,13 @@ describe('MVTLabelLayer line label rendering', () => {
     expect(update(lineLayer(), 7)).toBe(true);
     expect(update(lineLayer(), 2)).toBe(false);
     expect(update(lineLayer({}, {'symbol-placement': 'point'}), 90)).toBe(false);
+    // Viewport-aligned text and icons do not turn with the bearing.
+    const viewportAligned = {
+      'text-rotation-alignment': 'viewport',
+      'icon-rotation-alignment': 'viewport'
+    };
+    expect(update(lineLayer({}, viewportAligned), 90)).toBe(false);
+    expect(update(lineLayer({}, {'text-rotation-alignment': 'viewport'}), 90)).toBe(true);
   });
 });
 
@@ -355,6 +375,20 @@ describe('line placement on hostile input', () => {
       false
     );
     expect(rows).toEqual([]);
+  });
+
+  test('checks the bends under a label in time linear in its vertices', () => {
+    // 90,000 vertices within one bend window under the first label, then a vertex that moves
+    // them all out of the window at once.
+    const line = [[0, 0]];
+    for (let i = 0; i < 9e4; i++) {
+      line.push([46 + (5 * i) / 9e4, 0]);
+    }
+    line.push([60, 0], [1000, 0]);
+    const start = performance.now();
+    const anchors = getLineAnchors(line, {...OPTIONS, budget: {steps: 1e6}});
+    expect(performance.now() - start).toBeLessThan(300);
+    expect(anchors[0].segment).toBe(0);
   });
 
   test('stops placing once the budget is spent', () => {
@@ -425,6 +459,25 @@ describe('line placement on hostile input', () => {
         OPTIONS
       )
     ).toEqual([]);
+  });
+
+  test('clipLine puts a clipped end exactly on the edge', () => {
+    // Computed from the segment, this crossing lands at x = 1.1e-16, just inside the box.
+    const line = [
+      [-0.872, 0.569],
+      [0.409, 0.634]
+    ];
+    const [[start]] = clipLine(line, [0, 0, 1, 1]);
+    expect(start[0]).toBe(0);
+    // So the line still counts as continuing from the neighbouring tile.
+    const rows = (coordinates: number[][]) =>
+      (
+        lineLayer().getLabelData(
+          [{geometry: {type: 'LineString', coordinates}, properties: {name: 'Main'}}],
+          false
+        ) as any[]
+      ).map(row => row.position.map((value: number) => value.toFixed(9)));
+    expect(rows(line)).toEqual(rows([[0, start[1]], line[1]]));
   });
 
   test('clipLine keeps the parts of a line inside the box', () => {
