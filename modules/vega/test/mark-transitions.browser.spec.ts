@@ -1,6 +1,7 @@
 import {expect, it} from 'vitest';
 import {parse, changeset, type Spec} from 'vega';
 import {ViewGl} from '../src';
+import {createStage} from '../src/defaults';
 
 it('renders and picks symbols, and animates exits without losing ordinal identity', async () => {
   const host = document.createElement('div');
@@ -143,7 +144,22 @@ it('keeps default ordinals stable when Vega scene items reorder and share tuples
   const spec: Spec = {
     width: 200,
     height: 160,
-    data: [{name: 'table', values: [{x: 20}, {x: 80}]}],
+    signals: [{name: 'reverse', value: false}],
+    data: [
+      {
+        name: 'table',
+        values: [{x: 20}, {x: 80}],
+        transform: [
+          {
+            type: 'collect',
+            sort: {
+              field: 'x',
+              order: {signal: "reverse ? 'descending' : 'ascending'"}
+            }
+          }
+        ]
+      }
+    ],
     marks: [
       {
         type: 'rect',
@@ -192,6 +208,31 @@ it('keeps default ordinals stable when Vega scene items reorder and share tuples
       before.map(cube => cube.ordinal)
     );
     expect(view.presenter.getCubeData()[2].position[0]).toBe(30);
+    const updated = view.presenter
+      .getCubeData()
+      .map(cube => ({ordinal: cube.ordinal, position: [...cube.position]}));
+    await view.signal('reverse', true).runAsync();
+    await expect.poll(() => view.data('table')[0].x).toBe(80);
+    await expect
+      .poll(() =>
+        view.presenter.getCubeData().map(cube => ({ordinal: cube.ordinal, position: cube.position}))
+      )
+      .toEqual(updated);
+    const moved = view.presenter.getCubeData().map(cube => ({
+      ...cube,
+      position: [cube.position[0] + 10, cube.position[1], cube.position[2]] as [
+        number,
+        number,
+        number
+      ]
+    }));
+    view.presenter.rePresent({cubeData: moved});
+    await expect.poll(() => view.presenter.getCubeData()[0].position[0]).toBe(40);
+    view.presenter.present(createStage('2d'), 160, 200);
+    await expect.poll(() => view.presenter.getCubeData().every(cube => cube.isEmpty)).toBe(true);
+    expect(view.presenter.getCubeData().map(cube => cube.position)).toEqual(
+      moved.map(cube => cube.position)
+    );
   } finally {
     view.finalize();
     host.remove();

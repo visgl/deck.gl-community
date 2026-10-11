@@ -234,7 +234,6 @@ export class Presenter {
     let cubeCount = Math.max(this._last.cubeCount, stage.cubeData.length);
     stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
     cubeCount = stage.cubeData.length;
-    this.stagedCubes = stage.cubeData;
     this.setDeckProps(stage, height, width, cubeCount, config);
 
     const a = getActiveElementInfo();
@@ -290,6 +289,7 @@ export class Presenter {
     cubeCount: number,
     modifyConfig: PresenterConfig
   ) {
+    this.stagedCubes = stage.cubeData;
     const config = deepMerge<PresenterConfig>(defaultPresenterConfig, modifyConfig);
     const newBounds = this.isNewBounds(stage.view, height, width, cubeCount);
     // let lightSettings = this.style.lightSettings[stage.view];
