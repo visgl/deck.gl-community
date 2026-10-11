@@ -172,8 +172,8 @@ type MVTLabelLayerState = {
   /** Flattened label rows generated from the current tile data. */
   labelData?: LabelRow[];
   /**
-   * `labelData` in reverse, the order the text sublayers hold it in (see `getRows`). In the
-   * collision pass, of labels with equal priority the one drawn last takes the
+   * `labelData` in reverse, the order every text, icon and anchor sublayer holds it in (see
+   * `getRows`). In the collision pass, of labels with equal priority the one drawn last takes the
    * place; drawn in reverse, the first label wins, as in MapLibre.
    */
   textRows?: {source: LabelRow[]; rows: LabelRow[]};
@@ -752,7 +752,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   renderIconLayers(icons: (ResolvedSpriteIcon | null)[] = this.getRowIcons()): any[] {
     const {iconLoadOptions, billboard, spriteAtlases} = this.props;
-    const labelData = this.state.labelData || [];
+    const labelRows = this.getRows();
     const atlases = new Set<SpriteAtlas>();
     for (const icon of icons) {
       if (icon) {
@@ -785,7 +785,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         };
         const layer = new IconLayer({
           ...this.getSubLayerProps({id: getUniqueId(`icons-${atlas.id}${idSuffix}`)}),
-          data: labelData,
+          data: labelRows,
           iconAtlas: atlas.image,
           iconMapping: atlas.mapping,
           loadOptions: iconLoadOptions || undefined,
@@ -844,7 +844,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   ): Layer<any> {
     return new _TextBackgroundLayer({
       ...this.getSubLayerProps({id: `anchors${idSuffix}`}),
-      data: this.state.labelData,
+      data: this.getRows(),
       extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
       parameters: {depthTest: false},
       billboard: this.props.billboard,
@@ -869,8 +869,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * The label rows in the order the text sublayers hold them: `labelData` in reverse, so that of
-   * labels with equal priority the first one wins its place (see `textRows`).
+   * The label rows in the order every text, icon and anchor sublayer holds them: `labelData` in
+   * reverse, so that of labels with equal priority the first one wins its place (see `textRows`).
+   * The collision filter identifies a symbol by its row index, so an icon, its label and its
+   * anchor mark must have the same index; every per-row array that these sublayers index (row
+   * icons, rows with text, the rows of a symbol part group) is in this order.
    */
   getRows(): LabelRow[] {
     const {labelData, textRows} = this.state;
@@ -888,7 +891,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * cache, so it is evaluated once per text update trigger and label rows, not on every render.
    */
   getRowsWithText(): boolean[] {
-    const rows = this.state.labelData || [];
+    const rows = this.getRows();
     const labelText = this.state.labelText;
     if (labelText?.rowsWithText) {
       return labelText.rowsWithText;
@@ -907,7 +910,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * while the layer has no `icon-image` or no sprites.
    */
   getRowIcons(): (ResolvedSpriteIcon | null)[] {
-    const rows = this.state.labelData || [];
+    const rows = this.getRows();
     if (!this.props.spriteAtlases?.length || !this.getStyleProperty('icon-image')) {
       return rows.map(() => null);
     }
