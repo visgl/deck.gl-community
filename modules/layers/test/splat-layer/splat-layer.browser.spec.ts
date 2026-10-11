@@ -142,6 +142,20 @@ describe('Gaussian canopy rendering', () => {
       expect(
         deck.pickObject({x: strongest % 256, y: 255 - Math.floor(strongest / 256)})?.object
       ).toBe(object);
+      // Constant coverage edits invalidate the wrapped attribute even when owner
+      // selection and the child data array remain unchanged, without caller triggers.
+      const coverageRows = (deck.props.layers as SplatLayer[])[0].state.groups[0];
+      for (const weight of [0.25, 0, 1]) {
+        const beforeCoverage = frames;
+        deck.setProps({
+          layers: [(deck.props.layers[0] as SplatLayer).clone({getCoverageWeight: weight})]
+        });
+        await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeCoverage + 3);
+        expect((deck.props.layers as SplatLayer[])[0].state.groups[0]).toBe(coverageRows);
+        expect(coverage(pixels)).toSatisfy(count => (weight === 0 ? count === 0 : count > 0));
+        if (weight === 0)
+          expect(deck.pickObjects({x: 0, y: 0, width: 256, height: 256})).toEqual([]);
+      }
       // Changing scale keeps the owning object but requires fresh transforms and bounds.
       const beforeScale = frames;
       deck.setProps({layers: [makeLayer(2).clone({getScale: [1.2, 1, 1]})]});

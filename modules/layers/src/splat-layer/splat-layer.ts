@@ -710,7 +710,13 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         data: members,
         updateTriggers: {
           ...wrappedTriggers,
-          getCoverageWeight: [props.updateTriggers?.getCoverageWeight, data]
+          getCoverageWeight: [
+            props.updateTriggers?.getCoverageWeight,
+            typeof this.props.getCoverageWeight === 'function'
+              ? null
+              : this.props.getCoverageWeight,
+            data
+          ]
         },
         _dataDiff: (next, previous) => {
           const ranges = getSplatChangedRanges(
