@@ -363,3 +363,33 @@ it.each([
   expect(layer.state.shadowRefinement.active).toBe(false);
   expect(layer.splatStats.shadowSplats).toBe(3);
 });
+
+it('refreshes mutated owner attributes on new data without discarding camera-only stability', () => {
+  const row = {position: [256, 256, 0] as [number, number, number]};
+  const layer = make([row], 0);
+  const initial = layer.state.groups[0];
+  expect(initial).toHaveLength(1);
+  const initialShadow = layer.state.shadowGroups[0];
+  const update = (data = layer.props.data, dataChanged = false) => {
+    const oldProps = layer.props;
+    Object.assign(layer, {props: layer.clone({data}).props});
+    layer.updateState({
+      props: layer.props,
+      oldProps,
+      changeFlags: {dataChanged, viewportChanged: true}
+    } as any);
+  };
+  update();
+  expect(layer.state.groups[0]).toBe(initial);
+  expect(layer.state.shadowGroups[0]).toBe(initialShadow);
+  row.position[0] += 0.00001;
+  update([row], true);
+  expect(layer.state.groups[0][0].object).toBe(row);
+  expect(layer.state.groups[0][0]).not.toBe(initial[0]);
+  expect(layer.state.shadowGroups[0][0]).not.toBe(initialShadow[0]);
+  const moved = layer.state.groups[0];
+  // A non-pose attribute may change even though the retained selection key does not.
+  update([row], true);
+  expect(layer.state.groups[0]).toHaveLength(1);
+  expect(layer.state.groups[0][0]).not.toBe(moved[0]);
+});

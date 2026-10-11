@@ -51,8 +51,14 @@ it('retains authored hierarchies without treating them as RAD hierarchy metadata
     {source: coarse, error: 2}
   ];
   const asset = resolveSplatAsset({type: 'prepared-splats', source, hierarchy});
+  const defaultAsset = resolveSplatAsset(source);
   expect(asset.hierarchy).toBe(hierarchy);
   expect(resolveSplatAsset({type: 'prepared-splats', source, hierarchy})).toBe(asset);
+  const replacement = [...hierarchy];
+  expect(resolveSplatAsset({type: 'prepared-splats', source, hierarchy: replacement})).not.toBe(
+    asset
+  );
+  expect(resolveSplatAsset(source)).toBe(defaultAsset);
   expect(() =>
     resolveSplatAsset({type: 'prepared-splats', source, hierarchy: [{source: coarse, error: 0}]})
   ).toThrow('start with source');

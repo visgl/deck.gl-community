@@ -33,7 +33,11 @@ export type ResolvedSplatInput<DataT> = {
   rowAssets: ResolvedSplatAsset[];
 };
 
-const ASSETS = new WeakMap<SplatSource, Map<SplatHierarchy | undefined, ResolvedSplatAsset>>();
+type AssetCache = {
+  defaultAsset?: ResolvedSplatAsset;
+  hierarchies: WeakMap<SplatHierarchy, ResolvedSplatAsset>;
+};
+const ASSETS = new WeakMap<SplatSource, AssetCache>();
 const INSTANCES = new WeakMap<SplatDataInput, SplatInstance[]>();
 let nextAssetId = 0;
 
@@ -66,7 +70,7 @@ export function resolveSplatAsset(input: SplatDataInput): ResolvedSplatAsset {
     throw new Error('Prepared splat data requires Gaussian source columns.');
   let cache = ASSETS.get(source);
   const supplied = descriptor?.hierarchy;
-  const cached = cache?.get(supplied);
+  const cached = supplied ? cache?.hierarchies.get(supplied) : cache?.defaultAsset;
   if (cached) return cached;
   const hierarchy = supplied ?? [{source, error: 0}];
   if (
@@ -86,10 +90,11 @@ export function resolveSplatAsset(input: SplatDataInput): ResolvedSplatAsset {
   for (const level of hierarchy) validateSplatSource(level.source);
   const asset = {id: nextAssetId++, source, hierarchy};
   if (!cache) {
-    cache = new Map();
+    cache = {hierarchies: new WeakMap()};
     ASSETS.set(source, cache);
   }
-  cache.set(supplied, asset);
+  if (supplied) cache.hierarchies.set(supplied, asset);
+  else cache.defaultAsset = asset;
   return asset;
 }
 

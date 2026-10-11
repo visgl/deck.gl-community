@@ -325,3 +325,83 @@ it('truncates culled owner tails without re-uploading unchanged instance attribu
     parent.remove();
   }
 }, 20000);
+
+it('moves drawing and picking when a new data array reuses a mutated owner', async () => {
+  const parent = document.createElement('div');
+  parent.style.cssText = 'width:256px;height:256px';
+  document.body.append(parent);
+  const row = {position: [-2, 0, 0] as [number, number, number], color: [255, 0, 0, 255]};
+  const errors: string[] = [];
+  let frames = 0;
+  let pixels = new Uint8Array(256 * 256 * 4);
+  const layer = new SplatLayer({
+    id: 'mutated-owner',
+    data: [row],
+    source: {
+      ...SOURCE,
+      scales: new Float32Array([0.35, 0.35, 0.35]),
+      colors: new Uint8Array([255, 255, 255, 255])
+    },
+    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateOrigin: [0, 0, 0],
+    getTranslation: [0, 0, 5],
+    getColor: owner => owner.color,
+    pickable: true,
+    material: {unlit: true}
+  });
+  const deck = new Deck({
+    parent,
+    width: 256,
+    height: 256,
+    useDevicePixels: false,
+    _animate: true,
+    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
+    views: new MapView(),
+    initialViewState: {longitude: 0, latitude: 0, zoom: 21, pitch: 0},
+    layers: [layer],
+    onError: error => errors.push(error.message),
+    onAfterRender({gl}) {
+      gl.readPixels(0, 0, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      frames++;
+    }
+  });
+  const footprint = () => {
+    let total = 0,
+      x = 0,
+      y = 0;
+    for (let i = 0; i < 256 * 256; i++) {
+      const alpha = pixels[i * 4 + 3];
+      total += alpha;
+      x += (i % 256) * alpha;
+      y += Math.floor(i / 256) * alpha;
+    }
+    expect(total).toBeGreaterThan(1000);
+    return {x: Math.round(x / total), y: 255 - Math.round(y / total)};
+  };
+  try {
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(6);
+    expect(errors).toEqual([]);
+    const before = footprint();
+    expect(deck.pickObject(before)?.object).toBe(row);
+    row.position[0] = 2;
+    const previous = frames;
+    deck.setProps({layers: [layer.clone({data: [row]})]});
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(previous + 3);
+    const after = footprint();
+    expect(after.x - before.x).toBeGreaterThan(40);
+    expect(deck.pickObject(before)).toBeNull();
+    expect(deck.pickObject(after)?.object).toBe(row);
+    row.color = [0, 0, 255, 255];
+    const colorFrame = frames;
+    deck.setProps({layers: [layer.clone({data: [row]})]});
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(colorFrame + 3);
+    const offset = ((255 - after.y) * 256 + after.x) * 4;
+    expect(pixels[offset + 2]).toBeGreaterThan(150);
+    expect(pixels[offset]).toBeLessThan(10);
+    expect(deck.pickObject(after)?.object).toBe(row);
+    expect(errors).toEqual([]);
+  } finally {
+    deck.finalize();
+    parent.remove();
+  }
+}, 20000);

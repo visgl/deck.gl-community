@@ -387,8 +387,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     }
     this.state.hierarchy = hierarchy;
     // deck.gl suppresses updateTriggers when dataChanged has partial ranges.
-    // Authored transform changes must refresh every retained owner's attributes.
-    if (geometryChanged || assetsChanged) {
+    // Changed data may reuse mutated owner objects. Refresh their row wrappers
+    // so child attribute diffs upload the new values, while camera moves retain rows.
+    if (changeFlags.dataChanged || geometryChanged || assetsChanged) {
       this.state.groups = [];
       this.state.shadowGroups = [];
     }
@@ -416,7 +417,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       owner => owner.key
     );
     const groups =
-      membershipChanged || geometryChanged || assetsChanged
+      membershipChanged || changeFlags.dataChanged || geometryChanged || assetsChanged
         ? this.getRefinementGroups(this.state.refinement)
         : this.state.groups;
     // A standalone layer has conservative casters before a host supplies a light volume.
