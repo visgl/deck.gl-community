@@ -107,7 +107,11 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@deck.gl-community/vega > tsx-create-element',
     'deepmerge',
     'd3-color',
-    'd3-ease'
+    'd3-ease',
+    // basemap-layers' reference-render comparison pins its own `maplibre-gl`.
+    '@deck.gl-community/basemap-layers > maplibre-gl',
+    '@maplibre/maplibre-gl-style-spec',
+    '@loaders.gl/mvt'
   ]
 };
 
