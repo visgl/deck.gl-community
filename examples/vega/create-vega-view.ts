@@ -24,14 +24,14 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
     bind: controls,
     getView: () => (has3dSignal && view.signal('is3d') ? '3d' : '2d'),
     presenterConfig: {
-      onSceneRectAssignCubeOrdinal: (datum: {id?: string | number}, item?: {mark?: object}) => {
+      onSceneRectAssignCubeOrdinal: (datum: object, item?: {mark?: object}) => {
         const mark = item?.mark ?? datum;
         let ordinals = markOrdinals.get(mark);
         if (!ordinals) {
           ordinals = new Map();
           markOrdinals.set(mark, ordinals);
         }
-        const key = datum.id ?? datum;
+        const key = datum;
         if (!ordinals.has(key)) ordinals.set(key, nextOrdinal++);
         return ordinals.get(key);
       },

@@ -187,7 +187,7 @@ it('forwards text alpha cutoff to the glyph sublayer', () => {
   expect(textLayer.props._subLayerProps.characters.alphaCutoff).toBe(0.4);
 });
 
-it('keeps shared records distinct across rectangle marks in the JSON adapter', async () => {
+it('keeps duplicate IDs and shared records distinct across rectangle marks', async () => {
   const host = document.createElement('div');
   host.style.cssText = 'width:320px;height:240px;position:relative';
   document.body.appendChild(host);
@@ -199,7 +199,7 @@ it('keeps shared records distinct across rectangle marks in the JSON adapter', a
         name: 'table',
         values: [
           {id: 0, x: 20},
-          {id: 1, x: 100}
+          {id: 0, x: 100}
         ]
       }
     ],
