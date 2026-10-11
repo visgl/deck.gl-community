@@ -164,7 +164,17 @@ export class Playground {
       triggerIcon: '{}',
       button: true,
       defaultOpen: true,
-      dockTriggerWhenOpen: false
+      dockTriggerWhenOpen: false,
+      onOpenChange: open => {
+        const width = Math.min(
+          this.props.sidebarWidthPx ?? 440,
+          this.parentElement.clientWidth * 0.8
+        );
+        this.previewElement.style.setProperty(
+          '--deckgl-playground-sidebar-width',
+          `${open ? width : 0}px`
+        );
+      }
     });
     this.panelManager.setProps({components: [this.sidebarContainer]});
     this.resizeObserver = new ResizeObserver(this.handleEditorResize);
@@ -344,9 +354,12 @@ export class Playground {
   }
 
   private readonly handleEditorResize = () => {
-    this.sidebarContainer?.setProps({
-      widthPx: Math.min(this.props.sidebarWidthPx ?? 440, this.parentElement.clientWidth * 0.8)
-    });
+    const width = Math.min(this.props.sidebarWidthPx ?? 440, this.parentElement.clientWidth * 0.8);
+    this.previewElement.style.setProperty(
+      '--deckgl-playground-sidebar-width',
+      `${this.sidebarContainer?.isOpen ? width : 0}px`
+    );
+    this.sidebarContainer?.setProps({widthPx: width});
     this.panelManager.onRedraw({
       viewports: [
         {

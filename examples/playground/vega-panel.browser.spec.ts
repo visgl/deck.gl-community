@@ -35,6 +35,18 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
     .poll(() => host.querySelector('[data-vega-preview] canvas'), {timeout: 20000})
     .not.toBeNull();
   await expect.poll(() => host.querySelector('[data-vega-preview] select')).not.toBeNull();
+  const overlay = host.querySelector<HTMLElement>('[data-vega-preview]')!;
+  const preview = host.querySelector<HTMLElement>('.deckgl-playground-preview')!;
+  const toggleSidebar = () =>
+    host.querySelector<HTMLButtonElement>('[data-sidebar-handle-button]')!.click();
+  toggleSidebar();
+  await expect
+    .poll(() => overlay.getBoundingClientRect().left)
+    .toBe(preview.getBoundingClientRect().left);
+  toggleSidebar();
+  await expect
+    .poll(() => overlay.getBoundingClientRect().left - preview.getBoundingClientRect().left)
+    .toBe(440);
   const layout = host.querySelector<HTMLSelectElement>('[data-vega-preview] select')!;
   layout.value = 'scatter';
   layout.dispatchEvent(new Event('change'));
