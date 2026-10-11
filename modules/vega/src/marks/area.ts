@@ -35,6 +35,8 @@ const markStager: MarkStager = (
   y: number,
   groupType: GroupType
 ) => {
+  if (!scene.items.length) return;
+
   const g: GroupItem = {
     fillOpacity: 1,
     opacity: 1,
@@ -55,7 +57,7 @@ const markStager: MarkStager = (
       z2: item.z,
       ...item
     };
-    return [item.x, ty * item.y, item.z, item.x2, ty * item.y2, item.z2];
+    return [x + item.x, ty * (y + item.y), item.z, x + item.x2, ty * (y + item.y2), item.z2];
   });
 
   const positions: Position3D[] = [];

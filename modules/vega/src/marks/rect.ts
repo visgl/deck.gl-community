@@ -45,10 +45,10 @@ const markStager: MarkStager = (
         ordinal,
         size: [item.width, item.height, depth],
         position: [x + (item.x || 0), ty * (y + (item.y || 0)) - item.height, z],
-        color: colorFromString(item.fill) || options.defaultCubeColor || [128, 128, 128, 128]
+        color: [...(colorFromString(item.fill) || options.defaultCubeColor || [128, 128, 128, 128])]
       };
 
-      cube.color[3] = item.opacity === undefined ? 255 : 255 * item.opacity;
+      cube.color[3] *= (item.opacity ?? 1) * (item.fillOpacity ?? 1);
 
       stage.cubeData.push(cube);
     }

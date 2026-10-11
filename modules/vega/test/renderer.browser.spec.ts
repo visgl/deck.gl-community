@@ -1,4 +1,8 @@
-import {expect, it} from 'vitest';
+import {expect, it, vi} from 'vitest';
+import {Presenter} from '../src/presenter';
+import {outerSize} from '../src/html-helpers';
+import {getLayers} from '../src/layers';
+import {createStage, defaultPresenterConfig} from '../src/defaults';
 import {parse, type Spec} from 'vega';
 import {ViewGl, base} from '../src/index';
 import {createExample} from '../demo/example';
@@ -68,6 +72,7 @@ it.each([
       )
       .toBe('success');
     expect(host.querySelector('canvas')).not.toBeNull();
+    expect(await view.presenter.canvasToDataURL()).toMatch(/^data:image\/png/);
     const picks = deck.pickObjects({x: 0, y: 0, width: 320, height: 240});
     expect(picks.some(pick => pick.object?.ordinal === 0)).toBe(true);
     view.change(
@@ -128,3 +133,50 @@ it('animates positions and sizes when the example changes layout', async () => {
     host.remove();
   }
 }, 60000);
+
+it('cancels only pending animation callbacks and clears finished timers', () => {
+  vi.useFakeTimers();
+  const presenter = Object.create(Presenter.prototype) as Presenter;
+  const canceled = vi.fn();
+  const handler = vi.fn();
+  try {
+    presenter.animationQueue(handler, 100, {animationCanceled: canceled});
+    presenter.animationQueue(handler, 100, {animationCanceled: canceled});
+    expect(canceled).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(100);
+    expect(handler).toHaveBeenCalledTimes(1);
+    presenter.animationCancel();
+    expect(canceled).toHaveBeenCalledTimes(1);
+    presenter.animationQueue(handler, 100, {animationCanceled: canceled});
+    presenter.animationCancel();
+    expect(canceled).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it('counts padding and borders once when measuring outer size', () => {
+  const el = document.createElement('div');
+  el.style.cssText =
+    'width:100px;height:50px;padding:10px;border:2px solid;margin:3px;box-sizing:content-box';
+  document.body.appendChild(el);
+  try {
+    expect(outerSize(el)).toEqual({width: 130, height: 80});
+  } finally {
+    el.remove();
+  }
+});
+
+it('forwards text alpha cutoff to the glyph sublayer', () => {
+  const presenter = {style: {highlightColor: [0, 0, 0, 0]}} as Presenter;
+  const layers = getLayers(
+    presenter,
+    {...defaultPresenterConfig, getTextHighlightAlphaCutoff: () => 0.4},
+    createStage('2d'),
+    null,
+    0,
+    null,
+    []
+  );
+  const textLayer = layers.find(layer => layer.constructor.layerName === 'TextLayer');
+  expect(textLayer.props._subLayerProps.characters.alphaCutoff).toBe(0.4);
+});

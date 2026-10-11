@@ -29,6 +29,8 @@ const markStager: MarkStager = (
   y: number,
   groupType: GroupType
 ) => {
+  if (!scene.items.length) return;
+
   const g: GroupItem = {
     opacity: 1,
     strokeOpacity: 1,
@@ -38,8 +40,8 @@ const markStager: MarkStager = (
 
   const path: Path = {
     strokeWidth: g.strokeWidth,
-    strokeColor: colorFromString(g.stroke),
-    positions: scene.items.map((it: GroupItem) => [it.x, ty * it.y, it.z || 0])
+    strokeColor: colorFromString(g.stroke) || [0, 0, 0, 0],
+    positions: scene.items.map((it: GroupItem) => [x + it.x, ty * (y + it.y), it.z || 0])
   };
 
   path.strokeColor[3] *= g.strokeOpacity;

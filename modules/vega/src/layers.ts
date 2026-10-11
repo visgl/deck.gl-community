@@ -24,7 +24,7 @@ import {
 } from './interfaces';
 import {Presenter} from './presenter';
 import type {Color} from './legacy-types';
-import {type DeckProps, Layer} from '@deck.gl/core';
+import {type DeckProps, type CompositeLayerProps, Layer} from '@deck.gl/core';
 type TransitionSettings = {duration: number; type: 'interpolation'; easing?: (t: number) => number};
 import {type TextLayerProps} from '@deck.gl/layers';
 
@@ -187,10 +187,11 @@ function newTextLayer(
   if (alphaCutoff === undefined) {
     alphaCutoff = 0.1;
   }
-  const props: TextLayerProps<VegaTextLayerDatum> = {
+  const props: TextLayerProps<VegaTextLayerDatum> & Pick<CompositeLayerProps, '_subLayerProps'> = {
     id,
     data,
     characterSet,
+    _subLayerProps: {characters: {alphaCutoff}},
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
     sizeUnits: 'pixels',
     autoHighlight: true,

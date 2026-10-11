@@ -34,21 +34,7 @@ export function addDiv(parentElement: HTMLElement, className?: string) {
  */
 export function outerSize(el: HTMLElement) {
   const cs = getComputedStyle(el);
-  const height =
-    parseFloat(cs.marginTop) +
-    parseFloat(cs.paddingTop) +
-    parseFloat(cs.borderTopWidth) +
-    el.offsetHeight +
-    parseFloat(cs.borderBottomWidth) +
-    parseFloat(cs.paddingBottom) +
-    parseFloat(cs.marginBottom);
-  const width =
-    parseFloat(cs.marginLeft) +
-    parseFloat(cs.paddingLeft) +
-    parseFloat(cs.borderLeftWidth) +
-    el.offsetWidth +
-    parseFloat(cs.borderRightWidth) +
-    parseFloat(cs.paddingRight) +
-    parseFloat(cs.marginRight);
+  const height = el.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+  const width = el.offsetWidth + parseFloat(cs.marginLeft) + parseFloat(cs.marginRight);
   return {height, width};
 }

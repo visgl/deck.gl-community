@@ -118,9 +118,9 @@ export class Presenter {
           `canceling animation ${(this.queuedAnimationOptions && this.queuedAnimationOptions.handlerLabel) || 'handler'}`
         );
       }
-      if (this.queuedAnimationOptions && this.queuedAnimationOptions.animationCanceled) {
-        this.queuedAnimationOptions.animationCanceled.call(null);
-      }
+      const options = this.queuedAnimationOptions;
+      this.queuedAnimationOptions = null;
+      options?.animationCanceled?.call(null);
     }
   }
 
@@ -135,7 +135,10 @@ export class Presenter {
       this.logger(`queueing animation ${(options && options.waitingLabel) || 'waiting'}...`);
     }
     this.animationCancel();
+    this.queuedAnimationOptions = options;
     this.animationTimer = setTimeout(() => {
+      this.animationTimer = null;
+      this.queuedAnimationOptions = null;
       if (this.logger) {
         this.logger(`queueing animation ${(options && options.handlerLabel) || 'handler'}...`);
       }
@@ -373,6 +376,7 @@ export class Presenter {
         const png = this.deckgl.getCanvas().toDataURL('image/png');
         resolve(png);
       };
+      this.deckgl.redraw('canvas capture');
     });
   }
 
