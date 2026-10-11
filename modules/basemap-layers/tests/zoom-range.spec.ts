@@ -41,10 +41,13 @@ const ROAD_FEATURE = {
 /** Style-layer ids a tile draws at `zoom`, for one road feature. */
 function drawnLayerIds(layers: Record<string, unknown>[], zoom: number): string[] {
   const vectorLayer = render(layers, zoom).find(layer => layer.id === 'test-vector');
-  return vectorLayer.props
-    .renderSubLayers({id: 'tile', data: [ROAD_FEATURE], tile: {index: {x: 0, y: 0, z: 10}}})
-    .filter(Boolean)
-    .map((sublayer: any) => JSON.parse(sublayer.id.replace(/^tile-/, '')));
+  return (
+    vectorLayer.props
+      .renderSubLayers({id: 'tile', data: [ROAD_FEATURE], tile: {index: {x: 0, y: 0, z: 10}}})
+      .filter(Boolean)
+      // Consecutive style layers can share a sublayer, named by the JSON array of their ids.
+      .flatMap((sublayer: any) => JSON.parse(sublayer.id.replace(/^tile-/, '')))
+  );
 }
 
 describe('zoom ranges', () => {
