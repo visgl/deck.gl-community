@@ -1,3 +1,5 @@
+import SplitViewDemo from '@site/src/examples/basemap-layers/split-view';
+
 # Overview
 
 <p class="badges">
@@ -11,6 +13,20 @@ Specification][mapbox_style_spec] using deck.gl layers and helpers.
 _A work in progress_.
 
 [mapbox_style_spec]: https://docs.mapbox.com/mapbox-gl-js/style-spec/
+
+## Compare with MapLibre
+
+Both panes render the same OpenFreeMap vector style. Pan, zoom, rotate, or tilt
+either map to move both cameras. The selector changes the style in both panes.
+Choose Map, Globe, or First Person from the view selector. First Person supports
+free pitch; MapLibre stops rendering at angles it cannot represent and resumes
+when you tilt down. Differences in rendering show the module's current style support.
+
+<div style={{position: 'relative', height: 480, width: '100%'}}>
+  <SplitViewDemo />
+</div>
+
+[Open the full split view example](/examples/basemap-layers/split-view).
 
 ## Overview
 

@@ -29,15 +29,20 @@
     "@deck.gl/layers": "~9.4.0",
     "@deck.gl/mesh-layers": "~9.4.0",
     "@deck.gl/widgets": "~9.4.0",
+    "@loaders.gl/arrow": "^4.5.3",
     "@loaders.gl/core": "^4.5.1",
+    "@loaders.gl/csv": "^4.5.3",
     "@loaders.gl/graphs": "^4.5.3",
+    "@loaders.gl/json": "^4.5.3",
     "@luma.gl/constants": "~9.4.0",
     "@luma.gl/core": "~9.4.0",
     "@luma.gl/engine": "~9.4.0",
     "@luma.gl/shadertools": "~9.4.0",
     "@luma.gl/webgl": "~9.4.0",
     "@luma.gl/webgpu": "~9.4.0",
+    "apache-arrow": "^17.0.0",
     "h3-js": "^4.2.1",
+    "preact": "^10.17.0",
     "vite": "^7.3.1"
   }
 }
