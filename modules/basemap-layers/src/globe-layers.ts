@@ -734,6 +734,34 @@ class StyledMVTLayer extends SharedMVTLayer {
   static layerName = 'StyledMVTLayer';
 }
 
+/**
+ * A `GeoJsonLayer` that creates only the sublayers its style layer type draws. Fill, line and
+ * fill-extrusion layers draw no points; a line layer draws polygons as their outlines only; and
+ * `drawsLineStrings: false` leaves out line strings, which a fill without an outline would draw
+ * zero pixels wide. Every sublayer left out would otherwise be updated and drawn at every frame.
+ */
+class StyledGeoJsonLayer extends GeoJsonLayer<any, {drawsLineStrings?: boolean}> {
+  static layerName = 'StyledGeoJsonLayer';
+  static defaultProps = {...GeoJsonLayer.defaultProps, drawsLineStrings: true};
+
+  protected shouldRenderSubLayer(subLayerId: string, data: any): boolean {
+    if (
+      subLayerId.startsWith('points-') ||
+      (subLayerId === 'polygons-fill' && !this.props.filled) ||
+      (subLayerId === 'polygons-stroke' && !this.props.stroked) ||
+      (subLayerId === 'linestrings' && !this.props.drawsLineStrings)
+    ) {
+      return false;
+    }
+    return super.shouldRenderSubLayer(subLayerId, data);
+  }
+}
+
+/** Whether a style accessor is a constant, fully transparent color. */
+function isTransparent(color: StyleAccessor<number[]>): boolean {
+  return typeof color.value !== 'function' && !(color.value[3] > 0);
+}
+
 function createStyledVectorSubLayer({
   idPrefix,
   sourceId,
@@ -1521,12 +1549,22 @@ function createGeometrySubLayer({
     ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
     : null;
 
-  const layer = new GeoJsonLayer({
+  // A constant transparent color or zero width draws nothing, so its sublayers are left out.
+  const drawsFill = isFill && !isTransparent(fillColor);
+  const drawsLines =
+    (isLine || hasOutline) && !isTransparent(lineColor) && (!isLine || lineWidth.value !== 0);
+  if (!drawsFill && !drawsLines) {
+    return null;
+  }
+
+  const layer = new StyledGeoJsonLayer({
     ...baseProps,
     id: `${getStyleSubLayerId(props.id, styleLayer.id)}${idSuffix}`,
     data: features,
-    stroked: isLine || hasOutline,
-    filled: isFill,
+    stroked: drawsLines,
+    filled: drawsFill,
+    // A fill's line strings draw only as its 1 pixel outline.
+    drawsLineStrings: drawsLines,
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     // A fill's outline is MapLibre's 1 pixel antialiasing line.
@@ -1717,7 +1755,7 @@ function createExtrusionSubLayer({
   );
   const baseProps = getSubLayerBaseProps(props);
 
-  return new GeoJsonLayer({
+  return new StyledGeoJsonLayer({
     ...baseProps,
     id: getStyleSubLayerId(props.id, styleLayer.id),
     data: getRaisedFeatures(features, styleLayer, base),
@@ -1725,6 +1763,7 @@ function createExtrusionSubLayer({
     extruded: true,
     filled: true,
     stroked: false,
+    drawsLineStrings: false,
     wireframe: false,
     getFillColor: color.value as any,
     getElevation: elevation.value as any,

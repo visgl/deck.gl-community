@@ -92,7 +92,7 @@ describe('patterns disable colors', () => {
       {id: 'land', type: 'fill', paint: {'fill-pattern': 'wetland'}},
       [polygon]
     );
-    expect(sublayer.props.getFillColor).toEqual([0, 0, 0, 0]);
+    expect(sublayer).toBeUndefined();
   });
 
   test('a fill-pattern disables an explicit fill-color', () => {
@@ -100,7 +100,7 @@ describe('patterns disable colors', () => {
       {id: 'land', type: 'fill', paint: {'fill-pattern': 'wetland', 'fill-color': '#00ff00'}},
       [polygon]
     );
-    expect(sublayer.props.getFillColor).toEqual([0, 0, 0, 0]);
+    expect(sublayer).toBeUndefined();
   });
 
   test('a background-pattern background without background-color draws nothing, not black', () => {

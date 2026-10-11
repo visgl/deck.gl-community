@@ -112,7 +112,7 @@ describe('fill-extrusion', () => {
       features
     );
 
-    expect(sublayer.constructor.layerName).toBe('GeoJsonLayer');
+    expect(sublayer.constructor.layerName).toBe('StyledGeoJsonLayer');
     expect(sublayer.props.extruded).toBe(true);
     expect(sublayer.props.filled).toBe(true);
     expect(sublayer.props.stroked).toBe(false);
