@@ -245,3 +245,12 @@ it('keeps duplicate IDs and shared records distinct across rectangle marks', asy
     host.remove();
   }
 }, 30000);
+
+it('accepts direct stages without optional polygon data', () => {
+  const presenter = {style: {highlightColor: [0, 0, 0, 0]}} as Presenter;
+  const stage = createStage('2d');
+  delete stage.polygonData;
+  expect(() =>
+    getLayers(presenter, defaultPresenterConfig, stage, null, 0, null, [])
+  ).not.toThrow();
+});

@@ -80,13 +80,14 @@ export function getLayers(
     characterSet
   );
   const pathLayer = newPathLayer(layerNames.paths, stage.pathData);
+  const polygonData = stage.polygonData ?? [];
   const polygonLayer = newPolygonLayer(
     layerNames.polygons,
-    stage.polygonData.filter(polygon => !polygon.isSymbol)
+    polygonData.filter(polygon => !polygon.isSymbol)
   );
   const squareSymbolLayer = newPolygonLayer(
     layerNames.symbolSquares,
-    stage.polygonData.filter(polygon => polygon.isSymbol),
+    polygonData.filter(polygon => polygon.isSymbol),
     true
   );
   return [
