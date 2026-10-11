@@ -1,5 +1,5 @@
 import {CompositeLayer} from '@deck.gl/core';
-import type {DefaultProps, UpdateParameters} from '@deck.gl/core';
+import type {DefaultProps, LayerContext, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
 import {GeoJsonLayer, IconLayer, TextLayer} from '@deck.gl/layers';
 import {getZoomBucket, withOpacity} from './style-accessor';
@@ -11,7 +11,7 @@ import {
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
-import {getCharacterWidthMeasurer, transformText, wrapText} from './text-layout';
+import {canMeasureText, getCharacterWidthMeasurer, transformText, wrapText} from './text-layout';
 import type {WrapBudget} from './text-layout';
 import {
   DEFAULT_POLE_SEARCH_SEGMENT_TESTS,
@@ -154,6 +154,8 @@ type MVTLabelLayerState = {
   anchorKey?: string;
   /** The map bearing, in `BEARING_STEP` steps, that upright line labels were turned for. */
   bearingStep?: number;
+  /** The CSS font of labels along lines last seen loading; see `isLineTextFontLoading`. */
+  loadingFont?: string;
   /**
    * Label text for the current text update trigger and label rows, per feature, and the wrap
    * budget left for them. deck.gl reads each label's text several times per update; the cache
@@ -173,8 +175,8 @@ type MVTLabelLayerState = {
 const BEARING_STEP = 5;
 
 /**
- * Average glyph advance, in ems, used to estimate a label's length when placing it along a line.
- * The text is laid out by `TextLayer` only after placement, so its exact width is not known here.
+ * Average glyph advance, in ems, used to estimate a label's length when placing it along a line
+ * where the text cannot be measured: without a canvas, or while the label font loads.
  */
 const LINE_LABEL_EM_PER_CHARACTER = 0.6;
 
@@ -333,19 +335,6 @@ function isStrictlyInsideBounds([x, y]: number[], [minX, minY, maxX, maxY]: numb
   return x > minX && x < maxX && y > minY && y < maxY;
 }
 
-/**
- * The box lines are clipped to before labels are placed along them: the tile's own extent for
- * `line` placement, which MapLibre clips to, and a margin of one tile around it for `line-center`,
- * which measures the whole line.
- */
-function getLineClipBounds([minX, minY, maxX, maxY]: number[], placement: string): number[] {
-  if (placement !== 'line-center') {
-    return [minX, minY, maxX, maxY];
-  }
-  const [width, height] = [maxX - minX, maxY - minY];
-  return [minX - width, minY - height, maxX + width, maxY + height];
-}
-
 /** Longitude/latitude to Web Mercator world units, `[0, 1]` across the world. */
 function lngLatToWorld([lng, lat]: number[]): number[] {
   const latitude = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -356,6 +345,50 @@ function lngLatToWorld([lng, lat]: number[]): number[] {
 function worldToLngLat([x, y]: number[]): number[] {
   const latitude = (360 / Math.PI) * Math.atan(Math.exp((0.5 - y) * 2 * Math.PI)) - 90;
   return [x * 360 - 180, latitude];
+}
+
+/**
+ * What the line placements of one tile and style layer share: how label text is measured, in ems,
+ * and the anchors placed so far per label text (see `isNearSameText`).
+ */
+type LinePlacementContext = {
+  measureText: (text: string) => number;
+  placed: Map<string, number[][]>;
+};
+
+/**
+ * MapLibre's `anchorIsTooClose`: whether `point` lies within `distance` of an anchor already
+ * placed for `text`; if not, the point is recorded. Anchors are kept in a grid of `distance`
+ * cells, so each check reads a few cells, rather than every anchor of the same text.
+ */
+function isNearSameText(
+  placed: Map<string, number[][]>,
+  text: string,
+  [x, y]: number[],
+  distance: number
+): boolean {
+  if (!(distance > 0) || !Number.isFinite(x / distance) || !Number.isFinite(y / distance)) {
+    return false;
+  }
+  const column = Math.floor(x / distance);
+  const row = Math.floor(y / distance);
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (const [px, py] of placed.get(`${column + dx},${row + dy},${text}`) || []) {
+        if (Math.hypot(px - x, py - y) < distance) {
+          return true;
+        }
+      }
+    }
+  }
+  const key = `${column},${row},${text}`;
+  const cell = placed.get(key);
+  if (cell) {
+    cell.push([x, y]);
+  } else {
+    placed.set(key, [[x, y]]);
+  }
+  return false;
 }
 
 function isLinePlacement(placement: string): boolean {
@@ -871,72 +904,132 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * The zoom at which labels along lines are placed, and the tile's size in pixels there. As in
    * MapLibre, placement uses the tile's own zoom, so labels stay put while the map zooms within a
-   * tile; an overzoomed tile is placed at the integer map zoom.
+   * tile; an overzoomed tile is placed at the integer map zoom. A tile's own zoom is the map zoom
+   * at which it is drawn `tileSize` pixels wide: one less than its tile zoom for 256 px tiles.
    */
   getLinePlacementScale(): {zoom: number; tileZoom: number; tileSize: number} {
     const mapZoom = Math.floor(this.props.zoom || 0);
-    const tileZoom = this.props.tileZoom ?? mapZoom;
-    const zoom = Math.max(tileZoom, mapZoom);
-    return {zoom, tileZoom, tileSize: (this.props.tileSize || 512) * 2 ** (zoom - tileZoom)};
+    const size = this.props.tileSize || 512;
+    const tileZoom = this.props.tileZoom ?? mapZoom + Math.log2(512 / size);
+    const ownZoom = tileZoom - Math.log2(512 / size);
+    const zoom = Math.max(ownZoom, mapZoom);
+    return {zoom, tileZoom, tileSize: size * 2 ** (zoom - ownZoom)};
+  }
+
+  /**
+   * Measures the text of labels along lines, in ems, with the font `TextLayer` draws it in. Without
+   * a canvas, or while that font is still loading (the browser would measure a fallback font), the
+   * length is estimated from the character count instead (`getTextLengthEms`), and the layer
+   * updates, placing the labels again, once the font has loaded.
+   */
+  getLineTextMeasurer(): (text: string) => number {
+    const font = this.getFont();
+    const fontWeight = getTextLayerFontWeight(font);
+    if (!canMeasureText() || this.isLineTextFontLoading(font)) {
+      return getTextLengthEms;
+    }
+    const measure = getCharacterWidthMeasurer(fontWeight, font.fontFamily);
+    return text => {
+      let ems = 0;
+      for (const character of text) {
+        ems += measure(character);
+      }
+      return ems;
+    };
+  }
+
+  /**
+   * Whether the label font is still loading in the document. The first time it is seen loading,
+   * a load is requested, and the layer updates when it is done.
+   */
+  isLineTextFontLoading(font: LabelFont = this.getFont()): boolean {
+    const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
+    const css = `${getTextLayerFontWeight(font)} 16px ${font.fontFamily}`;
+    if (!fonts || fonts.check(css)) {
+      return false;
+    }
+    if (this.state && this.state.loadingFont !== css) {
+      this.state.loadingFont = css;
+      fonts.load(css).then(
+        // Unless the layer was finalized meanwhile (see `finalizeState`).
+        () => this.state?.loadingFont === css && this.setNeedsUpdate(),
+        () => {}
+      );
+    }
+    return true;
   }
 
   /**
    * Label anchors along the lines of a `LineString` or `MultiLineString` feature, for
    * `symbol-placement: line` or `line-center`, with the direction of the line at each. Lines are
-   * measured in pixels at the tile's zoom (see `getLinePlacementScale`); `symbol-spacing`,
-   * `text-max-angle` and `text-size` are evaluated there too. The label's length is estimated from
-   * its character count. Anchors outside the tile's own extent are left to the neighbouring tile.
-   * With `line` placement, lines are clipped to the tile's extent first, as in MapLibre; with
-   * `line-center`, to a margin of one tile around it, so a line's far reaches cost nothing. Each
-   * feature draws on the shared `budget`, at most `DEFAULT_LINE_ANCHOR_STEPS` of it.
+   * measured in pixels at the tile's zoom (see `getLinePlacementScale`), where `symbol-spacing`
+   * and `text-max-angle` are evaluated. As in MapLibre, the label's length, the window its bends
+   * are summed in and the first label's offset come from `text-size` at zoom 18, the same for
+   * every tile; where that size is 0, the size at the tile's zoom is used. The text is measured by
+   * `context.measureText`. Anchors outside the tile's own extent are left to the neighbouring tile.
+   * With `line` placement, lines are clipped to the tile's extent first, as in MapLibre, and a
+   * label is dropped within half a `symbol-spacing` of an earlier label with the same text on the
+   * tile (`context.placed`); `line-center` measures the whole line. Each feature draws on the
+   * shared `budget`, at most `DEFAULT_LINE_ANCHOR_STEPS` of it.
    */
   getLineLabelPlacements(
     feature: FeatureLike,
     geographic: boolean,
     placement: string,
-    budget: LineAnchorBudget = {steps: TILE_LINE_ANCHOR_STEPS}
+    budget: LineAnchorBudget = {steps: TILE_LINE_ANCHOR_STEPS},
+    context: LinePlacementContext = this.getLinePlacementContext()
   ): {position: number[]; angle: number}[] {
     const {type, coordinates} = feature.geometry;
     const lines: number[][][] =
       type === 'LineString' ? [coordinates] : type === 'MultiLineString' ? coordinates : [];
-    if (!lines.length) {
+    if (!lines.length || !(budget.steps > 0)) {
       return [];
     }
     const {zoom, tileZoom, tileSize} = this.getLinePlacementScale();
-    const evaluate = (name: string) =>
-      Number(this.getStyleProperty(name)?.evaluate(zoom, feature) ?? getStylePropertyDefault(name));
-    const textSize = evaluate('text-size');
+    const evaluate = (name: string, at = zoom) =>
+      Number(this.getStyleProperty(name)?.evaluate(at, feature) ?? getStylePropertyDefault(name));
+    const maxTextSize = evaluate('text-size', 18);
+    const textSize = maxTextSize > 0 ? maxTextSize : evaluate('text-size');
     const text = this.getLabelText(feature);
     // Icons are known once the sprites have loaded; the anchors are recomputed then.
     const icon = this.props.spriteAtlases?.length ? this.getIcon(feature) : null;
+    // One feature may spend at most the single-feature default, and never more than the tile has.
+    const featureBudget = {steps: Math.min(DEFAULT_LINE_ANCHOR_STEPS, budget.steps)};
+    const start = featureBudget.steps;
+    // Measuring the text costs a step per character.
+    featureBudget.steps -= text?.length || 0;
     // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
     // neither has no length, and is not placed.
-    const textLength = text ? getTextLengthEms(text) * textSize : 0;
+    const textLength = text && featureBudget.steps > 0 ? context.measureText(text) * textSize : 0;
     const iconLength = icon
       ? (icon.entry.width / icon.entry.pixelRatio) * evaluate('icon-size')
       : 0;
+    const spacing = evaluate('symbol-spacing');
     const options = {
       placement: placement === 'line-center' ? ('line-center' as const) : ('line' as const),
-      spacing: evaluate('symbol-spacing'),
+      spacing,
       maxAngle: evaluate('text-max-angle'),
       textSize,
+      hasText: Boolean(text),
       labelLength: Math.max(textLength, iconLength)
     };
     // `tileSize` is the tile's size at the placement zoom, so the world is `2 ** tileZoom` tiles
     // across: globe coordinates, `[0, 1]` across the world, take the overzoom factor only once.
     const scale = geographic ? tileSize * 2 ** tileZoom : tileSize;
     const bounds = this.getTileBounds(geographic);
-    const clipBounds = bounds && getLineClipBounds(bounds, options.placement);
-    // One feature may spend at most the single-feature default, and never more than the tile has.
-    const featureBudget = {steps: Math.min(DEFAULT_LINE_ANCHOR_STEPS, budget.steps)};
-    const start = featureBudget.steps;
+    const clipBounds = options.placement === 'line' ? bounds : null;
+    // MapLibre's `anchorIsTooClose`: labels of the same text repeat no closer than this.
+    const repeatDistance = options.placement === 'line' && text ? spacing / 2 : 0;
 
     const placements = lines.flatMap(line => {
-      if (!Array.isArray(line) || line.length < 2) {
+      if (!Array.isArray(line) || line.length < 2 || featureBudget.steps <= 0) {
         return [];
       }
       const parts = clipBounds ? clipLine(line, clipBounds) : [line];
       return parts.flatMap(part => {
+        if (featureBudget.steps <= 0) {
+          return [];
+        }
         const pixels = part.map(point => {
           const [x, y] = geographic ? lngLatToWorld(point) : point;
           return [x * scale, y * scale];
@@ -944,14 +1037,29 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const isContinued = Boolean(bounds) && !isStrictlyInsideBounds(part[0], bounds!);
         return getLineAnchors(pixels, {...options, isContinued, budget: featureBudget})
           .map(({segment, t, angle}) => {
-            const [a, b] = [part[segment], part[segment + 1]];
-            return {position: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], angle};
+            const [a, b] = [pixels[segment], pixels[segment + 1]];
+            const pixel = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+            // Interpolated in Web Mercator, where the line was measured.
+            const position = geographic
+              ? worldToLngLat([pixel[0] / scale, pixel[1] / scale])
+              : [pixel[0] / scale, pixel[1] / scale];
+            return {position, angle, pixel};
           })
-          .filter(({position}) => !bounds || isInsideBounds(position, bounds));
+          .filter(
+            ({pixel}) =>
+              !repeatDistance || !isNearSameText(context.placed, text!, pixel, repeatDistance)
+          )
+          .filter(({position}) => !bounds || isInsideBounds(position, bounds))
+          .map(({position, angle}) => ({position, angle}));
       });
     });
     budget.steps -= start - Math.max(0, featureBudget.steps);
     return placements;
+  }
+
+  /** What the line placements of one tile and style layer share; see `getLineLabelPlacements`. */
+  getLinePlacementContext(): LinePlacementContext {
+    return {measureText: this.getLineTextMeasurer(), placed: new Map()};
   }
 
   /**
@@ -986,6 +1094,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const placement = this.getSymbolPlacement();
     const budget = {segmentTests: TILE_POLE_SEARCH_SEGMENT_TESTS};
     const lineBudget = {steps: TILE_LINE_ANCHOR_STEPS};
+    const lineContext = isLinePlacement(placement) ? this.getLinePlacementContext() : undefined;
     const merged = placement === 'line' ? this.getMergedLines(features) : null;
     return features.flatMap((feature, index) =>
       isLinePlacement(placement) && isLineGeometry(feature)
@@ -995,7 +1104,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               merged?.[index] || feature,
               geographic,
               placement,
-              lineBudget
+              lineBudget,
+              lineContext
             ).map(row => this.getSubLayerRow(row, feature, index))
         : this.getLabelAnchors(feature, geographic, placement, budget).map(position =>
             this.getSubLayerRow({position}, feature, index)
@@ -1023,7 +1133,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             (this.props.spriteAtlases || []).map(atlas => atlas.id),
             ...['text-size', 'icon-size', 'symbol-spacing', 'text-max-angle'].map(name =>
               JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)
-            )
+            ),
+            // The text is measured in the label font, once it has loaded.
+            ...(this.getStyleProperty('text-field')
+              ? [this.getFont(), this.isLineTextFontLoading()]
+              : [])
           ]
         : null
     ]);
@@ -1057,16 +1171,22 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /**
    * Whether the text or icons of this layer turn with the lines they are placed along (see
-   * `getLineLabelProps` and `getLineIconProps`). Only then do they depend on the bearing.
+   * `getLineLabelProps` and `getLineIconProps`). Only then do they depend on the bearing. Text
+   * needs a `text-field`, and icons an `icon-image` and loaded sprites.
    */
   turnsWithLines(): boolean {
     const placement = this.getSymbolPlacement();
+    if (!isLinePlacement(placement)) {
+      return false;
+    }
     const zoom = getZoomBucket(this.props.zoom || 0);
+    const turns = (name: string) =>
+      isAlignedToMap(this.getStyleProperty(name)?.evaluate(zoom), placement);
     return (
-      isLinePlacement(placement) &&
-      ['text-rotation-alignment', 'icon-rotation-alignment'].some(name =>
-        isAlignedToMap(this.getStyleProperty(name)?.evaluate(zoom), placement)
-      )
+      (Boolean(this.getStyleProperty('text-field')) && turns('text-rotation-alignment')) ||
+      (Boolean(this.getStyleProperty('icon-image')) &&
+        Boolean(this.props.spriteAtlases?.length) &&
+        turns('icon-rotation-alignment'))
     );
   }
 
@@ -1125,6 +1245,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     };
   }
 
+  /** Forgets a font load in flight, so that its completion does not update a finalized layer. */
+  finalizeState(context: LayerContext): void {
+    super.finalizeState(context);
+    if (this.state) {
+      this.state.loadingFont = undefined;
+    }
+  }
+
   /**
    * Recomputes label anchor rows when the source tile data, or an input the anchors depend on,
    * changes.
@@ -1145,6 +1273,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (changeFlags.dataChanged || anchorKey !== this.state.anchorKey) {
       const features = Array.isArray(data) ? data : data.features || [];
       this.setState({labelData: this.getLabelData(features, geographic), anchorKey});
+    }
+    if (this.turnsWithLines()) {
+      // The bearing the labels are turned for, so that `shouldUpdateState` updates the layer only
+      // when it crosses a step, whichever of the text and icons turn.
+      this.state.bearingStep = this.getBearingStep();
     }
     // deck.gl re-evaluates every label's text when the rows or the text trigger change; each
     // evaluation starts a new text cache with a fresh wrap budget.

@@ -1,4 +1,4 @@
-import {describe, expect, test} from 'vitest';
+import {afterEach, describe, expect, test, vi} from 'vitest';
 import {
   clipLine,
   getLineAnchors,
@@ -280,6 +280,11 @@ describe('MVTLabelLayer line placement', () => {
     // Upper-casing can lengthen the text ('ß' becomes 'SS').
     expect(lineLayer({}, {'text-transform': 'uppercase'}).getAnchorKey(false)).not.toBe(key);
     expect(lineLayer({zoom: 14.5}).getAnchorKey(false)).toBe(key);
+    // Text is measured in the label font, whether it comes from `text-font` or an override.
+    expect(lineLayer({}, {'text-font': ['Noto Sans Bold']}).getAnchorKey(false)).not.toBe(key);
+    expect(lineLayer({fontFamily: () => 'Other'}).getAnchorKey(false)).not.toBe(
+      lineLayer({fontFamily: () => 'Another'}).getAnchorKey(false)
+    );
   });
   test('places labels hidden at the map zoom but sized at the tile zoom', () => {
     // A zoom-15 tile shown at zoom 14.75, where the text is 0 pixels tall; it shows from zoom 15
@@ -338,24 +343,40 @@ describe('MVTLabelLayer line label rendering', () => {
     expect(typeof text.props.getAngle).not.toBe('function');
   });
 
+  /** Updates `layer` at `bearing`, then asks whether a pan to `panBearing` updates it again. */
+  function updatesOnPan(layer: MVTLabelLayer, bearing: number, panBearing: number): boolean {
+    layer.state = {};
+    layer.context = {viewport: {bearing}} as any;
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    return layer.shouldUpdateState({
+      changeFlags: {propsOrDataChanged: false, viewportChanged: true},
+      context: {viewport: {bearing: panBearing}}
+    } as any);
+  }
+
   test('updates when the bearing crosses a step, for line labels only', () => {
-    const update = (layer: MVTLabelLayer, bearing: number) => {
-      layer.state = {bearingStep: 0} as any;
-      return layer.shouldUpdateState({
-        changeFlags: {propsOrDataChanged: false, viewportChanged: true},
-        context: {viewport: {bearing}}
-      } as any);
-    };
-    expect(update(lineLayer(), 7)).toBe(true);
-    expect(update(lineLayer(), 2)).toBe(false);
-    expect(update(lineLayer({}, {'symbol-placement': 'point'}), 90)).toBe(false);
-    // Viewport-aligned text and icons do not turn with the bearing.
-    const viewportAligned = {
-      'text-rotation-alignment': 'viewport',
-      'icon-rotation-alignment': 'viewport'
-    };
-    expect(update(lineLayer({}, viewportAligned), 90)).toBe(false);
-    expect(update(lineLayer({}, {'text-rotation-alignment': 'viewport'}), 90)).toBe(true);
+    const layer = (layout: Record<string, unknown> = {}, props: Record<string, unknown> = {}) =>
+      lineLayer({data: [ACROSS_TILE], ...props}, layout);
+    expect(updatesOnPan(layer(), 0, 7)).toBe(true);
+    // The bearing is recorded by the update, before any text layer renders.
+    expect(updatesOnPan(layer(), 0, 2)).toBe(false);
+    expect(updatesOnPan(layer(), 0, 0)).toBe(false);
+    expect(updatesOnPan(layer({'symbol-placement': 'point'}), 0, 90)).toBe(false);
+    // Viewport-aligned text without icons does not turn, whatever `icon-rotation-alignment` is.
+    const viewportText = {'text-rotation-alignment': 'viewport'};
+    expect(updatesOnPan(layer(viewportText), 0, 90)).toBe(false);
+    expect(updatesOnPan(layer({...viewportText, 'icon-rotation-alignment': 'map'}), 0, 90)).toBe(
+      false
+    );
+    // Map-aligned icons turn once the sprites have loaded; a pan within a step does not update.
+    const icons = {...viewportText, 'icon-image': 'arrow'};
+    expect(updatesOnPan(layer(icons), 0, 90)).toBe(false);
+    expect(updatesOnPan(layer(icons, {spriteAtlases: [ARROWS]}), 0, 90)).toBe(true);
+    expect(updatesOnPan(layer(icons, {spriteAtlases: [ARROWS]}), 0, 1)).toBe(false);
+    // An icon-only layer whose sprites have not loaded has nothing to turn.
+    expect(updatesOnPan(layer({'text-field': undefined, 'icon-image': 'arrow'}), 0, 90)).toBe(
+      false
+    );
   });
 });
 
@@ -690,5 +711,320 @@ describe('mergeLines', () => {
     }
     // Each piece alone is too short for the label.
     expect(lineLayer().getLabelData([pieces[0]], false)).toHaveLength(0);
+  });
+});
+
+describe('placement text size', () => {
+  test('places labels whose text-size is 0 at the tile zoom, sized at zoom 18', () => {
+    // A zoom-14 tile shown at zoom 14.5, where the text is 6 px tall; at zoom 14 it is 0.
+    const layer = lineLayer(
+      {data: [ACROSS_TILE], zoom: 14.5, tileZoom: 14},
+      {'text-size': ['interpolate', ['linear'], ['zoom'], 14, 0, 15, 12]}
+    );
+    layer.state = {};
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    expect(layer.getLabel(ACROSS_TILE as any)).toBe('Main');
+    expect(layer.state.labelData?.length).toBeGreaterThan(0);
+  });
+
+  test('measures the label, its bend window and first offset at text-size zoom 18', () => {
+    const inside = {
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [0.1, 0.5],
+          [0.9, 0.5]
+        ]
+      },
+      properties: {name: 'Main'}
+    };
+    const rows = lineLayer(
+      {},
+      {'text-size': ['interpolate', ['linear'], ['zoom'], 14, 5, 18, 20]}
+    ).getLabelData([inside], false) as any[];
+    // 'Main' is 2.4 ems, 48 px at 20 px: the first label is 24 + 2 * 20 px from the start.
+    expect(rows[0].position[0] * 512).toBeCloseTo(0.1 * 512 + 64, 6);
+  });
+
+  test('falls back to the tile zoom where text-size is 0 at zoom 18', () => {
+    const rows = lineLayer({}, {'text-size': ['step', ['zoom'], 10, 17, 0]}).getLabelData(
+      [ACROSS_TILE],
+      false
+    );
+    expect(rows).toHaveLength(2);
+  });
+});
+
+describe('measured label length', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A canvas whose text is 0.25 em per character, at the 64 px the measurer uses. */
+  function stubCanvas() {
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        getContext() {
+          return {font: '', measureText: (text: string) => ({width: 16 * text.length})};
+        }
+      }
+    );
+  }
+
+  // 'Main Street' is 11 characters: 27.5 px measured at 10 px, 66 px estimated.
+  const street = {
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [0.4, 0.5],
+        [0.4 + 40 / 512, 0.5]
+      ]
+    },
+    properties: {name: 'Main Street'}
+  };
+
+  test('places a label by the width of its text in the label font', () => {
+    stubCanvas();
+    const layer = lineLayer({fontFamily: 'Measured One'}, {'symbol-placement': 'line-center'});
+    expect(layer.getLabelData([street], false)).toHaveLength(1);
+  });
+
+  test('estimates the width while the label font loads, and places again once it has', async () => {
+    stubCanvas();
+    let loaded = false;
+    let finishLoading = () => {};
+    const load = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finishLoading = () => {
+            loaded = true;
+            resolve();
+          };
+        })
+    );
+    vi.stubGlobal('document', {fonts: {check: () => loaded, load}});
+    const layer = lineLayer(
+      {data: [street], fontFamily: 'Measured Two'},
+      {'symbol-placement': 'line-center'}
+    );
+    layer.state = {};
+    const setNeedsUpdate = vi.spyOn(layer, 'setNeedsUpdate').mockImplementation(() => {});
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    // At 66 px the estimate does not fit the 40 px line; the font is requested once.
+    expect(layer.state.labelData).toEqual([]);
+    layer.updateState({changeFlags: {}} as any);
+    expect(load).toHaveBeenCalledTimes(1);
+
+    const calls = setNeedsUpdate.mock.calls.length;
+    finishLoading();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(setNeedsUpdate).toHaveBeenCalledTimes(calls + 1);
+    layer.updateState({changeFlags: {}} as any);
+    expect(layer.state.labelData).toHaveLength(1);
+  });
+
+  test('does not update a layer finalized before its font loaded', async () => {
+    stubCanvas();
+    let finishLoading = () => {};
+    const load = () =>
+      new Promise<void>(resolve => {
+        finishLoading = resolve;
+      });
+    vi.stubGlobal('document', {fonts: {check: () => false, load}});
+    const layer = lineLayer({data: [street], fontFamily: 'Measured Three'});
+    layer.state = {};
+    const setNeedsUpdate = vi.spyOn(layer, 'setNeedsUpdate').mockImplementation(() => {});
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    layer.context = {resourceManager: {unsubscribe: () => {}}} as any;
+    layer.finalizeState(layer.context);
+    // Updates of the layer's own state may ask for one; the font load must not.
+    const calls = setNeedsUpdate.mock.calls.length;
+    finishLoading();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(setNeedsUpdate).toHaveBeenCalledTimes(calls);
+  });
+
+  test('spends a budget step per character measured', () => {
+    const budget = {steps: 5};
+    expect(
+      lineLayer().getLineLabelPlacements(ACROSS_TILE as any, false, 'line', budget)
+    ).toHaveLength(0);
+    expect(budget.steps).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('symbols with an icon and no text', () => {
+  const corner = [
+    [0, 0],
+    [100, 0],
+    [100, -100]
+  ];
+
+  test('are not checked for bends, as they have no bend window', () => {
+    const options = {...OPTIONS, placement: 'line-center' as const, labelLength: 20};
+    // The middle is at the corner: text there is too bent, an icon is not.
+    expect(getLineAnchors(corner, options)).toEqual([]);
+    expect(getLineAnchors(corner, {...options, hasText: false})).toEqual([
+      {segment: 1, t: 0, angle: 90}
+    ]);
+    // Nor for fit, as in MapLibre's `getCenterAnchor`.
+    expect(getLineAnchors(corner, {...options, hasText: false, labelLength: 201})).toHaveLength(1);
+    // Along the line too, a continued line puts a candidate on the corner.
+    const along = {...OPTIONS, spacing: 200, labelLength: 20, isContinued: true};
+    expect(distances(getLineAnchors(corner, along), corner)).toEqual([]);
+    expect(getLineAnchors(corner, {...along, hasText: false})).toEqual([
+      {segment: 1, t: 0, angle: 90}
+    ]);
+  });
+
+  test('are placed at a corner along a line', () => {
+    const layer = new MVTLabelLayer({
+      id: 'arrows',
+      config: {labels: true},
+      zoom: 14,
+      tileZoom: 14,
+      tileSize: 512,
+      spriteAtlases: [ARROWS],
+      styleLayer: {layout: {'icon-image': 'arrow', 'symbol-placement': 'line-center'}}
+    });
+    const feature = {
+      geometry: {
+        type: 'LineString',
+        coordinates: corner.map(([x, y]) => [0.3 + x / 512, 0.6 + y / 512])
+      },
+      properties: {}
+    };
+    const rows = layer.getLabelData([feature], false) as any[];
+    expect(rows).toHaveLength(1);
+    expect(rows[0].position[0] * 512).toBeCloseTo(0.3 * 512 + 100, 6);
+  });
+});
+
+describe('labels of the same text', () => {
+  const parallel = (y: number, name = 'Main') => ({
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [-0.1, y],
+        [1.1, y]
+      ]
+    },
+    properties: {name}
+  });
+
+  test('are not repeated within half a symbol-spacing on a tile', () => {
+    const near = [parallel(0.5), parallel(0.5 + 10 / 512)];
+    expect(lineLayer().getLabelData(near, false)).toHaveLength(2);
+    // Also across the edge of the 125 px cells anchors are looked up in.
+    const across = [parallel(245 / 512), parallel(255 / 512)];
+    expect(lineLayer().getLabelData(across, false)).toHaveLength(2);
+    // Other text, or lines further apart than 125 px, keep their labels.
+    expect(
+      lineLayer().getLabelData([parallel(0.5), parallel(0.5 + 10 / 512, 'High')], false)
+    ).toHaveLength(4);
+    expect(
+      lineLayer().getLabelData([parallel(0.2), parallel(0.2 + 130 / 512)], false)
+    ).toHaveLength(4);
+  });
+
+  test('keep one label per neighbourhood among many close lines', () => {
+    // 2000 lines a quarter pixel apart across the tile, each with two candidates.
+    const lines = Array.from({length: 2000}, (_, i) => parallel(i / 2000));
+    const rows = lineLayer().getLabelData(lines, false) as any[];
+    // At most one label per 125 px of the tile's 512 px height, per column.
+    expect(rows.length).toBeLessThanOrEqual(2 * Math.ceil(512 / 125) + 2);
+  });
+});
+
+describe('line placement bounds', () => {
+  test('reads no line once the tile budget is spent', () => {
+    let reads = 0;
+    const coordinates = new Proxy(
+      Array.from({length: 1e4}, (_, i) => [i / 1e4, 0.5]),
+      {
+        get(target, property, receiver) {
+          if (typeof property === 'string' && /^\d+$/.test(property)) {
+            reads++;
+          }
+          return Reflect.get(target, property, receiver);
+        }
+      }
+    );
+    const feature = {geometry: {type: 'LineString', coordinates}, properties: {name: 'Main'}};
+    expect(lineLayer().getLineLabelPlacements(feature, false, 'line', {steps: 0})).toEqual([]);
+    expect(reads).toBe(0);
+  });
+
+  test('measures the whole line for line-center, not only the part near the tile', () => {
+    const layer = lineLayer({}, {'symbol-placement': 'line-center'});
+    const line = (coordinates: number[][]) => ({
+      geometry: {type: 'LineString', coordinates},
+      properties: {name: 'Main'}
+    });
+    // The middle of this line is at x = -1.5, in another tile.
+    expect(
+      layer.getLabelData(
+        [
+          line([
+            [-4, 0.5],
+            [1, 0.5]
+          ])
+        ],
+        false
+      )
+    ).toEqual([]);
+    const [row] = layer.getLabelData(
+      [
+        line([
+          [-3, 0.5],
+          [3.5, 0.5]
+        ])
+      ],
+      false
+    ) as any[];
+    expect(row.position[0]).toBeCloseTo(0.25, 9);
+  });
+
+  test('interpolates geographic anchors in Web Mercator', () => {
+    const layer = lineLayer({tileZoom: 2, zoom: 2}, {'symbol-placement': 'line-center'});
+    const [row] = layer.getLabelData(
+      [
+        {
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [0, 0],
+              [0, 60]
+            ]
+          },
+          properties: {name: 'Main'}
+        }
+      ],
+      true
+    ) as any[];
+    // Halfway in Web Mercator y between the equator and 60 degrees north.
+    const mercatorY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+    const middle = mercatorY(60) / 2;
+    const latitude = ((2 * Math.atan(Math.exp(middle)) - Math.PI / 2) * 180) / Math.PI;
+    expect(row.position[1]).toBeCloseTo(latitude, 6);
+    expect(row.position[1]).toBeGreaterThan(33);
+  });
+
+  test('sizes 256 px tiles at their own zoom, also when overzoomed', () => {
+    // A zoom-15 256 px tile at map zoom 14 is 256 px wide: one label, half a spacing in.
+    const rows = lineLayer({tileZoom: 15, tileSize: 256}).getLabelData(
+      [ACROSS_TILE],
+      false
+    ) as any[];
+    expect(rows.map(row => row.position[0])).toEqual([expect.closeTo(125 / 256, 9)]);
+    // A zoom-14 256 px tile is 2048 px wide at map zoom 16, as a 512 px one is.
+    const overzoomed = lineLayer({zoom: 16, tileZoom: 14, tileSize: 256}).getLabelData(
+      [ACROSS_TILE],
+      false
+    ) as any[];
+    expect(overzoomed).toHaveLength(8);
   });
 });

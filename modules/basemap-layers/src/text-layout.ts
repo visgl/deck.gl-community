@@ -232,6 +232,14 @@ export function wrapText(
   return lines.join('\n');
 }
 
+/**
+ * Whether text can be measured with a canvas here; otherwise {@link getCharacterWidthMeasurer}
+ * returns {@link FALLBACK_CHARACTER_WIDTH} for every character.
+ */
+export function canMeasureText(): boolean {
+  return typeof OffscreenCanvas !== 'undefined' || typeof document !== 'undefined';
+}
+
 /** Advance in ems used when canvas measurement is unavailable, as for missing atlas glyphs. */
 export const FALLBACK_CHARACTER_WIDTH = 0.5;
 const FONT_SIZE = 64;

@@ -29,6 +29,12 @@ export type LineAnchorOptions = {
   /** `text-size` in pixels; the bend window is 3/5 of it, as in MapLibre. */
   textSize: number;
   /**
+   * Whether the symbol has text. As in MapLibre, a symbol with only an icon has no bend window:
+   * the line may bend any amount under it. With `line` placement it must still fit on the line.
+   * Default: true.
+   */
+  hasText?: boolean;
+  /**
    * Whether the line continues in a neighbouring tile. MapLibre then starts the first label half
    * a spacing in, so labels line up across tile edges, and does not fall back to the middle.
    */
@@ -141,6 +147,11 @@ function interpolate(a: number[], b: number[], t: number): number[] {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 }
 
+/** The window within which bends are summed: 3/5 of the text size, or 0 for an icon alone. */
+function getAngleWindowSize(options: LineAnchorOptions): number {
+  return options.hasText === false ? 0 : (options.textSize * 3) / 5;
+}
+
 /** Anchors every `spacing` pixels from `offset`, where the label fits and the line is straight. */
 function resample(
   line: number[][],
@@ -151,7 +162,7 @@ function resample(
   budget: LineAnchorBudget
 ): LineAnchor[] {
   const {labelLength, isContinued} = options;
-  const windowSize = (options.textSize * 3) / 5;
+  const windowSize = getAngleWindowSize(options);
   const maxAngle = (options.maxAngle * Math.PI) / 180;
   const lineLength = getLineLength(line);
   const anchors: LineAnchor[] = [];
@@ -175,14 +186,15 @@ function resample(
         markedDistance - labelLength / 2 >= 0 && markedDistance + labelLength / 2 <= lineLength;
       if (
         fits &&
-        checkMaxAngle(
-          line,
-          {point: interpolate(a, b, t), segment: i},
-          labelLength,
-          windowSize,
-          maxAngle,
-          budget
-        )
+        (!windowSize ||
+          checkMaxAngle(
+            line,
+            {point: interpolate(a, b, t), segment: i},
+            labelLength,
+            windowSize,
+            maxAngle,
+            budget
+          ))
       ) {
         anchors.push({segment: i, t, angle: (direction(a, b) * 180) / Math.PI});
       }
@@ -219,6 +231,7 @@ export function getLineAnchors(line: number[][], options: LineAnchorOptions): Li
 
   if (options.placement === 'line-center') {
     const center = getLineLength(line) / 2;
+    const windowSize = getAngleWindowSize(options);
     let travelled = 0;
     for (let i = 0; i < line.length - 1; i++) {
       const segmentLength = distance(line[i], line[i + 1]);
@@ -229,7 +242,11 @@ export function getLineAnchors(line: number[][], options: LineAnchorOptions): Li
         const t = (center - travelled) / segmentLength;
         const anchor = {point: interpolate(line[i], line[i + 1], t), segment: i};
         const maxAngle = (options.maxAngle * Math.PI) / 180;
-        return checkMaxAngle(line, anchor, labelLength, (textSize * 3) / 5, maxAngle, budget)
+        // Without a bend window the middle is taken as it is: MapLibre's `getCenterAnchor` skips
+        // `checkMaxAngle`, and with it the fit, then.
+        const placed =
+          !windowSize || checkMaxAngle(line, anchor, labelLength, windowSize, maxAngle, budget);
+        return placed
           ? [{segment: i, t, angle: (direction(line[i], line[i + 1]) * 180) / Math.PI}]
           : [];
       }
