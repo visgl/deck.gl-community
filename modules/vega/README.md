@@ -44,8 +44,14 @@ automatically; the old four-library `use(vega, deck, layers, luma)` initializati
 is replaced with optional `use(vegaRuntime)`.
 
 The imported mark stagers handle groups, rectangles, rules, text, lines, areas,
-axes, and legends. Rectangle `z` and `depth` encodings extend the layout to 3D;
+axes, and legends. Circle and square symbols add area-based sizing, opacity,
+pixel-width strokes, and source-data picking; other shapes report errors. Rectangle `z` and `depth` encodings extend the layout to 3D;
 pass `{getView: () => '3d'}` as the second `ViewGl` constructor argument.
+Cuboid slots stay stable through reordering and partial presentations. Removed
+records shrink and fade at their latest positions. To preserve identity across
+replacement of Vega scene items, provide a unique dense
+`onSceneRectAssignCubeOrdinal` callback. Slots remain allocated until finalization.
+
 This is a subset of Vega rendering, not a complete Vega or Vega-Lite renderer.
 The custom cuboid shader currently requires WebGL2; WebGPU rendering is not
 implemented in this module.

@@ -55,7 +55,7 @@ The same example runs locally with `yarn vite modules/vega/demo --host 127.0.0.1
 
 <div style={{height: 520, position: 'relative'}}><MarkTransitionsExample /></div>
 
-Circle symbols use a native `ScatterplotLayer`; square symbols use polygons. Both preserve
+Circle symbols use a native `ScatterplotLayer`; square symbols use flat polygons with pixel-width outlines. Both preserve
 Vega's area-based `size`, fill/stroke opacity, translated group coordinates, and source `datum`
 for deck.gl picking. Other symbol shapes report an error. Geographic shapes, arbitrary paths,
 clipping, and exact mixed-mark draw ordering remain follow-up work.
