@@ -727,3 +727,56 @@ describe('playground runtime resolver', () => {
     expect((resolved.props.views as any[])[0]).toBeInstanceOf(OrthographicView);
   });
 });
+
+test('datasource URLs use managed bindings, deferred registration, and existing overrides', () => {
+  const value = {layers: [{...layer, data: 'datasource://uploaded'}]};
+  expect(() => resolver.resolve(value, {}, dataSources)).toThrow(
+    'Missing playground data binding: uploaded'
+  );
+  const rows = [{position: [1, 2]}];
+  addSource('uploaded', {data: rows});
+  const result = resolver.resolve(value, {}, dataSources);
+  expect((result.props.layers as Layer[])[0].props.data).toBe(rows);
+  expect(result.layerBindings.get('points')).toBe('uploaded');
+  const replacement = {data: [{position: [3, 4]}]};
+  expect(
+    (resolver.resolve(value, {uploaded: replacement}, dataSources).props.layers as Layer[])[0].props
+      .data
+  ).toBe(replacement.data);
+  expect(() => resolver.resolve({layers: [{...layer, data: 'datasource://'}]}, {})).toThrow(
+    'source ID'
+  );
+  expect(
+    resolver.resolve({layers: [{...layer, data: 'https://example.test/points.json'}]}, {})
+      .layerBindings.size
+  ).toBe(0);
+});
+
+test('whole-table SELECT queries resolve managed data with overrides and deferred registration', () => {
+  const rows = [{position: [1, 2]}];
+  const value = (data: string) => ({layers: [{...layer, data}]});
+  expect(() => resolver.resolve(value('SELECT * FROM query_table;'), {}, dataSources)).toThrow(
+    'Missing playground data binding: query_table'
+  );
+  addSource('query_table', {data: rows});
+  for (const query of [
+    'SELECT * FROM query_table;',
+    ' select * from query_table ',
+    'SELECT * FROM "query_table";'
+  ]) {
+    const result = resolver.resolve(value(query), {}, dataSources);
+    expect((result.props.layers as Layer[])[0].props.data).toBe(rows);
+    expect(result.layerBindings.get('points')).toBe('query_table');
+  }
+  const replacement = {data: [{position: [3, 4]}]};
+  expect(
+    (
+      resolver.resolve(value('SELECT * FROM query_table;'), {query_table: replacement}, dataSources)
+        .props.layers as Layer[]
+    )[0].props.data
+  ).toBe(replacement.data);
+  expect(
+    resolver.resolve(value('https://example.test/SELECT * FROM query_table;'), {}).layerBindings
+      .size
+  ).toBe(0);
+});

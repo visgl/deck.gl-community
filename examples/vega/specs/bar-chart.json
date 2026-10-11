@@ -1,0 +1,111 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "description": "A declarative bar chart with Vega scales, axes and a signal-bound height multiplier.",
+  "width": 500,
+  "height": 320,
+  "padding": 30,
+  "signals": [
+    {
+      "name": "multiplier",
+      "value": 1,
+      "bind": {
+        "input": "range",
+        "min": 0.2,
+        "max": 1,
+        "step": 0.1,
+        "name": "Bar height "
+      }
+    }
+  ],
+  "data": [
+    {
+      "name": "table",
+      "values": [
+        {
+          "id": 0,
+          "category": "A",
+          "value": 80
+        },
+        {
+          "id": 1,
+          "category": "B",
+          "value": 140
+        },
+        {
+          "id": 2,
+          "category": "C",
+          "value": 220
+        },
+        {
+          "id": 3,
+          "category": "D",
+          "value": 170
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "x",
+      "type": "band",
+      "domain": {
+        "data": "table",
+        "field": "category"
+      },
+      "range": "width",
+      "padding": 0.2
+    },
+    {
+      "name": "y",
+      "type": "linear",
+      "domain": [
+        0,
+        250
+      ],
+      "range": "height",
+      "nice": true,
+      "zero": true
+    }
+  ],
+  "axes": [
+    {
+      "orient": "bottom",
+      "scale": "x"
+    },
+    {
+      "orient": "left",
+      "scale": "y"
+    }
+  ],
+  "marks": [
+    {
+      "type": "rect",
+      "from": {
+        "data": "table"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "scale": "x",
+            "field": "category"
+          },
+          "width": {
+            "scale": "x",
+            "band": 1
+          },
+          "y": {
+            "scale": "y",
+            "signal": "datum.value * multiplier"
+          },
+          "y2": {
+            "scale": "y",
+            "value": 0
+          },
+          "fill": {
+            "value": "#3688c8"
+          }
+        }
+      }
+    }
+  ]
+}

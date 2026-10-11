@@ -6,6 +6,12 @@ const SOURCES = {
   tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}
 };
 
+const feature = {
+  type: 'Feature',
+  geometry: {type: 'Point', coordinates: [0, 0]},
+  properties: {layerName: 'place', name: 'A'}
+};
+
 /** Renders one symbol style layer for one tile and returns its label sublayer. */
 function labelSublayer(paint: Record<string, unknown>): any {
   const vectorLayer: any = getBasemapLayers({
@@ -27,11 +33,6 @@ function labelSublayer(paint: Record<string, unknown>): any {
       ]
     } as any
   }).find(layer => layer.id === 'test-tiles');
-  const feature = {
-    type: 'Feature',
-    geometry: {type: 'Point', coordinates: [0, 0]},
-    properties: {layerName: 'place', name: 'A'}
-  };
   return vectorLayer.props
     .renderSubLayers({id: 'tile', data: [feature], tile: {index: {x: 0, y: 0, z: 8}}})
     .find(Boolean);
@@ -47,6 +48,6 @@ describe('symbol paint', () => {
       'text-halo-color': 'rgba(255, 255, 255, 0.5)',
       'text-halo-width': 1
     });
-    expect(sublayer.props.labelBackground).toEqual([255, 255, 255, 128]);
+    expect(sublayer.getLabelHalo(feature)?.outlineColor).toEqual([255, 255, 255, 128]);
   });
 });
