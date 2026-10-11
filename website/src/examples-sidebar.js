@@ -102,6 +102,7 @@ const sidebars = {
     //   ]
     // },
 
+    {type: 'category', label: 'Vega (private)', items: ['vega/unit-layouts']},
     // TODO - need BING map key
     // {
     //   type: 'category',
