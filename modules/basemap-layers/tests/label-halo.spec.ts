@@ -35,6 +35,14 @@ function renderTextLayers(layer: any, dataChanged = true): any[] {
   return layer.renderLayers().filter((sublayer: any) => /-text(-\d+)?$/.test(sublayer.id));
 }
 
+/**
+ * The text sublayers that draw halos: with several halos, every one but the invisible `text`
+ * sublayer, which only places the labels.
+ */
+function haloTextLayers(texts: any[]): any[] {
+  return texts.length > 1 ? texts.filter(text => text.id !== 'labels-text') : texts;
+}
+
 /** The label a text sublayer draws for each row. */
 function drawnText(text: any, rows: unknown[]): unknown[] {
   return rows.map((row, index) => text.props.getText(row, {index, data: rows, target: []}));
@@ -112,18 +120,45 @@ describe('label halo wiring', () => {
     );
     const texts = renderTextLayers(layer);
     const rows = layer.state.labelData;
-    expect(texts.map(text => text.props.outlineWidth)).toEqual([
+    const halos = haloTextLayers(texts);
+    expect(halos.map(text => text.props.outlineWidth)).toEqual([
       getOutlineWidth(1, 16),
       getOutlineWidth(2, 16),
       0
     ]);
     // Every sublayer gets all rows, so the collision filter sees the same row indices.
     expect(texts.every(text => text.props.data === rows)).toBe(true);
-    expect(texts.map(text => drawnText(text, rows))).toEqual([
+    expect(halos.map(text => drawnText(text, rows))).toEqual([
       ['Label', undefined, undefined, undefined],
       [undefined, 'Label', undefined, 'Label'],
       [undefined, undefined, 'Label', undefined]
     ]);
+  });
+
+  test('with several halos, one invisible sublayer places every label', () => {
+    const features = [1, 2].map(halo => ({
+      ...feature,
+      properties: {...feature.properties, halo}
+    }));
+    const layer = haloLayer(
+      {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']},
+      7.6,
+      features
+    );
+    const texts = renderTextLayers(layer);
+    const rows = layer.state.labelData;
+    const [placement, ...halos] = texts;
+    expect(placement.id).toBe('labels-text');
+    expect(drawnText(placement, rows)).toEqual(['Label', 'Label']);
+    expect(placement.props.getColor).toEqual([0, 0, 0, 0]);
+    expect(placement.props.outlineWidth).toBe(0);
+    expect(placement.props.background).toBe(true);
+    // The halo sublayers draw nothing into the collision map: their priority is out of range.
+    expect(halos).toHaveLength(2);
+    for (const text of halos) {
+      expect(text.props.getCollisionPriority).toBeLessThan(-1000);
+      expect(text.props.background).toBe(false);
+    }
   });
 
   test('a zoom-dependent halo is re-evaluated at a new zoom step', () => {
@@ -162,7 +197,7 @@ describe('label halo wiring', () => {
       7.6,
       features
     );
-    const texts = renderTextLayers(layer);
+    const texts = haloTextLayers(renderTextLayers(layer));
     const rows = layer.state.labelData;
     expect(texts).toHaveLength(MAX_HALO_SUBLAYERS);
     // Every label is still drawn, by exactly one sublayer.
@@ -191,7 +226,7 @@ describe('label halo wiring', () => {
       7.6,
       features
     );
-    expect(renderTextLayers(layer).map(text => text.props.outlineWidth)).toEqual([
+    expect(haloTextLayers(renderTextLayers(layer)).map(text => text.props.outlineWidth)).toEqual([
       getOutlineWidth(1, 16),
       // A positive width keeps at least a quarter pixel.
       getOutlineWidth(0.25, 16)

@@ -12,15 +12,22 @@ const SIZE = 128;
 let deck: Deck<any> | null = null;
 let parent: HTMLDivElement | null = null;
 
-afterEach(() => {
-  deck?.finalize();
-  deck = null;
-  parent?.remove();
-  parent = null;
-});
+afterEach(() => cleanup());
 
 /** Renders one collision-filtered point label at the canvas center and returns the frame. */
 function renderLabel(layout: Record<string, unknown>, paint: Record<string, unknown> = {}) {
+  return renderLabels(layout, paint, [{coordinates: [0, 0]}]);
+}
+
+/**
+ * Renders collision-filtered point labels, one per entry of `points`, in that order, and returns
+ * the frame.
+ */
+function renderLabels(
+  layout: Record<string, unknown>,
+  paint: Record<string, unknown>,
+  points: Array<{coordinates: number[]; properties?: Record<string, unknown>}>
+) {
   parent = document.createElement('div');
   document.body.append(parent);
   return new Promise<ImageData>((resolve, reject) => {
@@ -40,7 +47,11 @@ function renderLabel(layout: Record<string, unknown>, paint: Record<string, unkn
           zoom: 8,
           styleLayer: {layout, paint},
           textColor: [0, 0, 0, 255],
-          data: [{type: 'Feature', geometry: {type: 'Point', coordinates: [0, 0]}, properties: {}}]
+          data: points.map(({coordinates, properties = {}}) => ({
+            type: 'Feature',
+            geometry: {type: 'Point', coordinates},
+            properties
+          }))
         } as any)
       ],
       onAfterRender: () => {
@@ -65,11 +76,19 @@ function renderLabel(layout: Record<string, unknown>, paint: Record<string, unkn
   });
 }
 
-/** Number of opaque, dark (text-colored) pixels in rows `[top, bottom)`. */
-function textPixels(image: ImageData, top = 0, bottom = SIZE): number {
+/** Removes the rendered deck, so that the next render starts afresh. */
+function cleanup(): void {
+  deck?.finalize();
+  deck = null;
+  parent?.remove();
+  parent = null;
+}
+
+/** Number of opaque, dark (text-colored) pixels in rows `[top, bottom)` and columns `[left, right)`. */
+function textPixels(image: ImageData, top = 0, bottom = SIZE, left = 0, right = SIZE): number {
   let count = 0;
   for (let y = top; y < bottom; y++) {
-    for (let x = 0; x < SIZE; x++) {
+    for (let x = left; x < right; x++) {
       const i = (y * SIZE + x) * 4;
       if (image.data[i + 3] > 200 && image.data[i] < 80) {
         count++;
@@ -191,10 +210,7 @@ describe('label halos in the browser', () => {
         run += image.data[i + 3] > 128 && image.data[i] > 128 && image.data[i + 1] < 128 ? 1 : 0;
       }
       widths.push(run);
-      deck?.finalize();
-      deck = null;
-      parent?.remove();
-      parent = null;
+      cleanup();
     }
     expect(widths).toEqual([1, 2, 4]);
   });
@@ -203,5 +219,31 @@ describe('label halos in the browser', () => {
     const image = await renderLabel(layout, {...RED_HALO, 'text-halo-width': 0});
     expect(haloPixels(image)).toEqual([]);
     expect(textPixels(image)).toBeGreaterThan(20);
+  });
+});
+
+describe('label collision with several halos in the browser', () => {
+  // Two labels of equal priority that overlap: anchors 28 pixels apart, each about 80 wide.
+  const layout = {'text-field': 'MMMMMM', 'text-size': 16};
+  const paint = {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']};
+
+  /** Text pixels drawn left and right of the overlap: by the left and the right label only. */
+  function sides(image: ImageData): [number, number] {
+    const [top, bottom] = [SIZE / 2 - 14, SIZE / 2 + 14];
+    return [textPixels(image, top, bottom, 0, 28), textPixels(image, top, bottom, SIZE - 28, SIZE)];
+  }
+
+  test('a second halo elsewhere still lets only one of two overlapping labels draw', async () => {
+    const image = await renderLabels(layout, paint, [
+      {coordinates: [-14, 0], properties: {halo: 1}},
+      {coordinates: [14, 0], properties: {halo: 1}},
+      // Far from the two, with a halo of its own: drawn by a second text sublayer.
+      {coordinates: [0, 45], properties: {halo: 2}}
+    ]);
+    const [left, right] = sides(image);
+    expect(Math.min(left, right)).toBe(0);
+    expect(Math.max(left, right)).toBeGreaterThan(20);
+    // The label with the other halo draws too.
+    expect(textPixels(image, SIZE / 2 + 31, SIZE / 2 + 59)).toBeGreaterThan(20);
   });
 });

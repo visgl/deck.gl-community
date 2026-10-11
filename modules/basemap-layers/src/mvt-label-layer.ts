@@ -187,10 +187,18 @@ const LABEL_FONT_SETTINGS = {
 };
 
 /**
- * Most text sublayers one label layer draws for halos. Each sublayer holds every label row (see
- * `renderLayers`), so the cap bounds the work per tile when every feature has its own halo.
+ * Most text sublayers one label layer draws for halos; with more than one, another sublayer places
+ * the labels. Each sublayer holds every label row (see `renderLayers`), so the cap bounds the work
+ * per tile when every feature has its own halo.
  */
 export const MAX_HALO_SUBLAYERS = 8;
+
+/**
+ * A collision priority outside `CollisionFilterExtension`'s range, -1000 to 1000. In the collision
+ * pass, a label is drawn at a depth from its priority, and this one lies past the far plane, so
+ * the label is clipped: it is filtered by the collision map but draws nothing into it.
+ */
+const OUT_OF_COLLISION_PRIORITY = -2000;
 
 /** `text-halo-width` is rounded to this step, in pixels, so that close widths share a sublayer. */
 const HALO_WIDTH_STEP = 0.25;
@@ -988,29 +996,54 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       ) as any;
       const updateTriggers = this.getLabelUpdateTriggers();
       const {halos = [null], rowHalos = []} = this.state.halos || {};
-      // One text sublayer per halo. Each gets every row, with text only for the rows of its halo,
-      // so a row keeps its index, which the collision filter identifies labels by (deck.gl derives
-      // picking colors from the data index, so a sublayer cannot hold only its own rows). The
-      // number of halos is capped (see getLabelHalos), so the work stays linear in the rows.
+      if (halos.length === 1) {
+        // Every label has the same halo, or none: one sublayer draws and places them all.
+        const halo = halos[0];
+        layers.push(
+          new TextLayer({
+            ...this.getSubLayerProps({id: 'text'}),
+            ...textProps,
+            outlineWidth: halo?.outlineWidth ?? 0,
+            outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+            getText: getLabel,
+            updateTriggers
+          })
+        );
+        return layers;
+      }
+      // Several halos. `TextLayer` takes one outline per layer, so each halo is drawn by its own
+      // sublayer. A row must have the same index in every sublayer: the collision filter
+      // identifies labels by picking color, which deck.gl derives from the data index, so each
+      // sublayer gets every row and text only for the rows of its halo. Labels collide once, in
+      // the invisible `text` sublayer, which holds every label; the halo sublayers stay out of
+      // the collision map, so a row outside a sublayer's halo leaves no box there that could
+      // claim the place of another label. The number of halos is capped (see getLabelHalos), so
+      // the work stays linear in the rows.
       layers.push(
+        new TextLayer({
+          ...this.getSubLayerProps({id: 'text'}),
+          ...textProps,
+          outlineWidth: 0,
+          getColor: [0, 0, 0, 0],
+          getText: getLabel,
+          updateTriggers
+        }),
         ...halos.map(
           (halo, haloIndex) =>
             new TextLayer({
-              ...this.getSubLayerProps({id: haloIndex ? `text-${haloIndex}` : 'text'}),
+              ...this.getSubLayerProps({id: `text-${haloIndex + 1}`}),
               ...textProps,
               outlineWidth: halo?.outlineWidth ?? 0,
               outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
-              getText:
-                halos.length > 1
-                  ? (row: LabelRow, info: any) =>
-                      rowHalos[info.index] === haloIndex ? getLabel(row, info) : undefined
-                  : getLabel,
+              // Filtered by the collision map, but drawing nothing into it.
+              getCollisionPriority: OUT_OF_COLLISION_PRIORITY,
+              // The background box is only drawn for the collision pass.
+              background: false,
+              getText: (row: LabelRow, info: any) =>
+                rowHalos[info.index] === haloIndex ? getLabel(row, info) : undefined,
               updateTriggers: {
                 ...updateTriggers,
-                getText:
-                  halos.length > 1
-                    ? `${updateTriggers.getText}|${this.state.haloKey?.[1]}`
-                    : updateTriggers.getText
+                getText: `${updateTriggers.getText}|${this.state.haloKey?.[1]}`
               }
             })
         )
