@@ -80,6 +80,7 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
     const symbolLayer = () =>
       deck.props.layers.find((layer: any) => layer?.id === 'LAYER_SYMBOLS') as any;
     expect(symbolLayer().props.data).toHaveLength(3);
+    expect(symbolLayer().props.lineWidthUnits).toBe('pixels');
     deck.redraw('symbol picking');
     expect(
       deck
@@ -89,6 +90,8 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
     const initial = view.presenter
       .getCubeData()
       .map(cube => ({ordinal: cube.ordinal, position: [...cube.position]}));
+    const timeline = symbolLayer().context.timeline;
+    timeline.pause();
     await view.signal('count', 1).runAsync();
     await expect.poll(() => view.presenter.getCubeData()[1]?.isEmpty).toBe(true);
     expect(view.presenter.getCubeData()[1]).toMatchObject({
@@ -112,6 +115,7 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
     await expect.poll(() => symbolLayer().props.data.length).toBe(0);
     const polygons = deck.props.layers.find((layer: any) => layer?.id === 'LAYER_POLYGONS') as any;
     expect(polygons.props.data).toHaveLength(3);
+    timeline.play();
     await new Promise(resolve => setTimeout(resolve, 1100));
     deck.redraw('square picking');
     expect(

@@ -97,7 +97,7 @@ function newSymbolLayer(data: SymbolMark[]) {
     data,
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
     radiusUnits: 'common',
-    lineWidthUnits: 'common',
+    lineWidthUnits: 'pixels',
     pickable: true,
     stroked: true,
     filled: true,
