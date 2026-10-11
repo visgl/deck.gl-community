@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # DependencyArrowLayer
 
+![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="dependency-arrow-layer" />
 
 Renders dependency links as paths, straight lines, or arcs with directional arrow markers.

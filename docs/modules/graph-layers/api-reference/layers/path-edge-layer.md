@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # PathEdgeLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="path-edge-layer" size="tall" />
 
 `PathEdgeLayer` renders polylines that pass through intermediate control points.

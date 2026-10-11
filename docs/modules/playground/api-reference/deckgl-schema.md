@@ -1,5 +1,7 @@
 # deck.gl Schema
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 The playground bundles Zod schemas for JSON-encoded deck.gl documents, official and community
 layers, and core views, without importing layer constructors. The generated official deck.gl JSON
 Schema artifact is available from:
