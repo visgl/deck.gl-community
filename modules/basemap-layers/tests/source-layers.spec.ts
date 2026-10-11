@@ -113,5 +113,12 @@ describe('basemap source tilesets', () => {
     expect(unlabelled).not.toBe(tileset);
     expect(finalize).toHaveBeenCalled();
     expect(getTileLoadOptions(unlabelled).layers).toEqual(['road', 'water']);
+    // A replaced source leaves nothing behind.
+    const other = {...style, sources: {tiles: {...SOURCES.tiles}}};
+    const layer: any = new BasemapLayer({id: 'basemap', style: other} as any);
+    layer.state = state;
+    layer.context = {};
+    layer.updateSourceTilesets(other);
+    expect([...state.tilesetSourceLayers.keys()]).toEqual([other.sources.tiles]);
   });
 });

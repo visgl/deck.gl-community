@@ -326,6 +326,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       ) {
         tileset.finalize();
         this.state.tilesets.delete(source);
+        this.state.tilesetSourceLayers.delete(source);
       }
     }
     this.state.tileLoadOptions = this.props.loadOptions;
