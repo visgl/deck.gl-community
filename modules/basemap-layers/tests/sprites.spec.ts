@@ -250,8 +250,8 @@ describe('icon-image', () => {
     expect(layer.renderIconLayers()).toEqual([]);
   });
 
-  test('draws one icon layer per sprite, with only the rows whose icon it holds', () => {
-    const layer = iconLayer({'icon-image': ['get', 'icon']});
+  test('draws one icon layer per sprite, each over every row, drawing only its own icons', () => {
+    const layer = iconLayer({'icon-image': ['get', 'icon'], 'text-field': 'A'});
     const rows = [
       {position: [0, 0], __source: {object: feature({icon: 'circle-11'}), index: 0}},
       {position: [1, 1], __source: {object: feature({icon: 'poi:museum'}), index: 1}},
@@ -262,18 +262,117 @@ describe('icon-image', () => {
     layer.internalState = {subLayers: []} as any;
     const iconLayers = layer.renderIconLayers();
     // `iconAtlas` is an async prop (null until the image loads), so identify each layer by id.
-    expect(iconLayers.map((sublayer: any) => [sublayer.id, sublayer.props.data.length])).toEqual([
-      ['labels-icons-default', 2],
-      ['labels-icons-poi', 1]
+    // Every layer holds every row, so an icon's row index matches its label's.
+    expect(iconLayers.map((sublayer: any) => [sublayer.id, sublayer.props.data])).toEqual([
+      ['labels-icons-default', rows],
+      ['labels-icons-poi', rows]
     ]);
     expect(iconLayers[0].props.iconMapping).toBe(DEFAULT_ATLAS.mapping);
-    // Icons are drawn without the collision filter (see the module docs).
+    expect(iconLayers[1].props.iconMapping).toBe(POI_ATLAS.mapping);
+    const info = (index: number) => ({index, data: rows, target: []});
+    const [defaultIcons, poiIcons] = iconLayers;
+    expect(rows.map((row, i) => defaultIcons.props.getIcon(row, info(i)))).toEqual([
+      'circle-11',
+      null,
+      'circle-11'
+    ]);
+    expect(rows.map((row, i) => poiIcons.props.getSize(row, info(i)))).toEqual([0, 20, 0]);
+  });
+
+  test("icons share the labels' collision group and priority", () => {
+    const layer = iconLayer({
+      'icon-image': 'circle-11',
+      'text-field': 'A',
+      'symbol-sort-key': ['get', 'rank']
+    });
+    const rows = [{position: [0, 0], __source: {object: feature({rank: 3}), index: 0}}];
+    layer.state = {labelData: rows};
+    layer.context = {} as any;
+    layer.internalState = {subLayers: []} as any;
+    const sublayers = layer.renderLayers();
+    const icons = sublayers.find((sublayer: any) => sublayer.id === 'labels-icons-default');
+    const text = sublayers.find((sublayer: any) => sublayer.id === 'labels-text');
     expect(
-      iconLayers[0].props.extensions.some(
+      icons.props.extensions.some(
         (extension: any) => extension.constructor.extensionName === 'CollisionFilterExtension'
       )
-    ).toBe(false);
-    expect(iconLayers[1].props.iconMapping).toBe(POI_ATLAS.mapping);
+    ).toBe(true);
+    expect(icons.props.collisionEnabled).toBe(true);
+    expect(icons.props.collisionGroup).toBe(text.props.collisionGroup);
+    const info = {index: 0, data: rows, target: []};
+    expect(icons.props.getCollisionPriority(rows[0], info)).toBe(
+      text.props.getCollisionPriority(rows[0], info)
+    );
+    // The whole icon box collides, transparent pixels included.
+    expect(icons.props.collisionTestProps).toEqual({alphaCutoff: 0});
+  });
+});
+
+describe('icon layer cost', () => {
+  const COUNT = 1000;
+  const names = Array.from({length: COUNT}, (_, i) => `icon-${i}`);
+  const imageIndex = (selected: string[]) =>
+    Object.fromEntries(selected.map(name => [name, {x: 0, y: 0, width: 8, height: 8}]));
+
+  /** Renders the icon layers of `COUNT` rows, row `i` with icon `icon-i` (or `prefix:icon-i`). */
+  function renderHostile(atlases: SpriteAtlas[], iconName: (i: number) => string) {
+    const layer = iconLayer({'icon-image': ['get', 'icon'], 'text-field': 'A'}, {}, atlases);
+    const rows = names.map((_, i) => ({
+      position: [i, 0],
+      __source: {object: feature({icon: iconName(i)}), index: i}
+    }));
+    layer.state = {labelData: rows};
+    layer.context = {} as any;
+    layer.internalState = {subLayers: []} as any;
+    const getIcon = vi.spyOn(layer, 'getIcon');
+    const getIconColor = vi.spyOn(layer, 'getIconColor');
+    const iconLayers = layer.renderIconLayers();
+    // Run every accessor over every row, as deck.gl does when it fills the attributes.
+    for (const sublayer of iconLayers) {
+      const {
+        getIcon: icon,
+        getSize,
+        getColor,
+        getPixelOffset,
+        getCollisionPriority
+      } = sublayer.props;
+      rows.forEach((row, index) => {
+        const info = {index, data: rows, target: []};
+        for (const accessor of [icon, getSize, getColor, getPixelOffset, getCollisionPriority]) {
+          accessor(row, info);
+        }
+      });
+    }
+    return {iconLayers, getIcon, getIconColor};
+  }
+
+  test('1,000 distinct icon names in one sprite make one icon layer', () => {
+    const atlas = {
+      id: 'default',
+      image: 'sprite.png',
+      mapping: getSpriteIconMapping(imageIndex(names))
+    };
+    const {iconLayers, getIcon, getIconColor} = renderHostile([atlas], i => names[i]);
+    expect(iconLayers.map((sublayer: any) => sublayer.id)).toEqual(['labels-icons-default']);
+    expect(getIconColor).toHaveBeenCalledTimes(COUNT);
+    // One resolution per row up front, then size, color and offset of each own row.
+    expect(getIcon.mock.calls.length).toBeLessThanOrEqual(4 * COUNT);
+  });
+
+  test('rows spread over several sprites are evaluated once each, not once per sprite', () => {
+    const sprites = Array.from({length: 4}, (_, s) => ({
+      id: s === 0 ? 'default' : `s${s}`,
+      image: `s${s}.png`,
+      mapping: getSpriteIconMapping(imageIndex(names.filter((_, i) => i % 4 === s)))
+    }));
+    const {iconLayers, getIcon, getIconColor} = renderHostile(sprites, i =>
+      i % 4 === 0 ? names[i] : `s${i % 4}:${names[i]}`
+    );
+    expect(iconLayers).toHaveLength(4);
+    // Each layer still holds every row, for the shared collision identity.
+    expect(iconLayers.every((sublayer: any) => sublayer.props.data.length === COUNT)).toBe(true);
+    expect(getIconColor).toHaveBeenCalledTimes(COUNT);
+    expect(getIcon.mock.calls.length).toBeLessThanOrEqual(4 * COUNT);
   });
 });
 

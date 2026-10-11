@@ -46,7 +46,11 @@ type BasemapLayerGroup = {
   styleDefinition: ResolvedBasemapStyle;
   zoom?: number;
   loadOptions?: BasemapLoadOptions;
-  /** Sprites loaded for the style; symbol layers draw `icon-image` from them. */
+  /**
+   * Sprites loaded for the style; symbol layers draw `icon-image` from them. `null` means the
+   * sprites are still loading: no icons are drawn, and labels are placed as if each symbol had its
+   * icon. Omit it, or pass `[]`, for a style without sprites.
+   */
   spriteAtlases?: SpriteAtlas[] | null;
   /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
   fontFamily?: LabelFontFamily | null;
