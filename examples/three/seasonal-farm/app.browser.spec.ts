@@ -39,6 +39,7 @@ describe('Seasonal Farm integration', () => {
       let deck: Deck<MapView>;
       let cleanup: (() => void) | undefined;
       let savedView: MapViewState | undefined;
+      let instantCamera = false;
       const errors: Error[] = [];
       const frames = vi.fn(() => deck!.getViewports()[0] as WebMercatorViewport);
       const mount = () =>
@@ -46,12 +47,20 @@ describe('Seasonal Farm integration', () => {
           device,
           initialViewState: savedView,
           onViewStateChange(params) {
-            savedView = params.viewState;
-            return params.viewState;
+            // Clamp contracts should inspect the authored target independently of
+            // software-GPU animation cadence. Earlier inputs still exercise transitions.
+            savedView = instantCamera
+              ? {...params.viewState, transitionDuration: 0}
+              : params.viewState;
+            return savedView;
           },
           onDeckInitialized(instance) {
             deck = instance;
-            deck.setProps({onError: error => errors.push(error), onAfterRender: frames});
+            deck.setProps({
+              useDevicePixels: 0.5,
+              onError: error => errors.push(error),
+              onAfterRender: frames
+            });
           }
         });
       const viewport = () => deck!.getViewports()[0] as WebMercatorViewport;
@@ -137,6 +146,7 @@ describe('Seasonal Farm integration', () => {
           })
         );
         await expect.poll(() => viewport().bearing, {timeout: 5000}).toBe(-15);
+        instantCamera = true;
         // Start near the limits to avoid rendering a long zoom sequence on CI's software GPU.
         deck!.setProps({
           initialViewState: {...savedView!, zoom: 22.5, pitch: 75, transitionDuration: 0}
@@ -156,6 +166,7 @@ describe('Seasonal Farm integration', () => {
               shiftKey: property === 'pitch'
             })
           );
+          expect(savedView![property]).toBe(limit);
           await expect
             .poll(() => frames.mock.results.at(-1)?.value[property], {timeout: 5000})
             .toBe(limit);
