@@ -53,7 +53,8 @@ export function createVegaPanel() {
       .querySelector<HTMLElement>('.deckgl-playground-preview')!;
     const overlay = root.ownerDocument.createElement('div');
     overlay.dataset.vegaPreview = '';
-    overlay.style.cssText = 'position:absolute;inset:0;background:white;z-index:1';
+    overlay.style.cssText =
+      'position:absolute;inset:0 0 0 min(440px, 80%);background:white;z-index:1';
     preview.append(overlay);
     root.innerHTML = `<label>Vega example <select aria-label="Vega example"></select></label>
         <p>Vega JSON · deck.gl renderer · <a href="https://github.com/microsoft/SandDance" target="_blank" rel="noreferrer">Based on SandDance</a></p>
