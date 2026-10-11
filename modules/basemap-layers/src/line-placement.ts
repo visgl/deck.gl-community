@@ -251,6 +251,94 @@ export function getLineAnchors(line: number[][], options: LineAnchorOptions): Li
   return resample(line, offset, spacing, options, false, budget);
 }
 
+/** A line to merge: its label text, or none, and its vertices. */
+export type MergeableLine = {text: string | null | undefined; line: number[][]};
+
+/**
+ * Joins lines with the same label text whose ends meet exactly, as MapLibre GL JS's `mergeLines`
+ * does before it places labels along lines. Vector tiles split a street or river into many short
+ * features (one per block, bridge or name change), and a label longer than each piece fits on
+ * none of them; MapLibre places it on the joined line.
+ *
+ * Returns one entry per input line: the joined line at the line that started each chain (whose
+ * feature the labels belong to, as in MapLibre), `null` for a line merged into a chain started by
+ * another, and the line unchanged when nothing joins it. Lines without text are
+ * never merged. The work is linear in the number of vertices.
+ */
+export function mergeLines(lines: MergeableLine[]): (number[][] | null)[] {
+  type Chunk = {line: number[][]; next: Chunk | null};
+  type Chain = {first: Chunk; last: Chunk; owner: number};
+  const chains: (Chain | null)[] = [];
+  const result: (number[][] | null)[] = lines.map(({line}) => line);
+  // Chains by `text` and the position of their first and last vertex.
+  const byStart = new Map<string, number>();
+  const byEnd = new Map<string, number>();
+  const key = (text: string, [x, y]: number[]) => `${x},${y},${text}`;
+
+  lines.forEach(({text, line}, index) => {
+    if (!text || !Array.isArray(line) || line.length < 2) {
+      return;
+    }
+    const startKey = key(text, line[0]);
+    const endKey = key(text, line[line.length - 1]);
+    const chunk: Chunk = {line, next: null};
+    const before = byEnd.get(startKey);
+    const after = byStart.get(endKey);
+
+    if (before !== undefined && after !== undefined && before !== after) {
+      // Joins the chain ending where this line starts to the one starting where it ends.
+      const head = chains[before]!;
+      const tail = chains[after]!;
+      head.last.next = chunk;
+      chunk.next = tail.first;
+      head.last = tail.last;
+      byEnd.delete(startKey);
+      byStart.delete(endKey);
+      byEnd.set(key(text, lastPoint(tail.last.line)), before);
+      chains[after] = null;
+      // As in MapLibre, the joined line keeps the feature of the chain it was appended to.
+      result[index] = null;
+      result[tail.owner] = null;
+    } else if (before !== undefined) {
+      const head = chains[before]!;
+      head.last.next = chunk;
+      head.last = chunk;
+      byEnd.delete(startKey);
+      byEnd.set(endKey, before);
+      result[index] = null;
+    } else if (after !== undefined) {
+      const tail = chains[after]!;
+      chunk.next = tail.first;
+      tail.first = chunk;
+      byStart.delete(endKey);
+      byStart.set(startKey, after);
+      result[index] = null;
+    } else {
+      const chainIndex = chains.push({first: chunk, last: chunk, owner: index}) - 1;
+      byStart.set(startKey, chainIndex);
+      byEnd.set(endKey, chainIndex);
+    }
+  });
+
+  for (const chain of chains) {
+    if (chain && chain.first.next) {
+      // Each chunk after the first repeats the vertex it shares with the previous one.
+      const joined = chain.first.line.slice();
+      for (let chunk = chain.first.next; chunk; chunk = chunk.next) {
+        for (let i = 1; i < chunk.line.length; i++) {
+          joined.push(chunk.line[i]);
+        }
+      }
+      result[chain.owner] = joined;
+    }
+  }
+  return result;
+}
+
+function lastPoint(line: number[][]): number[] {
+  return line[line.length - 1];
+}
+
 /**
  * The angle at which a label along a line is drawn: the line's direction, turned by 180 degrees
  * when `keepUpright` is set and the text would otherwise read upside down on a map rotated by

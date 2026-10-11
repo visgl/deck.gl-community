@@ -1,5 +1,11 @@
 import {describe, expect, test} from 'vitest';
-import {clipLine, getLineAnchors, getUprightAngle, MIN_LABEL_GAP} from '../src/line-placement';
+import {
+  clipLine,
+  getLineAnchors,
+  getUprightAngle,
+  mergeLines,
+  MIN_LABEL_GAP
+} from '../src/line-placement';
 import {getTextLengthEms, MVTLabelLayer} from '../src/mvt-label-layer';
 import {getSpriteIconMapping, type SpriteAtlas} from '../src/sprite';
 
@@ -612,5 +618,77 @@ describe('label length estimate', () => {
     expect(getTextLengthEms('서울')).toBe(2);
     expect(getTextLengthEms('ab')).toBeCloseTo(1.2, 9);
     expect(getTextLengthEms('Ｎ1')).toBeCloseTo(1.6, 9);
+  });
+});
+
+describe('mergeLines', () => {
+  const a = [
+    [0, 0],
+    [1, 0]
+  ];
+  const b = [
+    [1, 0],
+    [2, 1]
+  ];
+  const c = [
+    [2, 1],
+    [3, 1]
+  ];
+
+  test('joins lines with the same text whose ends meet, in any input order', () => {
+    const joined = [
+      [0, 0],
+      [1, 0],
+      [2, 1],
+      [3, 1]
+    ];
+    // Appended, prepended, and a line that joins two chains.
+    expect(mergeLines([a, b, c].map(line => ({text: 'Main', line})))).toEqual([joined, null, null]);
+    expect(mergeLines([c, b, a].map(line => ({text: 'Main', line})))).toEqual([joined, null, null]);
+    expect(mergeLines([a, c, b].map(line => ({text: 'Main', line})))).toEqual([joined, null, null]);
+  });
+
+  test('keeps lines apart that have other text, no text or ends that do not meet', () => {
+    expect(
+      mergeLines([
+        {text: 'Main', line: a},
+        {text: 'High', line: b}
+      ])
+    ).toEqual([a, b]);
+    expect(
+      mergeLines([
+        {text: '', line: a},
+        {text: '', line: b}
+      ])
+    ).toEqual([a, b]);
+    expect(
+      mergeLines([
+        {text: 'Main', line: a},
+        {text: 'Main', line: c}
+      ])
+    ).toEqual([a, c]);
+  });
+
+  test('places a label along a street split into pieces shorter than the label', () => {
+    // 'Main Street' is about 66 px at text-size 10; each piece is 51.2 px, inside the tile.
+    const piece = (x0: number, x1: number) => ({
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [x0, 0.5],
+          [x1, 0.5]
+        ]
+      },
+      properties: {name: 'Main Street'}
+    });
+    const pieces = [piece(0.2, 0.3), piece(0.3, 0.4)];
+    for (const features of [pieces, [...pieces].reverse()]) {
+      const rows = lineLayer().getLabelData(features, false) as any[];
+      expect(rows).toHaveLength(1);
+      // Placed as on one line from x = 0.2: half the label plus two ems in, at about 53 px.
+      expect(rows[0].position[0] * 512).toBeCloseTo(0.2 * 512 + 33 + 20, 0);
+    }
+    // Each piece alone is too short for the label.
+    expect(lineLayer().getLabelData([pieces[0]], false)).toHaveLength(0);
   });
 });

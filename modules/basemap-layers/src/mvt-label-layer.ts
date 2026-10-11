@@ -24,6 +24,7 @@ import {
   clipLine,
   getLineAnchors,
   getUprightAngle,
+  mergeLines,
   type LineAnchorBudget
 } from './line-placement';
 
@@ -954,6 +955,29 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * For `symbol-placement: line`, the `LineString` features with the same label text whose ends
+   * meet, joined as MapLibre does (see `mergeLines`): per feature, the feature with the joined
+   * line to place labels along, `null` for a feature joined into another, or `undefined` to place
+   * the feature as it is.
+   */
+  getMergedLines(features: FeatureLike[]): (FeatureLike | null | undefined)[] {
+    const lines = features.map(feature =>
+      feature.geometry?.type === 'LineString'
+        ? {text: this.getLabelText(feature), line: feature.geometry.coordinates}
+        : {text: null, line: []}
+    );
+    return mergeLines(lines).map((line, index) => {
+      if (line === null) {
+        return null;
+      }
+      const feature = features[index];
+      return line === lines[index].line
+        ? undefined
+        : {...feature, geometry: {...feature.geometry, coordinates: line}};
+    });
+  }
+
+  /**
    * Label rows for every anchor of `features`: `symbol-placement` is evaluated once, and one
    * search budget is shared by all polygons of the tile. With `line` or `line-center` placement,
    * line features get rows along their lines, each with the line's direction.
@@ -962,11 +986,17 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const placement = this.getSymbolPlacement();
     const budget = {segmentTests: TILE_POLE_SEARCH_SEGMENT_TESTS};
     const lineBudget = {steps: TILE_LINE_ANCHOR_STEPS};
+    const merged = placement === 'line' ? this.getMergedLines(features) : null;
     return features.flatMap((feature, index) =>
       isLinePlacement(placement) && isLineGeometry(feature)
-        ? this.getLineLabelPlacements(feature, geographic, placement, lineBudget).map(row =>
-            this.getSubLayerRow(row, feature, index)
-          )
+        ? merged?.[index] === null
+          ? []
+          : this.getLineLabelPlacements(
+              merged?.[index] || feature,
+              geographic,
+              placement,
+              lineBudget
+            ).map(row => this.getSubLayerRow(row, feature, index))
         : this.getLabelAnchors(feature, geographic, placement, budget).map(position =>
             this.getSubLayerRow({position}, feature, index)
           )
