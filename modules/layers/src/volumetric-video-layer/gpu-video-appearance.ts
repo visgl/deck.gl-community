@@ -126,7 +126,7 @@ void main() {
         parameters: {viewport: [0, 0, this.texture.width, this.texture.height]}
       });
       try {
-        this.model.draw(pass);
+        if (!this.model.draw(pass)) throw new Error('The GPU could not filter video history.');
       } finally {
         pass.end();
       }

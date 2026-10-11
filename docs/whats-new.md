@@ -9,7 +9,9 @@ This page lists module additions and major changes in each release. For detailed
   `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
   [local-file demo](/examples/layers/volumetric-video) includes stabilized camera controls
   and bounded GPU history that preserves the last working volume on allocation failure. Later valid
-  seeks recover from decode failures, and failed GPU filter commits remain retryable.
+  seeks recover from decode failures, failed writes cannot expose stale frame identities,
+  and GPU filter retries restore playback controls. Metadata callbacks can replace the
+  live layer without discarding its newly allocated history.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 

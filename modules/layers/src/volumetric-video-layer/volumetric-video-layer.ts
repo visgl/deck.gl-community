@@ -76,7 +76,9 @@ type VideoProps = {
   position?: [number, number, number];
   /** Called once metadata and the frame index have loaded. */
   onVideoLoad?: ((info: VolumetricVideoInfo) => void) | null;
-  /** Called when the requested frame window has finished uploading. */
+  /** Called when the requested frame window has finished uploading, and again when
+   * rendering that window recovers from a GPU filter error.
+   */
   onFrameLoad?: ((info: VolumetricVideoFrameInfo) => void) | null;
 };
 
@@ -191,6 +193,7 @@ export class VolumetricVideoLayer<
     frames: GPUVideoFrames | null;
     pendingFrames: GPUVideoFrames | null;
     cacheError: 'allocation' | 'preparation' | null;
+    filterError: GPUVideoFrames | null;
   };
 
   getShaders() {
@@ -211,7 +214,8 @@ export class VolumetricVideoLayer<
       source: null,
       frames: null,
       pendingFrames: null,
-      cacheError: null
+      cacheError: null,
+      filterError: null
     });
   }
 
@@ -299,6 +303,7 @@ export class VolumetricVideoLayer<
         });
       } catch (error) {
         // Dirty slots remain queued until the complete filter/mip commit succeeds.
+        this.setState({filterError: frames});
         this.setNeedsRedraw();
         this.raiseError(
           error instanceof Error ? error : new Error(String(error)),
@@ -317,7 +322,36 @@ export class VolumetricVideoLayer<
     model.setInstanceCount(
       raster ? window.frameCount : frames.width * frames.height * window.frameCount
     );
-    model.draw(this.context.renderPass);
+    const drawn = model.draw(this.context.renderPass);
+    if (this.state.filterError === frames) {
+      if (!drawn) {
+        this.setNeedsRedraw();
+        return;
+      }
+      this.setState({filterError: null});
+      const requested = getFrameWindow(
+        this.props.currentFrame,
+        this.props.frameTrail,
+        source.info.frameCount,
+        frames.capacity
+      );
+      if (
+        !this.state.pendingFrames &&
+        !this.state.cacheError &&
+        window.currentFrame === requested.currentFrame &&
+        window.firstFrame === requested.firstFrame
+      )
+        this.reportFrameLoad(frames, window);
+    }
+  }
+
+  private reportFrameLoad(frames: GPUVideoFrames, window: FrameWindow): void {
+    this.props.onFrameLoad?.({
+      ...window,
+      timestamp: this.state.source!.info!.frameTimestamps[window.currentFrame],
+      splatCount: frames.width * frames.height * window.frameCount,
+      textureBytes: getFrameHistoryBytes(frames.width, frames.height, frames.capacity)
+    });
   }
 
   private createRasterModel(): Model | null {
@@ -357,7 +391,13 @@ export class VolumetricVideoLayer<
     this.state.source?.destroy();
     this.state.pendingFrames?.destroy();
     this.state.frames?.destroy();
-    this.setState({source: null, frames: null, pendingFrames: null, cacheError: null});
+    this.setState({
+      source: null,
+      frames: null,
+      pendingFrames: null,
+      cacheError: null,
+      filterError: null
+    });
     if (!this.props.video) return;
     const source = new VideoFrameSource(this.props.video);
     this.setState({source});
@@ -366,7 +406,17 @@ export class VolumetricVideoLayer<
       const layer = this.getCurrentLayer() as this | null;
       if (!layer || layer.state.source !== source || source.destroyed) return;
       layer.props.onVideoLoad?.(info);
-      layer.createFrameCache();
+      // User callbacks may synchronously replace/finalize this layer or build its cache.
+      const current = layer.getCurrentLayer() as this | null;
+      if (
+        current &&
+        current.state.source === source &&
+        !source.destroyed &&
+        !current.state.frames &&
+        !current.state.pendingFrames &&
+        !current.state.cacheError
+      )
+        current.createFrameCache();
     } catch (error) {
       const layer = this.getCurrentLayer();
       if (layer && !source.destroyed) {
@@ -458,16 +508,11 @@ export class VolumetricVideoLayer<
               return;
             }
             const oldFrames = layer.state.frames;
-            layer.setState({frames, pendingFrames: null});
+            layer.setState({frames, pendingFrames: null, filterError: null});
             oldFrames?.destroy();
           } else if (layer.state.frames !== frames || layer.state.pendingFrames) return;
           layer.setNeedsRedraw();
-          layer.props.onFrameLoad?.({
-            ...window,
-            timestamp: source.info!.frameTimestamps[window.currentFrame],
-            splatCount: frames.width * frames.height * window.frameCount,
-            textureBytes: getFrameHistoryBytes(frames.width, frames.height, frames.capacity)
-          });
+          layer.reportFrameLoad(frames, window);
         },
         error => {
           const layer = this.getCurrentLayer() as this | null;

@@ -43,7 +43,7 @@ the standard deck.gl layer conventions.
 | `luminanceThreshold` | `0` | Discards texels darker than this 0–1 threshold. Useful for dark-background motion studies. |
 | `staticPixelRemoval` | `0` | Per-pixel removal strength. `0` shows all pixels; `1` aggressively hides similar pixels. Positive values require an RGBA channel change greater than `0.5 * strength ** 2`. Frame 0 is retained as the baseline. |
 | `onVideoLoad` | `null` | Receives display `width`, `height`, `duration`, `frameCount`, and actual `frameTimestamps` in seconds. |
-| `onFrameLoad` | `null` | Receives the GPU-resident `firstFrame`, `currentFrame`, `frameCount`, source `timestamp`, `splatCount` before visibility filtering, and combined history `textureBytes`. |
+| `onFrameLoad` | `null` | Receives the GPU-resident `firstFrame`, `currentFrame`, `frameCount`, source `timestamp`, `splatCount` before visibility filtering, and combined history `textureBytes`. Also fires when rendering the requested window recovers from a GPU filter error. |
 
 Errors use deck.gl's `onError` callback. Changing frames, moving backwards, and
 replacing the source all work without retaining the entire decoded video. Rapid
@@ -113,6 +113,10 @@ preparation, the completed history remains owned and a later seek can rebuild th
 without changing sampling or trail settings. Allocation rejections require valid history settings
 or a sufficient budget. Failed GPU visibility/filter commits retain their dirty slots and settings
 for a later redraw; draw-time errors are reported without escaping the layer's draw call.
+A successful draw after such a retry calls `onFrameLoad` again for the recovered window,
+so playback controls can clear the error without requiring another seek. Failed uploads
+invalidate the overwritten slot and predecessor before publishing any new frame identity;
+later seeks decode those pixels again rather than treating a partial write as resident.
 
 The layer does not silently lower the requested sampling grid to fit the budget.
 The allocation check includes all retained history textures; it does not guarantee that

@@ -199,7 +199,9 @@ void main() {
           try {
             const job = jobs[index++];
             if (!job.reference && job.frame > 0 && this.referenceFrame !== job.frame - 1) {
+              this.referenceFrame = undefined;
               this.changes.copyPrevious(this.texture, (job.frame - 1) % this.capacity);
+              assertGPUVideoResources(this.device);
               this.referenceFrame = job.frame - 1;
             }
             this.uploadFrame(sample, job.frame, job.reference);
@@ -253,22 +255,29 @@ void main() {
         videoCopy: {rotation: sample.rotation, flip: Number(sample.flip)}
       });
       const slot = frameIndex % this.capacity;
+      // Revoke ownership before any pass can overwrite pixels belonging to an old frame.
+      if (reference) this.referenceFrame = undefined;
+      else {
+        this.resident[slot] = undefined;
+        this.appearance.invalidate(slot);
+      }
       const pass = this.device.beginRenderPass({
         framebuffer: reference ? this.changes.previousFramebuffer : this.framebuffers[slot],
         clearColor: [0, 0, 0, 0],
         parameters: {viewport: [0, 0, this.width, this.height]}
       });
       try {
-        this.copyModel.draw(pass);
+        if (!this.copyModel.draw(pass)) throw new Error('The GPU could not copy this video frame.');
       } finally {
         pass.end();
       }
       if (!reference) {
         this.changes.update(this.texture, slot, frameIndex === 0);
+        this.referenceFrame = undefined;
         this.changes.copyPrevious(this.texture, slot);
-        this.resident[slot] = frameIndex;
-        this.appearance.invalidate(slot);
       }
+      assertGPUVideoResources(this.device);
+      if (!reference) this.resident[slot] = frameIndex;
       this.referenceFrame = frameIndex;
     } finally {
       frame.close();

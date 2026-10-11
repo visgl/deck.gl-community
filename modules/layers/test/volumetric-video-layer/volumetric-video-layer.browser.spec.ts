@@ -6,6 +6,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {Deck, OrbitView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
+import {ClipSpace} from '@luma.gl/engine';
 import {VideoSample} from 'mediabunny';
 import {getFrameWindow} from '../../src/volumetric-video-layer/frame-utils';
 import {GPUPixelChanges} from '../../src/volumetric-video-layer/gpu-pixel-changes';
@@ -287,6 +288,171 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
+  // Value: protects=failed GPU overwrites never expose new pixels as an older resident frame;
+  // fails_when=slot/reference ownership is committed before all GPU passes are validated;
+  // why_new=decoder failures do not interrupt an upload after the raw texture has changed; seam=none
+  it.each([
+    'changes',
+    'predecessor',
+    'validation',
+    'copy skipped',
+    'changes skipped',
+    'predecessor skipped'
+  ])('invalidates overwritten history and retries exact pixels after a %s failure', async failure => {
+    const device = await createDevice();
+    const source = new VideoFrameSource(MP4_URL);
+    let cache: GPUVideoFrames | undefined;
+    let reference: GPUVideoFrames | undefined;
+    try {
+      await source.initialize();
+      let resolve: () => void;
+      let reject: (error: Error) => void;
+      cache = new GPUVideoFrames(
+        device,
+        source,
+        32,
+        3,
+        () => resolve(),
+        error => reject(error)
+      );
+      const request = (frame: number, trail: number) =>
+        new Promise<void>((res, rej) => {
+          resolve = res;
+          reject = rej;
+          cache!.request(getFrameWindow(frame, trail, source.info!.frameCount, 3));
+        });
+      await request(33, 2);
+      const original = readFrame(cache, 31).slice();
+      const originalChange = cache.changes.texture.readDataSyncWebGL({z: 1, depthOrArrayLayers: 1});
+      cache.appearance.update(cache.texture, cache.changes.texture, cache.resident, {
+        luminanceThreshold: 0,
+        staticPixelRemoval: 0
+      });
+      if (failure.endsWith('skipped')) {
+        const id =
+          failure === 'copy skipped'
+            ? 'volumetric-video-resample'
+            : failure === 'changes skipped'
+              ? 'volumetric-video-frame-difference'
+              : 'volumetric-video-previous-frame';
+        const draw = ClipSpace.prototype.draw;
+        let skipped = false;
+        vi.spyOn(ClipSpace.prototype, 'draw').mockImplementation(function (
+          this: ClipSpace,
+          ...args
+        ) {
+          if (!skipped && this.id === id) {
+            skipped = true;
+            return false;
+          }
+          return draw.apply(this, args);
+        });
+      } else if (failure === 'validation') {
+        const gl = (device as Device & {gl: WebGL2RenderingContext}).gl;
+        vi.spyOn(gl, 'getError').mockReturnValueOnce(gl.INVALID_OPERATION);
+      } else if (failure === 'changes') {
+        const draw = cache.changes.update.bind(cache.changes);
+        vi.spyOn(cache.changes, 'update').mockImplementationOnce((...args) => {
+          draw(...args);
+          throw new Error('Failed changes after GPU write');
+        });
+      } else {
+        const draw = cache.changes.copyPrevious.bind(cache.changes);
+        vi.spyOn(cache.changes, 'copyPrevious').mockImplementationOnce((...args) => {
+          draw(...args);
+          throw new Error('Failed predecessor after GPU write');
+        });
+      }
+      await expect(request(34, 0)).rejects.toThrow();
+      vi.restoreAllMocks();
+      expect(cache.resident[1]).toBeUndefined();
+      expect(cache.getReadyWindow()).toEqual({firstFrame: 32, currentFrame: 33, frameCount: 2});
+      await request(34, 0);
+      await new Promise<void>((res, rej) => {
+        reference = new GPUVideoFrames(device, source, 32, 3, () => res(), rej);
+        reference.request(getFrameWindow(34, 0, source.info!.frameCount, 3));
+      });
+      expect(readFrame(cache, 34)).toEqual(readFrame(reference!, 34));
+      expect(cache.changes.texture.readDataSyncWebGL({z: 1, depthOrArrayLayers: 1})).toEqual(
+        reference!.changes.texture.readDataSyncWebGL({z: 1, depthOrArrayLayers: 1})
+      );
+      await request(31, 0);
+      expect(readFrame(cache, 31)).toEqual(original);
+      expect(cache.changes.texture.readDataSyncWebGL({z: 1, depthOrArrayLayers: 1})).toEqual(
+        originalChange
+      );
+      cache.appearance.update(cache.texture, cache.changes.texture, cache.resident, {
+        luminanceThreshold: 0,
+        staticPixelRemoval: 0
+      });
+      expect(cache.appearance.texture.readDataSyncWebGL({z: 1, depthOrArrayLayers: 1})).toEqual(
+        original.buffer
+      );
+    } finally {
+      vi.restoreAllMocks();
+      reference?.destroy();
+      cache?.destroy();
+      source.destroy();
+      device.destroy();
+    }
+  });
+
+  // Value: protects=metadata callbacks can synchronously replace the live layer and its history;
+  // fails_when=the pre-callback instance destroys the replacement cache using stale props;
+  // why_new=ordinary seeks do not replace the layer while loadVideo is returning metadata; seam=none
+  it('preserves history created by a synchronous onVideoLoad layer replacement', async () => {
+    const device = await createDevice();
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer;
+    let candidate: GPUVideoFrames | null = null;
+    const loaded = vi.fn();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'metadata-replacement',
+          video: MP4_URL,
+          resolution: 32,
+          currentFrame: 88,
+          frameTrail: 5,
+          maxFrameTrail: 0,
+          onVideoLoad: () => {
+            layer = layer.clone({maxFrameTrail: 5});
+            deck!.setProps({layers: [layer]});
+            deck!.layerManager!.updateLayers();
+            candidate = layer.state.pendingFrames;
+          },
+          onFrameLoad: info => {
+            loaded(info);
+            resolve();
+          }
+        });
+        deck = new Deck({
+          device,
+          width: 320,
+          height: 240,
+          views: [new OrbitView({id: 'metadata'})],
+          initialViewState: {metadata: {target: [0, 0, 0], zoom: 6}},
+          layers: [layer],
+          onError: reject
+        });
+      });
+      expect(candidate).not.toBeNull();
+      expect(candidate!.texture.destroyed).toBe(false);
+      expect(layer!.state.frames).toBe(candidate);
+      expect(layer!.state.frames!.capacity).toBe(6);
+      expect(loaded).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          firstFrame: 83,
+          currentFrame: 88,
+          frameCount: 6
+        })
+      );
+    } finally {
+      deck?.finalize();
+      device.destroy();
+    }
+  });
+
   // Value: protects=a failed active seek does not permanently freeze later valid frames;
   // fails_when=decode errors block resident requests or prevent replacement retry;
   // why_new=stale-iterator tests bypass the layer's active failure handler; seam=none
@@ -400,7 +566,8 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
   // why_new=allocation failure tests never reach resident appearance commits; seam=none
   it.each([
     'mipmap',
-    'validation'
+    'validation',
+    'skipped pass'
   ])('retries the full visibility pyramid after %s failure', async failure => {
     const device = await createDevice();
     const frames = device.createTexture({
@@ -427,7 +594,9 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       const removeStatic = {luminanceThreshold: 0, staticPixelRemoval: 1};
       appearance.update(frames, changes, [30], showAll);
       const revision = appearance.revision;
-      if (failure === 'mipmap') {
+      if (failure === 'skipped pass') {
+        vi.spyOn(ClipSpace.prototype, 'draw').mockReturnValueOnce(false);
+      } else if (failure === 'mipmap') {
         vi.spyOn(
           Object.getPrototypeOf(appearance.texture),
           'generateMipmapsWebGL'

@@ -25,6 +25,65 @@ function chooseFile(input: HTMLInputElement, file: File) {
 }
 
 describe('mounted volumetric video demo', () => {
+  // Value: protects=draw recovery restores playback and clears the demo's error state;
+  // fails_when=a successful visibility retry never reports readiness to the mounted UI;
+  // why_new=the GPU draw test only checks texture revision and never observes demo controls; seam=none
+  it('restores Play and clears the error after a draw-time filter retry', async () => {
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    const updates = vi.spyOn(Deck.prototype, 'setProps');
+    let cleanup: (() => void) | undefined;
+    const element = <T extends HTMLElement>(id: string) => parent.querySelector<T>(id)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent);
+      await vi.waitFor(() => expect(element('.vv-demo').dataset.frameReady).toBe('88'), {
+        timeout: 5000
+      });
+      change(element<HTMLSelectElement>('#vv-resolution'), '128', 'change');
+      const layer = () =>
+        (updates.mock.contexts.at(-1)! as Deck<OrbitView[]>).props
+          .layers![0] as VolumetricVideoLayer;
+      await vi.waitFor(() => expect(layer().state.frames!.width).toBe(128), {timeout: 5000});
+      const appearance = layer().state.frames!.appearance;
+      const prototype = Object.getPrototypeOf(appearance.texture);
+      const generate = prototype.generateMipmapsWebGL;
+      let allowRetry = false;
+      vi.spyOn(prototype, 'generateMipmapsWebGL').mockImplementation(function (
+        this: typeof appearance.texture
+      ) {
+        if (!allowRetry) throw new Error('Temporary demo filter failure');
+        return generate.call(this);
+      });
+      change(element<HTMLInputElement>('#vv-static'), '1');
+      await vi.waitFor(
+        () => expect(element('#vv-error').textContent).toContain('Temporary demo filter failure'),
+        {timeout: 5000}
+      );
+      expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
+      allowRetry = true;
+      await vi.waitFor(
+        () => {
+          expect(element('#vv-error').textContent).toBe('');
+          expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(false);
+        },
+        {timeout: 3000}
+      );
+      expect(element('.vv-demo').dataset.frameReady).toBe('88');
+      expect(element('#vv-status').textContent).not.toContain('Keeping');
+      element<HTMLButtonElement>('#vv-play').click();
+      await vi.waitFor(
+        () => expect(Number(element('.vv-demo').dataset.frameReady)).toBeGreaterThan(88),
+        {timeout: 3000}
+      );
+      element<HTMLButtonElement>('#vv-play').click();
+    } finally {
+      cleanup?.();
+      vi.restoreAllMocks();
+      parent.remove();
+    }
+  }, 15000);
+
   // Value: protects=real file-driven demo recovers and retains its playback history through controls and remount;
   // fails_when=file errors strand controls, sampling loses the requested trail, camera hold skips time, or cleanup leaks its source;
   // why_new=helper and GPU tests never invoke the mounted demo's DOM handlers or returned cleanup; seam=none
@@ -52,6 +111,8 @@ describe('mounted volumetric video demo', () => {
       cleanup = mountVolumetricVideoExample(parent);
       await ready(88);
       expect(element<HTMLSelectElement>('#vv-resolution').value).toBe('0');
+      expect(layer().state.frames!.capacity).toBe(layer().props.maxFrameTrail! + 1);
+      expect(Number(root().dataset.frameCount)).toBe(layer().props.frameTrail! + 1);
       change(element<HTMLSelectElement>('#vv-resolution'), '128', 'change');
       await vi.waitFor(() => expect(layer().state.frames!.width).toBe(128), {timeout: 5000});
       chooseFile(

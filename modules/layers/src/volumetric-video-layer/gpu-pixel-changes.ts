@@ -141,7 +141,7 @@ void main() {
       parameters: {viewport: [0, 0, width, height]}
     });
     try {
-      model.draw(pass);
+      if (!model.draw(pass)) throw new Error('The GPU could not prepare pixel changes.');
     } finally {
       pass.end();
     }
