@@ -187,9 +187,9 @@ describe('draw order across tiles', () => {
     });
     // No water features, so no water sublayer; the road and its gap both record index 1.
     expect(subLayers.map((l: any) => [l.id, l.props.styleLayerIndex])).toEqual([
-      ['tile-roads', 1],
-      ['tile-roads-gap', 1],
-      ['tile-places', 2]
+      ['tile-"roads"', 1],
+      ['tile-"roads"-gap', 1],
+      ['tile-"places"', 2]
     ]);
   });
 });
@@ -308,10 +308,10 @@ describe('vector tile layer', () => {
     };
 
     expect(tileLayer.renderLayers().map((l: any) => l.id)).toEqual([
-      'test-tiles-a-water',
-      'test-tiles-b-water',
-      'test-tiles-a-places',
-      'test-tiles-b-places'
+      'test-tiles-a-"water"',
+      'test-tiles-b-"water"',
+      'test-tiles-a-"places"',
+      'test-tiles-b-"places"'
     ]);
   });
 });
@@ -399,7 +399,7 @@ describe('globe draw order', () => {
         tile: {index: {x: 0, y: 0, z: zoom}}
       })
       .flat(Infinity);
-    const sublayer = (id: string) => tiles.find((l: any) => l.id === `tile-${id}`);
+    const sublayer = (id: string) => tiles.find((l: any) => l.id === `tile-${JSON.stringify(id)}`);
     const [roads] = layers
       .find(layer => layer.id === 'test-tiles-"roads"')
       .props.renderSubLayers({
