@@ -1,3 +1,5 @@
+import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import type {BasemapSource} from './style-resolver';
 import {CompositeLayer, log, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
 import {getBasemapLayers, getStyleDefinitionZoomLimits} from './globe-layers';
@@ -99,6 +101,12 @@ type BasemapLayerState = {
   zoomKey: string | null;
   /** Sprites of the resolved style, once loaded. */
   spriteAtlases: SpriteAtlas[] | null;
+  /** Decoded data caches owned by this basemap, shared across style runs. */
+  tilesets: Map<BasemapSource, SharedTileset2D>;
+  /** Loading configuration used to construct the current source caches. */
+  tileLoadOptions: unknown;
+  /** Fetch identity, kept separate from render-only props such as view mode. */
+  tileFetch: unknown;
 };
 
 /**
@@ -137,6 +145,9 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       loadError: null,
       loadToken: 0,
       zoomKey: null,
+      tilesets: new Map(),
+      tileLoadOptions: null,
+      tileFetch: null,
       spriteAtlases: null
     };
   }
@@ -184,6 +195,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     if (!style) {
       const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
+      this.clearSourceTilesets();
       this.setState({resolvedStyle: null, loadError: null, loadToken, spriteAtlases: null});
       return;
     }
@@ -217,6 +229,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       .catch((error: Error) => {
         if (this.state.loadToken === loadToken) {
           logBasemapLayerError('Failed to resolve basemap style', error);
+          this.clearSourceTilesets();
           this.setState({resolvedStyle: null, loadError: error});
         }
       });
@@ -252,6 +265,53 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     });
   }
 
+  /** The basemap owns caches; style-run consumers only attach/detach. */
+  finalizeState(): void {
+    this.state.loadToken++;
+    this.clearSourceTilesets();
+  }
+
+  private clearSourceTilesets(): void {
+    for (const tileset of this.state.tilesets.values()) tileset.finalize();
+    this.state.tilesets.clear();
+  }
+
+  private updateSourceTilesets(style: ResolvedBasemapStyle): void {
+    const sources = new Set(
+      Object.values(style.sources || {}).filter(source => source.type === 'vector' && source.tiles)
+    );
+    const optionsChanged =
+      this.state.tileLoadOptions !== this.props.loadOptions ||
+      this.state.tileFetch !== this.props.fetch;
+    for (const [source, tileset] of this.state.tilesets) {
+      if (!sources.has(source) || optionsChanged) {
+        tileset.finalize();
+        this.state.tilesets.delete(source);
+      }
+    }
+    this.state.tileLoadOptions = this.props.loadOptions;
+    this.state.tileFetch = this.props.fetch;
+    for (const source of sources) {
+      if (!this.state.tilesets.has(source)) {
+        const loader = new SharedMVTLayer({
+          id: `${this.id}-loader`,
+          data: source.tiles!,
+          fetch: this.props.fetch,
+          loadOptions: this.props.loadOptions
+        });
+        loader.context = this.context;
+        const tileset = new SharedTileset2D({
+          ...loader._getTilesetOptions(),
+          minZoom: source.minzoom ?? 0,
+          maxZoom: source.maxzoom ?? 22,
+          tileSize: source.tileSize || 512,
+          getTileData: tile => loader.getTileData(tile)
+        });
+        this.state.tilesets.set(source, tileset);
+      }
+    }
+  }
+
   /** Renders the sublayers generated from the resolved style definition. */
   renderLayers() {
     const {resolvedStyle} = this.state;
@@ -259,6 +319,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       return [];
     }
 
+    this.updateSourceTilesets(resolvedStyle);
     const zoom = this.context.viewport?.zoom || 0;
     // Recorded without setState: this only tracks what the current sublayers were built from.
     this.state.zoomKey = this.getZoomKey(resolvedStyle, zoom);
@@ -271,7 +332,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       zoom,
       loadOptions: this.props.loadOptions,
       spriteAtlases: this.state.spriteAtlases,
-      fontFamily: this.props.fontFamily
+      fontFamily: this.props.fontFamily,
+      tilesets: this.state.tilesets
     });
   }
 }

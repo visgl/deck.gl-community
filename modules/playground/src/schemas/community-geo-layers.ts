@@ -15,7 +15,7 @@ import {
   defineLayer
 } from './common';
 import {Tile3DLayerPropsSchema, TileLayerPropsSchema, URLTemplateSchema} from './geo-layers';
-import {PolygonLayerPropsSchema} from './layers';
+import {GeoJsonLayerPropsSchema, PolygonLayerPropsSchema} from './layers';
 
 /** TileSource instances are supplied by the host, not constructed from editable JSON. */
 export const TileSourceLayerPropsSchema = TileLayerPropsSchema.extend({
@@ -28,6 +28,14 @@ export const SharedTile2DLayerPropsSchema = TileLayerPropsSchema.omit({
   visibleMinZoom: true,
   visibleMaxZoom: true
 }).extend({data: URLTemplateSchema.nullable().optional()});
+
+/** Tile-local GeoJSON rendering props for the shared MVT adapter. */
+export const SharedMVTLayerPropsSchema = SharedTile2DLayerPropsSchema.extend({
+  ...GeoJsonLayerPropsSchema.shape,
+  data: URLTemplateSchema.nullable().optional(),
+  uniqueIdProperty: z.string().optional(),
+  highlightedFeatureId: z.union([z.string(), z.number()]).nullable().optional()
+});
 
 /** JSON props for a tile-header overlay; the tile header is a host-owned instance. */
 export const TileGridLayerPropsSchema = CompositeLayerPropsSchema.extend({
@@ -200,6 +208,8 @@ export const SharedTile2DLayerSchema = defineLayer(
   'SharedTile2DLayer',
   SharedTile2DLayerPropsSchema
 );
+/** JSON representation of SharedMVTLayer. */
+export const SharedMVTLayerSchema = defineLayer('SharedMVTLayer', SharedMVTLayerPropsSchema);
 /** JSON representation of TileGridLayer. */
 export const TileGridLayerSchema = defineLayer('TileGridLayer', TileGridLayerPropsSchema);
 /** JSON representation of DelaunayCoverLayer. */
@@ -229,6 +239,7 @@ export const TreeLayerSchema = defineLayer('TreeLayer', TreeLayerPropsSchema);
 export const CommunityGeoLayerSchemas = {
   TileSourceLayer: TileSourceLayerSchema,
   SharedTile2DLayer: SharedTile2DLayerSchema,
+  SharedMVTLayer: SharedMVTLayerSchema,
   TileGridLayer: TileGridLayerSchema,
   DelaunayCoverLayer: DelaunayCoverLayerSchema,
   ElevationLayer: ElevationLayerSchema,

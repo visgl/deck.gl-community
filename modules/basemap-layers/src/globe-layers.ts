@@ -1,8 +1,14 @@
-import {COORDINATE_SYSTEM, type Layer, type LayersList, log} from '@deck.gl/core';
+import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import {
+  COORDINATE_SYSTEM,
+  type Layer,
+  type LayersList,
+  type UpdateParameters,
+  log
+} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
-import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
+import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
-import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
 import {MVTLabelLayer} from './mvt-label-layer';
@@ -50,6 +56,8 @@ type BasemapLayerGroup = {
   spriteAtlases?: SpriteAtlas[] | null;
   /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
   fontFamily?: LabelFontFamily | null;
+  /** Externally owned source caches; BasemapLayer supplies and finalizes these. */
+  tilesets?: Map<BasemapSource, SharedTileset2D>;
 };
 
 /**
@@ -454,81 +462,6 @@ function createRasterLayer({
 }
 
 /**
- * Tile requests of one vector source, shared by the tile layers that draw its runs of style
- * layers, so a source drawn in several runs fetches and parses each tile once. Only requests in
- * flight are shared: a tile layer that asks for a tile after its request settled loads it again,
- * so no decoded tile is kept here. Each tile layer's request is aborted with its own signal, which
- * frees its request slot at once; the load itself is aborted when every request for it is.
- */
-export class SharedTileRequests {
-  private requests = new Map<
-    string,
-    {promise: Promise<unknown>; controller: AbortController; waiting: number}
-  >();
-
-  /** `key` identifies the decoded tile: its URL and anything else its decoding depends on. */
-  request(
-    key: string,
-    load: (signal: AbortSignal) => Promise<unknown>,
-    signal?: AbortSignal
-  ): Promise<unknown> {
-    if (signal?.aborted) {
-      return Promise.reject(signal.reason);
-    }
-    let entry = this.requests.get(key);
-    if (!entry) {
-      const controller = new AbortController();
-      const created = {promise: load(controller.signal), controller, waiting: 0};
-      entry = created;
-      this.requests.set(key, created);
-      // A settled request is dropped, unless a newer request for the tile has replaced it.
-      const drop = () => {
-        if (this.requests.get(key) === created) {
-          this.requests.delete(key);
-        }
-      };
-      created.promise.then(drop, drop);
-    }
-
-    const shared = entry;
-    shared.waiting++;
-    return new Promise((resolve, reject) => {
-      const onAbort = () => {
-        reject(signal!.reason);
-        shared.waiting--;
-        if (shared.waiting === 0) {
-          // No tile layer waits for the load any more.
-          if (this.requests.get(key) === shared) {
-            this.requests.delete(key);
-          }
-          shared.controller.abort();
-        }
-      };
-      signal?.addEventListener('abort', onAbort, {once: true});
-      // The signal may have been aborted while the load started.
-      if (signal?.aborted) {
-        signal.removeEventListener('abort', onAbort);
-        onAbort();
-        return;
-      }
-      shared.promise.then(
-        value => {
-          signal?.removeEventListener('abort', onAbort);
-          resolve(value);
-        },
-        error => {
-          signal?.removeEventListener('abort', onAbort);
-          reject(error);
-        }
-      );
-    });
-  }
-}
-
-/** Shared tile requests per vector source of a resolved style. */
-const sharedTileRequests = new WeakMap<BasemapSource, SharedTileRequests>();
-
-/**
  * Orders the sublayers of all tiles of a tile layer by style layer, as MapLibre draws each style
  * layer across all tiles before the next: a tile's fills cannot paint over the labels of the tile
  * drawn before it. Within a style layer, tiles keep their order, and so do the sublayers of a tile.
@@ -542,64 +475,42 @@ export function sortTileSubLayers<LayerT extends {props: Record<string, any>}>(
     .sort((a, b) => (a.props[STYLE_LAYER_INDEX] ?? 0) - (b.props[STYLE_LAYER_INDEX] ?? 0));
 }
 
-class StyledMVTLayer extends MVTLayer<any> {
+type SourceTilesetOwner = {tileset: SharedTileset2D; consumers: Set<StyledMVTLayer['state']>};
+
+class StyledMVTLayer extends SharedMVTLayer {
+  declare state: SharedMVTLayer['state'] & {sourceTilesetOwner?: SourceTilesetOwner};
+
+  updateState(params: UpdateParameters<this>): void {
+    const owner = (this.props as any).sourceTilesetOwner as SourceTilesetOwner | undefined;
+    const previous = this.state.sourceTilesetOwner;
+    if (owner !== previous) {
+      this.releaseSourceTileset();
+      owner?.consumers.add(this.state);
+      this.state.sourceTilesetOwner = owner;
+    }
+    super.updateState(params);
+  }
+
+  finalizeState(): void {
+    super.finalizeState();
+    this.releaseSourceTileset();
+  }
+
+  private releaseSourceTileset(): void {
+    const owner = this.state.sourceTilesetOwner;
+    if (owner) {
+      owner.consumers.delete(this.state);
+      if (!owner.consumers.size) owner.tileset.finalize();
+      this.state.sourceTilesetOwner = undefined;
+    }
+  }
+
+  static layerName = 'StyledMVTLayer';
   renderLayers(): Layer | null | LayersList {
-    const tileSubLayers = super.renderLayers();
-    return Array.isArray(tileSubLayers)
-      ? sortTileSubLayers(tileSubLayers as (Layer[] | null)[])
-      : tileSubLayers;
-  }
-
-  getTileData(loadProps: {index: {x: number; y: number; z: number}; signal?: AbortSignal}) {
-    const data = this.props.data;
-    const url = _getURLFromTemplate(data, loadProps as any);
-    if (!url) {
-      return Promise.reject(new Error('Invalid URL'));
-    }
-
-    const {tileRequests} = this.props as {tileRequests?: SharedTileRequests | null};
-    if (!tileRequests) {
-      return this.loadTile(url, loadProps);
-    }
-    // Tiles decode to longitude/latitude on a globe and to tile coordinates on a map.
-    return tileRequests.request(
-      `${this.context.viewport.resolution ? 'wgs84' : 'local'} ${url}`,
-      signal => this.loadTile(url, {index: loadProps.index, signal}),
-      loadProps.signal
-    );
-  }
-
-  loadTile(
-    url: string,
-    loadProps: {index: {x: number; y: number; z: number}; signal?: AbortSignal}
-  ) {
-    const loadOptions = this.getLoadOptions();
-    const coordinates = this.context.viewport.resolution ? 'wgs84' : 'local';
-
-    return this.props.fetch(url, {
-      propName: 'data',
-      layer: this,
-      signal: loadProps.signal,
-      loadOptions: {
-        ...loadOptions,
-        mimeType: 'application/x-protobuf',
-        mvt: {
-          ...((loadOptions?.mvt as Record<string, unknown> | undefined) || {}),
-          shape: 'geojson',
-          coordinates,
-          tileIndex: loadProps.index
-        }
-      }
-    });
+    const layers = super.renderLayers();
+    return Array.isArray(layers) ? sortTileSubLayers(layers as (Layer[] | null)[]) : layers;
   }
 }
-
-StyledMVTLayer.layerName = 'StyledMVTLayer';
-StyledMVTLayer.defaultProps = {
-  ...MVTLayer.defaultProps,
-  binary: false,
-  loaders: [MVTWorkerLoader]
-};
 
 function createStyledVectorSubLayer({
   idPrefix,
@@ -689,12 +600,13 @@ function createVectorLayerGroup({
   id,
   sourceId,
   source,
-  tileRequests,
+  tileset,
   styleLayers,
   zoom,
   config,
   loadOptions,
   mode,
+  sourceTilesetOwner,
   depthTestedFrom = -1,
   labelPriorityRanges,
   styleDefinition,
@@ -706,7 +618,8 @@ function createVectorLayerGroup({
   sourceId: string;
   source: BasemapSource;
   /** Shared with the source's other runs, if it has any. */
-  tileRequests?: SharedTileRequests | null;
+  tileset?: SharedTileset2D | null;
+  sourceTilesetOwner?: SourceTilesetOwner;
   styleLayers: BasemapStyleLayer[];
   zoom: number;
   config: BasemapLayerConfig;
@@ -728,9 +641,8 @@ function createVectorLayerGroup({
 
   return new StyledMVTLayer({
     id: `${idPrefix}-${id}`,
-    data: source.tiles,
-    tileRequests,
-    binary: false,
+    data: tileset || source.tiles,
+    ...{sourceTilesetOwner},
     minZoom,
     maxZoom,
     tileSize: source.tileSize || 512,
@@ -844,7 +756,8 @@ export function getBasemapLayers({
   zoom = 0,
   loadOptions,
   spriteAtlases,
-  fontFamily
+  fontFamily,
+  tilesets
 }: BasemapLayerGroup) {
   const config = getConfig(globe);
   const styleLayers = (styleDefinition.layers || []).filter(layer =>
@@ -870,7 +783,8 @@ export function getBasemapLayers({
         loadOptions,
         mode,
         spriteAtlases,
-        fontFamily
+        fontFamily,
+        tilesets
       })
     );
   }
@@ -1485,6 +1399,10 @@ export function getStyleLayerRuns(
 ): StyleLayerRun[] {
   const runs: StyleLayerRun[] = [];
   const sourceIds = new Set<string>();
+  const reservedIds = new Set([
+    ...Object.keys(styleDefinition.sources || {}),
+    ...styleLayers.map(layer => layer.id)
+  ]);
   for (const layer of styleLayers) {
     const sourceId = layer.source as string | undefined;
     const source = sourceId ? styleDefinition.sources?.[sourceId] : undefined;
@@ -1509,10 +1427,15 @@ export function getStyleLayerRuns(
       if (last?.type === 'vector' && last.sourceId === sourceId) {
         last.styleLayers.push(layer);
       } else {
+        let id = sourceId;
+        if (sourceIds.has(sourceId)) {
+          id = `${sourceId}-${JSON.stringify(layer.id)}`;
+          while (reservedIds.has(id)) id += '-run';
+          reservedIds.add(id);
+        }
         runs.push({
           type: 'vector',
-          // The style layer id is quoted, so it cannot be read as part of another source's id.
-          id: sourceIds.has(sourceId) ? `${sourceId}-${JSON.stringify(layer.id)}` : sourceId,
+          id,
           sourceId,
           source,
           styleLayers: [layer]
@@ -1539,7 +1462,8 @@ function getStyleLayers({
   loadOptions,
   mode,
   spriteAtlases,
-  fontFamily
+  fontFamily,
+  tilesets
 }: {
   idPrefix: string;
   styleLayers: BasemapStyleLayer[];
@@ -1550,6 +1474,7 @@ function getStyleLayers({
   mode: BasemapMode;
   spriteAtlases?: SpriteAtlas[] | null;
   fontFamily?: LabelFontFamily | null;
+  tilesets?: Map<BasemapSource, SharedTileset2D>;
 }) {
   const labelPriorityRanges = getLabelPriorityRanges(
     styleLayers.filter(layer => isVectorStyleLayer(layer, config))
@@ -1557,25 +1482,6 @@ function getStyleLayers({
   const runs = getStyleLayerRuns(styleLayers, styleDefinition, config).filter(run =>
     run.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom))
   );
-
-  // A source drawn in several runs shares its tile requests between their tile layers.
-  const runCounts = new Map<BasemapSource, number>();
-  for (const run of runs) {
-    if (run.type === 'vector') {
-      runCounts.set(run.source!, (runCounts.get(run.source!) ?? 0) + 1);
-    }
-  }
-  const getTileRequests = (source: BasemapSource): SharedTileRequests | null => {
-    if ((runCounts.get(source) ?? 1) < 2) {
-      return null;
-    }
-    let tileRequests = sharedTileRequests.get(source);
-    if (!tileRequests) {
-      tileRequests = new SharedTileRequests();
-      sharedTileRequests.set(source, tileRequests);
-    }
-    return tileRequests;
-  };
 
   // On a globe, flat layers drawn after an extrusion are depth-tested against the buildings.
   const extrusionIndex =
@@ -1586,6 +1492,7 @@ function getStyleLayers({
       : -1;
   const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
 
+  const ownedTilesets = new Map<BasemapSource, SourceTilesetOwner>();
   return runs.map(run => {
     const [layer] = run.styleLayers;
     if (run.type === 'background') {
@@ -1601,12 +1508,31 @@ function getStyleLayers({
         depthTested: depthTested.has(layer)
       });
     }
+    let tileset = tilesets?.get(run.source!);
+    let owner: SourceTilesetOwner | undefined;
+    if (!tileset) {
+      owner = ownedTilesets.get(run.source!);
+      if (!owner) {
+        const loader = new SharedMVTLayer({data: run.source!.tiles!, loadOptions});
+        tileset = new SharedTileset2D({
+          ...loader._getTilesetOptions(),
+          minZoom: run.source!.minzoom ?? 0,
+          maxZoom: run.source!.maxzoom ?? 22,
+          tileSize: run.source!.tileSize || 512,
+          getTileData: tile => loader.getTileData(tile)
+        });
+        owner = {tileset, consumers: new Set()};
+        ownedTilesets.set(run.source!, owner);
+      }
+      tileset = owner.tileset;
+    }
     return createVectorLayerGroup({
       idPrefix,
       id: run.id,
       sourceId: run.sourceId!,
       source: run.source!,
-      tileRequests: getTileRequests(run.source!),
+      tileset,
+      sourceTilesetOwner: owner,
       styleLayers: run.styleLayers,
       depthTestedFrom: run.styleLayers.findIndex(styleLayer => depthTested.has(styleLayer)),
       zoom,
