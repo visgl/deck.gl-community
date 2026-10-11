@@ -1,12 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import {Layer} from '@deck.gl/core';
 import {describe, expect, test, vi} from 'vitest';
-import {
-  SharedTileRequests,
-  getBasemapLayers,
-  getStyleLayerRuns,
-  sortTileSubLayers
-} from '../src/globe-layers';
+import {getBasemapLayers, getStyleLayerRuns, sortTileSubLayers} from '../src/globe-layers';
 
 const SOURCES = {
   tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']},
@@ -49,6 +44,16 @@ function getRuns(layers: unknown[], config?: any) {
 }
 
 describe('draw order across sources', () => {
+  test('a generated run ID cannot alias a quoted source ID', () => {
+    const layers: any[] = [
+      {id: 'first', type: 'fill', source: 'a'},
+      {id: 'other', type: 'fill', source: 'a-\"b\"'},
+      {id: 'b', type: 'line', source: 'a'}
+    ];
+    const source = {type: 'vector', tiles: ['/{z}/{x}/{y}.pbf']};
+    const runs = getStyleLayerRuns(layers, {sources: {a: source, 'a-\"b\"': source}} as any);
+    expect(new Set(runs.map(run => run.id)).size).toBe(3);
+  });
   test('a raster layer before the vector layers draws below them', () => {
     expect(getLayerIds(RASTER_FIRST_LAYERS, 4)).toEqual([
       'test-background',
@@ -116,178 +121,6 @@ describe('draw order across sources', () => {
       {type: 'vector', id: 'tiles', layers: ['water', 'roads']}
     ]);
     expect(getLayerIds(layers, 4, {labels: false})).toEqual(['test-tiles']);
-  });
-
-  test('a source drawn in several runs shares its tile requests', () => {
-    const [first, , second] = getBasemapLayers({
-      idPrefix: 'test',
-      mode: 'map',
-      zoom: 4,
-      styleDefinition: {version: 8, sources: SOURCES, layers: RASTER_BETWEEN_LAYERS} as any
-    }) as any[];
-    expect(first.props.tileRequests).toBeInstanceOf(SharedTileRequests);
-    expect(second.props.tileRequests).toBe(first.props.tileRequests);
-
-    // A source drawn in one run fetches its own tiles, with abort signals.
-    const [, , single] = getBasemapLayers({
-      idPrefix: 'test',
-      mode: 'map',
-      zoom: 4,
-      styleDefinition: {version: 8, sources: SOURCES, layers: RASTER_FIRST_LAYERS} as any
-    }) as any[];
-    expect(single.props.tileRequests).toBeNull();
-  });
-});
-
-describe('SharedTileRequests', () => {
-  /** A load that settles when the test says so, and records the signal it was given. */
-  function deferredLoad() {
-    const load: any = (signal: AbortSignal) => {
-      load.calls++;
-      load.signal = signal;
-      return new Promise((resolve, reject) => {
-        load.resolve = resolve;
-        load.reject = reject;
-      });
-    };
-    load.calls = 0;
-    return load as ((signal: AbortSignal) => Promise<unknown>) & {
-      calls: number;
-      signal: AbortSignal;
-      resolve: (value: unknown) => void;
-      reject: (error: Error) => void;
-    };
-  }
-
-  test('loads a tile once for the requests in flight, then forgets it', async () => {
-    const requests = new SharedTileRequests();
-    const load = deferredLoad();
-    const a = requests.request('t/1', load);
-    const b = requests.request('t/1', load);
-    expect(load.calls).toBe(1);
-    load.resolve('tile');
-    expect(await a).toBe('tile');
-    expect(await b).toBe('tile');
-    // No decoded tile is kept once its request settled: a later request loads it again.
-    const c = requests.request('t/1', load);
-    expect(load.calls).toBe(2);
-    load.resolve('again');
-    expect(await c).toBe('again');
-  });
-
-  test('a tile layer that asks late or twice gets the request in flight', async () => {
-    const requests = new SharedTileRequests();
-    const load = deferredLoad();
-    const first = requests.request('t/1', load);
-    // The same tile layer asks again, then another one asks: neither starts a load.
-    const again = requests.request('t/1', load);
-    const late = requests.request('t/1', load);
-    expect(load.calls).toBe(1);
-    load.resolve('tile');
-    expect(await Promise.all([first, again, late])).toEqual(['tile', 'tile', 'tile']);
-  });
-
-  test('an aborted request rejects at once and leaves the load to the others', async () => {
-    const requests = new SharedTileRequests();
-    const load = deferredLoad();
-    const controller = new AbortController();
-    const aborted = requests.request('t/1', load, controller.signal);
-    const other = requests.request('t/1', load, new AbortController().signal);
-    controller.abort();
-    // Rejects before the load settles, which frees the tile layer's request slot.
-    await expect(aborted).rejects.toThrow();
-    expect(load.signal.aborted).toBe(false);
-    load.resolve('tile');
-    expect(await other).toBe('tile');
-  });
-
-  test('the load is aborted once every request for it is', async () => {
-    const requests = new SharedTileRequests();
-    const load = deferredLoad();
-    const controllers = [new AbortController(), new AbortController()];
-    const [a, b] = controllers.map(controller => requests.request('t/1', load, controller.signal));
-    controllers[0].abort();
-    expect(load.signal.aborted).toBe(false);
-    controllers[1].abort();
-    expect(load.signal.aborted).toBe(true);
-    await expect(a).rejects.toThrow();
-    await expect(b).rejects.toThrow();
-
-    // The aborted load is not reused, and its failure does not drop the new one.
-    const failed = load;
-    const newer = deferredLoad();
-    const next = requests.request('t/1', newer);
-    expect(newer.calls).toBe(1);
-    failed.reject(new Error('aborted'));
-    await Promise.resolve();
-    expect(requests.request('t/1', newer)).not.toBe(next);
-    expect(newer.calls).toBe(1);
-    newer.resolve('tile');
-    expect(await next).toBe('tile');
-  });
-
-  test('an already aborted request does not load', async () => {
-    const requests = new SharedTileRequests();
-    const load = deferredLoad();
-    const controller = new AbortController();
-    controller.abort();
-    await expect(requests.request('t/1', load, controller.signal)).rejects.toThrow();
-    expect(load.calls).toBe(0);
-  });
-
-  test('a request aborted while its load starts rejects and aborts the load', async () => {
-    const requests = new SharedTileRequests();
-    const controller = new AbortController();
-    let loadSignal: AbortSignal | undefined;
-    const request = requests.request(
-      't/1',
-      signal => {
-        loadSignal = signal;
-        controller.abort();
-        return new Promise(() => {});
-      },
-      controller.signal
-    );
-    await expect(request).rejects.toThrow();
-    expect(loadSignal?.aborted).toBe(true);
-  });
-
-  test('a failed request is not reused', async () => {
-    const requests = new SharedTileRequests();
-    let loads = 0;
-    const failing = requests.request('t/1', () => {
-      loads++;
-      return Promise.reject(new Error('offline'));
-    });
-    await expect(failing).rejects.toThrow('offline');
-    await requests.request('t/1', () => Promise.resolve(++loads));
-    expect(loads).toBe(2);
-  });
-
-  test("a tile layer's abort signal reaches its shared request", async () => {
-    const [tileLayer] = getBasemapLayers({
-      idPrefix: 'test',
-      mode: 'map',
-      zoom: 4,
-      styleDefinition: {version: 8, sources: SOURCES, layers: RASTER_BETWEEN_LAYERS} as any
-    }) as any[];
-    expect(tileLayer.props.tileRequests).toBeInstanceOf(SharedTileRequests);
-    let loadSignal: AbortSignal | undefined;
-    tileLayer.context = {viewport: {resolution: 0}};
-    tileLayer.loadTile = (_url: string, {signal}: {signal: AbortSignal}) => {
-      loadSignal = signal;
-      return new Promise(() => {});
-    };
-    const controller = new AbortController();
-    const tile = tileLayer.getTileData({
-      id: '0-0-4',
-      index: {x: 0, y: 0, z: 4},
-      signal: controller.signal
-    });
-    controller.abort();
-    await expect(tile).rejects.toThrow();
-    // It was the only request for the tile, so the fetch is aborted too.
-    expect(loadSignal?.aborted).toBe(true);
   });
 });
 
@@ -470,8 +303,7 @@ describe('vector tile layer', () => {
     tileLayer.context = {viewport: {zoom: 8, resolution: 0}};
     tileLayer.internalState = {};
     tileLayer.state = {
-      data: SOURCES.tiles.tiles,
-      binary: false,
+      tileLayers: new Map(),
       tileset: {tiles: [tile('a', 0), tile('b', 1)]}
     };
 
