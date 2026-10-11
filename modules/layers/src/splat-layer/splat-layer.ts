@@ -612,9 +612,22 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         retainedLevel: this.state.shadowRefinement.getLevel(owner.key)
       });
     }
+    let sharedBudget = this.props.maxTotalSplats;
+    for (let group = this.props._splatBudgetGroup; group; group = group.parent)
+      sharedBudget = Math.min(sharedBudget, group.maxShadowSplats);
+    // Light-space membership is published before the host's joint allocation.
+    // Retain existing mixtures, but introduce new shadow demand at coverage;
+    // otherwise the first light pass can submit every child's uncapped detail.
+    const initialCandidates = Number.isFinite(sharedBudget)
+      ? candidates.map(row => ({
+          ...row,
+          level: row.owner.asset.hierarchy.length - 1,
+          blend: 0
+        }))
+      : candidates;
     const membershipChanged = this.state.shadowRefinement.reconcile(
       budgetSplatSelections(
-        candidates,
+        initialCandidates,
         owner => owner.asset.hierarchy,
         this.props.maxShadowSplats * 0.75
       ),

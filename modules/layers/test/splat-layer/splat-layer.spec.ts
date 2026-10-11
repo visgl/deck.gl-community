@@ -319,3 +319,47 @@ it('moves camera and shadow demand to the current device runtime even without pr
   expect(allocations.mock.calls.map(call => call[0])).toEqual([false, true]);
   expect(layer.shouldUpdateState({changeFlags: {somethingChanged: false}})).toBe(false);
 });
+
+it.each([
+  'parent',
+  'total'
+])('starts light-space demand at coverage until the shared %s shadow allocation arrives', limit => {
+  const fine = Object.fromEntries(
+    Object.entries(SOURCE).map(([key, array]) => [
+      key,
+      new (array.constructor as typeof Float32Array)([...array, ...array, ...array])
+    ])
+  );
+  const layer = make([{position: [0, 0, 0]}], 0, {
+    source: fine,
+    hierarchy: [
+      {source: fine, error: 0},
+      {source: SOURCE, error: 1}
+    ],
+    pixelError: 0.001,
+    ...(limit === 'parent'
+      ? {_splatBudgetGroup: {maxSplats: 100, maxShadowSplats: 100}}
+      : {maxTotalSplats: 100})
+  });
+  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
+  layer.prepareShadow(
+    [
+      {
+        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        center: [0, 0, 0, 0],
+        width: 256,
+        height: 256
+      }
+    ],
+    layer.context.viewport
+  );
+  expect(layer.state.shadowCandidates[0].level).toBe(0);
+  expect(layer.splatStats.shadowSplats).toBe(1);
+  expect(layer.splatStats.shadowCoverageFloor).toBe(1);
+  const ids = new Set([layer.id]);
+  layer.state.runtime.reconcile(ids);
+  expect(layer.state.shadowRefinement.active).toBe(true);
+  for (let now = 16; now <= 6400; now += 16) layer.state.runtime.sample(ids, now);
+  expect(layer.state.shadowRefinement.active).toBe(false);
+  expect(layer.splatStats.shadowSplats).toBe(3);
+});
