@@ -33,7 +33,7 @@ const markStager: MarkStager = (
     // change direction of y from SVG to GL
     const ty = -1;
 
-    const ordinal = options.assignCubeOrdinal(item.datum);
+    const ordinal = options.assignCubeOrdinal(item.datum, item);
     if (ordinal > options.maxOrdinal) {
       options.maxOrdinal = ordinal;
     }

@@ -91,6 +91,9 @@ export class Presenter {
   private _showGuides: boolean;
   private _afterRenderHandler: () => void;
   private renderFrame: number;
+  private cubeOrdinals = new WeakMap<object, number>();
+  private nextCubeOrdinal = 0;
+  private stagedCubes: Cube[] = [];
 
   /**
    * Instantiate a new Presenter.
@@ -173,7 +176,12 @@ export class Presenter {
       maxOrdinal: 0,
       currAxis: null,
       defaultCubeColor: this.style.defaultCubeColor,
-      assignCubeOrdinal: config?.onSceneRectAssignCubeOrdinal || (() => options.maxOrdinal++),
+      assignCubeOrdinal:
+        config?.onSceneRectAssignCubeOrdinal ||
+        ((_datum, item) => {
+          if (!this.cubeOrdinals.has(item)) this.cubeOrdinals.set(item, this.nextCubeOrdinal++);
+          return this.cubeOrdinals.get(item);
+        }),
       zAxisZindex: config?.zAxisZindex
     };
     // determine if this is a vega scene
@@ -223,15 +231,7 @@ export class Presenter {
       }
       this.deckgl = new classes.DeckGL_Class(deckProps);
     }
-    let cubeCount = Math.max(this._last.cubeCount, stage.cubeData.length);
-    if (options.maxOrdinal) {
-      cubeCount = Math.max(cubeCount, options.maxOrdinal);
-      const empty: Partial<Cube> = {
-        isEmpty: true,
-        color: [0, 0, 0, 0] // possibly a bug in Deck.gl? set color to invisible.
-      };
-      stage.cubeData = patchCubeArray(cubeCount, empty, stage.cubeData);
-    }
+    const cubeCount = Math.max(this._last.cubeCount, stage.cubeData.length);
     this.setDeckProps(stage, height, width, cubeCount, config);
 
     const a = getActiveElementInfo();
@@ -287,6 +287,9 @@ export class Presenter {
     cubeCount: number,
     modifyConfig: PresenterConfig
   ) {
+    stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
+    cubeCount = stage.cubeData.length;
+    this.stagedCubes = stage.cubeData;
     const config = deepMerge<PresenterConfig>(defaultPresenterConfig, modifyConfig);
     const newBounds = this.isNewBounds(stage.view, height, width, cubeCount);
     // let lightSettings = this.style.lightSettings[stage.view];
@@ -418,6 +421,9 @@ export class Presenter {
     this.animationCancel();
     if (this.deckgl) this.deckgl.finalize();
     if (this.el) this.el.innerHTML = '';
+    this.stagedCubes = [];
+    this.cubeOrdinals = new WeakMap();
+    this.nextCubeOrdinal = 0;
     this._last = null;
     this.deckgl = null;
     this.el = null;

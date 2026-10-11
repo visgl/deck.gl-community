@@ -47,7 +47,8 @@ async function createSquareAtlas(): Promise<SpriteAtlas> {
  */
 async function renderSymbols(
   layout: Record<string, unknown>,
-  features: [number[], Record<string, unknown>][]
+  features: [number[], Record<string, unknown>][],
+  paint: Record<string, unknown> = {}
 ): Promise<ImageData> {
   const atlas = await createSquareAtlas();
   parent = document.createElement('div');
@@ -67,7 +68,7 @@ async function renderSymbols(
           id: 'symbols',
           config: {labels: true},
           zoom: 8,
-          styleLayer: {layout, paint: {}},
+          styleLayer: {layout, paint},
           textColor: [0, 0, 0, 255],
           spriteAtlases: [atlas],
           data: features.map(([coordinates, properties]) => ({
@@ -99,21 +100,31 @@ async function renderSymbols(
   });
 }
 
-/** Number of opaque pixels matching `isColor`. */
-function countPixels(image: ImageData, isColor: (r: number, g: number, b: number) => boolean) {
+/** Pixel bounds `[left, top, right, bottom)` of the canvas. */
+type Region = [number, number, number, number];
+
+/** Number of opaque pixels matching `isColor`, in `region` (the whole canvas by default). */
+function countPixels(
+  image: ImageData,
+  isColor: (r: number, g: number, b: number) => boolean,
+  [left, top, right, bottom]: Region = [0, 0, SIZE, SIZE]
+) {
   let count = 0;
-  for (let i = 0; i < image.data.length; i += 4) {
-    if (image.data[i + 3] > 200 && isColor(image.data[i], image.data[i + 1], image.data[i + 2])) {
-      count++;
+  for (let y = top; y < bottom; y++) {
+    for (let x = left; x < right; x++) {
+      const i = (y * SIZE + x) * 4;
+      if (image.data[i + 3] > 200 && isColor(image.data[i], image.data[i + 1], image.data[i + 2])) {
+        count++;
+      }
     }
   }
   return count;
 }
 
-const iconPixels = (image: ImageData) =>
-  countPixels(image, (r, g, b) => r > 200 && g < 80 && b < 80);
-const textPixels = (image: ImageData) =>
-  countPixels(image, (r, g, b) => r < 80 && g < 80 && b < 80);
+const iconPixels = (image: ImageData, region?: Region) =>
+  countPixels(image, (r, g, b) => r > 200 && g < 80 && b < 80, region);
+const textPixels = (image: ImageData, region?: Region) =>
+  countPixels(image, (r, g, b) => r < 80 && g < 80 && b < 80, region);
 
 /** Symbols whose icon and text come from feature properties, ordered by `rank`. */
 const LAYOUT = {
@@ -315,3 +326,52 @@ function cropRows(image: ImageData, top: number, bottom: number): ImageData {
   data.fill(0, bottom * image.width * 4);
   return new ImageData(data, image.width, image.height);
 }
+
+describe('icon collision with several halos in the browser', () => {
+  // Each distinct halo is drawn by its own text sublayer; labels are placed by another one.
+  const HALOS = {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']};
+  const HALO_LAYOUT = {...LAYOUT, 'text-field': ['get', 'name'], 'icon-offset': [0, -12]};
+
+  test("every symbol keeps its icon and its label, the icon's own label not hiding it", async () => {
+    // Three symbols far apart, with two halos. The collision filter identifies each symbol by
+    // its row index in every sublayer; were the icons' rows in another order than the labels',
+    // an icon and its own label would count as two symbols at one anchor, and one would hide.
+    const regions: Region[] = [
+      [0, 0, SIZE / 2, SIZE / 2],
+      [SIZE / 2, 0, SIZE, SIZE / 2],
+      [0, SIZE / 2, SIZE, SIZE]
+    ];
+    const image = await renderSymbols(
+      HALO_LAYOUT,
+      [
+        [[-32, -24], {rank: 1, icon: 'square', name: 'MM', halo: 1}],
+        [[32, -24], {rank: 1, icon: 'square', name: 'MM', halo: 2}],
+        [[0, 40], {rank: 1, icon: 'square', name: 'MM', halo: 2}]
+      ],
+      HALOS
+    );
+    for (const region of regions) {
+      expect(iconPixels(image, region), `icon in ${region}`).toBeGreaterThan(100);
+      expect(textPixels(image, region), `text in ${region}`).toBeGreaterThan(20);
+    }
+  });
+
+  test('a higher-priority label hides another symbol with its icon and its haloed label', async () => {
+    const image = await renderSymbols(
+      HALO_LAYOUT,
+      [
+        [[0, 0], {rank: 0, name: 'MMMM', halo: 1}],
+        [[8, 0], {rank: 1, icon: 'square', name: 'MMMM', halo: 2}],
+        // Far from the two, with the second halo: drawn with its icon.
+        [[0, 44], {rank: 1, icon: 'square', name: 'MM', halo: 2}]
+      ],
+      HALOS
+    );
+    const top: Region = [0, 0, SIZE, SIZE / 2 + 16];
+    const bottom: Region = [0, SIZE / 2 + 16, SIZE, SIZE];
+    expect(iconPixels(image, top)).toBe(0);
+    expect(textPixels(image, top)).toBeGreaterThan(20);
+    expect(iconPixels(image, bottom)).toBeGreaterThan(100);
+    expect(textPixels(image, bottom)).toBeGreaterThan(20);
+  });
+});

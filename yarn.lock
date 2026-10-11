@@ -812,6 +812,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@deck.gl-community-examples/vega-mark-transitions@workspace:examples/vega/mark-transitions":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community-examples/vega-mark-transitions@workspace:examples/vega/mark-transitions"
+  dependencies:
+    vega: "npm:^6.2.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community-examples/vega-unit-layouts@workspace:examples/vega/unit-layouts":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community-examples/vega-unit-layouts@workspace:examples/vega/unit-layouts"
@@ -16317,6 +16326,7 @@ __metadata:
     apache-arrow: "npm:^17.0.0"
     h3-js: "npm:^4.2.1"
     preact: "npm:^10.17.0"
+    vega: "npm:^6.2.0"
     vite: "npm:^7.3.1"
   languageName: unknown
   linkType: soft

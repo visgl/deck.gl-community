@@ -363,7 +363,7 @@ function createBasemapLayer(
       config: {
         atmosphere: false,
         basemap: true,
-        labels: settings.view.mode !== 'globe'
+        labels: true
       }
     },
     loadOptions: {

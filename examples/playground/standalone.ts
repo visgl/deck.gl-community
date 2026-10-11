@@ -5,6 +5,7 @@
 import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES as GALLERY_TEMPLATES} from './templates';
+import {createVegaPanel} from './vega-panel';
 import {createEditablePlaygroundControls} from './editable-controls';
 import {createDataSourcesPanel, UploadedSources} from './data-sources-panel';
 import {createWebMcpButton} from './webmcp-button';
@@ -68,13 +69,15 @@ export function mountStandalonePlayground(
     }
   });
   const uploads = new UploadedSources(sources);
+  const vega = createVegaPanel();
   const editing = createEditablePlaygroundControls();
   const playground = new DeckPlayground({
     parentElement: root.querySelector<HTMLElement>('[data-preview]')!,
     templates: TEMPLATES,
     registry: createPlaygroundRegistry(editing.constants),
     dataSources: sources,
-    panels: [createDataSourcesPanel(uploads)],
+    onPanelChange: panelId => vega.setActive(panelId === 'vega'),
+    panels: [createDataSourcesPanel(uploads), vega.panel],
     onChange(value) {
       editing.onChange(value);
       errorStatus.hidden = true;

@@ -90,12 +90,15 @@ function _ViewGl(initialRuntime: Runtime, initialConfig?: ViewGlConfig) {
       return super.renderer();
     }
 
-    initialize(el: HTMLElement) {
+    initialize(el: HTMLElement, bind?: Element | string) {
       if (!this.presenter) {
         this.presenter = new Presenter(el);
       }
 
-      super.initialize(this.presenter.getElement(PresenterElement.vegaControls));
+      super.initialize(
+        this.presenter.getElement(PresenterElement.vegaControls),
+        bind ?? this.config.bind
+      );
 
       const renderer = (this as any as ViewGl_Class)._renderer;
 

@@ -1,3 +1,4 @@
+import MarkTransitionsExample from '@site/src/examples/vega/mark-transitions';
 import {App as VegaExample} from '../../../examples/vega/unit-layouts/src/example';
 
 # Vega renderer (private experiment)
@@ -32,8 +33,43 @@ Each cube below represents one of 180 records. Switch between **Grid**, **Scatte
 
 <VegaExample />
 
-The example preserves identity with `onSceneRectAssignCubeOrdinal: datum => datum.id` and changes a Vega `layout` signal on the existing `ViewGl`. Keeping the view alive lets deck.gl interpolate attributes between layouts. Configure animation with `presenterConfig.transitionDurations` (`position`, `size`, `color`, and `view`, in milliseconds).
+The shared `examples/vega/specs/unit-layouts.json` document declares its records, layouts, depth, and controls. Native Vega signal bindings change `layout` and `is3d` on the existing `ViewGl`; the host adapter maps Vega tuple identities to stable dense cube ordinals per mark. Keeping the view alive lets deck.gl interpolate attributes between layouts. Configure animation with `presenterConfig.transitionDurations` (`position`, `size`, `color`, and `view`, in milliseconds).
 
 This demonstrates the renderer's transitions rather than the full SandDance application: chart recommendation, filtering, selection UI, and the SandDance specification builder are outside this initial port. The module requires WebGL2 and is private and unpublished.
 
+## Edit Vega JSON in the playground
+
+Open the [playground](/playground) and select **Vega**. Choose **Unit layouts** or **Bar chart**,
+then edit the JSON directly. The docs and playground share the same unit-layout specification.
+Vega signal `bind` declarations create the controls; the host supplies the deck.gl renderer and
+transition durations. An optional `is3d` signal selects the 3D camera.
+
+JSON and Vega parse/run errors appear in the tab and retain the last valid chart. Each accepted
+specification edit creates a fresh View; signal controls animate on the existing View. Switching
+away from the Vega tab releases its GPU preview and retains the edited document for returning.
+The Vega preview is separate from deck JSON and uploaded data sources.
+
 The same example runs locally with `yarn vite modules/vega/demo --host 127.0.0.1 --port 5199`. See `modules/vega/README.md` for the API and `modules/vega/UPSTREAM.md` for source attribution.
+
+## Symbols and record transitions
+
+<div style={{height: 520, position: 'relative'}}><MarkTransitionsExample /></div>
+
+Circle symbols use a native `ScatterplotLayer`; square symbols use flat polygons with pixel-width outlines. Both preserve
+Vega's area-based `size`, fill/stroke opacity, translated group coordinates, and source `datum`
+for deck.gl picking. Other symbol shapes report an error. Geographic shapes, arbitrary paths,
+clipping, and exact mixed-mark draw ordering remain follow-up work.
+
+Cuboid ordinals retain their slots through reordering. Removed records become complete zero-size,
+transparent placeholders at their last positions; GPU size and color transitions animate exits.
+New slots start with zero size. Restored IDs grow from their existing slots. An interrupted update
+continues from deck.gl's current interpolated attributes.
+
+The default ordinal assignment preserves surviving Vega scene-item identities, including multiple
+rectangle marks sharing tuples. Use `onSceneRectAssignCubeOrdinal` with **unique, dense,
+non-negative integer ordinals** to preserve identity across filtering and replacement of scene
+items. Duplicate or invalid explicit ordinals report errors. Direct Stage inputs without ordinals use their array indices. Slots are retained until View finalization;
+long-running streams with continually new IDs should periodically recreate the View.
+
+The **Symbols and record transitions** JSON example is shared with the Vega playground. Symbol
+updates currently restage directly; GPU enter/exit interpolation in this example applies to cuboids.
