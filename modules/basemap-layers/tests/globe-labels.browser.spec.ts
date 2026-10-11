@@ -169,13 +169,23 @@ describe('labels beyond the horizon of a globe', () => {
     // At zoom -1 the camera is 5.71 globe radii from the globe's center, so the horizon is
     // acos(1 / 5.71) = 79.9 degrees from the view's center. Labels at longitudes 70 and 90 both
     // land about 33 pixels right of the canvas center, on the near and the far side.
+    // The same label at the view's center sets the expected pixel count, which depends on the
+    // platform's font rendering.
     const viewState = {longitude: 0, latitude: 0, zoom: -1};
     const layout = {'text-field': 'MM', 'text-size': 16};
+    const center = await renderGlobe(
+      [createGlobeLabelLayer('edge', layout, {points: [[0, 0]]})],
+      viewState
+    );
+    const centerPixels = countPixels(center, isDark);
+    expect(centerPixels).toBeGreaterThan(10);
+    deck?.finalize();
+    parent?.remove();
     const inside = await renderGlobe(
       [createGlobeLabelLayer('edge', layout, {points: [[70, 0]]})],
       viewState
     );
-    expect(countPixels(inside, isDark)).toBeGreaterThan(20);
+    expect(countPixels(inside, isDark)).toBeGreaterThan(centerPixels / 2);
     deck?.finalize();
     parent?.remove();
     const beyond = await renderGlobe(
