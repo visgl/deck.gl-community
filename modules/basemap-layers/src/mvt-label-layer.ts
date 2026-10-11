@@ -1738,6 +1738,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ? [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
           : null;
         const textBlocks = collision.text.blocks;
+        // `TextLayer` refreshes its glyphs with the `getText` trigger only, not with `all`: the
+        // group's rows decide which rows have text, so they are part of it.
+        const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
         const textProps = {
           data: this.getRows(),
           extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
@@ -1802,7 +1805,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                 outlineWidth: halo?.outlineWidth ?? 0,
                 outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
                 getText,
-                updateTriggers: {...updateTriggers, all: groupTrigger}
+                updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
               }),
               collision.text,
               textBlocks
@@ -1823,7 +1826,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                 outlineWidth: 0,
                 getColor: [0, 0, 0, 0],
                 getText,
-                updateTriggers: {...updateTriggers, all: groupTrigger}
+                updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
               }),
               collision.text,
               textBlocks
@@ -1848,7 +1851,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                       : undefined,
                   updateTriggers: {
                     ...updateTriggers,
-                    getText: `${updateTriggers.getText}|${this.state.haloKey?.[1]}`,
+                    getText: [...getTextTrigger, this.state.haloKey?.[1]],
                     all: groupTrigger
                   }
                 })
