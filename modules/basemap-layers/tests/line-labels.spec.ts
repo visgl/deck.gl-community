@@ -8,6 +8,8 @@ import {
 } from '../src/line-placement';
 import {getTextLengthEms, MVTLabelLayer} from '../src/mvt-label-layer';
 import {getSpriteIconMapping, type SpriteAtlas} from '../src/sprite';
+import {getTextLayerFontWeight} from '../src/text-font';
+import {getCharacterWidthMeasurer} from '../src/text-layout';
 
 const STRAIGHT = [
   [0, 0],
@@ -760,13 +762,16 @@ describe('measured label length', () => {
     vi.unstubAllGlobals();
   });
 
-  /** A canvas whose text is 0.25 em per character, at the 64 px the measurer uses. */
-  function stubCanvas() {
+  /**
+   * A canvas whose text is 0.25 em per character, at the 64 px the measurer uses, or `width()`
+   * ems when given.
+   */
+  function stubCanvas(width = () => 0.25) {
     vi.stubGlobal(
       'OffscreenCanvas',
       class {
         getContext() {
-          return {font: '', measureText: (text: string) => ({width: 16 * text.length})};
+          return {font: '', measureText: (text: string) => ({width: 64 * width() * text.length})};
         }
       }
     );
@@ -821,6 +826,37 @@ describe('measured label length', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(setNeedsUpdate).toHaveBeenCalledTimes(calls + 1);
+    layer.updateState({changeFlags: {}} as any);
+    expect(layer.state.labelData).toHaveLength(1);
+  });
+
+  test('measures again the widths measured while the font loaded', async () => {
+    let loaded = false;
+    // A fallback font 0.6 em per character wide while loading; the label font is 0.25.
+    stubCanvas(() => (loaded ? 0.25 : 0.6));
+    let finishLoading = () => {};
+    const load = () =>
+      new Promise<void>(resolve => {
+        finishLoading = () => {
+          loaded = true;
+          resolve();
+        };
+      });
+    vi.stubGlobal('document', {fonts: {check: () => loaded, load}});
+    const layer = lineLayer(
+      {data: [street], fontFamily: 'Measured Four'},
+      {'symbol-placement': 'line-center'}
+    );
+    layer.state = {};
+    vi.spyOn(layer, 'setNeedsUpdate').mockImplementation(() => {});
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    // Wrapping, say, measures the fallback font meanwhile.
+    const font = layer.getFont();
+    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+    expect(Array.from('Main Street', measure)).toEqual(Array(11).fill(0.6));
+    finishLoading();
+    await Promise.resolve();
+    await Promise.resolve();
     layer.updateState({changeFlags: {}} as any);
     expect(layer.state.labelData).toHaveLength(1);
   });
@@ -918,6 +954,18 @@ describe('labels of the same text', () => {
   test('are not repeated within half a symbol-spacing on a tile', () => {
     const near = [parallel(0.5), parallel(0.5 + 10 / 512)];
     expect(lineLayer().getLabelData(near, false)).toHaveLength(2);
+    // An anchor on the tile's far edge belongs to the next tile, and does not count here.
+    const edge = (x: number) => ({
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [x, 0.2],
+          [x, 0.8]
+        ]
+      },
+      properties: {name: 'Main'}
+    });
+    expect(lineLayer().getLabelData([edge(1), edge(1 - 10 / 512)], false)).toHaveLength(2);
     // Also across the edge of the 125 px cells anchors are looked up in.
     const across = [parallel(245 / 512), parallel(255 / 512)];
     expect(lineLayer().getLabelData(across, false)).toHaveLength(2);

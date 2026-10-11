@@ -11,7 +11,13 @@ import {
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
-import {canMeasureText, getCharacterWidthMeasurer, transformText, wrapText} from './text-layout';
+import {
+  canMeasureText,
+  forgetCharacterWidths,
+  getCharacterWidthMeasurer,
+  transformText,
+  wrapText
+} from './text-layout';
 import type {WrapBudget} from './text-layout';
 import {
   DEFAULT_POLE_SEARCH_SEGMENT_TESTS,
@@ -944,15 +950,22 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   isLineTextFontLoading(font: LabelFont = this.getFont()): boolean {
     const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
-    const css = `${getTextLayerFontWeight(font)} 16px ${font.fontFamily}`;
+    const fontWeight = getTextLayerFontWeight(font);
+    const css = `${fontWeight} 16px ${font.fontFamily}`;
     if (!fonts || fonts.check(css)) {
       return false;
     }
     if (this.state && this.state.loadingFont !== css) {
       this.state.loadingFont = css;
       fonts.load(css).then(
-        // Unless the layer was finalized meanwhile (see `finalizeState`).
-        () => this.state?.loadingFont === css && this.setNeedsUpdate(),
+        () => {
+          // Widths measured meanwhile, as for wrapping, are of a fallback font.
+          forgetCharacterWidths(fontWeight, font.fontFamily);
+          // Unless the layer was finalized meanwhile (see `finalizeState`).
+          if (this.state?.loadingFont === css) {
+            this.setNeedsUpdate();
+          }
+        },
         () => {}
       );
     }
@@ -1035,22 +1048,25 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           return [x * scale, y * scale];
         });
         const isContinued = Boolean(bounds) && !isStrictlyInsideBounds(part[0], bounds!);
-        return getLineAnchors(pixels, {...options, isContinued, budget: featureBudget})
-          .map(({segment, t, angle}) => {
-            const [a, b] = [pixels[segment], pixels[segment + 1]];
-            const pixel = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-            // Interpolated in Web Mercator, where the line was measured.
-            const position = geographic
-              ? worldToLngLat([pixel[0] / scale, pixel[1] / scale])
-              : [pixel[0] / scale, pixel[1] / scale];
-            return {position, angle, pixel};
-          })
-          .filter(
-            ({pixel}) =>
-              !repeatDistance || !isNearSameText(context.placed, text!, pixel, repeatDistance)
-          )
-          .filter(({position}) => !bounds || isInsideBounds(position, bounds))
-          .map(({position, angle}) => ({position, angle}));
+        return (
+          getLineAnchors(pixels, {...options, isContinued, budget: featureBudget})
+            .map(({segment, t, angle}) => {
+              const [a, b] = [pixels[segment], pixels[segment + 1]];
+              const pixel = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+              // Interpolated in Web Mercator, where the line was measured.
+              const position = geographic
+                ? worldToLngLat([pixel[0] / scale, pixel[1] / scale])
+                : [pixel[0] / scale, pixel[1] / scale];
+              return {position, angle, pixel};
+            })
+            // Only anchors in the tile count as placed, as MapLibre's lie in the tile.
+            .filter(({position}) => !bounds || isInsideBounds(position, bounds))
+            .filter(
+              ({pixel}) =>
+                !repeatDistance || !isNearSameText(context.placed, text!, pixel, repeatDistance)
+            )
+            .map(({position, angle}) => ({position, angle}))
+        );
       });
     });
     budget.steps -= start - Math.max(0, featureBudget.steps);

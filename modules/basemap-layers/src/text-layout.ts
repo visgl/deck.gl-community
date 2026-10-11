@@ -252,6 +252,14 @@ export const MAX_CACHED_CHARACTERS = 4096;
 const CHARACTER_WIDTH_MEASURERS = new Map<string, (character: string) => number>();
 
 /**
+ * Forgets the character advances measured for a CSS font, so they are measured again: a font that
+ * was still loading was measured with a fallback font.
+ */
+export function forgetCharacterWidths(fontWeight: number | string, fontFamily: string): void {
+  CHARACTER_WIDTH_MEASURERS.delete(`${fontWeight} ${FONT_SIZE}px ${fontFamily}`);
+}
+
+/**
  * Returns a function giving a character's advance width in ems for a CSS font, measured the way
  * deck.gl's TextLayer builds its font atlas: at 64px, then divided by 64. Measurers and character
  * advances are cached, up to {@link MAX_CACHED_FONTS} and {@link MAX_CACHED_CHARACTERS}.
