@@ -6,6 +6,7 @@ import {
   COORDINATE_SYSTEM,
   type GetPickingInfoParams,
   type UpdateParameters,
+  type Layer,
   type PickingInfo
 } from '@deck.gl/core';
 import {GeoJsonLayer, type GeoJsonLayerProps} from '@deck.gl/layers';
@@ -14,8 +15,8 @@ import {Matrix4} from '@math.gl/core';
 import {worldToLngLat} from '@math.gl/web-mercator';
 import {load} from '@loaders.gl/core';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
-import {SharedTile2DLayer, type SharedTile2DLayerProps} from '../shared-tile-2d-layer';
-import type {SharedTile2DHeader, TileLoadProps} from '../tileset';
+import {SharedTile2DLayer, type SharedTile2DLayerProps} from '../shared-tile-2d-layer/index';
+import type {SharedTile2DHeader, TileLoadProps} from '../tileset/index';
 import {getURLFromTemplate} from '../shared-tile-2d-layer/url-template';
 
 /** GeoJSON features decoded in normalized tile-local coordinates. */
@@ -133,6 +134,7 @@ export class SharedMVTLayer extends SharedTile2DLayer<
 
   /** Supplies local transforms/clipping on maps and geographic geometry on globes. */
   renderSubLayers(props: Parameters<SharedTile2DLayer<SharedMVTData>['renderSubLayers']>[0]) {
+    if (!props.data) return null;
     const {x, y, z} = props.tile.index;
     const scale = WORLD_SIZE / 2 ** z;
     const geographic = Boolean(this.context.viewport.resolution);
@@ -148,15 +150,19 @@ export class SharedMVTLayer extends SharedTile2DLayer<
   }
 
   /** Highlight matching feature IDs across every tile of this consumer. */
-  getSubLayerPropsByTile(tile: SharedTile2DHeader<SharedMVTData>): Record<string, any> {
+  getSubLayerPropsByTile(
+    tile: SharedTile2DHeader<SharedMVTData>,
+    layer?: Layer
+  ): Record<string, any> {
     const {uniqueIdProperty, highlightedFeatureId} = this.props;
     const state = this.state;
     const explicit = highlightedFeatureId !== null && highlightedFeatureId !== undefined;
     const featureId = explicit ? highlightedFeatureId : state.hoveredFeatureId;
+    const data = Array.isArray(layer?.props.data) ? layer.props.data : tile.content || [];
     const highlightedObjectIndex =
       featureId === null || featureId === undefined
         ? -1
-        : (tile.content || []).findIndex(
+        : data.findIndex(
             feature =>
               (uniqueIdProperty ? feature.properties?.[uniqueIdProperty] : feature.id) ===
                 featureId &&

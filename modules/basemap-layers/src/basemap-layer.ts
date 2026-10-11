@@ -195,6 +195,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     if (!style) {
       const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
+      this.clearSourceTilesets();
       this.setState({resolvedStyle: null, loadError: null, loadToken, spriteAtlases: null});
       return;
     }
@@ -228,6 +229,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       .catch((error: Error) => {
         if (this.state.loadToken === loadToken) {
           logBasemapLayerError('Failed to resolve basemap style', error);
+          this.clearSourceTilesets();
           this.setState({resolvedStyle: null, loadError: error});
         }
       });
@@ -266,6 +268,10 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
   /** The basemap owns caches; style-run consumers only attach/detach. */
   finalizeState(): void {
     this.state.loadToken++;
+    this.clearSourceTilesets();
+  }
+
+  private clearSourceTilesets(): void {
     for (const tileset of this.state.tilesets.values()) tileset.finalize();
     this.state.tilesets.clear();
   }

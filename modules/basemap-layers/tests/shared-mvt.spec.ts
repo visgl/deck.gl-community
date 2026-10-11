@@ -90,3 +90,40 @@ test('loading options replace the cache, while view mode keeps it', () => {
   expect(finalize).toHaveBeenCalledTimes(1);
   configured.finalizeState();
 });
+
+test('clearing the style finalizes source caches immediately', () => {
+  const basemap = createBasemap(vi.fn());
+  const cache = (basemap.renderLayers()[0] as any).props.data;
+  const finalize = vi.spyOn(cache, 'finalize');
+  basemap.setState = ((state: any) => Object.assign(basemap.state, state)) as any;
+  basemap.loadStyle(null, null);
+  expect(finalize).toHaveBeenCalledTimes(1);
+  expect(basemap.state.tilesets.size).toBe(0);
+  expect(basemap.renderLayers()).toEqual([]);
+  basemap.finalizeState();
+  expect(finalize).toHaveBeenCalledTimes(1);
+});
+
+test('direct helper callers share decoded tiles and release the cache with the last consumer', async () => {
+  const {getBasemapLayers} = await import('../src/globe-layers');
+  const [first, , second]: any[] = getBasemapLayers({styleDefinition: style});
+  const cache = first.props.data;
+  expect(cache).toBeInstanceOf(SharedTileset2D);
+  expect(second.props.data).toBe(cache);
+  const decoded: any[] = [];
+  const load = vi.fn(async () => decoded);
+  cache.setOptions({getTileData: load});
+  const finalize = vi.spyOn(cache, 'finalize');
+  for (const layer of [first, second]) {
+    layer.context = {viewport} as any;
+    layer.initializeState();
+    layer.setState = ((state: any) => Object.assign(layer.state, state)) as any;
+    layer.updateState({changeFlags: {dataChanged: true, propsOrDataChanged: true}} as any);
+  }
+  await vi.waitFor(() => expect(first.isLoaded && second.isLoaded).toBe(true));
+  expect(load).toHaveBeenCalledTimes(1);
+  first.finalizeState();
+  expect(finalize).not.toHaveBeenCalled();
+  second.finalizeState();
+  expect(finalize).toHaveBeenCalledTimes(1);
+});

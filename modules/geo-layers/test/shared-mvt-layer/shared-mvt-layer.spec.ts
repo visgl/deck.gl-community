@@ -165,3 +165,18 @@ it('decodes an MVT before the cache owner has a deck.gl context', async () => {
   const tile: any = {id: '0-0-0', index: {x: 0, y: 0, z: 0}};
   expect(await layer.getTileData(tile)).toEqual([]);
 });
+
+it('skips failed tiles on a globe and maps highlights to filtered sublayer data', async () => {
+  const {GeoJsonLayer} = await import('@deck.gl/layers');
+  const layer = new SharedMVTLayer({data: null, highlightedFeatureId: 9});
+  layer.context = {viewport: new GlobeViewport({width: 128, height: 128, zoom: 0})} as any;
+  layer.initializeState();
+  const feature = {...DATA[0], id: 9};
+  const tile: any = {index: {x: 0, y: 0, z: 0}, content: [DATA[0], feature]};
+  expect(layer.renderSubLayers({data: null, tile} as any)).toBeNull();
+  const sublayer = new GeoJsonLayer({data: [feature]});
+  expect(layer.getSubLayerPropsByTile(tile, sublayer).highlightedObjectIndex).toBe(0);
+  expect(
+    layer.getSubLayerPropsByTile(tile, new GeoJsonLayer({data: [DATA[0]]})).highlightedObjectIndex
+  ).toBe(-1);
+});

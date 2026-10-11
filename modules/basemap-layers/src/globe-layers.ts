@@ -1,5 +1,11 @@
 import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
-import {COORDINATE_SYSTEM, type Layer, type LayersList, log} from '@deck.gl/core';
+import {
+  COORDINATE_SYSTEM,
+  type Layer,
+  type LayersList,
+  type UpdateParameters,
+  log
+} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
 import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
@@ -469,7 +475,36 @@ export function sortTileSubLayers<LayerT extends {props: Record<string, any>}>(
     .sort((a, b) => (a.props[STYLE_LAYER_INDEX] ?? 0) - (b.props[STYLE_LAYER_INDEX] ?? 0));
 }
 
+type SourceTilesetOwner = {tileset: SharedTileset2D; consumers: Set<StyledMVTLayer['state']>};
+
 class StyledMVTLayer extends SharedMVTLayer {
+  declare state: SharedMVTLayer['state'] & {sourceTilesetOwner?: SourceTilesetOwner};
+
+  updateState(params: UpdateParameters<this>): void {
+    const owner = (this.props as any).sourceTilesetOwner as SourceTilesetOwner | undefined;
+    const previous = this.state.sourceTilesetOwner;
+    if (owner !== previous) {
+      this.releaseSourceTileset();
+      owner?.consumers.add(this.state);
+      this.state.sourceTilesetOwner = owner;
+    }
+    super.updateState(params);
+  }
+
+  finalizeState(): void {
+    super.finalizeState();
+    this.releaseSourceTileset();
+  }
+
+  private releaseSourceTileset(): void {
+    const owner = this.state.sourceTilesetOwner;
+    if (owner) {
+      owner.consumers.delete(this.state);
+      if (!owner.consumers.size) owner.tileset.finalize();
+      this.state.sourceTilesetOwner = undefined;
+    }
+  }
+
   static layerName = 'StyledMVTLayer';
   renderLayers(): Layer | null | LayersList {
     const layers = super.renderLayers();
@@ -571,6 +606,7 @@ function createVectorLayerGroup({
   config,
   loadOptions,
   mode,
+  sourceTilesetOwner,
   depthTestedFrom = -1,
   labelPriorityRanges,
   styleDefinition,
@@ -583,6 +619,7 @@ function createVectorLayerGroup({
   source: BasemapSource;
   /** Shared with the source's other runs, if it has any. */
   tileset?: SharedTileset2D | null;
+  sourceTilesetOwner?: SourceTilesetOwner;
   styleLayers: BasemapStyleLayer[];
   zoom: number;
   config: BasemapLayerConfig;
@@ -605,6 +642,7 @@ function createVectorLayerGroup({
   return new StyledMVTLayer({
     id: `${idPrefix}-${id}`,
     data: tileset || source.tiles,
+    ...{sourceTilesetOwner},
     minZoom,
     maxZoom,
     tileSize: source.tileSize || 512,
@@ -1454,6 +1492,7 @@ function getStyleLayers({
       : -1;
   const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
 
+  const ownedTilesets = new Map<BasemapSource, SourceTilesetOwner>();
   return runs.map(run => {
     const [layer] = run.styleLayers;
     if (run.type === 'background') {
@@ -1469,12 +1508,31 @@ function getStyleLayers({
         depthTested: depthTested.has(layer)
       });
     }
+    let tileset = tilesets?.get(run.source!);
+    let owner: SourceTilesetOwner | undefined;
+    if (!tileset) {
+      owner = ownedTilesets.get(run.source!);
+      if (!owner) {
+        const loader = new SharedMVTLayer({data: run.source!.tiles!, loadOptions});
+        tileset = new SharedTileset2D({
+          ...loader._getTilesetOptions(),
+          minZoom: run.source!.minzoom ?? 0,
+          maxZoom: run.source!.maxzoom ?? 22,
+          tileSize: run.source!.tileSize || 512,
+          getTileData: tile => loader.getTileData(tile)
+        });
+        owner = {tileset, consumers: new Set()};
+        ownedTilesets.set(run.source!, owner);
+      }
+      tileset = owner.tileset;
+    }
     return createVectorLayerGroup({
       idPrefix,
       id: run.id,
       sourceId: run.sourceId!,
       source: run.source!,
-      tileset: tilesets?.get(run.source!) || null,
+      tileset,
+      sourceTilesetOwner: owner,
       styleLayers: run.styleLayers,
       depthTestedFrom: run.styleLayers.findIndex(styleLayer => depthTested.has(styleLayer)),
       zoom,
