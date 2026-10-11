@@ -91,7 +91,11 @@ export type MVTLabelLayerProps = {
   extensions?: any[];
   /** Active basemap mode. */
   mode?: 'map' | 'globe';
-  /** Sprites loaded for the style; `icon-image` names resolve against them. */
+  /**
+   * Sprites loaded for the style; `icon-image` names resolve against them. `null` while they are
+   * loading: no icons are drawn, and text is placed as if each symbol had its icon, so labels do
+   * not change placement rules when the sprites arrive.
+   */
   spriteAtlases?: SpriteAtlas[] | null;
   /** Load options for the sprite atlas images, so they use the same fetch as the style. */
   iconLoadOptions?: Record<string, unknown> | null;
@@ -586,8 +590,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ]) as any,
           updateTriggers: {
             ...this.getIconUpdateTriggers(),
-            getCollisionPriority: this.getStyleUpdateTrigger('symbol-sort-key'),
-            // Which rows have text decides the group's rows.
+            // `icon-image` decides which rows this sprite's layer draws.
+            getCollisionPriority: this.getStyleUpdateTrigger('symbol-sort-key', 'icon-image'),
+            // Which rows have text decides the group's rows. Its change between split and
+            // unsplit groups also refreshes the rows masked out before.
             all: rows ? [atlas, this.getLabelUpdateTriggers().getText] : atlas
           }
         });
@@ -1003,7 +1009,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       layers.push(...this.renderIconLayers(icons));
       const hasBackground = Array.isArray(labelBackground) && labelBackground.length >= 3;
       const font = this.getFont();
-      const groups = this.getSymbolPartGroups('text', () => icons.map(Boolean));
+      // While the sprites load, every row is taken to have its icon (see `spriteAtlases`).
+      const spritesLoading = this.props.spriteAtlases === null;
+      const groups = this.getSymbolPartGroups('text', () =>
+        spritesLoading ? icons.map(() => true) : icons.map(Boolean)
+      );
       for (const {idSuffix, collision, rows} of groups) {
         // Accessors over every row: `fallback` for rows outside the group.
         const forGroupRows = <T>(accessor: (feature: FeatureLike) => T, fallback: T) =>
@@ -1068,13 +1078,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                   .alignmentBaseline,
               'center'
             ),
-            // Which rows have an icon decides the group's rows.
-            updateTriggers: rows
-              ? {
-                  ...updateTriggers,
-                  all: [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
-                }
-              : updateTriggers
+            // Which rows have an icon decides the group's rows. `all` is always set, so that
+            // a change between split and unsplit groups refreshes the rows masked out before.
+            updateTriggers: {
+              ...updateTriggers,
+              all: rows
+                ? [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
+                : null
+            }
           }),
           collision.text,
           collision.text.blocks || collision.icon.tested

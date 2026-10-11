@@ -1,4 +1,5 @@
 import {describe, expect, test, vi} from 'vitest';
+import {BasemapLayer} from '../src/basemap-layer.ts';
 import {MVTLabelLayer} from '../src/mvt-label-layer.ts';
 import {getSpriteIconMapping} from '../src/sprite.ts';
 import {getSymbolCollision} from '../src/symbol-collision.ts';
@@ -288,6 +289,49 @@ describe('MVTLabelLayer symbol collision', () => {
     ]);
     // No per-row text evaluation for the icons beyond the text layer's own.
     expect(getLabel).not.toHaveBeenCalled();
+  });
+
+  test('while the sprites load, text is placed as if each symbol had its icon', () => {
+    const layout = {'icon-image': 'dot', 'text-field': 'A', 'text-allow-overlap': true};
+    // Loading: the text waits for the icon, as it will once the sprites arrive.
+    expect(describeSublayers(symbolLayer(layout, 8, {spriteAtlases: null}))).toEqual([
+      ['labels-text', true, 1, undefined]
+    ]);
+    // No sprites: the symbol has no icon, so its text follows only text-allow-overlap.
+    expect(describeSublayers(symbolLayer(layout, 8, {spriteAtlases: []}))).toEqual([
+      ['labels-text-overlap', false, 1, undefined],
+      ['labels-text', true, 0, undefined]
+    ]);
+  });
+
+  test('a style without sprites has no sprites to wait for', () => {
+    const layer: any = new BasemapLayer({id: 'basemap', style: null} as any);
+    layer.setState = vi.fn();
+    layer.loadSprites({layers: []}, null, null, 1);
+    expect(layer.setState).toHaveBeenCalledWith({spriteAtlases: []});
+  });
+
+  test('a change between split and unsplit groups refreshes every accessor', () => {
+    const layout = {
+      'icon-image': ['get', 'icon'],
+      'text-field': ['get', 'name'],
+      'text-allow-overlap': true
+    };
+    const rows = [{icon: 'dot', name: 'A'}, {name: 'B'}];
+    const split = withRows(symbolLayer(layout), rows).renderLayers();
+    const unsplit = withRows(symbolLayer(layout), [rows[0]]).renderLayers();
+    const triggers = (layers: any[], id: string) =>
+      layers.find(sublayer => sublayer.id === id).props.updateTriggers;
+    // `all` differs, so deck.gl refreshes the rows the split layer masked out.
+    expect(triggers(split, 'labels-text').all).not.toBeNull();
+    expect(triggers(unsplit, 'labels-text')).toHaveProperty('all', null);
+    // Icons: the sprite's priority accessor depends on which rows its sprite draws.
+    expect(triggers(unsplit, 'labels-icons-default').getCollisionPriority).not.toEqual(
+      triggers(
+        withRows(symbolLayer({...layout, 'icon-image': 'dot'}), [rows[0]]).renderLayers(),
+        'labels-icons-default'
+      ).getCollisionPriority
+    );
   });
 
   test('untested text keeps its anchor in the collision pass while the icon is tested', () => {
