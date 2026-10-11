@@ -216,6 +216,34 @@ describe('label halo wiring', () => {
     expect(drawn.map(labels => labels.indexOf('Label'))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   });
 
+  test('past the cap, a label without a halo never gets one', () => {
+    // More halos than the cap, each with two labels, then one hidden label: the rarest group.
+    const features = [
+      ...Array.from({length: (MAX_HALO_SUBLAYERS + 1) * 2}, (_, index) => ({
+        ...feature,
+        properties: {...feature.properties, red: index >> 1, opacity: 1}
+      })),
+      {...feature, properties: {...feature.properties, red: 0, opacity: 0}}
+    ];
+    const layer = haloLayer(
+      {
+        'text-halo-color': ['rgb', ['get', 'red'], 0, 0],
+        'text-halo-width': 2,
+        'text-opacity': ['get', 'opacity']
+      },
+      7.6,
+      features
+    );
+    const texts = haloTextLayers(renderTextLayers(layer));
+    const rows = layer.state.labelData;
+    // Labels without a halo are drawn apart from the capped halos.
+    expect(texts).toHaveLength(MAX_HALO_SUBLAYERS + 1);
+    const hidden = rows.length - 1;
+    const drawers = texts.filter(text => drawnText(text, rows)[hidden] === 'Label');
+    expect(drawers).toHaveLength(1);
+    expect(drawers[0].props.outlineWidth).toBe(0);
+  });
+
   test('halo widths are rounded to quarter pixels, so close widths share a sublayer', () => {
     const features = [1, 1.05, 1.1, 0.05].map(halo => ({
       ...feature,

@@ -187,9 +187,10 @@ const LABEL_FONT_SETTINGS = {
 };
 
 /**
- * Most text sublayers one label layer draws for halos; with more than one, another sublayer places
- * the labels. Each sublayer holds every label row (see `renderLayers`), so the cap bounds the work
- * per tile when every feature has its own halo.
+ * Most halos one label layer draws, each with its own text sublayer. Labels without a halo get
+ * one more sublayer, and with more than one sublayer, another places the labels. Each sublayer
+ * holds every label row (see `renderLayers`), so the cap bounds the work per tile when every
+ * feature has its own halo.
  */
 export const MAX_HALO_SUBLAYERS = 8;
 
@@ -709,7 +710,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * Groups the label rows by halo. `TextLayer` takes one outline color and width per layer, so
    * each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
    * kept, the most common ones; labels with any other halo are drawn with the most common halo.
-   * Kept halos are ordered by their first label, so sublayer ids stay stable.
+   * Labels without a halo are not counted in the cap and never get one: a hidden label stays
+   * hidden. Kept halos are ordered by their first label, so sublayer ids stay stable.
    */
   getLabelHalos(rows: LabelRow[]): LabelHalos {
     const groups = new Map<string, {halo: LabelHalo | null; count: number; first: number}>();
@@ -725,8 +727,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return key;
     });
     // A stable sort: equally common halos keep the order of their first label.
-    const byCount = [...groups].sort(([, a], [, b]) => b.count - a.count);
-    const kept = byCount.slice(0, MAX_HALO_SUBLAYERS).sort(([, a], [, b]) => a.first - b.first);
+    const byCount = [...groups].filter(([key]) => key).sort(([, a], [, b]) => b.count - a.count);
+    const kept = byCount.slice(0, MAX_HALO_SUBLAYERS);
+    const none = groups.get('');
+    if (none) {
+      kept.push(['', none]);
+    }
+    kept.sort(([, a], [, b]) => a.first - b.first);
     const indices = new Map(kept.map(([key], index) => [key, index]));
     const fallback = byCount.length ? indices.get(byCount[0][0])! : 0;
     return {
@@ -996,7 +1003,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       ) as any;
       const updateTriggers = this.getLabelUpdateTriggers();
       const {halos = [null], rowHalos = []} = this.state.halos || {};
-      if (halos.length === 1) {
+      if (halos.length <= 1) {
         // Every label has the same halo, or none: one sublayer draws and places them all.
         const halo = halos[0];
         layers.push(
