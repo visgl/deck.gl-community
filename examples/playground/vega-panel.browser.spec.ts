@@ -52,12 +52,24 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
     overlay.contains(document.elementFromPoint(buttonBounds.left + 50, buttonBounds.top + 20))
   ).toBe(true);
   const preview = host.querySelector<HTMLElement>('.deckgl-playground-preview')!;
-  const toggleSidebar = () =>
-    host.querySelector<HTMLButtonElement>('[data-sidebar-handle-button]')!.click();
+  const getSidebarToggle = () =>
+    host.querySelector<HTMLButtonElement>('[data-sidebar-handle-button]')!;
+  const assertSidebarToggleVisible = () => {
+    const button = getSidebarToggle();
+    const bounds = button.getBoundingClientRect();
+    expect(
+      document
+        .elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+        ?.closest('[data-sidebar-handle-button]')
+    ).toBe(button);
+  };
+  const toggleSidebar = () => getSidebarToggle().click();
+  assertSidebarToggleVisible();
   toggleSidebar();
   await expect
     .poll(() => overlay.getBoundingClientRect().left)
     .toBe(preview.getBoundingClientRect().left);
+  assertSidebarToggleVisible();
   toggleSidebar();
   await expect
     .poll(() => overlay.getBoundingClientRect().left - preview.getBoundingClientRect().left)

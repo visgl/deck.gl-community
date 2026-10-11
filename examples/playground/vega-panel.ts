@@ -52,6 +52,8 @@ export function createVegaPanel() {
     const preview = root
       .closest('.deckgl-playground')!
       .querySelector<HTMLElement>('.deckgl-playground-preview')!;
+    const previousIsolation = preview.style.isolation;
+    preview.style.isolation = 'isolate';
     const overlay = root.ownerDocument.createElement('div');
     overlay.dataset.vegaPreview = '';
     overlay.style.cssText =
@@ -150,6 +152,7 @@ export function createVegaPanel() {
       pending.clear();
       render(null, editorHost);
       overlay.remove();
+      preview.style.isolation = previousIsolation;
       root.replaceChildren();
     };
   }
