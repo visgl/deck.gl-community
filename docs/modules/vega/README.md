@@ -1,3 +1,4 @@
+import MarkTransitionsExample from '@site/src/examples/vega/mark-transitions';
 import {App as VegaExample} from '../../../examples/vega/unit-layouts/src/example';
 
 # Vega renderer (private experiment)
@@ -49,3 +50,26 @@ away from the Vega tab releases its GPU preview and retains the edited document 
 The Vega preview is separate from deck JSON and uploaded data sources.
 
 The same example runs locally with `yarn vite modules/vega/demo --host 127.0.0.1 --port 5199`. See `modules/vega/README.md` for the API and `modules/vega/UPSTREAM.md` for source attribution.
+
+## Symbols and record transitions
+
+<div style={{height: 520, position: 'relative'}}><MarkTransitionsExample /></div>
+
+Circle symbols use a native `ScatterplotLayer`; square symbols use flat polygons with pixel-width outlines. Both preserve
+Vega's area-based `size`, fill/stroke opacity, translated group coordinates, and source `datum`
+for deck.gl picking. Other symbol shapes report an error. Geographic shapes, arbitrary paths,
+clipping, and exact mixed-mark draw ordering remain follow-up work.
+
+Cuboid ordinals retain their slots through reordering. Removed records become complete zero-size,
+transparent placeholders at their last positions; GPU size and color transitions animate exits.
+New slots start with zero size. Restored IDs grow from their existing slots. An interrupted update
+continues from deck.gl's current interpolated attributes.
+
+The default ordinal assignment preserves surviving Vega scene-item identities, including multiple
+rectangle marks sharing tuples. Use `onSceneRectAssignCubeOrdinal` with **unique, dense,
+non-negative integer ordinals** to preserve identity across filtering and replacement of scene
+items. Duplicate or invalid explicit ordinals report errors. Direct Stage inputs without ordinals use their array indices. Slots are retained until View finalization;
+long-running streams with continually new IDs should periodically recreate the View.
+
+The **Symbols and record transitions** JSON example is shared with the Vega playground. Symbol
+updates currently restage directly; GPU enter/exit interpolation in this example applies to cuboids.

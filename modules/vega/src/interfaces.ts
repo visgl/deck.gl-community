@@ -66,6 +66,16 @@ export interface Cube {
   size: Vec3;
 }
 
+/** A Vega circle symbol, sized by area in chart coordinates. */
+export interface SymbolMark {
+  datum: unknown;
+  position: Vec3;
+  radius: number;
+  fillColor: Color;
+  strokeColor: Color;
+  strokeWidth: number;
+}
+
 export interface Path {
   positions: Position[];
   strokeColor: Color;
@@ -73,6 +83,8 @@ export interface Path {
 }
 
 export interface Polygon {
+  isSymbol?: boolean;
+  datum?: unknown;
   positions: Position[];
   strokeColor: Color;
   fillColor: Color;
@@ -101,6 +113,7 @@ export interface Stage {
   backgroundColor?: Color;
   cubeData?: Cube[];
   pathData?: Path[];
+  symbolData?: SymbolMark[];
   polygonData?: Polygon[];
   legend?: Legend;
   axes?: {

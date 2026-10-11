@@ -84,7 +84,9 @@ it.each([
         .insert({x: 50, height: 60})
     );
     await view.runAsync();
-    await expect.poll(() => view.presenter.getCubeData()[0]?.position[0]).toBe(50);
+    await expect
+      .poll(() => view.presenter.getCubeData().find(cube => !cube.isEmpty)?.position[0])
+      .toBe(50);
     deck.redraw(true);
     expect(errors).toEqual([]);
   } finally {
@@ -243,3 +245,12 @@ it('keeps duplicate IDs and shared records distinct across rectangle marks', asy
     host.remove();
   }
 }, 30000);
+
+it('accepts direct stages without optional polygon data', () => {
+  const presenter = {style: {highlightColor: [0, 0, 0, 0]}} as Presenter;
+  const stage = createStage('2d');
+  delete stage.polygonData;
+  expect(() =>
+    getLayers(presenter, defaultPresenterConfig, stage, null, 0, null, [])
+  ).not.toThrow();
+});
