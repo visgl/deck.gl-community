@@ -189,6 +189,14 @@ const config = {
         ],
         module: {
           rules: [
+            // Vega and its d3 dependencies need native package exports and versions.
+            {
+              include: [
+                resolve('../modules/vega'),
+                /[\\/]node_modules[\\/](?:vega(?:-[^\\/]*)?|d3-[^\\/]*)[\\/]/
+              ],
+              resolve: {alias: [], modules: ['node_modules']}
+            },
             // https://github.com/Esri/calcite-components/issues/2865
             {
               test: /\.m?js/,
