@@ -4,6 +4,7 @@
 import {WebMercatorViewport} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
+import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
 const SOURCE = {
   positions: new Float32Array([0, 0, 0]),
   scales: new Float32Array([1, 1, 1]),
@@ -265,4 +266,56 @@ it('preserves a moving owner when other assets enter or leave and safely clears 
   expect(layer.state.groups.flat()).toEqual([]);
   expect(layer.state.shadowGroups.flat()).toEqual([]);
   expect(layer.renderLayers()).toEqual([]);
+});
+
+it('retains light-volume selection across layer state transfer and invalidates changed maps', () => {
+  const layer = make([{position: [256, 256, 0]}], 0);
+  const projections = [
+    {
+      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      center: [0, 0, 0, 0],
+      width: 256,
+      height: 256
+    }
+  ];
+  layer.prepareShadow(projections, layer.context.viewport);
+  const candidates = layer.state.shadowCandidates;
+  const reconcile = vi.spyOn(layer.state.shadowRefinement, 'reconcile');
+  const replacement = layer.clone();
+  Object.assign(replacement, {state: layer.state, context: layer.context});
+  vi.spyOn(replacement, 'projectPosition').mockImplementation(point => Array.from(point));
+  replacement.prepareShadow(projections, layer.context.viewport);
+  expect(reconcile).not.toHaveBeenCalled();
+  expect(replacement.state.shadowCandidates).toBe(candidates);
+  replacement.prepareShadow([{...projections[0], width: 512}], layer.context.viewport);
+  expect(reconcile).toHaveBeenCalledTimes(1);
+});
+
+it('moves camera and shadow demand to the current device runtime even without prop changes', () => {
+  const layer = make([{position: [256, 256, 0]}], 0);
+  const previous = layer.state.runtime;
+  const remove = vi.spyOn(previous, 'delete');
+  const tick = vi.spyOn(layer, 'updateRefinement');
+  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
+  Object.assign(layer, {
+    context: {
+      ...layer.context,
+      device: {canvasContext: {cssToDeviceRatio: () => 1}}
+    }
+  });
+  expect(layer.shouldUpdateState({changeFlags: {somethingChanged: false}})).toBe(true);
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {}} as any);
+  const current = SplatRuntime.get(layer.context.deck, layer.context.device);
+  expect(current).not.toBe(previous);
+  expect(layer.state.runtime).toBe(current);
+  expect(remove).toHaveBeenCalledExactlyOnceWith(layer.id);
+  const ids = new Set([layer.id]);
+  current.sample(ids, 123);
+  expect(tick).toHaveBeenCalledExactlyOnceWith(123);
+  previous.sample(ids, 456);
+  expect(tick).toHaveBeenCalledTimes(1);
+  const allocations = vi.spyOn(layer as any, 'applyAllocation');
+  current.reconcile(ids);
+  expect(allocations.mock.calls.map(call => call[0])).toEqual([false, true]);
+  expect(layer.shouldUpdateState({changeFlags: {somethingChanged: false}})).toBe(false);
 });

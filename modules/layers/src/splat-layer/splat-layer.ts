@@ -130,12 +130,12 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     refinement: SplatRefinementTransition<PreparedOwner<DataT>>;
     shadowRefinement: SplatRefinementTransition<PreparedOwner<DataT>>;
     shadowProjections: SplatShadowProjection[] | null;
+    shadowKey: string;
     refinementRows: WeakMap<
       object,
       {owner: PreparedOwner<DataT>; revision: number; rows: (Owner<DataT> | undefined)[]}
     >;
   };
-  private shadowKey = '';
   initializeState() {
     this.state = {
       groups: [],
@@ -154,6 +154,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       refinement: new SplatRefinementTransition(),
       shadowRefinement: new SplatRefinementTransition(),
       shadowProjections: null,
+      shadowKey: '',
       refinementRows: new WeakMap()
     };
   }
@@ -165,10 +166,18 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     );
   }
   shouldUpdateState({changeFlags}) {
-    return changeFlags.somethingChanged;
+    return (
+      changeFlags.somethingChanged ||
+      Boolean(
+        this.state.runtime &&
+          this.state.runtime !== SplatRuntime.get(this.context.deck, this.context.device)
+      )
+    );
   }
 
   updateState({changeFlags, props, oldProps}: UpdateParameters<this>) {
+    const runtime = SplatRuntime.get(this.context.deck, this.context.device);
+    const runtimeChanged = runtime !== this.state.runtime;
     const keys = [
       'source',
       'getSource',
@@ -201,6 +210,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       props.maxSplats !== oldProps.maxSplats ||
       props.maxShadowSplats !== oldProps.maxShadowSplats;
     if (
+      !runtimeChanged &&
       !changeFlags.dataChanged &&
       !changeFlags.viewportChanged &&
       !geometryChanged &&
@@ -218,7 +228,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       throw new Error(
         'Sorted SplatLayer rendering requires the upstream paged-instance backend; weighted rendering cannot substitute for it.'
       );
-    const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || !this.state.runtime);
+    const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged);
     const input = inputChanged ? resolveSplatInput(props) : this.state.input;
     const assetsChanged =
       input.assets.length !== this.state.input.assets.length ||
@@ -230,8 +240,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       offsets.set(asset, offset);
       offset += asset.hierarchy.length;
     }
-    if (!this.state.runtime) {
-      this.state.runtime = SplatRuntime.get(this.context.deck, this.context.device);
+    if (runtimeChanged) {
+      this.state.runtime?.delete(this.id);
+      this.state.runtime = runtime;
       if (typeof this.context.deck._addDefaultEffect === 'function')
         SplatSelectionEffect.get(this.context.deck);
     }
@@ -239,7 +250,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const viewport = this.context.viewport;
     const projectionKey = getSplatProjectionKey(viewport);
     const rebuild =
-      Boolean(changeFlags.dataChanged || geometryChanged) ||
+      Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged) ||
       this.state.projectionKey !== projectionKey;
     let {owners, spatialIndex} = this.state;
     if (rebuild) {
@@ -430,7 +441,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       // removed assets can shorten it and shift every surviving owner's offset.
       this.state.spatialIndex = spatialIndex;
       this.state.owners = owners;
-      this.shadowKey = '';
+      this.state.shadowKey = '';
       this.prepareShadow(this.state.shadowProjections, viewport);
     }
     const shadowGroups =
@@ -546,8 +557,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           projection.height
         ])
         .join(',');
-    if (key === this.shadowKey) return;
-    this.shadowKey = key;
+    if (key === this.state.shadowKey) return;
+    this.state.shadowKey = key;
 
     const absoluteProjections = projections.map(projection => ({
       ...projection,
