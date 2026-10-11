@@ -10,7 +10,8 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
   const runtime = parse(spec);
   const controls = host.ownerDocument.createElement('div');
   const chart = host.ownerDocument.createElement('div');
-  controls.style.cssText = 'padding:12px;display:flex;gap:16px;flex-wrap:wrap';
+  controls.style.cssText =
+    'padding:12px;display:flex;gap:16px;flex-wrap:wrap;background:#fff;color:#172033';
   chart.style.cssText = 'position:relative;flex:1;min-height:100px';
   host.style.display = 'flex';
   host.style.flexDirection = 'column';
