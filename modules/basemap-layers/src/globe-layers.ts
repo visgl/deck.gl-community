@@ -19,7 +19,7 @@ import {
 } from './fill-pattern';
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
-import {MVTLabelLayer} from './mvt-label-layer';
+import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
 import {
   type RasterColorAdjustments,
   RasterColorExtension,
@@ -775,10 +775,35 @@ export function sortTileSubLayers<LayerT extends {props: Record<string, any>}>(
     .sort((a, b) => (a.props[STYLE_LAYER_INDEX] ?? 0) - (b.props[STYLE_LAYER_INDEX] ?? 0));
 }
 
+/** The prop that hands a tile's `renderSubLayers` the map to record its label features in. */
+const TILE_LABEL_FEATURES = 'tileLabelFeatures';
+
+/** The features of a symbol style layer without any in a tile. */
+const NO_FEATURES: any[] = [];
+
+/** Whether two lists hold the same items, by identity. */
+function isSameList(a: readonly unknown[], b: readonly unknown[]): boolean {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
+
+/**
+ * Builds the label layers of a run from the label features of its drawn tiles, by style layer
+ * index; `getSubLayerProps` gives a label layer the tile layer's props.
+ */
+type RenderLabelLayers = (
+  tilesByStyleLayer: Map<number, LabelTile[]>,
+  getSubLayerProps: (id: string) => Record<string, any>
+) => Layer[];
+
 type SourceTilesetOwner = {tileset: SharedTileset2D; consumers: Set<StyledMVTLayer['state']>};
 
 /** A tile of a shared tileset, as `SharedTile2DLayer` renders it. */
-type SharedTile = {id: string};
+type SharedTile = {
+  id: string;
+  index: {x: number; y: number; z: number};
+  bbox?: unknown;
+  content?: unknown;
+};
 
 class StyledMVTLayer extends SharedMVTLayer {
   declare state: SharedMVTLayer['state'] & {
@@ -791,6 +816,16 @@ class StyledMVTLayer extends SharedMVTLayer {
     keptTiles?: Map<string, SharedTile>;
     /** The paint textures of the fill and line sublayers (see `ZoomPaintExtension`). */
     zoomPaintContext?: ZoomPaintContext;
+    /**
+     * The features of each symbol style layer in a tile, by tile id and the style layer's index in
+     * its run, as `renderSubLayers` last filtered them. Labels are drawn for all tiles at once, see
+     * `renderLabelLayers`. Kept per layer: the tiles are shared with the source's other runs.
+     */
+    tileLabelFeatures?: Map<string, Map<number, any[]>>;
+    /** The label tiles of each symbol style layer, by index, as `renderLabelLayers` last made them. */
+    labelTiles?: Map<number, {key: unknown[]; tiles: LabelTile[]}>;
+    /** The label layers last rendered, and the props and tiles they were rendered for. */
+    labelLayers?: {props: unknown; tileLists: LabelTile[][]; layers: Layer[]};
   };
 
   updateState(params: UpdateParameters<this>): void {
@@ -807,6 +842,7 @@ class StyledMVTLayer extends SharedMVTLayer {
     if (this.state.geographic !== geographic || this.state.tileset !== tileset) {
       this.state.keptTileLayers?.clear();
       this.state.staleTiles?.clear();
+      this.state.tileLabelFeatures?.clear();
     }
   }
 
@@ -858,7 +894,92 @@ class StyledMVTLayer extends SharedMVTLayer {
         kept.set(tile.id, generated);
       }
     }
-    return Array.isArray(layers) ? sortTileSubLayers(layers as (Layer[] | null)[]) : layers;
+    if (!Array.isArray(layers)) {
+      return layers;
+    }
+    return [...sortTileSubLayers(layers as (Layer[] | null)[]), ...this.renderLabelLayers(tiles)];
+  }
+
+  /**
+   * The labels of all drawn tiles, one label layer per symbol style layer, drawn after every
+   * tile's sublayers: a run has no other style layer after its first symbol layer (see
+   * `getStyleLayerRuns`). Each label layer keeps its tiles' list, and so its rows, until a tile is
+   * shown or hidden, or its features change.
+   */
+  renderLabelLayers(tiles: SharedTile[]): Layer[] {
+    const render = (this.props as {renderLabelLayers?: RenderLabelLayers}).renderLabelLayers;
+    if (!render) {
+      return [];
+    }
+    const previous = this.state.labelTiles || new Map();
+    const next = new Map<number, {key: unknown[]; tiles: LabelTile[]}>();
+    const tileSize = (this.props as {tileSize?: number}).tileSize ?? 512;
+    for (const tile of tiles) {
+      const byStyleLayer =
+        tile.content && this.isTileShown(tile) ? this.state.tileLabelFeatures?.get(tile.id) : null;
+      for (const [styleLayerIndex, features] of byStyleLayer || []) {
+        let entry = next.get(styleLayerIndex);
+        if (!entry) {
+          entry = {key: [], tiles: []};
+          next.set(styleLayerIndex, entry);
+        }
+        entry.key.push(tile, features);
+        entry.tiles.push({
+          index: tile.index,
+          features,
+          tileBoundingBox: (tile.bbox as LabelTile['tileBoundingBox']) ?? null,
+          tileZoom: tile.index?.z ?? null,
+          tileSize,
+          tile
+        });
+      }
+    }
+    for (const [styleLayerIndex, entry] of next) {
+      // A style layer without features in any drawn tile has no label layer.
+      if (entry.tiles.every(tile => tile.features.length === 0)) {
+        next.delete(styleLayerIndex);
+        continue;
+      }
+      const last = previous.get(styleLayerIndex);
+      if (last && isSameList(last.key, entry.key)) {
+        next.set(styleLayerIndex, last);
+      }
+    }
+    this.state.labelTiles = next;
+    // The same layers while the tiles and this layer's props (with `render`, new at each style
+    // zoom step) do not change: new instances would compare and update the label layers at every
+    // frame.
+    const tileLists = [...next].sort(([a], [b]) => a - b).map(([, entry]) => entry.tiles);
+    const last = this.state.labelLayers;
+    if (last && last.props === this.props && isSameList(last.tileLists, tileLists)) {
+      return last.layers;
+    }
+    // In style order, whichever tile first had a style layer.
+    const tilesByStyleLayer = new Map(
+      [...next].sort(([a], [b]) => a - b).map(([index, entry]) => [index, entry.tiles])
+    );
+    const layers = render(tilesByStyleLayer, id => this.getSubLayerProps({id}));
+    this.state.labelLayers = {props: this.props, tileLists, layers};
+    return layers;
+  }
+
+  /** Label layers draw the labels of several tiles, and are not culled by tile. */
+  filterSubLayer(context: any): boolean {
+    return context.layer.props.tile ? super.filterSubLayer(context) : true;
+  }
+
+  /** A picked label reports the tile of its feature, which `SharedMVTLayer` converts from. */
+  getPickingInfo(params: any): any {
+    const {sourceLayer} = params;
+    if (sourceLayer && !sourceLayer.props.tile) {
+      const info = super.getPickingInfo({
+        ...params,
+        sourceLayer: {props: {tile: params.info.tile}}
+      });
+      info.sourceTileSubLayer = sourceLayer;
+      return info;
+    }
+    return super.getPickingInfo(params);
   }
 
   /**
@@ -874,6 +995,11 @@ class StyledMVTLayer extends SharedMVTLayer {
     const {zoomPaintContext} = this.state;
     zoomPaintContext.setStyle((this.props as {paintStyle?: unknown}).paintStyle);
     zoomPaintContext.zoom = getZoomBucket((this.props as {styleZoom?: number}).styleZoom ?? 0);
+    // The tile's label features, recorded as `renderSubLayers` filters them.
+    const labelFeatures = new Map<number, any[]>();
+    this.state.tileLabelFeatures ||= new Map();
+    this.state.tileLabelFeatures.set(props.tile.id, labelFeatures);
+    (props as any)[TILE_LABEL_FEATURES] = labelFeatures;
     const previous = this.state.keptTileLayers?.get(props.tile.id);
     // `SharedMVTLayer` turns `autoHighlight` off for the tile sublayers, which it highlights itself.
     return super.renderSubLayers({
@@ -925,6 +1051,7 @@ class StyledMVTLayer extends SharedMVTLayer {
   private forgetTile(tile: SharedTile): void {
     this.state.keptTileLayers?.delete(tile.id);
     this.state.staleTiles?.delete(tile.id);
+    this.state.tileLabelFeatures?.delete(tile.id);
   }
 
   /** Releases the shared tileset and the textures of `ZoomPaintExtension`. */
@@ -944,6 +1071,11 @@ class StyledMVTLayer extends SharedMVTLayer {
   }
 
   static layerName = 'StyledMVTLayer';
+  static defaultProps = {
+    ...SharedMVTLayer.defaultProps,
+    // A new function at each update, as `renderSubLayers`: compared, it would regenerate every tile.
+    renderLabelLayers: {type: 'function', optional: true, value: null, compare: false}
+  } as any;
 }
 
 /**
@@ -1299,9 +1431,33 @@ function createVectorLayerGroup({
         fontFamily
       ]
     },
+    renderLabelLayers: ((tilesByStyleLayer, getSubLayerProps) =>
+      [...tilesByStyleLayer].map(([styleLayerIndex, tiles]) => {
+        const styleLayer = styleLayers[styleLayerIndex];
+        return createSymbolSubLayer({
+          props: {
+            ...getSubLayerProps(`labels-${JSON.stringify(styleLayer.id)}`),
+            [STYLE_LAYER_INDEX]: styleLayerIndex
+          },
+          styleLayer,
+          features: [],
+          tiles,
+          config,
+          mode,
+          zoom,
+          opacity: 1,
+          paint: getPaint(styleLayer, zoom),
+          collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
+          spriteAtlases,
+          loadOptions,
+          fontFamily
+        });
+      })) as RenderLabelLayers,
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers: any[] = [];
+      // Where the tile layer collects them, a tile's labels are drawn with the other tiles'.
+      const labelFeatures = (props as any)[TILE_LABEL_FEATURES] as Map<number, any[]> | undefined;
       const highlights =
         Boolean(props[AUTO_HIGHLIGHT]) ||
         (props.highlightedFeatureId !== null && props.highlightedFeatureId !== undefined);
@@ -1338,6 +1494,11 @@ function createVectorLayerGroup({
           });
         }
         if (filteredData.length === 0) {
+          if (styleLayer.type === 'symbol' && labelFeatures) {
+            // The tile still covers its parent's labels (see `combineTileRows`).
+            labelFeatures.set(styleLayerIndex, NO_FEATURES);
+            return;
+          }
           // A fill or line without features in this tile does not separate its neighbours. Any
           // other style layer does, even here: it may draw in a neighbouring tile, and all tiles
           // draw it after this batch, as in MapLibre.
@@ -1371,6 +1532,11 @@ function createVectorLayerGroup({
           return;
         }
 
+        if (styleLayer.type === 'symbol' && labelFeatures) {
+          // Drawn with the labels of the other tiles, after all tiles' sublayers.
+          labelFeatures.set(styleLayerIndex, filteredData);
+          return;
+        }
         flush();
         layers.push(
           createStyledVectorSubLayer({
@@ -1504,11 +1670,14 @@ function createSymbolSubLayer({
   collisionPriorityRange,
   spriteAtlases,
   loadOptions,
-  fontFamily
+  fontFamily,
+  tiles
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
+  /** The label features of several tiles, drawn together instead of `features`. */
+  tiles?: LabelTile[];
   config: BasemapLayerConfig;
   mode: BasemapMode;
   zoom: number;
@@ -1521,8 +1690,8 @@ function createSymbolSubLayer({
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
-    id: getStyleSubLayerId(props.id, styleLayer.id),
-    data: features,
+    id: tiles ? props.id : getStyleSubLayerId(props.id, styleLayer.id),
+    ...(tiles ? {tiles} : {data: features}),
     config,
     mode,
     styleLayer,
@@ -2643,7 +2812,11 @@ export function getStyleLayerRuns(
       source.type === 'vector'
     ) {
       const last = runs[runs.length - 1];
-      if (last?.type === 'vector' && last.sourceId === sourceId) {
+      // Labels draw after all of their run's other layers, so a layer after a label starts a run.
+      const followsLabel =
+        layer.type !== 'symbol' &&
+        last?.styleLayers.some(styleLayer => styleLayer.type === 'symbol');
+      if (last?.type === 'vector' && last.sourceId === sourceId && !followsLabel) {
         last.styleLayers.push(layer);
       } else {
         let id = sourceId;

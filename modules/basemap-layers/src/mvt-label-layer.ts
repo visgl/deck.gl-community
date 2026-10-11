@@ -129,7 +129,82 @@ export type MVTLabelLayerProps = {
   tileZoom?: number | null;
   /** The tile's size in pixels at its own zoom. Default: 512. */
   tileSize?: number | null;
+  /**
+   * The label features of several tiles, labelled together in one layer instead of `data`: each
+   * tile's anchors are placed as for a layer of its own (`tileBoundingBox`, `tileZoom` and
+   * `tileSize` per tile), then drawn in longitude/latitude. Pass the same array while the tiles do
+   * not change; a tile keeps its anchors while its features, and the inputs they depend on, do not
+   * change. See {@link LabelTile}.
+   */
+  tiles?: LabelTile[] | null;
 };
+
+/** The label features of one tile, for {@link MVTLabelLayerProps.tiles}. */
+export type LabelTile = {
+  /** The tile's index, which places tile-local coordinates in the world. */
+  index: {x: number; y: number; z: number};
+  /** The tile's features of the style layer. */
+  features: FeatureLike[];
+  tileBoundingBox?: {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+  } | null;
+  tileZoom?: number | null;
+  tileSize?: number | null;
+  /** Returned as `info.tile` when a label of the tile is picked. */
+  tile?: unknown;
+};
+
+/** The anchors of one tile of a {@link MVTLabelLayerProps.tiles} layer. */
+type TileRows = {
+  features: FeatureLike[];
+  anchorKey: string;
+  rows: LabelRow[];
+};
+
+/** The tile-local `[0, 1)` square, as `ClipExtension` clips tile sublayers to it by anchor. */
+const TILE_SQUARE = [0, 0, 1, 1];
+
+/** `tileKey` of an index. */
+function getTileKey(x: number, y: number, z: number): string {
+  return `${x},${y},${z}`;
+}
+
+/**
+ * The rows of every tile of `tiles`, from `tileRows`, without those of a tile whose anchor lies in
+ * a deeper tile of the set: while a tile's children load, the tile is drawn in their place, and
+ * where a child has loaded, the child's labels replace the parent's. `geographic` says whether the
+ * rows are in longitude/latitude; otherwise they are already converted, see `getTileRowsInWorld`.
+ */
+export function combineTileRows(tiles: LabelTile[], tileRows: LabelRow[][]): LabelRow[] {
+  const keys = new Set(tiles.map(({index: {x, y, z}}) => getTileKey(x, y, z)));
+  const maxZ = Math.max(...tiles.map(tile => tile.index.z));
+  const combined: LabelRow[] = [];
+  tiles.forEach((tile, tileIndex) => {
+    const rows = tileRows[tileIndex];
+    const {z} = tile.index;
+    if (z >= maxZ) {
+      combined.push(...rows);
+      return;
+    }
+    for (const row of rows) {
+      // Tile-local anchors keep their exact world position: one converted to longitude/latitude
+      // and back can land on the wrong side of a tile edge.
+      const [wx, wy] = (row as {world?: number[]}).world ?? lngLatToWorld(row.position);
+      let covered = false;
+      for (let childZ = z + 1; childZ <= maxZ && !covered; childZ++) {
+        const scale = 2 ** childZ;
+        covered = keys.has(getTileKey(Math.floor(wx * scale), Math.floor(wy * scale), childZ));
+      }
+      if (!covered) {
+        combined.push(row);
+      }
+    }
+  });
+  return combined;
+}
 
 /**
  * Pixels around a label's anchor that the collision filter samples: deck.gl's
@@ -220,6 +295,9 @@ type MVTLabelLayerState = {
   };
   /** The sprite textures of the icon layers, shared with other label layers. */
   iconTextures?: SharedTextureSet;
+  /** In a `tiles` layer: each tile's anchors, by tile index, and the tiles they were combined for. */
+  tileRows?: Map<string, TileRows>;
+  rowTiles?: LabelTile[];
 };
 
 /** A label halo as deck.gl `TextLayer` draws it: an SDF outline color, width and blur. */
@@ -647,6 +725,24 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /** Current label-row state. */
   state: MVTLabelLayerState = undefined!;
+
+  /** The tile whose anchors are being placed, in a `tiles` layer; see `getTileProps`. */
+  private placingTile: LabelTile | null = null;
+
+  /** The tile props that anchors are placed with: the tile being placed, or this layer's. */
+  getTileProps(): Pick<MVTLabelLayerProps, 'tileBoundingBox' | 'tileZoom' | 'tileSize'> {
+    return this.placingTile ?? this.props;
+  }
+
+  /** A picked label of a `tiles` layer reports its tile. */
+  getPickingInfo(params: any): any {
+    const row = params.info?.object;
+    const info: any = super.getPickingInfo(params);
+    if (row?.__tile) {
+      info.tile = row.__tile;
+    }
+    return info;
+  }
 
   /**
    * Resolves `icon-image` for a feature against the loaded sprites. Legacy `{token}` names are
@@ -1425,7 +1521,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!geographic) {
       return [0, 0, 1, 1];
     }
-    const bbox = this.props.tileBoundingBox;
+    const bbox = this.getTileProps().tileBoundingBox;
     return bbox && Number.isFinite(bbox.west)
       ? [bbox.west, bbox.south, bbox.east, bbox.north]
       : null;
@@ -1489,8 +1585,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   getLinePlacementScale(): {zoom: number; tileZoom: number; tileSize: number} {
     const mapZoom = Math.floor(this.props.zoom || 0);
-    const size = this.props.tileSize || 512;
-    const tileZoom = this.props.tileZoom ?? mapZoom + Math.log2(512 / size);
+    const tileProps = this.getTileProps();
+    const size = tileProps.tileSize || 512;
+    const tileZoom = tileProps.tileZoom ?? mapZoom + Math.log2(512 / size);
     const ownZoom = tileZoom - Math.log2(512 / size);
     const zoom = Math.max(ownZoom, mapZoom);
     return {zoom, tileZoom, tileSize: size * 2 ** (zoom - ownZoom)};
@@ -1879,8 +1976,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * changes.
    */
   updateState({changeFlags}: UpdateParameters<this>): void {
-    const {data} = this.props;
-    if (!data) {
+    const {data, tiles} = this.props;
+    if (!data && !tiles) {
       return;
     }
     const geographic = Boolean(this.context?.viewport?.resolution);
@@ -1890,11 +1987,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       // for the previous trigger.
       this.setState({labelText: undefined});
     }
-    const anchorKey = this.getAnchorKey(geographic);
-    if (changeFlags.dataChanged || anchorKey !== this.state.anchorKey) {
-      const features = Array.isArray(data) ? data : data.features || [];
-      const labelData = this.getLabelData(features, geographic);
-      this.setState({labelData, anchorKey});
+    if (tiles) {
+      this.updateTileRows(tiles, geographic);
+    } else if (data) {
+      this.updateDataRows(data, geographic, Boolean(changeFlags.dataChanged));
     }
     const haloKey: [LabelRow[] | undefined, string] = [
       this.state.labelData,
@@ -1919,8 +2015,88 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const key: [string, LabelRow[] | undefined] = [textTrigger, this.state.labelData];
     const [lastTrigger, lastRows] = this.state.labelText?.key || [];
     if (key[0] !== lastTrigger || key[1] !== lastRows) {
+      // A `tiles` layer wraps each tile's labels with a tile's budget. Its rows change whenever a
+      // tile is added or removed; the text of features already wrapped is kept.
+      const tileCount = tiles ? Math.max(tiles.length, 1) : 1;
+      const labels =
+        tiles && key[0] === lastTrigger && this.state.labelText
+          ? this.state.labelText.labels
+          : new WeakMap();
       this.setState({
-        labelText: {key, budget: {steps: TILE_WRAP_BUDGET_STEPS}, labels: new WeakMap()}
+        labelText: {
+          key,
+          budget: {steps: TILE_WRAP_BUDGET_STEPS * tileCount},
+          labels
+        }
+      });
+    }
+  }
+
+  /** The rows of a layer of one tile's `data`. */
+  updateDataRows(
+    data: NonNullable<MVTLabelLayerProps['data']>,
+    geographic: boolean,
+    dataChanged: boolean
+  ): void {
+    const anchorKey = this.getAnchorKey(geographic);
+    if (dataChanged || anchorKey !== this.state.anchorKey) {
+      const features = Array.isArray(data) ? data : data.features || [];
+      const labelData = this.getLabelData(features, geographic);
+      this.setState({labelData, anchorKey});
+    }
+  }
+
+  /**
+   * The rows of a `tiles` layer: each tile's anchors, placed as in a layer of the tile alone and
+   * kept while its features and anchor inputs do not change, in longitude/latitude, combined by
+   * `combineTileRows`. Tile-local anchors outside the tile's square are left out, as the tile's
+   * own layer clips them; on a globe, tiles keep the rows they have.
+   */
+  updateTileRows(tiles: LabelTile[], geographic: boolean): void {
+    const previous = this.state.tileRows || new Map<string, TileRows>();
+    let changed = tiles !== this.state.rowTiles;
+    const next = new Map<string, TileRows>();
+    const tileRows = tiles.map(tile => {
+      const {x, y, z} = tile.index;
+      const tileKey = getTileKey(x, y, z);
+      this.placingTile = tile;
+      try {
+        const anchorKey = this.getAnchorKey(geographic);
+        const cached = previous.get(tileKey);
+        if (cached && cached.features === tile.features && cached.anchorKey === anchorKey) {
+          next.set(tileKey, cached);
+          return cached.rows;
+        }
+        changed = true;
+        let rows = this.getLabelData(tile.features, geographic);
+        if (!geographic) {
+          const scale = 2 ** z;
+          rows = rows
+            .filter(row => isInsideBounds(row.position, TILE_SQUARE))
+            .map(row => {
+              const world = [(x + row.position[0]) / scale, (y + row.position[1]) / scale];
+              return {...row, position: worldToLngLat(world), world};
+            });
+        }
+        if (tile.tile) {
+          for (const row of rows) {
+            (row as any).__tile = tile.tile;
+          }
+        }
+        const entry = {features: tile.features, anchorKey, rows};
+        next.set(tileKey, entry);
+        return rows;
+      } finally {
+        this.placingTile = null;
+      }
+    });
+    if (changed) {
+      const labelData = combineTileRows(tiles, tileRows);
+      this.setState({
+        labelData,
+        tileRows: next,
+        rowTiles: tiles,
+        anchorKey: undefined
       });
     }
   }

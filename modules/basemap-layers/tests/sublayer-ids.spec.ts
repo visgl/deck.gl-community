@@ -100,7 +100,8 @@ function renderTile(
   styleLayers: Record<string, unknown>[] = STYLE_LAYERS,
   tileProps: Record<string, unknown> = {}
 ): any[][] {
-  const vectorLayer: any = getBasemapLayers({
+  // A layer after a label layer starts another tile layer of the source (see `getStyleLayerRuns`).
+  const vectorLayers: any[] = getBasemapLayers({
     idPrefix: 'test',
     mode: 'map',
     zoom: 12,
@@ -109,19 +110,22 @@ function renderTile(
       sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
       layers: styleLayers
     } as any
-  }).find(layer => layer.id === 'test-tiles');
-  const subLayers: any[] = vectorLayer.props.renderSubLayers({
-    id: 'test-tiles-0-0-12',
-    data: FEATURES,
-    tile: {index: {x: 0, y: 0, z: 12}},
-    ...tileProps
+  }).filter(layer => layer.id.startsWith('test-tiles'));
+  // A tile layer's sublayers come as one list; each records the style layer of the run it draws.
+  return vectorLayers.flatMap(vectorLayer => {
+    const subLayers: any[] = vectorLayer.props.renderSubLayers({
+      id: `${vectorLayer.id}-0-0-12`,
+      data: FEATURES,
+      tile: {index: {x: 0, y: 0, z: 12}},
+      ...tileProps
+    });
+    const byStyleLayer = new Map<number, any[]>();
+    for (const layer of subLayers.flat(Infinity)) {
+      const index = layer.props.styleLayerIndex;
+      byStyleLayer.set(index, [...(byStyleLayer.get(index) || []), layer]);
+    }
+    return [...byStyleLayer].sort(([a], [b]) => a - b).map(([, layers]) => layers);
   });
-  // The tile's sublayers come as one list; each records the style layer it draws.
-  const byStyleLayer: any[][] = styleLayers.map(() => []);
-  for (const layer of subLayers.flat(Infinity)) {
-    byStyleLayer[layer.props.styleLayerIndex].push(layer);
-  }
-  return byStyleLayer.filter(layers => layers.length);
 }
 
 /**
