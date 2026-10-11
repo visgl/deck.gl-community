@@ -74,6 +74,8 @@ export type PlaygroundProps = {
   sidebarSide?: 'left' | 'right';
   /** Extra tabs mounted and cleaned up with the UI; use unique panel IDs. */
   panels?: Panel[];
+  /** Reports sidebar tab selection so hosts can activate tab-specific previews. */
+  onPanelChange?: (panelId: string) => void;
   /** Card metadata by template name; supplied fields override embedded metadata. */
   templateMetadata?: Record<string, PlaygroundTemplateMetadata>;
   /** Optional template selected on startup; defaults to the first template. */
@@ -227,6 +229,7 @@ export class Playground {
           return;
         }
         this.activeSidebarPanelId = activePanelId;
+        this.props.onPanelChange?.(activePanelId);
         const currentEditorPanel = this.editorPanel;
         if (currentEditorPanel) {
           this.sidebarContainer?.setProps({panel: this.createTabbedPanel(currentEditorPanel)});
