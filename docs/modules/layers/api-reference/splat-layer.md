@@ -69,6 +69,12 @@ The source is local to each owner. `getPosition` uses the layer coordinate syste
 
 Inherits `CompositeLayer` properties. Accessors receive the original data object and accessor context. Use `updateTriggers` when an accessor's result changes without replacing data, following deck.gl conventions.
 
+**Budgets are submission targets, not GPU memory limits.** `maxSplats`, `maxShadowSplats` and
+`maxTotalSplats` cap settled selections when the coarsest visible coverage fits. Every visible owner
+retains a coverage floor, and optical transitions may temporarily need bounded overlap above the
+target. Immutable source buffers and cached assets have separate residency costs; these properties
+do not bound allocated GPU bytes. See [Bounded refinement](#bounded-refinement) for the tradeoffs.
+
 | Property | Default | Meaning |
 | --- | --- | --- |
 | `data` | `[]` | Direct prepared asset or original instance rows. |
