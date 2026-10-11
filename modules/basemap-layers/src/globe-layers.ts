@@ -1384,8 +1384,10 @@ function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig
  * layer on its own, and consecutive layers of one vector source together, so that a raster
  * layer between two vector layers draws between them. Layers that cannot draw (a source without
  * tiles, labels turned off) do not split a run. Runs do not depend on zoom, so the tile layers
- * keep their ids and tiles when a layer leaves its zoom range. The first run of a source has the
- * source id as its id; later runs add the quoted id of their first style layer.
+ * keep their ids and tiles when a layer leaves its zoom range. Background and raster runs have
+ * their style layer's id. The first run of a source has the source id as its id, unless a
+ * background or raster run already has that id; later runs, and a first run whose source id is
+ * taken, add the quoted id of their first style layer.
  */
 export function getStyleLayerRuns(
   styleLayers: BasemapStyleLayer[],
@@ -1398,9 +1400,19 @@ export function getStyleLayerRuns(
     ...Object.keys(styleDefinition.sources || {}),
     ...styleLayers.map(layer => layer.id)
   ]);
+  const getSource = (layer: BasemapStyleLayer) =>
+    layer.source ? styleDefinition.sources?.[layer.source as string] : undefined;
+  // deck.gl matches layers by id, so a vector run must not take a background or raster run's id.
+  const singleLayerRunIds = new Set(
+    styleLayers
+      .filter(
+        layer => layer.type === 'background' || (layer.type === 'raster' && getSource(layer)?.tiles)
+      )
+      .map(layer => layer.id)
+  );
   for (const layer of styleLayers) {
     const sourceId = layer.source as string | undefined;
-    const source = sourceId ? styleDefinition.sources?.[sourceId] : undefined;
+    const source = getSource(layer);
     if (layer.type === 'background') {
       runs.push({type: 'background', id: layer.id, styleLayers: [layer]});
     } else if (layer.type === 'raster') {
@@ -1423,7 +1435,7 @@ export function getStyleLayerRuns(
         last.styleLayers.push(layer);
       } else {
         let id = sourceId;
-        if (sourceIds.has(sourceId)) {
+        if (sourceIds.has(sourceId) || singleLayerRunIds.has(sourceId)) {
           id = `${sourceId}-${JSON.stringify(layer.id)}`;
           while (reservedIds.has(id)) id += '-run';
           reservedIds.add(id);

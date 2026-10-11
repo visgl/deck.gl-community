@@ -107,6 +107,41 @@ describe('draw order across sources', () => {
     expect(ids).toEqual(['test-a', 'test-a-b', 'test-a-"b"']);
   });
 
+  // deck.gl matches layers by id, so a background or raster layer and a tile layer must not share
+  // one: the first run of a source falls back to the quoted id of its first style layer.
+  test("a source's first run cannot take a background layer's id", () => {
+    const sources = {land: SOURCES.tiles};
+    const getIds = (layers: unknown[]) =>
+      getBasemapLayers({
+        idPrefix: 'test',
+        mode: 'map',
+        zoom: 4,
+        styleDefinition: {version: 8, sources, layers} as any
+      }).map((layer: any) => layer.id);
+    expect(
+      getIds([
+        {id: 'land', type: 'background', paint: {'background-color': '#fff'}},
+        {id: 'fill', type: 'fill', source: 'land', 'source-layer': 'land'}
+      ])
+    ).toEqual(['test-land', 'test-land-"fill"']);
+    // A vector layer named like its source does not collide: the run keeps the source id.
+    expect(getIds([{id: 'land', type: 'fill', source: 'land', 'source-layer': 'land'}])).toEqual([
+      'test-land'
+    ]);
+  });
+
+  test("a source's first run cannot take a later raster layer's id", () => {
+    const layers = [
+      {id: 'water', type: 'fill', source: 'tiles', 'source-layer': 'water'},
+      {id: 'tiles', type: 'raster', source: 'relief'}
+    ];
+    expect(getRuns(layers)).toEqual([
+      {type: 'vector', id: 'tiles-"water"', layers: ['water']},
+      {type: 'raster', id: 'tiles', layers: ['tiles']}
+    ]);
+    expect(getLayerIds(layers, 4)).toEqual(['test-tiles-"water"', 'test-tiles']);
+  });
+
   test('layers that draw nothing do not split a run', () => {
     const layers = [
       {id: 'water', type: 'fill', source: 'tiles', 'source-layer': 'water'},
