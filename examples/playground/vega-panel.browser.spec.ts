@@ -91,6 +91,13 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
   await expect
     .poll(() => host.querySelector('[role=alert]:not([hidden])')?.textContent)
     .toBeTruthy();
+  await expect.poll(() => host.querySelector('[data-vega-preview] canvas')).not.toBeNull();
+  expect(
+    monaco.editor
+      .getModels()
+      .find(entry => entry.uri.toString().includes('vega-json-'))
+      ?.getValue()
+  ).toBe('{');
   unmount();
   expect(host.querySelector('canvas')).toBeNull();
 }, 60000);

@@ -21,6 +21,7 @@ export function createVegaPanel() {
   const editorId = `vega-json-${++panelCount}`;
   let selected = 'unit-layouts';
   let text = JSON.stringify(unitLayouts, null, 2);
+  let acceptedText: string | undefined;
   let mountedRoot: HTMLElement | undefined;
   let cleanup: (() => void) | undefined;
   let selectedTab = false;
@@ -77,8 +78,8 @@ export function createVegaPanel() {
     const pending = new Set<ReturnType<typeof createVegaView>>();
     let editor: TextEditorPanel;
 
-    async function updatePreview(nextText: string) {
-      text = nextText;
+    async function updatePreview(nextText: string, restoring = false) {
+      if (!restoring) text = nextText;
       const update = ++revision;
       let candidate: ReturnType<typeof createVegaView> | undefined;
       let chart: HTMLDivElement | undefined;
@@ -100,6 +101,7 @@ export function createVegaPanel() {
         current?.finalize();
         currentHost?.remove();
         current = candidate;
+        acceptedText = nextText;
         currentHost = chart;
         chart.style.visibility = 'visible';
         errorOutput.hidden = true;
@@ -132,7 +134,14 @@ export function createVegaPanel() {
       void updatePreview(text);
     };
     renderEditor();
-    void updatePreview(text);
+    const draft = text;
+    if (acceptedText !== undefined && acceptedText !== draft) {
+      void updatePreview(acceptedText, true).then(() => {
+        if (active && text === draft) void updatePreview(draft);
+      });
+    } else {
+      void updatePreview(draft);
+    }
     return () => {
       active = false;
       revision++;

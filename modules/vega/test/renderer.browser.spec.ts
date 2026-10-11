@@ -104,6 +104,11 @@ it('animates positions and sizes when the example changes layout', async () => {
       .poll(() => example.view.presenter.deckgl?.isInitialized, {timeout: 15000})
       .toBe(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
+    // Keep the transition active while assertions run, even on a busy CI host.
+    const cubeLayer = example.view.presenter.deckgl.props.layers.find(
+      (entry: any) => entry.id === 'LAYER_CUBES'
+    ) as any;
+    cubeLayer.context.timeline.pause();
     const select = host.querySelector('select');
     select.value = 'scatter';
     select.dispatchEvent(new Event('change'));
@@ -115,7 +120,7 @@ it('animates positions and sizes when the example changes layout', async () => {
         return (
           layer
             ?.getAttributeManager()
-            .attributeTransitionManager?.hasAttribute('instancePositions') &&
+            ?.attributeTransitionManager?.hasAttribute('instancePositions') &&
           layer.getAttributeManager().attributeTransitionManager.hasAttribute('instanceSizes')
         );
       })
