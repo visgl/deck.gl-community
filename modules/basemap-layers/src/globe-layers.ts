@@ -238,14 +238,57 @@ type FilteredFeatures = {
  */
 const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, FilteredFeatures>>();
 
-function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
+/** The features of each tile content by source layer, in tile order. */
+const sourceLayerFeatureCache = new WeakMap<any[], Map<unknown, any[]>>();
+
+function getSourceLayerFeatures(features: any[], sourceLayer: string): any[] {
+  let bySourceLayer = sourceLayerFeatureCache.get(features);
+  if (!bySourceLayer) {
+    bySourceLayer = new Map();
+    for (const feature of features) {
+      const layerName = feature.properties?.layerName;
+      let group = bySourceLayer.get(layerName);
+      if (!group) {
+        group = [];
+        bySourceLayer.set(layerName, group);
+      }
+      group.push(feature);
+    }
+    sourceLayerFeatureCache.set(features, bySourceLayer);
+  }
+  return bySourceLayer.get(sourceLayer) || [];
+}
+
+/**
+ * The contents of style layers' filters, as `filterTileFeatures` compares them. Taken once per
+ * style layer each time the tile layers are generated, rather than once per tile.
+ */
+class FilterSnapshots {
+  private snapshots = new Map<BasemapStyleLayer, string>();
+
+  get(styleLayer: BasemapStyleLayer): string {
+    let snapshot = this.snapshots.get(styleLayer);
+    if (snapshot === undefined) {
+      snapshot = styleLayer.filter === undefined ? '' : JSON.stringify(styleLayer.filter);
+      this.snapshots.set(styleLayer, snapshot);
+    }
+    return snapshot;
+  }
+}
+
+function filterTileFeatures(
+  features: any[],
+  styleLayer: BasemapStyleLayer,
+  zoom: number,
+  filterSnapshots: FilterSnapshots = new FilterSnapshots()
+): any[] {
   const sourceLayer = styleLayer['source-layer'];
   const {filter} = styleLayer;
   if (!sourceLayer && !filter) {
     return features;
   }
 
-  const filterSnapshot = filter === undefined ? '' : JSON.stringify(filter);
+  const filterSnapshot = filterSnapshots.get(styleLayer);
   // MapLibre evaluates `["zoom"]` in filters at integer zooms.
   const filterZoom = filterSnapshot.includes('["zoom"]') ? getFilterZoom(zoom) : null;
   let byStyleLayer = filteredFeatureCache.get(features);
@@ -263,9 +306,7 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
     return cached.features;
   }
 
-  const sourceFeatures = sourceLayer
-    ? features.filter(feature => feature.properties?.layerName === sourceLayer)
-    : features;
+  const sourceFeatures = sourceLayer ? getSourceLayerFeatures(features, sourceLayer) : features;
   const filtered = filter
     ? filterFeatures({
         features: sourceFeatures,
@@ -720,6 +761,8 @@ function createVectorLayerGroup({
   /** Label font override; tiles regenerate when it changes. */
   fontFamily?: LabelFontFamily | null;
 }) {
+  const filterSnapshots = new FilterSnapshots();
+
   return new StyledMVTLayer({
     id: `${idPrefix}-${id}`,
     data: tileset || source.tiles,
@@ -771,7 +814,7 @@ function createVectorLayerGroup({
             return null;
           }
 
-          const filteredData = filterTileFeatures(features, styleLayer, zoom);
+          const filteredData = filterTileFeatures(features, styleLayer, zoom, filterSnapshots);
 
           if (features.length > 0 && filteredData.length === 0) {
             logBasemapRuntimeEvent('Vector tile rendered no matching features', {
