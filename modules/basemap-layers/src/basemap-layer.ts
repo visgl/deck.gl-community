@@ -2,7 +2,7 @@ import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
 import type {BasemapSource} from './style-resolver';
 import {CompositeLayer, log, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
-import {getBasemapLayers, getStyleDefinitionZoomLimits} from './globe-layers';
+import {getBasemapLayers, getStyleDefinitionZoomLimits, getTilePyramidProps} from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
@@ -304,8 +304,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
         loader.context = this.context;
         const tileset = new SharedTileset2D({
           ...loader._getTilesetOptions(),
-          minZoom: source.minzoom ?? 0,
-          maxZoom: source.maxzoom ?? 22,
+          ...getTilePyramidProps(source),
           tileSize: source.tileSize || 512,
           getTileData: tile => loader.getTileData(tile)
         });

@@ -402,6 +402,29 @@ function getRasterColorAdjustments(paint: Record<string, any>): RasterColorAdjus
   };
 }
 
+/** The bounds of the Web Mercator tile pyramid. */
+const WORLD_TILE_EXTENT = [-180, -85.051129, 180, 85.051129];
+
+/**
+ * The tile pyramid range of a source. `TileLayer` draws nothing at a view zoom below its `minZoom`,
+ * unless it has an `extent`. On a globe, the view zoom goes below 0 near the poles: `GlobeView`
+ * lowers the zoom with the latitude, so that the globe keeps its size on screen (zoom 0 at the
+ * equator is zoom -2 at latitude 76). A source whose pyramid starts at zoom 0 draws its zoom 0
+ * tiles at any lower zoom, as in MapLibre; the extent, the whole pyramid, selects them.
+ */
+export function getTilePyramidProps(source: BasemapSource): {
+  minZoom: number;
+  maxZoom: number;
+  extent: number[] | null;
+} {
+  const minZoom = source.minzoom ?? 0;
+  return {
+    minZoom,
+    maxZoom: source.maxzoom ?? 22,
+    extent: minZoom <= 0 ? WORLD_TILE_EXTENT : null
+  };
+}
+
 function createRasterLayer({
   idPrefix,
   layer,
@@ -431,8 +454,7 @@ function createRasterLayer({
   return new TileLayer({
     id: `${idPrefix}-${layer.id}`,
     data: source.tiles,
-    minZoom: source.minzoom ?? 0,
-    maxZoom: source.maxzoom ?? 22,
+    ...getTilePyramidProps(source),
     tileSize: source.tileSize || 512,
     // deck.gl draws with `opacity ** (1 / 2.2)`. Undo that, so the alpha is `raster-opacity`, as
     // in MapLibre.
@@ -649,16 +671,12 @@ function createVectorLayerGroup({
   /** Label font override; tiles regenerate when it changes. */
   fontFamily?: LabelFontFamily | null;
 }) {
-  // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
-  const minZoom = source.minzoom ?? 0;
-  const maxZoom = source.maxzoom ?? 22;
-
   return new StyledMVTLayer({
     id: `${idPrefix}-${id}`,
     data: tileset || source.tiles,
     ...{sourceTilesetOwner},
-    minZoom,
-    maxZoom,
+    // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
+    ...getTilePyramidProps(source),
     tileSize: source.tileSize || 512,
     loadOptions: {
       ...(loadOptions || {}),
@@ -1523,8 +1541,7 @@ function getStyleLayers({
         const loader = new SharedMVTLayer({data: run.source!.tiles!, loadOptions});
         tileset = new SharedTileset2D({
           ...loader._getTilesetOptions(),
-          minZoom: run.source!.minzoom ?? 0,
-          maxZoom: run.source!.maxzoom ?? 22,
+          ...getTilePyramidProps(run.source!),
           tileSize: run.source!.tileSize || 512,
           getTileData: tile => loader.getTileData(tile)
         });
