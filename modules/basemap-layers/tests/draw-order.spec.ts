@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import {describe, expect, test} from 'vitest';
+import {Layer} from '@deck.gl/core';
+import {describe, expect, test, vi} from 'vitest';
 import {
   SharedTileRequests,
   getBasemapLayers,
@@ -229,6 +230,65 @@ describe('draw order across tiles', () => {
       ['tile-roads-gap', 1],
       ['tile-places', 2]
     ]);
+  });
+});
+
+describe('style layer index of tile sublayers', () => {
+  const line = (properties: Record<string, unknown>) => ({
+    type: 'Feature',
+    geometry: {
+      type: 'LineString',
+      coordinates: [
+        [0, 0],
+        [1, 1]
+      ]
+    },
+    properties: {layerName: 'road', ...properties}
+  });
+
+  test('is set when the sublayers are created, without cloning them', () => {
+    const tileLayer: any = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 8,
+      styleDefinition: {
+        version: 8,
+        sources: SOURCES,
+        layers: [
+          {id: 'water', type: 'fill', source: 'tiles', 'source-layer': 'water'},
+          // A per-feature cap groups the features by line shape, and a gap draws each group
+          // twice: one style layer makes a nested list of sublayers.
+          {
+            id: 'roads',
+            type: 'line',
+            source: 'tiles',
+            'source-layer': 'road',
+            layout: {'line-cap': ['get', 'cap']},
+            paint: {'line-gap-width': 2}
+          }
+        ]
+      } as any
+    }).find((l: any) => l.id === 'test-tiles');
+
+    const clone = vi.spyOn(Layer.prototype, 'clone');
+    let subLayers: any[];
+    try {
+      subLayers = tileLayer.props
+        .renderSubLayers({
+          id: 'tile',
+          data: [line({cap: 'round'}), line({cap: 'butt'})],
+          tile: {index: {x: 0, y: 0, z: 8}}
+        })
+        .flat(Infinity);
+      // The gap is a clone of its line; nothing else is cloned.
+      expect(clone).toHaveBeenCalledTimes(2);
+    } finally {
+      clone.mockRestore();
+    }
+    expect(subLayers).toHaveLength(4);
+    for (const subLayer of subLayers) {
+      expect(subLayer.props.styleLayerIndex).toBe(1);
+    }
   });
 });
 

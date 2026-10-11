@@ -276,6 +276,9 @@ function getTileFeatures(data: unknown): any[] {
   return [];
 }
 
+/** The prop that records which style layer of its run a tile sublayer draws. */
+const STYLE_LAYER_INDEX = 'styleLayerIndex';
+
 function getSubLayerBaseProps(props: any) {
   const {
     pickable,
@@ -288,10 +291,13 @@ function getSubLayerBaseProps(props: any) {
     highlightedObjectIndex,
     highlightColor,
     parameters,
-    wrapLongitude
+    wrapLongitude,
+    [STYLE_LAYER_INDEX]: styleLayerIndex
   } = props;
 
   return {
+    // Recorded for `sortTileSubLayers`, which orders all tiles' sublayers by style layer.
+    [STYLE_LAYER_INDEX]: styleLayerIndex,
     pickable,
     visible,
     opacity,
@@ -477,9 +483,6 @@ export class SharedTileRequests {
 
 /** Shared tile requests per vector source of a resolved style. */
 const sharedTileRequests = new WeakMap<BasemapSource, SharedTileRequests>();
-
-/** The prop that records which style layer of its run a tile sublayer draws. */
-const STYLE_LAYER_INDEX = 'styleLayerIndex';
 
 /**
  * Orders the sublayers of all tiles of a tile layer by style layer, as MapLibre draws each style
@@ -734,12 +737,12 @@ function createVectorLayerGroup({
             });
           }
 
-          const subLayers = createStyledVectorSubLayer({
+          return createStyledVectorSubLayer({
             idPrefix,
             sourceId,
             styleLayer,
             features: filteredData,
-            props,
+            props: {...props, [STYLE_LAYER_INDEX]: styleLayerIndex},
             zoom,
             config,
             mode,
@@ -748,11 +751,6 @@ function createVectorLayerGroup({
             loadOptions,
             fontFamily
           });
-          // Recorded for `sortTileSubLayers`, which orders all tiles' sublayers by style layer.
-          return [subLayers]
-            .flat()
-            .filter(Boolean)
-            .map(layer => layer!.clone({[STYLE_LAYER_INDEX]: styleLayerIndex} as any));
         })
         .flat()
         .filter(layer => Boolean(layer));
