@@ -23,6 +23,7 @@ const panel = new SourcePickerPanel({
 - `id`, `title`: panel identity and heading.
 - `presets`: ordered `{id, label, url}` options. IDs must be unique. Selection changes the URL without submitting it.
 - `url`: controlled URL. Update the host value in `onUrlChange` and recreate the panel with that value.
+- `showUrlInput`: defaults to true. Set false to hide URL entry and presets for a file-only picker.
 - `defaultUrl`: initial uncontrolled URL; defaults to an empty string.
 - `onUrlChange(url)`: field edits and preset changes.
 - `onLoadUrl(url)`: submission of a nonempty, trimmed URL. The native URL input validates user submissions.

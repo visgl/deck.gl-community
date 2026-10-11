@@ -46,7 +46,11 @@ type BasemapLayerGroup = {
   styleDefinition: ResolvedBasemapStyle;
   zoom?: number;
   loadOptions?: BasemapLoadOptions;
-  /** Sprites loaded for the style; symbol layers draw `icon-image` from them. */
+  /**
+   * Sprites loaded for the style; symbol layers draw `icon-image` from them. `null` means the
+   * sprites are still loading: no icons are drawn, and labels are placed as if each symbol had its
+   * icon. Omit it, or pass `[]`, for a style without sprites.
+   */
   spriteAtlases?: SpriteAtlas[] | null;
   /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
   fontFamily?: LabelFontFamily | null;
@@ -266,6 +270,16 @@ function getTileFeatures(data: unknown): any[] {
   }
 
   return [];
+}
+
+/**
+ * The id of a style layer's sublayer in a tile. Style layer ids are arbitrary strings, and
+ * generated layers append `-<suffix>` to it: deck.gl's own composite sublayers, the second side of
+ * a `line-gap-width` and the per-feature line shape groups. Quoting the style layer id as a JSON
+ * string ends it at an unescaped quote, so no suffix can turn one style layer's id into another's.
+ */
+function getStyleSubLayerId(parentId: string, styleLayerId: string): string {
+  return `${parentId}-${JSON.stringify(styleLayerId)}`;
 }
 
 function getSubLayerBaseProps(props: any) {
@@ -515,7 +529,7 @@ function createStyledVectorSubLayer({
   if (styleLayer.type === 'circle') {
     return createCircleSubLayer({
       baseProps: getSubLayerBaseProps(props),
-      id: `${props.id}-${styleLayer.id}`,
+      id: getStyleSubLayerId(props.id, styleLayer.id),
       styleLayer,
       features,
       zoom,
@@ -794,7 +808,7 @@ function createSymbolSubLayer({
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
-    id: `${props.id}-${styleLayer.id}`,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
     data: features,
     config,
     mode,
@@ -806,6 +820,9 @@ function createSymbolSubLayer({
     fontFamily,
     // Polygon labels outside the tile's own extent are left to the neighbouring tile.
     tileBoundingBox: props.tile?.bbox ?? null,
+    // Labels along lines are spaced in pixels at the tile's own zoom.
+    tileZoom: props.tile?.index?.z ?? null,
+    tileSize: props.tileSize ?? null,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
@@ -1072,7 +1089,7 @@ function createGeometrySubLayer({
 
   const layer = new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}${idSuffix}`,
+    id: `${getStyleSubLayerId(props.id, styleLayer.id)}${idSuffix}`,
     data: features,
     stroked: isLine || hasOutline,
     filled: isFill,
@@ -1252,7 +1269,7 @@ function createExtrusionSubLayer({
 
   return new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}`,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
     data: getRaisedFeatures(features, styleLayer, base),
     opacity: (baseProps.opacity ?? 1) * (paint['fill-extrusion-opacity'] ?? 1),
     extruded: true,

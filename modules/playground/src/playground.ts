@@ -74,6 +74,8 @@ export type PlaygroundProps = {
   sidebarSide?: 'left' | 'right';
   /** Extra tabs mounted and cleaned up with the UI; use unique panel IDs. */
   panels?: Panel[];
+  /** Reports sidebar tab selection so hosts can activate tab-specific previews. */
+  onPanelChange?: (panelId: string) => void;
   /** Card metadata by template name; supplied fields override embedded metadata. */
   templateMetadata?: Record<string, PlaygroundTemplateMetadata>;
   /** Optional template selected on startup; defaults to the first template. */
@@ -162,7 +164,17 @@ export class Playground {
       triggerIcon: '{}',
       button: true,
       defaultOpen: true,
-      dockTriggerWhenOpen: false
+      dockTriggerWhenOpen: false,
+      onOpenChange: open => {
+        const width = Math.min(
+          this.props.sidebarWidthPx ?? 440,
+          this.parentElement.clientWidth * 0.8
+        );
+        this.previewElement.style.setProperty(
+          '--deckgl-playground-sidebar-width',
+          `${open ? width : 0}px`
+        );
+      }
     });
     this.panelManager.setProps({components: [this.sidebarContainer]});
     this.resizeObserver = new ResizeObserver(this.handleEditorResize);
@@ -227,6 +239,7 @@ export class Playground {
           return;
         }
         this.activeSidebarPanelId = activePanelId;
+        this.props.onPanelChange?.(activePanelId);
         const currentEditorPanel = this.editorPanel;
         if (currentEditorPanel) {
           this.sidebarContainer?.setProps({panel: this.createTabbedPanel(currentEditorPanel)});
@@ -341,9 +354,12 @@ export class Playground {
   }
 
   private readonly handleEditorResize = () => {
-    this.sidebarContainer?.setProps({
-      widthPx: Math.min(this.props.sidebarWidthPx ?? 440, this.parentElement.clientWidth * 0.8)
-    });
+    const width = Math.min(this.props.sidebarWidthPx ?? 440, this.parentElement.clientWidth * 0.8);
+    this.previewElement.style.setProperty(
+      '--deckgl-playground-sidebar-width',
+      `${this.sidebarContainer?.isOpen ? width : 0}px`
+    );
+    this.sidebarContainer?.setProps({widthPx: width});
     this.panelManager.onRedraw({
       viewports: [
         {

@@ -409,7 +409,7 @@ describe('getBasemapLayers', () => {
       tile: {index: {x: 0, y: 0, z: 5}}
     });
 
-    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
+    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-"roads-visible"']);
   });
 
   test('keeps expected vector style misses behind probe logging', () => {
