@@ -245,9 +245,9 @@ describe('circle layers', () => {
       {...circle(), id: 'line', type: 'line'}
     ];
     expect(render(layers).map(layer => layer.id)).toEqual([
-      'test-tiles-tile-fill',
-      'test-tiles-tile-circles',
-      'test-tiles-tile-line'
+      'test-tiles-tile-"fill"',
+      'test-tiles-tile-"circles"',
+      'test-tiles-tile-"line"'
     ]);
   });
 

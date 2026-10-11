@@ -44,7 +44,7 @@ function drawnLayerIds(layers: Record<string, unknown>[], zoom: number): string[
   return vectorLayer.props
     .renderSubLayers({id: 'tile', data: [ROAD_FEATURE], tile: {index: {x: 0, y: 0, z: 10}}})
     .filter(Boolean)
-    .map((sublayer: any) => sublayer.id.replace(/^tile-/, ''));
+    .map((sublayer: any) => JSON.parse(sublayer.id.replace(/^tile-/, '')));
 }
 
 describe('zoom ranges', () => {
