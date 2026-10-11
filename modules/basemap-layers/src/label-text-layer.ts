@@ -5,6 +5,8 @@
 import {TextLayer} from '@deck.gl/layers';
 import type {TextLayerProps} from '@deck.gl/layers';
 import type {Accessor, AccessorContext, DefaultProps} from '@deck.gl/core';
+import type {Texture} from '@luma.gl/core';
+import {SharedTextureSet} from './shared-texture';
 
 /** `text-justify`: `auto` aligns the lines of a label by its text anchor, as `TextLayer` does. */
 export type LabelTextJustify = 'auto' | 'left' | 'center' | 'right';
@@ -106,6 +108,10 @@ function evaluate<DataT, T>(
  * characters are drawn and the label box, which the background, and so the collision box, covers.
  * The box is recomputed when the `getText` (letter spacing) or `getTextAnchor` (justification)
  * update triggers change.
+ *
+ * It draws its glyphs from a font atlas texture shared with every other label layer of the same
+ * atlas. `TextLayer` hands its glyph layer the atlas canvas, from which deck.gl creates and uploads
+ * a texture per layer: one per label sublayer of every tile.
  */
 export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends TextLayer<
   DataT,
@@ -113,6 +119,42 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
 > {
   static layerName = 'LabelTextLayer';
   static defaultProps = defaultProps;
+
+  declare state: TextLayer<DataT>['state'] & {
+    atlasTextures?: SharedTextureSet;
+    /** The shared texture of the current font atlas, which the glyph layer draws from. */
+    atlasTexture?: Texture;
+  };
+
+  renderLayers(): any {
+    const {atlas} = this.state.fontAtlasManager;
+    const {device} = this.context;
+    if (atlas && device) {
+      let {atlasTextures} = this.state;
+      if (!atlasTextures) {
+        atlasTextures = new SharedTextureSet(device);
+        this.state.atlasTextures = atlasTextures;
+      }
+      // A new atlas, with more characters, is a new texture; the previous one is released.
+      this.state.atlasTexture = atlasTextures.get(atlas);
+      atlasTextures.retainOnly([atlas]);
+    }
+    return super.renderLayers();
+  }
+
+  /** The glyph layer's props, with the shared texture in place of the atlas canvas. */
+  getSubLayerProps(sublayerProps: any = {}): any {
+    const props = super.getSubLayerProps(sublayerProps);
+    if (sublayerProps.id === 'characters' && this.state.atlasTexture) {
+      props.iconAtlas = this.state.atlasTexture;
+    }
+    return props;
+  }
+
+  finalizeState(context: any): void {
+    super.finalizeState(context);
+    this.state.atlasTextures?.releaseAll();
+  }
 }
 
 /**

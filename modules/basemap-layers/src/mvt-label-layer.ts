@@ -4,6 +4,7 @@ import {CollisionFilterExtension} from '@deck.gl/extensions';
 import {GeoJsonLayer, IconLayer, _TextBackgroundLayer} from '@deck.gl/layers';
 import {LabelTextLayer} from './label-text-layer';
 import type {LabelTextJustify} from './label-text-layer';
+import {SharedTextureSet} from './shared-texture';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {
   getCompiledStyleProperty,
@@ -217,6 +218,8 @@ type MVTLabelLayerState = {
     /** Per label row, whether it has text (see `getRowsWithText`). */
     rowsWithText?: boolean[];
   };
+  /** The sprite textures of the icon layers, shared with other label layers. */
+  iconTextures?: SharedTextureSet;
 };
 
 /** A label halo as deck.gl `TextLayer` draws it: an SDF outline color, width and blur. */
@@ -853,6 +856,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         atlases.add(icon.atlas);
       }
     }
+    this.retainIconAtlases(atlases);
     if (!atlases.size) {
       return [];
     }
@@ -881,7 +885,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const layer = new IconLayer({
           ...this.getSubLayerProps({id: getUniqueId(`icons-${atlas.id}${idSuffix}`)}),
           data: labelRows,
-          iconAtlas: atlas.image,
+          iconAtlas: this.getIconAtlas(atlas) as any,
           iconMapping: atlas.mapping,
           loadOptions: iconLoadOptions || undefined,
           billboard,
@@ -1017,6 +1021,26 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       labelText.rowsWithText = rowsWithText;
     }
     return rowsWithText;
+  }
+
+  /**
+   * The texture of a sprite's image, shared by the icon layers of every label layer, or its URL
+   * while it is not decoded. deck.gl would otherwise upload the image for each icon layer.
+   */
+  getIconAtlas(atlas: SpriteAtlas): unknown {
+    const {device} = this.context;
+    if (typeof atlas.image === 'string' || !device) {
+      return atlas.image;
+    }
+    if (!this.state.iconTextures) {
+      this.state.iconTextures = new SharedTextureSet(device);
+    }
+    return this.state.iconTextures.get(atlas.image);
+  }
+
+  /** Releases the sprite textures that the icon layers no longer draw from. */
+  retainIconAtlases(atlases: Set<SpriteAtlas>): void {
+    this.state.iconTextures?.retainOnly([...atlases].map(atlas => atlas.image as object));
   }
 
   /**
@@ -1824,11 +1848,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row)};
   }
 
-  /** Forgets a font load in flight, so that its completion does not update a finalized layer. */
+  /**
+   * Forgets a font load in flight, so that its completion does not update a finalized layer, and
+   * releases the shared sprite textures.
+   */
   finalizeState(context: LayerContext): void {
     super.finalizeState(context);
     if (this.state) {
       this.state.loadingFont = undefined;
+      this.state.iconTextures?.releaseAll();
     }
   }
 
