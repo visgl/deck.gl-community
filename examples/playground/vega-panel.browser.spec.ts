@@ -99,6 +99,18 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
     .poll(() => host.querySelector('[role=alert]:not([hidden])')?.textContent)
     .not.toBe(jsonError);
   expect(host.querySelector('[data-vega-preview] canvas')).toBe(canvas);
+  const parseError = host.querySelector('[role=alert]:not([hidden])')?.textContent;
+  const runtimeSpec = JSON.parse(valid);
+  runtimeSpec.marks[0].encode.update.x = {signal: 'datum.missing.nested'};
+  const callsBeforeRuntimeError = vi.mocked(createVegaView).mock.calls.length;
+  model.setValue(JSON.stringify(runtimeSpec));
+  await expect
+    .poll(() => vi.mocked(createVegaView).mock.calls.length)
+    .toBeGreaterThan(callsBeforeRuntimeError);
+  await expect
+    .poll(() => host.querySelector('[role=alert]:not([hidden])')?.textContent)
+    .not.toBe(parseError);
+  expect(host.querySelector('[data-vega-preview] canvas')).toBe(canvas);
   model.setValue(valid);
   await expect.poll(() => host.querySelector('[data-vega-preview] canvas')).not.toBe(canvas);
   const picker = host.querySelector<HTMLSelectElement>('[aria-label="Vega example"]')!;

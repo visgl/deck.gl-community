@@ -38,12 +38,22 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
       transitionDurations: {position: 1200, size: 1200, color: 600, view: 1200}
     }
   });
+  let runtimeError: Error | undefined;
+  const reportError = view.error.bind(view);
+  view.error = error => {
+    runtimeError = error instanceof Error ? error : new Error(String(error));
+    return reportError(error);
+  };
   try {
     view.renderer('deck.gl').initialize(chart);
     let finalized = false;
     return {
       view,
-      ready: view.runAsync(),
+      ready: view.runAsync().then(result => {
+        // Vega logs some evaluation/rendering errors instead of rejecting runAsync().
+        if (runtimeError) throw runtimeError;
+        return result;
+      }),
       finalize() {
         if (finalized) return;
         finalized = true;
