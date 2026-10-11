@@ -108,6 +108,13 @@ export type MVTLabelLayerProps = {
  */
 const COLLISION_SAMPLE_RADIUS = 4;
 
+/**
+ * Draw parameters of the text and icon sublayers. Labels draw over the map without a depth test.
+ * Their screen-space quads wind clockwise, so `GlobeView`'s default `cullMode: 'back'` would cull
+ * every one of them; they are drawn with culling off, in every view.
+ */
+const LABEL_PARAMETERS = {depthTest: false, cullMode: 'none'} as const;
+
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
   center: [0, 0],
@@ -482,7 +489,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           loadOptions: iconLoadOptions || undefined,
           billboard,
           sizeUnits: 'pixels',
-          parameters: {depthTest: false},
+          parameters: LABEL_PARAMETERS,
           // Icons are not collision-filtered (see the module docs). The collision filter matches
           // entries by row index, and this layer holds only the rows its sprite has, so an icon
           // and its own label would not be recognized as one placement.
@@ -845,9 +852,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ...this.getSubLayerProps({id: 'text'}),
           data: this.state.labelData,
           extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-          parameters: {
-            depthTest: false
-          },
+          parameters: LABEL_PARAMETERS,
           billboard,
           characterSet: 'auto',
           collisionEnabled: true,
