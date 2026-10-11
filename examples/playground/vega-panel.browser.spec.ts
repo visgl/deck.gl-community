@@ -1,7 +1,12 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {afterEach, expect, test, vi} from 'vitest';
+import {page} from 'vitest/browser';
 import {mountStandalonePlayground} from './standalone';
+import {createVegaView} from '../vega/create-vega-view';
+
+vi.mock('../vega/create-vega-view', {spy: true});
+
 import {loadTextEditorMonacoRuntime} from '../../modules/panels/src/leaf-panels/text-editor/text-editor-panel-monaco-runtime';
 
 let cleanup: (() => void) | undefined;
@@ -11,6 +16,7 @@ afterEach(() => {
 });
 
 test('edits declarative Vega, retains invalid drafts and releases the preview on tab changes', async () => {
+  await page.viewport(1100, 800);
   const originalFetch = globalThis.fetch.bind(globalThis);
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     if (String(input).includes('tiles.openfreemap.org')) {
@@ -36,6 +42,15 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
     .not.toBeNull();
   await expect.poll(() => host.querySelector('[data-vega-preview] select')).not.toBeNull();
   const overlay = host.querySelector<HTMLElement>('[data-vega-preview]')!;
+  const basemapButton = document.createElement('button');
+  basemapButton.style.cssText =
+    'position:absolute;left:500px;top:10px;width:100px;height:40px;z-index:20';
+  basemapButton.textContent = 'Basemap';
+  overlay.parentElement!.append(basemapButton);
+  const buttonBounds = basemapButton.getBoundingClientRect();
+  expect(
+    overlay.contains(document.elementFromPoint(buttonBounds.left + 50, buttonBounds.top + 20))
+  ).toBe(true);
   const preview = host.querySelector<HTMLElement>('.deckgl-playground-preview')!;
   const toggleSidebar = () =>
     host.querySelector<HTMLButtonElement>('[data-sidebar-handle-button]')!.click();
@@ -87,17 +102,51 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
   clickTab('JSON');
   await expect.poll(() => host.querySelector('[data-vega-preview]')).toBeNull();
   expect(canvas?.isConnected).toBe(false);
+  const createView = vi.mocked(createVegaView);
+  const {createVegaView: originalCreateView} = await vi.importActual<
+    typeof import('../vega/create-vega-view')
+  >('../vega/create-vega-view');
+  let releaseRestore: () => void;
+  const restoreGate = new Promise<void>(resolve => {
+    releaseRestore = resolve;
+  });
+  const callsBeforeRestore = createView.mock.calls.length;
+  createView.mockImplementationOnce((...args) => {
+    const result = originalCreateView(...args);
+    return {
+      ...result,
+      ready: result.ready.then(async view => {
+        await restoreGate;
+        return view;
+      })
+    };
+  });
   clickTab('Vega');
+  await expect.poll(() => createView.mock.calls.length).toBe(callsBeforeRestore + 1);
+  await expect
+    .poll(
+      () => monaco.editor.getModels().find(entry => entry.uri.toString().includes('vega-json-')),
+      {timeout: 10000}
+    )
+    .toBeDefined();
+  const restoredModel = monaco.editor
+    .getModels()
+    .find(entry => entry.uri.toString().includes('vega-json-'))!;
+  restoredModel.setValue('{new invalid draft');
   await expect
     .poll(() => host.querySelector('[role=alert]:not([hidden])')?.textContent)
     .toBeTruthy();
+  releaseRestore!();
   await expect.poll(() => host.querySelector('[data-vega-preview] canvas')).not.toBeNull();
+  await expect
+    .poll(() => host.querySelector<HTMLElement>('[data-vega-preview] > div')?.style.visibility)
+    .toBe('visible');
   expect(
     monaco.editor
       .getModels()
       .find(entry => entry.uri.toString().includes('vega-json-'))
       ?.getValue()
-  ).toBe('{');
+  ).toBe('{new invalid draft');
   unmount();
   expect(host.querySelector('canvas')).toBeNull();
 }, 60000);

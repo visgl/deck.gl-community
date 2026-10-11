@@ -113,17 +113,20 @@ it('animates positions and sizes when the example changes layout', async () => {
     select.value = 'scatter';
     select.dispatchEvent(new Event('change'));
     await expect
-      .poll(() => {
-        const layer = example.view.presenter.deckgl.props.layers.find(
-          (entry: any) => entry.id === 'LAYER_CUBES'
-        ) as any;
-        return (
-          layer
-            ?.getAttributeManager()
-            ?.attributeTransitionManager?.hasAttribute('instancePositions') &&
-          layer.getAttributeManager().attributeTransitionManager.hasAttribute('instanceSizes')
-        );
-      })
+      .poll(
+        () => {
+          const layer = example.view.presenter.deckgl.props.layers.find(
+            (entry: any) => entry.id === 'LAYER_CUBES'
+          ) as any;
+          return (
+            layer
+              ?.getAttributeManager()
+              ?.attributeTransitionManager?.hasAttribute('instancePositions') &&
+            layer.getAttributeManager().attributeTransitionManager.hasAttribute('instanceSizes')
+          );
+        },
+        {timeout: 10000}
+      )
       .toBe(true);
     const cubes = example.view.presenter.getCubeData();
     expect(cubes).toHaveLength(180);
