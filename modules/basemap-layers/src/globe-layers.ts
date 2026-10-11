@@ -83,12 +83,15 @@ function getBackgroundParameters(mode: BasemapMode) {
 
 /**
  * Flat map layers draw in style order without writing depth, but are depth-tested so that
- * extrusions hide the ground behind them.
+ * extrusions hide the ground behind them. On the globe, layers tessellate the sphere differently,
+ * so a later layer can lie behind an earlier one and fail a depth test: globe layers draw in style
+ * order without depth, and back-face culling hides the far side. The globe background still
+ * writes depth, so the globe hides what is drawn behind it.
  */
 function getTileParameters(mode: BasemapMode) {
   return (
     mode === 'globe'
-      ? {depthTest: true, depthWriteEnabled: true, depthCompare: 'less-equal', cullMode: 'back'}
+      ? {depthTest: false, depthWriteEnabled: false, cullMode: 'back'}
       : {depthTest: true, depthWriteEnabled: false, depthCompare: 'less-equal', cullMode: 'none'}
   ) as any;
 }
@@ -599,7 +602,13 @@ function createStyledVectorSubLayer({
       globe: mode === 'globe',
       // Depth-tested against the globe without writing depth: a circle's quad, blur and
       // antialiased edge included, would otherwise cut holes in the circles drawn after it.
-      parameters: {...getTileParameters(mode), depthWriteEnabled: false}
+      // Circles face the viewer, so back-face culling does not hide those on the far side.
+      parameters: {
+        ...getTileParameters(mode),
+        depthTest: true,
+        depthCompare: 'less-equal',
+        depthWriteEnabled: false
+      }
     });
   }
 

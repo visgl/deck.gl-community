@@ -282,3 +282,33 @@ describe('vector tile layer', () => {
     ]);
   });
 });
+
+describe('globe draw order', () => {
+  test('flat layers draw in style order without depth on a globe', () => {
+    const [water, roads] = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'globe',
+      zoom: 4,
+      styleDefinition: {version: 8, sources: SOURCES, layers: RASTER_BETWEEN_LAYERS} as any
+    })
+      .filter((layer: any) => layer.id.startsWith('test-tiles'))
+      .map((layer: any) => layer.props.parameters);
+    // Layers tessellate the sphere differently, so a depth test would let an earlier layer hide a
+    // later one; back-face culling hides the far side.
+    for (const parameters of [water, roads]) {
+      expect(parameters).toMatchObject({
+        depthTest: false,
+        depthWriteEnabled: false,
+        cullMode: 'back'
+      });
+    }
+    const background: any = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'globe',
+      zoom: 4,
+      styleDefinition: {version: 8, sources: SOURCES, layers: RASTER_FIRST_LAYERS} as any
+    }).find((layer: any) => layer.id === 'test-background');
+    // The globe background still writes depth, so the globe hides what is drawn behind it.
+    expect(background.props.parameters).toMatchObject({depthTest: true, depthWriteEnabled: true});
+  });
+});
