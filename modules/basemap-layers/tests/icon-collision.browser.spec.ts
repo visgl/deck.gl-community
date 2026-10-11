@@ -237,6 +237,75 @@ describe('icon collision in the browser', () => {
     // Only the first icon: the second symbol loses at its anchor, text and icon together.
     expect(textPixels(image)).toBe(0);
   });
+
+  test('text that ignores placement does not hide symbols between its anchor and its offset text', async () => {
+    // Pixel rows grow downwards: the first label's anchor at y = 24, its text 48 pixels above, at
+    // -24. The second symbol's anchor, at 0, lies between them.
+    const image = await renderSymbols(
+      {...LAYOUT, 'text-ignore-placement': true, 'text-offset': [0, -3]},
+      [
+        [[0, 24], {rank: 0, name: 'MM'}],
+        [[0, 0], {rank: 1, name: 'MM'}]
+      ]
+    );
+    // The first label's text, around row 40.
+    expect(textPixels(cropRows(image, 30, 52))).toBeGreaterThan(20);
+    // The second label's text, 48 pixels above its anchor: around row 16.
+    expect(textPixels(cropRows(image, 0, 28))).toBeGreaterThan(20);
+  });
+
+  test('text that ignores placement is drawn at full opacity wherever its anchor falls', async () => {
+    // Anchors on even and odd pixels in each axis: the collision map has half the canvas
+    // resolution, and the anchor's mark must cover every sample of the label's own test. The
+    // labels are far apart, so each is drawn as opaque as the same label when it blocks, whose
+    // box covers its anchor.
+    const anchors = [
+      [-40, -40],
+      [21, -40],
+      [-40, 21],
+      [21, 21]
+    ];
+    /** The most opaque pixel of each label, drawn with `layout`. */
+    const renderAlphas = async (layout: Record<string, unknown>) => {
+      const image = await renderSymbols(
+        layout,
+        anchors.map((position, rank) => [position, {rank, name: 'MM'}])
+      );
+      deck?.finalize();
+      deck = null;
+      parent?.remove();
+      parent = null;
+      return anchors.map(([x, y]) => {
+        // The label's pixels, around its anchor (pixel rows grow downwards).
+        const left = SIZE / 2 + x - 12;
+        const top = SIZE / 2 + y - 8;
+        let alpha = 0;
+        for (let row = top; row < top + 18; row++) {
+          for (let column = left; column < left + 26; column++) {
+            alpha = Math.max(alpha, image.data[(row * SIZE + column) * 4 + 3]);
+          }
+        }
+        return alpha;
+      });
+    };
+    const blocking = await renderAlphas(LAYOUT);
+    expect(Math.min(...blocking)).toBeGreaterThan(200);
+    expect(await renderAlphas({...LAYOUT, 'text-ignore-placement': true})).toEqual(blocking);
+  });
+
+  test("an icon-only layer's text-offset does not widen what its icons hide", async () => {
+    // No text: each symbol is its icon. The first icon covers rows 80 to 96; the second
+    // symbol's anchor, 24 pixels above the first, is outside it.
+    const image = await renderSymbols(
+      {'icon-image': ['get', 'icon'], 'text-offset': [0, -3], 'symbol-sort-key': ['get', 'rank']},
+      [
+        [[0, 24], {rank: 0, icon: 'square'}],
+        [[0, 0], {rank: 1, icon: 'square'}]
+      ]
+    );
+    expect(iconPixels(cropRows(image, 76, 100))).toBeGreaterThan(200);
+    expect(iconPixels(cropRows(image, 52, 76))).toBeGreaterThan(200);
+  });
 });
 
 /** The rows `[top, bottom)` of `image`, other pixels cleared. */

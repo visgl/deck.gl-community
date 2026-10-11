@@ -33,8 +33,8 @@ export type SymbolCollisionLayout = {
  *
  * A symbol's text and icon share one collision test here, at the symbol's anchor, so a part
  * placed without its optional partner is only possible when that part allows overlap. A layer
- * without text has its text part tested and not blocking: the text sublayer then only marks
- * each symbol's anchor for the collision test.
+ * without text has its text part tested and not blocking: it then only marks each symbol's
+ * anchor for the collision test.
  */
 export function getSymbolCollision(layout: SymbolCollisionLayout): {
   text: SymbolPartCollision;

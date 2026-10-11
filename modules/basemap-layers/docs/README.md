@@ -204,8 +204,8 @@ Approximations:
   one unit, as in MapLibre. The test is the labels' one: a symbol is hidden where a
   higher-priority symbol's box (the whole icon box, or the text box) covers its anchor.
   `*-allow-overlap` (or `*-overlap: always`), `*-ignore-placement` and `*-optional` follow
-  MapLibre's rules, except that text and icon share one test, so an optional part is shown
-  without its partner only when it allows overlap.
+  MapLibre's rules, except that text and icon share one test, so a part is shown without its
+  optional partner only when that part allows overlap.
 - `icon-rotate`, `icon-text-fit` and `icon-padding` are not applied.
 
 [maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec

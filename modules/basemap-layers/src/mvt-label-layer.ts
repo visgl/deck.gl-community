@@ -1,7 +1,7 @@
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, Layer, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
-import {GeoJsonLayer, IconLayer, TextLayer} from '@deck.gl/layers';
+import {GeoJsonLayer, IconLayer, TextLayer, _TextBackgroundLayer} from '@deck.gl/layers';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {
   getCompiledStyleProperty,
@@ -163,6 +163,8 @@ type MVTLabelLayerState = {
     key: [string, LabelRow[] | undefined];
     budget: WrapBudget;
     labels: WeakMap<FeatureLike, string | undefined>;
+    /** Per label row, whether it has text (see `getRowsWithText`). */
+    rowsWithText?: boolean[];
   };
 };
 
@@ -325,8 +327,15 @@ function placeSymbolPart(
     id: `${layer.id}-overlap`,
     collisionEnabled: false
   });
-  // The footprint is not pickable, so picking resolves to the drawn copy only.
-  return keepFootprint ? [placed, layer.clone({opacity: 0, pickable: false})] : [placed];
+  if (!keepFootprint) {
+    return [placed];
+  }
+  // The footprint is not pickable, so picking resolves to the drawn copy only, and not
+  // highlighted, which would draw it over its zero opacity.
+  return [
+    placed,
+    layer.clone({opacity: 0, pickable: false, autoHighlight: false, highlightedObjectIndex: -1})
+  ];
 }
 
 /** How a symbol's text and icon take part in collision (see `getSymbolCollision`). */
@@ -347,7 +356,7 @@ function getSymbolPartPlacementKey(
   part: 'text' | 'icon'
 ): string {
   const {tested, blocks} = collision[part];
-  // An untested text also keeps its footprint while the icon is tested (see `renderLayers`).
+  // Text keeps its anchor in the collision pass while the icon is tested (see `renderLayers`).
   const footprint = !tested && (blocks || (part === 'text' && collision.icon.tested));
   return `${tested}|${blocks}|${footprint}`;
 }
@@ -537,7 +546,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * data cannot.
    */
   renderIconLayers(icons: (ResolvedSpriteIcon | null)[] = this.getRowIcons()): any[] {
-    const {iconLoadOptions, billboard} = this.props;
+    const {iconLoadOptions, billboard, spriteAtlases} = this.props;
     const labelData = this.state.labelData || [];
     const atlases = new Set<SpriteAtlas>();
     for (const icon of icons) {
@@ -548,9 +557,18 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!atlases.size) {
       return [];
     }
-    const groups = this.getSymbolPartGroups('icon', () =>
-      labelData.map(row => this.getLabel((row as any).__source?.object ?? row) !== undefined)
-    );
+    const groups = this.getSymbolPartGroups('icon', () => this.getRowsWithText());
+    // Sprite ids are arbitrary strings, so `${id}${idSuffix}` (and a copy's `-overlap`) can repeat
+    // another sprite's id; a repeated id gets a number.
+    const ids = new Set<string>();
+    const getUniqueId = (id: string) => {
+      let unique = id;
+      for (let n = 2; ids.has(unique) || ids.has(`${unique}-overlap`); n++) {
+        unique = `${id}-${n}`;
+      }
+      ids.add(unique).add(`${unique}-overlap`);
+      return unique;
+    };
     return groups.flatMap(({idSuffix, collision: {icon: collision}, rows}) =>
       [...atlases].flatMap(atlas => {
         const isOwnRow = (index: number) => icons[index]?.atlas === atlas && (!rows || rows[index]);
@@ -561,7 +579,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             isOwnRow(info.index) ? getValue(row, info) : fallback;
         };
         const layer = new IconLayer({
-          ...this.getSubLayerProps({id: `icons-${atlas.id}${idSuffix}`}),
+          ...this.getSubLayerProps({id: getUniqueId(`icons-${atlas.id}${idSuffix}`)}),
           data: labelData,
           iconAtlas: atlas.image,
           iconMapping: atlas.mapping,
@@ -591,15 +609,76 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           updateTriggers: {
             ...this.getIconUpdateTriggers(),
             // `icon-image` decides which rows this sprite's layer draws.
-            getCollisionPriority: this.getStyleUpdateTrigger('symbol-sort-key', 'icon-image'),
-            // Which rows have text decides the group's rows. Its change between split and
+            getCollisionPriority: `${this.getStyleUpdateTrigger(
+              'symbol-sort-key',
+              'icon-image'
+            )}|${this.getCollisionPriorityRangeKey()}`,
+            // The sprite list decides which rows `icon-image` resolves into this sprite, and which
+            // rows have text decides the group's rows. The latter's change between split and
             // unsplit groups also refreshes the rows masked out before.
-            all: rows ? [atlas, this.getLabelUpdateTriggers().getText] : atlas
+            all: [atlas, spriteAtlases, rows ? this.getLabelUpdateTriggers().getText : null]
           }
         });
         return placeSymbolPart(layer, collision, collision.blocks);
       })
     );
+  }
+
+  /**
+   * Marks each row's anchor in the collision pass with a box of `COLLISION_SAMPLE_RADIUS` pixels
+   * on each side, for symbols whose text does not block: the text's own test, and its icon's,
+   * sample there. It is the box `TextLayer` draws for an empty label, without the label's pixel
+   * offset. The layer draws nothing visible, and its rows share the text's row indices, so its mark
+   * is the text's (and the icon's) collision-filter identity.
+   */
+  renderAnchorLayer(
+    idSuffix: string,
+    getCollisionPriority: (row: LabelRow, info: {index: number}) => number,
+    updateTriggers: Record<string, unknown>
+  ): Layer<any> {
+    return new _TextBackgroundLayer({
+      ...this.getSubLayerProps({id: `anchors${idSuffix}`}),
+      data: this.state.labelData,
+      extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
+      parameters: {depthTest: false},
+      billboard: this.props.billboard,
+      collisionEnabled: true,
+      collisionGroup: LABEL_COLLISION_GROUP,
+      getCollisionPriority: getCollisionPriority as any,
+      getPosition: (d: LabelRow) => d.position,
+      padding: [
+        COLLISION_SAMPLE_RADIUS,
+        COLLISION_SAMPLE_RADIUS,
+        COLLISION_SAMPLE_RADIUS,
+        COLLISION_SAMPLE_RADIUS
+      ],
+      getFillColor: [0, 0, 0, 0],
+      opacity: 0,
+      pickable: false,
+      // Highlighting would draw the box over the opacity.
+      autoHighlight: false,
+      highlightedObjectIndex: -1,
+      updateTriggers
+    });
+  }
+
+  /**
+   * Per label row, whether it has text (see `getLabel`). The result is kept with the label text
+   * cache, so it is evaluated once per text update trigger and label rows, not on every render.
+   */
+  getRowsWithText(): boolean[] {
+    const labelData = this.state.labelData || [];
+    const labelText = this.state.labelText;
+    if (labelText?.rowsWithText) {
+      return labelText.rowsWithText;
+    }
+    const rowsWithText = labelData.map(
+      row => this.getLabel((row as any).__source?.object ?? row) !== undefined
+    );
+    if (labelText) {
+      labelText.rowsWithText = rowsWithText;
+    }
+    return rowsWithText;
   }
 
   /**
@@ -813,6 +892,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return min + fraction * (max - min);
   }
 
+  /** `collisionPriorityRange` as a string, for the collision priority update triggers. */
+  getCollisionPriorityRangeKey(): string {
+    return String(this.props.collisionPriorityRange || '');
+  }
+
   /** Update triggers for the text accessors (see `getStyleUpdateTrigger`). */
   getLabelUpdateTriggers(): Record<string, string> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
@@ -838,7 +922,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getBackgroundColor: `${getTrigger('text-opacity')}|${
         this.props.labelBackground ? this.props.labelBackground.join(',') : ''
       }`,
-      getCollisionPriority: getTrigger('symbol-sort-key'),
+      // The priorities are mapped into `collisionPriorityRange`.
+      getCollisionPriority: `${getTrigger('symbol-sort-key')}|${this.getCollisionPriorityRangeKey()}`,
       getPixelOffset: getTrigger('text-offset', 'text-size'),
       getTextAnchor: getTrigger('text-anchor'),
       getAlignmentBaseline: getTrigger('text-anchor')
@@ -1019,7 +1104,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const forGroupRows = <T>(accessor: (feature: FeatureLike) => T, fallback: T) =>
           forRows(rows, this.getSubLayerAccessor(accessor) as any, fallback) as any;
         const updateTriggers = this.getLabelUpdateTriggers();
-        // The text's collision box also marks the anchor that the icon's collision test samples.
+        const getCollisionPriority = forGroupRows(
+          (feature: FeatureLike) => this.getLabelCollisionPriority(feature),
+          MASKED_COLLISION_PRIORITY
+        );
+        // Which rows have an icon decides the group's rows. `all` is always set, so that a change
+        // between split and unsplit groups refreshes the rows masked out before.
+        const groupTrigger = rows
+          ? [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
+          : null;
+        const textBlocks = collision.text.blocks;
+        // A blocking text's collision box also marks the anchor that the icon's collision test
+        // samples. Text that does not block draws nothing in the collision pass: deck.gl adds the
+        // pixel offset to the collision box unscaled, so a `text-offset` would stretch it into a
+        // strip that hides other symbols. Its anchor is marked by `renderAnchorLayer` instead.
         const textLayers = placeSymbolPart(
           new TextLayer({
             ...this.getSubLayerProps({id: `text${idSuffix}`}),
@@ -1033,10 +1131,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             collisionEnabled: true,
             collisionGroup: LABEL_COLLISION_GROUP,
             // Rows outside the group stay out of the collision pass.
-            getCollisionPriority: forGroupRows(
-              (feature: FeatureLike) => this.getLabelCollisionPriority(feature),
-              MASKED_COLLISION_PRIORITY
-            ),
+            getCollisionPriority,
             fontFamily: font.fontFamily,
             fontWeight: getTextLayerFontWeight(font),
             sizeUnits: labelSizeUnits,
@@ -1044,12 +1139,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             // The collision filter keeps a label only where the label itself covers its anchor in
             // the collision map. The background box is always drawn (transparent without a halo)
             // and, in the collision pass, padded to reach the anchor (see getCollisionPadding).
-            // Text that ignores placement keeps only that padding around its anchor.
             background: true,
-            collisionTestProps: {
-              padding: this.getCollisionPadding(),
-              ...(collision.text.blocks ? {} : {sizeScale: 0})
-            },
+            collisionTestProps: textBlocks
+              ? {padding: this.getCollisionPadding()}
+              : {padding: [0, 0, 0, 0], sizeScale: 0},
             getBackgroundColor: hasBackground
               ? forGroupRows(
                   (feature: FeatureLike) => this.getLabelBackgroundColor(feature),
@@ -1078,19 +1171,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                   .alignmentBaseline,
               'center'
             ),
-            // Which rows have an icon decides the group's rows. `all` is always set, so that
-            // a change between split and unsplit groups refreshes the rows masked out before.
-            updateTriggers: {
-              ...updateTriggers,
-              all: rows
-                ? [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
-                : null
-            }
+            updateTriggers: {...updateTriggers, all: groupTrigger}
           }),
           collision.text,
-          collision.text.blocks || collision.icon.tested
+          textBlocks
         );
         layers.push(...textLayers);
+        if (!textBlocks && (collision.text.tested || collision.icon.tested)) {
+          layers.push(
+            this.renderAnchorLayer(idSuffix, getCollisionPriority, {
+              getCollisionPriority: updateTriggers.getCollisionPriority,
+              all: groupTrigger
+            })
+          );
+        }
       }
     }
 

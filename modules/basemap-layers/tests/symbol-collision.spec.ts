@@ -183,10 +183,68 @@ describe('MVTLabelLayer symbol collision', () => {
       'icon-ignore-placement': true,
       'text-ignore-placement': true
     });
+    // The text draws a zero-size box; the anchors layer marks its anchor.
     expect(describeSublayers(layer)).toEqual([
       ['labels-icons-default', true, 1, 0],
-      ['labels-text', true, 1, 0]
+      ['labels-text', true, 1, 0],
+      ['labels-anchors', true, 0, undefined]
     ]);
+    const [, text, anchors] = layer.renderLayers();
+    expect(text.props.collisionTestProps.padding).toEqual([0, 0, 0, 0]);
+    // A 4-pixel box on each side of the anchor, with no pixel offset.
+    expect(anchors.props.padding).toEqual([4, 4, 4, 4]);
+    expect(anchors.props.getPixelOffset).toEqual([0, 0]);
+    expect(anchors.props.getBoundingRect).toEqual([0, 0, 0, 0]);
+    expect(anchors.props.pickable).toBe(false);
+  });
+
+  test('text that blocks keeps its padded box and needs no anchors layer', () => {
+    const layer = symbolLayer({'text-field': 'A', 'text-offset': [2, 0]});
+    const sublayers = layer.renderLayers();
+    expect(sublayers.map((sublayer: any) => sublayer.id)).toEqual(['labels-text']);
+    // Padded by the 32-pixel offset plus the sample radius, so the box reaches the anchor.
+    expect(sublayers[0].props.collisionTestProps).toEqual({padding: [36, 4, 4, 4]});
+  });
+
+  test('the anchors layer shares the text rows, priorities and identity', () => {
+    const layout = {
+      'icon-image': ['get', 'icon'],
+      'text-field': ['get', 'name'],
+      'text-allow-overlap': true,
+      'text-ignore-placement': true,
+      'symbol-sort-key': ['get', 'rank']
+    };
+    // Row 1 has no icon, so it is in the text's own group, masked out of the paired layers.
+    const rows = [
+      {icon: 'dot', name: 'A', rank: 1},
+      {name: 'B', rank: 2}
+    ];
+    const layer = withRows(symbolLayer(layout), rows);
+    const sublayers = layer.renderLayers();
+    const byId = (id: string) => sublayers.find((sublayer: any) => sublayer.id === id);
+    const data = layer.state.labelData;
+    const priorities = (sublayer: any) =>
+      data.map((row: any, index: number) =>
+        sublayer.props.getCollisionPriority(row, {index, data, target: []})
+      );
+    // Row 0's text waits for its icon; row 1's is placed regardless, by the overlap copy.
+    expect(sublayers.map((sublayer: any) => sublayer.id)).toEqual([
+      'labels-icons-default',
+      'labels-text',
+      'labels-anchors',
+      'labels-text-alone-overlap',
+      'labels-anchors-alone'
+    ]);
+    for (const [textId, anchorsId] of [
+      ['labels-text', 'labels-anchors'],
+      ['labels-text-alone-overlap', 'labels-anchors-alone']
+    ]) {
+      const text = byId(textId);
+      const anchors = byId(anchorsId);
+      expect(anchors.props.data).toBe(text.props.data);
+      expect(priorities(anchors)).toEqual(priorities(text));
+      expect(anchors.props.updateTriggers.all).toEqual(text.props.updateTriggers.all);
+    }
   });
 
   test('a part placed regardless of collisions is drawn untested, and still blocks unless it ignores placement', () => {
@@ -206,6 +264,30 @@ describe('MVTLabelLayer symbol collision', () => {
     expect(describeSublayers(symbolLayer(ignoring))).toEqual([
       ['labels-icons-default-overlap', false, 1, 0],
       ['labels-text-overlap', false, 1, 0]
+    ]);
+  });
+
+  test('invisible collision sublayers are never highlighted', () => {
+    const layout = {
+      'icon-image': 'dot',
+      'text-field': 'A',
+      'icon-allow-overlap': true,
+      'text-optional': true,
+      'text-ignore-placement': true
+    };
+    const layer = symbolLayer(layout, 8, {autoHighlight: true, highlightedObjectIndex: 0});
+    const highlights = layer
+      .renderLayers()
+      .map((sublayer: any) => [
+        sublayer.id,
+        sublayer.props.autoHighlight,
+        sublayer.props.highlightedObjectIndex
+      ]);
+    expect(highlights).toEqual([
+      ['labels-icons-default-overlap', true, 0],
+      ['labels-icons-default', false, -1],
+      ['labels-text', true, 0],
+      ['labels-anchors', false, -1]
     ]);
   });
 
@@ -334,6 +416,64 @@ describe('MVTLabelLayer symbol collision', () => {
     );
   });
 
+  test('collision priorities refresh with collisionPriorityRange, icons with the sprite list', () => {
+    const layout = {'icon-image': 'dot', 'text-field': 'A'};
+    const render = (props: Record<string, unknown>) => symbolLayer(layout, 8, props).renderLayers();
+    const triggers = (layers: any[], id: string) =>
+      layers.find(sublayer => sublayer.id === id).props.updateTriggers;
+    // The style's layer order moves a layer to another band; the tile data stays the same.
+    const first = render({collisionPriorityRange: [-1000, 0]});
+    const second = render({collisionPriorityRange: [0, 1000]});
+    for (const id of ['labels-icons-default', 'labels-text']) {
+      expect(triggers(first, id).getCollisionPriority).not.toEqual(
+        triggers(second, id).getCollisionPriority
+      );
+    }
+    // A sprite added beside the same atlas can take rows from it (`coalesce` over the sprites).
+    const other = {...ATLAS, id: 'other'};
+    expect(triggers(render({spriteAtlases: [ATLAS]}), 'labels-icons-default').all).not.toEqual(
+      triggers(render({spriteAtlases: [ATLAS, other]}), 'labels-icons-default').all
+    );
+  });
+
+  test('icon sublayer ids stay unique whatever the sprite ids', () => {
+    const layout = {
+      'icon-image': ['get', 'icon'],
+      'text-field': ['get', 'name'],
+      'icon-allow-overlap': true
+    };
+    // Sprite `default-alone` in the paired group, and sprite `default` in the alone group.
+    const atlases = [ATLAS, {...ATLAS, id: 'default-alone'}, {...ATLAS, id: 'default-overlap'}];
+    const rows = [
+      {icon: 'dot', name: 'A'},
+      {icon: 'default-alone:dot', name: 'B'},
+      {icon: 'default-overlap:dot', name: 'C'},
+      {icon: 'dot', name: ''}
+    ];
+    const layer = withRows(symbolLayer(layout, 8, {spriteAtlases: atlases}), rows);
+    const ids = layer.renderLayers().map((sublayer: any) => sublayer.id);
+    expect(ids).toContain('labels-icons-default-alone');
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('which rows have text is evaluated once per text update, not on every render', () => {
+    const layout = {
+      'icon-image': ['get', 'icon'],
+      'text-field': ['get', 'name'],
+      'text-allow-overlap': false,
+      'icon-allow-overlap': true
+    };
+    const layer = withRows(symbolLayer(layout), [{icon: 'dot', name: 'A'}, {icon: 'dot'}]);
+    layer.state.labelText = {key: ['', undefined], budget: {steps: 1e6}, labels: new WeakMap()};
+    const getLabel = vi.spyOn(layer, 'getLabel');
+    const first = layer.renderLayers().map((sublayer: any) => sublayer.id);
+    expect(first).toContain('labels-icons-default-alone-overlap');
+    expect(getLabel).toHaveBeenCalledTimes(2);
+    getLabel.mockClear();
+    expect(layer.renderLayers().map((sublayer: any) => sublayer.id)).toEqual(first);
+    expect(getLabel).not.toHaveBeenCalled();
+  });
+
   test('untested text keeps its anchor in the collision pass while the icon is tested', () => {
     const layout = {
       'icon-image': 'dot',
@@ -345,7 +485,7 @@ describe('MVTLabelLayer symbol collision', () => {
     expect(describeSublayers(symbolLayer(layout))).toEqual([
       ['labels-icons-default', true, 1, undefined],
       ['labels-text-overlap', false, 1, 0],
-      ['labels-text', true, 0, 0]
+      ['labels-anchors', true, 0, undefined]
     ]);
   });
 });
