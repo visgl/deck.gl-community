@@ -10,6 +10,7 @@ import {
 } from './style-expression';
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
+import {GlobeHorizonExtension} from './globe-horizon-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {getCharacterWidthMeasurer, transformText, wrapText} from './text-layout';
 import type {WrapBudget} from './text-layout';
@@ -114,6 +115,12 @@ const COLLISION_SAMPLE_RADIUS = 4;
  * every one of them; they are drawn with culling off, in every view.
  */
 const LABEL_PARAMETERS = {depthTest: false, cullMode: 'none'} as const;
+
+/**
+ * Without a depth test, labels on the far side of a globe would draw through it. This extension
+ * hides those whose anchor is beyond the horizon, and keeps them out of the collision pass.
+ */
+const GLOBE_HORIZON_EXTENSION = new GlobeHorizonExtension();
 
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
@@ -493,7 +500,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           // Icons are not collision-filtered (see the module docs). The collision filter matches
           // entries by row index, and this layer holds only the rows its sprite has, so an icon
           // and its own label would not be recognized as one placement.
-          extensions: this.props.extensions || [],
+          extensions: [...(this.props.extensions || []), GLOBE_HORIZON_EXTENSION],
           getPosition: (d: LabelRow) => d.position,
           getIcon: this.getSubLayerAccessor(
             (feature: FeatureLike) => this.getIcon(feature)?.name
@@ -851,7 +858,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         new TextLayer({
           ...this.getSubLayerProps({id: 'text'}),
           data: this.state.labelData,
-          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
+          extensions: [
+            ...(this.props.extensions || []),
+            new CollisionFilterExtension(),
+            GLOBE_HORIZON_EXTENSION
+          ],
           parameters: LABEL_PARAMETERS,
           billboard,
           characterSet: 'auto',
