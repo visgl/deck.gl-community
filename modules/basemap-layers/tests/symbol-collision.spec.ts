@@ -119,22 +119,29 @@ function withRows(layer: any, properties: Record<string, unknown>[]): any {
   return layer;
 }
 
-/** Per row, whether a text sublayer draws it: text, and a priority inside the collision pass. */
+/**
+ * Per row, whether a text sublayer draws it: text, and a priority inside the collision pass. The
+ * sublayers hold the rows in reverse (see `getRows`); the result is in the order of the rows.
+ */
 function groupRows(sublayer: any): boolean[] {
   const {data, getText, getCollisionPriority} = sublayer.props;
-  return data.map((row: any, index: number) => {
-    const info = {index, data, target: []};
-    const drawn = getCollisionPriority(row, info) >= -1000;
-    // A row outside the group draws no text either.
-    expect(drawn || !getText(row, info)).toBe(true);
-    return drawn;
-  });
+  return data
+    .map((row: any, index: number) => {
+      const info = {index, data, target: []};
+      const drawn = getCollisionPriority(row, info) >= -1000;
+      // A row outside the group draws no text either.
+      expect(drawn || !getText(row, info)).toBe(true);
+      return drawn;
+    })
+    .reverse();
 }
 
-/** Per row, whether an icon sublayer draws it. */
+/** Per row, whether an icon sublayer draws it, in the order of the rows (see `groupRows`). */
 function iconRows(sublayer: any): boolean[] {
   const {data, getIcon} = sublayer.props;
-  return data.map((row: any, index: number) => getIcon(row, {index, data, target: []}) !== null);
+  return data
+    .map((row: any, index: number) => getIcon(row, {index, data, target: []}) !== null)
+    .reverse();
 }
 
 /** `[id, collisionEnabled, opacity, collisionTestProps.sizeScale]` per sublayer. */
@@ -487,5 +494,80 @@ describe('MVTLabelLayer symbol collision', () => {
       ['labels-text-overlap', false, 1, 0],
       ['labels-anchors', true, 0, undefined]
     ]);
+  });
+});
+
+describe('MVTLabelLayer symbol row order', () => {
+  /**
+   * A layer over three points: A and B have an icon, C has none, and A's halo differs from the
+   * others'. Text ignores placement, so its anchor is marked by the anchors sublayer.
+   */
+  function renderSymbols(): {layer: any; sublayers: any[]; features: any[]} {
+    const features = [
+      {name: 'A', icon: 'dot', halo: '#ff0000'},
+      {name: 'B', icon: 'dot', halo: '#0000ff'},
+      {name: 'C', halo: '#0000ff'}
+    ].map((properties, index) => ({
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [index, 0]},
+      properties
+    }));
+    const layer: any = new MVTLabelLayer({
+      id: 'labels',
+      config: {labels: true},
+      styleLayer: {
+        layout: {
+          'icon-image': ['get', 'icon'],
+          'text-field': ['get', 'name'],
+          'text-ignore-placement': true
+        },
+        paint: {'text-halo-color': ['get', 'halo'], 'text-halo-width': 1}
+      },
+      zoom: 8,
+      spriteAtlases: [ATLAS],
+      data: features
+    } as any);
+    layer.context = {} as any;
+    layer.internalState = {subLayers: []} as any;
+    layer.state = {};
+    layer.setState = (partial: Record<string, unknown>) => Object.assign(layer.state, partial);
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    return {layer, sublayers: layer.renderLayers(), features};
+  }
+
+  test('icons, texts, halos and anchor marks hold the same rows, so a symbol has one row index', () => {
+    const {layer, sublayers} = renderSymbols();
+    const ids = sublayers.map((sublayer: any) => sublayer.id);
+    expect(ids).toEqual([
+      'labels-icons-default',
+      'labels-text',
+      'labels-text-1',
+      'labels-text-2',
+      'labels-anchors'
+    ]);
+    for (const sublayer of sublayers) {
+      expect(sublayer.props.data, sublayer.id).toBe(layer.getRows());
+    }
+  });
+
+  test('at each row index, every sublayer draws the same feature', () => {
+    const {layer, sublayers, features} = renderSymbols();
+    const rows = layer.getRows();
+    const [icons, , ...rest] = sublayers;
+    const halos = rest.filter((sublayer: any) => sublayer.id !== 'labels-anchors');
+    rows.forEach((row: any, index: number) => {
+      const info = {index, data: rows, target: []};
+      const properties = row.__source.object.properties;
+      expect(features.map(f => f.properties)).toContain(properties);
+      // The icon drawn at this index is this row's own.
+      expect(icons.props.getIcon(row, info), properties.name).toBe(properties.icon ?? null);
+      // Exactly one halo sublayer draws this row's text.
+      const texts = halos
+        .map((halo: any) => halo.props.getText(row, info))
+        .filter((text: unknown) => text !== undefined);
+      expect(texts, properties.name).toEqual([properties.name]);
+    });
+    // Of labels with equal priority, the first one wins: the rows are held in reverse.
+    expect(rows.map((row: any) => row.__source.object.properties.name)).toEqual(['C', 'B', 'A']);
   });
 });
