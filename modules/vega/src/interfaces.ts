@@ -83,6 +83,7 @@ export interface Path {
 }
 
 export interface Polygon {
+  isSymbol?: boolean;
   datum?: unknown;
   positions: Position[];
   strokeColor: Color;

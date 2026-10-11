@@ -29,6 +29,7 @@ const stageSymbol: MarkStager = (_options, stage, scene, x, y) => {
     if (item.shape === 'square') {
       const halfSize = Math.sqrt(size) / 2;
       stage.polygonData.push({
+        isSymbol: true,
         datum: item.datum,
         positions: [
           [-halfSize, -halfSize],

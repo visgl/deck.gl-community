@@ -87,7 +87,7 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
     expect(
       deck
         .pickObjects({x: 0, y: 0, width: 500, height: 320})
-        .some(pick => (pick.object as any)?.datum?.id === 1)
+        .some(pick => pick.layer?.id === 'LAYER_SYMBOLS' && (pick.object as any)?.datum?.id === 1)
     ).toBe(true);
     const initial = view.presenter
       .getCubeData()
@@ -109,21 +109,55 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
         cubeLayer()?.getAttributeManager().attributeTransitionManager.hasAttribute('instanceSizes')
       )
       .toBe(true);
+    const exitStart = timeline.getTime();
+    const readAttribute = (name: string, index: number) => {
+      const attribute = cubeLayer().getAttributeManager().getAttributes()[name];
+      const bytes = attribute.getBuffer().readSyncWebGL();
+      const values =
+        attribute.value instanceof Uint8Array
+          ? bytes
+          : new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
+      return values[index];
+    };
+    const advanceExit = (time: number) => {
+      timeline.setTime(time);
+      cubeLayer().getAttributeManager().attributeTransitionManager.run();
+      deck.redraw('exit buffer validation');
+    };
+    advanceExit(exitStart + 350);
+    const intermediateSize = readAttribute('instanceSizes', 3);
+    const intermediateAlpha = readAttribute('instanceColors', 7);
+    expect(intermediateSize).toBeGreaterThan(0);
+    expect(intermediateSize).toBeLessThan(30);
+    expect(intermediateAlpha).toBeGreaterThan(0);
+    expect(intermediateAlpha).toBeLessThan(255);
     await view.signal('count', 0).runAsync();
     await expect.poll(() => view.presenter.getCubeData().every(cube => cube.isEmpty)).toBe(true);
+    advanceExit(exitStart + 350);
+    expect(readAttribute('instanceSizes', 3)).toBeCloseTo(intermediateSize, 2);
+    expect(readAttribute('instanceColors', 7)).toBeCloseTo(intermediateAlpha, 2);
+    advanceExit(exitStart + 1350);
+    expect(readAttribute('instanceSizes', 3)).toBe(0);
+    expect(readAttribute('instanceColors', 7)).toBe(0);
     await view.signal('count', 3).signal('shape', 'square').runAsync();
     await expect.poll(() => view.presenter.getCubeData().every(cube => !cube.isEmpty)).toBe(true);
     expect(view.presenter.getCubeData().map(cube => cube.ordinal)).toEqual([0, 1, 2]);
     await expect.poll(() => symbolLayer().props.data.length).toBe(0);
-    const polygons = deck.props.layers.find((layer: any) => layer?.id === 'LAYER_POLYGONS') as any;
+    const polygons = deck.props.layers.find(
+      (layer: any) => layer?.id === 'LAYER_SYMBOL_SQUARES'
+    ) as any;
     expect(polygons.props.data).toHaveLength(3);
+    expect(polygons.props.extruded).toBe(false);
+    expect(polygons.props.lineWidthUnits).toBe('pixels');
     timeline.play();
     await new Promise(resolve => setTimeout(resolve, 1100));
     deck.redraw('square picking');
     expect(
       deck
         .pickObjects({x: 0, y: 0, width: 500, height: 320})
-        .some(pick => (pick.object as any)?.datum?.id === 1)
+        .some(
+          pick => pick.layer?.id === 'LAYER_SYMBOL_SQUARES' && (pick.object as any)?.datum?.id === 1
+        )
     ).toBe(true);
     const previousCubeData = view.presenter.getCubeData();
     await view.signal('reverse', true).runAsync();
@@ -239,7 +273,7 @@ it('keeps default ordinals stable when Vega scene items reorder and share tuples
         number
       ]
     }));
-    view.presenter.rePresent({cubeData: moved});
+    view.presenter.rePresent({cubeData: [...moved].reverse()});
     await expect.poll(() => view.presenter.getCubeData()[0].position[0]).toBe(40);
     view.presenter.present(createStage('2d'), 160, 200);
     await expect.poll(() => view.presenter.getCubeData().every(cube => cube.isEmpty)).toBe(true);

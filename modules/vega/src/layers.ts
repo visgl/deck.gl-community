@@ -80,13 +80,22 @@ export function getLayers(
     characterSet
   );
   const pathLayer = newPathLayer(layerNames.paths, stage.pathData);
-  const polygonLayer = newPolygonLayer(layerNames.polygons, stage.polygonData);
+  const polygonLayer = newPolygonLayer(
+    layerNames.polygons,
+    stage.polygonData.filter(polygon => !polygon.isSymbol)
+  );
+  const squareSymbolLayer = newPolygonLayer(
+    layerNames.symbolSquares,
+    stage.polygonData.filter(polygon => polygon.isSymbol),
+    true
+  );
   return [
     textLayer,
     cubeLayer,
     lineLayer,
     pathLayer,
     polygonLayer,
+    squareSymbolLayer,
     newSymbolLayer(stage.symbolData ?? [])
   ];
 }
@@ -180,7 +189,7 @@ function newPathLayer(id: string, data: Path[]) {
   });
 }
 
-function newPolygonLayer(id: string, data: Polygon[]) {
+function newPolygonLayer(id: string, data: Polygon[], isSymbol = false) {
   if (!data) return null;
 
   const newlayer = new base.layers.PolygonLayer<Polygon>({
@@ -194,7 +203,8 @@ function newPolygonLayer(id: string, data: Polygon[]) {
     filled: true,
     stroked: true,
     pickable: true,
-    extruded: true,
+    extruded: !isSymbol,
+    lineWidthUnits: isSymbol ? 'pixels' : 'meters',
     getElevation: o => o.depth,
     getLineWidth: o => o.strokeWidth
   });
