@@ -1,4 +1,4 @@
-import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, type Layer, type LayersList, log} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
 import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
@@ -52,9 +52,16 @@ type BasemapLayerGroup = {
   fontFamily?: LabelFontFamily | null;
 };
 
-type VectorSourceGroup = {
-  sourceId: string;
-  source: BasemapSource;
+/**
+ * Style layers that draw together, in style order: a background or raster layer on its own, or
+ * consecutive style layers of one vector source, which share one tile layer.
+ */
+export type StyleLayerRun = {
+  type: 'background' | 'raster' | 'vector';
+  /** The deck.gl layer id, without the basemap's id prefix. */
+  id: string;
+  sourceId?: string;
+  source?: BasemapSource;
   styleLayers: BasemapStyleLayer[];
 };
 
@@ -76,9 +83,7 @@ function getBackgroundParameters(mode: BasemapMode) {
 
 /**
  * Flat map layers draw in style order without writing depth, but are depth-tested so that
- * extrusions hide the ground behind them. MapLibre draws a tile's layers interleaved with every
- * other tile's; here each tile draws all of its layers in turn, so without the test a later tile's
- * roads would paint over an earlier tile's buildings.
+ * extrusions hide the ground behind them.
  */
 function getTileParameters(mode: BasemapMode) {
   return (
@@ -427,7 +432,67 @@ function createRasterLayer({
   });
 }
 
+/** The most tile requests a source keeps for runs that have not yet taken them. */
+const MAX_SHARED_REQUESTS = 256;
+
+/**
+ * Tile requests of one vector source, shared by the tile layers that draw its runs of style
+ * layers, so a source drawn in several runs fetches and parses each tile once. A request is
+ * dropped once every run has taken it, or when it fails; at most `MAX_SHARED_REQUESTS` are kept
+ * for runs that never ask for a tile.
+ */
+export class SharedTileRequests {
+  /** The number of tile layers that request each tile. */
+  consumers = 1;
+  private requests = new Map<string, {promise: Promise<unknown>; remaining: number}>();
+
+  request(url: string, load: () => Promise<unknown>): Promise<unknown> {
+    let entry = this.requests.get(url);
+    if (!entry) {
+      const promise = load();
+      entry = {promise, remaining: this.consumers};
+      this.requests.set(url, entry);
+      promise.catch(() => this.requests.delete(url));
+      if (this.requests.size > MAX_SHARED_REQUESTS) {
+        this.requests.delete(this.requests.keys().next().value!);
+      }
+    }
+    entry.remaining--;
+    if (entry.remaining <= 0) {
+      this.requests.delete(url);
+    }
+    return entry.promise;
+  }
+}
+
+/** Shared tile requests per vector source of a resolved style. */
+const sharedTileRequests = new WeakMap<BasemapSource, SharedTileRequests>();
+
+/** The prop that records which style layer of its run a tile sublayer draws. */
+const STYLE_LAYER_INDEX = 'styleLayerIndex';
+
+/**
+ * Orders the sublayers of all tiles of a tile layer by style layer, as MapLibre draws each style
+ * layer across all tiles before the next: a tile's fills cannot paint over the labels of the tile
+ * drawn before it. Within a style layer, tiles keep their order, and so do the sublayers of a tile.
+ */
+export function sortTileSubLayers<LayerT extends {props: Record<string, any>}>(
+  tileSubLayers: (LayerT[] | null | undefined)[]
+): LayerT[] {
+  // `Array.prototype.sort` is stable.
+  return tileSubLayers
+    .flatMap(layers => layers || [])
+    .sort((a, b) => (a.props[STYLE_LAYER_INDEX] ?? 0) - (b.props[STYLE_LAYER_INDEX] ?? 0));
+}
+
 class StyledMVTLayer extends MVTLayer<any> {
+  renderLayers(): Layer | null | LayersList {
+    const tileSubLayers = super.renderLayers();
+    return Array.isArray(tileSubLayers)
+      ? sortTileSubLayers(tileSubLayers as (Layer[] | null)[])
+      : tileSubLayers;
+  }
+
   getTileData(loadProps: {index: {x: number; y: number; z: number}; signal?: AbortSignal}) {
     const data = this.props.data;
     const url = _getURLFromTemplate(data, loadProps as any);
@@ -435,6 +500,18 @@ class StyledMVTLayer extends MVTLayer<any> {
       return Promise.reject(new Error('Invalid URL'));
     }
 
+    const {tileRequests} = this.props as {tileRequests?: SharedTileRequests | null};
+    if (!tileRequests) {
+      return this.loadTile(url, loadProps);
+    }
+    // A shared request is not aborted with one layer's tile: another layer may still need it.
+    return tileRequests.request(url, () => this.loadTile(url, {index: loadProps.index}));
+  }
+
+  loadTile(
+    url: string,
+    loadProps: {index: {x: number; y: number; z: number}; signal?: AbortSignal}
+  ) {
     const loadOptions = this.getLoadOptions();
     const coordinates = this.context.viewport.resolution ? 'wgs84' : 'local';
 
@@ -539,8 +616,10 @@ function createStyledVectorSubLayer({
 
 function createVectorLayerGroup({
   idPrefix,
+  id,
   sourceId,
   source,
+  tileRequests,
   styleLayers,
   zoom,
   config,
@@ -552,8 +631,11 @@ function createVectorLayerGroup({
   fontFamily
 }: {
   idPrefix: string;
+  id: string;
   sourceId: string;
   source: BasemapSource;
+  /** Shared with the source's other runs, if it has any. */
+  tileRequests?: SharedTileRequests | null;
   styleLayers: BasemapStyleLayer[];
   zoom: number;
   config: BasemapLayerConfig;
@@ -572,8 +654,9 @@ function createVectorLayerGroup({
   const maxZoom = source.maxzoom ?? 22;
 
   return new StyledMVTLayer({
-    id: `${idPrefix}-${sourceId}`,
+    id: `${idPrefix}-${id}`,
     data: source.tiles,
+    tileRequests,
     binary: false,
     minZoom,
     maxZoom,
@@ -615,7 +698,7 @@ function createVectorLayerGroup({
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers = styleLayers
-        .map(styleLayer => {
+        .map((styleLayer, styleLayerIndex) => {
           if (!isStyleLayerVisibleAtZoom(styleLayer, zoom)) {
             return null;
           }
@@ -631,7 +714,7 @@ function createVectorLayerGroup({
             });
           }
 
-          return createStyledVectorSubLayer({
+          const subLayers = createStyledVectorSubLayer({
             idPrefix,
             sourceId,
             styleLayer,
@@ -645,7 +728,13 @@ function createVectorLayerGroup({
             loadOptions,
             fontFamily
           });
+          // Recorded for `sortTileSubLayers`, which orders all tiles' sublayers by style layer.
+          return [subLayers]
+            .flat()
+            .filter(Boolean)
+            .map(layer => layer!.clone({[STYLE_LAYER_INDEX]: styleLayerIndex} as any));
         })
+        .flat()
         .filter(layer => Boolean(layer));
 
       return layers as any;
@@ -667,23 +756,6 @@ function inferWaterColor(
 
   const paint = getPaint(waterLayer, zoom);
   return withOpacity(paint['fill-color'], paint['fill-opacity'] ?? 1);
-}
-
-function getVectorSourceGroups(
-  styleLayers: BasemapStyleLayer[],
-  styleDefinition: ResolvedBasemapStyle
-): VectorSourceGroup[] {
-  const groups = new Map<string, VectorSourceGroup>();
-
-  for (const layer of styleLayers) {
-    const sourceId = layer.source;
-    const source = sourceId ? styleDefinition.sources?.[sourceId] : null;
-    if (sourceId && source?.tiles && source.type === 'vector') {
-      appendVectorSourceGroup(groups, sourceId, source, layer);
-    }
-  }
-
-  return [...groups.values()];
 }
 
 /** All style-layer `minzoom`/`maxzoom` limits in a style. */
@@ -717,9 +789,8 @@ export function getBasemapLayers({
   layers.push(...getGlobePreLayers({idPrefix, mode, config, styleLayers, zoom}));
 
   if (config.basemap) {
-    layers.push(...getBackgroundLayers({idPrefix, styleLayers, zoom, mode}));
     layers.push(
-      ...getVectorLayers({
+      ...getStyleLayers({
         idPrefix,
         styleLayers,
         styleDefinition,
@@ -731,7 +802,6 @@ export function getBasemapLayers({
         fontFamily
       })
     );
-    layers.push(...getRasterLayers({idPrefix, styleLayers, styleDefinition, zoom, mode}));
   }
 
   layers.push(...getGlobePostLayers({idPrefix, mode, config, styleLayers, zoom}));
@@ -1293,22 +1363,6 @@ function createExtrusionSubLayer({
   });
 }
 
-function getBackgroundLayers({
-  idPrefix,
-  styleLayers,
-  zoom,
-  mode
-}: {
-  idPrefix: string;
-  styleLayers: BasemapStyleLayer[];
-  zoom: number;
-  mode: BasemapMode;
-}) {
-  return styleLayers
-    .filter(layer => layer.type === 'background' && isStyleLayerVisibleAtZoom(layer, zoom))
-    .map(layer => createBackgroundLayer({idPrefix, layer, zoom, mode}));
-}
-
 /** deck.gl's `CollisionFilterExtension` supports priorities from -1000 to 1000. */
 const COLLISION_PRIORITY_RANGE: [number, number] = [-1000, 1000];
 
@@ -1329,7 +1383,76 @@ function getLabelPriorityRanges(
   );
 }
 
-function getVectorLayers({
+/** Whether a style layer is drawn from vector tiles: a `symbol` layer only with labels on. */
+function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig): boolean {
+  return layer.type === 'symbol'
+    ? config.labels
+    : layer.type === 'fill' ||
+        layer.type === 'fill-extrusion' ||
+        layer.type === 'line' ||
+        layer.type === 'circle';
+}
+
+/**
+ * Splits the style into runs that draw in style order, as in MapLibre: each background and raster
+ * layer on its own, and consecutive layers of one vector source together, so that a raster
+ * layer between two vector layers draws between them. Layers that cannot draw (a source without
+ * tiles, labels turned off) do not split a run. Runs do not depend on zoom, so the tile layers
+ * keep their ids and tiles when a layer leaves its zoom range. The first run of a source has the
+ * source id as its id; later runs add the id of their first style layer.
+ */
+export function getStyleLayerRuns(
+  styleLayers: BasemapStyleLayer[],
+  styleDefinition: ResolvedBasemapStyle,
+  config: BasemapLayerConfig = DEFAULT_CONFIG
+): StyleLayerRun[] {
+  const runs: StyleLayerRun[] = [];
+  const sourceIds = new Set<string>();
+  for (const layer of styleLayers) {
+    const sourceId = layer.source as string | undefined;
+    const source = sourceId ? styleDefinition.sources?.[sourceId] : undefined;
+    if (layer.type === 'background') {
+      runs.push({type: 'background', id: layer.id, styleLayers: [layer]});
+    } else if (layer.type === 'raster') {
+      if (source?.tiles) {
+        runs.push({type: 'raster', id: layer.id, sourceId, source, styleLayers: [layer]});
+      } else {
+        logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {
+          layerId: layer.id,
+          sourceId
+        });
+      }
+    } else if (
+      isVectorStyleLayer(layer, config) &&
+      sourceId &&
+      source?.tiles &&
+      source.type === 'vector'
+    ) {
+      const last = runs[runs.length - 1];
+      if (last?.type === 'vector' && last.sourceId === sourceId) {
+        last.styleLayers.push(layer);
+      } else {
+        runs.push({
+          type: 'vector',
+          id: sourceIds.has(sourceId) ? `${sourceId}-${layer.id}` : sourceId,
+          sourceId,
+          source,
+          styleLayers: [layer]
+        });
+        sourceIds.add(sourceId);
+      }
+    }
+  }
+  return runs;
+}
+
+/**
+ * The deck.gl layers of the style's background, raster and vector layers, in style order. A run
+ * draws only while one of its layers is visible at `zoom`. A vector run keeps all of its style
+ * layers, visible or not: its tile regeneration key must change when any of them crosses its own
+ * limits, and `renderSubLayers` gates each layer by zoom.
+ */
+function getStyleLayers({
   idPrefix,
   styleLayers,
   styleDefinition,
@@ -1350,93 +1473,58 @@ function getVectorLayers({
   spriteAtlases?: SpriteAtlas[] | null;
   fontFamily?: LabelFontFamily | null;
 }) {
-  const vectorLayers = styleLayers.filter(layer =>
-    layer.type === 'symbol'
-      ? config.labels
-      : layer.type === 'fill' ||
-        layer.type === 'fill-extrusion' ||
-        layer.type === 'line' ||
-        layer.type === 'circle'
+  const labelPriorityRanges = getLabelPriorityRanges(
+    styleLayers.filter(layer => isVectorStyleLayer(layer, config))
+  );
+  const runs = getStyleLayerRuns(styleLayers, styleDefinition, config).filter(run =>
+    run.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom))
   );
 
-  // A group keeps all of its source's style layers, visible or not: its tile regeneration key
-  // must change when any of them crosses its own limits, and `renderSubLayers` gates each layer
-  // by zoom. Skip a source only when none of its layers are visible, and draw sources in the
-  // order of their first visible layer, so a hidden layer does not move its source forward.
-  const labelPriorityRanges = getLabelPriorityRanges(vectorLayers);
-  const firstVisibleIndex = (group: VectorSourceGroup): number =>
-    vectorLayers.findIndex(
-      layer => layer.source === group.sourceId && isStyleLayerVisibleAtZoom(layer, zoom)
-    );
-  return getVectorSourceGroups(vectorLayers, styleDefinition)
-    .filter(group => firstVisibleIndex(group) >= 0)
-    .sort((a, b) => firstVisibleIndex(a) - firstVisibleIndex(b))
-    .map(group =>
-      createVectorLayerGroup({
-        idPrefix,
-        sourceId: group.sourceId,
-        source: group.source,
-        styleLayers: group.styleLayers,
-        zoom,
-        config,
-        loadOptions,
-        mode,
-        labelPriorityRanges,
-        styleDefinition,
-        spriteAtlases,
-        fontFamily
-      })
-    );
-}
-
-function getRasterLayers({
-  idPrefix,
-  styleLayers,
-  styleDefinition,
-  zoom,
-  mode
-}: {
-  idPrefix: string;
-  styleLayers: BasemapStyleLayer[];
-  styleDefinition: ResolvedBasemapStyle;
-  zoom: number;
-  mode: BasemapMode;
-}) {
-  const rasterLayers = [];
-
-  for (const layer of styleLayers) {
-    if (layer.type === 'raster' && isStyleLayerVisibleAtZoom(layer, zoom)) {
-      const source = styleDefinition.sources?.[layer.source];
-      if (!source?.tiles) {
-        logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {
-          layerId: layer.id,
-          sourceId: layer.source
-        });
-      } else {
-        rasterLayers.push(createRasterLayer({idPrefix, layer, source, zoom, mode}));
-      }
+  // A source drawn in several runs shares its tile requests between their tile layers.
+  const runCounts = new Map<BasemapSource, number>();
+  for (const run of runs) {
+    if (run.type === 'vector') {
+      runCounts.set(run.source!, (runCounts.get(run.source!) ?? 0) + 1);
     }
   }
+  const getTileRequests = (source: BasemapSource): SharedTileRequests | null => {
+    const consumers = runCounts.get(source) ?? 1;
+    if (consumers < 2) {
+      return null;
+    }
+    let tileRequests = sharedTileRequests.get(source);
+    if (!tileRequests) {
+      tileRequests = new SharedTileRequests();
+      sharedTileRequests.set(source, tileRequests);
+    }
+    tileRequests.consumers = consumers;
+    return tileRequests;
+  };
 
-  return rasterLayers;
-}
-
-function appendVectorSourceGroup(
-  groups: Map<string, VectorSourceGroup>,
-  sourceId: string,
-  source: BasemapSource,
-  layer: BasemapStyleLayer
-) {
-  const group = groups.get(sourceId);
-  if (group) {
-    group.styleLayers.push(layer);
-    return;
-  }
-
-  groups.set(sourceId, {
-    sourceId,
-    source,
-    styleLayers: [layer]
+  return runs.map(run => {
+    const [layer] = run.styleLayers;
+    if (run.type === 'background') {
+      return createBackgroundLayer({idPrefix, layer, zoom, mode});
+    }
+    if (run.type === 'raster') {
+      return createRasterLayer({idPrefix, layer, source: run.source!, zoom, mode});
+    }
+    return createVectorLayerGroup({
+      idPrefix,
+      id: run.id,
+      sourceId: run.sourceId!,
+      source: run.source!,
+      tileRequests: getTileRequests(run.source!),
+      styleLayers: run.styleLayers,
+      zoom,
+      config,
+      loadOptions,
+      mode,
+      labelPriorityRanges,
+      styleDefinition,
+      spriteAtlases,
+      fontFamily
+    });
   });
 }
 
