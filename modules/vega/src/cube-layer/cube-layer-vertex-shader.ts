@@ -61,7 +61,7 @@ void main(void) {
   // extrude positions
   vec4 position_worldspace;
   gl_Position = project_position_to_clipspace(instancePositions, instancePositions64Low, offset, position_worldspace);
-  
+
   vec3 lightColor = lighting_getLightColor(instanceColors.rgb, project.cameraPosition, position_worldspace.xyz, project_normal(normals));
   vec3 mixedLight = mix(instanceColors.rgb, lightColor, cube.lightingMix);
   vec4 color = vec4(mixedLight, instanceColors.a) / 255.0;

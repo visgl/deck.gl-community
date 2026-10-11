@@ -65,4 +65,3 @@ yarn vite modules/vega/demo
 The demo imports source directly. See [UPSTREAM.md](UPSTREAM.md) for provenance
 and licensing. The package has `private: true` and a failing `prepublishOnly`
 guard; it has no public publish configuration.
-
