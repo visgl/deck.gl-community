@@ -205,6 +205,38 @@ describe('icon collision in the browser', () => {
     expect(textPixels(cropRows(image, SIZE / 2 - 8, SIZE))).toBeGreaterThan(20);
     expect(textPixels(cropRows(image, 0, SIZE / 2 - 8))).toBe(0);
   });
+
+  test('an icon without text that allows overlap is drawn where it loses', async () => {
+    // The layer has text, but this symbol's is empty: its icon follows only icon-allow-overlap.
+    const image = await renderSymbols({...LAYOUT, 'icon-allow-overlap': true}, [
+      [[0, 0], {rank: 0, name: 'MMMM'}],
+      [[8, 0], {rank: 1, icon: 'square'}]
+    ]);
+    expect(textPixels(image)).toBeGreaterThan(20);
+    expect(iconPixels(image)).toBeGreaterThan(100);
+  });
+
+  test('text whose icon is empty or missing follows only text-allow-overlap', async () => {
+    // Both labels' anchors are under the higher-priority icon; neither label has an icon of its
+    // own, so neither waits for one. Pixel rows grow downwards: the labels at y = 16 and -16.
+    const image = await renderSymbols({...LAYOUT, 'text-allow-overlap': true}, [
+      [[0, 0], {rank: 0, icon: 'square', iconSize: 4}],
+      [[0, 16], {rank: 1, name: 'MMMM'}],
+      [[0, -16], {rank: 2, icon: 'not-in-the-sprite', name: 'MMMM'}]
+    ]);
+    expect(iconPixels(image)).toBeGreaterThan(1000);
+    expect(textPixels(cropRows(image, SIZE / 2, SIZE))).toBeGreaterThan(20);
+    expect(textPixels(cropRows(image, 0, SIZE / 2))).toBeGreaterThan(20);
+  });
+
+  test('text with an icon that does not allow overlap is still hidden with it', async () => {
+    const image = await renderSymbols({...LAYOUT, 'text-allow-overlap': true}, [
+      [[0, 0], {rank: 0, icon: 'square', iconSize: 4}],
+      [[0, 16], {rank: 1, icon: 'square', name: 'MMMM'}]
+    ]);
+    // Only the first icon: the second symbol loses at its anchor, text and icon together.
+    expect(textPixels(image)).toBe(0);
+  });
 });
 
 /** The rows `[top, bottom)` of `image`, other pixels cleared. */

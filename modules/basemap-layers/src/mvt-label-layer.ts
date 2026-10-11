@@ -111,6 +111,13 @@ const COLLISION_SAMPLE_RADIUS = 4;
 /** Collision group shared by every label and icon, so all symbols collide with each other. */
 const LABEL_COLLISION_GROUP = 'basemap-labels';
 
+/**
+ * Collision priority of the rows that a sublayer holds but does not draw. `CollisionFilterExtension`
+ * maps priorities from -1000 to 1000 onto the collision pass's depth range, so a row below it is
+ * clipped there and leaves no mark in the collision map.
+ */
+const MASKED_COLLISION_PRIORITY = -2000;
+
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
   center: [0, 0],
@@ -286,6 +293,38 @@ function placeSymbolPart(
   return keepFootprint ? [placed, layer.clone({opacity: 0, pickable: false})] : [placed];
 }
 
+/** How a symbol's text and icon take part in collision (see `getSymbolCollision`). */
+type SymbolCollisionResult = {text: SymbolPartCollision; icon: SymbolPartCollision};
+
+/** The rows whose `part` (text or icon) is drawn by the same sublayers, with the same collision. */
+type SymbolPartGroup = {
+  /** Appended to the ids of the group's sublayers. */
+  idSuffix: string;
+  collision: SymbolCollisionResult;
+  /** Per row, whether the row is in the group; `null` when every row is. */
+  rows: boolean[] | null;
+};
+
+/** The sublayers that `placeSymbolPart` builds for `part`, as a string, to compare two results. */
+function getSymbolPartPlacementKey(
+  collision: SymbolCollisionResult,
+  part: 'text' | 'icon'
+): string {
+  const {tested, blocks} = collision[part];
+  // An untested text also keeps its footprint while the icon is tested (see `renderLayers`).
+  const footprint = !tested && (blocks || (part === 'text' && collision.icon.tested));
+  return `${tested}|${blocks}|${footprint}`;
+}
+
+/** `accessor` for the rows in `rows` and `fallback` for the others; `accessor` when `rows` is null. */
+function forRows<T>(
+  rows: boolean[] | null,
+  accessor: (row: LabelRow, info: {index: number}) => T,
+  fallback: T
+): (row: LabelRow, info: {index: number}) => T {
+  return rows ? (row, info) => (rows[info.index] ? accessor(row, info) : fallback) : accessor;
+}
+
 /**
  * Renders label text for decoded vector-tile features, with optional geometry
  * passthrough for debugging.
@@ -452,78 +491,131 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * One `IconLayer` per sprite that this layer's icons come from. Each holds every label row, so
    * an icon has the same row index, and so the same collision-filter identity, as its own label:
    * the two are placed or hidden as one unit. Rows whose icon is in another sprite, or in none,
-   * draw nothing.
+   * draw nothing. Icons with and without text follow different placement rules when the layout
+   * makes them differ (see `getSymbolPartGroups`); each sprite then has a layer per rule.
    *
    * `icon-image` is evaluated once per row. Each sprite's layer evaluates the other style
    * properties only for its own rows and gives every other row constants, so the style evaluation
    * across all layers is linear in the rows. The instance count is rows times the sprites a tile
-   * uses, and only the style's `sprite` list adds sprites: tile data cannot.
+   * uses (twice that when the rules differ), and only the style's `sprite` list adds sprites: tile
+   * data cannot.
    */
-  renderIconLayers(): any[] {
-    const {spriteAtlases, iconLoadOptions, billboard} = this.props;
+  renderIconLayers(icons: (ResolvedSpriteIcon | null)[] = this.getRowIcons()): any[] {
+    const {iconLoadOptions, billboard} = this.props;
     const labelData = this.state.labelData || [];
-    if (!spriteAtlases?.length || !this.getStyleProperty('icon-image') || !labelData.length) {
-      return [];
-    }
-    const icons = labelData.map(row => this.getIcon((row as any).__source?.object ?? row));
     const atlases = new Set<SpriteAtlas>();
     for (const icon of icons) {
       if (icon) {
         atlases.add(icon.atlas);
       }
     }
-    const {icon: collision} = this.getSymbolCollision();
-    return [...atlases].flatMap(atlas => {
-      // Accessors over every row: `fallback` for rows whose icon is not in this sprite.
-      const forOwnRows = <T>(accessor: (feature: FeatureLike) => T, fallback: T) => {
-        const getValue = this.getSubLayerAccessor(accessor) as any;
-        return (row: LabelRow, info: {index: number}) =>
-          icons[info.index]?.atlas === atlas ? getValue(row, info) : fallback;
-      };
-      const layer = new IconLayer({
-        ...this.getSubLayerProps({id: `icons-${atlas.id}`}),
-        data: labelData,
-        iconAtlas: atlas.image,
-        iconMapping: atlas.mapping,
-        loadOptions: iconLoadOptions || undefined,
-        billboard,
-        sizeUnits: 'pixels',
-        parameters: {depthTest: false},
-        extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-        collisionEnabled: true,
-        collisionGroup: LABEL_COLLISION_GROUP,
-        getCollisionPriority: forOwnRows(
-          feature => this.getLabelCollisionPriority(feature),
-          0
-        ) as any,
-        // The icon's whole box collides, as in MapLibre, including its transparent pixels. An
-        // icon that ignores placement draws nothing in the collision pass.
-        collisionTestProps: collision.blocks ? {alphaCutoff: 0} : {alphaCutoff: 0, sizeScale: 0},
-        getPosition: (d: LabelRow) => d.position,
-        getIcon: ((_: LabelRow, {index}: {index: number}) =>
-          icons[index]?.atlas === atlas ? icons[index]!.name : null) as any,
-        getSize: forOwnRows(feature => this.getIconSize(feature), 0) as any,
-        getColor: forOwnRows(feature => this.getIconColor(feature), [0, 0, 0, 0]) as any,
-        getPixelOffset: forOwnRows(feature => this.getIconPixelOffset(feature), [0, 0] as [
-          number,
-          number
-        ]) as any,
-        updateTriggers: {
-          ...this.getIconUpdateTriggers(),
-          getCollisionPriority: this.getStyleUpdateTrigger('symbol-sort-key'),
-          all: atlas
-        }
-      });
-      return placeSymbolPart(layer, collision, collision.blocks);
-    });
+    if (!atlases.size) {
+      return [];
+    }
+    const groups = this.getSymbolPartGroups('icon', () =>
+      labelData.map(row => this.getLabel((row as any).__source?.object ?? row) !== undefined)
+    );
+    return groups.flatMap(({idSuffix, collision: {icon: collision}, rows}) =>
+      [...atlases].flatMap(atlas => {
+        const isOwnRow = (index: number) => icons[index]?.atlas === atlas && (!rows || rows[index]);
+        // Accessors over every row: `fallback` for rows whose icon is not in this layer.
+        const forOwnRows = <T>(accessor: (feature: FeatureLike) => T, fallback: T) => {
+          const getValue = this.getSubLayerAccessor(accessor) as any;
+          return (row: LabelRow, info: {index: number}) =>
+            isOwnRow(info.index) ? getValue(row, info) : fallback;
+        };
+        const layer = new IconLayer({
+          ...this.getSubLayerProps({id: `icons-${atlas.id}${idSuffix}`}),
+          data: labelData,
+          iconAtlas: atlas.image,
+          iconMapping: atlas.mapping,
+          loadOptions: iconLoadOptions || undefined,
+          billboard,
+          sizeUnits: 'pixels',
+          parameters: {depthTest: false},
+          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
+          collisionEnabled: true,
+          collisionGroup: LABEL_COLLISION_GROUP,
+          getCollisionPriority: forOwnRows(
+            feature => this.getLabelCollisionPriority(feature),
+            0
+          ) as any,
+          // The icon's whole box collides, as in MapLibre, including its transparent pixels. An
+          // icon that ignores placement draws nothing in the collision pass.
+          collisionTestProps: collision.blocks ? {alphaCutoff: 0} : {alphaCutoff: 0, sizeScale: 0},
+          getPosition: (d: LabelRow) => d.position,
+          getIcon: ((_: LabelRow, {index}: {index: number}) =>
+            isOwnRow(index) ? icons[index]!.name : null) as any,
+          getSize: forOwnRows(feature => this.getIconSize(feature), 0) as any,
+          getColor: forOwnRows(feature => this.getIconColor(feature), [0, 0, 0, 0]) as any,
+          getPixelOffset: forOwnRows(feature => this.getIconPixelOffset(feature), [0, 0] as [
+            number,
+            number
+          ]) as any,
+          updateTriggers: {
+            ...this.getIconUpdateTriggers(),
+            getCollisionPriority: this.getStyleUpdateTrigger('symbol-sort-key'),
+            // Which rows have text decides the group's rows.
+            all: rows ? [atlas, this.getLabelUpdateTriggers().getText] : atlas
+          }
+        });
+        return placeSymbolPart(layer, collision, collision.blocks);
+      })
+    );
+  }
+
+  /**
+   * Each label row's icon, resolved against the loaded sprites (see `getIcon`), or all `null`
+   * while the layer has no `icon-image` or no sprites.
+   */
+  getRowIcons(): (ResolvedSpriteIcon | null)[] {
+    const labelData = this.state.labelData || [];
+    if (!this.props.spriteAtlases?.length || !this.getStyleProperty('icon-image')) {
+      return labelData.map(() => null);
+    }
+    return labelData.map(row => this.getIcon((row as any).__source?.object ?? row));
+  }
+
+  /**
+   * Splits the label rows by how their `part`, text or icon, takes part in collision. MapLibre
+   * combines the placement rules of a symbol's text and icon only when the symbol has both: a
+   * symbol whose text is empty, or whose icon is empty or missing from the sprites, follows the
+   * rules of its one part. `hasOtherPart` returns, per row, whether the row has the other part. It
+   * is called only when the two cases follow different rules, so a layout whose rules do not
+   * depend on it keeps one group of every row and evaluates nothing more per row.
+   *
+   * A row without text stays with the rows that have text and an icon: an empty text draws
+   * nothing, and that group's text keeps the anchor in the collision pass whenever the row's own
+   * icon is tested.
+   */
+  getSymbolPartGroups(part: 'text' | 'icon', hasOtherPart: () => boolean[]): SymbolPartGroup[] {
+    const paired = this.getSymbolCollision();
+    const alone = this.getSymbolCollision(part === 'text' ? {hasIcon: false} : {hasText: false});
+    if (getSymbolPartPlacementKey(paired, part) === getSymbolPartPlacementKey(alone, part)) {
+      return [{idSuffix: '', collision: paired, rows: null}];
+    }
+    const withOther = hasOtherPart();
+    const withoutOther = withOther.map(has => !has);
+    const groups: SymbolPartGroup[] = [];
+    if (withOther.some(Boolean)) {
+      groups.push({idSuffix: '', collision: paired, rows: withOther});
+    }
+    if (withoutOther.some(Boolean)) {
+      groups.push({idSuffix: '-alone', collision: alone, rows: withoutOther});
+    }
+    // Every row in one group: no rows to mask.
+    return groups.length > 1
+      ? groups
+      : [{idSuffix: '', collision: groups[0]?.collision ?? paired, rows: null}];
   }
 
   /**
    * How this layer's text and icons take part in collision (see `getSymbolCollision`), from its
    * placement properties at the stepped zoom. `*-overlap`, where set, takes precedence over
-   * `*-allow-overlap`, as in MapLibre; its `cooperative` value is treated as `never`.
+   * `*-allow-overlap`, as in MapLibre; its `cooperative` value is treated as `never`. `parts` set
+   * to `false` leave out the text or icon, for symbols that lack it.
    */
-  getSymbolCollision(): {text: SymbolPartCollision; icon: SymbolPartCollision} {
+  getSymbolCollision(parts: {hasText?: boolean; hasIcon?: boolean} = {}): SymbolCollisionResult {
     const zoom = getZoomBucket(this.props.zoom || 0);
     const evaluate = (name: string) =>
       this.getStyleProperty(name)?.evaluate(zoom) ?? getStylePropertyDefault(name);
@@ -532,8 +624,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return overlap ? overlap === 'always' : Boolean(evaluate(`${part}-allow-overlap`));
     };
     return getSymbolCollision({
-      hasText: Boolean(this.getStyleProperty('text-field')),
-      hasIcon: Boolean(this.getStyleProperty('icon-image')),
+      hasText: (parts.hasText ?? true) && Boolean(this.getStyleProperty('text-field')),
+      hasIcon: (parts.hasIcon ?? true) && Boolean(this.getStyleProperty('icon-image')),
       textAllowOverlap: allowsOverlap('text'),
       iconAllowOverlap: allowsOverlap('icon'),
       textIgnorePlacement: Boolean(evaluate('text-ignore-placement')),
@@ -811,71 +903,87 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
     if (config.labels) {
       // Icons draw under their labels.
-      layers.push(...this.renderIconLayers());
+      const icons = this.getRowIcons();
+      layers.push(...this.renderIconLayers(icons));
       const hasBackground = Array.isArray(labelBackground) && labelBackground.length >= 3;
       const font = this.getFont();
-      const collision = this.getSymbolCollision();
-      // The text's collision box also marks the anchor that the icon's collision test samples.
-      const textLayers = placeSymbolPart(
-        new TextLayer({
-          ...this.getSubLayerProps({id: 'text'}),
-          data: this.state.labelData,
-          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-          parameters: {
-            depthTest: false
-          },
-          billboard,
-          characterSet: 'auto',
-          collisionEnabled: true,
-          collisionGroup: LABEL_COLLISION_GROUP,
-          getCollisionPriority: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelCollisionPriority(feature)
-          ) as any,
-          fontFamily: font.fontFamily,
-          fontWeight: getTextLayerFontWeight(font),
-          sizeUnits: labelSizeUnits,
-          // The collision filter keeps a label only where the label itself covers its anchor in
-          // the collision map. The background box is always drawn (transparent without a halo)
-          // and, in the collision pass, padded to reach the anchor (see getCollisionPadding).
-          // Text that ignores placement keeps only that padding around its anchor.
-          background: true,
-          collisionTestProps: {
-            padding: this.getCollisionPadding(),
-            ...(collision.text.blocks ? {} : {sizeScale: 0})
-          },
-          getBackgroundColor: (hasBackground
-            ? this.getSubLayerAccessor((feature: FeatureLike) =>
-                this.getLabelBackgroundColor(feature)
-              )
-            : [0, 0, 0, 0]) as any,
-          getPosition: (d: LabelRow) => d.position,
-          getText: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabel(feature)
-          ) as any,
-          getSize: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelSize(feature)
-          ) as any,
-          getColor: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelColor(feature)
-          ) as any,
-          getPixelOffset: this.getSubLayerAccessor((feature: FeatureLike) =>
-            this.getLabelPixelOffset(feature)
-          ) as any,
-          getTextAnchor: this.getSubLayerAccessor(
-            (feature: FeatureLike) =>
-              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor
-          ) as any,
-          getAlignmentBaseline: this.getSubLayerAccessor(
-            (feature: FeatureLike) =>
-              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
-                .alignmentBaseline
-          ) as any,
-          updateTriggers: this.getLabelUpdateTriggers()
-        }),
-        collision.text,
-        collision.text.blocks || collision.icon.tested
-      );
-      layers.push(...textLayers);
+      const groups = this.getSymbolPartGroups('text', () => icons.map(Boolean));
+      for (const {idSuffix, collision, rows} of groups) {
+        // Accessors over every row: `fallback` for rows outside the group.
+        const forGroupRows = <T>(accessor: (feature: FeatureLike) => T, fallback: T) =>
+          forRows(rows, this.getSubLayerAccessor(accessor) as any, fallback) as any;
+        const updateTriggers = this.getLabelUpdateTriggers();
+        // The text's collision box also marks the anchor that the icon's collision test samples.
+        const textLayers = placeSymbolPart(
+          new TextLayer({
+            ...this.getSubLayerProps({id: `text${idSuffix}`}),
+            data: this.state.labelData,
+            extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
+            parameters: {
+              depthTest: false
+            },
+            billboard,
+            characterSet: 'auto',
+            collisionEnabled: true,
+            collisionGroup: LABEL_COLLISION_GROUP,
+            // Rows outside the group stay out of the collision pass.
+            getCollisionPriority: forGroupRows(
+              (feature: FeatureLike) => this.getLabelCollisionPriority(feature),
+              MASKED_COLLISION_PRIORITY
+            ),
+            fontFamily: font.fontFamily,
+            fontWeight: getTextLayerFontWeight(font),
+            sizeUnits: labelSizeUnits,
+            // The collision filter keeps a label only where the label itself covers its anchor in
+            // the collision map. The background box is always drawn (transparent without a halo)
+            // and, in the collision pass, padded to reach the anchor (see getCollisionPadding).
+            // Text that ignores placement keeps only that padding around its anchor.
+            background: true,
+            collisionTestProps: {
+              padding: this.getCollisionPadding(),
+              ...(collision.text.blocks ? {} : {sizeScale: 0})
+            },
+            getBackgroundColor: hasBackground
+              ? forGroupRows(
+                  (feature: FeatureLike) => this.getLabelBackgroundColor(feature),
+                  [0, 0, 0, 0]
+                )
+              : ([0, 0, 0, 0] as any),
+            getPosition: (d: LabelRow) => d.position,
+            getText: forGroupRows((feature: FeatureLike) => this.getLabel(feature), undefined),
+            getSize: forGroupRows((feature: FeatureLike) => this.getLabelSize(feature), 0),
+            getColor: forGroupRows(
+              (feature: FeatureLike) => this.getLabelColor(feature),
+              [0, 0, 0, 0]
+            ),
+            getPixelOffset: forGroupRows(
+              (feature: FeatureLike) => this.getLabelPixelOffset(feature),
+              [0, 0]
+            ),
+            getTextAnchor: forGroupRows(
+              (feature: FeatureLike) =>
+                getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor,
+              'middle'
+            ),
+            getAlignmentBaseline: forGroupRows(
+              (feature: FeatureLike) =>
+                getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
+                  .alignmentBaseline,
+              'center'
+            ),
+            // Which rows have an icon decides the group's rows.
+            updateTriggers: rows
+              ? {
+                  ...updateTriggers,
+                  all: [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
+                }
+              : updateTriggers
+          }),
+          collision.text,
+          collision.text.blocks || collision.icon.tested
+        );
+        layers.push(...textLayers);
+      }
     }
 
     return layers;
