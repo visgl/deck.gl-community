@@ -1,5 +1,6 @@
 import {describe, expect, test} from 'vitest';
 import {getSpriteIconMapping} from '../src/sprite';
+import {GlobeHorizonExtension} from '../src/globe-horizon-extension';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
 
 /** A label layer with one row, ready to render its sublayers outside a deck. */
@@ -52,5 +53,26 @@ describe('label draw parameters', () => {
       .filter((sublayer: any) => sublayer.id.startsWith('labels-anchors'));
     expect(anchors).toHaveLength(1);
     expect(anchors[0].props.parameters).toMatchObject({cullMode: 'none', depthTest: false});
+  });
+
+  // Without a depth test the globe does not hide labels on its far side; the extension does.
+  test('text, icon and anchor mark sublayers hide labels beyond the horizon of a globe', () => {
+    const layouts = [
+      {'text-field': 'A', 'icon-image': 'square'},
+      {'text-field': 'A', 'icon-image': 'square', 'text-ignore-placement': true}
+    ];
+    const ids = layouts.flatMap(layout =>
+      createLabelLayer(layout)
+        .renderLayers()
+        .map((sublayer: any) => {
+          expect(
+            sublayer.props.extensions.some(
+              (extension: unknown) => extension instanceof GlobeHorizonExtension
+            )
+          ).toBe(true);
+          return sublayer.id;
+        })
+    );
+    expect(ids.some(id => id.startsWith('labels-anchors'))).toBe(true);
   });
 });
