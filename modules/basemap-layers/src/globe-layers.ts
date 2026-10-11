@@ -21,7 +21,7 @@ import {
   getZoomBucket,
   withOpacity
 } from './style-accessor';
-import {compileStylePropertyValue, getStylePropertyDefault} from './style-expression';
+import {getStylePropertyDefault} from './style-expression';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {SpriteAtlas} from './sprite';
 import type {LabelFontFamily} from './text-font';
@@ -47,7 +47,11 @@ type BasemapLayerGroup = {
   styleDefinition: ResolvedBasemapStyle;
   zoom?: number;
   loadOptions?: BasemapLoadOptions;
-  /** Sprites loaded for the style; symbol layers draw `icon-image` from them. */
+  /**
+   * Sprites loaded for the style; symbol layers draw `icon-image` from them. `null` means the
+   * sprites are still loading: no icons are drawn, and labels are placed as if each symbol had its
+   * icon. Omit it, or pass `[]`, for a style without sprites.
+   */
   spriteAtlases?: SpriteAtlas[] | null;
   /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
   fontFamily?: LabelFontFamily | null;
@@ -267,6 +271,16 @@ function getTileFeatures(data: unknown): any[] {
   }
 
   return [];
+}
+
+/**
+ * The id of a style layer's sublayer in a tile. Style layer ids are arbitrary strings, and
+ * generated layers append `-<suffix>` to it: deck.gl's own composite sublayers, the second side of
+ * a `line-gap-width` and the per-feature line shape groups. Quoting the style layer id as a JSON
+ * string ends it at an unescaped quote, so no suffix can turn one style layer's id into another's.
+ */
+function getStyleSubLayerId(parentId: string, styleLayerId: string): string {
+  return `${parentId}-${JSON.stringify(styleLayerId)}`;
 }
 
 function getSubLayerBaseProps(props: any) {
@@ -534,7 +548,7 @@ function createStyledVectorSubLayer({
   if (styleLayer.type === 'circle') {
     return createCircleSubLayer({
       baseProps: getSubLayerBaseProps(props),
-      id: `${props.id}-${styleLayer.id}`,
+      id: getStyleSubLayerId(props.id, styleLayer.id),
       styleLayer,
       features,
       zoom,
@@ -813,7 +827,7 @@ function createSymbolSubLayer({
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
-    id: `${props.id}-${styleLayer.id}`,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
     data: features,
     config,
     mode,
@@ -825,33 +839,14 @@ function createSymbolSubLayer({
     fontFamily,
     // Polygon labels outside the tile's own extent are left to the neighbouring tile.
     tileBoundingBox: props.tile?.bbox ?? null,
+    // Labels along lines are spaced in pixels at the tile's own zoom.
+    tileZoom: props.tile?.index?.z ?? null,
+    tileSize: props.tileSize ?? null,
     zoom: getZoomBucket(zoom),
     // The style spec's default `text-color` is black.
     textColor: withOpacity(paint['text-color'] ?? DEFAULT_TEXT_COLOR, opacity),
-    // The halo keeps its own alpha, scaled by the layer opacity like the text.
-    // The halo is drawn only with a positive `text-halo-width`, whose default is 0.
-    labelBackground:
-      paint['text-halo-color'] && hasHaloWidth(styleLayer, paint)
-        ? withOpacity(paint['text-halo-color'], opacity)
-        : null,
     billboard: true
   });
-}
-
-/**
- * Whether a label layer can have a visible halo. The box is drawn once per style layer, so a
- * data-driven `text-halo-width` cannot be checked per feature; it keeps the box. A constant or
- * zoom-dependent width hides it when the evaluated width is 0, its default.
- */
-function hasHaloWidth(styleLayer: BasemapStyleLayer, paint: Record<string, any>): boolean {
-  const width = styleLayer.paint?.['text-halo-width'];
-  if (
-    width !== undefined &&
-    compileStylePropertyValue('text-halo-width', width)?.isFeatureDependent
-  ) {
-    return true;
-  }
-  return Number(paint['text-halo-width'] ?? 0) > 0;
 }
 
 /**
@@ -1113,7 +1108,7 @@ function createGeometrySubLayer({
 
   const layer = new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}${idSuffix}`,
+    id: `${getStyleSubLayerId(props.id, styleLayer.id)}${idSuffix}`,
     data: features,
     stroked: isLine || hasOutline,
     filled: isFill,
@@ -1293,7 +1288,7 @@ function createExtrusionSubLayer({
 
   return new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}`,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
     data: getRaisedFeatures(features, styleLayer, base),
     opacity: (baseProps.opacity ?? 1) * (paint['fill-extrusion-opacity'] ?? 1),
     extruded: true,

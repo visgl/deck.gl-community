@@ -127,7 +127,9 @@ shared sources remain registered.
 ## `PlaygroundDataSourceManager`
 
 Register sources independently and pass the manager as `dataSources`. JSON layers reference them
-with `data: {'@@data': 'points'}`. The preview accepts a `PlaygroundDataBinding`
+with `data: {'@@data': 'points'}` or `data: 'datasource://points'`. Source URLs
+refer to page-owned registrations, including sources added after the document is selected; they
+are never fetched as network URLs. The preview accepts a `PlaygroundDataBinding`
 (`{data: rows, getRowId?}`), a promise of that binding, or `null` while unavailable:
 
 ```ts

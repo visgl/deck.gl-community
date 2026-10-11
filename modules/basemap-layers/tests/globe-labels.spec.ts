@@ -38,4 +38,19 @@ describe('label draw parameters', () => {
       expect(sublayer.props.parameters).toMatchObject({cullMode: 'none', depthTest: false});
     }
   });
+
+  // Text that ignores placement marks its anchor in the collision pass with its own sublayer; a
+  // culled mark would leave no box there, and lower-priority symbols at the anchor would show.
+  test('the anchor mark sublayer draws without face culling or a depth test', () => {
+    const layer = createLabelLayer({
+      'text-field': 'A',
+      'icon-image': 'square',
+      'text-ignore-placement': true
+    });
+    const anchors = layer
+      .renderLayers()
+      .filter((sublayer: any) => sublayer.id.startsWith('labels-anchors'));
+    expect(anchors).toHaveLength(1);
+    expect(anchors[0].props.parameters).toMatchObject({cullMode: 'none', depthTest: false});
+  });
 });

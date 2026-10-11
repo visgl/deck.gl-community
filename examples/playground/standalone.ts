@@ -5,7 +5,9 @@
 import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES as GALLERY_TEMPLATES} from './templates';
+import {createVegaPanel} from './vega-panel';
 import {createEditablePlaygroundControls} from './editable-controls';
+import {createDataSourcesPanel, UploadedSources} from './data-sources-panel';
 import {createWebMcpButton} from './webmcp-button';
 
 const TOOL_TEMPLATES = ['imported-points', 'scatterplot', 'arcs', 'geojson', 'heatmap'];
@@ -20,7 +22,7 @@ const TEMPLATES = {
       {
         '@@type': 'ScatterplotLayer',
         id: 'points',
-        data: {'@@data': 'points'},
+        data: 'datasource://points',
         getPosition: '@@=position',
         getRadius: 8,
         radiusUnits: 'pixels',
@@ -66,12 +68,16 @@ export function mountStandalonePlayground(
       ]
     }
   });
+  const uploads = new UploadedSources(sources);
+  const vega = createVegaPanel();
   const editing = createEditablePlaygroundControls();
   const playground = new DeckPlayground({
     parentElement: root.querySelector<HTMLElement>('[data-preview]')!,
     templates: TEMPLATES,
     registry: createPlaygroundRegistry(editing.constants),
     dataSources: sources,
+    onPanelChange: panelId => vega.setActive(panelId === 'vega'),
+    panels: [createDataSourcesPanel(uploads), vega.panel],
     onChange(value) {
       editing.onChange(value);
       errorStatus.hidden = true;
@@ -114,6 +120,7 @@ export function mountStandalonePlayground(
   return () => {
     active = false;
     destroyToolButton();
+    uploads.finalize();
     playground.finalize();
     void sources.finalize();
     root.remove();
