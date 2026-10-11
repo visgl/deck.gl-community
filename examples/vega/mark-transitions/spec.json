@@ -221,6 +221,12 @@
             "value": 1
           }
         }
+      },
+      "sort": {
+        "field": "datum.id",
+        "order": {
+          "signal": "reverse ? 'descending' : 'ascending'"
+        }
       }
     },
     {
@@ -245,6 +251,12 @@
           "fill": {
             "value": "#3688c8"
           }
+        }
+      },
+      "sort": {
+        "field": "datum.id",
+        "order": {
+          "signal": "reverse ? 'descending' : 'ascending'"
         }
       }
     }

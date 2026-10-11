@@ -50,6 +50,7 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
       },
       {
         type: 'rect',
+        sort: {field: 'datum.x', order: {signal: "reverse ? 'descending' : 'ascending'"}},
         from: {data: 'table'},
         encode: {
           update: {
@@ -124,7 +125,12 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
         .pickObjects({x: 0, y: 0, width: 500, height: 320})
         .some(pick => (pick.object as any)?.datum?.id === 1)
     ).toBe(true);
+    const previousCubeData = view.presenter.getCubeData();
     await view.signal('reverse', true).runAsync();
+    // Vega skips a redraw when a sort changes no geometry; exercise the renderer explicitly.
+    view.dirty(view.scenegraph().root.items[0]);
+    await view.runAsync();
+    await expect.poll(() => view.presenter.getCubeData()).not.toBe(previousCubeData);
     await expect.poll(() => view.data('table')[0].id).toBe(2);
     expect(
       view.presenter.getCubeData().map(cube => ({ordinal: cube.ordinal, position: cube.position}))
@@ -163,6 +169,7 @@ it('keeps default ordinals stable when Vega scene items reorder and share tuples
     marks: [
       {
         type: 'rect',
+        sort: {field: 'datum.x', order: {signal: "reverse ? 'descending' : 'ascending'"}},
         from: {data: 'table'},
         encode: {
           update: {
@@ -176,6 +183,7 @@ it('keeps default ordinals stable when Vega scene items reorder and share tuples
       },
       {
         type: 'rect',
+        sort: {field: 'datum.x', order: {signal: "reverse ? 'descending' : 'ascending'"}},
         from: {data: 'table'},
         encode: {
           update: {
@@ -211,7 +219,12 @@ it('keeps default ordinals stable when Vega scene items reorder and share tuples
     const updated = view.presenter
       .getCubeData()
       .map(cube => ({ordinal: cube.ordinal, position: [...cube.position]}));
+    const previousCubeData = view.presenter.getCubeData();
     await view.signal('reverse', true).runAsync();
+    // Vega skips a redraw when a sort changes no geometry; exercise the renderer explicitly.
+    view.dirty(view.scenegraph().root.items[0]);
+    await view.runAsync();
+    await expect.poll(() => view.presenter.getCubeData()).not.toBe(previousCubeData);
     await expect.poll(() => view.data('table')[0].x).toBe(80);
     await expect
       .poll(() =>
