@@ -1,4 +1,5 @@
 import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
+import type {UpdateParameters} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
 import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
@@ -428,6 +429,24 @@ function createRasterLayer({
 }
 
 class StyledMVTLayer extends MVTLayer<any> {
+  /**
+   * Tiles decode to longitude/latitude in a globe viewport and to tile coordinates otherwise (see
+   * `getTileData`). A switch between a map and a globe view can keep this layer and its tiles; the
+   * tiles are then reloaded, since their coordinates no longer match the viewport.
+   */
+  updateState(params: UpdateParameters<this>) {
+    const geographic = Boolean(this.context.viewport.resolution);
+    const {tileset, tileGeographic} = this.state as {
+      tileset?: {reloadAll(): void};
+      tileGeographic?: boolean;
+    };
+    if (tileset && tileGeographic !== undefined && tileGeographic !== geographic) {
+      tileset.reloadAll();
+    }
+    (this.state as {tileGeographic?: boolean}).tileGeographic = geographic;
+    super.updateState(params);
+  }
+
   getTileData(loadProps: {index: {x: number; y: number; z: number}; signal?: AbortSignal}) {
     const data = this.props.data;
     const url = _getURLFromTemplate(data, loadProps as any);

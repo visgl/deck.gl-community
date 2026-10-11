@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, _GlobeView as GlobeView} from '@deck.gl/core';
+import {Deck, MapView, _GlobeView as GlobeView} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
+import {getBasemapLayers} from '../src/index';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
 import {loadSpriteAtlases} from '../src/sprite';
 import type {SpriteAtlas} from '../src/sprite';
@@ -110,5 +111,76 @@ describe('labels on a globe in the browser', () => {
   test('a sprite icon draws in GlobeView', async () => {
     const image = await renderGlobeLabel({'icon-image': 'square'}, await loadSquareSprite());
     expect(countPixels(image, (r, g, b) => r > 200 && g < 60 && b < 60)).toBeGreaterThan(100);
+  });
+});
+
+/** Resolves once `condition` holds, polling every animation frame, or rejects after 10 seconds. */
+function waitFor(condition: () => boolean): Promise<void> {
+  const start = performance.now();
+  return new Promise((resolve, reject) => {
+    const poll = () => {
+      if (condition()) {
+        resolve();
+      } else if (performance.now() - start > 10_000) {
+        reject(new Error('Timed out waiting'));
+      } else {
+        requestAnimationFrame(poll);
+      }
+    };
+    poll();
+  });
+}
+
+describe('vector tiles across a switch between map and globe views', () => {
+  // Tiles decode to tile coordinates on a map and to longitude/latitude on a globe. A view switch
+  // that keeps the tile layer must load its tiles again, or they draw in the wrong place.
+  test('switching from MapView to GlobeView reloads the loaded tiles', async () => {
+    // The tiles are empty and fail to decode; only their requests matter here.
+    const requested: string[] = [];
+    const fetchFn = (async (url: string) => {
+      requested.push(String(url));
+      return new Response(new ArrayBuffer(0), {status: 200});
+    }) as typeof fetch;
+    const getLayers = (mode: 'map' | 'globe') =>
+      getBasemapLayers({
+        idPrefix: 'switch',
+        mode,
+        zoom: 0,
+        loadOptions: {fetch: fetchFn, core: {fetch: fetchFn}, worker: false} as any,
+        styleDefinition: {
+          version: 8,
+          sources: {tiles: {type: 'vector', tiles: ['https://tiles.test/{z}/{x}/{y}.mvt']}},
+          layers: [{id: 'fill', type: 'fill', source: 'tiles', 'source-layer': 'water'}]
+        } as any
+      });
+    const isTileLayerLoaded = () =>
+      Boolean(
+        (deck as any)?.layerManager?.getLayers().find((layer: any) => layer.id === 'switch-tiles')
+          ?.isLoaded
+      );
+
+    parent = document.createElement('div');
+    document.body.append(parent);
+    deck = new Deck({
+      parent,
+      width: SIZE,
+      height: SIZE,
+      useDevicePixels: false,
+      deviceProps: {adapters: [webgl2Adapter]},
+      views: new MapView({id: 'map'}),
+      initialViewState: {longitude: 0, latitude: 0, zoom: 0},
+      layers: getLayers('map')
+    });
+    await waitFor(() => requested.length > 0 && isTileLayerLoaded());
+    const mapRequests = [...requested];
+
+    deck.setProps({
+      views: new GlobeView({id: 'globe'}),
+      initialViewState: {longitude: 0, latitude: 0, zoom: 0},
+      layers: getLayers('globe')
+    });
+    // The globe at zoom 0 shows the whole world, so it needs the same tile as the map did.
+    await waitFor(() => requested.length > mapRequests.length && isTileLayerLoaded());
+    expect(requested.slice(mapRequests.length)).toEqual(expect.arrayContaining(mapRequests));
   });
 });
