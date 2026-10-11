@@ -232,6 +232,14 @@ export function wrapText(
   return lines.join('\n');
 }
 
+/**
+ * Whether text can be measured with a canvas here; otherwise {@link getCharacterWidthMeasurer}
+ * returns {@link FALLBACK_CHARACTER_WIDTH} for every character.
+ */
+export function canMeasureText(): boolean {
+  return typeof OffscreenCanvas !== 'undefined' || typeof document !== 'undefined';
+}
+
 /** Advance in ems used when canvas measurement is unavailable, as for missing atlas glyphs. */
 export const FALLBACK_CHARACTER_WIDTH = 0.5;
 const FONT_SIZE = 64;
@@ -242,6 +250,14 @@ const FONT_SIZE = 64;
 export const MAX_CACHED_FONTS = 32;
 export const MAX_CACHED_CHARACTERS = 4096;
 const CHARACTER_WIDTH_MEASURERS = new Map<string, (character: string) => number>();
+
+/**
+ * Forgets the character advances measured for a CSS font, so they are measured again: a font that
+ * was still loading was measured with a fallback font.
+ */
+export function forgetCharacterWidths(fontWeight: number | string, fontFamily: string): void {
+  CHARACTER_WIDTH_MEASURERS.delete(`${fontWeight} ${FONT_SIZE}px ${fontFamily}`);
+}
 
 /**
  * Returns a function giving a character's advance width in ems for a CSS font, measured the way
