@@ -63,12 +63,12 @@ describe('draw order across sources', () => {
     expect(getRuns(RASTER_BETWEEN_LAYERS)).toEqual([
       {type: 'vector', id: 'tiles', layers: ['water']},
       {type: 'raster', id: 'relief', layers: ['relief']},
-      {type: 'vector', id: 'tiles-roads', layers: ['roads', 'places']}
+      {type: 'vector', id: 'tiles-"roads"', layers: ['roads', 'places']}
     ]);
     expect(getLayerIds(RASTER_BETWEEN_LAYERS, 4)).toEqual([
       'test-tiles',
       'test-relief',
-      'test-tiles-roads'
+      'test-tiles-"roads"'
     ]);
   });
 
@@ -78,9 +78,28 @@ describe('draw order across sources', () => {
       {id: 'relief', type: 'raster', source: 'relief', maxzoom: 7},
       {id: 'roads', type: 'line', source: 'tiles', 'source-layer': 'road'}
     ];
-    expect(getLayerIds(layers, 4)).toEqual(['test-tiles', 'test-relief', 'test-tiles-roads']);
+    expect(getLayerIds(layers, 4)).toEqual(['test-tiles', 'test-relief', 'test-tiles-"roads"']);
     // The hidden raster still separates the runs: the second tile layer keeps its id and tiles.
-    expect(getLayerIds(layers, 8)).toEqual(['test-tiles', 'test-tiles-roads']);
+    expect(getLayerIds(layers, 8)).toEqual(['test-tiles', 'test-tiles-"roads"']);
+  });
+
+  test("a later run's id cannot equal another source's id", () => {
+    const sources = {
+      a: SOURCES.tiles,
+      'a-b': {type: 'vector', tiles: ['https://other.example.com/{z}/{x}/{y}.mvt']}
+    };
+    const layers = [
+      {id: 'x', type: 'fill', source: 'a', 'source-layer': 'water'},
+      {id: 'y', type: 'fill', source: 'a-b', 'source-layer': 'water'},
+      {id: 'b', type: 'line', source: 'a', 'source-layer': 'road'}
+    ];
+    const ids = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 4,
+      styleDefinition: {version: 8, sources, layers} as any
+    }).map((layer: any) => layer.id);
+    expect(ids).toEqual(['test-a', 'test-a-b', 'test-a-"b"']);
   });
 
   test('layers that draw nothing do not split a run', () => {
@@ -550,7 +569,7 @@ describe('globe draw order', () => {
       .flat(Infinity);
     const sublayer = (id: string) => tiles.find((l: any) => l.id === `tile-${id}`);
     const [roads] = layers
-      .find(layer => layer.id === 'test-tiles-roads')
+      .find(layer => layer.id === 'test-tiles-"roads"')
       .props.renderSubLayers({
         id: 'tile',
         data: [feature('road', 'LineString', path)],
@@ -569,7 +588,7 @@ describe('globe draw order', () => {
           tile: {bbox: {west: 0, south: 0, east: 1, north: 1}}
         }).props.parameters,
       roads: roads.props.parameters,
-      roadsTrigger: layers.find(layer => layer.id === 'test-tiles-roads').props.updateTriggers
+      roadsTrigger: layers.find(layer => layer.id === 'test-tiles-"roads"').props.updateTriggers
         .renderSubLayers
     };
   }

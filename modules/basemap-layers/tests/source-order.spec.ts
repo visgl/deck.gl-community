@@ -26,8 +26,8 @@ describe('vector source draw order', () => {
       {id: 'a2', type: 'line', source: 'a', 'source-layer': 'x'}
     ];
     // a1 is hidden at z8, so its run draws nothing; a2 draws after b1 in a second tile layer.
-    expect(sourceOrder(layers, 8)).toEqual(['test-b', 'test-a-a2']);
+    expect(sourceOrder(layers, 8)).toEqual(['test-b', 'test-a-"a2"']);
     // At z4 a1 is visible and draws first.
-    expect(sourceOrder(layers, 4)).toEqual(['test-a', 'test-b', 'test-a-a2']);
+    expect(sourceOrder(layers, 4)).toEqual(['test-a', 'test-b', 'test-a-"a2"']);
   });
 });

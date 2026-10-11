@@ -1476,7 +1476,7 @@ function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig
  * layer between two vector layers draws between them. Layers that cannot draw (a source without
  * tiles, labels turned off) do not split a run. Runs do not depend on zoom, so the tile layers
  * keep their ids and tiles when a layer leaves its zoom range. The first run of a source has the
- * source id as its id; later runs add the id of their first style layer.
+ * source id as its id; later runs add the quoted id of their first style layer.
  */
 export function getStyleLayerRuns(
   styleLayers: BasemapStyleLayer[],
@@ -1511,7 +1511,8 @@ export function getStyleLayerRuns(
       } else {
         runs.push({
           type: 'vector',
-          id: sourceIds.has(sourceId) ? `${sourceId}-${layer.id}` : sourceId,
+          // The style layer id is quoted, so it cannot be read as part of another source's id.
+          id: sourceIds.has(sourceId) ? `${sourceId}-${JSON.stringify(layer.id)}` : sourceId,
           sourceId,
           source,
           styleLayers: [layer]
