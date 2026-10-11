@@ -1350,6 +1350,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return String(this.props.collisionPriorityRange || '');
   }
 
+  /**
+   * What the label text takes from `text-size`: a size of 0 hides the label (see `getLabel`). A size
+   * that depends on zoom but not on the feature re-evaluates the text only when it reaches or leaves
+   * 0, not at every zoom step, since the text and its wrapping do not depend on the size otherwise.
+   */
+  getLabelSizeTextTrigger(): string {
+    const size = this.getStyleProperty('text-size');
+    if (!size?.isZoomDependent || size.isFeatureDependent) {
+      return this.getStyleUpdateTrigger('text-size');
+    }
+    const value = size.evaluate(getZoomBucket(this.props.zoom || 0));
+    const isVisible = Number(value ?? getStylePropertyDefault('text-size')) > 0;
+    return `${JSON.stringify(this.props.styleLayer?.layout?.['text-size'])}|${isVisible}`;
+  }
+
   /** Update triggers for the text accessors (see `getStyleUpdateTrigger`). */
   getLabelUpdateTriggers(): Record<string, string> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
@@ -1362,13 +1377,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return {
       getText: `${getTrigger(
         'text-field',
-        'text-size',
         'text-transform',
         'text-max-width',
         'text-letter-spacing',
         'symbol-placement',
         'text-font'
-      )}|${fontFamilyKey}`,
+      )}|${this.getLabelSizeTextTrigger()}|${fontFamilyKey}`,
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
       // The priorities are mapped into `collisionPriorityRange`.
