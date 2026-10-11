@@ -35,6 +35,17 @@ import {
   withOpacity
 } from './style-accessor';
 import {getStylePropertyDefault} from './style-expression';
+import {
+  MAX_ZOOM_PAINT_PARTS,
+  ZOOM_PAINT_FILL_COLOR_ROW,
+  ZOOM_PAINT_LINE_COLOR_ROW,
+  ZOOM_PAINT_WIDTH_ROW,
+  ZoomPaint,
+  ZoomPaintExtension,
+  type ZoomPaintValues,
+  createZoomPaintValues,
+  getZoomPaintOffset
+} from './zoom-paint-extension';
 import type {BasemapGlobeConfig, BasemapLayerProps} from './basemap-layer';
 import type {SpriteAtlas} from './sprite';
 import type {LabelFontFamily} from './text-font';
@@ -388,6 +399,157 @@ function getStyleSubLayerId(parentId: string, styleLayerId: string | string[]): 
   return `${parentId}-${JSON.stringify(styleLayerId)}`;
 }
 
+/**
+ * The prop that hands a tile's `renderSubLayers` the `ZoomPaintContext` of its tile layer, or
+ * null where fills and lines cannot take their paint from `ZoomPaintExtension`, which needs WebGL.
+ */
+const ZOOM_PAINT_CONTEXT = 'zoomPaintContext';
+
+/** Shared by every fill and line sublayer, so deck.gl does not see their extensions change. */
+const ZOOM_PAINT_EXTENSION = new ZoomPaintExtension();
+
+/** The paint properties `getGeometryPaint` reads. */
+const GEOMETRY_PAINT_PROPERTIES = [
+  'fill-color',
+  'fill-opacity',
+  'fill-pattern',
+  'fill-outline-color',
+  'fill-antialias',
+  'line-color',
+  'line-opacity',
+  'line-width'
+];
+
+/**
+ * Writes style layers' colors for `ZoomPaintExtension`, in 0-1, with an alpha of -1 where they are
+ * per feature. deck.gl draws a color that is the same for a whole layer as it is, and per-object
+ * colors in 8 bits: style layers that would have per-object colors in one sublayer have their
+ * colors rounded to 8 bits, so that taking them from a texture changes no pixel.
+ */
+function setZoomPaintColors(
+  values: ZoomPaintValues,
+  row: number,
+  colors: StyleAccessor<number[]>[]
+): void {
+  const isLayerConstant = colors.every(
+    ({value}) =>
+      typeof value !== 'function' && JSON.stringify(value) === JSON.stringify(colors[0].value)
+  );
+  colors.forEach(({value}, part) => {
+    // Per-feature colors keep the alpha of -1 that takes them from the attribute.
+    if (typeof value !== 'function') {
+      const offset = getZoomPaintOffset(row, part);
+      for (let channel = 0; channel < 4; channel++) {
+        values[offset + channel] =
+          (isLayerConstant ? value[channel] : toUnorm8(value[channel])) / 255;
+      }
+    }
+  });
+}
+
+/** Rounds a 0-255 value as deck.gl stores it in an 8 bit color attribute. */
+const unorm8 = new Uint8ClampedArray(1);
+function toUnorm8(value: number): number {
+  unorm8[0] = value;
+  return unorm8[0];
+}
+
+/**
+ * Evaluates the paint of style layers drawn by one sublayer for `ZoomPaintExtension`: a style
+ * layer's width, or 1 where it is per feature, and its colors in 0-1, or an alpha of -1 where they
+ * are per feature.
+ */
+export function getZoomPaintValues(
+  styleLayers: BasemapStyleLayer[],
+  mode: BasemapMode,
+  zoom: number
+): ZoomPaintValues {
+  const values = createZoomPaintValues();
+  const paints = styleLayers.map(styleLayer => getGeometryPaint(styleLayer, mode, zoom));
+  paints.forEach(({lineWidth}, part) => {
+    if (typeof lineWidth.value !== 'function') {
+      values[getZoomPaintOffset(ZOOM_PAINT_WIDTH_ROW, part)] = lineWidth.value;
+    }
+  });
+  setZoomPaintColors(
+    values,
+    ZOOM_PAINT_LINE_COLOR_ROW,
+    paints.map(paint => paint.lineColor)
+  );
+  setZoomPaintColors(
+    values,
+    ZOOM_PAINT_FILL_COLOR_ROW,
+    paints.map(paint => paint.fillColor)
+  );
+  return values;
+}
+
+/**
+ * The paint of one tile layer's fill and line sublayers for `ZoomPaintExtension`: the zoom its
+ * sublayers were generated at, and a `ZoomPaint` per sequence of style layers drawn by one
+ * sublayer, shared by all tiles. Kept in the tile layer's state.
+ */
+export class ZoomPaintContext {
+  /** The stepped zoom (see `getZoomBucket`) at which paint is evaluated. */
+  zoom = 0;
+
+  private zoomPaints = new Map<string, {styleLayers: BasemapStyleLayer[]; zoomPaint: ZoomPaint}>();
+
+  /**
+   * The `ZoomPaint` of style layers drawn by one sublayer. Its values are evaluated once per zoom
+   * step, and again when a paint property is replaced.
+   */
+  get(styleLayers: BasemapStyleLayer[], mode: BasemapMode): ZoomPaint {
+    const key = `${mode} ${JSON.stringify(styleLayers.map(layer => layer.id))}`;
+    const cached = this.zoomPaints.get(key);
+    if (
+      cached &&
+      cached.styleLayers.length === styleLayers.length &&
+      cached.styleLayers.every((layer, index) => layer === styleLayers[index])
+    ) {
+      return cached.zoomPaint;
+    }
+    // A new style: the sublayers that drew with the previous style layers are gone.
+    cached?.zoomPaint.destroy();
+
+    // The paint values the current values were evaluated from, compared at every draw.
+    const inputs: unknown[] = [];
+    const inputsChanged = () => {
+      let index = 0;
+      let changed = false;
+      for (const layer of styleLayers) {
+        for (const name of GEOMETRY_PAINT_PROPERTIES) {
+          const input = layer.paint?.[name];
+          if (inputs[index] !== input) {
+            inputs[index] = input;
+            changed = true;
+          }
+          index++;
+        }
+      }
+      return changed;
+    };
+    let last: {zoom: number; values: ZoomPaintValues} | null = null;
+    const zoomPaint = new ZoomPaint(() => {
+      const {zoom} = this;
+      if (inputsChanged() || !last || last.zoom !== zoom) {
+        last = {zoom, values: getZoomPaintValues(styleLayers, mode, zoom)};
+      }
+      return last.values;
+    });
+    this.zoomPaints.set(key, {styleLayers: [...styleLayers], zoomPaint});
+    return zoomPaint;
+  }
+
+  /** Releases the textures of every `ZoomPaint`. */
+  destroy(): void {
+    for (const {zoomPaint} of this.zoomPaints.values()) {
+      zoomPaint.destroy();
+    }
+    this.zoomPaints.clear();
+  }
+}
+
 function getSubLayerBaseProps(props: any) {
   const {
     pickable,
@@ -603,6 +765,8 @@ class StyledMVTLayer extends SharedMVTLayer {
     staleTiles?: Set<string>;
     /** The tile object each id stood for at the last render (see `forgetRemovedTiles`). */
     keptTiles?: Map<string, SharedTile>;
+    /** The paint textures of the fill and line sublayers (see `ZoomPaintExtension`). */
+    zoomPaintContext?: ZoomPaintContext;
   };
 
   updateState(params: UpdateParameters<this>): void {
@@ -679,9 +843,13 @@ class StyledMVTLayer extends SharedMVTLayer {
       this.state.staleTiles?.add(props.tile.id);
       return null;
     }
+    this.state.zoomPaintContext ||= new ZoomPaintContext();
+    const {zoomPaintContext} = this.state;
+    zoomPaintContext.zoom = getZoomBucket((this.props as {styleZoom?: number}).styleZoom ?? 0);
     // `SharedMVTLayer` turns `autoHighlight` off for the tile sublayers, which it highlights itself.
     return super.renderSubLayers({
       ...props,
+      [ZOOM_PAINT_CONTEXT]: this.context.device?.type === 'webgpu' ? null : zoomPaintContext,
       [AUTO_HIGHLIGHT]: Boolean(this.props.autoHighlight)
     } as typeof props);
   }
@@ -727,9 +895,11 @@ class StyledMVTLayer extends SharedMVTLayer {
     this.state.staleTiles?.delete(tile.id);
   }
 
+  /** Releases the shared tileset and the textures of `ZoomPaintExtension`. */
   finalizeState(): void {
     super.finalizeState();
     this.releaseSourceTileset();
+    this.state.zoomPaintContext?.destroy();
   }
 
   private releaseSourceTileset(): void {
@@ -945,6 +1115,8 @@ function createVectorLayerGroup({
     ...{sourceTilesetOwner},
     // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
     ...getTilePyramidProps(source),
+    // The zoom at which `renderSubLayers` evaluates paint, which `ZoomPaintExtension` also uses.
+    styleZoom: zoom,
     tileSize: source.tileSize || 512,
     loadOptions: {
       ...(loadOptions || {}),
@@ -1555,23 +1727,21 @@ type GeometryStyle = {
   depthTested?: boolean;
 };
 
-function getGeometryStyle({
-  styleLayer,
-  features,
-  mode,
-  zoom,
-  depthTested,
-  lineShape,
-  pattern
-}: {
-  styleLayer: BasemapStyleLayer;
-  features: any[];
-  mode: BasemapMode;
-  zoom: number;
-  depthTested?: boolean;
-  lineShape?: LineShape;
-  pattern?: FillPatternGroup;
-}): GeometryStyle {
+/** The paint of a fill or line style layer that `ZoomPaintExtension` can apply. */
+type GeometryPaint = {
+  fillColor: StyleAccessor<number[]>;
+  lineColor: StyleAccessor<number[]>;
+  lineWidth: StyleAccessor<number>;
+  /** Whether a fill draws its outline. */
+  hasOutline: boolean;
+};
+
+function getGeometryPaint(
+  styleLayer: BasemapStyleLayer,
+  mode: BasemapMode,
+  zoom: number,
+  pattern?: FillPatternGroup
+): GeometryPaint {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
 
@@ -1608,11 +1778,36 @@ function getGeometryStyle({
         ([color, opacity]) => withOpacity(color, opacity ?? 1)
       );
   // A fill's outline is MapLibre's 1 pixel antialiasing line.
-  const styleLineWidth: StyleAccessor<number> = isLine
+  const lineWidth: StyleAccessor<number> = isLine
     ? getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
         Math.max(0, Number(width ?? 1))
       )
     : {value: hasOutline ? 1 : 0};
+  return {fillColor, lineColor, lineWidth, hasOutline};
+}
+
+function getGeometryStyle({
+  styleLayer,
+  features,
+  mode,
+  zoom,
+  depthTested,
+  lineShape,
+  pattern
+}: {
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  mode: BasemapMode;
+  zoom: number;
+  depthTested?: boolean;
+  lineShape?: LineShape;
+  pattern?: FillPatternGroup;
+}): GeometryStyle {
+  const isLine = styleLayer.type === 'line';
+  const isFill = styleLayer.type === 'fill';
+
+  const paint = getGeometryPaint(styleLayer, mode, zoom, pattern);
+  const {fillColor, lineColor, hasOutline} = paint;
   const hasDashArray = isLine && styleLayer.paint?.['line-dasharray'] !== undefined;
   const hasOffset =
     isLine &&
@@ -1645,7 +1840,7 @@ function getGeometryStyle({
             Math.max(0, Number(blur) || 0)
           )
       )
-    : styleLineWidth;
+    : paint.lineWidth;
   // The style spec evaluates zoom in `line-dasharray` at integer zooms only.
   const dashArray: StyleAccessor<[number, number]> | null = hasDashArray
     ? getStyleAccessor(styleLayer, ['line-dasharray'], Math.floor(zoom), ([dasharray]) =>
@@ -1886,9 +2081,29 @@ function createGeometrySubLayer({
         );
   const merge = <T>(get: (style: GeometryStyle) => StyleAccessor<T>) =>
     mergeStyleAccessors(styles.map(get), partIndices);
-  const fillColor = merge(style => style.fillColor);
-  const lineColor = merge(style => style.lineColor);
-  const lineWidth = merge(style => style.lineWidth);
+  // Paint that is the same for all features of a style layer is taken from a texture (see
+  // `ZoomPaintExtension`), except next to an offset: it is computed from the width on the CPU, and
+  // with dashes leaves no vertex attribute for the extension. Blurred lines and patterned or
+  // translated fills, which draw alone with their own extensions, keep their paint in attributes.
+  const zoomPaintContext = props[ZOOM_PAINT_CONTEXT] as ZoomPaintContext | null | undefined;
+  const zoomPaint =
+    zoomPaintContext &&
+    !lineOffset &&
+    !lineBlur &&
+    !hasFillStyle &&
+    styles.length <= MAX_ZOOM_PAINT_PARTS
+      ? zoomPaintContext.get(
+          styles.map(style => style.styleLayer),
+          mode
+        )
+      : null;
+  const perFeature = <T>(accessor: StyleAccessor<T>, constant: T): StyleAccessor<T> =>
+    zoomPaint && typeof accessor.value !== 'function' ? {value: constant} : accessor;
+  const fillColor = merge(style => perFeature(style.fillColor, TRANSPARENT_COLOR));
+  const lineColor = merge(style => perFeature(style.lineColor, TRANSPARENT_COLOR));
+  // The width attribute scales the texture's width of its style layer, which is 1 where it is per
+  // feature.
+  const lineWidth = merge(style => perFeature(style.lineWidth, 1));
   // A dash array without gaps draws a solid line.
   const dashArray = styles.some(style => style.dashArray)
     ? merge(style => style.dashArray ?? SOLID_DASH_ARRAY)
@@ -1926,7 +2141,7 @@ function createGeometrySubLayer({
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     getLineWidth: lineWidth.value as any,
-    ...(dashArray || lineOffset || lineBlur
+    ...(dashArray || lineOffset || lineBlur || zoomPaint
       ? {
           extensions: [
             ...(baseProps.extensions || []),
@@ -1938,8 +2153,18 @@ function createGeometrySubLayer({
                     ? LINE_BLUR_PER_FEATURE_EXTENSION
                     : LINE_BLUR_EXTENSION
                 ]
-              : [])
+              : []),
+            ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : [])
           ]
+        }
+      : {}),
+    ...(zoomPaint
+      ? {
+          zoomPaint,
+          getStylePart:
+            styles.length === 1
+              ? 0
+              : (_feature: any, {index}: {index: number}) => partIndices[index]
         }
       : {}),
     // The blur replaces the antialiasing's fade, which matches MapLibre's without blur.
