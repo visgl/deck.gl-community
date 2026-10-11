@@ -108,7 +108,6 @@ describe('draw order across sources', () => {
     }) as any[];
     expect(first.props.tileRequests).toBeInstanceOf(SharedTileRequests);
     expect(second.props.tileRequests).toBe(first.props.tileRequests);
-    expect(first.props.tileRequests.consumers).toBe(2);
 
     // A source drawn in one run fetches its own tiles, with abort signals.
     const [, , single] = getBasemapLayers({
@@ -122,36 +121,120 @@ describe('draw order across sources', () => {
 });
 
 describe('SharedTileRequests', () => {
-  test('loads a tile once for all consumers, then forgets it', async () => {
-    const requests = new SharedTileRequests();
-    requests.consumers = 2;
-    let loads = 0;
-    const load = () => Promise.resolve(++loads);
+  /** A load that settles when the test says so, and records the signal it was given. */
+  function deferredLoad() {
+    const load: any = (signal: AbortSignal) => {
+      load.calls++;
+      load.signal = signal;
+      return new Promise((resolve, reject) => {
+        load.resolve = resolve;
+        load.reject = reject;
+      });
+    };
+    load.calls = 0;
+    return load as ((signal: AbortSignal) => Promise<unknown>) & {
+      calls: number;
+      signal: AbortSignal;
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+    };
+  }
 
+  test('loads a tile once for the requests in flight, then forgets it', async () => {
+    const requests = new SharedTileRequests();
+    const load = deferredLoad();
     const a = requests.request('t/1', load);
     const b = requests.request('t/1', load);
-    expect(b).toBe(a);
-    expect(await a).toBe(1);
-    // Both consumers took it, so a later request (a tile evicted and reloaded) loads again.
-    expect(await requests.request('t/1', load)).toBe(2);
+    expect(load.calls).toBe(1);
+    load.resolve('tile');
+    expect(await a).toBe('tile');
+    expect(await b).toBe('tile');
+    // No decoded tile is kept once its request settled: a later request loads it again.
+    const c = requests.request('t/1', load);
+    expect(load.calls).toBe(2);
+    load.resolve('again');
+    expect(await c).toBe('again');
   });
 
-  test('a failed request does not drop a newer request for the tile', async () => {
+  test('a tile layer that asks late or twice gets the request in flight', async () => {
     const requests = new SharedTileRequests();
-    let fail!: (error: Error) => void;
-    // The only consumer takes the request at once, so it is no longer kept.
-    const failing = requests.request('t/1', () => new Promise((_, reject) => (fail = reject)));
-    requests.consumers = 2;
-    const newer = requests.request('t/1', () => new Promise(() => {}));
-    fail(new Error('offline'));
-    await expect(failing).rejects.toThrow('offline');
-    // The newer request survives the failure, and its second consumer reuses it.
-    expect(requests.request('t/1', () => Promise.resolve('other'))).toBe(newer);
+    const load = deferredLoad();
+    const first = requests.request('t/1', load);
+    // The same tile layer asks again, then another one asks: neither starts a load.
+    const again = requests.request('t/1', load);
+    const late = requests.request('t/1', load);
+    expect(load.calls).toBe(1);
+    load.resolve('tile');
+    expect(await Promise.all([first, again, late])).toEqual(['tile', 'tile', 'tile']);
+  });
+
+  test('an aborted request rejects at once and leaves the load to the others', async () => {
+    const requests = new SharedTileRequests();
+    const load = deferredLoad();
+    const controller = new AbortController();
+    const aborted = requests.request('t/1', load, controller.signal);
+    const other = requests.request('t/1', load, new AbortController().signal);
+    controller.abort();
+    // Rejects before the load settles, which frees the tile layer's request slot.
+    await expect(aborted).rejects.toThrow();
+    expect(load.signal.aborted).toBe(false);
+    load.resolve('tile');
+    expect(await other).toBe('tile');
+  });
+
+  test('the load is aborted once every request for it is', async () => {
+    const requests = new SharedTileRequests();
+    const load = deferredLoad();
+    const controllers = [new AbortController(), new AbortController()];
+    const [a, b] = controllers.map(controller => requests.request('t/1', load, controller.signal));
+    controllers[0].abort();
+    expect(load.signal.aborted).toBe(false);
+    controllers[1].abort();
+    expect(load.signal.aborted).toBe(true);
+    await expect(a).rejects.toThrow();
+    await expect(b).rejects.toThrow();
+
+    // The aborted load is not reused, and its failure does not drop the new one.
+    const failed = load;
+    const newer = deferredLoad();
+    const next = requests.request('t/1', newer);
+    expect(newer.calls).toBe(1);
+    failed.reject(new Error('aborted'));
+    await Promise.resolve();
+    expect(requests.request('t/1', newer)).not.toBe(next);
+    expect(newer.calls).toBe(1);
+    newer.resolve('tile');
+    expect(await next).toBe('tile');
+  });
+
+  test('an already aborted request does not load', async () => {
+    const requests = new SharedTileRequests();
+    const load = deferredLoad();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(requests.request('t/1', load, controller.signal)).rejects.toThrow();
+    expect(load.calls).toBe(0);
+  });
+
+  test('a request aborted while its load starts rejects and aborts the load', async () => {
+    const requests = new SharedTileRequests();
+    const controller = new AbortController();
+    let loadSignal: AbortSignal | undefined;
+    const request = requests.request(
+      't/1',
+      signal => {
+        loadSignal = signal;
+        controller.abort();
+        return new Promise(() => {});
+      },
+      controller.signal
+    );
+    await expect(request).rejects.toThrow();
+    expect(loadSignal?.aborted).toBe(true);
   });
 
   test('a failed request is not reused', async () => {
     const requests = new SharedTileRequests();
-    requests.consumers = 3;
     let loads = 0;
     const failing = requests.request('t/1', () => {
       loads++;
@@ -160,6 +243,32 @@ describe('SharedTileRequests', () => {
     await expect(failing).rejects.toThrow('offline');
     await requests.request('t/1', () => Promise.resolve(++loads));
     expect(loads).toBe(2);
+  });
+
+  test("a tile layer's abort signal reaches its shared request", async () => {
+    const [tileLayer] = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 4,
+      styleDefinition: {version: 8, sources: SOURCES, layers: RASTER_BETWEEN_LAYERS} as any
+    }) as any[];
+    expect(tileLayer.props.tileRequests).toBeInstanceOf(SharedTileRequests);
+    let loadSignal: AbortSignal | undefined;
+    tileLayer.context = {viewport: {resolution: 0}};
+    tileLayer.loadTile = (_url: string, {signal}: {signal: AbortSignal}) => {
+      loadSignal = signal;
+      return new Promise(() => {});
+    };
+    const controller = new AbortController();
+    const tile = tileLayer.getTileData({
+      id: '0-0-4',
+      index: {x: 0, y: 0, z: 4},
+      signal: controller.signal
+    });
+    controller.abort();
+    await expect(tile).rejects.toThrow();
+    // It was the only request for the tile, so the fetch is aborted too.
+    expect(loadSignal?.aborted).toBe(true);
   });
 });
 

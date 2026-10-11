@@ -453,43 +453,75 @@ function createRasterLayer({
   });
 }
 
-/** The most tile requests a source keeps for runs that have not yet taken them. */
-const MAX_SHARED_REQUESTS = 256;
-
 /**
  * Tile requests of one vector source, shared by the tile layers that draw its runs of style
- * layers, so a source drawn in several runs fetches and parses each tile once. A request is
- * dropped once every run has taken it, or when it fails; at most `MAX_SHARED_REQUESTS` are kept
- * for runs that never ask for a tile.
+ * layers, so a source drawn in several runs fetches and parses each tile once. Only requests in
+ * flight are shared: a tile layer that asks for a tile after its request settled loads it again,
+ * so no decoded tile is kept here. Each tile layer's request is aborted with its own signal, which
+ * frees its request slot at once; the load itself is aborted when every request for it is.
  */
 export class SharedTileRequests {
-  /** The number of tile layers that request each tile. */
-  consumers = 1;
-  private requests = new Map<string, {promise: Promise<unknown>; remaining: number}>();
+  private requests = new Map<
+    string,
+    {promise: Promise<unknown>; controller: AbortController; waiting: number}
+  >();
 
   /** `key` identifies the decoded tile: its URL and anything else its decoding depends on. */
-  request(key: string, load: () => Promise<unknown>): Promise<unknown> {
+  request(
+    key: string,
+    load: (signal: AbortSignal) => Promise<unknown>,
+    signal?: AbortSignal
+  ): Promise<unknown> {
+    if (signal?.aborted) {
+      return Promise.reject(signal.reason);
+    }
     let entry = this.requests.get(key);
     if (!entry) {
-      const promise = load();
-      const created = {promise, remaining: this.consumers};
+      const controller = new AbortController();
+      const created = {promise: load(controller.signal), controller, waiting: 0};
       entry = created;
-      this.requests.set(key, entry);
-      // A failed request is dropped, unless a newer request for the tile has replaced it.
-      promise.catch(() => {
+      this.requests.set(key, created);
+      // A settled request is dropped, unless a newer request for the tile has replaced it.
+      const drop = () => {
         if (this.requests.get(key) === created) {
           this.requests.delete(key);
         }
-      });
-      if (this.requests.size > MAX_SHARED_REQUESTS) {
-        this.requests.delete(this.requests.keys().next().value!);
+      };
+      created.promise.then(drop, drop);
+    }
+
+    const shared = entry;
+    shared.waiting++;
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        reject(signal!.reason);
+        shared.waiting--;
+        if (shared.waiting === 0) {
+          // No tile layer waits for the load any more.
+          if (this.requests.get(key) === shared) {
+            this.requests.delete(key);
+          }
+          shared.controller.abort();
+        }
+      };
+      signal?.addEventListener('abort', onAbort, {once: true});
+      // The signal may have been aborted while the load started.
+      if (signal?.aborted) {
+        signal.removeEventListener('abort', onAbort);
+        onAbort();
+        return;
       }
-    }
-    entry.remaining--;
-    if (entry.remaining <= 0) {
-      this.requests.delete(key);
-    }
-    return entry.promise;
+      shared.promise.then(
+        value => {
+          signal?.removeEventListener('abort', onAbort);
+          resolve(value);
+        },
+        error => {
+          signal?.removeEventListener('abort', onAbort);
+          reject(error);
+        }
+      );
+    });
   }
 }
 
@@ -529,11 +561,11 @@ class StyledMVTLayer extends MVTLayer<any> {
     if (!tileRequests) {
       return this.loadTile(url, loadProps);
     }
-    // A shared request is not aborted with one layer's tile: another layer may still need it.
     // Tiles decode to longitude/latitude on a globe and to tile coordinates on a map.
     return tileRequests.request(
       `${this.context.viewport.resolution ? 'wgs84' : 'local'} ${url}`,
-      () => this.loadTile(url, {index: loadProps.index})
+      signal => this.loadTile(url, {index: loadProps.index, signal}),
+      loadProps.signal
     );
   }
 
@@ -1533,8 +1565,7 @@ function getStyleLayers({
     }
   }
   const getTileRequests = (source: BasemapSource): SharedTileRequests | null => {
-    const consumers = runCounts.get(source) ?? 1;
-    if (consumers < 2) {
+    if ((runCounts.get(source) ?? 1) < 2) {
       return null;
     }
     let tileRequests = sharedTileRequests.get(source);
@@ -1542,7 +1573,6 @@ function getStyleLayers({
       tileRequests = new SharedTileRequests();
       sharedTileRequests.set(source, tileRequests);
     }
-    tileRequests.consumers = consumers;
     return tileRequests;
   };
 
