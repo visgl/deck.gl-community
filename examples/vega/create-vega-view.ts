@@ -16,16 +16,23 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
   host.style.display = 'flex';
   host.style.flexDirection = 'column';
   host.append(controls, chart);
-  const ordinals = new Map<unknown, number>();
+  const markOrdinals = new Map<object, Map<unknown, number>>();
+  let nextOrdinal = 0;
   let view: InstanceType<typeof ViewGl>;
   const has3dSignal = spec.signals?.some(signal => signal.name === 'is3d');
   view = new ViewGl(runtime, {
     bind: controls,
     getView: () => (has3dSignal && view.signal('is3d') ? '3d' : '2d'),
     presenterConfig: {
-      onSceneRectAssignCubeOrdinal: (datum: {id?: string | number}) => {
+      onSceneRectAssignCubeOrdinal: (datum: {id?: string | number}, item?: {mark?: object}) => {
+        const mark = item?.mark ?? datum;
+        let ordinals = markOrdinals.get(mark);
+        if (!ordinals) {
+          ordinals = new Map();
+          markOrdinals.set(mark, ordinals);
+        }
         const key = datum.id ?? datum;
-        if (!ordinals.has(key)) ordinals.set(key, ordinals.size);
+        if (!ordinals.has(key)) ordinals.set(key, nextOrdinal++);
         return ordinals.get(key);
       },
       transitionDurations: {position: 1200, size: 1200, color: 600, view: 1200}

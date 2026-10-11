@@ -19,7 +19,7 @@ export interface MarkStagerOptions {
   maxOrdinal: number;
   currAxis: Axis;
   defaultCubeColor: Color;
-  assignCubeOrdinal: (d: object) => number | undefined;
+  assignCubeOrdinal: (d: object, item?: object) => number | undefined;
   zAxisZindex: number;
 }
 

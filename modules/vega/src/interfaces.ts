@@ -173,7 +173,7 @@ export interface PresenterConfig {
   getTextColor?: (o: VegaTextLayerDatum) => Color;
   getTextHighlightColor?: (o: VegaTextLayerDatum) => Color;
   getTextHighlightAlphaCutoff?: () => number;
-  onSceneRectAssignCubeOrdinal?: (d: object) => number | undefined;
+  onSceneRectAssignCubeOrdinal?: (d: object, item?: object) => number | undefined;
   onTargetViewState?: (
     height: number,
     width: number
