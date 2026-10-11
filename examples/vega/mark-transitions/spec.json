@@ -1,0 +1,252 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "description": "Circle and square symbols with filtered cuboids. Based on Microsoft Research SandDance.",
+  "width": 500,
+  "height": 320,
+  "padding": 20,
+  "signals": [
+    {
+      "name": "count",
+      "value": 24,
+      "bind": {
+        "input": "range",
+        "min": 0,
+        "max": 24,
+        "step": 1,
+        "name": "Visible records "
+      }
+    },
+    {
+      "name": "shape",
+      "value": "circle",
+      "bind": {
+        "input": "select",
+        "options": [
+          "circle",
+          "square"
+        ],
+        "name": "Symbol shape "
+      }
+    },
+    {
+      "name": "layout",
+      "value": "grid",
+      "bind": {
+        "input": "select",
+        "options": [
+          "grid",
+          "scatter"
+        ],
+        "name": "Cube layout "
+      }
+    },
+    {
+      "name": "reverse",
+      "value": false,
+      "bind": {
+        "input": "checkbox",
+        "name": "Reverse record order "
+      }
+    }
+  ],
+  "data": [
+    {
+      "name": "table",
+      "values": [
+        {
+          "id": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": 1,
+          "x": 73,
+          "y": 31
+        },
+        {
+          "id": 2,
+          "x": 146,
+          "y": 62
+        },
+        {
+          "id": 3,
+          "x": 219,
+          "y": 93
+        },
+        {
+          "id": 4,
+          "x": 292,
+          "y": 14
+        },
+        {
+          "id": 5,
+          "x": 365,
+          "y": 45
+        },
+        {
+          "id": 6,
+          "x": 438,
+          "y": 76
+        },
+        {
+          "id": 7,
+          "x": 71,
+          "y": 107
+        },
+        {
+          "id": 8,
+          "x": 144,
+          "y": 28
+        },
+        {
+          "id": 9,
+          "x": 217,
+          "y": 59
+        },
+        {
+          "id": 10,
+          "x": 290,
+          "y": 90
+        },
+        {
+          "id": 11,
+          "x": 363,
+          "y": 11
+        },
+        {
+          "id": 12,
+          "x": 436,
+          "y": 42
+        },
+        {
+          "id": 13,
+          "x": 69,
+          "y": 73
+        },
+        {
+          "id": 14,
+          "x": 142,
+          "y": 104
+        },
+        {
+          "id": 15,
+          "x": 215,
+          "y": 25
+        },
+        {
+          "id": 16,
+          "x": 288,
+          "y": 56
+        },
+        {
+          "id": 17,
+          "x": 361,
+          "y": 87
+        },
+        {
+          "id": 18,
+          "x": 434,
+          "y": 8
+        },
+        {
+          "id": 19,
+          "x": 67,
+          "y": 39
+        },
+        {
+          "id": 20,
+          "x": 140,
+          "y": 70
+        },
+        {
+          "id": 21,
+          "x": 213,
+          "y": 101
+        },
+        {
+          "id": 22,
+          "x": 286,
+          "y": 22
+        },
+        {
+          "id": 23,
+          "x": 359,
+          "y": 53
+        }
+      ],
+      "transform": [
+        {
+          "type": "filter",
+          "expr": "datum.id < count"
+        },
+        {
+          "type": "collect",
+          "sort": {
+            "field": "id",
+            "order": {
+              "signal": "reverse ? 'descending' : 'ascending'"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "type": "symbol",
+      "from": {
+        "data": "table"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "signal": "20 + (datum.id % 12) * 38"
+          },
+          "y": {
+            "signal": "30 + floor(datum.id / 12) * 45"
+          },
+          "shape": {
+            "signal": "shape"
+          },
+          "size": {
+            "value": 300
+          },
+          "fill": {
+            "value": "#009e73"
+          },
+          "stroke": {
+            "value": "#144a39"
+          },
+          "strokeWidth": {
+            "value": 1
+          }
+        }
+      }
+    },
+    {
+      "type": "rect",
+      "from": {
+        "data": "table"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "signal": "layout === 'grid' ? 20 + (datum.id % 12) * 38 : datum.x"
+          },
+          "y": {
+            "signal": "layout === 'grid' ? 190 + floor(datum.id / 12) * 38 : 160 + datum.y"
+          },
+          "width": {
+            "value": 24
+          },
+          "height": {
+            "value": 24
+          },
+          "fill": {
+            "value": "#3688c8"
+          }
+        }
+      }
+    }
+  ]
+}

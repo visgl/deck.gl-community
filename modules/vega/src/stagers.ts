@@ -9,6 +9,7 @@ import rule, {box} from './marks/rule';
 import line from './marks/line';
 import text from './marks/text';
 import area from './marks/area';
+import symbol from './marks/symbol';
 
 import {type Axis, type AxisRole, type FacetRect, type Stage, type StyledLine} from './interfaces';
 import {base} from './base';
@@ -131,6 +132,7 @@ const markStagers: {[id: string]: MarkStager} = {
   rule,
   line,
   area,
+  symbol,
   text
 };
 

@@ -15,6 +15,7 @@ import {LinearInterpolator_Class} from './deck.gl-classes/linear-interpolator';
 import {easing} from './easing';
 import {
   type Cube,
+  type SymbolMark,
   type PresenterConfig,
   type Stage,
   type StyledLine,
@@ -80,7 +81,32 @@ export function getLayers(
   );
   const pathLayer = newPathLayer(layerNames.paths, stage.pathData);
   const polygonLayer = newPolygonLayer(layerNames.polygons, stage.polygonData);
-  return [textLayer, cubeLayer, lineLayer, pathLayer, polygonLayer];
+  return [
+    textLayer,
+    cubeLayer,
+    lineLayer,
+    pathLayer,
+    polygonLayer,
+    newSymbolLayer(stage.symbolData ?? [])
+  ];
+}
+
+function newSymbolLayer(data: SymbolMark[]) {
+  return new base.layers.ScatterplotLayer<SymbolMark>({
+    id: layerNames.symbols,
+    data,
+    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    radiusUnits: 'common',
+    lineWidthUnits: 'common',
+    pickable: true,
+    stroked: true,
+    filled: true,
+    getPosition: item => item.position,
+    getRadius: item => item.radius,
+    getFillColor: item => item.fillColor,
+    getLineColor: item => item.strokeColor,
+    getLineWidth: item => item.strokeWidth
+  });
 }
 
 function newCubeLayer(
@@ -120,7 +146,7 @@ function newCubeLayer(
     transitions: {
       getPosition,
       getColor,
-      getSize
+      getSize: typeof getSize === 'object' ? {...getSize, enter: () => [0, 0, 0]} : getSize
     }
   };
   return new CubeLayer(cubeLayerProps);

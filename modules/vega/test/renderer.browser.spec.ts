@@ -84,7 +84,9 @@ it.each([
         .insert({x: 50, height: 60})
     );
     await view.runAsync();
-    await expect.poll(() => view.presenter.getCubeData()[0]?.position[0]).toBe(50);
+    await expect
+      .poll(() => view.presenter.getCubeData().find(cube => !cube.isEmpty)?.position[0])
+      .toBe(50);
     deck.redraw(true);
     expect(errors).toEqual([]);
   } finally {
