@@ -222,19 +222,20 @@ describe('label halos in the browser', () => {
   });
 });
 
+// Two labels of equal priority that overlap: anchors 28 pixels apart, each about 80 wide.
+const OVERLAP_LAYOUT = {'text-field': 'MMMMMM', 'text-size': 16};
+
+/** Text pixels drawn left and right of the overlap: by the left and the right label only. */
+function sides(image: ImageData): [number, number] {
+  const [top, bottom] = [SIZE / 2 - 14, SIZE / 2 + 14];
+  return [textPixels(image, top, bottom, 0, 28), textPixels(image, top, bottom, SIZE - 28, SIZE)];
+}
+
 describe('label collision with several halos in the browser', () => {
-  // Two labels of equal priority that overlap: anchors 28 pixels apart, each about 80 wide.
-  const layout = {'text-field': 'MMMMMM', 'text-size': 16};
   const paint = {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']};
 
-  /** Text pixels drawn left and right of the overlap: by the left and the right label only. */
-  function sides(image: ImageData): [number, number] {
-    const [top, bottom] = [SIZE / 2 - 14, SIZE / 2 + 14];
-    return [textPixels(image, top, bottom, 0, 28), textPixels(image, top, bottom, SIZE - 28, SIZE)];
-  }
-
   test('a second halo elsewhere still lets only one of two overlapping labels draw', async () => {
-    const image = await renderLabels(layout, paint, [
+    const image = await renderLabels(OVERLAP_LAYOUT, paint, [
       {coordinates: [-14, 0], properties: {halo: 1}},
       {coordinates: [14, 0], properties: {halo: 1}},
       // Far from the two, with a halo of its own: drawn by a second text sublayer.
@@ -245,5 +246,39 @@ describe('label collision with several halos in the browser', () => {
     expect(Math.max(left, right)).toBeGreaterThan(20);
     // The label with the other halo draws too.
     expect(textPixels(image, SIZE / 2 + 31, SIZE / 2 + 59)).toBeGreaterThan(20);
+  });
+});
+
+describe('label collision ties in the browser', () => {
+  test('of two overlapping labels with equal priority, the first one draws', async () => {
+    for (const order of [
+      [-14, 14],
+      [14, -14]
+    ]) {
+      const image = await renderLabels(
+        OVERLAP_LAYOUT,
+        {},
+        order.map(x => ({coordinates: [x, 0]}))
+      );
+      const [left, right] = sides(image);
+      const [first, second] = order[0] < 0 ? [left, right] : [right, left];
+      expect(first).toBeGreaterThan(20);
+      expect(second).toBe(0);
+      cleanup();
+    }
+  });
+
+  test('the first label wins a tie also when the two have different halos', async () => {
+    const image = await renderLabels(
+      OVERLAP_LAYOUT,
+      {'text-halo-color': '#ffffff', 'text-halo-width': ['get', 'halo']},
+      [
+        {coordinates: [14, 0], properties: {halo: 1}},
+        {coordinates: [-14, 0], properties: {halo: 2}}
+      ]
+    );
+    const [left, right] = sides(image);
+    expect(right).toBeGreaterThan(20);
+    expect(left).toBe(0);
   });
 });

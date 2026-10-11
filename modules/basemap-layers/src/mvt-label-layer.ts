@@ -134,6 +134,12 @@ function getTextAnchorProps(anchor: unknown): {
 type MVTLabelLayerState = {
   /** Flattened label rows generated from the current tile data. */
   labelData?: LabelRow[];
+  /**
+   * `labelData` in reverse, the order the text sublayers draw it in. In the collision pass, of
+   * labels with equal priority the one drawn last takes the place; drawn in reverse, the first
+   * label wins, as in MapLibre.
+   */
+  textRows?: LabelRow[];
   /** The non-data inputs `labelData` was computed with; a change recomputes it. */
   anchorKey?: string;
   /** The halos of the label rows: one entry per distinct halo, and each row's entry index. */
@@ -910,7 +916,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const anchorKey = this.getAnchorKey(geographic);
     if (changeFlags.dataChanged || anchorKey !== this.state.anchorKey) {
       const features = Array.isArray(data) ? data : data.features || [];
-      this.setState({labelData: this.getLabelData(features, geographic), anchorKey});
+      const labelData = this.getLabelData(features, geographic);
+      this.setState({labelData, textRows: [...labelData].reverse(), anchorKey});
     }
     const haloKey: [LabelRow[] | undefined, string] = [
       this.state.labelData,
@@ -955,7 +962,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       layers.push(...this.renderIconLayers());
       const font = this.getFont();
       const textProps = {
-        data: this.state.labelData,
+        data: this.state.textRows,
         extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
         parameters: {
           depthTest: false
@@ -1046,8 +1053,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               getCollisionPriority: OUT_OF_COLLISION_PRIORITY,
               // The background box is only drawn for the collision pass.
               background: false,
+              // `rowHalos` is in `labelData` order, the reverse of `textRows`.
               getText: (row: LabelRow, info: any) =>
-                rowHalos[info.index] === haloIndex ? getLabel(row, info) : undefined,
+                rowHalos[rowHalos.length - 1 - info.index] === haloIndex
+                  ? getLabel(row, info)
+                  : undefined,
               updateTriggers: {
                 ...updateTriggers,
                 getText: `${updateTriggers.getText}|${this.state.haloKey?.[1]}`

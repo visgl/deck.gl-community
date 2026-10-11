@@ -43,9 +43,13 @@ function haloTextLayers(texts: any[]): any[] {
   return texts.length > 1 ? texts.filter(text => text.id !== 'labels-text') : texts;
 }
 
-/** The label a text sublayer draws for each row. */
+/** The label a text sublayer draws for each of `rows`, read at the row's index in its data. */
 function drawnText(text: any, rows: unknown[]): unknown[] {
-  return rows.map((row, index) => text.props.getText(row, {index, data: rows, target: []}));
+  const data: unknown[] = text.props.data;
+  return rows.map(row => {
+    const index = data.indexOf(row);
+    return text.props.getText(row, {index, data, target: []});
+  });
 }
 
 describe('label halo opacity', () => {
@@ -127,7 +131,8 @@ describe('label halo wiring', () => {
       0
     ]);
     // Every sublayer gets all rows, so the collision filter sees the same row indices.
-    expect(texts.every(text => text.props.data === rows)).toBe(true);
+    expect(texts.every(text => text.props.data === texts[0].props.data)).toBe(true);
+    expect(texts[0].props.data).toEqual([...rows].reverse());
     expect(halos.map(text => drawnText(text, rows))).toEqual([
       ['Label', undefined, undefined, undefined],
       [undefined, 'Label', undefined, 'Label'],
