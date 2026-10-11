@@ -211,5 +211,12 @@ describe('label layers of tile layers sharing tiles', () => {
         layer.props.tiles.map((tile: any) => tile.features.map((f: any) => f.properties.name))
       )
     ).toEqual([[['place']], [['road']]]);
+
+    // Kept while the tiles and the tile layer's props do not change; new once a tile is hidden.
+    const [first] = labelFeatures;
+    const kept = first.renderLayers().find((layer: any) => layer.props.tiles);
+    expect(kept).toBe(labelLayers[0][0]);
+    first.state.tilesetViews.set('default', {isTileVisible: () => false});
+    expect(first.renderLayers().find((layer: any) => layer.props.tiles)).toBeUndefined();
   });
 });
