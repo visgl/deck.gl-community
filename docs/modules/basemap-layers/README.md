@@ -1,3 +1,5 @@
+import SplitViewDemo from '@site/src/examples/basemap-layers/split-view';
+
 # Overview
 
 <p class="badges">
@@ -11,6 +13,20 @@ Specification][mapbox_style_spec] using deck.gl layers and helpers.
 _A work in progress_.
 
 [mapbox_style_spec]: https://docs.mapbox.com/mapbox-gl-js/style-spec/
+
+## Compare with MapLibre
+
+Both panes render the same OpenFreeMap vector style. Pan, zoom, rotate, or tilt
+either map to move both cameras. The selector changes the style in both panes.
+Choose Map, Globe, or First Person from the view selector. First Person supports
+free pitch; MapLibre stops rendering at angles it cannot represent and resumes
+when you tilt down. Differences in rendering show the module's current style support.
+
+<div style={{position: 'relative', height: 480, width: '100%'}}>
+  <SplitViewDemo />
+</div>
+
+[Open the full split view example](/examples/basemap-layers/split-view).
 
 ## Overview
 
@@ -210,10 +226,13 @@ with a warning.
 
 Approximations:
 
-- Icons are not collision-filtered: every icon whose style layer is visible is drawn, so dense
-  icon layers can overlap. Labels keep their collision filtering. MapLibre places an icon and
-  its text as one unit and hides both on collision.
-- `icon-rotate`, `icon-text-fit`, `icon-padding` and `icon-allow-overlap` are not applied.
+- Icons share the labels' collision filtering, and an icon and its text are placed or hidden as
+  one unit, as in MapLibre. The test is the labels' one: a symbol is hidden where a
+  higher-priority symbol's box (the whole icon box, or the text box) covers its anchor.
+  `*-allow-overlap` (or `*-overlap: always`), `*-ignore-placement` and `*-optional` follow
+  MapLibre's rules, except that text and icon share one test, so a part is shown without its
+  optional partner only when that part allows overlap.
+- `icon-rotate`, `icon-text-fit` and `icon-padding` are not applied.
 
 ### Extrusions, dashes and fill outlines
 

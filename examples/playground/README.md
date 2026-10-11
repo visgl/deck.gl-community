@@ -1,7 +1,7 @@
 # deck.gl Community Playground
 
 This directory contains a standalone app and a community gallery example built with
-`@deck.gl-community/playground`. Every template is a JSON deck document. Accessors use the
+`@deck.gl-community/playground`. The JSON tab edits deck documents; the Vega tab edits Vega specifications. Accessors use the
 deck.gl JSON convention, for example `"getPosition": "@@=position"`.
 
 Each gallery document includes a top-level `name` and `description`. Changing `name` resets the
@@ -63,3 +63,41 @@ The [gallery example](https://visgl.github.io/deck.gl-community/examples/playgro
 `app.ts`, uses the same managed renderer and `registry.ts` as the standalone app. The website owns
 these constructor imports. The playground library bundles schemas and enables only constructors
 explicitly supplied in `registry.layers`.
+
+## Uploaded data sources
+
+The standalone playground adds a **Data Sources** tab. Choose or drop JSON row arrays, GeoJSON,
+CSV, or Arrow IPC files (`.arrow`, `.feather`, `.ipc`). Imports remain local to the current page
+and survive template changes; closing or reloading the page clears them. Duplicate filenames
+receive distinct table names and source IDs. Table names are derived from filenames without
+the extension, with unsupported characters replaced by hyphens and numeric suffixes for collisions.
+The table name is also its `datasource://` identifier. Failed imports report errors without replacing existing sources.
+
+The tab shows the assigned table name, a selectable source URL, row count, and the existing Arrow Rows, Schema, and
+Batches inspectors. Reference an imported file in a layer with `"data": "datasource://source-id"`;
+Alternatively, use `"data": "SELECT * FROM table_name;"` to select every row of the named table.
+Only whole-table SELECT is supported, with optional semicolon and case-insensitive keywords.
+Choose a compatible layer and accessors for its columns. GeoJSON feature arrays work with
+`GeoJsonLayer`. Existing `{"@@data":"source-id"}` bindings remain supported.
+
+Tabular imports retain an Apache Arrow table and a plain row adapter for deck.gl 9. Sparse or
+heterogeneous rows that cannot round-trip unchanged through inferred Arrow types use a lossless
+JSON `row` column; rendering still receives the original row structure. GeoJSON
+features are stored losslessly as JSON strings in Arrow feature/geometry/properties columns and
+restored as feature objects for rendering; this is not a native GeoArrow geometry encoding.
+File parsing uses the pinned loaders.gl loaders, with Apache Arrow handling table construction.
+Browser tools retain their existing explicit access to the points source; uploading files does
+not grant browser tools access to additional sources.
+
+## Vega specifications
+
+The **Vega** tab provides a JSON editor and a separate deck.gl-backed Vega preview. Choose **Unit
+layouts** or **Bar chart**. Specs live in `examples/vega/specs`; the unit-layout document is shared
+with the inline Vega docs example. Vega sequence/formula transforms generate records declaratively,
+and signal `bind` declarations create controls. Signal updates retain the View for GPU transitions;
+spec edits replace it after a successful run. Invalid drafts retain the last valid preview.
+Switching tabs finalizes the Vega preview and retains its draft. Vega does not consume the deck JSON
+registry, uploaded sources, or WebMCP tools. The renderer remains private and unpublished.
+
+This work builds on [Microsoft Research SandDance](https://github.com/microsoft/SandDance),
+including Dan Marshall's renderer engineering. See the Vega module's attribution and provenance.

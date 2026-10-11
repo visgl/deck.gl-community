@@ -246,6 +246,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     loadToken: number
   ): void {
     if (!resolvedStyle.sprite) {
+      // No sprites to wait for (`null` means loading, see `MVTLabelLayerProps.spriteAtlases`).
+      this.setState({spriteAtlases: []});
       return;
     }
     const options = (loadOptions || {}) as {
