@@ -268,6 +268,16 @@ function getTileFeatures(data: unknown): any[] {
   return [];
 }
 
+/**
+ * The id of a style layer's sublayer in a tile. Style layer ids are arbitrary strings, and
+ * generated layers append `-<suffix>` to it: deck.gl's own composite sublayers, the second side of
+ * a `line-gap-width` and the per-feature line shape groups. Quoting the style layer id as a JSON
+ * string ends it at an unescaped quote, so no suffix can turn one style layer's id into another's.
+ */
+function getStyleSubLayerId(parentId: string, styleLayerId: string): string {
+  return `${parentId}-${JSON.stringify(styleLayerId)}`;
+}
+
 function getSubLayerBaseProps(props: any) {
   const {
     pickable,
@@ -515,7 +525,7 @@ function createStyledVectorSubLayer({
   if (styleLayer.type === 'circle') {
     return createCircleSubLayer({
       baseProps: getSubLayerBaseProps(props),
-      id: `${props.id}-${styleLayer.id}`,
+      id: getStyleSubLayerId(props.id, styleLayer.id),
       styleLayer,
       features,
       zoom,
@@ -794,7 +804,7 @@ function createSymbolSubLayer({
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
-    id: `${props.id}-${styleLayer.id}`,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
     data: features,
     config,
     mode,
@@ -1097,7 +1107,7 @@ function createGeometrySubLayer({
 
   const layer = new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}${idSuffix}`,
+    id: `${getStyleSubLayerId(props.id, styleLayer.id)}${idSuffix}`,
     data: features,
     stroked: isLine || hasOutline,
     filled: isFill,
@@ -1277,7 +1287,7 @@ function createExtrusionSubLayer({
 
   return new GeoJsonLayer({
     ...baseProps,
-    id: `${props.id}-${styleLayer.id}`,
+    id: getStyleSubLayerId(props.id, styleLayer.id),
     data: getRaisedFeatures(features, styleLayer, base),
     opacity: (baseProps.opacity ?? 1) * (paint['fill-extrusion-opacity'] ?? 1),
     extruded: true,

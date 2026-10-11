@@ -58,7 +58,7 @@ function drawnLayerIds(layers: Record<string, unknown>[]): string[] {
   return vectorLayer.props
     .renderSubLayers({id: 'tile', data: FEATURES, tile: {index: {x: 0, y: 0, z: 12}}})
     .filter(Boolean)
-    .map((sublayer: any) => sublayer.id.replace(/^tile-/, ''));
+    .map((sublayer: any) => JSON.parse(sublayer.id.replace(/^tile-/, '')));
 }
 
 const road = {id: 'road', type: 'line', source: 'vector', 'source-layer': 'transportation'};
