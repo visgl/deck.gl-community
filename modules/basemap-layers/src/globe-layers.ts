@@ -87,13 +87,22 @@ function getBackgroundParameters(mode: BasemapMode) {
  * so a later layer can lie behind an earlier one and fail a depth test: globe layers draw in style
  * order without depth, and back-face culling hides the far side. The globe background still
  * writes depth, so the globe hides what is drawn behind it.
+ *
+ * A flat globe layer drawn after an extrusion is `depthTested`, still without writing depth, so
+ * that the buildings hide it. It is tested against the extrusions and the globe background only,
+ * never against other flat layers, and extrusions draw at high zoom, where tiles lie close enough
+ * to the sphere to pass the test against the background.
  */
-function getTileParameters(mode: BasemapMode) {
-  return (
-    mode === 'globe'
-      ? {depthTest: false, depthWriteEnabled: false, cullMode: 'back'}
-      : {depthTest: true, depthWriteEnabled: false, depthCompare: 'less-equal', cullMode: 'none'}
-  ) as any;
+function getTileParameters(mode: BasemapMode, depthTested = false) {
+  if (mode === 'globe' && !depthTested) {
+    return {depthTest: false, depthWriteEnabled: false, cullMode: 'back'} as any;
+  }
+  return {
+    depthTest: true,
+    depthWriteEnabled: false,
+    depthCompare: 'less-equal',
+    cullMode: mode === 'globe' ? 'back' : 'none'
+  } as any;
 }
 
 const BACKGROUND_DATA = [
@@ -376,13 +385,16 @@ function createRasterLayer({
   layer,
   source,
   zoom,
-  mode
+  mode,
+  depthTested
 }: {
   idPrefix: string;
   layer: BasemapStyleLayer;
   source: BasemapSource;
   zoom: number;
   mode: BasemapMode;
+  /** Drawn after an extrusion, see `getTileParameters`. */
+  depthTested?: boolean;
 }) {
   const paint = getPaint(layer, zoom);
   const rasterColorAdjustments = getRasterColorAdjustments(paint);
@@ -427,8 +439,8 @@ function createRasterLayer({
         image: props.data,
         bounds: [west, south, east, north],
         parameters: blendParameters
-          ? {...getTileParameters(mode), ...blendParameters}
-          : getTileParameters(mode)
+          ? {...getTileParameters(mode, depthTested), ...blendParameters}
+          : getTileParameters(mode, depthTested)
       } as any);
     },
     onTileError: error => {
@@ -437,7 +449,7 @@ function createRasterLayer({
         sourceId: layer.source
       });
     },
-    parameters: getTileParameters(mode)
+    parameters: getTileParameters(mode, depthTested)
   });
 }
 
@@ -566,6 +578,7 @@ function createStyledVectorSubLayer({
   zoom,
   config,
   mode,
+  depthTested,
   collisionPriorityRange,
   spriteAtlases,
   loadOptions,
@@ -579,6 +592,8 @@ function createStyledVectorSubLayer({
   zoom: number;
   config: BasemapLayerConfig;
   mode: BasemapMode;
+  /** Drawn after an extrusion, see `getTileParameters`. */
+  depthTested?: boolean;
   collisionPriorityRange?: [number, number];
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
@@ -631,10 +646,10 @@ function createStyledVectorSubLayer({
   }
 
   if (styleLayer.type === 'line') {
-    return createLineSubLayers({props, styleLayer, features, mode, zoom});
+    return createLineSubLayers({props, styleLayer, features, mode, zoom, depthTested});
   }
 
-  return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
+  return createGeometrySubLayer({props, styleLayer, features, mode, zoom, depthTested});
 }
 
 function createVectorLayerGroup({
@@ -648,6 +663,7 @@ function createVectorLayerGroup({
   config,
   loadOptions,
   mode,
+  depthTestedFrom = -1,
   labelPriorityRanges,
   styleDefinition,
   spriteAtlases,
@@ -664,6 +680,8 @@ function createVectorLayerGroup({
   config: BasemapLayerConfig;
   loadOptions?: BasemapLoadOptions;
   mode: BasemapMode;
+  /** The first of `styleLayers` drawn after an extrusion, if any; see `getTileParameters`. */
+  depthTestedFrom?: number;
   labelPriorityRanges?: Map<BasemapStyleLayer, [number, number]>;
   /** The resolved style, compared by identity to regenerate tiles when the style changes. */
   styleDefinition?: ResolvedBasemapStyle;
@@ -713,6 +731,8 @@ function createVectorLayerGroup({
     updateTriggers: {
       renderSubLayers: [
         getStyleZoomKey(zoom, getStyleZoomLimits(styleLayers)),
+        // Changes when an extrusion in another run crosses its zoom limits.
+        depthTestedFrom,
         styleDefinition,
         spriteAtlases,
         fontFamily
@@ -746,6 +766,7 @@ function createVectorLayerGroup({
             zoom,
             config,
             mode,
+            depthTested: depthTestedFrom >= 0 && styleLayerIndex >= depthTestedFrom,
             collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
             spriteAtlases,
             loadOptions,
@@ -1005,13 +1026,15 @@ function createLineSubLayers({
   styleLayer,
   features,
   mode,
-  zoom
+  zoom,
+  depthTested
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
   mode: BasemapMode;
   zoom: number;
+  depthTested?: boolean;
 }) {
   const lineShape = getStyleAccessor(
     styleLayer,
@@ -1026,6 +1049,7 @@ function createLineSubLayers({
       features,
       mode,
       zoom,
+      depthTested,
       lineShape: lineShape.value
     });
   }
@@ -1037,6 +1061,7 @@ function createLineSubLayers({
       features: group.features,
       mode,
       zoom,
+      depthTested,
       lineShape: group.shape,
       idSuffix: `-${group.key}`
     })
@@ -1102,6 +1127,7 @@ function createGeometrySubLayer({
   features,
   mode,
   zoom,
+  depthTested,
   lineShape,
   idSuffix = ''
 }: {
@@ -1110,6 +1136,7 @@ function createGeometrySubLayer({
   features: any[];
   mode: BasemapMode;
   zoom: number;
+  depthTested?: boolean;
   lineShape?: LineShape;
   idSuffix?: string;
 }) {
@@ -1219,7 +1246,7 @@ function createGeometrySubLayer({
     ...lineShape,
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
-    parameters: getTileParameters(mode)
+    parameters: getTileParameters(mode, depthTested)
   });
   if (!gapWidth || (typeof gapWidth.value !== 'function' && !(gapWidth.value > 0))) {
     return layer;
@@ -1519,13 +1546,29 @@ function getStyleLayers({
     return tileRequests;
   };
 
+  // On a globe, flat layers drawn after an extrusion are depth-tested against the buildings.
+  const extrusionIndex =
+    mode === 'globe'
+      ? styleLayers.findIndex(
+          layer => layer.type === 'fill-extrusion' && isStyleLayerVisibleAtZoom(layer, zoom)
+        )
+      : -1;
+  const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
+
   return runs.map(run => {
     const [layer] = run.styleLayers;
     if (run.type === 'background') {
       return createBackgroundLayer({idPrefix, layer, zoom, mode});
     }
     if (run.type === 'raster') {
-      return createRasterLayer({idPrefix, layer, source: run.source!, zoom, mode});
+      return createRasterLayer({
+        idPrefix,
+        layer,
+        source: run.source!,
+        zoom,
+        mode,
+        depthTested: depthTested.has(layer)
+      });
     }
     return createVectorLayerGroup({
       idPrefix,
@@ -1534,6 +1577,7 @@ function getStyleLayers({
       source: run.source!,
       tileRequests: getTileRequests(run.source!),
       styleLayers: run.styleLayers,
+      depthTestedFrom: run.styleLayers.findIndex(styleLayer => depthTested.has(styleLayer)),
       zoom,
       config,
       loadOptions,

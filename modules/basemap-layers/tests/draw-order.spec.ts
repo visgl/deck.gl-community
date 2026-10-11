@@ -384,4 +384,125 @@ describe('globe draw order', () => {
     // The globe background still writes depth, so the globe hides what is drawn behind it.
     expect(background.props.parameters).toMatchObject({depthTest: true, depthWriteEnabled: true});
   });
+
+  /** Water, buildings from z14, then a boundary line, a raster and roads from another source. */
+  const EXTRUSION_LAYERS = [
+    {id: 'water', type: 'fill', source: 'tiles', 'source-layer': 'water'},
+    {
+      id: 'building-3d',
+      type: 'fill-extrusion',
+      source: 'tiles',
+      'source-layer': 'building',
+      minzoom: 14
+    },
+    {id: 'boundary', type: 'line', source: 'tiles', 'source-layer': 'boundary'},
+    {id: 'relief', type: 'raster', source: 'relief'},
+    {id: 'roads', type: 'line', source: 'tiles', 'source-layer': 'road'}
+  ];
+
+  function getExtrusionLayers(mode: 'map' | 'globe', zoom: number, extrusionMinZoom = 14) {
+    const styleLayers = EXTRUSION_LAYERS.map(layer =>
+      layer.type === 'fill-extrusion' ? {...layer, minzoom: extrusionMinZoom} : layer
+    );
+    const layers: any[] = getBasemapLayers({
+      idPrefix: 'test',
+      mode,
+      zoom,
+      styleDefinition: {version: 8, sources: SOURCES, layers: styleLayers} as any
+    });
+    const square = [
+      [
+        [0, 0],
+        [0.001, 0],
+        [0.001, 0.001],
+        [0, 0]
+      ]
+    ];
+    const path = [
+      [0, 0],
+      [0.001, 0.001]
+    ];
+    const feature = (layerName: string, type: string, coordinates: unknown) => ({
+      type: 'Feature',
+      geometry: {type, coordinates},
+      properties: {layerName}
+    });
+    const tiles = layers
+      .find(layer => layer.id === 'test-tiles')
+      .props.renderSubLayers({
+        id: 'tile',
+        data: [
+          feature('water', 'Polygon', square),
+          feature('building', 'Polygon', square),
+          feature('boundary', 'LineString', path)
+        ],
+        tile: {index: {x: 0, y: 0, z: zoom}}
+      })
+      .flat(Infinity);
+    const sublayer = (id: string) => tiles.find((l: any) => l.id === `tile-${id}`);
+    const [roads] = layers
+      .find(layer => layer.id === 'test-tiles-roads')
+      .props.renderSubLayers({
+        id: 'tile',
+        data: [feature('road', 'LineString', path)],
+        tile: {index: {x: 0, y: 0, z: zoom}}
+      });
+    return {
+      water: sublayer('water').props.parameters,
+      building: sublayer('building-3d')?.props.parameters,
+      boundary: sublayer('boundary').props.parameters,
+      relief: layers.find(layer => layer.id === 'test-relief').props.parameters,
+      reliefTile: layers
+        .find(layer => layer.id === 'test-relief')
+        .props.renderSubLayers({
+          id: 'relief-tile',
+          data: null,
+          tile: {bbox: {west: 0, south: 0, east: 1, north: 1}}
+        }).props.parameters,
+      roads: roads.props.parameters,
+      roadsTrigger: layers.find(layer => layer.id === 'test-tiles-roads').props.updateTriggers
+        .renderSubLayers
+    };
+  }
+
+  test('flat layers after a drawn extrusion are depth-tested against the buildings', () => {
+    const {water, building, boundary, relief, reliefTile, roads} = getExtrusionLayers('globe', 15);
+    expect(building).toMatchObject({depthTest: true, depthWriteEnabled: true});
+    // Before the buildings, flat layers draw without depth.
+    expect(water).toMatchObject({depthTest: false, depthWriteEnabled: false});
+    // After them, the buildings hide them; they still write no depth, so they cannot hide each
+    // other. This holds for the extrusion's own run, a raster, and a later run.
+    for (const parameters of [boundary, relief, reliefTile, roads]) {
+      expect(parameters).toMatchObject({
+        depthTest: true,
+        depthCompare: 'less-equal',
+        depthWriteEnabled: false,
+        cullMode: 'back'
+      });
+    }
+  });
+
+  test('below the extrusion zoom, flat layers draw without depth', () => {
+    const z13 = getExtrusionLayers('globe', 13);
+    expect(z13.building).toBeUndefined();
+    for (const parameters of [z13.water, z13.boundary, z13.relief, z13.reliefTile, z13.roads]) {
+      expect(parameters).toMatchObject({depthTest: false, depthWriteEnabled: false});
+    }
+  });
+
+  test('a run without the extrusion regenerates its tiles when the extrusion starts to draw', () => {
+    // Both zooms are in one style zoom step, and the roads' run has no zoom limits of its own.
+    const before = getExtrusionLayers('globe', 14.05, 14.1);
+    const after = getExtrusionLayers('globe', 14.15, 14.1);
+    expect(before.roads).toMatchObject({depthTest: false});
+    expect(after.roads).toMatchObject({depthTest: true});
+    expect(after.roadsTrigger).not.toEqual(before.roadsTrigger);
+  });
+
+  test('on a map, every flat layer is depth-tested', () => {
+    const {water, boundary, relief, roads} = getExtrusionLayers('map', 15);
+    for (const parameters of [water, boundary, relief, roads]) {
+      expect(parameters).toMatchObject({depthTest: true, depthWriteEnabled: false});
+    }
+  });
 });
