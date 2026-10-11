@@ -187,3 +187,11 @@ A typical sequence looks like `startDragging → lockNodePosition → release �
   - `controlPoints`: optional control points for curved or multi-segment edges.
 
 Ensure these methods always return consistent data for the current layout state.
+
+## Updating layout props
+
+`setProps(partialProps)` merges a partial update with the current props. Equal updates are no-ops. The method retains its `void` return type; graph replacement continues to use `initializeGraph`/`updateGraph`.
+
+Custom layouts may override `_validateProps(nextProps)` to normalize or reject the merged update before it is committed, and `_onPropsUpdated(previousProps, nextProps)` to invalidate cached geometry or recompute. Validation errors preserve the prior props. The constructor does not call these hooks, so subclass fields are initialized before hooks run.
+
+`SimpleLayout` refreshes its cached node positions and emits layout lifecycle callbacks when its position accessor changes on an initialized graph. Pinned node coordinates survive accessor changes and graph updates until `unlockNodePosition` releases the pin. Unlocking preserves the dropped position; a subsequent accessor or graph refresh recomputes it. Removing or replacing a node clears its pin. The legacy `setNodePositionAccessor` convenience method uses the same update path. Callback-only updates do not recompute geometry. DAG layouts invalidate their cached operator when configuration changes; call `update()` to run the new operator.
