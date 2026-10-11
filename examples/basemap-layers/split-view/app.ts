@@ -176,8 +176,8 @@ export function mountBasemapSplitViewExample(container: HTMLElement): () => void
       pitch: viewState.pitch,
       bearing: viewState.bearing,
       minZoom: 0,
-      maxZoom: 24,
-      maxPitch: 85,
+      maxZoom: viewMode === 'first-person' ? 24 : INITIAL_VIEW_STATE.maxZoom,
+      maxPitch: viewMode === 'first-person' ? 85 : INITIAL_VIEW_STATE.maxPitch,
       attributionControl: {compact: true}
     });
     map.on('move', syncDeckCamera);
@@ -198,6 +198,10 @@ export function mountBasemapSplitViewExample(container: HTMLElement): () => void
     syncingMap = true;
     try {
       if (!map) createMap();
+      const maxZoom = viewMode === 'first-person' ? 24 : INITIAL_VIEW_STATE.maxZoom;
+      const maxPitch = viewMode === 'first-person' ? 85 : INITIAL_VIEW_STATE.maxPitch;
+      if (map.getMaxZoom() !== maxZoom) map.setMaxZoom(maxZoom);
+      if (map.getMaxPitch() !== maxPitch) map.setMaxPitch(maxPitch);
       if (viewMode === 'first-person') {
         const camera = getFirstPersonCamera();
         map.jumpTo(
@@ -221,97 +225,114 @@ export function mountBasemapSplitViewExample(container: HTMLElement): () => void
       syncingMap = false;
     }
   };
-  const deck = new Deck<MapView | FirstPersonView | _GlobeView>({
-    parent: deckPane,
-    views: new MapView({repeat: true}),
-    viewState,
-    controller: true,
-    layers: [getBasemapLayer()],
-    onViewStateChange: event => {
+  let deck: Deck<MapView | FirstPersonView | _GlobeView>;
+  let observer: ResizeObserver | undefined;
+  try {
+    deck = new Deck<MapView | FirstPersonView | _GlobeView>({
+      parent: deckPane,
+      views: new MapView({repeat: true}),
+      viewState,
+      controller: true,
+      layers: [getBasemapLayer()],
+      onViewStateChange: event => {
+        if (viewMode === 'first-person') {
+          firstPersonState = event.viewState as FirstPersonViewState;
+          firstPersonState = {
+            ...firstPersonState,
+            position: [
+              firstPersonState.position[0],
+              firstPersonState.position[1],
+              Math.max(10, firstPersonState.position[2])
+            ]
+          };
+          deck.setProps({viewState: firstPersonState});
+        } else {
+          viewState = event.viewState as MapViewState;
+          deck.setProps({viewState});
+        }
+        syncMapCamera();
+      }
+    });
+    syncMapCamera();
+    const changeStyle = () => {
+      map?.setStyle(getStyleUrl());
+      deck.setProps({layers: [getBasemapLayer()]});
+    };
+    const changeView = () => {
       if (viewMode === 'first-person') {
-        firstPersonState = event.viewState as FirstPersonViewState;
+        const camera = getFirstPersonCamera();
+        viewState = {
+          ...viewState,
+          longitude: camera[0],
+          latitude: camera[1],
+          bearing: firstPersonState.bearing
+        };
+      }
+      viewMode = viewSelect.value as typeof viewMode;
+      if (viewMode === 'first-person') {
         firstPersonState = {
           ...firstPersonState,
-          position: [
-            firstPersonState.position[0],
-            firstPersonState.position[1],
-            Math.max(10, firstPersonState.position[2])
-          ]
+          longitude: viewState.longitude,
+          latitude: viewState.latitude,
+          position: [0, 0, 600],
+          bearing: viewState.bearing,
+          pitch: 60
         };
-        deck.setProps({viewState: firstPersonState});
+        deck.setProps({
+          views: new FirstPersonView({
+            id: viewMode,
+            fovy: 36.86989764584402,
+            near: 0.1,
+            far: 20000
+          }),
+          viewState: firstPersonState
+        });
+        hint.textContent =
+          'Drag to look; WASD / arrow keys or scroll to move. Free pitch; MapLibre pauses at unsupported angles.';
       } else {
-        viewState = event.viewState as MapViewState;
-        deck.setProps({viewState});
+        viewState = {...viewState, zoom: viewMode === 'globe' ? 1.5 : 12, pitch: 0};
+        deck.setProps({
+          views:
+            viewMode === 'globe'
+              ? new _GlobeView({id: viewMode})
+              : new MapView({id: viewMode, repeat: true}),
+          viewState
+        });
+        hint.textContent = 'Drag to pan; shift/right-drag to rotate and tilt.';
+      }
+      applyProjection();
+      deck.setProps({layers: [getBasemapLayer()]});
+      syncMapCamera();
+    };
+    select.addEventListener('change', changeStyle);
+    viewSelect.addEventListener('change', changeView);
+    observer = new ResizeObserver(() => {
+      syncingMap = true;
+      try {
+        map?.resize();
+      } finally {
+        syncingMap = false;
       }
       syncMapCamera();
-    }
-  });
-  syncMapCamera();
-  const changeStyle = () => {
-    map?.setStyle(getStyleUrl());
-    deck.setProps({layers: [getBasemapLayer()]});
-  };
-  const changeView = () => {
-    if (viewMode === 'first-person') {
-      const camera = getFirstPersonCamera();
-      viewState = {
-        ...viewState,
-        longitude: camera[0],
-        latitude: camera[1],
-        bearing: firstPersonState.bearing
-      };
-    }
-    viewMode = viewSelect.value as typeof viewMode;
-    if (viewMode === 'first-person') {
-      firstPersonState = {
-        ...firstPersonState,
-        longitude: viewState.longitude,
-        latitude: viewState.latitude,
-        position: [0, 0, 600],
-        bearing: viewState.bearing,
-        pitch: 60
-      };
-      deck.setProps({
-        views: new FirstPersonView({id: viewMode, fovy: 36.86989764584402, near: 0.1, far: 20000}),
-        viewState: firstPersonState
-      });
-      hint.textContent =
-        'Drag to look; WASD / arrow keys or scroll to move. Free pitch; MapLibre pauses at unsupported angles.';
-    } else {
-      viewState = {...viewState, zoom: viewMode === 'globe' ? 1.5 : 12, pitch: 0};
-      deck.setProps({
-        views:
-          viewMode === 'globe'
-            ? new _GlobeView({id: viewMode})
-            : new MapView({id: viewMode, repeat: true}),
-        viewState
-      });
-      hint.textContent = 'Drag to pan; shift/right-drag to rotate and tilt.';
-    }
-    applyProjection();
-    deck.setProps({layers: [getBasemapLayer()]});
-    syncMapCamera();
-  };
-  select.addEventListener('change', changeStyle);
-  viewSelect.addEventListener('change', changeView);
-  const observer = new ResizeObserver(() => {
-    syncingMap = true;
-    try {
-      map?.resize();
-    } finally {
-      syncingMap = false;
-    }
-    syncMapCamera();
-  });
-  observer.observe(mapPane);
-  return () => {
-    observer.disconnect();
-    select.removeEventListener('change', changeStyle);
-    viewSelect.removeEventListener('change', changeView);
-    deck.finalize();
+    });
+    observer.observe(mapPane);
+    return () => {
+      observer?.disconnect();
+      select.removeEventListener('change', changeStyle);
+      viewSelect.removeEventListener('change', changeView);
+      deck.finalize();
+      map?.remove();
+      if (getWorkerUrl() === workerUrl) setWorkerUrl(previousWorkerUrl);
+      URL.revokeObjectURL(workerUrl);
+      root.remove();
+    };
+  } catch (error) {
+    observer?.disconnect();
+    deck?.finalize();
     map?.remove();
     if (getWorkerUrl() === workerUrl) setWorkerUrl(previousWorkerUrl);
     URL.revokeObjectURL(workerUrl);
     root.remove();
-  };
+    throw error;
+  }
 }
