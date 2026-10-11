@@ -31,6 +31,7 @@ export class RectangleLayer extends CompositeLayer {
     return [
       new PolygonLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__polygon-layer',
           data,
           getPolygon: node =>
@@ -44,6 +45,7 @@ export class RectangleLayer extends CompositeLayer {
           stroked: Boolean(getLineWidth),
           ...stylesheet.getDeckGLAccessors(),
           updateTriggers: {
+            all: this.props.transitions,
             getPolygon: [
               positionUpdateTrigger,
               stylesheet.getDeckGLAccessorUpdateTrigger('getWidth'),

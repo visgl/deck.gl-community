@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
+
 `@deck.gl-community/panels` provides a modest set of composable UI components intended
 for small data visualization applications.
 

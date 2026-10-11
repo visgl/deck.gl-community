@@ -97,7 +97,7 @@ function convertStructToFixedSizeList(
 }
 
 type AssignAccessorProps = {
-  /** The object on which to assign the resolved accesor */
+  /** The object on which to assign the resolved accessor */
   props: Record<string, any>;
   /** The name of the prop to set */
   propName: string;

@@ -243,8 +243,12 @@ Approximations:
 - deck.gl draws one dash and one gap per period. A pattern longer than two values keeps its period
   and its total dash length, but its dashes merge into one. In an odd-length pattern the last
   dash runs into the first, as in MapLibre.
-- `line-cap` is not applied: lines and their dashes have round ends, so a short dash such as a
-  rail hatching draws as a dot rather than a tick.
+- deck.gl has no square cap or bevel join. A `square` cap is drawn as `butt`, so the line ends
+  half its width short, and a zero-length dash, which MapLibre draws as a square, draws nothing.
+  A `bevel` join is cut flat half the line width from the vertex, which reaches slightly further
+  than a bevel at sharp corners. A `miter` join sharper than `line-miter-limit` is cut flat at the
+  limit, where MapLibre bevels it. `line-round-limit` is not applied, which makes no visible
+  difference.
 - A flat layer that comes after a `fill-extrusion` layer in the style is hidden behind the
   buildings; MapLibre draws it over them.
 - MapLibre cross-fades a zoom-dependent `line-dasharray` between integer zooms; here it switches
