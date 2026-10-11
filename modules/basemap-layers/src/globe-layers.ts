@@ -538,6 +538,8 @@ class StyledMVTLayer extends SharedMVTLayer {
     keptTileLayers?: Map<string, Layer[]>;
     /** Hidden tiles whose sublayers were kept rather than regenerated, by tile id. */
     staleTiles?: Set<string>;
+    /** The tile object each id stood for at the last render (see `forgetRemovedTiles`). */
+    keptTiles?: Map<string, SharedTile>;
   };
 
   updateState(params: UpdateParameters<this>): void {
@@ -587,6 +589,7 @@ class StyledMVTLayer extends SharedMVTLayer {
     const kept = this.state.keptTileLayers;
     const stale = this.state.staleTiles!;
     const tiles: SharedTile[] = (tileset?.tiles as SharedTile[] | undefined) || [];
+    this.forgetRemovedTiles(tiles);
     for (const tile of tiles) {
       if (this.isTileShown(tile)) {
         if (stale.delete(tile.id)) {
@@ -624,6 +627,29 @@ class StyledMVTLayer extends SharedMVTLayer {
   _onTileUnload(tile: any): void {
     this.forgetTile(tile);
     super._onTileUnload(tile);
+  }
+
+  /**
+   * Drops what this layer kept for tiles that left the shared tileset, or were replaced in it by
+   * another tile of the same id. `reloadAll` removes tiles without an unload event, and deck.gl
+   * then finalizes their sublayers, which must not be handed back.
+   */
+  private forgetRemovedTiles(tiles: SharedTile[]): void {
+    let {keptTiles} = this.state;
+    if (!keptTiles) {
+      keptTiles = new Map();
+      this.state.keptTiles = keptTiles;
+    }
+    const live = new Map(tiles.map(tile => [tile.id, tile]));
+    for (const [id, tile] of keptTiles) {
+      if (live.get(id) !== tile) {
+        keptTiles.delete(id);
+        this.forgetTile({id} as SharedTile);
+      }
+    }
+    for (const tile of tiles) {
+      keptTiles.set(tile.id, tile);
+    }
   }
 
   /** Drops a tile's kept sublayers, when its content is replaced or evicted. */

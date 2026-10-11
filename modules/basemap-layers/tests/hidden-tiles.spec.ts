@@ -104,6 +104,22 @@ describe('hidden tiles', () => {
     expect(renderSubLayers.calls).toBe(1);
   });
 
+  test('a tile that left the tileset without an unload event drops its kept sublayers', () => {
+    const tile = createTile(0, true);
+    const tiles = [tile];
+    const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer(tiles);
+    renderAfterUpdate();
+    // `reloadAll` drops the tile; deck.gl finalizes its sublayers. Later a new tile of the same id,
+    // hidden, takes its place.
+    tiles.length = 0;
+    layer.renderLayers();
+    tiles.push(createTile(0, false));
+    renderSubLayers.mockClear();
+    renderAfterUpdate();
+    expect(renderSubLayers.calls).toBe(0);
+    expect(layersOf(tiles[0])).toEqual([]);
+  });
+
   test('a tile whose content is reloaded or evicted drops its kept sublayers', () => {
     const tile = createTile(0, true);
     const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([tile]);
