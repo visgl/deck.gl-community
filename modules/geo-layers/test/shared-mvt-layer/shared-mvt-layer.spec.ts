@@ -180,3 +180,146 @@ it('skips failed tiles on a globe and maps highlights to filtered sublayer data'
     layer.getSubLayerPropsByTile(tile, new GeoJsonLayer({data: [DATA[0]]})).highlightedObjectIndex
   ).toBe(-1);
 });
+
+/** A consumer layer prepared to update outside a Deck, as deck.gl's layer manager would. */
+function createConsumer(props: Record<string, unknown>): any {
+  const layer: any = new SharedMVTLayer(props as any);
+  layer.context = {viewport} as any;
+  layer.initializeState();
+  layer.setState = (state: any) => Object.assign(layer.state, state);
+  layer.setNeedsUpdate = () => {};
+  layer.updateState({
+    changeFlags: {dataChanged: true, propsOrDataChanged: true, somethingChanged: true}
+  } as any);
+  return layer;
+}
+
+describe('SharedMVTLayer consumers of one tileset', () => {
+  it('load each tile once, and one consumer finalizing leaves the tileset to the others', async () => {
+    const fetch = vi.fn(async () => DATA);
+    const loader = new SharedMVTLayer({data: 'https://example.com/{z}/{x}/{y}.mvt', fetch});
+    const tileset = new SharedTileset2D({...loader._getTilesetOptions(), maxZoom: 0});
+    const finalize = vi.spyOn(tileset, 'finalize');
+    const first = createConsumer({id: 'first', data: tileset});
+    const second = createConsumer({id: 'second', data: tileset});
+    try {
+      await vi.waitFor(() => expect(first.isLoaded && second.isLoaded).toBe(true));
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(first.state.tileset).toBe(tileset);
+      expect(second.state.tileset).toBe(tileset);
+
+      first.finalizeState();
+      expect(finalize).not.toHaveBeenCalled();
+      expect(second.isLoaded).toBe(true);
+      expect(tileset.tiles.map(tile => tile.content)).toEqual([DATA]);
+      expect(tileset.stats.get('Consumers').count).toBe(1);
+    } finally {
+      second.finalizeState();
+      expect(finalize).not.toHaveBeenCalled();
+      tileset.finalize();
+    }
+  });
+
+  it('retain decoded tiles after every consumer detaches, for a later consumer', async () => {
+    const fetch = vi.fn(async () => DATA);
+    const loader = new SharedMVTLayer({data: 'https://example.com/{z}/{x}/{y}.mvt', fetch});
+    const tileset = new SharedTileset2D({...loader._getTilesetOptions(), maxZoom: 0});
+    const first = new SharedTile2DView(tileset);
+    let later: SharedTile2DView | null = null;
+    try {
+      first.update(viewport);
+      await waitLoaded(first);
+      const [tile] = first.selectedTiles!;
+      first.finalize();
+      expect(tileset.stats.get('Consumers').count).toBe(0);
+
+      later = new SharedTile2DView(tileset);
+      later.update(viewport);
+      expect(later.isLoaded).toBe(true);
+      expect(later.selectedTiles![0]).toBe(tile);
+      expect(later.selectedTiles![0].content).toBe(DATA);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    } finally {
+      first.finalize();
+      later?.finalize();
+      tileset.finalize();
+    }
+  });
+
+  it('abort a request only once no consumer selects it, and all of them with the tileset', async () => {
+    const signals: AbortSignal[] = [];
+    const fetch = vi.fn((_url: string, options: any) => {
+      signals.push(options.signal);
+      return new Promise<any>(() => {});
+    });
+    const loader = new SharedMVTLayer({data: 'https://example.com/{z}/{x}/{y}.mvt', fetch});
+    // One request at a time: the other selected tiles queue behind it.
+    const tileset = new SharedTileset2D({
+      ...loader._getTilesetOptions(),
+      maxZoom: 1,
+      maxRequests: 1
+    });
+    const zoomOne = new WebMercatorViewport({width: 512, height: 512, zoom: 1});
+    const a = new SharedTile2DView(tileset);
+    const b = new SharedTile2DView(tileset);
+    try {
+      a.update(zoomOne);
+      b.update(zoomOne);
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+      expect(tileset.tiles.filter(tile => tile.isLoading)).toHaveLength(4);
+
+      a.finalize();
+      expect(tileset.tiles.filter(tile => tile.isLoading)).toHaveLength(4);
+      expect(signals[0].aborted).toBe(false);
+
+      // No consumer selects the tiles any more: requests beyond the limit are cancelled.
+      b.finalize();
+      expect(tileset.tiles.filter(tile => tile.isLoading)).toHaveLength(1);
+
+      tileset.finalize();
+      expect(signals.every(signal => signal.aborted)).toBe(true);
+    } finally {
+      a.finalize();
+      b.finalize();
+      tileset.finalize();
+    }
+  });
+
+  it('keep hover highlights per consumer, without changing the shared features', () => {
+    const features = [
+      {...DATA[0], id: 1, properties: {layerName: 'place'}},
+      {...DATA[0], id: 2, properties: {layerName: 'place'}}
+    ];
+    const snapshot = structuredClone(features);
+    const tile: any = {index: {x: 0, y: 0, z: 0}, content: features};
+    const [hovered, other] = ['hovered', 'other'].map(id => {
+      const layer: any = new SharedMVTLayer({id, data: null, highlightColor: [1, 2, 3, 4]});
+      layer.context = {viewport} as any;
+      layer.initializeState();
+      layer.setState = (state: any) => Object.assign(layer.state, state);
+      return layer;
+    });
+
+    hovered._updateAutoHighlight({object: features[1]} as any);
+    expect(hovered.getSubLayerPropsByTile(tile)).toMatchObject({
+      highlightedObjectIndex: 1,
+      highlightColor: [1, 2, 3, 4]
+    });
+    expect(other.getSubLayerPropsByTile(tile).highlightedObjectIndex).toBe(-1);
+
+    // Each consumer picks its own geographic copy of the shared tile-local feature.
+    for (const layer of [hovered, other]) {
+      const picked = layer.getPickingInfo({
+        info: {picked: true, object: features[1], index: 1},
+        sourceLayer: {props: {tile}}
+      } as any);
+      expect(picked.object).not.toBe(features[1]);
+      expect(picked.object.geometry.coordinates).toEqual([0, 0]);
+    }
+
+    hovered._updateAutoHighlight({object: null} as any);
+    expect(hovered.getSubLayerPropsByTile(tile).highlightedObjectIndex).toBe(-1);
+    expect(features).toEqual(snapshot);
+    expect(tile.content).toBe(features);
+  });
+});

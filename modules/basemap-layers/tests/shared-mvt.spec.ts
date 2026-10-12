@@ -1,7 +1,6 @@
 import {describe, expect, test, vi} from 'vitest';
 import {WebMercatorViewport} from '@deck.gl/core';
 import {SharedMVTLayer, SharedTileset2D} from '../../geo-layers/src';
-import {SharedTile2DView} from '../../geo-layers/src/shared-tile-2d-layer/shared-tile-2d-view';
 import {BasemapLayer} from '../src/basemap-layer';
 
 const source = {type: 'vector', maxzoom: 0, tiles: ['https://example.com/{z}/{x}/{y}.pbf']};
@@ -27,33 +26,17 @@ function createBasemap(fetch: any) {
 }
 
 describe('basemap shared MVT tiles', () => {
-  test('style runs share settled decoded data and keep the cache through rerenders', async () => {
-    const decoded: any[] = [];
-    const fetch = vi.fn(async () => decoded);
-    const basemap = createBasemap(fetch);
-    const [first, , second]: any[] = basemap.renderLayers();
+  // One fetch and decode across consumers, retention and per-consumer detach are covered
+  // against SharedMVTLayer and SharedTileset2D in the geo-layers tests.
+  test('style runs of one source share its cache and keep it through rerenders', () => {
+    const basemap = createBasemap(vi.fn());
+    const [first, raster, second]: any[] = basemap.renderLayers();
     expect(first).toBeInstanceOf(SharedMVTLayer);
+    expect(raster).not.toBeInstanceOf(SharedMVTLayer);
     expect(first.props.data).toBeInstanceOf(SharedTileset2D);
     expect(second.props.data).toBe(first.props.data);
-    const a = new SharedTile2DView(first.props.data);
-    const b = new SharedTile2DView(second.props.data);
-    try {
-      a.update(viewport);
-      await vi.waitFor(() => expect(a.isLoaded).toBe(true));
-      b.update(viewport);
-      await vi.waitFor(() => expect(b.isLoaded).toBe(true));
-      expect(fetch).toHaveBeenCalledTimes(1);
-      expect(a.selectedTiles![0].content).toBe(decoded);
-      expect(b.selectedTiles![0].content).toBe(decoded);
-      expect((basemap.renderLayers()[0] as any).props.data).toBe(first.props.data);
-      a.finalize();
-      b.update(viewport);
-      expect(b.selectedTiles![0].content).toBe(decoded);
-    } finally {
-      a.finalize();
-      b.finalize();
-      basemap.finalizeState();
-    }
+    expect((basemap.renderLayers()[0] as any).props.data).toBe(first.props.data);
+    basemap.finalizeState();
   });
 
   test('isolates basemap owners and finalizes only the replaced source cache', () => {

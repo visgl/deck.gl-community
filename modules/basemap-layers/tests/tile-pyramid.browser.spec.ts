@@ -8,7 +8,7 @@ import {afterEach, describe, expect, test} from 'vitest';
 import {parse} from '@loaders.gl/core';
 import {MVTLoader} from '@loaders.gl/mvt';
 import {BasemapLayer, getBasemapLayers} from '../src/index';
-import {encodeBoxTile} from './mvt-test-tile';
+import {encodeBoxTile} from '../../geo-layers/test/shared-mvt-layer/mvt-test-tile';
 
 const SIZE = 128;
 
