@@ -73,7 +73,10 @@ function getModelShaders(
         title: 'assembles the shaders',
         props: {id: 'injection-target-test', data: [POINT], ...props},
         onAfterUpdate: ({layer}: any) => {
-          shaders = layer.getModels().map((model: any) => ({vs: model.vs, fs: model.fs}));
+          shaders = layer.getModels().map((model: any) => ({
+            vs: stripComments(model.vs),
+            fs: stripComments(model.fs)
+          }));
           injections = extension ? getInjections(extension, layer) : [];
         }
       }
@@ -104,6 +107,16 @@ function getMarker(code: string): string {
     .split('\n')
     .map(line => line.trim())
     .find(line => line && !line.startsWith('//') && !line.startsWith('#')) as string;
+}
+
+/**
+ * Removes GLSL comments, keeping line breaks, so that a call, statement or name that a deck.gl
+ * release comments out does not count as present.
+ */
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, match => match.replace(/[^\n]/g, ''))
+    .replace(/\/\/.*$/gm, '');
 }
 
 function escapeRegExp(value: string): string {
@@ -214,6 +227,28 @@ function expectNames(
     }
   }
 }
+
+describe('shader source helpers', () => {
+  test('ignore commented-out calls, statements and names', () => {
+    const source = stripComments(`
+void DECKGL_FILTER_COLOR(inout vec4 color, FragmentGeometry geometry) {
+}
+void main(void) {
+  // DECKGL_FILTER_COLOR(fragColor, geometry);
+  /* alpha = inBorder;
+     edgePixels */
+  fragColor = vec4(1.0);
+}
+`);
+    expect(callsHook(source, 'DECKGL_FILTER_COLOR')).toBe(false);
+    expect(
+      callsHook(`${source}\nDECKGL_FILTER_COLOR(fragColor, geometry);`, 'DECKGL_FILTER_COLOR')
+    ).toBe(true);
+    expect(source.includes('alpha = inBorder;')).toBe(false);
+    expect(hasName(source, 'edgePixels')).toBe(false);
+    expect(hasName(source, 'fragColor')).toBe(true);
+  });
+});
 
 describe('shader injection targets in the installed deck.gl', () => {
   test('TextHaloBlurExtension: the outline alpha statement of MultiIconLayer', () => {
