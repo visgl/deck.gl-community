@@ -527,7 +527,10 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   }
 
   /** Hook for subclasses to provide extra sub-layer props per tile. */
-  getSubLayerPropsByTile(_tile: SharedTile2DHeader<DataT>): Partial<LayerProps> | null {
+  getSubLayerPropsByTile(
+    _tile: SharedTile2DHeader<DataT>,
+    _layer?: Layer
+  ): Partial<LayerProps> | null {
     return null;
   }
 
@@ -559,7 +562,6 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
       return null;
     }
     return tileset.tiles.map(tile => {
-      const subLayerProps = this.getSubLayerPropsByTile(tile);
       let layers = tileLayers.get(tile.id);
       if (!tile.isLoaded && !tile.content) {
         return layers;
@@ -576,17 +578,16 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
           tile
         });
         layers = this._flattenTileLayers(rendered).map(layer =>
-          layer.clone({tile, ...subLayerProps})
+          layer.clone({tile, ...this.getSubLayerPropsByTile(tile, layer)})
         );
         tileLayers.set(tile.id, layers);
-      } else if (
-        subLayerProps &&
-        layers[0] &&
-        Object.keys(subLayerProps).some(
-          propName => layers[0].props[propName] !== subLayerProps[propName]
-        )
-      ) {
-        layers = layers.map(layer => layer.clone(subLayerProps));
+      } else {
+        layers = layers.map(layer => {
+          const props = this.getSubLayerPropsByTile(tile, layer);
+          return props && Object.keys(props).some(key => layer.props[key] !== props[key])
+            ? layer.clone(props)
+            : layer;
+        });
         tileLayers.set(tile.id, layers);
       }
       return layers;
