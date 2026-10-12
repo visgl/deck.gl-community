@@ -99,8 +99,7 @@ function expectGeographicBox(feature: any): void {
 /**
  * Waits until the tile sublayers of both consumers are built for the current view. For a few
  * frames after a switch from a globe to a map, the consumers still draw the sublayers built for the
- * globe, whose longitude/latitude geometry also draws in place on a map; picking on those frames
- * converts the already geographic features a second time.
+ * globe, whose longitude/latitude geometry also draws in place on a map.
  */
 async function waitForTileSubLayers(coordinateSystem: string): Promise<void> {
   for (let frame = 0; frame < 120; frame++) {
@@ -148,6 +147,16 @@ describe('SharedMVTLayer consumers in the browser', () => {
         stroked: false
       })
     ];
+
+    /** The feature picked at the box's center in the current view. */
+    const pickBoxCenter = (view: string) => {
+      const [x, y] = deck!
+        .getViewports()[0]
+        .project([(BOX[0] + BOX[2]) / 2, (BOX[1] + BOX[3]) / 2]);
+      const picked = deck!.pickObject({x, y, radius: 2, layerIds: ['pick']});
+      expect(picked?.object, `a picked feature in ${view}`).toBeTruthy();
+      return picked!.object;
+    };
 
     let onFrame: ((image: ImageData) => void) | null = null;
     const nextLoadedFrame = (viewName: string) =>
@@ -214,6 +223,11 @@ describe('SharedMVTLayer consumers in the browser', () => {
             views: view === 'globe' ? new GlobeView({id: 'view'}) : new MapView({id: 'view'}),
             layers: getLayers()
           });
+          // Pick in the first loaded frame, possibly before the sublayers are rebuilt for the
+          // new view: features are converted by the coordinates their sublayer holds.
+          frame = nextLoadedFrame(view);
+          await frame;
+          expectGeographicBox(pickBoxCenter(view));
         }
         await waitForTileSubLayers(
           view === 'globe' ? COORDINATE_SYSTEM.LNGLAT : COORDINATE_SYSTEM.CARTESIAN
@@ -239,10 +253,7 @@ describe('SharedMVTLayer consumers in the browser', () => {
           expect(Math.min(minX - cornerX, minY - cornerY)).toBeGreaterThan(8);
         }
 
-        const [x, y] = viewport.project([(BOX[0] + BOX[2]) / 2, (BOX[1] + BOX[3]) / 2]);
-        const picked = deck.pickObject({x, y, radius: 2, layerIds: ['pick']});
-        expect(picked?.object, `a picked feature in ${view}`).toBeTruthy();
-        expectGeographicBox(picked!.object);
+        expectGeographicBox(pickBoxCenter(view));
       }
 
       // No second fetch or decode: the same decoded tile-local content stays in the same cache.

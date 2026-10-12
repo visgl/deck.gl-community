@@ -150,7 +150,7 @@ it('converts picked geometry and highlights IDs without modifying shared data', 
   expect(props.clipBounds).toEqual([0, 0, 1, 1]);
   const picked = layer.getPickingInfo({
     info: {picked: true, object: feature, index: 0},
-    sourceLayer: {props: {tile}}
+    sourceLayer: {props: {tile, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN}}
   } as any);
   expect(picked.object.geometry.coordinates).toEqual([0, 0]);
   expect(feature.geometry.coordinates).toEqual([0.5, 0.5]);
@@ -311,7 +311,7 @@ describe('SharedMVTLayer consumers of one tileset', () => {
     for (const layer of [hovered, other]) {
       const picked = layer.getPickingInfo({
         info: {picked: true, object: features[1], index: 1},
-        sourceLayer: {props: {tile}}
+        sourceLayer: {props: {tile, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN}}
       } as any);
       expect(picked.object).not.toBe(features[1]);
       expect(picked.object.geometry.coordinates).toEqual([0, 0]);
@@ -322,4 +322,30 @@ describe('SharedMVTLayer consumers of one tileset', () => {
     expect(features).toEqual(snapshot);
     expect(tile.content).toBe(features);
   });
+});
+
+it('picks features by the coordinates its sublayer holds, not by the current viewport', () => {
+  const layer = new SharedMVTLayer({data: null});
+  layer.context = {viewport} as any;
+  layer.initializeState();
+  const local = DATA[0];
+  const tile: any = {index: {x: 0, y: 0, z: 0}, content: [local]};
+  const [geographic] = getMVTDataInWGS84([local], tile.index);
+  const globe = new GlobeViewport({width: 128, height: 128, longitude: 0, latitude: 0, zoom: 0});
+  const pick = (object: any, coordinateSystem: string, activeViewport: any) => {
+    layer.context = {viewport: activeViewport} as any;
+    return layer.getPickingInfo({
+      info: {picked: true, object, index: 0},
+      sourceLayer: {props: {tile, coordinateSystem}}
+    } as any).object;
+  };
+
+  // Just after a switch from a globe to a map, the sublayer built for the globe still draws
+  // geographic features: they are returned as they are, not converted a second time.
+  expect(pick(geographic, COORDINATE_SYSTEM.LNGLAT, viewport)).toBe(geographic);
+  // Just after a switch from a map to a globe, a tile-local feature is still converted.
+  expect(pick(local, COORDINATE_SYSTEM.CARTESIAN, globe).geometry.coordinates).toEqual([0, 0]);
+  expect(pick(local, COORDINATE_SYSTEM.CARTESIAN, viewport).geometry.coordinates).toEqual([0, 0]);
+  expect(pick(geographic, COORDINATE_SYSTEM.LNGLAT, globe)).toBe(geographic);
+  expect(local.geometry.coordinates).toEqual([0.5, 0.5]);
 });

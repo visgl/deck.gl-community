@@ -194,10 +194,15 @@ export class SharedMVTLayer extends SharedTile2DLayer<
     });
   }
 
-  /** Return geographic picked geometry without changing the cached local feature. */
+  /**
+   * Return geographic picked geometry without changing the cached local feature. The picked
+   * sublayer, not the current viewport, tells whether the feature is still tile-local: for a few
+   * frames after a view switch, the sublayers built for the previous view are still drawn.
+   */
   getPickingInfo(params: GetPickingInfoParams) {
     const info = super.getPickingInfo(params);
-    if (info.object && !this.context.viewport.resolution) {
+    const coordinateSystem = (params.sourceLayer?.props as any)?.coordinateSystem;
+    if (info.object && coordinateSystem === COORDINATE_SYSTEM.CARTESIAN) {
       info.object = getMVTDataInWGS84([info.object], info.sourceTile.index)[0];
     }
     return info;
