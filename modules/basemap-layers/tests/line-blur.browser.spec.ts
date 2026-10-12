@@ -24,7 +24,11 @@ afterEach(() => {
 });
 
 /** The deck.gl sublayers that one line style layer draws for one tile of features. */
-function styleSublayers(paint: Record<string, unknown>, features: unknown[]) {
+function styleSublayers(
+  paint: Record<string, unknown>,
+  features: unknown[],
+  layout: Record<string, unknown> = {}
+) {
   const layers = getBasemapLayers({
     idPrefix: 'test',
     mode: 'map',
@@ -43,6 +47,7 @@ function styleSublayers(paint: Record<string, unknown>, features: unknown[]) {
           type: 'line',
           source: 'tiles',
           'source-layer': 'land',
+          layout,
           paint: {'line-color': '#000000', ...paint}
         }
       ]
@@ -85,8 +90,11 @@ function feature(type: string, pixels: number[][] | number[][][]) {
   };
 }
 
-/** Renders layers on a white canvas and returns the first frame drawn after they load. */
-function render(layers: unknown[]) {
+/**
+ * Renders layers on a white canvas and returns the first frame drawn after they load, at
+ * `pixelRatio` device pixels per CSS pixel.
+ */
+function render(layers: unknown[], pixelRatio = 1) {
   parent = document.createElement('div');
   document.body.append(parent);
   return new Promise<ImageData>((resolve, reject) => {
@@ -95,7 +103,7 @@ function render(layers: unknown[]) {
       parent,
       width: SIZE,
       height: SIZE,
-      useDevicePixels: false,
+      useDevicePixels: pixelRatio === 1 ? false : pixelRatio,
       deviceProps: {adapters: [webgl2Adapter]},
       views: new MapView({id: 'map'}),
       initialViewState: {longitude: 0, latitude: 0, zoom: ZOOM},
@@ -105,16 +113,21 @@ function render(layers: unknown[]) {
         if (!loaded.length || loaded.some((layer: any) => !layer.isLoaded)) {
           return;
         }
+        // The drawing buffer takes the device pixel ratio after the first frames.
+        if (deck!.getCanvas()!.width !== SIZE * pixelRatio) {
+          return;
+        }
         // Read the frame back in the render callback, before the drawing buffer is cleared.
+        const size = SIZE * pixelRatio;
         const copy = document.createElement('canvas');
-        copy.width = SIZE;
-        copy.height = SIZE;
+        copy.width = size;
+        copy.height = size;
         const context = copy.getContext('2d')!;
         context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, SIZE, SIZE);
+        context.fillRect(0, 0, size, size);
         context.drawImage(deck!.getCanvas()!, 0, 0);
         window.clearTimeout(timeout);
-        resolve(context.getImageData(0, 0, SIZE, SIZE));
+        resolve(context.getImageData(0, 0, size, size));
       },
       onError: error => {
         window.clearTimeout(timeout);
@@ -129,11 +142,16 @@ const EASTWARD = [
   [40, 0]
 ];
 
-/** The red channel down the center column, from `first` to `last` pixels below the center. */
+/**
+ * The red channel down the center column, from `first` to `last` pixels below the center, in the
+ * image's (device) pixels.
+ */
 function redColumn(image: ImageData, first: number, last: number): number[] {
+  const size = image.width;
+  const center = size / 2;
   const values: number[] = [];
-  for (let row = CENTER + first; row <= CENTER + last; row++) {
-    values.push(image.data[(row * SIZE + CENTER) * 4]);
+  for (let row = center + first; row <= center + last; row++) {
+    values.push(image.data[(row * size + center) * 4]);
   }
   return values;
 }
@@ -191,6 +209,62 @@ describe('line-blur in the browser', () => {
     );
     // A fifth of the color at most: MapLibre's fade spans the whole of the line.
     expectMapLibreFade(image, -3, 5, {width: 2, blur: 4}, 1);
+  });
+
+  test('fades over line-blur CSS pixels at a device pixel ratio of 2', async () => {
+    const image = await render(
+      styleSublayers({'line-width': 10, 'line-blur': 4}, [feature('LineString', EASTWARD)]),
+      2
+    );
+    // In device pixels MapLibre's line is twice as wide and blurred, and still antialiased over
+    // one device pixel.
+    expectMapLibreFade(image, -16, 16, {width: 20, blur: 8});
+  });
+
+  test('keeps an overlapping offset gap undarkened at a device pixel ratio of 2', async () => {
+    const paint = {
+      'line-width': 4,
+      'line-gap-width': 2,
+      'line-blur': 4,
+      'line-offset': 20
+    };
+    const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]), 2);
+    expectMapLibreFade(image, 24, 56, {width: 8, gap: 4, blur: 8}, 40);
+  });
+
+  test('fades a round cap with the distance from the end of the line', async () => {
+    const image = await render(
+      styleSublayers({'line-width': 10, 'line-blur': 4}, [feature('LineString', EASTWARD)], {
+        'line-cap': 'round'
+      })
+    );
+    // Along the row half a pixel below the line, past its end 40 pixels east of the center.
+    const row = CENTER;
+    for (let column = CENTER + 34; column <= CENTER + 48; column++) {
+      const along = column + 0.5 - (CENTER + 40);
+      const distance = along > 0 ? Math.hypot(along, 0.5) : 0.5;
+      const expected = 255 * (1 - maplibreAlpha(distance, {width: 10, blur: 4}));
+      const actual = image.data[(row * SIZE + column) * 4];
+      expect(Math.abs(actual - expected), `column ${column - CENTER}`).toBeLessThanOrEqual(8);
+    }
+  });
+
+  test('fades a diagonal line over line-blur across it', async () => {
+    const northEastward = [
+      [-40, -40],
+      [40, 40]
+    ];
+    const image = await render(
+      styleSublayers({'line-width': 10, 'line-blur': 4}, [feature('LineString', northEastward)])
+    );
+    // Down the center column, the line runs up and to the right through the center: a pixel's
+    // distance from it is the distance along the column divided by the square root of 2.
+    const actual = redColumn(image, -12, 12);
+    actual.forEach((value, index) => {
+      const distance = Math.abs(-12 + index + 0.5 + 0.5) / Math.SQRT2;
+      const expected = 255 * (1 - maplibreAlpha(distance, {width: 10, blur: 4}));
+      expect(Math.abs(value - expected), `row ${-12 + index}`).toBeLessThanOrEqual(8);
+    });
   });
 
   test('without line-blur the line stays sharp', async () => {

@@ -91,10 +91,12 @@ export class LineBlurExtension extends LayerExtension<LineBlurExtensionOptions> 
     // `edgePixels` is PathLayer's signed distance to the stroke's edge in device pixels, and
     // `fragColor.a` already carries its `smoothedge(0.0, edgePixels)` coverage, which this
     // replaces with MapLibre's linear fade. `smoothedge` is 0 only where MapLibre's fade is 0.
-    // A blur wider than the line keeps its middle from becoming opaque, as in MapLibre, which
-    // `edgePixels` does not show: there `fwidth(abs(vPathPosition.x))` falls to 0 across the
-    // middle of the stroke. The fade measures the stroke's body from `fwidth(vPathPosition.x)`,
-    // taken before any fragment of the quad is discarded.
+    // The fade measures its own distances, as `edgePixels` does but in Euclidean pixels: the
+    // length of the coordinate's screen gradient rather than `fwidth`, which is up to 1.41 times
+    // longer on diagonal lines and round caps, where it would shorten the fade. The body uses
+    // `vPathPosition.x` rather than its absolute value, whose gradient falls to 0 across the
+    // middle of the stroke, where a blur wider than the line keeps it translucent in MapLibre.
+    // Gradients are taken before any fragment of the quad is discarded.
     const lineBlur: ShaderModule<LineBlurProps> = {
       name: 'lineBlur',
       inject: {
@@ -136,7 +138,13 @@ in float lineBlur_gapCenter;
 in float lineBlur_gapSide;
 `,
         'fs:#main-start': `
-  float lineBlur_pixelWidth = max(fwidth(vPathPosition.x), 1e-6);
+  float lineBlur_bodyGradient = max(
+    length(vec2(dFdx(vPathPosition.x), dFdy(vPathPosition.x))), 1e-6
+  );
+  float lineBlur_cornerCoord = length(vCornerOffset);
+  float lineBlur_cornerGradient = max(
+    length(vec2(dFdx(lineBlur_cornerCoord), dFdy(lineBlur_cornerCoord))), 1e-6
+  );
 `,
         'fs:#main-end': `
 #ifdef ANTIALIASING
@@ -145,10 +153,14 @@ in float lineBlur_gapSide;
     discard;
   }
   float lineBlur_coverage = smoothedge(0.0, edgePixels);
-  // Round caps and joins keep their distance, which is never more than the body's.
-  float lineBlur_edgePixels = min(
-    edgePixels, (1.0 - abs(vPathPosition.x)) / lineBlur_pixelWidth
-  );
+  // In device pixels, as edgePixels. A round cap or join is bounded by both its circle and the
+  // stroke's width, as PathLayer bounds it.
+  float lineBlur_edgePixels = (1.0 - abs(vPathPosition.x)) / lineBlur_bodyGradient;
+  if (isRound && isCorner) {
+    lineBlur_edgePixels = min(
+      lineBlur_edgePixels, (1.0 - lineBlur_cornerCoord) / lineBlur_cornerGradient
+    );
+  }
   // Picking colors keep the coverage PathLayer gave them.
   if (lineBlur_coverage > 0.0 && !bool(picking.isActive)) {
     fragColor.a *= clamp(
