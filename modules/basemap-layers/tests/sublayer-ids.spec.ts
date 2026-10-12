@@ -110,14 +110,18 @@ function renderTile(
       layers: styleLayers
     } as any
   }).find(layer => layer.id === 'test-tiles');
-  return vectorLayer.props
-    .renderSubLayers({
-      id: 'test-tiles-0-0-12',
-      data: FEATURES,
-      tile: {index: {x: 0, y: 0, z: 12}},
-      ...tileProps
-    })
-    .map((layers: any) => [layers].flat(2));
+  const subLayers: any[] = vectorLayer.props.renderSubLayers({
+    id: 'test-tiles-0-0-12',
+    data: FEATURES,
+    tile: {index: {x: 0, y: 0, z: 12}},
+    ...tileProps
+  });
+  // The tile's sublayers come as one list; each records the style layer it draws.
+  const byStyleLayer: any[][] = styleLayers.map(() => []);
+  for (const layer of subLayers.flat(Infinity)) {
+    byStyleLayer[layer.props.styleLayerIndex].push(layer);
+  }
+  return byStyleLayer.filter(layers => layers.length);
 }
 
 /**
