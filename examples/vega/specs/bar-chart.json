@@ -103,6 +103,9 @@
           },
           "fill": {
             "value": "#3688c8"
+          },
+          "tooltip": {
+            "signal": "datum"
           }
         }
       }

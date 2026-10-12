@@ -12,6 +12,7 @@ import {min3dDepth} from '../defaults';
 
 type SceneCube = SceneRect & {
   datum: Datum;
+  tooltip?: unknown;
   depth: number;
   opacity: number;
   z: number;
@@ -42,6 +43,7 @@ const markStager: MarkStager = (
       // console.log('not a cube');
     } else {
       const cube: Cube = {
+        tooltip: item.tooltip,
         ordinal,
         size: [item.width, item.height, depth],
         position: [x + (item.x || 0), ty * (y + (item.y || 0)) - item.height, z],

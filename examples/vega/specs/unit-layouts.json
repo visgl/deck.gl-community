@@ -107,6 +107,9 @@
           },
           "depth": {
             "signal": "is3d ? 12 : 0"
+          },
+          "tooltip": {
+            "signal": "datum"
           }
         }
       }

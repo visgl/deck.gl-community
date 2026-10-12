@@ -142,13 +142,11 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
     await view.signal('count', 3).signal('shape', 'square').runAsync();
     await expect.poll(() => view.presenter.getCubeData().every(cube => !cube.isEmpty)).toBe(true);
     expect(view.presenter.getCubeData().map(cube => cube.ordinal)).toEqual([0, 1, 2]);
-    await expect.poll(() => symbolLayer().props.data.length).toBe(0);
-    const polygons = deck.props.layers.find(
-      (layer: any) => layer?.id === 'LAYER_SYMBOL_SQUARES'
-    ) as any;
-    expect(polygons.props.data).toHaveLength(3);
-    expect(polygons.props.extruded).toBe(false);
-    expect(polygons.props.lineWidthUnits).toBe('pixels');
+    await expect
+      .poll(() => symbolLayer().props.data.every((item: any) => item.shape === 'square'))
+      .toBe(true);
+    expect(symbolLayer().props.data).toHaveLength(3);
+    expect(symbolLayer().props.lineWidthUnits).toBe('pixels');
     timeline.play();
     await new Promise(resolve => setTimeout(resolve, 1100));
     deck.redraw('square picking');
@@ -156,7 +154,10 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
       deck
         .pickObjects({x: 0, y: 0, width: 500, height: 320})
         .some(
-          pick => pick.layer?.id === 'LAYER_SYMBOL_SQUARES' && (pick.object as any)?.datum?.id === 1
+          pick =>
+            pick.layer?.id === 'LAYER_SYMBOLS' &&
+            (pick.object as any)?.shape === 'square' &&
+            (pick.object as any)?.datum?.id === 1
         )
     ).toBe(true);
     const previousCubeData = view.presenter.getCubeData();

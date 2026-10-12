@@ -219,6 +219,9 @@
           },
           "strokeWidth": {
             "value": 1
+          },
+          "tooltip": {
+            "signal": "datum"
           }
         }
       },
@@ -250,6 +253,9 @@
           },
           "fill": {
             "value": "#3688c8"
+          },
+          "tooltip": {
+            "signal": "datum"
           }
         }
       },

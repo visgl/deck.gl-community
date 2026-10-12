@@ -51,6 +51,8 @@ export type Vec3 = [number, number, number];
  * Cuboid information. The cube does not need to have equal dimensions.
  */
 export interface Cube {
+  /** Evaluated Vega tooltip encoding; omitted values suppress hover tooltips. */
+  tooltip?: unknown;
   /**
    * Ordinal position.
    */
@@ -66,8 +68,17 @@ export interface Cube {
   size: Vec3;
 }
 
-/** A Vega circle symbol, sized by area in chart coordinates. */
+/** A Vega circle or square symbol, sized by area in chart coordinates. */
 export interface SymbolMark {
+  tooltip?: unknown;
+  /** Glyph shape; omitted values render a circle. */
+  shape?: 'circle' | 'square';
+  /** Rotation in Cartesian radians. */
+  angle?: number;
+  /** Invisible slot retained while an exited symbol finishes transitioning. */
+  isEmpty?: boolean;
+  /** Stable transition slot assigned by the scene stager. */
+  ordinal?: number;
   datum: unknown;
   position: Vec3;
   radius: number;
@@ -77,20 +88,33 @@ export interface SymbolMark {
 }
 
 export interface Path {
+  tooltip?: unknown;
+  isGeographic?: boolean;
+  datum?: unknown;
   positions: Position[];
   strokeColor: Color;
   strokeWidth: number;
 }
 
 export interface Polygon {
+  tooltip?: unknown;
+  /** Invisible square slot retained for transitions. */
+  isEmpty?: boolean;
   isSymbol?: boolean;
+  /** Square symbol rotation in Cartesian radians. */
+  angle?: number;
+  isGeographic?: boolean;
+  ordinal?: number;
   datum?: unknown;
-  positions: Position[];
+  positions: Position[] | Position[][];
   strokeColor: Color;
   fillColor: Color;
   strokeWidth: number;
   depth: number;
 }
+/** Projected geometry in Vega shape paint order. */
+export type GeographicMark = {type: 'polygon'; data: Polygon} | {type: 'path'; data: Path};
+
 /**
  * Vega Scene plus camera type.
  */
@@ -113,6 +137,8 @@ export interface Stage {
   backgroundColor?: Color;
   cubeData?: Cube[];
   pathData?: Path[];
+  /** Ordered projected shapes; absent direct stages use polygons followed by paths. */
+  geographicData?: GeographicMark[];
   symbolData?: SymbolMark[];
   polygonData?: Polygon[];
   legend?: Legend;
