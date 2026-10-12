@@ -1,6 +1,12 @@
 import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
 import type {BasemapSource} from './style-resolver';
-import {CompositeLayer, log, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
+import {
+  CompositeLayer,
+  log,
+  type DefaultProps,
+  type UpdateParameters,
+  type Viewport
+} from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
 import {getBasemapLayers, getStyleDefinitionZoomLimits, getTilePyramidProps} from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
@@ -165,12 +171,23 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     if (!resolvedStyle || !params.changeFlags.viewportChanged) {
       return false;
     }
-    return this.getZoomKey(resolvedStyle, params.context.viewport.zoom) !== zoomKey;
+    return this.getZoomKey(resolvedStyle, params.context.viewport) !== zoomKey;
   }
 
-  /** Returns the zoom key of `zoom` for a resolved style. */
-  getZoomKey(resolvedStyle: ResolvedBasemapStyle, zoom: number): string {
-    return getStyleZoomKey(zoom, getFractionalZoomLimits(resolvedStyle));
+  /** Returns the key of what the sublayers depend on in `viewport`, for a resolved style. */
+  getZoomKey(resolvedStyle: ResolvedBasemapStyle, viewport: Viewport | undefined): string {
+    const zoomKey = getStyleZoomKey(viewport?.zoom || 0, getFractionalZoomLimits(resolvedStyle));
+    return `${this.getDrawMode(viewport)}:${zoomKey}`;
+  }
+
+  /**
+   * The mode the sublayers are drawn in. Above zoom 12, `GlobeView` draws with a Web Mercator
+   * viewport, so a globe basemap draws as a map there: globe depth and culling parameters assume
+   * longitude/latitude geometry on a sphere.
+   */
+  getDrawMode(viewport: Viewport | undefined): 'map' | 'globe' {
+    const {mode = 'map'} = this.props;
+    return mode === 'globe' && viewport && !viewport.resolution ? 'map' : mode;
   }
 
   /** Reacts to changes in the input style definition. */
@@ -321,13 +338,14 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     }
 
     this.updateSourceTilesets(resolvedStyle);
-    const zoom = this.context.viewport?.zoom || 0;
+    const {viewport} = this.context;
+    const zoom = viewport?.zoom || 0;
     // Recorded without setState: this only tracks what the current sublayers were built from.
-    this.state.zoomKey = this.getZoomKey(resolvedStyle, zoom);
+    this.state.zoomKey = this.getZoomKey(resolvedStyle, viewport);
 
     return getBasemapLayers({
       idPrefix: this.props.id,
-      mode: this.props.mode,
+      mode: this.getDrawMode(viewport),
       globe: this.props.globe,
       styleDefinition: resolvedStyle,
       zoom,
