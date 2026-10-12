@@ -424,6 +424,30 @@ describe('MVTLabelLayer symbol collision', () => {
     );
   });
 
+  test("text glyphs refresh when the group's rows change, as when the sprites load", () => {
+    const layout = {
+      'icon-image': ['get', 'icon'],
+      'text-field': ['get', 'name'],
+      'text-allow-overlap': true
+    };
+    const rows = [{icon: 'dot', name: 'A'}, {name: 'B'}];
+    const getTextTrigger = (props: Record<string, unknown>) =>
+      withRows(symbolLayer(layout, 8, props), rows)
+        .renderLayers()
+        .find((sublayer: any) => sublayer.id === 'labels-text').props.updateTriggers.getText;
+    // While the sprites load, both rows are taken to have an icon, so both are in one group; once
+    // loaded, B is in a group of its own. `TextLayer` refreshes its glyphs with `getText` only.
+    const spriteAtlases = [ATLAS];
+    const loading = getTextTrigger({spriteAtlases: null});
+    const loaded = getTextTrigger({spriteAtlases});
+    expect(loaded).not.toEqual(loading);
+    // Compared as deck.gl compares triggers, one level deep: the same inputs give equal values.
+    expect(getTextTrigger({spriteAtlases})).toHaveLength(loaded.length);
+    getTextTrigger({spriteAtlases}).forEach((value: unknown, index: number) =>
+      expect(value).toBe(loaded[index])
+    );
+  });
+
   test('collision priorities refresh with collisionPriorityRange, icons with the sprite list', () => {
     const layout = {'icon-image': 'dot', 'text-field': 'A'};
     const render = (props: Record<string, unknown>) => symbolLayer(layout, 8, props).renderLayers();

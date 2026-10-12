@@ -1,7 +1,9 @@
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, Layer, LayerContext, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
-import {GeoJsonLayer, IconLayer, TextLayer, _TextBackgroundLayer} from '@deck.gl/layers';
+import {GeoJsonLayer, IconLayer, _TextBackgroundLayer} from '@deck.gl/layers';
+import {LabelTextLayer} from './label-text-layer';
+import type {LabelTextJustify} from './label-text-layer';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {
   getCompiledStyleProperty,
@@ -12,7 +14,9 @@ import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite'
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {GlobeHorizonExtension} from './globe-horizon-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
+import {getHaloBlurGamma, TextHaloBlurExtension} from './text-halo-blur-extension';
 import {
+  allowsLetterSpacing,
   canMeasureText,
   forgetCharacterWidths,
   getCharacterWidthMeasurer,
@@ -215,12 +219,14 @@ type MVTLabelLayerState = {
   };
 };
 
-/** A label halo as deck.gl `TextLayer` draws it: an SDF outline color and width. */
+/** A label halo as deck.gl `TextLayer` draws it: an SDF outline color, width and blur. */
 export type LabelHalo = {
   /** Halo color, RGBA with alpha in 0-255. */
   outlineColor: number[];
   /** `TextLayer` `outlineWidth` (see {@link getOutlineWidth}). */
   outlineWidth: number;
+  /** `TextHaloBlurExtension` `textHaloBlurGamma` (see {@link getHaloBlurGamma}). */
+  outlineBlur: number;
 };
 
 type LabelHalos = {
@@ -248,6 +254,9 @@ const LABEL_FONT_SETTINGS = {
   cutoff: 0.24,
   smoothing: 0.1
 };
+
+/** Shared by every text sublayer, so deck.gl does not see their extensions change. */
+const TEXT_HALO_BLUR_EXTENSION = new TextHaloBlurExtension();
 
 /**
  * Most halos one label layer draws, each with its own text sublayer. Labels without a halo get
@@ -1117,6 +1126,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           this.evaluateStyleProperty('text-max-width', feature) ??
             getStylePropertyDefault('text-max-width')
         );
+        // As in MapLibre, each character's advance includes the letter spacing.
+        const spacing = this.getLetterSpacing(feature, label);
         let measure: ((character: string) => number) | undefined;
         label = wrapText(
           label,
@@ -1126,7 +1137,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               const font = this.getFont();
               measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
             }
-            return measure(character);
+            return measure(character) + spacing;
           },
           this.state?.labelText?.budget
         );
@@ -1134,6 +1145,29 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       labels?.set(feature, label);
     }
     return label || undefined;
+  }
+
+  /**
+   * `text-letter-spacing` of a feature's label `text`, in ems. As in MapLibre, text in a cursive
+   * script is not letter-spaced.
+   */
+  getLetterSpacing(feature: FeatureLike, text: string): number {
+    const spacing = Number(
+      this.evaluateStyleProperty('text-letter-spacing', feature) ??
+        getStylePropertyDefault('text-letter-spacing')
+    );
+    return Number.isFinite(spacing) && spacing && allowsLetterSpacing(text) ? spacing : 0;
+  }
+
+  /**
+   * `text-justify` of a feature's label. MapLibre centers the lines of labels along lines.
+   */
+  getTextJustify(feature: FeatureLike): LabelTextJustify {
+    if (isLinePlacement(this.getSymbolPlacement())) {
+      return 'center';
+    }
+    const justify = this.evaluateStyleProperty('text-justify', feature);
+    return justify === 'auto' || justify === 'left' || justify === 'right' ? justify : 'center';
   }
 
   /**
@@ -1162,10 +1196,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Returns the halo of a decoded feature label from `text-halo-color` and `text-halo-width`, or
-   * `null` when it has none: a width of 0 (the default) or a transparent color (the default). The
-   * color is faded by the same `text-opacity` as the text, so a hidden or faded label leaves no
-   * halo. `text-halo-blur` is not drawn.
+   * Returns the halo of a decoded feature label from `text-halo-color`, `text-halo-width` and
+   * `text-halo-blur`, or `null` when it has none: a width of 0 (the default) or a transparent color
+   * (the default). The color is faded by the same `text-opacity` as the text, so a hidden or faded
+   * label leaves no halo. Like the width, the blur is rounded to 0.25 px.
    */
   getLabelHalo(feature: FeatureLike): LabelHalo | null {
     const value = Number(this.evaluateStyleProperty('text-halo-width', feature) ?? 0);
@@ -1181,12 +1215,26 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!(outlineColor[3] > 0)) {
       return null;
     }
-    return {outlineColor, outlineWidth: getOutlineWidth(width, size)};
+    // WebGPU draws halos without blur (see `TextHaloBlurExtension`), so blur must not split halo
+    // groups there: invisible differences would take places under the cap from other halos.
+    const blur =
+      this.context?.device?.type === 'webgpu'
+        ? 0
+        : Number(this.evaluateStyleProperty('text-halo-blur', feature) ?? 0);
+    return {
+      outlineColor,
+      outlineWidth: getOutlineWidth(width, size),
+      outlineBlur: getHaloBlurGamma(
+        Math.round(blur / HALO_WIDTH_STEP) * HALO_WIDTH_STEP,
+        size,
+        LABEL_FONT_SETTINGS
+      )
+    };
   }
 
   /**
-   * Groups the label rows by halo. `TextLayer` takes one outline color and width per layer, so
-   * each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
+   * Groups the label rows by halo. `TextLayer` takes one outline color, width and blur per layer,
+   * so each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
    * kept, the most common ones; labels with any other halo are drawn with the most common halo.
    * Labels without a halo are not counted in the cap and never get one: a hidden label stays
    * hidden. Kept halos are ordered by their first label, so sublayer ids stay stable.
@@ -1195,7 +1243,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const groups = new Map<string, {halo: LabelHalo | null; count: number; first: number}>();
     const rowKeys = rows.map((row, index) => {
       const halo = this.getLabelHalo((row as any).__source?.object ?? row);
-      const key = halo ? `${halo.outlineColor.join(',')}|${halo.outlineWidth}` : '';
+      const key = halo
+        ? `${halo.outlineColor.join(',')}|${halo.outlineWidth}|${halo.outlineBlur}`
+        : '';
       const group = groups.get(key);
       if (group) {
         group.count++;
@@ -1256,6 +1306,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         'text-size',
         'text-transform',
         'text-max-width',
+        'text-letter-spacing',
         'symbol-placement',
         'text-font'
       )}|${fontFamilyKey}`,
@@ -1265,7 +1316,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getCollisionPriority: `${getTrigger('symbol-sort-key')}|${this.getCollisionPriorityRangeKey()}`,
       getPixelOffset: getTrigger('text-offset', 'text-size'),
       getAngle: `${this.state?.bearingStep}|${getTrigger('text-keep-upright')}`,
-      getTextAnchor: getTrigger('text-anchor'),
+      // Also lays out the lines of each label (see `LabelTextLayer`).
+      getTextAnchor: getTrigger('text-anchor', 'text-justify', 'symbol-placement'),
       getAlignmentBaseline: getTrigger('text-anchor')
     };
   }
@@ -1462,7 +1514,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     featureBudget.steps -= text?.length || 0;
     // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
     // neither has no length, and is not placed.
-    const textLength = text && featureBudget.steps > 0 ? context.measureText(text) * textSize : 0;
+    // As MapLibre's shaping, the letter spacing follows every character but the last.
+    const textLength =
+      text && featureBudget.steps > 0
+        ? (context.measureText(text) +
+            (Array.from(text).length - 1) * this.getLetterSpacing(feature, text)) *
+          textSize
+        : 0;
     const iconLength = icon
       ? (icon.entry.width / icon.entry.pixelRatio) * evaluate('icon-size')
       : 0;
@@ -1596,8 +1654,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             this.getLinePlacementScale(),
             this.getStyleUpdateTrigger('text-field', 'text-transform', 'icon-image'),
             (this.props.spriteAtlases || []).map(atlas => atlas.id),
-            ...['text-size', 'icon-size', 'symbol-spacing', 'text-max-angle'].map(name =>
-              JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)
+            // With the stepped zoom when any of them depends on zoom: placements measured at one
+            // step do not fit the next.
+            this.getStyleUpdateTrigger(
+              'text-size',
+              'icon-size',
+              'symbol-spacing',
+              'text-max-angle',
+              'text-letter-spacing'
             ),
             // The text is measured in the label font, once it has loaded.
             ...(this.getStyleProperty('text-field')
@@ -1742,7 +1806,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     const haloKey: [LabelRow[] | undefined, string] = [
       this.state.labelData,
-      this.getStyleUpdateTrigger('text-halo-color', 'text-halo-width', 'text-opacity', 'text-size')
+      this.getStyleUpdateTrigger(
+        'text-halo-color',
+        'text-halo-width',
+        'text-halo-blur',
+        'text-opacity',
+        'text-size'
+      )
     ];
     if (haloKey[0] !== this.state.haloKey?.[0] || haloKey[1] !== this.state.haloKey?.[1]) {
       this.setState({halos: this.getLabelHalos(this.state.labelData || []), haloKey});
@@ -1808,12 +1878,16 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ? [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
           : null;
         const textBlocks = collision.text.blocks;
+        // `TextLayer` refreshes its glyphs with the `getText` trigger only, not with `all`: the
+        // group's rows decide which rows have text, so they are part of it.
+        const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
         const textProps = {
           data: this.getRows(),
           extensions: [
             ...(this.props.extensions || []),
             new CollisionFilterExtension(),
-            GLOBE_HORIZON_EXTENSION
+            GLOBE_HORIZON_EXTENSION,
+            TEXT_HALO_BLUR_EXTENSION
           ],
           parameters: LABEL_PARAMETERS,
           billboard,
@@ -1857,7 +1931,18 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
                 .alignmentBaseline,
             'center'
-          )
+          ),
+          // Constant where the style layer leaves the property at its default.
+          getLetterSpacing: this.getStyleProperty('text-letter-spacing')
+            ? forGroupRows(
+                (feature: FeatureLike) =>
+                  this.getLetterSpacing(feature, this.getLabelText(feature) || ''),
+                0
+              )
+            : 0,
+          getTextJustify: this.getStyleProperty('text-justify')
+            ? forGroupRows((feature: FeatureLike) => this.getTextJustify(feature), 'center')
+            : 'center'
         };
         // A blocking text's collision box also marks the anchor that the icon's collision test
         // samples. Text that does not block draws nothing in the collision pass: deck.gl adds the
@@ -1868,13 +1953,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           const halo = halos[0];
           layers.push(
             ...placeSymbolPart(
-              new TextLayer({
+              new LabelTextLayer({
                 ...this.getSubLayerProps({id: `text${idSuffix}`}),
                 ...textProps,
                 outlineWidth: halo?.outlineWidth ?? 0,
                 outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+                textHaloBlurGamma: halo?.outlineBlur ?? 0,
                 getText,
-                updateTriggers: {...updateTriggers, all: groupTrigger}
+                updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
               }),
               collision.text,
               textBlocks
@@ -1889,24 +1975,25 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           // number of halos is capped (see getLabelHalos), so the work stays linear in the rows.
           layers.push(
             ...placeSymbolPart(
-              new TextLayer({
+              new LabelTextLayer({
                 ...this.getSubLayerProps({id: `text${idSuffix}`}),
                 ...textProps,
                 outlineWidth: 0,
                 getColor: [0, 0, 0, 0],
                 getText,
-                updateTriggers: {...updateTriggers, all: groupTrigger}
+                updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
               }),
               collision.text,
               textBlocks
             ),
             ...halos.map(
               (halo, haloIndex) =>
-                new TextLayer({
+                new LabelTextLayer({
                   ...this.getSubLayerProps({id: `text${idSuffix}-${haloIndex + 1}`}),
                   ...textProps,
                   outlineWidth: halo?.outlineWidth ?? 0,
                   outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+                  textHaloBlurGamma: halo?.outlineBlur ?? 0,
                   // Text that ignores the collision map draws wherever it is; tested text is
                   // filtered by the placing sublayer's marks, without drawing into the map.
                   collisionEnabled: collision.text.tested,
@@ -1920,7 +2007,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                       : undefined,
                   updateTriggers: {
                     ...updateTriggers,
-                    getText: `${updateTriggers.getText}|${this.state.haloKey?.[1]}`,
+                    getText: [...getTextTrigger, this.state.haloKey?.[1]],
                     all: groupTrigger
                   }
                 })

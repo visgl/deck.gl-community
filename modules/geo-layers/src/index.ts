@@ -57,3 +57,6 @@ export {H3Grid} from './global-grid-systems/grids/h3-grid';
 export {S2Grid} from './global-grid-systems/grids/s2-grid';
 export {GeohashGrid} from './global-grid-systems/grids/geohash-grid';
 export {QuadkeyGrid} from './global-grid-systems/grids/quadkey-grid';
+
+export {SharedMVTLayer} from './shared-mvt-layer/shared-mvt-layer';
+export type {SharedMVTLayerProps, SharedMVTData} from './shared-mvt-layer/shared-mvt-layer';

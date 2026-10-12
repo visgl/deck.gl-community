@@ -314,7 +314,8 @@ describe('fontFamily plumbing', () => {
       style,
       fontFamily: 'Monaco, monospace'
     } as any);
-    layer.state = {resolvedStyle: style, spriteAtlases: null, zoomKey: null};
+    layer.initializeState();
+    layer.state.resolvedStyle = style;
     layer.context = {viewport: {zoom: 7}} as any;
     const vectorLayer = layer.renderLayers().find((sublayer: any) => sublayer.id === 'test-tiles');
     const [labels] = vectorLayer.props.renderSubLayers({
