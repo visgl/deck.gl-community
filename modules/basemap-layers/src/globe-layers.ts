@@ -6,6 +6,7 @@ import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
+import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {
   type RasterColorAdjustments,
@@ -139,6 +140,8 @@ const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
 /** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
 const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
 const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
+/** `line-blur`, shared for the same reason. */
+const LINE_BLUR_EXTENSION = new LineBlurExtension();
 
 /** Applies the `raster-*` color adjustments, shared by every raster layer that sets them. */
 const RASTER_COLOR_EXTENSION = new RasterColorExtension();
@@ -906,12 +909,16 @@ export function getLineOffset(
   offset: number,
   gapWidth: number,
   width: number,
-  side: number
+  side: number,
+  blur = 0
 ): number {
   if (!(width > 0)) {
     return 0;
   }
-  return (offset + (gapWidth > 0 ? side * (gapWidth / 2 + width / 2) : 0)) / width;
+  // A blurred gap's lines are drawn `blur` wider and `blur / 2` closer: see getBlurredLineWidth.
+  const drawnWidth = getBlurredLineWidth(width, gapWidth, blur);
+  const center = gapWidth > 0 ? gapWidth / 2 + width - drawnWidth / 2 : 0;
+  return (offset + side * center) / drawnWidth;
 }
 
 /** deck.gl path props for a line's `line-cap`, `line-join` and `line-miter-limit`. */
@@ -1088,9 +1095,26 @@ function createGeometrySubLayer({
         zoom,
         ([color, opacity]) => withOpacity(color, opacity ?? 1)
       );
-  const lineWidth = getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
-    Math.max(0, Number(width ?? 1))
-  );
+  const hasBlur = isLine && styleLayer.paint?.['line-blur'] !== undefined;
+  const lineBlur = hasBlur
+    ? getStyleAccessor(styleLayer, ['line-blur'], zoom, ([blur]) => Math.max(0, Number(blur) || 0))
+    : null;
+  const lineWidth =
+    hasBlur && styleLayer.paint?.['line-gap-width'] !== undefined
+      ? getStyleAccessor(
+          styleLayer,
+          ['line-width', 'line-gap-width', 'line-blur'],
+          zoom,
+          ([width, gap, blur]) =>
+            getBlurredLineWidth(
+              Math.max(0, Number(width ?? 1)),
+              Number(gap ?? 0),
+              Math.max(0, Number(blur) || 0)
+            )
+        )
+      : getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
+          Math.max(0, Number(width ?? 1))
+        );
   // The style spec evaluates zoom in `line-dasharray` at integer zooms only.
   const dashArray: StyleAccessor<[number, number]> | null =
     isLine && styleLayer.paint?.['line-dasharray'] !== undefined
@@ -1103,22 +1127,23 @@ function createGeometrySubLayer({
     (styleLayer.paint?.['line-offset'] !== undefined ||
       styleLayer.paint?.['line-gap-width'] !== undefined);
   const lineOffset = hasOffset
-    ? getStyleAccessor<[number, number, number]>(
+    ? getStyleAccessor<[number, number, number, number]>(
         styleLayer,
-        ['line-offset', 'line-gap-width', 'line-width'],
+        ['line-offset', 'line-gap-width', 'line-width', 'line-blur'],
         zoom,
-        ([offset, gap, width]) => [
+        ([offset, gap, width, blur]) => [
           Number(offset ?? 0),
           Math.max(0, Number(gap ?? 0)),
-          Math.max(0, Number(width ?? 1))
+          Math.max(0, Number(width ?? 1)),
+          Math.max(0, Number(blur) || 0)
         ]
       )
     : null;
   const offsetValue = lineOffset?.value;
   const getOffset = (side: number) => (feature: any) => {
-    const [offset, gap, width] =
+    const [offset, gap, width, blur] =
       typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue!;
-    return getLineOffset(offset, gap, width, side);
+    return getLineOffset(offset, gap, width, side, blur);
   };
   const gapWidth = hasOffset
     ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
@@ -1134,14 +1159,18 @@ function createGeometrySubLayer({
     getLineColor: lineColor.value as any,
     // A fill's outline is MapLibre's 1 pixel antialiasing line.
     getLineWidth: isLine ? (lineWidth.value as any) : hasOutline ? 1 : 0,
-    ...(dashArray || lineOffset
+    ...(dashArray || lineOffset || lineBlur
       ? {
           extensions: [
             ...(baseProps.extensions || []),
-            dashArray ? (lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION) : OFFSET_EXTENSION
+            ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
+            ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
+            ...(lineBlur ? [LINE_BLUR_EXTENSION] : [])
           ]
         }
       : {}),
+    // The blur replaces the antialiasing's fade, which matches MapLibre's without blur.
+    ...(lineBlur ? {getBlur: lineBlur.value, lineAntialiasing: true} : {}),
     ...(offsetValue ? {getOffset: getOffset(1)} : {}),
     ...(dashArray
       ? {
@@ -1154,7 +1183,8 @@ function createGeometrySubLayer({
       getLineColor: lineColor.updateTrigger,
       getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
       getDashArray: dashArray?.updateTrigger,
-      getOffset: typeof offsetValue === 'function' ? lineOffset?.updateTrigger : offsetValue
+      getOffset: typeof offsetValue === 'function' ? lineOffset?.updateTrigger : offsetValue,
+      getBlur: lineBlur?.updateTrigger
     },
     lineWidthUnits: 'pixels',
     lineWidthMinPixels: 0,

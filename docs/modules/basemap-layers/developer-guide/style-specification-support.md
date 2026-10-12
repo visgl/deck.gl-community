@@ -72,7 +72,7 @@ See [Layers][layers] for the properties of each type.
 | `line-color`, `line-opacity`, `line-width`                   | Supported     | Per feature.                                                                                                            |
 | `line-dasharray`                                             | Partial       | One dash and one gap per period; longer patterns merge their dashes. Switches at integer zooms instead of cross-fading. |
 | `line-offset`, `line-gap-width`                              | Partial       | Per feature. Sharp corners break open on the outside, and a gap's two lines end apart instead of capped together.       |
-| `line-blur`                                                  | Not supported |                                                                                                                         |
+| `line-blur`                                                  | Partial       | Per feature. WebGL only; on WebGPU lines draw without blur, and the two lines of a gap `line-blur` pixels wider.        |
 | `line-gradient`, `line-pattern`, `line-translate`            | Not supported |                                                                                                                         |
 | `fill-extrusion-color`, `-height`, `-base`                   | Supported     | Per feature, heights in meters. The alpha of the color is ignored, as in MapLibre.                                      |
 | `fill-extrusion-opacity`                                     | Partial       | Applied to each surface, so walls behind a building can show through.                                                   |
