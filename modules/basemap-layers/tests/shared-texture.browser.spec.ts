@@ -122,7 +122,7 @@ describe('shared label textures', () => {
     expect(getSharedTextureCount(device)).toBe(0);
   });
 
-  test('the textures stay while another label layer still draws from them', async () => {
+  test('the textures stay while another label layer draws from them, and go with the last', async () => {
     const atlas = await createAtlas();
     await render([labelLayer('a', [atlas]), labelLayer('b', [atlas])]);
     const device = deck!.device!;
@@ -140,6 +140,15 @@ describe('shared label textures', () => {
     for (const texture of after) {
       expect(before).toContain(texture);
       expect(texture.destroyed).toBe(false);
+    }
+
+    // Destroyed once the second layer goes too.
+    await new Promise<void>(resolve => {
+      deck!.setProps({layers: [], onAfterRender: () => resolve()});
+    });
+    expect(getSharedTextureCount(device)).toBe(0);
+    for (const texture of after) {
+      expect(texture.destroyed).toBe(true);
     }
   });
 });
