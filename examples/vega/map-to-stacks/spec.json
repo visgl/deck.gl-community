@@ -1,0 +1,615 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "description": "Synthetic city records move between a schematic contiguous-US map and region bars stacked by sector. Inspired by Microsoft Research SandDance; no population or economic measurements.",
+  "width": 700,
+  "height": 380,
+  "padding": 15,
+  "background": "#f0f6fc",
+  "signals": [
+    {
+      "name": "layout",
+      "value": "map",
+      "bind": {
+        "input": "select",
+        "options": [
+          "map",
+          "stacks"
+        ],
+        "labels": [
+          "US map",
+          "Stacked bars"
+        ],
+        "name": "Layout"
+      }
+    },
+    {
+      "name": "width",
+      "init": "min(700, max(300, containerSize()[0] - 30))",
+      "on": [
+        {
+          "events": "window:resize",
+          "update": "min(700, max(300, containerSize()[0] - 30))"
+        }
+      ]
+    },
+    {
+      "name": "unit",
+      "update": "width / 700"
+    }
+  ],
+  "projections": [
+    {
+      "name": "map",
+      "type": "albers",
+      "rotate": [
+        96,
+        0,
+        0
+      ],
+      "center": [
+        -0.6,
+        38.7
+      ],
+      "parallels": [
+        29.5,
+        45.5
+      ],
+      "scale": {
+        "signal": "850 * unit"
+      },
+      "translate": {
+        "signal": "[width / 2, 180]"
+      },
+      "clipExtent": {
+        "signal": "[[0,0],[width,height]]"
+      }
+    }
+  ],
+  "data": [
+    {
+      "name": "outline",
+      "values": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                -124.7,
+                48.5
+              ],
+              [
+                -117,
+                49
+              ],
+              [
+                -95,
+                49
+              ],
+              [
+                -89,
+                47.5
+              ],
+              [
+                -83,
+                46
+              ],
+              [
+                -82,
+                42
+              ],
+              [
+                -75,
+                45
+              ],
+              [
+                -67,
+                47
+              ],
+              [
+                -70,
+                41.5
+              ],
+              [
+                -74,
+                40
+              ],
+              [
+                -76,
+                36
+              ],
+              [
+                -80,
+                32
+              ],
+              [
+                -80.5,
+                25
+              ],
+              [
+                -82,
+                25
+              ],
+              [
+                -83,
+                29
+              ],
+              [
+                -89,
+                30
+              ],
+              [
+                -97,
+                26
+              ],
+              [
+                -104,
+                29
+              ],
+              [
+                -106.5,
+                32
+              ],
+              [
+                -114.5,
+                32.5
+              ],
+              [
+                -117,
+                32.5
+              ],
+              [
+                -120,
+                36
+              ],
+              [
+                -124.5,
+                42
+              ],
+              [
+                -124.7,
+                48.5
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cities",
+      "values": [
+        {
+          "cityId": 0,
+          "city": "Seattle",
+          "lon": -122.33,
+          "lat": 47.61,
+          "region": "West"
+        },
+        {
+          "cityId": 1,
+          "city": "Portland",
+          "lon": -122.68,
+          "lat": 45.52,
+          "region": "West"
+        },
+        {
+          "cityId": 2,
+          "city": "San Francisco",
+          "lon": -122.42,
+          "lat": 37.77,
+          "region": "West"
+        },
+        {
+          "cityId": 3,
+          "city": "Los Angeles",
+          "lon": -118.24,
+          "lat": 34.05,
+          "region": "West"
+        },
+        {
+          "cityId": 4,
+          "city": "Phoenix",
+          "lon": -112.07,
+          "lat": 33.45,
+          "region": "West"
+        },
+        {
+          "cityId": 5,
+          "city": "Denver",
+          "lon": -104.99,
+          "lat": 39.74,
+          "region": "West"
+        },
+        {
+          "cityId": 6,
+          "city": "Minneapolis",
+          "lon": -93.27,
+          "lat": 44.98,
+          "region": "Midwest"
+        },
+        {
+          "cityId": 7,
+          "city": "Chicago",
+          "lon": -87.63,
+          "lat": 41.88,
+          "region": "Midwest"
+        },
+        {
+          "cityId": 8,
+          "city": "Detroit",
+          "lon": -83.05,
+          "lat": 42.33,
+          "region": "Midwest"
+        },
+        {
+          "cityId": 9,
+          "city": "St Louis",
+          "lon": -90.2,
+          "lat": 38.63,
+          "region": "Midwest"
+        },
+        {
+          "cityId": 10,
+          "city": "Kansas City",
+          "lon": -94.58,
+          "lat": 39.1,
+          "region": "Midwest"
+        },
+        {
+          "cityId": 11,
+          "city": "Dallas",
+          "lon": -96.8,
+          "lat": 32.78,
+          "region": "South"
+        },
+        {
+          "cityId": 12,
+          "city": "Houston",
+          "lon": -95.37,
+          "lat": 29.76,
+          "region": "South"
+        },
+        {
+          "cityId": 13,
+          "city": "New Orleans",
+          "lon": -90.07,
+          "lat": 29.95,
+          "region": "South"
+        },
+        {
+          "cityId": 14,
+          "city": "Atlanta",
+          "lon": -84.39,
+          "lat": 33.75,
+          "region": "South"
+        },
+        {
+          "cityId": 15,
+          "city": "Miami",
+          "lon": -80.19,
+          "lat": 25.76,
+          "region": "South"
+        },
+        {
+          "cityId": 16,
+          "city": "Charlotte",
+          "lon": -80.84,
+          "lat": 35.23,
+          "region": "South"
+        },
+        {
+          "cityId": 17,
+          "city": "Nashville",
+          "lon": -86.78,
+          "lat": 36.16,
+          "region": "South"
+        },
+        {
+          "cityId": 18,
+          "city": "Washington",
+          "lon": -77.04,
+          "lat": 38.91,
+          "region": "Northeast"
+        },
+        {
+          "cityId": 19,
+          "city": "Philadelphia",
+          "lon": -75.17,
+          "lat": 39.95,
+          "region": "Northeast"
+        },
+        {
+          "cityId": 20,
+          "city": "New York",
+          "lon": -74.01,
+          "lat": 40.71,
+          "region": "Northeast"
+        },
+        {
+          "cityId": 21,
+          "city": "Boston",
+          "lon": -71.06,
+          "lat": 42.36,
+          "region": "Northeast"
+        }
+      ]
+    },
+    {
+      "name": "records",
+      "transform": [
+        {
+          "type": "sequence",
+          "start": 0,
+          "stop": 198,
+          "as": "id"
+        },
+        {
+          "type": "formula",
+          "expr": "floor(datum.id / 9)",
+          "as": "cityId"
+        },
+        {
+          "type": "lookup",
+          "from": "cities",
+          "key": "cityId",
+          "fields": [
+            "cityId"
+          ],
+          "values": [
+            "city",
+            "lon",
+            "lat",
+            "region"
+          ]
+        },
+        {
+          "type": "formula",
+          "expr": "['Services','Manufacturing','Technology'][floor((datum.id % 9) / 3)]",
+          "as": "sector"
+        },
+        {
+          "type": "geopoint",
+          "projection": "map",
+          "fields": [
+            "lon",
+            "lat"
+          ],
+          "as": [
+            "mapX",
+            "mapY"
+          ]
+        },
+        {
+          "type": "window",
+          "groupby": [
+            "region"
+          ],
+          "sort": {
+            "field": [
+              "sector",
+              "id"
+            ],
+            "order": [
+              "ascending",
+              "ascending"
+            ]
+          },
+          "ops": [
+            "row_number"
+          ],
+          "as": [
+            "rank"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "regions",
+      "source": "records",
+      "transform": [
+        {
+          "type": "aggregate",
+          "groupby": [
+            "region"
+          ],
+          "ops": [
+            "count"
+          ],
+          "as": [
+            "count"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sectors",
+      "values": [
+        {
+          "sector": "Services",
+          "index": 0
+        },
+        {
+          "sector": "Manufacturing",
+          "index": 1
+        },
+        {
+          "sector": "Technology",
+          "index": 2
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "region",
+      "type": "band",
+      "domain": [
+        "West",
+        "Midwest",
+        "South",
+        "Northeast"
+      ],
+      "range": {
+        "signal": "[45 * unit, width - 45 * unit]"
+      },
+      "padding": 0.35
+    },
+    {
+      "name": "color",
+      "type": "ordinal",
+      "domain": [
+        "Services",
+        "Manufacturing",
+        "Technology"
+      ],
+      "range": [
+        "#3688c8",
+        "#e69f00",
+        "#009e73"
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "type": "shape",
+      "from": {
+        "data": "outline"
+      },
+      "transform": [
+        {
+          "type": "geoshape",
+          "projection": "map"
+        }
+      ],
+      "encode": {
+        "update": {
+          "fill": {
+            "value": null
+          },
+          "stroke": {
+            "value": "#7892a5"
+          },
+          "strokeWidth": {
+            "value": 1
+          },
+          "opacity": {
+            "signal": "layout === 'map' ? 1 : 0"
+          }
+        }
+      }
+    },
+    {
+      "type": "rect",
+      "from": {
+        "data": "records"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "signal": "layout === 'map' ? datum.mapX + ((datum.id % 9) % 3 - 1) * 7 * unit - 3 * unit : scale('region', datum.region) + ((datum.rank - 1) % 9) * 9 * unit"
+          },
+          "y": {
+            "signal": "layout === 'map' ? datum.mapY + (floor((datum.id % 9) / 3) - 1) * 7 * unit - 3 * unit : 305 - ceil(datum.rank / 9) * 24"
+          },
+          "width": {
+            "signal": "(layout === 'map' ? 6 : 8) * unit"
+          },
+          "height": {
+            "signal": "layout === 'map' ? 6 * unit : 23"
+          },
+          "fill": {
+            "scale": "color",
+            "field": "sector"
+          },
+          "tooltip": {
+            "signal": "{Record: datum.id, City: datum.city, Region: datum.region, Sector: datum.sector}"
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "from": {
+        "data": "regions"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "scale": "region",
+            "field": "region",
+            "band": 0.5
+          },
+          "y": {
+            "value": 325
+          },
+          "align": {
+            "value": "center"
+          },
+          "fontSize": {
+            "signal": "13 * unit"
+          },
+          "fill": {
+            "value": "#7892a5"
+          },
+          "text": {
+            "signal": "layout === 'stacks' ? datum.region + ' (' + datum.count + ')' : ''"
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "encode": {
+        "update": {
+          "x": {
+            "signal": "width / 2"
+          },
+          "y": {
+            "value": 375
+          },
+          "align": {
+            "value": "center"
+          },
+          "fontSize": {
+            "signal": "12 * unit"
+          },
+          "fill": {
+            "value": "#7892a5"
+          },
+          "text": {
+            "signal": "layout === 'map' ? '198 synthetic records at 22 city centers \u00b7 schematic contiguous US' : 'One tile = one record \u00b7 bars grouped by region and stacked by sector'"
+          }
+        }
+      }
+    },
+    {
+      "type": "text",
+      "from": {
+        "data": "sectors"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "signal": "(datum.index + 1) * width / 4"
+          },
+          "y": {
+            "value": 350
+          },
+          "align": {
+            "value": "center"
+          },
+          "fontSize": {
+            "signal": "13 * unit"
+          },
+          "fill": {
+            "scale": "color",
+            "field": "sector"
+          },
+          "text": {
+            "field": "sector"
+          }
+        }
+      }
+    }
+  ]
+}

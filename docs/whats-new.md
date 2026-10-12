@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Private Vega renderer: a shared declarative US-map-to-stacked-bars example moves synthetic city records with GPU position/size transitions in the playground, gallery and inline docs.
+
 - Private Vega renderer: geographic polygon/path vertices, colors and outline widths now use GPU transitions when projection signals change.
 
 - Private Vega renderer: projected GeoJSON shape marks with holes and separate polygons, geographic point symbols, and GPU circle/square lifecycle transitions. A shared declarative geospatial example is available in the playground and inline module docs.

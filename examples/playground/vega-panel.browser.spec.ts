@@ -114,6 +114,20 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
   model.setValue(valid);
   await expect.poll(() => host.querySelector('[data-vega-preview] canvas')).not.toBe(canvas);
   const picker = host.querySelector<HTMLSelectElement>('[aria-label="Vega example"]')!;
+  picker.value = 'map-to-stacks';
+  picker.dispatchEvent(new Event('change'));
+  await expect
+    .poll(() => host.querySelector<HTMLSelectElement>('[data-vega-preview] select')?.value)
+    .toBe('map');
+  const mapCanvas = host.querySelector('[data-vega-preview] canvas');
+  const mapLayout = host.querySelector<HTMLSelectElement>('[data-vega-preview] select')!;
+  mapLayout.value = 'stacks';
+  mapLayout.dispatchEvent(new Event('change'));
+  await expect
+    .poll(() => vi.mocked(createVegaView).mock.results.at(-1)?.value.view.signal('layout'))
+    .toBe('stacks');
+  expect(host.querySelector('[data-vega-preview] canvas')).toBe(mapCanvas);
+  expect(JSON.parse(model.getValue()).description).toContain('Synthetic city records');
   picker.value = 'bar-chart';
   picker.dispatchEvent(new Event('change'));
   await expect

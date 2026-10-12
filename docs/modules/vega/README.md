@@ -1,3 +1,4 @@
+import MapToStacksExample from '@site/src/examples/vega/map-to-stacks';
 import GeospatialExample from '@site/src/examples/vega/geospatial';
 import MarkTransitionsExample from '@site/src/examples/vega/mark-transitions';
 import {App as VegaExample} from '../../../examples/vega/unit-layouts/src/example';
@@ -61,9 +62,19 @@ The shared `examples/vega/specs/unit-layouts.json` document declares its records
 
 This demonstrates the renderer's transitions rather than the full SandDance application: chart recommendation, filtering, selection UI, and the SandDance specification builder are outside this initial port. The module requires WebGL2 and is private and unpublished.
 
+## US map to stacked bars
+
+<div style={{height: 520, position: 'relative'}}><MapToStacksExample /></div>
+
+Choose **US map** or **Stacked bars** to move the same 198 records between 22 city centers and four regional bars, stacked by sector. Each tile represents one synthetic record; colors and record identities stay constant. Hover a tile for its city, region and sector. The coastline is a hand-authored schematic of the contiguous US, and these records are illustrative rather than population or economic measurements.
+
+Inspired by Microsoft Research [SandDance](https://github.com/microsoft/SandDance) and its animated unit visualizations, the shared `examples/vega/map-to-stacks/spec.json` declares all data, the Albers projection, `geopoint` transform, per-region ranking, colors, labels, tooltip encodings and the bound `layout` signal. No JavaScript layout switch or animation loop is needed. The same JSON is editable in the Vega playground and available in the example gallery. Vega width signals adapt the projection, bars and labels to the container. Run it locally with `yarn workspace @deck.gl-community-examples/vega-map-to-stacks start`.
+
+Vega calculates projected city coordinates and stacked-bar targets on the CPU. The shared host keeps one View alive and assigns stable tuple slots; the custom instanced `CubeLayer` interpolates tile positions and sizes on the GPU over 1.2 seconds, including interrupted transitions back to the map. The backdrop and chart labels switch visibility with the layout. This moves individual records, rather than morphing state boundaries into rectangles.
+
 ## Edit Vega JSON in the playground
 
-Open the [playground](/playground) and select **Vega**. Choose **Unit layouts**, **Bar chart**, **Symbols and record transitions**, or **Geospatial projections and symbols**,
+Open the [playground](/playground) and select **Vega**. Choose **Unit layouts**, **US map to stacked bars**, **Bar chart**, **Symbols and record transitions**, or **Geospatial projections and symbols**,
 then edit the JSON directly. The docs and playground share the same unit-layout specification.
 Vega signal `bind` declarations create the controls; the host supplies the deck.gl renderer and
 transition durations. An optional `is3d` signal selects the 3D camera.
