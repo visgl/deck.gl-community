@@ -62,6 +62,11 @@ it('animates projected polygons and routes on the GPU and survives interrupted c
     timeline.pause();
     const start = timeline.getTime();
     const oldFill = readPositions(fill())[0];
+    const outlineIndex = readPositions(outline()).findIndex(
+      value => Math.abs(value - oldFill) < 0.01
+    );
+    expect(outlineIndex).toBeGreaterThan(0);
+    const oldOutline = readPositions(outline())[outlineIndex];
     const routeIndex = readPositions(route()).findIndex(
       value => Math.abs(value - route().props.data[0].positions[0][0]) < 0.01
     );
@@ -80,11 +85,22 @@ it('animates projected polygons and routes on the GPU and survives interrupted c
         Boolean(fill().getAttributeManager().attributeTransitionManager.transitions.vertexPositions)
       )
       .toBe(true);
+    await expect
+      .poll(() =>
+        Boolean(
+          outline().getAttributeManager().attributeTransitionManager.transitions.vertexPositions
+        )
+      )
+      .toBe(true);
     advance(start + 500);
+    const middleOutline = readPositions(outline())[outlineIndex];
     const middleFill = readPositions(fill())[0];
     const middleRoute = readPositions(route())[routeIndex];
     advance(start + 1100);
     const targetFill = readPositions(fill())[0];
+    const targetOutline = readPositions(outline())[outlineIndex];
+    expect(targetOutline).not.toBeCloseTo(oldOutline, 2);
+    expect(middleOutline).toBeCloseTo((oldOutline + targetOutline) / 2, 1);
     const targetRoute = readPositions(route())[routeIndex];
     expect(targetFill).not.toBeCloseTo(oldFill, 2);
     expect(targetRoute).not.toBeCloseTo(oldRoute, 2);
@@ -100,6 +116,7 @@ it('animates projected polygons and routes on the GPU and survives interrupted c
       .toBe(true);
     advance(start + 1400);
     expect(Array.from(readPositions(fill())).every(Number.isFinite)).toBe(true);
+    expect(Array.from(readPositions(outline())).every(Number.isFinite)).toBe(true);
     const orthographicData = fill().props.data;
     await view.signal('projectionType', 'mercator').signal('longitude', 0).runAsync();
     await expect.poll(() => fill().props.data === orthographicData).toBe(false);
@@ -110,6 +127,7 @@ it('animates projected polygons and routes on the GPU and survives interrupted c
       .toBe(true);
     advance(start + 3000);
     expect(readPositions(fill())[0]).toBeCloseTo(oldFill, 2);
+    expect(readPositions(outline())[outlineIndex]).toBeCloseTo(oldOutline, 2);
     expect(errors).toEqual([]);
     expect(view.presenter.stage.polygonData[0].positions).toHaveLength(2);
     durations.position = 0;
@@ -119,6 +137,14 @@ it('animates projected polygons and routes on the GPU and survives interrupted c
     expect(
       fill().getAttributeManager().attributeTransitionManager.hasAttribute('vertexPositions')
     ).toBeFalsy();
+    expect(
+      outline().getAttributeManager().attributeTransitionManager.hasAttribute('vertexPositions')
+    ).toBeFalsy();
+    expect(
+      readPositions(outline()).some(
+        value => Math.abs(value - view.presenter.stage.polygonData[0].positions[0][0][0]) < 0.01
+      )
+    ).toBe(true);
     expect(readPositions(fill())[0]).toBeCloseTo(
       view.presenter.stage.polygonData[0].positions[0][0][0],
       2
