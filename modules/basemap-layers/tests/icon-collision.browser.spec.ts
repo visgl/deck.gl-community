@@ -160,6 +160,21 @@ describe('icon collision in the browser', () => {
     expect(textPixels(image)).toBe(0);
   });
 
+  test('icon-padding widens the icon box that hides lower-priority labels', async () => {
+    // The 16-pixel square's box reaches 8 pixels from its center, 10 with the default padding:
+    // short of the label's anchor, 20 pixels away. A padding of 16 reaches past it.
+    const features: [number[], Record<string, unknown>][] = [
+      [[0, 0], {rank: 0, icon: 'square'}],
+      [[20, 0], {rank: 1, name: 'MMMM'}]
+    ];
+    expect(textPixels(await renderSymbols(LAYOUT, features))).toBeGreaterThan(20);
+    deck?.finalize();
+    parent?.remove();
+    const image = await renderSymbols({...LAYOUT, 'icon-padding': 16}, features);
+    expect(iconPixels(image)).toBeGreaterThan(200);
+    expect(textPixels(image)).toBe(0);
+  });
+
   test("an icon's transparent border still hides a lower-priority label", async () => {
     // At icon-size 2 the image is 64 pixels wide: opaque within 16 pixels of its center,
     // transparent from 16 to 32. The label's anchor, 24 pixels away, is under the border only.
@@ -373,5 +388,32 @@ describe('icon collision with several halos in the browser', () => {
     expect(textPixels(image, top)).toBeGreaterThan(20);
     expect(iconPixels(image, bottom)).toBeGreaterThan(100);
     expect(textPixels(image, bottom)).toBeGreaterThan(20);
+  });
+});
+
+describe('icon-rotate in the browser', () => {
+  test('turns an icon clockwise about its anchor point, with its icon-anchor', async () => {
+    // The 16 px square's left edge is on the point. Turned 90 degrees clockwise, as in MapLibre,
+    // its top edge is: the square lies below the point, not to its right.
+    const image = await renderSymbols({'icon-image': 'square', 'icon-anchor': 'left'}, [
+      [[0, 0], {}]
+    ]);
+    // A new render: release the first one's deck and canvas, as `afterEach` releases only the last.
+    deck?.finalize();
+    deck = null;
+    parent?.remove();
+    parent = null;
+    const rotated = await renderSymbols(
+      {'icon-image': 'square', 'icon-anchor': 'left', 'icon-rotate': 90},
+      [[[0, 0], {}]]
+    );
+    // Strips 10 to 14 px right of and below the point: only the unturned square reaches the first,
+    // only the turned one the second.
+    const right: Region = [SIZE / 2 + 10, SIZE / 2 - 4, SIZE / 2 + 14, SIZE / 2 + 4];
+    const below: Region = [SIZE / 2 - 4, SIZE / 2 + 10, SIZE / 2 + 4, SIZE / 2 + 14];
+    expect(iconPixels(image, right)).toBeGreaterThan(20);
+    expect(iconPixels(image, below)).toBe(0);
+    expect(iconPixels(rotated, below)).toBeGreaterThan(20);
+    expect(iconPixels(rotated, right)).toBe(0);
   });
 });

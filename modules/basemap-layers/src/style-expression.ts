@@ -3,6 +3,7 @@
 import {log} from '@deck.gl/core';
 import {
   Color,
+  Padding,
   expression,
   featureFilter,
   latest as Reference
@@ -119,7 +120,8 @@ export function colorToArray(color: Color): [number, number, number, number] {
 
 /**
  * Returns the style specification's default for a property, in the shape `evaluate` returns:
- * colors as `[r, g, b, a]`. Undefined for a property without a default.
+ * colors as `[r, g, b, a]`, paddings as `[top, right, bottom, left]`. Undefined for a property
+ * without a default.
  */
 export function getStylePropertyDefault(propertyName: string): unknown {
   const reference = getStylePropertyReference(propertyName);
@@ -128,10 +130,16 @@ export function getStylePropertyDefault(propertyName: string): unknown {
     const color = Color.parse(value);
     return color ? colorToArray(color) : undefined;
   }
+  if (reference?.type === 'padding') {
+    return Padding.parse(value as number | number[])?.values;
+  }
   return value;
 }
 
 function toPlainValue(value: any): unknown {
+  if (value instanceof Padding) {
+    return value.values;
+  }
   return value instanceof Color ? colorToArray(value) : value;
 }
 
@@ -148,8 +156,10 @@ export function compileStylePropertyValue(
   let compiled: any;
   try {
     // An array whose first element is not a known operator is read as a literal. That is only
-    // valid for array-typed properties (`text-font`, `line-dasharray`, ...).
-    if (Array.isArray(value) && reference?.type !== 'array' && !expression.isExpression(value)) {
+    // valid for array-typed properties (`text-font`, `line-dasharray`, ...) and paddings
+    // (`icon-padding: [2, 4]`).
+    const takesArray = reference?.type === 'array' || reference?.type === 'padding';
+    if (Array.isArray(value) && !takesArray && !expression.isExpression(value)) {
       throw new Error(`Unknown expression "${String(value[0])}"`);
     }
     compiled = expression.normalizePropertyExpression(value as any, reference as any);
