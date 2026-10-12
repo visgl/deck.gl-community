@@ -113,8 +113,8 @@ describe('basemap source tilesets', () => {
   const style: any = {version: 8, sources: SOURCES, layers: LAYERS};
 
   /** The tileset of the vector source after the layer updates them with `globe`. */
-  function updateTilesets(state: any, globe?: unknown): any {
-    const layer: any = new BasemapLayer({id: 'basemap', style, globe} as any);
+  function updateTilesets(state: any, globe?: unknown, loadOptions?: unknown): any {
+    const layer: any = new BasemapLayer({id: 'basemap', style, globe, loadOptions} as any);
     layer.state = state;
     layer.context = {};
     layer.updateSourceTilesets(style);
@@ -141,5 +141,20 @@ describe('basemap source tilesets', () => {
     layer.context = {};
     layer.updateSourceTilesets(other);
     expect([...state.tilesetSourceLayers.keys()]).toEqual([other.sources.tiles]);
+  });
+
+  test('keep the tiles when the basemap is turned off and on', () => {
+    const state = {tilesets: new Map(), tilesetSourceLayers: new Map()};
+    const tileset = updateTilesets(state);
+    expect(updateTilesets(state, {config: {basemap: false}})).toBe(tileset);
+    expect(updateTilesets(state)).toBe(tileset);
+  });
+
+  test('keep the tiles of an application-set mvt.layers when labels are toggled', () => {
+    const state = {tilesets: new Map(), tilesetSourceLayers: new Map()};
+    const loadOptions = {mvt: {layers: ['road']}};
+    const tileset = updateTilesets(state, undefined, loadOptions);
+    expect(getTileLoadOptions(tileset).layers).toEqual(['road']);
+    expect(updateTilesets(state, {config: {labels: false}}, loadOptions)).toBe(tileset);
   });
 });

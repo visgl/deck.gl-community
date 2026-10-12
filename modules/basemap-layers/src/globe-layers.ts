@@ -1679,15 +1679,15 @@ export function getRunSourceLayers(runs: StyleLayerRun[]): Map<BasemapSource, st
   return new Map([...names].map(([source, set]) => [source, set ? [...set].sort() : null]));
 }
 
-/** The source layers each vector source of a style decodes (see `getRunSourceLayers`). */
+/**
+ * The source layers each vector source of a style decodes (see `getRunSourceLayers`). With the
+ * basemap off they are those it would draw, so that turning it off and on keeps the tiles.
+ */
 export function getStyleSourceLayers(
   styleDefinition: ResolvedBasemapStyle,
   globe?: {config?: BasemapGlobeConfig}
 ): Map<BasemapSource, string[] | null> {
   const config = getConfig(globe);
-  if (!config.basemap) {
-    return new Map();
-  }
   const styleLayers = (styleDefinition.layers || []).filter(layer =>
     SUPPORTED_TYPES.has(layer.type)
   );

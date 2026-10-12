@@ -313,10 +313,12 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       this.state.tileLoadOptions !== this.props.loadOptions ||
       this.state.tileFetch !== this.props.fetch;
     // Tiles decode only the source layers the style draws: a style edit or a labels toggle that
-    // changes them reloads the source's tiles.
+    // changes the layers the loader decodes reloads the source's tiles.
     const sourceLayers = getStyleSourceLayers(style, this.props.globe);
+    const getDecodedLayers = (source: BasemapSource) =>
+      (getSourceLoadOptions(this.props.loadOptions, sourceLayers.get(source)) as any)?.mvt?.layers;
     const sourceLayerKeys = new Map(
-      [...sources].map(source => [source, JSON.stringify(sourceLayers.get(source) ?? null)])
+      [...sources].map(source => [source, JSON.stringify(getDecodedLayers(source) ?? null)])
     );
     for (const [source, tileset] of this.state.tilesets) {
       if (
