@@ -78,6 +78,6 @@ Cuboids, circles, and squares now use GPU transitions for record updates and ent
 
 <div style={{height: 520, position: 'relative'}}><GeospatialExample /></div>
 
-The shared `examples/vega/geospatial/spec.json` declares synthetic GeoJSON regions, a lake hole, separate islands, a route, and geographic point symbols. Choose it in the Vega playground to edit the document. `geoshape` uses Vega projection, resampling and geographic clipping; `geopoint` positions circle or square symbols on the same projected chart. Projection coordinates use the chart camera rather than a synchronized map basemap.
+The shared `examples/vega/geospatial/spec.json` declares synthetic GeoJSON regions, a lake hole, separate islands, a route, a geographic graticule, and geographic point symbols. Choose it in the Vega playground to edit the document. `geoshape` uses Vega projection, resampling and geographic clipping; `geopoint` positions circle or square symbols on the same projected chart. Projection coordinates use the chart camera rather than a synchronized map basemap.
 
 Circle and square symbols retain GPU attribute slots by mark and Vega tuple identity. Position, size, fill/stroke color and outline width interpolate on the GPU; filtering shrinks and fades exits at their last positions. Changing between circles and squares fades out the old shape and grows the new one. Projection geometry itself restages immediately. Historical symbol slots remain allocated until view finalization; recreate views periodically for unbounded streams.

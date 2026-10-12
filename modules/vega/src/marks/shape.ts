@@ -4,7 +4,7 @@
 
 import {base} from '../base';
 import {colorFromString} from '../color';
-import type {Vec3} from '../interfaces';
+import type {Vec3, Polygon, Path} from '../interfaces';
 import type {MarkStager} from './interfaces';
 import type {SceneItem} from 'vega';
 
@@ -35,6 +35,8 @@ type Contour = {positions: Vec3[]; closed: boolean};
 
 /** Collects Vega's projected, resampled and clipped geoshape canvas commands. */
 const stageShape: MarkStager = (_options, stage, scene, x, y) => {
+  const geographicData = stage.geographicData ?? [];
+  stage.geographicData = geographicData;
   base.vega.sceneVisit(scene, (item: ShapeItem) => {
     const shape = item.mark.shape || item.shape;
     if (typeof shape?.context !== 'function') {
@@ -116,7 +118,7 @@ const stageShape: MarkStager = (_options, stage, scene, x, y) => {
       parents[index] === undefined ? 0 : 1 + getDepth(parents[index]);
     rings.forEach((ring, index) => {
       if (getDepth(index) % 2) return;
-      stage.polygonData.push({
+      const polygon: Polygon = {
         isGeographic: true,
         datum: item.datum,
         positions: [
@@ -127,17 +129,22 @@ const stageShape: MarkStager = (_options, stage, scene, x, y) => {
         strokeColor,
         strokeWidth: item.strokeWidth ?? 1,
         depth: 0
-      });
+      };
+      stage.polygonData.push(polygon);
+      geographicData.push({type: 'polygon', data: polygon});
     });
     contours
       .filter(c => !c.closed && c.positions.length >= 2)
       .forEach(contour => {
-        stage.pathData.push({
+        const path: Path = {
+          isGeographic: true,
           datum: item.datum,
           positions: contour.positions,
           strokeColor,
           strokeWidth: item.strokeWidth ?? 1
-        });
+        };
+        stage.pathData.push(path);
+        geographicData.push({type: 'path', data: path});
       });
   });
 };

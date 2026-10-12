@@ -24,14 +24,33 @@ it('renders geoshapes and interpolates circle and square exit buffers on the GPU
     const layer = (id: string): any => (deck.props.layers as any[]).find(l => l?.id === id);
     await new Promise(resolve => setTimeout(resolve, 1100));
     expect(layer('LAYER_GEOGRAPHIC_POLYGONS').props.data).toHaveLength(3);
-    deck.redraw('geospatial picking');
-    expect(
-      deck
-        .pickObjects({x: 0, y: 0, width: 720, height: 400})
-        .some(p => p.layer.id === 'LAYER_GEOGRAPHIC_POLYGONS')
-    ).toBe(true);
+    await expect
+      .poll(
+        () => {
+          deck.redraw('geospatial picking');
+          return deck
+            .pickObjects({
+              x: 0,
+              y: 0,
+              width: 720,
+              height: 400,
+              layerIds: ['LAYER_GEOGRAPHIC_POLYGONS']
+            })
+            .some(p => p.layer.id === 'LAYER_GEOGRAPHIC_POLYGONS');
+        },
+        {timeout: 15000}
+      )
+      .toBe(true);
     const timeline = layer('LAYER_SYMBOLS').context.timeline;
     timeline.pause();
+    const initialPosition = [...layer('LAYER_SYMBOLS').props.data[0].position];
+    await view.signal('longitude', 25).runAsync();
+    await expect
+      .poll(() => layer('LAYER_SYMBOLS').props.data[0].position)
+      .not.toEqual(initialPosition);
+    expect(layer('LAYER_SYMBOL_SQUARES').props.data[0].positions[0]).toEqual(
+      layer('LAYER_SYMBOLS').props.data[0].position
+    );
     const read = (l: any, name: string) => {
       const attr = l.getAttributeManager().getAttributes()[name];
       const bytes = attr.getBuffer().readSyncWebGL();
@@ -75,6 +94,33 @@ it('renders geoshapes and interpolates circle and square exit buffers on the GPU
     timeline.pause();
     const squares = () => layer('LAYER_SYMBOL_SQUARES');
     expect(squares()).toBeTruthy();
+    const squarePosition = [...layer('LAYER_SYMBOLS').props.data[0].position];
+    await view.signal('longitude', -25).runAsync();
+    await expect
+      .poll(() => layer('LAYER_SYMBOLS').props.data[0].position)
+      .not.toEqual(squarePosition);
+    const squarePoints = layer('LAYER_SYMBOL_SQUARES').props.data[0].positions;
+    expect(layer('LAYER_SYMBOLS').props.data[0].position).toEqual(
+      squarePoints
+        .reduce((sum: number[], p: number[]) => sum.map((v, i) => v + p[i]), [0, 0, 0])
+        .map((v: number) => v / 4)
+    );
+    const shiftedSquares = layer('LAYER_SYMBOL_SQUARES').props.data.map((p: any) => ({
+      ...p,
+      positions: p.positions.map(([x, y, z]: number[]) => [x + 20, y, z])
+    }));
+    view.presenter.rePresent(
+      {
+        polygonData: [
+          ...view.presenter.stage.polygonData.filter(p => !p.isSymbol),
+          ...shiftedSquares
+        ]
+      },
+      {transitionDurations: {position: 1000, size: 1000, color: 1000, view: 0}}
+    );
+    await expect
+      .poll(() => layer('LAYER_SYMBOLS').props.data[0].position[0])
+      .toBeCloseTo(squarePoints.reduce((sum: number, p: number[]) => sum + p[0], 0) / 4 + 20);
     await view.signal('count', 0).runAsync();
     await expect
       .poll(() => layer('LAYER_SYMBOL_SQUARES').props.data.every((p: any) => p.datum === undefined))

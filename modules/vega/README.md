@@ -74,6 +74,6 @@ guard; it has no public publish configuration.
 
 ### Geospatial shapes and symbol transitions
 
-Vega `shape` marks with `geoshape` generators render projected GeoJSON polygons (including holes and MultiPolygons), lines and points. Use `geopoint` for geographic circle/square symbols. Vega handles projection resampling and geographic clipping. These are chart coordinates in the existing camera, without basemap synchronization. Arbitrary SVG shape paths remain unsupported.
+Vega `shape` marks with `geoshape` generators render projected GeoJSON polygons (including holes and MultiPolygons), lines and points. Use `geopoint` for geographic circle/square symbols. Vega handles projection resampling and geographic clipping. Projected polygon/path batches retain Vega shape paint order, keeping routes over regions and background graticules underneath. These are chart coordinates in the existing camera, without basemap synchronization. Arbitrary SVG shape paths remain unsupported.
 
 Circle/square position, size, color and outline width use GPU attribute transitions and stable per-mark tuple slots, including filtering, reordering and reentry. Squares retain an instanced quad throughout transitions. Historical slots are released at finalization; recreate long-running streaming views periodically. Configure durations with `presenterConfig.transitionDurations`. The declarative geospatial example is shared by the playground and docs.

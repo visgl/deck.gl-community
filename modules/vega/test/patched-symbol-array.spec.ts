@@ -17,6 +17,7 @@ it('preserves circle slots through reordering, exits and reentry', () => {
   expect(removed[0]).toMatchObject({
     position: initial[0].position,
     radius: 0,
+    isEmpty: true,
     datum: undefined,
     fillColor: [0, 0, 0, 0],
     strokeWidth: 0

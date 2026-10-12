@@ -68,6 +68,8 @@ export interface Cube {
 
 /** A Vega circle symbol, sized by area in chart coordinates. */
 export interface SymbolMark {
+  /** Invisible slot retained while an exited symbol finishes transitioning. */
+  isEmpty?: boolean;
   /** Stable transition slot assigned by the scene stager. */
   ordinal?: number;
   datum: unknown;
@@ -79,6 +81,7 @@ export interface SymbolMark {
 }
 
 export interface Path {
+  isGeographic?: boolean;
   datum?: unknown;
   positions: Position[];
   strokeColor: Color;
@@ -86,6 +89,8 @@ export interface Path {
 }
 
 export interface Polygon {
+  /** Invisible square slot retained for transitions. */
+  isEmpty?: boolean;
   isSymbol?: boolean;
   /** Square symbol rotation in Cartesian radians. */
   angle?: number;
@@ -98,6 +103,9 @@ export interface Polygon {
   strokeWidth: number;
   depth: number;
 }
+/** Projected geometry in Vega shape paint order. */
+export type GeographicMark = {type: 'polygon'; data: Polygon} | {type: 'path'; data: Path};
+
 /**
  * Vega Scene plus camera type.
  */
@@ -120,6 +128,8 @@ export interface Stage {
   backgroundColor?: Color;
   cubeData?: Cube[];
   pathData?: Path[];
+  /** Ordered projected shapes; absent direct stages use polygons followed by paths. */
+  geographicData?: GeographicMark[];
   symbolData?: SymbolMark[];
   polygonData?: Polygon[];
   legend?: Legend;

@@ -11,5 +11,6 @@ export const layerNames = {
   text: 'LAYER_TEXT',
   paths: 'LAYER_PATHS',
   polygons: 'LAYER_POLYGONS',
-  geographicPolygons: 'LAYER_GEOGRAPHIC_POLYGONS'
+  geographicPolygons: 'LAYER_GEOGRAPHIC_POLYGONS',
+  geographicPaths: 'LAYER_GEOGRAPHIC_PATHS'
 };

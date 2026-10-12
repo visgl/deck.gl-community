@@ -27,6 +27,7 @@ export function patchSymbolArray<T extends SymbolDatum>(data: T[], previous: T[]
     const ghost = {
       ...source,
       ordinal: index,
+      isEmpty: true,
       datum: undefined,
       fillColor: [0, 0, 0, 0],
       strokeColor: [0, 0, 0, 0],

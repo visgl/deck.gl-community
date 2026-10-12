@@ -1,6 +1,8 @@
 import {expect, it} from 'vitest';
 import {View, parse, type Spec} from 'vega';
-import {createStage} from '../src/defaults';
+import {createStage, defaultPresenterConfig, defaultPresenterStyle} from '../src/defaults';
+import {getLayers} from '../src/layers';
+import type {Presenter} from '../src/presenter';
 import {sceneToStage} from '../src/stagers';
 import spec from '../../../examples/vega/geospatial/spec.json';
 
@@ -26,9 +28,25 @@ it('stages projected polygons with holes, separate islands, routes and geographi
     const initial = stage();
     expect(initial.polygonData).toHaveLength(3);
     expect(initial.polygonData[0].positions).toHaveLength(2);
-    expect(initial.pathData).toHaveLength(1);
+    expect(initial.pathData.length).toBeGreaterThan(1);
     expect(initial.symbolData).toHaveLength(6);
     expect(initial.polygonData.every(p => p.isGeographic && p.datum)).toBe(true);
+    const layers = getLayers(
+      {style: defaultPresenterStyle} as Presenter,
+      defaultPresenterConfig,
+      initial,
+      null,
+      0,
+      undefined,
+      []
+    );
+    const ids = layers.filter(Boolean).map(layer => layer.id);
+    expect(ids.indexOf('LAYER_GEOGRAPHIC_PATHS')).toBeLessThan(
+      ids.indexOf('LAYER_GEOGRAPHIC_POLYGONS')
+    );
+    expect(ids.indexOf('LAYER_GEOGRAPHIC_POLYGONS')).toBeLessThan(
+      ids.indexOf('LAYER_GEOGRAPHIC_PATHS-1')
+    );
     const point = initial.symbolData[0].position;
     await view.signal('longitude', 30).runAsync();
     expect(stage().symbolData[0].position).not.toEqual(point);

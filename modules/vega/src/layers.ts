@@ -5,7 +5,7 @@
 
 import {concat} from './array';
 import {SquareSymbolLayer} from './square-symbol-layer';
-import type {Vec3} from './interfaces';
+import type {Vec3, GeographicMark} from './interfaces';
 import {base} from './base';
 import {layerNames} from './constants';
 import {
@@ -81,7 +81,10 @@ export function getLayers(
     presenter.style.fontFamily,
     characterSet
   );
-  const pathLayer = newPathLayer(layerNames.paths, stage.pathData);
+  const pathLayer = newPathLayer(
+    layerNames.paths,
+    stage.pathData?.filter(path => !path.isGeographic)
+  );
   const polygonData = stage.polygonData ?? [];
   const polygonLayer = newPolygonLayer(
     layerNames.polygons,
@@ -98,14 +101,35 @@ export function getLayers(
     lineLayer,
     pathLayer,
     polygonLayer,
+    ...createGeographicLayers(stage, polygonData),
     squareSymbolLayer,
-    newPolygonLayer(
-      layerNames.geographicPolygons,
-      polygonData.filter(p => p.isGeographic),
-      true
-    ),
     newSymbolLayer(stage.symbolData ?? [], config)
   ];
+}
+
+function createGeographicLayers(stage: Stage, polygons: Polygon[]): Layer[] {
+  const marks: GeographicMark[] = stage.geographicData ?? [
+    ...polygons.filter(p => p.isGeographic).map(data => ({type: 'polygon' as const, data})),
+    ...(stage.pathData ?? [])
+      .filter(p => p.isGeographic)
+      .map(data => ({type: 'path' as const, data}))
+  ];
+  const layers: Layer[] = [];
+  const counts = {polygon: 0, path: 0};
+  for (let index = 0; index < marks.length; ) {
+    const type = marks[index].type;
+    const batch = [];
+    while (index < marks.length && marks[index].type === type) batch.push(marks[index++].data);
+    const baseId = type === 'polygon' ? layerNames.geographicPolygons : layerNames.geographicPaths;
+    const count = counts[type]++;
+    const id = count ? `${baseId}-${count}` : baseId;
+    layers.push(
+      type === 'polygon'
+        ? newPolygonLayer(id, batch as Polygon[], true)
+        : newPathLayer(id, batch as Path[], true)
+    );
+  }
+  return layers;
 }
 
 function newSquareSymbolLayer(id: string, data: Polygon[], config: PresenterConfig) {
@@ -226,7 +250,7 @@ function newLineLayer(id: string, data: StyledLine[]) {
   });
 }
 
-function newPathLayer(id: string, data: Path[]) {
+function newPathLayer(id: string, data: Path[], geographic = false) {
   if (!data) return null;
 
   return new base.layers.PathLayer<Path>({
@@ -238,6 +262,7 @@ function newPathLayer(id: string, data: Path[]) {
     pickable: true,
     widthUnits: 'pixels',
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    parameters: geographic ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
     getPath: o => o.positions,
     getColor: o => o.strokeColor,
     getWidth: o => o.strokeWidth
@@ -251,6 +276,7 @@ function newPolygonLayer(id: string, data: Polygon[], isSymbol = false) {
     id,
     data,
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    parameters: isSymbol ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
     getPolygon: o => o.positions,
     getFillColor: o => o.fillColor,
     getLineColor: o => o.strokeColor,

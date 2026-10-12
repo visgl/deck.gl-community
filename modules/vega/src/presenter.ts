@@ -271,6 +271,12 @@ export class Presenter {
    */
   rePresent(stage: Partial<Stage>, modifyConfig?: PresenterConfig) {
     const newStage = {...this._last.stage, cubeData: this.getCubeData(), ...stage};
+    if (
+      stage.geographicData === undefined &&
+      (hasChangedGeographicEntries(stage.polygonData, this._last.stage.polygonData) ||
+        hasChangedGeographicEntries(stage.pathData, this._last.stage.pathData))
+    )
+      newStage.geographicData = undefined;
     this.setDeckProps(
       newStage,
       this._last.height,
@@ -305,20 +311,18 @@ export class Presenter {
     modifyConfig: PresenterConfig
   ) {
     stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
-    const circles = stage.symbolData ?? [];
+    const circles = (stage.symbolData ?? []).filter(symbol => !symbol.isEmpty);
     const polygons = stage.polygonData ?? [];
-    const squares = polygons.filter(p => p.isSymbol);
+    const squares = polygons.filter(p => p.isSymbol && !p.isEmpty);
     const circleOrdinals = new Set(circles.map(circle => circle.ordinal));
     const squareOrdinals = new Set(squares.map(square => square.ordinal));
     // Reserve an invisible counterpart so shape changes grow from the same center.
     for (const circle of circles) {
-      if (
-        circle.ordinal !== undefined &&
-        !this.stagedSquares[circle.ordinal] &&
-        !squareOrdinals.has(circle.ordinal)
-      ) {
+      if (circle.ordinal !== undefined && !squareOrdinals.has(circle.ordinal)) {
         squares.push({
           isSymbol: true,
+          isEmpty: true,
+          angle: this.stagedSquares[circle.ordinal]?.angle,
           ordinal: circle.ordinal,
           datum: undefined,
           positions: Array.from({length: 4}, () => [...circle.position]),
@@ -330,17 +334,14 @@ export class Presenter {
       }
     }
     for (const square of squares) {
-      if (
-        square.ordinal !== undefined &&
-        !this.stagedSymbols[square.ordinal] &&
-        !circleOrdinals.has(square.ordinal)
-      ) {
+      if (square.ordinal !== undefined && !circleOrdinals.has(square.ordinal)) {
         const positions = square.positions as Vec3[];
         const center = positions
           .reduce((sum, p) => sum.map((v, i) => v + (p[i] || 0)) as Vec3, [0, 0, 0])
           .map(v => v / positions.length) as Vec3;
         circles.push({
           ordinal: square.ordinal,
+          isEmpty: true,
           datum: undefined,
           position: center,
           radius: 0,
@@ -500,4 +501,14 @@ export class Presenter {
     this.logger = null;
     this.queuedAnimationOptions = null;
   }
+}
+
+function hasChangedGeographicEntries<T extends {isGeographic?: boolean}>(
+  updates: T[] | undefined,
+  previous: T[] | undefined
+) {
+  if (!updates) return false;
+  const next = updates.filter(item => item.isGeographic);
+  const old = (previous ?? []).filter(item => item.isGeographic);
+  return next.length !== old.length || next.some((item, index) => item !== old[index]);
 }

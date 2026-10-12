@@ -14,7 +14,8 @@
           "mercator",
           "equalEarth",
           "orthographic"
-        ]
+        ],
+        "name": "Projection"
       }
     },
     {
@@ -24,7 +25,8 @@
         "input": "range",
         "min": -90,
         "max": 90,
-        "step": 1
+        "step": 1,
+        "name": "Center longitude"
       }
     },
     {
@@ -34,7 +36,8 @@
         "input": "range",
         "min": 0,
         "max": 6,
-        "step": 1
+        "step": 1,
+        "name": "Visible locations"
       }
     },
     {
@@ -44,7 +47,8 @@
         "input": "range",
         "min": 20,
         "max": 500,
-        "step": 10
+        "step": 10,
+        "name": "Symbol area"
       }
     },
     {
@@ -55,7 +59,8 @@
         "options": [
           "circle",
           "square"
-        ]
+        ],
+        "name": "Symbol shape"
       }
     },
     {
@@ -65,14 +70,16 @@
         "input": "range",
         "min": 0,
         "max": 180,
-        "step": 5
+        "step": 5,
+        "name": "Rotation"
       }
     },
     {
       "name": "reverse",
       "value": false,
       "bind": {
-        "input": "checkbox"
+        "input": "checkbox",
+        "name": "Reverse record order"
       }
     }
   ],
@@ -89,6 +96,9 @@
       ],
       "rotate": {
         "signal": "[-longitude,0,0]"
+      },
+      "clipExtent": {
+        "signal": "[[0,0],[width,height]]"
       }
     }
   ],
@@ -291,9 +301,46 @@
           ]
         }
       ]
+    },
+    {
+      "name": "graticule",
+      "transform": [
+        {
+          "type": "graticule",
+          "step": [
+            20,
+            20
+          ]
+        }
+      ]
     }
   ],
   "marks": [
+    {
+      "type": "shape",
+      "from": {
+        "data": "graticule"
+      },
+      "transform": [
+        {
+          "type": "geoshape",
+          "projection": "map"
+        }
+      ],
+      "encode": {
+        "update": {
+          "stroke": {
+            "value": "#7892a5"
+          },
+          "strokeOpacity": {
+            "value": 0.35
+          },
+          "strokeWidth": {
+            "value": 1
+          }
+        }
+      }
+    },
     {
       "type": "shape",
       "from": {
@@ -359,5 +406,6 @@
         }
       }
     }
-  ]
+  ],
+  "description": "Synthetic GeoJSON regions, islands and a route on a geographic graticule, with animated point symbols."
 }
