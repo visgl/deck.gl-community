@@ -91,3 +91,26 @@ describe('tile pyramid range', () => {
     }
   });
 });
+
+describe('shared vector tilesets', () => {
+  const viewport = new GlobeViewport({...POLAR_VIEW, width: 800, height: 600});
+
+  /** The tiles a vector tile layer's shared tileset selects in `viewport`, as its view does. */
+  function getSharedTileIndices(layer: any): string[] {
+    const tileset = layer.props.data;
+    return tileset
+      .getTileIndices({
+        viewState: viewport,
+        minZoom: tileset.minZoom,
+        maxZoom: tileset.maxZoom,
+        zRange: null
+      })
+      .map(({x, y, z}: any) => `${z}/${x}/${y}`);
+  }
+
+  test('select the zoom 0 tiles below zoom 0, and nothing below a minzoom above 0', () => {
+    const layers = getTileLayers('globe', viewport.zoom);
+    expect(getSharedTileIndices(layers['test-vector'])).toContain('0/0/0');
+    expect(getSharedTileIndices(layers['test-detail'])).toEqual([]);
+  });
+});
