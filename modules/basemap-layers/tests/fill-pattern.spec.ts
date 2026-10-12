@@ -301,3 +301,126 @@ describe('fill extensions on WebGPU', () => {
     expect(translate.getShaders.call(layer('webgl'), translate).modules).toHaveLength(1);
   });
 });
+
+describe('fill-pattern in the style draw order', () => {
+  const square = [
+    [
+      [0, 0],
+      [0.001, 0],
+      [0.001, 0.001],
+      [0, 0]
+    ]
+  ];
+  const feature = (layerName: string, type: string, coordinates: unknown, properties = {}) => ({
+    type: 'Feature',
+    geometry: {type, coordinates},
+    properties: {layerName, ...properties}
+  });
+  // Each tile has a landuse polygon with an image from each sprite.
+  const content = [
+    feature('water', 'Polygon', square),
+    feature('building', 'Polygon', square),
+    feature('landuse', 'Polygon', square, {pattern: 'wetland'}),
+    feature('landuse', 'Polygon', square, {pattern: 'base:hatched'}),
+    feature('road', 'LineString', square[0])
+  ];
+  const WATER = {id: 'water', type: 'fill', source: 'tiles', 'source-layer': 'water'};
+  const BUILDINGS = {
+    id: 'building-3d',
+    type: 'fill-extrusion',
+    source: 'tiles',
+    'source-layer': 'building',
+    minzoom: 14
+  };
+  const LANDUSE = {
+    id: 'landuse',
+    type: 'fill',
+    source: 'tiles',
+    'source-layer': 'landuse',
+    paint: {'fill-pattern': ['get', 'pattern']}
+  };
+  const ROADS = {id: 'roads', type: 'line', source: 'tiles', 'source-layer': 'road'};
+
+  /** The sublayers that the tile layer draws for two loaded tiles, in draw order. */
+  function renderTwoTiles(mode: 'map' | 'globe', layers: unknown[]): any[] {
+    const tileLayer: any = getBasemapLayers({
+      idPrefix: 'test',
+      mode,
+      zoom: 15,
+      spriteAtlases: SPRITES,
+      styleDefinition: {
+        version: 8,
+        sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
+        layers
+      } as any
+    }).find((layer: any) => layer.id === 'test-tiles');
+    const tile = (id: string, x: number) => ({
+      id,
+      index: {x, y: 0, z: 15},
+      bbox: {west: 0, south: 0, east: 1, north: 1},
+      isLoaded: true,
+      content,
+      layers: null
+    });
+    // Just enough layer state for `TileLayer.renderLayers` to render two loaded tiles.
+    tileLayer.context = {viewport: {zoom: 15, resolution: 0}};
+    tileLayer.internalState = {};
+    tileLayer.state = {
+      tileLayers: new Map(),
+      tileset: {tiles: [tile('a', 0), tile('b', 1)]}
+    };
+    return tileLayer.renderLayers();
+  }
+
+  test('the per-sprite sublayers of each tile draw in style order, after the extrusion', () => {
+    const layers = renderTwoTiles('globe', [WATER, BUILDINGS, LANDUSE, ROADS]);
+    expect(layers.map(layer => [layer.id, layer.props.styleLayerIndex])).toEqual([
+      ['test-tiles-a-"water"', 0],
+      ['test-tiles-b-"water"', 0],
+      ['test-tiles-a-"building-3d"', 1],
+      ['test-tiles-b-"building-3d"', 1],
+      ['test-tiles-a-"landuse"-pattern-0', 2],
+      ['test-tiles-a-"landuse"-pattern-1', 2],
+      ['test-tiles-b-"landuse"-pattern-0', 2],
+      ['test-tiles-b-"landuse"-pattern-1', 2],
+      ['test-tiles-a-"roads"', 3],
+      ['test-tiles-b-"roads"', 3]
+    ]);
+    // After the extrusion, each sprite's sublayer is depth-tested against the buildings, without
+    // writing depth, as the other flat layers are.
+    const patterned = layers.filter(layer => layer.id.includes('"landuse"'));
+    for (const layer of patterned) {
+      expect(layer.props.parameters).toMatchObject({
+        depthTest: true,
+        depthCompare: 'less-equal',
+        depthWriteEnabled: false,
+        cullMode: 'back'
+      });
+    }
+    // Each sprite's sublayer draws only its own images, from the tile's shared features.
+    expect(patterned.map(layer => layer.props.data)).toEqual([
+      [content[2]],
+      [content[3]],
+      [content[2]],
+      [content[3]]
+    ]);
+  });
+
+  test('before the extrusion, the per-sprite sublayers draw without depth on a globe', () => {
+    const layers = renderTwoTiles('globe', [WATER, LANDUSE, BUILDINGS, ROADS]);
+    const patterned = layers.filter(layer => layer.id.includes('"landuse"'));
+    expect(patterned.map(layer => layer.props.styleLayerIndex)).toEqual([1, 1, 1, 1]);
+    for (const layer of patterned) {
+      expect(layer.props.parameters).toMatchObject({depthTest: false, depthWriteEnabled: false});
+    }
+  });
+
+  test('on a map, the per-sprite sublayers are depth-tested', () => {
+    const layers = renderTwoTiles('map', [WATER, BUILDINGS, LANDUSE, ROADS]);
+    const patterned = layers.filter(layer => layer.id.includes('"landuse"'));
+    expect(patterned).toHaveLength(4);
+    for (const layer of patterned) {
+      expect(layer.props.parameters).toMatchObject({depthTest: true, depthWriteEnabled: false});
+    }
+  });
+});
