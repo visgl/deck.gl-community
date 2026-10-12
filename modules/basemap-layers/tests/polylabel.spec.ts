@@ -74,5 +74,21 @@ describe('getPoleOfInaccessibility on hostile input', () => {
     expect(budget.segmentTests).toBeGreaterThanOrEqual(0);
     expect(budget.segmentTests).toBeLessThan(ring.length);
     expect(pole).not.toBeNull();
+
+    // Without a budget argument, the default budget bounds the search. Scoring a cell reads ring
+    // 0 once, and the search reads it three more times while setting up.
+    let ringZeroReads = 0;
+    const counted = new Proxy([ring], {
+      get(target, key, receiver) {
+        if (key === '0') {
+          ringZeroReads++;
+        }
+        return Reflect.get(target, key, receiver);
+      }
+    });
+    expect(getPoleOfInaccessibility(counted, 0)).not.toBeNull();
+    expect((ringZeroReads - 3) * ring.length).toBeLessThanOrEqual(
+      DEFAULT_POLE_SEARCH_SEGMENT_TESTS
+    );
   });
 });
