@@ -47,6 +47,17 @@ it('animates projected polygons and routes on the GPU and survives interrupted c
         {timeout: 15000}
       )
       .toBe(true);
+    const outline = () => layers().find(layer => layer.id === 'LAYER_GEOGRAPHIC_POLYGONS-stroke');
+    const readStyle = (layer: any, name: string) => {
+      const attribute = layer.getAttributeManager().getAttributes()[name];
+      const accessor = attribute.getAccessor();
+      const bytes = attribute.getBuffer().readSyncWebGL();
+      const data = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const offset = (accessor.offset || 0) + attribute.byteOffset;
+      return accessor.type === 'float32'
+        ? data.getFloat32(offset, true) * (accessor.normalized ? 255 : 1)
+        : data.getUint8(offset);
+    };
     const timeline = fill().context.timeline;
     timeline.pause();
     const start = timeline.getTime();
@@ -112,6 +123,66 @@ it('animates projected polygons and routes on the GPU and survives interrupted c
       view.presenter.stage.polygonData[0].positions[0][0][0],
       2
     );
+    const styleLayers = () => [fill(), outline(), outline(), route(), route()];
+    const attributes = [
+      'fillColors',
+      'instanceColors',
+      'instanceStrokeWidths',
+      'instanceColors',
+      'instanceStrokeWidths'
+    ];
+    const readStyles = () => styleLayers().map((layer, i) => readStyle(layer, attributes[i]));
+    const originalStyles = readStyles();
+    const replaceStyles = (
+      fillRed: number,
+      outlineRed: number,
+      polygonWidth: number,
+      routeRed: number,
+      routeWidth: number
+    ) => {
+      const geographicData = view.presenter.stage.geographicData.map(mark =>
+        mark.type === 'polygon'
+          ? {
+              type: 'polygon' as const,
+              data: {
+                ...mark.data,
+                fillColor: [fillRed, 90, 155, 255] as [number, number, number, number],
+                strokeColor: [outlineRed, 70, 30, 255] as [number, number, number, number],
+                strokeWidth: polygonWidth
+              }
+            }
+          : {
+              type: 'path' as const,
+              data: {
+                ...mark.data,
+                strokeColor: [routeRed, 140, 45, 255] as [number, number, number, number],
+                strokeWidth: routeWidth
+              }
+            }
+      );
+      view.presenter.rePresent({geographicData}, {transitionDurations: durations});
+    };
+    const styleStart = timeline.getTime();
+    replaceStyles(35, 210, 6, 230, 10);
+    await expect.poll(() => fill().props.data[0].fillColor[0]).toBe(35);
+    const targets = [35, 210, 6, 230, 10];
+    advance(styleStart + 500);
+    readStyles().forEach((value, i) =>
+      expect(value).toBeCloseTo((originalStyles[i] + targets[i]) / 2, 1)
+    );
+    advance(styleStart + 1100);
+    readStyles().forEach((value, i) => expect(value).toBeCloseTo(targets[i], 2));
+    durations.color = 0;
+    durations.size = 0;
+    replaceStyles(80, 40, 3, 110, 1);
+    await expect.poll(() => fill().props.data[0].fillColor[0]).toBe(80);
+    readStyles().forEach((value, i) => expect(value).toBeCloseTo([80, 40, 3, 110, 1][i], 2));
+    styleLayers().forEach((layer, i) =>
+      expect(
+        layer.getAttributeManager().attributeTransitionManager.hasAttribute(attributes[i])
+      ).toBeFalsy()
+    );
+    expect(errors).toEqual([]);
   } finally {
     view.finalize();
     host.remove();
