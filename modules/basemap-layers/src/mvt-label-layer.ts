@@ -14,6 +14,7 @@ import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite'
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {GlobeHorizonExtension} from './globe-horizon-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
+import {getHaloBlurGamma, TextHaloBlurExtension} from './text-halo-blur-extension';
 import {
   allowsLetterSpacing,
   canMeasureText,
@@ -218,12 +219,14 @@ type MVTLabelLayerState = {
   };
 };
 
-/** A label halo as deck.gl `TextLayer` draws it: an SDF outline color and width. */
+/** A label halo as deck.gl `TextLayer` draws it: an SDF outline color, width and blur. */
 export type LabelHalo = {
   /** Halo color, RGBA with alpha in 0-255. */
   outlineColor: number[];
   /** `TextLayer` `outlineWidth` (see {@link getOutlineWidth}). */
   outlineWidth: number;
+  /** `TextHaloBlurExtension` `textHaloBlurGamma` (see {@link getHaloBlurGamma}). */
+  outlineBlur: number;
 };
 
 type LabelHalos = {
@@ -251,6 +254,9 @@ const LABEL_FONT_SETTINGS = {
   cutoff: 0.24,
   smoothing: 0.1
 };
+
+/** Shared by every text sublayer, so deck.gl does not see their extensions change. */
+const TEXT_HALO_BLUR_EXTENSION = new TextHaloBlurExtension();
 
 /**
  * Most halos one label layer draws, each with its own text sublayer. Labels without a halo get
@@ -1142,10 +1148,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Returns the halo of a decoded feature label from `text-halo-color` and `text-halo-width`, or
-   * `null` when it has none: a width of 0 (the default) or a transparent color (the default). The
-   * color is faded by the same `text-opacity` as the text, so a hidden or faded label leaves no
-   * halo. `text-halo-blur` is not drawn.
+   * Returns the halo of a decoded feature label from `text-halo-color`, `text-halo-width` and
+   * `text-halo-blur`, or `null` when it has none: a width of 0 (the default) or a transparent color
+   * (the default). The color is faded by the same `text-opacity` as the text, so a hidden or faded
+   * label leaves no halo. Like the width, the blur is rounded to 0.25 px.
    */
   getLabelHalo(feature: FeatureLike): LabelHalo | null {
     const value = Number(this.evaluateStyleProperty('text-halo-width', feature) ?? 0);
@@ -1161,12 +1167,26 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!(outlineColor[3] > 0)) {
       return null;
     }
-    return {outlineColor, outlineWidth: getOutlineWidth(width, size)};
+    // WebGPU draws halos without blur (see `TextHaloBlurExtension`), so blur must not split halo
+    // groups there: invisible differences would take places under the cap from other halos.
+    const blur =
+      this.context?.device?.type === 'webgpu'
+        ? 0
+        : Number(this.evaluateStyleProperty('text-halo-blur', feature) ?? 0);
+    return {
+      outlineColor,
+      outlineWidth: getOutlineWidth(width, size),
+      outlineBlur: getHaloBlurGamma(
+        Math.round(blur / HALO_WIDTH_STEP) * HALO_WIDTH_STEP,
+        size,
+        LABEL_FONT_SETTINGS
+      )
+    };
   }
 
   /**
-   * Groups the label rows by halo. `TextLayer` takes one outline color and width per layer, so
-   * each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
+   * Groups the label rows by halo. `TextLayer` takes one outline color, width and blur per layer,
+   * so each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
    * kept, the most common ones; labels with any other halo are drawn with the most common halo.
    * Labels without a halo are not counted in the cap and never get one: a hidden label stays
    * hidden. Kept halos are ordered by their first label, so sublayer ids stay stable.
@@ -1175,7 +1195,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const groups = new Map<string, {halo: LabelHalo | null; count: number; first: number}>();
     const rowKeys = rows.map((row, index) => {
       const halo = this.getLabelHalo((row as any).__source?.object ?? row);
-      const key = halo ? `${halo.outlineColor.join(',')}|${halo.outlineWidth}` : '';
+      const key = halo
+        ? `${halo.outlineColor.join(',')}|${halo.outlineWidth}|${halo.outlineBlur}`
+        : '';
       const group = groups.get(key);
       if (group) {
         group.count++;
@@ -1734,7 +1756,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     const haloKey: [LabelRow[] | undefined, string] = [
       this.state.labelData,
-      this.getStyleUpdateTrigger('text-halo-color', 'text-halo-width', 'text-opacity', 'text-size')
+      this.getStyleUpdateTrigger(
+        'text-halo-color',
+        'text-halo-width',
+        'text-halo-blur',
+        'text-opacity',
+        'text-size'
+      )
     ];
     if (haloKey[0] !== this.state.haloKey?.[0] || haloKey[1] !== this.state.haloKey?.[1]) {
       this.setState({halos: this.getLabelHalos(this.state.labelData || []), haloKey});
@@ -1800,12 +1828,16 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ? [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
           : null;
         const textBlocks = collision.text.blocks;
+        // `TextLayer` refreshes its glyphs with the `getText` trigger only, not with `all`: the
+        // group's rows decide which rows have text, so they are part of it.
+        const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
         const textProps = {
           data: this.getRows(),
           extensions: [
             ...(this.props.extensions || []),
             new CollisionFilterExtension(),
-            GLOBE_HORIZON_EXTENSION
+            GLOBE_HORIZON_EXTENSION,
+            TEXT_HALO_BLUR_EXTENSION
           ],
           parameters: LABEL_PARAMETERS,
           billboard,
@@ -1876,8 +1908,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                 ...textProps,
                 outlineWidth: halo?.outlineWidth ?? 0,
                 outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+                textHaloBlurGamma: halo?.outlineBlur ?? 0,
                 getText,
-                updateTriggers: {...updateTriggers, all: groupTrigger}
+                updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
               }),
               collision.text,
               textBlocks
@@ -1898,7 +1931,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                 outlineWidth: 0,
                 getColor: [0, 0, 0, 0],
                 getText,
-                updateTriggers: {...updateTriggers, all: groupTrigger}
+                updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
               }),
               collision.text,
               textBlocks
@@ -1910,6 +1943,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                   ...textProps,
                   outlineWidth: halo?.outlineWidth ?? 0,
                   outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+                  textHaloBlurGamma: halo?.outlineBlur ?? 0,
                   // Text that ignores the collision map draws wherever it is; tested text is
                   // filtered by the placing sublayer's marks, without drawing into the map.
                   collisionEnabled: collision.text.tested,
@@ -1923,7 +1957,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                       : undefined,
                   updateTriggers: {
                     ...updateTriggers,
-                    getText: `${updateTriggers.getText}|${this.state.haloKey?.[1]}`,
+                    getText: [...getTextTrigger, this.state.haloKey?.[1]],
                     all: groupTrigger
                   }
                 })
