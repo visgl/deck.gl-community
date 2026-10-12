@@ -1,7 +1,9 @@
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, Layer, LayerContext, UpdateParameters} from '@deck.gl/core';
 import {CollisionFilterExtension} from '@deck.gl/extensions';
-import {GeoJsonLayer, IconLayer, TextLayer, _TextBackgroundLayer} from '@deck.gl/layers';
+import {GeoJsonLayer, IconLayer, _TextBackgroundLayer} from '@deck.gl/layers';
+import {LabelTextLayer} from './label-text-layer';
+import type {LabelTextJustify} from './label-text-layer';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {
   getCompiledStyleProperty,
@@ -13,6 +15,7 @@ import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {GlobeHorizonExtension} from './globe-horizon-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {
+  allowsLetterSpacing,
   canMeasureText,
   forgetCharacterWidths,
   getCharacterWidthMeasurer,
@@ -1069,6 +1072,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           this.evaluateStyleProperty('text-max-width', feature) ??
             getStylePropertyDefault('text-max-width')
         );
+        // As in MapLibre, each character's advance includes the letter spacing.
+        const spacing = this.getLetterSpacing(feature, label);
         let measure: ((character: string) => number) | undefined;
         label = wrapText(
           label,
@@ -1078,7 +1083,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               const font = this.getFont();
               measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
             }
-            return measure(character);
+            return measure(character) + spacing;
           },
           this.state?.labelText?.budget
         );
@@ -1086,6 +1091,29 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       labels?.set(feature, label);
     }
     return label || undefined;
+  }
+
+  /**
+   * `text-letter-spacing` of a feature's label `text`, in ems. As in MapLibre, text in a cursive
+   * script is not letter-spaced.
+   */
+  getLetterSpacing(feature: FeatureLike, text: string): number {
+    const spacing = Number(
+      this.evaluateStyleProperty('text-letter-spacing', feature) ??
+        getStylePropertyDefault('text-letter-spacing')
+    );
+    return Number.isFinite(spacing) && spacing && allowsLetterSpacing(text) ? spacing : 0;
+  }
+
+  /**
+   * `text-justify` of a feature's label. MapLibre centers the lines of labels along lines.
+   */
+  getTextJustify(feature: FeatureLike): LabelTextJustify {
+    if (isLinePlacement(this.getSymbolPlacement())) {
+      return 'center';
+    }
+    const justify = this.evaluateStyleProperty('text-justify', feature);
+    return justify === 'auto' || justify === 'left' || justify === 'right' ? justify : 'center';
   }
 
   /**
@@ -1208,6 +1236,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         'text-size',
         'text-transform',
         'text-max-width',
+        'text-letter-spacing',
         'symbol-placement',
         'text-font'
       )}|${fontFamilyKey}`,
@@ -1217,7 +1246,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getCollisionPriority: `${getTrigger('symbol-sort-key')}|${this.getCollisionPriorityRangeKey()}`,
       getPixelOffset: getTrigger('text-offset', 'text-size'),
       getAngle: `${this.state?.bearingStep}|${getTrigger('text-keep-upright')}`,
-      getTextAnchor: getTrigger('text-anchor'),
+      // Also lays out the lines of each label (see `LabelTextLayer`).
+      getTextAnchor: getTrigger('text-anchor', 'text-justify', 'symbol-placement'),
       getAlignmentBaseline: getTrigger('text-anchor')
     };
   }
@@ -1414,7 +1444,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     featureBudget.steps -= text?.length || 0;
     // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
     // neither has no length, and is not placed.
-    const textLength = text && featureBudget.steps > 0 ? context.measureText(text) * textSize : 0;
+    // As MapLibre's shaping, the letter spacing follows every character but the last.
+    const textLength =
+      text && featureBudget.steps > 0
+        ? (context.measureText(text) +
+            (Array.from(text).length - 1) * this.getLetterSpacing(feature, text)) *
+          textSize
+        : 0;
     const iconLength = icon
       ? (icon.entry.width / icon.entry.pixelRatio) * evaluate('icon-size')
       : 0;
@@ -1548,9 +1584,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             this.getLinePlacementScale(),
             this.getStyleUpdateTrigger('text-field', 'text-transform', 'icon-image'),
             (this.props.spriteAtlases || []).map(atlas => atlas.id),
-            ...['text-size', 'icon-size', 'symbol-spacing', 'text-max-angle'].map(name =>
-              JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)
-            ),
+            ...[
+              'text-size',
+              'icon-size',
+              'symbol-spacing',
+              'text-max-angle',
+              'text-letter-spacing'
+            ].map(name => JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)),
             // The text is measured in the label font, once it has loaded.
             ...(this.getStyleProperty('text-field')
               ? [this.getFont(), this.isLineTextFontLoading()]
@@ -1809,7 +1849,18 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
                 .alignmentBaseline,
             'center'
-          )
+          ),
+          // Constant where the style layer leaves the property at its default.
+          getLetterSpacing: this.getStyleProperty('text-letter-spacing')
+            ? forGroupRows(
+                (feature: FeatureLike) =>
+                  this.getLetterSpacing(feature, this.getLabelText(feature) || ''),
+                0
+              )
+            : 0,
+          getTextJustify: this.getStyleProperty('text-justify')
+            ? forGroupRows((feature: FeatureLike) => this.getTextJustify(feature), 'center')
+            : 'center'
         };
         // A blocking text's collision box also marks the anchor that the icon's collision test
         // samples. Text that does not block draws nothing in the collision pass: deck.gl adds the
@@ -1820,7 +1871,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           const halo = halos[0];
           layers.push(
             ...placeSymbolPart(
-              new TextLayer({
+              new LabelTextLayer({
                 ...this.getSubLayerProps({id: `text${idSuffix}`}),
                 ...textProps,
                 outlineWidth: halo?.outlineWidth ?? 0,
@@ -1841,7 +1892,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           // number of halos is capped (see getLabelHalos), so the work stays linear in the rows.
           layers.push(
             ...placeSymbolPart(
-              new TextLayer({
+              new LabelTextLayer({
                 ...this.getSubLayerProps({id: `text${idSuffix}`}),
                 ...textProps,
                 outlineWidth: 0,
@@ -1854,7 +1905,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             ),
             ...halos.map(
               (halo, haloIndex) =>
-                new TextLayer({
+                new LabelTextLayer({
                   ...this.getSubLayerProps({id: `text${idSuffix}-${haloIndex + 1}`}),
                   ...textProps,
                   outlineWidth: halo?.outlineWidth ?? 0,
