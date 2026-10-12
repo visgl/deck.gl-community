@@ -89,6 +89,14 @@ it('moves stable city records into sector stacks with GPU interpolation and inte
         .map(record => record.rank)
         .sort((a, b) => a - b);
       expect(ranks).toEqual(Array.from({length: ranks.length}, (_, i) => i + 1));
+      const sectors = records
+        .filter(record => record.region === region)
+        .sort((a, b) => a.rank - b.rank)
+        .map(record => record.sectorIndex);
+      expect(sectors).toEqual([...sectors].sort((a, b) => a - b));
+      expect(records.find(record => record.region === region && record.rank === 1)?.sector).toBe(
+        'Services'
+      );
     }
     const start = timeline.getTime();
     advanceTimeline(start + 600);

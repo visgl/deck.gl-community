@@ -367,7 +367,12 @@
         },
         {
           "type": "formula",
-          "expr": "['Services','Manufacturing','Technology'][floor((datum.id % 9) / 3)]",
+          "expr": "floor((datum.id % 9) / 3)",
+          "as": "sectorIndex"
+        },
+        {
+          "type": "formula",
+          "expr": "['Services','Manufacturing','Technology'][datum.sectorIndex]",
           "as": "sector"
         },
         {
@@ -389,7 +394,7 @@
           ],
           "sort": {
             "field": [
-              "sector",
+              "sectorIndex",
               "id"
             ],
             "order": [
