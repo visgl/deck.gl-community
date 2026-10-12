@@ -120,18 +120,72 @@ describe('hidden tiles', () => {
     expect(layersOf(tiles[0])).toEqual([]);
   });
 
-  test('a tile whose content is reloaded or evicted drops its kept sublayers', () => {
+  test('a tile replaced by another tile of the same id drops its kept sublayers', () => {
+    const tiles = [createTile(0, true)];
+    const {renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer(tiles);
+    renderAfterUpdate();
+    // Between two renders, `reloadAll` drops the tile and a new, hidden one takes its id.
+    tiles[0] = createTile(0, false);
+    renderSubLayers.mockClear();
+    renderAfterUpdate();
+    expect(renderSubLayers.calls).toBe(0);
+    expect(layersOf(tiles[0])).toEqual([]);
+  });
+
+  test.each(['_onTileLoad', '_onTileUnload'])(
+    'a tile whose content is reloaded or evicted drops its kept sublayers (%s)',
+    event => {
+      const tile = createTile(0, true);
+      const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([tile]);
+      renderAfterUpdate();
+      const before = layersOf(tile);
+      tile.isVisible = false;
+      layer[event](tile);
+      renderSubLayers.mockClear();
+      renderAfterUpdate();
+      // Not regenerated while hidden, and not given the sublayers of its previous content.
+      expect(renderSubLayers.calls).toBe(0);
+      expect(layersOf(tile)).toEqual([]);
+      expect(layersOf(tile)).not.toBe(before);
+    }
+  );
+
+  test('a tile shown in any view regenerates its sublayers', () => {
     const tile = createTile(0, true);
     const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([tile]);
     renderAfterUpdate();
     const before = layersOf(tile);
+    // Hidden in the first view, shown in a second one.
     tile.isVisible = false;
-    layer._onTileLoad(tile);
+    layer.state.tilesetViews.set('second', {isTileVisible: () => true});
     renderSubLayers.mockClear();
     renderAfterUpdate();
-    // Not regenerated while hidden, and not given the sublayers of its previous content.
+    expect(renderSubLayers.calls).toBe(1);
+    expect(layersOf(tile)[0]).not.toBe(before[0]);
+  });
+
+  test.each([
+    ['another tileset', (state: any) => (state.tileset = {tiles: state.tileset.tiles})],
+    ['a switch between a map and a globe', (state: any) => (state.geographic = !state.geographic)]
+  ])('%s drops the kept sublayers', (_, change) => {
+    const tile = createTile(0, true);
+    const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([tile]);
+    renderAfterUpdate();
+    tile.isVisible = false;
+    // The vector tile layer's own update: here it only makes the change.
+    const parent = Object.getPrototypeOf(Object.getPrototypeOf(layer));
+    const updateState = vi.spyOn(parent, 'updateState').mockImplementation(function (this: any) {
+      change(this.state);
+    });
+    try {
+      layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {}});
+    } finally {
+      updateState.mockRestore();
+    }
+    renderSubLayers.mockClear();
+    renderAfterUpdate();
+    // Not handed the sublayers made for the previous tileset or view mode.
     expect(renderSubLayers.calls).toBe(0);
     expect(layersOf(tile)).toEqual([]);
-    expect(layersOf(tile)).not.toBe(before);
   });
 });
