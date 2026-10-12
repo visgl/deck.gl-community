@@ -76,6 +76,15 @@ describe('source layers', () => {
     expect(getTileLoadOptions(first.props.data).layers).toEqual(['place', 'road', 'water']);
   });
 
+  test('include a source layer drawn only above the current zoom', () => {
+    const peaks = {id: 'peaks', type: 'line', source: 'tiles', 'source-layer': 'peak', minzoom: 10};
+    // After a raster layer, the peaks are a run of their own, which draws nothing at 4.
+    const relief = {id: 'relief-2', type: 'raster', source: 'relief'};
+    const [first] = getTileLayers([...LAYERS, relief, peaks], 4);
+    // Zooming in to 10 does not reload the tiles to decode the peaks.
+    expect(getTileLoadOptions(first.props.data).layers).toEqual(['peak', 'place', 'road', 'water']);
+  });
+
   test('leave out labels when labels are off', () => {
     const [first] = getTileLayers(LAYERS, 12, {labels: false});
     expect(getTileLoadOptions(first.props.data).layers).toEqual(['road', 'water']);
