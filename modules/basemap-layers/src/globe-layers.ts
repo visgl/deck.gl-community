@@ -6,6 +6,8 @@ import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {MVTWorkerLoader} from '@loaders.gl/mvt';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
+import {type FillPatternGroup, getFillPatternGroups, getFillPatternProps} from './fill-pattern';
+import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {
   type RasterColorAdjustments,
@@ -139,6 +141,10 @@ const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
 /** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
 const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
 const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
+
+/** `fill-pattern` and `fill-translate`, shared by every fill that sets them. */
+const FILL_PATTERN_EXTENSION = new FillPatternExtension();
+const FILL_TRANSLATE_EXTENSION = new FillTranslateExtension();
 
 /** Applies the `raster-*` color adjustments, shared by every raster layer that sets them. */
 const RASTER_COLOR_EXTENSION = new RasterColorExtension();
@@ -587,6 +593,23 @@ function createStyledVectorSubLayer({
 
   if (styleLayer.type === 'line') {
     return createLineSubLayers({props, styleLayer, features, mode, zoom});
+  }
+
+  if (styleLayer.type === 'fill' && styleLayer.paint?.['fill-pattern'] !== undefined) {
+    const groups = getFillPatternGroups(features, styleLayer, zoom, spriteAtlases);
+    if (groups.length > 0) {
+      return groups.map(pattern =>
+        createGeometrySubLayer({
+          props,
+          styleLayer,
+          features: pattern.features,
+          mode,
+          zoom,
+          pattern,
+          idSuffix: groups.length > 1 ? `-pattern-${pattern.atlasIndex}` : ''
+        })
+      );
+    }
   }
 
   return createGeometrySubLayer({props, styleLayer, features, mode, zoom});
@@ -1040,6 +1063,39 @@ function getLineShapeGroups(
   return result;
 }
 
+/**
+ * The extensions and props of `fill-pattern` (with the features' images) and `fill-translate`
+ * (when the layer sets it). `fill-translate` is evaluated at the stepped zoom; it cannot depend on
+ * feature data.
+ */
+function getFillStyleProps(
+  styleLayer: BasemapStyleLayer,
+  zoom: number,
+  extensions: any[] | undefined,
+  pattern: FillPatternGroup | undefined
+) {
+  const hasTranslate = styleLayer.paint?.['fill-translate'] !== undefined;
+  if (!pattern && !hasTranslate) {
+    return {};
+  }
+  const paint = getPaint(styleLayer, zoom);
+  return {
+    extensions: [
+      ...(extensions || []),
+      ...(pattern ? [FILL_PATTERN_EXTENSION] : []),
+      ...(hasTranslate ? [FILL_TRANSLATE_EXTENSION] : [])
+    ],
+    ...(pattern ? getFillPatternProps(pattern, zoom) : {}),
+    ...(hasTranslate
+      ? {
+          fillTranslate: paint['fill-translate'] ?? getStylePropertyDefault('fill-translate'),
+          fillTranslateAnchor:
+            paint['fill-translate-anchor'] ?? getStylePropertyDefault('fill-translate-anchor')
+        }
+      : {})
+  };
+}
+
 function createGeometrySubLayer({
   props,
   styleLayer,
@@ -1047,6 +1103,7 @@ function createGeometrySubLayer({
   mode,
   zoom,
   lineShape,
+  pattern,
   idSuffix = ''
 }: {
   props: any;
@@ -1055,17 +1112,24 @@ function createGeometrySubLayer({
   mode: BasemapMode;
   zoom: number;
   lineShape?: LineShape;
+  /** The features' `fill-pattern` images; without it, a patterned fill draws no fill. */
+  pattern?: FillPatternGroup;
   idSuffix?: string;
 }) {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
   const baseProps = getSubLayerBaseProps(props);
 
-  // A `fill-pattern` disables `fill-color`. Patterns are not drawn, so a patterned fill draws
+  // A `fill-pattern` disables `fill-color`: the image supplies the colors and `fill-opacity` the
+  // opacity, also on a globe. Without its images (sprites loading, or missing) the fill draws
   // nothing rather than its color or the default black.
   const hasFillPattern = isFill && styleLayer.paint?.['fill-pattern'] !== undefined;
   const fillColor = hasFillPattern
-    ? {value: TRANSPARENT_COLOR}
+    ? pattern
+      ? getStyleAccessor(styleLayer, ['fill-opacity'], zoom, ([opacity]) =>
+          withOpacity([255, 255, 255, 1], opacity ?? 1)
+        )
+      : {value: TRANSPARENT_COLOR}
     : getStyleAccessor(styleLayer, ['fill-color', 'fill-opacity'], zoom, ([color, opacity]) =>
         getGlobeFillColor(
           withOpacity(color ?? getStylePropertyDefault('fill-color'), opacity ?? 1),
@@ -1142,6 +1206,7 @@ function createGeometrySubLayer({
           ]
         }
       : {}),
+    ...(isFill ? getFillStyleProps(styleLayer, zoom, baseProps.extensions, pattern) : {}),
     ...(offsetValue ? {getOffset: getOffset(1)} : {}),
     ...(dashArray
       ? {
@@ -1151,6 +1216,8 @@ function createGeometrySubLayer({
       : {}),
     updateTriggers: {
       getFillColor: isFill ? fillColor.updateTrigger : undefined,
+      // The group's accessors change with its features, which are new data in that case.
+      getFillPatternScale: pattern ? Math.floor(zoom) : undefined,
       getLineColor: lineColor.updateTrigger,
       getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
       getDashArray: dashArray?.updateTrigger,
