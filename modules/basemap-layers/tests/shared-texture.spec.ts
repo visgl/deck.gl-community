@@ -7,7 +7,7 @@ function createDevice() {
   const textures: any[] = [];
   const device = {
     type: 'webgl',
-    getMipLevelCount: () => 3,
+    getMipLevelCount: vi.fn(() => 3),
     createTexture: vi.fn((props: any) => {
       const texture = {
         props,
@@ -60,6 +60,14 @@ describe('SharedTextureSet', () => {
       width: 4,
       height: 1
     });
+  });
+
+  test('takes the mip levels from the size of a plain image object with raw pixels', () => {
+    const {device} = createDevice();
+    new SharedTextureSet(device).get({data: new Uint8Array(4 * 8 * 2), width: 8, height: 2});
+    expect(device.getMipLevelCount).toHaveBeenCalledWith(8, 2);
+    new SharedTextureSet(device).get(new FakeBitmap());
+    expect(device.getMipLevelCount).toHaveBeenLastCalledWith(4, 2);
   });
 
   test('destroys a texture when its last user releases it', () => {

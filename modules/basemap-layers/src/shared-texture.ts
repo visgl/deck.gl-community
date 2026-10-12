@@ -21,8 +21,10 @@ const sharedTextures = new WeakMap<Device, Map<object, SharedTexture>>();
 function createTexture(device: Device, image: object): Texture {
   const source = (
     image.constructor && image.constructor.name !== 'Object' ? {data: image} : image
-  ) as {data: {width: number; height: number}};
-  const {width, height} = source.data;
+  ) as {data: {width?: number; height?: number}; width?: number; height?: number};
+  // A plain object gives its size; raw pixel data has none of its own.
+  const width = source.width ?? source.data.width ?? 1;
+  const height = source.height ?? source.data.height ?? 1;
   const texture = device.createTexture({
     ...source,
     sampler: DEFAULT_SAMPLER,
