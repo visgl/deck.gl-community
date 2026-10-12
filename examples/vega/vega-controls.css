@@ -1,0 +1,99 @@
+/* deck.gl-community
+ * SPDX-License-Identifier: MIT
+ * Copyright (c) vis.gl contributors
+ * Appearance inspired by luma.gl's example infoboxes.
+ */
+.vega-controls {
+  --vega-controls-surface: #fffffff5;
+  --vega-controls-card: #f8fafc;
+  --vega-controls-input: #fff;
+  --vega-controls-border: #0f172a26;
+  --vega-controls-text: #172033;
+  --vega-controls-muted: #596579;
+  --vega-controls-accent: #167565;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  max-height: 240px;
+  overflow: auto;
+  margin: 8px;
+  padding: 12px;
+  color: var(--vega-controls-text);
+  background: var(--vega-controls-surface);
+  border: 1px solid var(--vega-controls-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px #0000000d;
+  font: 12px/1.4 system-ui, sans-serif;
+  color-scheme: light;
+  scrollbar-width: thin;
+}
+[data-theme='dark'] .vega-controls {
+  --vega-controls-surface: #080c14e8;
+  --vega-controls-card: #09121fc9;
+  --vega-controls-input: #1e293a;
+  --vega-controls-border: #7e9bcd42;
+  --vega-controls-text: #e7ece9;
+  --vega-controls-muted: #a4b3c1;
+  --vega-controls-accent: #86cbbd;
+  color-scheme: dark;
+}
+.vega-controls[hidden] { display: none; }
+.vega-controls-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+.vega-controls-heading strong {
+  color: var(--vega-controls-accent);
+  font-size: 11px;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+.vega-controls-heading > span { color: var(--vega-controls-muted); font-size: 11px; }
+.vega-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 8px;
+}
+.vega-controls .vega-bind {
+  min-width: 0;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--vega-controls-border);
+  border-radius: 7px;
+  background: var(--vega-controls-card);
+}
+.vega-controls .vega-bind > label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 0;
+  font: inherit;
+}
+.vega-controls .vega-bind-name { grid-column: 1 / -1; color: var(--vega-controls-muted); }
+.vega-controls .vega-bind :is(select, input) {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  font: inherit;
+  accent-color: var(--vega-controls-accent);
+}
+.vega-controls .vega-bind :is(select, input:not([type='range']):not([type='checkbox']):not([type='radio'])) {
+  width: 100%;
+  grid-column: 1 / -1;
+  padding: 4px 6px;
+  color: var(--vega-controls-text);
+  background: var(--vega-controls-input);
+  border: 1px solid var(--vega-controls-border);
+  border-radius: 4px;
+}
+.vega-controls .vega-bind input[type='range'] { width: 100%; }
+.vega-controls .vega-bind label > span:not(.vega-bind-name) { font-variant-numeric: tabular-nums; }
+.vega-controls .vega-bind label:has(> input[type='checkbox']) .vega-bind-name { grid-column: 1; }
+.vega-controls .vega-bind input[type='checkbox'] { justify-self: end; }
+.vega-controls .vega-bind-radio { display: flex; flex-wrap: wrap; gap: 8px; }
+.vega-controls .vega-bind-radio label { display: flex; align-items: center; gap: 4px; margin: 0; }

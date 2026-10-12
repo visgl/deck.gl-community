@@ -358,3 +358,22 @@ main .container:not(#community-theme):not(#community-theme):not(#community-theme
   .theme-doc-markdown h2:not(#community-theme):not(#community-theme):not(#community-theme) { margin-top: 2.5rem; }
 }
 .markdown .docs-markdown-table__table tbody tr:nth-child(even):not(#community-theme):not(#community-theme):not(#community-theme) { background: color-mix(in srgb, var(--ifm-color-primary) 4%, transparent); }
+
+/* Keep the Vega feature card readable within narrow documentation columns. */
+.markdown .vega-feature-card .docs-markdown-table:not(#community-theme):not(#community-theme):not(#community-theme) {
+  width: 100%;
+  margin: 1rem 0;
+}
+.markdown .vega-feature-card .docs-markdown-table__table:not(#community-theme):not(#community-theme):not(#community-theme) {
+  display: table;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+.markdown .vega-feature-card .docs-markdown-table__table th:first-child:not(#community-theme):not(#community-theme):not(#community-theme) {
+  width: 30%;
+}
+.markdown .vega-feature-card .docs-markdown-table__table :is(th, td, code):not(#community-theme):not(#community-theme):not(#community-theme) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
