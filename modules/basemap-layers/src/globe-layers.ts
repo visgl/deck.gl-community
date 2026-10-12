@@ -979,6 +979,9 @@ function createVectorLayerGroup({
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
       const layers: any[] = [];
+      const highlights =
+        Boolean(props.autoHighlight) ||
+        (props.highlightedFeatureId !== null && props.highlightedFeatureId !== undefined);
       // Consecutive fills and lines that can share a sublayer (see `getBatchKey`), and the index
       // of the first, which places the batch among all tiles' sublayers (`sortTileSubLayers`).
       let batch: GeometryStyle[] = [];
@@ -1030,7 +1033,9 @@ function createVectorLayerGroup({
             // tiles are clipped to their bounds, so that draws the same pixels as each style layer
             // across all tiles in turn; on the globe, tiles are not clipped, and where their
             // buffers overlap a tile's later style layer would draw under a neighbour's earlier one.
-            const key = mode === 'globe' ? null : getBatchKey(style);
+            // A highlight colors one object of a sublayer: in a batch, a feature drawn by two
+            // style layers would be highlighted only under the second one's copy.
+            const key = mode === 'globe' || highlights ? null : getBatchKey(style);
             if (!canBatch(batch, style, key)) {
               flush();
               batchIndex = styleLayerIndex;
@@ -1798,8 +1803,11 @@ export function mergeStyleAccessors<T>(
     return accessors[0];
   }
   const values = accessors.map(accessor => accessor.value);
+  // Tagged, so that a constant and a per-feature trigger of the same text differ.
   const keys = accessors.map(accessor =>
-    typeof accessor.value === 'function' ? accessor.updateTrigger : JSON.stringify(accessor.value)
+    typeof accessor.value === 'function'
+      ? `f:${JSON.stringify(accessor.updateTrigger ?? null)}`
+      : `c:${JSON.stringify(accessor.value)}`
   );
   if (values.every(value => typeof value !== 'function') && keys.every(key => key === keys[0])) {
     return {value: values[0] as T};

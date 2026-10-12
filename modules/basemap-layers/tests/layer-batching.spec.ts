@@ -40,7 +40,8 @@ function renderTile(
   style: Record<string, unknown>[] | any,
   features: unknown[],
   zoom = 12,
-  mode: 'map' | 'globe' = 'map'
+  mode: 'map' | 'globe' = 'map',
+  tileProps: Record<string, unknown> = {}
 ): any[] {
   const vectorLayer: any = getBasemapLayers({
     idPrefix: 'test',
@@ -49,7 +50,12 @@ function renderTile(
     styleDefinition: Array.isArray(style) ? makeStyle(style) : style
   }).find(layer => layer.id === 'test-tiles');
   return vectorLayer.props
-    .renderSubLayers({id: 'tile', data: features, tile: {index: {x: 0, y: 0, z: 12}}})
+    .renderSubLayers({
+      id: 'tile',
+      data: features,
+      tile: {index: {x: 0, y: 0, z: 12}},
+      ...tileProps
+    })
     .flat();
 }
 
@@ -282,6 +288,15 @@ describe('style layers that draw alone', () => {
     expect(idsOf(layers)).toEqual(['a', 'b']);
   });
 
+  test.each([
+    ['autoHighlight', {autoHighlight: true}],
+    ['a highlighted feature', {highlightedFeatureId: 7}]
+  ])('every style layer with %s, which colors one object per sublayer', (_, tileProps) => {
+    const road = {...feature('LineString'), id: 7};
+    const layers = renderTile([line('casing', {}), line('road', {})], [road], 12, 'map', tileProps);
+    expect(idsOf(layers)).toEqual(['casing', 'road']);
+  });
+
   test('a fill and a line', () => {
     const layers = renderTile([fill('a', '#ff0000'), line('b', {})], [feature('Polygon')]);
     expect(idsOf(layers)).toEqual(['a', 'b']);
@@ -348,6 +363,16 @@ describe('mergeStyleAccessors', () => {
       mergeStyleAccessors([{value: 1}, {value: width}], [0, 1]).updateTrigger;
     expect(at(2)).toBe(at(2));
     expect(at(2)).not.toBe(at(3));
+  });
+
+  test('tells a constant from a per-feature trigger of the same text', () => {
+    const indices = [0, 1];
+    const constant = mergeStyleAccessors([{value: 12}, {value: 4}], indices);
+    const perFeature = mergeStyleAccessors(
+      [{value: () => 8, updateTrigger: 12}, {value: 4}],
+      indices
+    );
+    expect(perFeature.updateTrigger).not.toEqual(constant.updateTrigger);
   });
 
   test("changes its trigger with a style layer's own trigger", () => {
