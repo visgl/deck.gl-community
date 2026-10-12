@@ -119,22 +119,29 @@ function withRows(layer: any, properties: Record<string, unknown>[]): any {
   return layer;
 }
 
-/** Per row, whether a text sublayer draws it: text, and a priority inside the collision pass. */
+/**
+ * Per row, whether a text sublayer draws it: text, and a priority inside the collision pass. The
+ * sublayers hold the rows in reverse (see `getRows`); the result is in the order of the rows.
+ */
 function groupRows(sublayer: any): boolean[] {
   const {data, getText, getCollisionPriority} = sublayer.props;
-  return data.map((row: any, index: number) => {
-    const info = {index, data, target: []};
-    const drawn = getCollisionPriority(row, info) >= -1000;
-    // A row outside the group draws no text either.
-    expect(drawn || !getText(row, info)).toBe(true);
-    return drawn;
-  });
+  return data
+    .map((row: any, index: number) => {
+      const info = {index, data, target: []};
+      const drawn = getCollisionPriority(row, info) >= -1000;
+      // A row outside the group draws no text either.
+      expect(drawn || !getText(row, info)).toBe(true);
+      return drawn;
+    })
+    .reverse();
 }
 
-/** Per row, whether an icon sublayer draws it. */
+/** Per row, whether an icon sublayer draws it, in the order of the rows (see `groupRows`). */
 function iconRows(sublayer: any): boolean[] {
   const {data, getIcon} = sublayer.props;
-  return data.map((row: any, index: number) => getIcon(row, {index, data, target: []}) !== null);
+  return data
+    .map((row: any, index: number) => getIcon(row, {index, data, target: []}) !== null)
+    .reverse();
 }
 
 /** `[id, collisionEnabled, opacity, collisionTestProps.sizeScale]` per sublayer. */
@@ -171,7 +178,7 @@ describe('MVTLabelLayer symbol collision', () => {
 
   test('by default, icons and text are drawn collision-tested', () => {
     expect(describeSublayers(symbolLayer({'icon-image': 'dot', 'text-field': 'A'}))).toEqual([
-      ['labels-icons-default', true, 1, undefined],
+      ['labels-icons-default', true, 1, 1.5],
       ['labels-text', true, 1, undefined]
     ]);
   });
@@ -202,8 +209,9 @@ describe('MVTLabelLayer symbol collision', () => {
     const layer = symbolLayer({'text-field': 'A', 'text-offset': [2, 0]});
     const sublayers = layer.renderLayers();
     expect(sublayers.map((sublayer: any) => sublayer.id)).toEqual(['labels-text']);
-    // Padded by the 32-pixel offset plus the sample radius, so the box reaches the anchor.
-    expect(sublayers[0].props.collisionTestProps).toEqual({padding: [36, 4, 4, 4]});
+    // Padded by the 32-pixel offset plus the sample radius, so the box reaches the anchor, and by
+    // the default `text-padding` of 2 pixels.
+    expect(sublayers[0].props.collisionTestProps).toEqual({padding: [38, 6, 6, 6]});
   });
 
   test('the anchors layer shares the text rows, priorities and identity', () => {
@@ -255,8 +263,8 @@ describe('MVTLabelLayer symbol collision', () => {
       'text-allow-overlap': true
     };
     expect(describeSublayers(symbolLayer(layout))).toEqual([
-      ['labels-icons-default-overlap', false, 1, undefined],
-      ['labels-icons-default', true, 0, undefined],
+      ['labels-icons-default-overlap', false, 1, 1.5],
+      ['labels-icons-default', true, 0, 1.5],
       ['labels-text-overlap', false, 1, undefined],
       ['labels-text', true, 0, undefined]
     ]);
@@ -323,7 +331,7 @@ describe('MVTLabelLayer symbol collision', () => {
     const layer = withRows(symbolLayer({...layout, 'icon-allow-overlap': false}), rows);
     // The text of row 1 is placed without waiting for an icon; row 0's waits for its icon.
     expect(describeSublayers(layer)).toEqual([
-      ['labels-icons-default', true, 1, undefined],
+      ['labels-icons-default', true, 1, 1.5],
       ['labels-text', true, 1, undefined],
       ['labels-text-alone-overlap', false, 1, undefined],
       ['labels-text-alone', true, 0, undefined]
@@ -335,9 +343,9 @@ describe('MVTLabelLayer symbol collision', () => {
     const icons = withRows(symbolLayer({...layout, 'text-allow-overlap': false}), rows);
     // The icon of row 2 is placed without waiting for text; row 0's waits for its text.
     expect(describeSublayers(icons)).toEqual([
-      ['labels-icons-default', true, 1, undefined],
-      ['labels-icons-default-alone-overlap', false, 1, undefined],
-      ['labels-icons-default-alone', true, 0, undefined],
+      ['labels-icons-default', true, 1, 1.5],
+      ['labels-icons-default-alone-overlap', false, 1, 1.5],
+      ['labels-icons-default-alone', true, 0, 1.5],
       ['labels-text', true, 1, undefined]
     ]);
     const [iconsPaired, iconsAlone] = icons.renderLayers();
@@ -356,7 +364,7 @@ describe('MVTLabelLayer symbol collision', () => {
       {icon: 'dot', name: 'B'}
     ]);
     expect(describeSublayers(both)).toEqual([
-      ['labels-icons-default', true, 1, undefined],
+      ['labels-icons-default', true, 1, 1.5],
       ['labels-text', true, 1, undefined]
     ]);
     // By default each part is tested with or without the other, so rows are not split.
@@ -366,7 +374,7 @@ describe('MVTLabelLayer symbol collision', () => {
     ]);
     const getLabel = vi.spyOn(defaults, 'getLabel');
     expect(describeSublayers(defaults)).toEqual([
-      ['labels-icons-default', true, 1, undefined],
+      ['labels-icons-default', true, 1, 1.5],
       ['labels-text', true, 1, undefined]
     ]);
     // No per-row text evaluation for the icons beyond the text layer's own.
@@ -413,6 +421,30 @@ describe('MVTLabelLayer symbol collision', () => {
         withRows(symbolLayer({...layout, 'icon-image': 'dot'}), [rows[0]]).renderLayers(),
         'labels-icons-default'
       ).getCollisionPriority
+    );
+  });
+
+  test("text glyphs refresh when the group's rows change, as when the sprites load", () => {
+    const layout = {
+      'icon-image': ['get', 'icon'],
+      'text-field': ['get', 'name'],
+      'text-allow-overlap': true
+    };
+    const rows = [{icon: 'dot', name: 'A'}, {name: 'B'}];
+    const getTextTrigger = (props: Record<string, unknown>) =>
+      withRows(symbolLayer(layout, 8, props), rows)
+        .renderLayers()
+        .find((sublayer: any) => sublayer.id === 'labels-text').props.updateTriggers.getText;
+    // While the sprites load, both rows are taken to have an icon, so both are in one group; once
+    // loaded, B is in a group of its own. `TextLayer` refreshes its glyphs with `getText` only.
+    const spriteAtlases = [ATLAS];
+    const loading = getTextTrigger({spriteAtlases: null});
+    const loaded = getTextTrigger({spriteAtlases});
+    expect(loaded).not.toEqual(loading);
+    // Compared as deck.gl compares triggers, one level deep: the same inputs give equal values.
+    expect(getTextTrigger({spriteAtlases})).toHaveLength(loaded.length);
+    getTextTrigger({spriteAtlases}).forEach((value: unknown, index: number) =>
+      expect(value).toBe(loaded[index])
     );
   });
 
@@ -483,9 +515,151 @@ describe('MVTLabelLayer symbol collision', () => {
       'icon-optional': true
     };
     expect(describeSublayers(symbolLayer(layout))).toEqual([
-      ['labels-icons-default', true, 1, undefined],
+      ['labels-icons-default', true, 1, 1.5],
       ['labels-text-overlap', false, 1, 0],
       ['labels-anchors', true, 0, undefined]
     ]);
+  });
+});
+
+describe('MVTLabelLayer symbol row order', () => {
+  /**
+   * A layer over three points: A and B have an icon, C has none, and A's halo differs from the
+   * others'. Text ignores placement, so its anchor is marked by the anchors sublayer.
+   */
+  function renderSymbols(): {layer: any; sublayers: any[]; features: any[]} {
+    const features = [
+      {name: 'A', icon: 'dot', halo: '#ff0000'},
+      {name: 'B', icon: 'dot', halo: '#0000ff'},
+      {name: 'C', halo: '#0000ff'}
+    ].map((properties, index) => ({
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [index, 0]},
+      properties
+    }));
+    const layer: any = new MVTLabelLayer({
+      id: 'labels',
+      config: {labels: true},
+      styleLayer: {
+        layout: {
+          'icon-image': ['get', 'icon'],
+          'text-field': ['get', 'name'],
+          'text-ignore-placement': true
+        },
+        paint: {'text-halo-color': ['get', 'halo'], 'text-halo-width': 1}
+      },
+      zoom: 8,
+      spriteAtlases: [ATLAS],
+      data: features
+    } as any);
+    layer.context = {} as any;
+    layer.internalState = {subLayers: []} as any;
+    layer.state = {};
+    layer.setState = (partial: Record<string, unknown>) => Object.assign(layer.state, partial);
+    layer.updateState({changeFlags: {dataChanged: true}} as any);
+    return {layer, sublayers: layer.renderLayers(), features};
+  }
+
+  test('icons, texts, halos and anchor marks hold the same rows, so a symbol has one row index', () => {
+    const {layer, sublayers} = renderSymbols();
+    const ids = sublayers.map((sublayer: any) => sublayer.id);
+    expect(ids).toEqual([
+      'labels-icons-default',
+      'labels-text',
+      'labels-text-1',
+      'labels-text-2',
+      'labels-anchors'
+    ]);
+    for (const sublayer of sublayers) {
+      expect(sublayer.props.data, sublayer.id).toBe(layer.getRows());
+    }
+  });
+
+  test('at each row index, every sublayer draws the same feature', () => {
+    const {layer, sublayers, features} = renderSymbols();
+    const rows = layer.getRows();
+    const [icons, , ...rest] = sublayers;
+    const halos = rest.filter((sublayer: any) => sublayer.id !== 'labels-anchors');
+    rows.forEach((row: any, index: number) => {
+      const info = {index, data: rows, target: []};
+      const properties = row.__source.object.properties;
+      expect(features.map(f => f.properties)).toContain(properties);
+      // The icon drawn at this index is this row's own.
+      expect(icons.props.getIcon(row, info), properties.name).toBe(properties.icon ?? null);
+      // Exactly one halo sublayer draws this row's text.
+      const texts = halos
+        .map((halo: any) => halo.props.getText(row, info))
+        .filter((text: unknown) => text !== undefined);
+      expect(texts, properties.name).toEqual([properties.name]);
+    });
+    // Of labels with equal priority, the first one wins: the rows are held in reverse.
+    expect(rows.map((row: any) => row.__source.object.properties.name)).toEqual(['C', 'B', 'A']);
+  });
+});
+
+describe('MVTLabelLayer symbol collision padding', () => {
+  /** `collisionTestProps` of the first sublayer whose id starts with `prefix`. */
+  function testProps(layer: any, prefix: string) {
+    return layer.renderLayers().find((sublayer: any) => sublayer.id.startsWith(prefix)).props
+      .collisionTestProps;
+  }
+
+  test('text-padding widens the text box on each side, 2 pixels by default', () => {
+    expect(testProps(symbolLayer({'text-field': 'A'}), 'labels-text').padding).toEqual([
+      6, 6, 6, 6
+    ]);
+    expect(
+      testProps(symbolLayer({'text-field': 'A', 'text-padding': 10}), 'labels-text').padding
+    ).toEqual([14, 14, 14, 14]);
+    // With no padding, the box keeps only the sample radius, which reaches the anchor.
+    expect(
+      testProps(symbolLayer({'text-field': 'A', 'text-padding': 0}), 'labels-text').padding
+    ).toEqual([4, 4, 4, 4]);
+  });
+
+  test('text-padding adds to the text-offset padding', () => {
+    const layout = {'text-field': 'A', 'text-offset': [2, 0], 'text-padding': 5};
+    expect(testProps(symbolLayer(layout), 'labels-text').padding).toEqual([41, 9, 9, 9]);
+  });
+
+  test('text-padding is read at the stepped zoom', () => {
+    const layout = {'text-field': 'A', 'text-padding': ['step', ['zoom'], 0, 10, 8]};
+    expect(testProps(symbolLayer(layout, 8), 'labels-text').padding).toEqual([4, 4, 4, 4]);
+    expect(testProps(symbolLayer(layout, 10), 'labels-text').padding).toEqual([12, 12, 12, 12]);
+  });
+
+  test('icon-padding scales the icon box in the collision pass, 2 pixels by default', () => {
+    // The dot is 8 pixels: 2 pixels on each side make it 12.
+    const base = {'icon-image': 'dot'};
+    expect(testProps(symbolLayer(base), 'labels-icons')).toEqual({alphaCutoff: 0, sizeScale: 1.5});
+    expect(testProps(symbolLayer({...base, 'icon-padding': 0}), 'labels-icons')).toEqual({
+      alphaCutoff: 0,
+      sizeScale: 1
+    });
+    // `icon-size` doubles the icon, so the same padding is a smaller part of it.
+    const doubled = symbolLayer({...base, 'icon-padding': 4, 'icon-size': 2});
+    expect(testProps(doubled, 'labels-icons').sizeScale).toBe(1.5);
+  });
+
+  test('icon-padding takes one to four values; the box grows by the larger axis', () => {
+    const scale = (padding: unknown) =>
+      testProps(symbolLayer({'icon-image': 'dot', 'icon-padding': padding}), 'labels-icons')
+        .sizeScale;
+    expect(scale([4])).toBe(2);
+    // Top and bottom 1, left and right 3: the horizontal 6 pixels win.
+    expect(scale([1, 3])).toBe(1.75);
+    // Top 1, right 2, bottom 3, left 0: 4 pixels vertically, 2 horizontally.
+    expect(scale([1, 2, 3, 0])).toBe(1.5);
+  });
+
+  test('a data-driven icon-padding scales the box for the median icon', () => {
+    const layout = {'icon-image': 'dot', 'icon-padding': ['get', 'padding']};
+    const layer = withRows(symbolLayer(layout), [{padding: 0}, {padding: 8}, {padding: 2}]);
+    expect(testProps(layer, 'labels-icons').sizeScale).toBe(1.5);
+  });
+
+  test('icons that ignore placement still draw nothing in the collision pass', () => {
+    const layout = {'icon-image': 'dot', 'icon-padding': 4, 'icon-ignore-placement': true};
+    expect(testProps(symbolLayer(layout), 'labels-icons').sizeScale).toBe(0);
   });
 });

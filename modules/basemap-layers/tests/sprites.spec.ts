@@ -261,22 +261,25 @@ describe('icon-image', () => {
     layer.context = {} as any;
     layer.internalState = {subLayers: []} as any;
     const iconLayers = layer.renderIconLayers();
+    // The sublayers hold the rows in reverse (see `getRows`).
+    const drawn = [...rows].reverse();
     // `iconAtlas` is an async prop (null until the image loads), so identify each layer by id.
-    // Every layer holds every row, so an icon's row index matches its label's.
+    // Every layer holds every row, in the text's order, so an icon's row index matches its label's.
     expect(iconLayers.map((sublayer: any) => [sublayer.id, sublayer.props.data])).toEqual([
-      ['labels-icons-default', rows],
-      ['labels-icons-poi', rows]
+      ['labels-icons-default', drawn],
+      ['labels-icons-poi', drawn]
     ]);
+    expect(iconLayers[0].props.data).toBe(layer.getRows());
     expect(iconLayers[0].props.iconMapping).toBe(DEFAULT_ATLAS.mapping);
     expect(iconLayers[1].props.iconMapping).toBe(POI_ATLAS.mapping);
-    const info = (index: number) => ({index, data: rows, target: []});
+    const info = (index: number) => ({index, data: drawn, target: []});
     const [defaultIcons, poiIcons] = iconLayers;
-    expect(rows.map((row, i) => defaultIcons.props.getIcon(row, info(i)))).toEqual([
+    expect(drawn.map((row, i) => defaultIcons.props.getIcon(row, info(i)))).toEqual([
       'circle-11',
       null,
       'circle-11'
     ]);
-    expect(rows.map((row, i) => poiIcons.props.getSize(row, info(i)))).toEqual([0, 20, 0]);
+    expect(drawn.map((row, i) => poiIcons.props.getSize(row, info(i)))).toEqual([0, 20, 0]);
   });
 
   test("icons share the labels' collision group and priority", () => {
@@ -303,8 +306,9 @@ describe('icon-image', () => {
     expect(icons.props.getCollisionPriority(rows[0], info)).toBe(
       text.props.getCollisionPriority(rows[0], info)
     );
-    // The whole icon box collides, transparent pixels included.
-    expect(icons.props.collisionTestProps).toEqual({alphaCutoff: 0});
+    // The whole icon box collides, transparent pixels included, widened by the default
+    // `icon-padding` of 2 pixels on each side of the 17-pixel icon.
+    expect(icons.props.collisionTestProps).toEqual({alphaCutoff: 0, sizeScale: 1 + 4 / 17});
   });
 });
 

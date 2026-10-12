@@ -850,6 +850,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/basemap-layers@workspace:modules/basemap-layers"
   dependencies:
+    "@deck.gl-community/geo-layers": "workspace:*"
     "@deck.gl/test-utils": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
     "@loaders.gl/loader-utils": "npm:^4.5.1"
@@ -859,7 +860,9 @@ __metadata:
     vitest: "npm:^4.0.18"
     zod: "npm:^4.0.0"
   peerDependencies:
+    "@deck.gl-community/geo-layers": ~9.4.2
     "@deck.gl/core": ~9.4.0
+    "@deck.gl/extensions": ~9.4.0
     "@deck.gl/geo-layers": ~9.4.0
     "@deck.gl/layers": ~9.4.0
     "@loaders.gl/core": ^4.5.1
@@ -986,12 +989,14 @@ __metadata:
     "@deck.gl/test-utils": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
     "@loaders.gl/loader-utils": "npm:^4.5.1"
+    "@loaders.gl/mvt": "npm:^4.5.1"
     "@loaders.gl/terrain": "npm:^4.5.1"
     "@luma.gl/core": "npm:~9.4.0"
     "@luma.gl/engine": "npm:~9.4.0"
     "@luma.gl/shadertools": "npm:~9.4.0"
     "@luma.gl/webgpu": "npm:~9.4.0"
     "@math.gl/core": "npm:^4.0.0"
+    "@math.gl/web-mercator": "npm:^4.0.0"
     "@probe.gl/stats": "npm:^4.1.1"
     "@probe.gl/test-utils": "npm:^4.1.1"
     a5-js: "npm:^0.5.0"
@@ -999,6 +1004,7 @@ __metadata:
     h3-js: "npm:^4.2.1"
   peerDependencies:
     "@deck.gl/core": ~9.4.0
+    "@deck.gl/extensions": ~9.4.0
     "@deck.gl/geo-layers": ~9.4.0
     "@deck.gl/layers": ~9.4.0
     "@loaders.gl/core": ^4.5.1
@@ -4008,7 +4014,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@math.gl/web-mercator@npm:>=4.0.1, @math.gl/web-mercator@npm:^4.1.0":
+"@math.gl/web-mercator@npm:>=4.0.1, @math.gl/web-mercator@npm:^4.0.0, @math.gl/web-mercator@npm:^4.1.0":
   version: 4.1.0
   resolution: "@math.gl/web-mercator@npm:4.1.0"
   dependencies:

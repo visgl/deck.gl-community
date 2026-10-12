@@ -15,6 +15,10 @@ const cases = {
     {data: '@@#tileset', refinementStrategy: 'no-overlap', maxZoom: null},
     {data: [{url: '/tile.png'}]}
   ],
+  SharedMVTLayer: [
+    {data: '/tiles/{z}/{x}/{y}.mvt', getFillColor: [30, 60, 90], highlightedFeatureId: 7},
+    {data: {tiles: ['/tiles/{z}/{x}/{y}.mvt']}}
+  ],
   TileGridLayer: [
     {tile: '@@#tile', getLabel: '@@=index.z', labelBackgroundColor: [0, 0, 0, 128]},
     {tile: '@@#tile', labelBackgroundColor: [0, 0]}
@@ -197,4 +201,10 @@ test('flat splat inputs accept host assets, typed affine transforms and explicit
   ).toBe(true);
   expect(schema.safeParse({...layer, getTransformMatrix: [1, 2, 3]}).success).toBe(false);
   expect(schema.safeParse({...layer, transparency: 'automatic'}).success).toBe(false);
+});
+
+test('registers the exported SharedMVTLayer with its built-in playground schema', async () => {
+  const {SharedMVTLayer} = await import('../../geo-layers/src/index');
+  const {createPlaygroundResolver} = await import('../src/runtime/playground-resolver');
+  expect(() => createPlaygroundResolver({layers: {SharedMVTLayer}})).not.toThrow();
 });

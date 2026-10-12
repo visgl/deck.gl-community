@@ -9,9 +9,9 @@ const BREAKABLE = new Set([
 ]);
 const BREAKABLE_BEFORE = new Set([0x28]);
 
-/** Builds MapLibre's script regexp, skipping scripts unsupported by the runtime. */
-function createIdeographicBreakingRegExp(): RegExp {
-  const escapes = ['Bopo', 'Hani', 'Hira', 'Kana', 'Kits', 'Nshu', 'Tang', 'Yiii']
+/** Builds a regexp of MapLibre's script codes, skipping scripts unsupported by the runtime. */
+function createScriptRegExp(scriptCodes: string[]): RegExp {
+  const escapes = scriptCodes
     .map(code => {
       try {
         return new RegExp(`\\p{sc=${code}}`, 'u').source;
@@ -23,7 +23,27 @@ function createIdeographicBreakingRegExp(): RegExp {
   return new RegExp(escapes.join('|'), 'u');
 }
 
-const IDEOGRAPHIC_BREAKING_REGEXP = createIdeographicBreakingRegExp();
+const IDEOGRAPHIC_BREAKING_REGEXP = createScriptRegExp([
+  'Bopo',
+  'Hani',
+  'Hira',
+  'Kana',
+  'Kits',
+  'Nshu',
+  'Tang',
+  'Yiii'
+]);
+
+/** Cursive scripts, whose letters join, take no letter spacing in MapLibre. */
+const CURSIVE_SCRIPT_REGEXP = createScriptRegExp(['Arab', 'Dupl', 'Mong', 'Ougr', 'Syrc']);
+
+/**
+ * Whether `text-letter-spacing` applies to `text`: as in MapLibre, text with any character of a
+ * cursive script (Arabic, Duployan, Mongolian, Old Uyghur, Syriac) is not letter-spaced.
+ */
+export function allowsLetterSpacing(text: string): boolean {
+  return !CURSIVE_SCRIPT_REGEXP.test(text);
+}
 
 /** Tests the blocks and scripts where MapLibre permits ideographic line breaks. */
 function charAllowsIdeographicBreaking(codePoint: number): boolean {
