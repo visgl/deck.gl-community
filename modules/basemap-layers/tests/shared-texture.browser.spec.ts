@@ -33,10 +33,10 @@ async function createAtlas(): Promise<SpriteAtlas> {
   } as SpriteAtlas;
 }
 
-function labelLayer(id: string, spriteAtlases: SpriteAtlas[]) {
+function labelLayer(id: string, spriteAtlases: SpriteAtlas[], labels = true) {
   return new MVTLabelLayer({
     id,
-    config: {labels: true},
+    config: {labels},
     zoom: 8,
     styleLayer: {
       layout: {'text-field': 'Ab', 'icon-image': 'dot', 'text-size': 20},
@@ -107,6 +107,17 @@ describe('shared label textures', () => {
     // Released once no layer draws from them.
     await new Promise<void>(resolve => {
       deck!.setProps({layers: [], onAfterRender: () => resolve()});
+    });
+    expect(getSharedTextureCount(device)).toBe(0);
+  });
+
+  test('a label layer with labels turned off releases its sprite texture', async () => {
+    const atlas = await createAtlas();
+    await render([labelLayer('a', [atlas])]);
+    const device = deck!.device!;
+    expect(getSharedTextureCount(device)).toBe(2);
+    await new Promise<void>(resolve => {
+      deck!.setProps({layers: [labelLayer('a', [atlas], false)], onAfterRender: () => resolve()});
     });
     expect(getSharedTextureCount(device)).toBe(0);
   });

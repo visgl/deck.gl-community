@@ -1942,6 +1942,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       );
     }
 
+    if (!config.labels) {
+      // No icon layers draw from the shared sprite textures.
+      this.retainIconAtlases(new Set());
+    }
     if (config.labels) {
       // Icons draw under their labels.
       const icons = this.getRowIcons();
