@@ -20,17 +20,22 @@ export function getSplatCommonUnits(common: number[], viewport: Viewport): numbe
     : viewport.distanceScales.unitsPerMeter;
 }
 
-/** Six normalized planes, extracted once per camera/light rather than once per sphere. */
-export function createSplatFrustum(projection: SplatShadowProjection): Float64Array {
+/** Six normalized planes, with optional XY padding in the projection viewport's pixel units. */
+export function createSplatFrustum(
+  projection: SplatShadowProjection,
+  pixelPadding = 0
+): Float64Array {
   const planes = new Float64Array(24);
   const m = projection.matrix;
   for (let axis = 0; axis < 3; axis++) {
+    const expansion =
+      axis < 2 ? 1 + (2 * pixelPadding) / (axis === 0 ? projection.width : projection.height) : 1;
     for (let side = 0; side < 2; side++) {
       const sign = side === 0 ? -1 : 1;
       const offset = (axis * 2 + side) * 4;
-      const x = m[3] + sign * m[axis];
-      const y = m[7] + sign * m[axis + 4];
-      const z = m[11] + sign * m[axis + 8];
+      const x = m[3] * expansion + sign * m[axis];
+      const y = m[7] * expansion + sign * m[axis + 4];
+      const z = m[11] * expansion + sign * m[axis + 8];
       const length = Math.hypot(x, y, z);
       // Keep degenerate planes conservative, including an infinite far plane.
       const inverse = length > 0 ? 1 / length : 1;
@@ -38,7 +43,9 @@ export function createSplatFrustum(projection: SplatShadowProjection): Float64Ar
       planes[offset + 1] = y * inverse;
       planes[offset + 2] = z * inverse;
       planes[offset + 3] =
-        (m[15] + projection.center[3] + sign * (m[axis + 12] + projection.center[axis])) * inverse;
+        ((m[15] + projection.center[3]) * expansion +
+          sign * (m[axis + 12] + projection.center[axis])) *
+        inverse;
     }
   }
   return planes;

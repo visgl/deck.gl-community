@@ -40,10 +40,11 @@ export function createSplatSpatialIndex<T>(
 /** Visit visible branches of the BVH, then test each surviving owner's bounds. */
 export function querySplatSpatialIndex<T>(
   root: SplatSpatialNode<T> | null,
-  projections: readonly SplatShadowProjection[]
+  projections: readonly SplatShadowProjection[],
+  pixelPadding = 0
 ): T[] {
   const visible: T[] = [];
-  const frusta = projections.map(createSplatFrustum);
+  const frusta = projections.map(projection => createSplatFrustum(projection, pixelPadding));
   const intersects = (entry: {center: number[]; radius: number}) =>
     frusta.some(frustum => intersectsSplatFrustum(entry.center, entry.radius, frustum));
   const visit = (node: SplatSpatialNode<T>) => {

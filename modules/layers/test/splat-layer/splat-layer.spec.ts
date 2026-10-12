@@ -470,3 +470,54 @@ it.each([
     } as any)
   ).toThrow('wrapped world');
 });
+
+it('requeries visibility at a requested raster density without rebuilding owners', () => {
+  const layer = make([{position: [0, 0, 0]}], 0);
+  const owners = layer.state.owners;
+  const index = layer.state.spatialIndex;
+  const update = vi.spyOn(layer, 'setNeedsUpdate').mockImplementation(() => {});
+  const queried = layer.state.renderPixelRatio;
+  expect(layer.requestSplatRenderPixelRatio(0.25)).toBe(queried);
+  expect(update).toHaveBeenCalledOnce();
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {}} as any);
+  expect(layer.state.renderPixelRatio).toBe(0.25);
+  expect(layer.state.owners).toBe(owners);
+  expect(layer.state.spatialIndex).toBe(index);
+  expect(layer.requestSplatRenderPixelRatio(0.25)).toBe(0.25);
+  expect(update).toHaveBeenCalledOnce();
+});
+
+it('synchronizes shared multi-view raster density before tightening the pixel cap', () => {
+  const effect = new SplatEffect();
+  let queriedDensity = 2;
+  const request = vi.fn(() => queriedDensity);
+  const parent = {
+    props: {visible: true, operation: 'draw', maxRenderPixels: 2500},
+    requestSplatRenderPixelRatio: request
+  };
+  const primitive = {
+    constructor: {layerName: 'SplatPrimitiveLayer'},
+    props: {visible: true, operation: 'draw', maxRenderPixels: Infinity}
+  };
+  const render = vi.fn();
+  const resize = vi.fn(() => Object.assign(effect, {targets: [{}, {}]}));
+  Object.assign(effect, {
+    device: {
+      type: 'webgl',
+      canvasContext: {getDrawingBufferSize: () => [200, 100], cssToDeviceRatio: () => 2},
+      beginRenderPass: () => ({end() {}})
+    },
+    model: {shaderInputs: {setProps() {}}},
+    passes: [{render}, {render}],
+    resize
+  });
+  const options = {layers: [parent, primitive], viewports: [{id: 'a'}, {id: 'b'}]};
+  effect.preRender(options as any);
+  expect(request).toHaveBeenCalledWith(0.5);
+  expect(resize).toHaveBeenCalledWith(200, 100, 'a');
+  expect(render.mock.calls[0][0].shaderModuleProps.project.devicePixelRatio).toBe(2);
+  queriedDensity = 0.5;
+  effect.preRender(options as any);
+  expect(resize).toHaveBeenLastCalledWith(50, 25, 'b');
+  expect(render.mock.lastCall![0].shaderModuleProps.project.devicePixelRatio).toBe(0.5);
+});

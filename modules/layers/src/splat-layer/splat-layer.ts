@@ -13,6 +13,7 @@ import {
   type UpdateParameters,
   type Viewport
 } from '@deck.gl/core';
+import {SplatEffect} from './splat-effect';
 import {SplatPrimitiveLayer, type PreparedSplatProps} from './splat-primitive-layer';
 import {
   createSplatFrustum,
@@ -125,6 +126,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     candidates: SplatSelection<PreparedOwner<DataT>>[];
     shadowCandidates: SplatSelection<PreparedOwner<DataT>>[];
     runtime: SplatRuntime;
+    renderPixelRatio?: number;
+    requestedRenderPixelRatio?: number;
     owners: PreparedOwner<DataT>[];
     spatialIndex: SplatSpatialNode<PreparedOwner<DataT>> | null;
     projectionKey: string;
@@ -187,6 +190,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       throw new Error('SplatLayer does not support wrapped world copies; disable MapView.repeat.');
     const runtime = SplatRuntime.get(this.context.deck, this.context.device);
     const runtimeChanged = runtime !== this.state.runtime;
+    const renderPixelRatio =
+      this.state.requestedRenderPixelRatio ??
+      this.context.device.canvasContext?.cssToDeviceRatio() ??
+      1;
     const keys = [
       'source',
       'getSource',
@@ -217,7 +224,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
       props.maxSplats !== oldProps.maxSplats ||
-      props.maxShadowSplats !== oldProps.maxShadowSplats;
+      props.maxShadowSplats !== oldProps.maxShadowSplats ||
+      props.kernelVariance !== oldProps.kernelVariance ||
+      renderPixelRatio !== this.state.renderPixelRatio;
     if (
       !runtimeChanged &&
       !changeFlags.dataChanged &&
@@ -252,8 +261,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     if (runtimeChanged) {
       this.state.runtime?.delete(this.id);
       this.state.runtime = runtime;
-      if (typeof this.context.deck._addDefaultEffect === 'function')
+      if (typeof this.context.deck._addDefaultEffect === 'function') {
         SplatSelectionEffect.get(this.context.deck);
+        SplatEffect.get(this.context.deck);
+      }
     }
     this.state.input = input;
     const viewport = this.context.viewport;
@@ -364,7 +375,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const pixelRatio = this.context.device.canvasContext?.cssToDeviceRatio() ?? 1;
     const candidates: SplatSelection<PreparedOwner<DataT>>[] = [];
     // Traverse persistent owner bounds. A camera move does not reread all accessors or rebuild the BVH.
-    for (const owner of querySplatSpatialIndex(spatialIndex, projections)) {
+    const filterPadding = (props.support * Math.sqrt(props.kernelVariance)) / renderPixelRatio;
+    for (const owner of querySplatSpatialIndex(spatialIndex, projections, filterPadding)) {
       let metersToPixels = 0;
       for (const view of views)
         metersToPixels = Math.max(
@@ -394,6 +406,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         retainedLevel: this.state.refinement.getLevel(owner.key)
       });
     }
+    this.state.renderPixelRatio = renderPixelRatio;
     this.state.hierarchy = hierarchy;
     // deck.gl suppresses updateTriggers when dataChanged has partial ranges.
     // Changed data may reuse mutated owner objects. Refresh their row wrappers
@@ -545,6 +558,17 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     };
   }
 
+  /** @internal Request a raster density and return the density covered by current visibility. */
+  requestSplatRenderPixelRatio(pixelRatio: number): number {
+    if (this.state.requestedRenderPixelRatio !== pixelRatio) {
+      this.state.requestedRenderPixelRatio = pixelRatio;
+      if (this.state.renderPixelRatio !== pixelRatio) this.setNeedsUpdate();
+    }
+    return (
+      this.state.renderPixelRatio ?? this.context.device.canvasContext?.cssToDeviceRatio() ?? 1
+    );
+  }
+
   /** Query light-space bounds and choose light-map refinement independently of the camera. */
   prepareShadow(projections: SplatShadowProjection[], viewport: Viewport) {
     this.state.shadowProjections = projections;
@@ -558,6 +582,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       origin.join(',') +
       ':' +
       getSplatProjectionKey(viewport) +
+      ':' +
+      this.props.kernelVariance +
       ':' +
       projections
         .map(projection => [
@@ -580,7 +606,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           projection.matrix[axis + 8] * origin[2]
       )
     }));
-    const frusta = absoluteProjections.map(createSplatFrustum);
+    const filterPadding = this.props.support * Math.sqrt(this.props.kernelVariance);
+    const frusta = absoluteProjections.map(projection =>
+      createSplatFrustum(projection, filterPadding)
+    );
     const lightPixels = absoluteProjections.map(
       projection =>
         Math.max(
@@ -591,7 +620,11 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         ) * 0.5
     );
     const candidates: SplatSelection<PreparedOwner<DataT>>[] = [];
-    for (const owner of querySplatSpatialIndex(this.state.spatialIndex, absoluteProjections)) {
+    for (const owner of querySplatSpatialIndex(
+      this.state.spatialIndex,
+      absoluteProjections,
+      filterPadding
+    )) {
       let pixels = 0;
       for (let light = 0; light < frusta.length; light++)
         if (intersectsSplatFrustum(owner.center, owner.radius, frusta[light]))

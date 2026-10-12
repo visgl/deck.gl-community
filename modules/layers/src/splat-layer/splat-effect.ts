@@ -14,6 +14,13 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 
 const isSplat = (layer: Layer) =>
   (layer.constructor as {layerName?: string}).layerName === 'SplatPrimitiveLayer';
+type RasterSelectionLayer = Layer & {requestSplatRenderPixelRatio: (pixelRatio: number) => number};
+function isRasterSelectionLayer(layer: Layer): layer is RasterSelectionLayer {
+  return (
+    'requestSplatRenderPixelRatio' in layer &&
+    typeof layer.requestSplatRenderPixelRatio === 'function'
+  );
+}
 const EFFECTS = new WeakMap<object, SplatEffect>();
 const compositeUniforms = {
   name: 'splatComposite',
@@ -161,13 +168,14 @@ void main() {
   preRender(options: PreRenderOptions) {
     this.ready = false;
     this.last.clear();
+    const visibleDrawLayers = options.layers.filter(
+      layer => layer.props.visible && layer.props.operation.includes('draw')
+    );
+    const selectionLayers = visibleDrawLayers.filter(isRasterSelectionLayer);
+    const splatLayers = visibleDrawLayers.filter(isSplat);
+    if (!selectionLayers.length && !splatLayers.length) return;
     if (
-      !options.layers.some(
-        layer => isSplat(layer) && layer.props.visible && layer.props.operation.includes('draw')
-      )
-    )
-      return;
-    if (
+      splatLayers.length &&
       this.device.type === 'webgpu' &&
       options.viewports.some(viewport => options.views?.[viewport.id]?.props.clear)
     )
@@ -177,11 +185,9 @@ void main() {
     const [width, height] = (
       options.canvasContext ?? this.device.canvasContext!
     ).getDrawingBufferSize();
-    const pixelLimit = options.layers.reduce(
+    const pixelLimit = [...selectionLayers, ...splatLayers].reduce(
       (limit, layer) =>
-        isSplat(layer) && layer.props.visible && layer.props.operation.includes('draw')
-          ? Math.min(limit, (layer.props as unknown as {maxRenderPixels: number}).maxRenderPixels)
-          : limit,
+        Math.min(limit, (layer.props as unknown as {maxRenderPixels: number}).maxRenderPixels),
       Infinity
     );
     const viewportIds = new Set(options.viewports.map(viewport => viewport.id));
@@ -191,10 +197,17 @@ void main() {
         this.viewportTargets.delete(id);
       }
     // Keep the aggregate accumulation pixel budget across independent view targets.
-    const scale = Math.min(
+    let scale = Math.min(
       1,
       Math.sqrt(Math.max(1, pixelLimit) / (width * height * Math.max(1, viewportIds.size)))
     );
+    const pixelRatio = (options.canvasContext ?? this.device.canvasContext!).cssToDeviceRatio();
+    const desiredDensity = pixelRatio * scale;
+    // A lower raster density broadens the filter. Keep this frame within the existing
+    // BVH selection until every parent has queried the wider screen-space margin.
+    for (const layer of selectionLayers)
+      scale = Math.max(scale, layer.requestSplatRenderPixelRatio(desiredDensity) / pixelRatio);
+    if (!splatLayers.length) return;
     this.model!.shaderInputs.setProps({splatComposite: {size: [width, height]}});
     for (const viewport of options.viewports) {
       this.resize(
@@ -210,8 +223,7 @@ void main() {
           ...options.shaderModuleProps,
           project: {
             ...options.shaderModuleProps?.project,
-            devicePixelRatio:
-              (options.canvasContext ?? this.device.canvasContext!).cssToDeviceRatio() * scale
+            devicePixelRatio: pixelRatio * scale
           }
         }
       };

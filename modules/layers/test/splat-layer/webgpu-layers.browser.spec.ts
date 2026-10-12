@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, MapView} from '@deck.gl/core';
+import {Deck, MapView, OrthographicView, COORDINATE_SYSTEM} from '@deck.gl/core';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -247,6 +247,89 @@ async function renderSplatLayer(
       if (type === 'webgl')
         expect(separate.some((channel, index) => index % 4 === 3 && channel > 1)).toBe(false);
       else expect(Math.abs(separate[strongest * 4 + 3] - baselineAlpha)).toBeLessThanOrEqual(2);
+      expect(validationErrors).toEqual([]);
+    }
+    if (mode === 'constant') {
+      // A one-pixel Gaussian four pixels outside the view still has visible filtered pixels.
+      const edgeLayer = new SplatLayer({
+        id: 'filtered-edge',
+        data: [{}],
+        source: {
+          positions: new Float32Array([0, 0, 0]),
+          scales: new Float32Array([1, 1, 1]),
+          rotations: new Float32Array([1, 0, 0, 0]),
+          colors: new Uint8Array([255, 255, 255, 255]),
+          opacities: new Float32Array([0.9])
+        },
+        coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+        getPosition: [68, 0, -10],
+        kernelVariance: 4,
+        shadowEnabled: false,
+        material: {unlit: true}
+      });
+      const at = frames;
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(
+          () => reject(new Error('Filtered edge render timed out.')),
+          15000
+        );
+        deck!.setProps({
+          views: new OrthographicView({id: 'filtered-edge-view'}),
+          viewState: {target: [0, 0, 0], zoom: 0},
+          layers: [edgeLayer],
+          onAfterRender: () => {
+            if (++frames > at + 4) {
+              deck!.pause();
+              window.clearTimeout(timeout);
+              resolve();
+            }
+          }
+        });
+        deck!.resume();
+      });
+      pixels = await readFrame(device!, colorTexture);
+      expect(pixels.some((channel, index) => index % 4 === 3 && channel > 2)).toBe(true);
+      // A new restrictive peer and second view broaden filtering enough to reveal
+      // an owner initially outside even the full-resolution padded frustum.
+      const widerEdge = edgeLayer.clone({
+        getPosition: [74, 0, -10],
+        // A dense aggregate keeps the reduced-resolution tail above alphaCutoff.
+        source: {...edgeLayer.props.source!, opticalDepths: new Float32Array([10])}
+      });
+      const peer = edgeLayer.clone({
+        id: 'density-peer',
+        getPosition: [0, 0, -10],
+        maxRenderPixels: 64 * 64
+      });
+      const peerFrame = frames;
+      let firstVisibility: number | undefined;
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(
+          () => reject(new Error('Shared filter edge render timed out.')),
+          15000
+        );
+        deck!.setProps({
+          views: [new OrthographicView({id: 'edge-a'}), new OrthographicView({id: 'edge-b'})],
+          layers: [widerEdge, peer],
+          onAfterRender: () => {
+            firstVisibility ??= widerEdge.splatStats.visibleInstances;
+            if (++frames > peerFrame + 5) {
+              deck!.pause();
+              window.clearTimeout(timeout);
+              resolve();
+            }
+          }
+        });
+        deck!.resume();
+      });
+      expect(firstVisibility).toBe(0);
+      expect(widerEdge.splatStats.visibleInstances).toBe(1);
+      pixels = await readFrame(device!, colorTexture);
+      expect(
+        Array.from({length: 128}, (_, y) => pixels[(y * 128 + 127) * 4 + 3]).some(
+          alpha => alpha > 0
+        )
+      ).toBe(true);
       expect(validationErrors).toEqual([]);
     }
     const empty = (deck!.props.layers[0] as SplatLayer).clone({data: []});

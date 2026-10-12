@@ -20,6 +20,7 @@ cannot be combined with direct asset data or an explicit `getSource`.
 
 Sources and hierarchies are immutable; replace them when their columns change. Submission
 budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
+A tighter `maxRenderPixels` can take one frame to apply while visibility expands for the broader filter.
 Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
 (`MapView.repeat`), `GlobeView`, URL/RAD inputs and sorted
 transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)

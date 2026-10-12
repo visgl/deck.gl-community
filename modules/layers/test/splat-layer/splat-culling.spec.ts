@@ -151,3 +151,23 @@ it('reuses unchanged geographic positions across source batches without retainin
   expect(next.size).toBe(2);
   expect(next.has('2,3,4')).toBe(false);
 });
+
+it.each([
+  0, 1
+])('retains filtered pixels beyond camera/light axis %i without expanding depth', axis => {
+  const projection = {
+    matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    center: [0, 0, 0, 0],
+    width: 100,
+    height: 100
+  };
+  const center = [0, 0, 0];
+  center[axis] = 1.08;
+  const index = createSplatSpatialIndex([
+    {center, radius: 0.06, value: 'filtered-edge'},
+    {center: [1.4, 0, 0], radius: 0.06, value: 'distant'},
+    {center: [0, 0, -2], radius: 0.06, value: 'behind-near'}
+  ]);
+  expect(querySplatSpatialIndex(index, [projection])).not.toContain('filtered-edge');
+  expect(querySplatSpatialIndex(index, [projection], 3 * Math.sqrt(4))).toEqual(['filtered-edge']);
+});
