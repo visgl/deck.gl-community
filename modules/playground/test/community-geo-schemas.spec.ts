@@ -63,6 +63,10 @@ const cases = {
     },
     {data: '/tileset.json', filtersByAttribute: {attributeName: 'height', value: '100'}}
   ],
+  SplatLayer: [
+    {source: '@@#leaves', getScale: [2, 2, 3], maxSplats: 2000},
+    {source: {positions: [0, 0, 0]}}
+  ],
   TreeLayer: [
     {getPosition: '@@=position', getTreeType: "@@='oak'", getHeight: '@@=10', sizeScale: 2},
     {getTreeType: 'oak'}
@@ -177,6 +181,26 @@ test('basemap font overrides accept CSS families and registered callbacks', () =
   for (const fontFamily of [12, {}, () => 'serif']) {
     expect(schema.safeParse({...layer, fontFamily}).success).toBe(false);
   }
+});
+
+test('flat splat inputs accept host assets, typed affine transforms and explicit transparency', () => {
+  const schema = CommunityGeoLayerSchemas.SplatLayer;
+  const layer = {
+    id: 'splats',
+    '@@type': 'SplatLayer',
+    getSource: '@@#asset',
+    transparency: 'weighted',
+    maxTotalSplats: 1000
+  };
+  expect(schema.safeParse(layer).success).toBe(true);
+  expect(
+    schema.safeParse({
+      ...layer,
+      getTransformMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    }).success
+  ).toBe(true);
+  expect(schema.safeParse({...layer, getTransformMatrix: [1, 2, 3]}).success).toBe(false);
+  expect(schema.safeParse({...layer, transparency: 'automatic'}).success).toBe(false);
 });
 
 test('registers the exported SharedMVTLayer with its built-in playground schema', async () => {
