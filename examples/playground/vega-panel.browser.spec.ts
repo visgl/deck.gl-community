@@ -128,6 +128,13 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
     .toBe('stacks');
   expect(host.querySelector('[data-vega-preview] canvas')).toBe(mapCanvas);
   expect(JSON.parse(model.getValue()).description).toContain('Synthetic city records');
+  const mapView = vi.mocked(createVegaView).mock.results.at(-1)!.value.view;
+  const sidebarOpenWidth = mapView.width();
+  toggleSidebar();
+  await expect.poll(() => mapView.width()).toBeGreaterThan(sidebarOpenWidth);
+  toggleSidebar();
+  await expect.poll(() => mapView.width()).toBe(sidebarOpenWidth);
+  expect(host.querySelector('[data-vega-preview] canvas')).toBe(mapCanvas);
   picker.value = 'bar-chart';
   picker.dispatchEvent(new Event('change'));
   await expect

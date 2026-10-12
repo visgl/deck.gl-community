@@ -126,7 +126,6 @@ it('moves stable city records into sector stacks with GPU interpolation and inte
       expect(value).toBeCloseTo(stacks[Math.floor(i / 3)].position[i % 3], 2)
     );
     host.style.width = '400px';
-    window.dispatchEvent(new Event('resize'));
     await expect.poll(() => view.width()).toBe(370);
     await expect
       .poll(() => view.presenter.getCubeData()[0].size[0])

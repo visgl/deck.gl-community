@@ -27,7 +27,10 @@
       "init": "min(700, max(300, containerSize()[0] - 30))",
       "on": [
         {
-          "events": "window:resize",
+          "events": {
+            "source": "container",
+            "type": "resize"
+          },
           "update": "min(700, max(300, containerSize()[0] - 30))"
         }
       ]
