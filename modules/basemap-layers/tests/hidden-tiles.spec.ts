@@ -132,23 +132,23 @@ describe('hidden tiles', () => {
     expect(layersOf(tiles[0])).toEqual([]);
   });
 
-  test.each(['_onTileLoad', '_onTileUnload'])(
-    'a tile whose content is reloaded or evicted drops its kept sublayers (%s)',
-    event => {
-      const tile = createTile(0, true);
-      const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([tile]);
-      renderAfterUpdate();
-      const before = layersOf(tile);
-      tile.isVisible = false;
-      layer[event](tile);
-      renderSubLayers.mockClear();
-      renderAfterUpdate();
-      // Not regenerated while hidden, and not given the sublayers of its previous content.
-      expect(renderSubLayers.calls).toBe(0);
-      expect(layersOf(tile)).toEqual([]);
-      expect(layersOf(tile)).not.toBe(before);
-    }
-  );
+  test.each([
+    '_onTileLoad',
+    '_onTileUnload'
+  ])('a tile whose content is reloaded or evicted drops its kept sublayers (%s)', event => {
+    const tile = createTile(0, true);
+    const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([tile]);
+    renderAfterUpdate();
+    const before = layersOf(tile);
+    tile.isVisible = false;
+    layer[event](tile);
+    renderSubLayers.mockClear();
+    renderAfterUpdate();
+    // Not regenerated while hidden, and not given the sublayers of its previous content.
+    expect(renderSubLayers.calls).toBe(0);
+    expect(layersOf(tile)).toEqual([]);
+    expect(layersOf(tile)).not.toBe(before);
+  });
 
   test('a tile shown in any view regenerates its sublayers', () => {
     const tile = createTile(0, true);
