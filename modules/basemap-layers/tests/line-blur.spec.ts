@@ -6,7 +6,12 @@
 import {LayerExtension} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
 import {describe, expect, test} from 'vitest';
-import {getBasemapLayers, getBlurredDashArray, getLineOffset} from '../src/globe-layers';
+import {
+  MIN_GAP_LINE_CENTER,
+  getBasemapLayers,
+  getBlurredDashArray,
+  getLineOffset
+} from '../src/globe-layers';
 import {LineBlurExtension, getBlurredLineWidth} from '../src/line-blur-extension';
 
 function line(properties: Record<string, unknown> = {}) {
@@ -340,6 +345,10 @@ describe('line-blur', () => {
     expect(getLineOffset(6, 0, 3, 1, 2)).toBe(2);
     // Without blur, as before.
     expect(getLineOffset(0, 4, 2, 1)).toBe(1.5);
+    // A gap's line stays off the gap's center, which marks a line without a gap.
+    expect(getLineOffset(0, 2, 4, 1, 6)).toBe(MIN_GAP_LINE_CENTER / 10);
+    expect(getLineOffset(0, 2, 4, -1, 6)).toBe(-MIN_GAP_LINE_CENTER / 10);
+    expect(getLineOffset(3, 0, 4, 1, 6)).toBe(3 / 4);
   });
 
   test('adds the attribute and shader code to path layers only', () => {

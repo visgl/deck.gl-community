@@ -976,6 +976,9 @@ export function getDashArray(dasharray: unknown): [number, number] {
   return [dash * 2, gap * 2];
 }
 
+/** The least distance, in pixels, of a gap's line from the gap's center: see getLineOffset. */
+export const MIN_GAP_LINE_CENTER = 0.01;
+
 /**
  * Converts `line-offset` and `line-gap-width` into deck.gl's `getOffset`, which is in line widths.
  * A gap draws two lines of `width` with their centers `gapWidth / 2 + width / 2` either side of
@@ -999,7 +1002,13 @@ export function getLineOffset(
   }
   // A blurred gap's lines are drawn `blur` wider and `blur / 2` closer: see getBlurredLineWidth.
   const drawnWidth = getBlurredLineWidth(width, gapWidth, blur);
-  const center = gapWidth > 0 ? gapWidth / 2 + width - drawnWidth / 2 : 0;
+  let center = gapWidth > 0 ? gapWidth / 2 + width - drawnWidth / 2 : 0;
+  // A line of a gap is never centered on the gap's center, where it would be as wide as
+  // `line-blur` is `line-width` plus `line-gap-width`: LineBlurExtension clips only lines off
+  // the center, since a line without a gap is centered on it.
+  if (gapWidth > 0 && Math.abs(center) < MIN_GAP_LINE_CENTER) {
+    center = MIN_GAP_LINE_CENTER;
+  }
   return (offset + side * center) / drawnWidth;
 }
 

@@ -234,6 +234,28 @@ describe('line-blur in the browser', () => {
     expectMapLibreFade(image, 12, 28, {width: 4, gap: 2, blur: 4}, 20);
   });
 
+  test('does not draw a gap twice where line-blur is line-width plus line-gap-width', async () => {
+    // Each line is drawn 4 + 6 pixels wide, which would center both on the gap's center.
+    const paint = {'line-width': 4, 'line-gap-width': 2, 'line-blur': 6};
+    const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
+    expectMapLibreFade(image, -8, 8, {width: 4, gap: 2, blur: 6});
+  });
+
+  test('does not draw a per-feature gap twice where line-blur is line-width plus line-gap-width', async () => {
+    const paint = {
+      'line-width': ['get', 'width'],
+      'line-gap-width': ['get', 'gap'],
+      'line-blur': ['get', 'blur']
+    };
+    const line = feature('LineString', EASTWARD);
+    const image = await render(
+      styleSublayers(paint, [
+        {...line, properties: {...line.properties, width: 4, gap: 2, blur: 6}}
+      ])
+    );
+    expectMapLibreFade(image, -8, 8, {width: 4, gap: 2, blur: 6});
+  });
+
   test('draws a line whose line-gap-width is 0 whole', async () => {
     const paint = {'line-width': 10, 'line-gap-width': 0, 'line-blur': 4};
     const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));

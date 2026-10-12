@@ -122,7 +122,8 @@ out float lineBlur_gapSide;
 #ifdef PATH_STYLE_OFFSET
   if (widthPixels.x > 0.0) {
     lineBlur_gapCenter = 2.0 * instanceOffsets - lineBlur.gapOffset / widthPixels.x;
-    // A path without a gap draws one line, centered on the gap's center: it is not clipped.
+    // A path without a gap draws one line, centered on the gap's center: it is not clipped. A
+    // line of a gap is always off the center, by at least 0.01 pixels (MIN_GAP_LINE_CENTER).
     if (abs(lineBlur_gapCenter) * widthPixels.x > 0.001) {
       lineBlur_gapSide = lineBlur.gapSide;
     }
