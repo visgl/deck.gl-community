@@ -1,9 +1,10 @@
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, Layer, LayerContext, UpdateParameters} from '@deck.gl/core';
-import {CollisionFilterExtension} from '@deck.gl/extensions';
+import {LabelCollisionFilterExtension} from './collision-extension';
 import {GeoJsonLayer, IconLayer, _TextBackgroundLayer} from '@deck.gl/layers';
 import {LabelTextLayer} from './label-text-layer';
 import type {LabelTextJustify} from './label-text-layer';
+import {SharedTextureSet} from './shared-texture';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {
   getCompiledStyleProperty,
@@ -217,6 +218,8 @@ type MVTLabelLayerState = {
     /** Per label row, whether it has text (see `getRowsWithText`). */
     rowsWithText?: boolean[];
   };
+  /** The sprite textures of the icon layers, shared with other label layers. */
+  iconTextures?: SharedTextureSet;
 };
 
 /** A label halo as deck.gl `TextLayer` draws it: an SDF outline color, width and blur. */
@@ -853,6 +856,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         atlases.add(icon.atlas);
       }
     }
+    this.retainIconAtlases(atlases);
     if (!atlases.size) {
       return [];
     }
@@ -881,7 +885,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const layer = new IconLayer({
           ...this.getSubLayerProps({id: getUniqueId(`icons-${atlas.id}${idSuffix}`)}),
           data: labelRows,
-          iconAtlas: atlas.image,
+          iconAtlas: this.getIconAtlas(atlas) as any,
           iconMapping: atlas.mapping,
           loadOptions: iconLoadOptions || undefined,
           billboard,
@@ -891,7 +895,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           parameters: LABEL_PARAMETERS,
           extensions: [
             ...(this.props.extensions || []),
-            new CollisionFilterExtension(),
+            new LabelCollisionFilterExtension(),
             GLOBE_HORIZON_EXTENSION
           ],
           collisionEnabled: true,
@@ -957,7 +961,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       data: this.getRows(),
       extensions: [
         ...(this.props.extensions || []),
-        new CollisionFilterExtension(),
+        new LabelCollisionFilterExtension(),
         GLOBE_HORIZON_EXTENSION
       ],
       parameters: LABEL_PARAMETERS,
@@ -1017,6 +1021,26 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       labelText.rowsWithText = rowsWithText;
     }
     return rowsWithText;
+  }
+
+  /**
+   * The texture of a sprite's image, shared by the icon layers of every label layer, or its URL
+   * while it is not decoded. deck.gl would otherwise upload the image for each icon layer.
+   */
+  getIconAtlas(atlas: SpriteAtlas): unknown {
+    const {device} = this.context;
+    if (typeof atlas.image === 'string' || !device) {
+      return atlas.image;
+    }
+    if (!this.state.iconTextures) {
+      this.state.iconTextures = new SharedTextureSet(device);
+    }
+    return this.state.iconTextures.get(atlas.image);
+  }
+
+  /** Releases the sprite textures that the icon layers no longer draw from. */
+  retainIconAtlases(atlases: Set<SpriteAtlas>): void {
+    this.state.iconTextures?.retainOnly([...atlases].map(atlas => atlas.image as object));
   }
 
   /**
@@ -1326,6 +1350,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return String(this.props.collisionPriorityRange || '');
   }
 
+  /**
+   * What the label text takes from `text-size`: a size of 0 hides the label (see `getLabel`). A size
+   * that depends on zoom but not on the feature re-evaluates the text only when it reaches or leaves
+   * 0, not at every zoom step, since the text and its wrapping do not depend on the size otherwise.
+   */
+  getLabelSizeTextTrigger(): string {
+    const size = this.getStyleProperty('text-size');
+    if (!size?.isZoomDependent || size.isFeatureDependent) {
+      return this.getStyleUpdateTrigger('text-size');
+    }
+    const value = size.evaluate(getZoomBucket(this.props.zoom || 0));
+    const isVisible = Number(value ?? getStylePropertyDefault('text-size')) > 0;
+    return `${JSON.stringify(this.props.styleLayer?.layout?.['text-size'])}|${isVisible}`;
+  }
+
   /** Update triggers for the text accessors (see `getStyleUpdateTrigger`). */
   getLabelUpdateTriggers(): Record<string, string> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
@@ -1338,13 +1377,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return {
       getText: `${getTrigger(
         'text-field',
-        'text-size',
         'text-transform',
         'text-max-width',
         'text-letter-spacing',
         'symbol-placement',
         'text-font'
-      )}|${fontFamilyKey}`,
+      )}|${this.getLabelSizeTextTrigger()}|${fontFamilyKey}`,
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
       // The priorities are mapped into `collisionPriorityRange`.
@@ -1824,11 +1862,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row)};
   }
 
-  /** Forgets a font load in flight, so that its completion does not update a finalized layer. */
+  /**
+   * Forgets a font load in flight, so that its completion does not update a finalized layer, and
+   * releases the shared sprite textures.
+   */
   finalizeState(context: LayerContext): void {
     super.finalizeState(context);
     if (this.state) {
       this.state.loadingFont = undefined;
+      this.state.iconTextures?.releaseAll();
     }
   }
 
@@ -1900,6 +1942,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       );
     }
 
+    if (!config.labels) {
+      // No icon layers draw from the shared sprite textures.
+      this.retainIconAtlases(new Set());
+    }
     if (config.labels) {
       // Icons draw under their labels.
       const icons = this.getRowIcons();
@@ -1935,7 +1981,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           data: this.getRows(),
           extensions: [
             ...(this.props.extensions || []),
-            new CollisionFilterExtension(),
+            new LabelCollisionFilterExtension(),
             GLOBE_HORIZON_EXTENSION,
             TEXT_HALO_BLUR_EXTENSION
           ],

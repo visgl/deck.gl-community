@@ -51,8 +51,14 @@ function footprint(zoom: number): number[][] {
 }
 
 /** A globe basemap with a white background and one red style layer holding `ring`. */
-function basemap(ring: number[][], styleLayer: Record<string, unknown>, maxzoom: number) {
+function basemap(
+  ring: number[][],
+  styleLayer: Record<string, unknown>,
+  maxzoom: number,
+  fetched: string[] = []
+) {
   const fetch = async (url: string) => {
+    fetched.push(url);
     const [z, x, y] = url
       .match(/(\d+)\/(\d+)\/(\d+)\.mvt/)!
       .slice(1)
@@ -213,13 +219,65 @@ describe('a globe basemap above zoom 12', () => {
     expectSameExtent(actual, expected);
   }, 30_000);
 
-  test('draws a fill once the view zooms past 12, within one style zoom step', async () => {
-    const ring = footprint(12.1);
-    await createDeck([basemap(ring, FILL, 12)], viewAt(12, 0));
-    const frame = nextFrame();
-    deck!.setProps({viewState: viewAt(12.1, 0) as any});
-    const actual = await frame;
-    const expected = await renderReference(ring, false, viewAt(12.1, 0));
-    expectSameExtent(actual, expected);
-  }, 30_000);
+  for (const [name, styleLayer, pitch] of [
+    ['a fill', FILL, 0],
+    ['a fill-extrusion', EXTRUSION, 40]
+  ] as const) {
+    test(`draws ${name} across zoom 12 and back, reusing the shared tiles`, async () => {
+      const ring = footprint(12.1);
+      const extruded = styleLayer === EXTRUSION;
+      const atGlobe = viewAt(12, pitch);
+      const atMap = viewAt(12.1, pitch);
+      const expectedGlobe = await renderReference(ring, extruded, atGlobe);
+      const expectedMap = await renderReference(ring, extruded, atMap);
+      cleanup();
+
+      const fetched: string[] = [];
+      const globe = await createDeck([basemap(ring, styleLayer, 12, fetched)], atGlobe);
+      const layer = () =>
+        (deck as any).layerManager.getLayers().find((each: any) => each.id === 'basemap');
+      const drawn = () =>
+        (deck as any).layerManager
+          .getLayers()
+          .filter((each: any) => each.id.endsWith('"building"'))
+          .map((each: any) => each.props.parameters.cullMode);
+      const hasPole = () =>
+        (deck as any).layerManager
+          .getLayers()
+          .some((each: any) => each.id === 'basemap-background-north-pole');
+      const [tileset] = layer().state.tilesets.values();
+      const tiles = new Map(tileset.tiles.map((tile: any) => [tile, tile.content]));
+      const fetchCount = fetched.length;
+      expect(tiles.size).toBeGreaterThan(0);
+      expect(hasPole()).toBe(true);
+      expect(drawn()).toEqual([extruded ? 'none' : 'back']);
+      // The basemap rebuilds its sublayers for each mode, but keeps the shared tiles and content.
+      const expectSharedTiles = () => {
+        expect([...layer().state.tilesets.values()][0]).toBe(tileset);
+        for (const [tile, content] of tiles) {
+          expect(tileset.tiles).toContain(tile);
+          expect(tile.content).toBe(content);
+        }
+        expect(fetched.length - fetchCount).toBe(0);
+      };
+
+      const toMap = nextFrame();
+      deck!.setProps({viewState: atMap as any});
+      const map = await toMap;
+      expectSharedTiles();
+      expect(hasPole()).toBe(false);
+      expect(drawn()).toEqual(['none']);
+
+      const back = nextFrame();
+      deck!.setProps({viewState: atGlobe as any});
+      const globeAgain = await back;
+      expectSharedTiles();
+      expect(hasPole()).toBe(true);
+      expect(drawn()).toEqual([extruded ? 'none' : 'back']);
+
+      expectSameExtent(globe, expectedGlobe);
+      expectSameExtent(map, expectedMap);
+      expectSameExtent(globeAgain, expectedGlobe);
+    }, 60_000);
+  }
 });
