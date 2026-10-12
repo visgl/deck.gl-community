@@ -1,4 +1,5 @@
 import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
+import type {UpdateParameters} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
 import {MVTLayer, TileLayer, _getURLFromTemplate} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
@@ -371,6 +372,29 @@ function getRasterColorAdjustments(paint: Record<string, any>): RasterColorAdjus
   };
 }
 
+/** The bounds of the Web Mercator tile pyramid. */
+const WORLD_TILE_EXTENT = [-180, -85.051129, 180, 85.051129];
+
+/**
+ * The tile pyramid range of a source. `TileLayer` draws nothing at a view zoom below its `minZoom`,
+ * unless it has an `extent`. On a globe, the view zoom goes below 0 near the poles: `GlobeView`
+ * lowers the zoom with the latitude, so that the globe keeps its size on screen (zoom 0 at the
+ * equator is zoom -2 at latitude 76). A source whose pyramid starts at zoom 0 draws its zoom 0
+ * tiles at any lower zoom, as in MapLibre; the extent, the whole pyramid, selects them.
+ */
+function getTilePyramidProps(source: BasemapSource): {
+  minZoom: number;
+  maxZoom: number;
+  extent: number[] | null;
+} {
+  const minZoom = source.minzoom ?? 0;
+  return {
+    minZoom,
+    maxZoom: source.maxzoom ?? 22,
+    extent: minZoom <= 0 ? WORLD_TILE_EXTENT : null
+  };
+}
+
 function createRasterLayer({
   idPrefix,
   layer,
@@ -397,8 +421,7 @@ function createRasterLayer({
   return new TileLayer({
     id: `${idPrefix}-${layer.id}`,
     data: source.tiles,
-    minZoom: source.minzoom ?? 0,
-    maxZoom: source.maxzoom ?? 22,
+    ...getTilePyramidProps(source),
     tileSize: source.tileSize || 512,
     // deck.gl draws with `opacity ** (1 / 2.2)`. Undo that, so the alpha is `raster-opacity`, as
     // in MapLibre.
@@ -442,6 +465,24 @@ function createRasterLayer({
 }
 
 class StyledMVTLayer extends MVTLayer<any> {
+  /**
+   * Tiles decode to longitude/latitude in a globe viewport and to tile coordinates otherwise (see
+   * `getTileData`). A switch between a map and a globe view can keep this layer and its tiles; the
+   * tiles are then reloaded, since their coordinates no longer match the viewport.
+   */
+  updateState(params: UpdateParameters<this>) {
+    const geographic = Boolean(this.context.viewport.resolution);
+    const {tileset, tileGeographic} = this.state as {
+      tileset?: {reloadAll(): void};
+      tileGeographic?: boolean;
+    };
+    if (tileset && tileGeographic !== undefined && tileGeographic !== geographic) {
+      tileset.reloadAll();
+    }
+    (this.state as {tileGeographic?: boolean}).tileGeographic = geographic;
+    super.updateState(params);
+  }
+
   getTileData(loadProps: {index: {x: number; y: number; z: number}; signal?: AbortSignal}) {
     const data = this.props.data;
     const url = _getURLFromTemplate(data, loadProps as any);
@@ -581,16 +622,12 @@ function createVectorLayerGroup({
   /** Label font override; tiles regenerate when it changes. */
   fontFamily?: LabelFontFamily | null;
 }) {
-  // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
-  const minZoom = source.minzoom ?? 0;
-  const maxZoom = source.maxzoom ?? 22;
-
   return new StyledMVTLayer({
     id: `${idPrefix}-${sourceId}`,
     data: source.tiles,
     binary: false,
-    minZoom,
-    maxZoom,
+    // The tile pyramid's range; style layers are gated by their own range in renderSubLayers.
+    ...getTilePyramidProps(source),
     tileSize: source.tileSize || 512,
     loadOptions: {
       ...(loadOptions || {}),

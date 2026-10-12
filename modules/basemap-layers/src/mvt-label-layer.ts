@@ -10,6 +10,7 @@ import {
 } from './style-expression';
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
+import {GlobeHorizonExtension} from './globe-horizon-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {
   canMeasureText,
@@ -132,6 +133,13 @@ export type MVTLabelLayerProps = {
  */
 const COLLISION_SAMPLE_RADIUS = 4;
 
+/**
+ * Draw parameters of the text, icon and anchor mark sublayers. Labels draw over the map without a depth test.
+ * Their screen-space quads wind clockwise, so `GlobeView`'s default `cullMode: 'back'` would cull
+ * every one of them; they are drawn with culling off, in every view.
+ */
+const LABEL_PARAMETERS = {depthTest: false, cullMode: 'none'} as const;
+
 /** Collision group shared by every label and icon, so all symbols collide with each other. */
 const LABEL_COLLISION_GROUP = 'basemap-labels';
 
@@ -142,6 +150,12 @@ const LABEL_COLLISION_GROUP = 'basemap-labels';
  * there and leaves no mark in the collision map, while the draw pass still filters it.
  */
 const MASKED_COLLISION_PRIORITY = -2000;
+
+/**
+ * Without a depth test, labels on the far side of a globe would draw through it. This extension
+ * hides those whose anchor is beyond the horizon, and keeps them out of the collision pass.
+ */
+const GLOBE_HORIZON_EXTENSION = new GlobeHorizonExtension();
 
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
@@ -792,8 +806,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           billboard,
           ...this.getLineIconProps(),
           sizeUnits: 'pixels',
-          parameters: {depthTest: false},
-          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
+          parameters: LABEL_PARAMETERS,
+          extensions: [
+            ...(this.props.extensions || []),
+            new CollisionFilterExtension(),
+            GLOBE_HORIZON_EXTENSION
+          ],
           collisionEnabled: true,
           collisionGroup: LABEL_COLLISION_GROUP,
           getCollisionPriority: forOwnRows(
@@ -845,8 +863,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return new _TextBackgroundLayer({
       ...this.getSubLayerProps({id: `anchors${idSuffix}`}),
       data: this.getRows(),
-      extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-      parameters: {depthTest: false},
+      extensions: [
+        ...(this.props.extensions || []),
+        new CollisionFilterExtension(),
+        GLOBE_HORIZON_EXTENSION
+      ],
+      parameters: LABEL_PARAMETERS,
       billboard: this.props.billboard,
       collisionEnabled: true,
       collisionGroup: LABEL_COLLISION_GROUP,
@@ -1743,10 +1765,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
         const textProps = {
           data: this.getRows(),
-          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-          parameters: {
-            depthTest: false
-          },
+          extensions: [
+            ...(this.props.extensions || []),
+            new CollisionFilterExtension(),
+            GLOBE_HORIZON_EXTENSION
+          ],
+          parameters: LABEL_PARAMETERS,
           billboard,
           ...this.getLineLabelProps(),
           characterSet: 'auto',
