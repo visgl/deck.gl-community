@@ -225,6 +225,8 @@ type FilteredFeatures = {
   filterSnapshot: string;
   sourceLayer: string | undefined;
   filterZoom: number | null;
+  /** The tile content's length when it was filtered: content edited in place is filtered again. */
+  length: number;
   features: any[];
 };
 
@@ -308,7 +310,8 @@ function filterTileFeatures(
     cached &&
     cached.filterSnapshot === filterSnapshot &&
     cached.sourceLayer === sourceLayer &&
-    cached.filterZoom === filterZoom
+    cached.filterZoom === filterZoom &&
+    cached.length === features.length
   ) {
     return cached.features;
   }
@@ -321,7 +324,13 @@ function filterTileFeatures(
         globalProperties: {zoom: getFilterZoom(zoom)}
       })
     : sourceFeatures;
-  byStyleLayer.set(styleLayer, {filterSnapshot, sourceLayer, filterZoom, features: filtered});
+  byStyleLayer.set(styleLayer, {
+    filterSnapshot,
+    sourceLayer,
+    filterZoom,
+    length: features.length,
+    features: filtered
+  });
   return filtered;
 }
 
@@ -1685,15 +1694,18 @@ export function getStyleSourceLayers(
   return getRunSourceLayers(getStyleLayerRuns(styleLayers, styleDefinition, config));
 }
 
-/** `loadOptions` for a vector source's tiles, decoding only `sourceLayers` when given. */
+/**
+ * `loadOptions` for a vector source's tiles, decoding only `sourceLayers` when given. Source
+ * layers set in `loadOptions.mvt.layers` are left as they are.
+ */
 export function getSourceLoadOptions(
   loadOptions: BasemapLoadOptions | undefined,
   sourceLayers: string[] | null | undefined
 ): BasemapLoadOptions | undefined {
-  if (!sourceLayers) {
+  const mvt = (loadOptions as {mvt?: Record<string, unknown>} | undefined)?.mvt;
+  if (!sourceLayers || mvt?.layers) {
     return loadOptions;
   }
-  const mvt = (loadOptions as {mvt?: Record<string, unknown>} | undefined)?.mvt;
   return {...loadOptions, mvt: {...mvt, layers: sourceLayers}} as BasemapLoadOptions;
 }
 

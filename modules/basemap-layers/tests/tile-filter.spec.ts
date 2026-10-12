@@ -78,11 +78,17 @@ describe('tile features by source layer', () => {
 
   test('tile content edited in place is split again', () => {
     const content = [feature('roads', 'r1'), feature('rivers', 'w1')];
-    const [first] = tileSubLayers([{id: 'roads', 'source-layer': 'roads'}], content);
+    const layers = [{id: 'roads', 'source-layer': 'roads'}];
+    // The same style, so that the same style layer filters the content again.
+    const style = createStyle(layers);
+    const [first] = tileSubLayers(layers, content, 12, style);
     expect(names(first)).toEqual(['r1']);
     content.push(feature('roads', 'r2'));
-    const [second] = tileSubLayers([{id: 'roads', 'source-layer': 'roads'}], content);
+    const [second] = tileSubLayers(layers, content, 12, style);
     expect(names(second)).toEqual(['r1', 'r2']);
+    // With a new style too.
+    const [third] = tileSubLayers(layers, content);
+    expect(names(third)).toEqual(['r1', 'r2']);
   });
 
   test('each style layer of a tile is filtered by its own filter at a new integer zoom', () => {

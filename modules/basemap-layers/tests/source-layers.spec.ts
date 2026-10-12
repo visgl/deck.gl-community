@@ -90,6 +90,18 @@ describe('source layers', () => {
     expect(getTileLoadOptions(first.props.data).layers).toEqual(['road', 'water']);
   });
 
+  test('are those the application sets in loadOptions.mvt.layers, when it sets them', () => {
+    const layers = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 12,
+      loadOptions: {mvt: {layers: ['road'], shape: 'geojson'}},
+      styleDefinition: {version: 8, sources: SOURCES, layers: LAYERS} as any
+    } as any) as any[];
+    const [first] = layers.filter(layer => layer.constructor.layerName === 'StyledMVTLayer');
+    expect(getTileLoadOptions(first.props.data)).toEqual({layers: ['road'], shape: 'geojson'});
+  });
+
   test('are all source layers when a style layer of the source names none', () => {
     const layers = [...LAYERS, {id: 'any', type: 'line', source: 'tiles'}];
     const [first] = getTileLayers(layers, 12);
