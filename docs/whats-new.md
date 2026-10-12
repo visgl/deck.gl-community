@@ -4,6 +4,8 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Private Vega renderer: geographic polygon/path vertices, colors and outline widths now use GPU transitions when projection signals change.
+
 - Private Vega renderer: projected GeoJSON shape marks with holes and separate polygons, geographic point symbols, and GPU circle/square lifecycle transitions. A shared declarative geospatial example is available in the playground and inline module docs.
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.

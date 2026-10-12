@@ -21,7 +21,7 @@ Vega evaluates data, transforms, scales, expressions and encodings on the CPU. T
 | Lines, rules and areas | Straight line segments use `LineLayer`/`PathLayer`; areas use `PolygonLayer`. Vega curve interpolation is not reproduced by these stagers. |
 | Text, axes, legends and groups | Text uses `TextLayer`; axis lines and labels are staged separately, and legends use HTML. Groups accumulate positional offsets and facet outlines; group clipping is unsupported. |
 | Geographic shapes and points | Vega `geoshape` projects, clips and resamples GeoJSON on the CPU. Ordered polygon/path batches render holes, islands, routes and graticules. `geopoint` places symbols on the same chart; basemap synchronization is not implemented. |
-| Animated records | GPU attribute transitions animate cuboid and symbol position, size and color, plus symbol shape, rotation and outlines. Stable slots support filtering, reordering, interrupted exits and reentry. Projection geometry restages immediately; historical slots remain until finalization. |
+| Animated records | GPU attribute transitions animate cuboid and symbol position, size and color, plus symbol shape, rotation and outlines. Stable slots support filtering, reordering, interrupted exits and reentry. Historical record slots remain until finalization. Projected polygon/path vertices also interpolate on the GPU. |
 | Picking and hover tooltips | deck.gl GPU picking identifies marks. Evaluated `tooltip` encodings on rects, symbols and projected shapes display as plain-text HTML overlays. |
 
 **Rendering limits:** This is a private, unpublished Vega renderer subset. Arbitrary SVG paths, image/arc marks, exact mixed-mark paint order and WebGPU rendering are not implemented. Geographic shape batches preserve their own paint order.
@@ -103,8 +103,21 @@ Cuboids, circles, and squares now use GPU transitions for record updates and ent
 
 The shared `examples/vega/geospatial/spec.json` declares synthetic GeoJSON regions, a lake hole, separate islands, a route, a geographic graticule, and geographic point symbols. Choose it in the Vega playground to edit the document. `geoshape` uses Vega projection, resampling and geographic clipping; `geopoint` positions circle or square symbols on the same projected chart. Projection coordinates use the chart camera rather than a synchronized map basemap.
 
-Circle and square symbols retain GPU attribute slots by mark and Vega tuple identity. Position, size, fill/stroke color and outline width interpolate on the GPU; filtering shrinks and fades exits at their last positions. Circle/square changes morph the same GPU glyph, keeping its position and identity continuous. Projection geometry itself restages immediately. Historical symbol slots remain allocated until view finalization; recreate views periodically for unbounded streams.
+Circle and square symbols retain GPU attribute slots by mark and Vega tuple identity. Position, size, fill/stroke color and outline width interpolate on the GPU; filtering shrinks and fades exits at their last positions. Circle/square changes morph the same GPU glyph, keeping its position and identity continuous. Vega computes projection targets on the CPU; deck.gl interpolates polygon and path vertices on the GPU using `transitionDurations.position`. Geographic colors and outline widths use the `color` and `size` durations. Historical symbol slots remain allocated until view finalization; recreate views periodically for unbounded streams.
 
 ### Hover tooltips
 
 Use Vega’s `tooltip` encoding on rect, symbol or projected shape marks, for example `"tooltip": {"signal": "{Name: datum.properties.name}"}`. Hovering displays evaluated strings or object fields as plain text. Omitted, null and false values suppress the tooltip. The unit layout, bar chart, geospatial and symbol transition examples declare tooltips in their shared JSON specs.
+
+### Geographic transition behavior
+
+Changing the projection or its parameters animates projected polygon and path vertices, alongside point symbols, with native deck.gl GPU attribute transitions. Setting `presenterConfig.transitionDurations.position` to zero makes geometry updates immediate. Geographic fills/strokes and outline widths also animate with the configured `color` and `size` durations.
+
+Vega still computes projection, resampling and clipping on the CPU. Vertex interpolation follows each staged geometry's vertex order; it is not interpolation between cartographic projection functions. Clipping can add or remove shapes and change ring topology, so those changes do not have the same stable record correspondence as symbols. Exact topology-aware projection morphing remains a follow-up.
+
+## Next renderer tranches
+
+- **Topology-aware projection morphing:** match rings and resampled vertices across projections, with explicit entry/exit behavior for clipped geometry.
+- **Curves and stroke semantics:** render Vega line/area interpolation modes, line caps and joins.
+- **Group clipping and mixed-mark paint order:** preserve scene traversal order and clip child layers to group bounds.
+- **Broader marks and text fidelity:** add arc/image marks and extend font and text layout support.
