@@ -167,6 +167,14 @@ describe('consecutive style layers share a sublayer', () => {
     expect(idsOf(layers)).toEqual([['a', 'b']]);
   });
 
+  test('a fill or line that draws nothing does not separate its neighbours', () => {
+    const layers = renderTile(
+      [fill('a', '#ff0000'), line('hidden', {'line-opacity': 0}), fill('b', '#0000ff')],
+      [feature('Polygon')]
+    );
+    expect(idsOf(layers)).toEqual([['a', 'b']]);
+  });
+
   test('a batch draws at the index of its first style layer among all tiles', () => {
     const layers = renderTile(
       [
@@ -251,6 +259,25 @@ describe('style layers that draw alone', () => {
     const layers = renderTile(
       [fill('a', '#ff0000', {paint: {'fill-outline-color': '#000000'}}), fill('b', '#0000ff')],
       [feature('Polygon')]
+    );
+    expect(idsOf(layers)).toEqual(['a', 'b']);
+  });
+
+  test('a fill with a translation', () => {
+    const layers = renderTile(
+      [
+        fill('a', '#ff0000', {paint: {'fill-color': '#ff0000', 'fill-translate': [2, 2]}}),
+        fill('b', '#0000ff')
+      ],
+      [feature('Polygon')]
+    );
+    expect(idsOf(layers)).toEqual(['a', 'b']);
+  });
+
+  test('a line with a blur', () => {
+    const layers = renderTile(
+      [line('a', {'line-blur': 2}), line('b', {})],
+      [feature('LineString')]
     );
     expect(idsOf(layers)).toEqual(['a', 'b']);
   });
