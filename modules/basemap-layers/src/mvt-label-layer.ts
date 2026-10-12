@@ -1139,7 +1139,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!(outlineColor[3] > 0)) {
       return null;
     }
-    const blur = Number(this.evaluateStyleProperty('text-halo-blur', feature) ?? 0);
+    // WebGPU draws halos without blur (see `TextHaloBlurExtension`), so blur must not split halo
+    // groups there: invisible differences would take places under the cap from other halos.
+    const blur =
+      this.context?.device?.type === 'webgpu'
+        ? 0
+        : Number(this.evaluateStyleProperty('text-halo-blur', feature) ?? 0);
     return {
       outlineColor,
       outlineWidth: getOutlineWidth(width, size),

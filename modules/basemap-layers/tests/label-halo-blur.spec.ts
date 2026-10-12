@@ -25,8 +25,8 @@ function haloLayer(paint: Record<string, unknown>, zoom = 7.6, data: unknown[] =
 }
 
 /** Runs `updateState` outside deck.gl and returns the layer's text sublayers. */
-function renderTextLayers(layer: any, dataChanged = true): any[] {
-  layer.context = {} as any;
+function renderTextLayers(layer: any, dataChanged = true, context: any = {}): any[] {
+  layer.context = context;
   layer.internalState = {subLayers: []} as any;
   layer.state = layer.state || {};
   layer.setState = (partial: Record<string, unknown>) => Object.assign(layer.state, partial);
@@ -133,6 +133,18 @@ describe('label halo blur', () => {
       [undefined, 'Label', undefined, 'Label', undefined],
       [undefined, undefined, undefined, undefined, 'Label']
     ]);
+  });
+
+  test('on WebGPU, which draws no blur, halos that differ only in blur share one sublayer', () => {
+    const features = [0, 1, 2].map(blur => ({
+      ...feature,
+      properties: {...feature.properties, blur}
+    }));
+    const layer = haloLayer({...WHITE_HALO, 'text-halo-blur': ['get', 'blur']}, 7.6, features);
+    const texts = renderTextLayers(layer, true, {device: {type: 'webgpu'}});
+    expect(texts).toHaveLength(1);
+    expect(texts[0].props.textHaloBlurGamma).toBe(0);
+    expect(drawnText(texts[0], layer.state.labelData)).toEqual(['Label', 'Label', 'Label']);
   });
 
   test('distinct blurs are capped like other halos', () => {
