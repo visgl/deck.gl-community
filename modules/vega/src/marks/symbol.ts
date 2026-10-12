@@ -11,7 +11,7 @@ import type {SceneSymbol} from 'vega';
 type SymbolItem = SceneSymbol & {z?: number; angle?: number};
 
 /** Circles and squares retain Vega's area-based size, group offsets and opacity. */
-const stageSymbol: MarkStager = (_options, stage, scene, x, y) => {
+const stageSymbol: MarkStager = (options, stage, scene, x, y) => {
   base.vega.sceneVisit(scene, (item: SymbolItem) => {
     if (item.shape && item.shape !== 'circle' && item.shape !== 'square') {
       throw new Error(`Unsupported Vega symbol shape: ${item.shape}. Use circle or square.`);
@@ -25,11 +25,14 @@ const stageSymbol: MarkStager = (_options, stage, scene, x, y) => {
       -(y + (item.y || 0)),
       stage.view === '3d' ? item.z || 0 : 0
     ];
+    const ordinal = options.assignSymbolOrdinal?.(item.datum, item);
     const size = Math.max(0, item.size ?? 64);
     if (item.shape === 'square') {
       const halfSize = Math.sqrt(size) / 2;
       stage.polygonData.push({
         isSymbol: true,
+        angle: (-(item.angle ?? 0) * Math.PI) / 180,
+        ordinal,
         datum: item.datum,
         positions: [
           [-halfSize, -halfSize],
@@ -54,6 +57,7 @@ const stageSymbol: MarkStager = (_options, stage, scene, x, y) => {
     stage.symbolData ??= [];
     stage.symbolData.push({
       datum: item.datum,
+      ordinal,
       position,
       radius: Math.sqrt(size / Math.PI),
       fillColor,

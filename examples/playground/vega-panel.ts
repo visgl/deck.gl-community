@@ -7,6 +7,7 @@ import {CustomPanel, TextEditorPanel} from '@deck.gl-community/panels';
 import unitLayouts from '../vega/specs/unit-layouts.json';
 import barChart from '../vega/specs/bar-chart.json';
 import markTransitions from '../vega/mark-transitions/spec.json';
+import geospatial from '../vega/geospatial/spec.json';
 import type {Spec} from 'vega';
 import type {createVegaView} from '../vega/create-vega-view';
 
@@ -15,7 +16,8 @@ let panelCount = 0;
 export const VEGA_TEMPLATES = {
   'unit-layouts': {title: 'Unit layouts', spec: unitLayouts},
   'bar-chart': {title: 'Bar chart', spec: barChart},
-  'mark-transitions': {title: 'Symbols and record transitions', spec: markTransitions}
+  'mark-transitions': {title: 'Symbols and record transitions', spec: markTransitions},
+  geospatial: {title: 'Geospatial projections and symbols', spec: geospatial}
 };
 
 /** Page-owned Vega tab. Switching tabs releases its View and restores the deck preview. */

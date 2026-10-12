@@ -68,6 +68,8 @@ export interface Cube {
 
 /** A Vega circle symbol, sized by area in chart coordinates. */
 export interface SymbolMark {
+  /** Stable transition slot assigned by the scene stager. */
+  ordinal?: number;
   datum: unknown;
   position: Vec3;
   radius: number;
@@ -77,6 +79,7 @@ export interface SymbolMark {
 }
 
 export interface Path {
+  datum?: unknown;
   positions: Position[];
   strokeColor: Color;
   strokeWidth: number;
@@ -84,8 +87,12 @@ export interface Path {
 
 export interface Polygon {
   isSymbol?: boolean;
+  /** Square symbol rotation in Cartesian radians. */
+  angle?: number;
+  isGeographic?: boolean;
+  ordinal?: number;
   datum?: unknown;
-  positions: Position[];
+  positions: Position[] | Position[][];
   strokeColor: Color;
   fillColor: Color;
   strokeWidth: number;

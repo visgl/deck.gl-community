@@ -142,7 +142,9 @@ it('renders and picks symbols, and animates exits without losing ordinal identit
     await view.signal('count', 3).signal('shape', 'square').runAsync();
     await expect.poll(() => view.presenter.getCubeData().every(cube => !cube.isEmpty)).toBe(true);
     expect(view.presenter.getCubeData().map(cube => cube.ordinal)).toEqual([0, 1, 2]);
-    await expect.poll(() => symbolLayer().props.data.length).toBe(0);
+    await expect
+      .poll(() => symbolLayer().props.data.every((item: any) => item.radius === 0))
+      .toBe(true);
     const polygons = deck.props.layers.find(
       (layer: any) => layer?.id === 'LAYER_SYMBOL_SQUARES'
     ) as any;

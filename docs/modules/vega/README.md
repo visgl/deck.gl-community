@@ -1,3 +1,4 @@
+import GeospatialExample from '@site/src/examples/vega/geospatial';
 import MarkTransitionsExample from '@site/src/examples/vega/mark-transitions';
 import {App as VegaExample} from '../../../examples/vega/unit-layouts/src/example';
 
@@ -39,7 +40,7 @@ This demonstrates the renderer's transitions rather than the full SandDance appl
 
 ## Edit Vega JSON in the playground
 
-Open the [playground](/playground) and select **Vega**. Choose **Unit layouts** or **Bar chart**,
+Open the [playground](/playground) and select **Vega**. Choose **Unit layouts**, **Bar chart**, **Symbols and record transitions**, or **Geospatial projections and symbols**,
 then edit the JSON directly. The docs and playground share the same unit-layout specification.
 Vega signal `bind` declarations create the controls; the host supplies the deck.gl renderer and
 transition durations. An optional `is3d` signal selects the 3D camera.
@@ -55,10 +56,9 @@ The same example runs locally with `yarn vite modules/vega/demo --host 127.0.0.1
 
 <div style={{height: 520, position: 'relative'}}><MarkTransitionsExample /></div>
 
-Circle symbols use a native `ScatterplotLayer`; square symbols use flat polygons with pixel-width outlines. Both preserve
+Circle symbols use a native `ScatterplotLayer`; square symbols use an instanced square layer with pixel-width outlines. Both preserve
 Vega's area-based `size`, fill/stroke opacity, translated group coordinates, and source `datum`
-for deck.gl picking. Other symbol shapes report an error. Geographic shapes, arbitrary paths,
-clipping, and exact mixed-mark draw ordering remain follow-up work.
+for deck.gl picking. Other symbol shapes report an error. Arbitrary SVG paths, group clipping, and exact mixed-mark draw ordering remain follow-up work.
 
 Cuboid ordinals retain their slots through reordering. Removed records become complete zero-size,
 transparent placeholders at their last positions; GPU size and color transitions animate exits.
@@ -71,5 +71,13 @@ non-negative integer ordinals** to preserve identity across filtering and replac
 items. Duplicate or invalid explicit ordinals report errors. Direct Stage inputs without ordinals use their array indices. Slots are retained until View finalization;
 long-running streams with continually new IDs should periodically recreate the View.
 
-The **Symbols and record transitions** JSON example is shared with the Vega playground. Symbol
-updates currently restage directly; GPU enter/exit interpolation in this example applies to cuboids.
+The **Symbols and record transitions** JSON example is shared with the Vega playground.
+Cuboids, circles, and squares now use GPU transitions for record updates and entry/exit.
+
+## Geospatial projections and symbol animation
+
+<div style={{height: 520, position: 'relative'}}><GeospatialExample /></div>
+
+The shared `examples/vega/geospatial/spec.json` declares synthetic GeoJSON regions, a lake hole, separate islands, a route, and geographic point symbols. Choose it in the Vega playground to edit the document. `geoshape` uses Vega projection, resampling and geographic clipping; `geopoint` positions circle or square symbols on the same projected chart. Projection coordinates use the chart camera rather than a synchronized map basemap.
+
+Circle and square symbols retain GPU attribute slots by mark and Vega tuple identity. Position, size, fill/stroke color and outline width interpolate on the GPU; filtering shrinks and fades exits at their last positions. Changing between circles and squares fades out the old shape and grows the new one. Projection geometry itself restages immediately. Historical symbol slots remain allocated until view finalization; recreate views periodically for unbounded streams.

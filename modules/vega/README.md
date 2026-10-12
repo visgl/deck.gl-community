@@ -71,3 +71,9 @@ yarn vite modules/vega/demo
 The demo imports source directly. See [UPSTREAM.md](UPSTREAM.md) for provenance
 and licensing. The package has `private: true` and a failing `prepublishOnly`
 guard; it has no public publish configuration.
+
+### Geospatial shapes and symbol transitions
+
+Vega `shape` marks with `geoshape` generators render projected GeoJSON polygons (including holes and MultiPolygons), lines and points. Use `geopoint` for geographic circle/square symbols. Vega handles projection resampling and geographic clipping. These are chart coordinates in the existing camera, without basemap synchronization. Arbitrary SVG shape paths remain unsupported.
+
+Circle/square position, size, color and outline width use GPU attribute transitions and stable per-mark tuple slots, including filtering, reordering and reentry. Squares retain an instanced quad throughout transitions. Historical slots are released at finalization; recreate long-running streaming views periodically. Configure durations with `presenterConfig.transitionDurations`. The declarative geospatial example is shared by the playground and docs.

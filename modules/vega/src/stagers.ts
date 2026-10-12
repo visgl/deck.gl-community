@@ -10,6 +10,7 @@ import line from './marks/line';
 import text from './marks/text';
 import area from './marks/area';
 import symbol from './marks/symbol';
+import shape from './marks/shape';
 
 import {type Axis, type AxisRole, type FacetRect, type Stage, type StyledLine} from './interfaces';
 import {base} from './base';
@@ -133,6 +134,7 @@ const markStagers: {[id: string]: MarkStager} = {
   line,
   area,
   symbol,
+  shape,
   text
 };
 

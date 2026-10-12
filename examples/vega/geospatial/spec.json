@@ -1,0 +1,363 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "width": 700,
+  "height": 340,
+  "padding": 10,
+  "background": "#f0f6fc",
+  "signals": [
+    {
+      "name": "projectionType",
+      "value": "mercator",
+      "bind": {
+        "input": "select",
+        "options": [
+          "mercator",
+          "equalEarth",
+          "orthographic"
+        ]
+      }
+    },
+    {
+      "name": "longitude",
+      "value": 0,
+      "bind": {
+        "input": "range",
+        "min": -90,
+        "max": 90,
+        "step": 1
+      }
+    },
+    {
+      "name": "count",
+      "value": 6,
+      "bind": {
+        "input": "range",
+        "min": 0,
+        "max": 6,
+        "step": 1
+      }
+    },
+    {
+      "name": "size",
+      "value": 160,
+      "bind": {
+        "input": "range",
+        "min": 20,
+        "max": 500,
+        "step": 10
+      }
+    },
+    {
+      "name": "shape",
+      "value": "circle",
+      "bind": {
+        "input": "select",
+        "options": [
+          "circle",
+          "square"
+        ]
+      }
+    },
+    {
+      "name": "angle",
+      "value": 0,
+      "bind": {
+        "input": "range",
+        "min": 0,
+        "max": 180,
+        "step": 5
+      }
+    },
+    {
+      "name": "reverse",
+      "value": false,
+      "bind": {
+        "input": "checkbox"
+      }
+    }
+  ],
+  "projections": [
+    {
+      "name": "map",
+      "type": {
+        "signal": "projectionType"
+      },
+      "scale": 150,
+      "translate": [
+        350,
+        190
+      ],
+      "rotate": {
+        "signal": "[-longitude,0,0]"
+      }
+    }
+  ],
+  "data": [
+    {
+      "name": "regions",
+      "values": [
+        {
+          "type": "Feature",
+          "properties": {
+            "name": "Region with a lake"
+          },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  -30,
+                  5
+                ],
+                [
+                  -30,
+                  40
+                ],
+                [
+                  10,
+                  40
+                ],
+                [
+                  10,
+                  5
+                ],
+                [
+                  -30,
+                  5
+                ]
+              ],
+              [
+                [
+                  -20,
+                  15
+                ],
+                [
+                  0,
+                  15
+                ],
+                [
+                  0,
+                  30
+                ],
+                [
+                  -20,
+                  30
+                ],
+                [
+                  -20,
+                  15
+                ]
+              ]
+            ]
+          }
+        },
+        {
+          "type": "Feature",
+          "properties": {
+            "name": "Islands"
+          },
+          "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [
+              [
+                [
+                  [
+                    25,
+                    5
+                  ],
+                  [
+                    25,
+                    25
+                  ],
+                  [
+                    45,
+                    25
+                  ],
+                  [
+                    45,
+                    5
+                  ],
+                  [
+                    25,
+                    5
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    55,
+                    5
+                  ],
+                  [
+                    55,
+                    20
+                  ],
+                  [
+                    70,
+                    20
+                  ],
+                  [
+                    70,
+                    5
+                  ],
+                  [
+                    55,
+                    5
+                  ]
+                ]
+              ]
+            ]
+          }
+        },
+        {
+          "type": "Feature",
+          "properties": {
+            "name": "Route"
+          },
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                -45,
+                0
+              ],
+              [
+                -5,
+                45
+              ],
+              [
+                60,
+                30
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "locations",
+      "values": [
+        {
+          "id": 0,
+          "lon": -35,
+          "lat": 10
+        },
+        {
+          "id": 1,
+          "lon": -15,
+          "lat": 20
+        },
+        {
+          "id": 2,
+          "lon": 5,
+          "lat": 30
+        },
+        {
+          "id": 3,
+          "lon": 25,
+          "lat": 10
+        },
+        {
+          "id": 4,
+          "lon": 45,
+          "lat": 20
+        },
+        {
+          "id": 5,
+          "lon": 65,
+          "lat": 30
+        }
+      ]
+    },
+    {
+      "name": "visible",
+      "source": "locations",
+      "transform": [
+        {
+          "type": "filter",
+          "expr": "datum.id < count"
+        },
+        {
+          "type": "filter",
+          "expr": "projectionType !== 'orthographic' || cos((datum.lon-longitude)*PI/180)*cos(datum.lat*PI/180) > 0"
+        },
+        {
+          "type": "geopoint",
+          "projection": "map",
+          "fields": [
+            "lon",
+            "lat"
+          ]
+        }
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "type": "shape",
+      "from": {
+        "data": "regions"
+      },
+      "transform": [
+        {
+          "type": "geoshape",
+          "projection": "map"
+        }
+      ],
+      "encode": {
+        "update": {
+          "fill": {
+            "signal": "datum.geometry.type === 'LineString' ? null : '#c3dbe9'"
+          },
+          "stroke": {
+            "value": "#39728b"
+          },
+          "strokeWidth": {
+            "value": 2
+          }
+        }
+      }
+    },
+    {
+      "type": "symbol",
+      "from": {
+        "data": "visible"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "field": "x"
+          },
+          "y": {
+            "field": "y"
+          },
+          "shape": {
+            "signal": "shape"
+          },
+          "size": {
+            "signal": "size"
+          },
+          "fill": {
+            "value": "#ed7045"
+          },
+          "stroke": {
+            "value": "#fff"
+          },
+          "strokeWidth": {
+            "value": 2
+          },
+          "angle": {
+            "signal": "angle"
+          }
+        }
+      },
+      "sort": {
+        "field": "datum.id",
+        "order": {
+          "signal": "reverse ? 'descending' : 'ascending'"
+        }
+      }
+    }
+  ]
+}

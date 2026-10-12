@@ -33,6 +33,8 @@ import {type MarkStagerOptions} from './marks/interfaces';
 import {box} from './marks/rule';
 import {className, initializePanel} from './panel';
 import {patchCubeArray} from './patched-cube-array';
+import {patchSymbolArray} from './patched-symbol-array';
+import type {SymbolMark, Polygon, Vec3} from './interfaces';
 import {sceneToStage} from './stagers';
 import {targetViewState, viewStateProps} from './view-state';
 import {type DeckProps} from '@deck.gl/core';
@@ -94,6 +96,10 @@ export class Presenter {
   private cubeOrdinals = new WeakMap<object, number>();
   private nextCubeOrdinal = 0;
   private stagedCubes: Cube[] = [];
+  private symbolOrdinals = new Map<object, Map<object, number>>();
+  private nextSymbolOrdinal = 0;
+  private stagedSymbols: SymbolMark[] = [];
+  private stagedSquares: Polygon[] = [];
 
   /**
    * Instantiate a new Presenter.
@@ -173,6 +179,17 @@ export class Presenter {
     const scene = sceneOrStage as Scene3d;
     let stage: Stage;
     const options: MarkStagerOptions = {
+      assignSymbolOrdinal: (datum, item: {mark?: object}) => {
+        const mark = item.mark ?? item;
+        let ordinals = this.symbolOrdinals.get(mark);
+        if (!ordinals) {
+          ordinals = new Map();
+          this.symbolOrdinals.set(mark, ordinals);
+        }
+        const key = datum ?? item;
+        if (!ordinals.has(key)) ordinals.set(key, this.nextSymbolOrdinal++);
+        return ordinals.get(key);
+      },
       maxOrdinal: 0,
       currAxis: null,
       defaultCubeColor: this.style.defaultCubeColor,
@@ -288,6 +305,55 @@ export class Presenter {
     modifyConfig: PresenterConfig
   ) {
     stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
+    const circles = stage.symbolData ?? [];
+    const polygons = stage.polygonData ?? [];
+    const squares = polygons.filter(p => p.isSymbol);
+    const circleOrdinals = new Set(circles.map(circle => circle.ordinal));
+    const squareOrdinals = new Set(squares.map(square => square.ordinal));
+    // Reserve an invisible counterpart so shape changes grow from the same center.
+    for (const circle of circles) {
+      if (
+        circle.ordinal !== undefined &&
+        !this.stagedSquares[circle.ordinal] &&
+        !squareOrdinals.has(circle.ordinal)
+      ) {
+        squares.push({
+          isSymbol: true,
+          ordinal: circle.ordinal,
+          datum: undefined,
+          positions: Array.from({length: 4}, () => [...circle.position]),
+          fillColor: [0, 0, 0, 0],
+          strokeColor: [0, 0, 0, 0],
+          strokeWidth: 0,
+          depth: 0
+        });
+      }
+    }
+    for (const square of squares) {
+      if (
+        square.ordinal !== undefined &&
+        !this.stagedSymbols[square.ordinal] &&
+        !circleOrdinals.has(square.ordinal)
+      ) {
+        const positions = square.positions as Vec3[];
+        const center = positions
+          .reduce((sum, p) => sum.map((v, i) => v + (p[i] || 0)) as Vec3, [0, 0, 0])
+          .map(v => v / positions.length) as Vec3;
+        circles.push({
+          ordinal: square.ordinal,
+          datum: undefined,
+          position: center,
+          radius: 0,
+          fillColor: [0, 0, 0, 0],
+          strokeColor: [0, 0, 0, 0],
+          strokeWidth: 0
+        });
+      }
+    }
+    stage.symbolData = patchSymbolArray(circles, this.stagedSymbols);
+    this.stagedSymbols = stage.symbolData;
+    this.stagedSquares = patchSymbolArray(squares, this.stagedSquares);
+    stage.polygonData = [...polygons.filter(p => !p.isSymbol), ...this.stagedSquares];
     cubeCount = stage.cubeData.length;
     this.stagedCubes = stage.cubeData;
     const config = deepMerge<PresenterConfig>(defaultPresenterConfig, modifyConfig);
@@ -422,6 +488,10 @@ export class Presenter {
     if (this.deckgl) this.deckgl.finalize();
     if (this.el) this.el.innerHTML = '';
     this.stagedCubes = [];
+    this.stagedSymbols = [];
+    this.stagedSquares = [];
+    this.symbolOrdinals.clear();
+    this.nextSymbolOrdinal = 0;
     this.cubeOrdinals = new WeakMap();
     this.nextCubeOrdinal = 0;
     this._last = null;

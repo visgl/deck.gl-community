@@ -4,6 +4,8 @@
  */
 
 import {concat} from './array';
+import {SquareSymbolLayer} from './square-symbol-layer';
+import type {Vec3} from './interfaces';
 import {base} from './base';
 import {layerNames} from './constants';
 import {
@@ -83,12 +85,12 @@ export function getLayers(
   const polygonData = stage.polygonData ?? [];
   const polygonLayer = newPolygonLayer(
     layerNames.polygons,
-    polygonData.filter(polygon => !polygon.isSymbol)
+    polygonData.filter(polygon => !polygon.isSymbol && !polygon.isGeographic)
   );
-  const squareSymbolLayer = newPolygonLayer(
+  const squareSymbolLayer = newSquareSymbolLayer(
     layerNames.symbolSquares,
     polygonData.filter(polygon => polygon.isSymbol),
-    true
+    config
   );
   return [
     textLayer,
@@ -97,15 +99,66 @@ export function getLayers(
     pathLayer,
     polygonLayer,
     squareSymbolLayer,
-    newSymbolLayer(stage.symbolData ?? [])
+    newPolygonLayer(
+      layerNames.geographicPolygons,
+      polygonData.filter(p => p.isGeographic),
+      true
+    ),
+    newSymbolLayer(stage.symbolData ?? [], config)
   ];
 }
 
-function newSymbolLayer(data: SymbolMark[]) {
+function newSquareSymbolLayer(id: string, data: Polygon[], config: PresenterConfig) {
+  const points = (item: Polygon) => item.positions as Vec3[];
+  return new SquareSymbolLayer({
+    id,
+    data,
+    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    radiusUnits: 'common',
+    lineWidthUnits: 'pixels',
+    pickable: true,
+    stroked: true,
+    filled: true,
+    getPosition: item =>
+      points(item)
+        .reduce((sum, p) => sum.map((v, i) => v + (p[i] || 0)) as Vec3, [0, 0, 0])
+        .map(v => v / points(item).length) as Vec3,
+    getRadius: item =>
+      Math.hypot(points(item)[1][0] - points(item)[0][0], points(item)[1][1] - points(item)[0][1]) /
+      2,
+    getAngle: item =>
+      item.angle ??
+      Math.atan2(points(item)[1][1] - points(item)[0][1], points(item)[1][0] - points(item)[0][0]),
+    getFillColor: item => item.fillColor,
+    getLineColor: item => item.strokeColor,
+    getLineWidth: item => item.strokeWidth,
+    transitions: {
+      getPosition: getTiming(config.transitionDurations.position, easing),
+      getRadius: config.transitionDurations.size
+        ? {...getTiming(config.transitionDurations.size, easing), enter: () => [0]}
+        : undefined,
+      getAngle: getTiming(config.transitionDurations.position, easing),
+      getFillColor: getTiming(config.transitionDurations.color),
+      getLineColor: getTiming(config.transitionDurations.color),
+      getLineWidth: getTiming(config.transitionDurations.size)
+    }
+  });
+}
+
+function newSymbolLayer(data: SymbolMark[], config: PresenterConfig) {
   return new base.layers.ScatterplotLayer<SymbolMark>({
     id: layerNames.symbols,
     data,
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    transitions: {
+      getPosition: getTiming(config.transitionDurations.position, easing),
+      getRadius: config.transitionDurations.size
+        ? {...getTiming(config.transitionDurations.size, easing), enter: () => [0]}
+        : undefined,
+      getFillColor: getTiming(config.transitionDurations.color),
+      getLineColor: getTiming(config.transitionDurations.color),
+      getLineWidth: getTiming(config.transitionDurations.size)
+    },
     radiusUnits: 'common',
     lineWidthUnits: 'pixels',
     pickable: true,
@@ -181,7 +234,8 @@ function newPathLayer(id: string, data: Path[]) {
     data,
     billboard: true,
     widthScale: 1,
-    widthMinPixels: 2,
+    widthMinPixels: 0,
+    pickable: true,
     widthUnits: 'pixels',
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
     getPath: o => o.positions,
