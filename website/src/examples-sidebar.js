@@ -102,7 +102,7 @@ const sidebars = {
     //   ]
     // },
 
-    {type: 'category', label: 'Vega (private)', items: ['vega/mark-transitions', 'vega/unit-layouts']},
+    {type: 'category', label: 'Vega (private)', items: ['vega/geospatial', 'vega/mark-transitions', 'vega/unit-layouts']},
     // TODO - need BING map key
     // {
     //   type: 'category',

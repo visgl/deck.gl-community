@@ -16,6 +16,7 @@ export enum GroupType {
 }
 
 export interface MarkStagerOptions {
+  assignSymbolOrdinal?: (datum: object, item: object) => number;
   maxOrdinal: number;
   currAxis: Axis;
   defaultCubeColor: Color;
