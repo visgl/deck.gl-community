@@ -45,7 +45,9 @@ layout(std140) uniform lineBlurUniforms {
  * The line draws nothing past the gap's center, so that where a blur wider than half the gap makes
  * the two lines overlap, their fades do not draw over each other. MapLibre draws the gap as one
  * stroke whose fade is symmetric about its center, so each line draws its half. The default 0
- * clips nothing.
+ * clips nothing, and neither does a path whose gap is 0: its one line is centered on the gap's
+ * center (`getLineOffset`), which the shader tells per path from the offset and width it already
+ * has, so a gap that is 0 at a zoom or for a feature needs no attribute of its own.
  */
 export class LineBlurExtension extends LayerExtension<LineBlurExtensionOptions> {
   static extensionName = 'LineBlurExtension';
@@ -102,6 +104,7 @@ in float instanceLineBlur;
 #endif
 out float lineBlur_blur;
 out float lineBlur_gapCenter;
+out float lineBlur_gapSide;
 `,
         'vs:#main-end': `
 #ifdef LINE_BLUR_PER_FEATURE
@@ -115,15 +118,21 @@ out float lineBlur_gapCenter;
   // from the stroke's center. PathStyleExtension puts the path at 2 * instanceOffsets, and
   // vPathPosition.x runs the other way to the offset.
   lineBlur_gapCenter = 0.0;
+  lineBlur_gapSide = 0.0;
 #ifdef PATH_STYLE_OFFSET
   if (widthPixels.x > 0.0) {
     lineBlur_gapCenter = 2.0 * instanceOffsets - lineBlur.gapOffset / widthPixels.x;
+    // A path without a gap draws one line, centered on the gap's center: it is not clipped.
+    if (abs(lineBlur_gapCenter) * widthPixels.x > 0.001) {
+      lineBlur_gapSide = lineBlur.gapSide;
+    }
   }
 #endif
 `,
         'fs:#decl': `${UNIFORMS}
 in float lineBlur_blur;
 in float lineBlur_gapCenter;
+in float lineBlur_gapSide;
 `,
         'fs:#main-start': `
   float lineBlur_pixelWidth = max(fwidth(vPathPosition.x), 1e-6);
@@ -131,7 +140,7 @@ in float lineBlur_gapCenter;
         'fs:#main-end': `
 #ifdef ANTIALIASING
   // The gap's other line draws past its center.
-  if (lineBlur.gapSide * (vPathPosition.x - lineBlur_gapCenter) > 0.0) {
+  if (lineBlur_gapSide * (vPathPosition.x - lineBlur_gapCenter) > 0.0) {
     discard;
   }
   float lineBlur_coverage = smoothedge(0.0, edgePixels);

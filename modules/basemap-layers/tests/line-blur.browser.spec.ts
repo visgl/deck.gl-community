@@ -234,6 +234,40 @@ describe('line-blur in the browser', () => {
     expectMapLibreFade(image, 12, 28, {width: 4, gap: 2, blur: 4}, 20);
   });
 
+  test('draws a line whose line-gap-width is 0 whole', async () => {
+    const paint = {'line-width': 10, 'line-gap-width': 0, 'line-blur': 4};
+    const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
+    expectMapLibreFade(image, -8, 8, {width: 10, blur: 4});
+  });
+
+  test('draws a line whole at a zoom where its line-gap-width is 0', async () => {
+    const paint = {
+      'line-width': 10,
+      'line-gap-width': ['step', ['zoom'], 0, ZOOM + 1, 8],
+      'line-blur': 4
+    };
+    const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
+    expectMapLibreFade(image, -8, 8, {width: 10, blur: 4});
+  });
+
+  test('draws features whose per-feature line-gap-width is 0 whole, beside gapped ones', async () => {
+    const paint = {'line-width': 10, 'line-gap-width': ['get', 'gap'], 'line-blur': 4};
+    const line = feature('LineString', EASTWARD);
+    // The gapped line 40 pixels north, which is up the rows.
+    const north = feature('LineString', [
+      [-40, 40],
+      [40, 40]
+    ]);
+    const image = await render(
+      styleSublayers(paint, [
+        {...line, properties: {...line.properties, gap: 0}},
+        {...north, properties: {...north.properties, gap: 8}}
+      ])
+    );
+    expectMapLibreFade(image, -8, 8, {width: 10, blur: 4});
+    expectMapLibreFade(image, -58, -22, {width: 10, gap: 8, blur: 4}, -40);
+  });
+
   test('moves the fade with line-offset', async () => {
     const paint = {'line-width': 10, 'line-offset': 20, 'line-blur': 4};
     const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
