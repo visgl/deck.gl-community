@@ -11,7 +11,7 @@ import {
 } from '../splat-layer/splat-culling';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {getSplatTransform} from '../splat-layer/splat-transform';
+import {getSplatTransform, getSplatTransformScale} from '../splat-layer/splat-transform';
 import {getTreeWoodMesh} from './tree-wood';
 import {
   createSplatSpatialIndex,
@@ -96,6 +96,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       'getScale',
       'getTranslation',
       'getOrientation',
+      'getTransformMatrix',
       'getWind',
       'getRootLength',
       'getStemRadius'
@@ -140,14 +141,22 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       for (const row of iterable as Iterable<Row>) {
         objectInfo.index++;
         const position = get(props.getPosition, row, objectInfo);
-        const scale = get(props.getScale, row, objectInfo).map(value => value * props.sizeScale);
-        const translation = get(props.getTranslation, row, objectInfo);
+        const suppliedMatrix = get(props.getTransformMatrix, row, objectInfo);
+        const matrix = suppliedMatrix?.length ? suppliedMatrix : undefined;
+        const scale = matrix
+          ? [1, 1, 1].map(() => getSplatTransformScale(matrix) * Math.abs(props.sizeScale))
+          : get(props.getScale, row, objectInfo).map(value => value * props.sizeScale);
+        const translation = matrix
+          ? Array.from(matrix).slice(12, 15)
+          : get(props.getTranslation, row, objectInfo);
         const wind = get(props.getWind, row, objectInfo);
         const transform = getSplatTransform(
           get(props.getOrientation, row, objectInfo),
           scale,
-          translation
+          translation,
+          matrix
         );
+        if (matrix) for (let axis = 0; axis < 9; axis++) transform[axis] *= props.sizeScale;
         const projected = getSplatCachedPosition(position, viewport, previous, next, point =>
           this.projectPosition(point, {viewport, autoOffset: false})
         );

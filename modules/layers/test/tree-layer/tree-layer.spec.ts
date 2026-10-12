@@ -724,3 +724,19 @@ it('preserves legacy source and hierarchy overrides while sharing one canopy quo
     .find(child => child instanceof SplatLayer)!;
   expect(withoutHierarchy.props.getSource.hierarchy).toBeUndefined();
 });
+
+it('rejects compositional layer transforms that would detach foliage from wood', () => {
+  for (const coordinateSystem of ['cartesian', 'meter-offsets', 'default']) {
+    const {layer} = createLayer([OAK], {
+      coordinateSystem,
+      modelMatrix: [2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    });
+    Object.assign(layer, {context: {viewport: {isGeospatial: false}}});
+    expect(() => layer.renderLayers()).toThrow(/modelMatrix.*translation/);
+  }
+  const {layer} = createLayer([OAK], {
+    coordinateSystem: 'cartesian',
+    modelMatrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 12, 4, 0, 1]
+  });
+  expect(() => layer.renderLayers()).not.toThrow();
+});

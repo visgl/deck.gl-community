@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Matrix4} from '@math.gl/core';
-import {WebMercatorViewport} from '@deck.gl/core';
+import {WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
 it('reuses 20K bounds during camera motion and retains off-camera light casters', () => {
@@ -212,4 +212,43 @@ it('culls wood from resolved transforms and refreshes overridden accessor bounds
   expect(layer.state.owners[0].position).toEqual(position);
   expect(layer.state.owners[0]).not.toBe(before);
   expect(layer.state.shadow).toEqual(data);
+});
+
+it('uses affine wood matrices for camera and light bounds and refreshes matrix triggers', () => {
+  const row = {
+    position: [40, 0, 0],
+    scale: [1, 1, 1],
+    translation: [0, 0, 0],
+    type: 'oak',
+    levels: 3,
+    characteristics: {},
+    height: 1,
+    wind: [1, 0, 0]
+  };
+  let matrix = new Matrix4().translate([-40, 0, 0]).scale([3, 2, 1]);
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data: [row],
+    mesh: templateMesh,
+    templateMesh,
+    getTransformMatrix: () => matrix
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  const viewport = new OrthographicViewport({width: 256, height: 256, zoom: 0});
+  Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
+  vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
+  expect(layer.state.owners[0].center[0]).toBe(0);
+  expect(Math.max(...layer.state.owners[0].scale)).toBe(3);
+  const before = layer.state.owners[0];
+  matrix = new Matrix4().translate([-30, 0, 0]).scale([5, 2, 1]);
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {updateTriggersChanged: {getTransformMatrix: true}}
+  });
+  expect(layer.state.owners[0]).not.toBe(before);
+  expect(layer.state.owners[0].center[0]).toBe(10);
+  expect(Math.max(...layer.state.owners[0].scale)).toBe(5);
 });

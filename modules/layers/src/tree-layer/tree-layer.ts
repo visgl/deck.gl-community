@@ -409,7 +409,10 @@ function getFiniteDimension(value: number, fallback: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : fallback;
 }
 
-/** Layered, instanced trees built with vis.gl geometry, seasonal crowns and optional GPU wind. */
+/**
+ * Layered, instanced trees built with vis.gl geometry, seasonal crowns and optional GPU wind.
+ * In Cartesian and metre-offset coordinates, modelMatrix supports translation only.
+ */
 export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends CompositeLayer<
   ExtraPropsT & Required<_TreeLayerProps<DataT>>
 > {
@@ -725,6 +728,23 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   }
 
   renderLayers() {
+    const {modelMatrix, coordinateSystem} = this.props;
+    const composesModelMatrix =
+      coordinateSystem === 'cartesian' ||
+      coordinateSystem === 'meter-offsets' ||
+      (coordinateSystem === 'default' && !this.context?.viewport?.isGeospatial);
+    if (
+      modelMatrix &&
+      composesModelMatrix &&
+      (modelMatrix.length !== 16 ||
+        Array.from(modelMatrix).some((value, index) =>
+          index >= 12 && index < 15 ? !Number.isFinite(value) : value !== (index % 5 === 0 ? 1 : 0)
+        ))
+    ) {
+      throw new Error(
+        'TreeLayer modelMatrix supports translation only in Cartesian and metre-offset coordinates.'
+      );
+    }
     const {windTime, shadowEnabled, getTrunkColor, getCanopyColor, getSeason} = this.props;
     const windStrength = Math.max(
       this.state.hasDefaultWind ? getFiniteDimension(this.props.windStrength, 0) : 0,

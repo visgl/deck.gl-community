@@ -46,6 +46,14 @@ Explicit granular accessors override corresponding `getTree` fields, so hosts ca
 
 The layer owns template sharing, mesh/splat composition, spatial visibility, refinement and bounded Gaussian work. There is no manual `detail` mode. Keep common morphology presets shared: unique botanical skeletons require distinct templates and draws. Sizes, colors, seasons and wind vary per instance without unique meshes. Host lighting still follows deck.gl's `LightingEffect` convention; translucent foliage shadow integration has the receiver limitations described below.
 
+Foliage inherits the [SplatLayer rendering limits](./splat-layer.md#rendering-and-refinement):
+use planar Cartesian or Web Mercator views in the unwrapped world. GlobeView, wrapped
+world copies and WebGPU `View.clear` are unsupported. Optical foliage shadows require
+WebGL and host receiver composition; WebGPU renders wood and foliage without shadows.
+In Cartesian and metre-offset coordinates, layer `modelMatrix` supports translation only;
+rotation, scaling and shear report an explicit error to keep wood and foliage aligned.
+Use authored tree dimensions and positions to set the tree pose.
+
 ## Properties and granular overrides
 
 Inherits the deck.gl `CompositeLayer` properties. Accessors accept constants or functions receiving the source tree and the standard deck.gl accessor context. The granular accessor defaults below are legacy fallbacks; authored `TreeSpec` fields and species proportions apply first unless a granular accessor is explicitly supplied. Invalid base positions and unknown species are omitted. Non-finite dimensions fall back to their documented defaults; negative dimensions clamp to zero. Non-finite elevation falls back to zero, and invalid seasons use summer.
@@ -148,7 +156,7 @@ The highest source detail remains available. Cost depends on the visible crowns,
 
 `maxCanopySplats` (default 250,000) and `maxShadowSplats` (default 125,000) apportion independent Gaussian submission budgets across species. They preserve every visible owner using the existing covariance hierarchy, prioritize projected error reductions, and retain finest leaf templates. If the coarsest owner coverage exceeds a budget, coverage wins; use regional source aggregation for world-scale residency. Large inventories should never be supplied as one global `TreeLayer.data` array.
 
-`maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. an explicitly low target softens leaf edges and reduces branch-occlusion precision.
+`maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. An explicitly low target softens leaf edges and reduces branch-occlusion precision.
 
 `foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation, preserves visible owners, and leaves light-space shadow refinement independent.
 
