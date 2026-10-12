@@ -14,6 +14,7 @@ const TERRAIN_ALIASES = DECK_GL_SOURCE
   : [];
 
 const ALIASES = [
+  {find: /^@deck\.gl-community\/geo-layers$/, replacement: fileURLToPath(new URL('./modules/geo-layers/src/index.ts', import.meta.url))},
   ...TERRAIN_ALIASES,
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
