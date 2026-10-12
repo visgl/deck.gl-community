@@ -121,4 +121,25 @@ describe('shared label textures', () => {
     });
     expect(getSharedTextureCount(device)).toBe(0);
   });
+
+  test('the textures stay while another label layer still draws from them', async () => {
+    const atlas = await createAtlas();
+    await render([labelLayer('a', [atlas]), labelLayer('b', [atlas])]);
+    const device = deck!.device!;
+    const textures = () =>
+      ((deck as any).layerManager.getLayers() as any[])
+        .filter(layer => /IconLayer$/.test(layer.constructor.layerName))
+        .map(layer => layer.state.iconManager.getTexture());
+    const before = textures();
+    await new Promise<void>(resolve => {
+      deck!.setProps({layers: [labelLayer('b', [atlas])], onAfterRender: () => resolve()});
+    });
+    expect(getSharedTextureCount(device)).toBe(2);
+    const after = textures();
+    expect(after).toHaveLength(2);
+    for (const texture of after) {
+      expect(before).toContain(texture);
+      expect(texture.destroyed).toBe(false);
+    }
+  });
 });
