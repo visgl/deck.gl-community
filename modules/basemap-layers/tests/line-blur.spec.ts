@@ -218,6 +218,64 @@ describe('line-blur', () => {
     }
   });
 
+  test('reads a per-feature blur from an attribute, and a constant from a uniform', () => {
+    const [constant] = renderLines({'line-blur': 2});
+    const [perFeature] = renderLines({'line-blur': ['get', 'blur']});
+    expect(getBlurExtensions(constant)[0].opts.perFeature).toBe(false);
+    expect(getBlurExtensions(perFeature)[0].opts.perFeature).toBe(true);
+    // Shared per mode.
+    expect(getBlurExtensions(perFeature)[0]).toBe(
+      getBlurExtensions(renderLines({'line-blur': ['get', 'other']})[0])[0]
+    );
+  });
+
+  test('draws a per-feature blur with dashes and offsets sharp', () => {
+    // Dashes and offsets leave no vertex attribute for it.
+    const features = [line({blur: 2})];
+    const layers = renderLines(
+      {
+        'line-width': 4,
+        'line-gap-width': 8,
+        'line-blur': ['get', 'blur'],
+        'line-dasharray': [2, 1]
+      },
+      features
+    );
+    expect(layers).toHaveLength(2);
+    for (const layer of layers) {
+      expect(getBlurExtensions(layer)).toEqual([]);
+      expect(evaluate(layer, 'getLineWidth', features)).toEqual([4]);
+      expect(layer.props.getDashArray).toEqual([4, 2]);
+    }
+    expect(layers[0].props.getOffset(features[0])).toBe(6 / 4);
+    // Either alone keeps the blur.
+    for (const paint of [{'line-dasharray': [2, 1]}, {'line-gap-width': 8}, {'line-offset': 2}]) {
+      const [layer] = renderLines({'line-blur': ['get', 'blur'], ...paint}, features);
+      expect(getBlurExtensions(layer)).toHaveLength(1);
+    }
+  });
+
+  test('clips each line of a gap at its center', () => {
+    const layers = renderLines({
+      'line-width': 4,
+      'line-gap-width': 2,
+      'line-blur': 4,
+      'line-offset': 3
+    });
+    expect(layers.map(layer => [layer.props.blurGapSide, layer.props.blurGapOffset])).toEqual([
+      [1, 3],
+      [-1, 3]
+    ]);
+    // 0 clips nothing: not without a gap, nor with a per-feature line-offset, whose center a uniform cannot carry.
+    expect(renderLines({'line-blur': 4, 'line-offset': 3})[0].props.blurGapSide).toBe(0);
+    const perFeatureOffset = renderLines({
+      'line-gap-width': 2,
+      'line-blur': 4,
+      'line-offset': ['get', 'offset']
+    });
+    expect(perFeatureOffset.map(layer => layer.props.blurGapSide)).toEqual([0, 0]);
+  });
+
   test('getLineOffset and getBlurredLineWidth', () => {
     expect(getBlurredLineWidth(4, 8, 2)).toBe(6);
     expect(getBlurredLineWidth(4, 0, 2)).toBe(4);
@@ -231,18 +289,35 @@ describe('line-blur', () => {
   });
 
   test('adds the attribute and shader code to path layers only', () => {
-    const extension = new LineBlurExtension();
-    const path = fakeLayer({pathTesselator: {}});
-    extension.initializeState.call(path, undefined as any, extension);
-    expect(Object.keys(path.attributes)).toEqual(['instanceLineBlur']);
-    const {inject} = extension.getShaders.call(path, extension) as any;
-    expect(inject['fs:#main-end']).toContain('edgePixels');
-    expect(inject['vs:#main-end']).toContain('lineBlur_blur');
+    for (const perFeature of [false, true]) {
+      const extension = new LineBlurExtension({perFeature});
+      const path = fakeLayer({pathTesselator: {}});
+      extension.initializeState.call(path, undefined as any, extension);
+      // Only per feature: a constant takes a uniform.
+      expect(Object.keys(path.attributes)).toEqual(perFeature ? ['instanceLineBlur'] : []);
+      const {modules, defines} = extension.getShaders.call(path, extension) as any;
+      expect(modules[0].inject['fs:#main-end']).toContain('edgePixels');
+      expect(modules[0].inject['vs:#main-end']).toContain('lineBlur_blur');
+      expect(Boolean(defines.LINE_BLUR_PER_FEATURE)).toBe(perFeature);
 
-    for (const other of [fakeLayer({}), fakeLayer({pathTesselator: {}}, 'webgpu')]) {
-      extension.initializeState.call(other, undefined as any, extension);
-      expect(other.attributes).toEqual({});
-      expect(extension.getShaders.call(other, extension)).toEqual({});
+      for (const other of [fakeLayer({}), fakeLayer({pathTesselator: {}}, 'webgpu')]) {
+        extension.initializeState.call(other, undefined as any, extension);
+        expect(other.attributes).toEqual({});
+        expect(extension.getShaders.call(other, extension)).toEqual({});
+      }
     }
+  });
+
+  test('sets the uniforms from the props', () => {
+    const extension = new LineBlurExtension();
+    const props: Record<string, unknown> = {};
+    const path = {
+      ...fakeLayer({pathTesselator: {}}),
+      props: {getBlur: 3, blurGapSide: -1, blurGapOffset: 2},
+      setShaderModuleProps: (moduleProps: Record<string, unknown>) =>
+        Object.assign(props, moduleProps)
+    };
+    extension.updateState.call(path, {} as any, extension);
+    expect(props.lineBlur).toEqual({blur: 3, gapOffset: 2, gapSide: -1});
   });
 });

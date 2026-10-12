@@ -171,8 +171,9 @@ const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
 /** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
 const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
 const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
-/** `line-blur`, shared for the same reason. */
+/** `line-blur`, shared for the same reason: by layer, and per feature. */
 const LINE_BLUR_EXTENSION = new LineBlurExtension();
+const LINE_BLUR_PER_FEATURE_EXTENSION = new LineBlurExtension({perFeature: true});
 
 /** `fill-pattern` and `fill-translate`, shared by every fill that sets them. */
 const FILL_PATTERN_EXTENSION = new FillPatternExtension();
@@ -1223,37 +1224,47 @@ function createGeometrySubLayer({
         zoom,
         ([color, opacity]) => withOpacity(color, opacity ?? 1)
       );
-  const hasBlur = isLine && styleLayer.paint?.['line-blur'] !== undefined;
-  const lineBlur = hasBlur
-    ? getStyleAccessor(styleLayer, ['line-blur'], zoom, ([blur]) => Math.max(0, Number(blur) || 0))
-    : null;
-  const lineWidth =
-    hasBlur && styleLayer.paint?.['line-gap-width'] !== undefined
-      ? getStyleAccessor(
-          styleLayer,
-          ['line-width', 'line-gap-width', 'line-blur'],
-          zoom,
-          ([width, gap, blur]) =>
-            getBlurredLineWidth(
-              Math.max(0, Number(width ?? 1)),
-              Number(gap ?? 0),
-              Math.max(0, Number(blur) || 0)
-            )
-        )
-      : getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
-          Math.max(0, Number(width ?? 1))
-        );
-  // The style spec evaluates zoom in `line-dasharray` at integer zooms only.
-  const dashArray: StyleAccessor<[number, number]> | null =
-    isLine && styleLayer.paint?.['line-dasharray'] !== undefined
-      ? getStyleAccessor(styleLayer, ['line-dasharray'], Math.floor(zoom), ([dasharray]) =>
-          getDashArray(dasharray)
-        )
-      : null;
+  const hasDashArray = isLine && styleLayer.paint?.['line-dasharray'] !== undefined;
   const hasOffset =
     isLine &&
     (styleLayer.paint?.['line-offset'] !== undefined ||
       styleLayer.paint?.['line-gap-width'] !== undefined);
+  const styleBlur =
+    isLine && styleLayer.paint?.['line-blur'] !== undefined
+      ? getStyleAccessor(styleLayer, ['line-blur'], zoom, ([blur]) =>
+          Math.max(0, Number(blur) || 0)
+        )
+      : null;
+  // A per-feature blur takes a vertex attribute, which a path with dashes and offsets has no room
+  // for (see LineBlurExtension): such lines draw sharp.
+  const lineBlur =
+    styleBlur && (typeof styleBlur.value !== 'function' || !(hasDashArray && hasOffset))
+      ? styleBlur
+      : null;
+  const hasBlur = lineBlur !== null;
+  // A blurred gap's lines are drawn wider: see getBlurredLineWidth.
+  const isBlurredGap = hasBlur && styleLayer.paint?.['line-gap-width'] !== undefined;
+  const lineWidth = isBlurredGap
+    ? getStyleAccessor(
+        styleLayer,
+        ['line-width', 'line-gap-width', 'line-blur'],
+        zoom,
+        ([width, gap, blur]) =>
+          getBlurredLineWidth(
+            Math.max(0, Number(width ?? 1)),
+            Number(gap ?? 0),
+            Math.max(0, Number(blur) || 0)
+          )
+      )
+    : getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
+        Math.max(0, Number(width ?? 1))
+      );
+  // The style spec evaluates zoom in `line-dasharray` at integer zooms only.
+  const dashArray: StyleAccessor<[number, number]> | null = hasDashArray
+    ? getStyleAccessor(styleLayer, ['line-dasharray'], Math.floor(zoom), ([dasharray]) =>
+        getDashArray(dasharray)
+      )
+    : null;
   const lineOffset = hasOffset
     ? getStyleAccessor<[number, number, number, number]>(
         styleLayer,
@@ -1263,7 +1274,7 @@ function createGeometrySubLayer({
           Number(offset ?? 0),
           Math.max(0, Number(gap ?? 0)),
           Math.max(0, Number(width ?? 1)),
-          Math.max(0, Number(blur) || 0)
+          hasBlur ? Math.max(0, Number(blur) || 0) : 0
         ]
       )
     : null;
@@ -1273,6 +1284,15 @@ function createGeometrySubLayer({
       typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue!;
     return getLineOffset(offset, gap, width, side, blur);
   };
+  // Where a wide blur makes a gap's two lines overlap, each draws only its side of the gap's
+  // center. That takes the center's `line-offset` for the whole layer.
+  const gapOffset = isBlurredGap
+    ? getStyleAccessor(styleLayer, ['line-offset'], zoom, ([offset]) => Number(offset ?? 0))
+    : null;
+  const getBlurGap = (side: number) =>
+    gapOffset && typeof gapOffset.value !== 'function'
+      ? {blurGapSide: side, blurGapOffset: gapOffset.value}
+      : {};
   const gapWidth = hasOffset
     ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
     : null;
@@ -1293,12 +1313,19 @@ function createGeometrySubLayer({
             ...(baseProps.extensions || []),
             ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
             ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
-            ...(lineBlur ? [LINE_BLUR_EXTENSION] : [])
+            ...(lineBlur
+              ? [
+                  typeof lineBlur.value === 'function'
+                    ? LINE_BLUR_PER_FEATURE_EXTENSION
+                    : LINE_BLUR_EXTENSION
+                ]
+              : [])
           ]
         }
       : {}),
     // The blur replaces the antialiasing's fade, which matches MapLibre's without blur.
     ...(lineBlur ? {getBlur: lineBlur.value, lineAntialiasing: true} : {}),
+    ...getBlurGap(1),
     ...(isFill ? getFillStyleProps(styleLayer, zoom, baseProps.extensions, pattern) : {}),
     ...(offsetValue ? {getOffset: getOffset(1)} : {}),
     ...(dashArray
@@ -1339,6 +1366,7 @@ function createGeometrySubLayer({
     layer.clone({
       id: `${layer.id}-gap`,
       getOffset: getOffset(-1),
+      ...getBlurGap(-1),
       ...(typeof getGap === 'function'
         ? {
             getLineWidth: (feature: any) =>

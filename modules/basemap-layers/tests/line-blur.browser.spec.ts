@@ -179,6 +179,20 @@ describe('line-blur in the browser', () => {
     expectMapLibreFade(image, -8, 8, {width: 10, blur: 4});
   });
 
+  test('a blur wider than the line keeps its middle translucent', async () => {
+    // A pixel south, so that the line's middle falls between the two rows of a 2x2 pixel quad,
+    // where the derivative of the distance from it is 0.
+    const southward = [
+      [-40, -1],
+      [40, -1]
+    ];
+    const image = await render(
+      styleSublayers({'line-width': 2, 'line-blur': 4}, [feature('LineString', southward)])
+    );
+    // A fifth of the color at most: MapLibre's fade spans the whole of the line.
+    expectMapLibreFade(image, -3, 5, {width: 2, blur: 4}, 1);
+  });
+
   test('without line-blur the line stays sharp', async () => {
     const image = await render(
       styleSublayers({'line-width': 10}, [feature('LineString', EASTWARD)])
@@ -200,6 +214,24 @@ describe('line-blur in the browser', () => {
     const paint = {'line-width': 4, 'line-gap-width': 8, 'line-blur': 2};
     const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
     expectMapLibreFade(image, -10, 10, {width: 4, gap: 8, blur: 2});
+  });
+
+  test('does not darken the gap where a blur wider than half the gap overlaps its lines', async () => {
+    // The inner fades reach 4 pixels into a gap of 2, so each line's covers the other's side.
+    const paint = {'line-width': 4, 'line-gap-width': 2, 'line-blur': 4};
+    const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
+    expectMapLibreFade(image, -8, 8, {width: 4, gap: 2, blur: 4});
+  });
+
+  test('keeps an overlapping gap undarkened when offset', async () => {
+    const paint = {
+      'line-width': 4,
+      'line-gap-width': 2,
+      'line-blur': 4,
+      'line-offset': 20
+    };
+    const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
+    expectMapLibreFade(image, 12, 28, {width: 4, gap: 2, blur: 4}, 20);
   });
 
   test('moves the fade with line-offset', async () => {
