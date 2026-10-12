@@ -133,10 +133,122 @@ function hasName(source: string, name: string): boolean {
   return new RegExp(`(?<![\\w.])${escapeRegExp(name)}(?!\\w)`).test(source);
 }
 
+/**
+ * Blanks the `#else` and `#elif` branches of preprocessor conditionals, keeping every offset, so
+ * that braces can be matched: the branches of a conditional may each open a block that one
+ * closing brace after `#endif` ends.
+ */
+function getFirstBranches(source: string): string {
+  // For each open conditional, whether its current branch is a later one.
+  const skipping: boolean[] = [];
+  return source
+    .split('\n')
+    .map(line => {
+      const directive = /^\s*#\s*(if|ifdef|ifndef|elif|else|endif)\b/.exec(line)?.[1];
+      if (directive?.startsWith('if')) {
+        skipping.push(false);
+      } else if (directive === 'elif' || directive === 'else') {
+        skipping[skipping.length - 1] = true;
+      } else if (directive === 'endif') {
+        skipping.pop();
+      }
+      return directive || skipping.includes(true) ? ' '.repeat(line.length) : line;
+    })
+    .join('\n');
+}
+
+/**
+ * The body of the function whose definition matches `signature`, between its braces, found by
+ * matching braces in the first branch of each preprocessor conditional. Comments must be
+ * stripped first.
+ */
+function getFunctionBody(source: string, signature: RegExp): {start: number; end: number} | null {
+  const match = signature.exec(source);
+  if (!match) {
+    return null;
+  }
+  const branches = getFirstBranches(source);
+  const open = source.indexOf('{', match.index + match[0].length - 1);
+  let depth = 0;
+  for (let index = open; index < branches.length; index++) {
+    if (branches[index] === '{') {
+      depth++;
+    } else if (branches[index] === '}' && --depth === 0) {
+      return {start: open + 1, end: index};
+    }
+  }
+  return null;
+}
+
+function getMainBody(source: string) {
+  return getFunctionBody(source, /void\s+main\s*\([^)]*\)\s*\{/);
+}
+
 /** The body of a hook function in assembled source. */
 function getHookBody(source: string, hook: string): string {
-  const start = source.search(new RegExp(`void\\s+${escapeRegExp(hook)}\\s*\\(`));
-  return start < 0 ? '' : source.slice(start, source.indexOf('\n}\n', start));
+  const body = getFunctionBody(
+    source,
+    new RegExp(`void\\s+${escapeRegExp(hook)}\\s*\\([^)]*\\)\\s*\\{`)
+  );
+  return body ? source.slice(body.start, body.end) : '';
+}
+
+/**
+ * Where an injection should have landed in the assembled shaders, and why it did not, or null
+ * when it did:
+ * - a statement of the layer's source (luma.gl injects after its first match): the statement
+ *   appears once, and the injected code follows it directly;
+ * - `#main-start` / `#main-end`: the injected code is inside `main`, before its closing brace;
+ * - a hook: the layer calls the hook, and the injected code is in the hook function's body.
+ */
+function getInjectionProblem(shaders: StageSources, {key, code}: Injection): string | null {
+  const marker = getMarker(code);
+  const match = /^(vs|fs):(#)?([\w-]+)$/.exec(key);
+  if (!match) {
+    const stage = (['vs', 'fs'] as Stage[]).find(name => shaders[name].includes(key));
+    if (!stage) {
+      return `no shader contains the statement '${key}'`;
+    }
+    const source = shaders[stage];
+    const at = source.indexOf(key);
+    if (source.indexOf(key, at + 1) >= 0) {
+      return `the statement '${key}' appears more than once, and luma.gl injects at the first`;
+    }
+    if (
+      !source
+        .slice(at + key.length)
+        .trimStart()
+        .startsWith(marker)
+    ) {
+      return `the code injected at '${key}' does not follow it`;
+    }
+    return null;
+  }
+  const [, stage, hash, name] = match as unknown as [string, Stage, string, string];
+  const source = shaders[stage];
+  const where = `${STAGE_NAMES[stage]} shader`;
+  if (hash) {
+    const at = source.indexOf(marker);
+    if (at < 0) {
+      return `the code injected at '${key}' is missing`;
+    }
+    if (name === 'decl') {
+      return null;
+    }
+    const main = getMainBody(source);
+    if (!main) {
+      return `the ${where} has no main function`;
+    }
+    return at >= main.start && at < main.end
+      ? null
+      : `the code injected at '${key}' is outside main`;
+  }
+  if (!callsHook(source, name)) {
+    return `the ${where} no longer calls the hook ${name}`;
+  }
+  return getHookBody(source, name).includes(marker)
+    ? null
+    : `the code injected into ${name} is missing`;
 }
 
 function describeTarget(extensionName: string, layerName: string): string {
@@ -163,44 +275,9 @@ function expectInjectionsApplied({
 }) {
   const context = describeTarget(extensionName, layerName);
   expect(injections.length, `${context}: the extension injects nothing`).toBeGreaterThan(0);
-  for (const {key, code} of injections) {
-    const marker = getMarker(code);
-    const match = /^(vs|fs):(#)?([\w-]+)$/.exec(key);
-    if (!match) {
-      // A statement of the layer's source, found by string match.
-      const stage = (['vs', 'fs'] as Stage[]).find(name => shaders[name].includes(key));
-      expect(stage, `${context}: no shader contains the statement '${key}'`).toBeDefined();
-      const source = shaders[stage!];
-      const at = source.indexOf(key);
-      expect(
-        source.indexOf(marker, at),
-        `${context}: the code injected at '${key}' is missing`
-      ).toBeGreaterThan(at);
-      continue;
-    }
-    const [, stage, hash, name] = match as unknown as [string, Stage, string, string];
-    const source = shaders[stage];
-    const where = `${STAGE_NAMES[stage]} shader`;
-    if (hash) {
-      const mainAt = source.search(/void\s+main\s*\(/);
-      expect(mainAt, `${context}: the ${where} has no main function`).toBeGreaterThanOrEqual(0);
-      const at = source.indexOf(marker);
-      expect(at, `${context}: the code injected at '${key}' is missing`).toBeGreaterThanOrEqual(0);
-      if (name !== 'decl') {
-        expect(at, `${context}: the code injected at '${key}' is outside main`).toBeGreaterThan(
-          mainAt
-        );
-      }
-    } else {
-      expect(
-        callsHook(source, name),
-        `${context}: the ${where} no longer calls the hook ${name}`
-      ).toBe(true);
-      expect(
-        getHookBody(source, name).includes(marker),
-        `${context}: the code injected into ${name} is missing`
-      ).toBe(true);
-    }
+  for (const injection of injections) {
+    const problem = getInjectionProblem(shaders, injection);
+    expect(problem, `${context}: ${problem}`).toBeNull();
   }
 }
 
@@ -247,6 +324,31 @@ void main(void) {
     expect(source.includes('alpha = inBorder;')).toBe(false);
     expect(hasName(source, 'edgePixels')).toBe(false);
     expect(hasName(source, 'fragColor')).toBe(true);
+  });
+
+  const MAIN_END = {key: 'fs:#main-end', code: '\n  fragColor.a *= 0.5;\n'};
+  const STATEMENT = {key: 'alpha = inBorder;', code: '\n  alpha *= 0.5;\n'};
+  const shaders = (fs: string) => ({vs: '', fs: stripComments(fs)});
+
+  test('place main injections before main closing brace', () => {
+    const inMain =
+      'void main(void) {\n#ifdef A\n  if (a) {\n#else\n  if (b) {\n#endif\n    c();\n  }\n  fragColor.a *= 0.5;\n}\n';
+    expect(getInjectionProblem(shaders(inMain), MAIN_END)).toBeNull();
+    // luma.gl injects before the last closing brace, which a function after main would own.
+    const afterMain = 'void main(void) {\n  b();\n}\nvoid later() {\n  fragColor.a *= 0.5;\n}\n';
+    expect(getInjectionProblem(shaders(afterMain), MAIN_END)).toMatch(/outside main/);
+    expect(getInjectionProblem(shaders('void later() {}\n'), MAIN_END)).toMatch(/missing/);
+  });
+
+  test('place statement injections directly after the only match', () => {
+    const direct = 'void main(void) {\n  alpha = inBorder;\n  alpha *= 0.5;\n  c();\n}\n';
+    expect(getInjectionProblem(shaders(direct), STATEMENT)).toBeNull();
+    const later = 'void main(void) {\n  alpha = inBorder;\n  c();\n  alpha *= 0.5;\n}\n';
+    expect(getInjectionProblem(shaders(later), STATEMENT)).toMatch(/does not follow/);
+    // A copy of the statement in a later function, with the code injected there.
+    const repeated =
+      'void main(void) {\n  alpha = inBorder;\n}\nvoid later() {\n  alpha = inBorder;\n  alpha *= 0.5;\n}\n';
+    expect(getInjectionProblem(shaders(repeated), STATEMENT)).toMatch(/more than once/);
   });
 });
 
