@@ -75,4 +75,26 @@ describe('tile features by source layer', () => {
     const [after] = tileSubLayers(layers, features, 12.6, style);
     expect(after.props.data).toBe(before.props.data);
   });
+
+  test('tile content edited in place is split again', () => {
+    const content = [feature('roads', 'r1'), feature('rivers', 'w1')];
+    const [first] = tileSubLayers([{id: 'roads', 'source-layer': 'roads'}], content);
+    expect(names(first)).toEqual(['r1']);
+    content.push(feature('roads', 'r2'));
+    const [second] = tileSubLayers([{id: 'roads', 'source-layer': 'roads'}], content);
+    expect(names(second)).toEqual(['r1', 'r2']);
+  });
+
+  test('each style layer of a tile is filtered by its own filter at a new integer zoom', () => {
+    const layers = [
+      {id: 'roads', 'source-layer': 'roads'},
+      {id: 'late-rivers', 'source-layer': 'rivers', filter: ['>=', ['zoom'], 13]}
+    ];
+    const style = createStyle(layers);
+    expect(tileSubLayers(layers, features, 12.1, style).map(names)).toEqual([['r1', 'r2', 'r3']]);
+    expect(tileSubLayers(layers, features, 13.1, style).map(names)).toEqual([
+      ['r1', 'r2', 'r3'],
+      ['w1', 'w2']
+    ]);
+  });
 });

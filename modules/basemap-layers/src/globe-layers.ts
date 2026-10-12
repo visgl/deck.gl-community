@@ -238,11 +238,18 @@ type FilteredFeatures = {
  */
 const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, FilteredFeatures>>();
 
-/** The features of each tile content by source layer, in tile order. */
-const sourceLayerFeatureCache = new WeakMap<any[], Map<unknown, any[]>>();
+/**
+ * The features of each tile content by source layer, in tile order, and the content's length when
+ * they were split: content whose length changes, edited in place, is split again.
+ */
+const sourceLayerFeatureCache = new WeakMap<
+  any[],
+  {length: number; bySourceLayer: Map<unknown, any[]>}
+>();
 
 function getSourceLayerFeatures(features: any[], sourceLayer: string): any[] {
-  let bySourceLayer = sourceLayerFeatureCache.get(features);
+  const cached = sourceLayerFeatureCache.get(features);
+  let bySourceLayer = cached?.length === features.length ? cached.bySourceLayer : undefined;
   if (!bySourceLayer) {
     bySourceLayer = new Map();
     for (const feature of features) {
@@ -254,7 +261,7 @@ function getSourceLayerFeatures(features: any[], sourceLayer: string): any[] {
       }
       group.push(feature);
     }
-    sourceLayerFeatureCache.set(features, bySourceLayer);
+    sourceLayerFeatureCache.set(features, {length: features.length, bySourceLayer});
   }
   return bySourceLayer.get(sourceLayer) || [];
 }
