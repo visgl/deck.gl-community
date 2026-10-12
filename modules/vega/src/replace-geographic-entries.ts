@@ -33,3 +33,23 @@ export function replaceGeographicEntries(
       : {type: 'path', data: pathReplacements.get(mark.data) ?? mark.data}
   );
 }
+
+/** Explicit ordered geometry is authoritative for the backing stage arrays as well. */
+export function normalizeGeographicEntries(stage: Stage): void {
+  if (stage.geographicData === undefined) return;
+  const marks = stage.geographicData.map((mark): GeographicMark => {
+    if (mark.data.isGeographic) return mark;
+    return mark.type === 'polygon'
+      ? {type: 'polygon', data: {...mark.data, isGeographic: true}}
+      : {type: 'path', data: {...mark.data, isGeographic: true}};
+  });
+  stage.geographicData = marks;
+  stage.polygonData = [
+    ...(stage.polygonData ?? []).filter(item => !item.isGeographic),
+    ...marks.flatMap(mark => (mark.type === 'polygon' ? [mark.data] : []))
+  ];
+  stage.pathData = [
+    ...(stage.pathData ?? []).filter(item => !item.isGeographic),
+    ...marks.flatMap(mark => (mark.type === 'path' ? [mark.data] : []))
+  ];
+}

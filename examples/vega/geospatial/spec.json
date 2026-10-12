@@ -362,6 +362,9 @@
           },
           "strokeWidth": {
             "value": 2
+          },
+          "tooltip": {
+            "signal": "{Name: datum.properties.name, Geometry: datum.geometry.type}"
           }
         }
       }
@@ -396,6 +399,9 @@
           },
           "angle": {
             "signal": "angle"
+          },
+          "tooltip": {
+            "signal": "{Location: datum.id, Longitude: datum.lon, Latitude: datum.lat}"
           }
         }
       },

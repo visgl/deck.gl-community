@@ -51,6 +51,8 @@ export type Vec3 = [number, number, number];
  * Cuboid information. The cube does not need to have equal dimensions.
  */
 export interface Cube {
+  /** Evaluated Vega tooltip encoding; omitted values suppress hover tooltips. */
+  tooltip?: unknown;
   /**
    * Ordinal position.
    */
@@ -68,6 +70,7 @@ export interface Cube {
 
 /** A Vega circle or square symbol, sized by area in chart coordinates. */
 export interface SymbolMark {
+  tooltip?: unknown;
   /** Glyph shape; omitted values render a circle. */
   shape?: 'circle' | 'square';
   /** Rotation in Cartesian radians. */
@@ -85,6 +88,7 @@ export interface SymbolMark {
 }
 
 export interface Path {
+  tooltip?: unknown;
   isGeographic?: boolean;
   datum?: unknown;
   positions: Position[];
@@ -93,6 +97,7 @@ export interface Path {
 }
 
 export interface Polygon {
+  tooltip?: unknown;
   /** Invisible square slot retained for transitions. */
   isEmpty?: boolean;
   isSymbol?: boolean;

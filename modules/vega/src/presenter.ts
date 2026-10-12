@@ -4,6 +4,7 @@
  */
 
 import {base} from './base';
+import {getVegaTooltip} from './vega-tooltip';
 import {deepMerge} from './clone';
 import {colorToString} from './color';
 import {CubeLayer_Class, type CubeLayerInterpolatedProps} from './cube-layer/cube-layer';
@@ -34,7 +35,7 @@ import {box} from './marks/rule';
 import {className, initializePanel} from './panel';
 import {patchCubeArray} from './patched-cube-array';
 import {patchSymbolArray} from './patched-symbol-array';
-import {replaceGeographicEntries} from './replace-geographic-entries';
+import {replaceGeographicEntries, normalizeGeographicEntries} from './replace-geographic-entries';
 import type {SymbolMark, Polygon, Vec3} from './interfaces';
 import {sceneToStage} from './stagers';
 import {targetViewState, viewStateProps} from './view-state';
@@ -100,6 +101,7 @@ export class Presenter {
   private symbolOrdinals = new Map<object, Map<object, number>>();
   private nextSymbolOrdinal = 0;
   private stagedSymbols: SymbolMark[] = [];
+  private polygonSymbols = new WeakSet<SymbolMark>();
 
   /**
    * Instantiate a new Presenter.
@@ -230,6 +232,7 @@ export class Presenter {
         width: null,
         effects: lightingEffects(),
         layers: [],
+        getTooltip: getVegaTooltip,
         onClick: config && config.onLayerClick,
         views: [new base.deck.OrbitView({controller: this.OrbitControllerClass})],
         initialViewState: {OrbitView: initialViewState},
@@ -272,6 +275,13 @@ export class Presenter {
    */
   rePresent(stage: Partial<Stage>, modifyConfig?: PresenterConfig) {
     const newStage = {...this._last.stage, cubeData: this.getCubeData(), ...stage};
+    if (stage.symbolData !== undefined) {
+      for (const symbol of stage.symbolData) this.polygonSymbols.delete(symbol);
+    } else if (stage.polygonData !== undefined) {
+      newStage.symbolData = this._last.stage.symbolData?.filter(
+        symbol => !this.polygonSymbols.has(symbol)
+      );
+    }
     if (stage.symbolData !== undefined && stage.polygonData === undefined) {
       newStage.polygonData = this._last.stage.polygonData?.filter(polygon => !polygon.isSymbol);
     }
@@ -310,6 +320,7 @@ export class Presenter {
     modifyConfig: PresenterConfig
   ) {
     stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
+    normalizeGeographicEntries(stage);
     const polygons = stage.polygonData ?? [];
     const squares = polygons.filter(p => p.isSymbol && !p.isEmpty);
     const squareOrdinals = new Set(
@@ -319,7 +330,11 @@ export class Presenter {
       symbol =>
         !symbol.isEmpty && (symbol.ordinal === undefined || !squareOrdinals.has(symbol.ordinal))
     );
-    for (const square of squares) symbols.push(convertSquareSymbol(square));
+    for (const square of squares) {
+      const symbol = convertSquareSymbol(square);
+      this.polygonSymbols.add(symbol);
+      symbols.push(symbol);
+    }
     stage.symbolData = patchSymbolArray(symbols, this.stagedSymbols);
     this.stagedSymbols = stage.symbolData;
     cubeCount = stage.cubeData.length;
@@ -457,6 +472,7 @@ export class Presenter {
     if (this.el) this.el.innerHTML = '';
     this.stagedCubes = [];
     this.stagedSymbols = [];
+    this.polygonSymbols = new WeakSet();
     this.symbolOrdinals.clear();
     this.nextSymbolOrdinal = 0;
     this.cubeOrdinals = new WeakMap();
@@ -479,6 +495,7 @@ function convertSquareSymbol(square: Polygon): SymbolMark {
     angle: square.angle ?? Math.atan2(points[1][1] - points[0][1], points[1][0] - points[0][0]),
     ordinal: square.ordinal,
     datum: square.datum,
+    tooltip: square.tooltip,
     position,
     radius: Math.hypot(points[1][0] - points[0][0], points[1][1] - points[0][1]) / 2,
     fillColor: square.fillColor,

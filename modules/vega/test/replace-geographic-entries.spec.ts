@@ -1,5 +1,8 @@
 import {expect, it} from 'vitest';
-import {replaceGeographicEntries} from '../src/replace-geographic-entries';
+import {
+  replaceGeographicEntries,
+  normalizeGeographicEntries
+} from '../src/replace-geographic-entries';
 import type {Polygon, Path, Stage} from '../src/interfaces';
 const polygon: Polygon = {
   isGeographic: true,
@@ -67,4 +70,39 @@ it('requires explicit order when projected shapes are added or removed', () => {
     replaceGeographicEntries({polygonData: [], pathData: [route], geographicData: order}, previous)
   ).toBe(order);
   expect(replaceGeographicEntries({polygonData: [polygon]}, {polygonData: []})).toBeUndefined();
+});
+
+it('synchronizes explicit batches so later replacements update the currently drawn objects', () => {
+  const replacement = {
+    ...polygon,
+    positions: [
+      [2, 2],
+      [3, 2],
+      [3, 3]
+    ]
+  };
+  const stage: Stage = {
+    ...previous,
+    geographicData: [
+      {type: 'path', data: grid},
+      {type: 'polygon', data: replacement},
+      {type: 'path', data: route}
+    ]
+  };
+  normalizeGeographicEntries(stage);
+  expect(stage.polygonData).toEqual([replacement]);
+  const recolored = {
+    ...replacement,
+    fillColor: [40, 50, 60, 255] as [number, number, number, number]
+  };
+  expect(replaceGeographicEntries({polygonData: [recolored]}, stage)[1].data).toBe(recolored);
+});
+it('tags explicit entries that omit geographic flags and retains legacy geometry', () => {
+  const plain = {...polygon, isGeographic: undefined};
+  const legacy = {...polygon, isGeographic: false};
+  const stage: Stage = {polygonData: [legacy], geographicData: [{type: 'polygon', data: plain}]};
+  normalizeGeographicEntries(stage);
+  expect(stage.polygonData).toHaveLength(2);
+  expect(stage.polygonData[1].isGeographic).toBe(true);
+  expect(stage.geographicData[0].data).toBe(stage.polygonData[1]);
 });

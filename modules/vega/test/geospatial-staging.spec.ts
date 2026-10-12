@@ -30,6 +30,16 @@ it('stages projected polygons with holes, separate islands, routes and geographi
     expect(initial.polygonData[0].positions).toHaveLength(2);
     expect(initial.pathData.length).toBeGreaterThan(1);
     expect(initial.symbolData).toHaveLength(6);
+    expect(initial.symbolData[0].tooltip).toEqual({Location: 0, Longitude: -35, Latitude: 10});
+    expect(initial.polygonData[0].tooltip).toEqual({
+      Name: 'Region with a lake',
+      Geometry: 'Polygon'
+    });
+    await view.signal('shape', 'square').runAsync();
+    expect(stage().polygonData.find(p => p.isSymbol)?.tooltip).toEqual(
+      initial.symbolData[0].tooltip
+    );
+    await view.signal('shape', 'circle').runAsync();
     expect(initial.polygonData.every(p => p.isGeographic && p.datum)).toBe(true);
     const layers = getLayers(
       {style: defaultPresenterStyle} as Presenter,

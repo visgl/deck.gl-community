@@ -42,6 +42,24 @@ it('morphs one GPU glyph per record, keeps exits stationary and preserves geogra
       )
       .toBe(true);
     await new Promise(resolve => setTimeout(resolve, 1100));
+    const glyph = symbols().props.data[0];
+    expect(deck.props.getTooltip({object: glyph} as any)).toEqual({
+      text: 'Location: 0\nLongitude: -35\nLatitude: 10'
+    });
+    const viewport = deck.getViewports()[0];
+    const [hoverX, hoverY] = viewport.project(glyph.position);
+    const canvas = deck.getCanvas();
+    const bounds = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(
+      new MouseEvent('mousemove', {
+        bubbles: true,
+        clientX: bounds.left + hoverX,
+        clientY: bounds.top + hoverY
+      })
+    );
+    await expect
+      .poll(() => document.querySelector('.deck-tooltip')?.textContent, {timeout: 5000})
+      .toContain('Longitude: -35');
     const timeline = symbols().context.timeline;
     timeline.pause();
     const read = (name: string, index = 0) => {
@@ -108,6 +126,25 @@ it('morphs one GPU glyph per record, keeps exits stationary and preserves geogra
       .poll(() => layer('LAYER_GEOGRAPHIC_POLYGONS').props.data[0].fillColor)
       .toEqual([20, 180, 100, 255]);
     expect(geographicIds()).toEqual(order);
+    const replacement = {...polygons[0], positions: polygons[0].positions};
+    const explicit = view.presenter.stage.geographicData.map(mark =>
+      mark.type === 'polygon' && mark.data === polygons[0] ? {...mark, data: replacement} : mark
+    );
+    view.presenter.rePresent({geographicData: explicit}, {transitionDurations: durations});
+    await expect.poll(() => layer('LAYER_GEOGRAPHIC_POLYGONS').props.data[0]).toBe(replacement);
+    const recolored = {
+      ...replacement,
+      fillColor: [200, 80, 40, 255] as [number, number, number, number]
+    };
+    view.presenter.rePresent(
+      {polygonData: view.presenter.stage.polygonData.map(p => (p === replacement ? recolored : p))},
+      {transitionDurations: durations}
+    );
+    await expect
+      .poll(() => layer('LAYER_GEOGRAPHIC_POLYGONS').props.data[0].fillColor)
+      .toEqual([200, 80, 40, 255]);
+    expect(geographicIds()).toEqual(order);
+
     expect(order).toEqual([
       'LAYER_GEOGRAPHIC_PATHS',
       'LAYER_GEOGRAPHIC_POLYGONS',

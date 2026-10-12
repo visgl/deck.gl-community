@@ -81,3 +81,7 @@ Cuboids, circles, and squares now use GPU transitions for record updates and ent
 The shared `examples/vega/geospatial/spec.json` declares synthetic GeoJSON regions, a lake hole, separate islands, a route, a geographic graticule, and geographic point symbols. Choose it in the Vega playground to edit the document. `geoshape` uses Vega projection, resampling and geographic clipping; `geopoint` positions circle or square symbols on the same projected chart. Projection coordinates use the chart camera rather than a synchronized map basemap.
 
 Circle and square symbols retain GPU attribute slots by mark and Vega tuple identity. Position, size, fill/stroke color and outline width interpolate on the GPU; filtering shrinks and fades exits at their last positions. Circle/square changes morph the same GPU glyph, keeping its position and identity continuous. Projection geometry itself restages immediately. Historical symbol slots remain allocated until view finalization; recreate views periodically for unbounded streams.
+
+### Hover tooltips
+
+Use Vega’s `tooltip` encoding on rect, symbol or projected shape marks, for example `"tooltip": {"signal": "{Name: datum.properties.name}"}`. Hovering displays evaluated strings or object fields as plain text. Omitted, null and false values suppress the tooltip. The unit layout, bar chart, geospatial and symbol transition examples declare tooltips in their shared JSON specs.

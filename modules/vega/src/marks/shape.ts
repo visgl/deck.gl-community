@@ -17,6 +17,7 @@ interface PathContext {
 type ShapeGenerator = {context(context: PathContext | null): (item: SceneItem) => void};
 type ShapeItem = SceneItem & {
   mark: SceneItem['mark'] & {shape?: ShapeGenerator};
+  tooltip?: unknown;
   shape?: ShapeGenerator;
   x?: number;
   y?: number;
@@ -121,6 +122,7 @@ const stageShape: MarkStager = (_options, stage, scene, x, y) => {
       const polygon: Polygon = {
         isGeographic: true,
         datum: item.datum,
+        tooltip: item.tooltip,
         positions: [
           ring.positions,
           ...rings.filter((_, i) => parents[i] === index).map(hole => hole.positions)
@@ -139,6 +141,7 @@ const stageShape: MarkStager = (_options, stage, scene, x, y) => {
         const path: Path = {
           isGeographic: true,
           datum: item.datum,
+          tooltip: item.tooltip,
           positions: contour.positions,
           strokeColor,
           strokeWidth: item.strokeWidth ?? 1

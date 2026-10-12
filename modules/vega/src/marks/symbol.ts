@@ -8,7 +8,7 @@ import {colorFromString} from '../color';
 import type {MarkStager} from './interfaces';
 import type {SceneSymbol} from 'vega';
 
-type SymbolItem = SceneSymbol & {z?: number; angle?: number};
+type SymbolItem = SceneSymbol & {z?: number; angle?: number; tooltip?: unknown};
 
 /** Circles and squares retain Vega's area-based size, group offsets and opacity. */
 const stageSymbol: MarkStager = (options, stage, scene, x, y) => {
@@ -34,6 +34,7 @@ const stageSymbol: MarkStager = (options, stage, scene, x, y) => {
         angle: (-(item.angle ?? 0) * Math.PI) / 180,
         ordinal,
         datum: item.datum,
+        tooltip: item.tooltip,
         positions: [
           [-halfSize, -halfSize],
           [halfSize, -halfSize],
@@ -57,6 +58,7 @@ const stageSymbol: MarkStager = (options, stage, scene, x, y) => {
     stage.symbolData ??= [];
     stage.symbolData.push({
       datum: item.datum,
+      tooltip: item.tooltip,
       ordinal,
       position,
       radius: Math.sqrt(size / Math.PI),

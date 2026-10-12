@@ -79,3 +79,7 @@ Vega `shape` marks with `geoshape` generators render projected GeoJSON polygons 
 Circle/square shape, position, size, rotation, color and outline width use GPU attribute transitions and stable per-mark tuple slots, including filtering, reordering and reentry. Both shapes share one instanced quad per record; circle/square changes morph that glyph without hidden counterparts. Historical slots are released at finalization; recreate long-running streaming views periodically. Configure durations with `presenterConfig.transitionDurations`. The declarative geospatial example is shared by the playground and docs.
 
 Direct Stage inputs may declare `symbolData` entries with `shape: 'circle' | 'square'` and Cartesian-radian `angle`. Legacy `polygonData` square inputs still normalize into the same glyph slots. Geographic replacements through `rePresent()` retain the interleaved paint order for matching entries; additions/removals require an explicit `geographicData` list.
+
+### Hover tooltips
+
+Use Vega’s `tooltip` encoding on rect, symbol or projected shape marks, for example `"tooltip": {"signal": "{Name: datum.properties.name}"}`. Hovering displays evaluated strings or object fields as plain text. Omitted, null and false values suppress the tooltip. The unit layout, bar chart, geospatial and symbol transition examples declare tooltips in their shared JSON specs.
