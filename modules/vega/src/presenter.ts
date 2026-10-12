@@ -34,6 +34,7 @@ import {box} from './marks/rule';
 import {className, initializePanel} from './panel';
 import {patchCubeArray} from './patched-cube-array';
 import {patchSymbolArray} from './patched-symbol-array';
+import {replaceGeographicEntries} from './replace-geographic-entries';
 import type {SymbolMark, Polygon, Vec3} from './interfaces';
 import {sceneToStage} from './stagers';
 import {targetViewState, viewStateProps} from './view-state';
@@ -99,7 +100,6 @@ export class Presenter {
   private symbolOrdinals = new Map<object, Map<object, number>>();
   private nextSymbolOrdinal = 0;
   private stagedSymbols: SymbolMark[] = [];
-  private stagedSquares: Polygon[] = [];
 
   /**
    * Instantiate a new Presenter.
@@ -266,17 +266,16 @@ export class Presenter {
   /**
    * Present the same recently rendered Stage with only slight modifications such as a color change,
    * using the previous Stage values as a basis.
-   * @param stage Partially populated Stage object containing changes.
+   * @param stage Partially populated Stage object containing changes. Matching geographic
+   * replacements retain their paint order; adding/removing shapes requires geographicData.
    * @param modifyConfig Optional presentation configuration object.
    */
   rePresent(stage: Partial<Stage>, modifyConfig?: PresenterConfig) {
     const newStage = {...this._last.stage, cubeData: this.getCubeData(), ...stage};
-    if (
-      stage.geographicData === undefined &&
-      (hasChangedGeographicEntries(stage.polygonData, this._last.stage.polygonData) ||
-        hasChangedGeographicEntries(stage.pathData, this._last.stage.pathData))
-    )
-      newStage.geographicData = undefined;
+    if (stage.symbolData !== undefined && stage.polygonData === undefined) {
+      newStage.polygonData = this._last.stage.polygonData?.filter(polygon => !polygon.isSymbol);
+    }
+    newStage.geographicData = replaceGeographicEntries(stage, this._last.stage);
     this.setDeckProps(
       newStage,
       this._last.height,
@@ -311,50 +310,18 @@ export class Presenter {
     modifyConfig: PresenterConfig
   ) {
     stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
-    const circles = (stage.symbolData ?? []).filter(symbol => !symbol.isEmpty);
     const polygons = stage.polygonData ?? [];
     const squares = polygons.filter(p => p.isSymbol && !p.isEmpty);
-    const circleOrdinals = new Set(circles.map(circle => circle.ordinal));
-    const squareOrdinals = new Set(squares.map(square => square.ordinal));
-    // Reserve an invisible counterpart so shape changes grow from the same center.
-    for (const circle of circles) {
-      if (circle.ordinal !== undefined && !squareOrdinals.has(circle.ordinal)) {
-        squares.push({
-          isSymbol: true,
-          isEmpty: true,
-          angle: this.stagedSquares[circle.ordinal]?.angle,
-          ordinal: circle.ordinal,
-          datum: undefined,
-          positions: Array.from({length: 4}, () => [...circle.position]),
-          fillColor: [0, 0, 0, 0],
-          strokeColor: [0, 0, 0, 0],
-          strokeWidth: 0,
-          depth: 0
-        });
-      }
-    }
-    for (const square of squares) {
-      if (square.ordinal !== undefined && !circleOrdinals.has(square.ordinal)) {
-        const positions = square.positions as Vec3[];
-        const center = positions
-          .reduce((sum, p) => sum.map((v, i) => v + (p[i] || 0)) as Vec3, [0, 0, 0])
-          .map(v => v / positions.length) as Vec3;
-        circles.push({
-          ordinal: square.ordinal,
-          isEmpty: true,
-          datum: undefined,
-          position: center,
-          radius: 0,
-          fillColor: [0, 0, 0, 0],
-          strokeColor: [0, 0, 0, 0],
-          strokeWidth: 0
-        });
-      }
-    }
-    stage.symbolData = patchSymbolArray(circles, this.stagedSymbols);
+    const squareOrdinals = new Set(
+      squares.map(square => square.ordinal).filter(ordinal => ordinal !== undefined)
+    );
+    const symbols = (stage.symbolData ?? []).filter(
+      symbol =>
+        !symbol.isEmpty && (symbol.ordinal === undefined || !squareOrdinals.has(symbol.ordinal))
+    );
+    for (const square of squares) symbols.push(convertSquareSymbol(square));
+    stage.symbolData = patchSymbolArray(symbols, this.stagedSymbols);
     this.stagedSymbols = stage.symbolData;
-    this.stagedSquares = patchSymbolArray(squares, this.stagedSquares);
-    stage.polygonData = [...polygons.filter(p => !p.isSymbol), ...this.stagedSquares];
     cubeCount = stage.cubeData.length;
     this.stagedCubes = stage.cubeData;
     const config = deepMerge<PresenterConfig>(defaultPresenterConfig, modifyConfig);
@@ -490,7 +457,6 @@ export class Presenter {
     if (this.el) this.el.innerHTML = '';
     this.stagedCubes = [];
     this.stagedSymbols = [];
-    this.stagedSquares = [];
     this.symbolOrdinals.clear();
     this.nextSymbolOrdinal = 0;
     this.cubeOrdinals = new WeakMap();
@@ -503,12 +469,20 @@ export class Presenter {
   }
 }
 
-function hasChangedGeographicEntries<T extends {isGeographic?: boolean}>(
-  updates: T[] | undefined,
-  previous: T[] | undefined
-) {
-  if (!updates) return false;
-  const next = updates.filter(item => item.isGeographic);
-  const old = (previous ?? []).filter(item => item.isGeographic);
-  return next.length !== old.length || next.some((item, index) => item !== old[index]);
+function convertSquareSymbol(square: Polygon): SymbolMark {
+  const points = square.positions as Vec3[];
+  const position = points
+    .reduce((sum, point) => sum.map((v, i) => v + (point[i] || 0)) as Vec3, [0, 0, 0])
+    .map(v => v / points.length) as Vec3;
+  return {
+    shape: 'square',
+    angle: square.angle ?? Math.atan2(points[1][1] - points[0][1], points[1][0] - points[0][0]),
+    ordinal: square.ordinal,
+    datum: square.datum,
+    position,
+    radius: Math.hypot(points[1][0] - points[0][0], points[1][1] - points[0][1]) / 2,
+    fillColor: square.fillColor,
+    strokeColor: square.strokeColor,
+    strokeWidth: square.strokeWidth
+  };
 }

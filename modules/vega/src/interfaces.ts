@@ -66,8 +66,12 @@ export interface Cube {
   size: Vec3;
 }
 
-/** A Vega circle symbol, sized by area in chart coordinates. */
+/** A Vega circle or square symbol, sized by area in chart coordinates. */
 export interface SymbolMark {
+  /** Glyph shape; omitted values render a circle. */
+  shape?: 'circle' | 'square';
+  /** Rotation in Cartesian radians. */
+  angle?: number;
   /** Invisible slot retained while an exited symbol finishes transitioning. */
   isEmpty?: boolean;
   /** Stable transition slot assigned by the scene stager. */

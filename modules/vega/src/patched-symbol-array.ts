@@ -1,13 +1,11 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import type {Polygon, SymbolMark, Vec3} from './interfaces';
+import type {SymbolMark} from './interfaces';
 
-type SymbolDatum = SymbolMark | Polygon;
-
-/** Keeps GPU attribute rows stable and retains invisible targets for exited symbols. */
-export function patchSymbolArray<T extends SymbolDatum>(data: T[], previous: T[]): T[] {
-  const slots = new Map<number, T>();
+/** Keeps one GPU row per record and retains stationary targets for removed records. */
+export function patchSymbolArray(data: SymbolMark[], previous: SymbolMark[]): SymbolMark[] {
+  const slots = new Map<number, SymbolMark>();
   data.forEach((item, index) => {
     const ordinal = item.ordinal ?? index;
     if (!Number.isSafeInteger(ordinal) || ordinal < 0 || slots.has(ordinal)) {
@@ -16,28 +14,27 @@ export function patchSymbolArray<T extends SymbolDatum>(data: T[], previous: T[]
     slots.set(ordinal, item);
   });
   const length = Array.from(slots.keys()).reduce(
-    (length, index) => Math.max(length, index + 1),
+    (count, index) => Math.max(count, index + 1),
     previous.length
   );
-  return Array.from({length}, (_, index) => {
+  const result = Array.from({length}, (_, index): SymbolMark => {
     const target = slots.get(index);
     if (target) return target;
     const source = previous[index] ?? data[0];
-    if (!source) return undefined;
-    const ghost = {
+    if (source.isEmpty) return source;
+    return {
       ...source,
       ordinal: index,
       isEmpty: true,
       datum: undefined,
+      radius: 0,
       fillColor: [0, 0, 0, 0],
       strokeColor: [0, 0, 0, 0],
       strokeWidth: 0
     };
-    if ('radius' in source) return {...ghost, radius: 0} as T;
-    const positions = source.positions as Vec3[];
-    const center = positions
-      .reduce((sum, p) => sum.map((v, i) => v + (p[i] || 0)) as Vec3, [0, 0, 0])
-      .map(v => v / positions.length) as Vec3;
-    return {...ghost, positions: positions.map(() => [...center])} as T;
   });
+  return result.length === previous.length &&
+    result.every((item, index) => item === previous[index])
+    ? previous
+    : result;
 }

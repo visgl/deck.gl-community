@@ -56,7 +56,7 @@ The same example runs locally with `yarn vite modules/vega/demo --host 127.0.0.1
 
 <div style={{height: 520, position: 'relative'}}><MarkTransitionsExample /></div>
 
-Circle symbols use a native `ScatterplotLayer`; square symbols use an instanced square layer with pixel-width outlines. Both preserve
+Circles and squares share an instanced `ScatterplotLayer` extension with pixel-width outlines. Both preserve
 Vega's area-based `size`, fill/stroke opacity, translated group coordinates, and source `datum`
 for deck.gl picking. Other symbol shapes report an error. Arbitrary SVG paths, group clipping, and exact mixed-mark draw ordering remain follow-up work.
 
@@ -80,4 +80,4 @@ Cuboids, circles, and squares now use GPU transitions for record updates and ent
 
 The shared `examples/vega/geospatial/spec.json` declares synthetic GeoJSON regions, a lake hole, separate islands, a route, a geographic graticule, and geographic point symbols. Choose it in the Vega playground to edit the document. `geoshape` uses Vega projection, resampling and geographic clipping; `geopoint` positions circle or square symbols on the same projected chart. Projection coordinates use the chart camera rather than a synchronized map basemap.
 
-Circle and square symbols retain GPU attribute slots by mark and Vega tuple identity. Position, size, fill/stroke color and outline width interpolate on the GPU; filtering shrinks and fades exits at their last positions. Changing between circles and squares fades out the old shape and grows the new one. Projection geometry itself restages immediately. Historical symbol slots remain allocated until view finalization; recreate views periodically for unbounded streams.
+Circle and square symbols retain GPU attribute slots by mark and Vega tuple identity. Position, size, fill/stroke color and outline width interpolate on the GPU; filtering shrinks and fades exits at their last positions. Circle/square changes morph the same GPU glyph, keeping its position and identity continuous. Projection geometry itself restages immediately. Historical symbol slots remain allocated until view finalization; recreate views periodically for unbounded streams.
