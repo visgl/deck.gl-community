@@ -11,7 +11,12 @@ import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
-import {type FillPatternGroup, getFillPatternGroups, getFillPatternProps} from './fill-pattern';
+import {
+  type FillPatternGroup,
+  getFeaturesWithoutPattern,
+  getFillPatternGroups,
+  getFillPatternProps
+} from './fill-pattern';
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
 import {MVTLabelLayer} from './mvt-label-layer';
 import {
@@ -637,7 +642,7 @@ function createStyledVectorSubLayer({
   if (styleLayer.type === 'fill' && styleLayer.paint?.['fill-pattern'] !== undefined) {
     const groups = getFillPatternGroups(features, styleLayer, zoom, spriteAtlases);
     if (groups.length > 0) {
-      return groups.map(pattern =>
+      const layers = groups.map(pattern =>
         createGeometrySubLayer({
           props,
           styleLayer,
@@ -649,6 +654,22 @@ function createStyledVectorSubLayer({
           idSuffix: groups.length > 1 ? `-pattern-${pattern.atlasIndex}` : ''
         })
       );
+      // Features whose image is missing draw no fill, but keep their outline, as in MapLibre.
+      const unpatterned = getFeaturesWithoutPattern(features, groups);
+      if (unpatterned.length > 0 && styleLayer.paint?.['fill-outline-color'] !== undefined) {
+        layers.push(
+          createGeometrySubLayer({
+            props,
+            styleLayer,
+            features: unpatterned,
+            mode,
+            zoom,
+            depthTested,
+            idSuffix: '-missing-pattern'
+          })
+        );
+      }
+      return layers;
     }
   }
 

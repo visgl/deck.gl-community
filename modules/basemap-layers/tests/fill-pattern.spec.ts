@@ -4,7 +4,14 @@
 
 /* eslint-disable import/no-extraneous-dependencies */
 import {describe, expect, test} from 'vitest';
-import {getFillPatternGroups} from '../src/fill-pattern';
+import {
+  MAX_PATTERN_ATLAS_SIZE,
+  getFeaturesWithoutPattern,
+  getFillPatternGroups,
+  getFillPatternProps,
+  getPatternAtlas,
+  packPatternImages
+} from '../src/fill-pattern';
 import {
   FillPatternExtension,
   FillTranslateExtension,
@@ -324,6 +331,7 @@ describe('fill-pattern in the style draw order', () => {
     feature('landuse', 'Polygon', square, {pattern: 'base:hatched'}),
     feature('road', 'LineString', square[0])
   ];
+  const missing = feature('landuse', 'Polygon', square, {pattern: 'missing'});
   const WATER = {id: 'water', type: 'fill', source: 'tiles', 'source-layer': 'water'};
   const BUILDINGS = {
     id: 'building-3d',
@@ -415,6 +423,40 @@ describe('fill-pattern in the style draw order', () => {
     }
   });
 
+  test('a missing image keeps its outline, in style order and depth-tested', () => {
+    content.splice(4, 0, missing);
+    let layers: any[];
+    try {
+      layers = renderTwoTiles('globe', [
+        WATER,
+        BUILDINGS,
+        {...LANDUSE, paint: {...LANDUSE.paint, 'fill-outline-color': '#ff0000'}},
+        ROADS
+      ]);
+    } finally {
+      content.splice(4, 1);
+    }
+    const landuse = layers.filter(layer => layer.id.includes('"landuse"'));
+    expect(landuse.map(layer => layer.id)).toEqual([
+      'test-tiles-a-"landuse"-pattern-0',
+      'test-tiles-a-"landuse"-pattern-1',
+      'test-tiles-a-"landuse"-missing-pattern',
+      'test-tiles-b-"landuse"-pattern-0',
+      'test-tiles-b-"landuse"-pattern-1',
+      'test-tiles-b-"landuse"-missing-pattern'
+    ]);
+    const outlines = landuse.filter(layer => layer.id.endsWith('-missing-pattern'));
+    for (const layer of outlines) {
+      expect(layer.props.data).toEqual([missing]);
+      expect(layer.props.styleLayerIndex).toBe(2);
+      expect(layer.props.parameters).toMatchObject({depthTest: true, depthWriteEnabled: false});
+      // No fill, only the outline.
+      expect(layer.props.getFillColor).toEqual([0, 0, 0, 0]);
+      expect(layer.props.stroked).toBe(true);
+      expect(layer.props.getLineColor).toEqual([255, 0, 0, 255]);
+    }
+  });
+
   test('on a map, the per-sprite sublayers are depth-tested', () => {
     const layers = renderTwoTiles('map', [WATER, BUILDINGS, LANDUSE, ROADS]);
     const patterned = layers.filter(layer => layer.id.includes('"landuse"'));
@@ -422,5 +464,97 @@ describe('fill-pattern in the style draw order', () => {
     for (const layer of patterned) {
       expect(layer.props.parameters).toMatchObject({depthTest: true, depthWriteEnabled: false});
     }
+  });
+});
+
+describe('missing pattern images', () => {
+  test('draw their outline but no fill when other features have an image', () => {
+    const features = [polygon({pattern: 'wetland'}), polygon({pattern: 'missing'})];
+    const paint = {'fill-pattern': ['get', 'pattern'], 'fill-outline-color': '#ff0000'};
+    const [patterned, outline] = renderFills(paint, features);
+    expect(patterned.props.data).toEqual([features[0]]);
+    expect(outline.id).toBe('test-tile-"fill"-missing-pattern');
+    expect(outline.props.data).toEqual([features[1]]);
+    expect(outline.props.getFillColor).toEqual([0, 0, 0, 0]);
+    expect(outline.props.getLineColor).toEqual([255, 0, 0, 255]);
+    // The features without an image are reused while the groups are.
+    const styleLayer = {paint};
+    const groups = getFillPatternGroups(features, styleLayer, 12, SPRITES);
+    expect(getFeaturesWithoutPattern(features, groups)).toEqual([features[1]]);
+    expect(getFeaturesWithoutPattern(features, groups)).toBe(
+      getFeaturesWithoutPattern(features, getFillPatternGroups(features, styleLayer, 12.5, SPRITES))
+    );
+  });
+
+  test('add no layer without fill-outline-color', () => {
+    const features = [polygon({pattern: 'wetland'}), polygon({pattern: 'missing'})];
+    const layers = renderFills({'fill-pattern': ['get', 'pattern']}, features);
+    expect(layers.map(layer => layer.id)).toEqual(['test-tile-"fill"']);
+  });
+});
+
+describe('pattern atlases', () => {
+  test('a single image is cached per sprite; several images are kept by their group', () => {
+    expect(getPatternAtlas(DEFAULT_SPRITE, ['wetland'])).toBe(
+      getPatternAtlas(DEFAULT_SPRITE, ['wetland'])
+    );
+    // Sets of images vary from tile to tile, so they are not cached beyond their group.
+    expect(getPatternAtlas(DEFAULT_SPRITE, ['sand', 'wetland'])).not.toBe(
+      getPatternAtlas(DEFAULT_SPRITE, ['sand', 'wetland'])
+    );
+    const group = getFillPatternGroups(
+      [polygon({pattern: 'wetland'}), polygon({pattern: 'sand'})],
+      {paint: {'fill-pattern': ['get', 'pattern']}},
+      12,
+      SPRITES
+    )[0];
+    getFillPatternProps(group, 12);
+    const atlas = group.patternAtlas;
+    expect(atlas).toBeDefined();
+    // A new zoom step regenerates the tile's layers from the same group and atlas.
+    getFillPatternProps(group, 13);
+    expect(group.patternAtlas).toBe(atlas);
+  });
+
+  test('packs images into rows within the texture size limit', () => {
+    const sizes = Array.from({length: 128}, () => ({width: 128, height: 128}));
+    const packing = packPatternImages(sizes)!;
+    expect(packing.width).toBeLessThanOrEqual(MAX_PATTERN_ATLAS_SIZE);
+    expect(packing.height).toBeLessThanOrEqual(MAX_PATTERN_ATLAS_SIZE);
+    // Each image and its 1 pixel border lie inside the atlas and overlap no other.
+    const boxes = packing.positions.map(([x, y], index) => [
+      x - 1,
+      y - 1,
+      x + sizes[index].width + 1,
+      y + sizes[index].height + 1
+    ]);
+    for (const [index, [left, top, right, bottom]] of boxes.entries()) {
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(top).toBeGreaterThanOrEqual(0);
+      expect(right).toBeLessThanOrEqual(packing.width);
+      expect(bottom).toBeLessThanOrEqual(packing.height);
+      for (const [l, t, r, b] of boxes.slice(index + 1)) {
+        expect(left >= r || right <= l || top >= b || bottom <= t).toBe(true);
+      }
+    }
+  });
+
+  test('packs images of mixed sizes, and gives up beyond the limit', () => {
+    const sizes = [
+      {width: 15, height: 15},
+      {width: 64, height: 32},
+      {width: 7, height: 40},
+      {width: 30, height: 30}
+    ];
+    const packing = packPatternImages(sizes, 80)!;
+    expect(packing.width).toBeLessThanOrEqual(80);
+    expect(packing.positions).toHaveLength(4);
+    expect(packPatternImages([{width: 100, height: 10}], 80)).toBeNull();
+    expect(
+      packPatternImages(
+        Array.from({length: 10}, () => ({width: 38, height: 38})),
+        80
+      )
+    ).toBeNull();
   });
 });

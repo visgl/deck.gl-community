@@ -320,6 +320,61 @@ describe('fill-pattern in the browser', () => {
     }
   });
 
+  test('draws one of many large images, packed within the texture size limit', async () => {
+    // 128 images of 128 x 128 pixels: in one row, with their borders, 16,640 pixels wide.
+    const canvas = new OffscreenCanvas(2048, 1024);
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgb(0, 0, 255)';
+    context.fillRect(0, 0, 2048, 1024);
+    context.fillStyle = 'rgb(255, 0, 0)';
+    context.fillRect(1920, 896, 128, 128);
+    const mapping: SpriteAtlas['mapping'] = {};
+    for (let index = 0; index < 128; index++) {
+      const [x, y] = [(index % 16) * 128, Math.floor(index / 16) * 128];
+      mapping[`image-${index}`] = {x, y, width: 128, height: 128, mask: false, pixelRatio: 1};
+    }
+    const sprite: SpriteAtlas = {id: 'default', image: await createImageBitmap(canvas), mapping};
+    // Every image is used by a feature off screen; the last, red, one fills the canvas.
+    const features = [
+      ...Array.from({length: 127}, (_, index) => ({
+        ...box(100, 10, 101, 11),
+        properties: {pattern: `image-${index}`}
+      })),
+      {...box(-170, -80, 170, 80), properties: {pattern: 'image-127'}}
+    ];
+    const image = await render(
+      fillTile({'fill-pattern': ['get', 'pattern']}, features, {zoom: 5, spriteAtlases: [sprite]}),
+      {zoom: 5}
+    );
+    expectColor(pixel(image, CENTER, CENTER), RED);
+    expectColor(pixel(image, 10, 100), RED);
+  });
+
+  test('a missing image draws its outline but no fill, beside an image that is drawn', async () => {
+    const sprite = await createQuadrantSprite(8);
+    // The east half has no image; a polygon far away has one.
+    const features = [
+      {...box(0, -80, 170, 80), properties: {pattern: 'missing'}},
+      {...box(100, 10, 101, 11), properties: {pattern: 'quadrants'}}
+    ];
+    const image = await render(
+      fillTile(
+        {
+          'fill-pattern': ['get', 'pattern'],
+          'fill-outline-color': '#000000',
+          'fill-color': '#ff0000'
+        },
+        features,
+        {zoom: 5, spriteAtlases: [sprite]}
+      ),
+      {zoom: 5}
+    );
+    // The west edge of the east half is outlined at the canvas center; inside, nothing is drawn.
+    const edge = [CENTER - 1, CENTER, CENTER + 1].flatMap(x => pixel(image, x, CENTER - 20));
+    expect(Math.min(...edge)).toBeLessThan(160);
+    expectColor(pixel(image, CENTER + 20, CENTER), WHITE, 0);
+  });
+
   test('divides the image size by its pixel ratio', async () => {
     const sprite = await createQuadrantSprite(8, 2);
     const image = await render(

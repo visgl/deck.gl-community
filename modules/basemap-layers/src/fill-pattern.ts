@@ -29,6 +29,8 @@ export type FillPatternGroup = {
   getPixelRatio: number | ((feature: StyleFeature) => number);
   /** The names of the group's images, sorted. */
   names: string[];
+  /** The group's pattern atlas, made on first use and released with the group. */
+  patternAtlas?: PatternAtlas;
 };
 
 const warnedMissingPatterns = new Set<string>();
@@ -156,7 +158,12 @@ type PatternAtlas = {
   mapping: Record<string, SpriteIconMappingEntry>;
 };
 
-/** Pattern atlases per sprite and list of image names. */
+/**
+ * Single-image pattern atlases per sprite. A sprite has a fixed set of images, so this holds at
+ * most one small canvas per image a style draws as a pattern, for as long as the sprite is loaded.
+ * Atlases of several images depend on a tile's features and are kept on their group instead (see
+ * `getFillPatternProps`), so they are released with the tile.
+ */
 const patternAtlasCache = new WeakMap<SpriteAtlas, Map<string, PatternAtlas>>();
 
 function createCanvas(width: number, height: number): OffscreenCanvas | HTMLCanvasElement | null {
@@ -181,51 +188,122 @@ function createCanvas(width: number, height: number): OffscreenCanvas | HTMLCanv
  * sprite image is a URL, or no canvas is available, it returns the sprite itself.
  */
 export function getPatternAtlas(atlas: SpriteAtlas, names: string[]): PatternAtlas {
-  let byNames = patternAtlasCache.get(atlas);
-  if (!byNames) {
-    byNames = new Map();
-    patternAtlasCache.set(atlas, byNames);
+  if (names.length !== 1) {
+    return createPatternAtlas(atlas, names);
   }
-  const key = names.join('\n');
-  const cached = byNames.get(key);
-  if (cached) {
-    return cached;
+  let byName = patternAtlasCache.get(atlas);
+  if (!byName) {
+    byName = new Map();
+    patternAtlasCache.set(atlas, byName);
   }
+  let result = byName.get(names[0]);
+  if (!result) {
+    result = createPatternAtlas(atlas, names);
+    byName.set(names[0], result);
+  }
+  return result;
+}
+
+/**
+ * The largest width and height of a pattern atlas. WebGL 2 guarantees textures of 2048 pixels; in
+ * practice every device that runs it supports 4096, as MapLibre GL JS also assumes for its atlases.
+ */
+export const MAX_PATTERN_ATLAS_SIZE = 4096;
+
+/**
+ * Places images with a 1 pixel border on each side in rows no wider than `maxSize`: shelf packing,
+ * tallest images first. Returns each image's top left corner, inside its border, and the atlas
+ * size, or `null` when the images do not fit in `maxSize` by `maxSize`.
+ */
+export function packPatternImages(
+  sizes: {width: number; height: number}[],
+  maxSize = MAX_PATTERN_ATLAS_SIZE
+): {positions: [number, number][]; width: number; height: number} | null {
+  const order = sizes.map((_, index) => index).sort((a, b) => sizes[b].height - sizes[a].height);
+  const positions: [number, number][] = new Array(sizes.length);
+  let x = 0;
+  let y = 0;
+  let rowHeight = 0;
+  let width = 0;
+  for (const index of order) {
+    const w = sizes[index].width + 2;
+    const h = sizes[index].height + 2;
+    if (x > 0 && x + w > maxSize) {
+      y += rowHeight;
+      x = 0;
+      rowHeight = 0;
+    }
+    if (x + w > maxSize || y + h > maxSize) {
+      return null;
+    }
+    positions[index] = [x + 1, y + 1];
+    x += w;
+    rowHeight = Math.max(rowHeight, h);
+    width = Math.max(width, x);
+  }
+  return {positions, width, height: y + rowHeight};
+}
+
+function createPatternAtlas(atlas: SpriteAtlas, names: string[]): PatternAtlas {
+  const sprite: PatternAtlas = {image: atlas.image, mapping: atlas.mapping};
   const entries = names.map(name => atlas.mapping[name]);
-  const width = entries.reduce((sum, entry) => sum + entry.width + 2, 0);
-  const height = Math.max(...entries.map(entry => entry.height + 2));
-  const canvas = typeof atlas.image === 'string' ? null : createCanvas(width, height);
+  const packing = packPatternImages(entries);
+  if (!packing) {
+    // Too many images for one texture: the sprite itself, which the style's renderer loaded as
+    // one texture, draws them, with seams at the image edges.
+    log.warn(
+      '[BasemapLayer] fill-pattern images exceed the pattern atlas size; using the sprite'
+    )();
+    return sprite;
+  }
+  const canvas =
+    typeof atlas.image === 'string' ? null : createCanvas(packing.width, packing.height);
   const context = canvas?.getContext('2d') as
     | OffscreenCanvasRenderingContext2D
     | CanvasRenderingContext2D
     | null
     | undefined;
-  let result: PatternAtlas = {image: atlas.image, mapping: atlas.mapping};
-  if (canvas && context) {
-    const mapping: Record<string, SpriteIconMappingEntry> = {};
-    let left = 0;
-    names.forEach((name, index) => {
-      const entry = entries[index];
-      const {x, y, width: w, height: h} = entry;
-      // The image, then each border from the opposite edge, corners included: a 3x3 tiling of
-      // the image clipped to its 1 pixel border.
-      for (const dx of [-1, 0, 1]) {
-        for (const dy of [-1, 0, 1]) {
-          const sx = dx === 0 ? x : dx < 0 ? x + w - 1 : x;
-          const sy = dy === 0 ? y : dy < 0 ? y + h - 1 : y;
-          const sw = dx === 0 ? w : 1;
-          const sh = dy === 0 ? h : 1;
-          const tx = left + 1 + (dx === 0 ? 0 : dx < 0 ? -1 : w);
-          const ty = 1 + (dy === 0 ? 0 : dy < 0 ? -1 : h);
-          context.drawImage(atlas.image as CanvasImageSource, sx, sy, sw, sh, tx, ty, sw, sh);
-        }
-      }
-      mapping[name] = {...entry, x: left + 1, y: 1};
-      left += w + 2;
-    });
-    result = {image: canvas, mapping};
+  if (!canvas || !context) {
+    return sprite;
   }
-  byNames.set(key, result);
+  const mapping: Record<string, SpriteIconMappingEntry> = {};
+  names.forEach((name, index) => {
+    const entry = entries[index];
+    const {x, y, width: w, height: h} = entry;
+    const [left, top] = packing.positions[index];
+    // The image, then each border from the opposite edge, corners included: a 3x3 tiling of the
+    // image clipped to its 1 pixel border.
+    for (const dx of [-1, 0, 1]) {
+      for (const dy of [-1, 0, 1]) {
+        const sx = dx === 0 ? x : dx < 0 ? x + w - 1 : x;
+        const sy = dy === 0 ? y : dy < 0 ? y + h - 1 : y;
+        const sw = dx === 0 ? w : 1;
+        const sh = dy === 0 ? h : 1;
+        const tx = left + (dx === 0 ? 0 : dx < 0 ? -1 : w);
+        const ty = top + (dy === 0 ? 0 : dy < 0 ? -1 : h);
+        context.drawImage(atlas.image as CanvasImageSource, sx, sy, sw, sh, tx, ty, sw, sh);
+      }
+    }
+    mapping[name] = {...entry, x: left, y: top};
+  });
+  return {image: canvas, mapping};
+}
+
+/** The features without an image per list of groups. */
+const unpatternedCache = new WeakMap<FillPatternGroup[], any[]>();
+
+/**
+ * The features of a patterned fill that no group draws, because no loaded sprite has their image.
+ * MapLibre GL JS draws no fill for them, but still draws their `fill-outline-color` outline.
+ * Cached per list of groups, which `getFillPatternGroups` reuses while its inputs are unchanged.
+ */
+export function getFeaturesWithoutPattern(features: any[], groups: FillPatternGroup[]): any[] {
+  let result = unpatternedCache.get(groups);
+  if (!result) {
+    const patterned = new Set(groups.flatMap(group => group.features));
+    result = patterned.size === features.length ? [] : features.filter(f => !patterned.has(f));
+    unpatternedCache.set(groups, result);
+  }
   return result;
 }
 
@@ -238,7 +316,11 @@ export function getPatternAtlas(atlas: SpriteAtlas, names: string[]): PatternAtl
 export function getFillPatternProps(group: FillPatternGroup, zoom: number) {
   const unitScale = 2 ** -Math.floor(zoom);
   const {getPixelRatio} = group;
-  const {image, mapping} = getPatternAtlas(group.atlas, group.names);
+  // Kept on the group: a tile's groups, and so their atlases, are released with its features.
+  // A layer turns the canvas into its own texture and keeps the canvas as a prop, so no live
+  // layer loses its texture when an atlas is released.
+  group.patternAtlas ??= getPatternAtlas(group.atlas, group.names);
+  const {image, mapping} = group.patternAtlas;
   return {
     fillPatternAtlas: image,
     fillPatternMapping: mapping,
