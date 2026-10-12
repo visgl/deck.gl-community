@@ -29,5 +29,10 @@ describe('LabelTextLayer', () => {
       true
     );
     expect(filter({getBackgroundColor: () => [0, 0, 0, 0]}, 'screen').background).toBe(true);
+    // A transition to a transparent background or no border still draws while it fades.
+    for (const transition of ['getBackgroundColor', 'getBorderWidth']) {
+      const fading = {getBackgroundColor: [0, 0, 0, 0], transitions: {[transition]: 300}};
+      expect(filter(fading, 'screen').background).toBe(true);
+    }
   });
 });

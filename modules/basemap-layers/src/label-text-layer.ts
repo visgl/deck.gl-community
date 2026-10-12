@@ -165,10 +165,19 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     );
   }
 
-  /** Whether the background box is a constant transparent color without a border. */
+  /**
+   * Whether the background box is a constant transparent color without a border, and no transition
+   * fades it out.
+   */
   hasInvisibleBackground(): boolean {
-    const {getBackgroundColor, getBorderWidth} = this.props;
-    return Array.isArray(getBackgroundColor) && getBackgroundColor[3] === 0 && getBorderWidth === 0;
+    const {getBackgroundColor, getBorderWidth, transitions} = this.props;
+    return (
+      Array.isArray(getBackgroundColor) &&
+      getBackgroundColor[3] === 0 &&
+      getBorderWidth === 0 &&
+      !transitions?.getBackgroundColor &&
+      !transitions?.getBorderWidth
+    );
   }
 
   finalizeState(context: any): void {
