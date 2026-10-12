@@ -90,5 +90,7 @@ describe('getPoleOfInaccessibility on hostile input', () => {
     expect((ringZeroReads - 3) * ring.length).toBeLessThanOrEqual(
       DEFAULT_POLE_SEARCH_SEGMENT_TESTS
     );
-  });
+    // Two default budgets of work take about 50 ms, but are timed out as generously as the thin
+    // polygon case for the same reason: the assertions are on the counts.
+  }, 30000);
 });
