@@ -109,17 +109,25 @@ export class SharedMVTLayer extends SharedTile2DLayer<
       return Promise.reject(new Error('Invalid MVT URL template'));
     }
     const loadOptions = this.getLoadOptions();
-    return fetch(url, {
-      propName: 'data',
-      layer: this,
-      signal: tile.signal,
-      loadOptions: {
-        ...loadOptions,
-        mimeType: 'application/x-protobuf',
-        mvt: {...loadOptions?.mvt, shape: 'geojson', coordinates: 'local', tileIndex: tile.index},
-        gis: {...loadOptions?.gis, format: 'geojson'}
-      }
-    });
+    // loaders.gl 5 has no `geojson` shape. `geojson-table`, which loaders.gl 4 also has, wraps
+    // the features in a table; unwrap it so tile content stays the feature array.
+    return Promise.resolve(
+      fetch(url, {
+        propName: 'data',
+        layer: this,
+        signal: tile.signal,
+        loadOptions: {
+          ...loadOptions,
+          mimeType: 'application/x-protobuf',
+          mvt: {
+            ...loadOptions?.mvt,
+            shape: 'geojson-table',
+            coordinates: 'local',
+            tileIndex: tile.index
+          }
+        }
+      })
+    ).then(data => (data?.shape === 'geojson-table' ? data.features : data));
   }
 
   /** View changes invalidate render geometry, never the shared decoded cache. */

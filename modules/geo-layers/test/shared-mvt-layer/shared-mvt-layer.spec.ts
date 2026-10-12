@@ -43,7 +43,7 @@ describe('SharedMVTLayer', () => {
       expect(first.selectedTiles![0].content).toBe(second.selectedTiles![0].content);
       expect(fetch.mock.calls[0][1].loadOptions.mvt).toMatchObject({
         coordinates: 'local',
-        shape: 'geojson',
+        shape: 'geojson-table',
         tileIndex: {x: 0, y: 0, z: 0}
       });
       first.finalize();
@@ -179,4 +179,71 @@ it('skips failed tiles on a globe and maps highlights to filtered sublayer data'
   expect(
     layer.getSubLayerPropsByTile(tile, new GeoJsonLayer({data: [DATA[0]]})).highlightedObjectIndex
   ).toBe(-1);
+});
+
+it('unwraps a geojson-table tile into its features', async () => {
+  const fetch = vi.fn(async () => ({
+    shape: 'geojson-table',
+    type: 'FeatureCollection',
+    features: DATA
+  }));
+  const layer = new SharedMVTLayer({data: 'https://example.com/{z}/{x}/{y}.mvt', fetch});
+  const tile: any = {id: '0-0-0', index: {x: 0, y: 0, z: 0}};
+  expect(await layer.getTileData(tile)).toBe(DATA);
+});
+
+it('decodes an MVT tile into its features', async () => {
+  const {encode} = await import('@loaders.gl/core');
+  const {MVTLoader, MVTWriter} = await import('@loaders.gl/mvt');
+  // Coordinates on the 4096 grid so the encoded tile decodes them exactly.
+  const features = [
+    {
+      type: 'Feature',
+      id: 1,
+      properties: {kind: 'point', rank: 3},
+      geometry: {type: 'Point', coordinates: [0.25, 0.75]}
+    },
+    {
+      type: 'Feature',
+      id: 2,
+      properties: {kind: 'line'},
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [0.125, 0.125],
+          [0.5, 0.25],
+          [0.875, 0.625]
+        ]
+      }
+    },
+    {
+      type: 'Feature',
+      id: 3,
+      properties: {kind: 'polygon'},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0.25, 0.25],
+            [0.75, 0.25],
+            [0.75, 0.75],
+            [0.25, 0.75],
+            [0.25, 0.25]
+          ]
+        ]
+      }
+    }
+  ];
+  const bytes = new Uint8Array(
+    await encode(features as any, MVTWriter, {mvt: {layerName: 'test', version: 2}})
+  );
+  const url = `data:application/x-protobuf;base64,${Buffer.from(bytes).toString('base64')}`;
+  const layer = new SharedMVTLayer({data: url, loaders: [MVTLoader], loadOptions: {worker: false}});
+  const content = await layer.getTileData({id: '3-1-2', index: {x: 1, y: 2, z: 3}} as any);
+  expect(content).toEqual(
+    features.map(feature => ({
+      ...feature,
+      properties: {...feature.properties, layerName: 'test'}
+    }))
+  );
 });

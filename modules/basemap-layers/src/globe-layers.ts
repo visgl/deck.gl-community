@@ -731,7 +731,7 @@ function createVectorLayerGroup({
       ...(loadOptions || {}),
       mvt: {
         ...((loadOptions?.mvt as Record<string, unknown> | undefined) || {}),
-        shape: 'geojson'
+        shape: 'geojson-table'
       }
     },
     onTileError: error => {
