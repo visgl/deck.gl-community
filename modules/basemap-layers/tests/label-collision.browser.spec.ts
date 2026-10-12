@@ -222,6 +222,140 @@ describe('label halos in the browser', () => {
   });
 });
 
+/**
+ * The halo's alpha on row `y`, by default the row through the label's center, from the left edge
+ * of the canvas to the first pixel of the text.
+ */
+function haloAlphaProfile(image: ImageData, y = SIZE / 2): number[] {
+  const alphas: number[] = [];
+  for (let x = 0; x < SIZE && !isTextPixel(image, x, y); x++) {
+    alphas.push(image.data[(y * SIZE + x) * 4 + 3]);
+  }
+  return alphas;
+}
+
+/** Number of pixels whose alpha is well between transparent and opaque. */
+function partialAlphas(alphas: number[]): number {
+  return alphas.filter(alpha => alpha > 20 && alpha < 235).length;
+}
+
+/** Distance in pixels from the text to the farthest visible halo pixel. */
+function haloReach(alphas: number[]): number {
+  const first = alphas.findIndex(alpha => alpha > 4);
+  return first < 0 ? 0 : alphas.length - first;
+}
+
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(Math.max((x - edge0) / (edge1 - edge0), 0), 1);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * The halo alpha that MapLibre GL JS's symbol shader draws at `distance` pixels outside the glyph
+ * edge, at a device pixel ratio of 1: the edge, `width` pixels out, fades over
+ * `1.19 * blur + 0.84` pixels on each side.
+ */
+function getMapLibreHaloAlpha(distance: number, width: number, blur: number): number {
+  const gamma = 1.19 * blur + 0.105 * 8;
+  return 1 - smoothstep(width - gamma, width + gamma, distance);
+}
+
+describe('label halo blur in the browser', () => {
+  const layout = {'text-field': 'MM', 'text-size': 32};
+  const RED_HALO = {'text-halo-color': '#ff0000', 'text-halo-width': 2};
+
+  async function renderProfile(blur?: number): Promise<number[]> {
+    const image = await renderLabel(
+      layout,
+      blur === undefined ? RED_HALO : {...RED_HALO, 'text-halo-blur': blur}
+    );
+    cleanup();
+    return haloAlphaProfile(image);
+  }
+
+  test('without text-halo-blur the halo edge is sharp', async () => {
+    const sharp = await renderProfile();
+    expect(partialAlphas(sharp)).toBeLessThanOrEqual(2);
+    expect(sharp.at(-1)).toBeGreaterThan(235);
+    expect(await renderProfile(0)).toEqual(sharp);
+  });
+
+  test('text-halo-blur fades the halo over about 2.4 px per px of blur', async () => {
+    const sharp = await renderProfile(0);
+    const blurred = await renderProfile(2);
+    // MapLibre fades the halo over 1.19 * blur px on each side of the halo edge: about 4.8 px for
+    // a blur of 2, with a falling alpha from the text outward.
+    expect(partialAlphas(blurred)).toBeGreaterThanOrEqual(4);
+    expect(partialAlphas(blurred)).toBeLessThanOrEqual(7);
+    for (let i = 1; i < blurred.length; i++) {
+      expect(blurred[i]).toBeGreaterThanOrEqual(blurred[i - 1]);
+    }
+    // The halo edge stays where it was, so the fade reaches about 2.4 px past the sharp halo.
+    expect(haloReach(blurred) - haloReach(sharp)).toBeGreaterThanOrEqual(2);
+    expect(haloReach(blurred) - haloReach(sharp)).toBeLessThanOrEqual(4);
+  });
+
+  test('the blurred halo follows the alpha of MapLibre GL JS', async () => {
+    for (const [width, blur] of [
+      [2, 2],
+      [1, 4]
+    ]) {
+      const image = await renderLabel(layout, {
+        ...RED_HALO,
+        'text-halo-width': width,
+        'text-halo-blur': blur
+      });
+      const alphas = haloAlphaProfile(image).reverse();
+      // From the second pixel out: the first one also holds the antialiased glyph edge.
+      for (let x = 1; x < 8; x++) {
+        // The pixel's center is `x + 0.5` pixels from the text.
+        const expected = 255 * getMapLibreHaloAlpha(x + 0.5, width, blur);
+        expect(
+          Math.abs(alphas[x] - expected),
+          `width ${width}, blur ${blur}, pixel ${x}`
+        ).toBeLessThanOrEqual(20);
+      }
+      cleanup();
+    }
+  });
+
+  test('a blur wider than the distance field fades out before the edge of the glyph quads', async () => {
+    // A blur of 8 px would fade over 9.5 px past the halo; the distance field ends about 9 px
+    // past the glyphs of 32 px text. The fade is cut short there, without drawing the quads.
+    const image = await renderLabel(layout, {...RED_HALO, 'text-halo-blur': 8});
+    const stray: Array<[number, number]> = [];
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        if (image.data[(y * SIZE + x) * 4 + 3] > 0 && !isNearText(image, [x, y], 10)) {
+          stray.push([x, y]);
+        }
+      }
+    }
+    expect(stray).toEqual([]);
+  });
+
+  test('labels with different blurs each get their own blur', async () => {
+    // Two labels, 60 px apart: different halos are drawn by different text sublayers.
+    const image = await renderLabels(layout, {...RED_HALO, 'text-halo-blur': ['get', 'blur']}, [
+      {coordinates: [0, -30], properties: {blur: 0}},
+      {coordinates: [0, 30], properties: {blur: 2}}
+    ]);
+    const sharp = haloAlphaProfile(image, SIZE / 2 - 30);
+    const blurred = haloAlphaProfile(image, SIZE / 2 + 30);
+    expect(sharp.length).toBeLessThan(SIZE);
+    expect(blurred.length).toBeLessThan(SIZE);
+    expect(partialAlphas(sharp)).toBeLessThanOrEqual(2);
+    expect(partialAlphas(blurred)).toBeGreaterThanOrEqual(4);
+  });
+
+  test('a wider blur fades the halo over more pixels', async () => {
+    const blurs = [await renderProfile(1), await renderProfile(2), await renderProfile(4)];
+    const reaches = blurs.map(haloReach);
+    expect(reaches[1]).toBeGreaterThan(reaches[0]);
+    expect(reaches[2]).toBeGreaterThan(reaches[1]);
+  });
+});
+
 // Two labels of equal priority that overlap: anchors 28 pixels apart, each about 80 wide.
 const OVERLAP_LAYOUT = {'text-field': 'MMMMMM', 'text-size': 16};
 
