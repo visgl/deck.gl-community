@@ -3,6 +3,7 @@ import {describe, expect, test} from 'vitest';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {colorToArray, filterFeatures, parseProperties} from '../src/mapbox-style';
 import {resolveBasemapStyle} from '../src/style-resolver';
+import {compileStylePropertyValue, getStylePropertyDefault} from '../src/style-expression';
 
 function evaluatePaint(paint: Record<string, unknown>, zoom: number) {
   return Object.assign({}, ...parseProperties({id: 'layer', type: 'line', paint}, {zoom}));
@@ -16,6 +17,17 @@ describe('style-spec evaluation', () => {
     expect(color[1]).toBeCloseTo(128, 6);
     expect(color[2]).toBeCloseTo(0, 6);
     expect(color[3]).toBeCloseTo(0.5, 6);
+  });
+
+  test('paddings evaluate to [top, right, bottom, left], from one to four values', () => {
+    const evaluate = (value: unknown, properties = {}) =>
+      compileStylePropertyValue('icon-padding', value)?.evaluate(12, {properties});
+    expect(evaluate(2)).toEqual([2, 2, 2, 2]);
+    expect(evaluate([1, 2])).toEqual([1, 2, 1, 2]);
+    expect(evaluate([1, 2, 3])).toEqual([1, 2, 3, 2]);
+    expect(evaluate([1, 2, 3, 4])).toEqual([1, 2, 3, 4]);
+    expect(evaluate(['get', 'padding'], {padding: [3, 6]})).toEqual([3, 6, 3, 6]);
+    expect(getStylePropertyDefault('icon-padding')).toEqual([2, 2, 2, 2]);
   });
 
   test('a fully transparent color evaluates to [0, 0, 0, 0]', () => {

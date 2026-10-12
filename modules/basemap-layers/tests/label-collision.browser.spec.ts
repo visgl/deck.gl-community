@@ -282,3 +282,30 @@ describe('label collision ties in the browser', () => {
     expect(left).toBe(0);
   });
 });
+
+describe('text-padding in the browser', () => {
+  // Two labels, anchors 32 pixels apart vertically: clear of each other's box. The top one sorts
+  // first, so it has the higher priority.
+  const points = [
+    {coordinates: [0, -16], properties: {rank: 1}},
+    {coordinates: [0, 16], properties: {rank: 2}}
+  ];
+  const layout = {'text-field': 'MM', 'text-size': 16, 'symbol-sort-key': ['get', 'rank']};
+
+  /** Text pixels in the top and the bottom half of the frame: drawn by the first and second label. */
+  function halves(image: ImageData): [number, number] {
+    return [textPixels(image, 0, SIZE / 2), textPixels(image, SIZE / 2, SIZE)];
+  }
+
+  test('labels clear of each other both draw with the default padding', async () => {
+    const [top, bottom] = halves(await renderLabels(layout, {}, points));
+    expect(top).toBeGreaterThan(20);
+    expect(bottom).toBeGreaterThan(20);
+  });
+
+  test('a text-padding that reaches the other anchor hides the lower-priority label', async () => {
+    const [top, bottom] = halves(await renderLabels({...layout, 'text-padding': 24}, {}, points));
+    expect(top).toBeGreaterThan(20);
+    expect(bottom).toBe(0);
+  });
+});

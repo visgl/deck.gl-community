@@ -306,8 +306,9 @@ describe('icon-image', () => {
     expect(icons.props.getCollisionPriority(rows[0], info)).toBe(
       text.props.getCollisionPriority(rows[0], info)
     );
-    // The whole icon box collides, transparent pixels included.
-    expect(icons.props.collisionTestProps).toEqual({alphaCutoff: 0});
+    // The whole icon box collides, transparent pixels included, widened by the default
+    // `icon-padding` of 2 pixels on each side of the 17-pixel icon.
+    expect(icons.props.collisionTestProps).toEqual({alphaCutoff: 0, sizeScale: 1 + 4 / 17});
   });
 });
 

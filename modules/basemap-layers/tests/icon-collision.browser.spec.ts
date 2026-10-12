@@ -160,6 +160,21 @@ describe('icon collision in the browser', () => {
     expect(textPixels(image)).toBe(0);
   });
 
+  test('icon-padding widens the icon box that hides lower-priority labels', async () => {
+    // The 16-pixel square's box reaches 8 pixels from its center, 10 with the default padding:
+    // short of the label's anchor, 20 pixels away. A padding of 16 reaches past it.
+    const features: [number[], Record<string, unknown>][] = [
+      [[0, 0], {rank: 0, icon: 'square'}],
+      [[20, 0], {rank: 1, name: 'MMMM'}]
+    ];
+    expect(textPixels(await renderSymbols(LAYOUT, features))).toBeGreaterThan(20);
+    deck?.finalize();
+    parent?.remove();
+    const image = await renderSymbols({...LAYOUT, 'icon-padding': 16}, features);
+    expect(iconPixels(image)).toBeGreaterThan(200);
+    expect(textPixels(image)).toBe(0);
+  });
+
   test("an icon's transparent border still hides a lower-priority label", async () => {
     // At icon-size 2 the image is 64 pixels wide: opaque within 16 pixels of its center,
     // transparent from 16 to 32. The label's anchor, 24 pixels away, is under the border only.
