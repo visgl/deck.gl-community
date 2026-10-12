@@ -736,6 +736,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * a label moved off its anchor by `text-offset` is always hidden, and one whose anchor is at its
    * edge (`text-anchor: left`, `top`, ...) is faded. The text box always lies on the far side of
    * its offset, so padding the box by the offset plus the sample radius reaches the anchor.
+   * `text-padding` widens the box by that many more pixels on each side, so the label also hides
+   * the symbols anchored within that margin of it.
    */
   getCollisionPadding(): [number, number, number, number] {
     const rows = this.state.labelData || [];
@@ -750,12 +752,48 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       right = Math.max(right, -x);
       bottom = Math.max(bottom, -y);
     }
-    return [
-      left + COLLISION_SAMPLE_RADIUS,
-      top + COLLISION_SAMPLE_RADIUS,
-      right + COLLISION_SAMPLE_RADIUS,
-      bottom + COLLISION_SAMPLE_RADIUS
-    ];
+    const margin = COLLISION_SAMPLE_RADIUS + this.getTextPadding();
+    return [left + margin, top + margin, right + margin, bottom + margin];
+  }
+
+  /** `text-padding` at the stepped zoom, in pixels. */
+  getTextPadding(): number {
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    const padding = Number(
+      this.getStyleProperty('text-padding')?.evaluate(zoom) ??
+        getStylePropertyDefault('text-padding')
+    );
+    return Math.max(0, padding) || 0;
+  }
+
+  /**
+   * The size scale that widens the icon boxes of `rows` by `icon-padding` in the collision pass.
+   * `IconLayer` takes one size scale per layer and scales each icon about its center, so the
+   * scale fits the median icon, and the others are padded in proportion to their size. Both axes
+   * grow by the larger of an icon's horizontal and vertical padding (left plus right, top plus
+   * bottom), split evenly between the two sides.
+   */
+  getIconCollisionScale(rows: {row: LabelRow; icon: ResolvedSpriteIcon}[]): number {
+    const defaultPadding = getStylePropertyDefault('icon-padding') as number[];
+    const scales: number[] = [];
+    for (const {row, icon} of rows) {
+      const feature = (row as any).__source?.object ?? row;
+      const padding =
+        (this.evaluateStyleProperty('icon-padding', feature) as number[] | undefined) ??
+        defaultPadding;
+      const [top, right, bottom, left] = padding.map(value => Math.max(0, value) || 0);
+      const size = Number(this.evaluateStyleProperty('icon-size', feature) ?? 1);
+      const width = (icon.entry.width / icon.entry.pixelRatio) * size;
+      const height = (icon.entry.height / icon.entry.pixelRatio) * size;
+      if (width > 0 && height > 0) {
+        scales.push(1 + Math.max((left + right) / width, (top + bottom) / height));
+      }
+    }
+    if (!scales.length) {
+      return 1;
+    }
+    scales.sort((a, b) => a - b);
+    return scales[Math.floor((scales.length - 1) / 2)];
   }
 
   /**
@@ -862,9 +900,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             feature => this.getLabelCollisionPriority(feature),
             0
           ) as any,
-          // The icon's whole box collides, as in MapLibre, including its transparent pixels. An
-          // icon that ignores placement draws nothing in the collision pass.
-          collisionTestProps: collision.blocks ? {alphaCutoff: 0} : {alphaCutoff: 0, sizeScale: 0},
+          // The icon's whole box collides, as in MapLibre, including its transparent pixels,
+          // widened by `icon-padding`. An icon that ignores placement draws nothing in the
+          // collision pass.
+          collisionTestProps: {
+            alphaCutoff: 0,
+            sizeScale: collision.blocks
+              ? this.getIconCollisionScale(
+                  labelRows.flatMap((row, index) =>
+                    isOwnRow(index) ? [{row, icon: icons[index]!}] : []
+                  )
+                )
+              : 0
+          },
           getPosition: (d: LabelRow) => d.position,
           getIcon: ((_: LabelRow, {index}: {index: number}) =>
             isOwnRow(index) ? icons[index]!.name : null) as any,
