@@ -54,4 +54,11 @@ describe('LabelCollisionFilterExtension', () => {
     expect(draw(layer, SCREEN_PASS)).toBe(props);
     expect(layer.clone).not.toHaveBeenCalled();
   });
+
+  test('leaves the props of other passes alone after a collision pass', () => {
+    const layer = createLayer({sizeScale: 1, collisionTestProps: {sizeScale: 0}});
+    const props = layer.props;
+    draw(layer, COLLISION_PASS);
+    expect(draw(layer, SCREEN_PASS)).toBe(props);
+  });
 });

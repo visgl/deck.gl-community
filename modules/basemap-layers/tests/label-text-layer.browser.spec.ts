@@ -21,8 +21,12 @@ afterEach(() => {
   parent = null;
 });
 
-/** Renders `layer` and returns the RGBA pixels of the frame. */
-function renderPixels(layer: any): Promise<Uint8ClampedArray> {
+/**
+ * Renders `layer` and returns the RGBA pixels of the frame. With `next`, renders `layer`, then
+ * replaces it with `next` and returns the pixels of `next`.
+ */
+function renderPixels(layer: any, next?: any): Promise<Uint8ClampedArray> {
+  let pending = next;
   parent = document.createElement('div');
   document.body.append(parent);
   return new Promise((resolve, reject) => {
@@ -39,6 +43,11 @@ function renderPixels(layer: any): Promise<Uint8ClampedArray> {
       onAfterRender: () => {
         const layers = (deck as any)?.layerManager?.getLayers() || [];
         if (!layers.length || layers.some((l: any) => !l.isLoaded)) {
+          return;
+        }
+        if (pending) {
+          deck!.setProps({layers: [pending]});
+          pending = null;
           return;
         }
         const copy = document.createElement('canvas');
@@ -76,6 +85,23 @@ describe('LabelTextLayer in the browser', () => {
     deck?.finalize();
     parent?.remove();
     const actual = await renderPixels(new LabelTextLayer({id: 'text', ...PROPS} as any));
+    expect(actual.some(value => value > 0)).toBe(true);
+    expect([...actual]).toEqual([...expected]);
+  });
+
+  test('draws the glyphs of an atlas that grows with new characters', async () => {
+    // Font settings of their own, so that no other test has cached an atlas with these characters.
+    const props = {...PROPS, fontSettings: {...PROPS.fontSettings, fontSize: 60}};
+    const text = 'Qj Wz';
+    const actual = await renderPixels(
+      new LabelTextLayer({id: 'text', ...props, data: [{position: [0, 0], text: 'Qj'}]} as any),
+      new LabelTextLayer({id: 'text', ...props, data: [{position: [0, 0], text}]} as any)
+    );
+    deck?.finalize();
+    parent?.remove();
+    const expected = await renderPixels(
+      new TextLayer({id: 'text', ...props, data: [{position: [0, 0], text}]} as any)
+    );
     expect(actual.some(value => value > 0)).toBe(true);
     expect([...actual]).toEqual([...expected]);
   });
