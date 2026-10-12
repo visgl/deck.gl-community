@@ -45,6 +45,26 @@ it('moves stable city records into sector stacks with GPU interpolation and inte
         : values;
     };
     advanceTimeline(timeline.getTime() + 2000);
+    const assertMapBounds = () => {
+      const unit = view.width() / 700;
+      for (const record of view.data('records')) {
+        const x = record.mapX + (((record.id % 9) % 3) - 1) * 7 * unit - 3 * unit;
+        const y = record.mapY + (Math.floor((record.id % 9) / 3) - 1) * 7 * unit - 3 * unit;
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x + 6 * unit).toBeLessThanOrEqual(view.width());
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y + 6 * unit).toBeLessThanOrEqual(315);
+      }
+      for (const path of view.presenter.stage.pathData.filter(path => path.isGeographic)) {
+        for (const point of path.positions) {
+          // Staging reverses the SVG y axis; fitting reserves the footer band.
+          expect(point[1]).toBeLessThanOrEqual(-15 + 0.01);
+          expect(point[1]).toBeGreaterThanOrEqual(-300 - 0.01);
+        }
+      }
+    };
+    expect(view.width()).toBe(700);
+    assertMapBounds();
     const mapCubes = view.presenter
       .getCubeData()
       .map(cube => ({...cube, position: [...cube.position]}));
@@ -140,6 +160,7 @@ it('moves stable city records into sector stacks with GPU interpolation and inte
       .toBeCloseTo((8 * 370) / 700, 3);
     expect(view.presenter.getCubeData().map(cube => cube.ordinal)).toEqual(ordinals);
     expect(view.data('records')).toHaveLength(198);
+    assertMapBounds();
     expect(host.querySelectorAll('canvas')).toHaveLength(1);
   } finally {
     example.finalize();

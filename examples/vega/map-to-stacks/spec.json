@@ -57,14 +57,14 @@
         29.5,
         45.5
       ],
-      "scale": {
-        "signal": "850 * unit"
-      },
-      "translate": {
-        "signal": "[width / 2, 180]"
-      },
       "clipExtent": {
         "signal": "[[0,0],[width,height]]"
+      },
+      "fit": {
+        "signal": "data('outline')"
+      },
+      "extent": {
+        "signal": "[[20,15],[width-20,300]]"
       }
     }
   ],
