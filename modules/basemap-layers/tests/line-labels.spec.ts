@@ -6,7 +6,7 @@ import {
   mergeLines,
   MIN_LABEL_GAP
 } from '../src/line-placement';
-import {getTextLengthEms, MVTLabelLayer} from '../src/mvt-label-layer';
+import {getTextLengthEms, MVTLabelLayer, rotatePixelOffset} from '../src/mvt-label-layer';
 import {getSpriteIconMapping, type SpriteAtlas} from '../src/sprite';
 import {getTextLayerFontWeight} from '../src/text-font';
 import {getCharacterWidthMeasurer} from '../src/text-layout';
@@ -608,6 +608,104 @@ describe('icons along lines', () => {
     const icons = renderIcons(arrows({'icon-rotation-alignment': 'viewport'}), 30);
     expect(icons.props.billboard).toBe(true);
     expect(typeof icons.props.getAngle).not.toBe('function');
+  });
+
+  test('turns viewport-aligned icons by icon-rotate only, on screen', () => {
+    const icons = renderIcons(
+      arrows({'icon-rotation-alignment': 'viewport', 'icon-rotate': 45}),
+      30
+    );
+    expect(icons.props.billboard).toBe(true);
+    expect(icons.props.getAngle(icons.props.data[0])).toBe(-45);
+  });
+
+  test('turns the icon offset with the icon', () => {
+    // A 40 x 20 px arrow anchored at its left edge is centred 20 px right of the anchor.
+    const icons = renderIcons(arrows({'icon-anchor': 'left'}), 90);
+    const [x, y] = icons.props.getPixelOffset(icons.props.data[0], {index: 0});
+    expect(x).toBeCloseTo(0, 9);
+    // Turned 90 degrees counter-clockwise, the center is 20 px above the anchor (y points down).
+    expect(y).toBeCloseTo(-20, 9);
+  });
+});
+
+describe('icon-rotate at points', () => {
+  const pin = (layout: Record<string, unknown> = {}, viewport: Record<string, unknown> = {}) => {
+    const layer = new MVTLabelLayer({
+      id: 'pins',
+      config: {labels: true},
+      zoom: 14,
+      tileZoom: 14,
+      tileSize: 512,
+      spriteAtlases: [ARROWS],
+      styleLayer: {layout: {'icon-image': 'arrow', ...layout}}
+    });
+    const feature = {type: 'Feature', geometry: {type: 'Point', coordinates: [0.5, 0.5]}};
+    layer.state = {
+      labelData: [{position: [0.5, 0.5], __source: {object: {...feature, properties: {turn: 30}}}}]
+    } as any;
+    layer.context = {viewport: {bearing: 0, ...viewport}} as any;
+    layer.internalState = {subLayers: []} as any;
+    return layer.renderIconLayers()[0];
+  };
+
+  test('leaves icons unturned without icon-rotate', () => {
+    const icons = pin();
+    expect(icons.props.billboard).toBe(true);
+    expect(typeof icons.props.getAngle).not.toBe('function');
+  });
+
+  test('turns viewport-aligned (auto) icons clockwise on screen, per feature', () => {
+    for (const alignment of [undefined, 'auto', 'viewport']) {
+      const icons = pin({
+        'icon-rotate': ['get', 'turn'],
+        ...(alignment ? {'icon-rotation-alignment': alignment} : {})
+      });
+      expect(icons.props.billboard).toBe(true);
+      expect(icons.props.getAngle(icons.props.data[0])).toBe(-30);
+    }
+  });
+
+  test('draws map-aligned icons flat on the map, turned from north, not by the bearing', () => {
+    const icons = pin({'icon-rotate': 90, 'icon-rotation-alignment': 'map'}, {bearing: 40});
+    expect(icons.props.billboard).toBe(false);
+    expect(icons.props.getAngle(icons.props.data[0])).toBe(-90);
+    expect(pin({'icon-rotation-alignment': 'map'}).props.billboard).toBe(false);
+    // On a globe they stay billboards.
+    const globe = pin({'icon-rotate': 90, 'icon-rotation-alignment': 'map'}, {resolution: 10});
+    expect(globe.props.billboard).toBe(true);
+  });
+
+  test('turns icon-anchor and icon-offset with the icon, about the anchor, as in MapLibre', () => {
+    // The 40 x 20 px arrow's bottom edge sits on the point, 2 px further down by `icon-offset`:
+    // its center is 8 px above the anchor. `icon-rotate: 90` turns that to 8 px right of it.
+    const icons = pin({'icon-rotate': 90, 'icon-anchor': 'bottom', 'icon-offset': [0, 2]});
+    const [x, y] = icons.props.getPixelOffset(icons.props.data[0], {index: 0});
+    expect(x).toBeCloseTo(8, 9);
+    expect(y).toBeCloseTo(0, 9);
+  });
+
+  test('rotatePixelOffset turns counter-clockwise on screen, with y pointing down', () => {
+    const [x, y] = rotatePixelOffset([10, 0], 90);
+    expect(x).toBeCloseTo(0, 9);
+    expect(y).toBeCloseTo(-10, 9);
+    expect(rotatePixelOffset([3, 4], 0)).toEqual([3, 4]);
+  });
+
+  test('updates the icon angle and offset when icon-rotate changes', () => {
+    const layout: Record<string, unknown> = {'icon-image': 'arrow', 'icon-rotate': 0};
+    const layer = new MVTLabelLayer({
+      id: 'pins',
+      config: {labels: true},
+      zoom: 14,
+      spriteAtlases: [ARROWS],
+      styleLayer: {layout}
+    });
+    const before = layer.getIconUpdateTriggers();
+    layout['icon-rotate'] = 45;
+    const after = layer.getIconUpdateTriggers();
+    expect(after.getAngle).not.toEqual(before.getAngle);
+    expect(after.getPixelOffset).not.toEqual(before.getPixelOffset);
   });
 });
 

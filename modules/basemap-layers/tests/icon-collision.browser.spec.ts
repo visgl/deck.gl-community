@@ -390,3 +390,30 @@ describe('icon collision with several halos in the browser', () => {
     expect(textPixels(image, bottom)).toBeGreaterThan(20);
   });
 });
+
+describe('icon-rotate in the browser', () => {
+  test('turns an icon clockwise about its anchor point, with its icon-anchor', async () => {
+    // The 16 px square's left edge is on the point. Turned 90 degrees clockwise, as in MapLibre,
+    // its top edge is: the square lies below the point, not to its right.
+    const image = await renderSymbols({'icon-image': 'square', 'icon-anchor': 'left'}, [
+      [[0, 0], {}]
+    ]);
+    // A new render: release the first one's deck and canvas, as `afterEach` releases only the last.
+    deck?.finalize();
+    deck = null;
+    parent?.remove();
+    parent = null;
+    const rotated = await renderSymbols(
+      {'icon-image': 'square', 'icon-anchor': 'left', 'icon-rotate': 90},
+      [[[0, 0], {}]]
+    );
+    // Strips 10 to 14 px right of and below the point: only the unturned square reaches the first,
+    // only the turned one the second.
+    const right: Region = [SIZE / 2 + 10, SIZE / 2 - 4, SIZE / 2 + 14, SIZE / 2 + 4];
+    const below: Region = [SIZE / 2 - 4, SIZE / 2 + 10, SIZE / 2 + 4, SIZE / 2 + 14];
+    expect(iconPixels(image, right)).toBeGreaterThan(20);
+    expect(iconPixels(image, below)).toBe(0);
+    expect(iconPixels(rotated, below)).toBeGreaterThan(20);
+    expect(iconPixels(rotated, right)).toBe(0);
+  });
+});

@@ -325,6 +325,33 @@ export function getTextLengthEms(text: string): number {
 }
 
 /**
+ * Turns `offset`, `[x, y]` in pixels with y pointing down, by `angle` degrees counter-clockwise,
+ * as deck.gl's `IconLayer` turns an icon by its `getAngle`.
+ */
+export function rotatePixelOffset([x, y]: number[], angle: number): [number, number] {
+  if (!angle) {
+    return [x, y];
+  }
+  const radians = (angle * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(radians), Math.sin(radians)];
+  return [cos * x + sin * y, cos * y - sin * x];
+}
+
+/**
+ * `getPixelOffset` for icons turned by `getAngle`. `IconLayer` turns an icon about its center and
+ * then adds its pixel offset; MapLibre turns the whole icon, `icon-anchor` and `icon-offset`
+ * included, about the anchor point. Turning the offset by the icon's angle does the same.
+ */
+function withIconAngle(
+  getPixelOffset: (row: LabelRow, info: {index: number}) => [number, number],
+  getAngle: ((row: LabelRow) => number) | null
+): (row: LabelRow, info: {index: number}) => [number, number] {
+  return getAngle
+    ? (row, info) => rotatePixelOffset(getPixelOffset(row, info), getAngle(row))
+    : getPixelOffset;
+}
+
+/**
  * Whether a symbol's text or icon turns with the line it is placed along: with
  * `*-rotation-alignment: map`, or `auto` (the default) under line placement, as in MapLibre.
  */
@@ -789,12 +816,18 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /** Update triggers for the icon accessors (see `getStyleUpdateTrigger`). */
   getIconUpdateTriggers(): Record<string, string> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
+    const angle = `${this.state?.bearingStep}|${getTrigger(
+      'icon-rotate',
+      'icon-keep-upright',
+      'icon-rotation-alignment'
+    )}`;
     return {
       getIcon: getTrigger('icon-image'),
       getSize: getTrigger('icon-image', 'icon-size'),
       getColor: getTrigger('icon-image', 'icon-color', 'icon-opacity'),
-      getPixelOffset: getTrigger('icon-image', 'icon-size', 'icon-anchor', 'icon-offset'),
-      getAngle: `${this.state?.bearingStep}|${getTrigger('icon-rotate', 'icon-keep-upright')}`
+      // Turned icons turn their offset too (see `withIconAngle`).
+      getPixelOffset: `${angle}|${getTrigger('icon-image', 'icon-size', 'icon-anchor', 'icon-offset')}`,
+      getAngle: angle
     };
   }
 
@@ -824,6 +857,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return [];
     }
     const groups = this.getSymbolPartGroups('icon', () => this.getRowsWithText());
+    const {props: angleProps, getAngle} = this.getIconAngleProps();
     // Sprite ids are arbitrary strings, so `${id}${idSuffix}` (and a copy's `-overlap`) can repeat
     // another sprite's id; a repeated id gets a number.
     const ids = new Set<string>();
@@ -851,7 +885,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           iconMapping: atlas.mapping,
           loadOptions: iconLoadOptions || undefined,
           billboard,
-          ...this.getLineIconProps(),
+          ...angleProps,
+          ...(getAngle ? {getAngle} : {}),
           sizeUnits: 'pixels',
           parameters: LABEL_PARAMETERS,
           extensions: [
@@ -883,10 +918,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             isOwnRow(index) ? icons[index]!.name : null) as any,
           getSize: forOwnRows(feature => this.getIconSize(feature), 0) as any,
           getColor: forOwnRows(feature => this.getIconColor(feature), [0, 0, 0, 0]) as any,
-          getPixelOffset: forOwnRows(feature => this.getIconPixelOffset(feature), [0, 0] as [
-            number,
-            number
-          ]) as any,
+          getPixelOffset: withIconAngle(
+            forOwnRows(feature => this.getIconPixelOffset(feature), [0, 0] as [number, number]),
+            getAngle
+          ) as any,
           updateTriggers: {
             ...this.getIconUpdateTriggers(),
             // `icon-image` decides which rows this sprite's layer draws.
@@ -1700,7 +1735,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /**
    * Whether the text or icons of this layer turn with the lines they are placed along (see
-   * `getLineLabelProps` and `getLineIconProps`). Only then do they depend on the bearing. Text
+   * `getLineLabelProps` and `getIconAngleProps`). Only then do they depend on the bearing. Text
    * needs a `text-field`, and icons an `icon-image` and loaded sprites.
    */
   turnsWithLines(): boolean {
@@ -1747,31 +1782,46 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Icon layer props for symbols along lines whose icons turn with the line
-   * (`icon-rotation-alignment: map`, or `auto`): the icon is turned to the line's direction plus
-   * `icon-rotate`, and drawn flat on a flat map. `icon-keep-upright` (default false) turns it
-   * upright as for text. Icons of other symbols are unchanged.
+   * Icon layer props that turn icons, and the angle each row's icon is turned by, counter-clockwise
+   * in degrees as deck.gl takes it (null when no icon turns). Icons along lines whose rotation is
+   * aligned to the map (`icon-rotation-alignment: map`, or `auto`) are turned to the line's
+   * direction, upright when `icon-keep-upright` is set (default false) as for text. Every icon then
+   * adds `icon-rotate`, clockwise. Icons aligned to the map are drawn flat on a flat map, so they
+   * turn with its bearing; the others are billboards, turned on screen. On a globe, icons stay
+   * billboards.
    */
-  getLineIconProps(): Record<string, unknown> {
+  getIconAngleProps(): {
+    props: Record<string, unknown>;
+    getAngle: ((row: LabelRow) => number) | null;
+  } {
     const placement = this.getSymbolPlacement();
     const zoom = getZoomBucket(this.props.zoom || 0);
     const alignment = this.getStyleProperty('icon-rotation-alignment')?.evaluate(zoom);
-    if (!isLinePlacement(placement) || !isAlignedToMap(alignment, placement)) {
-      return {};
+    const isMapAligned = isAlignedToMap(alignment, placement);
+    const turnsWithLine = isLinePlacement(placement) && isMapAligned;
+    const iconRotate = this.getStyleProperty('icon-rotate');
+    const geographic = Boolean(this.context?.viewport?.resolution);
+    const props = isMapAligned ? {billboard: geographic ? this.props.billboard : false} : {};
+    if (!turnsWithLine && !iconRotate) {
+      return {props, getAngle: null};
     }
     const bearingStep = this.getBearingStep();
-    this.state.bearingStep = bearingStep;
+    if (turnsWithLine) {
+      this.state.bearingStep = bearingStep;
+    }
     const keepUpright =
       (this.getStyleProperty('icon-keep-upright')?.evaluate(zoom) ??
         getStylePropertyDefault('icon-keep-upright')) === true;
-    const geographic = Boolean(this.context?.viewport?.resolution);
-    return {
-      billboard: geographic ? this.props.billboard : false,
-      // `icon-rotate` is clockwise; deck.gl angles are counter-clockwise.
-      getAngle: (row: LabelRow) =>
-        getUprightAngle(row.angle ?? 0, bearingStep, keepUpright) -
-        Number(this.evaluateStyleProperty('icon-rotate', (row as any).__source?.object ?? row) ?? 0)
-    };
+    const getLineAngle = (row: LabelRow) =>
+      turnsWithLine ? getUprightAngle(row.angle ?? 0, bearingStep, keepUpright) : 0;
+    const getRotate = (row: LabelRow) =>
+      iconRotate
+        ? Number(
+            this.evaluateStyleProperty('icon-rotate', (row as any).__source?.object ?? row) ?? 0
+          )
+        : 0;
+    // `icon-rotate` is clockwise; deck.gl angles are counter-clockwise.
+    return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row)};
   }
 
   /** Forgets a font load in flight, so that its completion does not update a finalized layer. */
