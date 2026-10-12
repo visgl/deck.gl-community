@@ -222,12 +222,13 @@ describe('fill-extrusion heights on a map', () => {
 });
 
 describe('fill-extrusion heights on a globe', () => {
+  // Above zoom 12 `GlobeView` draws with a Web Mercator viewport, so this stays below it.
   test('a building at latitude 60 rises as in longitude/latitude', async () => {
-    const ring = footprint(60, 15);
-    const height = heightAt(15);
+    const ring = footprint(60, 11);
+    const height = heightAt(11);
     const view = new GlobeView({id: 'globe'});
-    const viewState = viewAt(60, 15, 20);
-    const actual = await createDeck([basemap(ring, height, 'globe', 15)], view, viewState);
+    const viewState = viewAt(60, 11, 20);
+    const actual = await createDeck([basemap(ring, height, 'globe', 11)], view, viewState);
     const expected = await renderReference(view, viewState, ring, height);
     expectSameExtent(actual, expected);
   }, 30_000);
