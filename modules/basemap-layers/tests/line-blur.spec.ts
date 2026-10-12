@@ -159,6 +159,65 @@ describe('line-blur', () => {
     expect(features.map(feature => layers[0].props.getOffset(feature))).toEqual([0, 5 / 6]);
   });
 
+  test('blurred lines keep their style layer index and depth after an extrusion', () => {
+    const vectorLayer: any = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'globe',
+      zoom: 15,
+      styleDefinition: {
+        version: 8,
+        sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
+        layers: [
+          {id: 'building', type: 'fill-extrusion', source: 'tiles', 'source-layer': 'building'},
+          {
+            id: 'boundary',
+            type: 'line',
+            source: 'tiles',
+            'source-layer': 'boundary',
+            paint: {'line-width': 4, 'line-gap-width': 8, 'line-blur': 2}
+          }
+        ]
+      } as any
+    }).find(layer => layer.id === 'test-tiles');
+    const feature = (layerName: string, type: string, coordinates: unknown) => ({
+      type: 'Feature',
+      geometry: {type, coordinates},
+      properties: {layerName}
+    });
+    const sublayers = vectorLayer.props
+      .renderSubLayers({
+        id: 'tile',
+        data: [
+          feature('building', 'Polygon', [
+            [
+              [0, 0],
+              [0.001, 0],
+              [0.001, 0.001],
+              [0, 0]
+            ]
+          ]),
+          feature('boundary', 'LineString', [
+            [0, 0],
+            [0.001, 0.001]
+          ])
+        ],
+        tile: {index: {x: 0, y: 0, z: 15}}
+      })
+      .flat(Infinity)
+      .filter((layer: any) => layer.id.startsWith('tile-"boundary"'));
+    // Both lines of the gap.
+    expect(sublayers).toHaveLength(2);
+    for (const layer of sublayers) {
+      expect(getBlurExtensions(layer)).toHaveLength(1);
+      expect(layer.props.styleLayerIndex).toBe(1);
+      expect(layer.props.parameters).toMatchObject({
+        depthTest: true,
+        depthCompare: 'less-equal',
+        depthWriteEnabled: false
+      });
+    }
+  });
+
   test('getLineOffset and getBlurredLineWidth', () => {
     expect(getBlurredLineWidth(4, 8, 2)).toBe(6);
     expect(getBlurredLineWidth(4, 0, 2)).toBe(4);
