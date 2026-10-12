@@ -383,6 +383,11 @@ describe('icon-rotate in the browser', () => {
     const image = await renderSymbols({'icon-image': 'square', 'icon-anchor': 'left'}, [
       [[0, 0], {}]
     ]);
+    // A new render: release the first one's deck and canvas, as `afterEach` releases only the last.
+    deck?.finalize();
+    deck = null;
+    parent?.remove();
+    parent = null;
     const rotated = await renderSymbols(
       {'icon-image': 'square', 'icon-anchor': 'left', 'icon-rotate': 90},
       [[[0, 0], {}]]
