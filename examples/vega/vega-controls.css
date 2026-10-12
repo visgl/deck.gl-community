@@ -37,21 +37,6 @@
   color-scheme: dark;
 }
 .vega-controls[hidden] { display: none; }
-.vega-controls-heading {
-  display: none;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin-bottom: 10px;
-}
-.vega-controls-heading strong {
-  color: var(--vega-controls-accent);
-  font-size: 11px;
-  letter-spacing: .075em;
-  text-transform: uppercase;
-}
-.vega-controls-heading > span { color: var(--vega-controls-muted); font-size: 11px; }
 .vega-controls-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));

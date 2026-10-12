@@ -13,16 +13,9 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
   controls.className = 'vega-controls';
   controls.setAttribute('aria-label', 'Chart controls');
   controls.hidden = !spec.signals?.some(signal => signal.bind);
-  const heading = host.ownerDocument.createElement('div');
-  heading.className = 'vega-controls-heading';
-  const title = host.ownerDocument.createElement('strong');
-  title.textContent = 'Chart controls';
-  const hint = host.ownerDocument.createElement('span');
-  hint.textContent = 'Hover marks for details';
-  heading.append(title, hint);
   const bindings = host.ownerDocument.createElement('div');
   bindings.className = 'vega-controls-grid';
-  controls.append(heading, bindings);
+  controls.append(bindings);
   const chart = host.ownerDocument.createElement('div');
   chart.style.cssText = 'position:relative;flex:1;min-height:100px';
   host.style.display = 'flex';
