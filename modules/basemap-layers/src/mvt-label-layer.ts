@@ -1606,13 +1606,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             this.getLinePlacementScale(),
             this.getStyleUpdateTrigger('text-field', 'text-transform', 'icon-image'),
             (this.props.spriteAtlases || []).map(atlas => atlas.id),
-            ...[
+            // With the stepped zoom when any of them depends on zoom: placements measured at one
+            // step do not fit the next.
+            this.getStyleUpdateTrigger(
               'text-size',
               'icon-size',
               'symbol-spacing',
               'text-max-angle',
               'text-letter-spacing'
-            ].map(name => JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)),
+            ),
             // The text is measured in the label font, once it has loaded.
             ...(this.getStyleProperty('text-field')
               ? [this.getFont(), this.isLineTextFontLoading()]

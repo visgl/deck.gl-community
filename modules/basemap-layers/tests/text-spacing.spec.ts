@@ -132,6 +132,24 @@ describe('text-letter-spacing', () => {
     expect(layer.getAnchorKey(false)).not.toBe(anchors);
   });
 
+  test('re-places line labels at a new zoom step when it depends on zoom', () => {
+    const layout = {
+      'text-field': 'A',
+      'symbol-placement': 'line',
+      'text-letter-spacing': ['interpolate', ['linear'], ['zoom'], 14, 0, 15, 1]
+    };
+    const layer = labelLayer(layout, 14);
+    const anchors = layer.getAnchorKey(false);
+    // The same layer, updated across a fractional zoom step: the spacing it draws changes.
+    (layer as any).props = {...layer.props, zoom: 14.5};
+    expect(layer.getAnchorKey(false)).not.toBe(anchors);
+    // A constant spacing keeps the placements across the same step.
+    const constant = labelLayer({...layout, 'text-letter-spacing': 0.2}, 14);
+    const constantAnchors = constant.getAnchorKey(false);
+    (constant as any).props = {...constant.props, zoom: 14.5};
+    expect(constant.getAnchorKey(false)).toBe(constantAnchors);
+  });
+
   test('lengthens labels along lines by the spacing between characters', () => {
     // 'Main' is estimated at 2.4 ems without a canvas: 24 px at size 10, 54 px spaced by 1 em.
     const line = {
