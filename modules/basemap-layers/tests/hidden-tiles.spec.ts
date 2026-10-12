@@ -70,7 +70,7 @@ describe('hidden tiles', () => {
   test('keep their sublayers at a zoom step and regenerate them when shown again', () => {
     const shown = createTile(0, true);
     const hidden = createTile(1, true);
-    const {renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([shown, hidden]);
+    const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer([shown, hidden]);
     renderAfterUpdate();
     const hiddenLayers = layersOf(hidden);
     expect(hiddenLayers).toHaveLength(1);
@@ -84,12 +84,13 @@ describe('hidden tiles', () => {
     expect(layersOf(hidden)[0]).toBe(hiddenLayers[0]);
     expect(drawn).toContain(hiddenLayers[0]);
 
+    // Shown again without a `renderSubLayers` update, as when the view pans back.
     hidden.isVisible = true;
     renderSubLayers.mockClear();
-    renderAfterUpdate();
+    layer.renderLayers();
     expect(layersOf(hidden)).toHaveLength(1);
     expect(layersOf(hidden)[0]).not.toBe(hiddenLayers[0]);
-    expect(renderSubLayers.calls).toBe(2);
+    expect(renderSubLayers.calls).toBe(1);
   });
 
   test('a tile hidden before it has sublayers gets them when shown', () => {
@@ -118,6 +119,18 @@ describe('hidden tiles', () => {
     renderAfterUpdate();
     expect(renderSubLayers.calls).toBe(0);
     expect(layersOf(tiles[0])).toEqual([]);
+  });
+
+  test('a shown tile replaced by another tile of the same id gets new sublayers', () => {
+    const tiles = [createTile(0, true)];
+    const {layer, renderSubLayers, renderAfterUpdate, layersOf} = createTileLayer(tiles);
+    renderAfterUpdate();
+    // Without an unload event, and without a `renderSubLayers` update.
+    tiles[0] = createTile(0, true);
+    renderSubLayers.mockClear();
+    layer.renderLayers();
+    expect(renderSubLayers.calls).toBe(1);
+    expect(layersOf(tiles[0])[0].props.tile).toBe(tiles[0]);
   });
 
   test('a tile replaced by another tile of the same id drops its kept sublayers', () => {

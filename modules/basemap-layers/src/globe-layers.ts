@@ -631,8 +631,9 @@ class StyledMVTLayer extends SharedMVTLayer {
 
   /**
    * Drops what this layer kept for tiles that left the shared tileset, or were replaced in it by
-   * another tile of the same id. `reloadAll` removes tiles without an unload event, and deck.gl
-   * then finalizes their sublayers, which must not be handed back.
+   * another tile of the same id, including the sublayers `SharedTile2DLayer` holds for that id.
+   * `reloadAll` removes tiles without an unload event, and deck.gl then finalizes their sublayers,
+   * which must not be handed back.
    */
   private forgetRemovedTiles(tiles: SharedTile[]): void {
     let {keptTiles} = this.state;
@@ -645,6 +646,7 @@ class StyledMVTLayer extends SharedMVTLayer {
       if (live.get(id) !== tile) {
         keptTiles.delete(id);
         this.forgetTile({id} as SharedTile);
+        this.state.tileLayers.delete(id);
       }
     }
     for (const tile of tiles) {
