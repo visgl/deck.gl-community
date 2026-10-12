@@ -148,7 +148,7 @@ async function renderSplatLayer(
             getDeformation: [10, 0.7, 1],
             deformationStrength: 0.025,
             deformationTime: 1.25,
-            maxRenderPixels: 64 * 64,
+            maxRenderPixels: mode === 'constant' ? Infinity : 64 * 64,
             pickable: true,
             material: {unlit: true}
           })
@@ -205,6 +205,49 @@ async function renderSplatLayer(
         (await deck!.pickObjectAsync({x: otherPixel % 128, y: 127 - Math.floor(otherPixel / 128)}))
           ?.object
       ).toBe(other);
+    }
+    if (mode === 'constant') {
+      const baselineAlpha = pixels[strongest * 4 + 3];
+      const drawViews = async (viewState?: Record<string, object>) => {
+        const nextFrame = frames + 3;
+        await new Promise<void>((resolve, reject) => {
+          const timeout = window.setTimeout(
+            () => reject(new Error('Overlapping view render timed out.')),
+            15000
+          );
+          deck!.setProps({
+            views: [
+              new MapView({id: 'tree-webgpu-test'}),
+              new MapView({id: 'overlap', clear: type === 'webgl'})
+            ],
+            ...(viewState ? {viewState} : {}),
+            onAfterRender: () => {
+              if (++frames >= nextFrame) {
+                deck!.pause();
+                window.clearTimeout(timeout);
+                resolve();
+              }
+            }
+          });
+          deck!.resume();
+        });
+        return readFrame(device!, colorTexture);
+      };
+      // Each view contributes once. WebGL clears the underlying view; WebGPU
+      // composites it because deck's nested View.clear render pass is unsupported.
+      const overlap = await drawViews();
+      const expectedAlpha =
+        type === 'webgl' ? baselineAlpha : 255 * (1 - (1 - baselineAlpha / 255) ** 2);
+      expect(Math.abs(overlap[strongest * 4 + 3] - expectedAlpha)).toBeLessThanOrEqual(2);
+      // Another camera must not inherit the underlying view's optical buffer.
+      const separate = await drawViews({
+        'tree-webgpu-test': {longitude: 0, latitude: 0, zoom: 20},
+        overlap: {longitude: 30, latitude: 0, zoom: 20}
+      });
+      if (type === 'webgl')
+        expect(separate.some((channel, index) => index % 4 === 3 && channel > 1)).toBe(false);
+      else expect(Math.abs(separate[strongest * 4 + 3] - baselineAlpha)).toBeLessThanOrEqual(2);
+      expect(validationErrors).toEqual([]);
     }
     const empty = (deck!.props.layers[0] as SplatLayer).clone({data: []});
     const nextFrame = frames + 2;

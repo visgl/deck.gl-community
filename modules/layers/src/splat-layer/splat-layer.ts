@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {
   CompositeLayer,
+  _GlobeViewport as GlobeViewport,
   type Accessor,
   type DefaultProps,
   createIterable,
@@ -76,6 +77,7 @@ type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'
   _splatBudgetGroup?: SplatBudgetGroup;
 };
 
+/** Properties for prepared assets and their original owner rows in single-world planar views. */
 export type SplatLayerProps<DataT = SplatInstance> = _SplatLayerProps<DataT> & LayerProps;
 
 /** Counts submitted Gaussians independently from the number of owning instances. */
@@ -176,6 +178,13 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
 
   updateState({changeFlags, props, oldProps}: UpdateParameters<this>) {
+    const activeViewports = [this.context.viewport, ...this.context.deck.getViewports()];
+    if (activeViewports.some(view => view instanceof GlobeViewport))
+      throw new Error(
+        'SplatLayer supports planar views; GlobeView requires globe-aligned covariance and bounds.'
+      );
+    if (activeViewports.some(view => view.subViewports?.some(copy => copy !== view)))
+      throw new Error('SplatLayer does not support wrapped world copies; disable MapView.repeat.');
     const runtime = SplatRuntime.get(this.context.deck, this.context.device);
     const runtimeChanged = runtime !== this.state.runtime;
     const keys = [
@@ -620,11 +629,14 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     // Retain existing mixtures, but introduce new shadow demand at coverage;
     // otherwise the first light pass can submit every child's uncapped detail.
     const initialCandidates = Number.isFinite(sharedBudget)
-      ? candidates.map(row => ({
-          ...row,
-          level: row.owner.asset.hierarchy.length - 1,
-          blend: 0
-        }))
+      ? candidates.map(row => {
+          const retained = this.state.shadowRefinement.entries.get(row.owner.key);
+          return {
+            ...row,
+            level: retained?.level ?? row.owner.asset.hierarchy.length - 1,
+            blend: retained?.blend ?? 0
+          };
+        })
       : candidates;
     const membershipChanged = this.state.shadowRefinement.reconcile(
       budgetSplatSelections(

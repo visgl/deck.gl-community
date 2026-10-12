@@ -5,7 +5,13 @@ import {Matrix3, Quaternion} from '@math.gl/core';
 import {getSplatAxes, validateSplatSource, type SplatSource} from './splat-source';
 
 /** An aggregate preserves the weighted centre, covariance, colour and optical mass of its children. */
-export type SplatHierarchyLevel = {source: SplatSource; error: number};
+export type SplatHierarchyLevel = {
+  /** Immutable Gaussian columns for this representation. */
+  source: SplatSource;
+  /** Maximum source-local centre displacement from the finest representation. */
+  error: number;
+};
+/** Finest source at zero error, followed by representations with increasing local error. */
 export type SplatHierarchy = readonly SplatHierarchyLevel[];
 
 /** Symmetric 3×3 eigen decomposition, with a proper rotation basis for WXYZ quaternions. */
@@ -71,7 +77,12 @@ export function getSplatMeanArea(scales: ArrayLike<number>): number {
   return Math.pow((Math.pow(a * b, p) + Math.pow(a * c, p) + Math.pow(b * c, p)) / 3, 1 / p);
 }
 
-/** Build immutable spatial aggregates once; the original leaf source remains the finest level. */
+/**
+ * Build immutable spatial aggregates once; the original source remains the finest level.
+ * @param source - Decoded Gaussian columns in source-local units.
+ * @param cellSizes - Finite, positive, strictly increasing cell widths in the same units.
+ * @returns Finest source followed by covariance and optical-mass aggregates.
+ */
 export function createSplatHierarchy(
   source: SplatSource,
   cellSizes: readonly number[]

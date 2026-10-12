@@ -11,6 +11,20 @@ compensated for oversized rings may need their radius retuned. Angular sectors u
 count rather than all graph nodes, so hierarchies with visible internal nodes fill the circle.
 Nodes outside the hierarchy return no position, and edges with absent endpoints return no geometry.
 
+### `@deck.gl-community/layers`: prepared `SplatLayer`
+
+Use `data` for a direct prepared Gaussian asset or owner rows, and `getSource` for a constant
+or per-row asset. Put new hierarchies in a `{type: 'prepared-splats', source, hierarchy}`
+descriptor. The compatibility form `{data: rows, source, hierarchy}` remains supported, but
+cannot be combined with direct asset data or an explicit `getSource`.
+
+Sources and hierarchies are immutable; replace them when their columns change. Submission
+budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
+Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
+(`MapView.repeat`), `GlobeView`, URL/RAD inputs and sorted
+transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
+for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream nested-render-pass path is fixed; overlapping views without clearing are supported.
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,

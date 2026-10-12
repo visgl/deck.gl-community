@@ -1,10 +1,11 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {WebMercatorViewport} from '@deck.gl/core';
+import {WebMercatorViewport, _GlobeViewport as GlobeViewport} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
+import {SplatEffect} from '../../src/splat-layer/splat-effect';
 const SOURCE = {
   positions: new Float32Array([0, 0, 0]),
   scales: new Float32Array([1, 1, 1]),
@@ -321,9 +322,14 @@ it('moves camera and shadow demand to the current device runtime even without pr
 });
 
 it.each([
-  'parent',
-  'total'
-])('starts light-space demand at coverage until the shared %s shadow allocation arrives', limit => {
+  {limit: 'parent', budget: 100},
+  {limit: 'total', budget: 100},
+  {limit: 'parent', budget: 2},
+  {limit: 'total', budget: 2}
+])('starts light-space demand at coverage and retains shared $limit allocations of $budget', ({
+  limit,
+  budget
+}) => {
   const fine = Object.fromEntries(
     Object.entries(SOURCE).map(([key, array]) => [
       key,
@@ -338,8 +344,8 @@ it.each([
     ],
     pixelError: 0.001,
     ...(limit === 'parent'
-      ? {_splatBudgetGroup: {maxSplats: 100, maxShadowSplats: 100}}
-      : {maxTotalSplats: 100})
+      ? {_splatBudgetGroup: {maxSplats: budget, maxShadowSplats: budget}}
+      : {maxTotalSplats: budget})
   });
   vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
   layer.prepareShadow(
@@ -358,10 +364,37 @@ it.each([
   expect(layer.splatStats.shadowCoverageFloor).toBe(1);
   const ids = new Set([layer.id]);
   layer.state.runtime.reconcile(ids);
-  expect(layer.state.shadowRefinement.active).toBe(true);
+  expect(layer.state.shadowRefinement.active).toBe(budget === 100);
   for (let now = 16; now <= 6400; now += 16) layer.state.runtime.sample(ids, now);
   expect(layer.state.shadowRefinement.active).toBe(false);
-  expect(layer.splatStats.shadowSplats).toBe(3);
+  expect(layer.splatStats.shadowSplats).toBe(budget === 100 ? 3 : 1);
+  const entry = [...layer.state.shadowRefinement.entries.values()][0];
+  const weights = [...entry.weights];
+  // Moving a light volume must not demote settled owners before the next joint grant.
+  const projections = layer.state.shadowProjections!;
+  layer.prepareShadow([{...projections[0], width: 512}], layer.context.viewport);
+  expect(layer.state.shadowRefinement.active).toBe(false);
+  expect(entry.weights).toEqual(weights);
+  // Inventory rebuilds retain the same settled light selection.
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({data: [...layer.state.input.data]}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  expect(layer.state.shadowRefinement.active).toBe(false);
+  expect(entry.weights).toEqual(weights);
+  // A new owner waits at coverage without changing the existing owner's allocation.
+  const previous = layer.props;
+  Object.assign(layer, {
+    props: layer.clone({data: [...layer.state.input.data, {position: [0.1, 0, 0]}]}).props
+  });
+  layer.updateState({
+    props: layer.props,
+    oldProps: previous,
+    changeFlags: {dataChanged: true}
+  } as any);
+  const added = [...layer.state.shadowRefinement.entries.values()][1];
+  expect(entry.weights).toEqual(weights);
+  expect(added.weights).toEqual([0, 1]);
+  expect(layer.state.shadowRefinement.active).toBe(false);
 });
 
 it('refreshes mutated owner attributes on new data without discarding camera-only stability', () => {
@@ -392,4 +425,48 @@ it('refreshes mutated owner attributes on new data without discarding camera-onl
   update([row], true);
   expect(layer.state.groups[0]).toHaveLength(1);
   expect(layer.state.groups[0][0]).not.toBe(moved[0]);
+});
+
+it('rejects globe projections before applying planar prepared bounds', () => {
+  const layer = make([{position: [0, 0, 0]}], 0);
+  const globe = new GlobeViewport({width: 256, height: 256, longitude: 0, latitude: 0, zoom: 2});
+  layer.context.deck.getViewports = () => [layer.context.viewport, globe];
+  expect(() =>
+    layer.updateState({
+      props: layer.props,
+      oldProps: layer.props,
+      changeFlags: {viewportChanged: true}
+    } as any)
+  ).toThrow('GlobeView');
+});
+
+it('rejects WebGPU view clears before deck opens a nested render pass', () => {
+  const effect = new SplatEffect();
+  Object.assign(effect, {device: {type: 'webgpu'}});
+  expect(() =>
+    effect.preRender({
+      layers: [
+        {constructor: {layerName: 'SplatPrimitiveLayer'}, props: {visible: true, operation: 'draw'}}
+      ],
+      viewports: [{id: 'overlay'}],
+      views: {overlay: {props: {clear: true}}}
+    } as any)
+  ).toThrow('View.clear');
+});
+
+it.each([
+  {width: 2048, height: 256, zoom: 0, longitude: 0},
+  {width: 256, height: 256, zoom: 18, longitude: 200}
+])('rejects wrapped world copies before selecting one parent frustum: %o', options => {
+  const layer = make([{position: [0, 0, 0]}], 0);
+  const repeated = new WebMercatorViewport({...options, repeat: true});
+  expect(repeated.subViewports!.some(view => view !== repeated)).toBe(true);
+  layer.context.deck.getViewports = () => [repeated];
+  expect(() =>
+    layer.updateState({
+      props: layer.props,
+      oldProps: layer.props,
+      changeFlags: {viewportChanged: true}
+    } as any)
+  ).toThrow('wrapped world');
 });

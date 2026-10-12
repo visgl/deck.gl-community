@@ -76,6 +76,7 @@ export class SplatEffect implements Effect {
   private passes!: SplatPass[];
   private targets: Framebuffer[] = [];
   private textures: Texture[] = [];
+  private viewportTargets = new Map<string, {targets: Framebuffer[]; textures: Texture[]}>();
   private model?: ClipSpace;
   private ready = false;
   private sampler?: Sampler;
@@ -121,9 +122,13 @@ void main() {
     });
   }
 
-  private resize(width: number, height: number) {
+  private resize(width: number, height: number, viewportId: string) {
+    const cached = this.viewportTargets.get(viewportId);
+    this.targets = cached?.targets ?? [];
+    this.textures = cached?.textures ?? [];
     if (this.targets[0]?.width === width && this.targets[0]?.height === height) return;
-    this.destroyTargets();
+    this.destroyTargets(this.targets, this.textures);
+    this.viewportTargets.delete(viewportId);
     const color = (format: 'rgba8unorm' | 'rgba16float' | 'r16float') =>
       this.device.createTexture({
         format,
@@ -150,12 +155,7 @@ void main() {
         depthStencilAttachment: depth
       })
     ];
-    this.model!.setBindings({
-      accumulationMap: accum,
-      transmissionMap: transmission,
-      ...(this.device.type === 'webgpu' ? {linearSampler: this.sampler!} : {})
-    });
-    this.model!.shaderInputs.setProps({splatComposite: {size: [width, height]}});
+    this.viewportTargets.set(viewportId, {targets: this.targets, textures: this.textures});
   }
 
   preRender(options: PreRenderOptions) {
@@ -167,6 +167,13 @@ void main() {
       )
     )
       return;
+    if (
+      this.device.type === 'webgpu' &&
+      options.viewports.some(viewport => options.views?.[viewport.id]?.props.clear)
+    )
+      throw new Error(
+        'WebGPU SplatLayer does not support View.clear: deck.gl opens a nested render pass.'
+      );
     const [width, height] = (
       options.canvasContext ?? this.device.canvasContext!
     ).getDrawingBufferSize();
@@ -177,37 +184,57 @@ void main() {
           : limit,
       Infinity
     );
-    const scale = Math.min(1, Math.sqrt(Math.max(1, pixelLimit) / (width * height)));
-    this.resize(Math.max(1, Math.floor(width * scale)), Math.max(1, Math.floor(height * scale)));
-    // Resolve samples in full canvas coordinates. Only Gaussian raster work and its
-    // opaque occlusion capture scale down; the host's opaque draw and picking do not.
-    this.model!.shaderInputs.setProps({splatComposite: {size: [width, height]}});
-    const scaledOptions = {
-      ...options,
-      shaderModuleProps: {
-        ...options.shaderModuleProps,
-        project: {
-          ...options.shaderModuleProps?.project,
-          devicePixelRatio:
-            (options.canvasContext ?? this.device.canvasContext!).cssToDeviceRatio() * scale
-        }
+    const viewportIds = new Set(options.viewports.map(viewport => viewport.id));
+    for (const [id, cached] of this.viewportTargets)
+      if (!viewportIds.has(id)) {
+        this.destroyTargets(cached.targets, cached.textures);
+        this.viewportTargets.delete(id);
       }
-    };
-    // Capture opaque depth once so branches occlude foliage regardless of source order.
-    this.passes[0].render({...scaledOptions, pass: 'splat-opaque-depth', target: this.targets[0]});
-    const clear = this.device.beginRenderPass({
-      framebuffer: this.targets[1],
-      clearColor: [0, 0, 0, 0],
-      clearDepth: false
-    });
-    clear.end();
-    this.passes[1].render({
-      ...scaledOptions,
-      views: undefined,
-      pass: 'splat-accumulation',
-      target: this.targets[1],
-      clearCanvas: false
-    });
+    // Keep the aggregate accumulation pixel budget across independent view targets.
+    const scale = Math.min(
+      1,
+      Math.sqrt(Math.max(1, pixelLimit) / (width * height * Math.max(1, viewportIds.size)))
+    );
+    this.model!.shaderInputs.setProps({splatComposite: {size: [width, height]}});
+    for (const viewport of options.viewports) {
+      this.resize(
+        Math.max(1, Math.floor(width * scale)),
+        Math.max(1, Math.floor(height * scale)),
+        viewport.id
+      );
+      const scaledOptions = {
+        ...options,
+        views: undefined,
+        viewports: [viewport],
+        shaderModuleProps: {
+          ...options.shaderModuleProps,
+          project: {
+            ...options.shaderModuleProps?.project,
+            devicePixelRatio:
+              (options.canvasContext ?? this.device.canvasContext!).cssToDeviceRatio() * scale
+          }
+        }
+      };
+      // Each view owns its opaque depth and optical accumulation. Overlapping views
+      // must not count a Gaussian twice or inherit another camera's color/depth.
+      this.passes[0].render({
+        ...scaledOptions,
+        pass: 'splat-opaque-depth',
+        target: this.targets[0]
+      });
+      const clear = this.device.beginRenderPass({
+        framebuffer: this.targets[1],
+        clearColor: [0, 0, 0, 0],
+        clearDepth: false
+      });
+      clear.end();
+      this.passes[1].render({
+        ...scaledOptions,
+        pass: 'splat-accumulation',
+        target: this.targets[1],
+        clearCanvas: false
+      });
+    }
     this.ready = true;
   }
 
@@ -215,20 +242,29 @@ void main() {
     return {splat: {resolve: this.ready && this.last.get(props.project.viewport.id) === layer.id}};
   }
 
-  resolve(renderPass: RenderPass) {
-    if (this.ready) this.model!.draw(renderPass);
+  resolve(renderPass: RenderPass, viewportId: string) {
+    const cached = this.viewportTargets.get(viewportId);
+    if (!this.ready || !cached) return;
+    this.model!.setBindings({
+      accumulationMap: cached.textures[1],
+      transmissionMap: cached.textures[2],
+      ...(this.device.type === 'webgpu' ? {linearSampler: this.sampler!} : {})
+    });
+    this.model!.draw(renderPass);
   }
 
-  private destroyTargets() {
-    for (const target of this.targets) target.destroy();
-    for (const texture of this.textures) texture.destroy();
-    this.targets = [];
-    this.textures = [];
+  private destroyTargets(targets: Framebuffer[], textures: Texture[]) {
+    for (const target of targets) target.destroy();
+    for (const texture of textures) texture.destroy();
   }
   cleanup({deck}: EffectContext) {
     EFFECTS.delete(deck);
     this.sampler?.destroy();
     this.model?.destroy();
-    this.destroyTargets();
+    for (const cached of this.viewportTargets.values())
+      this.destroyTargets(cached.targets, cached.textures);
+    this.viewportTargets.clear();
+    this.targets = [];
+    this.textures = [];
   }
 }

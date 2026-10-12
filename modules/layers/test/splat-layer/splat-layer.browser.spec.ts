@@ -1,10 +1,17 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck, MapView, COORDINATE_SYSTEM, CompositeLayer, type Layer} from '@deck.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {
+  Deck,
+  MapView,
+  COORDINATE_SYSTEM,
+  CompositeLayer,
+  WebMercatorViewport,
+  type Layer
+} from '@deck.gl/core';
+import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {describe, expect, it, vi} from 'vitest';
-import {SplatLayer, type SplatSource} from '../../src';
+import {SplatLayer, SplatShadowPass, type SplatSource} from '../../src';
 
 function collectLeaves(layer: Layer): Layer[] {
   return layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(collectLeaves) : [layer];
@@ -240,6 +247,32 @@ describe('Gaussian canopy rendering', () => {
       const blendAttributes = blendLayer.getAttributeManager()!.getAttributes();
       const blendWrites = vi.spyOn(blendAttributes.instancePositions.getBuffer()!, 'write');
       const oldCoverage = blendAttributes.instanceWindData.value[4];
+      // Transmission is independent of camera aspect, inset placement and view count.
+      const lightMap = new SplatShadowPass(deck.device!);
+      const lightProjection = {
+        matrix: [factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, 1],
+        center: [0, 0, 0, 0],
+        width: 256,
+        height: 256
+      };
+      try {
+        const lightOptions = {layers: collectLeaves(shadowRoot), viewports: [viewport]};
+        lightMap.renderTransmission(lightOptions, lightProjection);
+        const readLight = () =>
+          (deck.device! as WebGLDevice).readPixelsToArrayWebGL(
+            lightMap.transmission!
+          ) as Uint8Array;
+        const baseline = readLight().slice();
+        expect(baseline.some(value => value < 240)).toBe(true);
+        const inset = new WebMercatorViewport({...viewport, x: 40, y: 20, width: 320, height: 240});
+        lightMap.renderTransmission(
+          {...lightOptions, viewports: [inset, viewport]},
+          lightProjection
+        );
+        expect(readLight()).toEqual(baseline);
+      } finally {
+        lightMap.destroy();
+      }
       const beforeResize = frames;
       shadowRoot.prepareShadow(
         [

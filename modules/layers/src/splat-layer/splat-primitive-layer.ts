@@ -31,9 +31,11 @@ export type PreparedSplatProps<DataT> = {
   data: DataT[];
   /** Immutable Gaussian template shared by every owner in data. */
   source: SplatSource;
+  /** Owner anchor in the layer coordinate system. */
   getPosition?: Accessor<DataT, Position>;
   /** Pitch, yaw, roll in degrees, matching SimpleMeshLayer. */
   getOrientation?: Accessor<DataT, number[]>;
+  /** Source-local XYZ scale, applied before orientation and translation. */
   getScale?: Accessor<DataT, number[]>;
   /** Local translation in metres, applied after scale and orientation. */
   getTranslation?: Accessor<DataT, number[]>;
@@ -63,10 +65,11 @@ export type PreparedSplatProps<DataT> = {
   maxSplats?: number;
   /** Independent light-space submission budget. @default Infinity */
   maxShadowSplats?: number;
-  /** Maximum pixels in the shared Gaussian accumulation pass. Picking and opaque draws keep host resolution. @default Infinity */
+  /** Maximum aggregate accumulation pixels across view targets. Picking and opaque draws keep host resolution. @default Infinity */
   maxRenderPixels?: number;
   /** Internal optical blend weight, independent of owner RGBA. */
   getCoverageWeight?: Accessor<DataT, number>;
+  /** Lighting material for authored source normals; supports unlit rendering. */
   material?: PhongMaterialProps;
   /** Exclude this source from light-space transmission when false. @default true */
   shadowEnabled?: boolean;
@@ -249,7 +252,8 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     // draws these sources separately into an optical transmission map.
     if (shaderModuleProps.shadow?.drawToShadowMap) return;
     if (!pickingActive && mode === 0) {
-      if (shaderModuleProps.splat?.resolve) this.state.effect.resolve(renderPass);
+      if (shaderModuleProps.splat?.resolve)
+        this.state.effect.resolve(renderPass, shaderModuleProps.project.viewport.id);
       if (this.props.deformationStrength > 0 && this.props.deformationTime === null)
         this.setNeedsRedraw();
       return;
