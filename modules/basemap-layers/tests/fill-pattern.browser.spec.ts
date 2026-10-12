@@ -420,14 +420,12 @@ describe('fill-pattern in the browser', () => {
 
   test('an image missing from the sprite draws nothing', async () => {
     const sprite = await createQuadrantSprite(8);
-    const image = await render(
-      fillTile({'fill-pattern': 'missing', 'fill-color': '#ff0000'}, WORLD, {
-        zoom: 5,
-        spriteAtlases: [sprite]
-      }),
-      {zoom: 5}
-    );
-    expectColor(pixel(image, CENTER + 4, CENTER + 4), WHITE, 0);
+    // A fill that draws nothing, and has no outline, has no sublayer to render.
+    const layers = fillTile({'fill-pattern': 'missing', 'fill-color': '#ff0000'}, WORLD, {
+      zoom: 5,
+      spriteAtlases: [sprite]
+    });
+    expect([layers].flat(Infinity).filter(Boolean)).toEqual([]);
   });
 
   test('keeps its size and shape on a globe', async () => {
