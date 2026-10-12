@@ -528,8 +528,19 @@ export function sortTileSubLayers<LayerT extends {props: Record<string, any>}>(
 
 type SourceTilesetOwner = {tileset: SharedTileset2D; consumers: Set<StyledMVTLayer['state']>};
 
+/** A tile of a shared tileset, as `SharedTile2DLayer` renders it. */
+type SharedTile = {id: string};
+
 class StyledMVTLayer extends SharedMVTLayer {
-  declare state: SharedMVTLayer['state'] & {sourceTilesetOwner?: SourceTilesetOwner};
+  declare state: SharedMVTLayer['state'] & {
+    sourceTilesetOwner?: SourceTilesetOwner;
+    /** The sublayers last generated for each tile, by tile id. */
+    keptTileLayers?: Map<string, Layer[]>;
+    /** Hidden tiles whose sublayers were kept rather than regenerated, by tile id. */
+    staleTiles?: Set<string>;
+    /** The tile object each id stood for at the last render (see `forgetRemovedTiles`). */
+    keptTiles?: Map<string, SharedTile>;
+  };
 
   updateState(params: UpdateParameters<this>): void {
     const owner = (this.props as any).sourceTilesetOwner as SourceTilesetOwner | undefined;
@@ -539,7 +550,114 @@ class StyledMVTLayer extends SharedMVTLayer {
       owner?.consumers.add(this.state);
       this.state.sourceTilesetOwner = owner;
     }
+    const {geographic, tileset} = this.state;
     super.updateState(params);
+    // A new tileset, or a switch between a map and a globe, makes every kept sublayer obsolete.
+    if (this.state.geographic !== geographic || this.state.tileset !== tileset) {
+      this.state.keptTileLayers?.clear();
+      this.state.staleTiles?.clear();
+    }
+  }
+
+  /** Whether a tile is drawn in any view of this layer; every tile is, before the first view. */
+  isTileShown(tile: SharedTile): boolean {
+    const views = this.state.tilesetViews;
+    if (!views?.size) {
+      return true;
+    }
+    for (const view of views.values()) {
+      if (view.isTileVisible(tile as any)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * `SharedTile2DLayer` generates sublayers for every tile of the shared tileset, shown or not,
+   * again whenever the update triggers change, which is at every style zoom step, and culls the
+   * hidden ones: several times as many tiles as are shown. A hidden tile keeps the sublayers it
+   * has instead, and regenerates them when it is shown again. Kept sublayers stay initialized, so
+   * showing the tile again updates them rather than creating them.
+   */
+  renderLayers(): Layer | null | LayersList {
+    const {tileset, tileLayers} = this.state;
+    if (!this.state.keptTileLayers) {
+      this.state.keptTileLayers = new Map();
+      this.state.staleTiles = new Set();
+    }
+    const kept = this.state.keptTileLayers;
+    const stale = this.state.staleTiles!;
+    const tiles: SharedTile[] = (tileset?.tiles as SharedTile[] | undefined) || [];
+    this.forgetRemovedTiles(tiles);
+    for (const tile of tiles) {
+      if (this.isTileShown(tile)) {
+        if (stale.delete(tile.id)) {
+          tileLayers.delete(tile.id);
+        }
+      } else if (!tileLayers.has(tile.id) && kept.has(tile.id)) {
+        tileLayers.set(tile.id, kept.get(tile.id)!);
+        stale.add(tile.id);
+      }
+    }
+    const layers = super.renderLayers();
+    for (const tile of tiles) {
+      const generated = tileLayers.get(tile.id);
+      if (generated && !stale.has(tile.id)) {
+        kept.set(tile.id, generated);
+      }
+    }
+    return Array.isArray(layers) ? sortTileSubLayers(layers as (Layer[] | null)[]) : layers;
+  }
+
+  /** A hidden tile that has no sublayers yet gets them when it is shown. */
+  renderSubLayers(props: Parameters<SharedMVTLayer['renderSubLayers']>[0]) {
+    if (!this.isTileShown(props.tile)) {
+      this.state.staleTiles?.add(props.tile.id);
+      return null;
+    }
+    return super.renderSubLayers(props);
+  }
+
+  _onTileLoad(tile: any): void {
+    this.forgetTile(tile);
+    super._onTileLoad(tile);
+  }
+
+  _onTileUnload(tile: any): void {
+    this.forgetTile(tile);
+    super._onTileUnload(tile);
+  }
+
+  /**
+   * Drops what this layer kept for tiles that left the shared tileset, or were replaced in it by
+   * another tile of the same id, including the sublayers `SharedTile2DLayer` holds for that id.
+   * `reloadAll` removes tiles without an unload event, and deck.gl then finalizes their sublayers,
+   * which must not be handed back.
+   */
+  private forgetRemovedTiles(tiles: SharedTile[]): void {
+    let {keptTiles} = this.state;
+    if (!keptTiles) {
+      keptTiles = new Map();
+      this.state.keptTiles = keptTiles;
+    }
+    const live = new Map(tiles.map(tile => [tile.id, tile]));
+    for (const [id, tile] of keptTiles) {
+      if (live.get(id) !== tile) {
+        keptTiles.delete(id);
+        this.forgetTile({id} as SharedTile);
+        this.state.tileLayers.delete(id);
+      }
+    }
+    for (const tile of tiles) {
+      keptTiles.set(tile.id, tile);
+    }
+  }
+
+  /** Drops a tile's kept sublayers, when its content is replaced or evicted. */
+  private forgetTile(tile: SharedTile): void {
+    this.state.keptTileLayers?.delete(tile.id);
+    this.state.staleTiles?.delete(tile.id);
   }
 
   finalizeState(): void {
@@ -557,10 +675,6 @@ class StyledMVTLayer extends SharedMVTLayer {
   }
 
   static layerName = 'StyledMVTLayer';
-  renderLayers(): Layer | null | LayersList {
-    const layers = super.renderLayers();
-    return Array.isArray(layers) ? sortTileSubLayers(layers as (Layer[] | null)[]) : layers;
-  }
 }
 
 function createStyledVectorSubLayer({
