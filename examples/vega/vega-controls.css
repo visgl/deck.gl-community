@@ -13,16 +13,16 @@
   --vega-controls-accent: #167565;
   box-sizing: border-box;
   flex: 0 0 auto;
-  max-height: 240px;
+  max-height: 180px;
   overflow: auto;
-  margin: 8px;
-  padding: 12px;
+  margin: 4px;
+  padding: 6px;
   color: var(--vega-controls-text);
   background: var(--vega-controls-surface);
   border: 1px solid var(--vega-controls-border);
   border-radius: 8px;
   box-shadow: 0 6px 20px #0000000d;
-  font: 12px/1.4 system-ui, sans-serif;
+  font: 11px/1.25 system-ui, sans-serif;
   color-scheme: light;
   scrollbar-width: thin;
 }
@@ -38,7 +38,7 @@
 }
 .vega-controls[hidden] { display: none; }
 .vega-controls-heading {
-  display: flex;
+  display: none;
   align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
@@ -54,22 +54,22 @@
 .vega-controls-heading > span { color: var(--vega-controls-muted); font-size: 11px; }
 .vega-controls-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 4px;
 }
 .vega-controls .vega-bind {
   min-width: 0;
   margin: 0;
-  padding: 8px;
+  padding: 4px 6px;
   border: 1px solid var(--vega-controls-border);
-  border-radius: 7px;
+  border-radius: 5px;
   background: var(--vega-controls-card);
 }
 .vega-controls .vega-bind > label {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px 8px;
+  gap: 2px 6px;
   margin: 0;
   font: inherit;
 }
@@ -85,7 +85,7 @@
 .vega-controls .vega-bind :is(select, input:not([type='range']):not([type='checkbox']):not([type='radio'])) {
   width: 100%;
   grid-column: 1 / -1;
-  padding: 4px 6px;
+  padding: 2px 5px;
   color: var(--vega-controls-text);
   background: var(--vega-controls-input);
   border: 1px solid var(--vega-controls-border);
