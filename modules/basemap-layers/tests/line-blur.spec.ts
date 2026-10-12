@@ -6,7 +6,7 @@
 import {LayerExtension} from '@deck.gl/core';
 import {PathStyleExtension} from '@deck.gl/extensions';
 import {describe, expect, test} from 'vitest';
-import {getBasemapLayers, getLineOffset} from '../src/globe-layers';
+import {getBasemapLayers, getBlurredDashArray, getLineOffset} from '../src/globe-layers';
 import {LineBlurExtension, getBlurredLineWidth} from '../src/line-blur-extension';
 
 function line(properties: Record<string, unknown> = {}) {
@@ -274,6 +274,60 @@ describe('line-blur', () => {
       'line-offset': ['get', 'offset']
     });
     expect(perFeatureOffset.map(layer => layer.props.blurGapSide)).toEqual([0, 0]);
+  });
+
+  test('keeps the dash lengths of a blurred gap in line-widths', () => {
+    // deck.gl dashes in drawn widths: [2, 1] line-widths are [4, 2] half widths of 4, so of the
+    // 6 pixels each line is drawn, [4 * 4 / 6, 2 * 4 / 6].
+    const paint = {
+      'line-width': 4,
+      'line-gap-width': 8,
+      'line-blur': 2,
+      'line-dasharray': [2, 1]
+    };
+    const layers = renderLines(paint);
+    expect(layers.map(layer => layer.props.getDashArray)).toEqual([
+      [16 / 6, 8 / 6],
+      [16 / 6, 8 / 6]
+    ]);
+    // Without a gap the line is not widened, nor its dashes shortened.
+    const [plain] = renderLines({'line-width': 4, 'line-blur': 2, 'line-dasharray': [2, 1]});
+    expect(plain.props.getDashArray).toEqual([4, 2]);
+
+    // Per feature, with the triggers of both parts.
+    const features = [line({blur: 4, gap: 8}), line({blur: 4, gap: 0})];
+    const perFeature = {
+      'line-width': 4,
+      'line-gap-width': ['get', 'gap'],
+      'line-blur': ['interpolate', ['linear'], ['zoom'], 10, 0, 14, 4],
+      'line-dasharray': [2, 1]
+    };
+    const [low] = renderLines(perFeature, features, 10);
+    const [high] = renderLines(perFeature, features, 14);
+    expect(evaluate(high, 'getDashArray', features)).toEqual([
+      [2, 1],
+      [4, 2]
+    ]);
+    expect(evaluate(low, 'getDashArray', features)).toEqual([
+      [4, 2],
+      [4, 2]
+    ]);
+    expect(high.props.updateTriggers.getDashArray).not.toEqual(
+      low.props.updateTriggers.getDashArray
+    );
+  });
+
+  test('getBlurredDashArray', () => {
+    const shape = {value: [0, 8, 4, 4] as [number, number, number, number]};
+    expect(getBlurredDashArray({value: [4, 2]}, shape)).toEqual({value: [2, 1]});
+    const perFeature = getBlurredDashArray(
+      {value: [4, 2]},
+      {value: feature => [0, Number(feature.properties?.gap), 4, 4], updateTrigger: 12}
+    );
+    expect(typeof perFeature.value === 'function' && perFeature.value(line({gap: 0}))).toEqual([
+      4, 2
+    ]);
+    expect(perFeature.updateTrigger).toEqual([4, 2, 12]);
   });
 
   test('getLineOffset and getBlurredLineWidth', () => {

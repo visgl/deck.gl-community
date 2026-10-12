@@ -1003,6 +1003,42 @@ export function getLineOffset(
   return (offset + side * center) / drawnWidth;
 }
 
+/**
+ * Scales a blurred gap's `getDashArray` by `width / drawnWidth` (see `getBlurredLineWidth`), so
+ * that its dashes keep the pixel lengths MapLibre gives them in `line-width`s. `shape` is the
+ * `[offset, gap, width, blur]` accessor of `getLineOffset`.
+ */
+export function getBlurredDashArray(
+  dashArray: StyleAccessor<[number, number]>,
+  shape: StyleAccessor<[number, number, number, number]>
+): {value: [number, number] | ((feature: any) => [number, number]); updateTrigger?: unknown[]} {
+  const scale = (
+    [dash, gap]: [number, number],
+    [, gapWidth, width, blur]: [number, number, number, number]
+  ): [number, number] => {
+    const drawnWidth = getBlurredLineWidth(width, gapWidth, blur);
+    const ratio = drawnWidth > 0 ? width / drawnWidth : 1;
+    return [dash * ratio, gap * ratio];
+  };
+  const dashValue = dashArray.value;
+  const shapeValue = shape.value;
+  if (typeof dashValue !== 'function' && typeof shapeValue !== 'function') {
+    return {value: scale(dashValue, shapeValue)};
+  }
+  return {
+    value: (feature: any) =>
+      scale(
+        typeof dashValue === 'function' ? dashValue(feature) : dashValue,
+        typeof shapeValue === 'function' ? shapeValue(feature) : shapeValue
+      ),
+    // The parts that are constants change by value; the others have their triggers.
+    updateTrigger: [
+      ...(typeof dashValue === 'function' ? [dashArray.updateTrigger] : dashValue),
+      ...(typeof shapeValue === 'function' ? [shape.updateTrigger] : shapeValue)
+    ]
+  };
+}
+
 /** deck.gl path props for a line's `line-cap`, `line-join` and `line-miter-limit`. */
 export type LineShape = {
   lineCapRounded: boolean;
@@ -1293,6 +1329,12 @@ function createGeometrySubLayer({
     gapOffset && typeof gapOffset.value !== 'function'
       ? {blurGapSide: side, blurGapOffset: gapOffset.value}
       : {};
+  // deck.gl measures dashes in drawn widths and MapLibre in `line-width`s, so a blurred gap's
+  // wider lines take dashes shortened by as much.
+  const lineDashArray =
+    dashArray && isBlurredGap && lineOffset
+      ? getBlurredDashArray(dashArray, lineOffset)
+      : dashArray;
   const gapWidth = hasOffset
     ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
     : null;
@@ -1328,9 +1370,9 @@ function createGeometrySubLayer({
     ...getBlurGap(1),
     ...(isFill ? getFillStyleProps(styleLayer, zoom, baseProps.extensions, pattern) : {}),
     ...(offsetValue ? {getOffset: getOffset(1)} : {}),
-    ...(dashArray
+    ...(lineDashArray
       ? {
-          getDashArray: dashArray.value as any,
+          getDashArray: lineDashArray.value as any,
           dashJustified: false
         }
       : {}),
@@ -1340,7 +1382,7 @@ function createGeometrySubLayer({
       getFillPatternScale: pattern ? Math.floor(zoom) : undefined,
       getLineColor: lineColor.updateTrigger,
       getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
-      getDashArray: dashArray?.updateTrigger,
+      getDashArray: lineDashArray?.updateTrigger,
       getOffset: typeof offsetValue === 'function' ? lineOffset?.updateTrigger : offsetValue,
       getBlur: lineBlur?.updateTrigger
     },

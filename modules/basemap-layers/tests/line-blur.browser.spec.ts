@@ -249,4 +249,26 @@ describe('line-blur in the browser', () => {
     const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
     expectMapLibreFade(image, -8, 8, {width: 10, blur: 4});
   });
+
+  test('keeps the dash lengths of a blurred gap in line-widths', async () => {
+    // MapLibre dashes 2 and 1 line-widths of 4: 8 pixels on, 4 off, from the start of the line.
+    const paint = {
+      'line-width': 4,
+      'line-gap-width': 8,
+      'line-blur': 2,
+      'line-dasharray': [2, 1]
+    };
+    const image = await render(styleSublayers(paint, [feature('LineString', EASTWARD)]));
+    // Both lines, along the row where each is opaque: 5.5 pixels from the gap's center.
+    for (const row of [CENTER - 6, CENTER + 5]) {
+      const dashStarts: number[] = [];
+      for (let x = CENTER - 38; x < CENTER + 38; x++) {
+        const isDash = (column: number) => image.data[(row * SIZE + column) * 4] < 128;
+        if (isDash(x) && !isDash(x - 1)) {
+          dashStarts.push(x - (CENTER - 40));
+        }
+      }
+      expect(dashStarts, `row ${row}`).toEqual([12, 24, 36, 48, 60, 72]);
+    }
+  });
 });
