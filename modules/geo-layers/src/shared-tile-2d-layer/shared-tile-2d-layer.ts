@@ -148,7 +148,10 @@ export type SharedTile2DLayerProps<DataT = unknown> = CompositeLayerProps & {
   maxRequests?: number;
   /** Debounce interval before issuing queued requests. */
   debounceTime?: number;
-  /** Integer zoom offset applied during tile selection. */
+  /**
+   * Added to the viewport's zoom before it is rounded to the tile zoom, as in deck.gl's
+   * `TileLayer`: an integer shifts the tile zoom, and -0.5 selects tiles at the floor of the zoom.
+   */
   zoomOffset?: number;
 };
 
