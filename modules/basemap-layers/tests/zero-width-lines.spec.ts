@@ -127,6 +127,16 @@ describe('a line at width 0 for one zoom step', () => {
     expect(renderTile(style, 5.5)).toEqual([]);
   });
 
+  test('transparent at this step only, it is kept for the step where it draws', () => {
+    const appears = ['step', ['zoom'], 0, 5.25, 1];
+    const style = [line('road', {'line-width': STARTS_AT_5, 'line-opacity': appears})];
+    const [before] = renderTile(style, 5);
+    const [after] = renderTile(style, 5.25);
+    expect(idsOf([before])).toEqual(['hidden:"road"']);
+    expect(idsOf([after])).toEqual(['"road"']);
+    expect(after.props.data).toBe(before.props.data);
+  });
+
   test('a line at width 0 over several steps is left out', () => {
     expect(renderTile([line('road', {'line-width': STARTS_AT_13})], 12)).toEqual([]);
   });
