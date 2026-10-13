@@ -33,7 +33,8 @@ function renderLines(
   paint: Record<string, unknown>,
   features = [line()],
   zoom = 12,
-  extensions?: unknown[]
+  extensions?: unknown[],
+  type = 'line'
 ): any[] {
   const vectorLayer: any = getBasemapLayers({
     idPrefix: 'test',
@@ -47,7 +48,7 @@ function renderLines(
           tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']
         }
       },
-      layers: [{id: 'line', type: 'line', source: 'tiles', paint}]
+      layers: [{id: 'line', type, source: 'tiles', paint}]
     } as any
   }).find(layer => layer.id === 'test-tiles');
   return vectorLayer.props
@@ -58,6 +59,27 @@ function renderLines(
       tile: {index: {x: 0, y: 0, z: Math.floor(zoom)}}
     })
     .flat();
+}
+
+/** Renders one fill style layer of a square for one tile and returns all its sublayers. */
+function renderFills(paint: Record<string, unknown>): any[] {
+  const square = {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+          [0, 0]
+        ]
+      ]
+    },
+    properties: {}
+  };
+  return renderLines(paint, [square], 12, undefined, 'fill');
 }
 
 function getBlurExtensions(layer: any): any[] {
@@ -87,8 +109,19 @@ function fakeLayer(state: Record<string, unknown>, deviceType = 'webgl'): any {
 }
 
 describe('line-blur', () => {
-  test('leaves lines without line-blur unchanged', () => {
+  test('fades lines without line-blur over a pixel, with the shared constant extension', () => {
     const [layer] = renderLines({'line-width': 2});
+    // MapLibre fades every line's edges; without a blur, over a device pixel.
+    const [extension] = getBlurExtensions(layer);
+    expect(extension.opts.perFeature).toBe(false);
+    expect(extension).toBe(getBlurExtensions(renderLines({'line-blur': 1})[0])[0]);
+    expect(layer.props.getBlur).toBe(0);
+    expect(layer.props.lineAntialiasing).toBe(true);
+  });
+
+  test('leaves fill outlines without a fade, as MapLibre draws them', () => {
+    const [layer] = renderFills({'fill-outline-color': '#000000'});
+    expect(layer.props.stroked).toBe(true);
     expect(getBlurExtensions(layer)).toEqual([]);
     expect(layer.props.getBlur).toBeUndefined();
     expect(layer.props.lineAntialiasing).toBe(false);
@@ -248,7 +281,9 @@ describe('line-blur', () => {
     );
     expect(layers).toHaveLength(2);
     for (const layer of layers) {
-      expect(getBlurExtensions(layer)).toEqual([]);
+      // Without a blur: the constant extension, which needs no attribute, fades over a pixel.
+      expect(getBlurExtensions(layer).map(extension => extension.opts.perFeature)).toEqual([false]);
+      expect(layer.props.getBlur).toBe(0);
       expect(evaluate(layer, 'getLineWidth', features)).toEqual([4]);
       expect(layer.props.getDashArray).toEqual([4, 2]);
     }
