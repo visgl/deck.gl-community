@@ -166,6 +166,33 @@ describe('a label layer of several tiles', () => {
     expect(rows).not.toBe(placedRows);
   });
 
+  test('wraps the text again when another first tile changes a data-driven text-font', () => {
+    const styleLayer = {
+      layout: {
+        'text-field': '{name}',
+        'text-font': [
+          'match',
+          ['get', 'name'],
+          'a',
+          ['literal', ['Bold']],
+          ['literal', ['Regular']]
+        ]
+      }
+    };
+    const a = {index: {x: 0, y: 0, z: 1}, features: [pointFeature(0.5, 0.5, 'a')]};
+    const b = {index: {x: 1, y: 0, z: 1}, features: [pointFeature(0.5, 0.5, 'b')]};
+    const c = {index: {x: 0, y: 1, z: 1}, features: [pointFeature(0.5, 0.5, 'c')]};
+    const state: Record<string, any> = {};
+    update({tiles: [b, c], styleLayer}, state);
+    const regular = state.labelText.labels;
+    // Another tile with the same font keeps the wrapped text.
+    update({tiles: [b, c, a], styleLayer}, state);
+    expect(state.labelText.labels).toBe(regular);
+    // A first tile with another font wraps it again.
+    update({tiles: [a, b, c], styleLayer}, state);
+    expect(state.labelText.labels).not.toBe(regular);
+  });
+
   test('records the tile a row was placed for, also when another tile takes its place', () => {
     const features = [pointFeature(0.5, 0.5, 'a')];
     const first = {id: '0-0-1'};

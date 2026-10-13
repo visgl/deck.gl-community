@@ -289,7 +289,8 @@ type MVTLabelLayerState = {
    * keeps every read the same once the budget runs out, and wraps each label once.
    */
   labelText?: {
-    key: [string, LabelRow[] | undefined];
+    /** The text trigger, the rows and the font the text was wrapped for. */
+    key: [string, LabelRow[] | undefined, string];
     budget: WrapBudget;
     labels: WeakMap<FeatureLike, string | undefined>;
     /** Per label row, whether it has text (see `getRowsWithText`). */
@@ -2014,14 +2015,17 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     // deck.gl re-evaluates every label's text when the rows or the text trigger change; each
     // evaluation starts a new text cache with a fresh wrap budget.
-    const key: [string, LabelRow[] | undefined] = [textTrigger, this.state.labelData];
-    const [lastTrigger, lastRows] = this.state.labelText?.key || [];
-    if (key[0] !== lastTrigger || key[1] !== lastRows) {
+    // The font, which a data-driven `text-font` takes from the first row: the rows of another
+    // first tile can change it, and with it the text's wrapping.
+    const font = JSON.stringify(this.getFont());
+    const key: [string, LabelRow[] | undefined, string] = [textTrigger, this.state.labelData, font];
+    const [lastTrigger, lastRows, lastFont] = this.state.labelText?.key || [];
+    if (key[0] !== lastTrigger || key[1] !== lastRows || key[2] !== lastFont) {
       // A `tiles` layer wraps each tile's labels with a tile's budget. Its rows change whenever a
       // tile is added or removed; the text of features already wrapped is kept.
       const tileCount = tiles ? Math.max(tiles.length, 1) : 1;
       const labels =
-        tiles && key[0] === lastTrigger && this.state.labelText
+        tiles && key[0] === lastTrigger && key[2] === lastFont && this.state.labelText
           ? this.state.labelText.labels
           : new WeakMap();
       this.setState({
