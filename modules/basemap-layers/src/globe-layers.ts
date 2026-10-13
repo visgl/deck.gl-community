@@ -835,13 +835,14 @@ class StyledMVTLayer extends SharedMVTLayer {
     labelTiles?: Map<string, Map<number, {key: unknown[]; tiles: LabelTile[]}>>;
     /** The symbol style layers that have a label layer, by view (see `renderViewLabelLayers`). */
     labelStyleLayers?: Map<string, Set<number>>;
+    /** The style layers `labelStyleLayers` indexes, and the tileset of their tiles. */
+    labelStyle?: unknown;
+    labelTileset?: unknown;
     /** The label layers last rendered, and the props and tiles they were rendered for, by view. */
     labelLayers?: Map<
       string,
       {
         props: unknown;
-        /** The style layers of the props, which change only with the style. */
-        paintStyle: unknown;
         byStyleLayer: Map<number, {tiles: LabelTile[]; isHidden: boolean; layers: Layer[]}>;
       }
     >;
@@ -981,7 +982,19 @@ class StyledMVTLayer extends SharedMVTLayer {
     // A drawn tile's sublayers record every symbol layer drawn at its zoom, with or without
     // features, so one that a labelled tile leaves out is outside its zoom range, and is dropped.
     // While no drawn tile is labelled yet, as when they load, the label layer is kept too.
-    this.state.labelStyleLayers ||= new Map();
+    // Style layer indices name other style layers in another style, and the kept tiles are gone
+    // with their tileset: a new style or tileset forgets the label layers kept.
+    const style = (this.props as {paintStyle?: unknown}).paintStyle;
+    const {tileset} = this.state;
+    if (
+      !this.state.labelStyleLayers ||
+      this.state.labelStyle !== style ||
+      this.state.labelTileset !== tileset
+    ) {
+      this.state.labelStyleLayers = new Map();
+      this.state.labelStyle = style;
+      this.state.labelTileset = tileset;
+    }
     const labelled = this.state.labelStyleLayers.get(cacheKey) || new Set<number>();
     const drawnTiles = tiles.filter(tile => tile.content && isShown(tile));
     const drawnFeatures = drawnTiles
@@ -1029,11 +1042,10 @@ class StyledMVTLayer extends SharedMVTLayer {
     // Each style layer's label layers stay the same instances while its tiles, whether it is
     // hidden, and this layer's props (with `render`, new at each style zoom step) do not change:
     // new instances would compare and update the label layers at every frame. A hidden label
-    // layer keeps its tiles, and its instance while the style does not change, also across zoom
-    // steps: it is not drawn, and the instance that shows it again is compared with this one, so
-    // it then takes every change made meanwhile.
+    // layer keeps its tiles, and its instance, also across zoom steps: it is not drawn, and the
+    // instance that shows it again is compared with this one, so it then takes every change made
+    // meanwhile. A new style has no hidden label layers (see above).
     const lastLayers = this.state.labelLayers.get(cacheKey);
-    const paintStyle = (this.props as {paintStyle?: unknown}).paintStyle;
     const byStyleLayer = new Map<
       number,
       {tiles: LabelTile[]; isHidden: boolean; layers: Layer[]}
@@ -1043,8 +1055,7 @@ class StyledMVTLayer extends SharedMVTLayer {
     for (const [styleLayerIndex, entry] of [...next].sort(([a], [b]) => a - b)) {
       const isHidden = hidden.has(styleLayerIndex);
       const kept =
-        lastLayers?.props === this.props ||
-        (isHidden && paintStyle !== undefined && lastLayers?.paintStyle === paintStyle)
+        lastLayers?.props === this.props || isHidden
           ? lastLayers?.byStyleLayer.get(styleLayerIndex)
           : undefined;
       let rendered = kept;
@@ -1062,7 +1073,7 @@ class StyledMVTLayer extends SharedMVTLayer {
       byStyleLayer.set(styleLayerIndex, rendered!);
       layers.push(...rendered!.layers);
     }
-    this.state.labelLayers.set(cacheKey, {props: this.props, paintStyle, byStyleLayer});
+    this.state.labelLayers.set(cacheKey, {props: this.props, byStyleLayer});
     return layers;
   }
 
@@ -1549,8 +1560,12 @@ function createVectorLayerGroup({
       ]
     },
     renderLabelLayers: ((tilesByStyleLayer, getSubLayerProps, hidden) =>
-      [...tilesByStyleLayer].map(([styleLayerIndex, tiles]) => {
+      [...tilesByStyleLayer].flatMap(([styleLayerIndex, tiles]) => {
         const styleLayer = styleLayers[styleLayerIndex];
+        // An index the tile layer kept from another style has no style layer here.
+        if (!styleLayer) {
+          return [];
+        }
         return createSymbolSubLayer({
           props: {
             ...getSubLayerProps(`labels-${JSON.stringify(styleLayer.id)}`),

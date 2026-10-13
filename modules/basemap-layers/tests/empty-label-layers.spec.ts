@@ -134,13 +134,10 @@ describe('a label layer whose drawn tiles lose its features', () => {
     expect(kept.props.zoom).toBe(2);
   });
 
-  test('is made again, hidden, for a new style', () => {
+  test('is not kept for a new style, which has no label layers yet', () => {
     const state = freshState();
     labelLayers(tileLayer(2, state, style()), all);
-    const [kept] = labelLayers(tileLayer(2, state, style()), onlyWithoutPlaces);
-    const [newStyle] = labelLayers(tileLayer(2.25, state, style()), onlyWithoutPlaces);
-    expect(newStyle).not.toBe(kept);
-    expect(newStyle.props.visible).toBe(false);
+    expect(labelLayers(tileLayer(2, state, style()), onlyWithoutPlaces)).toEqual([]);
   });
 
   test('is kept across one tile zoom, and removed two tile zooms away', () => {
@@ -158,6 +155,39 @@ describe('a label layer whose drawn tiles lose its features', () => {
     expect(kept.props.visible).toBe(false);
     // Tiles of zoom 4 drawn: they are two tile zooms away.
     expect(labelLayers(layer, tile => tile === deepest)).toEqual([]);
+  });
+
+  test('is forgotten with its style, also while the drawn tiles load', () => {
+    const twoLayers = style();
+    twoLayers.layers.unshift({
+      id: 'names',
+      type: 'symbol',
+      source: 'tiles',
+      'source-layer': 'place',
+      layout: {'text-field': '{name}'}
+    });
+    const state = freshState();
+    expect(labelLayers(tileLayer(2, state, twoLayers), all)).toHaveLength(2);
+    // A style with fewer layers, while no drawn tile is labelled yet.
+    const loading = () => false;
+    expect(() => labelLayers(tileLayer(2, state, style()), loading)).not.toThrow();
+    expect(labelLayers(tileLayer(2, state, style()), loading)).toEqual([]);
+  });
+
+  test('is forgotten with its tileset', () => {
+    const state: any = freshState();
+    const layer = tileLayer(2, state);
+    expect(labelLayers(layer, all)).toHaveLength(1);
+    // Another tileset, whose tiles are not labelled yet.
+    state.tileset = {tiles: [{...withoutPlaces}, {...withPlace}]};
+    expect(labelLayers(layer, () => false)).toEqual([]);
+  });
+
+  test('is not made for a style layer index the style does not have', () => {
+    const layer = tileLayer(2, freshState());
+    expect(
+      layer.props.renderLabelLayers(new Map([[5, []]]), (id: string) => ({id}), new Set())
+    ).toEqual([]);
   });
 
   test('is removed outside its zoom range', () => {
