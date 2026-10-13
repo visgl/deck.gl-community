@@ -115,6 +115,80 @@ function evaluateTextField(textField: unknown, feature: any, zoom: number): stri
   });
 }
 
+const GEOMETRY_TYPES = ['Unknown', 'Point', 'LineString', 'Polygon'];
+
+/**
+ * The text of every label MapLibre drew in the view. `queryRenderedFeatures` returns the symbols
+ * in the view, including those whose icon placed without their optional text; MapLibre's placement
+ * state says which texts placed, but not whether in the view. A label counts if both do (by style
+ * layer and text).
+ */
+function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[] {
+  const symbolLayers = style.layers
+    .filter((layer: any) => layer.type === 'symbol')
+    .map((layer: any) => layer.id);
+  const getLayer = (id: string) => style.layers.find((layer: any) => layer.id === id);
+  const placed = new Set(getPlacedTextKeys(map, style, zoom));
+  return map
+    .queryRenderedFeatures({layers: symbolLayers})
+    .map(feature => {
+      const text = evaluateTextField(
+        getLayer(feature.layer.id)?.layout?.['text-field'],
+        feature,
+        zoom
+      );
+      return placed.has(`${feature.layer.id}|${text}`) ? text : '';
+    })
+    .filter(Boolean);
+}
+
+/** `<style layer id>|<text>` of every symbol whose text MapLibre placed, in view or not. */
+function getPlacedTextKeys(map: maplibregl.Map, style: any, zoom: number): string[] {
+  const mapStyle = (map as any).style;
+  const placements = mapStyle.placement?.placements || {};
+  const texts: string[] = [];
+  for (const tileManager of Object.values<any>(mapStyle.tileManagers)) {
+    for (const id of tileManager.getRenderableIds(true)) {
+      const tile = tileManager.getTileByID(id);
+      const featureIndex = tile?.latestFeatureIndex;
+      for (const bucket of Object.values<any>(tile?.buckets || {})) {
+        if (bucket.layers?.[0]?.type !== 'symbol' || !bucket.hasTextData() || !featureIndex) {
+          continue;
+        }
+        // The layers of a bucket share their layout, and so their text.
+        const layer = style.layers.find((styleLayer: any) => styleLayer.id === bucket.layerIds[0]);
+        const sourceLayer =
+          featureIndex.loadVTLayers()[
+            featureIndex.sourceLayerCoder.decode(bucket.sourceLayerIndex)
+          ];
+        for (let i = 0; i < bucket.symbolInstances.length; i++) {
+          const symbol = bucket.symbolInstances.get(i);
+          const placement = placements[symbol.crossTileID];
+          if (!placement?.text) {
+            continue;
+          }
+          const feature = sourceLayer.feature(symbol.featureIndex);
+          const text = evaluateTextField(
+            layer?.layout?.['text-field'],
+            {
+              geometry: {type: GEOMETRY_TYPES[feature.type]},
+              properties: feature.properties,
+              id: feature.id
+            },
+            zoom
+          );
+          if (text) {
+            for (const layerId of bucket.layerIds) {
+              texts.push(`${layerId}|${text}`);
+            }
+          }
+        }
+      }
+    }
+  }
+  return texts;
+}
+
 /** Renders a scene with MapLibre GL JS and reads back the placed labels. */
 export async function renderMapLibre(style: any, scene: ReferenceScene): Promise<Render> {
   const container = createContainer();
@@ -150,17 +224,7 @@ export async function renderMapLibre(style: any, scene: ReferenceScene): Promise
   try {
     await withTimeout(new Promise(resolve => map.once('idle', resolve)), 'MapLibre render');
     const pixels = readCanvas(map.getCanvas());
-    const symbolLayers = style.layers
-      .filter((layer: any) => layer.type === 'symbol')
-      .map((layer: any) => layer.id);
-    const zoom = map.getZoom();
-    const labels = map
-      .queryRenderedFeatures({layers: symbolLayers})
-      .map(feature => {
-        const layer = style.layers.find((styleLayer: any) => styleLayer.id === feature.layer.id);
-        return evaluateTextField(layer?.layout?.['text-field'], feature, zoom);
-      })
-      .filter(Boolean);
+    const labels = getPlacedTexts(map, style, map.getZoom());
     return {
       pixels,
       labels,
