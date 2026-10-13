@@ -840,6 +840,8 @@ class StyledMVTLayer extends SharedMVTLayer {
       string,
       {
         props: unknown;
+        /** The style layers of the props, which change only with the style. */
+        paintStyle: unknown;
         byStyleLayer: Map<number, {tiles: LabelTile[]; isHidden: boolean; layers: Layer[]}>;
       }
     >;
@@ -1019,8 +1021,11 @@ class StyledMVTLayer extends SharedMVTLayer {
     // Each style layer's label layers stay the same instances while its tiles, whether it is
     // hidden, and this layer's props (with `render`, new at each style zoom step) do not change:
     // new instances would compare and update the label layers at every frame. A hidden label
-    // layer keeps its tiles, so it is not updated while it stays hidden.
+    // layer keeps its tiles, and its instance while the style does not change, also across zoom
+    // steps: it is not drawn, and the instance that shows it again is compared with this one, so
+    // it then takes every change made meanwhile.
     const lastLayers = this.state.labelLayers.get(cacheKey);
+    const paintStyle = (this.props as {paintStyle?: unknown}).paintStyle;
     const byStyleLayer = new Map<
       number,
       {tiles: LabelTile[]; isHidden: boolean; layers: Layer[]}
@@ -1030,7 +1035,10 @@ class StyledMVTLayer extends SharedMVTLayer {
     for (const [styleLayerIndex, entry] of [...next].sort(([a], [b]) => a - b)) {
       const isHidden = hidden.has(styleLayerIndex);
       const kept =
-        lastLayers?.props === this.props ? lastLayers.byStyleLayer.get(styleLayerIndex) : undefined;
+        lastLayers?.props === this.props ||
+        (isHidden && paintStyle !== undefined && lastLayers?.paintStyle === paintStyle)
+          ? lastLayers?.byStyleLayer.get(styleLayerIndex)
+          : undefined;
       let rendered = kept;
       if (!kept || kept.tiles !== entry.tiles || kept.isHidden !== isHidden) {
         const styleLayerLayers = render(
@@ -1046,7 +1054,7 @@ class StyledMVTLayer extends SharedMVTLayer {
       byStyleLayer.set(styleLayerIndex, rendered!);
       layers.push(...rendered!.layers);
     }
-    this.state.labelLayers.set(cacheKey, {props: this.props, byStyleLayer});
+    this.state.labelLayers.set(cacheKey, {props: this.props, paintStyle, byStyleLayer});
     return layers;
   }
 

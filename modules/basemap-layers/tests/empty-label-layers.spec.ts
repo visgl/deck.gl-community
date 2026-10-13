@@ -119,6 +119,30 @@ describe('a label layer whose drawn tiles lose its features', () => {
     expect(roadsAfter).not.toBe(roads);
   });
 
+  test('keeps its instance while hidden across a zoom step, and takes the new zoom when shown', () => {
+    const shared = style();
+    const state = freshState();
+    labelLayers(tileLayer(2, state, shared), all);
+    const [kept] = labelLayers(tileLayer(2, state, shared), onlyWithoutPlaces);
+    // A style zoom step gives the tile layer new props; the hidden label layer stays as it is.
+    const [stillKept] = labelLayers(tileLayer(2.25, state, shared), onlyWithoutPlaces);
+    expect(stillKept).toBe(kept);
+    const [shown] = labelLayers(tileLayer(2.25, state, shared), all);
+    expect(shown).not.toBe(kept);
+    expect(shown.props.visible).not.toBe(false);
+    expect(shown.props.zoom).toBe(2.25);
+    expect(kept.props.zoom).toBe(2);
+  });
+
+  test('is made again, hidden, for a new style', () => {
+    const state = freshState();
+    labelLayers(tileLayer(2, state, style()), all);
+    const [kept] = labelLayers(tileLayer(2, state, style()), onlyWithoutPlaces);
+    const [newStyle] = labelLayers(tileLayer(2.25, state, style()), onlyWithoutPlaces);
+    expect(newStyle).not.toBe(kept);
+    expect(newStyle.props.visible).toBe(false);
+  });
+
   test('is removed outside its zoom range', () => {
     // Another symbol layer, drawn at every zoom, keeps the tile layer.
     const zoomed = style(5);
