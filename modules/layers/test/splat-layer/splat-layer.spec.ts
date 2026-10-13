@@ -1,7 +1,14 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {WebMercatorViewport, _GlobeViewport as GlobeViewport} from '@deck.gl/core';
+import {
+  COORDINATE_SYSTEM,
+  type CoordinateSystem,
+  type Viewport,
+  OrthographicViewport,
+  WebMercatorViewport,
+  _GlobeViewport as GlobeViewport
+} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
@@ -13,7 +20,12 @@ const SOURCE = {
   colors: new Uint8Array([30, 120, 40, 255]),
   opacities: new Float32Array([0.8])
 };
-function make(data: {position: [number, number, number]}[], flex = 1, extra = {}) {
+function make(
+  data: {position: [number, number, number]}[],
+  flex = 1,
+  extra = {},
+  viewport: Viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18})
+) {
   const layer = new SplatLayer({
     data,
     source: SOURCE,
@@ -23,7 +35,6 @@ function make(data: {position: [number, number, number]}[], flex = 1, extra = {}
   });
   layer.initializeState();
   vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
-  const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18});
   Object.assign(layer, {
     context: {
       viewport,
@@ -520,4 +531,188 @@ it('synchronizes shared multi-view raster density before tightening the pixel ca
   effect.preRender(options as any);
   expect(resize).toHaveBeenLastCalledWith(50, 25, 'b');
   expect(render.mock.lastCall![0].shaderModuleProps.project.devicePixelRatio).toBe(0.5);
+});
+
+it('replaces scene owner rows with a direct prepared asset without retaining scene sources', () => {
+  const row = {position: [256, 256, 0] as [number, number, number], splats: '/scene.rad'};
+  const layer = make(
+    [row],
+    0,
+    {source: undefined},
+    new OrthographicViewport({width: 256, height: 256, target: [256, 256, 0]})
+  );
+  expect(layer.state.scene).toBe(true);
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({data: SOURCE}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  expect(layer.state.scene).toBe(false);
+  expect(layer.state.rowSources).toBeNull();
+  expect(layer.state.input.assets[0].source).toBe(SOURCE);
+});
+
+it('keeps sibling prepared grants cached after a layer enters scene mode', () => {
+  const layer = make([{position: [256, 256, 0]}], 0);
+  const runtime = layer.state.runtime;
+  const apply = vi.fn();
+  runtime.set('prepared-sibling', false, {
+    rows: [{owner: {}, pixels: 1, level: 0, blend: 0}],
+    hierarchy: () => layer.state.hierarchy,
+    maxSplats: Infinity,
+    maxTotalSplats: Infinity,
+    apply
+  });
+  runtime.reconcile(new Set([layer.id, 'prepared-sibling']));
+  const oldProps = layer.props;
+  Object.assign(layer.context, {viewport: new OrthographicViewport({width: 256, height: 256})});
+  layer.context.deck.getViewports = () => [layer.context.viewport];
+  Object.assign(layer, {props: layer.clone({data: '/scene.rad', source: undefined}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
+  runtime.reconcile(new Set(['prepared-sibling']));
+  const grants = apply.mock.calls.length;
+  expect(grants).toBeGreaterThan(0);
+  for (const changeFlags of [{viewportChanged: true}, {propsChanged: true}]) {
+    layer.updateState({props: layer.props, oldProps: layer.props, changeFlags} as any);
+    runtime.reconcile(new Set(['prepared-sibling']));
+    expect(apply).toHaveBeenCalledTimes(grants);
+  }
+});
+
+it('initializes prepared rendering when only the blending mode changes from sorted to weighted', () => {
+  const layer = make(
+    [{position: [256, 256, 0]}],
+    0,
+    {
+      source: undefined,
+      getSource: SOURCE,
+      transparency: 'sorted'
+    },
+    new OrthographicViewport({width: 256, height: 256, target: [256, 256, 0]})
+  );
+  expect(layer.state.runtime).toBeUndefined();
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({transparency: 'weighted'}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {propsChanged: true}} as any);
+  expect(layer.state.scene).toBe(false);
+  expect(layer.splatStats.renderedSplats).toBe(1);
+  expect(layer.renderLayers().some(child => child.id.includes('refinement'))).toBe(true);
+});
+
+it.each([
+  'auto',
+  'sorted',
+  'weighted'
+] as const)('rejects conflicting source inputs before routing %s rendering or calling accessors', transparency => {
+  const getSource = vi.fn(() => SOURCE);
+  expect(() => make([{position: [0, 0, 0]}], 0, {transparency, getSource})).toThrow(
+    'SplatLayer source cannot be combined with direct asset data or an explicit getSource.'
+  );
+  expect(getSource).not.toHaveBeenCalled();
+  expect(() => make(SOURCE as never, 0, {transparency, source: undefined, getSource})).toThrow(
+    'SplatLayer getSource applies to instance rows, not direct asset data.'
+  );
+  expect(getSource).not.toHaveBeenCalled();
+});
+
+it.each([
+  'weighted',
+  'sorted'
+] as const)('retains %s accessor assets until data or getSource triggers change', transparency => {
+  const first = vi.fn(() => SOURCE);
+  const layer = make(
+    [{position: [0, 0, 0]}],
+    0,
+    {
+      source: undefined,
+      getSource: first,
+      transparency
+    },
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  const cached = layer.state.rowSources;
+  const secondSource = {...SOURCE};
+  const replacement = vi.fn(() => secondSource);
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({getSource: replacement, opacity: 0.5}).props});
+  layer.updateState({
+    props: layer.props,
+    oldProps,
+    changeFlags: {propsChanged: true, viewportChanged: true}
+  } as any);
+  expect(replacement).not.toHaveBeenCalled();
+  expect(layer.state.rowSources).toBe(cached);
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {updateTriggersChanged: {getSource: true}}
+  } as any);
+  expect(replacement).toHaveBeenCalledOnce();
+  expect(layer.state.rowSources).toEqual([secondSource]);
+  if (transparency === 'weighted') expect(layer.state.input.assets[0].source).toBe(secondSource);
+  const previous = layer.props;
+  Object.assign(layer, {props: layer.clone({getSource: SOURCE}).props});
+  layer.updateState({
+    props: layer.props,
+    oldProps: previous,
+    changeFlags: {propsChanged: true}
+  } as any);
+  expect(layer.state.rowSources).toEqual([SOURCE]);
+  const constant = layer.props;
+  Object.assign(layer, {props: layer.clone({getSource: replacement}).props});
+  layer.updateState({
+    props: layer.props,
+    oldProps: constant,
+    changeFlags: {propsChanged: true}
+  } as any);
+  expect(replacement).toHaveBeenCalledTimes(2);
+  expect(layer.state.rowSources).toEqual([secondSource]);
+  if (transparency === 'weighted') expect(layer.state.input.assets[0].source).toBe(secondSource);
+});
+
+it('retires scene children for unsupported coordinate systems and recovers on valid props', () => {
+  const row = {position: [0, 0, 0] as [number, number, number]};
+  const layer = make(
+    [row],
+    0,
+    {source: undefined, getSource: SOURCE, transparency: 'sorted'},
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  const raise = vi.spyOn(layer, 'raiseError').mockImplementation(() => {});
+  const update = (coordinateSystem: CoordinateSystem) => {
+    const oldProps = layer.props;
+    Object.assign(layer, {props: layer.clone({coordinateSystem}).props});
+    layer.updateState({props: layer.props, oldProps, changeFlags: {propsChanged: true}} as any);
+  };
+  update(COORDINATE_SYSTEM.LNGLAT);
+  expect(layer.state.sceneProjectionError).toContain('Cartesian');
+  expect(layer.renderLayers()).toEqual([]);
+  update(COORDINATE_SYSTEM.LNGLAT);
+  expect(raise).toHaveBeenCalledOnce();
+  update(COORDINATE_SYSTEM.CARTESIAN);
+  expect(layer.state.sceneProjectionError).toBeNull();
+  expect(layer.renderLayers()).toHaveLength(1);
+});
+
+it.each([
+  'globe',
+  'repeat'
+] as const)('routes sorted scenes before unrelated %s prepared checks', type => {
+  const layer = make(
+    [{position: [0, 0, 0]}],
+    0,
+    {source: undefined, getSource: SOURCE, transparency: 'sorted'},
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  const unrelated =
+    type === 'globe'
+      ? new GlobeViewport({width: 256, height: 256, longitude: 0, latitude: 0, zoom: 2})
+      : new WebMercatorViewport({width: 2048, height: 256, zoom: 0, longitude: 0, repeat: true});
+  layer.context.deck.getViewports = () => [layer.context.viewport, unrelated];
+  expect(() =>
+    layer.updateState({
+      props: layer.props,
+      oldProps: layer.props,
+      changeFlags: {viewportChanged: true}
+    } as any)
+  ).not.toThrow();
+  expect(layer.renderLayers()).toHaveLength(1);
 });

@@ -22,8 +22,9 @@ Sources and hierarchies are immutable; replace them when their columns change. S
 budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
 A tighter `maxRenderPixels` can take one frame to apply while visibility expands for the broader filter.
 Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
-(`MapView.repeat`), `GlobeView`, URL/RAD inputs and sorted
-transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
+(`MapView.repeat`) and `GlobeView` report explicit unsupported-projection errors.
+Prepared assets retain weighted rendering by default; URL/RAD and sorted inputs use the
+[scene path](#composite-splatlayer-scenes). See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
 for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream nested-render-pass path is fixed; overlapping views without clearing are supported.
 
 ### `@deck.gl-community/layers`: native `TreeLayer`
@@ -39,11 +40,22 @@ Existing `new SplatLayer({data: owners, source, hierarchy})` calls remain suppor
 Move a supplied hierarchy into `{type: 'prepared-splats', source, hierarchy}` and pass that descriptor
 through `getSource`. Do not supply both `source` and explicit `getSource`.
 
-All supported forms on this branch use weighted optical blending. URL/Blob/RAD inputs, SH and
-sorted scene presentation are added independently in #814. `getTransformMatrix` takes precedence
+Prepared inputs default to weighted optical blending. URL/Blob/RAD inputs, SH and sorted
+Cartesian scene presentation are available through the scene path added in #814. `getTransformMatrix` takes precedence
 over orientation/scale/translation, and picking keeps original owner rows and indices.
 Tree canopy quotas are allocated jointly by projected error; species no longer receive fixed
 shares proportional to their row counts.
+
+### Composite SplatLayer scenes
+
+Keep existing procedural/TreeLayer sources on `transparency: 'weighted'`. `auto` remains weighted
+for decoded prepared assets and selects sorted rendering for scene files. Import the public
+`SplatLayer` from `@deck.gl-community/layers` instead of the old experimental deck Coit primitive.
+Use `data` for the asset or owner rows with `getSource`, and Cartesian coordinates for sorted
+scenes. RAD assets require perspective views; static/prepared sorted assets also support
+orthographic views. Preserve opaque-before-splat layer order. See the [scene installation and residency
+contract](./modules/layers/api-reference/splat-layer.md#scene-assets-and-installation), including
+the upstream luma release prerequisite and ESM worker packaging.
 
 ### `@deck.gl-community/editable-layers`
 
