@@ -276,8 +276,8 @@ describe('style layer index of tile sublayers', () => {
           tile: {index: {x: 0, y: 0, z: 8}}
         })
         .flat(Infinity);
-      // The gap is a clone of its line; nothing else is cloned.
-      expect(clone).toHaveBeenCalledTimes(2);
+      // Nothing is cloned, the gap side of a line included.
+      expect(clone).not.toHaveBeenCalled();
     } finally {
       clone.mockRestore();
     }
