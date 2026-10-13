@@ -5,6 +5,7 @@ import {GeoJsonLayer, IconLayer, _TextBackgroundLayer} from '@deck.gl/layers';
 import {LabelTextLayer} from './label-text-layer';
 import type {LabelTextJustify} from './label-text-layer';
 import {SharedTextureSet} from './shared-texture';
+import {isSameList} from './util';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {
   getCompiledStyleProperty,
@@ -298,6 +299,14 @@ type MVTLabelLayerState = {
   };
   /** The sprite textures of the icon layers, shared with other label layers. */
   iconTextures?: SharedTextureSet;
+  /**
+   * Style property values by compiled property, for the zoom step they were evaluated at, by
+   * feature (see `evaluateStyleProperty`).
+   */
+  styleValues?: WeakMap<
+    CompiledStyleProperty,
+    {zoom: number; values: WeakMap<FeatureLike, unknown>}
+  >;
   /** In a `tiles` layer: each tile's anchors, by tile index, and the tiles they were combined for. */
   tileRows?: Map<string, TileRows>;
   rowTiles?: LabelTile[];
@@ -1219,12 +1228,33 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return styleLayer ? getCompiledStyleProperty(styleLayer, propertyName) : null;
   }
 
-  /** Evaluates a style property for a feature at the stepped zoom (`getZoomBucket`). */
+  /**
+   * Evaluates a style property for a feature at the stepped zoom (`getZoomBucket`). The value is
+   * kept for the feature until the zoom step or the property changes: a `tiles` layer makes its
+   * rows again whenever a tile is shown or hidden, and the rows of the other tiles keep their
+   * features, so their values are not evaluated again.
+   */
   private evaluateStyleProperty(propertyName: string, feature: FeatureLike): unknown {
-    return this.getStyleProperty(propertyName)?.evaluate(
-      getZoomBucket(this.props.zoom || 0),
-      feature
-    );
+    const property = this.getStyleProperty(propertyName);
+    if (!property) {
+      return undefined;
+    }
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    if (!this.state || !feature || typeof feature !== 'object') {
+      return property.evaluate(zoom, feature);
+    }
+    this.state.styleValues ||= new WeakMap();
+    let cache = this.state.styleValues.get(property);
+    if (!cache || cache.zoom !== zoom) {
+      cache = {zoom, values: new WeakMap()};
+      this.state.styleValues.set(property, cache);
+    }
+    if (cache.values.has(feature)) {
+      return cache.values.get(feature);
+    }
+    const value = property.evaluate(zoom, feature);
+    cache.values.set(feature, value);
+    return value;
   }
 
   /**
@@ -2101,8 +2131,25 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         this.placingTile = null;
       }
     });
+    // The anchors of tiles no longer drawn are kept, most recently drawn first, up to as many as
+    // are drawn: a tile hidden and shown again, as at the view's edge while it moves, keeps its
+    // rows, and the values the sublayers computed for them.
+    let hidden = 0;
+    for (const [tileKey, entry] of previous) {
+      if (hidden >= tiles.length) {
+        break;
+      }
+      if (!next.has(tileKey)) {
+        next.set(tileKey, entry);
+        hidden++;
+      }
+    }
     if (changed) {
-      const labelData = combineTileRows(tiles, tileRows);
+      const combined = combineTileRows(tiles, tileRows);
+      // A tile shown or hidden without rows of this layer leaves the rows as they are: the same
+      // array keeps the sublayers' data, which deck.gl would otherwise update for every row.
+      const previousRows = this.state.labelData;
+      const labelData = isSameList(previousRows, combined) ? previousRows! : combined;
       this.setState({
         labelData,
         tileRows: next,

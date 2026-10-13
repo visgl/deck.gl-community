@@ -20,6 +20,7 @@ import {
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
 import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
+import {isSameList} from './util';
 import {
   type RasterColorAdjustments,
   RasterColorExtension,
@@ -788,11 +789,6 @@ const TILE_LABEL_FEATURES = 'tileLabelFeatures';
 
 /** The features of a symbol style layer without any in a tile. */
 const NO_FEATURES: any[] = [];
-
-/** Whether two lists hold the same items, by identity. */
-function isSameList(a: readonly unknown[], b: readonly unknown[]): boolean {
-  return a.length === b.length && a.every((item, index) => item === b[index]);
-}
 
 /**
  * Builds the label layers of a run from the label features of its drawn tiles, by style layer

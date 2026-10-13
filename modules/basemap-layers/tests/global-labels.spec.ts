@@ -136,13 +136,14 @@ describe('a label layer of several tiles', () => {
       'b'
     ]);
     const first = state.labelData;
+    // A new list of the same tiles combines them again into the same rows, and keeps the array,
+    // so the sublayers' data does not change.
     const same = [a, b];
     update({tiles: same}, state);
+    expect(state.rowTiles).toBe(same);
+    expect(state.labelData).toBe(first);
     update({tiles: same}, state);
-    expect(state.labelData).not.toBe(first);
-    const second = state.labelData;
-    update({tiles: same}, state);
-    expect(state.labelData).toBe(second);
+    expect(state.labelData).toBe(first);
   });
 
   test('places a tile again when its features or the anchor inputs change', () => {
