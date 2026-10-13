@@ -286,10 +286,28 @@ function isDrawn(drawn, type, properties, id, tile, windows) {
 }
 
 /**
+ * Whether a default scene reads tile `{x, y, z}`. A tile recorded only for other scenes (the
+ * extended set) keeps its features and pixels: they are trimmed to what the styles refer to only.
+ */
+function isTileInWindows(tile, windows) {
+  const size = 2 ** -tile.z;
+  return windows.some(
+    window =>
+      tile.z >= window.minZoom &&
+      tile.z <= window.maxZoom &&
+      tile.x * size <= window.east &&
+      (tile.x + 1) * size >= window.west &&
+      tile.y * size <= window.south &&
+      (tile.y + 1) * size >= window.north
+  );
+}
+
+/**
  * A tile's layers without unreferenced source layers and properties, or features outside the
- * scenes' windows. Adds its strings to `text`.
+ * scenes' windows (if any default scene reads the tile). Adds its strings to `text`.
  */
 function trimTile(bytes, {sourceLayers, strings, drawn, lineLabeled}, tile, windows, text) {
+  const windowed = isTileInWindows(tile, windows);
   const layers = [];
   for (const layerField of readMessage(bytes)) {
     if (layerField.field !== 3) {
@@ -313,8 +331,9 @@ function trimTile(bytes, {sourceLayers, strings, drawn, lineLabeled}, tile, wind
       const type = feature.find(({field}) => field === 3)?.value ?? 0;
       // MapLibre joins the lines of a line label before placing it along them, so a line far
       // outside the view can still move a label inside it.
-      const featureWindows =
-        geometry && !(type === 2 && lineLabeled.has(name))
+      const featureWindows = !windowed
+        ? null
+        : geometry && !(type === 2 && lineLabeled.has(name))
           ? getFeatureWindows(
               getGeometryBounds(readPackedVarints(geometry.value)),
               tile,
@@ -322,7 +341,7 @@ function trimTile(bytes, {sourceLayers, strings, drawn, lineLabeled}, tile, wind
               windows
             )
           : windows.filter(window => tile.z >= window.minZoom && tile.z <= window.maxZoom);
-      if (!featureWindows.length) {
+      if (featureWindows && !featureWindows.length) {
         continue;
       }
       const tags = readPackedVarints(feature.find(({field}) => field === 2)?.value ?? []);
@@ -331,7 +350,7 @@ function trimTile(bytes, {sourceLayers, strings, drawn, lineLabeled}, tile, wind
         properties[keys[tags[i]]] = readValue(values[tags[i + 1]]);
       }
       const id = feature.find(({field}) => field === 1)?.value;
-      if (!isDrawn(drawn.get(name), type, properties, id, tile, featureWindows)) {
+      if (featureWindows && !isDrawn(drawn.get(name), type, properties, id, tile, featureWindows)) {
         continue;
       }
       const featureFields = feature.map(featureField => {
@@ -493,9 +512,12 @@ function encodePng({width, height, color, channels, stride, pixels}) {
   ]);
 }
 
-/** A raster tile with the pixels outside `windows` cleared and the rest posterized. */
-function trimRaster(bytes, tile, windows) {
-  const image = decodePng(Buffer.from(bytes));
+/**
+ * A raster tile with the pixels outside `windows` cleared and the rest posterized, if a default
+ * scene reads it (`tileWindows`).
+ */
+function trimRaster(bytes, tile, windows, tileWindows) {
+  const image = isTileInWindows(tile, tileWindows) ? decodePng(Buffer.from(bytes)) : null;
   if (!image) {
     return bytes;
   }
@@ -592,7 +614,7 @@ for (const path of files.filter(isVectorTile)) {
 // A few pixels around the view, for texture filtering at its edges.
 const viewWindows = await getSceneWindows(0.02);
 for (const path of files.filter(isRasterTile)) {
-  await rewrite(path, bytes => trimRaster(bytes, getTileIndex(path), viewWindows));
+  await rewrite(path, bytes => trimRaster(bytes, getTileIndex(path), viewWindows, labelWindows));
 }
 const characters = new Set();
 for (const string of text) {

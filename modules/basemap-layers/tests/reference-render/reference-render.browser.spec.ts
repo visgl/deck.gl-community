@@ -91,6 +91,8 @@ const FONTS = [
 ];
 
 const measured: Baseline = {};
+/** The scenes whose renders read only their fixtures, all present: only they may set a baseline. */
+const valid = new Set<string>();
 const regressions: Record<string, string[]> = {};
 const details: Record<string, unknown> = {};
 
@@ -166,6 +168,9 @@ describe('reference render: MapLibre GL JS vs BasemapLayer', () => {
     );
 
     const problems = [...reference.problems, ...candidate.problems];
+    if (problems.length === 0 && missing.length === 0) {
+      valid.add(scene.id);
+    }
     expect(problems, 'renders must only read local fixtures').toEqual([]);
     expect(missing, 'missing fixtures: run with VITE_REFERENCE_RENDER_MODE=record').toEqual([]);
 
@@ -187,8 +192,10 @@ describe('reference render: MapLibre GL JS vs BasemapLayer', () => {
     await commands.writeFile(`${OUTPUT}/report.md`, `${table}\n`);
     await commands.writeFile(`${OUTPUT}/metrics.json`, `${JSON.stringify(details, null, 2)}\n`);
     if ((MODE === 'update' || MODE === 'reset') && !SABOTAGE) {
+      // A render that missed fixtures or left the page's origin is reported, never recorded.
+      const recorded = Object.fromEntries(Object.entries(measured).filter(([id]) => valid.has(id)));
       const next =
-        MODE === 'reset' ? {...baseline, ...measured} : tightenBaseline(baseline, measured);
+        MODE === 'reset' ? {...baseline, ...recorded} : tightenBaseline(baseline, recorded);
       const sorted = Object.fromEntries(
         Object.entries(next).sort(([a], [b]) => a.localeCompare(b))
       );
