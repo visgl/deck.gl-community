@@ -194,6 +194,39 @@ describe('consecutive style layers share a sublayer', () => {
     expect(layers[0].props.styleLayerIndex).toBe(1);
   });
 
+  test('tile content edited in place is batched again', () => {
+    // Without a source layer or filter, each style layer draws the tile content array itself.
+    const layers = [
+      {...fill('a', '#ff0000'), 'source-layer': undefined},
+      {...fill('b', '#0000ff'), 'source-layer': undefined}
+    ];
+    const style = makeStyle(layers);
+    const content = [feature('Polygon')];
+    expect(renderTile(style, content)[0].props.data).toHaveLength(2);
+    content.push(feature('Polygon'));
+    const [batch] = renderTile(style, content);
+    expect(batch.props.data).toHaveLength(4);
+    expect(valuesOf(batch, 'getFillColor')).toEqual([
+      [255, 0, 0, 255],
+      [255, 0, 0, 255],
+      [0, 0, 255, 255],
+      [0, 0, 255, 255]
+    ]);
+  });
+
+  test("a polygon added in place to an earlier line's content keeps the lines apart", () => {
+    const layers = [
+      {...line('a', {}), 'source-layer': undefined},
+      {...line('b', {}), 'source-layer': undefined}
+    ];
+    const style = makeStyle(layers);
+    const content = [feature('LineString')];
+    expect(idsOf(renderTile(style, content))).toEqual([['a', 'b']]);
+    // 'b' would draw its polygon outlines before 'a''s line strings in one sublayer.
+    content.push(feature('Polygon'));
+    expect(idsOf(renderTile(style, content))).toEqual(['a', 'b']);
+  });
+
   test('reuses the batched features across zoom steps', () => {
     const features = [feature('LineString')];
     const style = makeStyle([
@@ -291,9 +324,28 @@ describe('style layers that draw alone', () => {
   test.each([
     ['autoHighlight', {autoHighlight: true}],
     ['a highlighted feature', {highlightedFeatureId: 7}]
-  ])('every style layer with %s, which colors one object per sublayer', (_, tileProps) => {
+  ])('every style layer with %s, which colors one object per sublayer', (_, layerProps) => {
     const road = {...feature('LineString'), id: 7};
-    const layers = renderTile([line('casing', {}), line('road', {})], [road], 12, 'map', tileProps);
+    // Through the vector tile layer, which turns autoHighlight off for its tile sublayers.
+    const vectorLayer: any = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 12,
+      styleDefinition: makeStyle([line('casing', {}), line('road', {})])
+    }).find(layer => layer.id === 'test-tiles');
+    const layer = vectorLayer.clone(layerProps);
+    layer.context = {viewport: {zoom: 12}};
+    layer.state = {tilesetViews: new Map(), tileLayers: new Map()};
+    const layers = [
+      layer.renderSubLayers({
+        ...layer.props,
+        id: 'tile',
+        data: [road],
+        tile: {id: '0-0-12', index: {x: 0, y: 0, z: 12}}
+      })
+    ]
+      .flat(Infinity)
+      .filter(Boolean);
     expect(idsOf(layers)).toEqual(['casing', 'road']);
   });
 

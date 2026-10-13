@@ -373,6 +373,8 @@ function getTileFeatures(data: unknown): any[] {
 
 /** The prop that records which style layer of its run a tile sublayer draws. */
 const STYLE_LAYER_INDEX = 'styleLayerIndex';
+/** The prop that tells a tile's `renderSubLayers` whether its vector tile layer auto-highlights. */
+const AUTO_HIGHLIGHT = 'styleAutoHighlight';
 
 /**
  * The id of a style layer's sublayer in a tile. Style layer ids are arbitrary strings, and
@@ -677,7 +679,11 @@ class StyledMVTLayer extends SharedMVTLayer {
       this.state.staleTiles?.add(props.tile.id);
       return null;
     }
-    return super.renderSubLayers(props);
+    // `SharedMVTLayer` turns `autoHighlight` off for the tile sublayers, which it highlights itself.
+    return super.renderSubLayers({
+      ...props,
+      [AUTO_HIGHLIGHT]: Boolean(this.props.autoHighlight)
+    } as typeof props);
   }
 
   _onTileLoad(tile: any): void {
@@ -980,7 +986,7 @@ function createVectorLayerGroup({
       const features = getTileFeatures(props.data);
       const layers: any[] = [];
       const highlights =
-        Boolean(props.autoHighlight) ||
+        Boolean(props[AUTO_HIGHLIGHT]) ||
         (props.highlightedFeatureId !== null && props.highlightedFeatureId !== undefined);
       // Consecutive fills and lines that can share a sublayer (see `getBatchKey`), and the index
       // of the first, which places the batch among all tiles' sublayers (`sortTileSubLayers`).
@@ -1719,12 +1725,13 @@ function getBatchKey(style: GeometryStyle): string | null {
 }
 
 /** Whether features include polygons and lines, per tile content and style layer. */
-const geometryKindCache = new WeakMap<any[], {polygons: boolean; lines: boolean}>();
+const geometryKindCache = new WeakMap<any[], {polygons: boolean; lines: boolean; length: number}>();
 
 function getGeometryKinds(features: any[]): {polygons: boolean; lines: boolean} {
   let kinds = geometryKindCache.get(features);
-  if (!kinds) {
-    kinds = {polygons: false, lines: false};
+  // Content edited in place is looked at again.
+  if (!kinds || kinds.length !== features.length) {
+    kinds = {polygons: false, lines: false, length: features.length};
     for (const feature of features) {
       const type = feature.geometry?.type;
       kinds.polygons ||=
@@ -1754,7 +1761,13 @@ function canBatch(batch: GeometryStyle[], style: GeometryStyle, key: string | nu
   );
 }
 
-type FeatureBatch = {parts: any[][]; data: any[]; partIndices: Uint16Array};
+type FeatureBatch = {
+  parts: any[][];
+  /** Each part's length when the batch was made: parts edited in place are batched again. */
+  lengths: number[];
+  data: any[];
+  partIndices: Uint16Array;
+};
 
 /** The latest concatenated features per tile content and batch. */
 const featureBatchCache = new WeakMap<any[], Map<string, FeatureBatch>>();
@@ -1774,7 +1787,9 @@ function getFeatureBatch(tileFeatures: any[], id: string, parts: any[][]): Featu
   if (
     cached &&
     cached.parts.length === parts.length &&
-    cached.parts.every((features, index) => features === parts[index])
+    cached.parts.every(
+      (features, index) => features === parts[index] && cached.lengths[index] === features.length
+    )
   ) {
     return cached;
   }
@@ -1785,7 +1800,7 @@ function getFeatureBatch(tileFeatures: any[], id: string, parts: any[][]): Featu
     partIndices.fill(index, start, start + features.length);
     start += features.length;
   });
-  const batch = {parts, data, partIndices};
+  const batch = {parts, lengths: parts.map(features => features.length), data, partIndices};
   byId.set(id, batch);
   return batch;
 }
