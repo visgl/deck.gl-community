@@ -32,8 +32,8 @@
     "candidateLabels": 19
   },
   "paris-carto-positron-z14.2": {
-    "ssim": 0.8829,
-    "edgeF": 0.9374,
+    "ssim": 0.8875,
+    "edgeF": 0.9419,
     "labelRecall": 0.6667,
     "labelPrecision": 0.8,
     "referenceLabels": 12,
