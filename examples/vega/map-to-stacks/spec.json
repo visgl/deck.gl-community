@@ -59,37 +59,6 @@
     {
       "name": "geoDepth",
       "update": "120 * unit / data('geographicMaximum')[0].count"
-    },
-    {
-      "name": "layoutStarted",
-      "value": 0,
-      "on": [
-        {
-          "events": {
-            "signal": "layout"
-          },
-          "update": "now()"
-        }
-      ]
-    },
-    {
-      "name": "stackLayout",
-      "value": "map",
-      "on": [
-        {
-          "events": {
-            "signal": "layout"
-          },
-          "update": "layout === 'geo-stacks' ? 'map' : layout"
-        },
-        {
-          "events": {
-            "type": "timer",
-            "throttle": 50
-          },
-          "update": "layout === 'geo-stacks' && now() - layoutStarted < 450 ? 'map' : layout"
-        }
-      ]
     }
   ],
   "projections": [
@@ -403,16 +372,16 @@
       "encode": {
         "update": {
           "x": {
-            "signal": "stackLayout === 'geo-stacks' ? datum.geoColumn * 6 * unit : stackLayout === 'map' ? datum.mapX - 1.4 * unit : scale('region', datum.region) + ((datum.rank-1) % columns) * tileWidth"
+            "signal": "layout === 'geo-stacks' ? datum.geoColumn * 6 * unit : layout === 'map' ? datum.mapX - 1.4 * unit : scale('region', datum.region) + ((datum.rank-1) % columns) * tileWidth"
           },
           "y": {
-            "signal": "stackLayout === 'geo-stacks' ? datum.geoRow * 6 * unit : stackLayout === 'map' ? datum.mapY - 1.4 * unit : 330 - ceil(datum.rank / columns) * tileHeight"
+            "signal": "layout === 'geo-stacks' ? datum.geoRow * 6 * unit : layout === 'map' ? datum.mapY - 1.4 * unit : 330 - ceil(datum.rank / columns) * tileHeight"
           },
           "width": {
-            "signal": "stackLayout === 'geo-stacks' ? 5.4 * unit : stackLayout === 'map' ? 2.8 * unit : tileWidth * 0.9"
+            "signal": "layout === 'geo-stacks' ? 5.4 * unit : layout === 'map' ? 2.8 * unit : tileWidth * 0.9"
           },
           "height": {
-            "signal": "stackLayout === 'geo-stacks' ? 5.4 * unit : stackLayout === 'map' ? 2.8 * unit : tileHeight * 0.9"
+            "signal": "layout === 'geo-stacks' ? 5.4 * unit : layout === 'map' ? 2.8 * unit : tileHeight * 0.9"
           },
           "fill": {
             "scale": "color",
@@ -422,10 +391,10 @@
             "signal": "{Place: datum.place, State: datum.state, Region: datum.region, Education: datum.education + \"%\", \"Sample ID\": datum.id}"
           },
           "z": {
-            "signal": "stackLayout === 'geo-stacks' ? (datum.geoRank - 1) * geoDepth : 0"
+            "signal": "layout === 'geo-stacks' ? (datum.geoRank - 1) * geoDepth : 0"
           },
           "depth": {
-            "signal": "stackLayout === 'geo-stacks' ? geoDepth * 0.9 : 0"
+            "signal": "layout === 'geo-stacks' ? geoDepth * 0.9 : 0"
           }
         }
       }

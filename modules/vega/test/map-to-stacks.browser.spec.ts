@@ -172,7 +172,6 @@ it('moves stable SandDance places into education stacks with GPU interpolation a
     await expect
       .poll(() => view.presenter.getCubeData().some(cube => cube.position[2] > 0))
       .toBe(true);
-    expect(view.signal('stackLayout')).toBe('geo-stacks');
     const geographicStacks = view.presenter.getCubeData();
     expect(geographicStacks.map(cube => cube.ordinal)).toEqual(ordinals);
     expect(geographicStacks.map(cube => cube.color)).toEqual(mapCubes.map(cube => cube.color));
@@ -183,6 +182,10 @@ it('moves stable SandDance places into education stacks with GPU interpolation a
     expect(controller.transitionManager.transition.settings.duration).toBe(1200);
     expect(controller.transitionManager.transition.settings.endProps.rotationX).toBe(30);
     advanceTimeline(start + 4800);
+    expect(getLayer().state.model.shaderInputs.getUniformValues().cube.lightingMix).toBeCloseTo(
+      0.125,
+      3
+    );
     const quarterGeographicPositions = readAttribute('instancePositions');
     // A quarter of the duration must show meaningful height growth, not a nearly static map.
     const raisedIndex = geographicStacks.findIndex(cube => cube.position[2] > 30);
@@ -206,13 +209,17 @@ it('moves stable SandDance places into education stacks with GPU interpolation a
         );
       }
     }
-    expect(getLayer().props.interpolator.layerInterpolatedProps.lightingMix).toBeCloseTo(0.5, 2);
+    expect(getLayer().state.model.shaderInputs.getUniformValues().cube.lightingMix).toBeCloseTo(
+      0.5,
+      3
+    );
     const cameraMiddle = deck.getCurrentViewState();
     expect(cameraMiddle.rotationX).toBeGreaterThan(30);
     expect(cameraMiddle.rotationX).toBeLessThan(90);
     expect(cameraMiddle.rotationOrbit).toBeGreaterThan(0);
     expect(cameraMiddle.rotationOrbit).toBeLessThan(25);
     advanceTimeline(start + 5800);
+    expect(getLayer().state.model.shaderInputs.getUniformValues().cube.lightingMix).toBe(1);
     expect(deck.getCurrentViewState().rotationX).toBeCloseTo(30, 3);
     const geographicPositions = readAttribute('instancePositions');
     for (let i = 0; i < 24669; i += 137) {
@@ -226,6 +233,7 @@ it('moves stable SandDance places into education stacks with GPU interpolation a
     expect(deck.getCurrentViewState().rotationX).toBeGreaterThan(30);
     expect(deck.getCurrentViewState().rotationX).toBeLessThan(90);
     advanceTimeline(start + 7100);
+    expect(getLayer().state.model.shaderInputs.getUniformValues().cube.lightingMix).toBe(0);
     expect(deck.getCurrentViewState().rotationX).toBeCloseTo(90, 3);
     host.style.width = '400px';
     await expect.poll(() => view.width()).toBe(370);
