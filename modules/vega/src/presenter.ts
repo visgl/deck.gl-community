@@ -343,7 +343,10 @@ export class Presenter {
     const newBounds = this.isNewBounds(stage.view, height, width, cubeCount);
     // let lightSettings = this.style.lightSettings[stage.view];
     const lightingMix = stage.view === '3d' ? 1.0 : 0.0;
-    let linearInterpolator: LinearInterpolator_Class<CubeLayerInterpolatedProps>;
+    const oldCubeLayer = getCubeLayer(this.deckgl.props) as CubeLayer_Class;
+    // Keep the active camera/lighting interpolation when another layout phase updates geometry.
+    let linearInterpolator: LinearInterpolator_Class<CubeLayerInterpolatedProps> =
+      oldCubeLayer?.props.interpolator;
     // choose the current OrbitView viewstate if possible
     let viewState =
       this.deckgl.getCurrentViewState() ||
@@ -367,10 +370,13 @@ export class Presenter {
       if (!viewState || newViewStateTarget) {
         viewState = targetViewState(height, width, stage.view);
       }
-      const oldCubeLayer = getCubeLayer(this.deckgl.props) as CubeLayer_Class;
       if (oldCubeLayer) {
         linearInterpolator = new LinearInterpolator(viewStateProps);
-        linearInterpolator.layerStartProps = {lightingMix: oldCubeLayer.props.lightingMix};
+        linearInterpolator.layerStartProps = {
+          lightingMix:
+            oldCubeLayer.props.interpolator?.layerInterpolatedProps?.lightingMix ??
+            oldCubeLayer.props.lightingMix
+        };
         linearInterpolator.layerEndProps = {lightingMix};
         viewState.transitionDuration = config.transitionDurations.view;
         viewState.transitionEasing = easing;
