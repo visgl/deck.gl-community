@@ -977,22 +977,23 @@ class StyledMVTLayer extends SharedMVTLayer {
     // the drawn tiles change as the view moves, and a style layer whose features are only in
     // tiles at the view's edge loses and regains them. Its label layer is then kept, hidden, with
     // the tiles it last drew, so that neither hiding nor showing it again changes its data, while
-    // the style layer is drawn at this zoom and its tiles are of the zoom drawn now. A drawn
-    // tile's sublayers record every symbol layer drawn at its zoom, with or without features, so
-    // one that a labelled tile leaves out is outside its zoom range, and is dropped. While no
-    // drawn tile is labelled yet, as when they load, the label layer is kept too.
+    // the style layer is drawn at this zoom and its tiles are of the zoom drawn now or next to it.
+    // A drawn tile's sublayers record every symbol layer drawn at its zoom, with or without
+    // features, so one that a labelled tile leaves out is outside its zoom range, and is dropped.
+    // While no drawn tile is labelled yet, as when they load, the label layer is kept too.
     this.state.labelStyleLayers ||= new Map();
     const labelled = this.state.labelStyleLayers.get(cacheKey) || new Set<number>();
     const drawnTiles = tiles.filter(tile => tile.content && isShown(tile));
     const drawnFeatures = drawnTiles
       .map(tile => this.state.tileLabelFeatures?.get(tile.id))
       .filter((byStyleLayer): byStyleLayer is Map<number, any[]> => Boolean(byStyleLayer));
-    // Only tiles of the zoom drawn now can return to the view and draw the kept rows again.
+    // Only tiles of the zoom drawn now, or of the next zoom in or out, as across one tile zoom
+    // step, are likely to return to the view and draw the kept rows again.
     const drawnZoom = drawnTiles.length ? Math.max(...drawnTiles.map(tile => tile.index.z)) : null;
     const isAtDrawnZoom = (entry: {tiles: LabelTile[]}) =>
       drawnZoom === null ||
       entry.tiles.length === 0 ||
-      Math.max(...entry.tiles.map(tile => tile.index.z)) === drawnZoom;
+      Math.abs(Math.max(...entry.tiles.map(tile => tile.index.z)) - drawnZoom) <= 1;
     const hidden = new Set<number>();
     for (const styleLayerIndex of labelled) {
       const entry = next.get(styleLayerIndex);

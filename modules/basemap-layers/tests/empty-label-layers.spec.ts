@@ -143,13 +143,21 @@ describe('a label layer whose drawn tiles lose its features', () => {
     expect(newStyle.props.visible).toBe(false);
   });
 
-  test('is removed once the drawn tiles are of another zoom', () => {
+  test('is kept across one tile zoom, and removed two tile zooms away', () => {
     const deeper = {id: '0-0-3', index: {x: 0, y: 0, z: 3}, isLoaded: true, content: []};
-    const state = {tileLayers: new Map(), tileset: {tiles: [withoutPlaces, withPlace, deeper]}};
-    const layer = tileLayer(3, state);
-    expect(labelLayers(layer, tile => tile !== deeper)).toHaveLength(1);
-    // Its tiles, of zoom 2, cannot return to a view drawn with tiles of zoom 3.
-    expect(labelLayers(layer, tile => tile === deeper)).toEqual([]);
+    const deepest = {id: '0-0-4', index: {x: 0, y: 0, z: 4}, isLoaded: true, content: []};
+    const state = {
+      tileLayers: new Map(),
+      tileset: {tiles: [withoutPlaces, withPlace, deeper, deepest]}
+    };
+    const layer = tileLayer(4, state);
+    const [drawn] = labelLayers(layer, tile => tile.index.z === 2);
+    // Tiles of zoom 3 drawn: the zoom 2 tiles may return, as across one tile zoom step.
+    const [kept] = labelLayers(layer, tile => tile === deeper);
+    expect(kept.id).toBe(drawn.id);
+    expect(kept.props.visible).toBe(false);
+    // Tiles of zoom 4 drawn: they are two tile zooms away.
+    expect(labelLayers(layer, tile => tile === deepest)).toEqual([]);
   });
 
   test('is removed outside its zoom range', () => {
