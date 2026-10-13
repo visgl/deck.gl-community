@@ -345,8 +345,8 @@ describe('vector tile layer', () => {
     expect(tileLayer.renderLayers().map((l: any) => l.id)).toEqual([
       'test-tiles-a-"water"',
       'test-tiles-b-"water"',
-      'test-tiles-a-"places"',
-      'test-tiles-b-"places"'
+      // The labels of all tiles draw together, after every tile's sublayers.
+      'test-tiles-labels-"places"'
     ]);
   });
 });

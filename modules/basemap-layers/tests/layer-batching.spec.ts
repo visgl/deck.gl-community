@@ -35,7 +35,38 @@ function makeStyle(styleLayers: Record<string, unknown>[]): any {
   };
 }
 
-/** Renders the style layers (or a style) for one tile and returns the tile's sublayers. */
+/**
+ * Renders the style layers (or a style) for one tile and returns the tile's sublayers of each
+ * tile layer of the source: a layer after a label layer starts another one (see
+ * `getStyleLayerRuns`), whose style layer indices start again at 0.
+ */
+function renderRuns(
+  style: Record<string, unknown>[] | any,
+  features: unknown[],
+  zoom = 12,
+  mode: 'map' | 'globe' = 'map',
+  tileProps: Record<string, unknown> = {}
+): any[][] {
+  return getBasemapLayers({
+    idPrefix: 'test',
+    mode,
+    zoom,
+    styleDefinition: Array.isArray(style) ? makeStyle(style) : style
+  })
+    .filter((layer: any) => layer.id.startsWith('test-tiles'))
+    .map((vectorLayer: any) =>
+      vectorLayer.props
+        .renderSubLayers({
+          id: 'tile',
+          data: features,
+          tile: {index: {x: 0, y: 0, z: 12}},
+          ...tileProps
+        })
+        .flat()
+    );
+}
+
+/** The sublayers of one tile over all of the source's tile layers, in style order. */
 function renderTile(
   style: Record<string, unknown>[] | any,
   features: unknown[],
@@ -43,20 +74,7 @@ function renderTile(
   mode: 'map' | 'globe' = 'map',
   tileProps: Record<string, unknown> = {}
 ): any[] {
-  const vectorLayer: any = getBasemapLayers({
-    idPrefix: 'test',
-    mode,
-    zoom,
-    styleDefinition: Array.isArray(style) ? makeStyle(style) : style
-  }).find(layer => layer.id === 'test-tiles');
-  return vectorLayer.props
-    .renderSubLayers({
-      id: 'tile',
-      data: features,
-      tile: {index: {x: 0, y: 0, z: 12}},
-      ...tileProps
-    })
-    .flat();
+  return renderRuns(style, features, zoom, mode, tileProps).flat();
 }
 
 /** The style layer ids each sublayer is named after: one id, or the ids of a batch. */
@@ -184,7 +202,7 @@ describe('consecutive style layers share a sublayer', () => {
   test('a batch draws at the index of its first style layer among all tiles', () => {
     const layers = renderTile(
       [
-        {id: 'label', type: 'symbol', 'source-layer': 'other', layout: {'text-field': 'x'}},
+        {id: 'dots', type: 'circle', 'source-layer': 'other'},
         fill('a', '#ff0000'),
         fill('b', '#0000ff')
       ],
@@ -252,13 +270,16 @@ describe('batches among all tiles', () => {
     ]);
     const polygon = feature('Polygon', {name: 'x'});
     const other = {...feature('Polygon'), properties: {layerName: 'other'}};
+    // Each tile layer draws its tiles' sublayers sorted, after the tile layers before it.
+    const sortRuns = (...tiles: any[][][]) =>
+      tiles[0].flatMap((_, run) => sortTileSubLayers(tiles.map(runs => runs[run])));
     // The first tile has no 'other' features, the second no 'land' ones.
-    const tile1 = renderTile(style, [polygon]);
-    const tile2 = renderTile(style, [other]);
-    expect(idsOf(sortTileSubLayers([tile1, tile2]))).toEqual([['a', 'b'], 'label', 'c']);
-    const tile3 = renderTile(style, [polygon, other]);
+    const tile1 = renderRuns(style, [polygon]);
+    const tile2 = renderRuns(style, [other]);
+    expect(idsOf(sortRuns(tile1, tile2))).toEqual([['a', 'b'], 'label', 'c']);
+    const tile3 = renderRuns(style, [polygon, other]);
     expect(
-      sortTileSubLayers([tile3, tile1]).map(layer => [
+      sortRuns(tile3, tile1).map(layer => [
         JSON.parse(layer.id.replace(/^tile-/, '')),
         layer.props.styleLayerIndex
       ])
@@ -267,7 +288,8 @@ describe('batches among all tiles', () => {
       [['a', 'b'], 0],
       ['label', 2],
       ['label', 2],
-      ['c', 3]
+      // 'c' follows the label layer, so it starts the next tile layer.
+      ['c', 0]
     ]);
   });
 });
@@ -373,7 +395,8 @@ describe('style layers that draw alone', () => {
       [feature('Polygon')]
     );
     expect(idsOf(layers)).toEqual(['a', 'b']);
-    expect(layers.map(layer => layer.props.styleLayerIndex)).toEqual([0, 2]);
+    // 'b' follows the label layer, so it starts the next tile layer, drawn after this one.
+    expect(layers.map(layer => layer.props.styleLayerIndex)).toEqual([0, 0]);
   });
 
   test("a line's polygon outlines after an earlier line's line strings", () => {
