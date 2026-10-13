@@ -20,7 +20,8 @@ This page lists module additions and major changes in each release. For detailed
 
 - Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera and light-map culling include the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
 
-- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. The old import temporarily re-exports the same constructor.
+- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. Import the canonical renderer from `@deck.gl-community/layers`.
+- Migrated Seasonal Farm to the native layers package and removed the deprecated `three` workspace.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 

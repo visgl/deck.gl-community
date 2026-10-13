@@ -10,9 +10,9 @@ import {
   type WebMercatorViewport,
   type PickingInfo
 } from '@deck.gl/core';
-import {TreeLayer} from '@deck.gl-community/three';
+import {TreeLayer} from '@deck.gl-community/layers';
 import {luma, type Device} from '@luma.gl/core';
-import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, it, vi} from 'vitest';
 import {userEvent} from 'vitest/browser';
@@ -25,7 +25,7 @@ describe('Seasonal Farm integration', () => {
   it.for(['webgl', 'webgpu'] as const)(
     'renders seasons, plot inspection, and responsive remounts on %s',
     // Full native foliage across 416 trees and camera/remount checks is slower on CI's software GPU.
-    // Individual readiness and interaction assertions retain their five-second bounds.
+    // Interaction assertions retain five-second bounds; a cold remount has its own readiness budget.
     {timeout: 180_000},
     async (type, {skip}) => {
       if (type === 'webgpu') {
@@ -49,10 +49,11 @@ describe('Seasonal Farm integration', () => {
           onViewStateChange(params) {
             // Clamp contracts should inspect the authored target independently of
             // software-GPU animation cadence. Earlier inputs still exercise transitions.
-            savedView = instantCamera
+            const viewState = instantCamera
               ? {...params.viewState, transitionDuration: 0}
               : params.viewState;
-            return savedView;
+            savedView = viewState;
+            return viewState;
           },
           onDeckInitialized(instance) {
             deck = instance;
@@ -88,7 +89,11 @@ describe('Seasonal Farm integration', () => {
         const view = viewport();
         const cherry = treeLayers().find(layer => layer.id.endsWith('cherry'))!;
         const cherryTree = (cherry.props.data as FarmTree[])[0];
-        const springCrop = cherry.props.getCrop(cherryTree);
+        const cherryCrop = cherry.props.getCrop;
+        const springCrop =
+          typeof cherryCrop === 'function'
+            ? cherryCrop(cherryTree, {index: 0, data: cherry.props.data as FarmTree[], target: []})
+            : cherryCrop;
         expect(springCrop!.count).toBeGreaterThan(0);
         frames.mockClear();
         for (const season of ['summer', 'autumn', 'winter']) select(season);
@@ -103,7 +108,12 @@ describe('Seasonal Farm integration', () => {
         const citrus = treeLayers().find(layer => layer.id.endsWith('orange'))!;
         expect(citrus.props._subLayerProps).toEqual({});
         const orange = (citrus.props.data as FarmTree[])[0];
-        expect(citrus.props.getCrop(orange)!.count).toBeGreaterThan(0);
+        const orangeCrop = citrus.props.getCrop;
+        const crop =
+          typeof orangeCrop === 'function'
+            ? orangeCrop(orange, {index: 0, data: citrus.props.data as FarmTree[], target: []})
+            : orangeCrop;
+        expect(crop!.count).toBeGreaterThan(0);
         const [x, y] = view.project([
           orange.position[0],
           orange.position[1],
@@ -185,10 +195,43 @@ describe('Seasonal Farm integration', () => {
         expect(viewport().pitch).toBe(navigated.pitch);
         expect(viewport().bearing).toBe(navigated.bearing);
         expect(treeLayers().every((layer, index) => layer.props.data === data[index])).toBe(true);
+        // A frame callback confirms submission, not GPU completion. Stop producing old work
+        // and drain the borrowed WebGL context before destroying and rebuilding its scene.
+        deck!['animationLoop']!.stop();
+        const drained = performance.now();
+        if (type === 'webgl') {
+          device.submit();
+          const gl = (device as WebGLDevice).gl;
+          const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+          if (!fence) throw new Error('Failed to create the Farm teardown fence.');
+          gl.flush();
+          try {
+            await expect
+              .poll(
+                () => {
+                  if (gl.isContextLost()) throw new Error('Farm context lost before remount.');
+                  const result = gl.clientWaitSync(fence, 0, 0);
+                  if (result === gl.WAIT_FAILED) throw new Error('Farm teardown fence failed.');
+                  return result === gl.ALREADY_SIGNALED || result === gl.CONDITION_SATISFIED;
+                },
+                {timeout: 30000}
+              )
+              .toBe(true);
+          } finally {
+            gl.deleteSync(fence);
+          }
+        }
+        const drainMilliseconds = performance.now() - drained;
         cleanup();
         frames.mockClear();
+        const remounted = performance.now();
         cleanup = mount();
-        await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
+        await expect.poll(() => frames.mock.calls.length, {timeout: 30000}).toBeGreaterThan(0);
+        console.info('FARM_REMOUNT', {
+          backend: type,
+          drainMilliseconds,
+          firstFrameMilliseconds: performance.now() - remounted
+        });
         expect(root().dataset.season).toBe('winter');
         expect(viewport().zoom).toBe(navigated.zoom);
         expect(viewport().pitch).toBe(navigated.pitch);

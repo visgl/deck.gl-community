@@ -21,7 +21,6 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/timeline-layers/api-reference/multi-horizon-graph-layer',
   'modules/timeline-layers/api-reference/time-axis-layer',
   'modules/timeline-layers/api-reference/vertical-grid-layer',
-  'modules/three/api-reference/tree-layer',
 ]);
 
 const UNSUPPORTED_DOC_IDS = new Set([
@@ -63,7 +62,6 @@ const MODULE_STATUS = {
   leaflet: 'unsupported',
   panels: 'not-applicable',
   react: 'not-applicable',
-  three: 'supported',
   'timeline-layers': 'supported',
   widgets: 'supported'
 };
