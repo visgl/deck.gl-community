@@ -25,6 +25,7 @@ it('moves stable SandDance places into education stacks with GPU interpolation a
       )
       .toBe(true);
     const layer = getLayer();
+    const controller = deck.viewManager.controllers.OrbitView;
     const timeline = layer.context.timeline;
     timeline.pause();
     const advanceTimeline = (time: number) => {
@@ -171,6 +172,7 @@ it('moves stable SandDance places into education stacks with GPU interpolation a
     await expect
       .poll(() => getLayer().props.data[0].size[0])
       .toBeCloseTo((5.4 * view.width()) / 700, 3);
+    expect(deck.viewManager.controllers.OrbitView).toBe(controller);
     expect(deck.props.initialViewState.OrbitView.transitionDuration).toBe(1200);
     expect(deck.props.initialViewState.OrbitView.rotationX).toBe(30);
     advanceTimeline(start + 3800);

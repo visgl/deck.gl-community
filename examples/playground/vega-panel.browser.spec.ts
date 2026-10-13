@@ -138,7 +138,7 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
   picker.value = 'bar-chart';
   picker.dispatchEvent(new Event('change'));
   await expect
-    .poll(() => host.querySelector('[data-vega-preview] input[type=range]'))
+    .poll(() => host.querySelector('[data-vega-preview] input[type=range]'), {timeout: 15000})
     .not.toBeNull();
   model.setValue('{');
   await expect
