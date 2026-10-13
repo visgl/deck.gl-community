@@ -36,3 +36,8 @@ export function featuresArrayToObject(
 
   return {[sourceName]: featuresByLayer};
 }
+
+/** Whether two lists hold the same items, by identity. */
+export function isSameList(a: readonly unknown[] | undefined, b: readonly unknown[]): boolean {
+  return a !== undefined && a.length === b.length && a.every((item, index) => item === b[index]);
+}

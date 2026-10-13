@@ -89,12 +89,13 @@ describe('shared label textures', () => {
     const atlas = await createAtlas();
     const layers = await render([labelLayer('a', [atlas]), labelLayer('b', [atlas])]);
     const device = deck!.device!;
-    const atlasOf = (layerName: string) =>
+    const atlasOf = (isLayer: (layer: any) => boolean) =>
       layers
-        .filter(layer => layer.constructor.layerName === layerName)
+        .filter(isLayer)
         .map(layer => layer.getAttributeManager() && layer.state.iconManager.getTexture());
-    const glyphTextures = atlasOf('MultiIconLayer');
-    const iconTextures = atlasOf('IconLayer');
+    // The glyphs of each text layer, and the icon layers.
+    const glyphTextures = atlasOf(layer => layer.id.endsWith('-characters'));
+    const iconTextures = atlasOf(layer => layer.constructor.layerName === 'IconLayer');
     expect(glyphTextures).toHaveLength(2);
     expect(glyphTextures[0]).toBeTruthy();
     expect(glyphTextures[1]).toBe(glyphTextures[0]);
@@ -128,7 +129,7 @@ describe('shared label textures', () => {
     const device = deck!.device!;
     const textures = () =>
       ((deck as any).layerManager.getLayers() as any[])
-        .filter(layer => /IconLayer$/.test(layer.constructor.layerName))
+        .filter(layer => layer.state?.iconManager)
         .map(layer => layer.state.iconManager.getTexture());
     const before = textures();
     await new Promise<void>(resolve => {

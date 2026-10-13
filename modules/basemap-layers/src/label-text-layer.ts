@@ -2,9 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {TextLayer} from '@deck.gl/layers';
+import {createIterable} from '@deck.gl/core';
+import {TextLayer, _MultiIconLayer as MultiIconLayer} from '@deck.gl/layers';
 import type {TextLayerProps} from '@deck.gl/layers';
-import type {Accessor, AccessorContext, DefaultProps, FilterContext} from '@deck.gl/core';
+import type {
+  Accessor,
+  AccessorContext,
+  Attribute,
+  DefaultProps,
+  FilterContext
+} from '@deck.gl/core';
 import type {Texture} from '@luma.gl/core';
 import {SharedTextureSet} from './shared-texture';
 
@@ -103,6 +110,90 @@ function evaluate<DataT, T>(
     : accessor;
 }
 
+/** A label's packed character definitions and the inputs they were made from. */
+type CachedIconDefs = {
+  text: string;
+  offsets: number[];
+  iconAtlas: unknown;
+  iconMapping: unknown;
+  defs: Float32Array;
+};
+
+/** Whether two number lists hold the same values. */
+function isSameNumbers(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The character layer of a `LabelTextLayer`. `TextLayer` packs, for every character of every
+ * label, its place in the font atlas and its offset in the label, whenever the layer's data
+ * changes. The packed values of each label are kept, and reused while its text, character offsets
+ * and font atlas are the same, so the labels a layer held before are not packed again.
+ */
+class LabelCharactersLayer extends MultiIconLayer<any> {
+  static layerName = 'LabelCharactersLayer';
+
+  declare state: MultiIconLayer<any>['state'] & {
+    /** Each label's packed character definitions, by label object. */
+    iconDefs?: WeakMap<object, CachedIconDefs>;
+  };
+
+  protected calculateInstanceIconDefs(
+    attribute: Attribute,
+    {startRow, endRow}: {startRow: number; endRow: number}
+  ): void {
+    const {data, getIcon, getIconOffsets, iconAtlas, iconMapping} = this.props as any;
+    const size = attribute.size;
+    const output = attribute.value as Float32Array;
+    let i = attribute.getVertexOffset(startRow);
+    this.state.iconDefs ||= new WeakMap();
+    const cache = this.state.iconDefs;
+    const {iterable, objectInfo} = createIterable(data, startRow, endRow);
+    for (const object of iterable) {
+      objectInfo.index++;
+      const text = getIcon(object, objectInfo) as string;
+      const offsets = getIconOffsets(object, objectInfo) as number[];
+      if (!text) {
+        continue;
+      }
+      const isObject = object && typeof object === 'object';
+      let entry = isObject ? cache.get(object as object) : undefined;
+      if (
+        !entry ||
+        entry.text !== text ||
+        entry.iconAtlas !== iconAtlas ||
+        entry.iconMapping !== iconMapping ||
+        !isSameNumbers(entry.offsets, offsets)
+      ) {
+        const characters = Array.from(text);
+        const defs = new Float32Array(characters.length * size);
+        characters.forEach((character, j) => {
+          const def = this.getInstanceIconDef(character);
+          def[0] = offsets[j * 2];
+          def[1] += offsets[j * 2 + 1];
+          // mask
+          def[6] = 1;
+          defs.set(def, j * size);
+        });
+        entry = {text, offsets: offsets.slice(), iconAtlas, iconMapping, defs};
+        if (isObject) {
+          cache.set(object as object, entry);
+        }
+      }
+      output.set(entry.defs, i);
+      i += entry.defs.length;
+    }
+  }
+}
+
 /**
  * A `TextLayer` with MapLibre's `text-letter-spacing` and `text-justify`. Both change where the
  * characters are drawn and the label box, which the background, and so the collision box, covers.
@@ -124,6 +215,8 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     atlasTextures?: SharedTextureSet;
     /** The shared texture of the current font atlas, which the glyph layer draws from. */
     atlasTexture?: Texture;
+    /** Each label's layout, by label object (see `transformParagraph`). */
+    layouts?: WeakMap<object, CachedLayout>;
   };
 
   renderLayers(): any {
@@ -140,6 +233,14 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
       atlasTextures.retainOnly([atlas]);
     }
     return super.renderLayers();
+  }
+
+  /** Its characters are drawn by a `LabelCharactersLayer`. */
+  getSubLayerClass(subLayerId: string, DefaultLayerClass: any): any {
+    if (subLayerId === 'characters' && DefaultLayerClass === MultiIconLayer) {
+      return super.getSubLayerClass(subLayerId, LabelCharactersLayer);
+    }
+    return super.getSubLayerClass(subLayerId, DefaultLayerClass);
   }
 
   /** The glyph layer's props, with the shared texture in place of the atlas canvas. */
@@ -200,25 +301,80 @@ const transformParagraph: (
   objectInfo: AccessorContext<unknown>
 ) => ParagraphLayout = (TextLayer.prototype as any).transformParagraph;
 
+/** A label's layout and every input it was computed from (see `transformParagraph`). */
+type CachedLayout = {
+  text: string;
+  letterSpacing: number;
+  justify: unknown;
+  anchor: unknown;
+  atlas: unknown;
+  lineHeight: number;
+  wordBreak: unknown;
+  maxWidth: number;
+  layout: ParagraphLayout;
+};
+
 Object.defineProperty(LabelTextLayer.prototype, 'transformParagraph', {
   configurable: true,
   writable: true,
+  /**
+   * Lays out a label, or returns the layout last computed for the same object from the same text,
+   * spacing, justification, anchor, font atlas and line settings. `TextLayer` lays out each label
+   * twice per update, for its background box and its characters, and a layer whose data changes
+   * lays out every label again: the labels it held before keep their layouts.
+   */
   value(this: LabelTextLayer, object: unknown, objectInfo: AccessorContext<unknown>) {
-    const layout = transformParagraph.call(this, object, objectInfo);
-    const {getLetterSpacing, getTextJustify, getTextAnchor} = this.props;
+    const {getLetterSpacing, getTextJustify, getTextAnchor, lineHeight, wordBreak, maxWidth} =
+      this.props;
+    const text = this.state.getText!(object, objectInfo) || '';
     const letterSpacing = Number(evaluate(getLetterSpacing, object, objectInfo)) || 0;
     const justify = evaluate(getTextJustify, object, objectInfo);
-    if (!letterSpacing && (justify === 'auto' || !layout.x.length)) {
-      return layout;
+    const anchor = evaluate(getTextAnchor, object, objectInfo);
+    const {atlas} = this.state.fontAtlasManager;
+    let cache = this.state.layouts;
+    const cached = object && typeof object === 'object' ? cache?.get(object) : undefined;
+    if (
+      cached &&
+      cached.text === text &&
+      cached.letterSpacing === letterSpacing &&
+      cached.justify === justify &&
+      cached.anchor === anchor &&
+      cached.atlas === atlas &&
+      cached.lineHeight === lineHeight &&
+      cached.wordBreak === wordBreak &&
+      cached.maxWidth === maxWidth
+    ) {
+      return cached.layout;
     }
-    const anchor = ANCHOR_POSITION[evaluate(getTextAnchor, object, objectInfo)] ?? 0.5;
-    const {fontSize} = this.state.fontAtlasManager.props;
-    return spaceParagraph(
-      layout,
-      this.state.getText!(object, objectInfo) || '',
-      letterSpacing * fontSize,
-      JUSTIFY_POSITION[justify as keyof typeof JUSTIFY_POSITION] ?? anchor,
-      anchor
-    );
+    let layout = transformParagraph.call(this, object, objectInfo);
+    if (letterSpacing || (justify !== 'auto' && layout.x.length)) {
+      const anchorPosition = ANCHOR_POSITION[anchor as keyof typeof ANCHOR_POSITION] ?? 0.5;
+      const {fontSize} = this.state.fontAtlasManager.props;
+      layout = spaceParagraph(
+        layout,
+        text,
+        letterSpacing * fontSize,
+        JUSTIFY_POSITION[justify as keyof typeof JUSTIFY_POSITION] ?? anchorPosition,
+        anchorPosition
+      );
+    }
+    if (object && typeof object === 'object') {
+      if (!cache) {
+        cache = new WeakMap();
+        this.state.layouts = cache;
+      }
+      cache.set(object, {
+        text,
+        letterSpacing,
+        justify,
+        anchor,
+        atlas,
+        lineHeight,
+        wordBreak,
+        maxWidth,
+        layout
+      });
+    }
+    return layout;
   }
 });
