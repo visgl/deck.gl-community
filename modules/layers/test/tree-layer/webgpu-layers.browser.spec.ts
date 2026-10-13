@@ -6,9 +6,9 @@ import {Deck, MapView} from '@deck.gl/core';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, inject, it} from 'vitest';
 
-import {TreeLayer} from '../src';
+import {TreeLayer} from '../../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 type NativeGpuError = {error?: {message?: string}};
@@ -26,6 +26,7 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
 
   let device: Device | undefined;
   let deck: Deck | undefined;
+  let frames = 0;
   let nativeDevice: NativeGpuDevice | undefined;
   const validationErrors: string[] = [];
   const captureValidationError = (event: NativeGpuError): void => {
@@ -44,28 +45,59 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
     }
 
     await new Promise<void>((resolve, reject) => {
+      // Cold software shader compilation can exceed 10 seconds on a busy CI host.
+      // This gate verifies rendering/validation; hardware frame pacing is measured separately.
       const timeout = window.setTimeout(() => {
         reject(new Error(`Timed out while rendering TreeLayer with ${type}.`));
-      }, 10_000);
+      }, 30_000);
 
       deck = new Deck({
         device,
         parent,
         width: 128,
         height: 128,
+        _animate: true,
         views: new MapView({id: 'tree-webgpu-test'}),
         initialViewState: {longitude: 0, latitude: 0, zoom: 18, pitch: 45},
         layers: [
           new TreeLayer({
             id: `tree-${type}`,
-            data: [{position: [0, 0] as [number, number]}],
-            getPosition: datum => datum.position,
-            getTreeType: () => 'oak',
-            getHeight: () => 12,
+            data: (
+              ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'] as const
+            ).flatMap((species, i) =>
+              (['summer', 'winter'] as const).map(season => ({
+                position: [i * 0.00002, 0] as [number, number],
+                species,
+                season
+              }))
+            ),
+            getTree: datum => ({
+              position: datum.position,
+              species: datum.species,
+              season: datum.season,
+              height: 12,
+              wind: true,
+              characteristics: {seed: 19, branchLift: 0.8, leafSize: 1.1},
+              crop: {
+                kind:
+                  datum.species === 'citrus'
+                    ? 'lemon'
+                    : datum.species === 'pine'
+                      ? 'cone'
+                      : 'fruit',
+                color: [210, 70, 40, 255],
+                count: 2,
+                droppedCount: 1,
+                radius: 0.05
+              }
+            }),
+            maxCanopyPixels: 64 * 64,
+            windTime: 1.25,
             pickable: true
           })
         ],
         onAfterRender: () => {
+          if (++frames < 8) return;
           window.clearTimeout(timeout);
           resolve();
         },
@@ -88,16 +120,17 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
 }
 
 describe('TreeLayer graphics backend compatibility', () => {
-  it('renders procedural SimpleMeshLayer geometry on WebGL2', async () => {
+  it('renders connected mesh wood and Gaussian foliage on WebGL2', async () => {
     await renderTreeLayer('webgl');
-  }, 20_000);
+  }, 40_000);
 
-  it('renders procedural SimpleMeshLayer geometry on WebGPU', async ({skip}) => {
+  it('renders connected mesh wood and Gaussian foliage on WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;
     if (!gpu || !(await gpu.requestAdapter())) {
+      if (inject('requireWebGPU')) throw new Error('A WebGPU adapter is required for this gate.');
       skip('This browser does not expose an available WebGPU adapter.');
     }
 
     await renderTreeLayer('webgpu');
-  }, 20_000);
+  }, 40_000);
 });

@@ -9,7 +9,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
 import {BasemapLayer} from '../src/basemap-layer';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
-import {encodeBoxTile} from './mvt-test-tile';
+import {encodeBoxTile} from '../../geo-layers/test/shared-mvt-layer/mvt-test-tile';
 import {loadSpriteAtlases} from '../src/sprite';
 import type {SpriteAtlas} from '../src/sprite';
 

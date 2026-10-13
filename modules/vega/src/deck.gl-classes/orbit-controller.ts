@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import {OrbitController} from '@deck.gl/core';
+import type {OrbitController} from '@deck.gl/core';
 import {base} from '../base';
 
 export interface OrbitControllerClassOptions {
@@ -16,32 +16,24 @@ export interface OrbitControllerClassOptions {
 export function createOrbitControllerClass(
   factoryOptions: OrbitControllerClassOptions
 ): typeof OrbitController_Class {
-  function wrapper(initialProps: any) {
-    class OrbitControllerInternal extends base.deck.OrbitController {
-      public declare invertPan: boolean;
-      public declare dragRotate: boolean;
-
-      constructor(props: any) {
-        super(props);
-        this.invertPan = true;
-      }
-
-      handleEvent(event: Parameters<OrbitController['handleEvent']>[0]) {
-        if (event.type === 'doubletap') {
-          if (factoryOptions && factoryOptions.doubleClickHandler) {
-            return factoryOptions.doubleClickHandler(event, this);
-          }
-        }
-        return super.handleEvent(event);
-      }
+  // deck.gl compares controller.constructor with the configured controller class.
+  // Returning a factory that constructs a different class resets camera transitions.
+  class OrbitControllerInternal extends base.deck.OrbitController {
+    public declare invertPan: boolean;
+    constructor(props: ConstructorParameters<typeof OrbitController>[0]) {
+      super(props);
+      this.invertPan = true;
     }
 
-    const instance = new OrbitControllerInternal(initialProps) as OrbitController;
-
-    return instance;
+    handleEvent(event: Parameters<OrbitController['handleEvent']>[0]) {
+      if (event.type === 'doubletap' && factoryOptions.doubleClickHandler) {
+        return factoryOptions.doubleClickHandler(event, this);
+      }
+      return super.handleEvent(event);
+    }
   }
 
-  return wrapper as any;
+  return OrbitControllerInternal;
 }
 
 export declare class OrbitController_Class extends base.deck.OrbitController {}

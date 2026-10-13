@@ -11,3 +11,5 @@ They can be quite useful in applications, however they are not officially suppor
 3D flames and embers with the TripsLayer API. It requires WebGL2.
 
 [`SplatLayer`](../../docs/modules/layers/api-reference/splat-layer.md) renders prepared Gaussian sources with shared instancing, automatic refinement, deformation and owner picking on WebGL2 and WebGPU. It has no TreeLayer dependency.
+
+[`TreeLayer`](../../docs/modules/layers/api-reference/tree-layer.md) is the canonical procedural tree renderer, with Gaussian foliage and connected woody meshes. It reads `TreeSpec` traits directly from rows or one `getTree` accessor; species proportions, templates and automatic refinement are internal.

@@ -83,3 +83,9 @@ Direct Stage inputs may declare `symbolData` entries with `shape: 'circle' | 'sq
 ### Hover tooltips
 
 Use Vega’s `tooltip` encoding on rect, symbol or projected shape marks, for example `"tooltip": {"signal": "{Name: datum.properties.name}"}`. Hovering displays evaluated strings or object fields as plain text. Omitted, null and false values suppress the tooltip. The unit layout, bar chart, geospatial and symbol transition examples declare tooltips in their shared JSON specs.
+
+### Geographic transition behavior
+
+Changing the projection or its parameters animates projected polygon and path vertices, alongside point symbols, with native deck.gl GPU attribute transitions. Setting `presenterConfig.transitionDurations.position` to zero makes geometry updates immediate. Geographic fills/strokes and outline widths also animate with the configured `color` and `size` durations.
+
+Vega still computes projection, resampling and clipping on the CPU. Vertex interpolation follows each staged geometry's vertex order; it is not interpolation between cartographic projection functions. Clipping can add or remove shapes and change ring topology, so those changes do not have the same stable record correspondence as symbols. Exact topology-aware projection morphing remains a follow-up.

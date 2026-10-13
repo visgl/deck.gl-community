@@ -168,6 +168,8 @@ const TRANSPARENT_COLOR: [number, number, number, number] = [0, 0, 0, 0];
  * does, instead of restarting it at every vertex.
  */
 const DASH_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path'});
+/** The dash array of a solid line in a dashed sublayer: no gaps. */
+const SOLID_DASH_ARRAY: StyleAccessor<[number, number]> = {value: [0, 0]};
 /** `line-offset` and `line-gap-width`, alone and with dashes; shared for the same reason. */
 const OFFSET_EXTENSION = new PathStyleExtension({offset: true});
 const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'path', offset: true});
@@ -225,6 +227,8 @@ type FilteredFeatures = {
   filterSnapshot: string;
   sourceLayer: string | undefined;
   filterZoom: number | null;
+  /** The tile content's length when it was filtered: content edited in place is filtered again. */
+  length: number;
   features: any[];
 };
 
@@ -238,14 +242,64 @@ type FilteredFeatures = {
  */
 const filteredFeatureCache = new WeakMap<any[], WeakMap<BasemapStyleLayer, FilteredFeatures>>();
 
-function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
+/**
+ * The features of each tile content by source layer, in tile order, and the content's length when
+ * they were split: content whose length changes, edited in place, is split again.
+ */
+const sourceLayerFeatureCache = new WeakMap<
+  any[],
+  {length: number; bySourceLayer: Map<unknown, any[]>}
+>();
+
+function getSourceLayerFeatures(features: any[], sourceLayer: string): any[] {
+  const cached = sourceLayerFeatureCache.get(features);
+  let bySourceLayer = cached?.length === features.length ? cached.bySourceLayer : undefined;
+  if (!bySourceLayer) {
+    bySourceLayer = new Map();
+    for (const feature of features) {
+      const layerName = feature.properties?.layerName;
+      let group = bySourceLayer.get(layerName);
+      if (!group) {
+        group = [];
+        bySourceLayer.set(layerName, group);
+      }
+      group.push(feature);
+    }
+    sourceLayerFeatureCache.set(features, {length: features.length, bySourceLayer});
+  }
+  return bySourceLayer.get(sourceLayer) || [];
+}
+
+/**
+ * The contents of style layers' filters, as `filterTileFeatures` compares them. Taken once per
+ * style layer each time the tile layers are generated, rather than once per tile.
+ */
+class FilterSnapshots {
+  private snapshots = new Map<BasemapStyleLayer, string>();
+
+  get(styleLayer: BasemapStyleLayer): string {
+    let snapshot = this.snapshots.get(styleLayer);
+    if (snapshot === undefined) {
+      snapshot = styleLayer.filter === undefined ? '' : JSON.stringify(styleLayer.filter);
+      this.snapshots.set(styleLayer, snapshot);
+    }
+    return snapshot;
+  }
+}
+
+function filterTileFeatures(
+  features: any[],
+  styleLayer: BasemapStyleLayer,
+  zoom: number,
+  filterSnapshots: FilterSnapshots = new FilterSnapshots()
+): any[] {
   const sourceLayer = styleLayer['source-layer'];
   const {filter} = styleLayer;
   if (!sourceLayer && !filter) {
     return features;
   }
 
-  const filterSnapshot = filter === undefined ? '' : JSON.stringify(filter);
+  const filterSnapshot = filterSnapshots.get(styleLayer);
   // MapLibre evaluates `["zoom"]` in filters at integer zooms.
   const filterZoom = filterSnapshot.includes('["zoom"]') ? getFilterZoom(zoom) : null;
   let byStyleLayer = filteredFeatureCache.get(features);
@@ -258,14 +312,13 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
     cached &&
     cached.filterSnapshot === filterSnapshot &&
     cached.sourceLayer === sourceLayer &&
-    cached.filterZoom === filterZoom
+    cached.filterZoom === filterZoom &&
+    cached.length === features.length
   ) {
     return cached.features;
   }
 
-  const sourceFeatures = sourceLayer
-    ? features.filter(feature => feature.properties?.layerName === sourceLayer)
-    : features;
+  const sourceFeatures = sourceLayer ? getSourceLayerFeatures(features, sourceLayer) : features;
   const filtered = filter
     ? filterFeatures({
         features: sourceFeatures,
@@ -273,7 +326,13 @@ function filterTileFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom
         globalProperties: {zoom: getFilterZoom(zoom)}
       })
     : sourceFeatures;
-  byStyleLayer.set(styleLayer, {filterSnapshot, sourceLayer, filterZoom, features: filtered});
+  byStyleLayer.set(styleLayer, {
+    filterSnapshot,
+    sourceLayer,
+    filterZoom,
+    length: features.length,
+    features: filtered
+  });
   return filtered;
 }
 
@@ -314,14 +373,18 @@ function getTileFeatures(data: unknown): any[] {
 
 /** The prop that records which style layer of its run a tile sublayer draws. */
 const STYLE_LAYER_INDEX = 'styleLayerIndex';
+/** The prop that tells a tile's `renderSubLayers` whether its vector tile layer auto-highlights. */
+const AUTO_HIGHLIGHT = 'styleAutoHighlight';
 
 /**
  * The id of a style layer's sublayer in a tile. Style layer ids are arbitrary strings, and
  * generated layers append `-<suffix>` to it: deck.gl's own composite sublayers, the second side of
  * a `line-gap-width` and the per-feature line shape groups. Quoting the style layer id as a JSON
  * string ends it at an unescaped quote, so no suffix can turn one style layer's id into another's.
+ * Consecutive style layers drawn in one sublayer are named by the JSON array of their ids, which
+ * starts with `[` where a single id starts with `"`.
  */
-function getStyleSubLayerId(parentId: string, styleLayerId: string): string {
+function getStyleSubLayerId(parentId: string, styleLayerId: string | string[]): string {
   return `${parentId}-${JSON.stringify(styleLayerId)}`;
 }
 
@@ -528,8 +591,19 @@ export function sortTileSubLayers<LayerT extends {props: Record<string, any>}>(
 
 type SourceTilesetOwner = {tileset: SharedTileset2D; consumers: Set<StyledMVTLayer['state']>};
 
+/** A tile of a shared tileset, as `SharedTile2DLayer` renders it. */
+type SharedTile = {id: string};
+
 class StyledMVTLayer extends SharedMVTLayer {
-  declare state: SharedMVTLayer['state'] & {sourceTilesetOwner?: SourceTilesetOwner};
+  declare state: SharedMVTLayer['state'] & {
+    sourceTilesetOwner?: SourceTilesetOwner;
+    /** The sublayers last generated for each tile, by tile id. */
+    keptTileLayers?: Map<string, Layer[]>;
+    /** Hidden tiles whose sublayers were kept rather than regenerated, by tile id. */
+    staleTiles?: Set<string>;
+    /** The tile object each id stood for at the last render (see `forgetRemovedTiles`). */
+    keptTiles?: Map<string, SharedTile>;
+  };
 
   updateState(params: UpdateParameters<this>): void {
     const owner = (this.props as any).sourceTilesetOwner as SourceTilesetOwner | undefined;
@@ -539,7 +613,118 @@ class StyledMVTLayer extends SharedMVTLayer {
       owner?.consumers.add(this.state);
       this.state.sourceTilesetOwner = owner;
     }
+    const {geographic, tileset} = this.state;
     super.updateState(params);
+    // A new tileset, or a switch between a map and a globe, makes every kept sublayer obsolete.
+    if (this.state.geographic !== geographic || this.state.tileset !== tileset) {
+      this.state.keptTileLayers?.clear();
+      this.state.staleTiles?.clear();
+    }
+  }
+
+  /** Whether a tile is drawn in any view of this layer; every tile is, before the first view. */
+  isTileShown(tile: SharedTile): boolean {
+    const views = this.state.tilesetViews;
+    if (!views?.size) {
+      return true;
+    }
+    for (const view of views.values()) {
+      if (view.isTileVisible(tile as any)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * `SharedTile2DLayer` generates sublayers for every tile of the shared tileset, shown or not,
+   * again whenever the update triggers change, which is at every style zoom step, and culls the
+   * hidden ones: several times as many tiles as are shown. A hidden tile keeps the sublayers it
+   * has instead, and regenerates them when it is shown again. Kept sublayers stay initialized, so
+   * showing the tile again updates them rather than creating them.
+   */
+  renderLayers(): Layer | null | LayersList {
+    const {tileset, tileLayers} = this.state;
+    if (!this.state.keptTileLayers) {
+      this.state.keptTileLayers = new Map();
+      this.state.staleTiles = new Set();
+    }
+    const kept = this.state.keptTileLayers;
+    const stale = this.state.staleTiles!;
+    const tiles: SharedTile[] = (tileset?.tiles as SharedTile[] | undefined) || [];
+    this.forgetRemovedTiles(tiles);
+    for (const tile of tiles) {
+      if (this.isTileShown(tile)) {
+        if (stale.delete(tile.id)) {
+          tileLayers.delete(tile.id);
+        }
+      } else if (!tileLayers.has(tile.id) && kept.has(tile.id)) {
+        tileLayers.set(tile.id, kept.get(tile.id)!);
+        stale.add(tile.id);
+      }
+    }
+    const layers = super.renderLayers();
+    for (const tile of tiles) {
+      const generated = tileLayers.get(tile.id);
+      if (generated && !stale.has(tile.id)) {
+        kept.set(tile.id, generated);
+      }
+    }
+    return Array.isArray(layers) ? sortTileSubLayers(layers as (Layer[] | null)[]) : layers;
+  }
+
+  /** A hidden tile that has no sublayers yet gets them when it is shown. */
+  renderSubLayers(props: Parameters<SharedMVTLayer['renderSubLayers']>[0]) {
+    if (!this.isTileShown(props.tile)) {
+      this.state.staleTiles?.add(props.tile.id);
+      return null;
+    }
+    // `SharedMVTLayer` turns `autoHighlight` off for the tile sublayers, which it highlights itself.
+    return super.renderSubLayers({
+      ...props,
+      [AUTO_HIGHLIGHT]: Boolean(this.props.autoHighlight)
+    } as typeof props);
+  }
+
+  _onTileLoad(tile: any): void {
+    this.forgetTile(tile);
+    super._onTileLoad(tile);
+  }
+
+  _onTileUnload(tile: any): void {
+    this.forgetTile(tile);
+    super._onTileUnload(tile);
+  }
+
+  /**
+   * Drops what this layer kept for tiles that left the shared tileset, or were replaced in it by
+   * another tile of the same id, including the sublayers `SharedTile2DLayer` holds for that id.
+   * `reloadAll` removes tiles without an unload event, and deck.gl then finalizes their sublayers,
+   * which must not be handed back.
+   */
+  private forgetRemovedTiles(tiles: SharedTile[]): void {
+    let {keptTiles} = this.state;
+    if (!keptTiles) {
+      keptTiles = new Map();
+      this.state.keptTiles = keptTiles;
+    }
+    const live = new Map(tiles.map(tile => [tile.id, tile]));
+    for (const [id, tile] of keptTiles) {
+      if (live.get(id) !== tile) {
+        keptTiles.delete(id);
+        this.forgetTile({id} as SharedTile);
+        this.state.tileLayers.delete(id);
+      }
+    }
+    for (const tile of tiles) {
+      keptTiles.set(tile.id, tile);
+    }
+  }
+
+  /** Drops a tile's kept sublayers, when its content is replaced or evicted. */
+  private forgetTile(tile: SharedTile): void {
+    this.state.keptTileLayers?.delete(tile.id);
+    this.state.staleTiles?.delete(tile.id);
   }
 
   finalizeState(): void {
@@ -557,10 +742,34 @@ class StyledMVTLayer extends SharedMVTLayer {
   }
 
   static layerName = 'StyledMVTLayer';
-  renderLayers(): Layer | null | LayersList {
-    const layers = super.renderLayers();
-    return Array.isArray(layers) ? sortTileSubLayers(layers as (Layer[] | null)[]) : layers;
+}
+
+/**
+ * A `GeoJsonLayer` that creates only the sublayers its style layer type draws. Fill, line and
+ * fill-extrusion layers draw no points; a line layer draws polygons as their outlines only; and
+ * `drawsLineStrings: false` leaves out line strings, which a fill without an outline would draw
+ * zero pixels wide. Every sublayer left out would otherwise be updated and drawn at every frame.
+ */
+class StyledGeoJsonLayer extends GeoJsonLayer<any, {drawsLineStrings?: boolean}> {
+  static layerName = 'StyledGeoJsonLayer';
+  static defaultProps = {...GeoJsonLayer.defaultProps, drawsLineStrings: true};
+
+  protected shouldRenderSubLayer(subLayerId: string, data: any): boolean {
+    if (
+      subLayerId.startsWith('points-') ||
+      (subLayerId === 'polygons-fill' && !this.props.filled) ||
+      (subLayerId === 'polygons-stroke' && !this.props.stroked) ||
+      (subLayerId === 'linestrings' && !this.props.drawsLineStrings)
+    ) {
+      return false;
+    }
+    return super.shouldRenderSubLayer(subLayerId, data);
   }
+}
+
+/** Whether a style accessor is a constant, fully transparent color. */
+function isTransparent(color: StyleAccessor<number[]>): boolean {
+  return typeof color.value !== 'function' && !(color.value[3] > 0);
 }
 
 function createStyledVectorSubLayer({
@@ -649,12 +858,17 @@ function createStyledVectorSubLayer({
       const layers = groups.map(pattern =>
         createGeometrySubLayer({
           props,
-          styleLayer,
-          features: pattern.features,
+          styles: [
+            getGeometryStyle({
+              styleLayer,
+              features: pattern.features,
+              mode,
+              zoom,
+              depthTested,
+              pattern
+            })
+          ],
           mode,
-          zoom,
-          depthTested,
-          pattern,
           idSuffix: groups.length > 1 ? `-pattern-${pattern.atlasIndex}` : ''
         })
       );
@@ -664,11 +878,10 @@ function createStyledVectorSubLayer({
         layers.push(
           createGeometrySubLayer({
             props,
-            styleLayer,
-            features: unpatterned,
+            styles: [
+              getGeometryStyle({styleLayer, features: unpatterned, mode, zoom, depthTested})
+            ],
             mode,
-            zoom,
-            depthTested,
             idSuffix: '-missing-pattern'
           })
         );
@@ -677,7 +890,11 @@ function createStyledVectorSubLayer({
     }
   }
 
-  return createGeometrySubLayer({props, styleLayer, features, mode, zoom, depthTested});
+  return createGeometrySubLayer({
+    props,
+    styles: [getGeometryStyle({styleLayer, features, mode, zoom, depthTested})],
+    mode
+  });
 }
 
 function createVectorLayerGroup({
@@ -720,6 +937,8 @@ function createVectorLayerGroup({
   /** Label font override; tiles regenerate when it changes. */
   fontFamily?: LabelFontFamily | null;
 }) {
+  const filterSnapshots = new FilterSnapshots();
+
   return new StyledMVTLayer({
     id: `${idPrefix}-${id}`,
     data: tileset || source.tiles,
@@ -765,24 +984,79 @@ function createVectorLayerGroup({
     },
     renderSubLayers: props => {
       const features = getTileFeatures(props.data);
-      const layers = styleLayers
-        .map((styleLayer, styleLayerIndex) => {
-          if (!isStyleLayerVisibleAtZoom(styleLayer, zoom)) {
-            return null;
+      const layers: any[] = [];
+      const highlights =
+        Boolean(props[AUTO_HIGHLIGHT]) ||
+        (props.highlightedFeatureId !== null && props.highlightedFeatureId !== undefined);
+      // Consecutive fills and lines that can share a sublayer (see `getBatchKey`), and the index
+      // of the first, which places the batch among all tiles' sublayers (`sortTileSubLayers`).
+      let batch: GeometryStyle[] = [];
+      let batchIndex = 0;
+      const flush = () => {
+        if (batch.length > 0) {
+          layers.push(
+            createGeometrySubLayer({
+              props: {...props, [STYLE_LAYER_INDEX]: batchIndex},
+              styles: batch,
+              mode
+            })
+          );
+          batch = [];
+        }
+      };
+
+      styleLayers.forEach((styleLayer, styleLayerIndex) => {
+        if (!isStyleLayerVisibleAtZoom(styleLayer, zoom)) {
+          return;
+        }
+
+        const filteredData = filterTileFeatures(features, styleLayer, zoom, filterSnapshots);
+
+        if (features.length > 0 && filteredData.length === 0) {
+          logBasemapRuntimeEvent('Vector tile rendered no matching features', {
+            sourceId,
+            layerId: styleLayer.id,
+            sourceLayer: styleLayer['source-layer'],
+            tileIndex: props.tile?.index
+          });
+        }
+        if (filteredData.length === 0) {
+          // A fill or line without features in this tile does not separate its neighbours. Any
+          // other style layer does, even here: it may draw in a neighbouring tile, and all tiles
+          // draw it after this batch, as in MapLibre.
+          if (styleLayer.type !== 'fill' && styleLayer.type !== 'line') {
+            flush();
           }
+          return;
+        }
 
-          const filteredData = filterTileFeatures(features, styleLayer, zoom);
-
-          if (features.length > 0 && filteredData.length === 0) {
-            logBasemapRuntimeEvent('Vector tile rendered no matching features', {
-              sourceId,
-              layerId: styleLayer.id,
-              sourceLayer: styleLayer['source-layer'],
-              tileIndex: props.tile?.index
-            });
+        const depthTested = depthTestedFrom >= 0 && styleLayerIndex >= depthTestedFrom;
+        const style = getBatchableGeometryStyle(styleLayer, filteredData, mode, zoom, depthTested);
+        if (style) {
+          // A style layer that draws nothing in this tile does not separate its neighbours.
+          if (style.drawsFill || style.drawsLines) {
+            // A batch draws all of its style layers in one tile before the next tile. On a map,
+            // tiles are clipped to their bounds, so that draws the same pixels as each style layer
+            // across all tiles in turn; on the globe, tiles are not clipped, and where their
+            // buffers overlap a tile's later style layer would draw under a neighbour's earlier one.
+            // A highlight colors one object of a sublayer: in a batch, a feature drawn by two
+            // style layers would be highlighted only under the second one's copy.
+            const key = mode === 'globe' || highlights ? null : getBatchKey(style);
+            if (!canBatch(batch, style, key)) {
+              flush();
+              batchIndex = styleLayerIndex;
+            }
+            batch.push(style);
+            if (key === null) {
+              flush();
+            }
           }
+          return;
+        }
 
-          return createStyledVectorSubLayer({
+        flush();
+        layers.push(
+          createStyledVectorSubLayer({
             idPrefix,
             sourceId,
             styleLayer,
@@ -791,17 +1065,17 @@ function createVectorLayerGroup({
             zoom,
             config,
             mode,
-            depthTested: depthTestedFrom >= 0 && styleLayerIndex >= depthTestedFrom,
+            depthTested,
             collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
             spriteAtlases,
             loadOptions,
             fontFamily
-          });
-        })
-        .flat()
-        .filter(layer => Boolean(layer));
+          })
+        );
+      });
+      flush();
 
-      return layers as any;
+      return layers.flat().filter(layer => Boolean(layer)) as any;
     }
   } as any);
 }
@@ -1093,36 +1367,76 @@ function createLineSubLayers({
   zoom: number;
   depthTested?: boolean;
 }) {
-  const lineShape = getStyleAccessor(
-    styleLayer,
-    ['line-cap', 'line-join', 'line-miter-limit'],
-    zoom,
-    getLineShape
-  );
+  const lineShape = getLineShapeAccessor(styleLayer, zoom);
   if (typeof lineShape.value !== 'function') {
     return createGeometrySubLayer({
       props,
-      styleLayer,
-      features,
-      mode,
-      zoom,
-      depthTested,
-      lineShape: lineShape.value
+      styles: [
+        getGeometryStyle({
+          styleLayer,
+          features,
+          mode,
+          zoom,
+          depthTested,
+          lineShape: lineShape.value
+        })
+      ],
+      mode
     });
   }
 
   return getLineShapeGroups(features, styleLayer, lineShape).map(group =>
     createGeometrySubLayer({
       props,
-      styleLayer,
-      features: group.features,
+      styles: [
+        getGeometryStyle({
+          styleLayer,
+          features: group.features,
+          mode,
+          zoom,
+          depthTested,
+          lineShape: group.shape
+        })
+      ],
       mode,
-      zoom,
-      depthTested,
-      lineShape: group.shape,
       idSuffix: `-${group.key}`
     })
   );
+}
+
+function getLineShapeAccessor(styleLayer: BasemapStyleLayer, zoom: number) {
+  return getStyleAccessor(
+    styleLayer,
+    ['line-cap', 'line-join', 'line-miter-limit'],
+    zoom,
+    getLineShape
+  );
+}
+
+/**
+ * The style of a fill, or of a line with one shape for all features: the style layers that can
+ * share a sublayer with their neighbours (see `getBatchKey`). Null for other style layers.
+ */
+function getBatchableGeometryStyle(
+  styleLayer: BasemapStyleLayer,
+  features: any[],
+  mode: BasemapMode,
+  zoom: number,
+  depthTested: boolean
+): GeometryStyle | null {
+  if (styleLayer.type === 'fill') {
+    // A patterned fill draws a sublayer per sprite atlas of its images (see `getFillPatternGroups`).
+    return styleLayer.paint?.['fill-pattern'] !== undefined
+      ? null
+      : getGeometryStyle({styleLayer, features, mode, zoom, depthTested});
+  }
+  if (styleLayer.type !== 'line') {
+    return null;
+  }
+  const lineShape = getLineShapeAccessor(styleLayer, zoom);
+  return typeof lineShape.value === 'function'
+    ? null
+    : getGeometryStyle({styleLayer, features, mode, zoom, depthTested, lineShape: lineShape.value});
 }
 
 type LineShapeGroup = {key: string; shape: LineShape; features: any[]};
@@ -1211,31 +1525,55 @@ function getFillStyleProps(
   };
 }
 
-function createGeometrySubLayer({
-  props,
+/** A fill or line style layer's evaluated paint for the features of one tile. */
+type GeometryStyle = {
+  styleLayer: BasemapStyleLayer;
+  features: any[];
+  /** The stepped zoom the paint was evaluated at. */
+  zoom: number;
+  isLine: boolean;
+  isFill: boolean;
+  drawsFill: boolean;
+  drawsLines: boolean;
+  fillColor: StyleAccessor<number[]>;
+  lineColor: StyleAccessor<number[]>;
+  lineWidth: StyleAccessor<number>;
+  dashArray: StyleAccessor<[number, number]> | null;
+  lineOffset: StyleAccessor<[number, number, number, number]> | null;
+  gapWidth: StyleAccessor<number> | null;
+  lineBlur: StyleAccessor<number> | null;
+  /** The `line-offset` at a blurred gap's center, which each side of the gap is drawn from. */
+  gapOffset: StyleAccessor<number> | null;
+  /** Whether the line is blurred and has a gap, so it draws wider (see `getBlurredLineWidth`). */
+  isBlurredGap: boolean;
+  /** Whether the fill sets `fill-pattern` or `fill-translate`, which take their own extensions. */
+  hasFillStyle: boolean;
+  lineShape?: LineShape;
+  /** The features' `fill-pattern` images; without it, a patterned fill draws no fill. */
+  pattern?: FillPatternGroup;
+  /** Whether the style layer draws after an extrusion (see `getTileParameters`). */
+  depthTested?: boolean;
+};
+
+function getGeometryStyle({
   styleLayer,
   features,
   mode,
   zoom,
   depthTested,
   lineShape,
-  pattern,
-  idSuffix = ''
+  pattern
 }: {
-  props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
   mode: BasemapMode;
   zoom: number;
   depthTested?: boolean;
   lineShape?: LineShape;
-  /** The features' `fill-pattern` images; without it, a patterned fill draws no fill. */
   pattern?: FillPatternGroup;
-  idSuffix?: string;
-}) {
+}): GeometryStyle {
   const isLine = styleLayer.type === 'line';
   const isFill = styleLayer.type === 'fill';
-  const baseProps = getSubLayerBaseProps(props);
 
   // A `fill-pattern` disables `fill-color`: the image supplies the colors and `fill-opacity` the
   // opacity, also on a globe. Without its images (sprites loading, or missing) the fill draws
@@ -1269,6 +1607,12 @@ function createGeometrySubLayer({
         zoom,
         ([color, opacity]) => withOpacity(color, opacity ?? 1)
       );
+  // A fill's outline is MapLibre's 1 pixel antialiasing line.
+  const styleLineWidth: StyleAccessor<number> = isLine
+    ? getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
+        Math.max(0, Number(width ?? 1))
+      )
+    : {value: hasOutline ? 1 : 0};
   const hasDashArray = isLine && styleLayer.paint?.['line-dasharray'] !== undefined;
   const hasOffset =
     isLine &&
@@ -1301,9 +1645,7 @@ function createGeometrySubLayer({
             Math.max(0, Number(blur) || 0)
           )
       )
-    : getStyleAccessor(styleLayer, ['line-width'], zoom, ([width]) =>
-        Math.max(0, Number(width ?? 1))
-      );
+    : styleLineWidth;
   // The style spec evaluates zoom in `line-dasharray` at integer zooms only.
   const dashArray: StyleAccessor<[number, number]> | null = hasDashArray
     ? getStyleAccessor(styleLayer, ['line-dasharray'], Math.floor(zoom), ([dasharray]) =>
@@ -1323,17 +1665,241 @@ function createGeometrySubLayer({
         ]
       )
     : null;
+  // Where a wide blur makes a gap's two lines overlap, each draws only its side of the gap's
+  // center. That takes the center's `line-offset` for the whole layer.
+  const gapOffset = isBlurredGap
+    ? getStyleAccessor(styleLayer, ['line-offset'], zoom, ([offset]) => Number(offset ?? 0))
+    : null;
+  const gapWidth = hasOffset
+    ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
+    : null;
+  const hasFillStyle =
+    isFill &&
+    (styleLayer.paint?.['fill-pattern'] !== undefined ||
+      styleLayer.paint?.['fill-translate'] !== undefined);
+
+  // A constant transparent color or zero width draws nothing, so its sublayers are left out.
+  const drawsFill = isFill && !isTransparent(fillColor);
+  const drawsLines = (isLine || hasOutline) && !isTransparent(lineColor) && lineWidth.value !== 0;
+
+  return {
+    styleLayer,
+    features,
+    zoom,
+    isLine,
+    isFill,
+    drawsFill,
+    drawsLines,
+    fillColor,
+    lineColor,
+    lineWidth,
+    dashArray,
+    lineOffset,
+    gapWidth,
+    lineBlur,
+    gapOffset,
+    isBlurredGap,
+    hasFillStyle,
+    lineShape,
+    pattern,
+    depthTested
+  };
+}
+
+/**
+ * The key under which consecutive style layers can draw as one sublayer, or null when this one
+ * draws alone. Style layers share a sublayer when everything deck.gl applies to a whole layer is
+ * the same: a fill without an outline, or a line's cap, join and miter limit. Solid and dashed
+ * lines share a sublayer: the solid ones draw with a dash array without gaps. Lines with an
+ * offset, a gap or a blur, and fills with a pattern or a translation, draw alone.
+ */
+function getBatchKey(style: GeometryStyle): string | null {
+  if (style.isFill) {
+    return style.drawsLines || style.hasFillStyle ? null : 'fill';
+  }
+  if (style.lineOffset || style.lineBlur || !style.lineShape) {
+    return null;
+  }
+  const {lineCapRounded, lineJointRounded, lineMiterLimit} = style.lineShape;
+  return `line-${lineCapRounded}-${lineJointRounded}-${lineMiterLimit}`;
+}
+
+/** Whether features include polygons and lines, per tile content and style layer. */
+const geometryKindCache = new WeakMap<any[], {polygons: boolean; lines: boolean; length: number}>();
+
+function getGeometryKinds(features: any[]): {polygons: boolean; lines: boolean} {
+  let kinds = geometryKindCache.get(features);
+  // Content edited in place is looked at again.
+  if (!kinds || kinds.length !== features.length) {
+    kinds = {polygons: false, lines: false, length: features.length};
+    for (const feature of features) {
+      const type = feature.geometry?.type;
+      kinds.polygons ||=
+        type === 'Polygon' || type === 'MultiPolygon' || type === 'GeometryCollection';
+      kinds.lines ||=
+        type === 'LineString' || type === 'MultiLineString' || type === 'GeometryCollection';
+    }
+    geometryKindCache.set(features, kinds);
+  }
+  return kinds;
+}
+
+/**
+ * Whether `style` can draw in the same sublayer as `batch`, after it. A sublayer draws its
+ * features in order, so a batch draws each style layer's features after the previous one's, as
+ * MapLibre draws the style layers in turn. The exception is a line sublayer, which draws polygon
+ * outlines before line strings: a style layer's polygons cannot follow an earlier one's lines.
+ */
+function canBatch(batch: GeometryStyle[], style: GeometryStyle, key: string | null): boolean {
+  if (batch.length === 0 || key === null || getBatchKey(batch[0]) !== key) {
+    return false;
+  }
+  return !(
+    style.isLine &&
+    getGeometryKinds(style.features).polygons &&
+    batch.some(part => getGeometryKinds(part.features).lines)
+  );
+}
+
+type FeatureBatch = {
+  parts: any[][];
+  /** Each part's length when the batch was made: parts edited in place are batched again. */
+  lengths: number[];
+  data: any[];
+  partIndices: Uint16Array;
+};
+
+/** The latest concatenated features per tile content and batch. */
+const featureBatchCache = new WeakMap<any[], Map<string, FeatureBatch>>();
+
+/**
+ * The features of a batch's style layers, in order, and the index of the style layer each one
+ * belongs to. The result is reused while every style layer's features are unchanged, so deck.gl
+ * does not re-tessellate the batch at every zoom step.
+ */
+function getFeatureBatch(tileFeatures: any[], id: string, parts: any[][]): FeatureBatch {
+  let byId = featureBatchCache.get(tileFeatures);
+  if (!byId) {
+    byId = new Map();
+    featureBatchCache.set(tileFeatures, byId);
+  }
+  const cached = byId.get(id);
+  if (
+    cached &&
+    cached.parts.length === parts.length &&
+    cached.parts.every(
+      (features, index) => features === parts[index] && cached.lengths[index] === features.length
+    )
+  ) {
+    return cached;
+  }
+  const data = parts.flat();
+  const partIndices = new Uint16Array(data.length);
+  let start = 0;
+  parts.forEach((features, index) => {
+    partIndices.fill(index, start, start + features.length);
+    start += features.length;
+  });
+  const batch = {parts, lengths: parts.map(features => features.length), data, partIndices};
+  byId.set(id, batch);
+  return batch;
+}
+
+/**
+ * One accessor for the features of several style layers: a constant when every style layer's
+ * value is the same constant, otherwise a function that applies each feature's own style layer's
+ * accessor. Its update trigger changes when any style layer's value or trigger changes.
+ */
+export function mergeStyleAccessors<T>(
+  accessors: StyleAccessor<T>[],
+  partIndices: ArrayLike<number>
+): {value: T | ((feature: any, info: {index: number}) => T); updateTrigger?: unknown} {
+  if (accessors.length === 1) {
+    return accessors[0];
+  }
+  const values = accessors.map(accessor => accessor.value);
+  // Tagged, so that a constant and a per-feature trigger of the same text differ.
+  const keys = accessors.map(accessor =>
+    typeof accessor.value === 'function'
+      ? `f:${JSON.stringify(accessor.updateTrigger ?? null)}`
+      : `c:${JSON.stringify(accessor.value)}`
+  );
+  if (values.every(value => typeof value !== 'function') && keys.every(key => key === keys[0])) {
+    return {value: values[0] as T};
+  }
+  return {
+    value: (feature: any, {index}: {index: number}) => {
+      const value = values[partIndices[index]];
+      return typeof value === 'function' ? (value as (feature: any) => T)(feature) : value;
+    },
+    updateTrigger: keys.join('|')
+  };
+}
+
+/**
+ * The sublayer for one fill or line style layer, or for consecutive style layers that share a
+ * batch key (see `getBatchKey`), drawn one after another. A line with a gap adds a second
+ * sublayer for the other side of the gap.
+ */
+function createGeometrySubLayer({
+  props,
+  styles,
+  mode,
+  idSuffix = ''
+}: {
+  props: any;
+  styles: GeometryStyle[];
+  mode: BasemapMode;
+  idSuffix?: string;
+}) {
+  const [first] = styles;
+  const {
+    isFill,
+    drawsFill,
+    drawsLines,
+    lineShape,
+    lineOffset,
+    gapWidth,
+    depthTested,
+    lineBlur,
+    gapOffset,
+    isBlurredGap,
+    hasFillStyle,
+    pattern,
+    zoom
+  } = first;
+  if (!drawsFill && !drawsLines) {
+    return null;
+  }
+  const baseProps = getSubLayerBaseProps(props);
+  const tileFeatures = getTileFeatures(props.data);
+  // A batch is named after all of its style layers (see `getStyleSubLayerId`).
+  const styleLayerIds =
+    styles.length === 1 ? first.styleLayer.id : styles.map(style => style.styleLayer.id);
+  const {data, partIndices} =
+    styles.length === 1
+      ? {data: first.features, partIndices: []}
+      : getFeatureBatch(
+          tileFeatures,
+          JSON.stringify(styleLayerIds),
+          styles.map(style => style.features)
+        );
+  const merge = <T>(get: (style: GeometryStyle) => StyleAccessor<T>) =>
+    mergeStyleAccessors(styles.map(get), partIndices);
+  const fillColor = merge(style => style.fillColor);
+  const lineColor = merge(style => style.lineColor);
+  const lineWidth = merge(style => style.lineWidth);
+  // A dash array without gaps draws a solid line.
+  const dashArray = styles.some(style => style.dashArray)
+    ? merge(style => style.dashArray ?? SOLID_DASH_ARRAY)
+    : null;
+
   const offsetValue = lineOffset?.value;
   const getOffset = (side: number) => (feature: any) => {
     const [offset, gap, width, blur] =
       typeof offsetValue === 'function' ? offsetValue(feature) : offsetValue!;
     return getLineOffset(offset, gap, width, side, blur);
   };
-  // Where a wide blur makes a gap's two lines overlap, each draws only its side of the gap's
-  // center. That takes the center's `line-offset` for the whole layer.
-  const gapOffset = isBlurredGap
-    ? getStyleAccessor(styleLayer, ['line-offset'], zoom, ([offset]) => Number(offset ?? 0))
-    : null;
   const getBlurGap = (side: number) =>
     gapOffset && typeof gapOffset.value !== 'function'
       ? {blurGapSide: side, blurGapOffset: gapOffset.value}
@@ -1342,22 +1908,24 @@ function createGeometrySubLayer({
   // wider lines take dashes shortened by as much.
   const lineDashArray =
     dashArray && isBlurredGap && lineOffset
-      ? getBlurredDashArray(dashArray, lineOffset)
+      ? getBlurredDashArray(dashArray as StyleAccessor<[number, number]>, lineOffset)
       : dashArray;
-  const gapWidth = hasOffset
-    ? getStyleAccessor(styleLayer, ['line-gap-width'], zoom, ([gap]) => Number(gap ?? 0))
-    : null;
+  const fillStyleProps =
+    isFill && hasFillStyle
+      ? getFillStyleProps(first.styleLayer, zoom, baseProps.extensions, pattern)
+      : {};
 
-  const layer = new GeoJsonLayer({
+  const layer = new StyledGeoJsonLayer({
     ...baseProps,
-    id: `${getStyleSubLayerId(props.id, styleLayer.id)}${idSuffix}`,
-    data: features,
-    stroked: isLine || hasOutline,
-    filled: isFill,
+    id: `${getStyleSubLayerId(props.id, styleLayerIds)}${idSuffix}`,
+    data,
+    stroked: drawsLines,
+    filled: drawsFill,
+    // A fill's line strings draw only as its 1 pixel outline.
+    drawsLineStrings: drawsLines,
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
-    // A fill's outline is MapLibre's 1 pixel antialiasing line.
-    getLineWidth: isLine ? (lineWidth.value as any) : hasOutline ? 1 : 0,
+    getLineWidth: lineWidth.value as any,
     ...(dashArray || lineOffset || lineBlur
       ? {
           extensions: [
@@ -1377,7 +1945,7 @@ function createGeometrySubLayer({
     // The blur replaces the antialiasing's fade, which matches MapLibre's without blur.
     ...(lineBlur ? {getBlur: lineBlur.value, lineAntialiasing: true} : {}),
     ...getBlurGap(1),
-    ...(isFill ? getFillStyleProps(styleLayer, zoom, baseProps.extensions, pattern) : {}),
+    ...fillStyleProps,
     ...(offsetValue ? {getOffset: getOffset(1)} : {}),
     ...(lineDashArray
       ? {
@@ -1390,7 +1958,7 @@ function createGeometrySubLayer({
       // The group's accessors change with its features, which are new data in that case.
       getFillPatternScale: pattern ? Math.floor(zoom) : undefined,
       getLineColor: lineColor.updateTrigger,
-      getLineWidth: isLine ? lineWidth.updateTrigger : undefined,
+      getLineWidth: lineWidth.updateTrigger,
       getDashArray: lineDashArray?.updateTrigger,
       getOffset: typeof offsetValue === 'function' ? lineOffset?.updateTrigger : offsetValue,
       getBlur: lineBlur?.updateTrigger
@@ -1411,7 +1979,7 @@ function createGeometrySubLayer({
   // A gap draws a second line on the other side, from the same data so that tile data, picked
   // objects and indices stay those of the features. Features without a gap draw only once.
   const getGap = gapWidth.value;
-  const getWidth = lineWidth.value;
+  const getWidth = styles[0].lineWidth.value;
   return [
     layer,
     layer.clone({
@@ -1544,7 +2112,7 @@ function createExtrusionSubLayer({
   );
   const baseProps = getSubLayerBaseProps(props);
 
-  return new GeoJsonLayer({
+  return new StyledGeoJsonLayer({
     ...baseProps,
     id: getStyleSubLayerId(props.id, styleLayer.id),
     data: getRaisedFeatures(features, styleLayer, base),
@@ -1552,6 +2120,7 @@ function createExtrusionSubLayer({
     extruded: true,
     filled: true,
     stroked: false,
+    drawsLineStrings: false,
     wireframe: false,
     getFillColor: color.value as any,
     getElevation: elevation.value as any,
@@ -1593,6 +2162,61 @@ function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig
         layer.type === 'fill-extrusion' ||
         layer.type === 'line' ||
         layer.type === 'circle';
+}
+
+/**
+ * The source layers drawn from each vector source, over all of its runs, sorted; `null` for a
+ * source with a style layer that names none. Tiles decode only these: OpenMapTiles tiles, for
+ * one, carry house numbers and peaks that few styles draw, and points of interest, most of a
+ * street-level tile, that a style without them, or with labels off, does not draw.
+ */
+export function getRunSourceLayers(runs: StyleLayerRun[]): Map<BasemapSource, string[] | null> {
+  const names = new Map<BasemapSource, Set<string> | null>();
+  for (const run of runs) {
+    if (run.type !== 'vector') {
+      continue;
+    }
+    let set = names.has(run.source!) ? names.get(run.source!) : new Set<string>();
+    for (const layer of run.styleLayers) {
+      const sourceLayer = layer['source-layer'];
+      if (typeof sourceLayer !== 'string') {
+        set = null;
+      }
+      set?.add(sourceLayer as string);
+    }
+    names.set(run.source!, set ?? null);
+  }
+  return new Map([...names].map(([source, set]) => [source, set ? [...set].sort() : null]));
+}
+
+/**
+ * The source layers each vector source of a style decodes (see `getRunSourceLayers`). With the
+ * basemap off they are those it would draw, so that turning it off and on keeps the tiles.
+ */
+export function getStyleSourceLayers(
+  styleDefinition: ResolvedBasemapStyle,
+  globe?: {config?: BasemapGlobeConfig}
+): Map<BasemapSource, string[] | null> {
+  const config = getConfig(globe);
+  const styleLayers = (styleDefinition.layers || []).filter(layer =>
+    SUPPORTED_TYPES.has(layer.type)
+  );
+  return getRunSourceLayers(getStyleLayerRuns(styleLayers, styleDefinition, config));
+}
+
+/**
+ * `loadOptions` for a vector source's tiles, decoding only `sourceLayers` when given. Source
+ * layers set in `loadOptions.mvt.layers` are left as they are.
+ */
+export function getSourceLoadOptions(
+  loadOptions: BasemapLoadOptions | undefined,
+  sourceLayers: string[] | null | undefined
+): BasemapLoadOptions | undefined {
+  const mvt = (loadOptions as {mvt?: Record<string, unknown>} | undefined)?.mvt;
+  if (!sourceLayers || mvt?.layers) {
+    return loadOptions;
+  }
+  return {...loadOptions, mvt: {...mvt, layers: sourceLayers}} as BasemapLoadOptions;
 }
 
 /**
@@ -1702,7 +2326,8 @@ function getStyleLayers({
   const labelPriorityRanges = getLabelPriorityRanges(
     styleLayers.filter(layer => isVectorStyleLayer(layer, config))
   );
-  const runs = getStyleLayerRuns(styleLayers, styleDefinition, config).filter(run =>
+  const allRuns = getStyleLayerRuns(styleLayers, styleDefinition, config);
+  const runs = allRuns.filter(run =>
     run.styleLayers.some(layer => isStyleLayerVisibleAtZoom(layer, zoom))
   );
 
@@ -1716,6 +2341,7 @@ function getStyleLayers({
   const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
 
   const ownedTilesets = new Map<BasemapSource, SourceTilesetOwner>();
+  let sourceLayers: Map<BasemapSource, string[] | null> | undefined;
   return runs.map(run => {
     const [layer] = run.styleLayers;
     if (run.type === 'background') {
@@ -1736,7 +2362,12 @@ function getStyleLayers({
     if (!tileset) {
       owner = ownedTilesets.get(run.source!);
       if (!owner) {
-        const loader = new SharedMVTLayer({data: run.source!.tiles!, loadOptions});
+        // Tiles decode the source layers of all of the source's runs, at every zoom.
+        sourceLayers ??= getRunSourceLayers(allRuns);
+        const loader = new SharedMVTLayer({
+          data: run.source!.tiles!,
+          loadOptions: getSourceLoadOptions(loadOptions, sourceLayers.get(run.source!))
+        });
         tileset = new SharedTileset2D({
           ...loader._getTilesetOptions(),
           ...getTilePyramidProps(run.source!),
