@@ -28,7 +28,22 @@ for input forms and rendering limits. On WebGPU, `View.clear` is rejected until 
 
 ### `@deck.gl-community/layers`: native `TreeLayer`
 
-- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+
+Removing the published `@deck.gl-community/three` package is a breaking change. Release this removal in a major version, after native TreeLayer/SplatLayer are available in compatible published packages. Geographic inventory streaming follows separately in #806, after the scene and Coit work.
+
+### Prepared SplatLayer inputs
+
+Existing `new SplatLayer({data: owners, source, hierarchy})` calls remain supported. New code uses
+`data: source` for one prepared asset or `data: owners, getSource: source` for shared instances.
+Move a supplied hierarchy into `{type: 'prepared-splats', source, hierarchy}` and pass that descriptor
+through `getSource`. Do not supply both `source` and explicit `getSource`.
+
+All supported forms on this branch use weighted optical blending. URL/Blob/RAD inputs, SH and
+sorted scene presentation are added independently in #814. `getTransformMatrix` takes precedence
+over orientation/scale/translation, and picking keeps original owner rows and indices.
+Tree canopy quotas are allocated jointly by projected error; species no longer receive fixed
+shares proportional to their row counts.
 
 ### `@deck.gl-community/editable-layers`
 
