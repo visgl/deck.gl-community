@@ -144,6 +144,37 @@ describe('a label layer of several tiles', () => {
     update({tiles: same}, state);
     expect(state.labelData).toBe(second);
   });
+
+  test('places a tile again when its features or the anchor inputs change', () => {
+    const a = {index: {x: 0, y: 0, z: 1}, features: [pointFeature(0.5, 0.5, 'a')]};
+    const state: Record<string, any> = {};
+    update({tiles: [a]}, state);
+    const rows = state.tileRows.get('0,0,1').rows;
+    // New features of the same tile.
+    update({tiles: [{...a, features: [pointFeature(0.25, 0.25, 'c')]}]}, state);
+    expect(state.labelData.map((row: any) => row.__source.object.properties.name)).toEqual(['c']);
+    // The same features, placed along lines instead of at points.
+    const placedRows = state.tileRows.get('0,0,1').rows;
+    update(
+      {
+        tiles: [{...a, features: state.tileRows.get('0,0,1').features}],
+        styleLayer: {layout: {'text-field': '{name}', 'symbol-placement': 'line'}}
+      },
+      state
+    );
+    expect(state.tileRows.get('0,0,1').rows).not.toBe(placedRows);
+    expect(rows).not.toBe(placedRows);
+  });
+
+  test('records the tile of each row, which picking reports', () => {
+    const tile = {id: '0-0-1'};
+    const state: Record<string, any> = {};
+    update(
+      {tiles: [{index: {x: 0, y: 0, z: 1}, features: [pointFeature(0.5, 0.5, 'a')], tile}]},
+      state
+    );
+    expect(state.labelData[0].__tile).toBe(tile);
+  });
 });
 
 describe('label layers of tile layers sharing tiles', () => {
@@ -216,7 +247,26 @@ describe('label layers of tile layers sharing tiles', () => {
     const [first] = labelFeatures;
     const kept = first.renderLayers().find((layer: any) => layer.props.tiles);
     expect(kept).toBe(labelLayers[0][0]);
+    // New when the tile layer's props change, as at a style zoom step.
+    first.props = Object.assign(Object.create(Object.getPrototypeOf(first.props)), first.props);
+    const afterProps = first.renderLayers().find((layer: any) => layer.props.tiles);
+    expect(afterProps).not.toBe(kept);
+    // New, with the new features, when the tile's content changes.
+    sharedTile.content = [point('place'), point('road')];
+    first.state.tileLayers.clear();
+    first.renderLayers();
+    const afterContent = first.renderLayers().find((layer: any) => layer.props.tiles);
+    expect(afterContent).not.toBe(afterProps);
+    expect(afterContent.props.tiles[0].features[0]).toBe(sharedTile.content[0]);
+    // A symbol layer without features in any drawn tile has no label layer.
+    sharedTile.content = [point('road')];
+    first.state.tileLayers.clear();
+    first.renderLayers();
+    expect(first.renderLayers().find((layer: any) => layer.props.tiles)).toBeUndefined();
     first.state.tilesetViews.set('default', {isTileVisible: () => false});
+    sharedTile.content = [point('place'), point('road')];
+    first.state.tileLayers.clear();
+    first.renderLayers();
     expect(first.renderLayers().find((layer: any) => layer.props.tiles)).toBeUndefined();
   });
 });
