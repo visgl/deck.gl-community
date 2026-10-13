@@ -95,6 +95,9 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
+  // Served as is, from each importer's own copy: basemap-layers' reference renders pin a
+  // `maplibre-gl` whose worker must match it, and an example uses another version.
+  exclude: ['maplibre-gl'],
   include: [
     '@deck.gl/mesh-layers',
     '@loaders.gl/arrow',
@@ -108,8 +111,6 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     'deepmerge',
     'd3-color',
     'd3-ease',
-    // basemap-layers' reference-render comparison pins its own `maplibre-gl`.
-    '@deck.gl-community/basemap-layers > maplibre-gl',
     '@maplibre/maplibre-gl-style-spec',
     '@loaders.gl/mvt'
   ]
