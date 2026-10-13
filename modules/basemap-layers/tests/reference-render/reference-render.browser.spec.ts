@@ -147,7 +147,9 @@ describe('reference render: MapLibre GL JS vs BasemapLayer', () => {
       missingLabels: result.labels.missing,
       extraLabels: result.labels.extra,
       maplibreMs: Math.round(reference.duration),
-      basemapLayerMs: Math.round(candidate.duration)
+      basemapLayerMs: Math.round(candidate.duration),
+      basemapLayerLayers: candidate.layers,
+      basemapLayerDraws: candidate.draws
     };
     await commands.writeFile(
       `${OUTPUT}/${scene.id}.png`,

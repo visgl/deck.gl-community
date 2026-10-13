@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView} from '@deck.gl/core';
+import {Model} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expression as styleExpression, latest} from '@maplibre/maplibre-gl-style-spec';
 import mvtWorkerUrl from '@loaders.gl/mvt/mvt-worker.js?url';
@@ -29,6 +30,9 @@ export type Render = {
   problems: string[];
   /** Milliseconds until the render was complete. */
   duration: number;
+  /** `BasemapLayer` only: primitive layers and model draws of the frame read back. */
+  layers?: number;
+  draws?: number;
 };
 
 const RENDER_TIMEOUT = 60_000;
@@ -243,6 +247,15 @@ export async function renderBasemapLayer(
   const start = performance.now();
   let deck: Deck<any> | null = null;
   let settled = 0;
+  // Model draws per frame (every pass: collision maps, shadows and the screen).
+  let draws = 0;
+  let frameDraws = 0;
+  let frameLayers = 0;
+  const modelDraw = Model.prototype.draw;
+  Model.prototype.draw = function countedDraw(this: Model, ...args: Parameters<Model['draw']>) {
+    draws++;
+    return modelDraw.apply(this, args);
+  };
   try {
     const pixels = await withTimeout(
       new Promise<Uint8ClampedArray>((resolve, reject) => {
@@ -277,6 +290,8 @@ export async function renderBasemapLayer(
             const layers = layerManager?.getLayers() || [];
             // A tile layer reports loaded before it has selected any tiles.
             const tileLayers = layers.filter((layer: any) => layer.state?.tileset);
+            frameDraws = draws;
+            draws = 0;
             const ready =
               resolvedStyle &&
               (!resolvedStyle.sprite || basemap.state.spriteAtlases) &&
@@ -292,6 +307,9 @@ export async function renderBasemapLayer(
               deck!.redraw('reference-render settle');
               return;
             }
+            frameLayers = layers.filter(
+              (layer: any) => !layer.isComposite && layer.props.visible
+            ).length;
             resolve(readCanvas(deck!.getCanvas()!));
           },
           onError: error => reject(error)
@@ -331,9 +349,12 @@ export async function renderBasemapLayer(
       labels: [...labels],
       requests: resources.map(({url}) => url).filter(url => fromFixtureUrl(url)),
       problems,
-      duration: performance.now() - start
+      duration: performance.now() - start,
+      layers: frameLayers,
+      draws: frameDraws
     };
   } finally {
+    Model.prototype.draw = modelDraw;
     (deck as Deck<any> | null)?.finalize();
     parent.remove();
   }
