@@ -84,11 +84,39 @@ describe('a label layer whose drawn tiles lose its features', () => {
     // With the tiles it last drew: its data does not change.
     expect(kept.props.tiles).toBe(drawn.props.tiles);
 
+    // While it stays hidden it is the same instance, which deck.gl does not update.
+    expect(labelLayers(layer, onlyWithoutPlaces)[0]).toBe(kept);
+
     const [again] = labelLayers(layer, all);
     expect(again.id).toBe(drawn.id);
     expect(again.props.visible).not.toBe(false);
     // The same tiles are drawn again: the same data.
     expect(again.props.tiles).toBe(drawn.props.tiles);
+  });
+
+  test("keeps its instance while another style layer's tiles change", () => {
+    const twoLayers = style();
+    twoLayers.layers.push({
+      id: 'roads',
+      type: 'symbol',
+      source: 'tiles',
+      'source-layer': 'road',
+      layout: {'text-field': '{name}'}
+    });
+    const road = {
+      ...withoutPlaces,
+      id: '2-0-2',
+      index: {x: 2, y: 0, z: 2},
+      content: [point('road', 'Main')]
+    };
+    const state = {tileLayers: new Map(), tileset: {tiles: [withPlace, road]}};
+    const layer = tileLayer(2, state, twoLayers);
+    const [places, roads] = labelLayers(layer, all);
+    // The road's tile changes its content: only the roads label layer is made again.
+    road.content = [point('road', 'High')];
+    const [placesAfter, roadsAfter] = labelLayers(layer, all);
+    expect(placesAfter).toBe(places);
+    expect(roadsAfter).not.toBe(roads);
   });
 
   test('is removed outside its zoom range', () => {
