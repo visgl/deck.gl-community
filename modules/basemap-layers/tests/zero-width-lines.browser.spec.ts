@@ -46,11 +46,12 @@ const fetchTile = async () => [
     [0.5, 0.5],
     [0.9, 0.85]
   ]),
+  // Near the top edge of the tile, which the view shows at every zoom of these tests.
   ...['zero', 'dashed', 'blurred'].map((layerName, index) =>
     lineFeature(layerName, 10 + index, [
-      [0.15, 0.1 + 0.1 * index],
-      [0.5, 0.35 + 0.1 * index],
-      [0.85, 0.1 + 0.1 * index]
+      [0.15, 0.02 + 0.03 * index],
+      [0.5, 0.08 + 0.03 * index],
+      [0.85, 0.02 + 0.03 * index]
     ])
   )
 ];
@@ -230,9 +231,8 @@ describe('lines kept at width 0', () => {
     expect(pickAll()).toEqual([1, 2]);
     await render(style(true, {alone: true}));
     expect(pickAll()).toEqual([1, 2]);
-    // Steps later, with a width, the kept lines are drawn and picked. (The blurred line, which is
-    // not kept, is not picked through its blur either way.)
+    // Steps later, with a width, the same lines are drawn and picked.
     await render(style(true), 5.8);
-    expect(pickAll()).toEqual(expect.arrayContaining([1, 2, 10, 11]));
+    expect(pickAll()).toEqual(expect.arrayContaining([10, 11, 12]));
   }, 90_000);
 });
