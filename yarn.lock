@@ -872,6 +872,7 @@ __metadata:
     "@deck.gl/test-utils": "npm:~9.4.0"
     "@fontsource/montserrat": "npm:5.3.0"
     "@fontsource/noto-sans": "npm:5.3.0"
+    "@fontsource/open-sans": "npm:5.3.0"
     "@loaders.gl/core": "npm:^4.5.1"
     "@loaders.gl/loader-utils": "npm:^4.5.1"
     "@loaders.gl/mvt": "npm:^4.5.1"
@@ -2513,6 +2514,13 @@ __metadata:
   version: 5.3.0
   resolution: "@fontsource/noto-sans@npm:5.3.0"
   checksum: 10c0/f99578be5946a643235a3fc7bbf028226951267ec429fe428c8402ba2831a0b9dbba25c208adafbe7852dedf9710cf53d31a82de2af6aa63c16a51fce8aef4b1
+  languageName: node
+  linkType: hard
+
+"@fontsource/open-sans@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/open-sans@npm:5.3.0"
+  checksum: 10c0/c52a583617187cb731d2606b7f22337168db055df7600f79ad42a37d44764065ff1fe060069467c43a086296f43a6ffc0328dd2c8031c459bfb60d253f2522d6
   languageName: node
   linkType: hard
 
