@@ -229,6 +229,14 @@ jobs:
         id: headless
         run: yarn test-headless
 
+      - name: Upload basemap reference-render report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: basemap-reference-render
+          path: modules/basemap-layers/tests/reference-render/__output__
+          if-no-files-found: ignore
+
       - name: Verify WebGPU layers with a required software adapter
         # Unrelated browser failures must not suppress the backend verification.
         if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}

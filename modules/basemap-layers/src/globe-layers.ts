@@ -28,6 +28,7 @@ import {
 } from './raster-color-extension';
 import {filterFeatures, parseProperties} from './map-style';
 import {
+  STYLE_ZOOM_STEP,
   type StyleAccessor,
   getFilterZoom,
   getStyleAccessor,
@@ -1595,6 +1596,8 @@ function createVectorLayerGroup({
       const highlights =
         Boolean(props[AUTO_HIGHLIGHT]) ||
         (props.highlightedFeatureId !== null && props.highlightedFeatureId !== undefined);
+      // Fills and lines take zoom-dependent paint from a texture (see `createGeometrySubLayer`).
+      const zoomPaintContext = props[ZOOM_PAINT_CONTEXT] as ZoomPaintContext | null | undefined;
       // Consecutive fills and lines that can share a sublayer (see `getBatchKey`), and the index
       // of the first, which places the batch among all tiles' sublayers (`sortTileSubLayers`).
       let batch: GeometryStyle[] = [];
@@ -1645,8 +1648,13 @@ function createVectorLayerGroup({
         const depthTested = depthTestedFrom >= 0 && styleLayerIndex >= depthTestedFrom;
         const style = getBatchableGeometryStyle(styleLayer, filteredData, mode, zoom, depthTested);
         if (style) {
-          // A style layer that draws nothing in this tile does not separate its neighbours.
-          if (style.drawsFill || style.drawsLines) {
+          // A style layer that draws nothing in this tile does not separate its neighbours. A line
+          // that draws nothing only because its width is 0 at this zoom step, and takes its width
+          // from `ZoomPaintExtension`, is batched as at a step that gives it a width: its sublayer
+          // and batch stay the same across the step, and are not made again (see
+          // `createGeometrySubLayer`, which hides a sublayer that draws nothing).
+          const isKeptAtZeroWidth = style.isZeroWidth && Boolean(zoomPaintContext);
+          if (style.drawsFill || style.drawsLines || isKeptAtZeroWidth) {
             // A batch draws all of its style layers in one tile before the next tile. On a map,
             // tiles are clipped to their bounds, so that draws the same pixels as each style layer
             // across all tiles in turn; on the globe, tiles are not clipped, and where their
@@ -2155,6 +2163,11 @@ type GeometryStyle = {
   isFill: boolean;
   drawsFill: boolean;
   drawsLines: boolean;
+  /**
+   * Whether the line draws nothing only because its width is 0 at this zoom step. With its paint
+   * from `ZoomPaintExtension`, it keeps its place in its sublayer (see `renderSubLayers`).
+   */
+  isZeroWidth: boolean;
   fillColor: StyleAccessor<number[]>;
   lineColor: StyleAccessor<number[]>;
   lineWidth: StyleAccessor<number>;
@@ -2324,6 +2337,20 @@ function getGeometryStyle({
   // A constant transparent color or zero width draws nothing, so its sublayers are left out.
   const drawsFill = isFill && !isTransparent(fillColor);
   const drawsLines = (isLine || hasOutline) && !isTransparent(lineColor) && lineWidth.value !== 0;
+  // A line whose width is 0 at this zoom step, and which draws at the next step or the previous
+  // one, is kept for that step (see `renderSubLayers`). One that draws at neither, as many lines
+  // do below the zoom where their width starts, or that stays transparent, is left out. Its color
+  // at this step does not matter: at width 0 it draws nothing. Lines with an offset or a blur take
+  // their width in attributes, not from `ZoomPaintExtension`.
+  const isZeroWidth =
+    isLine &&
+    lineWidth.value === 0 &&
+    !hasOffset &&
+    !hasBlur &&
+    [zoom - STYLE_ZOOM_STEP, zoom + STYLE_ZOOM_STEP].some(stepZoom => {
+      const stepPaint = getGeometryPaint(styleLayer, mode, stepZoom);
+      return stepPaint.lineWidth.value !== 0 && !isTransparent(stepPaint.lineColor);
+    });
 
   return {
     styleLayer,
@@ -2333,6 +2360,7 @@ function getGeometryStyle({
     isFill,
     drawsFill,
     drawsLines,
+    isZeroWidth,
     fillColor,
     lineColor,
     lineWidth,
@@ -2486,7 +2514,7 @@ export function mergeStyleAccessors<T>(
  */
 function createGeometrySubLayer({
   props,
-  styles,
+  styles: allStyles,
   mode,
   idSuffix = ''
 }: {
@@ -2495,11 +2523,34 @@ function createGeometrySubLayer({
   mode: BasemapMode;
   idSuffix?: string;
 }) {
+  // Paint that is the same for all features of a style layer is taken from a texture (see
+  // `ZoomPaintExtension`), except next to an offset: it is computed from the width on the CPU, and
+  // with dashes leaves no vertex attribute for the extension. Blurred lines and patterned or
+  // translated fills, which draw alone with their own extensions, keep their paint in attributes.
+  const zoomPaintContext = props[ZOOM_PAINT_CONTEXT] as ZoomPaintContext | null | undefined;
+  const takesZoomPaint = (list: GeometryStyle[]) =>
+    Boolean(zoomPaintContext) &&
+    !list[0].lineOffset &&
+    !list[0].lineBlur &&
+    !list[0].hasFillStyle &&
+    list.length <= MAX_ZOOM_PAINT_PARTS;
+  // Lines kept at width 0 (see `renderSubLayers`) draw nothing because the texture gives them
+  // that width. Without the texture their width would be in attributes, so they are left out, as
+  // other style layers that draw nothing are.
+  const styles = takesZoomPaint(allStyles)
+    ? allStyles
+    : allStyles.filter(style => style.drawsFill || style.drawsLines);
+  if (styles.length === 0) {
+    return null;
+  }
   const [first] = styles;
+  // A batch draws lines when any of its style layers does, or keeps lines at width 0. A sublayer
+  // of lines all kept at width 0 draws nothing; it is hidden, and adds no draw.
+  const drawsFill = styles.some(style => style.drawsFill);
+  const drawsLines = styles.some(style => style.drawsLines || style.isZeroWidth);
+  const isHidden = !styles.some(style => style.drawsFill || style.drawsLines);
   const {
     isFill,
-    drawsFill,
-    drawsLines,
     lineShape,
     lineOffset,
     gapWidth,
@@ -2529,17 +2580,8 @@ function createGeometrySubLayer({
         );
   const merge = <T>(get: (style: GeometryStyle) => StyleAccessor<T>) =>
     mergeStyleAccessors(styles.map(get), partIndices);
-  // Paint that is the same for all features of a style layer is taken from a texture (see
-  // `ZoomPaintExtension`), except next to an offset: it is computed from the width on the CPU, and
-  // with dashes leaves no vertex attribute for the extension. Blurred lines and patterned or
-  // translated fills, which draw alone with their own extensions, keep their paint in attributes.
-  const zoomPaintContext = props[ZOOM_PAINT_CONTEXT] as ZoomPaintContext | null | undefined;
   const zoomPaint =
-    zoomPaintContext &&
-    !lineOffset &&
-    !lineBlur &&
-    !hasFillStyle &&
-    styles.length <= MAX_ZOOM_PAINT_PARTS
+    zoomPaintContext && takesZoomPaint(styles)
       ? zoomPaintContext.get(
           styles.map(style => style.styleLayer),
           mode
@@ -2580,6 +2622,8 @@ function createGeometrySubLayer({
 
   const layerProps = {
     ...baseProps,
+    // Not drawn, picked or highlighted while all of its lines are kept at width 0.
+    ...(isHidden ? {visible: false, pickable: false} : {}),
     id: `${getStyleSubLayerId(props.id, styleLayerIds)}${idSuffix}`,
     data,
     stroked: drawsLines,
