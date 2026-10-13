@@ -838,7 +838,10 @@ class StyledMVTLayer extends SharedMVTLayer {
     /** The label layers last rendered, and the props and tiles they were rendered for, by view. */
     labelLayers?: Map<
       string,
-      {props: unknown; tileLists: LabelTile[][]; hiddenKey: string; layers: Layer[]}
+      {
+        props: unknown;
+        byStyleLayer: Map<number, {tiles: LabelTile[]; isHidden: boolean; layers: Layer[]}>;
+      }
     >;
   };
 
@@ -1013,33 +1016,37 @@ class StyledMVTLayer extends SharedMVTLayer {
     }
     this.state.labelTiles.set(cacheKey, next);
     this.state.labelStyleLayers.set(cacheKey, new Set(next.keys()));
-    // The same layers while the tiles and this layer's props (with `render`, new at each style
-    // zoom step) do not change: new instances would compare and update the label layers at every
-    // frame.
-    const tileLists = [...next].sort(([a], [b]) => a - b).map(([, entry]) => entry.tiles);
-    const hiddenKey = [...hidden].sort((a, b) => a - b).join(',');
-    const last = this.state.labelLayers.get(cacheKey);
-    if (
-      last &&
-      last.props === this.props &&
-      last.hiddenKey === hiddenKey &&
-      isSameList(last.tileLists, tileLists)
-    ) {
-      return last.layers;
-    }
+    // Each style layer's label layers stay the same instances while its tiles, whether it is
+    // hidden, and this layer's props (with `render`, new at each style zoom step) do not change:
+    // new instances would compare and update the label layers at every frame. A hidden label
+    // layer keeps its tiles, so it is not updated while it stays hidden.
+    const lastLayers = this.state.labelLayers.get(cacheKey);
+    const byStyleLayer = new Map<
+      number,
+      {tiles: LabelTile[]; isHidden: boolean; layers: Layer[]}
+    >();
+    const layers: Layer[] = [];
     // In style order, whichever tile first had a style layer.
-    const tilesByStyleLayer = new Map(
-      [...next].sort(([a], [b]) => a - b).map(([index, entry]) => [index, entry.tiles])
-    );
-    const layers = render(
-      tilesByStyleLayer,
-      id => this.getSubLayerProps({id: viewKey === null ? id : `${id}-view-${viewKey}`}),
-      hidden
-    );
-    for (const layer of layers) {
-      labelLayerViews.set(layer, viewKey);
+    for (const [styleLayerIndex, entry] of [...next].sort(([a], [b]) => a - b)) {
+      const isHidden = hidden.has(styleLayerIndex);
+      const kept =
+        lastLayers?.props === this.props ? lastLayers.byStyleLayer.get(styleLayerIndex) : undefined;
+      let rendered = kept;
+      if (!kept || kept.tiles !== entry.tiles || kept.isHidden !== isHidden) {
+        const styleLayerLayers = render(
+          new Map([[styleLayerIndex, entry.tiles]]),
+          id => this.getSubLayerProps({id: viewKey === null ? id : `${id}-view-${viewKey}`}),
+          hidden
+        );
+        for (const layer of styleLayerLayers) {
+          labelLayerViews.set(layer, viewKey);
+        }
+        rendered = {tiles: entry.tiles, isHidden, layers: styleLayerLayers};
+      }
+      byStyleLayer.set(styleLayerIndex, rendered!);
+      layers.push(...rendered!.layers);
     }
-    this.state.labelLayers.set(cacheKey, {props: this.props, tileLists, hiddenKey, layers});
+    this.state.labelLayers.set(cacheKey, {props: this.props, byStyleLayer});
     return layers;
   }
 
