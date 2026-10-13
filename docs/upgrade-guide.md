@@ -26,6 +26,10 @@ Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wr
 transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
 for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream nested-render-pass path is fixed; overlapping views without clearing are supported.
 
+### `@deck.gl-community/layers`: native `TreeLayer`
+
+- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,
