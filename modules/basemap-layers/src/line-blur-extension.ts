@@ -133,8 +133,9 @@ float lineBlur_widthRatio = 1.0;
 #endif
 `,
         'vs:#main-end': `
-#ifdef DASH_ENABLED
+#if defined(DASH_ENABLED) && !defined(PATH_STYLE_OFFSET)
   // PathStyleExtension measured the dashes in the drawn stroke's widths, MapLibre in the line's.
+  // Offset lines are not widened, and keep the dash phase that the offset shader corrects.
   vDashArray *= lineBlur_widthRatio;
 #ifdef HIGH_PRECISION_DASH
   float lineBlur_dashUnit = vDashArray.x + vDashArray.y;
