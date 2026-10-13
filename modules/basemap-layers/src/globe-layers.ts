@@ -2255,10 +2255,12 @@ function getGeometryStyle({
   const drawsLines = (isLine || hasOutline) && !isTransparent(lineColor) && lineWidth.value !== 0;
   // A line whose width is 0 at this zoom step, and not at the next step or the previous one, is
   // kept for that step (see `renderSubLayers`). One that stays 0 over more steps, as many lines
-  // do below the zoom where their width starts, is left out until then. Lines with an offset or a
-  // blur take their width in attributes, not from `ZoomPaintExtension`.
+  // do below the zoom where their width starts, is left out until then, as is a transparent line,
+  // which draws nothing at the other step either. Lines with an offset or a blur take their width
+  // in attributes, not from `ZoomPaintExtension`.
   const isZeroWidth =
     isLine &&
+    !isTransparent(lineColor) &&
     lineWidth.value === 0 &&
     !hasOffset &&
     !hasBlur &&

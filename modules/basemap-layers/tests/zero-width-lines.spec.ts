@@ -222,5 +222,13 @@ describe('a line that draws nothing is left out, as before', () => {
       line('road', {'line-width': 2, 'line-opacity': fadesIn})
     ];
     expect(idsOf(renderTile(style, 5))).toEqual(['"casing"']);
+    // At width 0 too: it would draw nothing at the next step either.
+    const invisible = [
+      line('a', {'line-width': 3}),
+      line('road', {'line-width': STARTS_AT_5, 'line-opacity': 0}),
+      line('c', {'line-width': 3})
+    ];
+    expect(idsOf(renderTile(invisible, 5))).toEqual(['["a","c"]']);
+    expect(idsOf(renderTile(invisible, 5.25))).toEqual(['["a","c"]']);
   });
 });
