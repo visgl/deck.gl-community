@@ -2615,6 +2615,12 @@ function createGeometrySubLayer({
     dashArray && isBlurredGap && lineOffset
       ? getBlurredDashArray(dashArray as StyleAccessor<[number, number]>, lineOffset)
       : dashArray;
+  // MapLibre fades a line's edges, over its blur and a device pixel, from half a device pixel past
+  // the line: a line narrower than a pixel still draws, fainter. `LineBlurExtension` draws that
+  // fade, without a blur too; deck.gl draws lines without antialiasing aliased, and drops most of
+  // a line narrower than a pixel. A fill's outline is MapLibre's aliased 1 pixel line, drawn as
+  // deck.gl draws lines without antialiasing.
+  const fadesLines = drawsLines && !isFill;
   const fillStyleProps =
     isFill && hasFillStyle
       ? getFillStyleProps(first.styleLayer, zoom, baseProps.extensions, pattern)
@@ -2633,20 +2639,21 @@ function createGeometrySubLayer({
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     getLineWidth: lineWidth.value as any,
-    ...(dashArray || lineOffset || lineBlur || zoomPaint
+    ...(dashArray || lineOffset || fadesLines || zoomPaint
       ? {
           extensions: [
             ...(baseProps.extensions || []),
             ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
             ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
-            ...(lineBlur
+            // Before the fade, which widens the stroke once its width is final.
+            ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : []),
+            ...(fadesLines
               ? [
-                  typeof lineBlur.value === 'function'
+                  typeof lineBlur?.value === 'function'
                     ? LINE_BLUR_PER_FEATURE_EXTENSION
                     : LINE_BLUR_EXTENSION
                 ]
-              : []),
-            ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : [])
+              : [])
           ]
         }
       : {}),
@@ -2659,8 +2666,8 @@ function createGeometrySubLayer({
               : (_feature: any, {index}: {index: number}) => partIndices[index]
         }
       : {}),
-    // The blur replaces the antialiasing's fade, which matches MapLibre's without blur.
-    ...(lineBlur ? {getBlur: lineBlur.value, lineAntialiasing: true} : {}),
+    lineAntialiasing: fadesLines,
+    ...(fadesLines ? {getBlur: lineBlur ? lineBlur.value : 0} : {}),
     ...getBlurGap(1),
     ...fillStyleProps,
     ...(offsetValue ? {getOffset: getOffset(1)} : {}),
