@@ -296,16 +296,24 @@ describe('label layers of tile layers sharing tiles', () => {
     const afterContent = first.renderLayers().find((layer: any) => layer.props.tiles);
     expect(afterContent).not.toBe(afterProps);
     expect(afterContent.props.tiles[0].features[0]).toBe(sharedTile.content[0]);
-    // A symbol layer without features in any drawn tile has no label layer.
+    // A symbol layer that loses its features in every drawn tile keeps its label layer, hidden.
     sharedTile.content = [point('road')];
     first.state.tileLayers.clear();
     first.renderLayers();
-    expect(first.renderLayers().find((layer: any) => layer.props.tiles)).toBeUndefined();
+    const emptied = first.renderLayers().find((layer: any) => layer.props.tiles);
+    expect(emptied.id).toBe(afterContent.id);
+    expect(emptied.props.visible).toBe(false);
+    // With the tiles it last drew, so that its data does not change.
+    expect(emptied.props.tiles).toBe(afterContent.props.tiles);
+    // Without any drawn tile, as while the drawn tiles load, it is kept too.
     first.state.tilesetViews.set('default', {isTileVisible: () => false});
     sharedTile.content = [point('place'), point('road')];
     first.state.tileLayers.clear();
     first.renderLayers();
-    expect(first.renderLayers().find((layer: any) => layer.props.tiles)).toBeUndefined();
+    const untiled = first.renderLayers().find((layer: any) => layer.props.tiles);
+    expect(untiled.id).toBe(afterContent.id);
+    expect(untiled.props.visible).toBe(false);
+    expect(untiled.props.tiles).toBe(afterContent.props.tiles);
   });
 
   test('a picked label on a map reports its feature in longitude/latitude', () => {
