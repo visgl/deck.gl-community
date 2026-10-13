@@ -95,6 +95,9 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
+  // Served as is, from each importer's own copy: basemap-layers' reference renders pin a
+  // `maplibre-gl` whose worker must match it, and an example uses another version.
+  exclude: ['maplibre-gl'],
   include: [
     '@deck.gl/mesh-layers',
     '@loaders.gl/arrow',
@@ -107,7 +110,9 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
     '@deck.gl-community/vega > tsx-create-element',
     'deepmerge',
     'd3-color',
-    'd3-ease'
+    'd3-ease',
+    '@maplibre/maplibre-gl-style-spec',
+    '@loaders.gl/mvt'
   ]
 };
 

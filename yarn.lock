@@ -870,11 +870,15 @@ __metadata:
   dependencies:
     "@deck.gl-community/geo-layers": "workspace:*"
     "@deck.gl/test-utils": "npm:~9.4.0"
+    "@fontsource/montserrat": "npm:5.3.0"
+    "@fontsource/noto-sans": "npm:5.3.0"
+    "@fontsource/open-sans": "npm:5.3.0"
     "@loaders.gl/core": "npm:^4.5.1"
     "@loaders.gl/loader-utils": "npm:^4.5.1"
     "@loaders.gl/mvt": "npm:^4.5.1"
     "@maplibre/maplibre-gl-style-spec": "npm:^24.8.1"
     "@turf/polygon-to-line": "npm:^6.0.3"
+    maplibre-gl: "npm:6.13.0"
     vitest: "npm:^4.0.18"
     zod: "npm:^4.0.0"
   peerDependencies:
@@ -2499,6 +2503,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fontsource/montserrat@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/montserrat@npm:5.3.0"
+  checksum: 10c0/6670ec471a9ae9cfa89593a11ba62062a9797049d0f93825f106b1bddd0d46f930ace87e79e56ebbd4a56186ff07844f073c2f2f4f1aca85115dde4cc02d8135
+  languageName: node
+  linkType: hard
+
+"@fontsource/noto-sans@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/noto-sans@npm:5.3.0"
+  checksum: 10c0/f99578be5946a643235a3fc7bbf028226951267ec429fe428c8402ba2831a0b9dbba25c208adafbe7852dedf9710cf53d31a82de2af6aa63c16a51fce8aef4b1
+  languageName: node
+  linkType: hard
+
+"@fontsource/open-sans@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/open-sans@npm:5.3.0"
+  checksum: 10c0/c52a583617187cb731d2606b7f22337168db055df7600f79ad42a37d44764065ff1fe060069467c43a086296f43a6ffc0328dd2c8031c459bfb60d253f2522d6
+  languageName: node
+  linkType: hard
+
 "@gar/promise-retry@npm:^1.0.0, @gar/promise-retry@npm:^1.0.2":
   version: 1.0.3
   resolution: "@gar/promise-retry@npm:1.0.3"
@@ -3878,7 +3903,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@maplibre/geojson-vt@npm:^6.1.1":
+"@maplibre/geojson-vt@npm:^6.1.1, @maplibre/geojson-vt@npm:^6.1.2":
   version: 6.1.2
   resolution: "@maplibre/geojson-vt@npm:6.1.2"
   dependencies:
@@ -3942,7 +3967,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@maplibre/maplibre-gl-style-spec@npm:^26.2.1":
+"@maplibre/maplibre-gl-style-spec@npm:^26.2.1, @maplibre/maplibre-gl-style-spec@npm:^26.4.4":
   version: 26.4.4
   resolution: "@maplibre/maplibre-gl-style-spec@npm:26.4.4"
   dependencies:
@@ -3960,7 +3985,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@maplibre/mlt@npm:^1.1.12, @maplibre/mlt@npm:^1.1.8":
+"@maplibre/mlt@npm:^1.1.12, @maplibre/mlt@npm:^1.1.8, @maplibre/mlt@npm:^1.3.0":
   version: 1.3.0
   resolution: "@maplibre/mlt@npm:1.3.0"
   dependencies:
@@ -8572,6 +8597,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bidi-js@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "bidi-js@npm:1.1.0"
+  dependencies:
+    require-from-string: "npm:^2.0.2"
+  checksum: 10c0/b608addec6bd6e5d1c0cc7b6116002d589c6e666966503aca2aa7b2f61717ecaaeb0ac1a16c1374d61ee757de4f2f24017312a70781f5c4b127ffab54a2f7187
+  languageName: node
+  linkType: hard
+
 "bignumber.js@npm:^9.1.0":
   version: 9.3.1
   resolution: "bignumber.js@npm:9.3.1"
@@ -10540,7 +10574,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"earcut@npm:^3.2.3":
+"earcut@npm:^3.2.3, earcut@npm:^3.2.4":
   version: 3.2.4
   resolution: "earcut@npm:3.2.4"
   checksum: 10c0/c50c93a6a0b56aadbe9d225322184f93b6b6dff81f2ca6e6bd8bb1141eaefc5116aac4c969f576bc2569d9c6ddd5108d74bf3825b3fd5529ebcc59c9f2b55e5a
@@ -14240,6 +14274,32 @@ __metadata:
     proc-log: "npm:^6.0.0"
     ssri: "npm:^13.0.0"
   checksum: 10c0/2c5805dee83efd1cd1d3f57505120ae98f4a328be72d82447e24b8f72b8e5475910d7dbc49d7da1c5bd96a62bf8ef6ffda88ebadfdfbec7c715cfde2459c9295
+  languageName: node
+  linkType: hard
+
+"maplibre-gl@npm:6.13.0":
+  version: 6.13.0
+  resolution: "maplibre-gl@npm:6.13.0"
+  dependencies:
+    "@mapbox/point-geometry": "npm:^1.1.0"
+    "@mapbox/tiny-sdf": "npm:^2.2.0"
+    "@mapbox/unitbezier": "npm:^1.0.0"
+    "@mapbox/vector-tile": "npm:^3.0.0"
+    "@maplibre/geojson-vt": "npm:^6.1.2"
+    "@maplibre/maplibre-gl-style-spec": "npm:^26.4.4"
+    "@maplibre/mlt": "npm:^1.3.0"
+    "@maplibre/vt-pbf": "npm:^4.3.2"
+    "@types/geojson": "npm:^7946.0.16"
+    bidi-js: "npm:^1.1.0"
+    earcut: "npm:^3.2.4"
+    gl-matrix: "npm:^3.4.4"
+    kdbush: "npm:^4.1.0"
+    murmurhash-js: "npm:^1.0.0"
+    pbf: "npm:^5.1.2"
+    potpack: "npm:^2.1.0"
+    quickselect: "npm:^3.0.0"
+    tinyqueue: "npm:^3.0.0"
+  checksum: 10c0/99ffe17b4c7ad20782da9e670817abceb455d78a59c6a45f24d5124f9477a5933c052122dc1e5370176eac7963b974796f7cae5d36faab422ae8c5304536352e
   languageName: node
   linkType: hard
 
