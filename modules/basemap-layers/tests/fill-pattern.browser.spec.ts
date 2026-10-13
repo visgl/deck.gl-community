@@ -406,6 +406,32 @@ describe('fill-pattern in the browser', () => {
     expectColor(pixel(image, CENTER + Math.floor(period / 2) + 3, CENTER + 14), BLACK);
   });
 
+  test('a light pattern on transparent pixels draws no dark edges where it is scaled', async () => {
+    // White columns 3 atlas pixels wide on transparent ones, at zoom 6.5, where the pattern sized at
+    // zoom 6 is filtered at 2 ** 0.5 times its size. On a white background every pixel stays white,
+    // as with MapLibre's premultiplied atlas; transparent black would darken the columns' edges.
+    const canvas = new OffscreenCanvas(8, 8);
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgb(255, 255, 255)';
+    context.fillRect(0, 0, 3, 8);
+    const sprite: SpriteAtlas = {
+      id: 'default',
+      image: await createImageBitmap(canvas),
+      mapping: {stripes: {x: 0, y: 0, width: 8, height: 8, mask: false, pixelRatio: 1}}
+    };
+    const image = await render(
+      fillTile({'fill-pattern': 'stripes'}, WORLD, {zoom: 6.5, spriteAtlases: [sprite]}),
+      {zoom: 6.5}
+    );
+    let darkest = 255;
+    for (let y = 8; y < SIZE - 8; y++) {
+      for (let x = 8; x < SIZE - 8; x++) {
+        darkest = Math.min(darkest, ...pixel(image, x, y));
+      }
+    }
+    expect(darkest).toBeGreaterThanOrEqual(250);
+  });
+
   test('fill-opacity applies to the pattern', async () => {
     const sprite = await createQuadrantSprite(8);
     const image = await render(

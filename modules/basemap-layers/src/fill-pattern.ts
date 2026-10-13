@@ -154,7 +154,7 @@ export function getFillPatternGroups(
 const PATTERN_TEXTURE_PARAMETERS = {mipmapFilter: 'none'} as const;
 
 type PatternAtlas = {
-  image: SpriteAtlas['image'] | OffscreenCanvas | HTMLCanvasElement;
+  image: SpriteAtlas['image'] | OffscreenCanvas | HTMLCanvasElement | ImageData;
   mapping: Record<string, SpriteIconMappingEntry>;
 };
 
@@ -286,7 +286,54 @@ function createPatternAtlas(atlas: SpriteAtlas, names: string[]): PatternAtlas {
     }
     mapping[name] = {...entry, x: left, y: top};
   });
-  return {image: canvas, mapping};
+  const image = context.getImageData(0, 0, packing.width, packing.height);
+  bleedIntoTransparentPixels(image);
+  return {image, mapping};
+}
+
+/**
+ * Gives each fully transparent pixel next to a visible one the alpha-weighted average color of
+ * its neighbors, keeping it transparent. MapLibre GL JS samples its pattern atlas, which is
+ * premultiplied, with a linear filter, so a pattern's edges blend toward transparent in its own
+ * color. A canvas uploads unpremultiplied, with transparent pixels black: the filter would blend
+ * the edges toward black, and draw light patterns with dark outlines. The image is read back from
+ * the canvas so that these colors survive (a canvas keeps none for transparent pixels).
+ */
+export function bleedIntoTransparentPixels({data, width, height}: ImageData): void {
+  const source = data.slice();
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (source[i + 3] !== 0) {
+        continue;
+      }
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let count = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+            continue;
+          }
+          // Weighted by alpha, as a premultiplied filter weighs them.
+          const j = (ny * width + nx) * 4;
+          const alpha = source[j + 3];
+          r += source[j] * alpha;
+          g += source[j + 1] * alpha;
+          b += source[j + 2] * alpha;
+          count += alpha;
+        }
+      }
+      if (count) {
+        data[i] = r / count;
+        data[i + 1] = g / count;
+        data[i + 2] = b / count;
+      }
+    }
+  }
 }
 
 /** The features without an image per list of groups. */
@@ -317,7 +364,7 @@ export function getFillPatternProps(group: FillPatternGroup, zoom: number) {
   const unitScale = 2 ** -Math.floor(zoom);
   const {getPixelRatio} = group;
   // Kept on the group: a tile's groups, and so their atlases, are released with its features.
-  // A layer turns the canvas into its own texture and keeps the canvas as a prop, so no live
+  // A layer turns the atlas image into its own texture and keeps the image as a prop, so no live
   // layer loses its texture when an atlas is released.
   group.patternAtlas ??= getPatternAtlas(group.atlas, group.names);
   const {image, mapping} = group.patternAtlas;

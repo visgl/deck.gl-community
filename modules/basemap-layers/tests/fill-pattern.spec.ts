@@ -6,6 +6,7 @@
 import {describe, expect, test} from 'vitest';
 import {
   MAX_PATTERN_ATLAS_SIZE,
+  bleedIntoTransparentPixels,
   getFeaturesWithoutPattern,
   getFillPatternGroups,
   getFillPatternProps,
@@ -556,5 +557,25 @@ describe('pattern atlases', () => {
         80
       )
     ).toBeNull();
+  });
+});
+
+describe('bleedIntoTransparentPixels', () => {
+  test('gives transparent pixels next to visible ones their alpha-weighted color, and no alpha', () => {
+    // A row of 4 pixels: opaque red, half-transparent blue, transparent, transparent.
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 255, 85, 0, 0, 0, 0, 0, 0, 0, 0]);
+    bleedIntoTransparentPixels({data, width: 4, height: 1} as ImageData);
+    expect(Array.from(data.slice(0, 8))).toEqual([255, 0, 0, 255, 0, 0, 255, 85]);
+    // Next to the blue pixel only.
+    expect(Array.from(data.slice(8, 12))).toEqual([0, 0, 255, 0]);
+    // Next to transparent pixels only: unchanged.
+    expect(Array.from(data.slice(12, 16))).toEqual([0, 0, 0, 0]);
+  });
+
+  test('weighs neighbors by their alpha', () => {
+    // Opaque red, transparent, blue at a third of the alpha.
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 255, 85]);
+    bleedIntoTransparentPixels({data, width: 3, height: 1} as ImageData);
+    expect(Array.from(data.slice(4, 8))).toEqual([191, 0, 64, 0]);
   });
 });

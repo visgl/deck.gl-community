@@ -40,8 +40,8 @@
     "candidateLabels": 10
   },
   "paris-liberty-z13.3": {
-    "ssim": 0.9114,
-    "edgeF": 0.9487,
+    "ssim": 0.9394,
+    "edgeF": 0.9757,
     "labelRecall": 0.8182,
     "labelPrecision": 0.9,
     "referenceLabels": 11,
