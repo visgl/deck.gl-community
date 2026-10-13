@@ -91,9 +91,9 @@ type TreeInventoryProps<DataT> = {
   maxTileRecords?: number;
   /** Maximum decoded payload bytes in one tile. @default 1048576 */
   maxTileByteLength?: number;
-  /** Target rendered-frame interval for automatic quality feedback. Zero disables feedback. @default 16.6667 */
+  /** Target rendered-frame interval for automatic quality feedback. Zero disables feedback and restores full budgets immediately. @default 16.6667 */
   targetFrameTime?: number;
-  /** Lowest fraction of Gaussian budgets feedback can select. Owners are never removed. @default 0.125 */
+  /** Lowest fraction of Gaussian budgets feedback can select. Raising it immediately clamps current quality; owners are never removed. @default 0.125 */
   minBudgetScale?: number;
   /** Maximum shared Gaussian accumulation pixels. Raster resolution stays fixed during geometry feedback. @default 4194304 */
   maxCanopyPixels?: number;
@@ -169,6 +169,13 @@ export class TreeTileLayer<DataT = unknown> extends TileLayer<
   }
   updateState(params: UpdateParameters<this>) {
     super.updateState(params);
+    if (
+      this.state.frameBudget.configure(
+        params.props.targetFrameTime ?? 1000 / 60,
+        params.props.minBudgetScale ?? 0.125
+      )
+    )
+      this.setNeedsUpdate();
     const triggers = params.changeFlags.updateTriggersChanged;
     if (triggers && (triggers.all || triggers.getTreeKey)) {
       this.state.batch.identityChanged = true;

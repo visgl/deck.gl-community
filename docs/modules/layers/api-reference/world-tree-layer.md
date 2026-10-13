@@ -47,8 +47,8 @@ coverage and any numeric layer-wide weight. Set `foveationStrength: 1` to priori
 | `maxCanopySplats` | 250,000 | Shared Gaussian quota across distant crowns and individual species. |
 | `maxShadowSplats` | 125,000 | Independent light-space Gaussian quota. |
 | `maxCanopyPixels` | Infinity | Shared accumulation pixel limit; raster resolution remains fixed as geometry quality adapts. |
-| `targetFrameTime` | 16.67 ms | Quality feedback with hysteresis. Zero disables feedback for controlled comparisons. |
-| `minBudgetScale` | 0.125 | Lowest Gaussian budget fraction selected by feedback. |
+| `targetFrameTime` | 16.67 ms | Quality feedback with hysteresis. Zero disables feedback and immediately restores full quotas for controlled comparisons. |
+| `minBudgetScale` | 0.125 | Lowest Gaussian budget fraction selected by feedback; raising it immediately clamps current quality. |
 | `maxCacheSize` | 64 | Deck cache eviction target. |
 | `maxCacheByteSize` | 32 MiB | Decoded cache eviction target; excludes shared renderer/template GPU memory. |
 | `maxRequests` | 4 | Concurrent abortable requests. |

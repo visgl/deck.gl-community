@@ -67,6 +67,8 @@ use `windStrength` for both near and distant trees. The compatibility wrapper re
 its earlier budget defaults; canonical TreeLayer uses 250,000/125,000 canopy/shadow
 submissions in both modes. See the [streaming reference](./modules/layers/api-reference/world-tree-layer.md).
 
+Changing streamed TreeLayer quality controls applies before the next batch render: `targetFrameTime: 0` restores full canopy and shadow quotas; raising `minBudgetScale` clamps current quality. Changed settings discard old frame samples.
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,

@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {expect, it, vi} from 'vitest';
 import {WebMercatorViewport} from '@deck.gl/core';
+import {TileLayer} from '@deck.gl/geo-layers';
 import {WorldTreeLayer} from '../../src/tree-layer/world-tree-layer';
 import {TreeLayer} from '../../src/tree-layer/tree-layer';
 import {TreeTileLayer} from '../../src/tree-layer/tree-tile-layer';
@@ -205,6 +206,71 @@ it('rejects oversized decoded content instead of letting one tile expand without
     'byte limit'
   );
 });
+it.each([
+  ['disabled feedback', 0, 0.125, 1],
+  ['raised minimum', 1000 / 60, 0.75, 0.75]
+] as const)('applies %s before rendering even an empty inventory', (_name, target, minimum, expected) => {
+  const frameBudget = new TreeFrameBudget();
+  for (let i = 1; i <= 150; i++) frameBudget.sample(i * 80, 1000 / 60, 0.125, true);
+  expect(frameBudget.scale).toBeLessThan(0.5);
+  const layer = new TreeTileLayer({
+    getTileData: () => ({trees: [], canopies: [], byteLength: 0}),
+    _TreeLayerClass: TreeLayer,
+    maxCanopySplats: 1000,
+    maxShadowSplats: 400
+  });
+  Object.assign(layer, {
+    context: {device: {canvasContext: {getDrawingBufferSize: () => [100, 100]}}},
+    state: {
+      splatBudgetGroup: {maxSplats: Infinity, maxShadowSplats: Infinity},
+      frameBudget,
+      coverage: new TreeCoverageTransition(),
+      tileset: {tiles: []},
+      pageTiles: new Map(),
+      treePages: new Map(),
+      canopyPages: new Map(),
+      batch: {trees: [], canopies: [], tiles: [], contents: []}
+    }
+  });
+  const inheritedUpdate = vi.spyOn(TileLayer.prototype, 'updateState').mockImplementation(() => {});
+  const requestUpdate = vi.spyOn(layer, 'setNeedsUpdate').mockImplementation(() => {});
+  const oldProps = layer.props;
+  Object.assign(layer, {
+    props: layer.clone({targetFrameTime: target, minBudgetScale: minimum}).props
+  });
+  const params = {
+    props: layer.props,
+    oldProps,
+    changeFlags: {propsChanged: 'quality settings'}
+  } as Parameters<typeof layer.updateState>[0];
+  try {
+    layer.updateState(params);
+    expect(frameBudget.scale).toBe(expected);
+    expect(requestUpdate).toHaveBeenCalledTimes(1);
+    layer.renderLayers();
+    expect(layer.state.splatBudgetGroup).toMatchObject({
+      maxSplats: 1000 * expected,
+      maxShadowSplats: 400 * expected
+    });
+    layer.updateState(params);
+    expect(requestUpdate).toHaveBeenCalledTimes(1);
+  } finally {
+    inheritedUpdate.mockRestore();
+    requestUpdate.mockRestore();
+  }
+});
+
+it('applies changed quality settings before ignoring idle or same-frame samples', () => {
+  const controller = new TreeFrameBudget();
+  for (let i = 1; i <= 150; i++) controller.sample(i * 80, 1000 / 60, 0.125, true);
+  expect(controller.scale).toBeLessThan(0.5);
+  expect(controller.sample(17000, 1000 / 60, 0.75)).toBe(true);
+  expect(controller.scale).toBe(0.75);
+  expect(controller.sample(17000, 0, 0.125)).toBe(true);
+  expect(controller.scale).toBe(1);
+  expect(controller.sample(17000, 0, 0.125)).toBe(false);
+});
+
 it('reduces refinement under sustained frame pressure and recovers with hysteresis, ignoring idle gaps', () => {
   const controller = new TreeFrameBudget();
   let now = 0;

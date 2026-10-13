@@ -13,7 +13,24 @@ export class TreeFrameBudget {
   private checked = 0;
   private stableSince = 0;
   private frames: number[] = [];
+  private target?: number;
+  private minimum?: number;
+  /** Apply host settings before sampling, including while the inventory is empty or idle. */
+  configure(target: number, minimum: number): boolean {
+    const previous = this.scale;
+    this.scale = target <= 0 ? 1 : Math.min(1, Math.max(minimum, this.scale));
+    if (target !== this.target || minimum !== this.minimum) {
+      this.target = target;
+      this.minimum = minimum;
+      this.previous = 0;
+      this.checked = 0;
+      this.stableSince = 0;
+      this.frames = [];
+    }
+    return this.scale !== previous;
+  }
   sample(now: number, target: number, minimum: number, active = false): boolean {
+    const configured = this.configure(target, minimum);
     const elapsed = now - this.previous;
     this.previous = now;
     if (
@@ -25,11 +42,11 @@ export class TreeFrameBudget {
       this.frames = [];
       this.checked = now;
       this.stableSince = 0;
-      return false;
+      return configured;
     }
     this.frames.push(elapsed);
     if (this.frames.length > 90) this.frames.shift();
-    if (this.frames.length < 30 || now - this.checked < 750) return false;
+    if (this.frames.length < 30 || now - this.checked < 750) return configured;
     this.checked = now;
     const sorted = [...this.frames].sort((a, b) => a - b);
     const p95 = sorted[Math.floor(sorted.length * 0.95)];
@@ -50,7 +67,7 @@ export class TreeFrameBudget {
       }
     } else this.stableSince = 0;
     this.frames = [];
-    return this.scale !== previous;
+    return configured || this.scale !== previous;
   }
 }
 

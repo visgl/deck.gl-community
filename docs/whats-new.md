@@ -27,7 +27,7 @@ This page lists module additions and major changes in each release. For detailed
 
 - Migrated the Coit native RAD scene into the public community SplatLayer example and website.
 
-- `TreeLayer` also accepts `getTileData` for bounded geographic streaming, continuous crown refinement and automatic frame budgets, using the same top-level tree accessors as supplied rows. `WorldTreeLayer` remains a deprecated compatibility wrapper.
+- `TreeLayer` also accepts `getTileData` for bounded geographic streaming, continuous crown refinement and automatic frame budgets, using the same top-level tree accessors as supplied rows. `WorldTreeLayer` remains a deprecated compatibility wrapper. Disabling frame feedback restores full Gaussian budgets immediately; raising the minimum quality clamps the current budgets.
 - Added the synthetic World inventory example after Coit, with abortable tile loading and bounded visible working sets.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
