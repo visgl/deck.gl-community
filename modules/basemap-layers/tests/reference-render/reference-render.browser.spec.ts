@@ -29,6 +29,7 @@ import '@fontsource/montserrat/latin-400.css';
 import '@fontsource/montserrat/latin-400-italic.css';
 import '@fontsource/montserrat/latin-500.css';
 import '@fontsource/montserrat/latin-500-italic.css';
+import '@fontsource/open-sans/latin-400-italic.css';
 import {afterAll, beforeAll, describe, expect, test} from 'vitest';
 import {commands} from 'vitest/browser';
 import committedBaseline from './baseline.json';
@@ -87,7 +88,8 @@ const FONTS = [
   '400 16px Montserrat',
   'italic 400 16px Montserrat',
   '500 16px Montserrat',
-  'italic 500 16px Montserrat'
+  'italic 500 16px Montserrat',
+  'italic 400 16px "Open Sans"'
 ];
 
 const measured: Baseline = {};
