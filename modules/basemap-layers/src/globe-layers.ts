@@ -495,12 +495,36 @@ export class ZoomPaintContext {
 
   private zoomPaints = new Map<string, {styleLayers: BasemapStyleLayer[]; zoomPaint: ZoomPaint}>();
 
+  /** The style the zoom paints were made for (see `setStyle`). */
+  private style: unknown;
+
+  /** The zoom paints no sublayer has asked for since the last style change. */
+  private unused = new Set<string>();
+
+  /**
+   * Destroys the zoom paints of sequences of style layers that no sublayer drew with since the
+   * previous style change. A new style keeps the zoom paints of the style layers it keeps, and its
+   * tile sublayers, regenerated, ask for the others again, so at most one style's are left over.
+   */
+  setStyle(style: unknown): void {
+    if (style === this.style) {
+      return;
+    }
+    this.style = style;
+    for (const key of this.unused) {
+      this.zoomPaints.get(key)?.zoomPaint.destroy();
+      this.zoomPaints.delete(key);
+    }
+    this.unused = new Set(this.zoomPaints.keys());
+  }
+
   /**
    * The `ZoomPaint` of style layers drawn by one sublayer. Its values are evaluated once per zoom
    * step, and again when a paint property is replaced.
    */
   get(styleLayers: BasemapStyleLayer[], mode: BasemapMode): ZoomPaint {
     const key = `${mode} ${JSON.stringify(styleLayers.map(layer => layer.id))}`;
+    this.unused.delete(key);
     const cached = this.zoomPaints.get(key);
     if (
       cached &&
@@ -848,6 +872,7 @@ class StyledMVTLayer extends SharedMVTLayer {
     }
     this.state.zoomPaintContext ||= new ZoomPaintContext();
     const {zoomPaintContext} = this.state;
+    zoomPaintContext.setStyle((this.props as {paintStyle?: unknown}).paintStyle);
     zoomPaintContext.zoom = getZoomBucket((this.props as {styleZoom?: number}).styleZoom ?? 0);
     const previous = this.state.keptTileLayers?.get(props.tile.id);
     // `SharedMVTLayer` turns `autoHighlight` off for the tile sublayers, which it highlights itself.
@@ -1235,6 +1260,8 @@ function createVectorLayerGroup({
     ...getTilePyramidProps(source),
     // The zoom at which `renderSubLayers` evaluates paint, which `ZoomPaintExtension` also uses.
     styleZoom: zoom,
+    // The style layers whose paint `ZoomPaintExtension` draws (see `ZoomPaintContext.setStyle`).
+    paintStyle: styleDefinition?.layers,
     tileSize: source.tileSize || 512,
     loadOptions: {
       ...(loadOptions || {}),

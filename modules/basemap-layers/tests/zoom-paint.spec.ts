@@ -295,4 +295,55 @@ describe('zoom paint textures', () => {
     expect(device.textures[1].destroy).toHaveBeenCalled();
     expect(device.textures[2].destroy).toHaveBeenCalled();
   });
+
+  test('of style layers no sublayer draws any more are destroyed at the next style change', () => {
+    const zoomPaintContext = new ZoomPaintContext();
+    const device = fakeDevice();
+    zoomPaintContext.setStyle('first');
+    zoomPaintContext.get([line('a', {})] as any[], 'map').getTexture(device);
+    // A new style without 'a': its sublayers ask for 'b' only.
+    zoomPaintContext.setStyle('second');
+    const b = [line('b', {})] as any[];
+    zoomPaintContext.get(b, 'map').getTexture(device);
+    expect(device.textures[0].destroy).not.toHaveBeenCalled();
+    // At the next change, 'a' was not asked for since the previous one; 'b' was.
+    zoomPaintContext.setStyle('third');
+    expect(device.textures[0].destroy).toHaveBeenCalled();
+    zoomPaintContext.get(b, 'map');
+    zoomPaintContext.setStyle('fourth');
+    expect(device.textures[1].destroy).not.toHaveBeenCalled();
+    // The same style changes nothing.
+    zoomPaintContext.setStyle('fourth');
+    zoomPaintContext.setStyle('fourth');
+    expect(device.textures[1].destroy).not.toHaveBeenCalled();
+  });
+
+  test("follow the vector tile layer's style layers", () => {
+    const layers = [{id: 'a', type: 'line', source: 'tiles', 'source-layer': 'road', paint: {}}];
+    const styleDefinition: any = {
+      version: 8,
+      sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
+      layers
+    };
+    const layer: any = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 12,
+      styleDefinition
+    }).find((candidate: any) => candidate.id === 'test-tiles');
+    layer.context = {viewport: {zoom: 12}};
+    layer.state = {tilesetViews: new Map(), tileLayers: new Map()};
+    const setStyle = vi.spyOn(ZoomPaintContext.prototype, 'setStyle');
+    try {
+      layer.renderSubLayers({
+        ...layer.props,
+        id: 'tile',
+        data: [],
+        tile: {id: '0-0-12', index: {x: 0, y: 0, z: 12}}
+      });
+      expect(setStyle).toHaveBeenCalledWith(layers);
+    } finally {
+      setStyle.mockRestore();
+    }
+  });
 });
