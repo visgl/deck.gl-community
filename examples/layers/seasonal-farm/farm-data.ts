@@ -4,7 +4,7 @@
 
 import {addMetersToLngLat} from '@math.gl/web-mercator';
 import type {Color} from '@deck.gl/core';
-import type {CropConfig, Season, TreeType} from '@deck.gl-community/three';
+import type {CropConfig, Season, TreeType} from '@deck.gl-community/layers';
 
 export type Species = 'date' | 'orange' | 'cherry' | 'pine' | 'birch' | 'cork-oak' | 'almond';
 export type FarmTree = {

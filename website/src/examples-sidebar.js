@@ -45,6 +45,7 @@ const sidebars = {
         'layers/path-outline-and-markers',
         'layers/flame-trail',
         'layers/tree-lab',
+        'layers/seasonal-farm',
         'layers/skybox-map-view',
         'layers/skybox-globe',
         'layers/skybox-first-person',
@@ -60,11 +61,6 @@ const sidebars = {
       type: 'category',
       label: '@deck.gl-community/basemap-layers',
       items: ['layers/basemap-layer-map-view', 'basemap-layers/split-view']
-    },
-    {
-      type: 'category',
-      label: '@deck.gl-community/three',
-      items: ['three/seasonal-farm']
     },
     {
       type: 'category',

@@ -12,7 +12,7 @@ From the repository root:
 
 ```sh
 yarn
-yarn --cwd examples/three/seasonal-farm start
+yarn --cwd examples/layers/seasonal-farm start
 ```
 
 TreeLayer loads from source. The same demo runs standalone, on the website, and in the
