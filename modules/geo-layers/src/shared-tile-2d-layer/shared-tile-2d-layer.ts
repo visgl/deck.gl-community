@@ -437,6 +437,9 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   private _updateTileset(): void {
     const {zRange, modelMatrix} = this.props;
     let anyTilesetChanged = false;
+    // A view reports its load once per update, as deck.gl's TileLayer does when both its tiles and
+    // the loading state change.
+    const loadedViews = new Set<unknown>();
 
     for (const [viewportKey, viewport] of this._knownViewports) {
       this._prunePlaceholderViewportView(viewportKey);
@@ -448,6 +451,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
 
       if (tilesetView.isLoaded && tilesetChanged) {
         this._onViewportLoad(tilesetView);
+        loadedViews.add(tilesetView);
       }
       if (tilesetChanged) {
         this.state.frameNumbers.set(viewportKey, frameNumber);
@@ -458,7 +462,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     const loadingStateChanged = this.state.isLoaded !== nextIsLoaded;
     if (loadingStateChanged) {
       for (const tilesetView of this.state.tilesetViews.values()) {
-        if (tilesetView.isLoaded) {
+        if (tilesetView.isLoaded && !loadedViews.has(tilesetView)) {
           this._onViewportLoad(tilesetView);
         }
       }

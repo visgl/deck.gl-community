@@ -83,6 +83,40 @@ async function waitFor(condition: () => boolean, message: string): Promise<void>
 }
 
 describe('SharedTile2DLayer', () => {
+  /**
+   * Updates a layer with one view whose selected tiles have all loaded, and returns the
+   * `onViewportLoad` calls. The view's tiles changed unless `frameNumbers` holds its frame.
+   */
+  function updateWithLoadedView(frameNumbers: Map<string, number>) {
+    const loads: unknown[] = [];
+    const layer: any = new SharedTile2DLayer({
+      id: 'tile-2d-viewport-load',
+      getTileData: () => null,
+      onViewportLoad: (tiles: unknown) => loads.push(tiles)
+    });
+    const view = {isLoaded: true, selectedTiles: [], update: () => 1};
+    layer.state = {
+      tilesetViews: new Map([['default', view]]),
+      frameNumbers,
+      isLoaded: false,
+      tileLayers: new Map()
+    };
+    layer._knownViewports.set('default', {});
+    layer._getOrCreateTilesetView = () => view;
+    layer._prunePlaceholderViewportView = () => {};
+    layer.setState = (state: any) => Object.assign(layer.state, state);
+    layer._updateTileset();
+    return loads;
+  }
+
+  it('reports a view load once when its tiles and the loading state change together', () => {
+    expect(updateWithLoadedView(new Map())).toHaveLength(1);
+  });
+
+  it('reports a view load when only the loading state changes', () => {
+    expect(updateWithLoadedView(new Map([['default', 1]]))).toHaveLength(1);
+  });
+
   it('exports from the package surface', () => {
     expect(SharedTile2DLayer).toBeDefined();
     expect(SharedTileset2D).toBeDefined();
