@@ -821,6 +821,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@deck.gl-community-examples/vega-map-to-stacks@workspace:examples/vega/map-to-stacks":
+  version: 0.0.0-use.local
+  resolution: "@deck.gl-community-examples/vega-map-to-stacks@workspace:examples/vega/map-to-stacks"
+  dependencies:
+    vega: "npm:^6.2.0"
+    vite: "npm:^7.3.1"
+  languageName: unknown
+  linkType: soft
+
 "@deck.gl-community-examples/vega-mark-transitions@workspace:examples/vega/mark-transitions":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community-examples/vega-mark-transitions@workspace:examples/vega/mark-transitions"

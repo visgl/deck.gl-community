@@ -82,3 +82,10 @@
 .vega-controls .vega-bind input[type='checkbox'] { justify-self: end; }
 .vega-controls .vega-bind-radio { display: flex; flex-wrap: wrap; gap: 8px; }
 .vega-controls .vega-bind-radio label { display: flex; align-items: center; gap: 4px; margin: 0; }
+
+/* A single signal should read as a compact card, not a full-width form. */
+.vega-controls:has(.vega-bind:only-child) {
+  align-self: flex-start;
+  width: calc(100% - 8px);
+  max-width: 240px;
+}

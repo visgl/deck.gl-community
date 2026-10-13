@@ -20,6 +20,7 @@ function wrapper(props: any) {
     public layerStartProps: any;
     public layerEndProps: any;
     public layerInterpolatedProps: any;
+    private layerInterpolator?: _LinearInterpolator;
 
     constructor(transitionProps?: string[]) {
       super(transitionProps);
@@ -27,7 +28,11 @@ function wrapper(props: any) {
 
     interpolateProps(viewStateStartProps: any, viewStateEndProps: any, t: any) {
       if (this.layerStartProps && this.layerEndProps) {
-        this.layerInterpolatedProps = super.interpolateProps(
+        // Layer uniforms have different keys from the camera's transition properties.
+        this.layerInterpolator ??= new base.deck.LinearInterpolator(
+          Object.keys(this.layerEndProps)
+        );
+        this.layerInterpolatedProps = this.layerInterpolator.interpolateProps(
           this.layerStartProps,
           this.layerEndProps,
           t
