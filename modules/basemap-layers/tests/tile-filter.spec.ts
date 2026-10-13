@@ -51,11 +51,17 @@ describe('tile features by source layer', () => {
   ];
 
   test('each style layer draws the features of its source layer, in tile order', () => {
+    // Different caps keep the style layers in sublayers of their own (see layer-batching.spec).
     const [roads, rivers, filtered] = tileSubLayers(
       [
-        {id: 'roads', 'source-layer': 'roads'},
-        {id: 'rivers', 'source-layer': 'rivers'},
-        {id: 'some-roads', 'source-layer': 'roads', filter: ['!=', ['get', 'name'], 'r2']}
+        {id: 'roads', 'source-layer': 'roads', layout: {'line-cap': 'butt'}},
+        {id: 'rivers', 'source-layer': 'rivers', layout: {'line-cap': 'round'}},
+        {
+          id: 'some-roads',
+          'source-layer': 'roads',
+          layout: {'line-cap': 'butt'},
+          filter: ['!=', ['get', 'name'], 'r2']
+        }
       ],
       features
     );
@@ -92,9 +98,15 @@ describe('tile features by source layer', () => {
   });
 
   test('each style layer of a tile is filtered by its own filter at a new integer zoom', () => {
+    // Different caps keep the style layers in sublayers of their own (see layer-batching.spec).
     const layers = [
-      {id: 'roads', 'source-layer': 'roads'},
-      {id: 'late-rivers', 'source-layer': 'rivers', filter: ['>=', ['zoom'], 13]}
+      {id: 'roads', 'source-layer': 'roads', layout: {'line-cap': 'butt'}},
+      {
+        id: 'late-rivers',
+        'source-layer': 'rivers',
+        layout: {'line-cap': 'round'},
+        filter: ['>=', ['zoom'], 13]
+      }
     ];
     const style = createStyle(layers);
     expect(tileSubLayers(layers, features, 12.1, style).map(names)).toEqual([['r1', 'r2', 'r3']]);

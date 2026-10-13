@@ -217,16 +217,13 @@ describe('line-offset and line-gap-width', () => {
     expect(extensions[0]).toBe(getExtensions(renderLine(paint))[0]);
   });
 
-  test.each([0, -2])('returns zero offset for width %s', width => {
+  test.each([0, -2])('draws nothing for width %s', width => {
     const layers = renderLines({
       'line-offset': 6,
       'line-gap-width': 4,
       'line-width': width
     });
-    expect(getSides(layers)).toEqual([
-      {offsets: [0], widths: [0]},
-      {offsets: [0], widths: [0]}
-    ]);
+    expect(layers.filter(Boolean)).toEqual([]);
   });
 
   test('clamps negative gaps to zero', () => {

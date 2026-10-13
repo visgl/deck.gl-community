@@ -54,7 +54,7 @@ describe('line-width', () => {
   });
 
   test('a line-width of 0 draws nothing', () => {
-    expect(lineWidthFor('transportation', 'road_hidden', 0)).toBe(0);
+    expect(lineSublayerFor('transportation', 'road_hidden', 0)).toBeUndefined();
   });
 
   test('wide lines are not capped', () => {
