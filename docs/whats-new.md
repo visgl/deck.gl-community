@@ -18,6 +18,8 @@ This page lists module additions and major changes in each release. For detailed
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
 
+- Migrated the Coit native RAD scene into the public community SplatLayer example and website.
+
 - Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera and light-map culling include the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement.
 
 - Added sorted Composite SplatLayer scenes with off-thread RAD/static loading, shared source residency, global per-view/domain ordering, affine/SH instance handling, owner picking and host-pass presentation. Asset URLs resolve against the document base before worker decoding. RAD refinement requires perspective Cartesian views; static sorted scenes also support orthographic views. Hidden scene owners release completed refinement leases and cancelled decoded uploads while retaining their last visible coverage. A repository luma compatibility patch requires an upstream 9.4 release before package publication.
