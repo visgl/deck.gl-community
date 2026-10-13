@@ -163,7 +163,7 @@ describe('label layouts', () => {
     const layer: any = new LabelTextLayer({id: 'text', ...props} as any);
     layer.state = {
       getText: (row: any) => row.text,
-      fontAtlasManager: {mapping: getMapping('abc'), atlas, props: {fontSize: 64}}
+      fontAtlasManager: {mapping: getMapping('abc '), atlas, props: {fontSize: 64}}
     };
     return layer;
   }
@@ -205,6 +205,33 @@ describe('label layouts', () => {
     unspaced.transformParagraph(row, info);
     expect(taller.transformParagraph(row, info).size[1]).toBe(2 * plain.size[1]);
   });
+
+  // Each input on its own: the row is laid out with `base` first, then with the input changed.
+  const lines = {text: 'ab\nc'};
+  const words = {text: 'abc ab'};
+  for (const [input, row, base, changed] of [
+    ['justification', lines, {getTextJustify: 'left'}, {getTextJustify: 'right'}],
+    [
+      'anchor',
+      lines,
+      {getTextJustify: 'left', getTextAnchor: 'start'},
+      {getTextJustify: 'left', getTextAnchor: 'end'}
+    ],
+    ['maximum width', words, {}, {maxWidth: 0.4}],
+    ['word break', {text: 'a abc'}, {maxWidth: 0.6}, {maxWidth: 0.6, wordBreak: 'break-all'}]
+  ] as const) {
+    test(`are made again when the ${input} changes`, () => {
+      const atlas = {baselineOffset: 2};
+      const before = textLayer(base, atlas);
+      const after = textLayer(changed, atlas);
+      before.state.layouts = after.state.layouts = new WeakMap();
+      const kept = {...row};
+      const first = before.transformParagraph(kept, info);
+      const fresh = textLayer(changed, atlas).transformParagraph({...row}, info);
+      expect(fresh).not.toEqual(first);
+      expect(after.transformParagraph(kept, info)).toEqual(fresh);
+    });
+  }
 });
 
 describe('label characters', () => {
