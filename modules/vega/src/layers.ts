@@ -96,12 +96,16 @@ export function getLayers(
     lineLayer,
     pathLayer,
     polygonLayer,
-    ...createGeographicLayers(stage, polygonData),
+    ...createGeographicLayers(stage, polygonData, config),
     newSymbolLayer(stage.symbolData ?? [], config)
   ];
 }
 
-function createGeographicLayers(stage: Stage, polygons: Polygon[]): Layer[] {
+function createGeographicLayers(
+  stage: Stage,
+  polygons: Polygon[],
+  config: PresenterConfig
+): Layer[] {
   const marks: GeographicMark[] = stage.geographicData ?? [
     ...polygons.filter(p => p.isGeographic).map(data => ({type: 'polygon' as const, data})),
     ...(stage.pathData ?? [])
@@ -119,8 +123,8 @@ function createGeographicLayers(stage: Stage, polygons: Polygon[]): Layer[] {
     const id = count ? `${baseId}-${count}` : baseId;
     layers.push(
       type === 'polygon'
-        ? newPolygonLayer(id, batch as Polygon[], true)
-        : newPathLayer(id, batch as Path[], true)
+        ? newPolygonLayer(id, batch as Polygon[], true, config)
+        : newPathLayer(id, batch as Path[], true, config)
     );
   }
   return layers;
@@ -211,7 +215,7 @@ function newLineLayer(id: string, data: StyledLine[]) {
   });
 }
 
-function newPathLayer(id: string, data: Path[], geographic = false) {
+function newPathLayer(id: string, data: Path[], geographic = false, config?: PresenterConfig) {
   if (!data) return null;
 
   return new base.layers.PathLayer<Path>({
@@ -224,20 +228,40 @@ function newPathLayer(id: string, data: Path[], geographic = false) {
     widthUnits: 'pixels',
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
     parameters: geographic ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
+    transitions: geographic
+      ? {
+          getPath: getTiming(config.transitionDurations.position, easing),
+          getColor: getTiming(config.transitionDurations.color),
+          getWidth: getTiming(config.transitionDurations.size)
+        }
+      : undefined,
     getPath: o => o.positions,
     getColor: o => o.strokeColor,
     getWidth: o => o.strokeWidth
   });
 }
 
-function newPolygonLayer(id: string, data: Polygon[], isSymbol = false) {
+function newPolygonLayer(
+  id: string,
+  data: Polygon[],
+  geographic = false,
+  config?: PresenterConfig
+) {
   if (!data) return null;
 
   const newlayer = new base.layers.PolygonLayer<Polygon>({
     id,
     data,
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
-    parameters: isSymbol ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
+    parameters: geographic ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
+    transitions: geographic
+      ? {
+          getPolygon: getTiming(config.transitionDurations.position, easing),
+          getFillColor: getTiming(config.transitionDurations.color),
+          getLineColor: getTiming(config.transitionDurations.color),
+          getLineWidth: getTiming(config.transitionDurations.size)
+        }
+      : undefined,
     getPolygon: o => o.positions,
     getFillColor: o => o.fillColor,
     getLineColor: o => o.strokeColor,
@@ -245,8 +269,8 @@ function newPolygonLayer(id: string, data: Polygon[], isSymbol = false) {
     filled: true,
     stroked: true,
     pickable: true,
-    extruded: !isSymbol,
-    lineWidthUnits: isSymbol ? 'pixels' : 'meters',
+    extruded: !geographic,
+    lineWidthUnits: geographic ? 'pixels' : 'meters',
     getElevation: o => o.depth,
     getLineWidth: o => o.strokeWidth
   });
