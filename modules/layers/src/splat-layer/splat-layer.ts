@@ -10,15 +10,19 @@ import {
   type LayerProps,
   type Layer,
   type Position,
-  type UpdateParameters
+  type UpdateParameters,
+  type Viewport
 } from '@deck.gl/core';
 import {SplatEffect} from './splat-effect';
 import {SplatPrimitiveLayer, type PreparedSplatProps} from './splat-primitive-layer';
 import {
+  createSplatFrustum,
+  intersectsSplatFrustum,
   getSplatBoundedPixelsPerMeter,
   getSplatFocusWeight,
   getSplatProjectionKey,
   getSplatCachedPosition,
+  getSplatCommonUnits,
   type SplatProjectedPosition
 } from './splat-culling';
 import {
@@ -26,6 +30,7 @@ import {
   querySplatSpatialIndex,
   type SplatSpatialNode
 } from './splat-spatial-index';
+import type {SplatShadowProjection} from './splat-shadow-pass';
 import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform, getSplatTransformScale} from './splat-transform';
@@ -35,6 +40,8 @@ import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges} from './splat-row-diff';
 import {
   DEFAULT_GET_SOURCE,
+  isSplatSceneData,
+  isSplatDataInput,
   resolveSplatInput,
   type ResolvedSplatInput,
   type ResolvedSplatAsset,
@@ -43,6 +50,9 @@ import {
 } from './splat-input';
 import {SplatRuntime, SplatSelectionEffect, type SplatBudgetGroup} from './splat-runtime';
 import type {SplatSource} from './splat-source';
+import {SplatSceneLayer} from './scene/splat-scene-layer';
+import {getSplatSceneProjectionError} from './scene/splat-scene-projection';
+import type {SplatLayerStatus} from './scene/rad-scene';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
@@ -59,21 +69,36 @@ type PreparedOwner<DataT> = {
   radius: number;
 };
 type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'> & {
-  /** One prepared asset, or application-owned instance rows. */
+  /** A Gaussian asset, scene URL/Blob, or application-owned instance rows. */
   data: DataT[] | SplatDataInput;
   /** Reusable asset per owner. Defaults to the row's splats field. */
   getSource?: Accessor<DataT, SplatDataInput>;
   /** Legacy constant-template input. Cannot be combined with explicit getSource. */
   source?: SplatSource;
-  /** Weighted optical blending or globally depth-sorted prepared Gaussians. @default 'weighted' */
-  transparency?: 'weighted' | 'sorted';
+  /**
+   * Auto selects weighted prepared assets or sorted scenes; explicit sorted shares an ordering domain.
+   * @default 'auto'
+   */
+  transparency?: 'auto' | 'weighted' | 'sorted';
+  /** Optional worker factory for CommonJS or hosts that manage worker URLs explicitly. */
+  workerFactory?: (type: 'rad' | 'static') => Worker;
+  /** Coit compatibility alias for maxSplats. Conflicting finite values are rejected. */
+  maxActiveSplats?: number;
+  /** Maximum admitted source rows; scene refinement has bounded transition headroom. */
+  maxResidentSplats?: number;
+  /** Concurrent RAD downloads. Updates preserve active loads; shared sources use the lowest limit. */
+  maxConcurrentLoads?: number;
+  /** Independently ordered transparent domain. Layers in the same domain share one order. */
+  sortDomain?: string;
+  /** Source loading, residency and refinement diagnostics. */
+  onStatusChange?: (status: SplatLayerStatus) => void;
   /** Aggregate settled submission cap across visible SplatLayers on this deck/device. */
   maxTotalSplats?: number;
   /** @internal Shared cap inherited from a composing layer. */
   _splatBudgetGroup?: SplatBudgetGroup;
 };
 
-/** Properties for prepared assets and their original owner rows in single-world planar views. */
+/** Properties for prepared Gaussian assets, Cartesian scenes and their original owner rows. */
 export type SplatLayerProps<DataT = SplatInstance> = _SplatLayerProps<DataT> & LayerProps;
 
 /** Counts submitted Gaussians independently from the number of owning instances. */
@@ -82,10 +107,16 @@ export type SplatLayerStats = {
   sourceCount: number;
   /** Owner instances in the current camera selection. */
   visibleInstances: number;
+  /** Owner instances in the independent light-space selection. */
+  shadowInstances: number;
   /** Camera Gaussian submissions, including fading representations. */
   renderedSplats: number;
+  /** Light-space Gaussian submissions, including fading representations. */
+  shadowSplats: number;
   /** Cost of the coarsest retained camera representation of every owner. */
   coverageFloor: number;
+  /** Cost of the coarsest retained light-space representation of every owner. */
+  shadowCoverageFloor: number;
   /** Camera owners whose optical detail mixture is still moving. */
   refiningInstances: number;
 };
@@ -94,23 +125,35 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   // Asset URLs must not fall through the ordinary JSON data loader.
   data: {type: 'data', value: [], async: false},
   getSource: {type: 'accessor', value: DEFAULT_GET_SOURCE},
-  transparency: 'weighted',
+  transparency: 'auto',
+  workerFactory: {type: 'function', value: null, optional: true},
+  maxActiveSplats: Infinity,
+  maxResidentSplats: 8_000_000,
+  maxConcurrentLoads: 8,
+  sortDomain: 'default',
+  onStatusChange: {type: 'function', value: null, optional: true},
   maxTotalSplats: Infinity,
   _splatBudgetGroup: null
 };
 
-/** Prepared Gaussian templates with shared instances, spatial visibility and screen-error refinement. */
+/** Composite Gaussian assets and native scenes sharing instance ownership and host resources. */
 export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   Required<_SplatLayerProps<DataT>>
 > {
   static layerName = 'SplatLayer';
   static defaultProps = defaultProps;
   declare state: {
+    scene: boolean;
+    sceneProjectionError: string | null;
+    rowSources: SplatDataInput[] | null;
     groups: Owner<DataT>[][];
+    shadowGroups: Owner<DataT>[][];
     members: Owner<DataT>[][];
+    shadowMembers: Owner<DataT>[][];
     hierarchy: SplatHierarchy;
     input: ResolvedSplatInput<DataT>;
     candidates: SplatSelection<PreparedOwner<DataT>>[];
+    shadowCandidates: SplatSelection<PreparedOwner<DataT>>[];
     runtime: SplatRuntime;
     renderPixelRatio?: number;
     requestedRenderPixelRatio?: number;
@@ -119,6 +162,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     projectionKey: string;
     projectedPositions: Map<string, SplatProjectedPosition>;
     refinement: SplatRefinementTransition<PreparedOwner<DataT>>;
+    shadowRefinement: SplatRefinementTransition<PreparedOwner<DataT>>;
+    shadowProjections: SplatShadowProjection[] | null;
+    shadowKey: string;
     refinementRows: WeakMap<
       object,
       {owner: PreparedOwner<DataT>; revision: number; rows: (Owner<DataT> | undefined)[]}
@@ -126,34 +172,102 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   };
   initializeState() {
     this.state = {
+      scene: false,
+      sceneProjectionError: null,
+      rowSources: null,
       groups: [],
+      shadowGroups: [],
       members: [],
+      shadowMembers: [],
       hierarchy: [],
       input: {data: [], assets: [], rowAssets: []},
       candidates: [],
+      shadowCandidates: [],
       runtime: undefined!,
       owners: [],
       spatialIndex: null,
       projectionKey: '',
       projectedPositions: new Map(),
       refinement: new SplatRefinementTransition(),
+      shadowRefinement: new SplatRefinementTransition(),
+      shadowProjections: null,
+      shadowKey: '',
       refinementRows: new WeakMap()
     };
   }
   get isLoaded(): boolean {
-    return super.isLoaded && !this.state.refinement.active;
+    return (
+      super.isLoaded &&
+      (this.state.scene ||
+        (!this.state.refinement.active &&
+          (!this.props.shadowEnabled || !this.state.shadowRefinement.active)))
+    );
   }
   shouldUpdateState({changeFlags}) {
     return (
       changeFlags.somethingChanged ||
-      Boolean(
-        this.state.runtime &&
-          this.state.runtime !== SplatRuntime.get(this.context.deck, this.context.device)
-      )
+      (!this.state.scene &&
+        Boolean(
+          this.state.runtime &&
+            this.state.runtime !== SplatRuntime.get(this.context.deck, this.context.device)
+        ))
     );
   }
 
   updateState({changeFlags, props, oldProps}: UpdateParameters<this>) {
+    const direct = isSplatDataInput(props.data);
+    if (props.source && (direct || props.getSource !== DEFAULT_GET_SOURCE))
+      throw new Error(
+        'SplatLayer source cannot be combined with direct asset data or an explicit getSource.'
+      );
+    if (direct && props.getSource !== DEFAULT_GET_SOURCE)
+      throw new Error('SplatLayer getSource applies to instance rows, not direct asset data.');
+    const sourceTriggers = changeFlags.updateTriggersChanged;
+    const sourceAccessorChanged =
+      (typeof props.getSource !== 'function' || typeof oldProps.getSource !== 'function') &&
+      props.getSource !== oldProps.getSource;
+    if (
+      Array.isArray(props.data) &&
+      (!this.state.rowSources ||
+        changeFlags.dataChanged ||
+        sourceAccessorChanged ||
+        props.source !== oldProps.source ||
+        (sourceTriggers && (sourceTriggers.all || sourceTriggers.getSource)))
+    ) {
+      this.state.rowSources = props.data.map(
+        (row, index) =>
+          props.source ??
+          (typeof props.getSource === 'function'
+            ? props.getSource(row, {index, data: props.data as DataT[], target: []})
+            : props.getSource)
+      );
+    }
+    if (!Array.isArray(props.data)) this.state.rowSources = null;
+    const scene =
+      props.transparency === 'sorted' ||
+      isSplatSceneData(props.data) ||
+      Boolean(this.state.rowSources?.some(isSplatSceneData));
+    if (scene) {
+      if (
+        Number.isFinite(props.maxActiveSplats) &&
+        Number.isFinite(props.maxSplats) &&
+        props.maxActiveSplats !== props.maxSplats
+      )
+        throw new Error('maxActiveSplats and maxSplats must agree when both are specified.');
+      if (props.transparency === 'weighted')
+        throw new Error('RAD scenes require sorted transparency.');
+      const projectionError = getSplatSceneProjectionError(props.coordinateSystem);
+      if (projectionError !== this.state.sceneProjectionError) {
+        this.setState({sceneProjectionError: projectionError});
+        if (projectionError)
+          this.raiseError(new Error(projectionError), 'unsupported scene projection');
+      }
+      if (!this.state.scene) {
+        this.state.runtime?.delete(this.id);
+        this.setState({scene: true});
+      }
+      return;
+    }
     const activeViewports = [this.context.viewport, ...this.context.deck.getViewports()];
     if (activeViewports.some(view => view instanceof GlobeViewport))
       throw new Error(
@@ -161,6 +275,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       );
     if (activeViewports.some(view => view.subViewports?.some(copy => copy !== view)))
       throw new Error('SplatLayer does not support wrapped world copies; disable MapView.repeat.');
+    const leavingScene = this.state.scene;
+    if (leavingScene) this.setState({scene: false, sceneProjectionError: null});
     const runtime = SplatRuntime.get(this.context.deck, this.context.device);
     const runtimeChanged = runtime !== this.state.runtime;
     const renderPixelRatio =
@@ -184,33 +300,56 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       'coordinateOrigin'
     ] as const;
     const triggers = changeFlags.updateTriggersChanged;
-    const geometryChanged = keys.some(
-      key =>
-        (typeof props[key] !== 'function' &&
-          (Array.isArray(props[key]) && Array.isArray(oldProps[key])
-            ? props[key].length !== oldProps[key].length ||
-              props[key].some((value, index) => value !== oldProps[key][index])
-            : props[key] !== oldProps[key])) ||
-        (triggers && (triggers.all || triggers[key]))
-    );
+    const geometryChanged =
+      sourceAccessorChanged ||
+      keys.some(
+        key =>
+          (typeof props[key] !== 'function' &&
+            (Array.isArray(props[key]) && Array.isArray(oldProps[key])
+              ? props[key].length !== oldProps[key].length ||
+                props[key].some((value, index) => value !== oldProps[key][index])
+              : props[key] !== oldProps[key])) ||
+          (triggers && (triggers.all || triggers[key]))
+      );
     const refinementChanged =
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
       props.maxSplats !== oldProps.maxSplats ||
+      props.maxShadowSplats !== oldProps.maxShadowSplats ||
       props.kernelVariance !== oldProps.kernelVariance ||
       renderPixelRatio !== this.state.renderPixelRatio;
     if (
+      !leavingScene &&
       !runtimeChanged &&
       !changeFlags.dataChanged &&
       !changeFlags.viewportChanged &&
       !geometryChanged &&
       !refinementChanged
     ) {
-      this.publishDemand(this.state.candidates);
+      if (props.transparency !== 'weighted' && props.transparency !== 'auto')
+        throw new Error(
+          'Sorted SplatLayer rendering requires the upstream paged-instance backend.'
+        );
+      this.publishDemand(false, this.state.candidates);
+      this.publishDemand(true, this.state.shadowCandidates);
       return;
     }
-    const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged);
-    const input = inputChanged ? resolveSplatInput(props) : this.state.input;
+    if (props.transparency !== 'weighted' && props.transparency !== 'auto')
+      throw new Error(
+        'Sorted SplatLayer rendering requires the upstream paged-instance backend; weighted rendering cannot substitute for it.'
+      );
+    const inputChanged = Boolean(
+      changeFlags.dataChanged || geometryChanged || leavingScene || runtimeChanged
+    );
+    const input = inputChanged
+      ? resolveSplatInput({
+          data: props.data,
+          source: props.source,
+          hierarchy: props.hierarchy,
+          getSource: props.getSource,
+          rowSources: this.state.rowSources ?? undefined
+        })
+      : this.state.input;
     const assetsChanged =
       input.assets.length !== this.state.input.assets.length ||
       input.assets.some((asset, i) => asset !== this.state.input.assets[i]);
@@ -233,7 +372,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const viewport = this.context.viewport;
     const projectionKey = getSplatProjectionKey(viewport);
     const rebuild =
-      Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged) ||
+      Boolean(changeFlags.dataChanged || geometryChanged || leavingScene || runtimeChanged) ||
       this.state.projectionKey !== projectionKey;
     let {owners, spatialIndex} = this.state;
     if (rebuild) {
@@ -376,6 +515,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     // so child attribute diffs upload the new values, while camera moves retain rows.
     if (changeFlags.dataChanged || geometryChanged || assetsChanged) {
       this.state.groups = [];
+      this.state.shadowGroups = [];
     }
     let sharedBudget = props.maxTotalSplats;
     for (let group = props._splatBudgetGroup; group; group = group.parent)
@@ -404,52 +544,115 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       membershipChanged || changeFlags.dataChanged || geometryChanged || assetsChanged
         ? this.getRefinementGroups(this.state.refinement)
         : this.state.groups;
+    // A standalone layer has conservative casters before a host supplies a light volume.
+    // Existing light selections survive streamed rebuilds instead of flashing back to the floor.
+    if (
+      !this.state.shadowProjections &&
+      (rebuild || refinementChanged || !this.state.shadowRefinement.entries.size)
+    )
+      this.state.shadowRefinement.reconcile(
+        owners.map(owner => ({
+          owner,
+          pixels: 0,
+          level: owner.asset.hierarchy.length - 1,
+          blend: 0
+        })),
+        owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
+        props.maxShadowSplats,
+        owner => owner.key
+      );
+    if ((rebuild || refinementChanged) && this.state.shadowProjections) {
+      // Reconcile retained light owners against the new hierarchy before regrouping:
+      // removed assets can shorten it and shift every surviving owner's offset.
+      this.state.spatialIndex = spatialIndex;
+      this.state.owners = owners;
+      this.state.shadowKey = '';
+      this.prepareShadow(this.state.shadowProjections, viewport);
+    }
+    const shadowGroups =
+      rebuild || !this.state.shadowGroups.length
+        ? this.getRefinementGroups(this.state.shadowRefinement)
+        : this.state.shadowGroups;
     this.setState({
       groups: rebuild
         ? groups
         : groups.map((rows, level) =>
             retainSplatRows(this.state.groups[level] ?? [], rows, equalOwners)
           ),
+      shadowGroups,
       hierarchy,
       owners,
       candidates,
       spatialIndex,
       projectionKey,
-      ...(rebuild ? {members: []} : {})
+      ...(rebuild ? {members: [], shadowMembers: []} : {})
     });
-    this.publishDemand(candidates);
+    this.publishDemand(false, candidates);
+    if (!this.state.shadowProjections) {
+      this.state.shadowCandidates = owners.map(owner => ({
+        owner,
+        pixels: 0,
+        level: owner.asset.hierarchy.length - 1,
+        blend: 0
+      }));
+      this.publishDemand(true, this.state.shadowCandidates);
+    }
   }
 
-  private publishDemand(candidates: SplatSelection<PreparedOwner<DataT>>[]) {
+  private publishDemand(shadow: boolean, candidates: SplatSelection<PreparedOwner<DataT>>[]) {
     const runtime = this.state.runtime;
     if (!runtime) return;
-    runtime.set(this.id, {
-      rows: candidates,
+    runtime.set(this.id, shadow, {
+      rows: shadow && !this.props.shadowEnabled ? [] : candidates,
       hierarchy: owner => owner.asset.hierarchy,
-      maxSplats: this.props.maxSplats,
+      maxSplats: shadow ? this.props.maxShadowSplats : this.props.maxSplats,
       maxTotalSplats: this.props.maxTotalSplats,
       group: this.props._splatBudgetGroup,
       tick: now => (this.getCurrentLayer() as this | null)?.updateRefinement(now),
       apply: (rows, budget) =>
-        (this.getCurrentLayer() as this | null)?.applyAllocation(rows, budget)
+        (this.getCurrentLayer() as this | null)?.applyAllocation(shadow, rows, budget)
     });
   }
-  private applyAllocation(rows: SplatSelection<PreparedOwner<DataT>>[], budget: number) {
-    const refinement = this.state.refinement;
+  private applyAllocation(
+    shadow: boolean,
+    rows: SplatSelection<PreparedOwner<DataT>>[],
+    budget: number
+  ) {
+    const refinement = shadow ? this.state.shadowRefinement : this.state.refinement;
     const changed = refinement.reconcile(
       rows,
       owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
       budget,
       owner => owner.key
     );
-    if (changed) this.setState({groups: this.getRefinementGroups(refinement)});
+    if (changed)
+      this.setState(
+        shadow
+          ? {shadowGroups: this.getRefinementGroups(refinement)}
+          : {groups: this.getRefinementGroups(refinement)}
+      );
     if (changed || refinement.active) this.setNeedsRedraw();
   }
   finalizeState() {
     this.state.runtime?.delete(this.id);
   }
-  /** Current submitted work and minimum retained coverage, including transition overlap. */
+  /** Current submitted work and minimum retained coverage, including optical transition overlap. */
   get splatStats(): SplatLayerStats {
+    if (this.state.scene)
+      return (
+        this.getSubLayers()
+          .find(layer => layer instanceof SplatSceneLayer)
+          ?.state.runtime.getStats(`${this.id}-scene`) ?? {
+          sourceCount: 0,
+          visibleInstances: 0,
+          shadowInstances: 0,
+          renderedSplats: 0,
+          shadowSplats: 0,
+          coverageFloor: 0,
+          shadowCoverageFloor: 0,
+          refiningInstances: 0
+        }
+      );
     const count = (groups: Owner<DataT>[][]) =>
       groups.reduce(
         (sum, rows, i) => sum + rows.length * (this.state.hierarchy[i].source.positions.length / 3),
@@ -463,8 +666,11 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     return {
       sourceCount: this.state.input.assets.length,
       visibleInstances: this.state.refinement.entries.size,
+      shadowInstances: this.props.shadowEnabled ? this.state.shadowRefinement.entries.size : 0,
       renderedSplats: count(this.state.groups),
+      shadowSplats: this.props.shadowEnabled ? count(this.state.shadowGroups) : 0,
       coverageFloor: floor(this.state.refinement),
+      shadowCoverageFloor: this.props.shadowEnabled ? floor(this.state.shadowRefinement) : 0,
       refiningInstances: this.state.refinement.activeCount
     };
   }
@@ -480,11 +686,142 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     );
   }
 
+  /** Query light-space bounds and choose light-map refinement independently of the camera. */
+  prepareShadow(projections: SplatShadowProjection[], viewport: Viewport) {
+    this.state.shadowProjections = projections;
+    const first = this.state.owners[0];
+    // Light matrices use deck's precision-preserving common-space origin. The BVH uses absolute common space.
+    const relative = first
+      ? this.projectPosition(Array.from(first.position), {viewport})
+      : [0, 0, 0];
+    const origin = first ? first.common.map((value, axis) => value - relative[axis]) : [0, 0, 0];
+    const key =
+      origin.join(',') +
+      ':' +
+      getSplatProjectionKey(viewport) +
+      ':' +
+      this.props.kernelVariance +
+      ':' +
+      projections
+        .map(projection => [
+          ...projection.matrix,
+          ...projection.center,
+          projection.width,
+          projection.height
+        ])
+        .join(',');
+    if (key === this.state.shadowKey) return;
+    this.state.shadowKey = key;
+
+    const absoluteProjections = projections.map(projection => ({
+      ...projection,
+      center: projection.center.map(
+        (value, axis) =>
+          value -
+          projection.matrix[axis] * origin[0] -
+          projection.matrix[axis + 4] * origin[1] -
+          projection.matrix[axis + 8] * origin[2]
+      )
+    }));
+    const filterPadding = this.props.support * Math.sqrt(this.props.kernelVariance);
+    const frusta = absoluteProjections.map(projection =>
+      createSplatFrustum(projection, filterPadding)
+    );
+    const lightPixels = absoluteProjections.map(
+      projection =>
+        Math.max(
+          Math.hypot(projection.matrix[0], projection.matrix[4], projection.matrix[8]) *
+            projection.width,
+          Math.hypot(projection.matrix[1], projection.matrix[5], projection.matrix[9]) *
+            projection.height
+        ) * 0.5
+    );
+    const candidates: SplatSelection<PreparedOwner<DataT>>[] = [];
+    for (const owner of querySplatSpatialIndex(
+      this.state.spatialIndex,
+      absoluteProjections,
+      filterPadding
+    )) {
+      let pixels = 0;
+      for (let light = 0; light < frusta.length; light++)
+        if (intersectsSplatFrustum(owner.center, owner.radius, frusta[light]))
+          pixels = Math.max(
+            pixels,
+            lightPixels[light] *
+              Math.max(...getSplatCommonUnits(owner.center, viewport)) *
+              owner.scale
+          );
+      const hierarchy = owner.asset.hierarchy;
+      let level = 0;
+      for (let i = 1; i < hierarchy.length; i++)
+        if (hierarchy[i].error * pixels <= this.props.pixelError) level = i;
+      const next = level + 1;
+      const error = hierarchy[next]?.error * pixels;
+      const blend =
+        next < hierarchy.length
+          ? Math.max(
+              0,
+              Math.min(1, (this.props.pixelError * 1.25 - error) / (this.props.pixelError * 0.25))
+            )
+          : 0;
+      candidates.push({
+        owner,
+        pixels,
+        level,
+        blend,
+        retainedLevel: this.state.shadowRefinement.getLevel(owner.key)
+      });
+    }
+    let sharedBudget = this.props.maxTotalSplats;
+    for (let group = this.props._splatBudgetGroup; group; group = group.parent)
+      sharedBudget = Math.min(sharedBudget, group.maxShadowSplats);
+    // Light-space membership is published before the host's joint allocation.
+    // Retain existing mixtures, but introduce new shadow demand at coverage;
+    // otherwise the first light pass can submit every child's uncapped detail.
+    const initialCandidates = Number.isFinite(sharedBudget)
+      ? candidates.map(row => {
+          const retained = this.state.shadowRefinement.entries.get(row.owner.key);
+          return {
+            ...row,
+            level: retained?.level ?? row.owner.asset.hierarchy.length - 1,
+            blend: retained?.blend ?? 0
+          };
+        })
+      : candidates;
+    const membershipChanged = this.state.shadowRefinement.reconcile(
+      budgetSplatSelections(
+        initialCandidates,
+        owner => owner.asset.hierarchy,
+        this.props.maxShadowSplats * 0.75
+      ),
+      owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
+      this.props.maxShadowSplats,
+      owner => owner.key
+    );
+    this.state.shadowCandidates = candidates;
+    this.publishDemand(true, candidates);
+    if (!membershipChanged) return;
+    const shadowGroups = this.getRefinementGroups(this.state.shadowRefinement);
+
+    this.setState({
+      shadowGroups: shadowGroups.map((rows, level) =>
+        retainSplatRows(this.state.shadowGroups[level] ?? [], rows, equalOwners)
+      )
+    });
+  }
+
   /** Advance existing mixtures without reculling or rebuilding owner geometry. */
   updateRefinement(now: number) {
-    if (this.state.refinement.sample(now))
-      this.setState({groups: this.getRefinementGroups(this.state.refinement)});
-    if (this.state.refinement.active) this.setNeedsRedraw();
+    const cameraChanged = this.state.refinement.sample(now);
+    const shadowChanged = this.state.shadowRefinement.sample(now);
+    if (cameraChanged || shadowChanged)
+      this.setState({
+        ...(cameraChanged ? {groups: this.getRefinementGroups(this.state.refinement)} : {}),
+        ...(shadowChanged
+          ? {shadowGroups: this.getRefinementGroups(this.state.shadowRefinement)}
+          : {})
+      });
+    if (this.state.refinement.active || this.state.shadowRefinement.active) this.setNeedsRedraw();
   }
   private getRefinementGroups(transition: SplatRefinementTransition<PreparedOwner<DataT>>) {
     const groups = this.state.hierarchy.map(() => [] as Owner<DataT>[]);
@@ -510,13 +847,47 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       }
     }
     return groups.map((rows, level) =>
-      retainSplatRows(this.state.groups[level] ?? [], rows, equalOwners)
+      retainSplatRows(
+        (transition === this.state.refinement ? this.state.groups : this.state.shadowGroups)[
+          level
+        ] ?? [],
+        rows,
+        equalOwners
+      )
     );
   }
 
   renderLayers(): Layer[] {
-    const makeLayer = (data: Owner<DataT>[], level: number) => {
-      const memberGroups = this.state.members;
+    if (this.state.sceneProjectionError) return [];
+    if (this.state.scene) {
+      // Scene shaders output straight RGB/alpha; deck defaults to premultiplied RGB.
+      // Preserve defaults and parent settings beneath per-key Composite child overrides.
+      const parameters = {
+        depthWriteEnabled: false,
+        blendColorSrcFactor: 'src-alpha' as const,
+        ...this.props.parameters,
+        ...this.props._subLayerProps?.scene?.parameters
+      };
+      return [
+        new SplatSceneLayer({
+          ...this.props,
+          ...this.getSubLayerProps({
+            id: 'scene',
+            updateTriggers: this.props.updateTriggers,
+            parameters
+          }),
+          parameters,
+          data: this.props.data,
+          maxSplats: Number.isFinite(this.props.maxActiveSplats)
+            ? this.props.maxActiveSplats
+            : this.props.maxSplats,
+          _resolvedAssets: this.state.rowSources,
+          onStatusChange: this.props.onStatusChange
+        })
+      ];
+    }
+    const makeLayer = (data: Owner<DataT>[], level: number, shadow: boolean) => {
+      const memberGroups = shadow ? this.state.shadowMembers : this.state.members;
       // Coverage changes do not change ownership or transforms. Keep the data list stable
       // and invalidate only its coverage attribute instead of re-uploading every buffer.
       const members = retainSplatRows(
@@ -527,7 +898,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       memberGroups[level] = members;
 
       const props = this.getSubLayerProps({
-        id: `refinement-${level}`,
+        id: shadow ? `shadow-casters-${level}` : `refinement-${level}`,
         updateTriggers: this.props.updateTriggers
       });
       const get = (accessor, row: Owner<DataT>, info) =>
@@ -570,9 +941,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           return ranges;
         },
         source: this.state.hierarchy[level].source,
-        operation: 'draw',
-        pickable: this.props.pickable,
-        shadowEnabled: false,
+        operation: shadow ? 'shadow' : 'draw',
+        pickable: !shadow && this.props.pickable,
         getPosition: (row, info) => get(this.props.getPosition, row, info),
         getScale: (row, info) => get(this.props.getScale, row, info),
         getOrientation: (row, info) => get(this.props.getOrientation, row, info),
@@ -584,8 +954,15 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           get(this.props.getCoverageWeight, row, info) * data[info.index].weight
       });
     };
-    return this.state.groups.flatMap((data, level) =>
-      data.length ? [makeLayer(data, level)] : []
-    );
+    return [
+      ...this.state.groups.flatMap((data, level) =>
+        data.length ? [makeLayer(data, level, false)] : []
+      ),
+      ...(this.props.shadowEnabled
+        ? this.state.shadowGroups.flatMap((data, level) =>
+            data.length ? [makeLayer(data, level, true)] : []
+          )
+        : [])
+    ];
   }
 }

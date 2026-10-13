@@ -1,0 +1,535 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+import {
+  COORDINATE_SYSTEM,
+  FirstPersonViewport,
+  OrbitViewport,
+  OrthographicViewport,
+  WebMercatorViewport,
+  type Deck,
+  type PreRenderOptions
+} from '@deck.gl/core';
+import {Matrix4} from '@math.gl/core';
+import {NullDevice} from '@luma.gl/test-utils';
+import {expect, it, vi} from 'vitest';
+import {SplatSceneLayer} from '../../../src/splat-layer/scene/splat-scene-layer';
+import {SplatSceneRuntime} from '../../../src/splat-layer/scene/splat-scene-runtime';
+
+it('publishes loading and error statuses to shared static source users', async () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const worker = {postMessage: vi.fn(), terminate: vi.fn(), onmessage: undefined as any};
+  const onStatusChange = vi.fn();
+  const layer = new SplatSceneLayer({
+    id: 'broken',
+    data: '/broken.splat',
+    workerFactory: () => worker as never,
+    onStatusChange
+  });
+  runtime.register(layer);
+  const raise = vi.spyOn(layer, 'raiseError').mockImplementation(() => {});
+  runtime['acquireAsset']('/broken.splat', layer, 10, 10, 2);
+  expect(onStatusChange).toHaveBeenCalledWith(
+    expect.objectContaining({phase: 'loading', pendingPages: 1})
+  );
+  const secondStatus = vi.fn();
+  const second = new SplatSceneLayer({
+    id: 'second',
+    data: '/broken.splat',
+    onStatusChange: secondStatus
+  });
+  vi.spyOn(second, 'raiseError').mockImplementation(() => {});
+  runtime.register(second);
+  expect(secondStatus).toHaveBeenCalledWith(expect.objectContaining({phase: 'loading'}));
+  worker.onmessage({data: {error: 'Malformed source'}});
+  await vi.waitFor(() =>
+    expect(onStatusChange).toHaveBeenCalledWith(
+      expect.objectContaining({phase: 'error', pendingPages: 0, message: 'Malformed source'})
+    )
+  );
+  expect(raise).toHaveBeenCalled();
+  expect(secondStatus.mock.calls.map(([status]) => status.phase)).toEqual(['loading', 'error']);
+  runtime.cleanup();
+  device.destroy();
+});
+
+it.each([
+  1, 2
+])('reserves decoded static coverage before granting detail to %i RAD assets', radCount => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const staticAsset = {type: 'splats' as const, url: '/capture.splat', format: 'splat' as const};
+  const radAssets = Array.from({length: radCount}, (_, index) => `/capture-${index}.rad`);
+  const layer = new SplatSceneLayer({
+    id: 'mixed',
+    data: [staticAsset, ...radAssets].map(splats => ({splats, position: [0, 0, 0]})),
+    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+    maxSplats: 1_000_000,
+    maxTotalSplats: 1_000_000
+  });
+  runtime.register(layer);
+  const decoded = {
+    id: 1,
+    data: {length: 800_000, destroy: vi.fn()},
+    users: new Set(['mixed']),
+    budgetKey: ''
+  };
+  runtime['assets'].set(staticAsset, decoded as never);
+  const stopped = new Error('grant captured before GPU preparation');
+  const acquire = vi
+    .spyOn(runtime as any, 'acquireAsset')
+    .mockImplementation((input, _layer, active) => {
+      if (input === staticAsset) return decoded;
+      expect(active).toBe((1_000_000 - 800_000) / radCount);
+      throw stopped;
+    });
+  expect(() =>
+    runtime.preRender({
+      layers: [layer],
+      viewports: [new FirstPersonViewport({width: 128, height: 128})],
+      isPicking: false
+    } as PreRenderOptions)
+  ).toThrow(stopped);
+  expect(acquire).toHaveBeenCalledTimes(2);
+  runtime.cleanup();
+  device.destroy();
+});
+
+it('keeps a covered RAD asset loaded while camera refinement continues', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const layer = new SplatSceneLayer({id: 'rad', data: '/capture.rad'});
+  runtime.register(layer);
+  runtime['assets'].set('/capture.rad', {
+    id: 1,
+    scene: {frontier: [{id: 'rad:0'}], destroy: vi.fn()},
+    status: {phase: 'refining'},
+    users: new Set(['rad']),
+    budgetKey: ''
+  } as never);
+  expect(runtime.isLoaded('rad')).toBe(true);
+  runtime.cleanup();
+  device.destroy();
+});
+
+it('shares a nested parent allowance across two independent RAD scene layers', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const parent = {maxSplats: 1_000_000, maxShadowSplats: Infinity};
+  const layers = ['a', 'b'].map(
+    id =>
+      new SplatSceneLayer({
+        id,
+        data: `/${id}.rad`,
+        maxSplats: 1_000_000,
+        maxTotalSplats: Infinity,
+        _splatBudgetGroup: {maxSplats: 2_000_000, maxShadowSplats: Infinity, parent}
+      })
+  );
+  layers.forEach(layer => runtime.register(layer));
+  const stopped = new Error('grant captured before GPU preparation');
+  vi.spyOn(runtime as any, 'acquireAsset').mockImplementation((_input, _layer, active) => {
+    expect(active).toBe(500_000);
+    throw stopped;
+  });
+  expect(() =>
+    runtime.preRender({
+      layers,
+      viewports: [new FirstPersonViewport({width: 128, height: 128})],
+      isPicking: false
+    } as PreRenderOptions)
+  ).toThrow(stopped);
+  runtime.cleanup();
+  device.destroy();
+});
+
+it.each([
+  'direct',
+  'descriptor',
+  'row',
+  'legacy'
+] as const)('rejects %s optical-density sources before sorted registration or GPU allocation', channel => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([0]),
+    opticalDepths: new Float32Array([2])
+  };
+  const descriptor = {type: 'prepared-splats' as const, source};
+  const props =
+    channel === 'direct'
+      ? {data: source}
+      : channel === 'descriptor'
+        ? {data: descriptor}
+        : channel === 'row'
+          ? {data: [{splats: descriptor, position: [0, 0, 0]}]}
+          : {data: [{position: [0, 0, 0]}], source};
+  try {
+    expect(() => runtime.register(new SplatSceneLayer({id: channel, ...props}))).toThrow(
+      'Use weighted transparency'
+    );
+    expect(runtime['layers'].size).toBe(0);
+    expect(runtime['assets'].size).toBe(0);
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
+it.each([
+  'viewport',
+  'hidden',
+  'filtered',
+  'unpickable'
+] as const)('releases abandoned picking resources after %s changes without discarding active views', change => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([0.8])
+  };
+  const layer = new SplatSceneLayer({id: 'picker', data: source, pickable: true});
+  vi.spyOn(layer, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+  runtime.register(layer);
+  vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  const picker = {destroy: vi.fn()};
+  runtime['pickers'].set('active/picker', picker as never);
+  const viewport = new OrthographicViewport({id: 'active', width: 128, height: 128});
+  const options = {
+    layers: [layer],
+    viewports: [viewport],
+    isPicking: false,
+    layerFilter: ({isPicking}) => isPicking
+  } as PreRenderOptions;
+  try {
+    runtime.preRender(options);
+    expect(picker.destroy).not.toHaveBeenCalled();
+    if (change === 'viewport') options.viewports = [];
+    else if (change === 'filtered') {
+      options.layerFilter = () => false;
+      options.isPicking = true;
+      options.pass = 'picking:query';
+    } else {
+      const replacement = layer.clone(change === 'hidden' ? {visible: false} : {pickable: false});
+      vi.spyOn(replacement, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+      runtime.register(replacement);
+      options.layers = [replacement];
+    }
+    runtime.preRender(options);
+    expect(picker.destroy).toHaveBeenCalledOnce();
+    expect(runtime['pickers'].size).toBe(0);
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
+it.each([
+  'root-id',
+  'viewport'
+])('selects drawable leaders and applies %s and ancestor filters per viewport and pass', filter => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([0.8])
+  };
+  const root = {
+    id: 'public-root',
+    props: {visible: true},
+    parent: null,
+    filterSubLayer: vi.fn(({layer}) => layer.id !== 'blocked')
+  };
+  const layers = ['mask', 'blocked', 'draw'].map(id => {
+    const layer = new SplatSceneLayer({
+      id,
+      data: source,
+      operation: id === 'mask' ? 'mask' : 'draw',
+      pickable: id !== 'mask'
+    });
+    Object.assign(layer, {parent: root});
+    vi.spyOn(layer, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+    runtime.register(layer);
+    return layer;
+  });
+  vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  const renderer = {
+    setProps: vi.fn(),
+    setFrontier: vi.fn(),
+    prepare: vi.fn(),
+    destroy: vi.fn(),
+    draw: vi.fn()
+  };
+  runtime['domains'].set('allowed:default', {
+    renderer,
+    leader: '',
+    layers: new Set(),
+    owners: [],
+    pages: []
+  } as never);
+  const layerFilter = vi.fn(
+    ({layer, viewport}) =>
+      (filter !== 'root-id' || layer.id === root.id) && viewport.id === 'allowed'
+  );
+  try {
+    runtime.preRender({
+      layers,
+      viewports: ['allowed', 'denied'].map(
+        id => new OrthographicViewport({id, width: 128, height: 128})
+      ),
+      isPicking: false,
+      layerFilter
+    } as PreRenderOptions);
+    expect(runtime['domains'].get('allowed:default')?.leader).toBe('draw');
+    expect(runtime['domains'].get('allowed:default')?.layers).toEqual(new Set(['draw']));
+    expect(runtime['domains'].has('denied:default')).toBe(false);
+    for (const key of runtime['pickingEntries'].keys())
+      runtime['pickers'].set(key, {
+        setProps: vi.fn(),
+        setFrontier: vi.fn(),
+        prepare: vi.fn(),
+        destroy: vi.fn()
+      } as never);
+    runtime.preRender({
+      layers,
+      viewports: ['allowed', 'denied'].map(
+        id => new OrthographicViewport({id, width: 128, height: 128})
+      ),
+      isPicking: true,
+      pass: 'picking:query',
+      layerFilter
+    } as PreRenderOptions);
+    expect([...runtime['pickers'].keys()]).toEqual(['allowed/draw']);
+    expect(layerFilter).toHaveBeenCalledTimes(4);
+    expect(layerFilter.mock.calls.every(([context]) => context.layer === root)).toBe(true);
+    root.props.visible = false;
+    runtime.preRender({
+      layers,
+      viewports: [new OrthographicViewport({id: 'allowed', width: 128, height: 128})],
+      isPicking: false,
+      layerFilter
+    } as PreRenderOptions);
+    expect(runtime['domains'].size).toBe(0);
+    expect(runtime['pickingEntries'].size).toBe(0);
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
+it('stages query-only picking and forwards the actual pass and cull rectangle', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([0.8])
+  };
+  const layer = new SplatSceneLayer({id: 'query', data: source, pickable: true});
+  vi.spyOn(layer, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+  runtime.register(layer);
+  vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  const viewport = new OrthographicViewport({id: 'view', width: 128, height: 128});
+  const rect = {x: 60, y: 60, width: 8, height: 8};
+  const filter = vi.fn(
+    ({isPicking, renderPass, cullRect}) =>
+      isPicking && renderPass === 'picking:query' && cullRect === rect
+  );
+  const picker = {setProps: vi.fn(), setFrontier: vi.fn(), prepare: vi.fn(), destroy: vi.fn()};
+  try {
+    runtime.preRender({
+      layers: [layer],
+      viewports: [viewport],
+      isPicking: false,
+      pass: 'screen',
+      layerFilter: filter
+    } as PreRenderOptions);
+    expect(runtime['pickingEntries'].get('view/query')).toHaveLength(1);
+    runtime['pickers'].set('view/query', picker as never);
+    runtime.preRender({
+      layers: [layer],
+      viewports: [viewport],
+      isPicking: true,
+      pass: 'picking:query',
+      cullRect: rect,
+      layerFilter: filter
+    } as PreRenderOptions);
+    expect(picker.prepare).toHaveBeenCalledOnce();
+    expect(filter.mock.calls.at(-1)?.[0]).toMatchObject({
+      renderPass: 'picking:query',
+      cullRect: rect
+    });
+    runtime.preRender({
+      layers: [layer],
+      viewports: [viewport],
+      isPicking: true,
+      pass: 'picking:hover',
+      cullRect: rect,
+      layerFilter: filter
+    } as PreRenderOptions);
+    expect(picker.destroy).toHaveBeenCalledOnce();
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
+it.each([
+  'geospatial',
+  'orthographic',
+  'orbit orthographic'
+] as const)('isolates unsupported RAD %s projections, clears stale picking and recovers without error spam', projection => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({redraw() {}} as Deck, device);
+  const layer = new SplatSceneLayer({id: 'transitioning', data: '/capture.rad', pickable: true});
+  runtime.register(layer);
+  const raise = vi.spyOn(layer, 'raiseError').mockImplementation(() => {});
+  const acquire = vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  const stale = {destroy: vi.fn()};
+  runtime['pickers'].set('view/transitioning', stale as never);
+  runtime['pickingEntries'].set('view/transitioning', [{}] as never);
+  const unsupported =
+    projection === 'geospatial'
+      ? new WebMercatorViewport({id: 'view', width: 128, height: 128})
+      : projection === 'orthographic'
+        ? new OrthographicViewport({id: 'view', width: 128, height: 128})
+        : new OrbitViewport({id: 'view', width: 128, height: 128, orthographic: true});
+  const draw = (viewport, isPicking = false) =>
+    runtime.preRender({
+      layers: [layer],
+      viewports: [viewport],
+      isPicking,
+      pass: isPicking ? 'picking:query' : 'screen'
+    } as PreRenderOptions);
+  try {
+    expect(() => draw(unsupported, true)).not.toThrow();
+    expect(stale.destroy).toHaveBeenCalledOnce();
+    expect(runtime['pickers'].size).toBe(0);
+    expect(runtime['pickingEntries'].size).toBe(0);
+    expect(() => draw(unsupported)).not.toThrow();
+    expect(() => draw(unsupported)).not.toThrow();
+    expect(raise).toHaveBeenCalledOnce();
+    expect(acquire).not.toHaveBeenCalled();
+    expect(runtime['domains'].size).toBe(0);
+    draw(new FirstPersonViewport({id: 'view', width: 128, height: 128}));
+    expect(acquire).toHaveBeenCalledOnce();
+    draw(unsupported);
+    expect(raise).toHaveBeenCalledTimes(2);
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
+it.each([
+  undefined,
+  1.5
+])('uses the drawing pixel ratio for picking with canvas override %s', override => {
+  const device = new NullDevice({});
+  Object.defineProperty(device, 'canvasContext', {
+    value: {cssToDeviceRatio: () => 2},
+    configurable: true
+  });
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([0.8])
+  };
+  const layer = new SplatSceneLayer({id: 'density', data: source, pickable: true});
+  vi.spyOn(layer, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+  runtime.register(layer);
+  vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  const viewport = new OrthographicViewport({id: 'view', width: 128, height: 64});
+  const options = {
+    layers: [layer],
+    viewports: [viewport],
+    isPicking: false,
+    layerFilter: ({isPicking}) => isPicking,
+    ...(override === undefined ? {} : {canvasContext: {cssToDeviceRatio: () => override}})
+  } as PreRenderOptions;
+  const picker = {setProps: vi.fn(), setFrontier: vi.fn(), prepare: vi.fn(), destroy: vi.fn()};
+  try {
+    runtime.preRender(options);
+    const expected = [128 * (override ?? 2), 64 * (override ?? 2)];
+    expect(runtime['pickingEntries'].get('view/density')?.[0].view.viewportSize).toEqual(expected);
+    runtime['pickers'].set('view/density', picker as never);
+    runtime.preRender({...options, isPicking: true, pass: 'picking:query'});
+    expect(picker.setProps).toHaveBeenCalledWith(expect.objectContaining({viewportSize: expected}));
+  } finally {
+    runtime.cleanup();
+    Object.defineProperty(device, 'canvasContext', {value: undefined, configurable: true});
+    device.destroy();
+  }
+});
+
+it('preserves static orthographic and RAD perspective siblings and recovers when RAD data is replaced', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({redraw() {}} as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([0.8])
+  };
+  const rad = new SplatSceneLayer({id: 'rad', data: '/capture.rad', pickable: true});
+  const stat = new SplatSceneLayer({id: 'static', data: source, pickable: true});
+  const layers = [rad, stat];
+  layers.forEach(layer => {
+    vi.spyOn(layer, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+    runtime.register(layer);
+  });
+  const raise = vi.spyOn(rad, 'raiseError').mockImplementation(() => {});
+  vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  const viewports = [
+    new OrthographicViewport({id: 'ortho', width: 128, height: 128}),
+    new FirstPersonViewport({id: 'perspective', width: 128, height: 128})
+  ];
+  for (const viewport of viewports)
+    runtime['domains'].set(`${viewport.id}:default`, {
+      renderer: {setProps: vi.fn(), setFrontier: vi.fn(), prepare: vi.fn(), destroy: vi.fn()},
+      leader: '',
+      layers: new Set(),
+      owners: [],
+      pages: []
+    } as never);
+  try {
+    runtime.preRender({layers, viewports, isPicking: false} as PreRenderOptions);
+    expect(raise).toHaveBeenCalledOnce();
+    expect(runtime['domains'].get('ortho:default')?.layers).toEqual(new Set(['static']));
+    expect(runtime['domains'].get('perspective:default')?.layers).toEqual(
+      new Set(['rad', 'static'])
+    );
+    expect(runtime['pickingEntries'].has('ortho/rad')).toBe(false);
+    expect(runtime['pickingEntries'].has('perspective/rad')).toBe(true);
+    const replacement = rad.clone({data: source});
+    vi.spyOn(replacement, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+    runtime.register(replacement);
+    runtime.preRender({
+      layers: [replacement, stat],
+      viewports,
+      isPicking: false
+    } as PreRenderOptions);
+    expect(runtime['domains'].get('ortho:default')?.layers).toEqual(new Set(['rad', 'static']));
+    expect(runtime['pickingEntries'].has('ortho/rad')).toBe(true);
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});

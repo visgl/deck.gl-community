@@ -32,5 +32,10 @@ new SplatLayer({
   getTransformMatrix: () => [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 1, 2, 3, 1],
   maxTotalSplats: 1000
 });
-// @ts-expect-error Streamed RAD input requires a separately supported backend.
 new SplatLayer({data: '/scene.rad'});
+new SplatLayer({data: '/scene.rad', maxActiveSplats: 1_000_000});
+
+new SplatLayer({data: {type: 'rad', url: new Blob()}, coordinateSystem: 'cartesian'});
+new SplatLayer({data: {type: 'splats', url: new Blob(), format: 'spz'}, transparency: 'sorted'});
+// @ts-expect-error The scene format discriminant is explicit.
+new SplatLayer({data: {type: 'splats', url: '/scene.splat', format: 'unknown'}});
