@@ -9,8 +9,7 @@ import {SharedTileset2D} from '../../src';
 import {SharedTile2DView} from '../../src/shared-tile-2d-layer/shared-tile-2d-view';
 
 // The tiles a shared tileset view draws, step by step, against deck.gl's own `Tileset2D` with the
-// same tiles loaded: placeholders while tiles load, and the selected tiles once they have. Only
-// tiles with content draw; the shared view also counts unloaded selected tiles as visible.
+// same tiles loaded: placeholders while tiles load, and the selected tiles once they have.
 
 type Strategy = 'best-available' | 'no-overlap';
 
@@ -45,7 +44,7 @@ function createLoader() {
 
 type Step = {zoom: number; load?: number[]};
 
-/** The ids of the loaded tiles each tileset draws after each step, deck.gl's and the shared one's. */
+/** The ids of the tiles each tileset draws after each step, deck.gl's and the shared one's. */
 async function drawnTiles(strategy: Strategy, steps: Step[]) {
   const deckLoader = createLoader();
   const sharedLoader = createLoader();
@@ -76,11 +75,11 @@ async function drawnTiles(strategy: Strategy, steps: Step[]) {
     view.update(viewport as any);
     result.push({
       deck: (deckTileset.tiles as any[])
-        .filter(tile => tile.isVisible && tile.content)
+        .filter(tile => tile.isVisible)
         .map(tile => tile.id)
         .sort(),
       shared: (sharedTileset.tiles as any[])
-        .filter(tile => view.isTileVisible(tile) && tile.content)
+        .filter(tile => view.isTileVisible(tile))
         .map(tile => tile.id)
         .sort()
     });
@@ -128,6 +127,16 @@ describe('SharedTile2DView refinement', () => {
       it('draws loaded grandchildren while the selected tiles and their children load', async () => {
         const steps = await drawnTiles(strategy, [{zoom: 5.9, load: [6]}, {zoom: 4.1}]);
         expect(steps[1].deck.length).toBeGreaterThan(0);
+        expect(steps.map(step => step.shared)).toEqual(steps.map(step => step.deck));
+      });
+
+      it('draws loaded grandchildren under requested children that have not loaded', async () => {
+        const steps = await drawnTiles(strategy, [
+          {zoom: 5.9, load: [6]},
+          {zoom: 4.9},
+          {zoom: 4.1}
+        ]);
+        expect(steps[2].deck.length).toBeGreaterThan(0);
         expect(steps.map(step => step.shared)).toEqual(steps.map(step => step.deck));
       });
 

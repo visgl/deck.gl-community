@@ -305,21 +305,19 @@ function getPlaceholderInAncestors(
   return false;
 }
 
-/** Searches downward for loaded descendants that can stand in for an unavailable selected tile. */
+/**
+ * Searches downward for loaded descendants that can stand in for an unavailable selected tile, and
+ * marks them visible, as deck.gl's `Tileset2D` does. Unloaded tiles on the way are not marked: in
+ * the `no-overlap` strategy, a visible tile hides its descendants.
+ */
 function getPlaceholderInChildren(
   tile: SharedTile2DHeader,
   stateMap: Map<SharedTile2DHeader, TileViewState>
 ): void {
-  const state = getTileState(stateMap, tile);
-  state.state |= TILE_STATE_VISIBLE | TILE_STATE_VISITED;
-
-  if (!tile.children || !tile.children.length || tile.isLoaded || tile.content) {
-    return;
-  }
-
-  for (const child of tile.children) {
-    const childState = getTileState(stateMap, child);
-    if (!(childState.state & TILE_STATE_VISITED)) {
+  for (const child of tile.children || []) {
+    if (child.isLoaded || child.content) {
+      getTileState(stateMap, child).state |= TILE_STATE_VISIBLE;
+    } else {
       getPlaceholderInChildren(child, stateMap);
     }
   }
