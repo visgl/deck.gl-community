@@ -127,7 +127,7 @@ test('edits declarative Vega, retains invalid drafts and releases the preview on
     .poll(() => vi.mocked(createVegaView).mock.results.at(-1)?.value.view.signal('layout'))
     .toBe('stacks');
   expect(host.querySelector('[data-vega-preview] canvas')).toBe(mapCanvas);
-  expect(JSON.parse(model.getValue()).description).toContain('Synthetic city records');
+  expect(JSON.parse(model.getValue()).description).toContain('SandDance demovote');
   const mapView = vi.mocked(createVegaView).mock.results.at(-1)!.value.view;
   const sidebarOpenWidth = mapView.width();
   toggleSidebar();

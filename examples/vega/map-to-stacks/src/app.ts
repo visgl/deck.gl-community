@@ -5,7 +5,7 @@ import type {Spec} from 'vega';
 import {createVegaView} from '../../create-vega-view';
 import spec from '../spec.json';
 
-/** One declarative signal moves stable record slots between projected cities and stacked bars. */
+/** One declarative signal moves stable record slots between geographic places and stacked bars. */
 export function mountMapToStacksExample(container: HTMLElement): () => void {
   container.style.height = '468px';
   const example = createVegaView(container, spec as unknown as Spec);
