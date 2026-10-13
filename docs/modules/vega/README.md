@@ -6,6 +6,29 @@ import {App as VegaExample} from '../../../examples/vega/unit-layouts/src/exampl
 
 This private module ports Microsoft's MIT-licensed SandDance Vega renderer to deck.gl 9.4. Vega JSON creates a scene graph that the renderer turns into deck.gl layers, including animated cuboids.
 
+<div className="card vega-feature-card" style={{margin: '1.5rem 0', border: '1px solid var(--ifm-color-emphasis-300)'}}>
+<div className="card__header"><h2 id="supported-vega-features" style={{margin: 0, fontSize: '1.25rem', scrollMarginTop: 'calc(var(--ifm-navbar-height) + 1rem)'}}>Supported Vega features</h2></div>
+<div className="card__body">
+
+Vega evaluates data, transforms, scales, expressions and encodings on the CPU. This renderer stages the resulting scene graph into deck.gl layers; WebGL2 draws the marks and animates supported attributes on the GPU.
+
+| Feature | Support and implementation notes |
+| --- | --- |
+| Data, scales and transforms | Use the native Vega runtime. Rendering depends on the resulting mark type being supported; this module does not compile Vega-Lite. |
+| Signals and bound controls | Native Vega `bind` inputs update the existing View. Playground JSON edits create a fresh View, so transitions apply to signal updates rather than specification replacement. |
+| Rectangles and 3D cuboids | A custom instanced `CubeLayer` renders `rect` marks. Optional `z` and `depth` encodings extend them into 3D, with an orbit camera. |
+| Circle and square symbols | One instanced quad per record preserves area-based size, opacity and pixel-width outlines. A custom `ScatterplotLayer` shader morphs between circles and squares; other symbol shapes are unsupported. |
+| Lines, rules and areas | Straight line segments use `LineLayer`/`PathLayer`; areas use `PolygonLayer`. Vega curve interpolation is not reproduced by these stagers. |
+| Text, axes, legends and groups | Text uses `TextLayer`; axis lines and labels are staged separately, and legends use HTML. Groups accumulate positional offsets and facet outlines; group clipping is unsupported. |
+| Geographic shapes and points | Vega `geoshape` projects, clips and resamples GeoJSON on the CPU. Ordered polygon/path batches render holes, islands, routes and graticules. `geopoint` places symbols on the same chart; basemap synchronization is not implemented. |
+| Animated records | GPU attribute transitions animate cuboid and symbol position, size and color, plus symbol shape, rotation and outlines. Stable slots support filtering, reordering, interrupted exits and reentry. Projection geometry restages immediately; historical slots remain until finalization. |
+| Picking and hover tooltips | deck.gl GPU picking identifies marks. Evaluated `tooltip` encodings on rects, symbols and projected shapes display as plain-text HTML overlays. |
+
+**Rendering limits:** This is a private, unpublished Vega renderer subset. Arbitrary SVG paths, image/arc marks, exact mixed-mark paint order and WebGPU rendering are not implemented. Geographic shape batches preserve their own paint order.
+
+</div>
+</div>
+
 ## Attribution and upstream project
 
 This module builds on [SandDance](https://github.com/microsoft/SandDance), created by
