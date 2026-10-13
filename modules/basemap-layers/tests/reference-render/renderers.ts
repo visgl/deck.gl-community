@@ -118,56 +118,51 @@ function evaluateTextField(textField: unknown, feature: any, zoom: number): stri
 const GEOMETRY_TYPES = ['Unknown', 'Point', 'LineString', 'Polygon'];
 
 /**
- * The text of every label MapLibre drew in the view. `queryRenderedFeatures` returns the symbols
- * in the view, including those whose icon placed without their optional text; MapLibre's placement
- * state says which texts placed, but not whether in the view. A label counts if both do (by style
- * layer and text).
+ * The text of every label MapLibre drew in the view: of each symbol whose collision box (text or
+ * icon) its collision index has in the view, as `queryRenderedFeatures` finds them, if that
+ * symbol's text placed. `queryRenderedFeatures` alone would also return a symbol whose icon placed
+ * without its optional text.
  */
 function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[] {
-  const symbolLayers = style.layers
-    .filter((layer: any) => layer.type === 'symbol')
-    .map((layer: any) => layer.id);
-  const getLayer = (id: string) => style.layers.find((layer: any) => layer.id === id);
-  const placed = new Set(getPlacedTextKeys(map, style, zoom));
-  return map
-    .queryRenderedFeatures({layers: symbolLayers})
-    .map(feature => {
-      const text = evaluateTextField(
-        getLayer(feature.layer.id)?.layout?.['text-field'],
-        feature,
-        zoom
-      );
-      return placed.has(`${feature.layer.id}|${text}`) ? text : '';
-    })
-    .filter(Boolean);
-}
-
-/** `<style layer id>|<text>` of every symbol whose text MapLibre placed, in view or not. */
-function getPlacedTextKeys(map: maplibregl.Map, style: any, zoom: number): string[] {
   const mapStyle = (map as any).style;
-  const placements = mapStyle.placement?.placements || {};
+  const placement = mapStyle.placement;
+  if (!placement) {
+    return [];
+  }
+  const {width, height} = VIEWPORT;
+  // Bucket instance id -> feature indices with a collision box in the view.
+  const inView: Record<number, number[]> = placement.collisionIndex.queryRenderedSymbols([
+    {x: 0, y: 0},
+    {x: width, y: 0},
+    {x: width, y: height},
+    {x: 0, y: height}
+  ]);
   const texts: string[] = [];
   for (const tileManager of Object.values<any>(mapStyle.tileManagers)) {
     for (const id of tileManager.getRenderableIds(true)) {
       const tile = tileManager.getTileByID(id);
       const featureIndex = tile?.latestFeatureIndex;
       for (const bucket of Object.values<any>(tile?.buckets || {})) {
-        if (bucket.layers?.[0]?.type !== 'symbol' || !bucket.hasTextData() || !featureIndex) {
+        const features = inView[bucket.bucketInstanceId];
+        if (!features || bucket.layers?.[0]?.type !== 'symbol' || !featureIndex) {
           continue;
         }
+        const wanted = new Set(features);
         // The layers of a bucket share their layout, and so their text.
         const layer = style.layers.find((styleLayer: any) => styleLayer.id === bucket.layerIds[0]);
         const sourceLayer =
           featureIndex.loadVTLayers()[
             featureIndex.sourceLayerCoder.decode(bucket.sourceLayerIndex)
           ];
+        const placed = new Set<number>();
         for (let i = 0; i < bucket.symbolInstances.length; i++) {
           const symbol = bucket.symbolInstances.get(i);
-          const placement = placements[symbol.crossTileID];
-          if (!placement?.text) {
-            continue;
+          if (wanted.has(symbol.featureIndex) && placement.placements[symbol.crossTileID]?.text) {
+            placed.add(symbol.featureIndex);
           }
-          const feature = sourceLayer.feature(symbol.featureIndex);
+        }
+        for (const index of placed) {
+          const feature = sourceLayer.feature(index);
           const text = evaluateTextField(
             layer?.layout?.['text-field'],
             {
@@ -178,9 +173,7 @@ function getPlacedTextKeys(map: maplibregl.Map, style: any, zoom: number): strin
             zoom
           );
           if (text) {
-            for (const layerId of bucket.layerIds) {
-              texts.push(`${layerId}|${text}`);
-            }
+            texts.push(text);
           }
         }
       }
