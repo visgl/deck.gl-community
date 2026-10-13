@@ -289,6 +289,18 @@ function getResourceRequests(start: number): Array<{url: string; status: number}
     }));
 }
 
+/**
+ * The CSS fonts that draw the styles' `text-font` stacks, where the glyph server draws another
+ * font than its first name says: CARTO's `Montserrat ... Italic` stacks are drawn with Open Sans
+ * Italic glyphs (their advances match Open Sans Italic, and are 20% narrower than Montserrat
+ * Italic's). Other stacks draw their first font.
+ */
+function getReferenceFontFamily(fontStack: string[]) {
+  return /^Montserrat .*Italic$/.test(fontStack[0] || '')
+    ? {fontFamily: '"Open Sans", sans-serif'}
+    : null;
+}
+
 /** Frames drawn after everything has loaded and before the frame is read. */
 const SETTLE_FRAMES = 1;
 
@@ -335,6 +347,7 @@ export async function renderBasemapLayer(
               id: 'basemap',
               style,
               loadOptions: {mvt: {workerUrl: mvtWorkerUrl}},
+              fontFamily: getReferenceFontFamily,
               ...layerProps
             })
           ],
