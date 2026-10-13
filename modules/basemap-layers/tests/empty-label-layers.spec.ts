@@ -143,6 +143,15 @@ describe('a label layer whose drawn tiles lose its features', () => {
     expect(newStyle.props.visible).toBe(false);
   });
 
+  test('is removed once the drawn tiles are of another zoom', () => {
+    const deeper = {id: '0-0-3', index: {x: 0, y: 0, z: 3}, isLoaded: true, content: []};
+    const state = {tileLayers: new Map(), tileset: {tiles: [withoutPlaces, withPlace, deeper]}};
+    const layer = tileLayer(3, state);
+    expect(labelLayers(layer, tile => tile !== deeper)).toHaveLength(1);
+    // Its tiles, of zoom 2, cannot return to a view drawn with tiles of zoom 3.
+    expect(labelLayers(layer, tile => tile === deeper)).toEqual([]);
+  });
+
   test('is removed outside its zoom range', () => {
     // Another symbol layer, drawn at every zoom, keeps the tile layer.
     const zoomed = style(5);
