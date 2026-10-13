@@ -242,6 +242,28 @@ describe('fills and lines take zoom-dependent paint from a texture', () => {
     expect(cpu[0].props.zoomPaint).toBeUndefined();
     expect(cpu[0].props.getLineWidth).toBe(3);
   });
+
+  test('blurred lines and translated fills, which take their own extensions, keep their paint', () => {
+    const blurred = renderTile(
+      [line('a', {'line-width': ZOOM_WIDTH, 'line-blur': 1})],
+      [feature('LineString')],
+      12
+    );
+    expect(blurred[0].props.zoomPaint).toBeUndefined();
+    expect(blurred[0].props.getLineWidth).toBe(3);
+    const translated = renderTile(
+      [
+        fill('a', {
+          'fill-color': ['interpolate', ['linear'], ['zoom'], 10, '#000000', 14, '#ffffff'],
+          'fill-translate': [1, 1]
+        })
+      ],
+      [feature('Polygon')],
+      12
+    );
+    expect(translated[0].props.zoomPaint).toBeUndefined();
+    expect(translated[0].props.getFillColor).toEqual([127.5, 127.5, 127.5, 255]);
+  });
 });
 
 describe('zoom paint textures', () => {
