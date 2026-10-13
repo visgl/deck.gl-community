@@ -8,7 +8,7 @@
     "candidateLabels": 41
   },
   "europe-liberty-z5.2": {
-    "ssim": 0.7966,
+    "ssim": 0.7965,
     "edgeF": 0.7959,
     "labelRecall": 0.7838,
     "labelPrecision": 0.8056,
@@ -25,14 +25,14 @@
   },
   "new-york-positron-z14.2": {
     "ssim": 0.8754,
-    "edgeF": 0.9244,
+    "edgeF": 0.9243,
     "labelRecall": 0.9333,
     "labelPrecision": 0.7368,
     "referenceLabels": 15,
     "candidateLabels": 19
   },
   "paris-carto-positron-z14.2": {
-    "ssim": 0.883,
+    "ssim": 0.8829,
     "edgeF": 0.9374,
     "labelRecall": 0.6667,
     "labelPrecision": 0.8,
