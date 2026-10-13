@@ -287,22 +287,31 @@ function createPatternAtlas(atlas: SpriteAtlas, names: string[]): PatternAtlas {
     mapping[name] = {...entry, x: left, y: top};
   });
   const image = context.getImageData(0, 0, packing.width, packing.height);
-  bleedIntoTransparentPixels(image);
+  // Each image with its border on its own, so that no image takes colors from its neighbour's.
+  names.forEach((name, index) => {
+    const [left, top] = packing.positions[index];
+    const {width: w, height: h} = entries[index];
+    bleedIntoTransparentPixels(image, [left - 1, top - 1, left + w + 1, top + h + 1]);
+  });
   return {image, mapping};
 }
 
 /**
- * Gives each fully transparent pixel next to a visible one the alpha-weighted average color of
- * its neighbors, keeping it transparent. MapLibre GL JS samples its pattern atlas, which is
+ * Gives each fully transparent pixel of the rectangle `[left, top, right, bottom)` (the whole
+ * image by default) next to a visible one the alpha-weighted average color of its neighbors in
+ * the rectangle, keeping it transparent. MapLibre GL JS samples its pattern atlas, which is
  * premultiplied, with a linear filter, so a pattern's edges blend toward transparent in its own
  * color. A canvas uploads unpremultiplied, with transparent pixels black: the filter would blend
  * the edges toward black, and draw light patterns with dark outlines. The image is read back from
  * the canvas so that these colors survive (a canvas keeps none for transparent pixels).
  */
-export function bleedIntoTransparentPixels({data, width, height}: ImageData): void {
+export function bleedIntoTransparentPixels(
+  {data, width, height}: ImageData,
+  [left, top, right, bottom]: number[] = [0, 0, width, height]
+): void {
   const source = data.slice();
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
+  for (let y = top; y < bottom; y++) {
+    for (let x = left; x < right; x++) {
       const i = (y * width + x) * 4;
       if (source[i + 3] !== 0) {
         continue;
@@ -315,7 +324,7 @@ export function bleedIntoTransparentPixels({data, width, height}: ImageData): vo
         for (let dx = -1; dx <= 1; dx++) {
           const nx = x + dx;
           const ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+          if (nx < left || ny < top || nx >= right || ny >= bottom) {
             continue;
           }
           // Weighted by alpha, as a premultiplied filter weighs them.

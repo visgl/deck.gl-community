@@ -572,6 +572,13 @@ describe('bleedIntoTransparentPixels', () => {
     expect(Array.from(data.slice(12, 16))).toEqual([0, 0, 0, 0]);
   });
 
+  test('takes no color from outside its rectangle', () => {
+    // Opaque red at x = 0, then a rectangle from x = 1: transparent, opaque white.
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 0, 255, 255, 255, 255]);
+    bleedIntoTransparentPixels({data, width: 3, height: 1} as ImageData, [1, 0, 3, 1]);
+    expect(Array.from(data.slice(4, 8))).toEqual([255, 255, 255, 0]);
+  });
+
   test('weighs neighbors by their alpha', () => {
     // Opaque red, transparent, blue at a third of the alpha.
     const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 255, 85]);
