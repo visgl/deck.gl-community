@@ -220,3 +220,5 @@ Read `layer.splatStats` after deck initializes the layer. It exposes `sourceCoun
 `shadowCoverageFloor`, and `refiningInstances`. Submission counts include optical transition
 overlap. Source counts describe resolved source/hierarchy pairs, rather than GPU byte residency.
 These counters do not establish a hard GPU memory or frame-time cap. Sorted mode allocates a selected working buffer and CPU-sorts within each viewport/domain.
+
+TreeLayer's `streamingStats` reports geographic inventory cache statistics independently of SplatLayer scene status.

@@ -18,13 +18,17 @@ This page lists module additions and major changes in each release. For detailed
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
 
-- Migrated the Coit native RAD scene into the public community SplatLayer example and website.
+- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. Import the canonical renderer from `@deck.gl-community/layers`.
+- Migrated Seasonal Farm to the native layers package and removed the deprecated `three` workspace.
 
 - Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera and light-map culling include the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement.
 
 - Added sorted Composite SplatLayer scenes with off-thread RAD/static loading, shared source residency, global per-view/domain ordering, affine/SH instance handling, owner picking and host-pass presentation. Asset URLs resolve against the document base before worker decoding. RAD refinement requires perspective Cartesian views; static sorted scenes also support orthographic views. Hidden scene owners release completed refinement leases and cancelled decoded uploads while retaining their last visible coverage. A repository luma compatibility patch requires an upstream 9.4 release before package publication.
-- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. Import the canonical renderer from `@deck.gl-community/layers`.
-- Migrated Seasonal Farm to the native layers package and removed the deprecated `three` workspace.
+
+- Migrated the Coit native RAD scene into the public community SplatLayer example and website.
+
+- `TreeLayer` also accepts `getTileData` for bounded geographic streaming, continuous crown refinement and automatic frame budgets, using the same top-level tree accessors as supplied rows. `WorldTreeLayer` remains a deprecated compatibility wrapper.
+- Added the synthetic World inventory example after Coit, with abortable tile loading and bounded visible working sets.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 

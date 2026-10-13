@@ -96,9 +96,9 @@ not hard GPU memory or frame-time guarantees.
 `getTransformMatrix` replaces orientation, scale and translation with a finite affine local
 matrix, including covariance and conservative shear bounds. `splatStats` reports source/hierarchy
 pairs, selected owners, submitted camera/shadow work, coarsest coverage and moving refinements.
-The regular TreeLayer milestone uses supplied `data` rows. Geographic inventory streaming and
-its `streamingStats` arrive in the final #806 after Coit. Coit depends on the shared SplatLayer
-runtime alone. The #806 row above describes that later milestone.
+TreeLayer accepts supplied `data` rows or an abortable `getTileData` geographic inventory, with
+flat tree accessors and separate `streamingStats`. Inventory streaming and World examples land
+in the final #806 after Coit; Coit depends only on the shared SplatLayer runtime.
 
 ### Scene backend and remaining acceptance work
 

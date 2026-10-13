@@ -163,10 +163,25 @@ test('every public layer default prop has a schema property', () => {
       for (const prop of Object.keys(type.defaultProps)) {
         // Composition hooks are host-owned, not JSON document properties.
         if (prop.startsWith('_')) continue;
+        // TreeLayer exposes a flat inventory API and owns these inherited tile implementation props.
+        if (
+          name === 'TreeLayer' &&
+          [
+            'TilesetClass',
+            'renderSubLayers',
+            'treeProps',
+            'canopyWindStrength',
+            'visibleMinZoom',
+            'visibleMaxZoom'
+          ].includes(prop)
+        )
+          continue;
         // GeoArrow explicitly omits binary text backgrounds from its public props.
         if (name === '_GeoArrowTextLayer' && prop === 'background') continue;
         // BitmapLayer draws its image prop and intentionally omits inherited row data.
         if (name === 'BitmapLayer' && prop === 'data') continue;
+        // WorldTreeLayer owns batching; its public props omit TileLayer's internal render callback.
+        if (name === 'WorldTreeLayer' && prop === 'renderSubLayers') continue;
         if (!(prop in shape)) missing.push(`${name}.${prop}`);
       }
     }

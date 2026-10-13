@@ -31,7 +31,7 @@ for input forms and rendering limits. On WebGPU, `View.clear` is rejected until 
 
 - `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
 
-Removing the published `@deck.gl-community/three` package is a breaking change. Release this removal in a major version, after native TreeLayer/SplatLayer are available in compatible published packages. Geographic inventory streaming follows separately in #806, after the scene and Coit work.
+Removing the published `@deck.gl-community/three` package is a breaking change. Release this removal in a major version, after native TreeLayer/SplatLayer are available in compatible published packages.
 
 ### Prepared SplatLayer inputs
 
@@ -57,6 +57,15 @@ before being sent to the bundled workers; Blob inputs remain unchanged. RAD asse
 orthographic views. Preserve opaque-before-splat layer order. See the [scene installation and residency
 contract](./modules/layers/api-reference/splat-layer.md#scene-assets-and-installation), including
 the upstream luma release prerequisite and ESM worker packaging.
+
+### TreeLayer geographic inventories
+
+`TreeLayer` also accepts an abortable `getTileData` geographic inventory. Supply either
+row `data` or `getTileData`. For existing `WorldTreeLayer` callers, move `treeProps` to
+the top level, rename distant-group `getCanopyColor` to `getDistantCanopyColor`, and
+use `windStrength` for both near and distant trees. The compatibility wrapper retains
+its earlier budget defaults; canonical TreeLayer uses 250,000/125,000 canopy/shadow
+submissions in both modes. See the [streaming reference](./modules/layers/api-reference/world-tree-layer.md).
 
 ### `@deck.gl-community/editable-layers`
 
