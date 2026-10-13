@@ -71,10 +71,22 @@ export class RADSourceClient {
       }
     };
     worker.onerror = event => this.stop(new Error(event.message || 'RAD decoder worker failed.'));
-    this.metadata = this.request({type: 'initialize', id: this.nextId++, data}).then(response => {
-      if (response.type !== 'metadata') throw new Error('Expected RAD metadata.');
-      return response.metadata;
-    });
+    try {
+      const source =
+        typeof data === 'string' && typeof document !== 'undefined'
+          ? new URL(data, document.baseURI).href
+          : data;
+      this.metadata = this.request({type: 'initialize', id: this.nextId++, data: source}).then(
+        response => {
+          if (response.type !== 'metadata') throw new Error('Expected RAD metadata.');
+          return response.metadata;
+        }
+      );
+    } catch (error) {
+      const failure = error instanceof Error ? error : new Error(String(error));
+      this.stop(failure);
+      this.metadata = Promise.reject(failure);
+    }
   }
 
   getMetadata(): Promise<RADMetadata> {

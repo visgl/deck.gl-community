@@ -17,10 +17,15 @@ export type PreparedSplatData = {
 };
 
 /** Range-loaded RAD asset. Native hierarchy columns remain attached to their original pages. */
-export type RADSplatData = {type: 'rad'; url: string | Blob};
+export type RADSplatData = {
+  type: 'rad';
+  /** Asset URL resolved against document.baseURI in browsers, or a Blob passed unchanged. */
+  url: string | Blob;
+};
 /** Static file decoded by the splat loaders without applying native RAD hierarchy traversal. */
 export type StaticSplatData = {
   type: 'splats';
+  /** Asset URL resolved against document.baseURI in browsers, or a Blob passed unchanged. */
   url: string | Blob;
   format?: 'splat' | 'ksplat' | 'spz';
 };

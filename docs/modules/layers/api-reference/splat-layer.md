@@ -69,6 +69,7 @@ new SplatLayer({data: owners, getSource: d => d.asset, transparency: 'sorted', s
 
 RAD URLs containing `.rad` and unmarked Blobs use native RAD decoding. For other URLs (including
 signed URLs without a suffix), use `{type: 'rad', url}` or `{type: 'splats', url, format}` explicitly.
+String asset URLs resolve against `document.baseURI` before crossing the worker boundary, including relative paths and a document `<base>` element. Blobs pass through unchanged.
 Static SPLAT, KSPLAT and SPZ decoding runs in a worker. RAD metadata, HTTP ranges, selection and
 retained camera refinement run off-thread; immutable decoded source pages upload once and are
 borrowed by every owner/view. The fetch adapter preserves range headers and cancellation signals.

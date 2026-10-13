@@ -52,7 +52,8 @@ Keep existing procedural/TreeLayer sources on `transparency: 'weighted'`. `auto`
 for decoded prepared assets and selects sorted rendering for scene files. Import the public
 `SplatLayer` from `@deck.gl-community/layers` instead of the old experimental deck Coit primitive.
 Use `data` for the asset or owner rows with `getSource`, and Cartesian coordinates for sorted
-scenes. RAD assets require perspective views; static/prepared sorted assets also support
+scenes. Relative asset URLs resolve against `document.baseURI`, including any `<base>` element,
+before being sent to the bundled workers; Blob inputs remain unchanged. RAD assets require perspective views; static/prepared sorted assets also support
 orthographic views. Preserve opaque-before-splat layer order. See the [scene installation and residency
 contract](./modules/layers/api-reference/splat-layer.md#scene-assets-and-installation), including
 the upstream luma release prerequisite and ESM worker packaging.

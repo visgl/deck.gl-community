@@ -24,7 +24,16 @@ export function loadStaticSplatSource(
       worker.terminate();
       reject(new Error(event.message));
     };
-    worker.postMessage({source: data, format});
+    try {
+      const source =
+        typeof data === 'string' && typeof document !== 'undefined'
+          ? new URL(data, document.baseURI).href
+          : data;
+      worker.postMessage({source, format});
+    } catch (error) {
+      worker.terminate();
+      reject(error);
+    }
   });
   return {
     promise,
