@@ -166,6 +166,16 @@ describe('a label layer of several tiles', () => {
     expect(rows).not.toBe(placedRows);
   });
 
+  test('records the tile a row was placed for, also when another tile takes its place', () => {
+    const features = [pointFeature(0.5, 0.5, 'a')];
+    const first = {id: '0-0-1'};
+    const second = {id: '0-0-1'};
+    const state: Record<string, any> = {};
+    update({tiles: [{index: {x: 0, y: 0, z: 1}, features, tile: first}]}, state);
+    update({tiles: [{index: {x: 0, y: 0, z: 1}, features, tile: second}]}, state);
+    expect(state.labelData[0].__tile).toBe(second);
+  });
+
   test('records the tile of each row, which picking reports', () => {
     const tile = {id: '0-0-1'};
     const state: Record<string, any> = {};
@@ -268,5 +278,111 @@ describe('label layers of tile layers sharing tiles', () => {
     first.state.tileLayers.clear();
     first.renderLayers();
     expect(first.renderLayers().find((layer: any) => layer.props.tiles)).toBeUndefined();
+  });
+
+  test('a picked label on a map reports its feature in longitude/latitude', () => {
+    const style: any = {
+      version: 8,
+      sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
+      layers: [
+        {
+          id: 'places',
+          type: 'symbol',
+          source: 'tiles',
+          'source-layer': 'place',
+          layout: {'text-field': '{name}'}
+        }
+      ]
+    };
+    const [run]: any[] = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 1,
+      styleDefinition: style
+    }).filter((layer: any) => layer.id.startsWith('test-tiles'));
+    run.context = {viewport: {zoom: 1}};
+    const tile = {id: '1-0-1', index: {x: 1, y: 0, z: 1}};
+    const feature = {
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [0.5, 0.5]},
+      properties: {layerName: 'place', name: 'a'}
+    };
+    // The label layer holds no single tile; the picked row's tile is in the info.
+    const info = run.getPickingInfo({
+      info: {picked: true, object: feature, tile},
+      mode: 'hover',
+      sourceLayer: {props: {}}
+    });
+    const [lng, lat] = info.object.geometry.coordinates;
+    const [expectedLng, expectedLat] = lngLat(1.5 / 2, 0.5 / 2);
+    expect(lng).toBeCloseTo(expectedLng, 6);
+    expect(lat).toBeCloseTo(expectedLat, 6);
+    // On a globe the recorded features are in longitude/latitude already.
+    run.context = {viewport: {zoom: 1, resolution: 1}};
+    const onGlobe = {...feature, geometry: {type: 'Point', coordinates: [10, 20]}};
+    const globeInfo = run.getPickingInfo({
+      info: {picked: true, object: onGlobe, tile},
+      mode: 'hover',
+      sourceLayer: {props: {}}
+    });
+    expect(globeInfo.object.geometry.coordinates).toEqual([10, 20]);
+  });
+
+  test('each view draws the labels of the tiles it shows', () => {
+    const style: any = {
+      version: 8,
+      sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
+      layers: [
+        {
+          id: 'places',
+          type: 'symbol',
+          source: 'tiles',
+          'source-layer': 'place',
+          layout: {'text-field': '{name}'}
+        }
+      ]
+    };
+    const place = (name: string) => ({
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [0.5, 0.5]},
+      properties: {layerName: 'place', name}
+    });
+    const left = {id: '0-0-1', index: {x: 0, y: 0, z: 1}, isLoaded: true, content: [place('l')]};
+    const right = {id: '1-0-1', index: {x: 1, y: 0, z: 1}, isLoaded: true, content: [place('r')]};
+    const [run]: any[] = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'map',
+      zoom: 1,
+      styleDefinition: style
+    }).filter((layer: any) => layer.id.startsWith('test-tiles'));
+    run.context = {viewport: {zoom: 1}};
+    run.internalState = {};
+    run.state = {
+      tileLayers: new Map(),
+      tilesetViews: new Map([
+        ['left', {isTileVisible: (tile: any) => tile === left}],
+        ['right', {isTileVisible: (tile: any) => tile === right}]
+      ]),
+      tileset: {tiles: [left, right]}
+    };
+    run.renderLayers();
+    const labelLayers = run.renderLayers().filter((layer: any) => layer.props.tiles);
+    const byView = labelLayers.map((layer: any) => [
+      layer.id,
+      layer.props.tiles.map((tile: any) => tile.tile.id)
+    ]);
+    expect(byView).toEqual([
+      ['test-tiles-labels-"places"-view-left', ['0-0-1']],
+      ['test-tiles-labels-"places"-view-right', ['1-0-1']]
+    ]);
+    const drawnIn = (viewport: any) =>
+      labelLayers
+        .filter((layer: any) => run.filterSubLayer({layer, viewport}))
+        .map((layer: any) => layer.props.tiles[0].tile.id);
+    expect(drawnIn({id: 'left'})).toEqual(['0-0-1']);
+    expect(drawnIn({id: 'right'})).toEqual(['1-0-1']);
+    // Each view keeps its label layers while its tiles do not change.
+    const again = run.renderLayers().filter((layer: any) => layer.props.tiles);
+    again.forEach((layer: any, index: number) => expect(layer).toBe(labelLayers[index]));
   });
 });

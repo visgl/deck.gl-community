@@ -161,6 +161,8 @@ export type LabelTile = {
 type TileRows = {
   features: FeatureLike[];
   anchorKey: string;
+  /** The tile the rows report when picked (see `LabelTile.tile`). */
+  tile: unknown;
   rows: LabelRow[];
 };
 
@@ -2063,7 +2065,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       try {
         const anchorKey = this.getAnchorKey(geographic);
         const cached = previous.get(tileKey);
-        if (cached && cached.features === tile.features && cached.anchorKey === anchorKey) {
+        if (
+          cached &&
+          cached.features === tile.features &&
+          cached.anchorKey === anchorKey &&
+          cached.tile === tile.tile
+        ) {
           next.set(tileKey, cached);
           return cached.rows;
         }
@@ -2083,7 +2090,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             (row as any).__tile = tile.tile;
           }
         }
-        const entry = {features: tile.features, anchorKey, rows};
+        const entry = {features: tile.features, anchorKey, tile: tile.tile, rows};
         next.set(tileKey, entry);
         return rows;
       } finally {

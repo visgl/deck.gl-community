@@ -384,6 +384,14 @@ function getTileFeatures(data: unknown): any[] {
 
 /** The prop that records which style layer of its run a tile sublayer draws. */
 const STYLE_LAYER_INDEX = 'styleLayerIndex';
+/** The view each label layer draws in, or `null` for every view (see `renderLabelLayers`). */
+const labelLayerViews = new WeakMap<Layer, string | null>();
+
+/** A view's key in `SharedTile2DLayer`'s per-view tileset views. */
+function getViewKey(viewport: {id?: string} | null | undefined): string {
+  return viewport?.id || 'default';
+}
+
 /** The prop that tells a tile's `renderSubLayers` whether its vector tile layer auto-highlights. */
 const AUTO_HIGHLIGHT = 'styleAutoHighlight';
 
@@ -822,10 +830,13 @@ class StyledMVTLayer extends SharedMVTLayer {
      * `renderLabelLayers`. Kept per layer: the tiles are shared with the source's other runs.
      */
     tileLabelFeatures?: Map<string, Map<number, any[]>>;
-    /** The label tiles of each symbol style layer, by index, as `renderLabelLayers` last made them. */
-    labelTiles?: Map<number, {key: unknown[]; tiles: LabelTile[]}>;
-    /** The label layers last rendered, and the props and tiles they were rendered for. */
-    labelLayers?: {props: unknown; tileLists: LabelTile[][]; layers: Layer[]};
+    /**
+     * The label tiles of each symbol style layer, by index, as `renderLabelLayers` last made them,
+     * by view (see `getLabelViewKey`).
+     */
+    labelTiles?: Map<string, Map<number, {key: unknown[]; tiles: LabelTile[]}>>;
+    /** The label layers last rendered, and the props and tiles they were rendered for, by view. */
+    labelLayers?: Map<string, {props: unknown; tileLists: LabelTile[][]; layers: Layer[]}>;
   };
 
   updateState(params: UpdateParameters<this>): void {
@@ -907,16 +918,36 @@ class StyledMVTLayer extends SharedMVTLayer {
    * shown or hidden, or its features change.
    */
   renderLabelLayers(tiles: SharedTile[]): Layer[] {
+    const views = this.state.tilesetViews;
+    // Each view draws the labels of the tiles it shows: a tile drawn in one view would otherwise
+    // label, and hide the parent labels of, another.
+    if (!views || views.size <= 1) {
+      return this.renderViewLabelLayers(tiles, null, tile => this.isTileShown(tile));
+    }
+    return [...views].flatMap(([viewKey, view]) =>
+      this.renderViewLabelLayers(tiles, viewKey, tile => view.isTileVisible(tile as any))
+    );
+  }
+
+  /** The label layers of the tiles `isShown` accepts, for one view, or for all with `null`. */
+  private renderViewLabelLayers(
+    tiles: SharedTile[],
+    viewKey: string | null,
+    isShown: (tile: SharedTile) => boolean
+  ): Layer[] {
     const render = (this.props as {renderLabelLayers?: RenderLabelLayers}).renderLabelLayers;
     if (!render) {
       return [];
     }
-    const previous = this.state.labelTiles || new Map();
+    const cacheKey = viewKey ?? '';
+    this.state.labelTiles ||= new Map();
+    this.state.labelLayers ||= new Map();
+    const previous = this.state.labelTiles.get(cacheKey) || new Map();
     const next = new Map<number, {key: unknown[]; tiles: LabelTile[]}>();
     const tileSize = (this.props as {tileSize?: number}).tileSize ?? 512;
     for (const tile of tiles) {
       const byStyleLayer =
-        tile.content && this.isTileShown(tile) ? this.state.tileLabelFeatures?.get(tile.id) : null;
+        tile.content && isShown(tile) ? this.state.tileLabelFeatures?.get(tile.id) : null;
       for (const [styleLayerIndex, features] of byStyleLayer || []) {
         let entry = next.get(styleLayerIndex);
         if (!entry) {
@@ -945,12 +976,12 @@ class StyledMVTLayer extends SharedMVTLayer {
         next.set(styleLayerIndex, last);
       }
     }
-    this.state.labelTiles = next;
+    this.state.labelTiles.set(cacheKey, next);
     // The same layers while the tiles and this layer's props (with `render`, new at each style
     // zoom step) do not change: new instances would compare and update the label layers at every
     // frame.
     const tileLists = [...next].sort(([a], [b]) => a - b).map(([, entry]) => entry.tiles);
-    const last = this.state.labelLayers;
+    const last = this.state.labelLayers.get(cacheKey);
     if (last && last.props === this.props && isSameList(last.tileLists, tileLists)) {
       return last.layers;
     }
@@ -958,23 +989,42 @@ class StyledMVTLayer extends SharedMVTLayer {
     const tilesByStyleLayer = new Map(
       [...next].sort(([a], [b]) => a - b).map(([index, entry]) => [index, entry.tiles])
     );
-    const layers = render(tilesByStyleLayer, id => this.getSubLayerProps({id}));
-    this.state.labelLayers = {props: this.props, tileLists, layers};
+    const layers = render(tilesByStyleLayer, id =>
+      this.getSubLayerProps({id: viewKey === null ? id : `${id}-view-${viewKey}`})
+    );
+    for (const layer of layers) {
+      labelLayerViews.set(layer, viewKey);
+    }
+    this.state.labelLayers.set(cacheKey, {props: this.props, tileLists, layers});
     return layers;
   }
 
-  /** Label layers draw the labels of several tiles, and are not culled by tile. */
+  /**
+   * Label layers draw the labels of several tiles, and are not culled by tile; with several views,
+   * each view draws its own.
+   */
   filterSubLayer(context: any): boolean {
-    return context.layer.props.tile ? super.filterSubLayer(context) : true;
+    const {layer} = context;
+    if (layer.props.tile) {
+      return super.filterSubLayer(context);
+    }
+    const viewKey = labelLayerViews.get(layer);
+    return viewKey === null || viewKey === undefined || viewKey === getViewKey(context.viewport);
   }
 
-  /** A picked label reports the tile of its feature, which `SharedMVTLayer` converts from. */
+  /**
+   * A picked label reports the tile of its feature, which `SharedMVTLayer` converts from: on a map
+   * the recorded features are tile-local, on a globe in longitude/latitude.
+   */
   getPickingInfo(params: any): any {
     const {sourceLayer} = params;
     if (sourceLayer && !sourceLayer.props.tile) {
+      const coordinateSystem = this.context.viewport?.resolution
+        ? COORDINATE_SYSTEM.LNGLAT
+        : COORDINATE_SYSTEM.CARTESIAN;
       const info = super.getPickingInfo({
         ...params,
-        sourceLayer: {props: {tile: params.info.tile}}
+        sourceLayer: {props: {tile: params.info.tile, coordinateSystem}}
       });
       info.sourceTileSubLayer = sourceLayer;
       return info;
