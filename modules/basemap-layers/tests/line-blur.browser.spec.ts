@@ -187,6 +187,55 @@ function expectMapLibreFade(
   });
 }
 
+describe('line antialiasing in the browser', () => {
+  test('a line without line-blur fades its edges over a pixel, as MapLibre', async () => {
+    const image = await render(
+      styleSublayers({'line-width': 3}, [feature('LineString', EASTWARD)])
+    );
+    expectMapLibreFade(image, -4, 4, {width: 3, blur: 0});
+  });
+
+  test('a line narrower than a pixel draws as faint as in MapLibre', async () => {
+    // Centered between two rows of pixels, and on a row.
+    for (const [width, north] of [
+      [0.25, 0],
+      [0.5, 0],
+      [0.25, 0.5],
+      [0.5, 0.5]
+    ]) {
+      const path = EASTWARD.map(([x, y]) => [x, y + north]);
+      const image = await render(
+        styleSublayers({'line-width': width}, [feature('LineString', path)])
+      );
+      expectMapLibreFade(image, -3, 3, {width, blur: 0}, -north);
+      deck?.finalize();
+      deck = null;
+      parent?.remove();
+      parent = null;
+    }
+  });
+
+  test('a dashed line keeps its dash lengths in line widths', async () => {
+    // Dashes of 2 and gaps of 2 line widths, of a 4 pixel line: 16 pixel periods.
+    const image = await render(
+      styleSublayers({'line-width': 4, 'line-dasharray': [2, 2]}, [feature('LineString', EASTWARD)])
+    );
+    const size = image.width;
+    const row = CENTER;
+    const inked = [];
+    for (let x = 0; x < size; x++) {
+      inked.push(image.data[(row * size + x) * 4] < 128);
+    }
+    // The starts of dashes along the row.
+    const starts = inked.flatMap((value, x) => (value && x > 0 && !inked[x - 1] ? [x] : []));
+    const periods = starts.slice(1).map((x, index) => x - starts[index]);
+    expect(periods.length).toBeGreaterThan(3);
+    for (const period of periods) {
+      expect(period).toBe(16);
+    }
+  });
+});
+
 describe('line-blur in the browser', () => {
   test('fades the edge over line-blur plus a pixel of antialiasing', async () => {
     const image = await render(

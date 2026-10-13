@@ -32,10 +32,13 @@ layout(std140) uniform lineBlurUniforms {
 /**
  * Adds `getBlur` to the `PathLayer`s of a layer drawn with `antialiasing` (for a `GeoJsonLayer`,
  * `lineAntialiasing`): per path, the CSS pixels over which the edges fade out, as MapLibre GL JS
- * draws `line-blur`. MapLibre fades each edge linearly from the edge, which its antialiasing moves
- * out by half a device pixel, to `blur` plus one device pixel inside it. deck.gl's antialiasing
- * adds the same half pixel and ramps across one device pixel, so with a blur of 0 the line is
- * drawn as by deck.gl. The fade follows round caps and joins, as in MapLibre. Other sublayers, and
+ * draws `line-blur`, and, with a blur of 0, every line's antialiasing. MapLibre fades each edge
+ * linearly from the edge, which its antialiasing moves out by half a device pixel, to `blur` plus
+ * one device pixel inside it. On deck.gl's antialiased stroke alone, that fade leaves a line
+ * narrower than a pixel too faint, so lines without an offset (which is measured in widths) are
+ * drawn half a device pixel wider on each side, with their dashes scaled back to the line's width,
+ * and faded from their own edge. The fade follows round caps and joins, as in MapLibre. Other
+ * sublayers, and
  * layers drawn without `antialiasing`, are left unchanged. WebGL only; on WebGPU lines draw
  * without blur.
  *
@@ -107,8 +110,40 @@ in float instanceLineBlur;
 out float lineBlur_blur;
 out float lineBlur_gapCenter;
 out float lineBlur_gapSide;
+out float lineBlur_padPixels;
+// The line's width over the drawn stroke's (see DECKGL_FILTER_SIZE).
+float lineBlur_widthRatio = 1.0;
+`,
+        // MapLibre's fade reaches half a device pixel past the line. The stroke is drawn that much
+        // wider on each side, and the fade measured from the line's own edge, so that a line
+        // narrower than a pixel draws as in MapLibre: with multisampling, the fade would otherwise
+        // be cut at the stroke's edge. Dashes, measured in the drawn width, are scaled back in
+        // #main-end. Offsets are measured in it too, so offset lines keep their width.
+        'vs:DECKGL_FILTER_SIZE': `
+  lineBlur_padPixels = 0.0;
+#ifndef PATH_STYLE_OFFSET
+  if (size.x > 0.0) {
+    // \`size\` is half the stroke's width.
+    vec2 lineBlur_pad = vec2(0.5 / project.devicePixelRatio);
+    lineBlur_pad = path.billboard ? lineBlur_pad : project_pixel_size(lineBlur_pad);
+    lineBlur_widthRatio = size.x / (size.x + lineBlur_pad.x);
+    size.xy += lineBlur_pad;
+    lineBlur_padPixels = 0.5;
+  }
+#endif
 `,
         'vs:#main-end': `
+#ifdef DASH_ENABLED
+  // PathStyleExtension measured the dashes in the drawn stroke's widths, MapLibre in the line's.
+  vDashArray *= lineBlur_widthRatio;
+#ifdef HIGH_PRECISION_DASH
+  float lineBlur_dashUnit = vDashArray.x + vDashArray.y;
+  float lineBlur_dashPeriod = pathStyle.dashAlignMode == 0.0
+    ? lineBlur_dashUnit
+    : vDashPathLength / max(round(vDashPathLength / max(lineBlur_dashUnit, 0.0001)), 1.0);
+  vDashOffset = lineBlur_dashPeriod > 0.0 ? mod(dashOffsetAndLength.x, lineBlur_dashPeriod) : 0.0;
+#endif
+#endif
 #ifdef LINE_BLUR_PER_FEATURE
   lineBlur_blur = instanceLineBlur;
 #else
@@ -136,6 +171,7 @@ out float lineBlur_gapSide;
 in float lineBlur_blur;
 in float lineBlur_gapCenter;
 in float lineBlur_gapSide;
+in float lineBlur_padPixels;
 `,
         'fs:#main-start': `
   float lineBlur_bodyGradient = max(
@@ -161,6 +197,7 @@ in float lineBlur_gapSide;
       lineBlur_edgePixels, (1.0 - lineBlur_cornerCoord) / lineBlur_cornerGradient
     );
   }
+  lineBlur_edgePixels -= lineBlur_padPixels;
   // Picking colors keep the coverage PathLayer gave them.
   if (lineBlur_coverage > 0.0 && !bool(picking.isActive)) {
     fragColor.a *= clamp(
