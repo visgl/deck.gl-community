@@ -294,11 +294,10 @@ function getPlaceholderInAncestors(
   startTile: SharedTile2DHeader,
   stateMap: Map<SharedTile2DHeader, TileViewState>
 ): boolean {
-  let tile: SharedTile2DHeader | null = startTile.parent;
+  let tile: SharedTile2DHeader | null = startTile;
   while (tile) {
-    const state = getTileState(stateMap, tile);
-    state.state |= TILE_STATE_VISIBLE | TILE_STATE_VISITED;
     if (tile.isLoaded || tile.content) {
+      getTileState(stateMap, tile).state |= TILE_STATE_VISIBLE;
       return true;
     }
     tile = tile.parent;
