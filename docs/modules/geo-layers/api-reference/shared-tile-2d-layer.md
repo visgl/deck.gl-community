@@ -192,7 +192,7 @@ Called when a tile is evicted from the shared cache.
 
 #### `onTileError` (`Function`, optional) {/* #ontileerror */}
 
-Called when a tile request fails.
+Called with the error and the tile when a tile request fails. The default logs the error with `console.error`, as `TileLayer` does. Pass a function to handle errors yourself, or `() => {}` to ignore them.
 
 ## Multi-View Behavior
 
