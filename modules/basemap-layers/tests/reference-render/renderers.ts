@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView} from '@deck.gl/core';
+import {TextLayer} from '@deck.gl/layers';
 import {Model} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expression as styleExpression, latest} from '@maplibre/maplibre-gl-style-spec';
@@ -304,12 +305,91 @@ function getReferenceFontFamily(fontStack: string[]) {
 /** Frames drawn after everything has loaded and before the frame is read. */
 const SETTLE_FRAMES = 1;
 
-/** Renders a scene with `BasemapLayer` in a deck.gl `MapView` and reads back the drawn labels. */
+/**
+ * Fonts a scene may draw without one evicting another from deck.gl's font atlas cache (3 by
+ * default), which would rebuild the evicted font's atlas in another order.
+ */
+const FONT_ATLAS_CACHE_LIMIT = 64;
+
+/** The settings and characters of a font, as a text layer's font atlas holds them. */
+type FontAtlas = {
+  FontAtlasManager: new () => {setProps(props: Record<string, unknown>): void};
+  props: Record<string, unknown>;
+  characters: Set<string>;
+};
+
+/**
+ * The fonts the text layers among `layers` draw, with every character any of them holds. A layer
+ * not updated since its font gained characters still holds an earlier atlas of that font.
+ */
+function getFontAtlases(layers: any[]): FontAtlas[] {
+  // By deck.gl's font atlas cache key, which the layers of one font share.
+  const fonts = new Map<string, FontAtlas>();
+  for (const layer of layers) {
+    const manager = layer.state?.fontAtlasManager;
+    if (!manager?.mapping) {
+      continue;
+    }
+    let font = fonts.get(manager._key);
+    if (!font) {
+      font = {
+        FontAtlasManager: manager.constructor,
+        props: {...manager.props},
+        characters: new Set()
+      };
+      fonts.set(manager._key, font);
+    }
+    for (const character of Object.keys(manager.mapping)) {
+      font.characters.add(character);
+    }
+  }
+  return [...fonts.values()];
+}
+
+/**
+ * Empties deck.gl's font atlas cache, then builds the given atlases with their characters sorted.
+ * `TextLayer` keeps one atlas per font for all its layers and appends each character where the
+ * last ended, in the order the layers first draw them: the order their tiles load, after the
+ * characters of earlier renders on the page. Small text samples the atlas's mipmaps, whose texels
+ * average blocks aligned to the texture, not to the glyph, so a glyph moved to another place in
+ * the atlas draws different pixels along its edges.
+ */
+function resetFontAtlases(atlases: FontAtlas[] = []) {
+  // Setting the limit replaces the cache with an empty one.
+  TextLayer.fontAtlasCacheLimit = FONT_ATLAS_CACHE_LIMIT;
+  for (const {FontAtlasManager, props, characters} of atlases) {
+    new FontAtlasManager().setProps({...props, characterSet: [...characters].sort()});
+  }
+}
+
+/**
+ * Renders a scene with `BasemapLayer` in a deck.gl `MapView` and reads back the drawn labels. The
+ * scene is drawn twice: once to learn the characters of each font, and once, read back, from font
+ * atlases holding those characters in a fixed order (see `resetFontAtlases`), so that the pixels
+ * do not depend on the order the tiles loaded nor on the scenes drawn before.
+ */
 export async function renderBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown> = {}
 ): Promise<Render> {
+  resetFontAtlases();
+  const first = await drawBasemapLayer(structuredClone(style), scene, layerProps);
+  resetFontAtlases(first.fontAtlases);
+  const {fontAtlases, ...render} = await drawBasemapLayer(style, scene, layerProps);
+  return {
+    ...render,
+    requests: [...new Set([...first.requests, ...render.requests])],
+    problems: [...new Set([...first.problems, ...render.problems])]
+  };
+}
+
+/** One `BasemapLayer` render of a scene, with the font atlases its text layers drew from. */
+async function drawBasemapLayer(
+  style: any,
+  scene: ReferenceScene,
+  layerProps: Record<string, unknown>
+): Promise<Render & {fontAtlases: FontAtlas[]}> {
   const parent = createContainer();
   performance.clearResourceTimings();
   performance.setResourceTimingBufferSize(100_000);
@@ -320,6 +400,7 @@ export async function renderBasemapLayer(
   let draws = 0;
   let frameDraws = 0;
   let frameLayers = 0;
+  let fontAtlases: FontAtlas[] = [];
   const modelDraw = Model.prototype.draw;
   Model.prototype.draw = function countedDraw(this: Model, ...args: Parameters<Model['draw']>) {
     draws++;
@@ -380,6 +461,7 @@ export async function renderBasemapLayer(
             frameLayers = layers.filter(
               (layer: any) => !layer.isComposite && layer.props.visible
             ).length;
+            fontAtlases = getFontAtlases(layers);
             resolve(readCanvas(deck!.getCanvas()!));
           },
           onError: error => reject(error)
@@ -421,7 +503,8 @@ export async function renderBasemapLayer(
       problems,
       duration: performance.now() - start,
       layers: frameLayers,
-      draws: frameDraws
+      draws: frameDraws,
+      fontAtlases
     };
   } finally {
     Model.prototype.draw = modelDraw;
