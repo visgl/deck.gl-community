@@ -308,7 +308,9 @@ const SETTLE_FRAMES = 1;
 export async function renderBasemapLayer(
   style: any,
   scene: ReferenceScene,
-  layerProps: Record<string, unknown> = {}
+  layerProps: Record<string, unknown> = {},
+  /** Runs once the render is read, before the deck is finalized: to move the view, say. */
+  onRendered?: (deck: Deck<any>) => Promise<void>
 ): Promise<Render> {
   const parent = createContainer();
   performance.clearResourceTimings();
@@ -420,6 +422,7 @@ export async function renderBasemapLayer(
       }
     }
 
+    await onRendered?.(deck!);
     const resources = getResourceRequests(start);
     const problems = resources
       .filter(({url}) => !url.startsWith(location.origin))
