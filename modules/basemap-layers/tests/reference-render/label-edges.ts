@@ -19,15 +19,18 @@ export type LabelStyleOptions = {
   color?: string;
   /** `text-halo-*`, or none. */
   halo?: {color: string; width: number; blur?: number};
+  /** Which labels are drawn: `symbol-placement`. Default `point`. */
+  placement?: 'point' | 'line';
 };
 
 /**
- * A copy of `style` that draws only its point labels, in Noto Sans Regular of one size and color,
- * on a plain background. Line labels, icons, rotation, letter spacing, line breaks and text
- * transforms are left out, so that the labels are horizontal runs of the same font.
+ * A copy of `style` that draws only its point labels (or only its line labels, with
+ * `placement: 'line'`), in Noto Sans Regular of one size and color, on a plain background. Icons,
+ * rotation, letter spacing, line breaks and text transforms are left out, so that point labels are
+ * horizontal runs of the same font.
  */
 export function getLabelStyle(style: any, options: LabelStyleOptions): any {
-  const {size, background = '#ffffff', color = '#000000', halo} = options;
+  const {size, background = '#ffffff', color = '#000000', halo, placement = 'point'} = options;
   const labelStyle = structuredClone(style);
   labelStyle.layers = labelStyle.layers
     .filter(
@@ -35,7 +38,7 @@ export function getLabelStyle(style: any, options: LabelStyleOptions): any {
         layer.type === 'background' ||
         (layer.type === 'symbol' &&
           layer.layout?.['text-field'] &&
-          (layer.layout['symbol-placement'] || 'point') === 'point')
+          (layer.layout['symbol-placement'] || 'point') === placement)
     )
     .map((layer: any) => {
       if (layer.type === 'background') {
@@ -66,6 +69,12 @@ export function getLabelStyle(style: any, options: LabelStyleOptions): any {
 export type LabelEdgeMetrics = {
   /** Median width, in device pixels, over which ink rises from 10% to 90% across an edge. */
   edgeWidth: number;
+  /**
+   * The same, of the edges crossed along rows (screen x) alone, then along columns (screen y)
+   * alone: they differ where the labels are foreshortened, along y on a pitched map.
+   */
+  rowEdgeWidth: number;
+  columnEdgeWidth: number;
   /** Mean ink at the middle of a stroke: of the rows' local maxima above 30% ink. */
   stemPeak: number;
   /** Median width, in device pixels, of the runs of a row above 50% ink. */
@@ -165,14 +174,15 @@ export function measureLabelEdges(
   height: number,
   bare?: Uint8Array
 ): LabelEdgeMetrics {
-  const widths: number[] = [];
+  const rowWidths: number[] = [];
+  const columnWidths: number[] = [];
   const peaks: number[] = [];
   const stems: number[] = [];
   let inkSum = 0;
   let inked = 0;
   for (let y = 0; y < height; y++) {
     const row = ink.subarray(y * width, (y + 1) * width);
-    addEdgeWidths(row, widths, bare?.subarray(y * width, (y + 1) * width));
+    addEdgeWidths(row, rowWidths, bare?.subarray(y * width, (y + 1) * width));
     for (let x = 1; x < width - 1; x++) {
       if (row[x] > 0.3 && row[x] >= row[x - 1] && row[x] > row[x + 1]) {
         peaks.push(row[x]);
@@ -202,7 +212,7 @@ export function measureLabelEdges(
         bareColumn[y] = bare[y * width + x];
       }
     }
-    addEdgeWidths(column, widths, bareColumn);
+    addEdgeWidths(column, columnWidths, bareColumn);
   }
   for (const value of ink) {
     if (value > 0.1) {
@@ -210,8 +220,11 @@ export function measureLabelEdges(
       inked++;
     }
   }
+  const widths = [...rowWidths, ...columnWidths];
   return {
     edgeWidth: median(widths),
+    rowEdgeWidth: median(rowWidths),
+    columnEdgeWidth: median(columnWidths),
     stemPeak: peaks.length ? peaks.reduce((sum, value) => sum + value, 0) / peaks.length : NaN,
     stemWidth: median(stems),
     inkDensity: inked ? inkSum / inked : NaN,

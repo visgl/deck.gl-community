@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {createIterable} from '@deck.gl/core';
+import {WebMercatorViewport, createIterable} from '@deck.gl/core';
 import {TextLayer, _MultiIconLayer as MultiIconLayer} from '@deck.gl/layers';
 import type {TextLayerProps} from '@deck.gl/layers';
 import type {
@@ -139,16 +139,37 @@ function isSameNumbers(a: number[], b: number[]): boolean {
  */
 export const LABEL_EDGE_DEVICE_PIXELS = 0.84;
 
-/** Distance field units per atlas pixel of the font atlas, `1 / fontSettings.radius`. */
+/**
+ * `distancePerAtlasPixel`: distance field units per atlas pixel of the font atlas,
+ * `1 / fontSettings.radius`. `foreshortening`: how much the view shortens screen y, see
+ * `getLabelForeshortening`.
+ */
 const labelEdgeUniforms = {
   name: 'labelEdge',
   fs: /* glsl */ `\
 layout(std140) uniform labelEdgeUniforms {
   float distancePerAtlasPixel;
+  float foreshortening;
 } labelEdge;
 `,
-  uniformTypes: {distancePerAtlasPixel: 'f32'}
+  uniformTypes: {distancePerAtlasPixel: 'f32', foreshortening: 'f32'}
 } as const;
+
+/** The cosine of 89 degrees: no label is foreshortened more, so the factor stays positive. */
+const MIN_FORESHORTENING = Math.cos((89 * Math.PI) / 180);
+
+/**
+ * How much the view shortens screen y for the labels of a layer, against screen x: the cosine of a
+ * `MapView`'s pitch for labels that lie on the map, which it tilts about screen x, as MapLibre's
+ * `u_gamma_scale`. Billboards face the screen, and other views tilt otherwise (a `FirstPersonView`
+ * measures its pitch from the horizon): their labels are taken as unforeshortened, 1.
+ */
+export function getLabelForeshortening(viewport: unknown, billboard: boolean): number {
+  if (billboard || !(viewport instanceof WebMercatorViewport)) {
+    return 1;
+  }
+  return Math.max(Math.cos((viewport.pitch * Math.PI) / 180), MIN_FORESHORTENING);
+}
 
 /**
  * `MultiIconLayer`'s signed distance field statements: the glyph edge, then the outline (halo)
@@ -161,7 +182,10 @@ const SDF_EDGES =
 /**
  * The edges as MapLibre GL JS antialiases them: over `LABEL_EDGE_DEVICE_PIXELS` device pixels on
  * each side, whatever the text size and device pixel ratio. The distance a device pixel spans is
- * measured from the screen-space rate of change of the atlas coordinates, in uniform control flow.
+ * measured from the screen-space rate of change of the atlas coordinates along x, in uniform
+ * control flow. Labels that lie on a pitched map are foreshortened along y alone: as MapLibre's
+ * `u_gamma_scale`, their edges widen by 1 / cos(pitch): across y they are about as wide as on an
+ * unpitched map, and across x 1 / cos(pitch) times wider.
  * - The glyph edge is never smoothed more than `TextLayer` smooths it (`sdf.gamma`): on small text
  *   at device pixel ratio 1, `TextLayer`'s edge is the narrower.
  * - The halo edge is smoothed as MapLibre's, also when it has no blur, unless the halo reaches so
@@ -175,7 +199,9 @@ const LABEL_SDF_EDGES = /* glsl */ `\
 if (sdf.enabled) {
       float distance = alpha;
       vec2 atlasPixel = vTextureCoords * vec2(textureSize(iconsTexture, 0));
-      float atlasPixelsPerDevicePixel = 0.5 * (length(dFdx(atlasPixel)) + length(dFdy(atlasPixel)));
+      // Along y, as MapLibre's gamma_scale: x, which pitch does not shorten, over the pitch's
+      // cosine. At pitch 0, and for billboards, both directions are the same.
+      float atlasPixelsPerDevicePixel = length(dFdx(atlasPixel)) / labelEdge.foreshortening;
       float labelEdgeGamma =
         ${LABEL_EDGE_DEVICE_PIXELS.toFixed(2)} * atlasPixelsPerDevicePixel * labelEdge.distancePerAtlasPixel;
       float labelFillGamma = min(sdf.gamma, labelEdgeGamma);
@@ -224,7 +250,8 @@ export class LabelCharactersLayer extends MultiIconLayer<any> {
 
   draw(params: any): void {
     const radius = Number((this.props as any).sdfRadius) || 12;
-    this.setShaderModuleProps({labelEdge: {distancePerAtlasPixel: 1 / radius}});
+    const foreshortening = getLabelForeshortening(this.context.viewport, this.props.billboard);
+    this.setShaderModuleProps({labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening}});
     super.draw(params);
   }
 
