@@ -147,6 +147,12 @@ export interface PlacementLayer {
   getPlacementOrder(): number;
   /** A value that changes whenever what the layer would place changes, other than the view. */
   getPlacementRevision(): number;
+  /**
+   * A value that changes whenever the layer's symbols take other slots from its slot base, as when
+   * its rows change: the placement made before then holds the visibility of other symbols in
+   * those slots, or of none, so the layer is placed again at once, whether or not the view moves.
+   */
+  getPlacementSlotRevision(): number;
   /** The number of slots the layer's symbols use, `0..count-1` from its slot base. */
   getPlacementSlotCount(): number;
   /**
@@ -162,8 +168,6 @@ export interface PlacementLayer {
   ): SymbolPlacementRules | null;
   /** Requests another frame, while a placement waits for the throttle. */
   setNeedsRedraw(): void;
-  /** Requests an update, after which the layer reads its slot base again (`getSlotBase`). */
-  setNeedsUpdate(): void;
 }
 
 /** The placement of one viewport (one view of the deck). */
@@ -175,6 +179,8 @@ type ViewPlacement = {
   dirty: boolean;
   viewport: Viewport | null;
   revision: string;
+  /** The slots the placement was made for (see `getSlotLayout`). */
+  slotLayout: string;
   placedAt: number;
   /** The frame being drawn, and the viewports of it and of the frame before. */
   frame: number;
@@ -198,12 +204,15 @@ export class LabelPlacement {
   private readonly layers = new Map<PlacementLayer, {base: number; count: number}>();
   private readonly views = new Map<string, ViewPlacement>();
   private capacity = 0;
-  private next = 0;
   /** Changes when a layer joins, leaves or moves its slots. */
   private version = 0;
   private readonly symbols: PlacementSymbol[] = [];
 
-  /** Adds a layer, or updates its slot count; returns its slot base. */
+  /**
+   * Adds a layer, or updates its slot count; returns its slot base. A layer that needs more slots
+   * than it has takes the first free ones that are enough, and gives up its own. No other layer
+   * moves: each draws from the slots it read at its last update, until it updates again.
+   */
   register(layer: PlacementLayer): number {
     const count = layer.getPlacementSlotCount();
     const entry = this.layers.get(layer);
@@ -211,12 +220,14 @@ export class LabelPlacement {
       entry.count = count;
       return entry.base;
     }
-    if (this.next + count > this.capacity) {
-      this.compact(count);
+    const base = this.allocate(count, layer);
+    if (entry) {
+      // Updated in place, so that the layer keeps its place among layers of the same order.
+      entry.base = base;
+      entry.count = count;
+    } else {
+      this.layers.set(layer, {base, count});
     }
-    const base = this.next;
-    this.next += count;
-    this.layers.set(layer, {base, count});
     this.version++;
     return base;
   }
@@ -232,31 +243,36 @@ export class LabelPlacement {
     return this.layers.get(layer)?.base ?? -1;
   }
 
-  /** The slots of every layer packed again from 0, with room for `extra` more. */
-  private compact(extra: number): void {
-    let next = 0;
-    for (const [layer, entry] of this.layers) {
-      if (entry.base !== next) {
-        entry.base = next;
-        layer.setNeedsUpdate();
+  /**
+   * The first `count` slots that no layer but `growing` uses, past the last layer's slots when no
+   * gap between them is enough. The textures grow to hold them, keeping every slot's visibility.
+   */
+  private allocate(count: number, growing: PlacementLayer): number {
+    const used = [...this.layers]
+      .filter(([layer]) => layer !== growing)
+      .map(([, {base, count: length}]) => [base, base + length])
+      .sort((a, b) => a[0] - b[0]);
+    let base = 0;
+    for (const [start, end] of used) {
+      if (start - base >= count) {
+        break;
       }
-      next += entry.count;
+      base = Math.max(base, end);
     }
-    this.next = next;
     let capacity = Math.max(this.capacity, TEXTURE_WIDTH);
-    while (capacity < next + extra) {
+    while (capacity < base + count) {
       capacity *= 2;
     }
     if (capacity !== this.capacity) {
       this.capacity = capacity;
       for (const view of this.views.values()) {
-        view.texture?.destroy();
-        view.texture = null;
-        view.values = new Uint8Array(capacity * 4);
-        view.revision = '';
+        const values = new Uint8Array(capacity * 4);
+        values.set(view.values);
+        view.values = values;
+        view.dirty = true;
       }
     }
-    this.version++;
+    return base;
   }
 
   private getView(viewport: Viewport): ViewPlacement {
@@ -268,6 +284,7 @@ export class LabelPlacement {
         dirty: true,
         viewport: null,
         revision: '',
+        slotLayout: '',
         placedAt: Number.NEGATIVE_INFINITY,
         frame: Number.NaN,
         frameViewport: null,
@@ -297,14 +314,17 @@ export class LabelPlacement {
       view.lastViewport = view.frameViewport;
       view.frameViewport = viewport;
       const revision = this.getRevision();
+      const slotLayout = this.getSlotLayout();
       const changed =
         revision !== view.revision || !view.viewport || !view.viewport.equals(viewport);
       // A view at rest (the same as at the frame before) is placed at once; a moving one at most
-      // every `interval`, as MapLibre places while the map moves.
+      // every `interval`, as MapLibre places while the map moves. Symbols in other slots than at
+      // the last placement are placed at once, whether the view moves or not: their slots hold
+      // the visibility of other symbols, or of none.
       const resting = Boolean(view.lastViewport?.equals(viewport));
       if (changed) {
-        if (resting || now - view.placedAt >= this.interval) {
-          this.place(view, viewport, revision, now);
+        if (resting || slotLayout !== view.slotLayout || now - view.placedAt >= this.interval) {
+          this.place(view, viewport, revision, slotLayout, now);
         } else {
           // Another frame, so that the view is placed once it rests.
           for (const layer of this.layers.keys()) {
@@ -323,6 +343,15 @@ export class LabelPlacement {
       revision += `|${layer.getPlacementRevision()}`;
     }
     return revision;
+  }
+
+  /** A value that changes whenever a layer's symbols take other slots. */
+  private getSlotLayout(): string {
+    let layout = '';
+    for (const [layer, {base}] of this.layers) {
+      layout += `|${base}:${layer.getPlacementSlotRevision()}`;
+    }
+    return layout;
   }
 
   private getTexture(device: Device, view: ViewPlacement): Texture {
@@ -346,7 +375,13 @@ export class LabelPlacement {
   }
 
   /** Places every registered layer's symbols for `viewport`. */
-  private place(view: ViewPlacement, viewport: Viewport, revision: string, now: number): void {
+  private place(
+    view: ViewPlacement,
+    viewport: Viewport,
+    revision: string,
+    slotLayout: string,
+    now: number
+  ): void {
     const padding = PLACEMENT_VIEWPORT_PADDING;
     const grid = new GridIndex(
       viewport.width + 2 * padding,
@@ -376,6 +411,7 @@ export class LabelPlacement {
     symbols.length = 0;
     view.viewport = viewport;
     view.revision = revision;
+    view.slotLayout = slotLayout;
     view.placedAt = now;
     view.dirty = true;
   }

@@ -377,6 +377,13 @@ type MVTLabelLayerState = {
   placementSlotBase?: number;
   /** Changes with every update, so a placement made before it is made again. */
   placementRevision?: number;
+  /**
+   * Changes whenever the rows change, and with them the slot of each symbol, so that the placement
+   * places them at once (see `PlacementLayer.getPlacementSlotRevision`).
+   */
+  placementSlotRevision?: number;
+  /** The rows `placementSlotRevision` was counted for. */
+  placementSlotRows?: LabelRow[];
   /** See `getPlacementGeometry`. */
   placementGeometry?: PlacementGeometry;
   placementRowBoxes?: {key: unknown[]; boxes: WeakMap<LabelRow, Float64Array>};
@@ -2068,12 +2075,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         layer: this,
         getPlacementOrder: () => handle!.layer.getPlacementOrder(),
         getPlacementRevision: () => handle!.layer.getPlacementRevision(),
+        getPlacementSlotRevision: () => handle!.layer.getPlacementSlotRevision(),
         getPlacementSlotCount: () => handle!.layer.getPlacementSlotCount(),
         isDrawnIn: viewport => handle!.layer.isDrawnIn(viewport),
         getPlacementSymbols: (viewport, base, out) =>
           handle!.layer.getPlacementSymbols(viewport, base, out),
-        setNeedsRedraw: () => handle!.layer.setNeedsRedraw(),
-        setNeedsUpdate: () => handle!.layer.setNeedsUpdate()
+        setNeedsRedraw: () => handle!.layer.setNeedsRedraw()
       };
       this.state.placementHandle = handle;
     }
@@ -2084,6 +2091,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     this.state.placement = placement;
     this.state.placementSlotBase = placement.register(handle);
     this.state.placementRevision = (this.state.placementRevision || 0) + 1;
+    // Each row's slot is the slot base plus its index (see `getPlacementSlotAccessor`); the base
+    // is the placement's to follow.
+    if (this.state.labelData !== this.state.placementSlotRows) {
+      this.state.placementSlotRows = this.state.labelData;
+      this.state.placementSlotRevision = (this.state.placementSlotRevision || 0) + 1;
+    }
   }
 
   /** Sublayer props that draw a part (0: text, 1: icons) where placement placed it. */
@@ -2120,6 +2133,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   getPlacementRevision(): number {
     return this.state.placementRevision || 0;
+  }
+
+  getPlacementSlotRevision(): number {
+    return this.state.placementSlotRevision || 0;
   }
 
   getPlacementSlotCount(): number {
