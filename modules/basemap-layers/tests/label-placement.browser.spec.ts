@@ -10,7 +10,9 @@ import {BasemapLayer} from '../src/basemap-layer';
 // While the map rotates, tiles come into view at its corners, and the label layers' rows change
 // with them. No frame may lose the labels placed before the rows changed.
 
-const WIDTH = 512;
+// Wider than a tile, which is 512 pixels at a whole zoom, so that tiles above and below come into
+// view as it turns.
+const WIDTH = 640;
 const HEIGHT = 96;
 
 let deck: Deck<any> | null = null;
@@ -162,8 +164,9 @@ describe('labels while the map rotates', () => {
       labelPlacementInterval: 60_000
     } as any);
     // The center of tile 2-1-1, at the center of the view: its label stays there as the map turns.
+    // The view draws the tiles of its whole zoom.
     const latitude = (360 / Math.PI) * Math.atan(Math.exp(0.25 * Math.PI)) - 90;
-    const view = {longitude: -90 + 45, latitude, zoom: 1.6, pitch: 0, bearing: 0};
+    const view = {longitude: -90 + 45, latitude, zoom: 2, pitch: 0, bearing: 0};
     createDeck(basemap, view);
     const first = await settledFrame();
     expect(centerTextPixels(first)).toBeGreaterThan(20);
