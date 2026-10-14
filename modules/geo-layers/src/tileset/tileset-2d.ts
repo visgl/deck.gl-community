@@ -13,14 +13,37 @@ export const STRATEGY_NEVER = 'never';
 export const STRATEGY_REPLACE = 'no-overlap';
 export const STRATEGY_DEFAULT = 'best-available';
 
-/** Function form of a refinement strategy. */
-export type RefinementStrategyFunction = (tiles: SharedTile2DHeader[]) => void;
-/** Strategy controlling how parent and child placeholder tiles are displayed while content loads. */
+/**
+ * Strategy controlling how parent and child placeholder tiles are displayed while content loads.
+ * Unlike deck.gl's `TileLayer`, a custom function is not supported: tile visibility is held per
+ * view, not on the shared tile headers a function would receive.
+ */
 export type RefinementStrategy =
   | typeof STRATEGY_NEVER
   | typeof STRATEGY_REPLACE
-  | typeof STRATEGY_DEFAULT
-  | RefinementStrategyFunction;
+  | typeof STRATEGY_DEFAULT;
+
+const REFINEMENT_STRATEGIES: readonly unknown[] = [
+  STRATEGY_NEVER,
+  STRATEGY_REPLACE,
+  STRATEGY_DEFAULT
+];
+
+/** Throws unless `refinementStrategy` is one of the named strategies, `undefined` or `null`. */
+export function validateRefinementStrategy(refinementStrategy: unknown): void {
+  if (
+    refinementStrategy !== undefined &&
+    refinementStrategy !== null &&
+    !REFINEMENT_STRATEGIES.includes(refinementStrategy)
+  ) {
+    const value =
+      typeof refinementStrategy === 'function' ? 'a function' : JSON.stringify(refinementStrategy);
+    throw new Error(
+      `refinementStrategy must be '${STRATEGY_DEFAULT}', '${STRATEGY_REPLACE}' or ` +
+        `'${STRATEGY_NEVER}', not ${value}.`
+    );
+  }
+}
 
 /** Core configuration shared by all {@link SharedTileset2D} instances. */
 export type Tileset2DProps<DataT = any, ViewStateT = unknown> = {
@@ -289,6 +312,7 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
 
   /** Updates tileset options and reapplies TileSource metadata overrides. */
   setOptions(opts: Partial<SharedTileset2DProps<DataT, ViewStateT>>): void {
+    validateRefinementStrategy(opts.refinementStrategy);
     this._rememberExplicitOptions(opts);
     this._baseOpts = {...this._baseOpts, ...opts};
     this._applyResolvedOptions();

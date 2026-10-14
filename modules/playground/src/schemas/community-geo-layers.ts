@@ -28,11 +28,17 @@ export const TileSourceLayerPropsSchema = TileLayerPropsSchema.extend({
   showTileBorders: z.boolean().optional()
 });
 
-/** Shared tilesets and TileSource instances use host constants; URL templates remain editable. */
+/**
+ * Shared tilesets and TileSource instances use host constants; URL templates remain editable.
+ * Unlike `TileLayer`, the shared layers support only the named refinement strategies.
+ */
 export const SharedTile2DLayerPropsSchema = TileLayerPropsSchema.omit({
   visibleMinZoom: true,
   visibleMaxZoom: true
-}).extend({data: URLTemplateSchema.nullable().optional()});
+}).extend({
+  data: URLTemplateSchema.nullable().optional(),
+  refinementStrategy: z.enum(['best-available', 'no-overlap', 'never']).optional()
+});
 
 /** Tile-local GeoJSON rendering props for the shared MVT adapter. */
 export const SharedMVTLayerPropsSchema = SharedTile2DLayerPropsSchema.extend({
