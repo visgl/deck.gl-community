@@ -61,7 +61,8 @@ type NativeGpuDevice = {
 
 async function renderSplatLayer(
   type: 'webgl' | 'webgpu',
-  mode: 'constant' | 'heterogeneous' | 'direct' = 'constant'
+  mode: 'constant' | 'heterogeneous' | 'direct' = 'constant',
+  transparency: 'weighted' | 'sorted' = 'weighted'
 ): Promise<void> {
   const heterogeneous = mode === 'heterogeneous';
   const parent = document.createElement('div');
@@ -143,7 +144,7 @@ async function renderSplatLayer(
             getTransformMatrix: heterogeneous
               ? [1, 0, 0, 0, 0.4, 1.3, 0, 0, 0, 0, 0.7, 0, 0, 0, 5, 1]
               : null,
-            transparency: 'weighted',
+            transparency,
             getTranslation: [0, 0, 5],
             getDeformation: [10, 0.7, 1],
             deformationStrength: 0.025,
@@ -366,6 +367,8 @@ describe('SplatLayer graphics backend compatibility', () => {
     await renderSplatLayer('webgl');
     await renderSplatLayer('webgl', 'heterogeneous');
     await renderSplatLayer('webgl', 'direct');
+    await renderSplatLayer('webgl', 'constant', 'sorted');
+    await renderSplatLayer('webgl', 'heterogeneous', 'sorted');
   }, 40_000);
 
   it('renders prepared anisotropic Gaussians with deformation on WebGPU', async ({skip}) => {
@@ -378,5 +381,7 @@ describe('SplatLayer graphics backend compatibility', () => {
     await renderSplatLayer('webgpu');
     await renderSplatLayer('webgpu', 'heterogeneous');
     await renderSplatLayer('webgpu', 'direct');
+    await renderSplatLayer('webgpu', 'constant', 'sorted');
+    await renderSplatLayer('webgpu', 'heterogeneous', 'sorted');
   }, 40_000);
 });

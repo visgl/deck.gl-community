@@ -50,9 +50,10 @@ new SplatLayer({data: objects, getSource: asset});
 
 Keep the descriptor stable with the source and hierarchy. A direct asset's function accessors and
 picking receive its implicit owner; row accessors and picking receive the original row and index.
-All supported forms use weighted optical blending. `transparency: 'sorted'` fails explicitly:
-streamed RAD, file decoding, SH and globally sorted scene presentation require the upstream scene
-backend and are not provided by this prepared API.
+All supported forms accept `transparency: 'weighted'` (the default) or `'sorted'`. Sorted mode
+orders individual selected Gaussians across prepared sources and owners for each viewport,
+including their transforms and wind pose. Streaming RAD, file decoding and SH remain outside
+this prepared API.
 
 The legacy `data: objects, source, hierarchy` form remains supported. It conflicts with direct
 asset data or an explicit `getSource`; place new hierarchies in the prepared descriptor instead.
@@ -80,7 +81,7 @@ do not bound allocated GPU bytes. See [Bounded refinement](#bounded-refinement) 
 | `data` | `[]` | Direct prepared asset or original instance rows. |
 | `getSource` | `d => d.splats` | Constant prepared asset or per-row accessor. |
 | `source` | `null` | Compatibility template for owner rows without explicit `getSource`. |
-| `transparency` | `weighted` | Weighted optical blending. Sorted rendering is unsupported and produces a layer error. |
+| `transparency` | `weighted` | Approximate weighted optical blending, or `sorted` for back-to-front alpha blending across prepared Gaussians. |
 | `getPosition` | `d => d.position` | Owner position in the layer coordinate system. |
 | `getOrientation` | `[0, 0, 0]` | Pitch, yaw and roll in degrees. |
 | `getScale` | `[1, 1, 1]` | Local XYZ scale. |
@@ -103,7 +104,7 @@ do not bound allocated GPU bytes. See [Bounded refinement](#bounded-refinement) 
 
 The shader transforms all three covariance axes and projects an oriented ellipse using the projection Jacobian. Pixel filtering broadens covariance and reduces peak alpha to conserve projected coverage. Wind combines a clamped cubic bending shape with a spatial crown mode. It transforms both the centre and covariance with the same analytic Jacobian used by the tree meshes; normals use the inverse transpose. This is a reduced animation field, not a structural dynamics solver.
 
-A shared effect isolates each view’s opaque depth and accumulation, including overlapping views. WebGL2 supports cleared overlays. On WebGPU, `View.clear` produces an explicit error because the current deck.gl path opens a nested render pass; overlapping views without clearing composite normally. It captures opaque depth, accumulates weighted Gaussian colors and logarithmic optical depth into two targets in one additive MRT geometry pass. It resolves premultiplied foliage in the ordinary draw pass, preserving mesh occlusion and downstream postprocessing. **Place opaque layers before Gaussian layers.** Weighted color blending is an order-independent approximation, not exact sorted alpha blending; layered colors can differ from a trained, depth-sorted splat renderer. Color accumulation requires renderable RGBA16F, and optical depth uses R16F. The extra opaque depth pass and Gaussian projection still cost more than opaque meshes for comparable geometry. The host light transmission pass uses RGBA8 and has quantization at very small contributions.
+A shared effect isolates each view’s opaque depth and accumulation, including overlapping views. WebGL2 supports cleared overlays. On WebGPU, `View.clear` produces an explicit error because the current deck.gl path opens a nested render pass; overlapping views without clearing composite normally. It captures opaque depth. Sorted mode builds a shared selected working buffer and sorts Gaussian centers back to front each frame; it retains the same covariance, lighting, deformation, owner picking and shadow shaders. It uses additional memory proportional to the selected Gaussian count and CPU sorting time. Sorted sources share one order across owners and layers. If weighted and sorted sources are mixed, the sorted result composites over the weighted result. Weighted mode accumulates Gaussian colors and logarithmic optical depth into two targets in one additive MRT geometry pass. It resolves premultiplied foliage in the ordinary draw pass, preserving mesh occlusion and downstream postprocessing. **Place opaque layers before Gaussian layers.** Weighted color blending is an order-independent approximation, not exact sorted alpha blending; layered colors can differ from a trained, depth-sorted splat renderer. Color accumulation requires renderable RGBA16F, and optical depth uses R16F. The extra opaque depth pass and Gaussian projection still cost more than opaque meshes for comparable geometry. The host light transmission pass uses RGBA8 and has quantization at very small contributions.
 
 `createSplatHierarchy(source, increasingCellSizes)` builds spatial covariance aggregates once. Each level preserves weighted position, covariance, color and approximate orientation-averaged projected optical mass; its error bounds centre displacement, not every possible view-dependent silhouette. Coarse levels store nonnegative `opticalDepths`, so many opaque leaves do not collapse into a capped opacity and disappear. The original source remains available for close views. Adjacent levels crossfade in optical depth. Refinement mixtures advance once per draw and persist across camera and quota changes, with normalized easing and a bounded per-frame step, including when wind is off. Interrupted changes start from the current mixture. The perspective derivative is bounded off-axis and regularized where Gaussian support crosses the eye; near-plane coverage fades instead of cutting a large billboard abruptly. Owner transforms and a bounding-volume hierarchy are prepared once per data/accessor change. Camera updates traverse visible bounds and measure the perspective projection Jacobian at each surviving crown; they do not scan every owner or rebuild the spatial index. Multi-view visibility uses the union of viewport frusta, and light maps query the same spatial bounds with a separate refinement criterion. The hierarchy reduces far-field vertex work without a tree detail control. Mercator bounds use owner-local metre scales and survive changes to camera latitude. Frustum planes are extracted once per query and include the pixel-filter footprint in camera and light-map visibility. Unchanged owner lists retain their GPU attributes; changing LOD coverage updates only the coverage buffer. Changed membership uploads bounded contiguous ranges, avoiding excessive small driver writes. Finest sources with very many Gaussians still have substantial vertex and fill cost.
 
@@ -131,4 +132,4 @@ Read `layer.splatStats` after deck initializes the layer. It exposes `sourceCoun
 `visibleInstances`, `shadowInstances`, `renderedSplats`, `shadowSplats`, `coverageFloor`,
 `shadowCoverageFloor`, and `refiningInstances`. Submission counts include optical transition
 overlap. Source counts describe resolved source/hierarchy pairs, rather than GPU byte residency.
-These counters do not establish a hard GPU memory cap or scene-wide sorted rendering.
+These counters do not establish a hard GPU memory cap. Sorted mode allocates an additional selected working buffer.
