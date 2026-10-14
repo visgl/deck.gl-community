@@ -663,6 +663,47 @@ describe('MVTLabelLayer placement symbols', () => {
     }
   });
 
+  test('on a turned globe, the circles of text along a line keep its text-offset on its side', () => {
+    const offset = (bearing: number) => {
+      const layer = labelLayer(
+        {
+          'text-field': 'abcdefgh',
+          'symbol-placement': 'line',
+          'text-padding': 0,
+          'text-size': 10,
+          'text-offset': [0, -1]
+        },
+        [{properties: {}, x: 0}]
+      );
+      const viewport = new GlobeViewport({
+        ...VIEWPORT,
+        longitude: 0,
+        latitude: 0,
+        zoom: 4,
+        bearing
+      });
+      layer.context = {viewport};
+      const out: PlacementSymbol[] = [];
+      layer.getPlacementSymbols(viewport, 0, out);
+      const values = out[0].text!.circles!;
+      // The mean of the circles' centres, from the anchor at (0, 100).
+      let [x, y] = [0, 0];
+      for (let k = 0; k < values.length; k += 3) {
+        x += values[k] - PLACEMENT_VIEWPORT_PADDING;
+        y += values[k + 1] - PLACEMENT_VIEWPORT_PADDING - 100;
+      }
+      return [x, y].map(value => value / (values.length / 3));
+    };
+    // 10 px to the left of an eastward line, as the view draws it: at bearing 40 the text reads
+    // along the line, at bearing 100 it is turned around (screen y points down).
+    for (const bearing of [40, 100]) {
+      const radians = (bearing * Math.PI) / 180;
+      const [x, y] = offset(bearing);
+      expect(x).toBeCloseTo(-10 * Math.sin(radians), 1);
+      expect(y).toBeCloseTo(-10 * Math.cos(radians), 1);
+    }
+  });
+
   test('on a turned globe, an icon along a line collides as it is drawn along the line', () => {
     const box = (bearing: number) => {
       const layer = labelLayer(

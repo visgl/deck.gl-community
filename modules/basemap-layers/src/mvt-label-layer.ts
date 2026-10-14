@@ -368,7 +368,9 @@ function compareTiles(a: any, b: any): number {
 /** Turn billboards along lines on a globe as the view draws the lines (`getLineAngleExtensions`). */
 const GLOBE_LINE_ANGLE_EXTENSIONS = {
   upright: new GlobeLineAngleExtension({keepUpright: true}),
-  free: new GlobeLineAngleExtension({keepUpright: false})
+  free: new GlobeLineAngleExtension({keepUpright: false}),
+  // Text kept upright turns around without its `text-offset` (see `withLineDirection`).
+  uprightText: new GlobeLineAngleExtension({keepUpright: true, keepOffsetSide: true})
 };
 
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
@@ -1888,7 +1890,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * view draws the line in, at every frame, and upright with `keepUpright`: there the bearing
    * alone does not tell which way they read. A flat map draws them in the map plane. The shader
    * keeps an angle upright only when it is the line's direction: icons turned by `icon-rotate` are
-   * kept upright from north up, by their angles.
+   * kept upright from north up, by their angles. Text keeps its `text-offset` on its side of the
+   * line as it turns around.
    */
   getLineAngleExtensions(
     turnsWithLine: boolean,
@@ -1902,10 +1905,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const upright =
       (this.getStyleProperty(keepUpright)?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
         getStylePropertyDefault(keepUpright)) === true;
+    if (!upright || !isLineDirection) {
+      return [GLOBE_LINE_ANGLE_EXTENSIONS.free];
+    }
     return [
-      upright && isLineDirection
-        ? GLOBE_LINE_ANGLE_EXTENSIONS.upright
-        : GLOBE_LINE_ANGLE_EXTENSIONS.free
+      keepUpright === 'text-keep-upright'
+        ? GLOBE_LINE_ANGLE_EXTENSIONS.uprightText
+        : GLOBE_LINE_ANGLE_EXTENSIONS.upright
     ];
   }
 
@@ -2486,7 +2492,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               viewport,
               row.position as number[],
               angle,
-              textGlobeTurn === GLOBE_LINE_ANGLE_EXTENSIONS.upright
+              textGlobeTurn.opts.keepUpright
             );
           }
           const ux = Math.cos(angle);
@@ -2496,7 +2502,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           // `withLineDirection`), as drawn.
           const dx = textOffsets[i * 2];
           const dy = textOffsets[i * 2 + 1];
-          const [ex, ey] = rotatePixelOffset([dx, dy], row.angle ?? 0);
+          // On a globe, along the line as the view draws it, never turned around.
+          const [ex, ey] = rotatePixelOffset(
+            [dx, dy],
+            textGlobeTurn
+              ? (getGlobeDrawnAngle(
+                  viewport,
+                  row.position as number[],
+                  ((row.angle ?? 0) * Math.PI) / 180,
+                  false
+                ) *
+                  180) /
+                  Math.PI
+              : (row.angle ?? 0)
+          );
           const cx = x1 + w / 2 - dx;
           const cy = y1 + h / 2 - dy;
           // A label without height has a single circle.
@@ -2535,7 +2554,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               viewport,
               row.position as number[],
               (iconAngle * Math.PI) / 180,
-              iconGlobeTurn === GLOBE_LINE_ANGLE_EXTENSIONS.upright
+              iconGlobeTurn.opts.keepUpright
             ) *
               180) /
             Math.PI;

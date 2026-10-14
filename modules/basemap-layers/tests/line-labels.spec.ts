@@ -420,9 +420,9 @@ describe('MVTLabelLayer line label rendering', () => {
     const text = onGlobe(lineLayer(), 120);
     expect(text.props.billboard).toBe(true);
     // The angle is taken from north up, whatever the bearing: the shader turns it on screen, and
-    // keeps it upright there.
+    // keeps it upright there, without turning its text-offset around.
     expect(text.props.getAngle({angle: 170})).toBe(350);
-    expect(getLineAngle(text)?.opts).toEqual({keepUpright: true});
+    expect(getLineAngle(text)?.opts).toEqual({keepUpright: true, keepOffsetSide: true});
     const free = onGlobe(lineLayer({}, {'text-keep-upright': false}), 120);
     expect(getLineAngle(free)?.opts).toEqual({keepUpright: false});
     expect(getLineAngle(renderText(lineLayer(), 120))).toBeUndefined();
