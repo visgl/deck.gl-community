@@ -269,23 +269,33 @@ const FONT_SIZE = 64;
  */
 export const MAX_CACHED_FONTS = 32;
 export const MAX_CACHED_CHARACTERS = 4096;
+/** Bound on the fonts remembered as measured, which also come from untrusted style data. */
+const MAX_MEASURED_FONTS = 4096;
 const CHARACTER_WIDTH_MEASURERS = new Map<string, (character: string) => number>();
 
 /** The advances each measurer has measured, so that a forgotten font can be compared. */
 const MEASURED_WIDTHS = new WeakMap<(character: string) => number, Map<string, number>>();
+/**
+ * Measurers that do not hold every advance measured in their font since it was last forgotten:
+ * their characters were cleared, or an earlier measurer of the font was evicted.
+ */
+const INCOMPLETE_MEASURERS = new WeakSet<(character: string) => number>();
+/** CSS fonts measured since they were last forgotten. */
+const MEASURED_FONTS = new Set<string>();
 /** Per CSS font, how many times its advances changed when forgotten. */
 const CHARACTER_WIDTH_REVISIONS = new Map<string, number>();
 
 /**
  * Forgets the character advances measured for a CSS font, so they are measured again: a font that
  * was still loading was measured with a fallback font. When the advances measured before differ
- * from those measured now, or were not kept, the font's revision changes.
+ * from those measured now, or were not all kept, the font's revision changes.
  */
 export function forgetCharacterWidths(fontWeight: number | string, fontFamily: string): void {
   const font = `${fontWeight} ${FONT_SIZE}px ${fontFamily}`;
   const before = CHARACTER_WIDTH_MEASURERS.get(font);
   CHARACTER_WIDTH_MEASURERS.delete(font);
-  const widths = before && MEASURED_WIDTHS.get(before);
+  MEASURED_FONTS.delete(font);
+  const widths = before && !INCOMPLETE_MEASURERS.has(before) && MEASURED_WIDTHS.get(before);
   if (widths) {
     const measure = getCharacterWidthMeasurer(fontWeight, fontFamily);
     let changed = false;
@@ -342,12 +352,22 @@ export function getCharacterWidthMeasurer(
       width = context ? context.measureText(character).width / FONT_SIZE : FALLBACK_CHARACTER_WIDTH;
       if (widths.size >= MAX_CACHED_CHARACTERS) {
         widths.clear();
+        INCOMPLETE_MEASURERS.add(measure);
       }
       widths.set(character, width);
     }
     return width;
   };
   MEASURED_WIDTHS.set(measure, widths);
+  if (MEASURED_FONTS.has(font)) {
+    // An earlier measurer of the font was evicted, with advances this one does not hold.
+    INCOMPLETE_MEASURERS.add(measure);
+  } else {
+    if (MEASURED_FONTS.size >= MAX_MEASURED_FONTS) {
+      MEASURED_FONTS.clear();
+    }
+    MEASURED_FONTS.add(font);
+  }
   if (CHARACTER_WIDTH_MEASURERS.size >= MAX_CACHED_FONTS) {
     CHARACTER_WIDTH_MEASURERS.clear();
   }
