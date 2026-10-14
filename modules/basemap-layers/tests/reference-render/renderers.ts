@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, MapView} from '@deck.gl/core';
+import {TextLayer} from '@deck.gl/layers';
 import {Model} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expression as styleExpression, latest} from '@maplibre/maplibre-gl-style-spec';
@@ -20,7 +21,7 @@ maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 /** One render of a scene. */
 export type Render = {
-  /** RGBA pixels composited on white, `VIEWPORT.width` by `VIEWPORT.height`. */
+  /** RGBA pixels composited on white, `VIEWPORT.width` by `VIEWPORT.height` times the pixel ratio. */
   pixels: Uint8ClampedArray;
   /** The text of every label the renderer drew (after collision). */
   labels: string[];
@@ -28,8 +29,13 @@ export type Render = {
   requests: string[];
   /** Requests that left the page origin, or fixtures that were missing. */
   problems: string[];
-  /** Milliseconds until the render was complete. */
+  /**
+   * Milliseconds until the render was complete. For `BasemapLayer`, both its draws and the font
+   * atlases built between them (see `renderBasemapLayer`).
+   */
   duration: number;
+  /** `BasemapLayer` only: milliseconds of its first draw alone, from empty font atlases. */
+  firstDrawDuration?: number;
   /** `BasemapLayer` only: primitive layers and model draws of the frame read back. */
   layers?: number;
   draws?: number;
@@ -44,11 +50,28 @@ function createContainer(): HTMLDivElement {
   return container;
 }
 
-/** The pixels of a WebGL canvas composited on white. Call while its drawing buffer is valid. */
-function readCanvas(source: HTMLCanvasElement): Uint8ClampedArray {
+/** Options of a render. */
+export type RenderOptions = {
+  /** Device pixel ratio: the pixels are `VIEWPORT` times this. Default 1. */
+  pixelRatio?: number;
+};
+
+/** Options of a `BasemapLayer` render. */
+export type BasemapLayerRenderOptions = RenderOptions & {
+  /**
+   * Runs once the render read back is read, before the deck is finalized: to move the view, say.
+   */
+  onRendered?: (deck: Deck<any>) => Promise<void>;
+};
+
+/**
+ * The pixels of a WebGL canvas composited on white, `pixelRatio` times the viewport. Call while its
+ * drawing buffer is valid.
+ */
+function readCanvas(source: HTMLCanvasElement, pixelRatio = 1): Uint8ClampedArray {
   const canvas = document.createElement('canvas');
-  canvas.width = VIEWPORT.width;
-  canvas.height = VIEWPORT.height;
+  canvas.width = VIEWPORT.width * pixelRatio;
+  canvas.height = VIEWPORT.height * pixelRatio;
   const context = canvas.getContext('2d')!;
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -183,7 +206,11 @@ function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[]
 }
 
 /** Renders a scene with MapLibre GL JS and reads back the placed labels. */
-export async function renderMapLibre(style: any, scene: ReferenceScene): Promise<Render> {
+export async function renderMapLibre(
+  style: any,
+  scene: ReferenceScene,
+  {pixelRatio = 1}: RenderOptions = {}
+): Promise<Render> {
   const container = createContainer();
   const requests: string[] = [];
   const problems: string[] = [];
@@ -193,7 +220,7 @@ export async function renderMapLibre(style: any, scene: ReferenceScene): Promise
     style,
     center: scene.center,
     zoom: scene.zoom,
-    pixelRatio: 1,
+    pixelRatio,
     // Labels at full opacity in the first idle frame.
     fadeDuration: 0,
     interactive: false,
@@ -216,7 +243,7 @@ export async function renderMapLibre(style: any, scene: ReferenceScene): Promise
   });
   try {
     await withTimeout(new Promise(resolve => map.once('idle', resolve)), 'MapLibre render');
-    const pixels = readCanvas(map.getCanvas());
+    const pixels = readCanvas(map.getCanvas(), pixelRatio);
     const labels = getPlacedTexts(map, style, map.getZoom());
     return {
       pixels,
@@ -304,14 +331,102 @@ function getReferenceFontFamily(fontStack: string[]) {
 /** Frames drawn after everything has loaded and before the frame is read. */
 const SETTLE_FRAMES = 1;
 
-/** Renders a scene with `BasemapLayer` in a deck.gl `MapView` and reads back the drawn labels. */
+/**
+ * Fonts a scene may draw without one evicting another from deck.gl's font atlas cache (3 by
+ * default), which would rebuild the evicted font's atlas in another order.
+ */
+const FONT_ATLAS_CACHE_LIMIT = 64;
+
+/** The settings and characters of a font, as a text layer's font atlas holds them. */
+type FontAtlas = {
+  FontAtlasManager: new () => {setProps(props: Record<string, unknown>): void};
+  props: Record<string, unknown>;
+  characters: Set<string>;
+};
+
+/**
+ * The fonts the text layers among `layers` draw, with every character any of them holds. A layer
+ * not updated since its font gained characters still holds an earlier atlas of that font.
+ */
+function getFontAtlases(layers: any[]): FontAtlas[] {
+  // By deck.gl's font atlas cache key, which the layers of one font share.
+  const fonts = new Map<string, FontAtlas>();
+  for (const layer of layers) {
+    const manager = layer.state?.fontAtlasManager;
+    if (!manager?.mapping) {
+      continue;
+    }
+    let font = fonts.get(manager._key);
+    if (!font) {
+      font = {
+        FontAtlasManager: manager.constructor,
+        props: {...manager.props},
+        characters: new Set()
+      };
+      fonts.set(manager._key, font);
+    }
+    for (const character of Object.keys(manager.mapping)) {
+      font.characters.add(character);
+    }
+  }
+  return [...fonts.values()];
+}
+
+/**
+ * Empties deck.gl's font atlas cache, then builds the given atlases with their characters sorted.
+ * `TextLayer` keeps one atlas per font for all its layers and appends each character where the
+ * last ended, in the order the layers first draw them: the order their tiles load, after the
+ * characters of earlier renders on the page. Small text samples the atlas's mipmaps, whose texels
+ * average blocks aligned to the texture, not to the glyph, so a glyph moved to another place in
+ * the atlas draws different pixels along its edges.
+ */
+function resetFontAtlases(atlases: FontAtlas[] = []) {
+  // Setting the limit replaces the cache with an empty one.
+  TextLayer.fontAtlasCacheLimit = FONT_ATLAS_CACHE_LIMIT;
+  for (const {FontAtlasManager, props, characters} of atlases) {
+    new FontAtlasManager().setProps({...props, characterSet: [...characters].sort()});
+  }
+}
+
+/**
+ * Renders a scene with `BasemapLayer` in a deck.gl `MapView` and reads back the drawn labels. The
+ * scene is drawn twice: once to learn the characters of each font, and once, read back, from font
+ * atlases holding those characters in a fixed order (see `resetFontAtlases`), so that the pixels
+ * do not depend on the order the tiles loaded nor on the scenes drawn before.
+ */
 export async function renderBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown> = {},
-  /** Runs once the render is read, before the deck is finalized: to move the view, say. */
-  onRendered?: (deck: Deck<any>) => Promise<void>
+  options: BasemapLayerRenderOptions = {},
+  draw = drawBasemapLayer
 ): Promise<Render> {
+  const start = performance.now();
+  resetFontAtlases();
+  const first = await draw(structuredClone(style), scene, layerProps, {
+    ...options,
+    onRendered: undefined
+  });
+  resetFontAtlases(first.fontAtlases);
+  const {fontAtlases, ...render} = await draw(style, scene, layerProps, options);
+  return {
+    ...render,
+    duration: performance.now() - start,
+    firstDrawDuration: first.duration,
+    requests: [...new Set([...first.requests, ...render.requests])],
+    problems: [...new Set([...first.problems, ...render.problems])]
+  };
+}
+
+/** One `BasemapLayer` render of a scene, with the font atlases its text layers drew from. */
+export type BasemapLayerDraw = Render & {fontAtlases: FontAtlas[]};
+
+async function drawBasemapLayer(
+  style: any,
+  scene: ReferenceScene,
+  layerProps: Record<string, unknown>,
+  {pixelRatio = 1, onRendered}: BasemapLayerRenderOptions
+): Promise<BasemapLayerDraw> {
   const parent = createContainer();
   performance.clearResourceTimings();
   performance.setResourceTimingBufferSize(100_000);
@@ -322,6 +437,7 @@ export async function renderBasemapLayer(
   let draws = 0;
   let frameDraws = 0;
   let frameLayers = 0;
+  let fontAtlases: FontAtlas[] = [];
   const modelDraw = Model.prototype.draw;
   Model.prototype.draw = function countedDraw(this: Model, ...args: Parameters<Model['draw']>) {
     draws++;
@@ -334,7 +450,7 @@ export async function renderBasemapLayer(
           parent,
           width: VIEWPORT.width,
           height: VIEWPORT.height,
-          useDevicePixels: false,
+          useDevicePixels: pixelRatio === 1 ? false : pixelRatio,
           deviceProps: {adapters: [webgl2Adapter]},
           views: new MapView(),
           initialViewState: {
@@ -397,7 +513,8 @@ export async function renderBasemapLayer(
             frameLayers = layers.filter(
               (layer: any) => !layer.isComposite && layer.props.visible
             ).length;
-            resolve(readCanvas(deck!.getCanvas()!));
+            fontAtlases = getFontAtlases(layers);
+            resolve(readCanvas(deck!.getCanvas()!, pixelRatio));
           },
           onError: error => reject(error)
         });
@@ -439,7 +556,8 @@ export async function renderBasemapLayer(
       problems,
       duration: performance.now() - start,
       layers: frameLayers,
-      draws: frameDraws
+      draws: frameDraws,
+      fontAtlases
     };
   } finally {
     Model.prototype.draw = modelDraw;

@@ -87,28 +87,35 @@ test('counts the work of glyphs along lines in an orbit, a tilt and a zoom', asy
   const style = await loadReferenceStyle(scene.style);
   const work: Record<string, FrameWork[]> = {};
   const base = {longitude: scene.center[0], latitude: scene.center[1], zoom: scene.zoom};
-  await renderBasemapLayer(style, scene, {}, async deck => {
-    // Settles the controlled view first.
-    await drawFrame(deck, {...base, pitch: 0, bearing: 0});
-    await drawFrame(deck, {...base, pitch: 0, bearing: 0});
-    work.orbit = await countWork(
-      deck,
-      Array.from({length: 60}, (_, i) => ({...base, pitch: 40, bearing: (i + 1) * 3}))
-    );
-    work.tilt = await countWork(
-      deck,
-      Array.from({length: 30}, (_, i) => ({...base, pitch: i, bearing: 180}))
-    );
-    work.zoom = await countWork(
-      deck,
-      Array.from({length: 30}, (_, i) => ({
-        ...base,
-        zoom: scene.zoom + i / 64,
-        pitch: 0,
-        bearing: 0
-      }))
-    );
-  });
+  await renderBasemapLayer(
+    style,
+    scene,
+    {},
+    {
+      onRendered: async deck => {
+        // Settles the controlled view first.
+        await drawFrame(deck, {...base, pitch: 0, bearing: 0});
+        await drawFrame(deck, {...base, pitch: 0, bearing: 0});
+        work.orbit = await countWork(
+          deck,
+          Array.from({length: 60}, (_, i) => ({...base, pitch: 40, bearing: (i + 1) * 3}))
+        );
+        work.tilt = await countWork(
+          deck,
+          Array.from({length: 30}, (_, i) => ({...base, pitch: i, bearing: 180}))
+        );
+        work.zoom = await countWork(
+          deck,
+          Array.from({length: 30}, (_, i) => ({
+            ...base,
+            zoom: scene.zoom + i / 64,
+            pitch: 0,
+            bearing: 0
+          }))
+        );
+      }
+    }
+  );
   await commands.writeFile(
     'modules/basemap-layers/tests/reference-render/__output__/line-glyph-work.json',
     JSON.stringify(work, null, 1)
