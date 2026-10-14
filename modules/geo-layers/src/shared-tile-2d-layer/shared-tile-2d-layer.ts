@@ -75,7 +75,7 @@ const defaultProps: DefaultProps<SharedTile2DLayerProps> = {
   onViewportLoad: {type: 'function', optional: true, value: null},
   onTileLoad: {type: 'function', value: () => {}},
   onTileUnload: {type: 'function', value: () => {}},
-  onTileError: {type: 'function', value: () => {}},
+  onTileError: {type: 'function', value: err => console.error(err)},
   extent: {type: 'array', optional: true, value: null, compare: true},
   tileSize: 512,
   maxZoom: null,
@@ -126,7 +126,7 @@ export type SharedTile2DLayerProps<DataT = unknown> = CompositeLayerProps & {
   onTileLoad?: (tile: SharedTile2DHeader<DataT>) => void;
   /** Callback fired when any tile is evicted. */
   onTileUnload?: (tile: SharedTile2DHeader<DataT>) => void;
-  /** Callback fired when any tile fails to load. */
+  /** Callback fired when any tile fails to load. Logs the error with `console.error` by default. */
   onTileError?: (err: any, tile?: SharedTile2DHeader<DataT>) => void;
   /** Bounding box limiting tile generation. */
   extent?: number[] | null;
