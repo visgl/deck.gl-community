@@ -89,6 +89,9 @@ const defaultProps: DefaultProps<SharedTile2DLayerProps> = {
   zoomOffset: 0
 };
 
+/** Id of the viewport deck.gl's layer manager uses before the deck has real viewports. */
+const PLACEHOLDER_VIEWPORT_KEY = 'DEFAULT-INITIAL-VIEWPORT';
+
 /** Internal defaults used to detect whether layer props were explicitly overridden. */
 const TILE2D_LAYER_DEFAULT_OPTION_VALUES = {
   maxCacheSize: null,
@@ -441,6 +444,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     // the loading state change.
     const loadedViews = new Set<unknown>();
 
+    this._pruneRemovedViewports();
     for (const [viewportKey, viewport] of this._knownViewports) {
       this._prunePlaceholderViewportView(viewportKey);
       const tilesetView = this._getOrCreateTilesetView(viewportKey);
@@ -639,15 +643,46 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     return value === defaultValue;
   }
 
+  /**
+   * Detaches the views of viewports the deck no longer renders, so that their tiles no longer stay
+   * selected, pinned in the cache, and counted by `isLoaded`.
+   */
+  private _pruneRemovedViewports(): void {
+    for (const viewportKey of this._getRemovedViewportKeys()) {
+      this._knownViewports.delete(viewportKey);
+      this.state.tilesetViews.get(viewportKey)?.finalize();
+      this.state.tilesetViews.delete(viewportKey);
+      this.state.frameNumbers.delete(viewportKey);
+    }
+  }
+
+  /**
+   * Known viewports the deck no longer renders: views removed from the deck. deck.gl draws a layer
+   * only in the deck's viewports (effect passes reuse their ids), so a viewport that is not among
+   * them is gone. The answer does not depend on which viewports the last frame drew, so a view
+   * that skipped a frame, or that picking left out, stays. Nothing is pruned without a deck, or
+   * while the deck has no viewports. Once the deck has viewports, the bootstrap placeholder is
+   * never among them, so it goes too, even before the layer has been drawn in a real viewport.
+   */
+  private _getRemovedViewportKeys(): string[] {
+    const viewports = this.context?.deck?.getViewports() || [];
+    if (!viewports.length) {
+      return [];
+    }
+    const viewportIds = new Set(viewports.map(viewport => viewport.id));
+    // Views live in `state`, which a new layer instance inherits; known viewports do not.
+    const keys = new Set([...this._knownViewports.keys(), ...this.state.tilesetViews.keys()]);
+    return Array.from(keys).filter(viewportKey => !viewportIds.has(viewportKey));
+  }
+
   /** Drops the bootstrap placeholder viewport after a real viewport is known. */
   private _prunePlaceholderViewportView(viewportKey: string): void {
-    const placeholderViewportKey = 'DEFAULT-INITIAL-VIEWPORT';
-    if (viewportKey !== placeholderViewportKey) {
-      const placeholderView = this.state.tilesetViews.get(placeholderViewportKey);
+    if (viewportKey !== PLACEHOLDER_VIEWPORT_KEY) {
+      const placeholderView = this.state.tilesetViews.get(PLACEHOLDER_VIEWPORT_KEY);
       if (placeholderView) {
         placeholderView.finalize();
-        this.state.tilesetViews.delete(placeholderViewportKey);
-        this.state.frameNumbers.delete(placeholderViewportKey);
+        this.state.tilesetViews.delete(PLACEHOLDER_VIEWPORT_KEY);
+        this.state.frameNumbers.delete(PLACEHOLDER_VIEWPORT_KEY);
       }
     }
   }

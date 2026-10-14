@@ -198,6 +198,8 @@ Called with the error and the tile when a tile request fails. The default logs t
 
 Each viewport gets its own traversal state. That means one `SharedTile2DLayer` can participate in multiple views without overwriting tile selection or visibility decisions for any other view.
 
+When a view is removed from the deck, the layer drops that viewport's traversal state at its next update. Its tiles are then no longer selected for it, no longer held against eviction, and no longer counted by `isLoaded`.
+
 ## Shared Stats
 
 When a layer uses a shared `SharedTileset2D`, cache and visibility stats live on the tileset rather than on the layer. See [SharedTileset2D](./shared-tileset-2d.md) for the shared stats object and subscription callbacks.
