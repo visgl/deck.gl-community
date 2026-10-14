@@ -3,7 +3,7 @@ import {makeImperativeExample} from '../../components';
 
 export default makeImperativeExample({
   title: 'TreeLayer',
-  deviceTabs: true,
+  deviceTabs: {placement: 'bottom-right'},
   code: `${GITHUB_TREE}/examples/layers/tree-lab`,
   async mount(container, props) {
     const {mountTreeLabExample} = await import('../../../../examples/layers/tree-lab/app');
