@@ -7,7 +7,8 @@ import {PathInterpolator} from '../node_modules/maplibre-gl/src/symbol/path_inte
 import {LabelCharactersLayer} from '../src/label-text-layer';
 import {getPathCircles, needsFlip, placeLineGlyphs, type LabelLine} from '../src/line-glyphs';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
-import {FALLBACK_CHARACTER_WIDTH} from '../src/text-layout';
+import {getTextLayerFontWeight} from '../src/text-font';
+import {FALLBACK_CHARACTER_WIDTH, forgetCharacterWidths} from '../src/text-layout';
 
 /** A bending line, in pixels at the placement zoom, drawn left to right and turning down. */
 const BEND = [0, 0, 40, 4, 70, 14, 95, 32, 112, 55, 120, 80];
@@ -313,6 +314,16 @@ describe('MVTLabelLayer glyphs along lines', () => {
     expect(layer.getLineGlyphs(row, {zoom: 14.21}, 0, 'other')).not.toBe(
       layer.getLineGlyphs(row, {zoom: 14.21}, 0, 'style')
     );
+  });
+
+  test('places glyphs again once the label font has loaded', () => {
+    const layer = lineLayer();
+    const key = layer.getLineGlyphStyleKey();
+    expect(layer.getLineGlyphStyleKey()).toBe(key);
+    // The font loads: the advances measured with a fallback font are forgotten.
+    const font = layer.getFont();
+    forgetCharacterWidths(getTextLayerFontWeight(font), font.fontFamily);
+    expect(layer.getLineGlyphStyleKey()).not.toBe(key);
   });
 
   test('curves text only on a flat map, on WebGL, for text turned to the line', () => {
