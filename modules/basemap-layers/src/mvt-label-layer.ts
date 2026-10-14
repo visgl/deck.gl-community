@@ -1388,7 +1388,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getColor: getTrigger('text-color', 'text-opacity'),
       // A layer's slots move when it needs more of them.
       getPlacementSlot: String(this.state?.placementSlotBase ?? -1),
-      getPixelOffset: getTrigger('text-offset', 'text-size'),
+      // Text along a line turns its offset by the line (see `withLineDirection`).
+      getPixelOffset: getTrigger(
+        'text-offset',
+        'text-size',
+        'text-rotation-alignment',
+        'symbol-placement'
+      ),
       getAngle: `${this.state?.bearingStep}|${getTrigger('text-keep-upright')}`,
       // Also lays out the lines of each label (see `LabelTextLayer`).
       getTextAnchor: getTrigger('text-anchor', 'text-justify', 'symbol-placement'),

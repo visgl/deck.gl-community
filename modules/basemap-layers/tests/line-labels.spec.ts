@@ -382,6 +382,25 @@ describe('MVTLabelLayer line label rendering', () => {
     }
   });
 
+  test('refreshes the text offsets when the alignment that turns them changes', () => {
+    // deck.gl keeps an attribute while its trigger is the same, so the trigger names every style
+    // value that decides whether the offset is turned by the line.
+    const text = (layout: Record<string, unknown>) =>
+      renderText(lineLayer({}, {'text-offset': [0, 1], ...layout}));
+    const turned = text({'text-rotation-alignment': 'map'});
+    const upright = text({'text-rotation-alignment': 'viewport'});
+    const row = {position: [0.5, 0.5], angle: 170};
+    expect(turned.props.getPixelOffset(row, {index: 0})[0]).not.toBeCloseTo(0);
+    expect(upright.props.getPixelOffset(row, {index: 0})).toEqual([0, 10]);
+    expect(upright.props.updateTriggers.getPixelOffset).not.toEqual(
+      turned.props.updateTriggers.getPixelOffset
+    );
+    // The default `auto` alignment turns text along lines, not point labels.
+    expect(text({'symbol-placement': 'point'}).props.updateTriggers.getPixelOffset).not.toEqual(
+      text({}).props.updateTriggers.getPixelOffset
+    );
+  });
+
   test('leaves point labels as unrotated billboards', () => {
     const text = renderText(lineLayer({}, {'symbol-placement': 'point'}));
     expect(text.props.billboard).toBe(true);
