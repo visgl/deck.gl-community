@@ -2407,8 +2407,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return null;
     }
     const zoom = getZoomBucket(this.props.zoom || 0);
-    // Measured again once a font has loaded (`forgetCharacterWidths`).
-    const widthsRevision = getCharacterWidthsRevision();
+    // Measured again once the label font has loaded (`forgetCharacterWidths`).
+    const font = this.getFont();
+    const widthsRevision = getCharacterWidthsRevision(
+      getTextLayerFontWeight(font),
+      font.fontFamily
+    );
     // The layout values, so that a style layer edited in place is measured and ruled again, as
     // `getCompiledStyleProperty` compiles an edited value again.
     const layout = styleLayer?.layout ? Object.entries(styleLayer.layout).flat() : [];
@@ -2448,7 +2452,6 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const count = labelData.length;
     const rowsWithText = hasTextData ? this.getRowsWithText() : null;
     const icons = hasIconData ? this.getRowIcons() : null;
-    const font = this.getFont();
     const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
     const lineHeight = this.getLineHeight();
     const textBoxes = new Float64Array(count * 4).fill(Number.NaN);
