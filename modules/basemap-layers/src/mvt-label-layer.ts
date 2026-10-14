@@ -1918,22 +1918,37 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return Math.floor((viewport?.zoom || 0) * LINE_GLYPH_ZOOM_STEPS) / LINE_GLYPH_ZOOM_STEPS;
   }
 
-  /** The style inputs of glyphs along lines, besides the row's text and line. */
+  /**
+   * The style inputs of glyphs along lines, besides the row's text and line: the style values,
+   * and the revision of the label font's advances (`getCharacterWidthsRevision`).
+   */
   getLineGlyphStyleKey(): string {
+    return `${this.getLineGlyphStyleTrigger()}|${this.getLineGlyphWidthsRevision()()}`;
+  }
+
+  /** The style values glyphs along lines are placed by. */
+  getLineGlyphStyleTrigger(): string {
     const triggers = this.getLabelUpdateTriggers();
-    // The advances are measured again once the label font has loaded (`forgetCharacterWidths`).
+    return `${triggers.getText}|${triggers.getSize}|${triggers.getPixelOffset}|${triggers.getTextAnchor}|${this.getStyleUpdateTrigger('text-keep-upright')}`;
+  }
+
+  /**
+   * The revision of the label font's advances, read when called: it changes once the font has
+   * loaded with other advances (`forgetCharacterWidths`), maybe as another layer found, without
+   * this layer updating.
+   */
+  getLineGlyphWidthsRevision(): () => number {
     const font = this.getFont();
-    const widthsRevision = getCharacterWidthsRevision(
-      getTextLayerFontWeight(font),
-      font.fontFamily
-    );
-    return `${triggers.getText}|${triggers.getSize}|${triggers.getPixelOffset}|${triggers.getTextAnchor}|${this.getStyleUpdateTrigger('text-keep-upright')}|${widthsRevision}`;
+    const fontWeight = getTextLayerFontWeight(font);
+    return () => getCharacterWidthsRevision(fontWeight, font.fontFamily);
   }
 
   /**
    * The text sublayers' `getLineGlyphs` and `getLineGlyphKey` (see `LabelTextLayer`), null when the
    * layer draws its text straight, and the update trigger of the glyphs: the style. The glyphs also
-   * change with the view's zoom and bearing steps, which the character layers check when they draw.
+   * change with the view's zoom and bearing steps, and with the label font's advances, which the
+   * character layers check when they draw: placement reads the advances' revision anew, so the
+   * glyphs drawn follow the glyphs placed without this layer updating.
    */
   getLineGlyphProps(): {
     getLineGlyphs: ((row: LabelRow, viewport: any) => Float32Array | null) | null;
@@ -1943,13 +1958,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!this.curvesLineText()) {
       return {getLineGlyphs: null, getLineGlyphKey: null, trigger: 'straight'};
     }
-    const styleKey = this.getLineGlyphStyleKey();
+    const styleTrigger = this.getLineGlyphStyleTrigger();
+    const widthsRevision = this.getLineGlyphWidthsRevision();
     return {
       getLineGlyphs: (row, viewport) =>
-        this.getLineGlyphs(row, viewport, this.getBearingStep(viewport), styleKey)?.glyphs ?? null,
+        this.getLineGlyphs(
+          row,
+          viewport,
+          this.getBearingStep(viewport),
+          `${styleTrigger}|${widthsRevision()}`
+        )?.glyphs ?? null,
       getLineGlyphKey: viewport =>
-        `${this.getGlyphZoom(viewport)}|${this.getBearingStep(viewport)}`,
-      trigger: styleKey
+        `${this.getGlyphZoom(viewport)}|${this.getBearingStep(viewport)}|${widthsRevision()}`,
+      trigger: styleTrigger
     };
   }
 

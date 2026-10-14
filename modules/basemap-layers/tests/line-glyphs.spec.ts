@@ -350,6 +350,43 @@ describe('MVTLabelLayer glyphs along lines', () => {
     }
   });
 
+  test('draws the glyphs placement placed after the font loads, without the layer updating', () => {
+    let width = 32;
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        getContext() {
+          return {font: '', measureText: () => ({width})};
+        }
+      }
+    );
+    try {
+      const layer = lineLayer({'text-font': ['Font Loaded For Another Layer']});
+      const [row] = rowsOf(layer, EAST);
+      (layer.context as any).device = {type: 'webgl'};
+      // The text sublayers' props, handed down once.
+      const {getLineGlyphs, getLineGlyphKey} = layer.getLineGlyphProps();
+      const viewport = {zoom: 14, bearing: 0};
+      const drawn = getLineGlyphs!(row, viewport);
+      expect(layer.getLineGlyphs(row, viewport, 0, layer.getLineGlyphStyleKey())!.glyphs).toBe(
+        drawn
+      );
+      const key = getLineGlyphKey!(viewport);
+      // Another layer finds the font loaded with other advances, and forgets them; this layer
+      // does not update, so its sublayers keep the same props.
+      width = 36;
+      const font = layer.getFont();
+      forgetCharacterWidths(getTextLayerFontWeight(font), font.fontFamily);
+      // Placement places the glyphs again; the sublayers see a new key, and draw those glyphs.
+      const placed = layer.getLineGlyphs(row, viewport, 0, layer.getLineGlyphStyleKey())!.glyphs;
+      expect(placed).not.toBe(drawn);
+      expect(getLineGlyphKey!(viewport)).not.toBe(key);
+      expect(getLineGlyphs!(row, viewport)).toBe(placed);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test('curves text only on a flat map, on WebGL, for text turned to the line', () => {
     const layer = lineLayer();
     rowsOf(layer, EAST);
