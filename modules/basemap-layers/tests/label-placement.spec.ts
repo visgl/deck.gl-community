@@ -179,12 +179,16 @@ function fakeLayer(
   order: number,
   xs: number[],
   drawnIn: (viewport: any) => boolean = () => true
-): PlacementLayer & {redraws: number} {
+): PlacementLayer & {redraws: number; slotRevision: number} {
   return {
     redraws: 0,
+    slotRevision: 0,
     getPlacementOrder: () => order,
     isDrawnIn: drawnIn,
     getPlacementRevision: () => 0,
+    getPlacementSlotRevision() {
+      return this.slotRevision;
+    },
     getPlacementSlotCount: () => xs.length,
     getPlacementSymbols(_viewport, base, out) {
       xs.forEach((x, index) => out.push(symbol([x, 50, x + 20, 70], null, base + index)));
@@ -192,8 +196,7 @@ function fakeLayer(
     },
     setNeedsRedraw() {
       this.redraws++;
-    },
-    setNeedsUpdate() {}
+    }
   };
 }
 
@@ -323,20 +326,77 @@ describe('LabelPlacement', () => {
     expect(place).toHaveBeenCalledTimes(2);
   });
 
-  test('a layer that needs more slots than are left moves the others, and is told so', () => {
+  test('a layer that needs more slots takes the first free ones, and moves no other layer', () => {
     const placement = new LabelPlacement();
     const first = fakeLayer(1, new Array(600).fill(0));
     const second = fakeLayer(2, new Array(600).fill(0));
-    placement.register(first);
-    placement.register(second);
-    expect(placement.getSlotBase(second)).toBe(600);
+    expect(placement.register(first)).toBe(0);
+    expect(placement.register(second)).toBe(600);
     placement.unregister(first);
-    const moved = vi.spyOn(second, 'setNeedsUpdate');
+    // Too many for the slots the first layer left: after the second, past the first texture row.
     const third = fakeLayer(3, new Array(1000).fill(0));
-    placement.register(third);
-    expect(placement.getSlotBase(second)).toBe(0);
-    expect(placement.getSlotBase(third)).toBe(600);
-    expect(moved).toHaveBeenCalledTimes(1);
+    expect(placement.register(third)).toBe(1200);
+    // Enough room where the first layer was.
+    const fourth = fakeLayer(4, new Array(500).fill(0));
+    expect(placement.register(fourth)).toBe(0);
+    // A layer that grows gives up its slots, which its new ones may take, and moves no other.
+    second.getPlacementSlotCount = () => 700;
+    expect(placement.register(second)).toBe(500);
+    second.getPlacementSlotCount = () => 800;
+    expect(placement.register(second)).toBe(2200);
+    expect(placement.getSlotBase(third)).toBe(1200);
+    expect(placement.getSlotBase(fourth)).toBe(0);
+  });
+
+  test('a texture that grows keeps the visibility of every slot', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 300;
+    const first = fakeLayer(1, [0, 100]);
+    placement.register(first);
+    const device = fakeDevice();
+    placement.prepare(device as any, fakeViewport('map', 0), false, 0);
+    // Past the first texture row, while the view moves: the first layer's labels stay shown.
+    placement.register(fakeLayer(2, new Array(2000).fill(1000)));
+    const place = vi.spyOn(placement as any, 'place').mockImplementation(() => {});
+    placement.prepare(device as any, fakeViewport('map', 1), false, 50);
+    expect(place).toHaveBeenCalledTimes(1);
+    expect(textVisibility(device, 2)).toEqual([true, true]);
+  });
+
+  test('a layer whose symbols take other slots is placed at once, while the view moves', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 300;
+    const xs = [0, 100];
+    const layer = fakeLayer(1, xs);
+    placement.register(layer);
+    const device = fakeDevice();
+    const place = vi.spyOn(placement as any, 'place');
+    placement.prepare(device as any, fakeViewport('map', 0), false, 0);
+    expect(textVisibility(device, 2)).toEqual([true, true]);
+    // Another layer's rows change, as when a tile comes into view: it has more symbols, and
+    // slots of its own.
+    const other = fakeLayer(2, [200]);
+    expect(placement.register(other)).toBe(2);
+    placement.prepare(device as any, fakeViewport('map', 1), false, 50);
+    expect(place).toHaveBeenCalledTimes(2);
+    other.getPlacementSymbols = (_viewport, base, out) => {
+      [200, 220].forEach((x, index) => out.push(symbol([x, 50, x + 20, 70], null, base + index)));
+      return RULES;
+    };
+    other.getPlacementSlotCount = () => 2;
+    other.slotRevision++;
+    expect(placement.register(other)).toBe(2);
+    placement.prepare(device as any, fakeViewport('map', 2), false, 100);
+    expect(place).toHaveBeenCalledTimes(3);
+    expect(textVisibility(device, 4)).toEqual([true, true, true, false]);
+    // Rows that change in the same slots are placed at once too.
+    xs.reverse();
+    layer.slotRevision++;
+    placement.prepare(device as any, fakeViewport('map', 3), false, 150);
+    expect(place).toHaveBeenCalledTimes(4);
+    // Otherwise a moving view waits for the interval.
+    placement.prepare(device as any, fakeViewport('map', 4), false, 200);
+    expect(place).toHaveBeenCalledTimes(4);
   });
 });
 
