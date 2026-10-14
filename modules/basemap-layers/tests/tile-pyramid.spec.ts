@@ -95,12 +95,12 @@ describe('tile pyramid range', () => {
 describe('shared vector tilesets', () => {
   const viewport = new GlobeViewport({...POLAR_VIEW, width: 800, height: 600});
 
-  /** The tiles a vector tile layer's shared tileset selects in `viewport`, as its view does. */
-  function getSharedTileIndices(layer: any): string[] {
+  /** The tiles a vector tile layer's shared tileset selects in `view`, as its view does. */
+  function getSharedTileIndices(layer: any, view: any = viewport): string[] {
     const tileset = layer.props.data;
     return tileset
       .getTileIndices({
-        viewState: viewport,
+        viewState: view,
         minZoom: tileset.minZoom,
         maxZoom: tileset.maxZoom,
         zRange: null
@@ -112,5 +112,31 @@ describe('shared vector tilesets', () => {
     const layers = getTileLayers('globe', viewport.zoom);
     expect(getSharedTileIndices(layers['test-vector'])).toContain('0/0/0');
     expect(getSharedTileIndices(layers['test-detail'])).toEqual([]);
+  });
+
+  test('vector sources select the tiles at the floor of the zoom, raster sources at the rounded zoom', () => {
+    // As MapLibre GL JS: vector sources cover the view at Math.floor(zoom), raster at Math.round.
+    for (const zoom of [4, 4.4, 4.5, 4.6, 4.99]) {
+      const map = new WebMercatorViewport({
+        longitude: 2,
+        latitude: 48,
+        zoom,
+        width: 512,
+        height: 512
+      });
+      const layers = getTileLayers('map', zoom);
+      for (const id of ['test-vector', 'test-detail']) {
+        const zooms = new Set(
+          getSharedTileIndices({props: {data: layers[id].props.data}}, map).map(index =>
+            Number(index.split('/')[0])
+          )
+        );
+        expect([...zooms], `${id} at ${zoom}`).toEqual([Math.floor(zoom)]);
+      }
+      const rasterZooms = new Set(
+        getTileIndices(layers['test-imagery'], map).map(index => Number(index.split('/')[0]))
+      );
+      expect([...rasterZooms], `raster at ${zoom}`).toEqual([Math.round(zoom)]);
+    }
   });
 });

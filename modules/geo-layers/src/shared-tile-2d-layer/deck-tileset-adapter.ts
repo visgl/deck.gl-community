@@ -180,10 +180,15 @@ function getIdentityTileIndices(
   return indices;
 }
 
+/**
+ * The tile zoom for a viewport, as deck.gl's `TileLayer` selects it: `zoomOffset` is added before
+ * the zoom is rounded (geospatial views) or raised to an integer (other views). In a geospatial
+ * view, an offset of -0.5 selects the tiles at the floor of the zoom.
+ */
 function getTileZoomForViewport(viewport: Viewport, tileSize: number, zoomOffset: number): number {
   return viewport.isGeospatial
-    ? Math.round(viewport.zoom + Math.log2(TILE_SIZE / tileSize)) + zoomOffset
-    : Math.ceil(viewport.zoom) + zoomOffset;
+    ? Math.round(viewport.zoom + Math.log2(TILE_SIZE / tileSize) + zoomOffset)
+    : Math.ceil(viewport.zoom + zoomOffset);
 }
 
 function applyZoomBounds(

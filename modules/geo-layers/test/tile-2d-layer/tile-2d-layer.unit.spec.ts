@@ -4,6 +4,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {OrthographicViewport, WebMercatorViewport} from '@deck.gl/core';
+import {_Tileset2D as Tileset2D} from '@deck.gl/geo-layers';
 import type {TileSource} from '@loaders.gl/loader-utils';
 import type {SharedTileset2DAdapter} from '../../src';
 import {SharedTile2DLayer, SharedTileset2D} from '../../src';
@@ -333,5 +334,53 @@ describe('SharedTile2DLayer', () => {
 
     layer.activateViewport(minimapViewport);
     expect(updatesRequested).toBe(1);
+  });
+});
+
+describe('SharedTile2DLayer tile zoom', () => {
+  /** The tile zooms a tileset selects in a 512 pixel square map view at `zoom`. */
+  function getTileZooms(tileset: any, zoom: number, shared: boolean): number[] {
+    const viewport = new WebMercatorViewport({
+      longitude: 2,
+      latitude: 48,
+      zoom,
+      width: 512,
+      height: 512
+    });
+    const indices = shared
+      ? tileset.getTileIndices({viewState: viewport, minZoom: 0, maxZoom: 20, zRange: null})
+      : tileset.getTileIndices({viewport, minZoom: 0, maxZoom: 20});
+    return [...new Set<number>(indices.map(({z}: {z: number}) => z))];
+  }
+
+  it('adds zoomOffset before rounding, as deck.gl selects tiles', () => {
+    for (const zoomOffset of [0, 1, -1, -0.5]) {
+      const layer = new SharedTile2DLayer({
+        id: `tile-2d-zoom-offset-${zoomOffset}`,
+        data: 'https://example.com/{z}/{x}/{y}.json',
+        zoomOffset,
+        getTileData: () => null
+      });
+      const shared = new SharedTileset2D((layer as any)._getTilesetOptions());
+      const deck = new Tileset2D({getTileData: () => null, zoomOffset} as any);
+      for (const zoom of [3, 3.25, 3.5, 3.75, 4]) {
+        expect(getTileZooms(shared, zoom, true), `offset ${zoomOffset} at ${zoom}`).toEqual(
+          getTileZooms(deck, zoom, false)
+        );
+      }
+    }
+  });
+
+  it('selects the tiles at the floor of the zoom with a zoomOffset of -0.5', () => {
+    const layer = new SharedTile2DLayer({
+      id: 'tile-2d-zoom-floor',
+      data: 'https://example.com/{z}/{x}/{y}.json',
+      zoomOffset: -0.5,
+      getTileData: () => null
+    });
+    const shared = new SharedTileset2D((layer as any)._getTilesetOptions());
+    for (const zoom of [3, 3.25, 3.5, 3.75, 3.99]) {
+      expect(getTileZooms(shared, zoom, true), `at ${zoom}`).toEqual([3]);
+    }
   });
 });
