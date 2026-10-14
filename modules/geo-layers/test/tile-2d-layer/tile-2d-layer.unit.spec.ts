@@ -166,7 +166,11 @@ describe('SharedTile2DLayer', () => {
   });
 
   it('shares one SharedTileset2D across multiple consumers and views', async () => {
-    const sharedTileset = SharedTileset2D.fromTileSource<TestTileData>(createMockTileSource());
+    // Metadata without bounds: the default mock's geographic bounding box would become the extent
+    // of these orthographic views and clip both to the same tiles once the views reselect.
+    const sharedTileset = SharedTileset2D.fromTileSource<TestTileData>(
+      createMockTileSource({getMetadata: () => Promise.resolve({} as any)})
+    );
     const leftView = new SharedTile2DView(sharedTileset);
     const rightView = new SharedTile2DView(sharedTileset);
     let statsChangeCount = 0;
