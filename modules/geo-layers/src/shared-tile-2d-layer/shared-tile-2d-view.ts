@@ -52,6 +52,8 @@ export class SharedTile2DView<DataT = any> {
   private _viewport: Viewport | null = null;
   /** Last z-range used during tile selection. */
   private _zRange: [number, number] | null = null;
+  /** Tileset selection version the current tile selection was computed with. */
+  private _selectionVersion = -1;
   /** Last model matrix applied to tile selection. */
   private _modelMatrix = new Matrix4();
   /** Inverse of the current model matrix. */
@@ -108,7 +110,8 @@ export class SharedTile2DView<DataT = any> {
       !this._viewport ||
       !viewport.equals(this._viewport) ||
       !equals(this._zRange, zRange) ||
-      isModelMatrixNew
+      isModelMatrixNew ||
+      this._selectionVersion !== this._tileset.selectionVersion
     ) {
       if (isModelMatrixNew) {
         this._modelMatrixInverse = modelMatrixAsMatrix4.clone().invert();
@@ -116,6 +119,7 @@ export class SharedTile2DView<DataT = any> {
       }
       this._viewport = viewport;
       this._zRange = zRange;
+      this._selectionVersion = this._tileset.selectionVersion;
       const tileIndices = this._tileset.getTileIndices({
         viewState: viewport,
         maxZoom: this._tileset.maxZoom,

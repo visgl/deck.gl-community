@@ -160,6 +160,8 @@ The listener may provide:
 
 Updates runtime configuration and reapplies `TileSource` metadata overrides.
 
+When the change affects which tiles cover a viewport (`minZoom`, `maxZoom`, `extent`, `tileSize`, `zoomOffset` or the adapter), every attached view selects its tiles again on its next update, even if its viewport has not moved. `TileSource` metadata that arrives after the first update has the same effect.
+
 #### `reloadAll()` {/* #reloadall */}
 
 Marks retained cached tiles stale so they reload on the next traversal.
