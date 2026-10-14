@@ -369,7 +369,10 @@ export async function renderBasemapLayer(
               (!resolvedStyle.sprite || basemap.state.spriteAtlases) &&
               tileLayers.length > 0 &&
               tileLayers.every((layer: any) => layer.state.tileset.selectedTiles) &&
-              layers.every((layer: any) => layer.isLoaded);
+              layers.every((layer: any) => layer.isLoaded) &&
+              // Labels along lines are placed by a length estimate until their web font has
+              // loaded, and again once it has: a frame read before then shows the estimate.
+              document.fonts.status === 'loaded';
             if (!ready) {
               settled = 0;
               return;
