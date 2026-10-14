@@ -18,7 +18,11 @@ import {
 import {MVTLabelLayer} from '../src/mvt-label-layer.ts';
 import {getSpriteIconMapping} from '../src/sprite.ts';
 import {getTextLayerFontWeight} from '../src/text-font.ts';
-import {forgetCharacterWidths} from '../src/text-layout.ts';
+import {
+  forgetCharacterWidths,
+  getCharacterWidthMeasurer,
+  MAX_CACHED_FONTS
+} from '../src/text-layout.ts';
 
 describe('GridIndex', () => {
   test('a box hits a box it overlaps or touches, not one beside it', () => {
@@ -595,6 +599,12 @@ describe('MVTLabelLayer placement symbols', () => {
         return x2 - x1;
       };
       expect(boxWidth()).toBe(20);
+      // Measuring many other fonts empties the cache of measurers; the widths are the same.
+      const geometry = layer.getPlacementGeometry();
+      for (let i = 0; i <= MAX_CACHED_FONTS; i++) {
+        getCharacterWidthMeasurer(400, `Other Font ${i}`);
+      }
+      expect(layer.getPlacementGeometry()).toBe(geometry);
       // The font loads: its characters are a full em wide, and the widths measured before it are
       // forgotten, as `isLineTextFontLoading` does.
       width = 64;

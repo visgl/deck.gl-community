@@ -30,6 +30,7 @@ import {
   allowsLetterSpacing,
   canMeasureText,
   forgetCharacterWidths,
+  getCharacterWidthsRevision,
   getCharacterWidthMeasurer,
   transformText,
   wrapText
@@ -2143,13 +2144,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return null;
     }
     const zoom = getZoomBucket(this.props.zoom || 0);
-    const font = this.getFont();
-    // A new measurer once the font has loaded (`forgetCharacterWidths`).
-    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+    // Measured again once a font has loaded (`forgetCharacterWidths`).
+    const widthsRevision = getCharacterWidthsRevision();
     // The layout values, so that a style layer edited in place is measured and ruled again, as
     // `getCompiledStyleProperty` compiles an edited value again.
     const layout = styleLayer?.layout ? Object.entries(styleLayer.layout).flat() : [];
-    const shared = [spriteAtlases, styleLayer, fontFamily, measure, zoom, ...layout];
+    const shared = [spriteAtlases, styleLayer, fontFamily, widthsRevision, zoom, ...layout];
     const key = [labelData, this.state.labelText, ...shared];
     const cached = this.state.placementGeometry;
     if (cached && isSameList(cached.key, key)) {
@@ -2185,6 +2185,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const count = labelData.length;
     const rowsWithText = hasTextData ? this.getRowsWithText() : null;
     const icons = hasIconData ? this.getRowIcons() : null;
+    const font = this.getFont();
+    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
     const lineHeight = this.getLineHeight();
     const textBoxes = new Float64Array(count * 4).fill(Number.NaN);
     const iconBoxes = new Float64Array(count * 4).fill(Number.NaN);
