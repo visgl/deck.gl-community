@@ -846,13 +846,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Resolves `icon-image` for a feature against the loaded sprites. Legacy `{token}` names are
-   * resolved as in `text-field`. Returns `null`, and warns once per name, when no sprite has it.
+   * The image name `icon-image` gives a feature, with its tokens resolved: empty for none. While the
+   * sprites load, an `["image", ...]` expression still names its image, which is not available yet.
    */
-  getIcon(feature: FeatureLike): ResolvedSpriteIcon | null {
+  getIconImageName(feature: FeatureLike): string {
     const iconImage = this.getStyleProperty('icon-image');
     if (!iconImage) {
-      return null;
+      return '';
     }
     const value = iconImage.evaluate(
       getZoomBucket(this.props.zoom || 0),
@@ -860,12 +860,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getSpriteImageNames(this.props.spriteAtlases)
     );
     const isExpression = Array.isArray(this.props.styleLayer?.layout?.['icon-image']);
-    const name =
-      value === null || value === undefined
-        ? ''
-        : isExpression || iconImage.isFeatureDependent
-          ? String(value)
-          : resolveTokenString(String(value), feature.properties) || '';
+    return value === null || value === undefined
+      ? ''
+      : isExpression || iconImage.isFeatureDependent
+        ? String(value)
+        : resolveTokenString(String(value), feature.properties) || '';
+  }
+
+  /**
+   * Resolves `icon-image` for a feature against the loaded sprites. Legacy `{token}` names are
+   * resolved as in `text-field`. Returns `null`, and warns once per name, when no sprite has it.
+   */
+  getIcon(feature: FeatureLike): ResolvedSpriteIcon | null {
+    const name = this.getIconImageName(feature);
     if (!name) {
       return null;
     }
@@ -2503,12 +2510,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       }
       // While the sprites load, a row whose `icon-image` names an image waits for it.
       const iconPending =
-        spritesLoading &&
-        Boolean(
-          String(
-            this.evaluateStyleProperty('icon-image', (row as any).__source?.object ?? row) ?? ''
-          )
-        );
+        spritesLoading && Boolean(this.getIconImageName((row as any).__source?.object ?? row));
       if (text || icon || iconPending) {
         out.push({slot: slotBase + count - 1 - i, text, icon, occluded, iconPending});
       }

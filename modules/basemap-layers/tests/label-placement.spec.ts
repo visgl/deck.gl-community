@@ -718,8 +718,11 @@ describe('MVTLabelLayer placement symbols', () => {
     expect(pending(null)).toEqual([true]);
     expect(pending([ATLAS])).toEqual([false]);
     expect(pending([])).toEqual([false]);
-    // An empty image name has no icon to wait for.
+    // An image expression names its image before the sprites hold it.
+    expect(pending(null, ['image', 'dot'])).toEqual([true]);
+    // An empty image name, or a token that resolves to none, has no icon to wait for.
     expect(pending(null, '')).toEqual([false]);
+    expect(pending(null, '{missing}')).toEqual([false]);
   });
 
   test('while the sprites load, a symbol keeps the rules it has once its icon arrives', () => {
