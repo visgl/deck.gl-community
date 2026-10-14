@@ -27,6 +27,13 @@ import {GlobeHorizonExtension} from './globe-horizon-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {getHaloBlurGamma, TextHaloBlurExtension} from './text-halo-blur-extension';
 import {
+  getPathCircles,
+  needsFlip,
+  placeLineGlyphs,
+  type LabelLine,
+  type LineGlyphs
+} from './line-glyphs';
+import {
   allowsLetterSpacing,
   canMeasureText,
   forgetCharacterWidths,
@@ -73,7 +80,15 @@ type LabelRow = {
   position: number[];
   /** For labels along a line: the line's direction, in degrees counter-clockwise from east. */
   angle?: number;
+  /** For labels along a line: the line, along which their glyphs are placed (see `getLineGlyphs`). */
+  line?: RowLine;
 };
+
+/**
+ * The line a row's label is placed along: its vertices in pixels at the placement zoom (shared by
+ * every row on the line), where the anchor lies on it, and that zoom.
+ */
+type RowLine = LabelLine & {zoom: number};
 
 type StyleLayerLike = {
   layout?: Record<string, any>;
@@ -394,6 +409,8 @@ type MVTLabelLayerState = {
   bearingStep?: number;
   /** The CSS font of labels along lines last seen loading; see `isLineTextFontLoading`. */
   loadingFont?: string;
+  /** Each row's glyphs along its line, with what they were placed for (see `getLineGlyphs`). */
+  lineGlyphs?: WeakMap<LabelRow, {key: string; placements: RowGlyphPlacements | null}>;
   /** The halos of the label rows: one entry per distinct halo, and each row's entry index. */
   halos?: LabelHalos;
   /** The `labelData` and style inputs `halos` was computed with; a change recomputes it. */
@@ -492,6 +509,37 @@ export function getOutlineWidth(haloWidth: number, textSize: number): number {
   // Rounded so that labels whose halos differ imperceptibly share one text sublayer.
   return Math.round((atlasPixels / SDF_OUTLINE_SCALE) * 100) / 100;
 }
+
+/**
+ * Glyphs along lines are placed again whenever the zoom crosses a step of `1 / LINE_GLYPH_ZOOM_STEPS`:
+ * between steps, the line is scaled by less than 0.6% under its text.
+ */
+const LINE_GLYPH_ZOOM_STEPS = 128;
+
+/**
+ * A row's glyphs along its line: `dx, dy, angle, mode` per character (see `LineGlyphPlacement`),
+ * and the path its collision circles follow, `x, y` pixels from the anchor, or null when the text
+ * does not fit on the line and is hidden.
+ */
+type RowLineGlyphs = {glyphs: Float32Array; path: number[] | null};
+
+/**
+ * A row's glyphs along its line at one zoom step, both ways round: `layout` is the unturned
+ * placement (null when the text does not fit on the line), from which `getLineGlyphs` decides which
+ * way the label reads; `turned` is null when `text-keep-upright` never turns it.
+ */
+type RowGlyphPlacements = {
+  count: number;
+  layout: LineGlyphs | null;
+  unturned: RowLineGlyphs;
+  turned: RowLineGlyphs | null;
+};
+
+/**
+ * Work done placing glyphs along lines, for benchmarks: rows placed, cached placements reused and
+ * collision paths taken to the screen.
+ */
+export const LINE_GLYPH_STATS = {rows: 0, cacheHits: 0, placementPaths: 0};
 
 /**
  * Bearing step, in degrees, at which labels along lines are re-checked for `text-keep-upright`
@@ -1567,7 +1615,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     placement: string,
     budget: LineAnchorBudget = {steps: TILE_LINE_ANCHOR_STEPS},
     context: LinePlacementContext = this.getLinePlacementContext()
-  ): {position: number[]; angle: number}[] {
+  ): {position: number[]; angle: number; line: RowLine}[] {
     const {type, coordinates} = feature.geometry;
     const lines: number[][][] =
       type === 'LineString' ? [coordinates] : type === 'MultiLineString' ? coordinates : [];
@@ -1633,6 +1681,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           return [x * scale, y * scale];
         });
         const isContinued = Boolean(bounds) && !isStrictlyInsideBounds(part[0], bounds!);
+        let points: Float64Array | null = null;
         return (
           getLineAnchors(pixels, {...options, isContinued, budget: featureBudget})
             .map(({segment, t, angle}) => {
@@ -1642,7 +1691,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               const position = geographic
                 ? worldToLngLat([pixel[0] / scale, pixel[1] / scale])
                 : [pixel[0] / scale, pixel[1] / scale];
-              return {position, angle, pixel};
+              // The line's vertices, shared by the rows on it.
+              points ||= Float64Array.from(pixels.flat());
+              return {position, angle, pixel, line: {points, segment, t, zoom}};
             })
             // Only anchors in the tile count as placed, as MapLibre's lie in the tile.
             .filter(({position}) => !bounds || isInsideBounds(position, bounds))
@@ -1650,7 +1701,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               ({pixel}) =>
                 !repeatDistance || !isNearSameText(context.placed, text!, pixel, repeatDistance)
             )
-            .map(({position, angle}) => ({position, angle}))
+            .map(({position, angle, line}) => ({position, angle, line}))
         );
       });
     });
@@ -1832,6 +1883,180 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return {
       billboard: geographic ? this.props.billboard : false,
       getAngle: (row: LabelRow) => getUprightAngle(row.angle ?? 0, bearingStep, keepUpright)
+    };
+  }
+
+  /**
+   * Whether the glyphs of this layer's labels along lines are each placed on the line, as MapLibre
+   * draws them: text turned to lines on a flat map (where it is drawn in the map plane), sized in
+   * pixels, on WebGL. Otherwise labels are drawn straight, turned to their anchor's segment. On a
+   * globe, labels are billboards turned on screen, and stay straight.
+   */
+  curvesLineText(viewport: any = this.context?.viewport): boolean {
+    if (!viewport || viewport.resolution || this.context?.device?.type === 'webgpu') {
+      return false;
+    }
+    if (this.props.labelSizeUnits !== 'pixels' || !this.getStyleProperty('text-field')) {
+      return false;
+    }
+    const placement = this.getSymbolPlacement();
+    const alignment = this.getStyleProperty('text-rotation-alignment')?.evaluate(
+      getZoomBucket(this.props.zoom || 0)
+    );
+    return isLinePlacement(placement) && isAlignedToMap(alignment, placement);
+  }
+
+  /** The zoom glyphs along lines are placed at: the viewport's, in `LINE_GLYPH_ZOOM_STEPS`. */
+  getGlyphZoom(viewport: any = this.context?.viewport): number {
+    return Math.floor((viewport?.zoom || 0) * LINE_GLYPH_ZOOM_STEPS) / LINE_GLYPH_ZOOM_STEPS;
+  }
+
+  /** The style inputs of glyphs along lines, besides the row's text and line. */
+  getLineGlyphStyleKey(): string {
+    const triggers = this.getLabelUpdateTriggers();
+    return `${triggers.getText}|${triggers.getSize}|${triggers.getPixelOffset}|${triggers.getTextAnchor}|${this.getStyleUpdateTrigger('text-keep-upright')}`;
+  }
+
+  /**
+   * The text sublayers' `getLineGlyphs` and `getLineGlyphKey` (see `LabelTextLayer`), null when the
+   * layer draws its text straight, and the update trigger of the glyphs: the style. The glyphs also
+   * change with the view's zoom and bearing steps, which the character layers check when they draw.
+   */
+  getLineGlyphProps(): {
+    getLineGlyphs: ((row: LabelRow, viewport: any) => Float32Array | null) | null;
+    getLineGlyphKey: ((viewport: any) => string) | null;
+    trigger: string;
+  } {
+    if (!this.curvesLineText()) {
+      return {getLineGlyphs: null, getLineGlyphKey: null, trigger: 'straight'};
+    }
+    const styleKey = this.getLineGlyphStyleKey();
+    return {
+      getLineGlyphs: (row, viewport) =>
+        this.getLineGlyphs(row, viewport, this.getBearingStep(viewport), styleKey)?.glyphs ?? null,
+      getLineGlyphKey: viewport =>
+        `${this.getGlyphZoom(viewport)}|${this.getBearingStep(viewport)}`,
+      trigger: styleKey
+    };
+  }
+
+  /**
+   * Where each glyph of `row`'s label is drawn along its line at `viewport`'s zoom, as MapLibre GL
+   * JS's `placeGlyphsAlongLine`: each advance centre on the line, turned to the segment it lands on,
+   * the whole label turned around to read upright at `bearingStep` (from its first and last glyph,
+   * placed unturned). Null for a row drawn straight: not along a line, or multi-line text. The
+   * placements are cached per row for the zoom step and style, both ways round, so that every text
+   * sublayer and the placement share them, and a bearing step only checks which way each reads.
+   */
+  getLineGlyphs(
+    row: LabelRow,
+    viewport: any,
+    bearingStep: number,
+    styleKey: string
+  ): RowLineGlyphs | null {
+    const {line} = row;
+    if (!line) {
+      return null;
+    }
+    const zoom = this.getGlyphZoom(viewport);
+    const key = `${zoom}|${styleKey}`;
+    let cache = this.state.lineGlyphs;
+    let entry = cache?.get(row);
+    if (entry && entry.key === key) {
+      LINE_GLYPH_STATS.cacheHits++;
+    } else {
+      LINE_GLYPH_STATS.rows++;
+      const feature = (row as any).__source?.object ?? row;
+      const text = this.getLabel(feature);
+      entry = {
+        key,
+        placements:
+          text && !text.includes('\n') ? this.placeRowGlyphs(row, line, feature, text, zoom) : null
+      };
+      if (!cache) {
+        cache = new WeakMap();
+        this.state.lineGlyphs = cache;
+      }
+      cache.set(row, entry);
+    }
+    const {placements} = entry;
+    if (!placements) {
+      return null;
+    }
+    if (!placements.unturned.path || !placements.turned) {
+      return placements.unturned;
+    }
+    const flip =
+      placements.count > 1
+        ? needsFlip(placements.layout!, bearingStep)
+        : // MapLibre turns a single glyph by its anchor's segment.
+          getUprightAngle(row.angle ?? 0, bearingStep, true) !== (row.angle ?? 0);
+    return flip ? placements.turned : placements.unturned;
+  }
+
+  /**
+   * `row`'s glyphs placed along its line at `zoom` (see `getLineGlyphs`): unturned, and turned to
+   * read the other way when `text-keep-upright` may turn the label (null otherwise).
+   */
+  placeRowGlyphs(
+    row: LabelRow,
+    line: RowLine,
+    feature: FeatureLike,
+    text: string,
+    zoom: number
+  ): RowGlyphPlacements {
+    const characters = Array.from(text);
+    const count = characters.length;
+    const size = this.getLabelSize(feature);
+    const spacing = this.getLetterSpacing(feature, text) * size;
+    const font = this.getFont();
+    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+    // Advance centres from the anchor, as MapLibre's shaping places them: `text-anchor` across the
+    // text, the letter spacing after every character but the last.
+    const widths = characters.map(character => measure(character) * size);
+    const width = widths.reduce((sum, w) => sum + w, 0) + Math.max(0, count - 1) * spacing;
+    const [ax] =
+      ANCHOR_FRACTIONS[String(this.evaluateStyleProperty('text-anchor', feature))] ||
+      ANCHOR_FRACTIONS.center;
+    const offsets = new Float64Array(count);
+    let x = -(ax + 0.5) * width;
+    for (let i = 0; i < count; i++) {
+      offsets[i] = x + widths[i] / 2;
+      x += widths[i] + spacing;
+    }
+    const [lineOffsetX, lineOffsetY] = this.getLabelPixelOffset(feature);
+    const options = {offsets, lineOffsetX, lineOffsetY, scale: 2 ** (zoom - line.zoom)};
+    const hidden: RowLineGlyphs = {glyphs: new Float32Array(count * 4), path: null};
+    for (let i = 0; i < count; i++) {
+      hidden.glyphs[i * 4 + 3] = -1;
+    }
+    const layout = placeLineGlyphs(line, {...options, flip: false});
+    if (!layout) {
+      return {count, layout: null, unturned: hidden, turned: null};
+    }
+    const keepUpright =
+      (this.getStyleProperty('text-keep-upright')?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
+        getStylePropertyDefault('text-keep-upright')) !== false;
+    const turned = keepUpright ? placeLineGlyphs(line, {...options, flip: true}) : null;
+    // MapLibre's collision circles follow the unturned placement, whichever way the label reads.
+    const toRow = (placed: LineGlyphs | null): RowLineGlyphs => {
+      if (!placed) {
+        return hidden;
+      }
+      const glyphs = new Float32Array(count * 4);
+      for (let i = 0; i < count; i++) {
+        glyphs[i * 4] = placed.glyphs[i * 3];
+        glyphs[i * 4 + 1] = placed.glyphs[i * 3 + 1];
+        glyphs[i * 4 + 2] = placed.glyphs[i * 3 + 2];
+        glyphs[i * 4 + 3] = 1;
+      }
+      return {glyphs, path: layout.path};
+    };
+    return {
+      count,
+      layout,
+      unturned: toRow(layout),
+      turned: keepUpright ? toRow(turned) : null
     };
   }
 
@@ -2327,6 +2552,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const textInMapPlane = !isGlobe && Boolean(lineProps.getAngle) && lineProps.billboard === false;
     const iconInMapPlane = !isGlobe && iconAngleProps?.props.billboard === false;
     const toScreen = [1, 0, 0, 1];
+    // Glyphs placed along lines, as drawn (see `getLineGlyphProps`).
+    const curves = textInMapPlane && this.curvesLineText(viewport);
+    const bearingStep = curves ? this.getBearingStep(viewport) : 0;
+    const styleKey = curves ? this.getLineGlyphStyleKey() : '';
 
     // `tiles` rows are in longitude/latitude: their common-space positions, which do not change
     // with the view, are kept, and projected to the screen with the viewport's matrix.
@@ -2380,7 +2609,34 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const x1 = textBoxes[t];
         const y1 = textBoxes[t + 1];
         const h = textBoxes[t + 3];
-        if (lineProps.getAngle) {
+        const curved = curves ? this.getLineGlyphs(row, viewport, bearingStep, styleKey) : null;
+        if (curved && common) {
+          // Circles along the line under the text, as MapLibre's: the path from its first glyph to
+          // its last, taken to the screen vertex by vertex. As in MapLibre, they follow the line,
+          // moved by `text-offset` only, whatever the `text-anchor`. Text that does not fit on the
+          // line has none, and is not drawn (see `LineGlyphPlacement`).
+          const [ax, ay, bx, by] = toScreen;
+          const screenRadius = (h / 2 + textPadding) * Math.sqrt(Math.abs(ax * by - ay * bx));
+          const {path} = curved;
+          if (!path) {
+            text = {circles: []};
+          } else {
+            const step = 1 / (viewport.scale || 1);
+            const screenPath: number[] = [];
+            for (let k = 0; k < path.length; k += 2) {
+              const cx = common[0] + path[k] * step;
+              const cy = common[1] - path[k + 1] * step;
+              const cz = common[2];
+              const cw = m[3] * cx + m[7] * cy + m[11] * cz + m[15];
+              screenPath.push(
+                (m[0] * cx + m[4] * cy + m[8] * cz + m[12]) / cw + padding,
+                (m[1] * cx + m[5] * cy + m[9] * cz + m[13]) / cw + padding
+              );
+            }
+            LINE_GLYPH_STATS.placementPaths++;
+            text = {circles: getPathCircles(screenPath, screenRadius)};
+          }
+        } else if (lineProps.getAngle) {
           // Circles along the turned label, as MapLibre's collision circles along a line, taken
           // to the screen when the text is drawn in the map plane.
           const angle = (lineProps.getAngle(row) * Math.PI) / 180;
@@ -2546,6 +2802,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         // group's rows decide which rows have text, so they are part of it.
         const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
         const lineLabelProps = this.getLineLabelProps();
+        const lineGlyphs = this.getLineGlyphProps();
+        updateTriggers.getLineGlyphs = lineGlyphs.trigger;
         const textProps = {
           data: this.getRows(),
           extensions: [
@@ -2578,6 +2836,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             forGroupRows((feature: FeatureLike) => this.getLabelPixelOffset(feature), [0, 0]),
             Boolean(lineLabelProps.getAngle)
           ),
+          getLineGlyphs: lineGlyphs.getLineGlyphs,
+          getLineGlyphKey: lineGlyphs.getLineGlyphKey,
           getTextAnchor: forGroupRows(
             (feature: FeatureLike) =>
               getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor,
