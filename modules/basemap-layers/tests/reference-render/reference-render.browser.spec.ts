@@ -20,6 +20,12 @@
  *
  * Every run writes `report.md` (a table of scores and their change from the baseline, for a PR
  * description), `metrics.json` and a comparison image per scene to `__output__/`.
+ *
+ * `baseline.json` holds the scores of the CI renderer (headless Chromium, ANGLE on SwiftShader, on
+ * Linux), taken from the `metrics.json` of the `basemap-reference-render` CI artifact. Canvas text
+ * is drawn differently on each OS, so scores measured on another machine can differ by more than the
+ * tolerance (up to 0.024 edge F in `new-york-dark-z12.3`); use local runs to compare changes, and the
+ * CI artifact to set the baseline.
  */
 
 import '@fontsource/noto-sans/latin-400.css';
