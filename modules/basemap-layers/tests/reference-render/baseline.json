@@ -1,14 +1,14 @@
 {
   "africa-positron-z3.6": {
     "ssim": 0.9293,
-    "edgeF": 0.9367,
+    "edgeF": 0.9366,
     "labelRecall": 0.9697,
     "labelPrecision": 0.7805,
     "referenceLabels": 33,
     "candidateLabels": 41
   },
   "europe-liberty-z5.2": {
-    "ssim": 0.8284,
+    "ssim": 0.8282,
     "edgeF": 0.8565,
     "labelRecall": 0.7838,
     "labelPrecision": 0.8056,
@@ -16,8 +16,8 @@
     "candidateLabels": 36
   },
   "new-york-dark-z12.3": {
-    "ssim": 0.9583,
-    "edgeF": 0.8938,
+    "ssim": 0.9584,
+    "edgeF": 0.8927,
     "labelRecall": 0.8125,
     "labelPrecision": 0.8125,
     "referenceLabels": 16,
@@ -40,8 +40,8 @@
     "candidateLabels": 10
   },
   "paris-liberty-z13.3": {
-    "ssim": 0.9464,
-    "edgeF": 0.9808,
+    "ssim": 0.9465,
+    "edgeF": 0.981,
     "labelRecall": 0.8182,
     "labelPrecision": 0.9,
     "referenceLabels": 11,
@@ -49,7 +49,7 @@
   },
   "tokyo-carto-positron-z12.3": {
     "ssim": 0.9657,
-    "edgeF": 0.9639,
+    "edgeF": 0.964,
     "labelRecall": 0.8889,
     "labelPrecision": 1,
     "referenceLabels": 9,
@@ -57,7 +57,7 @@
   },
   "world-positron-z0.6": {
     "ssim": 0.9363,
-    "edgeF": 0.9227,
+    "edgeF": 0.9233,
     "labelRecall": 0.9091,
     "labelPrecision": 0.6897,
     "referenceLabels": 22,
