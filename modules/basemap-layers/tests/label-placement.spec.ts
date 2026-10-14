@@ -17,6 +17,8 @@ import {
 } from '../src/label-placement.ts';
 import {MVTLabelLayer} from '../src/mvt-label-layer.ts';
 import {getSpriteIconMapping} from '../src/sprite.ts';
+import {getTextLayerFontWeight} from '../src/text-font.ts';
+import {forgetCharacterWidths} from '../src/text-layout.ts';
 
 describe('GridIndex', () => {
   test('a box hits a box it overlaps or touches, not one beside it', () => {
@@ -349,14 +351,20 @@ const ATLAS = {
  */
 function labelLayer(
   layout: Record<string, unknown>,
-  rows: {properties: Record<string, unknown>; x: number; tile?: {x: number; y: number; z: number}}[]
+  rows: {
+    properties: Record<string, unknown>;
+    x: number;
+    tile?: {x: number; y: number; z: number};
+  }[],
+  props: Record<string, unknown> = {}
 ): any {
   const layer: any = new MVTLabelLayer({
     id: 'labels',
     config: {labels: true},
     styleLayer: {layout, paint: {}},
     zoom: 8,
-    spriteAtlases: [ATLAS]
+    spriteAtlases: [ATLAS],
+    ...props
   } as any);
   layer.state = {
     labelData: rows.map(({properties, x, tile}, index) => ({
@@ -550,6 +558,74 @@ describe('MVTLabelLayer placement symbols', () => {
     expect(
       rules({'text-optional': true, 'icon-ignore-placement': true, 'text-ignore-placement': false})
     ).toMatchObject({textOptional: true, iconIgnorePlacement: true, textIgnorePlacement: false});
+  });
+
+  test('while the sprites load, a symbol keeps the rules it has once its icon arrives', () => {
+    const rules = (spriteAtlases: unknown) =>
+      labelLayer({'text-field': 'x', 'icon-image': 'dot'}, [{properties: {}, x: 0}], {
+        spriteAtlases
+      }).getPlacementSymbols(VIEWPORT, 0, []);
+    expect(rules([ATLAS]).hasIconData).toBe(true);
+    // Loading (`null`) is taken as having the icon; a style without sprites (`[]`) has none.
+    expect(rules(null).hasIconData).toBe(true);
+    expect(rules([]).hasIconData).toBe(false);
+  });
+
+  test('a text box is measured again once its font has loaded', () => {
+    // A canvas whose font measures each character `width` pixels at 64px.
+    let width = 32;
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        getContext() {
+          return {font: '', measureText: () => ({width})};
+        }
+      }
+    );
+    try {
+      const layer = labelLayer(
+        {'text-field': 'abcd', 'text-size': 10, 'text-padding': 0},
+        [{properties: {}, x: 100}],
+        {fontFamily: 'Font Loading In This Test'}
+      );
+      const boxWidth = () => {
+        const out: PlacementSymbol[] = [];
+        layer.getPlacementSymbols(VIEWPORT, 0, out);
+        const [x1, , x2] = out[0].text!.box!;
+        return x2 - x1;
+      };
+      expect(boxWidth()).toBe(20);
+      // The font loads: its characters are a full em wide, and the widths measured before it are
+      // forgotten, as `isLineTextFontLoading` does.
+      width = 64;
+      const font = layer.getFont();
+      forgetCharacterWidths(getTextLayerFontWeight(font), font.fontFamily);
+      expect(boxWidth()).toBe(40);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  test('a style layer edited in place gives new boxes and rules', () => {
+    const layout: Record<string, unknown> = {
+      'text-field': 'abcd',
+      'text-size': 10,
+      'text-padding': 0
+    };
+    const layer = labelLayer(layout, [{properties: {}, x: 100}]);
+    const place = () => {
+      const out: PlacementSymbol[] = [];
+      const rules = layer.getPlacementSymbols(VIEWPORT, 0, out);
+      const p = PLACEMENT_VIEWPORT_PADDING;
+      return {rules, box: out[0].text!.box!.map(v => Math.round(v - p - 100))};
+    };
+    expect(place().box).toEqual([-10, -6, 10, 6]);
+    layout['text-anchor'] = 'left';
+    expect(place().box).toEqual([0, -6, 20, 6]);
+    layout['text-offset'] = [0, 1];
+    expect(place().box).toEqual([0, 4, 20, 16]);
+    layout['text-allow-overlap'] = true;
+    expect(place().rules.textOverlap).toBe('always');
   });
 
   test('label layers made without a placement share one per deck, released with the last', () => {
