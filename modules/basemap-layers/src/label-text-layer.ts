@@ -13,6 +13,7 @@ import type {
   FilterContext
 } from '@deck.gl/core';
 import type {Texture} from '@luma.gl/core';
+import {getLabelFontRenderer} from './label-font-renderer';
 import {SharedTextureSet} from './shared-texture';
 
 /** `text-justify`: `auto` aligns the lines of a label by its text anchor, as `TextLayer` does. */
@@ -94,9 +95,14 @@ export function spaceParagraph(
   return {x, y: layout.y, rowWidth, size: [width, layout.size[1]]};
 }
 
+/** Appended to the font atlas cache keys of label layers (see `initializeState`). */
+const LABEL_ATLAS_KEY = 'label-glyph-overhang';
+
 const defaultProps: DefaultProps<LabelTextLayerProps> = {
   getLetterSpacing: {type: 'accessor', value: 0},
-  getTextJustify: {type: 'accessor', value: 'auto'}
+  getTextJustify: {type: 'accessor', value: 'auto'},
+  // Keeps the part of italic glyphs left of their origin (see `getLabelFontRenderer`).
+  _getFontRenderer: {type: 'function', value: getLabelFontRenderer}
 };
 
 /** Evaluates a constant or function accessor. */
@@ -309,6 +315,15 @@ export class LabelCharactersLayer extends MultiIconLayer<any> {
 }
 
 /**
+ * Mip levels of the font atlas texture: the atlas and one of half its size. A label atlas is drawn
+ * at 64 px per em and labels at 10 to 16 px, 4 to 6 times smaller at device pixel ratio 1, where a
+ * full mip chain samples levels of 16 or 8 px per em: averaging the distance field over that many
+ * atlas pixels thins and blurs strokes unevenly. MapLibre GL JS samples its 24 px glyphs without
+ * mipmaps. The half-size level keeps the minification at most 2 to 3 times, as MapLibre's.
+ */
+const LABEL_ATLAS_MIP_LEVELS = 2;
+
+/**
  * A `TextLayer` with MapLibre's `text-letter-spacing` and `text-justify`. Both change where the
  * characters are drawn and the label box, which the background, and so the collision box, covers.
  * The box is recomputed when the `getText` (letter spacing) or `getTextAnchor` (justification)
@@ -333,13 +348,23 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     layouts?: WeakMap<object, CachedLayout>;
   };
 
+  initializeState(): void {
+    super.initializeState();
+    // deck.gl caches font atlases by their font and settings, not by the renderer that draws their
+    // glyphs: a TextLayer with the same font and settings would share glyphs drawn without their
+    // overhang (see `getLabelFontRenderer`). The atlases of label layers have keys of their own.
+    const manager = this.state.fontAtlasManager as any;
+    const getKey = manager._getKey.bind(manager);
+    manager._getKey = () => `${getKey()} ${LABEL_ATLAS_KEY}`;
+  }
+
   renderLayers(): any {
     const {atlas} = this.state.fontAtlasManager;
     const {device} = this.context;
     if (atlas && device) {
       let {atlasTextures} = this.state;
       if (!atlasTextures) {
-        atlasTextures = new SharedTextureSet(device);
+        atlasTextures = new SharedTextureSet(device, {maxMipLevels: LABEL_ATLAS_MIP_LEVELS});
         this.state.atlasTextures = atlasTextures;
       }
       // A new atlas, with more characters, is a new texture; the previous one is released.

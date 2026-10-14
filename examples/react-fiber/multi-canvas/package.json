@@ -1,0 +1,31 @@
+{
+  "name": "example-react-fiber-multi-canvas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vite --host 127.0.0.1",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@deck.gl-community/basemap-layers": "workspace:*",
+    "@deck.gl-community/react-fiber": "workspace:*",
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/extensions": "~9.4.0",
+    "@deck.gl/geo-layers": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
+    "@deck.gl/widgets": "~9.4.0",
+    "@loaders.gl/core": "^4.5.1",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^5.1.4",
+    "vite": "^7.3.1"
+  }
+}
