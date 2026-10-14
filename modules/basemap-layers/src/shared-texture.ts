@@ -11,14 +11,34 @@ const DEFAULT_SAMPLER: SamplerProps = {
 
 type SharedTexture = {texture: Texture; users: number};
 
-/** The shared textures of each device, by the image they were created from. */
-const sharedTextures = new WeakMap<Device, Map<object, SharedTexture>>();
+/** Options of a `SharedTextureSet`. Sets with different options share no textures. */
+export type SharedTextureOptions = {
+  /**
+   * Most mip levels of a texture, the full image included: 1 for none. Default: the full chain.
+   * Fewer levels keep a minified texture sharper, at the cost of aliasing beyond the last level.
+   */
+  maxMipLevels?: number;
+};
+
+/**
+ * The shared textures of each device, by the options they were created with (see `getOptionsKey`)
+ * and the image they were created from.
+ */
+const sharedTextures = new WeakMap<Device, Map<string, Map<object, SharedTexture>>>();
+
+function getOptionsKey({maxMipLevels}: SharedTextureOptions): string {
+  return maxMipLevels === undefined ? 'mip:all' : `mip:${maxMipLevels}`;
+}
 
 /**
  * Creates a texture from an image as deck.gl does for an `image` prop: an `ImageBitmap` or canvas,
- * or a plain object with `data`, `width` and `height`, with mipmaps.
+ * or a plain object with `data`, `width` and `height`, with mipmaps (at most `maxMipLevels`).
  */
-function createTexture(device: Device, image: object): Texture {
+function createTexture(
+  device: Device,
+  image: object,
+  {maxMipLevels}: SharedTextureOptions
+): Texture {
   const source = (
     image.constructor && image.constructor.name !== 'Object' ? {data: image} : image
   ) as {data: {width?: number; height?: number}; width?: number; height?: number};
@@ -28,7 +48,10 @@ function createTexture(device: Device, image: object): Texture {
   const texture = device.createTexture({
     ...source,
     sampler: DEFAULT_SAMPLER,
-    mipLevels: device.getMipLevelCount(width, height)
+    mipLevels: Math.max(
+      1,
+      Math.min(maxMipLevels ?? Infinity, device.getMipLevelCount(width, height))
+    )
   } as TextureProps);
   if (device.type === 'webgl') {
     texture.generateMipmapsWebGL();
@@ -46,19 +69,39 @@ function createTexture(device: Device, image: object): Texture {
  */
 export class SharedTextureSet {
   private images = new Set<object>();
+  /** The options, as given at construction: they are part of the cache key. */
+  private options: SharedTextureOptions;
+  private optionsKey: string;
 
-  constructor(private device: Device) {}
+  constructor(
+    private device: Device,
+    {maxMipLevels}: SharedTextureOptions = {}
+  ) {
+    this.options = {maxMipLevels};
+    this.optionsKey = getOptionsKey(this.options);
+  }
+
+  /** The textures shared by the sets with this set's options on its device. */
+  private getTextures(): Map<object, SharedTexture> {
+    let byOptions = sharedTextures.get(this.device);
+    if (!byOptions) {
+      byOptions = new Map();
+      sharedTextures.set(this.device, byOptions);
+    }
+    let textures = byOptions.get(this.optionsKey);
+    if (!textures) {
+      textures = new Map();
+      byOptions.set(this.optionsKey, textures);
+    }
+    return textures;
+  }
 
   /** Returns the shared texture of `image`, which this set uses until `retainOnly` drops it. */
   get(image: object): Texture {
-    let textures = sharedTextures.get(this.device);
-    if (!textures) {
-      textures = new Map();
-      sharedTextures.set(this.device, textures);
-    }
+    const textures = this.getTextures();
     let entry = textures.get(image);
     if (!entry) {
-      entry = {texture: createTexture(this.device, image), users: 0};
+      entry = {texture: createTexture(this.device, image, this.options), users: 0};
       textures.set(image, entry);
     }
     if (!this.images.has(image)) {
@@ -87,16 +130,20 @@ export class SharedTextureSet {
 
   private release(image: object): void {
     this.images.delete(image);
-    const textures = sharedTextures.get(this.device);
-    const entry = textures?.get(image);
+    const textures = this.getTextures();
+    const entry = textures.get(image);
     if (entry && --entry.users <= 0) {
       entry.texture.destroy();
-      textures!.delete(image);
+      textures.delete(image);
     }
   }
 }
 
 /** The number of shared textures alive on a device, for tests. */
 export function getSharedTextureCount(device: Device): number {
-  return sharedTextures.get(device)?.size ?? 0;
+  let count = 0;
+  for (const textures of sharedTextures.get(device)?.values() || []) {
+    count += textures.size;
+  }
+  return count;
 }
