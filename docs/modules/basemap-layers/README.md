@@ -1,3 +1,5 @@
+import SplitViewDemo from '@site/src/examples/basemap-layers/split-view';
+
 # Overview
 
 <p class="badges">
@@ -11,6 +13,20 @@ Specification][mapbox_style_spec] using deck.gl layers and helpers.
 _A work in progress_.
 
 [mapbox_style_spec]: https://docs.mapbox.com/mapbox-gl-js/style-spec/
+
+## Compare with MapLibre
+
+Both panes render the same OpenFreeMap vector style. Pan, zoom, rotate, or tilt
+either map to move both cameras. The selector changes the style in both panes.
+Choose Map, Globe, or First Person from the view selector. First Person supports
+free pitch; MapLibre stops rendering at angles it cannot represent and resumes
+when you tilt down. Differences in rendering show the module's current style support.
+
+<div style={{position: 'relative', height: 480, width: '100%'}}>
+  <SplitViewDemo />
+</div>
+
+[Open the full split view example](/examples/basemap-layers/split-view).
 
 ## Overview
 
@@ -210,10 +226,13 @@ with a warning.
 
 Approximations:
 
-- Icons are not collision-filtered: every icon whose style layer is visible is drawn, so dense
-  icon layers can overlap. Labels keep their collision filtering. MapLibre places an icon and
-  its text as one unit and hides both on collision.
-- `icon-rotate`, `icon-text-fit`, `icon-padding` and `icon-allow-overlap` are not applied.
+- Icons share the labels' collision filtering, and an icon and its text are placed or hidden as
+  one unit, as in MapLibre. The test is the labels' one: a symbol is hidden where a
+  higher-priority symbol's box (the whole icon box, or the text box) covers its anchor.
+  `*-allow-overlap` (or `*-overlap: always`), `*-ignore-placement` and `*-optional` follow
+  MapLibre's rules, except that text and icon share one test, so a part is shown without its
+  optional partner only when that part allows overlap.
+- `icon-rotate`, `icon-text-fit` and `icon-padding` are not applied.
 
 ### Extrusions, dashes and fill outlines
 
@@ -243,8 +262,12 @@ Approximations:
 - deck.gl draws one dash and one gap per period. A pattern longer than two values keeps its period
   and its total dash length, but its dashes merge into one. In an odd-length pattern the last
   dash runs into the first, as in MapLibre.
-- `line-cap` is not applied: lines and their dashes have round ends, so a short dash such as a
-  rail hatching draws as a dot rather than a tick.
+- deck.gl has no square cap or bevel join. A `square` cap is drawn as `butt`, so the line ends
+  half its width short, and a zero-length dash, which MapLibre draws as a square, draws nothing.
+  A `bevel` join is cut flat half the line width from the vertex, which reaches slightly further
+  than a bevel at sharp corners. A `miter` join sharper than `line-miter-limit` is cut flat at the
+  limit, where MapLibre bevels it. `line-round-limit` is not applied, which makes no visible
+  difference.
 - A flat layer that comes after a `fill-extrusion` layer in the style is hidden behind the
   buildings; MapLibre draws it over them.
 - MapLibre cross-fades a zoom-dependent `line-dasharray` between integer zooms; here it switches

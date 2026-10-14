@@ -1,6 +1,21 @@
-import {CompositeLayer, log, type DefaultProps, type UpdateParameters} from '@deck.gl/core';
+import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import type {BasemapSource} from './style-resolver';
+import {
+  CompositeLayer,
+  log,
+  type DefaultProps,
+  type UpdateParameters,
+  type Viewport
+} from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
-import {getBasemapLayers, getStyleDefinitionZoomLimits} from './globe-layers';
+import {
+  getBasemapLayers,
+  getSourceLoadOptions,
+  getStyleDefinitionZoomLimits,
+  getStyleSourceLayers,
+  getTilePyramidProps,
+  VECTOR_TILE_ZOOM_OFFSET
+} from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
@@ -99,6 +114,14 @@ type BasemapLayerState = {
   zoomKey: string | null;
   /** Sprites of the resolved style, once loaded. */
   spriteAtlases: SpriteAtlas[] | null;
+  /** Decoded data caches owned by this basemap, shared across style runs. */
+  tilesets: Map<BasemapSource, SharedTileset2D>;
+  /** The source layers each tileset decodes, as JSON (see `getStyleSourceLayers`). */
+  tilesetSourceLayers: Map<BasemapSource, string>;
+  /** Loading configuration used to construct the current source caches. */
+  tileLoadOptions: unknown;
+  /** Fetch identity, kept separate from render-only props such as view mode. */
+  tileFetch: unknown;
 };
 
 /**
@@ -137,6 +160,10 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       loadError: null,
       loadToken: 0,
       zoomKey: null,
+      tilesets: new Map(),
+      tilesetSourceLayers: new Map(),
+      tileLoadOptions: null,
+      tileFetch: null,
       spriteAtlases: null
     };
   }
@@ -154,12 +181,23 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     if (!resolvedStyle || !params.changeFlags.viewportChanged) {
       return false;
     }
-    return this.getZoomKey(resolvedStyle, params.context.viewport.zoom) !== zoomKey;
+    return this.getZoomKey(resolvedStyle, params.context.viewport) !== zoomKey;
   }
 
-  /** Returns the zoom key of `zoom` for a resolved style. */
-  getZoomKey(resolvedStyle: ResolvedBasemapStyle, zoom: number): string {
-    return getStyleZoomKey(zoom, getFractionalZoomLimits(resolvedStyle));
+  /** Returns the key of what the sublayers depend on in `viewport`, for a resolved style. */
+  getZoomKey(resolvedStyle: ResolvedBasemapStyle, viewport: Viewport | undefined): string {
+    const zoomKey = getStyleZoomKey(viewport?.zoom || 0, getFractionalZoomLimits(resolvedStyle));
+    return `${this.getDrawMode(viewport)}:${zoomKey}`;
+  }
+
+  /**
+   * The mode the sublayers are drawn in. Above zoom 12, `GlobeView` draws with a Web Mercator
+   * viewport, so a globe basemap draws as a map there: globe depth and culling parameters assume
+   * longitude/latitude geometry on a sphere.
+   */
+  getDrawMode(viewport: Viewport | undefined): 'map' | 'globe' {
+    const {mode = 'map'} = this.props;
+    return mode === 'globe' && viewport && !viewport.resolution ? 'map' : mode;
   }
 
   /** Reacts to changes in the input style definition. */
@@ -184,6 +222,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     if (!style) {
       const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
+      this.clearSourceTilesets();
       this.setState({resolvedStyle: null, loadError: null, loadToken, spriteAtlases: null});
       return;
     }
@@ -217,6 +256,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       .catch((error: Error) => {
         if (this.state.loadToken === loadToken) {
           logBasemapLayerError('Failed to resolve basemap style', error);
+          this.clearSourceTilesets();
           this.setState({resolvedStyle: null, loadError: error});
         }
       });
@@ -233,6 +273,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     loadToken: number
   ): void {
     if (!resolvedStyle.sprite) {
+      // No sprites to wait for (`null` means loading, see `MVTLabelLayerProps.spriteAtlases`).
+      this.setState({spriteAtlases: []});
       return;
     }
     const options = (loadOptions || {}) as {
@@ -252,6 +294,68 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     });
   }
 
+  /** The basemap owns caches; style-run consumers only attach/detach. */
+  finalizeState(): void {
+    this.state.loadToken++;
+    this.clearSourceTilesets();
+  }
+
+  private clearSourceTilesets(): void {
+    for (const tileset of this.state.tilesets.values()) tileset.finalize();
+    this.state.tilesets.clear();
+    this.state.tilesetSourceLayers.clear();
+  }
+
+  private updateSourceTilesets(style: ResolvedBasemapStyle): void {
+    const sources = new Set(
+      Object.values(style.sources || {}).filter(source => source.type === 'vector' && source.tiles)
+    );
+    const optionsChanged =
+      this.state.tileLoadOptions !== this.props.loadOptions ||
+      this.state.tileFetch !== this.props.fetch;
+    // Tiles decode only the source layers the style draws: a style edit or a labels toggle that
+    // changes the layers the loader decodes reloads the source's tiles.
+    const sourceLayers = getStyleSourceLayers(style, this.props.globe);
+    const getDecodedLayers = (source: BasemapSource) =>
+      (getSourceLoadOptions(this.props.loadOptions, sourceLayers.get(source)) as any)?.mvt?.layers;
+    const sourceLayerKeys = new Map(
+      [...sources].map(source => [source, JSON.stringify(getDecodedLayers(source) ?? null)])
+    );
+    for (const [source, tileset] of this.state.tilesets) {
+      if (
+        !sources.has(source) ||
+        optionsChanged ||
+        this.state.tilesetSourceLayers.get(source) !== sourceLayerKeys.get(source)
+      ) {
+        tileset.finalize();
+        this.state.tilesets.delete(source);
+        this.state.tilesetSourceLayers.delete(source);
+      }
+    }
+    this.state.tileLoadOptions = this.props.loadOptions;
+    this.state.tileFetch = this.props.fetch;
+    for (const source of sources) {
+      if (!this.state.tilesets.has(source)) {
+        const loader = new SharedMVTLayer({
+          id: `${this.id}-loader`,
+          data: source.tiles!,
+          fetch: this.props.fetch,
+          loadOptions: getSourceLoadOptions(this.props.loadOptions, sourceLayers.get(source))
+        });
+        loader.context = this.context;
+        const tileset = new SharedTileset2D({
+          ...loader._getTilesetOptions(),
+          ...getTilePyramidProps(source),
+          tileSize: source.tileSize || 512,
+          zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
+          getTileData: tile => loader.getTileData(tile)
+        });
+        this.state.tilesets.set(source, tileset);
+        this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);
+      }
+    }
+  }
+
   /** Renders the sublayers generated from the resolved style definition. */
   renderLayers() {
     const {resolvedStyle} = this.state;
@@ -259,19 +363,22 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       return [];
     }
 
-    const zoom = this.context.viewport?.zoom || 0;
+    this.updateSourceTilesets(resolvedStyle);
+    const {viewport} = this.context;
+    const zoom = viewport?.zoom || 0;
     // Recorded without setState: this only tracks what the current sublayers were built from.
-    this.state.zoomKey = this.getZoomKey(resolvedStyle, zoom);
+    this.state.zoomKey = this.getZoomKey(resolvedStyle, viewport);
 
     return getBasemapLayers({
       idPrefix: this.props.id,
-      mode: this.props.mode,
+      mode: this.getDrawMode(viewport),
       globe: this.props.globe,
       styleDefinition: resolvedStyle,
       zoom,
       loadOptions: this.props.loadOptions,
       spriteAtlases: this.state.spriteAtlases,
-      fontFamily: this.props.fontFamily
+      fontFamily: this.props.fontFamily,
+      tilesets: this.state.tilesets
     });
   }
 }

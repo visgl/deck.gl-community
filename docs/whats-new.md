@@ -8,6 +8,27 @@ This page lists module additions and major changes in each release. For detailed
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
   example demonstrates independent maps, shared hover state and canvas cleanup.
 
+- Private Vega renderer: a shared declarative US-map-to-stacked-bars example moves 24,669 places from SandDance’s historical sample with GPU position/size transitions in the playground, gallery and inline docs, with smooth 2D/3D camera and lighting transitions.
+
+- Private Vega renderer: geographic polygon/path vertices, colors and outline widths now use GPU transitions when projection signals change.
+
+- Private Vega renderer: projected GeoJSON shape marks with holes and separate polygons, geographic point symbols, and GPU circle/square lifecycle transitions. A shared declarative geospatial example is available in the playground and inline module docs.
+
+- The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
+
+- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera and light-map culling include the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; streamed RAD and sorted scene rendering remain separate upstream work.
+
+- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. The old import temporarily re-exports the same constructor.
+
+- The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
+
+- A private, unpublished [Vega renderer experiment](./modules/vega/README.md) ports SandDance’s MIT-licensed Vega/deck.gl renderer to vis.gl 9.4, with animated unit-layout examples and upstream attribution.
+
+- The BasemapLayers overview includes a synchronized comparison with MapLibre, with map, globe, and first-person views.
+
+- The standalone playground adds local JSON, GeoJSON, CSV, and Arrow IPC uploads with Arrow inspection and `datasource://source-id` layer references.
+- `GraphLayer.layoutTransitionDuration` enables opt-in position interpolation independently of layout redraw throttling.
+
 - The graph viewer includes a live mini-map with click-to-recenter navigation. The playground
   adds a declarative graph overview using two `OrthographicView`s and one shared `GraphLayer`.
 

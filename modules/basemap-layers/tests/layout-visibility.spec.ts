@@ -49,16 +49,20 @@ function render(
   });
 }
 
-/** Style-layer ids a vector tile draws. */
+/**
+ * Style-layer ids a vector tile draws, over the source's tile layers: a layer after a label
+ * layer starts another one (see `getStyleLayerRuns`).
+ */
 function drawnLayerIds(layers: Record<string, unknown>[]): string[] {
-  const vectorLayer = render(layers).find(layer => layer.id === 'test-vector');
-  if (!vectorLayer) {
-    return [];
-  }
-  return vectorLayer.props
-    .renderSubLayers({id: 'tile', data: FEATURES, tile: {index: {x: 0, y: 0, z: 12}}})
-    .filter(Boolean)
-    .map((sublayer: any) => sublayer.id.replace(/^tile-/, ''));
+  return render(layers)
+    .filter(layer => layer.id.startsWith('test-vector'))
+    .flatMap(vectorLayer =>
+      vectorLayer.props
+        .renderSubLayers({id: 'tile', data: FEATURES, tile: {index: {x: 0, y: 0, z: 12}}})
+        .filter(Boolean)
+        // Consecutive style layers can share a sublayer, named by the JSON array of their ids.
+        .flatMap((sublayer: any) => JSON.parse(sublayer.id.replace(/^tile-/, '')))
+    );
 }
 
 const road = {id: 'road', type: 'line', source: 'vector', 'source-layer': 'transportation'};

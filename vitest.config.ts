@@ -14,6 +14,7 @@ const TERRAIN_ALIASES = DECK_GL_SOURCE
   : [];
 
 const ALIASES = [
+  {find: /^@deck\.gl-community\/geo-layers$/, replacement: fileURLToPath(new URL('./modules/geo-layers/src/index.ts', import.meta.url))},
   ...TERRAIN_ALIASES,
   {find: 'crypto', replacement: 'node:crypto'}, // ensure Vite/Vitest get Node's crypto
   {
@@ -94,7 +95,25 @@ const BROWSER_RESOLVE_CONFIG = {
 };
 
 const BROWSER_OPTIMIZE_DEPS_CONFIG = {
-  include: ['@deck.gl/mesh-layers', '@loaders.gl/arrow', 'apache-arrow', 'three', 'zod']
+  // Served as is, from each importer's own copy: basemap-layers' reference renders pin a
+  // `maplibre-gl` whose worker must match it, and an example uses another version.
+  exclude: ['maplibre-gl'],
+  include: [
+    '@deck.gl/mesh-layers',
+    '@loaders.gl/arrow',
+    'apache-arrow',
+    'zod',
+    'vega',
+    '@deck.gl/core',
+    '@deck.gl/layers',
+    '@luma.gl/engine',
+    '@deck.gl-community/vega > tsx-create-element',
+    'deepmerge',
+    'd3-color',
+    'd3-ease',
+    '@maplibre/maplibre-gl-style-spec',
+    '@loaders.gl/mvt'
+  ]
 };
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', '**/node_modules/**', 'dev/**/dist/**'];
@@ -143,7 +162,6 @@ const CONFIG = defineConfig({
             'modules/**/*.browser.{test,spec}.{js,ts}',
             'dev/**/*.browser.{test,spec}.{js,ts}',
             'modules/widgets/src/widget-panels/toolbar-widget.test.ts',
-            'modules/basemap-layers/**',
             'modules/react-fiber/src/reconciler/**'
           ],
           browser: {

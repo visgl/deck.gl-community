@@ -152,9 +152,11 @@ Integer offset applied to the resolved tile zoom.
 
 Elevation bounds used when selecting geospatial tiles.
 
-#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never' | Function`, optional) {/* #refinementstrategy */}
+#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never'`, optional) {/* #refinementstrategy */}
 
 Controls how ancestor and descendant placeholders are shown while tile content is loading.
+
+Unlike deck.gl's `TileLayer`, a custom refinement function is not supported, because each view keeps its own tile visibility rather than setting it on the shared tiles. Passing a function, or any other value, throws an error.
 
 ### Cache and Request Options
 
@@ -192,11 +194,13 @@ Called when a tile is evicted from the shared cache.
 
 #### `onTileError` (`Function`, optional) {/* #ontileerror */}
 
-Called when a tile request fails.
+Called with the error and the tile when a tile request fails. The default logs the error with `console.error`, as `TileLayer` does. Pass a function to handle errors yourself, or `() => {}` to ignore them.
 
 ## Multi-View Behavior
 
 Each viewport gets its own traversal state. That means one `SharedTile2DLayer` can participate in multiple views without overwriting tile selection or visibility decisions for any other view.
+
+When a view is removed from the deck, the layer drops that viewport's traversal state at its next update. Its tiles are then no longer selected for it, no longer held against eviction, and no longer counted by `isLoaded`.
 
 ## Shared Stats
 

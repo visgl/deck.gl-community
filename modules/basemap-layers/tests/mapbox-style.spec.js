@@ -110,11 +110,10 @@ describe('BasemapLayer', () => {
         })
     );
 
-    const layer = {
-      state: {resolvedStyle: null, loadError: null, loadToken: 0},
-      setState(update) {
-        this.state = {...this.state, ...update};
-      }
+    const layer = new BasemapLayer({style: null});
+    layer.initializeState();
+    layer.setState = function (update) {
+      this.state = {...this.state, ...update};
     };
 
     BasemapLayer.prototype.loadStyle.call(layer, {version: 8, sources: {}, layers: []}, null);
@@ -409,7 +408,7 @@ describe('getBasemapLayers', () => {
       tile: {index: {x: 0, y: 0, z: 5}}
     });
 
-    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
+    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-"roads-visible"']);
   });
 
   test('keeps expected vector style misses behind probe logging', () => {

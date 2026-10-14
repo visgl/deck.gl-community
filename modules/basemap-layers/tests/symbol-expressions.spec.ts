@@ -156,10 +156,29 @@ describe('update triggers', () => {
     const at = labelLayer(layout, paint, 7.6).getLabelUpdateTriggers();
     const next = labelLayer(layout, paint, 8.6).getLabelUpdateTriggers();
     const changed = Object.keys(at).filter(key => at[key] !== next[key]);
-    // `text-offset` is in ems of `text-size`, which depends on zoom here, and a `text-size` of 0
-    // hides the text.
-    expect(changed.sort()).toEqual(['getColor', 'getPixelOffset', 'getSize', 'getText']);
+    // `text-offset` is in ems of `text-size`, which depends on zoom here. The text depends on
+    // `text-size` only where it is 0, which hides the label.
+    expect(changed.sort()).toEqual(['getColor', 'getPixelOffset', 'getSize']);
     expect(labelLayer(layout, paint, 7.7).getLabelUpdateTriggers()).toEqual(at);
+  });
+
+  test('re-evaluates the text when a zoom-dependent text-size reaches or leaves 0', () => {
+    const sizeLayout = {
+      'text-field': ['get', 'name'],
+      'text-size': ['interpolate', ['linear'], ['zoom'], 5, 0, 6, 10, 10, 20]
+    };
+    const textAt = (zoom: number) =>
+      labelLayer(sizeLayout, {}, zoom).getLabelUpdateTriggers().getText;
+    expect(textAt(5.1)).not.toEqual(textAt(6.1));
+    expect(textAt(6.1)).toEqual(textAt(9.6));
+    // A size that depends on the feature as well re-evaluates at every zoom step.
+    const byFeature = {
+      ...sizeLayout,
+      'text-size': ['interpolate', ['linear'], ['zoom'], 5, ['get', 'rank'], 10, 20]
+    };
+    expect(labelLayer(byFeature, {}, 6.1).getLabelUpdateTriggers().getText).not.toEqual(
+      labelLayer(byFeature, {}, 9.6).getLabelUpdateTriggers().getText
+    );
   });
 
   test('re-evaluates label placement when text-offset or text-anchor is edited', () => {

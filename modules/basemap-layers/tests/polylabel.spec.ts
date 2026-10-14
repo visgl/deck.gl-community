@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {describe, expect, it} from 'vitest';
-import {getPoleOfInaccessibility} from '../src/polylabel';
+import {DEFAULT_POLE_SEARCH_SEGMENT_TESTS, getPoleOfInaccessibility} from '../src/polylabel';
 
 function square(size: number): number[][][] {
   return [
@@ -28,13 +28,19 @@ describe('getPoleOfInaccessibility on hostile input', () => {
         [0, 0]
       ]
     ];
-    const start = performance.now();
-    const pole = getPoleOfInaccessibility(thin, 1e-12);
-    expect(performance.now() - start).toBeLessThan(1000);
+    // The work is counted rather than timed, which coverage instrumentation and slow runners
+    // would make flaky. With the grid cap, the search takes about 5e6 point-to-segment tests; an
+    // uncapped grid starts with 1e9 cells, and would spend all of this larger budget. The 5e6
+    // tests take about half a second, and over 5 seconds under coverage on a loaded machine, so
+    // the test's timeout is raised: it only stops a hang.
+    const budgetSize = 2e7;
+    const budget = {segmentTests: budgetSize};
+    const pole = getPoleOfInaccessibility(thin, 1e-12, budget);
+    expect(budgetSize - budget.segmentTests).toBeLessThan(1e7);
     expect(pole).not.toBeNull();
     expect(pole![0]).toBeGreaterThanOrEqual(0);
     expect(pole![0]).toBeLessThanOrEqual(1);
-  });
+  }, 30000);
 
   it('returns null for non-finite coordinates instead of looping', () => {
     const infinite = square(1);
@@ -61,9 +67,30 @@ describe('getPoleOfInaccessibility on hostile input', () => {
       ring.push([i * 2 + 1, 0], [i * 2 + 1, 100], [i * 2 + 2, 100], [i * 2 + 2, 0]);
     }
     ring.push([2001, 0], [2001, -1], [0, -1], [0, 0]);
-    const start = performance.now();
-    const pole = getPoleOfInaccessibility([ring], 0);
-    expect(performance.now() - start).toBeLessThan(5000);
+    // Unbounded, this search takes about 9e9 point-to-segment tests. The budget stops it, without
+    // overspending, and the best point found so far is returned.
+    const budget = {segmentTests: DEFAULT_POLE_SEARCH_SEGMENT_TESTS};
+    const pole = getPoleOfInaccessibility([ring], 0, budget);
+    expect(budget.segmentTests).toBeGreaterThanOrEqual(0);
+    expect(budget.segmentTests).toBeLessThan(ring.length);
     expect(pole).not.toBeNull();
-  });
+
+    // Without a budget argument, the default budget bounds the search. Scoring a cell reads ring
+    // 0 once, and the search reads it three more times while setting up.
+    let ringZeroReads = 0;
+    const counted = new Proxy([ring], {
+      get(target, key, receiver) {
+        if (key === '0') {
+          ringZeroReads++;
+        }
+        return Reflect.get(target, key, receiver);
+      }
+    });
+    expect(getPoleOfInaccessibility(counted, 0)).not.toBeNull();
+    expect((ringZeroReads - 3) * ring.length).toBeLessThanOrEqual(
+      DEFAULT_POLE_SEARCH_SEGMENT_TESTS
+    );
+    // Two default budgets of work take about 50 ms, but are timed out as generously as the thin
+    // polygon case for the same reason: the assertions are on the counts.
+  }, 30000);
 });

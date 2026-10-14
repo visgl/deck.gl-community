@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": [
+    "src/**/*"
+  ],
+  "compilerOptions": {
+    "jsxFactory": "createElement",
+    "composite": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": false,
+    "jsx": "react"
+  }
+}

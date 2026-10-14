@@ -70,11 +70,12 @@ export class SplineLayer extends CompositeLayer {
     return new PathLayer({
       id: `${id}-splines`,
       data: paths as any,
+      transitions: this.props.transitions,
       getPath: d => d,
       getColor,
       getWidth,
       coordinateSystem,
-      updateTriggers
+      updateTriggers: {...updateTriggers, all: this.props.transitions}
     });
   }
 }
