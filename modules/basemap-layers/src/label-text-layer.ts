@@ -201,6 +201,15 @@ class LabelCharactersLayer extends MultiIconLayer<any> {
 }
 
 /**
+ * Mip levels of the font atlas texture: the atlas and one of half its size. A label atlas is drawn
+ * at 64 px per em and labels at 10 to 16 px, 4 to 6 times smaller at device pixel ratio 1, where a
+ * full mip chain samples levels of 16 or 8 px per em: averaging the distance field over that many
+ * atlas pixels thins and blurs strokes unevenly. MapLibre GL JS samples its 24 px glyphs without
+ * mipmaps. The half-size level keeps the minification at most 2 to 3 times, as MapLibre's.
+ */
+const LABEL_ATLAS_MIP_LEVELS = 2;
+
+/**
  * A `TextLayer` with MapLibre's `text-letter-spacing` and `text-justify`. Both change where the
  * characters are drawn and the label box, which the background, and so the collision box, covers.
  * The box is recomputed when the `getText` (letter spacing) or `getTextAnchor` (justification)
@@ -241,7 +250,7 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     if (atlas && device) {
       let {atlasTextures} = this.state;
       if (!atlasTextures) {
-        atlasTextures = new SharedTextureSet(device);
+        atlasTextures = new SharedTextureSet(device, {maxMipLevels: LABEL_ATLAS_MIP_LEVELS});
         this.state.atlasTextures = atlasTextures;
       }
       // A new atlas, with more characters, is a new texture; the previous one is released.

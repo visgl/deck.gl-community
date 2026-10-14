@@ -15,6 +15,7 @@ import {
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {GlobeHorizonExtension} from './globe-horizon-extension';
+import {GlobeLineAngleExtension} from './globe-line-angle-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {getHaloBlurGamma, TextHaloBlurExtension} from './text-halo-blur-extension';
 import {
@@ -239,6 +240,12 @@ const MASKED_COLLISION_PRIORITY = -2000;
  * hides those whose anchor is beyond the horizon, and keeps them out of the collision pass.
  */
 const GLOBE_HORIZON_EXTENSION = new GlobeHorizonExtension();
+
+/** Turn billboards along lines on a globe as the view draws the lines (`getLineAngleExtensions`). */
+const GLOBE_LINE_ANGLE_EXTENSIONS = {
+  upright: new GlobeLineAngleExtension({keepUpright: true}),
+  free: new GlobeLineAngleExtension({keepUpright: false})
+};
 
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
@@ -969,7 +976,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return [];
     }
     const groups = this.getSymbolPartGroups('icon', () => this.getRowsWithText());
-    const {props: angleProps, getAngle} = this.getIconAngleProps();
+    const {props: angleProps, getAngle, extensions: angleExtensions} = this.getIconAngleProps();
     // Sprite ids are arbitrary strings, so `${id}${idSuffix}` (and a copy's `-overlap`) can repeat
     // another sprite's id; a repeated id gets a number.
     const ids = new Set<string>();
@@ -1004,7 +1011,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           extensions: [
             ...(this.props.extensions || []),
             new LabelCollisionFilterExtension(),
-            GLOBE_HORIZON_EXTENSION
+            GLOBE_HORIZON_EXTENSION,
+            ...angleExtensions
           ],
           collisionEnabled: true,
           collisionGroup: LABEL_COLLISION_GROUP,
@@ -1950,6 +1958,33 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * The extensions that keep billboards along lines on their lines on a globe. A globe draws them
+   * in screen space, at angles taken from north up, so the shader turns them by the direction the
+   * view draws the line in, at every frame, and upright with `keepUpright`: there the bearing
+   * alone does not tell which way they read. A flat map draws them in the map plane. The shader
+   * keeps an angle upright only when it is the line's direction: icons turned by `icon-rotate` are
+   * kept upright from north up, by their angles.
+   */
+  getLineAngleExtensions(
+    turnsWithLine: boolean,
+    keepUpright: 'text-keep-upright' | 'icon-keep-upright',
+    isLineDirection = true
+  ): GlobeLineAngleExtension[] {
+    const isGlobeBillboard = Boolean(this.context?.viewport?.resolution) && this.props.billboard;
+    if (!turnsWithLine || !isGlobeBillboard) {
+      return [];
+    }
+    const upright =
+      (this.getStyleProperty(keepUpright)?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
+        getStylePropertyDefault(keepUpright)) === true;
+    return [
+      upright && isLineDirection
+        ? GLOBE_LINE_ANGLE_EXTENSIONS.upright
+        : GLOBE_LINE_ANGLE_EXTENSIONS.free
+    ];
+  }
+
+  /**
    * Icon layer props that turn icons, and the angle each row's icon is turned by, counter-clockwise
    * in degrees as deck.gl takes it (null when no icon turns). Icons along lines whose rotation is
    * aligned to the map (`icon-rotation-alignment: map`, or `auto`) are turned to the line's
@@ -1961,6 +1996,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   getIconAngleProps(): {
     props: Record<string, unknown>;
     getAngle: ((row: LabelRow) => number) | null;
+    extensions: GlobeLineAngleExtension[];
   } {
     const placement = this.getSymbolPlacement();
     const zoom = getZoomBucket(this.props.zoom || 0);
@@ -1970,8 +2006,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const iconRotate = this.getStyleProperty('icon-rotate');
     const geographic = Boolean(this.context?.viewport?.resolution);
     const props = isMapAligned ? {billboard: geographic ? this.props.billboard : false} : {};
+    const extensions = this.getLineAngleExtensions(turnsWithLine, 'icon-keep-upright', !iconRotate);
     if (!turnsWithLine && !iconRotate) {
-      return {props, getAngle: null};
+      return {props, getAngle: null, extensions};
     }
     const bearingStep = this.getBearingStep();
     if (turnsWithLine) {
@@ -1989,7 +2026,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           )
         : 0;
     // `icon-rotate` is clockwise; deck.gl angles are counter-clockwise.
-    return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row)};
+    return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row), extensions};
   }
 
   /**
@@ -2211,17 +2248,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         // `TextLayer` refreshes its glyphs with the `getText` trigger only, not with `all`: the
         // group's rows decide which rows have text, so they are part of it.
         const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
+        const lineLabelProps = this.getLineLabelProps();
         const textProps = {
           data: this.getRows(),
           extensions: [
             ...(this.props.extensions || []),
             new LabelCollisionFilterExtension(),
             GLOBE_HORIZON_EXTENSION,
-            TEXT_HALO_BLUR_EXTENSION
+            TEXT_HALO_BLUR_EXTENSION,
+            ...this.getLineAngleExtensions('getAngle' in lineLabelProps, 'text-keep-upright')
           ],
           parameters: LABEL_PARAMETERS,
           billboard,
-          ...this.getLineLabelProps(),
+          ...lineLabelProps,
           characterSet: 'auto',
           // Glyphs are signed distance fields, which `TextLayer` outlines for halos.
           fontSettings: LABEL_FONT_SETTINGS,

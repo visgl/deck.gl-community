@@ -28,9 +28,26 @@ describe('renderBasemapLayer', () => {
         fontAtlases: []
       };
     };
-    const render = await renderBasemapLayer({}, DEFAULT_SCENES[0], {}, draw);
+    const render = await renderBasemapLayer({}, DEFAULT_SCENES[0], {}, {}, draw);
     expect(steps).toEqual([]);
     expect(render.duration).toBe(80);
     expect(render.firstDrawDuration).toBe(30);
+  });
+
+  test('draws both passes with the render options', async () => {
+    const options: unknown[] = [];
+    const draw = async (...args: unknown[]): Promise<BasemapLayerDraw> => {
+      options.push(args[3]);
+      return {
+        pixels: new Uint8ClampedArray(0),
+        labels: [],
+        requests: [],
+        problems: [],
+        duration: 0,
+        fontAtlases: []
+      };
+    };
+    await renderBasemapLayer({}, DEFAULT_SCENES[0], {}, {pixelRatio: 2}, draw);
+    expect(options).toEqual([{pixelRatio: 2}, {pixelRatio: 2}]);
   });
 });
