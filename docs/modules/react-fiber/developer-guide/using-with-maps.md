@@ -93,7 +93,9 @@ time. See [Using with custom overlays](./base-maps/using-with-custom-overlays.md
 deck.gl's guides describe a third mode, reverse controlled, in which the `@deck.gl/react` `DeckGL`
 component is the root, a React Map GL `<Map>` is its child, and deck.gl owns the camera. Provider
 roots do not support this mode. `DeckGL` renders its children with the deck.gl reconciler, which
-accepts only `<layer>` and `<view>` elements, so it cannot render a `<Map>` child.
+accepts only `<layer>` and `<view>` elements, so it cannot render a `<Map>` child. An application
+that needs reverse-controlled rendering should keep using
+[`@deck.gl/react`](https://deck.gl/docs/api-reference/react/deckgl) for that map.
 
 ## Base map renderer and data provider
 

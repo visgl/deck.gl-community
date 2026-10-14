@@ -158,6 +158,7 @@ A supplied `ContextProvider` receives only `{deck}`. It is the reliable way to r
 Before changing imports, review the application for these patterns:
 
 - `gl`, `canvas`, `parent`, and `_customRender`: compat does not accept these low-level renderer ownership props. Continue using the native `DeckGL` component when they are required.
+- Reverse-controlled maps: a React Map GL `<Map>` or other DOM child of `DeckGL` is not supported. See [Reverse-controlled maps](./using-with-maps.md#reverse-controlled-maps).
 - Function children: compat does not support function-child render callbacks. Render supported layers and views directly instead.
 - Widgets, JSX widget wrappers, and `useWidget`: these APIs are deferred and unavailable from compat.
 - Extra layer or view components: only the export matrix above is supported.
