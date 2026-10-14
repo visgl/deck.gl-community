@@ -6,7 +6,7 @@ The adapter uses the local DOM renderer. In an application that uses React Serve
 
 ## Replace the root import
 
-> **Breaking change for interleaved roots:** The plain `/compat` entry creates only `Deck`, and its props have no `interleaved` option. Replace a previous interleaved default import with `/compat/mapbox` or `/compat/maplibre`, according to the host map. Configure and attach the returned provider control from the application-owned map.
+> **Breaking change for interleaved roots:** The plain `/compat` entry creates only `Deck`, and its props have no `interleaved` option. Replace a previous interleaved default import with `/compat/mapbox` or `/compat/maplibre`, according to the host map. Configure and attach the returned provider control from the application-owned map, as described in [Using with maps](./using-with-maps.md).
 
 Change this:
 
@@ -161,6 +161,6 @@ Before changing imports, review the application for these patterns:
 - Function children: compat does not support function-child render callbacks. Render supported layers and views directly instead.
 - Widgets, JSX widget wrappers, and `useWidget`: these APIs are deferred and unavailable from compat.
 - Extra layer or view components: only the export matrix above is supported.
-- Provider overlays: use `/compat/mapbox` or `/compat/maplibre`, not the plain `/compat` entry. The host map owns views, so compat view wrappers do not configure an external overlay.
+- Provider overlays: use `/compat/mapbox` or `/compat/maplibre`, not the plain `/compat` entry. The host map owns views, so compat view wrappers do not configure an external overlay. See [Using with maps](./using-with-maps.md) for the attachment lifecycle.
 
 In development, detectable unsupported low-level props and function children issue concise migration warnings. Production is silent; a missing warning does not make an unsupported pattern work.

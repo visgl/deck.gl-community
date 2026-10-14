@@ -152,15 +152,15 @@ A provider root selects only the deck.gl control. It does not create, configure,
 host map. Pass map tokens, styles, camera settings, handlers, worker or CSP configuration, and
 other map options to the Mapbox or MapLibre map creator.
 
-Use `onDeckglChange` to receive the overlay after the provider root is configured. Add that same
-overlay with `map.addControl`, remove it with `map.removeControl` during cleanup, and then tear
-down the host map. Provider roots render no host DOM node, so they can be children of a React Map
-GL `<Map>` or coexist with a manual MapLibre container that must remain child-free.
+Use `onDeckglChange` to receive the overlay, store it in state, and attach it to the map once per
+instance in an effect. Detach it during cleanup, then tear down the host map. Provider roots render
+no host DOM node, and the host map owns views, so JSX `<view>` descriptors do not configure
+external overlays.
 
-The host map owns views. JSX `<view>` descriptors do not configure external overlays. For shared
-contexts, configure ordering and WebGL options on the host map: use `beforeId` or a Mapbox Standard
-`slot` for Mapbox, and `beforeId` for MapLibre. MapLibre interleaved rendering requires WebGL2 and
-allows one interleaved overlay per map.
+[Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) describes the
+shared lifecycle. The [Mapbox](../../docs/modules/react-fiber/developer-guide/base-maps/using-with-mapbox.md)
+and [MapLibre](../../docs/modules/react-fiber/developer-guide/base-maps/using-with-maplibre.md)
+guides have complete examples and provider-specific options.
 
 Deck callbacks such as `onClick` remain deck.gl callbacks. They are not React synthetic events on
 `<layer>` or `<view>`.
@@ -286,7 +286,7 @@ yarn lint
 
 - [Get started](../../docs/modules/react-fiber/developer-guide/get-started.md) covers client boundaries, layers, views, mixed layer sources, provider installation, and instance access.
 - [DeckGL API](../../docs/modules/react-fiber/api-reference/deckgl.md) defines standalone and provider-root props, ownership, lifecycle notifications, and custom compatible overlays.
-- [Mapbox and MapLibre integration](../../docs/modules/react-fiber/developer-guide/mapbox-maplibre.md) explains host-map ownership, control lifecycle, worker setup, and shared-context rendering.
+- [Using with maps](../../docs/modules/react-fiber/developer-guide/using-with-maps.md) explains host-map ownership and the overlay lifecycle, and links one guide per provider with worker setup and shared-context rendering.
 - [Native elements](../../docs/modules/react-fiber/api-reference/native-elements.md) defines the `<layer>` and `<view>` contract.
 - [Migrate from `@deck.gl/react`](../../docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react.md) documents the compatibility wrapper matrix and limits.
 - Maintained applications show native MapLibre integration with [Vite](../../examples/react-fiber/vite), [Next.js](../../examples/react-fiber/nextjs), [React Router](../../examples/react-fiber/react-router), and [TanStack Start](../../examples/react-fiber/tanstack-start).

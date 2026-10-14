@@ -20,7 +20,7 @@ yarn add @deck.gl/mapbox mapbox-gl
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The application owns the Mapbox or MapLibre map. MapLibre GL JS 6's default browser entry resolves its module worker automatically; keep map creation in browser-only code. A deployment that prohibits blob workers needs a separate CSP worker integration before it creates a map. See [Mapbox and MapLibre integration](./mapbox-maplibre.md) for safe control attachment and CSP guidance.
+The application owns the Mapbox or MapLibre map. MapLibre GL JS 6's default browser entry resolves its module worker automatically; keep map creation in browser-only code. A deployment that prohibits blob workers needs a separate CSP worker integration before it creates a map. See [Using with maps](./using-with-maps.md) for safe overlay attachment and [Using with MapLibre](./base-maps/using-with-maplibre.md) for worker and CSP guidance.
 
 ## 2. Render on the client
 
@@ -117,21 +117,13 @@ The notification receives `null` when its root is cleaned up. It is not a callba
 
 ## Add a provider overlay
 
-Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application.
-
-```tsx
-import {DeckGL} from '@deck.gl-community/react-fiber/maplibre';
-
-<DeckGL interleaved onDeckglChange={overlay => overlay && map.addControl(overlay)} />;
-```
-
-`interleaved` is passed to the overlay unchanged and uses the overlay's default, `false`. Changing it replaces the overlay: `onDeckglChange` receives `null`, then the new instance to attach. Provider roots render no host DOM node and never forward JSX `<view>` descriptors. Remove the same control before map teardown.
+Provider selection is an import-path decision. Use `/mapbox` for `MapboxOverlay` or `/maplibre` for `MapLibreOverlay`; install the matching `@deck.gl` package and create/configure the host map in your application. Store the overlay from `onDeckglChange` in state and attach it to the map in an effect, so it is attached once per instance and detached during cleanup. See [Attach the overlay to the host map](./using-with-maps.md#attach-the-overlay-to-the-host-map) for the lifecycle, and the [Mapbox](./base-maps/using-with-mapbox.md) and [MapLibre](./base-maps/using-with-maplibre.md) guides for complete examples.
 
 Deck callbacks such as `onClick` are deck.gl event handlers passed to the root, not React synthetic events on `<layer>` or `<view>`.
 
 ## Next steps
 
-Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Mapbox and MapLibre integration](./mapbox-maplibre.md) for host-map lifecycle and worker setup, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
+Read the [DeckGL API](../api-reference/deckgl.md) for standalone and interleaved ownership details, [Using with maps](./using-with-maps.md) for host-map lifecycle and provider guides, and [Native elements](../api-reference/native-elements.md) for the exact `<layer>` and `<view>` contract.
 
 If you are migrating an existing `@deck.gl/react` application, use the bounded compatibility adapter rather than changing native imports in place. See [Migrate from `@deck.gl/react`](./migrate-from-deckgl-react.md) for its supported wrapper matrix and limitations.
 

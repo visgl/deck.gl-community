@@ -23,10 +23,10 @@ Each provider entry point exposes its concrete overlay contract:
 | Entry point | Props and instance |
 | --- | --- |
 | Root or `/dom` | `DeckglProps` and `DeckglInstance`, which is `Deck` |
-| `/mapbox` | `MapboxDeckGLProps`; `onDeckglChange` receives `MapboxOverlay | null` |
-| `/maplibre` | `MapLibreDeckGLProps`; `onDeckglChange` receives `MapLibreOverlay | null` |
+| `/mapbox` | `MapboxDeckGLProps`; `onDeckglChange` receives `MapboxOverlay \| null` |
+| `/maplibre` | `MapLibreDeckGLProps`; `onDeckglChange` receives `MapLibreOverlay \| null` |
 
-Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckglChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views. See [Mapbox and MapLibre integration](../developer-guide/mapbox-maplibre.md) for complete attachment and shared-context guidance.
+Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckglChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views. See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
 
 ## Props and lifecycle
 
