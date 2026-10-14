@@ -50,7 +50,13 @@ describe('DeckCanvas', () => {
       );
     }
     const panels = render(<Panels moved={false} />);
+    vi.mocked(original).mockClear();
     panels.rerender(<Panels moved />);
+    // No intermediate empty props reach Deck: retained layers and canvas/widget
+    // resources must survive updates without teardown and reattachment.
+    expect(original).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(original).mock.calls[0][0].layers).toEqual([layer]);
+    expect(vi.mocked(original).mock.calls[0][0]._canvases).toHaveLength(2);
     expect(deck.props.layers).toEqual([layer]);
     const filter = deck.props.layerFilter!;
     expect(filter({layer, viewport: {id: 'first-view'}} as any)).toBe(true);

@@ -28,6 +28,40 @@ function createCanvas(id: string): HTMLCanvasElement {
 }
 
 describe('DeckCanvas registry', () => {
+  it('stages sibling updates and imperative baseline changes without publishing missing panels', () => {
+    const deck = createDeck();
+    const original = deck.setProps;
+    const registry = getCanvasRegistry(deck);
+    const a = {};
+    const b = {};
+    const moving = createLayer('moving');
+    const first = {canvas: createCanvas('a'), views: [createView('a')], layers: []};
+    const second = {canvas: createCanvas('b'), views: [createView('b')], layers: [moving]};
+    registry.setContribution(a, first);
+    registry.setContribution(b, second);
+    vi.mocked(original).mockClear();
+    registry.removeContribution(a, true);
+    registry.removeContribution(b, true);
+    expect(original).not.toHaveBeenCalled();
+    registry.setContribution(a, {...first, layers: [moving]});
+    expect(original).not.toHaveBeenCalled();
+    const global = createLayer('global');
+    deck.setProps({layers: [global], pickingRadius: 7});
+    expect(deck.props.layers).toEqual([moving]);
+    expect(deck.props.pickingRadius).toBe(7);
+    registry.setContribution(b, {...second, layers: []});
+    expect(deck.props.layers).toEqual([global, moving]);
+    expect(deck.props._canvases).toEqual([first.canvas, second.canvas]);
+    registry.removeContribution(a, true);
+    registry.removeContribution(b);
+    expect(deck.props._canvases).toHaveLength(2);
+    registry.setContribution(a, first);
+    expect(deck.props._canvases).toEqual([first.canvas]);
+    registry.removeContribution(a);
+    expect(deck.props.layers).toEqual([global]);
+    expect(deck.setProps).toBe(original);
+  });
+
   it('composes filters and routes composite descendants by their top-level owner', () => {
     const deck = createDeck();
     const baselineFilter = vi.fn(() => true);

@@ -52,6 +52,13 @@ export class DeckCanvasRegistry {
       for (const key of MANAGED_KEYS) {
         if (Object.hasOwn(props, key)) Object.assign(nextBaseline, {[key]: props[key]});
       }
+      if ([...this.contributions.values()].some(value => value === null)) {
+        const unmanaged = {...props};
+        for (const key of MANAGED_KEYS) delete unmanaged[key];
+        this.originalSetProps.call(this.deck, unmanaged);
+        this.baseline = nextBaseline;
+        return;
+      }
       const resolved = this.resolveProps(nextBaseline, this.contributions);
       this.originalSetProps.call(this.deck, {...props, ...resolved});
       this.baseline = nextBaseline;
@@ -61,6 +68,10 @@ export class DeckCanvasRegistry {
   setContribution(token: object, contribution: CanvasContribution): void {
     const next = new Map(this.contributions);
     next.set(token, contribution);
+    if ([...next.values()].some(value => value === null)) {
+      this.contributions = next;
+      return;
+    }
     const resolved = this.resolveProps(this.baseline, next);
     this.originalSetProps.call(this.deck, resolved);
     this.contributions = next;
@@ -74,10 +85,15 @@ export class DeckCanvasRegistry {
     // Keep insertion order while React withdraws props ahead of an update.
     if (preserveSlot) next.set(token, null);
     else next.delete(token);
-    this.originalSetProps.call(
-      this.deck,
-      next.size ? this.resolveProps(this.baseline, next) : this.baseline
-    );
+    // Layout cleanups stage withdrawals only. Publishing an intermediate empty
+    // panel would detach its canvases/widgets and discard retained layer state.
+    // The last sibling setup publishes the complete next commit.
+    if (![...next.values()].some(value => value === null)) {
+      this.originalSetProps.call(
+        this.deck,
+        next.size ? this.resolveProps(this.baseline, next) : this.baseline
+      );
+    }
     this.contributions = next;
     if (!next.size) {
       if (this.deck.setProps === this.wrappedSetProps) {
