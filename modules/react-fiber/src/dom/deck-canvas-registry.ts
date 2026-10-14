@@ -33,9 +33,7 @@ function assertUnique(ids: string[], kind: string): void {
 /** Aggregates React canvas contributions while retaining imperative baseline props. */
 export class DeckCanvasRegistry {
   private contributions = new Map<object, CanvasContribution | null>();
-  private committedContributions = new Map<object, CanvasContribution | null>();
   private baseline: DeckProps<any>;
-  private committedBaseline: DeckProps<any>;
   private originalSetProps: Deck<any>['setProps'];
   private wrappedSetProps: Deck<any>['setProps'];
   private hadOwnSetProps: boolean;
@@ -45,7 +43,6 @@ export class DeckCanvasRegistry {
       throw new Error('DeckCanvas requires a Deck created with _canvases: []');
     }
     this.baseline = Object.fromEntries(MANAGED_KEYS.map(key => [key, deck.props[key]]));
-    this.committedBaseline = this.baseline;
     this.originalSetProps = deck.setProps;
     this.hadOwnSetProps = Object.hasOwn(deck, 'setProps');
     // deck.gl 9.4 has no prop-source seam. Keep this adapter instance-local and
@@ -55,6 +52,7 @@ export class DeckCanvasRegistry {
       for (const key of MANAGED_KEYS) {
         if (Object.hasOwn(props, key)) Object.assign(nextBaseline, {[key]: props[key]});
       }
+      const resolved = this.resolveProps(nextBaseline, this.contributions);
       if ([...this.contributions.values()].some(value => value === null)) {
         const unmanaged = {...props};
         for (const key of MANAGED_KEYS) delete unmanaged[key];
@@ -62,39 +60,35 @@ export class DeckCanvasRegistry {
         this.baseline = nextBaseline;
         return;
       }
-      const resolved = this.resolveProps(nextBaseline, this.contributions);
       this.originalSetProps.call(this.deck, {...props, ...resolved});
       this.baseline = nextBaseline;
-      this.committedBaseline = nextBaseline;
     };
   }
 
   setContribution(token: object, contribution: CanvasContribution): void {
-    const next = new Map(this.contributions);
-    next.set(token, contribution);
-    if ([...next.values()].some(value => value === null)) {
-      this.contributions = next;
-      return;
-    }
     const hadStagedContributions = [...this.contributions.values()].some(value => value === null);
     try {
+      const next = new Map(this.contributions);
+      next.set(token, contribution);
+      // Validate known contributions before staging; withdrawn siblings are
+      // skipped until their setups run, so transfers do not collide.
       const resolved = this.resolveProps(this.baseline, next);
+      if ([...next.values()].some(value => value === null)) {
+        this.contributions = next;
+        return;
+      }
       this.originalSetProps.call(this.deck, resolved);
+      this.contributions = next;
+      this.deck.setProps = this.wrappedSetProps;
+      REGISTRIES.set(this.deck, this);
     } catch (error) {
-      // Discard the entire failed staged commit so null slots cannot block
-      // later sibling or imperative updates after validation fails.
       if (hadStagedContributions) {
-        this.contributions = new Map(this.committedContributions);
-        this.baseline = this.committedBaseline;
-        this.originalSetProps.call(this.deck, this.resolveProps(this.baseline, this.contributions));
+        // The failing panel's boundary will unmount it. Keep successful sibling
+        // setups, which will not run again merely because that boundary failed.
+        this.removeContribution(token);
       }
       throw error;
     }
-    this.contributions = next;
-    this.committedContributions = new Map(next);
-    this.committedBaseline = this.baseline;
-    this.deck.setProps = this.wrappedSetProps;
-    REGISTRIES.set(this.deck, this);
   }
 
   removeContribution(token: object, preserveSlot = false): void {
@@ -104,8 +98,6 @@ export class DeckCanvasRegistry {
     if (preserveSlot) next.set(token, null);
     else {
       next.delete(token);
-      // A failed sibling update must never resurrect a panel that unmounted.
-      this.committedContributions.delete(token);
     }
     // Layout cleanups stage withdrawals only. Publishing an intermediate empty
     // panel would detach its canvases/widgets and discard retained layer state.
@@ -115,8 +107,6 @@ export class DeckCanvasRegistry {
         this.deck,
         next.size ? this.resolveProps(this.baseline, next) : this.baseline
       );
-      this.committedContributions = new Map(next);
-      this.committedBaseline = this.baseline;
     }
     this.contributions = next;
     if (!next.size) {

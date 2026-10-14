@@ -28,36 +28,33 @@ function createCanvas(id: string): HTMLCanvasElement {
 }
 
 describe('DeckCanvas registry', () => {
-  it('rolls back failed staged props so sibling and imperative updates can continue', () => {
+  it('keeps successful sibling updates after a staged panel fails validation', () => {
     const deck = createDeck();
     const registry = getCanvasRegistry(deck);
     const a = {};
     const b = {};
-    const layer = createLayer('retained');
-    const first = {canvas: createCanvas('a'), views: [createView('a')], layers: [layer]};
+    const first = {
+      canvas: createCanvas('a'),
+      views: [createView('a')],
+      layers: [createLayer('old')]
+    };
     const second = {canvas: createCanvas('b'), views: [createView('b')], layers: []};
     registry.setContribution(a, first);
     registry.setContribution(b, second);
     registry.removeContribution(a, true);
     registry.removeContribution(b, true);
-    registry.setContribution(b, second);
-    expect(() => registry.setContribution(a, {...first, views: []})).toThrow(
-      'views must not be empty'
-    );
-    const siblingLayer = createLayer('sibling');
-    registry.setContribution(b, {...second, layers: [siblingLayer]});
-    expect(deck.props.layers).toEqual([layer, siblingLayer]);
+    const updated = createLayer('updated');
+    registry.setContribution(a, {...first, layers: [updated]});
     const global = createLayer('global');
     deck.setProps({layers: [global]});
-    expect(deck.props.layers).toEqual([global, layer, siblingLayer]);
-    registry.removeContribution(a, true);
-    registry.removeContribution(b);
-    deck.setProps({layers: [createLayer('discarded-staged-baseline')]});
-    expect(() => registry.setContribution(a, {...first, views: []})).toThrow(
+    expect(() => registry.setContribution(b, {...second, views: []})).toThrow(
       'views must not be empty'
     );
-    expect(deck.props.layers).toEqual([global, layer]);
+    expect(deck.props.layers).toEqual([global, updated]);
     expect(deck.props._canvases).toEqual([first.canvas]);
+    registry.removeContribution(b);
+    deck.setProps({pickingRadius: 9});
+    expect(deck.props.layers).toEqual([global, updated]);
     registry.removeContribution(a);
     expect(deck.props.layers).toEqual([global]);
   });

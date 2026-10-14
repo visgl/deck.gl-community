@@ -1,4 +1,4 @@
-import {StrictMode} from 'react';
+import {Component, StrictMode, type ReactNode} from 'react';
 import {cleanup, render} from '@testing-library/react';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {MapView} from '@deck.gl/core';
@@ -35,6 +35,42 @@ function createCanvas(id: string) {
 }
 
 describe('DeckCanvas', () => {
+  it('preserves a valid sibling update when a separate error boundary removes a failed panel', () => {
+    class Boundary extends Component<{children: ReactNode}, {failed: boolean}> {
+      state = {failed: false};
+      static getDerivedStateFromError() {
+        return {failed: true};
+      }
+      render() {
+        return this.state.failed ? null : this.props.children;
+      }
+    }
+    const deck = createDeck();
+    const original = createLayer('old');
+    const updated = createLayer('updated');
+    const a = createView('a');
+    const b = createView('b');
+    function Panels({fail}: {fail: boolean}) {
+      return (
+        <>
+          <DeckCanvas deck={deck} id="a" views={a} layers={[fail ? updated : original]} />
+          <Boundary>
+            <DeckCanvas deck={deck} id="b" views={fail ? [] : b} />
+          </Boundary>
+        </>
+      );
+    }
+    const panels = render(<Panels fail={false} />);
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      panels.rerender(<Panels fail />);
+      expect(deck.props.layers).toEqual([updated]);
+      expect((deck.props._canvases as HTMLCanvasElement[]).map(canvas => canvas.id)).toEqual(['a']);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
   it('moves a layer from a later sibling to an earlier sibling in one commit', () => {
     const deck = createDeck();
     const firstView = createView('first-view');
