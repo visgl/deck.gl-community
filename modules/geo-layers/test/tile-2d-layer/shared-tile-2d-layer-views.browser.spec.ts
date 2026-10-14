@@ -1,0 +1,106 @@
+// deck.gl-community
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {Deck, MapView} from '@deck.gl/core';
+import {webgl2Adapter} from '@luma.gl/webgl';
+import {afterEach, describe, expect, test} from 'vitest';
+import {SharedTile2DLayer, SharedTileset2D} from '../../src';
+
+// A view the deck no longer draws the layer in releases its hold on the shared tileset: its tiles
+// are no longer selected (pinned against eviction) and its tileset consumer is detached.
+
+const MAIN = new MapView({id: 'main', x: 0, width: '50%'});
+const MINI = new MapView({id: 'mini', x: '50%', width: '50%'});
+const VIEW_STATE = {
+  main: {longitude: 0, latitude: 0, zoom: 3},
+  mini: {longitude: 100, latitude: 40, zoom: 5}
+};
+
+let deck: Deck<any> | null = null;
+let parent: HTMLDivElement | null = null;
+let tileset: SharedTileset2D | null = null;
+
+afterEach(() => {
+  deck?.finalize();
+  deck = null;
+  parent?.remove();
+  parent = null;
+  tileset?.finalize();
+  tileset = null;
+});
+
+function createDeck(props: Record<string, unknown> = {}): SharedTileset2D {
+  tileset = new SharedTileset2D({getTileData: () => [], maxZoom: 6});
+  parent = document.createElement('div');
+  document.body.append(parent);
+  deck = new Deck({
+    parent,
+    width: 256,
+    height: 128,
+    deviceProps: {adapters: [webgl2Adapter]},
+    views: [MAIN, MINI],
+    viewState: VIEW_STATE as any,
+    layers: [new SharedTile2DLayer({id: 'tiles', data: tileset, renderSubLayers: () => null})],
+    ...props
+  });
+  return tileset;
+}
+
+function getLayer(): any {
+  return (deck as any)?.layerManager?.getLayers().find((layer: any) => layer.id === 'tiles');
+}
+
+function viewIds(): string[] {
+  return [...(getLayer()?.state?.tilesetViews.keys() || [])].sort();
+}
+
+/** Zoom levels of the tiles the shared tileset holds selected for any consumer. */
+function selectedZooms(): number[] {
+  return [...new Set((tileset?.selectedTiles || []).map(tile => tile.index.z))].sort();
+}
+
+async function waitFor(condition: () => boolean, message: string): Promise<void> {
+  for (let i = 0; i < 120; i++) {
+    if (condition()) {
+      return;
+    }
+    await new Promise(resolve => requestAnimationFrame(resolve));
+  }
+  throw new Error(`${message}: views ${viewIds()}, selected zooms ${selectedZooms()}`);
+}
+
+describe('SharedTile2DLayer views', () => {
+  test('detaches a view the deck stops rendering', async () => {
+    const shared = createDeck();
+    await waitFor(
+      () => viewIds().join() === 'main,mini' && selectedZooms().join() === '3,5',
+      'expected both views to select tiles'
+    );
+    expect(shared.stats.get('Consumers').count).toBe(2);
+
+    // `main` keeps its viewport.
+    deck!.setProps({views: [MAIN], viewState: {main: VIEW_STATE.main} as any});
+    await waitFor(() => viewIds().join() === 'main', 'expected the mini view to be detached');
+
+    expect(shared.stats.get('Consumers').count).toBe(1);
+    expect(selectedZooms()).toEqual([3]);
+    expect(getLayer().isLoaded).toBe(true);
+  }, 30_000);
+
+  test('does not keep a view for a viewport the layerFilter excludes the layer from', async () => {
+    const shared = createDeck();
+    await waitFor(() => viewIds().join() === 'main,mini', 'expected both views');
+
+    deck!.setProps({layerFilter: ({viewport}: any) => viewport.id !== 'mini'});
+    await waitFor(() => viewIds().join() === 'main', 'expected the filtered view to be detached');
+
+    // The layer still draws in `main` over the following frames, and `mini` does not return.
+    for (let i = 0; i < 10; i++) {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    expect(viewIds()).toEqual(['main']);
+    expect(shared.stats.get('Consumers').count).toBe(1);
+    expect(selectedZooms()).toEqual([3]);
+  }, 30_000);
+});

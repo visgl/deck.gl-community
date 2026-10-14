@@ -89,6 +89,9 @@ const defaultProps: DefaultProps<SharedTile2DLayerProps> = {
   zoomOffset: 0
 };
 
+/** Id of the viewport deck.gl's layer manager uses before the deck has real viewports. */
+const PLACEHOLDER_VIEWPORT_KEY = 'DEFAULT-INITIAL-VIEWPORT';
+
 /** Internal defaults used to detect whether layer props were explicitly overridden. */
 const TILE2D_LAYER_DEFAULT_OPTION_VALUES = {
   maxCacheSize: null,
@@ -441,6 +444,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     // the loading state change.
     const loadedViews = new Set<unknown>();
 
+    this._pruneUndrawnViewports();
     for (const [viewportKey, viewport] of this._knownViewports) {
       this._prunePlaceholderViewportView(viewportKey);
       const tilesetView = this._getOrCreateTilesetView(viewportKey);
@@ -639,15 +643,61 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     return value === defaultValue;
   }
 
+  /**
+   * Detaches the views of viewports the deck no longer draws this layer in, so that their tiles no
+   * longer stay selected, pinned in the cache, and counted by `isLoaded`.
+   */
+  private _pruneUndrawnViewports(): void {
+    for (const viewportKey of this._getUndrawnViewportKeys()) {
+      this._knownViewports.delete(viewportKey);
+      this.state.tilesetViews.get(viewportKey)?.finalize();
+      this.state.tilesetViews.delete(viewportKey);
+      this.state.frameNumbers.delete(viewportKey);
+    }
+  }
+
+  /**
+   * Known viewports the deck no longer draws this layer in. As in deck.gl's `LayersPass`, a layer
+   * is drawn in each of the deck's viewports that the deck's `layerFilter` accepts it in; effect
+   * passes reuse those viewport ids. The answer does not depend on which viewports the last frame
+   * drew, so a view that skipped a frame stays. Nothing is undrawn without a deck, or while the
+   * deck has no viewports. The bootstrap placeholder has its own pruning.
+   */
+  private _getUndrawnViewportKeys(): string[] {
+    const deck = this.context?.deck;
+    const viewports = deck?.getViewports() || [];
+    if (!viewports.length) {
+      return [];
+    }
+    const {layerFilter} = deck!.props;
+    // deck.gl passes the top-level layer to `layerFilter`.
+    let rootLayer: Layer = this;
+    while (rootLayer.parent) {
+      rootLayer = rootLayer.parent;
+    }
+    return Array.from(this._knownViewports.keys()).filter(viewportKey => {
+      if (viewportKey === PLACEHOLDER_VIEWPORT_KEY) {
+        return false;
+      }
+      const viewport = viewports.find(candidate => candidate.id === viewportKey);
+      return (
+        !viewport ||
+        Boolean(
+          layerFilter &&
+            !layerFilter({layer: rootLayer, viewport, isPicking: false, renderPass: 'screen'})
+        )
+      );
+    });
+  }
+
   /** Drops the bootstrap placeholder viewport after a real viewport is known. */
   private _prunePlaceholderViewportView(viewportKey: string): void {
-    const placeholderViewportKey = 'DEFAULT-INITIAL-VIEWPORT';
-    if (viewportKey !== placeholderViewportKey) {
-      const placeholderView = this.state.tilesetViews.get(placeholderViewportKey);
+    if (viewportKey !== PLACEHOLDER_VIEWPORT_KEY) {
+      const placeholderView = this.state.tilesetViews.get(PLACEHOLDER_VIEWPORT_KEY);
       if (placeholderView) {
         placeholderView.finalize();
-        this.state.tilesetViews.delete(placeholderViewportKey);
-        this.state.frameNumbers.delete(placeholderViewportKey);
+        this.state.tilesetViews.delete(PLACEHOLDER_VIEWPORT_KEY);
+        this.state.frameNumbers.delete(PLACEHOLDER_VIEWPORT_KEY);
       }
     }
   }
