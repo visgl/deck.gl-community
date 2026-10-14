@@ -21,7 +21,7 @@ import './style.css';
 /** Synthetic global address space, bounded tile residency and batched native tree rendering. */
 export function mountTreeWorldExample(
   container: HTMLElement,
-  {comparisonHref = '../tree-lab/index.html', scroll = false} = {}
+  {comparisonHref = '', scroll = false} = {}
 ): () => void {
   const query = new URLSearchParams(location.search);
   const getQueryNumber = (key: string, fallback: number) => {
@@ -88,9 +88,10 @@ export function mountTreeWorldExample(
     <label class="toggle"><input type="checkbox" aria-label="Wind">Wind</label><label class="toggle"><input type="checkbox" aria-label="Shadows">Shadows</label><button id="world-measure">Measure moving view</button></div>
     <div class="forest-stage"><div class="canvas"></div><div class="forest-caption"><strong id="world-residency">Loading the forest…</strong><span id="world-work">Waiting for crowns…</span><span id="world-frame">Measuring draws…</span></div></div>
     <div class="status" aria-live="polite">Preparing source…</div><details><summary>Measurements</summary><pre id="world-results">Measure the current scale to capture raw frame intervals and residency.</pre></details>
-    <footer class="footer"><a data-world-link="comparison">TreeLayer garden</a> · Synthetic capacity of <span id="world-total-count">${(sourceOptions.count ?? WORLD_TREE_COUNT).toLocaleString()}</span> records; this is not a real global inventory. Rainforest structure uses synthetic broadleaf forms, inspired by closed tropical canopies; it is not Jaú inventory or species data. Web Mercator does not cover the poles.</footer>`;
+    <footer class="footer">${comparisonHref ? '<a data-world-link="comparison">TreeLayer garden</a> · ' : ''}Synthetic capacity of <span id="world-total-count">${(sourceOptions.count ?? WORLD_TREE_COUNT).toLocaleString()}</span> records; this is not a real global inventory. Rainforest structure uses synthetic broadleaf forms, inspired by closed tropical canopies; it is not Jaú inventory or species data. Web Mercator does not cover the poles.</footer>`;
   container.replaceChildren(root);
-  root.querySelector<HTMLAnchorElement>('[data-world-link="comparison"]')!.href = comparisonHref;
+  if (comparisonHref)
+    root.querySelector<HTMLAnchorElement>('[data-world-link="comparison"]')!.href = comparisonHref;
   const stage = root.querySelector<HTMLDivElement>('.canvas')!;
   stage.style.background = '#f3f4f2';
   const status = root.querySelector('.status')!;

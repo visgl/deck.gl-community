@@ -47,6 +47,7 @@ it.each([
       const deck = (props.mock.contexts as Deck[]).find(
         instance => instance.props?.parent === parent.querySelector('.canvas')
       )!;
+      expect(parent.querySelector('[data-world-link="comparison"]')).toBeNull();
       expect(parent.querySelector<HTMLInputElement>('[aria-label="Wind"]')!.checked).toBe(expected);
       expect((deck.props.layers[0] as TreeLayer).props.windStrength > 0).toBe(expected);
     } finally {
