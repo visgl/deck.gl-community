@@ -107,4 +107,24 @@ describe('LabelTextLayer in the browser', () => {
     expect(actual.some(value => value > 0)).toBe(true);
     expect([...actual]).toEqual([...expected]);
   });
+
+  test('draws no glyph of a label that getLineGlyphs hides, and all of one it draws straight', async () => {
+    const withMode = (mode: number) => ({
+      ...PROPS,
+      getLineGlyphs: (d: any) => {
+        const glyphs = new Float32Array(Array.from(d.text as string).length * 4);
+        for (let i = 3; i < glyphs.length; i += 4) {
+          glyphs[i] = mode;
+        }
+        return glyphs;
+      },
+      getLineGlyphKey: () => String(mode)
+    });
+    const hidden = await renderPixels(new LabelTextLayer({id: 'text', ...withMode(-1)} as any));
+    deck?.finalize();
+    parent?.remove();
+    const straight = await renderPixels(new LabelTextLayer({id: 'text', ...withMode(0)} as any));
+    expect(straight.some(value => value > 0)).toBe(true);
+    expect(hidden.some(value => value > 0)).toBe(false);
+  });
 });
