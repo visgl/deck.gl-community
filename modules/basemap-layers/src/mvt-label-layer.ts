@@ -1921,8 +1921,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /** The style inputs of glyphs along lines, besides the row's text and line. */
   getLineGlyphStyleKey(): string {
     const triggers = this.getLabelUpdateTriggers();
-    // The advances are measured again once a font has loaded (`forgetCharacterWidths`).
-    return `${triggers.getText}|${triggers.getSize}|${triggers.getPixelOffset}|${triggers.getTextAnchor}|${this.getStyleUpdateTrigger('text-keep-upright')}|${getCharacterWidthsRevision()}`;
+    // The advances are measured again once the label font has loaded (`forgetCharacterWidths`).
+    const font = this.getFont();
+    const widthsRevision = getCharacterWidthsRevision(
+      getTextLayerFontWeight(font),
+      font.fontFamily
+    );
+    return `${triggers.getText}|${triggers.getSize}|${triggers.getPixelOffset}|${triggers.getTextAnchor}|${this.getStyleUpdateTrigger('text-keep-upright')}|${widthsRevision}`;
   }
 
   /**

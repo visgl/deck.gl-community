@@ -1,4 +1,4 @@
-import {describe, expect, test} from 'vitest';
+import {describe, expect, test, vi} from 'vitest';
 import Point from '@mapbox/point-geometry';
 import {mat4} from 'gl-matrix';
 // MapLibre GL JS's own functions, from the source its package ships, to compare against.
@@ -316,14 +316,38 @@ describe('MVTLabelLayer glyphs along lines', () => {
     );
   });
 
-  test('places glyphs again once the label font has loaded', () => {
-    const layer = lineLayer();
-    const key = layer.getLineGlyphStyleKey();
-    expect(layer.getLineGlyphStyleKey()).toBe(key);
-    // The font loads: the advances measured with a fallback font are forgotten.
-    const font = layer.getFont();
-    forgetCharacterWidths(getTextLayerFontWeight(font), font.fontFamily);
-    expect(layer.getLineGlyphStyleKey()).not.toBe(key);
+  test('places glyphs again once the label font has loaded with other advances', () => {
+    // A canvas whose font measures each character `width` pixels at 64px: half an em at first.
+    let width = 32;
+    vi.stubGlobal(
+      'OffscreenCanvas',
+      class {
+        getContext() {
+          return {font: '', measureText: () => ({width})};
+        }
+      }
+    );
+    try {
+      const layer = lineLayer({'text-font': ['Font Loading In This Test']});
+      const [row] = rowsOf(layer, EAST);
+      const font = layer.getFont();
+      const weight = getTextLayerFontWeight(font);
+      const key = layer.getLineGlyphStyleKey();
+      const first = layer.getLineGlyphs(row, {zoom: 14}, 0, key)!.glyphs[0];
+      // Another font loads, or this one loads with the advances already measured: the same glyphs.
+      forgetCharacterWidths(weight, 'Another Font');
+      forgetCharacterWidths(weight, font.fontFamily);
+      expect(layer.getLineGlyphStyleKey()).toBe(key);
+      // The font loads with wider advances: the glyphs are placed again, further apart.
+      width = 36;
+      forgetCharacterWidths(weight, font.fontFamily);
+      const next = layer.getLineGlyphStyleKey();
+      expect(next).not.toBe(key);
+      const placed = layer.getLineGlyphs(row, {zoom: 14}, 0, next)!.glyphs[0];
+      expect(Math.abs(placed)).toBeGreaterThan(Math.abs(first) + 1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   test('curves text only on a flat map, on WebGL, for text turned to the line', () => {
