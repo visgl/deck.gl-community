@@ -375,6 +375,16 @@ export async function renderBasemapLayer(
               document.fonts.status === 'loaded';
             if (!ready) {
               settled = 0;
+              // A font that loads without changing a layer would not draw another frame.
+              if (document.fonts.status !== 'loaded') {
+                document.fonts.ready.then(() => {
+                  // Unless the render is over, and the deck finalized.
+                  const current = deck as any;
+                  if (current?.layerManager) {
+                    current.redraw('reference-render fonts');
+                  }
+                });
+              }
               return;
             }
             if (settled < SETTLE_FRAMES) {
