@@ -16,6 +16,8 @@ const HEIGHT = 96;
 let deck: Deck<any> | null = null;
 let parent: HTMLDivElement | null = null;
 let onFrame: ((image: ImageData) => void) | null = null;
+/** Whether frames drawn while tiles load are read too, as they are once the map has settled. */
+let readLoadingFrames = false;
 
 function cleanup() {
   deck?.finalize();
@@ -23,6 +25,7 @@ function cleanup() {
   parent?.remove();
   parent = null;
   onFrame = null;
+  readLoadingFrames = false;
 }
 
 afterEach(cleanup);
@@ -97,7 +100,11 @@ function createDeck(layer: unknown, viewState: Record<string, number>): void {
     onAfterRender: () => {
       const layers = (deck as any)?.layerManager?.getLayers() || [];
       // A basemap draws no sublayers until its style resolves.
-      if (!onFrame || layers.length < 2 || layers.some((l: any) => !l.isLoaded)) {
+      if (
+        !onFrame ||
+        layers.length < 2 ||
+        (!readLoadingFrames && layers.some((l: any) => !l.isLoaded))
+      ) {
         return;
       }
       // Read the frame back in the render callback, before the drawing buffer is cleared.
@@ -160,24 +167,39 @@ describe('labels while the map rotates', () => {
     createDeck(basemap, view);
     const first = await settledFrame();
     expect(centerTextPixels(first)).toBeGreaterThan(20);
-    const rows = new Set<unknown>();
+    const getRows = () =>
+      (deck as any).layerManager
+        .getLayers()
+        .filter((layer: any) => layer.state?.placementHandle)
+        .map((layer: any) => layer.state.labelData);
+    const firstRows = getRows();
+    let rowsChanged = 0;
     const lost: number[] = [];
-    // Turned half a degree a frame, across the 5 degree steps at which line labels turn upright,
-    // until tiles that were out of view come in at the corners.
-    for (let bearing = 0.5; bearing <= 90; bearing += 0.5) {
-      deck!.setProps({viewState: {...view, bearing} as any});
-      const image = await nextFrame();
+    // Every frame drawn from here on is read, those drawn while tiles load included.
+    readLoadingFrames = true;
+    let bearing = 0;
+    let moving = true;
+    onFrame = image => {
       if (centerTextPixels(image) < 20) {
         lost.push(bearing);
       }
-      for (const layer of (deck as any).layerManager.getLayers()) {
-        if (layer.state?.placementHandle) {
-          rows.add(layer.state.labelData);
-        }
+      const rows = getRows();
+      if (moving && rows.some((row: unknown, i: number) => row !== firstRows[i])) {
+        rowsChanged++;
       }
+    };
+    // Turned half a degree a frame, across the 5 degree steps at which line labels turn upright,
+    // until tiles that were out of view come in at the corners.
+    while (bearing < 90) {
+      bearing += 0.5;
+      deck!.setProps({viewState: {...view, bearing} as any});
+      await new Promise(resolve => window.requestAnimationFrame(resolve));
     }
+    moving = false;
+    await new Promise(resolve => window.setTimeout(resolve, 200));
+    onFrame = null;
     // Tiles came into view, and with them new label rows, while the view moved.
-    expect(rows.size).toBeGreaterThan(1);
+    expect(rowsChanged).toBeGreaterThan(0);
     expect(lost).toEqual([]);
   }, 60_000);
 });

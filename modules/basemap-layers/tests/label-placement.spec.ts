@@ -348,6 +348,22 @@ describe('LabelPlacement', () => {
     expect(placement.getSlotBase(fourth)).toBe(0);
   });
 
+  test('a layer that takes the slots another left is placed at once, while the view moves', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 300;
+    const first = fakeLayer(1, [0, 100]);
+    placement.register(first);
+    const device = fakeDevice();
+    const place = vi.spyOn(placement as any, 'place');
+    placement.prepare(device as any, fakeViewport('map', 0), false, 0);
+    // Replaced by a layer of the same slot revision, in the same slots.
+    placement.unregister(first);
+    const second = fakeLayer(1, [100, 0]);
+    expect(placement.register(second)).toBe(0);
+    placement.prepare(device as any, fakeViewport('map', 1), false, 50);
+    expect(place).toHaveBeenCalledTimes(2);
+  });
+
   test('a texture that grows keeps the visibility of every slot', () => {
     const placement = new LabelPlacement();
     placement.interval = 300;
