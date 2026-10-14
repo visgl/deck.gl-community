@@ -19,6 +19,7 @@ import {
 } from './fill-pattern';
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
+import type {LabelPlacement} from './label-placement';
 import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
 import {isSameList} from './util';
 import {
@@ -81,6 +82,8 @@ type BasemapLayerGroup = {
   spriteAtlases?: SpriteAtlas[] | null;
   /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
   fontFamily?: LabelFontFamily | null;
+  /** The label placement shared by the map's label layers (see `LabelPlacement`). */
+  labelPlacement?: LabelPlacement | null;
   /** Externally owned source caches; BasemapLayer supplies and finalizes these. */
   tilesets?: Map<BasemapSource, SharedTileset2D>;
 };
@@ -1359,7 +1362,8 @@ function createStyledVectorSubLayer({
   collisionPriorityRange,
   spriteAtlases,
   loadOptions,
-  fontFamily
+  fontFamily,
+  labelPlacement
 }: {
   idPrefix: string;
   sourceId: string;
@@ -1375,6 +1379,8 @@ function createStyledVectorSubLayer({
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
   fontFamily?: LabelFontFamily | null;
+  /** The label placement shared by the map's label layers (see `LabelPlacement`). */
+  labelPlacement?: LabelPlacement | null;
 }) {
   if (features.length === 0) {
     return null;
@@ -1394,7 +1400,8 @@ function createStyledVectorSubLayer({
       collisionPriorityRange,
       spriteAtlases,
       loadOptions,
-      fontFamily
+      fontFamily,
+      labelPlacement
     });
   }
 
@@ -1487,7 +1494,8 @@ function createVectorLayerGroup({
   labelPriorityRanges,
   styleDefinition,
   spriteAtlases,
-  fontFamily
+  fontFamily,
+  labelPlacement
 }: {
   idPrefix: string;
   id: string;
@@ -1510,6 +1518,8 @@ function createVectorLayerGroup({
   spriteAtlases?: SpriteAtlas[] | null;
   /** Label font override; tiles regenerate when it changes. */
   fontFamily?: LabelFontFamily | null;
+  /** The label placement shared by the map's label layers (see `LabelPlacement`). */
+  labelPlacement?: LabelPlacement | null;
 }) {
   const filterSnapshots = new FilterSnapshots();
 
@@ -1557,7 +1567,8 @@ function createVectorLayerGroup({
         depthTestedFrom,
         styleDefinition,
         spriteAtlases,
-        fontFamily
+        fontFamily,
+        labelPlacement
       ]
     },
     renderLabelLayers: ((tilesByStyleLayer, getSubLayerProps, hidden) =>
@@ -1585,7 +1596,8 @@ function createVectorLayerGroup({
           collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
           spriteAtlases,
           loadOptions,
-          fontFamily
+          fontFamily,
+          labelPlacement
         });
       })) as RenderLabelLayers,
     renderSubLayers: props => {
@@ -1694,7 +1706,8 @@ function createVectorLayerGroup({
             collisionPriorityRange: labelPriorityRanges?.get(styleLayer),
             spriteAtlases,
             loadOptions,
-            fontFamily
+            fontFamily,
+            labelPlacement
           })
         );
       });
@@ -1737,6 +1750,7 @@ export function getBasemapLayers({
   loadOptions,
   spriteAtlases,
   fontFamily,
+  labelPlacement,
   tilesets
 }: BasemapLayerGroup) {
   const config = getConfig(globe);
@@ -1764,6 +1778,7 @@ export function getBasemapLayers({
         mode,
         spriteAtlases,
         fontFamily,
+        labelPlacement,
         tilesets
       })
     );
@@ -1781,7 +1796,8 @@ export function getGlobeBaseLayers({
   zoom = 0,
   loadOptions,
   spriteAtlases,
-  fontFamily
+  fontFamily,
+  labelPlacement
 }: Omit<BasemapLayerGroup, 'mode'>) {
   return getBasemapLayers({
     idPrefix,
@@ -1791,7 +1807,8 @@ export function getGlobeBaseLayers({
     zoom,
     loadOptions,
     spriteAtlases,
-    fontFamily
+    fontFamily,
+    labelPlacement
   });
 }
 
@@ -1813,6 +1830,7 @@ function createSymbolSubLayer({
   spriteAtlases,
   loadOptions,
   fontFamily,
+  labelPlacement,
   tiles
 }: {
   props: any;
@@ -1829,6 +1847,8 @@ function createSymbolSubLayer({
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
   fontFamily?: LabelFontFamily | null;
+  /** The label placement shared by the map's label layers (see `LabelPlacement`). */
+  labelPlacement?: LabelPlacement | null;
 }) {
   return new MVTLabelLayer({
     ...getSubLayerBaseProps(props),
@@ -1842,6 +1862,7 @@ function createSymbolSubLayer({
     // The sprite atlas images load through the same fetch as the style and its tiles.
     iconLoadOptions: loadOptions,
     fontFamily,
+    labelPlacement,
     // Polygon labels outside the tile's own extent are left to the neighbouring tile.
     tileBoundingBox: props.tile?.bbox ?? null,
     // Labels along lines are spaced in pixels at the tile's own zoom.
@@ -3040,6 +3061,7 @@ function getStyleLayers({
   mode,
   spriteAtlases,
   fontFamily,
+  labelPlacement,
   tilesets
 }: {
   idPrefix: string;
@@ -3051,6 +3073,8 @@ function getStyleLayers({
   mode: BasemapMode;
   spriteAtlases?: SpriteAtlas[] | null;
   fontFamily?: LabelFontFamily | null;
+  /** The label placement shared by the map's label layers (see `LabelPlacement`). */
+  labelPlacement?: LabelPlacement | null;
   tilesets?: Map<BasemapSource, SharedTileset2D>;
 }) {
   const labelPriorityRanges = getLabelPriorityRanges(
@@ -3125,7 +3149,8 @@ function getStyleLayers({
       labelPriorityRanges,
       styleDefinition,
       spriteAtlases,
-      fontFamily
+      fontFamily,
+      labelPlacement
     });
   });
 }
