@@ -105,6 +105,14 @@ describe('placeSymbol', () => {
     expect(grid.hitTest(150, 110, 151, 111)).toBe(true);
   });
 
+  test('a symbol waiting for its icon is not placed, nor in the way, unless the icon is optional', () => {
+    const waiting = {...symbol(FREE, null), iconPending: true};
+    const grid = new GridIndex(300, 300, 25);
+    expect(placeSymbol(grid, waiting, {...RULES, textOverlap: 'always'})).toBe(0);
+    expect(grid.hitTest(110, 110, 112, 112)).toBe(false);
+    expect(placeSymbol(grid, waiting, {...RULES, iconOptional: true})).toBe(TEXT_VISIBLE);
+  });
+
   test('without optional parts, a symbol is placed only if both parts are', () => {
     expect(placeAfterBlocker(symbol(BLOCKED, FREE))).toBe(0);
     expect(placeAfterBlocker(symbol(FREE, BLOCKED))).toBe(0);
@@ -777,6 +785,24 @@ describe('MVTLabelLayer placement symbols', () => {
     expect(
       rules({'text-optional': true, 'icon-ignore-placement': true, 'text-ignore-placement': false})
     ).toMatchObject({textOptional: true, iconIgnorePlacement: true, textIgnorePlacement: false});
+  });
+
+  test('while the sprites load, a symbol whose icon-image names an image waits for it', () => {
+    const pending = (spriteAtlases: unknown, iconImage: unknown = 'dot') => {
+      const layer = labelLayer(
+        {'text-field': 'x', 'icon-image': iconImage},
+        [{properties: {}, x: 100}],
+        {spriteAtlases}
+      );
+      const out: PlacementSymbol[] = [];
+      layer.getPlacementSymbols(VIEWPORT, 0, out);
+      return out.map(({iconPending}) => Boolean(iconPending));
+    };
+    expect(pending(null)).toEqual([true]);
+    expect(pending([ATLAS])).toEqual([false]);
+    expect(pending([])).toEqual([false]);
+    // An empty image name has no icon to wait for.
+    expect(pending(null, '')).toEqual([false]);
   });
 
   test('while the sprites load, a symbol keeps the rules it has once its icon arrives', () => {
