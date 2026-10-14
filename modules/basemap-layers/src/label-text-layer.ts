@@ -13,6 +13,7 @@ import type {
   FilterContext
 } from '@deck.gl/core';
 import type {Texture} from '@luma.gl/core';
+import {getLabelFontRenderer} from './label-font-renderer';
 import {SharedTextureSet} from './shared-texture';
 
 /** `text-justify`: `auto` aligns the lines of a label by its text anchor, as `TextLayer` does. */
@@ -94,9 +95,14 @@ export function spaceParagraph(
   return {x, y: layout.y, rowWidth, size: [width, layout.size[1]]};
 }
 
+/** Appended to the font atlas cache keys of label layers (see `initializeState`). */
+const LABEL_ATLAS_KEY = 'label-glyph-overhang';
+
 const defaultProps: DefaultProps<LabelTextLayerProps> = {
   getLetterSpacing: {type: 'accessor', value: 0},
-  getTextJustify: {type: 'accessor', value: 'auto'}
+  getTextJustify: {type: 'accessor', value: 'auto'},
+  // Keeps the part of italic glyphs left of their origin (see `getLabelFontRenderer`).
+  _getFontRenderer: {type: 'function', value: getLabelFontRenderer}
 };
 
 /** Evaluates a constant or function accessor. */
@@ -218,6 +224,16 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     /** Each label's layout, by label object (see `transformParagraph`). */
     layouts?: WeakMap<object, CachedLayout>;
   };
+
+  initializeState(): void {
+    super.initializeState();
+    // deck.gl caches font atlases by their font and settings, not by the renderer that draws their
+    // glyphs: a TextLayer with the same font and settings would share glyphs drawn without their
+    // overhang (see `getLabelFontRenderer`). The atlases of label layers have keys of their own.
+    const manager = this.state.fontAtlasManager as any;
+    const getKey = manager._getKey.bind(manager);
+    manager._getKey = () => `${getKey()} ${LABEL_ATLAS_KEY}`;
+  }
 
   renderLayers(): any {
     const {atlas} = this.state.fontAtlasManager;

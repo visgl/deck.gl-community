@@ -52,6 +52,8 @@ export class SharedTile2DView<DataT = any> {
   private _viewport: Viewport | null = null;
   /** Last z-range used during tile selection. */
   private _zRange: [number, number] | null = null;
+  /** Tileset selection version the current tile selection was computed with. */
+  private _selectionVersion = -1;
   /** Last model matrix applied to tile selection. */
   private _modelMatrix = new Matrix4();
   /** Inverse of the current model matrix. */
@@ -108,7 +110,8 @@ export class SharedTile2DView<DataT = any> {
       !this._viewport ||
       !viewport.equals(this._viewport) ||
       !equals(this._zRange, zRange) ||
-      isModelMatrixNew
+      isModelMatrixNew ||
+      this._selectionVersion !== this._tileset.selectionVersion
     ) {
       if (isModelMatrixNew) {
         this._modelMatrixInverse = modelMatrixAsMatrix4.clone().invert();
@@ -116,6 +119,7 @@ export class SharedTile2DView<DataT = any> {
       }
       this._viewport = viewport;
       this._zRange = zRange;
+      this._selectionVersion = this._tileset.selectionVersion;
       const tileIndices = this._tileset.getTileIndices({
         viewState: viewport,
         maxZoom: this._tileset.maxZoom,
@@ -135,6 +139,7 @@ export class SharedTile2DView<DataT = any> {
 
     const changed = this._updateTileStates();
     this._tileset.updateConsumer(this.id, this._selectedTiles || [], this._getVisibleTiles());
+    this._pruneEvictedTileStates();
 
     if (changed) {
       this._frameNumber++;
@@ -175,6 +180,20 @@ export class SharedTile2DView<DataT = any> {
     return result;
   }
 
+  /**
+   * Drops the state of tiles the shared tileset no longer holds, so that evicted tiles and their
+   * content are not kept alive by this view. Tiles evicted by another consumer between two updates
+   * are dropped at the next update.
+   */
+  private _pruneEvictedTileStates(): void {
+    const cachedTiles = new Set(this._tileset.tiles);
+    for (const tile of this._state.keys()) {
+      if (!cachedTiles.has(tile)) {
+        this._state.delete(tile);
+      }
+    }
+  }
+
   /** Memoized screen-space culling bounds helper. */
   private _getCullBounds = memoize(getCullBounds);
 
@@ -197,11 +216,7 @@ export class SharedTile2DView<DataT = any> {
       this._state.set(tile, state);
     }
 
-    if (typeof refinementStrategy === 'function') {
-      refinementStrategy(allTiles);
-    } else {
-      STRATEGIES[refinementStrategy](allTiles, this._state);
-    }
+    STRATEGIES[refinementStrategy](allTiles, this._state);
 
     let changed = false;
     for (const tile of allTiles) {

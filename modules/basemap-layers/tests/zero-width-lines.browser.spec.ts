@@ -46,12 +46,14 @@ const fetchTile = async () => [
     [0.5, 0.5],
     [0.9, 0.85]
   ]),
-  // Near the top edge of the tile, which the view shows at every zoom of these tests.
+  // In the tile's top left corner, which the view shows at every zoom of these tests: the view is
+  // centered on a tile corner, and up to zoom 6 it draws the zoom 5 tiles (a vector source's tiles
+  // are those at the floor of the zoom), so at 5.8 it shows only the corner of each tile.
   ...['zero', 'dashed', 'blurred'].map((layerName, index) =>
     lineFeature(layerName, 10 + index, [
-      [0.15, 0.02 + 0.03 * index],
-      [0.5, 0.08 + 0.03 * index],
-      [0.85, 0.02 + 0.03 * index]
+      [0.02, 0.02 + 0.03 * index],
+      [0.07, 0.05 + 0.03 * index],
+      [0.12, 0.02 + 0.03 * index]
     ])
   )
 ];
@@ -231,7 +233,7 @@ describe('lines kept at width 0', () => {
     expect(pickAll()).toEqual([1, 2]);
     await render(style(true, {alone: true}));
     expect(pickAll()).toEqual([1, 2]);
-    // Steps later, with a width, the same lines are drawn and picked.
+    // Steps later, with a width, the same lines in the same tiles are drawn and picked.
     await render(style(true), 5.8);
     expect(pickAll()).toEqual(expect.arrayContaining([10, 11, 12]));
   }, 90_000);

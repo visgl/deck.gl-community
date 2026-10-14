@@ -101,9 +101,11 @@ Cache limits for retained tiles.
 
 Request scheduling controls for tile loading.
 
-#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never' | Function`, optional) {/* #refinementstrategy */}
+#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never'`, optional) {/* #refinementstrategy */}
 
 Placeholder strategy used by attached `SharedTile2DView` consumers.
+
+Unlike deck.gl's `TileLayer`, a custom refinement function is not supported, because each view keeps its own tile visibility rather than setting it on the shared tiles. Passing a function, or any other value, throws an error.
 
 ### Instance Members
 
@@ -159,6 +161,8 @@ The listener may provide:
 #### `setOptions(opts)` {/* #setoptions */}
 
 Updates runtime configuration and reapplies `TileSource` metadata overrides.
+
+When the change affects which tiles cover a viewport (`minZoom`, `maxZoom`, `extent`, `tileSize`, `zoomOffset` or the adapter), every attached view selects its tiles again on its next update, even if its viewport has not moved. `TileSource` metadata that arrives after the first update has the same effect.
 
 #### `reloadAll()` {/* #reloadall */}
 
