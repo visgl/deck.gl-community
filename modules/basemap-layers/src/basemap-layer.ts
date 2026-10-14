@@ -13,7 +13,8 @@ import {
   getSourceLoadOptions,
   getStyleDefinitionZoomLimits,
   getStyleSourceLayers,
-  getTilePyramidProps
+  getTilePyramidProps,
+  VECTOR_TILE_ZOOM_OFFSET
 } from './globe-layers';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
@@ -346,6 +347,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
           ...loader._getTilesetOptions(),
           ...getTilePyramidProps(source),
           tileSize: source.tileSize || 512,
+          zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
           getTileData: tile => loader.getTileData(tile)
         });
         this.state.tilesets.set(source, tileset);

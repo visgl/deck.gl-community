@@ -13,14 +13,37 @@ export const STRATEGY_NEVER = 'never';
 export const STRATEGY_REPLACE = 'no-overlap';
 export const STRATEGY_DEFAULT = 'best-available';
 
-/** Function form of a refinement strategy. */
-export type RefinementStrategyFunction = (tiles: SharedTile2DHeader[]) => void;
-/** Strategy controlling how parent and child placeholder tiles are displayed while content loads. */
+/**
+ * Strategy controlling how parent and child placeholder tiles are displayed while content loads.
+ * Unlike deck.gl's `TileLayer`, a custom function is not supported: tile visibility is held per
+ * view, not on the shared tile headers a function would receive.
+ */
 export type RefinementStrategy =
   | typeof STRATEGY_NEVER
   | typeof STRATEGY_REPLACE
-  | typeof STRATEGY_DEFAULT
-  | RefinementStrategyFunction;
+  | typeof STRATEGY_DEFAULT;
+
+const REFINEMENT_STRATEGIES: readonly unknown[] = [
+  STRATEGY_NEVER,
+  STRATEGY_REPLACE,
+  STRATEGY_DEFAULT
+];
+
+/** Throws unless `refinementStrategy` is one of the named strategies, `undefined` or `null`. */
+export function validateRefinementStrategy(refinementStrategy: unknown): void {
+  if (
+    refinementStrategy !== undefined &&
+    refinementStrategy !== null &&
+    !REFINEMENT_STRATEGIES.includes(refinementStrategy)
+  ) {
+    const value =
+      typeof refinementStrategy === 'function' ? 'a function' : JSON.stringify(refinementStrategy);
+    throw new Error(
+      `refinementStrategy must be '${STRATEGY_DEFAULT}', '${STRATEGY_REPLACE}' or ` +
+        `'${STRATEGY_NEVER}', not ${value}.`
+    );
+  }
+}
 
 /** Core configuration shared by all {@link SharedTileset2D} instances. */
 export type Tileset2DProps<DataT = any, ViewStateT = unknown> = {
@@ -147,6 +170,8 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
   private _minZoom?: number;
   /** Most recent traversal context used to derive tile metadata. */
   private _lastTileContext: SharedTileset2DTileContext<ViewStateT> | null = null;
+  /** Incremented whenever a resolved option that affects tile selection changes. */
+  private _selectionVersion = 0;
 
   /** Creates a tileset from either `getTileData` or a loaders.gl `TileSource`. */
   constructor(opts: SharedTileset2DProps<DataT, ViewStateT>) {
@@ -245,6 +270,16 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
     return this._minZoom;
   }
 
+  /**
+   * Changes whenever an option that decides which tiles cover a viewport changes, either through
+   * {@link setOptions} or when TileSource metadata arrives. Views compare it with the version of
+   * their last selection and reselect tiles for an unchanged viewport, as deck.gl's `Tileset2D`
+   * does after `setOptions`.
+   */
+  get selectionVersion(): number {
+    return this._selectionVersion;
+  }
+
   /** Active refinement strategy for placeholder handling. */
   get refinementStrategy(): RefinementStrategy {
     return this.opts.refinementStrategy || STRATEGY_DEFAULT;
@@ -277,6 +312,7 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
 
   /** Updates tileset options and reapplies TileSource metadata overrides. */
   setOptions(opts: Partial<SharedTileset2DProps<DataT, ViewStateT>>): void {
+    validateRefinementStrategy(opts.refinementStrategy);
     this._rememberExplicitOptions(opts);
     this._baseOpts = {...this._baseOpts, ...opts};
     this._applyResolvedOptions();
@@ -471,6 +507,9 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
         tileSource.getTileData(loadProps) as Promise<DataT | null> | DataT | null;
     }
 
+    const previousOpts = this.opts;
+    const previousMaxZoom = this._maxZoom;
+    const previousMinZoom = this._minZoom;
     this.opts = resolvedOpts;
     this._maxZoom =
       typeof this.opts.maxZoom === 'number' && Number.isFinite(this.opts.maxZoom)
@@ -480,6 +519,17 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
       typeof this.opts.minZoom === 'number' && Number.isFinite(this.opts.minZoom)
         ? Math.ceil(this.opts.minZoom)
         : undefined;
+
+    if (
+      this._maxZoom !== previousMaxZoom ||
+      this._minZoom !== previousMinZoom ||
+      this.opts.tileSize !== previousOpts.tileSize ||
+      this.opts.zoomOffset !== previousOpts.zoomOffset ||
+      this.opts.adapter !== previousOpts.adapter ||
+      !isSameExtent(this.opts.extent, previousOpts.extent)
+    ) {
+      this._selectionVersion++;
+    }
   }
 
   /** Maps TileSource metadata into supported tileset options. */
@@ -698,6 +748,19 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
     }
     return null;
   }
+}
+
+/** Compares two extents by value, so a new array with the same bounds does not reselect tiles. */
+function isSameExtent(
+  extent1: number[] | null | undefined,
+  extent2: number[] | null | undefined
+): boolean {
+  const bounds1 = normalizeBounds(extent1);
+  const bounds2 = normalizeBounds(extent2);
+  if (!bounds1 || !bounds2) {
+    return bounds1 === bounds2;
+  }
+  return bounds1.every((value, index) => value === bounds2[index]);
 }
 
 function normalizeBounds(extent: number[] | null | undefined) {
