@@ -32,7 +32,7 @@ function assertUnique(ids: string[], kind: string): void {
 
 /** Aggregates React canvas contributions while retaining imperative baseline props. */
 export class DeckCanvasRegistry {
-  private contributions = new Map<object, CanvasContribution>();
+  private contributions = new Map<object, CanvasContribution | null>();
   private baseline: DeckProps<any>;
   private originalSetProps: Deck<any>['setProps'];
   private wrappedSetProps: Deck<any>['setProps'];
@@ -68,10 +68,12 @@ export class DeckCanvasRegistry {
     REGISTRIES.set(this.deck, this);
   }
 
-  removeContribution(token: object): void {
+  removeContribution(token: object, preserveSlot = false): void {
     if (!this.contributions.has(token)) return;
     const next = new Map(this.contributions);
-    next.delete(token);
+    // Keep insertion order while React withdraws props ahead of an update.
+    if (preserveSlot) next.set(token, null);
+    else next.delete(token);
     this.originalSetProps.call(
       this.deck,
       next.size ? this.resolveProps(this.baseline, next) : this.baseline
@@ -88,7 +90,7 @@ export class DeckCanvasRegistry {
 
   private resolveProps(
     baseline: DeckProps<any>,
-    contributions: Map<object, CanvasContribution>
+    contributions: Map<object, CanvasContribution | null>
   ): DeckProps<any> {
     const canvases = [...(baseline._canvases || [])];
     const views = baseline.views
@@ -101,6 +103,7 @@ export class DeckCanvasRegistry {
     const owners = new Map<string, CanvasContribution>();
     const viewOwners = new Map<string, CanvasContribution>();
     for (const contribution of contributions.values()) {
+      if (!contribution) continue;
       const {canvas} = contribution;
       if (!canvas.id) throw new Error('DeckCanvas: canvas requires an id');
       if (!contribution.views.length) throw new Error('DeckCanvas: views must not be empty');

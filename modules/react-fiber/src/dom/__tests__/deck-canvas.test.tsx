@@ -35,6 +35,34 @@ function createCanvas(id: string) {
 }
 
 describe('DeckCanvas', () => {
+  it('moves a layer from a later sibling to an earlier sibling in one commit', () => {
+    const deck = createDeck();
+    const firstView = createView('first-view');
+    const secondView = createView('second-view');
+    const layer = createLayer('moving');
+    const original = deck.setProps;
+    function Panels({moved}: {moved: boolean}) {
+      return (
+        <>
+          <DeckCanvas deck={deck} id="first" views={firstView} layers={moved ? [layer] : []} />
+          <DeckCanvas deck={deck} id="second" views={secondView} layers={moved ? [] : [layer]} />
+        </>
+      );
+    }
+    const panels = render(<Panels moved={false} />);
+    panels.rerender(<Panels moved />);
+    expect(deck.props.layers).toEqual([layer]);
+    const filter = deck.props.layerFilter!;
+    expect(filter({layer, viewport: {id: 'first-view'}} as any)).toBe(true);
+    expect(filter({layer, viewport: {id: 'second-view'}} as any)).toBe(false);
+    panels.rerender(<Panels moved={false} />);
+    expect(deck.props.layers).toEqual([layer]);
+    expect(deck.props.layerFilter!({layer, viewport: {id: 'second-view'}} as any)).toBe(true);
+    panels.unmount();
+    expect(deck.props.layers).toEqual([]);
+    expect(deck.setProps).toBe(original);
+  });
+
   it('mounts two panels, updates local props and restores the latest baseline on unmount', () => {
     const deck = createDeck();
     const original = deck.setProps;

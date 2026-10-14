@@ -75,13 +75,18 @@ export function DeckCanvas({
   useIsomorphicLayoutEffect(() => {
     const current = attachment.current;
     if (current) {
-      current.registry.setContribution(token.current, {
+      const contributionToken = token.current;
+      current.registry.setContribution(contributionToken, {
         canvas: current.canvas,
         views: Array.isArray(views) ? views : [views],
         layers,
         widgets,
         layerFilter
       });
+      // React runs layout cleanups for all changed siblings before their setups.
+      // Withdraw old props first so a layer/view/widget can move between panels
+      // without colliding with its previous owner during the same commit.
+      return () => current.registry.removeContribution(contributionToken, true);
     }
   }, [deck, externalCanvas, canvasId, views, layers, widgets, layerFilter]);
 
