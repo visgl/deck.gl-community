@@ -57,7 +57,7 @@
   },
   "world-positron-z0.6": {
     "ssim": 0.8333,
-    "edgeF": 0.7691,
+    "edgeF": 0.7787,
     "labelRecall": 0.9091,
     "labelPrecision": 0.2778,
     "referenceLabels": 22,
