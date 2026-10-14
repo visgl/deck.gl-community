@@ -303,17 +303,18 @@ function createPatternAtlas(atlas: SpriteAtlas, names: string[]): PatternAtlas {
  * premultiplied, with a linear filter, so a pattern's edges blend toward transparent in its own
  * color. A canvas uploads unpremultiplied, with transparent pixels black: the filter would blend
  * the edges toward black, and draw light patterns with dark outlines. The image is read back from
- * the canvas so that these colors survive (a canvas keeps none for transparent pixels).
+ * the canvas so that these colors survive (a canvas keeps none for transparent pixels). It is
+ * changed in place, with no copy: only transparent pixels change, and their alpha, which weighs
+ * every neighbor's color, stays 0, so no pixel's new color depends on another's.
  */
 export function bleedIntoTransparentPixels(
   {data, width, height}: ImageData,
   [left, top, right, bottom]: number[] = [0, 0, width, height]
 ): void {
-  const source = data.slice();
   for (let y = top; y < bottom; y++) {
     for (let x = left; x < right; x++) {
       const i = (y * width + x) * 4;
-      if (source[i + 3] !== 0) {
+      if (data[i + 3] !== 0) {
         continue;
       }
       let r = 0;
@@ -329,10 +330,10 @@ export function bleedIntoTransparentPixels(
           }
           // Weighted by alpha, as a premultiplied filter weighs them.
           const j = (ny * width + nx) * 4;
-          const alpha = source[j + 3];
-          r += source[j] * alpha;
-          g += source[j + 1] * alpha;
-          b += source[j + 2] * alpha;
+          const alpha = data[j + 3];
+          r += data[j] * alpha;
+          g += data[j + 1] * alpha;
+          b += data[j + 2] * alpha;
           count += alpha;
         }
       }
