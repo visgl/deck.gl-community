@@ -1,5 +1,5 @@
 import type {Layer, View} from '@deck.gl/core';
-import {Deck} from '@deck.gl/core';
+import {Deck, assert} from '@deck.gl/core';
 import {createStore, noop, log} from '../shared/index';
 import type {ReactNode} from 'react';
 import reactReconciler from 'react-reconciler';
@@ -200,16 +200,14 @@ export function createRoot(node: RootElement, options: RootOptions = {}): Reconc
   const createExternalOverlay = options.createExternalOverlay;
   const isExternalOverlay = Boolean(createExternalOverlay);
 
-  // A registry key has one immutable rendering capability. Reusing it with a
-  // different provider could otherwise retain the wrong external control.
   const existingRoot = roots.get(node);
   if (existingRoot) {
-    if (
-      existingRoot.isExternalOverlay !== isExternalOverlay ||
-      existingRoot.createExternalOverlay !== createExternalOverlay
-    ) {
-      throw new Error('Cannot reuse a DeckGL root with a different overlay capability.');
-    }
+    // A registry key has one immutable rendering capability. Reusing it with a
+    // different provider could otherwise retain the wrong external control.
+    assert(
+      existingRoot.isExternalOverlay === isExternalOverlay &&
+        existingRoot.createExternalOverlay === createExternalOverlay
+    );
     return existingRoot;
   }
 

@@ -241,9 +241,7 @@ describe('renderer', () => {
 
       createRoot(node, {createExternalOverlay: firstFactory});
 
-      expect(() => createRoot(node, {createExternalOverlay: secondFactory})).toThrow(
-        'Cannot reuse a DeckGL root with a different overlay capability.'
-      );
+      expect(() => createRoot(node, {createExternalOverlay: secondFactory})).toThrow();
     });
   });
 
