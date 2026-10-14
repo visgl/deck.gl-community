@@ -37,6 +37,7 @@ import {
   allowsLetterSpacing,
   canMeasureText,
   forgetCharacterWidths,
+  getCharacterWidthsRevision,
   getCharacterWidthMeasurer,
   transformText,
   wrapText
@@ -1436,7 +1437,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getColor: getTrigger('text-color', 'text-opacity'),
       // A layer's slots move when it needs more of them.
       getPlacementSlot: String(this.state?.placementSlotBase ?? -1),
-      getPixelOffset: getTrigger('text-offset', 'text-size'),
+      // Text along a line turns its offset by the line (see `withLineDirection`).
+      getPixelOffset: getTrigger(
+        'text-offset',
+        'text-size',
+        'text-rotation-alignment',
+        'symbol-placement'
+      ),
       getAngle: `${this.state?.bearingStep}|${getTrigger('text-keep-upright')}`,
       // Also lays out the lines of each label (see `LabelTextLayer`).
       getTextAnchor: getTrigger('text-anchor', 'text-justify', 'symbol-placement'),
@@ -2387,10 +2394,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /**
    * What placement needs of each row that does not change with the view, kept until the rows, the
-   * label text, the sprites or the zoom step change: the rules, the placement order, and per row
-   * (in `labelData` order) its text box (`x1, y1, w, h` in pixels from the anchor, before
-   * padding; `w` NaN without text) and its icon box (`x1, y1, x2, y2` padded, before any turn;
-   * `x1` NaN without an icon).
+   * label text, the sprites, the style's layout values, the font's measured widths or the zoom
+   * step change: the rules, the placement order, and per row (in `labelData` order) its text box
+   * (`x1, y1, w, h` in pixels from the anchor, before padding; `w` NaN without text) and its icon
+   * box (`x1, y1, x2, y2` padded, before any turn; `x1` NaN without an icon).
    */
   getPlacementGeometry(): PlacementGeometry | null {
     const {config, spriteAtlases, styleLayer, fontFamily} = this.props;
@@ -2399,22 +2406,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return null;
     }
     const zoom = getZoomBucket(this.props.zoom || 0);
-    const key = [labelData, this.state.labelText, spriteAtlases, styleLayer, fontFamily, zoom];
+    // Measured again once a font has loaded (`forgetCharacterWidths`).
+    const widthsRevision = getCharacterWidthsRevision();
+    // The layout values, so that a style layer edited in place is measured and ruled again, as
+    // `getCompiledStyleProperty` compiles an edited value again.
+    const layout = styleLayer?.layout ? Object.entries(styleLayer.layout).flat() : [];
+    const shared = [spriteAtlases, styleLayer, fontFamily, widthsRevision, zoom, ...layout];
+    const key = [labelData, this.state.labelText, ...shared];
     const cached = this.state.placementGeometry;
     if (cached && isSameList(cached.key, key)) {
       return cached;
     }
-    // Each row's boxes are kept while the text, the sprites, the style and the zoom step are the
-    // same: a `tiles` layer makes its rows again whenever a tile is shown or hidden, and the rows
-    // of the other tiles keep their objects.
-    const rowKey = [
-      this.state.labelText?.key[0],
-      this.state.labelText?.key[2],
-      spriteAtlases,
-      styleLayer,
-      fontFamily,
-      zoom
-    ];
+    // Each row's boxes are kept while the text, the sprites, the style, the font and the zoom step
+    // are the same: a `tiles` layer makes its rows again whenever a tile is shown or hidden, and
+    // the rows of the other tiles keep their objects.
+    const rowKey = [this.state.labelText?.key[0], this.state.labelText?.key[2], ...shared];
     let rowBoxes = this.state.placementRowBoxes;
     if (!rowBoxes || !isSameList(rowBoxes.key, rowKey)) {
       rowBoxes = {key: rowKey, boxes: new WeakMap()};
@@ -2423,8 +2429,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const evaluate = (name: string) =>
       this.getStyleProperty(name)?.evaluate(zoom) ?? getStylePropertyDefault(name);
     const hasTextData = Boolean(this.getStyleProperty('text-field'));
+    // While the sprites load (`null`), each symbol is taken to have its icon, so that its rules do
+    // not change when they arrive (see `spriteAtlases`).
     const hasIconData =
-      Boolean(this.getStyleProperty('icon-image')) && Boolean(spriteAtlases?.length);
+      Boolean(this.getStyleProperty('icon-image')) &&
+      (spriteAtlases === null || Boolean(spriteAtlases?.length));
     const rules: SymbolPlacementRules = {
       textOverlap: getOverlapMode(evaluate('text-overlap'), evaluate('text-allow-overlap')),
       iconOverlap: getOverlapMode(evaluate('icon-overlap'), evaluate('icon-allow-overlap')),

@@ -271,12 +271,24 @@ export const MAX_CACHED_FONTS = 32;
 export const MAX_CACHED_CHARACTERS = 4096;
 const CHARACTER_WIDTH_MEASURERS = new Map<string, (character: string) => number>();
 
+let characterWidthsRevision = 0;
+
 /**
  * Forgets the character advances measured for a CSS font, so they are measured again: a font that
  * was still loading was measured with a fallback font.
  */
 export function forgetCharacterWidths(fontWeight: number | string, fontFamily: string): void {
   CHARACTER_WIDTH_MEASURERS.delete(`${fontWeight} ${FONT_SIZE}px ${fontFamily}`);
+  characterWidthsRevision++;
+}
+
+/**
+ * A number that changes whenever {@link forgetCharacterWidths} forgets a font's advances, so that
+ * what was measured before can be measured again. A measurer evicted from a full cache measures the
+ * same widths again, and does not change it.
+ */
+export function getCharacterWidthsRevision(): number {
+  return characterWidthsRevision;
 }
 
 /**
