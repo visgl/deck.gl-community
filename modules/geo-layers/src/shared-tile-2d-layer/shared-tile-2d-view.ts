@@ -197,11 +197,7 @@ export class SharedTile2DView<DataT = any> {
       this._state.set(tile, state);
     }
 
-    if (typeof refinementStrategy === 'function') {
-      refinementStrategy(allTiles);
-    } else {
-      STRATEGIES[refinementStrategy](allTiles, this._state);
-    }
+    STRATEGIES[refinementStrategy](allTiles, this._state);
 
     let changed = false;
     for (const tile of allTiles) {

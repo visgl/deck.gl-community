@@ -152,9 +152,11 @@ Integer offset applied to the resolved tile zoom.
 
 Elevation bounds used when selecting geospatial tiles.
 
-#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never' | Function`, optional) {/* #refinementstrategy */}
+#### `refinementStrategy` (`'best-available' | 'no-overlap' | 'never'`, optional) {/* #refinementstrategy */}
 
 Controls how ancestor and descendant placeholders are shown while tile content is loading.
+
+Unlike deck.gl's `TileLayer`, a custom refinement function is not supported, because each view keeps its own tile visibility rather than setting it on the shared tiles. Passing a function, or any other value, throws an error.
 
 ### Cache and Request Options
 
