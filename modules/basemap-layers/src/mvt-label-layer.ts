@@ -2390,6 +2390,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const textInMapPlane = !isGlobe && Boolean(lineProps.getAngle) && lineProps.billboard === false;
     const iconInMapPlane = !isGlobe && iconAngleProps?.props.billboard === false;
     const toScreen = [1, 0, 0, 1];
+    const spritesLoading = rules.hasIconData && this.props.spriteAtlases === null;
     // On a globe, billboards along lines are turned to their lines as the view draws them (see
     // `getLineAngleExtensions`): they collide along that direction.
     const textGlobeTurn = isGlobe
@@ -2514,8 +2515,16 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         );
         icon = {box: [x + bx1, y + by1, x + bx2, y + by2]};
       }
-      if (text || icon) {
-        out.push({slot: slotBase + count - 1 - i, text, icon, occluded});
+      // While the sprites load, a row whose `icon-image` names an image waits for it.
+      const iconPending =
+        spritesLoading &&
+        Boolean(
+          String(
+            this.evaluateStyleProperty('icon-image', (row as any).__source?.object ?? row) ?? ''
+          )
+        );
+      if (text || icon || iconPending) {
+        out.push({slot: slotBase + count - 1 - i, text, icon, occluded, iconPending});
       }
     }
     return rules;
