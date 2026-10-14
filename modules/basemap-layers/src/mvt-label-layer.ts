@@ -1534,8 +1534,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Label anchors along the lines of a `LineString` or `MultiLineString` feature, for
    * `symbol-placement: line` or `line-center`, with the direction of the line at each. Lines are
-   * measured in pixels at the tile's zoom (see `getLinePlacementScale`), where `symbol-spacing`
-   * and `text-max-angle` are evaluated. As in MapLibre, the label's length, the window its bends
+   * measured in pixels at the tile's zoom (see `getLinePlacementScale`), where `symbol-spacing`,
+   * `text-max-angle` and the label's `text-letter-spacing` are evaluated. As in MapLibre, the label's length, the window its bends
    * are summed in and the first label's offset come from `text-size` at zoom 18, the same for
    * every tile; where that size is 0, the size at the tile's zoom is used. The text is measured by
    * `context.measureText`. Anchors outside the tile's own extent are left to the neighbouring tile.
@@ -1572,11 +1572,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     featureBudget.steps -= text?.length || 0;
     // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
     // neither has no length, and is not placed.
-    // As MapLibre's shaping, the letter spacing follows every character but the last.
+    // As MapLibre's shaping, the letter spacing follows every character but the last. MapLibre
+    // lays symbols out at the tile's zoom, so the spacing is the one at the placement zoom, not
+    // at the map's.
+    const letterSpacing = text && allowsLetterSpacing(text) ? evaluate('text-letter-spacing') : 0;
     const textLength =
       text && featureBudget.steps > 0
         ? (context.measureText(text) +
-            (Array.from(text).length - 1) * this.getLetterSpacing(feature, text)) *
+            (Array.from(text).length - 1) * (Number.isFinite(letterSpacing) ? letterSpacing : 0)) *
           textSize
         : 0;
     const iconLength = icon

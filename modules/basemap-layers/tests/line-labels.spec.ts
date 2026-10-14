@@ -948,6 +948,28 @@ describe('placement text size', () => {
     expect(rows[0].position[0] * 512).toBeCloseTo(0.1 * 512 + 64, 6);
   });
 
+  test('measures the letter spacing at the tile zoom, not the map zoom', () => {
+    const inside = {
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [0.1, 0.5],
+          [0.9, 0.5]
+        ]
+      },
+      properties: {name: 'Main Street'}
+    };
+    const firstAnchor = (props: Record<string, unknown>, spacing: unknown) =>
+      (lineLayer(props, {'text-letter-spacing': spacing}).getLabelData([inside], false) as any[])[0]
+        .position[0] * 512;
+    // A zoom-14 tile shown at zoom 14.9: MapLibre lays it out at zoom 14, without spacing.
+    const zoomed = {zoom: 14.9, tileZoom: 14};
+    const spacing = ['interpolate', ['linear'], ['zoom'], 14, 0, 15, 1];
+    expect(firstAnchor(zoomed, spacing)).toBe(firstAnchor(zoomed, 0));
+    // The spacing does move the first label: half of 10 gaps of 0.5 em at 10 px further in.
+    expect(firstAnchor(zoomed, 0.5)).toBeCloseTo(firstAnchor(zoomed, 0) + 25, 6);
+  });
+
   test('falls back to the tile zoom where text-size is 0 at zoom 18', () => {
     const rows = lineLayer({}, {'text-size': ['step', ['zoom'], 10, 17, 0]}).getLabelData(
       [ACROSS_TILE],
