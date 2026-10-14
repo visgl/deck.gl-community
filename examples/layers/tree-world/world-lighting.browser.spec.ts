@@ -17,10 +17,25 @@ it('retains tree pixels and releases planar shadow work when the ground is remov
   let frame = 0,
     opaquePixels = 0;
   const ground = new SolidPolygonLayer({
-    id: 'receiver-ground', data: [[[-0.01,-0.01,-0.02],[0.01,-0.01,-0.02],[0.01,0.01,-0.02],[-0.01,0.01,-0.02]]],
-    getPolygon: polygon => polygon, getFillColor: [226,231,222], shadowEnabled: false
+    id: 'receiver-ground',
+    data: [
+      [
+        [-0.01, -0.01, -0.02],
+        [0.01, -0.01, -0.02],
+        [0.01, 0.01, -0.02],
+        [-0.01, 0.01, -0.02]
+      ]
+    ],
+    getPolygon: polygon => polygon,
+    getFillColor: [226, 231, 222],
+    shadowEnabled: false
   });
-  const tree = new TreeLayer<TreeSpec>({id: 'receiver-tree', data: [{species: 'oak', position: [0,0], height: 12}], getTree: row => row, windStrength: 0});
+  const tree = new TreeLayer<TreeSpec>({
+    id: 'receiver-tree',
+    data: [{species: 'oak', position: [0, 0], height: 12}],
+    getTree: row => row,
+    windStrength: 0
+  });
   const deck = new Deck({
     parent,
     width: 256,
@@ -29,7 +44,14 @@ it('retains tree pixels and releases planar shadow work when the ground is remov
     _animate: true,
     deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
     views: new MapView({controller: true}),
-    initialViewState: {longitude: 0, latitude: 0, zoom: 20.5, position: [0,0,5], pitch: 58, bearing: 22},
+    initialViewState: {
+      longitude: 0,
+      latitude: 0,
+      zoom: 20.5,
+      position: [0, 0, 5],
+      pitch: 58,
+      bearing: 22
+    },
     effects: [lighting],
     layers: [ground, tree],
     onError: error => errors.push(error.message),
