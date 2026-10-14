@@ -49,8 +49,12 @@ describe('SharedTile2DView after a tileset option change', () => {
       view.update(viewportAt(3));
       expect(selectedZooms(view)).toEqual([4]);
 
+      tileset.setOptions({zoomOffset: 0});
+      view.update(viewportAt(3));
+      expect(selectedZooms(view)).toEqual([3]);
+
       // Below minZoom and without an extent, deck.gl's traversal selects no tiles.
-      tileset.setOptions({zoomOffset: 0, minZoom: 6});
+      tileset.setOptions({minZoom: 6});
       view.update(viewportAt(3));
       expect(selectedZooms(view)).toEqual([]);
     } finally {
