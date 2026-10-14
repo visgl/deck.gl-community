@@ -882,6 +882,21 @@ describe('mergeLines', () => {
     expect(rows.every(row => row.position[1] === 0.5)).toBe(true);
   });
 
+  test('joins a MultiLineString whose first line is a single vertex', () => {
+    // MapLibre joins the vertex to the line ending there, and drops the feature it belongs to.
+    const point = feature(
+      'Main',
+      [[0.3, 0.5]],
+      [
+        [0.1, 0.8],
+        [0.9, 0.8]
+      ]
+    );
+    const features = [single, point];
+    expect(getMergedGeometry(features)).toEqual(getMapLibreMergedGeometry(features));
+    expect(getMergedGeometry(features)).toEqual([single.geometry.coordinates].map(line => [line]));
+  });
+
   test('keeps the other lines of a MultiLineString that a line joins', () => {
     const owner = feature(
       'Main',
