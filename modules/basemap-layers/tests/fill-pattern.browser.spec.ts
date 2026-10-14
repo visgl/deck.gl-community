@@ -5,6 +5,7 @@
 import {Deck, MapView, _GlobeView as GlobeView} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
+import {getPatternAtlas} from '../src/fill-pattern';
 import {getBasemapLayers} from '../src/index';
 import type {SpriteAtlas} from '../src/sprite';
 
@@ -404,6 +405,62 @@ describe('fill-pattern in the browser', () => {
     expectColor(pixel(image, CENTER + Math.floor(period) + 3, CENTER + 3), RED);
     expectColor(pixel(image, CENTER + 3, CENTER + Math.floor(period / 2) + 3), GREEN);
     expectColor(pixel(image, CENTER + Math.floor(period / 2) + 3, CENTER + 14), BLACK);
+  });
+
+  test('a light pattern on transparent pixels draws no dark edges where it is scaled', async () => {
+    // White columns 3 atlas pixels wide on transparent ones, at zoom 6.5, where the pattern sized at
+    // zoom 6 is filtered at 2 ** 0.5 times its size. On a white background every pixel stays white,
+    // as with MapLibre's premultiplied atlas; transparent black would darken the columns' edges.
+    const canvas = new OffscreenCanvas(8, 8);
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgb(255, 255, 255)';
+    context.fillRect(0, 0, 3, 8);
+    const sprite: SpriteAtlas = {
+      id: 'default',
+      image: await createImageBitmap(canvas),
+      mapping: {stripes: {x: 0, y: 0, width: 8, height: 8, mask: false, pixelRatio: 1}}
+    };
+    const image = await render(
+      fillTile({'fill-pattern': 'stripes'}, WORLD, {zoom: 6.5, spriteAtlases: [sprite]}),
+      {zoom: 6.5}
+    );
+    let darkest = 255;
+    for (let y = 8; y < SIZE - 8; y++) {
+      for (let x = 8; x < SIZE - 8; x++) {
+        darkest = Math.min(darkest, ...pixel(image, x, y));
+      }
+    }
+    expect(darkest).toBeGreaterThanOrEqual(250);
+  });
+
+  test('a pattern takes no color from the pattern packed next to it', async () => {
+    // A 4x4 image whose first column is transparent and the rest white, and an opaque red one.
+    const canvas = new OffscreenCanvas(8, 4);
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgb(255, 255, 255)';
+    context.fillRect(1, 0, 3, 4);
+    context.fillStyle = 'rgb(255, 0, 0)';
+    context.fillRect(4, 0, 4, 4);
+    const sprite: SpriteAtlas = {
+      id: 'default',
+      image: await createImageBitmap(canvas),
+      mapping: {
+        white: {x: 0, y: 0, width: 4, height: 4, mask: false, pixelRatio: 1},
+        red: {x: 4, y: 0, width: 4, height: 4, mask: false, pixelRatio: 1}
+      }
+    };
+    const {image, mapping} = getPatternAtlas(sprite, ['white', 'red']) as any;
+    const {x, y} = mapping.white;
+    // Every transparent pixel of the white image and its border has no red in it.
+    for (let row = y - 1; row <= y + 4; row++) {
+      for (let column = x - 1; column <= x + 4; column++) {
+        const i = (row * image.width + column) * 4;
+        if (image.data[i + 3] === 0) {
+          expect([...image.data.slice(i, i + 3)], `${column}, ${row}`).not.toEqual([255, 0, 0]);
+          expect(image.data[i + 1], `${column}, ${row}`).toBe(image.data[i]);
+        }
+      }
+    }
   });
 
   test('fill-opacity applies to the pattern', async () => {
