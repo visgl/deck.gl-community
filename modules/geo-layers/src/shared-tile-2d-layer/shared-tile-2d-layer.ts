@@ -669,7 +669,9 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
       return [];
     }
     const viewportIds = new Set(viewports.map(viewport => viewport.id));
-    return Array.from(this._knownViewports.keys()).filter(
+    // Views live in `state`, which a new layer instance inherits; known viewports do not.
+    const keys = new Set([...this._knownViewports.keys(), ...this.state.tilesetViews.keys()]);
+    return Array.from(keys).filter(
       viewportKey => viewportKey !== PLACEHOLDER_VIEWPORT_KEY && !viewportIds.has(viewportKey)
     );
   }

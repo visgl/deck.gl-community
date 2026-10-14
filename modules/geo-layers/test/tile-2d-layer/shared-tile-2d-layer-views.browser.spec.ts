@@ -30,7 +30,7 @@ afterEach(() => {
   tileset = null;
 });
 
-function createDeck(): SharedTileset2D {
+function createDeck(views = [MAIN, MINI]): SharedTileset2D {
   tileset = new SharedTileset2D({getTileData: () => [], maxZoom: 6});
   parent = document.createElement('div');
   document.body.append(parent);
@@ -39,7 +39,7 @@ function createDeck(): SharedTileset2D {
     width: 256,
     height: 128,
     deviceProps: {adapters: [webgl2Adapter]},
-    views: [MAIN, MINI],
+    views,
     viewState: VIEW_STATE as any,
     // The default sublayers, so that deck.gl also filters them per viewport.
     layers: [new SharedTile2DLayer({id: 'tiles', data: tileset})]
@@ -86,5 +86,25 @@ describe('SharedTile2DLayer views', () => {
     expect(shared.stats.get('Consumers').count).toBe(1);
     expect(selectedZooms()).toEqual([3]);
     expect(getLayer().isLoaded).toBe(true);
+  }, 30_000);
+
+  test('detaches a removed view when the layer is replaced in the same update', async () => {
+    // `mini` draws first, so the deck's current viewport is `main` when the new layer updates.
+    const shared = createDeck([MINI, MAIN]);
+    await waitFor(
+      () => viewIds().join() === 'main,mini' && selectedZooms().join() === '3,5',
+      'expected both views to select tiles'
+    );
+
+    // A new layer instance inherits the views in its state, but has not seen their viewports.
+    deck!.setProps({
+      views: [MAIN],
+      viewState: {main: VIEW_STATE.main} as any,
+      layers: [new SharedTile2DLayer({id: 'tiles', data: shared})]
+    });
+    await waitFor(() => viewIds().join() === 'main', 'expected the mini view to be detached');
+
+    expect(shared.stats.get('Consumers').count).toBe(1);
+    expect(selectedZooms()).toEqual([3]);
   }, 30_000);
 });
