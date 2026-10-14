@@ -133,7 +133,7 @@ Wind uses the normalized clamped-cantilever shape `f(u) = u²(3 − u)/2` plus a
 
 Non-finite values use defaults; multipliers are clamped and quantized to `0.01`. Seeds are rounded. Growth remains limited to 600 nodes and 64 iterations. Animation and lighting updates retain geometry and owner rows. These controls describe procedural morphology, not predicted biological growth or yield.
 
-Citrus Lab exposes orange, lemon and lime forms with coherent structural controls, crop stages and branch inspection. Citrus remains evergreen through all seasons; white blossom, green fruit and ripe fruit are separate explicit inputs. Maturity varies with cultivar and location, as described by [UF/IFAS](https://ask.ifas.ufl.edu/publication/HS132). A variety preset is an illustrative tree form, not a cultivar reconstruction or ripening calendar.
+Citrus supports orange, lemon and lime forms through its characteristics and explicit crop inputs. Citrus remains evergreen through all seasons; white blossom, green fruit and ripe fruit are separate explicit inputs. Maturity varies with cultivar and location, as described by [UF/IFAS](https://ask.ifas.ufl.edu/publication/HS132). A variety preset is an illustrative tree form, not a cultivar reconstruction or ripening calendar.
 
 ```ts
 new TreeLayer({
@@ -169,3 +169,7 @@ Canopy sublayers use `SplatLayer` with owner rows, cached `prepared-splats` desc
 remain stable. The shared runtime allocates `maxCanopySplats` and `maxShadowSplats` across all
 canopy roots. An explicit child quota still limits that child. Wood and crops use their existing
 mesh paths; tree traits, seasons and original-tree picking remain TreeLayer responsibilities.
+
+## Example
+
+The [TreeLayer demo](/examples/layers/tree-lab) renders eight supplied trees with species, season, crown-shape, crop and wind controls. It uses the public `getTree` API and standard deck.gl lighting.
