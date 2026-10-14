@@ -8,8 +8,8 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
 import {LabelTextLayer} from '../src/label-text-layer';
 
-const WIDTH = 160;
-const HEIGHT = 48;
+const WIDTH = 320;
+const HEIGHT = 64;
 
 let deck: Deck<any> | null = null;
 let parent: HTMLDivElement | null = null;
@@ -70,7 +70,9 @@ const PROPS = {
   data: [{position: [0, 0], text: 'Montrouge Sy'}],
   getPosition: (d: any) => d.position,
   getText: (d: any) => d.text,
-  getSize: 20,
+  // Large enough that the atlas is sampled from its own two levels only: `LabelTextLayer` keeps no
+  // smaller ones (see `LABEL_ATLAS_MIP_LEVELS`), `TextLayer` the full chain.
+  getSize: 40,
   characterSet: 'auto',
   fontSettings: {sdf: true, fontSize: 64, buffer: 18, radius: 24, cutoff: 0.24, smoothing: 0.1},
   outlineWidth: 2,

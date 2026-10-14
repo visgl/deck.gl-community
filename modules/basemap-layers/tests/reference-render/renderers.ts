@@ -21,7 +21,7 @@ maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 /** One render of a scene. */
 export type Render = {
-  /** RGBA pixels composited on white, `VIEWPORT.width` by `VIEWPORT.height`. */
+  /** RGBA pixels composited on white, `VIEWPORT.width` by `VIEWPORT.height` times the pixel ratio. */
   pixels: Uint8ClampedArray;
   /** The text of every label the renderer drew (after collision). */
   labels: string[];
@@ -50,11 +50,20 @@ function createContainer(): HTMLDivElement {
   return container;
 }
 
-/** The pixels of a WebGL canvas composited on white. Call while its drawing buffer is valid. */
-function readCanvas(source: HTMLCanvasElement): Uint8ClampedArray {
+/** Options of a render. */
+export type RenderOptions = {
+  /** Device pixel ratio: the pixels are `VIEWPORT` times this. Default 1. */
+  pixelRatio?: number;
+};
+
+/**
+ * The pixels of a WebGL canvas composited on white, `pixelRatio` times the viewport. Call while its
+ * drawing buffer is valid.
+ */
+function readCanvas(source: HTMLCanvasElement, pixelRatio = 1): Uint8ClampedArray {
   const canvas = document.createElement('canvas');
-  canvas.width = VIEWPORT.width;
-  canvas.height = VIEWPORT.height;
+  canvas.width = VIEWPORT.width * pixelRatio;
+  canvas.height = VIEWPORT.height * pixelRatio;
   const context = canvas.getContext('2d')!;
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -189,7 +198,11 @@ function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[]
 }
 
 /** Renders a scene with MapLibre GL JS and reads back the placed labels. */
-export async function renderMapLibre(style: any, scene: ReferenceScene): Promise<Render> {
+export async function renderMapLibre(
+  style: any,
+  scene: ReferenceScene,
+  {pixelRatio = 1}: RenderOptions = {}
+): Promise<Render> {
   const container = createContainer();
   const requests: string[] = [];
   const problems: string[] = [];
@@ -199,7 +212,7 @@ export async function renderMapLibre(style: any, scene: ReferenceScene): Promise
     style,
     center: scene.center,
     zoom: scene.zoom,
-    pixelRatio: 1,
+    pixelRatio,
     // Labels at full opacity in the first idle frame.
     fadeDuration: 0,
     interactive: false,
@@ -222,7 +235,7 @@ export async function renderMapLibre(style: any, scene: ReferenceScene): Promise
   });
   try {
     await withTimeout(new Promise(resolve => map.once('idle', resolve)), 'MapLibre render');
-    const pixels = readCanvas(map.getCanvas());
+    const pixels = readCanvas(map.getCanvas(), pixelRatio);
     const labels = getPlacedTexts(map, style, map.getZoom());
     return {
       pixels,
@@ -377,13 +390,14 @@ export async function renderBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown> = {},
+  options: RenderOptions = {},
   draw = drawBasemapLayer
 ): Promise<Render> {
   const start = performance.now();
   resetFontAtlases();
-  const first = await draw(structuredClone(style), scene, layerProps);
+  const first = await draw(structuredClone(style), scene, layerProps, options);
   resetFontAtlases(first.fontAtlases);
-  const {fontAtlases, ...render} = await draw(style, scene, layerProps);
+  const {fontAtlases, ...render} = await draw(style, scene, layerProps, options);
   return {
     ...render,
     duration: performance.now() - start,
@@ -399,7 +413,8 @@ export type BasemapLayerDraw = Render & {fontAtlases: FontAtlas[]};
 async function drawBasemapLayer(
   style: any,
   scene: ReferenceScene,
-  layerProps: Record<string, unknown>
+  layerProps: Record<string, unknown>,
+  {pixelRatio = 1}: RenderOptions
 ): Promise<BasemapLayerDraw> {
   const parent = createContainer();
   performance.clearResourceTimings();
@@ -424,7 +439,7 @@ async function drawBasemapLayer(
           parent,
           width: VIEWPORT.width,
           height: VIEWPORT.height,
-          useDevicePixels: false,
+          useDevicePixels: pixelRatio === 1 ? false : pixelRatio,
           deviceProps: {adapters: [webgl2Adapter]},
           views: new MapView(),
           initialViewState: {
@@ -473,7 +488,7 @@ async function drawBasemapLayer(
               (layer: any) => !layer.isComposite && layer.props.visible
             ).length;
             fontAtlases = getFontAtlases(layers);
-            resolve(readCanvas(deck!.getCanvas()!));
+            resolve(readCanvas(deck!.getCanvas()!, pixelRatio));
           },
           onError: error => reject(error)
         });
