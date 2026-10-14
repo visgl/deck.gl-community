@@ -6,6 +6,7 @@
 import {describe, expect, test} from 'vitest';
 import {
   MAX_PATTERN_ATLAS_SIZE,
+  bleedIntoTransparentPixels,
   getFeaturesWithoutPattern,
   getFillPatternGroups,
   getFillPatternProps,
@@ -556,5 +557,93 @@ describe('pattern atlases', () => {
         80
       )
     ).toBeNull();
+  });
+});
+
+describe('bleedIntoTransparentPixels', () => {
+  test('gives transparent pixels next to visible ones their alpha-weighted color, and no alpha', () => {
+    // A row of 4 pixels: opaque red, half-transparent blue, transparent, transparent.
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 255, 85, 0, 0, 0, 0, 0, 0, 0, 0]);
+    bleedIntoTransparentPixels({data, width: 4, height: 1} as ImageData);
+    expect(Array.from(data.slice(0, 8))).toEqual([255, 0, 0, 255, 0, 0, 255, 85]);
+    // Next to the blue pixel only.
+    expect(Array.from(data.slice(8, 12))).toEqual([0, 0, 255, 0]);
+    // Next to transparent pixels only: unchanged.
+    expect(Array.from(data.slice(12, 16))).toEqual([0, 0, 0, 0]);
+  });
+
+  test('takes no color from outside its rectangle', () => {
+    // Opaque red at x = 0, then a rectangle from x = 1: transparent, opaque white.
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 0, 255, 255, 255, 255]);
+    bleedIntoTransparentPixels({data, width: 3, height: 1} as ImageData, [1, 0, 3, 1]);
+    expect(Array.from(data.slice(4, 8))).toEqual([255, 255, 255, 0]);
+  });
+
+  test('weighs neighbors by their alpha', () => {
+    // Opaque red, transparent, blue at a third of the alpha.
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 0, 0, 0, 255, 85]);
+    bleedIntoTransparentPixels({data, width: 3, height: 1} as ImageData);
+    expect(Array.from(data.slice(4, 8))).toEqual([191, 0, 64, 0]);
+  });
+
+  test('bleeds in place, copying nothing of the image', () => {
+    // An atlas makes one call per packed image: a copy of the whole atlas in each call would
+    // copy 128 times 4030 x 650 pixels, 1.25 GiB, for 128 images.
+    const data = new Uint8ClampedArray([255, 0, 0, 255, 0, 0, 0, 0]);
+    data.slice = () => {
+      throw new Error('copied the image');
+    };
+    bleedIntoTransparentPixels({data, width: 2, height: 1} as ImageData);
+    expect(Array.from(data.subarray(4, 8))).toEqual([255, 0, 0, 0]);
+  });
+
+  test('draws as a bleed from a copy of the image taken before each rectangle', () => {
+    // Bleeding writes only to transparent pixels, which weigh nothing, so no copy is needed.
+    let seed = 1;
+    const random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const [width, height] = [23, 17];
+    const data = new Uint8ClampedArray(width * height * 4).map((_, i) =>
+      i % 4 === 3 && random() < 0.6 ? 0 : Math.floor(random() * 256)
+    );
+    const expected = data.slice();
+    const rectangles = Array.from({length: 12}, () => {
+      const [left, top] = [Math.floor(random() * width), Math.floor(random() * height)];
+      const right = left + 1 + Math.floor(random() * (width - left));
+      return [left, top, right, top + 1 + Math.floor(random() * (height - top))];
+    });
+    rectangles.push([0, 0, width, height]);
+    for (const [left, top, right, bottom] of rectangles) {
+      bleedIntoTransparentPixels({data, width, height} as ImageData, [left, top, right, bottom]);
+      const source = expected.slice();
+      for (let y = top; y < bottom; y++) {
+        for (let x = left; x < right; x++) {
+          const i = (y * width + x) * 4;
+          if (source[i + 3] !== 0) {
+            continue;
+          }
+          const sum = [0, 0, 0, 0];
+          for (let ny = Math.max(top, y - 1); ny <= Math.min(bottom - 1, y + 1); ny++) {
+            for (let nx = Math.max(left, x - 1); nx <= Math.min(right - 1, x + 1); nx++) {
+              const j = (ny * width + nx) * 4;
+              for (let c = 0; c < 3; c++) {
+                sum[c] += source[j + c] * source[j + 3];
+              }
+              sum[3] += source[j + 3];
+            }
+          }
+          if (sum[3]) {
+            for (let c = 0; c < 3; c++) {
+              expected[i + c] = sum[c] / sum[3];
+            }
+          }
+        }
+      }
+      expect(Array.from(data), `[${left}, ${top}, ${right}, ${bottom}]`).toEqual(
+        Array.from(expected)
+      );
+    }
   });
 });

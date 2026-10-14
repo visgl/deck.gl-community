@@ -1,7 +1,7 @@
 {
   "africa-positron-z3.6": {
     "ssim": 0.9308,
-    "edgeF": 0.9349,
+    "edgeF": 0.9347,
     "labelRecall": 0.9697,
     "labelPrecision": 0.7805,
     "referenceLabels": 33,
@@ -9,7 +9,7 @@
   },
   "europe-liberty-z5.2": {
     "ssim": 0.8278,
-    "edgeF": 0.8537,
+    "edgeF": 0.8546,
     "labelRecall": 0.7838,
     "labelPrecision": 0.8056,
     "referenceLabels": 37,
@@ -33,23 +33,23 @@
   },
   "paris-carto-positron-z14.2": {
     "ssim": 0.8903,
-    "edgeF": 0.9376,
+    "edgeF": 0.937,
     "labelRecall": 0.6667,
     "labelPrecision": 0.8,
     "referenceLabels": 12,
     "candidateLabels": 10
   },
   "paris-liberty-z13.3": {
-    "ssim": 0.9192,
-    "edgeF": 0.9469,
+    "ssim": 0.9472,
+    "edgeF": 0.9772,
     "labelRecall": 0.8182,
     "labelPrecision": 0.9,
     "referenceLabels": 11,
     "candidateLabels": 10
   },
   "tokyo-carto-positron-z12.3": {
-    "ssim": 0.9669,
-    "edgeF": 0.9644,
+    "ssim": 0.9668,
+    "edgeF": 0.9643,
     "labelRecall": 0.8889,
     "labelPrecision": 1,
     "referenceLabels": 9,
