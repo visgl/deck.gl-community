@@ -1644,25 +1644,36 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * For `symbol-placement: line`, the `LineString` features with the same label text whose ends
-   * meet, joined as MapLibre does (see `mergeLines`): per feature, the feature with the joined
-   * line to place labels along, `null` for a feature joined into another, or `undefined` to place
-   * the feature as it is.
+   * For `symbol-placement: line`, the line features with the same label text whose ends meet,
+   * joined as MapLibre does (see `mergeLines`): per feature, the feature with the joined line to
+   * place labels along, `null` for a feature joined into another, or `undefined` to place the
+   * feature as it is. As in MapLibre, a `MultiLineString` joins by its first line only, and a
+   * feature joined into another is dropped whole, with any other lines it has: MapLibre's
+   * `mergeLines` takes each feature's `geometry[0]` and keeps the feature of the chain it joins.
    */
   getMergedLines(features: FeatureLike[]): (FeatureLike | null | undefined)[] {
-    const lines = features.map(feature =>
-      feature.geometry?.type === 'LineString'
-        ? {text: this.getLabelText(feature), line: feature.geometry.coordinates}
-        : {text: null, line: []}
-    );
+    const lines = features.map(feature => {
+      const {type, coordinates} = feature.geometry || {};
+      const line =
+        type === 'LineString' ? coordinates : type === 'MultiLineString' ? coordinates?.[0] : null;
+      return line ? {text: this.getLabelText(feature), line} : {text: null, line: []};
+    });
     return mergeLines(lines).map((line, index) => {
       if (line === null) {
         return null;
       }
       const feature = features[index];
-      return line === lines[index].line
-        ? undefined
-        : {...feature, geometry: {...feature.geometry, coordinates: line}};
+      if (line === lines[index].line) {
+        return undefined;
+      }
+      const {type, coordinates} = feature.geometry;
+      return {
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: type === 'MultiLineString' ? [line, ...coordinates.slice(1)] : line
+        }
+      };
     });
   }
 
