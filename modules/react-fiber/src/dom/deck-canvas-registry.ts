@@ -33,7 +33,9 @@ function assertUnique(ids: string[], kind: string): void {
 /** Aggregates React canvas contributions while retaining imperative baseline props. */
 export class DeckCanvasRegistry {
   private contributions = new Map<object, CanvasContribution | null>();
+  private committedContributions = new Map<object, CanvasContribution | null>();
   private baseline: DeckProps<any>;
+  private committedBaseline: DeckProps<any>;
   private originalSetProps: Deck<any>['setProps'];
   private wrappedSetProps: Deck<any>['setProps'];
   private hadOwnSetProps: boolean;
@@ -43,6 +45,7 @@ export class DeckCanvasRegistry {
       throw new Error('DeckCanvas requires a Deck created with _canvases: []');
     }
     this.baseline = Object.fromEntries(MANAGED_KEYS.map(key => [key, deck.props[key]]));
+    this.committedBaseline = this.baseline;
     this.originalSetProps = deck.setProps;
     this.hadOwnSetProps = Object.hasOwn(deck, 'setProps');
     // deck.gl 9.4 has no prop-source seam. Keep this adapter instance-local and
@@ -62,6 +65,7 @@ export class DeckCanvasRegistry {
       const resolved = this.resolveProps(nextBaseline, this.contributions);
       this.originalSetProps.call(this.deck, {...props, ...resolved});
       this.baseline = nextBaseline;
+      this.committedBaseline = nextBaseline;
     };
   }
 
@@ -72,9 +76,23 @@ export class DeckCanvasRegistry {
       this.contributions = next;
       return;
     }
-    const resolved = this.resolveProps(this.baseline, next);
-    this.originalSetProps.call(this.deck, resolved);
+    const hadStagedContributions = [...this.contributions.values()].some(value => value === null);
+    try {
+      const resolved = this.resolveProps(this.baseline, next);
+      this.originalSetProps.call(this.deck, resolved);
+    } catch (error) {
+      // Discard the entire failed staged commit so null slots cannot block
+      // later sibling or imperative updates after validation fails.
+      if (hadStagedContributions) {
+        this.contributions = new Map(this.committedContributions);
+        this.baseline = this.committedBaseline;
+        this.originalSetProps.call(this.deck, this.resolveProps(this.baseline, this.contributions));
+      }
+      throw error;
+    }
     this.contributions = next;
+    this.committedContributions = new Map(next);
+    this.committedBaseline = this.baseline;
     this.deck.setProps = this.wrappedSetProps;
     REGISTRIES.set(this.deck, this);
   }
@@ -84,7 +102,11 @@ export class DeckCanvasRegistry {
     const next = new Map(this.contributions);
     // Keep insertion order while React withdraws props ahead of an update.
     if (preserveSlot) next.set(token, null);
-    else next.delete(token);
+    else {
+      next.delete(token);
+      // A failed sibling update must never resurrect a panel that unmounted.
+      this.committedContributions.delete(token);
+    }
     // Layout cleanups stage withdrawals only. Publishing an intermediate empty
     // panel would detach its canvases/widgets and discard retained layer state.
     // The last sibling setup publishes the complete next commit.
@@ -93,6 +115,8 @@ export class DeckCanvasRegistry {
         this.deck,
         next.size ? this.resolveProps(this.baseline, next) : this.baseline
       );
+      this.committedContributions = new Map(next);
+      this.committedBaseline = this.baseline;
     }
     this.contributions = next;
     if (!next.size) {

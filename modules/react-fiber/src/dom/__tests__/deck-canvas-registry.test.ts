@@ -28,6 +28,40 @@ function createCanvas(id: string): HTMLCanvasElement {
 }
 
 describe('DeckCanvas registry', () => {
+  it('rolls back failed staged props so sibling and imperative updates can continue', () => {
+    const deck = createDeck();
+    const registry = getCanvasRegistry(deck);
+    const a = {};
+    const b = {};
+    const layer = createLayer('retained');
+    const first = {canvas: createCanvas('a'), views: [createView('a')], layers: [layer]};
+    const second = {canvas: createCanvas('b'), views: [createView('b')], layers: []};
+    registry.setContribution(a, first);
+    registry.setContribution(b, second);
+    registry.removeContribution(a, true);
+    registry.removeContribution(b, true);
+    registry.setContribution(b, second);
+    expect(() => registry.setContribution(a, {...first, views: []})).toThrow(
+      'views must not be empty'
+    );
+    const siblingLayer = createLayer('sibling');
+    registry.setContribution(b, {...second, layers: [siblingLayer]});
+    expect(deck.props.layers).toEqual([layer, siblingLayer]);
+    const global = createLayer('global');
+    deck.setProps({layers: [global]});
+    expect(deck.props.layers).toEqual([global, layer, siblingLayer]);
+    registry.removeContribution(a, true);
+    registry.removeContribution(b);
+    deck.setProps({layers: [createLayer('discarded-staged-baseline')]});
+    expect(() => registry.setContribution(a, {...first, views: []})).toThrow(
+      'views must not be empty'
+    );
+    expect(deck.props.layers).toEqual([global, layer]);
+    expect(deck.props._canvases).toEqual([first.canvas]);
+    registry.removeContribution(a);
+    expect(deck.props.layers).toEqual([global]);
+  });
+
   it('stages sibling updates and imperative baseline changes without publishing missing panels', () => {
     const deck = createDeck();
     const original = deck.setProps;
