@@ -29,6 +29,22 @@ const REFINEMENT_STRATEGIES: readonly unknown[] = [
   STRATEGY_DEFAULT
 ];
 
+/** Throws unless `refinementStrategy` is one of the named strategies, `undefined` or `null`. */
+export function validateRefinementStrategy(refinementStrategy: unknown): void {
+  if (
+    refinementStrategy !== undefined &&
+    refinementStrategy !== null &&
+    !REFINEMENT_STRATEGIES.includes(refinementStrategy)
+  ) {
+    const value =
+      typeof refinementStrategy === 'function' ? 'a function' : JSON.stringify(refinementStrategy);
+    throw new Error(
+      `refinementStrategy must be '${STRATEGY_DEFAULT}', '${STRATEGY_REPLACE}' or ` +
+        `'${STRATEGY_NEVER}', not ${value}.`
+    );
+  }
+}
+
 /** Core configuration shared by all {@link SharedTileset2D} instances. */
 export type Tileset2DProps<DataT = any, ViewStateT = unknown> = {
   /** Callback used to load tile payloads. */
@@ -284,21 +300,7 @@ export class SharedTileset2D<DataT = any, ViewStateT = unknown> {
 
   /** Updates tileset options and reapplies TileSource metadata overrides. */
   setOptions(opts: Partial<SharedTileset2DProps<DataT, ViewStateT>>): void {
-    const {refinementStrategy} = opts;
-    if (
-      refinementStrategy !== undefined &&
-      refinementStrategy !== null &&
-      !REFINEMENT_STRATEGIES.includes(refinementStrategy)
-    ) {
-      const value =
-        typeof refinementStrategy === 'function'
-          ? 'a function'
-          : JSON.stringify(refinementStrategy);
-      throw new Error(
-        `SharedTileset2D: refinementStrategy must be '${STRATEGY_DEFAULT}', '${STRATEGY_REPLACE}' ` +
-          `or '${STRATEGY_NEVER}', not ${value}.`
-      );
-    }
+    validateRefinementStrategy(opts.refinementStrategy);
     this._rememberExplicitOptions(opts);
     this._baseOpts = {...this._baseOpts, ...opts};
     this._applyResolvedOptions();

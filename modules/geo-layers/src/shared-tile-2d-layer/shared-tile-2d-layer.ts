@@ -28,6 +28,7 @@ import {
   type RefinementStrategy,
   STRATEGY_DEFAULT
 } from '../tileset/index';
+import {validateRefinementStrategy} from '../tileset/tileset-2d';
 import {SharedTile2DView} from './shared-tile-2d-view';
 import {sharedTile2DDeckAdapter} from './deck-tileset-adapter';
 import {type URLTemplate, getURLFromTemplate} from './url-template';
@@ -252,6 +253,8 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
 
   /** Creates, reuses, or reconfigures the backing shared tileset and per-view state. */
   updateState({changeFlags}: UpdateParameters<this>): void {
+    // Checked here too: a `SharedTileset2D` passed as `data` keeps its own options.
+    validateRefinementStrategy(this.props.refinementStrategy);
     if (this.context.viewport) {
       this._knownViewports.set(this._getViewportKey(), this.context.viewport);
     }

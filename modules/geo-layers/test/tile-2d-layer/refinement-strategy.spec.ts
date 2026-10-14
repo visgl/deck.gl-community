@@ -41,46 +41,44 @@ describe('SharedTileset2D refinementStrategy', () => {
     ).toThrow(/not "replace"/);
   });
 
-  it('accepts the three named strategies and draws selected tiles with each', async () => {
+  it('applies each named strategy while the selected tiles load', async () => {
+    const viewportAt = (zoom: number) =>
+      new WebMercatorViewport({width: 256, height: 256, longitude: 0, latitude: 0, zoom});
+    const drawnZooms: Record<string, number[]> = {};
     for (const refinementStrategy of ['best-available', 'no-overlap', 'never'] as const) {
+      // z3 tiles load at once; z4 tiles never do.
       const tileset = new SharedTileset2D({
-        getTileData: () => [],
+        getTileData: ({index}) => (index.z === 3 ? [] : new Promise<never>(() => {})),
         maxRequests: 0,
         refinementStrategy
       });
       const view = new SharedTile2DView(tileset);
       try {
-        const viewport = new WebMercatorViewport({
-          width: 256,
-          height: 256,
-          longitude: 0,
-          latitude: 0,
-          zoom: 3
-        });
-        view.update(viewport);
+        view.update(viewportAt(3));
         await new Promise(resolve => setTimeout(resolve, 0));
-        view.update(viewport);
-        const selected = view.selectedTiles || [];
-        expect(selected.length, refinementStrategy).toBeGreaterThan(0);
-        expect(
-          selected.every(tile => view.isTileVisible(tile)),
-          refinementStrategy
-        ).toBe(true);
+        view.update(viewportAt(4));
+        const drawn = tileset.tiles.filter(tile => view.isTileVisible(tile));
+        drawnZooms[refinementStrategy] = [...new Set(drawn.map(tile => tile.index.z))];
       } finally {
         view.finalize();
         tileset.finalize();
       }
     }
+    // The loaded z3 parents stand in for the loading z4 tiles, except with 'never'.
+    expect(drawnZooms).toEqual({'best-available': [3], 'no-overlap': [3], never: [4]});
   });
 
-  it('reports a refinement function passed to SharedTile2DLayer', () => {
-    const layer = new SharedTile2DLayer({
-      id: 'tiles',
-      data: 'https://example.com/{z}/{x}/{y}',
-      refinementStrategy: hideEveryTile as any
-    });
-    expect(() => new SharedTileset2D((layer as any)._getTilesetOptions())).toThrow(
-      /not a function/
-    );
+  it('rejects a refinement function passed to SharedTile2DLayer, with its own or a shared tileset', () => {
+    for (const data of [
+      'https://example.com/{z}/{x}/{y}',
+      new SharedTileset2D({getTileData: () => []})
+    ]) {
+      const layer: any = new SharedTile2DLayer({
+        id: 'tiles',
+        data,
+        refinementStrategy: hideEveryTile as any
+      });
+      expect(() => layer.updateState({changeFlags: {}})).toThrow(/not a function/);
+    }
   });
 });
