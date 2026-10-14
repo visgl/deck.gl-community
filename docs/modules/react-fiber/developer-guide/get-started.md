@@ -20,7 +20,7 @@ yarn add @deck.gl/mapbox mapbox-gl
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The application owns the Mapbox or MapLibre map. MapLibre GL JS 6's default browser entry resolves its module worker automatically; keep map creation in browser-only code. A deployment that prohibits blob workers needs a separate CSP worker integration before it creates a map. See [Using with maps](./using-with-maps.md) for safe overlay attachment and [Using with MapLibre](./base-maps/using-with-maplibre.md) for worker and CSP guidance.
+The application owns the Mapbox or MapLibre map; keep map creation in browser-only code. A bundled MapLibre GL JS 6 application calls `setWorkerUrl` before it creates the first map. See [Using with maps](./using-with-maps.md) for safe overlay attachment and [Configure the MapLibre worker](./base-maps/using-with-maplibre.md#configure-the-maplibre-worker) for worker and CSP guidance.
 
 ## 2. Render on the client
 

@@ -43,16 +43,44 @@ Install the provider integration and the host SDK:
 yarn add @deck.gl/maplibre maplibre-gl
 ```
 
-The default MapLibre GL JS 6 browser entry resolves its module worker automatically. The examples
-in this repository use that default, so they do not need application worker setup. Keep map creation
-in client-only code: in a Next.js or TanStack Start application, use a client boundary or a module
-that runs only in the browser.
+Keep map creation in client-only code: in a Next.js or TanStack Start application, use a client
+boundary or a module that runs only in the browser.
 
-The default worker uses a blob URL. A deployment whose Content Security Policy forbids `blob:` in
-`worker-src` needs a separate CSP integration. Use MapLibre's CSP distribution artifacts, publish
-its worker asset through the framework, and call the supported `setWorkerUrl(url)` API in the
-browser before creating the first map. The asset path and configuration are deployment-specific,
-so do not copy a Vite-only worker import into Next.js, React Router, or Vinxi.
+## Configure the MapLibre worker
+
+MapLibre GL JS 6 ships as ES modules and runs its tile parsing in a separate worker module. A
+bundled application tells MapLibre where the bundler emitted that worker: call `setWorkerUrl(url)`
+once, in browser code, before it creates the first map. This applies to MapLibre only; Mapbox needs
+no worker setup.
+
+With Vite, including React Router and TanStack Start, import the worker with Vite's `?worker&url`
+query:
+
+```ts
+import {setWorkerUrl} from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+setWorkerUrl(workerUrl);
+```
+
+The `?worker&url` query is Vite-only. Next.js (Turbopack or webpack) and other bundlers use
+`new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url)` instead, which requires
+`maplibre-gl` 6.13 or later. MapLibre's
+[installation guide](https://maplibre.org/maplibre-gl-js/docs/#installation) lists the setup for
+each bundler.
+
+The React Fiber examples configure the worker in their MapLibre modules:
+
+- [Vite](https://github.com/visgl/deck.gl-community/blob/master/examples/react-fiber/vite/src/modules/map/maplibre.ts)
+- [React Router](https://github.com/visgl/deck.gl-community/blob/master/examples/react-fiber/react-router/app/modules/map/maplibre.ts)
+- [TanStack Start](https://github.com/visgl/deck.gl-community/blob/master/examples/react-fiber/tanstack-start/app/modules/map/maplibre.ts)
+- [Next.js](https://github.com/visgl/deck.gl-community/blob/master/examples/react-fiber/nextjs/src/modules/map/maplibre.ts)
+
+MapLibre loads a same-origin worker URL directly, so a Content Security Policy needs only
+`worker-src 'self'`. A cross-origin worker URL, such as one served from a CDN, is wrapped in a
+`blob:` URL and needs `blob:` in `worker-src`. See MapLibre's
+[CSP directives](https://maplibre.org/maplibre-gl-js/docs/#csp-directives) for the full list.
 
 ## Examples
 
