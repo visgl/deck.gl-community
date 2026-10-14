@@ -501,6 +501,48 @@ describe('MVTLabelLayer placement symbols', () => {
     expect(turned[last + 1] - turned[1]).toBeCloseTo(-(turned[last] - turned[0]));
   });
 
+  test('the circles of text along a line take its text-offset across the line, as drawn', () => {
+    const circles = (angle: number) => {
+      const layer = labelLayer(
+        {
+          'text-field': 'abcdefgh',
+          'symbol-placement': 'line',
+          'text-padding': 0,
+          'text-size': 10,
+          'text-offset': [0.5, -1]
+        },
+        [{properties: {}, x: 100}]
+      );
+      layer.state.labelData[0].angle = angle;
+      const out: PlacementSymbol[] = [];
+      layer.getPlacementSymbols(mapViewport(0), 0, out);
+      const values = out[0].text!.circles!;
+      // The circles' centres, from the anchor at (100, 100).
+      const centres: number[][] = [];
+      for (let k = 0; k < values.length; k += 3) {
+        const [x, y] = [values[k], values[k + 1]].map(v => v - PLACEMENT_VIEWPORT_PADDING - 100);
+        centres.push([x, y]);
+      }
+      return centres;
+    };
+    const meanX = (centres: number[][]) =>
+      centres.reduce((sum, [x]) => sum + x, 0) / centres.length;
+    // Text 10 px above an eastward line and 5 px along it; below a westward one and 5 px west,
+    // though the text is turned around to read upright.
+    expect(meanX(circles(0))).toBeCloseTo(5, 6);
+    for (const [, y] of circles(0)) {
+      expect(y).toBeCloseTo(-10, 6);
+    }
+    expect(meanX(circles(180))).toBeCloseTo(-5, 6);
+    for (const [, y] of circles(180)) {
+      expect(y).toBeCloseTo(10, 6);
+    }
+    // Across a line drawn north, to its west.
+    for (const [x] of circles(90)) {
+      expect(x).toBeCloseTo(-10, 6);
+    }
+  });
+
   test('text along a line without height has one circle', () => {
     const layer = labelLayer(
       {

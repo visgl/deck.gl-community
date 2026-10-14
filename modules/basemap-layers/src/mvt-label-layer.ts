@@ -320,6 +320,8 @@ type PlacementGeometry = {
   /** Indices into `labelData`, in placement order. */
   order: number[];
   textBoxes: Float64Array;
+  /** Each row's `text-offset` in pixels, `x, y`, which its text box includes. */
+  textOffsets: Float64Array;
   iconBoxes: Float64Array;
   textPadding: number;
   /** See `getPlacementCommons`. */
@@ -553,6 +555,21 @@ function withIconAngle(
 ): (row: LabelRow, info: {index: number}) => [number, number] {
   return getAngle
     ? (row, info) => rotatePixelOffset(getPixelOffset(row, info), getAngle(row))
+    : getPixelOffset;
+}
+
+/**
+ * `getPixelOffset` for text turned to the line it is placed along. MapLibre moves such text by
+ * `text-offset` along and across the line's own direction, so the offset stays on the same side
+ * of the line when `text-keep-upright` turns the text around. `TextLayer` adds the pixel offset
+ * after turning the text, so the offset is turned here, by the line's direction.
+ */
+function withLineDirection(
+  getPixelOffset: (row: LabelRow, info: {index: number}) => [number, number],
+  turnsWithLine: boolean
+): (row: LabelRow, info: {index: number}) => [number, number] {
+  return turnsWithLine
+    ? (row, info) => rotatePixelOffset(getPixelOffset(row, info), row.angle ?? 0)
     : getPixelOffset;
 }
 
@@ -2200,6 +2217,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
     const lineHeight = this.getLineHeight();
     const textBoxes = new Float64Array(count * 4).fill(Number.NaN);
+    const textOffsets = new Float64Array(count * 2);
     const iconBoxes = new Float64Array(count * 4).fill(Number.NaN);
     const sortKey = this.getStyleProperty('symbol-sort-key');
     const keys = sortKey ? new Float64Array(count) : null;
@@ -2214,6 +2232,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       if (kept) {
         textBoxes.set(kept.subarray(0, 4), i * 4);
         iconBoxes.set(kept.subarray(4, 8), i * 4);
+        textOffsets.set(kept.subarray(8, 10), i * 2);
         continue;
       }
       if (rowsWithText?.[rowIndex]) {
@@ -2238,6 +2257,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ANCHOR_FRACTIONS.center;
         const [dx, dy] = this.getLabelPixelOffset(feature);
         textBoxes.set([-(ax + 0.5) * w + dx, -(ay + 0.5) * h + dy, w, h], i * 4);
+        textOffsets.set([dx, dy], i * 2);
       }
       const resolved = icons?.[rowIndex];
       if (resolved) {
@@ -2254,9 +2274,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           i * 4
         );
       }
-      const boxes = new Float64Array(8);
+      const boxes = new Float64Array(10);
       boxes.set(textBoxes.subarray(i * 4, i * 4 + 4), 0);
       boxes.set(iconBoxes.subarray(i * 4, i * 4 + 4), 4);
+      boxes.set(textOffsets.subarray(i * 2, i * 2 + 2), 8);
       rowBoxes.boxes.set(row, boxes);
     }
     // `labelData` order is feature order within each tile.
@@ -2270,6 +2291,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       rules,
       order,
       textBoxes,
+      textOffsets,
       iconBoxes,
       textPadding: this.getTextPadding()
     };
@@ -2288,7 +2310,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return null;
     }
     const labelData = this.state.labelData!;
-    const {rules, order, textBoxes, iconBoxes, textPadding} = geometry;
+    const {rules, order, textBoxes, textOffsets, iconBoxes, textPadding} = geometry;
     const count = labelData.length;
     const linePlacement = isLinePlacement(this.getSymbolPlacement());
     const lineProps = (linePlacement ? this.getLineLabelProps() : {}) as {
@@ -2365,8 +2387,13 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           const ux = Math.cos(angle);
           const uy = -Math.sin(angle);
           const radius = h / 2 + textPadding;
-          const cx = x1 + w / 2;
-          const cy = y1 + h / 2;
+          // The text turns with its upright angle, and its offset with the line (see
+          // `withLineDirection`), as drawn.
+          const dx = textOffsets[i * 2];
+          const dy = textOffsets[i * 2 + 1];
+          const [ex, ey] = rotatePixelOffset([dx, dy], row.angle ?? 0);
+          const cx = x1 + w / 2 - dx;
+          const cy = y1 + h / 2 - dy;
           // A label without height has a single circle.
           const n =
             radius > 0
@@ -2378,8 +2405,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           for (let k = 0; k < n; k++) {
             const along = n === 1 ? 0 : -w / 2 + radius + ((w - 2 * radius) * k) / (n - 1);
             const ox = cx + along;
-            const mx = ox * ux - cy * uy;
-            const my = ox * uy + cy * ux;
+            const mx = ox * ux - cy * uy + ex;
+            const my = ox * uy + cy * ux + ey;
             circles.push(x + mx * ax + my * bx, y + mx * ay + my * by, screenRadius);
           }
           text = {circles};
@@ -2518,6 +2545,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         // `TextLayer` refreshes its glyphs with the `getText` trigger only, not with `all`: the
         // group's rows decide which rows have text, so they are part of it.
         const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
+        const lineLabelProps = this.getLineLabelProps();
         const textProps = {
           data: this.getRows(),
           extensions: [
@@ -2529,7 +2557,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ...this.getPlacementProps(0),
           parameters: LABEL_PARAMETERS,
           billboard,
-          ...this.getLineLabelProps(),
+          ...lineLabelProps,
           characterSet: 'auto',
           // Glyphs are signed distance fields, which `TextLayer` outlines for halos.
           fontSettings: LABEL_FONT_SETTINGS,
@@ -2546,9 +2574,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             (feature: FeatureLike) => this.getLabelColor(feature),
             [0, 0, 0, 0]
           ),
-          getPixelOffset: forGroupRows(
-            (feature: FeatureLike) => this.getLabelPixelOffset(feature),
-            [0, 0]
+          getPixelOffset: withLineDirection(
+            forGroupRows((feature: FeatureLike) => this.getLabelPixelOffset(feature), [0, 0]),
+            Boolean(lineLabelProps.getAngle)
           ),
           getTextAnchor: forGroupRows(
             (feature: FeatureLike) =>

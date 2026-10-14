@@ -341,6 +341,47 @@ describe('MVTLabelLayer line label rendering', () => {
     expect(text.props.getAngle({angle: 170})).toBe(170);
   });
 
+  test('offsets text across the line on the side MapLibre does, whichever way it reads', () => {
+    // A bending line drawn westward: its labels are turned around to read upright.
+    const line = [
+      [0.9, 0.55],
+      [0.7, 0.5],
+      [0.5, 0.42],
+      [0.3, 0.3],
+      [0.15, 0.15]
+    ];
+    const feature = {geometry: {type: 'LineString', coordinates: line}, properties: {name: 'Quai'}};
+    const layer = lineLayer({}, {'text-offset': [0.5, -1], 'symbol-spacing': 60});
+    const rows = layer.getLabelData([feature], false) as any[];
+    expect(rows.length).toBeGreaterThan(1);
+    layer.state = {labelData: rows};
+    layer.context = {viewport: {bearing: 0}} as any;
+    layer.internalState = {subLayers: []} as any;
+    const text = layer.renderLayers().at(-1) as any;
+    const pixels = line.map(([x, y]) => [x * 512, y * 512]);
+    for (const [index, row] of rows.entries()) {
+      // MapLibre's `placeGlyphAlongLine`: `text-offset` y across the segment the anchor lies on,
+      // along its normal (`transformToOffsetNormal`), and x along it, both in the line's own
+      // direction, whether or not the text is turned to read upright.
+      const [px, py] = [row.position[0] * 512, row.position[1] * 512];
+      const k = pixels.findIndex(
+        ([ax, ay], i) =>
+          i < pixels.length - 1 &&
+          Math.abs((pixels[i + 1][0] - ax) * (py - ay) - (pixels[i + 1][1] - ay) * (px - ax)) < 1e-6
+      );
+      const [dx, dy] = [pixels[k + 1][0] - pixels[k][0], pixels[k + 1][1] - pixels[k][1]];
+      const length = Math.hypot(dx, dy);
+      const [ux, uy] = [dx / length, dy / length];
+      // 0.5 and -1 ems of the 10 px text.
+      const expected = [5 * ux - -10 * uy, 5 * uy + -10 * ux];
+      const [x, y] = text.props.getPixelOffset(row, {index});
+      expect(x).toBeCloseTo(expected[0], 6);
+      expect(y).toBeCloseTo(expected[1], 6);
+      // A negative y offset is above an eastward line, so below this westward one.
+      expect(y).toBeGreaterThan(0);
+    }
+  });
+
   test('leaves point labels as unrotated billboards', () => {
     const text = renderText(lineLayer({}, {'symbol-placement': 'point'}));
     expect(text.props.billboard).toBe(true);
