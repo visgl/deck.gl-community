@@ -502,6 +502,11 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
         getLineGlyphs: updateTriggers?.getLineGlyphs
       };
     }
+    // The background box stays straight, about the anchor, where glyphs along a line may not be:
+    // it would pick empty space beside a bend. The glyphs pick their labels.
+    if (sublayerProps.id === 'background' && typeof getLineGlyphs === 'function') {
+      props.pickable = false;
+    }
     return props;
   }
 
