@@ -40,6 +40,12 @@ export type PlacementSymbol = {
   icon: PlacementShape | null;
   /** Hidden whatever its collisions: beyond a globe's horizon. */
   occluded?: boolean;
+  /**
+   * Its icon is still loading. Unless the icon is optional, the symbol is not placed until it has
+   * loaded, as MapLibre GL JS lays out no symbol until its images have loaded: its text, placed
+   * alone, would hide when the icon arrives and collides.
+   */
+  iconPending?: boolean;
 };
 
 /** A symbol style layer's placement rules, from its layout, as MapLibre GL JS reads them. */
@@ -103,8 +109,9 @@ export function placeSymbol(
   symbol: PlacementSymbol,
   rules: SymbolPlacementRules
 ): number {
-  // Beyond the horizon: neither drawn nor in the way of the symbols placed after it.
-  if (symbol.occluded) {
+  // Beyond the horizon, or waiting for its icon: neither drawn nor in the way of the symbols placed
+  // after it.
+  if (symbol.occluded || (symbol.iconPending && !rules.iconOptional)) {
     return 0;
   }
   const {text, icon} = symbol;
