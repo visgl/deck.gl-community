@@ -39,6 +39,12 @@ export type Render = {
   /** `BasemapLayer` only: primitive layers and model draws of the frame read back. */
   layers?: number;
   draws?: number;
+  /**
+   * `BasemapLayer` only: the cache keys of the fonts whose atlas its second draw built or grew
+   * itself, with characters in the order its tiles loaded, instead of drawing from the atlas built
+   * with them sorted (see `resetFontAtlases`). Empty when the frame does not depend on that order.
+   */
+  unsortedFontAtlases?: string[];
 };
 
 const RENDER_TIMEOUT = 60_000;
@@ -316,11 +322,19 @@ const SETTLE_FRAMES = 1;
  */
 const FONT_ATLAS_CACHE_LIMIT = 64;
 
-/** The settings and characters of a font, as a text layer's font atlas holds them. */
+/** A font of the text layers of a draw: its atlas manager, characters and atlases. */
 type FontAtlas = {
-  FontAtlasManager: new () => {setProps(props: Record<string, unknown>): void};
-  props: Record<string, unknown>;
+  /** deck.gl's font atlas cache key of the font. */
+  key: string;
+  /** The font atlas manager of one of the layers, with the font's settings, key and renderer. */
+  manager: {
+    props: Record<string, unknown>;
+    setProps(props: Record<string, unknown>): void;
+    atlas?: object;
+  };
   characters: Set<string>;
+  /** The atlases the layers drew from: more than one where a layer holds an earlier atlas. */
+  atlases: Set<object>;
 };
 
 /**
@@ -337,13 +351,10 @@ function getFontAtlases(layers: any[]): FontAtlas[] {
     }
     let font = fonts.get(manager._key);
     if (!font) {
-      font = {
-        FontAtlasManager: manager.constructor,
-        props: {...manager.props},
-        characters: new Set()
-      };
+      font = {key: manager._key, manager, characters: new Set(), atlases: new Set()};
       fonts.set(manager._key, font);
     }
+    font.atlases.add(manager.atlas);
     for (const character of Object.keys(manager.mapping)) {
       font.characters.add(character);
     }
@@ -357,14 +368,20 @@ function getFontAtlases(layers: any[]): FontAtlas[] {
  * last ended, in the order the layers first draw them: the order their tiles load, after the
  * characters of earlier renders on the page. Small text samples the atlas's mipmaps, whose texels
  * average blocks aligned to the texture, not to the glyph, so a glyph moved to another place in
- * the atlas draws different pixels along its edges.
+ * the atlas draws different pixels along its edges. Returns the atlases built.
  */
-function resetFontAtlases(atlases: FontAtlas[] = []) {
+function resetFontAtlases(atlases: FontAtlas[] = []): Set<object> {
   // Setting the limit replaces the cache with an empty one.
   TextLayer.fontAtlasCacheLimit = FONT_ATLAS_CACHE_LIMIT;
-  for (const {FontAtlasManager, props, characters} of atlases) {
-    new FontAtlasManager().setProps({...props, characterSet: [...characters].sort()});
+  const built = new Set<object>();
+  for (const {manager, characters} of atlases) {
+    // Through the manager of a layer of the first draw, whose cache key and font renderer may be
+    // its layer's own: a `LabelTextLayer` keys its atlases apart from `TextLayer`'s, and a new
+    // manager would build them under `TextLayer`'s key, where no label layer looks.
+    manager.setProps({characterSet: [...characters].sort()});
+    built.add(manager.atlas!);
   }
+  return built;
 }
 
 /**
@@ -382,10 +399,13 @@ export async function renderBasemapLayer(
   const start = performance.now();
   resetFontAtlases();
   const first = await draw(structuredClone(style), scene, layerProps);
-  resetFontAtlases(first.fontAtlases);
+  const prebuilt = resetFontAtlases(first.fontAtlases);
   const {fontAtlases, ...render} = await draw(style, scene, layerProps);
   return {
     ...render,
+    unsortedFontAtlases: fontAtlases
+      .filter(({atlases}) => [...atlases].some(atlas => !prebuilt.has(atlas)))
+      .map(({key}) => key),
     duration: performance.now() - start,
     firstDrawDuration: first.duration,
     requests: [...new Set([...first.requests, ...render.requests])],
