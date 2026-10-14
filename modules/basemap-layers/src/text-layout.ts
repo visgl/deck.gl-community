@@ -271,24 +271,47 @@ export const MAX_CACHED_FONTS = 32;
 export const MAX_CACHED_CHARACTERS = 4096;
 const CHARACTER_WIDTH_MEASURERS = new Map<string, (character: string) => number>();
 
-let characterWidthsRevision = 0;
+/** The advances each measurer has measured, so that a forgotten font can be compared. */
+const MEASURED_WIDTHS = new WeakMap<(character: string) => number, Map<string, number>>();
+/** Per CSS font, how many times its advances changed when forgotten. */
+const CHARACTER_WIDTH_REVISIONS = new Map<string, number>();
 
 /**
  * Forgets the character advances measured for a CSS font, so they are measured again: a font that
- * was still loading was measured with a fallback font.
+ * was still loading was measured with a fallback font. When the advances measured before differ
+ * from those measured now, or were not kept, the font's revision changes.
  */
 export function forgetCharacterWidths(fontWeight: number | string, fontFamily: string): void {
-  CHARACTER_WIDTH_MEASURERS.delete(`${fontWeight} ${FONT_SIZE}px ${fontFamily}`);
-  characterWidthsRevision++;
+  const font = `${fontWeight} ${FONT_SIZE}px ${fontFamily}`;
+  const before = CHARACTER_WIDTH_MEASURERS.get(font);
+  CHARACTER_WIDTH_MEASURERS.delete(font);
+  const widths = before && MEASURED_WIDTHS.get(before);
+  if (widths) {
+    const measure = getCharacterWidthMeasurer(fontWeight, fontFamily);
+    let changed = false;
+    for (const [character, width] of widths) {
+      if (measure(character) !== width) {
+        changed = true;
+        break;
+      }
+    }
+    if (!changed) {
+      return;
+    }
+  }
+  CHARACTER_WIDTH_REVISIONS.set(font, (CHARACTER_WIDTH_REVISIONS.get(font) ?? 0) + 1);
 }
 
 /**
- * A number that changes whenever {@link forgetCharacterWidths} forgets a font's advances, so that
- * what was measured before can be measured again. A measurer evicted from a full cache measures the
- * same widths again, and does not change it.
+ * A number that changes whenever {@link forgetCharacterWidths} finds a font's advances changed, so
+ * that what was measured in it before can be measured again. Loading another font, or a measurer
+ * evicted from a full cache, measuring the same advances again, does not change it.
  */
-export function getCharacterWidthsRevision(): number {
-  return characterWidthsRevision;
+export function getCharacterWidthsRevision(
+  fontWeight: number | string,
+  fontFamily: string
+): number {
+  return CHARACTER_WIDTH_REVISIONS.get(`${fontWeight} ${FONT_SIZE}px ${fontFamily}`) ?? 0;
 }
 
 /**
@@ -324,6 +347,7 @@ export function getCharacterWidthMeasurer(
     }
     return width;
   };
+  MEASURED_WIDTHS.set(measure, widths);
   if (CHARACTER_WIDTH_MEASURERS.size >= MAX_CACHED_FONTS) {
     CHARACTER_WIDTH_MEASURERS.clear();
   }
