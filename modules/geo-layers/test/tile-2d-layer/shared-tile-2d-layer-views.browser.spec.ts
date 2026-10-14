@@ -30,7 +30,7 @@ afterEach(() => {
   tileset = null;
 });
 
-function createDeck(props: Record<string, unknown> = {}): SharedTileset2D {
+function createDeck(): SharedTileset2D {
   tileset = new SharedTileset2D({getTileData: () => [], maxZoom: 6});
   parent = document.createElement('div');
   document.body.append(parent);
@@ -41,8 +41,8 @@ function createDeck(props: Record<string, unknown> = {}): SharedTileset2D {
     deviceProps: {adapters: [webgl2Adapter]},
     views: [MAIN, MINI],
     viewState: VIEW_STATE as any,
-    layers: [new SharedTile2DLayer({id: 'tiles', data: tileset, renderSubLayers: () => null})],
-    ...props
+    // The default sublayers, so that deck.gl also filters them per viewport.
+    layers: [new SharedTile2DLayer({id: 'tiles', data: tileset})]
   });
   return tileset;
 }
@@ -86,21 +86,5 @@ describe('SharedTile2DLayer views', () => {
     expect(shared.stats.get('Consumers').count).toBe(1);
     expect(selectedZooms()).toEqual([3]);
     expect(getLayer().isLoaded).toBe(true);
-  }, 30_000);
-
-  test('does not keep a view for a viewport the layerFilter excludes the layer from', async () => {
-    const shared = createDeck();
-    await waitFor(() => viewIds().join() === 'main,mini', 'expected both views');
-
-    deck!.setProps({layerFilter: ({viewport}: any) => viewport.id !== 'mini'});
-    await waitFor(() => viewIds().join() === 'main', 'expected the filtered view to be detached');
-
-    // The layer still draws in `main` over the following frames, and `mini` does not return.
-    for (let i = 0; i < 10; i++) {
-      await new Promise(resolve => requestAnimationFrame(resolve));
-    }
-    expect(viewIds()).toEqual(['main']);
-    expect(shared.stats.get('Consumers').count).toBe(1);
-    expect(selectedZooms()).toEqual([3]);
   }, 30_000);
 });

@@ -444,7 +444,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     // the loading state change.
     const loadedViews = new Set<unknown>();
 
-    this._pruneUndrawnViewports();
+    this._pruneRemovedViewports();
     for (const [viewportKey, viewport] of this._knownViewports) {
       this._prunePlaceholderViewportView(viewportKey);
       const tilesetView = this._getOrCreateTilesetView(viewportKey);
@@ -644,11 +644,11 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   }
 
   /**
-   * Detaches the views of viewports the deck no longer draws this layer in, so that their tiles no
-   * longer stay selected, pinned in the cache, and counted by `isLoaded`.
+   * Detaches the views of viewports the deck no longer renders, so that their tiles no longer stay
+   * selected, pinned in the cache, and counted by `isLoaded`.
    */
-  private _pruneUndrawnViewports(): void {
-    for (const viewportKey of this._getUndrawnViewportKeys()) {
+  private _pruneRemovedViewports(): void {
+    for (const viewportKey of this._getRemovedViewportKeys()) {
       this._knownViewports.delete(viewportKey);
       this.state.tilesetViews.get(viewportKey)?.finalize();
       this.state.tilesetViews.delete(viewportKey);
@@ -657,37 +657,21 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   }
 
   /**
-   * Known viewports the deck no longer draws this layer in. As in deck.gl's `LayersPass`, a layer
-   * is drawn in each of the deck's viewports that the deck's `layerFilter` accepts it in; effect
-   * passes reuse those viewport ids. The answer does not depend on which viewports the last frame
-   * drew, so a view that skipped a frame stays. Nothing is undrawn without a deck, or while the
-   * deck has no viewports. The bootstrap placeholder has its own pruning.
+   * Known viewports the deck no longer renders: views removed from the deck. deck.gl draws a layer
+   * only in the deck's viewports (effect passes reuse their ids), so a viewport that is not among
+   * them is gone. The answer does not depend on which viewports the last frame drew, so a view
+   * that skipped a frame, or that picking left out, stays. Nothing is pruned without a deck, or
+   * while the deck has no viewports. The bootstrap placeholder has its own pruning.
    */
-  private _getUndrawnViewportKeys(): string[] {
-    const deck = this.context?.deck;
-    const viewports = deck?.getViewports() || [];
+  private _getRemovedViewportKeys(): string[] {
+    const viewports = this.context?.deck?.getViewports() || [];
     if (!viewports.length) {
       return [];
     }
-    const {layerFilter} = deck!.props;
-    // deck.gl passes the top-level layer to `layerFilter`.
-    let rootLayer: Layer = this;
-    while (rootLayer.parent) {
-      rootLayer = rootLayer.parent;
-    }
-    return Array.from(this._knownViewports.keys()).filter(viewportKey => {
-      if (viewportKey === PLACEHOLDER_VIEWPORT_KEY) {
-        return false;
-      }
-      const viewport = viewports.find(candidate => candidate.id === viewportKey);
-      return (
-        !viewport ||
-        Boolean(
-          layerFilter &&
-            !layerFilter({layer: rootLayer, viewport, isPicking: false, renderPass: 'screen'})
-        )
-      );
-    });
+    const viewportIds = new Set(viewports.map(viewport => viewport.id));
+    return Array.from(this._knownViewports.keys()).filter(
+      viewportKey => viewportKey !== PLACEHOLDER_VIEWPORT_KEY && !viewportIds.has(viewportKey)
+    );
   }
 
   /** Drops the bootstrap placeholder viewport after a real viewport is known. */
