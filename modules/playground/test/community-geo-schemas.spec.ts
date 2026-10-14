@@ -105,6 +105,16 @@ for (const [name, schema] of Object.entries(CommunityGeoLayerSchemas)) {
   });
 }
 
+test('shared tile layers accept only the named refinement strategies', () => {
+  for (const name of ['SharedTile2DLayer', 'SharedMVTLayer'] as const) {
+    const schema = CommunityGeoLayerSchemas[name];
+    const layer = {id: 'layer', '@@type': name, data: '/tiles/{z}/{x}/{y}'};
+    expect(schema.safeParse({...layer, refinementStrategy: 'never'}).success).toBe(true);
+    expect(schema.safeParse({...layer, refinementStrategy: '@@#hideTiles'}).success).toBe(false);
+    expect(schema.safeParse({...layer, refinementStrategy: '@@=tiles'}).success).toBe(false);
+  }
+});
+
 test('the existing global-grid gallery document uses the strict community schema', () => {
   const example = JSON.parse(
     readFileSync(
