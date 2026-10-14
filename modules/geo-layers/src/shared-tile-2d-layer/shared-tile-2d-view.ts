@@ -135,6 +135,7 @@ export class SharedTile2DView<DataT = any> {
 
     const changed = this._updateTileStates();
     this._tileset.updateConsumer(this.id, this._selectedTiles || [], this._getVisibleTiles());
+    this._pruneEvictedTileStates();
 
     if (changed) {
       this._frameNumber++;
@@ -173,6 +174,20 @@ export class SharedTile2DView<DataT = any> {
       }
     }
     return result;
+  }
+
+  /**
+   * Drops the state of tiles the shared tileset no longer holds, so that evicted tiles and their
+   * content are not kept alive by this view. Tiles evicted by another consumer between two updates
+   * are dropped at the next update.
+   */
+  private _pruneEvictedTileStates(): void {
+    const cachedTiles = new Set(this._tileset.tiles);
+    for (const tile of this._state.keys()) {
+      if (!cachedTiles.has(tile)) {
+        this._state.delete(tile);
+      }
+    }
   }
 
   /** Memoized screen-space culling bounds helper. */
