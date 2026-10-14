@@ -191,9 +191,16 @@ const SDF_EDGES =
  * measured from the screen-space rate of change of the atlas coordinates along x, in uniform
  * control flow. Labels that lie on a pitched map are foreshortened along y alone: as MapLibre's
  * `u_gamma_scale`, their edges widen by 1 / cos(pitch): across y they are about as wide as on an
- * unpitched map, and across x 1 / cos(pitch) times wider.
- * - The glyph edge is never smoothed more than `TextLayer` smooths it (`sdf.gamma`): on small text
- *   at device pixel ratio 1, `TextLayer`'s edge is the narrower.
+ * unpitched map, and across x 1 / cos(pitch) times wider. MapLibre's smoothing,
+ * `EDGE_GAMMA / (fontScale * u_gamma_scale) * gl_Position.w` with `u_gamma_scale` =
+ * cos(pitch) × `cameraToCenterDistance`, is 0.84 / cos(pitch) device pixels across x at any
+ * distance: its glyphs are drawn `fontScale` × `cameraToCenterDistance` / w times their atlas
+ * size, which cancels both. The atlas coordinates' rate of change along x holds that scale,
+ * perspective included, at each pixel, so no term for w is added here.
+ * - The glyph edge, as it would be unpitched, is never smoothed more than `TextLayer` smooths it
+ *   (`sdf.gamma`): on small text at device pixel ratio 1, `TextLayer`'s edge is the narrower. The
+ *   cap applies before the 1 / cos(pitch) widening, so that it narrows pitched labels only where it
+ *   would narrow them unpitched.
  * - The halo edge is smoothed as MapLibre's, also when it has no blur, unless the halo reaches so
  *   far out that the distance field ends within the smoothing: then it is smoothed no more than
  *   that allows, or than `sdf.gamma`. `TextHaloBlurExtension` widens it
@@ -210,7 +217,11 @@ if (sdf.enabled) {
       float atlasPixelsPerDevicePixel = length(dFdx(atlasPixel)) / labelEdge.foreshortening;
       float labelEdgeGamma =
         ${LABEL_EDGE_DEVICE_PIXELS.toFixed(2)} * atlasPixelsPerDevicePixel * labelEdge.distancePerAtlasPixel;
-      float labelFillGamma = min(sdf.gamma, labelEdgeGamma);
+      // TextLayer's smoothing caps the glyph edge as it would be on an unpitched map, before the
+      // 1 / cos(pitch) widening: compared after it, the cap would undo the widening on the glyphs
+      // that perspective draws small, toward the horizon.
+      float labelFillGamma = min(sdf.gamma, labelEdgeGamma * labelEdge.foreshortening) /
+        labelEdge.foreshortening;
       alpha = smoothstep(sdf.buffer - labelFillGamma, sdf.buffer + labelFillGamma, distance);
       if (sdf.outlineBuffer > 0.0 && sdf.outlineBuffer < sdf.buffer) {
         float inFill = alpha;
