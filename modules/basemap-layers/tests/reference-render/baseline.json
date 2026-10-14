@@ -24,20 +24,20 @@
     "candidateLabels": 16
   },
   "new-york-positron-z14.2": {
-    "ssim": 0.9118,
-    "edgeF": 0.9715,
+    "ssim": 0.9167,
+    "edgeF": 0.9738,
     "labelRecall": 1,
-    "labelPrecision": 0.9375,
+    "labelPrecision": 1,
     "referenceLabels": 15,
-    "candidateLabels": 16
+    "candidateLabels": 15
   },
   "paris-carto-positron-z14.2": {
-    "ssim": 0.8919,
-    "edgeF": 0.9457,
+    "ssim": 0.896,
+    "edgeF": 0.948,
     "labelRecall": 0.9167,
-    "labelPrecision": 0.9167,
+    "labelPrecision": 1,
     "referenceLabels": 12,
-    "candidateLabels": 12
+    "candidateLabels": 11
   },
   "paris-liberty-z13.3": {
     "ssim": 0.9244,
