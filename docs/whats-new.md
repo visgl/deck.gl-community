@@ -213,6 +213,9 @@ Highlights:
   composing deck.gl layers and views as React elements.
 - Adds a bounded [`/compat` migration API](/docs/modules/react-fiber/developer-guide/migrate-from-deckgl-react)
   for a supported subset of `@deck.gl/react` applications. It is not full `@deck.gl/react` parity.
+- [Using with maps](/docs/modules/react-fiber/developer-guide/using-with-maps) describes the
+  `/mapbox` and `/maplibre` provider roots, with one guide per provider and a guide for custom
+  overlays built with `createDeckGL`.
 - [`createDeckGL`](/docs/modules/react-fiber/api-reference/deckgl#custom-compatible-overlays)
   accepts `recreateOnChange` for overlay props that are read only at construction. The `/mapbox`
   and `/maplibre` roots use it for `interleaved`, so changing the prop replaces the overlay.

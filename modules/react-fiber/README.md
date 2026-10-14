@@ -252,7 +252,9 @@ const DeckGL = createDeckGL({
 ```
 
 Recreating an overlay discards its internal state, such as the hovered object. This advanced native API is for compatible custom overlays;
-normal applications should use the standalone, Mapbox, or MapLibre import path.
+normal applications should use the standalone, Mapbox, or MapLibre import path. See
+[Using with custom overlays](../../docs/modules/react-fiber/developer-guide/base-maps/using-with-custom-overlays.md)
+for the overlay requirements and host attachment.
 
 ## Advanced reconciler API
 
