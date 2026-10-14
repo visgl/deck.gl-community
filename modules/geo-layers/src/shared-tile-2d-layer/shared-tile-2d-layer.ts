@@ -661,7 +661,8 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
    * only in the deck's viewports (effect passes reuse their ids), so a viewport that is not among
    * them is gone. The answer does not depend on which viewports the last frame drew, so a view
    * that skipped a frame, or that picking left out, stays. Nothing is pruned without a deck, or
-   * while the deck has no viewports. The bootstrap placeholder has its own pruning.
+   * while the deck has no viewports. Once the deck has viewports, the bootstrap placeholder is
+   * never among them, so it goes too, even before the layer has been drawn in a real viewport.
    */
   private _getRemovedViewportKeys(): string[] {
     const viewports = this.context?.deck?.getViewports() || [];
@@ -671,9 +672,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     const viewportIds = new Set(viewports.map(viewport => viewport.id));
     // Views live in `state`, which a new layer instance inherits; known viewports do not.
     const keys = new Set([...this._knownViewports.keys(), ...this.state.tilesetViews.keys()]);
-    return Array.from(keys).filter(
-      viewportKey => viewportKey !== PLACEHOLDER_VIEWPORT_KEY && !viewportIds.has(viewportKey)
-    );
+    return Array.from(keys).filter(viewportKey => !viewportIds.has(viewportKey));
   }
 
   /** Drops the bootstrap placeholder viewport after a real viewport is known. */
