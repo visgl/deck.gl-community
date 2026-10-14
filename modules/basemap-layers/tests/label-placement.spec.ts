@@ -641,19 +641,17 @@ describe('MVTLabelLayer placement symbols', () => {
         return x2 - x1;
       };
       expect(boxWidth()).toBe(20);
-      // Measuring many other fonts empties the cache of measurers; the widths are the same.
       const geometry = layer.getPlacementGeometry();
-      for (let i = 0; i <= MAX_CACHED_FONTS; i++) {
-        getCharacterWidthMeasurer(400, `Other Font ${i}`);
-      }
-      expect(layer.getPlacementGeometry()).toBe(geometry);
       // Another font loads, or this one loads again with the same advances: nothing to measure.
       const font = layer.getFont();
       const weight = getTextLayerFontWeight(font);
-      // (Its measurer was evicted above; the next label measured in it makes another.)
-      getCharacterWidthMeasurer(weight, font.fontFamily)('a');
       forgetCharacterWidths(weight, 'Another Font');
       forgetCharacterWidths(weight, font.fontFamily);
+      expect(layer.getPlacementGeometry()).toBe(geometry);
+      // Measuring many other fonts empties the cache of measurers; the widths are the same.
+      for (let i = 0; i <= MAX_CACHED_FONTS; i++) {
+        getCharacterWidthMeasurer(400, `Other Font ${i}`);
+      }
       expect(layer.getPlacementGeometry()).toBe(geometry);
       // The font loads: its characters are a full em wide, and the widths measured before it are
       // forgotten, as `isLineTextFontLoading` does.
