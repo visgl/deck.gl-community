@@ -177,16 +177,18 @@ describe('line-join in the browser', () => {
   });
 
   test('a miter beyond line-miter-limit is cut at the limit', async () => {
-    // The default limit of 2 half widths: 10 pixels.
+    // The default limit of 2 half widths: 10 pixels, and the antialiasing's fade, which MapLibre
+    // extrudes the join by too.
     const reach = jointReach(await renderLine(CORNER, {'line-join': 'miter'}));
     expect(reach).toBeGreaterThanOrEqual(9);
-    expect(reach).toBeLessThanOrEqual(10);
+    expect(reach).toBeLessThanOrEqual(11);
   });
 
   test('a bevel is cut at half the line width', async () => {
+    // And the antialiasing's fade, as the miter.
     const reach = jointReach(await renderLine(CORNER, {'line-join': 'bevel'}));
     expect(reach).toBeGreaterThanOrEqual(4);
-    expect(reach).toBeLessThanOrEqual(5);
+    expect(reach).toBeLessThanOrEqual(6);
   });
 
   test('a round join reaches half the line width', async () => {

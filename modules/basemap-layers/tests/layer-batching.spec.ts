@@ -175,7 +175,11 @@ describe('consecutive style layers share a sublayer', () => {
       [rail]
     );
     expect(idsOf(layers)).toEqual([['rail', 'hatching', 'next']]);
-    expect(layers[0].props.extensions).toHaveLength(1);
+    // The dashes, and the fade of every line (see LineBlurExtension).
+    expect(layers[0].props.extensions.map((extension: any) => extension.constructor.name)).toEqual([
+      'PathStyleExtension',
+      'LineBlurExtension'
+    ]);
     expect(valuesOf(layers[0], 'getDashArray')).toEqual([
       [0, 0],
       [1, 8],
