@@ -25,6 +25,7 @@ deck.gl's guide describes both modes in detail:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Mapbox GL JS | `@deck.gl-community/react-fiber/mapbox` | [`@deck.gl/mapbox`](https://deck.gl/docs/api-reference/mapbox/overview) | `mapbox-gl` | ✓ | ✓ | ✓ | [Using with Mapbox](./base-maps/using-with-mapbox.md) | [Using with Mapbox](https://deck.gl/docs/developer-guide/base-maps/using-with-mapbox) |
 | MapLibre GL JS | `@deck.gl-community/react-fiber/maplibre` | [`@deck.gl/maplibre`](https://deck.gl/docs/api-reference/maplibre/overview) | `maplibre-gl` | ✓ | ✓ | ✓ | [Using with MapLibre](./base-maps/using-with-maplibre.md) | [Using with MapLibre](https://deck.gl/docs/developer-guide/base-maps/using-with-maplibre) |
+| Custom overlay | `createDeckGL` from `@deck.gl-community/react-fiber` | The overlay's package | The host's SDK | Overlay-specific | Overlay-specific | Overlay-specific | [Using with custom overlays](./base-maps/using-with-custom-overlays.md) | None |
 
 ## Choose a provider root
 
@@ -85,7 +86,7 @@ the host map. Some providers exclude more props; see the provider guide.
 
 Use a standalone root when the application needs `Deck` and its canvas. For a compatible custom
 overlay, use the native `createDeckGL` factory instead of trying to select a provider at render
-time.
+time. See [Using with custom overlays](./base-maps/using-with-custom-overlays.md).
 
 ## Reverse-controlled maps
 

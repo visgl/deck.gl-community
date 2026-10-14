@@ -50,7 +50,7 @@ const DeckGL = createDeckGL({
 });
 ```
 
-The factory runs only when the root is initially configured. It is not a render prop and never reaches `setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle.
+The factory runs only when the root is initially configured. It is not a render prop and never reaches `setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle. See [Using with custom overlays](../developer-guide/base-maps/using-with-custom-overlays.md) for the overlay requirements and host attachment.
 
 `recreateOnChange` lists props that the overlay reads only at construction or attach time. When one of them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory again with the full props. `onDeckglChange` receives `null` and then the new instance. The provider roots declare `recreateOnChange: ['interleaved']`.
 

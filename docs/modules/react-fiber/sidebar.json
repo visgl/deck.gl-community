@@ -14,7 +14,8 @@
           "link": {"type": "doc", "id": "modules/react-fiber/developer-guide/using-with-maps"},
           "items": [
             "modules/react-fiber/developer-guide/base-maps/using-with-mapbox",
-            "modules/react-fiber/developer-guide/base-maps/using-with-maplibre"
+            "modules/react-fiber/developer-guide/base-maps/using-with-maplibre",
+            "modules/react-fiber/developer-guide/base-maps/using-with-custom-overlays"
           ]
         },
         "modules/react-fiber/developer-guide/migrate-from-deckgl-react"
