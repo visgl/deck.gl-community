@@ -39,6 +39,10 @@ void unsupportedOnDeckglChange;
 const unsupportedInterleaved: DeckGLProps = {interleaved: true};
 void unsupportedInterleaved;
 
+// @ts-expect-error The exported compat component rejects `interleaved`, not just its props alias.
+const unsupportedComponentInterleaved = {interleaved: true} satisfies ComponentProps<typeof DeckGL>;
+void unsupportedComponentInterleaved;
+
 // @ts-expect-error `interleaved` is an external-overlay option, not a Deck configuration prop.
 const unsupportedConfigurationInterleaved: DeckglConfiguration = {interleaved: true};
 void unsupportedConfigurationInterleaved;

@@ -31,9 +31,14 @@ describe('Props Type Tests', () => {
 
     // @ts-expect-error `interleaved` is an overlay option that `DeckProps` does not declare.
     const plainInterleaved: DeckglProps = {interleaved: true};
+    // @ts-expect-error The exported plain component rejects `interleaved`, not just its props alias.
+    const plainComponentInterleaved = {children: null, interleaved: true} satisfies ComponentProps<
+      typeof DeckGL
+    >;
     void mapboxProps;
     void maplibreProps;
     void plainInterleaved;
+    void plainComponentInterleaved;
   });
 
   it('accepts a canvas element or element id only on the plain root', () => {
