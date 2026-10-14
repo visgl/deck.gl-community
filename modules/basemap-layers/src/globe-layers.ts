@@ -680,6 +680,14 @@ function getRasterColorAdjustments(paint: Record<string, any>): RasterColorAdjus
 const WORLD_TILE_EXTENT = [-180, -85.051129, 180, 85.051129];
 
 /**
+ * The `zoomOffset` of vector sources' tiles. MapLibre GL JS draws a vector source with the tiles
+ * at the floor of the zoom (and a raster source with those at the rounded zoom, as deck.gl's
+ * `TileLayer` does): its styles and labels are laid out for that. Half a zoom down before
+ * rounding selects the same tiles.
+ */
+export const VECTOR_TILE_ZOOM_OFFSET = -0.5;
+
+/**
  * The tile pyramid range of a source. `TileLayer` draws nothing at a view zoom below its `minZoom`,
  * unless it has an `extent`. On a globe, the view zoom goes below 0 near the poles: `GlobeView`
  * lowers the zoom with the latitude, so that the globe keeps its size on screen (zoom 0 at the
@@ -1524,6 +1532,7 @@ function createVectorLayerGroup({
     // The style layers whose paint `ZoomPaintExtension` draws (see `ZoomPaintContext.setStyle`).
     paintStyle: styleDefinition?.layers,
     tileSize: source.tileSize || 512,
+    zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
     loadOptions: {
       ...(loadOptions || {}),
       mvt: {
@@ -3102,6 +3111,7 @@ function getStyleLayers({
           ...loader._getTilesetOptions(),
           ...getTilePyramidProps(run.source!),
           tileSize: run.source!.tileSize || 512,
+          zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
           getTileData: tile => loader.getTileData(tile)
         });
         owner = {tileset, consumers: new Set()};
