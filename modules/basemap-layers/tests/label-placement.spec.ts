@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {describe, expect, test, vi} from 'vitest';
-import {WebMercatorViewport} from '@deck.gl/core';
+import {_GlobeViewport as GlobeViewport, WebMercatorViewport} from '@deck.gl/core';
 import {GridIndex, allowsOverlap} from '../src/grid-index.ts';
 import {
   ICON_VISIBLE,
@@ -348,6 +348,22 @@ describe('LabelPlacement', () => {
     expect(placement.getSlotBase(fourth)).toBe(0);
   });
 
+  test('a layer that takes the slots another left is placed at once, while the view moves', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 300;
+    const first = fakeLayer(1, [0, 100]);
+    placement.register(first);
+    const device = fakeDevice();
+    const place = vi.spyOn(placement as any, 'place');
+    placement.prepare(device as any, fakeViewport('map', 0), false, 0);
+    // Replaced by a layer of the same slot revision, in the same slots.
+    placement.unregister(first);
+    const second = fakeLayer(1, [100, 0]);
+    expect(placement.register(second)).toBe(0);
+    placement.prepare(device as any, fakeViewport('map', 1), false, 50);
+    expect(place).toHaveBeenCalledTimes(2);
+  });
+
   test('a texture that grows keeps the visibility of every slot', () => {
     const placement = new LabelPlacement();
     placement.interval = 300;
@@ -571,6 +587,62 @@ describe('MVTLabelLayer placement symbols', () => {
     const last = turned.length - 3;
     expect(turned[last] - turned[0]).toBeGreaterThan(1);
     expect(turned[last + 1] - turned[1]).toBeCloseTo(-(turned[last] - turned[0]));
+  });
+
+  test('on a turned globe, the circles of text along a line follow the line as it is drawn', () => {
+    const circles = (bearing: number, layout: Record<string, unknown> = {}) => {
+      const layer = labelLayer(
+        {'text-field': 'abcdefgh', 'symbol-placement': 'line', 'text-padding': 0, ...layout},
+        [{properties: {}, x: 0}]
+      );
+      const viewport = new GlobeViewport({
+        ...VIEWPORT,
+        longitude: 0,
+        latitude: 0,
+        zoom: 4,
+        bearing
+      });
+      layer.context = {viewport};
+      const out: PlacementSymbol[] = [];
+      layer.getPlacementSymbols(viewport, 0, out);
+      return out[0].text!.circles!;
+    };
+    // An eastward line, drawn up the screen and a little left at bearing 100, where the view turns
+    // the label to it (screen y points down). Kept upright, it reads from the top left down to the
+    // bottom right; otherwise as the line runs.
+    for (const [layout, degrees] of [
+      [{}, 80],
+      [{'text-keep-upright': false}, -100]
+    ] as const) {
+      const turned = circles(100, layout);
+      const last = turned.length - 3;
+      const drawn = Math.atan2(turned[last + 1] - turned[1], turned[last] - turned[0]);
+      expect((drawn * 180) / Math.PI).toBeCloseTo(degrees, 0);
+    }
+  });
+
+  test('on a turned globe, an icon along a line collides as it is drawn along the line', () => {
+    const box = (bearing: number) => {
+      const layer = labelLayer(
+        {'icon-image': 'bar', 'symbol-placement': 'line', 'icon-padding': 0},
+        [{properties: {}, x: 0}]
+      );
+      const viewport = new GlobeViewport({
+        ...VIEWPORT,
+        longitude: 0,
+        latitude: 0,
+        zoom: 4,
+        bearing
+      });
+      layer.context = {viewport};
+      const out: PlacementSymbol[] = [];
+      layer.getPlacementSymbols(viewport, 0, out);
+      const [x1, y1, x2, y2] = out[0].icon!.box!;
+      return [Math.round(x2 - x1), Math.round(y2 - y1)];
+    };
+    // A bar along an eastward line: across the screen at bearing 0, up it at bearing 90.
+    expect(box(0)).toEqual([16, 4]);
+    expect(box(90)).toEqual([4, 16]);
   });
 
   test('text along a line without height has one circle', () => {

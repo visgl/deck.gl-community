@@ -9,6 +9,7 @@ import {
   MIN_LABEL_GAP
 } from '../src/line-placement';
 import {getTextLengthEms, MVTLabelLayer, rotatePixelOffset} from '../src/mvt-label-layer';
+import {GlobeLineAngleExtension} from '../src/globe-line-angle-extension';
 import {getSpriteIconMapping, type SpriteAtlas} from '../src/sprite';
 import {getTextLayerFontWeight} from '../src/text-font';
 import {getCharacterWidthMeasurer} from '../src/text-layout';
@@ -347,6 +348,31 @@ describe('MVTLabelLayer line label rendering', () => {
     expect(typeof text.props.getAngle).not.toBe('function');
   });
 
+  test('turns line labels to their lines on a globe in the shader', () => {
+    const onGlobe = (layer: MVTLabelLayer, bearing: number) => {
+      layer.state = {labelData: [{position: [0.5, 0.5], angle: 170} as any]};
+      layer.context = {viewport: {bearing, resolution: 1}} as any;
+      layer.internalState = {subLayers: []} as any;
+      return layer.renderLayers().at(-1);
+    };
+    const getLineAngle = (text: any) =>
+      text.props.extensions.find((extension: any) => extension instanceof GlobeLineAngleExtension);
+    const text = onGlobe(lineLayer(), 120);
+    expect(text.props.billboard).toBe(true);
+    // The angle is taken from north up, whatever the bearing: the shader turns it on screen, and
+    // keeps it upright there.
+    expect(text.props.getAngle({angle: 170})).toBe(350);
+    expect(getLineAngle(text)?.opts).toEqual({keepUpright: true});
+    const free = onGlobe(lineLayer({}, {'text-keep-upright': false}), 120);
+    expect(getLineAngle(free)?.opts).toEqual({keepUpright: false});
+    expect(getLineAngle(renderText(lineLayer(), 120))).toBeUndefined();
+    expect(
+      getLineAngle(onGlobe(lineLayer({}, {'symbol-placement': 'point'}), 120))
+    ).toBeUndefined();
+    const flat = onGlobe(lineLayer({billboard: false}), 120);
+    expect(getLineAngle(flat)).toBeUndefined();
+  });
+
   /** Updates `layer` at `bearing`, then asks whether a pan to `panBearing` updates it again. */
   function updatesOnPan(layer: MVTLabelLayer, bearing: number, panBearing: number): boolean {
     layer.state = {};
@@ -604,6 +630,28 @@ describe('icons along lines', () => {
     expect(rotated.props.getAngle(rotated.props.data[0])).toBe(-60);
     const upright = renderIcons(arrows({'icon-keep-upright': true}), 170);
     expect(upright.props.getAngle(upright.props.data[0])).toBe(350);
+  });
+
+  test('turns icons along lines on a globe in the shader, upright when they follow the line', () => {
+    const onGlobe = (layer: MVTLabelLayer) => {
+      const feature = {...ACROSS_TILE, properties: {}};
+      layer.state = {
+        labelData: [{position: [0.5, 0.5], angle: 170, __source: {object: feature}} as any]
+      };
+      layer.context = {viewport: {bearing: 120, resolution: 1}} as any;
+      layer.internalState = {subLayers: []} as any;
+      const icons = layer.renderIconLayers()[0];
+      return icons.props.extensions.find(
+        (extension: any) => extension instanceof GlobeLineAngleExtension
+      )?.opts;
+    };
+    expect(onGlobe(arrows())).toEqual({keepUpright: false});
+    expect(onGlobe(arrows({'icon-keep-upright': true}))).toEqual({keepUpright: true});
+    // An angle turned by `icon-rotate` is not the line's direction: it stays upright from north up.
+    expect(onGlobe(arrows({'icon-keep-upright': true, 'icon-rotate': 180}))).toEqual({
+      keepUpright: false
+    });
+    expect(onGlobe(arrows({'icon-rotation-alignment': 'viewport'}))).toBeUndefined();
   });
 
   test('keeps viewport-aligned icons upright billboards', () => {

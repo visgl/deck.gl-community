@@ -201,9 +201,15 @@ const TEXTURE_WIDTH = 1024;
  */
 export class LabelPlacement {
   interval = DEFAULT_PLACEMENT_INTERVAL;
-  private readonly layers = new Map<PlacementLayer, {base: number; count: number}>();
+  /** Each layer's slots, and the allocation that gave them (see `getSlotLayout`). */
+  private readonly layers = new Map<
+    PlacementLayer,
+    {base: number; count: number; allocation: number}
+  >();
   private readonly views = new Map<string, ViewPlacement>();
   private capacity = 0;
+  /** Counts the slot allocations made. */
+  private allocations = 0;
   /** Changes when a layer joins, leaves or moves its slots. */
   private version = 0;
   private readonly symbols: PlacementSymbol[] = [];
@@ -221,12 +227,14 @@ export class LabelPlacement {
       return entry.base;
     }
     const base = this.allocate(count, layer);
+    const allocation = ++this.allocations;
     if (entry) {
       // Updated in place, so that the layer keeps its place among layers of the same order.
       entry.base = base;
       entry.count = count;
+      entry.allocation = allocation;
     } else {
-      this.layers.set(layer, {base, count});
+      this.layers.set(layer, {base, count, allocation});
     }
     this.version++;
     return base;
@@ -345,11 +353,15 @@ export class LabelPlacement {
     return revision;
   }
 
-  /** A value that changes whenever a layer's symbols take other slots. */
+  /**
+   * A value that changes whenever a layer's symbols take other slots: the layer is given new ones,
+   * by an allocation of its own (a layer that takes the slots another left has another), or its
+   * rows change.
+   */
   private getSlotLayout(): string {
     let layout = '';
-    for (const [layer, {base}] of this.layers) {
-      layout += `|${base}:${layer.getPlacementSlotRevision()}`;
+    for (const [layer, {allocation}] of this.layers) {
+      layout += `|${allocation}:${layer.getPlacementSlotRevision()}`;
     }
     return layout;
   }

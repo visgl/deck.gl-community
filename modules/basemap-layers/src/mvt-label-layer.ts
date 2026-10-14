@@ -24,6 +24,7 @@ import {
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
 import {GlobeHorizonExtension} from './globe-horizon-extension';
+import {GlobeLineAngleExtension} from './globe-line-angle-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {getHaloBlurGamma, TextHaloBlurExtension} from './text-halo-blur-extension';
 import {
@@ -302,6 +303,31 @@ function getMapPlaneToScreen(
   project(common[0], common[1] - step, common[2], 2);
 }
 
+/**
+ * The direction a globe view draws a direction on the map in, at `lngLat`: `radians`
+ * counter-clockwise from east there, to counter-clockwise on the screen (y up), as
+ * `GlobeLineAngleExtension` turns a billboard along a line to it. With `keepUpright`, a direction
+ * that points left is turned by another half turn, as the extension keeps labels upright.
+ */
+function getGlobeDrawnAngle(
+  viewport: any,
+  lngLat: number[],
+  radians: number,
+  keepUpright: boolean
+): number {
+  const [lng, lat] = lngLat;
+  const step = 1e-4;
+  const cosLat = Math.max(Math.cos((lat * Math.PI) / 180), 1e-6);
+  const [ax, ay] = viewport.project([lng, lat]);
+  const [bx, by] = viewport.project([
+    lng + (step * Math.cos(radians)) / cosLat,
+    lat + step * Math.sin(radians)
+  ]);
+  const dx = bx - ax;
+  const angle = Math.atan2(ay - by, dx);
+  return keepUpright && dx < 0 ? angle + Math.PI : angle;
+}
+
 /** The placement of each deck's label layers made without one, and how many layers use it. */
 const sharedPlacements = new WeakMap<object, {placement: LabelPlacement; users: number}>();
 
@@ -336,6 +362,12 @@ function compareTiles(a: any, b: any): number {
   }
   return ib.z - ia.z || ia.x - ib.x || ia.y - ib.y;
 }
+
+/** Turn billboards along lines on a globe as the view draws the lines (`getLineAngleExtensions`). */
+const GLOBE_LINE_ANGLE_EXTENSIONS = {
+  upright: new GlobeLineAngleExtension({keepUpright: true}),
+  free: new GlobeLineAngleExtension({keepUpright: false})
+};
 
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
@@ -968,7 +1000,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return [];
     }
     const groups = this.getSymbolPartGroups('icon', () => this.getRowsWithText());
-    const {props: angleProps, getAngle} = this.getIconAngleProps();
+    const {props: angleProps, getAngle, extensions: angleExtensions} = this.getIconAngleProps();
     // Sprite ids are arbitrary strings, so `${id}${idSuffix}` (and a copy's `-overlap`) can repeat
     // another sprite's id; a repeated id gets a number.
     const ids = new Set<string>();
@@ -1003,7 +1035,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           extensions: [
             ...(this.props.extensions || []),
             LABEL_PLACEMENT_EXTENSION,
-            GLOBE_HORIZON_EXTENSION
+            GLOBE_HORIZON_EXTENSION,
+            ...angleExtensions
           ],
           ...this.getPlacementProps(1),
           getPosition: (d: LabelRow) => d.position,
@@ -1827,6 +1860,33 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * The extensions that keep billboards along lines on their lines on a globe. A globe draws them
+   * in screen space, at angles taken from north up, so the shader turns them by the direction the
+   * view draws the line in, at every frame, and upright with `keepUpright`: there the bearing
+   * alone does not tell which way they read. A flat map draws them in the map plane. The shader
+   * keeps an angle upright only when it is the line's direction: icons turned by `icon-rotate` are
+   * kept upright from north up, by their angles.
+   */
+  getLineAngleExtensions(
+    turnsWithLine: boolean,
+    keepUpright: 'text-keep-upright' | 'icon-keep-upright',
+    isLineDirection = true
+  ): GlobeLineAngleExtension[] {
+    const isGlobeBillboard = Boolean(this.context?.viewport?.resolution) && this.props.billboard;
+    if (!turnsWithLine || !isGlobeBillboard) {
+      return [];
+    }
+    const upright =
+      (this.getStyleProperty(keepUpright)?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
+        getStylePropertyDefault(keepUpright)) === true;
+    return [
+      upright && isLineDirection
+        ? GLOBE_LINE_ANGLE_EXTENSIONS.upright
+        : GLOBE_LINE_ANGLE_EXTENSIONS.free
+    ];
+  }
+
+  /**
    * Icon layer props that turn icons, and the angle each row's icon is turned by, counter-clockwise
    * in degrees as deck.gl takes it (null when no icon turns). Icons along lines whose rotation is
    * aligned to the map (`icon-rotation-alignment: map`, or `auto`) are turned to the line's
@@ -1838,6 +1898,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   getIconAngleProps(): {
     props: Record<string, unknown>;
     getAngle: ((row: LabelRow) => number) | null;
+    extensions: GlobeLineAngleExtension[];
   } {
     const placement = this.getSymbolPlacement();
     const zoom = getZoomBucket(this.props.zoom || 0);
@@ -1847,8 +1908,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const iconRotate = this.getStyleProperty('icon-rotate');
     const geographic = Boolean(this.context?.viewport?.resolution);
     const props = isMapAligned ? {billboard: geographic ? this.props.billboard : false} : {};
+    const extensions = this.getLineAngleExtensions(turnsWithLine, 'icon-keep-upright', !iconRotate);
     if (!turnsWithLine && !iconRotate) {
-      return {props, getAngle: null};
+      return {props, getAngle: null, extensions};
     }
     const bearingStep = this.getBearingStep();
     if (turnsWithLine) {
@@ -1866,7 +1928,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           )
         : 0;
     // `icon-rotate` is clockwise; deck.gl angles are counter-clockwise.
-    return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row)};
+    return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row), extensions};
   }
 
   /**
@@ -2328,6 +2390,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const textInMapPlane = !isGlobe && Boolean(lineProps.getAngle) && lineProps.billboard === false;
     const iconInMapPlane = !isGlobe && iconAngleProps?.props.billboard === false;
     const toScreen = [1, 0, 0, 1];
+    // On a globe, billboards along lines are turned to their lines as the view draws them (see
+    // `getLineAngleExtensions`): they collide along that direction.
+    const textGlobeTurn = isGlobe
+      ? this.getLineAngleExtensions(Boolean(lineProps.getAngle), 'text-keep-upright')[0]
+      : undefined;
+    const iconGlobeTurn = isGlobe ? iconAngleProps?.extensions[0] : undefined;
 
     // `tiles` rows are in longitude/latitude: their common-space positions, which do not change
     // with the view, are kept, and projected to the screen with the viewport's matrix.
@@ -2384,7 +2452,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         if (lineProps.getAngle) {
           // Circles along the turned label, as MapLibre's collision circles along a line, taken
           // to the screen when the text is drawn in the map plane.
-          const angle = (lineProps.getAngle(row) * Math.PI) / 180;
+          let angle = (lineProps.getAngle(row) * Math.PI) / 180;
+          if (textGlobeTurn) {
+            angle = getGlobeDrawnAngle(
+              viewport,
+              row.position as number[],
+              angle,
+              textGlobeTurn === GLOBE_LINE_ANGLE_EXTENSIONS.upright
+            );
+          }
           const ux = Math.cos(angle);
           const uy = -Math.sin(angle);
           const radius = h / 2 + textPadding;
@@ -2419,9 +2495,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       }
       let icon: PlacementShape | null = null;
       if (!Number.isNaN(iconBoxes[t])) {
+        let iconAngle = getIconAngle ? getIconAngle(row) : 0;
+        if (iconGlobeTurn) {
+          iconAngle =
+            (getGlobeDrawnAngle(
+              viewport,
+              row.position as number[],
+              (iconAngle * Math.PI) / 180,
+              iconGlobeTurn === GLOBE_LINE_ANGLE_EXTENSIONS.upright
+            ) *
+              180) /
+            Math.PI;
+        }
         const [bx1, by1, bx2, by2] = getTurnedBounds(
           [iconBoxes[t], iconBoxes[t + 1], iconBoxes[t + 2], iconBoxes[t + 3]],
-          getIconAngle ? getIconAngle(row) : 0,
+          iconAngle,
           iconInMapPlane ? toScreen : null
         );
         icon = {box: [x + bx1, y + by1, x + bx2, y + by2]};
@@ -2541,18 +2629,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         // `TextLayer` refreshes its glyphs with the `getText` trigger only, not with `all`: the
         // group's rows decide which rows have text, so they are part of it.
         const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
+        const lineLabelProps = this.getLineLabelProps();
         const textProps = {
           data: this.getRows(),
           extensions: [
             ...(this.props.extensions || []),
             LABEL_PLACEMENT_EXTENSION,
             GLOBE_HORIZON_EXTENSION,
-            TEXT_HALO_BLUR_EXTENSION
+            TEXT_HALO_BLUR_EXTENSION,
+            ...this.getLineAngleExtensions('getAngle' in lineLabelProps, 'text-keep-upright')
           ],
           ...this.getPlacementProps(0),
           parameters: LABEL_PARAMETERS,
           billboard,
-          ...this.getLineLabelProps(),
+          ...lineLabelProps,
           characterSet: 'auto',
           // Glyphs are signed distance fields, which `TextLayer` outlines for halos.
           fontSettings: LABEL_FONT_SETTINGS,
