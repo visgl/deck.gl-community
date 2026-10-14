@@ -100,4 +100,28 @@ describe('SharedTextureSet', () => {
     expect(set.get(second)).toBe(textures[1]);
     expect(device.createTexture).toHaveBeenCalledTimes(2);
   });
+
+  test('keeps at most maxMipLevels levels, in textures of their own', () => {
+    const {device, textures} = createDevice();
+    const image = new FakeBitmap();
+    const full = new SharedTextureSet(device);
+    const two = new SharedTextureSet(device, {maxMipLevels: 2});
+    const alsoTwo = new SharedTextureSet(device, {maxMipLevels: 2});
+    expect(full.get(image)).toBe(textures[0]);
+    expect(two.get(image)).toBe(textures[1]);
+    expect(alsoTwo.get(image)).toBe(textures[1]);
+    expect(textures[0].props.mipLevels).toBe(3);
+    expect(textures[1].props.mipLevels).toBe(2);
+    expect(getSharedTextureCount(device)).toBe(2);
+    // Each set releases its own texture.
+    two.releaseAll();
+    alsoTwo.releaseAll();
+    expect(textures[1].destroy).toHaveBeenCalledTimes(1);
+    expect(textures[0].destroy).not.toHaveBeenCalled();
+    // A cap above the full chain keeps the full chain; one level is the image alone.
+    new SharedTextureSet(device, {maxMipLevels: 8}).get(image);
+    expect(textures[2].props.mipLevels).toBe(3);
+    new SharedTextureSet(device, {maxMipLevels: 1}).get(image);
+    expect(textures[3].props.mipLevels).toBe(1);
+  });
 });

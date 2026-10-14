@@ -4,6 +4,10 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
+  one shared Deck, with scoped views, layers and widgets. A four-city standalone
+  example demonstrates independent maps, shared hover state and canvas cleanup.
+
 - Private Vega renderer: a shared declarative US-map-to-stacked-bars example moves 24,669 places from SandDance’s historical sample with GPU position/size transitions in the playground, gallery and inline docs, with smooth 2D/3D camera and lighting transitions.
 
 - Private Vega renderer: geographic polygon/path vertices, colors and outline widths now use GPU transitions when projection signals change.
