@@ -8,7 +8,15 @@
       "label": "Developer Guide",
       "items": [
         "modules/react-fiber/developer-guide/get-started",
-        "modules/react-fiber/developer-guide/mapbox-maplibre",
+        {
+          "type": "category",
+          "label": "Using with maps",
+          "link": {"type": "doc", "id": "modules/react-fiber/developer-guide/using-with-maps"},
+          "items": [
+            "modules/react-fiber/developer-guide/base-maps/using-with-mapbox",
+            "modules/react-fiber/developer-guide/base-maps/using-with-maplibre"
+          ]
+        },
         "modules/react-fiber/developer-guide/migrate-from-deckgl-react"
       ]
     },
