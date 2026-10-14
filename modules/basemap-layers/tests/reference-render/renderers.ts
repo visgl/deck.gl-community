@@ -29,8 +29,13 @@ export type Render = {
   requests: string[];
   /** Requests that left the page origin, or fixtures that were missing. */
   problems: string[];
-  /** Milliseconds until the render was complete. */
+  /**
+   * Milliseconds until the render was complete. For `BasemapLayer`, both its draws and the font
+   * atlases built between them (see `renderBasemapLayer`).
+   */
   duration: number;
+  /** `BasemapLayer` only: milliseconds of its first draw alone, from empty font atlases. */
+  firstDrawDuration?: number;
   /** `BasemapLayer` only: primitive layers and model draws of the frame read back. */
   layers?: number;
   draws?: number;
@@ -371,25 +376,31 @@ function resetFontAtlases(atlases: FontAtlas[] = []) {
 export async function renderBasemapLayer(
   style: any,
   scene: ReferenceScene,
-  layerProps: Record<string, unknown> = {}
+  layerProps: Record<string, unknown> = {},
+  draw = drawBasemapLayer
 ): Promise<Render> {
+  const start = performance.now();
   resetFontAtlases();
-  const first = await drawBasemapLayer(structuredClone(style), scene, layerProps);
+  const first = await draw(structuredClone(style), scene, layerProps);
   resetFontAtlases(first.fontAtlases);
-  const {fontAtlases, ...render} = await drawBasemapLayer(style, scene, layerProps);
+  const {fontAtlases, ...render} = await draw(style, scene, layerProps);
   return {
     ...render,
+    duration: performance.now() - start,
+    firstDrawDuration: first.duration,
     requests: [...new Set([...first.requests, ...render.requests])],
     problems: [...new Set([...first.problems, ...render.problems])]
   };
 }
 
 /** One `BasemapLayer` render of a scene, with the font atlases its text layers drew from. */
+export type BasemapLayerDraw = Render & {fontAtlases: FontAtlas[]};
+
 async function drawBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown>
-): Promise<Render & {fontAtlases: FontAtlas[]}> {
+): Promise<BasemapLayerDraw> {
   const parent = createContainer();
   performance.clearResourceTimings();
   performance.setResourceTimingBufferSize(100_000);

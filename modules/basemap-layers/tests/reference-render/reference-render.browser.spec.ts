@@ -157,7 +157,10 @@ describe('reference render: MapLibre GL JS vs BasemapLayer', () => {
       missingLabels: result.labels.missing,
       extraLabels: result.labels.extra,
       maplibreMs: Math.round(reference.duration),
+      // Both draws and the font atlases built between them, then the first draw alone, from empty
+      // font atlases, as MapLibre's one draw builds its glyph atlas.
       basemapLayerMs: Math.round(candidate.duration),
+      basemapLayerFirstDrawMs: Math.round(candidate.firstDrawDuration ?? 0),
       basemapLayerLayers: candidate.layers,
       basemapLayerDraws: candidate.draws
     };
