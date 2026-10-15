@@ -35,7 +35,33 @@ type _LabelTextLayerProps<DataT> = {
   getLetterSpacing?: Accessor<DataT, number>;
   /** How the lines of a label are aligned within its box. */
   getTextJustify?: Accessor<DataT, LabelTextJustify>;
+  /**
+   * Where each glyph of a label along a line is drawn in a viewport (see {@link LineGlyphPlacement}),
+   * or null to draw the label straight, turned by `getAngle`. Null for every label draws them all
+   * straight. Its update trigger is `updateTriggers.getLineGlyphs`. WebGL only.
+   */
+  getLineGlyphs?: ((object: DataT, viewport: any) => Float32Array | null) | null;
+  /**
+   * What `getLineGlyphs` depends on in the viewport: the glyphs are placed again when it changes,
+   * as the layer draws.
+   */
+  getLineGlyphKey?: ((viewport: any) => string) | null;
 };
+
+/**
+ * `getLineGlyphs` of a label: 4 values per character, `dx, dy, angle, mode`. With mode 1 the
+ * character's advance centre is drawn `dx, dy` pixels from the label's position (y down), turned by
+ * `angle` degrees counter-clockwise, and `getPixelOffset` is not added; with mode -1 the label is not
+ * drawn; with mode 0 it is drawn straight.
+ */
+export type LineGlyphPlacement = Float32Array;
+
+/** The vertex shader line that turns a character about the label's anchor, which curved glyphs replace. */
+const TURN_CHARACTER = `pixelOffset = rotate_by_angle(pixelOffset, instanceAngles) * instanceScale;
+pixelOffset += instancePixelOffset;`;
+
+/** The shader line before which a hidden label's characters collapse. */
+const HIDE_CHARACTER_BEFORE = 'vTextureCoords = mix(';
 
 export type LabelTextLayerProps<DataT = unknown> = _LabelTextLayerProps<DataT> &
   TextLayerProps<DataT>;
@@ -101,6 +127,8 @@ const LABEL_ATLAS_KEY = 'label-glyph-overhang';
 const defaultProps: DefaultProps<LabelTextLayerProps> = {
   getLetterSpacing: {type: 'accessor', value: 0},
   getTextJustify: {type: 'accessor', value: 'auto'},
+  getLineGlyphs: {type: 'function', value: null, optional: true} as any,
+  getLineGlyphKey: {type: 'function', value: null, optional: true} as any,
   // Keeps the part of italic glyphs left of their origin (see `getLabelFontRenderer`).
   _getFontRenderer: {type: 'function', value: getLabelFontRenderer}
 };
@@ -144,13 +172,183 @@ function isSameNumbers(a: number[], b: number[]): boolean {
  * changes. The packed values of each label are kept, and reused while its text, character offsets
  * and font atlas are the same, so the labels a layer held before are not packed again.
  */
-class LabelCharactersLayer extends MultiIconLayer<any> {
+/** @internal Exported for tests. */
+export class LabelCharactersLayer extends MultiIconLayer<any> {
   static layerName = 'LabelCharactersLayer';
 
   declare state: MultiIconLayer<any>['state'] & {
     /** Each label's packed character definitions, by label object. */
     iconDefs?: WeakMap<object, CachedIconDefs>;
+    /** The `getLineGlyphKey` the glyphs along lines were last placed for. */
+    lineGlyphKey?: string | null;
   };
+
+  /** Whether characters can be placed along lines: on WebGL, whose shader this layer extends. */
+  drawsLineGlyphs(): boolean {
+    return this.context.device.type !== 'webgpu';
+  }
+
+  getShaders(): any {
+    const shaders = super.getShaders();
+    if (!this.drawsLineGlyphs()) {
+      return shaders;
+    }
+    const {vs} = shaders;
+    if (!vs.includes(TURN_CHARACTER) || !vs.includes(HIDE_CHARACTER_BEFORE)) {
+      throw new Error('LabelCharactersLayer: the text vertex shader has changed');
+    }
+    return {
+      ...shaders,
+      vs: vs
+        .replace(
+          'in vec4 instanceClipRect;',
+          'in vec4 instanceClipRect;\nin vec4 instanceLineGlyphs;\nin float instanceGlyphCentres;'
+        )
+        .replace(
+          TURN_CHARACTER,
+          `if (instanceLineGlyphs.w > 0.5) {
+  // A glyph along a line: turned about its advance centre, placed on the line.
+  pixelOffset.x -= instanceGlyphCentres;
+  pixelOffset = rotate_by_angle(pixelOffset, instanceLineGlyphs.z) * instanceScale + instanceLineGlyphs.xy;
+} else {
+${TURN_CHARACTER}
+}`
+        )
+        .replace(
+          HIDE_CHARACTER_BEFORE,
+          `if (instanceLineGlyphs.w < -0.5) {
+  gl_Position = vec4(0.0);
+}
+${HIDE_CHARACTER_BEFORE}`
+        )
+    };
+  }
+
+  initializeState(): void {
+    super.initializeState();
+    if (!this.drawsLineGlyphs()) {
+      return;
+    }
+    this.getAttributeManager()!.addInstanced({
+      instanceLineGlyphs: {
+        size: 4,
+        accessor: 'getLineGlyphs',
+        update: this.calculateInstanceLineGlyphs
+      },
+      instanceGlyphCentres: {
+        size: 1,
+        accessor: ['getIcon', 'getIconOffsets', 'getLineGlyphs'],
+        update: this.calculateInstanceGlyphCentres
+      }
+    });
+  }
+
+  updateState(params: any): void {
+    super.updateState(params);
+    const {props, oldProps} = params;
+    const attributes = this.getAttributeManager();
+    if (attributes && this.drawsLineGlyphs()) {
+      if (props.iconMapping !== oldProps.iconMapping) {
+        attributes.invalidate('instanceGlyphCentres');
+      }
+      // Without glyphs along lines, both attributes are constant; with them, the centres are needed.
+      if (Boolean(props.getLineGlyphs) !== Boolean(oldProps.getLineGlyphs)) {
+        attributes.invalidate('instanceGlyphCentres');
+      }
+    }
+  }
+
+  /**
+   * Places the glyphs along lines again before drawing when the view has moved to another zoom or
+   * bearing step (`getLineGlyphKey`). The rows and every other attribute stay as they are.
+   */
+  draw(params: any): void {
+    const {getLineGlyphs, getLineGlyphKey} = this.props as any;
+    const attribute = this.getAttributeManager()?.attributes.instanceLineGlyphs;
+    if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant) {
+      const key = getLineGlyphKey(this.context.viewport);
+      if (key !== this.state.lineGlyphKey && attribute.value) {
+        this.state.lineGlyphKey = key;
+        this.fillLineGlyphs(attribute, 0, Infinity);
+        (attribute as any).updateSubBuffer({startOffset: 0, endOffset: attribute.value.length});
+        LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+      }
+    }
+    super.draw(params);
+  }
+
+  /** Each character's `getLineGlyphs` values; a constant when no label is placed along a line. */
+  protected calculateInstanceLineGlyphs(
+    attribute: Attribute,
+    {startRow, endRow}: {startRow: number; endRow: number}
+  ): void {
+    const {getLineGlyphs, getLineGlyphKey} = this.props as any;
+    if (!getLineGlyphs) {
+      setConstant(attribute);
+      return;
+    }
+    this.state.lineGlyphKey = getLineGlyphKey?.(this.context.viewport) ?? null;
+    this.fillLineGlyphs(attribute, startRow, endRow);
+  }
+
+  /** Writes the `getLineGlyphs` values of rows `startRow` to `endRow` at the current viewport. */
+  fillLineGlyphs(attribute: Attribute, startRow: number, endRow: number): void {
+    const {data, getIcon, getLineGlyphs} = this.props as any;
+    const {viewport} = this.context;
+    const output = attribute.value as Float32Array;
+    const {iterable, objectInfo} = createIterable(data, startRow, endRow);
+    for (const object of iterable) {
+      objectInfo.index++;
+      // A row's characters, as `TextLayer` counts them; a row left out of this layer has none.
+      const start = attribute.getVertexOffset(objectInfo.index);
+      const end = attribute.getVertexOffset(objectInfo.index + 1);
+      if (end <= start || !getIcon(object, objectInfo)) {
+        continue;
+      }
+      const glyphs = getLineGlyphs(object, viewport) as Float32Array | null;
+      if (glyphs && glyphs.length === end - start) {
+        output.set(glyphs, start);
+      } else {
+        output.fill(0, start, end);
+      }
+      LINE_GLYPH_ATTRIBUTE_STATS.fills++;
+      LINE_GLYPH_ATTRIBUTE_STATS.bytes += (end - start) * 4;
+    }
+  }
+
+  /**
+   * Each character's advance centre in the label, in font atlas pixels, about which a glyph along a
+   * line turns: its offset in the label, less its frame's anchor, plus half its advance.
+   */
+  protected calculateInstanceGlyphCentres(
+    attribute: Attribute,
+    {startRow, endRow}: {startRow: number; endRow: number}
+  ): void {
+    const {data, getIcon, getIconOffsets, getLineGlyphs, iconMapping} = this.props as any;
+    if (!getLineGlyphs) {
+      setConstant(attribute);
+      return;
+    }
+    const output = attribute.value as Float32Array;
+    const {iterable, objectInfo} = createIterable(data, startRow, endRow);
+    for (const object of iterable) {
+      objectInfo.index++;
+      const text = getIcon(object, objectInfo) as string;
+      if (!text) {
+        continue;
+      }
+      const offsets = getIconOffsets(object, objectInfo) as number[];
+      let i = attribute.getVertexOffset(objectInfo.index);
+      let j = 0;
+      for (const character of Array.from(text)) {
+        const frame = iconMapping?.[character];
+        output[i++] = frame
+          ? offsets[j * 2] - (frame.anchorX ?? 0) + (frame.advance ?? 0) / 2
+          : offsets[j * 2];
+        j++;
+      }
+    }
+  }
 
   protected calculateInstanceIconDefs(
     attribute: Attribute,
@@ -198,6 +396,18 @@ class LabelCharactersLayer extends MultiIconLayer<any> {
       i += entry.defs.length;
     }
   }
+}
+
+/**
+ * Glyph attribute work for benchmarks: rows filled and bytes written from `getLineGlyphs`, and
+ * refreshes of the whole attribute when the view crosses a zoom or bearing step.
+ */
+export const LINE_GLYPH_ATTRIBUTE_STATS = {fills: 0, bytes: 0, refreshes: 0};
+
+/** Makes an attribute with a custom updater a constant zero. */
+function setConstant(attribute: Attribute): void {
+  (attribute as any).constant = true;
+  attribute.value = new Float32Array(attribute.size);
 }
 
 /**
@@ -279,9 +489,23 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     }
     // The placement slot is a row's, and the sublayers draw this layer's rows: it is handed down
     // as is. deck.gl would otherwise call it with the feature a row was made from.
-    const {getPlacementSlot} = this.props as any;
+    const {getPlacementSlot, getLineGlyphs, getLineGlyphKey, updateTriggers} = this.props as any;
     if (typeof getPlacementSlot === 'function') {
       props.getPlacementSlot = getPlacementSlot;
+    }
+    // Glyphs along lines are the characters' only: handed down with their trigger.
+    if (sublayerProps.id === 'characters') {
+      props.getLineGlyphs = getLineGlyphs || null;
+      props.getLineGlyphKey = getLineGlyphKey || null;
+      props.updateTriggers = {
+        ...props.updateTriggers,
+        getLineGlyphs: updateTriggers?.getLineGlyphs
+      };
+    }
+    // The background box stays straight, about the anchor, where glyphs along a line may not be:
+    // it would pick empty space beside a bend. The glyphs pick their labels.
+    if (sublayerProps.id === 'background' && typeof getLineGlyphs === 'function') {
+      props.pickable = false;
     }
     return props;
   }

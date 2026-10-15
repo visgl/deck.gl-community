@@ -56,6 +56,14 @@ export type RenderOptions = {
   pixelRatio?: number;
 };
 
+/** Options of a `BasemapLayer` render. */
+export type BasemapLayerRenderOptions = RenderOptions & {
+  /**
+   * Runs once the render read back is read, before the deck is finalized: to move the view, say.
+   */
+  onRendered?: (deck: Deck<any>) => Promise<void>;
+};
+
 /**
  * The pixels of a WebGL canvas composited on white, `pixelRatio` times the viewport. Call while its
  * drawing buffer is valid.
@@ -390,12 +398,15 @@ export async function renderBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown> = {},
-  options: RenderOptions = {},
+  options: BasemapLayerRenderOptions = {},
   draw = drawBasemapLayer
 ): Promise<Render> {
   const start = performance.now();
   resetFontAtlases();
-  const first = await draw(structuredClone(style), scene, layerProps, options);
+  const first = await draw(structuredClone(style), scene, layerProps, {
+    ...options,
+    onRendered: undefined
+  });
   resetFontAtlases(first.fontAtlases);
   const {fontAtlases, ...render} = await draw(style, scene, layerProps, options);
   return {
@@ -414,7 +425,7 @@ async function drawBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown>,
-  {pixelRatio = 1}: RenderOptions
+  {pixelRatio = 1, onRendered}: BasemapLayerRenderOptions
 ): Promise<BasemapLayerDraw> {
   const parent = createContainer();
   performance.clearResourceTimings();
@@ -528,6 +539,7 @@ async function drawBasemapLayer(
       }
     }
 
+    await onRendered?.(deck!);
     const resources = getResourceRequests(start);
     const problems = resources
       .filter(({url}) => !url.startsWith(location.origin))
