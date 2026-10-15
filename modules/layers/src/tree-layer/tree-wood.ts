@@ -119,21 +119,26 @@ export function getTreeWoodMesh(
         });
       }
   } else if (botany) {
-    const adaptBranch = (branch: TreeBranch): Socket => ({
-      ...branch,
-      end: branch.path[branch.path.length - 1],
-      path: aggregate
-        ? [
-            branch.path[0],
-            branch.path[Math.floor(branch.path.length / 2)],
-            branch.path[branch.path.length - 1]
-          ]
-        : branch.path,
-      radii: aggregate
-        ? [branch.radius, branch.radius * 0.5, branch.radii?.at(-1) ?? branch.radius * 0.13]
-        : branch.radii,
-      children: aggregate ? [] : branch.children
-    });
+    const adaptBranch = (branch: TreeBranch): Socket => {
+      // Aerial and stilt roots are structural wood, including in the coarse shell.
+      // Keep their parent path so each root retains its authored attachment ring.
+      const simplify = aggregate && !branch.rooted && !branch.children.some(child => child.rooted);
+      return {
+        ...branch,
+        end: branch.path[branch.path.length - 1],
+        path: simplify
+          ? [
+              branch.path[0],
+              branch.path[Math.floor(branch.path.length / 2)],
+              branch.path[branch.path.length - 1]
+            ]
+          : branch.path,
+        radii: simplify
+          ? [branch.radius, branch.radius * 0.5, branch.radii?.at(-1) ?? branch.radius * 0.13]
+          : branch.radii,
+        children: aggregate ? branch.children.filter(child => child.rooted) : branch.children
+      };
+    };
     sockets.push(
       ...botany.branches.map(branch => {
         const socket = adaptBranch(branch);

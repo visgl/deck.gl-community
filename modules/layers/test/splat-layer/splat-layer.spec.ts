@@ -508,7 +508,7 @@ it('synchronizes shared multi-view raster density before tightening the pixel ca
       beginRenderPass: () => ({end() {}})
     },
     model: {shaderInputs: {setProps() {}}},
-    passes: [{render}, {render}],
+    passes: [{render}, {render}, {render}],
     resize
   });
   const options = {layers: [parent, primitive], viewports: [{id: 'a'}, {id: 'b'}]};
