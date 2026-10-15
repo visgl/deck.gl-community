@@ -38,6 +38,13 @@ import {
 } from './tree-tile-layer';
 
 const EMPTY_TREE_DATA: never[] = [];
+const combineUpdateTriggers = (...triggers: unknown[]) => {
+  const values = triggers
+    .flatMap(trigger => (Array.isArray(trigger) ? trigger : [trigger]))
+    .filter(trigger => trigger !== undefined);
+  const unique = [...new Set(values)];
+  return unique.length > 1 ? unique : unique[0];
+};
 
 /** Procedural species silhouette. */
 export type TreeType =
@@ -821,10 +828,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     }
     if (this.props.getTileData) {
       const {id: _id, data: _data, getTileData: _getTileData, ...treeProps} = this.props;
+      const inventoryProps = this.getSubLayerProps({id: 'inventory'});
+      const {all: inventoryAll, ...inventoryTriggers} = inventoryProps.updateTriggers ?? {};
       return [
         new TreeTileLayer<DataT>({
           ...this.props,
-          ...this.getSubLayerProps({id: 'inventory'}),
+          ...inventoryProps,
           data: EMPTY_TREE_DATA,
           getTileData: this.props.getTileData,
           _TreeLayerClass: TreeLayer,
@@ -833,15 +842,24 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           treeProps,
           updateTriggers: {
             // Scope triggers so style changes update render props without reloading tile data.
-            getTileData: this.props.updateTriggers?.getTileData,
-            getTreeKey:
-              this.props.updateTriggers?.all === undefined
-                ? this.props.updateTriggers?.getTreeKey
-                : [this.props.updateTriggers.all, this.props.updateTriggers?.getTreeKey],
-            getCanopyColor:
-              this.props.updateTriggers?.all === undefined
-                ? this.props.updateTriggers?.getDistantCanopyColor
-                : [this.props.updateTriggers.all, this.props.updateTriggers?.getDistantCanopyColor]
+            ...inventoryTriggers,
+            getTileData: combineUpdateTriggers(
+              this.props.updateTriggers?.getTileData,
+              inventoryTriggers.getTileData
+            ),
+            getTreeKey: combineUpdateTriggers(
+              this.props.updateTriggers?.all,
+              this.props.updateTriggers?.getTreeKey,
+              inventoryAll,
+              inventoryTriggers.getTreeKey
+            ),
+            getCanopyColor: combineUpdateTriggers(
+              this.props.updateTriggers?.all,
+              this.props.updateTriggers?.getDistantCanopyColor,
+              inventoryAll,
+              inventoryTriggers.getCanopyColor,
+              inventoryTriggers.getDistantCanopyColor
+            )
           }
         })
       ];

@@ -128,6 +128,14 @@ it('uses the same public TreeLayer for rows and streamed inventories without rec
   const getTileData = vi.fn(() => ({trees: [tree], canopies: [], byteLength: 64}));
   const getCanopyColor = () => [20, 140, 40, 255] as [number, number, number, number];
   const getDistantCanopyColor = () => [80, 150, 60, 255] as [number, number, number, number];
+  const getInventoryTreeKey = (row: typeof tree) => row.species;
+  let treeKeyTrigger = 'inventory-key-v1';
+  const inventoryOverrides = () => ({
+    inventory: {
+      getTreeKey: getInventoryTreeKey,
+      updateTriggers: {getTreeKey: treeKeyTrigger}
+    }
+  });
   const layer = new TreeLayer({
     id: 'one-tree-api',
     getTileData,
@@ -137,7 +145,8 @@ it('uses the same public TreeLayer for rows and streamed inventories without rec
     getSeason: 'winter',
     maxVisibleTiles: 12,
     windStrength: 0.03,
-    updateTriggers: {getDistantCanopyColor: 'winter', getTileData: 1}
+    updateTriggers: {getDistantCanopyColor: 'winter', getTileData: 1},
+    _subLayerProps: inventoryOverrides()
   });
   layer.initializeState();
   vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
@@ -148,11 +157,17 @@ it('uses the same public TreeLayer for rows and streamed inventories without rec
   expect(inventory.props.maxVisibleTiles).toBe(12);
   expect(inventory.props.getCanopyColor).toBe(getDistantCanopyColor);
   expect(inventory.props.updateTriggers.getCanopyColor).toBe('winter');
+  expect(inventory.props.getTreeKey).toBe(getInventoryTreeKey);
+  expect(inventory.props.updateTriggers.getTreeKey).toBe('inventory-key-v1');
   expect(inventory.props.canopyWindStrength).toBe(0.03);
   expect(inventory.props.treeProps?.getCanopyColor).toBe(getCanopyColor);
   expect(inventory.props.treeProps?.getHeight).toBe(16);
   expect(inventory.props.treeProps?.getTileData).toBeUndefined();
   expect(getTileData).not.toHaveBeenCalled();
+  treeKeyTrigger = 'inventory-key-v2';
+  Object.assign(layer, {props: layer.clone({_subLayerProps: inventoryOverrides()}).props});
+  const updatedInventory = layer.renderLayers()[0] as TreeTileLayer<typeof tree>;
+  expect(updatedInventory.props.updateTriggers.getTreeKey).toBe('inventory-key-v2');
   const oldProps = layer.props;
   Object.assign(layer, {props: layer.clone({getTileData: undefined, data: [tree]}).props});
   layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}});
