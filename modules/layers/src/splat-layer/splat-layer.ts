@@ -70,7 +70,7 @@ type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'
   getSource?: Accessor<DataT, SplatDataInput>;
   /** Legacy constant-template input. Cannot be combined with explicit getSource. */
   source?: SplatSource;
-  /** Weighted optical blending; sorted scene rendering requires the upstream backend. */
+  /** Weighted optical blending or globally depth-sorted prepared Gaussians. @default 'weighted' */
   transparency?: 'weighted' | 'sorted';
   /** Aggregate settled submission cap across visible SplatLayers on this deck/device. */
   maxTotalSplats?: number;
@@ -234,18 +234,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       !geometryChanged &&
       !refinementChanged
     ) {
-      if (props.transparency !== 'weighted')
-        throw new Error(
-          'Sorted SplatLayer rendering requires the upstream paged-instance backend.'
-        );
       this.publishDemand(false, this.state.candidates);
       this.publishDemand(true, this.state.shadowCandidates);
       return;
     }
-    if (props.transparency !== 'weighted')
-      throw new Error(
-        'Sorted SplatLayer rendering requires the upstream paged-instance backend; weighted rendering cannot substitute for it.'
-      );
     const inputChanged = Boolean(changeFlags.dataChanged || geometryChanged || runtimeChanged);
     const input = inputChanged ? resolveSplatInput(props) : this.state.input;
     const assetsChanged =
