@@ -37,6 +37,8 @@ import {
   type TreeCanopyCluster
 } from './tree-tile-layer';
 
+const EMPTY_TREE_DATA: never[] = [];
+
 /** Procedural species silhouette. */
 export type TreeType =
   | 'pine'
@@ -823,15 +825,23 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         new TreeTileLayer<DataT>({
           ...this.props,
           ...this.getSubLayerProps({id: 'inventory'}),
-          data: [],
+          data: EMPTY_TREE_DATA,
           getTileData: this.props.getTileData,
           _TreeLayerClass: TreeLayer,
           getCanopyColor: this.props.getDistantCanopyColor,
           canopyWindStrength: this.props.windStrength,
           treeProps,
           updateTriggers: {
-            ...this.props.updateTriggers,
-            getCanopyColor: this.props.updateTriggers?.getDistantCanopyColor
+            // Scope triggers so style changes update render props without reloading tile data.
+            getTileData: this.props.updateTriggers?.getTileData,
+            getTreeKey:
+              this.props.updateTriggers?.all === undefined
+                ? this.props.updateTriggers?.getTreeKey
+                : [this.props.updateTriggers.all, this.props.updateTriggers?.getTreeKey],
+            getCanopyColor:
+              this.props.updateTriggers?.all === undefined
+                ? this.props.updateTriggers?.getDistantCanopyColor
+                : [this.props.updateTriggers.all, this.props.updateTriggers?.getDistantCanopyColor]
           }
         })
       ];

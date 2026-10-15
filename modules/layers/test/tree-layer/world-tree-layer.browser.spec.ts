@@ -188,6 +188,19 @@ it('streams an independent inventory through region, forest and close views with
         .find(layer => layer instanceof TreeLayer)!.props.data
     ).toBe(before);
     expect(leaves(current()).filter(layer => layer.id.includes('canopy-oak')).length).toBe(0);
+    // Keep the winter assertion above separate from the pixel check: coverage needs visible crowns.
+    season = 'summer';
+    deck.setProps({layers: [makeLayer()]});
+    await expect
+      .poll(
+        () =>
+          current()
+            .getSubLayers()
+            .find(layer => layer instanceof TreeLayer)
+            ?.props.getSeason?.(null),
+        {timeout: 30000}
+      )
+      .toBe('summer');
     // Ordinary accessors and their triggers survive the geographic wrapper.
     for (const value of [0.25, 0]) {
       authoredCoverage = value;
@@ -211,26 +224,26 @@ it('streams an independent inventory through region, forest and close views with
       expect(trees.props.updateTriggers.getCoverageWeight).toContain(coverageRevision);
     }
     // Constant accessors invalidate cached wood/crown attributes without an explicit trigger.
+    const readyForCloseInventory = () =>
+      current().isLoaded &&
+      !current().state.coverage.active &&
+      current().state.batch.trees.length > 0 &&
+      current().state.batch.tiles.length > 0 &&
+      current().state.batch.tiles.every(tile => tile.index.z === 19);
+    deck.setProps({
+      viewState: {longitude: 0.00055, latitude: 0.00055, zoom: 19, pitch: 45, bearing: 0}
+    });
+    // A draw and isLoaded can describe the preceding inventory while the new
+    // camera selection is debounced. Wait for the destination pages before
+    // asserting that later coverage-only edits preserve this array identity.
+    await expect.poll(readyForCloseInventory, {timeout: 30000}).toBe(true);
     const focus = current().state.batch.trees[0].position;
     const beforeFocus = frames;
     deck.setProps({
       viewState: {longitude: focus[0], latitude: focus[1], zoom: 19, pitch: 45, bearing: 0}
     });
     await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(beforeFocus);
-    // A draw and isLoaded can describe the preceding inventory while the new
-    // camera selection is debounced. Wait for the destination pages before
-    // asserting that later coverage-only edits preserve this array identity.
-    await expect
-      .poll(
-        () =>
-          current().isLoaded &&
-          !current().state.coverage.active &&
-          current().state.batch.trees.length > 0 &&
-          current().state.batch.tiles.length > 0 &&
-          current().state.batch.tiles.every(tile => tile.index.z === 19),
-        {timeout: 30000}
-      )
-      .toBe(true);
+    await expect.poll(readyForCloseInventory, {timeout: 30000}).toBe(true);
     const coverageTrees = current().state.batch.trees;
     // Accessor type switches use deck's explicit trigger; numeric edits below do not.
     constantCoverage = true;
