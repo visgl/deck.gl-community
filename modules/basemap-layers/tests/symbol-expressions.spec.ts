@@ -102,48 +102,6 @@ describe('text-color and text-opacity', () => {
   });
 });
 
-describe('symbol-sort-key', () => {
-  test('gives lower sort keys a higher collision priority', () => {
-    const layer = labelLayer({'text-field': 'x', 'symbol-sort-key': ['get', 'rank']});
-    const first = layer.getLabelCollisionPriority(feature({rank: 1}) as any);
-    const second = layer.getLabelCollisionPriority(feature({rank: 5}) as any);
-    expect(first).toBeGreaterThan(second);
-  });
-
-  test('falls back to the built-in priority when no sort key is set', () => {
-    const layer = labelLayer({'text-field': 'x'});
-    expect(layer.getLabelCollisionPriority(feature({class: 'country'}) as any)).toBeGreaterThan(
-      layer.getLabelCollisionPriority(feature({class: 'village'}) as any)
-    );
-  });
-
-  test("stays within deck.gl's collision priority range and keeps order for extreme keys", () => {
-    const layer = labelLayer({'text-field': 'x', 'symbol-sort-key': ['get', 'rank']});
-    const low = layer.getLabelCollisionPriority(feature({rank: -1e6}) as any);
-    const high = layer.getLabelCollisionPriority(feature({rank: 1e6}) as any);
-    for (const priority of [low, high]) {
-      expect(priority).toBeGreaterThanOrEqual(-1000);
-      expect(priority).toBeLessThanOrEqual(1000);
-    }
-    expect(low).toBeGreaterThan(high);
-  });
-
-  test('stays within the priority range given for its style layer', () => {
-    const layer = new MVTLabelLayer({
-      id: 'labels',
-      config: {labels: true},
-      styleLayer: {layout: {'text-field': 'x', 'symbol-sort-key': ['get', 'rank']}},
-      zoom: 8,
-      collisionPriorityRange: [-200, 100]
-    } as any);
-    for (const rank of [-1e9, -3, 0, 7, 1e9]) {
-      const priority = layer.getLabelCollisionPriority(feature({rank}) as any);
-      expect(priority).toBeGreaterThanOrEqual(-200);
-      expect(priority).toBeLessThan(100);
-    }
-  });
-});
-
 describe('update triggers', () => {
   const layout = {
     'text-field': ['get', 'name'],

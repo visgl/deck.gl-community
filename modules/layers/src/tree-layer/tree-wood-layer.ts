@@ -218,8 +218,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       );
       const weight = t * t * (3 - 2 * t);
       nearWeights.set(owner.row, weight);
-      if (weight > 0) near.push(owner.row);
-      if (weight < 1) far.push(owner.row);
+      if (weight >= 0.5) near.push(owner.row);
+      else far.push(owner.row);
     }
     this.setState({
       near: retainSplatRows(this.state.near, near),
@@ -299,8 +299,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       const t = Math.max(0, Math.min(1, (pixels - 80) / 100)),
         weight = t * t * (3 - 2 * t);
       shadowWeights.set(owner.row, weight);
-      if (weight > 0) shadowNear.push(owner.row);
-      if (weight < 1) shadowFar.push(owner.row);
+      if (weight >= 0.5) shadowNear.push(owner.row);
+      else shadowFar.push(owner.row);
     }
     this.setState({
       shadow: retainSplatRows(this.state.shadow, shadow),
@@ -328,20 +328,9 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               ...this.getSubLayerProps({id}),
               data,
               _dataDiff: getSplatChangedRanges,
-              getCoverageRange: (owner: Row) => {
-                const weight =
-                  (id.startsWith('shadow-')
-                    ? this.state.shadowWeights
-                    : this.state.nearWeights
-                  ).get(owner) ?? 0;
-                return aggregate ? [weight, 1] : [0, weight];
-              },
-              updateTriggers: {
-                ...this.props.updateTriggers,
-                getCoverageRange: id.startsWith('shadow-')
-                  ? this.state.shadowWeights
-                  : this.state.nearWeights
-              },
+              // Wood is opaque. Dithering different skeletons exposes disconnected
+              // surfaces and cannot provide complementary pixel coverage.
+              getCoverageRange: [0, 1],
               operation: id.startsWith('shadow-') ? 'shadow' : 'draw',
               // Light-space children own casting; camera LoD children only receive shadows.
               shadowEnabled: id.startsWith('shadow-') && this.props.shadowEnabled !== false,

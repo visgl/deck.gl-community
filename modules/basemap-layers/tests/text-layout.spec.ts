@@ -9,7 +9,9 @@ import {
   MAX_CACHED_CHARACTERS,
   MAX_CACHED_FONTS,
   MAX_WRAPPED_TEXT_LENGTH,
+  forgetCharacterWidths,
   getCharacterWidthMeasurer,
+  getCharacterWidthsRevision,
   transformText,
   wrapText
 } from '../src/text-layout';
@@ -102,6 +104,41 @@ describe('getCharacterWidthMeasurer in Node', () => {
     expect(getCharacterWidthMeasurer(400, 'sans-serif')).toBe(measureWidth);
     expect(measureWidth('W')).toBe(FALLBACK_CHARACTER_WIDTH);
     expect(measureWidth('i')).toBe(0.5);
+  });
+});
+
+describe('forgetCharacterWidths', () => {
+  const revision = (family: string) => getCharacterWidthsRevision(400, family);
+
+  test("changes a font's revision only when the advances measured in it change", () => {
+    getCharacterWidthMeasurer(400, 'Kept Font')('a');
+    forgetCharacterWidths(400, 'Kept Font');
+    expect(revision('Kept Font')).toBe(0);
+    // A font never measured has nothing measured to keep.
+    forgetCharacterWidths(400, 'Unmeasured Font');
+    expect(revision('Unmeasured Font')).toBe(1);
+  });
+
+  test('changes it when advances measured before were not all kept', () => {
+    // Characters cleared from a full cache.
+    const measureWidth = getCharacterWidthMeasurer(400, 'Cleared Font');
+    for (let i = 0; i <= MAX_CACHED_CHARACTERS; i++) {
+      measureWidth(String.fromCodePoint(0x4e00 + i));
+    }
+    forgetCharacterWidths(400, 'Cleared Font');
+    expect(revision('Cleared Font')).toBe(1);
+    // A measurer evicted with the others, then made again.
+    getCharacterWidthMeasurer(400, 'Evicted Font')('a');
+    for (let i = 0; i <= MAX_CACHED_FONTS; i++) {
+      getCharacterWidthMeasurer(400, `Other Font ${i}`);
+    }
+    getCharacterWidthMeasurer(400, 'Evicted Font')('a');
+    forgetCharacterWidths(400, 'Evicted Font');
+    expect(revision('Evicted Font')).toBe(1);
+    // Measured again after being forgotten, the font holds every advance once more.
+    getCharacterWidthMeasurer(400, 'Evicted Font')('a');
+    forgetCharacterWidths(400, 'Evicted Font');
+    expect(revision('Evicted Font')).toBe(1);
   });
 });
 
