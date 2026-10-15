@@ -155,13 +155,23 @@ export function mountTreeLabExample(
           id: 'labels',
           data,
           coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-          getPosition: tree => [tree.position![0], tree.position![1] - 9, 0],
-          getText: tree => tree.species!,
-          getSize: 13,
-          getColor: [40, 60, 40],
+          getPosition: tree => [tree.position![0], tree.position![1] - 9, 0.2],
+          getText: tree => {
+            const species = tree.species!;
+            return species[0].toUpperCase() + species.slice(1);
+          },
+          getSize: 18,
+          getColor: [35, 48, 36],
+          getAlignmentBaseline: 'bottom',
+          fontFamily: 'system-ui, sans-serif',
+          fontWeight: 600,
+          sizeUnits: 'pixels',
+          sizeMinPixels: 16,
           billboard: true,
           background: true,
-          getBackgroundColor: [245, 248, 240, 220]
+          backgroundPadding: [6, 3],
+          backgroundBorderRadius: 5,
+          getBackgroundColor: [250, 252, 247, 245]
         })
       ]
     });
