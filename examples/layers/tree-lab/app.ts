@@ -38,7 +38,7 @@ const SPECIES: TreeType[] = [
   'citrus'
 ];
 const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
-const SUN_DIRECTION: [number, number, number] = [0.8, 0.2, -2.4];
+const SUN_DIRECTION: [number, number, number] = [0.8, 0.2, -1.6];
 const SHADOW_MAP_SIZE = 512;
 const SHADOW_SPAN = 48;
 class GroundShadowLightingEffect extends LightingEffect {
@@ -137,8 +137,8 @@ function createShadowImage(device: WebGLDevice, shadowPass: SplatShadowPass) {
         0,
         Math.min(1, (1 - Math.hypot((x - centerX) / radiusX, (y - centerY) / radiusY)) / 0.28)
       );
-      const canopyFill = maxX >= 0 ? 0.22 * edge * edge * (3 - 2 * edge) : 0;
-      const opacity = Math.max(canopyFill, Math.min(0.55, Math.max(0, shadow - 0.04) * 1.4));
+      const canopyFill = maxX >= 0 ? 0.34 * edge * edge * (3 - 2 * edge) : 0;
+      const opacity = Math.max(canopyFill, Math.min(0.42, Math.max(0, shadow - 0.04) * 1.1));
       image.data[target] = 35;
       image.data[target + 1] = 43;
       image.data[target + 2] = 32;
