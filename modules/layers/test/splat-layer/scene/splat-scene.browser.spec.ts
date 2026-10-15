@@ -285,7 +285,9 @@ async function renderSorted(
       expect(scene!.state.runtime.pickers.size).toBe(0);
       expect((await deck!.pickObjectAsync({x: 64, y: 64}))?.object).toBe(blue);
       expect(
-        [...scene!.state.runtime.pickers.keys()].every(key => key.startsWith('replacement/'))
+        [...scene!.state.runtime.pickers.keys()].every(
+          key => (JSON.parse(key) as [string, string])[0] === 'replacement'
+        )
       ).toBe(true);
     }
     if (projectionRecovery) {
