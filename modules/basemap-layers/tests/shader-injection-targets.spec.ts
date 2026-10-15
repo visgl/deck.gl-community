@@ -370,7 +370,7 @@ describe('shader injection targets in the installed deck.gl', () => {
     });
     const [base] = getModelShaders(LabelCharactersLayer, props);
     expectNames('TextHaloBlurExtension', 'LabelCharactersLayer', base, {
-      fs: ['sdf.outlineBuffer', 'labelHaloGamma', 'distance', 'alpha']
+      fs: ['sdf.outlineBuffer', 'labelHaloGamma', 'labelEdge.foreshortening', 'distance', 'alpha']
     });
   });
 
