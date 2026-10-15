@@ -321,7 +321,7 @@ describe('LabelPlacement', () => {
       second,
       {id: 'second-tiles', parent: second}
     ];
-    const under = (root: object, order: number, xs: number[]) => ({
+    const under = (root: {id: string}, order: number, xs: number[]) => ({
       ...fakeLayer(order, xs),
       getPlacementRoot: () => ({root, layers: deckLayers})
     });
