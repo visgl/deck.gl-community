@@ -4,13 +4,15 @@
 
 import {expect, test, vi} from 'vitest';
 import {userEvent} from 'vitest/browser';
-import maplibregl from 'maplibre-gl';
+import 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
 import {DrawPolygonByDraggingMode} from '../../src/edit-modes/draw-polygon-by-dragging-mode';
 import {ModifyMode} from '../../src/edit-modes/modify-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
+
+const maplibre = (globalThis as any).maplibregl;
 
 async function drag(canvas: HTMLCanvasElement, from: number[], to: number[], release = true) {
   const rect = canvas.getBoundingClientRect();
@@ -49,7 +51,7 @@ test.each([
   const container = document.createElement('div');
   container.style.cssText = 'width:512px;height:384px;position:relative';
   document.body.append(container);
-  const map = new maplibregl.Map({
+  const map = new maplibre.Map({
     container,
     style: {version: 8, sources: {}, layers: []},
     center: [0, 0],

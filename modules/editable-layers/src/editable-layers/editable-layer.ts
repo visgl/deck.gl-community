@@ -257,8 +257,10 @@ export abstract class EditableLayer<
     if (event.type === 'dblclick') this._onNativeMapInteraction(event);
     const editableState = this.state._editableLayerState;
     if (event.type === 'pointerdown') {
-      editableState.didDrag = false;
-      editableState.pressScreenCoords = this.getScreenCoords(event);
+      if ((event as PointerEvent).isPrimary !== false) {
+        editableState.didDrag = false;
+        editableState.pressScreenCoords = this.getScreenCoords(event);
+      }
       return;
     }
     if (
