@@ -258,7 +258,11 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const scene =
       isSplatSceneData(props.data) ||
       Boolean(this.state.rowSources?.some(isSplatSceneData)) ||
-      (Array.isArray(props.data) && props.transparency === 'sorted' && !hasOpticalDepths);
+      // TreeLayer's shared budget keeps its prepared foliage on the geographic backend.
+      (Array.isArray(props.data) &&
+        props.transparency === 'sorted' &&
+        !hasOpticalDepths &&
+        !props._splatBudgetGroup);
     if (scene) {
       if (
         Number.isFinite(props.maxActiveSplats) &&
