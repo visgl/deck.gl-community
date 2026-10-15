@@ -64,6 +64,17 @@ function hasSplatOpticalDepths(input: SplatDataInput): boolean {
     source && typeof source === 'object' && 'opticalDepths' in source && source.opticalDepths
   );
 }
+
+function getEffectiveMaxSplats(props: {maxActiveSplats?: number; maxSplats: number}): number {
+  if (
+    Number.isFinite(props.maxActiveSplats) &&
+    Number.isFinite(props.maxSplats) &&
+    props.maxActiveSplats !== props.maxSplats
+  )
+    throw new Error('maxActiveSplats and maxSplats must agree when both are specified.');
+  return Number.isFinite(props.maxActiveSplats) ? props.maxActiveSplats! : props.maxSplats;
+}
+
 type Owner<DataT> = {object: DataT; weight: number; index: number};
 type PreparedOwner<DataT> = {
   key: string;
@@ -255,6 +266,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     }
     if (!Array.isArray(props.data)) this.state.rowSources = null;
     const sources = Array.isArray(props.data) ? (this.state.rowSources ?? []) : [props.data];
+    const maxSplats = getEffectiveMaxSplats(props);
     const sceneSourceChanged = Boolean(
       changeFlags.dataChanged ||
         sourceAccessorChanged ||
@@ -273,12 +285,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         (props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN ||
           (this.state.scene && !sceneSourceChanged)));
     if (scene) {
-      if (
-        Number.isFinite(props.maxActiveSplats) &&
-        Number.isFinite(props.maxSplats) &&
-        props.maxActiveSplats !== props.maxSplats
-      )
-        throw new Error('maxActiveSplats and maxSplats must agree when both are specified.');
       if (props.transparency === 'weighted')
         throw new Error('RAD scenes require sorted transparency.');
       const projectionError = getSplatSceneProjectionError(props.coordinateSystem);
@@ -339,7 +345,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const refinementChanged =
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
-      props.maxSplats !== oldProps.maxSplats ||
+      maxSplats !== getEffectiveMaxSplats(oldProps) ||
       props.maxShadowSplats !== oldProps.maxShadowSplats ||
       props.kernelVariance !== oldProps.kernelVariance ||
       renderPixelRatio !== this.state.renderPixelRatio;
@@ -548,13 +554,9 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           }))
         : candidates;
     const membershipChanged = this.state.refinement.reconcile(
-      budgetSplatSelections(
-        initialCandidates,
-        owner => owner.asset.hierarchy,
-        props.maxSplats * 0.75
-      ),
+      budgetSplatSelections(initialCandidates, owner => owner.asset.hierarchy, maxSplats * 0.75),
       owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
-      props.maxSplats,
+      maxSplats,
       owner => owner.key
     );
     const groups =
@@ -622,7 +624,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     runtime.set(this.id, shadow, {
       rows: shadow && !this.props.shadowEnabled ? [] : candidates,
       hierarchy: owner => owner.asset.hierarchy,
-      maxSplats: shadow ? this.props.maxShadowSplats : this.props.maxSplats,
+      maxSplats: shadow ? this.props.maxShadowSplats : getEffectiveMaxSplats(this.props),
       maxTotalSplats: this.props.maxTotalSplats,
       group: this.props._splatBudgetGroup,
       tick: now => (this.getCurrentLayer() as this | null)?.updateRefinement(now),
@@ -895,9 +897,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           }),
           parameters,
           data: this.props.data,
-          maxSplats: Number.isFinite(this.props.maxActiveSplats)
-            ? this.props.maxActiveSplats
-            : this.props.maxSplats,
+          maxSplats: getEffectiveMaxSplats(this.props),
           _resolvedAssets: this.state.rowSources,
           onStatusChange: this.props.onStatusChange
         })
@@ -939,6 +939,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       return new SplatPrimitiveLayer<Owner<DataT>>({
         ...this.props,
         ...props,
+        maxSplats: shadow ? this.props.maxShadowSplats : getEffectiveMaxSplats(this.props),
         transparency: this.props.transparency === 'sorted' ? 'sorted' : 'weighted',
         data: members,
         updateTriggers: {
