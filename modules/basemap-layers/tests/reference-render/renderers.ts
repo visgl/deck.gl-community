@@ -455,6 +455,8 @@ async function drawBasemapLayer(
               style,
               loadOptions: {mvt: {workerUrl: mvtWorkerUrl}},
               fontFamily: getReferenceFontFamily,
+              // Placed at every frame, as MapLibre with `fadeDuration: 0`.
+              labelPlacementInterval: 0,
               ...layerProps
             })
           ],

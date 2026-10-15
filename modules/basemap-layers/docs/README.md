@@ -200,12 +200,13 @@ with a warning.
 
 Approximations:
 
-- Icons share the labels' collision filtering, and an icon and its text are placed or hidden as
-  one unit, as in MapLibre. The test is the labels' one: a symbol is hidden where a
-  higher-priority symbol's box (the whole icon box, or the text box) covers its anchor.
-  `*-allow-overlap` (or `*-overlap: always`), `*-ignore-placement` and `*-optional` follow
-  MapLibre's rules, except that text and icon share one test, so a part is shown without its
-  optional partner only when that part allows overlap.
-- `icon-rotate`, `icon-text-fit` and `icon-padding` are not applied.
+- Labels and icons are placed as in MapLibre: style layers from the top down, each symbol
+  against those placed before it, by its text box (text along lines: circles along the label) and
+  its icon box, each padded by `text-padding` / `icon-padding`. `*-allow-overlap` and `*-overlap`
+  (`never`, `always`, `cooperative`), `*-ignore-placement` and `*-optional` follow MapLibre's
+  rules. Placement runs when the view or the labels change: at most every
+  `labelPlacementInterval` ms (300) while the view moves, and at once when it rests. Labels
+  switch without MapLibre's fade, and text along lines is straight, so its circles are too.
+- `icon-text-fit` is not applied.
 
 [maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec

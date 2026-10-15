@@ -147,21 +147,21 @@ describe('text-letter-spacing in the browser', () => {
   });
 
   test('the collision box covers the spaced text', async () => {
-    // The collision filter hides a label whose anchor another label covers. 30 pixels apart, the
-    // plain labels, about 40 pixels wide, miss each other's anchor; spaced by 1 em, they do not.
+    // Labels collide by their boxes, padded by 2 pixels. 50 pixels apart, the plain labels, about
+    // 40 pixels wide, miss each other; spaced by 1 em, about 72 pixels wide, they overlap.
     const points = [
-      [-15, 0],
-      [15, 0]
+      [-25, 0],
+      [25, 0]
     ];
     const plain = getInkColumns(await renderLabels({'text-field': 'MMM'}, points))!;
-    expect(plain[1] - plain[0]).toBeGreaterThan(60);
+    expect(plain[1] - plain[0]).toBeGreaterThan(80);
     cleanup();
     const spaced = getInkColumns(
       await renderLabels({'text-field': 'MMM', 'text-letter-spacing': 1}, points)
     )!;
-    // Only the first label, about 72 pixels wide and centered 15 pixels left, draws.
+    // Only the first label, centered 25 pixels left, draws.
     expect(spaced[1] - spaced[0]).toBeLessThan(80);
-    expect(Math.abs((spaced[0] + spaced[1]) / 2 - (SIZE / 2 - 15))).toBeLessThanOrEqual(2);
+    expect(Math.abs((spaced[0] + spaced[1]) / 2 - (SIZE / 2 - 25))).toBeLessThanOrEqual(2);
   });
 });
 

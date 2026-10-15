@@ -268,11 +268,20 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     return super.getSubLayerClass(subLayerId, DefaultLayerClass);
   }
 
-  /** The glyph layer's props, with the shared texture in place of the atlas canvas. */
+  /**
+   * The glyph layer's props, with the shared texture in place of the atlas canvas, and the row's
+   * placement slot (see `LabelPlacementExtension`).
+   */
   getSubLayerProps(sublayerProps: any = {}): any {
     const props = super.getSubLayerProps(sublayerProps);
     if (sublayerProps.id === 'characters' && this.state.atlasTexture) {
       props.iconAtlas = this.state.atlasTexture;
+    }
+    // The placement slot is a row's, and the sublayers draw this layer's rows: it is handed down
+    // as is. deck.gl would otherwise call it with the feature a row was made from.
+    const {getPlacementSlot} = this.props as any;
+    if (typeof getPlacementSlot === 'function') {
+      props.getPlacementSlot = getPlacementSlot;
     }
     return props;
   }

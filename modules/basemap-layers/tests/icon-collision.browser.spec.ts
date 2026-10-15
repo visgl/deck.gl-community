@@ -66,6 +66,7 @@ async function renderSymbols(
       layers: [
         new MVTLabelLayer({
           id: 'symbols',
+          pickable: true,
           config: {labels: true},
           zoom: 8,
           styleLayer: {layout, paint},
@@ -161,18 +162,35 @@ describe('icon collision in the browser', () => {
   });
 
   test('icon-padding widens the icon box that hides lower-priority labels', async () => {
-    // The 16-pixel square's box reaches 8 pixels from its center, 10 with the default padding:
-    // short of the label's anchor, 20 pixels away. A padding of 16 reaches past it.
+    // The 16-pixel square's box reaches 8 pixels from its center, 10 with the default padding;
+    // the label's box, anchored at its left edge 20 pixels away, starts 18 pixels away with its
+    // 2 pixels of padding. A padding of 16 reaches into it.
+    const layout = {...LAYOUT, 'text-anchor': 'left'};
     const features: [number[], Record<string, unknown>][] = [
       [[0, 0], {rank: 0, icon: 'square'}],
       [[20, 0], {rank: 1, name: 'MMMM'}]
     ];
-    expect(textPixels(await renderSymbols(LAYOUT, features))).toBeGreaterThan(20);
+    expect(textPixels(await renderSymbols(layout, features))).toBeGreaterThan(20);
     deck?.finalize();
     parent?.remove();
-    const image = await renderSymbols({...LAYOUT, 'icon-padding': 16}, features);
+    const image = await renderSymbols({...layout, 'icon-padding': 16}, features);
     expect(iconPixels(image)).toBeGreaterThan(200);
     expect(textPixels(image)).toBe(0);
+  });
+
+  test('a label hidden by placement is neither drawn nor picked', async () => {
+    const image = await renderSymbols(LAYOUT, [
+      [[0, 0], {rank: 0, name: 'AAAA'}],
+      [[6, 4], {rank: 1, name: 'BBBB'}]
+    ]);
+    expect(textPixels(image)).toBeGreaterThan(20);
+    const picked = new Set(
+      (deck as any)
+        .pickObjects({x: 0, y: 0, width: SIZE, height: SIZE})
+        .map((info: any) => (info.object?.__source?.object ?? info.object)?.properties?.name)
+        .filter(Boolean)
+    );
+    expect([...picked]).toEqual(['AAAA']);
   });
 
   test("an icon's transparent border still hides a lower-priority label", async () => {

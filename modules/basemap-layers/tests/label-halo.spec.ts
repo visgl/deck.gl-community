@@ -140,7 +140,7 @@ describe('label halo wiring', () => {
     ]);
   });
 
-  test('with several halos, one invisible sublayer places every label', () => {
+  test("with several halos, one invisible sublayer holds every label's picking box", () => {
     const features = [1, 2].map(halo => ({
       ...feature,
       properties: {...feature.properties, halo}
@@ -158,10 +158,10 @@ describe('label halo wiring', () => {
     expect(placement.props.getColor).toEqual([0, 0, 0, 0]);
     expect(placement.props.outlineWidth).toBe(0);
     expect(placement.props.background).toBe(true);
-    // The halo sublayers draw nothing into the collision map: their priority is out of range.
+    // Every sublayer draws by the same placement slots; only the invisible one has a background.
     expect(halos).toHaveLength(2);
     for (const text of halos) {
-      expect(text.props.getCollisionPriority).toBeLessThan(-1000);
+      expect(text.props.getPlacementSlot).toBe(placement.props.getPlacementSlot);
       expect(text.props.background).toBe(false);
     }
   });
