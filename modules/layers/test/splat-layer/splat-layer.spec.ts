@@ -62,6 +62,53 @@ it('includes absolute flex in both wind allowances for camera and light bounds',
   );
 });
 
+it('applies maxActiveSplats to prepared selection and shared demand', () => {
+  const fine = Object.fromEntries(
+    Object.entries(SOURCE).map(([key, array]) => [
+      key,
+      new (array.constructor as typeof Float32Array)([...array, ...array, ...array, ...array])
+    ])
+  );
+  const row = {
+    position: [256, 256, 0] as [number, number, number],
+    splats: {
+      type: 'prepared-splats' as const,
+      source: fine,
+      hierarchy: [
+        {source: fine, error: 0},
+        {source: SOURCE, error: 1}
+      ]
+    }
+  };
+  const layer = make([row], 0, {
+    source: undefined,
+    getSource: item => item.splats,
+    maxActiveSplats: 8,
+    pixelError: 0.001
+  });
+  const owner = layer.state.owners[0];
+  expect(layer.state.refinement.entries.get(owner.key)?.level).toBe(0);
+  expect(layer.state.runtime['demands'][0].get(layer.id)?.maxSplats).toBe(8);
+
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({maxActiveSplats: 1}).props});
+  layer.updateState({
+    props: layer.props,
+    oldProps,
+    changeFlags: {propsChanged: true}
+  } as any);
+
+  expect(layer.state.refinement.entries.get(owner.key)?.level).toBe(1);
+  expect(layer.state.runtime['demands'][0].get(layer.id)?.maxSplats).toBe(1);
+  expect(layer.renderLayers()[0].props.maxSplats).toBe(1);
+});
+
+it('rejects conflicting maxActiveSplats and maxSplats on prepared inputs', () => {
+  expect(() => make([{position: [0, 0, 0]}], 0, {maxActiveSplats: 1, maxSplats: 2})).toThrow(
+    'maxActiveSplats and maxSplats must agree when both are specified.'
+  );
+});
+
 it('starts shared capped registrations at coverage before their first joint grant', () => {
   const fine = Object.fromEntries(
     Object.entries(SOURCE).map(([key, array]) => [
