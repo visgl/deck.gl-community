@@ -72,6 +72,14 @@ Optional globe-specific toggles:
 - `basemap`: enable the main globe basemap geometry
 - `labels`: enable symbol-label rendering on the globe path
 
+### `separateLabelPlacement`
+
+Type: `boolean`
+
+By default (`false`), the labels of every `BasemapLayer` in a deck are placed together, as the layers of one style: a label is hidden where it overlaps a label placed before it, and the labels of a `BasemapLayer` drawn later (later in the `layers` array) are placed first. Stacking a base style and a labels-only style this way does not draw their labels over each other. Set `true` to place this layer's labels on their own, so that they collide only with each other and never hide, or are hidden by, those of another `BasemapLayer`.
+
+The shared placement takes the `labelPlacementInterval` of the last `BasemapLayer` rendered: give layers that share it the same interval.
+
 ## Runtime Helpers
 
 ### `getBasemapLayers(options)`

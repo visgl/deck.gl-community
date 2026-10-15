@@ -206,7 +206,8 @@ Approximations:
   (`never`, `always`, `cooperative`), `*-ignore-placement` and `*-optional` follow MapLibre's
   rules. Placement runs when the view or the labels change: at most every
   `labelPlacementInterval` ms (300) while the view moves, and at once when it rests. Labels
-  switch without MapLibre's fade.
+  switch without MapLibre's fade. The `BasemapLayer`s of a deck place their labels together, as
+  one style whose later layers are drawn on top, unless `separateLabelPlacement` is set.
 - Text along lines is drawn glyph by glyph, as MapLibre draws it: each glyph on the line, turned
   to the segment it lands on, and the label hidden where it does not fit on the line. The glyphs
   are placed again at every 1/128 zoom step; a label turns upright at 5° bearing steps, by its

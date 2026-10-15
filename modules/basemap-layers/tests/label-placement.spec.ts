@@ -309,6 +309,95 @@ describe('LabelPlacement', () => {
     expect(textVisibility(device, 2)).toEqual([false, true]);
   });
 
+  test('layers under a later deck layer are placed first, whatever their placement order', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 0;
+    // Two basemaps, the second drawn over the first, each with a bottom and a top style layer.
+    const first = {id: 'first', parent: null};
+    const second = {id: 'second', parent: null};
+    const deckLayers = [
+      first,
+      {id: 'first-tiles', parent: first},
+      second,
+      {id: 'second-tiles', parent: second}
+    ];
+    const under = (root: {id: string}, order: number, xs: number[]) => ({
+      ...fakeLayer(order, xs),
+      getPlacementRoot: () => ({root, layers: deckLayers})
+    });
+    // Registered first-basemap first, and its top style layer above any of the second's.
+    placement.register(under(first, 2, [0]));
+    placement.register(under(first, 1, [100]));
+    placement.register(under(second, 1, [10]));
+    placement.register(under(second, 0, [110, 120]));
+    const device = fakeDevice();
+    placement.prepare(device as any, fakeViewport(), false, 0);
+    // The second basemap's labels are placed first: its label at 10 hides the first's at 0, and
+    // its label at 110 hides the first's at 100, though that style layer's order is higher. Its
+    // label at 120 overlaps its own at 110.
+    expect(textVisibility(device, 5)).toEqual([false, false, true, true, false]);
+  });
+
+  test('placed again at once when the deck layers swap, and by id when deck.gl renews them', () => {
+    const placement = new LabelPlacement();
+    // Never placed for the interval alone: only a change places again.
+    placement.interval = Number.POSITIVE_INFINITY;
+    let deckLayers: {id: string; parent: null}[] = [
+      {id: 'first', parent: null},
+      {id: 'second', parent: null}
+    ];
+    // Each layer finds its deck layer by id, as a sublayer still pointing at the instance deck.gl
+    // replaced would.
+    const under = (id: string, xs: number[]) => ({
+      ...fakeLayer(1, xs),
+      getPlacementRoot: () => ({root: {id}, layers: deckLayers})
+    });
+    placement.register(under('first', [0]));
+    placement.register(under('second', [10]));
+    const device = fakeDevice();
+    const place = vi.spyOn(placement as any, 'place');
+    placement.prepare(device as any, fakeViewport(), false, 0, 0);
+    expect(textVisibility(device, 2)).toEqual([false, true]);
+    // The same view at the next frame: nothing to place again.
+    placement.prepare(device as any, fakeViewport(), false, 1, 1);
+    expect(place).toHaveBeenCalledTimes(1);
+    deckLayers = [deckLayers[1], deckLayers[0]];
+    placement.prepare(device as any, fakeViewport(), false, 2, 2);
+    expect(place).toHaveBeenCalledTimes(2);
+    expect(textVisibility(device, 2)).toEqual([true, false]);
+  });
+
+  test('placed again at once when a layer comes to be drawn in the view, or no longer is', () => {
+    const placement = new LabelPlacement();
+    placement.interval = Number.POSITIVE_INFINITY;
+    let drawn = true;
+    placement.register(fakeLayer(1, [0]));
+    placement.register(fakeLayer(2, [10], () => drawn));
+    const device = fakeDevice();
+    const place = vi.spyOn(placement as any, 'place');
+    placement.prepare(device as any, fakeViewport(), false, 0, 0);
+    expect(textVisibility(device, 2)).toEqual([false, true]);
+    drawn = false;
+    placement.prepare(device as any, fakeViewport(), false, 1, 1);
+    expect(place).toHaveBeenCalledTimes(2);
+    expect(textVisibility(device, 2)).toEqual([true, false]);
+  });
+
+  test('a layer without a deck layer is placed after those with one', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 0;
+    const root = {id: 'root', parent: null};
+    placement.register({
+      ...fakeLayer(1, [0]),
+      getPlacementRoot: () => ({root, layers: [root]})
+    });
+    placement.register({...fakeLayer(2, [10]), getPlacementRoot: () => null});
+    const device = fakeDevice();
+    placement.prepare(device as any, fakeViewport(), false, 0);
+    // A layer under a deck layer goes before those without one, whatever its order.
+    expect(textVisibility(device, 2)).toEqual([true, false]);
+  });
+
   test('picking reads the last placement and never places', () => {
     const placement = new LabelPlacement();
     placement.interval = 0;
@@ -767,6 +856,38 @@ describe('MVTLabelLayer placement symbols', () => {
     parent.props.visible = true;
     layer.props = {...layer.props, visible: false};
     expect(layer.isDrawnIn({id: 'a'})).toBe(false);
+  });
+
+  test("is not drawn in a view the deck's layerFilter keeps its topmost parent out of", () => {
+    const layer = labelLayer({'text-field': 'x'}, [{properties: {}, x: 0}]);
+    const root = {id: 'overlay', props: {visible: true}, parent: null, filterSubLayer: () => true};
+    layer.parent = root;
+    const filtered: string[] = [];
+    layer.context = {
+      deck: {
+        props: {
+          // Asked as deck.gl's screen pass asks it.
+          layerFilter: ({layer: filteredLayer, viewport, renderPass, isPicking}: any) => {
+            filtered.push(filteredLayer.id);
+            return viewport.id === 'left' && renderPass === 'screen' && !isPicking;
+          }
+        }
+      }
+    };
+    expect(layer.isDrawnIn({id: 'left'})).toBe(true);
+    expect(layer.isDrawnIn({id: 'right'})).toBe(false);
+    expect(filtered).toEqual(['overlay', 'overlay']);
+  });
+
+  test('its deck layer is its topmost parent, among the layers of its deck', () => {
+    const layer = labelLayer({'text-field': 'x'}, [{properties: {}, x: 0}]);
+    const root = {id: 'basemap', parent: null};
+    layer.parent = {id: 'tiles', parent: root};
+    const deckLayers = [root, layer.parent, layer];
+    layer.context = {layerManager: {getLayers: () => deckLayers}};
+    expect(layer.getPlacementRoot()).toEqual({root, layers: deckLayers});
+    layer.context = {};
+    expect(layer.getPlacementRoot()).toBe(null);
   });
 
   test('reads the placement rules, *-overlap over *-allow-overlap', () => {

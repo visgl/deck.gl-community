@@ -175,7 +175,29 @@ export interface PlacementLayer {
   ): SymbolPlacementRules | null;
   /** Requests another frame, while a placement waits for the throttle. */
   setNeedsRedraw(): void;
+  /**
+   * The deck layer the layer is drawn under (its topmost parent, or itself), and the deck's layers
+   * in draw order. Of two layers under different deck layers, the one under the later deck layer
+   * is placed first, as MapLibre GL JS places the layers drawn over others first; the placement
+   * order decides only between layers under the same deck layer. Without it, the layer is placed
+   * by its placement order alone, after the layers that give one. Deck layers are told apart by
+   * their ids, which deck.gl keeps when it makes a new instance of a layer.
+   */
+  getPlacementRoot?(): {root: {id: string}; layers: readonly PlacementDeckLayer[]} | null;
 }
+
+/** What placement reads of a deck's layers (see `PlacementLayer.getPlacementRoot`). */
+export type PlacementDeckLayer = {id: string; parent?: unknown};
+
+/** What a placement reads of a registered layer at a frame, for one viewport. */
+type PlacementLayerState = {
+  layer: PlacementLayer;
+  base: number;
+  /** Whether the layer is drawn in the viewport. */
+  drawn: boolean;
+  /** The index of its deck layer among the deck's layers, or -1 (see `getPlacementRoot`). */
+  rootIndex: number;
+};
 
 /** The placement of one viewport (one view of the deck). */
 type ViewPlacement = {
@@ -220,6 +242,13 @@ export class LabelPlacement {
   /** Changes when a layer joins, leaves or moves its slots. */
   private version = 0;
   private readonly symbols: PlacementSymbol[] = [];
+  /** Each layer's state at the frame being placed, in registration order (see `getRevision`). */
+  private readonly states: PlacementLayerState[] = [];
+  /** The index of each top-level deck layer, by id, in the deck's layers last read. */
+  private rootIndices: {layers: readonly PlacementDeckLayer[] | null; byId: Map<string, number>} = {
+    layers: null,
+    byId: new Map()
+  };
 
   /**
    * Adds a layer, or updates its slot count; returns its slot base. A layer that needs more slots
@@ -328,7 +357,7 @@ export class LabelPlacement {
       view.frame = frame;
       view.lastViewport = view.frameViewport;
       view.frameViewport = viewport;
-      const revision = this.getRevision();
+      const revision = this.getRevision(viewport);
       const slotLayout = this.getSlotLayout();
       const changed =
         revision !== view.revision || !view.viewport || !view.viewport.equals(viewport);
@@ -352,12 +381,41 @@ export class LabelPlacement {
     return this.getTexture(device, view);
   }
 
-  private getRevision(): string {
+  /**
+   * A value that changes whenever what would be placed in `viewport` changes, other than the view:
+   * a layer joins or leaves, its symbols change, it is drawn in the viewport or no longer is, or
+   * its deck layer moves among the deck's layers. Reads each layer's state for `place`.
+   */
+  private getRevision(viewport: Viewport): string {
     let revision = `${this.version}`;
-    for (const layer of this.layers.keys()) {
-      revision += `|${layer.getPlacementRevision()}`;
+    const states = this.states;
+    states.length = 0;
+    for (const [layer, {base}] of this.layers) {
+      const drawn = layer.isDrawnIn(viewport);
+      const rootIndex = this.getRootIndex(layer);
+      states.push({layer, base, drawn, rootIndex});
+      revision += `|${layer.getPlacementRevision()}:${drawn ? rootIndex : 'hidden'}`;
     }
     return revision;
+  }
+
+  /** The index of a layer's deck layer among the deck's layers, or -1. */
+  private getRootIndex(layer: PlacementLayer): number {
+    const placementRoot = layer.getPlacementRoot?.();
+    if (!placementRoot) {
+      return -1;
+    }
+    // The deck's layers are indexed again only when deck.gl gives it new ones.
+    if (placementRoot.layers !== this.rootIndices.layers) {
+      const byId = new Map<string, number>();
+      placementRoot.layers.forEach((deckLayer, index) => {
+        if (!deckLayer.parent) {
+          byId.set(deckLayer.id, index);
+        }
+      });
+      this.rootIndices = {layers: placementRoot.layers, byId};
+    }
+    return this.rootIndices.byId.get(placementRoot.root.id) ?? -1;
   }
 
   /**
@@ -408,14 +466,8 @@ export class LabelPlacement {
       PLACEMENT_CELL_SIZE
     );
     view.values.fill(0);
-    const layers = [...this.layers.entries()].sort(
-      ([a], [b]) => b.getPlacementOrder() - a.getPlacementOrder()
-    );
     const symbols = this.symbols;
-    for (const [layer, {base}] of layers) {
-      if (!layer.isDrawnIn(viewport)) {
-        continue;
-      }
+    for (const {layer, base} of this.getPlacementOrder()) {
       symbols.length = 0;
       const rules = layer.getPlacementSymbols(viewport, base, symbols);
       if (!rules) {
@@ -435,13 +487,60 @@ export class LabelPlacement {
     view.dirty = true;
   }
 
+  /**
+   * The layers drawn in the viewport of the last `getRevision`, in the order they are placed: under
+   * the later deck layer first, then by placement order, highest first (see
+   * `PlacementLayer.getPlacementRoot`). Layers that tie keep the order they registered in.
+   */
+  private getPlacementOrder(): PlacementLayerState[] {
+    return this.states
+      .filter(state => state.drawn)
+      .map(state => ({state, order: state.layer.getPlacementOrder()}))
+      .sort((a, b) => b.state.rootIndex - a.state.rootIndex || b.order - a.order)
+      .map(({state}) => state);
+  }
+
   /** Releases the textures. */
   destroy(): void {
     for (const view of this.views.values()) {
       view.texture?.destroy();
     }
     this.views.clear();
+    this.states.length = 0;
+    this.rootIndices = {layers: null, byId: new Map()};
   }
+}
+
+/** The placement shared by the label layers of each deck, and how many users it has. */
+const sharedPlacements = new WeakMap<object, {placement: LabelPlacement; users: number}>();
+
+/**
+ * Takes a use of the placement shared by the label layers of the deck that `key` names (its layer
+ * manager), made at the first use. Each use is given back with `releaseSharedLabelPlacement`.
+ */
+export function acquireSharedLabelPlacement(key: object): LabelPlacement {
+  let shared = sharedPlacements.get(key);
+  if (!shared) {
+    shared = {placement: new LabelPlacement(), users: 0};
+    sharedPlacements.set(key, shared);
+  }
+  shared.users++;
+  return shared.placement;
+}
+
+/** Gives back a use of a deck's shared placement, which is released with its last use. */
+export function releaseSharedLabelPlacement(key: object | null | undefined): void {
+  const shared = key && sharedPlacements.get(key);
+  if (shared && --shared.users === 0) {
+    shared.placement.destroy();
+    sharedPlacements.delete(key);
+  }
+}
+
+/** The key of the shared placement of a layer's deck: its layer manager. */
+export function getSharedLabelPlacementKey(layer: {context?: unknown}): object {
+  const context = layer.context as {layerManager?: object} | undefined;
+  return context?.layerManager || context || layer;
 }
 
 /** Props that `LabelPlacementExtension` adds to a label sublayer. */
