@@ -54,7 +54,14 @@ it('batches mixed canopy sources and retains their model through bearing changes
         onAfterRender() {
           const now = performance.now();
           if (++frames > 4) {
-            const trees = deck.props.layers[1] as TreeLayer;
+            const trees = deck.props.layers.find(
+              layer =>
+                Boolean(layer) &&
+                !Array.isArray(layer) &&
+                typeof layer === 'object' &&
+                'id' in layer &&
+                layer.id === 'trees'
+            ) as TreeLayer;
             const splats = trees
               .getSubLayers()
               .reduce(
