@@ -56,6 +56,13 @@ import type {SplatLayerStatus} from './scene/rad-scene';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
+
+function hasSplatOpticalDepths(input: SplatDataInput): boolean {
+  const source = input && typeof input === 'object' && 'source' in input ? input.source : input;
+  return Boolean(
+    source && typeof source === 'object' && 'opticalDepths' in source && source.opticalDepths
+  );
+}
 type Owner<DataT> = {object: DataT; weight: number; index: number};
 type PreparedOwner<DataT> = {
   key: string;
@@ -68,7 +75,10 @@ type PreparedOwner<DataT> = {
   scale: number;
   radius: number;
 };
-type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'> & {
+type _SplatLayerProps<DataT> = Omit<
+  PreparedSplatProps<DataT>,
+  'data' | 'source' | 'transparency'
+> & {
   /** A Gaussian asset, scene URL/Blob, or application-owned instance rows. */
   data: DataT[] | SplatDataInput;
   /** Reusable asset per owner. Defaults to the row's splats field. */
@@ -243,10 +253,12 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       );
     }
     if (!Array.isArray(props.data)) this.state.rowSources = null;
+    const sources = Array.isArray(props.data) ? (this.state.rowSources ?? []) : [props.data];
+    const hasOpticalDepths = sources.some(hasSplatOpticalDepths);
     const scene =
-      props.transparency === 'sorted' ||
       isSplatSceneData(props.data) ||
-      Boolean(this.state.rowSources?.some(isSplatSceneData));
+      Boolean(this.state.rowSources?.some(isSplatSceneData)) ||
+      (Array.isArray(props.data) && props.transparency === 'sorted' && !hasOpticalDepths);
     if (scene) {
       if (
         Number.isFinite(props.maxActiveSplats) &&
@@ -326,18 +338,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       !geometryChanged &&
       !refinementChanged
     ) {
-      if (props.transparency !== 'weighted' && props.transparency !== 'auto')
-        throw new Error(
-          'Sorted SplatLayer rendering requires the upstream paged-instance backend.'
-        );
       this.publishDemand(false, this.state.candidates);
       this.publishDemand(true, this.state.shadowCandidates);
       return;
     }
-    if (props.transparency !== 'weighted' && props.transparency !== 'auto')
-      throw new Error(
-        'Sorted SplatLayer rendering requires the upstream paged-instance backend; weighted rendering cannot substitute for it.'
-      );
     const inputChanged = Boolean(
       changeFlags.dataChanged || geometryChanged || leavingScene || runtimeChanged
     );
@@ -922,6 +926,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       return new SplatPrimitiveLayer<Owner<DataT>>({
         ...this.props,
         ...props,
+        transparency: this.props.transparency === 'sorted' ? 'sorted' : 'weighted',
         data: members,
         updateTriggers: {
           ...wrappedTriggers,
