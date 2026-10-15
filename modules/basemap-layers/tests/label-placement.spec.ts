@@ -313,9 +313,14 @@ describe('LabelPlacement', () => {
     const placement = new LabelPlacement();
     placement.interval = 0;
     // Two basemaps, the second drawn over the first, each with a bottom and a top style layer.
-    const first = {id: 'first'};
-    const second = {id: 'second'};
-    const deckLayers = [first, {id: 'first-tiles'}, second, {id: 'second-tiles'}];
+    const first = {id: 'first', parent: null};
+    const second = {id: 'second', parent: null};
+    const deckLayers = [
+      first,
+      {id: 'first-tiles', parent: first},
+      second,
+      {id: 'second-tiles', parent: second}
+    ];
     const under = (root: object, order: number, xs: number[]) => ({
       ...fakeLayer(order, xs),
       getPlacementRoot: () => ({root, layers: deckLayers})
@@ -333,10 +338,55 @@ describe('LabelPlacement', () => {
     expect(textVisibility(device, 5)).toEqual([false, false, true, true, false]);
   });
 
-  test('without a deck layer, layers are placed by their placement order, as before', () => {
+  test('placed again at once when the deck layers swap, and by id when deck.gl renews them', () => {
+    const placement = new LabelPlacement();
+    // Never placed for the interval alone: only a change places again.
+    placement.interval = Number.POSITIVE_INFINITY;
+    let deckLayers: {id: string; parent: null}[] = [
+      {id: 'first', parent: null},
+      {id: 'second', parent: null}
+    ];
+    // Each layer finds its deck layer by id, as a sublayer still pointing at the instance deck.gl
+    // replaced would.
+    const under = (id: string, xs: number[]) => ({
+      ...fakeLayer(1, xs),
+      getPlacementRoot: () => ({root: {id}, layers: deckLayers})
+    });
+    placement.register(under('first', [0]));
+    placement.register(under('second', [10]));
+    const device = fakeDevice();
+    const place = vi.spyOn(placement as any, 'place');
+    placement.prepare(device as any, fakeViewport(), false, 0, 0);
+    expect(textVisibility(device, 2)).toEqual([false, true]);
+    // The same view at the next frame: nothing to place again.
+    placement.prepare(device as any, fakeViewport(), false, 1, 1);
+    expect(place).toHaveBeenCalledTimes(1);
+    deckLayers = [deckLayers[1], deckLayers[0]];
+    placement.prepare(device as any, fakeViewport(), false, 2, 2);
+    expect(place).toHaveBeenCalledTimes(2);
+    expect(textVisibility(device, 2)).toEqual([true, false]);
+  });
+
+  test('placed again at once when a layer comes to be drawn in the view, or no longer is', () => {
+    const placement = new LabelPlacement();
+    placement.interval = Number.POSITIVE_INFINITY;
+    let drawn = true;
+    placement.register(fakeLayer(1, [0]));
+    placement.register(fakeLayer(2, [10], () => drawn));
+    const device = fakeDevice();
+    const place = vi.spyOn(placement as any, 'place');
+    placement.prepare(device as any, fakeViewport(), false, 0, 0);
+    expect(textVisibility(device, 2)).toEqual([false, true]);
+    drawn = false;
+    placement.prepare(device as any, fakeViewport(), false, 1, 1);
+    expect(place).toHaveBeenCalledTimes(2);
+    expect(textVisibility(device, 2)).toEqual([true, false]);
+  });
+
+  test('a layer without a deck layer is placed after those with one', () => {
     const placement = new LabelPlacement();
     placement.interval = 0;
-    const root = {};
+    const root = {id: 'root', parent: null};
     placement.register({
       ...fakeLayer(1, [0]),
       getPlacementRoot: () => ({root, layers: [root]})
@@ -816,9 +866,10 @@ describe('MVTLabelLayer placement symbols', () => {
     layer.context = {
       deck: {
         props: {
-          layerFilter: ({layer: filteredLayer, viewport}: any) => {
+          // Asked as deck.gl's screen pass asks it.
+          layerFilter: ({layer: filteredLayer, viewport, renderPass, isPicking}: any) => {
             filtered.push(filteredLayer.id);
-            return viewport.id === 'left';
+            return viewport.id === 'left' && renderPass === 'screen' && !isPicking;
           }
         }
       }

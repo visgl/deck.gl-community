@@ -2495,7 +2495,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!this.props.visible) {
       return false;
     }
-    const context = {layer: this as Layer, viewport, isPicking: false, renderPass: 'draw'};
+    // As deck.gl's screen pass asks.
+    const context = {layer: this as Layer, viewport, isPicking: false, renderPass: 'screen'};
     for (let parent = this.parent; parent; parent = parent.parent) {
       if (!parent.props.visible || !(parent as CompositeLayer).filterSubLayer(context)) {
         return false;
@@ -2513,7 +2514,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * layers in draw order, so that the labels of a layer drawn over another (as a second
    * `BasemapLayer`) are placed first.
    */
-  getPlacementRoot(): {root: object; layers: readonly object[]} | null {
+  getPlacementRoot(): {root: Layer; layers: readonly Layer[]} | null {
     const layerManager = (this.context as {layerManager?: {getLayers?: () => Layer[]}})
       ?.layerManager;
     if (!layerManager?.getLayers) {

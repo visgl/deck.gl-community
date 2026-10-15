@@ -180,10 +180,24 @@ export interface PlacementLayer {
    * in draw order. Of two layers under different deck layers, the one under the later deck layer
    * is placed first, as MapLibre GL JS places the layers drawn over others first; the placement
    * order decides only between layers under the same deck layer. Without it, the layer is placed
-   * by its placement order alone, before the layers that give one.
+   * by its placement order alone, after the layers that give one. Deck layers are told apart by
+   * their ids, which deck.gl keeps when it makes a new instance of a layer.
    */
-  getPlacementRoot?(): {root: object; layers: readonly object[]} | null;
+  getPlacementRoot?(): {root: {id: string}; layers: readonly PlacementDeckLayer[]} | null;
 }
+
+/** What placement reads of a deck's layers (see `PlacementLayer.getPlacementRoot`). */
+export type PlacementDeckLayer = {id: string; parent?: unknown};
+
+/** What a placement reads of a registered layer at a frame, for one viewport. */
+type PlacementLayerState = {
+  layer: PlacementLayer;
+  base: number;
+  /** Whether the layer is drawn in the viewport. */
+  drawn: boolean;
+  /** The index of its deck layer among the deck's layers, or -1 (see `getPlacementRoot`). */
+  rootIndex: number;
+};
 
 /** The placement of one viewport (one view of the deck). */
 type ViewPlacement = {
@@ -228,6 +242,13 @@ export class LabelPlacement {
   /** Changes when a layer joins, leaves or moves its slots. */
   private version = 0;
   private readonly symbols: PlacementSymbol[] = [];
+  /** Each layer's state at the frame being placed, in registration order (see `getRevision`). */
+  private readonly states: PlacementLayerState[] = [];
+  /** The index of each top-level deck layer, by id, in the deck's layers last read. */
+  private rootIndices: {layers: readonly PlacementDeckLayer[] | null; byId: Map<string, number>} = {
+    layers: null,
+    byId: new Map()
+  };
 
   /**
    * Adds a layer, or updates its slot count; returns its slot base. A layer that needs more slots
@@ -336,7 +357,7 @@ export class LabelPlacement {
       view.frame = frame;
       view.lastViewport = view.frameViewport;
       view.frameViewport = viewport;
-      const revision = this.getRevision();
+      const revision = this.getRevision(viewport);
       const slotLayout = this.getSlotLayout();
       const changed =
         revision !== view.revision || !view.viewport || !view.viewport.equals(viewport);
@@ -360,12 +381,41 @@ export class LabelPlacement {
     return this.getTexture(device, view);
   }
 
-  private getRevision(): string {
+  /**
+   * A value that changes whenever what would be placed in `viewport` changes, other than the view:
+   * a layer joins or leaves, its symbols change, it is drawn in the viewport or no longer is, or
+   * its deck layer moves among the deck's layers. Reads each layer's state for `place`.
+   */
+  private getRevision(viewport: Viewport): string {
     let revision = `${this.version}`;
-    for (const layer of this.layers.keys()) {
-      revision += `|${layer.getPlacementRevision()}`;
+    const states = this.states;
+    states.length = 0;
+    for (const [layer, {base}] of this.layers) {
+      const drawn = layer.isDrawnIn(viewport);
+      const rootIndex = this.getRootIndex(layer);
+      states.push({layer, base, drawn, rootIndex});
+      revision += `|${layer.getPlacementRevision()}:${drawn ? rootIndex : 'hidden'}`;
     }
     return revision;
+  }
+
+  /** The index of a layer's deck layer among the deck's layers, or -1. */
+  private getRootIndex(layer: PlacementLayer): number {
+    const placementRoot = layer.getPlacementRoot?.();
+    if (!placementRoot) {
+      return -1;
+    }
+    // The deck's layers are indexed again only when deck.gl gives it new ones.
+    if (placementRoot.layers !== this.rootIndices.layers) {
+      const byId = new Map<string, number>();
+      placementRoot.layers.forEach((deckLayer, index) => {
+        if (!deckLayer.parent) {
+          byId.set(deckLayer.id, index);
+        }
+      });
+      this.rootIndices = {layers: placementRoot.layers, byId};
+    }
+    return this.rootIndices.byId.get(placementRoot.root.id) ?? -1;
   }
 
   /**
@@ -417,10 +467,7 @@ export class LabelPlacement {
     );
     view.values.fill(0);
     const symbols = this.symbols;
-    for (const [layer, base] of this.getPlacementLayers()) {
-      if (!layer.isDrawnIn(viewport)) {
-        continue;
-      }
+    for (const {layer, base} of this.getPlacementOrder()) {
       symbols.length = 0;
       const rules = layer.getPlacementSymbols(viewport, base, symbols);
       if (!rules) {
@@ -441,28 +488,16 @@ export class LabelPlacement {
   }
 
   /**
-   * The registered layers with their slot bases, in the order they are placed: under the later deck
-   * layer first, then by placement order, highest first (see `PlacementLayer.getPlacementRoot`).
-   * Layers that tie keep the order they registered in.
+   * The layers drawn in the viewport of the last `getRevision`, in the order they are placed: under
+   * the later deck layer first, then by placement order, highest first (see
+   * `PlacementLayer.getPlacementRoot`). Layers that tie keep the order they registered in.
    */
-  private getPlacementLayers(): [PlacementLayer, number][] {
-    let drawOrder: Map<object, number> | null = null;
-    let drawOrderLayers: readonly object[] | null = null;
-    const ranked = [...this.layers].map(([layer, {base}]) => {
-      const placementRoot = layer.getPlacementRoot?.();
-      let rootIndex = -1;
-      if (placementRoot) {
-        // The deck's layers are indexed once per placement.
-        if (placementRoot.layers !== drawOrderLayers) {
-          drawOrderLayers = placementRoot.layers;
-          drawOrder = new Map(drawOrderLayers.map((deckLayer, index) => [deckLayer, index]));
-        }
-        rootIndex = drawOrder!.get(placementRoot.root) ?? -1;
-      }
-      return {layer, base, rootIndex, order: layer.getPlacementOrder()};
-    });
-    ranked.sort((a, b) => b.rootIndex - a.rootIndex || b.order - a.order);
-    return ranked.map(({layer, base}) => [layer, base]);
+  private getPlacementOrder(): PlacementLayerState[] {
+    return this.states
+      .filter(state => state.drawn)
+      .map(state => ({state, order: state.layer.getPlacementOrder()}))
+      .sort((a, b) => b.state.rootIndex - a.state.rootIndex || b.order - a.order)
+      .map(({state}) => state);
   }
 
   /** Releases the textures. */
@@ -471,6 +506,8 @@ export class LabelPlacement {
       view.texture?.destroy();
     }
     this.views.clear();
+    this.states.length = 0;
+    this.rootIndices = {layers: null, byId: new Map()};
   }
 }
 
