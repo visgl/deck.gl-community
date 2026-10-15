@@ -29,6 +29,8 @@ import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL} from './splat.wgsl';
 
 export type PreparedSplatProps<DataT> = {
   data: DataT[];
+  /** Color composition across prepared sources. @default 'weighted' */
+  transparency?: 'weighted' | 'sorted';
   /** Immutable Gaussian template shared by every owner in data. */
   source: SplatSource;
   /** Owner anchor in the layer coordinate system. */
@@ -77,6 +79,7 @@ export type PreparedSplatProps<DataT> = {
 export type SplatLayerProps<DataT = unknown> = PreparedSplatProps<DataT> & LayerProps;
 const defaultProps: DefaultProps<SplatLayerProps> = {
   source: null,
+  transparency: 'weighted',
   hierarchy: null,
   pixelError: 0.75,
   foveationStrength: {type: 'number', value: 0, min: 0, max: 1},
@@ -279,6 +282,10 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
       },
       phongMaterial: this.props.material
     });
+    if (mode === 4) {
+      if (this.props.transparency === 'sorted' && model) this.state.effect.collect(this, model);
+      return;
+    }
     model?.setInstanceCount(this.getNumInstances());
     model?.draw(renderPass);
     if (deformationStrength > 0 && deformationTime === null) this.setNeedsRedraw();
