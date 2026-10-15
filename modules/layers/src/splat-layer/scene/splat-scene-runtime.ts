@@ -350,23 +350,29 @@ export class SplatSceneRuntime implements Effect {
     const prepared = SplatRuntime.get(this.deck, this.device);
     const grants = prepared.setSceneDemands(
       ids,
-      visible.map(layer => ({
-        id: layer.id,
-        maxTotalSplats: limit,
-        group: layer.props._splatBudgetGroup,
-        floor: (this.owners.get(layer.id) ?? []).reduce((cost, owner) => cost + coverage(owner), 0),
-        desired: Math.min(
-          Number.isFinite(layer.props.maxSplats) ? layer.props.maxSplats : 2_000_000,
-          (this.owners.get(layer.id) ?? []).reduce(
-            (cost, owner) =>
-              cost +
-              (isSplatSceneData(owner.asset)
-                ? 2_000_000
-                : (owner.asset as SplatSource).opacities.length),
-            0
+      visible.map(layer => {
+        const owners = this.owners.get(layer.id) ?? [];
+        const maxSplats = Number.isFinite(layer.props.maxSplats)
+          ? layer.props.maxSplats
+          : 2_000_000;
+        return {
+          id: layer.id,
+          maxTotalSplats: limit,
+          group: layer.props._splatBudgetGroup,
+          floor: owners.reduce((cost, owner) => cost + coverage(owner), 0),
+          desired: Math.min(
+            maxSplats,
+            owners.reduce(
+              (cost, owner) =>
+                cost +
+                (isSplatSceneData(owner.asset)
+                  ? (this.assets.get(owner.asset)?.data?.length ?? maxSplats)
+                  : (owner.asset as SplatSource).opacities.length),
+              0
+            )
           )
-        )
-      }))
+        };
+      })
     );
     const cap = [...grants.values()].reduce((sum, grant) => sum + grant, 0);
     prepared.reconcile(ids);
