@@ -1,10 +1,18 @@
 import {describe, expect, test, vi} from 'vitest';
 import Point from '@mapbox/point-geometry';
 import {mat4} from 'gl-matrix';
+import {WebMercatorViewport} from '@deck.gl/core';
 // MapLibre GL JS's own functions, from the source its package ships, to compare against.
 import {placeGlyphAlongLine} from '../node_modules/maplibre-gl/src/symbol/projection.ts';
 import {PathInterpolator} from '../node_modules/maplibre-gl/src/symbol/path_interpolator.ts';
 import {LabelCharactersLayer} from '../src/label-text-layer';
+import {GridIndex} from '../src/grid-index';
+import {
+  PLACEMENT_VIEWPORT_PADDING,
+  TEXT_VISIBLE,
+  placeSymbol,
+  type PlacementSymbol
+} from '../src/label-placement';
 import {getPathCircles, needsFlip, placeLineGlyphs, type LabelLine} from '../src/line-glyphs';
 import {MVTLabelLayer} from '../src/mvt-label-layer';
 import {getTextLayerFontWeight} from '../src/text-font';
@@ -292,6 +300,57 @@ describe('MVTLabelLayer glyphs along lines', () => {
     expect(Array.from({length: glyphs.length / 4}, (_, i) => glyphs[i * 4 + 3])).toEqual(
       Array(glyphs.length / 4).fill(-1)
     );
+  });
+
+  test('hides a label that must turn but does not fit turned, and keeps its unturned circles', () => {
+    // Anchored left, the text runs from its anchor along the line; turned, it runs back from it.
+    const layer = lineLayer({'text-anchor': 'left'});
+    const [row] = rowsOf(layer, WEST);
+    // Anchored near the start of a westward line: it fits along the line, not back from it.
+    const nearStart = {...row, line: {...row.line, segment: 0, t: 0.1}};
+    const width = FALLBACK_CHARACTER_WIDTH * 10;
+    const offsets = Array.from({length: 'Quai de Conti'.length}, (_, i) => (i + 0.5) * width);
+    expect(mapLibreGlyphs(nearStart.line, offsets, 1, false)).not.toContain(null);
+    expect(mapLibreGlyphs(nearStart.line, offsets, 1, true)).toContain(null);
+    // At bearing 180 it reads left to right unturned, and is drawn.
+    const unturned = layer.getLineGlyphs(nearStart, {zoom: 14}, 180, 'style')!;
+    expect(unturned.path).not.toBeNull();
+    expect(unturned.glyphs[3]).toBe(1);
+    // At bearing 0 it must turn, and cannot: MapLibre hides its glyphs when drawing, but places it
+    // by its circles along the unturned glyphs, so it still takes their room.
+    const {glyphs, path} = layer.getLineGlyphs(nearStart, {zoom: 14}, 0, 'style')!;
+    expect(Array.from({length: glyphs.length / 4}, (_, i) => glyphs[i * 4 + 3])).toEqual(
+      Array(glyphs.length / 4).fill(-1)
+    );
+    expect(path).toEqual(unturned.path);
+
+    // Placed, it collides by those circles: those of the same label drawn unturned, without
+    // `text-keep-upright`, in the same view.
+    const place = (labels: MVTLabelLayer) => {
+      const viewport = new WebMercatorViewport({
+        width: 400,
+        height: 200,
+        longitude: 0,
+        latitude: 0,
+        zoom: 14
+      });
+      labels.state = {...labels.state, labelData: [{...nearStart}]};
+      labels.context = {viewport, device: {type: 'webgl'}} as any;
+      (labels as any).internalState = {subLayers: []};
+      (labels as any).project = () => [200, 100];
+      const out: PlacementSymbol[] = [];
+      const rules = labels.getPlacementSymbols(viewport, 0, out)!;
+      const padded = 2 * PLACEMENT_VIEWPORT_PADDING;
+      const grid = new GridIndex(400 + padded, 200 + padded, 25);
+      return {circles: out[0].text!.circles!, visible: placeSymbol(grid, out[0], rules), grid};
+    };
+    const hidden = place(layer);
+    const drawn = place(lineLayer({'text-anchor': 'left', 'text-keep-upright': false}));
+    expect(hidden.circles.length).toBeGreaterThan(0);
+    expect(hidden.circles).toEqual(drawn.circles);
+    expect(hidden.visible & TEXT_VISIBLE).toBe(TEXT_VISIBLE);
+    const [x, y, r] = hidden.circles;
+    expect(hidden.grid.hitTestCircle(x, y, r)).toBe(true);
   });
 
   test('draws multi-line text and rows not along a line straight', () => {
