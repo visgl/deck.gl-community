@@ -51,7 +51,15 @@ it('frames one tree, updates its traits and shadows its full canopy and wood', a
     else element.value = value;
     element.dispatchEvent(new Event('input', {bubbles: true}));
   };
-  const trees = () => deck.props.layers[1] as TreeLayer<TreeSpec>;
+  const trees = () =>
+    deck.props.layers.find(
+      layer =>
+        Boolean(layer) &&
+        !Array.isArray(layer) &&
+        typeof layer === 'object' &&
+        'id' in layer &&
+        layer.id === 'trees'
+    ) as TreeLayer<TreeSpec>;
   const hasCanopyShadow = () =>
     deck.props.layers.some(
       layer =>
@@ -75,10 +83,25 @@ it('frames one tree, updates its traits and shadows its full canopy and wood', a
     const bitmapPixels = (deck as unknown as {device: WebGLDevice}).device.readPixelsToArrayWebGL(
       canopyShadow.props.image
     ) as Uint8Array;
-    let canopyShadowPixels = 0;
-    for (let index = 3; index < bitmapPixels.length; index += 4)
-      if (bitmapPixels[index] > 10) canopyShadowPixels++;
+    const shadowSize = (canopyShadow.props.image as Texture).width;
+    let canopyShadowPixels = 0,
+      minX = shadowSize,
+      minY = shadowSize,
+      maxX = -1,
+      maxY = -1;
+    for (let y = 0; y < shadowSize; y++)
+      for (let x = 0; x < shadowSize; x++)
+        if (bitmapPixels[(y * shadowSize + x) * 4 + 3] > 10) {
+          canopyShadowPixels++;
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
     expect(canopyShadowPixels).toBeGreaterThan(500);
+    const shadowCenter =
+      (Math.floor((minY + maxY) / 2) * shadowSize + Math.floor((minX + maxX) / 2)) * 4 + 3;
+    expect(bitmapPixels[shadowCenter]).toBeGreaterThan(30);
     await expect.poll(() => groundColor[0], {timeout: 15000}).toBeGreaterThan(150);
     expect(groundColor[1]).toBeGreaterThan(160);
     expect(trees().props.data).toHaveLength(1);

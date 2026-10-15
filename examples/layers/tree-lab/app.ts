@@ -38,6 +38,9 @@ const SPECIES: TreeType[] = [
   'citrus'
 ];
 const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
+const SUN_DIRECTION: [number, number, number] = [0.8, 0.2, -2.4];
+const SHADOW_MAP_SIZE = 512;
+const SHADOW_SPAN = 48;
 class GroundShadowLightingEffect extends LightingEffect {
   override getShaderModuleProps(
     layer: Layer,
@@ -68,11 +71,9 @@ function collectLayers(layer: Layer): Layer[] {
 }
 
 function createTreeShadowProjection(viewport: Viewport) {
-  const mapSize = 256;
-  const span = 128;
-  const scale = 2 / (span * viewport.distanceScales.unitsPerMeter[2]);
-  const lightSlopeX = 0.8 / 0.5;
-  const lightSlopeY = 0.2 / 0.5;
+  const scale = 2 / (SHADOW_SPAN * viewport.distanceScales.unitsPerMeter[2]);
+  const lightSlopeX = -SUN_DIRECTION[0] / SUN_DIRECTION[2];
+  const lightSlopeY = -SUN_DIRECTION[1] / SUN_DIRECTION[2];
   return {
     matrix: [
       scale,
@@ -93,8 +94,8 @@ function createTreeShadowProjection(viewport: Viewport) {
       1
     ],
     center: [0, 0, 0, 0],
-    width: mapSize,
-    height: mapSize
+    width: SHADOW_MAP_SIZE,
+    height: SHADOW_MAP_SIZE
   };
 }
 
@@ -106,11 +107,38 @@ function createShadowImage(device: WebGLDevice, shadowPass: SplatShadowPass) {
   canvas.height = size;
   const context = canvas.getContext('2d')!;
   const image = context.createImageData(size, size);
+  let minX = size,
+    minY = size,
+    maxX = -1,
+    maxY = -1;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const source = ((size - 1 - y) * size + x) * 4;
+      if ((255 - pixels[source]) / 255 > 0.08) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const radiusX = Math.max(1, (maxX - minX) / 2);
+  const radiusY = Math.max(1, (maxY - minY) / 2);
+  // A finite shadow-splat budget leaves pinholes in the crown; a soft core keeps
+  // its ground footprint continuous while the transmission texture preserves detail.
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const source = ((size - 1 - y) * size + x) * 4;
       const target = (y * size + x) * 4;
-      const opacity = Math.min(0.55, Math.max(0, (255 - pixels[source]) / 255) * 0.65);
+      const shadow = Math.max(0, (255 - pixels[source]) / 255);
+      const edge = Math.max(
+        0,
+        Math.min(1, (1 - Math.hypot((x - centerX) / radiusX, (y - centerY) / radiusY)) / 0.28)
+      );
+      const canopyFill = maxX >= 0 ? 0.22 * edge * edge * (3 - 2 * edge) : 0;
+      const opacity = Math.max(canopyFill, Math.min(0.55, Math.max(0, shadow - 0.04) * 1.4));
       image.data[target] = 35;
       image.data[target + 1] = 43;
       image.data[target + 2] = 32;
@@ -151,7 +179,7 @@ export function mountTreeLabExample(
     ambient: new AmbientLight({intensity: 1}),
     sun: new DirectionalLight({
       intensity: 0.5,
-      direction: [0.8, 0.2, -0.5],
+      direction: SUN_DIRECTION,
       _shadow: !shadows.disabled
     })
   });
@@ -249,6 +277,18 @@ export function mountTreeLabExample(
           material: {ambient: 1, diffuse: 0, shininess: 0},
           shadowEnabled: false
         }),
+        ...(shadowImage
+          ? [
+              new BitmapLayer({
+                ...coordinateProps,
+                id: 'canopy-shadow',
+                image: shadowImage,
+                bounds: [-SHADOW_SPAN / 2, -SHADOW_SPAN / 2, SHADOW_SPAN / 2, SHADOW_SPAN / 2],
+                shadowEnabled: false,
+                parameters: {depthWriteEnabled: false, depthCompare: 'less-equal'}
+              })
+            ]
+          : []),
         new TreeLayer<TreeSpec>({
           ...coordinateProps,
           id: 'trees',
@@ -285,19 +325,7 @@ export function mountTreeLabExample(
           backgroundPadding: [6, 3],
           backgroundBorderRadius: 5,
           getBackgroundColor: [250, 252, 247, 245]
-        }),
-        ...(shadowImage
-          ? [
-              new BitmapLayer({
-                ...coordinateProps,
-                id: 'canopy-shadow',
-                image: shadowImage,
-                bounds: [-64, -64, 64, 64],
-                shadowEnabled: false,
-                parameters: {depthWriteEnabled: false, depthCompare: 'less-equal'}
-              })
-            ]
-          : [])
+        })
       ]
     });
   };
