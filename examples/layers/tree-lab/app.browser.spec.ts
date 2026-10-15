@@ -77,3 +77,26 @@ it('renders supplied species, applies controls, preserves owner picking and clea
     parent.remove();
   }
 }, 60000);
+
+it('keeps the garden reachable when its host is shorter than the stage', () => {
+  const parent = document.createElement('div');
+  Object.assign(parent.style, {width: '320px', height: '180px'});
+  document.body.append(parent);
+  const cleanup = mountTreeLabExample(parent);
+  const demo = parent.querySelector<HTMLDivElement>('.trees-demo')!;
+  const stage = parent.querySelector<HTMLDivElement>('.trees-stage')!;
+  try {
+    expect(getComputedStyle(demo).overflowY).toBe('auto');
+    expect(demo.scrollHeight).toBeGreaterThan(demo.clientHeight);
+    expect(stage.getBoundingClientRect().bottom).toBeGreaterThan(
+      demo.getBoundingClientRect().bottom
+    );
+    demo.scrollTop = demo.scrollHeight;
+    expect(stage.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      demo.getBoundingClientRect().bottom
+    );
+  } finally {
+    cleanup();
+    parent.remove();
+  }
+});
