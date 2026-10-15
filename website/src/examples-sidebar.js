@@ -58,7 +58,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/basemap-layers',
-      items: ['layers/basemap-layer-map-view', 'basemap-layers/split-view']
+      items: ['layers/basemap-layer-map-view', 'basemap-layers/split-view', 'basemap-layers/terrain-contract']
     },
     {
       type: 'category',
