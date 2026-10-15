@@ -7,52 +7,61 @@ import {
   Deck,
   DirectionalLight,
   LightingEffect,
-  OrbitView,
+  MapView,
+  type Layer,
   type DeckProps
 } from '@deck.gl/core';
-import {SolidPolygonLayer, TextLayer} from '@deck.gl/layers';
-import {
-  TreeLayer,
-  type CropConfig,
-  type Season,
-  type TreeSpec,
-  type TreeType
-} from '@deck.gl-community/layers';
+import {TextLayer} from '@deck.gl/layers';
+import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
+import {PlaneGeometry} from '@luma.gl/engine';
+import {TreeLayer, type Season, type TreeSpec, type TreeType} from '@deck.gl-community/layers';
 import './style.css';
 
 const SPECIES: TreeType[] = [
+  'banyan',
   'pine',
   'oak',
   'palm',
   'birch',
   'cherry',
-  'banyan',
   'mangrove',
   'citrus'
 ];
-const CROPS: CropConfig[] = [
-  {kind: 'cone', color: [132, 91, 49], radius: 0.08, count: 24},
-  {kind: 'acorn', color: [166, 111, 53], radius: 0.025, count: 24},
-  {kind: 'fruit', color: [151, 103, 57], radius: 0.14, count: 24},
-  {kind: 'catkin', color: [165, 150, 73], radius: 0.055, count: 24},
-  {kind: 'fruit', color: [163, 24, 43], radius: 0.025, count: 24},
-  {kind: 'fruit', color: [190, 74, 45], radius: 0.012, count: 24},
-  {kind: 'propagule', color: [122, 112, 47], radius: 0.15, count: 24},
-  {kind: 'fruit', color: [248, 141, 24], radius: 0.045, count: 24}
-];
-const TREES: TreeSpec[] = SPECIES.map((species, i) => ({
-  species,
-  position: [((i % 4) - 1.5) * 22, (Math.floor(i / 4) - 0.5) * 26, 0],
-  crop: CROPS[i]
-}));
+const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
+class WoodShadowTreeLayer<DataT> extends TreeLayer<DataT> {
+  static layerName = 'WoodShadowTreeLayer';
+
+  renderLayers() {
+    // The opaque shadow map should contain wood, not a solid silhouette of Gaussian leaves.
+    return super.renderLayers().map(layer => {
+      const id = layer.id;
+      return id.includes('-canopy-') || id.includes('-crops')
+        ? layer.clone({shadowEnabled: false} as Partial<typeof layer.props> & {
+            shadowEnabled: boolean;
+          })
+        : layer;
+    });
+  }
+}
+class WoodShadowLightingEffect extends LightingEffect {
+  override getShaderModuleProps(
+    layer: Layer,
+    otherShaderModuleProps: Parameters<LightingEffect['getShaderModuleProps']>[1]
+  ) {
+    const props = super.getShaderModuleProps(layer, otherShaderModuleProps);
+    // The translucent canopy must not receive its ground shadow through the leaf splats.
+    if (layer.id === 'ground') return props;
+    return {...props, shadow: {...props.shadow, shadowEnabled: false}};
+  }
+}
 type MountOptions = Pick<
-  DeckProps<OrbitView>,
+  DeckProps<MapView>,
   'device' | 'initialViewState' | 'widgets' | 'onViewStateChange'
 > & {
-  onDeckInitialized?: (deck: Deck<OrbitView>) => void;
+  onDeckInitialized?: (deck: Deck<MapView>) => void;
 };
 
-/** Mount a small species garden using TreeLayer's public traits and lighting APIs. */
+/** Mount a focused TreeLayer viewer for one species and its crown-spread trait. */
 export function mountTreeLabExample(
   container: HTMLElement,
   options: MountOptions = {}
@@ -60,105 +69,96 @@ export function mountTreeLabExample(
   const root = container.ownerDocument.createElement('div');
   root.className = 'trees-demo';
   root.innerHTML = `<div class="trees-controls">
-    <strong>TreeLayer</strong>
-    <label>Species <select name="species"><option value="all">All eight</option>${SPECIES.map(s => `<option>${s}</option>`).join('')}</select></label>
-    <label>Season <select name="season">${['spring', 'summer', 'autumn', 'winter'].map(s => `<option${s === 'summer' ? ' selected' : ''}>${s}</option>`).join('')}</select></label>
-    <label>Crown spread <input name="spread" type="range" min="0.6" max="1.5" step="0.1" value="1"></label>
-    <label><input name="wind" type="checkbox" checked>Wind</label>
-    <label><input name="attached" type="checkbox" checked>Attached crops</label>
-    <label><input name="fallen" type="checkbox">Fallen crops</label>
-    <label><input name="shadows" type="checkbox">Wood shadows</label>
-    <span>Drag to orbit · scroll to zoom · hover to identify</span>
+    <div class="trees-heading"><strong>TreeLayer</strong><span>One tree · live traits</span></div>
+    <label>Species <select name="species">${SPECIES.map(
+      species =>
+        `<option value="${species}"${species === 'banyan' ? ' selected' : ''}>${species}</option>`
+    ).join('')}</select></label>
+    <label>Season <select name="season">${SEASONS.map(
+      season => `<option${season === 'summer' ? ' selected' : ''}>${season}</option>`
+    ).join('')}</select></label>
+    <label class="trees-spread">Crown spread <input name="spread" type="range" min="0.6" max="1.5" step="0.1" value="1"><output name="spread-value">1.0×</output></label>
+    <label class="trees-shadow"><input name="shadows" type="checkbox"${options.device?.type === 'webgpu' ? ' disabled' : ' checked'}>Wood shadows</label>
   </div><div class="trees-stage"></div>`;
   container.append(root);
   const stage = root.querySelector<HTMLDivElement>('.trees-stage')!;
   const control = <T extends HTMLInputElement | HTMLSelectElement>(name: string) =>
     root.querySelector<T>(`[name="${name}"]`)!;
   const shadows = control<HTMLInputElement>('shadows');
-  shadows.disabled = options.device?.type === 'webgpu';
-  const deck = new Deck<OrbitView>({
+  const spreadOutput = root.querySelector<HTMLOutputElement>('[name="spread-value"]')!;
+  const groundMesh = new PlaneGeometry({type: 'x,y', xlen: 100, ylen: 100});
+  const lighting = new WoodShadowLightingEffect({
+    ambient: new AmbientLight({intensity: 1}),
+    sun: new DirectionalLight({
+      intensity: 0.5,
+      direction: [0.8, 0.2, -0.5],
+      _shadow: !shadows.disabled
+    })
+  });
+  lighting.shadowColor = [0.04, 0.05, 0.03, 0.28];
+  const coordinateProps = {
+    coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+    coordinateOrigin: [0, 0, 0] as [number, number, number]
+  };
+  const deck = new Deck<MapView>({
     ...options,
     parent: stage,
-    views: new OrbitView({orbitAxis: 'Z', orthographic: true}),
+    views: new MapView(),
     initialViewState: options.initialViewState ?? {
-      target: [0, 0, 6],
-      rotationX: 30,
-      rotationOrbit: 20,
-      zoom: Math.log2(
-        Math.max(1, Math.min(container.clientWidth / 110, container.clientHeight / 80))
-      )
+      longitude: 0,
+      latitude: 0,
+      zoom:
+        20 + Math.log2(Math.max(0.25, Math.min(stage.clientWidth / 400, stage.clientHeight / 600))),
+      pitch: 45,
+      bearing: 20
     },
     controller: true,
     useDevicePixels: 1,
+    // Billboard label backgrounds are visual-only; casting them creates a large floating quad.
+    layerFilter: ({layer, renderPass}) => renderPass !== 'shadow' || layer.id !== 'labels',
     getTooltip: ({object}) => object?.species ?? null
   });
   options.onDeckInitialized?.(deck);
   const render = () => {
-    const selected = control<HTMLSelectElement>('species').value;
+    const species = control<HTMLSelectElement>('species').value as TreeType;
     const season = control<HTMLSelectElement>('season').value as Season;
     const spread = Number(control<HTMLInputElement>('spread').value);
-    const data = TREES.filter(tree => selected === 'all' || tree.species === selected);
-    const lighting = new LightingEffect({
-      ambient: new AmbientLight({intensity: 1}),
-      sun: new DirectionalLight({
-        intensity: 1.5,
-        direction: [-1, -1, -2],
-        _shadow: shadows.checked && !shadows.disabled
-      })
-    });
+    const data: TreeSpec[] = [{species, position: [0, 0, 0]}];
+    spreadOutput.textContent = `${spread.toFixed(1)}×`;
     deck.setProps({
       effects: [lighting],
       layers: [
-        new SolidPolygonLayer({
+        new SimpleMeshLayer({
+          ...coordinateProps,
           id: 'ground',
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
-          data: [
-            [
-              [-65, -42, -0.02],
-              [65, -42, -0.02],
-              [65, 42, -0.02],
-              [-65, 42, -0.02]
-            ]
-          ],
-          getPolygon: polygon => polygon,
-          getFillColor: [219, 228, 210],
-          material: {ambient: 0.7, diffuse: 0.6},
+          data: [{position: [0, 0, -0.05]}],
+          mesh: groundMesh,
+          getColor: [219, 228, 210],
+          material: {ambient: 1, diffuse: 0, shininess: 0},
           shadowEnabled: false
         }),
-        new TreeLayer<TreeSpec>({
+        new WoodShadowTreeLayer<TreeSpec>({
+          ...coordinateProps,
           id: 'trees',
           data,
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+          shadowEnabled: shadows.checked && !shadows.disabled,
           getTree: tree => ({
             ...tree,
             season,
-            wind: control<HTMLInputElement>('wind').checked,
-            characteristics: {crownSpread: spread},
-            crop: {
-              ...tree.crop!,
-              count: control<HTMLInputElement>('attached').checked ? 24 : 0,
-              droppedCount: control<HTMLInputElement>('fallen').checked ? 8 : 0
-            }
+            wind: false,
+            characteristics: {crownSpread: spread}
           }),
           pickable: true,
-          updateTriggers: {
-            getTree: [
-              season,
-              spread,
-              control<HTMLInputElement>('wind').checked,
-              control<HTMLInputElement>('attached').checked,
-              control<HTMLInputElement>('fallen').checked
-            ]
-          }
+          updateTriggers: {getTree: [season, spread]}
         }),
         new TextLayer<TreeSpec>({
+          ...coordinateProps,
           id: 'labels',
           data,
-          coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
           getPosition: tree => [tree.position![0], tree.position![1] - 9, 0.2],
           getText: tree => {
-            const species = tree.species!;
-            return species[0].toUpperCase() + species.slice(1);
+            const name = tree.species!;
+            return name[0].toUpperCase() + name.slice(1);
           },
           getSize: 18,
           getColor: [35, 48, 36],

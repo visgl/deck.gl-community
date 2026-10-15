@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: MIT
 import {expect, it, vi} from 'vitest';
 import {Model} from '@luma.gl/engine';
-import type {Deck} from '@deck.gl/core';
+import type {Deck, MapView} from '@deck.gl/core';
 import {SplatLayer, type TreeLayer} from '@deck.gl-community/layers';
 import {mountTreeLabExample} from './app';
 
 type FrameSample = {
-  phase: 'wind' | 'orbit' | 'zoom';
+  phase: 'wind' | 'bearing' | 'zoom';
   draws: number;
   destroyed: number;
   splats: number;
@@ -15,7 +15,7 @@ type FrameSample = {
   frameMs: number;
 };
 
-it('batches mixed canopy sources and retains their model through orbit and refinement', async ({
+it('batches mixed canopy sources and retains their model through bearing changes and refinement', async ({
   annotate
 }) => {
   const parent = document.createElement('div');
@@ -23,7 +23,7 @@ it('batches mixed canopy sources and retains their model through orbit and refin
   document.body.append(parent);
   const samples: FrameSample[] = [];
   const errors: string[] = [];
-  let deck!: Deck;
+  let deck!: Deck<MapView>;
   let frames = 0,
     started = 0,
     previous = 0,
@@ -75,13 +75,14 @@ it('batches mixed canopy sources and retains their model through orbit and refin
           const step = samples.length;
           if (step === 24) deck['animationLoop']?.stop();
           else if (step >= 8) {
-            phase = step < 16 ? 'orbit' : 'zoom';
+            phase = step < 16 ? 'bearing' : 'zoom';
             deck.setProps({
               viewState: {
-                target: [0, 0, 6],
-                rotationX: 30,
-                rotationOrbit: step < 16 ? 20 + (step - 7) * 5 : 60,
-                zoom: Math.log2(800 / 110) + (step < 16 ? 0 : (step - 15) * 0.05)
+                longitude: 0,
+                latitude: 0,
+                pitch: 45,
+                bearing: step < 16 ? 20 + (step - 7) * 5 : 60,
+                zoom: 20 + (step < 16 ? 0 : (step - 15) * 0.05)
               }
             });
           }
