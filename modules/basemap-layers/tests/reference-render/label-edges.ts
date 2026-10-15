@@ -81,6 +81,11 @@ export type LabelEdgeMetrics = {
   stemWidth: number;
   /** Mean ink of the pixels with more than 10% ink. */
   inkDensity: number;
+  /**
+   * Share of the pixels with more than 10% ink that have 90% or more: the wider an edge fades, the
+   * fewer. It measures a blurred halo whose fade is too wide for most edges to reach 90% ink.
+   */
+  solidShare: number;
   /** Edges measured. */
   edges: number;
 };
@@ -180,6 +185,7 @@ export function measureLabelEdges(
   const stems: number[] = [];
   let inkSum = 0;
   let inked = 0;
+  let solid = 0;
   for (let y = 0; y < height; y++) {
     const row = ink.subarray(y * width, (y + 1) * width);
     addEdgeWidths(row, rowWidths, bare?.subarray(y * width, (y + 1) * width));
@@ -218,6 +224,7 @@ export function measureLabelEdges(
     if (value > 0.1) {
       inkSum += value;
       inked++;
+      solid += value >= 0.9 ? 1 : 0;
     }
   }
   const widths = [...rowWidths, ...columnWidths];
@@ -228,6 +235,7 @@ export function measureLabelEdges(
     stemPeak: peaks.length ? peaks.reduce((sum, value) => sum + value, 0) / peaks.length : NaN,
     stemWidth: median(stems),
     inkDensity: inked ? inkSum / inked : NaN,
+    solidShare: inked ? solid / inked : NaN,
     edges: widths.length
   };
 }

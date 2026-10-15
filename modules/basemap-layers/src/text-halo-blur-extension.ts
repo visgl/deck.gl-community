@@ -51,12 +51,16 @@ const OUTLINE_ALPHA_STATEMENT = 'alpha = inBorder;';
 const injection = {
   [OUTLINE_ALPHA_STATEMENT]: /* glsl */ `
       if (textHaloBlur.gamma > 0.0) {
-        // Fades the halo over the wider edge. Capped so that the halo is transparent where the
-        // distance field ends, at the edge of the glyph's quad: the font atlas stores a few
-        // 1/255 steps of distance there.
+        // Fades the halo over the wider edge. The blur widens by 1 / cos(pitch) on a pitched map,
+        // as the edge's own antialiasing does: MapLibre divides both by its u_gamma_scale. Capped
+        // so that the halo is transparent where the distance field ends, at the edge of the
+        // glyph's quad: the font atlas stores a few 1/255 steps of distance there.
         float haloGamma = max(
           labelHaloGamma,
-          min(labelHaloGamma + textHaloBlur.gamma, sdf.outlineBuffer - 4.0 / 255.0)
+          min(
+            labelHaloGamma + textHaloBlur.gamma / labelEdge.foreshortening,
+            sdf.outlineBuffer - 4.0 / 255.0
+          )
         );
         alpha = smoothstep(sdf.outlineBuffer - haloGamma, sdf.outlineBuffer + haloGamma, distance);
       }
@@ -71,8 +75,10 @@ type TextHaloBlurExtensionProps = {
 /**
  * Blurs the halo of a `LabelTextLayer`, as MapLibre GL JS draws `text-halo-blur`: the halo edge
  * fades over `textHaloBlurGamma` more distance on each side, beyond its own antialiasing of 0.84
- * device pixels (see `LabelCharactersLayer`), as MapLibre's. The glyphs stay as sharp as without
- * the extension. WebGL only; on WebGPU the halo draws without blur.
+ * device pixels (see `LabelCharactersLayer`), as MapLibre's. Labels that lie on a pitched map fade
+ * over 1 / cos(pitch) times that distance, blur and antialiasing alike, as MapLibre's (see
+ * `getLabelForeshortening`). The glyphs stay as sharp as without the extension. WebGL only; on
+ * WebGPU the halo draws without blur.
  */
 export class TextHaloBlurExtension extends LayerExtension {
   static extensionName = 'TextHaloBlurExtension';
