@@ -15,8 +15,12 @@ it('frames one tree, updates its traits and shadows its full canopy and wood', a
   let frames = 0;
   let groundColor = [0, 0, 0];
   let framePixels = new Uint8Array();
+  let device!: WebGLDevice;
   const errors: string[] = [];
   const cleanup = mountTreeLabExample(parent, {
+    onDeviceInitialized(instance) {
+      device = instance as WebGLDevice;
+    },
     onDeckInitialized(instance) {
       deck = instance;
       const onAfterRender = deck.props.onAfterRender;
@@ -80,9 +84,7 @@ it('frames one tree, updates its traits and shadows its full canopy and wood', a
         'id' in layer &&
         layer.id === 'canopy-shadow'
     ) as unknown as {props: {image: Texture}};
-    const bitmapPixels = (deck as unknown as {device: WebGLDevice}).device.readPixelsToArrayWebGL(
-      canopyShadow.props.image
-    ) as Uint8Array;
+    const bitmapPixels = device.readPixelsToArrayWebGL(canopyShadow.props.image) as Uint8Array;
     const shadowSize = (canopyShadow.props.image as Texture).width;
     let canopyShadowPixels = 0,
       minX = shadowSize,

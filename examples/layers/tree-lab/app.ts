@@ -107,38 +107,83 @@ function createShadowImage(device: WebGLDevice, shadowPass: SplatShadowPass) {
   canvas.height = size;
   const context = canvas.getContext('2d')!;
   const image = context.createImageData(size, size);
-  let minX = size,
-    minY = size,
-    maxX = -1,
-    maxY = -1;
+  const transmission = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const source = ((size - 1 - y) * size + x) * 4;
-      if ((255 - pixels[source]) / 255 > 0.08) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
+      transmission[y * size + x] = Math.max(0, 1 - pixels[source] / 255 - 0.015);
+    }
+  }
+  const inside = new Uint8Array(size * size);
+  const padded = new Uint8Array(size * size);
+  for (let i = 0; i < transmission.length; i++) if (transmission[i] > 0.005) inside[i] = 1;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (!inside[y * size + x]) continue;
+      for (let offsetY = -7; offsetY <= 7; offsetY++) {
+        for (let offsetX = -7; offsetX <= 7; offsetX++) {
+          if (offsetX * offsetX + offsetY * offsetY > 49) continue;
+          const targetX = x + offsetX;
+          const targetY = y + offsetY;
+          if (targetX >= 0 && targetX < size && targetY >= 0 && targetY < size)
+            padded[targetY * size + targetX] = 1;
+        }
       }
     }
   }
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-  const radiusX = Math.max(1, (maxX - minX) / 2);
-  const radiusY = Math.max(1, (maxY - minY) / 2);
-  // A finite shadow-splat budget leaves pinholes in the crown; a soft core keeps
-  // its ground footprint continuous while the transmission texture preserves detail.
+  const outside = new Uint8Array(size * size);
+  const queue = new Int32Array(size * size);
+  let head = 0;
+  let tail = 0;
+  const addOutside = (index: number) => {
+    if (!outside[index] && !padded[index]) {
+      outside[index] = 1;
+      queue[tail++] = index;
+    }
+  };
+  for (let i = 0; i < size; i++) {
+    addOutside(i);
+    addOutside((size - 1) * size + i);
+    addOutside(i * size);
+    addOutside(i * size + size - 1);
+  }
+  while (head < tail) {
+    const index = queue[head++];
+    const x = index % size;
+    if (x > 0) addOutside(index - 1);
+    if (x + 1 < size) addOutside(index + 1);
+    if (index >= size) addOutside(index - size);
+    if (index + size < size * size) addOutside(index + size);
+  }
+  for (let i = 0; i < transmission.length; i++)
+    transmission[i] = outside[i] ? Math.min(transmission[i], 0.045) : 0.18;
+  const weights = [1, 4, 6, 4, 1];
+  const horizontal = new Float32Array(size * size);
+  const filtered = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const source = ((size - 1 - y) * size + x) * 4;
+      let sum = 0;
+      for (let offset = -2; offset <= 2; offset++)
+        sum +=
+          weights[offset + 2] *
+          transmission[y * size + Math.max(0, Math.min(size - 1, x + offset))];
+      horizontal[y * size + x] = sum / 16;
+    }
+  }
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let sum = 0;
+      for (let offset = -2; offset <= 2; offset++)
+        sum +=
+          weights[offset + 2] * horizontal[Math.max(0, Math.min(size - 1, y + offset)) * size + x];
+      filtered[y * size + x] = sum / 16;
+    }
+  }
+  // Close splat-scale gaps and fill holes so the soft shadow follows the projected crown.
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
       const target = (y * size + x) * 4;
-      const shadow = Math.max(0, (255 - pixels[source]) / 255);
-      const edge = Math.max(
-        0,
-        Math.min(1, (1 - Math.hypot((x - centerX) / radiusX, (y - centerY) / radiusY)) / 0.28)
-      );
-      const canopyFill = maxX >= 0 ? 0.34 * edge * edge * (3 - 2 * edge) : 0;
-      const opacity = Math.max(canopyFill, Math.min(0.42, Math.max(0, shadow - 0.04) * 1.1));
+      const opacity = Math.min(0.28, filtered[y * size + x] * 1.45);
       image.data[target] = 35;
       image.data[target + 1] = 43;
       image.data[target + 2] = 32;
