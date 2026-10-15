@@ -476,9 +476,22 @@ async function drawBasemapLayer(
               (!resolvedStyle.sprite || basemap.state.spriteAtlases) &&
               tileLayers.length > 0 &&
               tileLayers.every((layer: any) => layer.state.tileset.selectedTiles) &&
-              layers.every((layer: any) => layer.isLoaded);
+              layers.every((layer: any) => layer.isLoaded) &&
+              // Labels along lines are placed by a length estimate until their web font has
+              // loaded, and again once it has: a frame read before then shows the estimate.
+              document.fonts.status === 'loaded';
             if (!ready) {
               settled = 0;
+              // A font that loads without changing a layer would not draw another frame.
+              if (document.fonts.status !== 'loaded') {
+                document.fonts.ready.then(() => {
+                  // Unless the render is over, and the deck finalized.
+                  const current = deck as any;
+                  if (current?.layerManager) {
+                    current.redraw('reference-render fonts');
+                  }
+                });
+              }
               return;
             }
             if (settled < SETTLE_FRAMES) {

@@ -1,4 +1,6 @@
 import {afterEach, describe, expect, test, vi} from 'vitest';
+// MapLibre GL JS's own functions, from the source its package ships, to compare against.
+import {mergeLines as mapLibreMergeLines} from '../node_modules/maplibre-gl/src/symbol/merge_lines.ts';
 import {
   clipLine,
   getLineAnchors,
@@ -860,6 +862,121 @@ describe('mergeLines', () => {
     // Each piece alone is too short for the label.
     expect(lineLayer().getLabelData([pieces[0]], false)).toHaveLength(0);
   });
+
+  /** A feature with label text `name` and `lines`: a `MultiLineString` when there are several. */
+  const feature = (name: string, ...lines: number[][][]) => ({
+    geometry:
+      lines.length > 1
+        ? {type: 'MultiLineString', coordinates: lines}
+        : {type: 'LineString', coordinates: lines[0]},
+    properties: {name}
+  });
+
+  /** The lines of each feature left to label, in input order, as `getMergedLines` leaves them. */
+  function getMergedGeometry(features: any[]): number[][][][] {
+    return lineLayer()
+      .getMergedLines(features)
+      .flatMap((merged, index) => {
+        if (merged === null) {
+          return [];
+        }
+        const {type, coordinates} = (merged || features[index]).geometry;
+        return [type === 'MultiLineString' ? coordinates : [coordinates]];
+      });
+  }
+
+  /** The same, from MapLibre GL JS's own `mergeLines`, given each feature's text and lines. */
+  function getMapLibreMergedGeometry(features: any[]): number[][][][] {
+    const symbolFeatures = features.map(({geometry, properties}) => ({
+      text: properties.name,
+      geometry: (geometry.type === 'MultiLineString'
+        ? geometry.coordinates
+        : [geometry.coordinates]
+      ).map((line: number[][]) => line.map(([x, y]) => ({x, y})))
+    }));
+    return mapLibreMergeLines(symbolFeatures as any).map(({geometry}) =>
+      geometry.map(line => line.map(({x, y}) => [x, y]))
+    );
+  }
+
+  // The first line of `multi` continues `single`; its second line lies apart from both.
+  const single = feature('Main', [
+    [0.1, 0.5],
+    [0.3, 0.5]
+  ]);
+  const multi = feature(
+    'Main',
+    [
+      [0.3, 0.5],
+      [0.5, 0.5]
+    ],
+    [
+      [0.1, 0.8],
+      [0.9, 0.8]
+    ]
+  );
+
+  test('joins a MultiLineString by its first line, and drops a feature joined into another', () => {
+    // MapLibre keeps the feature of the chain a line joins: `single` takes `multi`'s first line,
+    // and `multi`, with its other line, is not labelled.
+    for (const features of [
+      [single, multi],
+      [multi, single]
+    ]) {
+      expect(getMergedGeometry(features)).toEqual(getMapLibreMergedGeometry(features));
+    }
+    const rows = lineLayer().getLabelData([single, multi], false) as any[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every(row => row.position[1] === 0.5)).toBe(true);
+  });
+
+  test('joins a MultiLineString whose first line is a single vertex', () => {
+    // MapLibre joins the vertex to the line ending there, and drops the feature it belongs to.
+    const point = feature(
+      'Main',
+      [[0.3, 0.5]],
+      [
+        [0.1, 0.8],
+        [0.9, 0.8]
+      ]
+    );
+    const features = [single, point];
+    expect(getMergedGeometry(features)).toEqual(getMapLibreMergedGeometry(features));
+    expect(getMergedGeometry(features)).toEqual([single.geometry.coordinates].map(line => [line]));
+  });
+
+  test('keeps the other lines of a MultiLineString that a line joins', () => {
+    const owner = feature(
+      'Main',
+      [
+        [0.1, 0.2],
+        [0.3, 0.2]
+      ],
+      [
+        [0.1, 0.8],
+        [0.9, 0.8]
+      ]
+    );
+    const piece = feature('Main', [
+      [0.3, 0.2],
+      [0.6, 0.2]
+    ]);
+    const features = [owner, piece];
+    expect(getMergedGeometry(features)).toEqual(getMapLibreMergedGeometry(features));
+    expect(getMergedGeometry(features)).toEqual([
+      [
+        [
+          [0.1, 0.2],
+          [0.3, 0.2],
+          [0.6, 0.2]
+        ],
+        [
+          [0.1, 0.8],
+          [0.9, 0.8]
+        ]
+      ]
+    ]);
+  });
 });
 
 describe('placement text size', () => {
@@ -892,6 +1009,28 @@ describe('placement text size', () => {
     ).getLabelData([inside], false) as any[];
     // 'Main' is 2.4 ems, 48 px at 20 px: the first label is 24 + 2 * 20 px from the start.
     expect(rows[0].position[0] * 512).toBeCloseTo(0.1 * 512 + 64, 6);
+  });
+
+  test('measures the letter spacing at the tile zoom, not the map zoom', () => {
+    const inside = {
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [0.1, 0.5],
+          [0.9, 0.5]
+        ]
+      },
+      properties: {name: 'Main Street'}
+    };
+    const firstAnchor = (props: Record<string, unknown>, spacing: unknown) =>
+      (lineLayer(props, {'text-letter-spacing': spacing}).getLabelData([inside], false) as any[])[0]
+        .position[0] * 512;
+    // A zoom-14 tile shown at zoom 14.9: MapLibre lays it out at zoom 14, without spacing.
+    const zoomed = {zoom: 14.9, tileZoom: 14};
+    const spacing = ['interpolate', ['linear'], ['zoom'], 14, 0, 15, 1];
+    expect(firstAnchor(zoomed, spacing)).toBe(firstAnchor(zoomed, 0));
+    // The spacing does move the first label: half of 10 gaps of 0.5 em at 10 px further in.
+    expect(firstAnchor(zoomed, 0.5)).toBeCloseTo(firstAnchor(zoomed, 0) + 25, 6);
   });
 
   test('falls back to the tile zoom where text-size is 0 at zoom 18', () => {

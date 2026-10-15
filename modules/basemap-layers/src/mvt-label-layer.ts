@@ -1582,8 +1582,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Label anchors along the lines of a `LineString` or `MultiLineString` feature, for
    * `symbol-placement: line` or `line-center`, with the direction of the line at each. Lines are
-   * measured in pixels at the tile's zoom (see `getLinePlacementScale`), where `symbol-spacing`
-   * and `text-max-angle` are evaluated. As in MapLibre, the label's length, the window its bends
+   * measured in pixels at the tile's zoom (see `getLinePlacementScale`), where `symbol-spacing`,
+   * `text-max-angle` and the label's `text-letter-spacing` are evaluated. As in MapLibre, the label's length, the window its bends
    * are summed in and the first label's offset come from `text-size` at zoom 18, the same for
    * every tile; where that size is 0, the size at the tile's zoom is used. The text is measured by
    * `context.measureText`. Anchors outside the tile's own extent are left to the neighbouring tile.
@@ -1620,11 +1620,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     featureBudget.steps -= text?.length || 0;
     // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
     // neither has no length, and is not placed.
-    // As MapLibre's shaping, the letter spacing follows every character but the last.
+    // As MapLibre's shaping, the letter spacing follows every character but the last. MapLibre
+    // lays symbols out at the tile's zoom, so the spacing is the one at the placement zoom, not
+    // at the map's.
+    const letterSpacing = text && allowsLetterSpacing(text) ? evaluate('text-letter-spacing') : 0;
     const textLength =
       text && featureBudget.steps > 0
         ? (context.measureText(text) +
-            (Array.from(text).length - 1) * this.getLetterSpacing(feature, text)) *
+            (Array.from(text).length - 1) * (Number.isFinite(letterSpacing) ? letterSpacing : 0)) *
           textSize
         : 0;
     const iconLength = icon
@@ -1692,25 +1695,36 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * For `symbol-placement: line`, the `LineString` features with the same label text whose ends
-   * meet, joined as MapLibre does (see `mergeLines`): per feature, the feature with the joined
-   * line to place labels along, `null` for a feature joined into another, or `undefined` to place
-   * the feature as it is.
+   * For `symbol-placement: line`, the line features with the same label text whose ends meet,
+   * joined as MapLibre does (see `mergeLines`): per feature, the feature with the joined line to
+   * place labels along, `null` for a feature joined into another, or `undefined` to place the
+   * feature as it is. As in MapLibre, a `MultiLineString` joins by its first line only, and a
+   * feature joined into another is dropped whole, with any other lines it has: MapLibre's
+   * `mergeLines` takes each feature's `geometry[0]` and keeps the feature of the chain it joins.
    */
   getMergedLines(features: FeatureLike[]): (FeatureLike | null | undefined)[] {
-    const lines = features.map(feature =>
-      feature.geometry?.type === 'LineString'
-        ? {text: this.getLabelText(feature), line: feature.geometry.coordinates}
-        : {text: null, line: []}
-    );
+    const lines = features.map(feature => {
+      const {type, coordinates} = feature.geometry || {};
+      const line =
+        type === 'LineString' ? coordinates : type === 'MultiLineString' ? coordinates?.[0] : null;
+      return line ? {text: this.getLabelText(feature), line} : {text: null, line: []};
+    });
     return mergeLines(lines).map((line, index) => {
       if (line === null) {
         return null;
       }
       const feature = features[index];
-      return line === lines[index].line
-        ? undefined
-        : {...feature, geometry: {...feature.geometry, coordinates: line}};
+      if (line === lines[index].line) {
+        return undefined;
+      }
+      const {type, coordinates} = feature.geometry;
+      return {
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: type === 'MultiLineString' ? [line, ...coordinates.slice(1)] : line
+        }
+      };
     });
   }
 
