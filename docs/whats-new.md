@@ -4,6 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Added experimental host-owned terrain query contracts and explicit per-view coordinate
+  routing, with an offline [physical/display terrain example](/examples/basemap-layers/terrain-contract).
+
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
