@@ -86,7 +86,11 @@ async function renderSplatLayer(
   const owner = {position: [0, 0] as [number, number], splats: source};
   const other = {
     position: [0.00003, 0] as [number, number],
-    splats: {...source, colors: new Uint8Array([200, 20, 40, 255, 200, 20, 40, 255])}
+    splats: {
+      ...source,
+      colors: new Uint8Array([200, 20, 40, 255, 200, 20, 40, 255]),
+      opticalDepths: new Float32Array([-Math.log(0.15), -Math.log(0.1)])
+    }
   };
   let frames = 0;
   let nativeDevice: NativeGpuDevice | undefined;

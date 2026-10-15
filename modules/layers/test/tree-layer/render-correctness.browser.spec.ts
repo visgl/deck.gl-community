@@ -53,15 +53,24 @@ it('composites interleaved prepared sources in depth order and reverses with the
     opacities: new Float32Array(depths.map(() => 0.9))
   });
   const red = source([255, 0, 0], [0.1, -0.2]),
-    blue = source([0, 0, 255], [0, -0.3]);
+    blue = {
+      ...source([0, 0, 255], [0, -0.3]),
+      opticalDepths: new Float32Array([-Math.log(0.1), -Math.log(0.1)])
+    };
+  const assets = [red, blue].map(source => ({
+    type: 'prepared-splats' as const,
+    source,
+    hierarchy: [{source, error: 0}]
+  }));
   let reverse = false,
     order = false;
   const make = () => {
-    const layers = [red, blue].map(
+    const layers = assets.map(
       (data, i) =>
         new SplatLayer({
           id: `order-${i}`,
           data,
+          kernelVariance: 0,
           coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
           getPosition: [0, 0, 0],
           transparency: 'sorted',
@@ -78,7 +87,10 @@ it('composites interleaved prepared sources in depth order and reverses with the
     Array.from(scene.pixels().slice((128 * 256 + 128) * 4, (128 * 256 + 128) * 4 + 4));
   try {
     await scene.settle();
+    expect(scene.errors).toEqual([]);
     expect(center()[0]).toBeGreaterThan(center()[2] * 4);
+    expect(Math.abs(center()[0] - 232)).toBeLessThan(4);
+    expect(Math.abs(center()[2] - 23)).toBeLessThan(4);
     order = true;
     scene.deck.setProps({layers: make()});
     await scene.settle();
@@ -86,6 +98,8 @@ it('composites interleaved prepared sources in depth order and reverses with the
     scene.deck.setProps({viewState: {...viewState, rotationOrbit: 180}});
     await scene.settle();
     expect(center()[2]).toBeGreaterThan(center()[0] * 4);
+    expect(Math.abs(center()[2] - 232)).toBeLessThan(4);
+    expect(Math.abs(center()[0] - 23)).toBeLessThan(4);
     reverse = true;
     scene.deck.setProps({layers: make(), viewState});
     await scene.settle();
@@ -143,6 +157,54 @@ it('keeps the interior of the banyan bole solid during woody refinement', async 
     }
     expect(total).toBeGreaterThan(100);
     expect(occupied / total).toBeGreaterThan(0.97);
+    expect(scene.errors).toEqual([]);
+  } finally {
+    scene.cleanup();
+  }
+}, 60000);
+
+it('updates optical fade weights without replacing the sorted geometry', async () => {
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1.5, 1.5, 0.01]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([40, 180, 80, 255]),
+    opacities: new Float32Array([0.8])
+  };
+  const asset = {type: 'prepared-splats' as const, source, hierarchy: [{source, error: 0}]};
+  let weight = 0.1;
+  const make = () =>
+    new SplatLayer({
+      id: 'coverage-update',
+      data: asset,
+      transparency: 'sorted',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+      getPosition: [0, 0, -1],
+      getCoverageWeight: () => weight,
+      updateTriggers: {getCoverageWeight: weight},
+      kernelVariance: 0,
+      material: {unlit: true}
+    });
+  const scene = mount([make()], new OrbitView({orbitAxis: 'Y', orthographic: true}), {
+    target: [0, 0, -1],
+    rotationX: 0,
+    rotationOrbit: 0,
+    zoom: 5
+  });
+  const alpha = () => scene.pixels()[(128 * 256 + 128) * 4 + 3];
+  try {
+    await scene.settle();
+    expect(scene.errors).toEqual([]);
+    expect(alpha()).toBeGreaterThan(25);
+    expect(alpha()).toBeLessThan(70);
+    weight = 1;
+    scene.deck.setProps({layers: [make()]});
+    await scene.settle();
+    expect(alpha()).toBeGreaterThan(195);
+    weight = 0;
+    scene.deck.setProps({layers: [make()]});
+    await scene.settle();
+    expect(alpha()).toBeLessThan(2);
     expect(scene.errors).toEqual([]);
   } finally {
     scene.cleanup();
