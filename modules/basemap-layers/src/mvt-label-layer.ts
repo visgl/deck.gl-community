@@ -561,7 +561,8 @@ const LINE_GLYPH_ZOOM_STEPS = 128;
 /**
  * A row's glyphs along its line: `dx, dy, angle, mode` per character (see `LineGlyphPlacement`),
  * and the path its collision circles follow, `x, y` pixels from the anchor, or null when the text
- * does not fit on the line and is hidden.
+ * does not fit on the line unturned. Text that must turn but does not fit turned keeps the unturned
+ * path, with every glyph hidden.
  */
 type RowLineGlyphs = {glyphs: Float32Array; path: number[] | null};
 
@@ -2122,9 +2123,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         getStylePropertyDefault('text-keep-upright')) !== false;
     const turned = keepUpright ? placeLineGlyphs(line, {...options, flip: true}) : null;
     // MapLibre's collision circles follow the unturned placement, whichever way the label reads.
+    // A label that must turn but does not fit turned is not drawn, yet still takes the room of its
+    // unturned circles: MapLibre places it by those, and hides its glyphs only when drawing.
     const toRow = (placed: LineGlyphs | null): RowLineGlyphs => {
       if (!placed) {
-        return hidden;
+        return {glyphs: hidden.glyphs, path: layout.path};
       }
       const glyphs = new Float32Array(count * 4);
       for (let i = 0; i < count; i++) {
@@ -2752,7 +2755,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           // Circles along the line under the text, as MapLibre's: the path from its first glyph to
           // its last, taken to the screen vertex by vertex. As in MapLibre, they follow the line,
           // moved by `text-offset` only, whatever the `text-anchor`. Text that does not fit on the
-          // line has none, and is not drawn (see `LineGlyphPlacement`).
+          // line unturned has none, and is not drawn (see `LineGlyphPlacement`); text that fits
+          // only unturned but must turn has its unturned circles, and is not drawn.
           const [ax, ay, bx, by] = toScreen;
           const screenRadius = (h / 2 + textPadding) * Math.sqrt(Math.abs(ax * by - ay * bx));
           const {path} = curved;
