@@ -9,7 +9,9 @@ import {
   type PreRenderOptions
 } from '@deck.gl/core';
 import type {Device, Framebuffer, Texture, Parameters, Sampler, RenderPass} from '@luma.gl/core';
-import {ClipSpace} from '@luma.gl/engine';
+import {ClipSpace, type Model} from '@luma.gl/engine';
+import {SplatSortedRenderer} from './splat-sorted-renderer';
+import type {SplatPrimitiveLayer} from './splat-primitive-layer';
 import type {ShaderModule} from '@luma.gl/shadertools';
 
 const isSplat = (layer: Layer) =>
@@ -41,7 +43,10 @@ class SplatPass extends _LayersPass {
   shouldDrawLayer(layer: Layer) {
     return this.mode === 0
       ? !isSplat(layer) && layer.props.operation.includes('draw')
-      : isSplat(layer) && layer.props.operation.includes('draw');
+      : isSplat(layer) &&
+          layer.props.operation.includes('draw') &&
+          (this.mode === 4 ||
+            (layer.props as SplatPrimitiveLayer['props']).transparency !== 'sorted');
   }
   protected getLayerParameters(layer: Layer): Parameters {
     if (this.mode === 0) return layer.props.parameters;
@@ -60,7 +65,7 @@ class SplatPass extends _LayersPass {
     };
   }
   protected getShaderModuleProps(layer: Layer, _effects, props) {
-    if (this.mode === 1) this.last.set(props.project.viewport.id, layer.id);
+    if (this.mode === 4) this.last.set(props.project.viewport.id, layer.id);
     return {splat: {mode: this.mode}};
   }
 }
@@ -88,12 +93,18 @@ export class SplatEffect implements Effect {
   private ready = false;
   private sampler?: Sampler;
   private last = new Map<string, string>();
+  private sorted = new Map<string, SplatSortedRenderer>();
+  private collecting?: SplatSortedRenderer;
+
+  collect(layer: SplatPrimitiveLayer, model: Model) {
+    this.collecting?.collect(layer, model);
+  }
 
   setup({device}: EffectContext) {
     this.device = device;
     if (device.type === 'webgpu')
       this.sampler = device.createSampler({minFilter: 'linear', magFilter: 'linear'});
-    this.passes = [0, 1].map(mode => new SplatPass(device, mode, this.last));
+    this.passes = [0, 1, 4].map(mode => new SplatPass(device, mode, this.last));
     this.model = new ClipSpace(device, {
       id: 'gaussian-splat-composite',
       modules: [compositeUniforms],
@@ -101,21 +112,25 @@ export class SplatEffect implements Effect {
 precision highp float;
 uniform sampler2D accumulationMap;
 uniform sampler2D transmissionMap;
+uniform sampler2D sortedMap;
 out vec4 color;
 void main() {
   vec2 uv = gl_FragCoord.xy / splatComposite.size;
   vec4 accum = texture(accumulationMap, uv);
   float alpha = 1.0 - exp(-max(texture(transmissionMap, uv).r, 0.0));
-  color = vec4(accum.rgb / max(accum.a, 0.00001) * alpha, alpha);
+  vec4 sorted = texture(sortedMap, uv);
+  color = sorted + vec4(accum.rgb / max(accum.a, 0.00001) * alpha, alpha) * (1.0 - sorted.a);
 }`,
       source: `@group(0) @binding(auto) var accumulationMap: texture_2d<f32>;
 @group(0) @binding(auto) var transmissionMap: texture_2d<f32>;
+@group(0) @binding(auto) var sortedMap: texture_2d<f32>;
 @group(0) @binding(auto) var linearSampler: sampler;
 @fragment fn fragmentMain(v: FragmentInputs) -> @location(0) vec4<f32> {
   let uv = v.Position.xy / splatComposite.size;
   let accum = textureSample(accumulationMap, linearSampler, uv);
   let alpha = 1.0 - exp(-max(textureSample(transmissionMap, linearSampler, uv).r, 0.0));
-  return vec4<f32>(accum.rgb / max(accum.a, 0.00001) * alpha, alpha);
+  let sorted = textureSample(sortedMap, linearSampler, uv);
+  return sorted + vec4<f32>(accum.rgb / max(accum.a, 0.00001) * alpha, alpha) * (1.0 - sorted.a);
 }`,
       parameters: {
         depthWriteEnabled: false,
@@ -145,9 +160,10 @@ void main() {
       });
     const opaque = color('rgba8unorm'),
       accum = color('rgba16float'),
-      transmission = color('r16float');
+      transmission = color('r16float'),
+      sorted = color('rgba16float');
     const depth = this.device.createTexture({format: 'depth24plus', width, height});
-    this.textures = [opaque, accum, transmission, depth];
+    this.textures = [opaque, accum, transmission, depth, sorted];
     this.targets = [
       this.device.createFramebuffer({
         width,
@@ -159,6 +175,12 @@ void main() {
         width,
         height,
         colorAttachments: [accum, transmission],
+        depthStencilAttachment: depth
+      }),
+      this.device.createFramebuffer({
+        width,
+        height,
+        colorAttachments: [sorted],
         depthStencilAttachment: depth
       })
     ];
@@ -173,7 +195,11 @@ void main() {
     );
     const selectionLayers = visibleDrawLayers.filter(isRasterSelectionLayer);
     const splatLayers = visibleDrawLayers.filter(isSplat);
-    if (!selectionLayers.length && !splatLayers.length) return;
+    if (!selectionLayers.length && !splatLayers.length) {
+      for (const renderer of this.sorted.values()) renderer.destroy();
+      this.sorted.clear();
+      return;
+    }
     if (
       splatLayers.length &&
       this.device.type === 'webgpu' &&
@@ -195,6 +221,8 @@ void main() {
       if (!viewportIds.has(id)) {
         this.destroyTargets(cached.targets, cached.textures);
         this.viewportTargets.delete(id);
+        this.sorted.get(id)?.destroy();
+        this.sorted.delete(id);
       }
     // Keep the aggregate accumulation pixel budget across independent view targets.
     let scale = Math.min(
@@ -207,7 +235,11 @@ void main() {
     // BVH selection until every parent has queried the wider screen-space margin.
     for (const layer of selectionLayers)
       scale = Math.max(scale, layer.requestSplatRenderPixelRatio(desiredDensity) / pixelRatio);
-    if (!splatLayers.length) return;
+    if (!splatLayers.length) {
+      for (const renderer of this.sorted.values()) renderer.destroy();
+      this.sorted.clear();
+      return;
+    }
     this.model!.shaderInputs.setProps({splatComposite: {size: [width, height]}});
     for (const viewport of options.viewports) {
       this.resize(
@@ -246,6 +278,29 @@ void main() {
         target: this.targets[1],
         clearCanvas: false
       });
+      let renderer = this.sorted.get(viewport.id);
+      if (!renderer) {
+        renderer = new SplatSortedRenderer(this.device);
+        this.sorted.set(viewport.id, renderer);
+      }
+      renderer.begin(viewport);
+      this.collecting = renderer;
+      // This pass visits only eligible primitives and captures their evaluated uniforms.
+      // It also chooses the last eligible primitive for the ordinary-pass resolve.
+      this.passes[2].render({
+        ...scaledOptions,
+        pass: 'splat-sort-collection',
+        target: this.targets[2],
+        clearCanvas: false
+      });
+      this.collecting = undefined;
+      const clearSorted = this.device.beginRenderPass({
+        framebuffer: this.targets[2],
+        clearColor: [0, 0, 0, 0],
+        clearDepth: false
+      });
+      clearSorted.end();
+      renderer.render(this.targets[2], pixelRatio * scale);
     }
     this.ready = true;
   }
@@ -260,6 +315,7 @@ void main() {
     this.model!.setBindings({
       accumulationMap: cached.textures[1],
       transmissionMap: cached.textures[2],
+      sortedMap: cached.textures[4],
       ...(this.device.type === 'webgpu' ? {linearSampler: this.sampler!} : {})
     });
     this.model!.draw(renderPass);
@@ -276,6 +332,8 @@ void main() {
     for (const cached of this.viewportTargets.values())
       this.destroyTargets(cached.targets, cached.textures);
     this.viewportTargets.clear();
+    for (const renderer of this.sorted.values()) renderer.destroy();
+    this.sorted.clear();
     this.targets = [];
     this.textures = [];
   }

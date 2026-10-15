@@ -48,8 +48,11 @@ describe('renderBasemapLayer', () => {
         fontAtlases: []
       };
     };
-    await renderBasemapLayer({}, DEFAULT_SCENES[0], {}, {pixelRatio: 2}, draw);
-    expect(options).toEqual([{pixelRatio: 2}, {pixelRatio: 2}]);
+    await renderBasemapLayer({}, DEFAULT_SCENES[0], {}, {pixelRatio: 2, pitch: 45}, draw);
+    expect(options).toEqual([
+      {pixelRatio: 2, pitch: 45},
+      {pixelRatio: 2, pitch: 45}
+    ]);
   });
 
   test.each([

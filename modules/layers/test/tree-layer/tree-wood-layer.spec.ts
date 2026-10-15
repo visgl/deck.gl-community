@@ -252,3 +252,26 @@ it('uses affine wood matrices for camera and light bounds and refreshes matrix t
   expect(layer.state.owners[0].center[0]).toBe(10);
   expect(Math.max(...layer.state.owners[0].scale)).toBe(5);
 });
+
+import {getTreeBotany} from '../../src/tree-layer/tree-botany';
+it('retains structural banyan aerial roots in the coarse woody shell', () => {
+  const roots = getTreeBotany('banyan').branches.flatMap(branch =>
+    branch.children.filter(child => child.rooted)
+  );
+  expect(roots.length).toBeGreaterThan(0);
+  for (const aggregate of [false, true]) {
+    const mesh = getTreeWoodMesh('banyan', 3, aggregate, {}, true);
+    const centers = mesh.attributes.COLOR_0.value;
+    for (const root of roots) {
+      for (const point of root.path) {
+        let present = false;
+        for (let i = 0; i < centers.length; i += 3)
+          if (point.every((value, axis) => Math.abs(value - centers[i + axis]) < 1e-6)) {
+            present = true;
+            break;
+          }
+        expect(present).toBe(true);
+      }
+    }
+  }
+});

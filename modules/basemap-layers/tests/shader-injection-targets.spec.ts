@@ -30,6 +30,7 @@ import {describe, expect, test} from 'vitest';
 import {CircleBlurExtension} from '../src/circle-layer';
 import {FillPatternExtension, FillTranslateExtension} from '../src/fill-style-extensions';
 import {GlobeHorizonExtension} from '../src/globe-horizon-extension';
+import {LabelCharactersLayer} from '../src/label-text-layer';
 import {LineBlurExtension} from '../src/line-blur-extension';
 import {RasterColorExtension} from '../src/raster-color-extension';
 import {TextHaloBlurExtension} from '../src/text-halo-blur-extension';
@@ -353,19 +354,23 @@ void main(void) {
 });
 
 describe('shader injection targets in the installed deck.gl', () => {
-  test('TextHaloBlurExtension: the outline alpha statement of MultiIconLayer', () => {
+  test('TextHaloBlurExtension: the outline alpha statement of LabelCharactersLayer', () => {
     const extension = new TextHaloBlurExtension();
     const props = {sdf: true, outlineWidth: 2};
-    const shaders = getModelShaders(MultiIconLayer, {...props, extensions: [extension]}, extension);
+    const shaders = getModelShaders(
+      LabelCharactersLayer,
+      {...props, extensions: [extension]},
+      extension
+    );
     expectInjectionsApplied({
       extensionName: 'TextHaloBlurExtension',
-      layerName: 'MultiIconLayer',
+      layerName: 'LabelCharactersLayer',
       injections: shaders.injections,
       shaders: shaders[0]
     });
-    const [base] = getModelShaders(MultiIconLayer, props);
-    expectNames('TextHaloBlurExtension', 'MultiIconLayer', base, {
-      fs: ['sdf.buffer', 'sdf.outlineBuffer', 'sdf.gamma', 'distance', 'alpha']
+    const [base] = getModelShaders(LabelCharactersLayer, props);
+    expectNames('TextHaloBlurExtension', 'LabelCharactersLayer', base, {
+      fs: ['sdf.outlineBuffer', 'labelHaloGamma', 'labelEdge.foreshortening', 'distance', 'alpha']
     });
   });
 

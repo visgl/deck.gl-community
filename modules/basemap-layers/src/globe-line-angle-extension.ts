@@ -13,18 +13,25 @@ import type {Layer} from '@deck.gl/core';
  * as `getUprightAngle` turns it from the bearing alone: away from the middle of the view the bearing
  * does not tell which way the view draws a line.
  *
- * The instance angle is only declared in the layer's own shader source, after the hook functions,
- * so it is copied into a global at the start of `main`.
+ * With `pixelOffset`, the name of the layer's pixel offset attribute, that offset is not turned
+ * around with the billboard: it is a direction along and across the line (see
+ * `withLineDirection`), and stays on the same side of the line.
+ *
+ * The instance angle and pixel offset are only declared in the layer's own shader source, after the
+ * hook functions, so they are copied into globals at the start of `main`.
  */
-const getGlobeLineAngleModule = (keepUpright: boolean) => ({
-  name: keepUpright ? 'globeLineAngleUpright' : 'globeLineAngle',
+const getGlobeLineAngleModule = (keepUpright: boolean, pixelOffset?: string) => ({
+  name: `globeLineAngle${keepUpright ? 'Upright' : ''}${pixelOffset ? `_${pixelOffset}` : ''}`,
   dependencies: [project32],
   inject: {
     'vs:#decl': /* glsl */ `
 float globeLineAngle_angle;
+vec2 globeLineAngle_pixelOffset;
 `,
     'vs:#main-start': /* glsl */ `
   globeLineAngle_angle = radians(instanceAngles);
+  // As the layer adds it to the billboard's offset, y down.
+  globeLineAngle_pixelOffset = ${pixelOffset ? `vec2(${pixelOffset}.x, -${pixelOffset}.y)` : 'vec2(0.0)'};
 `,
     'vs:DECKGL_FILTER_SIZE': /* glsl */ `
   if (project.projectionMode == PROJECTION_MODE_GLOBE) {
@@ -47,16 +54,32 @@ float globeLineAngle_angle;
       globeLineAngle_clip.xy * globeLineAngle_clipTangent.w) * project.viewportSize;
     float globeLineAngle_turn =
       atan(globeLineAngle_screen.y, globeLineAngle_screen.x) - globeLineAngle_angle;
-${keepUpright ? '    if (globeLineAngle_screen.x < 0.0) globeLineAngle_turn += PI;\n' : ''}    float globeLineAngle_cos = cos(globeLineAngle_turn);
+    float globeLineAngle_cos = cos(globeLineAngle_turn);
     float globeLineAngle_sin = sin(globeLineAngle_turn);
-    size.xy = mat2(globeLineAngle_cos, globeLineAngle_sin, -globeLineAngle_sin, globeLineAngle_cos) *
-      size.xy;
+    mat2 globeLineAngle_rotation =
+      mat2(globeLineAngle_cos, globeLineAngle_sin, -globeLineAngle_sin, globeLineAngle_cos);
+${
+  keepUpright
+    ? `    if (globeLineAngle_screen.x < 0.0) {
+      // Turned around, but for the pixel offset: -(size - offset) + offset.
+      size.xy = 2.0 * globeLineAngle_pixelOffset - size.xy;
+    }
+`
+    : ''
+}    size.xy = globeLineAngle_rotation * size.xy;
   }
 `
   }
 });
 
-const GLOBE_LINE_ANGLE_MODULES = [getGlobeLineAngleModule(false), getGlobeLineAngleModule(true)];
+const GLOBE_LINE_ANGLE_MODULES = {
+  free: getGlobeLineAngleModule(false),
+  upright: getGlobeLineAngleModule(true),
+  // The pixel offset attributes of `IconLayer` (and the glyphs of `TextLayer`) and of
+  // `TextLayer`'s backgrounds.
+  instancePixelOffset: getGlobeLineAngleModule(true, 'instancePixelOffset'),
+  instancePixelOffsets: getGlobeLineAngleModule(true, 'instancePixelOffsets')
+};
 
 /**
  * Keeps billboards drawn along lines (labels and icons whose rotation is aligned to the map) on
@@ -67,17 +90,38 @@ const GLOBE_LINE_ANGLE_MODULES = [getGlobeLineAngleModule(false), getGlobeLineAn
  * extension adds no shader code, and they stay as they are drawn from north up.
  *
  * Added to a composite layer such as `TextLayer`, it reaches the character and background
- * sublayers.
+ * sublayers. With `keepOffsetSide`, text kept upright is turned around without its pixel offset,
+ * which must then be a direction along and across the line, as `text-offset` is.
  */
-export class GlobeLineAngleExtension extends LayerExtension<{keepUpright: boolean}> {
+export class GlobeLineAngleExtension extends LayerExtension<{
+  keepUpright: boolean;
+  keepOffsetSide?: boolean;
+}> {
   static extensionName = 'GlobeLineAngleExtension';
 
-  constructor(opts: {keepUpright: boolean}) {
+  constructor(opts: {keepUpright: boolean; keepOffsetSide?: boolean}) {
     super(opts);
   }
 
   getShaders(this: Layer, extension: GlobeLineAngleExtension) {
-    const module = GLOBE_LINE_ANGLE_MODULES[extension.opts.keepUpright ? 1 : 0];
-    return this.context.device.type === 'webgpu' ? {} : {modules: [module]};
+    if (this.context.device.type === 'webgpu') {
+      return {};
+    }
+    const {keepUpright, keepOffsetSide} = extension.opts;
+    if (!keepUpright) {
+      return {modules: [GLOBE_LINE_ANGLE_MODULES.free]};
+    }
+    if (!keepOffsetSide) {
+      return {modules: [GLOBE_LINE_ANGLE_MODULES.upright]};
+    }
+    // `TextLayer`'s backgrounds name the attribute in the plural.
+    const attributes = (this.getAttributeManager() as any)?.attributes || {};
+    return {
+      modules: [
+        attributes.instancePixelOffsets
+          ? GLOBE_LINE_ANGLE_MODULES.instancePixelOffsets
+          : GLOBE_LINE_ANGLE_MODULES.instancePixelOffset
+      ]
+    };
   }
 }

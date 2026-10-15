@@ -133,7 +133,7 @@ Wind uses the normalized clamped-cantilever shape `f(u) = u²(3 − u)/2` plus a
 
 Non-finite values use defaults; multipliers are clamped and quantized to `0.01`. Seeds are rounded. Growth remains limited to 600 nodes and 64 iterations. Animation and lighting updates retain geometry and owner rows. These controls describe procedural morphology, not predicted biological growth or yield.
 
-Citrus Lab exposes orange, lemon and lime forms with coherent structural controls, crop stages and branch inspection. Citrus remains evergreen through all seasons; white blossom, green fruit and ripe fruit are separate explicit inputs. Maturity varies with cultivar and location, as described by [UF/IFAS](https://ask.ifas.ufl.edu/publication/HS132). A variety preset is an illustrative tree form, not a cultivar reconstruction or ripening calendar.
+Citrus supports orange, lemon and lime forms through its characteristics and explicit crop inputs. Citrus remains evergreen through all seasons; white blossom, green fruit and ripe fruit are separate explicit inputs. Maturity varies with cultivar and location, as described by [UF/IFAS](https://ask.ifas.ufl.edu/publication/HS132). A variety preset is an illustrative tree form, not a cultivar reconstruction or ripening calendar.
 
 ```ts
 new TreeLayer({
@@ -160,12 +160,16 @@ The highest source detail remains available. Cost depends on the visible crowns,
 
 `foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation, preserves visible owners, and leaves light-space shadow refinement independent.
 
-`getCoverageWeight` applies to wood, fallback trunks, foliage and every crop kind, including their picking and shadow passes. It defaults to one and supports optical canopy fades and matching wood coverage during streamed replacement. Automatic wood refinement blends the connected fine and coarse skeletons with complementary pixel coverage. Native wood cross-sections follow `getTrunkRadius` independently of canopy spread; branch centerlines remain aligned with the leaf growth structure.
+`getCoverageWeight` applies to wood, fallback trunks, foliage and every crop kind, including their picking and shadow passes. It defaults to one and supports optical canopy fades and matching wood coverage during streamed replacement. Automatic wood refinement selects one opaque coarse or fine skeleton per tree, avoiding stochastic holes between different mesh surfaces. The coarse shell retains structural aerial and stilt roots. Native wood cross-sections follow `getTrunkRadius` independently of canopy spread; branch centerlines remain aligned with the leaf growth structure.
 
 ### Prepared canopy assets
 
 Canopy sublayers use `SplatLayer` with owner rows, cached `prepared-splats` descriptors through
-`getSource`, and explicit weighted transparency. Canopy group IDs and `_subLayerProps` aliases
+`getSource`, and depth-sorted transparency across all selected canopy Gaussians. Canopy group IDs and `_subLayerProps` aliases
 remain stable. The shared runtime allocates `maxCanopySplats` and `maxShadowSplats` across all
 canopy roots. An explicit child quota still limits that child. Wood and crops use their existing
 mesh paths; tree traits, seasons and original-tree picking remain TreeLayer responsibilities.
+
+## Example
+
+The [TreeLayer demo](/examples/layers/tree-lab) renders eight supplied trees with species, season, crown-shape, crop and wind controls. It uses the public `getTree` API and standard deck.gl lighting.

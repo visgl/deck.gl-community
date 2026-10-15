@@ -42,21 +42,25 @@ layout(std140) uniform textHaloBlurUniforms {
 } as const;
 
 /**
- * deck.gl's `MultiIconLayer` (the characters of a `TextLayer`) sets the alpha of an SDF outline
- * with this statement. The halo pass outlines inside the glyph's buffer distance; the pass that
- * draws the glyphs on top sets the outline at the glyph edge, and stays as it is.
+ * `LabelCharactersLayer` (the characters of a `LabelTextLayer`) sets the alpha of a halo with this
+ * statement, from the halo edge's own antialiasing, `labelHaloGamma`. It runs in the halo pass
+ * only: the pass that draws the glyphs on top draws no outline.
  */
 const OUTLINE_ALPHA_STATEMENT = 'alpha = inBorder;';
 
 const injection = {
   [OUTLINE_ALPHA_STATEMENT]: /* glsl */ `
-      if (textHaloBlur.gamma > 0.0 && sdf.outlineBuffer < sdf.buffer) {
-        // Fades the halo over the wider edge. Capped so that the halo is transparent where the
-        // distance field ends, at the edge of the glyph's quad: the font atlas stores a few
-        // 1/255 steps of distance there.
+      if (textHaloBlur.gamma > 0.0) {
+        // Fades the halo over the wider edge. The blur widens by 1 / cos(pitch) on a pitched map,
+        // as the edge's own antialiasing does: MapLibre divides both by its u_gamma_scale. Capped
+        // so that the halo is transparent where the distance field ends, at the edge of the
+        // glyph's quad: the font atlas stores a few 1/255 steps of distance there.
         float haloGamma = max(
-          sdf.gamma,
-          min(sdf.gamma + textHaloBlur.gamma, sdf.outlineBuffer - 4.0 / 255.0)
+          labelHaloGamma,
+          min(
+            labelHaloGamma + textHaloBlur.gamma / labelEdge.foreshortening,
+            sdf.outlineBuffer - 4.0 / 255.0
+          )
         );
         alpha = smoothstep(sdf.outlineBuffer - haloGamma, sdf.outlineBuffer + haloGamma, distance);
       }
@@ -69,11 +73,12 @@ type TextHaloBlurExtensionProps = {
 };
 
 /**
- * Blurs the SDF outline of a `TextLayer`, as MapLibre GL JS draws `text-halo-blur`: the halo edge
- * fades over `textHaloBlurGamma` more distance on each side. The glyphs stay as sharp as without
- * the extension. The edge keeps `TextLayer`'s own antialiasing (`fontSettings.smoothing`, a share
- * of the text size), where MapLibre adds `0.84 / devicePixelRatio` pixels; the two are close for
- * 12 to 24 pixel text. WebGL only; on WebGPU the halo draws without blur.
+ * Blurs the halo of a `LabelTextLayer`, as MapLibre GL JS draws `text-halo-blur`: the halo edge
+ * fades over `textHaloBlurGamma` more distance on each side, beyond its own antialiasing of 0.84
+ * device pixels (see `LabelCharactersLayer`), as MapLibre's. Labels that lie on a pitched map fade
+ * over 1 / cos(pitch) times that distance, blur and antialiasing alike, as MapLibre's (see
+ * `getLabelForeshortening`). The glyphs stay as sharp as without the extension. WebGL only; on
+ * WebGPU the halo draws without blur.
  */
 export class TextHaloBlurExtension extends LayerExtension {
   static extensionName = 'TextHaloBlurExtension';

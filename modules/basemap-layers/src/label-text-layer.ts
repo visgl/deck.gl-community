@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {createIterable} from '@deck.gl/core';
+import {WebMercatorViewport, createIterable} from '@deck.gl/core';
 import {TextLayer, _MultiIconLayer as MultiIconLayer} from '@deck.gl/layers';
 import type {TextLayerProps} from '@deck.gl/layers';
 import type {
@@ -35,7 +35,33 @@ type _LabelTextLayerProps<DataT> = {
   getLetterSpacing?: Accessor<DataT, number>;
   /** How the lines of a label are aligned within its box. */
   getTextJustify?: Accessor<DataT, LabelTextJustify>;
+  /**
+   * Where each glyph of a label along a line is drawn in a viewport (see {@link LineGlyphPlacement}),
+   * or null to draw the label straight, turned by `getAngle`. Null for every label draws them all
+   * straight. Its update trigger is `updateTriggers.getLineGlyphs`. WebGL only.
+   */
+  getLineGlyphs?: ((object: DataT, viewport: any) => Float32Array | null) | null;
+  /**
+   * What `getLineGlyphs` depends on in the viewport: the glyphs are placed again when it changes,
+   * as the layer draws.
+   */
+  getLineGlyphKey?: ((viewport: any) => string) | null;
 };
+
+/**
+ * `getLineGlyphs` of a label: 4 values per character, `dx, dy, angle, mode`. With mode 1 the
+ * character's advance centre is drawn `dx, dy` pixels from the label's position (y down), turned by
+ * `angle` degrees counter-clockwise, and `getPixelOffset` is not added; with mode -1 the label is not
+ * drawn; with mode 0 it is drawn straight.
+ */
+export type LineGlyphPlacement = Float32Array;
+
+/** The vertex shader line that turns a character about the label's anchor, which curved glyphs replace. */
+const TURN_CHARACTER = `pixelOffset = rotate_by_angle(pixelOffset, instanceAngles) * instanceScale;
+pixelOffset += instancePixelOffset;`;
+
+/** The shader line before which a hidden label's characters collapse. */
+const HIDE_CHARACTER_BEFORE = 'vTextureCoords = mix(';
 
 export type LabelTextLayerProps<DataT = unknown> = _LabelTextLayerProps<DataT> &
   TextLayerProps<DataT>;
@@ -101,6 +127,8 @@ const LABEL_ATLAS_KEY = 'label-glyph-overhang';
 const defaultProps: DefaultProps<LabelTextLayerProps> = {
   getLetterSpacing: {type: 'accessor', value: 0},
   getTextJustify: {type: 'accessor', value: 'auto'},
+  getLineGlyphs: {type: 'function', value: null, optional: true} as any,
+  getLineGlyphKey: {type: 'function', value: null, optional: true} as any,
   // Keeps the part of italic glyphs left of their origin (see `getLabelFontRenderer`).
   _getFontRenderer: {type: 'function', value: getLabelFontRenderer}
 };
@@ -139,18 +167,306 @@ function isSameNumbers(a: number[], b: number[]): boolean {
 }
 
 /**
+ * Half the width, in device pixels, over which MapLibre GL JS antialiases the edges of glyphs and
+ * of their halos: its symbol shader's `EDGE_GAMMA` (0.105 / device pixel ratio) of a distance
+ * field that falls by 1/8 per glyph pixel, scaled with the text.
+ */
+export const LABEL_EDGE_DEVICE_PIXELS = 0.84;
+
+/**
+ * `distancePerAtlasPixel`: distance field units per atlas pixel of the font atlas,
+ * `1 / fontSettings.radius`. `foreshortening`: how much the view shortens screen y, see
+ * `getLabelForeshortening`.
+ */
+const labelEdgeUniforms = {
+  name: 'labelEdge',
+  fs: /* glsl */ `\
+layout(std140) uniform labelEdgeUniforms {
+  float distancePerAtlasPixel;
+  float foreshortening;
+} labelEdge;
+`,
+  uniformTypes: {distancePerAtlasPixel: 'f32', foreshortening: 'f32'}
+} as const;
+
+/** The cosine of 89 degrees: no label is foreshortened more, so the factor stays positive. */
+const MIN_FORESHORTENING = Math.cos((89 * Math.PI) / 180);
+
+/**
+ * How much the view shortens screen y for the labels of a layer, against screen x: the cosine of a
+ * `MapView`'s pitch for labels that lie on the map, which it tilts about screen x, as MapLibre's
+ * `u_gamma_scale`. Billboards face the screen, and other views tilt otherwise (a `FirstPersonView`
+ * measures its pitch from the horizon): their labels are taken as unforeshortened, 1.
+ */
+export function getLabelForeshortening(viewport: unknown, billboard: boolean): number {
+  if (billboard || !(viewport instanceof WebMercatorViewport)) {
+    return 1;
+  }
+  return Math.max(Math.cos((viewport.pitch * Math.PI) / 180), MIN_FORESHORTENING);
+}
+
+/**
+ * `MultiIconLayer`'s signed distance field statements: the glyph edge, then the outline (halo)
+ * edge, both smoothed over `sdf.gamma`, a fixed distance. On screen that is a share of the text
+ * size: 0.0375 × size × device pixel ratio device pixels on each side for the label font atlas.
+ */
+const SDF_EDGES =
+  /if \(sdf\.enabled\) \{\s*float distance = alpha;\s*alpha = smoothstep\(sdf\.buffer - sdf\.gamma, sdf\.buffer \+ sdf\.gamma, distance\);\s*if \(sdf\.outlineBuffer > 0\.0\) \{\s*float inFill = alpha;\s*float inBorder = smoothstep\(sdf\.outlineBuffer - sdf\.gamma, sdf\.outlineBuffer \+ sdf\.gamma, distance\);\s*color = mix\(sdf\.outlineColor, vColor, inFill\);\s*alpha = inBorder;\s*\}\s*\}/;
+
+/**
+ * The edges as MapLibre GL JS antialiases them: over `LABEL_EDGE_DEVICE_PIXELS` device pixels on
+ * each side, whatever the text size and device pixel ratio. The distance a device pixel spans is
+ * measured from the screen-space rate of change of the atlas coordinates along x, in uniform
+ * control flow. Labels that lie on a pitched map are foreshortened along y alone: as MapLibre's
+ * `u_gamma_scale`, their edges widen by 1 / cos(pitch): across y they are about as wide as on an
+ * unpitched map, and across x 1 / cos(pitch) times wider. MapLibre's smoothing,
+ * `EDGE_GAMMA / (fontScale * u_gamma_scale) * gl_Position.w` with `u_gamma_scale` =
+ * cos(pitch) × `cameraToCenterDistance`, is 0.84 / cos(pitch) device pixels across x at any
+ * distance: its glyphs are drawn `fontScale` × `cameraToCenterDistance` / w times their atlas
+ * size, which cancels both. The atlas coordinates' rate of change along x holds that scale,
+ * perspective included, at each pixel, so no term for w is added here.
+ * - The glyph edge, as it would be unpitched, is never smoothed more than `TextLayer` smooths it
+ *   (`sdf.gamma`): on small text at device pixel ratio 1, `TextLayer`'s edge is the narrower. The
+ *   cap applies before the 1 / cos(pitch) widening, so that it narrows pitched labels only where it
+ *   would narrow them unpitched.
+ * - The halo edge is smoothed as MapLibre's, also when it has no blur, unless the halo reaches so
+ *   far out that the distance field ends within the smoothing: then it is smoothed no more than
+ *   that allows, or than `sdf.gamma`. `TextHaloBlurExtension` widens it
+ *   from `labelHaloGamma`, after `alpha = inBorder;`.
+ * - The pass that draws the glyphs again over every halo (`sdf.outlineBuffer` at `sdf.buffer`)
+ *   blends their edge with the halo color, as `TextLayer`'s does, over the glyph edge's own width.
+ */
+const LABEL_SDF_EDGES = /* glsl */ `\
+if (sdf.enabled) {
+      float distance = alpha;
+      vec2 atlasPixel = vTextureCoords * vec2(textureSize(iconsTexture, 0));
+      // Along y, as MapLibre's gamma_scale: x, which pitch does not shorten, over the pitch's
+      // cosine. At pitch 0, and for billboards, both directions are the same.
+      float atlasPixelsPerDevicePixel = length(dFdx(atlasPixel)) / labelEdge.foreshortening;
+      float labelEdgeGamma =
+        ${LABEL_EDGE_DEVICE_PIXELS.toFixed(2)} * atlasPixelsPerDevicePixel * labelEdge.distancePerAtlasPixel;
+      // TextLayer's smoothing caps the glyph edge as it would be on an unpitched map, before the
+      // 1 / cos(pitch) widening: compared after it, the cap would undo the widening on the glyphs
+      // that perspective draws small, toward the horizon.
+      float labelFillGamma = min(sdf.gamma, labelEdgeGamma * labelEdge.foreshortening) /
+        labelEdge.foreshortening;
+      alpha = smoothstep(sdf.buffer - labelFillGamma, sdf.buffer + labelFillGamma, distance);
+      if (sdf.outlineBuffer > 0.0 && sdf.outlineBuffer < sdf.buffer) {
+        float inFill = alpha;
+        // Capped, as TextHaloBlurExtension caps its blur, so that the halo fades out before the
+        // distance field ends, at the edge of the glyph's quad, or no later than with sdf.gamma.
+        float labelHaloGamma = min(labelEdgeGamma, max(sdf.gamma, sdf.outlineBuffer - 4.0 / 255.0));
+        float inBorder = smoothstep(
+          sdf.outlineBuffer - labelHaloGamma, sdf.outlineBuffer + labelHaloGamma, distance
+        );
+        color = mix(sdf.outlineColor, vColor, inFill);
+        alpha = inBorder;
+      } else if (sdf.outlineBuffer > 0.0) {
+        // The glyphs drawn again over the halos, blended with the halo color at their edge as the
+        // halo pass blends them, so that an edge pixel is half glyph and half halo, as MapLibre's.
+        color = mix(sdf.outlineColor, vColor, alpha);
+      }
+    }`;
+
+/**
  * The character layer of a `LabelTextLayer`. `TextLayer` packs, for every character of every
  * label, its place in the font atlas and its offset in the label, whenever the layer's data
  * changes. The packed values of each label are kept, and reused while its text, character offsets
  * and font atlas are the same, so the labels a layer held before are not packed again.
+ *
+ * On WebGL it antialiases glyph and halo edges as MapLibre GL JS (see `LABEL_SDF_EDGES`). The
+ * WebGPU shader is `MultiIconLayer`'s.
  */
-class LabelCharactersLayer extends MultiIconLayer<any> {
+/** @internal Exported for tests. */
+export class LabelCharactersLayer extends MultiIconLayer<any> {
   static layerName = 'LabelCharactersLayer';
+  static defaultProps: DefaultProps<any> = {sdfRadius: {type: 'number', value: 12}};
 
   declare state: MultiIconLayer<any>['state'] & {
     /** Each label's packed character definitions, by label object. */
     iconDefs?: WeakMap<object, CachedIconDefs>;
+    /** The `getLineGlyphKey` the glyphs along lines were last placed for. */
+    lineGlyphKey?: string | null;
   };
+
+  /** Whether characters can be placed along lines: on WebGL, whose shader this layer extends. */
+  drawsLineGlyphs(): boolean {
+    return this.context.device.type !== 'webgpu';
+  }
+
+  /** Glyph and halo edges as MapLibre GL JS, then, on WebGL, glyphs along lines. */
+  getShaders(): any {
+    const iconShaders = super.getShaders();
+    if (!SDF_EDGES.test(iconShaders.fs)) {
+      throw new Error(`${this.id}: MultiIconLayer's signed distance field edges not found`);
+    }
+    const shaders = {
+      ...iconShaders,
+      modules: [...iconShaders.modules, labelEdgeUniforms],
+      fs: iconShaders.fs.replace(SDF_EDGES, LABEL_SDF_EDGES)
+    };
+    if (!this.drawsLineGlyphs()) {
+      return shaders;
+    }
+    const {vs} = shaders;
+    if (!vs.includes(TURN_CHARACTER) || !vs.includes(HIDE_CHARACTER_BEFORE)) {
+      throw new Error('LabelCharactersLayer: the text vertex shader has changed');
+    }
+    return {
+      ...shaders,
+      vs: vs
+        .replace(
+          'in vec4 instanceClipRect;',
+          'in vec4 instanceClipRect;\nin vec4 instanceLineGlyphs;\nin float instanceGlyphCentres;'
+        )
+        .replace(
+          TURN_CHARACTER,
+          `if (instanceLineGlyphs.w > 0.5) {
+  // A glyph along a line: turned about its advance centre, placed on the line.
+  pixelOffset.x -= instanceGlyphCentres;
+  pixelOffset = rotate_by_angle(pixelOffset, instanceLineGlyphs.z) * instanceScale + instanceLineGlyphs.xy;
+} else {
+${TURN_CHARACTER}
+}`
+        )
+        .replace(
+          HIDE_CHARACTER_BEFORE,
+          `if (instanceLineGlyphs.w < -0.5) {
+  gl_Position = vec4(0.0);
+}
+${HIDE_CHARACTER_BEFORE}`
+        )
+    };
+  }
+
+  initializeState(): void {
+    super.initializeState();
+    if (!this.drawsLineGlyphs()) {
+      return;
+    }
+    this.getAttributeManager()!.addInstanced({
+      instanceLineGlyphs: {
+        size: 4,
+        accessor: 'getLineGlyphs',
+        update: this.calculateInstanceLineGlyphs
+      },
+      instanceGlyphCentres: {
+        size: 1,
+        accessor: ['getIcon', 'getIconOffsets', 'getLineGlyphs'],
+        update: this.calculateInstanceGlyphCentres
+      }
+    });
+  }
+
+  updateState(params: any): void {
+    super.updateState(params);
+    const {props, oldProps} = params;
+    const attributes = this.getAttributeManager();
+    if (attributes && this.drawsLineGlyphs()) {
+      if (props.iconMapping !== oldProps.iconMapping) {
+        attributes.invalidate('instanceGlyphCentres');
+      }
+      // Without glyphs along lines, both attributes are constant; with them, the centres are needed.
+      if (Boolean(props.getLineGlyphs) !== Boolean(oldProps.getLineGlyphs)) {
+        attributes.invalidate('instanceGlyphCentres');
+      }
+    }
+  }
+
+  /**
+   * Places the glyphs along lines again before drawing when the view has moved to another zoom or
+   * bearing step (`getLineGlyphKey`). The rows and every other attribute stay as they are.
+   */
+  draw(params: any): void {
+    const radius = Number((this.props as any).sdfRadius) || 12;
+    const foreshortening = getLabelForeshortening(this.context.viewport, this.props.billboard);
+    this.setShaderModuleProps({labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening}});
+    const {getLineGlyphs, getLineGlyphKey} = this.props as any;
+    const attribute = this.getAttributeManager()?.attributes.instanceLineGlyphs;
+    if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant) {
+      const key = getLineGlyphKey(this.context.viewport);
+      if (key !== this.state.lineGlyphKey && attribute.value) {
+        this.state.lineGlyphKey = key;
+        this.fillLineGlyphs(attribute, 0, Infinity);
+        (attribute as any).updateSubBuffer({startOffset: 0, endOffset: attribute.value.length});
+        LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+      }
+    }
+    super.draw(params);
+  }
+
+  /** Each character's `getLineGlyphs` values; a constant when no label is placed along a line. */
+  protected calculateInstanceLineGlyphs(
+    attribute: Attribute,
+    {startRow, endRow}: {startRow: number; endRow: number}
+  ): void {
+    const {getLineGlyphs, getLineGlyphKey} = this.props as any;
+    if (!getLineGlyphs) {
+      setConstant(attribute);
+      return;
+    }
+    this.state.lineGlyphKey = getLineGlyphKey?.(this.context.viewport) ?? null;
+    this.fillLineGlyphs(attribute, startRow, endRow);
+  }
+
+  /** Writes the `getLineGlyphs` values of rows `startRow` to `endRow` at the current viewport. */
+  fillLineGlyphs(attribute: Attribute, startRow: number, endRow: number): void {
+    const {data, getIcon, getLineGlyphs} = this.props as any;
+    const {viewport} = this.context;
+    const output = attribute.value as Float32Array;
+    const {iterable, objectInfo} = createIterable(data, startRow, endRow);
+    for (const object of iterable) {
+      objectInfo.index++;
+      // A row's characters, as `TextLayer` counts them; a row left out of this layer has none.
+      const start = attribute.getVertexOffset(objectInfo.index);
+      const end = attribute.getVertexOffset(objectInfo.index + 1);
+      if (end <= start || !getIcon(object, objectInfo)) {
+        continue;
+      }
+      const glyphs = getLineGlyphs(object, viewport) as Float32Array | null;
+      if (glyphs && glyphs.length === end - start) {
+        output.set(glyphs, start);
+      } else {
+        output.fill(0, start, end);
+      }
+      LINE_GLYPH_ATTRIBUTE_STATS.fills++;
+      LINE_GLYPH_ATTRIBUTE_STATS.bytes += (end - start) * 4;
+    }
+  }
+
+  /**
+   * Each character's advance centre in the label, in font atlas pixels, about which a glyph along a
+   * line turns: its offset in the label, less its frame's anchor, plus half its advance.
+   */
+  protected calculateInstanceGlyphCentres(
+    attribute: Attribute,
+    {startRow, endRow}: {startRow: number; endRow: number}
+  ): void {
+    const {data, getIcon, getIconOffsets, getLineGlyphs, iconMapping} = this.props as any;
+    if (!getLineGlyphs) {
+      setConstant(attribute);
+      return;
+    }
+    const output = attribute.value as Float32Array;
+    const {iterable, objectInfo} = createIterable(data, startRow, endRow);
+    for (const object of iterable) {
+      objectInfo.index++;
+      const text = getIcon(object, objectInfo) as string;
+      if (!text) {
+        continue;
+      }
+      const offsets = getIconOffsets(object, objectInfo) as number[];
+      let i = attribute.getVertexOffset(objectInfo.index);
+      let j = 0;
+      for (const character of Array.from(text)) {
+        const frame = iconMapping?.[character];
+        output[i++] = frame
+          ? offsets[j * 2] - (frame.anchorX ?? 0) + (frame.advance ?? 0) / 2
+          : offsets[j * 2];
+        j++;
+      }
+    }
+  }
 
   protected calculateInstanceIconDefs(
     attribute: Attribute,
@@ -198,6 +514,18 @@ class LabelCharactersLayer extends MultiIconLayer<any> {
       i += entry.defs.length;
     }
   }
+}
+
+/**
+ * Glyph attribute work for benchmarks: rows filled and bytes written from `getLineGlyphs`, and
+ * refreshes of the whole attribute when the view crosses a zoom or bearing step.
+ */
+export const LINE_GLYPH_ATTRIBUTE_STATS = {fills: 0, bytes: 0, refreshes: 0};
+
+/** Makes an attribute with a custom updater a constant zero. */
+function setConstant(attribute: Attribute): void {
+  (attribute as any).constant = true;
+  attribute.value = new Float32Array(attribute.size);
 }
 
 /**
@@ -268,11 +596,38 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     return super.getSubLayerClass(subLayerId, DefaultLayerClass);
   }
 
-  /** The glyph layer's props, with the shared texture in place of the atlas canvas. */
+  /**
+   * The glyph layer's props, with the shared texture in place of the atlas canvas, and the row's
+   * placement slot (see `LabelPlacementExtension`).
+   */
   getSubLayerProps(sublayerProps: any = {}): any {
     const props = super.getSubLayerProps(sublayerProps);
-    if (sublayerProps.id === 'characters' && this.state.atlasTexture) {
-      props.iconAtlas = this.state.atlasTexture;
+    if (sublayerProps.id === 'characters') {
+      if (this.state.atlasTexture) {
+        props.iconAtlas = this.state.atlasTexture;
+      }
+      // The distance field's reach, from which the glyph layer measures its antialiasing.
+      props.sdfRadius = this.props.fontSettings?.radius || 12;
+    }
+    // The placement slot is a row's, and the sublayers draw this layer's rows: it is handed down
+    // as is. deck.gl would otherwise call it with the feature a row was made from.
+    const {getPlacementSlot, getLineGlyphs, getLineGlyphKey, updateTriggers} = this.props as any;
+    if (typeof getPlacementSlot === 'function') {
+      props.getPlacementSlot = getPlacementSlot;
+    }
+    // Glyphs along lines are the characters' only: handed down with their trigger.
+    if (sublayerProps.id === 'characters') {
+      props.getLineGlyphs = getLineGlyphs || null;
+      props.getLineGlyphKey = getLineGlyphKey || null;
+      props.updateTriggers = {
+        ...props.updateTriggers,
+        getLineGlyphs: updateTriggers?.getLineGlyphs
+      };
+    }
+    // The background box stays straight, about the anchor, where glyphs along a line may not be:
+    // it would pick empty space beside a bend. The glyphs pick their labels.
+    if (sublayerProps.id === 'background' && typeof getLineGlyphs === 'function') {
+      props.pickable = false;
     }
     return props;
   }
