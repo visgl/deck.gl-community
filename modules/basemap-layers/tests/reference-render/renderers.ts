@@ -60,6 +60,16 @@ function createContainer(): HTMLDivElement {
 export type RenderOptions = {
   /** Device pixel ratio: the pixels are `VIEWPORT` times this. Default 1. */
   pixelRatio?: number;
+  /** Camera pitch, in degrees. Default 0. */
+  pitch?: number;
+};
+
+/** Options of a `BasemapLayer` render. */
+export type BasemapLayerRenderOptions = RenderOptions & {
+  /**
+   * Runs once the render read back is read, before the deck is finalized: to move the view, say.
+   */
+  onRendered?: (deck: Deck<any>) => Promise<void>;
 };
 
 /**
@@ -207,7 +217,7 @@ function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[]
 export async function renderMapLibre(
   style: any,
   scene: ReferenceScene,
-  {pixelRatio = 1}: RenderOptions = {}
+  {pixelRatio = 1, pitch = 0}: RenderOptions = {}
 ): Promise<Render> {
   const container = createContainer();
   const requests: string[] = [];
@@ -218,6 +228,7 @@ export async function renderMapLibre(
     style,
     center: scene.center,
     zoom: scene.zoom,
+    pitch,
     pixelRatio,
     // Labels at full opacity in the first idle frame.
     fadeDuration: 0,
@@ -407,12 +418,15 @@ export async function renderBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown> = {},
-  options: RenderOptions = {},
+  options: BasemapLayerRenderOptions = {},
   draw = drawBasemapLayer
 ): Promise<Render> {
   const start = performance.now();
   resetFontAtlases();
-  const first = await draw(structuredClone(style), scene, layerProps, options);
+  const first = await draw(structuredClone(style), scene, layerProps, {
+    ...options,
+    onRendered: undefined
+  });
   const prebuilt = resetFontAtlases(first.fontAtlases);
   const {fontAtlases, ...render} = await draw(style, scene, layerProps, options);
   return {
@@ -434,7 +448,7 @@ async function drawBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown>,
-  {pixelRatio = 1}: RenderOptions
+  {pixelRatio = 1, pitch = 0, onRendered}: BasemapLayerRenderOptions
 ): Promise<BasemapLayerDraw> {
   const parent = createContainer();
   performance.clearResourceTimings();
@@ -466,7 +480,7 @@ async function drawBasemapLayer(
             longitude: scene.center[0],
             latitude: scene.center[1],
             zoom: scene.zoom,
-            pitch: 0,
+            pitch,
             bearing: 0
           },
           layers: [
@@ -475,6 +489,8 @@ async function drawBasemapLayer(
               style,
               loadOptions: {mvt: {workerUrl: mvtWorkerUrl}},
               fontFamily: getReferenceFontFamily,
+              // Placed at every frame, as MapLibre with `fadeDuration: 0`.
+              labelPlacementInterval: 0,
               ...layerProps
             })
           ],
@@ -494,9 +510,22 @@ async function drawBasemapLayer(
               (!resolvedStyle.sprite || basemap.state.spriteAtlases) &&
               tileLayers.length > 0 &&
               tileLayers.every((layer: any) => layer.state.tileset.selectedTiles) &&
-              layers.every((layer: any) => layer.isLoaded);
+              layers.every((layer: any) => layer.isLoaded) &&
+              // Labels along lines are placed by a length estimate until their web font has
+              // loaded, and again once it has: a frame read before then shows the estimate.
+              document.fonts.status === 'loaded';
             if (!ready) {
               settled = 0;
+              // A font that loads without changing a layer would not draw another frame.
+              if (document.fonts.status !== 'loaded') {
+                document.fonts.ready.then(() => {
+                  // Unless the render is over, and the deck finalized.
+                  const current = deck as any;
+                  if (current?.layerManager) {
+                    current.redraw('reference-render fonts');
+                  }
+                });
+              }
               return;
             }
             if (settled < SETTLE_FRAMES) {
@@ -533,6 +562,7 @@ async function drawBasemapLayer(
       }
     }
 
+    await onRendered?.(deck!);
     const resources = getResourceRequests(start);
     const problems = resources
       .filter(({url}) => !url.startsWith(location.origin))

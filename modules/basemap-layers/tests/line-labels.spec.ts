@@ -1,4 +1,6 @@
 import {afterEach, describe, expect, test, vi} from 'vitest';
+// MapLibre GL JS's own functions, from the source its package ships, to compare against.
+import {mergeLines as mapLibreMergeLines} from '../node_modules/maplibre-gl/src/symbol/merge_lines.ts';
 import {
   clipLine,
   getLineAnchors,
@@ -340,6 +342,66 @@ describe('MVTLabelLayer line label rendering', () => {
     expect(text.props.getAngle({angle: 170})).toBe(170);
   });
 
+  test('offsets text across the line on the side MapLibre does, whichever way it reads', () => {
+    // A bending line drawn westward: its labels are turned around to read upright.
+    const line = [
+      [0.9, 0.55],
+      [0.7, 0.5],
+      [0.5, 0.42],
+      [0.3, 0.3],
+      [0.15, 0.15]
+    ];
+    const feature = {geometry: {type: 'LineString', coordinates: line}, properties: {name: 'Quai'}};
+    const layer = lineLayer({}, {'text-offset': [0.5, -1], 'symbol-spacing': 60});
+    const rows = layer.getLabelData([feature], false) as any[];
+    expect(rows.length).toBeGreaterThan(1);
+    layer.state = {labelData: rows};
+    layer.context = {viewport: {bearing: 0}} as any;
+    layer.internalState = {subLayers: []} as any;
+    const text = layer.renderLayers().at(-1) as any;
+    const pixels = line.map(([x, y]) => [x * 512, y * 512]);
+    for (const [index, row] of rows.entries()) {
+      // MapLibre's `placeGlyphAlongLine`: `text-offset` y across the segment the anchor lies on,
+      // along its normal (`transformToOffsetNormal`), and x along it, both in the line's own
+      // direction, whether or not the text is turned to read upright.
+      const [px, py] = [row.position[0] * 512, row.position[1] * 512];
+      const k = pixels.findIndex(
+        ([ax, ay], i) =>
+          i < pixels.length - 1 &&
+          Math.abs((pixels[i + 1][0] - ax) * (py - ay) - (pixels[i + 1][1] - ay) * (px - ax)) < 1e-6
+      );
+      const [dx, dy] = [pixels[k + 1][0] - pixels[k][0], pixels[k + 1][1] - pixels[k][1]];
+      const length = Math.hypot(dx, dy);
+      const [ux, uy] = [dx / length, dy / length];
+      // 0.5 and -1 ems of the 10 px text.
+      const expected = [5 * ux - -10 * uy, 5 * uy + -10 * ux];
+      const [x, y] = text.props.getPixelOffset(row, {index});
+      expect(x).toBeCloseTo(expected[0], 6);
+      expect(y).toBeCloseTo(expected[1], 6);
+      // A negative y offset is above an eastward line, so below this westward one.
+      expect(y).toBeGreaterThan(0);
+    }
+  });
+
+  test('refreshes the text offsets when the alignment that turns them changes', () => {
+    // deck.gl keeps an attribute while its trigger is the same, so the trigger names every style
+    // value that decides whether the offset is turned by the line.
+    const text = (layout: Record<string, unknown>) =>
+      renderText(lineLayer({}, {'text-offset': [0, 1], ...layout}));
+    const turned = text({'text-rotation-alignment': 'map'});
+    const upright = text({'text-rotation-alignment': 'viewport'});
+    const row = {position: [0.5, 0.5], angle: 170};
+    expect(turned.props.getPixelOffset(row, {index: 0})[0]).not.toBeCloseTo(0);
+    expect(upright.props.getPixelOffset(row, {index: 0})).toEqual([0, 10]);
+    expect(upright.props.updateTriggers.getPixelOffset).not.toEqual(
+      turned.props.updateTriggers.getPixelOffset
+    );
+    // The default `auto` alignment turns text along lines, not point labels.
+    expect(text({'symbol-placement': 'point'}).props.updateTriggers.getPixelOffset).not.toEqual(
+      text({}).props.updateTriggers.getPixelOffset
+    );
+  });
+
   test('leaves point labels as unrotated billboards', () => {
     const text = renderText(lineLayer({}, {'symbol-placement': 'point'}));
     expect(text.props.billboard).toBe(true);
@@ -358,9 +420,9 @@ describe('MVTLabelLayer line label rendering', () => {
     const text = onGlobe(lineLayer(), 120);
     expect(text.props.billboard).toBe(true);
     // The angle is taken from north up, whatever the bearing: the shader turns it on screen, and
-    // keeps it upright there.
+    // keeps it upright there, without turning its text-offset around.
     expect(text.props.getAngle({angle: 170})).toBe(350);
-    expect(getLineAngle(text)?.opts).toEqual({keepUpright: true});
+    expect(getLineAngle(text)?.opts).toEqual({keepUpright: true, keepOffsetSide: true});
     const free = onGlobe(lineLayer({}, {'text-keep-upright': false}), 120);
     expect(getLineAngle(free)?.opts).toEqual({keepUpright: false});
     expect(getLineAngle(renderText(lineLayer(), 120))).toBeUndefined();
@@ -860,6 +922,121 @@ describe('mergeLines', () => {
     // Each piece alone is too short for the label.
     expect(lineLayer().getLabelData([pieces[0]], false)).toHaveLength(0);
   });
+
+  /** A feature with label text `name` and `lines`: a `MultiLineString` when there are several. */
+  const feature = (name: string, ...lines: number[][][]) => ({
+    geometry:
+      lines.length > 1
+        ? {type: 'MultiLineString', coordinates: lines}
+        : {type: 'LineString', coordinates: lines[0]},
+    properties: {name}
+  });
+
+  /** The lines of each feature left to label, in input order, as `getMergedLines` leaves them. */
+  function getMergedGeometry(features: any[]): number[][][][] {
+    return lineLayer()
+      .getMergedLines(features)
+      .flatMap((merged, index) => {
+        if (merged === null) {
+          return [];
+        }
+        const {type, coordinates} = (merged || features[index]).geometry;
+        return [type === 'MultiLineString' ? coordinates : [coordinates]];
+      });
+  }
+
+  /** The same, from MapLibre GL JS's own `mergeLines`, given each feature's text and lines. */
+  function getMapLibreMergedGeometry(features: any[]): number[][][][] {
+    const symbolFeatures = features.map(({geometry, properties}) => ({
+      text: properties.name,
+      geometry: (geometry.type === 'MultiLineString'
+        ? geometry.coordinates
+        : [geometry.coordinates]
+      ).map((line: number[][]) => line.map(([x, y]) => ({x, y})))
+    }));
+    return mapLibreMergeLines(symbolFeatures as any).map(({geometry}) =>
+      geometry.map(line => line.map(({x, y}) => [x, y]))
+    );
+  }
+
+  // The first line of `multi` continues `single`; its second line lies apart from both.
+  const single = feature('Main', [
+    [0.1, 0.5],
+    [0.3, 0.5]
+  ]);
+  const multi = feature(
+    'Main',
+    [
+      [0.3, 0.5],
+      [0.5, 0.5]
+    ],
+    [
+      [0.1, 0.8],
+      [0.9, 0.8]
+    ]
+  );
+
+  test('joins a MultiLineString by its first line, and drops a feature joined into another', () => {
+    // MapLibre keeps the feature of the chain a line joins: `single` takes `multi`'s first line,
+    // and `multi`, with its other line, is not labelled.
+    for (const features of [
+      [single, multi],
+      [multi, single]
+    ]) {
+      expect(getMergedGeometry(features)).toEqual(getMapLibreMergedGeometry(features));
+    }
+    const rows = lineLayer().getLabelData([single, multi], false) as any[];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every(row => row.position[1] === 0.5)).toBe(true);
+  });
+
+  test('joins a MultiLineString whose first line is a single vertex', () => {
+    // MapLibre joins the vertex to the line ending there, and drops the feature it belongs to.
+    const point = feature(
+      'Main',
+      [[0.3, 0.5]],
+      [
+        [0.1, 0.8],
+        [0.9, 0.8]
+      ]
+    );
+    const features = [single, point];
+    expect(getMergedGeometry(features)).toEqual(getMapLibreMergedGeometry(features));
+    expect(getMergedGeometry(features)).toEqual([single.geometry.coordinates].map(line => [line]));
+  });
+
+  test('keeps the other lines of a MultiLineString that a line joins', () => {
+    const owner = feature(
+      'Main',
+      [
+        [0.1, 0.2],
+        [0.3, 0.2]
+      ],
+      [
+        [0.1, 0.8],
+        [0.9, 0.8]
+      ]
+    );
+    const piece = feature('Main', [
+      [0.3, 0.2],
+      [0.6, 0.2]
+    ]);
+    const features = [owner, piece];
+    expect(getMergedGeometry(features)).toEqual(getMapLibreMergedGeometry(features));
+    expect(getMergedGeometry(features)).toEqual([
+      [
+        [
+          [0.1, 0.2],
+          [0.3, 0.2],
+          [0.6, 0.2]
+        ],
+        [
+          [0.1, 0.8],
+          [0.9, 0.8]
+        ]
+      ]
+    ]);
+  });
 });
 
 describe('placement text size', () => {
@@ -892,6 +1069,28 @@ describe('placement text size', () => {
     ).getLabelData([inside], false) as any[];
     // 'Main' is 2.4 ems, 48 px at 20 px: the first label is 24 + 2 * 20 px from the start.
     expect(rows[0].position[0] * 512).toBeCloseTo(0.1 * 512 + 64, 6);
+  });
+
+  test('measures the letter spacing at the tile zoom, not the map zoom', () => {
+    const inside = {
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [0.1, 0.5],
+          [0.9, 0.5]
+        ]
+      },
+      properties: {name: 'Main Street'}
+    };
+    const firstAnchor = (props: Record<string, unknown>, spacing: unknown) =>
+      (lineLayer(props, {'text-letter-spacing': spacing}).getLabelData([inside], false) as any[])[0]
+        .position[0] * 512;
+    // A zoom-14 tile shown at zoom 14.9: MapLibre lays it out at zoom 14, without spacing.
+    const zoomed = {zoom: 14.9, tileZoom: 14};
+    const spacing = ['interpolate', ['linear'], ['zoom'], 14, 0, 15, 1];
+    expect(firstAnchor(zoomed, spacing)).toBe(firstAnchor(zoomed, 0));
+    // The spacing does move the first label: half of 10 gaps of 0.5 em at 10 px further in.
+    expect(firstAnchor(zoomed, 0.5)).toBeCloseTo(firstAnchor(zoomed, 0) + 25, 6);
   });
 
   test('falls back to the tile zoom where text-size is 0 at zoom 18', () => {

@@ -1,66 +1,66 @@
 {
   "africa-positron-z3.6": {
-    "ssim": 0.9293,
-    "edgeF": 0.9366,
-    "labelRecall": 0.9697,
-    "labelPrecision": 0.7805,
+    "ssim": 0.9487,
+    "edgeF": 0.9687,
+    "labelRecall": 1,
+    "labelPrecision": 0.9706,
     "referenceLabels": 33,
-    "candidateLabels": 41
+    "candidateLabels": 34
   },
   "europe-liberty-z5.2": {
-    "ssim": 0.8282,
-    "edgeF": 0.8565,
-    "labelRecall": 0.7838,
-    "labelPrecision": 0.8056,
+    "ssim": 0.8477,
+    "edgeF": 0.8647,
+    "labelRecall": 0.9459,
+    "labelPrecision": 0.9722,
     "referenceLabels": 37,
     "candidateLabels": 36
   },
   "new-york-dark-z12.3": {
-    "ssim": 0.9584,
-    "edgeF": 0.8927,
-    "labelRecall": 0.8125,
-    "labelPrecision": 0.8125,
+    "ssim": 0.9677,
+    "edgeF": 0.9467,
+    "labelRecall": 1,
+    "labelPrecision": 1,
     "referenceLabels": 16,
     "candidateLabels": 16
   },
   "new-york-positron-z14.2": {
-    "ssim": 0.8797,
-    "edgeF": 0.9266,
-    "labelRecall": 0.9333,
-    "labelPrecision": 0.7368,
+    "ssim": 0.918,
+    "edgeF": 0.9788,
+    "labelRecall": 1,
+    "labelPrecision": 1,
     "referenceLabels": 15,
-    "candidateLabels": 19
+    "candidateLabels": 15
   },
   "paris-carto-positron-z14.2": {
-    "ssim": 0.8861,
-    "edgeF": 0.942,
-    "labelRecall": 0.6667,
-    "labelPrecision": 0.8,
+    "ssim": 0.8978,
+    "edgeF": 0.9548,
+    "labelRecall": 0.9167,
+    "labelPrecision": 1,
     "referenceLabels": 12,
-    "candidateLabels": 10
+    "candidateLabels": 11
   },
   "paris-liberty-z13.3": {
-    "ssim": 0.9465,
-    "edgeF": 0.981,
-    "labelRecall": 0.8182,
-    "labelPrecision": 0.9,
+    "ssim": 0.9517,
+    "edgeF": 0.9858,
+    "labelRecall": 1,
+    "labelPrecision": 1,
     "referenceLabels": 11,
-    "candidateLabels": 10
+    "candidateLabels": 11
   },
   "tokyo-carto-positron-z12.3": {
-    "ssim": 0.9657,
-    "edgeF": 0.964,
-    "labelRecall": 0.8889,
+    "ssim": 0.9685,
+    "edgeF": 0.9678,
+    "labelRecall": 1,
     "labelPrecision": 1,
     "referenceLabels": 9,
-    "candidateLabels": 8
+    "candidateLabels": 9
   },
   "world-positron-z0.6": {
-    "ssim": 0.9363,
-    "edgeF": 0.9233,
-    "labelRecall": 0.9091,
-    "labelPrecision": 0.6897,
+    "ssim": 0.9593,
+    "edgeF": 0.9603,
+    "labelRecall": 1,
+    "labelPrecision": 1,
     "referenceLabels": 22,
-    "candidateLabels": 29
+    "candidateLabels": 22
   }
 }

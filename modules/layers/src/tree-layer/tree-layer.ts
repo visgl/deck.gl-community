@@ -867,7 +867,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               data,
               ...shared,
               getSource: getTreeSplatData(type, levels, characteristics),
-              transparency: 'weighted',
+              transparency: 'sorted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
               pixelError: type === 'palm' ? 0.65 : 2.5,
               maxRenderPixels: this.props.maxCanopyPixels,

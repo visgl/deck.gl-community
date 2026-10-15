@@ -16,6 +16,7 @@ import {
   getTilePyramidProps,
   VECTOR_TILE_ZOOM_OFFSET
 } from './globe-layers';
+import {DEFAULT_PLACEMENT_INTERVAL, LabelPlacement} from './label-placement';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
@@ -81,6 +82,12 @@ export type BasemapLayerProps = {
    * `LabelFont` fields. Pass a stable function: tiles regenerate when it changes.
    */
   fontFamily?: LabelFontFamily | null;
+  /**
+   * Milliseconds between two placements of the labels while the view keeps changing, as MapLibre
+   * GL JS's `fadeDuration` (default 300). The view the map comes to rest in is always placed; 0
+   * places every frame.
+   */
+  labelPlacementInterval?: number;
 };
 
 const fractionalZoomLimitsCache = new WeakMap<ResolvedBasemapStyle, number[]>();
@@ -104,6 +111,8 @@ function getFractionalZoomLimits(resolvedStyle: ResolvedBasemapStyle): number[] 
  * Internal state tracked by {@link BasemapLayer}.
  */
 type BasemapLayerState = {
+  /** Places the labels of every symbol style layer together (see `LabelPlacement`). */
+  labelPlacement: LabelPlacement;
   /** The fully resolved style definition currently backing the generated sublayers. */
   resolvedStyle: ResolvedBasemapStyle | null;
   /** The most recent style-resolution error, if one occurred. */
@@ -147,7 +156,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     },
     style: null,
     loadOptions: null,
-    fontFamily: null
+    fontFamily: null,
+    labelPlacementInterval: DEFAULT_PLACEMENT_INTERVAL
   };
 
   /** Current layer state. */
@@ -156,6 +166,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
   /** Initializes the asynchronous style-loading state. */
   initializeState(): void {
     this.state = {
+      labelPlacement: new LabelPlacement(),
       resolvedStyle: null,
       loadError: null,
       loadToken: 0,
@@ -298,6 +309,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
   finalizeState(): void {
     this.state.loadToken++;
     this.clearSourceTilesets();
+    this.state.labelPlacement.destroy();
   }
 
   private clearSourceTilesets(): void {
@@ -356,6 +368,13 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     }
   }
 
+  /** The label placement, with the interval of the current props. */
+  private getLabelPlacement(): LabelPlacement {
+    const {labelPlacement} = this.state;
+    labelPlacement.interval = Math.max(0, Number(this.props.labelPlacementInterval) || 0);
+    return labelPlacement;
+  }
+
   /** Renders the sublayers generated from the resolved style definition. */
   renderLayers() {
     const {resolvedStyle} = this.state;
@@ -378,6 +397,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       loadOptions: this.props.loadOptions,
       spriteAtlases: this.state.spriteAtlases,
       fontFamily: this.props.fontFamily,
+      labelPlacement: this.getLabelPlacement(),
       tilesets: this.state.tilesets
     });
   }

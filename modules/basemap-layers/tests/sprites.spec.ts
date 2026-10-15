@@ -282,14 +282,14 @@ describe('icon-image', () => {
     expect(drawn.map((row, i) => poiIcons.props.getSize(row, info(i)))).toEqual([0, 20, 0]);
   });
 
-  test("icons share the labels' collision group and priority", () => {
+  test('icons are drawn by the placement slots of their labels', () => {
     const layer = iconLayer({
       'icon-image': 'circle-11',
       'text-field': 'A',
       'symbol-sort-key': ['get', 'rank']
     });
     const rows = [{position: [0, 0], __source: {object: feature({rank: 3}), index: 0}}];
-    layer.state = {labelData: rows};
+    layer.state = {labelData: rows, placementSlotBase: 4};
     layer.context = {} as any;
     layer.internalState = {subLayers: []} as any;
     const sublayers = layer.renderLayers();
@@ -297,18 +297,12 @@ describe('icon-image', () => {
     const text = sublayers.find((sublayer: any) => sublayer.id === 'labels-text');
     expect(
       icons.props.extensions.some(
-        (extension: any) => extension.constructor.extensionName === 'CollisionFilterExtension'
+        (extension: any) => extension.constructor.extensionName === 'LabelPlacementExtension'
       )
     ).toBe(true);
-    expect(icons.props.collisionEnabled).toBe(true);
-    expect(icons.props.collisionGroup).toBe(text.props.collisionGroup);
-    const info = {index: 0, data: rows, target: []};
-    expect(icons.props.getCollisionPriority(rows[0], info)).toBe(
-      text.props.getCollisionPriority(rows[0], info)
-    );
-    // The whole icon box collides, transparent pixels included, widened by the default
-    // `icon-padding` of 2 pixels on each side of the 17-pixel icon.
-    expect(icons.props.collisionTestProps).toEqual({alphaCutoff: 0, sizeScale: 1 + 4 / 17});
+    expect(icons.props.getPlacementSlot(rows[0])).toBe(4);
+    expect(text.props.getPlacementSlot(rows[0])).toBe(4);
+    expect([icons.props.placementPart, text.props.placementPart]).toEqual([1, 0]);
   });
 });
 
@@ -333,16 +327,10 @@ describe('icon layer cost', () => {
     const iconLayers = layer.renderIconLayers();
     // Run every accessor over every row, as deck.gl does when it fills the attributes.
     for (const sublayer of iconLayers) {
-      const {
-        getIcon: icon,
-        getSize,
-        getColor,
-        getPixelOffset,
-        getCollisionPriority
-      } = sublayer.props;
+      const {getIcon: icon, getSize, getColor, getPixelOffset} = sublayer.props;
       rows.forEach((row, index) => {
         const info = {index, data: rows, target: []};
-        for (const accessor of [icon, getSize, getColor, getPixelOffset, getCollisionPriority]) {
+        for (const accessor of [icon, getSize, getColor, getPixelOffset]) {
           accessor(row, info);
         }
       });
@@ -373,7 +361,7 @@ describe('icon layer cost', () => {
       i % 4 === 0 ? names[i] : `s${i % 4}:${names[i]}`
     );
     expect(iconLayers).toHaveLength(4);
-    // Each layer still holds every row, for the shared collision identity.
+    // Each layer still holds every row, so that a row has one placement slot.
     expect(iconLayers.every((sublayer: any) => sublayer.props.data.length === COUNT)).toBe(true);
     expect(getIconColor).toHaveBeenCalledTimes(COUNT);
     expect(getIcon.mock.calls.length).toBeLessThanOrEqual(4 * COUNT);
