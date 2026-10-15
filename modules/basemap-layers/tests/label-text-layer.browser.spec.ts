@@ -226,6 +226,52 @@ describe('LabelTextLayer in the browser', () => {
     expect(LINE_GLYPH_ATTRIBUTE_STATS.refreshes).toBe(refreshes);
     expect(ink[0]).toBeGreaterThan(20);
     expect(ink[1]).toBe(0);
+
+    // The other view zooms in to the main view's zoom: its glyphs are placed again, and drawn.
+    deck!.setProps({
+      viewState: {
+        main: {target: [0, 0, 0], zoom: 0},
+        mini: {target: [0, 0, 0], zoom: 0}
+      }
+    });
+    ink = await drawn();
+    expect(ink[0]).toBeGreaterThan(20);
+    expect(ink[1]).toBeGreaterThan(20);
+
+    // New rows, with the same text, whose glyphs are drawn straight (mode 0) or hidden (mode -1) at
+    // every zoom. Deck updates layers in its animation frame, which `redraw` skips: the frame it
+    // draws next is awaited instead.
+    const updateRows = (mode: number) => {
+      const updated = new Promise<[number, number]>(resolve => {
+        deck!.setProps({onAfterRender: () => resolve(readInk())});
+      });
+      deck!.setProps({
+        layers: [
+          new LabelTextLayer({
+            id: 'text',
+            ...PROPS,
+            data: [{position: [0, 0], text: PROPS.data[0].text}],
+            getLineGlyphs: (d: any) => {
+              const glyphs = new Float32Array(Array.from(d.text as string).length * 4);
+              for (let i = 3; i < glyphs.length; i += 4) {
+                glyphs[i] = mode;
+              }
+              return glyphs;
+            },
+            getLineGlyphKey: (viewport: any) => String(viewport.zoom)
+          } as any)
+        ]
+      });
+      return updated;
+    };
+    // The glyph attribute holds the view the layer was updated in, the other its own buffer: drawn
+    // rows first, so that each view holds glyphs of the old rows when they are hidden. Neither view
+    // draws them, from the frame that updates the layer.
+    ink = await updateRows(0);
+    expect(ink[0]).toBeGreaterThan(20);
+    expect(ink[1]).toBeGreaterThan(20);
+    ink = await updateRows(-1);
+    expect(ink).toEqual([0, 0]);
   });
 
   test('a label whose glyphs are placed along a line is picked by its glyphs, not its box', async () => {
