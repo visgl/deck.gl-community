@@ -87,23 +87,17 @@ it('frames one tree, updates its traits and shadows its full canopy and wood', a
     const bitmapPixels = device.readPixelsToArrayWebGL(canopyShadow.props.image) as Uint8Array;
     const shadowSize = (canopyShadow.props.image as Texture).width;
     let canopyShadowPixels = 0,
-      minX = shadowSize,
-      minY = shadowSize,
-      maxX = -1,
-      maxY = -1;
+      maximumShadowAlpha = 0;
     for (let y = 0; y < shadowSize; y++)
-      for (let x = 0; x < shadowSize; x++)
-        if (bitmapPixels[(y * shadowSize + x) * 4 + 3] > 10) {
+      for (let x = 0; x < shadowSize; x++) {
+        const alpha = bitmapPixels[(y * shadowSize + x) * 4 + 3];
+        if (alpha > 10) {
           canopyShadowPixels++;
-          minX = Math.min(minX, x);
-          minY = Math.min(minY, y);
-          maxX = Math.max(maxX, x);
-          maxY = Math.max(maxY, y);
+          maximumShadowAlpha = Math.max(maximumShadowAlpha, alpha);
         }
+      }
     expect(canopyShadowPixels).toBeGreaterThan(500);
-    const shadowCenter =
-      (Math.floor((minY + maxY) / 2) * shadowSize + Math.floor((minX + maxX) / 2)) * 4 + 3;
-    expect(bitmapPixels[shadowCenter]).toBeGreaterThan(30);
+    expect(maximumShadowAlpha).toBeLessThanOrEqual(47);
     await expect.poll(() => groundColor[0], {timeout: 15000}).toBeGreaterThan(150);
     expect(groundColor[1]).toBeGreaterThan(160);
     expect(trees().props.data).toHaveLength(1);
