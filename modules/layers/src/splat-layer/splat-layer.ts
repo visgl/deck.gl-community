@@ -262,11 +262,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         (sourceTriggers && (sourceTriggers.all || sourceTriggers.getSource))
     );
     const sortedCartesian =
-      Array.isArray(props.data) &&
       props.transparency === 'sorted' &&
       !sources.some(hasSplatOpticalDepths) &&
       !props._splatBudgetGroup;
-    // Cartesian prepared rows in an unbudgeted sorted domain must share ordering with RAD rows.
+    // Cartesian prepared assets and rows in an unbudgeted sorted domain share ordering with RAD rows.
     const scene =
       isSplatSceneData(props.data) ||
       Boolean(this.state.rowSources?.some(isSplatSceneData)) ||

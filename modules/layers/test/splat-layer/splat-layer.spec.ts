@@ -400,6 +400,18 @@ it('routes sorted Cartesian prepared assets through the shared scene renderer', 
   );
   expect(layer.state.scene).toBe(true);
 
+  const directAssetLayer = make(
+    SOURCE as never,
+    0,
+    {
+      source: undefined,
+      transparency: 'sorted',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    },
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  expect(directAssetLayer.state.scene).toBe(true);
+
   const opticalDepthLayer = make(
     [{position: [0, 0, 0]}],
     0,
