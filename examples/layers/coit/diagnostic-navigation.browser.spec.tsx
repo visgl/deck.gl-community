@@ -5,7 +5,11 @@ import {createRoot} from 'react-dom/client';
 import {expect, it, vi} from 'vitest';
 import App from './app';
 
-const lifecycle = vi.hoisted(() => ({created: 0, finalized: 0}));
+const lifecycle = vi.hoisted(() => ({
+  created: 0,
+  finalized: 0,
+  statusHandlers: [] as ((status: unknown) => void)[]
+}));
 vi.mock('@deck.gl/core', async importOriginal => {
   const original = await importOriginal<typeof import('@deck.gl/core')>();
   return {
@@ -14,7 +18,13 @@ vi.mock('@deck.gl/core', async importOriginal => {
       constructor() {
         lifecycle.created++;
       }
-      setProps() {}
+      setProps(props: {layers?: unknown[]}) {
+        for (const layer of props.layers ?? []) {
+          const handler = (layer as {props?: {onStatusChange?: unknown}}).props?.onStatusChange;
+          if (typeof handler === 'function')
+            lifecycle.statusHandlers.push(handler as (status: unknown) => void);
+        }
+      }
       finalize() {
         lifecycle.finalized++;
       }
@@ -46,6 +56,40 @@ it('reads diagnostics again when the cached website module mounts under a change
       expect((window as unknown as {coitDeck?: unknown}).coitDeck).toBeUndefined();
     }
   } finally {
+    parent.remove();
+    history.replaceState(null, '', originalUrl);
+  }
+});
+
+it('records budget-limited coverage as a completed loading milestone', async () => {
+  const originalUrl = location.href;
+  const url = new URL(originalUrl);
+  url.search = '?diagnostic';
+  history.replaceState(null, '', url);
+  const parent = document.createElement('div');
+  document.body.append(parent);
+  const root = createRoot(parent);
+  const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
+  lifecycle.statusHandlers.length = 0;
+  try {
+    root.render(<App />);
+    await expect.poll(() => lifecycle.statusHandlers.length).toBeGreaterThan(0);
+    lifecycle.statusHandlers.at(-1)!({
+      phase: 'budget-limited',
+      message: 'Resident budget reached.',
+      activeSplats: 500_000,
+      residentPages: 1,
+      pendingPages: 1,
+      sourceSplats: 50_000_000
+    });
+    await expect
+      .poll(() =>
+        debug.mock.calls.some(call => call[0] === 'COIT_LOAD' && call[1]?.includes('budget-ready'))
+      )
+      .toBe(true);
+  } finally {
+    root.unmount();
+    debug.mockRestore();
     parent.remove();
     history.replaceState(null, '', originalUrl);
   }
