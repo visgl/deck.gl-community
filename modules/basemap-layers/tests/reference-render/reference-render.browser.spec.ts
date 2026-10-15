@@ -100,7 +100,10 @@ const FONTS = [
 ];
 
 const measured: Baseline = {};
-/** The scenes whose renders read only their fixtures, all present: only they may set a baseline. */
+/**
+ * The scenes whose renders read only their fixtures, all present, and drew from sorted font atlases:
+ * only they may set a baseline.
+ */
 const valid = new Set<string>();
 const regressions: Record<string, string[]> = {};
 const details: Record<string, unknown> = {};
@@ -180,11 +183,16 @@ describe('reference render: MapLibre GL JS vs BasemapLayer', () => {
     );
 
     const problems = [...reference.problems, ...candidate.problems];
-    if (problems.length === 0 && missing.length === 0) {
+    const unsortedFontAtlases = candidate.unsortedFontAtlases || [];
+    if (problems.length === 0 && missing.length === 0 && unsortedFontAtlases.length === 0) {
       valid.add(scene.id);
     }
     expect(problems, 'renders must only read local fixtures').toEqual([]);
     expect(missing, 'missing fixtures: run with VITE_REFERENCE_RENDER_MODE=record').toEqual([]);
+    expect(
+      unsortedFontAtlases,
+      'font atlases the read-back draw built itself, in tile load order'
+    ).toEqual([]);
 
     const sceneBaseline: SceneMetrics | undefined = baseline[scene.id];
     if (sceneBaseline) {
