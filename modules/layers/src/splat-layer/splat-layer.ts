@@ -4,6 +4,7 @@
 import {
   CompositeLayer,
   _GlobeViewport as GlobeViewport,
+  COORDINATE_SYSTEM,
   type Accessor,
   type DefaultProps,
   createIterable,
@@ -56,6 +57,13 @@ import type {SplatLayerStatus} from './scene/rad-scene';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
+
+function hasSplatOpticalDepths(input: SplatDataInput): boolean {
+  const source = input && typeof input === 'object' && 'source' in input ? input.source : input;
+  return Boolean(
+    source && typeof source === 'object' && 'opticalDepths' in source && source.opticalDepths
+  );
+}
 type Owner<DataT> = {object: DataT; weight: number; index: number};
 type PreparedOwner<DataT> = {
   key: string;
@@ -246,8 +254,25 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       );
     }
     if (!Array.isArray(props.data)) this.state.rowSources = null;
+    const sources = Array.isArray(props.data) ? (this.state.rowSources ?? []) : [props.data];
+    const sceneSourceChanged = Boolean(
+      changeFlags.dataChanged ||
+        sourceAccessorChanged ||
+        props.source !== oldProps.source ||
+        (sourceTriggers && (sourceTriggers.all || sourceTriggers.getSource))
+    );
+    const sortedCartesian =
+      Array.isArray(props.data) &&
+      props.transparency === 'sorted' &&
+      !sources.some(hasSplatOpticalDepths) &&
+      !props._splatBudgetGroup;
+    // Cartesian prepared rows in an unbudgeted sorted domain must share ordering with RAD rows.
     const scene =
-      isSplatSceneData(props.data) || Boolean(this.state.rowSources?.some(isSplatSceneData));
+      isSplatSceneData(props.data) ||
+      Boolean(this.state.rowSources?.some(isSplatSceneData)) ||
+      (sortedCartesian &&
+        (props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN ||
+          (this.state.scene && !sceneSourceChanged)));
     if (scene) {
       if (
         Number.isFinite(props.maxActiveSplats) &&
