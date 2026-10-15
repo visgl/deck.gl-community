@@ -63,6 +63,51 @@ test('rejects implicit or projective coordinate conversion', () => {
   const matrix = new Matrix4();
   matrix[3] = 1;
   expect(() => pickTerrainSurface(viewport, [200, 100], source, matrix)).toThrow(/affine/);
+  expect(() =>
+    pickTerrainSurface(viewport, [200, 100], source, new Matrix4().scale([0, 1, 1]))
+  ).toThrow(/invertible/);
+});
+
+test('singular and nonfinite view matrices cannot silently produce a different query ray', () => {
+  const source: TerrainSurface = {projection: 'globe', intersectRay: vi.fn(() => null)};
+  expect(
+    pickTerrainSurface(
+      {...viewport, viewProjectionMatrix: new Matrix4().scale([0, 1, 1])},
+      [200, 100],
+      source,
+      identity
+    )
+  ).toBeNull();
+  const matrix = new Matrix4();
+  matrix[0] = NaN;
+  expect(
+    pickTerrainSurface({...viewport, viewProjectionMatrix: matrix}, [200, 100], source, identity)
+  ).toBeNull();
+  expect(source.intersectRay).not.toHaveBeenCalled();
+});
+
+test.each([
+  {point: [500, 500], triangleIndex: 0, weights: [0.5, 0.25, 0.25], elevation: 17.5},
+  {point: [1500, 1500], triangleIndex: 1, weights: [0.25, 0.5, 0.25], elevation: 12.5}
+])('interior point $point retains triangle $triangleIndex and original vertex weights', ({
+  point,
+  triangleIndex,
+  weights,
+  elevation
+}) => {
+  const {polygons, surface} = createFixtureTerrain(4);
+  const hit = surface.intersectRay({origin: [point[0], point[1], 1000], direction: [0, 0, -1]});
+  expect(hit?.triangleIndex).toBe(triangleIndex);
+  expect(hit?.barycentric).toEqual(weights);
+  expect(hit?.coordinate[2]).toBe(elevation);
+  expect(hit?.position[2]).toBe(elevation * 4);
+  for (let axis = 0; axis < 3; axis++)
+    expect(
+      weights.reduce(
+        (sum, weight, index) => sum + weight * polygons[triangleIndex].polygon[index][axis],
+        0
+      )
+    ).toBeCloseTo(hit!.position[axis]);
 });
 
 test.each([

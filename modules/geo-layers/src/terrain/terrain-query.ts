@@ -75,9 +75,18 @@ export function pickTerrainSurface(
     pixel[1] >= viewport.y + viewport.height
   )
     return null;
-  const transform = new Matrix4(Array.from(commonToSurface)).multiplyRight(
-    new Matrix4(viewport.viewProjectionMatrix).invert()
-  );
+  const conversion = new Matrix4(Array.from(commonToSurface));
+  if (!Number.isFinite(conversion.determinant()) || conversion.determinant() === 0) {
+    throw new RangeError('Terrain common-to-surface matrix must be invertible');
+  }
+  if (
+    viewport.viewProjectionMatrix.length !== 16 ||
+    !Array.from(viewport.viewProjectionMatrix).every(Number.isFinite)
+  )
+    return null;
+  const projection = new Matrix4(viewport.viewProjectionMatrix);
+  if (!Number.isFinite(projection.determinant()) || projection.determinant() === 0) return null;
+  const transform = conversion.multiplyRight(projection.invert());
   const horizontal = (2 * (pixel[0] - viewport.x)) / viewport.width - 1;
   const vertical = 1 - (2 * (pixel[1] - viewport.y)) / viewport.height;
   const points = [-1, 1].map(depth => transform.transform([horizontal, vertical, depth, 1]));
