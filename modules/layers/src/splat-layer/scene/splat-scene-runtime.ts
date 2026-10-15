@@ -66,6 +66,19 @@ type Domain = {
 };
 const RUNTIMES = new WeakMap<Deck, WeakMap<Device, SplatSceneRuntime>>();
 
+function getViewLayerKey(viewportId: string, layerId: string): string {
+  return JSON.stringify([viewportId, layerId]);
+}
+
+function keyMatchesLayerId(key: string, layerId: string): boolean {
+  try {
+    const parts: unknown = JSON.parse(key);
+    return Array.isArray(parts) && parts[1] === layerId;
+  } catch {
+    return false;
+  }
+}
+
 /** One source cache and one ordering renderer per viewport/domain on the host deck/device. */
 export class SplatSceneRuntime implements Effect {
   id = 'splat-scene-runtime';
@@ -163,7 +176,7 @@ export class SplatSceneRuntime implements Effect {
       };
     });
     for (const key of this.pickingEntries.keys())
-      if (key.endsWith(`/${layer.id}`)) this.pickingEntries.delete(key);
+      if (keyMatchesLayerId(key, layer.id)) this.pickingEntries.delete(key);
     this.layers.set(layer.id, layer);
     this.owners.set(layer.id, owners);
     if (owners.some(owner => isRADAsset(owner.asset))) this.radLayers.add(layer.id);
@@ -172,18 +185,18 @@ export class SplatSceneRuntime implements Effect {
   }
   unregister(id: string): void {
     for (const key of this.projectionErrors.keys())
-      if (key.endsWith(`/${id}`)) this.projectionErrors.delete(key);
+      if (keyMatchesLayerId(key, id)) this.projectionErrors.delete(key);
     this.layers.delete(id);
     this.owners.delete(id);
     this.radLayers.delete(id);
     this.releaseUnusedAssets();
     for (const [key, picker] of this.pickers)
-      if (key.endsWith(`/${id}`)) {
+      if (keyMatchesLayerId(key, id)) {
         picker.destroy();
         this.pickers.delete(key);
       }
     for (const key of this.pickingEntries.keys())
-      if (key.endsWith(`/${id}`)) this.pickingEntries.delete(key);
+      if (keyMatchesLayerId(key, id)) this.pickingEntries.delete(key);
     this.deck.redraw('splat source finalized');
   }
   isLoaded(id: string): boolean {
@@ -208,7 +221,9 @@ export class SplatSceneRuntime implements Effect {
     // Match Deck's leaf operation, ancestor filtering and root-level layerFilter contract.
     // Cache root decisions separately for each viewport and render pass, as LayersPass does.
     const activePairs = new Set(
-      viewports.flatMap(viewport => [...this.layers.keys()].map(id => `${viewport.id}/${id}`))
+      viewports.flatMap(viewport =>
+        [...this.layers.keys()].map(id => getViewLayerKey(viewport.id, id))
+      )
     );
     if (!isPicking)
       for (const key of this.projectionErrors.keys())
@@ -260,7 +275,7 @@ export class SplatSceneRuntime implements Effect {
         if (!roots.has(context.layer.id)) roots.set(context.layer.id, layerFilter(context));
         if (!roots.get(context.layer.id)) return false;
       }
-      const projectionKey = `${viewport.id}/${layer.id}`;
+      const projectionKey = getViewLayerKey(viewport.id, layer.id);
       if (projectionError) {
         if (this.projectionErrors.get(projectionKey) !== projectionError) {
           this.projectionErrors.set(projectionKey, projectionError);
@@ -274,7 +289,7 @@ export class SplatSceneRuntime implements Effect {
     if (isPicking) {
       for (const viewport of viewports)
         for (const layer of this.layers.values()) {
-          const key = `${viewport.id}/${layer.id}`;
+          const key = getViewLayerKey(viewport.id, layer.id);
           if (!shouldDraw(layer, viewport, true)) {
             this.pickers.get(key)?.destroy();
             this.pickers.delete(key);
@@ -462,7 +477,7 @@ export class SplatSceneRuntime implements Effect {
           domainEntries.push(...entries);
           submissions.set(key, domainEntries);
         }
-        if (pick) this.pickingEntries.set(`${viewport.id}/${layer.id}`, entries);
+        if (pick) this.pickingEntries.set(getViewLayerKey(viewport.id, layer.id), entries);
       }
     // Prune against the complete screen-frame submission, not a picking pass's
     // potentially smaller viewport subset. Removed views and hidden/filtered
@@ -556,7 +571,7 @@ export class SplatSceneRuntime implements Effect {
     parameters?: RenderPipelineParameters
   ): void {
     if (picking) {
-      this.pickers.get(`${viewport.id}/${layer.id}`)?.draw(renderPass, parameters);
+      this.pickers.get(getViewLayerKey(viewport.id, layer.id))?.draw(renderPass, parameters);
       return;
     }
     const domain = this.domains.get(`${viewport.id}:${layer.props.sortDomain}`);

@@ -77,6 +77,24 @@ describe('SplatLayer off-thread refinement', () => {
     device.destroy();
   });
 
+  it('forgets an admitted page when residency evicts it', () => {
+    const {device, scene} = makeScene();
+    const data = makeGPUSplatData(device, {
+      positions: new Float32Array([0, 0, 0]),
+      scales: new Float32Array([1, 1, 1]),
+      rotations: new Float32Array([1, 0, 0, 0]),
+      colors: new Uint8Array([255, 255, 255, 255]),
+      opacities: new Float32Array([1])
+    });
+    const forget = vi.spyOn(scene.scheduler, 'forget');
+    scene.residency.add(data, {id: 'rad:9'});
+    scene.residency.setBudget({maxResidentSplats: 0});
+    expect(forget).toHaveBeenCalledWith(9);
+    expect(scene.residency.has('rad:9')).toBe(false);
+    scene.destroy();
+    device.destroy();
+  });
+
   it('retains a coherent frontier and retries a stale reply that names an evicted page', () => {
     const {device, scene, onError} = makeScene();
     const source = {

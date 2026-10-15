@@ -94,6 +94,9 @@ export class RADScene {
       ownsData: true,
       onEvict: chunk => {
         if (!this.destroyed) {
+          const pageIndex = Number(chunk.id.slice('rad:'.length));
+          if (chunk.id.startsWith('rad:') && Number.isSafeInteger(pageIndex))
+            this.scheduler.forget(pageIndex);
           this.selectionNeeded = true;
           const removal = this.source.remove(chunk.id).catch(error => this.fail(error));
           this.pendingRemovals.add(removal);

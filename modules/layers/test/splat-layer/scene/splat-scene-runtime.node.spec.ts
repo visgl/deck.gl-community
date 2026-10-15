@@ -54,6 +54,48 @@ it('publishes loading and error statuses to shared static source users', async (
   device.destroy();
 });
 
+it('cleans up only the exact layer when layer ids contain separators', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({redraw: vi.fn()} as unknown as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([1])
+  };
+  const short = new SplatSceneLayer({id: 'tree', data: source});
+  const nested = new SplatSceneLayer({id: 'canopy/tree', data: source});
+  const shortKey = JSON.stringify(['view', 'tree']);
+  const nestedKey = JSON.stringify(['view', 'canopy/tree']);
+  const shortPicker = {destroy: vi.fn()};
+  const nestedPicker = {destroy: vi.fn()};
+  try {
+    runtime.register(short);
+    runtime.register(nested);
+    runtime['pickingEntries'].set(shortKey, [{}] as never);
+    runtime['pickingEntries'].set(nestedKey, [{}] as never);
+    runtime.register(new SplatSceneLayer({id: 'tree', data: source}));
+    expect([...runtime['pickingEntries'].keys()]).toEqual([nestedKey]);
+
+    runtime['pickingEntries'].set(shortKey, [{}] as never);
+    runtime['pickers'].set(shortKey, shortPicker as never);
+    runtime['pickers'].set(nestedKey, nestedPicker as never);
+    runtime['projectionErrors'].set(shortKey, 'old');
+    runtime['projectionErrors'].set(nestedKey, 'nested');
+    runtime.unregister('tree');
+
+    expect([...runtime['pickingEntries'].keys()]).toEqual([nestedKey]);
+    expect([...runtime['pickers'].keys()]).toEqual([nestedKey]);
+    expect([...runtime['projectionErrors'].entries()]).toEqual([[nestedKey, 'nested']]);
+    expect(shortPicker.destroy).toHaveBeenCalledOnce();
+    expect(nestedPicker.destroy).not.toHaveBeenCalled();
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
 it.each([
   1, 2
 ])('reserves decoded static coverage before granting detail to %i RAD assets', radCount => {
@@ -227,7 +269,7 @@ it.each([
   runtime.register(layer);
   vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
   const picker = {destroy: vi.fn()};
-  runtime['pickers'].set('active/picker', picker as never);
+  runtime['pickers'].set(JSON.stringify(['active', 'picker']), picker as never);
   const viewport = new OrthographicViewport({id: 'active', width: 128, height: 128});
   const options = {
     layers: [layer],
@@ -336,7 +378,7 @@ it.each([
       pass: 'picking:query',
       layerFilter
     } as PreRenderOptions);
-    expect([...runtime['pickers'].keys()]).toEqual(['allowed/draw']);
+    expect([...runtime['pickers'].keys()]).toEqual([JSON.stringify(['allowed', 'draw'])]);
     expect(layerFilter).toHaveBeenCalledTimes(4);
     expect(layerFilter.mock.calls.every(([context]) => context.layer === root)).toBe(true);
     root.props.visible = false;
@@ -383,8 +425,8 @@ it('stages query-only picking and forwards the actual pass and cull rectangle', 
       pass: 'screen',
       layerFilter: filter
     } as PreRenderOptions);
-    expect(runtime['pickingEntries'].get('view/query')).toHaveLength(1);
-    runtime['pickers'].set('view/query', picker as never);
+    expect(runtime['pickingEntries'].get(JSON.stringify(['view', 'query']))).toHaveLength(1);
+    runtime['pickers'].set(JSON.stringify(['view', 'query']), picker as never);
     runtime.preRender({
       layers: [layer],
       viewports: [viewport],
@@ -425,8 +467,8 @@ it.each([
   const raise = vi.spyOn(layer, 'raiseError').mockImplementation(() => {});
   const acquire = vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
   const stale = {destroy: vi.fn()};
-  runtime['pickers'].set('view/transitioning', stale as never);
-  runtime['pickingEntries'].set('view/transitioning', [{}] as never);
+  runtime['pickers'].set(JSON.stringify(['view', 'transitioning']), stale as never);
+  runtime['pickingEntries'].set(JSON.stringify(['view', 'transitioning']), [{}] as never);
   const unsupported =
     projection === 'geospatial'
       ? new WebMercatorViewport({id: 'view', width: 128, height: 128})
@@ -493,8 +535,10 @@ it.each([
   try {
     runtime.preRender(options);
     const expected = [128 * (override ?? 2), 64 * (override ?? 2)];
-    expect(runtime['pickingEntries'].get('view/density')?.[0].view.viewportSize).toEqual(expected);
-    runtime['pickers'].set('view/density', picker as never);
+    expect(
+      runtime['pickingEntries'].get(JSON.stringify(['view', 'density']))?.[0].view.viewportSize
+    ).toEqual(expected);
+    runtime['pickers'].set(JSON.stringify(['view', 'density']), picker as never);
     runtime.preRender({...options, isPicking: true, pass: 'picking:query'});
     expect(picker.setProps).toHaveBeenCalledWith(expect.objectContaining({viewportSize: expected}));
   } finally {
@@ -542,8 +586,8 @@ it('preserves static orthographic and RAD perspective siblings and recovers when
     expect(runtime['domains'].get('perspective:default')?.layers).toEqual(
       new Set(['rad', 'static'])
     );
-    expect(runtime['pickingEntries'].has('ortho/rad')).toBe(false);
-    expect(runtime['pickingEntries'].has('perspective/rad')).toBe(true);
+    expect(runtime['pickingEntries'].has(JSON.stringify(['ortho', 'rad']))).toBe(false);
+    expect(runtime['pickingEntries'].has(JSON.stringify(['perspective', 'rad']))).toBe(true);
     const replacement = rad.clone({data: source});
     vi.spyOn(replacement, 'getOwnerMatrix').mockReturnValue(new Matrix4());
     runtime.register(replacement);
@@ -553,7 +597,7 @@ it('preserves static orthographic and RAD perspective siblings and recovers when
       isPicking: false
     } as PreRenderOptions);
     expect(runtime['domains'].get('ortho:default')?.layers).toEqual(new Set(['rad', 'static']));
-    expect(runtime['pickingEntries'].has('ortho/rad')).toBe(true);
+    expect(runtime['pickingEntries'].has(JSON.stringify(['ortho', 'rad']))).toBe(true);
   } finally {
     runtime.cleanup();
     device.destroy();
