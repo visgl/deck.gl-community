@@ -3,18 +3,28 @@
 // Copyright (c) vis.gl contributors
 import {
   AmbientLight,
+  CompositeLayer,
   COORDINATE_SYSTEM,
   Deck,
   DirectionalLight,
   LightingEffect,
   MapView,
   type Layer,
-  type DeckProps
+  type DeckProps,
+  type Viewport
 } from '@deck.gl/core';
-import {TextLayer} from '@deck.gl/layers';
+import {BitmapLayer, TextLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
-import {TreeLayer, type Season, type TreeSpec, type TreeType} from '@deck.gl-community/layers';
+import {
+  SplatLayer,
+  SplatShadowPass,
+  TreeLayer,
+  type Season,
+  type TreeSpec,
+  type TreeType
+} from '@deck.gl-community/layers';
+import type {WebGLDevice} from '@luma.gl/webgl';
 import './style.css';
 
 const SPECIES: TreeType[] = [
@@ -28,38 +38,88 @@ const SPECIES: TreeType[] = [
   'citrus'
 ];
 const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
-class WoodShadowTreeLayer<DataT> extends TreeLayer<DataT> {
-  static layerName = 'WoodShadowTreeLayer';
-
-  renderLayers() {
-    // The opaque shadow map should contain wood, not a solid silhouette of Gaussian leaves.
-    return super.renderLayers().map(layer => {
-      const id = layer.id;
-      return id.includes('-canopy-') || id.includes('-crops')
-        ? layer.clone({shadowEnabled: false} as Partial<typeof layer.props> & {
-            shadowEnabled: boolean;
-          })
-        : layer;
-    });
-  }
-}
-class WoodShadowLightingEffect extends LightingEffect {
+class GroundShadowLightingEffect extends LightingEffect {
   override getShaderModuleProps(
     layer: Layer,
     otherShaderModuleProps: Parameters<LightingEffect['getShaderModuleProps']>[1]
   ) {
     const props = super.getShaderModuleProps(layer, otherShaderModuleProps);
-    // The translucent canopy must not receive its ground shadow through the leaf splats.
+    // Keep opaque wood shadows on the ground; the canopy transmission overlay is composited separately.
     if (layer.id === 'ground') return props;
     return {...props, shadow: {...props.shadow, shadowEnabled: false}};
   }
 }
 type MountOptions = Pick<
   DeckProps<MapView>,
-  'device' | 'initialViewState' | 'widgets' | 'onViewStateChange'
+  | 'device'
+  | 'initialViewState'
+  | 'widgets'
+  | 'onViewStateChange'
+  | 'onAfterRender'
+  | 'onDeviceInitialized'
 > & {
   onDeckInitialized?: (deck: Deck<MapView>) => void;
 };
+
+function collectLayers(layer: Layer): Layer[] {
+  return layer instanceof CompositeLayer
+    ? [layer, ...layer.getSubLayers().flatMap(collectLayers)]
+    : [layer];
+}
+
+function createTreeShadowProjection(viewport: Viewport) {
+  const mapSize = 256;
+  const span = 128;
+  const scale = 2 / (span * viewport.distanceScales.unitsPerMeter[2]);
+  const lightSlopeX = 0.8 / 0.5;
+  const lightSlopeY = 0.2 / 0.5;
+  return {
+    matrix: [
+      scale,
+      0,
+      0,
+      0,
+      0,
+      scale,
+      0,
+      0,
+      scale * lightSlopeX,
+      scale * lightSlopeY,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    center: [0, 0, 0, 0],
+    width: mapSize,
+    height: mapSize
+  };
+}
+
+function createShadowImage(device: WebGLDevice, shadowPass: SplatShadowPass) {
+  const size = shadowPass.transmission!.width;
+  const pixels = device.readPixelsToArrayWebGL(shadowPass.transmission!) as Uint8Array;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d')!;
+  const image = context.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const source = ((size - 1 - y) * size + x) * 4;
+      const target = (y * size + x) * 4;
+      const opacity = Math.min(0.55, Math.max(0, (255 - pixels[source]) / 255) * 0.65);
+      image.data[target] = 35;
+      image.data[target + 1] = 43;
+      image.data[target + 2] = 32;
+      image.data[target + 3] = Math.round(opacity * 255);
+    }
+  }
+  context.putImageData(image, 0, 0);
+  return canvas;
+}
 
 /** Mount a focused TreeLayer viewer for one species and its crown-spread trait. */
 export function mountTreeLabExample(
@@ -78,7 +138,7 @@ export function mountTreeLabExample(
       season => `<option${season === 'summer' ? ' selected' : ''}>${season}</option>`
     ).join('')}</select></label>
     <label class="trees-spread">Crown spread <input name="spread" type="range" min="0.6" max="1.5" step="0.1" value="1"><output name="spread-value">1.0×</output></label>
-    <label class="trees-shadow"><input name="shadows" type="checkbox"${options.device?.type === 'webgpu' ? ' disabled' : ' checked'}>Wood shadows</label>
+    <label class="trees-shadow"><input name="shadows" type="checkbox"${options.device?.type === 'webgpu' ? ' disabled' : ' checked'}>Tree shadows</label>
   </div><div class="trees-stage"></div>`;
   container.append(root);
   const stage = root.querySelector<HTMLDivElement>('.trees-stage')!;
@@ -87,7 +147,7 @@ export function mountTreeLabExample(
   const shadows = control<HTMLInputElement>('shadows');
   const spreadOutput = root.querySelector<HTMLOutputElement>('[name="spread-value"]')!;
   const groundMesh = new PlaneGeometry({type: 'x,y', xlen: 100, ylen: 100});
-  const lighting = new WoodShadowLightingEffect({
+  const lighting = new GroundShadowLightingEffect({
     ambient: new AmbientLight({intensity: 1}),
     sun: new DirectionalLight({
       intensity: 0.5,
@@ -100,7 +160,15 @@ export function mountTreeLabExample(
     coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
     coordinateOrigin: [0, 0, 0] as [number, number, number]
   };
-  const deck = new Deck<MapView>({
+  let deck!: Deck<MapView>;
+  let device: Parameters<NonNullable<DeckProps<MapView>['onDeviceInitialized']>>[0] | null = null;
+  let shadowPass: SplatShadowPass | undefined;
+  let shadowImage: HTMLCanvasElement | undefined;
+  let shadowPhase: 'idle' | 'prepare' | 'render' = 'prepare';
+  let activeShadowProjection: ReturnType<typeof createTreeShadowProjection> | undefined;
+  let shadowTimer: number | undefined;
+  let render = () => {};
+  deck = new Deck<MapView>({
     ...options,
     parent: stage,
     views: new MapView(),
@@ -116,10 +184,54 @@ export function mountTreeLabExample(
     useDevicePixels: 1,
     // Billboard label backgrounds are visual-only; casting them creates a large floating quad.
     layerFilter: ({layer, renderPass}) => renderPass !== 'shadow' || layer.id !== 'labels',
-    getTooltip: ({object}) => object?.species ?? null
+    getTooltip: ({object}) => object?.species ?? null,
+    onDeviceInitialized: initializedDevice => {
+      device = initializedDevice;
+      if (initializedDevice.type === 'webgpu') {
+        shadows.checked = false;
+        shadows.disabled = true;
+        shadowPhase = 'idle';
+      }
+      options.onDeviceInitialized?.(initializedDevice);
+    },
+    onAfterRender: params => {
+      options.onAfterRender?.(params);
+      if (shadows.disabled || !shadows.checked || !device || device.type !== 'webgl') return;
+      shadowPass ??= new SplatShadowPass(device);
+      const layers = (deck.props.layers as Layer[]).flatMap(collectLayers);
+      const canopyLayers = layers.filter(
+        (layer): layer is SplatLayer => layer instanceof SplatLayer
+      );
+      if (shadowPhase === 'prepare') {
+        const viewport = deck.getViewports()[0];
+        if (!viewport) return;
+        if (!canopyLayers.length) {
+          shadowImage = undefined;
+          shadowPhase = 'idle';
+          render();
+          return;
+        }
+        activeShadowProjection = createTreeShadowProjection(viewport);
+        for (const layer of canopyLayers) layer.prepareShadow([activeShadowProjection], viewport);
+        shadowPhase = 'render';
+        deck.redraw('canopy-shadow-selection');
+        return;
+      }
+      if (shadowPhase === 'render') {
+        const viewports = deck.getViewports();
+        if (!viewports.length) return;
+        shadowPass.renderTransmission(
+          {layers, viewports, pass: 'shadow-transmission'},
+          activeShadowProjection ?? createTreeShadowProjection(viewports[0])
+        );
+        shadowImage = createShadowImage(device as WebGLDevice, shadowPass);
+        shadowPhase = 'idle';
+        render();
+      }
+    }
   });
   options.onDeckInitialized?.(deck);
-  const render = () => {
+  render = () => {
     const species = control<HTMLSelectElement>('species').value as TreeType;
     const season = control<HTMLSelectElement>('season').value as Season;
     const spread = Number(control<HTMLInputElement>('spread').value);
@@ -137,11 +249,12 @@ export function mountTreeLabExample(
           material: {ambient: 1, diffuse: 0, shininess: 0},
           shadowEnabled: false
         }),
-        new WoodShadowTreeLayer<TreeSpec>({
+        new TreeLayer<TreeSpec>({
           ...coordinateProps,
           id: 'trees',
           data,
           shadowEnabled: shadows.checked && !shadows.disabled,
+          maxShadowSplats: 2048,
           getTree: tree => ({
             ...tree,
             season,
@@ -172,14 +285,45 @@ export function mountTreeLabExample(
           backgroundPadding: [6, 3],
           backgroundBorderRadius: 5,
           getBackgroundColor: [250, 252, 247, 245]
-        })
+        }),
+        ...(shadowImage
+          ? [
+              new BitmapLayer({
+                ...coordinateProps,
+                id: 'canopy-shadow',
+                image: shadowImage,
+                bounds: [-64, -64, 64, 64],
+                shadowEnabled: false,
+                parameters: {depthWriteEnabled: false, depthCompare: 'less-equal'}
+              })
+            ]
+          : [])
       ]
     });
   };
-  root.addEventListener('input', render);
+  const onInput = (event: Event) => {
+    window.clearTimeout(shadowTimer);
+    const changedControl = event.target as HTMLInputElement | HTMLSelectElement;
+    if (changedControl.name === 'shadows') {
+      shadowImage = undefined;
+      shadowPhase = shadows.checked && !shadows.disabled ? 'prepare' : 'idle';
+      render();
+      return;
+    }
+    shadowPhase = 'idle';
+    render();
+    if (shadows.checked && !shadows.disabled)
+      shadowTimer = window.setTimeout(() => {
+        shadowPhase = 'prepare';
+        deck.redraw('canopy-shadow-traits');
+      }, 160);
+  };
+  root.addEventListener('input', onInput);
   render();
   return () => {
-    root.removeEventListener('input', render);
+    window.clearTimeout(shadowTimer);
+    root.removeEventListener('input', onInput);
+    shadowPass?.destroy();
     deck.finalize();
     root.remove();
   };
