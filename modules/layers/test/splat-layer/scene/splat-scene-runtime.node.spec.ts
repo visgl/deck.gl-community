@@ -144,6 +144,32 @@ it('shares a nested parent allowance across two independent RAD scene layers', (
   device.destroy();
 });
 
+it('honors an explicit RAD detail allowance above the fallback estimate', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const layer = new SplatSceneLayer({
+    id: 'rad',
+    data: '/capture.rad',
+    maxSplats: 3_000_000,
+    maxTotalSplats: Infinity
+  });
+  runtime.register(layer);
+  const stopped = new Error('grant captured before GPU preparation');
+  vi.spyOn(runtime as any, 'acquireAsset').mockImplementation((_input, _layer, active) => {
+    expect(active).toBe(3_000_000);
+    throw stopped;
+  });
+  expect(() =>
+    runtime.preRender({
+      layers: [layer],
+      viewports: [new FirstPersonViewport({width: 128, height: 128})],
+      isPicking: false
+    } as PreRenderOptions)
+  ).toThrow(stopped);
+  runtime.cleanup();
+  device.destroy();
+});
+
 it.each([
   'direct',
   'descriptor',
