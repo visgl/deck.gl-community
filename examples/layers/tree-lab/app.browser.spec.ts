@@ -3,9 +3,11 @@
 import {expect, it} from 'vitest';
 import type {Deck, MapView} from '@deck.gl/core';
 import type {TreeLayer, TreeSpec} from '@deck.gl-community/layers';
+import type {Texture} from '@luma.gl/core';
+import type {WebGLDevice} from '@luma.gl/webgl';
 import {mountTreeLabExample} from './app';
 
-it('frames one tree, updates its traits and isolates branch shadows', async () => {
+it('frames one tree, updates its traits and shadows its full canopy and wood', async () => {
   const parent = document.createElement('div');
   Object.assign(parent.style, {width: '800px', height: '600px'});
   document.body.append(parent);
@@ -17,9 +19,12 @@ it('frames one tree, updates its traits and isolates branch shadows', async () =
   const cleanup = mountTreeLabExample(parent, {
     onDeckInitialized(instance) {
       deck = instance;
+      const onAfterRender = deck.props.onAfterRender;
       deck.setProps({
         onError: error => errors.push(error.message),
-        onAfterRender({gl}) {
+        onAfterRender(params) {
+          onAfterRender?.(params);
+          const {gl} = params;
           frames++;
           const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
           gl.readPixels(
@@ -47,8 +52,33 @@ it('frames one tree, updates its traits and isolates branch shadows', async () =
     element.dispatchEvent(new Event('input', {bubbles: true}));
   };
   const trees = () => deck.props.layers[1] as TreeLayer<TreeSpec>;
+  const hasCanopyShadow = () =>
+    deck.props.layers.some(
+      layer =>
+        Boolean(layer) &&
+        !Array.isArray(layer) &&
+        typeof layer === 'object' &&
+        'id' in layer &&
+        layer.id === 'canopy-shadow'
+    );
   try {
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(0);
+    await expect.poll(hasCanopyShadow, {timeout: 15000}).toBe(true);
+    const canopyShadow = deck.props.layers.find(
+      layer =>
+        Boolean(layer) &&
+        !Array.isArray(layer) &&
+        typeof layer === 'object' &&
+        'id' in layer &&
+        layer.id === 'canopy-shadow'
+    ) as unknown as {props: {image: Texture}};
+    const bitmapPixels = (deck as unknown as {device: WebGLDevice}).device.readPixelsToArrayWebGL(
+      canopyShadow.props.image
+    ) as Uint8Array;
+    let canopyShadowPixels = 0;
+    for (let index = 3; index < bitmapPixels.length; index += 4)
+      if (bitmapPixels[index] > 10) canopyShadowPixels++;
+    expect(canopyShadowPixels).toBeGreaterThan(500);
     await expect.poll(() => groundColor[0], {timeout: 15000}).toBeGreaterThan(150);
     expect(groundColor[1]).toBeGreaterThan(160);
     expect(trees().props.data).toHaveLength(1);
@@ -64,7 +94,8 @@ it('frames one tree, updates its traits and isolates branch shadows', async () =
       layer => layer.id.includes('-wood-') && layer.id.includes('-shadow-')
     );
     expect(canopyLayers.length).toBeGreaterThan(0);
-    expect(canopyLayers.every(layer => layer.props.shadowEnabled === false)).toBe(true);
+    expect(canopyLayers.every(layer => layer.props.shadowEnabled === true)).toBe(true);
+    expect(canopyLayers.some(layer => layer.id.includes('shadow-casters'))).toBe(true);
     expect(woodShadowLayers.some(layer => layer.props.shadowEnabled === true)).toBe(true);
     const filter = deck.props.layerFilter as (params: {
       layer: {id: string};
@@ -91,18 +122,23 @@ it('frames one tree, updates its traits and isolates branch shadows', async () =
     let darkenedPixels = 0;
     for (let i = 0; i < shadowedPixels.length; i += 4)
       if (shadowedPixels[i] - framePixels[i] > 12) darkenedPixels++;
-    // SwiftShader rasterizes this narrow wood shadow into fewer pixels than a hardware GPU.
+    // SwiftShader rasterizes the branch shadow more narrowly than a hardware GPU.
     expect(darkenedPixels).toBeGreaterThan(10);
     const picked = deck.pickObjects({x: 0, y: 0, width: 800, height: 600});
     expect(picked.some(info => [...(trees().props.data as TreeSpec[])].includes(info.object))).toBe(
       true
     );
 
+    change('shadows', true);
+    await expect.poll(hasCanopyShadow, {timeout: 15000}).toBe(true);
+    const previous = frames;
     change('species', 'oak');
     change('season', 'winter');
     change('spread', '1.3');
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(previous);
+    await expect.poll(hasCanopyShadow, {timeout: 15000}).toBe(false);
     expect(trees().props.data).toHaveLength(1);
-    expect(trees().props.shadowEnabled).toBe(false);
+    expect(trees().props.shadowEnabled).toBe(true);
     const tree = (trees().props.getTree as (tree: TreeSpec) => TreeSpec)(
       (trees().props.data as TreeSpec[])[0]
     );
@@ -112,8 +148,6 @@ it('frames one tree, updates its traits and isolates branch shadows', async () =
       wind: false,
       characteristics: {crownSpread: 1.3}
     });
-    const previous = frames;
-    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(previous);
     expect(errors).toEqual([]);
   } finally {
     cleanup();
