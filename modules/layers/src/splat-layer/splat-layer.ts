@@ -56,13 +56,6 @@ import type {SplatLayerStatus} from './scene/rad-scene';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
-
-function hasSplatOpticalDepths(input: SplatDataInput): boolean {
-  const source = input && typeof input === 'object' && 'source' in input ? input.source : input;
-  return Boolean(
-    source && typeof source === 'object' && 'opticalDepths' in source && source.opticalDepths
-  );
-}
 type Owner<DataT> = {object: DataT; weight: number; index: number};
 type PreparedOwner<DataT> = {
   key: string;
@@ -253,16 +246,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       );
     }
     if (!Array.isArray(props.data)) this.state.rowSources = null;
-    const sources = Array.isArray(props.data) ? (this.state.rowSources ?? []) : [props.data];
-    const hasOpticalDepths = sources.some(hasSplatOpticalDepths);
     const scene =
-      isSplatSceneData(props.data) ||
-      Boolean(this.state.rowSources?.some(isSplatSceneData)) ||
-      // TreeLayer's shared budget keeps its prepared foliage on the geographic backend.
-      (Array.isArray(props.data) &&
-        props.transparency === 'sorted' &&
-        !hasOpticalDepths &&
-        !props._splatBudgetGroup);
+      isSplatSceneData(props.data) || Boolean(this.state.rowSources?.some(isSplatSceneData));
     if (scene) {
       if (
         Number.isFinite(props.maxActiveSplats) &&

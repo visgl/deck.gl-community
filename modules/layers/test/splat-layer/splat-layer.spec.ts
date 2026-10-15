@@ -577,7 +577,7 @@ it('keeps sibling prepared grants cached after a layer enters scene mode', () =>
   }
 });
 
-it('initializes prepared rendering when only the blending mode changes from sorted to weighted', () => {
+it('keeps sorted prepared rows on the prepared backend when blending mode changes', () => {
   const layer = make(
     [{position: [256, 256, 0]}],
     0,
@@ -588,7 +588,8 @@ it('initializes prepared rendering when only the blending mode changes from sort
     },
     new OrthographicViewport({width: 256, height: 256, target: [256, 256, 0]})
   );
-  expect(layer.state.runtime).toBeUndefined();
+  expect(layer.state.scene).toBe(false);
+  expect(layer.state.runtime).toBeDefined();
   const oldProps = layer.props;
   Object.assign(layer, {props: layer.clone({transparency: 'weighted'}).props});
   layer.updateState({props: layer.props, oldProps, changeFlags: {propsChanged: true}} as any);
@@ -628,6 +629,7 @@ it.each([
     },
     new OrthographicViewport({width: 256, height: 256})
   );
+  expect(layer.state.scene).toBe(false);
   const cached = layer.state.rowSources;
   const secondSource = {...SOURCE};
   const replacement = vi.fn(() => secondSource);
@@ -673,7 +675,7 @@ it('retires scene children for unsupported coordinate systems and recovers on va
   const layer = make(
     [row],
     0,
-    {source: undefined, getSource: SOURCE, transparency: 'sorted'},
+    {source: undefined, getSource: () => '/scene.rad', transparency: 'sorted'},
     new OrthographicViewport({width: 256, height: 256})
   );
   const raise = vi.spyOn(layer, 'raiseError').mockImplementation(() => {});
@@ -699,7 +701,7 @@ it.each([
   const layer = make(
     [{position: [0, 0, 0]}],
     0,
-    {source: undefined, getSource: SOURCE, transparency: 'sorted'},
+    {source: undefined, getSource: () => '/scene.rad', transparency: 'sorted'},
     new OrthographicViewport({width: 256, height: 256})
   );
   const unrelated =
