@@ -6,7 +6,11 @@ import {Deck, OrthographicView} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
-import {LabelTextLayer, LINE_GLYPH_ATTRIBUTE_STATS} from '../src/label-text-layer';
+import {
+  LabelCharactersLayer,
+  LabelTextLayer,
+  LINE_GLYPH_ATTRIBUTE_STATS
+} from '../src/label-text-layer';
 
 const WIDTH = 320;
 const HEIGHT = 64;
@@ -81,9 +85,23 @@ const PROPS = {
   getBackgroundColor: [0, 0, 0, 0]
 };
 
+/**
+ * `TextLayer` with `LabelTextLayer`'s glyph layer, which antialiases edges as MapLibre GL JS: what
+ * `LabelTextLayer` draws, but for its letter spacing, justification and shared font atlas texture.
+ */
+function referenceTextLayer(props: Record<string, unknown>): any {
+  return new TextLayer({
+    id: 'text',
+    ...props,
+    _subLayerProps: {
+      characters: {type: LabelCharactersLayer, sdfRadius: (props as any).fontSettings.radius}
+    }
+  } as any);
+}
+
 describe('LabelTextLayer in the browser', () => {
-  test('draws exactly what TextLayer draws', async () => {
-    const expected = await renderPixels(new TextLayer({id: 'text', ...PROPS} as any));
+  test('draws exactly what TextLayer draws with its glyph layer', async () => {
+    const expected = await renderPixels(referenceTextLayer(PROPS));
     deck?.finalize();
     parent?.remove();
     const actual = await renderPixels(new LabelTextLayer({id: 'text', ...PROPS} as any));
@@ -102,7 +120,7 @@ describe('LabelTextLayer in the browser', () => {
     deck?.finalize();
     parent?.remove();
     const expected = await renderPixels(
-      new TextLayer({id: 'text', ...props, data: [{position: [0, 0], text}]} as any)
+      referenceTextLayer({...props, data: [{position: [0, 0], text}]})
     );
     expect(actual.some(value => value > 0)).toBe(true);
     expect([...actual]).toEqual([...expected]);

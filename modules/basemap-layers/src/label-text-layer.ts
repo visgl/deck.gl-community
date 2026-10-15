@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {createIterable} from '@deck.gl/core';
+import {WebMercatorViewport, createIterable} from '@deck.gl/core';
 import {TextLayer, _MultiIconLayer as MultiIconLayer} from '@deck.gl/layers';
 import type {TextLayerProps} from '@deck.gl/layers';
 import type {
@@ -184,14 +184,120 @@ function isSameNumbers(a: number[], b: number[]): boolean {
 }
 
 /**
+ * Half the width, in device pixels, over which MapLibre GL JS antialiases the edges of glyphs and
+ * of their halos: its symbol shader's `EDGE_GAMMA` (0.105 / device pixel ratio) of a distance
+ * field that falls by 1/8 per glyph pixel, scaled with the text.
+ */
+export const LABEL_EDGE_DEVICE_PIXELS = 0.84;
+
+/**
+ * `distancePerAtlasPixel`: distance field units per atlas pixel of the font atlas,
+ * `1 / fontSettings.radius`. `foreshortening`: how much the view shortens screen y, see
+ * `getLabelForeshortening`.
+ */
+const labelEdgeUniforms = {
+  name: 'labelEdge',
+  fs: /* glsl */ `\
+layout(std140) uniform labelEdgeUniforms {
+  float distancePerAtlasPixel;
+  float foreshortening;
+} labelEdge;
+`,
+  uniformTypes: {distancePerAtlasPixel: 'f32', foreshortening: 'f32'}
+} as const;
+
+/** The cosine of 89 degrees: no label is foreshortened more, so the factor stays positive. */
+const MIN_FORESHORTENING = Math.cos((89 * Math.PI) / 180);
+
+/**
+ * How much the view shortens screen y for the labels of a layer, against screen x: the cosine of a
+ * `MapView`'s pitch for labels that lie on the map, which it tilts about screen x, as MapLibre's
+ * `u_gamma_scale`. Billboards face the screen, and other views tilt otherwise (a `FirstPersonView`
+ * measures its pitch from the horizon): their labels are taken as unforeshortened, 1.
+ */
+export function getLabelForeshortening(viewport: unknown, billboard: boolean): number {
+  if (billboard || !(viewport instanceof WebMercatorViewport)) {
+    return 1;
+  }
+  return Math.max(Math.cos((viewport.pitch * Math.PI) / 180), MIN_FORESHORTENING);
+}
+
+/**
+ * `MultiIconLayer`'s signed distance field statements: the glyph edge, then the outline (halo)
+ * edge, both smoothed over `sdf.gamma`, a fixed distance. On screen that is a share of the text
+ * size: 0.0375 × size × device pixel ratio device pixels on each side for the label font atlas.
+ */
+const SDF_EDGES =
+  /if \(sdf\.enabled\) \{\s*float distance = alpha;\s*alpha = smoothstep\(sdf\.buffer - sdf\.gamma, sdf\.buffer \+ sdf\.gamma, distance\);\s*if \(sdf\.outlineBuffer > 0\.0\) \{\s*float inFill = alpha;\s*float inBorder = smoothstep\(sdf\.outlineBuffer - sdf\.gamma, sdf\.outlineBuffer \+ sdf\.gamma, distance\);\s*color = mix\(sdf\.outlineColor, vColor, inFill\);\s*alpha = inBorder;\s*\}\s*\}/;
+
+/**
+ * The edges as MapLibre GL JS antialiases them: over `LABEL_EDGE_DEVICE_PIXELS` device pixels on
+ * each side, whatever the text size and device pixel ratio. The distance a device pixel spans is
+ * measured from the screen-space rate of change of the atlas coordinates along x, in uniform
+ * control flow. Labels that lie on a pitched map are foreshortened along y alone: as MapLibre's
+ * `u_gamma_scale`, their edges widen by 1 / cos(pitch): across y they are about as wide as on an
+ * unpitched map, and across x 1 / cos(pitch) times wider. MapLibre's smoothing,
+ * `EDGE_GAMMA / (fontScale * u_gamma_scale) * gl_Position.w` with `u_gamma_scale` =
+ * cos(pitch) × `cameraToCenterDistance`, is 0.84 / cos(pitch) device pixels across x at any
+ * distance: its glyphs are drawn `fontScale` × `cameraToCenterDistance` / w times their atlas
+ * size, which cancels both. The atlas coordinates' rate of change along x holds that scale,
+ * perspective included, at each pixel, so no term for w is added here.
+ * - The glyph edge, as it would be unpitched, is never smoothed more than `TextLayer` smooths it
+ *   (`sdf.gamma`): on small text at device pixel ratio 1, `TextLayer`'s edge is the narrower. The
+ *   cap applies before the 1 / cos(pitch) widening, so that it narrows pitched labels only where it
+ *   would narrow them unpitched.
+ * - The halo edge is smoothed as MapLibre's, also when it has no blur, unless the halo reaches so
+ *   far out that the distance field ends within the smoothing: then it is smoothed no more than
+ *   that allows, or than `sdf.gamma`. `TextHaloBlurExtension` widens it
+ *   from `labelHaloGamma`, after `alpha = inBorder;`.
+ * - The pass that draws the glyphs again over every halo (`sdf.outlineBuffer` at `sdf.buffer`)
+ *   blends their edge with the halo color, as `TextLayer`'s does, over the glyph edge's own width.
+ */
+const LABEL_SDF_EDGES = /* glsl */ `\
+if (sdf.enabled) {
+      float distance = alpha;
+      vec2 atlasPixel = vTextureCoords * vec2(textureSize(iconsTexture, 0));
+      // Along y, as MapLibre's gamma_scale: x, which pitch does not shorten, over the pitch's
+      // cosine. At pitch 0, and for billboards, both directions are the same.
+      float atlasPixelsPerDevicePixel = length(dFdx(atlasPixel)) / labelEdge.foreshortening;
+      float labelEdgeGamma =
+        ${LABEL_EDGE_DEVICE_PIXELS.toFixed(2)} * atlasPixelsPerDevicePixel * labelEdge.distancePerAtlasPixel;
+      // TextLayer's smoothing caps the glyph edge as it would be on an unpitched map, before the
+      // 1 / cos(pitch) widening: compared after it, the cap would undo the widening on the glyphs
+      // that perspective draws small, toward the horizon.
+      float labelFillGamma = min(sdf.gamma, labelEdgeGamma * labelEdge.foreshortening) /
+        labelEdge.foreshortening;
+      alpha = smoothstep(sdf.buffer - labelFillGamma, sdf.buffer + labelFillGamma, distance);
+      if (sdf.outlineBuffer > 0.0 && sdf.outlineBuffer < sdf.buffer) {
+        float inFill = alpha;
+        // Capped, as TextHaloBlurExtension caps its blur, so that the halo fades out before the
+        // distance field ends, at the edge of the glyph's quad, or no later than with sdf.gamma.
+        float labelHaloGamma = min(labelEdgeGamma, max(sdf.gamma, sdf.outlineBuffer - 4.0 / 255.0));
+        float inBorder = smoothstep(
+          sdf.outlineBuffer - labelHaloGamma, sdf.outlineBuffer + labelHaloGamma, distance
+        );
+        color = mix(sdf.outlineColor, vColor, inFill);
+        alpha = inBorder;
+      } else if (sdf.outlineBuffer > 0.0) {
+        // The glyphs drawn again over the halos, blended with the halo color at their edge as the
+        // halo pass blends them, so that an edge pixel is half glyph and half halo, as MapLibre's.
+        color = mix(sdf.outlineColor, vColor, alpha);
+      }
+    }`;
+
+/**
  * The character layer of a `LabelTextLayer`. `TextLayer` packs, for every character of every
  * label, its place in the font atlas and its offset in the label, whenever the layer's data
  * changes. The packed values of each label are kept, and reused while its text, character offsets
  * and font atlas are the same, so the labels a layer held before are not packed again.
+ *
+ * On WebGL it antialiases glyph and halo edges as MapLibre GL JS (see `LABEL_SDF_EDGES`). The
+ * WebGPU shader is `MultiIconLayer`'s.
  */
 /** @internal Exported for tests. */
 export class LabelCharactersLayer extends MultiIconLayer<any> {
   static layerName = 'LabelCharactersLayer';
+  static defaultProps: DefaultProps<any> = {sdfRadius: {type: 'number', value: 12}};
 
   declare state: MultiIconLayer<any>['state'] & {
     /** Each label's packed character definitions, by label object. */
@@ -212,8 +318,17 @@ export class LabelCharactersLayer extends MultiIconLayer<any> {
     return this.context.device.type !== 'webgpu';
   }
 
+  /** Glyph and halo edges as MapLibre GL JS, then, on WebGL, glyphs along lines. */
   getShaders(): any {
-    const shaders = super.getShaders();
+    const iconShaders = super.getShaders();
+    if (!SDF_EDGES.test(iconShaders.fs)) {
+      throw new Error(`${this.id}: MultiIconLayer's signed distance field edges not found`);
+    }
+    const shaders = {
+      ...iconShaders,
+      modules: [...iconShaders.modules, labelEdgeUniforms],
+      fs: iconShaders.fs.replace(SDF_EDGES, LABEL_SDF_EDGES)
+    };
     if (!this.drawsLineGlyphs()) {
       return shaders;
     }
@@ -290,6 +405,9 @@ ${HIDE_CHARACTER_BEFORE}`
    * view is drawn.
    */
   draw(params: any): void {
+    const radius = Number((this.props as any).sdfRadius) || 12;
+    const foreshortening = getLabelForeshortening(this.context.viewport, this.props.billboard);
+    this.setShaderModuleProps({labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening}});
     const {getLineGlyphs, getLineGlyphKey} = this.props as any;
     const attribute = this.getAttributeManager()?.attributes.instanceLineGlyphs;
     if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant && attribute.value) {
@@ -605,8 +723,12 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
    */
   getSubLayerProps(sublayerProps: any = {}): any {
     const props = super.getSubLayerProps(sublayerProps);
-    if (sublayerProps.id === 'characters' && this.state.atlasTexture) {
-      props.iconAtlas = this.state.atlasTexture;
+    if (sublayerProps.id === 'characters') {
+      if (this.state.atlasTexture) {
+        props.iconAtlas = this.state.atlasTexture;
+      }
+      // The distance field's reach, from which the glyph layer measures its antialiasing.
+      props.sdfRadius = this.props.fontSettings?.radius || 12;
     }
     // The placement slot is a row's, and the sublayers draw this layer's rows: it is handed down
     // as is. deck.gl would otherwise call it with the feature a row was made from.
