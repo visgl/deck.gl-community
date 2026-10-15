@@ -598,6 +598,34 @@ it('keeps sorted prepared rows on the prepared backend when blending mode change
   expect(layer.renderLayers().some(child => child.id.includes('refinement'))).toBe(true);
 });
 
+it('routes sorted Cartesian prepared assets through the shared scene renderer', () => {
+  const layer = make(
+    [{position: [0, 0, 0]}],
+    0,
+    {
+      source: undefined,
+      getSource: SOURCE,
+      transparency: 'sorted',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    },
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  expect(layer.state.scene).toBe(true);
+
+  const opticalDepthLayer = make(
+    [{position: [0, 0, 0]}],
+    0,
+    {
+      source: undefined,
+      getSource: {...SOURCE, opticalDepths: new Float32Array([1])},
+      transparency: 'sorted',
+      coordinateSystem: COORDINATE_SYSTEM.CARTESIAN
+    },
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  expect(opticalDepthLayer.state.scene).toBe(false);
+});
+
 it.each([
   'auto',
   'sorted',

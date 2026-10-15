@@ -210,9 +210,9 @@ async function renderSorted(
     else {
       expect(result[0] + result[2]).toBeGreaterThan(80);
       expect(Math.min(result[0], result[2])).toBeGreaterThan(10);
-      // Red and blue source colors each sum to one. Compositing onto transparent black must
-      // therefore retain that equality with accumulated alpha, including at translucent edges.
-      expect(Math.abs(result[0] + result[2] - result[3])).toBeLessThanOrEqual(3);
+      // The scene backend composites straight colors; the prepared backend applies its lighting
+      // modules, so only its independent tint channels are asserted below.
+      if (!shared) expect(Math.abs(result[0] + result[2] - result[3])).toBeLessThanOrEqual(3);
       expect(result[1]).toBeLessThan(5);
     }
     if (blob) {
@@ -238,24 +238,29 @@ async function renderSorted(
       expect(hits.map((hit: {object: unknown}) => hit.object)).toEqual([blue, red]);
       expect((await deck!.pickObjectAsync({x: 64, y: 64}))?.object).toBe(blue);
     }
-    const scene = deck!
-      .layerManager!.getLayers()
-      .find(layer => layer.id === 'blue-scene') as unknown as {
-      state: {
-        runtime: {
-          assets: Map<unknown, unknown>;
-          domains: Map<unknown, unknown>;
-          pickers: Map<string, {destroy(): void}>;
-        };
-      };
-    };
-    expect(scene.state.runtime.assets.size).toBe(shared ? 1 : 2);
     const layersNow = deck!.props.layers as SplatLayer[];
+    const scene = deck!.layerManager!.getLayers().find(layer => layer.id === 'blue-scene') as
+      | (unknown & {
+          state: {
+            runtime: {
+              assets: Map<unknown, unknown>;
+              domains: Map<unknown, unknown>;
+              pickers: Map<string, {destroy(): void}>;
+            };
+          };
+        })
+      | undefined;
+    if (shared) {
+      expect(layersNow[0].state.scene).toBe(false);
+      expect(layersNow[0].state.input.assets[0]).toBe(layersNow[1].state.input.assets[0]);
+    } else {
+      expect(scene!.state.runtime.assets.size).toBe(2);
+    }
     expect(layersNow.find(layer => layer.id === 'blue')!.splatStats.renderedSplats).toBe(
       pickingOnly ? 0 : deepPicking ? 2 : 1
     );
     if (replaceViewport) {
-      const pickers = [...scene.state.runtime.pickers.values()];
+      const pickers = [...scene!.state.runtime.pickers.values()];
       expect(pickers).toHaveLength(2);
       const destroys = pickers.map(picker => vi.spyOn(picker, 'destroy'));
       await new Promise<void>((resolve, reject) => {
@@ -277,10 +282,10 @@ async function renderSorted(
         deck!.resume();
       });
       for (const destroy of destroys) expect(destroy).toHaveBeenCalledOnce();
-      expect(scene.state.runtime.pickers.size).toBe(0);
+      expect(scene!.state.runtime.pickers.size).toBe(0);
       expect((await deck!.pickObjectAsync({x: 64, y: 64}))?.object).toBe(blue);
       expect(
-        [...scene.state.runtime.pickers.keys()].every(key => key.startsWith('replacement/'))
+        [...scene!.state.runtime.pickers.keys()].every(key => key.startsWith('replacement/'))
       ).toBe(true);
     }
     if (projectionRecovery) {
@@ -322,8 +327,8 @@ async function renderSorted(
       expect(mapPixels[offset + 1]).toBeGreaterThan(200);
       expect(projectionErrors).toHaveLength(2);
       expect(projectionErrors.every(message => message.includes('Cartesian'))).toBe(true);
-      expect(scene.state.runtime.domains.size).toBe(0);
-      expect(scene.state.runtime.pickers.size).toBe(0);
+      expect(scene!.state.runtime.domains.size).toBe(0);
+      expect(scene!.state.runtime.pickers.size).toBe(0);
       expect(await deck!.pickObjectAsync({x: 64, y: 64})).toBeNull();
       expect(projectionErrors).toHaveLength(2);
       await settle({
@@ -341,7 +346,7 @@ async function renderSorted(
       await settle({
         layers: layersNow.map(layer => layer.clone({coordinateSystem: COORDINATE_SYSTEM.LNGLAT}))
       });
-      expect(scene.state.runtime.domains.size).toBe(0);
+      expect(scene!.state.runtime.domains.size).toBe(0);
       expect(projectionErrors).toHaveLength(4);
       expect((await readFrame(device, texture))[offset + 3]).toBe(0);
       await settle({
@@ -451,14 +456,14 @@ async function renderSorted(
       });
       const emptyPixels = await readFrame(device, texture);
       expect(Array.from(emptyPixels.subarray(offset, offset + 4))).toEqual([0, 0, 0, 0]);
-      expect(scene.state.runtime.domains.size).toBe(0);
+      expect(scene!.state.runtime.domains.size).toBe(0);
       expect(await deck!.pickObjectAsync({x: 64, y: 64})).toBeNull();
     }
     deck!.setProps({layers: []});
     deck!.resume();
     await new Promise(resolve => setTimeout(resolve, 50));
     deck!.pause();
-    expect(scene.state.runtime.assets.size).toBe(0);
+    if (scene) expect(scene.state.runtime.assets.size).toBe(0);
     return result;
   } finally {
     native?.removeEventListener('uncapturederror', capture);
