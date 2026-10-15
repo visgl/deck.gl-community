@@ -11,7 +11,9 @@
   "dependencies": {
     "@deck.gl-community/layers": "workspace:*",
     "@deck.gl/core": "~9.4.0",
-    "@deck.gl/layers": "~9.4.0"
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0"
   },
   "devDependencies": {
     "typescript": "6.0.3",
