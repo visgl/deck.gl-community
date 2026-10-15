@@ -55,6 +55,23 @@ describe('SplatLayer page admission', () => {
     scheduler.destroy();
   });
 
+  it('reloads a still-demanded page after its resident data is evicted', async () => {
+    const load = vi.fn(async () => true);
+    const scheduler = new PageScheduler(8, load, vi.fn(), vi.fn());
+    const request = {pageIndex: 1, priority: 1};
+    scheduler.update([request]);
+    await drainMicrotasks();
+    expect(load).toHaveBeenCalledTimes(1);
+    scheduler.update([request]);
+    await drainMicrotasks();
+    expect(load).toHaveBeenCalledTimes(1);
+    scheduler.forget(request.pageIndex);
+    scheduler.update([request]);
+    await drainMicrotasks();
+    expect(load).toHaveBeenCalledTimes(2);
+    scheduler.destroy();
+  });
+
   it('does not restart a rejected load from a promise callback or an unchanged frame', async () => {
     const load = vi.fn(async () => false);
     const onChange = vi.fn();

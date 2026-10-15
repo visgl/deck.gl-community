@@ -39,6 +39,12 @@ export class PageScheduler {
     this.rejected.clear();
   }
 
+  /** Allows a still-demanded page to load again after its resident data is evicted. */
+  forget(pageIndex: number): void {
+    this.completed.delete(pageIndex);
+    this.rejected.delete(pageIndex);
+  }
+
   update(requests: readonly PageRequest[], allowAdmission = true): void {
     if (this.destroyed) return;
     this.demanded = new Map(requests.map(request => [request.pageIndex, request]));
