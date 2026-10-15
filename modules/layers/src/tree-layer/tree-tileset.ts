@@ -40,9 +40,12 @@ export class TreeTileset extends _Tileset2D {
       throw new Error('Tree source minZoom prevents a bounded frontier; provide coarser coverage.');
     const camera = options.viewport.cameraPosition;
     const priority = ({index: {x, y, z}}: Node) => {
-      const extent = 512 / 2 ** z,
+      // XYZ y counts south; Web Mercator common-space y grows north. Tile size is a pixel size,
+      // while deck.gl's projected world is 512 units wide at zoom zero.
+      const worldSize = 512,
+        extent = worldSize / 2 ** z,
         left = x * extent,
-        bottom = 512 - (y + 1) * extent;
+        bottom = worldSize - (y + 1) * extent;
       const dx = Math.max(left - camera[0], 0, camera[0] - left - extent);
       const dy = Math.max(bottom - camera[1], 0, camera[1] - bottom - extent);
       const dz = Math.abs(camera[2]);
