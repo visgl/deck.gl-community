@@ -46,7 +46,7 @@ export default function App() {
     const milestones: [string, boolean][] = [
       ['first-coverage', status.activeSplats > 0],
       ['half-budget', status.activeSplats >= 500_000],
-      ['budget-ready', status.phase === 'ready']
+      ['budget-ready', status.phase === 'ready' || status.phase === 'budget-limited']
     ];
     for (const [milestone, reached] of milestones) {
       if (reached && !loadMilestonesRef.current.has(milestone)) {
