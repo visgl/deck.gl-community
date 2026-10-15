@@ -16,7 +16,13 @@ import {
   getTilePyramidProps,
   VECTOR_TILE_ZOOM_OFFSET
 } from './globe-layers';
-import {DEFAULT_PLACEMENT_INTERVAL, LabelPlacement} from './label-placement';
+import {
+  acquireSharedLabelPlacement,
+  DEFAULT_PLACEMENT_INTERVAL,
+  getSharedLabelPlacementKey,
+  LabelPlacement,
+  releaseSharedLabelPlacement
+} from './label-placement';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
@@ -88,6 +94,13 @@ export type BasemapLayerProps = {
    * places every frame.
    */
   labelPlacementInterval?: number;
+  /**
+   * Places this layer's labels apart from those of the other `BasemapLayer`s of the deck. By
+   * default (`false`) the labels of every `BasemapLayer` in a deck are placed together, as the
+   * layers of one style: a label hides those it overlaps, and those of a `BasemapLayer` drawn later
+   * are placed first. With `true`, this layer's labels collide only with each other.
+   */
+  separateLabelPlacement?: boolean;
 };
 
 const fractionalZoomLimitsCache = new WeakMap<ResolvedBasemapStyle, number[]>();
@@ -111,8 +124,13 @@ function getFractionalZoomLimits(resolvedStyle: ResolvedBasemapStyle): number[] 
  * Internal state tracked by {@link BasemapLayer}.
  */
 type BasemapLayerState = {
-  /** Places the labels of every symbol style layer together (see `LabelPlacement`). */
-  labelPlacement: LabelPlacement;
+  /**
+   * Places the labels of every symbol style layer together (see `LabelPlacement`): the deck's
+   * shared placement, or this layer's own with `separateLabelPlacement`.
+   */
+  labelPlacement: LabelPlacement | null;
+  /** The deck whose shared placement `labelPlacement` is, or null for a placement of its own. */
+  sharedLabelPlacementKey: object | null;
   /** The fully resolved style definition currently backing the generated sublayers. */
   resolvedStyle: ResolvedBasemapStyle | null;
   /** The most recent style-resolution error, if one occurred. */
@@ -157,7 +175,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     style: null,
     loadOptions: null,
     fontFamily: null,
-    labelPlacementInterval: DEFAULT_PLACEMENT_INTERVAL
+    labelPlacementInterval: DEFAULT_PLACEMENT_INTERVAL,
+    separateLabelPlacement: false
   };
 
   /** Current layer state. */
@@ -166,7 +185,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
   /** Initializes the asynchronous style-loading state. */
   initializeState(): void {
     this.state = {
-      labelPlacement: new LabelPlacement(),
+      labelPlacement: null,
+      sharedLabelPlacementKey: null,
       resolvedStyle: null,
       loadError: null,
       loadToken: 0,
@@ -213,6 +233,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
 
   /** Reacts to changes in the input style definition. */
   updateState({props, oldProps, changeFlags}: UpdateParameters<this>): void {
+    this.updateLabelPlacement();
     if (
       changeFlags.dataChanged ||
       props.style !== oldProps.style ||
@@ -309,7 +330,39 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
   finalizeState(): void {
     this.state.loadToken++;
     this.clearSourceTilesets();
-    this.state.labelPlacement.destroy();
+    this.releaseLabelPlacement();
+  }
+
+  /**
+   * Takes the deck's shared label placement, or one of its own with `separateLabelPlacement`, and
+   * gives back the one it had when that prop changed.
+   */
+  private updateLabelPlacement(): void {
+    const separate = Boolean(this.props.separateLabelPlacement);
+    const {labelPlacement, sharedLabelPlacementKey} = this.state;
+    if (labelPlacement && separate === !sharedLabelPlacementKey) {
+      return;
+    }
+    this.releaseLabelPlacement();
+    if (separate) {
+      this.state.labelPlacement = new LabelPlacement();
+    } else {
+      const key = getSharedLabelPlacementKey(this);
+      this.state.sharedLabelPlacementKey = key;
+      this.state.labelPlacement = acquireSharedLabelPlacement(key);
+    }
+  }
+
+  /** Gives back the deck's shared placement, or releases this layer's own. */
+  private releaseLabelPlacement(): void {
+    const {labelPlacement, sharedLabelPlacementKey} = this.state;
+    if (sharedLabelPlacementKey) {
+      releaseSharedLabelPlacement(sharedLabelPlacementKey);
+    } else {
+      labelPlacement?.destroy();
+    }
+    this.state.labelPlacement = null;
+    this.state.sharedLabelPlacementKey = null;
   }
 
   private clearSourceTilesets(): void {
@@ -370,7 +423,9 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
 
   /** The label placement, with the interval of the current props. */
   private getLabelPlacement(): LabelPlacement {
-    const {labelPlacement} = this.state;
+    this.updateLabelPlacement();
+    const labelPlacement = this.state.labelPlacement!;
+    // A shared placement takes the interval of the last of its layers rendered.
     labelPlacement.interval = Math.max(0, Number(this.props.labelPlacementInterval) || 0);
     return labelPlacement;
   }

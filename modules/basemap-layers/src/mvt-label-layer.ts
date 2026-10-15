@@ -1,8 +1,11 @@
 import {CompositeLayer} from '@deck.gl/core';
 import type {DefaultProps, Layer, LayerContext, UpdateParameters, Viewport} from '@deck.gl/core';
 import {
+  acquireSharedLabelPlacement,
+  getSharedLabelPlacementKey,
   LabelPlacement,
   LabelPlacementExtension,
+  releaseSharedLabelPlacement,
   type PlacementLayer,
   type PlacementShape,
   type PlacementSymbol,
@@ -343,18 +346,6 @@ function getGlobeDrawnAngle(
   return keepUpright && dx < 0 ? angle + Math.PI : angle;
 }
 
-/** The placement of each deck's label layers made without one, and how many layers use it. */
-const sharedPlacements = new WeakMap<object, {placement: LabelPlacement; users: number}>();
-
-/** A label layer stops using its deck's shared placement, which is released with its last user. */
-function releaseSharedPlacement(key: object | null | undefined): void {
-  const shared = key && sharedPlacements.get(key);
-  if (shared && --shared.users === 0) {
-    shared.placement.destroy();
-    sharedPlacements.delete(key);
-  }
-}
-
 /** What placement needs of a label layer's rows that does not change with the view. */
 type PlacementGeometry = {
   key: unknown[];
@@ -424,6 +415,8 @@ type MVTLabelLayerState = {
   placementHandle?: PlacementLayer & {layer: MVTLabelLayer};
   /** The deck whose shared placement this layer uses, without a `labelPlacement` prop. */
   sharedPlacementKey?: object | null;
+  /** The shared placement of `sharedPlacementKey`. */
+  sharedPlacement?: LabelPlacement | null;
   /** The first of this layer's placement slots, one per row in `getRows` order. */
   placementSlotBase?: number;
   /** Changes with every update, so a placement made before it is made again. */
@@ -2231,8 +2224,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       if (this.state.placementHandle) {
         this.state.placement?.unregister(this.state.placementHandle);
       }
-      releaseSharedPlacement(this.state.sharedPlacementKey);
+      releaseSharedLabelPlacement(this.state.sharedPlacementKey);
       this.state.sharedPlacementKey = null;
+      this.state.sharedPlacement = null;
     }
   }
 
@@ -2401,19 +2395,18 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /** The placement this layer's labels take part in: its prop's, or its deck's shared one. */
   getLabelPlacement(): LabelPlacement {
     if (this.props.labelPlacement) {
-      releaseSharedPlacement(this.state.sharedPlacementKey);
+      releaseSharedLabelPlacement(this.state.sharedPlacementKey);
       this.state.sharedPlacementKey = null;
+      this.state.sharedPlacement = null;
       return this.props.labelPlacement;
     }
     // Label layers made without a placement, as by `getBasemapLayers` alone, place together.
     if (!this.state.sharedPlacementKey) {
-      const key = (this.context as {layerManager?: object})?.layerManager || this.context || this;
+      const key = getSharedLabelPlacementKey(this);
       this.state.sharedPlacementKey = key;
-      const shared = sharedPlacements.get(key) || {placement: new LabelPlacement(), users: 0};
-      shared.users++;
-      sharedPlacements.set(key, shared);
+      this.state.sharedPlacement = acquireSharedLabelPlacement(key);
     }
-    return sharedPlacements.get(this.state.sharedPlacementKey)!.placement;
+    return this.state.sharedPlacement!;
   }
 
   /** Registers with the placement, for the current rows. */
@@ -2430,7 +2423,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         isDrawnIn: viewport => handle!.layer.isDrawnIn(viewport),
         getPlacementSymbols: (viewport, base, out) =>
           handle!.layer.getPlacementSymbols(viewport, base, out),
-        setNeedsRedraw: () => handle!.layer.setNeedsRedraw()
+        setNeedsRedraw: () => handle!.layer.setNeedsRedraw(),
+        getPlacementRoot: () => handle!.layer.getPlacementRoot()
       };
       this.state.placementHandle = handle;
     }
@@ -2508,7 +2502,28 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       }
       context.layer = parent;
     }
-    return true;
+    // The deck's `layerFilter`, which deck.gl asks of the topmost parent.
+    const layerFilter = (this.context as {deck?: {props?: {layerFilter?: unknown}}})?.deck?.props
+      ?.layerFilter;
+    return typeof layerFilter === 'function' ? Boolean(layerFilter(context)) : true;
+  }
+
+  /**
+   * `PlacementLayer.getPlacementRoot`: the deck layer this layer is drawn under, and the deck's
+   * layers in draw order, so that the labels of a layer drawn over another (as a second
+   * `BasemapLayer`) are placed first.
+   */
+  getPlacementRoot(): {root: object; layers: readonly object[]} | null {
+    const layerManager = (this.context as {layerManager?: {getLayers?: () => Layer[]}})
+      ?.layerManager;
+    if (!layerManager?.getLayers) {
+      return null;
+    }
+    let root: Layer = this;
+    while (root.parent) {
+      root = root.parent;
+    }
+    return {root, layers: layerManager.getLayers()};
   }
 
   /**

@@ -309,6 +309,45 @@ describe('LabelPlacement', () => {
     expect(textVisibility(device, 2)).toEqual([false, true]);
   });
 
+  test('layers under a later deck layer are placed first, whatever their placement order', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 0;
+    // Two basemaps, the second drawn over the first, each with a bottom and a top style layer.
+    const first = {id: 'first'};
+    const second = {id: 'second'};
+    const deckLayers = [first, {id: 'first-tiles'}, second, {id: 'second-tiles'}];
+    const under = (root: object, order: number, xs: number[]) => ({
+      ...fakeLayer(order, xs),
+      getPlacementRoot: () => ({root, layers: deckLayers})
+    });
+    // Registered first-basemap first, and its top style layer above any of the second's.
+    placement.register(under(first, 2, [0]));
+    placement.register(under(first, 1, [100]));
+    placement.register(under(second, 1, [10]));
+    placement.register(under(second, 0, [110, 120]));
+    const device = fakeDevice();
+    placement.prepare(device as any, fakeViewport(), false, 0);
+    // The second basemap's labels are placed first: its label at 10 hides the first's at 0, and
+    // its label at 110 hides the first's at 100, though that style layer's order is higher. Its
+    // label at 120 overlaps its own at 110.
+    expect(textVisibility(device, 5)).toEqual([false, false, true, true, false]);
+  });
+
+  test('without a deck layer, layers are placed by their placement order, as before', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 0;
+    const root = {};
+    placement.register({
+      ...fakeLayer(1, [0]),
+      getPlacementRoot: () => ({root, layers: [root]})
+    });
+    placement.register({...fakeLayer(2, [10]), getPlacementRoot: () => null});
+    const device = fakeDevice();
+    placement.prepare(device as any, fakeViewport(), false, 0);
+    // A layer under a deck layer goes before those without one, whatever its order.
+    expect(textVisibility(device, 2)).toEqual([true, false]);
+  });
+
   test('picking reads the last placement and never places', () => {
     const placement = new LabelPlacement();
     placement.interval = 0;
@@ -767,6 +806,37 @@ describe('MVTLabelLayer placement symbols', () => {
     parent.props.visible = true;
     layer.props = {...layer.props, visible: false};
     expect(layer.isDrawnIn({id: 'a'})).toBe(false);
+  });
+
+  test("is not drawn in a view the deck's layerFilter keeps its topmost parent out of", () => {
+    const layer = labelLayer({'text-field': 'x'}, [{properties: {}, x: 0}]);
+    const root = {id: 'overlay', props: {visible: true}, parent: null, filterSubLayer: () => true};
+    layer.parent = root;
+    const filtered: string[] = [];
+    layer.context = {
+      deck: {
+        props: {
+          layerFilter: ({layer: filteredLayer, viewport}: any) => {
+            filtered.push(filteredLayer.id);
+            return viewport.id === 'left';
+          }
+        }
+      }
+    };
+    expect(layer.isDrawnIn({id: 'left'})).toBe(true);
+    expect(layer.isDrawnIn({id: 'right'})).toBe(false);
+    expect(filtered).toEqual(['overlay', 'overlay']);
+  });
+
+  test('its deck layer is its topmost parent, among the layers of its deck', () => {
+    const layer = labelLayer({'text-field': 'x'}, [{properties: {}, x: 0}]);
+    const root = {id: 'basemap', parent: null};
+    layer.parent = {id: 'tiles', parent: root};
+    const deckLayers = [root, layer.parent, layer];
+    layer.context = {layerManager: {getLayers: () => deckLayers}};
+    expect(layer.getPlacementRoot()).toEqual({root, layers: deckLayers});
+    layer.context = {};
+    expect(layer.getPlacementRoot()).toBe(null);
   });
 
   test('reads the placement rules, *-overlap over *-allow-overlap', () => {

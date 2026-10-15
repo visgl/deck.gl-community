@@ -175,6 +175,14 @@ export interface PlacementLayer {
   ): SymbolPlacementRules | null;
   /** Requests another frame, while a placement waits for the throttle. */
   setNeedsRedraw(): void;
+  /**
+   * The deck layer the layer is drawn under (its topmost parent, or itself), and the deck's layers
+   * in draw order. Of two layers under different deck layers, the one under the later deck layer
+   * is placed first, as MapLibre GL JS places the layers drawn over others first; the placement
+   * order decides only between layers under the same deck layer. Without it, the layer is placed
+   * by its placement order alone, before the layers that give one.
+   */
+  getPlacementRoot?(): {root: object; layers: readonly object[]} | null;
 }
 
 /** The placement of one viewport (one view of the deck). */
@@ -408,11 +416,8 @@ export class LabelPlacement {
       PLACEMENT_CELL_SIZE
     );
     view.values.fill(0);
-    const layers = [...this.layers.entries()].sort(
-      ([a], [b]) => b.getPlacementOrder() - a.getPlacementOrder()
-    );
     const symbols = this.symbols;
-    for (const [layer, {base}] of layers) {
+    for (const [layer, base] of this.getPlacementLayers()) {
       if (!layer.isDrawnIn(viewport)) {
         continue;
       }
@@ -435,6 +440,31 @@ export class LabelPlacement {
     view.dirty = true;
   }
 
+  /**
+   * The registered layers with their slot bases, in the order they are placed: under the later deck
+   * layer first, then by placement order, highest first (see `PlacementLayer.getPlacementRoot`).
+   * Layers that tie keep the order they registered in.
+   */
+  private getPlacementLayers(): [PlacementLayer, number][] {
+    let drawOrder: Map<object, number> | null = null;
+    let drawOrderLayers: readonly object[] | null = null;
+    const ranked = [...this.layers].map(([layer, {base}]) => {
+      const placementRoot = layer.getPlacementRoot?.();
+      let rootIndex = -1;
+      if (placementRoot) {
+        // The deck's layers are indexed once per placement.
+        if (placementRoot.layers !== drawOrderLayers) {
+          drawOrderLayers = placementRoot.layers;
+          drawOrder = new Map(drawOrderLayers.map((deckLayer, index) => [deckLayer, index]));
+        }
+        rootIndex = drawOrder!.get(placementRoot.root) ?? -1;
+      }
+      return {layer, base, rootIndex, order: layer.getPlacementOrder()};
+    });
+    ranked.sort((a, b) => b.rootIndex - a.rootIndex || b.order - a.order);
+    return ranked.map(({layer, base}) => [layer, base]);
+  }
+
   /** Releases the textures. */
   destroy(): void {
     for (const view of this.views.values()) {
@@ -442,6 +472,38 @@ export class LabelPlacement {
     }
     this.views.clear();
   }
+}
+
+/** The placement shared by the label layers of each deck, and how many users it has. */
+const sharedPlacements = new WeakMap<object, {placement: LabelPlacement; users: number}>();
+
+/**
+ * Takes a use of the placement shared by the label layers of the deck that `key` names (its layer
+ * manager), made at the first use. Each use is given back with `releaseSharedLabelPlacement`.
+ */
+export function acquireSharedLabelPlacement(key: object): LabelPlacement {
+  let shared = sharedPlacements.get(key);
+  if (!shared) {
+    shared = {placement: new LabelPlacement(), users: 0};
+    sharedPlacements.set(key, shared);
+  }
+  shared.users++;
+  return shared.placement;
+}
+
+/** Gives back a use of a deck's shared placement, which is released with its last use. */
+export function releaseSharedLabelPlacement(key: object | null | undefined): void {
+  const shared = key && sharedPlacements.get(key);
+  if (shared && --shared.users === 0) {
+    shared.placement.destroy();
+    sharedPlacements.delete(key);
+  }
+}
+
+/** The key of the shared placement of a layer's deck: its layer manager. */
+export function getSharedLabelPlacementKey(layer: {context?: unknown}): object {
+  const context = layer.context as {layerManager?: object} | undefined;
+  return context?.layerManager || context || layer;
 }
 
 /** Props that `LabelPlacementExtension` adds to a label sublayer. */
