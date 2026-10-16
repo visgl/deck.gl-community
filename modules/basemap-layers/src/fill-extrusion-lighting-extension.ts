@@ -96,16 +96,6 @@ vec3 fillExtrusionLighting_shade(vec3 color, vec3 normal, bool isWall, float t, 
   }
   return clamp(color * directional * lightColor, mix(vec3(0.0), vec3(0.3), 1.0 - lightColor), vec3(1.0));
 }
-
-// The normal in east, north, up at a longitude and latitude on deck.gl's globe.
-vec3 fillExtrusionLighting_globeToLocal(vec3 normal, vec2 lngLat) {
-  float lambda = radians(lngLat.x);
-  float phi = radians(lngLat.y);
-  vec3 east = vec3(cos(lambda), sin(lambda), 0.0);
-  vec3 north = vec3(-sin(lambda) * sin(phi), cos(lambda) * sin(phi), cos(phi));
-  vec3 up = vec3(sin(lambda) * cos(phi), -cos(lambda) * cos(phi), sin(phi));
-  return vec3(dot(normal, east), dot(normal, north), dot(normal, up));
-}
 `;
 
 const fillExtrusionLighting: ShaderModule<FillExtrusionLightingProps> = {
@@ -132,12 +122,12 @@ float fillExtrusionLighting_height;
 `,
     // The layer is unlit (see FILL_EXTRUSION_MATERIAL), so color is the extrusion's own.
     'vs:DECKGL_FILTER_COLOR': /* glsl */ `
+  // The light is placed relative to the ground under the building: east, north and up. On a
+  // globe, deck.gl turns a roof's normal into globe space (project_normal), but leaves the walls
+  // of longitude/latitude polygons in east and north (project_offset_normal). A roof faces up.
   vec3 fillExtrusionLighting_normal = geometry.normal;
-  if (project.projectionMode == PROJECTION_MODE_GLOBE) {
-    fillExtrusionLighting_normal = fillExtrusionLighting_globeToLocal(
-      fillExtrusionLighting_normal,
-      geometry.worldPosition.xy
-    );
+  if (project.projectionMode == PROJECTION_MODE_GLOBE && !fillExtrusionLighting_isWall) {
+    fillExtrusionLighting_normal = vec3(0.0, 0.0, 1.0);
   }
   color.rgb = fillExtrusionLighting_shade(
     color.rgb,

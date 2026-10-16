@@ -531,8 +531,7 @@ describe('shader injection targets in the installed deck.gl', () => {
           ...(walls ? ['positions'] : []),
           'project.projectionMode',
           'PROJECTION_MODE_GLOBE',
-          'geometry.normal',
-          'geometry.worldPosition'
+          'geometry.normal'
         ]
       });
       // The hook must shade the color that deck.gl's lighting left, after the normal is set.
