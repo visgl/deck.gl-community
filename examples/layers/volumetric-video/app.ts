@@ -227,6 +227,7 @@ export function mountVolumetricVideoExample(
   let requestedBackend: 'webgl' | 'webgpu' =
     options.device?.type === 'webgpu' || (!options.device && PREFER_WEBGPU) ? 'webgpu' : 'webgl';
   let useWebGPU = requestedBackend === 'webgpu';
+  let backendRequestGeneration = 0;
   let deckGeneration = 0;
   let backendSwitching = false;
   let preserveVideoState = false;
@@ -618,16 +619,16 @@ export function mountVolumetricVideoExample(
     if (options.device || destroyed || backendSwitching || backend === requestedBackend) return;
     backendSwitching = true;
     requestedBackend = backend;
-    const generation = ++deckGeneration;
+    const requestGeneration = ++backendRequestGeneration;
     syncBackendControls();
     try {
       if (backend === 'webgpu' && !(await supportsWebGPU())) {
-        if (destroyed || generation !== deckGeneration) return;
+        if (destroyed || requestGeneration !== backendRequestGeneration) return;
         requestedBackend = useWebGPU ? 'webgpu' : 'webgl';
         errorOutput.textContent = 'WebGPU is unavailable in this browser. Continuing with WebGL2.';
         return;
       }
-      if (destroyed || generation !== deckGeneration) return;
+      if (destroyed || requestGeneration !== backendRequestGeneration) return;
       setPlaying(false);
       preserveVideoState = true;
       pending = true;
@@ -638,6 +639,7 @@ export function mountVolumetricVideoExample(
       deck = undefined;
       useWebGPU = backend === 'webgpu';
       backendOutput.textContent = 'SWITCHING…';
+      const generation = ++deckGeneration;
       deck = createDeck(useWebGPU, generation);
       options.onDeckInitialized?.(deck as Deck<OrbitView>);
       const url = new URL(window.location.href);
@@ -655,13 +657,14 @@ export function mountVolumetricVideoExample(
   }
 
   async function initializeDeck() {
-    const generation = ++deckGeneration;
+    const requestGeneration = ++backendRequestGeneration;
     if (!options.device && requestedBackend === 'webgpu' && !(await supportsWebGPU())) {
-      if (destroyed || generation !== deckGeneration) return;
+      if (destroyed || requestGeneration !== backendRequestGeneration) return;
       requestedBackend = 'webgl';
     }
-    if (destroyed || generation !== deckGeneration) return;
+    if (destroyed || requestGeneration !== backendRequestGeneration) return;
     useWebGPU = requestedBackend === 'webgpu';
+    const generation = ++deckGeneration;
     deck = createDeck(useWebGPU, generation);
     options.onDeckInitialized?.(deck as Deck<OrbitView>);
     updateLayer();
@@ -674,6 +677,7 @@ export function mountVolumetricVideoExample(
   void initializeDeck();
   return () => {
     destroyed = true;
+    backendRequestGeneration++;
     deckGeneration++;
     cancelAnimationFrame(animation);
     deck?.finalize();

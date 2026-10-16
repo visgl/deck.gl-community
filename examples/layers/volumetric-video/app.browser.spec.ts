@@ -181,6 +181,49 @@ describe('mounted volumetric video demo', () => {
     }
   }, 35_000);
 
+  // Value: protects=an unavailable WebGPU request leaves the working WebGL decoder and callbacks intact;
+  // fails_when=the failed capability probe invalidates the existing Deck and strands the loading UI;
+  // why_new=successful backend changes replace their Deck; seam=failed WebGPU capability probe.
+  it('keeps the active WebGL volume live when a WebGPU switch is unavailable', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    const gpu = (navigator as Navigator & {gpu: {requestAdapter: () => Promise<unknown>}}).gpu;
+    let cleanup: (() => void) | undefined;
+    let requestAdapter: {mockRestore: () => void} | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent);
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu'),
+        {timeout: 15_000}
+      );
+      const webgl = element<HTMLButtonElement>('[data-backend-option="webgl"]');
+      webgl.click();
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88'),
+        {timeout: 15_000}
+      );
+      requestAdapter = vi
+        .spyOn(gpu, 'requestAdapter')
+        .mockRejectedValueOnce(new Error('Adapter unavailable'));
+      element<HTMLButtonElement>('[data-backend-option="webgpu"]').click();
+      await vi.waitFor(
+        () => expect(element('#vv-error').textContent).toContain('WebGPU is unavailable'),
+        {timeout: 5_000}
+      );
+      expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+      expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+      expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(false);
+      expect(webgl.getAttribute('aria-pressed')).toBe('true');
+    } finally {
+      cleanup?.();
+      requestAdapter?.mockRestore();
+      parent.remove();
+    }
+  }, 35_000);
+
   // Value: protects=automatic recovery restores playback with the latest filter state;
   // fails_when=a successful visibility retry never reports readiness to the mounted UI or applies
   // settings from a replaced layer instance;
