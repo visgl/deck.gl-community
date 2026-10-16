@@ -35,6 +35,7 @@ it('defaults to citrus and combines specimen controls with a mixed-species grove
   try {
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(0);
     expect(deck.getViewports()[0].zoom).toBeGreaterThan(21);
+    const initialZoom = deck.getViewports()[0].zoom;
     const initial = trees()!;
     const initialData = initial.props.data as TreeSpec[];
     expect(initialData).toHaveLength(1);
@@ -57,6 +58,7 @@ it('defaults to citrus and combines specimen controls with a mixed-species grove
     wind.checked = true;
     wind.dispatchEvent(new Event('input', {bubbles: true}));
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(1);
+    expect(deck.getViewports()[0].zoom).toBeLessThan(initialZoom);
     const winter = trees()!;
     expect(winter.props.data).toBe(initialData);
     const updatedCitrus = (winter.props.getTree as (tree: TreeSpec) => TreeSpec)(initialData[0]);
@@ -72,6 +74,7 @@ it('defaults to citrus and combines specimen controls with a mixed-species grove
 
     change('species', 'oak');
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(2);
+    expect(deck.getViewports()[0].zoom).toBeLessThan(initialZoom);
     const oak = trees()!;
     expect(oak.props.data).not.toBe(initialData);
     expect(oak.props.data).toHaveLength(1);
@@ -125,6 +128,54 @@ it('defaults to citrus and combines specimen controls with a mixed-species grove
     ).crop;
     expect(cherryBlossom).toMatchObject({kind: 'flower', count: 20});
     expect(errors).toEqual([]);
+  } finally {
+    cleanup();
+    expect(parent.querySelector('canvas')).toBeNull();
+    parent.remove();
+  }
+}, 60000);
+
+it('restores the selected scene with its camera when the rendering device remounts', async () => {
+  const parent = document.createElement('div');
+  Object.assign(parent.style, {width: '800px', height: '600px'});
+  document.body.append(parent);
+  let deck!: Deck<MapView>;
+  let frames = 0;
+  const onDeckInitialized = (instance: Deck<MapView>) => {
+    deck = instance;
+    instance.setProps({onAfterRender: () => frames++});
+  };
+  let cleanup = mountTreeLabExample(parent, {onDeckInitialized});
+  try {
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(0);
+    const scene = parent.querySelector<HTMLSelectElement>('[name="scene"]')!;
+    scene.value = 'grove';
+    scene.dispatchEvent(new Event('input', {bubbles: true}));
+    const season = parent.querySelector<HTMLSelectElement>('[name="season"]')!;
+    season.value = 'winter';
+    season.dispatchEvent(new Event('input', {bubbles: true}));
+    const groveViewState = deck.props.initialViewState!;
+    cleanup();
+    frames = 0;
+
+    cleanup = mountTreeLabExample(parent, {
+      initialViewState: groveViewState,
+      onDeckInitialized
+    });
+
+    expect(parent.querySelector<HTMLSelectElement>('[name="scene"]')?.value).toBe('grove');
+    expect(parent.querySelector<HTMLSelectElement>('[name="season"]')?.value).toBe('winter');
+    const trees = deck.props.layers.find(
+      layer =>
+        Boolean(layer) &&
+        !Array.isArray(layer) &&
+        typeof layer === 'object' &&
+        'id' in layer &&
+        layer.id === 'trees'
+    ) as TreeLayer<TreeSpec> | undefined;
+    expect(trees?.props.data).toHaveLength(8);
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(0);
+    expect(deck.getViewports()[0].zoom).toBeCloseTo(groveViewState.zoom);
   } finally {
     cleanup();
     expect(parent.querySelector('canvas')).toBeNull();

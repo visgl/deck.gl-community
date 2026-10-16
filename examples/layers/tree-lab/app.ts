@@ -35,6 +35,29 @@ const SPECIES: TreeType[] = [
 const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
 type Scene = 'specimen' | 'grove';
 type ShowcaseTree = TreeSpec & {label?: string};
+type TreeLabControls = {
+  scene: Scene;
+  species: TreeType;
+  season: Season;
+  height: number;
+  spread: number;
+  depth: number;
+  branchDensity: number;
+  leafSize: number;
+  wind: boolean;
+};
+const DEFAULT_CONTROLS: TreeLabControls = {
+  scene: 'specimen',
+  species: 'citrus',
+  season: 'summer',
+  height: 1,
+  spread: 1,
+  depth: 1,
+  branchDensity: 1,
+  leafSize: 1,
+  wind: false
+};
+const controlsByContainer = new WeakMap<HTMLElement, TreeLabControls>();
 const TREE_HEIGHTS: Record<TreeType, number> = {
   citrus: 4.8,
   banyan: 18,
@@ -91,22 +114,31 @@ export function mountTreeLabExample(
   container: HTMLElement,
   options: MountOptions = {}
 ): () => void {
+  const controls = {...DEFAULT_CONTROLS, ...controlsByContainer.get(container)};
+  const traitValues = {
+    height: controls.height,
+    spread: controls.spread,
+    depth: controls.depth,
+    'branch-density': controls.branchDensity,
+    'leaf-size': controls.leafSize
+  };
   const root = container.ownerDocument.createElement('div');
   root.className = 'trees-demo';
   root.innerHTML = `<div class="trees-controls">
     <div class="trees-heading"><strong>TreeLayer</strong><span>One showcase · every species and season</span></div>
-    <label class="trees-select"><span>Scene</span><select name="scene"><option value="specimen" selected>Citrus specimen</option><option value="grove">Mixed-species grove · 8 trees</option></select></label>
+    <label class="trees-select"><span>Scene</span><select name="scene"><option value="specimen"${controls.scene === 'specimen' ? ' selected' : ''}>Citrus specimen</option><option value="grove"${controls.scene === 'grove' ? ' selected' : ''}>Mixed-species grove · 8 trees</option></select></label>
     <label class="trees-select trees-species"><span>Species</span><select name="species">${SPECIES.map(
-      species => `<option value="${species}">${species}</option>`
+      species =>
+        `<option value="${species}"${species === controls.species ? ' selected' : ''}>${species}</option>`
     ).join('')}</select></label>
     <label class="trees-select"><span>Season</span><select name="season">${SEASONS.map(
-      season => `<option${season === 'summer' ? ' selected' : ''}>${season}</option>`
+      season => `<option${season === controls.season ? ' selected' : ''}>${season}</option>`
     ).join('')}</select></label>
     ${TREE_TRAITS.map(
       trait =>
-        `<label class="trees-range"><span>${trait.label}</span><input name="${trait.name}" type="range" min="${trait.min}" max="${trait.max}" step="${trait.step}" value="${trait.value}"><output name="${trait.name}-value">${trait.value.toFixed(1)}${trait.unit}</output></label>`
+        `<label class="trees-range"><span>${trait.label}</span><input name="${trait.name}" type="range" min="${trait.min}" max="${trait.max}" step="${trait.step}" value="${traitValues[trait.name]}"><output name="${trait.name}-value">${traitValues[trait.name].toFixed(1)}${trait.unit}</output></label>`
     ).join('')}
-    <label class="trees-toggle"><input name="wind" type="checkbox"><span>Gentle breeze</span></label>
+    <label class="trees-toggle"><input name="wind" type="checkbox"${controls.wind ? ' checked' : ''}><span>Gentle breeze</span></label>
   </div><div class="trees-stage"></div>`;
   container.append(root);
   const stage = root.querySelector<HTMLDivElement>('.trees-stage')!;
@@ -121,15 +153,29 @@ export function mountTreeLabExample(
   });
   let cachedSpecies: TreeType | undefined;
   let cachedData: TreeSpec[] = [];
+  const initialViewState =
+    options.initialViewState ??
+    getViewState(
+      stage.clientWidth,
+      stage.clientHeight,
+      controls.scene,
+      controls.species,
+      controls.height,
+      controls.spread,
+      controls.depth
+    );
+  let currentViewState = initialViewState;
   const deck = new Deck<MapView>({
     ...options,
     parent: stage,
     views: new MapView(),
-    initialViewState: options.initialViewState ?? {
-      ...getViewState(stage.clientWidth, stage.clientHeight, 'specimen')
-    },
+    initialViewState,
     controller: true,
     useDevicePixels: 1,
+    onViewStateChange: params => {
+      currentViewState = params.viewState;
+      return options.onViewStateChange?.(params) ?? params.viewState;
+    },
     getTooltip: ({object}) => object?.species ?? null,
     effects: [lighting],
     layers: []
@@ -217,13 +263,35 @@ export function mountTreeLabExample(
     });
   };
   const onInput = (event: Event) => {
-    if ((event.target as HTMLSelectElement).name === 'scene') {
+    const name = (event.target as HTMLInputElement | HTMLSelectElement).name;
+    controls.scene = control<HTMLSelectElement>('scene').value as Scene;
+    controls.species = control<HTMLSelectElement>('species').value as TreeType;
+    controls.season = control<HTMLSelectElement>('season').value as Season;
+    controls.height = Number(control<HTMLInputElement>('height').value);
+    controls.spread = Number(control<HTMLInputElement>('spread').value);
+    controls.depth = Number(control<HTMLInputElement>('depth').value);
+    controls.branchDensity = Number(control<HTMLInputElement>('branch-density').value);
+    controls.leafSize = Number(control<HTMLInputElement>('leaf-size').value);
+    controls.wind = control<HTMLInputElement>('wind').checked;
+    controlsByContainer.set(container, {...controls});
+    if (['scene', 'species', 'height', 'spread', 'depth'].includes(name)) {
+      const fittedViewState = getViewState(
+        stage.clientWidth,
+        stage.clientHeight,
+        controls.scene,
+        controls.species,
+        controls.height,
+        controls.spread,
+        controls.depth
+      );
       deck.setProps({
-        initialViewState: getViewState(
-          stage.clientWidth,
-          stage.clientHeight,
-          control<HTMLSelectElement>('scene').value as Scene
-        )
+        initialViewState: {
+          ...fittedViewState,
+          longitude: currentViewState.longitude ?? fittedViewState.longitude,
+          latitude: currentViewState.latitude ?? fittedViewState.latitude,
+          bearing: currentViewState.bearing ?? fittedViewState.bearing,
+          pitch: currentViewState.pitch ?? fittedViewState.pitch
+        }
       });
     }
     render();
@@ -237,13 +305,23 @@ export function mountTreeLabExample(
   };
 }
 
-function getViewState(width: number, height: number, scene: Scene) {
+function getViewState(
+  width: number,
+  height: number,
+  scene: Scene,
+  species: TreeType,
+  heightScale: number,
+  spread: number,
+  depth: number
+) {
   const scale = Math.max(0.25, Math.min(width / 400, height / 600));
+  const speciesScale = scene === 'specimen' ? TREE_HEIGHTS[species] / TREE_HEIGHTS.citrus : 1;
+  const treeScale = Math.max(speciesScale * heightScale, spread, depth);
   return {
     longitude: 0,
     latitude: 0,
     maxZoom: 24,
-    zoom: (scene === 'specimen' ? 22.4 : 20.2) + Math.log2(scale),
+    zoom: (scene === 'specimen' ? 22.4 : 20.2) + Math.log2(scale) - Math.log2(treeScale) * 0.8,
     pitch: scene === 'specimen' ? 45 : 38,
     bearing: scene === 'specimen' ? 20 : 0
   };
