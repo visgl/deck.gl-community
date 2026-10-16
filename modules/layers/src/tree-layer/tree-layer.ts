@@ -107,7 +107,7 @@ const TREE_PROPORTIONS: Record<TreeType, [number, number, number, number]> = {
 const DEFAULT_TRUNK_COLORS: Record<TreeType, Color> = {
   pine: [80, 50, 20, 255],
   oak: [91, 57, 23, 255],
-  palm: [140, 100, 55, 255],
+  palm: [188, 150, 94, 255],
   birch: [220, 215, 205, 255], // white-grey birch bark
   cherry: [100, 60, 40, 255],
   banyan: [145, 137, 117, 255],
@@ -911,7 +911,10 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               getSource: getTreeSplatData(type, levels, characteristics),
               transparency: hasDenseCanopy ? 'weighted' : 'sorted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
-              pixelError: type === 'palm' ? 0.65 : 2.5,
+              // Preserve full crown texture in the species lab; dense groves trade detail
+              // for a bounded shared splat budget and recover detail when zoomed in.
+              pixelError: hasDenseCanopy ? 2.5 : type === 'palm' ? 0.3 : 0.75,
+              support: 1.5,
               maxRenderPixels: this.props.maxCanopyPixels,
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),

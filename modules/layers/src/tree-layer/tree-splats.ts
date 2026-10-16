@@ -66,62 +66,64 @@ export function getTreeSplatSource(
     normals.push(...n);
   };
   if (type === 'palm') {
-    // Broad pinnate fronds share their rachis paths with the connected wood template.
-    const leafletCount = 16;
+    // Leaflets are splats; the matching wood template already supplies each frond rachis.
+    const leafletCount = 18;
     for (const frond of getPalmFronds()) {
       const {angle, spear} = frond;
       const evaluate = (t: number) => new Vector3(evaluatePalmFrond(frond, t));
-      const pairs = spear ? 9 : leafletCount;
-      if (!spear) {
-        for (let segment = 0; segment < 12; segment++) {
-          const t = 0.09 + (segment / 11) * 0.84;
+      if (spear) {
+        for (let j = 0; j < 7; j++) {
+          const t = 0.2 + (j / 6) * 0.74;
           const point = evaluate(t);
           const tangent = evaluate(t + 0.001)
             .subtract(evaluate(t - 0.001))
             .normalize();
           const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
+          const fullness = Math.sin(((j + 0.5) / 7) * Math.PI);
+          const normal = new Vector3(tangent).cross(sideways).normalize();
           add(
             Array.from(point) as Point,
-            [0.055, 0.0045, 0.002],
-            Array.from(sideways) as Point,
+            [0.042 + fullness * 0.028, 0.008 + fullness * 0.01, 0.002],
+            Array.from(normal) as Point,
             0.82,
             Array.from(tangent) as Point,
-            [0.72, 0.84, 0.62]
+            [0.9, 1.04, 0.86]
           );
         }
+        continue;
       }
+
+      const pairs = leafletCount;
       for (let j = 0; j < pairs; j++) {
-        const t = 0.2 + (j / (pairs - 1)) * 0.72;
+        const t = 0.28 + (frond.tier / 3) * 0.18 + (j / (pairs - 1)) * 0.55;
         const point = evaluate(t);
         const tangent = evaluate(t + 0.001)
           .subtract(evaluate(t - 0.001))
           .normalize();
         const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
-        const fullness = Math.sin(((j + 0.75) / pairs) * Math.PI);
+        const fullness = Math.sin(((j + 0.5) / pairs) * Math.PI);
         for (const side of [-1, 1]) {
           const direction = new Vector3(sideways)
             .scale(side)
-            .add(new Vector3(tangent).scale(0.2 + Math.sin(angle + j * 0.7) * 0.06))
-            .add([0, 0, -0.06 - t * 0.24])
+            .add(new Vector3(tangent).scale(0.16 + Math.sin(angle + j * 0.7) * 0.08))
+            .add([0, 0, -0.1 - t * 0.3])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = (0.065 + fullness * 0.13) * (0.9 + rng() * 0.2);
-          const width = (0.007 + fullness * 0.011) * (0.9 + rng() * 0.2);
-          // Two tapered ellipsoids overlap along the blade, reading as a leaf at distance
-          // without the segmented, three-lobed halo of a dense Gaussian chain.
+          const length = (0.085 + fullness * 0.15) * (0.88 + rng() * 0.24);
           for (const [progress, widthScale] of [
-            [0.31, 0.92],
-            [0.7, 0.62]
+            [0.3, 1],
+            [0.72, 0.62]
           ]) {
             const center = new Vector3(point)
-              .add(new Vector3(sideways).scale(side * 0.004))
+              .add(new Vector3(sideways).scale(side * 0.006))
               .add(new Vector3(direction).scale(length * progress));
             add(
               Array.from(center) as Point,
-              [length * 0.34, width * widthScale, 0.002],
+              [length * 0.48 * widthScale, (0.006 + fullness * 0.008) * widthScale, 0.002],
               Array.from(normal) as Point,
-              0.88,
-              Array.from(direction) as Point
+              progress < 0.5 ? 0.78 : 0.68,
+              Array.from(direction) as Point,
+              [0.91, 1.04, 0.88]
             );
           }
         }
