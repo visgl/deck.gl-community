@@ -141,14 +141,8 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
   let slot = i32(input.videoFrame) % i32(volumetricVideo.capacity);
   var result = vec4<f32>(0.0);
   if (filteredMix > 0.0) {
-    result = textureSampleGrad(
-      filteredFrames,
-      filteredFramesSampler,
-      clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0)),
-      slot,
-      uvx,
-      uvy
-    );
+    let uv = clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0));
+    result = textureSampleGrad(filteredFrames, filteredFramesSampler, uv, slot, uvx, uvy);
   }
   if (filteredMix < 1.0) {
     let size = volumetricVideo.splatSize;
