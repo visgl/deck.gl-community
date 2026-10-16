@@ -433,7 +433,7 @@ it('keeps sorted prepared rows on the prepared backend when blending mode change
   expect(layer.renderLayers().some(child => child.id.includes('refinement'))).toBe(true);
 });
 
-it('routes sorted Cartesian prepared assets through the shared scene renderer', () => {
+it('routes sorted Cartesian prepared owner rows through the shared scene renderer', () => {
   const layer = make(
     [{position: [0, 0, 0]}],
     0,
@@ -446,6 +446,7 @@ it('routes sorted Cartesian prepared assets through the shared scene renderer', 
     new OrthographicViewport({width: 256, height: 256})
   );
   expect(layer.state.scene).toBe(true);
+  expect(layer.renderLayers().some(child => child.id.endsWith('-scene'))).toBe(true);
 
   const directAssetLayer = make(
     SOURCE as never,
@@ -457,7 +458,8 @@ it('routes sorted Cartesian prepared assets through the shared scene renderer', 
     },
     new OrthographicViewport({width: 256, height: 256})
   );
-  expect(directAssetLayer.state.scene).toBe(true);
+  expect(directAssetLayer.state.scene).toBe(false);
+  expect(directAssetLayer.renderLayers().some(child => child.id.includes('refinement'))).toBe(true);
 
   const opticalDepthLayer = make(
     [{position: [0, 0, 0]}],

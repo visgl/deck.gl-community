@@ -50,7 +50,7 @@ new SplatLayer({data: objects, getSource: asset});
 
 Keep the descriptor stable with the source and hierarchy. A direct asset's function accessors and
 picking receive its implicit owner; row accessors and picking receive the original row and index.
-`transparency: 'auto'` selects weighted blending for prepared assets and sorted rendering for file/RAD scenes. `sorted` opts prepared and scene assets into one back-to-front ordering domain; use `sortDomain` to coordinate independently ordered layers. `weighted` explicitly selects the approximate prepared-foliage path and rejects file scenes.
+`transparency: 'auto'` selects weighted blending for prepared assets and sorted rendering for file/RAD scenes. `sorted` uses the prepared compositor for direct prepared assets. Cartesian owner rows with prepared sources that do not use `opticalDepths` use the scene renderer, so those rows can share one order with file/RAD scenes and other compatible owner rows. Use `sortDomain` to coordinate scene layers. `weighted` explicitly selects the approximate prepared-foliage path and rejects file scenes.
 
 The legacy `data: objects, source, hierarchy` form remains supported. It conflicts with direct
 asset data or an explicit `getSource`; place new hierarchies in the prepared descriptor instead.
@@ -168,7 +168,7 @@ do not bound allocated GPU bytes. See [Bounded refinement](#bounded-refinement) 
 | `data` | `[]` | Direct Gaussian asset, URL/Blob, explicit file descriptor or original owner rows. |
 | `getSource` | `d => d.splats` | Constant prepared asset or per-row accessor. |
 | `source` | `null` | Compatibility template for owner rows without explicit `getSource`. |
-| `transparency` | `auto` | Weighted prepared assets or sorted scenes; `sorted` globally orders prepared and scene sources, while `weighted` rejects file scenes. |
+| `transparency` | `auto` | Weighted prepared assets or sorted scenes; `sorted` uses the prepared compositor for direct assets and the scene renderer for compatible Cartesian owner rows, while `weighted` rejects file scenes. |
 | `getPosition` | `d => d.position` | Owner position in the layer coordinate system. |
 | `getOrientation` | `[0, 0, 0]` | Pitch, yaw and roll in degrees. |
 | `getScale` | `[1, 1, 1]` | Local XYZ scale. |

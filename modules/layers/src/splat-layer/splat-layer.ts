@@ -93,7 +93,7 @@ type _SplatLayerProps<DataT> = Omit<
   /** Legacy constant-template input. Cannot be combined with explicit getSource. */
   source?: SplatSource;
   /**
-   * Auto selects weighted prepared assets or sorted scenes; explicit sorted shares an ordering domain.
+   * Auto selects weighted prepared assets or sorted scenes; compatible Cartesian owner rows can share ordering.
    * @default 'auto'
    */
   transparency?: 'auto' | 'weighted' | 'sorted';
@@ -105,7 +105,7 @@ type _SplatLayerProps<DataT> = Omit<
   maxResidentSplats?: number;
   /** Concurrent RAD downloads. Updates preserve active loads; shared sources use the lowest limit. */
   maxConcurrentLoads?: number;
-  /** Independently ordered transparent domain. Layers in the same domain share one order. */
+  /** Scene-layer ordering domain. Scene layers with the same value share one global order. */
   sortDomain?: string;
   /** Source loading, residency and refinement diagnostics. */
   onStatusChange?: (status: SplatLayerStatus) => void;
@@ -245,11 +245,12 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         props.source !== oldProps.source ||
         (sourceTriggers && (sourceTriggers.all || sourceTriggers.getSource))
     );
+    // Direct templates keep the established prepared compositor; owner rows can join scene ordering.
     const sortedCartesian =
+      Array.isArray(props.data) &&
       props.transparency === 'sorted' &&
       !sources.some(hasSplatOpticalDepths) &&
       !props._splatBudgetGroup;
-    // Cartesian prepared assets and rows in an unbudgeted sorted domain share ordering with RAD rows.
     const scene =
       isSplatSceneData(props.data) ||
       Boolean(this.state.rowSources?.some(isSplatSceneData)) ||
