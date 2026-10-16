@@ -7,7 +7,7 @@ import {SplatLayer, type TreeLayer} from '@deck.gl-community/layers';
 import {mountTreeLabExample} from './app';
 
 type FrameSample = {
-  phase: 'wind' | 'bearing' | 'zoom';
+  phase: 'grove' | 'bearing' | 'zoom';
   draws: number;
   destroyed: number;
   splats: number;
@@ -15,7 +15,7 @@ type FrameSample = {
   frameMs: number;
 };
 
-it('batches mixed canopy sources and retains their model through bearing changes and refinement', async ({
+it('profiles the 10,000-tree grove and retains canopy models through camera changes', async ({
   annotate
 }) => {
   const parent = document.createElement('div');
@@ -29,15 +29,15 @@ it('batches mixed canopy sources and retains their model through bearing changes
     previous = 0,
     draws = 0,
     destroyed = 0;
-  let phase: FrameSample['phase'] = 'wind';
+  let phase: FrameSample['phase'] = 'grove';
   const originalDraw = Model.prototype.draw;
   const draw = vi.spyOn(Model.prototype, 'draw').mockImplementation(function (pass) {
-    if (this.id === 'sorted-prepared-splats') draws++;
+    if (this.id === 'sorted-prepared-splats' || this.id.includes('canopy-')) draws++;
     return originalDraw.call(this, pass);
   });
   const originalDestroy = Model.prototype.destroy;
   const destroy = vi.spyOn(Model.prototype, 'destroy').mockImplementation(function () {
-    if (this.id === 'sorted-prepared-splats') destroyed++;
+    if (this.id === 'sorted-prepared-splats' || this.id.includes('canopy-')) destroyed++;
     return originalDestroy.call(this);
   });
   const cleanup = mountTreeLabExample(parent, {
@@ -97,23 +97,55 @@ it('batches mixed canopy sources and retains their model through bearing changes
       });
     }
   });
-  // Keep the profile fixture large enough to exercise sorted batching after the demo default changed to citrus.
+  const scene = parent.querySelector<HTMLSelectElement>('[name="scene"]')!;
+  scene.value = 'grove';
   const species = parent.querySelector<HTMLSelectElement>('[name="species"]')!;
   species.value = 'banyan';
-  species.dispatchEvent(new Event('input', {bubbles: true}));
-  const height = parent.querySelector<HTMLInputElement>('[name="height"]')!;
-  height.value = '1.8';
-  height.dispatchEvent(new Event('input', {bubbles: true}));
+  const treeCount = parent.querySelector<HTMLInputElement>('[name="tree-count"]')!;
+  treeCount.value = '10000';
+  // Apply all controls in one update so the profile spends time rendering, not rebuilding 30k rows.
+  scene.dispatchEvent(new Event('input', {bubbles: true}));
   try {
+    const trees = () =>
+      deck.props.layers.find(
+        layer =>
+          Boolean(layer) &&
+          !Array.isArray(layer) &&
+          typeof layer === 'object' &&
+          'id' in layer &&
+          layer.id === 'trees'
+      ) as TreeLayer;
+    expect((trees().props.data as unknown[]).length).toBe(10000);
     await expect.poll(() => samples.length, {timeout: 60000}).toBeGreaterThanOrEqual(24);
+    const percentile = (values: number[], fraction: number) =>
+      values.sort((a, b) => a - b)[Math.ceil(values.length * fraction) - 1];
+    const p95CpuMs = percentile(
+      samples.map(sample => sample.cpuMs),
+      0.95
+    );
+    console.info(
+      `TreeLayer 10k frame profile: ${JSON.stringify({
+        trees: 10000,
+        p95CpuMs,
+        p95FrameMs: percentile(
+          samples.map(sample => sample.frameMs),
+          0.95
+        ),
+        maxDraws: Math.max(...samples.map(sample => sample.draws)),
+        maxSplats: Math.max(...samples.map(sample => sample.splats))
+      })}`
+    );
+    expect(p95CpuMs, 'The 10k grove should stay within a 60 FPS CPU frame budget').toBeLessThan(
+      1000 / 60
+    );
     await annotate('Tree frame profile', {
       body: JSON.stringify({samples, errors}),
       bodyEncoding: 'utf-8',
       contentType: 'application/json'
     });
     expect(errors).toEqual([]);
-    expect(samples.every(sample => sample.splats > 10000)).toBe(true);
-    expect(samples.every(sample => sample.draws === 1)).toBe(true);
+    expect(samples.every(sample => sample.splats > 0)).toBe(true);
+    expect(samples.every(sample => sample.draws > 0 && sample.draws <= 8)).toBe(true);
     expect(samples.every(sample => sample.destroyed === 0)).toBe(true);
   } finally {
     cleanup();

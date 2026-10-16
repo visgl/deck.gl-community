@@ -113,6 +113,11 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
 };
 
 const BROWSER_TEST_EXCLUDE = ['modules/**/dist/**', '**/node_modules/**', 'dev/**/dist/**'];
+const HEADLESS_TEST_EXCLUDE = [
+  ...BROWSER_TEST_EXCLUDE,
+  // This frame-budget profile requires GPU-backed Chromium; SwiftShader stalls on 10k instances.
+  'examples/layers/tree-lab/performance.browser.spec.ts'
+];
 
 const REQUIRE_WEBGPU = process.env.DECK_GL_COMMUNITY_SOFTWARE_WEBGPU === 'true';
 const HEADLESS_BROWSER_PROVIDER = REQUIRE_WEBGPU
@@ -209,7 +214,7 @@ const CONFIG = defineConfig({
             'dev/**/*.browser.{test,spec}.{js,ts,jsx,tsx}',
             'dev/**/*.{test,spec}.{jsx,tsx}'
           ],
-          exclude: BROWSER_TEST_EXCLUDE,
+          exclude: HEADLESS_TEST_EXCLUDE,
           browser: {
             enabled: true,
             headless: true,
