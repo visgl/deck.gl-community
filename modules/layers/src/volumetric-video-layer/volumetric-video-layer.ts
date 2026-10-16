@@ -205,6 +205,8 @@ export class VolumetricVideoLayer<
 > extends Layer<Required<VideoProps> & ExtraProps> {
   static layerName = 'VolumetricVideoLayer';
   static defaultProps = defaultProps;
+  private appearanceRetry: ReturnType<typeof setTimeout> | undefined;
+  private appearanceRetryCount = 0;
   declare state: {
     model: Model;
     rasterModel: Model | null;
@@ -280,6 +282,7 @@ export class VolumetricVideoLayer<
   }
 
   finalizeState(): void {
+    this.clearAppearanceRetry();
     this.state.source?.destroy();
     this.state.pendingFrames?.destroy();
     this.state.frames?.destroy();
@@ -415,6 +418,7 @@ export class VolumetricVideoLayer<
       this.updateAppearance(frames);
       const recovered = this.state.filterError === frames;
       if (recovered) this.setState({filterError: null});
+      this.appearanceRetryCount = 0;
       this.setNeedsRedraw();
       if (recovered) this.reportCurrentFrameLoad(frames);
       return true;
@@ -424,8 +428,26 @@ export class VolumetricVideoLayer<
         error instanceof Error ? error : new Error(String(error)),
         'filtering video history'
       );
+      if (this.context.device.type === 'webgpu') this.queueAppearanceRetry(frames);
       return false;
     }
+  }
+
+  /** Retries transient WebGPU filtering failures after Deck's presentation pass has closed. */
+  private queueAppearanceRetry(frames: GPUVideoFrames): void {
+    if (this.appearanceRetry !== undefined || this.appearanceRetryCount >= 2) return;
+    this.appearanceRetryCount++;
+    this.appearanceRetry = setTimeout(() => {
+      this.appearanceRetry = undefined;
+      if (this.state.frames === frames && this.state.filterError === frames)
+        this.prepareAppearance(frames);
+    }, 50);
+  }
+
+  private clearAppearanceRetry(): void {
+    if (this.appearanceRetry !== undefined) clearTimeout(this.appearanceRetry);
+    this.appearanceRetry = undefined;
+    this.appearanceRetryCount = 0;
   }
 
   private reportCurrentFrameLoad(frames: GPUVideoFrames): void {
@@ -479,6 +501,7 @@ export class VolumetricVideoLayer<
   }
 
   private async loadVideo(): Promise<void> {
+    this.clearAppearanceRetry();
     this.state.source?.destroy();
     this.state.pendingFrames?.destroy();
     this.state.frames?.destroy();
@@ -591,6 +614,7 @@ export class VolumetricVideoLayer<
               return;
             }
             const oldFrames = layer.state.frames;
+            layer.clearAppearanceRetry();
             layer.setState({frames, pendingFrames: null, filterError: null});
             oldFrames?.destroy();
           } else if (layer.state.frames !== frames || layer.state.pendingFrames) return;

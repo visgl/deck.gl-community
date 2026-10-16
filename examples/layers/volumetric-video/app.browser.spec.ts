@@ -59,10 +59,10 @@ describe('mounted volumetric video demo', () => {
     }
   }, 35_000);
 
-  // Value: protects=draw recovery restores playback and clears the demo's error state;
+  // Value: protects=automatic recovery restores playback and clears the demo's error state;
   // fails_when=a successful visibility retry never reports readiness to the mounted UI;
   // why_new=the GPU draw test only checks texture revision and never observes demo controls; seam=none
-  it('restores Play and clears the error after a draw-time filter retry', async () => {
+  it('restores Play and clears the error after an automatic filter retry', async () => {
     const parent = document.createElement('div');
     parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
     document.body.append(parent);
@@ -105,9 +105,6 @@ describe('mounted volumetric video demo', () => {
       );
       expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
       allowRetry = true;
-      // WebGPU prepares the offscreen mip pyramid during state updates, before
-      // deck opens its presentation pass. A second control update retries safely.
-      change(element<HTMLInputElement>('#vv-static'), '0.99');
       await vi.waitFor(
         () => {
           expect(element('#vv-error').textContent).toBe('');

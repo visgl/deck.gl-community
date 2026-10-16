@@ -426,9 +426,12 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
     }
     if (destroyed) return;
     deck = createDeck(useWebGPU);
-    selectVideo(SAMPLE_VIDEO);
+    updateLayer();
     animation = requestAnimationFrame(animate);
   }
+  // Keep the file picker live while WebGPU capability detection is in flight.
+  // initializeDeck renders whichever source is current when the device is ready.
+  selectVideo(SAMPLE_VIDEO);
   void initializeDeck();
   return () => {
     destroyed = true;
