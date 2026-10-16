@@ -32,6 +32,7 @@ import type {
 import {
   createFeatureCollectionProps,
   createClickEvent,
+  createKeyboardEvent,
   createPointerMoveEvent
 } from '../test-utils';
 
@@ -247,6 +248,23 @@ describe('snapping review regressions', () => {
     expect(vi.mocked(props.onEdit).mock.calls[0][0].editType).toBe(
       action === 'Escape' ? 'cancelFeature' : 'addFeature'
     );
+  });
+
+  test('measurement Enter commits the final snapped target', () => {
+    const mode = new SnappableMode(new MeasureDistanceMode());
+    const props = propsFor([]);
+    mode.handleClick(createClickEvent([0, 0]), props);
+    props.lastPointerMoveEvent = createPointerMoveEvent(
+      [10, 0],
+      [{index: 0, isGuide: true, object: handle([10, 0])}]
+    );
+
+    mode.handleKeyUp(createKeyboardEvent('Enter'), props);
+
+    expect(mode._wrappedMode.getClickSequence()).toEqual([
+      [0, 0],
+      [10, 0]
+    ]);
   });
   test.each([
     false,

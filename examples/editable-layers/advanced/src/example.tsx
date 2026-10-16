@@ -73,10 +73,40 @@ import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 type RGBAColor = Color;
-const COMPOSITE_MODE = new CompositeMode([
-  new SnappableMode(new DrawLineStringMode()),
-  new SnappableMode(new ModifyMode())
-]);
+
+function createSnappableMode(Mode: new () => GeoJsonEditMode) {
+  return class extends SnappableMode {
+    static wrappedModeConstructor = Mode;
+
+    constructor() {
+      super(new Mode());
+    }
+  };
+}
+
+class DrawLineStringAndModifyMode extends CompositeMode {
+  constructor() {
+    super([new SnappableMode(new DrawLineStringMode()), new SnappableMode(new ModifyMode())]);
+  }
+}
+
+const SnappableMeasureDistanceMode = createSnappableMode(MeasureDistanceMode);
+const SnappableMeasureAreaMode = createSnappableMode(MeasureAreaMode);
+const SnappableMeasureAngleMode = createSnappableMode(MeasureAngleMode);
+const SnappableDrawPointMode = createSnappableMode(DrawPointMode);
+const SnappableDrawLineStringMode = createSnappableMode(DrawLineStringMode);
+const SnappableDrawPolygonMode = createSnappableMode(DrawPolygonMode);
+const SnappableDrawRectangleMode = createSnappableMode(DrawRectangleMode);
+const SnappableDrawRectangleUsingThreePointsMode = createSnappableMode(
+  DrawRectangleUsingThreePointsMode
+);
+const SnappableDrawCircleFromCenterMode = createSnappableMode(DrawCircleFromCenterMode);
+const SnappableModifyMode = createSnappableMode(ModifyMode);
+const SnappableResizeCircleMode = createSnappableMode(ResizeCircleMode);
+const SnappableTranslateMode = createSnappableMode(TranslateMode);
+const SnappableExtendLineStringMode = createSnappableMode(ExtendLineStringMode);
+const SnappableExtrudeMode = createSnappableMode(ExtrudeMode);
+const SnappableSplitPolygonMode = createSnappableMode(SplitPolygonMode);
 
 const styles = {
   mapContainer: {
@@ -106,29 +136,29 @@ const ALL_MODES: any = [
       {label: 'View', mode: ViewMode},
       {
         label: 'Measure Distance',
-        mode: new SnappableMode(new MeasureDistanceMode())
+        mode: SnappableMeasureDistanceMode
       },
-      {label: 'Measure Area', mode: new SnappableMode(new MeasureAreaMode())},
-      {label: 'Measure Angle', mode: new SnappableMode(new MeasureAngleMode())}
+      {label: 'Measure Area', mode: SnappableMeasureAreaMode},
+      {label: 'Measure Angle', mode: SnappableMeasureAngleMode}
     ]
   },
   {
     category: 'Draw',
     modes: [
-      {label: 'Draw Point', mode: new SnappableMode(new DrawPointMode())},
-      {label: 'Draw LineString', mode: new SnappableMode(new DrawLineStringMode())},
-      {label: 'Draw Polygon', mode: new SnappableMode(new DrawPolygonMode())},
+      {label: 'Draw Point', mode: SnappableDrawPointMode},
+      {label: 'Draw LineString', mode: SnappableDrawLineStringMode},
+      {label: 'Draw Polygon', mode: SnappableDrawPolygonMode},
       {label: 'Draw 90° Polygon', mode: Draw90DegreePolygonMode},
       {label: 'Draw Polygon By Dragging', mode: DrawPolygonByDraggingMode},
-      {label: 'Draw Rectangle', mode: new SnappableMode(new DrawRectangleMode())},
+      {label: 'Draw Rectangle', mode: SnappableDrawRectangleMode},
       {label: 'Draw Rectangle From Center', mode: DrawRectangleFromCenterMode},
       {
         label: 'Draw Rectangle Using 3 Points',
-        mode: new SnappableMode(new DrawRectangleUsingThreePointsMode())
+        mode: SnappableDrawRectangleUsingThreePointsMode
       },
       {label: 'Draw Square', mode: DrawSquareMode},
       {label: 'Draw Square From Center', mode: DrawSquareFromCenterMode},
-      {label: 'Draw Circle From Center', mode: new SnappableMode(new DrawCircleFromCenterMode())},
+      {label: 'Draw Circle From Center', mode: SnappableDrawCircleFromCenterMode},
       {label: 'Draw Circle By Diameter', mode: DrawCircleByDiameterMode},
       {label: 'Draw Ellipse By Bounding Box', mode: DrawEllipseByBoundingBoxMode},
       {label: 'Draw Ellipse Using 3 Points', mode: DrawEllipseUsingThreePointsMode}
@@ -137,28 +167,37 @@ const ALL_MODES: any = [
   {
     category: 'Alter',
     modes: [
-      {label: 'Modify', mode: new SnappableMode(new ModifyMode())},
-      {label: 'Resize Circle', mode: new SnappableMode(new ResizeCircleMode())},
+      {label: 'Modify', mode: SnappableModifyMode},
+      {label: 'Resize Circle', mode: SnappableResizeCircleMode},
       {label: 'Elevation', mode: ElevationMode},
-      {label: 'Translate', mode: new SnappableMode(new TranslateMode())},
+      {label: 'Translate', mode: SnappableTranslateMode},
       {label: 'Rotate', mode: RotateMode},
       {label: 'Scale', mode: ScaleMode},
       {label: 'Duplicate', mode: DuplicateMode},
-      {label: 'Extend LineString', mode: new SnappableMode(new ExtendLineStringMode())},
-      {label: 'Extrude', mode: new SnappableMode(new ExtrudeMode())},
-      {label: 'Split', mode: new SnappableMode(new SplitPolygonMode())},
-      {label: 'Transform', mode: new TransformMode()}
+      {label: 'Extend LineString', mode: SnappableExtendLineStringMode},
+      {label: 'Extrude', mode: SnappableExtrudeMode},
+      {label: 'Split', mode: SnappableSplitPolygonMode},
+      {label: 'Transform', mode: TransformMode}
     ]
   },
   {
     category: 'Composite',
-    modes: [{label: 'Draw LineString + Modify', mode: COMPOSITE_MODE}]
+    modes: [{label: 'Draw LineString + Modify', mode: DrawLineStringAndModifyMode}]
   }
 ];
 
 function getModeConstructor(mode: any) {
-  const wrapped = mode instanceof SnappableMode ? mode._wrappedMode : mode;
+  const wrapped =
+    typeof mode === 'function' && mode.wrappedModeConstructor
+      ? mode.wrappedModeConstructor
+      : mode instanceof SnappableMode
+        ? mode._wrappedMode
+        : mode;
   return typeof wrapped === 'function' ? wrapped : wrapped.constructor;
+}
+
+function isModeOrConstructor(mode: unknown, Mode: any) {
+  return mode instanceof Mode || (typeof mode === 'function' && mode.prototype instanceof Mode);
 }
 
 const POLYGON_DRAWING_MODES = [
@@ -775,9 +814,9 @@ export function Example() {
       controls.push(renderSplitModeControls());
     }
     if (
-      mode instanceof SnappableMode ||
-      mode instanceof TransformMode ||
-      mode instanceof CompositeMode
+      isModeOrConstructor(mode, SnappableMode) ||
+      isModeOrConstructor(mode, TransformMode) ||
+      isModeOrConstructor(mode, CompositeMode)
     ) {
       controls.push(renderSnappingControls());
     }

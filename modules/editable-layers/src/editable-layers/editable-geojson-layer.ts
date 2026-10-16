@@ -412,7 +412,8 @@ export class EditableGeoJsonLayer extends EditableLayer<
           mode = new ModeConstructor();
         } else if (typeof props.mode === 'string') {
           // Lookup the mode based on its name (for backwards compatibility)
-          mode = modeNameMapping[props.mode];
+          const mappedMode = modeNameMapping[props.mode];
+          mode = typeof mappedMode === 'function' ? new mappedMode() : mappedMode;
           // eslint-disable-next-line no-console
           console.warn(
             "Deprecated use of passing `mode` as a string. Pass the mode's class constructor instead."

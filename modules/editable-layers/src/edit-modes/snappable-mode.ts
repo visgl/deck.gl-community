@@ -89,7 +89,7 @@ export class SnappableMode extends GeoJsonEditMode {
   }
 
   handleKeyUp(event: KeyboardEvent, props: ModeProps<SimpleFeatureCollection>) {
-    this._wrappedMode.handleKeyUp(event, this._getSnappedProps(props));
+    this._wrappedMode.handleKeyUp(event, this._getKeyEventProps(props));
   }
 
   getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
@@ -126,6 +126,27 @@ export class SnappableMode extends GeoJsonEditMode {
     return {
       ...props,
       lastPointerMoveEvent: this._strategy.snapMovementEvent(props, props.lastPointerMoveEvent)
+    };
+  }
+
+  private _getKeyEventProps(
+    props: ModeProps<SimpleFeatureCollection>
+  ): ModeProps<SimpleFeatureCollection> {
+    const snappedProps = this._getSnappedProps(props);
+    const {lastPointerMoveEvent} = snappedProps;
+
+    if (!lastPointerMoveEvent) return snappedProps;
+
+    return {
+      ...snappedProps,
+      lastPointerMoveEvent: {
+        ...lastPointerMoveEvent,
+        // A snap target controls coordinates, but must not be interpreted as a drawing guide.
+        // This matches click snapping, which removes these picks before it reaches the wrapped mode.
+        picks: lastPointerMoveEvent.picks.filter(
+          pick => pick.object?.properties?.editHandleType !== 'snap-target'
+        )
+      }
     };
   }
 

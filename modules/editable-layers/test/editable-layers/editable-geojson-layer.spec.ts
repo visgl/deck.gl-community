@@ -1,6 +1,7 @@
 import {test, expect, vi} from 'vitest';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {DrawPointMode} from '../../src/edit-modes/draw-point-mode';
+import {TransformMode} from '../../src/edit-modes/transform-mode';
 import {
   createClickEvent,
   createFeatureCollection,
@@ -61,6 +62,31 @@ function createGestureLayer() {
 function createGestureEvent(srcEvent = {}) {
   return {offsetCenter: {x: 10, y: 20}, srcEvent, stopImmediatePropagation: vi.fn()} as any;
 }
+
+test('instantiates legacy string mode names before using them', () => {
+  const layer = new EditableGeoJsonLayer({
+    id: 'legacy-mode-test',
+    data: createFeatureCollection(),
+    mode: 'transform',
+    selectedFeatureIndexes: []
+  });
+  layer.context = {
+    deck: {eventManager: {on: vi.fn(), off: vi.fn()}, pickMultipleObjects: () => []},
+    layerManager: {getLayers: () => []},
+    viewport: {unproject: coords => coords}
+  } as any;
+  layer.state = {mode: null} as any;
+  layer.initializeState();
+  layer.updateState({
+    props: layer.props,
+    oldProps: {},
+    changeFlags: {propsOrDataChanged: true},
+    context: layer.context
+  } as any);
+
+  expect(layer.getActiveMode()).toBeInstanceOf(TransformMode);
+  layer.finalizeState();
+});
 
 test.each([
   [{button: 0, buttons: 1}, true],
