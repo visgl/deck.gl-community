@@ -1,24 +1,42 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 import {expect, it} from 'vitest';
-import type {Deck, MapView} from '@deck.gl/core';
+import type {Deck, MapView, WebMercatorViewport} from '@deck.gl/core';
 import type {TreeLayer, TreeSpec, TreeType} from '@deck.gl-community/layers';
 import {mountTreeLabExample} from './app';
 
 it('shows every species with native crops, then renders a label-free 10,000-tree grove', async () => {
   const parent = document.createElement('div');
-  Object.assign(parent.style, {width: '800px', height: '600px'});
+  Object.assign(parent.style, {width: '1164px', height: '680px'});
   document.body.append(parent);
   let deck!: Deck<MapView>;
   let frames = 0;
+  let inspectCanopyPixels = false;
+  let greenPixels = 0;
   const errors: string[] = [];
   const cleanup = mountTreeLabExample(parent, {
     onDeckInitialized(instance) {
       deck = instance;
       deck.setProps({
         onError: error => errors.push(error.message),
-        onAfterRender() {
+        onAfterRender({gl}) {
           frames++;
+          if (inspectCanopyPixels) {
+            const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+            gl.readPixels(
+              0,
+              0,
+              gl.drawingBufferWidth,
+              gl.drawingBufferHeight,
+              gl.RGBA,
+              gl.UNSIGNED_BYTE,
+              pixels
+            );
+            greenPixels = 0;
+            for (let i = 0; i < pixels.length; i += 4)
+              if (pixels[i + 1] > pixels[i] * 1.35 && pixels[i + 1] > pixels[i + 2] * 1.15)
+                greenPixels++;
+          }
         }
       });
     }
@@ -32,6 +50,7 @@ it('shows every species with native crops, then renders a label-free 10,000-tree
     deck.props.layers.find(layer => layer && !Array.isArray(layer) && layer.id === 'trees') as
       | TreeLayer<TreeSpec>
       | undefined;
+  const viewport = () => deck.getViewports()[0] as WebMercatorViewport;
   const getTree = (layer: TreeLayer<TreeSpec>, index: number) =>
     (layer.props.getTree as (tree: TreeSpec, info: {index: number}) => TreeSpec)(
       (layer.props.data as TreeSpec[])[index],
@@ -98,7 +117,7 @@ it('shows every species with native crops, then renders a label-free 10,000-tree
     expect(groveData[0].position?.[0]).toBeCloseTo(0, 0);
     expect(groveData[0].position?.[1]).toBeCloseTo(0, 0);
     const firstRowY = groveData.slice(1, 4).map(tree => tree.position![1]);
-    expect(Math.max(...firstRowY) - Math.min(...firstRowY)).toBeLessThan(1);
+    expect(Math.max(...firstRowY) - Math.min(...firstRowY)).toBeLessThan(1.25);
     expect(getTree(grove, 0).crop).toBeNull();
     expect(
       deck.props.layers.map(layer =>
@@ -115,16 +134,36 @@ it('shows every species with native crops, then renders a label-free 10,000-tree
     );
 
     const originalPrefix = groveData.slice(0, 100).map(tree => tree.position);
-    const originalZoom = deck.getViewports()[0].zoom;
+    const fullGroveZoom = viewport().zoom;
+    const fullGrovePitch = viewport().pitch;
     change('tree-count', '100');
     expect((trees()!.props.data as TreeSpec[]).map(tree => tree.position)).toEqual(originalPrefix);
-    expect(deck.getViewports()[0].zoom).toBeCloseTo(originalZoom);
+    await expect.poll(() => viewport().zoom, {timeout: 15000}).toBeGreaterThan(fullGroveZoom + 0.5);
+    expect(viewport().pitch).toBeGreaterThan(fullGrovePitch);
     change('tree-count', '10000');
     expect(trees()!.props.data as TreeSpec[]).toHaveLength(10000);
+    await expect.poll(() => viewport().zoom, {timeout: 15000}).toBeCloseTo(fullGroveZoom, 1);
     const groveGetTree = getTree(trees()!, 0);
     const groveTreeNext = getTree(trees()!, 1);
     expect(groveGetTree.height).not.toBeCloseTo(groveTreeNext.height);
     expect(groveGetTree.characteristics).toEqual(groveTreeNext.characteristics);
+    inspectCanopyPixels = true;
+    change('tree-count', '1');
+    await expect.poll(() => viewport().latitude, {timeout: 15000}).toBeGreaterThan(0);
+    await expect.poll(() => viewport().pitch, {timeout: 15000}).toBeCloseTo(32);
+    await expect.poll(() => viewport().zoom, {timeout: 15000}).toBeGreaterThan(fullGroveZoom + 2);
+    change('species', 'palm');
+    const closeCanopy = () =>
+      (deck as any).layerManager
+        .getLayers()
+        .find(layer => layer.constructor.layerName === 'SplatLayer');
+    await expect
+      .poll(() => closeCanopy()?.splatStats.renderedSplats ?? 0, {timeout: 15000})
+      .toBeGreaterThan(0);
+    expect(closeCanopy()?.props.getSource.source.opacities.length).toBeGreaterThan(1700);
+    expect(closeCanopy()?.splatStats.visibleInstances).toBe(1);
+    expect(closeCanopy()?.splatStats.renderedSplats).toBeGreaterThan(0);
+    await expect.poll(() => greenPixels, {timeout: 15000}).toBeGreaterThan(100);
     expect(errors).toEqual([]);
   } finally {
     cleanup();

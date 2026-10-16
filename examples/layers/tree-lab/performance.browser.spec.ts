@@ -15,9 +15,10 @@ type FrameSample = {
   frameMs: number;
 };
 
-it('profiles the 10,000-tree grove and retains canopy models through camera changes', async ({
-  annotate
-}) => {
+it.each([
+  'banyan',
+  'palm'
+] as const)('profiles the 10,000-tree %s grove and retains canopy models through camera changes', async speciesType => {
   const parent = document.createElement('div');
   Object.assign(parent.style, {width: '800px', height: '600px'});
   document.body.append(parent);
@@ -100,7 +101,7 @@ it('profiles the 10,000-tree grove and retains canopy models through camera chan
   const scene = parent.querySelector<HTMLSelectElement>('[name="scene"]')!;
   scene.value = 'grove';
   const species = parent.querySelector<HTMLSelectElement>('[name="species"]')!;
-  species.value = 'banyan';
+  species.value = speciesType;
   const treeCount = parent.querySelector<HTMLInputElement>('[name="tree-count"]')!;
   treeCount.value = '10000';
   // Apply all controls in one update so the profile spends time rendering, not rebuilding 30k rows.
@@ -123,26 +124,31 @@ it('profiles the 10,000-tree grove and retains canopy models through camera chan
       samples.map(sample => sample.cpuMs),
       0.95
     );
+    const p95FrameMs = percentile(
+      samples.map(sample => sample.frameMs),
+      0.95
+    );
+    const maxRenderedSplats = Math.max(...samples.map(sample => sample.splats));
     console.info(
       `TreeLayer 10k frame profile: ${JSON.stringify({
         trees: 10000,
         p95CpuMs,
-        p95FrameMs: percentile(
-          samples.map(sample => sample.frameMs),
-          0.95
-        ),
+        p95FrameMs,
         maxDraws: Math.max(...samples.map(sample => sample.draws)),
-        maxSplats: Math.max(...samples.map(sample => sample.splats))
+        maxSplats: maxRenderedSplats
       })}`
     );
     expect(p95CpuMs, 'The 10k grove should stay within a 60 FPS CPU frame budget').toBeLessThan(
       1000 / 60
     );
-    await annotate('Tree frame profile', {
-      body: JSON.stringify({samples, errors}),
-      bodyEncoding: 'utf-8',
-      contentType: 'application/json'
-    });
+    expect(
+      p95FrameMs,
+      'The 10k grove should keep the measured browser frame cadence within 60 FPS'
+    ).toBeLessThanOrEqual(1000 / 60);
+    expect(
+      maxRenderedSplats,
+      'The shared canopy submission budget should remain bounded'
+    ).toBeLessThanOrEqual(20000);
     expect(errors).toEqual([]);
     expect(samples.every(sample => sample.splats > 0)).toBe(true);
     expect(samples.every(sample => sample.draws > 0 && sample.draws <= 8)).toBe(true);

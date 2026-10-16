@@ -36,7 +36,6 @@ const SPECIES: TreeType[] = [
 ];
 const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
 const MAX_GROVE_TREES = 10000;
-const GROVE_CELL_COUNT = Math.ceil(Math.sqrt(MAX_GROVE_TREES));
 const SCENES = ['forest', 'grove'] as const;
 type Scene = (typeof SCENES)[number];
 type ShowcaseTree = TreeSpec & {label?: string; variationIndex?: number};
@@ -101,7 +100,7 @@ const TREE_CROWN_RADII: Record<TreeType, number> = {
 };
 const FOREST_TREES: ShowcaseTree[] = SPECIES.map((species, index) => ({
   species,
-  position: [((index % 4) - 1.5) * 30, (index < 4 ? -1 : 1) * 30, 0],
+  position: [((index % 4) - 1.5) * 24, (index < 4 ? -1 : 1) * 22, 0],
   label: species[0].toUpperCase() + species.slice(1),
   variationIndex: index
 }));
@@ -272,7 +271,13 @@ export function mountTreeLabExample(
   const groveDataBySpecies = new Map<TreeType, ShowcaseTree[]>();
   const initialViewState =
     options.initialViewState ??
-    getViewState(stage.clientWidth, stage.clientHeight, controls.scene, controls.species);
+    getViewState(
+      stage.clientWidth,
+      stage.clientHeight,
+      controls.scene,
+      controls.species,
+      controls.treeCount
+    );
   let currentViewState = initialViewState;
   const deck = new Deck<MapView>({
     ...options,
@@ -447,20 +452,32 @@ export function mountTreeLabExample(
     controls.treeCount = Number(control<HTMLInputElement>('tree-count').value);
     controls.groveVariation = Number(control<HTMLInputElement>('grove-variation').value);
     controlsByContainer.set(container, {...controls});
-    if (['scene', 'species', 'height', 'spread', 'depth'].includes(name)) {
+    if (['scene', 'species', 'height', 'spread', 'depth', 'tree-count'].includes(name)) {
+      const refitCenter = ['scene', 'species', 'tree-count'].includes(name);
       const fittedViewState = getViewState(
         stage.clientWidth,
         stage.clientHeight,
         controls.scene,
-        controls.species
+        controls.species,
+        controls.treeCount
       );
       deck.setProps({
         initialViewState: {
           ...fittedViewState,
-          longitude: currentViewState.longitude ?? fittedViewState.longitude,
-          latitude: currentViewState.latitude ?? fittedViewState.latitude,
-          bearing: currentViewState.bearing ?? fittedViewState.bearing,
-          pitch: currentViewState.pitch ?? fittedViewState.pitch
+          longitude: refitCenter
+            ? fittedViewState.longitude
+            : (currentViewState.longitude ?? fittedViewState.longitude),
+          latitude: refitCenter
+            ? fittedViewState.latitude
+            : (currentViewState.latitude ?? fittedViewState.latitude),
+          bearing: refitCenter
+            ? fittedViewState.bearing
+            : (currentViewState.bearing ?? fittedViewState.bearing),
+          pitch:
+            refitCenter || currentViewState.pitch == null
+              ? fittedViewState.pitch
+              : currentViewState.pitch,
+          transitionDuration: name === 'tree-count' ? 300 : 0
         }
       });
     }
@@ -482,18 +499,39 @@ function formatTraitValue(name: string, value: number): string {
   return `${value.toFixed(1)}×`;
 }
 
-function getViewState(width: number, height: number, scene: Scene, species: TreeType) {
-  const groveSpacing = TREE_CROWN_RADII[species] * 2.4;
-  const extent = scene === 'forest' ? 110 : groveSpacing * GROVE_CELL_COUNT * 1.9;
+function getViewState(
+  width: number,
+  height: number,
+  scene: Scene,
+  species: TreeType,
+  treeCount: number
+) {
+  const groveSpacing = TREE_CROWN_RADII[species] * 1.9;
+  const groveCells = Math.ceil(Math.sqrt(Math.max(1, treeCount)));
+  const extent =
+    scene === 'forest'
+      ? 92
+      : treeCount === 1
+        ? Math.max(TREE_CROWN_RADII[species] * 2.4, TREE_HEIGHTS[species] * 1.75)
+        : groveSpacing * groveCells * 1.15;
   const pixels = Math.max(1, Math.min(width * 0.82, height * 0.72));
-  const zoom = Math.log2((156543.0339 * pixels) / extent);
+  const zoom =
+    Math.log2((156543.0339 * pixels) / extent) +
+    (scene === 'grove' ? Math.log2(Math.max(1, TREE_HEIGHTS[species] / 12)) * 0.35 : 0);
+  const pitch =
+    scene === 'forest'
+      ? 38
+      : treeCount === 1
+        ? 32
+        : Math.max(20, 38 - Math.log10(Math.max(1, treeCount)) * 4.5);
+  const latitude =
+    scene === 'grove' && treeCount === 1 ? (height * 0.12 * (156543.0339 / 2 ** zoom)) / 111320 : 0;
   return {
     longitude: 0,
-    latitude: 0,
-    maxZoom: 24,
-    zoom:
-      zoom + (scene === 'grove' ? Math.log2(Math.max(1, TREE_HEIGHTS[species] / 12)) * 0.35 : 0),
-    pitch: scene === 'forest' ? 38 : 16,
+    latitude,
+    maxZoom: 26,
+    zoom,
+    pitch,
     bearing: scene === 'forest' ? 18 : 0
   };
 }
@@ -518,8 +556,8 @@ function createGrovePositions(spacing: number): [number, number, number][] {
         const x = row === -ring || row === ring ? column - ring : column === 0 ? -ring : ring;
         const y = row;
         positions.push([
-          x * spacing + randomUnit(index, 4) * spacing * 0.08,
-          y * spacing + randomUnit(index, 5) * spacing * 0.08,
+          x * spacing + randomUnit(index, 4) * spacing * 0.14,
+          y * spacing + randomUnit(index, 5) * spacing * 0.14,
           0
         ]);
         index++;
