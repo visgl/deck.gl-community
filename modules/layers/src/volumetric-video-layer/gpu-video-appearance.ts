@@ -10,6 +10,14 @@ import {GPUVideoResources, assertGPUVideoResources} from './gpu-video-resources'
 type Appearance = {luminanceThreshold: number; staticPixelRemoval: number};
 const uniforms: ShaderModule<Appearance & {slot: number}> = {
   name: 'videoAppearance',
+  source: /* wgsl */ `
+struct VideoAppearanceUniforms {
+  slot: f32,
+  luminanceThreshold: f32,
+  staticPixelRemoval: f32,
+};
+@group(0) @binding(auto) var<uniform> videoAppearance: VideoAppearanceUniforms;
+`,
   fs: `uniform videoAppearanceUniforms {
     float slot;
     float luminanceThreshold;
@@ -73,7 +81,22 @@ export class GPUVideoAppearance {
         new ClipSpace(device, {
           id: 'volumetric-video-filter-visibility',
           modules: [uniforms],
-          parameters: {depthCompare: 'always', depthWriteEnabled: false, blend: false},
+          parameters: {depthWriteEnabled: false, blend: false},
+          source: /* wgsl */ `
+@group(0) @binding(auto) var videoFrames: texture_2d_array<f32>;
+@group(0) @binding(auto) var pixelChanges: texture_2d_array<f32>;
+@fragment
+fn fragmentMain(input: FragmentInputs) -> @location(0) vec4<f32> {
+  let p = vec2<i32>(input.Position.xy);
+  let color = textureLoad(videoFrames, p, i32(videoAppearance.slot), 0);
+  let change = textureLoad(pixelChanges, p, i32(videoAppearance.slot), 0).r;
+  let hidden = dot(color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722))
+    < videoAppearance.luminanceThreshold
+    || (videoAppearance.staticPixelRemoval > 0.0
+      && change <= 0.5 * videoAppearance.staticPixelRemoval * videoAppearance.staticPixelRemoval);
+  return select(vec4<f32>(color.rgb * color.a, color.a), vec4<f32>(0.0), hidden);
+}
+`,
           fs: `#version 300 es
 precision highp float;
 precision highp sampler2DArray;
@@ -131,7 +154,8 @@ void main() {
         pass.end();
       }
     }
-    this.texture.generateMipmapsWebGL();
+    if (this.device.type === 'webgl') this.texture.generateMipmapsWebGL();
+    else this.device.generateMipmapsWebGPU(this.texture);
     assertGPUVideoResources(this.device);
     // Commit settings and invalidation only after every GPU operation succeeds.
     this.settings = {...settings};

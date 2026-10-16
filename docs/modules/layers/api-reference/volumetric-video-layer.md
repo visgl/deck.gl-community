@@ -154,7 +154,13 @@ timestamps, and camera frame intervals. See the example README for the command.
 Transparent splats disable depth writes by default so overlapping pixels do not
 incorrectly occlude one another. Standard `parameters` overrides remain supported.
 
-This implementation requires WebGL2 and browser video decoding. It does not provide
-WebGPU shaders, per-splat picking, audio playback, HDR mastering, camera-motion
-registration, or scene reconstruction. Transparency orders the parallel frame planes
-for the active viewport. The demo's source video is a synthetic motion fixture.
+## WebGPU
+
+The layer supports both WebGL2 and WebGPU. luma.gl uploads each decoded `VideoFrame`,
+resamples display orientation, computes static-pixel changes, builds the filtered mip
+pyramid, and draws the volume on the selected device. The demo prefers WebGPU when it
+is available and labels the active backend in the canvas header; append `?backend=webgl`
+to compare the WebGL2 path. Browser video decoding still determines which MP4/MOV codecs
+can be opened. The layer does not provide per-splat picking, audio playback, HDR mastering,
+camera-motion registration, or scene reconstruction. Transparency orders the parallel
+frame planes for the active viewport. The demo's source video is a synthetic motion fixture.

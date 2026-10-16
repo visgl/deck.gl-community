@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Device, Framebuffer, Texture, TextureView} from '@luma.gl/core';
+import {Texture, type Device, type Framebuffer, type TextureView} from '@luma.gl/core';
 import {ClipSpace} from '@luma.gl/engine';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {GPUVideoResources, assertGPUVideoResources} from './gpu-video-resources';
@@ -14,6 +14,13 @@ import type {VideoFrameSource} from './video-frame-source';
 
 const copyUniforms: ShaderModule<{rotation: number; flip: number}> = {
   name: 'videoCopy',
+  source: /* wgsl */ `
+struct VideoCopyUniforms {
+  rotation: f32,
+  flip: f32,
+};
+@group(0) @binding(auto) var<uniform> videoCopy: VideoCopyUniforms;
+`,
   fs: `uniform videoCopyUniforms {
   float rotation;
   float flip;
@@ -70,6 +77,9 @@ export class GPUVideoFrames {
           width: this.width,
           height: this.height,
           depth: capacity,
+          // Keep the normalized frame ring inspectable on WebGPU as well as WebGL.
+          // This is useful for exact orientation checks and future frame exports.
+          usage: Texture.SAMPLE | Texture.RENDER | Texture.COPY_DST | Texture.COPY_SRC,
           sampler: {
             minFilter: 'nearest',
             magFilter: 'nearest',
@@ -95,7 +105,20 @@ export class GPUVideoFrames {
         new ClipSpace(device, {
           id: 'volumetric-video-resample',
           modules: [copyUniforms],
-          parameters: {depthCompare: 'always', depthWriteEnabled: false, blend: false},
+          parameters: {depthWriteEnabled: false, blend: false},
+          source: /* wgsl */ `
+@group(0) @binding(auto) var videoTexture: texture_2d<f32>;
+@group(0) @binding(auto) var videoTextureSampler: sampler;
+@fragment
+fn fragmentMain(input: FragmentInputs) -> @location(0) vec4<f32> {
+  var p = input.uv;
+  if (videoCopy.flip > 0.5) { p.x = 1.0 - p.x; }
+  if (videoCopy.rotation == 90.0) { p = vec2<f32>(p.y, 1.0 - p.x); }
+  else if (videoCopy.rotation == 180.0) { p = vec2<f32>(1.0) - p; }
+  else if (videoCopy.rotation == 270.0) { p = vec2<f32>(1.0 - p.y, p.x); }
+  return textureSample(videoTexture, videoTextureSampler, p);
+}
+`,
           fs: `#version 300 es
 precision highp float;
 uniform sampler2D videoTexture;
@@ -161,6 +184,10 @@ void main() {
   destroy(): void {
     this.destroyed = true;
     this.desiredWindow = null;
+    // The frame queue may contain an upload or filtering pass when a source is
+    // replaced. WebGPU validates resource lifetime at submission, so flush the
+    // default encoder before releasing the textures and geometry it references.
+    if (this.device.type === 'webgpu' && !this.device.isLost) this.device.submit();
     this.resources.destroy();
     this.uploadTexture?.destroy();
   }

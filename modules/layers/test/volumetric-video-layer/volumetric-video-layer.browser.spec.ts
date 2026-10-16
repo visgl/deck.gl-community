@@ -4,10 +4,12 @@
 
 import {describe, expect, it, vi} from 'vitest';
 import {Deck, OrbitView} from '@deck.gl/core';
-import {luma, type Device} from '@luma.gl/core';
+import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
+import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/webgpu';
 import {ClipSpace} from '@luma.gl/engine';
 import {VideoSample} from 'mediabunny';
+import {requireWebGPUAdapter} from '../webgpu-test-utils';
 import {getFrameWindow} from '../../src/volumetric-video-layer/frame-utils';
 import {GPUPixelChanges} from '../../src/volumetric-video-layer/gpu-pixel-changes';
 import {GPUVideoFrames} from '../../src/volumetric-video-layer/gpu-video-frames';
@@ -18,6 +20,12 @@ import {VolumetricVideoLayer} from '../../src/volumetric-video-layer/volumetric-
 const MP4_URL = new URL('../../../../examples/layers/volumetric-video/sample.mp4', import.meta.url)
   .href;
 const MOV_URL = new URL('./sample.mov', import.meta.url).href;
+
+type NativeGpuError = {error?: {message?: string}};
+type NativeGpuDevice = {
+  addEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+  removeEventListener: (type: 'uncapturederror', listener: (event: NativeGpuError) => void) => void;
+};
 
 async function createDevice(): Promise<Device> {
   return luma.createDevice({
@@ -32,6 +40,41 @@ function readFrame(cache: GPUVideoFrames, frame: number): Uint8Array {
   return ArrayBuffer.isView(data)
     ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
     : new Uint8Array(data);
+}
+
+async function readWebGPUFrame(
+  device: Device,
+  cache: GPUVideoFrames,
+  frame: number
+): Promise<Uint8Array> {
+  // GPUVideoFrames records its resample pass through luma's default encoder.
+  // Submit it before issuing the native texture-to-buffer readback.
+  device.submit();
+  const layout = cache.texture.computeMemoryLayout({
+    z: frame % cache.capacity,
+    depthOrArrayLayers: 1
+  });
+  const buffer = device.createBuffer({
+    byteLength: layout.byteLength,
+    usage: Buffer.COPY_DST | Buffer.MAP_READ
+  });
+  try {
+    cache.texture.readBuffer({z: frame % cache.capacity, depthOrArrayLayers: 1}, buffer);
+    const data = new Uint8Array(await buffer.readAsync());
+    const pixels = new Uint8Array(cache.width * cache.height * 4);
+    for (let y = 0; y < cache.height; y++) {
+      const source = y * layout.bytesPerRow;
+      // WebGPU texture-to-buffer copies use a top-left origin. Normalize to the
+      // bottom-left convention returned by WebGL's readback helper above.
+      pixels.set(
+        data.subarray(source, source + cache.width * 4),
+        (cache.height - 1 - y) * cache.width * 4
+      );
+    }
+    return pixels;
+  } finally {
+    buffer.destroy();
+  }
 }
 
 function countColor(pixels: Uint8Array): number {
@@ -752,6 +795,75 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
+  // Value: protects=WebGPU upload preserves the source image orientation before volume rendering;
+  // fails_when=the native copy path flips an axis or applies rotation/mirroring in the wrong order;
+  // why_new=the WebGL readback oracle cannot exercise WebGPU's external-image copy path; seam=WebGPU upload.
+  it('matches independently drawn asymmetric video samples on WebGPU', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const device = await luma.createDevice({
+      type: 'webgpu',
+      adapters: [webgpuAdapter],
+      createCanvasContext: {width: 16, height: 16, useDevicePixels: false}
+    });
+    const source = new VideoFrameSource(MP4_URL);
+    let cache: GPUVideoFrames | undefined;
+    try {
+      await source.initialize();
+      const pixels = new Uint8Array(8 * 6 * 4);
+      const colors = [
+        [240, 20, 30, 255],
+        [10, 210, 40, 255],
+        [20, 30, 230, 255],
+        [230, 190, 15, 255]
+      ];
+      for (let y = 0; y < 6; y++) {
+        for (let x = 0; x < 8; x++)
+          pixels.set(colors[Number(y >= 3) * 2 + Number(x >= 4)], (y * 8 + x) * 4);
+      }
+      for (const rotation of [0, 90, 180, 270] as const) {
+        for (const flip of [false, true]) {
+          const sample = new VideoSample(pixels, {
+            format: 'RGBA',
+            codedWidth: 8,
+            codedHeight: 6,
+            timestamp: 0,
+            rotation,
+            flip
+          });
+          const {displayWidth: width, displayHeight: height} = sample;
+          const canvas = new OffscreenCanvas(width, height);
+          const context = canvas.getContext('2d')!;
+          context.imageSmoothingEnabled = false;
+          sample.draw(context, 0, 0, width, height);
+          const expected = context.getImageData(0, 0, width, height).data;
+          source.info = {...source.info!, width, height, frameCount: 1, frameTimestamps: [0]};
+          const decoder = vi
+            .spyOn(source.sink!, 'samplesAtTimestamps')
+            .mockImplementation(async function* () {
+              yield sample;
+            });
+          await new Promise<void>((resolve, reject) => {
+            cache = new GPUVideoFrames(device, source, 0, 1, () => resolve(), reject);
+            cache.request({firstFrame: 0, currentFrame: 0, frameCount: 1});
+          });
+          expect([cache.width, cache.height]).toEqual([width, height]);
+          expect(
+            Array.from(await readWebGPUFrame(device, cache, 0)),
+            `rotation ${rotation}, mirror ${flip}`
+          ).toEqual(Array.from(expected));
+          cache.destroy();
+          cache = undefined;
+          decoder.mockRestore();
+        }
+      }
+    } finally {
+      vi.restoreAllMocks();
+      cache?.destroy();
+      source.destroy();
+      device.destroy();
+    }
+  }, 30_000);
+
   it('retains the previous upload texture when a display-size replacement cannot allocate', async () => {
     const device = await createDevice();
     const source = new VideoFrameSource(MP4_URL);
@@ -1322,4 +1434,132 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       device.destroy();
     }
   });
+
+  // Value: protects=the public layer compiles its WGSL models and carries video frames through
+  // upload, static-pixel filtering, mip generation, and volume rendering; fails_when=any pass
+  // stays GLSL-only or a native WebGPU validation error is emitted; seam=WebGPU render path.
+  it('renders a decoded video volume on WebGPU', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'width: 256px; height: 192px';
+    document.body.append(parent);
+    let webgpu: Device | undefined;
+    let framebuffer: Framebuffer | undefined;
+    let colorTexture: Texture | undefined;
+    let deck: Deck<OrbitView[]> | undefined;
+    let nativeDevice: NativeGpuDevice | undefined;
+    const validationErrors: string[] = [];
+    const captureValidationError = (event: NativeGpuError) => {
+      validationErrors.push(event.error?.message ?? 'Unknown WebGPU validation error.');
+    };
+    try {
+      webgpu = await luma.createDevice({
+        type: 'webgpu',
+        adapters: [webgl2Adapter, webgpuAdapter],
+        createCanvasContext: {container: parent, width: 256, height: 192, useDevicePixels: false}
+      });
+      expect(webgpu.type).toBe('webgpu');
+      colorTexture = webgpu.createTexture({
+        width: 256,
+        height: 192,
+        format: 'rgba8unorm',
+        usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
+      });
+      framebuffer = webgpu.createFramebuffer({
+        width: 256,
+        height: 192,
+        colorAttachments: [colorTexture],
+        depthStencilAttachment: 'depth24plus'
+      });
+      nativeDevice = (webgpu as WebGPUDevice).handle as unknown as NativeGpuDevice;
+      nativeDevice.addEventListener('uncapturederror', captureValidationError);
+      await new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(
+          () => reject(new Error('Timed out while rendering VolumetricVideoLayer on WebGPU.')),
+          30_000
+        );
+        let loaded = false;
+        let frames = 0;
+        let reading = false;
+        deck = new Deck({
+          _animate: true,
+          _framebuffer: framebuffer,
+          device: webgpu,
+          parent,
+          width: 256,
+          height: 192,
+          useDevicePixels: false,
+          views: [new OrbitView({id: 'webgpu-video', orbitAxis: 'Y'})],
+          initialViewState: {
+            'webgpu-video': {target: [0, 0, -0.2], rotationX: 18, rotationOrbit: -32, zoom: 7}
+          },
+          layers: [
+            new VolumetricVideoLayer({
+              id: 'webgpu-video-volume',
+              video: MP4_URL,
+              currentFrame: 30,
+              frameTrail: 5,
+              maxFrameTrail: 5,
+              resolution: 64,
+              frameOpacity: 0.8,
+              luminanceThreshold: 0,
+              staticPixelRemoval: 0.2,
+              onFrameLoad: () => {
+                loaded = true;
+              }
+            })
+          ],
+          onAfterRender: () => {
+            if (!loaded || ++frames < 6 || reading) return;
+            reading = true;
+            void (async () => {
+              // Deck owns the active pass; submit it before the copy command.
+              webgpu!.submit();
+              const buffer = webgpu!.createBuffer({
+                byteLength: 256 * 192 * 4,
+                usage: Buffer.COPY_DST | Buffer.MAP_READ
+              });
+              try {
+                const encoder = webgpu!.createCommandEncoder();
+                encoder.copyTextureToBuffer({
+                  sourceTexture: colorTexture!,
+                  destinationBuffer: buffer,
+                  bytesPerRow: 256 * 4,
+                  width: 256,
+                  height: 192
+                });
+                webgpu!.submit(encoder.finish());
+                const pixels = new Uint8Array(await buffer.readAsync());
+                const visible = pixels.reduce(
+                  (count, value, index) => count + Number(index % 4 === 3 && value > 24),
+                  0
+                );
+                if (visible > 80) {
+                  window.clearTimeout(timeout);
+                  resolve();
+                } else {
+                  reading = false;
+                }
+              } finally {
+                buffer.destroy();
+              }
+            })().catch(reject);
+          },
+          onError: error => {
+            window.clearTimeout(timeout);
+            reject(error);
+          }
+        });
+      });
+      await (webgpu as WebGPUDevice).handle.queue.onSubmittedWorkDone();
+      expect(validationErrors).toEqual([]);
+    } finally {
+      nativeDevice?.removeEventListener('uncapturederror', captureValidationError);
+      deck?.finalize();
+      framebuffer?.destroy();
+      colorTexture?.destroy();
+      webgpu?.destroy();
+      parent.remove();
+    }
+  }, 40_000);
 });
