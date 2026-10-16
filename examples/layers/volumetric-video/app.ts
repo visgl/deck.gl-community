@@ -224,7 +224,9 @@ export function mountVolumetricVideoExample(
   let playbackStart = 0;
   let playbackTime = 0;
   let destroyed = false;
-  let useWebGPU = options.device ? options.device.type === 'webgpu' : PREFER_WEBGPU;
+  let requestedBackend: 'webgl' | 'webgpu' =
+    options.device?.type === 'webgpu' || (!options.device && PREFER_WEBGPU) ? 'webgpu' : 'webgl';
+  let useWebGPU = requestedBackend === 'webgpu';
   let deckGeneration = 0;
   let backendSwitching = false;
   let preserveVideoState = false;
@@ -278,7 +280,7 @@ export function mountVolumetricVideoExample(
   }
 
   function syncBackendControls() {
-    const backend = useWebGPU ? 'webgpu' : 'webgl';
+    const backend = backendSwitching ? requestedBackend : useWebGPU ? 'webgpu' : 'webgl';
     backendButtons.forEach(button => {
       button.setAttribute('aria-pressed', String(button.dataset.backendOption === backend));
       button.disabled = Boolean(options.device) || backendSwitching;
@@ -316,6 +318,7 @@ export function mountVolumetricVideoExample(
         if (destroyed || generation !== deckGeneration) return;
         maxArrayLayers = device.limits.maxTextureArrayLayers;
         useWebGPU = device.type === 'webgpu';
+        requestedBackend = useWebGPU ? 'webgpu' : 'webgl';
         root.dataset.backend = device.type;
         backendOutput.textContent = device.type === 'webgpu' ? 'WEBGPU' : 'WEBGL2';
         syncBackendControls();
@@ -329,7 +332,7 @@ export function mountVolumetricVideoExample(
         return options.onViewStateChange?.(event);
       },
       onError: error => {
-        if (destroyed) return;
+        if (destroyed || generation !== deckGeneration) return;
         errorOutput.textContent = error.message;
         status.textContent = root.dataset.frameReady
           ? 'Keeping the last working volume'
@@ -365,7 +368,7 @@ export function mountVolumetricVideoExample(
     currentFrame = Math.min(currentFrame, loaded.frameCount - 1);
     frameInput.max = String(loaded.frameCount - 1);
     frameInput.value = String(currentFrame);
-    playButton.disabled = false;
+    playButton.disabled = pending;
     status.textContent = `${loaded.width} × ${loaded.height} · ${loaded.frameCount} frames · ${loaded.duration.toFixed(2)}s`;
     updateLayer();
   }
@@ -389,6 +392,7 @@ export function mountVolumetricVideoExample(
 
   function updateLayer() {
     if (destroyed || !deck) return;
+    const layerGeneration = deckGeneration;
     const sampling = getElement<HTMLSelectElement>('#vv-resolution');
     const nativeOption = sampling.querySelector<HTMLOptionElement>('option[value="0"]')!;
     const totalFrames = info?.frameCount ?? 120;
@@ -464,8 +468,12 @@ export function mountVolumetricVideoExample(
           staticPixelRemoval,
           splatSize: 1.5,
           trailFade: 0.006,
-          onVideoLoad,
-          onFrameLoad
+          onVideoLoad: loaded => {
+            if (deckGeneration === layerGeneration) onVideoLoad(loaded);
+          },
+          onFrameLoad: loaded => {
+            if (deckGeneration === layerGeneration) onFrameLoad(loaded);
+          }
         })
       ]
     });
@@ -607,34 +615,36 @@ export function mountVolumetricVideoExample(
   }
 
   async function switchBackend(backend: 'webgl' | 'webgpu') {
-    if (
-      options.device ||
-      destroyed ||
-      backendSwitching ||
-      backend === (useWebGPU ? 'webgpu' : 'webgl')
-    )
-      return;
+    if (options.device || destroyed || backendSwitching || backend === requestedBackend) return;
     backendSwitching = true;
+    requestedBackend = backend;
+    const generation = ++deckGeneration;
     syncBackendControls();
     try {
       if (backend === 'webgpu' && !(await supportsWebGPU())) {
+        if (destroyed || generation !== deckGeneration) return;
+        requestedBackend = useWebGPU ? 'webgpu' : 'webgl';
         errorOutput.textContent = 'WebGPU is unavailable in this browser. Continuing with WebGL2.';
         return;
       }
-      if (destroyed) return;
+      if (destroyed || generation !== deckGeneration) return;
       setPlaying(false);
       preserveVideoState = true;
+      pending = true;
+      delete root.dataset.frameReady;
+      playButton.disabled = true;
+      status.textContent = 'Switching graphics backend…';
       deck?.finalize();
       deck = undefined;
       useWebGPU = backend === 'webgpu';
       backendOutput.textContent = 'SWITCHING…';
-      const generation = ++deckGeneration;
       deck = createDeck(useWebGPU, generation);
       options.onDeckInitialized?.(deck as Deck<OrbitView>);
       const url = new URL(window.location.href);
       url.searchParams.set('backend', backend);
       window.history.replaceState({}, '', url);
       updateLayer();
+      if (!animation) animation = requestAnimationFrame(animate);
     } catch (error) {
       preserveVideoState = false;
       errorOutput.textContent = error instanceof Error ? error.message : String(error);
@@ -645,16 +655,17 @@ export function mountVolumetricVideoExample(
   }
 
   async function initializeDeck() {
-    useWebGPU = options.device?.type === 'webgpu';
-    if (!options.device && PREFER_WEBGPU) {
-      useWebGPU = await supportsWebGPU();
-    }
-    if (destroyed) return;
     const generation = ++deckGeneration;
+    if (!options.device && requestedBackend === 'webgpu' && !(await supportsWebGPU())) {
+      if (destroyed || generation !== deckGeneration) return;
+      requestedBackend = 'webgl';
+    }
+    if (destroyed || generation !== deckGeneration) return;
+    useWebGPU = requestedBackend === 'webgpu';
     deck = createDeck(useWebGPU, generation);
     options.onDeckInitialized?.(deck as Deck<OrbitView>);
     updateLayer();
-    animation = requestAnimationFrame(animate);
+    if (!animation) animation = requestAnimationFrame(animate);
   }
   // Keep the file picker live while WebGPU capability detection is in flight.
   // initializeDeck renders whichever source is current when the device is ready.

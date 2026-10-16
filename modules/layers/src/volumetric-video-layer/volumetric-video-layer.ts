@@ -305,10 +305,10 @@ export class VolumetricVideoLayer<
     const window = frames?.getReadyWindow();
     if (!frames || !source?.info || !window) return;
     // WebGL can retry a failed appearance update during a subsequent draw.
-    // Retry the requested value, while a successful budget fallback keeps the
-    // explicitly committed effective value.
+    // Do not bypass a selected-frame budget fallback: retrying the requested
+    // value would allocate the optional selected-frame pyramid after it was rejected.
     const staticPixelRemoval =
-      this.state.filterError === frames
+      this.state.filterError === frames && this.canAllocateCurrentAppearance(frames)
         ? this.props.staticPixelRemoval
         : this.state.activeStaticPixelRemoval;
     const {width, position, frameSpacing, splatSize, frameOpacity, trailFade, luminanceThreshold} =

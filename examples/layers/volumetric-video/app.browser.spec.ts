@@ -110,6 +110,8 @@ describe('mounted volumetric video demo', () => {
       const webgl = element<HTMLButtonElement>('[data-backend-option="webgl"]');
       const webgpu = element<HTMLButtonElement>('[data-backend-option="webgpu"]');
       webgl.click();
+      expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBeUndefined();
+      expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
       await vi.waitFor(
         () => {
           expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
@@ -141,6 +143,43 @@ describe('mounted volumetric video demo', () => {
       parent.remove();
     }
   }, 45_000);
+
+  // Value: protects=a user-selected WebGL backend wins while the initial WebGPU probe is pending;
+  // fails_when=the delayed probe creates a second WebGPU Deck after the WebGL replacement;
+  // why_new=the normal toggle test waits for the initial device before clicking; seam=async startup.
+  it('honors a WebGL selection while initial WebGPU detection is pending', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    const gpu = (navigator as Navigator & {gpu: {requestAdapter: () => Promise<unknown>}}).gpu;
+    let resolveAdapter: (adapter: unknown) => void = () => {};
+    const requestAdapter = vi
+      .spyOn(gpu, 'requestAdapter')
+      .mockImplementationOnce(() => new Promise(resolve => (resolveAdapter = resolve)));
+    let cleanup: (() => void) | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent);
+      element<HTMLButtonElement>('[data-backend-option="webgl"]').click();
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl'),
+        {timeout: 15_000}
+      );
+      resolveAdapter({});
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+        },
+        {timeout: 15_000}
+      );
+    } finally {
+      cleanup?.();
+      requestAdapter.mockRestore();
+      parent.remove();
+    }
+  }, 35_000);
 
   // Value: protects=automatic recovery restores playback with the latest filter state;
   // fails_when=a successful visibility retry never reports readiness to the mounted UI or applies

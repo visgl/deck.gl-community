@@ -1508,6 +1508,14 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       expect(frames.currentAppearance).toBeNull();
       expect(layer!.state.activeStaticPixelRemoval).toBe(0);
       expect(layer!.state.appearanceRetryCount).toBe(0);
+      const updateAppearance = vi.spyOn(
+        layer as unknown as {updateAppearance: (frames: GPUVideoFrames, removal: number) => void},
+        'updateAppearance'
+      );
+      layer!.setState({filterError: frames});
+      layer!.draw();
+      expect(updateAppearance).toHaveBeenCalledWith(frames, 0);
+      updateAppearance.mockRestore();
       await new Promise<void>((resolve, reject) => {
         layer = layer!.clone({maxTextureBytes: 512 * 1048576, onFrameLoad: () => resolve()});
         deck!.setProps({layers: [layer!], onError: reject});
