@@ -72,7 +72,7 @@ type Entry = {
 };
 
 /** A viewport-wide permutation of the selected prepared Gaussians. The original source
- * models still own picking and shadows; this working buffer only changes color draw order.
+ * models still own picking; this working buffer only changes color draw order.
  */
 export class SplatSortedRenderer {
   private entries = new Map<string, Entry>();

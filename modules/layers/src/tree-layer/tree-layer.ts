@@ -275,21 +275,17 @@ type _TreeLayerProps<DataT> = {
   windTime?: number | null;
   /** Shared per-frame canopy Gaussian budget, allocated by projected error across species. Finest templates remain available. @default 250000 */
   maxCanopySplats?: number;
-  /** Independent shadow-map Gaussian budget. @default 125000 */
-  maxShadowSplats?: number;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
   maxCanopyPixels?: number;
   /** Refine actual crowns around screen center while retaining every visible tree. @default 0 */
   foveationStrength?: number;
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
-  /** Cast shadows when the host LightingEffect enables them. WebGL only until deck.gl supports WebGPU shadows. @default true */
-  shadowEnabled?: boolean;
 };
 
 export type TreeLayerProps<DataT = unknown> = _TreeLayerProps<DataT> & CompositeLayerProps;
 
-const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
+const defaultProps: DefaultProps<TreeLayerProps<unknown>> & {shadowEnabled: false} = {
   getTree: {type: 'accessor', value: (d: any) => d},
   getPosition: {type: 'accessor', value: (d: any) => d.position},
   getElevation: {type: 'accessor', value: (_d: any) => 0},
@@ -308,11 +304,10 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   windStrength: {type: 'number', value: 0, min: 0, max: 0.2},
   windTime: null,
   maxCanopySplats: 250000,
-  maxShadowSplats: 125000,
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
   foveationStrength: {type: 'number', value: 0, min: 0, max: 1},
-  shadowEnabled: true
+  shadowEnabled: false
 };
 
 type TreeRow<DataT> = {
@@ -430,7 +425,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
   initializeState() {
     this.state = {
-      splatBudgetGroup: {maxSplats: Infinity, maxShadowSplats: Infinity},
+      splatBudgetGroup: {maxSplats: Infinity},
       authoredWindStrength: 0,
       hasAuthoredWind: false,
       hasDefaultWind: true,
@@ -745,7 +740,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         'TreeLayer modelMatrix supports translation only in Cartesian and metre-offset coordinates.'
       );
     }
-    const {windTime, shadowEnabled, getTrunkColor, getCanopyColor, getSeason} = this.props;
+    const {windTime, getTrunkColor, getCanopyColor, getSeason} = this.props;
     const windStrength = Math.max(
       this.state.hasDefaultWind ? getFiniteDimension(this.props.windStrength, 0) : 0,
       this.state.authoredWindStrength
@@ -762,7 +757,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const shared = {
       windStrength,
       windTime,
-      shadowEnabled,
+      shadowEnabled: false,
       foveationStrength: this.props.foveationStrength,
       getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
       pickable: this.props.pickable
@@ -820,7 +815,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       true
     );
     this.state.splatBudgetGroup.maxSplats = this.props.maxCanopySplats;
-    this.state.splatBudgetGroup.maxShadowSplats = this.props.maxShadowSplats;
     this.state.splatBudgetGroup.parent = this.props._splatBudgetGroup;
     for (const [key, data] of this.state.groups) {
       const {type, winter, levels, characteristics} = data[0];
@@ -874,7 +868,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
               maxSplats: Infinity,
-              maxShadowSplats: Infinity,
               deformationStrength: windStrength,
               deformationTime: windTime,
               getDeformation: treeWind,

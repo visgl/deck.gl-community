@@ -11,7 +11,8 @@ import {
   type SplatProjectedPosition,
   getSplatBoundedPixelsPerMeter,
   getSplatFocusWeight,
-  intersectsSplatLightVolume
+  createSplatFrustum,
+  intersectsSplatFrustum
 } from '../../src/splat-layer/splat-culling';
 const matrix = new Matrix4().perspective({fovy: Math.PI / 2, aspect: 1, near: 0.1, far: 100});
 const projection = {matrix, center: [0, 0, 0, 0], width: 100, height: 100};
@@ -31,12 +32,13 @@ describe('Gaussian projection refinement', () => {
       getSplatPixelsPerMeter(position, reference)
     );
   });
-  it('excludes spheres behind the eye and beyond the near plane while retaining intersecting bounds', () => {
-    expect(intersectsSplatLightVolume([0, 0, 5], 0.5, projection)).toBe(false);
-    expect(intersectsSplatLightVolume([0, 0, -0.05], 0.02, projection)).toBe(false);
-    expect(intersectsSplatLightVolume([0, 0, -0.05], 0.1, projection)).toBe(true);
-    expect(intersectsSplatLightVolume([0, 0, -5], 0.5, projection)).toBe(true);
-    expect(intersectsSplatLightVolume([8, 0, -5], 0.5, projection)).toBe(false);
+  it('culls camera-space spheres and retains bounds intersecting the near plane', () => {
+    const planes = createSplatFrustum(projection);
+    expect(intersectsSplatFrustum([0, 0, 5], 0.5, planes)).toBe(false);
+    expect(intersectsSplatFrustum([0, 0, -0.05], 0.02, planes)).toBe(false);
+    expect(intersectsSplatFrustum([0, 0, -0.05], 0.1, planes)).toBe(true);
+    expect(intersectsSplatFrustum([0, 0, -5], 0.5, planes)).toBe(true);
+    expect(intersectsSplatFrustum([8, 0, -5], 0.5, planes)).toBe(false);
   });
   it('refines against perspective distance instead of nominal map zoom', () => {
     const viewport = {
@@ -74,8 +76,7 @@ it('selects bounded owner groups without dropping a large crown crossing the vie
   expect(new Set(union)).toEqual(new Set([...visible, ...second]));
 });
 
-import {createSplatFrustum, intersectsSplatFrustum} from '../../src/splat-layer/splat-culling';
-it('matches clip-space plane tests for translated perspective and orthographic light volumes', () => {
+it('matches clip-space plane tests for translated perspective and orthographic camera frusta', () => {
   for (const projection of [
     {matrix: Array.from(matrix), center: [0.4, -0.2, 0, 0], width: 100, height: 100},
     {
@@ -152,9 +153,7 @@ it('reuses unchanged geographic positions across source batches without retainin
   expect(next.has('2,3,4')).toBe(false);
 });
 
-it.each([
-  0, 1
-])('retains filtered pixels beyond camera/light axis %i without expanding depth', axis => {
+it.each([0, 1])('retains filtered pixels beyond camera axis %i without expanding depth', axis => {
   const projection = {
     matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
     center: [0, 0, 0, 0],

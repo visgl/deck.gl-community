@@ -269,7 +269,6 @@ async function renderSplatLayer(
         coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
         getPosition: [68, 0, -10],
         kernelVariance: 4,
-        shadowEnabled: false,
         material: {unlit: true}
       });
       const at = frames;

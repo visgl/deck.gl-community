@@ -14,7 +14,6 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
-import {getPickingShadowProps} from './splat-picking-shadow';
 import {phongMaterial, type PhongMaterialProps} from '@luma.gl/shadertools';
 import {acquireSplatGeometry, type SplatSource} from './splat-source';
 import {getSplatTransform} from './splat-transform';
@@ -65,26 +64,21 @@ export type PreparedSplatProps<DataT> = {
   foveationStrength?: number;
   /** Settled Gaussian submission budget. Optical fades can temporarily admit one extra owner representation to avoid stalling. Coarsest coverage is the minimum. @default Infinity */
   maxSplats?: number;
-  /** Independent light-space submission budget. @default Infinity */
-  maxShadowSplats?: number;
   /** Maximum aggregate accumulation pixels across view targets. Picking and opaque draws keep host resolution. @default Infinity */
   maxRenderPixels?: number;
   /** Internal optical blend weight, independent of owner RGBA. */
   getCoverageWeight?: Accessor<DataT, number>;
   /** Lighting material for authored source normals; supports unlit rendering. */
   material?: PhongMaterialProps;
-  /** Exclude this source from light-space transmission when false. @default true */
-  shadowEnabled?: boolean;
 };
 export type SplatLayerProps<DataT = unknown> = PreparedSplatProps<DataT> & LayerProps;
-const defaultProps: DefaultProps<SplatLayerProps> = {
+const defaultProps: DefaultProps<SplatLayerProps> & {shadowEnabled: false} = {
   source: null,
   transparency: 'weighted',
   hierarchy: null,
   pixelError: 0.75,
   foveationStrength: {type: 'number', value: 0, min: 0, max: 1},
   maxSplats: Infinity,
-  maxShadowSplats: Infinity,
   maxRenderPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
   getPosition: {type: 'accessor', value: (d: any) => d.position},
@@ -100,7 +94,7 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   alphaCutoff: {type: 'number', value: 1 / 255, min: 0, max: 1},
   support: {type: 'number', value: 3, min: 1, max: 6},
   material: {ambient: 0.5, diffuse: 0.7, shininess: 2, specularColor: [0, 0, 0]},
-  shadowEnabled: true
+  shadowEnabled: false
 };
 
 /** Instanced, anisotropic 3D Gaussians with shared weighted transparency and stable owner picking. */
@@ -155,15 +149,12 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
   }
 
   getShaders() {
-    const shaders = super.getShaders({
+    return super.getShaders({
       vs: SPLAT_VERTEX,
       fs: SPLAT_FRAGMENT,
       source: SPLAT_WGSL,
       modules: [project32, picking, phongMaterial, splatUniforms]
     });
-    if (this.props.operation.includes('shadow'))
-      shaders.modules = shaders.modules.filter(module => module.name !== 'shadow');
-    return shaders;
   }
 
   updateState(params: UpdateParameters<this>) {
@@ -244,16 +235,9 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     }
   }
 
-  setShaderModuleProps(props: Parameters<Model['shaderInputs']['setProps']>[0]) {
-    super.setShaderModuleProps(getPickingShadowProps(this, props));
-  }
-
   draw({shaderModuleProps, renderPass}) {
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
-    // Ordinary depth maps cannot represent Gaussian transmission. The host light pass
-    // draws these sources separately into an optical transmission map.
-    if (shaderModuleProps.shadow?.drawToShadowMap) return;
     if (!pickingActive && mode === 0) {
       if (shaderModuleProps.splat?.resolve)
         this.state.effect.resolve(renderPass, shaderModuleProps.project.viewport.id);

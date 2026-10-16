@@ -457,7 +457,6 @@ describe('TreeLayer sublayer override contracts', () => {
           doubleSided: false,
           windStrength: 0.05,
           windTime: 3,
-          shadowEnabled: false,
           parameters: {cullMode: 'back'}
         }
       }
@@ -468,7 +467,6 @@ describe('TreeLayer sublayer override contracts', () => {
     expect(changed.props.parameters).toMatchObject({cullMode: 'back', depthWriteEnabled: false});
     expect(changed.props.windStrength).toBe(0.05);
     expect(changed.props.windTime).toBe(3);
-    expect(changed.props.shadowEnabled).toBe(false);
   });
 });
 
@@ -705,7 +703,6 @@ it('preserves legacy source and hierarchy overrides while sharing one canopy quo
   const hierarchy = [{source: customSource, error: 0}];
   const {layer} = createLayer([OAK, {...OAK, type: 'pine'}], {
     maxCanopySplats: 1234,
-    maxShadowSplats: 567,
     _subLayerProps: {'canopy-oak': {source: customSource, hierarchy, maxSplats: 99}}
   });
   const canopies = layer.renderLayers().filter(child => child instanceof SplatLayer);
@@ -714,10 +711,7 @@ it('preserves legacy source and hierarchy overrides while sharing one canopy quo
   expect(oak.props.source).toBeNull();
   expect(oak.props.maxSplats).toBe(99);
   expect(canopies[0].props._splatBudgetGroup).toBe(canopies[1].props._splatBudgetGroup);
-  expect(canopies[0].props._splatBudgetGroup).toMatchObject({
-    maxSplats: 1234,
-    maxShadowSplats: 567
-  });
+  expect(canopies[0].props._splatBudgetGroup).toMatchObject({maxSplats: 1234});
   const withoutHierarchy = createLayer([OAK], {
     _subLayerProps: {'canopy-oak': {hierarchy: null}}
   })

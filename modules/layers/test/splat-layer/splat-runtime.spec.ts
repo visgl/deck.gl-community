@@ -12,7 +12,7 @@ const hierarchy = (counts: number[]): SplatHierarchy =>
 
 it('allocates one parent cap across differently sized sources by screen error rather than row count', () => {
   const runtime = SplatRuntime.get({}, {});
-  const group = {maxSplats: 160, maxShadowSplats: 40};
+  const group = {maxSplats: 160};
   const selected = new Map<string, any[]>();
   const near = hierarchy([100, 10]);
   const far = hierarchy([1000, 10]);
@@ -20,7 +20,7 @@ it('allocates one parent cap across differently sized sources by screen error ra
     ['near', near, 100],
     ['far', far, 1]
   ] as const)
-    runtime.set(id, false, {
+    runtime.set(id, {
       rows: [{owner: id, pixels, level: 0, blend: 0}],
       hierarchy: () => levels,
       maxSplats: Infinity,
@@ -42,11 +42,11 @@ it('respects local, nested and strictest global ceilings and removes finalized o
   expect(SplatRuntime.get(deck, device)).toBe(runtime);
   expect(SplatRuntime.get(deck, {})).not.toBe(runtime);
   const levels = hierarchy([100, 10]);
-  const parent = {maxSplats: 30, maxShadowSplats: 30};
-  const group = {maxSplats: 1000, maxShadowSplats: 1000, parent};
+  const parent = {maxSplats: 30};
+  const group = {maxSplats: 1000, parent};
   const selected = new Map<string, any[]>();
   for (const id of ['a', 'b'])
-    runtime.set(id, false, {
+    runtime.set(id, {
       rows: [{owner: id, pixels: 10, level: 0, blend: 0}],
       hierarchy: () => levels,
       maxSplats: 1000,
@@ -65,10 +65,10 @@ it('respects local, nested and strictest global ceilings and removes finalized o
 it('reallocates when a shared cap changes or its restrictive registration disappears', () => {
   const runtime = SplatRuntime.get({}, {});
   const levels = hierarchy([100, 10]);
-  const group = {maxSplats: 30, maxShadowSplats: 30};
+  const group = {maxSplats: 30};
   const selected = new Map<string, any[]>();
   for (const id of ['a', 'b'])
-    runtime.set(id, false, {
+    runtime.set(id, {
       rows: [{owner: id, pixels: 10, level: 0, blend: 0}],
       hierarchy: () => levels,
       maxSplats: Infinity,
