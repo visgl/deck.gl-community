@@ -121,8 +121,30 @@ test('interleaved editing preserves map controls, view navigation, and the appli
       map.jumpTo({center: [0, 0], zoom: 3});
       let first = finger(1, 180, 140);
       let second = finger(2, 260, 140);
+      const pointerAt = (pointerId, isPrimary, x, y) =>
+        new PointerEvent('pointerdown', {
+          clientX: bounds.left + x,
+          clientY: bounds.top + y,
+          pointerId,
+          pointerType: 'touch',
+          isPrimary,
+          button: 0,
+          buttons: 1,
+          bubbles: true,
+          cancelable: true
+        });
+      canvas.dispatchEvent(pointerAt(1, true, 180, 140));
+      const editableLayer = layer.getCurrentLayer() as EditableGeoJsonLayer;
+      const editableState = editableLayer.state._editableLayerState;
       await sendTouch('touchstart', [first], [first]);
       expect(map.dragPan.isActive()).toBe(false);
+      // The first finger is already moving an edit gesture when map navigation starts.
+      editableState.didDrag = true;
+      expect(editableState.didDrag).toBe(true);
+      const primaryPress = editableState.pressScreenCoords;
+      canvas.dispatchEvent(pointerAt(2, false, 260, 140));
+      expect(editableState.didDrag).toBe(true);
+      expect(editableState.pressScreenCoords).toBe(primaryPress);
       await sendTouch('touchstart', [first, second], [second]);
       first = finger(1, 140, 140);
       second = finger(2, 300, 140);
@@ -146,6 +168,19 @@ test('interleaved editing preserves map controls, view navigation, and the appli
       expect(map.getCenter().lat).toBeCloseTo(center.lat, 8);
       expect(map.getZoom()).toBeCloseTo(zoom, 8);
       await sendTouch(endType, [], [first]);
+      const currentLayer = layer.getCurrentLayer() as EditableGeoJsonLayer;
+      const click = vi.spyOn(currentLayer, 'onLayerClick');
+      canvas.dispatchEvent(
+        new MouseEvent('click', {
+          clientX: bounds.left + 260,
+          clientY: bounds.top + 200,
+          button: 0,
+          detail: 1,
+          bubbles: true,
+          cancelable: true
+        })
+      );
+      expect(click).not.toHaveBeenCalled();
       expect(map.dragPan.isActive()).toBe(false);
       expect(map.dragPan.isEnabled()).toBe(true);
       expect(map.dragRotate.isEnabled()).toBe(false);

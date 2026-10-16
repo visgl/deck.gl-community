@@ -69,6 +69,7 @@ type SfExampleState = {
   testFeatures: FeatureCollection;
   selectedFeatureIndexes: number[];
   allowEdit: boolean;
+  interleaved: boolean;
   selectionType: string | null;
 };
 
@@ -88,23 +89,9 @@ export function mountSfExample(container: HTMLElement): () => void {
     },
     selectedFeatureIndexes: [],
     allowEdit: true,
+    interleaved: true,
     selectionType: null
   };
-
-  const infoWidget = new BoxPanelWidget({
-    id: 'sf-polygons-info',
-    placement: 'top-left',
-    widthPx: 320,
-    title: 'SF Polygons',
-    collapsible: false
-  });
-
-  const deckOverlay = new MapboxOverlay({
-    interleaved: true,
-    layers: buildLayers(state, handleEdit, handleSelect, handleFeatureClick),
-    widgets: [infoWidget],
-    getCursor: getCursor(state)
-  });
 
   const map = new maplibregl.Map({
     container: mapElement,
@@ -116,6 +103,9 @@ export function mountSfExample(container: HTMLElement): () => void {
   });
 
   map.doubleClickZoom.disable();
+
+  let infoWidget = createInfoWidget();
+  let deckOverlay = createDeckOverlay();
   map.addControl(deckOverlay);
 
   syncInfoWidget();
@@ -166,9 +156,50 @@ export function mountSfExample(container: HTMLElement): () => void {
 
   function syncOverlay() {
     deckOverlay.setProps({
-      layers: buildLayers(state, handleEdit, handleSelect, handleFeatureClick),
+      layers: buildLayers(
+        state,
+        handleEdit,
+        handleSelect,
+        handleFeatureClick,
+        state.interleaved ? null : map.getCanvas()
+      ),
       widgets: [infoWidget],
       getCursor: getCursor(state)
+    });
+  }
+
+  function handleToggleRendering() {
+    state.interleaved = !state.interleaved;
+    map.removeControl(deckOverlay);
+    deckOverlay.finalize();
+    infoWidget = createInfoWidget();
+    deckOverlay = createDeckOverlay();
+    map.addControl(deckOverlay);
+    syncInfoWidget();
+  }
+
+  function createDeckOverlay() {
+    return new MapboxOverlay({
+      interleaved: state.interleaved,
+      layers: buildLayers(
+        state,
+        handleEdit,
+        handleSelect,
+        handleFeatureClick,
+        state.interleaved ? null : map.getCanvas()
+      ),
+      widgets: [infoWidget],
+      getCursor: getCursor(state)
+    });
+  }
+
+  function createInfoWidget() {
+    return new BoxPanelWidget({
+      id: 'sf-polygons-info',
+      placement: 'top-left',
+      widthPx: 320,
+      title: 'SF Polygons',
+      collapsible: false
     });
   }
 
@@ -178,6 +209,7 @@ export function mountSfExample(container: HTMLElement): () => void {
         polygonCount: state.testFeatures.features.length,
         selectedFeatureIndexes: state.selectedFeatureIndexes,
         allowEdit: state.allowEdit,
+        interleaved: state.interleaved,
         selectionType: state.selectionType,
         onSetSelectionType: nextSelectionType => {
           state.selectionType = nextSelectionType;
@@ -188,7 +220,8 @@ export function mountSfExample(container: HTMLElement): () => void {
           state.allowEdit = !state.allowEdit;
           syncOverlay();
           syncInfoWidget();
-        }
+        },
+        onToggleRendering: handleToggleRendering
       })
     });
   }
@@ -198,7 +231,8 @@ function buildLayers(
   state: SfExampleState,
   onEdit: (updatedData: FeatureCollection) => void,
   onSelect: (indexes: number[]) => void,
-  onFeatureClick: (info: {index?: number}) => void
+  onFeatureClick: (info: {index?: number}) => void,
+  eventTarget: HTMLElement | null
 ) {
   const mode = getEditingMode(state);
 
@@ -207,6 +241,7 @@ function buildLayers(
       id: 'geojson',
       data: state.testFeatures,
       selectedFeatureIndexes: state.selectedFeatureIndexes,
+      eventTarget,
       pickable: true,
       mode,
       onClick: onFeatureClick,
@@ -222,6 +257,7 @@ function buildLayers(
     new SelectionLayer({
       id: 'selection',
       selectionType: state.selectionType,
+      eventTarget,
       onSelect: ({pickingInfos}) => {
         onSelect(pickingInfos.map(pickingInfo => pickingInfo.index));
       },
@@ -238,16 +274,20 @@ function buildInfoPanel({
   polygonCount,
   selectedFeatureIndexes,
   allowEdit,
+  interleaved,
   selectionType,
   onSetSelectionType,
-  onToggleAllowEdit
+  onToggleAllowEdit,
+  onToggleRendering
 }: {
   polygonCount: number;
   selectedFeatureIndexes: number[];
   allowEdit: boolean;
+  interleaved: boolean;
   selectionType: string | null;
   onSetSelectionType: (nextSelectionType: string) => void;
   onToggleAllowEdit: () => void;
+  onToggleRendering: () => void;
 }) {
   return new ColumnPanel({
     id: 'sf-polygons-info-panel',
@@ -275,6 +315,12 @@ function buildInfoPanel({
 
           applyElementStyle(buttonGroup, BUTTON_GROUP_STYLE);
           buttonGroup.append(
+            createButton(
+              ownerDocument,
+              `Rendering: ${interleaved ? 'Interleaved' : 'Overlaid'}`,
+              interleaved,
+              onToggleRendering
+            ),
             createButton(ownerDocument, 'Select by Rectangle', selectionType === 'rectangle', () =>
               onSetSelectionType('rectangle')
             ),

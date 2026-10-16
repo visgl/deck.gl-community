@@ -206,6 +206,42 @@ test('native clicks are immediate, scale-aware, and forwarded to the current lay
   }
 });
 
+test('secondary pointers preserve the primary edit press through pinch navigation', () => {
+  const click = vi.spyOn(layer, 'onLayerClick');
+  layer.state._editableLayerState.canvas = {
+    offsetWidth: 512,
+    offsetHeight: 384,
+    clientLeft: 0,
+    clientTop: 0,
+    getBoundingClientRect: () => ({left: 0, top: 0, width: 512, height: 384})
+  } as HTMLCanvasElement;
+  layer._onNativeClick({
+    type: 'pointerdown',
+    button: 0,
+    isPrimary: true,
+    clientX: 60,
+    clientY: 120
+  } as PointerEvent);
+
+  // The primary pointer has started a drag before the second finger begins map navigation.
+  layer._onpanstart(makeMockGestureEvent('panstart'));
+  expect(layer.state._editableLayerState.didDrag).toBe(true);
+  const primaryPress = layer.state._editableLayerState.pressScreenCoords;
+
+  layer._onNativeClick({
+    type: 'pointerdown',
+    button: 0,
+    isPrimary: false,
+    clientX: 200,
+    clientY: 220
+  } as PointerEvent);
+
+  expect(layer.state._editableLayerState.didDrag).toBe(true);
+  expect(layer.state._editableLayerState.pressScreenCoords).toBe(primaryPress);
+  layer._onNativeClick({type: 'click', button: 0, detail: 1} as MouseEvent);
+  expect(click).not.toHaveBeenCalled();
+});
+
 test('pan start retains the press location before gesture recognition', () => {
   const start = vi.spyOn(layer, 'onStartDragging');
   const event = {...makeMockGestureEvent('panstart'), deltaX: 7, deltaY: 10};

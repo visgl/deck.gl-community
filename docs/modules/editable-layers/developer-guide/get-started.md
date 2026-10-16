@@ -114,6 +114,26 @@ const overlay = new MapboxOverlay({
 map.addControl(overlay);
 ```
 
+## MapLibre and Mapbox Overlaid Editing
+
+With `MapboxOverlay({interleaved: false})`, set `eventTarget: map.getCanvas()` on editable
+and selection layers. Interleaved overlays use the shared canvas automatically.
+
+```ts
+const overlay = new MapboxOverlay({
+  interleaved: false,
+  layers: [new EditableGeoJsonLayer({
+    id: 'editable',
+    data,
+    mode: DrawPolygonMode,
+    eventTarget: map.getCanvas(),
+    selectedFeatureIndexes: [],
+    onEdit: ({updatedData}) => updateData(updatedData)
+  })]
+});
+map.addControl(overlay);
+```
+
 ## Widgets
 
 `editable-layers` ships deck.gl widgets that provide editing UI without requiring you to build custom React components.

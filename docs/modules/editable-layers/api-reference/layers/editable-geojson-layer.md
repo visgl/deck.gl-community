@@ -85,6 +85,23 @@ There are a extensive number of modes that come out-of-the-box with from '@deck.
 Prevents edit gestures from panning the parent MapLibre/Mapbox map. Multi-touch navigation
 remains available; set to `false` to manage gesture propagation yourself.
 
+#### `eventTarget` (HTMLElement, optional) {/* #eventtarget */}
+
+- Default: `null` (use deck.gl's render canvas)
+
+The input element when it differs from deck.gl's render canvas. For overlaid
+`MapboxOverlay`, use `map.getCanvas()` and keep it aligned with the rendered viewport.
+
+```ts
+new EditableGeoJsonLayer({
+  // Other editing props...
+  eventTarget: map.getCanvas()
+});
+```
+
+Changing the target cancels active drawing; removing the layer releases listeners and restores
+the target's touch style.
+
 #### `modeConfig` (Object, optional)
 
 - Default: `null`

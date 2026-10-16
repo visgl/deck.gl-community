@@ -4,9 +4,9 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps, DefaultProps} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
+import {EventManager, Pan, MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
 
 import {
   DraggingEvent,
@@ -42,12 +42,66 @@ export const EVENT_TYPES = [
   'dblclick'
 ];
 
+type TouchActionLease = {
+  owners: Set<object>;
+  previousTouchAction: string;
+  managedTouchAction: string;
+};
+
+// Several editable layers may share one map canvas; restore its style after the last layer leaves.
+const TOUCH_ACTION_LEASES = new WeakMap<HTMLElement, TouchActionLease>();
+
+function acquireTouchAction(target: HTMLElement, owner: object) {
+  let lease = TOUCH_ACTION_LEASES.get(target);
+  if (!lease) {
+    lease = {
+      owners: new Set(),
+      previousTouchAction: target.style.touchAction,
+      managedTouchAction: target.style.touchAction
+    };
+    TOUCH_ACTION_LEASES.set(target, lease);
+  } else if (target.style.touchAction !== lease.managedTouchAction) {
+    // Treat a style change made while a target is leased as the application's new baseline.
+    lease.previousTouchAction = target.style.touchAction;
+  }
+  lease.owners.add(owner);
+}
+
+function recordTouchAction(target: HTMLElement) {
+  const lease = TOUCH_ACTION_LEASES.get(target);
+  if (lease) {
+    lease.managedTouchAction = target.style.touchAction;
+  }
+}
+
+function releaseTouchAction(target: HTMLElement, owner: object, touchActionBeforeDestroy: string) {
+  const lease = TOUCH_ACTION_LEASES.get(target);
+  if (!lease || !lease.owners.delete(owner)) {
+    return;
+  }
+  if (lease.owners.size > 0) {
+    target.style.touchAction = touchActionBeforeDestroy;
+    return;
+  }
+  target.style.touchAction =
+    touchActionBeforeDestroy === lease.managedTouchAction
+      ? lease.previousTouchAction
+      : touchActionBeforeDestroy;
+  TOUCH_ACTION_LEASES.delete(target);
+}
+
 // TODO(v9): remove generic layer
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type EditableLayerProps<_DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
   onCancelPan?: () => void;
+  /**
+   * Element receiving editing input when it differs from deck.gl's render canvas.
+   * For an overlaid MapboxOverlay, pass the base map's public getCanvas() result.
+   * Defaults to deck.gl's canvas. The element must align with the rendered viewport.
+   */
+  eventTarget?: HTMLElement | null;
   autoPreventMapInteractions?: boolean;
 };
 
@@ -56,7 +110,10 @@ export abstract class EditableLayer<
   ExtraPropsT = Record<string, unknown>
 > extends CompositeLayer<ExtraPropsT & Required<EditableLayerProps<DataT>>> {
   static layerName = 'EditableLayer';
-  static defaultProps: DefaultProps<EditableLayerProps<any>> = {autoPreventMapInteractions: true};
+  static defaultProps: DefaultProps<EditableLayerProps<any>> = {
+    autoPreventMapInteractions: true,
+    eventTarget: {type: 'object', value: null, compare: 0}
+  };
 
   state: {_editableLayerState: any} = undefined!;
 
@@ -102,6 +159,9 @@ export abstract class EditableLayer<
         pressScreenCoords: null,
         didDrag: false,
         canvas,
+        eventTarget: this.props.eventTarget || canvas,
+        // This token survives layer replacement so the original target lease can be released.
+        touchActionOwner: {},
         // Native clicks bypass the recognizer's 300ms double-click failure delay.
         gestureEventTypes: canvas
           ? EVENT_TYPES.filter(type => !NATIVE_EVENT_HANDLERS[type])
@@ -115,16 +175,49 @@ export abstract class EditableLayer<
     this._addEventHandlers();
   }
 
+  updateState(params: UpdateParameters<this>) {
+    super.updateState(params);
+    const {eventTarget, canvas} = this.state._editableLayerState;
+    const nextTarget = this.props.eventTarget || canvas;
+    if (nextTarget !== eventTarget) {
+      this._removeEventHandlers();
+      if (this.state._editableLayerState.pointerDownMapCoords) {
+        // onEdit may replace layers; finish Deck's reconciliation before notifying the app.
+        queueMicrotask(() => {
+          const currentLayer = (this.getCurrentLayer() || this) as this;
+          currentLayer._onpancancel({} as MjolnirGestureEvent);
+        });
+      }
+      this._resetPointerDownState();
+      this.setState({
+        _editableLayerState: {...this.state._editableLayerState, eventTarget: nextTarget}
+      });
+      this._addEventHandlers();
+    }
+  }
+
   finalizeState() {
     this._removeEventHandlers();
   }
 
   _addEventHandlers() {
     // @ts-expect-error accessing protected props
-    const {eventManager} = this.context.deck;
-    const {eventHandler, canvas, gestureEventTypes} = this.state._editableLayerState;
+    const deckEventManager = this.context.deck.eventManager;
+    const editableState = this.state._editableLayerState;
+    const {eventHandler, canvas, eventTarget, gestureEventTypes} = editableState;
+    if (eventTarget && eventTarget !== canvas) {
+      acquireTouchAction(eventTarget, editableState.touchActionOwner);
+    }
+    // MapboxOverlay forwards map callbacks directly to Deck, bypassing its event
+    // manager. Recognize input on the supplied map canvas instead of intercepting
+    // private Deck/Mapbox handlers or changing the render canvas's pointer events.
+    const eventManager =
+      eventTarget && eventTarget !== canvas
+        ? new EventManager(eventTarget, {recognizers: [[Pan, {threshold: 3}]], cssProps: {}})
+        : deckEventManager;
+    editableState.eventManager = eventManager;
     for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
-      canvas?.addEventListener(eventType, eventHandler);
+      eventTarget?.addEventListener(eventType, eventHandler);
     }
 
     for (const eventType of gestureEventTypes) {
@@ -133,18 +226,27 @@ export abstract class EditableLayer<
         priority: 100
       });
     }
+    if (eventTarget && eventTarget !== canvas) {
+      recordTouchAction(eventTarget);
+    }
   }
 
   _removeEventHandlers() {
-    // @ts-expect-error accessing protected props
-    const {eventManager} = this.context.deck;
-    const {eventHandler, canvas, gestureEventTypes} = this.state._editableLayerState;
+    const {eventHandler, canvas, eventTarget, eventManager, gestureEventTypes, touchActionOwner} =
+      this.state._editableLayerState;
+    const touchActionBeforeCleanup =
+      eventTarget && eventTarget !== canvas ? eventTarget.style.touchAction : undefined;
     for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
-      canvas?.removeEventListener(eventType, eventHandler);
+      eventTarget?.removeEventListener(eventType, eventHandler);
     }
 
     for (const eventType of gestureEventTypes) {
       eventManager.off(eventType, eventHandler);
+    }
+    if (eventTarget && eventTarget !== canvas) {
+      eventManager.destroy();
+      // Release our recognizer's CSS without overwriting later application changes.
+      releaseTouchAction(eventTarget, touchActionOwner, touchActionBeforeCleanup!);
     }
   }
 
@@ -202,8 +304,10 @@ export abstract class EditableLayer<
     if (event.type === 'dblclick') this._onNativeMapInteraction(event);
     const editableState = this.state._editableLayerState;
     if (event.type === 'pointerdown') {
-      editableState.didDrag = false;
-      editableState.pressScreenCoords = this.getScreenCoords(event);
+      if ((event as PointerEvent).isPrimary !== false) {
+        editableState.didDrag = false;
+        editableState.pressScreenCoords = this.getScreenCoords(event);
+      }
       return;
     }
     if (

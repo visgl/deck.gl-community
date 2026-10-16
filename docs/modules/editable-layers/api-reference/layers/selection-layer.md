@@ -91,6 +91,12 @@ Keeps primary mouse and single-touch selection gestures from bubbling into the p
 Set to `false` when the application coordinates map gestures itself. This is forwarded to
 SelectionLayer's internal `EditableGeoJsonLayer`; inactive selection uses `ViewMode`.
 
+#### `eventTarget` (HTMLElement, optional)
+
+- Default: `null`
+
+Element receiving selection gestures. For overlaid `MapboxOverlay`, use `map.getCanvas()`.
+
 #### `onSelect` (Function, required)
 
 Called when selection is completed with `{pickingInfos}`. Each entry is the original

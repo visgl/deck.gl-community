@@ -30,6 +30,9 @@ This page lists module additions and major changes in each release. For detailed
 
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
 
+- Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,
+  keeps `guideType` features selectable, and resumes editing after two-finger navigation.
+
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
   example demonstrates independent maps, shared hover state and canvas cleanup.
