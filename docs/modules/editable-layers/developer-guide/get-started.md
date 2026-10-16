@@ -114,11 +114,6 @@ const overlay = new MapboxOverlay({
 map.addControl(overlay);
 ```
 
-Set `autoPreventMapInteractions: false` on `EditableGeoJsonLayer` or `SelectionLayer`
-when the application already coordinates map gestures or intentionally lets edit gestures
-reach the parent map. This option only changes propagation to parent elements; edit-mode
-`event.cancelPan()` continues to coordinate deck.gl's own controller.
-
 ## Widgets
 
 `editable-layers` ships deck.gl widgets that provide editing UI without requiring you to build custom React components.
