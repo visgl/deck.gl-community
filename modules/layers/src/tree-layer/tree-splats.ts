@@ -6,6 +6,7 @@ import {createSplatHierarchy, type SplatHierarchy} from '../splat-layer/splat-hi
 import type {SplatSource} from '../splat-layer/splat-source';
 import type {PreparedSplatData} from '../splat-layer/splat-input';
 import {createTreeRng, samplePineSurface, createPineTiers} from './tree-geometry';
+import {evaluatePalmFrond, getPalmFronds} from './tree-palm';
 import type {TreeType} from './tree-layer';
 import {getTreeBotany} from './tree-botany';
 import {
@@ -65,40 +66,11 @@ export function getTreeSplatSource(
     normals.push(...n);
   };
   if (type === 'palm') {
-    // Broad, arching pinnate fronds; overlapping leaf lobes keep each leaflet continuous.
-    const frondCount = 22;
-    const spearCount = 4;
+    // Broad pinnate fronds share their rachis paths with the connected wood template.
     const leafletCount = 16;
-    for (let k = 0; k < frondCount + spearCount; k++) {
-      const spear = k >= frondCount;
-      const index = spear ? k - frondCount : k;
-      const count = spear ? spearCount : frondCount;
-      const angle =
-        ((index + (spear ? 0.5 : 0)) / count) * Math.PI * 2 +
-        (spear ? 0 : Math.sin(index * 5.37) * 0.07);
-      const tier = index % 4;
-      const tipRadius = 0.78 + rng() * 0.18;
-      const tipDrop = 0.1 + tier * 0.035 + rng() * 0.05;
-      const controls = spear
-        ? [
-            [0.025, 0.46],
-            [0.13, 0.8],
-            [0.34, 1.04],
-            [0.54, 0.98]
-          ]
-        : [
-            [0.035, 0.45 + tier * 0.012],
-            [0.26, 0.74 - tier * 0.022],
-            [0.61, 0.47 - tier * 0.025],
-            [tipRadius, Math.max(0.035, 0.18 - tipDrop)]
-          ];
-      const evaluate = (t: number): Vector3 => {
-        const u = 1 - t;
-        const coefficients = [u ** 3, 3 * u * u * t, 3 * u * t * t, t ** 3];
-        const radius = controls.reduce((sum, control, i) => sum + control[0] * coefficients[i], 0);
-        const z = controls.reduce((sum, control, i) => sum + control[1] * coefficients[i], 0);
-        return new Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
-      };
+    for (const frond of getPalmFronds()) {
+      const {angle, spear} = frond;
+      const evaluate = (t: number) => new Vector3(evaluatePalmFrond(frond, t));
       const pairs = spear ? 9 : leafletCount;
       if (!spear) {
         for (let segment = 0; segment < 12; segment++) {

@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {Vector3} from '@math.gl/core';
 import {samplePineSurface, createPineTiers, type TreeMesh} from './tree-geometry';
+import {evaluatePalmFrond, getPalmFronds} from './tree-palm';
 import type {TreeType} from './tree-layer';
 import {
   getTreeCharacteristicsKey,
@@ -78,46 +79,16 @@ export function getTreeWoodMesh(
     );
   const sockets: Socket[] = [];
   if (!aggregate && type === 'palm') {
-    const frondCount = 24;
-    const spearCount = 5;
-    for (let k = 0; k < frondCount + spearCount; k++) {
-      const spear = k >= frondCount;
-      const index = spear ? k - frondCount : k;
-      const angle =
-        ((index + (spear ? 0.5 : 0)) / (spear ? spearCount : frondCount)) * Math.PI * 2 +
-        (spear ? 0 : Math.sin(index * 5.37) * 0.07);
-      const tier = index % 4;
-      const tipRadius = 0.82 + ((index * 7) % 9) * 0.018;
-      const tipDrop = 0.1 + tier * 0.035 + ((index * 3) % 7) * 0.008;
-      const controls = spear
-        ? [
-            [0.025, 0.46],
-            [0.13, 0.8],
-            [0.34, 1.04],
-            [0.54, 0.98]
-          ]
-        : [
-            [0.035, 0.45 + tier * 0.012],
-            [0.26, 0.74 - tier * 0.022],
-            [0.61, 0.47 - tier * 0.025],
-            [tipRadius, Math.max(0.035, 0.18 - tipDrop)]
-          ];
-      const path = Array.from({length: 17}, (_, segment) => {
-        const t = (segment + 1) / 17,
-          u = 1 - t;
-        const weights = [u ** 3, 3 * u * u * t, 3 * u * t * t, t ** 3];
-        const r = controls.reduce((sum, point, i) => sum + point[0] * weights[i], 0);
-        return [
-          Math.cos(angle) * r,
-          Math.sin(angle) * r,
-          controls.reduce((sum, point, i) => sum + point[1] * weights[i], 0)
-        ] as Point;
-      });
+    for (const frond of getPalmFronds()) {
+      const path = Array.from({length: 17}, (_, segment) =>
+        evaluatePalmFrond(frond, (segment + 1) / 17)
+      );
       // Parent rings start on -Y; convert the authored frond azimuth into that frame.
       const sector =
-        (Math.round(((angle + Math.PI / 2) / (Math.PI * 2)) * segments) + segments) % segments;
+        (Math.round(((frond.angle + Math.PI / 2) / (Math.PI * 2)) * segments) + segments) %
+        segments;
       sockets.push({
-        ring: palmBaseRingOffset + 24 + (spear ? 4 : 0) + tier,
+        ring: palmBaseRingOffset + 24 + (frond.spear ? 4 : 0) + frond.tier,
         sector,
         end: path[path.length - 1],
         radius: 0.0055,
