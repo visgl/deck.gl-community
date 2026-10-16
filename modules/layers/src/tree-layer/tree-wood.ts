@@ -58,7 +58,11 @@ export function getTreeWoodMesh(
     height.splice(0, height.length, -1, 0.22, 0.42, height[height.length - 1]);
   const root: Point[] = botany
     ? botany.stem
-    : height.map(z => [z > 0.22 ? Math.pow((z - 0.22) / 0.75, 2) * 0.012 : 0, 0, z]);
+    : height.map(z => [
+        z > 0.22 ? Math.pow((z - 0.22) / 0.75, 2) * (type === 'palm' ? 0.02 : 0.012) : 0,
+        0,
+        z
+      ]);
   const radius =
     botany?.radii ??
     height.map(z =>
@@ -67,14 +71,14 @@ export function getTreeWoodMesh(
             const progress = Math.max(0, Math.min(1, (z + 1) / (leaderTop + 1)));
             const scar = aggregate
               ? 0
-              : Math.pow((1 + Math.cos(progress * Math.PI * 28)) / 2, 10) * 0.003;
-            return 0.072 - progress * 0.024 + scar;
+              : Math.pow((1 + Math.cos(progress * Math.PI * 44)) / 2, 10) * 0.0022;
+            return 0.074 - progress * 0.018 + scar;
           })()
         : 0.06 * (1 - (Math.max(0, z - 0.22) / 0.85) * 0.84)
     );
   const sockets: Socket[] = [];
   if (!aggregate && type === 'palm') {
-    const frondCount = 18;
+    const frondCount = 24;
     const spearCount = 5;
     for (let k = 0; k < frondCount + spearCount; k++) {
       const spear = k >= frondCount;
@@ -83,18 +87,20 @@ export function getTreeWoodMesh(
         ((index + (spear ? 0.5 : 0)) / (spear ? spearCount : frondCount)) * Math.PI * 2 +
         (spear ? 0 : Math.sin(index * 5.37) * 0.07);
       const tier = index % 4;
+      const tipRadius = 0.82 + ((index * 7) % 9) * 0.018;
+      const tipDrop = 0.1 + tier * 0.035 + ((index * 3) % 7) * 0.008;
       const controls = spear
         ? [
             [0.025, 0.46],
-            [0.14, 0.78],
-            [0.38, 1.02],
-            [0.6, 0.94]
+            [0.13, 0.8],
+            [0.34, 1.04],
+            [0.54, 0.98]
           ]
         : [
-            [0.035, 0.44 + tier * 0.012],
-            [0.27, 0.73 - tier * 0.022],
-            [0.66, 0.5 - tier * 0.04],
-            [0.8 + ((index * 7) % 9) * 0.014, 0.21 - tier * 0.025]
+            [0.035, 0.45 + tier * 0.012],
+            [0.26, 0.74 - tier * 0.022],
+            [0.61, 0.47 - tier * 0.025],
+            [tipRadius, Math.max(0.035, 0.18 - tipDrop)]
           ];
       const path = Array.from({length: 17}, (_, segment) => {
         const t = (segment + 1) / 17,
@@ -190,10 +196,17 @@ export function getTreeWoodMesh(
           const point = new Vector3(path[ring])
             .add(new Vector3(side).scale(Math.cos(angle) * radii[ring]))
             .add(new Vector3(up).scale(Math.sin(angle) * radii[ring]));
+          const scar =
+            type === 'palm' && trunk
+              ? Math.pow(
+                  (1 + Math.cos(((path[ring][2] + 1) / (leaderTop + 1)) * Math.PI * 44)) / 2,
+                  8
+                ) * 0.12
+              : 0;
           return addVertex(
             point,
             trunk,
-            0.78 + Math.sin(angle * 9 + ring * 0.2) * 0.08 + (ring / path.length) * 0.09,
+            0.78 + Math.sin(angle * 9 + ring * 0.2) * 0.08 + (ring / path.length) * 0.09 - scar,
             path[ring]
           );
         })

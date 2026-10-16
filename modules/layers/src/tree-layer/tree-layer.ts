@@ -280,7 +280,7 @@ type _TreeLayerProps<DataT> = {
   maxCanopySplats?: number;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
   maxCanopyPixels?: number;
-  /** Refine actual crowns around screen center while retaining every visible tree. @default 0 */
+  /** Refine actual splat crowns around screen center while retaining every visible tree. @default 0.55 */
   foveationStrength?: number;
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
@@ -309,11 +309,11 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> & {shadowEnabled: fals
   maxCanopySplats: 250000,
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
-  foveationStrength: {type: 'number', value: 0, min: 0, max: 1},
+  foveationStrength: {type: 'number', value: 0.55, min: 0, max: 1},
   shadowEnabled: false
 };
 
-const DENSE_TREE_COUNT = 1024;
+const DENSE_WOOD_COUNT = 1024;
 
 type TreeRow<DataT> = {
   object: DataT;
@@ -850,7 +850,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
           }
         };
-        if (data.length >= DENSE_TREE_COUNT) {
+        if (data.length >= DENSE_WOOD_COUNT) {
           // Dense scenes need the aggregate connected shell, not per-tree near/far selection.
           layers.push(
             new TreeMeshLayer(
@@ -894,38 +894,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           this.props.updateTriggers?.getSeason
         ]
       };
-      if (data.length >= DENSE_TREE_COUNT) {
-        // At grove scale a few triangles per crown are a better LOD than thousands
-        // of translucent splats. Normal and close views continue to use SplatLayer.
-        const meshType = type === 'pine' || type === 'palm' ? type : 'oak';
-        foliage.push(
-          new TreeMeshLayer(
-            this.getTreeSubLayerProps(
-              {
-                id: `canopy-dense-${key}`,
-                data,
-                ...shared,
-                mesh: getTreeMesh('canopy', meshType, 'low', winter, levels),
-                getPosition: (row: TreeRow<DataT>) => row.position,
-                getScale: (row: TreeRow<DataT>) => row.scale,
-                getTranslation: (row: TreeRow<DataT>) => row.translation,
-                getOrientation: (row: TreeRow<DataT>) => row.orientation,
-                getColor: getCanopyColor,
-                getWind: treeWind,
-                doubleSided: type === 'palm',
-                parameters:
-                  type === 'palm'
-                    ? {...this.props.parameters, cullMode: 'none'}
-                    : this.props.parameters,
-                material: {ambient: 0.62, diffuse: 0.82, shininess: 2, specularColor: [0, 0, 0]},
-                updateTriggers: canopyTriggers
-              },
-              `canopy-${type}`
-            )
-          )
-        );
-        continue;
-      }
       const CanopyLayer = SplatLayer;
       foliage.push(
         new CanopyLayer(
