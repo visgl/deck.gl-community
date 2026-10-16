@@ -119,7 +119,6 @@ export function MapLibreMap() {
       mapStyle="https://demotiles.maplibre.org/style.json"
       initialViewState={{longitude: -122.4, latitude: 37.8, zoom: 12}}
       canvasContextAttributes={{antialias: true}}
-      pixelRatio={window.devicePixelRatio}
       onLoad={() => setLoaded(true)}
     >
       <DeckGL interleaved onDeckglChange={setOverlay}>
