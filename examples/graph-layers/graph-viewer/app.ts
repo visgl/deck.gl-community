@@ -66,7 +66,7 @@ import {
   type LayoutType
 } from './layout-options';
 import {EXAMPLES, filterExamplesByType} from './examples';
-import {createArrowGraphFromJson, type JsonGraph} from './sanitize-graph';
+import {createMiniMap} from './mini-map';
 import type {PropDescription} from './props-form';
 
 import '@deck.gl/widgets/stylesheet.css';
@@ -126,7 +126,6 @@ type GraphViewerRuntime = {
   layout: GraphLayout | null;
   dagLayout: CollapsableD3DagLayout | null;
   isDagLayout: boolean;
-  manualEngine: GraphEngine | null;
   graphLayer: GraphLayer | null;
   metadataLoading: boolean;
   layoutDescription?: string;
@@ -314,6 +313,11 @@ export function mountGraphViewerExample(
     themeMode: 'light'
   };
 
+  const miniMap = createMiniMap(rootElement, target => {
+    state.viewState = {...state.viewState, target};
+    applyDeckViewState();
+  });
+
   let deck: Deck | null = null;
   let currentRuntime: GraphViewerRuntime | null = null;
   let isApplyingViewState = false;
@@ -361,6 +365,7 @@ export function mountGraphViewerExample(
       }
       state.isSidebarOpen = nextOpen;
       syncWidgets();
+      miniMap.update(state.resolvedEngine, deck?.getViewports()[0], nextOpen ? 360 : 0);
     }
   });
   const boxWidget =
@@ -476,6 +481,7 @@ export function mountGraphViewerExample(
   applyState();
 
   return () => {
+    miniMap.destroy();
     deck?.finalize();
     styleElement.remove();
     loadingElement.remove();
@@ -487,11 +493,7 @@ export function mountGraphViewerExample(
     const runtime = buildRuntime(state);
     currentRuntime = runtime;
 
-    if (runtime.manualEngine) {
-      state.resolvedEngine = runtime.manualEngine;
-    } else if (isRemoteExample(runtime.selectedExample)) {
-      state.resolvedEngine = null;
-    }
+    state.resolvedEngine = null;
 
     updateInlineMetadata(runtime);
     updateResolvedEngineMetadata(runtime);
@@ -528,9 +530,12 @@ export function mountGraphViewerExample(
 
   function syncLoadingOverlay() {
     loadingElement.hidden = !state.loading.isLoading;
+    loadingElement.style.display = state.loading.isLoading ? 'flex' : 'none';
   }
 
   function handleAfterRender() {
+    updateResolvedEngineFromLayer();
+    miniMap.update(state.resolvedEngine, deck?.getViewports()[0], state.isSidebarOpen ? 360 : 0);
     if (state.loading.loaded && !state.loading.rendered) {
       state.loading = {
         loaded: true,
@@ -538,12 +543,12 @@ export function mountGraphViewerExample(
         isLoading: false
       };
       syncLoadingOverlay();
+      return;
     }
-    updateResolvedEngineFromLayer();
   }
 
   function updateResolvedEngineFromLayer() {
-    if (!deck || currentRuntime?.manualEngine) {
+    if (!deck) {
       return;
     }
 
@@ -796,15 +801,10 @@ export function mountGraphViewerExample(
       }
     }
 
-    const manualEngine =
-      graphData && layout
-        ? new GraphEngine({graph: createArrowGraphFromJson(graphData as JsonGraph), layout})
-        : null;
-
     const graphLayer = buildGraphLayer({
       selectedExample,
+      graphData,
       layout,
-      manualEngine,
       rankGrid: buildRankGrid(selectedLayout, layoutOptions, dagLayout),
       onLayoutStart: detail => {
         state.loading = {...INITIAL_LOADING_STATE};
@@ -819,7 +819,7 @@ export function mountGraphViewerExample(
         state.loading = {
           loaded: true,
           rendered: state.loading.rendered,
-          isLoading: !state.loading.rendered
+          isLoading: false
         };
         syncLoadingOverlay();
         viewportController.handleLayoutEvent(detail);
@@ -838,7 +838,6 @@ export function mountGraphViewerExample(
       layout,
       dagLayout,
       isDagLayout: selectedLayout === 'd3-dag-layout',
-      manualEngine,
       graphLayer,
       metadataLoading: Boolean(isRemoteExample(selectedExample) && !activeMetadata),
       layoutDescription: selectedExample.layoutDescriptions[selectedLayout]
@@ -861,8 +860,8 @@ export function mountGraphViewerExample(
 
 function buildGraphLayer({
   selectedExample,
+  graphData,
   layout,
-  manualEngine,
   rankGrid,
   onLayoutStart,
   onLayoutChange,
@@ -870,8 +869,8 @@ function buildGraphLayer({
   onDataLoad
 }: {
   selectedExample: ExampleDefinition;
+  graphData: ExampleGraphData | null;
   layout: GraphLayout | null;
-  manualEngine: GraphEngine | null;
   rankGrid: RankGridConfig | false;
   onLayoutStart: (detail?: GraphLayoutEventDetail) => void;
   onLayoutChange: (detail?: GraphLayoutEventDetail) => void;
@@ -894,11 +893,11 @@ function buildGraphLayer({
     ...(selectedExample.graphLoader ? {graphLoader: selectedExample.graphLoader} : {})
   } as const;
 
-  if (manualEngine) {
+  if (isInlineExample(selectedExample) && graphData) {
     return new GraphLayer({
       ...baseProps,
-      data: manualEngine,
-      engine: manualEngine
+      data: graphData,
+      onDataLoad
     });
   }
 

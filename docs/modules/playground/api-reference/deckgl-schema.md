@@ -1,5 +1,7 @@
 # deck.gl Schema
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 The playground bundles Zod schemas for JSON-encoded deck.gl documents, official and community
 layers, and core views, without importing layer constructors. The generated official deck.gl JSON
 Schema artifact is available from:
@@ -18,7 +20,7 @@ new Playground({
 ## Runtime validation and inferred types
 
 The catalog covers the 35 concrete layers exported by deck.gl 9.4's `layers`,
-`aggregation-layers`, `geo-layers`, and `mesh-layers` packages, all 45 public community layers, and
+`aggregation-layers`, `geo-layers`, and `mesh-layers` packages, all 46 public community layers, and
 all five concrete core views. Abstract `View`, `Layer`, `_AggregationLayer`, and `_GeoCellLayer`
 are not document variants. The package remains private.
 
@@ -77,7 +79,9 @@ return value. The host supplies conversion and rendering. See deck.gl's
 [conversion reference](https://deck.gl/docs/api-reference/json/conversion-reference).
 
 Textures and meshes use URLs or registered class descriptors; constants can refer to host-owned
-resources. The managed renderer requires constants for live resources and does not construct nested
+resources. `VolumetricVideoLayer` accepts an MP4/MOV URL or a registered File/Blob constant
+through `video: '@@#video'`; its completion callbacks also use host references.
+The managed renderer requires constants for live resources and does not construct nested
 `@@type` descriptors. For native GeoArrow layers, register an Arrow table as a constant and use
 `data: '@@#table'`; geometry vectors can also be registered constants. Browser-tool Arrow imports
 materialize JSON rows and do not supply native tables. A5 IDs use strings in JSON because JSON
@@ -122,7 +126,7 @@ the playground's basemap selector.
 ```
 
 Tokens are used in browser requests, so provide a public token restricted to the hosted site.
-CARTO style URLs do not require a token.
+OpenFreeMap style URLs do not require a token.
 
 ## Custom layers
 

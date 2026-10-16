@@ -71,6 +71,7 @@ export class EdgeLayer extends CompositeLayer {
         id: `${id}-${idx}`,
         data: edgeData,
         getLayoutInfo,
+        transitions: this.props.transitions,
         getColor: stylesheet.getDeckGLAccessor('getColor'),
         getWidth: stylesheet.getDeckGLAccessor('getWidth'),
         colorUpdateTrigger: stylesheet.getDeckGLAccessorUpdateTrigger('getColor'),

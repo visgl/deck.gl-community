@@ -28,6 +28,7 @@ import {
   type RefinementStrategy,
   STRATEGY_DEFAULT
 } from '../tileset/index';
+import {validateRefinementStrategy} from '../tileset/tileset-2d';
 import {SharedTile2DView} from './shared-tile-2d-view';
 import {sharedTile2DDeckAdapter} from './deck-tileset-adapter';
 import {type URLTemplate, getURLFromTemplate} from './url-template';
@@ -75,7 +76,7 @@ const defaultProps: DefaultProps<SharedTile2DLayerProps> = {
   onViewportLoad: {type: 'function', optional: true, value: null},
   onTileLoad: {type: 'function', value: () => {}},
   onTileUnload: {type: 'function', value: () => {}},
-  onTileError: {type: 'function', value: () => {}},
+  onTileError: {type: 'function', value: err => console.error(err)},
   extent: {type: 'array', optional: true, value: null, compare: true},
   tileSize: 512,
   maxZoom: null,
@@ -88,6 +89,9 @@ const defaultProps: DefaultProps<SharedTile2DLayerProps> = {
   debounceTime: 0,
   zoomOffset: 0
 };
+
+/** Id of the viewport deck.gl's layer manager uses before the deck has real viewports. */
+const PLACEHOLDER_VIEWPORT_KEY = 'DEFAULT-INITIAL-VIEWPORT';
 
 /** Internal defaults used to detect whether layer props were explicitly overridden. */
 const TILE2D_LAYER_DEFAULT_OPTION_VALUES = {
@@ -126,7 +130,7 @@ export type SharedTile2DLayerProps<DataT = unknown> = CompositeLayerProps & {
   onTileLoad?: (tile: SharedTile2DHeader<DataT>) => void;
   /** Callback fired when any tile is evicted. */
   onTileUnload?: (tile: SharedTile2DHeader<DataT>) => void;
-  /** Callback fired when any tile fails to load. */
+  /** Callback fired when any tile fails to load. Logs the error with `console.error` by default. */
   onTileError?: (err: any, tile?: SharedTile2DHeader<DataT>) => void;
   /** Bounding box limiting tile generation. */
   extent?: number[] | null;
@@ -148,7 +152,12 @@ export type SharedTile2DLayerProps<DataT = unknown> = CompositeLayerProps & {
   maxRequests?: number;
   /** Debounce interval before issuing queued requests. */
   debounceTime?: number;
-  /** Integer zoom offset applied during tile selection. */
+  /**
+   * Added to the viewport's zoom before it is turned into the tile zoom, as in deck.gl's
+   * `TileLayer`: an integer shifts the tile zoom. Geospatial views round the zoom, so there -0.5
+   * selects the tiles at the floor of the zoom (for 512 pixel tiles, before `minZoom`/`maxZoom`);
+   * other views take the ceiling.
+   */
   zoomOffset?: number;
 };
 
@@ -252,6 +261,8 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
 
   /** Creates, reuses, or reconfigures the backing shared tileset and per-view state. */
   updateState({changeFlags}: UpdateParameters<this>): void {
+    // Checked here too: a `SharedTileset2D` passed as `data` keeps its own options.
+    validateRefinementStrategy(this.props.refinementStrategy);
     if (this.context.viewport) {
       this._knownViewports.set(this._getViewportKey(), this.context.viewport);
     }
@@ -437,7 +448,11 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   private _updateTileset(): void {
     const {zRange, modelMatrix} = this.props;
     let anyTilesetChanged = false;
+    // A view reports its load once per update, as deck.gl's TileLayer does when both its tiles and
+    // the loading state change.
+    const loadedViews = new Set<unknown>();
 
+    this._pruneRemovedViewports();
     for (const [viewportKey, viewport] of this._knownViewports) {
       this._prunePlaceholderViewportView(viewportKey);
       const tilesetView = this._getOrCreateTilesetView(viewportKey);
@@ -448,6 +463,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
 
       if (tilesetView.isLoaded && tilesetChanged) {
         this._onViewportLoad(tilesetView);
+        loadedViews.add(tilesetView);
       }
       if (tilesetChanged) {
         this.state.frameNumbers.set(viewportKey, frameNumber);
@@ -458,7 +474,7 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     const loadingStateChanged = this.state.isLoaded !== nextIsLoaded;
     if (loadingStateChanged) {
       for (const tilesetView of this.state.tilesetViews.values()) {
-        if (tilesetView.isLoaded) {
+        if (tilesetView.isLoaded && !loadedViews.has(tilesetView)) {
           this._onViewportLoad(tilesetView);
         }
       }
@@ -527,7 +543,10 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
   }
 
   /** Hook for subclasses to provide extra sub-layer props per tile. */
-  getSubLayerPropsByTile(_tile: SharedTile2DHeader<DataT>): Partial<LayerProps> | null {
+  getSubLayerPropsByTile(
+    _tile: SharedTile2DHeader<DataT>,
+    _layer?: Layer
+  ): Partial<LayerProps> | null {
     return null;
   }
 
@@ -559,7 +578,6 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
       return null;
     }
     return tileset.tiles.map(tile => {
-      const subLayerProps = this.getSubLayerPropsByTile(tile);
       let layers = tileLayers.get(tile.id);
       if (!tile.isLoaded && !tile.content) {
         return layers;
@@ -576,17 +594,16 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
           tile
         });
         layers = this._flattenTileLayers(rendered).map(layer =>
-          layer.clone({tile, ...subLayerProps})
+          layer.clone({tile, ...this.getSubLayerPropsByTile(tile, layer)})
         );
         tileLayers.set(tile.id, layers);
-      } else if (
-        subLayerProps &&
-        layers[0] &&
-        Object.keys(subLayerProps).some(
-          propName => layers[0].props[propName] !== subLayerProps[propName]
-        )
-      ) {
-        layers = layers.map(layer => layer.clone(subLayerProps));
+      } else {
+        layers = layers.map(layer => {
+          const props = this.getSubLayerPropsByTile(tile, layer);
+          return props && Object.keys(props).some(key => layer.props[key] !== props[key])
+            ? layer.clone(props)
+            : layer;
+        });
         tileLayers.set(tile.id, layers);
       }
       return layers;
@@ -634,15 +651,46 @@ export class SharedTile2DLayer<DataT = any, ExtraPropsT extends {} = {}> extends
     return value === defaultValue;
   }
 
+  /**
+   * Detaches the views of viewports the deck no longer renders, so that their tiles no longer stay
+   * selected, pinned in the cache, and counted by `isLoaded`.
+   */
+  private _pruneRemovedViewports(): void {
+    for (const viewportKey of this._getRemovedViewportKeys()) {
+      this._knownViewports.delete(viewportKey);
+      this.state.tilesetViews.get(viewportKey)?.finalize();
+      this.state.tilesetViews.delete(viewportKey);
+      this.state.frameNumbers.delete(viewportKey);
+    }
+  }
+
+  /**
+   * Known viewports the deck no longer renders: views removed from the deck. deck.gl draws a layer
+   * only in the deck's viewports (effect passes reuse their ids), so a viewport that is not among
+   * them is gone. The answer does not depend on which viewports the last frame drew, so a view
+   * that skipped a frame, or that picking left out, stays. Nothing is pruned without a deck, or
+   * while the deck has no viewports. Once the deck has viewports, the bootstrap placeholder is
+   * never among them, so it goes too, even before the layer has been drawn in a real viewport.
+   */
+  private _getRemovedViewportKeys(): string[] {
+    const viewports = this.context?.deck?.getViewports() || [];
+    if (!viewports.length) {
+      return [];
+    }
+    const viewportIds = new Set(viewports.map(viewport => viewport.id));
+    // Views live in `state`, which a new layer instance inherits; known viewports do not.
+    const keys = new Set([...this._knownViewports.keys(), ...this.state.tilesetViews.keys()]);
+    return Array.from(keys).filter(viewportKey => !viewportIds.has(viewportKey));
+  }
+
   /** Drops the bootstrap placeholder viewport after a real viewport is known. */
   private _prunePlaceholderViewportView(viewportKey: string): void {
-    const placeholderViewportKey = 'DEFAULT-INITIAL-VIEWPORT';
-    if (viewportKey !== placeholderViewportKey) {
-      const placeholderView = this.state.tilesetViews.get(placeholderViewportKey);
+    if (viewportKey !== PLACEHOLDER_VIEWPORT_KEY) {
+      const placeholderView = this.state.tilesetViews.get(PLACEHOLDER_VIEWPORT_KEY);
       if (placeholderView) {
         placeholderView.finalize();
-        this.state.tilesetViews.delete(placeholderViewportKey);
-        this.state.frameNumbers.delete(placeholderViewportKey);
+        this.state.tilesetViews.delete(PLACEHOLDER_VIEWPORT_KEY);
+        this.state.frameNumbers.delete(PLACEHOLDER_VIEWPORT_KEY);
       }
     }
   }

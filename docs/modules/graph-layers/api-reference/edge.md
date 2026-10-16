@@ -1,5 +1,7 @@
 # Edge Class
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 The `Edge` class is the base class of the edge, which provides a list of basic util functions to be used throughout the applications.
 
 

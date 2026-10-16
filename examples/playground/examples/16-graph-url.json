@@ -1,0 +1,53 @@
+{
+  "name": "Graph from a DOT URL",
+  "description": "The published loaders.gl DOT loader feeds a graph URL directly into GraphLayer data.",
+  "views": {
+    "@@type": "OrthographicView",
+    "id": "graph",
+    "flipY": false
+  },
+  "initialViewState": {
+    "target": [
+      0,
+      0,
+      0
+    ],
+    "zoom": 0
+  },
+  "layers": [
+    {
+      "@@type": "GraphLayer",
+      "id": "karate-club",
+      "data": "https://raw.githubusercontent.com/visgl/deck.gl-community/master/modules/graph-layers/test/data/__fixtures__/dot/karate.dot",
+      "loaders": [
+        "@@#DOTLoader"
+      ],
+      "layout": {
+        "@@function": "D3ForceLayout"
+      },
+      "enableDragging": true,
+      "stylesheet": {
+        "nodes": [
+          {
+            "type": "circle",
+            "radius": 8,
+            "fill": "#3b82f6"
+          },
+          {
+            "type": "label",
+            "text": "@label",
+            "color": "#0f172a",
+            "offset": [
+              0,
+              16
+            ]
+          }
+        ],
+        "edges": {
+          "stroke": "#64748b",
+          "strokeWidth": 2
+        }
+      }
+    }
+  ]
+}

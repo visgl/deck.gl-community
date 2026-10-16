@@ -1,0 +1,511 @@
+/* !
+ * Copyright (c) Microsoft Corporation.
+ * Licensed under the MIT License.
+ */
+
+import {base} from './base';
+import {getVegaTooltip} from './vega-tooltip';
+import {deepMerge} from './clone';
+import {colorToString} from './color';
+import {CubeLayer_Class, type CubeLayerInterpolatedProps} from './cube-layer/cube-layer';
+import {
+  createDeckGLClassesForPresenter,
+  DeckGL_Class,
+  type DeckGLInternalProps,
+  type InteractiveStateVegaDeckGL
+} from './deck.gl-classes/deckgl';
+import {LinearInterpolator, LinearInterpolator_Class} from './deck.gl-classes/linear-interpolator';
+import {OrbitController_Class} from './deck.gl-classes/orbit-controller';
+import {createStage, defaultPresenterConfig, defaultPresenterStyle} from './defaults';
+import {easing} from './easing';
+import {lightingEffects} from './effects';
+import {PresenterElement} from './enums';
+import {
+  type Cube,
+  type PresenterConfig,
+  type PresenterStyle,
+  type QueuedAnimationOptions,
+  type Scene3d,
+  type Stage
+} from './interfaces';
+import {getCubeLayer, getCubes, getLayers} from './layers';
+import {LegendView} from './legend';
+import {type MarkStagerOptions} from './marks/interfaces';
+import {box} from './marks/rule';
+import {className, initializePanel} from './panel';
+import {patchCubeArray} from './patched-cube-array';
+import {patchSymbolArray} from './patched-symbol-array';
+import {replaceGeographicEntries, normalizeGeographicEntries} from './replace-geographic-entries';
+import type {SymbolMark, Polygon, Vec3} from './interfaces';
+import {sceneToStage} from './stagers';
+import {targetViewState, viewStateProps} from './view-state';
+import {type DeckProps} from '@deck.gl/core';
+import {type View} from './view';
+import {getActiveElementInfo, mount, setActiveElement} from 'tsx-create-element';
+
+interface IBounds {
+  view: View;
+  height: number;
+  width: number;
+  cubeCount: number;
+}
+
+/**
+ * Class which presents a Stage of chart data using Deck.gl to render.
+ */
+export class Presenter {
+  private OrbitControllerClass: typeof OrbitController_Class;
+
+  /**
+   * Handle of the timer for animation.
+   */
+  public animationTimer: number;
+
+  /**
+   * Deck.gl instance for rendering WebGL.
+   */
+  public deckgl: DeckGL_Class;
+
+  /**
+   * Logger, such as console.log
+   */
+  public logger: (message?: any, ...optionalParams: any[]) => void;
+
+  /**
+   * Get the previously rendered Stage object.
+   */
+  get stage(): Stage {
+    return this._last.stage;
+  }
+
+  /**
+   * Options for styling the output.
+   */
+  public style: PresenterStyle;
+
+  /**
+   * Get the current View camera type.
+   */
+  get view(): View {
+    return this._last.view;
+  }
+
+  private queuedAnimationOptions: QueuedAnimationOptions;
+  private _last: IBounds & {stage: Stage};
+  private _showGuides: boolean;
+  private _afterRenderHandler: () => void;
+  private renderFrame: number;
+  private cubeOrdinals = new WeakMap<object, number>();
+  private nextCubeOrdinal = 0;
+  private stagedCubes: Cube[] = [];
+  private symbolOrdinals = new Map<object, Map<object, number>>();
+  private nextSymbolOrdinal = 0;
+  private stagedSymbols: SymbolMark[] = [];
+  private polygonSymbols = new WeakSet<SymbolMark>();
+
+  /**
+   * Instantiate a new Presenter.
+   * @param el Parent HTMLElement to present within.
+   * @param style Optional PresenterStyle styling options.
+   */
+  constructor(
+    public el: HTMLElement,
+    style?: PresenterStyle
+  ) {
+    this.style = deepMerge<PresenterStyle>(defaultPresenterStyle, style);
+    initializePanel(this);
+    this._last = {view: null, height: null, width: null, cubeCount: null, stage: null};
+  }
+
+  /**
+   * Cancels any pending animation, calling animationCanceled() on original queue.
+   */
+  animationCancel() {
+    if (this.animationTimer) {
+      clearTimeout(this.animationTimer);
+      this.animationTimer = null;
+      if (this.logger) {
+        this.logger(
+          `canceling animation ${(this.queuedAnimationOptions && this.queuedAnimationOptions.handlerLabel) || 'handler'}`
+        );
+      }
+      const options = this.queuedAnimationOptions;
+      this.queuedAnimationOptions = null;
+      options?.animationCanceled?.call(null);
+    }
+  }
+
+  /**
+   * Stops the current animation and queues a new animation.
+   * @param handler Function to invoke when timeout is complete.
+   * @param timeout Length of time to wait before invoking the handler.
+   * @param options Optional QueuedAnimationOptions object.
+   */
+  animationQueue(handler: () => void, timeout: number, options?: QueuedAnimationOptions) {
+    if (this.logger) {
+      this.logger(`queueing animation ${(options && options.waitingLabel) || 'waiting'}...`);
+    }
+    this.animationCancel();
+    this.queuedAnimationOptions = options;
+    this.animationTimer = setTimeout(() => {
+      this.animationTimer = null;
+      this.queuedAnimationOptions = null;
+      if (this.logger) {
+        this.logger(`queueing animation ${(options && options.handlerLabel) || 'handler'}...`);
+      }
+      handler();
+    }, timeout) as any as number;
+  }
+
+  /**
+   * Retrieve a sub-element of the rendered output.
+   * @param type PresenterElement type of the HTMLElement to retrieve.
+   */
+  getElement(type: PresenterElement): HTMLElement {
+    const elements = this.el.getElementsByClassName(className(type, this));
+    if (elements && elements.length) {
+      return elements[0] as HTMLElement;
+    }
+    return undefined;
+  }
+
+  /**
+   * Present the Vega Scene, or Stage object using Deck.gl.
+   * @param sceneOrStage Vega Scene object, or Stage object containing chart layout info.
+   * @param height Height of the rendering area.
+   * @param width Width of the rendering area.
+   * @param config Optional presentation configuration object.
+   */
+  present(sceneOrStage: Scene3d | Stage, height: number, width: number, config?: PresenterConfig) {
+    this.animationCancel();
+    const scene = sceneOrStage as Scene3d;
+    let stage: Stage;
+    const options: MarkStagerOptions = {
+      assignSymbolOrdinal: (datum, item: {mark?: object}) => {
+        const mark = item.mark ?? item;
+        let ordinals = this.symbolOrdinals.get(mark);
+        if (!ordinals) {
+          ordinals = new Map();
+          this.symbolOrdinals.set(mark, ordinals);
+        }
+        const key = datum ?? item;
+        if (!ordinals.has(key)) ordinals.set(key, this.nextSymbolOrdinal++);
+        return ordinals.get(key);
+      },
+      maxOrdinal: 0,
+      currAxis: null,
+      defaultCubeColor: this.style.defaultCubeColor,
+      assignCubeOrdinal:
+        config?.onSceneRectAssignCubeOrdinal ||
+        ((_datum, item) => {
+          if (!this.cubeOrdinals.has(item)) this.cubeOrdinals.set(item, this.nextCubeOrdinal++);
+          return this.cubeOrdinals.get(item);
+        }),
+      zAxisZindex: config?.zAxisZindex
+    };
+    // determine if this is a vega scene
+    if (scene.marktype) {
+      stage = createStage(scene.view);
+      sceneToStage(options, stage, scene);
+    } else {
+      stage = sceneOrStage as Stage;
+    }
+    if (!this.deckgl) {
+      const classes = createDeckGLClassesForPresenter({
+        doubleClickHandler: () => {
+          this.homeCamera();
+          return true;
+        }
+      });
+      this.OrbitControllerClass = classes.OrbitControllerClass;
+
+      const initialViewState = targetViewState(height, width, stage.view);
+
+      let glOptions: WebGLContextAttributes;
+      if (config && config.preserveDrawingBuffer) {
+        glOptions = {preserveDrawingBuffer: true};
+      }
+
+      const deckProps: Partial<DeckGLInternalProps> = {
+        deviceProps: {webgl: glOptions},
+        height: null,
+        width: null,
+        effects: lightingEffects(),
+        layers: [],
+        getTooltip: getVegaTooltip,
+        onClick: config && config.onLayerClick,
+        views: [new base.deck.OrbitView({controller: this.OrbitControllerClass})],
+        initialViewState: {OrbitView: initialViewState},
+        container: this.getElement(PresenterElement.gl) as HTMLCanvasElement,
+        getCursor: (interactiveState: InteractiveStateVegaDeckGL) => {
+          if (interactiveState.onText || interactiveState.onAxisSelection) {
+            return 'pointer';
+          } else if (interactiveState.onCube) {
+            return 'default';
+          }
+          return 'grab';
+        }
+      };
+      if (stage.backgroundColor) {
+        deckProps.style = {backgroundColor: colorToString(stage.backgroundColor)};
+      }
+      this.deckgl = new classes.DeckGL_Class(deckProps);
+    }
+    const cubeCount = Math.max(this._last.cubeCount, stage.cubeData.length);
+    this.setDeckProps(stage, height, width, cubeCount, config);
+
+    const a = getActiveElementInfo();
+    mount(
+      LegendView({legend: stage.legend, onClick: config && config.onLegendClick}),
+      this.getElement(PresenterElement.legend)
+    );
+    setActiveElement(a);
+
+    if (config && config.onPresent) {
+      config.onPresent();
+    }
+  }
+
+  /**
+   * Present the same recently rendered Stage with only slight modifications such as a color change,
+   * using the previous Stage values as a basis.
+   * @param stage Partially populated Stage object containing changes. Matching geographic
+   * replacements retain their paint order; adding/removing shapes requires geographicData.
+   * @param modifyConfig Optional presentation configuration object.
+   */
+  rePresent(stage: Partial<Stage>, modifyConfig?: PresenterConfig) {
+    const newStage = {...this._last.stage, cubeData: this.getCubeData(), ...stage};
+    if (stage.symbolData !== undefined) {
+      for (const symbol of stage.symbolData) this.polygonSymbols.delete(symbol);
+    } else if (stage.polygonData !== undefined) {
+      newStage.symbolData = this._last.stage.symbolData?.filter(
+        symbol => !this.polygonSymbols.has(symbol)
+      );
+    }
+    if (stage.symbolData !== undefined && stage.polygonData === undefined) {
+      newStage.polygonData = this._last.stage.polygonData?.filter(polygon => !polygon.isSymbol);
+    }
+    newStage.geographicData = replaceGeographicEntries(stage, this._last.stage);
+    this.setDeckProps(
+      newStage,
+      this._last.height,
+      this._last.width,
+      this._last.cubeCount,
+      modifyConfig
+    );
+  }
+
+  private isNewBounds(view: View, height: number, width: number, cubeCount: number) {
+    const lastBounds: IBounds = this.lastBounds();
+    for (const prop in lastBounds) {
+      if (lastBounds[prop] === null) return true;
+    }
+    const newBounds: IBounds = {cubeCount, height, view, width};
+    for (const prop in lastBounds) {
+      if (lastBounds[prop] !== newBounds[prop]) return true;
+    }
+    return false;
+  }
+
+  private lastBounds(): IBounds {
+    const {cubeCount, height, view, width} = this._last;
+    return {cubeCount, height, view, width};
+  }
+
+  private setDeckProps(
+    stage: Stage,
+    height: number,
+    width: number,
+    cubeCount: number,
+    modifyConfig: PresenterConfig
+  ) {
+    stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
+    normalizeGeographicEntries(stage);
+    const polygons = stage.polygonData ?? [];
+    const squares = polygons.filter(p => p.isSymbol && !p.isEmpty);
+    const squareOrdinals = new Set(
+      squares.map(square => square.ordinal).filter(ordinal => ordinal !== undefined)
+    );
+    const symbols = (stage.symbolData ?? []).filter(
+      symbol =>
+        !symbol.isEmpty && (symbol.ordinal === undefined || !squareOrdinals.has(symbol.ordinal))
+    );
+    for (const square of squares) {
+      const symbol = convertSquareSymbol(square);
+      this.polygonSymbols.add(symbol);
+      symbols.push(symbol);
+    }
+    stage.symbolData = patchSymbolArray(symbols, this.stagedSymbols);
+    this.stagedSymbols = stage.symbolData;
+    cubeCount = stage.cubeData.length;
+    this.stagedCubes = stage.cubeData;
+    const config = deepMerge<PresenterConfig>(defaultPresenterConfig, modifyConfig);
+    const newBounds = this.isNewBounds(stage.view, height, width, cubeCount);
+    // let lightSettings = this.style.lightSettings[stage.view];
+    const lightingMix = stage.view === '3d' ? 1.0 : 0.0;
+    const oldCubeLayer = getCubeLayer(this.deckgl.props) as CubeLayer_Class;
+    // Keep the active camera/lighting interpolation when another layout phase updates geometry.
+    let linearInterpolator: LinearInterpolator_Class<CubeLayerInterpolatedProps> =
+      oldCubeLayer?.props.interpolator;
+    // choose the current OrbitView viewstate if possible
+    let viewState =
+      this.deckgl.getCurrentViewState() ||
+      // otherwise use the initial viewstate if any
+      this.deckgl.props.initialViewState?.OrbitView;
+
+    if (
+      !viewState ||
+      newBounds ||
+      (config.shouldViewstateTransition && config.shouldViewstateTransition())
+    ) {
+      let newViewStateTarget = true;
+      if (config && config.onTargetViewState) {
+        const result = config.onTargetViewState(height, width);
+        height = result.height;
+        width = result.width;
+        if (result.newViewStateTarget !== undefined) {
+          newViewStateTarget = result.newViewStateTarget;
+        }
+      }
+      if (!viewState || newViewStateTarget) {
+        viewState = targetViewState(height, width, stage.view);
+      }
+      if (oldCubeLayer) {
+        linearInterpolator = new LinearInterpolator(viewStateProps);
+        linearInterpolator.layerStartProps = {
+          lightingMix:
+            oldCubeLayer.props.interpolator?.layerInterpolatedProps?.lightingMix ??
+            oldCubeLayer.props.lightingMix
+        };
+        linearInterpolator.layerEndProps = {lightingMix};
+        viewState.transitionDuration = config.transitionDurations.view;
+        viewState.transitionEasing = easing;
+        viewState.transitionInterpolator = linearInterpolator;
+      }
+      if (stage.view === '2d') {
+        // lightSettings = this.style.lightSettings['3d'];
+      }
+    }
+    const guideLines = this._showGuides && box(0, 0, height, width, '#0f0', 1, true);
+    if (config.preLayer) config.preLayer(stage);
+    const layers = getLayers(
+      this,
+      config,
+      stage,
+      /* lightSettings*/ null,
+      lightingMix,
+      linearInterpolator,
+      guideLines
+    );
+    const deckProps: Partial<DeckProps<import('@deck.gl/core').OrbitView[]>> = {
+      effects: lightingEffects(),
+      views: [new base.deck.OrbitView({controller: this.OrbitControllerClass})],
+      initialViewState: {OrbitView: viewState},
+      layers
+    };
+    if (config && config.preStage) {
+      config.preStage(stage, deckProps);
+    }
+    if (this.renderFrame) cancelAnimationFrame(this.renderFrame);
+    this.renderFrame = requestAnimationFrame(() =>
+      this.deckgl.setProps({
+        ...deckProps,
+        onAfterRender: () => {
+          if (this._afterRenderHandler) {
+            this._afterRenderHandler();
+          }
+        }
+      })
+    );
+    delete stage.cubeData;
+    this._last = {
+      cubeCount,
+      height,
+      width,
+      stage,
+      view: stage.view
+    };
+  }
+
+  public canvasToDataURL() {
+    return new Promise<string>((resolve, reject) => {
+      this._afterRenderHandler = () => {
+        this._afterRenderHandler = null;
+        const png = this.deckgl.getCanvas().toDataURL('image/png');
+        resolve(png);
+      };
+      this.deckgl.redraw('canvas capture');
+    });
+  }
+
+  /**
+   * Home the camera to the last initial position.
+   */
+  homeCamera() {
+    const viewState = targetViewState(this._last.height, this._last.width, this._last.view) as any;
+    viewState.transitionDuration = defaultPresenterConfig.transitionDurations.view;
+    viewState.transitionEasing = easing;
+    viewState.transitionInterpolator = new LinearInterpolator(viewStateProps);
+    const deckProps: Partial<DeckProps<import('@deck.gl/core').OrbitView[]>> = {
+      effects: lightingEffects(),
+      views: this.deckgl.props.views,
+      initialViewState: {OrbitView: viewState},
+      layers: this.deckgl.props.layers
+    };
+    this.deckgl.setProps(deckProps);
+  }
+
+  /**
+   * Get cube data array from the cubes layer.
+   */
+  getCubeData() {
+    return getCubes(this.deckgl.props);
+  }
+
+  /**
+   * Show guidelines of rendering height/width and center of OrbitView.
+   */
+  showGuides() {
+    this._showGuides = true;
+    this.getElement(PresenterElement.gl).classList.add('show-center');
+    this.rePresent({...this._last.stage, cubeData: this.getCubeData()});
+  }
+
+  finalize() {
+    if (this.renderFrame) cancelAnimationFrame(this.renderFrame);
+    this.animationCancel();
+    if (this.deckgl) this.deckgl.finalize();
+    if (this.el) this.el.innerHTML = '';
+    this.stagedCubes = [];
+    this.stagedSymbols = [];
+    this.polygonSymbols = new WeakSet();
+    this.symbolOrdinals.clear();
+    this.nextSymbolOrdinal = 0;
+    this.cubeOrdinals = new WeakMap();
+    this.nextCubeOrdinal = 0;
+    this._last = null;
+    this.deckgl = null;
+    this.el = null;
+    this.logger = null;
+    this.queuedAnimationOptions = null;
+  }
+}
+
+function convertSquareSymbol(square: Polygon): SymbolMark {
+  const points = square.positions as Vec3[];
+  const position = points
+    .reduce((sum, point) => sum.map((v, i) => v + (point[i] || 0)) as Vec3, [0, 0, 0])
+    .map(v => v / points.length) as Vec3;
+  return {
+    shape: 'square',
+    angle: square.angle ?? Math.atan2(points[1][1] - points[0][1], points[1][0] - points[0][0]),
+    ordinal: square.ordinal,
+    datum: square.datum,
+    tooltip: square.tooltip,
+    position,
+    radius: Math.hypot(points[1][0] - points[0][0], points[1][1] - points[0][1]) / 2,
+    fillColor: square.fillColor,
+    strokeColor: square.strokeColor,
+    strokeWidth: square.strokeWidth
+  };
+}

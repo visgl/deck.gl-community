@@ -17,6 +17,7 @@
       ]
     },
     "modules/geo-layers/api-reference/shared-tile-2d-layer",
+    "modules/geo-layers/api-reference/shared-mvt-layer",
     "modules/geo-layers/api-reference/shared-tileset-2d",
     "modules/geo-layers/api-reference/tile-grid-layer",
     "modules/geo-layers/api-reference/tile-source-layer",

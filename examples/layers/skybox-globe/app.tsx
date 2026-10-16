@@ -130,7 +130,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
               '',
               `- Skybox: **${state.settings.render.showSkybox ? 'enabled' : 'disabled'}**`,
               '- Skybox asset: NASA Tycho star map cubemap.',
-              '- Basemap: CARTO vector style rendered through `BasemapLayer`.'
+              '- Basemap: OpenFreeMap vector style rendered through `BasemapLayer`.'
             ].join('\n')
           }),
           new SettingsPanel({

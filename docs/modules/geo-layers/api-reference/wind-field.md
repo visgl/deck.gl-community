@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # Wind field and weather data
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 :::caution Work in progress
 The wind-field data format, interpolation utilities, and wind-layer APIs are experimental and may
 change. The particle simulation runs on the graphics device; the field-building and explicit

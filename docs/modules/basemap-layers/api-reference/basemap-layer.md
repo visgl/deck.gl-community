@@ -66,6 +66,22 @@ Optional loader configuration used by `resolveBasemapStyle`. This can include:
 - `fetch` for a custom fetch implementation
 - `fetchOptions` to customize network requests
 
+### `fontFamily`
+
+Type: `string | ((fontStack: string[]) => string | Partial<LabelFont> | null) | null`
+
+Overrides the label font. By default, each symbol layer's `text-font` is mapped to a CSS font
+(see [Label fonts](/docs/modules/basemap-layers#label-fonts)). Defaults to `null`.
+
+- A string replaces the CSS family list for every label. The weight and style still come from
+  `text-font`. `'Monaco, monospace'` restores the font used before `text-font` was read.
+- A function receives the evaluated `text-font` names, such as `['Noto Sans Bold']`, and returns a
+  CSS family list, or an object with any of `fontFamily`, `fontWeight` (100-900) and `fontStyle`
+  (`'normal'` or `'italic'`). Fields it leaves out, and a `null` result, keep the mapped values.
+  Pass a stable function: tiles regenerate when it changes.
+
+`getBasemapLayers` and `getGlobeBaseLayers` accept the same `fontFamily` option.
+
 ### `globe`
 
 Type: `{config?: BasemapGlobeConfig}`

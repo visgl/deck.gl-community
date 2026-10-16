@@ -3,8 +3,6 @@
 // Copyright (c) vis.gl contributors
 
 import {DOTLoaderWithParser} from '@loaders.gl/graphs/dot-loader';
-import {ClassicGraph} from '@deck.gl-community/graph-layers';
-import type {PlainGraphData} from '@deck.gl-community/graph-layers';
 import {SAMPLE_GRAPH_DATASETS} from '../../../modules/graph-layers/test/data/graphs/sample-datasets';
 import type {
   ExampleDefinition,
@@ -538,14 +536,6 @@ const WATTS_STROGATZ_STYLE: ExampleStyles = {
 const DOT_FIXTURE_BASE_URL =
   'https://raw.githubusercontent.com/visgl/deck.gl-community/refs/heads/master/modules/graph-layers/test/data/__fixtures__/dot/';
 
-const DOT_RESULT_GRAPH_LOADER = ({json}: {json: unknown}) => {
-  const data = json as PlainGraphData;
-  if (!data || data.shape !== 'plain-graph-data') {
-    return null;
-  }
-  return new ClassicGraph({data});
-};
-
 const DOT_UNDIRECTED_STYLE: ExampleStyles = {
   nodes: [
     {
@@ -902,7 +892,6 @@ export const EXAMPLES: ExampleDefinition[] = [
       "Fetches the Zachary karate club social network from the repository's DOT fixtures using the DOTLoaderWithParser.",
     dataUrl: `${DOT_FIXTURE_BASE_URL}karate.dot`,
     loaders: [DOTLoaderWithParser],
-    graphLoader: DOT_RESULT_GRAPH_LOADER,
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: DOT_UNDIRECTED_STYLE,
@@ -914,7 +903,6 @@ export const EXAMPLES: ExampleDefinition[] = [
       'Loads a directed workflow with clustered subgraphs defined in DOT format directly from GitHub.',
     dataUrl: `${DOT_FIXTURE_BASE_URL}cluster.dot`,
     loaders: [DOTLoaderWithParser],
-    graphLoader: DOT_RESULT_GRAPH_LOADER,
     layouts: ['d3-force-layout', 'gpu-force-layout', 'simple-layout'],
     layoutDescriptions: LAYOUT_DESCRIPTIONS,
     style: DOT_DIRECTED_STYLE,

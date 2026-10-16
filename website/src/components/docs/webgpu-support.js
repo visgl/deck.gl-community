@@ -15,6 +15,8 @@ const SUPPORTED_DOC_IDS = new Set([
   'modules/layers/api-reference/path-marker-layer',
   'modules/layers/api-reference/path-outline-layer',
   'modules/layers/api-reference/skybox-layer',
+  'modules/layers/api-reference/splat-layer',
+  'modules/layers/api-reference/tree-layer',
   'modules/timeline-layers/api-reference/horizon-graph-layer',
   'modules/timeline-layers/api-reference/multi-horizon-graph-layer',
   'modules/timeline-layers/api-reference/time-axis-layer',
@@ -24,6 +26,7 @@ const SUPPORTED_DOC_IDS = new Set([
 
 const UNSUPPORTED_DOC_IDS = new Set([
   'modules/layers/api-reference/flame-trail-layer',
+  'modules/layers/api-reference/volumetric-video-layer',
   'modules/graph-layers/api-reference/layers/flow-layer',
   'modules/graph-layers/api-reference/layers/flow-path-layer'
 ]);

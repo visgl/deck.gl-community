@@ -19,7 +19,7 @@ import testPolygons from '../data/sf-polygons';
 import '@deck.gl/widgets/stylesheet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
 const INITIAL_VIEW_STATE = {
   bearing: 0,

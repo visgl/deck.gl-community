@@ -33,6 +33,14 @@ const REF_POINTS_11 = REF_POINTS_9.concat([
   [0.75, 0.5]
 ]);
 
+/**
+ * Whether a `CullingVolume.computeVisibility` result is outside the volume. math.gl 4 returns
+ * -1 | 0 | 1 and math.gl 5 returns 'outside' | 'intersecting' | 'inside'.
+ */
+export function isOutsideCullingVolume(visibility: number | string): boolean {
+  return visibility === 'outside' || (typeof visibility === 'number' && visibility < 0);
+}
+
 class OSMNode {
   x: number;
   y: number;
@@ -80,8 +88,7 @@ class OSMNode {
       return false;
     }
 
-    const isInside = cullingVolume.computeVisibility(boundingVolume);
-    if (isInside < 0) {
+    if (isOutsideCullingVolume(cullingVolume.computeVisibility(boundingVolume))) {
       return false;
     }
 
