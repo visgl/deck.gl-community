@@ -34,8 +34,6 @@ export class GPUVideoFrames {
   readonly texture: Texture;
   readonly changes: GPUPixelChanges;
   readonly appearance: GPUVideoAppearance;
-  /** Lazily allocated unmasked mip pyramid for the selected frame. */
-  currentAppearance: GPUVideoAppearance | null = null;
   readonly width: number;
   readonly height: number;
   readonly capacity: number;
@@ -197,16 +195,6 @@ void main() {
     this.uploadTexture?.destroy();
   }
 
-  /** Allocates the selected-frame pyramid only when static removal needs it. */
-  getCurrentAppearance(): GPUVideoAppearance {
-    if (!this.currentAppearance) {
-      this.currentAppearance = this.resources.add(
-        new GPUVideoAppearance(this.device, this.width, this.height, 1)
-      );
-    }
-    return this.currentAppearance;
-  }
-
   private async processFrames(): Promise<void> {
     this.processing = true;
     let window: FrameWindow | null = null;
@@ -306,9 +294,6 @@ void main() {
       else {
         this.resident[slot] = undefined;
         this.appearance.invalidate(slot);
-        // The one-layer selected-frame pyramid may be sourcing this ring slot.
-        // Mark it stale now; the layer only regenerates it when the selected frame changes.
-        this.currentAppearance?.invalidate(0);
       }
       const pass = this.device.beginRenderPass({
         framebuffer: reference ? this.changes.previousFramebuffer : this.framebuffers[slot],

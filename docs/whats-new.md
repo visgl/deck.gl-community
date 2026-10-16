@@ -8,8 +8,9 @@ This page lists module additions and major changes in each release. For detailed
   turns MP4/MOV frames into a GPU-rendered image-X/image-Y/time volume with `currentFrame`,
   `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
   [community-site demo](/examples/layers/volumetric-video) uses shared device tabs and a settings panel;
-  the standalone version supports local MP4/MOV files. Static filtering always preserves the selected
-  frame, including bright pixels. Both demos include stabilized camera controls and bounded GPU history
+  the standalone version supports local MP4/MOV files and a WebGL/WebGPU toggle. Static filtering
+  applies to every frame, including the selected frame. Both demos include stabilized camera controls
+  and bounded GPU history
   that preserves the last working volume on allocation failure. Later valid
   seeks recover from decode failures, failed writes cannot expose stale frame identities,
   and GPU filter retries restore playback controls. Metadata callbacks can replace the

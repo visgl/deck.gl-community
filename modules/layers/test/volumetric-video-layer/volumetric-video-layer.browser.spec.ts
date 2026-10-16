@@ -780,7 +780,6 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
         layer!
       );
       expect(layer!.state.activeStaticPixelRemoval).toBe(1);
-      expect(frames.currentAppearance).not.toBeNull();
     } finally {
       vi.restoreAllMocks();
       deck?.finalize();
@@ -988,7 +987,7 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
-  it('keeps the current white frame visible when static-pixel removal is enabled', async () => {
+  it('removes unchanged pixels from the current frame when static-pixel removal is enabled', async () => {
     const device = await createDevice();
     const target = device.createFramebuffer({
       width: 320,
@@ -1048,8 +1047,9 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       frames!.texture.writeData(white, {z: slot, depthOrArrayLayers: 1});
       frames!.changes.texture.writeData(scoreBytes);
       frames!.appearance.invalidate(slot);
-      frames!.currentAppearance?.invalidate(0);
       const renderRemoval = async (staticPixelRemoval: number) => {
+        const clear = device.beginRenderPass({framebuffer: target, clearColor: [0, 0, 0, 0]});
+        clear.end();
         layer = layer!.clone({staticPixelRemoval, frameTrail: 0});
         await new Promise<void>(resolve => {
           deck!.setProps({
@@ -1068,8 +1068,8 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       };
       const fullPlanePixels = await renderRemoval(0);
       expect(fullPlanePixels).toBeGreaterThan(25);
-      const currentWhitePixelCount = await renderRemoval(1);
-      expect(currentWhitePixelCount).toBeGreaterThan(fullPlanePixels * 0.9);
+      const removedCurrentPixelCount = await renderRemoval(1);
+      expect(removedCurrentPixelCount).toBeLessThan(fullPlanePixels * 0.1);
       const source = layer!.state.source!;
       const texture = layer!.state.frames!.texture;
       deck!.finalize();
@@ -1128,7 +1128,6 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       for (let i = 0; i < pixels.length; i += 4) pixels.set(color, i);
       frames.texture.writeData(pixels, {z: 30 % frames.capacity, depthOrArrayLayers: 1});
       frames.appearance.invalidate(30 % frames.capacity);
-      frames.currentAppearance?.invalidate(0);
       const frameRequests = vi.spyOn(frames, 'request');
       const decoding = vi.spyOn(layer!.state.source!.sink!, 'samplesAtTimestamps');
       const capture = async (
@@ -1456,7 +1455,7 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
-  it('falls back to an unmasked raster when selected-frame filtering exceeds the budget', async () => {
+  it('applies static-pixel removal to the selected frame without a separate filtering allocation', async () => {
     const device = await createDevice();
     let deck: Deck<OrbitView[]> | undefined;
     let layer: VolumetricVideoLayer;
@@ -1497,31 +1496,14 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       deck!.setProps({layers: [layer!], onError: errors});
       await vi.waitFor(() => expect(layer!.state.frames).not.toBe(previous), {timeout: 2000});
       const frames = layer!.state.frames!;
-      expect(
-        errors.mock.calls.some(([error]) => (error as Error).message.includes('selected frame'))
-      ).toBe(true);
+      expect(errors).not.toHaveBeenCalled();
       expect(layer!.state.pendingFrames).toBeNull();
       expect(frames.capacity).toBe(3);
       expect(frames.getReadyWindow()?.currentFrame).toBe(31);
       expect(frames.appearance.revision).toBeGreaterThan(0);
       expect(frameLoads).toHaveBeenCalled();
-      expect(frames.currentAppearance).toBeNull();
-      expect(layer!.state.activeStaticPixelRemoval).toBe(0);
-      expect(layer!.state.appearanceRetryCount).toBe(0);
-      const updateAppearance = vi.spyOn(
-        layer as unknown as {updateAppearance: (frames: GPUVideoFrames, removal: number) => void},
-        'updateAppearance'
-      );
-      layer!.setState({filterError: frames});
-      layer!.draw();
-      expect(updateAppearance).toHaveBeenCalledWith(frames, 0);
-      updateAppearance.mockRestore();
-      await new Promise<void>((resolve, reject) => {
-        layer = layer!.clone({maxTextureBytes: 512 * 1048576, onFrameLoad: () => resolve()});
-        deck!.setProps({layers: [layer!], onError: reject});
-      });
-      expect(frames.currentAppearance).not.toBeNull();
       expect(layer!.state.activeStaticPixelRemoval).toBe(1);
+      expect(layer!.state.appearanceRetryCount).toBe(0);
     } finally {
       deck?.finalize();
       device.destroy();

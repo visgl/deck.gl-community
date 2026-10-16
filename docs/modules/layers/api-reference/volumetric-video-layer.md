@@ -41,7 +41,7 @@ the standard deck.gl layer conventions.
 | `frameOpacity` | `0.35` | Per-frame alpha multiplier applied after normalized filtering. In auto mode, `1` preserves the visible source alpha and brightness. |
 | `trailFade` | `0.025` | Fractional opacity decay per preceding frame: `(1 - trailFade) ** age`. |
 | `luminanceThreshold` | `0` | Discards texels darker than this 0–1 threshold. Useful for dark-background motion studies. |
-| `staticPixelRemoval` | `0` | Per-pixel trail-removal strength. `0` shows all pixels; `1` aggressively hides similar pixels in preceding frames. Positive values require an RGBA channel change greater than `0.5 * strength ** 2`. The selected `currentFrame` is always retained. |
+| `staticPixelRemoval` | `0` | Per-pixel removal strength. `0` shows all pixels; `1` aggressively hides similar pixels in every frame. Positive values require an RGBA channel change greater than `0.5 * strength ** 2`. |
 | `onVideoLoad` | `null` | Receives display `width`, `height`, `duration`, `frameCount`, and actual `frameTimestamps` in seconds. |
 | `onFrameLoad` | `null` | Receives the GPU-resident `firstFrame`, `currentFrame`, `frameCount`, source `timestamp`, `splatCount` before visibility filtering, and combined history `textureBytes`. Also fires when rendering the requested window recovers from a GPU filter error. |
 
@@ -81,14 +81,12 @@ The **Remove static pixels** slider controls `staticPixelRemoval`. luma compares
 individual pixels in consecutive, orientation-corrected frames at the sampling
 resolution. The per-pixel score is the largest absolute RGBA channel difference.
 At `0`, every pixel splat is shown. Increasing removal strength hides unchanged
-or only slightly changed pixels from preceding frames. The selected `currentFrame`
-always remains visible, so bright static content does not wash out. The threshold is
+or only slightly changed pixels in every frame, including `currentFrame`. The threshold is
 `0.5 * staticPixelRemoval ** 2`: at `0.5`, the largest channel difference must exceed
 12.5%; at `1`, it must exceed 50%. The upper end aggressively removes similar pixels
-while preserving the current source image and strong trailing changes. The curved scale
-gives finer control near the low end. Any positive setting removes exactly unchanged
-trailing pixels, even when a neighboring pixel moves. Frame 0 is retained as the
-baseline because it has no predecessor.
+while retaining strong changes through the volume. The curved scale gives finer control
+near the low end. Any positive setting removes exactly unchanged pixels, even when a
+neighboring pixel moves. Frame 0 is retained as the baseline because it has no predecessor.
 
 The comparison includes the source predecessor outside the visible trail, so
 scrubbing direction does not change the result. Pixel splats retain their original
@@ -99,12 +97,11 @@ smaller spatial details. Camera shake and compression noise count as color chang
 
 Raw RGBA and change history use 8 bytes per grid pixel per retained frame. The
 visibility-filtered RGBA mip pyramid adds about 5.33 bytes per pixel per retained
-frame (the exact amount depends on rounded mip dimensions). Enabling static-pixel
-removal allocates one additional unmasked 5.33-byte selected-frame mip pyramid to
-preserve filtered detail. Exported `getVolumetricVideoHistoryBytes(gridWidth, gridHeight,
-retainedFrameCount)` returns the exact retained-history allocation; `textureBytes` also
-includes the selected-frame pyramid after it has been allocated. The native-size upload texture, one sampled reference frame,
-and the decoder require additional memory. A resized cache temporarily coexists with
+frame (the exact amount depends on rounded mip dimensions). Static-pixel removal
+reuses that filtered history. Exported `getVolumetricVideoHistoryBytes(gridWidth, gridHeight,
+retainedFrameCount)` and `textureBytes` report the exact retained-history allocation.
+The native-size upload texture, one sampled reference frame, and the decoder require
+additional memory. A resized cache temporarily coexists with
 the completed cache until it can replace it, so transitions need memory for both
 histories. History stays
 bounded by the requested trail rather than video duration. Native pixels are retained

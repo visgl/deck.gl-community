@@ -8,7 +8,6 @@ import {Geometry, Model} from '@luma.gl/engine';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {
   getFrameCapacity,
-  getFrameAppearanceBytes,
   getFrameHistoryBytes,
   getFrameSize,
   getFrameWindow,
@@ -70,7 +69,7 @@ type VideoProps = {
   luminanceThreshold?: number;
   /** Removal strength for pixel splats similar to the same pixel in the preceding frame.
    * 0 shows every pixel; 1 aggressively removes changes of up to 50% in any RGBA channel.
-   * The change threshold is 0.5 * strength squared. The selected frame always stays visible.
+   * The change threshold is 0.5 * strength squared and applies to every frame in the volume.
    * @default 0
    */
   staticPixelRemoval?: number;
@@ -217,7 +216,6 @@ export class VolumetricVideoLayer<
     appearanceRetry: ReturnType<typeof setTimeout> | undefined;
     appearanceRetryCount: number;
     activeStaticPixelRemoval: number;
-    staticRemovalBudgetError: number | null;
   };
 
   getShaders() {
@@ -247,8 +245,7 @@ export class VolumetricVideoLayer<
       filterError: null,
       appearanceRetry: undefined,
       appearanceRetryCount: 0,
-      activeStaticPixelRemoval: 0,
-      staticRemovalBudgetError: null
+      activeStaticPixelRemoval: 0
     });
   }
 
@@ -305,10 +302,8 @@ export class VolumetricVideoLayer<
     const window = frames?.getReadyWindow();
     if (!frames || !source?.info || !window) return;
     // WebGL can retry a failed appearance update during a subsequent draw.
-    // Do not bypass a selected-frame budget fallback: retrying the requested
-    // value would allocate the optional selected-frame pyramid after it was rejected.
     const staticPixelRemoval =
-      this.state.filterError === frames && this.canAllocateCurrentAppearance(frames)
+      this.state.filterError === frames
         ? this.props.staticPixelRemoval
         : this.state.activeStaticPixelRemoval;
     const {width, position, frameSpacing, splatSize, frameOpacity, trailFade, luminanceThreshold} =
@@ -340,8 +335,7 @@ export class VolumetricVideoLayer<
         if (this.state.filterError === frames) {
           this.setState({
             appearanceRetryCount: 0,
-            activeStaticPixelRemoval: staticPixelRemoval,
-            staticRemovalBudgetError: null
+            activeStaticPixelRemoval: staticPixelRemoval
           });
         }
       } catch (error) {
@@ -363,8 +357,7 @@ export class VolumetricVideoLayer<
       model.setBindings({
         videoFrames: frames.texture,
         pixelChanges: frames.changes.texture,
-        filteredFrames: frames.appearance.texture,
-        currentFrameAppearance: frames.currentAppearance?.texture ?? frames.appearance.texture
+        filteredFrames: frames.appearance.texture
       });
     } else {
       model.setBindings({videoFrames: frames.texture, pixelChanges: frames.changes.texture});
@@ -419,9 +412,7 @@ export class VolumetricVideoLayer<
       ...window,
       timestamp: this.state.source!.info!.frameTimestamps[window.currentFrame],
       splatCount: frames.width * frames.height * window.frameCount,
-      textureBytes:
-        getFrameHistoryBytes(frames.width, frames.height, frames.capacity) +
-        (frames.currentAppearance ? getFrameAppearanceBytes(frames.width, frames.height) : 0)
+      textureBytes: getFrameHistoryBytes(frames.width, frames.height, frames.capacity)
     });
   }
 
@@ -449,80 +440,16 @@ export class VolumetricVideoLayer<
       luminanceThreshold: this.props.luminanceThreshold,
       staticPixelRemoval
     });
-    if (staticPixelRemoval === 0) return;
-    const currentFrame = frames.getReadyWindow()?.currentFrame;
-    if (currentFrame === undefined) return;
-    // Static removal applies only to preceding slices. Preserve the selected
-    // source frame with an unmasked mip pyramid so minification stays stable.
-    frames
-      .getCurrentAppearance()
-      .update(
-        frames.texture,
-        frames.changes.texture,
-        [currentFrame],
-        {luminanceThreshold: this.props.luminanceThreshold, staticPixelRemoval: 0},
-        [currentFrame],
-        [currentFrame % frames.capacity]
-      );
-  }
-
-  /** Returns whether the selected-frame pyramid fits before it is allocated. */
-  private canAllocateCurrentAppearance(frames: GPUVideoFrames): boolean {
-    return (
-      !this.usesRaster() ||
-      this.props.staticPixelRemoval === 0 ||
-      frames.currentAppearance !== null ||
-      getFrameHistoryBytes(frames.width, frames.height, frames.capacity) +
-        getFrameAppearanceBytes(frames.width, frames.height) <=
-        this.props.maxTextureBytes
-    );
   }
 
   private prepareAppearance(frames: GPUVideoFrames): boolean {
-    if (!this.canAllocateCurrentAppearance(frames)) {
-      try {
-        // The selected-frame pyramid is optional. Keep the base visibility
-        // pyramid current with removal disabled so a replacement cache can
-        // become resident and subsequent seeks continue to complete.
-        this.updateAppearance(frames, 0);
-      } catch (error) {
-        this.setState({filterError: frames});
-        this.raiseError(
-          error instanceof Error ? error : new Error(String(error)),
-          'filtering video history'
-        );
-        if (this.context.device.type === 'webgpu') this.queueAppearanceRetry(frames);
-        return false;
-      }
-      const recovered = this.state.filterError === frames;
-      if (recovered) this.setState({filterError: null});
-      const shouldReportBudgetError =
-        this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval;
-      this.setState({
-        appearanceRetryCount: 0,
-        activeStaticPixelRemoval: 0,
-        staticRemovalBudgetError: this.props.staticPixelRemoval
-      });
-      if (shouldReportBudgetError) {
-        this.raiseError(
-          new Error(
-            `Static-pixel removal requires ${(getFrameAppearanceBytes(frames.width, frames.height) / 1048576).toFixed(1)} MiB for the selected frame. Shorten frameTrail, choose a smaller grid, or increase maxTextureBytes.`
-          ),
-          'allocating selected-frame filtering'
-        );
-      }
-      this.setNeedsRedraw();
-      if (recovered) this.reportCurrentFrameLoad(frames);
-      return true;
-    }
     try {
       this.updateAppearance(frames, this.props.staticPixelRemoval);
       const recovered = this.state.filterError === frames;
       if (recovered) this.setState({filterError: null});
       this.setState({
         appearanceRetryCount: 0,
-        activeStaticPixelRemoval: this.props.staticPixelRemoval,
-        staticRemovalBudgetError: null
+        activeStaticPixelRemoval: this.props.staticPixelRemoval
       });
       this.setNeedsRedraw();
       if (recovered) this.reportCurrentFrameLoad(frames);
@@ -806,7 +733,7 @@ void main() {
   float luminance = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
   float alpha = color.a * volumetricVideo.frameOpacity * (age == 0.0 ? 1.0 : pow(1.0 - volumetricVideo.trailFade, age)) * layer.opacity;
   if (luminance < volumetricVideo.luminanceThreshold) alpha = 0.0;
-  if (age > 0.0 && volumetricVideo.staticPixelRemoval > 0.0 &&
+  if (volumetricVideo.staticPixelRemoval > 0.0 &&
       texture(pixelChanges, vec3(uv, mod(frame, volumetricVideo.capacity))).r <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) alpha = 0.0;
   vec3 center = volumetricVideo.position + vec3((uv.x - 0.5) * volumetricVideo.planeSize.x,
     (0.5 - uv.y) * volumetricVideo.planeSize.y, -age * volumetricVideo.frameSpacing);
@@ -851,11 +778,9 @@ in vec2 positions;
 out vec2 frameUV;
 flat out float videoFrame;
 flat out float planeOpacity;
-flat out float frameAge;
 void main() {
   float age = volumetricVideo.reverse > 0.5 ? float(gl_InstanceID) : volumetricVideo.frameCount - 1.0 - float(gl_InstanceID);
   videoFrame = volumetricVideo.currentFrame - age;
-  frameAge = age;
   planeOpacity = volumetricVideo.frameOpacity * (age == 0.0 ? 1.0 : pow(1.0 - volumetricVideo.trailFade, age)) * layer.opacity;
   vec2 padding = vec2(max(0.0, volumetricVideo.splatSize - 1.0) * 0.5) / volumetricVideo.gridSize;
   frameUV = mix(-padding, 1.0 + padding, vec2(positions.x, -positions.y) * 0.5 + 0.5);
@@ -873,11 +798,9 @@ precision highp sampler2DArray;
 uniform sampler2DArray videoFrames;
 uniform sampler2DArray pixelChanges;
 uniform sampler2DArray filteredFrames;
-uniform sampler2DArray currentFrameAppearance;
 in vec2 frameUV;
 flat in float videoFrame;
 flat in float planeOpacity;
-flat in float frameAge;
 out vec4 fragColor;
 void main() {
   vec2 q = frameUV * volumetricVideo.gridSize;
@@ -893,9 +816,7 @@ void main() {
   // brightness and avoiding nearest-cell shimmer when several texels fit a fragment.
   if (filteredMix > 0.0) {
     vec2 uv = clamp(frameUV, vec2(0.0), vec2(1.0));
-    result = frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0
-      ? textureGrad(currentFrameAppearance, vec3(uv, 0.0), uvx, uvy)
-      : textureGrad(filteredFrames, vec3(uv, float(slot)), uvx, uvy);
+    result = textureGrad(filteredFrames, vec3(uv, float(slot)), uvx, uvy);
   }
   if (filteredMix < 1.0) {
     float size = volumetricVideo.splatSize;
@@ -911,7 +832,7 @@ void main() {
         // one pixel does not brighten or restore its unchanged neighbors.
         float weight = exp(-3.0 * dot(unit, unit));
         totalWeight += weight;
-        if (frameAge > 0.0 && volumetricVideo.staticPixelRemoval > 0.0 &&
+        if (volumetricVideo.staticPixelRemoval > 0.0 &&
             texelFetch(pixelChanges, ivec3(cell, slot), 0).r <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) continue;
         vec4 color = texelFetch(videoFrames, ivec3(cell, slot), 0);
         if (dot(color.rgb, vec3(0.2126, 0.7152, 0.0722)) < volumetricVideo.luminanceThreshold) continue;

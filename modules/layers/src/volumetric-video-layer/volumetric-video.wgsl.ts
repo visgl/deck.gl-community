@@ -41,7 +41,7 @@ fn vertexMain(attributes: VolumetricVideoAttributes) -> VolumetricVideoVaryings 
     * layer.opacity;
   if (luminance < volumetricVideo.luminanceThreshold) { alpha = 0.0; }
   let change = textureLoad(pixelChanges, cell, slot, 0).r;
-  if (age > 0.0 && volumetricVideo.staticPixelRemoval > 0.0
+  if (volumetricVideo.staticPixelRemoval > 0.0
     && change <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) {
     alpha = 0.0;
   }
@@ -86,8 +86,6 @@ export const VOLUMETRIC_VIDEO_RASTER_WGSL = /* wgsl */ `
 @group(0) @binding(auto) var pixelChanges: texture_2d_array<f32>;
 @group(0) @binding(auto) var filteredFrames: texture_2d_array<f32>;
 @group(0) @binding(auto) var filteredFramesSampler: sampler;
-@group(0) @binding(auto) var currentFrameAppearance: texture_2d_array<f32>;
-@group(0) @binding(auto) var currentFrameAppearanceSampler: sampler;
 
 struct VolumetricVideoRasterAttributes {
   @builtin(instance_index) instanceIndex: u32,
@@ -99,7 +97,6 @@ struct VolumetricVideoRasterVaryings {
   @location(0) frameUV: vec2<f32>,
   @location(1) @interpolate(flat) videoFrame: f32,
   @location(2) @interpolate(flat) planeOpacity: f32,
-  @location(3) @interpolate(flat) frameAge: f32,
 };
 
 @vertex
@@ -131,7 +128,6 @@ fn vertexMain(attributes: VolumetricVideoRasterAttributes) -> VolumetricVideoRas
   output.planeOpacity = volumetricVideo.frameOpacity
     * select(pow(1.0 - volumetricVideo.trailFade, age), 1.0, age == 0.0)
     * layer.opacity;
-  output.frameAge = age;
   return output;
 }
 
@@ -146,11 +142,7 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
   var result = vec4<f32>(0.0);
   if (filteredMix > 0.0) {
     let uv = clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0));
-    result = select(
-      textureSampleGrad(filteredFrames, filteredFramesSampler, uv, slot, uvx, uvy),
-      textureSampleGrad(currentFrameAppearance, currentFrameAppearanceSampler, uv, 0, uvx, uvy),
-      input.frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0
-    );
+    result = textureSampleGrad(filteredFrames, filteredFramesSampler, uv, slot, uvx, uvy);
   }
   if (filteredMix < 1.0) {
     let size = volumetricVideo.splatSize;
@@ -169,7 +161,7 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
         let weight = exp(-3.0 * dot(unit, unit));
         totalWeight += weight;
         let change = textureLoad(pixelChanges, cell, slot, 0).r;
-        if (input.frameAge > 0.0 && volumetricVideo.staticPixelRemoval > 0.0
+        if (volumetricVideo.staticPixelRemoval > 0.0
           && change <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) {
           continue;
         }
