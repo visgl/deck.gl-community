@@ -37,7 +37,14 @@ export function getTreeSplatSource(
   const colors: number[] = [];
   const opacities: number[] = [];
   const normals: number[] = [];
-  const add = (point: Point, size: Point, normal: Point, opacity = 0.86, longAxis?: Point) => {
+  const add = (
+    point: Point,
+    size: Point,
+    normal: Point,
+    opacity = 0.86,
+    longAxis?: Point,
+    tint?: Point
+  ) => {
     const n = new Vector3(normal).normalize();
     const tangent = longAxis
       ? new Vector3(longAxis).normalize()
@@ -48,15 +55,20 @@ export function getTreeSplatSource(
     scales.push(...size);
     rotations.push(q[3], q[0], q[1], q[2]);
     const shade = 0.64 + rng() * 0.32;
-    colors.push(shade, Math.min(1, shade * (0.97 + rng() * 0.08)), shade * 0.93, 1);
+    colors.push(
+      shade * (tint?.[0] ?? 1),
+      Math.min(1, shade * (0.97 + rng() * 0.08)) * (tint?.[1] ?? 1),
+      shade * 0.93 * (tint?.[2] ?? 1),
+      1
+    );
     opacities.push(opacity);
     normals.push(...n);
   };
   if (type === 'palm') {
-    // Arching, feathered fronds with a small central spear cluster.
-    const frondCount = 18;
+    // Arching pinnate fronds with a visible rachis and a tight spear at the crown.
+    const frondCount = 24;
     const spearCount = 5;
-    const leafletCount = 12;
+    const leafletCount = 16;
     for (let k = 0; k < frondCount + spearCount; k++) {
       const spear = k >= frondCount;
       const index = spear ? k - frondCount : k;
@@ -65,18 +77,20 @@ export function getTreeSplatSource(
         ((index + (spear ? 0.5 : 0)) / count) * Math.PI * 2 +
         (spear ? 0 : Math.sin(index * 5.37) * 0.07);
       const tier = index % 4;
+      const tipRadius = 0.82 + ((index * 7) % 9) * 0.018;
+      const tipDrop = 0.1 + tier * 0.035 + ((index * 3) % 7) * 0.008;
       const controls = spear
         ? [
             [0.025, 0.46],
-            [0.14, 0.78],
-            [0.38, 1.02],
-            [0.6, 0.94]
+            [0.13, 0.8],
+            [0.34, 1.04],
+            [0.54, 0.98]
           ]
         : [
-            [0.035, 0.44 + tier * 0.012],
-            [0.27, 0.73 - tier * 0.022],
-            [0.66, 0.5 - tier * 0.04],
-            [0.8 + ((index * 7) % 9) * 0.014, 0.21 - tier * 0.025]
+            [0.035, 0.45 + tier * 0.012],
+            [0.26, 0.74 - tier * 0.022],
+            [0.61, 0.47 - tier * 0.025],
+            [tipRadius, Math.max(0.035, 0.18 - tipDrop)]
           ];
       const evaluate = (t: number): Vector3 => {
         const u = 1 - t;
@@ -85,7 +99,25 @@ export function getTreeSplatSource(
         const z = controls.reduce((sum, control, i) => sum + control[1] * coefficients[i], 0);
         return new Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
       };
-      const pairs = spear ? 8 : leafletCount;
+      const pairs = spear ? 9 : leafletCount;
+      if (!spear) {
+        for (let segment = 0; segment < 12; segment++) {
+          const t = 0.09 + (segment / 11) * 0.84;
+          const point = evaluate(t);
+          const tangent = evaluate(t + 0.001)
+            .subtract(evaluate(t - 0.001))
+            .normalize();
+          const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
+          add(
+            Array.from(point) as Point,
+            [0.055, 0.0045, 0.002],
+            Array.from(sideways) as Point,
+            0.82,
+            Array.from(tangent) as Point,
+            [0.72, 0.84, 0.62]
+          );
+        }
+      }
       for (let j = 0; j < pairs; j++) {
         const t = 0.2 + (j / (pairs - 1)) * 0.72;
         const point = evaluate(t);
@@ -97,22 +129,22 @@ export function getTreeSplatSource(
         for (const side of [-1, 1]) {
           const direction = new Vector3(sideways)
             .scale(side)
-            .add(new Vector3(tangent).scale(0.2 + Math.sin(angle + j * 0.7) * 0.045))
-            .add([0, 0, -0.025 - t * 0.18])
+            .add(new Vector3(tangent).scale(0.16 + Math.sin(angle + j * 0.7) * 0.05))
+            .add([0, 0, -0.08 - t * 0.32])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = 0.045 + fullness * 0.105;
-          // Two overlapping ellipsoids taper each leaflet without a segmented, spiky edge.
-          for (let segment = 0; segment < 2; segment++) {
-            const progress = (segment + 0.55) / 2.1;
+          const length = 0.055 + fullness * 0.12;
+          // Three overlapping ellipsoids taper each leaflet without a segmented edge.
+          for (let segment = 0; segment < 3; segment++) {
+            const progress = (segment + 0.55) / 3.1;
             const center = new Vector3(point)
-              .add(new Vector3(sideways).scale(side * 0.008))
+              .add(new Vector3(sideways).scale(side * 0.004))
               .add(new Vector3(direction).scale(length * progress));
             add(
               Array.from(center) as Point,
-              [length / 4.6, ((0.006 + fullness * 0.007) * (1 - progress * 0.45)) / 2, 0.0016],
+              [length / 6, ((0.006 + fullness * 0.009) * (1 - progress * 0.45)) / 2, 0.0015],
               Array.from(normal) as Point,
-              0.94,
+              0.9,
               Array.from(direction) as Point
             );
           }

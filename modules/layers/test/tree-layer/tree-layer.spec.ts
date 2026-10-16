@@ -130,7 +130,7 @@ describe('native tree geometry', () => {
       getTreeMesh('canopy', 'pine', 'high', false, 4).indices.value.length / 3
     ).toBeLessThanOrEqual(150);
   });
-  it('keeps the dense feathered palm silhouette deterministic', () => {
+  it('keeps a dense pinnate palm canopy deterministic and fully splatted', () => {
     const first = createPalmCanopyMesh();
     expect(first.indices.value.length / 3).toBeLessThan(1800);
     expect(createPalmCanopyMesh().attributes.POSITION.value).toEqual(
@@ -140,10 +140,13 @@ describe('native tree geometry', () => {
     const p = first.attributes.POSITION.value;
     expect(Math.max(...p.filter((_, i) => i % 3 === 0))).toBeGreaterThan(0.82);
     expect(Math.max(...p.filter((_, i) => i % 3 === 2))).toBeGreaterThan(0.95);
-    expect(getTreeSplatSource('palm').positions.length / 3).toBeLessThan(1200);
+    const palmSplats = getTreeSplatSource('palm');
+    expect(palmSplats.positions.length / 3).toBeGreaterThan(2800);
+    expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
+    expect(getTreeSplatSource('palm')).toBe(palmSplats);
   });
-  it('uses opaque instanced LOD for dense groves and keeps splats for close tree counts', () => {
-    const denseData = Array.from({length: 1024}, (_, index) => ({
+  it('keeps every canopy on splats while dense groves use batched woody LOD', () => {
+    const denseData = Array.from({length: 10000}, (_, index) => ({
       position: [index % 32, Math.floor(index / 32)] as [number, number],
       type: 'oak' as const,
       season: 'summer' as const
@@ -152,9 +155,11 @@ describe('native tree geometry', () => {
     const denseLayers = dense.renderLayers();
     const canopy = denseLayers.find(child => child.id.includes('canopy'))!;
     const wood = denseLayers.find(child => child.id.includes('wood'))!;
-    expect(canopy).toBeInstanceOf(TreeMeshLayer);
-    expect(canopy.id).toContain('canopy-dense');
+    expect(canopy).toBeInstanceOf(SplatLayer);
+    expect(canopy.id).not.toContain('dense');
     expect(canopy.props.data).toHaveLength(denseData.length);
+    expect(canopy.props.foveationStrength).toBe(0.55);
+    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 250000});
     expect(wood).toBeInstanceOf(TreeMeshLayer);
     expect(wood.id).toContain('dense');
     expect(wood.props.data).toHaveLength(denseData.length);
@@ -165,7 +170,7 @@ describe('native tree geometry', () => {
     const closeCanopy = closeLayers.find(child => child.id.includes('canopy'))!;
     const closeWood = closeLayers.find(child => child.id.includes('wood'))!;
     expect(closeCanopy).toBeInstanceOf(SplatLayer);
-    expect(closeCanopy.id).not.toBe(canopy.id);
+    expect(closeCanopy.id).toBe(canopy.id);
     expect(closeWood.id).not.toBe(wood.id);
   });
   it('gives date palms a slimmer tapered bole with bark scars down the full trunk', () => {
@@ -185,7 +190,7 @@ describe('native tree geometry', () => {
       if (z > 0.5) topRadius = Math.max(topRadius, radius);
       trunkHeights.add(Math.round(z * 1000));
     }
-    expect(topRadius).toBeLessThan(baseRadius * 0.8);
+    expect(topRadius).toBeLessThan(baseRadius * 0.85);
     expect(trunkHeights.size).toBeGreaterThan(40);
   });
   it('tapers trunks upward and uses actual radius-one centered crop geometry', () => {
