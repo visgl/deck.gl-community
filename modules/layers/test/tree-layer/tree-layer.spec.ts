@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, WebMercatorViewport} from '@deck.gl/core';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
@@ -65,6 +65,33 @@ function getMeshRing(mesh: TreeMesh, height: number, leaderOnly = false) {
 }
 
 describe('native tree geometry', () => {
+  it('skips fallback canopy shadow selection when shadows are disabled', () => {
+    const layer = new SplatLayer({
+      id: 'canopy',
+      data: [{position: [0, 0, 0] as [number, number, number]}],
+      source: getTreeSplatSource('citrus'),
+      shadowEnabled: false
+    });
+    layer.initializeState();
+    vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+    const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18});
+    Object.assign(layer, {
+      context: {
+        viewport,
+        device: {canvasContext: {cssToDeviceRatio: () => 1}},
+        deck: {getViewports: () => [viewport]}
+      }
+    });
+    vi.spyOn(layer, 'projectPosition').mockImplementation(position => Array.from(position));
+    layer.updateState({
+      props: layer.props,
+      oldProps: layer.props,
+      changeFlags: {dataChanged: true}
+    } as any);
+    expect(layer.state.shadowRefinement.entries.size).toBe(0);
+    expect(layer.state.shadowCandidates).toEqual([]);
+    expect(layer.state.shadowGroups).toEqual([]);
+  });
   it.each([
     'pine',
     'oak',
@@ -158,8 +185,9 @@ describe('native tree geometry', () => {
     expect(canopy).toBeInstanceOf(SplatLayer);
     expect(canopy.id).not.toContain('dense');
     expect(canopy.props.data).toHaveLength(denseData.length);
+    expect(canopy.props.transparency).toBe('weighted');
     expect(canopy.props.foveationStrength).toBe(0.55);
-    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 250000});
+    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
     expect(wood).toBeInstanceOf(TreeMeshLayer);
     expect(wood.id).toContain('dense');
     expect(wood.props.data).toHaveLength(denseData.length);

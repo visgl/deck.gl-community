@@ -51,6 +51,26 @@ import type {SplatSource} from './splat-source';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
+// Reuse the runtime demand until camera motion changes an LOD target or its priority by a quarter pixel.
+function retainSplatSelections<T>(
+  previous: SplatSelection<T>[],
+  next: SplatSelection<T>[]
+): SplatSelection<T>[] {
+  if (previous.length !== next.length) return next;
+  for (let i = 0; i < next.length; i++) {
+    const a = previous[i],
+      b = next[i];
+    if (
+      a.owner !== b.owner ||
+      a.level !== b.level ||
+      Math.round(a.blend * 64) !== Math.round(b.blend * 64) ||
+      Math.round(a.pixels * 4) !== Math.round(b.pixels * 4) ||
+      a.retainedLevel !== b.retainedLevel
+    )
+      return next;
+  }
+  return previous;
+}
 type Owner<DataT> = {object: DataT; weight: number; index: number};
 type PreparedOwner<DataT> = {
   key: string;
@@ -223,6 +243,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const refinementChanged =
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
+      props.shadowEnabled !== oldProps.shadowEnabled ||
       props.maxSplats !== oldProps.maxSplats ||
       props.maxShadowSplats !== oldProps.maxShadowSplats ||
       props.kernelVariance !== oldProps.kernelVariance ||
@@ -437,6 +458,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     // A standalone layer has conservative casters before a host supplies a light volume.
     // Existing light selections survive streamed rebuilds instead of flashing back to the floor.
     if (
+      props.shadowEnabled &&
       !this.state.shadowProjections &&
       (rebuild || refinementChanged || !this.state.shadowRefinement.entries.size)
     )
@@ -451,7 +473,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         props.maxShadowSplats,
         owner => owner.key
       );
-    if ((rebuild || refinementChanged) && this.state.shadowProjections) {
+    if (props.shadowEnabled && (rebuild || refinementChanged) && this.state.shadowProjections) {
       // Reconcile retained light owners against the new hierarchy before regrouping:
       // removed assets can shorten it and shift every surviving owner's offset.
       this.state.spatialIndex = spatialIndex;
@@ -459,10 +481,12 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       this.state.shadowKey = '';
       this.prepareShadow(this.state.shadowProjections, viewport);
     }
-    const shadowGroups =
-      rebuild || !this.state.shadowGroups.length
+    const shadowGroups = props.shadowEnabled
+      ? rebuild || !this.state.shadowGroups.length
         ? this.getRefinementGroups(this.state.shadowRefinement)
-        : this.state.shadowGroups;
+        : this.state.shadowGroups
+      : [];
+    const demandCandidates = retainSplatSelections(this.state.candidates, candidates);
     this.setState({
       groups: rebuild
         ? groups
@@ -472,13 +496,14 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       shadowGroups,
       hierarchy,
       owners,
-      candidates,
+      candidates: demandCandidates,
       spatialIndex,
       projectionKey,
       ...(rebuild ? {members: [], shadowMembers: []} : {})
     });
-    this.publishDemand(false, candidates);
-    if (!this.state.shadowProjections) {
+    this.publishDemand(false, demandCandidates);
+    if (!props.shadowEnabled) this.state.shadowCandidates = [];
+    else if (!this.state.shadowProjections) {
       this.state.shadowCandidates = owners.map(owner => ({
         owner,
         pixels: 0,
