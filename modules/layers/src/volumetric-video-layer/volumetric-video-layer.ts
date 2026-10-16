@@ -328,11 +328,7 @@ export class VolumetricVideoLayer<
         staticPixelRemoval: this.state.activeStaticPixelRemoval
       }
     });
-    if (
-      raster &&
-      this.context.device.type === 'webgl' &&
-      this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval
-    ) {
+    if (raster && this.context.device.type === 'webgl') {
       try {
         this.updateAppearance(frames);
       } catch (error) {
@@ -412,13 +408,16 @@ export class VolumetricVideoLayer<
   }
 
   /** Prepares the raster visibility pyramid before deck opens its presentation pass. */
-  private updateAppearance(frames: GPUVideoFrames): void {
+  private updateAppearance(
+    frames: GPUVideoFrames,
+    staticPixelRemoval = this.state.activeStaticPixelRemoval
+  ): void {
     if (!this.usesRaster()) return;
     frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
       luminanceThreshold: this.props.luminanceThreshold,
-      staticPixelRemoval: this.props.staticPixelRemoval
+      staticPixelRemoval
     });
-    if (this.props.staticPixelRemoval === 0) return;
+    if (staticPixelRemoval === 0) return;
     const currentFrame = frames.getReadyWindow()?.currentFrame;
     if (currentFrame === undefined) return;
     // Static removal applies only to preceding slices. Preserve the selected
@@ -449,6 +448,22 @@ export class VolumetricVideoLayer<
 
   private prepareAppearance(frames: GPUVideoFrames): boolean {
     if (!this.canAllocateCurrentAppearance(frames)) {
+      try {
+        // The selected-frame pyramid is optional. Keep the base visibility
+        // pyramid current with removal disabled so a replacement cache can
+        // become resident and subsequent seeks continue to complete.
+        this.updateAppearance(frames, 0);
+      } catch (error) {
+        this.setState({filterError: frames});
+        this.raiseError(
+          error instanceof Error ? error : new Error(String(error)),
+          'filtering video history'
+        );
+        if (this.context.device.type === 'webgpu') this.queueAppearanceRetry(frames);
+        return false;
+      }
+      const recovered = this.state.filterError === frames;
+      if (recovered) this.setState({filterError: null});
       if (this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval) {
         this.setState({
           activeStaticPixelRemoval: 0,
@@ -461,10 +476,12 @@ export class VolumetricVideoLayer<
           'allocating selected-frame filtering'
         );
       }
-      return false;
+      this.setNeedsRedraw();
+      if (recovered) this.reportCurrentFrameLoad(frames);
+      return true;
     }
     try {
-      this.updateAppearance(frames);
+      this.updateAppearance(frames, this.props.staticPixelRemoval);
       const recovered = this.state.filterError === frames;
       if (recovered) this.setState({filterError: null});
       this.setState({

@@ -1404,21 +1404,19 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
-  it('keeps the working volume when static removal needs an over-budget selected-frame mip', async () => {
+  it('falls back to an unmasked raster when selected-frame filtering exceeds the budget', async () => {
     const device = await createDevice();
     let deck: Deck<OrbitView[]> | undefined;
     let layer: VolumetricVideoLayer;
-    const maxTextureBytes = getFrameHistoryBytes(32, 18, 3);
     try {
       await new Promise<void>((resolve, reject) => {
         layer = new VolumetricVideoLayer({
           id: 'static-removal-budget-video',
           video: MP4_URL,
           currentFrame: 30,
-          frameTrail: 2,
-          maxFrameTrail: 2,
+          frameTrail: 3,
+          maxFrameTrail: 3,
           resolution: 32,
-          maxTextureBytes,
           onFrameLoad: () => resolve()
         });
         deck = new Deck({
@@ -1431,16 +1429,31 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
           onError: reject
         });
       });
-      const frames = layer!.state.frames!;
-      const error = await new Promise<Error>(resolve => {
-        layer = layer!.clone({staticPixelRemoval: 1});
-        deck!.setProps({layers: [layer!], onError: resolve});
+      const previous = layer!.state.frames!;
+      const frameLoads = vi.fn();
+      const errors = vi.fn();
+      const maxTextureBytes = getFrameHistoryBytes(32, 18, 3);
+      layer = layer!.clone({
+        currentFrame: 31,
+        frameTrail: 2,
+        maxFrameTrail: 2,
+        staticPixelRemoval: 1,
+        maxTextureBytes,
+        onFrameLoad: frameLoads
       });
-      expect(error.message).toContain('selected frame');
-      expect(layer!.state.frames).toBe(frames);
+      deck!.setProps({layers: [layer!], onError: errors});
+      await vi.waitFor(() => expect(layer!.state.frames).not.toBe(previous), {timeout: 2000});
+      const frames = layer!.state.frames!;
+      expect(
+        errors.mock.calls.some(([error]) => (error as Error).message.includes('selected frame'))
+      ).toBe(true);
+      expect(layer!.state.pendingFrames).toBeNull();
+      expect(frames.capacity).toBe(3);
+      expect(frames.getReadyWindow()?.currentFrame).toBe(31);
+      expect(frames.appearance.revision).toBeGreaterThan(0);
+      expect(frameLoads).toHaveBeenCalled();
       expect(frames.currentAppearance).toBeNull();
       expect(layer!.state.activeStaticPixelRemoval).toBe(0);
-      deck!.redraw('static-removal-budget');
       await new Promise<void>((resolve, reject) => {
         layer = layer!.clone({maxTextureBytes: 512 * 1048576, onFrameLoad: () => resolve()});
         deck!.setProps({layers: [layer!], onError: reject});
