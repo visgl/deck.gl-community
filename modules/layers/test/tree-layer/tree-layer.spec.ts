@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
-import {COORDINATE_SYSTEM, WebMercatorViewport} from '@deck.gl/core';
+import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
-import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
+import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 import {getTreeSplatSource} from '../../src/tree-layer/tree-splats';
 import {
@@ -44,33 +44,6 @@ function createLayer(data: Datum[], extra = {}) {
 const OAK: Datum = {position: [0, 0], type: 'oak', season: 'summer'};
 
 describe('native tree geometry', () => {
-  it('skips fallback canopy shadow selection when shadows are disabled', () => {
-    const layer = new SplatLayer({
-      id: 'canopy',
-      data: [{position: [0, 0, 0] as [number, number, number]}],
-      source: getTreeSplatSource('citrus'),
-      shadowEnabled: false
-    });
-    layer.initializeState();
-    vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
-    const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18});
-    Object.assign(layer, {
-      context: {
-        viewport,
-        device: {canvasContext: {cssToDeviceRatio: () => 1}},
-        deck: {getViewports: () => [viewport]}
-      }
-    });
-    vi.spyOn(layer, 'projectPosition').mockImplementation(position => Array.from(position));
-    layer.updateState({
-      props: layer.props,
-      oldProps: layer.props,
-      changeFlags: {dataChanged: true}
-    } as any);
-    expect(layer.state.shadowRefinement.entries.size).toBe(0);
-    expect(layer.state.shadowCandidates).toEqual([]);
-    expect(layer.state.shadowGroups).toEqual([]);
-  });
   it.each([
     'pine',
     'oak',
@@ -144,10 +117,9 @@ describe('native tree geometry', () => {
     expect(canopy.props.transparency).toBe('weighted');
     expect(canopy.props.foveationStrength).toBe(0.55);
     expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
-    expect(wood).toBeInstanceOf(TreeMeshLayer);
-    expect(wood.id).toContain('dense');
+    expect(wood).toBeInstanceOf(TreeWoodLayer);
+    expect(wood.props.farTrunkOnly).toBe(true);
     expect(wood.props.data).toHaveLength(denseData.length);
-    expect(wood.props.woodMorph).toBe(true);
 
     const {layer: close} = createLayer(denseData.slice(0, 1023));
     const closeLayers = close.renderLayers();
@@ -155,7 +127,9 @@ describe('native tree geometry', () => {
     const closeWood = closeLayers.find(child => child.id.includes('wood'))!;
     expect(closeCanopy).toBeInstanceOf(SplatLayer);
     expect(closeCanopy.id).toBe(canopy.id);
-    expect(closeWood.id).not.toBe(wood.id);
+    expect(closeWood).toBeInstanceOf(TreeWoodLayer);
+    expect(closeWood.id).toBe(wood.id);
+    expect(closeWood.props.farTrunkOnly).toBe(false);
   });
   it('uses one stable canopy color accessor and blend mode across a mixed dense scene', () => {
     const mixedData = [
@@ -187,10 +161,9 @@ describe('native tree geometry', () => {
     const customMesh = getTreeWoodMesh('palm');
     const {layer} = createLayer(data, {_subLayerProps: {trunks: {mesh: customMesh}}});
     const wood = layer.renderLayers().find(child => child.id.includes('wood'))!;
+    expect(wood).toBeInstanceOf(TreeWoodLayer);
     expect(wood.props.mesh).toBe(customMesh);
-    expect(wood.props.woodMorph).toBe(false);
-    expect(wood.props.getStemRadius).toBe(-1);
-    expect(wood.props.getRootLength).toBe(-1);
+    expect(wood.props.templateMesh).not.toBe(customMesh);
   });
   it('gives date palms a slimmer tapered bole with bark scars down the full trunk', () => {
     const mesh = getTreeWoodMesh('palm');

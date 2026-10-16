@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {WebMercatorViewport, type Viewport} from '@deck.gl/core';
-import type {SplatShadowProjection} from './splat-shadow-pass';
+
+export type SplatProjection = {
+  matrix: number[];
+  center: number[];
+  width: number;
+  height: number;
+};
 
 /** Absolute Mercator positions and owner-local metre scales are independent of camera latitude. */
 export function getSplatProjectionKey(viewport: Viewport): string {
@@ -21,10 +27,7 @@ export function getSplatCommonUnits(common: number[], viewport: Viewport): numbe
 }
 
 /** Six normalized planes, with optional XY padding in the projection viewport's pixel units. */
-export function createSplatFrustum(
-  projection: SplatShadowProjection,
-  pixelPadding = 0
-): Float64Array {
+export function createSplatFrustum(projection: SplatProjection, pixelPadding = 0): Float64Array {
   const planes = new Float64Array(24);
   const m = projection.matrix;
   for (let axis = 0; axis < 3; axis++) {
@@ -70,15 +73,6 @@ export function intersectsSplatFrustum(
   return true;
 }
 
-/** Conservative sphere/light-volume intersection. It does not depend on screen visibility. */
-export function intersectsSplatLightVolume(
-  position: number[],
-  radius: number,
-  projection: SplatShadowProjection
-): boolean {
-  return intersectsSplatFrustum(position, radius, createSplatFrustum(projection));
-}
-
 /** Largest singular value of the perspective projection Jacobian, in pixels per metre. */
 export function getSplatPixelsPerMeter(position: number[], viewport: Viewport): number {
   const m = viewport.viewProjectionMatrix;
@@ -112,7 +106,7 @@ export function getSplatBoundedPixelsPerMeter(
   return Math.min(maximum, getSplatPixelsPerMeter(position, viewport));
 }
 
-/** Smooth per-owner priority from its projected crown center. It never affects visibility or light-space LOD. */
+/** Smooth per-owner priority from its projected crown center. It never affects visibility. */
 export function getSplatFocusWeight(
   position: number[],
   viewport: Viewport,

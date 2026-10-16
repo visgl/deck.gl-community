@@ -1,21 +1,14 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {
-  Deck,
-  MapView,
-  COORDINATE_SYSTEM,
-  AmbientLight,
-  DirectionalLight,
-  LightingEffect
-} from '@deck.gl/core';
+import {Deck, MapView, COORDINATE_SYSTEM, AmbientLight, LightingEffect} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it} from 'vitest';
 import {TreeLayer} from '../../src';
 
-it('casts wood shadows with ordinary LightingEffect and removes every tree part at zero coverage', async () => {
+it('renders tree parts and removes every part at zero coverage', async () => {
   const parent = document.createElement('div');
   parent.style.cssText = 'width:256px;height:256px';
   document.body.append(parent);
@@ -26,8 +19,7 @@ it('casts wood shadows with ordinary LightingEffect and removes every tree part 
   const errors: string[] = [];
   let frames = 0;
   let pixels = new Uint8Array();
-  let shadows = false,
-    coverage = 1,
+  let coverage = 1,
     ground = true;
   const coordinateProps = {
     coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
@@ -58,12 +50,9 @@ it('casts wood shadows with ordinary LightingEffect and removes every tree part 
       getTrunkHeightFraction: row => (row.species === 'pine' ? 0 : 0.35),
       getCrop: {kind: 'cone', color: [200, 100, 40], count: 4, droppedCount: 2, radius: 0.25},
       windStrength: 0,
-      shadowEnabled: shadows,
       getCoverageWeight: coverage,
-      // This fixture checks wood shadows and owner coverage. Retain coarse crowns
-      // so software adapters do not spend its deadline on unrelated LoD promotions.
+      // Retain coarse crowns so software adapters focus on the tree parts and coverage.
       maxCanopySplats: 0,
-      maxShadowSplats: 0,
       maxCanopyPixels: 256 * 256,
       pickable: true
     })
@@ -79,8 +68,7 @@ it('casts wood shadows with ordinary LightingEffect and removes every tree part 
     initialViewState: {longitude: 0.00004, latitude: 0, zoom: 20, pitch: 45, bearing: 20},
     effects: [
       new LightingEffect({
-        ambient: new AmbientLight({intensity: 1}),
-        sun: new DirectionalLight({direction: [1, 1, -2], intensity: 0.5, _shadow: true})
+        ambient: new AmbientLight({intensity: 1})
       })
     ],
     layers: make(),
@@ -100,22 +88,6 @@ it('casts wood shadows with ordinary LightingEffect and removes every tree part 
   };
   try {
     await settle();
-    const unshadowed = pixels.slice();
-    shadows = true;
-    deck.setProps({layers: make()});
-    await settle();
-    const woodChildren = deck
-      .layerManager!.getLayers()
-      .filter(layer => !layer.isComposite && layer.id.includes('-wood-'));
-    const cameraWood = woodChildren.filter(layer => layer.props.operation === 'draw');
-    const lightWood = woodChildren.filter(layer => layer.props.operation === 'shadow');
-    expect(cameraWood.length).toBeGreaterThan(0);
-    expect(lightWood.length).toBeGreaterThan(0);
-    expect(cameraWood.every(layer => layer.props.shadowEnabled === false)).toBe(true);
-    expect(lightWood.every(layer => layer.props.shadowEnabled === true)).toBe(true);
-    let darkened = 0;
-    for (let i = 0; i < pixels.length; i += 4) if (unshadowed[i] - pixels[i] > 12) darkened++;
-    expect(darkened).toBeGreaterThan(30);
     ground = false;
     deck.setProps({layers: make()});
     await settle();

@@ -276,8 +276,6 @@ type _TreeLayerProps<DataT> = {
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
   windTime?: number | null;
-  /** Enable existing wood shadows when the host LightingEffect supports them. Canopy shadows remain disabled. @default false */
-  shadowEnabled?: boolean;
   /** Shared per-frame canopy Gaussian budget, allocated by projected error across species. Finest templates remain available. @default 20000 */
   maxCanopySplats?: number;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
@@ -311,8 +309,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   maxCanopySplats: 20000,
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
-  foveationStrength: {type: 'number', value: 0.55, min: 0, max: 1},
-  shadowEnabled: false
+  foveationStrength: {type: 'number', value: 0.55, min: 0, max: 1}
 };
 
 const DENSE_TREE_COUNT = 1024;
@@ -456,7 +453,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
   initializeState() {
     this.state = {
-      splatBudgetGroup: {maxSplats: Infinity, maxShadowSplats: 0},
+      splatBudgetGroup: {maxSplats: Infinity},
       authoredWindStrength: 0,
       hasAuthoredWind: false,
       hasDefaultWind: true,
@@ -853,7 +850,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           id: `wood-${key}`,
           data: wood,
           ...shared,
-          shadowEnabled: this.props.shadowEnabled,
           getPosition: (row: TreeRow<DataT>) => row.position,
           getScale: (row: TreeRow<DataT>) => row.scale,
           getTranslation: (row: TreeRow<DataT>) => row.translation,
@@ -871,34 +867,22 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
           }
         };
-        if (data.length >= DENSE_TREE_COUNT) {
-          // Dense scenes need the aggregate connected shell, not per-tree near/far selection.
-          const denseMesh = getTreeWoodMesh(type, levels, true, characteristics, true);
-          const denseProps = this.getTreeSubLayerProps(
-            {
-              ...woodProps,
-              id: `${woodProps.id}-dense`,
-              mesh: denseMesh,
-              woodMorph: true,
-              getCoverageRange: [0, 1]
-            },
-            'trunks'
-          );
-          if (denseProps.mesh !== denseMesh) {
-            // Automatically fitted stem/root deformation only matches our cached species mesh.
-            denseProps.woodMorph = false;
-            denseProps.getStemRadius = -1;
-            denseProps.getRootLength = -1;
-          }
-          layers.push(new TreeMeshLayer(denseProps));
-        } else {
-          const mesh = getTreeWoodMesh(type, levels, false, characteristics);
-          layers.push(
-            new TreeWoodLayer(
-              this.getTreeSubLayerProps({...woodProps, mesh, templateMesh: mesh}, 'trunks')
+        // Keep detailed connected branching only for trees large enough to read on screen. Dense
+        // groves retain every splat crown, while their subpixel wood simplifies to one curved bole.
+        const mesh = getTreeWoodMesh(type, levels, false, characteristics);
+        layers.push(
+          new TreeWoodLayer(
+            this.getTreeSubLayerProps(
+              {
+                ...woodProps,
+                mesh,
+                templateMesh: mesh,
+                farTrunkOnly: data.length >= DENSE_TREE_COUNT
+              },
+              'trunks'
             )
-          );
-        }
+          )
+        );
       }
       if (winter) continue;
       const canopyTriggers = {

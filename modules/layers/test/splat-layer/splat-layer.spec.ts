@@ -39,7 +39,7 @@ function make(data: {position: [number, number, number]}[], flex = 1, extra = {}
   } as any);
   return layer;
 }
-it('includes absolute flex in both wind allowances for camera and light bounds', () => {
+it('includes absolute flex in the camera wind allowance', () => {
   const data = [{position: [0, 0, 0] as [number, number, number]}];
   const rigid = make(data, 0),
     normal = make(data, 1),
@@ -65,130 +65,13 @@ it('starts shared capped registrations at coverage before their first joint gran
       {source: SOURCE, error: 1}
     ],
     pixelError: 0.001,
-    _splatBudgetGroup: {maxSplats: 100, maxShadowSplats: 100}
+    _splatBudgetGroup: {maxSplats: 100}
   });
   expect(layer.state.candidates[0].level).toBe(0);
   expect(layer.splatStats.renderedSplats).toBe(1);
   expect(layer.splatStats.coverageFloor).toBe(1);
 });
-it('clears the runtime shadow budget registration when shadows are disabled', () => {
-  const layer = make([{position: [256, 256, 0]}], 0, {shadowEnabled: true});
-  const register = vi.spyOn(layer.state.runtime, 'set');
-  const oldProps = layer.props;
-  Object.assign(layer, {props: layer.clone({shadowEnabled: false}).props});
-  layer.updateState({props: layer.props, oldProps, changeFlags: {propsChanged: true}} as any);
-  expect(register).toHaveBeenCalledWith(layer.id, true, expect.objectContaining({rows: []}));
-});
-it('reconciles fallback shadow membership on replacement without retaining removed owners', () => {
-  const a = {position: [0, 0, 0] as [number, number, number]},
-    b = {position: [1, 0, 0] as [number, number, number]};
-  const layer = make([a, b]);
-  const next = [b];
-  // updateState reads the current layer props, matching deck's state-transfer lifecycle.
-  Object.assign(layer, {props: layer.clone({data: next}).props});
-  layer.updateState({
-    props: layer.props,
-    oldProps: layer.props,
-    changeFlags: {dataChanged: true}
-  } as any);
-  expect(
-    [...layer.state.shadowRefinement.entries.values()].map(entry => entry.owner.row.object)
-  ).toEqual([b]);
-  expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual([b]);
-});
-
-it('refreshes light-space owner offsets before regrouping replaced or cleared assets', () => {
-  const first = {position: [0, 0, 0] as [number, number, number], splats: SOURCE};
-  const second = {
-    position: [0.1, 0, 0] as [number, number, number],
-    splats: {...SOURCE, colors: new Uint8Array([200, 20, 50, 255])}
-  };
-  const layer = make([first, second], 0, {source: undefined, getSource: row => row.splats});
-  layer.prepareShadow(
-    [
-      {
-        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        center: [0, 0, 0, 0],
-        width: 256,
-        height: 256
-      }
-    ],
-    layer.context.viewport
-  );
-  expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual([first, second]);
-  const retained = [...layer.state.shadowRefinement.entries.values()][1];
-  for (const data of [[second], []]) {
-    const oldProps = layer.props;
-    Object.assign(layer, {props: layer.clone({data}).props});
-    layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
-    expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual(data);
-    if (data.length) {
-      expect([...layer.state.shadowRefinement.entries.values()]).toEqual([retained]);
-      expect(retained.owner.offset).toBe(0);
-    }
-  }
-  expect(layer.state.shadowRefinement.entries.size).toBe(0);
-  expect(layer.renderLayers()).toEqual([]);
-});
-
-it('restores shifted-origin shadow casters immediately after an empty inventory', () => {
-  const layer = make([{position: [0, 0, 0]}], 0);
-  const projections = [
-    {
-      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-      center: [0, 0, 0, 0],
-      width: 256,
-      height: 256
-    }
-  ];
-  layer.prepareShadow(projections, layer.context.viewport);
-  for (const data of [[], [{position: [100, 0, 0] as [number, number, number]}]]) {
-    const oldProps = layer.props;
-    Object.assign(layer, {props: layer.clone({data}).props});
-    // A precision-preserving host origin shifts with the replacement owner's pose.
-    vi.mocked(layer.projectPosition).mockImplementation(() => [0, 0, 0]);
-    layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
-    expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual(data);
-  }
-});
-
-it('retains light-space selections on camera-only changes and invalidates changed source geometry', () => {
-  const layer = make([{position: [0, 0, 0]}], 0);
-  const viewport = layer.context.viewport;
-  const projections = [
-    {
-      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-      center: [0, 0, 0, 0],
-      width: 256,
-      height: 256
-    }
-  ];
-  layer.prepareShadow(projections, viewport);
-  const recull = vi.spyOn(layer.state.shadowRefinement, 'reconcile');
-  layer.updateState({
-    props: layer.props,
-    oldProps: layer.props,
-    changeFlags: {viewportChanged: true}
-  } as any);
-  layer.prepareShadow(projections, viewport);
-  expect(recull).not.toHaveBeenCalled();
-  layer.updateState({
-    props: layer.props,
-    oldProps: layer.props,
-    changeFlags: {dataChanged: true}
-  } as any);
-  expect(recull).toHaveBeenCalledOnce();
-  // Identical input light matrices in a different precision origin still select a new volume.
-  vi.mocked(layer.projectPosition).mockImplementation(point => [
-    point[0] + 0.5,
-    point[1],
-    point[2] ?? 0
-  ]);
-  layer.prepareShadow(projections, viewport);
-  expect(recull).toHaveBeenCalledTimes(2);
-});
-
-it('includes translated source centers in prepared camera and light wind bounds', () => {
+it('includes translated source centers in prepared camera wind bounds', () => {
   const data = [{position: [0, 0, 0] as [number, number, number]}];
   const layer = make(data, 1);
   const rigidRadius = make(data, 0).state.owners[0].radius;
@@ -273,34 +156,10 @@ it('preserves a moving owner when other assets enter or leave and safely clears 
   }
   expect(layer.state.hierarchy).toEqual([]);
   expect(layer.state.groups.flat()).toEqual([]);
-  expect(layer.state.shadowGroups.flat()).toEqual([]);
   expect(layer.renderLayers()).toEqual([]);
 });
 
-it('retains light-volume selection across layer state transfer and invalidates changed maps', () => {
-  const layer = make([{position: [256, 256, 0]}], 0);
-  const projections = [
-    {
-      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-      center: [0, 0, 0, 0],
-      width: 256,
-      height: 256
-    }
-  ];
-  layer.prepareShadow(projections, layer.context.viewport);
-  const candidates = layer.state.shadowCandidates;
-  const reconcile = vi.spyOn(layer.state.shadowRefinement, 'reconcile');
-  const replacement = layer.clone();
-  Object.assign(replacement, {state: layer.state, context: layer.context});
-  vi.spyOn(replacement, 'projectPosition').mockImplementation(point => Array.from(point));
-  replacement.prepareShadow(projections, layer.context.viewport);
-  expect(reconcile).not.toHaveBeenCalled();
-  expect(replacement.state.shadowCandidates).toBe(candidates);
-  replacement.prepareShadow([{...projections[0], width: 512}], layer.context.viewport);
-  expect(reconcile).toHaveBeenCalledTimes(1);
-});
-
-it('moves camera and shadow demand to the current device runtime even without prop changes', () => {
+it('moves selection to the current device runtime even without prop changes', () => {
   const layer = make([{position: [256, 256, 0]}], 0);
   const previous = layer.state.runtime;
   const remove = vi.spyOn(previous, 'delete');
@@ -325,84 +184,8 @@ it('moves camera and shadow demand to the current device runtime even without pr
   expect(tick).toHaveBeenCalledTimes(1);
   const allocations = vi.spyOn(layer as any, 'applyAllocation');
   current.reconcile(ids);
-  expect(allocations.mock.calls.map(call => call[0])).toEqual([false, true]);
+  expect(allocations).toHaveBeenCalledOnce();
   expect(layer.shouldUpdateState({changeFlags: {somethingChanged: false}})).toBe(false);
-});
-
-it.each([
-  {limit: 'parent', budget: 100},
-  {limit: 'total', budget: 100},
-  {limit: 'parent', budget: 2},
-  {limit: 'total', budget: 2}
-])('starts light-space demand at coverage and retains shared $limit allocations of $budget', ({
-  limit,
-  budget
-}) => {
-  const fine = Object.fromEntries(
-    Object.entries(SOURCE).map(([key, array]) => [
-      key,
-      new (array.constructor as typeof Float32Array)([...array, ...array, ...array])
-    ])
-  );
-  const layer = make([{position: [0, 0, 0]}], 0, {
-    source: fine,
-    hierarchy: [
-      {source: fine, error: 0},
-      {source: SOURCE, error: 1}
-    ],
-    pixelError: 0.001,
-    ...(limit === 'parent'
-      ? {_splatBudgetGroup: {maxSplats: budget, maxShadowSplats: budget}}
-      : {maxTotalSplats: budget})
-  });
-  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
-  layer.prepareShadow(
-    [
-      {
-        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        center: [0, 0, 0, 0],
-        width: 256,
-        height: 256
-      }
-    ],
-    layer.context.viewport
-  );
-  expect(layer.state.shadowCandidates[0].level).toBe(0);
-  expect(layer.splatStats.shadowSplats).toBe(1);
-  expect(layer.splatStats.shadowCoverageFloor).toBe(1);
-  const ids = new Set([layer.id]);
-  layer.state.runtime.reconcile(ids);
-  expect(layer.state.shadowRefinement.active).toBe(budget === 100);
-  for (let now = 16; now <= 6400; now += 16) layer.state.runtime.sample(ids, now);
-  expect(layer.state.shadowRefinement.active).toBe(false);
-  expect(layer.splatStats.shadowSplats).toBe(budget === 100 ? 3 : 1);
-  const entry = [...layer.state.shadowRefinement.entries.values()][0];
-  const weights = [...entry.weights];
-  // Moving a light volume must not demote settled owners before the next joint grant.
-  const projections = layer.state.shadowProjections!;
-  layer.prepareShadow([{...projections[0], width: 512}], layer.context.viewport);
-  expect(layer.state.shadowRefinement.active).toBe(false);
-  expect(entry.weights).toEqual(weights);
-  // Inventory rebuilds retain the same settled light selection.
-  const oldProps = layer.props;
-  Object.assign(layer, {props: layer.clone({data: [...layer.state.input.data]}).props});
-  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
-  expect(layer.state.shadowRefinement.active).toBe(false);
-  expect(entry.weights).toEqual(weights);
-  // A new owner waits at coverage without changing the existing owner's allocation.
-  const previous = layer.props;
-  Object.assign(layer, {
-    props: layer.clone({data: [...layer.state.input.data, {position: [0.1, 0, 0]}]}).props
-  });
-  layer.updateState({
-    props: layer.props,
-    oldProps: previous,
-    changeFlags: {dataChanged: true}
-  } as any);
-  const added = [...layer.state.shadowRefinement.entries.values()][1];
-  expect(entry.weights).toEqual(weights);
-  expect(added.weights).toEqual([0, 1]);
-  expect(layer.state.shadowRefinement.active).toBe(false);
 });
 
 it('refreshes mutated owner attributes on new data without discarding camera-only stability', () => {
@@ -410,7 +193,6 @@ it('refreshes mutated owner attributes on new data without discarding camera-onl
   const layer = make([row], 0);
   const initial = layer.state.groups[0];
   expect(initial).toHaveLength(1);
-  const initialShadow = layer.state.shadowGroups[0];
   const update = (data = layer.props.data, dataChanged = false) => {
     const oldProps = layer.props;
     Object.assign(layer, {props: layer.clone({data}).props});
@@ -422,12 +204,10 @@ it('refreshes mutated owner attributes on new data without discarding camera-onl
   };
   update();
   expect(layer.state.groups[0]).toBe(initial);
-  expect(layer.state.shadowGroups[0]).toBe(initialShadow);
   row.position[0] += 0.00001;
   update([row], true);
   expect(layer.state.groups[0][0].object).toBe(row);
   expect(layer.state.groups[0][0]).not.toBe(initial[0]);
-  expect(layer.state.shadowGroups[0][0]).not.toBe(initialShadow[0]);
   const moved = layer.state.groups[0];
   // A non-pose attribute may change even though the retained selection key does not.
   update([row], true);
