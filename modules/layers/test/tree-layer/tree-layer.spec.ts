@@ -5,7 +5,9 @@ import {describe, it, expect, vi} from 'vitest';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
+import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
+import {getTreeSplatSource} from '../../src/tree-layer/tree-splats';
 import {
   getTreeMesh,
   createPalmCanopyMesh,
@@ -83,7 +85,9 @@ describe('native tree geometry', () => {
         expect(crown).toBeUndefined();
       else {
         expect(crown).toBeInstanceOf(SplatLayer);
-        expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(1000);
+        expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(
+          type === 'palm' ? 900 : 1000
+        );
         expect(crown!.props.getSource.hierarchy[0].source).toBe(crown!.props.getSource.source);
       }
     }
@@ -132,10 +136,57 @@ describe('native tree geometry', () => {
     expect(createPalmCanopyMesh().attributes.POSITION.value).toEqual(
       first.attributes.POSITION.value
     );
-    expect(first.attributes.POSITION.value.length / 3).toBeGreaterThan(3000);
+    expect(first.attributes.POSITION.value.length / 3).toBeGreaterThan(2500);
     const p = first.attributes.POSITION.value;
-    expect(Math.max(...p.filter((_, i) => i % 3 === 0))).toBeGreaterThan(0.9);
+    expect(Math.max(...p.filter((_, i) => i % 3 === 0))).toBeGreaterThan(0.82);
     expect(Math.max(...p.filter((_, i) => i % 3 === 2))).toBeGreaterThan(0.95);
+    expect(getTreeSplatSource('palm').positions.length / 3).toBeLessThan(1200);
+  });
+  it('uses opaque instanced LOD for dense groves and keeps splats for close tree counts', () => {
+    const denseData = Array.from({length: 1024}, (_, index) => ({
+      position: [index % 32, Math.floor(index / 32)] as [number, number],
+      type: 'oak' as const,
+      season: 'summer' as const
+    }));
+    const {layer: dense} = createLayer(denseData);
+    const denseLayers = dense.renderLayers();
+    const canopy = denseLayers.find(child => child.id.includes('canopy'))!;
+    const wood = denseLayers.find(child => child.id.includes('wood'))!;
+    expect(canopy).toBeInstanceOf(TreeMeshLayer);
+    expect(canopy.id).toContain('canopy-dense');
+    expect(canopy.props.data).toHaveLength(denseData.length);
+    expect(wood).toBeInstanceOf(TreeMeshLayer);
+    expect(wood.id).toContain('dense');
+    expect(wood.props.data).toHaveLength(denseData.length);
+    expect(wood.props.woodMorph).toBe(true);
+
+    const {layer: close} = createLayer(denseData.slice(0, 1023));
+    const closeLayers = close.renderLayers();
+    const closeCanopy = closeLayers.find(child => child.id.includes('canopy'))!;
+    const closeWood = closeLayers.find(child => child.id.includes('wood'))!;
+    expect(closeCanopy).toBeInstanceOf(SplatLayer);
+    expect(closeCanopy.id).not.toBe(canopy.id);
+    expect(closeWood.id).not.toBe(wood.id);
+  });
+  it('gives date palms a slimmer tapered bole with bark scars down the full trunk', () => {
+    const mesh = getTreeWoodMesh('palm');
+    const positions = mesh.attributes.POSITION.value;
+    const trunk = mesh.attributes.TEXCOORD_0.value;
+    let baseRadius = 0;
+    let topRadius = 0;
+    const trunkHeights = new Set<number>();
+    for (let vertex = 0; vertex < positions.length / 3; vertex++) {
+      if (trunk[vertex * 2 + 1] !== 1) continue;
+      const x = positions[vertex * 3];
+      const y = positions[vertex * 3 + 1];
+      const z = positions[vertex * 3 + 2];
+      const radius = Math.hypot(x, y);
+      if (z < -0.9) baseRadius = Math.max(baseRadius, radius);
+      if (z > 0.5) topRadius = Math.max(topRadius, radius);
+      trunkHeights.add(Math.round(z * 1000));
+    }
+    expect(topRadius).toBeLessThan(baseRadius * 0.8);
+    expect(trunkHeights.size).toBeGreaterThan(40);
   });
   it('tapers trunks upward and uses actual radius-one centered crop geometry', () => {
     const p = createTrunkMesh().attributes.POSITION.value;
