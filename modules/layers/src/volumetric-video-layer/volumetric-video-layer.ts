@@ -205,8 +205,6 @@ export class VolumetricVideoLayer<
 > extends Layer<Required<VideoProps> & ExtraProps> {
   static layerName = 'VolumetricVideoLayer';
   static defaultProps = defaultProps;
-  private appearanceRetry: ReturnType<typeof setTimeout> | undefined;
-  private appearanceRetryCount = 0;
   declare state: {
     model: Model;
     rasterModel: Model | null;
@@ -215,6 +213,8 @@ export class VolumetricVideoLayer<
     pendingFrames: GPUVideoFrames | null;
     cacheError: 'allocation' | 'preparation' | null;
     filterError: GPUVideoFrames | null;
+    appearanceRetry: ReturnType<typeof setTimeout> | undefined;
+    appearanceRetryCount: number;
   };
 
   getShaders() {
@@ -241,7 +241,9 @@ export class VolumetricVideoLayer<
       frames: null,
       pendingFrames: null,
       cacheError: null,
-      filterError: null
+      filterError: null,
+      appearanceRetry: undefined,
+      appearanceRetryCount: 0
     });
   }
 
@@ -282,7 +284,7 @@ export class VolumetricVideoLayer<
   }
 
   finalizeState(): void {
-    this.clearAppearanceRetry();
+    if (this.state.appearanceRetry !== undefined) clearTimeout(this.state.appearanceRetry);
     this.state.source?.destroy();
     this.state.pendingFrames?.destroy();
     this.state.frames?.destroy();
@@ -418,7 +420,7 @@ export class VolumetricVideoLayer<
       this.updateAppearance(frames);
       const recovered = this.state.filterError === frames;
       if (recovered) this.setState({filterError: null});
-      this.appearanceRetryCount = 0;
+      this.setState({appearanceRetryCount: 0});
       this.setNeedsRedraw();
       if (recovered) this.reportCurrentFrameLoad(frames);
       return true;
@@ -435,19 +437,29 @@ export class VolumetricVideoLayer<
 
   /** Retries transient WebGPU filtering failures after Deck's presentation pass has closed. */
   private queueAppearanceRetry(frames: GPUVideoFrames): void {
-    if (this.appearanceRetry !== undefined || this.appearanceRetryCount >= 2) return;
-    this.appearanceRetryCount++;
-    this.appearanceRetry = setTimeout(() => {
-      this.appearanceRetry = undefined;
-      if (this.state.frames === frames && this.state.filterError === frames)
-        this.prepareAppearance(frames);
+    const layer = this.getCurrentLayer() as this | null;
+    if (
+      !layer ||
+      layer.state.frames !== frames ||
+      layer.state.filterError !== frames ||
+      layer.state.appearanceRetry !== undefined ||
+      layer.state.appearanceRetryCount >= 2
+    )
+      return;
+    layer.setState({appearanceRetryCount: layer.state.appearanceRetryCount + 1});
+    const retry = setTimeout(() => {
+      const current = layer.getCurrentLayer() as this | null;
+      if (!current || current.state.appearanceRetry !== retry) return;
+      current.setState({appearanceRetry: undefined});
+      if (current.state.frames === frames && current.state.filterError === frames)
+        current.prepareAppearance(frames);
     }, 50);
+    layer.setState({appearanceRetry: retry});
   }
 
   private clearAppearanceRetry(): void {
-    if (this.appearanceRetry !== undefined) clearTimeout(this.appearanceRetry);
-    this.appearanceRetry = undefined;
-    this.appearanceRetryCount = 0;
+    if (this.state.appearanceRetry !== undefined) clearTimeout(this.state.appearanceRetry);
+    this.setState({appearanceRetry: undefined, appearanceRetryCount: 0});
   }
 
   private reportCurrentFrameLoad(frames: GPUVideoFrames): void {

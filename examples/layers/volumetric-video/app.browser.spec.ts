@@ -59,8 +59,9 @@ describe('mounted volumetric video demo', () => {
     }
   }, 35_000);
 
-  // Value: protects=automatic recovery restores playback and clears the demo's error state;
-  // fails_when=a successful visibility retry never reports readiness to the mounted UI;
+  // Value: protects=automatic recovery restores playback with the latest filter state;
+  // fails_when=a successful visibility retry never reports readiness to the mounted UI or applies
+  // settings from a replaced layer instance;
   // why_new=the GPU draw test only checks texture revision and never observes demo controls; seam=none
   it('restores Play and clears the error after an automatic filter retry', async () => {
     const parent = document.createElement('div');
@@ -80,6 +81,7 @@ describe('mounted volumetric video demo', () => {
           .layers![0] as VolumetricVideoLayer;
       await vi.waitFor(() => expect(layer().state.frames!.width).toBe(128), {timeout: 5000});
       const appearance = layer().state.frames!.appearance;
+      const updateAppearance = vi.spyOn(appearance, 'update');
       let allowRetry = false;
       const appearanceDevice = (appearance as unknown as {device: Device}).device;
       if (appearanceDevice.type === 'webgpu') {
@@ -104,6 +106,8 @@ describe('mounted volumetric video demo', () => {
         {timeout: 5000}
       );
       expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
+      change(element<HTMLInputElement>('#vv-static'), '0.75');
+      expect(layer().props.staticPixelRemoval).toBe(0.75);
       allowRetry = true;
       await vi.waitFor(
         () => {
@@ -111,6 +115,12 @@ describe('mounted volumetric video demo', () => {
           expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(false);
         },
         {timeout: 3000}
+      );
+      expect(updateAppearance).toHaveBeenLastCalledWith(
+        layer().state.frames!.texture,
+        layer().state.frames!.changes.texture,
+        layer().state.frames!.resident,
+        {luminanceThreshold: layer().props.luminanceThreshold, staticPixelRemoval: 0.75}
       );
       expect(element('.vv-demo').dataset.frameReady).toBe('88');
       expect(element('#vv-status').textContent).not.toContain('Keeping');
