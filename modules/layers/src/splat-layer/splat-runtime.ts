@@ -8,7 +8,6 @@ import {budgetSplatSelections, type SplatSelection, type SplatBudgetLimit} from 
 /** Internal parent cap shared by canopy children and nested inventory consumers. */
 export type SplatBudgetGroup = {
   maxSplats: number;
-  maxShadowSplats: number;
   parent?: SplatBudgetGroup;
 };
 type SceneDemand = {
@@ -49,7 +48,7 @@ export class SplatRuntime {
   private sceneGroupGrants = new Map<SplatBudgetGroup, number>();
   /** Share global and nested parent allowances across prepared and scene registrations. */
   setSceneDemands(ids: Set<string>, scenes: SceneDemand[]): Map<string, number> {
-    const prepared = [...this.demands[0]].filter(([id]) => ids.has(id)).map(([, demand]) => demand);
+    const prepared = [...this.demands].filter(([id]) => ids.has(id)).map(([, demand]) => demand);
     const records = [
       ...scenes,
       ...prepared.map(demand => ({
@@ -113,118 +112,108 @@ export class SplatRuntime {
       this.sceneLimit = total;
       this.sceneGrant = grant;
       this.sceneGroupGrants = groupGrants;
-      this.snapshots[0].clear();
+      this.snapshot.clear();
     }
     return grants;
   }
-  private snapshots: Map<string, unknown[]>[] = [new Map(), new Map()];
-  private demands = [new Map<string, Demand>(), new Map<string, Demand>()];
+  private snapshot = new Map<string, unknown[]>();
+  private demands = new Map<string, Demand>();
 
-  set(id: string, shadow: boolean, demand: Demand) {
-    this.demands[Number(shadow)].set(id, demand);
+  set(id: string, demand: Demand) {
+    this.demands.set(id, demand);
   }
   delete(id: string) {
-    this.demands.forEach(demands => demands.delete(id));
-    this.snapshots.forEach(snapshot => snapshot.clear());
+    this.demands.delete(id);
+    this.snapshot.clear();
   }
 
   sample(ids: Set<string>, now: number) {
-    for (const [id, demand] of this.demands[0]) if (ids.has(id)) demand.tick?.(now);
+    for (const [id, demand] of this.demands) if (ids.has(id)) demand.tick?.(now);
   }
 
   /** Reconcile once before presentation, after all participating layers have published demand. */
   reconcile(ids: Set<string>) {
-    this.demands.forEach((demands, operation) => {
-      const participating = [...demands].filter(([id]) => ids.has(id));
-      const snapshot = new Map<string, unknown[]>();
-      for (const [id, demand] of participating) {
-        const values: unknown[] = [
-          demand.rows,
-          demand.maxSplats,
-          demand.maxTotalSplats,
-          ...(operation === 0 && (this.sceneGrant > 0 || Number.isFinite(this.sceneLimit))
-            ? [this.sceneGrant, this.sceneLimit]
-            : [])
-        ];
-        for (let group = demand.group; group; group = group.parent)
-          values.push(group, operation ? group.maxShadowSplats : group.maxSplats);
-        snapshot.set(id, values);
-      }
-      const previous = this.snapshots[operation];
-      if (
-        snapshot.size === previous.size &&
-        [...snapshot].every(([id, values]) => {
-          const old = previous.get(id);
-          return old?.length === values.length && values.every((value, i) => value === old[i]);
-        })
+    const participating = [...this.demands].filter(([id]) => ids.has(id));
+    const snapshot = new Map<string, unknown[]>();
+    for (const [id, demand] of participating) {
+      const values: unknown[] = [
+        demand.rows,
+        demand.maxSplats,
+        demand.maxTotalSplats,
+        ...(this.sceneGrant > 0 || Number.isFinite(this.sceneLimit)
+          ? [this.sceneGrant, this.sceneLimit]
+          : [])
+      ];
+      for (let group = demand.group; group; group = group.parent)
+        values.push(group, group.maxSplats);
+      snapshot.set(id, values);
+    }
+    if (
+      snapshot.size === this.snapshot.size &&
+      [...snapshot].every(([id, values]) => {
+        const old = this.snapshot.get(id);
+        return old?.length === values.length && values.every((value, i) => value === old[i]);
+      })
+    )
+      return;
+    this.snapshot = snapshot;
+    if (!participating.length) return;
+    if (
+      [...snapshot.values()].every(values =>
+        values.slice(1).every(value => typeof value !== 'number' || value === Infinity)
       )
-        return;
-      this.snapshots[operation] = snapshot;
-      if (!participating.length) return;
-      if (
-        [...snapshot.values()].every(values =>
-          values.slice(1).every(value => typeof value !== 'number' || value === Infinity)
-        )
-      ) {
-        participating.forEach(([, demand]) => demand.apply(demand.rows, Infinity));
-        return;
+    ) {
+      participating.forEach(([, demand]) => demand.apply(demand.rows, Infinity));
+      return;
+    }
+    const rows = participating.flatMap(([, demand]) =>
+      demand.rows.map(row => ({...row, owner: {demand, row}}))
+    );
+    const total = Math.max(
+      0,
+      Math.min(...participating.map(([, demand]) => demand.maxTotalSplats), this.sceneLimit) -
+        this.sceneGrant
+    );
+    const limits = ({demand}: {demand: Demand}): SplatBudgetLimit[] => {
+      const result: SplatBudgetLimit[] = [{key: demand, budget: demand.maxSplats * 0.75}];
+      for (let group = demand.group; group; group = group.parent)
+        result.push({
+          key: group,
+          budget: Math.max(0, group.maxSplats - (this.sceneGroupGrants.get(group) ?? 0)) * 0.75
+        });
+      return result;
+    };
+    const allocated = budgetSplatSelections<{demand: Demand; row: SplatSelection<any>}>(
+      rows,
+      owner => owner.demand.hierarchy(owner.row.owner),
+      total * 0.75,
+      limits
+    );
+    const selections = new Map<Demand, SplatSelection<any>[]>();
+    const costs = new Map<Demand, number>();
+    for (const row of allocated) {
+      const {demand, row: original} = row.owner;
+      let selected = selections.get(demand);
+      if (!selected) {
+        selected = [];
+        selections.set(demand, selected);
       }
-      const rows = participating.flatMap(([, demand]) =>
-        demand.rows.map(row => ({...row, owner: {demand, row}}))
+      selected.push({...row, owner: original.owner});
+      const hierarchy = demand.hierarchy(original.owner);
+      const cost =
+        hierarchy[row.level].source.positions.length / 3 +
+        (row.blend > 0 ? hierarchy[row.level + 1].source.positions.length / 3 : 0);
+      costs.set(demand, (costs.get(demand) ?? 0) + cost);
+    }
+    for (const [, demand] of participating) {
+      // The reserved quarter allows each registration's optical mixtures to advance.
+      // Existing transition overlap remains a soft submission allowance, not a GPU byte cap.
+      const budget = Math.min(
+        demand.maxSplats,
+        Number.isFinite(total) || demand.group ? (costs.get(demand) ?? 0) / 0.75 : Infinity
       );
-      const total = Math.max(
-        0,
-        Math.min(
-          ...participating.map(([, demand]) => demand.maxTotalSplats),
-          operation === 0 ? this.sceneLimit : Infinity
-        ) - (operation === 0 ? this.sceneGrant : 0)
-      );
-      const limits = ({demand}: {demand: Demand}): SplatBudgetLimit[] => {
-        const result: SplatBudgetLimit[] = [{key: demand, budget: demand.maxSplats * 0.75}];
-        for (let group = demand.group; group; group = group.parent)
-          result.push({
-            key: group,
-            budget:
-              Math.max(
-                0,
-                (operation ? group.maxShadowSplats : group.maxSplats) -
-                  (operation ? 0 : (this.sceneGroupGrants.get(group) ?? 0))
-              ) * 0.75
-          });
-        return result;
-      };
-      const allocated = budgetSplatSelections<{demand: Demand; row: SplatSelection<any>}>(
-        rows,
-        owner => owner.demand.hierarchy(owner.row.owner),
-        total * 0.75,
-        limits
-      );
-      const selections = new Map<Demand, SplatSelection<any>[]>();
-      const costs = new Map<Demand, number>();
-      for (const row of allocated) {
-        const {demand, row: original} = row.owner;
-        let selected = selections.get(demand);
-        if (!selected) {
-          selected = [];
-          selections.set(demand, selected);
-        }
-        selected.push({...row, owner: original.owner});
-        const hierarchy = demand.hierarchy(original.owner);
-        const cost =
-          hierarchy[row.level].source.positions.length / 3 +
-          (row.blend > 0 ? hierarchy[row.level + 1].source.positions.length / 3 : 0);
-        costs.set(demand, (costs.get(demand) ?? 0) + cost);
-      }
-      for (const [, demand] of participating) {
-        // The reserved quarter allows each registration's optical mixtures to advance.
-        // Existing transition overlap remains a soft submission allowance, not a GPU byte cap.
-        const budget = Math.min(
-          demand.maxSplats,
-          Number.isFinite(total) || demand.group ? (costs.get(demand) ?? 0) / 0.75 : Infinity
-        );
-        demand.apply(selections.get(demand) ?? [], budget);
-      }
-    });
+      demand.apply(selections.get(demand) ?? [], budget);
+    }
   }
 }
 

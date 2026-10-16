@@ -158,7 +158,7 @@ it('keeps a covered RAD asset loaded while camera refinement continues', () => {
 it('shares a nested parent allowance across two independent RAD scene layers', () => {
   const device = new NullDevice({});
   const runtime = new SplatSceneRuntime({} as Deck, device);
-  const parent = {maxSplats: 1_000_000, maxShadowSplats: Infinity};
+  const parent = {maxSplats: 1_000_000};
   const layers = ['a', 'b'].map(
     id =>
       new SplatSceneLayer({
@@ -166,7 +166,7 @@ it('shares a nested parent allowance across two independent RAD scene layers', (
         data: `/${id}.rad`,
         maxSplats: 1_000_000,
         maxTotalSplats: Infinity,
-        _splatBudgetGroup: {maxSplats: 2_000_000, maxShadowSplats: Infinity, parent}
+        _splatBudgetGroup: {maxSplats: 2_000_000, parent}
       })
   );
   layers.forEach(layer => runtime.register(layer));

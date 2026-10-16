@@ -588,8 +588,6 @@ export class SplatSceneRuntime implements Effect {
       sourceCount: new Set(owners.map(owner => owner.asset)).size,
       visibleInstances: counts.some(Boolean) ? owners.length : 0,
       renderedSplats: Math.max(0, ...counts),
-      shadowInstances: 0,
-      shadowSplats: 0,
       coverageFloor: owners.reduce(
         (sum, owner) =>
           sum +
@@ -597,7 +595,6 @@ export class SplatSceneRuntime implements Effect {
             (isSplatSceneData(owner.asset) ? 1 : (owner.asset as SplatSource).opacities.length)),
         0
       ),
-      shadowCoverageFloor: 0,
       refiningInstances: owners.filter(
         owner => this.assets.get(owner.asset)?.status?.phase === 'refining'
       ).length

@@ -95,7 +95,7 @@ it('shares a strict host cap with scene demand and releases the reservation when
   const runtime = SplatRuntime.get({}, {});
   const levels = hierarchy([100, 10]);
   let rows: any[] = [];
-  runtime.set('prepared', false, {
+  runtime.set('prepared', {
     rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
     hierarchy: () => levels,
     maxSplats: 100,
@@ -115,7 +115,7 @@ it('shares a strict host cap with scene demand and releases the reservation when
   expect(runtime.setSceneDemands(ids, []).size).toBe(0);
   runtime.reconcile(ids);
   expect(rows[0].level).toBe(1);
-  runtime.set('prepared', false, {
+  runtime.set('prepared', {
     rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
     hierarchy: () => levels,
     maxSplats: Infinity,
@@ -131,9 +131,9 @@ it('shares a strict host cap with scene demand and releases the reservation when
 
 it('charges sibling scenes and prepared members once against their nested parent cap', () => {
   const runtime = SplatRuntime.get({}, {});
-  const parent = {maxSplats: 120, maxShadowSplats: Infinity};
-  const first = {maxSplats: 1000, maxShadowSplats: Infinity, parent};
-  const second = {maxSplats: 1000, maxShadowSplats: Infinity, parent};
+  const parent = {maxSplats: 120};
+  const first = {maxSplats: 1000, parent};
+  const second = {maxSplats: 1000, parent};
   const scenes = [
     {id: 'a', desired: 100, floor: 10, maxTotalSplats: Infinity, group: first},
     {id: 'b', desired: 100, floor: 10, maxTotalSplats: Infinity, group: second}
@@ -141,7 +141,7 @@ it('charges sibling scenes and prepared members once against their nested parent
   expect([...runtime.setSceneDemands(new Set(), scenes).values()]).toEqual([60, 60]);
   let selected: any[] = [];
   let preparedBudget = Infinity;
-  runtime.set('prepared', false, {
+  runtime.set('prepared', {
     rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
     hierarchy: () => hierarchy([100, 10]),
     maxSplats: Infinity,

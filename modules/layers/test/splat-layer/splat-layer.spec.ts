@@ -88,7 +88,7 @@ it('applies maxActiveSplats to prepared selection and shared demand', () => {
   });
   const owner = layer.state.owners[0];
   expect(layer.state.refinement.entries.get(owner.key)?.level).toBe(0);
-  expect(layer.state.runtime['demands'][0].get(layer.id)?.maxSplats).toBe(8);
+  expect(layer.state.runtime['demands'].get(layer.id)?.maxSplats).toBe(8);
 
   const oldProps = layer.props;
   Object.assign(layer, {props: layer.clone({maxActiveSplats: 1}).props});
@@ -99,7 +99,7 @@ it('applies maxActiveSplats to prepared selection and shared demand', () => {
   } as any);
 
   expect(layer.state.refinement.entries.get(owner.key)?.level).toBe(1);
-  expect(layer.state.runtime['demands'][0].get(layer.id)?.maxSplats).toBe(1);
+  expect(layer.state.runtime['demands'].get(layer.id)?.maxSplats).toBe(1);
   expect(layer.renderLayers()[0].props.maxSplats).toBe(1);
 });
 
@@ -389,7 +389,7 @@ it('keeps sibling prepared grants cached after a layer enters scene mode', () =>
   const layer = make([{position: [256, 256, 0]}], 0);
   const runtime = layer.state.runtime;
   const apply = vi.fn();
-  runtime.set('prepared-sibling', false, {
+  runtime.set('prepared-sibling', {
     rows: [{owner: {}, pixels: 1, level: 0, blend: 0}],
     hierarchy: () => layer.state.hierarchy,
     maxSplats: Infinity,
