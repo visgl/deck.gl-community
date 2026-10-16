@@ -42,6 +42,54 @@ export const EVENT_TYPES = [
   'dblclick'
 ];
 
+type TouchActionLease = {
+  owners: Set<object>;
+  previousTouchAction: string;
+  managedTouchAction: string;
+};
+
+// Several editable layers may share one map canvas; restore its style after the last layer leaves.
+const TOUCH_ACTION_LEASES = new WeakMap<HTMLElement, TouchActionLease>();
+
+function acquireTouchAction(target: HTMLElement, owner: object) {
+  let lease = TOUCH_ACTION_LEASES.get(target);
+  if (!lease) {
+    lease = {
+      owners: new Set(),
+      previousTouchAction: target.style.touchAction,
+      managedTouchAction: target.style.touchAction
+    };
+    TOUCH_ACTION_LEASES.set(target, lease);
+  } else if (target.style.touchAction !== lease.managedTouchAction) {
+    // Treat a style change made while a target is leased as the application's new baseline.
+    lease.previousTouchAction = target.style.touchAction;
+  }
+  lease.owners.add(owner);
+}
+
+function recordTouchAction(target: HTMLElement) {
+  const lease = TOUCH_ACTION_LEASES.get(target);
+  if (lease) {
+    lease.managedTouchAction = target.style.touchAction;
+  }
+}
+
+function releaseTouchAction(target: HTMLElement, owner: object, touchActionBeforeDestroy: string) {
+  const lease = TOUCH_ACTION_LEASES.get(target);
+  if (!lease || !lease.owners.delete(owner)) {
+    return;
+  }
+  if (lease.owners.size > 0) {
+    target.style.touchAction = touchActionBeforeDestroy;
+    return;
+  }
+  target.style.touchAction =
+    touchActionBeforeDestroy === lease.managedTouchAction
+      ? lease.previousTouchAction
+      : touchActionBeforeDestroy;
+  TOUCH_ACTION_LEASES.delete(target);
+}
+
 // TODO(v9): remove generic layer
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type EditableLayerProps<_DataType = any> = CompositeLayerProps & {
@@ -112,6 +160,8 @@ export abstract class EditableLayer<
         didDrag: false,
         canvas,
         eventTarget: this.props.eventTarget || canvas,
+        // This token survives layer replacement so the original target lease can be released.
+        touchActionOwner: {},
         // Native clicks bypass the recognizer's 300ms double-click failure delay.
         gestureEventTypes: canvas
           ? EVENT_TYPES.filter(type => !NATIVE_EVENT_HANDLERS[type])
@@ -155,7 +205,9 @@ export abstract class EditableLayer<
     const deckEventManager = this.context.deck.eventManager;
     const editableState = this.state._editableLayerState;
     const {eventHandler, canvas, eventTarget, gestureEventTypes} = editableState;
-    editableState.previousTouchAction = eventTarget?.style?.touchAction;
+    if (eventTarget && eventTarget !== canvas) {
+      acquireTouchAction(eventTarget, editableState.touchActionOwner);
+    }
     // MapboxOverlay forwards map callbacks directly to Deck, bypassing its event
     // manager. Recognize input on the supplied map canvas instead of intercepting
     // private Deck/Mapbox handlers or changing the render canvas's pointer events.
@@ -174,20 +226,16 @@ export abstract class EditableLayer<
         priority: 100
       });
     }
-    editableState.managedTouchAction = eventTarget?.style?.touchAction;
+    if (eventTarget && eventTarget !== canvas) {
+      recordTouchAction(eventTarget);
+    }
   }
 
   _removeEventHandlers() {
-    const {
-      eventHandler,
-      canvas,
-      eventTarget,
-      eventManager,
-      gestureEventTypes,
-      previousTouchAction,
-      managedTouchAction
-    } = this.state._editableLayerState;
-    const touchAction = eventTarget?.style?.touchAction;
+    const {eventHandler, canvas, eventTarget, eventManager, gestureEventTypes, touchActionOwner} =
+      this.state._editableLayerState;
+    const touchActionBeforeCleanup =
+      eventTarget && eventTarget !== canvas ? eventTarget.style.touchAction : undefined;
     for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
       eventTarget?.removeEventListener(eventType, eventHandler);
     }
@@ -198,8 +246,7 @@ export abstract class EditableLayer<
     if (eventTarget && eventTarget !== canvas) {
       eventManager.destroy();
       // Release our recognizer's CSS without overwriting later application changes.
-      eventTarget.style.touchAction =
-        touchAction === managedTouchAction ? previousTouchAction : touchAction;
+      releaseTouchAction(eventTarget, touchActionOwner, touchActionBeforeCleanup!);
     }
   }
 

@@ -170,6 +170,7 @@ export function mountSfExample(container: HTMLElement): () => void {
 
   function handleToggleRendering() {
     state.interleaved = !state.interleaved;
+    map.removeControl(deckOverlay);
     deckOverlay.finalize();
     infoWidget = createInfoWidget();
     deckOverlay = createDeckOverlay();

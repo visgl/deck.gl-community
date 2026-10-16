@@ -318,3 +318,64 @@ test('rectangle selection uses the map canvas in overlaid mode without panning t
     container.remove();
   }
 }, 30000);
+
+test.each([
+  0, 1
+])('shared input target keeps touch styles and editing alive when layer %i is removed first', async removedIndex => {
+  const container = document.createElement('div');
+  container.style.cssText = 'width:512px;height:384px;position:relative';
+  document.body.append(container);
+  const map = new maplibre.Map({
+    container,
+    style: {version: 8, sources: {}, layers: []},
+    center: [0, 0],
+    zoom: 3,
+    pixelRatio: 1
+  });
+  const overlay = new MapboxOverlay({interleaved: false});
+  const actions: string[] = [];
+  try {
+    await new Promise<void>((resolve, reject) => {
+      map.once('load', () => resolve());
+      map.once('error', event => reject(event.error));
+    });
+    map.addControl(overlay);
+    const canvas = map.getCanvas();
+    const originalTouchAction = canvas.style.touchAction;
+    const layers = ['first', 'second'].map(
+      id =>
+        new EditableGeoJsonLayer({
+          id,
+          data: {type: 'FeatureCollection', features: []},
+          eventTarget: canvas,
+          mode: DrawPolygonMode,
+          onEdit: action => actions.push(`${id}:${action.editType}`)
+        })
+    );
+    overlay.setProps({layers});
+    await vi.waitFor(() =>
+      layers.forEach(layer => expect(layer.getCurrentLayer()?.isLoaded).toBe(true))
+    );
+    expect(canvas.style.touchAction).toBe('none');
+
+    const removedLayer = layers[removedIndex];
+    const remainingLayer = layers[1 - removedIndex];
+    overlay.setProps({layers: [remainingLayer]});
+    await vi.waitFor(() => expect(remainingLayer.getCurrentLayer()?.isLoaded).toBe(true));
+    expect(canvas.style.touchAction).toBe('none');
+
+    await userEvent.click(canvas, {position: {x: 200, y: 180}});
+    await vi.waitFor(() =>
+      expect(actions.some(action => action.startsWith(`${remainingLayer.id}:`))).toBe(true)
+    );
+    expect(actions.some(action => action.startsWith(`${removedLayer.id}:`))).toBe(false);
+
+    overlay.setProps({layers: []});
+    await vi.waitFor(() => expect(canvas.style.touchAction).toBe(originalTouchAction));
+  } finally {
+    map.removeControl(overlay);
+    overlay.finalize();
+    map.remove();
+    container.remove();
+  }
+}, 30000);
