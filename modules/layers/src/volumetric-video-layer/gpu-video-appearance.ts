@@ -60,7 +60,7 @@ export class GPUVideoAppearance {
             mipmapFilter: 'linear',
             addressModeU: 'clamp-to-edge',
             addressModeV: 'clamp-to-edge',
-            maxAnisotropy: 4
+            maxAnisotropy: 16
           }
         })
       );

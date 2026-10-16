@@ -88,6 +88,60 @@ describe('mounted volumetric video demo', () => {
     }
   }, 35_000);
 
+  // Value: protects=the standalone comparison controls replace the Deck device in place;
+  // fails_when=switching loses the source timeline, leaves a stale backend label, or requires a page reload;
+  // why_new=the embedded site owns its standard device tabs, while this test exercises the standalone seam.
+  it('switches the standalone demo between WebGL and WebGPU in place', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    let cleanup: (() => void) | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent);
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+        },
+        {timeout: 15_000}
+      );
+      const webgl = element<HTMLButtonElement>('[data-backend-option="webgl"]');
+      const webgpu = element<HTMLButtonElement>('[data-backend-option="webgpu"]');
+      webgl.click();
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+          expect(webgl.getAttribute('aria-pressed')).toBe('true');
+        },
+        {timeout: 15_000}
+      );
+      change(element<HTMLInputElement>('#vv-frame'), '40');
+      change(element<HTMLInputElement>('#vv-trail'), '20');
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('40'),
+        {
+          timeout: 10_000
+        }
+      );
+      webgpu.click();
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('40');
+          expect(element<HTMLInputElement>('#vv-frame').value).toBe('40');
+          expect(element<HTMLInputElement>('#vv-trail').value).toBe('20');
+          expect(webgpu.getAttribute('aria-pressed')).toBe('true');
+        },
+        {timeout: 15_000}
+      );
+    } finally {
+      cleanup?.();
+      parent.remove();
+    }
+  }, 45_000);
+
   // Value: protects=automatic recovery restores playback with the latest filter state;
   // fails_when=a successful visibility retry never reports readiness to the mounted UI or applies
   // settings from a replaced layer instance;

@@ -304,6 +304,13 @@ export class VolumetricVideoLayer<
     const model = raster || this.state.model;
     const window = frames?.getReadyWindow();
     if (!frames || !source?.info || !window) return;
+    // WebGL can retry a failed appearance update during a subsequent draw.
+    // Retry the requested value, while a successful budget fallback keeps the
+    // explicitly committed effective value.
+    const staticPixelRemoval =
+      this.state.filterError === frames
+        ? this.props.staticPixelRemoval
+        : this.state.activeStaticPixelRemoval;
     const {width, position, frameSpacing, splatSize, frameOpacity, trailFade, luminanceThreshold} =
       this.props;
     const height = (width * source.info.height) / source.info.width;
@@ -311,26 +318,32 @@ export class VolumetricVideoLayer<
     // viewport. Coplanar texels retain a fixed grid order.
     const near = this.project(position);
     const far = this.project([position[0], position[1], position[2] - frameSpacing]);
-    model.shaderInputs.setProps({
-      volumetricVideo: {
-        gridSize: [frames.width, frames.height],
-        planeSize: [width, height],
-        position,
-        currentFrame: window.currentFrame,
-        frameCount: window.frameCount,
-        capacity: frames.capacity,
-        reverse: Number(far[2] < near[2]),
-        frameSpacing,
-        splatSize,
-        frameOpacity,
-        trailFade,
-        luminanceThreshold,
-        staticPixelRemoval: this.state.activeStaticPixelRemoval
-      }
-    });
+    const uniforms: VideoUniforms = {
+      gridSize: [frames.width, frames.height],
+      planeSize: [width, height],
+      position,
+      currentFrame: window.currentFrame,
+      frameCount: window.frameCount,
+      capacity: frames.capacity,
+      reverse: Number(far[2] < near[2]),
+      frameSpacing,
+      splatSize,
+      frameOpacity,
+      trailFade,
+      luminanceThreshold,
+      staticPixelRemoval
+    };
+    model.shaderInputs.setProps({volumetricVideo: uniforms});
     if (raster && this.context.device.type === 'webgl') {
       try {
-        this.updateAppearance(frames);
+        this.updateAppearance(frames, staticPixelRemoval);
+        if (this.state.filterError === frames) {
+          this.setState({
+            appearanceRetryCount: 0,
+            activeStaticPixelRemoval: staticPixelRemoval,
+            staticRemovalBudgetError: null
+          });
+        }
       } catch (error) {
         // Dirty slots remain queued until the complete filter/mip commit succeeds.
         this.setState({filterError: frames});
@@ -356,10 +369,29 @@ export class VolumetricVideoLayer<
     } else {
       model.setBindings({videoFrames: frames.texture, pixelChanges: frames.changes.texture});
     }
-    model.setInstanceCount(
-      raster ? window.frameCount : frames.width * frames.height * window.frameCount
-    );
-    const drawn = model.draw(this.context.renderPass);
+    let drawn = false;
+    if (raster && this.context.device.type === 'webgpu') {
+      // Draw one plane at a time in the same back-to-front sequence as the regular
+      // instanced path. WebGPU's firstInstance advances the builtin instance index
+      // without mutating a uniform buffer while deck's render pass is active.
+      model.setInstanceCount(1);
+      drawn = model.draw(this.context.renderPass);
+      if (drawn) {
+        for (let firstInstance = 1; firstInstance < window.frameCount; firstInstance++) {
+          drawn =
+            this.context.renderPass.draw({
+              vertexCount: model.vertexCount,
+              instanceCount: 1,
+              firstInstance
+            }) || drawn;
+        }
+      }
+    } else {
+      model.setInstanceCount(
+        raster ? window.frameCount : frames.width * frames.height * window.frameCount
+      );
+      drawn = model.draw(this.context.renderPass);
+    }
     if (this.state.filterError === frames) {
       if (!drawn) {
         this.setNeedsRedraw();
@@ -464,11 +496,14 @@ export class VolumetricVideoLayer<
       }
       const recovered = this.state.filterError === frames;
       if (recovered) this.setState({filterError: null});
-      if (this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval) {
-        this.setState({
-          activeStaticPixelRemoval: 0,
-          staticRemovalBudgetError: this.props.staticPixelRemoval
-        });
+      const shouldReportBudgetError =
+        this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval;
+      this.setState({
+        appearanceRetryCount: 0,
+        activeStaticPixelRemoval: 0,
+        staticRemovalBudgetError: this.props.staticPixelRemoval
+      });
+      if (shouldReportBudgetError) {
         this.raiseError(
           new Error(
             `Static-pixel removal requires ${(getFrameAppearanceBytes(frames.width, frames.height) / 1048576).toFixed(1)} MiB for the selected frame. Shorten frameTrail, choose a smaller grid, or increase maxTextureBytes.`

@@ -23,9 +23,9 @@ const INITIAL_VIEW: OrbitViewState = {
   rotationOrbit: -38,
   zoom: 7.2
 };
+const REQUESTED_BACKEND = new URLSearchParams(window.location.search).get('backend');
 const PREFER_WEBGPU =
-  new URLSearchParams(window.location.search).get('backend') !== 'webgl' &&
-  Boolean((navigator as Navigator & {gpu?: unknown}).gpu);
+  REQUESTED_BACKEND !== 'webgl' && Boolean((navigator as Navigator & {gpu?: unknown}).gpu);
 type WebGPUNavigator = Navigator & {gpu?: {requestAdapter: () => Promise<unknown>}};
 type MountOptions = Pick<
   DeckProps<OrbitView>,
@@ -132,6 +132,7 @@ export function mountVolumetricVideoExample(
       .vv-demo * {box-sizing:border-box}
       .vv-demo.vv-embedded {grid-template-columns:1fr}
       .vv-demo.vv-embedded .vv-panel {display:none}
+      .vv-demo.vv-embedded .vv-backend-toggle {display:none}
       .vv-panel {padding:32px 26px;display:flex;flex-direction:column;gap:24px;border-right:1px solid #ffffff12;background:#0d121b;overflow:auto;z-index:2}
       .vv-eyebrow {font:11px/1.4 ui-monospace,monospace;letter-spacing:.18em;color:#80a3c5;text-transform:uppercase}
       .vv-panel h1 {font-size:32px;line-height:1.12;letter-spacing:-.04em;font-weight:550;margin:12px 0}
@@ -152,8 +153,11 @@ export function mountVolumetricVideoExample(
       .vv-demo details .vv-control {margin-bottom:14px}
       .vv-stage {position:relative;min-width:0;background:radial-gradient(ellipse at 50% 48%,#152131,#080c12 68%)}
       .vv-canvas {position:absolute;inset:0}
-      .vv-stage-top {position:absolute;top:28px;left:32px;right:32px;display:flex;justify-content:space-between;pointer-events:none;gap:12px}
+      .vv-stage-top {position:absolute;top:28px;left:32px;right:32px;display:flex;align-items:center;justify-content:space-between;pointer-events:none;gap:12px}
       .vv-stage-top span:last-child {font:11px ui-monospace,monospace;color:#546c86}
+      .vv-backend-toggle {display:flex;gap:4px;pointer-events:auto}
+      .vv-backend-toggle button {padding:4px 8px;border-radius:5px;background:#0d121bbf;font:10px/1.2 ui-monospace,monospace;letter-spacing:.06em}
+      .vv-backend-toggle button[aria-pressed="true"] {color:#a7f8d5;border-color:#6fffc080;background:#6fffc012}
       .vv-stage-meta {position:absolute;top:56px;right:32px;max-width:min(360px,calc(100% - 64px));padding:8px 10px;border:1px solid #ffffff14;border-radius:6px;background:#080c12b8;font:11px/1.6 ui-monospace,monospace;color:#9aafc6;pointer-events:none}
       .vv-stage-meta > *:empty {display:none}
       .vv-stage-meta .vv-error {margin:0;color:#ffae9a;overflow-wrap:anywhere}
@@ -182,7 +186,7 @@ export function mountVolumetricVideoExample(
     </aside>
     <main class="vv-stage" aria-label="Interactive video frame volume">
       <div class="vv-canvas"></div>
-      <div class="vv-stage-top"><span class="vv-eyebrow">VolumetricVideoLayer · <b id="vv-backend">${PREFER_WEBGPU ? 'CHECKING…' : 'WEBGL2'}</b></span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+      <div class="vv-stage-top"><span class="vv-eyebrow">VolumetricVideoLayer · <b id="vv-backend">${PREFER_WEBGPU ? 'CHECKING…' : 'WEBGL2'}</b></span><div class="vv-backend-toggle" role="group" aria-label="Graphics backend"><button type="button" data-backend-option="webgl" aria-pressed="${String(!PREFER_WEBGPU)}">WEBGL</button><button type="button" data-backend-option="webgpu" aria-pressed="${String(PREFER_WEBGPU)}">WEBGPU</button></div><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
       <div class="vv-stage-meta"><div id="vv-name">Synthetic motion demo · H.264 MP4</div><div id="vv-status" role="status" aria-live="polite">Indexing video frames…</div><div id="vv-stats"></div><div id="vv-history"></div><div id="vv-limit" class="vv-limit" role="status" aria-live="polite"></div><p id="vv-error" class="vv-error" role="alert"></p></div>
       <div class="vv-source"><video muted playsinline preload="auto" aria-label="Source video frame"></video><span>Source frame</span></div>
       <div class="vv-views"><button data-view="volume">Volume</button><button data-view="front">Front</button><button data-view="side">Side</button></div>
@@ -196,6 +200,7 @@ export function mountVolumetricVideoExample(
   const errorOutput = getElement('#vv-error');
   const playButton = getElement<HTMLButtonElement>('#vv-play');
   const backendOutput = getElement('#vv-backend');
+  const backendButtons = root.querySelectorAll<HTMLButtonElement>('[data-backend-option]');
   const sampleVideo = options.sampleVideo ?? SAMPLE_VIDEO;
   let video: string | File = sampleVideo;
   let previewUrl: string | null = null;
@@ -219,6 +224,10 @@ export function mountVolumetricVideoExample(
   let playbackStart = 0;
   let playbackTime = 0;
   let destroyed = false;
+  let useWebGPU = options.device ? options.device.type === 'webgpu' : PREFER_WEBGPU;
+  let deckGeneration = 0;
+  let backendSwitching = false;
+  let preserveVideoState = false;
   let requestedVideo: string | File | null = null;
   let requestedFrame = -1;
   let requestedTrail = -1;
@@ -268,13 +277,25 @@ export function mountVolumetricVideoExample(
     });
   }
 
-  function createDeck(useWebGPU: boolean): Deck {
+  function syncBackendControls() {
+    const backend = useWebGPU ? 'webgpu' : 'webgl';
+    backendButtons.forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.backendOption === backend));
+      button.disabled = Boolean(options.device) || backendSwitching;
+    });
+  }
+
+  function createDeck(preferWebGPU: boolean, generation: number): Deck {
     return new Deck({
       // Keep source sampling independent of Retina framebuffer fill cost.
       useDevicePixels: 1,
       ...(options.device
         ? {device: options.device}
-        : {deviceProps: useWebGPU ? {type: 'webgpu', adapters: [webgpuAdapter]} : {type: 'webgl'}}),
+        : {
+            deviceProps: preferWebGPU
+              ? {type: 'webgpu', adapters: [webgpuAdapter]}
+              : {type: 'webgl'}
+          }),
       parent: getElement('.vv-canvas'),
       views: [
         new OrbitView({
@@ -292,9 +313,12 @@ export function mountVolumetricVideoExample(
       },
       widgets: [...(options.widgets ?? []), ...(standardPanel ? [standardPanel] : [])],
       onDeviceInitialized: device => {
+        if (destroyed || generation !== deckGeneration) return;
         maxArrayLayers = device.limits.maxTextureArrayLayers;
+        useWebGPU = device.type === 'webgpu';
         root.dataset.backend = device.type;
         backendOutput.textContent = device.type === 'webgpu' ? 'WEBGPU' : 'WEBGL2';
+        syncBackendControls();
         if (info) updateLayer();
       },
       onInteractionStateChange: state => {
@@ -319,19 +343,25 @@ export function mountVolumetricVideoExample(
 
   function onVideoLoad(loaded: VolumetricVideoInfo) {
     if (destroyed) return;
+    const preserveControls = preserveVideoState;
+    preserveVideoState = false;
     info = loaded;
-    // Start each source at full resolution with a trail that fits the initial budget.
-    frameTrail = Math.min(
-      48,
-      loaded.frameCount - 1,
-      Math.max(
-        0,
-        Math.floor(
-          maxTextureBytes / getVolumetricVideoHistoryBytes(loaded.width, loaded.height, 1)
-        ) - 1
-      )
-    );
-    requestedFrameTrail = frameTrail;
+    if (!preserveControls) {
+      // Start each source at full resolution with a trail that fits the initial budget.
+      frameTrail = Math.min(
+        48,
+        loaded.frameCount - 1,
+        Math.max(
+          0,
+          Math.floor(
+            maxTextureBytes / getVolumetricVideoHistoryBytes(loaded.width, loaded.height, 1)
+          ) - 1
+        )
+      );
+      requestedFrameTrail = frameTrail;
+    } else {
+      requestedFrameTrail = Math.min(requestedFrameTrail, loaded.frameCount - 1);
+    }
     currentFrame = Math.min(currentFrame, loaded.frameCount - 1);
     frameInput.max = String(loaded.frameCount - 1);
     frameInput.value = String(currentFrame);
@@ -453,6 +483,7 @@ export function mountVolumetricVideoExample(
 
   function selectVideo(source: string | File) {
     setPlaying(false);
+    preserveVideoState = false;
     if (source === video && info) {
       currentFrame = Math.min(typeof source === 'string' ? 88 : 0, info.frameCount - 1);
       updateLayer();
@@ -519,6 +550,9 @@ export function mountVolumetricVideoExample(
   };
   playButton.onclick = () => setPlaying(!playing);
   getElement('#vv-sample').onclick = () => selectVideo(sampleVideo);
+  backendButtons.forEach(button => {
+    button.onclick = () => void switchBackend(button.dataset.backendOption as 'webgl' | 'webgpu');
+  });
   root.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button => {
     button.onclick = () => {
       const preset = button.dataset.view;
@@ -562,17 +596,62 @@ export function mountVolumetricVideoExample(
     }
     animation = requestAnimationFrame(animate);
   }
-  async function initializeDeck() {
-    let useWebGPU = options.device?.type === 'webgpu';
-    if (!options.device && PREFER_WEBGPU) {
-      try {
-        useWebGPU = Boolean(await (navigator as WebGPUNavigator).gpu?.requestAdapter());
-      } catch {
-        // A browser can expose navigator.gpu while adapter allocation is disabled.
+
+  async function supportsWebGPU(): Promise<boolean> {
+    try {
+      return Boolean(await (navigator as WebGPUNavigator).gpu?.requestAdapter());
+    } catch {
+      // A browser can expose navigator.gpu while adapter allocation is disabled.
+      return false;
+    }
+  }
+
+  async function switchBackend(backend: 'webgl' | 'webgpu') {
+    if (
+      options.device ||
+      destroyed ||
+      backendSwitching ||
+      backend === (useWebGPU ? 'webgpu' : 'webgl')
+    )
+      return;
+    backendSwitching = true;
+    syncBackendControls();
+    try {
+      if (backend === 'webgpu' && !(await supportsWebGPU())) {
+        errorOutput.textContent = 'WebGPU is unavailable in this browser. Continuing with WebGL2.';
+        return;
       }
+      if (destroyed) return;
+      setPlaying(false);
+      preserveVideoState = true;
+      deck?.finalize();
+      deck = undefined;
+      useWebGPU = backend === 'webgpu';
+      backendOutput.textContent = 'SWITCHING…';
+      const generation = ++deckGeneration;
+      deck = createDeck(useWebGPU, generation);
+      options.onDeckInitialized?.(deck as Deck<OrbitView>);
+      const url = new URL(window.location.href);
+      url.searchParams.set('backend', backend);
+      window.history.replaceState({}, '', url);
+      updateLayer();
+    } catch (error) {
+      preserveVideoState = false;
+      errorOutput.textContent = error instanceof Error ? error.message : String(error);
+    } finally {
+      backendSwitching = false;
+      syncBackendControls();
+    }
+  }
+
+  async function initializeDeck() {
+    useWebGPU = options.device?.type === 'webgpu';
+    if (!options.device && PREFER_WEBGPU) {
+      useWebGPU = await supportsWebGPU();
     }
     if (destroyed) return;
-    deck = createDeck(useWebGPU);
+    const generation = ++deckGeneration;
+    deck = createDeck(useWebGPU, generation);
     options.onDeckInitialized?.(deck as Deck<OrbitView>);
     updateLayer();
     animation = requestAnimationFrame(animate);
@@ -580,9 +659,11 @@ export function mountVolumetricVideoExample(
   // Keep the file picker live while WebGPU capability detection is in flight.
   // initializeDeck renders whichever source is current when the device is ready.
   selectVideo(sampleVideo);
+  syncBackendControls();
   void initializeDeck();
   return () => {
     destroyed = true;
+    deckGeneration++;
     cancelAnimationFrame(animation);
     deck?.finalize();
     preview.pause();

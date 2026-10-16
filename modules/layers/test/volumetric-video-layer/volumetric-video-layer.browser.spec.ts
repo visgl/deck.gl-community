@@ -736,6 +736,58 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
+  it('retries the requested static-removal strength after a draw-time filter failure', async () => {
+    const device = await createDevice();
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'filter-strength-recovery',
+          video: MP4_URL,
+          resolution: 32,
+          currentFrame: 30,
+          frameTrail: 0,
+          maxFrameTrail: 0,
+          onFrameLoad: () => resolve()
+        });
+        deck = new Deck({
+          device,
+          width: 320,
+          height: 240,
+          views: [new OrbitView({id: 'filter-strength'})],
+          initialViewState: {'filter-strength': {target: [0, 0, 0], zoom: 6}},
+          layers: [layer],
+          onError: reject
+        });
+      });
+      const frames = layer!.state.frames!;
+      const errors = vi.fn();
+      deck!.setProps({onError: errors});
+      vi.spyOn(
+        Object.getPrototypeOf(frames.appearance.texture),
+        'generateMipmapsWebGL'
+      ).mockImplementationOnce(() => {
+        throw new Error('Static-removal filter failure');
+      });
+      layer = layer!.clone({staticPixelRemoval: 1});
+      deck!.setProps({layers: [layer!]});
+      await vi.waitFor(() => expect(layer!.state.filterError).toBeNull(), {timeout: 2000});
+      expect(errors).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('Static-removal filter failure')
+        }),
+        layer!
+      );
+      expect(layer!.state.activeStaticPixelRemoval).toBe(1);
+      expect(frames.currentAppearance).not.toBeNull();
+    } finally {
+      vi.restoreAllMocks();
+      deck?.finalize();
+      device.destroy();
+    }
+  });
+
   // Value: protects=GPU frame sampling honors rotation followed by horizontal mirroring;
   // fails_when=orientation uniforms disappear or inverse sampling applies transforms in the wrong order;
   // why_new=existing decoded fixtures have no rotated or mirrored pixel oracle; seam=none
@@ -1430,6 +1482,7 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
         });
       });
       const previous = layer!.state.frames!;
+      layer!.setState({appearanceRetryCount: 2});
       const frameLoads = vi.fn();
       const errors = vi.fn();
       const maxTextureBytes = getFrameHistoryBytes(32, 18, 3);
@@ -1454,6 +1507,7 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       expect(frameLoads).toHaveBeenCalled();
       expect(frames.currentAppearance).toBeNull();
       expect(layer!.state.activeStaticPixelRemoval).toBe(0);
+      expect(layer!.state.appearanceRetryCount).toBe(0);
       await new Promise<void>((resolve, reject) => {
         layer = layer!.clone({maxTextureBytes: 512 * 1048576, onFrameLoad: () => resolve()});
         deck!.setProps({layers: [layer!], onError: reject});
