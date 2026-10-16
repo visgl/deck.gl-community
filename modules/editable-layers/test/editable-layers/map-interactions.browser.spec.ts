@@ -3,6 +3,7 @@ import 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {DrawRectangleMode} from '../../src/edit-modes/draw-rectangle-mode';
+import {ModifyMode} from '../../src/edit-modes/modify-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
 
 const maplibre = (globalThis as any).maplibregl;
@@ -169,6 +170,112 @@ test('interleaved editing preserves map controls, view navigation, and the appli
     await drag();
     await vi.waitFor(() => expect(Math.abs(map.getCenter().lng)).toBeGreaterThan(1));
     expect(map.dragRotate.isEnabled()).toBe(false);
+  } finally {
+    map.removeControl(overlay);
+    overlay.finalize();
+    map.remove();
+    container.remove();
+  }
+}, 30000);
+
+test('interleaved ModifyMode handle drag edits the feature without moving the map (#457)', async () => {
+  const container = document.createElement('div');
+  container.style.cssText = 'width:512px;height:384px;position:relative';
+  document.body.append(container);
+  const map = new maplibre.Map({
+    container,
+    style: {version: 8, sources: {}, layers: []},
+    center: [0, 0],
+    zoom: 3,
+    pixelRatio: 1
+  });
+  const overlay = new MapboxOverlay({interleaved: true});
+  const actions: any[] = [];
+  const initialPosition = [-20, -15];
+  let data: any = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[initialPosition, [20, -15], [20, 15], [-20, 15], initialPosition]]
+        }
+      }
+    ]
+  };
+  let layer: EditableGeoJsonLayer;
+  const updateLayer = () => {
+    layer = new EditableGeoJsonLayer({
+      id: 'editable',
+      data,
+      mode: ModifyMode,
+      selectedFeatureIndexes: [0],
+      onEdit: action => {
+        actions.push(action);
+        data = action.updatedData;
+        updateLayer();
+      }
+    });
+    overlay.setProps({layers: [layer]});
+  };
+  const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+  try {
+    await new Promise<void>((resolve, reject) => {
+      map.once('load', () => resolve());
+      map.once('error', event => reject(event.error));
+    });
+    map.addControl(overlay);
+    updateLayer();
+    await vi.waitFor(() => {
+      expect(layer.getCurrentLayer()?.state.mode).toBeInstanceOf(ModifyMode);
+      expect(layer.getCurrentLayer()?.isLoaded).toBe(true);
+    });
+
+    const canvas = map.getCanvas();
+    const bounds = canvas.getBoundingClientRect();
+    const handle = map.project(initialPosition as [number, number]);
+    const pick = overlay.pickObject({
+      x: handle.x,
+      y: handle.y,
+      radius: 10,
+      layerIds: ['editable']
+    }) as any;
+    expect(pick?.isGuide).toBe(true);
+
+    const center = map.getCenter();
+    const eventAt = (x: number, y: number, buttons: number) => ({
+      clientX: bounds.left + x,
+      clientY: bounds.top + y,
+      button: 0,
+      buttons,
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: 'mouse',
+      isPrimary: true
+    });
+    canvas.dispatchEvent(new PointerEvent('pointerdown', eventAt(handle.x, handle.y, 1)));
+    canvas.dispatchEvent(new MouseEvent('mousedown', eventAt(handle.x, handle.y, 1)));
+    for (const [x, y] of [
+      [handle.x + 20, handle.y + 15],
+      [handle.x + 40, handle.y + 30]
+    ]) {
+      canvas.dispatchEvent(new PointerEvent('pointermove', eventAt(x, y, 1)));
+      canvas.dispatchEvent(new MouseEvent('mousemove', eventAt(x, y, 1)));
+      await frame();
+    }
+    canvas.dispatchEvent(new PointerEvent('pointerup', eventAt(handle.x + 40, handle.y + 30, 0)));
+    canvas.dispatchEvent(new MouseEvent('mouseup', eventAt(handle.x + 40, handle.y + 30, 0)));
+    await frame();
+
+    await vi.waitFor(() =>
+      expect(actions.some(action => action.editType === 'movePosition')).toBe(true)
+    );
+    expect(data.features[0].geometry.coordinates[0][0]).not.toEqual(initialPosition);
+    expect(map.getCenter().lng).toBeCloseTo(center.lng, 8);
+    expect(map.getCenter().lat).toBeCloseTo(center.lat, 8);
   } finally {
     map.removeControl(overlay);
     overlay.finalize();
