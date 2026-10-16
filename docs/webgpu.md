@@ -10,6 +10,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | --- | --- | :---: | :---: | --- |
 | `@deck.gl-community/layers` | `SkyboxLayer` | ✅ | ✅ | Native GLSL and WGSL cubemap shaders. |
 | `@deck.gl-community/layers` | `FlameTrailLayer` | ✅ | ✅ | Native GLSL/WGSL flames and embers. TerrainExtension height-map fitting requires WebGL2; elevated XYZ paths work on both backends. |
+| `@deck.gl-community/layers` | [`VolumetricVideoLayer`](./modules/layers/api-reference/volumetric-video-layer.md) | ✅ | ❌ | WebGL2 texture-array history and GLSL splats; requires a browser-supported video codec. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `line` mode | ✅ | ✅ | Portable `LineLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `arc` mode | ✅ | ✅ | Browser-verified upstream `ArcLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |

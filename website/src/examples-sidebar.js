@@ -47,7 +47,8 @@ const sidebars = {
         'layers/tree-lab',
         'layers/skybox-map-view',
         'layers/skybox-globe',
-        'layers/skybox-first-person'
+        'layers/skybox-first-person',
+        'layers/volumetric-video'
       ]
     },
     {

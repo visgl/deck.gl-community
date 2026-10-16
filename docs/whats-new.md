@@ -4,6 +4,15 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new)
+  turns MP4/MOV frames into a GPU-rendered image-X/image-Y/time volume with `currentFrame`,
+  `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
+  [local-file demo](/examples/layers/volumetric-video) includes stabilized camera controls
+  and bounded GPU history that preserves the last working volume on allocation failure. Later valid
+  seeks recover from decode failures, failed writes cannot expose stale frame identities,
+  and GPU filter retries restore playback controls. Metadata callbacks can replace the
+  live layer without discarding its newly allocated history.
+
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
