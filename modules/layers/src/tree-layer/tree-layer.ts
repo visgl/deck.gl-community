@@ -419,6 +419,30 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   static defaultProps = defaultProps;
   declare state: TreeState<DataT>;
 
+  private getTrunkColor = (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>): Color =>
+    (isDefaultTreeAccessor(this.props, 'getTrunkColor')
+      ? row.trunkColor
+      : getTreeAccessorValue(
+          this.getSubLayerAccessor(this.props.getTrunkColor) as Accessor<
+            TreeRow<DataT>,
+            Color | null
+          >,
+          row,
+          info
+        )) ?? DEFAULT_TRUNK_COLORS[row.type];
+
+  private getCanopyColor = (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>): Color =>
+    (isDefaultTreeAccessor(this.props, 'getCanopyColor')
+      ? row.canopyColor
+      : getTreeAccessorValue(
+          this.getSubLayerAccessor(this.props.getCanopyColor) as Accessor<
+            TreeRow<DataT>,
+            Color | null
+          >,
+          row,
+          info
+        )) ?? DEFAULT_CANOPY_COLORS[row.type][row.season];
+
   constructor(...props: (Partial<TreeLayerProps<DataT>> & Partial<NoInfer<ExtraPropsT>>)[]) {
     super(
       ...(props as Partial<
@@ -748,7 +772,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         'TreeLayer modelMatrix supports translation only in Cartesian and metre-offset coordinates.'
       );
     }
-    const {windTime, getTrunkColor, getCanopyColor, getSeason} = this.props;
+    const {windTime, getTrunkColor, getSeason} = this.props;
     const windStrength = Math.max(
       this.state.hasDefaultWind ? getFiniteDimension(this.props.windStrength, 0) : 0,
       this.state.authoredWindStrength
@@ -772,18 +796,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     };
     const layers: Layer[] = [];
     const foliage: Layer[] = [];
-    const barkAccessor = this.getSubLayerAccessor(getTrunkColor) as Accessor<
-      TreeRow<DataT>,
-      Color | null
-    >;
-    const foliageAccessor = this.getSubLayerAccessor(getCanopyColor) as Accessor<
-      TreeRow<DataT>,
-      Color | null
-    >;
-    const trunkColor = (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>) =>
-      (isDefaultTreeAccessor(this.props, 'getTrunkColor')
-        ? row.trunkColor
-        : getTreeAccessorValue(barkAccessor, row, info)) ?? DEFAULT_TRUNK_COLORS[row.type];
+    const trunkColor = this.getTrunkColor;
     // Prepared rows remain identical on animation, lighting and color-only updates.
     const trunks = (data: TreeRow<DataT>[], id: string, palm: boolean) => {
       if (!data.length) return;
@@ -824,6 +837,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     );
     this.state.splatBudgetGroup.maxSplats = this.props.maxCanopySplats;
     this.state.splatBudgetGroup.parent = this.props._splatBudgetGroup;
+    const hasDenseCanopy =
+      [...this.state.groups.values()].reduce(
+        (count, rows) => count + (rows[0].winter ? 0 : rows.length),
+        0
+      ) >= DENSE_TREE_COUNT;
     for (const [key, data] of this.state.groups) {
       const {type, winter, levels, characteristics} = data[0];
       const wood = this.state.woodGroups.get(key)!;
@@ -851,20 +869,24 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         };
         if (data.length >= DENSE_TREE_COUNT) {
           // Dense scenes need the aggregate connected shell, not per-tree near/far selection.
-          layers.push(
-            new TreeMeshLayer(
-              this.getTreeSubLayerProps(
-                {
-                  ...woodProps,
-                  id: `${woodProps.id}-dense`,
-                  mesh: getTreeWoodMesh(type, levels, true, characteristics, true),
-                  woodMorph: true,
-                  getCoverageRange: [0, 1]
-                },
-                'trunks'
-              )
-            )
+          const denseMesh = getTreeWoodMesh(type, levels, true, characteristics, true);
+          const denseProps = this.getTreeSubLayerProps(
+            {
+              ...woodProps,
+              id: `${woodProps.id}-dense`,
+              mesh: denseMesh,
+              woodMorph: true,
+              getCoverageRange: [0, 1]
+            },
+            'trunks'
           );
+          if (denseProps.mesh !== denseMesh) {
+            // Automatically fitted stem/root deformation only matches our cached species mesh.
+            denseProps.woodMorph = false;
+            denseProps.getStemRadius = -1;
+            denseProps.getRootLength = -1;
+          }
+          layers.push(new TreeMeshLayer(denseProps));
         } else {
           const mesh = getTreeWoodMesh(type, levels, false, characteristics);
           layers.push(
@@ -875,17 +897,13 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         }
       }
       if (winter) continue;
-      const getCanopyColor = (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>) =>
-        (isDefaultTreeAccessor(this.props, 'getCanopyColor')
-          ? row.canopyColor
-          : getTreeAccessorValue(foliageAccessor, row, info)) ??
-        DEFAULT_CANOPY_COLORS[type][row.season];
       const canopyTriggers = {
         getWind: windTrigger,
         getDeformation: windTrigger,
         getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
         getColor: [
-          getCanopyColor,
+          this.getCanopyColor,
+          this.props.getCanopyColor,
           getTrunkColor,
           getSeason,
           this.props.updateTriggers?.getCanopyColor,
@@ -903,7 +921,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               data,
               ...shared,
               getSource: getTreeSplatData(type, levels, characteristics),
-              transparency: data.length >= DENSE_TREE_COUNT ? 'weighted' : 'sorted',
+              transparency: hasDenseCanopy ? 'weighted' : 'sorted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
               pixelError: type === 'palm' ? 0.65 : 2.5,
               maxRenderPixels: this.props.maxCanopyPixels,
@@ -923,7 +941,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               getScale: (row: TreeRow<DataT>) => row.scale,
               getOrientation: (row: TreeRow<DataT>) => row.orientation,
               getWind: treeWind,
-              getColor: getCanopyColor,
+              getColor: this.getCanopyColor,
               material: {ambient: 0.62, diffuse: 0.82, shininess: 2, specularColor: [0, 0, 0]},
               updateTriggers: canopyTriggers
             },
