@@ -116,9 +116,8 @@ map.addControl(overlay);
 
 ## MapLibre and Mapbox Overlaid Editing
 
-With `MapboxOverlay({interleaved: false})`, the dedicated deck.gl render canvas does not
-receive pointer input. Set `eventTarget` on `EditableGeoJsonLayer` to the base map's canvas
-so drawing, pointer previews, and handle dragging receive native input:
+With `MapboxOverlay({interleaved: false})`, set `eventTarget: map.getCanvas()` on editable
+and selection layers. Interleaved overlays use the shared canvas automatically.
 
 ```ts
 const overlay = new MapboxOverlay({
@@ -134,10 +133,6 @@ const overlay = new MapboxOverlay({
 });
 map.addControl(overlay);
 ```
-
-The input target is independent of the rendering canvas. Keep `eventTarget` in each replacement
-layer while editing, and choose `ViewMode` to return primary gestures to the map. Interleaved
-editing uses the shared canvas automatically and does not require this prop.
 
 ## Widgets
 

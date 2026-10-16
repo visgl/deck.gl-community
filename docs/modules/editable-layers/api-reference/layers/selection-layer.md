@@ -95,9 +95,7 @@ SelectionLayer's internal `EditableGeoJsonLayer`; inactive selection uses `ViewM
 
 - Default: `null`
 
-Element that receives selection gestures when it differs from deck.gl's render canvas. For
-`MapboxOverlay({interleaved: false})`, pass `map.getCanvas()` so SelectionLayer's internal
-editable layer can receive input and keep selection drags from panning the base map.
+Element receiving selection gestures. For overlaid `MapboxOverlay`, use `map.getCanvas()`.
 
 #### `onSelect` (Function, required)
 

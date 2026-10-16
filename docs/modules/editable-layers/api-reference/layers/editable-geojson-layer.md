@@ -89,10 +89,8 @@ remains available; set to `false` to manage gesture propagation yourself.
 
 - Default: `null` (use deck.gl's render canvas)
 
-The element receiving editing input when it differs from the render canvas. For
-`MapboxOverlay({interleaved: false})`, pass `map.getCanvas()`. The overlaid deck.gl canvas
-ignores pointer input, while the map's own canvas receives clicks, pointer moves, and drags.
-The input element must align with the rendered viewport.
+The input element when it differs from deck.gl's render canvas. For overlaid
+`MapboxOverlay`, use `map.getCanvas()` and keep it aligned with the rendered viewport.
 
 ```ts
 new EditableGeoJsonLayer({
@@ -101,9 +99,8 @@ new EditableGeoJsonLayer({
 });
 ```
 
-Changing the target cancels an active drag and removes listeners from the previous element.
-Removing the layer also releases its input recognizer and restores the target's touch style.
-Map controls retain their enabled states; `ViewMode` permits normal map navigation.
+Changing the target cancels active drawing; removing the layer releases listeners and restores
+the target's touch style.
 
 #### `modeConfig` (Object, optional)
 

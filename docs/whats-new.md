@@ -30,14 +30,8 @@ This page lists module additions and major changes in each release. For detailed
 
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
 
-- `EditableGeoJsonLayer` and `SelectionLayer` support `eventTarget` for overlaid MapLibre/Mapbox
-  editing. Pass `map.getCanvas()` when using `MapboxOverlay({interleaved: false})` to enable drawing,
-  selection, and dragging without changing the render canvas's pointer behavior. Input listeners
-  and touch styles are released when the target changes or the layer is removed.
-- `SelectionLayer` polygon selection masks the full picking rectangle, avoiding false positives
-  outside wide, diagonal, and concave lassos while keeping GPU picking synchronous.
-- Selection keeps application `guideType` properties selectable and resumes single-finger editing
-  after two-finger map navigation.
+- Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,
+  keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
