@@ -276,6 +276,8 @@ type _TreeLayerProps<DataT> = {
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
   windTime?: number | null;
+  /** Enable existing wood shadows when the host LightingEffect supports them. Canopy shadows remain disabled. @default false */
+  shadowEnabled?: boolean;
   /** Shared per-frame canopy Gaussian budget, allocated by projected error across species. Finest templates remain available. @default 20000 */
   maxCanopySplats?: number;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
@@ -288,7 +290,7 @@ type _TreeLayerProps<DataT> = {
 
 export type TreeLayerProps<DataT = unknown> = _TreeLayerProps<DataT> & CompositeLayerProps;
 
-const defaultProps: DefaultProps<TreeLayerProps<unknown>> & {shadowEnabled: false} = {
+const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getTree: {type: 'accessor', value: (d: any) => d},
   getPosition: {type: 'accessor', value: (d: any) => d.position},
   getElevation: {type: 'accessor', value: (_d: any) => 0},
