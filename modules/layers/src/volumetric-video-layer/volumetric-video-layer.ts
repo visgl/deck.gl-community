@@ -450,7 +450,10 @@ export class VolumetricVideoLayer<
   private prepareAppearance(frames: GPUVideoFrames): boolean {
     if (!this.canAllocateCurrentAppearance(frames)) {
       if (this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval) {
-        this.setState({staticRemovalBudgetError: this.props.staticPixelRemoval});
+        this.setState({
+          activeStaticPixelRemoval: 0,
+          staticRemovalBudgetError: this.props.staticPixelRemoval
+        });
         this.raiseError(
           new Error(
             `Static-pixel removal requires ${(getFrameAppearanceBytes(frames.width, frames.height) / 1048576).toFixed(1)} MiB for the selected frame. Shorten frameTrail, choose a smaller grid, or increase maxTextureBytes.`
@@ -623,11 +626,7 @@ export class VolumetricVideoLayer<
       return;
     }
     const size = getFrameSize(source.info!.width, source.info!.height, this.props.resolution);
-    const textureBytes =
-      getFrameHistoryBytes(size.width, size.height, capacity) +
-      (this.usesRaster() && this.props.staticPixelRemoval > 0
-        ? getFrameAppearanceBytes(size.width, size.height)
-        : 0);
+    const textureBytes = getFrameHistoryBytes(size.width, size.height, capacity);
     if (
       textureBytes > this.props.maxTextureBytes ||
       Math.max(size.width, size.height) > this.context.device.limits.maxTextureDimension2D
@@ -667,8 +666,10 @@ export class VolumetricVideoLayer<
           if (layer.state.pendingFrames === frames) {
             try {
               assertGPUVideoResources(layer.context.device);
-              if (layer.usesRaster()) {
-                layer.updateAppearance(frames);
+              const prepared = layer.prepareAppearance(frames);
+              if (!prepared && layer.state.filterError === frames) {
+                layer.failFrameCache(frames, new Error('The GPU could not filter video history.'));
+                return;
               }
             } catch (error) {
               layer.failFrameCache(
@@ -682,9 +683,7 @@ export class VolumetricVideoLayer<
             layer.setState({
               frames,
               pendingFrames: null,
-              filterError: null,
-              activeStaticPixelRemoval: layer.props.staticPixelRemoval,
-              staticRemovalBudgetError: null
+              filterError: null
             });
             oldFrames?.destroy();
           } else if (layer.state.frames !== frames || layer.state.pendingFrames) return;
