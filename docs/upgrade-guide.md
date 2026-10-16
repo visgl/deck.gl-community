@@ -28,9 +28,17 @@ for input forms and rendering limits. On WebGPU, `View.clear` is rejected until 
 
 ### `@deck.gl-community/layers`: native `TreeLayer`
 
-- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+Import `TreeLayer`, `TreeLayerProps`, `TreeType`, `Season` and `CropConfig` from
+`@deck.gl-community/layers`. Remove `@deck.gl-community/three`, `TreeDetail` and the `detail` prop.
 
-Removing the published `@deck.gl-community/three` package is a breaking change. Release this removal in a major version, after native TreeLayer/SplatLayer are available in compatible published packages. Geographic inventory streaming follows separately in #806, after the scene and Coit work.
+Canopy sublayers use `SplatLayer`; target foliage with `canopy-{species}-foliage-{tier}` overrides
+and wood with `wood-{species}-{foliage|winter}-{tier}` or the `trunks` alias. Mesh-specific canopy
+overrides no longer apply. Crop radii are metres; halve old values to preserve their apparent size.
+Check explicit seasonal foliage and custom winter branch overrides.
+
+Removing the published `@deck.gl-community/three` package is breaking. Release it in a major
+version after `TreeLayer` and `SplatLayer` are available in compatible published packages. See the
+[TreeLayer API](./modules/layers/api-reference/tree-layer.md) for current sublayer details.
 
 ### Prepared SplatLayer inputs
 

@@ -85,14 +85,6 @@ Inherits the deck.gl `CompositeLayer` properties. Accessors accept constants or 
 
 Wind is implemented in GLSL and WGSL. Trunks, crowns, attached crops and picking use the same deformation. Time changes do not rebuild geometry, regroup data or regenerate instance attributes.
 
-## Migration
-
-Remove `detail` from TreeLayer props and `TreeDetail` from type imports. TreeLayer now composes full leaf Gaussian sources and continuous woody meshes, with automatic refinement for subpixel crowns and branches. Legacy demo `detail` query parameters are ignored.
-
-The deprecated `@deck.gl-community/three` workspace is removed. Update imports and dependencies to `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season` and `CropConfig`. Previously published package versions are unchanged. The production renderer has no Three.js dependency.
-
-Gaussian crowns and connected winter silhouettes deliberately differ from the original geometry. `CropConfig.radius` now matches its documented radius: older geometry rendered half that radius. Halve an existing crop radius to retain its old apparent size. Inspect your explicit seasonal foliage overrides, canopy sublayer overrides and custom winter branches when migrating; the native crown sublayer IDs include foliage/winter and tier information. Legacy species overrides such as `canopy-cherry` remain supported and apply after native defaults. Exact grouped sublayer IDs take precedence over species aliases. Custom wood meshes are used directly without the native template morph; arbitrary custom geometry is kept conservatively visible. Overridden wood transform accessors and their triggers also determine culling bounds. Override accessors receive the source tree and its original accessor context; parameters and update triggers merge by key.
-
 [Source](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/tree-layer)
 
 ## Canopy composition
