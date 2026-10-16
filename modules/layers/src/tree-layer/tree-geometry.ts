@@ -19,9 +19,8 @@ export type TreeMesh = {
 };
 
 /** Geometry detail, independent of the number of rendered instances. */
-export type TreeDetail = 'low' | 'medium' | 'high';
+type TreeDetail = 'low' | 'medium' | 'high';
 type Point = [number, number, number];
-export type CrownLobe = {center: Point; radius: Point};
 const DETAIL_SEGMENTS = {low: [8, 5], medium: [12, 8], high: [16, 10]} as const;
 
 /** Deterministic random source. Separate seeds keep crop counts and shapes independent. */
@@ -78,7 +77,7 @@ function createMesh(positions: Float32Array, sourceIndices: Uint32Array, shade =
   return mesh;
 }
 
-/** Area-weighted normals. Welding is restricted to closed foliage, never two-sided blades. */
+/** Area-weighted normals for shared primitive vertices. */
 function computeNormals(mesh: TreeMesh, weld = false): void {
   const p = mesh.attributes.POSITION.value;
   const n = mesh.attributes.NORMAL.value;
@@ -121,35 +120,6 @@ function computeNormals(mesh: TreeMesh, weld = false): void {
       n[i + 2] = 1;
     }
   }
-}
-
-/** Merge CPU arrays once; retain hard edges and opposite blade normals. */
-function mergeMeshes(meshes: TreeMesh[]): TreeMesh {
-  const length = meshes.reduce((sum, mesh) => sum + mesh.attributes.POSITION.value.length, 0);
-  const indexLength = meshes.reduce((sum, mesh) => sum + mesh.indices.value.length, 0);
-  const mesh: TreeMesh = {
-    attributes: {
-      POSITION: {value: new Float32Array(length), size: 3},
-      NORMAL: {value: new Float32Array(length), size: 3},
-      COLOR_0: {value: new Float32Array(length), size: 3},
-      TEXCOORD_0: {value: new Float32Array((length / 3) * 2), size: 2}
-    },
-    indices: {value: new Uint32Array(indexLength), size: 1},
-    topology: 'triangle-list',
-    mode: 4
-  };
-  let vertexOffset = 0;
-  let indexOffset = 0;
-  for (const part of meshes) {
-    for (const key of ['POSITION', 'NORMAL', 'COLOR_0'] as const) {
-      mesh.attributes[key].value.set(part.attributes[key].value, vertexOffset * 3);
-    }
-    mesh.attributes.TEXCOORD_0.value.set(part.attributes.TEXCOORD_0.value, vertexOffset * 2);
-    for (const index of part.indices.value)
-      mesh.indices.value[indexOffset++] = index + vertexOffset;
-    vertexOffset += part.attributes.POSITION.value.length / 3;
-  }
-  return mesh;
 }
 
 function createSphere(
@@ -251,25 +221,6 @@ export function createDatePalmTrunkMesh(segments = 10, scarRings = 14): TreeMesh
   return createMesh(new Float32Array(p), new Uint32Array(indices));
 }
 
-/** Layered pine cones; the seeded tier silhouette remains stable between details. */
-export function createPineCanopyMesh(levels = 3, segments = 12): TreeMesh {
-  const meshes: TreeMesh[] = [];
-  const {tiers, tipStart, tipEnd} = createPineTiers(levels);
-  for (const [i, tier] of tiers.entries()) {
-    const mesh = createBranch(
-      tier.base,
-      [tier.base[0], tier.base[1], tier.base[2] + tier.height],
-      tier.radius,
-      0,
-      segments
-    );
-    mesh.attributes.COLOR_0.value.fill(0.82 + (i / (levels - 1 || 1)) * 0.16);
-    meshes.push(mesh);
-  }
-  meshes.push(createBranch(tipStart, tipEnd, 0.08, 0, 6));
-  return mergeMeshes(meshes);
-}
-
 const PINE_TIER_CACHE = new Map<number, ReturnType<typeof generatePineTiers>>();
 export function createPineTiers(levels: number) {
   levels = Math.max(1, Math.min(5, Math.round(levels) || 3));
@@ -321,242 +272,6 @@ export function samplePineSurface(levels: number, z: number, theta: number): Poi
   return [direction[0] * distance * 1.015, direction[1] * distance * 1.015, z];
 }
 
-/** Crown envelopes are shared by foliage generation and crop placement. */
-export function getCrownLobes(type: 'oak' | 'birch' | 'cherry'): CrownLobe[] {
-  const narrow = type === 'birch';
-  const lobes: CrownLobe[] = [
-    {
-      center: [0, 0, narrow ? 0.66 : 0.62],
-      radius: [narrow ? 0.25 : 0.34, narrow ? 0.25 : 0.34, narrow ? 0.42 : 0.37]
-    }
-  ];
-  const count = narrow ? 5 : 7;
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
-    const distance = narrow ? 0.17 : 0.25;
-    lobes.push({
-      center: [Math.cos(angle) * distance, Math.sin(angle) * distance, 0.36 + (i % 3) * 0.1],
-      radius: [narrow ? 0.19 : 0.24, narrow ? 0.19 : 0.24, narrow ? 0.32 : 0.26]
-    });
-  }
-  return lobes;
-}
-
-/** Outer union envelope of crown lobes, sampled without hidden internal triangles. */
-export function sampleCrownSurface(type: 'oak' | 'birch' | 'cherry', direction: Point): Point {
-  const origin: Point = [0, 0, 0.5];
-  let distance = 0;
-  for (const lobe of getCrownLobes(type)) {
-    let a = 0;
-    let b = 0;
-    let c = -1;
-    for (let i = 0; i < 3; i++) {
-      const delta = (origin[i] - lobe.center[i]) / lobe.radius[i];
-      const ray = direction[i] / lobe.radius[i];
-      a += ray * ray;
-      b += 2 * delta * ray;
-      c += delta * delta;
-    }
-    const discriminant = b * b - 4 * a * c;
-    if (discriminant >= 0 && a > 0)
-      distance = Math.max(distance, (-b + Math.sqrt(discriminant)) / (2 * a));
-  }
-  return [direction[0] * distance, direction[1] * distance, 0.5 + direction[2] * distance];
-}
-
-function createBroadleafCanopy(type: 'oak' | 'birch' | 'cherry', detail: TreeDetail): TreeMesh {
-  const mesh = createSphere(1, detail, [0, 0, 0]);
-  const positions = mesh.attributes.POSITION.value;
-  const colors = mesh.attributes.COLOR_0.value;
-  for (let i = 0; i < positions.length; i += 3) {
-    const direction: Point = [positions[i], positions[i + 1], positions[i + 2]];
-    const point = sampleCrownSurface(type, direction);
-    const noise =
-      1 + 0.025 * Math.sin(direction[0] * 11 + direction[1] * 7) * Math.sin(direction[2] * 9);
-    positions.set([point[0] * noise, point[1] * noise, 0.5 + (point[2] - 0.5) * noise], i);
-    const shade = 0.8 + point[2] * 0.14 + Math.sin(direction[0] * 7 + direction[1] * 5) * 0.035;
-    colors.set([shade, shade, shade], i);
-  }
-  computeNormals(mesh, true);
-  return mesh;
-}
-
-/** Lobed, shared foliage envelopes with smoothly welded lighting normals. */
-export function createOakCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
-  return createBroadleafCanopy('oak', detail);
-}
-export function createBirchCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
-  return createBroadleafCanopy('birch', detail);
-}
-export function createCherryCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
-  return createBroadleafCanopy('cherry', detail);
-}
-
-/** Rings at the trunk join support a smooth per-instance radius transition. */
-function createWinterStem(detail: TreeDetail): TreeMesh {
-  const segments = detail === 'low' ? 8 : 12;
-  const heights = [0, 0.12, 0.22, 0.27, 0.32, 0.37, 0.42, 0.62, 0.85];
-  const positions: number[] = [];
-  const indices: number[] = [];
-  for (const [ring, z] of heights.entries()) {
-    const t = Math.max(0, (z - 0.22) / 0.63);
-    const radius = 0.06 - 0.047 * t;
-    const bend = 0.015 * t * t;
-    for (let segment = 0; segment <= segments; segment++) {
-      const angle = (segment / segments) * Math.PI * 2;
-      positions.push(bend + Math.cos(angle) * radius, Math.sin(angle) * radius, z);
-      if (ring > 0 && segment < segments) {
-        const a = (ring - 1) * (segments + 1) + segment;
-        const b = a + segments + 1;
-        indices.push(a, a + 1, b, a + 1, b + 1, b);
-      }
-    }
-  }
-  for (const ring of [0, heights.length - 1]) {
-    const center = positions.length / 3;
-    const t = ring === 0 ? 0 : 1;
-    positions.push(0.015 * t, 0, heights[ring]);
-    for (let segment = 0; segment < segments; segment++) {
-      const a = ring * (segments + 1) + segment;
-      indices.push(...(ring === 0 ? [center, a + 1, a] : [center, a, a + 1]));
-    }
-  }
-  const mesh = createMesh(new Float32Array(positions), new Uint32Array(indices));
-  computeNormals(mesh, true);
-  // UV.x marks only the leader. Side branches retain their original dimensions.
-  for (let i = 0; i < mesh.attributes.TEXCOORD_0.value.length; i += 2)
-    mesh.attributes.TEXCOORD_0.value[i] = 1;
-  return mesh;
-}
-
-/** Actual branching structure is visible when deciduous trees lose their foliage. */
-export function createWinterCanopyMesh(
-  type: 'oak' | 'birch' | 'cherry',
-  detail: TreeDetail
-): TreeMesh {
-  const segments = detail === 'low' ? 4 : 6;
-  const meshes = [createWinterStem(detail)];
-  for (const [i, lobe] of getCrownLobes(type).entries()) {
-    const start: Point = [0, 0, 0.12 + i * 0.055];
-    const end: Point = [lobe.center[0] * 1.65, lobe.center[1] * 1.65, lobe.center[2] + 0.18];
-    meshes.push(createBranch(start, end, 0.03, 0.008, segments));
-    for (const side of [-1, 1]) {
-      const fork: Point = [
-        end[0] + side * 0.065,
-        end[1] + 0.06 * Math.cos(i),
-        Math.min(1, end[2] + 0.16)
-      ];
-      const joint: Point = [
-        start[0] + (end[0] - start[0]) * 0.7,
-        start[1] + (end[1] - start[1]) * 0.7,
-        start[2] + (end[2] - start[2]) * 0.7
-      ];
-      meshes.push(createBranch(joint, fork, 0.011, 0.002, segments));
-    }
-  }
-  return mergeMeshes(meshes);
-}
-
-function evaluateFrond(points: Point[], t: number): Vector3 {
-  const s = 1 - t;
-  return new Vector3(points[0])
-    .scale(s ** 3)
-    .add(new Vector3(points[1]).scale(3 * s * s * t))
-    .add(new Vector3(points[2]).scale(3 * s * t * t))
-    .add(new Vector3(points[3]).scale(t ** 3));
-}
-
-function appendBlade(
-  positions: number[],
-  indices: number[],
-  base: Vector3,
-  direction: Vector3,
-  widthDirection: Vector3,
-  length: number,
-  width: number
-): void {
-  const tip = new Vector3(base).add(new Vector3(direction).scale(length));
-  const middle = new Vector3(base).lerp(tip, 0.52);
-  const left = new Vector3(middle).add(new Vector3(widthDirection).scale(width));
-  const right = new Vector3(middle).subtract(new Vector3(widthDirection).scale(width));
-  const offset = positions.length / 3;
-  for (const point of [base, left, tip, right]) positions.push(...point);
-  indices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
-}
-
-/** Arching palm fronds with a restrained spear crown and tapered leaflets. */
-export function createPalmCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
-  const positions: number[] = [];
-  const indices: number[] = [];
-  const count = detail === 'high' ? 18 : detail === 'medium' ? 14 : 10;
-  const upright = detail === 'high' ? 5 : detail === 'medium' ? 4 : 3;
-  const pairs = detail === 'high' ? 12 : detail === 'medium' ? 9 : 6;
-  for (let i = 0; i < count + upright; i++) {
-    const spear = i >= count;
-    const k = spear ? i - count : i;
-    const angle =
-      ((k + (spear ? 0.5 : 0)) / (spear ? upright : count)) * Math.PI * 2 +
-      (spear ? 0 : Math.sin(k * 5.37) * 0.07);
-    const tier = k % 4;
-    const radial = (radius: number, z: number): Point => [
-      Math.cos(angle) * radius,
-      Math.sin(angle) * radius,
-      z
-    ];
-    const points = spear
-      ? [radial(0.025, 0.46), radial(0.14, 0.78), radial(0.38, 1.02), radial(0.6, 0.94)]
-      : [
-          radial(0.035, 0.44 + tier * 0.012),
-          radial(0.27, 0.73 - tier * 0.022),
-          radial(0.66, 0.5 - tier * 0.04),
-          radial(0.8 + ((k * 7) % 9) * 0.014, 0.21 - tier * 0.025)
-        ];
-    const pairCount = spear ? Math.max(4, pairs - 3) : pairs;
-    for (let j = 0; j < pairCount; j++) {
-      const t = 0.2 + (j / (pairCount - 1)) * 0.72;
-      const point = evaluateFrond(points, t);
-      const tangent = evaluateFrond(points, Math.min(1, t + 0.001))
-        .subtract(evaluateFrond(points, Math.max(0, t - 0.001)))
-        .normalize();
-      const sideways = new Vector3(-tangent[1], tangent[0], 0).normalize();
-      const fullness = Math.sin(((j + 0.75) / pairCount) * Math.PI);
-      for (const side of [-1, 1]) {
-        const base = new Vector3(point).add(new Vector3(sideways).scale(side * 0.008));
-        const direction = new Vector3(sideways)
-          .scale(side)
-          .add(new Vector3(tangent).scale(0.2 + Math.sin(angle + j * 0.7) * 0.045))
-          .add([0, 0, -0.025 - t * 0.18])
-          .normalize();
-        const widthDirection = new Vector3(tangent).add([0, 0, 0.08]).normalize();
-        appendBlade(
-          positions,
-          indices,
-          base,
-          direction,
-          widthDirection,
-          0.045 + fullness * 0.105,
-          0.006 + fullness * 0.007
-        );
-      }
-    }
-    for (let j = 0; j < 10; j++) {
-      const start = evaluateFrond(points, j / 10);
-      const end = evaluateFrond(points, (j + 1) / 10);
-      const direction = new Vector3(end).subtract(start);
-      const length = direction.len();
-      direction.normalize();
-      const across = new Vector3(-direction[1], direction[0], 0).normalize();
-      appendBlade(positions, indices, start, direction, across, length * 1.08, 0.012);
-    }
-  }
-  const leaflets = createMesh(new Float32Array(positions), new Uint32Array(indices));
-  for (let i = 0; i < leaflets.attributes.COLOR_0.value.length; i += 3) {
-    const shade = 0.8 + Math.max(0, leaflets.attributes.POSITION.value[i + 2]) * 0.18;
-    leaflets.attributes.COLOR_0.value.set([shade, shade, shade], i);
-  }
-  return mergeMeshes([leaflets, createSphere(0.13, 'low', [0, 0, 0.43], [1, 1, 0.75])]);
-}
-
 /** A centered sphere with radius one; getCrop.radius now expresses actual metres. */
 export function createCropMesh(): TreeMesh {
   return createSphere(1, 'low', [0, 0, 0]);
@@ -565,22 +280,11 @@ export function createCropMesh(): TreeMesh {
 const MESH_CACHE = new Map<string, TreeMesh>();
 /** Bounded cache across layer instances and season switches; never changes mesh identity. */
 export function getTreeMesh(
-  part: 'trunk' | 'canopy' | 'crop',
+  part: 'trunk' | 'crop',
   type: 'pine' | 'oak' | 'palm' | 'birch' | 'cherry' = 'oak',
-  detail: TreeDetail = 'high',
-  winter = false,
-  levels = 3
+  detail: TreeDetail = 'high'
 ): TreeMesh {
-  levels = Math.max(1, Math.min(5, Math.round(levels) || 3));
-  if (type !== 'pine' && type !== 'palm') levels = 3;
-  if (type === 'pine' || type === 'palm') winter = false;
-  if (part === 'crop') {
-    type = 'oak';
-    detail = 'low';
-    winter = false;
-    levels = 3;
-  }
-  const key = `${part}:${type}:${detail}:${winter}:${levels}`;
+  const key = part === 'crop' ? 'crop' : `${part}:${type}:${detail}`;
   let mesh = MESH_CACHE.get(key);
   if (!mesh) {
     if (part === 'crop') mesh = createCropMesh();
@@ -589,13 +293,6 @@ export function getTreeMesh(
         type === 'palm'
           ? createDatePalmTrunkMesh(detail === 'low' ? 8 : 10, detail === 'low' ? 8 : 14)
           : createTrunkMesh(detail === 'low' ? 8 : 12);
-    else if (type === 'pine')
-      mesh = createPineCanopyMesh(levels, detail === 'high' ? 16 : detail === 'medium' ? 12 : 8);
-    else if (type === 'palm') mesh = createPalmCanopyMesh(detail);
-    else
-      mesh = winter
-        ? createWinterCanopyMesh(type as 'oak', detail)
-        : createBroadleafCanopy(type as 'oak', detail);
     MESH_CACHE.set(key, mesh);
   }
   return mesh;

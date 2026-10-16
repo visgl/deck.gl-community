@@ -867,34 +867,22 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
           }
         };
-        if (data.length >= DENSE_TREE_COUNT) {
-          // Dense scenes need the aggregate connected shell, not per-tree near/far selection.
-          const denseMesh = getTreeWoodMesh(type, levels, true, characteristics, true);
-          const denseProps = this.getTreeSubLayerProps(
-            {
-              ...woodProps,
-              id: `${woodProps.id}-dense`,
-              mesh: denseMesh,
-              woodMorph: true,
-              getCoverageRange: [0, 1]
-            },
-            'trunks'
-          );
-          if (denseProps.mesh !== denseMesh) {
-            // Automatically fitted stem/root deformation only matches our cached species mesh.
-            denseProps.woodMorph = false;
-            denseProps.getStemRadius = -1;
-            denseProps.getRootLength = -1;
-          }
-          layers.push(new TreeMeshLayer(denseProps));
-        } else {
-          const mesh = getTreeWoodMesh(type, levels, false, characteristics);
-          layers.push(
-            new TreeWoodLayer(
-              this.getTreeSubLayerProps({...woodProps, mesh, templateMesh: mesh}, 'trunks')
+        // Keep detailed connected branching only for trees large enough to read on screen. Dense
+        // groves retain every splat crown, while their subpixel wood simplifies to one curved bole.
+        const mesh = getTreeWoodMesh(type, levels, false, characteristics);
+        layers.push(
+          new TreeWoodLayer(
+            this.getTreeSubLayerProps(
+              {
+                ...woodProps,
+                mesh,
+                templateMesh: mesh,
+                farTrunkOnly: data.length >= DENSE_TREE_COUNT
+              },
+              'trunks'
             )
-          );
-        }
+          )
+        );
       }
       if (winter) continue;
       const canopyTriggers = {

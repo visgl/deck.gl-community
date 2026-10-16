@@ -5,18 +5,15 @@ import {describe, it, expect, vi} from 'vitest';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
-import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
+import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 import {getTreeSplatSource} from '../../src/tree-layer/tree-splats';
 import {
-  getTreeMesh,
-  createPalmCanopyMesh,
   createTrunkMesh,
   createCropMesh,
-  samplePineSurface,
-  sampleCrownSurface,
-  type TreeMesh
+  samplePineSurface
 } from '../../src/tree-layer/tree-geometry';
+import {getPalmFronds, evaluatePalmFrond} from '../../src/tree-layer/tree-palm';
 
 type Datum = {
   position: [number, number];
@@ -46,24 +43,6 @@ function createLayer(data: Datum[], extra = {}) {
 }
 const OAK: Datum = {position: [0, 0], type: 'oak', season: 'summer'};
 
-function getMeshRing(mesh: TreeMesh, height: number, leaderOnly = false) {
-  const points = new Map<string, [number, number, number]>();
-  const positions = mesh.attributes.POSITION.value;
-  const markers = mesh.attributes.TEXCOORD_0.value;
-  for (let i = 0; i < positions.length; i += 3) {
-    const point: [number, number, number] = [positions[i], positions[i + 1], positions[i + 2]];
-    if (leaderOnly && markers[(i / 3) * 2] !== 1) continue;
-    if (Math.abs(point[2] - height) > 0.000001 || Math.hypot(point[0], point[1]) < 0.000001)
-      continue;
-    const key = point
-      .slice(0, 2)
-      .map(value => Math.round(value * 1e6))
-      .join(',');
-    points.set(key, point);
-  }
-  return [...points.values()];
-}
-
 describe('native tree geometry', () => {
   it.each([
     'pine',
@@ -90,57 +69,21 @@ describe('native tree geometry', () => {
           type === 'palm' ? 700 : 1000
         );
         expect(crown!.props.getSource.hierarchy[0].source).toBe(crown!.props.getSource.source);
+        expect(
+          children
+            .filter(child => child.id.includes('canopy'))
+            .every(child => child instanceof SplatLayer)
+        ).toBe(true);
       }
     }
   });
-  it('has finite unit normals, valid triangles and correct bounds for every species/detail/season', () => {
-    for (const detail of ['low', 'medium', 'high'] as const)
-      for (const type of ['pine', 'oak', 'palm', 'birch', 'cherry'] as const)
-        for (const winter of [false, true]) {
-          const mesh = getTreeMesh('canopy', type, detail, winter);
-          const p = mesh.attributes.POSITION.value;
-          const n = mesh.attributes.NORMAL.value;
-          expect(mesh.indices.value.length % 3).toBe(0);
-          expect(mesh.indices.value.every(index => index < p.length / 3)).toBe(true);
-          expect(p.every(Number.isFinite)).toBe(true);
-          let maxNormalError = 0;
-          for (let i = 0; i < n.length; i += 3)
-            maxNormalError = Math.max(
-              maxNormalError,
-              Math.abs(Math.hypot(n[i], n[i + 1], n[i + 2]) - 1)
-            );
-          expect(maxNormalError).toBeLessThan(0.0001);
-          const z = p.filter((_, i) => i % 3 === 2);
-          expect(Math.max(...z)).toBeGreaterThan(0.7);
-          expect(Math.min(...z)).toBeGreaterThanOrEqual(-0.03);
-        }
-  });
-  it('shares meshes across instances and bounds broadleaf foliage to one sphere topology', () => {
-    const mesh = getTreeMesh('canopy', 'oak');
-    expect(getTreeMesh('canopy', 'oak')).toBe(mesh);
-    expect(mesh.indices.value.length / 3).toBeLessThanOrEqual(320);
-    expect(getTreeMesh('canopy', 'oak', 'low').indices.value.length).toBeLessThan(
-      mesh.indices.value.length
-    );
-  });
-  it('keeps low-detail pine within the legacy triangle budget and drops redundant cap faces', () => {
-    expect(
-      getTreeMesh('canopy', 'pine', 'low', false, 4).indices.value.length / 3
-    ).toBeLessThanOrEqual(80);
-    expect(
-      getTreeMesh('canopy', 'pine', 'high', false, 4).indices.value.length / 3
-    ).toBeLessThanOrEqual(150);
-  });
-  it('keeps a dense pinnate palm canopy deterministic and fully splatted', () => {
-    const first = createPalmCanopyMesh();
-    expect(first.indices.value.length / 3).toBeLessThan(1800);
-    expect(createPalmCanopyMesh().attributes.POSITION.value).toEqual(
-      first.attributes.POSITION.value
-    );
-    expect(first.attributes.POSITION.value.length / 3).toBeGreaterThan(2500);
-    const p = first.attributes.POSITION.value;
-    expect(Math.max(...p.filter((_, i) => i % 3 === 0))).toBeGreaterThan(0.82);
-    expect(Math.max(...p.filter((_, i) => i % 3 === 2))).toBeGreaterThan(0.95);
+  it('keeps palm frond stems and splat leaflets on the same deterministic curves', () => {
+    const fronds = getPalmFronds();
+    expect(fronds).toHaveLength(26);
+    expect(fronds.filter(frond => !frond.spear)).toHaveLength(22);
+    expect(fronds.filter(frond => frond.spear)).toHaveLength(4);
+    expect(evaluatePalmFrond(fronds[0], 0)).toEqual(fronds[0].controls[0]);
+    expect(evaluatePalmFrond(fronds[0], 1)).toEqual(fronds[0].controls[3]);
     const palmSplats = getTreeSplatSource('palm');
     expect(palmSplats.positions.length / 3).toBeGreaterThan(1700);
     expect(palmSplats.positions.length / 3).toBeLessThan(1900);
@@ -151,6 +94,12 @@ describe('native tree geometry', () => {
     ).toBe(true);
     expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
     expect(getTreeSplatSource('palm')).toBe(palmSplats);
+    for (let segment = 0; segment < 12; segment++) {
+      const t = 0.09 + (segment / 11) * 0.84;
+      const point = evaluatePalmFrond(fronds[0], t);
+      for (let axis = 0; axis < 3; axis++)
+        expect(palmSplats.positions[segment * 3 + axis]).toBeCloseTo(point[axis], 6);
+    }
   });
   it('keeps every canopy on splats while dense groves use batched woody LOD', () => {
     const denseData = Array.from({length: 10000}, (_, index) => ({
@@ -168,10 +117,9 @@ describe('native tree geometry', () => {
     expect(canopy.props.transparency).toBe('weighted');
     expect(canopy.props.foveationStrength).toBe(0.55);
     expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
-    expect(wood).toBeInstanceOf(TreeMeshLayer);
-    expect(wood.id).toContain('dense');
+    expect(wood).toBeInstanceOf(TreeWoodLayer);
+    expect(wood.props.farTrunkOnly).toBe(true);
     expect(wood.props.data).toHaveLength(denseData.length);
-    expect(wood.props.woodMorph).toBe(true);
 
     const {layer: close} = createLayer(denseData.slice(0, 1023));
     const closeLayers = close.renderLayers();
@@ -179,7 +127,9 @@ describe('native tree geometry', () => {
     const closeWood = closeLayers.find(child => child.id.includes('wood'))!;
     expect(closeCanopy).toBeInstanceOf(SplatLayer);
     expect(closeCanopy.id).toBe(canopy.id);
-    expect(closeWood.id).not.toBe(wood.id);
+    expect(closeWood).toBeInstanceOf(TreeWoodLayer);
+    expect(closeWood.id).toBe(wood.id);
+    expect(closeWood.props.farTrunkOnly).toBe(false);
   });
   it('uses one stable canopy color accessor and blend mode across a mixed dense scene', () => {
     const mixedData = [
@@ -211,10 +161,9 @@ describe('native tree geometry', () => {
     const customMesh = getTreeWoodMesh('palm');
     const {layer} = createLayer(data, {_subLayerProps: {trunks: {mesh: customMesh}}});
     const wood = layer.renderLayers().find(child => child.id.includes('wood'))!;
+    expect(wood).toBeInstanceOf(TreeWoodLayer);
     expect(wood.props.mesh).toBe(customMesh);
-    expect(wood.props.woodMorph).toBe(false);
-    expect(wood.props.getStemRadius).toBe(-1);
-    expect(wood.props.getRootLength).toBe(-1);
+    expect(wood.props.templateMesh).not.toBe(customMesh);
   });
   it('gives date palms a slimmer tapered bole with bark scars down the full trunk', () => {
     const mesh = getTreeWoodMesh('palm');
@@ -254,41 +203,7 @@ describe('native tree geometry', () => {
   });
 });
 
-describe('winter trunk and leader join contracts', () => {
-  it('provides centered join rings with the same angular grid as the trunk at every detail', () => {
-    for (const detail of ['low', 'medium', 'high'] as const) {
-      const trunk = getTreeMesh('trunk', 'oak', detail);
-      const top = getMeshRing(trunk, 1);
-      for (const species of ['oak', 'birch', 'cherry'] as const) {
-        const crown = getTreeMesh('canopy', species, detail, true);
-        const join = getMeshRing(crown, 0.22, true);
-        expect(join.length).toBe(detail === 'low' ? 8 : 12);
-        expect(top.length).toBe(join.length);
-        for (const point of join) {
-          const radius = Math.hypot(point[0], point[1]);
-          expect(radius).toBeCloseTo(0.06, 6);
-          const matching = top.find(
-            candidate =>
-              Math.hypot(
-                candidate[0] / 0.7 - point[0] / radius,
-                candidate[1] / 0.7 - point[1] / radius
-              ) < 0.000001
-          );
-          expect(matching).toBeDefined();
-        }
-        for (const axis of [0, 1])
-          expect(join.reduce((sum, point) => sum + point[axis], 0)).toBeCloseTo(0, 6);
-        // A taper needs real rings above the join, not just interpolated shader values.
-        expect(getMeshRing(crown, 0.27, true).length).toBe(join.length);
-        expect(getMeshRing(crown, 0.42, true).length).toBe(join.length);
-        expect(
-          crown.attributes.TEXCOORD_0.value.some((value, i) => i % 2 === 0 && value === 0)
-        ).toBe(true);
-        expect(trunk.attributes.TEXCOORD_0.value.every(value => value === 0)).toBe(true);
-      }
-    }
-  });
-
+describe('tree wood and crop contracts', () => {
   it('anchors the connected root at the tree base across dimensions, yaw and canopy anisotropy', () => {
     for (const species of ['oak', 'birch', 'cherry'] as const) {
       for (const dimensions of [
@@ -641,11 +556,6 @@ describe('TreeLayer prepared data and crop contracts', () => {
       expect(point[2]).toBe(0.35);
       expect(samplePineSurface(levels, 0.35, 0.8)).toEqual(point);
     }
-  });
-  it('samples crop points on the visible union envelope', () => {
-    const point = sampleCrownSurface('oak', [1, 0, 0]);
-    expect(point[0]).toBeGreaterThan(0.4);
-    expect(point[2]).toBe(0.5);
   });
 });
 

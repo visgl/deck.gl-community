@@ -48,7 +48,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
     ...TreeMeshLayer.defaultProps,
     // SimpleMeshLayer's boolean metadata only compares material truthiness.
     material: {type: 'object', value: true, compare: 2},
-    templateMesh: {type: 'object', value: null}
+    templateMesh: {type: 'object', value: null},
+    farTrunkOnly: false
   };
   declare state: {
     near: Row[];
@@ -245,7 +246,14 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               ...(this.hasCustomMesh() ? {getStemRadius: -1, getRootLength: -1} : {}),
               mesh: this.hasCustomMesh()
                 ? this.props.mesh
-                : getTreeWoodMesh(row.type, row.levels, aggregate, row.characteristics, true)
+                : getTreeWoodMesh(
+                    row.type,
+                    row.levels,
+                    aggregate,
+                    row.characteristics,
+                    true,
+                    aggregate && this.props.farTrunkOnly
+                  )
             })
           ]
         : []

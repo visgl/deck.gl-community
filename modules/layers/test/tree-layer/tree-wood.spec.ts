@@ -81,6 +81,21 @@ it('keeps deciduous leaders inside the dense crown and retains branches in dista
   }
 });
 
+it('uses a reduced branchless bole for subpixel dense wood LOD', () => {
+  for (const type of ['oak', 'banyan', 'mangrove'] as const) {
+    const aggregate = getTreeWoodMesh(type, 3, true, undefined, true);
+    const trunkOnly = getTreeWoodMesh(type, 3, true, undefined, true, true);
+    expect(trunkOnly.attributes.POSITION.value.length).toBeLessThan(
+      aggregate.attributes.POSITION.value.length
+    );
+    expect(trunkOnly.attributes.POSITION.value.every(Number.isFinite)).toBe(true);
+    expect(
+      trunkOnly.indices.value.every(index => index < trunkOnly.attributes.POSITION.value.length / 3)
+    ).toBe(true);
+    expect(getTreeWoodMesh(type, 3, true, undefined, true, true)).toBe(trunkOnly);
+  }
+});
+
 it('builds finite banyan roots across sparse asymmetric growth', () => {
   for (let seed = 0; seed < 64; seed++) {
     const traits = {seed, branchDensity: 0.5, crownAsymmetry: 2, crownSpread: 0.6, crownDepth: 0.6};
