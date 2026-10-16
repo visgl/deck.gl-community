@@ -28,7 +28,7 @@ This page lists module additions and major changes in each release. For detailed
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
 
-- Added one [TreeLayer showcase](/examples/layers/tree-lab) with close-up specimen controls, an eight-species grove, seasonal foliage, fruit and blossoms, and live morphology and wind adjustments.
+- Added one [TreeLayer showcase](/examples/layers/tree-lab) with a close-up specimen, a row-planted single-species grove with repeatable variation, and a sparse four-species forest. Controls cover seasonal foliage, morphology, wind, and crop shape, count, and size.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
   one shared Deck, with scoped views, layers and widgets. A four-city standalone

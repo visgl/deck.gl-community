@@ -52,6 +52,9 @@
 .trees-controls .trees-select[hidden] {
   display: none;
 }
+.trees-controls .trees-range[hidden] {
+  display: none;
+}
 .trees-range {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 4em;
