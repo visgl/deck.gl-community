@@ -205,13 +205,28 @@ test.each([
       expect(actions.filter(action => action.editType === 'addTentativePosition')).toHaveLength(
         actionCount
       );
+      await userEvent.click(otherCanvas, {position: {x: 100, y: 80}});
+      await vi.waitFor(() =>
+        expect(actions.filter(action => action.editType === 'addTentativePosition')).toHaveLength(
+          actionCount + 1
+        )
+      );
+      const clickCancelCount = actions.filter(action => action.editType === 'cancelFeature').length;
       eventTarget = canvas;
       updateLayer();
       await ready();
+      await vi.waitFor(() =>
+        expect(actions.filter(action => action.editType === 'cancelFeature')).toHaveLength(
+          clickCancelCount + 1
+        )
+      );
+      expect(
+        (layer.getCurrentLayer()?.state.mode as DrawPolygonMode).getClickSequence()
+      ).toHaveLength(0);
       otherCanvas.remove();
       await userEvent.click(canvas, {position: {x: 400, y: 300}});
       expect(actions.filter(action => action.editType === 'addTentativePosition')).toHaveLength(
-        actionCount + 1
+        actionCount + 2
       );
     }
 

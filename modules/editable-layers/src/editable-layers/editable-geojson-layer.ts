@@ -400,7 +400,24 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   updateState({props, oldProps, changeFlags, context}: UpdateParameters<this>) {
+    const previousEventTarget = this.state?._editableLayerState?.eventTarget;
+    const hadActivePan = Boolean(this.state?._editableLayerState?.pointerDownMapCoords);
     super.updateState({oldProps, props, changeFlags, context});
+
+    const modeWithClickSequence = this.state.mode as GeoJsonEditModeType & {
+      getClickSequence?: () => unknown[];
+    };
+    if (
+      previousEventTarget !== this.state._editableLayerState.eventTarget &&
+      !hadActivePan &&
+      modeWithClickSequence.getClickSequence?.().length
+    ) {
+      // Clear click-to-draw state even when no pan gesture is active.
+      queueMicrotask(() => {
+        const currentLayer = (this.getCurrentLayer() || this) as this;
+        currentLayer.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+      });
+    }
 
     if (changeFlags.propsOrDataChanged) {
       const modePropChanged = Object.keys(oldProps).length === 0 || props.mode !== oldProps.mode;
