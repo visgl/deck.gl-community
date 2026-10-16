@@ -21,6 +21,8 @@ This page lists module additions and major changes in each release. For detailed
   offset origins and model matrices, retaining local coordinates in snap results and padding
   omitted origin altitude with zero. Additional targets must be converted to the editable data frame.
   `modeConfig.snapper` accepts a custom `Snapper` policy; external targets omit editable feature indexes.
+  `modeConfig.snapToAdditionalTargetsOnly` makes the default policy target only supplied external
+  features while retaining editable-layer source handles.
 
 - `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary

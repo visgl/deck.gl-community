@@ -92,6 +92,9 @@ Two-element coordinate origins use zero altitude without mutating the supplied a
 before its `modelMatrix`. It carries no source-layer transform metadata. When copying
 targets from a layer with a different coordinate system, origin or model matrix, convert
 their coordinates before supplying them; raw coordinates from another frame are unsupported.
+Set `snapToAdditionalTargetsOnly: true` to make the default snapper ignore editable-layer
+features as targets while retaining them as source handles. The default remains the combined
+target set. A custom `Snapper` selects its own targets and can apply the same policy directly.
 
 #### SelectionLayer polygon selection
 

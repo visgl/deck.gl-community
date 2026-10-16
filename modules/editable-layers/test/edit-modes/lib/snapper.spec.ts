@@ -59,6 +59,103 @@ test('external targets have no editable feature index and survive editable exclu
   ).toBe(true);
 });
 
+test('additional-target-only snapping ignores editable targets and preserves external identity', () => {
+  const props = createProps();
+  const externalPoint = {...point, geometry: {...point.geometry, coordinates: [6, 1]}};
+  props.data.features = [point];
+  props.modeConfig.additionalSnapTargets = [externalPoint];
+  props.lastPointerMoveEvent = createPointerMoveEvent([5, 1], [], [55, 49]);
+
+  expect(new DefaultSnapper().snap(props.lastPointerMoveEvent, props, new Set())).toEqual({
+    mapCoords: [5, 1],
+    featureIndex: 0
+  });
+
+  props.modeConfig.snapToAdditionalTargetsOnly = true;
+  const excluded = new Set([0]);
+  expect(new DefaultSnapper().snap(props.lastPointerMoveEvent, props, excluded)).toEqual({
+    mapCoords: [6, 1],
+    featureIndex: undefined
+  });
+  expect(getSnapTargetHandles(props, excluded)).toEqual([
+    expect.objectContaining({
+      geometry: {type: 'Point', coordinates: [6, 1]},
+      properties: expect.objectContaining({editHandleType: 'snap-target', featureIndex: -1})
+    })
+  ]);
+});
+
+test('additional-target-only snapping filters line targets before edge evaluation', () => {
+  const props = createProps();
+  const line = (x: number) => ({
+    type: 'Feature' as const,
+    properties: {},
+    geometry: {
+      type: 'LineString' as const,
+      coordinates: [
+        [x, 0],
+        [x, 2]
+      ]
+    }
+  });
+  props.data.features = [line(5)];
+  props.modeConfig = {
+    ...props.modeConfig,
+    additionalSnapTargets: [line(6)],
+    edgeSnapping: true
+  };
+
+  expect(new DefaultSnapper().snap(props.lastPointerMoveEvent, props, new Set())).toEqual({
+    mapCoords: [5, 0],
+    featureIndex: 0
+  });
+
+  props.modeConfig.snapToAdditionalTargetsOnly = true;
+  expect(new DefaultSnapper().snap(props.lastPointerMoveEvent, props, new Set([0]))).toEqual({
+    mapCoords: [6, 0],
+    featureIndex: undefined
+  });
+});
+
+test('additional-target-only snapping retains selected editable features as sources', () => {
+  const props = createProps();
+  const externalPoint = {...point, geometry: {...point.geometry, coordinates: [6, 1]}};
+  props.data.features = [point];
+  props.selectedIndexes = [0];
+  props.modeConfig = {
+    ...props.modeConfig,
+    additionalSnapTargets: [externalPoint],
+    snapToAdditionalTargetsOnly: true
+  };
+  props.lastPointerMoveEvent.pointerDownPicks = [
+    {
+      index: 0,
+      isGuide: true,
+      object: {
+        type: 'Feature',
+        geometry: point.geometry,
+        properties: {
+          guideType: 'editHandle',
+          editHandleType: 'snap-source',
+          featureIndex: 0,
+          positionIndexes: []
+        }
+      }
+    }
+  ];
+
+  expect(new SourceSnappingStrategy().getSnapGuides(props).features).toEqual([
+    expect.objectContaining({
+      geometry: {type: 'Point', coordinates: [6, 1]},
+      properties: expect.objectContaining({editHandleType: 'snap-target', featureIndex: -1})
+    }),
+    expect.objectContaining({
+      geometry: point.geometry,
+      properties: expect.objectContaining({editHandleType: 'snap-source', featureIndex: 0})
+    })
+  ]);
+});
+
 test('unsupported external geometry is ignored safely', () => {
   const props = createProps();
   props.modeConfig.additionalSnapTargets = [

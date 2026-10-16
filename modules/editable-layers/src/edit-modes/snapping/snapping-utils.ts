@@ -37,6 +37,12 @@ type EdgeSnapCandidate = NearestPointType & {
   screenDistance: number;
 };
 
+type SnapTarget = {
+  feature: Feature;
+  /** Undefined for targets supplied by another layer. */
+  featureIndex?: number;
+};
+
 /**
  * Returns the feature index of the edit handle currently being dragged, or
  * undefined when no handle is being dragged.
@@ -178,9 +184,19 @@ export function findEdgeSnapCandidateForFeature(
     : undefined;
 }
 
-export function getFeatures(props: ModeProps<SimpleFeatureCollection>): Feature[] {
+/**
+ * Lists the default policy's targets while retaining whether a target belongs
+ * to the editable collection. External targets deliberately have no editable
+ * feature index, so selected-feature exclusions cannot hide them.
+ */
+export function getSnapTargets(props: ModeProps<SimpleFeatureCollection>): SnapTarget[] {
   const additionalSnapTargets = props.modeConfig?.additionalSnapTargets || [];
-  return [...props.data.features, ...additionalSnapTargets];
+  const externalTargets = additionalSnapTargets.map((feature: Feature) => ({feature}));
+  if (props.modeConfig?.snapToAdditionalTargetsOnly) return externalTargets;
+  return [
+    ...props.data.features.map((feature, featureIndex) => ({feature, featureIndex})),
+    ...externalTargets
+  ];
 }
 
 /**
@@ -196,15 +212,17 @@ export function getSnapTargetHandles(
   const customSnapper: Snapper | undefined = props.modeConfig?.snapper;
   // Custom policies own their targets, including source-handle translation.
   if (!customSnapper) {
-    const features = getFeatures(props);
-    for (let i = 0; i < features.length; i++) {
-      const feature = features[i];
-      if (excluded.has(i) || !feature.geometry || feature.geometry.type === 'GeometryCollection')
+    for (const {feature, featureIndex} of getSnapTargets(props)) {
+      if (
+        (featureIndex !== undefined && excluded.has(featureIndex)) ||
+        !feature.geometry ||
+        feature.geometry.type === 'GeometryCollection'
+      )
         continue;
       handles.push(
         ...getEditHandlesForGeometry(
           feature.geometry as SimpleGeometry,
-          i < props.data.features.length ? i : -1,
+          featureIndex ?? -1,
           'snap-target'
         )
       );

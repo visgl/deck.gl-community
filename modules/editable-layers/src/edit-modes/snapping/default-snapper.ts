@@ -6,7 +6,7 @@ import {coordEach} from '@turf/meta';
 import {SimpleFeatureCollection, Position} from '../../utils/geojson-types';
 import {BasePointerEvent, ModeProps} from '../types';
 import {Snapper, SnapResult} from './snapper';
-import {getFeatures, findEdgeSnapCandidateForFeature} from './snapping-utils';
+import {getSnapTargets, findEdgeSnapCandidateForFeature} from './snapping-utils';
 import {toWebMercatorViewport} from '../utils';
 
 /** Finds the nearest vertex or bounded edge point in current viewport pixels. */
@@ -21,14 +21,12 @@ export class DefaultSnapper implements Snapper {
     const viewport = props.modeConfig?.viewport;
     if (!viewport || radius === undefined || radius < 0 || !Number.isFinite(radius)) return null;
     const wmViewport = toWebMercatorViewport(viewport);
-    const features = getFeatures(props);
     const radiusSquared = radius ** 2;
     let closest: SnapResult | null = null;
     let closestDistanceSquared = Infinity;
-    for (let i = 0; i < features.length; i++) {
-      const feature = features[i];
+    for (const {feature, featureIndex} of getSnapTargets(props)) {
       if (
-        excludedFeatureIndexes.has(i) ||
+        (featureIndex !== undefined && excludedFeatureIndexes.has(featureIndex)) ||
         !feature.geometry ||
         feature.geometry.type === 'GeometryCollection'
       )
@@ -41,7 +39,7 @@ export class DefaultSnapper implements Snapper {
         if (distanceSquared <= radiusSquared && distanceSquared < closestDistanceSquared) {
           closest = {
             mapCoords: coordinates,
-            featureIndex: i < props.data.features.length ? i : undefined
+            featureIndex
           };
           closestDistanceSquared = distanceSquared;
         }
@@ -51,7 +49,7 @@ export class DefaultSnapper implements Snapper {
       if (props.modeConfig?.edgeSnapping) {
         const candidate = findEdgeSnapCandidateForFeature(
           feature,
-          i,
+          featureIndex ?? -1,
           {...props, lastPointerMoveEvent: {...props.lastPointerMoveEvent, ...event}},
           wmViewport
         );
