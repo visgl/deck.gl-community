@@ -65,9 +65,9 @@ export function getTreeSplatSource(
     normals.push(...n);
   };
   if (type === 'palm') {
-    // Arching pinnate fronds with a visible rachis and a tight spear at the crown.
-    const frondCount = 24;
-    const spearCount = 5;
+    // Distinct arching pinnate fronds; one tapered splat per leaflet avoids a fuzzy segmented edge.
+    const frondCount = 22;
+    const spearCount = 4;
     const leafletCount = 16;
     for (let k = 0; k < frondCount + spearCount; k++) {
       const spear = k >= frondCount;
@@ -77,8 +77,8 @@ export function getTreeSplatSource(
         ((index + (spear ? 0.5 : 0)) / count) * Math.PI * 2 +
         (spear ? 0 : Math.sin(index * 5.37) * 0.07);
       const tier = index % 4;
-      const tipRadius = 0.82 + ((index * 7) % 9) * 0.018;
-      const tipDrop = 0.1 + tier * 0.035 + ((index * 3) % 7) * 0.008;
+      const tipRadius = 0.78 + rng() * 0.18;
+      const tipDrop = 0.1 + tier * 0.035 + rng() * 0.05;
       const controls = spear
         ? [
             [0.025, 0.46],
@@ -129,25 +129,21 @@ export function getTreeSplatSource(
         for (const side of [-1, 1]) {
           const direction = new Vector3(sideways)
             .scale(side)
-            .add(new Vector3(tangent).scale(0.16 + Math.sin(angle + j * 0.7) * 0.05))
-            .add([0, 0, -0.08 - t * 0.32])
+            .add(new Vector3(tangent).scale(0.2 + Math.sin(angle + j * 0.7) * 0.06))
+            .add([0, 0, -0.06 - t * 0.24])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = 0.055 + fullness * 0.12;
-          // Three overlapping ellipsoids taper each leaflet without a segmented edge.
-          for (let segment = 0; segment < 3; segment++) {
-            const progress = (segment + 0.55) / 3.1;
-            const center = new Vector3(point)
-              .add(new Vector3(sideways).scale(side * 0.004))
-              .add(new Vector3(direction).scale(length * progress));
-            add(
-              Array.from(center) as Point,
-              [length / 6, ((0.006 + fullness * 0.009) * (1 - progress * 0.45)) / 2, 0.0015],
-              Array.from(normal) as Point,
-              0.9,
-              Array.from(direction) as Point
-            );
-          }
+          const length = (0.055 + fullness * 0.09) * (0.9 + rng() * 0.2);
+          const center = new Vector3(point)
+            .add(new Vector3(sideways).scale(side * 0.004))
+            .add(new Vector3(direction).scale(length * 0.55));
+          add(
+            Array.from(center) as Point,
+            [length * 0.42, 0.0035 + fullness * 0.0035, 0.0015],
+            Array.from(normal) as Point,
+            0.84,
+            Array.from(direction) as Point
+          );
         }
       }
     }

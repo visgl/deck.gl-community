@@ -114,7 +114,7 @@ describe('native tree geometry', () => {
         expect(crown).toBeInstanceOf(SplatLayer);
         expect(crown!.props.transparency).toBe('sorted');
         expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(
-          type === 'palm' ? 900 : 1000
+          type === 'palm' ? 700 : 1000
         );
         expect(crown!.props.getSource.hierarchy[0].source).toBe(crown!.props.getSource.source);
       }
@@ -169,7 +169,8 @@ describe('native tree geometry', () => {
     expect(Math.max(...p.filter((_, i) => i % 3 === 0))).toBeGreaterThan(0.82);
     expect(Math.max(...p.filter((_, i) => i % 3 === 2))).toBeGreaterThan(0.95);
     const palmSplats = getTreeSplatSource('palm');
-    expect(palmSplats.positions.length / 3).toBeGreaterThan(2800);
+    expect(palmSplats.positions.length / 3).toBeGreaterThan(1000);
+    expect(palmSplats.positions.length / 3).toBeLessThan(1200);
     expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
     expect(getTreeSplatSource('palm')).toBe(palmSplats);
   });
@@ -201,6 +202,41 @@ describe('native tree geometry', () => {
     expect(closeCanopy).toBeInstanceOf(SplatLayer);
     expect(closeCanopy.id).toBe(canopy.id);
     expect(closeWood.id).not.toBe(wood.id);
+  });
+  it('uses one stable canopy color accessor and blend mode across a mixed dense scene', () => {
+    const mixedData = [
+      ...Array.from({length: 1024}, (_, index) => ({
+        position: [index % 32, Math.floor(index / 32)] as [number, number],
+        type: 'oak' as const,
+        season: 'summer' as const
+      })),
+      {position: [40, 0] as [number, number], type: 'pine' as const, season: 'summer' as const}
+    ];
+    const {layer} = createLayer(mixedData);
+    const first = layer.renderLayers().filter(child => child instanceof SplatLayer);
+    const second = layer.renderLayers().filter(child => child instanceof SplatLayer);
+    expect(first).toHaveLength(2);
+    expect(first.map(child => child.props.transparency)).toEqual(['weighted', 'weighted']);
+    for (const [index, canopy] of first.entries()) {
+      expect(second[index].props.getColor).toBe(canopy.props.getColor);
+      expect(second[index].props.updateTriggers.getColor[0]).toBe(
+        canopy.props.updateTriggers.getColor[0]
+      );
+    }
+  });
+  it('does not apply native dense wood deformation to a custom mesh override', () => {
+    const data = Array.from({length: 1024}, (_, index) => ({
+      position: [index % 32, Math.floor(index / 32)] as [number, number],
+      type: 'oak' as const,
+      season: 'summer' as const
+    }));
+    const customMesh = getTreeWoodMesh('palm');
+    const {layer} = createLayer(data, {_subLayerProps: {trunks: {mesh: customMesh}}});
+    const wood = layer.renderLayers().find(child => child.id.includes('wood'))!;
+    expect(wood.props.mesh).toBe(customMesh);
+    expect(wood.props.woodMorph).toBe(false);
+    expect(wood.props.getStemRadius).toBe(-1);
+    expect(wood.props.getRootLength).toBe(-1);
   });
   it('gives date palms a slimmer tapered bole with bark scars down the full trunk', () => {
     const mesh = getTreeWoodMesh('palm');
