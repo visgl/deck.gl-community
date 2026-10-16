@@ -313,7 +313,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> & {shadowEnabled: fals
   shadowEnabled: false
 };
 
-const DENSE_WOOD_COUNT = 1024;
+const DENSE_TREE_COUNT = 1024;
 
 type TreeRow<DataT> = {
   object: DataT;
@@ -850,7 +850,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
           }
         };
-        if (data.length >= DENSE_WOOD_COUNT) {
+        if (data.length >= DENSE_TREE_COUNT) {
           // Dense scenes need the aggregate connected shell, not per-tree near/far selection.
           layers.push(
             new TreeMeshLayer(
@@ -904,7 +904,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               data,
               ...shared,
               getSource: getTreeSplatData(type, levels, characteristics),
-              transparency: 'weighted',
+              transparency: data.length >= DENSE_TREE_COUNT ? 'weighted' : 'sorted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
               pixelError: type === 'palm' ? 0.65 : 2.5,
               maxRenderPixels: this.props.maxCanopyPixels,

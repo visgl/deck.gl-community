@@ -112,6 +112,7 @@ describe('native tree geometry', () => {
         expect(crown).toBeUndefined();
       else {
         expect(crown).toBeInstanceOf(SplatLayer);
+        expect(crown!.props.transparency).toBe('sorted');
         expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(
           type === 'palm' ? 900 : 1000
         );
