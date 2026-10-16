@@ -120,4 +120,3 @@ The following modes support snapping when wrapped with `SnappableMode`:
 - `TranslateMode`
 
 `TransformMode` supports snapping natively via `modeConfig.enableSnapping` and does not require `SnappableMode`.
-
