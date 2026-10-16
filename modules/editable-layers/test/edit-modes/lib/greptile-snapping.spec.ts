@@ -75,6 +75,8 @@ test('drag-to-draw snaps its first corner as well as its release', () => {
     [{index: 0, isGuide: true, object: handle('snap-target')}]
   );
   start.screenCoords = [50.4, 49.6];
+  start.pointerDownScreenCoords = [50.4, 49.6];
+  start.pointerDownPicks = start.picks;
   mode.handleStartDragging(start, props);
   expect(wrapped.getClickSequence()[0]).toEqual([0, 0]);
 });
