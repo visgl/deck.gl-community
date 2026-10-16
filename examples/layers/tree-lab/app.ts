@@ -354,7 +354,7 @@ export function mountTreeLabExample(
           backgroundPadding: [6, 3],
           backgroundBorderRadius: 5,
           getBackgroundColor: [250, 252, 247, 245],
-          visible: scene !== 'specimen'
+          visible: scene === 'forest'
         })
       ]
     });
