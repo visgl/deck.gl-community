@@ -216,7 +216,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const refinementChanged =
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
-      props.shadowEnabled !== oldProps.shadowEnabled ||
       props.maxSplats !== oldProps.maxSplats ||
       props.kernelVariance !== oldProps.kernelVariance ||
       renderPixelRatio !== this.state.renderPixelRatio;
