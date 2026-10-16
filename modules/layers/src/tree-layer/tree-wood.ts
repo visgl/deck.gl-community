@@ -81,7 +81,7 @@ export function getTreeWoodMesh(
                 const progress = Math.max(0, Math.min(1, (z + 1) / (leaderTop + 1)));
                 const scar = aggregate
                   ? 0
-                  : Math.pow((1 + Math.cos(progress * Math.PI * 44)) / 2, 10) * 0.0022;
+                  : Math.pow((1 + Math.cos(progress * Math.PI * 44)) / 2, 10) * 0.008;
                 return 0.074 - progress * 0.018 + scar;
               })()
             : 0.06 * (1 - (Math.max(0, z - 0.22) / 0.85) * 0.84)
@@ -179,9 +179,9 @@ export function getTreeWoodMesh(
           const scar =
             type === 'palm' && trunk
               ? Math.pow(
-                  (1 + Math.cos(((path[ring][2] + 1) / (leaderTop + 1)) * Math.PI * 44)) / 2,
-                  8
-                ) * 0.12
+                  (1 + Math.cos(((path[ring][2] + 1) / (leaderTop + 1)) * Math.PI * 32)) / 2,
+                  4
+                ) * 0.3
               : 0;
           return addVertex(
             point,
