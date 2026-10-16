@@ -68,8 +68,7 @@ hierarchies retain their existing approximation; this does not implement RAD row
 The existing prepared primitive and `SplatEffect` present weighted output. Immutable uploads
 continue to be reference-counted per source and device.
 
-Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats` and
-`maxShadowSplats`. The final #806 adds nested inventory groups that inherit their parent ceiling. Local child caps
+Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats`. Nested inventory groups inherit their parent ceiling. Local child caps
 remain effective. `maxTotalSplats` applies the strictest participating shared cap. Allocator
 priorities compare projected error reduction across source roots, preserving coarsest coverage.
 Optical transitions retain the existing soft overlap allowance. These are submission budgets,
@@ -77,7 +76,7 @@ not hard GPU memory or frame-time guarantees.
 
 `getTransformMatrix` replaces orientation, scale and translation with a finite affine local
 matrix, including covariance and conservative shear bounds. `splatStats` reports source/hierarchy
-pairs, selected owners, submitted camera/shadow work, coarsest coverage and moving refinements.
+pairs, selected owners, submitted Gaussian work, coarsest coverage and moving refinements.
 The regular TreeLayer milestone uses supplied `data` rows. Geographic inventory streaming and
 its `streamingStats` arrive in the final #806 after Coit. Coit depends on the shared SplatLayer
 runtime alone. The #806 row above describes that later milestone.

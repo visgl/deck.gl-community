@@ -19,8 +19,6 @@ import {
   type SplatSpatialNode
 } from '../splat-layer/splat-spatial-index';
 import {retainSplatRows, getSplatChangedRanges} from '../splat-layer/splat-row-diff';
-import type {SplatShadowProjection} from '../splat-layer/splat-shadow-pass';
-import type {Viewport} from '@deck.gl/core';
 import type {TreeType} from './tree-layer';
 import type {TreeCharacteristics} from './tree-characteristics';
 
@@ -55,33 +53,21 @@ export class TreeWoodLayer extends CompositeLayer<any> {
   declare state: {
     near: Row[];
     nearWeights: Map<Row, number>;
-    shadowWeights: Map<Row, number>;
     far: Row[];
-    shadow: Row[];
-    shadowNear: Row[];
-    shadowFar: Row[];
     owners: Owner[];
     spatialIndex: SplatSpatialNode<Owner> | null;
     projectionKey: string;
     projectedPositions: Map<string, SplatProjectedPosition>;
-    shadowKey: string;
-    shadowProjections: SplatShadowProjection[] | null;
   };
   initializeState() {
     this.state = {
       near: [],
       nearWeights: new Map(),
-      shadowWeights: new Map(),
       far: [],
-      shadow: [],
-      shadowNear: [],
-      shadowFar: [],
       owners: [],
       spatialIndex: null,
       projectionKey: '',
-      projectedPositions: new Map(),
-      shadowKey: '',
-      shadowProjections: null
+      projectedPositions: new Map()
     };
   }
   shouldUpdateState({changeFlags}) {
@@ -227,88 +213,12 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       far: retainSplatRows(this.state.far, far),
       owners,
       spatialIndex,
-      projectionKey,
-      // Ordinary LightingEffect has no prepareShadow callback. Keep conservative
-      // casters until an optical host supplies a light volume; retain that volume on rebuild.
-      ...(rebuild
-        ? {
-            shadowKey: '',
-            ...(!this.state.shadowProjections
-              ? {
-                  shadow: owners.map(owner => owner.row),
-                  shadowNear: owners.map(owner => owner.row),
-                  shadowFar: [],
-                  shadowWeights: new Map(owners.map(owner => [owner.row, 1]))
-                }
-              : {})
-          }
-        : {})
+      projectionKey
     });
-    if (rebuild && this.state.shadowProjections)
-      this.prepareShadow(this.state.shadowProjections, viewport);
   }
   private hasCustomMesh(): boolean {
     const row = this.props.data[0] as Row | undefined;
     return Boolean(row && this.props.mesh && this.props.mesh !== this.props.templateMesh);
-  }
-  prepareShadow(projections: SplatShadowProjection[], viewport: Viewport) {
-    this.state.shadowProjections = projections;
-    const key = projections
-      .map(projection => [
-        ...projection.matrix,
-        ...projection.center,
-        projection.width,
-        projection.height
-      ])
-      .join(',');
-    if (key === this.state.shadowKey) return;
-    const first = this.state.owners[0];
-    const relative = first ? this.projectPosition(first.position, {viewport}) : [0, 0, 0];
-    const origin = first ? first.common.map((value, axis) => value - relative[axis]) : [0, 0, 0];
-    const absoluteProjections = projections.map(projection => ({
-      ...projection,
-      center: projection.center.map(
-        (value, axis) =>
-          value -
-          projection.matrix[axis] * origin[0] -
-          projection.matrix[axis + 4] * origin[1] -
-          projection.matrix[axis + 8] * origin[2]
-      )
-    }));
-    const shadowWeights = new Map<Row, number>();
-    const shadow: Row[] = [],
-      shadowNear: Row[] = [],
-      shadowFar: Row[] = [];
-    const lightScales = absoluteProjections.map(
-      projection =>
-        0.5 *
-        Math.max(
-          Math.hypot(projection.matrix[0], projection.matrix[4], projection.matrix[8]) *
-            projection.width,
-          Math.hypot(projection.matrix[1], projection.matrix[5], projection.matrix[9]) *
-            projection.height
-        )
-    );
-    for (const owner of this.hasCustomMesh()
-      ? this.state.owners
-      : querySplatSpatialIndex(this.state.spatialIndex, absoluteProjections)) {
-      shadow.push(owner.row);
-      // Light-space footprint, never the camera's nominal map zoom. Small shadow branches
-      // retain the connected coarse mesh rather than the entire fine skeleton.
-      const pixels = owner.radius * Math.max(...lightScales);
-      const t = Math.max(0, Math.min(1, (pixels - 80) / 100)),
-        weight = t * t * (3 - 2 * t);
-      shadowWeights.set(owner.row, weight);
-      if (weight >= 0.5) shadowNear.push(owner.row);
-      else shadowFar.push(owner.row);
-    }
-    this.setState({
-      shadow: retainSplatRows(this.state.shadow, shadow),
-      shadowWeights,
-      shadowNear: retainSplatRows(this.state.shadowNear, shadowNear),
-      shadowFar: retainSplatRows(this.state.shadowFar, shadowFar),
-      shadowKey: key
-    });
   }
   renderLayers() {
     const row = this.props.data[0] as Row | undefined;
@@ -316,9 +226,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
     return (
       [
         ['near', this.state.near, false],
-        ['far', this.state.far, true],
-        ['shadow-near', this.state.shadowNear, false],
-        ['shadow-far', this.state.shadowFar, true]
+        ['far', this.state.far, true]
       ] as const
     ).flatMap(([id, data, aggregate]) =>
       data.length
@@ -331,10 +239,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               // Wood is opaque. Dithering different skeletons exposes disconnected
               // surfaces and cannot provide complementary pixel coverage.
               getCoverageRange: [0, 1],
-              operation: id.startsWith('shadow-') ? 'shadow' : 'draw',
-              // Light-space children own casting; camera LoD children only receive shadows.
-              shadowEnabled: id.startsWith('shadow-') && this.props.shadowEnabled !== false,
-              pickable: !id.startsWith('shadow-') && this.props.pickable,
+              shadowEnabled: false,
+              pickable: this.props.pickable,
               woodMorph: !this.hasCustomMesh(),
               ...(this.hasCustomMesh() ? {getStemRadius: -1, getRootLength: -1} : {}),
               mesh: this.hasCustomMesh()

@@ -49,9 +49,6 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.trees-controls .trees-shadow {
-  white-space: nowrap;
-}
 .trees-stage {
   position: relative;
   flex: 1;

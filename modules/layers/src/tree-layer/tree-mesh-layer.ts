@@ -9,8 +9,6 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
-import type {Model} from '@luma.gl/engine';
-import {getPickingShadowProps} from '../splat-layer/splat-picking-shadow';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
 
@@ -143,7 +141,7 @@ const WGSL_WIND = `
   }
 `;
 
-/** Shared shader deformation for trunks, crowns and attached crops, including picking/shadows. */
+/** Shared shader deformation for trunks, crowns and attached crops. */
 export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT>> {
   static layerName = 'TreeMeshLayer';
   static defaultProps: DefaultProps<SimpleMeshLayerProps<unknown> & WindProps<unknown>> = {
@@ -252,18 +250,10 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     return {
       ...shaders,
       modules: [...shaders.modules, TREE_WIND, TREE_COVERAGE],
-      // Filter the final shaded color. In a shadow pass the filter writes packed
-      // depth; lighting or opacity must never modify those RGBA bytes afterward.
-      fs: shaders.fs
-        .replace('  DECKGL_FILTER_COLOR(color, geometry);', '')
-        .replace(
-          'vec3 lightColor =',
-          'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='
-        )
-        .replace(
-          'fragColor = vec4(lightColor, color.a * layer.opacity);',
-          'color = vec4(lightColor, color.a * layer.opacity);\n  DECKGL_FILTER_COLOR(color, geometry);\n  fragColor = color;'
-        ),
+      fs: shaders.fs.replace(
+        'vec3 lightColor =',
+        'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='
+      ),
       vs: shaders.vs
         .replace(
           'void main(void) {',
@@ -307,10 +297,6 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
           : this.props.getWind;
       attribute.value.set(getTreeWindPhases(wind), objectInfo.index * 6);
     }
-  }
-
-  setShaderModuleProps(props: Parameters<Model['shaderInputs']['setProps']>[0]) {
-    super.setShaderModuleProps(getPickingShadowProps(this, props));
   }
 
   draw(params) {

@@ -42,14 +42,13 @@ equivalent physical radius; broadleaf crowns use approximately half that scale.
 
 `getTree` defaults to the source row and accepts a constant `TreeSpec` or `(row, accessorContext) => TreeSpec`. Supply a position and species; height, crown dimensions, first-branch height and bole thickness have species defaults. `height` and nominal `crownRadius` use metres. Per-tree `characteristics` selects a shared wood/leaf morphology, `season` controls foliage, `crop` is explicit, and `wind` accepts `true` (0.025), `false`, or a bend fraction up to 0.2. Omitted wind uses the layer's `windStrength`. Optional colors and elevation also live in the same object.
 
-Explicit granular accessors override corresponding `getTree` fields, so hosts can change a global season or bind a single field without rebuilding their inventory. Function accessors follow deck.gl's `updateTriggers` convention; use `updateTriggers.getTree` when a mapped trait function's captured values change. Position changes, species, crops and morphology rebuild prepared owner rows; global wind and animation time retain geometry. Default transforms and deterministic variation are shared across wood, leaves, crops, picking and shadows.
+Explicit granular accessors override corresponding `getTree` fields, so hosts can change a global season or bind a single field without rebuilding their inventory. Function accessors follow deck.gl's `updateTriggers` convention; use `updateTriggers.getTree` when a mapped trait function's captured values change. Position changes, species, crops and morphology rebuild prepared owner rows; global wind and animation time retain geometry. Default transforms and deterministic variation are shared across wood, leaves, crops and picking.
 
-The layer owns template sharing, mesh/splat composition, spatial visibility, refinement and bounded Gaussian work. There is no manual `detail` mode. Keep common morphology presets shared: unique botanical skeletons require distinct templates and draws. Sizes, colors, seasons and wind vary per instance without unique meshes. Host lighting still follows deck.gl's `LightingEffect` convention; translucent foliage shadow integration has the receiver limitations described below.
+The layer owns template sharing, mesh/splat composition, camera visibility, refinement and bounded Gaussian work. There is no manual `detail` mode. Keep common morphology presets shared: unique botanical skeletons require distinct templates and draws. Sizes, colors, seasons and wind vary per instance without unique meshes. Host lighting follows deck.gl's `LightingEffect` convention. The core renderer does not include tree shadows.
 
 Foliage inherits the [SplatLayer rendering limits](./splat-layer.md#rendering-and-refinement):
 use planar Cartesian or Web Mercator views in the unwrapped world. GlobeView, wrapped
-world copies and WebGPU `View.clear` are unsupported. Optical foliage shadows require
-WebGL and host receiver composition; WebGPU renders wood and foliage without shadows.
+world copies and WebGPU `View.clear` are unsupported.
 In Cartesian and metre-offset coordinates, layer `modelMatrix` supports translation only;
 rotation, scaling and shear report an explicit error to keep wood and foliage aligned.
 Use authored tree dimensions and positions to set the tree pose.
@@ -77,17 +76,14 @@ Inherits the deck.gl `CompositeLayer` properties. Accessors accept constants or 
 | `characteristics` | `{}` | Shared broadleaf morphology; changes regenerate the connected wood, leaves and crop attachment together. See below. |
 | `windStrength` | `0` | Bend amplitude as a fraction of tree height. Zero stops continuous redraw when no per-tree wind is authored; a value around `0.025` is a gentle breeze. |
 | `windTime` | `null` | Wind time in seconds. `null` uses deck.gl's timeline; a number freezes the pose for controlled comparisons. |
-| `shadowEnabled` | `true` | Cast shadows from opaque wood and crops with `LightingEffect`; translucent foliage needs the host optical shadow integration described below. |
 
 ## Crops
 
 `CropConfig` has `color`, `count`, `radius` and optional `droppedCount` and `kind`. Shapes are `fruit` (the default sphere), `lemon`, `cone`, `acorn`, `catkin`, `flower` and `propagule`. Radius is the enclosing sphere radius in metres, including elongated shapes and petals. Counts are explicitly supplied, rounded down and clamped at zero. Broadleaf crops attach to leaf-bearing shoots inside the same clusters used for foliage. Placement reserves clearance for the complete sphere under the tree’s anisotropic scale; attached crops too large to fit are omitted. Palm crops cluster beneath the frond sockets. Dropped crops use the same conservative spherical bounds above the ground. Positions are deterministic, remain stable when counts grow, and picking returns the owning source tree. Attached crops share the tree's GPU bend; dropped crops remain still.
 
-## Animation and shadows
+## Animation
 
-Wind is implemented in GLSL and WGSL. Trunks, crowns, attached crops, picking and WebGL shadow passes use the same deformation. Time changes do not rebuild geometry, regroup data or regenerate instance attributes.
-
-For opaque WebGL shadows, supply a deck.gl `LightingEffect` with a `DirectionalLight` whose `_shadow` option is enabled. Gaussian foliage additionally needs a light-space transmission pass. A host can combine the public `SplatShadowPass` with mesh depth on a planar receiver; see [SplatLayer shadows](./splat-layer.md#shadows) for the integration and receiver limitations. WebGPU shadow effects are not supported by deck.gl.
+Wind is implemented in GLSL and WGSL. Trunks, crowns, attached crops and picking use the same deformation. Time changes do not rebuild geometry, regroup data or regenerate instance attributes.
 
 ## Migration
 
@@ -95,7 +91,7 @@ Remove `detail` from TreeLayer props and `TreeDetail` from type imports. TreeLay
 
 The deprecated `@deck.gl-community/three` workspace is removed. Update imports and dependencies to `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season` and `CropConfig`. Previously published package versions are unchanged. The production renderer has no Three.js dependency.
 
-Gaussian crowns and connected winter silhouettes deliberately differ from the original geometry. `CropConfig.radius` now matches its documented radius: older geometry rendered half that radius. Halve an existing crop radius to retain its old apparent size. Inspect your explicit seasonal foliage overrides, canopy sublayer overrides and custom winter branches when migrating; the native crown sublayer IDs include foliage/winter and tier information. Legacy species overrides such as `canopy-cherry` remain supported and apply after native defaults. Exact grouped sublayer IDs take precedence over species aliases. Custom wood meshes reach both camera and shadow children without the native template morph; arbitrary custom geometry is kept conservatively visible. Overridden wood transform accessors and their triggers also determine culling bounds. Override accessors receive the source tree and its original accessor context; parameters and update triggers merge by key.
+Gaussian crowns and connected winter silhouettes deliberately differ from the original geometry. `CropConfig.radius` now matches its documented radius: older geometry rendered half that radius. Halve an existing crop radius to retain its old apparent size. Inspect your explicit seasonal foliage overrides, canopy sublayer overrides and custom winter branches when migrating; the native crown sublayer IDs include foliage/winter and tier information. Legacy species overrides such as `canopy-cherry` remain supported and apply after native defaults. Exact grouped sublayer IDs take precedence over species aliases. Custom wood meshes are used directly without the native template morph; arbitrary custom geometry is kept conservatively visible. Overridden wood transform accessors and their triggers also determine culling bounds. Override accessors receive the source tree and its original accessor context; parameters and update triggers merge by key.
 
 [Source](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/tree-layer)
 
@@ -148,28 +144,28 @@ Shaped crops use suffixes such as `live-crops-lemon`; spherical fruit retains `l
 
 ## Large forests
 
-Wood and foliage keep persistent owner bounds for camera and light-volume queries. Mercator bounds use each owner's geographic latitude, so camera pans preserve the index. Offscreen trees remain eligible for light-space shadows; camera refinement does not restore the entire forest to the shadow list. Mesh wind phases are prepared per owner while the animation clock supplies shared frame uniforms.
+Wood and foliage keep persistent owner bounds for camera queries. Mercator bounds use each owner's geographic latitude, so camera pans preserve the index. Mesh wind phases are prepared per owner while the animation clock supplies shared frame uniforms.
 
-The highest source detail remains available. Cost depends on the visible crowns, projected Gaussian support and shadow volume, rather than tree count alone. Measure delivered frame intervals and tail latency on the intended device.
+The highest source detail remains available. Cost depends on the visible crowns and projected Gaussian support, rather than tree count alone. Measure delivered frame intervals and tail latency on the intended device.
 
 ### Automatic submission budgets
 
-`maxCanopySplats` (default 250,000) and `maxShadowSplats` (default 125,000) apportion independent Gaussian submission budgets across species. They preserve every visible owner using the existing covariance hierarchy, prioritize projected error reductions, and retain finest leaf templates. If the coarsest owner coverage exceeds a budget, coverage wins; use regional source aggregation for world-scale residency. Large inventories should never be supplied as one global `TreeLayer.data` array.
+`maxCanopySplats` (default 250,000) apportions the Gaussian submission budget across species. It preserves every visible owner using the existing covariance hierarchy, prioritizes projected error reductions, and retains finest leaf templates. If the coarsest owner coverage exceeds the budget, coverage wins; use regional source aggregation for world-scale residency. Large inventories should never be supplied as one global `TreeLayer.data` array.
 
 `maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. An explicitly low target softens leaf edges and reduces branch-occlusion precision.
 
-`foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation, preserves visible owners, and leaves light-space shadow refinement independent.
+`foveationStrength` (default zero) applies a smooth priority weight to each projected crown center. One retains full central error priority and lowers peripheral priority to 0.15 at the screen boundary. It changes automatic refinement and quota allocation while preserving visible owners.
 
-`getCoverageWeight` applies to wood, fallback trunks, foliage and every crop kind, including their picking and shadow passes. It defaults to one and supports optical canopy fades and matching wood coverage during streamed replacement. Automatic wood refinement selects one opaque coarse or fine skeleton per tree, avoiding stochastic holes between different mesh surfaces. The coarse shell retains structural aerial and stilt roots. Native wood cross-sections follow `getTrunkRadius` independently of canopy spread; branch centerlines remain aligned with the leaf growth structure.
+`getCoverageWeight` applies to wood, fallback trunks, foliage and every crop kind, including picking. It defaults to one and supports optical canopy fades and matching wood coverage during streamed replacement. Automatic wood refinement selects one opaque coarse or fine skeleton per tree, avoiding stochastic holes between different mesh surfaces. The coarse shell retains structural aerial and stilt roots. Native wood cross-sections follow `getTrunkRadius` independently of canopy spread; branch centerlines remain aligned with the leaf growth structure.
 
 ### Prepared canopy assets
 
 Canopy sublayers use `SplatLayer` with owner rows, cached `prepared-splats` descriptors through
 `getSource`, and depth-sorted transparency across all selected canopy Gaussians. Canopy group IDs and `_subLayerProps` aliases
-remain stable. The shared runtime allocates `maxCanopySplats` and `maxShadowSplats` across all
+remain stable. The shared runtime allocates `maxCanopySplats` across all
 canopy roots. An explicit child quota still limits that child. Wood and crops use their existing
 mesh paths; tree traits, seasons and original-tree picking remain TreeLayer responsibilities.
 
 ## Example
 
-The [TreeLayer demo](/examples/layers/tree-lab) renders eight supplied trees with species, season, crown-shape, crop and wind controls. It uses the public `getTree` API and standard deck.gl lighting.
+The [TreeLayer demo](/examples/layers/tree-lab) renders one tree with species, season and crown-spread controls. It uses the public `getTree` API and standard deck.gl lighting.

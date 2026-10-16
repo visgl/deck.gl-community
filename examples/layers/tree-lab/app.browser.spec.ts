@@ -3,165 +3,65 @@
 import {expect, it} from 'vitest';
 import type {Deck, MapView} from '@deck.gl/core';
 import type {TreeLayer, TreeSpec} from '@deck.gl-community/layers';
-import type {Texture} from '@luma.gl/core';
-import type {WebGLDevice} from '@luma.gl/webgl';
 import {mountTreeLabExample} from './app';
 
-it('frames one tree, updates its traits and shadows its full canopy and wood', async () => {
+it('renders one tree and updates its species, season and crown spread', async () => {
   const parent = document.createElement('div');
   Object.assign(parent.style, {width: '800px', height: '600px'});
   document.body.append(parent);
   let deck!: Deck<MapView>;
   let frames = 0;
-  let groundColor = [0, 0, 0];
-  let framePixels = new Uint8Array();
-  let device!: WebGLDevice;
   const errors: string[] = [];
   const cleanup = mountTreeLabExample(parent, {
-    onDeviceInitialized(instance) {
-      device = instance as WebGLDevice;
-    },
     onDeckInitialized(instance) {
       deck = instance;
-      const onAfterRender = deck.props.onAfterRender;
       deck.setProps({
         onError: error => errors.push(error.message),
-        onAfterRender(params) {
-          onAfterRender?.(params);
-          const {gl} = params;
+        onAfterRender() {
           frames++;
-          const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
-          gl.readPixels(
-            0,
-            0,
-            gl.drawingBufferWidth,
-            gl.drawingBufferHeight,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            pixels
-          );
-          framePixels = pixels;
-          const x = Math.floor(gl.drawingBufferWidth * 0.9);
-          const y = Math.floor(gl.drawingBufferHeight * 0.1);
-          const offset = (y * gl.drawingBufferWidth + x) * 4;
-          groundColor = [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
         }
       });
     }
   });
-  const change = (name: string, value: string | boolean) => {
+  const change = (name: string, value: string) => {
     const element = parent.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!;
-    if (typeof value === 'boolean') (element as HTMLInputElement).checked = value;
-    else element.value = value;
+    element.value = value;
     element.dispatchEvent(new Event('input', {bubbles: true}));
   };
   const trees = () =>
-    deck.props.layers.find(
-      layer =>
-        Boolean(layer) &&
-        !Array.isArray(layer) &&
-        typeof layer === 'object' &&
-        'id' in layer &&
-        layer.id === 'trees'
-    ) as TreeLayer<TreeSpec>;
-  const hasCanopyShadow = () =>
-    deck.props.layers.some(
-      layer =>
-        Boolean(layer) &&
-        !Array.isArray(layer) &&
-        typeof layer === 'object' &&
-        'id' in layer &&
-        layer.id === 'canopy-shadow'
-    );
+    deck.props.layers.find(layer => layer && !Array.isArray(layer) && layer.id === 'trees') as
+      | TreeLayer<TreeSpec>
+      | undefined;
   try {
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(0);
-    await expect.poll(hasCanopyShadow, {timeout: 15000}).toBe(true);
-    const canopyShadow = deck.props.layers.find(
-      layer =>
-        Boolean(layer) &&
-        !Array.isArray(layer) &&
-        typeof layer === 'object' &&
-        'id' in layer &&
-        layer.id === 'canopy-shadow'
-    ) as unknown as {props: {image: Texture}};
-    const bitmapPixels = device.readPixelsToArrayWebGL(canopyShadow.props.image) as Uint8Array;
-    const shadowSize = (canopyShadow.props.image as Texture).width;
-    let canopyShadowPixels = 0,
-      maximumShadowAlpha = 0;
-    for (let y = 0; y < shadowSize; y++)
-      for (let x = 0; x < shadowSize; x++) {
-        const alpha = bitmapPixels[(y * shadowSize + x) * 4 + 3];
-        if (alpha > 10) {
-          canopyShadowPixels++;
-          maximumShadowAlpha = Math.max(maximumShadowAlpha, alpha);
-        }
-      }
-    expect(canopyShadowPixels).toBeGreaterThan(500);
-    expect(maximumShadowAlpha).toBeLessThanOrEqual(47);
-    await expect.poll(() => groundColor[0], {timeout: 15000}).toBeGreaterThan(150);
-    expect(groundColor[1]).toBeGreaterThan(160);
-    expect(trees().props.data).toHaveLength(1);
-    expect(trees().props.data[0]).toMatchObject({species: 'banyan', position: [0, 0, 0]});
-    expect(trees().props.shadowEnabled).toBe(true);
-    const children = (
-      deck as unknown as {
-        layerManager: {getLayers: () => Array<{id: string; props: {shadowEnabled?: boolean}}>};
-      }
-    ).layerManager.getLayers();
-    const canopyLayers = children.filter(layer => layer.id.includes('-canopy-'));
-    const woodShadowLayers = children.filter(
-      layer => layer.id.includes('-wood-') && layer.id.includes('-shadow-')
-    );
-    expect(canopyLayers.length).toBeGreaterThan(0);
-    expect(canopyLayers.every(layer => layer.props.shadowEnabled === true)).toBe(true);
-    expect(canopyLayers.some(layer => layer.id.includes('shadow-casters'))).toBe(true);
-    expect(woodShadowLayers.some(layer => layer.props.shadowEnabled === true)).toBe(true);
-    const filter = deck.props.layerFilter as (params: {
-      layer: {id: string};
-      renderPass: string;
-    }) => boolean;
-    expect(filter({layer: {id: 'labels'}, renderPass: 'shadow'})).toBe(false);
-    expect(filter({layer: {id: 'labels'}, renderPass: 'draw'})).toBe(true);
-    const lighting = deck.props.effects![0] as unknown as {
-      getShaderModuleProps: (
-        layer: {id: string},
-        props: {project: object; shadow: {drawToShadowMap: boolean}}
-      ) => {shadow?: {shadowEnabled?: boolean}};
-    };
-    expect(
-      lighting.getShaderModuleProps(canopyLayers[0], {
-        project: {},
-        shadow: {drawToShadowMap: false}
-      }).shadow?.shadowEnabled
-    ).toBe(false);
-    const shadowedPixels = framePixels.slice();
-    const shadowFrameCount = frames;
-    change('shadows', false);
-    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(shadowFrameCount);
-    let darkenedPixels = 0;
-    for (let i = 0; i < shadowedPixels.length; i += 4)
-      if (shadowedPixels[i] - framePixels[i] > 12) darkenedPixels++;
-    // SwiftShader rasterizes the branch shadow more narrowly than a hardware GPU.
-    expect(darkenedPixels).toBeGreaterThan(10);
-    const picked = deck.pickObjects({x: 0, y: 0, width: 800, height: 600});
-    expect(picked.some(info => [...(trees().props.data as TreeSpec[])].includes(info.object))).toBe(
-      true
-    );
-
-    change('shadows', true);
-    await expect.poll(hasCanopyShadow, {timeout: 15000}).toBe(true);
-    const previous = frames;
-    change('species', 'oak');
+    const initial = trees()!;
+    const initialData = initial.props.data as TreeSpec[];
+    expect(initialData).toHaveLength(1);
+    expect(initialData[0]).toMatchObject({species: 'banyan', position: [0, 0, 0]});
+    expect((initial.props.getTree as (tree: TreeSpec) => TreeSpec)(initialData[0])).toMatchObject({
+      species: 'banyan',
+      season: 'summer',
+      wind: false,
+      characteristics: {crownSpread: 1}
+    });
     change('season', 'winter');
     change('spread', '1.3');
-    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(previous);
-    await expect.poll(hasCanopyShadow, {timeout: 15000}).toBe(false);
-    expect(trees().props.data).toHaveLength(1);
-    expect(trees().props.shadowEnabled).toBe(true);
-    const tree = (trees().props.getTree as (tree: TreeSpec) => TreeSpec)(
-      (trees().props.data as TreeSpec[])[0]
-    );
-    expect(tree).toMatchObject({
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(1);
+    const winter = trees()!;
+    expect(winter.props.data).toBe(initialData);
+    expect((winter.props.getTree as (tree: TreeSpec) => TreeSpec)(initialData[0])).toMatchObject({
+      season: 'winter',
+      characteristics: {crownSpread: 1.3}
+    });
+
+    change('species', 'oak');
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(2);
+    const oak = trees()!;
+    expect(oak.props.data).not.toBe(initialData);
+    expect(oak.props.data).toHaveLength(1);
+    expect(
+      (oak.props.getTree as (tree: TreeSpec) => TreeSpec)((oak.props.data as TreeSpec[])[0])
+    ).toMatchObject({
       species: 'oak',
       season: 'winter',
       wind: false,
