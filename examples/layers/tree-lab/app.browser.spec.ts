@@ -5,7 +5,7 @@ import type {Deck, MapView} from '@deck.gl/core';
 import type {TreeLayer, TreeSpec} from '@deck.gl-community/layers';
 import {mountTreeLabExample} from './app';
 
-it('renders one tree and updates its species, season and crown spread', async () => {
+it('defaults to citrus and combines specimen controls with a mixed-species grove', async () => {
   const parent = document.createElement('div');
   Object.assign(parent.style, {width: '800px', height: '600px'});
   document.body.append(parent);
@@ -34,25 +34,41 @@ it('renders one tree and updates its species, season and crown spread', async ()
       | undefined;
   try {
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(0);
+    expect(deck.getViewports()[0].zoom).toBeGreaterThan(21);
     const initial = trees()!;
     const initialData = initial.props.data as TreeSpec[];
     expect(initialData).toHaveLength(1);
-    expect(initialData[0]).toMatchObject({species: 'banyan', position: [0, 0, 0]});
+    expect(initialData[0]).toMatchObject({species: 'citrus', position: [0, 0, 0]});
     expect((initial.props.getTree as (tree: TreeSpec) => TreeSpec)(initialData[0])).toMatchObject({
-      species: 'banyan',
+      species: 'citrus',
+      height: 4.8,
       season: 'summer',
       wind: false,
-      characteristics: {crownSpread: 1}
+      characteristics: {crownSpread: 1, crownDepth: 1, branchDensity: 1, leafSize: 1}
     });
+    expect(parent.querySelector<HTMLSelectElement>('[name="scene"]')?.value).toBe('specimen');
     change('season', 'winter');
     change('spread', '1.3');
+    change('depth', '0.8');
+    change('branch-density', '1.3');
+    change('leaf-size', '1.2');
+    change('height', '1.3');
+    const wind = parent.querySelector<HTMLInputElement>('[name="wind"]')!;
+    wind.checked = true;
+    wind.dispatchEvent(new Event('input', {bubbles: true}));
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(1);
     const winter = trees()!;
     expect(winter.props.data).toBe(initialData);
-    expect((winter.props.getTree as (tree: TreeSpec) => TreeSpec)(initialData[0])).toMatchObject({
+    const updatedCitrus = (winter.props.getTree as (tree: TreeSpec) => TreeSpec)(initialData[0]);
+    expect(updatedCitrus.height).toBeCloseTo(6.24);
+    expect(updatedCitrus).toMatchObject({
       season: 'winter',
-      characteristics: {crownSpread: 1.3}
+      wind: true,
+      characteristics: {crownSpread: 1.3, crownDepth: 0.8, branchDensity: 1.3, leafSize: 1.2}
     });
+    expect(parent.querySelector<HTMLOutputElement>('[name="height-value"]')?.textContent).toBe(
+      '1.3×'
+    );
 
     change('species', 'oak');
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(2);
@@ -64,9 +80,50 @@ it('renders one tree and updates its species, season and crown spread', async ()
     ).toMatchObject({
       species: 'oak',
       season: 'winter',
-      wind: false,
-      characteristics: {crownSpread: 1.3}
+      height: 18.2,
+      wind: true,
+      characteristics: {crownSpread: 1.3, crownDepth: 0.8, branchDensity: 1.3, leafSize: 1.2}
     });
+    change('scene', 'grove');
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(3);
+    const grove = trees()!;
+    const groveData = grove.props.data as TreeSpec[];
+    expect(groveData).toHaveLength(8);
+    expect(groveData.map(tree => tree.species)).toEqual([
+      'citrus',
+      'banyan',
+      'pine',
+      'oak',
+      'palm',
+      'birch',
+      'cherry',
+      'mangrove'
+    ]);
+    expect(parent.querySelector<HTMLLabelElement>('.trees-species')?.hidden).toBe(true);
+    const groveTree = (grove.props.getTree as (tree: TreeSpec) => TreeSpec)(groveData[1]);
+    expect(groveTree.height).toBeCloseTo(23.4);
+    expect(groveTree).toMatchObject({
+      species: 'banyan',
+      season: 'winter',
+      wind: true,
+      characteristics: {crownSpread: 1.3, crownDepth: 0.8, branchDensity: 1.3, leafSize: 1.2}
+    });
+    change('season', 'autumn');
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(3);
+    const autumnGrove = trees()!;
+    const autumnData = autumnGrove.props.data as TreeSpec[];
+    const citrusCrop = (autumnGrove.props.getTree as (tree: TreeSpec) => TreeSpec)(
+      autumnData[0]
+    ).crop;
+    expect(citrusCrop).toMatchObject({kind: 'fruit', count: 18});
+    change('season', 'spring');
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(4);
+    const springGrove = trees()!;
+    const springData = springGrove.props.data as TreeSpec[];
+    const cherryBlossom = (springGrove.props.getTree as (tree: TreeSpec) => TreeSpec)(
+      springData[6]
+    ).crop;
+    expect(cherryBlossom).toMatchObject({kind: 'flower', count: 20});
     expect(errors).toEqual([]);
   } finally {
     cleanup();

@@ -4,13 +4,14 @@ Updated October 16, 2026. #808 has merged. The active landing order is **#809 â†
 
 | PR | Scope | Base |
 | --- | --- | --- |
-| [#809](https://github.com/visgl/deck.gl-community/pull/809) | Core TreeLayer and prepared SplatLayer; remove the deprecated Three package; keep a focused TreeLab for species, season and crown spread | `master` |
+| [#809](https://github.com/visgl/deck.gl-community/pull/809) | Core TreeLayer and prepared SplatLayer; remove the deprecated Three package; use one complete TreeLayer showcase | `master` |
 | [#814](https://github.com/visgl/deck.gl-community/pull/814) | Add scene loading, bounded RAD residency and shared sorted rendering needed for Coit | `codex/remove-three-module` |
 | [#815](https://github.com/visgl/deck.gl-community/pull/815) | Add the public Coit SplatLayer example and website wiring | `codex/splat-scene-foundation` |
 
-The regular TreeLayer proof is [TreeLab](../examples/layers/tree-lab): one specimen with a small
-species, season and crown-spread control set. The SplatLayer proof is [Coit](../examples/layers/coit),
-which exercises the public layer with a real RAD scene. Both examples have matching website entries.
+The regular TreeLayer proof is [TreeLab](../examples/layers/tree-lab): one interactive showcase that
+opens on a citrus specimen and switches to a compact eight-species grove. The same controls adjust
+species, season, height, morphology, wind, and seasonal crops. Coit remains the separate SplatLayer
+proof for a real RAD scene.
 
 PR [#806](https://github.com/visgl/deck.gl-community/pull/806), which adds tiled TreeLayer streaming
 and a synthetic World demo, is closed and deferred. It is outside this release stack.

@@ -168,4 +168,4 @@ mesh paths; tree traits, seasons and original-tree picking remain TreeLayer resp
 
 ## Example
 
-The [TreeLayer demo](/examples/layers/tree-lab) renders one tree with species, season and crown-spread controls. It uses the public `getTree` API and standard deck.gl lighting.
+The [TreeLayer demo](/examples/layers/tree-lab) opens on a close citrus specimen and includes an eight-species grove. It uses the public `getTree` API to adjust species, season, height, crown spread and depth, branch density, leaf size, wind, and seasonal crops, with standard deck.gl lighting.

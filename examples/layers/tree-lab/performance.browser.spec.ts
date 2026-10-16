@@ -97,6 +97,13 @@ it('batches mixed canopy sources and retains their model through bearing changes
       });
     }
   });
+  // Keep the profile fixture large enough to exercise sorted batching after the demo default changed to citrus.
+  const species = parent.querySelector<HTMLSelectElement>('[name="species"]')!;
+  species.value = 'banyan';
+  species.dispatchEvent(new Event('input', {bubbles: true}));
+  const height = parent.querySelector<HTMLInputElement>('[name="height"]')!;
+  height.value = '1.8';
+  height.dispatchEvent(new Event('input', {bubbles: true}));
   try {
     await expect.poll(() => samples.length, {timeout: 60000}).toBeGreaterThanOrEqual(24);
     await annotate('Tree frame profile', {

@@ -45,7 +45,6 @@ const sidebars = {
         'layers/path-outline-and-markers',
         'layers/flame-trail',
         'layers/tree-lab',
-        'layers/seasonal-farm',
         'layers/skybox-map-view',
         'layers/skybox-globe',
         'layers/skybox-first-person',

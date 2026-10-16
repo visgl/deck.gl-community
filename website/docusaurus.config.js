@@ -108,7 +108,7 @@ const config = {
           },
           {
             from: '/examples/three/seasonal-farm',
-            to: '/examples/layers/seasonal-farm'
+            to: '/examples/layers/tree-lab'
           }
         ]
       }

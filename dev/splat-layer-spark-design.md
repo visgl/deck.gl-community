@@ -33,7 +33,7 @@ RAD, SH, globally sorted presentation and paged residency remain upstream integr
 | [#794](https://github.com/visgl/deck.gl-community/pull/794) | Cached canopy descriptors through `getSource`; explicit weighted rendering; one parent allocation group across species; stable canopy IDs and legacy source/hierarchy overrides; unchanged botany, wood, seasons, crops and picking |
 | [#806](https://github.com/visgl/deck.gl-community/pull/806) | Nearby trees and distant crowns share a parent quota; geographic inventory pages retain their existing tile lifecycle; streaming statistics consume the SplatLayer counters instead of private renderer state |
 | [#808](https://github.com/visgl/deck.gl-community/pull/808) | Examples explain the new prepared API and quota behavior; historical films and timing fingerprints retain their original scope |
-| [#809](https://github.com/visgl/deck.gl-community/pull/809) | Package and Seasonal Farm migration retain the same native TreeLayer; upgrade guidance covers the new flat asset inputs and compatibility rules |
+| [#809](https://github.com/visgl/deck.gl-community/pull/809) | One unified TreeLayer showcase covers specimen and mixed-species scenes; upgrade guidance covers the new flat asset inputs and compatibility rules |
 
 The live PR heads checked for this revision are #807 `cae0ddd1`, #794 `92916af9`, #806 `4216f6e7`,
 #808 `a3220808`, and #809 `825ed4ef`; `master` is `bc8e1139`. They are open PRs, not a merge-readiness

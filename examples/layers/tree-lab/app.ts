@@ -13,20 +13,63 @@ import {
 import {TextLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
-import {TreeLayer, type Season, type TreeSpec, type TreeType} from '@deck.gl-community/layers';
+import {
+  TreeLayer,
+  type CropConfig,
+  type Season,
+  type TreeSpec,
+  type TreeType
+} from '@deck.gl-community/layers';
 import './style.css';
 
 const SPECIES: TreeType[] = [
+  'citrus',
   'banyan',
   'pine',
   'oak',
   'palm',
   'birch',
   'cherry',
-  'mangrove',
-  'citrus'
+  'mangrove'
 ];
 const SEASONS: Season[] = ['spring', 'summer', 'autumn', 'winter'];
+type Scene = 'specimen' | 'grove';
+type ShowcaseTree = TreeSpec & {label?: string};
+const TREE_HEIGHTS: Record<TreeType, number> = {
+  citrus: 4.8,
+  banyan: 18,
+  pine: 12,
+  oak: 14,
+  palm: 12,
+  birch: 14,
+  cherry: 8,
+  mangrove: 8
+};
+const GROVE_TREES: ShowcaseTree[] = [
+  {species: 'citrus', position: [-10, -9, 0], label: 'Citrus'},
+  {species: 'banyan', position: [0, -10, 0], label: 'Banyan'},
+  {species: 'pine', position: [10, -9, 0], label: 'Pine'},
+  {species: 'oak', position: [-11, 1, 0], label: 'Oak'},
+  {species: 'palm', position: [0, 1, 0], label: 'Palm'},
+  {species: 'birch', position: [11, 1, 0], label: 'Birch'},
+  {species: 'cherry', position: [-6, 11, 0], label: 'Cherry'},
+  {species: 'mangrove', position: [6, 11, 0], label: 'Mangrove'}
+];
+const TREE_TRAITS = [
+  {name: 'height', label: 'Height', min: 0.5, max: 1.8, step: 0.1, value: 1, unit: '×'},
+  {name: 'spread', label: 'Crown spread', min: 0.6, max: 1.5, step: 0.1, value: 1, unit: '×'},
+  {name: 'depth', label: 'Crown depth', min: 0.6, max: 1.4, step: 0.1, value: 1, unit: '×'},
+  {
+    name: 'branch-density',
+    label: 'Branch density',
+    min: 0.5,
+    max: 1.5,
+    step: 0.1,
+    value: 1,
+    unit: '×'
+  },
+  {name: 'leaf-size', label: 'Leaf size', min: 0.5, max: 1.8, step: 0.1, value: 1, unit: '×'}
+] as const;
 const coordinateProps = {
   coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
   coordinateOrigin: [0, 0, 0] as [number, number, number]
@@ -43,7 +86,7 @@ type MountOptions = Pick<
   onDeckInitialized?: (deck: Deck<MapView>) => void;
 };
 
-/** Mount a focused TreeLayer viewer for one species and its core visual traits. */
+/** Mount the single TreeLayer showcase, with an editable specimen and mixed-species grove. */
 export function mountTreeLabExample(
   container: HTMLElement,
   options: MountOptions = {}
@@ -51,22 +94,27 @@ export function mountTreeLabExample(
   const root = container.ownerDocument.createElement('div');
   root.className = 'trees-demo';
   root.innerHTML = `<div class="trees-controls">
-    <div class="trees-heading"><strong>TreeLayer</strong><span>One tree · live traits</span></div>
-    <label>Species <select name="species">${SPECIES.map(
-      species =>
-        `<option value="${species}"${species === 'banyan' ? ' selected' : ''}>${species}</option>`
+    <div class="trees-heading"><strong>TreeLayer</strong><span>One showcase · every species and season</span></div>
+    <label class="trees-select"><span>Scene</span><select name="scene"><option value="specimen" selected>Citrus specimen</option><option value="grove">Mixed-species grove · 8 trees</option></select></label>
+    <label class="trees-select trees-species"><span>Species</span><select name="species">${SPECIES.map(
+      species => `<option value="${species}">${species}</option>`
     ).join('')}</select></label>
-    <label>Season <select name="season">${SEASONS.map(
+    <label class="trees-select"><span>Season</span><select name="season">${SEASONS.map(
       season => `<option${season === 'summer' ? ' selected' : ''}>${season}</option>`
     ).join('')}</select></label>
-    <label class="trees-spread">Crown spread <input name="spread" type="range" min="0.6" max="1.5" step="0.1" value="1"><output name="spread-value">1.0×</output></label>
+    ${TREE_TRAITS.map(
+      trait =>
+        `<label class="trees-range"><span>${trait.label}</span><input name="${trait.name}" type="range" min="${trait.min}" max="${trait.max}" step="${trait.step}" value="${trait.value}"><output name="${trait.name}-value">${trait.value.toFixed(1)}${trait.unit}</output></label>`
+    ).join('')}
+    <label class="trees-toggle"><input name="wind" type="checkbox"><span>Gentle breeze</span></label>
   </div><div class="trees-stage"></div>`;
   container.append(root);
   const stage = root.querySelector<HTMLDivElement>('.trees-stage')!;
   const control = <T extends HTMLInputElement | HTMLSelectElement>(name: string) =>
     root.querySelector<T>(`[name="${name}"]`)!;
-  const spreadOutput = root.querySelector<HTMLOutputElement>('[name="spread-value"]')!;
-  const groundMesh = new PlaneGeometry({type: 'x,y', xlen: 100, ylen: 100});
+  const output = (name: string) => root.querySelector<HTMLOutputElement>(`[name="${name}-value"]`)!;
+  const speciesControl = root.querySelector<HTMLLabelElement>('.trees-species')!;
+  const groundMesh = new PlaneGeometry({type: 'x,y', xlen: 1000, ylen: 1000});
   const lighting = new LightingEffect({
     ambient: new AmbientLight({intensity: 1}),
     sun: new DirectionalLight({intensity: 0.5, direction: [0.8, 0.2, -1.6]})
@@ -78,12 +126,7 @@ export function mountTreeLabExample(
     parent: stage,
     views: new MapView(),
     initialViewState: options.initialViewState ?? {
-      longitude: 0,
-      latitude: 0,
-      zoom:
-        20 + Math.log2(Math.max(0.25, Math.min(stage.clientWidth / 400, stage.clientHeight / 600))),
-      pitch: 45,
-      bearing: 20
+      ...getViewState(stage.clientWidth, stage.clientHeight, 'specimen')
     },
     controller: true,
     useDevicePixels: 1,
@@ -93,14 +136,26 @@ export function mountTreeLabExample(
   });
   options.onDeckInitialized?.(deck);
   const render = () => {
+    const scene = control<HTMLSelectElement>('scene').value as Scene;
     const species = control<HTMLSelectElement>('species').value as TreeType;
     const season = control<HTMLSelectElement>('season').value as Season;
+    const heightScale = Number(control<HTMLInputElement>('height').value);
     const spread = Number(control<HTMLInputElement>('spread').value);
+    const depth = Number(control<HTMLInputElement>('depth').value);
+    const branchDensity = Number(control<HTMLInputElement>('branch-density').value);
+    const leafSize = Number(control<HTMLInputElement>('leaf-size').value);
+    const wind = control<HTMLInputElement>('wind').checked;
     if (species !== cachedSpecies) {
       cachedSpecies = species;
       cachedData = [{species, position: [0, 0, 0]}];
     }
-    spreadOutput.textContent = `${spread.toFixed(1)}×`;
+    speciesControl.hidden = scene === 'grove';
+    const trees: ShowcaseTree[] = scene === 'grove' ? GROVE_TREES : cachedData;
+    output('height').textContent = `${heightScale.toFixed(1)}×`;
+    output('spread').textContent = `${spread.toFixed(1)}×`;
+    output('depth').textContent = `${depth.toFixed(1)}×`;
+    output('branch-density').textContent = `${branchDensity.toFixed(1)}×`;
+    output('leaf-size').textContent = `${leafSize.toFixed(1)}×`;
     deck.setProps({
       layers: [
         new SimpleMeshLayer({
@@ -111,28 +166,39 @@ export function mountTreeLabExample(
           getColor: [219, 228, 210],
           material: {ambient: 1, diffuse: 0, shininess: 0}
         }),
-        new TreeLayer<TreeSpec>({
+        new TreeLayer<ShowcaseTree>({
           ...coordinateProps,
           id: 'trees',
-          data: cachedData,
+          data: trees,
           getTree: tree => ({
             ...tree,
+            height: TREE_HEIGHTS[tree.species ?? species] * heightScale,
             season,
-            wind: false,
-            characteristics: {crownSpread: spread}
+            wind,
+            crop: getSeasonalCrop(tree.species ?? species, season),
+            characteristics: {
+              crownSpread: spread,
+              crownDepth: depth,
+              branchDensity,
+              leafSize
+            }
           }),
           pickable: true,
-          updateTriggers: {getTree: [season, spread]}
+          updateTriggers: {
+            getTree: [scene, heightScale, season, spread, depth, branchDensity, leafSize, wind]
+          }
         }),
-        new TextLayer<TreeSpec>({
+        new TextLayer<ShowcaseTree>({
           ...coordinateProps,
           id: 'labels',
-          data: cachedData,
-          getPosition: tree => [tree.position![0], tree.position![1] - 9, 0.2],
-          getText: tree => {
-            const name = tree.species!;
-            return name[0].toUpperCase() + name.slice(1);
-          },
+          data: trees,
+          getPosition: tree => [
+            tree.position![0],
+            tree.position![1] -
+              (scene === 'grove' ? 2.5 : Math.max(2, TREE_HEIGHTS[species] * 0.5)),
+            0.2
+          ],
+          getText: tree => tree.label ?? tree.species![0].toUpperCase() + tree.species!.slice(1),
           getSize: 18,
           getColor: [35, 48, 36],
           getAlignmentBaseline: 'bottom',
@@ -144,12 +210,24 @@ export function mountTreeLabExample(
           background: true,
           backgroundPadding: [6, 3],
           backgroundBorderRadius: 5,
-          getBackgroundColor: [250, 252, 247, 245]
+          getBackgroundColor: [250, 252, 247, 245],
+          visible: scene === 'grove'
         })
       ]
     });
   };
-  const onInput = () => render();
+  const onInput = (event: Event) => {
+    if ((event.target as HTMLSelectElement).name === 'scene') {
+      deck.setProps({
+        initialViewState: getViewState(
+          stage.clientWidth,
+          stage.clientHeight,
+          control<HTMLSelectElement>('scene').value as Scene
+        )
+      });
+    }
+    render();
+  };
   root.addEventListener('input', onInput);
   render();
   return () => {
@@ -157,4 +235,26 @@ export function mountTreeLabExample(
     deck.finalize();
     root.remove();
   };
+}
+
+function getViewState(width: number, height: number, scene: Scene) {
+  const scale = Math.max(0.25, Math.min(width / 400, height / 600));
+  return {
+    longitude: 0,
+    latitude: 0,
+    maxZoom: 24,
+    zoom: (scene === 'specimen' ? 22.4 : 20.2) + Math.log2(scale),
+    pitch: scene === 'specimen' ? 45 : 38,
+    bearing: scene === 'specimen' ? 20 : 0
+  };
+}
+
+function getSeasonalCrop(species: TreeType, season: Season): CropConfig | null {
+  if (species === 'citrus' && ['autumn', 'winter'].includes(season)) {
+    return {kind: 'fruit', color: [255, 151, 18, 255], count: 18, radius: 0.18};
+  }
+  if (species === 'cherry' && season === 'spring') {
+    return {kind: 'flower', color: [255, 205, 222, 255], count: 20, radius: 0.24};
+  }
+  return null;
 }
