@@ -44,6 +44,12 @@ export function getTreeWoodMesh(
   const segments = aggregate && type !== 'mangrove' ? 8 : type === 'palm' ? 72 : 24;
   const pineTip = createPineTiers(levels).tipEnd[2];
   const height = [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.1, 0.22];
+  const palmBaseRingOffset = type === 'palm' && !aggregate ? 14 : 0;
+  if (palmBaseRingOffset) {
+    for (let ring = 1; ring <= palmBaseRingOffset; ring++)
+      height.push(-1 + (1.22 * ring) / (palmBaseRingOffset + 1));
+    height.sort((a, b) => a - b);
+  }
   const broadleaf = type !== 'pine' && type !== 'palm';
   const botany = broadleaf ? getTreeBotany(type, characteristics) : null;
   const leaderTop = type === 'palm' ? 0.54 : pineTip - 0.025;
@@ -55,32 +61,40 @@ export function getTreeWoodMesh(
     : height.map(z => [z > 0.22 ? Math.pow((z - 0.22) / 0.75, 2) * 0.012 : 0, 0, z]);
   const radius =
     botany?.radii ??
-    height.map((z, ring) =>
+    height.map(z =>
       type === 'palm'
-        ? 0.06 * (1 + Math.sin(ring * 1.9) * 0.025)
+        ? (() => {
+            const progress = Math.max(0, Math.min(1, (z + 1) / (leaderTop + 1)));
+            const scar = aggregate
+              ? 0
+              : Math.pow((1 + Math.cos(progress * Math.PI * 28)) / 2, 10) * 0.003;
+            return 0.072 - progress * 0.024 + scar;
+          })()
         : 0.06 * (1 - (Math.max(0, z - 0.22) / 0.85) * 0.84)
     );
   const sockets: Socket[] = [];
   if (!aggregate && type === 'palm') {
-    for (let k = 0; k < 28; k++) {
-      const spear = k >= 20;
-      const index = spear ? k - 20 : k;
+    const frondCount = 18;
+    const spearCount = 5;
+    for (let k = 0; k < frondCount + spearCount; k++) {
+      const spear = k >= frondCount;
+      const index = spear ? k - frondCount : k;
       const angle =
-        ((index + (spear ? 0.5 : 0)) / (spear ? 8 : 20)) * Math.PI * 2 +
+        ((index + (spear ? 0.5 : 0)) / (spear ? spearCount : frondCount)) * Math.PI * 2 +
         (spear ? 0 : Math.sin(index * 5.37) * 0.07);
       const tier = index % 4;
       const controls = spear
         ? [
-            [0.025, 0.44],
-            [0.12, 0.82],
-            [0.38, 1.04],
-            [0.62, 0.96]
+            [0.025, 0.46],
+            [0.14, 0.78],
+            [0.38, 1.02],
+            [0.6, 0.94]
           ]
         : [
-            [0.035, 0.43 + tier * 0.012],
-            [0.28, 0.72 - tier * 0.025],
-            [0.68, 0.55 - tier * 0.045],
-            [0.84 + ((index * 7) % 9) * 0.018, 0.25 - tier * 0.035]
+            [0.035, 0.44 + tier * 0.012],
+            [0.27, 0.73 - tier * 0.022],
+            [0.66, 0.5 - tier * 0.04],
+            [0.8 + ((index * 7) % 9) * 0.014, 0.21 - tier * 0.025]
           ];
       const path = Array.from({length: 17}, (_, segment) => {
         const t = (segment + 1) / 17,
@@ -97,7 +111,7 @@ export function getTreeWoodMesh(
       const sector =
         (Math.round(((angle + Math.PI / 2) / (Math.PI * 2)) * segments) + segments) % segments;
       sockets.push({
-        ring: 24 + (spear ? 4 : 0) + tier,
+        ring: palmBaseRingOffset + 24 + (spear ? 4 : 0) + tier,
         sector,
         end: path[path.length - 1],
         radius: 0.0055,

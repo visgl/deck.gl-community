@@ -229,15 +229,15 @@ export function createTrunkMesh(segments = 10): TreeMesh {
   return createBranch([0, 0, 0], [0, 0, 1], 1, 0.7, segments);
 }
 
-/** Palm bark rings use a single ribbed shaft rather than fourteen separate toruses. */
+/** Palm bark scars use subdued geometry on one tapered shaft. */
 export function createDatePalmTrunkMesh(segments = 10, scarRings = 14): TreeMesh {
   const p: number[] = [];
   const indices: number[] = [];
   const rings = scarRings * 3 + 2;
   for (let ring = 0; ring <= rings; ring++) {
     const z = ring / rings;
-    const rib = ring > 0 && ring < rings && ring % 3 === 1 ? 0.065 : 0;
-    const radius = 1 - z * 0.38 + rib;
+    const scar = Math.pow((1 + Math.cos(z * scarRings * Math.PI * 2)) / 2, 10) * 0.025;
+    const radius = 1 - z * 0.2 + scar;
     for (let segment = 0; segment <= segments; segment++) {
       const angle = (segment / segments) * Math.PI * 2;
       p.push(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
@@ -484,13 +484,13 @@ function appendBlade(
   indices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
 }
 
-/** Feathered palm crown; thin rachis ribbons avoid TubeGeometry's extra rings and faces. */
+/** Arching palm fronds with a restrained spear crown and tapered leaflets. */
 export function createPalmCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
   const positions: number[] = [];
   const indices: number[] = [];
-  const count = detail === 'high' ? 20 : detail === 'medium' ? 16 : 10;
-  const upright = detail === 'high' ? 8 : detail === 'medium' ? 6 : 4;
-  const pairs = detail === 'high' ? 11 : detail === 'medium' ? 9 : 6;
+  const count = detail === 'high' ? 18 : detail === 'medium' ? 14 : 10;
+  const upright = detail === 'high' ? 5 : detail === 'medium' ? 4 : 3;
+  const pairs = detail === 'high' ? 12 : detail === 'medium' ? 9 : 6;
   for (let i = 0; i < count + upright; i++) {
     const spear = i >= count;
     const k = spear ? i - count : i;
@@ -504,12 +504,12 @@ export function createPalmCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
       z
     ];
     const points = spear
-      ? [radial(0.025, 0.44), radial(0.12, 0.82), radial(0.38, 1.04), radial(0.62, 0.96)]
+      ? [radial(0.025, 0.46), radial(0.14, 0.78), radial(0.38, 1.02), radial(0.6, 0.94)]
       : [
-          radial(0.035, 0.43 + tier * 0.012),
-          radial(0.28, 0.72 - tier * 0.025),
-          radial(0.68, 0.55 - tier * 0.045),
-          radial(0.84 + ((k * 7) % 9) * 0.018, 0.25 - tier * 0.035)
+          radial(0.035, 0.44 + tier * 0.012),
+          radial(0.27, 0.73 - tier * 0.022),
+          radial(0.66, 0.5 - tier * 0.04),
+          radial(0.8 + ((k * 7) % 9) * 0.014, 0.21 - tier * 0.025)
         ];
     const pairCount = spear ? Math.max(4, pairs - 3) : pairs;
     for (let j = 0; j < pairCount; j++) {
@@ -524,8 +524,8 @@ export function createPalmCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
         const base = new Vector3(point).add(new Vector3(sideways).scale(side * 0.008));
         const direction = new Vector3(sideways)
           .scale(side)
-          .add(new Vector3(tangent).scale(0.18 + Math.sin(angle + j * 0.7) * 0.06))
-          .add([0, 0, 0.12 - t * 0.2])
+          .add(new Vector3(tangent).scale(0.2 + Math.sin(angle + j * 0.7) * 0.045))
+          .add([0, 0, -0.025 - t * 0.18])
           .normalize();
         const widthDirection = new Vector3(tangent).add([0, 0, 0.08]).normalize();
         appendBlade(
@@ -534,8 +534,8 @@ export function createPalmCanopyMesh(detail: TreeDetail = 'high'): TreeMesh {
           base,
           direction,
           widthDirection,
-          0.055 + fullness * 0.095,
-          0.007 + fullness * 0.008
+          0.045 + fullness * 0.105,
+          0.006 + fullness * 0.007
         );
       }
     }
