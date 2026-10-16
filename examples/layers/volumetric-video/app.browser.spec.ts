@@ -45,6 +45,11 @@ describe('mounted volumetric video demo', () => {
       expect(getComputedStyle(customPanel).display).toBe('none');
       expect(parent.textContent).toContain('Current frame');
       expect(parent.textContent).toContain('Remove static pixels');
+      const status = parent.querySelector<HTMLElement>('#vv-status')!;
+      expect(status.closest<HTMLElement>('.vv-stage-meta')).not.toBeNull();
+      expect(getComputedStyle(status.closest<HTMLElement>('.vv-stage-meta')!).display).not.toBe(
+        'none'
+      );
     } finally {
       cleanup?.();
       parent.remove();

@@ -98,10 +98,12 @@ or compare pixels on the CPU. Opacity and camera changes reuse this pyramid. Inc
 smaller spatial details. Camera shake and compression noise count as color changes.
 
 Raw RGBA and change history use 8 bytes per grid pixel per retained frame. The
-filtered RGBA mip pyramid adds about 5.33 bytes per pixel per frame (the exact
-amount depends on rounded mip dimensions). Exported `getVolumetricVideoHistoryBytes(
-gridWidth, gridHeight, retainedFrameCount)` returns the exact combined allocation. `textureBytes` reports their
-combined allocation. The native-size upload texture, one sampled reference frame,
+visibility-filtered RGBA mip pyramid adds about 5.33 bytes per pixel per retained
+frame (the exact amount depends on rounded mip dimensions). Enabling static-pixel
+removal allocates one additional unmasked 5.33-byte selected-frame mip pyramid to
+preserve filtered detail. Exported `getVolumetricVideoHistoryBytes(gridWidth, gridHeight,
+retainedFrameCount)` returns the exact retained-history allocation; `textureBytes` also
+includes the selected-frame pyramid after it has been allocated. The native-size upload texture, one sampled reference frame,
 and the decoder require additional memory. A resized cache temporarily coexists with
 the completed cache until it can replace it, so transitions need memory for both
 histories. History stays

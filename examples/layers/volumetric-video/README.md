@@ -28,8 +28,9 @@ its brightness while only preceding-frame pixels are removed from the trail.
 Sampling defaults to **Every source pixel** (`resolution: 0`) on every new video.
 The trail slider reaches the full video length (`frameCount - 1` preceding frames).
 Native history consumes about 13.33 bytes per source pixel per retained frame,
-including the filtered mip pyramid, plus decoder/upload memory. The initial trail
-fits the default 512 MiB budget. The panel shows full-video memory requirements,
+including the visibility-filtered mip pyramid, plus decoder/upload memory. Enabling
+static-pixel removal allocates one extra 5.33-byte selected-frame mip pyramid. The
+initial trail fits the default 512 MiB budget. The panel shows full-video memory requirements,
 and **Appearance and history** lets you increase the budget up to the demo's
 conservative 1024 MiB ceiling. Oversized requests are limited before allocation;
 the UI reports the effective and requested trail. Sampling stays unchanged. The
@@ -60,9 +61,11 @@ establish playback throughput or performance for a particular uploaded MOV.
 
 Opacity is applied after normalized filtering in the automatic renderer. An opaque
 source at opacity 1 keeps its brightness as the camera rotates or zooms. A cached,
-premultiplied GPU mip pyramid filters source pixels and visibility together when
-minified; camera and opacity changes never regenerate it. Visibility-slider changes
-rebuild the pyramid from resident GPU data without decoding again.
+premultiplied GPU mip pyramid filters preceding-frame pixels and visibility together
+when minified. Enabling static-pixel removal creates a separate selected-frame mip
+pyramid that preserves the current frame without removal. Camera and opacity changes
+never regenerate either pyramid. Visibility-slider changes rebuild the trail pyramid
+from resident GPU data without decoding again.
 
 The demo uses one framebuffer pixel per CSS pixel. This avoids a fourfold Retina
 fill cost while retaining the selected source-pixel grid. Playback holds the current

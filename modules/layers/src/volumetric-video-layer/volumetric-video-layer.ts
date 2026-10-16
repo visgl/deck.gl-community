@@ -8,6 +8,7 @@ import {Geometry, Model} from '@luma.gl/engine';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {
   getFrameCapacity,
+  getFrameAppearanceBytes,
   getFrameHistoryBytes,
   getFrameSize,
   getFrameWindow,
@@ -352,7 +353,8 @@ export class VolumetricVideoLayer<
       model.setBindings({
         videoFrames: frames.texture,
         pixelChanges: frames.changes.texture,
-        filteredFrames: frames.appearance.texture
+        filteredFrames: frames.appearance.texture,
+        currentFrameAppearance: frames.currentAppearance?.texture ?? frames.appearance.texture
       });
     } else {
       model.setBindings({videoFrames: frames.texture, pixelChanges: frames.changes.texture});
@@ -388,7 +390,9 @@ export class VolumetricVideoLayer<
       ...window,
       timestamp: this.state.source!.info!.frameTimestamps[window.currentFrame],
       splatCount: frames.width * frames.height * window.frameCount,
-      textureBytes: getFrameHistoryBytes(frames.width, frames.height, frames.capacity)
+      textureBytes:
+        getFrameHistoryBytes(frames.width, frames.height, frames.capacity) +
+        (frames.currentAppearance ? getFrameAppearanceBytes(frames.width, frames.height) : 0)
     });
   }
 
@@ -413,6 +417,21 @@ export class VolumetricVideoLayer<
       luminanceThreshold: this.props.luminanceThreshold,
       staticPixelRemoval: this.props.staticPixelRemoval
     });
+    if (this.props.staticPixelRemoval === 0) return;
+    const currentFrame = frames.getReadyWindow()?.currentFrame;
+    if (currentFrame === undefined) return;
+    // Static removal applies only to preceding slices. Preserve the selected
+    // source frame with an unmasked mip pyramid so minification stays stable.
+    frames
+      .getCurrentAppearance()
+      .update(
+        frames.texture,
+        frames.changes.texture,
+        [currentFrame],
+        {luminanceThreshold: this.props.luminanceThreshold, staticPixelRemoval: 0},
+        [currentFrame],
+        [currentFrame % frames.capacity]
+      );
   }
 
   private prepareAppearance(frames: GPUVideoFrames): boolean {
@@ -575,7 +594,9 @@ export class VolumetricVideoLayer<
       return;
     }
     const size = getFrameSize(source.info!.width, source.info!.height, this.props.resolution);
-    const textureBytes = getFrameHistoryBytes(size.width, size.height, capacity);
+    const textureBytes =
+      getFrameHistoryBytes(size.width, size.height, capacity) +
+      (this.props.staticPixelRemoval > 0 ? getFrameAppearanceBytes(size.width, size.height) : 0);
     if (
       textureBytes > this.props.maxTextureBytes ||
       Math.max(size.width, size.height) > this.context.device.limits.maxTextureDimension2D
@@ -764,6 +785,7 @@ precision highp sampler2DArray;
 uniform sampler2DArray videoFrames;
 uniform sampler2DArray pixelChanges;
 uniform sampler2DArray filteredFrames;
+uniform sampler2DArray currentFrameAppearance;
 in vec2 frameUV;
 flat in float videoFrame;
 flat in float planeOpacity;
@@ -777,16 +799,15 @@ void main() {
   vec2 qy = uvy * volumetricVideo.gridSize;
   float footprint = max(length(qx), length(qy));
   float filteredMix = smoothstep(0.6, 1.5, footprint);
-  // Static removal is baked into the mip pyramid. Keep the selected frame on
-  // the exact path so unchanged bright pixels remain visible.
-  if (frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0) filteredMix = 0.0;
   int slot = int(mod(videoFrame, volumetricVideo.capacity));
   vec4 result = vec4(0.0);
   // The pyramid averages premultiplied, visibility-masked pixels, preserving
   // brightness and avoiding nearest-cell shimmer when several texels fit a fragment.
   if (filteredMix > 0.0) {
-    result = textureGrad(filteredFrames, vec3(clamp(frameUV, vec2(0.0), vec2(1.0)), float(slot)),
-      uvx, uvy);
+    vec2 uv = clamp(frameUV, vec2(0.0), vec2(1.0));
+    result = frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0
+      ? textureGrad(currentFrameAppearance, vec3(uv, 0.0), uvx, uvy)
+      : textureGrad(filteredFrames, vec3(uv, float(slot)), uvx, uvy);
   }
   if (filteredMix < 1.0) {
     float size = volumetricVideo.splatSize;

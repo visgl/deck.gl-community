@@ -992,8 +992,11 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       const gridPixels = frames!.width * frames!.height;
       const scoreBytes = new Uint8Array(frames!.capacity * gridPixels * 4);
       const white = new Uint8Array(gridPixels * 4).fill(255);
-      frames!.texture.writeData(white, {z: 30 % frames!.capacity, depthOrArrayLayers: 1});
+      const slot = 30 % frames!.capacity;
+      frames!.texture.writeData(white, {z: slot, depthOrArrayLayers: 1});
       frames!.changes.texture.writeData(scoreBytes);
+      frames!.appearance.invalidate(slot);
+      frames!.currentAppearance?.invalidate(0);
       const renderRemoval = async (staticPixelRemoval: number) => {
         layer = layer!.clone({staticPixelRemoval, frameTrail: 0});
         await new Promise<void>(resolve => {
@@ -1073,6 +1076,7 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       for (let i = 0; i < pixels.length; i += 4) pixels.set(color, i);
       frames.texture.writeData(pixels, {z: 30 % frames.capacity, depthOrArrayLayers: 1});
       frames.appearance.invalidate(30 % frames.capacity);
+      frames.currentAppearance?.invalidate(0);
       const frameRequests = vi.spyOn(frames, 'request');
       const decoding = vi.spyOn(layer!.state.source!.sink!, 'samplesAtTimestamps');
       const capture = async (

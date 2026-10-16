@@ -150,18 +150,20 @@ export function mountVolumetricVideoExample(
       .vv-demo details {font-size:12px;color:#9cacc1}
       .vv-demo summary {cursor:pointer;margin-bottom:16px}
       .vv-demo details .vv-control {margin-bottom:14px}
-      .vv-meta {margin-top:auto;border-top:1px solid #ffffff12;padding-top:18px;font:11px/1.8 ui-monospace,monospace;color:#6c819b}
-      .vv-panel p.vv-error {color:#ffae9a;overflow-wrap:anywhere}
       .vv-stage {position:relative;min-width:0;background:radial-gradient(ellipse at 50% 48%,#152131,#080c12 68%)}
       .vv-canvas {position:absolute;inset:0}
       .vv-stage-top {position:absolute;top:28px;left:32px;right:32px;display:flex;justify-content:space-between;pointer-events:none;gap:12px}
       .vv-stage-top span:last-child {font:11px ui-monospace,monospace;color:#546c86}
+      .vv-stage-meta {position:absolute;top:56px;right:32px;max-width:min(360px,calc(100% - 64px));padding:8px 10px;border:1px solid #ffffff14;border-radius:6px;background:#080c12b8;font:11px/1.6 ui-monospace,monospace;color:#9aafc6;pointer-events:none}
+      .vv-stage-meta > *:empty {display:none}
+      .vv-stage-meta .vv-error {margin:0;color:#ffae9a;overflow-wrap:anywhere}
+      .vv-stage-meta .vv-limit {color:#e4c78b}
       .vv-source {position:absolute;bottom:28px;left:32px;width:170px;pointer-events:none}
       .vv-source video {display:block;width:100%;border-radius:6px;border:1px solid #ffffff20;margin-bottom:8px}
       .vv-source span {font:10px ui-monospace,monospace;color:#6c819b;letter-spacing:.12em;text-transform:uppercase}
       .vv-views {position:absolute;bottom:28px;right:32px;display:flex;gap:6px}
       .vv-views button {font-size:11px;background:#0d121bbf}
-      @media(max-width:760px) {.vv-demo{grid-template-columns:1fr;grid-template-rows:minmax(300px,1fr) auto;min-height:0}.vv-stage{grid-row:1}.vv-panel{padding:16px;gap:12px;border-right:0;border-top:1px solid #ffffff12;display:grid;grid-template-columns:1fr 1fr}.vv-panel header,.vv-panel details{display:none}.vv-upload,.vv-static,.vv-sampling{grid-column:1/-1}.vv-upload{padding:8px 12px;font-size:12px}.vv-meta{grid-column:1/-1;margin:0;padding:0;border:0}.vv-meta:has(.vv-error:empty){display:none}.vv-panel .vv-actions{align-items:center}.vv-source{width:100px;left:16px;bottom:16px}.vv-stage-top{top:16px;left:16px;right:16px}.vv-views{bottom:16px;right:16px}}
+      @media(max-width:760px) {.vv-demo{grid-template-columns:1fr;grid-template-rows:minmax(300px,1fr) auto;min-height:0}.vv-stage{grid-row:1}.vv-panel{padding:16px;gap:12px;border-right:0;border-top:1px solid #ffffff12;display:grid;grid-template-columns:1fr 1fr}.vv-panel header,.vv-panel details{display:none}.vv-upload,.vv-static,.vv-sampling{grid-column:1/-1}.vv-upload{padding:8px 12px;font-size:12px}.vv-panel .vv-actions{align-items:center}.vv-source{width:100px;left:16px;bottom:16px}.vv-stage-top{top:16px;left:16px;right:16px}.vv-stage-meta{top:44px;right:16px;max-width:calc(100% - 32px)}.vv-views{bottom:16px;right:16px}}
     </style>
     <aside class="vv-panel">
       <header><div class="vv-eyebrow">deck.gl community / layer lab</div><h1>Video into<br>volume.</h1><p>Every frame becomes a plane of splats.<br>Stack time. Explore the shape.</p></header>
@@ -171,17 +173,17 @@ export function mountVolumetricVideoExample(
       <div class="vv-control"><label for="vv-spacing">Frame spacing <output id="vv-spacing-value">0.035</output></label><input id="vv-spacing" type="range" min="0" max="0.1" value="0.035" step="0.001"></div>
       <div class="vv-actions"><button class="vv-play" id="vv-play" disabled>Play</button><button id="vv-sample">Demo</button></div>
       <div class="vv-control vv-static"><label for="vv-static">Remove static pixels <output id="vv-static-value">0.00 · Off</output></label><input id="vv-static" type="range" min="0" max="1" value="0" step="0.01" aria-describedby="vv-static-help"><p id="vv-static-help" style="font-size:16px;margin-top:4px">0 shows all pixels · 1 aggressively removes similar pixels</p></div>
-      <div class="vv-control vv-sampling"><label for="vv-resolution">Sampling</label><select id="vv-resolution" aria-label="Sampling resolution"><option value="0" selected>Every source pixel</option><option value="128">128 pixels</option><option value="256">256 pixels</option><option value="512">512 pixels</option></select><p id="vv-history" style="font-size:16px;margin-top:6px"></p><p id="vv-limit" role="status" aria-live="polite" style="font-size:16px;margin-top:6px;color:#e4c78b"></p></div>
+      <div class="vv-control vv-sampling"><label for="vv-resolution">Sampling</label><select id="vv-resolution" aria-label="Sampling resolution"><option value="0" selected>Every source pixel</option><option value="128">128 pixels</option><option value="256">256 pixels</option><option value="512">512 pixels</option></select></div>
       <details><summary>Appearance and history</summary>
         <div class="vv-control"><label for="vv-opacity">Frame opacity</label><input id="vv-opacity" type="range" min="0.05" max="1" value="0.65" step="0.01"></div>
         <div class="vv-control"><label for="vv-threshold">Remove dark pixels</label><input id="vv-threshold" type="range" min="0" max="0.4" value="0.08" step="0.01"></div>
         <div class="vv-control"><label for="vv-budget">History budget (MiB)</label><input id="vv-budget" type="number" min="1" max="1024" value="512" step="1"><p style="font-size:16px;margin-top:4px">Up to 1024 MiB in this demo. Lower sampling retains longer trails.</p></div>
       </details>
-      <div class="vv-meta"><div id="vv-name">Synthetic motion demo · H.264 MP4</div><div id="vv-status" role="status" aria-live="polite">Indexing video frames…</div><div id="vv-stats"></div><p id="vv-error" class="vv-error" role="alert"></p></div>
     </aside>
     <main class="vv-stage" aria-label="Interactive video frame volume">
       <div class="vv-canvas"></div>
       <div class="vv-stage-top"><span class="vv-eyebrow">VolumetricVideoLayer · <b id="vv-backend">${PREFER_WEBGPU ? 'CHECKING…' : 'WEBGL2'}</b></span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+      <div class="vv-stage-meta"><div id="vv-name">Synthetic motion demo · H.264 MP4</div><div id="vv-status" role="status" aria-live="polite">Indexing video frames…</div><div id="vv-stats"></div><div id="vv-history"></div><div id="vv-limit" class="vv-limit" role="status" aria-live="polite"></div><p id="vv-error" class="vv-error" role="alert"></p></div>
       <div class="vv-source"><video muted playsinline preload="auto" aria-label="Source video frame"></video><span>Source frame</span></div>
       <div class="vv-views"><button data-view="volume">Volume</button><button data-view="front">Front</button><button data-view="side">Side</button></div>
     </main>`;

@@ -71,3 +71,11 @@ export function getFrameHistoryBytes(width: number, height: number, capacity: nu
   }
   return (baseWidth * baseHeight * 8 + filteredBytes) * Math.max(0, Math.floor(capacity));
 }
+
+/** Returns bytes for the one-layer mip pyramid used to preserve a selected static frame. */
+export function getFrameAppearanceBytes(width: number, height: number): number {
+  return (
+    getFrameHistoryBytes(width, height, 1) -
+    Math.max(1, Math.round(width)) * Math.max(1, Math.round(height)) * 8
+  );
+}

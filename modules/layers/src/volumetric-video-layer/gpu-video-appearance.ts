@@ -33,6 +33,7 @@ export class GPUVideoAppearance {
   revision = 0;
   private dirty = new Set<number>();
   private settings: Appearance | null = null;
+  private sourceFrames: (number | undefined)[] = [];
   private model: ClipSpace;
   private views: TextureView[];
   private framebuffers: Framebuffer[];
@@ -128,7 +129,9 @@ void main() {
     frames: Texture,
     changes: Texture,
     resident: (number | undefined)[],
-    settings: Appearance
+    settings: Appearance,
+    sourceFrames = resident,
+    sourceSlots?: number[]
   ): void {
     if (
       !this.settings ||
@@ -139,11 +142,17 @@ void main() {
         if (frame !== undefined) this.dirty.add(slot);
       });
     }
+    sourceFrames.forEach((frame, slot) => {
+      if (frame !== this.sourceFrames[slot]) this.dirty.add(slot);
+    });
     if (!this.dirty.size) return;
     this.model.setBindings({videoFrames: frames, pixelChanges: changes});
     for (const slot of this.dirty) {
-      if (resident[slot] === undefined) continue;
-      this.model.shaderInputs.setProps({videoAppearance: {...settings, slot}});
+      const sourceFrame = sourceFrames[slot];
+      if (resident[slot] === undefined || sourceFrame === undefined) continue;
+      this.model.shaderInputs.setProps({
+        videoAppearance: {...settings, slot: sourceSlots?.[slot] ?? slot}
+      });
       const pass = this.device.beginRenderPass({
         framebuffer: this.framebuffers[slot],
         parameters: {viewport: [0, 0, this.texture.width, this.texture.height]}
@@ -159,6 +168,7 @@ void main() {
     assertGPUVideoResources(this.device);
     // Commit settings and invalidation only after every GPU operation succeeds.
     this.settings = {...settings};
+    this.sourceFrames = [...sourceFrames];
     this.dirty.clear();
     this.revision++;
   }

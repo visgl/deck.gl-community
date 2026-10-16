@@ -86,6 +86,8 @@ export const VOLUMETRIC_VIDEO_RASTER_WGSL = /* wgsl */ `
 @group(0) @binding(auto) var pixelChanges: texture_2d_array<f32>;
 @group(0) @binding(auto) var filteredFrames: texture_2d_array<f32>;
 @group(0) @binding(auto) var filteredFramesSampler: sampler;
+@group(0) @binding(auto) var currentFrameAppearance: texture_2d_array<f32>;
+@group(0) @binding(auto) var currentFrameAppearanceSampler: sampler;
 
 struct VolumetricVideoRasterAttributes {
   @builtin(instance_index) instanceIndex: u32,
@@ -139,22 +141,15 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
   let uvx = dpdx(input.frameUV);
   let uvy = dpdy(input.frameUV);
   let footprint = max(length(uvx * volumetricVideo.gridSize), length(uvy * volumetricVideo.gridSize));
-  var filteredMix = smoothstep(0.6, 1.5, footprint);
-  // Static removal is baked into the mip pyramid. Keep the selected frame on
-  // the exact path so unchanged bright pixels remain visible.
-  if (input.frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0) {
-    filteredMix = 0.0;
-  }
+  let filteredMix = smoothstep(0.6, 1.5, footprint);
   let slot = i32(input.videoFrame) % i32(volumetricVideo.capacity);
   var result = vec4<f32>(0.0);
   if (filteredMix > 0.0) {
-    result = textureSampleGrad(
-      filteredFrames,
-      filteredFramesSampler,
-      clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0)),
-      slot,
-      uvx,
-      uvy
+    let uv = clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0));
+    result = select(
+      textureSampleGrad(filteredFrames, filteredFramesSampler, uv, slot, uvx, uvy),
+      textureSampleGrad(currentFrameAppearance, currentFrameAppearanceSampler, uv, 0, uvx, uvy),
+      input.frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0
     );
   }
   if (filteredMix < 1.0) {

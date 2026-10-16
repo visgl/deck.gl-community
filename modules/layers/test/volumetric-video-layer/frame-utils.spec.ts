@@ -6,6 +6,7 @@ import {describe, expect, it} from 'vitest';
 import {VolumetricVideoLayer} from '../../src/volumetric-video-layer/volumetric-video-layer';
 import {
   getFrameCapacity,
+  getFrameAppearanceBytes,
   getFrameHistoryBytes,
   getFrameSize,
   getFrameWindow
@@ -64,6 +65,7 @@ describe('video frame windows', () => {
   });
   it('accounts for odd-size mip levels and all resident frames in the memory budget', () => {
     expect(getFrameHistoryBytes(5, 3, 2)).toBe((15 * 8 + (15 + 2 + 1) * 4) * 2);
+    expect(getFrameAppearanceBytes(5, 3)).toBe((15 + 2 + 1) * 4);
     expect(getFrameHistoryBytes(1, 1, 1)).toBe(12);
     expect(getFrameHistoryBytes(1, 1, 0)).toBe(0);
     expect(() => getFrameHistoryBytes(Number.NaN, 3, 1)).toThrow(RangeError);
