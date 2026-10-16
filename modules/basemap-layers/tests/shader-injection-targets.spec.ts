@@ -28,6 +28,7 @@ import {
 import {testLayer} from '@deck.gl/test-utils/vitest';
 import {describe, expect, test} from 'vitest';
 import {CircleBlurExtension} from '../src/circle-layer';
+import {FillExtrusionLightingExtension} from '../src/fill-extrusion-lighting-extension';
 import {FillPatternExtension, FillTranslateExtension} from '../src/fill-style-extensions';
 import {GlobeHorizonExtension} from '../src/globe-horizon-extension';
 import {LabelCharactersLayer} from '../src/label-text-layer';
@@ -499,6 +500,49 @@ describe('shader injection targets in the installed deck.gl', () => {
         fillAt,
         "FillPatternExtension's globe pattern must run after FillStyleExtension"
       ).toBeLessThan(body.indexOf('globePattern_'));
+    });
+  });
+
+  test('FillExtrusionLightingExtension: main and DECKGL_FILTER_COLOR of extruded SolidPolygonLayer', () => {
+    const extension = new FillExtrusionLightingExtension();
+    const props = {getPolygon: (d: any) => d.polygon, extruded: true, getElevation: 10};
+    const shaderSets = getModelShaders(
+      SolidPolygonLayer,
+      {...props, extensions: [extension]},
+      extension
+    );
+    const baseSets = getModelShaders(SolidPolygonLayer, props);
+    // The roofs, and the walls (filled and wireframe).
+    const wallShaders = shaderSets.filter(shaders => shaders.vs.includes('#define IS_SIDE_VERTEX'));
+    expect(wallShaders.length).toBeGreaterThan(0);
+    expect(wallShaders.length).toBeLessThan(shaderSets.length);
+    shaderSets.forEach((shaders, index) => {
+      expectInjectionsApplied({
+        extensionName: 'FillExtrusionLightingExtension',
+        layerName: 'SolidPolygonLayer',
+        injections: shaderSets.injections,
+        shaders
+      });
+      const walls = shaders.vs.includes('#define IS_SIDE_VERTEX');
+      expectNames('FillExtrusionLightingExtension', 'SolidPolygonLayer', baseSets[index], {
+        vs: [
+          'vertexPositions',
+          'elevations',
+          ...(walls ? ['positions'] : []),
+          'project.projectionMode',
+          'PROJECTION_MODE_GLOBE',
+          'geometry.normal',
+          'geometry.worldPosition'
+        ]
+      });
+      // The hook must shade the color that deck.gl's lighting left, after the normal is set.
+      const main = shaders.vs.slice(shaders.vs.indexOf('void calculatePosition'));
+      const normalAt = main.indexOf('geometry.normal = normal');
+      const lightAt = main.indexOf('lighting_getLightColor');
+      const hookAt = main.search(/\bDECKGL_FILTER_COLOR\s*\(/);
+      expect(normalAt, 'geometry.normal is set before DECKGL_FILTER_COLOR').toBeGreaterThan(0);
+      expect(lightAt, "deck.gl's lighting runs before DECKGL_FILTER_COLOR").toBeGreaterThan(0);
+      expect(hookAt).toBeGreaterThan(Math.max(normalAt, lightAt));
     });
   });
 

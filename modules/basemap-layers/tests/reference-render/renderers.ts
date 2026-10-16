@@ -62,6 +62,8 @@ export type RenderOptions = {
   pixelRatio?: number;
   /** Camera pitch, in degrees. Default 0. */
   pitch?: number;
+  /** Camera bearing, in degrees. Default 0. */
+  bearing?: number;
 };
 
 /** Options of a `BasemapLayer` render. */
@@ -217,7 +219,7 @@ function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[]
 export async function renderMapLibre(
   style: any,
   scene: ReferenceScene,
-  {pixelRatio = 1, pitch = 0}: RenderOptions = {}
+  {pixelRatio = 1, pitch = 0, bearing = 0}: RenderOptions = {}
 ): Promise<Render> {
   const container = createContainer();
   const requests: string[] = [];
@@ -229,6 +231,7 @@ export async function renderMapLibre(
     center: scene.center,
     zoom: scene.zoom,
     pitch,
+    bearing,
     pixelRatio,
     // Labels at full opacity in the first idle frame.
     fadeDuration: 0,
@@ -448,7 +451,7 @@ async function drawBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown>,
-  {pixelRatio = 1, pitch = 0, onRendered}: BasemapLayerRenderOptions
+  {pixelRatio = 1, pitch = 0, bearing = 0, onRendered}: BasemapLayerRenderOptions
 ): Promise<BasemapLayerDraw> {
   const parent = createContainer();
   performance.clearResourceTimings();
@@ -481,7 +484,7 @@ async function drawBasemapLayer(
             latitude: scene.center[1],
             zoom: scene.zoom,
             pitch,
-            bearing: 0
+            bearing
           },
           layers: [
             new ProbeBasemapLayer({
