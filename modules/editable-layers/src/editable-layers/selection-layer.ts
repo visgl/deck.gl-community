@@ -61,12 +61,13 @@ const LAYER_ID_GEOJSON = 'selection-geojson';
 const LAYER_ID_BLOCKER = 'selection-blocker';
 
 function filterFeaturePicks(pickingInfos: any[]) {
-  const seen = new Set<string>();
+  const seenObjects = new Set<unknown>();
   return pickingInfos.filter(info => {
     if (info.isGuide) return false;
-    const key = `${info.layer?.id}:${info.index}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
+    const object = info.object;
+    if (object == null) return true;
+    if (seenObjects.has(object)) return false;
+    seenObjects.add(object);
     return true;
   });
 }
