@@ -142,8 +142,13 @@ describe('native tree geometry', () => {
     expect(Math.max(...p.filter((_, i) => i % 3 === 0))).toBeGreaterThan(0.82);
     expect(Math.max(...p.filter((_, i) => i % 3 === 2))).toBeGreaterThan(0.95);
     const palmSplats = getTreeSplatSource('palm');
-    expect(palmSplats.positions.length / 3).toBeGreaterThan(1000);
-    expect(palmSplats.positions.length / 3).toBeLessThan(1200);
+    expect(palmSplats.positions.length / 3).toBeGreaterThan(1700);
+    expect(palmSplats.positions.length / 3).toBeLessThan(1900);
+    expect(
+      Array.from(palmSplats.scales)
+        .filter((_, index) => index % 3 === 1)
+        .some(width => width > 0.01)
+    ).toBe(true);
     expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
     expect(getTreeSplatSource('palm')).toBe(palmSplats);
   });
