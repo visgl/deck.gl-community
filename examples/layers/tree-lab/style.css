@@ -55,6 +55,18 @@
 .trees-controls .trees-range[hidden] {
   display: none;
 }
+.trees-controls .trees-note[hidden] {
+  display: none;
+}
+.trees-controls .trees-toggle[hidden] {
+  display: none;
+}
+.trees-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #596b53;
+  font-size: 11px;
+}
 .trees-range {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 4em;

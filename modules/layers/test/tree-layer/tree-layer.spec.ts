@@ -508,8 +508,14 @@ describe('TreeLayer prepared data and crop contracts', () => {
     const crop = {count: 8, droppedCount: 5, radius: 0.2, color: [200, 80, 40, 255]};
     const {layer} = createLayer([OAK], {getCrop: () => crop});
     const prefix = layer.state.liveCrops.map(point => point.translation);
+    const cropRadii = layer.state.liveCrops.map(point => point.radius);
     const expanded = createLayer([OAK], {getCrop: () => ({...crop, count: 16})}).layer;
     expect(expanded.state.liveCrops.slice(0, 8).map(point => point.translation)).toEqual(prefix);
+    expect(expanded.state.liveCrops.slice(0, 8).map(point => point.radius)).toEqual(cropRadii);
+    expect(new Set(cropRadii).size).toBeGreaterThan(1);
+    expect(cropRadii.every(radius => radius >= crop.radius * 0.84 && radius <= crop.radius)).toBe(
+      true
+    );
     expect(expanded.state.droppedCrops.map(point => point.translation)).toEqual(
       layer.state.droppedCrops.map(point => point.translation)
     );

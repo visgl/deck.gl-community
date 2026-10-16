@@ -53,7 +53,10 @@ export type CropConfig = {
   count: number;
   /** Supplied fallen crop count, independent of attached crops. @default 0 */
   droppedCount?: number;
-  /** Enclosing sphere radius in metres, including elongated crops and petals. */
+  /**
+   * Maximum enclosing sphere radius in metres; attached crops vary deterministically from 84% to
+   * this bound.
+   */
   radius: number;
 };
 
@@ -254,7 +257,7 @@ type _TreeLayerProps<DataT> = {
    * The same accessor can express fruit, nuts, or flowering stage — pass
    * `kind: 'flower'` with a flower colour (e.g. `[255, 200, 220, 255]`) for blossom.
    *
-   * Crop positions are randomised deterministically from the tree's geographic
+   * Crop positions and sizes are randomised deterministically from the tree's geographic
    * coordinates; they are stable across re-renders.
    *
    * Attached crops too large to fit the foliage are omitted.
@@ -599,6 +602,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       if (crop && Number.isFinite(crop.radius) && crop.radius > 0) {
         const cropRadius = crop.radius * sizeScale;
         const rng = createTreeRng(seed);
+        const cropSizeRng = createTreeRng(seed ^ 0x3c6ef372);
         // SimpleMeshLayer uses yaw about Z and pitch about Y (roll is zero).
         const transform = new Matrix4()
           .rotateZ((row.orientation[1] * Math.PI) / 180)
@@ -606,7 +610,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           .scale(row.scale);
         const count = Number.isFinite(crop.count) ? Math.max(0, Math.floor(crop.count)) : 0;
         for (let i = 0; i < count; i++) {
-          const point = sampleTreeFruit(type, levels, rng, row.scale, cropRadius, characteristics);
+          const radius = cropRadius * (0.84 + cropSizeRng() * 0.16);
+          const point = sampleTreeFruit(type, levels, rng, row.scale, radius, characteristics);
           if (!point) continue;
           const offset = transform.transformAsVector(point) as [number, number, number];
           offset[2] += row.translation[2];
@@ -616,7 +621,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
                 position: row.position,
                 translation: offset,
                 kind: crop.kind ?? 'fruit',
-                radius: cropRadius,
+                radius,
                 color: crop.color,
                 windStrength,
                 wind: row.wind
@@ -627,19 +632,21 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           );
         }
         const groundRng = createTreeRng(seed ^ 0x1a2b3c4d);
+        const droppedSizeRng = createTreeRng(seed ^ 0x5be0cd19);
         const droppedCount = Number.isFinite(crop.droppedCount)
           ? Math.max(0, Math.floor(crop.droppedCount!))
           : 0;
         for (let i = 0; i < droppedCount; i++) {
           const theta = groundRng() * Math.PI * 2;
           const r = Math.sqrt(groundRng()) * radius * 0.5;
+          const droppedRadius = cropRadius * (0.84 + droppedSizeRng() * 0.16);
           droppedCrops.push(
             this.getSubLayerRow(
               {
                 position: row.position,
-                translation: [Math.cos(theta) * r, Math.sin(theta) * r, cropRadius],
+                translation: [Math.cos(theta) * r, Math.sin(theta) * r, droppedRadius],
                 kind: crop.kind ?? 'fruit',
-                radius: cropRadius,
+                radius: droppedRadius,
                 color: crop.color,
                 wind: [height, row.wind[1], 0]
               },
