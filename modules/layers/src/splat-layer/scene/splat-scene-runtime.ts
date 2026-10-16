@@ -732,10 +732,12 @@ export class SplatSceneRuntime implements Effect {
     } else if (typeof Blob !== 'undefined' && input instanceof Blob) {
       type = 'rad';
       url = input;
-    } else {
+    } else if ('url' in input) {
       type = input.type;
       url = input.url;
       if (input.type === 'splats') format = input.format ?? null;
+    } else {
+      return input;
     }
     const location = typeof url === 'string' ? ['url', url] : ['blob', this.getBlobId(url)];
     return `splat-scene:${JSON.stringify([type, location, format])}`;
