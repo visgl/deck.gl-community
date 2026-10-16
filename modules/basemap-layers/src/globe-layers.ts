@@ -40,7 +40,6 @@ import {
 import {evaluateStyleLight, getStylePropertyDefault} from './style-expression';
 import {
   DEFAULT_FILL_EXTRUSION_LIGHT,
-  FILL_EXTRUSION_MATERIAL,
   type FillExtrusionLight,
   FillExtrusionLightingExtension
 } from './fill-extrusion-lighting-extension';
@@ -2899,7 +2898,6 @@ function createExtrusionSubLayer({
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
     parameters: EXTRUSION_PARAMETERS,
-    material: FILL_EXTRUSION_MATERIAL,
     extensions: [...(baseProps.extensions || []), FILL_EXTRUSION_LIGHTING_EXTENSION],
     fillExtrusionLight: light,
     fillExtrusionVerticalGradient: paint['fill-extrusion-vertical-gradient'] ?? true

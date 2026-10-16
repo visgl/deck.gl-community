@@ -120,7 +120,7 @@ float fillExtrusionLighting_height;
   fillExtrusionLighting_base = vertexPositions.z;
   fillExtrusionLighting_height = vertexPositions.z + elevations;
 `,
-    // The layer is unlit (see FILL_EXTRUSION_MATERIAL), so color is the extrusion's own.
+    // The layer is drawn unlit (see `draw`), so color is the extrusion's own.
     'vs:DECKGL_FILTER_COLOR': /* glsl */ `
   // The light is placed relative to the ground under the building: east, north and up. On a
   // globe, deck.gl turns a roof's normal into globe space (project_normal), but leaves the walls
@@ -143,24 +143,28 @@ float fillExtrusionLighting_height;
 };
 
 /**
- * The material of a layer drawn with `FillExtrusionLightingExtension`: deck.gl's lighting leaves
- * the color as it is, for the extension to shade.
+ * The material the extension draws with: deck.gl's lighting leaves the color as it is, for the
+ * extension to shade.
  */
-export const FILL_EXTRUSION_MATERIAL = Object.freeze({unlit: true});
+const UNLIT_MATERIAL = {unlit: true};
 
 function isExtrudedPolygonLayer(layer: Layer): boolean {
   const state = layer.state as Record<string, unknown> | undefined;
-  return Boolean(state && 'polygonTesselator' in state && (layer.props as any).extruded);
+  return (
+    layer.context.device.type !== 'webgpu' &&
+    Boolean(state && 'polygonTesselator' in state && (layer.props as any).extruded)
+  );
 }
 
 /**
  * Shades the extruded `SolidPolygonLayer`s of a layer as MapLibre GL JS shades `fill-extrusion`,
  * from the style's `light` (`fillExtrusionLight`) and `fill-extrusion-vertical-gradient`
- * (`fillExtrusionVerticalGradient`), instead of with deck.gl's lights. The layer must be drawn
- * with `material: FILL_EXTRUSION_MATERIAL`. A light anchored to the viewport turns with the
- * viewport's bearing, which is read at every draw. On a globe, the light is placed relative to
+ * (`fillExtrusionVerticalGradient`), instead of with deck.gl's lights, which it turns off for the
+ * layer at every draw. A light anchored to the viewport turns with the viewport's bearing, which is
+ * read at every draw. On a globe, the light is placed relative to
  * the ground under each building. Polygons must lie at `fill-extrusion-base` and be extruded by
- * the rest of the height. WebGL only.
+ * the rest of the height. WebGL only: on WebGPU the extension adds no shader code, and buildings
+ * keep deck.gl's lights.
  */
 export class FillExtrusionLightingExtension extends LayerExtension {
   static extensionName = 'FillExtrusionLightingExtension';
@@ -188,6 +192,11 @@ export class FillExtrusionLightingExtension extends LayerExtension {
       lightDirectionIntensity: [x, y, z, light.intensity],
       lightColorGradient: [...light.color, this.props.fillExtrusionVerticalGradient ? 1 : 0]
     };
-    this.setShaderModuleProps({fillExtrusionLighting: fillExtrusionLightingProps});
+    // After the lighting effect has set the layer's material (see `LayersPass`).
+    this.setShaderModuleProps({
+      fillExtrusionLighting: fillExtrusionLightingProps,
+      phongMaterial: UNLIT_MATERIAL,
+      gouraudMaterial: UNLIT_MATERIAL
+    } as any);
   }
 }

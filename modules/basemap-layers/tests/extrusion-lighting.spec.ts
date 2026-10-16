@@ -6,7 +6,6 @@
 import {describe, expect, test} from 'vitest';
 import {
   DEFAULT_FILL_EXTRUSION_LIGHT,
-  FILL_EXTRUSION_MATERIAL,
   FillExtrusionLightingExtension,
   getFillExtrusionLightDirection
 } from '../src/fill-extrusion-lighting-extension.ts';
@@ -68,7 +67,6 @@ function renderExtrusion(
 describe('fill-extrusion lighting', () => {
   test('shades extrusions with the extension instead of deck.gl lights', () => {
     const sublayer = renderExtrusion();
-    expect(sublayer.props.material).toBe(FILL_EXTRUSION_MATERIAL);
     expect(
       sublayer.props.extensions.some(
         (extension: unknown) => extension instanceof FillExtrusionLightingExtension
@@ -125,5 +123,20 @@ describe('getFillExtrusionLightDirection', () => {
     expect(viewport[1]).toBeCloseTo(0.2875, 4);
     const map = {...DEFAULT_FILL_EXTRUSION_LIGHT, anchor: 'map' as const};
     expect(getFillExtrusionLightDirection(map, 90)).toEqual(getFillExtrusionLightDirection(map, 0));
+  });
+});
+
+describe('FillExtrusionLightingExtension', () => {
+  const extension = new FillExtrusionLightingExtension();
+  const layerOn = (type: string, extruded = true): any => ({
+    context: {device: {type}},
+    state: {polygonTesselator: {}},
+    props: {extruded}
+  });
+
+  test('shades extruded polygons on WebGL only, leaving deck.gl lights on WebGPU', () => {
+    expect(extension.isEnabled(layerOn('webgl'))).toBe(true);
+    expect(extension.isEnabled(layerOn('webgpu'))).toBe(false);
+    expect(extension.isEnabled(layerOn('webgl', false))).toBe(false);
   });
 });
