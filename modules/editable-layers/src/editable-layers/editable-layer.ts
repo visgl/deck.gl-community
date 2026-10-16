@@ -161,7 +161,7 @@ export abstract class EditableLayer<
     // private Deck/Mapbox handlers or changing the render canvas's pointer events.
     const eventManager =
       eventTarget && eventTarget !== canvas
-        ? new EventManager(eventTarget, {recognizers: [[Pan, {threshold: 1}]], cssProps: {}})
+        ? new EventManager(eventTarget, {recognizers: [[Pan, {threshold: 3}]], cssProps: {}})
         : deckEventManager;
     editableState.eventManager = eventManager;
     for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {

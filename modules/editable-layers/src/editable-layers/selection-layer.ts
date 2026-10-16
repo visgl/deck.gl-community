@@ -37,6 +37,11 @@ export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
   /** Draw a rectangle or polygon; null disables selection. */
   selectionType: string | null;
   /**
+   * Element receiving selection input when it differs from deck.gl's render canvas.
+   * For an overlaid MapboxOverlay, pass the base map's public getCanvas() result.
+   */
+  eventTarget?: HTMLElement | null;
+  /**
    * Keep selection gestures from bubbling into the parent map.
    * Set to false when the application coordinates map interactions itself.
    * @default true
@@ -46,6 +51,7 @@ export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
 
 const defaultProps: DefaultProps<SelectionLayerProps<any>> = {
   selectionType: SELECTION_TYPE.RECTANGLE,
+  eventTarget: {type: 'object', value: null, compare: 0},
   autoPreventMapInteractions: true,
   layerIds: [],
   onSelect: () => {}
@@ -73,6 +79,7 @@ function filterFeaturePicks(pickingInfos: any[]) {
 }
 
 const PASS_THROUGH_PROPS = [
+  'eventTarget',
   'autoPreventMapInteractions',
   'lineWidthScale',
   'lineWidthMinPixels',

@@ -7,6 +7,7 @@ import {userEvent} from 'vitest/browser';
 import 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
+import {SelectionLayer} from '../../src/editable-layers/selection-layer';
 import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
 import {DrawPolygonByDraggingMode} from '../../src/edit-modes/draw-polygon-by-dragging-mode';
 import {ModifyMode} from '../../src/edit-modes/modify-mode';
@@ -41,6 +42,32 @@ async function drag(canvas: HTMLCanvasElement, from: number[], to: number[], rel
     canvas.dispatchEvent(new PointerEvent('pointerup', eventAt(to[0], to[1], 0)));
     canvas.dispatchEvent(new MouseEvent('mouseup', eventAt(to[0], to[1], 0)));
   }
+  await frame();
+}
+
+async function clickWithSmallJitter(canvas: HTMLCanvasElement, position: number[]) {
+  const rect = canvas.getBoundingClientRect();
+  const eventAt = (x: number, y: number, buttons: number) => ({
+    clientX: rect.left + x,
+    clientY: rect.top + y,
+    button: 0,
+    buttons,
+    bubbles: true,
+    cancelable: true,
+    pointerId: 1,
+    pointerType: 'mouse',
+    isPrimary: true
+  });
+  const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+  const [x, y] = position;
+  canvas.dispatchEvent(new PointerEvent('pointerdown', eventAt(x, y, 1)));
+  canvas.dispatchEvent(new MouseEvent('mousedown', eventAt(x, y, 1)));
+  canvas.dispatchEvent(new PointerEvent('pointermove', eventAt(x + 2, y, 1)));
+  canvas.dispatchEvent(new MouseEvent('mousemove', eventAt(x + 2, y, 1)));
+  await frame();
+  canvas.dispatchEvent(new PointerEvent('pointerup', eventAt(x + 2, y, 0)));
+  canvas.dispatchEvent(new MouseEvent('mouseup', eventAt(x + 2, y, 0)));
+  canvas.dispatchEvent(new MouseEvent('click', {...eventAt(x + 2, y, 0), detail: 1}));
   await frame();
 }
 
@@ -105,15 +132,21 @@ test.each([
       {x: 300, y: 250}
     ].entries()) {
       // Vitest scales click options in place for its test iframe.
-      await userEvent.click(canvas, {position: {...position}});
+      const expectedPosition =
+        !interleaved && index === 0 ? {...position, x: position.x + 2} : position;
+      if (!interleaved && index === 0) {
+        await clickWithSmallJitter(canvas, [position.x, position.y]);
+      } else {
+        await userEvent.click(canvas, {position: {...position}});
+      }
       expect(actions.filter(action => action.editType === 'addTentativePosition')).toHaveLength(
         index + 1
       );
       const actual = actions.at(-1).editContext.position;
       const projected = map.project(actual);
       // Browser iframe scaling rounds physical pointer coordinates.
-      expect(Math.abs(projected.x - position.x)).toBeLessThanOrEqual(1.5);
-      expect(Math.abs(projected.y - position.y)).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(projected.x - expectedPosition.x)).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(projected.y - expectedPosition.y)).toBeLessThanOrEqual(1.5);
       await ready();
     }
     await userEvent.dblClick(canvas, {position: {x: 300, y: 250}});
@@ -198,6 +231,86 @@ test.each([
     }
     await userEvent.click(canvas, {position: {x: 300, y: 200}});
     expect(actions).toHaveLength(actionCount);
+  } finally {
+    map.removeControl(overlay);
+    overlay.finalize();
+    map.remove();
+    container.remove();
+  }
+}, 30000);
+
+test('rectangle selection uses the map canvas in overlaid mode without panning the map', async () => {
+  const container = document.createElement('div');
+  container.style.cssText = 'width:512px;height:384px;position:relative';
+  document.body.append(container);
+  const map = new maplibre.Map({
+    container,
+    style: {version: 8, sources: {}, layers: []},
+    center: [0, 0],
+    zoom: 3,
+    pixelRatio: 1
+  });
+  const overlay = new MapboxOverlay({interleaved: false});
+  const target = new EditableGeoJsonLayer({
+    id: 'target',
+    data: {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [-20, -20],
+                [20, -20],
+                [20, 20],
+                [-20, 20],
+                [-20, -20]
+              ]
+            ]
+          },
+          properties: {}
+        }
+      ]
+    },
+    pickable: true,
+    mode: ViewMode
+  });
+  const selected: any[] = [];
+  const selection = new SelectionLayer({
+    id: 'selection',
+    selectionType: 'rectangle',
+    layerIds: ['target'],
+    eventTarget: map.getCanvas(),
+    onSelect: ({pickingInfos}) => selected.push(...pickingInfos)
+  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      map.once('load', () => resolve());
+      map.once('error', event => reject(event.error));
+    });
+    overlay.setProps({layers: [target, selection]});
+    map.addControl(overlay);
+    map.dragRotate.disable();
+    const center = map.getCenter();
+
+    await vi.waitFor(() => {
+      const layer = selection.getSubLayers()[0] as EditableGeoJsonLayer | undefined;
+      expect(layer).toBeDefined();
+      expect(layer?.isLoaded).toBe(true);
+    });
+    const innerEditableLayer = selection.getSubLayers()[0] as EditableGeoJsonLayer;
+    await drag(map.getCanvas(), [150, 90], [360, 290]);
+
+    expect.soft(innerEditableLayer).toBeDefined();
+    expect.soft(innerEditableLayer?.props.eventTarget).toBe(map.getCanvas());
+    expect.soft(innerEditableLayer?.state._editableLayerState.eventTarget).toBe(map.getCanvas());
+    expect.soft(innerEditableLayer?._isEditing()).toBe(true);
+    expect.soft(selected).toHaveLength(1);
+    expect.soft(map.getCenter().lng).toBeCloseTo(center.lng, 8);
+    expect.soft(map.getCenter().lat).toBeCloseTo(center.lat, 8);
+    expect.soft(map.dragPan.isEnabled()).toBe(true);
   } finally {
     map.removeControl(overlay);
     overlay.finalize();

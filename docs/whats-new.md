@@ -30,9 +30,9 @@ This page lists module additions and major changes in each release. For detailed
 
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
 
-- `EditableGeoJsonLayer` supports `eventTarget` for overlaid MapLibre/Mapbox editing. Pass
-  `map.getCanvas()` when using `MapboxOverlay({interleaved: false})` to enable drawing and
-  handle dragging without changing the render canvas's pointer behavior. Input listeners
+- `EditableGeoJsonLayer` and `SelectionLayer` support `eventTarget` for overlaid MapLibre/Mapbox
+  editing. Pass `map.getCanvas()` when using `MapboxOverlay({interleaved: false})` to enable drawing,
+  selection, and dragging without changing the render canvas's pointer behavior. Input listeners
   and touch styles are released when the target changes or the layer is removed.
 - `SelectionLayer` polygon selection masks the full picking rectangle, avoiding false positives
   outside wide, diagonal, and concave lassos while keeping GPU picking synchronous.

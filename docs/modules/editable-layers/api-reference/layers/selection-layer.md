@@ -91,6 +91,14 @@ Keeps primary mouse and single-touch selection gestures from bubbling into the p
 Set to `false` when the application coordinates map gestures itself. This is forwarded to
 SelectionLayer's internal `EditableGeoJsonLayer`; inactive selection uses `ViewMode`.
 
+#### `eventTarget` (HTMLElement, optional)
+
+- Default: `null`
+
+Element that receives selection gestures when it differs from deck.gl's render canvas. For
+`MapboxOverlay({interleaved: false})`, pass `map.getCanvas()` so SelectionLayer's internal
+editable layer can receive input and keep selection drags from panning the base map.
+
 #### `onSelect` (Function, required)
 
 Called when selection is completed with `{pickingInfos}`. Each entry is the original
