@@ -222,7 +222,7 @@ Gallery pages, inline documentation examples, and all 37 standalone HTML example
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
   example demonstrates independent maps, shared hover state and canvas cleanup.
 
-- Breaking change for the next major release: editable-layers removes nine standard
+- Breaking change for v10: editable-layers removes nine standard
   GeoJSON type re-exports, unused `AnyGeoJson` and `Style` aliases, and the generic
   `toDeckColor`, `utils`, and `_memoize` exports. Import GeoJSON types from `geojson`;
   use the package's `Simple*` types for editable data. See the
