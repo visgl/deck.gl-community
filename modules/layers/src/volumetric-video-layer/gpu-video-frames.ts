@@ -241,13 +241,17 @@ void main() {
         this.uploadTexture.width !== width ||
         this.uploadTexture.height !== height
       ) {
-        this.uploadTexture?.destroy();
-        this.uploadTexture = this.device.createTexture({
+        // Retain the prior texture until replacement allocation succeeds. A decoder
+        // can return a later frame at a different display size; if its allocation
+        // fails, a subsequent frame with the prior dimensions must still be uploadable.
+        const uploadTexture = this.device.createTexture({
           width,
           height,
           format: 'rgba8unorm',
           sampler: {minFilter: 'linear', magFilter: 'linear'}
         });
+        this.uploadTexture?.destroy();
+        this.uploadTexture = uploadTexture;
       }
       this.uploadTexture.copyExternalImage({image: frame, width, height, depth: 1});
       this.copyModel.setBindings({videoTexture: this.uploadTexture});

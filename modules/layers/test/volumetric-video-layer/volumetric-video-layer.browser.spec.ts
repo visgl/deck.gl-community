@@ -752,6 +752,74 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
+  it('retains the previous upload texture when a display-size replacement cannot allocate', async () => {
+    const device = await createDevice();
+    const source = new VideoFrameSource(MP4_URL);
+    let cache: GPUVideoFrames | undefined;
+    try {
+      await source.initialize();
+      const sizes = [
+        [8, 6],
+        [10, 6],
+        [8, 6]
+      ] as const;
+      source.info = {
+        ...source.info!,
+        width: 8,
+        height: 6,
+        frameCount: 3,
+        frameTimestamps: [0, 1, 2]
+      };
+      vi.spyOn(source.sink!, 'samplesAtTimestamps').mockImplementation(
+        async function* (timestamps) {
+          for (const timestamp of timestamps) {
+            const [width, height] = sizes[timestamp];
+            const pixels = new Uint8Array(width * height * 4).fill(255);
+            yield new VideoSample(pixels, {
+              format: 'RGBA',
+              codedWidth: width,
+              codedHeight: height,
+              timestamp
+            });
+          }
+        }
+      );
+      let resolve: () => void;
+      let reject: (error: Error) => void;
+      cache = new GPUVideoFrames(
+        device,
+        source,
+        0,
+        3,
+        () => resolve(),
+        error => reject(error)
+      );
+      const request = (frame: number) =>
+        new Promise<void>((res, rej) => {
+          resolve = res;
+          reject = rej;
+          cache!.request({firstFrame: frame, currentFrame: frame, frameCount: 1});
+        });
+      await request(0);
+      const createTexture = device.createTexture.bind(device);
+      const allocation = vi.spyOn(device, 'createTexture').mockImplementation(props => {
+        if (props.width === 10 && props.height === 6)
+          throw new Error('Simulated upload texture allocation failure');
+        return createTexture(props);
+      });
+      await expect(request(1)).rejects.toThrow('Simulated upload texture allocation failure');
+      allocation.mockRestore();
+      await request(2);
+      expect(cache.getReadyWindow()).toEqual({firstFrame: 2, currentFrame: 2, frameCount: 1});
+      expect(countColor(readFrame(cache, 2))).toBeGreaterThan(0);
+    } finally {
+      vi.restoreAllMocks();
+      cache?.destroy();
+      source.destroy();
+      device.destroy();
+    }
+  });
+
   it('assembles the layer shaders and draws nonempty pixels in a deck render pass', async () => {
     const device = await createDevice();
     const target = device.createFramebuffer({
