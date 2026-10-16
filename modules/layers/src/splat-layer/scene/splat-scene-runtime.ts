@@ -99,6 +99,8 @@ export class SplatSceneRuntime implements Effect {
   private readonly radLayers = new Set<string>();
   private readonly owners = new Map<string, Owner[]>();
   private readonly assets = new Map<SplatDataInput, Asset>();
+  private readonly blobIds = new WeakMap<Blob, number>();
+  private nextBlobId = 0;
   private readonly domains = new Map<string, Domain>();
   private nextAssetId = 0;
   private readonly projectionErrors = new Map<string, string>();
@@ -209,7 +211,7 @@ export class SplatSceneRuntime implements Effect {
   }
   isLoaded(id: string): boolean {
     return (this.owners.get(id) ?? []).every(owner => {
-      const asset = this.assets.get(owner.asset);
+      const asset = this.getAsset(owner.asset);
       return (
         asset?.status?.phase !== 'error' && Boolean(asset?.data || asset?.scene?.frontier.length)
       );
@@ -357,7 +359,7 @@ export class SplatSceneRuntime implements Effect {
     ).size;
     const limit = Math.min(...visible.map(layer => layer.props.maxTotalSplats), Infinity);
     const coverage = (owner: Owner) =>
-      this.assets.get(owner.asset)?.data?.length ??
+      this.getAsset(owner.asset)?.data?.length ??
       (isSplatSceneData(owner.asset) ? 1 : (owner.asset as SplatSource).opacities.length);
     const staticCosts = new Map(
       visible.map(layer => [
@@ -389,7 +391,7 @@ export class SplatSceneRuntime implements Effect {
               (cost, owner) =>
                 cost +
                 (isSplatSceneData(owner.asset)
-                  ? (this.assets.get(owner.asset)?.data?.length ?? maxSplats)
+                  ? (this.getAsset(owner.asset)?.data?.length ?? maxSplats)
                   : (owner.asset as SplatSource).opacities.length),
               0
             )
@@ -545,7 +547,7 @@ export class SplatSceneRuntime implements Effect {
     const pages: SplatScenePage[] = [];
 
     for (const {layer, viewport, owner, view, alpha, colorScale} of entries) {
-      const asset = this.assets.get(owner.asset);
+      const asset = this.getAsset(owner.asset);
       if (!asset) continue;
       const frontier =
         asset.scene?.getFrontier(getViewOwnerKey(viewport.id, owner.key)) ??
@@ -599,12 +601,12 @@ export class SplatSceneRuntime implements Effect {
       coverageFloor: owners.reduce(
         (sum, owner) =>
           sum +
-          (this.assets.get(owner.asset)?.data?.length ??
+          (this.getAsset(owner.asset)?.data?.length ??
             (isSplatSceneData(owner.asset) ? 1 : (owner.asset as SplatSource).opacities.length)),
         0
       ),
       refiningInstances: owners.filter(
-        owner => this.assets.get(owner.asset)?.status?.phase === 'refining'
+        owner => this.getAsset(owner.asset)?.status?.phase === 'refining'
       ).length
     };
   }
@@ -619,7 +621,8 @@ export class SplatSceneRuntime implements Effect {
     concurrency: number
   ): Asset {
     const budgetKey = `${active}/${resident}/${concurrency}`;
-    let asset = this.assets.get(input);
+    const assetKey = this.getAssetKey(input);
+    let asset = this.assets.get(assetKey);
     if (asset?.scene && asset.budgetKey !== budgetKey) {
       asset.scene.setBudget(
         Number.isFinite(active) ? Math.max(1, Math.floor(active)) : 2_000_000,
@@ -629,8 +632,8 @@ export class SplatSceneRuntime implements Effect {
       asset.budgetKey = budgetKey;
     }
     if (!asset) {
-      asset = {id: this.nextAssetId++, users: this.getAssetUsers(input), budgetKey};
-      this.assets.set(input, asset);
+      asset = {id: this.nextAssetId++, users: this.getAssetUsers(assetKey), budgetKey};
+      this.assets.set(assetKey, asset);
       if (isSplatSceneData(input)) {
         const target = asset;
         const data = typeof input === 'object' && 'url' in input ? input.url : input;
@@ -658,7 +661,7 @@ export class SplatSceneRuntime implements Effect {
           for (const id of target.users) this.layers.get(id)?.props.onStatusChange?.(target.status);
           void loading.promise
             .then(source => {
-              if (this.assets.get(input) !== target) return;
+              if (this.assets.get(assetKey) !== target) return;
               target.destroyLoading = undefined;
               target.data = makeGPUSplatData(this.device, source);
               target.status = {
@@ -675,7 +678,7 @@ export class SplatSceneRuntime implements Effect {
               }
             })
             .catch(error => {
-              if (this.assets.get(input) !== target) return;
+              if (this.assets.get(assetKey) !== target) return;
               target.status = {
                 ...target.status!,
                 phase: 'error',
@@ -715,16 +718,46 @@ export class SplatSceneRuntime implements Effect {
     asset.users.add(layer.id);
     return asset;
   }
-  private getAssetUsers(input: SplatDataInput): Set<string> {
+  private getAsset(input: SplatDataInput): Asset | undefined {
+    return this.assets.get(this.getAssetKey(input));
+  }
+  private getAssetKey(input: SplatDataInput): SplatDataInput {
+    if (!isSplatSceneData(input)) return input;
+    let type: 'rad' | 'splats';
+    let url: string | Blob;
+    let format: string | null = null;
+    if (typeof input === 'string') {
+      type = /\.rad(?:$|[?#])/i.test(input) ? 'rad' : 'splats';
+      url = input;
+    } else if (typeof Blob !== 'undefined' && input instanceof Blob) {
+      type = 'rad';
+      url = input;
+    } else {
+      type = input.type;
+      url = input.url;
+      if (input.type === 'splats') format = input.format ?? null;
+    }
+    const location = typeof url === 'string' ? ['url', url] : ['blob', this.getBlobId(url)];
+    return `splat-scene:${JSON.stringify([type, location, format])}`;
+  }
+  private getBlobId(blob: Blob): number {
+    let id = this.blobIds.get(blob);
+    if (id === undefined) {
+      id = this.nextBlobId++;
+      this.blobIds.set(blob, id);
+    }
+    return id;
+  }
+  private getAssetUsers(key: SplatDataInput): Set<string> {
     return new Set(
       [...this.owners]
-        .filter(([, owners]) => owners.some(owner => owner.asset === input))
+        .filter(([, owners]) => owners.some(owner => this.getAssetKey(owner.asset) === key))
         .map(([id]) => id)
     );
   }
   private releaseUnusedAssets(): void {
-    for (const [input, asset] of this.assets) {
-      const users = this.getAssetUsers(input);
+    for (const [key, asset] of this.assets) {
+      const users = this.getAssetUsers(key);
       if (asset.status)
         for (const id of users)
           if (!asset.users.has(id)) this.layers.get(id)?.props.onStatusChange?.(asset.status);
@@ -733,7 +766,7 @@ export class SplatSceneRuntime implements Effect {
         asset.scene?.destroy();
         asset.destroyLoading?.();
         asset.data?.destroy();
-        this.assets.delete(input);
+        this.assets.delete(key);
       }
     }
   }

@@ -96,6 +96,36 @@ it('cleans up only the exact layer when layer ids contain separators', () => {
   }
 });
 
+it('reuses RAD scene residency when callers recreate equivalent descriptors', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({redraw: vi.fn()} as unknown as Deck, device);
+  const workers: {postMessage: ReturnType<typeof vi.fn>; terminate: ReturnType<typeof vi.fn>}[] =
+    [];
+  const workerFactory = () => {
+    const worker = {postMessage: vi.fn(), terminate: vi.fn(), onmessage: undefined as any};
+    workers.push(worker);
+    return worker as never;
+  };
+  const original = {type: 'rad' as const, url: '/capture.rad'};
+  const first = new SplatSceneLayer({id: 'scene', data: original, workerFactory});
+  runtime.register(first);
+  const asset = runtime['acquireAsset'](original, first, 100, 200, 2);
+  const destroyScene = vi.spyOn(asset.scene!, 'destroy');
+  const replacement = {type: 'rad' as const, url: '/capture.rad'};
+  const second = first.clone({data: replacement});
+  runtime.register(second);
+
+  try {
+    expect(runtime['acquireAsset'](replacement, second, 100, 200, 2)).toBe(asset);
+    expect(destroyScene).not.toHaveBeenCalled();
+    expect(workers).toHaveLength(1);
+    expect(workers[0].terminate).not.toHaveBeenCalled();
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
 it.each([
   1, 2
 ])('reserves decoded static coverage before granting detail to %i RAD assets', radCount => {
@@ -117,7 +147,7 @@ it.each([
     users: new Set(['mixed']),
     budgetKey: ''
   };
-  runtime['assets'].set(staticAsset, decoded as never);
+  runtime['assets'].set(runtime['getAssetKey'](staticAsset), decoded as never);
   const stopped = new Error('grant captured before GPU preparation');
   const acquire = vi
     .spyOn(runtime as any, 'acquireAsset')
@@ -143,7 +173,7 @@ it('keeps a covered RAD asset loaded while camera refinement continues', () => {
   const runtime = new SplatSceneRuntime({} as Deck, device);
   const layer = new SplatSceneLayer({id: 'rad', data: '/capture.rad'});
   runtime.register(layer);
-  runtime['assets'].set('/capture.rad', {
+  runtime['assets'].set(runtime['getAssetKey']('/capture.rad'), {
     id: 1,
     scene: {frontier: [{id: 'rad:0'}], destroy: vi.fn()},
     status: {phase: 'refining'},
