@@ -5,6 +5,7 @@
 // Compile against the built package exports, without the repository's source aliases.
 import * as EditableLayers from '@deck.gl-community/editable-layers';
 import type {
+  EditModeProjection,
   ClickEvent,
   EditAction,
   GeoJsonEditModeConstructor,
@@ -86,7 +87,9 @@ const data: SimpleFeatureCollection = {type: 'FeatureCollection', features: [fea
 const modes: GeoJsonEditModeType[] = modeConstructors.map(Mode => new Mode());
 modes.push(
   new EditableLayers.CompositeMode([new CustomMode(), new EditableLayers.ModifyMode()]),
-  new EditableLayers.SnappableMode(new EditableLayers.TranslateMode())
+  new EditableLayers.SnappableMode(new EditableLayers.TranslateMode()),
+  new EditableLayers.SnappableMode(new CustomMode()),
+  new EditableLayers.SnappableMode(new EditableLayers.TransformMode())
 );
 
 declare const props: ModeProps<SimpleFeatureCollection>;
@@ -123,3 +126,48 @@ void unsupportedData;
 const broadProps: ModeProps<FeatureCollection> = {...props, data: broadData, onEdit: () => {}};
 // @ts-expect-error Custom handlers must narrow broader GeoJSON data before editing.
 new EditableLayers.TranslateMode().handleClick(event, broadProps);
+
+// Public strategies use the same narrow data contract as edit modes.
+for (const strategy of [
+  new EditableLayers.ClickSnappingStrategy(),
+  new EditableLayers.DragSnappingStrategy(),
+  new EditableLayers.SourceSnappingStrategy()
+]) {
+  strategy.snapClickEvent(props, event);
+  strategy.getSnapGuides(props);
+}
+class NoSnappingPointMode extends EditableLayers.DrawPointMode {
+  override getSnappingStrategy(): EditableLayers.SnappingStrategy | undefined {
+    return undefined;
+  }
+}
+new EditableLayers.SnappableMode(new NoSnappingPointMode());
+
+const customSnapper: EditableLayers.Snapper = {
+  snap(
+    event: EditableLayers.BasePointerEvent,
+    input: ModeProps<SimpleFeatureCollection>,
+    excluded: Set<number>
+  ): EditableLayers.SnapResult | null {
+    void input;
+    void excluded;
+    return {mapCoords: event.mapCoords};
+  }
+};
+new EditableLayers.DefaultSnapper().snap(event, props, new Set());
+customSnapper.snap(event, props, new Set());
+declare const movement: EditableLayers.MovementEvent;
+new EditableLayers.ClickSnappingStrategy().snapMovementEvent(props, movement);
+
+// Legacy public wrapper inspection and replacement remain valid for strict consumers.
+const legacyWrapper = new EditableLayers.SnappableMode(new CustomMode());
+const legacyHandler: EditableLayers.GeoJsonEditMode = legacyWrapper._handler;
+legacyWrapper._handler = legacyHandler;
+
+// Strict consumers may provide an atomic render transform pair to standalone modes.
+const projection: EditModeProjection = {
+  project: position => position,
+  unproject: position => (position.every(Number.isFinite) ? position : undefined)
+};
+const projectedProps: ModeProps<SimpleFeatureCollection> = {...props, projection};
+void projectedProps;

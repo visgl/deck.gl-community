@@ -13,6 +13,21 @@ This page lists module additions and major changes in each release. For detailed
   and GPU filter retries restore playback controls. Metadata callbacks can replace the
   live layer without discarding its newly allocated history.
 
+- `SnappableMode` adds optional edge snapping and mode-specific click, drag, and source-handle
+  strategies for drawing and editing. Initial clicks and drag-to-draw corners resolve targets before a guide is rendered.
+  Committed shapes use the same snapped position as their preview, and drag events provide the
+  current handle picks even before a pointer move is cached. Existing custom wrappers remain supported. Edge proximity
+  is measured in screen pixels, including Cartesian views and bounded elevated segments. Layer-provided projection accounts for
+  offset origins and model matrices, retaining local coordinates in snap results and padding
+  omitted origin altitude with zero. Additional targets must be converted to the editable data frame.
+  `modeConfig.snapper` accepts a custom `Snapper` policy; external targets omit editable feature indexes.
+  `modeConfig.snapToAdditionalTargetsOnly` makes the default policy target only supplied external
+  features while retaining editable-layer source handles.
+
+- `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
+  outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
+  mask synchronously instead of waiting 250 ms.
+
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to

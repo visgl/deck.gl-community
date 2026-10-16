@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {lineIntersect} from '@turf/line-intersect';
 import {polygon as turfPolygon} from '@turf/helpers';
 import {booleanWithin} from '@turf/boolean-within';
@@ -26,8 +28,10 @@ import {
   EditModeCoordinateSystem
 } from './coordinate-system';
 import {polygonEdgesIntersect, polygonWithinPolygon} from './cartesian-utils';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class DrawPolygonMode extends GeoJsonEditMode {
+export class DrawPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   holeSequence: Position[] = [];
   isDrawingHole = false;
 
@@ -195,6 +199,11 @@ export class DrawPolygonMode extends GeoJsonEditMode {
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new ClickSnappingStrategy();
   }
 
   // eslint-disable-next-line max-statements, complexity

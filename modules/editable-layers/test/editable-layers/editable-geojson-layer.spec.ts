@@ -3,6 +3,7 @@ import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-l
 import {EditableH3ClusterLayer} from '../../src/editable-layers/editable-h3-cluster-layer';
 import {DrawPointMode} from '../../src/edit-modes/draw-point-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
+import {TransformMode} from '../../src/edit-modes/transform-mode';
 import {
   createClickEvent,
   createFeatureCollection,
@@ -63,6 +64,31 @@ function createGestureLayer() {
 function createGestureEvent(srcEvent = {}) {
   return {offsetCenter: {x: 10, y: 20}, srcEvent, stopImmediatePropagation: vi.fn()} as any;
 }
+
+test('instantiates legacy string mode names before using them', () => {
+  const layer = new EditableGeoJsonLayer({
+    id: 'legacy-mode-test',
+    data: createFeatureCollection(),
+    mode: 'transform',
+    selectedFeatureIndexes: []
+  });
+  layer.context = {
+    deck: {eventManager: {on: vi.fn(), off: vi.fn()}, pickMultipleObjects: () => []},
+    layerManager: {getLayers: () => []},
+    viewport: {unproject: coords => coords}
+  } as any;
+  layer.state = {mode: null} as any;
+  layer.initializeState();
+  layer.updateState({
+    props: layer.props,
+    oldProps: {},
+    changeFlags: {propsOrDataChanged: true},
+    context: layer.context
+  } as any);
+
+  expect(layer.getActiveMode()).toBeInstanceOf(TransformMode);
+  layer.finalizeState();
+});
 
 test.each([
   [{button: 0, buttons: 1}, true],
@@ -217,4 +243,31 @@ test('H3 editing forwards the application interaction override', () => {
   const layer = new EditableH3ClusterLayer({data: [], autoPreventMapInteractions: false});
   layer.state = {_editableLayerState: {}, tentativeHexagonIDs: []};
   expect(layer.renderLayers()[0].props.autoPreventMapInteractions).toBe(false);
+});
+
+test('drag completion clears pointer-down picks from cached move props without another move', () => {
+  const {layer} = createGestureLayer();
+  layer._onpanstart(createGestureEvent());
+  layer._onpointermove(createGestureEvent());
+  const previousMove = layer.state.lastPointerMoveEvent;
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+  layer._onpanend(createGestureEvent());
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toBeNull();
+  expect(layer.state.lastPointerMoveEvent.pointerDownMapCoords).toBeNull();
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+});
+
+test('fresh drag gestures update the raw pointer cache used by snap guides', () => {
+  const {layer, mode} = createGestureLayer();
+  const start = createStartDraggingEvent([1, 2], [3, 4]);
+  const dragging = {...start, screenCoords: [5, 6] as [number, number], mapCoords: [7, 8]};
+  layer.onStartDragging(start);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(start.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toEqual(start.pointerDownPicks);
+  layer.onDragging(dragging);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(dragging.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.mapCoords).toEqual(dragging.mapCoords);
+  expect(mode.handleDragging.mock.calls[0][1].lastPointerMoveEvent.mapCoords).toEqual(
+    dragging.mapCoords
+  );
 });
