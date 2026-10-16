@@ -65,7 +65,7 @@ edit modes.
 
 #### Public export cleanup {/* #public-export-cleanup */}
 
-The next major release removes redundant GeoJSON aliases and implementation helpers
+v10 removes redundant GeoJSON aliases and implementation helpers
 from `@deck.gl-community/editable-layers`. This is a breaking change to public imports:
 
 | Removed export | Migration |
