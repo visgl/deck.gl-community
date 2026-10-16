@@ -146,6 +146,9 @@ export function mountSfExample(container: HTMLElement): () => void {
   }
 
   function handleFeatureClick(info: {index?: number}) {
+    if (state.selectionType) {
+      return;
+    }
     const mode = getEditingMode(state);
     if (state.selectedFeatureIndexes.length > 0 && mode !== ViewMode) {
       return;
@@ -291,6 +294,9 @@ function buildInfoPanel({
 }
 
 function getCursor(state: SfExampleState) {
+  if (state.selectionType) {
+    return () => 'crosshair';
+  }
   const editableGeoJsonLayer = new EditableGeoJsonLayer({
     id: 'sf-polygons-cursor',
     data: state.testFeatures,
@@ -303,7 +309,9 @@ function getCursor(state: SfExampleState) {
 }
 
 function getEditingMode(state: SfExampleState) {
-  return state.selectedFeatureIndexes.length > 0 ? ModifyMode : ViewMode;
+  return state.allowEdit && !state.selectionType && state.selectedFeatureIndexes.length > 0
+    ? ModifyMode
+    : ViewMode;
 }
 
 function createButton(

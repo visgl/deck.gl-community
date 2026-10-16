@@ -93,6 +93,27 @@ export function GeometryEditor() {
 
 See the [getting-started example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/getting-started) for a complete runnable version.
 
+## MapLibre and Mapbox Interleaved Editing
+
+With `MapboxOverlay({interleaved: true})`, editing and selection gestures do not pan
+the MapLibre/Mapbox map. Use `ViewMode` to navigate or set
+`autoPreventMapInteractions: false` to manage gesture propagation yourself. Multi-touch
+navigation and the map's configured controls remain available.
+
+```ts
+const overlay = new MapboxOverlay({
+  interleaved: true,
+  layers: [new EditableGeoJsonLayer({
+    id: 'editable',
+    data,
+    mode: DrawPolygonMode,
+    selectedFeatureIndexes: [],
+    onEdit: ({updatedData}) => updateData(updatedData)
+  })]
+});
+map.addControl(overlay);
+```
+
 ## Widgets
 
 `editable-layers` ships deck.gl widgets that provide editing UI without requiring you to build custom React components.

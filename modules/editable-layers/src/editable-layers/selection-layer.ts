@@ -36,10 +36,17 @@ export interface SelectionLayerProps<_DataT> extends CompositeLayerProps {
   onSelect: (info: any) => any;
   /** Draw a rectangle or polygon; null disables selection. */
   selectionType: string | null;
+  /**
+   * Keep selection gestures from bubbling into the parent map.
+   * Set to false when the application coordinates map interactions itself.
+   * @default true
+   */
+  autoPreventMapInteractions?: boolean;
 }
 
 const defaultProps: DefaultProps<SelectionLayerProps<any>> = {
   selectionType: SELECTION_TYPE.RECTANGLE,
+  autoPreventMapInteractions: true,
   layerIds: [],
   onSelect: () => {}
 };
@@ -53,7 +60,20 @@ const EMPTY_MASK = [];
 const LAYER_ID_GEOJSON = 'selection-geojson';
 const LAYER_ID_BLOCKER = 'selection-blocker';
 
+function filterFeaturePicks(pickingInfos: any[]) {
+  const seenObjects = new Set<unknown>();
+  return pickingInfos.filter(info => {
+    if (info.isGuide) return false;
+    const object = info.object;
+    if (object == null) return true;
+    if (seenObjects.has(object)) return false;
+    seenObjects.add(object);
+    return true;
+  });
+}
+
 const PASS_THROUGH_PROPS = [
+  'autoPreventMapInteractions',
   'lineWidthScale',
   'lineWidthMinPixels',
   'lineWidthMaxPixels',
@@ -99,7 +119,7 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       layerIds
     });
 
-    onSelect({pickingInfos});
+    onSelect({pickingInfos: filterFeaturePicks(pickingInfos)});
   }
 
   _selectPolygonObjects(coordinates: any) {
@@ -142,7 +162,11 @@ export class SelectionLayer<DataT, ExtraPropsT> extends CompositeLayer<
       this.context.layerManager.updateLayers();
     }
 
-    onSelect({pickingInfos: pickingInfos.filter(info => info.layer?.id !== this.props.id)});
+    onSelect({
+      pickingInfos: filterFeaturePicks(
+        pickingInfos.filter(info => info.layer?.id !== this.props.id)
+      )
+    });
   }
 
   /** Draws the selection mask only during the active GPU picking pass. */

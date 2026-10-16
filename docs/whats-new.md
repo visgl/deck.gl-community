@@ -72,6 +72,7 @@ Released: September 7, 2026
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
 - **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements.
+- **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3
 

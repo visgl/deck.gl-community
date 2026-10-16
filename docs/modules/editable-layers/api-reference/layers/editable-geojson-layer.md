@@ -78,6 +78,13 @@ The `mode` property defines the mode used to handle user interaction events (e.g
 
 There are a extensive number of modes that come out-of-the-box with from '@deck.gl-community/editable-layers';. 
 
+#### `autoPreventMapInteractions` (Boolean, optional)
+
+- Default: `true`
+
+Prevents edit gestures from panning the parent MapLibre/Mapbox map. Multi-touch navigation
+remains available; set to `false` to manage gesture propagation yourself.
+
 #### `modeConfig` (Object, optional)
 
 - Default: `null`
