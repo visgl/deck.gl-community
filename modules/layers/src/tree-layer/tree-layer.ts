@@ -833,6 +833,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           id: `wood-${key}`,
           data: wood,
           ...shared,
+          shadowEnabled: this.props.shadowEnabled,
           getPosition: (row: TreeRow<DataT>) => row.position,
           getScale: (row: TreeRow<DataT>) => row.scale,
           getTranslation: (row: TreeRow<DataT>) => row.translation,
