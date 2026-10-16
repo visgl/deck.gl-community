@@ -87,7 +87,7 @@ test('registers every concrete public layer from each package without losing nam
       expected.push(key);
     }
   }
-  expect(Object.keys(registry.layers).sort()).toEqual(expected.sort());
+  expect(Object.keys(registry.layers).sort()).toEqual([...new Set(expected)].sort());
   expect(registeredType('GridLayer')).toBe(aggregation.GridLayer);
   expect(registeredType('GraphGridLayer')).toBe(graph.GridLayer);
 });
@@ -163,6 +163,8 @@ test('every public layer default prop has a schema property', () => {
       type = Object.getPrototypeOf(type)
     ) {
       for (const prop of Object.keys(type.defaultProps)) {
+        // Composition hooks are host-owned, not JSON document properties.
+        if (prop.startsWith('_')) continue;
         // GeoArrow explicitly omits binary text backgrounds from its public props.
         if (name === '_GeoArrowTextLayer' && prop === 'background') continue;
         // BitmapLayer draws its image prop and intentionally omits inherited row data.

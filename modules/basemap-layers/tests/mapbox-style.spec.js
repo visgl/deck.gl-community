@@ -110,11 +110,10 @@ describe('BasemapLayer', () => {
         })
     );
 
-    const layer = {
-      state: {resolvedStyle: null, loadError: null, loadToken: 0},
-      setState(update) {
-        this.state = {...this.state, ...update};
-      }
+    const layer = new BasemapLayer({style: null});
+    layer.initializeState();
+    layer.setState = function (update) {
+      this.state = {...this.state, ...update};
     };
 
     BasemapLayer.prototype.loadStyle.call(layer, {version: 8, sources: {}, layers: []}, null);

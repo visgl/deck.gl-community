@@ -4,6 +4,7 @@
 
 import {describe, expect, it} from 'vitest';
 import {OrthographicViewport, WebMercatorViewport} from '@deck.gl/core';
+import {_Tileset2D as Tileset2D} from '@deck.gl/geo-layers';
 import type {TileSource} from '@loaders.gl/loader-utils';
 import type {SharedTileset2DAdapter} from '../../src';
 import {SharedTile2DLayer, SharedTileset2D} from '../../src';
@@ -83,6 +84,40 @@ async function waitFor(condition: () => boolean, message: string): Promise<void>
 }
 
 describe('SharedTile2DLayer', () => {
+  /**
+   * Updates a layer with one view whose selected tiles have all loaded, and returns the
+   * `onViewportLoad` calls. The view's tiles changed unless `frameNumbers` holds its frame.
+   */
+  function updateWithLoadedView(frameNumbers: Map<string, number>) {
+    const loads: unknown[] = [];
+    const layer: any = new SharedTile2DLayer({
+      id: 'tile-2d-viewport-load',
+      getTileData: () => null,
+      onViewportLoad: (tiles: unknown) => loads.push(tiles)
+    });
+    const view = {isLoaded: true, selectedTiles: [], update: () => 1};
+    layer.state = {
+      tilesetViews: new Map([['default', view]]),
+      frameNumbers,
+      isLoaded: false,
+      tileLayers: new Map()
+    };
+    layer._knownViewports.set('default', {});
+    layer._getOrCreateTilesetView = () => view;
+    layer._prunePlaceholderViewportView = () => {};
+    layer.setState = (state: any) => Object.assign(layer.state, state);
+    layer._updateTileset();
+    return loads;
+  }
+
+  it('reports a view load once when its tiles and the loading state change together', () => {
+    expect(updateWithLoadedView(new Map())).toHaveLength(1);
+  });
+
+  it('reports a view load when only the loading state changes', () => {
+    expect(updateWithLoadedView(new Map([['default', 1]]))).toHaveLength(1);
+  });
+
   it('exports from the package surface', () => {
     expect(SharedTile2DLayer).toBeDefined();
     expect(SharedTileset2D).toBeDefined();
@@ -132,7 +167,11 @@ describe('SharedTile2DLayer', () => {
   });
 
   it('shares one SharedTileset2D across multiple consumers and views', async () => {
-    const sharedTileset = SharedTileset2D.fromTileSource<TestTileData>(createMockTileSource());
+    // Metadata without bounds: the default mock's geographic bounding box would become the extent
+    // of these orthographic views and clip both to the same tiles once the views reselect.
+    const sharedTileset = SharedTileset2D.fromTileSource<TestTileData>(
+      createMockTileSource({getMetadata: () => Promise.resolve({} as any)})
+    );
     const leftView = new SharedTile2DView(sharedTileset);
     const rightView = new SharedTile2DView(sharedTileset);
     let statsChangeCount = 0;
@@ -295,5 +334,53 @@ describe('SharedTile2DLayer', () => {
 
     layer.activateViewport(minimapViewport);
     expect(updatesRequested).toBe(1);
+  });
+});
+
+describe('SharedTile2DLayer tile zoom', () => {
+  /** The tile zooms a tileset selects in a 512 pixel square map view at `zoom`. */
+  function getTileZooms(tileset: any, zoom: number, shared: boolean): number[] {
+    const viewport = new WebMercatorViewport({
+      longitude: 2,
+      latitude: 48,
+      zoom,
+      width: 512,
+      height: 512
+    });
+    const indices = shared
+      ? tileset.getTileIndices({viewState: viewport, minZoom: 0, maxZoom: 20, zRange: null})
+      : tileset.getTileIndices({viewport, minZoom: 0, maxZoom: 20});
+    return [...new Set<number>(indices.map(({z}: {z: number}) => z))];
+  }
+
+  it('adds zoomOffset before rounding, as deck.gl selects tiles', () => {
+    for (const zoomOffset of [0, 1, -1, -0.5]) {
+      const layer = new SharedTile2DLayer({
+        id: `tile-2d-zoom-offset-${zoomOffset}`,
+        data: 'https://example.com/{z}/{x}/{y}.json',
+        zoomOffset,
+        getTileData: () => null
+      });
+      const shared = new SharedTileset2D((layer as any)._getTilesetOptions());
+      const deck = new Tileset2D({getTileData: () => null, zoomOffset} as any);
+      for (const zoom of [3, 3.25, 3.5, 3.75, 4]) {
+        expect(getTileZooms(shared, zoom, true), `offset ${zoomOffset} at ${zoom}`).toEqual(
+          getTileZooms(deck, zoom, false)
+        );
+      }
+    }
+  });
+
+  it('selects the tiles at the floor of the zoom with a zoomOffset of -0.5', () => {
+    const layer = new SharedTile2DLayer({
+      id: 'tile-2d-zoom-floor',
+      data: 'https://example.com/{z}/{x}/{y}.json',
+      zoomOffset: -0.5,
+      getTileData: () => null
+    });
+    const shared = new SharedTileset2D((layer as any)._getTilesetOptions());
+    for (const zoom of [3, 3.25, 3.5, 3.75, 3.99]) {
+      expect(getTileZooms(shared, zoom, true), `at ${zoom}`).toEqual([3]);
+    }
   });
 });

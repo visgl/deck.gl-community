@@ -92,7 +92,9 @@ class TileSublayers extends CompositeLayer<{data: any[]}> {
   static layerName = 'TileSublayers';
 
   renderLayers() {
-    const vectorLayer: any = getBasemapLayers({
+    // A layer after a label layer starts another tile layer of the source (see
+    // `getStyleLayerRuns`); each tile layer names its tiles' sublayers after its own id.
+    const vectorLayers: any[] = getBasemapLayers({
       idPrefix: 'test',
       mode: 'map',
       zoom: 12,
@@ -101,14 +103,16 @@ class TileSublayers extends CompositeLayer<{data: any[]}> {
         sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
         layers: STYLE_LAYERS
       } as any
-    }).find(layer => layer.id === 'test-tiles');
-    return vectorLayer.props
-      .renderSubLayers({
-        ...this.getSubLayerProps({id: 'tile'}),
-        data: this.props.data,
-        tile: {index: {x: 0, y: 0, z: 12}}
-      })
-      .flat(2);
+    }).filter(layer => layer.id.startsWith('test-tiles'));
+    return vectorLayers.flatMap(vectorLayer =>
+      vectorLayer.props
+        .renderSubLayers({
+          ...this.getSubLayerProps({id: `${vectorLayer.id}-tile`}),
+          data: this.props.data,
+          tile: {index: {x: 0, y: 0, z: 12}}
+        })
+        .flat(2)
+    );
   }
 }
 

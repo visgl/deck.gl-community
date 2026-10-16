@@ -33,3 +33,23 @@ export type {
 } from './volumetric-video-layer/volumetric-video-layer';
 
 export {getFrameHistoryBytes as getVolumetricVideoHistoryBytes} from './volumetric-video-layer/frame-utils';
+
+export {TreeLayer} from './tree-layer/tree-layer';
+export type {
+  TreeLayerProps,
+  TreeSpec,
+  TreeType,
+  Season,
+  CropConfig,
+  CropKind,
+  TreeCharacteristics
+} from './tree-layer/tree-layer';
+
+export {SplatLayer} from './splat-layer/splat-layer';
+export type {SplatLayerProps, SplatLayerStats} from './splat-layer/splat-layer';
+export type {SplatSource} from './splat-layer/splat-source';
+export {createSplatHierarchy} from './splat-layer/splat-hierarchy';
+export type {SplatHierarchy, SplatHierarchyLevel} from './splat-layer/splat-hierarchy';
+export {SplatShadowPass} from './splat-layer/splat-shadow-pass';
+export type {SplatShadowProjection} from './splat-layer/splat-shadow-pass';
+export type {SplatDataInput, PreparedSplatData, SplatInstance} from './splat-layer/splat-input';

@@ -34,6 +34,9 @@ Release date: 2023
 
 ## Exports
 
+- [`SplatLayer`](./api-reference/splat-layer.md): reusable prepared Gaussian renderer
+- [`TreeLayer`](./api-reference/tree-layer.md): canonical procedural tree renderer
+
 - [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
 - [`VolumetricVideoLayer`](./api-reference/volumetric-video-layer.md) (WebGL2)
 - [`getVolumetricVideoHistoryBytes`](./api-reference/volumetric-video-layer.md#gpu-and-decoding)

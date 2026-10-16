@@ -44,8 +44,14 @@ automatically; the old four-library `use(vega, deck, layers, luma)` initializati
 is replaced with optional `use(vegaRuntime)`.
 
 The imported mark stagers handle groups, rectangles, rules, text, lines, areas,
-axes, and legends. Rectangle `z` and `depth` encodings extend the layout to 3D;
+axes, and legends. Circle and square symbols add area-based sizing, opacity,
+pixel-width strokes, and source-data picking; other shapes report errors. Rectangle `z` and `depth` encodings extend the layout to 3D;
 pass `{getView: () => '3d'}` as the second `ViewGl` constructor argument.
+Cuboid slots stay stable through reordering and partial presentations. Removed
+records shrink and fade at their latest positions. To preserve identity across
+replacement of Vega scene items, provide a unique dense
+`onSceneRectAssignCubeOrdinal` callback. Slots remain allocated until finalization.
+
 This is a subset of Vega rendering, not a complete Vega or Vega-Lite renderer.
 The custom cuboid shader currently requires WebGL2; WebGPU rendering is not
 implemented in this module.
@@ -65,3 +71,21 @@ yarn vite modules/vega/demo
 The demo imports source directly. See [UPSTREAM.md](UPSTREAM.md) for provenance
 and licensing. The package has `private: true` and a failing `prepublishOnly`
 guard; it has no public publish configuration.
+
+### Geospatial shapes and symbol transitions
+
+Vega `shape` marks with `geoshape` generators render projected GeoJSON polygons (including holes and MultiPolygons), lines and points. Use `geopoint` for geographic circle/square symbols. Vega handles projection resampling and geographic clipping. Projected polygon/path batches retain Vega shape paint order, keeping routes over regions and background graticules underneath. These are chart coordinates in the existing camera, without basemap synchronization. Arbitrary SVG shape paths remain unsupported.
+
+Circle/square shape, position, size, rotation, color and outline width use GPU attribute transitions and stable per-mark tuple slots, including filtering, reordering and reentry. Both shapes share one instanced quad per record; circle/square changes morph that glyph without hidden counterparts. Historical slots are released at finalization; recreate long-running streaming views periodically. Configure durations with `presenterConfig.transitionDurations`. The declarative geospatial example is shared by the playground and docs.
+
+Direct Stage inputs may declare `symbolData` entries with `shape: 'circle' | 'square'` and Cartesian-radian `angle`. Legacy `polygonData` square inputs still normalize into the same glyph slots. Geographic replacements through `rePresent()` retain the interleaved paint order for matching entries; additions/removals require an explicit `geographicData` list.
+
+### Hover tooltips
+
+Use Vega’s `tooltip` encoding on rect, symbol or projected shape marks, for example `"tooltip": {"signal": "{Name: datum.properties.name}"}`. Hovering displays evaluated strings or object fields as plain text. Omitted, null and false values suppress the tooltip. The unit layout, bar chart, geospatial and symbol transition examples declare tooltips in their shared JSON specs.
+
+### Geographic transition behavior
+
+Changing the projection or its parameters animates projected polygon and path vertices, alongside point symbols, with native deck.gl GPU attribute transitions. Setting `presenterConfig.transitionDurations.position` to zero makes geometry updates immediate. Geographic fills/strokes and outline widths also animate with the configured `color` and `size` durations.
+
+Vega still computes projection, resampling and clipping on the CPU. Vertex interpolation follows each staged geometry's vertex order; it is not interpolation between cartographic projection functions. Clipping can add or remove shapes and change ring topology, so those changes do not have the same stable record correspondence as symbols. Exact topology-aware projection morphing remains a follow-up.

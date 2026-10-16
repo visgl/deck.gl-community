@@ -2,16 +2,21 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import './vega-controls.css';
 import {parse, type Spec} from 'vega';
 import {ViewGl} from '../../modules/vega/src';
 
 /** Runs a declarative Vega document. Controls are native Vega signal bindings. */
 export function createVegaView(host: HTMLElement, spec: Spec) {
   const runtime = parse(spec);
-  const controls = host.ownerDocument.createElement('div');
+  const controls = host.ownerDocument.createElement('section');
+  controls.className = 'vega-controls';
+  controls.setAttribute('aria-label', 'Chart controls');
+  controls.hidden = !spec.signals?.some(signal => signal.bind);
+  const bindings = host.ownerDocument.createElement('div');
+  bindings.className = 'vega-controls-grid';
+  controls.append(bindings);
   const chart = host.ownerDocument.createElement('div');
-  controls.style.cssText =
-    'padding:12px;display:flex;gap:16px;flex-wrap:wrap;background:#fff;color:#172033';
   chart.style.cssText = 'position:relative;flex:1;min-height:100px';
   host.style.display = 'flex';
   host.style.flexDirection = 'column';
@@ -21,7 +26,7 @@ export function createVegaView(host: HTMLElement, spec: Spec) {
   let view: InstanceType<typeof ViewGl>;
   const has3dSignal = spec.signals?.some(signal => signal.name === 'is3d');
   view = new ViewGl(runtime, {
-    bind: controls,
+    bind: bindings,
     getView: () => (has3dSignal && view.signal('is3d') ? '3d' : '2d'),
     presenterConfig: {
       onSceneRectAssignCubeOrdinal: (datum: object, item?: {mark?: object}) => {

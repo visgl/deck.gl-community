@@ -4,6 +4,8 @@
  */
 
 import {concat} from './array';
+import {SymbolLayer} from './symbol-layer';
+import type {GeographicMark} from './interfaces';
 import {base} from './base';
 import {layerNames} from './constants';
 import {
@@ -15,6 +17,7 @@ import {LinearInterpolator_Class} from './deck.gl-classes/linear-interpolator';
 import {easing} from './easing';
 import {
   type Cube,
+  type SymbolMark,
   type PresenterConfig,
   type Stage,
   type StyledLine,
@@ -78,9 +81,84 @@ export function getLayers(
     presenter.style.fontFamily,
     characterSet
   );
-  const pathLayer = newPathLayer(layerNames.paths, stage.pathData);
-  const polygonLayer = newPolygonLayer(layerNames.polygons, stage.polygonData);
-  return [textLayer, cubeLayer, lineLayer, pathLayer, polygonLayer];
+  const pathLayer = newPathLayer(
+    layerNames.paths,
+    stage.pathData?.filter(path => !path.isGeographic)
+  );
+  const polygonData = stage.polygonData ?? [];
+  const polygonLayer = newPolygonLayer(
+    layerNames.polygons,
+    polygonData.filter(polygon => !polygon.isSymbol && !polygon.isGeographic)
+  );
+  return [
+    textLayer,
+    cubeLayer,
+    lineLayer,
+    pathLayer,
+    polygonLayer,
+    ...createGeographicLayers(stage, polygonData, config),
+    newSymbolLayer(stage.symbolData ?? [], config)
+  ];
+}
+
+function createGeographicLayers(
+  stage: Stage,
+  polygons: Polygon[],
+  config: PresenterConfig
+): Layer[] {
+  const marks: GeographicMark[] = stage.geographicData ?? [
+    ...polygons.filter(p => p.isGeographic).map(data => ({type: 'polygon' as const, data})),
+    ...(stage.pathData ?? [])
+      .filter(p => p.isGeographic)
+      .map(data => ({type: 'path' as const, data}))
+  ];
+  const layers: Layer[] = [];
+  const counts = {polygon: 0, path: 0};
+  for (let index = 0; index < marks.length; ) {
+    const type = marks[index].type;
+    const batch = [];
+    while (index < marks.length && marks[index].type === type) batch.push(marks[index++].data);
+    const baseId = type === 'polygon' ? layerNames.geographicPolygons : layerNames.geographicPaths;
+    const count = counts[type]++;
+    const id = count ? `${baseId}-${count}` : baseId;
+    layers.push(
+      type === 'polygon'
+        ? newPolygonLayer(id, batch as Polygon[], true, config)
+        : newPathLayer(id, batch as Path[], true, config)
+    );
+  }
+  return layers;
+}
+
+function newSymbolLayer(data: SymbolMark[], config: PresenterConfig) {
+  return new SymbolLayer({
+    id: layerNames.symbols,
+    data,
+    coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    transitions: {
+      getPosition: getTiming(config.transitionDurations.position, easing),
+      getRadius: config.transitionDurations.size
+        ? {...getTiming(config.transitionDurations.size, easing), enter: () => [0]}
+        : undefined,
+      getFillColor: getTiming(config.transitionDurations.color),
+      getLineColor: getTiming(config.transitionDurations.color),
+      getLineWidth: getTiming(config.transitionDurations.size),
+      getShape: getTiming(config.transitionDurations.size, easing),
+      getAngle: getTiming(config.transitionDurations.position, easing)
+    },
+    radiusUnits: 'common',
+    lineWidthUnits: 'pixels',
+    pickable: true,
+    stroked: true,
+    filled: true,
+    getPosition: item => item.position,
+    getRadius: item => item.radius,
+    getShape: item => (item.shape === 'square' ? 1 : 0),
+    getAngle: item => item.angle ?? 0,
+    getFillColor: item => item.fillColor,
+    getLineColor: item => item.strokeColor,
+    getLineWidth: item => item.strokeWidth
+  });
 }
 
 function newCubeLayer(
@@ -120,7 +198,7 @@ function newCubeLayer(
     transitions: {
       getPosition,
       getColor,
-      getSize
+      getSize: typeof getSize === 'object' ? {...getSize, enter: () => [0, 0, 0]} : getSize
     }
   };
   return new CubeLayer(cubeLayerProps);
@@ -137,7 +215,7 @@ function newLineLayer(id: string, data: StyledLine[]) {
   });
 }
 
-function newPathLayer(id: string, data: Path[]) {
+function newPathLayer(id: string, data: Path[], geographic = false, config?: PresenterConfig) {
   if (!data) return null;
 
   return new base.layers.PathLayer<Path>({
@@ -145,22 +223,45 @@ function newPathLayer(id: string, data: Path[]) {
     data,
     billboard: true,
     widthScale: 1,
-    widthMinPixels: 2,
+    widthMinPixels: 0,
+    pickable: true,
     widthUnits: 'pixels',
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    parameters: geographic ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
+    transitions: geographic
+      ? {
+          getPath: getTiming(config.transitionDurations.position, easing),
+          getColor: getTiming(config.transitionDurations.color),
+          getWidth: getTiming(config.transitionDurations.size)
+        }
+      : undefined,
     getPath: o => o.positions,
     getColor: o => o.strokeColor,
     getWidth: o => o.strokeWidth
   });
 }
 
-function newPolygonLayer(id: string, data: Polygon[]) {
+function newPolygonLayer(
+  id: string,
+  data: Polygon[],
+  geographic = false,
+  config?: PresenterConfig
+) {
   if (!data) return null;
 
   const newlayer = new base.layers.PolygonLayer<Polygon>({
     id,
     data,
     coordinateSystem: base.deck.COORDINATE_SYSTEM.CARTESIAN,
+    parameters: geographic ? {depthWriteEnabled: false, depthCompare: 'always'} : undefined,
+    transitions: geographic
+      ? {
+          getPolygon: getTiming(config.transitionDurations.position, easing),
+          getFillColor: getTiming(config.transitionDurations.color),
+          getLineColor: getTiming(config.transitionDurations.color),
+          getLineWidth: getTiming(config.transitionDurations.size)
+        }
+      : undefined,
     getPolygon: o => o.positions,
     getFillColor: o => o.fillColor,
     getLineColor: o => o.strokeColor,
@@ -168,7 +269,8 @@ function newPolygonLayer(id: string, data: Polygon[]) {
     filled: true,
     stroked: true,
     pickable: true,
-    extruded: true,
+    extruded: !geographic,
+    lineWidthUnits: geographic ? 'pixels' : 'meters',
     getElevation: o => o.depth,
     getLineWidth: o => o.strokeWidth
   });

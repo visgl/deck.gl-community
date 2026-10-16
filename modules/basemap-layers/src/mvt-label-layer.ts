@@ -1,7 +1,23 @@
 import {CompositeLayer} from '@deck.gl/core';
-import type {DefaultProps, Layer, LayerContext, UpdateParameters} from '@deck.gl/core';
-import {CollisionFilterExtension} from '@deck.gl/extensions';
-import {GeoJsonLayer, IconLayer, TextLayer, _TextBackgroundLayer} from '@deck.gl/layers';
+import type {DefaultProps, Layer, LayerContext, UpdateParameters, Viewport} from '@deck.gl/core';
+import {
+  acquireSharedLabelPlacement,
+  getSharedLabelPlacementKey,
+  LabelPlacement,
+  LabelPlacementExtension,
+  releaseSharedLabelPlacement,
+  type PlacementLayer,
+  type PlacementShape,
+  type PlacementSymbol,
+  PLACEMENT_VIEWPORT_PADDING,
+  type SymbolPlacementRules
+} from './label-placement';
+import type {OverlapMode} from './grid-index';
+import {GeoJsonLayer, IconLayer} from '@deck.gl/layers';
+import {LabelTextLayer} from './label-text-layer';
+import type {LabelTextJustify} from './label-text-layer';
+import {SharedTextureSet} from './shared-texture';
+import {isSameList} from './util';
 import {getZoomBucket, withOpacity} from './style-accessor';
 import {
   getCompiledStyleProperty,
@@ -10,10 +26,22 @@ import {
 } from './style-expression';
 import {getSpriteImageNames, resolveSpriteIcon, warnMissingIcon} from './sprite';
 import type {ResolvedSpriteIcon, SpriteAtlas} from './sprite';
+import {GlobeHorizonExtension} from './globe-horizon-extension';
+import {GlobeLineAngleExtension} from './globe-line-angle-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
+import {getHaloBlurGamma, TextHaloBlurExtension} from './text-halo-blur-extension';
 import {
+  getPathCircles,
+  needsFlip,
+  placeLineGlyphs,
+  type LabelLine,
+  type LineGlyphs
+} from './line-glyphs';
+import {
+  allowsLetterSpacing,
   canMeasureText,
   forgetCharacterWidths,
+  getCharacterWidthsRevision,
   getCharacterWidthMeasurer,
   transformText,
   wrapText
@@ -25,8 +53,6 @@ import {
   type PoleSearchBudget
 } from './polylabel';
 import type {LabelFont, LabelFontFamily} from './text-font';
-import {getSymbolCollision} from './symbol-collision';
-import type {SymbolPartCollision} from './symbol-collision';
 import {
   DEFAULT_LINE_ANCHOR_STEPS,
   clipLine,
@@ -59,7 +85,15 @@ type LabelRow = {
   position: number[];
   /** For labels along a line: the line's direction, in degrees counter-clockwise from east. */
   angle?: number;
+  /** For labels along a line: the line, along which their glyphs are placed (see `getLineGlyphs`). */
+  line?: RowLine;
 };
+
+/**
+ * The line a row's label is placed along: its vertices in pixels at the placement zoom (shared by
+ * every row on the line), where the anchor lies on it, and that zoom.
+ */
+type RowLine = LabelLine & {zoom: number};
 
 type StyleLayerLike = {
   layout?: Record<string, any>;
@@ -85,13 +119,11 @@ export type MVTLabelLayerProps = {
   /** Text fill color. */
   textColor?: number[];
   /**
-   * `[min, max)` collision priorities this layer's labels are mapped into. `BasemapLayer` gives
-   * each symbol style layer its own band, so style order decides between layers. Default: deck.gl's
-   * full range, -1000 to 1000.
+   * `[min, max)`: this layer's band in its style. `BasemapLayer` gives each symbol style layer its
+   * own band, rising with style order; labels are placed from the highest band down (see
+   * `LabelPlacement`).
    */
   collisionPriorityRange?: [number, number];
-  /** Optional text halo/background color. */
-  labelBackground?: number[] | null;
   /** Text size units forwarded to `TextLayer`. */
   labelSizeUnits?: 'pixels' | 'meters' | 'common';
   /**
@@ -107,6 +139,11 @@ export type MVTLabelLayerProps = {
   extensions?: any[];
   /** Active basemap mode. */
   mode?: 'map' | 'globe';
+  /**
+   * The placement shared with the other label layers of the map, which decides which labels and
+   * icons are drawn (see {@link LabelPlacement}). Label layers without one share one per deck.
+   */
+  labelPlacement?: LabelPlacement | null;
   /**
    * Sprites loaded for the style; `icon-image` names resolve against them. `null` while they are
    * loading: no icons are drawn, and text is placed as if each symbol had its icon, so labels do
@@ -125,24 +162,222 @@ export type MVTLabelLayerProps = {
   tileZoom?: number | null;
   /** The tile's size in pixels at its own zoom. Default: 512. */
   tileSize?: number | null;
+  /**
+   * The label features of several tiles, labelled together in one layer instead of `data`: each
+   * tile's anchors are placed as for a layer of its own (`tileBoundingBox`, `tileZoom` and
+   * `tileSize` per tile), then drawn in longitude/latitude. Pass the same array while the tiles do
+   * not change; a tile keeps its anchors while its features, and the inputs they depend on, do not
+   * change. See {@link LabelTile}.
+   */
+  tiles?: LabelTile[] | null;
 };
 
-/**
- * Pixels around a label's anchor that the collision filter samples: deck.gl's
- * `CollisionFilterExtension` tests a 5x5 pixel area. Two more pixels absorb rasterization at the
- * box edge; with only one, a `top`-aligned label still misses a row of the samples and fades.
- */
-const COLLISION_SAMPLE_RADIUS = 4;
+/** The label features of one tile, for {@link MVTLabelLayerProps.tiles}. */
+export type LabelTile = {
+  /** The tile's index, which places tile-local coordinates in the world. */
+  index: {x: number; y: number; z: number};
+  /** The tile's features of the style layer. */
+  features: FeatureLike[];
+  tileBoundingBox?: {
+    west: number;
+    south: number;
+    east: number;
+    north: number;
+  } | null;
+  tileZoom?: number | null;
+  tileSize?: number | null;
+  /** Returned as `info.tile` when a label of the tile is picked. */
+  tile?: unknown;
+};
 
-/** Collision group shared by every label and icon, so all symbols collide with each other. */
-const LABEL_COLLISION_GROUP = 'basemap-labels';
+/** The anchors of one tile of a {@link MVTLabelLayerProps.tiles} layer. */
+type TileRows = {
+  features: FeatureLike[];
+  anchorKey: string;
+  /** The tile the rows report when picked (see `LabelTile.tile`). */
+  tile: unknown;
+  rows: LabelRow[];
+};
+
+/** The tile-local `[0, 1)` square, as `ClipExtension` clips tile sublayers to it by anchor. */
+const TILE_SQUARE = [0, 0, 1, 1];
+
+/** `tileKey` of an index. */
+function getTileKey(x: number, y: number, z: number): string {
+  return `${x},${y},${z}`;
+}
 
 /**
- * Collision priority of the rows that a sublayer holds but does not draw. `CollisionFilterExtension`
- * maps priorities from -1000 to 1000 onto the collision pass's depth range, so a row below it is
- * clipped there and leaves no mark in the collision map.
+ * The rows of every tile of `tiles`, from `tileRows`, without those of a tile whose anchor lies in
+ * a deeper tile of the set: while a tile's children load, the tile is drawn in their place, and
+ * where a child has loaded, the child's labels replace the parent's. `geographic` says whether the
+ * rows are in longitude/latitude; otherwise they are already converted, see `getTileRowsInWorld`.
  */
-const MASKED_COLLISION_PRIORITY = -2000;
+export function combineTileRows(tiles: LabelTile[], tileRows: LabelRow[][]): LabelRow[] {
+  const keys = new Set(tiles.map(({index: {x, y, z}}) => getTileKey(x, y, z)));
+  const maxZ = Math.max(...tiles.map(tile => tile.index.z));
+  const combined: LabelRow[] = [];
+  tiles.forEach((tile, tileIndex) => {
+    const rows = tileRows[tileIndex];
+    const {z} = tile.index;
+    if (z >= maxZ) {
+      combined.push(...rows);
+      return;
+    }
+    for (const row of rows) {
+      // Tile-local anchors keep their exact world position: one converted to longitude/latitude
+      // and back can land on the wrong side of a tile edge.
+      const [wx, wy] = (row as {world?: number[]}).world ?? lngLatToWorld(row.position);
+      let covered = false;
+      for (let childZ = z + 1; childZ <= maxZ && !covered; childZ++) {
+        const scale = 2 ** childZ;
+        covered = keys.has(getTileKey(Math.floor(wx * scale), Math.floor(wy * scale), childZ));
+      }
+      if (!covered) {
+        combined.push(row);
+      }
+    }
+  });
+  return combined;
+}
+
+/**
+ * Draw parameters of the text, icon and anchor mark sublayers. Labels draw over the map without a depth test.
+ * Their screen-space quads wind clockwise, so `GlobeView`'s default `cullMode: 'back'` would cull
+ * every one of them; they are drawn with culling off, in every view.
+ */
+const LABEL_PARAMETERS = {depthTest: false, cullMode: 'none'} as const;
+
+/**
+ * Without a depth test, labels on the far side of a globe would draw through it. This extension
+ * hides those whose anchor is beyond the horizon (and `getPlacementSymbols` places none of them).
+ */
+const GLOBE_HORIZON_EXTENSION = new GlobeHorizonExtension();
+
+/** Draws each label sublayer's objects where the shared placement placed them. */
+const LABEL_PLACEMENT_EXTENSION = new LabelPlacementExtension();
+
+/** `text-overlap` / `icon-overlap`, or `*-allow-overlap` where that is unset, as MapLibre reads them. */
+function getOverlapMode(overlap: unknown, allowOverlap: unknown): OverlapMode {
+  if (overlap === 'always' || overlap === 'never' || overlap === 'cooperative') {
+    return overlap;
+  }
+  return allowOverlap ? 'always' : 'never';
+}
+
+/**
+ * The box `[x1, y1, x2, y2]` around a box turned by `degrees` counter-clockwise about 0, 0, then
+ * taken to the screen by `toScreen` (see `getMapPlaneToScreen`) when it is drawn in the map plane.
+ */
+function getTurnedBounds(box: number[], degrees: number, toScreen?: number[] | null): number[] {
+  if (!degrees && !toScreen) {
+    return box;
+  }
+  const radians = (degrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const [ax, ay, bx, by] = toScreen || [1, 0, 0, 1];
+  let [x1, y1, x2, y2] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of [
+    [box[0], box[1]],
+    [box[2], box[1]],
+    [box[0], box[3]],
+    [box[2], box[3]]
+  ]) {
+    // Screen y points down, so a counter-clockwise turn is negative there.
+    const mx = x * cos + y * sin;
+    const my = -x * sin + y * cos;
+    const tx = mx * ax + my * bx;
+    const ty = mx * ay + my * by;
+    x1 = Math.min(x1, tx);
+    y1 = Math.min(y1, ty);
+    x2 = Math.max(x2, tx);
+    y2 = Math.max(y2, ty);
+  }
+  return [x1, y1, x2, y2];
+}
+
+/**
+ * How a pixel offset in the map plane at common-space point `common` (on the screen at `sx, sy`)
+ * lands on the screen, as deck.gl draws a layer with `billboard: false`: the offset is taken to
+ * common space at the view's scale, with y up, and projected. Writes the screen step of a pixel to
+ * the right and of a pixel down in the map plane, `[ax, ay, bx, by]`, to `out`.
+ */
+function getMapPlaneToScreen(
+  viewport: any,
+  common: number[],
+  sx: number,
+  sy: number,
+  out: number[]
+): void {
+  const m = viewport.pixelProjectionMatrix as number[];
+  const step = 1 / (viewport.scale || 1);
+  const project = (cx: number, cy: number, cz: number, index: number) => {
+    const w = m[3] * cx + m[7] * cy + m[11] * cz + m[15];
+    out[index] = (m[0] * cx + m[4] * cy + m[8] * cz + m[12]) / w - sx;
+    out[index + 1] = (m[1] * cx + m[5] * cy + m[9] * cz + m[13]) / w - sy;
+  };
+  project(common[0] + step, common[1], common[2], 0);
+  project(common[0], common[1] - step, common[2], 2);
+}
+
+/**
+ * The direction a globe view draws a direction on the map in, at `lngLat`: `radians`
+ * counter-clockwise from east there, to counter-clockwise on the screen (y up), as
+ * `GlobeLineAngleExtension` turns a billboard along a line to it. With `keepUpright`, a direction
+ * that points left is turned by another half turn, as the extension keeps labels upright.
+ */
+function getGlobeDrawnAngle(
+  viewport: any,
+  lngLat: number[],
+  radians: number,
+  keepUpright: boolean
+): number {
+  const [lng, lat] = lngLat;
+  const step = 1e-4;
+  const cosLat = Math.max(Math.cos((lat * Math.PI) / 180), 1e-6);
+  const [ax, ay] = viewport.project([lng, lat]);
+  const [bx, by] = viewport.project([
+    lng + (step * Math.cos(radians)) / cosLat,
+    lat + step * Math.sin(radians)
+  ]);
+  const dx = bx - ax;
+  const angle = Math.atan2(ay - by, dx);
+  return keepUpright && dx < 0 ? angle + Math.PI : angle;
+}
+
+/** What placement needs of a label layer's rows that does not change with the view. */
+type PlacementGeometry = {
+  key: unknown[];
+  rules: SymbolPlacementRules;
+  /** Indices into `labelData`, in placement order. */
+  order: number[];
+  textBoxes: Float64Array;
+  /** Each row's `text-offset` in pixels, `x, y`, which its text box includes. */
+  textOffsets: Float64Array;
+  iconBoxes: Float64Array;
+  textPadding: number;
+  /** See `getPlacementCommons`. */
+  commons?: {kind: string; positions: Float64Array};
+};
+
+/** A tile's place in MapLibre's placement order: deeper tiles first, then by x, then y. */
+function compareTiles(a: any, b: any): number {
+  const ia = a?.index;
+  const ib = b?.index;
+  if (!ia || !ib) {
+    return 0;
+  }
+  return ib.z - ia.z || ia.x - ib.x || ia.y - ib.y;
+}
+
+/** Turn billboards along lines on a globe as the view draws the lines (`getLineAngleExtensions`). */
+const GLOBE_LINE_ANGLE_EXTENSIONS = {
+  upright: new GlobeLineAngleExtension({keepUpright: true}),
+  free: new GlobeLineAngleExtension({keepUpright: false}),
+  // Text kept upright turns around without its `text-offset` (see `withLineDirection`).
+  uprightText: new GlobeLineAngleExtension({keepUpright: true, keepOffsetSide: true})
+};
 
 /** `text-anchor` / `icon-anchor` as a horizontal and vertical fraction from the center. */
 const ANCHOR_FRACTIONS: Record<string, [number, number]> = {
@@ -170,27 +405,177 @@ function getTextAnchorProps(anchor: unknown): {
 }
 
 type MVTLabelLayerState = {
+  /** The placement this layer registered with, and its own when it has none from its props. */
+  placement?: LabelPlacement | null;
+  /**
+   * What the placement holds for this layer. deck.gl makes a new layer instance at each render
+   * and hands it the same state, so the placement holds this object, which points at the
+   * current instance.
+   */
+  placementHandle?: PlacementLayer & {layer: MVTLabelLayer};
+  /** The deck whose shared placement this layer uses, without a `labelPlacement` prop. */
+  sharedPlacementKey?: object | null;
+  /** The shared placement of `sharedPlacementKey`. */
+  sharedPlacement?: LabelPlacement | null;
+  /** The first of this layer's placement slots, one per row in `getRows` order. */
+  placementSlotBase?: number;
+  /** Changes with every update, so a placement made before it is made again. */
+  placementRevision?: number;
+  /**
+   * Changes whenever the rows change, and with them the slot of each symbol, so that the placement
+   * places them at once (see `PlacementLayer.getPlacementSlotRevision`).
+   */
+  placementSlotRevision?: number;
+  /** The rows `placementSlotRevision` was counted for. */
+  placementSlotRows?: LabelRow[];
+  /** See `getPlacementGeometry`. */
+  placementGeometry?: PlacementGeometry;
+  placementRowBoxes?: {key: unknown[]; boxes: WeakMap<LabelRow, Float64Array>};
+  placementCommons?: {kind: string; positions: WeakMap<LabelRow, number[]>};
+  /** The slot accessor of `getRows` from `placementSlotBase` (see `getPlacementSlotAccessor`). */
+  placementSlots?: {rows: LabelRow[]; base: number; accessor: (row: LabelRow) => number};
   /** Flattened label rows generated from the current tile data. */
   labelData?: LabelRow[];
+  /** `labelData` in reverse, the order every text and icon sublayer holds it in (see `getRows`). */
+  textRows?: {source: LabelRow[]; rows: LabelRow[]};
   /** The non-data inputs `labelData` was computed with; a change recomputes it. */
   anchorKey?: string;
   /** The map bearing, in `BEARING_STEP` steps, that upright line labels were turned for. */
   bearingStep?: number;
   /** The CSS font of labels along lines last seen loading; see `isLineTextFontLoading`. */
   loadingFont?: string;
+  /** Each row's glyphs along its line, with what they were placed for (see `getLineGlyphs`). */
+  lineGlyphs?: WeakMap<LabelRow, {key: string; placements: RowGlyphPlacements | null}>;
+  /** The halos of the label rows: one entry per distinct halo, and each row's entry index. */
+  halos?: LabelHalos;
+  /** The `labelData` and style inputs `halos` was computed with; a change recomputes it. */
+  haloKey?: [LabelRow[] | undefined, string];
   /**
    * Label text for the current text update trigger and label rows, per feature, and the wrap
    * budget left for them. deck.gl reads each label's text several times per update; the cache
    * keeps every read the same once the budget runs out, and wraps each label once.
    */
   labelText?: {
-    key: [string, LabelRow[] | undefined];
+    /** The text trigger, the rows and the font the text was wrapped for. */
+    key: [string, LabelRow[] | undefined, string];
     budget: WrapBudget;
     labels: WeakMap<FeatureLike, string | undefined>;
     /** Per label row, whether it has text (see `getRowsWithText`). */
     rowsWithText?: boolean[];
   };
+  /** The sprite textures of the icon layers, shared with other label layers. */
+  iconTextures?: SharedTextureSet;
+  /**
+   * Style property values by compiled property, for the zoom step they were evaluated at, by
+   * feature (see `evaluateStyleProperty`).
+   */
+  styleValues?: WeakMap<
+    CompiledStyleProperty,
+    {zoom: number; values: WeakMap<FeatureLike, unknown>}
+  >;
+  /** In a `tiles` layer: each tile's anchors, by tile index, and the tiles they were combined for. */
+  tileRows?: Map<string, TileRows>;
+  rowTiles?: LabelTile[];
 };
+
+/** A label halo as deck.gl `TextLayer` draws it: an SDF outline color, width and blur. */
+export type LabelHalo = {
+  /** Halo color, RGBA with alpha in 0-255. */
+  outlineColor: number[];
+  /** `TextLayer` `outlineWidth` (see {@link getOutlineWidth}). */
+  outlineWidth: number;
+  /** `TextHaloBlurExtension` `textHaloBlurGamma` (see {@link getHaloBlurGamma}). */
+  outlineBlur: number;
+};
+
+type LabelHalos = {
+  /** Distinct halos, `null` for labels without one. */
+  halos: (LabelHalo | null)[];
+  /** For each label row, its index in `halos`. */
+  rowHalos: number[];
+};
+
+/**
+ * Font atlas settings for label text. Glyphs are drawn as signed distance fields, so `TextLayer`
+ * can outline them for `text-halo-*`. The distance field reaches as far as the widest halo:
+ * MapLibre caps `text-halo-width` at a quarter of the text size, 16 pixels of a 64-pixel glyph.
+ * `TextLayer` outlines no further out than `(0.75 - smoothing) * radius` pixels, 15.6 here, and
+ * its halo edge fades over another `smoothing * radius` pixels, which the `buffer` keeps.
+ * `TextLayer` draws the glyph edge at a fixed distance value, so a `cutoff` below the default 0.25
+ * moves the drawn edge `(0.25 - cutoff) * radius` pixels outward, and the halo with it. At 0.24,
+ * small text matches the stroke weight of a plain bitmap atlas more closely.
+ */
+const LABEL_FONT_SETTINGS = {
+  sdf: true,
+  fontSize: 64,
+  buffer: 18,
+  radius: 24,
+  cutoff: 0.24,
+  smoothing: 0.1
+};
+
+/** Shared by every text sublayer, so deck.gl does not see their extensions change. */
+const TEXT_HALO_BLUR_EXTENSION = new TextHaloBlurExtension();
+
+/**
+ * Most halos one label layer draws, each with its own text sublayer. Labels without a halo get
+ * one more sublayer, and with more than one sublayer, another places the labels. Each sublayer
+ * holds every label row (see `renderLayers`), so the cap bounds the work per tile when every
+ * feature has its own halo.
+ */
+export const MAX_HALO_SUBLAYERS = 8;
+
+/** `text-halo-width` is rounded to this step, in pixels, so that close widths share a sublayer. */
+const HALO_WIDTH_STEP = 0.25;
+
+/**
+ * `TextLayer` draws an outline of width `w` at `0.75 * w` atlas pixels outside the drawn glyph
+ * edge, whatever the `cutoff`.
+ */
+const SDF_OUTLINE_SCALE = 0.75;
+
+/**
+ * Converts a `text-halo-width`, in pixels, to `TextLayer`'s `outlineWidth` for text of `textSize`
+ * pixels. An atlas pixel is `textSize / fontSize` screen pixels, so the same halo needs a wider
+ * outline on smaller text. As in MapLibre, the halo is at most a quarter of the text size.
+ */
+export function getOutlineWidth(haloWidth: number, textSize: number): number {
+  const atlasPixels = (Math.min(haloWidth, textSize / 4) * LABEL_FONT_SETTINGS.fontSize) / textSize;
+  // Rounded so that labels whose halos differ imperceptibly share one text sublayer.
+  return Math.round((atlasPixels / SDF_OUTLINE_SCALE) * 100) / 100;
+}
+
+/**
+ * Glyphs along lines are placed again whenever the zoom crosses a step of `1 / LINE_GLYPH_ZOOM_STEPS`:
+ * between steps, the line is scaled by less than 0.6% under its text.
+ */
+const LINE_GLYPH_ZOOM_STEPS = 128;
+
+/**
+ * A row's glyphs along its line: `dx, dy, angle, mode` per character (see `LineGlyphPlacement`),
+ * and the path its collision circles follow, `x, y` pixels from the anchor, or null when the text
+ * does not fit on the line unturned. Text that must turn but does not fit turned keeps the unturned
+ * path, with every glyph hidden.
+ */
+type RowLineGlyphs = {glyphs: Float32Array; path: number[] | null};
+
+/**
+ * A row's glyphs along its line at one zoom step, both ways round: `layout` is the unturned
+ * placement (null when the text does not fit on the line), from which `getLineGlyphs` decides which
+ * way the label reads; `turned` is null when `text-keep-upright` never turns it.
+ */
+type RowGlyphPlacements = {
+  count: number;
+  layout: LineGlyphs | null;
+  unturned: RowLineGlyphs;
+  turned: RowLineGlyphs | null;
+};
+
+/**
+ * Work done placing glyphs along lines, for benchmarks: rows placed, cached placements reused and
+ * collision paths taken to the screen.
+ */
+export const LINE_GLYPH_STATS = {rows: 0, cacheHits: 0, placementPaths: 0};
 
 /**
  * Bearing step, in degrees, at which labels along lines are re-checked for `text-keep-upright`
@@ -228,6 +613,48 @@ export function getTextLengthEms(text: string): number {
     ems += wide ? LINE_LABEL_EM_PER_WIDE_CHARACTER : LINE_LABEL_EM_PER_CHARACTER;
   }
   return ems;
+}
+
+/**
+ * Turns `offset`, `[x, y]` in pixels with y pointing down, by `angle` degrees counter-clockwise,
+ * as deck.gl's `IconLayer` turns an icon by its `getAngle`.
+ */
+export function rotatePixelOffset([x, y]: number[], angle: number): [number, number] {
+  if (!angle) {
+    return [x, y];
+  }
+  const radians = (angle * Math.PI) / 180;
+  const [cos, sin] = [Math.cos(radians), Math.sin(radians)];
+  return [cos * x + sin * y, cos * y - sin * x];
+}
+
+/**
+ * `getPixelOffset` for icons turned by `getAngle`. `IconLayer` turns an icon about its center and
+ * then adds its pixel offset; MapLibre turns the whole icon, `icon-anchor` and `icon-offset`
+ * included, about the anchor point. Turning the offset by the icon's angle does the same.
+ */
+function withIconAngle(
+  getPixelOffset: (row: LabelRow, info: {index: number}) => [number, number],
+  getAngle: ((row: LabelRow) => number) | null
+): (row: LabelRow, info: {index: number}) => [number, number] {
+  return getAngle
+    ? (row, info) => rotatePixelOffset(getPixelOffset(row, info), getAngle(row))
+    : getPixelOffset;
+}
+
+/**
+ * `getPixelOffset` for text turned to the line it is placed along. MapLibre moves such text by
+ * `text-offset` along and across the line's own direction, so the offset stays on the same side
+ * of the line when `text-keep-upright` turns the text around. `TextLayer` adds the pixel offset
+ * after turning the text, so the offset is turned here, by the line's direction.
+ */
+function withLineDirection(
+  getPixelOffset: (row: LabelRow, info: {index: number}) => [number, number],
+  turnsWithLine: boolean
+): (row: LabelRow, info: {index: number}) => [number, number] {
+  return turnsWithLine
+    ? (row, info) => rotatePixelOffset(getPixelOffset(row, info), row.angle ?? 0)
+    : getPixelOffset;
 }
 
 /**
@@ -424,76 +851,13 @@ function isLineGeometry(feature: FeatureLike): boolean {
   return type === 'LineString' || type === 'MultiLineString';
 }
 
-/**
- * Returns a coarse collision priority for a label feature.
- */
-function getCollisionPriority(feature: FeatureLike): number {
-  const properties = feature?.properties || {};
-
-  if (properties.capital > 0 || properties.class === 'country') {
-    return 1000;
-  }
-  if (properties.class === 'state' || properties.class === 'city') {
-    return 750;
-  }
-  if (properties.layerName === 'water_name' || properties.layerName === 'waterway') {
-    return 400;
-  }
-
-  return 100;
-}
-
-/**
- * The sublayers that draw one part of a symbol, from `layer`, which is built collision-tested. A
- * part that is always placed is drawn by a copy without the collision filter. While `keepFootprint`
- * is set, `layer` stays in the collision pass at zero opacity, so the part still hides other
- * symbols (or marks its anchor) without being drawn twice.
- */
-function placeSymbolPart(
-  layer: Layer<any>,
-  collision: SymbolPartCollision,
-  keepFootprint: boolean
-): Layer<any>[] {
-  if (collision.tested) {
-    return [layer];
-  }
-  const placed = layer.clone({
-    id: `${layer.id}-overlap`,
-    collisionEnabled: false
-  });
-  if (!keepFootprint) {
-    return [placed];
-  }
-  // The footprint is not pickable, so picking resolves to the drawn copy only, and not
-  // highlighted, which would draw it over its zero opacity.
-  return [
-    placed,
-    layer.clone({opacity: 0, pickable: false, autoHighlight: false, highlightedObjectIndex: -1})
-  ];
-}
-
-/** How a symbol's text and icon take part in collision (see `getSymbolCollision`). */
-type SymbolCollisionResult = {text: SymbolPartCollision; icon: SymbolPartCollision};
-
 /** The rows whose `part` (text or icon) is drawn by the same sublayers, with the same collision. */
 type SymbolPartGroup = {
   /** Appended to the ids of the group's sublayers. */
   idSuffix: string;
-  collision: SymbolCollisionResult;
   /** Per row, whether the row is in the group; `null` when every row is. */
   rows: boolean[] | null;
 };
-
-/** The sublayers that `placeSymbolPart` builds for `part`, as a string, to compare two results. */
-function getSymbolPartPlacementKey(
-  collision: SymbolCollisionResult,
-  part: 'text' | 'icon'
-): string {
-  const {tested, blocks} = collision[part];
-  // Text keeps its anchor in the collision pass while the icon is tested (see `renderLayers`).
-  const footprint = !tested && (blocks || (part === 'text' && collision.icon.tested));
-  return `${tested}|${blocks}|${footprint}`;
-}
 
 /** `accessor` for the rows in `rows` and `fallback` for the others; `accessor` when `rows` is null. */
 function forRows<T>(
@@ -518,21 +882,38 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     billboard: true,
     renderGeometry: false,
     labelSizeUnits: 'pixels',
-    labelBackground: {type: 'color', value: null, optional: true},
     fontFamily: null
   };
 
   /** Current label-row state. */
   state: MVTLabelLayerState = undefined!;
 
+  /** The tile whose anchors are being placed, in a `tiles` layer; see `getTileProps`. */
+  private placingTile: LabelTile | null = null;
+
+  /** The tile props that anchors are placed with: the tile being placed, or this layer's. */
+  getTileProps(): Pick<MVTLabelLayerProps, 'tileBoundingBox' | 'tileZoom' | 'tileSize'> {
+    return this.placingTile ?? this.props;
+  }
+
+  /** A picked label of a `tiles` layer reports its tile. */
+  getPickingInfo(params: any): any {
+    const row = params.info?.object;
+    const info: any = super.getPickingInfo(params);
+    if (row?.__tile) {
+      info.tile = row.__tile;
+    }
+    return info;
+  }
+
   /**
-   * Resolves `icon-image` for a feature against the loaded sprites. Legacy `{token}` names are
-   * resolved as in `text-field`. Returns `null`, and warns once per name, when no sprite has it.
+   * The image name `icon-image` gives a feature, with its tokens resolved: empty for none. While the
+   * sprites load, an `["image", ...]` expression still names its image, which is not available yet.
    */
-  getIcon(feature: FeatureLike): ResolvedSpriteIcon | null {
+  getIconImageName(feature: FeatureLike): string {
     const iconImage = this.getStyleProperty('icon-image');
     if (!iconImage) {
-      return null;
+      return '';
     }
     const value = iconImage.evaluate(
       getZoomBucket(this.props.zoom || 0),
@@ -540,12 +921,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       getSpriteImageNames(this.props.spriteAtlases)
     );
     const isExpression = Array.isArray(this.props.styleLayer?.layout?.['icon-image']);
-    const name =
-      value === null || value === undefined
-        ? ''
-        : isExpression || iconImage.isFeatureDependent
-          ? String(value)
-          : resolveTokenString(String(value), feature.properties) || '';
+    return value === null || value === undefined
+      ? ''
+      : isExpression || iconImage.isFeatureDependent
+        ? String(value)
+        : resolveTokenString(String(value), feature.properties) || '';
+  }
+
+  /**
+   * Resolves `icon-image` for a feature against the loaded sprites. Legacy `{token}` names are
+   * resolved as in `text-field`. Returns `null`, and warns once per name, when no sprite has it.
+   */
+  getIcon(feature: FeatureLike): ResolvedSpriteIcon | null {
+    const name = this.getIconImageName(feature);
     if (!name) {
       return null;
     }
@@ -610,32 +998,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return [offset[0] * size, offset[1] * size];
   }
 
-  /**
-   * Padding, `[left, top, right, bottom]` in pixels, that makes each label's collision box cover
-   * the area around its anchor that deck.gl's collision filter samples (5x5 pixels). Without it,
-   * a label moved off its anchor by `text-offset` is always hidden, and one whose anchor is at its
-   * edge (`text-anchor: left`, `top`, ...) is faded. The text box always lies on the far side of
-   * its offset, so padding the box by the offset plus the sample radius reaches the anchor.
-   */
-  getCollisionPadding(): [number, number, number, number] {
-    const rows = this.state.labelData || [];
-    const isPerFeature = ['text-offset', 'text-size'].some(
-      name => this.getStyleProperty(name)?.isFeatureDependent
+  /** `text-padding` at the stepped zoom, in pixels. */
+  getTextPadding(): number {
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    const padding = Number(
+      this.getStyleProperty('text-padding')?.evaluate(zoom) ??
+        getStylePropertyDefault('text-padding')
     );
-    let [left, top, right, bottom] = [0, 0, 0, 0];
-    for (const row of isPerFeature ? rows : rows.slice(0, 1)) {
-      const [x, y] = this.getLabelPixelOffset((row as any).__source?.object ?? row);
-      left = Math.max(left, x);
-      top = Math.max(top, y);
-      right = Math.max(right, -x);
-      bottom = Math.max(bottom, -y);
-    }
-    return [
-      left + COLLISION_SAMPLE_RADIUS,
-      top + COLLISION_SAMPLE_RADIUS,
-      right + COLLISION_SAMPLE_RADIUS,
-      bottom + COLLISION_SAMPLE_RADIUS
-    ];
+    return Math.max(0, padding) || 0;
   }
 
   /**
@@ -658,21 +1028,25 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /** Update triggers for the icon accessors (see `getStyleUpdateTrigger`). */
   getIconUpdateTriggers(): Record<string, string> {
     const getTrigger = (...propertyNames: string[]) => this.getStyleUpdateTrigger(...propertyNames);
+    const angle = `${this.state?.bearingStep}|${getTrigger(
+      'icon-rotate',
+      'icon-keep-upright',
+      'icon-rotation-alignment'
+    )}`;
     return {
       getIcon: getTrigger('icon-image'),
       getSize: getTrigger('icon-image', 'icon-size'),
       getColor: getTrigger('icon-image', 'icon-color', 'icon-opacity'),
-      getPixelOffset: getTrigger('icon-image', 'icon-size', 'icon-anchor', 'icon-offset'),
-      getAngle: `${this.state?.bearingStep}|${getTrigger('icon-rotate', 'icon-keep-upright')}`
+      // Turned icons turn their offset too (see `withIconAngle`).
+      getPixelOffset: `${angle}|${getTrigger('icon-image', 'icon-size', 'icon-anchor', 'icon-offset')}`,
+      getAngle: angle
     };
   }
 
   /**
    * One `IconLayer` per sprite that this layer's icons come from. Each holds every label row, so
-   * an icon has the same row index, and so the same collision-filter identity, as its own label:
-   * the two are placed or hidden as one unit. Rows whose icon is in another sprite, or in none,
-   * draw nothing. Icons with and without text follow different placement rules when the layout
-   * makes them differ (see `getSymbolPartGroups`); each sprite then has a layer per rule.
+   * an icon has the same row index, and so the same placement slot, as its own label. Rows whose
+   * icon is in another sprite, or in none, draw nothing.
    *
    * `icon-image` is evaluated once per row. Each sprite's layer evaluates the other style
    * properties only for its own rows and gives every other row constants, so the style evaluation
@@ -682,17 +1056,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   renderIconLayers(icons: (ResolvedSpriteIcon | null)[] = this.getRowIcons()): any[] {
     const {iconLoadOptions, billboard, spriteAtlases} = this.props;
-    const labelData = this.state.labelData || [];
+    const labelRows = this.getRows();
     const atlases = new Set<SpriteAtlas>();
     for (const icon of icons) {
       if (icon) {
         atlases.add(icon.atlas);
       }
     }
+    this.retainIconAtlases(atlases);
     if (!atlases.size) {
       return [];
     }
     const groups = this.getSymbolPartGroups('icon', () => this.getRowsWithText());
+    const {props: angleProps, getAngle, extensions: angleExtensions} = this.getIconAngleProps();
     // Sprite ids are arbitrary strings, so `${id}${idSuffix}` (and a copy's `-overlap`) can repeat
     // another sprite's id; a repeated id gets a number.
     const ids = new Set<string>();
@@ -704,7 +1080,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       ids.add(unique).add(`${unique}-overlap`);
       return unique;
     };
-    return groups.flatMap(({idSuffix, collision: {icon: collision}, rows}) =>
+    return groups.flatMap(({idSuffix, rows}) =>
       [...atlases].flatMap(atlas => {
         const isOwnRow = (index: number) => icons[index]?.atlas === atlas && (!rows || rows[index]);
         // Accessors over every row: `fallback` for rows whose icon is not in this layer.
@@ -715,87 +1091,60 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         };
         const layer = new IconLayer({
           ...this.getSubLayerProps({id: getUniqueId(`icons-${atlas.id}${idSuffix}`)}),
-          data: labelData,
-          iconAtlas: atlas.image,
+          data: labelRows,
+          iconAtlas: this.getIconAtlas(atlas) as any,
           iconMapping: atlas.mapping,
           loadOptions: iconLoadOptions || undefined,
           billboard,
-          ...this.getLineIconProps(),
+          ...angleProps,
+          ...(getAngle ? {getAngle} : {}),
           sizeUnits: 'pixels',
-          parameters: {depthTest: false},
-          extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-          collisionEnabled: true,
-          collisionGroup: LABEL_COLLISION_GROUP,
-          getCollisionPriority: forOwnRows(
-            feature => this.getLabelCollisionPriority(feature),
-            0
-          ) as any,
-          // The icon's whole box collides, as in MapLibre, including its transparent pixels. An
-          // icon that ignores placement draws nothing in the collision pass.
-          collisionTestProps: collision.blocks ? {alphaCutoff: 0} : {alphaCutoff: 0, sizeScale: 0},
+          parameters: LABEL_PARAMETERS,
+          extensions: [
+            ...(this.props.extensions || []),
+            LABEL_PLACEMENT_EXTENSION,
+            GLOBE_HORIZON_EXTENSION,
+            ...angleExtensions
+          ],
+          ...this.getPlacementProps(1),
           getPosition: (d: LabelRow) => d.position,
           getIcon: ((_: LabelRow, {index}: {index: number}) =>
             isOwnRow(index) ? icons[index]!.name : null) as any,
           getSize: forOwnRows(feature => this.getIconSize(feature), 0) as any,
           getColor: forOwnRows(feature => this.getIconColor(feature), [0, 0, 0, 0]) as any,
-          getPixelOffset: forOwnRows(feature => this.getIconPixelOffset(feature), [0, 0] as [
-            number,
-            number
-          ]) as any,
+          getPixelOffset: withIconAngle(
+            forOwnRows(feature => this.getIconPixelOffset(feature), [0, 0] as [number, number]),
+            getAngle
+          ) as any,
           updateTriggers: {
             ...this.getIconUpdateTriggers(),
-            // `icon-image` decides which rows this sprite's layer draws.
-            getCollisionPriority: `${this.getStyleUpdateTrigger(
-              'symbol-sort-key',
-              'icon-image'
-            )}|${this.getCollisionPriorityRangeKey()}`,
+            getPlacementSlot: this.state.placementSlotBase,
             // The sprite list decides which rows `icon-image` resolves into this sprite, and which
             // rows have text decides the group's rows. The latter's change between split and
             // unsplit groups also refreshes the rows masked out before.
             all: [atlas, spriteAtlases, rows ? this.getLabelUpdateTriggers().getText : null]
           }
         });
-        return placeSymbolPart(layer, collision, collision.blocks);
+        return [layer];
       })
     );
   }
 
   /**
-   * Marks each row's anchor in the collision pass with a box of `COLLISION_SAMPLE_RADIUS` pixels
-   * on each side, for symbols whose text does not block: the text's own test, and its icon's,
-   * sample there. It is the box `TextLayer` draws for an empty label, without the label's pixel
-   * offset. The layer draws nothing visible, and its rows share the text's row indices, so its mark
-   * is the text's (and the icon's) collision-filter identity.
+   * The label rows in the order every text and icon sublayer holds them: `labelData` in reverse.
+   * A symbol's placement slot follows its index here, so an icon and its label share it; every
+   * per-row array that these sublayers index (row icons, rows with text) is in this order.
+   * Placement walks `labelData`, in feature order (see `getPlacementSymbols`).
    */
-  renderAnchorLayer(
-    idSuffix: string,
-    getCollisionPriority: (row: LabelRow, info: {index: number}) => number,
-    updateTriggers: Record<string, unknown>
-  ): Layer<any> {
-    return new _TextBackgroundLayer({
-      ...this.getSubLayerProps({id: `anchors${idSuffix}`}),
-      data: this.state.labelData,
-      extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-      parameters: {depthTest: false},
-      billboard: this.props.billboard,
-      collisionEnabled: true,
-      collisionGroup: LABEL_COLLISION_GROUP,
-      getCollisionPriority: getCollisionPriority as any,
-      getPosition: (d: LabelRow) => d.position,
-      padding: [
-        COLLISION_SAMPLE_RADIUS,
-        COLLISION_SAMPLE_RADIUS,
-        COLLISION_SAMPLE_RADIUS,
-        COLLISION_SAMPLE_RADIUS
-      ],
-      getFillColor: [0, 0, 0, 0],
-      opacity: 0,
-      pickable: false,
-      // Highlighting would draw the box over the opacity.
-      autoHighlight: false,
-      highlightedObjectIndex: -1,
-      updateTriggers
-    });
+  getRows(): LabelRow[] {
+    const {labelData, textRows} = this.state;
+    if (!labelData) {
+      return [];
+    }
+    if (textRows?.source !== labelData) {
+      this.state.textRows = {source: labelData, rows: [...labelData].reverse()};
+    }
+    return this.state.textRows!.rows;
   }
 
   /**
@@ -803,12 +1152,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * cache, so it is evaluated once per text update trigger and label rows, not on every render.
    */
   getRowsWithText(): boolean[] {
-    const labelData = this.state.labelData || [];
+    const rows = this.getRows();
     const labelText = this.state.labelText;
     if (labelText?.rowsWithText) {
       return labelText.rowsWithText;
     }
-    const rowsWithText = labelData.map(
+    const rowsWithText = rows.map(
       row => this.getLabel((row as any).__source?.object ?? row) !== undefined
     );
     if (labelText) {
@@ -818,74 +1167,44 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * The texture of a sprite's image, shared by the icon layers of every label layer, or its URL
+   * while it is not decoded. deck.gl would otherwise upload the image for each icon layer.
+   */
+  getIconAtlas(atlas: SpriteAtlas): unknown {
+    const {device} = this.context;
+    if (typeof atlas.image === 'string' || !device) {
+      return atlas.image;
+    }
+    if (!this.state.iconTextures) {
+      this.state.iconTextures = new SharedTextureSet(device);
+    }
+    return this.state.iconTextures.get(atlas.image);
+  }
+
+  /** Releases the sprite textures that the icon layers no longer draw from. */
+  retainIconAtlases(atlases: Set<SpriteAtlas>): void {
+    this.state.iconTextures?.retainOnly([...atlases].map(atlas => atlas.image as object));
+  }
+
+  /**
    * Each label row's icon, resolved against the loaded sprites (see `getIcon`), or all `null`
    * while the layer has no `icon-image` or no sprites.
    */
   getRowIcons(): (ResolvedSpriteIcon | null)[] {
-    const labelData = this.state.labelData || [];
+    const rows = this.getRows();
     if (!this.props.spriteAtlases?.length || !this.getStyleProperty('icon-image')) {
-      return labelData.map(() => null);
+      return rows.map(() => null);
     }
-    return labelData.map(row => this.getIcon((row as any).__source?.object ?? row));
+    return rows.map(row => this.getIcon((row as any).__source?.object ?? row));
   }
 
   /**
-   * Splits the label rows by how their `part`, text or icon, takes part in collision. MapLibre
-   * combines the placement rules of a symbol's text and icon only when the symbol has both: a
-   * symbol whose text is empty, or whose icon is empty or missing from the sprites, follows the
-   * rules of its one part. `hasOtherPart` returns, per row, whether the row has the other part. It
-   * is called only when the two cases follow different rules, so a layout whose rules do not
-   * depend on it keeps one group of every row and evaluates nothing more per row.
-   *
-   * A row without text stays with the rows that have text and an icon: an empty text draws
-   * nothing, and that group's text keeps the anchor in the collision pass whenever the row's own
-   * icon is tested.
+   * The groups of rows each part is drawn by: one group of every row, since placement decides per
+   * symbol which parts draw (see `LabelPlacement`).
    */
-  getSymbolPartGroups(part: 'text' | 'icon', hasOtherPart: () => boolean[]): SymbolPartGroup[] {
-    const paired = this.getSymbolCollision();
-    const alone = this.getSymbolCollision(part === 'text' ? {hasIcon: false} : {hasText: false});
-    if (getSymbolPartPlacementKey(paired, part) === getSymbolPartPlacementKey(alone, part)) {
-      return [{idSuffix: '', collision: paired, rows: null}];
-    }
-    const withOther = hasOtherPart();
-    const withoutOther = withOther.map(has => !has);
-    const groups: SymbolPartGroup[] = [];
-    if (withOther.some(Boolean)) {
-      groups.push({idSuffix: '', collision: paired, rows: withOther});
-    }
-    if (withoutOther.some(Boolean)) {
-      groups.push({idSuffix: '-alone', collision: alone, rows: withoutOther});
-    }
-    // Every row in one group: no rows to mask.
-    return groups.length > 1
-      ? groups
-      : [{idSuffix: '', collision: groups[0]?.collision ?? paired, rows: null}];
-  }
-
-  /**
-   * How this layer's text and icons take part in collision (see `getSymbolCollision`), from its
-   * placement properties at the stepped zoom. `*-overlap`, where set, takes precedence over
-   * `*-allow-overlap`, as in MapLibre; its `cooperative` value is treated as `never`. `parts` set
-   * to `false` leave out the text or icon, for symbols that lack it.
-   */
-  getSymbolCollision(parts: {hasText?: boolean; hasIcon?: boolean} = {}): SymbolCollisionResult {
-    const zoom = getZoomBucket(this.props.zoom || 0);
-    const evaluate = (name: string) =>
-      this.getStyleProperty(name)?.evaluate(zoom) ?? getStylePropertyDefault(name);
-    const allowsOverlap = (part: string) => {
-      const overlap = this.getStyleProperty(`${part}-overlap`)?.evaluate(zoom);
-      return overlap ? overlap === 'always' : Boolean(evaluate(`${part}-allow-overlap`));
-    };
-    return getSymbolCollision({
-      hasText: (parts.hasText ?? true) && Boolean(this.getStyleProperty('text-field')),
-      hasIcon: (parts.hasIcon ?? true) && Boolean(this.getStyleProperty('icon-image')),
-      textAllowOverlap: allowsOverlap('text'),
-      iconAllowOverlap: allowsOverlap('icon'),
-      textIgnorePlacement: Boolean(evaluate('text-ignore-placement')),
-      iconIgnorePlacement: Boolean(evaluate('icon-ignore-placement')),
-      textOptional: Boolean(evaluate('text-optional')),
-      iconOptional: Boolean(evaluate('icon-optional'))
-    });
+  getSymbolPartGroups(_part: 'text' | 'icon', _hasOtherPart: () => boolean[]): SymbolPartGroup[] {
+    // Placement decides per symbol; every row is drawn by one sublayer per part.
+    return [{idSuffix: '', rows: null}];
   }
 
   /** Returns a compiled `layout` or `paint` property of the style layer, if it sets one. */
@@ -894,12 +1213,33 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return styleLayer ? getCompiledStyleProperty(styleLayer, propertyName) : null;
   }
 
-  /** Evaluates a style property for a feature at the stepped zoom (`getZoomBucket`). */
+  /**
+   * Evaluates a style property for a feature at the stepped zoom (`getZoomBucket`). The value is
+   * kept for the feature until the zoom step or the property changes: a `tiles` layer makes its
+   * rows again whenever a tile is shown or hidden, and the rows of the other tiles keep their
+   * features, so their values are not evaluated again.
+   */
   private evaluateStyleProperty(propertyName: string, feature: FeatureLike): unknown {
-    return this.getStyleProperty(propertyName)?.evaluate(
-      getZoomBucket(this.props.zoom || 0),
-      feature
-    );
+    const property = this.getStyleProperty(propertyName);
+    if (!property) {
+      return undefined;
+    }
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    if (!this.state || !feature || typeof feature !== 'object') {
+      return property.evaluate(zoom, feature);
+    }
+    this.state.styleValues ||= new WeakMap();
+    let cache = this.state.styleValues.get(property);
+    if (!cache || cache.zoom !== zoom) {
+      cache = {zoom, values: new WeakMap()};
+      this.state.styleValues.set(property, cache);
+    }
+    if (cache.values.has(feature)) {
+      return cache.values.get(feature);
+    }
+    const value = property.evaluate(zoom, feature);
+    cache.values.set(feature, value);
+    return value;
   }
 
   /**
@@ -959,6 +1299,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           this.evaluateStyleProperty('text-max-width', feature) ??
             getStylePropertyDefault('text-max-width')
         );
+        // As in MapLibre, each character's advance includes the letter spacing.
+        const spacing = this.getLetterSpacing(feature, label);
         let measure: ((character: string) => number) | undefined;
         label = wrapText(
           label,
@@ -968,7 +1310,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               const font = this.getFont();
               measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
             }
-            return measure(character);
+            return measure(character) + spacing;
           },
           this.state?.labelText?.budget
         );
@@ -976,6 +1318,29 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       labels?.set(feature, label);
     }
     return label || undefined;
+  }
+
+  /**
+   * `text-letter-spacing` of a feature's label `text`, in ems. As in MapLibre, text in a cursive
+   * script is not letter-spaced.
+   */
+  getLetterSpacing(feature: FeatureLike, text: string): number {
+    const spacing = Number(
+      this.evaluateStyleProperty('text-letter-spacing', feature) ??
+        getStylePropertyDefault('text-letter-spacing')
+    );
+    return Number.isFinite(spacing) && spacing && allowsLetterSpacing(text) ? spacing : 0;
+  }
+
+  /**
+   * `text-justify` of a feature's label. MapLibre centers the lines of labels along lines.
+   */
+  getTextJustify(feature: FeatureLike): LabelTextJustify {
+    if (isLinePlacement(this.getSymbolPlacement())) {
+      return 'center';
+    }
+    const justify = this.evaluateStyleProperty('text-justify', feature);
+    return justify === 'auto' || justify === 'left' || justify === 'right' ? justify : 'center';
   }
 
   /**
@@ -1004,40 +1369,93 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Returns the halo (background) color for a decoded feature label: `labelBackground` faded by
-   * the same `text-opacity` as the text, so a hidden or faded label leaves no halo box.
+   * Returns the halo of a decoded feature label from `text-halo-color`, `text-halo-width` and
+   * `text-halo-blur`, or `null` when it has none: a width of 0 (the default) or a transparent color
+   * (the default). The color is faded by the same `text-opacity` as the text, so a hidden or faded
+   * label leaves no halo. Like the width, the blur is rounded to 0.25 px.
    */
-  getLabelBackgroundColor(feature: FeatureLike): number[] {
-    const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
-    const background = this.props.labelBackground;
-    if (!background) {
-      return [0, 0, 0, 0];
+  getLabelHalo(feature: FeatureLike): LabelHalo | null {
+    const value = Number(this.evaluateStyleProperty('text-halo-width', feature) ?? 0);
+    const size = this.getLabelSize(feature);
+    if (!(value > 0) || !(size > 0)) {
+      return null;
     }
-    // `labelBackground` is already RGBA with alpha in 0-255; scale that alpha directly.
-    // (`withOpacity` would read a 0-255 alpha of 1 as fully opaque.)
-    const alpha = background.length > 3 ? background[3] : 255;
-    return [background[0], background[1], background[2], Math.round(alpha * (opacity ?? 1))];
+    // Rounded to a step, but a positive width keeps at least one step.
+    const width = Math.max(HALO_WIDTH_STEP, Math.round(value / HALO_WIDTH_STEP) * HALO_WIDTH_STEP);
+    const color = this.evaluateStyleProperty('text-halo-color', feature) as number[] | undefined;
+    const opacity = this.evaluateStyleProperty('text-opacity', feature) as number | undefined;
+    const outlineColor = withOpacity(color, opacity ?? 1).map(Math.round);
+    if (!(outlineColor[3] > 0)) {
+      return null;
+    }
+    // WebGPU draws halos without blur (see `TextHaloBlurExtension`), so blur must not split halo
+    // groups there: invisible differences would take places under the cap from other halos.
+    const blur =
+      this.context?.device?.type === 'webgpu'
+        ? 0
+        : Number(this.evaluateStyleProperty('text-halo-blur', feature) ?? 0);
+    return {
+      outlineColor,
+      outlineWidth: getOutlineWidth(width, size),
+      outlineBlur: getHaloBlurGamma(
+        Math.round(blur / HALO_WIDTH_STEP) * HALO_WIDTH_STEP,
+        size,
+        LABEL_FONT_SETTINGS
+      )
+    };
   }
 
   /**
-   * Returns the collision priority of a label within `collisionPriorityRange`: ordered by
-   * `symbol-sort-key` when the style layer sets one, otherwise by a coarse built-in priority.
-   * Lower sort keys win in the style specification and higher priorities win in
-   * `CollisionFilterExtension`, so the key is mapped through a decreasing function. That mapping
-   * keeps every key inside the range, at the cost of compressing keys far from zero.
+   * Groups the label rows by halo. `TextLayer` takes one outline color, width and blur per layer,
+   * so each distinct halo is drawn by its own text sublayer. At most `MAX_HALO_SUBLAYERS` halos are
+   * kept, the most common ones; labels with any other halo are drawn with the most common halo.
+   * Labels without a halo are not counted in the cap and never get one: a hidden label stays
+   * hidden. Kept halos are ordered by their first label, so sublayer ids stay stable.
    */
-  getLabelCollisionPriority(feature: FeatureLike): number {
-    const [min, max] = this.props.collisionPriorityRange || [-1000, 1000];
-    const fraction = this.getStyleProperty('symbol-sort-key')
-      ? 0.5 -
-        Math.atan(Number(this.evaluateStyleProperty('symbol-sort-key', feature)) || 0) / Math.PI
-      : getCollisionPriority(feature) / 1001;
-    return min + fraction * (max - min);
+  getLabelHalos(rows: LabelRow[]): LabelHalos {
+    const groups = new Map<string, {halo: LabelHalo | null; count: number; first: number}>();
+    const rowKeys = rows.map((row, index) => {
+      const halo = this.getLabelHalo((row as any).__source?.object ?? row);
+      const key = halo
+        ? `${halo.outlineColor.join(',')}|${halo.outlineWidth}|${halo.outlineBlur}`
+        : '';
+      const group = groups.get(key);
+      if (group) {
+        group.count++;
+      } else {
+        groups.set(key, {halo, count: 1, first: index});
+      }
+      return key;
+    });
+    // A stable sort: equally common halos keep the order of their first label.
+    const byCount = [...groups].filter(([key]) => key).sort(([, a], [, b]) => b.count - a.count);
+    const kept = byCount.slice(0, MAX_HALO_SUBLAYERS);
+    const none = groups.get('');
+    if (none) {
+      kept.push(['', none]);
+    }
+    kept.sort(([, a], [, b]) => a.first - b.first);
+    const indices = new Map(kept.map(([key], index) => [key, index]));
+    const fallback = byCount.length ? indices.get(byCount[0][0])! : 0;
+    return {
+      halos: kept.map(([, group]) => group.halo),
+      rowHalos: rowKeys.map(key => indices.get(key) ?? fallback)
+    };
   }
 
-  /** `collisionPriorityRange` as a string, for the collision priority update triggers. */
-  getCollisionPriorityRangeKey(): string {
-    return String(this.props.collisionPriorityRange || '');
+  /**
+   * What the label text takes from `text-size`: a size of 0 hides the label (see `getLabel`). A size
+   * that depends on zoom but not on the feature re-evaluates the text only when it reaches or leaves
+   * 0, not at every zoom step, since the text and its wrapping do not depend on the size otherwise.
+   */
+  getLabelSizeTextTrigger(): string {
+    const size = this.getStyleProperty('text-size');
+    if (!size?.isZoomDependent || size.isFeatureDependent) {
+      return this.getStyleUpdateTrigger('text-size');
+    }
+    const value = size.evaluate(getZoomBucket(this.props.zoom || 0));
+    const isVisible = Number(value ?? getStylePropertyDefault('text-size')) > 0;
+    return `${JSON.stringify(this.props.styleLayer?.layout?.['text-size'])}|${isVisible}`;
   }
 
   /** Update triggers for the text accessors (see `getStyleUpdateTrigger`). */
@@ -1052,24 +1470,26 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return {
       getText: `${getTrigger(
         'text-field',
-        'text-size',
         'text-transform',
         'text-max-width',
+        'text-letter-spacing',
         'symbol-placement',
         'text-font'
-      )}|${fontFamilyKey}`,
+      )}|${this.getLabelSizeTextTrigger()}|${fontFamilyKey}`,
       getSize: getTrigger('text-size'),
       getColor: getTrigger('text-color', 'text-opacity'),
-      // The halo color comes from `labelBackground` (evaluated per style layer and zoom step), so
-      // its value is part of the trigger as well as a zoom-dependent `text-opacity`.
-      getBackgroundColor: `${getTrigger('text-opacity')}|${
-        this.props.labelBackground ? this.props.labelBackground.join(',') : ''
-      }`,
-      // The priorities are mapped into `collisionPriorityRange`.
-      getCollisionPriority: `${getTrigger('symbol-sort-key')}|${this.getCollisionPriorityRangeKey()}`,
-      getPixelOffset: getTrigger('text-offset', 'text-size'),
+      // A layer's slots move when it needs more of them.
+      getPlacementSlot: String(this.state?.placementSlotBase ?? -1),
+      // Text along a line turns its offset by the line (see `withLineDirection`).
+      getPixelOffset: getTrigger(
+        'text-offset',
+        'text-size',
+        'text-rotation-alignment',
+        'symbol-placement'
+      ),
       getAngle: `${this.state?.bearingStep}|${getTrigger('text-keep-upright')}`,
-      getTextAnchor: getTrigger('text-anchor'),
+      // Also lays out the lines of each label (see `LabelTextLayer`).
+      getTextAnchor: getTrigger('text-anchor', 'text-justify', 'symbol-placement'),
       getAlignmentBaseline: getTrigger('text-anchor')
     };
   }
@@ -1104,7 +1524,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!geographic) {
       return [0, 0, 1, 1];
     }
-    const bbox = this.props.tileBoundingBox;
+    const bbox = this.getTileProps().tileBoundingBox;
     return bbox && Number.isFinite(bbox.west)
       ? [bbox.west, bbox.south, bbox.east, bbox.north]
       : null;
@@ -1168,8 +1588,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    */
   getLinePlacementScale(): {zoom: number; tileZoom: number; tileSize: number} {
     const mapZoom = Math.floor(this.props.zoom || 0);
-    const size = this.props.tileSize || 512;
-    const tileZoom = this.props.tileZoom ?? mapZoom + Math.log2(512 / size);
+    const tileProps = this.getTileProps();
+    const size = tileProps.tileSize || 512;
+    const tileZoom = tileProps.tileZoom ?? mapZoom + Math.log2(512 / size);
     const ownZoom = tileZoom - Math.log2(512 / size);
     const zoom = Math.max(ownZoom, mapZoom);
     return {zoom, tileZoom, tileSize: size * 2 ** (zoom - ownZoom)};
@@ -1228,8 +1649,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Label anchors along the lines of a `LineString` or `MultiLineString` feature, for
    * `symbol-placement: line` or `line-center`, with the direction of the line at each. Lines are
-   * measured in pixels at the tile's zoom (see `getLinePlacementScale`), where `symbol-spacing`
-   * and `text-max-angle` are evaluated. As in MapLibre, the label's length, the window its bends
+   * measured in pixels at the tile's zoom (see `getLinePlacementScale`), where `symbol-spacing`,
+   * `text-max-angle` and the label's `text-letter-spacing` are evaluated. As in MapLibre, the label's length, the window its bends
    * are summed in and the first label's offset come from `text-size` at zoom 18, the same for
    * every tile; where that size is 0, the size at the tile's zoom is used. The text is measured by
    * `context.measureText`. Anchors outside the tile's own extent are left to the neighbouring tile.
@@ -1244,7 +1665,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     placement: string,
     budget: LineAnchorBudget = {steps: TILE_LINE_ANCHOR_STEPS},
     context: LinePlacementContext = this.getLinePlacementContext()
-  ): {position: number[]; angle: number}[] {
+  ): {position: number[]; angle: number; line: RowLine}[] {
     const {type, coordinates} = feature.geometry;
     const lines: number[][][] =
       type === 'LineString' ? [coordinates] : type === 'MultiLineString' ? coordinates : [];
@@ -1266,7 +1687,16 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     featureBudget.steps -= text?.length || 0;
     // As MapLibre's `getShapedLabelLength`: the longer of the text and the icon. A symbol with
     // neither has no length, and is not placed.
-    const textLength = text && featureBudget.steps > 0 ? context.measureText(text) * textSize : 0;
+    // As MapLibre's shaping, the letter spacing follows every character but the last. MapLibre
+    // lays symbols out at the tile's zoom, so the spacing is the one at the placement zoom, not
+    // at the map's.
+    const letterSpacing = text && allowsLetterSpacing(text) ? evaluate('text-letter-spacing') : 0;
+    const textLength =
+      text && featureBudget.steps > 0
+        ? (context.measureText(text) +
+            (Array.from(text).length - 1) * (Number.isFinite(letterSpacing) ? letterSpacing : 0)) *
+          textSize
+        : 0;
     const iconLength = icon
       ? (icon.entry.width / icon.entry.pixelRatio) * evaluate('icon-size')
       : 0;
@@ -1301,6 +1731,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           return [x * scale, y * scale];
         });
         const isContinued = Boolean(bounds) && !isStrictlyInsideBounds(part[0], bounds!);
+        let points: Float64Array | null = null;
         return (
           getLineAnchors(pixels, {...options, isContinued, budget: featureBudget})
             .map(({segment, t, angle}) => {
@@ -1310,7 +1741,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               const position = geographic
                 ? worldToLngLat([pixel[0] / scale, pixel[1] / scale])
                 : [pixel[0] / scale, pixel[1] / scale];
-              return {position, angle, pixel};
+              // The line's vertices, shared by the rows on it.
+              points ||= Float64Array.from(pixels.flat());
+              return {position, angle, pixel, line: {points, segment, t, zoom}};
             })
             // Only anchors in the tile count as placed, as MapLibre's lie in the tile.
             .filter(({position}) => !bounds || isInsideBounds(position, bounds))
@@ -1318,7 +1751,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               ({pixel}) =>
                 !repeatDistance || !isNearSameText(context.placed, text!, pixel, repeatDistance)
             )
-            .map(({position, angle}) => ({position, angle}))
+            .map(({position, angle, line}) => ({position, angle, line}))
         );
       });
     });
@@ -1332,25 +1765,36 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * For `symbol-placement: line`, the `LineString` features with the same label text whose ends
-   * meet, joined as MapLibre does (see `mergeLines`): per feature, the feature with the joined
-   * line to place labels along, `null` for a feature joined into another, or `undefined` to place
-   * the feature as it is.
+   * For `symbol-placement: line`, the line features with the same label text whose ends meet,
+   * joined as MapLibre does (see `mergeLines`): per feature, the feature with the joined line to
+   * place labels along, `null` for a feature joined into another, or `undefined` to place the
+   * feature as it is. As in MapLibre, a `MultiLineString` joins by its first line only, and a
+   * feature joined into another is dropped whole, with any other lines it has: MapLibre's
+   * `mergeLines` takes each feature's `geometry[0]` and keeps the feature of the chain it joins.
    */
   getMergedLines(features: FeatureLike[]): (FeatureLike | null | undefined)[] {
-    const lines = features.map(feature =>
-      feature.geometry?.type === 'LineString'
-        ? {text: this.getLabelText(feature), line: feature.geometry.coordinates}
-        : {text: null, line: []}
-    );
+    const lines = features.map(feature => {
+      const {type, coordinates} = feature.geometry || {};
+      const line =
+        type === 'LineString' ? coordinates : type === 'MultiLineString' ? coordinates?.[0] : null;
+      return line ? {text: this.getLabelText(feature), line} : {text: null, line: []};
+    });
     return mergeLines(lines).map((line, index) => {
       if (line === null) {
         return null;
       }
       const feature = features[index];
-      return line === lines[index].line
-        ? undefined
-        : {...feature, geometry: {...feature.geometry, coordinates: line}};
+      if (line === lines[index].line) {
+        return undefined;
+      }
+      const {type, coordinates} = feature.geometry;
+      return {
+        ...feature,
+        geometry: {
+          ...feature.geometry,
+          coordinates: type === 'MultiLineString' ? [line, ...coordinates.slice(1)] : line
+        }
+      };
     });
   }
 
@@ -1400,8 +1844,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             this.getLinePlacementScale(),
             this.getStyleUpdateTrigger('text-field', 'text-transform', 'icon-image'),
             (this.props.spriteAtlases || []).map(atlas => atlas.id),
-            ...['text-size', 'icon-size', 'symbol-spacing', 'text-max-angle'].map(name =>
-              JSON.stringify(this.props.styleLayer?.layout?.[name] ?? null)
+            // With the stepped zoom when any of them depends on zoom: placements measured at one
+            // step do not fit the next.
+            this.getStyleUpdateTrigger(
+              'text-size',
+              'icon-size',
+              'symbol-spacing',
+              'text-max-angle',
+              'text-letter-spacing'
             ),
             // The text is measured in the label font, once it has loaded.
             ...(this.getStyleProperty('text-field')
@@ -1440,7 +1890,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
 
   /**
    * Whether the text or icons of this layer turn with the lines they are placed along (see
-   * `getLineLabelProps` and `getLineIconProps`). Only then do they depend on the bearing. Text
+   * `getLineLabelProps` and `getIconAngleProps`). Only then do they depend on the bearing. Text
    * needs a `text-field`, and icons an `icon-image` and loaded sprites.
    */
   turnsWithLines(): boolean {
@@ -1487,38 +1937,299 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * Icon layer props for symbols along lines whose icons turn with the line
-   * (`icon-rotation-alignment: map`, or `auto`): the icon is turned to the line's direction plus
-   * `icon-rotate`, and drawn flat on a flat map. `icon-keep-upright` (default false) turns it
-   * upright as for text. Icons of other symbols are unchanged.
+   * Whether the glyphs of this layer's labels along lines are each placed on the line, as MapLibre
+   * draws them: text turned to lines on a flat map (where it is drawn in the map plane), sized in
+   * pixels, on WebGL. Otherwise labels are drawn straight, turned to their anchor's segment. On a
+   * globe, labels are billboards turned on screen, and stay straight.
    */
-  getLineIconProps(): Record<string, unknown> {
-    const placement = this.getSymbolPlacement();
-    const zoom = getZoomBucket(this.props.zoom || 0);
-    const alignment = this.getStyleProperty('icon-rotation-alignment')?.evaluate(zoom);
-    if (!isLinePlacement(placement) || !isAlignedToMap(alignment, placement)) {
-      return {};
+  curvesLineText(viewport: any = this.context?.viewport): boolean {
+    if (!viewport || viewport.resolution || this.context?.device?.type === 'webgpu') {
+      return false;
     }
-    const bearingStep = this.getBearingStep();
-    this.state.bearingStep = bearingStep;
-    const keepUpright =
-      (this.getStyleProperty('icon-keep-upright')?.evaluate(zoom) ??
-        getStylePropertyDefault('icon-keep-upright')) === true;
-    const geographic = Boolean(this.context?.viewport?.resolution);
+    if (this.props.labelSizeUnits !== 'pixels' || !this.getStyleProperty('text-field')) {
+      return false;
+    }
+    const placement = this.getSymbolPlacement();
+    const alignment = this.getStyleProperty('text-rotation-alignment')?.evaluate(
+      getZoomBucket(this.props.zoom || 0)
+    );
+    return isLinePlacement(placement) && isAlignedToMap(alignment, placement);
+  }
+
+  /** The zoom glyphs along lines are placed at: the viewport's, in `LINE_GLYPH_ZOOM_STEPS`. */
+  getGlyphZoom(viewport: any = this.context?.viewport): number {
+    return Math.floor((viewport?.zoom || 0) * LINE_GLYPH_ZOOM_STEPS) / LINE_GLYPH_ZOOM_STEPS;
+  }
+
+  /**
+   * The style inputs of glyphs along lines, besides the row's text and line: the style values,
+   * and the revision of the label font's advances (`getCharacterWidthsRevision`).
+   */
+  getLineGlyphStyleKey(): string {
+    return `${this.getLineGlyphStyleTrigger()}|${this.getLineGlyphWidthsRevision()()}`;
+  }
+
+  /** The style values glyphs along lines are placed by. */
+  getLineGlyphStyleTrigger(): string {
+    const triggers = this.getLabelUpdateTriggers();
+    return `${triggers.getText}|${triggers.getSize}|${triggers.getPixelOffset}|${triggers.getTextAnchor}|${this.getStyleUpdateTrigger('text-keep-upright')}`;
+  }
+
+  /**
+   * The revision of the label font's advances, read when called: it changes once the font has
+   * loaded with other advances (`forgetCharacterWidths`), maybe as another layer found, without
+   * this layer updating.
+   */
+  getLineGlyphWidthsRevision(): () => number {
+    const font = this.getFont();
+    const fontWeight = getTextLayerFontWeight(font);
+    return () => getCharacterWidthsRevision(fontWeight, font.fontFamily);
+  }
+
+  /**
+   * The text sublayers' `getLineGlyphs` and `getLineGlyphKey` (see `LabelTextLayer`), null when the
+   * layer draws its text straight, and the update trigger of the glyphs: the style. The glyphs also
+   * change with the view's zoom and bearing steps, and with the label font's advances, which the
+   * character layers check when they draw: placement reads the advances' revision anew, so the
+   * glyphs drawn follow the glyphs placed without this layer updating.
+   */
+  getLineGlyphProps(): {
+    getLineGlyphs: ((row: LabelRow, viewport: any) => Float32Array | null) | null;
+    getLineGlyphKey: ((viewport: any) => string) | null;
+    trigger: string;
+  } {
+    if (!this.curvesLineText()) {
+      return {getLineGlyphs: null, getLineGlyphKey: null, trigger: 'straight'};
+    }
+    const styleTrigger = this.getLineGlyphStyleTrigger();
+    const widthsRevision = this.getLineGlyphWidthsRevision();
     return {
-      billboard: geographic ? this.props.billboard : false,
-      // `icon-rotate` is clockwise; deck.gl angles are counter-clockwise.
-      getAngle: (row: LabelRow) =>
-        getUprightAngle(row.angle ?? 0, bearingStep, keepUpright) -
-        Number(this.evaluateStyleProperty('icon-rotate', (row as any).__source?.object ?? row) ?? 0)
+      getLineGlyphs: (row, viewport) =>
+        this.getLineGlyphs(
+          row,
+          viewport,
+          this.getBearingStep(viewport),
+          `${styleTrigger}|${widthsRevision()}`
+        )?.glyphs ?? null,
+      getLineGlyphKey: viewport =>
+        `${this.getGlyphZoom(viewport)}|${this.getBearingStep(viewport)}|${widthsRevision()}`,
+      trigger: styleTrigger
     };
   }
 
-  /** Forgets a font load in flight, so that its completion does not update a finalized layer. */
+  /**
+   * Where each glyph of `row`'s label is drawn along its line at `viewport`'s zoom, as MapLibre GL
+   * JS's `placeGlyphsAlongLine`: each advance centre on the line, turned to the segment it lands on,
+   * the whole label turned around to read upright at `bearingStep` (from its first and last glyph,
+   * placed unturned). Null for a row drawn straight: not along a line, or multi-line text. The
+   * placements are cached per row for the zoom step and style, both ways round, so that every text
+   * sublayer and the placement share them, and a bearing step only checks which way each reads.
+   */
+  getLineGlyphs(
+    row: LabelRow,
+    viewport: any,
+    bearingStep: number,
+    styleKey: string
+  ): RowLineGlyphs | null {
+    const {line} = row;
+    if (!line) {
+      return null;
+    }
+    const zoom = this.getGlyphZoom(viewport);
+    const key = `${zoom}|${styleKey}`;
+    let cache = this.state.lineGlyphs;
+    let entry = cache?.get(row);
+    if (entry && entry.key === key) {
+      LINE_GLYPH_STATS.cacheHits++;
+    } else {
+      LINE_GLYPH_STATS.rows++;
+      const feature = (row as any).__source?.object ?? row;
+      const text = this.getLabel(feature);
+      entry = {
+        key,
+        placements:
+          text && !text.includes('\n') ? this.placeRowGlyphs(row, line, feature, text, zoom) : null
+      };
+      if (!cache) {
+        cache = new WeakMap();
+        this.state.lineGlyphs = cache;
+      }
+      cache.set(row, entry);
+    }
+    const {placements} = entry;
+    if (!placements) {
+      return null;
+    }
+    if (!placements.unturned.path || !placements.turned) {
+      return placements.unturned;
+    }
+    const flip =
+      placements.count > 1
+        ? needsFlip(placements.layout!, bearingStep)
+        : // MapLibre turns a single glyph by its anchor's segment.
+          getUprightAngle(row.angle ?? 0, bearingStep, true) !== (row.angle ?? 0);
+    return flip ? placements.turned : placements.unturned;
+  }
+
+  /**
+   * `row`'s glyphs placed along its line at `zoom` (see `getLineGlyphs`): unturned, and turned to
+   * read the other way when `text-keep-upright` may turn the label (null otherwise).
+   */
+  placeRowGlyphs(
+    row: LabelRow,
+    line: RowLine,
+    feature: FeatureLike,
+    text: string,
+    zoom: number
+  ): RowGlyphPlacements {
+    const characters = Array.from(text);
+    const count = characters.length;
+    const size = this.getLabelSize(feature);
+    const spacing = this.getLetterSpacing(feature, text) * size;
+    const font = this.getFont();
+    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+    // Advance centres from the anchor, as MapLibre's shaping places them: `text-anchor` across the
+    // text, the letter spacing after every character but the last.
+    const widths = characters.map(character => measure(character) * size);
+    const width = widths.reduce((sum, w) => sum + w, 0) + Math.max(0, count - 1) * spacing;
+    const [ax] =
+      ANCHOR_FRACTIONS[String(this.evaluateStyleProperty('text-anchor', feature))] ||
+      ANCHOR_FRACTIONS.center;
+    const offsets = new Float64Array(count);
+    let x = -(ax + 0.5) * width;
+    for (let i = 0; i < count; i++) {
+      offsets[i] = x + widths[i] / 2;
+      x += widths[i] + spacing;
+    }
+    const [lineOffsetX, lineOffsetY] = this.getLabelPixelOffset(feature);
+    const options = {offsets, lineOffsetX, lineOffsetY, scale: 2 ** (zoom - line.zoom)};
+    const hidden: RowLineGlyphs = {glyphs: new Float32Array(count * 4), path: null};
+    for (let i = 0; i < count; i++) {
+      hidden.glyphs[i * 4 + 3] = -1;
+    }
+    const layout = placeLineGlyphs(line, {...options, flip: false});
+    if (!layout) {
+      return {count, layout: null, unturned: hidden, turned: null};
+    }
+    const keepUpright =
+      (this.getStyleProperty('text-keep-upright')?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
+        getStylePropertyDefault('text-keep-upright')) !== false;
+    const turned = keepUpright ? placeLineGlyphs(line, {...options, flip: true}) : null;
+    // MapLibre's collision circles follow the unturned placement, whichever way the label reads.
+    // A label that must turn but does not fit turned is not drawn, yet still takes the room of its
+    // unturned circles: MapLibre places it by those, and hides its glyphs only when drawing.
+    const toRow = (placed: LineGlyphs | null): RowLineGlyphs => {
+      if (!placed) {
+        return {glyphs: hidden.glyphs, path: layout.path};
+      }
+      const glyphs = new Float32Array(count * 4);
+      for (let i = 0; i < count; i++) {
+        glyphs[i * 4] = placed.glyphs[i * 3];
+        glyphs[i * 4 + 1] = placed.glyphs[i * 3 + 1];
+        glyphs[i * 4 + 2] = placed.glyphs[i * 3 + 2];
+        glyphs[i * 4 + 3] = 1;
+      }
+      return {glyphs, path: layout.path};
+    };
+    return {
+      count,
+      layout,
+      unturned: toRow(layout),
+      turned: keepUpright ? toRow(turned) : null
+    };
+  }
+
+  /**
+   * The extensions that keep billboards along lines on their lines on a globe. A globe draws them
+   * in screen space, at angles taken from north up, so the shader turns them by the direction the
+   * view draws the line in, at every frame, and upright with `keepUpright`: there the bearing
+   * alone does not tell which way they read. A flat map draws them in the map plane. The shader
+   * keeps an angle upright only when it is the line's direction: icons turned by `icon-rotate` are
+   * kept upright from north up, by their angles. Text keeps its `text-offset` on its side of the
+   * line as it turns around.
+   */
+  getLineAngleExtensions(
+    turnsWithLine: boolean,
+    keepUpright: 'text-keep-upright' | 'icon-keep-upright',
+    isLineDirection = true
+  ): GlobeLineAngleExtension[] {
+    const isGlobeBillboard = Boolean(this.context?.viewport?.resolution) && this.props.billboard;
+    if (!turnsWithLine || !isGlobeBillboard) {
+      return [];
+    }
+    const upright =
+      (this.getStyleProperty(keepUpright)?.evaluate(getZoomBucket(this.props.zoom || 0)) ??
+        getStylePropertyDefault(keepUpright)) === true;
+    if (!upright || !isLineDirection) {
+      return [GLOBE_LINE_ANGLE_EXTENSIONS.free];
+    }
+    return [
+      keepUpright === 'text-keep-upright'
+        ? GLOBE_LINE_ANGLE_EXTENSIONS.uprightText
+        : GLOBE_LINE_ANGLE_EXTENSIONS.upright
+    ];
+  }
+
+  /**
+   * Icon layer props that turn icons, and the angle each row's icon is turned by, counter-clockwise
+   * in degrees as deck.gl takes it (null when no icon turns). Icons along lines whose rotation is
+   * aligned to the map (`icon-rotation-alignment: map`, or `auto`) are turned to the line's
+   * direction, upright when `icon-keep-upright` is set (default false) as for text. Every icon then
+   * adds `icon-rotate`, clockwise. Icons aligned to the map are drawn flat on a flat map, so they
+   * turn with its bearing; the others are billboards, turned on screen. On a globe, icons stay
+   * billboards.
+   */
+  getIconAngleProps(): {
+    props: Record<string, unknown>;
+    getAngle: ((row: LabelRow) => number) | null;
+    extensions: GlobeLineAngleExtension[];
+  } {
+    const placement = this.getSymbolPlacement();
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    const alignment = this.getStyleProperty('icon-rotation-alignment')?.evaluate(zoom);
+    const isMapAligned = isAlignedToMap(alignment, placement);
+    const turnsWithLine = isLinePlacement(placement) && isMapAligned;
+    const iconRotate = this.getStyleProperty('icon-rotate');
+    const geographic = Boolean(this.context?.viewport?.resolution);
+    const props = isMapAligned ? {billboard: geographic ? this.props.billboard : false} : {};
+    const extensions = this.getLineAngleExtensions(turnsWithLine, 'icon-keep-upright', !iconRotate);
+    if (!turnsWithLine && !iconRotate) {
+      return {props, getAngle: null, extensions};
+    }
+    const bearingStep = this.getBearingStep();
+    if (turnsWithLine) {
+      this.state.bearingStep = bearingStep;
+    }
+    const keepUpright =
+      (this.getStyleProperty('icon-keep-upright')?.evaluate(zoom) ??
+        getStylePropertyDefault('icon-keep-upright')) === true;
+    const getLineAngle = (row: LabelRow) =>
+      turnsWithLine ? getUprightAngle(row.angle ?? 0, bearingStep, keepUpright) : 0;
+    const getRotate = (row: LabelRow) =>
+      iconRotate
+        ? Number(
+            this.evaluateStyleProperty('icon-rotate', (row as any).__source?.object ?? row) ?? 0
+          )
+        : 0;
+    // `icon-rotate` is clockwise; deck.gl angles are counter-clockwise.
+    return {props, getAngle: (row: LabelRow) => getLineAngle(row) - getRotate(row), extensions};
+  }
+
+  /**
+   * Forgets a font load in flight, so that its completion does not update a finalized layer, and
+   * releases the shared sprite textures.
+   */
   finalizeState(context: LayerContext): void {
     super.finalizeState(context);
     if (this.state) {
       this.state.loadingFont = undefined;
+      this.state.iconTextures?.releaseAll();
+      if (this.state.placementHandle) {
+        this.state.placement?.unregister(this.state.placementHandle);
+      }
+      releaseSharedLabelPlacement(this.state.sharedPlacementKey);
+      this.state.sharedPlacementKey = null;
+      this.state.sharedPlacement = null;
     }
   }
 
@@ -1527,8 +2238,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * changes.
    */
   updateState({changeFlags}: UpdateParameters<this>): void {
-    const {data} = this.props;
-    if (!data) {
+    const {data, tiles} = this.props;
+    if (!data && !tiles) {
       return;
     }
     const geographic = Boolean(this.context?.viewport?.resolution);
@@ -1538,10 +2249,23 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       // for the previous trigger.
       this.setState({labelText: undefined});
     }
-    const anchorKey = this.getAnchorKey(geographic);
-    if (changeFlags.dataChanged || anchorKey !== this.state.anchorKey) {
-      const features = Array.isArray(data) ? data : data.features || [];
-      this.setState({labelData: this.getLabelData(features, geographic), anchorKey});
+    if (tiles) {
+      this.updateTileRows(tiles, geographic);
+    } else if (data) {
+      this.updateDataRows(data, geographic, Boolean(changeFlags.dataChanged));
+    }
+    const haloKey: [LabelRow[] | undefined, string] = [
+      this.state.labelData,
+      this.getStyleUpdateTrigger(
+        'text-halo-color',
+        'text-halo-width',
+        'text-halo-blur',
+        'text-opacity',
+        'text-size'
+      )
+    ];
+    if (haloKey[0] !== this.state.haloKey?.[0] || haloKey[1] !== this.state.haloKey?.[1]) {
+      this.setState({halos: this.getLabelHalos(this.state.labelData || []), haloKey});
     }
     if (this.turnsWithLines()) {
       // The bearing the labels are turned for, so that `shouldUpdateState` updates the layer only
@@ -1550,11 +2274,117 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     // deck.gl re-evaluates every label's text when the rows or the text trigger change; each
     // evaluation starts a new text cache with a fresh wrap budget.
-    const key: [string, LabelRow[] | undefined] = [textTrigger, this.state.labelData];
-    const [lastTrigger, lastRows] = this.state.labelText?.key || [];
-    if (key[0] !== lastTrigger || key[1] !== lastRows) {
+    // The font, which a data-driven `text-font` takes from the first row: the rows of another
+    // first tile can change it, and with it the text's wrapping.
+    const font = JSON.stringify(this.getFont());
+    const key: [string, LabelRow[] | undefined, string] = [textTrigger, this.state.labelData, font];
+    const [lastTrigger, lastRows, lastFont] = this.state.labelText?.key || [];
+    if (key[0] !== lastTrigger || key[1] !== lastRows || key[2] !== lastFont) {
+      // A `tiles` layer wraps each tile's labels with a tile's budget. Its rows change whenever a
+      // tile is added or removed; the text of features already wrapped is kept.
+      const tileCount = tiles ? Math.max(tiles.length, 1) : 1;
+      const labels =
+        tiles && key[0] === lastTrigger && key[2] === lastFont && this.state.labelText
+          ? this.state.labelText.labels
+          : new WeakMap();
       this.setState({
-        labelText: {key, budget: {steps: TILE_WRAP_BUDGET_STEPS}, labels: new WeakMap()}
+        labelText: {
+          key,
+          budget: {steps: TILE_WRAP_BUDGET_STEPS * tileCount},
+          labels
+        }
+      });
+    }
+    this.updatePlacement();
+  }
+
+  /** The rows of a layer of one tile's `data`. */
+  updateDataRows(
+    data: NonNullable<MVTLabelLayerProps['data']>,
+    geographic: boolean,
+    dataChanged: boolean
+  ): void {
+    const anchorKey = this.getAnchorKey(geographic);
+    if (dataChanged || anchorKey !== this.state.anchorKey) {
+      const features = Array.isArray(data) ? data : data.features || [];
+      const labelData = this.getLabelData(features, geographic);
+      this.setState({labelData, anchorKey});
+    }
+  }
+
+  /**
+   * The rows of a `tiles` layer: each tile's anchors, placed as in a layer of the tile alone and
+   * kept while its features and anchor inputs do not change, in longitude/latitude, combined by
+   * `combineTileRows`. Tile-local anchors outside the tile's square are left out, as the tile's
+   * own layer clips them; on a globe, tiles keep the rows they have.
+   */
+  updateTileRows(tiles: LabelTile[], geographic: boolean): void {
+    const previous = this.state.tileRows || new Map<string, TileRows>();
+    let changed = tiles !== this.state.rowTiles;
+    const next = new Map<string, TileRows>();
+    const tileRows = tiles.map(tile => {
+      const {x, y, z} = tile.index;
+      const tileKey = getTileKey(x, y, z);
+      this.placingTile = tile;
+      try {
+        const anchorKey = this.getAnchorKey(geographic);
+        const cached = previous.get(tileKey);
+        if (
+          cached &&
+          cached.features === tile.features &&
+          cached.anchorKey === anchorKey &&
+          cached.tile === tile.tile
+        ) {
+          next.set(tileKey, cached);
+          return cached.rows;
+        }
+        changed = true;
+        let rows = this.getLabelData(tile.features, geographic);
+        if (!geographic) {
+          const scale = 2 ** z;
+          rows = rows
+            .filter(row => isInsideBounds(row.position, TILE_SQUARE))
+            .map(row => {
+              const world = [(x + row.position[0]) / scale, (y + row.position[1]) / scale];
+              return {...row, position: worldToLngLat(world), world};
+            });
+        }
+        if (tile.tile) {
+          for (const row of rows) {
+            (row as any).__tile = tile.tile;
+          }
+        }
+        const entry = {features: tile.features, anchorKey, tile: tile.tile, rows};
+        next.set(tileKey, entry);
+        return rows;
+      } finally {
+        this.placingTile = null;
+      }
+    });
+    // The anchors of tiles no longer drawn are kept, most recently drawn first, up to as many as
+    // are drawn: a tile hidden and shown again, as at the view's edge while it moves, keeps its
+    // rows, and the values the sublayers computed for them.
+    let hidden = 0;
+    for (const [tileKey, entry] of previous) {
+      if (hidden >= tiles.length) {
+        break;
+      }
+      if (!next.has(tileKey)) {
+        next.set(tileKey, entry);
+        hidden++;
+      }
+    }
+    if (changed) {
+      const combined = combineTileRows(tiles, tileRows);
+      // A tile shown or hidden without rows of this layer leaves the rows as they are: the same
+      // array keeps the sublayers' data, which deck.gl would otherwise update for every row.
+      const previousRows = this.state.labelData;
+      const labelData = isSameList(previousRows, combined) ? previousRows! : combined;
+      this.setState({
+        labelData,
+        tileRows: next,
+        rowTiles: tiles,
+        anchorKey: undefined
       });
     }
   }
@@ -1562,8 +2392,567 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Renders the optional debug geometry and the text labels.
    */
+
+  // --- Placement (see `LabelPlacement`) ---
+
+  /** The placement this layer's labels take part in: its prop's, or its deck's shared one. */
+  getLabelPlacement(): LabelPlacement {
+    if (this.props.labelPlacement) {
+      releaseSharedLabelPlacement(this.state.sharedPlacementKey);
+      this.state.sharedPlacementKey = null;
+      this.state.sharedPlacement = null;
+      return this.props.labelPlacement;
+    }
+    // Label layers made without a placement, as by `getBasemapLayers` alone, place together.
+    if (!this.state.sharedPlacementKey) {
+      const key = getSharedLabelPlacementKey(this);
+      this.state.sharedPlacementKey = key;
+      this.state.sharedPlacement = acquireSharedLabelPlacement(key);
+    }
+    return this.state.sharedPlacement!;
+  }
+
+  /** Registers with the placement, for the current rows. */
+  updatePlacement(): void {
+    const placement = this.getLabelPlacement();
+    let handle = this.state.placementHandle;
+    if (!handle) {
+      handle = {
+        layer: this,
+        getPlacementOrder: () => handle!.layer.getPlacementOrder(),
+        getPlacementRevision: () => handle!.layer.getPlacementRevision(),
+        getPlacementSlotRevision: () => handle!.layer.getPlacementSlotRevision(),
+        getPlacementSlotCount: () => handle!.layer.getPlacementSlotCount(),
+        isDrawnIn: viewport => handle!.layer.isDrawnIn(viewport),
+        getPlacementSymbols: (viewport, base, out) =>
+          handle!.layer.getPlacementSymbols(viewport, base, out),
+        setNeedsRedraw: () => handle!.layer.setNeedsRedraw(),
+        getPlacementRoot: () => handle!.layer.getPlacementRoot()
+      };
+      this.state.placementHandle = handle;
+    }
+    handle.layer = this;
+    if (this.state.placement && this.state.placement !== placement) {
+      this.state.placement.unregister(handle);
+    }
+    this.state.placement = placement;
+    this.state.placementSlotBase = placement.register(handle);
+    this.state.placementRevision = (this.state.placementRevision || 0) + 1;
+    // Each row's slot is the slot base plus its index (see `getPlacementSlotAccessor`); the base
+    // is the placement's to follow.
+    if (this.state.labelData !== this.state.placementSlotRows) {
+      this.state.placementSlotRows = this.state.labelData;
+      this.state.placementSlotRevision = (this.state.placementSlotRevision || 0) + 1;
+    }
+  }
+
+  /** Sublayer props that draw a part (0: text, 1: icons) where placement placed it. */
+  getPlacementProps(part: 0 | 1): Record<string, unknown> {
+    return {
+      labelPlacement: this.state.placement || null,
+      placementPart: part,
+      getPlacementSlot: this.getPlacementSlotAccessor()
+    };
+  }
+
+  /**
+   * Each row's slot, by row: `TextLayer` does not hand its character layer the row's index in
+   * `data`, so the slot is found from the row itself.
+   */
+  getPlacementSlotAccessor(): ((row: LabelRow) => number) | number {
+    const base = this.state.placementSlotBase ?? -1;
+    if (base < 0) {
+      return -1;
+    }
+    const rows = this.getRows();
+    const cached = this.state.placementSlots;
+    if (cached?.rows !== rows || cached.base !== base) {
+      const slots = new Map<LabelRow, number>();
+      rows.forEach((row, index) => slots.set(row, base + index));
+      this.state.placementSlots = {rows, base, accessor: (row: LabelRow) => slots.get(row) ?? -1};
+    }
+    return this.state.placementSlots!.accessor;
+  }
+
+  getPlacementOrder(): number {
+    return this.props.collisionPriorityRange?.[0] ?? 0;
+  }
+
+  getPlacementRevision(): number {
+    return this.state.placementRevision || 0;
+  }
+
+  getPlacementSlotRevision(): number {
+    return this.state.placementSlotRevision || 0;
+  }
+
+  getPlacementSlotCount(): number {
+    return this.getRows().length;
+  }
+
+  /**
+   * `PlacementLayer.isDrawnIn`: whether deck.gl draws this layer in `viewport`, as its layers pass
+   * decides: the layer and its parents are visible, and each parent's `filterSubLayer` keeps it.
+   */
+  isDrawnIn(viewport: Viewport): boolean {
+    if (!this.props.visible) {
+      return false;
+    }
+    // As deck.gl's screen pass asks.
+    const context = {layer: this as Layer, viewport, isPicking: false, renderPass: 'screen'};
+    for (let parent = this.parent; parent; parent = parent.parent) {
+      if (!parent.props.visible || !(parent as CompositeLayer).filterSubLayer(context)) {
+        return false;
+      }
+      context.layer = parent;
+    }
+    // The deck's `layerFilter`, which deck.gl asks of the topmost parent.
+    const layerFilter = (this.context as {deck?: {props?: {layerFilter?: unknown}}})?.deck?.props
+      ?.layerFilter;
+    return typeof layerFilter === 'function' ? Boolean(layerFilter(context)) : true;
+  }
+
+  /**
+   * `PlacementLayer.getPlacementRoot`: the deck layer this layer is drawn under, and the deck's
+   * layers in draw order, so that the labels of a layer drawn over another (as a second
+   * `BasemapLayer`) are placed first.
+   */
+  getPlacementRoot(): {root: Layer; layers: readonly Layer[]} | null {
+    const layerManager = (this.context as {layerManager?: {getLayers?: () => Layer[]}})
+      ?.layerManager;
+    if (!layerManager?.getLayers) {
+      return null;
+    }
+    let root: Layer = this;
+    while (root.parent) {
+      root = root.parent;
+    }
+    return {root, layers: layerManager.getLayers()};
+  }
+
+  /**
+   * What placement needs of each row that does not change with the view, kept until the rows, the
+   * label text, the sprites, the style's layout values, the font's measured widths or the zoom
+   * step change: the rules, the placement order, and per row (in `labelData` order) its text box
+   * (`x1, y1, w, h` in pixels from the anchor, before padding; `w` NaN without text) and its icon
+   * box (`x1, y1, x2, y2` padded, before any turn; `x1` NaN without an icon).
+   */
+  getPlacementGeometry(): PlacementGeometry | null {
+    const {config, spriteAtlases, styleLayer, fontFamily} = this.props;
+    const labelData = this.state.labelData;
+    if (!config.labels || !labelData?.length) {
+      return null;
+    }
+    const zoom = getZoomBucket(this.props.zoom || 0);
+    // Measured again once the label font has loaded (`forgetCharacterWidths`).
+    const font = this.getFont();
+    const widthsRevision = getCharacterWidthsRevision(
+      getTextLayerFontWeight(font),
+      font.fontFamily
+    );
+    // The layout values, so that a style layer edited in place is measured and ruled again, as
+    // `getCompiledStyleProperty` compiles an edited value again.
+    const layout = styleLayer?.layout ? Object.entries(styleLayer.layout).flat() : [];
+    const shared = [spriteAtlases, styleLayer, fontFamily, widthsRevision, zoom, ...layout];
+    const key = [labelData, this.state.labelText, ...shared];
+    const cached = this.state.placementGeometry;
+    if (cached && isSameList(cached.key, key)) {
+      return cached;
+    }
+    // Each row's boxes are kept while the text, the sprites, the style, the font and the zoom step
+    // are the same: a `tiles` layer makes its rows again whenever a tile is shown or hidden, and
+    // the rows of the other tiles keep their objects.
+    const rowKey = [this.state.labelText?.key[0], this.state.labelText?.key[2], ...shared];
+    let rowBoxes = this.state.placementRowBoxes;
+    if (!rowBoxes || !isSameList(rowBoxes.key, rowKey)) {
+      rowBoxes = {key: rowKey, boxes: new WeakMap()};
+      this.state.placementRowBoxes = rowBoxes;
+    }
+    const evaluate = (name: string) =>
+      this.getStyleProperty(name)?.evaluate(zoom) ?? getStylePropertyDefault(name);
+    const hasTextData = Boolean(this.getStyleProperty('text-field'));
+    // While the sprites load (`null`), each symbol is taken to have its icon, so that its rules do
+    // not change when they arrive (see `spriteAtlases`).
+    const hasIconData =
+      Boolean(this.getStyleProperty('icon-image')) &&
+      (spriteAtlases === null || Boolean(spriteAtlases?.length));
+    const rules: SymbolPlacementRules = {
+      textOverlap: getOverlapMode(evaluate('text-overlap'), evaluate('text-allow-overlap')),
+      iconOverlap: getOverlapMode(evaluate('icon-overlap'), evaluate('icon-allow-overlap')),
+      textIgnorePlacement: Boolean(evaluate('text-ignore-placement')),
+      iconIgnorePlacement: Boolean(evaluate('icon-ignore-placement')),
+      textOptional: Boolean(evaluate('text-optional')),
+      iconOptional: Boolean(evaluate('icon-optional')),
+      hasTextData,
+      hasIconData
+    };
+    const count = labelData.length;
+    const rowsWithText = hasTextData ? this.getRowsWithText() : null;
+    const icons = hasIconData ? this.getRowIcons() : null;
+    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+    const lineHeight = this.getLineHeight();
+    const textBoxes = new Float64Array(count * 4).fill(Number.NaN);
+    const textOffsets = new Float64Array(count * 2);
+    const iconBoxes = new Float64Array(count * 4).fill(Number.NaN);
+    const sortKey = this.getStyleProperty('symbol-sort-key');
+    const keys = sortKey ? new Float64Array(count) : null;
+    for (let i = 0; i < count; i++) {
+      const row = labelData[i];
+      const rowIndex = count - 1 - i;
+      const feature = (row as any).__source?.object ?? row;
+      if (keys) {
+        keys[i] = Number(this.evaluateStyleProperty('symbol-sort-key', feature)) || 0;
+      }
+      const kept = rowBoxes.boxes.get(row);
+      if (kept) {
+        textBoxes.set(kept.subarray(0, 4), i * 4);
+        iconBoxes.set(kept.subarray(4, 8), i * 4);
+        textOffsets.set(kept.subarray(8, 10), i * 2);
+        continue;
+      }
+      if (rowsWithText?.[rowIndex]) {
+        const label = this.getLabel(feature) || '';
+        const size = this.getLabelSize(feature);
+        const spacing = this.getLetterSpacing(feature, label);
+        const lines = label.split('\n');
+        let textWidth = 0;
+        for (const line of lines) {
+          const characters = Array.from(line);
+          let lineWidth = 0;
+          for (const character of characters) {
+            lineWidth += measure(character);
+          }
+          lineWidth += Math.max(0, characters.length - 1) * spacing;
+          textWidth = Math.max(textWidth, lineWidth);
+        }
+        const w = textWidth * size;
+        const h = lines.length * lineHeight * size;
+        const [ax, ay] =
+          ANCHOR_FRACTIONS[String(this.evaluateStyleProperty('text-anchor', feature))] ||
+          ANCHOR_FRACTIONS.center;
+        const [dx, dy] = this.getLabelPixelOffset(feature);
+        textBoxes.set([-(ax + 0.5) * w + dx, -(ay + 0.5) * h + dy, w, h], i * 4);
+        textOffsets.set([dx, dy], i * 2);
+      }
+      const resolved = icons?.[rowIndex];
+      if (resolved) {
+        const scale = Number(this.evaluateStyleProperty('icon-size', feature) ?? 1);
+        const w = (resolved.entry.width / resolved.entry.pixelRatio) * scale;
+        const h = (resolved.entry.height / resolved.entry.pixelRatio) * scale;
+        const [ox, oy] = this.getIconPixelOffset(feature);
+        const [top, right, bottom, left] = (
+          (this.evaluateStyleProperty('icon-padding', feature) as number[] | undefined) ??
+          (getStylePropertyDefault('icon-padding') as number[])
+        ).map(value => Math.max(0, Number(value)) || 0);
+        iconBoxes.set(
+          [ox - w / 2 - left, oy - h / 2 - top, ox + w / 2 + right, oy + h / 2 + bottom],
+          i * 4
+        );
+      }
+      const boxes = new Float64Array(10);
+      boxes.set(textBoxes.subarray(i * 4, i * 4 + 4), 0);
+      boxes.set(iconBoxes.subarray(i * 4, i * 4 + 4), 4);
+      boxes.set(textOffsets.subarray(i * 2, i * 2 + 2), 8);
+      rowBoxes.boxes.set(row, boxes);
+    }
+    // `labelData` order is feature order within each tile.
+    const order = Array.from({length: count}, (_, i) => i);
+    const tiles = labelData.map(row => (row as any).__tile);
+    order.sort(
+      (a, b) => (keys ? keys[a] - keys[b] : 0) || compareTiles(tiles[a], tiles[b]) || a - b
+    );
+    const geometry: PlacementGeometry = {
+      key,
+      rules,
+      order,
+      textBoxes,
+      textOffsets,
+      iconBoxes,
+      textPadding: this.getTextPadding()
+    };
+    this.state.placementGeometry = geometry;
+    return geometry;
+  }
+
+  /** `PlacementLayer.getPlacementSymbols`: this layer's symbols, in MapLibre's order. */
+  getPlacementSymbols(
+    viewport: any,
+    slotBase: number,
+    out: PlacementSymbol[]
+  ): SymbolPlacementRules | null {
+    const geometry = this.getPlacementGeometry();
+    if (!geometry) {
+      return null;
+    }
+    const labelData = this.state.labelData!;
+    const {rules, order, textBoxes, textOffsets, iconBoxes, textPadding} = geometry;
+    const count = labelData.length;
+    const linePlacement = isLinePlacement(this.getSymbolPlacement());
+    const lineProps = (linePlacement ? this.getLineLabelProps() : {}) as {
+      billboard?: boolean;
+      getAngle?: (row: LabelRow) => number;
+    };
+    const iconAngleProps = rules.hasIconData ? this.getIconAngleProps() : null;
+    const getIconAngle = iconAngleProps?.getAngle;
+    const padding = PLACEMENT_VIEWPORT_PADDING;
+    const {width, height} = viewport;
+    const isGlobe = Boolean(viewport.resolution);
+    // Text along lines and icons aligned to the map are drawn in the map plane on a flat map: their
+    // pixel offsets turn with the bearing and are foreshortened by the pitch.
+    const textInMapPlane = !isGlobe && Boolean(lineProps.getAngle) && lineProps.billboard === false;
+    const iconInMapPlane = !isGlobe && iconAngleProps?.props.billboard === false;
+    const toScreen = [1, 0, 0, 1];
+    // Glyphs placed along lines, as drawn (see `getLineGlyphProps`).
+    const curves = textInMapPlane && this.curvesLineText(viewport);
+    const bearingStep = curves ? this.getBearingStep(viewport) : 0;
+    const styleKey = curves ? this.getLineGlyphStyleKey() : '';
+    const spritesLoading = rules.hasIconData && this.props.spriteAtlases === null;
+    // On a globe, billboards along lines are turned to their lines as the view draws them (see
+    // `getLineAngleExtensions`): they collide along that direction.
+    const textGlobeTurn = isGlobe
+      ? this.getLineAngleExtensions(Boolean(lineProps.getAngle), 'text-keep-upright')[0]
+      : undefined;
+    const iconGlobeTurn = isGlobe ? iconAngleProps?.extensions[0] : undefined;
+
+    // `tiles` rows are in longitude/latitude: their common-space positions, which do not change
+    // with the view, are kept, and projected to the screen with the viewport's matrix.
+    const commons = this.props.tiles ? this.getPlacementCommons(viewport, geometry) : null;
+    const m = viewport.pixelProjectionMatrix as number[];
+    const horizon = isGlobe ? this.getHorizonTest(viewport) : null;
+    for (const i of order) {
+      const row = labelData[i];
+      let sx: number;
+      let sy: number;
+      let occluded = false;
+      let common: number[] | null = null;
+      if (commons) {
+        const cx = commons[i * 3];
+        const cy = commons[i * 3 + 1];
+        const cz = commons[i * 3 + 2];
+        const w = m[3] * cx + m[7] * cy + m[11] * cz + m[15];
+        sx = (m[0] * cx + m[4] * cy + m[8] * cz + m[12]) / w;
+        sy = (m[1] * cx + m[5] * cy + m[9] * cz + m[13]) / w;
+        occluded = horizon ? horizon(cx, cy, cz) : false;
+        common = [cx, cy, cz];
+      } else {
+        [sx, sy] = this.project(row.position as any) as number[];
+        occluded = isGlobe && this.isBeyondHorizon(viewport, row.position);
+      }
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) {
+        continue;
+      }
+      const x = sx + padding;
+      const y = sy + padding;
+      // Rows far outside the grid are not placed: MapLibre hides them until they come close.
+      if (
+        x < -width ||
+        y < -height ||
+        x > 3 * width + 2 * padding ||
+        y > 3 * height + 2 * padding
+      ) {
+        continue;
+      }
+      const t = i * 4;
+      const inMapPlane =
+        (textInMapPlane && !Number.isNaN(textBoxes[t + 2])) ||
+        (iconInMapPlane && !Number.isNaN(iconBoxes[t]));
+      if (inMapPlane) {
+        common ||= viewport.projectPosition(viewport.unproject([sx, sy])) as number[];
+        getMapPlaneToScreen(viewport, common, sx, sy, toScreen);
+      }
+      let text: PlacementShape | null = null;
+      const w = textBoxes[t + 2];
+      if (!Number.isNaN(w)) {
+        const x1 = textBoxes[t];
+        const y1 = textBoxes[t + 1];
+        const h = textBoxes[t + 3];
+        const curved = curves ? this.getLineGlyphs(row, viewport, bearingStep, styleKey) : null;
+        if (curved && common) {
+          // Circles along the line under the text, as MapLibre's: the path from its first glyph to
+          // its last, taken to the screen vertex by vertex. As in MapLibre, they follow the line,
+          // moved by `text-offset` only, whatever the `text-anchor`. Text that does not fit on the
+          // line unturned has none, and is not drawn (see `LineGlyphPlacement`); text that fits
+          // only unturned but must turn has its unturned circles, and is not drawn.
+          const [ax, ay, bx, by] = toScreen;
+          const screenRadius = (h / 2 + textPadding) * Math.sqrt(Math.abs(ax * by - ay * bx));
+          const {path} = curved;
+          if (!path) {
+            text = {circles: []};
+          } else {
+            const step = 1 / (viewport.scale || 1);
+            const screenPath: number[] = [];
+            for (let k = 0; k < path.length; k += 2) {
+              const cx = common[0] + path[k] * step;
+              const cy = common[1] - path[k + 1] * step;
+              const cz = common[2];
+              const cw = m[3] * cx + m[7] * cy + m[11] * cz + m[15];
+              screenPath.push(
+                (m[0] * cx + m[4] * cy + m[8] * cz + m[12]) / cw + padding,
+                (m[1] * cx + m[5] * cy + m[9] * cz + m[13]) / cw + padding
+              );
+            }
+            LINE_GLYPH_STATS.placementPaths++;
+            text = {circles: getPathCircles(screenPath, screenRadius)};
+          }
+        } else if (lineProps.getAngle) {
+          // Circles along the turned label, as MapLibre's collision circles along a line, taken
+          // to the screen when the text is drawn in the map plane.
+          let angle = (lineProps.getAngle(row) * Math.PI) / 180;
+          if (textGlobeTurn) {
+            angle = getGlobeDrawnAngle(
+              viewport,
+              row.position as number[],
+              angle,
+              textGlobeTurn.opts.keepUpright
+            );
+          }
+          const ux = Math.cos(angle);
+          const uy = -Math.sin(angle);
+          const radius = h / 2 + textPadding;
+          // The text turns with its upright angle, and its offset with the line (see
+          // `withLineDirection`), as drawn.
+          const dx = textOffsets[i * 2];
+          const dy = textOffsets[i * 2 + 1];
+          // On a globe, along the line as the view draws it, never turned around.
+          const [ex, ey] = rotatePixelOffset(
+            [dx, dy],
+            textGlobeTurn
+              ? (getGlobeDrawnAngle(
+                  viewport,
+                  row.position as number[],
+                  ((row.angle ?? 0) * Math.PI) / 180,
+                  false
+                ) *
+                  180) /
+                  Math.PI
+              : (row.angle ?? 0)
+          );
+          const cx = x1 + w / 2 - dx;
+          const cy = y1 + h / 2 - dy;
+          // A label without height has a single circle.
+          const n =
+            radius > 0
+              ? Math.max(1, Math.ceil(Math.max(0, w - 2 * radius) / (radius * 2.5)) + 1)
+              : 1;
+          const [ax, ay, bx, by] = textInMapPlane ? toScreen : [1, 0, 0, 1];
+          const screenRadius = radius * Math.sqrt(Math.abs(ax * by - ay * bx));
+          const circles: number[] = [];
+          for (let k = 0; k < n; k++) {
+            const along = n === 1 ? 0 : -w / 2 + radius + ((w - 2 * radius) * k) / (n - 1);
+            const ox = cx + along;
+            const mx = ox * ux - cy * uy + ex;
+            const my = ox * uy + cy * ux + ey;
+            circles.push(x + mx * ax + my * bx, y + mx * ay + my * by, screenRadius);
+          }
+          text = {circles};
+        } else {
+          text = {
+            box: [
+              x + x1 - textPadding,
+              y + y1 - textPadding,
+              x + x1 + w + textPadding,
+              y + y1 + h + textPadding
+            ]
+          };
+        }
+      }
+      let icon: PlacementShape | null = null;
+      if (!Number.isNaN(iconBoxes[t])) {
+        let iconAngle = getIconAngle ? getIconAngle(row) : 0;
+        if (iconGlobeTurn) {
+          iconAngle =
+            (getGlobeDrawnAngle(
+              viewport,
+              row.position as number[],
+              (iconAngle * Math.PI) / 180,
+              iconGlobeTurn.opts.keepUpright
+            ) *
+              180) /
+            Math.PI;
+        }
+        const [bx1, by1, bx2, by2] = getTurnedBounds(
+          [iconBoxes[t], iconBoxes[t + 1], iconBoxes[t + 2], iconBoxes[t + 3]],
+          iconAngle,
+          iconInMapPlane ? toScreen : null
+        );
+        icon = {box: [x + bx1, y + by1, x + bx2, y + by2]};
+      }
+      // While the sprites load, a row whose `icon-image` names an image waits for it.
+      const iconPending =
+        spritesLoading && Boolean(this.getIconImageName((row as any).__source?.object ?? row));
+      if (text || icon || iconPending) {
+        out.push({slot: slotBase + count - 1 - i, text, icon, occluded, iconPending});
+      }
+    }
+    return rules;
+  }
+
+  /**
+   * The common-space position of each `labelData` row (in longitude/latitude), for the kind of
+   * viewport: a globe's or a map's, which do not change with the view. Kept per row.
+   */
+  getPlacementCommons(viewport: any, geometry: PlacementGeometry): Float64Array {
+    const kind = viewport.resolution ? 'globe' : 'map';
+    if (geometry.commons?.kind === kind) {
+      return geometry.commons.positions;
+    }
+    const labelData = this.state.labelData!;
+    let cache = this.state.placementCommons;
+    if (cache?.kind !== kind) {
+      cache = {kind, positions: new WeakMap()};
+      this.state.placementCommons = cache;
+    }
+    const positions = new Float64Array(labelData.length * 3);
+    labelData.forEach((row, i) => {
+      let common = cache!.positions.get(row);
+      if (!common) {
+        common = viewport.projectPosition([row.position[0], row.position[1], 0]) as number[];
+        cache!.positions.set(row, common);
+      }
+      positions[i * 3] = common[0];
+      positions[i * 3 + 1] = common[1];
+      positions[i * 3 + 2] = common[2];
+    });
+    geometry.commons = {kind, positions};
+    return positions;
+  }
+
+  /**
+   * Whether a common-space point on a globe's surface is beyond its horizon in `viewport`, as
+   * `GlobeHorizonExtension` tests it.
+   */
+  getHorizonTest(viewport: any): (x: number, y: number, z: number) => boolean {
+    const m = viewport.viewProjectionMatrix as number[];
+    if (m[3] === 0 && m[7] === 0 && m[11] === 0) {
+      // Orthographic: hidden where the normal points away from the viewer (depth grows).
+      return (x, y, z) => x * m[2] + y * m[6] + z * m[10] > 0;
+    }
+    const [cx, cy, cz] = viewport.cameraPosition as number[];
+    // On the surface, a point's length is the globe's radius: dot(n, camera) < radius.
+    return (x, y, z) => x * cx + y * cy + z * cz < x * x + y * y + z * z;
+  }
+
+  /** Whether a longitude/latitude lies beyond the horizon of a globe viewport. */
+  isBeyondHorizon(viewport: any, position: number[]): boolean {
+    // As `GlobeHorizonExtension` tests it in the shader.
+    const common = viewport.projectPosition([position[0], position[1], 0]);
+    const length = Math.hypot(common[0], common[1], common[2]);
+    const m = viewport.viewProjectionMatrix;
+    if (!length || !m) {
+      return false;
+    }
+    const n = [common[0] / length, common[1] / length, common[2] / length];
+    if (m[3] === 0 && m[7] === 0 && m[11] === 0) {
+      // Orthographic: hidden where the normal points away from the viewer (depth grows).
+      return n[0] * m[2] + n[1] * m[6] + n[2] * m[10] > 0;
+    }
+    const camera = viewport.cameraPosition;
+    // The surface point is the globe's radius from its centre, the common space origin.
+    return n[0] * camera[0] + n[1] * camera[1] + n[2] * camera[2] < length;
+  }
+
   renderLayers(): any {
-    const {config, labelSizeUnits, labelBackground, billboard, renderGeometry} = this.props;
+    const {config, labelSizeUnits, billboard, renderGeometry} = this.props;
     const layers: any[] = [];
 
     if (renderGeometry) {
@@ -1576,102 +2965,147 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       );
     }
 
+    if (!config.labels) {
+      // No icon layers draw from the shared sprite textures.
+      this.retainIconAtlases(new Set());
+    }
     if (config.labels) {
       // Icons draw under their labels.
       const icons = this.getRowIcons();
       layers.push(...this.renderIconLayers(icons));
-      const hasBackground = Array.isArray(labelBackground) && labelBackground.length >= 3;
       const font = this.getFont();
       // While the sprites load, every row is taken to have its icon (see `spriteAtlases`).
       const spritesLoading = this.props.spriteAtlases === null;
       const groups = this.getSymbolPartGroups('text', () =>
         spritesLoading ? icons.map(() => true) : icons.map(Boolean)
       );
-      for (const {idSuffix, collision, rows} of groups) {
+      const {halos = [null], rowHalos = []} = this.state.halos || {};
+      const rowCount = rowHalos.length;
+      for (const {idSuffix, rows} of groups) {
         // Accessors over every row: `fallback` for rows outside the group.
         const forGroupRows = <T>(accessor: (feature: FeatureLike) => T, fallback: T) =>
           forRows(rows, this.getSubLayerAccessor(accessor) as any, fallback) as any;
         const updateTriggers = this.getLabelUpdateTriggers();
-        const getCollisionPriority = forGroupRows(
-          (feature: FeatureLike) => this.getLabelCollisionPriority(feature),
-          MASKED_COLLISION_PRIORITY
-        );
+        const getText = forGroupRows((feature: FeatureLike) => this.getLabel(feature), undefined);
         // Which rows have an icon decides the group's rows. `all` is always set, so that a change
         // between split and unsplit groups refreshes the rows masked out before.
         const groupTrigger = rows
           ? [this.getStyleUpdateTrigger('icon-image'), this.props.spriteAtlases]
           : null;
-        const textBlocks = collision.text.blocks;
-        // A blocking text's collision box also marks the anchor that the icon's collision test
-        // samples. Text that does not block draws nothing in the collision pass: deck.gl adds the
-        // pixel offset to the collision box unscaled, so a `text-offset` would stretch it into a
-        // strip that hides other symbols. Its anchor is marked by `renderAnchorLayer` instead.
-        const textLayers = placeSymbolPart(
-          new TextLayer({
-            ...this.getSubLayerProps({id: `text${idSuffix}`}),
-            data: this.state.labelData,
-            extensions: [...(this.props.extensions || []), new CollisionFilterExtension()],
-            parameters: {
-              depthTest: false
-            },
-            billboard,
-            ...this.getLineLabelProps(),
-            characterSet: 'auto',
-            collisionEnabled: true,
-            collisionGroup: LABEL_COLLISION_GROUP,
-            // Rows outside the group stay out of the collision pass.
-            getCollisionPriority,
-            fontFamily: font.fontFamily,
-            fontWeight: getTextLayerFontWeight(font),
-            sizeUnits: labelSizeUnits,
-            lineHeight: this.getLineHeight(),
-            // The collision filter keeps a label only where the label itself covers its anchor in
-            // the collision map. The background box is always drawn (transparent without a halo)
-            // and, in the collision pass, padded to reach the anchor (see getCollisionPadding).
-            background: true,
-            collisionTestProps: textBlocks
-              ? {padding: this.getCollisionPadding()}
-              : {padding: [0, 0, 0, 0], sizeScale: 0},
-            getBackgroundColor: hasBackground
-              ? forGroupRows(
-                  (feature: FeatureLike) => this.getLabelBackgroundColor(feature),
-                  [0, 0, 0, 0]
-                )
-              : ([0, 0, 0, 0] as any),
-            getPosition: (d: LabelRow) => d.position,
-            getText: forGroupRows((feature: FeatureLike) => this.getLabel(feature), undefined),
-            getSize: forGroupRows((feature: FeatureLike) => this.getLabelSize(feature), 0),
-            getColor: forGroupRows(
-              (feature: FeatureLike) => this.getLabelColor(feature),
-              [0, 0, 0, 0]
-            ),
-            getPixelOffset: forGroupRows(
-              (feature: FeatureLike) => this.getLabelPixelOffset(feature),
-              [0, 0]
-            ),
-            getTextAnchor: forGroupRows(
-              (feature: FeatureLike) =>
-                getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor,
-              'middle'
-            ),
-            getAlignmentBaseline: forGroupRows(
-              (feature: FeatureLike) =>
-                getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
-                  .alignmentBaseline,
-              'center'
-            ),
-            updateTriggers: {...updateTriggers, all: groupTrigger}
-          }),
-          collision.text,
-          textBlocks
-        );
-        layers.push(...textLayers);
-        if (!textBlocks && (collision.text.tested || collision.icon.tested)) {
+        // `TextLayer` refreshes its glyphs with the `getText` trigger only, not with `all`: the
+        // group's rows decide which rows have text, so they are part of it.
+        const getTextTrigger = [updateTriggers.getText, ...(groupTrigger || [])];
+        const lineLabelProps = this.getLineLabelProps();
+        const lineGlyphs = this.getLineGlyphProps();
+        updateTriggers.getLineGlyphs = lineGlyphs.trigger;
+        const textProps = {
+          data: this.getRows(),
+          extensions: [
+            ...(this.props.extensions || []),
+            LABEL_PLACEMENT_EXTENSION,
+            GLOBE_HORIZON_EXTENSION,
+            TEXT_HALO_BLUR_EXTENSION,
+            ...this.getLineAngleExtensions('getAngle' in lineLabelProps, 'text-keep-upright')
+          ],
+          ...this.getPlacementProps(0),
+          parameters: LABEL_PARAMETERS,
+          billboard,
+          ...lineLabelProps,
+          characterSet: 'auto',
+          // Glyphs are signed distance fields, which `TextLayer` outlines for halos.
+          fontSettings: LABEL_FONT_SETTINGS,
+          fontFamily: font.fontFamily,
+          fontWeight: getTextLayerFontWeight(font),
+          sizeUnits: labelSizeUnits,
+          lineHeight: this.getLineHeight(),
+          // A transparent background box makes the whole label pickable.
+          background: true,
+          getBackgroundColor: [0, 0, 0, 0],
+          getPosition: (d: LabelRow) => d.position,
+          getSize: forGroupRows((feature: FeatureLike) => this.getLabelSize(feature), 0),
+          getColor: forGroupRows(
+            (feature: FeatureLike) => this.getLabelColor(feature),
+            [0, 0, 0, 0]
+          ),
+          getPixelOffset: withLineDirection(
+            forGroupRows((feature: FeatureLike) => this.getLabelPixelOffset(feature), [0, 0]),
+            Boolean(lineLabelProps.getAngle)
+          ),
+          getLineGlyphs: lineGlyphs.getLineGlyphs,
+          getLineGlyphKey: lineGlyphs.getLineGlyphKey,
+          getTextAnchor: forGroupRows(
+            (feature: FeatureLike) =>
+              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor,
+            'middle'
+          ),
+          getAlignmentBaseline: forGroupRows(
+            (feature: FeatureLike) =>
+              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
+                .alignmentBaseline,
+            'center'
+          ),
+          // Constant where the style layer leaves the property at its default.
+          getLetterSpacing: this.getStyleProperty('text-letter-spacing')
+            ? forGroupRows(
+                (feature: FeatureLike) =>
+                  this.getLetterSpacing(feature, this.getLabelText(feature) || ''),
+                0
+              )
+            : 0,
+          getTextJustify: this.getStyleProperty('text-justify')
+            ? forGroupRows((feature: FeatureLike) => this.getTextJustify(feature), 'center')
+            : 'center'
+        };
+        if (halos.length <= 1) {
+          // Every label has the same halo, or none: one sublayer draws them all.
+          const halo = halos[0];
           layers.push(
-            this.renderAnchorLayer(idSuffix, getCollisionPriority, {
-              getCollisionPriority: updateTriggers.getCollisionPriority,
-              all: groupTrigger
+            new LabelTextLayer({
+              ...this.getSubLayerProps({id: `text${idSuffix}`}),
+              ...textProps,
+              outlineWidth: halo?.outlineWidth ?? 0,
+              outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+              textHaloBlurGamma: halo?.outlineBlur ?? 0,
+              getText,
+              updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
             })
+          );
+        } else {
+          // Several halos. `TextLayer` takes one outline per layer, so each halo is drawn by its
+          // own sublayer. Every sublayer holds every row, in the order of `getRows`, so a row has
+          // one placement slot. The invisible `text` sublayer draws the labels' picking boxes. The
+          // number of halos is capped (see getLabelHalos), so the work stays linear in the rows.
+          layers.push(
+            new LabelTextLayer({
+              ...this.getSubLayerProps({id: `text${idSuffix}`}),
+              ...textProps,
+              outlineWidth: 0,
+              getColor: [0, 0, 0, 0],
+              getText,
+              updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
+            }),
+            ...halos.map(
+              (halo, haloIndex) =>
+                new LabelTextLayer({
+                  ...this.getSubLayerProps({id: `text${idSuffix}-${haloIndex + 1}`}),
+                  ...textProps,
+                  outlineWidth: halo?.outlineWidth ?? 0,
+                  outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
+                  textHaloBlurGamma: halo?.outlineBlur ?? 0,
+                  // The placing sublayer's background box is the label's picking box.
+                  background: false,
+                  // `rowHalos` is in `labelData` order, the reverse of `getRows`.
+                  getText: (row: LabelRow, info: {index: number}) =>
+                    rowHalos[rowCount - 1 - info.index] === haloIndex
+                      ? getText(row, info)
+                      : undefined,
+                  updateTriggers: {
+                    ...updateTriggers,
+                    getText: [...getTextTrigger, this.state.haloKey?.[1]],
+                    all: groupTrigger
+                  }
+                })
+            )
           );
         }
       }

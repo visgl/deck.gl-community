@@ -15,7 +15,7 @@ function point(properties: Record<string, unknown>) {
 }
 
 describe('label priority across style layers', () => {
-  test("a later style layer's labels outrank an earlier layer's, whatever their sort keys", () => {
+  test("a later style layer's labels are placed before an earlier layer's, whatever their sort keys", () => {
     const vectorLayer: any = getBasemapLayers({
       idPrefix: 'test',
       mode: 'map',
@@ -53,8 +53,8 @@ describe('label priority across style layers', () => {
       .renderSubLayers({id: 'tile', data: features, tile: {index: {x: 0, y: 0, z: 8}}})
       .filter(Boolean);
 
-    const poiPriorities = pois.props.data.map((f: any) => pois.getLabelCollisionPriority(f));
-    const cityPriorities = cities.props.data.map((f: any) => cities.getLabelCollisionPriority(f));
-    expect(Math.min(...cityPriorities)).toBeGreaterThan(Math.max(...poiPriorities));
+    // Placement walks style layers from the highest order down (see `LabelPlacement`); sort keys
+    // order the symbols within a layer only.
+    expect(cities.getPlacementOrder()).toBeGreaterThan(pois.getPlacementOrder());
   });
 });

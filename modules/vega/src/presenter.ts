@@ -4,6 +4,7 @@
  */
 
 import {base} from './base';
+import {getVegaTooltip} from './vega-tooltip';
 import {deepMerge} from './clone';
 import {colorToString} from './color';
 import {CubeLayer_Class, type CubeLayerInterpolatedProps} from './cube-layer/cube-layer';
@@ -33,6 +34,9 @@ import {type MarkStagerOptions} from './marks/interfaces';
 import {box} from './marks/rule';
 import {className, initializePanel} from './panel';
 import {patchCubeArray} from './patched-cube-array';
+import {patchSymbolArray} from './patched-symbol-array';
+import {replaceGeographicEntries, normalizeGeographicEntries} from './replace-geographic-entries';
+import type {SymbolMark, Polygon, Vec3} from './interfaces';
 import {sceneToStage} from './stagers';
 import {targetViewState, viewStateProps} from './view-state';
 import {type DeckProps} from '@deck.gl/core';
@@ -91,6 +95,13 @@ export class Presenter {
   private _showGuides: boolean;
   private _afterRenderHandler: () => void;
   private renderFrame: number;
+  private cubeOrdinals = new WeakMap<object, number>();
+  private nextCubeOrdinal = 0;
+  private stagedCubes: Cube[] = [];
+  private symbolOrdinals = new Map<object, Map<object, number>>();
+  private nextSymbolOrdinal = 0;
+  private stagedSymbols: SymbolMark[] = [];
+  private polygonSymbols = new WeakSet<SymbolMark>();
 
   /**
    * Instantiate a new Presenter.
@@ -170,10 +181,26 @@ export class Presenter {
     const scene = sceneOrStage as Scene3d;
     let stage: Stage;
     const options: MarkStagerOptions = {
+      assignSymbolOrdinal: (datum, item: {mark?: object}) => {
+        const mark = item.mark ?? item;
+        let ordinals = this.symbolOrdinals.get(mark);
+        if (!ordinals) {
+          ordinals = new Map();
+          this.symbolOrdinals.set(mark, ordinals);
+        }
+        const key = datum ?? item;
+        if (!ordinals.has(key)) ordinals.set(key, this.nextSymbolOrdinal++);
+        return ordinals.get(key);
+      },
       maxOrdinal: 0,
       currAxis: null,
       defaultCubeColor: this.style.defaultCubeColor,
-      assignCubeOrdinal: config?.onSceneRectAssignCubeOrdinal || (() => options.maxOrdinal++),
+      assignCubeOrdinal:
+        config?.onSceneRectAssignCubeOrdinal ||
+        ((_datum, item) => {
+          if (!this.cubeOrdinals.has(item)) this.cubeOrdinals.set(item, this.nextCubeOrdinal++);
+          return this.cubeOrdinals.get(item);
+        }),
       zAxisZindex: config?.zAxisZindex
     };
     // determine if this is a vega scene
@@ -205,6 +232,7 @@ export class Presenter {
         width: null,
         effects: lightingEffects(),
         layers: [],
+        getTooltip: getVegaTooltip,
         onClick: config && config.onLayerClick,
         views: [new base.deck.OrbitView({controller: this.OrbitControllerClass})],
         initialViewState: {OrbitView: initialViewState},
@@ -223,15 +251,7 @@ export class Presenter {
       }
       this.deckgl = new classes.DeckGL_Class(deckProps);
     }
-    let cubeCount = Math.max(this._last.cubeCount, stage.cubeData.length);
-    if (options.maxOrdinal) {
-      cubeCount = Math.max(cubeCount, options.maxOrdinal);
-      const empty: Partial<Cube> = {
-        isEmpty: true,
-        color: [0, 0, 0, 0] // possibly a bug in Deck.gl? set color to invisible.
-      };
-      stage.cubeData = patchCubeArray(cubeCount, empty, stage.cubeData);
-    }
+    const cubeCount = Math.max(this._last.cubeCount, stage.cubeData.length);
     this.setDeckProps(stage, height, width, cubeCount, config);
 
     const a = getActiveElementInfo();
@@ -249,11 +269,23 @@ export class Presenter {
   /**
    * Present the same recently rendered Stage with only slight modifications such as a color change,
    * using the previous Stage values as a basis.
-   * @param stage Partially populated Stage object containing changes.
+   * @param stage Partially populated Stage object containing changes. Matching geographic
+   * replacements retain their paint order; adding/removing shapes requires geographicData.
    * @param modifyConfig Optional presentation configuration object.
    */
   rePresent(stage: Partial<Stage>, modifyConfig?: PresenterConfig) {
     const newStage = {...this._last.stage, cubeData: this.getCubeData(), ...stage};
+    if (stage.symbolData !== undefined) {
+      for (const symbol of stage.symbolData) this.polygonSymbols.delete(symbol);
+    } else if (stage.polygonData !== undefined) {
+      newStage.symbolData = this._last.stage.symbolData?.filter(
+        symbol => !this.polygonSymbols.has(symbol)
+      );
+    }
+    if (stage.symbolData !== undefined && stage.polygonData === undefined) {
+      newStage.polygonData = this._last.stage.polygonData?.filter(polygon => !polygon.isSymbol);
+    }
+    newStage.geographicData = replaceGeographicEntries(stage, this._last.stage);
     this.setDeckProps(
       newStage,
       this._last.height,
@@ -287,11 +319,34 @@ export class Presenter {
     cubeCount: number,
     modifyConfig: PresenterConfig
   ) {
+    stage.cubeData = patchCubeArray(cubeCount, {}, stage.cubeData, this.stagedCubes);
+    normalizeGeographicEntries(stage);
+    const polygons = stage.polygonData ?? [];
+    const squares = polygons.filter(p => p.isSymbol && !p.isEmpty);
+    const squareOrdinals = new Set(
+      squares.map(square => square.ordinal).filter(ordinal => ordinal !== undefined)
+    );
+    const symbols = (stage.symbolData ?? []).filter(
+      symbol =>
+        !symbol.isEmpty && (symbol.ordinal === undefined || !squareOrdinals.has(symbol.ordinal))
+    );
+    for (const square of squares) {
+      const symbol = convertSquareSymbol(square);
+      this.polygonSymbols.add(symbol);
+      symbols.push(symbol);
+    }
+    stage.symbolData = patchSymbolArray(symbols, this.stagedSymbols);
+    this.stagedSymbols = stage.symbolData;
+    cubeCount = stage.cubeData.length;
+    this.stagedCubes = stage.cubeData;
     const config = deepMerge<PresenterConfig>(defaultPresenterConfig, modifyConfig);
     const newBounds = this.isNewBounds(stage.view, height, width, cubeCount);
     // let lightSettings = this.style.lightSettings[stage.view];
     const lightingMix = stage.view === '3d' ? 1.0 : 0.0;
-    let linearInterpolator: LinearInterpolator_Class<CubeLayerInterpolatedProps>;
+    const oldCubeLayer = getCubeLayer(this.deckgl.props) as CubeLayer_Class;
+    // Keep the active camera/lighting interpolation when another layout phase updates geometry.
+    let linearInterpolator: LinearInterpolator_Class<CubeLayerInterpolatedProps> =
+      oldCubeLayer?.props.interpolator;
     // choose the current OrbitView viewstate if possible
     let viewState =
       this.deckgl.getCurrentViewState() ||
@@ -315,10 +370,13 @@ export class Presenter {
       if (!viewState || newViewStateTarget) {
         viewState = targetViewState(height, width, stage.view);
       }
-      const oldCubeLayer = getCubeLayer(this.deckgl.props) as CubeLayer_Class;
       if (oldCubeLayer) {
         linearInterpolator = new LinearInterpolator(viewStateProps);
-        linearInterpolator.layerStartProps = {lightingMix: oldCubeLayer.props.lightingMix};
+        linearInterpolator.layerStartProps = {
+          lightingMix:
+            oldCubeLayer.props.interpolator?.layerInterpolatedProps?.lightingMix ??
+            oldCubeLayer.props.lightingMix
+        };
         linearInterpolator.layerEndProps = {lightingMix};
         viewState.transitionDuration = config.transitionDurations.view;
         viewState.transitionEasing = easing;
@@ -418,10 +476,36 @@ export class Presenter {
     this.animationCancel();
     if (this.deckgl) this.deckgl.finalize();
     if (this.el) this.el.innerHTML = '';
+    this.stagedCubes = [];
+    this.stagedSymbols = [];
+    this.polygonSymbols = new WeakSet();
+    this.symbolOrdinals.clear();
+    this.nextSymbolOrdinal = 0;
+    this.cubeOrdinals = new WeakMap();
+    this.nextCubeOrdinal = 0;
     this._last = null;
     this.deckgl = null;
     this.el = null;
     this.logger = null;
     this.queuedAnimationOptions = null;
   }
+}
+
+function convertSquareSymbol(square: Polygon): SymbolMark {
+  const points = square.positions as Vec3[];
+  const position = points
+    .reduce((sum, point) => sum.map((v, i) => v + (point[i] || 0)) as Vec3, [0, 0, 0])
+    .map(v => v / points.length) as Vec3;
+  return {
+    shape: 'square',
+    angle: square.angle ?? Math.atan2(points[1][1] - points[0][1], points[1][0] - points[0][0]),
+    ordinal: square.ordinal,
+    datum: square.datum,
+    tooltip: square.tooltip,
+    position,
+    radius: Math.hypot(points[1][0] - points[0][0], points[1][1] - points[0][1]) / 2,
+    fillColor: square.fillColor,
+    strokeColor: square.strokeColor,
+    strokeWidth: square.strokeWidth
+  };
 }

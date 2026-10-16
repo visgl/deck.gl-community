@@ -279,7 +279,7 @@ export type MergeableLine = {text: string | null | undefined; line: number[][]};
  *
  * Returns one entry per input line: the joined line at the line that started each chain (whose
  * feature the labels belong to, as in MapLibre), `null` for a line merged into a chain started by
- * another, and the line unchanged when nothing joins it. Lines without text are
+ * another, and the line unchanged when nothing joins it. Lines without text or vertices are
  * never merged. The work is linear in the number of vertices.
  */
 export function mergeLines(lines: MergeableLine[]): (number[][] | null)[] {
@@ -293,7 +293,8 @@ export function mergeLines(lines: MergeableLine[]): (number[][] | null)[] {
   const key = (text: string, [x, y]: number[]) => `${x},${y},${text}`;
 
   lines.forEach(({text, line}, index) => {
-    if (!text || !Array.isArray(line) || line.length < 2) {
+    // A single vertex joins too, as in MapLibre: it can carry a MultiLineString into a chain.
+    if (!text || !Array.isArray(line) || line.length === 0) {
       return;
     }
     const startKey = key(text, line[0]);
