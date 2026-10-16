@@ -9,6 +9,13 @@ import {GPUVideoResources, assertGPUVideoResources} from './gpu-video-resources'
 
 const changeUniforms: ShaderModule<{slot: number; firstFrame: number}> = {
   name: 'videoChange',
+  source: /* wgsl */ `
+struct VideoChangeUniforms {
+  slot: f32,
+  firstFrame: f32,
+};
+@group(0) @binding(auto) var<uniform> videoChange: VideoChangeUniforms;
+`,
   fs: `uniform videoChangeUniforms {
     float slot;
     float firstFrame;
@@ -65,12 +72,19 @@ export class GPUPixelChanges {
       this.previousFramebuffer = this.resources.add(
         device.createFramebuffer({colorAttachments: [this.previousTexture]})
       );
-      const parameters = {depthCompare: 'always', depthWriteEnabled: false, blend: false} as const;
+      const parameters = {depthWriteEnabled: false, blend: false} as const;
       this.copyModel = this.resources.add(
         new ClipSpace(device, {
           id: 'volumetric-video-previous-frame',
           modules: [changeUniforms],
           parameters,
+          source: /* wgsl */ `
+@group(0) @binding(auto) var videoFrames: texture_2d_array<f32>;
+@fragment
+fn fragmentMain(input: FragmentInputs) -> @location(0) vec4<f32> {
+  return textureLoad(videoFrames, vec2<i32>(input.Position.xy), i32(videoChange.slot), 0);
+}
+`,
           fs: `#version 300 es
 precision highp float;
 precision highp sampler2DArray;
@@ -86,6 +100,18 @@ void main() {
           id: 'volumetric-video-frame-difference',
           modules: [changeUniforms],
           parameters,
+          source: /* wgsl */ `
+@group(0) @binding(auto) var videoFrames: texture_2d_array<f32>;
+@group(0) @binding(auto) var previousFrame: texture_2d<f32>;
+@fragment
+fn fragmentMain(input: FragmentInputs) -> @location(0) vec4<f32> {
+  let p = vec2<i32>(input.Position.xy);
+  let delta = abs(textureLoad(videoFrames, p, i32(videoChange.slot), 0)
+    - textureLoad(previousFrame, p, 0));
+  let change = max(videoChange.firstFrame, max(max(delta.r, delta.g), max(delta.b, delta.a)));
+  return vec4<f32>(change, 0.0, 0.0, 1.0);
+}
+`,
           fs: `#version 300 es
 precision highp float;
 precision highp sampler2DArray;

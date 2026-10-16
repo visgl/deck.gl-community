@@ -4,7 +4,9 @@
 
 import {describe, expect, it, vi} from 'vitest';
 import {Deck, type OrbitView} from '@deck.gl/core';
+import type {Device} from '@luma.gl/core';
 import type {VolumetricVideoLayer} from '@deck.gl-community/layers';
+import {requireWebGPUAdapter} from '../../../modules/layers/test/webgpu-test-utils';
 import {mountVolumetricVideoExample} from './app';
 
 const MOV_URL = new URL(
@@ -25,10 +27,43 @@ function chooseFile(input: HTMLInputElement, file: File) {
 }
 
 describe('mounted volumetric video demo', () => {
-  // Value: protects=draw recovery restores playback and clears the demo's error state;
-  // fails_when=a successful visibility retry never reports readiness to the mounted UI;
+  // Value: protects=a full WebGPU demo teardown and fresh mount remain usable after a page reload;
+  // fails_when=stale WebGPU resources, errors, or pending decode state survive the replacement;
+  // why_new=the general remount test can use WebGL where available; seam=mounted demo lifecycle.
+  it('remounts cleanly on WebGPU without stale video state', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    let cleanup: (() => void) | undefined;
+    try {
+      for (let mount = 0; mount < 2; mount++) {
+        cleanup = mountVolumetricVideoExample(parent);
+        await vi.waitFor(
+          () => {
+            const root = parent.querySelector<HTMLElement>('.vv-demo')!;
+            expect(root.dataset.backend).toBe('webgpu');
+            expect(root.dataset.frameReady).toBe('88');
+            expect(parent.querySelector('#vv-error')?.textContent).toBe('');
+            expect(parent.querySelector<HTMLButtonElement>('#vv-play')?.disabled).toBe(false);
+          },
+          {timeout: 15_000}
+        );
+        cleanup();
+        cleanup = undefined;
+        expect(parent.querySelector('.vv-demo')).toBeNull();
+      }
+    } finally {
+      cleanup?.();
+      parent.remove();
+    }
+  }, 35_000);
+
+  // Value: protects=automatic recovery restores playback with the latest filter state;
+  // fails_when=a successful visibility retry never reports readiness to the mounted UI or applies
+  // settings from a replaced layer instance;
   // why_new=the GPU draw test only checks texture revision and never observes demo controls; seam=none
-  it('restores Play and clears the error after a draw-time filter retry', async () => {
+  it('restores Play and clears the error after an automatic filter retry', async () => {
     const parent = document.createElement('div');
     parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
     document.body.append(parent);
@@ -46,21 +81,33 @@ describe('mounted volumetric video demo', () => {
           .layers![0] as VolumetricVideoLayer;
       await vi.waitFor(() => expect(layer().state.frames!.width).toBe(128), {timeout: 5000});
       const appearance = layer().state.frames!.appearance;
-      const prototype = Object.getPrototypeOf(appearance.texture);
-      const generate = prototype.generateMipmapsWebGL;
+      const updateAppearance = vi.spyOn(appearance, 'update');
       let allowRetry = false;
-      vi.spyOn(prototype, 'generateMipmapsWebGL').mockImplementation(function (
-        this: typeof appearance.texture
-      ) {
-        if (!allowRetry) throw new Error('Temporary demo filter failure');
-        return generate.call(this);
-      });
+      const appearanceDevice = (appearance as unknown as {device: Device}).device;
+      if (appearanceDevice.type === 'webgpu') {
+        const generate = appearanceDevice.generateMipmapsWebGPU.bind(appearanceDevice);
+        vi.spyOn(appearanceDevice, 'generateMipmapsWebGPU').mockImplementation(texture => {
+          if (!allowRetry) throw new Error('Temporary demo filter failure');
+          return generate(texture);
+        });
+      } else {
+        const prototype = Object.getPrototypeOf(appearance.texture);
+        const generate = prototype.generateMipmapsWebGL;
+        vi.spyOn(prototype, 'generateMipmapsWebGL').mockImplementation(function (
+          this: typeof appearance.texture
+        ) {
+          if (!allowRetry) throw new Error('Temporary demo filter failure');
+          return generate.call(this);
+        });
+      }
       change(element<HTMLInputElement>('#vv-static'), '1');
       await vi.waitFor(
         () => expect(element('#vv-error').textContent).toContain('Temporary demo filter failure'),
         {timeout: 5000}
       );
       expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
+      change(element<HTMLInputElement>('#vv-static'), '0.75');
+      expect(layer().props.staticPixelRemoval).toBe(0.75);
       allowRetry = true;
       await vi.waitFor(
         () => {
@@ -68,6 +115,12 @@ describe('mounted volumetric video demo', () => {
           expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(false);
         },
         {timeout: 3000}
+      );
+      expect(updateAppearance).toHaveBeenLastCalledWith(
+        layer().state.frames!.texture,
+        layer().state.frames!.changes.texture,
+        layer().state.frames!.resident,
+        {luminanceThreshold: layer().props.luminanceThreshold, staticPixelRemoval: 0.75}
       );
       expect(element('.vv-demo').dataset.frameReady).toBe('88');
       expect(element('#vv-status').textContent).not.toContain('Keeping');

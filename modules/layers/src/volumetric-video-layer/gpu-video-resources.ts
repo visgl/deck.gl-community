@@ -20,11 +20,13 @@ export class GPUVideoResources {
 }
 
 /** WebGL storage errors do not necessarily throw from a luma texture constructor.
- * Check at allocation/commit boundaries, never during a camera-only update.
+ * Check at allocation/commit boundaries, never during a camera-only update. WebGPU
+ * validation is reported by luma's error scopes, so only the shared loss check applies there.
  */
 export function assertGPUVideoResources(device: Device): void {
-  const gl = (device as Device & {gl: WebGL2RenderingContext}).gl;
   if (device.isLost) throw new Error('The GPU context was lost while preparing video history.');
+  if (device.type !== 'webgl') return;
+  const gl = (device as Device & {gl: WebGL2RenderingContext}).gl;
   const error = gl.getError();
   if (error !== gl.NO_ERROR) {
     throw new Error(

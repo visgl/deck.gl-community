@@ -16,6 +16,7 @@ import {
 import {GPUVideoFrames} from './gpu-video-frames';
 import {assertGPUVideoResources} from './gpu-video-resources';
 import {VideoFrameSource, type VolumetricVideoInfo} from './video-frame-source';
+import {VOLUMETRIC_VIDEO_RASTER_WGSL, VOLUMETRIC_VIDEO_WGSL} from './volumetric-video.wgsl';
 
 export type {VolumetricVideoInfo} from './video-frame-source';
 
@@ -129,6 +130,24 @@ type VideoUniforms = {
 
 const videoUniforms: ShaderModule<VideoUniforms> = {
   name: 'volumetricVideo',
+  source: /* wgsl */ `
+struct VolumetricVideoUniforms {
+  gridSize: vec2<f32>,
+  planeSize: vec2<f32>,
+  position: vec3<f32>,
+  currentFrame: f32,
+  frameCount: f32,
+  capacity: f32,
+  reverse: f32,
+  frameSpacing: f32,
+  splatSize: f32,
+  frameOpacity: f32,
+  trailFade: f32,
+  luminanceThreshold: f32,
+  staticPixelRemoval: f32,
+};
+@group(0) @binding(auto) var<uniform> volumetricVideo: VolumetricVideoUniforms;
+`,
   vs: `uniform volumetricVideoUniforms {
     vec2 gridSize;
     vec2 planeSize;
@@ -179,7 +198,7 @@ const videoUniforms: ShaderModule<VideoUniforms> = {
 /**
  * Renders video texels as Gaussian splats on successive XY planes. Time is the
  * depth axis, not reconstructed scene geometry. Uses one luma draw with per-frame planes or per-pixel quads
- * and a bounded texture-array ring; requires WebGL2 and a supported video codec.
+ * and a bounded texture-array ring; requires WebGL2 or WebGPU and a supported video codec.
  */
 export class VolumetricVideoLayer<
   ExtraProps extends Record<string, unknown> = Record<string, unknown>
@@ -194,10 +213,17 @@ export class VolumetricVideoLayer<
     pendingFrames: GPUVideoFrames | null;
     cacheError: 'allocation' | 'preparation' | null;
     filterError: GPUVideoFrames | null;
+    appearanceRetry: ReturnType<typeof setTimeout> | undefined;
+    appearanceRetryCount: number;
   };
 
   getShaders() {
-    return super.getShaders({vs: VS, fs: FS, modules: [project32, videoUniforms]});
+    return super.getShaders({
+      vs: VS,
+      fs: FS,
+      source: VOLUMETRIC_VIDEO_WGSL,
+      modules: [project32, videoUniforms]
+    });
   }
 
   getModels(): Model[] {
@@ -205,8 +231,8 @@ export class VolumetricVideoLayer<
   }
 
   initializeState(): void {
-    if (this.context.device.type !== 'webgl')
-      throw new Error('VolumetricVideoLayer requires a WebGL2 device.');
+    if (this.context.device.type !== 'webgl' && this.context.device.type !== 'webgpu')
+      throw new Error('VolumetricVideoLayer requires a WebGL2 or WebGPU device.');
     this.getAttributeManager()?.remove(['instancePickingColors']);
     this.setState({
       model: this.createModel(),
@@ -215,7 +241,9 @@ export class VolumetricVideoLayer<
       frames: null,
       pendingFrames: null,
       cacheError: null,
-      filterError: null
+      filterError: null,
+      appearanceRetry: undefined,
+      appearanceRetryCount: 0
     });
   }
 
@@ -243,9 +271,20 @@ export class VolumetricVideoLayer<
     }
     if (props.currentFrame !== oldProps.currentFrame || props.frameTrail !== oldProps.frameTrail)
       this.requestFrames();
+    if (
+      this.state.frames &&
+      (props.luminanceThreshold !== oldProps.luminanceThreshold ||
+        props.staticPixelRemoval !== oldProps.staticPixelRemoval ||
+        props.renderMode !== oldProps.renderMode ||
+        props.coordinateSystem !== oldProps.coordinateSystem ||
+        props.splatSize !== oldProps.splatSize ||
+        changeFlags.extensionsChanged)
+    )
+      this.prepareAppearance(this.state.frames);
   }
 
   finalizeState(): void {
+    if (this.state.appearanceRetry !== undefined) clearTimeout(this.state.appearanceRetry);
     this.state.source?.destroy();
     this.state.pendingFrames?.destroy();
     this.state.frames?.destroy();
@@ -255,11 +294,7 @@ export class VolumetricVideoLayer<
 
   draw(): void {
     const {frames, source} = this.state;
-    const raster =
-      this.props.renderMode === 'auto' &&
-      this.props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN &&
-      this.props.splatSize < 2 &&
-      this.state.rasterModel;
+    const raster = this.usesRaster() && this.state.rasterModel;
     const model = raster || this.state.model;
     const window = frames?.getReadyWindow();
     if (!frames || !source?.info || !window) return;
@@ -295,12 +330,9 @@ export class VolumetricVideoLayer<
         staticPixelRemoval
       }
     });
-    if (raster) {
+    if (raster && this.context.device.type === 'webgl') {
       try {
-        frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
-          luminanceThreshold,
-          staticPixelRemoval
-        });
+        this.updateAppearance(frames);
       } catch (error) {
         // Dirty slots remain queued until the complete filter/mip commit succeeds.
         this.setState({filterError: frames});
@@ -311,6 +343,12 @@ export class VolumetricVideoLayer<
         );
         return;
       }
+    } else if (raster && this.state.filterError === frames) {
+      // WebGPU cannot open an offscreen filtering pass while deck's presentation
+      // render pass is active. prepareAppearance runs before that pass instead.
+      return;
+    }
+    if (raster) {
       model.setBindings({
         videoFrames: frames.texture,
         pixelChanges: frames.changes.texture,
@@ -359,10 +397,97 @@ export class VolumetricVideoLayer<
     return this.createModel(true);
   }
 
+  private usesRaster(): boolean {
+    return (
+      this.props.renderMode === 'auto' &&
+      this.props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN &&
+      this.props.splatSize < 2 &&
+      !this.props.extensions.length
+    );
+  }
+
+  /** Prepares the raster visibility pyramid before deck opens its presentation pass. */
+  private updateAppearance(frames: GPUVideoFrames): void {
+    if (!this.usesRaster()) return;
+    frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
+      luminanceThreshold: this.props.luminanceThreshold,
+      staticPixelRemoval: this.props.staticPixelRemoval
+    });
+  }
+
+  private prepareAppearance(frames: GPUVideoFrames): boolean {
+    try {
+      this.updateAppearance(frames);
+      const recovered = this.state.filterError === frames;
+      if (recovered) this.setState({filterError: null});
+      this.setState({appearanceRetryCount: 0});
+      this.setNeedsRedraw();
+      if (recovered) this.reportCurrentFrameLoad(frames);
+      return true;
+    } catch (error) {
+      this.setState({filterError: frames});
+      this.raiseError(
+        error instanceof Error ? error : new Error(String(error)),
+        'filtering video history'
+      );
+      if (this.context.device.type === 'webgpu') this.queueAppearanceRetry(frames);
+      return false;
+    }
+  }
+
+  /** Retries transient WebGPU filtering failures after Deck's presentation pass has closed. */
+  private queueAppearanceRetry(frames: GPUVideoFrames): void {
+    const layer = this.getCurrentLayer() as this | null;
+    if (
+      !layer ||
+      layer.state.frames !== frames ||
+      layer.state.filterError !== frames ||
+      layer.state.appearanceRetry !== undefined ||
+      layer.state.appearanceRetryCount >= 2
+    )
+      return;
+    layer.setState({appearanceRetryCount: layer.state.appearanceRetryCount + 1});
+    const retry = setTimeout(() => {
+      const current = layer.getCurrentLayer() as this | null;
+      if (!current || current.state.appearanceRetry !== retry) return;
+      current.setState({appearanceRetry: undefined});
+      if (current.state.frames === frames && current.state.filterError === frames)
+        current.prepareAppearance(frames);
+    }, 50);
+    layer.setState({appearanceRetry: retry});
+  }
+
+  private clearAppearanceRetry(): void {
+    if (this.state.appearanceRetry !== undefined) clearTimeout(this.state.appearanceRetry);
+    this.setState({appearanceRetry: undefined, appearanceRetryCount: 0});
+  }
+
+  private reportCurrentFrameLoad(frames: GPUVideoFrames): void {
+    const {source} = this.state;
+    const window = frames.getReadyWindow();
+    if (!source?.info || !window || this.state.pendingFrames || this.state.cacheError) return;
+    const requested = getFrameWindow(
+      this.props.currentFrame,
+      this.props.frameTrail,
+      source.info.frameCount,
+      frames.capacity
+    );
+    if (
+      window.currentFrame === requested.currentFrame &&
+      window.firstFrame === requested.firstFrame
+    )
+      this.reportFrameLoad(frames, window);
+  }
+
   private createModel(raster = false): Model {
     return new Model(this.context.device, {
       ...(raster
-        ? super.getShaders({vs: RASTER_VS, fs: RASTER_FS, modules: [project32, videoUniforms]})
+        ? super.getShaders({
+            vs: RASTER_VS,
+            fs: RASTER_FS,
+            source: VOLUMETRIC_VIDEO_RASTER_WGSL,
+            modules: [project32, videoUniforms]
+          })
         : this.getShaders()),
       id: raster ? `${this.props.id}-raster` : this.props.id,
       isInstanced: true,
@@ -388,6 +513,7 @@ export class VolumetricVideoLayer<
   }
 
   private async loadVideo(): Promise<void> {
+    this.clearAppearanceRetry();
     this.state.source?.destroy();
     this.state.pendingFrames?.destroy();
     this.state.frames?.destroy();
@@ -489,16 +615,8 @@ export class VolumetricVideoLayer<
           if (layer.state.pendingFrames === frames) {
             try {
               assertGPUVideoResources(layer.context.device);
-              if (
-                layer.props.renderMode === 'auto' &&
-                !layer.props.extensions.length &&
-                layer.props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN &&
-                layer.props.splatSize < 2
-              ) {
-                frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
-                  luminanceThreshold: layer.props.luminanceThreshold,
-                  staticPixelRemoval: layer.props.staticPixelRemoval
-                });
+              if (layer.usesRaster()) {
+                layer.updateAppearance(frames);
               }
             } catch (error) {
               layer.failFrameCache(
@@ -508,9 +626,11 @@ export class VolumetricVideoLayer<
               return;
             }
             const oldFrames = layer.state.frames;
+            layer.clearAppearanceRetry();
             layer.setState({frames, pendingFrames: null, filterError: null});
             oldFrames?.destroy();
           } else if (layer.state.frames !== frames || layer.state.pendingFrames) return;
+          else if (!layer.prepareAppearance(frames)) return;
           layer.setNeedsRedraw();
           layer.reportFrameLoad(frames, window);
         },

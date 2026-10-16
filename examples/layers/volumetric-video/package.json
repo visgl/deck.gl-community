@@ -16,7 +16,8 @@
     "@loaders.gl/core": "^4.5.3",
     "@luma.gl/core": "~9.4.0",
     "@luma.gl/engine": "~9.4.0",
-    "@luma.gl/shadertools": "~9.4.0"
+    "@luma.gl/shadertools": "~9.4.0",
+    "@luma.gl/webgpu": "~9.4.0"
   },
   "devDependencies": {
     "vite": "^7.3.1"

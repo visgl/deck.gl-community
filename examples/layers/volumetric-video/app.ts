@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {Deck, OrbitView, type OrbitViewState} from '@deck.gl/core';
+import {webgpuAdapter} from '@luma.gl/webgpu';
 import {
   VolumetricVideoLayer,
   getVolumetricVideoHistoryBytes,
@@ -19,6 +20,10 @@ const INITIAL_VIEW: OrbitViewState = {
   rotationOrbit: -38,
   zoom: 7.2
 };
+const PREFER_WEBGPU =
+  new URLSearchParams(window.location.search).get('backend') !== 'webgl' &&
+  Boolean((navigator as Navigator & {gpu?: unknown}).gpu);
+type WebGPUNavigator = Navigator & {gpu?: {requestAdapter: () => Promise<unknown>}};
 
 /** Mounts a file-driven video volume, with no framework or server upload. */
 export function mountVolumetricVideoExample(container: HTMLElement): () => void {
@@ -77,7 +82,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
     </aside>
     <main class="vv-stage" aria-label="Interactive video frame volume">
       <div class="vv-canvas"></div>
-      <div class="vv-stage-top"><span class="vv-eyebrow">VolumetricVideoLayer</span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
+      <div class="vv-stage-top"><span class="vv-eyebrow">VolumetricVideoLayer · <b id="vv-backend">${PREFER_WEBGPU ? 'CHECKING…' : 'WEBGL2'}</b></span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
       <div class="vv-source"><video muted playsinline preload="auto" aria-label="Source video frame"></video><span>Source frame</span></div>
       <div class="vv-views"><button data-view="volume">Volume</button><button data-view="front">Front</button><button data-view="side">Side</button></div>
     </main>`;
@@ -89,6 +94,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
   const status = getElement('#vv-status');
   const errorOutput = getElement('#vv-error');
   const playButton = getElement<HTMLButtonElement>('#vv-play');
+  const backendOutput = getElement('#vv-backend');
   let video: string | File = SAMPLE_VIDEO;
   let previewUrl: string | null = null;
   let info: VolumetricVideoInfo | null = null;
@@ -118,45 +124,52 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
   let requestedBudget = -1;
 
   let interacting = false;
-  const deck = new Deck({
-    // Keep source sampling independent of Retina framebuffer fill cost.
-    useDevicePixels: 1,
-    parent: getElement('.vv-canvas'),
-    views: [
-      new OrbitView({
-        id: 'volume',
-        orbitAxis: 'Y',
-        controller: {
-          inertia: false,
-          scrollZoom: {speed: 0.003, smooth: false},
-          doubleClickZoom: false
-        }
-      })
-    ],
-    viewState: {
-      volume: {...viewState, minRotationX: -65, maxRotationX: 65, minZoom: 4, maxZoom: 10}
-    },
-    onDeviceInitialized: device => {
-      maxArrayLayers = device.limits.maxTextureArrayLayers;
-      if (info) updateLayer();
-    },
-    onInteractionStateChange: state => {
-      interacting = Boolean(state.isDragging || state.isZooming);
-    },
-    onViewStateChange: event => {
-      cameraTarget = event.viewState as OrbitViewState;
-    },
-    onError: error => {
-      if (destroyed) return;
-      errorOutput.textContent = error.message;
-      status.textContent = root.dataset.frameReady
-        ? 'Keeping the last working volume'
-        : 'Video could not be loaded';
-      setPlaying(false);
-      playButton.disabled = true;
-    },
-    getCursor: ({isDragging}) => (isDragging ? 'grabbing' : 'grab')
-  });
+  let deck: Deck | undefined;
+
+  function createDeck(useWebGPU: boolean): Deck {
+    return new Deck({
+      // Keep source sampling independent of Retina framebuffer fill cost.
+      useDevicePixels: 1,
+      deviceProps: useWebGPU ? {type: 'webgpu', adapters: [webgpuAdapter]} : {type: 'webgl'},
+      parent: getElement('.vv-canvas'),
+      views: [
+        new OrbitView({
+          id: 'volume',
+          orbitAxis: 'Y',
+          controller: {
+            inertia: false,
+            scrollZoom: {speed: 0.003, smooth: false},
+            doubleClickZoom: false
+          }
+        })
+      ],
+      viewState: {
+        volume: {...viewState, minRotationX: -65, maxRotationX: 65, minZoom: 4, maxZoom: 10}
+      },
+      onDeviceInitialized: device => {
+        maxArrayLayers = device.limits.maxTextureArrayLayers;
+        root.dataset.backend = device.type;
+        backendOutput.textContent = device.type === 'webgpu' ? 'WEBGPU' : 'WEBGL2';
+        if (info) updateLayer();
+      },
+      onInteractionStateChange: state => {
+        interacting = Boolean(state.isDragging || state.isZooming);
+      },
+      onViewStateChange: event => {
+        cameraTarget = event.viewState as OrbitViewState;
+      },
+      onError: error => {
+        if (destroyed) return;
+        errorOutput.textContent = error.message;
+        status.textContent = root.dataset.frameReady
+          ? 'Keeping the last working volume'
+          : 'Video could not be loaded';
+        setPlaying(false);
+        playButton.disabled = true;
+      },
+      getCursor: ({isDragging}) => (isDragging ? 'grabbing' : 'grab')
+    });
+  }
 
   function onVideoLoad(loaded: VolumetricVideoInfo) {
     if (destroyed) return;
@@ -199,7 +212,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
   }
 
   function updateLayer() {
-    if (destroyed) return;
+    if (destroyed || !deck) return;
     const sampling = getElement<HTMLSelectElement>('#vv-resolution');
     const nativeOption = sampling.querySelector<HTMLOptionElement>('option[value="0"]')!;
     const totalFrames = info?.frameCount ?? 120;
@@ -378,7 +391,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
     const movingCamera = interacting || !isCameraSettled(viewState, cameraTarget);
     if (!isCameraSettled(viewState, cameraTarget)) {
       viewState = dampCamera(viewState, cameraTarget, now - lastAnimationTime);
-      deck.setProps({viewState: {volume: viewState}});
+      deck?.setProps({viewState: {volume: viewState}});
     }
     // Hold the same video frame while orbiting, including the damping tail.
     // Shift the playback clock by the held duration so resuming does not jump ahead.
@@ -402,12 +415,28 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
     }
     animation = requestAnimationFrame(animate);
   }
+  async function initializeDeck() {
+    let useWebGPU = false;
+    if (PREFER_WEBGPU) {
+      try {
+        useWebGPU = Boolean(await (navigator as WebGPUNavigator).gpu?.requestAdapter());
+      } catch {
+        // A browser can expose navigator.gpu while adapter allocation is disabled.
+      }
+    }
+    if (destroyed) return;
+    deck = createDeck(useWebGPU);
+    updateLayer();
+    animation = requestAnimationFrame(animate);
+  }
+  // Keep the file picker live while WebGPU capability detection is in flight.
+  // initializeDeck renders whichever source is current when the device is ready.
   selectVideo(SAMPLE_VIDEO);
-  animation = requestAnimationFrame(animate);
+  void initializeDeck();
   return () => {
     destroyed = true;
     cancelAnimationFrame(animation);
-    deck.finalize();
+    deck?.finalize();
     preview.pause();
     preview.removeAttribute('src');
     preview.load();

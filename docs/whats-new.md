@@ -4,7 +4,7 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
-- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new)
+- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new) supports WebGL2 and WebGPU video-frame uploads, static-pixel filtering, GPU mip generation, and volume rendering.
   turns MP4/MOV frames into a GPU-rendered image-X/image-Y/time volume with `currentFrame`,
   `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
   [local-file demo](/examples/layers/volumetric-video) includes stabilized camera controls
