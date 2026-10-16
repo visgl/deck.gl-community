@@ -167,6 +167,8 @@ test('every public layer default prop has a schema property', () => {
         if (name === '_GeoArrowTextLayer' && prop === 'background') continue;
         // BitmapLayer draws its image prop and intentionally omits inherited row data.
         if (name === 'BitmapLayer' && prop === 'data') continue;
+        // Tree and splat renderers disable Deck's generic shadow pass internally.
+        if ((name === 'TreeLayer' || name === 'SplatLayer') && prop === 'shadowEnabled') continue;
         if (!(prop in shape)) missing.push(`${name}.${prop}`);
       }
     }
