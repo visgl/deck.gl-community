@@ -22,7 +22,7 @@ animation loop. Performance targets are measured separately for each backend.
 
 ## Implementation across the TreeLayer stack
 
-The delivery order is #807 and #794 (landed), then #808 → #809 → #814 → #815 → #806. The source contract in this
+The delivery order remains #807 → #794 → #806 → #808 → #809. The source contract in this
 specification uses `data` for an asset or owner rows and `getSource` for per-owner asset resolution.
 The current implementation revision establishes that contract for prepared assets. Streamed
 RAD, SH, globally sorted presentation and paged residency remain upstream integration gates.
@@ -32,14 +32,12 @@ RAD, SH, globally sorted presentation and paged residency remain upstream integr
 | [#807](https://github.com/visgl/deck.gl-community/pull/807) | Public CompositeLayer input normalization; prepared descriptors; heterogeneous source roots; affine covariance transforms; a deck/device runtime for joint prepared budgets; a selection effect separate from weighted presentation; public statistics; generic Node, strict-type and backend pixel fixtures |
 | [#794](https://github.com/visgl/deck.gl-community/pull/794) | Cached canopy descriptors through `getSource`; explicit weighted rendering; one parent allocation group across species; stable canopy IDs and legacy source/hierarchy overrides; unchanged botany, wood, seasons, crops and picking |
 | [#806](https://github.com/visgl/deck.gl-community/pull/806) | Nearby trees and distant crowns share a parent quota; geographic inventory pages retain their existing tile lifecycle; streaming statistics consume the SplatLayer counters instead of private renderer state |
-| [#808](https://github.com/visgl/deck.gl-community/pull/808) | One compact supplied-row TreeLayer garden using the public API; comparison renderers, films and benchmark reports are omitted |
+| [#808](https://github.com/visgl/deck.gl-community/pull/808) | Examples explain the new prepared API and quota behavior; historical films and timing fingerprints retain their original scope |
 | [#809](https://github.com/visgl/deck.gl-community/pull/809) | Package and Seasonal Farm migration retain the same native TreeLayer; upgrade guidance covers the new flat asset inputs and compatibility rules |
 
-#807 and #794 landed on master. The regular TreeLayer milestone ends at #809. The scene extension
-#814 follows #809 to resolve overlapping integration files, and #815 follows #814. Coit has no
-TreeLayer API prerequisite. See the
-[stack record](./tree-splat-stack.md) for current landing and publication boundaries. The source
-assessment below retains its historical fingerprints and does not establish current merge readiness.
+The live PR heads checked for this revision are #807 `cae0ddd1`, #794 `92916af9`, #806 `4216f6e7`,
+#808 `a3220808`, and #809 `825ed4ef`; `master` is `bc8e1139`. They are open PRs, not a merge-readiness
+assertion. Implementation changes must be restacked into their owning PRs after verification.
 
 ### Prepared backend now implemented
 
@@ -68,7 +66,8 @@ hierarchies retain their existing approximation; this does not implement RAD row
 The existing prepared primitive and `SplatEffect` present weighted output. Immutable uploads
 continue to be reference-counted per source and device.
 
-Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats`. Nested inventory groups inherit their parent ceiling. Local child caps
+Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats` and
+`maxShadowSplats`; nested WorldTreeLayer consumers inherit the world ceiling. Local child caps
 remain effective. `maxTotalSplats` applies the strictest participating shared cap. Allocator
 priorities compare projected error reduction across source roots, preserving coarsest coverage.
 Optical transitions retain the existing soft overlap allowance. These are submission budgets,
@@ -76,10 +75,8 @@ not hard GPU memory or frame-time guarantees.
 
 `getTransformMatrix` replaces orientation, scale and translation with a finite affine local
 matrix, including covariance and conservative shear bounds. `splatStats` reports source/hierarchy
-pairs, selected owners, submitted Gaussian work, coarsest coverage and moving refinements.
-The regular TreeLayer milestone uses supplied `data` rows. Geographic inventory streaming and
-its `streamingStats` arrive in the final #806 after Coit. Coit depends on the shared SplatLayer
-runtime alone. The #806 row above describes that later milestone.
+pairs, selected owners, submitted camera/shadow work, coarsest coverage and moving refinements.
+Geographic inventory residency remains WorldTreeLayer's separate statistics lane.
 
 ### Required scene backend work
 
