@@ -112,12 +112,12 @@ it('shows an editable specimen, a varied row grove, and a sparse mixed-species f
     expect(groveData).toHaveLength(6);
     expect(groveData.map(tree => tree.species)).toEqual(Array(6).fill('oak'));
     expect(groveData.map(tree => tree.position)).toEqual([
-      [-6.5, -9.5, 0],
-      [6.5, -9.5, 0],
-      [-6.5, 0, 0],
-      [6.5, 0, 0],
-      [-6.5, 9.5, 0],
-      [6.5, 9.5, 0]
+      [-16, -9.5, 0],
+      [0, -9.5, 0],
+      [16, -9.5, 0],
+      [-16, 9.5, 0],
+      [0, 9.5, 0],
+      [16, 9.5, 0]
     ]);
     expect(parent.querySelector<HTMLLabelElement>('.trees-species')?.hidden).toBe(false);
     expect(parent.querySelector<HTMLLabelElement>('.trees-grove-variation')?.hidden).toBe(false);

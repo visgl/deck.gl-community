@@ -92,12 +92,12 @@ const TREE_HEIGHTS: Record<TreeType, number> = {
   mangrove: 8
 };
 const GROVE_POSITIONS: [number, number, number][] = [
-  [-6.5, -9.5, 0],
-  [6.5, -9.5, 0],
-  [-6.5, 0, 0],
-  [6.5, 0, 0],
-  [-6.5, 9.5, 0],
-  [6.5, 9.5, 0]
+  [-16, -9.5, 0],
+  [0, -9.5, 0],
+  [16, -9.5, 0],
+  [-16, 9.5, 0],
+  [0, 9.5, 0],
+  [16, 9.5, 0]
 ];
 const FOREST_TREES: ShowcaseTree[] = [
   {species: 'citrus', position: [-12, -12, 0], label: 'Citrus'},
@@ -433,7 +433,7 @@ function getViewState(
     spread,
     depth
   );
-  const sceneZoom = scene === 'specimen' ? 22.4 : scene === 'grove' ? 20.8 : 20.4;
+  const sceneZoom = scene === 'specimen' ? 22.4 : scene === 'grove' ? 21.1 : 20.4;
   return {
     longitude: 0,
     latitude: 0,
