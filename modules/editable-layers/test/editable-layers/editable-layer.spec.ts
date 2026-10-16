@@ -194,6 +194,23 @@ test('pan start retains the press location before gesture recognition', () => {
   expect(mockContext.viewport.unproject).toHaveBeenLastCalledWith([43, 90]);
 });
 
+test('pan start cancels when the press location cannot be mapped', () => {
+  const startDrag = vi.spyOn(layer, 'onStartDragging');
+  const stopDrag = vi.spyOn(layer, 'onStopDragging');
+  vi.spyOn(layer, 'getMapCoords')
+    .mockReturnValueOnce(MOCK_EVENT_MAP_COORDS)
+    .mockReturnValueOnce(null);
+  const event = {...makeMockGestureEvent('panstart'), deltaX: 7, deltaY: 10};
+
+  layer._onpanstart(event);
+  expect(startDrag).not.toHaveBeenCalled();
+  expect(layer.state._editableLayerState.pointerDownScreenCoords).toBeNull();
+  expect(layer.state._editableLayerState.pointerDownMapCoords).toBeNull();
+
+  layer._onpanend(makeMockGestureEvent('panend'));
+  expect(stopDrag).not.toHaveBeenCalled();
+});
+
 test('a drag suppresses native clicks even when terrain picking misses', () => {
   mockContext.layerManager.getLayers.mockReturnValue([
     {id: 'terrain-source', props: {pickable: '3d'}}

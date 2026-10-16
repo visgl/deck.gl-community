@@ -1,5 +1,5 @@
 import {expect, test, vi} from 'vitest';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {DrawRectangleMode} from '../../src/edit-modes/draw-rectangle-mode';

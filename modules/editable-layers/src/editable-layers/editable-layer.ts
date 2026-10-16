@@ -252,7 +252,10 @@ export abstract class EditableLayer<
       basePointerEvent.screenCoords[1] - (event.deltaY || 0)
     ];
     const mapCoords = this.getMapCoords(screenCoords);
-    if (!mapCoords) return;
+    if (!mapCoords) {
+      this._onpancancel(event);
+      return;
+    }
     const picks = this.getPicks(screenCoords);
 
     this.setState({
@@ -304,6 +307,11 @@ export abstract class EditableLayer<
     const basePointerEvent = this.toBasePointerEvent(event);
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
+
+    if (!pointerDownScreenCoords) {
+      this._resetPointerDownState();
+      return;
+    }
 
     if (basePointerEvent) {
       this.onStopDragging({
