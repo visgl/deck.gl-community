@@ -71,6 +71,14 @@ it('starts shared capped registrations at coverage before their first joint gran
   expect(layer.splatStats.renderedSplats).toBe(1);
   expect(layer.splatStats.coverageFloor).toBe(1);
 });
+it('clears the runtime shadow budget registration when shadows are disabled', () => {
+  const layer = make([{position: [256, 256, 0]}], 0, {shadowEnabled: true});
+  const register = vi.spyOn(layer.state.runtime, 'set');
+  const oldProps = layer.props;
+  Object.assign(layer, {props: layer.clone({shadowEnabled: false}).props});
+  layer.updateState({props: layer.props, oldProps, changeFlags: {propsChanged: true}} as any);
+  expect(register).toHaveBeenCalledWith(layer.id, true, expect.objectContaining({rows: []}));
+});
 it('reconciles fallback shadow membership on replacement without retaining removed owners', () => {
   const a = {position: [0, 0, 0] as [number, number, number]},
     b = {position: [1, 0, 0] as [number, number, number]};

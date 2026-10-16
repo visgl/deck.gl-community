@@ -502,8 +502,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       ...(rebuild ? {members: [], shadowMembers: []} : {})
     });
     this.publishDemand(false, demandCandidates);
-    if (!props.shadowEnabled) this.state.shadowCandidates = [];
-    else if (!this.state.shadowProjections) {
+    if (!props.shadowEnabled) {
+      this.state.shadowCandidates = [];
+      this.publishDemand(true, []);
+    } else if (!this.state.shadowProjections) {
       this.state.shadowCandidates = owners.map(owner => ({
         owner,
         pixels: 0,
