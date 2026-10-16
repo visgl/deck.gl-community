@@ -70,6 +70,14 @@ function getViewLayerKey(viewportId: string, layerId: string): string {
   return JSON.stringify([viewportId, layerId]);
 }
 
+function getViewOwnerKey(viewportId: string, ownerKey: string): string {
+  return JSON.stringify([viewportId, ownerKey]);
+}
+
+function getViewDomainKey(viewportId: string, sortDomain: string): string {
+  return JSON.stringify([viewportId, sortDomain]);
+}
+
 function keyMatchesLayerId(key: string, layerId: string): boolean {
   try {
     const parts: unknown = JSON.parse(key);
@@ -451,7 +459,7 @@ export class SplatSceneRuntime implements Effect {
             views = new Map();
             assetViews.set(asset, views);
           }
-          views.set(`${viewport.id}/${owner.key}`, view);
+          views.set(getViewOwnerKey(viewport.id, owner.key), view);
           const color = layer.getOwnerValue(
             'getColor',
             owner.object,
@@ -472,7 +480,7 @@ export class SplatSceneRuntime implements Effect {
           entries.push({layer, viewport, owner, view, alpha, colorScale});
         }
         if (screen) {
-          const key = `${viewport.id}:${layer.props.sortDomain}`;
+          const key = getViewDomainKey(viewport.id, layer.props.sortDomain);
           const domainEntries = submissions.get(key) ?? [];
           domainEntries.push(...entries);
           submissions.set(key, domainEntries);
@@ -540,7 +548,7 @@ export class SplatSceneRuntime implements Effect {
       const asset = this.assets.get(owner.asset);
       if (!asset) continue;
       const frontier =
-        asset.scene?.getFrontier(`${viewport.id}/${owner.key}`) ??
+        asset.scene?.getFrontier(getViewOwnerKey(viewport.id, owner.key)) ??
         (asset.data ? [{id: 'static', data: asset.data}] : []);
       for (const page of frontier) {
         const rowCount = page.activeRows?.length ?? page.data.length;
@@ -574,7 +582,7 @@ export class SplatSceneRuntime implements Effect {
       this.pickers.get(getViewLayerKey(viewport.id, layer.id))?.draw(renderPass, parameters);
       return;
     }
-    const domain = this.domains.get(`${viewport.id}:${layer.props.sortDomain}`);
+    const domain = this.domains.get(getViewDomainKey(viewport.id, layer.props.sortDomain));
     if (domain?.leader === layer.id) domain.renderer.draw(renderPass, parameters);
   }
   getStats(id: string) {

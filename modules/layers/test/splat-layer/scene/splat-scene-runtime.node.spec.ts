@@ -339,7 +339,7 @@ it.each([
     destroy: vi.fn(),
     draw: vi.fn()
   };
-  runtime['domains'].set('allowed:default', {
+  runtime['domains'].set(JSON.stringify(['allowed', 'default']), {
     renderer,
     leader: '',
     layers: new Set(),
@@ -359,9 +359,11 @@ it.each([
       isPicking: false,
       layerFilter
     } as PreRenderOptions);
-    expect(runtime['domains'].get('allowed:default')?.leader).toBe('draw');
-    expect(runtime['domains'].get('allowed:default')?.layers).toEqual(new Set(['draw']));
-    expect(runtime['domains'].has('denied:default')).toBe(false);
+    expect(runtime['domains'].get(JSON.stringify(['allowed', 'default']))?.leader).toBe('draw');
+    expect(runtime['domains'].get(JSON.stringify(['allowed', 'default']))?.layers).toEqual(
+      new Set(['draw'])
+    );
+    expect(runtime['domains'].has(JSON.stringify(['denied', 'default']))).toBe(false);
     for (const key of runtime['pickingEntries'].keys())
       runtime['pickers'].set(key, {
         setProps: vi.fn(),
@@ -390,6 +392,70 @@ it.each([
     } as PreRenderOptions);
     expect(runtime['domains'].size).toBe(0);
     expect(runtime['pickingEntries'].size).toBe(0);
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
+it('keeps viewport and sort-domain tuples distinct when ids contain separators', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const source = {
+    positions: new Float32Array([0, 0, 0]),
+    scales: new Float32Array([1, 1, 1]),
+    rotations: new Float32Array([1, 0, 0, 0]),
+    colors: new Uint8Array([255, 255, 255, 255]),
+    opacities: new Float32Array([0.8])
+  };
+  const first = new SplatSceneLayer({id: 'first', data: source, sortDomain: 'main'});
+  const second = new SplatSceneLayer({id: 'second', data: source, sortDomain: 'detail:main'});
+  const firstViewport = new OrthographicViewport({id: 'left:detail', width: 128, height: 128});
+  const secondViewport = new OrthographicViewport({id: 'left', width: 128, height: 128});
+  const firstKey = JSON.stringify([firstViewport.id, first.props.sortDomain]);
+  const secondKey = JSON.stringify([secondViewport.id, second.props.sortDomain]);
+  const makeDomain = () => {
+    const renderer = {
+      setProps: vi.fn(),
+      setFrontier: vi.fn(),
+      prepare: vi.fn(),
+      destroy: vi.fn(),
+      draw: vi.fn()
+    };
+    return {
+      renderer,
+      leader: '',
+      layers: new Set<string>(),
+      owners: [],
+      pages: []
+    };
+  };
+  const firstDomain = makeDomain();
+  const secondDomain = makeDomain();
+  runtime['domains'].set(firstKey, firstDomain as never);
+  runtime['domains'].set(secondKey, secondDomain as never);
+  for (const layer of [first, second]) {
+    vi.spyOn(layer, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+    runtime.register(layer);
+  }
+  vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  try {
+    runtime.preRender({
+      layers: [first, second],
+      viewports: [firstViewport, secondViewport],
+      isPicking: false,
+      layerFilter: ({layer, viewport}) =>
+        (viewport.id === firstViewport.id && layer.id === first.id) ||
+        (viewport.id === secondViewport.id && layer.id === second.id)
+    } as PreRenderOptions);
+
+    expect([...runtime['domains'].keys()]).toEqual([firstKey, secondKey]);
+    expect(firstDomain.layers).toEqual(new Set(['first']));
+    expect(secondDomain.layers).toEqual(new Set(['second']));
+    runtime.draw(first, {} as never, firstViewport);
+    runtime.draw(second, {} as never, secondViewport);
+    expect(firstDomain.renderer.draw).toHaveBeenCalledOnce();
+    expect(secondDomain.renderer.draw).toHaveBeenCalledOnce();
   } finally {
     runtime.cleanup();
     device.destroy();
@@ -572,7 +638,7 @@ it('preserves static orthographic and RAD perspective siblings and recovers when
     new FirstPersonViewport({id: 'perspective', width: 128, height: 128})
   ];
   for (const viewport of viewports)
-    runtime['domains'].set(`${viewport.id}:default`, {
+    runtime['domains'].set(JSON.stringify([viewport.id, 'default']), {
       renderer: {setProps: vi.fn(), setFrontier: vi.fn(), prepare: vi.fn(), destroy: vi.fn()},
       leader: '',
       layers: new Set(),
@@ -582,8 +648,10 @@ it('preserves static orthographic and RAD perspective siblings and recovers when
   try {
     runtime.preRender({layers, viewports, isPicking: false} as PreRenderOptions);
     expect(raise).toHaveBeenCalledOnce();
-    expect(runtime['domains'].get('ortho:default')?.layers).toEqual(new Set(['static']));
-    expect(runtime['domains'].get('perspective:default')?.layers).toEqual(
+    expect(runtime['domains'].get(JSON.stringify(['ortho', 'default']))?.layers).toEqual(
+      new Set(['static'])
+    );
+    expect(runtime['domains'].get(JSON.stringify(['perspective', 'default']))?.layers).toEqual(
       new Set(['rad', 'static'])
     );
     expect(runtime['pickingEntries'].has(JSON.stringify(['ortho', 'rad']))).toBe(false);
@@ -596,7 +664,9 @@ it('preserves static orthographic and RAD perspective siblings and recovers when
       viewports,
       isPicking: false
     } as PreRenderOptions);
-    expect(runtime['domains'].get('ortho:default')?.layers).toEqual(new Set(['rad', 'static']));
+    expect(runtime['domains'].get(JSON.stringify(['ortho', 'default']))?.layers).toEqual(
+      new Set(['rad', 'static'])
+    );
     expect(runtime['pickingEntries'].has(JSON.stringify(['ortho', 'rad']))).toBe(true);
   } finally {
     runtime.cleanup();
