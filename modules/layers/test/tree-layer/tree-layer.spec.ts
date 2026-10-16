@@ -158,8 +158,9 @@ describe('native tree geometry', () => {
     expect(canopy).toBeInstanceOf(SplatLayer);
     expect(canopy.id).not.toContain('dense');
     expect(canopy.props.data).toHaveLength(denseData.length);
+    expect(canopy.props.transparency).toBe('weighted');
     expect(canopy.props.foveationStrength).toBe(0.55);
-    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 250000});
+    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
     expect(wood).toBeInstanceOf(TreeMeshLayer);
     expect(wood.id).toContain('dense');
     expect(wood.props.data).toHaveLength(denseData.length);

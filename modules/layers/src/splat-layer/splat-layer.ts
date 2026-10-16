@@ -46,6 +46,26 @@ import type {SplatSource} from './splat-source';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
+// Reuse the runtime demand until camera motion changes an LOD target or its priority by a quarter pixel.
+function retainSplatSelections<T>(
+  previous: SplatSelection<T>[],
+  next: SplatSelection<T>[]
+): SplatSelection<T>[] {
+  if (previous.length !== next.length) return next;
+  for (let i = 0; i < next.length; i++) {
+    const a = previous[i],
+      b = next[i];
+    if (
+      a.owner !== b.owner ||
+      a.level !== b.level ||
+      Math.round(a.blend * 64) !== Math.round(b.blend * 64) ||
+      Math.round(a.pixels * 4) !== Math.round(b.pixels * 4) ||
+      a.retainedLevel !== b.retainedLevel
+    )
+      return next;
+  }
+  return previous;
+}
 type Owner<DataT> = {object: DataT; weight: number; index: number};
 type PreparedOwner<DataT> = {
   key: string;
@@ -196,6 +216,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const refinementChanged =
       props.pixelError !== oldProps.pixelError ||
       props.foveationStrength !== oldProps.foveationStrength ||
+      props.shadowEnabled !== oldProps.shadowEnabled ||
       props.maxSplats !== oldProps.maxSplats ||
       props.kernelVariance !== oldProps.kernelVariance ||
       renderPixelRatio !== this.state.renderPixelRatio;
@@ -404,6 +425,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       membershipChanged || changeFlags.dataChanged || geometryChanged || assetsChanged
         ? this.getRefinementGroups(this.state.refinement)
         : this.state.groups;
+    const demandCandidates = retainSplatSelections(this.state.candidates, candidates);
     this.setState({
       groups: rebuild
         ? groups
@@ -412,12 +434,12 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           ),
       hierarchy,
       owners,
-      candidates,
+      candidates: demandCandidates,
       spatialIndex,
       projectionKey,
       ...(rebuild ? {members: []} : {})
     });
-    this.publishDemand(candidates);
+    this.publishDemand(demandCandidates);
   }
 
   private publishDemand(candidates: SplatSelection<PreparedOwner<DataT>>[]) {

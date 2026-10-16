@@ -276,7 +276,7 @@ type _TreeLayerProps<DataT> = {
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
   windTime?: number | null;
-  /** Shared per-frame canopy Gaussian budget, allocated by projected error across species. Finest templates remain available. @default 250000 */
+  /** Shared per-frame canopy Gaussian budget, allocated by projected error across species. Finest templates remain available. @default 20000 */
   maxCanopySplats?: number;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
   maxCanopyPixels?: number;
@@ -306,7 +306,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> & {shadowEnabled: fals
   characteristics: {type: 'object', value: {}},
   windStrength: {type: 'number', value: 0, min: 0, max: 0.2},
   windTime: null,
-  maxCanopySplats: 250000,
+  maxCanopySplats: 20000,
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
   foveationStrength: {type: 'number', value: 0.55, min: 0, max: 1},
@@ -904,7 +904,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               data,
               ...shared,
               getSource: getTreeSplatData(type, levels, characteristics),
-              transparency: 'sorted',
+              transparency: 'weighted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
               pixelError: type === 'palm' ? 0.65 : 2.5,
               maxRenderPixels: this.props.maxCanopyPixels,
