@@ -128,6 +128,27 @@ test('toBasePointerEvent uses offsetCenter, not clientX/Y', () => {
   assertBasePointerEvent(result!, event);
 });
 
+test('toBasePointerEvent aligns Mjolnir and native coordinates on a scaled canvas', () => {
+  const canvas = {
+    offsetWidth: 100,
+    offsetHeight: 100,
+    clientLeft: 2,
+    clientTop: 3,
+    getBoundingClientRect: () => ({left: 20, top: 30, width: 200, height: 300})
+  };
+  layer.state._editableLayerState.canvas = canvas;
+  const pointerEvent = {type: 'pointermove', clientX: 124, clientY: 183};
+  // Mjolnir normalizes offsetCenter with the same scale and border correction.
+  const gestureEvent = {
+    ...makeMockGestureEvent('panmove'),
+    offsetCenter: {x: 51, y: 50},
+    srcEvent: pointerEvent
+  };
+
+  expect(layer.toBasePointerEvent(pointerEvent)?.screenCoords).toEqual([51, 50]);
+  expect(layer.toBasePointerEvent(gestureEvent)?.screenCoords).toEqual([51, 50]);
+});
+
 test('native clicks are immediate, scale-aware, and forwarded to the current layer', () => {
   const handlers = new Map<string, any[]>();
   const canvas = {
