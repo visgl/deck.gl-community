@@ -57,7 +57,7 @@ Use this when you already have decoded features and want to apply a style-layer 
 
 ## `findFeaturesStyledByLayer({features, layer, globalProperties})`
 
-Looks up features for a specific `source` and `source-layer` combination and then applies the style layer's filter.
+Looks up features for a specific `source` and `source-layer` combination and then applies the style layer's filter. When the style layer has no `filter`, all features of that source layer are returned.
 
 This helper expects features grouped as:
 

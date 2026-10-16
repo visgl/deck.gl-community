@@ -60,3 +60,10 @@ yarn
 yarn --cwd modules/basemap-layers test
 yarn lint
 ```
+
+## Compare with MapLibre
+
+The [split view example](/examples/basemap-layers/split-view) renders the same
+OpenFreeMap vector style with `BasemapLayer` and MapLibre GL JS side by side.
+Interacting with either pane synchronizes pan, zoom, bearing, and pitch. Use the
+shared style selector to compare Liberty, Positron, and Dark.

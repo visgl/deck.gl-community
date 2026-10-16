@@ -9,3 +9,11 @@ They can be quite useful in applications, however they are not officially suppor
 
 [`FlameTrailLayer`](../../docs/modules/layers/api-reference/flame-trail-layer.md) renders
 3D flames and embers with the TripsLayer API. It requires WebGL2.
+
+[`VolumetricVideoLayer`](../../docs/modules/layers/api-reference/volumetric-video-layer.md)
+renders MP4/MOV frames as a time volume with GPU static-pixel removal. It requires WebGL2.
+Run the [local-file example](../../examples/layers/volumetric-video/README.md) to explore it.
+
+[`SplatLayer`](../../docs/modules/layers/api-reference/splat-layer.md) renders prepared Gaussian sources with shared instancing, automatic refinement, deformation and owner picking on WebGL2 and WebGPU. It has no TreeLayer dependency.
+
+[`TreeLayer`](../../docs/modules/layers/api-reference/tree-layer.md) is the canonical procedural tree renderer, with Gaussian foliage and connected woody meshes. It reads `TreeSpec` traits directly from rows or one `getTree` accessor; species proportions, templates and automatic refinement are internal.

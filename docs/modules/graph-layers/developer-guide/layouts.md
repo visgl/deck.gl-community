@@ -108,6 +108,10 @@ stop() {
 
 For long-running solvers (such as force-directed layouts), call `_onLayoutChange` inside your simulation loop so the view can animate.
 
+`GPUForceLayout` emits `onLayoutStart` before submitting each worker calculation, including
+updates. Final positions and bounds are available before `onLayoutChange` and `onLayoutDone`.
+Completed workers are released, and results from stopped or replaced workers are ignored.
+
 ### 4. Publish node and edge geometry
 
 `GraphLayer` queries positions every render. Implement `getNodePosition` and `getEdgePosition` so they return finite coordinates when available.

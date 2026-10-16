@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # ZoomableMarkerLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="zoomable-marker-layer" size="tall" />
 
 `ZoomableMarkerLayer` draws atlas-based markers that can optionally scale with

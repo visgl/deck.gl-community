@@ -1,5 +1,7 @@
 # EditModeTrayWidget
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 A deck.gl widget that renders a tray of mode selection buttons. Provides a UI for switching between edit modes without requiring a custom React toolbar.
 
 Widgets are deck.gl UI elements that render as HTML overlays on the map. They are passed to the `widgets` prop on `DeckGL`, not to individual layers.

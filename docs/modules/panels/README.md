@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
+
 `@deck.gl-community/panels` provides a modest set of composable UI components intended
 for small data visualization applications.
 
@@ -19,7 +21,9 @@ box, modal, sidebar, or full-screen chrome.
 
 - Core: [Panel](./api-reference/panel.md),
   [Panel Themes](./api-reference/panel-theme.md)
-- Leaf panels: [MarkdownPanel](./api-reference/markdown-panel.md),
+- Leaf panels: [SourcePickerPanel](./api-reference/source-picker-panel.md),
+  [MetricsPanel](./api-reference/metrics-panel.md),
+  [MarkdownPanel](./api-reference/markdown-panel.md),
   [SettingsPanel](./api-reference/settings-panel.md),
   [KeyboardShortcutsPanel](./api-reference/keyboard-shortcuts-panel.md),
   [URLParametersPanel](./api-reference/url-parameters-panel.md), Arrow

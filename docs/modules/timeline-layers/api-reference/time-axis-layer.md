@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # TimeAxisLayer
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="time-axis-layer" size="tall" />
 
 Draws a horizontal time axis with tick marks and labels. Existing fixed-range

@@ -1,5 +1,7 @@
 # Overview
 
+![From v9.1](https://img.shields.io/badge/from-v9.1-green.svg?style=flat-square)
+
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square)
 ![WebGPU partially supported](https://img.shields.io/badge/webgpu-partial-yellow.svg?style=flat-square)
 
@@ -75,6 +77,7 @@ weather textures, or GPU particle buffers.
 - [SharedTile2DLayer](/docs/modules/geo-layers/api-reference/shared-tile-2d-layer)
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
   <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />
+- [SharedMVTLayer](/docs/modules/geo-layers/api-reference/shared-mvt-layer) shares decoded vector tiles across style runs and map/globe consumers.
 - [SharedTileset2D](/docs/modules/geo-layers/api-reference/shared-tileset-2d)
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
   <img src="https://img.shields.io/badge/experimental-orange.svg?style=flat-square" alt="experimental" />

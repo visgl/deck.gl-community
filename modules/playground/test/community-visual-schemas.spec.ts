@@ -17,6 +17,15 @@ const REQUIRED_PROPS: Partial<Record<LayerName, Record<string, unknown>>> = {
 };
 
 describe('community visual layer schemas', () => {
+  it('accepts finite nonnegative graph layout intervals in JSON', () => {
+    for (const interval of [0, 16, 100]) {
+      expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(true);
+    }
+    for (const interval of [-1, Number.NaN, Number.POSITIVE_INFINITY, '16']) {
+      expect(parseLayer('GraphLayer', {layoutUpdateInterval: interval}).success).toBe(false);
+    }
+  });
+
   it('accepts unchanged TripsLayer props for FlameTrailLayer', () => {
     expect(
       parseLayer('FlameTrailLayer', {
@@ -25,6 +34,39 @@ describe('community visual layer schemas', () => {
         fadeTrail: false
       }).success
     ).toBe(true);
+  });
+
+  // Value: protects=public video settings and host-owned media/callback references survive JSON validation;
+  // fails_when=video schema is omitted or accepts invalid reservations, strengths, or live functions;
+  // why_new=gallery regressions check registration but do not validate the video prop contract; seam=none
+  it('validates video volumes and host-owned media without accepting invalid settings', () => {
+    expect(
+      parseLayer('VolumetricVideoLayer', {
+        video: '@@#localVideo',
+        currentFrame: 12,
+        frameTrail: 120,
+        maxFrameTrail: null,
+        resolution: 0,
+        renderMode: 'auto',
+        maxTextureBytes: 536870912,
+        position: [0, 0, -1],
+        staticPixelRemoval: 1,
+        onVideoLoad: '@@#videoLoaded',
+        onFrameLoad: '@@#frameLoaded'
+      }).success
+    ).toBe(true);
+    for (const props of [
+      {video: {}},
+      {maxFrameTrail: -1},
+      {resolution: 16385},
+      {renderMode: 'other'},
+      {maxTextureBytes: 0},
+      {staticPixelRemoval: 1.1},
+      {position: [0, 0]},
+      {onVideoLoad: () => {}},
+      {onFrameLoad: () => {}}
+    ])
+      expect(parseLayer('VolumetricVideoLayer', props).success).toBe(false);
   });
 
   it.each(
@@ -217,4 +259,13 @@ describe('community visual layer schemas', () => {
       expect(() => z.toJSONSchema(schema)).not.toThrow();
     }
   });
+});
+
+it('accepts declarative graph transition duration and rejects invalid JSON durations', () => {
+  expect(
+    parseLayer('GraphLayer', {layoutTransitionDuration: 100, layoutUpdateInterval: 100}).success
+  ).toBe(true);
+  for (const duration of [-1, NaN, Infinity]) {
+    expect(parseLayer('GraphLayer', {layoutTransitionDuration: duration}).success).toBe(false);
+  }
 });

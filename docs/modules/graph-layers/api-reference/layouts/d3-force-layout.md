@@ -1,5 +1,11 @@
 # D3ForceLayout
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
+During simulation, intermediate snapshots are limited to one every 16 ms. Worker ticks update node positions, edge positions, and bounds before
+`onLayoutChange` fires. The final positions are published before `onLayoutDone`. Stopping or
+replacing a simulation prevents its queued messages from changing the layout.
+
 This layout is an integration between [d3-force](https://github.com/d3/d3-force) and graph-layers to render the layout in a WebGL context.
 
 ## Usage
@@ -26,3 +32,8 @@ new D3ForceLayout({
 - `nBodyDistanceMin` (Number, optional) - Sets the minimum distance between nodes over which this force is considered. If distance is not 'nBodyDistanceMin', returns the current minimum distance, which defaults to 100.
 - `nBodyDistanceMax` (Number, optional) - Sets the maximum distance between nodes over which this force is considered. If distance is not 'nBodyDistanceMin', returns the current minimum distance, which defaults to 400.
 - `getCollisionRadius` (Number, optional) - Sets the radius for collision detection. If getCollisionRadius is not specified, it defaults to zero radius for all nodes. The [collision force](https://github.com/d3/d3-force#collision) treats nodes as circles with a given radius, rather than points, and prevents nodes from overlapping.
+
+Start, graph updates, and resume emit `onLayoutStart` before dispatching worker calculations.
+A start callback can stop the layout to cancel dispatch. Resume uses cached positions and
+`resumeAlpha`; normal starts and updates use `alpha`. The worker applies this initial alpha
+and stops after cooling to its minimum, publishing final geometry before completion callbacks.

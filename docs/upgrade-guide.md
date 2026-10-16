@@ -6,6 +6,30 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+`RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
+compensated for oversized rings may need their radius retuned. Angular sectors use the leaf
+count rather than all graph nodes, so hierarchies with visible internal nodes fill the circle.
+Nodes outside the hierarchy return no position, and edges with absent endpoints return no geometry.
+
+### `@deck.gl-community/layers`: prepared `SplatLayer`
+
+Use `data` for a direct prepared Gaussian asset or owner rows, and `getSource` for a constant
+or per-row asset. Put new hierarchies in a `{type: 'prepared-splats', source, hierarchy}`
+descriptor. The compatibility form `{data: rows, source, hierarchy}` remains supported, but
+cannot be combined with direct asset data or an explicit `getSource`.
+
+Sources and hierarchies are immutable; replace them when their columns change. Submission
+budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
+A tighter `maxRenderPixels` can take one frame to apply while visibility expands for the broader filter.
+Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
+(`MapView.repeat`), `GlobeView`, URL/RAD inputs and sorted
+transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
+for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream nested-render-pass path is fixed; overlapping views without clearing are supported.
+
+### `@deck.gl-community/layers`: native `TreeLayer`
+
+- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+
 ### `@deck.gl-community/editable-layers`
 
 Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,
@@ -133,6 +157,21 @@ Rename the React panel exports:
 | `WidgetPanel` | [`Panel`](/docs/modules/react/api-reference/panel) |
 | `WidgetPanelProps` | `PanelProps` |
 | `WidgetPanelThemeMode` | `PanelHostThemeMode` |
+
+
+### `@deck.gl-community/graph-layers`
+
+#### Graph loader imports
+
+`DOTGraphLoader` from `@deck.gl-community/graph-layers` has been removed. Import
+`DOTLoaderWithParser` from `@loaders.gl/graphs/dot-loader` for synchronous parsing or
+parser-bearing loader use. Pass graph URLs directly to `GraphLayer.data` with
+`loaders: [DOTLoaderWithParser]` and a `layout`; the layer converts the parsed
+records and creates its own engine. Already loaded graphs can also be passed to
+`data`. A custom `graphLoader` callback is unnecessary for normalized loader output.
+DOT syntax validation and strict-graph behavior follow loaders.gl. The loader returns
+plain graph data instead of Arrow data, and the old `dot.version` option is removed.
+
 
 ## v9.3
 

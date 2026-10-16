@@ -87,7 +87,7 @@ test('registers every concrete public layer from each package without losing nam
       expected.push(key);
     }
   }
-  expect(Object.keys(registry.layers).sort()).toEqual(expected.sort());
+  expect(Object.keys(registry.layers).sort()).toEqual([...new Set(expected)].sort());
   expect(registeredType('GridLayer')).toBe(aggregation.GridLayer);
   expect(registeredType('GraphGridLayer')).toBe(graph.GridLayer);
 });
@@ -163,6 +163,8 @@ test('every public layer default prop has a schema property', () => {
       type = Object.getPrototypeOf(type)
     ) {
       for (const prop of Object.keys(type.defaultProps)) {
+        // Composition hooks are host-owned, not JSON document properties.
+        if (prop.startsWith('_')) continue;
         // GeoArrow explicitly omits binary text backgrounds from its public props.
         if (name === '_GeoArrowTextLayer' && prop === 'background') continue;
         // BitmapLayer draws its image prop and intentionally omits inherited row data.
@@ -188,8 +190,12 @@ for (const [name, template] of Object.entries(TEMPLATES)) {
     definitions.forEach((definition, index) => {
       expect(resolved[index]).toBeInstanceOf(registeredType(definition['@@type'])!);
       expect(resolved[index].id).toBe(definition.id);
-      if (Object.hasOwn(definition, 'data'))
-        expect(resolved[index].props.data).toBe(definition.data);
+      if (Object.hasOwn(definition, 'data')) {
+        // deck.gl exposes the default value until an async URL prop is initialized.
+        expect(resolved[index].props.data).toBe(
+          typeof definition.data === 'string' ? null : definition.data
+        );
+      }
     });
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -224,4 +230,31 @@ test('host Arrow resources and edit modes resolve by reference through the share
   } finally {
     native.finalize();
   }
+});
+
+test('DOT URL template resolves loader constants and creates independent layouts', () => {
+  const first = resolver.resolve(TEMPLATES['graph-url'], {}).props.layers as Layer[];
+  const second = resolver.resolve(TEMPLATES['graph-url'], {}).props.layers as Layer[];
+  const firstProps = (first[0] as graph.GraphLayer).props;
+  const secondProps = (second[0] as graph.GraphLayer).props;
+  expect(firstProps.loaders).toEqual([registry.constants!.DOTLoader]);
+  expect(firstProps.layout).toBeInstanceOf(graph.D3ForceLayout);
+  expect(firstProps.layout).not.toBe(secondProps.layout);
+  expect(firstProps.engine).toBeUndefined();
+});
+
+test('radial template creates independent package layouts with declarative hierarchy options', () => {
+  const first = resolver.resolve(TEMPLATES['radial-graph'], {}).props.layers as graph.GraphLayer[];
+  const second = resolver.resolve(TEMPLATES['radial-graph'], {}).props.layers as graph.GraphLayer[];
+  const layout = first[0].props.layout!;
+  expect(layout).toBeInstanceOf(graph.RadialLayout);
+  expect(layout).not.toBe(second[0].props.layout);
+  expect(first[0].props.engine).toBeUndefined();
+  const data = first[0].props.data as graph.PlainGraphData;
+  const loaded = new graph.ClassicGraph({data});
+  layout.initializeGraph(loaded);
+  layout.start();
+  const positions = [...loaded.getNodes()].map(node => layout.getNodePosition(node)!);
+  expect(positions.every(point => point.every(Number.isFinite))).toBe(true);
+  expect(Math.max(...positions.map(point => Math.hypot(...point)))).toBeCloseTo(160);
 });

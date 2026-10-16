@@ -5,7 +5,10 @@
 import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
 import {createPlaygroundRegistry} from './registry';
 import {TEMPLATES as GALLERY_TEMPLATES} from './templates';
+import {createVegaPanel} from './vega-panel';
 import {createEditablePlaygroundControls} from './editable-controls';
+import {createDataSourcesPanel, UploadedSources} from './data-sources-panel';
+import {createWebMcpButton} from './webmcp-button';
 
 const TOOL_TEMPLATES = ['imported-points', 'scatterplot', 'arcs', 'geojson', 'heatmap'];
 
@@ -19,7 +22,7 @@ const TEMPLATES = {
       {
         '@@type': 'ScatterplotLayer',
         id: 'points',
-        data: {'@@data': 'points'},
+        data: 'datasource://points',
         getPosition: '@@=position',
         getRadius: 8,
         radiusUnits: 'pixels',
@@ -41,17 +44,19 @@ export function mountStandalonePlayground(
   root.innerHTML = `
     <header style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid #d5dbe3;font:13px system-ui">
       <strong style="margin-right:auto">deck.gl Playground</strong>
-      <output aria-live="polite">Browser tools disabled</output>
-      <button type="button">Enable tools</button>
+      <span data-webmcp></span>
     </header>
     <div style="padding:4px 12px;font:12px system-ui">The points source accepts rows with position: [x, y]. Imported rows stay in this page until it closes or reloads.</div>
     <output data-error role="status" hidden style="padding:4px 12px;color:#b42318;font:12px system-ui"></output>
     <div data-preview style="position:relative;flex:1;min-height:0"></div>
   `;
   container.append(root);
-  const status = root.querySelector('output')!;
   const errorStatus = root.querySelector<HTMLOutputElement>('[data-error]')!;
-  const toggle = root.querySelector('button')!;
+  const {
+    button: toggle,
+    setState: setToolState,
+    destroy: destroyToolButton
+  } = createWebMcpButton(root.querySelector<HTMLElement>('[data-webmcp]')!);
   const sources = new PlaygroundDataSourceManager();
   sources.add({
     dataSourceId: 'points',
@@ -63,12 +68,16 @@ export function mountStandalonePlayground(
       ]
     }
   });
+  const uploads = new UploadedSources(sources);
+  const vega = createVegaPanel();
   const editing = createEditablePlaygroundControls();
   const playground = new DeckPlayground({
     parentElement: root.querySelector<HTMLElement>('[data-preview]')!,
     templates: TEMPLATES,
     registry: createPlaygroundRegistry(editing.constants),
     dataSources: sources,
+    onPanelChange: panelId => vega.setActive(panelId === 'vega'),
+    panels: [createDataSourcesPanel(uploads), vega.panel],
     onChange(value) {
       editing.onChange(value);
       errorStatus.hidden = true;
@@ -83,15 +92,14 @@ export function mountStandalonePlayground(
   let active = true;
   let unregister: (() => void) | null = null;
   toggle.onclick = async () => {
+    if (toggle.getAttribute('aria-disabled') === 'true') return;
     if (unregister) {
       unregister();
       unregister = null;
-      status.textContent = 'Browser tools disabled';
-      toggle.textContent = 'Enable tools';
+      setToolState('disabled');
       return;
     }
-    toggle.disabled = true;
-    status.textContent = 'Connecting browser tools…';
+    setToolState('initializing');
     try {
       unregister = await playground.registerWebMCP({
         templates: TOOL_TEMPLATES,
@@ -101,20 +109,18 @@ export function mountStandalonePlayground(
         unregister?.();
         return;
       }
-      status.textContent = unregister ? 'Browser tools ready' : 'Browser tools unavailable';
-      toggle.textContent = unregister ? 'Disable tools' : 'Enable tools';
-      toggle.disabled = !unregister;
+      setToolState(unregister ? 'active' : 'unavailable');
     } catch {
       if (!active) return;
-      status.textContent = 'Browser tools could not connect';
-      toggle.textContent = 'Retry tools';
-      toggle.disabled = false;
+      setToolState('unavailable', 'Browser tools could not connect. Click to retry.');
     }
   };
   if (enableTools) toggle.click();
 
   return () => {
     active = false;
+    destroyToolButton();
+    uploads.finalize();
     playground.finalize();
     void sources.finalize();
     root.remove();

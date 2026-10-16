@@ -1,5 +1,7 @@
 # EditorToolbarWidget
 
+![From v9.2](https://img.shields.io/badge/from-v9.2-green.svg?style=flat-square)
+
 A deck.gl widget that provides editing controls: boolean operations, clear, export, and a live feature count. Designed to pair with `EditModeTrayWidget` for a complete widget-based editing UI.
 
 ## Usage

@@ -1,3 +1,5 @@
+import {BasemapLayer} from '@deck.gl-community/basemap-layers';
+import {BasemapLayerSchema} from '../src/schemas/community';
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
@@ -775,4 +777,30 @@ describe('DeckPlayground browser lifecycle', () => {
       object: ROWS[0]
     });
   }, 20_000);
+});
+
+it('credits OpenFreeMap for the default and every selected basemap', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    Response.json({version: 8, sources: {}, layers: []})
+  );
+  const {host, ready} = mountDeck({
+    registry: {
+      layers: {
+        ...REGISTRY.layers,
+        BasemapLayer: {type: BasemapLayer, schema: BasemapLayerSchema}
+      }
+    }
+  });
+  await ready();
+  const selector = host.querySelector<HTMLSelectElement>('select[aria-label="Basemap"]')!;
+  expect(selector).toBeTruthy();
+  for (const style of ['positron', 'dark', 'liberty']) {
+    selector.value = `https://tiles.openfreemap.org/styles/${style}`;
+    selector.dispatchEvent(new Event('change', {bubbles: true}));
+    await vi.waitFor(() => {
+      expect(host.querySelector('small')?.textContent).toBe(
+        'OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors'
+      );
+    });
+  }
 });

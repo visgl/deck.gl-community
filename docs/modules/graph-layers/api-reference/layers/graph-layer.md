@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # GraphLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="graph-layer" size="tall" />
 
 `GraphLayer` is a composite Deck.gl layer that renders graph nodes, edges, and
@@ -12,12 +14,11 @@ that graph applications can focus on supplying data and high-level behavior.
 ## Usage
 
 ```js
-import {GraphLayer, JSONLoader, D3ForceLayout} from '@deck.gl-community/graph-layers';
+import {GraphLayer, D3ForceLayout} from '@deck.gl-community/graph-layers';
 
 const layer = new GraphLayer({
   id: 'graph',
   data: graphJson,
-  graphLoader: JSONLoader,
   layout: new D3ForceLayout(),
   stylesheet: {
     nodes: [
@@ -40,6 +41,30 @@ or `{nodes, edges}` objects). When the layer receives new data it rebuilds the
 internal `GraphEngine`, re-runs the layout, and updates interactions
 automatically. Supplying raw data requires a `layout` so the layer can derive
 positions for you.
+
+### Load a graph URL with loaders.gl
+
+```js
+import {DOTLoaderWithParser} from '@loaders.gl/graphs/dot-loader';
+
+const layer = new GraphLayer({
+  id: 'karate-club',
+  data: 'https://raw.githubusercontent.com/visgl/deck.gl-community/master/modules/graph-layers/test/data/__fixtures__/dot/karate.dot',
+  loaders: [DOTLoaderWithParser],
+  layout: new D3ForceLayout()
+});
+```
+
+Deck.gl fetches `data` and parses it with `loaders`. The default graph conversion
+accepts the DOT loader's normalized graph data; no `graphLoader` callback or
+application-created `GraphEngine` is needed. JSON URLs with `{nodes, edges}` data
+use deck.gl's default JSON loading. Already loaded graphs can be supplied as
+`data: graph` with the same `layout` prop.
+
+The [community playground](/examples/playground) includes **Graph from a DOT URL**.
+Its JSON uses `"loaders": ["@@#DOTLoader"]` and
+`"layout": {"@@function": "D3ForceLayout"}`. The example registry supplies the published
+DOT loader constant and creates a fresh layout for each resolved configuration.
 
 ## Properties
 
@@ -68,10 +93,13 @@ releases will remove this prop.
 
 #### `graphLoader` (function, optional)
 
-Custom loader that converts raw `data` into a `Graph`. Defaults to the bundled
-`JSONLoader`, which accepts arrays of edges or `{nodes, edges}` collections and
-automatically synthesizes missing nodes. Graph instances are no longer
-normalized by the loader—pass them directly to `data`.
+Custom loader that converts raw `data` into a `Graph`. The default converter accepts
+arrays of edges or `{nodes, edges}` collections and synthesizes missing endpoint nodes for raw JSON.
+Raw records use `id`, `sourceId`, and `targetId`; missing edge IDs are generated.
+Custom properties at the top level and in `attributes` are preserved, with nested
+`attributes` taking precedence for custom properties. Graph instances and normalized
+`PlainGraphData`/`ArrowGraphData` bypass `graphLoader` and are passed directly to the graph
+factory. Custom loaders only receive raw inputs.
 
 #### `engine` (`GraphEngine`, optional)
 
@@ -121,6 +149,21 @@ you need—they are all optional.
 
 When `true`, nodes can be repositioned by dragging. The interaction manager
 updates the layout and stylesheet state automatically during drags.
+
+#### `layoutUpdateInterval` (number, optional) {/* #layoutupdateinterval */}
+
+Minimum time in milliseconds between intermediate layout snapshots. Defaults to
+`0`, which updates on every layout change. For example, `layoutUpdateInterval: 50`
+coalesces intermediate changes into at most one snapshot every 50 milliseconds.
+The trailing snapshot uses the latest layout geometry, and every lifecycle callback
+still runs immediately. Start, completion and error events update immediately and
+cancel pending work so the final geometry and status are available in the callback.
+
+Changing the interval reschedules pending work. Replacing the graph engine or
+finalizing the layer cancels it. Nonpositive or nonfinite values disable throttling.
+The interval controls layout-driven updates; interactions and other deck.gl redraws
+can still render between snapshots. JSON playground configurations accept finite,
+nonnegative intervals.
 
 ### Miscellaneous
 
@@ -179,3 +222,18 @@ configuration supports:
   underlying Deck.gl sublayers.
 - Reusing the same `GraphEngine` instance across renders preserves layout state
   and interaction history. Provide the `engine` prop to opt into that workflow.
+
+### layoutTransitionDuration (number, default: 0)
+
+Duration in milliseconds for interpolating node, edge, and decorator positions between layout snapshots. Zero, negative, and nonfinite values disable interpolation. Configure `layoutUpdateInterval` separately to coalesce intermediate snapshots; all lifecycle callbacks still fire.
+
+```ts
+new GraphLayer({
+  data: graphData,
+  layout: new D3ForceLayout(),
+  layoutUpdateInterval: 100,
+  layoutTransitionDuration: 100
+});
+```
+
+Entries supplied through deck.gl's `transitions` prop override the generated position settings. For example, `transitions: {getPosition: 0}` disables node-position interpolation while retaining the duration for edge endpoints. Path and polygon interpolation uses deck.gl's normal geometry transition behavior, including its rules for topology changes.

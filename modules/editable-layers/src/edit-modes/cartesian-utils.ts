@@ -22,7 +22,7 @@ export function orientation(p: Position, q: Position, r: Position): number {
  * @param p2 end segment 1
  * @param p3 start segment 2
  * @param p4 end segment 2
- * @returns true if segements intersect - false if non-intersecting
+ * @returns true if segments intersect - false if non-intersecting
  */
 export function segmentsIntersect(p1: Position, p2: Position, p3: Position, p4: Position): boolean {
   const o1 = orientation(p1, p2, p3);

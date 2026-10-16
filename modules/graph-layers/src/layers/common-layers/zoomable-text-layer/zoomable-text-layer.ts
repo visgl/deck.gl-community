@@ -5,15 +5,29 @@
 import {CompositeLayer} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 
+const DEFAULT_TEXT_MAX_WIDTH = 12;
+
+/** Resolves the scalar wrapping width expected by TextLayer, preserving finite no-wrap values. */
+export function normalizeTextMaxWidth(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : DEFAULT_TEXT_MAX_WIDTH;
+}
+
 export class ZoomableTextLayer extends CompositeLayer {
   static layerName = 'ZoomableTextLayer';
 
   shouldUpdateState({props, changeFlags}) {
     const {scaleWithZoom} = this.props as any;
     if (!scaleWithZoom) {
-      return changeFlags.dataChanged || changeFlags.propsChanged;
+      return (
+        changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.updateTriggersChanged
+      );
     }
-    return changeFlags.dataChanged || changeFlags.propsChanged || changeFlags.viewportChanged;
+    return (
+      changeFlags.dataChanged ||
+      changeFlags.propsChanged ||
+      changeFlags.updateTriggersChanged ||
+      changeFlags.viewportChanged
+    );
   }
 
   // eslint-disable-next-line complexity
@@ -39,6 +53,7 @@ export class ZoomableTextLayer extends CompositeLayer {
     const sizeUpdateTrigger = scaleWithZoom ? [getSize, this.context.viewport.zoom] : false;
     // getText only expects function not plain value (string)
     const newGetText = typeof getText === 'function' ? getText : () => getText;
+    const resolvedMaxWidth = normalizeTextMaxWidth(textMaxWidth);
 
     // Filter data to items that have non-empty text to avoid deck.gl 9.3
     // MultiIconLayer attribute validation errors with undefined/empty labels
@@ -61,6 +76,7 @@ export class ZoomableTextLayer extends CompositeLayer {
     return [
       new TextLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__text-layer',
           data: filteredData,
           sizeScale: scaleWithZoom ? Math.pow(2, this.context.viewport.zoom - 1) : 1,
@@ -72,12 +88,13 @@ export class ZoomableTextLayer extends CompositeLayer {
           getAlignmentBaseline,
           getAngle,
           getText: safeGetText,
-          maxWidth: textMaxWidth ?? 12,
+          maxWidth: resolvedMaxWidth,
           wordBreak: textWordBreak ?? 'break-all',
           fontFamily: fontFamily ?? 'sans-serif',
           wordUnits: textWordUnits ?? 'pixels',
           sizeMinPixels: textSizeMinPixels ?? 9,
           updateTriggers: {
+            all: this.props.transitions,
             getSize: sizeUpdateTrigger,
             getAngle: [sizeUpdateTrigger, updateTriggers.getPosition],
             ...updateTriggers

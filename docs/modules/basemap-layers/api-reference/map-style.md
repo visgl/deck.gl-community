@@ -1,5 +1,7 @@
 # `map-style` Export
 
+![From v9.3](https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square)
+
 The map-style helpers are exported from the separate package entrypoint:
 
 ```ts
@@ -57,7 +59,7 @@ Use this when you already have decoded features and want to apply a style-layer 
 
 ## `findFeaturesStyledByLayer({features, layer, globalProperties})`
 
-Looks up features for a specific `source` and `source-layer` combination and then applies the style layer's filter.
+Looks up features for a specific `source` and `source-layer` combination and then applies the style layer's filter. When the style layer has no `filter`, all features of that source layer are returned.
 
 This helper expects features grouped as:
 

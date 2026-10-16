@@ -4,6 +4,8 @@
 
 // Graph Data - output from loaders, input to writers
 
+export {isGraphData} from './graph-data/graph-data';
+
 export type {
   GraphData,
   PlainGraphData,
@@ -107,12 +109,6 @@ export {
 
 // graph format loaders
 export {JSONGraphLoader, type JSONGraphLoaderOptions} from './loaders/json-graph-loader';
-
-export {
-  DOTGraphLoader,
-  type DOTGraphLoaderOptions,
-  type DOTGraphLoaderMetadata
-} from './loaders/dot-graph-loader';
 
 // Deprecated exports
 export {

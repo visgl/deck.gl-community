@@ -44,9 +44,11 @@ const sidebars = {
       items: [
         'layers/path-outline-and-markers',
         'layers/flame-trail',
+        'layers/tree-lab',
         'layers/skybox-map-view',
         'layers/skybox-globe',
-        'layers/skybox-first-person'
+        'layers/skybox-first-person',
+        'layers/volumetric-video'
       ]
     },
     {
@@ -57,7 +59,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/basemap-layers',
-      items: ['layers/basemap-layer-map-view']
+      items: ['layers/basemap-layer-map-view', 'basemap-layers/split-view']
     },
     {
       type: 'category',
@@ -102,6 +104,7 @@ const sidebars = {
     //   ]
     // },
 
+    {type: 'category', label: 'Vega (private)', items: ['vega/geospatial', 'vega/map-to-stacks', 'vega/mark-transitions', 'vega/unit-layouts']},
     // TODO - need BING map key
     // {
     //   type: 'category',
@@ -120,7 +123,7 @@ const sidebars = {
     {
       type: 'category',
       label: '@deck.gl-community/react-fiber',
-      items: ['react-fiber/overview']
+      items: ['react-fiber/overview', 'react-fiber/multi-canvas']
     }
   ]
 };

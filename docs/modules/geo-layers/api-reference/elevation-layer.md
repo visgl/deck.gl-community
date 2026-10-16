@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # ElevationLayer
 
+![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
 :::caution Work in progress
 The terrain API, height-map smoothing, material, and exaggeration are experimental.
 :::

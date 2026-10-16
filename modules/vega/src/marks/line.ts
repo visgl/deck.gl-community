@@ -1,0 +1,53 @@
+/* !
+ * Copyright (c) Microsoft Corporation.
+ * Licensed under the MIT License.
+ */
+
+import {GroupType, type MarkStager, type MarkStagerOptions} from './interfaces';
+import {colorFromString} from '../color';
+import {type Path, type Stage} from '../interfaces';
+import {type Datum, type Scene, type SceneGroup} from 'vega';
+
+type GroupItem = SceneGroup & {
+  datum: Datum;
+  length: number;
+  depth: number;
+  opacity: number;
+  z: number;
+  strokeWidth: number;
+  strokeOpacity: number;
+};
+
+// change direction of y from SVG to GL
+const ty = -1;
+
+const markStager: MarkStager = (
+  options: MarkStagerOptions,
+  stage: Stage,
+  scene: Scene,
+  x: number,
+  y: number,
+  groupType: GroupType
+) => {
+  if (!scene.items.length) return;
+
+  const g: GroupItem = {
+    opacity: 1,
+    strokeOpacity: 1,
+    strokeWidth: 1,
+    ...(<GroupItem>scene.items[0])
+  };
+
+  const path: Path = {
+    strokeWidth: g.strokeWidth,
+    strokeColor: colorFromString(g.stroke) || [0, 0, 0, 0],
+    positions: scene.items.map((it: GroupItem) => [x + it.x, ty * (y + it.y), it.z || 0])
+  };
+
+  path.strokeColor[3] *= g.strokeOpacity;
+  path.strokeColor[3] *= g.opacity;
+
+  stage.pathData.push(path);
+};
+
+export default markStager;

@@ -1,0 +1,132 @@
+{
+  "name": "Radial graph layout",
+  "description": "A hierarchy on concentric rings with an inline RadialLayout definition.",
+  "views": {
+    "@@type": "OrthographicView",
+    "id": "graph",
+    "flipY": false
+  },
+  "initialViewState": {
+    "target": [
+      0,
+      0,
+      0
+    ],
+    "zoom": 0
+  },
+  "layers": [
+    {
+      "@@type": "GraphLayer",
+      "id": "radial-graph",
+      "data": {
+        "nodes": [
+          {
+            "id": "deck",
+            "label": "deck.gl"
+          },
+          {
+            "id": "layers",
+            "label": "Layers"
+          },
+          {
+            "id": "views",
+            "label": "Views"
+          },
+          {
+            "id": "data",
+            "label": "Data"
+          },
+          {
+            "id": "vector",
+            "label": "Vector"
+          },
+          {
+            "id": "raster",
+            "label": "Raster"
+          }
+        ],
+        "edges": [
+          {
+            "id": "e0",
+            "sourceId": "deck",
+            "targetId": "layers"
+          },
+          {
+            "id": "e1",
+            "sourceId": "deck",
+            "targetId": "views"
+          },
+          {
+            "id": "e2",
+            "sourceId": "deck",
+            "targetId": "data"
+          },
+          {
+            "id": "e3",
+            "sourceId": "layers",
+            "targetId": "vector"
+          },
+          {
+            "id": "e4",
+            "sourceId": "layers",
+            "targetId": "raster"
+          },
+          {
+            "id": "e5",
+            "sourceId": "views",
+            "targetId": "vector"
+          }
+        ]
+      },
+      "layout": {
+        "@@function": "RadialLayout",
+        "radius": 160,
+        "tree": [
+          {
+            "id": "deck",
+            "children": [
+              "layers",
+              "views",
+              "data"
+            ]
+          },
+          {
+            "id": "layers",
+            "children": [
+              "vector",
+              "raster"
+            ]
+          }
+        ]
+      },
+      "enableDragging": false,
+      "stylesheet": {
+        "nodes": [
+          {
+            "type": "circle",
+            "radius": 18,
+            "fill": "#3b82f6",
+            "stroke": "#1e3a8a",
+            "strokeWidth": 2
+          },
+          {
+            "type": "label",
+            "text": "@label",
+            "color": "#0f172a",
+            "fontSize": 14,
+            "offset": [
+              0,
+              24
+            ],
+            "textAnchor": "middle",
+            "alignmentBaseline": "top"
+          }
+        ],
+        "edges": {
+          "stroke": "#64748b",
+          "strokeWidth": 2
+        }
+      }
+    }
+  ]
+}

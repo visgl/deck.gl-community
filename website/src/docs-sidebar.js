@@ -30,6 +30,7 @@ const reactFiberDocs = require('../../docs/modules/react-fiber/sidebar.json');
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
 const panelsDocs = require('../../docs/modules/panels/sidebar.json');
 const playgroundDocs = require('../../docs/modules/playground/sidebar.json');
+const vegaDocs = require('../../docs/modules/vega/sidebar.json');
 const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 
 const sidebars = {
@@ -38,7 +39,7 @@ const sidebars = {
       type: 'category',
       label: 'Overview',
       className: 'heading_bold',
-      items: ['README', 'whats-new', 'webgpu', 'upgrade-guide', 'CONTRIBUTING']
+      items: ['README', 'working-with-ai', 'whats-new', 'webgpu', 'upgrade-guide', 'CONTRIBUTING']
     },
     {
       type: 'category',
@@ -73,7 +74,7 @@ const sidebars = {
         title: 'Components',
         description: 'deck.gl-community component packages and integrations.'
       },
-      items: [widgetsDocs, panelsDocs, playgroundDocs, reactDocs, reactFiberDocs, experimentalDocs]
+      items: [widgetsDocs, panelsDocs, playgroundDocs, reactDocs, reactFiberDocs, experimentalDocs, vegaDocs]
     }
   ]
 };
