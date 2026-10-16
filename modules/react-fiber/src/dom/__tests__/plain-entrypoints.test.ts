@@ -21,7 +21,7 @@ describe('plain entrypoint provider isolation', () => {
 
     const dom = await import('../index');
 
-    expect(Object.keys(dom).sort()).toEqual(['DeckGL', 'createDeckGL']);
+    expect(Object.keys(dom).sort()).toEqual(['DeckCanvas', 'DeckGL', 'createDeckGL']);
   });
 
   it('loads the compatibility root without either provider package', async () => {

@@ -6,7 +6,7 @@ import * as maplibre from '../maplibre';
 describe('native entrypoint export matrix', () => {
   it('exports standalone APIs from the shared root and /dom entrypoint', () => {
     // package.json maps both `.` and `/dom` to this module.
-    expect(Object.keys(dom).sort()).toEqual(['DeckGL', 'DeckCanvas', 'createDeckGL']);
+    expect(Object.keys(dom).sort()).toEqual(['DeckCanvas', 'DeckGL', 'createDeckGL']);
     expect(dom).not.toHaveProperty('Deckgl');
   });
 
