@@ -41,7 +41,7 @@ the standard deck.gl layer conventions.
 | `frameOpacity` | `0.35` | Per-frame alpha multiplier applied after normalized filtering. In auto mode, `1` preserves the visible source alpha and brightness. |
 | `trailFade` | `0.025` | Fractional opacity decay per preceding frame: `(1 - trailFade) ** age`. |
 | `luminanceThreshold` | `0` | Discards texels darker than this 0–1 threshold. Useful for dark-background motion studies. |
-| `staticPixelRemoval` | `0` | Per-pixel removal strength. `0` shows all pixels; `1` aggressively hides similar pixels. Positive values require an RGBA channel change greater than `0.5 * strength ** 2`. Frame 0 is retained as the baseline. |
+| `staticPixelRemoval` | `0` | Per-pixel trail-removal strength. `0` shows all pixels; `1` aggressively hides similar pixels in preceding frames. Positive values require an RGBA channel change greater than `0.5 * strength ** 2`. The selected `currentFrame` is always retained. |
 | `onVideoLoad` | `null` | Receives display `width`, `height`, `duration`, `frameCount`, and actual `frameTimestamps` in seconds. |
 | `onFrameLoad` | `null` | Receives the GPU-resident `firstFrame`, `currentFrame`, `frameCount`, source `timestamp`, `splatCount` before visibility filtering, and combined history `textureBytes`. Also fires when rendering the requested window recovers from a GPU filter error. |
 
@@ -80,13 +80,15 @@ extensions, non-Cartesian coordinates, and larger splat footprints.
 The **Remove static pixels** slider controls `staticPixelRemoval`. luma compares
 individual pixels in consecutive, orientation-corrected frames at the sampling
 resolution. The per-pixel score is the largest absolute RGBA channel difference.
-At `0`, every pixel splat is shown. Increasing removal strength hides both unchanged
-pixels and pixels whose color changes only slightly. The threshold is
+At `0`, every pixel splat is shown. Increasing removal strength hides unchanged
+or only slightly changed pixels from preceding frames. The selected `currentFrame`
+always remains visible, so bright static content does not wash out. The threshold is
 `0.5 * staticPixelRemoval ** 2`: at `0.5`, the largest channel difference must exceed
 12.5%; at `1`, it must exceed 50%. The upper end aggressively removes similar pixels
-while preserving strong changes. The curved scale gives finer control near the low
-end. Any positive setting removes exactly unchanged pixels, even when a neighboring
-pixel moves. Frame 0 is retained as the baseline because it has no predecessor.
+while preserving the current source image and strong trailing changes. The curved scale
+gives finer control near the low end. Any positive setting removes exactly unchanged
+trailing pixels, even when a neighboring pixel moves. Frame 0 is retained as the
+baseline because it has no predecessor.
 
 The comparison includes the source predecessor outside the visible trail, so
 scrubbing direction does not change the result. Pixel splats retain their original

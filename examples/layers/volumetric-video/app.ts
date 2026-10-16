@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {Deck, OrbitView, type OrbitViewState} from '@deck.gl/core';
+import {Deck, OrbitView, type DeckProps, type OrbitViewState} from '@deck.gl/core';
+import {SettingsPanel, type SettingsSchema} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {
   VolumetricVideoLayer,
@@ -12,6 +14,7 @@ import {
 } from '@deck.gl-community/layers';
 import {dampCamera, isCameraSettled} from './camera-utils';
 import {getDemoHistory, MAX_DEMO_HISTORY_BYTES} from './history-utils';
+import '@deck.gl/widgets/stylesheet.css';
 
 const SAMPLE_VIDEO = new URL('./sample.mp4', import.meta.url).href;
 const INITIAL_VIEW: OrbitViewState = {
@@ -24,15 +27,111 @@ const PREFER_WEBGPU =
   new URLSearchParams(window.location.search).get('backend') !== 'webgl' &&
   Boolean((navigator as Navigator & {gpu?: unknown}).gpu);
 type WebGPUNavigator = Navigator & {gpu?: {requestAdapter: () => Promise<unknown>}};
+type MountOptions = Pick<
+  DeckProps<OrbitView>,
+  'device' | 'initialViewState' | 'widgets' | 'onViewStateChange'
+> & {
+  embedded?: boolean;
+  sampleVideo?: string;
+  onDeckInitialized?: (deck: Deck<OrbitView>) => void;
+};
+
+function getSettingsSchema(frameCount: number): SettingsSchema {
+  return {
+    sections: [
+      {
+        name: 'Timeline',
+        initiallyCollapsed: false,
+        settings: [
+          {
+            name: 'currentFrame',
+            label: 'Current frame',
+            type: 'number',
+            min: 0,
+            max: frameCount - 1,
+            step: 1
+          },
+          {
+            name: 'frameTrail',
+            label: 'Frame trail',
+            type: 'number',
+            min: 0,
+            max: frameCount - 1,
+            step: 1
+          },
+          {
+            name: 'frameSpacing',
+            label: 'Frame spacing',
+            type: 'number',
+            min: 0,
+            max: 0.1,
+            step: 0.001
+          }
+        ]
+      },
+      {
+        name: 'Appearance',
+        initiallyCollapsed: false,
+        settings: [
+          {
+            name: 'staticPixelRemoval',
+            label: 'Remove static pixels',
+            type: 'number',
+            min: 0,
+            max: 1,
+            step: 0.01
+          },
+          {
+            name: 'frameOpacity',
+            label: 'Frame opacity',
+            type: 'number',
+            min: 0.05,
+            max: 1,
+            step: 0.01
+          },
+          {
+            name: 'luminanceThreshold',
+            label: 'Remove dark pixels',
+            type: 'number',
+            min: 0,
+            max: 0.4,
+            step: 0.01
+          }
+        ]
+      },
+      {
+        name: 'Sampling',
+        settings: [
+          {
+            name: 'resolution',
+            label: 'Resolution',
+            type: 'select',
+            options: [
+              {label: 'Every source pixel', value: 0},
+              {label: '128 pixels', value: 128},
+              {label: '256 pixels', value: 256},
+              {label: '512 pixels', value: 512}
+            ]
+          }
+        ]
+      }
+    ]
+  };
+}
 
 /** Mounts a file-driven video volume, with no framework or server upload. */
-export function mountVolumetricVideoExample(container: HTMLElement): () => void {
+export function mountVolumetricVideoExample(
+  container: HTMLElement,
+  options: MountOptions = {}
+): () => void {
   const root = document.createElement('div');
-  root.className = 'vv-demo';
+  root.className = options.embedded ? 'vv-demo vv-embedded' : 'vv-demo';
   root.innerHTML = `
     <style>
       .vv-demo {width:100%;height:100%;min-height:540px;display:grid;grid-template-columns:300px 1fr;background:#080c12;color:#e7edf6;font:16px/1.5 system-ui,sans-serif;overflow:hidden}
       .vv-demo * {box-sizing:border-box}
+      .vv-demo.vv-embedded {grid-template-columns:1fr}
+      .vv-demo.vv-embedded .vv-panel {display:none}
       .vv-panel {padding:32px 26px;display:flex;flex-direction:column;gap:24px;border-right:1px solid #ffffff12;background:#0d121b;overflow:auto;z-index:2}
       .vv-eyebrow {font:11px/1.4 ui-monospace,monospace;letter-spacing:.18em;color:#80a3c5;text-transform:uppercase}
       .vv-panel h1 {font-size:32px;line-height:1.12;letter-spacing:-.04em;font-weight:550;margin:12px 0}
@@ -95,7 +194,8 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
   const errorOutput = getElement('#vv-error');
   const playButton = getElement<HTMLButtonElement>('#vv-play');
   const backendOutput = getElement('#vv-backend');
-  let video: string | File = SAMPLE_VIDEO;
+  const sampleVideo = options.sampleVideo ?? SAMPLE_VIDEO;
+  let video: string | File = sampleVideo;
   let previewUrl: string | null = null;
   let info: VolumetricVideoInfo | null = null;
   let currentFrame = 88;
@@ -108,8 +208,8 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
   let resolution = 0;
   let maxTextureBytes = 512 * 1048576;
   let staticPixelRemoval = 0;
-  let viewState = INITIAL_VIEW;
-  let cameraTarget = INITIAL_VIEW;
+  let viewState = (options.initialViewState as OrbitViewState) ?? INITIAL_VIEW;
+  let cameraTarget = viewState;
   let lastAnimationTime = performance.now();
   let playing = false;
   let pending = true;
@@ -125,12 +225,54 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
 
   let interacting = false;
   let deck: Deck | undefined;
+  const standardPanel = options.embedded
+    ? new BoxPanelWidget({
+        id: 'volumetric-video-controls',
+        title: 'VolumetricVideoLayer',
+        placement: 'top-left',
+        widthPx: 320,
+        collapsible: true
+      })
+    : undefined;
+
+  function syncStandardPanel() {
+    if (!standardPanel) return;
+    const totalFrames = info?.frameCount ?? 120;
+    standardPanel.setProps({
+      panel: new SettingsPanel({
+        id: 'volumetric-video-settings',
+        schema: getSettingsSchema(totalFrames),
+        settings: {
+          currentFrame,
+          frameTrail,
+          frameSpacing,
+          staticPixelRemoval,
+          frameOpacity,
+          luminanceThreshold,
+          resolution
+        },
+        onSettingsChange: settings => {
+          setPlaying(false);
+          currentFrame = Math.max(0, Math.min(totalFrames - 1, Number(settings.currentFrame)));
+          requestedFrameTrail = Math.max(0, Math.min(totalFrames - 1, Number(settings.frameTrail)));
+          frameSpacing = Number(settings.frameSpacing);
+          staticPixelRemoval = Number(settings.staticPixelRemoval);
+          frameOpacity = Number(settings.frameOpacity);
+          luminanceThreshold = Number(settings.luminanceThreshold);
+          resolution = Number(settings.resolution);
+          updateLayer();
+        }
+      })
+    });
+  }
 
   function createDeck(useWebGPU: boolean): Deck {
     return new Deck({
       // Keep source sampling independent of Retina framebuffer fill cost.
       useDevicePixels: 1,
-      deviceProps: useWebGPU ? {type: 'webgpu', adapters: [webgpuAdapter]} : {type: 'webgl'},
+      ...(options.device
+        ? {device: options.device}
+        : {deviceProps: useWebGPU ? {type: 'webgpu', adapters: [webgpuAdapter]} : {type: 'webgl'}}),
       parent: getElement('.vv-canvas'),
       views: [
         new OrbitView({
@@ -146,6 +288,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
       viewState: {
         volume: {...viewState, minRotationX: -65, maxRotationX: 65, minZoom: 4, maxZoom: 10}
       },
+      widgets: [...(options.widgets ?? []), ...(standardPanel ? [standardPanel] : [])],
       onDeviceInitialized: device => {
         maxArrayLayers = device.limits.maxTextureArrayLayers;
         root.dataset.backend = device.type;
@@ -157,6 +300,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
       },
       onViewStateChange: event => {
         cameraTarget = event.viewState as OrbitViewState;
+        return options.onViewStateChange?.(event);
       },
       onError: error => {
         if (destroyed) return;
@@ -293,6 +437,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
         })
       ]
     });
+    syncStandardPanel();
   }
 
   function setPlaying(value: boolean) {
@@ -371,7 +516,7 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
     if (file) selectVideo(file);
   };
   playButton.onclick = () => setPlaying(!playing);
-  getElement('#vv-sample').onclick = () => selectVideo(SAMPLE_VIDEO);
+  getElement('#vv-sample').onclick = () => selectVideo(sampleVideo);
   root.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button => {
     button.onclick = () => {
       const preset = button.dataset.view;
@@ -416,8 +561,8 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
     animation = requestAnimationFrame(animate);
   }
   async function initializeDeck() {
-    let useWebGPU = false;
-    if (PREFER_WEBGPU) {
+    let useWebGPU = options.device?.type === 'webgpu';
+    if (!options.device && PREFER_WEBGPU) {
       try {
         useWebGPU = Boolean(await (navigator as WebGPUNavigator).gpu?.requestAdapter());
       } catch {
@@ -426,12 +571,13 @@ export function mountVolumetricVideoExample(container: HTMLElement): () => void 
     }
     if (destroyed) return;
     deck = createDeck(useWebGPU);
+    options.onDeckInitialized?.(deck as Deck<OrbitView>);
     updateLayer();
     animation = requestAnimationFrame(animate);
   }
   // Keep the file picker live while WebGPU capability detection is in flight.
   // initializeDeck renders whichever source is current when the device is ready.
-  selectVideo(SAMPLE_VIDEO);
+  selectVideo(sampleVideo);
   void initializeDeck();
   return () => {
     destroyed = true;

@@ -64,12 +64,9 @@ async function readWebGPUFrame(
     const pixels = new Uint8Array(cache.width * cache.height * 4);
     for (let y = 0; y < cache.height; y++) {
       const source = y * layout.bytesPerRow;
-      // WebGPU texture-to-buffer copies use a top-left origin. Normalize to the
-      // bottom-left convention returned by WebGL's readback helper above.
-      pixels.set(
-        data.subarray(source, source + cache.width * 4),
-        (cache.height - 1 - y) * cache.width * 4
-      );
+      // WebGPU texture-to-buffer copies use a top-left origin, matching canvas
+      // image data and the texture coordinates used by the WebGPU volume shaders.
+      pixels.set(data.subarray(source, source + cache.width * 4), y * cache.width * 4);
     }
     return pixels;
   } finally {
@@ -939,7 +936,7 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
-  it('assembles the layer shaders and draws nonempty pixels in a deck render pass', async () => {
+  it('keeps the current white frame visible when static-pixel removal is enabled', async () => {
     const device = await createDevice();
     const target = device.createFramebuffer({
       width: 320,
@@ -1014,23 +1011,10 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
           }) as Uint8Array
         );
       };
-      expect(await renderRemoval(1)).toBe(0);
       const fullPlanePixels = await renderRemoval(0);
       expect(fullPlanePixels).toBeGreaterThan(25);
-      const centerPixel =
-        Math.floor(frames!.height / 2) * frames!.width + Math.floor(frames!.width / 2);
-      scoreBytes[((30 % frames!.capacity) * gridPixels + centerPixel) * 4] = 1;
-      frames!.changes.texture.writeData(scoreBytes);
-      expect(await renderRemoval(1)).toBe(0);
-      const tinyPixelCount = await renderRemoval(0.05);
-      expect(tinyPixelCount).toBeGreaterThan(0);
-      expect(tinyPixelCount).toBeLessThan(fullPlanePixels / 20);
-      scoreBytes[((30 % frames!.capacity) * gridPixels + centerPixel) * 4] = 200;
-      frames!.appearance.invalidate(30 % frames!.capacity);
-      frames!.changes.texture.writeData(scoreBytes);
-      const changedPixelCount = await renderRemoval(1);
-      expect(changedPixelCount).toBeGreaterThan(0);
-      expect(changedPixelCount).toBeLessThan(fullPlanePixels / 20);
+      const currentWhitePixelCount = await renderRemoval(1);
+      expect(currentWhitePixelCount).toBeGreaterThan(fullPlanePixels * 0.9);
       const source = layer!.state.source!;
       const texture = layer!.state.frames!.texture;
       deck!.finalize();

@@ -27,6 +27,30 @@ function chooseFile(input: HTMLInputElement, file: File) {
 }
 
 describe('mounted volumetric video demo', () => {
+  // Value: protects=the community website mount uses the shared panel and the sample video;
+  // fails_when=the bespoke sidebar appears in the embedded example or its standard controls are absent;
+  // why_new=standalone demo tests do not pass the website-only mount options; seam=embedded mount.
+  it('uses the standard panel when embedded by the community website', async () => {
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    let cleanup: (() => void) | undefined;
+    try {
+      cleanup = mountVolumetricVideoExample(parent, {embedded: true});
+      await vi.waitFor(
+        () => expect(parent.querySelector<HTMLElement>('.vv-demo')?.dataset.frameReady).toBe('88'),
+        {timeout: 5000}
+      );
+      const customPanel = parent.querySelector<HTMLElement>('.vv-panel')!;
+      expect(getComputedStyle(customPanel).display).toBe('none');
+      expect(parent.textContent).toContain('Current frame');
+      expect(parent.textContent).toContain('Remove static pixels');
+    } finally {
+      cleanup?.();
+      parent.remove();
+    }
+  });
+
   // Value: protects=a full WebGPU demo teardown and fresh mount remain usable after a page reload;
   // fails_when=stale WebGPU resources, errors, or pending decode state survive the replacement;
   // why_new=the general remount test can use WebGL where available; seam=mounted demo lifecycle.

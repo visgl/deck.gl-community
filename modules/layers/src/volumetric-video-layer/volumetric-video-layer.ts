@@ -69,7 +69,7 @@ type VideoProps = {
   luminanceThreshold?: number;
   /** Removal strength for pixel splats similar to the same pixel in the preceding frame.
    * 0 shows every pixel; 1 aggressively removes changes of up to 50% in any RGBA channel.
-   * The change threshold is 0.5 * strength squared. Frame 0 stays visible.
+   * The change threshold is 0.5 * strength squared. The selected frame always stays visible.
    * @default 0
    */
   staticPixelRemoval?: number;
@@ -697,7 +697,7 @@ void main() {
   float luminance = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
   float alpha = color.a * volumetricVideo.frameOpacity * (age == 0.0 ? 1.0 : pow(1.0 - volumetricVideo.trailFade, age)) * layer.opacity;
   if (luminance < volumetricVideo.luminanceThreshold) alpha = 0.0;
-  if (volumetricVideo.staticPixelRemoval > 0.0 &&
+  if (age > 0.0 && volumetricVideo.staticPixelRemoval > 0.0 &&
       texture(pixelChanges, vec3(uv, mod(frame, volumetricVideo.capacity))).r <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) alpha = 0.0;
   vec3 center = volumetricVideo.position + vec3((uv.x - 0.5) * volumetricVideo.planeSize.x,
     (0.5 - uv.y) * volumetricVideo.planeSize.y, -age * volumetricVideo.frameSpacing);
@@ -742,9 +742,11 @@ in vec2 positions;
 out vec2 frameUV;
 flat out float videoFrame;
 flat out float planeOpacity;
+flat out float frameAge;
 void main() {
   float age = volumetricVideo.reverse > 0.5 ? float(gl_InstanceID) : volumetricVideo.frameCount - 1.0 - float(gl_InstanceID);
   videoFrame = volumetricVideo.currentFrame - age;
+  frameAge = age;
   planeOpacity = volumetricVideo.frameOpacity * (age == 0.0 ? 1.0 : pow(1.0 - volumetricVideo.trailFade, age)) * layer.opacity;
   vec2 padding = vec2(max(0.0, volumetricVideo.splatSize - 1.0) * 0.5) / volumetricVideo.gridSize;
   frameUV = mix(-padding, 1.0 + padding, vec2(positions.x, -positions.y) * 0.5 + 0.5);
@@ -765,6 +767,7 @@ uniform sampler2DArray filteredFrames;
 in vec2 frameUV;
 flat in float videoFrame;
 flat in float planeOpacity;
+flat in float frameAge;
 out vec4 fragColor;
 void main() {
   vec2 q = frameUV * volumetricVideo.gridSize;
@@ -774,6 +777,9 @@ void main() {
   vec2 qy = uvy * volumetricVideo.gridSize;
   float footprint = max(length(qx), length(qy));
   float filteredMix = smoothstep(0.6, 1.5, footprint);
+  // Static removal is baked into the mip pyramid. Keep the selected frame on
+  // the exact path so unchanged bright pixels remain visible.
+  if (frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0) filteredMix = 0.0;
   int slot = int(mod(videoFrame, volumetricVideo.capacity));
   vec4 result = vec4(0.0);
   // The pyramid averages premultiplied, visibility-masked pixels, preserving
@@ -796,7 +802,7 @@ void main() {
         // one pixel does not brighten or restore its unchanged neighbors.
         float weight = exp(-3.0 * dot(unit, unit));
         totalWeight += weight;
-        if (volumetricVideo.staticPixelRemoval > 0.0 &&
+        if (frameAge > 0.0 && volumetricVideo.staticPixelRemoval > 0.0 &&
             texelFetch(pixelChanges, ivec3(cell, slot), 0).r <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) continue;
         vec4 color = texelFetch(videoFrames, ivec3(cell, slot), 0);
         if (dot(color.rgb, vec3(0.2126, 0.7152, 0.0722)) < volumetricVideo.luminanceThreshold) continue;

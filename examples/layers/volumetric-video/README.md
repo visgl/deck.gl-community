@@ -21,8 +21,8 @@ The public layer is documented in
 Remove static pixels: `0` shows all pixels; `1` aggressively removes similar pixels.
 Each pixel is compared to the same coordinate in the preceding source frame on the
 GPU. Increasing removal strength raises the tolerated RGBA difference, up to 50%
-at the maximum. Only sufficiently changed pixel splats remain, at their original
-time positions.
+at the maximum. The selected frame remains visible, so white static content keeps
+its brightness while only preceding-frame pixels are removed from the trail.
 
 
 Sampling defaults to **Every source pixel** (`resolution: 0`) on every new video.

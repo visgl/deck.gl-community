@@ -41,7 +41,7 @@ fn vertexMain(attributes: VolumetricVideoAttributes) -> VolumetricVideoVaryings 
     * layer.opacity;
   if (luminance < volumetricVideo.luminanceThreshold) { alpha = 0.0; }
   let change = textureLoad(pixelChanges, cell, slot, 0).r;
-  if (volumetricVideo.staticPixelRemoval > 0.0
+  if (age > 0.0 && volumetricVideo.staticPixelRemoval > 0.0
     && change <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) {
     alpha = 0.0;
   }
@@ -97,6 +97,7 @@ struct VolumetricVideoRasterVaryings {
   @location(0) frameUV: vec2<f32>,
   @location(1) @interpolate(flat) videoFrame: f32,
   @location(2) @interpolate(flat) planeOpacity: f32,
+  @location(3) @interpolate(flat) frameAge: f32,
 };
 
 @vertex
@@ -128,6 +129,7 @@ fn vertexMain(attributes: VolumetricVideoRasterAttributes) -> VolumetricVideoRas
   output.planeOpacity = volumetricVideo.frameOpacity
     * select(pow(1.0 - volumetricVideo.trailFade, age), 1.0, age == 0.0)
     * layer.opacity;
+  output.frameAge = age;
   return output;
 }
 
@@ -137,7 +139,12 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
   let uvx = dpdx(input.frameUV);
   let uvy = dpdy(input.frameUV);
   let footprint = max(length(uvx * volumetricVideo.gridSize), length(uvy * volumetricVideo.gridSize));
-  let filteredMix = smoothstep(0.6, 1.5, footprint);
+  var filteredMix = smoothstep(0.6, 1.5, footprint);
+  // Static removal is baked into the mip pyramid. Keep the selected frame on
+  // the exact path so unchanged bright pixels remain visible.
+  if (input.frameAge == 0.0 && volumetricVideo.staticPixelRemoval > 0.0) {
+    filteredMix = 0.0;
+  }
   let slot = i32(input.videoFrame) % i32(volumetricVideo.capacity);
   var result = vec4<f32>(0.0);
   if (filteredMix > 0.0) {
@@ -167,7 +174,7 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
         let weight = exp(-3.0 * dot(unit, unit));
         totalWeight += weight;
         let change = textureLoad(pixelChanges, cell, slot, 0).r;
-        if (volumetricVideo.staticPixelRemoval > 0.0
+        if (input.frameAge > 0.0 && volumetricVideo.staticPixelRemoval > 0.0
           && change <= 0.5 * volumetricVideo.staticPixelRemoval * volumetricVideo.staticPixelRemoval) {
           continue;
         }
