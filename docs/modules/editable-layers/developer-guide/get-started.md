@@ -95,16 +95,10 @@ See the [getting-started example](https://github.com/visgl/deck.gl-community/tre
 
 ## MapLibre and Mapbox Interleaved Editing
 
-With `MapboxOverlay({interleaved: true})`, deck.gl and MapLibre/Mapbox share a canvas.
-`EditableGeoJsonLayer` automatically keeps primary mouse presses, double-clicks, and
-single-touch editing gestures from bubbling into the parent map while an edit mode is active.
-`SelectionLayer` applies the same behavior while rectangle or polygon selection is active.
-
-Choose `ViewMode` to return primary gestures to the map. Right-button navigation, wheel
-zoom, and gestures with multiple touches remain available. The layer does not disable
-map controls, so controls that the application disabled stay disabled.
-
-No application interaction helper is required:
+With `MapboxOverlay({interleaved: true})`, editing and selection gestures do not pan
+the MapLibre/Mapbox map. Use `ViewMode` to navigate or set
+`autoPreventMapInteractions: false` to manage gesture propagation yourself. Multi-touch
+navigation and the map's configured controls remain available.
 
 ```ts
 const overlay = new MapboxOverlay({

@@ -48,12 +48,6 @@ export type EditableLayerProps<_DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
   onCancelPan?: () => void;
-  /**
-   * Keep primary mouse and single-touch editing gestures from bubbling into a
-   * parent map. ViewMode and multi-touch navigation remain available.
-   * Set to false when the application coordinates map interactions itself.
-   * @default true
-   */
   autoPreventMapInteractions?: boolean;
 };
 
