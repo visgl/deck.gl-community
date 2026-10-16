@@ -65,7 +65,7 @@ export function getTreeSplatSource(
     normals.push(...n);
   };
   if (type === 'palm') {
-    // Distinct arching pinnate fronds; one tapered splat per leaflet avoids a fuzzy segmented edge.
+    // Broad, arching pinnate fronds; overlapping leaf lobes keep each leaflet continuous.
     const frondCount = 22;
     const spearCount = 4;
     const leafletCount = 16;
@@ -133,17 +133,25 @@ export function getTreeSplatSource(
             .add([0, 0, -0.06 - t * 0.24])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = (0.055 + fullness * 0.09) * (0.9 + rng() * 0.2);
-          const center = new Vector3(point)
-            .add(new Vector3(sideways).scale(side * 0.004))
-            .add(new Vector3(direction).scale(length * 0.55));
-          add(
-            Array.from(center) as Point,
-            [length * 0.42, 0.0035 + fullness * 0.0035, 0.0015],
-            Array.from(normal) as Point,
-            0.84,
-            Array.from(direction) as Point
-          );
+          const length = (0.065 + fullness * 0.13) * (0.9 + rng() * 0.2);
+          const width = (0.007 + fullness * 0.011) * (0.9 + rng() * 0.2);
+          // Two tapered ellipsoids overlap along the blade, reading as a leaf at distance
+          // without the segmented, three-lobed halo of a dense Gaussian chain.
+          for (const [progress, widthScale] of [
+            [0.31, 0.92],
+            [0.7, 0.62]
+          ]) {
+            const center = new Vector3(point)
+              .add(new Vector3(sideways).scale(side * 0.004))
+              .add(new Vector3(direction).scale(length * progress));
+            add(
+              Array.from(center) as Point,
+              [length * 0.34, width * widthScale, 0.002],
+              Array.from(normal) as Point,
+              0.88,
+              Array.from(direction) as Point
+            );
+          }
         }
       }
     }
