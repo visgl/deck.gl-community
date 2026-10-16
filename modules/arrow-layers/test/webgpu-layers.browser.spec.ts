@@ -52,7 +52,6 @@ const pointCloudPoints = vectorFromArray([[0, 0, 8]], point3DType);
 const h3Indexes = vectorFromArray(['8928308280fffff'], new Utf8());
 const text = vectorFromArray(['GPU'], new Utf8());
 const timestamps = vectorFromArray([[0, 50, 100]], timestampsType);
-const RENDER_TIMEOUT = 45_000;
 const lineStrings = vectorFromArray(
   [
     [
@@ -233,7 +232,7 @@ async function renderGeoArrowLayers(type: 'webgl' | 'webgpu'): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         reject(new Error(`Timed out while rendering GeoArrow layers with ${type}.`));
-      }, RENDER_TIMEOUT);
+      }, 10_000);
 
       deck = new Deck({
         device,
