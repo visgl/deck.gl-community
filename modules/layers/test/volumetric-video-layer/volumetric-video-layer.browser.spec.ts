@@ -10,7 +10,7 @@ import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/webgpu';
 import {ClipSpace} from '@luma.gl/engine';
 import {VideoSample} from 'mediabunny';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';
-import {getFrameWindow} from '../../src/volumetric-video-layer/frame-utils';
+import {getFrameHistoryBytes, getFrameWindow} from '../../src/volumetric-video-layer/frame-utils';
 import {GPUPixelChanges} from '../../src/volumetric-video-layer/gpu-pixel-changes';
 import {GPUVideoFrames} from '../../src/volumetric-video-layer/gpu-video-frames';
 import {GPUVideoAppearance} from '../../src/volumetric-video-layer/gpu-video-appearance';
@@ -1398,6 +1398,55 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       expect(frames.texture.destroyed).toBe(true);
       expect(layer!.state.frames!.getReadyWindow()?.currentFrame).toBe(31);
       expect(layer!.state.frames!.getReadyWindow()?.frameCount).toBe(9);
+    } finally {
+      deck?.finalize();
+      device.destroy();
+    }
+  });
+
+  it('keeps the working volume when static removal needs an over-budget selected-frame mip', async () => {
+    const device = await createDevice();
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer;
+    const maxTextureBytes = getFrameHistoryBytes(32, 18, 3);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'static-removal-budget-video',
+          video: MP4_URL,
+          currentFrame: 30,
+          frameTrail: 2,
+          maxFrameTrail: 2,
+          resolution: 32,
+          maxTextureBytes,
+          onFrameLoad: () => resolve()
+        });
+        deck = new Deck({
+          device,
+          width: 320,
+          height: 240,
+          views: [new OrbitView({id: 'static-removal-budget'})],
+          initialViewState: {'static-removal-budget': {target: [0, 0, 0], zoom: 6}},
+          layers: [layer],
+          onError: reject
+        });
+      });
+      const frames = layer!.state.frames!;
+      const error = await new Promise<Error>(resolve => {
+        layer = layer!.clone({staticPixelRemoval: 1});
+        deck!.setProps({layers: [layer!], onError: resolve});
+      });
+      expect(error.message).toContain('selected frame');
+      expect(layer!.state.frames).toBe(frames);
+      expect(frames.currentAppearance).toBeNull();
+      expect(layer!.state.activeStaticPixelRemoval).toBe(0);
+      deck!.redraw('static-removal-budget');
+      await new Promise<void>((resolve, reject) => {
+        layer = layer!.clone({maxTextureBytes: 512 * 1048576, onFrameLoad: () => resolve()});
+        deck!.setProps({layers: [layer!], onError: reject});
+      });
+      expect(frames.currentAppearance).not.toBeNull();
+      expect(layer!.state.activeStaticPixelRemoval).toBe(1);
     } finally {
       deck?.finalize();
       device.destroy();

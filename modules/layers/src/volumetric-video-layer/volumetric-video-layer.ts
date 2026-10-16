@@ -216,6 +216,8 @@ export class VolumetricVideoLayer<
     filterError: GPUVideoFrames | null;
     appearanceRetry: ReturnType<typeof setTimeout> | undefined;
     appearanceRetryCount: number;
+    activeStaticPixelRemoval: number;
+    staticRemovalBudgetError: number | null;
   };
 
   getShaders() {
@@ -244,7 +246,9 @@ export class VolumetricVideoLayer<
       cacheError: null,
       filterError: null,
       appearanceRetry: undefined,
-      appearanceRetryCount: 0
+      appearanceRetryCount: 0,
+      activeStaticPixelRemoval: 0,
+      staticRemovalBudgetError: null
     });
   }
 
@@ -276,6 +280,7 @@ export class VolumetricVideoLayer<
       this.state.frames &&
       (props.luminanceThreshold !== oldProps.luminanceThreshold ||
         props.staticPixelRemoval !== oldProps.staticPixelRemoval ||
+        props.maxTextureBytes !== oldProps.maxTextureBytes ||
         props.renderMode !== oldProps.renderMode ||
         props.coordinateSystem !== oldProps.coordinateSystem ||
         props.splatSize !== oldProps.splatSize ||
@@ -299,16 +304,8 @@ export class VolumetricVideoLayer<
     const model = raster || this.state.model;
     const window = frames?.getReadyWindow();
     if (!frames || !source?.info || !window) return;
-    const {
-      width,
-      position,
-      frameSpacing,
-      splatSize,
-      frameOpacity,
-      trailFade,
-      luminanceThreshold,
-      staticPixelRemoval
-    } = this.props;
+    const {width, position, frameSpacing, splatSize, frameOpacity, trailFade, luminanceThreshold} =
+      this.props;
     const height = (width * source.info.height) / source.info.width;
     // Frame planes are parallel. Sort their centers back-to-front for the active
     // viewport. Coplanar texels retain a fixed grid order.
@@ -328,10 +325,14 @@ export class VolumetricVideoLayer<
         frameOpacity,
         trailFade,
         luminanceThreshold,
-        staticPixelRemoval
+        staticPixelRemoval: this.state.activeStaticPixelRemoval
       }
     });
-    if (raster && this.context.device.type === 'webgl') {
+    if (
+      raster &&
+      this.context.device.type === 'webgl' &&
+      this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval
+    ) {
       try {
         this.updateAppearance(frames);
       } catch (error) {
@@ -434,12 +435,40 @@ export class VolumetricVideoLayer<
       );
   }
 
+  /** Returns whether the selected-frame pyramid fits before it is allocated. */
+  private canAllocateCurrentAppearance(frames: GPUVideoFrames): boolean {
+    return (
+      !this.usesRaster() ||
+      this.props.staticPixelRemoval === 0 ||
+      frames.currentAppearance !== null ||
+      getFrameHistoryBytes(frames.width, frames.height, frames.capacity) +
+        getFrameAppearanceBytes(frames.width, frames.height) <=
+        this.props.maxTextureBytes
+    );
+  }
+
   private prepareAppearance(frames: GPUVideoFrames): boolean {
+    if (!this.canAllocateCurrentAppearance(frames)) {
+      if (this.state.staticRemovalBudgetError !== this.props.staticPixelRemoval) {
+        this.setState({staticRemovalBudgetError: this.props.staticPixelRemoval});
+        this.raiseError(
+          new Error(
+            `Static-pixel removal requires ${(getFrameAppearanceBytes(frames.width, frames.height) / 1048576).toFixed(1)} MiB for the selected frame. Shorten frameTrail, choose a smaller grid, or increase maxTextureBytes.`
+          ),
+          'allocating selected-frame filtering'
+        );
+      }
+      return false;
+    }
     try {
       this.updateAppearance(frames);
       const recovered = this.state.filterError === frames;
       if (recovered) this.setState({filterError: null});
-      this.setState({appearanceRetryCount: 0});
+      this.setState({
+        appearanceRetryCount: 0,
+        activeStaticPixelRemoval: this.props.staticPixelRemoval,
+        staticRemovalBudgetError: null
+      });
       this.setNeedsRedraw();
       if (recovered) this.reportCurrentFrameLoad(frames);
       return true;
@@ -596,7 +625,9 @@ export class VolumetricVideoLayer<
     const size = getFrameSize(source.info!.width, source.info!.height, this.props.resolution);
     const textureBytes =
       getFrameHistoryBytes(size.width, size.height, capacity) +
-      (this.props.staticPixelRemoval > 0 ? getFrameAppearanceBytes(size.width, size.height) : 0);
+      (this.usesRaster() && this.props.staticPixelRemoval > 0
+        ? getFrameAppearanceBytes(size.width, size.height)
+        : 0);
     if (
       textureBytes > this.props.maxTextureBytes ||
       Math.max(size.width, size.height) > this.context.device.limits.maxTextureDimension2D
@@ -648,7 +679,13 @@ export class VolumetricVideoLayer<
             }
             const oldFrames = layer.state.frames;
             layer.clearAppearanceRetry();
-            layer.setState({frames, pendingFrames: null, filterError: null});
+            layer.setState({
+              frames,
+              pendingFrames: null,
+              filterError: null,
+              activeStaticPixelRemoval: layer.props.staticPixelRemoval,
+              staticRemovalBudgetError: null
+            });
             oldFrames?.destroy();
           } else if (layer.state.frames !== frames || layer.state.pendingFrames) return;
           else if (!layer.prepareAppearance(frames)) return;
