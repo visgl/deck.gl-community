@@ -93,6 +93,11 @@ describe('native tree geometry', () => {
     ).toBe(14);
     expect(evaluatePalmFrond(fronds[0], 0)).toEqual(fronds[0].controls[0]);
     expect(evaluatePalmFrond(fronds[0], 1)).toEqual(fronds[0].controls[3]);
+    const baseAngle = Math.atan2(fronds[0].controls[0][1], fronds[0].controls[0][0]);
+    const tipAngle = Math.atan2(fronds[0].controls[3][1], fronds[0].controls[3][0]);
+    expect(
+      Math.abs(Math.atan2(Math.sin(tipAngle - baseAngle), Math.cos(tipAngle - baseAngle)))
+    ).toBeGreaterThan(0.05);
     expect(getPalmFrondLeafletT(0)).toBeCloseTo(0.15);
     expect(getPalmFrondLeafletT(15)).toBeCloseTo(0.86);
     const {layer} = createLayer([{position: [0, 0], type: 'palm', season: 'summer'}]);
@@ -107,7 +112,7 @@ describe('native tree geometry', () => {
     expect(
       Array.from(palmSplats.scales)
         .filter((_, index) => index % 3 === 1)
-        .some(width => width > 0.01)
+        .some(width => width > 0.02)
     ).toBe(true);
     expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
     expect(getTreeSplatSource('palm')).toBe(palmSplats);
