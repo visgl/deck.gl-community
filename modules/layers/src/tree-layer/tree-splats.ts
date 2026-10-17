@@ -18,7 +18,7 @@ import {
 
 type Point = [number, number, number];
 const CACHE = new TreeTemplateCache<SplatSource>();
-const PALM_LEAFLET_COUNT = 16;
+const PALM_LEAFLET_COUNT = 15;
 
 /** Return nominal leaflet anchors along the rachis without extrapolating past its tip. */
 export function getPalmFrondLeafletT(index: number): number {
@@ -98,31 +98,40 @@ export function getTreeSplatSource(
       }
 
       const pairs = PALM_LEAFLET_COUNT;
+      // Small differences in each frond's plane stop the leaflet rows from reading
+      // as flat, evenly combed spokes when several crowns overlap.
+      const frondRoll = (rng() - 0.5) * 0.72;
       for (let j = 0; j < pairs; j++) {
         const t = getPalmFrondLeafletT(j);
         const fullness = Math.sin(((j + 0.5) / pairs) * Math.PI);
         for (const side of [-1, 1]) {
           // Stagger opposing leaflets along the rachis rather than lining them up as rungs.
-          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.018 + (rng() - 0.5) * 0.07));
+          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.025 + (rng() - 0.5) * 0.14));
           const point = evaluate(leafT);
           const tangent = evaluate(leafT + 0.001)
             .subtract(evaluate(leafT - 0.001))
             .normalize();
           const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
-          const direction = new Vector3(sideways)
+          const crownNormal = new Vector3(tangent).cross(sideways).normalize();
+          const roll = frondRoll + (rng() - 0.5) * 0.5;
+          const leafletAxis = new Vector3(sideways)
+            .scale(Math.cos(roll))
+            .add(new Vector3(crownNormal).scale(Math.sin(roll)))
+            .normalize();
+          const direction = new Vector3(leafletAxis)
             .scale(side)
             .add(
-              new Vector3(tangent).scale(0.12 + leafT * 0.18 + side * 0.05 + (rng() - 0.5) * 0.34)
+              new Vector3(tangent).scale(0.08 + leafT * 0.2 + side * 0.05 + (rng() - 0.5) * 0.42)
             )
-            .add([0, 0, -0.08 - leafT * 0.24 - rng() * 0.16])
+            .add([0, 0, -0.04 - leafT * 0.3 - rng() * 0.2])
             .normalize();
           const bladeBend = new Vector3(tangent)
-            .scale((rng() - 0.5) * 0.5)
-            .add([0, 0, -0.05 - rng() * 0.25]);
-          const length = (0.1 + fullness * 0.16) * (0.7 + rng() * 0.6) * (side < 0 ? 0.9 : 1.1);
+            .scale((rng() - 0.5) * 0.65)
+            .add([(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12, -0.04 - rng() * 0.32]);
+          const length = (0.08 + fullness * 0.15) * (0.62 + rng() * 0.76) * (side < 0 ? 0.9 : 1.1);
           for (const [progress, widthScale] of [
             [0.28, 1],
-            [0.68, 0.62]
+            [0.68, 0.55]
           ]) {
             const bladeDirection = new Vector3(direction)
               .add(new Vector3(bladeBend).scale(progress))
@@ -134,9 +143,9 @@ export function getTreeSplatSource(
             const normal = new Vector3(bladeDirection).cross(tangent).normalize();
             add(
               Array.from(center) as Point,
-              [length * 0.42 * widthScale, (0.005 + fullness * 0.012) * widthScale, 0.0025],
+              [length * 0.42 * widthScale, (0.006 + fullness * 0.015) * widthScale, 0.0025],
               Array.from(normal) as Point,
-              progress < 0.5 ? 0.62 : 0.52,
+              progress < 0.5 ? 0.56 : 0.44,
               Array.from(bladeDirection) as Point,
               [0.91, 1.04, 0.88]
             );
