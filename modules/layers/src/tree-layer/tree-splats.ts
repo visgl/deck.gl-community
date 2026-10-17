@@ -18,7 +18,7 @@ import {
 
 type Point = [number, number, number];
 const CACHE = new TreeTemplateCache<SplatSource>();
-const PALM_LEAFLET_COUNT = 14;
+const PALM_LEAFLET_COUNT = 16;
 
 /** Evenly space leaflet anchors along the rachis without extrapolating past its tip. */
 export function getPalmFrondLeafletT(index: number): number {
@@ -72,7 +72,6 @@ export function getTreeSplatSource(
     normals.push(...n);
   };
   if (type === 'palm') {
-    // Leaflets are splats; the matching wood template already supplies each frond rachis.
     for (const frond of getPalmFronds()) {
       const {angle, spear} = frond;
       const evaluate = (t: number) => new Vector3(evaluatePalmFrond(frond, t));
@@ -110,11 +109,11 @@ export function getTreeSplatSource(
         for (const side of [-1, 1]) {
           const direction = new Vector3(sideways)
             .scale(side)
-            .add(new Vector3(tangent).scale(0.16 + Math.sin(angle + j * 0.7) * 0.08))
-            .add([0, 0, -0.04 - t * 0.15])
+            .add(new Vector3(tangent).scale(0.27 + Math.sin(angle + j * 0.7) * 0.09))
+            .add([0, 0, -0.12 - t * 0.3])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = (0.1 + fullness * 0.14) * (0.88 + rng() * 0.24);
+          const length = (0.12 + fullness * 0.16) * (0.88 + rng() * 0.24);
           for (const [progress, widthScale] of [
             [0.3, 1],
             [0.72, 0.62]
