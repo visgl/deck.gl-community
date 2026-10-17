@@ -225,23 +225,30 @@ it('restores the selected scene and count when the rendering device remounts', a
   }
 });
 
-it('keeps the tree reachable when its host is shorter than the stage', () => {
+it('keeps the full canvas visible below the website control panel', () => {
   const parent = document.createElement('div');
   Object.assign(parent.style, {width: '320px', height: '180px'});
   document.body.append(parent);
   const cleanup = mountTreeLabExample(parent);
   const demo = parent.querySelector<HTMLDivElement>('.trees-demo')!;
   const stage = parent.querySelector<HTMLDivElement>('.trees-stage')!;
+  const panel = parent.querySelector<HTMLElement>('.trees-panel')!;
+  const panelContent = parent.querySelector<HTMLDivElement>('.trees-panel-content')!;
+  const panelToggle = parent.querySelector<HTMLButtonElement>('.trees-panel-toggle')!;
   try {
-    expect(getComputedStyle(demo).overflowY).toBe('auto');
-    expect(demo.scrollHeight).toBeGreaterThan(demo.clientHeight);
-    expect(stage.getBoundingClientRect().bottom).toBeGreaterThan(
-      demo.getBoundingClientRect().bottom
+    expect(getComputedStyle(demo).overflow).toBe('hidden');
+    expect(stage.getBoundingClientRect().top).toBe(demo.getBoundingClientRect().top);
+    expect(stage.getBoundingClientRect().bottom).toBe(demo.getBoundingClientRect().bottom);
+    expect(panel.getAttribute('aria-label')).toBe('TreeLayer controls');
+    expect(panel.getBoundingClientRect().right).toBeLessThanOrEqual(
+      demo.getBoundingClientRect().right
     );
-    demo.scrollTop = demo.scrollHeight;
-    expect(stage.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      demo.getBoundingClientRect().bottom
-    );
+    panelToggle.click();
+    expect(panelToggle.getAttribute('aria-expanded')).toBe('false');
+    expect(panelContent.hidden).toBe(true);
+    panelToggle.click();
+    expect(panelToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(panelContent.hidden).toBe(false);
   } finally {
     cleanup();
     parent.remove();

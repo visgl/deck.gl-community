@@ -237,32 +237,41 @@ export function mountTreeLabExample(
   };
   const root = container.ownerDocument.createElement('div');
   root.className = 'trees-demo';
-  root.innerHTML = `<div class="trees-controls">
-    <div class="trees-heading"><strong>TreeLayer</strong><span>Two scenes · species-native crops · 10,000-tree grove</span></div>
-    <label class="trees-select"><span>Scene</span><select name="scene"><option value="forest"${controls.scene === 'forest' ? ' selected' : ''}>Mixed-species forest · 8 trees</option><option value="grove"${controls.scene === 'grove' ? ' selected' : ''}>Tree grove · up to 10,000</option></select></label>
-    <label class="trees-select trees-species"><span>Grove species</span><select name="species">${SPECIES.map(
-      species =>
-        `<option value="${species}"${species === controls.species ? ' selected' : ''}>${species}</option>`
-    ).join('')}</select></label>
-    <label class="trees-select"><span>Season</span><select name="season">${SEASONS.map(
-      season => `<option${season === controls.season ? ' selected' : ''}>${season}</option>`
-    ).join('')}</select></label>
-    ${TREE_TRAITS.map(
-      trait =>
-        `<label class="trees-range${trait.name.startsWith('crop-') ? ' trees-crop-control' : ''}"><span>${trait.label}</span><input name="${trait.name}" type="range" min="${trait.min}" max="${trait.max}" step="${trait.step}" value="${traitValues[trait.name]}"><output name="${trait.name}-value">${formatTraitValue(trait.name, traitValues[trait.name])}</output></label>`
-    ).join('')}
-    <label class="trees-range trees-tree-count"><span>Trees in grove</span><input name="tree-count" type="range" min="1" max="${MAX_GROVE_TREES}" step="1" value="${controls.treeCount}"><output name="tree-count-value">${controls.treeCount.toLocaleString()}</output></label>
-    <label class="trees-range trees-grove-variation"><span>Natural variation</span><input name="grove-variation" type="range" min="0" max="1" step="0.1" value="${controls.groveVariation}"><output name="grove-variation-value">${formatTraitValue('grove-variation', controls.groveVariation)}</output></label>
-    <label class="trees-toggle"><input name="wind" type="checkbox"${controls.wind ? ' checked' : ''}><span>Gentle breeze</span></label>
-    <p class="trees-note trees-crop-note">Crop type and natural size follow each species; these controls adjust the whole forest.</p>
-    <p class="trees-note trees-grove-note">Rows stay in place as the count changes. Crops and labels are omitted in the high-count scene.</p>
-  </div><div class="trees-stage"></div>`;
+  root.innerHTML = `<section class="trees-panel" aria-label="TreeLayer controls">
+    <header class="trees-panel-header">
+      <div class="trees-panel-title"><strong>TreeLayer</strong><span>Interactive showcase</span></div>
+      <button class="trees-panel-toggle" type="button" aria-label="Collapse TreeLayer controls" aria-expanded="true">▾</button>
+    </header>
+    <div class="trees-panel-content">
+      <div class="trees-controls">
+        <p class="trees-intro">Mixed-species forest and a row-planted grove of up to 10,000 trees.</p>
+        <label class="trees-select"><span>Scene</span><select name="scene"><option value="forest"${controls.scene === 'forest' ? ' selected' : ''}>Mixed-species forest · 8 trees</option><option value="grove"${controls.scene === 'grove' ? ' selected' : ''}>Tree grove · up to 10,000</option></select></label>
+        <label class="trees-select trees-species"><span>Grove species</span><select name="species">${SPECIES.map(
+          species =>
+            `<option value="${species}"${species === controls.species ? ' selected' : ''}>${species}</option>`
+        ).join('')}</select></label>
+        <label class="trees-select"><span>Season</span><select name="season">${SEASONS.map(
+          season => `<option${season === controls.season ? ' selected' : ''}>${season}</option>`
+        ).join('')}</select></label>
+        ${TREE_TRAITS.map(
+          trait =>
+            `<label class="trees-range${trait.name.startsWith('crop-') ? ' trees-crop-control' : ''}"><span>${trait.label}</span><input name="${trait.name}" type="range" min="${trait.min}" max="${trait.max}" step="${trait.step}" value="${traitValues[trait.name]}"><output name="${trait.name}-value">${formatTraitValue(trait.name, traitValues[trait.name])}</output></label>`
+        ).join('')}
+        <label class="trees-range trees-tree-count"><span>Trees in grove</span><input name="tree-count" type="range" min="1" max="${MAX_GROVE_TREES}" step="1" value="${controls.treeCount}"><output name="tree-count-value">${controls.treeCount.toLocaleString()}</output></label>
+        <label class="trees-range trees-grove-variation"><span>Natural variation</span><input name="grove-variation" type="range" min="0" max="1" step="0.1" value="${controls.groveVariation}"><output name="grove-variation-value">${formatTraitValue('grove-variation', controls.groveVariation)}</output></label>
+        <label class="trees-toggle"><input name="wind" type="checkbox"${controls.wind ? ' checked' : ''}><span>Gentle breeze</span></label>
+        <p class="trees-note trees-crop-note">Crop type and natural size follow each species; these controls adjust the whole forest.</p>
+        <p class="trees-note trees-grove-note">Rows stay in place as the count changes. Crops and labels are omitted in the high-count scene.</p>
+      </div>
+    </div>
+  </section><div class="trees-stage"></div>`;
   container.append(root);
+  const controlsElement = root.querySelector<HTMLDivElement>('.trees-controls')!;
+  const panelContent = root.querySelector<HTMLDivElement>('.trees-panel-content')!;
+  const panelToggle = root.querySelector<HTMLButtonElement>('.trees-panel-toggle')!;
   const stage = root.querySelector<HTMLDivElement>('.trees-stage')!;
   const control = <T extends HTMLInputElement | HTMLSelectElement>(name: string) =>
-    root.querySelector<T>(`[name="${name}"]`)!;
-  const output = (name: string) => root.querySelector<HTMLOutputElement>(`[name="${name}-value"]`)!;
-  const speciesControl = root.querySelector<HTMLLabelElement>('.trees-species')!;
+    controlsElement.querySelector<T>(`[name="${name}"]`)!;
   const groundMesh = new PlaneGeometry({type: 'x,y', xlen: 6000, ylen: 6000});
   const lighting = new LightingEffect({
     ambient: new AmbientLight({intensity: 1}),
@@ -296,19 +305,21 @@ export function mountTreeLabExample(
   });
   options.onDeckInitialized?.(deck);
   const render = () => {
-    const scene = control<HTMLSelectElement>('scene').value as Scene;
-    const species = control<HTMLSelectElement>('species').value as TreeType;
-    const season = control<HTMLSelectElement>('season').value as Season;
-    const heightScale = Number(control<HTMLInputElement>('height').value);
-    const spread = Number(control<HTMLInputElement>('spread').value);
-    const depth = Number(control<HTMLInputElement>('depth').value);
-    const branchDensity = Number(control<HTMLInputElement>('branch-density').value);
-    const leafSize = Number(control<HTMLInputElement>('leaf-size').value);
-    const wind = control<HTMLInputElement>('wind').checked;
-    const cropLoad = Number(control<HTMLInputElement>('crop-load').value);
-    const cropSize = Number(control<HTMLInputElement>('crop-size').value);
-    const treeCount = Number(control<HTMLInputElement>('tree-count').value);
-    const groveVariation = Number(control<HTMLInputElement>('grove-variation').value);
+    const {
+      scene,
+      species,
+      season,
+      height: heightScale,
+      spread,
+      depth,
+      branchDensity,
+      leafSize,
+      wind,
+      cropLoad,
+      cropSize,
+      treeCount,
+      groveVariation
+    } = controls;
     if (!groveDataBySpecies.has(species)) {
       groveDataBySpecies.set(
         species,
@@ -319,33 +330,21 @@ export function mountTreeLabExample(
         }))
       );
     }
-    speciesControl.hidden = scene === 'forest';
-    root.querySelector<HTMLLabelElement>('.trees-tree-count')!.hidden = scene !== 'grove';
-    root.querySelector<HTMLLabelElement>('.trees-grove-variation')!.hidden = scene !== 'grove';
-    root.querySelector<HTMLLabelElement>('.trees-toggle')!.hidden = scene !== 'forest';
-    root.querySelectorAll<HTMLLabelElement>('.trees-crop-control').forEach(control => {
+    controlsElement.querySelector<HTMLLabelElement>('.trees-species')!.hidden = scene === 'forest';
+    controlsElement.querySelector<HTMLLabelElement>('.trees-tree-count')!.hidden =
+      scene !== 'grove';
+    controlsElement.querySelector<HTMLLabelElement>('.trees-grove-variation')!.hidden =
+      scene !== 'grove';
+    controlsElement.querySelector<HTMLLabelElement>('.trees-toggle')!.hidden = scene !== 'forest';
+    controlsElement.querySelectorAll<HTMLLabelElement>('.trees-crop-control').forEach(control => {
       control.hidden = scene !== 'forest';
     });
-    root.querySelector<HTMLParagraphElement>('.trees-crop-note')!.hidden = scene !== 'forest';
-    root.querySelector<HTMLParagraphElement>('.trees-grove-note')!.hidden = scene !== 'grove';
+    controlsElement.querySelector<HTMLParagraphElement>('.trees-crop-note')!.hidden =
+      scene !== 'forest';
+    controlsElement.querySelector<HTMLParagraphElement>('.trees-grove-note')!.hidden =
+      scene !== 'grove';
     const trees: ShowcaseTree[] =
       scene === 'grove' ? groveDataBySpecies.get(species)!.slice(0, treeCount) : FOREST_TREES;
-    const traitValues = {
-      height: heightScale,
-      spread,
-      depth,
-      'branch-density': branchDensity,
-      'leaf-size': leafSize,
-      'crop-load': cropLoad,
-      'crop-size': cropSize,
-      'tree-count': treeCount,
-      'grove-variation': groveVariation
-    };
-    for (const trait of TREE_TRAITS) {
-      output(trait.name).textContent = formatTraitValue(trait.name, traitValues[trait.name]);
-    }
-    output('tree-count').textContent = treeCount.toLocaleString();
-    output('grove-variation').textContent = `${Math.round(groveVariation * 100)}%`;
     const layers: Layer[] = [
       new SimpleMeshLayer({
         ...coordinateProps,
@@ -483,10 +482,22 @@ export function mountTreeLabExample(
     }
     render();
   };
-  root.addEventListener('input', onInput);
+  const onPanelToggle = () => {
+    const expanded = panelToggle.getAttribute('aria-expanded') === 'true';
+    panelToggle.setAttribute('aria-expanded', String(!expanded));
+    panelToggle.setAttribute(
+      'aria-label',
+      expanded ? 'Expand TreeLayer controls' : 'Collapse TreeLayer controls'
+    );
+    panelToggle.textContent = expanded ? '▸' : '▾';
+    panelContent.hidden = expanded;
+  };
+  controlsElement.addEventListener('input', onInput);
+  panelToggle.addEventListener('click', onPanelToggle);
   render();
   return () => {
-    root.removeEventListener('input', onInput);
+    controlsElement.removeEventListener('input', onInput);
+    panelToggle.removeEventListener('click', onPanelToggle);
     deck.finalize();
     root.remove();
   };

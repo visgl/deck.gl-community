@@ -13,5 +13,6 @@ crops, and animated wind to keep the high-count view focused on TreeLayer render
 expose height, crown spread and depth, branch density, leaf size, and season controls; the forest
 also exposes wind and crop controls.
 
-Run `yarn workspace @deck.gl-community/tree-lab-example start` from the repository root.
-The website example also provides WebGL2/WebGPU device tabs.
+Run `yarn workspace @deck.gl-community/tree-lab-example start` from the repository root. The
+standalone preview and website example share the same collapsible TreeLayer control panel. The
+website example also provides WebGL2/WebGPU device tabs.
