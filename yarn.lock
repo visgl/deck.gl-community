@@ -877,6 +877,7 @@ __metadata:
     "@loaders.gl/loader-utils": "npm:^4.5.1"
     "@loaders.gl/mvt": "npm:^4.5.1"
     "@mapbox/tiny-sdf": "npm:^2.0.5"
+    "@maplibre/geojson-vt": "npm:^6.1.2"
     "@maplibre/maplibre-gl-style-spec": "npm:^24.8.1"
     "@turf/polygon-to-line": "npm:^6.0.3"
     maplibre-gl: "npm:6.13.0"

@@ -14,6 +14,8 @@ import {
   getStyleDefinitionZoomLimits,
   getStyleSourceLayers,
   getTilePyramidProps,
+  getVectorTileLoader,
+  isVectorTileSource,
   VECTOR_TILE_ZOOM_OFFSET
 } from './globe-layers';
 import {
@@ -373,7 +375,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
 
   private updateSourceTilesets(style: ResolvedBasemapStyle): void {
     const sources = new Set(
-      Object.values(style.sources || {}).filter(source => source.type === 'vector' && source.tiles)
+      Object.values(style.sources || {}).filter(source => isVectorTileSource(source))
     );
     const optionsChanged =
       this.state.tileLoadOptions !== this.props.loadOptions ||
@@ -413,7 +415,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
           ...getTilePyramidProps(source),
           tileSize: source.tileSize || 512,
           zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
-          getTileData: tile => loader.getTileData(tile)
+          getTileData: getVectorTileLoader(source, loader)
         });
         this.state.tilesets.set(source, tileset);
         this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);

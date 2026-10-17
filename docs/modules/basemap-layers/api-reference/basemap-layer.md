@@ -35,7 +35,8 @@ import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 `BasemapLayer` is a `CompositeLayer` that:
 
 - accepts a style URL or parsed style object
-- resolves TileJSON-backed sources
+- resolves TileJSON-backed sources, and fetches the data of GeoJSON sources given by URL
+- cuts GeoJSON sources into vector tiles on the client
 - generates `background`, `fill`, `line`, `symbol`, and `raster` sublayers
 - supports both flat map rendering and globe rendering
 
@@ -132,6 +133,7 @@ Loads and normalizes a style document. This resolves:
 
 - remote style JSON URLs
 - TileJSON-backed source definitions
+- GeoJSON source `data` URLs, fetched into the source's `data`
 - relative tile template URLs
 - legacy Mapbox `ref` layer inheritance
 

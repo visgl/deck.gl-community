@@ -11,6 +11,7 @@ import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
+import {getGeoJsonMaxZoom, getGeoJsonTileFeatures, isGeoJsonSource} from './geojson-source';
 import {
   type FillPatternGroup,
   getFeaturesWithoutPattern,
@@ -705,7 +706,7 @@ export function getTilePyramidProps(source: BasemapSource): {
   const minZoom = source.minzoom ?? 0;
   return {
     minZoom,
-    maxZoom: source.maxzoom ?? 22,
+    maxZoom: source.type === 'geojson' ? getGeoJsonMaxZoom(source) : (source.maxzoom ?? 22),
     extent: minZoom <= 0 ? WORLD_TILE_EXTENT : null
   };
 }
@@ -2921,6 +2922,30 @@ function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig
 }
 
 /**
+ * Whether a source's layers draw from vector tiles: a vector source with tile templates, or a
+ * GeoJSON source with data, which is cut into tiles on the client (see `getGeoJsonTileFeatures`).
+ */
+export function isVectorTileSource(source: BasemapSource | undefined): boolean {
+  return source?.type === 'geojson'
+    ? isGeoJsonSource(source)
+    : Boolean(source?.tiles) && source?.type === 'vector';
+}
+
+/**
+ * The `getTileData` of a vector tile source's tileset: `loader` fetches and decodes a vector
+ * source's tiles, and a GeoJSON source's tiles are cut from its data, in the same tile-local
+ * coordinates.
+ */
+export function getVectorTileLoader(
+  source: BasemapSource,
+  loader: SharedMVTLayer
+): (tile: Parameters<SharedMVTLayer['getTileData']>[0]) => Promise<any> {
+  return source.type === 'geojson'
+    ? tile => Promise.resolve().then(() => getGeoJsonTileFeatures(source, tile.index))
+    : tile => loader.getTileData(tile);
+}
+
+/**
  * The source layers drawn from each vector source, over all of its runs, sorted; `null` for a
  * source with a style layer that names none. Tiles decode only these: OpenMapTiles tiles, for
  * one, carry house numbers and peaks that few styles draw, and points of interest, most of a
@@ -3020,12 +3045,7 @@ export function getStyleLayerRuns(
           sourceId
         });
       }
-    } else if (
-      isVectorStyleLayer(layer, config) &&
-      sourceId &&
-      source?.tiles &&
-      source.type === 'vector'
-    ) {
+    } else if (isVectorStyleLayer(layer, config) && sourceId && isVectorTileSource(source)) {
       const last = runs[runs.length - 1];
       // Labels draw after all of their run's other layers, so a layer after a label starts a run.
       const followsLabel =
@@ -3136,7 +3156,7 @@ function getStyleLayers({
           ...getTilePyramidProps(run.source!),
           tileSize: run.source!.tileSize || 512,
           zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
-          getTileData: tile => loader.getTileData(tile)
+          getTileData: getVectorTileLoader(run.source!, loader)
         });
         owner = {tileset, consumers: new Set()};
         ownedTilesets.set(run.source!, owner);
