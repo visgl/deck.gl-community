@@ -76,18 +76,18 @@ export function getTreeSplatSource(
       const {spear} = frond;
       const evaluate = (t: number) => new Vector3(evaluatePalmFrond(frond, t));
       if (spear) {
-        for (let j = 0; j < 7; j++) {
-          const t = 0.2 + (j / 6) * 0.74;
+        for (let j = 0; j < 9; j++) {
+          const t = 0.06 + (j / 8) * 0.88;
           const point = evaluate(t);
           const tangent = evaluate(t + 0.001)
             .subtract(evaluate(t - 0.001))
             .normalize();
           const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
-          const fullness = Math.sin(((j + 0.5) / 7) * Math.PI);
+          const fullness = Math.sin(((j + 0.5) / 9) * Math.PI);
           const normal = new Vector3(tangent).cross(sideways).normalize();
           add(
             Array.from(point) as Point,
-            [0.042 + fullness * 0.028, 0.008 + fullness * 0.01, 0.002],
+            [0.035 + fullness * 0.015, 0.007 + fullness * 0.004, 0.002],
             Array.from(normal) as Point,
             0.82,
             Array.from(tangent) as Point,

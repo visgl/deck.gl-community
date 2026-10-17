@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {Vector3} from '@math.gl/core';
 import {samplePineSurface, createPineTiers, type TreeMesh} from './tree-geometry';
-import {evaluatePalmFrond, getPalmFronds} from './tree-palm';
+import {evaluatePalmFrond, getPalmFronds, getPalmTrunkRadius, PALM_LEADER_TOP} from './tree-palm';
 import type {TreeType} from './tree-layer';
 import {
   getTreeCharacteristicsKey,
@@ -54,7 +54,7 @@ export function getTreeWoodMesh(
   }
   const broadleaf = type !== 'pine' && type !== 'palm';
   const botany = broadleaf ? getTreeBotany(type, characteristics) : null;
-  const leaderTop = type === 'palm' ? 0.68 : pineTip - 0.025;
+  const leaderTop = type === 'palm' ? PALM_LEADER_TOP : pineTip - 0.025;
   for (let ring = 0; ring < 26; ring++) height.push(0.24 + (ring * (leaderTop - 0.24)) / 25);
   if (aggregate && !broadleaf)
     height.splice(0, height.length, -1, 0.22, 0.42, height[height.length - 1]);
@@ -77,21 +77,15 @@ export function getTreeWoodMesh(
       : (botany?.radii ??
         height.map(z =>
           type === 'palm'
-            ? (() => {
-                const progress = Math.max(0, Math.min(1, (z + 1) / (leaderTop + 1)));
-                const scar = aggregate
-                  ? 0
-                  : Math.pow((1 + Math.cos(progress * Math.PI * 44)) / 2, 10) * 0.012;
-                const baseRadius = 0.074 - progress * 0.018 + scar;
-                const crownProgress = Math.max(0, Math.min(1, (z - 0.48) / (leaderTop - 0.48)));
-                const crownTaper = crownProgress ** 2 * (3 - 2 * crownProgress);
-                return baseRadius * (1 - crownTaper * 0.94);
-              })()
+            ? getPalmTrunkRadius(z, aggregate)
             : 0.06 * (1 - (Math.max(0, z - 0.22) / 0.85) * 0.84)
         ));
   const sockets: Socket[] = [];
   if (!trunkOnly && !aggregate && type === 'palm') {
     for (const frond of getPalmFronds()) {
+      // The unopened spear is foliage only: the tapered leader continues directly
+      // into its center, avoiding a second woody stem and an exposed crown socket.
+      if (frond.spear) continue;
       const baseHeight = frond.controls[0][2];
       const ring = height.reduce(
         (closest, candidate, index) =>
@@ -110,7 +104,8 @@ export function getTreeWoodMesh(
         ring,
         sector,
         end: path[path.length - 1],
-        radius: 0.0055,
+        radius: 0.0075,
+        radii: path.map((_, index) => 0.0075 * (1 - (index / (path.length - 1)) * 0.82)),
         path
       });
     }
