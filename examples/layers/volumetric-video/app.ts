@@ -36,9 +36,28 @@ type MountOptions = Pick<
   onDeckInitialized?: (deck: Deck<OrbitView>) => void;
 };
 
-function getSettingsSchema(frameCount: number): SettingsSchema {
+function getSettingsSchema(frameCount: number, includeBackend: boolean): SettingsSchema {
   return {
     sections: [
+      ...(includeBackend
+        ? [
+            {
+              name: 'Renderer',
+              initiallyCollapsed: false,
+              settings: [
+                {
+                  name: 'backend',
+                  label: 'Graphics backend',
+                  type: 'select' as const,
+                  options: [
+                    {label: 'WebGL2', value: 'webgl'},
+                    {label: 'WebGPU', value: 'webgpu'}
+                  ]
+                }
+              ]
+            }
+          ]
+        : []),
       {
         name: 'Timeline',
         initiallyCollapsed: false,
@@ -259,8 +278,9 @@ export function mountVolumetricVideoExample(
     standardPanel.setProps({
       panel: new SettingsPanel({
         id: 'volumetric-video-settings',
-        schema: getSettingsSchema(totalFrames),
+        schema: getSettingsSchema(totalFrames, !options.device),
         settings: {
+          backend: requestedBackend,
           currentFrame,
           frameTrail,
           frameSpacing,
@@ -271,6 +291,7 @@ export function mountVolumetricVideoExample(
         },
         onSettingsChange: settings => {
           setPlaying(false);
+          const selectedBackend = settings.backend === 'webgpu' ? 'webgpu' : 'webgl';
           currentFrame = Math.max(0, Math.min(totalFrames - 1, Number(settings.currentFrame)));
           requestedFrameTrail = Math.max(0, Math.min(totalFrames - 1, Number(settings.frameTrail)));
           frameSpacing = Number(settings.frameSpacing);
@@ -278,6 +299,10 @@ export function mountVolumetricVideoExample(
           frameOpacity = Number(settings.frameOpacity);
           luminanceThreshold = Number(settings.luminanceThreshold);
           resolution = Number(settings.resolution);
+          if (!options.device && selectedBackend !== requestedBackend) {
+            void switchBackend(selectedBackend);
+            return;
+          }
           updateLayer();
         }
       })

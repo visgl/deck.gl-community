@@ -76,7 +76,8 @@ fn fragmentMain(input: VolumetricVideoVaryings) -> @location(0) vec4<f32> {
   let edgeWidth = max(fwidth(radiusSquared), 0.0001);
   let edge = 1.0 - smoothstep(1.0 - edgeWidth, 1.0 + edgeWidth, radiusSquared);
   let gaussian = exp(-3.0 * radiusSquared / filterScale);
-  return vec4<f32>(input.splatColor.rgb, input.splatColor.a * gaussian * edge);
+  let alpha = input.splatColor.a * gaussian * edge;
+  return vec4<f32>(input.splatColor.rgb * alpha, alpha);
 }
 `;
 
@@ -144,13 +145,7 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
   var result = vec4<f32>(0.0);
   if (filteredMix > 0.0) {
     let uv = clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0));
-    // Mip levels are isotropic. At an edge-on angle the long axis can cover many
-    // texels while the short axis remains sharp; deriving LOD from the long axis
-    // averages along both axes and turns a thin feature into a vertical ribbon.
-    // Keep the short axis resolved and let the fragment grid alias only along the
-    // collapsed axis, which retains the actual splat silhouette.
-    let mipLevel = log2(max(min(footprintX, footprintY), 1.0));
-    result = textureSampleLevel(filteredFrames, filteredFramesSampler, uv, slot, mipLevel);
+    result = textureSampleGrad(filteredFrames, filteredFramesSampler, uv, slot, uvx, uvy);
   }
   if (filteredMix < 1.0) {
     let size = volumetricVideo.splatSize;
@@ -185,6 +180,6 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
     result = mix(detail, result, filteredMix);
   }
   if (result.a == 0.0 || input.planeOpacity == 0.0) { discard; }
-  return vec4<f32>(result.rgb / result.a, result.a * input.planeOpacity);
+  return vec4<f32>(result.rgb * input.planeOpacity, result.a * input.planeOpacity);
 }
 `;

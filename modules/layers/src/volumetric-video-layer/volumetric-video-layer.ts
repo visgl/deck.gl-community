@@ -537,7 +537,9 @@ export class VolumetricVideoLayer<
         cullMode: 'none',
         blend: true,
         blendColorOperation: 'add',
-        blendColorSrcFactor: 'src-alpha',
+        // Native WebGPU volumes emit premultiplied RGB. WebGL keeps the
+        // established straight-alpha shader output and source-alpha blend state.
+        blendColorSrcFactor: this.context.device.type === 'webgpu' ? 'one' : 'src-alpha',
         blendColorDstFactor: 'one-minus-src-alpha',
         blendAlphaOperation: 'add',
         blendAlphaSrcFactor: 'one',

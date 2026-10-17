@@ -81,6 +81,39 @@ function countColor(pixels: Uint8Array): number {
   return count;
 }
 
+type PixelSummary = {
+  visible: number;
+  bounds: [number, number, number, number];
+  channelTotals: [number, number, number];
+  alphaTotal: number;
+};
+
+function summarizePixels(pixels: Uint8Array, width: number, height: number): PixelSummary {
+  let visible = 0;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  const channelTotals: [number, number, number] = [0, 0, 0];
+  let alphaTotal = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = (y * width + x) * 4;
+      if (pixels[index + 3] <= 24) continue;
+      visible++;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      channelTotals[0] += pixels[index];
+      channelTotals[1] += pixels[index + 1];
+      channelTotals[2] += pixels[index + 2];
+      alphaTotal += pixels[index + 3];
+    }
+  }
+  return {visible, bounds: [minX, minY, maxX, maxY], channelTotals, alphaTotal};
+}
+
 describe('VolumetricVideoLayer GPU pipeline', () => {
   it('detects per-pixel changes and preserves unchanged neighbors at odd grid edges', async () => {
     const device = await createDevice();
@@ -1742,4 +1775,190 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       parent.remove();
     }
   }, 35_000);
+
+  // Value: protects=the WebGPU renderer covers the same side-on temporal volume as WebGL without
+  // brightening its splats; fails_when=the volume expands at its edge or WebGPU treats straight RGB
+  // as premultiplied; seam=WebGPU blend state and fragment output.
+  it('matches WebGL side-view volume coverage, opacity and color energy', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const render = async (
+      backend: 'webgl' | 'webgpu',
+      renderMode: 'auto' | 'instanced'
+    ): Promise<PixelSummary> => {
+      const width = 256;
+      const height = 192;
+      const parent = document.createElement('div');
+      parent.style.cssText = `width: ${width}px; height: ${height}px`;
+      document.body.append(parent);
+      let device: Device | undefined;
+      let target: Framebuffer | undefined;
+      let colorTexture: Texture | undefined;
+      let deck: Deck<OrbitView[]> | undefined;
+      try {
+        device = await luma.createDevice({
+          type: backend,
+          adapters: backend === 'webgpu' ? [webgl2Adapter, webgpuAdapter] : [webgl2Adapter],
+          createCanvasContext: {container: parent, width, height, useDevicePixels: false}
+        });
+        if (backend === 'webgpu') {
+          colorTexture = device.createTexture({
+            width,
+            height,
+            format: 'rgba8unorm',
+            usage: Texture.RENDER_ATTACHMENT | Texture.COPY_SRC
+          });
+          target = device.createFramebuffer({
+            width,
+            height,
+            colorAttachments: [colorTexture],
+            depthStencilAttachment: 'depth24plus'
+          });
+        } else {
+          target = device.createFramebuffer({
+            width,
+            height,
+            colorAttachments: ['rgba8unorm'],
+            depthStencilAttachment: 'depth24plus'
+          });
+        }
+        await new Promise<void>((resolve, reject) => {
+          let loaded = false;
+          let rendered = 0;
+          const timeout = window.setTimeout(
+            () => reject(new Error(`Timed out while rendering ${backend} side-view volume.`)),
+            30_000
+          );
+          deck = new Deck({
+            _animate: true,
+            _framebuffer: target,
+            device,
+            parent,
+            width,
+            height,
+            useDevicePixels: false,
+            views: [new OrbitView({id: `${backend}-side`, orbitAxis: 'Y'})],
+            initialViewState: {
+              [`${backend}-side`]: {
+                target: [0, 0, -0.2],
+                rotationX: 0,
+                rotationOrbit: 82,
+                zoom: 7
+              }
+            },
+            layers: [
+              new VolumetricVideoLayer({
+                id: `${backend}-side-volume`,
+                video: MP4_URL,
+                currentFrame: 30,
+                frameTrail: 5,
+                maxFrameTrail: 5,
+                resolution: 64,
+                frameOpacity: 0.8,
+                luminanceThreshold: 0,
+                staticPixelRemoval: 0,
+                renderMode,
+                onFrameLoad: () => {
+                  loaded = true;
+                }
+              })
+            ],
+            onAfterRender: () => {
+              if (loaded && ++rendered >= 4) {
+                window.clearTimeout(timeout);
+                resolve();
+              }
+            },
+            onError: reject
+          });
+        });
+        if (backend === 'webgl') {
+          return summarizePixels(
+            device.readPixelsToArrayWebGL(target, {
+              sourceWidth: width,
+              sourceHeight: height
+            }) as Uint8Array,
+            width,
+            height
+          );
+        }
+        device.submit();
+        const buffer = device.createBuffer({
+          byteLength: width * height * 4,
+          usage: Buffer.COPY_DST | Buffer.MAP_READ
+        });
+        try {
+          const encoder = device.createCommandEncoder();
+          encoder.copyTextureToBuffer({
+            sourceTexture: colorTexture!,
+            destinationBuffer: buffer,
+            bytesPerRow: width * 4,
+            width,
+            height
+          });
+          device.submit(encoder.finish());
+          return summarizePixels(new Uint8Array(await buffer.readAsync()), width, height);
+        } finally {
+          buffer.destroy();
+        }
+      } finally {
+        deck?.finalize();
+        target?.destroy();
+        colorTexture?.destroy();
+        device?.destroy();
+        parent.remove();
+      }
+    };
+    const webglAuto = await render('webgl', 'auto');
+    const webgpuAuto = await render('webgpu', 'auto');
+    const webglInstanced = await render('webgl', 'instanced');
+    const webgpuInstanced = await render('webgpu', 'instanced');
+    const expectParity = (webgl: PixelSummary, webgpu: PixelSummary) => {
+      expect(webgpu.visible).toBe(webgl.visible);
+      expect(webgpu.bounds).toEqual(webgl.bounds);
+      expect(webgpu.alphaTotal / webgl.alphaTotal).toBeGreaterThan(0.98);
+      expect(webgpu.alphaTotal / webgl.alphaTotal).toBeLessThan(1.02);
+      for (let channel = 0; channel < 3; channel++) {
+        const colorRatio = webgpu.channelTotals[channel] / webgl.channelTotals[channel];
+        expect(colorRatio).toBeGreaterThan(0.8);
+        expect(colorRatio).toBeLessThan(1.2);
+      }
+    };
+    expectParity(webglAuto, webgpuAuto);
+    expectParity(webglInstanced, webgpuInstanced);
+  }, 70_000);
+
+  // Value: protects=the source frame that reaches the two renderers has matching orientation and
+  // colors; fails_when=a video upload regression is mistaken for a splat-rendering regression.
+  it('keeps decoded MP4 pixels identical across GPU backends', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const decode = async (backend: 'webgl' | 'webgpu') => {
+      const device = await luma.createDevice({
+        type: backend,
+        adapters: backend === 'webgpu' ? [webgl2Adapter, webgpuAdapter] : [webgl2Adapter],
+        createCanvasContext: {width: 16, height: 16, useDevicePixels: false}
+      });
+      const source = new VideoFrameSource(MP4_URL);
+      let cache: GPUVideoFrames | undefined;
+      try {
+        await source.initialize();
+        await new Promise<void>((resolve, reject) => {
+          cache = new GPUVideoFrames(device, source, 64, 1, () => resolve(), reject);
+          cache.request({firstFrame: 30, currentFrame: 30, frameCount: 1});
+        });
+        return {
+          width: cache.width,
+          height: cache.height,
+          pixels:
+            backend === 'webgpu' ? await readWebGPUFrame(device, cache, 30) : readFrame(cache, 30)
+        };
+      } finally {
+        cache?.destroy();
+        source.destroy();
+        device.destroy();
+      }
+    };
+    const [webgl, webgpu] = await Promise.all([decode('webgl'), decode('webgpu')]);
+    expect([webgl.width, webgl.height]).toEqual([webgpu.width, webgpu.height]);
+    expect(Array.from(webgpu.pixels)).toEqual(Array.from(webgl.pixels));
+  }, 30_000);
 });
