@@ -11,7 +11,7 @@ export type PalmFrond = {
   controls: readonly [Point, Point, Point, Point];
 };
 
-const FROND_COUNT = 18;
+const FROND_COUNT = 14;
 const SPEAR_COUNT = 4;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
@@ -20,7 +20,7 @@ const PALM_FRONDS: PalmFrond[] = Array.from({length: FROND_COUNT + SPEAR_COUNT},
   const frondIndex = spear ? index - FROND_COUNT : index;
   // Keep frond maturity independent of azimuth so one side of the crown does not
   // end up uniformly younger (or older) than the other.
-  const age = spear ? 0 : ((frondIndex * 7) % FROND_COUNT) / (FROND_COUNT - 1);
+  const age = spear ? 0 : ((frondIndex * 5) % FROND_COUNT) / (FROND_COUNT - 1);
   const angle = frondIndex * GOLDEN_ANGLE + Math.sin(frondIndex * 5.37) * 0.055;
   const tier = spear ? 0 : Math.min(3, Math.floor((1 - age) * 4));
   const radial = (radius: number, z: number): Point => [
