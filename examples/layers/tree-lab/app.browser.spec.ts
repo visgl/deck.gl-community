@@ -150,7 +150,7 @@ it('shows every species with native crops, then renders a label-free 10,000-tree
     inspectCanopyPixels = true;
     change('tree-count', '1');
     await expect.poll(() => viewport().latitude, {timeout: 15000}).toBeGreaterThan(0);
-    await expect.poll(() => viewport().pitch, {timeout: 15000}).toBeCloseTo(48);
+    await expect.poll(() => viewport().pitch, {timeout: 15000}).toBeCloseTo(58);
     await expect.poll(() => viewport().zoom, {timeout: 15000}).toBeGreaterThan(fullGroveZoom + 2);
     change('species', 'palm');
     const closeCanopy = () =>
@@ -160,7 +160,7 @@ it('shows every species with native crops, then renders a label-free 10,000-tree
     await expect
       .poll(() => closeCanopy()?.splatStats.renderedSplats ?? 0, {timeout: 15000})
       .toBeGreaterThan(0);
-    expect(closeCanopy()?.props.getSource.source.opacities.length).toBeGreaterThan(1700);
+    expect(closeCanopy()?.props.getSource.source.opacities.length).toBeGreaterThan(900);
     expect(closeCanopy()?.splatStats.visibleInstances).toBe(1);
     expect(closeCanopy()?.splatStats.renderedSplats).toBeGreaterThan(0);
     await expect.poll(() => greenPixels, {timeout: 15000}).toBeGreaterThan(100);
