@@ -841,13 +841,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       0
     );
     const hasDenseCanopy = denseCanopyTreeCount >= DENSE_TREE_COUNT;
-    const requestedCanopySplats = this.props.maxCanopySplats;
-    this.state.splatBudgetGroup.maxSplats = hasDenseCanopy
-      ? Math.min(
-          requestedCanopySplats,
-          Math.max(DENSE_TREE_COUNT * 4, Math.ceil(denseCanopyTreeCount * 1.2))
-        )
-      : requestedCanopySplats;
+    // This cap is shared by currently visible, refined crowns. Do not scale it
+    // from total inventory size: a large grove must recover detail when zoomed in.
+    this.state.splatBudgetGroup.maxSplats = this.props.maxCanopySplats;
     for (const [key, data] of this.state.groups) {
       const {type, winter, levels, characteristics} = data[0];
       const wood = this.state.woodGroups.get(key)!;

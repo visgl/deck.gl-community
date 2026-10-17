@@ -133,7 +133,7 @@ describe('native tree geometry', () => {
     expect(canopy.props.transparency).toBe('weighted');
     expect(canopy.props.pixelError).toBe(2.5);
     expect(canopy.props.foveationStrength).toBe(0.55);
-    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 12000});
+    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
     expect(wood).toBeInstanceOf(TreeWoodLayer);
     expect(wood.props.farTrunkOnly).toBe(true);
     expect(wood.props.data).toHaveLength(denseData.length);
@@ -149,7 +149,7 @@ describe('native tree geometry', () => {
     expect(closeWood.props.farTrunkOnly).toBe(false);
     const {layer: threshold} = createLayer(denseData.slice(0, 1024));
     const thresholdCanopy = threshold.renderLayers().find(child => child.id.includes('canopy'))!;
-    expect(thresholdCanopy.props._splatBudgetGroup).toMatchObject({maxSplats: 4096});
+    expect(thresholdCanopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
   });
   it('uses one stable canopy color accessor and blend mode across a mixed dense scene', () => {
     const mixedData = [

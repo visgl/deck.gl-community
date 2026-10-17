@@ -155,7 +155,7 @@ The highest source detail remains available. Cost depends on visible crowns and 
 
 ### Automatic submission budgets
 
-`maxCanopySplats` (default 20,000) caps the Gaussian submission budget across species and tree instances. Dense groups derive a smaller target from their tree count so distant crowns stay lightweight and refine as they fill the viewport. Screen-space error refinement and foveation prioritize the largest projected detail gains while keeping each canopy on `SplatLayer` and the finest leaf templates available. If the coarsest owner coverage exceeds the budget, coverage wins; use regional source aggregation for world-scale residency. Large inventories should never be supplied as one global `TreeLayer.data` array.
+`maxCanopySplats` (default 20,000) caps the Gaussian submission budget across visible species and tree instances. Dense groups start with coarser crowns and use screen-space error refinement and foveation to prioritize detail as trees fill the viewport. The cap is independent of total inventory size, so close views of a large grove can refine up to the requested limit. Every canopy remains on `SplatLayer`, with its finest leaf templates available. If the coarsest owner coverage exceeds the budget, coverage wins; use regional source aggregation for world-scale residency. Large inventories should never be supplied as one global `TreeLayer.data` array.
 
 `maxCanopyPixels` defaults to `Infinity`. A finite value caps the shared Gaussian accumulation target without changing host-resolution wood or owner picking. An explicitly low target softens leaf edges and reduces branch-occlusion precision.
 
