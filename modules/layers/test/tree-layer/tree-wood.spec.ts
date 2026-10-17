@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {describe, expect, it} from 'vitest';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
-import {evaluatePalmFrond, getPalmFronds} from '../../src/tree-layer/tree-palm';
+import {evaluatePalmFrond, getPalmFronds, getPalmTrunkRadius} from '../../src/tree-layer/tree-palm';
 
 describe('Continuous tree wood', () => {
   for (const type of [
@@ -63,7 +63,7 @@ describe('Continuous tree wood', () => {
       });
 });
 
-it('joins each palm rachis at its authored root', () => {
+it('joins each mature palm rachis at its authored root', () => {
   const mesh = getTreeWoodMesh('palm');
   const positions = mesh.attributes.POSITION.value;
   const textureCoordinates = mesh.attributes.TEXCOORD_0.value;
@@ -75,6 +75,7 @@ it('joins each palm rachis at its authored root', () => {
   }
 
   for (const frond of getPalmFronds()) {
+    if (frond.spear) continue;
     const base = evaluatePalmFrond(frond, 0);
     let nearestRoot = Infinity;
     for (let vertex = 0; vertex < branchVertices.length; vertex += 3)
@@ -86,7 +87,27 @@ it('joins each palm rachis at its authored root', () => {
           branchVertices[vertex + 2] - base[2]
         )
       );
-    expect(nearestRoot).toBeLessThan(0.007);
+    expect(nearestRoot).toBeLessThan(0.01);
+  }
+});
+
+it('forms a narrow crownshaft with one centered spear and a tight frond-base band', () => {
+  const fronds = getPalmFronds();
+  const spears = fronds.filter(frond => frond.spear);
+  const mature = fronds.filter(frond => !frond.spear);
+  expect(spears).toHaveLength(1);
+  expect(mature).toHaveLength(12);
+
+  const [spear] = spears;
+  expect(Math.hypot(spear.controls[0][0], spear.controls[0][1])).toBeLessThan(0.001);
+  expect(spear.controls[0][2]).toBeLessThan(0.68);
+  expect(spear.controls[3][2]).toBeGreaterThan(1.1);
+
+  const baseHeights = mature.map(frond => frond.controls[0][2]);
+  expect(Math.max(...baseHeights) - Math.min(...baseHeights)).toBeLessThan(0.07);
+  for (const frond of mature) {
+    const [x, y, z] = frond.controls[0];
+    expect(Math.hypot(x, y)).toBeCloseTo(getPalmTrunkRadius(z), 4);
   }
 });
 

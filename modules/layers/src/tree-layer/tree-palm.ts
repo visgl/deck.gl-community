@@ -12,8 +12,19 @@ export type PalmFrond = {
 };
 
 const FROND_COUNT = 12;
-const SPEAR_COUNT = 4;
+const SPEAR_COUNT = 1;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+export const PALM_LEADER_TOP = 0.68;
+
+/** Keep the authored frond bases on the same crownshaft surface as the wood mesh. */
+export function getPalmTrunkRadius(z: number, aggregate = false): number {
+  const progress = Math.max(0, Math.min(1, (z + 1) / (PALM_LEADER_TOP + 1)));
+  const scar = aggregate ? 0 : Math.pow((1 + Math.cos(progress * Math.PI * 44)) / 2, 10) * 0.012;
+  const baseRadius = 0.074 - progress * 0.018 + scar;
+  const crownProgress = Math.max(0, Math.min(1, (z - 0.48) / (PALM_LEADER_TOP - 0.48)));
+  const crownTaper = crownProgress ** 2 * (3 - 2 * crownProgress);
+  return baseRadius * (1 - crownTaper * 0.94);
+}
 
 const PALM_FRONDS: PalmFrond[] = Array.from({length: FROND_COUNT + SPEAR_COUNT}, (_, index) => {
   const spear = index >= FROND_COUNT;
@@ -37,11 +48,17 @@ const PALM_FRONDS: PalmFrond[] = Array.from({length: FROND_COUNT + SPEAR_COUNT},
   };
   const lengthVariation = ((frondIndex * 7) % 9) / 8 - 0.5;
   const tipRadius = 0.68 + age * 0.26 + lengthVariation * 0.09;
-  const baseHeight = 0.43 + Math.sin(frondIndex * 3.91) * 0.055 + Math.cos(frondIndex * 8.1) * 0.03;
+  const baseHeight =
+    0.515 + Math.sin(frondIndex * 3.91) * 0.022 + Math.cos(frondIndex * 8.1) * 0.012;
   const controls: PalmFrond['controls'] = spear
-    ? [radial(0.025, 0.47), radial(0.13, 0.8), radial(0.34, 1.04), radial(0.54, 0.98)]
+    ? [
+        [0, 0, 0.6],
+        [0.008, -0.004, 0.78],
+        [0.025, -0.002, 0.98],
+        [0.052, 0.012, 1.14]
+      ]
     : [
-        radial(0.035, baseHeight),
+        radial(getPalmTrunkRadius(baseHeight), baseHeight),
         radial(0.22 + lengthVariation * 0.035, baseHeight + 0.3 - age * 0.06),
         radial(tipRadius * (0.58 + lengthVariation * 0.035), baseHeight + 0.39 - age * 0.25),
         radial(tipRadius, Math.max(0.08, baseHeight + 0.25 - age * 0.55))

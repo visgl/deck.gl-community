@@ -85,9 +85,9 @@ describe('native tree geometry', () => {
   });
   it('keeps palm frond stems and splat leaflets on the same deterministic curves', () => {
     const fronds = getPalmFronds();
-    expect(fronds).toHaveLength(16);
+    expect(fronds).toHaveLength(13);
     expect(fronds.filter(frond => !frond.spear)).toHaveLength(12);
-    expect(fronds.filter(frond => frond.spear)).toHaveLength(4);
+    expect(fronds.filter(frond => frond.spear)).toHaveLength(1);
     expect(
       new Set(fronds.filter(frond => !frond.spear).map(frond => frond.angle.toFixed(3))).size
     ).toBe(12);
