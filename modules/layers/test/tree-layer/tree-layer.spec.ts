@@ -5,16 +5,19 @@ import {describe, it, expect, vi} from 'vitest';
 import {COORDINATE_SYSTEM} from '@deck.gl/core';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
+import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 import {
-  getTreeMesh,
-  createPalmCanopyMesh,
+  getPalmFrondLeafletT,
+  getTreeSplatHierarchy,
+  getTreeSplatSource
+} from '../../src/tree-layer/tree-splats';
+import {
   createTrunkMesh,
   createCropMesh,
-  samplePineSurface,
-  sampleCrownSurface,
-  type TreeMesh
+  samplePineSurface
 } from '../../src/tree-layer/tree-geometry';
+import {getPalmFronds, evaluatePalmFrond} from '../../src/tree-layer/tree-palm';
 
 type Datum = {
   position: [number, number];
@@ -44,24 +47,6 @@ function createLayer(data: Datum[], extra = {}) {
 }
 const OAK: Datum = {position: [0, 0], type: 'oak', season: 'summer'};
 
-function getMeshRing(mesh: TreeMesh, height: number, leaderOnly = false) {
-  const points = new Map<string, [number, number, number]>();
-  const positions = mesh.attributes.POSITION.value;
-  const markers = mesh.attributes.TEXCOORD_0.value;
-  for (let i = 0; i < positions.length; i += 3) {
-    const point: [number, number, number] = [positions[i], positions[i + 1], positions[i + 2]];
-    if (leaderOnly && markers[(i / 3) * 2] !== 1) continue;
-    if (Math.abs(point[2] - height) > 0.000001 || Math.hypot(point[0], point[1]) < 0.000001)
-      continue;
-    const key = point
-      .slice(0, 2)
-      .map(value => Math.round(value * 1e6))
-      .join(',');
-    points.set(key, point);
-  }
-  return [...points.values()];
-}
-
 describe('native tree geometry', () => {
   it.each([
     'pine',
@@ -83,59 +68,147 @@ describe('native tree geometry', () => {
         expect(crown).toBeUndefined();
       else {
         expect(crown).toBeInstanceOf(SplatLayer);
-        expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(1000);
+        expect(crown!.props.transparency).toBe('sorted');
+        expect(crown!.props.support).toBeCloseTo(type === 'palm' ? 1.4 : 2);
+        expect(crown!.props.pixelError).toBeCloseTo(type === 'palm' ? 0.3 : 0.75);
+        expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(
+          type === 'palm' ? 700 : 1000
+        );
         expect(crown!.props.getSource.hierarchy[0].source).toBe(crown!.props.getSource.source);
+        expect(
+          children
+            .filter(child => child.id.includes('canopy'))
+            .every(child => child instanceof SplatLayer)
+        ).toBe(true);
       }
     }
   });
-  it('has finite unit normals, valid triangles and correct bounds for every species/detail/season', () => {
-    for (const detail of ['low', 'medium', 'high'] as const)
-      for (const type of ['pine', 'oak', 'palm', 'birch', 'cherry'] as const)
-        for (const winter of [false, true]) {
-          const mesh = getTreeMesh('canopy', type, detail, winter);
-          const p = mesh.attributes.POSITION.value;
-          const n = mesh.attributes.NORMAL.value;
-          expect(mesh.indices.value.length % 3).toBe(0);
-          expect(mesh.indices.value.every(index => index < p.length / 3)).toBe(true);
-          expect(p.every(Number.isFinite)).toBe(true);
-          let maxNormalError = 0;
-          for (let i = 0; i < n.length; i += 3)
-            maxNormalError = Math.max(
-              maxNormalError,
-              Math.abs(Math.hypot(n[i], n[i + 1], n[i + 2]) - 1)
-            );
-          expect(maxNormalError).toBeLessThan(0.0001);
-          const z = p.filter((_, i) => i % 3 === 2);
-          expect(Math.max(...z)).toBeGreaterThan(0.7);
-          expect(Math.min(...z)).toBeGreaterThanOrEqual(-0.03);
-        }
-  });
-  it('shares meshes across instances and bounds broadleaf foliage to one sphere topology', () => {
-    const mesh = getTreeMesh('canopy', 'oak');
-    expect(getTreeMesh('canopy', 'oak')).toBe(mesh);
-    expect(mesh.indices.value.length / 3).toBeLessThanOrEqual(320);
-    expect(getTreeMesh('canopy', 'oak', 'low').indices.value.length).toBeLessThan(
-      mesh.indices.value.length
-    );
-  });
-  it('keeps low-detail pine within the legacy triangle budget and drops redundant cap faces', () => {
+  it('keeps palm frond stems and splat leaflets on the same deterministic curves', () => {
+    const fronds = getPalmFronds();
+    expect(fronds).toHaveLength(13);
+    expect(fronds.filter(frond => !frond.spear)).toHaveLength(12);
+    expect(fronds.filter(frond => frond.spear)).toHaveLength(1);
     expect(
-      getTreeMesh('canopy', 'pine', 'low', false, 4).indices.value.length / 3
-    ).toBeLessThanOrEqual(80);
+      new Set(fronds.filter(frond => !frond.spear).map(frond => frond.angle.toFixed(3))).size
+    ).toBe(12);
+    expect(evaluatePalmFrond(fronds[0], 0)).toEqual(fronds[0].controls[0]);
+    expect(evaluatePalmFrond(fronds[0], 1)).toEqual(fronds[0].controls[3]);
+    const baseAngle = Math.atan2(fronds[0].controls[0][1], fronds[0].controls[0][0]);
+    const tipAngle = Math.atan2(fronds[0].controls[3][1], fronds[0].controls[3][0]);
     expect(
-      getTreeMesh('canopy', 'pine', 'high', false, 4).indices.value.length / 3
-    ).toBeLessThanOrEqual(150);
+      Math.abs(Math.atan2(Math.sin(tipAngle - baseAngle), Math.cos(tipAngle - baseAngle)))
+    ).toBeGreaterThan(0.05);
+    expect(getPalmFrondLeafletT(0)).toBeCloseTo(0.15);
+    expect(getPalmFrondLeafletT(14)).toBeCloseTo(0.86);
+    const {layer} = createLayer([{position: [0, 0], type: 'palm', season: 'summer'}]);
+    const canopy = layer.renderLayers().find(child => child.id.includes('canopy'))!;
+    expect(canopy).toBeInstanceOf(SplatLayer);
+    expect(canopy.props.support).toBeCloseTo(1.4);
+    expect(canopy.props.pixelError).toBeCloseTo(0.3);
+    const palmSplats = getTreeSplatSource('palm');
+    expect(getTreeSplatHierarchy('palm')).toHaveLength(4);
+    expect(palmSplats.positions.length / 3).toBeGreaterThan(700);
+    expect(palmSplats.positions.length / 3).toBeLessThan(800);
+    expect(
+      Array.from(palmSplats.scales)
+        .filter((_, index) => index % 3 === 1)
+        .some(width => width > 0.014)
+    ).toBe(true);
+    expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
+    expect(getTreeSplatSource('palm')).toBe(palmSplats);
+    const firstLeaf = palmSplats.positions.subarray(0, 3);
+    const firstFrondBase = evaluatePalmFrond(fronds[0], getPalmFrondLeafletT(0));
+    expect(
+      Math.hypot(...Array.from(firstLeaf, (coordinate, axis) => coordinate - firstFrondBase[axis]))
+    ).toBeLessThan(0.1);
   });
-  it('keeps the dense feathered palm silhouette deterministic', () => {
-    const first = createPalmCanopyMesh();
-    expect(first.indices.value.length / 3).toBeLessThan(1800);
-    expect(createPalmCanopyMesh().attributes.POSITION.value).toEqual(
-      first.attributes.POSITION.value
-    );
-    expect(first.attributes.POSITION.value.length / 3).toBeGreaterThan(3000);
-    const p = first.attributes.POSITION.value;
-    expect(Math.max(...p.filter((_, i) => i % 3 === 0))).toBeGreaterThan(0.9);
-    expect(Math.max(...p.filter((_, i) => i % 3 === 2))).toBeGreaterThan(0.95);
+  it('keeps every canopy on splats while dense groves use batched woody LOD', () => {
+    const denseData = Array.from({length: 10000}, (_, index) => ({
+      position: [index % 32, Math.floor(index / 32)] as [number, number],
+      type: 'oak' as const,
+      season: 'summer' as const
+    }));
+    const {layer: dense} = createLayer(denseData);
+    const denseLayers = dense.renderLayers();
+    const canopy = denseLayers.find(child => child.id.includes('canopy'))!;
+    const wood = denseLayers.find(child => child.id.includes('wood'))!;
+    expect(canopy).toBeInstanceOf(SplatLayer);
+    expect(canopy.id).not.toContain('dense');
+    expect(canopy.props.data).toHaveLength(denseData.length);
+    expect(canopy.props.transparency).toBe('weighted');
+    expect(canopy.props.pixelError).toBe(3.5);
+    expect(canopy.props.foveationStrength).toBe(0.55);
+    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
+    expect(wood).toBeInstanceOf(TreeWoodLayer);
+    expect(wood.props.farTrunkOnly).toBe(true);
+    expect(wood.props.data).toHaveLength(denseData.length);
+
+    const {layer: close} = createLayer(denseData.slice(0, 1023));
+    const closeLayers = close.renderLayers();
+    const closeCanopy = closeLayers.find(child => child.id.includes('canopy'))!;
+    const closeWood = closeLayers.find(child => child.id.includes('wood'))!;
+    expect(closeCanopy).toBeInstanceOf(SplatLayer);
+    expect(closeCanopy.id).toBe(canopy.id);
+    expect(closeWood).toBeInstanceOf(TreeWoodLayer);
+    expect(closeWood.id).toBe(wood.id);
+    expect(closeWood.props.farTrunkOnly).toBe(false);
+    const {layer: threshold} = createLayer(denseData.slice(0, 1024));
+    const thresholdCanopy = threshold.renderLayers().find(child => child.id.includes('canopy'))!;
+    expect(thresholdCanopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
+  });
+  it('uses one stable canopy color accessor and blend mode across a mixed dense scene', () => {
+    const mixedData = [
+      ...Array.from({length: 1024}, (_, index) => ({
+        position: [index % 32, Math.floor(index / 32)] as [number, number],
+        type: 'oak' as const,
+        season: 'summer' as const
+      })),
+      {position: [40, 0] as [number, number], type: 'pine' as const, season: 'summer' as const}
+    ];
+    const {layer} = createLayer(mixedData);
+    const first = layer.renderLayers().filter(child => child instanceof SplatLayer);
+    const second = layer.renderLayers().filter(child => child instanceof SplatLayer);
+    expect(first).toHaveLength(2);
+    expect(first.map(child => child.props.transparency)).toEqual(['weighted', 'weighted']);
+    for (const [index, canopy] of first.entries()) {
+      expect(second[index].props.getColor).toBe(canopy.props.getColor);
+      expect(second[index].props.updateTriggers.getColor[0]).toBe(
+        canopy.props.updateTriggers.getColor[0]
+      );
+    }
+  });
+  it('does not apply native dense wood deformation to a custom mesh override', () => {
+    const data = Array.from({length: 1024}, (_, index) => ({
+      position: [index % 32, Math.floor(index / 32)] as [number, number],
+      type: 'oak' as const,
+      season: 'summer' as const
+    }));
+    const customMesh = getTreeWoodMesh('palm');
+    const {layer} = createLayer(data, {_subLayerProps: {trunks: {mesh: customMesh}}});
+    const wood = layer.renderLayers().find(child => child.id.includes('wood'))!;
+    expect(wood).toBeInstanceOf(TreeWoodLayer);
+    expect(wood.props.mesh).toBe(customMesh);
+    expect(wood.props.templateMesh).not.toBe(customMesh);
+  });
+  it('gives date palms a slimmer tapered bole with bark scars down the full trunk', () => {
+    const mesh = getTreeWoodMesh('palm');
+    const positions = mesh.attributes.POSITION.value;
+    const trunk = mesh.attributes.TEXCOORD_0.value;
+    let baseRadius = 0;
+    let topRadius = 0;
+    const trunkHeights = new Set<number>();
+    for (let vertex = 0; vertex < positions.length / 3; vertex++) {
+      if (trunk[vertex * 2 + 1] !== 1) continue;
+      const x = positions[vertex * 3];
+      const y = positions[vertex * 3 + 1];
+      const z = positions[vertex * 3 + 2];
+      const radius = Math.hypot(x, y);
+      if (z < -0.9) baseRadius = Math.max(baseRadius, radius);
+      if (z > 0.5) topRadius = Math.max(topRadius, radius);
+      trunkHeights.add(Math.round(z * 1000));
+    }
+    expect(topRadius).toBeLessThan(baseRadius * 0.85);
+    expect(trunkHeights.size).toBeGreaterThan(40);
   });
   it('tapers trunks upward and uses actual radius-one centered crop geometry', () => {
     const p = createTrunkMesh().attributes.POSITION.value;
@@ -155,41 +228,7 @@ describe('native tree geometry', () => {
   });
 });
 
-describe('winter trunk and leader join contracts', () => {
-  it('provides centered join rings with the same angular grid as the trunk at every detail', () => {
-    for (const detail of ['low', 'medium', 'high'] as const) {
-      const trunk = getTreeMesh('trunk', 'oak', detail);
-      const top = getMeshRing(trunk, 1);
-      for (const species of ['oak', 'birch', 'cherry'] as const) {
-        const crown = getTreeMesh('canopy', species, detail, true);
-        const join = getMeshRing(crown, 0.22, true);
-        expect(join.length).toBe(detail === 'low' ? 8 : 12);
-        expect(top.length).toBe(join.length);
-        for (const point of join) {
-          const radius = Math.hypot(point[0], point[1]);
-          expect(radius).toBeCloseTo(0.06, 6);
-          const matching = top.find(
-            candidate =>
-              Math.hypot(
-                candidate[0] / 0.7 - point[0] / radius,
-                candidate[1] / 0.7 - point[1] / radius
-              ) < 0.000001
-          );
-          expect(matching).toBeDefined();
-        }
-        for (const axis of [0, 1])
-          expect(join.reduce((sum, point) => sum + point[axis], 0)).toBeCloseTo(0, 6);
-        // A taper needs real rings above the join, not just interpolated shader values.
-        expect(getMeshRing(crown, 0.27, true).length).toBe(join.length);
-        expect(getMeshRing(crown, 0.42, true).length).toBe(join.length);
-        expect(
-          crown.attributes.TEXCOORD_0.value.some((value, i) => i % 2 === 0 && value === 0)
-        ).toBe(true);
-        expect(trunk.attributes.TEXCOORD_0.value.every(value => value === 0)).toBe(true);
-      }
-    }
-  });
-
+describe('tree wood and crop contracts', () => {
   it('anchors the connected root at the tree base across dimensions, yaw and canopy anisotropy', () => {
     for (const species of ['oak', 'birch', 'cherry'] as const) {
       for (const dimensions of [
@@ -457,7 +496,6 @@ describe('TreeLayer sublayer override contracts', () => {
           doubleSided: false,
           windStrength: 0.05,
           windTime: 3,
-          shadowEnabled: false,
           parameters: {cullMode: 'back'}
         }
       }
@@ -468,7 +506,6 @@ describe('TreeLayer sublayer override contracts', () => {
     expect(changed.props.parameters).toMatchObject({cullMode: 'back', depthWriteEnabled: false});
     expect(changed.props.windStrength).toBe(0.05);
     expect(changed.props.windTime).toBe(3);
-    expect(changed.props.shadowEnabled).toBe(false);
   });
 });
 
@@ -510,8 +547,14 @@ describe('TreeLayer prepared data and crop contracts', () => {
     const crop = {count: 8, droppedCount: 5, radius: 0.2, color: [200, 80, 40, 255]};
     const {layer} = createLayer([OAK], {getCrop: () => crop});
     const prefix = layer.state.liveCrops.map(point => point.translation);
+    const cropRadii = layer.state.liveCrops.map(point => point.radius);
     const expanded = createLayer([OAK], {getCrop: () => ({...crop, count: 16})}).layer;
     expect(expanded.state.liveCrops.slice(0, 8).map(point => point.translation)).toEqual(prefix);
+    expect(expanded.state.liveCrops.slice(0, 8).map(point => point.radius)).toEqual(cropRadii);
+    expect(new Set(cropRadii).size).toBeGreaterThan(1);
+    expect(cropRadii.every(radius => radius >= crop.radius * 0.84 && radius <= crop.radius)).toBe(
+      true
+    );
     expect(expanded.state.droppedCrops.map(point => point.translation)).toEqual(
       layer.state.droppedCrops.map(point => point.translation)
     );
@@ -538,11 +581,6 @@ describe('TreeLayer prepared data and crop contracts', () => {
       expect(point[2]).toBe(0.35);
       expect(samplePineSurface(levels, 0.35, 0.8)).toEqual(point);
     }
-  });
-  it('samples crop points on the visible union envelope', () => {
-    const point = sampleCrownSurface('oak', [1, 0, 0]);
-    expect(point[0]).toBeGreaterThan(0.4);
-    expect(point[2]).toBe(0.5);
   });
 });
 
@@ -705,7 +743,6 @@ it('preserves legacy source and hierarchy overrides while sharing one canopy quo
   const hierarchy = [{source: customSource, error: 0}];
   const {layer} = createLayer([OAK, {...OAK, type: 'pine'}], {
     maxCanopySplats: 1234,
-    maxShadowSplats: 567,
     _subLayerProps: {'canopy-oak': {source: customSource, hierarchy, maxSplats: 99}}
   });
   const canopies = layer.renderLayers().filter(child => child instanceof SplatLayer);
@@ -714,10 +751,7 @@ it('preserves legacy source and hierarchy overrides while sharing one canopy quo
   expect(oak.props.source).toBeNull();
   expect(oak.props.maxSplats).toBe(99);
   expect(canopies[0].props._splatBudgetGroup).toBe(canopies[1].props._splatBudgetGroup);
-  expect(canopies[0].props._splatBudgetGroup).toMatchObject({
-    maxSplats: 1234,
-    maxShadowSplats: 567
-  });
+  expect(canopies[0].props._splatBudgetGroup).toMatchObject({maxSplats: 1234});
   const withoutHierarchy = createLayer([OAK], {
     _subLayerProps: {'canopy-oak': {hierarchy: null}}
   })

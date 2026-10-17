@@ -34,7 +34,7 @@ export function getSplatDeformationRadius(
  * Reduced cantilever motion: a clamped cubic bending shape plus a spatial crown
  * mode at twice the fundamental frequency. It is an animation approximation,
  * not a structural solver. The analytic Jacobian keeps meshes, splat covariance,
- * shading normals, picking and light-space coverage on the same deformation.
+ * shading normals and picking on the same deformation.
  */
 export const SPLAT_DEFORMATION_GLSL = `
 mat3 splatDeform(inout vec3 position, float height, float strength, vec2 wave) {

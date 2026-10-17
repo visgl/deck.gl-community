@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {Vector3} from '@math.gl/core';
 import {samplePineSurface, createPineTiers, type TreeMesh} from './tree-geometry';
+import {evaluatePalmFrond, getPalmFronds, getPalmTrunkRadius, PALM_LEADER_TOP} from './tree-palm';
 import type {TreeType} from './tree-layer';
 import {
   getTreeCharacteristicsKey,
@@ -31,9 +32,10 @@ export function getTreeWoodMesh(
   levels = 3,
   aggregate = false,
   characteristics?: TreeCharacteristics,
-  physicalMorph = false
+  physicalMorph = false,
+  trunkOnly = false
 ): TreeMesh {
-  const key = `${type}-${type === 'pine' ? levels : 0}-${aggregate}-${physicalMorph}-${getTreeCharacteristicsKey(characteristics)}`;
+  const key = `${type}-${type === 'pine' ? levels : 0}-${aggregate}-${physicalMorph}-${trunkOnly}-${getTreeCharacteristicsKey(characteristics)}`;
   const cached = CACHE.get(key);
   if (cached) return cached;
   const positions: number[] = [],
@@ -41,70 +43,73 @@ export function getTreeWoodMesh(
     colors: number[] = [],
     textureCoordinates: number[] = [],
     indices: number[] = [];
-  const segments = aggregate && type !== 'mangrove' ? 8 : type === 'palm' ? 72 : 24;
+  const segments = aggregate && (type !== 'mangrove' || trunkOnly) ? 8 : type === 'palm' ? 72 : 24;
   const pineTip = createPineTiers(levels).tipEnd[2];
   const height = [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.1, 0.22];
+  const palmBaseRingOffset = type === 'palm' && !aggregate ? 14 : 0;
+  if (palmBaseRingOffset) {
+    for (let ring = 1; ring <= palmBaseRingOffset; ring++)
+      height.push(-1 + (1.22 * ring) / (palmBaseRingOffset + 1));
+    height.sort((a, b) => a - b);
+  }
   const broadleaf = type !== 'pine' && type !== 'palm';
   const botany = broadleaf ? getTreeBotany(type, characteristics) : null;
-  const leaderTop = type === 'palm' ? 0.54 : pineTip - 0.025;
+  const leaderTop = type === 'palm' ? PALM_LEADER_TOP : pineTip - 0.025;
   for (let ring = 0; ring < 26; ring++) height.push(0.24 + (ring * (leaderTop - 0.24)) / 25);
   if (aggregate && !broadleaf)
     height.splice(0, height.length, -1, 0.22, 0.42, height[height.length - 1]);
+  const trunkIndices =
+    trunkOnly && botany
+      ? Array.from({length: 5}, (_, index) => Math.round((index * (botany.stem.length - 1)) / 4))
+      : null;
   const root: Point[] = botany
-    ? botany.stem
-    : height.map(z => [z > 0.22 ? Math.pow((z - 0.22) / 0.75, 2) * 0.012 : 0, 0, z]);
+    ? trunkIndices
+      ? trunkIndices.map(index => botany.stem[index])
+      : botany.stem
+    : height.map(z => [
+        z > 0.22 ? Math.pow((z - 0.22) / 0.75, 2) * (type === 'palm' ? 0.02 : 0.012) : 0,
+        0,
+        z
+      ]);
   const radius =
-    botany?.radii ??
-    height.map((z, ring) =>
-      type === 'palm'
-        ? 0.06 * (1 + Math.sin(ring * 1.9) * 0.025)
-        : 0.06 * (1 - (Math.max(0, z - 0.22) / 0.85) * 0.84)
-    );
+    trunkIndices && botany?.radii
+      ? trunkIndices.map(index => botany.radii[index])
+      : (botany?.radii ??
+        height.map(z =>
+          type === 'palm'
+            ? getPalmTrunkRadius(z, aggregate)
+            : 0.06 * (1 - (Math.max(0, z - 0.22) / 0.85) * 0.84)
+        ));
   const sockets: Socket[] = [];
-  if (!aggregate && type === 'palm') {
-    for (let k = 0; k < 28; k++) {
-      const spear = k >= 20;
-      const index = spear ? k - 20 : k;
-      const angle =
-        ((index + (spear ? 0.5 : 0)) / (spear ? 8 : 20)) * Math.PI * 2 +
-        (spear ? 0 : Math.sin(index * 5.37) * 0.07);
-      const tier = index % 4;
-      const controls = spear
-        ? [
-            [0.025, 0.44],
-            [0.12, 0.82],
-            [0.38, 1.04],
-            [0.62, 0.96]
-          ]
-        : [
-            [0.035, 0.43 + tier * 0.012],
-            [0.28, 0.72 - tier * 0.025],
-            [0.68, 0.55 - tier * 0.045],
-            [0.84 + ((index * 7) % 9) * 0.018, 0.25 - tier * 0.035]
-          ];
-      const path = Array.from({length: 17}, (_, segment) => {
-        const t = (segment + 1) / 17,
-          u = 1 - t;
-        const weights = [u ** 3, 3 * u * u * t, 3 * u * t * t, t ** 3];
-        const r = controls.reduce((sum, point, i) => sum + point[0] * weights[i], 0);
-        return [
-          Math.cos(angle) * r,
-          Math.sin(angle) * r,
-          controls.reduce((sum, point, i) => sum + point[1] * weights[i], 0)
-        ] as Point;
-      });
-      // Parent rings start on -Y; convert the authored frond azimuth into that frame.
+  if (!trunkOnly && !aggregate && type === 'palm') {
+    for (const frond of getPalmFronds()) {
+      // The unopened spear is foliage only: the tapered leader continues directly
+      // into its center, avoiding a second woody stem and an exposed crown socket.
+      if (frond.spear) continue;
+      const baseHeight = frond.controls[0][2];
+      const ring = height.reduce(
+        (closest, candidate, index) =>
+          Math.abs(candidate - baseHeight) < Math.abs(height[closest] - baseHeight)
+            ? index
+            : closest,
+        0
+      );
+      const path = Array.from({length: 18}, (_, segment) => evaluatePalmFrond(frond, segment / 17));
+      // Match the socket to the authored base after its small rachis sweep, then
+      // convert the radial angle into the parent's -Y starting frame.
+      const baseAngle = Math.atan2(frond.controls[0][1], frond.controls[0][0]);
       const sector =
-        (Math.round(((angle + Math.PI / 2) / (Math.PI * 2)) * segments) + segments) % segments;
+        (Math.round(((baseAngle + Math.PI / 2) / (Math.PI * 2)) * segments) + segments) % segments;
       sockets.push({
-        ring: 24 + (spear ? 4 : 0) + tier,
+        ring,
         sector,
         end: path[path.length - 1],
-        radius: 0.0055,
+        radius: 0.0075,
+        radii: path.map((_, index) => 0.0075 * (1 - (index / (path.length - 1)) * 0.82)),
         path
       });
     }
-  } else if (!aggregate && type === 'pine') {
+  } else if (!trunkOnly && !aggregate && type === 'pine') {
     for (let tier = 0; tier < levels; tier++)
       for (let branch = 0; branch < 4; branch++) {
         const angle = (branch * Math.PI) / 2 + tier * 0.57;
@@ -118,7 +123,7 @@ export function getTreeWoodMesh(
           forks: true
         });
       }
-  } else if (botany) {
+  } else if (!trunkOnly && botany) {
     const adaptBranch = (branch: TreeBranch): Socket => {
       // Aerial and stilt roots are structural wood, including in the coarse shell.
       // Keep their parent path so each root retains its authored attachment ring.
@@ -176,10 +181,17 @@ export function getTreeWoodMesh(
           const point = new Vector3(path[ring])
             .add(new Vector3(side).scale(Math.cos(angle) * radii[ring]))
             .add(new Vector3(up).scale(Math.sin(angle) * radii[ring]));
+          const scar =
+            type === 'palm' && trunk
+              ? Math.pow(
+                  (1 + Math.cos(((path[ring][2] + 1) / (leaderTop + 1)) * Math.PI * 32)) / 2,
+                  4
+                ) * 0.3
+              : 0;
           return addVertex(
             point,
             trunk,
-            0.78 + Math.sin(angle * 9 + ring * 0.2) * 0.08 + (ring / path.length) * 0.09,
+            0.78 + Math.sin(angle * 9 + ring * 0.2) * 0.08 + (ring / path.length) * 0.09 - scar,
             path[ring]
           );
         })

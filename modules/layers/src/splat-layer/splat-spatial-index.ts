@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {createSplatFrustum, intersectsSplatFrustum} from './splat-culling';
-import type {SplatShadowProjection} from './splat-shadow-pass';
+import type {SplatProjection} from './splat-culling';
 
 export type SplatSpatialEntry<T> = {center: number[]; radius: number; value: T};
 export type SplatSpatialNode<T> = {
@@ -40,7 +40,7 @@ export function createSplatSpatialIndex<T>(
 /** Visit visible branches of the BVH, then test each surviving owner's bounds. */
 export function querySplatSpatialIndex<T>(
   root: SplatSpatialNode<T> | null,
-  projections: readonly SplatShadowProjection[],
+  projections: readonly SplatProjection[],
   pixelPadding = 0
 ): T[] {
   const visible: T[] = [];
