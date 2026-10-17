@@ -45,7 +45,8 @@ layout(std140) uniform textHaloBlurUniforms {
 /**
  * `LabelCharactersLayer` (the characters of a `LabelTextLayer`) sets the alpha of a halo with this
  * statement, from the halo edge's own antialiasing, `labelHaloGamma`. It runs in the halo pass
- * only: the pass that draws the glyphs on top draws no outline.
+ * only: the pass that draws the glyphs on top draws no outline. `haloGamma`, the width the halo
+ * fades over, is also the width of the ring's inner edge, which the layer draws next.
  */
 const OUTLINE_ALPHA_STATEMENT = 'alpha = inBorder;';
 
@@ -57,7 +58,7 @@ const injection = {
         // 'capped', capped so that the halo is transparent where the distance field ends, at the
         // edge of the glyph's quad: the font atlas stores a few 1/255 steps of distance there.
         // Uncapped, as MapLibre draws its glyphs, the faintest part of a wide fade is cut there.
-        float haloGamma = labelHaloGamma + textHaloBlur.gamma / labelEdge.foreshortening;
+        haloGamma = labelHaloGamma + textHaloBlur.gamma / labelEdge.foreshortening;
         if (textHaloBlur.capped > 0.5) {
           haloGamma = max(labelHaloGamma, min(haloGamma, sdf.outlineBuffer - 4.0 / 255.0));
         }

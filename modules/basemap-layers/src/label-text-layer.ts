@@ -247,9 +247,14 @@ const SDF_EDGES =
  * - The halo edge is smoothed as MapLibre's, also when it has no blur, unless the halo reaches so
  *   far out that the distance field ends within the smoothing: then it is smoothed no more than
  *   that allows, or than `sdf.gamma`. `TextHaloBlurExtension` widens it
- *   from `labelHaloGamma`, after `alpha = inBorder;`.
- * - The pass that draws the glyphs again over every halo (`sdf.outlineBuffer` at `sdf.buffer`)
- *   blends their edge with the halo color, as `TextLayer`'s does, over the glyph edge's own width.
+ *   from `labelHaloGamma`, after `alpha = inBorder;`, and sets `haloGamma` to the width it fades
+ *   over.
+ * - The halo is a ring, as MapLibre's: it fades out inside the glyph, from the glyph edge over
+ *   `2 * haloGamma` (MapLibre's `inner_edge`). The halo pass draws the halo alone, and the pass that
+ *   draws the glyphs over every halo (`sdf.outlineBuffer` at `sdf.buffer`) draws the glyphs alone,
+ *   as MapLibre's two passes. A glyph's antialiased edge, and a translucent glyph, show the ring
+ *   where it reaches in, and the map beyond it; `TextLayer` mixes the glyph color into the halo
+ *   pass instead, which shows much less of the halo there than MapLibre.
  */
 const LABEL_SDF_EDGES = /* glsl */ `\
 if (sdf.enabled) {
@@ -268,19 +273,17 @@ if (sdf.enabled) {
         labelEdge.foreshortening;
       alpha = smoothstep(sdf.buffer - labelFillGamma, sdf.buffer + labelFillGamma, distance);
       if (sdf.outlineBuffer > 0.0 && sdf.outlineBuffer < sdf.buffer) {
-        float inFill = alpha;
         // Capped, as TextHaloBlurExtension caps its blur, so that the halo fades out before the
         // distance field ends, at the edge of the glyph's quad, or no later than with sdf.gamma.
         float labelHaloGamma = min(labelEdgeGamma, max(sdf.gamma, sdf.outlineBuffer - 4.0 / 255.0));
         float inBorder = smoothstep(
           sdf.outlineBuffer - labelHaloGamma, sdf.outlineBuffer + labelHaloGamma, distance
         );
-        color = mix(sdf.outlineColor, vColor, inFill);
+        color = sdf.outlineColor;
+        float haloGamma = labelHaloGamma;
         alpha = inBorder;
-      } else if (sdf.outlineBuffer > 0.0) {
-        // The glyphs drawn again over the halos, blended with the halo color at their edge as the
-        // halo pass blends them, so that an edge pixel is half glyph and half halo, as MapLibre's.
-        color = mix(sdf.outlineColor, vColor, alpha);
+        // The ring's inner edge, inside the glyph, fading over the halo's own width.
+        alpha = min(alpha, 1.0 - smoothstep(sdf.buffer, sdf.buffer + 2.0 * haloGamma, distance));
       }
     }`;
 
