@@ -249,13 +249,22 @@ describe('source loading', () => {
     expect(ids).toContain('test-streets');
   });
 
-  test('raster-dem, image and video sources are not fetched', async () => {
+  test('image and video sources are not fetched', async () => {
     const {fetch, requested} = fakeFetch({});
     await resolveBasemapStyle(
       {
         version: 8,
         sources: {
-          terrain: {type: 'raster-dem', url: 'https://tiles.example.com/terrain.json'},
+          photo: {
+            type: 'image',
+            url: 'https://media.example.com/photo.png',
+            coordinates: [
+              [0, 1],
+              [1, 1],
+              [1, 0],
+              [0, 0]
+            ]
+          },
           clip: {type: 'video', url: 'https://media.example.com/clip.mp4'}
         },
         layers: []
@@ -263,6 +272,31 @@ describe('source loading', () => {
       {fetch}
     );
     expect(requested).toEqual([]);
+  });
+
+  test("a raster-dem source's TileJSON is fetched, with its encoding", async () => {
+    const {fetch, requested} = fakeFetch({
+      'https://tiles.example.com/terrain.json': {
+        tiles: ['https://tiles.example.com/terrain/{z}/{x}/{y}.png'],
+        encoding: 'terrarium',
+        maxzoom: 12
+      }
+    });
+    const style = await resolveBasemapStyle(
+      {
+        version: 8,
+        sources: {terrain: {type: 'raster-dem', url: 'https://tiles.example.com/terrain.json'}},
+        layers: []
+      } as any,
+      {fetch}
+    );
+    expect(requested).toEqual(['https://tiles.example.com/terrain.json']);
+    expect(style.sources.terrain).toMatchObject({
+      type: 'raster-dem',
+      tiles: ['https://tiles.example.com/terrain/{z}/{x}/{y}.png'],
+      encoding: 'terrarium',
+      maxzoom: 12
+    });
   });
 
   test('relative inline tiles resolve against the style URL whether or not the TileJSON loads', async () => {

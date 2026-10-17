@@ -165,7 +165,7 @@ Mapbox layers have a deck.gl equivalent:
 | `circle`          | `MVTLayer` ?                |
 | `fill-extrusion`  | `MVTLayer` (`PolygonLayer`) |
 | `heatmap`         | `HeatmapLayer`              |
-| `hillshade`       | N/A                         |
+| `hillshade`       | `BitmapLayer` (slope tiles) |
 | `sky` (v2 only)   | N/A                         |
 
 The module evaluates styles with [`@maplibre/maplibre-gl-style-spec`][maplibre-style-spec-js], the standalone style-spec package from MapLibre GL JS. It:

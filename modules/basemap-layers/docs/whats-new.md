@@ -2,6 +2,7 @@
 
 ## October 2026
 
+- `hillshade` layers over `raster-dem` sources are drawn, in style order, as MapLibre GL JS 6.13 draws them: `mapbox`, `terrarium` and `custom` encodings, a TileJSON `url` or inline `tiles`, every `hillshade-method` (`standard`, `basic`, `combined`, `igor`, `multidirectional` with up to four lights), `hillshade-illumination-direction`, `-altitude`, `-anchor`, `-exaggeration`, `-shadow-color`, `-highlight-color`, `-accent-color` and `resampling`. Tiles take their neighbors' edge pixels, so they join without seams. Also on a globe; WebGL only (WebGPU draws no hillshade).
 - `BasemapLayer`s stacked in one deck, such as a base style and a labels-only style, place their labels together, as before: where two labels overlap, the one of the `BasemapLayer` drawn later is kept. Set the new `separateLabelPlacement` prop to place a layer's labels on their own.
 - Symbol layers draw `icon-image` from the style's sprite (`@2x` on high-density screens, the `[{id, url}]` sprite array, `icon-size`, `icon-opacity`, `icon-anchor`, `icon-offset`, and `icon-color` for SDF images). Labels honor `text-offset` and `text-anchor`. Missing sprites and images are skipped with a warning.
 - `line-width` is drawn as the style sets it: the OpenMapTiles-specific scaling (0.55 for `transportation`/`boundary`, 0.75 for `waterway`/`aeroway`) is removed, a width of 0 draws nothing, and wide lines are no longer capped at 20 px.
