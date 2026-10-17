@@ -1339,6 +1339,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (glyphs) {
       const fontStack = this.getFontStack();
       return {
+        // MapLibre GL JS samples its 24 px glyphs without mipmaps.
+        atlasMipLevels: 1,
         fontSettings: GLYPH_FONT_SETTINGS,
         // The atlas's cache key: deck.gl keys font atlases by their font and settings.
         fontFamily: `glyphs ${glyphs.url} ${fontStack}`,
@@ -3233,6 +3235,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               outlineWidth: halo?.outlineWidth ?? 0,
               outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
               textHaloBlurGamma: halo?.outlineBlur ?? 0,
+              textHaloBlurCapped: !this.props.glyphs,
               getText,
               updateTriggers: {...updateTriggers, getText: getTextTrigger, all: groupTrigger}
             })
@@ -3259,6 +3262,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
                   outlineWidth: halo?.outlineWidth ?? 0,
                   outlineColor: (halo?.outlineColor ?? [0, 0, 0, 0]) as any,
                   textHaloBlurGamma: halo?.outlineBlur ?? 0,
+                  textHaloBlurCapped: !this.props.glyphs,
                   // The placing sublayer's background box is the label's picking box.
                   background: false,
                   // `rowHalos` is in `labelData` order, the reverse of `getRows`.

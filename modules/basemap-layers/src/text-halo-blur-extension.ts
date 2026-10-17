@@ -36,9 +36,10 @@ const textHaloBlurModule = {
   fs: /* glsl */ `\
 layout(std140) uniform textHaloBlurUniforms {
   float gamma;
+  float capped;
 } textHaloBlur;
 `,
-  uniformTypes: {gamma: 'f32'}
+  uniformTypes: {gamma: 'f32', capped: 'f32'}
 } as const;
 
 /**
@@ -52,16 +53,14 @@ const injection = {
   [OUTLINE_ALPHA_STATEMENT]: /* glsl */ `
       if (textHaloBlur.gamma > 0.0) {
         // Fades the halo over the wider edge. The blur widens by 1 / cos(pitch) on a pitched map,
-        // as the edge's own antialiasing does: MapLibre divides both by its u_gamma_scale. Capped
-        // so that the halo is transparent where the distance field ends, at the edge of the
-        // glyph's quad: the font atlas stores a few 1/255 steps of distance there.
-        float haloGamma = max(
-          labelHaloGamma,
-          min(
-            labelHaloGamma + textHaloBlur.gamma / labelEdge.foreshortening,
-            sdf.outlineBuffer - 4.0 / 255.0
-          )
-        );
+        // as the edge's own antialiasing does: MapLibre divides both by its u_gamma_scale. With
+        // \`capped\`, capped so that the halo is transparent where the distance field ends, at the
+        // edge of the glyph's quad: the font atlas stores a few 1/255 steps of distance there.
+        // Uncapped, as MapLibre draws its glyphs, the faintest part of a wide fade is cut there.
+        float haloGamma = labelHaloGamma + textHaloBlur.gamma / labelEdge.foreshortening;
+        if (textHaloBlur.capped > 0.5) {
+          haloGamma = max(labelHaloGamma, min(haloGamma, sdf.outlineBuffer - 4.0 / 255.0));
+        }
         alpha = smoothstep(sdf.outlineBuffer - haloGamma, sdf.outlineBuffer + haloGamma, distance);
       }
 `
@@ -70,6 +69,11 @@ const injection = {
 type TextHaloBlurExtensionProps = {
   /** Distance by which the halo edge fades on each side, see {@link getHaloBlurGamma}. */
   textHaloBlurGamma?: number;
+  /**
+   * Whether the fade ends where the distance field does (default), or reaches past it and is cut
+   * at the glyph's quad, as MapLibre GL JS draws its glyphs.
+   */
+  textHaloBlurCapped?: boolean;
 };
 
 /**
@@ -82,7 +86,7 @@ type TextHaloBlurExtensionProps = {
  */
 export class TextHaloBlurExtension extends LayerExtension {
   static extensionName = 'TextHaloBlurExtension';
-  static defaultProps = {textHaloBlurGamma: 0};
+  static defaultProps = {textHaloBlurGamma: 0, textHaloBlurCapped: true};
 
   getShaders(this: Layer<TextHaloBlurExtensionProps>) {
     if (this.context.device.type === 'webgpu') {
@@ -96,6 +100,11 @@ export class TextHaloBlurExtension extends LayerExtension {
     if (this.context.device.type === 'webgpu') {
       return;
     }
-    this.setShaderModuleProps({textHaloBlur: {gamma: this.props.textHaloBlurGamma ?? 0}});
+    this.setShaderModuleProps({
+      textHaloBlur: {
+        gamma: this.props.textHaloBlurGamma ?? 0,
+        capped: this.props.textHaloBlurCapped === false ? 0 : 1
+      }
+    });
   }
 }

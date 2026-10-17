@@ -46,6 +46,11 @@ type _LabelTextLayerProps<DataT> = {
    * as the layer draws.
    */
   getLineGlyphKey?: ((viewport: any) => string) | null;
+  /**
+   * Mip levels of the font atlas texture (see `LABEL_ATLAS_MIP_LEVELS`). 1 samples the atlas
+   * without mipmaps, as MapLibre GL JS samples its 24 px glyphs.
+   */
+  atlasMipLevels?: number;
 };
 
 /**
@@ -129,6 +134,7 @@ const defaultProps: DefaultProps<LabelTextLayerProps> = {
   getTextJustify: {type: 'accessor', value: 'auto'},
   getLineGlyphs: {type: 'function', value: null, optional: true} as any,
   getLineGlyphKey: {type: 'function', value: null, optional: true} as any,
+  atlasMipLevels: {type: 'number', value: 2},
   // Keeps the part of italic glyphs left of their origin (see `getLabelFontRenderer`).
   _getFontRenderer: {type: 'function', value: getLabelFontRenderer}
 };
@@ -577,8 +583,10 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     const {device} = this.context;
     if (atlas && device) {
       let {atlasTextures} = this.state;
-      if (!atlasTextures) {
-        atlasTextures = new SharedTextureSet(device, {maxMipLevels: LABEL_ATLAS_MIP_LEVELS});
+      const maxMipLevels = this.props.atlasMipLevels ?? LABEL_ATLAS_MIP_LEVELS;
+      if (atlasTextures?.options.maxMipLevels !== maxMipLevels) {
+        atlasTextures?.releaseAll();
+        atlasTextures = new SharedTextureSet(device, {maxMipLevels});
         this.state.atlasTextures = atlasTextures;
       }
       // A new atlas, with more characters, is a new texture; the previous one is released.
