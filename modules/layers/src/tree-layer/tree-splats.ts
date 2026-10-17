@@ -103,7 +103,7 @@ export function getTreeSplatSource(
         const fullness = Math.sin(((j + 0.5) / pairs) * Math.PI);
         for (const side of [-1, 1]) {
           // Stagger opposing leaflets along the rachis rather than lining them up as rungs.
-          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.02 + (rng() - 0.5) * 0.018));
+          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.018 + (rng() - 0.5) * 0.05));
           const point = evaluate(leafT);
           const tangent = evaluate(leafT + 0.001)
             .subtract(evaluate(leafT - 0.001))
@@ -111,23 +111,25 @@ export function getTreeSplatSource(
           const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
           const direction = new Vector3(sideways)
             .scale(side)
-            .add(new Vector3(tangent).scale(0.14 + rng() * 0.2))
-            .add([0, 0, -0.04 - leafT * 0.18 - rng() * 0.12])
+            .add(
+              new Vector3(tangent).scale(0.08 + leafT * 0.48 + side * 0.05 + (rng() - 0.5) * 0.22)
+            )
+            .add([0, 0, -0.06 - leafT * 0.3 - rng() * 0.14])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = (0.12 + fullness * 0.16) * (0.78 + rng() * 0.44);
+          const length = (0.1 + fullness * 0.17) * (0.82 + rng() * 0.36) * (side < 0 ? 0.92 : 1.08);
           for (const [progress, widthScale] of [
-            [0.3, 1],
-            [0.72, 0.62]
+            [0.28, 1],
+            [0.68, 0.7]
           ]) {
             const center = new Vector3(point)
-              .add(new Vector3(sideways).scale(side * 0.006))
+              .add(new Vector3(sideways).scale(side * 0.012))
               .add(new Vector3(direction).scale(length * progress));
             add(
               Array.from(center) as Point,
-              [length * 0.48 * widthScale, (0.005 + fullness * 0.007) * widthScale, 0.002],
+              [length * 0.46 * widthScale, (0.009 + fullness * 0.016) * widthScale, 0.003],
               Array.from(normal) as Point,
-              progress < 0.5 ? 0.7 : 0.62,
+              progress < 0.5 ? 0.6 : 0.48,
               Array.from(direction) as Point,
               [0.91, 1.04, 0.88]
             );
