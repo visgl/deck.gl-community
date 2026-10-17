@@ -15,7 +15,6 @@ import * as communityGeo from '@deck.gl-community/geo-layers';
 import * as graph from '@deck.gl-community/graph-layers';
 import * as infovis from '@deck.gl-community/infovis-layers';
 import * as communityLayers from '@deck.gl-community/layers';
-import * as three from '@deck.gl-community/three';
 import * as timeline from '@deck.gl-community/timeline-layers';
 import {tableFromArrays} from 'apache-arrow';
 import ts from 'typescript';
@@ -41,7 +40,6 @@ const PACKAGES = {
   '@deck.gl-community/graph-layers': graph,
   '@deck.gl-community/infovis-layers': infovis,
   '@deck.gl-community/layers': communityLayers,
-  '@deck.gl-community/three': three,
   '@deck.gl-community/timeline-layers': timeline
 };
 const ABSTRACT_LAYERS = new Set(['_AggregationLayer', '_GeoCellLayer']);
@@ -169,6 +167,8 @@ test('every public layer default prop has a schema property', () => {
         if (name === '_GeoArrowTextLayer' && prop === 'background') continue;
         // BitmapLayer draws its image prop and intentionally omits inherited row data.
         if (name === 'BitmapLayer' && prop === 'data') continue;
+        // Tree and splat renderers disable Deck's generic shadow pass internally.
+        if ((name === 'TreeLayer' || name === 'SplatLayer') && prop === 'shadowEnabled') continue;
         if (!(prop in shape)) missing.push(`${name}.${prop}`);
       }
     }

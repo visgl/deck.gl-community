@@ -28,7 +28,7 @@ This page lists module additions and major changes in each release. For detailed
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
 
-- Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
+- Added one [TreeLayer showcase](/examples/layers/tree-lab) with two scenes: a mixed-species forest containing each supported species once, and a single-species row grove with up to 10,000 trees. The demo uses species-native seasonal crops, shared geometry batches, and stable center-out growth as the count changes. Labels render beneath the canopy pass, and the grove omits labels and crops for the high-count view. Crop instances also vary deterministically below their configured maximum radius.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
@@ -42,9 +42,10 @@ This page lists module additions and major changes in each release. For detailed
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
 
-- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera and light-map culling include the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
+- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared camera-visible refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera culling includes the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
 
-- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. The old import temporarily re-exports the same constructor.
+- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. Import the canonical renderer from `@deck.gl-community/layers`.
+- Consolidated the TreeLayer examples in the native layers package and removed the deprecated `three` workspace.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 

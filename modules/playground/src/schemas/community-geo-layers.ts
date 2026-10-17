@@ -159,6 +159,8 @@ export const BasemapLayerPropsSchema = CompositeLayerPropsSchema.extend({
   style: z.union([z.string(), BasemapStyleSchema]).nullable().meta({'x-playground-literal': true}),
   loadOptions: JsonObjectSchema.nullable().optional(),
   fontFamily: z.union([z.string(), CallbackSchema]).nullable().optional(),
+  labelPlacementInterval: z.number().nonnegative().optional(),
+  separateLabelPlacement: z.boolean().optional(),
   mode: z.enum(['map', 'globe']).optional(),
   globe: z
     .strictObject({
@@ -264,9 +266,7 @@ export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
   windTime: z.number().nullable().optional(),
   foveationStrength: z.number().min(0).max(1).optional(),
   maxCanopySplats: z.number().nonnegative().optional(),
-  maxShadowSplats: z.number().nonnegative().optional(),
-  maxCanopyPixels: z.number().positive().optional(),
-  shadowEnabled: z.boolean().optional()
+  maxCanopyPixels: z.number().positive().optional()
 });
 
 /** Prepared Gaussian buffers and hierarchies remain host-owned constants. */
@@ -292,10 +292,8 @@ export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
   pixelError: z.number().positive().optional(),
   foveationStrength: z.number().min(0).max(1).optional(),
   maxSplats: z.number().nonnegative().optional(),
-  maxShadowSplats: z.number().nonnegative().optional(),
   maxRenderPixels: z.number().positive().optional(),
-  material: MaterialSchema.optional(),
-  shadowEnabled: z.boolean().optional()
+  material: MaterialSchema.optional()
 });
 
 /** JSON representation of SplatLayer with host-owned source buffers. */

@@ -170,8 +170,8 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       return mountGettingStartedExample(container, {showControlsWidget: false, ...mountProps});
     }
     case 'tree-layer': {
-      const {mountSeasonalFarmExample} = await import('../../../../examples/three/seasonal-farm/app');
-      return mountSeasonalFarmExample(container, mountProps);
+      const {mountTreeLabExample} = await import('../../../../examples/layers/tree-lab/app');
+      return mountTreeLabExample(container, mountProps);
     }
     case 'horizon-graph-layer': {
       const {mountHorizonGraphLayerExample} = await import(
