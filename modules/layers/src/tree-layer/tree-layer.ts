@@ -916,7 +916,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               // Preserve full crown texture in the species lab; dense groves trade detail
               // for a bounded shared splat budget and recover detail when zoomed in.
               pixelError: hasDenseCanopy ? 2.5 : type === 'palm' ? 0.3 : 0.75,
-              support: hasDenseCanopy ? 1.5 : 2,
+              support: hasDenseCanopy ? 1.5 : type === 'palm' ? 1.4 : 2,
               maxRenderPixels: this.props.maxCanopyPixels,
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),

@@ -20,9 +20,9 @@ type Point = [number, number, number];
 const CACHE = new TreeTemplateCache<SplatSource>();
 const PALM_LEAFLET_COUNT = 16;
 
-/** Evenly space leaflet anchors along the rachis without extrapolating past its tip. */
+/** Return nominal leaflet anchors along the rachis without extrapolating past its tip. */
 export function getPalmFrondLeafletT(index: number): number {
-  return 0.18 + (index / (PALM_LEAFLET_COUNT - 1)) * 0.62;
+  return 0.15 + (index / (PALM_LEAFLET_COUNT - 1)) * 0.71;
 }
 
 /** Procedural leaf clusters, not sampled opaque crown triangles. Templates are shared by species/tier. */
@@ -73,7 +73,7 @@ export function getTreeSplatSource(
   };
   if (type === 'palm') {
     for (const frond of getPalmFronds()) {
-      const {angle, spear} = frond;
+      const {spear} = frond;
       const evaluate = (t: number) => new Vector3(evaluatePalmFrond(frond, t));
       if (spear) {
         for (let j = 0; j < 7; j++) {
@@ -100,20 +100,22 @@ export function getTreeSplatSource(
       const pairs = PALM_LEAFLET_COUNT;
       for (let j = 0; j < pairs; j++) {
         const t = getPalmFrondLeafletT(j);
-        const point = evaluate(t);
-        const tangent = evaluate(t + 0.001)
-          .subtract(evaluate(t - 0.001))
-          .normalize();
-        const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
         const fullness = Math.sin(((j + 0.5) / pairs) * Math.PI);
         for (const side of [-1, 1]) {
+          // Stagger opposing leaflets along the rachis rather than lining them up as rungs.
+          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.02 + (rng() - 0.5) * 0.018));
+          const point = evaluate(leafT);
+          const tangent = evaluate(leafT + 0.001)
+            .subtract(evaluate(leafT - 0.001))
+            .normalize();
+          const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
           const direction = new Vector3(sideways)
             .scale(side)
-            .add(new Vector3(tangent).scale(0.27 + Math.sin(angle + j * 0.7) * 0.09))
-            .add([0, 0, -0.12 - t * 0.3])
+            .add(new Vector3(tangent).scale(0.14 + rng() * 0.2))
+            .add([0, 0, -0.04 - leafT * 0.18 - rng() * 0.12])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = (0.12 + fullness * 0.16) * (0.88 + rng() * 0.24);
+          const length = (0.12 + fullness * 0.16) * (0.78 + rng() * 0.44);
           for (const [progress, widthScale] of [
             [0.3, 1],
             [0.72, 0.62]

@@ -69,7 +69,7 @@ describe('native tree geometry', () => {
       else {
         expect(crown).toBeInstanceOf(SplatLayer);
         expect(crown!.props.transparency).toBe('sorted');
-        expect(crown!.props.support).toBeCloseTo(2);
+        expect(crown!.props.support).toBeCloseTo(type === 'palm' ? 1.4 : 2);
         expect(crown!.props.pixelError).toBeCloseTo(type === 'palm' ? 0.3 : 0.75);
         expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(
           type === 'palm' ? 700 : 1000
@@ -85,25 +85,25 @@ describe('native tree geometry', () => {
   });
   it('keeps palm frond stems and splat leaflets on the same deterministic curves', () => {
     const fronds = getPalmFronds();
-    expect(fronds).toHaveLength(22);
-    expect(fronds.filter(frond => !frond.spear)).toHaveLength(18);
+    expect(fronds).toHaveLength(18);
+    expect(fronds.filter(frond => !frond.spear)).toHaveLength(14);
     expect(fronds.filter(frond => frond.spear)).toHaveLength(4);
     expect(
       new Set(fronds.filter(frond => !frond.spear).map(frond => frond.angle.toFixed(3))).size
-    ).toBe(18);
+    ).toBe(14);
     expect(evaluatePalmFrond(fronds[0], 0)).toEqual(fronds[0].controls[0]);
     expect(evaluatePalmFrond(fronds[0], 1)).toEqual(fronds[0].controls[3]);
-    expect(getPalmFrondLeafletT(0)).toBeCloseTo(0.18);
-    expect(getPalmFrondLeafletT(15)).toBeCloseTo(0.8);
+    expect(getPalmFrondLeafletT(0)).toBeCloseTo(0.15);
+    expect(getPalmFrondLeafletT(15)).toBeCloseTo(0.86);
     const {layer} = createLayer([{position: [0, 0], type: 'palm', season: 'summer'}]);
     const canopy = layer.renderLayers().find(child => child.id.includes('canopy'))!;
     expect(canopy).toBeInstanceOf(SplatLayer);
-    expect(canopy.props.support).toBeCloseTo(2);
+    expect(canopy.props.support).toBeCloseTo(1.4);
     expect(canopy.props.pixelError).toBeCloseTo(0.3);
     const palmSplats = getTreeSplatSource('palm');
     expect(getTreeSplatHierarchy('palm')).toHaveLength(4);
-    expect(palmSplats.positions.length / 3).toBeGreaterThan(1100);
-    expect(palmSplats.positions.length / 3).toBeLessThan(1300);
+    expect(palmSplats.positions.length / 3).toBeGreaterThan(900);
+    expect(palmSplats.positions.length / 3).toBeLessThan(1000);
     expect(
       Array.from(palmSplats.scales)
         .filter((_, index) => index % 3 === 1)
@@ -112,10 +112,10 @@ describe('native tree geometry', () => {
     expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
     expect(getTreeSplatSource('palm')).toBe(palmSplats);
     const firstLeaf = palmSplats.positions.subarray(0, 3);
-    const firstFrondBase = evaluatePalmFrond(fronds[0], 0.18);
+    const firstFrondBase = evaluatePalmFrond(fronds[0], getPalmFrondLeafletT(0));
     expect(
       Math.hypot(...Array.from(firstLeaf, (coordinate, axis) => coordinate - firstFrondBase[axis]))
-    ).toBeLessThan(0.06);
+    ).toBeLessThan(0.1);
   });
   it('keeps every canopy on splats while dense groves use batched woody LOD', () => {
     const denseData = Array.from({length: 10000}, (_, index) => ({
