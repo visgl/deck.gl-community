@@ -54,7 +54,7 @@ const injection = {
       if (textHaloBlur.gamma > 0.0) {
         // Fades the halo over the wider edge. The blur widens by 1 / cos(pitch) on a pitched map,
         // as the edge's own antialiasing does: MapLibre divides both by its u_gamma_scale. With
-        // \`capped\`, capped so that the halo is transparent where the distance field ends, at the
+        // 'capped', capped so that the halo is transparent where the distance field ends, at the
         // edge of the glyph's quad: the font atlas stores a few 1/255 steps of distance there.
         // Uncapped, as MapLibre draws its glyphs, the faintest part of a wide fade is cut there.
         float haloGamma = labelHaloGamma + textHaloBlur.gamma / labelEdge.foreshortening;
