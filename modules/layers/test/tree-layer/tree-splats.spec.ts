@@ -12,4 +12,24 @@ describe('Authored tree Gaussian templates', () => {
       expect(getTreeSplatSource(species, 4)).toBe(template);
       expect(template.scales[0] / template.scales[2]).toBeGreaterThan(3);
     });
+
+  it('uses fewer, thicker foliage splats for dense-scene crown coverage', () => {
+    const oak = getTreeSplatSource('oak');
+    const leafCount = oak.positions.length / 3;
+    const meanScale = [0, 1, 2].map(
+      axis =>
+        oak.scales.reduce((sum, value, index) => sum + (index % 3 === axis ? value : 0), 0) /
+        leafCount
+    );
+    expect(leafCount).toBe(6144);
+    expect(meanScale[0]).toBeGreaterThan(0.015);
+    expect(meanScale[1]).toBeGreaterThan(0.0105);
+    expect(meanScale[2]).toBeGreaterThan(0.0024);
+
+    const pine = getTreeSplatSource('pine');
+    expect(pine.positions.length / 3).toBe(4480);
+    expect(pine.scales[0]).toBeCloseTo(0.03);
+    expect(pine.scales[1]).toBeCloseTo(0.015);
+    expect(pine.scales[2]).toBeCloseTo(0.007);
+  });
 });

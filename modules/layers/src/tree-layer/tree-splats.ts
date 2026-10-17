@@ -155,7 +155,7 @@ export function getTreeSplatSource(
     }
   } else if (type === 'pine') {
     // Area-weighted placement keeps wide lower whorls as dense as the apex.
-    for (let i = 0; i < 8192; i++) {
+    for (let i = 0; i < 4096; i++) {
       const z = rng() * 1.04;
       const theta = rng() * Math.PI * 2;
       const outer = samplePineSurface(levels, z, theta);
@@ -165,7 +165,7 @@ export function getTreeSplatSource(
       }
       const radial = Math.sqrt(rng()) * 0.94;
       const point: Point = [outer[0] * radial, outer[1] * radial, z];
-      add(point, [0.02, 0.009, 0.003], [Math.cos(theta), Math.sin(theta), 0.5 + rng() * 0.5], 0.9);
+      add(point, [0.03, 0.015, 0.007], [Math.cos(theta), Math.sin(theta), 0.5 + rng() * 0.5], 0.9);
     }
     const {tipStart, tipEnd} = createPineTiers(levels);
     for (let i = 0; i < 384; i++) {
@@ -193,7 +193,8 @@ export function getTreeSplatSource(
     const totalWeight = weights.reduce((sum, value) => sum + value, 0);
     let clusterIndex = 0,
       cumulativeWeight = weights[0];
-    const leafCount = Math.round(12288 * traits.leafDensity);
+    // Broader, less numerous leaf Gaussians retain crown coverage at the dense-scene LOD floor.
+    const leafCount = Math.round(6144 * traits.leafDensity);
     for (let i = 0; i < leafCount; i++) {
       const target = ((i + 0.5) / leafCount) * totalWeight;
       while (target > cumulativeWeight && clusterIndex < clusters.length - 1)
@@ -218,11 +219,12 @@ export function getTreeSplatSource(
       // Red mangrove has large opposite leathery elliptical leaves; banyan has
       // broad ovate leaves. Lengths are local one-sigma values, not botanical measurements.
       const largeLeaf = type === 'mangrove' || type === 'banyan';
-      const size = (largeLeaf ? 0.011 + rng() * 0.008 : 0.007 + rng() * 0.005) * traits.leafSize;
+      const size = (largeLeaf ? 0.017 + rng() * 0.01 : 0.012 + rng() * 0.008) * traits.leafSize;
       add(
         point,
-        [size, size * (type === 'mangrove' || type === 'citrus' ? 0.38 : 0.55), size * 0.08],
-        normal
+        [size, size * (type === 'mangrove' || type === 'citrus' ? 0.58 : 0.72), size * 0.16],
+        normal,
+        0.8
       );
     }
   }
