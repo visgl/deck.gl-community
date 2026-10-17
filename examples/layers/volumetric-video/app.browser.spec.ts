@@ -48,6 +48,14 @@ describe('mounted volumetric video demo', () => {
       );
       expect(parent.textContent).toContain('Current frame');
       expect(parent.textContent).toContain('Remove static pixels');
+      const controlPanel = parent.querySelector<HTMLElement>('.deck-widget-box')!;
+      const frameTrailRow = parent.querySelector<HTMLElement>(
+        '[data-setting-row-for="frameTrail"]'
+      )!;
+      const panelBounds = controlPanel.getBoundingClientRect();
+      const rowBounds = frameTrailRow.getBoundingClientRect();
+      expect(rowBounds.left).toBeGreaterThanOrEqual(panelBounds.left);
+      expect(rowBounds.right).toBeLessThanOrEqual(panelBounds.right);
       const status = parent.querySelector<HTMLElement>('#vv-status')!;
       expect(status.closest<HTMLElement>('.vv-stage-meta')).not.toBeNull();
       expect(getComputedStyle(status.closest<HTMLElement>('.vv-stage-meta')!).display).not.toBe(

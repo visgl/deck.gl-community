@@ -136,13 +136,21 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
   let q = input.frameUV * volumetricVideo.gridSize;
   let uvx = dpdx(input.frameUV);
   let uvy = dpdy(input.frameUV);
-  let footprint = max(length(uvx * volumetricVideo.gridSize), length(uvy * volumetricVideo.gridSize));
+  let footprintX = length(uvx * volumetricVideo.gridSize);
+  let footprintY = length(uvy * volumetricVideo.gridSize);
+  let footprint = max(footprintX, footprintY);
   let filteredMix = smoothstep(0.6, 1.5, footprint);
   let slot = i32(input.videoFrame) % i32(volumetricVideo.capacity);
   var result = vec4<f32>(0.0);
   if (filteredMix > 0.0) {
     let uv = clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0));
-    result = textureSampleGrad(filteredFrames, filteredFramesSampler, uv, slot, uvx, uvy);
+    // Mip levels are isotropic. At an edge-on angle the long axis can cover many
+    // texels while the short axis remains sharp; deriving LOD from the long axis
+    // averages along both axes and turns a thin feature into a vertical ribbon.
+    // Keep the short axis resolved and let the fragment grid alias only along the
+    // collapsed axis, which retains the actual splat silhouette.
+    let mipLevel = log2(max(min(footprintX, footprintY), 1.0));
+    result = textureSampleLevel(filteredFrames, filteredFramesSampler, uv, slot, mipLevel);
   }
   if (filteredMix < 1.0) {
     let size = volumetricVideo.splatSize;

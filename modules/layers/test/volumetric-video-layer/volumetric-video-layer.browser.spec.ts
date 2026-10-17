@@ -1681,10 +1681,10 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     await renderVolume('instanced');
   }, 70_000);
 
-  // Value: protects=the automatic renderer preserves discrete splats when a frame plane
-  // becomes nearly edge-on; fails_when=the WebGPU mip path turns that plane into a bright,
-  // expanded ribbon; seam=the model selected by an orbit-only view change.
-  it('uses per-pixel WebGPU splats for a nearly edge-on automatic volume', async ({skip}) => {
+  // Value: protects=the automatic renderer stays on its plane path when a frame becomes
+  // nearly edge-on; fails_when=the per-pixel fallback expands one source feature into a tall
+  // strip; seam=the model selected by an orbit-only view change.
+  it('keeps the WebGPU raster path for a nearly edge-on automatic volume', async ({skip}) => {
     await requireWebGPUAdapter(skip);
     const parent = document.createElement('div');
     parent.style.cssText = 'width: 256px; height: 192px';
@@ -1734,8 +1734,8 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
           onAfterRender: () => resolve()
         });
       });
-      expect(splatDraw).toHaveBeenCalled();
-      expect(rasterDraw).not.toHaveBeenCalled();
+      expect(rasterDraw).toHaveBeenCalled();
+      expect(splatDraw).not.toHaveBeenCalled();
     } finally {
       deck?.finalize();
       webgpu?.destroy();

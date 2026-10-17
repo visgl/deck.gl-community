@@ -245,7 +245,10 @@ export function mountVolumetricVideoExample(
         id: 'volumetric-video-controls',
         title: 'VolumetricVideoLayer',
         placement: 'top-left',
-        widthPx: 320,
+        // Number controls combine a slider and a numeric input. Keep their minimum
+        // widths inside the community site's standard panel so it never clips its
+        // labels behind the documentation sidebar.
+        widthPx: 368,
         collapsible: true
       })
     : undefined;
