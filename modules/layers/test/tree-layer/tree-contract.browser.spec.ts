@@ -76,7 +76,7 @@ it('renders tree parts and removes every part at zero coverage', async () => {
     effects: [
       new LightingEffect({
         ambient: new AmbientLight({intensity: 1}),
-        directional: new DirectionalLight({direction: [-1, -1, -1], shadow: true})
+        directional: new DirectionalLight({direction: [-1, -1, -1], intensity: 0.5})
       })
     ],
     layers: make(),
