@@ -11,7 +11,7 @@ export type PalmFrond = {
   controls: readonly [Point, Point, Point, Point];
 };
 
-const FROND_COUNT = 16;
+const FROND_COUNT = 18;
 const SPEAR_COUNT = 4;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
@@ -29,15 +29,15 @@ const PALM_FRONDS: PalmFrond[] = Array.from({length: FROND_COUNT + SPEAR_COUNT},
     z
   ];
   const lengthVariation = ((frondIndex * 7) % 9) / 8 - 0.5;
-  const tipRadius = 0.72 + age * 0.22 + lengthVariation * 0.05;
-  const baseHeight = 0.43 + tier * 0.012;
+  const tipRadius = 0.74 + age * 0.2 + lengthVariation * 0.06;
+  const baseHeight = 0.45 + tier * 0.01;
   const controls: PalmFrond['controls'] = spear
     ? [radial(0.025, 0.47), radial(0.13, 0.8), radial(0.34, 1.04), radial(0.54, 0.98)]
     : [
         radial(0.035, baseHeight),
-        radial(0.22, baseHeight + 0.25 - age * 0.04),
-        radial(tipRadius * 0.62, baseHeight + 0.26 - age * 0.2),
-        radial(tipRadius, Math.max(0.14, baseHeight + 0.18 - age * 0.38))
+        radial(0.22, baseHeight + 0.27 - age * 0.05),
+        radial(tipRadius * 0.62, baseHeight + 0.34 - age * 0.2),
+        radial(tipRadius, Math.max(0.1, baseHeight + 0.2 - age * 0.44))
       ];
   return {angle, tier, spear, controls};
 });
