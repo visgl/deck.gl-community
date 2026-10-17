@@ -112,7 +112,7 @@ describe('native tree geometry', () => {
     expect(
       Array.from(palmSplats.scales)
         .filter((_, index) => index % 3 === 1)
-        .some(width => width > 0.02)
+        .some(width => width > 0.014)
     ).toBe(true);
     expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
     expect(getTreeSplatSource('palm')).toBe(palmSplats);

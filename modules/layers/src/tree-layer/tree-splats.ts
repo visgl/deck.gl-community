@@ -112,24 +112,24 @@ export function getTreeSplatSource(
           const direction = new Vector3(sideways)
             .scale(side)
             .add(
-              new Vector3(tangent).scale(0.08 + leafT * 0.48 + side * 0.05 + (rng() - 0.5) * 0.22)
+              new Vector3(tangent).scale(0.1 + leafT * 0.22 + side * 0.04 + (rng() - 0.5) * 0.18)
             )
-            .add([0, 0, -0.06 - leafT * 0.3 - rng() * 0.14])
+            .add([0, 0, -0.06 - leafT * 0.22 - rng() * 0.12])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
           const length = (0.1 + fullness * 0.17) * (0.82 + rng() * 0.36) * (side < 0 ? 0.92 : 1.08);
           for (const [progress, widthScale] of [
             [0.28, 1],
-            [0.68, 0.7]
+            [0.68, 0.62]
           ]) {
             const center = new Vector3(point)
               .add(new Vector3(sideways).scale(side * 0.012))
               .add(new Vector3(direction).scale(length * progress));
             add(
               Array.from(center) as Point,
-              [length * 0.46 * widthScale, (0.009 + fullness * 0.016) * widthScale, 0.003],
+              [length * 0.42 * widthScale, (0.005 + fullness * 0.01) * widthScale, 0.0025],
               Array.from(normal) as Point,
-              progress < 0.5 ? 0.6 : 0.48,
+              progress < 0.5 ? 0.68 : 0.56,
               Array.from(direction) as Point,
               [0.91, 1.04, 0.88]
             );
