@@ -103,7 +103,7 @@ export function getTreeSplatSource(
         const fullness = Math.sin(((j + 0.5) / pairs) * Math.PI);
         for (const side of [-1, 1]) {
           // Stagger opposing leaflets along the rachis rather than lining them up as rungs.
-          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.018 + (rng() - 0.5) * 0.05));
+          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.018 + (rng() - 0.5) * 0.07));
           const point = evaluate(leafT);
           const tangent = evaluate(leafT + 0.001)
             .subtract(evaluate(leafT - 0.001))
@@ -112,25 +112,32 @@ export function getTreeSplatSource(
           const direction = new Vector3(sideways)
             .scale(side)
             .add(
-              new Vector3(tangent).scale(0.1 + leafT * 0.22 + side * 0.04 + (rng() - 0.5) * 0.18)
+              new Vector3(tangent).scale(0.12 + leafT * 0.18 + side * 0.05 + (rng() - 0.5) * 0.34)
             )
-            .add([0, 0, -0.06 - leafT * 0.22 - rng() * 0.12])
+            .add([0, 0, -0.08 - leafT * 0.24 - rng() * 0.16])
             .normalize();
-          const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = (0.1 + fullness * 0.17) * (0.82 + rng() * 0.36) * (side < 0 ? 0.92 : 1.08);
+          const bladeBend = new Vector3(tangent)
+            .scale((rng() - 0.5) * 0.5)
+            .add([0, 0, -0.05 - rng() * 0.25]);
+          const length = (0.1 + fullness * 0.16) * (0.7 + rng() * 0.6) * (side < 0 ? 0.9 : 1.1);
           for (const [progress, widthScale] of [
             [0.28, 1],
             [0.68, 0.62]
           ]) {
+            const bladeDirection = new Vector3(direction)
+              .add(new Vector3(bladeBend).scale(progress))
+              .normalize();
             const center = new Vector3(point)
-              .add(new Vector3(sideways).scale(side * 0.012))
-              .add(new Vector3(direction).scale(length * progress));
+              .add(new Vector3(sideways).scale(side * 0.018))
+              .add(new Vector3(direction).scale(length * progress))
+              .add(new Vector3(bladeBend).scale(length * progress * progress));
+            const normal = new Vector3(bladeDirection).cross(tangent).normalize();
             add(
               Array.from(center) as Point,
-              [length * 0.42 * widthScale, (0.005 + fullness * 0.01) * widthScale, 0.0025],
+              [length * 0.42 * widthScale, (0.005 + fullness * 0.012) * widthScale, 0.0025],
               Array.from(normal) as Point,
-              progress < 0.5 ? 0.68 : 0.56,
-              Array.from(direction) as Point,
+              progress < 0.5 ? 0.62 : 0.52,
+              Array.from(bladeDirection) as Point,
               [0.91, 1.04, 0.88]
             );
           }
