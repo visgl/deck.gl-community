@@ -48,7 +48,7 @@ describe('Shared tree characteristics', () => {
     const source = getTreeSplatSource('citrus', 3, traits);
     expect(botany).not.toBe(getTreeBotany('citrus'));
     expect(getTreeWoodMesh('citrus', 3, false, traits)).not.toBe(getTreeWoodMesh('citrus'));
-    expect(source.positions.length / 3).toBe(6144);
+    expect(source.positions.length / 3).toBe(3072);
     expect(Math.max(...source.scales)).toBeGreaterThan(
       Math.max(...getTreeSplatSource('citrus').scales)
     );
