@@ -421,7 +421,7 @@ export class VolumetricVideoLayer<
     return this.createModel(true);
   }
 
-  private usesRaster(): boolean {
+  private supportsRaster(): boolean {
     return (
       this.props.renderMode === 'auto' &&
       this.props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN &&
@@ -430,12 +430,16 @@ export class VolumetricVideoLayer<
     );
   }
 
+  private usesRaster(): boolean {
+    return this.supportsRaster();
+  }
+
   /** Prepares the raster visibility pyramid before deck opens its presentation pass. */
   private updateAppearance(
     frames: GPUVideoFrames,
     staticPixelRemoval = this.state.activeStaticPixelRemoval
   ): void {
-    if (!this.usesRaster()) return;
+    if (!this.supportsRaster()) return;
     frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
       luminanceThreshold: this.props.luminanceThreshold,
       staticPixelRemoval
@@ -533,7 +537,9 @@ export class VolumetricVideoLayer<
         cullMode: 'none',
         blend: true,
         blendColorOperation: 'add',
-        blendColorSrcFactor: 'src-alpha',
+        // Native WebGPU volumes emit premultiplied RGB. WebGL keeps the
+        // established straight-alpha shader output and source-alpha blend state.
+        blendColorSrcFactor: this.context.device.type === 'webgpu' ? 'one' : 'src-alpha',
         blendColorDstFactor: 'one-minus-src-alpha',
         blendAlphaOperation: 'add',
         blendAlphaSrcFactor: 'one',

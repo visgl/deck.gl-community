@@ -43,8 +43,19 @@ describe('mounted volumetric video demo', () => {
       );
       const customPanel = parent.querySelector<HTMLElement>('.vv-panel')!;
       expect(getComputedStyle(customPanel).display).toBe('none');
+      expect(getComputedStyle(parent.querySelector<HTMLElement>('.vv-stage-top')!).display).toBe(
+        'none'
+      );
       expect(parent.textContent).toContain('Current frame');
       expect(parent.textContent).toContain('Remove static pixels');
+      const controlPanel = parent.querySelector<HTMLElement>('.deck-widget-box')!;
+      const frameTrailRow = parent.querySelector<HTMLElement>(
+        '[data-setting-row-for="frameTrail"]'
+      )!;
+      const panelBounds = controlPanel.getBoundingClientRect();
+      const rowBounds = frameTrailRow.getBoundingClientRect();
+      expect(rowBounds.left).toBeGreaterThanOrEqual(panelBounds.left);
+      expect(rowBounds.right).toBeLessThanOrEqual(panelBounds.right);
       const status = parent.querySelector<HTMLElement>('#vv-status')!;
       expect(status.closest<HTMLElement>('.vv-stage-meta')).not.toBeNull();
       expect(getComputedStyle(status.closest<HTMLElement>('.vv-stage-meta')!).display).not.toBe(
@@ -144,6 +155,50 @@ describe('mounted volumetric video demo', () => {
     }
   }, 45_000);
 
+  // Value: protects=the community website's standard panel can select the backend rather than
+  // hiding the WebGL/WebGPU comparison behind the standalone demo; fails_when=the embedded
+  // mount omits the selector or loses its loaded video while replacing the Deck device.
+  it('switches the embedded website example between WebGL and WebGPU', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    let cleanup: (() => void) | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent, {embedded: true});
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+        },
+        {timeout: 15_000}
+      );
+      const backend = element<HTMLButtonElement>('#settings-panel-input-backend');
+      expect(backend.textContent).toContain('WebGPU');
+      backend.click();
+      await Promise.resolve();
+      const webgl = Array.from(
+        document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
+      ).find(option => option.textContent?.includes('WebGL2'));
+      expect(webgl).toBeTruthy();
+      webgl?.click();
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+          expect(element<HTMLButtonElement>('#settings-panel-input-backend').textContent).toContain(
+            'WebGL2'
+          );
+        },
+        {timeout: 15_000}
+      );
+    } finally {
+      cleanup?.();
+      parent.remove();
+    }
+  }, 35_000);
+
   // Value: protects=a user-selected WebGL backend wins while the initial WebGPU probe is pending;
   // fails_when=the delayed probe creates a second WebGPU Deck after the WebGL replacement;
   // why_new=the normal toggle test waits for the initial device before clicking; seam=async startup.
@@ -232,18 +287,23 @@ describe('mounted volumetric video demo', () => {
     const parent = document.createElement('div');
     parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
     document.body.append(parent);
-    const updates = vi.spyOn(Deck.prototype, 'setProps');
     let cleanup: (() => void) | undefined;
+    let activeDeck: Deck<OrbitView> | undefined;
     const element = <T extends HTMLElement>(id: string) => parent.querySelector<T>(id)!;
     try {
-      cleanup = mountVolumetricVideoExample(parent);
+      cleanup = mountVolumetricVideoExample(parent, {
+        onDeckInitialized: deck => {
+          activeDeck = deck;
+        }
+      });
       await vi.waitFor(() => expect(element('.vv-demo').dataset.frameReady).toBe('88'), {
         timeout: 5000
       });
       change(element<HTMLSelectElement>('#vv-resolution'), '128', 'change');
       const layer = () =>
-        (updates.mock.contexts.at(-1)! as Deck<OrbitView[]>).props
-          .layers![0] as VolumetricVideoLayer;
+        activeDeck!
+          .layerManager!.getLayers()
+          .find(layer => layer.id === 'video-volume') as VolumetricVideoLayer;
       await vi.waitFor(() => expect(layer().state.frames!.width).toBe(128), {timeout: 5000});
       const appearance = layer().state.frames!.appearance;
       const updateAppearance = vi.spyOn(appearance, 'update');
@@ -272,7 +332,9 @@ describe('mounted volumetric video demo', () => {
       );
       expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
       change(element<HTMLInputElement>('#vv-static'), '0.75');
-      expect(layer().props.staticPixelRemoval).toBe(0.75);
+      await vi.waitFor(() => expect(layer().props.staticPixelRemoval).toBe(0.75), {
+        timeout: 3000
+      });
       allowRetry = true;
       await vi.waitFor(
         () => {
