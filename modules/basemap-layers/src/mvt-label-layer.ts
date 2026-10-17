@@ -1341,6 +1341,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       return {
         // MapLibre GL JS samples its 24 px glyphs without mipmaps.
         atlasMipLevels: 1,
+        // and smooths their edges over the same device pixels at every text size.
+        edgeGammaCapped: false,
         fontSettings: GLYPH_FONT_SETTINGS,
         // The atlas's cache key: deck.gl keys font atlases by their font and settings.
         fontFamily: `glyphs ${glyphs.url} ${fontStack}`,
