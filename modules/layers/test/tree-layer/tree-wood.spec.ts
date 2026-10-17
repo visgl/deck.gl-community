@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {describe, expect, it} from 'vitest';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
+import {evaluatePalmFrond, getPalmFronds} from '../../src/tree-layer/tree-palm';
 
 describe('Continuous tree wood', () => {
   for (const type of [
@@ -60,6 +61,57 @@ describe('Continuous tree wood', () => {
           expect(Math.hypot(...normals.subarray(vertex, vertex + 3))).toBeCloseTo(1, 4);
         expect(getTreeWoodMesh(type, 4, aggregate)).toBe(mesh);
       });
+});
+
+it('joins each palm rachis at its authored root', () => {
+  const mesh = getTreeWoodMesh('palm');
+  const positions = mesh.attributes.POSITION.value;
+  const textureCoordinates = mesh.attributes.TEXCOORD_0.value;
+  const branchVertices: number[] = [];
+  for (let vertex = 0; vertex < positions.length / 3; vertex++) {
+    const offset = vertex * 3;
+    if (textureCoordinates[vertex * 2 + 1] === 0)
+      branchVertices.push(positions[offset], positions[offset + 1], positions[offset + 2]);
+  }
+
+  for (const frond of getPalmFronds()) {
+    const base = evaluatePalmFrond(frond, 0);
+    let nearestRoot = Infinity;
+    for (let vertex = 0; vertex < branchVertices.length; vertex += 3)
+      nearestRoot = Math.min(
+        nearestRoot,
+        Math.hypot(
+          branchVertices[vertex] - base[0],
+          branchVertices[vertex + 1] - base[1],
+          branchVertices[vertex + 2] - base[2]
+        )
+      );
+    expect(nearestRoot).toBeLessThan(0.007);
+  }
+});
+
+it('tapers the palm leader to a small crown tip', () => {
+  const mesh = getTreeWoodMesh('palm');
+  const positions = mesh.attributes.POSITION.value;
+  const textureCoordinates = mesh.attributes.TEXCOORD_0.value;
+  const trunkVertices: number[] = [];
+  let leaderTop = -Infinity;
+  for (let vertex = 0; vertex < positions.length / 3; vertex++) {
+    if (textureCoordinates[vertex * 2 + 1] !== 1) continue;
+    const offset = vertex * 3;
+    trunkVertices.push(positions[offset], positions[offset + 1], positions[offset + 2]);
+    leaderTop = Math.max(leaderTop, positions[offset + 2]);
+  }
+  const topRadius = Math.max(
+    ...Array.from({length: trunkVertices.length / 3}, (_, vertex) => {
+      const offset = vertex * 3;
+      return trunkVertices[offset + 2] >= leaderTop - 0.025
+        ? Math.hypot(trunkVertices[offset], trunkVertices[offset + 1])
+        : 0;
+    })
+  );
+  expect(topRadius).toBeLessThan(0.02);
+  expect(leaderTop).toBeGreaterThan(0.65);
 });
 
 it('keeps deciduous leaders inside the dense crown and retains branches in distant winter meshes', () => {

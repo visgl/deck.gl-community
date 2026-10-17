@@ -54,7 +54,7 @@ export function getTreeWoodMesh(
   }
   const broadleaf = type !== 'pine' && type !== 'palm';
   const botany = broadleaf ? getTreeBotany(type, characteristics) : null;
-  const leaderTop = type === 'palm' ? 0.54 : pineTip - 0.025;
+  const leaderTop = type === 'palm' ? 0.68 : pineTip - 0.025;
   for (let ring = 0; ring < 26; ring++) height.push(0.24 + (ring * (leaderTop - 0.24)) / 25);
   if (aggregate && !broadleaf)
     height.splice(0, height.length, -1, 0.22, 0.42, height[height.length - 1]);
@@ -82,22 +82,32 @@ export function getTreeWoodMesh(
                 const scar = aggregate
                   ? 0
                   : Math.pow((1 + Math.cos(progress * Math.PI * 44)) / 2, 10) * 0.012;
-                return 0.074 - progress * 0.018 + scar;
+                const baseRadius = 0.074 - progress * 0.018 + scar;
+                const crownProgress = Math.max(0, Math.min(1, (z - 0.48) / (leaderTop - 0.48)));
+                const crownTaper = crownProgress ** 2 * (3 - 2 * crownProgress);
+                return baseRadius * (1 - crownTaper * 0.94);
               })()
             : 0.06 * (1 - (Math.max(0, z - 0.22) / 0.85) * 0.84)
         ));
   const sockets: Socket[] = [];
   if (!trunkOnly && !aggregate && type === 'palm') {
     for (const frond of getPalmFronds()) {
-      const path = Array.from({length: 17}, (_, segment) =>
-        evaluatePalmFrond(frond, (segment + 1) / 17)
+      const baseHeight = frond.controls[0][2];
+      const ring = height.reduce(
+        (closest, candidate, index) =>
+          Math.abs(candidate - baseHeight) < Math.abs(height[closest] - baseHeight)
+            ? index
+            : closest,
+        0
       );
-      // Parent rings start on -Y; convert the authored frond azimuth into that frame.
+      const path = Array.from({length: 18}, (_, segment) => evaluatePalmFrond(frond, segment / 17));
+      // Match the socket to the authored base after its small rachis sweep, then
+      // convert the radial angle into the parent's -Y starting frame.
+      const baseAngle = Math.atan2(frond.controls[0][1], frond.controls[0][0]);
       const sector =
-        (Math.round(((frond.angle + Math.PI / 2) / (Math.PI * 2)) * segments) + segments) %
-        segments;
+        (Math.round(((baseAngle + Math.PI / 2) / (Math.PI * 2)) * segments) + segments) % segments;
       sockets.push({
-        ring: palmBaseRingOffset + 24 + (frond.spear ? 4 : 0) + frond.tier,
+        ring,
         sector,
         end: path[path.length - 1],
         radius: 0.0055,
