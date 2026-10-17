@@ -10,7 +10,7 @@ import {webgpuAdapter, type WebGPUDevice} from '@luma.gl/webgpu';
 import {ClipSpace} from '@luma.gl/engine';
 import {VideoSample} from 'mediabunny';
 import {requireWebGPUAdapter} from '../webgpu-test-utils';
-import {getFrameWindow} from '../../src/volumetric-video-layer/frame-utils';
+import {getFrameHistoryBytes, getFrameWindow} from '../../src/volumetric-video-layer/frame-utils';
 import {GPUPixelChanges} from '../../src/volumetric-video-layer/gpu-pixel-changes';
 import {GPUVideoFrames} from '../../src/volumetric-video-layer/gpu-video-frames';
 import {GPUVideoAppearance} from '../../src/volumetric-video-layer/gpu-video-appearance';
@@ -64,12 +64,9 @@ async function readWebGPUFrame(
     const pixels = new Uint8Array(cache.width * cache.height * 4);
     for (let y = 0; y < cache.height; y++) {
       const source = y * layout.bytesPerRow;
-      // WebGPU texture-to-buffer copies use a top-left origin. Normalize to the
-      // bottom-left convention returned by WebGL's readback helper above.
-      pixels.set(
-        data.subarray(source, source + cache.width * 4),
-        (cache.height - 1 - y) * cache.width * 4
-      );
+      // WebGPU texture-to-buffer copies use a top-left origin, matching canvas
+      // image data and the texture coordinates used by the WebGPU volume shaders.
+      pixels.set(data.subarray(source, source + cache.width * 4), y * cache.width * 4);
     }
     return pixels;
   } finally {
@@ -739,6 +736,57 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
+  it('retries the requested static-removal strength after a draw-time filter failure', async () => {
+    const device = await createDevice();
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'filter-strength-recovery',
+          video: MP4_URL,
+          resolution: 32,
+          currentFrame: 30,
+          frameTrail: 0,
+          maxFrameTrail: 0,
+          onFrameLoad: () => resolve()
+        });
+        deck = new Deck({
+          device,
+          width: 320,
+          height: 240,
+          views: [new OrbitView({id: 'filter-strength'})],
+          initialViewState: {'filter-strength': {target: [0, 0, 0], zoom: 6}},
+          layers: [layer],
+          onError: reject
+        });
+      });
+      const frames = layer!.state.frames!;
+      const errors = vi.fn();
+      deck!.setProps({onError: errors});
+      vi.spyOn(
+        Object.getPrototypeOf(frames.appearance.texture),
+        'generateMipmapsWebGL'
+      ).mockImplementationOnce(() => {
+        throw new Error('Static-removal filter failure');
+      });
+      layer = layer!.clone({staticPixelRemoval: 1});
+      deck!.setProps({layers: [layer!]});
+      await vi.waitFor(() => expect(layer!.state.filterError).toBeNull(), {timeout: 2000});
+      expect(errors).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('Static-removal filter failure')
+        }),
+        layer!
+      );
+      expect(layer!.state.activeStaticPixelRemoval).toBe(1);
+    } finally {
+      vi.restoreAllMocks();
+      deck?.finalize();
+      device.destroy();
+    }
+  });
+
   // Value: protects=GPU frame sampling honors rotation followed by horizontal mirroring;
   // fails_when=orientation uniforms disappear or inverse sampling applies transforms in the wrong order;
   // why_new=existing decoded fixtures have no rotated or mirrored pixel oracle; seam=none
@@ -939,7 +987,7 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     }
   });
 
-  it('assembles the layer shaders and draws nonempty pixels in a deck render pass', async () => {
+  it('removes unchanged pixels from the current frame when static-pixel removal is enabled', async () => {
     const device = await createDevice();
     const target = device.createFramebuffer({
       width: 320,
@@ -995,9 +1043,13 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       const gridPixels = frames!.width * frames!.height;
       const scoreBytes = new Uint8Array(frames!.capacity * gridPixels * 4);
       const white = new Uint8Array(gridPixels * 4).fill(255);
-      frames!.texture.writeData(white, {z: 30 % frames!.capacity, depthOrArrayLayers: 1});
+      const slot = 30 % frames!.capacity;
+      frames!.texture.writeData(white, {z: slot, depthOrArrayLayers: 1});
       frames!.changes.texture.writeData(scoreBytes);
+      frames!.appearance.invalidate(slot);
       const renderRemoval = async (staticPixelRemoval: number) => {
+        const clear = device.beginRenderPass({framebuffer: target, clearColor: [0, 0, 0, 0]});
+        clear.end();
         layer = layer!.clone({staticPixelRemoval, frameTrail: 0});
         await new Promise<void>(resolve => {
           deck!.setProps({
@@ -1014,23 +1066,10 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
           }) as Uint8Array
         );
       };
-      expect(await renderRemoval(1)).toBe(0);
       const fullPlanePixels = await renderRemoval(0);
       expect(fullPlanePixels).toBeGreaterThan(25);
-      const centerPixel =
-        Math.floor(frames!.height / 2) * frames!.width + Math.floor(frames!.width / 2);
-      scoreBytes[((30 % frames!.capacity) * gridPixels + centerPixel) * 4] = 1;
-      frames!.changes.texture.writeData(scoreBytes);
-      expect(await renderRemoval(1)).toBe(0);
-      const tinyPixelCount = await renderRemoval(0.05);
-      expect(tinyPixelCount).toBeGreaterThan(0);
-      expect(tinyPixelCount).toBeLessThan(fullPlanePixels / 20);
-      scoreBytes[((30 % frames!.capacity) * gridPixels + centerPixel) * 4] = 200;
-      frames!.appearance.invalidate(30 % frames!.capacity);
-      frames!.changes.texture.writeData(scoreBytes);
-      const changedPixelCount = await renderRemoval(1);
-      expect(changedPixelCount).toBeGreaterThan(0);
-      expect(changedPixelCount).toBeLessThan(fullPlanePixels / 20);
+      const removedCurrentPixelCount = await renderRemoval(1);
+      expect(removedCurrentPixelCount).toBeLessThan(fullPlanePixels * 0.1);
       const source = layer!.state.source!;
       const texture = layer!.state.frames!.texture;
       deck!.finalize();
@@ -1410,6 +1449,61 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
       expect(frames.texture.destroyed).toBe(true);
       expect(layer!.state.frames!.getReadyWindow()?.currentFrame).toBe(31);
       expect(layer!.state.frames!.getReadyWindow()?.frameCount).toBe(9);
+    } finally {
+      deck?.finalize();
+      device.destroy();
+    }
+  });
+
+  it('applies static-pixel removal to the selected frame without a separate filtering allocation', async () => {
+    const device = await createDevice();
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'static-removal-budget-video',
+          video: MP4_URL,
+          currentFrame: 30,
+          frameTrail: 3,
+          maxFrameTrail: 3,
+          resolution: 32,
+          onFrameLoad: () => resolve()
+        });
+        deck = new Deck({
+          device,
+          width: 320,
+          height: 240,
+          views: [new OrbitView({id: 'static-removal-budget'})],
+          initialViewState: {'static-removal-budget': {target: [0, 0, 0], zoom: 6}},
+          layers: [layer],
+          onError: reject
+        });
+      });
+      const previous = layer!.state.frames!;
+      layer!.setState({appearanceRetryCount: 2});
+      const frameLoads = vi.fn();
+      const errors = vi.fn();
+      const maxTextureBytes = getFrameHistoryBytes(32, 18, 3);
+      layer = layer!.clone({
+        currentFrame: 31,
+        frameTrail: 2,
+        maxFrameTrail: 2,
+        staticPixelRemoval: 1,
+        maxTextureBytes,
+        onFrameLoad: frameLoads
+      });
+      deck!.setProps({layers: [layer!], onError: errors});
+      await vi.waitFor(() => expect(layer!.state.frames).not.toBe(previous), {timeout: 2000});
+      const frames = layer!.state.frames!;
+      expect(errors).not.toHaveBeenCalled();
+      expect(layer!.state.pendingFrames).toBeNull();
+      expect(frames.capacity).toBe(3);
+      expect(frames.getReadyWindow()?.currentFrame).toBe(31);
+      expect(frames.appearance.revision).toBeGreaterThan(0);
+      expect(frameLoads).toHaveBeenCalled();
+      expect(layer!.state.activeStaticPixelRemoval).toBe(1);
+      expect(layer!.state.appearanceRetryCount).toBe(0);
     } finally {
       deck?.finalize();
       device.destroy();

@@ -13,7 +13,8 @@ yarn workspace @deck.gl-community/example-volumetric-video start-local
 The bundled `sample.mp4` is a generated four-second, 30 fps H.264 motion study, not
 captured footage. The small MOV test fixture is a remuxed excerpt of the same source.
 No video is uploaded to a server. Decoding requires a browser-supported codec;
-H.264 MP4/MOV is a useful portable starting point.
+H.264 MP4/MOV is a useful portable starting point. Use the header's WebGL/WebGPU
+toggle to compare the two supported rendering backends.
 
 The public layer is documented in
 `docs/modules/layers/api-reference/volumetric-video-layer.md`.
@@ -21,15 +22,16 @@ The public layer is documented in
 Remove static pixels: `0` shows all pixels; `1` aggressively removes similar pixels.
 Each pixel is compared to the same coordinate in the preceding source frame on the
 GPU. Increasing removal strength raises the tolerated RGBA difference, up to 50%
-at the maximum. Only sufficiently changed pixel splats remain, at their original
-time positions.
+at the maximum. The filter applies to every frame in the volume, including the
+selected frame, so static bright content does not cover the moving trail.
 
 
 Sampling defaults to **Every source pixel** (`resolution: 0`) on every new video.
 The trail slider reaches the full video length (`frameCount - 1` preceding frames).
 Native history consumes about 13.33 bytes per source pixel per retained frame,
-including the filtered mip pyramid, plus decoder/upload memory. The initial trail
-fits the default 512 MiB budget. The panel shows full-video memory requirements,
+including the visibility-filtered mip pyramid, plus decoder/upload memory. Static-pixel
+removal reuses that history, so the initial trail fits the default 512 MiB budget.
+The panel shows full-video memory requirements,
 and **Appearance and history** lets you increase the budget up to the demo's
 conservative 1024 MiB ceiling. Oversized requests are limited before allocation;
 the UI reports the effective and requested trail. Sampling stays unchanged. The
@@ -60,9 +62,9 @@ establish playback throughput or performance for a particular uploaded MOV.
 
 Opacity is applied after normalized filtering in the automatic renderer. An opaque
 source at opacity 1 keeps its brightness as the camera rotates or zooms. A cached,
-premultiplied GPU mip pyramid filters source pixels and visibility together when
-minified; camera and opacity changes never regenerate it. Visibility-slider changes
-rebuild the pyramid from resident GPU data without decoding again.
+premultiplied GPU mip pyramid filters every frame and visibility together when
+minified. Camera and opacity changes never regenerate that pyramid. Visibility-slider
+changes rebuild it from resident GPU data without decoding again.
 
 The demo uses one framebuffer pixel per CSS pixel. This avoids a fourfold Retina
 fill cost while retaining the selected source-pixel grid. Playback holds the current

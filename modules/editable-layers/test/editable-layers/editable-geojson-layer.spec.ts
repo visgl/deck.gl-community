@@ -1,6 +1,9 @@
 import {test, expect, vi} from 'vitest';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
+import {EditableH3ClusterLayer} from '../../src/editable-layers/editable-h3-cluster-layer';
 import {DrawPointMode} from '../../src/edit-modes/draw-point-mode';
+import {ViewMode} from '../../src/edit-modes/view-mode';
+import {TransformMode} from '../../src/edit-modes/transform-mode';
 import {
   createClickEvent,
   createFeatureCollection,
@@ -61,6 +64,31 @@ function createGestureLayer() {
 function createGestureEvent(srcEvent = {}) {
   return {offsetCenter: {x: 10, y: 20}, srcEvent, stopImmediatePropagation: vi.fn()} as any;
 }
+
+test('instantiates legacy string mode names before using them', () => {
+  const layer = new EditableGeoJsonLayer({
+    id: 'legacy-mode-test',
+    data: createFeatureCollection(),
+    mode: 'transform',
+    selectedFeatureIndexes: []
+  });
+  layer.context = {
+    deck: {eventManager: {on: vi.fn(), off: vi.fn()}, pickMultipleObjects: () => []},
+    layerManager: {getLayers: () => []},
+    viewport: {unproject: coords => coords}
+  } as any;
+  layer.state = {mode: null} as any;
+  layer.initializeState();
+  layer.updateState({
+    props: layer.props,
+    oldProps: {},
+    changeFlags: {propsOrDataChanged: true},
+    context: layer.context
+  } as any);
+
+  expect(layer.getActiveMode()).toBeInstanceOf(TransformMode);
+  layer.finalizeState();
+});
 
 test.each([
   [{button: 0, buttons: 1}, true],
@@ -126,4 +154,120 @@ test.each([0, 3])('movement with buttons=%i and non-primary release cannot edit'
   expect(mode.handleDragging).not.toHaveBeenCalled();
   expect(mode.handleStopDragging).not.toHaveBeenCalled();
   expect(layer.state.isDraggingWithPrimaryButton).toBe(false);
+});
+
+test('active edit modes own primary map gestures while view mode and overrides allow navigation', () => {
+  const layer = new EditableGeoJsonLayer({data: null, mode: DrawPointMode});
+  layer.state = {_editableLayerState: {}, mode: new DrawPointMode()} as any;
+  const press = (button = 0, type = 'mousedown') => ({type, button, stopPropagation: vi.fn()});
+  const drawingPress = press();
+  layer._onNativeMapInteraction(drawingPress as any);
+  expect(drawingPress.stopPropagation).toHaveBeenCalledOnce();
+  const secondaryPress = press(2);
+  layer._onNativeMapInteraction(secondaryPress as any);
+  expect(secondaryPress.stopPropagation).not.toHaveBeenCalled();
+  const doubleClick = press(0, 'dblclick');
+  layer._onNativeMapInteraction(doubleClick as any);
+  expect(doubleClick.stopPropagation).toHaveBeenCalledOnce();
+
+  const viewLayer = new EditableGeoJsonLayer({data: null, mode: ViewMode});
+  viewLayer.state = {_editableLayerState: {}, mode: new ViewMode()} as any;
+  const viewPress = press();
+  viewLayer._onNativeMapInteraction(viewPress as any);
+  expect(viewPress.stopPropagation).not.toHaveBeenCalled();
+
+  const overrideLayer = new EditableGeoJsonLayer({
+    data: null,
+    mode: DrawPointMode,
+    autoPreventMapInteractions: false
+  });
+  overrideLayer.state = layer.state;
+  const overridePress = press();
+  overrideLayer._onNativeMapInteraction(overridePress as any);
+  expect(overridePress.stopPropagation).not.toHaveBeenCalled();
+  const hiddenLayer = new EditableGeoJsonLayer({data: null, mode: DrawPointMode, visible: false});
+  hiddenLayer.state = layer.state;
+  const hiddenPress = press();
+  hiddenLayer._onNativeMapInteraction(hiddenPress as any);
+  expect(hiddenPress.stopPropagation).not.toHaveBeenCalled();
+});
+
+test.each([
+  'touchend',
+  'touchcancel'
+])('single-touch editing resumes while two-finger navigation can finish with %s', endType => {
+  const layer = new EditableGeoJsonLayer({data: null, mode: DrawPointMode});
+  layer.state = {_editableLayerState: {}, mode: new DrawPointMode()} as any;
+  const touch = (type, count) => ({type, touches: {length: count}, stopPropagation: vi.fn()});
+  const single = touch('touchstart', 1);
+  layer._onNativeMapInteraction(single as any);
+  expect(single.stopPropagation).toHaveBeenCalledOnce();
+  const secondFinger = touch('touchstart', 2);
+  layer._onNativeMapInteraction(secondFinger as any);
+  expect(secondFinger.stopPropagation).not.toHaveBeenCalled();
+  const twoMoving = touch('touchmove', 2);
+  layer._onNativeMapInteraction(twoMoving as any);
+  expect(twoMoving.stopPropagation).not.toHaveBeenCalled();
+  const oneRemaining = touch(endType, 1);
+  layer._onNativeMapInteraction(oneRemaining as any);
+  expect(oneRemaining.stopPropagation).not.toHaveBeenCalled();
+  const resumedEdit = touch('touchmove', 1);
+  layer._onNativeMapInteraction(resumedEdit as any);
+  expect(resumedEdit.stopPropagation).toHaveBeenCalledOnce();
+  const navigationEnd = touch(endType, 0);
+  layer._onNativeMapInteraction(navigationEnd as any);
+  expect(navigationEnd.stopPropagation).not.toHaveBeenCalled();
+  const nextSingle = touch('touchstart', 1);
+  layer._onNativeMapInteraction(nextSingle as any);
+  const editEnd = touch(endType, 0);
+  layer._onNativeMapInteraction(editEnd as any);
+  expect(editEnd.stopPropagation).toHaveBeenCalledOnce();
+});
+
+test('entering an edit mode keeps the release of an existing map touch gesture available', () => {
+  const layer = new EditableGeoJsonLayer({data: null, mode: ViewMode});
+  layer.state = {_editableLayerState: {}, mode: new ViewMode()} as any;
+  const start = {type: 'touchstart', touches: {length: 1}, stopPropagation: vi.fn()};
+  layer._onNativeMapInteraction(start as any);
+  expect(start.stopPropagation).not.toHaveBeenCalled();
+  layer.state.mode = new DrawPointMode();
+  const move = {type: 'touchmove', touches: {length: 1}, stopPropagation: vi.fn()};
+  layer._onNativeMapInteraction(move as any);
+  expect(move.stopPropagation).toHaveBeenCalledOnce();
+  const end = {type: 'touchend', touches: {length: 0}, stopPropagation: vi.fn()};
+  layer._onNativeMapInteraction(end as any);
+  expect(end.stopPropagation).not.toHaveBeenCalled();
+});
+
+test('H3 editing forwards the application interaction override', () => {
+  const layer = new EditableH3ClusterLayer({data: [], autoPreventMapInteractions: false});
+  layer.state = {_editableLayerState: {}, tentativeHexagonIDs: []};
+  expect(layer.renderLayers()[0].props.autoPreventMapInteractions).toBe(false);
+});
+
+test('drag completion clears pointer-down picks from cached move props without another move', () => {
+  const {layer} = createGestureLayer();
+  layer._onpanstart(createGestureEvent());
+  layer._onpointermove(createGestureEvent());
+  const previousMove = layer.state.lastPointerMoveEvent;
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+  layer._onpanend(createGestureEvent());
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toBeNull();
+  expect(layer.state.lastPointerMoveEvent.pointerDownMapCoords).toBeNull();
+  expect(previousMove.pointerDownPicks).not.toBeNull();
+});
+
+test('fresh drag gestures update the raw pointer cache used by snap guides', () => {
+  const {layer, mode} = createGestureLayer();
+  const start = createStartDraggingEvent([1, 2], [3, 4]);
+  const dragging = {...start, screenCoords: [5, 6] as [number, number], mapCoords: [7, 8]};
+  layer.onStartDragging(start);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(start.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.pointerDownPicks).toEqual(start.pointerDownPicks);
+  layer.onDragging(dragging);
+  expect(layer.state.lastPointerMoveEvent.screenCoords).toEqual(dragging.screenCoords);
+  expect(layer.state.lastPointerMoveEvent.mapCoords).toEqual(dragging.mapCoords);
+  expect(mode.handleDragging.mock.calls[0][1].lastPointerMoveEvent.mapCoords).toEqual(
+    dragging.mapCoords
+  );
 });

@@ -1,3 +1,4 @@
+import type {SnappingStrategy} from './snapping/snapping-strategy';
 import {bearing} from '@turf/bearing';
 import {center} from '@turf/center';
 import {memoize} from '../utils/memoize';
@@ -5,10 +6,12 @@ import {memoize} from '../utils/memoize';
 import {ClickEvent, PointerMoveEvent, Tooltip, ModeProps, GuideFeatureCollection} from './types';
 import {Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
 
-export class MeasureAngleMode extends GeoJsonEditMode {
+export class MeasureAngleMode extends GeoJsonEditMode implements SnappableEditMode {
   _getTooltips = memoize(
     ({
       modeConfig,
@@ -130,5 +133,10 @@ export class MeasureAngleMode extends GeoJsonEditMode {
       point1: points[1],
       point2: points[2]
     });
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new ClickSnappingStrategy();
   }
 }
