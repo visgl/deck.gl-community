@@ -70,8 +70,9 @@ Optional loader configuration used by `resolveBasemapStyle`. This can include:
 
 Type: `string | ((fontStack: string[]) => string | Partial<LabelFont> | null) | null`
 
-Overrides the label font. By default, each symbol layer's `text-font` is mapped to a CSS font
-(see [Label fonts](/docs/modules/basemap-layers#label-fonts)). Defaults to `null`.
+Draws labels with the browser's fonts instead of the style's `glyphs`. By default, labels are
+drawn with the style's glyphs, and a style without `glyphs` maps each symbol layer's `text-font`
+to a CSS font (see [Label fonts](/docs/modules/basemap-layers#label-fonts)). Defaults to `null`.
 
 - A string replaces the CSS family list for every label. The weight and style still come from
   `text-font`. `'Monaco, monospace'` restores the font used before `text-font` was read.
@@ -80,7 +81,8 @@ Overrides the label font. By default, each symbol layer's `text-font` is mapped 
   (`'normal'` or `'italic'`). Fields it leaves out, and a `null` result, keep the mapped values.
   Pass a stable function: tiles regenerate when it changes.
 
-`getBasemapLayers` and `getGlobeBaseLayers` accept the same `fontFamily` option.
+`getBasemapLayers` and `getGlobeBaseLayers` accept the same `fontFamily` option, and a `glyphs`
+option, a `GlyphStore` of the style's `glyphs` URL, to draw labels with the style's glyphs.
 
 ### `globe`
 

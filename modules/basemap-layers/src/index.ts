@@ -5,3 +5,5 @@ export {getSpriteIconMapping, getSpriteSources, loadSpriteAtlases} from './sprit
 export type {SpriteAtlas, SpriteIconMappingEntry, SpriteSource} from './sprite';
 export {getLabelFont} from './text-font';
 export type {LabelFont, LabelFontFamily} from './text-font';
+export {GlyphStore} from './glyph-store';
+export type {GlyphStoreOptions} from './glyph-store';
