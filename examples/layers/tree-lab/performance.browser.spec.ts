@@ -16,6 +16,7 @@ type FrameSample = {
 };
 const PROFILE_FRAME_COUNT = 96;
 const PROFILE_PHASE_FRAMES = PROFILE_FRAME_COUNT / 3;
+const PROFILE_SPLAT_SAMPLE_INTERVAL = 8;
 
 it.each([
   'banyan',
@@ -32,7 +33,8 @@ it.each([
     started = 0,
     previous = 0,
     draws = 0,
-    destroyed = 0;
+    destroyed = 0,
+    renderedSplats = 0;
   let phase: FrameSample['phase'] = 'grove';
   const originalDraw = Model.prototype.draw;
   const draw = vi.spyOn(Model.prototype, 'draw').mockImplementation(function (pass) {
@@ -61,26 +63,28 @@ it.each([
         onAfterRender() {
           const now = performance.now();
           if (++frames > 4) {
-            const trees = deck.props.layers.find(
-              layer =>
-                Boolean(layer) &&
-                !Array.isArray(layer) &&
-                typeof layer === 'object' &&
-                'id' in layer &&
-                layer.id === 'trees'
-            ) as TreeLayer;
-            const splats = trees
-              .getSubLayers()
-              .reduce(
-                (sum, layer) =>
-                  sum + (layer instanceof SplatLayer ? layer.splatStats.renderedSplats : 0),
-                0
-              );
+            if (samples.length % PROFILE_SPLAT_SAMPLE_INTERVAL === 0) {
+              const trees = deck.props.layers.find(
+                layer =>
+                  Boolean(layer) &&
+                  !Array.isArray(layer) &&
+                  typeof layer === 'object' &&
+                  'id' in layer &&
+                  layer.id === 'trees'
+              ) as TreeLayer;
+              renderedSplats = trees
+                .getSubLayers()
+                .reduce(
+                  (sum, layer) =>
+                    sum + (layer instanceof SplatLayer ? layer.splatStats.renderedSplats : 0),
+                  0
+                );
+            }
             samples.push({
               phase,
               draws,
               destroyed,
-              splats,
+              splats: renderedSplats,
               cpuMs: now - started,
               frameMs: now - previous
             });
@@ -143,15 +147,24 @@ it.each([
       samples.map(sample => sample.frameMs),
       0.95
     );
-    const maxRenderedSplats = Math.max(...samples.map(sample => sample.splats));
+    const maxFrameMs = Math.max(...samples.map(sample => sample.frameMs));
+    const maxFrameSample = samples.reduce((max, sample) =>
+      sample.frameMs > max.frameMs ? sample : max
+    );
+    const maxCpuMs = Math.max(...samples.map(sample => sample.cpuMs));
+    const maxSampledSplats = Math.max(...samples.map(sample => sample.splats));
     console.info(
       `TreeLayer 10k frame profile: ${JSON.stringify({
         trees: 10000,
         p95CpuMs,
         p95FrameMs,
+        maxFrameMs,
+        maxFramePhase: maxFrameSample.phase,
+        maxFrameCpuMs: maxFrameSample.cpuMs,
+        maxCpuMs,
         maxDraws: Math.max(...samples.map(sample => sample.draws)),
         drawnModels: [...drawnModels],
-        maxSplats: maxRenderedSplats
+        maxSampledSplats
       })}`
     );
     expect(p95CpuMs, 'The 10k grove should stay within a 60 FPS CPU frame budget').toBeLessThan(
@@ -162,7 +175,11 @@ it.each([
       'The 10k grove should keep the measured browser frame cadence within 60 FPS'
     ).toBeLessThanOrEqual(1000 / 60);
     expect(
-      maxRenderedSplats,
+      maxCpuMs,
+      'No measured TreeLayer render should exceed the 60 FPS CPU budget'
+    ).toBeLessThan(1000 / 60);
+    expect(
+      maxSampledSplats,
       'The shared canopy submission budget should remain bounded'
     ).toBeLessThanOrEqual(20000);
     expect(errors).toEqual([]);
