@@ -26,6 +26,7 @@ import {
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
+import {GlyphStore} from './glyph-store';
 import {loadSpriteAtlases} from './sprite';
 import type {SpriteAtlas} from './sprite';
 import type {LabelFontFamily} from './text-font';
@@ -82,10 +83,12 @@ export type BasemapLayerProps = {
     config?: BasemapGlobeConfig;
   };
   /**
-   * Overrides the label font. By default each symbol layer's `text-font` is mapped to a CSS
-   * family list, weight and style (see the module docs). A string replaces the family list for
-   * every label; a function receives the `text-font` names and returns a family list or
-   * `LabelFont` fields. Pass a stable function: tiles regenerate when it changes.
+   * Draws labels with the browser's fonts instead of the style's `glyphs`. By default labels are
+   * drawn with the style's glyphs, as in MapLibre GL JS, and a style without `glyphs` maps each
+   * symbol layer's `text-font` to a CSS family list, weight and style (see the module docs). A
+   * string replaces the family list for every label; a function receives the `text-font` names
+   * and returns a family list or `LabelFont` fields. Pass a stable function: tiles regenerate when
+   * it changes.
    */
   fontFamily?: LabelFontFamily | null;
   /**
@@ -141,6 +144,8 @@ type BasemapLayerState = {
   zoomKey: string | null;
   /** Sprites of the resolved style, once loaded. */
   spriteAtlases: SpriteAtlas[] | null;
+  /** The glyphs of the resolved style's `glyphs` URL, or null without one. */
+  glyphs: GlyphStore | null;
   /** Decoded data caches owned by this basemap, shared across style runs. */
   tilesets: Map<BasemapSource, SharedTileset2D>;
   /** The source layers each tileset decodes, as JSON (see `getStyleSourceLayers`). */
@@ -195,7 +200,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       tilesetSourceLayers: new Map(),
       tileLoadOptions: null,
       tileFetch: null,
-      spriteAtlases: null
+      spriteAtlases: null,
+      glyphs: null
     };
   }
 
@@ -255,7 +261,13 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
       this.clearSourceTilesets();
-      this.setState({resolvedStyle: null, loadError: null, loadToken, spriteAtlases: null});
+      this.setState({
+        resolvedStyle: null,
+        loadError: null,
+        loadToken,
+        spriteAtlases: null,
+        glyphs: null
+      });
       return;
     }
 
@@ -281,7 +293,12 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
             sources: Object.keys(resolvedStyle.sources || {}),
             layers: resolvedStyle.layers?.length || 0
           });
-          this.setState({resolvedStyle, loadError: null, spriteAtlases: null});
+          this.setState({
+            resolvedStyle,
+            loadError: null,
+            spriteAtlases: null,
+            glyphs: getGlyphStore(resolvedStyle, style, loadOptions)
+          });
           this.loadSprites(resolvedStyle, style, loadOptions, loadToken);
         }
       })
@@ -452,8 +469,36 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       loadOptions: this.props.loadOptions,
       spriteAtlases: this.state.spriteAtlases,
       fontFamily: this.props.fontFamily,
+      // A label font of the caller's is drawn with the browser's fonts.
+      glyphs: this.props.fontFamily ? null : this.state.glyphs,
       labelPlacement: this.getLabelPlacement(),
       tilesets: this.state.tilesets
     });
   }
+}
+
+/**
+ * The glyph store of a style's `glyphs` URL, or null without one. A relative URL resolves against
+ * the style URL, as sprite URLs do.
+ */
+function getGlyphStore(
+  resolvedStyle: ResolvedBasemapStyle,
+  style: BasemapLayerProps['style'],
+  loadOptions: BasemapLayerProps['loadOptions']
+): GlyphStore | null {
+  const url = resolvedStyle.glyphs;
+  if (typeof url !== 'string' || !url) {
+    return null;
+  }
+  const options = (loadOptions || {}) as {
+    baseUrl?: string;
+    fetch?: typeof fetch;
+    fetchOptions?: RequestInit;
+  };
+  return new GlyphStore({
+    url,
+    baseUrl: typeof style === 'string' ? style : options.baseUrl,
+    fetch: options.fetch,
+    fetchOptions: options.fetchOptions
+  });
 }

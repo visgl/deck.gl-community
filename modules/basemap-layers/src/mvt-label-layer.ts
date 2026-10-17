@@ -31,6 +31,12 @@ import {GlobeLineAngleExtension} from './globe-line-angle-extension';
 import {DEFAULT_TEXT_FONT, getTextLayerFontWeight, resolveLabelFont} from './text-font';
 import {getHaloBlurGamma, TextHaloBlurExtension} from './text-halo-blur-extension';
 import {
+  GLYPH_FONT_SETTINGS,
+  getGlyphCharacterMeasurer,
+  getGlyphFontRenderer
+} from './glyph-font-renderer';
+import type {GlyphStore} from './glyph-store';
+import {
   getPathCircles,
   needsFlip,
   placeLineGlyphs,
@@ -131,6 +137,12 @@ export type MVTLabelLayerProps = {
    * function from the `text-font` names to a family list or {@link LabelFont} fields.
    */
   fontFamily?: LabelFontFamily | null;
+  /**
+   * The glyphs of the style's `glyphs` URL, which labels are drawn with, as in MapLibre GL JS. A
+   * tile's labels are placed once the glyphs of their text have loaded. Without it, labels are
+   * drawn with the browser's fonts that `text-font` maps to.
+   */
+  glyphs?: GlyphStore | null;
   /** Enables billboard rendering in the text sublayer. */
   billboard?: boolean;
   /** When `true`, renders the source geometries for debugging. */
@@ -442,6 +454,8 @@ type MVTLabelLayerState = {
   anchorKey?: string;
   /** The map bearing, in `BEARING_STEP` steps, that upright line labels were turned for. */
   bearingStep?: number;
+  /** Glyph ranges of the labels' text being loaded (see `hasLabelGlyphs`). */
+  glyphLoads?: number;
   /** The CSS font of labels along lines last seen loading; see `isLineTextFontLoading`. */
   loadingFont?: string;
   /** Each row's glyphs along its line, with what they were placed for (see `getLineGlyphs`). */
@@ -514,6 +528,23 @@ const LABEL_FONT_SETTINGS = {
   smoothing: 0.1
 };
 
+const GLYPH_FONT_RENDERER_FACTORIES = new WeakMap<GlyphStore, Map<string, () => unknown>>();
+
+/** `TextLayer`'s `_getFontRenderer` for a font stack of a glyph store, the same each time. */
+function getGlyphFontRendererFactory(glyphs: GlyphStore, fontStack: string): () => unknown {
+  let factories = GLYPH_FONT_RENDERER_FACTORIES.get(glyphs);
+  if (!factories) {
+    factories = new Map();
+    GLYPH_FONT_RENDERER_FACTORIES.set(glyphs, factories);
+  }
+  let factory = factories.get(fontStack);
+  if (!factory) {
+    factory = () => getGlyphFontRenderer(glyphs, fontStack);
+    factories.set(fontStack, factory);
+  }
+  return factory;
+}
+
 /** Shared by every text sublayer, so deck.gl does not see their extensions change. */
 const TEXT_HALO_BLUR_EXTENSION = new TextHaloBlurExtension();
 
@@ -536,11 +567,15 @@ const SDF_OUTLINE_SCALE = 0.75;
 
 /**
  * Converts a `text-halo-width`, in pixels, to `TextLayer`'s `outlineWidth` for text of `textSize`
- * pixels. An atlas pixel is `textSize / fontSize` screen pixels, so the same halo needs a wider
+ * pixels, in an atlas of `fontSize` pixels per em. An atlas pixel is `textSize / fontSize` screen pixels, so the same halo needs a wider
  * outline on smaller text. As in MapLibre, the halo is at most a quarter of the text size.
  */
-export function getOutlineWidth(haloWidth: number, textSize: number): number {
-  const atlasPixels = (Math.min(haloWidth, textSize / 4) * LABEL_FONT_SETTINGS.fontSize) / textSize;
+export function getOutlineWidth(
+  haloWidth: number,
+  textSize: number,
+  fontSize: number = LABEL_FONT_SETTINGS.fontSize
+): number {
+  const atlasPixels = (Math.min(haloWidth, textSize / 4) * fontSize) / textSize;
   // Rounded so that labels whose halos differ imperceptibly share one text sublayer.
   return Math.round((atlasPixels / SDF_OUTLINE_SCALE) * 100) / 100;
 }
@@ -882,11 +917,17 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     billboard: true,
     renderGeometry: false,
     labelSizeUnits: 'pixels',
-    fontFamily: null
+    fontFamily: null,
+    glyphs: null
   };
 
   /** Current label-row state. */
   state: MVTLabelLayerState = undefined!;
+
+  /** Not loaded while the glyphs of its labels load: their tiles are not labelled yet. */
+  get isLoaded(): boolean {
+    return super.isLoaded && !this.state?.glyphLoads;
+  }
 
   /** The tile whose anchors are being placed, in a `tiles` layer; see `getTileProps`. */
   private placingTile: LabelTile | null = null;
@@ -1259,6 +1300,106 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * The `text-font` stack of a feature's label as glyph URLs name it, its fonts joined by commas:
+   * of the first label row's feature when none is given, as `getFont`.
+   */
+  getFontStack(feature?: FeatureLike): string {
+    const textFont = this.getStyleProperty('text-font');
+    const row = this.state?.labelData?.[0] as
+      | (LabelRow & {__source?: {object: FeatureLike}})
+      | undefined;
+    const value = textFont?.evaluate(
+      getZoomBucket(this.props.zoom || 0),
+      feature || row?.__source?.object
+    );
+    return (Array.isArray(value) && value.length ? value.map(String) : DEFAULT_TEXT_FONT).join(',');
+  }
+
+  /** `TextLayer`'s font atlas settings: of the style's glyphs, or of the browser's fonts. */
+  getFontSettings(): typeof LABEL_FONT_SETTINGS {
+    return this.props.glyphs ? GLYPH_FONT_SETTINGS : LABEL_FONT_SETTINGS;
+  }
+
+  /** The advance of a character in ems, in the font or glyphs the labels are drawn with. */
+  getCharacterMeasurer(): (character: string) => number {
+    const {glyphs} = this.props;
+    if (glyphs) {
+      return getGlyphCharacterMeasurer(glyphs, this.getFontStack());
+    }
+    const font = this.getFont();
+    return getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+  }
+
+  /**
+   * `TextLayer`'s font props: the style's glyphs of the layer's font stack, drawn by their own
+   * font renderer into an atlas of their own, or the CSS font.
+   */
+  getFontProps(font: LabelFont = this.getFont()): Record<string, unknown> {
+    const {glyphs} = this.props;
+    if (glyphs) {
+      const fontStack = this.getFontStack();
+      return {
+        fontSettings: GLYPH_FONT_SETTINGS,
+        // The atlas's cache key: deck.gl keys font atlases by their font and settings.
+        fontFamily: `glyphs ${glyphs.url} ${fontStack}`,
+        fontWeight: 400,
+        _getFontRenderer: getGlyphFontRendererFactory(glyphs, fontStack)
+      };
+    }
+    return {
+      fontSettings: LABEL_FONT_SETTINGS,
+      fontFamily: font.fontFamily,
+      fontWeight: getTextLayerFontWeight(font)
+    };
+  }
+
+  /** What the label text is drawn with: the font stack of the style's glyphs, or the CSS font. */
+  getFontKey(): string {
+    const {glyphs} = this.props;
+    return glyphs ? `${glyphs.url}|${this.getFontStack()}` : JSON.stringify(this.getFont());
+  }
+
+  /**
+   * Whether the glyphs of the label text of `features` have loaded, with the style's glyphs. When
+   * they have not, they are requested, and the layer updates once they have, as MapLibre GL JS
+   * places a tile's symbols once their glyphs have loaded.
+   */
+  hasLabelGlyphs(features: FeatureLike[]): boolean {
+    const {glyphs} = this.props;
+    if (!glyphs || !this.getStyleProperty('text-field')) {
+      return true;
+    }
+    const texts = new Map<string, string[]>();
+    for (const feature of features) {
+      const text = this.getUnwrappedLabelText(feature);
+      if (text) {
+        const fontStack = this.getFontStack(feature);
+        if (!glyphs.hasGlyphs(fontStack, text)) {
+          texts.set(fontStack, [...(texts.get(fontStack) || []), text]);
+        }
+      }
+    }
+    if (!texts.size) {
+      return true;
+    }
+    for (const [fontStack, stackTexts] of texts) {
+      const loading = glyphs.load(fontStack, stackTexts);
+      if (loading) {
+        const state = this.state;
+        state.glyphLoads = (state.glyphLoads || 0) + 1;
+        loading.then(() => {
+          state.glyphLoads!--;
+          // Unless the layer was finalized meanwhile.
+          if (this.state === state && this.props.glyphs === glyphs) {
+            this.setNeedsUpdate();
+          }
+        });
+      }
+    }
+    return false;
+  }
+
+  /**
    * Extracts the visible label text for a decoded feature. Legacy `{token}` placeholders are
    * resolved only in literal and zoom-function values, as in the style specification.
    * Applies `text-transform` and balanced `text-max-width` wrapping for point labels.
@@ -1276,19 +1417,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * zoom. Labels along lines are placed at the tile's zoom, where the text may be visible.
    */
   getLabelText(feature: FeatureLike): string | undefined {
-    const textField = this.getStyleProperty('text-field');
-    if (!textField) {
-      return undefined;
-    }
-    const value = this.evaluateStyleProperty('text-field', feature);
-    const text = value === null || value === undefined ? '' : String(value);
-    const isExpression = Array.isArray(this.props.styleLayer?.layout?.['text-field']);
-    let label =
-      isExpression || textField.isFeatureDependent
-        ? text.trim()
-        : resolveTokenString(text, feature.properties)?.trim();
+    let label = this.getUnwrappedLabelText(feature);
     if (label) {
-      label = transformText(label, this.evaluateStyleProperty('text-transform', feature));
       const labels = this.state?.labelText?.labels;
       const wrapped = labels?.get(feature);
       if (wrapped !== undefined) {
@@ -1307,8 +1437,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           maxWidth,
           character => {
             if (!measure) {
-              const font = this.getFont();
-              measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+              measure = this.getCharacterMeasurer();
             }
             return measure(character) + spacing;
           },
@@ -1318,6 +1447,24 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       labels?.set(feature, label);
     }
     return label || undefined;
+  }
+
+  /** A feature's label text, with `text-transform` applied and before wrapping. */
+  getUnwrappedLabelText(feature: FeatureLike): string | undefined {
+    const textField = this.getStyleProperty('text-field');
+    if (!textField) {
+      return undefined;
+    }
+    const value = this.evaluateStyleProperty('text-field', feature);
+    const text = value === null || value === undefined ? '' : String(value);
+    const isExpression = Array.isArray(this.props.styleLayer?.layout?.['text-field']);
+    const label =
+      isExpression || textField.isFeatureDependent
+        ? text.trim()
+        : resolveTokenString(text, feature.properties)?.trim();
+    return label
+      ? transformText(label, this.evaluateStyleProperty('text-transform', feature))
+      : undefined;
   }
 
   /**
@@ -1396,11 +1543,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         : Number(this.evaluateStyleProperty('text-halo-blur', feature) ?? 0);
     return {
       outlineColor,
-      outlineWidth: getOutlineWidth(width, size),
+      outlineWidth: getOutlineWidth(width, size, this.getFontSettings().fontSize),
       outlineBlur: getHaloBlurGamma(
         Math.round(blur / HALO_WIDTH_STEP) * HALO_WIDTH_STEP,
         size,
-        LABEL_FONT_SETTINGS
+        this.getFontSettings()
       )
     };
   }
@@ -1603,12 +1750,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * updates, placing the labels again, once the font has loaded.
    */
   getLineTextMeasurer(): (text: string) => number {
-    const font = this.getFont();
-    const fontWeight = getTextLayerFontWeight(font);
-    if (!canMeasureText() || this.isLineTextFontLoading(font)) {
+    if (!this.props.glyphs && (!canMeasureText() || this.isLineTextFontLoading())) {
       return getTextLengthEms;
     }
-    const measure = getCharacterWidthMeasurer(fontWeight, font.fontFamily);
+    const measure = this.getCharacterMeasurer();
     return text => {
       let ems = 0;
       for (const character of text) {
@@ -1855,7 +2000,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             ),
             // The text is measured in the label font, once it has loaded.
             ...(this.getStyleProperty('text-field')
-              ? [this.getFont(), this.isLineTextFontLoading()]
+              ? this.props.glyphs
+                ? [this.getFontKey()]
+                : [this.getFont(), this.isLineTextFontLoading()]
               : [])
           ]
         : null
@@ -1981,6 +2128,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * this layer updating.
    */
   getLineGlyphWidthsRevision(): () => number {
+    if (this.props.glyphs) {
+      // A tile's labels are placed once their glyphs have loaded, which do not change.
+      return () => 0;
+    }
     const font = this.getFont();
     const fontWeight = getTextLayerFontWeight(font);
     return () => getCharacterWidthsRevision(fontWeight, font.fontFamily);
@@ -2086,8 +2237,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const count = characters.length;
     const size = this.getLabelSize(feature);
     const spacing = this.getLetterSpacing(feature, text) * size;
-    const font = this.getFont();
-    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+    const measure = this.getCharacterMeasurer();
     // Advance centres from the anchor, as MapLibre's shaping places them: `text-anchor` across the
     // text, the letter spacing after every character but the last.
     const widths = characters.map(character => measure(character) * size);
@@ -2276,7 +2426,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     // evaluation starts a new text cache with a fresh wrap budget.
     // The font, which a data-driven `text-font` takes from the first row: the rows of another
     // first tile can change it, and with it the text's wrapping.
-    const font = JSON.stringify(this.getFont());
+    const font = this.getFontKey();
     const key: [string, LabelRow[] | undefined, string] = [textTrigger, this.state.labelData, font];
     const [lastTrigger, lastRows, lastFont] = this.state.labelText?.key || [];
     if (key[0] !== lastTrigger || key[1] !== lastRows || key[2] !== lastFont) {
@@ -2307,6 +2457,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const anchorKey = this.getAnchorKey(geographic);
     if (dataChanged || anchorKey !== this.state.anchorKey) {
       const features = Array.isArray(data) ? data : data.features || [];
+      if (!this.hasLabelGlyphs(features)) {
+        // Placed once the glyphs have loaded, when the layer updates again.
+        this.setState({labelData: [], anchorKey: undefined});
+        return;
+      }
       const labelData = this.getLabelData(features, geographic);
       this.setState({labelData, anchorKey});
     }
@@ -2339,6 +2494,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           return cached.rows;
         }
         changed = true;
+        if (!this.hasLabelGlyphs(tile.features)) {
+          // Placed once the glyphs have loaded, when the layer updates again; until then the tile
+          // keeps the rows it had, if any.
+          if (cached) {
+            next.set(tileKey, cached);
+            return cached.rows;
+          }
+          return [];
+        }
         let rows = this.getLabelData(tile.features, geographic);
         if (!geographic) {
           const scale = 2 ** z;
@@ -2545,15 +2709,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     const zoom = getZoomBucket(this.props.zoom || 0);
     // Measured again once the label font has loaded (`forgetCharacterWidths`).
-    const font = this.getFont();
-    const widthsRevision = getCharacterWidthsRevision(
-      getTextLayerFontWeight(font),
-      font.fontFamily
-    );
+    const widthsRevision = this.getLineGlyphWidthsRevision()();
+    const fontKey = this.getFontKey();
     // The layout values, so that a style layer edited in place is measured and ruled again, as
     // `getCompiledStyleProperty` compiles an edited value again.
     const layout = styleLayer?.layout ? Object.entries(styleLayer.layout).flat() : [];
-    const shared = [spriteAtlases, styleLayer, fontFamily, widthsRevision, zoom, ...layout];
+    const shared = [
+      spriteAtlases,
+      styleLayer,
+      fontFamily,
+      fontKey,
+      widthsRevision,
+      zoom,
+      ...layout
+    ];
     const key = [labelData, this.state.labelText, ...shared];
     const cached = this.state.placementGeometry;
     if (cached && isSameList(cached.key, key)) {
@@ -2589,7 +2758,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const count = labelData.length;
     const rowsWithText = hasTextData ? this.getRowsWithText() : null;
     const icons = hasIconData ? this.getRowIcons() : null;
-    const measure = getCharacterWidthMeasurer(getTextLayerFontWeight(font), font.fontFamily);
+    const measure = this.getCharacterMeasurer();
     const lineHeight = this.getLineHeight();
     const textBoxes = new Float64Array(count * 4).fill(Number.NaN);
     const textOffsets = new Float64Array(count * 2);
@@ -3013,9 +3182,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           ...lineLabelProps,
           characterSet: 'auto',
           // Glyphs are signed distance fields, which `TextLayer` outlines for halos.
-          fontSettings: LABEL_FONT_SETTINGS,
-          fontFamily: font.fontFamily,
-          fontWeight: getTextLayerFontWeight(font),
+          ...this.getFontProps(font),
           sizeUnits: labelSizeUnits,
           lineHeight: this.getLineHeight(),
           // A transparent background box makes the whole label pickable.

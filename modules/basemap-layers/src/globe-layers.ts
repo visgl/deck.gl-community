@@ -1,3 +1,4 @@
+import type {GlyphStore} from './glyph-store';
 import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
 import {
   COORDINATE_SYSTEM,
@@ -82,6 +83,8 @@ type BasemapLayerGroup = {
   spriteAtlases?: SpriteAtlas[] | null;
   /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
   /** Externally owned source caches; BasemapLayer supplies and finalizes these. */
@@ -1371,6 +1374,7 @@ function createStyledVectorSubLayer({
   spriteAtlases,
   loadOptions,
   fontFamily,
+  glyphs,
   labelPlacement
 }: {
   idPrefix: string;
@@ -1387,6 +1391,8 @@ function createStyledVectorSubLayer({
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
 }) {
@@ -1409,6 +1415,7 @@ function createStyledVectorSubLayer({
       spriteAtlases,
       loadOptions,
       fontFamily,
+      glyphs,
       labelPlacement
     });
   }
@@ -1503,6 +1510,7 @@ function createVectorLayerGroup({
   styleDefinition,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement
 }: {
   idPrefix: string;
@@ -1526,6 +1534,8 @@ function createVectorLayerGroup({
   spriteAtlases?: SpriteAtlas[] | null;
   /** Label font override; tiles regenerate when it changes. */
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
 }) {
@@ -1577,6 +1587,7 @@ function createVectorLayerGroup({
         styleDefinition,
         spriteAtlases,
         fontFamily,
+        glyphs,
         labelPlacement
       ]
     },
@@ -1606,6 +1617,7 @@ function createVectorLayerGroup({
           spriteAtlases,
           loadOptions,
           fontFamily,
+          glyphs,
           labelPlacement
         });
       })) as RenderLabelLayers,
@@ -1716,6 +1728,7 @@ function createVectorLayerGroup({
             spriteAtlases,
             loadOptions,
             fontFamily,
+            glyphs,
             labelPlacement
           })
         );
@@ -1759,6 +1772,7 @@ export function getBasemapLayers({
   loadOptions,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement,
   tilesets
 }: BasemapLayerGroup) {
@@ -1787,6 +1801,7 @@ export function getBasemapLayers({
         mode,
         spriteAtlases,
         fontFamily,
+        glyphs,
         labelPlacement,
         tilesets
       })
@@ -1806,6 +1821,7 @@ export function getGlobeBaseLayers({
   loadOptions,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement
 }: Omit<BasemapLayerGroup, 'mode'>) {
   return getBasemapLayers({
@@ -1817,6 +1833,7 @@ export function getGlobeBaseLayers({
     loadOptions,
     spriteAtlases,
     fontFamily,
+    glyphs,
     labelPlacement
   });
 }
@@ -1839,6 +1856,7 @@ function createSymbolSubLayer({
   spriteAtlases,
   loadOptions,
   fontFamily,
+  glyphs,
   labelPlacement,
   tiles
 }: {
@@ -1856,6 +1874,8 @@ function createSymbolSubLayer({
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
 }) {
@@ -1871,6 +1891,7 @@ function createSymbolSubLayer({
     // The sprite atlas images load through the same fetch as the style and its tiles.
     iconLoadOptions: loadOptions,
     fontFamily,
+    glyphs,
     labelPlacement,
     // Polygon labels outside the tile's own extent are left to the neighbouring tile.
     tileBoundingBox: props.tile?.bbox ?? null,
@@ -3070,6 +3091,7 @@ function getStyleLayers({
   mode,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement,
   tilesets
 }: {
@@ -3082,6 +3104,8 @@ function getStyleLayers({
   mode: BasemapMode;
   spriteAtlases?: SpriteAtlas[] | null;
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
   tilesets?: Map<BasemapSource, SharedTileset2D>;
@@ -3160,6 +3184,7 @@ function getStyleLayers({
       styleDefinition,
       spriteAtlases,
       fontFamily,
+      glyphs,
       labelPlacement
     });
   });

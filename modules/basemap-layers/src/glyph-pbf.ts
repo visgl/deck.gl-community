@@ -25,7 +25,7 @@ export type Glyph = {
    * One byte per pixel, `width + 2 * GLYPH_BORDER` by `height + 2 * GLYPH_BORDER`; empty for a
    * glyph without ink, such as a space.
    */
-  bitmap: Uint8Array;
+  bitmap: Uint8Array | Uint8ClampedArray;
   /** Width of the ink. */
   width: number;
   /** Height of the ink. */
