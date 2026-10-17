@@ -512,20 +512,21 @@ function getViewState(
     scene === 'forest'
       ? 92
       : treeCount === 1
-        ? Math.max(TREE_CROWN_RADII[species] * 2.4, TREE_HEIGHTS[species] * 1.75)
+        ? Math.max(TREE_CROWN_RADII[species] * 3.7, TREE_HEIGHTS[species] * 3)
         : groveSpacing * groveCells * 1.15;
   const pixels = Math.max(1, Math.min(width * 0.82, height * 0.72));
   const zoom =
     Math.log2((156543.0339 * pixels) / extent) +
+    (scene === 'grove' && treeCount === 1 ? 0.6 : 0) +
     (scene === 'grove' ? Math.log2(Math.max(1, TREE_HEIGHTS[species] / 12)) * 0.35 : 0);
   const pitch =
     scene === 'forest'
       ? 38
       : treeCount === 1
-        ? 32
+        ? 48
         : Math.max(20, 38 - Math.log10(Math.max(1, treeCount)) * 4.5);
   const latitude =
-    scene === 'grove' && treeCount === 1 ? (height * 0.12 * (156543.0339 / 2 ** zoom)) / 111320 : 0;
+    scene === 'grove' && treeCount === 1 ? (height * 0.23 * (156543.0339 / 2 ** zoom)) / 111320 : 0;
   return {
     longitude: 0,
     latitude,

@@ -14,6 +14,8 @@ type FrameSample = {
   cpuMs: number;
   frameMs: number;
 };
+const PROFILE_FRAME_COUNT = 96;
+const PROFILE_PHASE_FRAMES = PROFILE_FRAME_COUNT / 3;
 
 it.each([
   'banyan',
@@ -23,6 +25,7 @@ it.each([
   Object.assign(parent.style, {width: '800px', height: '600px'});
   document.body.append(parent);
   const samples: FrameSample[] = [];
+  const drawnModels = new Set<string>();
   const errors: string[] = [];
   let deck!: Deck<MapView>;
   let frames = 0,
@@ -33,7 +36,10 @@ it.each([
   let phase: FrameSample['phase'] = 'grove';
   const originalDraw = Model.prototype.draw;
   const draw = vi.spyOn(Model.prototype, 'draw').mockImplementation(function (pass) {
-    if (this.id === 'sorted-prepared-splats' || this.id.includes('canopy-')) draws++;
+    if (this.id === 'sorted-prepared-splats' || this.id.includes('canopy-')) {
+      draws++;
+      drawnModels.add(this.id);
+    }
     return originalDraw.call(this, pass);
   });
   const originalDestroy = Model.prototype.destroy;
@@ -81,16 +87,23 @@ it.each([
           }
           previous = now;
           const step = samples.length;
-          if (step === 24) deck['animationLoop']?.stop();
-          else if (step >= 8) {
-            phase = step < 16 ? 'bearing' : 'zoom';
+          if (step === PROFILE_FRAME_COUNT) deck['animationLoop']?.stop();
+          else if (step >= PROFILE_PHASE_FRAMES) {
+            phase = step < PROFILE_PHASE_FRAMES * 2 ? 'bearing' : 'zoom';
             deck.setProps({
               viewState: {
                 longitude: 0,
                 latitude: 0,
                 pitch: 45,
-                bearing: step < 16 ? 20 + (step - 7) * 5 : 60,
-                zoom: 20 + (step < 16 ? 0 : (step - 15) * 0.05)
+                bearing:
+                  step < PROFILE_PHASE_FRAMES * 2
+                    ? 20 + ((step - PROFILE_PHASE_FRAMES) / PROFILE_PHASE_FRAMES) * 40
+                    : 60,
+                zoom:
+                  20 +
+                  (step < PROFILE_PHASE_FRAMES * 2
+                    ? 0
+                    : ((step - PROFILE_PHASE_FRAMES * 2) / PROFILE_PHASE_FRAMES) * 0.5)
               }
             });
           }
@@ -135,6 +148,7 @@ it.each([
         p95CpuMs,
         p95FrameMs,
         maxDraws: Math.max(...samples.map(sample => sample.draws)),
+        drawnModels: [...drawnModels],
         maxSplats: maxRenderedSplats
       })}`
     );

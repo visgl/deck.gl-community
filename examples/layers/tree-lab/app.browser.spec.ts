@@ -150,7 +150,7 @@ it('shows every species with native crops, then renders a label-free 10,000-tree
     inspectCanopyPixels = true;
     change('tree-count', '1');
     await expect.poll(() => viewport().latitude, {timeout: 15000}).toBeGreaterThan(0);
-    await expect.poll(() => viewport().pitch, {timeout: 15000}).toBeCloseTo(32);
+    await expect.poll(() => viewport().pitch, {timeout: 15000}).toBeCloseTo(48);
     await expect.poll(() => viewport().zoom, {timeout: 15000}).toBeGreaterThan(fullGroveZoom + 2);
     change('species', 'palm');
     const closeCanopy = () =>
