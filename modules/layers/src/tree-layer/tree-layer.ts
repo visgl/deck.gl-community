@@ -276,7 +276,7 @@ type _TreeLayerProps<DataT> = {
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
   windTime?: number | null;
-  /** Shared per-frame canopy Gaussian budget, allocated by projected error across species. Finest templates remain available. @default 20000 */
+  /** Maximum shared per-frame canopy Gaussian budget. Dense groups lower their target with tree count; finest templates remain available. @default 20000 */
   maxCanopySplats?: number;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
   maxCanopyPixels?: number;
@@ -835,13 +835,19 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       'trunks-palm',
       true
     );
-    this.state.splatBudgetGroup.maxSplats = this.props.maxCanopySplats;
     this.state.splatBudgetGroup.parent = this.props._splatBudgetGroup;
-    const hasDenseCanopy =
-      [...this.state.groups.values()].reduce(
-        (count, rows) => count + (rows[0].winter ? 0 : rows.length),
-        0
-      ) >= DENSE_TREE_COUNT;
+    const denseCanopyTreeCount = [...this.state.groups.values()].reduce(
+      (count, rows) => count + (rows[0].winter ? 0 : rows.length),
+      0
+    );
+    const hasDenseCanopy = denseCanopyTreeCount >= DENSE_TREE_COUNT;
+    const requestedCanopySplats = this.props.maxCanopySplats;
+    this.state.splatBudgetGroup.maxSplats = hasDenseCanopy
+      ? Math.min(
+          requestedCanopySplats,
+          Math.max(DENSE_TREE_COUNT * 4, Math.ceil(denseCanopyTreeCount * 1.2))
+        )
+      : requestedCanopySplats;
     for (const [key, data] of this.state.groups) {
       const {type, winter, levels, characteristics} = data[0];
       const wood = this.state.woodGroups.get(key)!;
@@ -914,7 +920,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               // Preserve full crown texture in the species lab; dense groves trade detail
               // for a bounded shared splat budget and recover detail when zoomed in.
               pixelError: hasDenseCanopy ? 2.5 : type === 'palm' ? 0.3 : 0.75,
-              support: 1.5,
+              support: hasDenseCanopy ? 1.5 : 2,
               maxRenderPixels: this.props.maxCanopyPixels,
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),

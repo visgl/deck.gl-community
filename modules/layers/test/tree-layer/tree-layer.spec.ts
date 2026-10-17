@@ -7,7 +7,11 @@ import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
-import {getTreeSplatSource} from '../../src/tree-layer/tree-splats';
+import {
+  getPalmFrondLeafletT,
+  getTreeSplatHierarchy,
+  getTreeSplatSource
+} from '../../src/tree-layer/tree-splats';
 import {
   createTrunkMesh,
   createCropMesh,
@@ -65,7 +69,7 @@ describe('native tree geometry', () => {
       else {
         expect(crown).toBeInstanceOf(SplatLayer);
         expect(crown!.props.transparency).toBe('sorted');
-        expect(crown!.props.support).toBeCloseTo(1.5);
+        expect(crown!.props.support).toBeCloseTo(2);
         expect(crown!.props.pixelError).toBeCloseTo(type === 'palm' ? 0.3 : 0.75);
         expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(
           type === 'palm' ? 700 : 1000
@@ -81,22 +85,25 @@ describe('native tree geometry', () => {
   });
   it('keeps palm frond stems and splat leaflets on the same deterministic curves', () => {
     const fronds = getPalmFronds();
-    expect(fronds).toHaveLength(28);
-    expect(fronds.filter(frond => !frond.spear)).toHaveLength(24);
+    expect(fronds).toHaveLength(20);
+    expect(fronds.filter(frond => !frond.spear)).toHaveLength(16);
     expect(fronds.filter(frond => frond.spear)).toHaveLength(4);
     expect(
       new Set(fronds.filter(frond => !frond.spear).map(frond => frond.angle.toFixed(3))).size
-    ).toBe(24);
+    ).toBe(16);
     expect(evaluatePalmFrond(fronds[0], 0)).toEqual(fronds[0].controls[0]);
     expect(evaluatePalmFrond(fronds[0], 1)).toEqual(fronds[0].controls[3]);
+    expect(getPalmFrondLeafletT(0)).toBeCloseTo(0.18);
+    expect(getPalmFrondLeafletT(13)).toBeCloseTo(0.8);
     const {layer} = createLayer([{position: [0, 0], type: 'palm', season: 'summer'}]);
     const canopy = layer.renderLayers().find(child => child.id.includes('canopy'))!;
     expect(canopy).toBeInstanceOf(SplatLayer);
-    expect(canopy.props.support).toBeCloseTo(1.5);
+    expect(canopy.props.support).toBeCloseTo(2);
     expect(canopy.props.pixelError).toBeCloseTo(0.3);
     const palmSplats = getTreeSplatSource('palm');
-    expect(palmSplats.positions.length / 3).toBeGreaterThan(1700);
-    expect(palmSplats.positions.length / 3).toBeLessThan(1800);
+    expect(getTreeSplatHierarchy('palm')).toHaveLength(4);
+    expect(palmSplats.positions.length / 3).toBeGreaterThan(900);
+    expect(palmSplats.positions.length / 3).toBeLessThan(1000);
     expect(
       Array.from(palmSplats.scales)
         .filter((_, index) => index % 3 === 1)
@@ -105,7 +112,7 @@ describe('native tree geometry', () => {
     expect(palmSplats.positions.every(Number.isFinite)).toBe(true);
     expect(getTreeSplatSource('palm')).toBe(palmSplats);
     const firstLeaf = palmSplats.positions.subarray(0, 3);
-    const firstFrondBase = evaluatePalmFrond(fronds[0], 0.46);
+    const firstFrondBase = evaluatePalmFrond(fronds[0], 0.18);
     expect(
       Math.hypot(...Array.from(firstLeaf, (coordinate, axis) => coordinate - firstFrondBase[axis]))
     ).toBeLessThan(0.06);
@@ -126,7 +133,7 @@ describe('native tree geometry', () => {
     expect(canopy.props.transparency).toBe('weighted');
     expect(canopy.props.pixelError).toBe(2.5);
     expect(canopy.props.foveationStrength).toBe(0.55);
-    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
+    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 12000});
     expect(wood).toBeInstanceOf(TreeWoodLayer);
     expect(wood.props.farTrunkOnly).toBe(true);
     expect(wood.props.data).toHaveLength(denseData.length);
@@ -140,6 +147,9 @@ describe('native tree geometry', () => {
     expect(closeWood).toBeInstanceOf(TreeWoodLayer);
     expect(closeWood.id).toBe(wood.id);
     expect(closeWood.props.farTrunkOnly).toBe(false);
+    const {layer: threshold} = createLayer(denseData.slice(0, 1024));
+    const thresholdCanopy = threshold.renderLayers().find(child => child.id.includes('canopy'))!;
+    expect(thresholdCanopy.props._splatBudgetGroup).toMatchObject({maxSplats: 4096});
   });
   it('uses one stable canopy color accessor and blend mode across a mixed dense scene', () => {
     const mixedData = [

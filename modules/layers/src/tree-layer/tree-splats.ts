@@ -18,6 +18,12 @@ import {
 
 type Point = [number, number, number];
 const CACHE = new TreeTemplateCache<SplatSource>();
+const PALM_LEAFLET_COUNT = 14;
+
+/** Evenly space leaflet anchors along the rachis without extrapolating past its tip. */
+export function getPalmFrondLeafletT(index: number): number {
+  return 0.18 + (index / (PALM_LEAFLET_COUNT - 1)) * 0.62;
+}
 
 /** Procedural leaf clusters, not sampled opaque crown triangles. Templates are shared by species/tier. */
 export function getTreeSplatSource(
@@ -67,7 +73,6 @@ export function getTreeSplatSource(
   };
   if (type === 'palm') {
     // Leaflets are splats; the matching wood template already supplies each frond rachis.
-    const leafletCount = 18;
     for (const frond of getPalmFronds()) {
       const {angle, spear} = frond;
       const evaluate = (t: number) => new Vector3(evaluatePalmFrond(frond, t));
@@ -93,9 +98,9 @@ export function getTreeSplatSource(
         continue;
       }
 
-      const pairs = leafletCount;
+      const pairs = PALM_LEAFLET_COUNT;
       for (let j = 0; j < pairs; j++) {
-        const t = 0.28 + (frond.tier / 3) * 0.18 + (j / (pairs - 1)) * 0.55;
+        const t = getPalmFrondLeafletT(j);
         const point = evaluate(t);
         const tangent = evaluate(t + 0.001)
           .subtract(evaluate(t - 0.001))
@@ -106,10 +111,10 @@ export function getTreeSplatSource(
           const direction = new Vector3(sideways)
             .scale(side)
             .add(new Vector3(tangent).scale(0.16 + Math.sin(angle + j * 0.7) * 0.08))
-            .add([0, 0, -0.1 - t * 0.3])
+            .add([0, 0, -0.04 - t * 0.15])
             .normalize();
           const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = (0.085 + fullness * 0.15) * (0.88 + rng() * 0.24);
+          const length = (0.1 + fullness * 0.14) * (0.88 + rng() * 0.24);
           for (const [progress, widthScale] of [
             [0.3, 1],
             [0.72, 0.62]
@@ -119,9 +124,9 @@ export function getTreeSplatSource(
               .add(new Vector3(direction).scale(length * progress));
             add(
               Array.from(center) as Point,
-              [length * 0.48 * widthScale, (0.006 + fullness * 0.008) * widthScale, 0.002],
+              [length * 0.48 * widthScale, (0.005 + fullness * 0.007) * widthScale, 0.002],
               Array.from(normal) as Point,
-              progress < 0.5 ? 0.78 : 0.68,
+              progress < 0.5 ? 0.7 : 0.62,
               Array.from(direction) as Point,
               [0.91, 1.04, 0.88]
             );
@@ -224,7 +229,9 @@ export function getTreeSplatHierarchy(
   const source = getTreeSplatSource(type, levels, characteristics);
   let hierarchy = HIERARCHIES.get(source);
   if (!hierarchy) {
-    hierarchy = createSplatHierarchy(source, [0.035, 0.075, 0.16, 0.32, 0.64, 1.28, 2.56]);
+    const cellSizes =
+      type === 'palm' ? [0.12, 0.5, 3.2] : [0.035, 0.075, 0.16, 0.32, 0.64, 1.28, 2.56];
+    hierarchy = createSplatHierarchy(source, cellSizes);
     HIERARCHIES.set(source, hierarchy);
   }
   return hierarchy;
