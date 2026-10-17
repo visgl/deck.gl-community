@@ -12,7 +12,9 @@ function fixtureFetch() {
     urls.push(url);
     const match = /fonts\/([^/]+)\/(\d+-\d+)\.pbf$/.exec(url);
     try {
-      const data = readFileSync(new URL(`${match![1]}/${match![2]}.pbf`, FONTS));
+      const data = readFileSync(
+        new URL(`${decodeURIComponent(match![1])}/${match![2]}.pbf`, FONTS)
+      );
       return new Response(data);
     } catch {
       return new Response(null, {status: 404});
@@ -39,7 +41,7 @@ describe('GlyphStore', () => {
     store.load('Noto Sans Regular', ['Paris']);
     await loading;
 
-    expect(urls).toEqual(['https://tiles.example.com/fonts/Noto Sans Regular/0-255.pbf']);
+    expect(urls).toEqual(['https://tiles.example.com/fonts/Noto%20Sans%20Regular/0-255.pbf']);
     expect(store.hasGlyphs('Noto Sans Regular', 'Paris Île')).toBe(true);
     expect(store.getGlyph('Noto Sans Regular', 80)?.advance).toBeGreaterThan(0);
     expect(store.load('Noto Sans Regular', ['Paris'])).toBeNull();
@@ -68,14 +70,22 @@ describe('GlyphStore', () => {
     expect(urls).toEqual([]);
   });
 
-  test('forms range URLs as MapLibre GL JS does, and resolves a relative URL against the style', () => {
+  test('forms range URLs from the template, and resolves a relative URL against the style', () => {
     const store = new GlyphStore({
       url: 'fonts/{fontstack}/{range}.pbf?key=1',
       baseUrl: 'https://maps.example.com/styles/liberty/style.json'
     });
     expect(store.getRangeUrl('Noto Sans Bold,Noto Sans Regular', 1)).toBe(
-      'https://maps.example.com/styles/liberty/fonts/Noto Sans Bold,Noto Sans Regular/256-511.pbf?key=1'
+      'https://maps.example.com/styles/liberty/fonts/Noto%20Sans%20Bold,Noto%20Sans%20Regular/256-511.pbf?key=1'
     );
+  });
+
+  test('encodes font names, so tile data cannot change the rest of the URL', () => {
+    const store = new GlyphStore({url: URL_TEMPLATE});
+    expect(store.getRangeUrl('../../admin?x=1#{range}', 0)).toBe(
+      'https://tiles.example.com/fonts/..%2F..%2Fadmin%3Fx%3D1%23%7Brange%7D/0-255.pbf'
+    );
+    expect(store.getRangeUrl('..', 0)).toBe('https://tiles.example.com/fonts/%2E%2E/0-255.pbf');
   });
 
   test(`keeps the glyphs of at most ${MAX_GLYPH_STACKS} font stacks`, async () => {
@@ -87,6 +97,6 @@ describe('GlyphStore', () => {
     }
     expect(store.hasGlyphs('Noto Sans Regular', 'a')).toBe(false);
     await store.load('Noto Sans Regular', ['a']);
-    expect(urls.filter(url => url.includes('Noto Sans Regular'))).toHaveLength(2);
+    expect(urls.filter(url => url.includes('Noto%20Sans%20Regular'))).toHaveLength(2);
   });
 });

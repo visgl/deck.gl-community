@@ -109,12 +109,21 @@ export class GlyphStore {
     return pending.size ? Promise.all(pending).then(() => {}) : null;
   }
 
-  /** The URL of a range, as MapLibre GL JS forms it: the font stack is not encoded. */
+  /**
+   * The URL of a range: the font names of the stack, each URL-encoded, joined by commas. Font
+   * stacks can come from tile data (a data-driven `text-font`), so a name cannot add path
+   * segments, a query or a fragment to the URL.
+   */
   getRangeUrl(fontStack: string, range: number): string {
     const begin = range * GLYPH_RANGE_SIZE;
-    return this.url
-      .replace('{fontstack}', fontStack)
-      .replace('{range}', `${begin}-${begin + GLYPH_RANGE_SIZE - 1}`);
+    // `encodeURIComponent` keeps dots: a name of only dots would be a `.` or `..` path segment.
+    const encoded = fontStack
+      .split(',')
+      .map(name => (/^\.+$/.test(name) ? name.replace(/\./g, '%2E') : encodeURIComponent(name)))
+      .join(',');
+    return this.url.replace(/\{(fontstack|range)\}/g, (_, name) =>
+      name === 'range' ? `${begin}-${begin + GLYPH_RANGE_SIZE - 1}` : encoded
+    );
   }
 
   private async loadRange(fontStack: string, range: number): Promise<Map<number, Glyph>> {
