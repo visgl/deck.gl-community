@@ -1,7 +1,14 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {Deck, MapView, COORDINATE_SYSTEM, AmbientLight, LightingEffect} from '@deck.gl/core';
+import {
+  Deck,
+  MapView,
+  COORDINATE_SYSTEM,
+  AmbientLight,
+  DirectionalLight,
+  LightingEffect
+} from '@deck.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {PlaneGeometry} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
@@ -68,7 +75,8 @@ it('renders tree parts and removes every part at zero coverage', async () => {
     initialViewState: {longitude: 0.00004, latitude: 0, zoom: 20, pitch: 45, bearing: 20},
     effects: [
       new LightingEffect({
-        ambient: new AmbientLight({intensity: 1})
+        ambient: new AmbientLight({intensity: 1}),
+        directional: new DirectionalLight({direction: [-1, -1, -1], shadow: true})
       })
     ],
     layers: make(),
