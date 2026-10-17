@@ -1680,4 +1680,66 @@ describe('VolumetricVideoLayer GPU pipeline', () => {
     await renderVolume('auto');
     await renderVolume('instanced');
   }, 70_000);
+
+  // Value: protects=the automatic renderer preserves discrete splats when a frame plane
+  // becomes nearly edge-on; fails_when=the WebGPU mip path turns that plane into a bright,
+  // expanded ribbon; seam=the model selected by an orbit-only view change.
+  it('uses per-pixel WebGPU splats for a nearly edge-on automatic volume', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'width: 256px; height: 192px';
+    document.body.append(parent);
+    let webgpu: Device | undefined;
+    let deck: Deck<OrbitView[]> | undefined;
+    let layer: VolumetricVideoLayer | undefined;
+    try {
+      webgpu = await luma.createDevice({
+        type: 'webgpu',
+        adapters: [webgl2Adapter, webgpuAdapter],
+        createCanvasContext: {container: parent, width: 256, height: 192, useDevicePixels: false}
+      });
+      await new Promise<void>((resolve, reject) => {
+        layer = new VolumetricVideoLayer({
+          id: 'edge-on-webgpu-video',
+          video: MP4_URL,
+          currentFrame: 30,
+          frameTrail: 5,
+          maxFrameTrail: 5,
+          resolution: 64,
+          frameOpacity: 0.8,
+          renderMode: 'auto',
+          onFrameLoad: () => resolve()
+        });
+        deck = new Deck({
+          device: webgpu,
+          parent,
+          width: 256,
+          height: 192,
+          useDevicePixels: false,
+          views: [new OrbitView({id: 'edge-on-webgpu', orbitAxis: 'Y'})],
+          initialViewState: {
+            'edge-on-webgpu': {target: [0, 0, -0.2], rotationX: 0, rotationOrbit: 0, zoom: 7}
+          },
+          layers: [layer],
+          onError: reject
+        });
+      });
+      const rasterDraw = vi.spyOn(layer!.state.rasterModel!, 'draw');
+      const splatDraw = vi.spyOn(layer!.state.model, 'draw');
+      await new Promise<void>(resolve => {
+        deck!.setProps({
+          viewState: {
+            'edge-on-webgpu': {target: [0, 0, -0.2], rotationX: 0, rotationOrbit: 82, zoom: 7}
+          },
+          onAfterRender: () => resolve()
+        });
+      });
+      expect(splatDraw).toHaveBeenCalled();
+      expect(rasterDraw).not.toHaveBeenCalled();
+    } finally {
+      deck?.finalize();
+      webgpu?.destroy();
+      parent.remove();
+    }
+  }, 35_000);
 });

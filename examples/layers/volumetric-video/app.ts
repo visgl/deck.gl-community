@@ -130,9 +130,10 @@ export function mountVolumetricVideoExample(
     <style>
       .vv-demo {width:100%;height:100%;min-height:540px;display:grid;grid-template-columns:300px 1fr;background:#080c12;color:#e7edf6;font:16px/1.5 system-ui,sans-serif;overflow:hidden}
       .vv-demo * {box-sizing:border-box}
-      .vv-demo.vv-embedded {grid-template-columns:1fr}
+      .vv-demo.vv-embedded {grid-template-columns:1fr;min-height:0}
       .vv-demo.vv-embedded .vv-panel {display:none}
       .vv-demo.vv-embedded .vv-backend-toggle {display:none}
+      .vv-demo.vv-embedded .vv-stage-top {display:none}
       .vv-panel {padding:32px 26px;display:flex;flex-direction:column;gap:24px;border-right:1px solid #ffffff12;background:#0d121b;overflow:auto;z-index:2}
       .vv-eyebrow {font:11px/1.4 ui-monospace,monospace;letter-spacing:.18em;color:#80a3c5;text-transform:uppercase}
       .vv-panel h1 {font-size:32px;line-height:1.12;letter-spacing:-.04em;font-weight:550;margin:12px 0}

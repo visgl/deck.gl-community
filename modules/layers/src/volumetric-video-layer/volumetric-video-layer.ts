@@ -421,7 +421,7 @@ export class VolumetricVideoLayer<
     return this.createModel(true);
   }
 
-  private usesRaster(): boolean {
+  private supportsRaster(): boolean {
     return (
       this.props.renderMode === 'auto' &&
       this.props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN &&
@@ -430,12 +430,31 @@ export class VolumetricVideoLayer<
     );
   }
 
+  private usesRaster(): boolean {
+    if (!this.supportsRaster()) return false;
+    // At a nearly edge-on angle, a WebGPU raster plane resolves to a high-level
+    // mip. Its average remains visible as an expanded colored ribbon. The native
+    // per-pixel path keeps the frame's actual splats and avoids that artifact.
+    if (this.context.device.type !== 'webgpu') return true;
+    const {source} = this.state;
+    if (!source?.info) return true;
+    const {position, width} = this.props;
+    const height = (width * source.info.height) / source.info.width;
+    const center = this.project(position);
+    const horizontal = this.project([position[0] + width * 0.5, position[1], position[2]]);
+    const vertical = this.project([position[0], position[1] + height * 0.5, position[2]]);
+    const horizontalPixels = Math.hypot(horizontal[0] - center[0], horizontal[1] - center[1]);
+    const verticalPixels = Math.hypot(vertical[0] - center[0], vertical[1] - center[1]);
+    const longestEdge = Math.max(horizontalPixels, verticalPixels);
+    return !longestEdge || Math.min(horizontalPixels, verticalPixels) / longestEdge > 0.3;
+  }
+
   /** Prepares the raster visibility pyramid before deck opens its presentation pass. */
   private updateAppearance(
     frames: GPUVideoFrames,
     staticPixelRemoval = this.state.activeStaticPixelRemoval
   ): void {
-    if (!this.usesRaster()) return;
+    if (!this.supportsRaster()) return;
     frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
       luminanceThreshold: this.props.luminanceThreshold,
       staticPixelRemoval
