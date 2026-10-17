@@ -130,7 +130,9 @@ it.each([
           layer.id === 'trees'
       ) as TreeLayer;
     expect((trees().props.data as unknown[]).length).toBe(10000);
-    await expect.poll(() => samples.length, {timeout: 60000}).toBeGreaterThanOrEqual(24);
+    await expect
+      .poll(() => samples.length, {timeout: 60000})
+      .toBeGreaterThanOrEqual(PROFILE_FRAME_COUNT);
     const percentile = (values: number[], fraction: number) =>
       values.sort((a, b) => a - b)[Math.ceil(values.length * fraction) - 1];
     const p95CpuMs = percentile(
