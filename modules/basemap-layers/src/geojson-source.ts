@@ -28,7 +28,8 @@ export function isGeoJsonSource(source: BasemapSource | undefined): boolean {
 
 /** The deepest zoom a GeoJSON source is tiled at; deeper views overzoom its tiles. */
 export function getGeoJsonMaxZoom(source: BasemapSource): number {
-  return Math.min(getNumber(source.maxzoom, GEOJSON_DEFAULT_MAXZOOM), GEOJSON_VT_MAX_ZOOM);
+  const maxzoom = getNumber(source.maxzoom, GEOJSON_DEFAULT_MAXZOOM);
+  return Math.max(0, Math.min(Math.round(maxzoom), GEOJSON_VT_MAX_ZOOM));
 }
 
 /** A finite number, or `fallback`. */
@@ -55,10 +56,12 @@ export function getGeoJsonVtOptions(source: BasemapSource): GeoJSONVTOptions {
     promoteId: generateId ? undefined : promoteId
   };
   if (source.cluster) {
-    const clusterMaxZoom = getNumber(source.clusterMaxZoom, Number.NaN);
+    const clusterMaxZoom = getNumber(source.clusterMaxZoom, maxZoom - 1);
     options.cluster = true;
     options.clusterOptions = {
-      maxZoom: Number.isNaN(clusterMaxZoom) ? maxZoom - 1 : Math.round(clusterMaxZoom),
+      // The cluster index holds a level per zoom: bounded by the source's tiled zooms, which
+      // MapLibre GL JS only warns about, so that a style value cannot make it build millions.
+      maxZoom: Math.max(0, Math.min(Math.round(clusterMaxZoom), maxZoom)),
       minPoints: Math.max(2, getNumber(source.clusterMinPoints, 2)),
       extent: GEOJSON_TILE_EXTENT,
       radius: getNumber(source.clusterRadius, 50) * TILE_UNITS_PER_PIXEL,

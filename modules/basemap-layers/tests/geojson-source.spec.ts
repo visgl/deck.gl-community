@@ -283,4 +283,25 @@ describe('GeoJSON style layers', () => {
       'Point'
     ]);
   });
+
+  test('bounds the zooms a style can make it index', () => {
+    const options = getGeoJsonVtOptions({
+      type: 'geojson',
+      data: {type: 'FeatureCollection', features: []},
+      maxzoom: 1e9,
+      cluster: true,
+      clusterMaxZoom: 1e9
+    } as any);
+    expect(options.maxZoom).toBeLessThanOrEqual(24);
+    expect(options.clusterOptions?.maxZoom).toBe(options.maxZoom);
+    const negative = getGeoJsonVtOptions({
+      type: 'geojson',
+      data: {type: 'FeatureCollection', features: []},
+      maxzoom: -3,
+      cluster: true,
+      clusterMaxZoom: -3
+    } as any);
+    expect(negative.maxZoom).toBe(0);
+    expect(negative.clusterOptions?.maxZoom).toBe(0);
+  });
 });
