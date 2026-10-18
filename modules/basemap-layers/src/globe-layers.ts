@@ -18,6 +18,7 @@ import {
   getFillPatternProps
 } from './fill-pattern';
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
+import {FillOutlineExtension} from './fill-outline-extension';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
 import type {LabelPlacement} from './label-placement';
 import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
@@ -192,6 +193,8 @@ const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'pat
 /** `line-blur`, shared for the same reason: by layer, and per feature. */
 const LINE_BLUR_EXTENSION = new LineBlurExtension();
 const LINE_BLUR_PER_FEATURE_EXTENSION = new LineBlurExtension({perFeature: true});
+/** A fill's outline, drawn as a line; shared for the same reason. */
+const FILL_OUTLINE_EXTENSION = new FillOutlineExtension();
 
 /** `fill-pattern` and `fill-translate`, shared by every fill that sets them. */
 const FILL_PATTERN_EXTENSION = new FillPatternExtension();
@@ -2649,8 +2652,9 @@ function createGeometrySubLayer({
   // the line: a line narrower than a pixel still draws, fainter. `LineBlurExtension` draws that
   // fade, without a blur too; deck.gl draws lines without antialiasing aliased, and drops most of
   // a line narrower than a pixel. A fill's outline is MapLibre's aliased 1 pixel line, drawn as
-  // deck.gl draws lines without antialiasing.
+  // deck.gl draws lines without antialiasing and cut to a line's pixels by `FillOutlineExtension`.
   const fadesLines = drawsLines && !isFill;
+  const drawsOutline = drawsLines && isFill;
   const fillStyleProps =
     isFill && hasFillStyle
       ? getFillStyleProps(first.styleLayer, zoom, baseProps.extensions, pattern)
@@ -2669,7 +2673,7 @@ function createGeometrySubLayer({
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     getLineWidth: lineWidth.value as any,
-    ...(dashArray || lineOffset || fadesLines || zoomPaint
+    ...(dashArray || lineOffset || fadesLines || drawsOutline || zoomPaint
       ? {
           extensions: [
             ...(baseProps.extensions || []),
@@ -2683,7 +2687,8 @@ function createGeometrySubLayer({
                     ? LINE_BLUR_PER_FEATURE_EXTENSION
                     : LINE_BLUR_EXTENSION
                 ]
-              : [])
+              : []),
+            ...(drawsOutline ? [FILL_OUTLINE_EXTENSION] : [])
           ]
         }
       : {}),
