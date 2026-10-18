@@ -3059,7 +3059,7 @@ export function getVectorTileLoader(
   loader: SharedMVTLayer
 ): (tile: Parameters<SharedMVTLayer['getTileData']>[0]) => Promise<any> {
   return source.type === 'geojson'
-    ? tile => Promise.resolve().then(() => getGeoJsonTileFeatures(source, tile.index))
+    ? tile => getGeoJsonTileFeatures(source, tile.index)
     : tile => loader.getTileData(tile);
 }
 

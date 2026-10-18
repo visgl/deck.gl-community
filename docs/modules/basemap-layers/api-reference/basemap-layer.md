@@ -36,7 +36,7 @@ import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 
 - accepts a style URL or parsed style object
 - resolves TileJSON-backed sources, and fetches the data of GeoJSON sources given by URL
-- cuts GeoJSON sources into vector tiles on the client
+- cuts GeoJSON sources into vector tiles on the client, in a web worker
 - generates `background`, `fill`, `line`, `symbol`, and `raster` sublayers
 - supports both flat map rendering and globe rendering
 

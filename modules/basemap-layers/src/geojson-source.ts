@@ -1,8 +1,7 @@
-import {GeoJSONVT, type GeoJSONVTFeature, type GeoJSONVTOptions} from '@maplibre/geojson-vt';
+import type {GeoJSONVT, GeoJSONVTOptions} from '@maplibre/geojson-vt';
+import {createTileIndex, cutTile, decodeTile, GEOJSON_TILE_EXTENT} from './geojson-tiler';
+import type {GeoJsonWorkerRequest, GeoJsonWorkerResponse} from './geojson-worker';
 import type {BasemapSource} from './style-resolver';
-
-/** The extent of MapLibre GL JS's tiles, in tile units: GeoJSON is tiled at this precision. */
-const GEOJSON_TILE_EXTENT = 8192;
 
 /** The size of a GeoJSON source's tiles in pixels, fixed in MapLibre GL JS. */
 const GEOJSON_TILE_SIZE = 512;
@@ -72,109 +71,244 @@ export function getGeoJsonVtOptions(source: BasemapSource): GeoJSONVTOptions {
   return options;
 }
 
-/** Each source's tile index, built when its first tile is requested. */
-const tileIndexes = new WeakMap<BasemapSource, GeoJSONVT>();
+/**
+ * How many coordinate positions of a FeatureCollection go to the worker in one message. Posting
+ * copies the features on the main thread, so a large source goes in batches, with the main thread
+ * free to draw between them.
+ */
+const POSITIONS_PER_BATCH = 100_000;
 
-function getTileIndex(source: BasemapSource): GeoJSONVT {
-  let index = tileIndexes.get(source);
-  if (!index) {
-    index = new GeoJSONVT(source.data as GeoJSON.GeoJSON, getGeoJsonVtOptions(source));
-    tileIndexes.set(source, index);
-  }
-  return index;
-}
-
-/** A ring's signed area in tile units, as `@mapbox/vector-tile` computes it. */
-function getSignedArea(ring: [number, number][]): number {
-  let sum = 0;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    sum += (ring[j][0] - ring[i][0]) * (ring[i][1] + ring[j][1]);
-  }
-  return sum;
-}
+/** Whether GeoJSON sources are tiled in a worker where workers are available. For tests. */
+let workerEnabled = true;
 
 /**
- * Groups a polygon feature's rings into polygons, as MapLibre GL JS does for vector tiles: a ring
- * wound as the first one starts a polygon, and a ring wound the other way is a hole of the
- * polygon before it. Rings without area are dropped.
+ * Whether tiles requested from now on are cut in a worker, where one can start (`true`, the
+ * default), or on the main thread. For tests.
  */
-function classifyRings(rings: [number, number][][]): [number, number][][][] {
-  const polygons: [number, number][][][] = [];
-  let polygon: [number, number][][] | undefined;
-  let clockwise: boolean | undefined;
-  for (const ring of rings) {
-    const area = getSignedArea(ring);
-    if (area === 0) {
-      continue;
-    }
-    clockwise ??= area < 0;
-    if (clockwise === area < 0) {
-      polygon = [ring];
-      polygons.push(polygon);
-    } else {
-      polygon?.push(ring);
-    }
-  }
-  return polygons;
+export function setGeoJsonWorkerEnabled(enabled: boolean): void {
+  workerEnabled = enabled;
 }
 
-/** Converts tile units to the normalized tile-local coordinates of decoded vector tiles. */
-function toLocal(points: [number, number][]): number[][] {
-  return points.map(([x, y]) => [x / GEOJSON_TILE_EXTENT, y / GEOJSON_TILE_EXTENT]);
+/** A tile request sent to the worker, and how to cut the tile here if the worker fails. */
+type PendingTile = {
+  source: BasemapSource;
+  index: {x: number; y: number; z: number};
+  resolve: (features: Record<string, unknown>[]) => void;
+  reject: (error: unknown) => void;
+};
+
+/**
+ * The worker that indexes GeoJSON sources and cuts their tiles, shared by all of them. If it
+ * cannot start (a bundle that does not emit it, a content security policy without `worker-src`)
+ * or fails, its requests, and every later one, are cut on the main thread instead.
+ */
+class GeoJsonWorker {
+  failed = false;
+  private worker: Worker;
+  private nextId = 0;
+  private sources = new WeakMap<BasemapSource, {id: number; sent: Promise<void>}>();
+  private requests = new Map<number, PendingTile>();
+  private registry = new FinalizationRegistry<number>(id =>
+    this.post({type: 'remove', source: id})
+  );
+
+  constructor(worker: Worker) {
+    this.worker = worker;
+    worker.onmessage = ({data}: MessageEvent<GeoJsonWorkerResponse>) => {
+      const request = this.requests.get(data.request);
+      this.requests.delete(data.request);
+      if (!request) {
+        return;
+      }
+      if ('error' in data) {
+        request.reject(new Error(data.error));
+      } else {
+        request.resolve(decodeTile(data.tile));
+      }
+    };
+    worker.onerror = event => {
+      event.preventDefault?.();
+      this.fail();
+    };
+    worker.onmessageerror = () => this.fail();
+  }
+
+  /** Cuts a tile of `source` in the worker, sending the source's data first if it is new. */
+  async getTileFeatures(
+    source: BasemapSource,
+    index: {x: number; y: number; z: number}
+  ): Promise<Record<string, unknown>[]> {
+    let entry = this.sources.get(source);
+    if (!entry) {
+      const id = this.nextId++;
+      entry = {id, sent: this.sendSource(id, source)};
+      this.sources.set(source, entry);
+      this.registry.register(source, id);
+    }
+    await entry.sent;
+    if (this.failed) {
+      return getMainThreadTileFeatures(source, index);
+    }
+    const request = this.nextId++;
+    return new Promise((resolve, reject) => {
+      this.requests.set(request, {source, index, resolve, reject});
+      this.post({type: 'tile', source: entry.id, request, ...index});
+    });
+  }
+
+  /**
+   * Sends a source's data and options. A FeatureCollection's features go in batches, yielding to
+   * the main thread between them; the worker builds the index when the last one arrives.
+   */
+  private async sendSource(id: number, source: BasemapSource): Promise<void> {
+    const options = getGeoJsonVtOptions(source);
+    const data = source.data as {type?: string; features?: unknown};
+    if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
+      this.post({type: 'index', source: id, data, options});
+      return;
+    }
+    let batch: unknown[] = [];
+    let positions = 0;
+    for (const feature of data.features) {
+      batch.push(feature);
+      positions += countPositions((feature as {geometry?: unknown})?.geometry);
+      if (positions >= POSITIONS_PER_BATCH) {
+        this.post({type: 'features', source: id, features: batch});
+        batch = [];
+        positions = 0;
+        await yieldToMainThread();
+        if (this.failed) {
+          return;
+        }
+      }
+    }
+    this.post({type: 'features', source: id, features: batch});
+    this.post({type: 'index', source: id, options});
+  }
+
+  private post(message: GeoJsonWorkerRequest): void {
+    if (this.failed) {
+      return;
+    }
+    try {
+      this.worker.postMessage(message);
+    } catch {
+      // Data that cannot be cloned (a function in a property, say) is tiled on the main thread.
+      this.fail();
+    }
+  }
+
+  /** Stops using the worker, and cuts the tiles it still owes on the main thread. */
+  private fail(): void {
+    if (this.failed) {
+      return;
+    }
+    this.failed = true;
+    this.worker.terminate();
+    const requests = [...this.requests.values()];
+    this.requests.clear();
+    for (const {source, index, resolve, reject} of requests) {
+      try {
+        resolve(getMainThreadTileFeatures(source, index));
+      } catch (error) {
+        reject(error);
+      }
+    }
+  }
 }
 
-/** Converts a geojson-vt tile feature to a GeoJSON feature in tile-local coordinates. */
-function toTileLocalFeature(feature: GeoJSONVTFeature): Record<string, unknown> | null {
-  let geometry: {type: string; coordinates: unknown} | null = null;
-  if (feature.type === 1) {
-    const points = toLocal(feature.geometry);
-    geometry =
-      points.length === 1
-        ? {type: 'Point', coordinates: points[0]}
-        : {type: 'MultiPoint', coordinates: points};
-  } else if (feature.type === 2) {
-    const lines = feature.geometry.map(toLocal);
-    geometry =
-      lines.length === 1
-        ? {type: 'LineString', coordinates: lines[0]}
-        : {type: 'MultiLineString', coordinates: lines};
-  } else {
-    const polygons = classifyRings(feature.geometry).map(polygon => polygon.map(toLocal));
-    if (polygons.length === 0) {
-      return null;
-    }
-    geometry =
-      polygons.length === 1
-        ? {type: 'Polygon', coordinates: polygons[0]}
-        : {type: 'MultiPolygon', coordinates: polygons};
-  }
-  const result: Record<string, unknown> = {
-    type: 'Feature',
-    geometry,
-    properties: feature.tags || {}
+/** The number of positions in a GeoJSON geometry's coordinates, to size the batches sent. */
+function countPositions(geometry: unknown): number {
+  const {type, coordinates, geometries} = (geometry || {}) as {
+    type?: string;
+    coordinates?: unknown;
+    geometries?: unknown[];
   };
-  if (feature.id !== undefined) {
-    result.id = feature.id;
+  if (type === 'GeometryCollection') {
+    return (geometries || []).reduce<number>((sum, child) => sum + countPositions(child), 0);
   }
-  return result;
+  const count = (value: unknown): number => {
+    if (!Array.isArray(value)) {
+      return 0;
+    }
+    if (typeof value[0] === 'number') {
+      return 1;
+    }
+    let sum = 0;
+    for (const child of value) {
+      sum += count(child);
+    }
+    return sum;
+  };
+  return count(coordinates);
+}
+
+/** Resolves after the browser has had a turn to run other tasks, without timer throttling. */
+function yieldToMainThread(): Promise<void> {
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
+/** The shared worker, once started; `null` where none can start. */
+let geoJsonWorker: GeoJsonWorker | null | undefined;
+
+/**
+ * The shared worker, or `null` where GeoJSON is tiled on the main thread: where the platform has
+ * no `Worker` (Node), where the worker could not be created or has failed, or when tests turned
+ * workers off.
+ */
+function getGeoJsonWorker(): GeoJsonWorker | null {
+  if (!workerEnabled || typeof Worker === 'undefined') {
+    return null;
+  }
+  if (geoJsonWorker === undefined) {
+    try {
+      // Bundlers (Vite, webpack 5, esbuild with a plugin, Parcel) emit the worker and its imports
+      // from this expression, which must stay literal. The CommonJS build has no `import.meta.url`
+      // and throws here.
+      geoJsonWorker = new GeoJsonWorker(
+        new Worker(new URL('./geojson-worker.js', import.meta.url), {type: 'module'})
+      );
+    } catch {
+      geoJsonWorker = null;
+    }
+  }
+  return geoJsonWorker?.failed ? null : geoJsonWorker;
+}
+
+/** Each source's tile index on the main thread, built when its first tile is requested there. */
+const tileIndexes = new WeakMap<BasemapSource, GeoJSONVT>();
+
+/** Cuts a tile of a GeoJSON source on the main thread, building its index first if needed. */
+function getMainThreadTileFeatures(
+  source: BasemapSource,
+  index: {x: number; y: number; z: number}
+): Record<string, unknown>[] {
+  let tileIndex = tileIndexes.get(source);
+  if (!tileIndex) {
+    tileIndex = createTileIndex(source.data, getGeoJsonVtOptions(source));
+    tileIndexes.set(source, tileIndex);
+  }
+  return decodeTile(cutTile(tileIndex, index.z, index.x, index.y));
 }
 
 /**
  * The features of one tile of a GeoJSON source, cut by geojson-vt as MapLibre GL JS cuts them, in
  * the normalized tile-local coordinates of decoded vector tiles: the existing vector tile path
- * then draws them as it draws vector tiles. Throws if the source's data is not valid GeoJSON.
+ * then draws them as it draws vector tiles. The source is indexed, and its tiles cut, in a worker
+ * where one can start, and on the main thread otherwise. Rejects if the source's data is not
+ * valid GeoJSON.
  */
-export function getGeoJsonTileFeatures(
+export async function getGeoJsonTileFeatures(
   source: BasemapSource,
   index: {x: number; y: number; z: number}
-): Record<string, unknown>[] {
-  const tile = getTileIndex(source).getTile(index.z, index.x, index.y);
-  const features: Record<string, unknown>[] = [];
-  for (const feature of tile?.features || []) {
-    const converted = toTileLocalFeature(feature);
-    if (converted) {
-      features.push(converted);
-    }
-  }
-  return features;
+): Promise<Record<string, unknown>[]> {
+  const worker = getGeoJsonWorker();
+  return worker ? worker.getTileFeatures(source, index) : getMainThreadTileFeatures(source, index);
 }
