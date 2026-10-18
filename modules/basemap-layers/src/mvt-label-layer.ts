@@ -49,6 +49,7 @@ import {
   forgetCharacterWidths,
   getCharacterWidthsRevision,
   getCharacterWidthMeasurer,
+  orderBidirectionalText,
   transformText,
   wrapText
 } from './text-layout';
@@ -1429,7 +1430,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Extracts the visible label text for a decoded feature. Legacy `{token}` placeholders are
    * resolved only in literal and zoom-function values, as in the style specification.
-   * Applies `text-transform` and balanced `text-max-width` wrapping for point labels.
+   * Applies `text-transform` and Arabic shaping, balanced `text-max-width` wrapping for point
+   * labels, and the reordering of right-to-left text into the order it is drawn.
    */
   getLabel(feature: FeatureLike): string | undefined {
     // A `text-size` of 0 hides the label.
@@ -1470,13 +1472,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           },
           this.state?.labelText?.budget
         );
+      } else {
+        // As MapLibre, a label along a line is drawn along it in the order it is read.
+        label = orderBidirectionalText(label);
       }
       labels?.set(feature, label);
     }
     return label || undefined;
   }
 
-  /** A feature's label text, with `text-transform` applied and before wrapping. */
+  /**
+   * A feature's label text, with `text-transform` and Arabic shaping applied, before wrapping and
+   * in logical order: its code points are those whose glyphs are drawn.
+   */
   getUnwrappedLabelText(feature: FeatureLike): string | undefined {
     const textField = this.getStyleProperty('text-field');
     if (!textField) {

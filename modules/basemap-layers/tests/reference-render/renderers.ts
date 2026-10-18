@@ -545,7 +545,9 @@ async function drawBasemapLayer(
     })) {
       const labelLayer = info.sourceTileSubLayer;
       if (labelLayer instanceof ProbeLabelLayer && info.object) {
-        const text = labelLayer.getLabel(info.object);
+        // In logical order, as MapLibre's text is read back: the drawn text of a label with
+        // right-to-left characters is in the order it is drawn.
+        const text = labelLayer.getUnwrappedLabelText(info.object);
         if (text) {
           labels.add(String(text));
         }
