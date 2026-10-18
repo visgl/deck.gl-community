@@ -133,9 +133,9 @@ async function fetchJson(url: string, loadOptions?: BasemapLoadOptions) {
 
 /**
  * Source types whose `url` is fetched as TileJSON. Only the types this module renders are fetched:
- * `raster-dem` is unsupported, and for `image` and `video` the `url` is the media itself.
+ * for `image` and `video` the `url` is the media itself.
  */
-const TILEJSON_SOURCE_TYPES = new Set(['vector', 'raster']);
+const TILEJSON_SOURCE_TYPES = new Set(['vector', 'raster', 'raster-dem']);
 
 /**
  * TileJSON fields that may fill in a source, as MapLibre picks them. Every other TileJSON field,
