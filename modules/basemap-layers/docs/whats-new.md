@@ -2,6 +2,7 @@
 
 ## October 2026
 
+- `fill-extrusion` buildings are shaded as MapLibre shades them, from the style's `light` (`anchor`, `position`, `color`, `intensity`), with walls darkening toward the ground unless `fill-extrusion-vertical-gradient` is `false`. They no longer take deck.gl's lights, which drew them in other colors.
 - `hillshade` layers over `raster-dem` sources are drawn, in style order, as MapLibre GL JS 6.13 draws them: `mapbox`, `terrarium` and `custom` encodings, a TileJSON `url` or inline `tiles`, every `hillshade-method` (`standard`, `basic`, `combined`, `igor`, `multidirectional` with up to four lights), `hillshade-illumination-direction`, `-altitude`, `-anchor`, `-exaggeration`, `-shadow-color`, `-highlight-color`, `-accent-color` and `resampling`. Tiles take their neighbors' edge pixels, so they join without seams. Also on a globe; WebGL only (WebGPU draws no hillshade).
 - `BasemapLayer`s stacked in one deck, such as a base style and a labels-only style, place their labels together, as before: where two labels overlap, the one of the `BasemapLayer` drawn later is kept. Set the new `separateLabelPlacement` prop to place a layer's labels on their own.
 - Symbol layers draw `icon-image` from the style's sprite (`@2x` on high-density screens, the `[{id, url}]` sprite array, `icon-size`, `icon-opacity`, `icon-anchor`, `icon-offset`, and `icon-color` for SDF images). Labels honor `text-offset` and `text-anchor`. Missing sprites and images are skipped with a warning.
