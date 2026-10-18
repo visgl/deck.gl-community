@@ -6,6 +6,7 @@ import {describe, expect, test, vi} from 'vitest';
 import {_GlobeViewport as GlobeViewport, WebMercatorViewport} from '@deck.gl/core';
 import {GridIndex, allowsOverlap} from '../src/grid-index.ts';
 import {
+  ANCHOR_SHIFT,
   ICON_VISIBLE,
   LabelPlacement,
   PLACEMENT_VIEWPORT_PADDING,
@@ -15,7 +16,7 @@ import {
   type PlacementSymbol,
   type SymbolPlacementRules
 } from '../src/label-placement.ts';
-import {MVTLabelLayer} from '../src/mvt-label-layer.ts';
+import {MVTLabelLayer, getVariableAnchorOffset} from '../src/mvt-label-layer.ts';
 import {getSpriteIconMapping} from '../src/sprite.ts';
 import {getTextLayerFontWeight} from '../src/text-font.ts';
 import {
@@ -182,6 +183,62 @@ describe('placeSymbol', () => {
   });
 });
 
+/** A symbol with text at each box of `anchors` in turn, drawn from slots `1..`, and an icon. */
+function variableSymbol(anchors: number[][], icon: number[] | null = null): PlacementSymbol {
+  const shapes = anchors.map(box => ({box}));
+  return {
+    slot: 1,
+    text: shapes[0],
+    icon: icon && {box: icon},
+    textAnchors: {shapes, slots: anchors.map((_, index) => index + 1), key: {}}
+  };
+}
+
+describe('placeSymbol with text-variable-anchor', () => {
+  const RIGHT = [60, 10, 90, 30];
+  const BELOW = [10, 60, 30, 80];
+
+  test('text is placed at the first anchor where it fits, and only that box is added', () => {
+    const grid = new GridIndex(300, 300, 25);
+    grid.insert(0, 0, 50, 50);
+    const bits = placeSymbol(grid, variableSymbol([BLOCKED, RIGHT, BELOW]), RULES);
+    expect(bits & TEXT_VISIBLE).toBe(TEXT_VISIBLE);
+    expect(bits >> ANCHOR_SHIFT).toBe(1);
+    expect(grid.hitTest(70, 15, 71, 16)).toBe(true);
+    expect(grid.hitTest(15, 65, 16, 66)).toBe(false);
+  });
+
+  test('text that fits at no anchor is hidden; text that may overlap takes its first anchor', () => {
+    expect(placeAfterBlocker(variableSymbol([BLOCKED, [20, 20, 40, 40]]))).toBe(0);
+    expect(
+      placeAfterBlocker(variableSymbol([BLOCKED, [20, 20, 40, 40]]), {textOverlap: 'always'})
+    ).toBe(TEXT_VISIBLE);
+    // Without overlap first: a free anchor wins over the first one, even when text may overlap.
+    expect(
+      placeAfterBlocker(variableSymbol([BLOCKED, RIGHT]), {textOverlap: 'always'}) >> ANCHOR_SHIFT
+    ).toBe(1);
+  });
+
+  test('the anchor of the last placement is kept while it fits, else the order decides', () => {
+    const grid = new GridIndex(300, 300, 25);
+    expect(placeSymbol(grid, variableSymbol([FREE, RIGHT, BELOW]), RULES, 2) >> ANCHOR_SHIFT).toBe(
+      2
+    );
+    const blocked = new GridIndex(300, 300, 25);
+    blocked.insert(0, 50, 50, 100);
+    expect(
+      placeSymbol(blocked, variableSymbol([FREE, RIGHT, BELOW]), RULES, 2) >> ANCHOR_SHIFT
+    ).toBe(0);
+  });
+
+  test('the icon stays where it is, and needs the text placed at some anchor', () => {
+    expect(placeAfterBlocker(variableSymbol([BLOCKED, RIGHT], FREE))).toBe(
+      TEXT_VISIBLE | ICON_VISIBLE | (1 << ANCHOR_SHIFT)
+    );
+    expect(placeAfterBlocker(variableSymbol([BLOCKED, BLOCKED], FREE))).toBe(0);
+  });
+});
+
 /** A layer of fixed symbols at `order`, each a 20 pixel box at an x in pixels. */
 function fakeLayer(
   order: number,
@@ -246,6 +303,43 @@ describe('LabelPlacement', () => {
     placement.prepare(device as any, fakeViewport(), false, 0);
     // The top layer's label at x 10 hides the bottom one's at x 0; the one at x 100 is free.
     expect(textVisibility(device, 3)).toEqual([false, true, true]);
+  });
+
+  test('text with variable anchors is drawn from the slot of its anchor, its icon from its own', () => {
+    const placement = new LabelPlacement();
+    placement.interval = 0;
+    const key = {};
+    let blockFirstAnchor = true;
+    const layer: PlacementLayer = {
+      ...fakeLayer(1, []),
+      getPlacementSlotCount: () => 4,
+      getPlacementSymbols(_viewport, base, out) {
+        if (blockFirstAnchor) {
+          out.push(symbol([0, 50, 20, 70], null, base + 3));
+        }
+        out.push({
+          slot: base,
+          text: {box: [0, 50, 20, 70]},
+          icon: {box: [100, 50, 110, 60]},
+          textAnchors: {
+            shapes: [{box: [0, 50, 20, 70]}, {box: [30, 50, 50, 70]}, {box: [60, 50, 80, 70]}],
+            slots: [base, base + 1, base + 2],
+            key
+          }
+        });
+        return RULES;
+      }
+    };
+    placement.register(layer);
+    const device = fakeDevice();
+    placement.prepare(device as any, fakeViewport('map', 0), false, 0);
+    expect(textVisibility(device, 4)).toEqual([false, true, false, true]);
+    const values = device.written[device.written.length - 1];
+    expect(values[1]).toBe(255);
+    // Placed again with its first anchor free, it keeps the anchor it had.
+    blockFirstAnchor = false;
+    placement.prepare(device as any, fakeViewport('map', 1), false, 1);
+    expect(textVisibility(device, 4)).toEqual([false, true, false, false]);
   });
 
   test('within a layer, the first symbol wins', () => {
@@ -623,6 +717,87 @@ describe('MVTLabelLayer placement symbols', () => {
     expect(box({'text-anchor': 'top', 'text-offset': [0, 1], 'text-padding': 0})).toEqual([
       -10, 10, 10, 22
     ]);
+  });
+
+  test('text-radial-offset moves the text away from its text-anchor, as MapLibre', () => {
+    const layer = labelLayer(
+      {
+        'text-field': ['get', 'name'],
+        'text-size': 10,
+        'text-padding': 0,
+        'text-anchor': 'top',
+        'text-radial-offset': 1
+      },
+      [{properties: {name: 'abcd'}, x: 100}]
+    );
+    const out: PlacementSymbol[] = [];
+    layer.getPlacementSymbols(VIEWPORT, 0, out);
+    const p = PLACEMENT_VIEWPORT_PADDING;
+    // One em down, less MapLibre's baseline shift of 7/24 em.
+    expect(out[0].text!.box!.map(v => Math.round((v - p - 100) * 100) / 100)).toEqual([
+      -10, 7.08, 10, 19.08
+    ]);
+  });
+
+  test('text-variable-anchor: a text box per anchor, offset and padded as MapLibre', () => {
+    const layout = {
+      'text-field': ['get', 'name'],
+      'text-size': 10,
+      'icon-image': 'dot',
+      'text-variable-anchor': ['left', 'top', 'bottom-right'],
+      'text-radial-offset': 1
+    };
+    const layer = labelLayer(layout, []);
+    const feature = {geometry: {type: 'Point', coordinates: [100, 0]}, properties: {name: 'abcd'}};
+    layer.state.labelData = [0, 1, 2].map(textAnchorIndex => ({
+      position: [100, 0],
+      textAnchorIndex,
+      textAnchorCount: 3,
+      __source: {object: feature, index: 0}
+    }));
+    const out: PlacementSymbol[] = [];
+    layer.getPlacementSymbols(VIEWPORT, 10, out);
+    expect(out).toHaveLength(1);
+    const [placed] = out;
+    // The first row draws the icon; the text is drawn from the row of its anchor.
+    expect(placed.slot).toBe(12);
+    expect(placed.icon).toBeTruthy();
+    expect(placed.textAnchors!.slots).toEqual([12, 11, 10]);
+    expect(placed.textAnchors!.key).toBe(layer.state.labelData[0]);
+    const p = PLACEMENT_VIEWPORT_PADDING;
+    const boxes = placed.textAnchors!.shapes.map(shape =>
+      shape.box!.map(v => Math.round((v - p - 100) * 100) / 100)
+    );
+    // MapLibre shifts the text by half its box padded by text-padding (2 pixels), so the padded
+    // box's edge lies at the offset: right of the point by one em; below it by one em less the
+    // baseline shift; above and left of it along the diagonal.
+    const diagonal = Math.round((10 / Math.SQRT2) * 100) / 100;
+    const corner = Math.round((-10 / Math.SQRT2 + (7 / 24) * 10) * 100) / 100;
+    expect(boxes).toEqual([
+      [10, -8, 34, 8],
+      [-12, 7.08, 12, 23.08],
+      [-24 - diagonal, -16 + corner, -diagonal, corner]
+    ]);
+    // Only the first row draws an icon.
+    expect(layer.getRowIcons().map(Boolean)).toEqual([false, false, true]);
+  });
+
+  test('getVariableAnchorOffset follows MapLibre evaluateVariableOffset', () => {
+    const b = 7 / 24;
+    expect(getVariableAnchorOffset('center', [2], true)).toEqual([0, 0]);
+    expect(getVariableAnchorOffset('top', [2], true)).toEqual([0, 2 - b]);
+    expect(getVariableAnchorOffset('bottom', [2], true)).toEqual([0, -2 + b]);
+    expect(getVariableAnchorOffset('left', [2], true)).toEqual([2, 0]);
+    expect(getVariableAnchorOffset('right', [2], true)).toEqual([-2, 0]);
+    const d = 2 / Math.SQRT2;
+    expect(getVariableAnchorOffset('top-left', [2], true)).toEqual([d, d - b]);
+    expect(getVariableAnchorOffset('bottom-right', [2], true)).toEqual([-d, -d + b]);
+    // A negative radial offset is taken as 0.
+    expect(getVariableAnchorOffset('left', [-1], true)).toEqual([0, 0]);
+    // `text-offset`: its sizes, in the anchor's directions.
+    expect(getVariableAnchorOffset('top-right', [1, -2], false)).toEqual([-1, 2 - b]);
+    expect(getVariableAnchorOffset('left', [-1, 3], false)).toEqual([1, 0]);
+    expect(getVariableAnchorOffset('bottom', [5, 3], false)).toEqual([0, -3 + b]);
   });
 
   test('the icon box: the image at icon-size, placed by icon-anchor, padded by icon-padding', () => {
