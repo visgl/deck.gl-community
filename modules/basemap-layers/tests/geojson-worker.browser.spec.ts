@@ -80,13 +80,15 @@ async function requestTiles() {
 describe('GeoJSON sources are tiled in a worker', () => {
   afterEach(() => setGeoJsonWorkerEnabled(true));
 
-  test('indexing it in a worker runs no long task on the main thread', async () => {
+  test('indexing it in a worker blocks the main thread only briefly', async () => {
     let counts: number[] = [];
     const longTasks = await measureLongTasks(async () => {
       counts = await requestTiles();
     });
     expect(counts.every(count => count > 0)).toBe(true);
-    expect(longTasks).toEqual([]);
+    // None on an M-series Mac; CI runners show tasks of 50 to 100 ms posting the batches. Tiling on
+    // the main thread blocks for 400 ms or more, and sending the data unbatched for about 300 ms.
+    expect(Math.max(0, ...longTasks)).toBeLessThan(150);
   });
 
   test('control: tiling it on the main thread runs a long task', async () => {
