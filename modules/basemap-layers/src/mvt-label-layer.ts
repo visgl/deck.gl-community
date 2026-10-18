@@ -458,7 +458,7 @@ type MVTLabelLayerState = {
   glyphKey?: string;
   /** The map bearing, in `BEARING_STEP` steps, that upright line labels were turned for. */
   bearingStep?: number;
-  /** Glyph ranges of the labels' text being loaded (see `hasLabelGlyphs`). */
+  /** 1 while the layer waits for glyphs of the labels' text to load (see `hasLabelGlyphs`). */
   glyphLoads?: number;
   /** The CSS font of labels along lines last seen loading; see `isLineTextFontLoading`. */
   loadingFont?: string;
@@ -1403,19 +1403,25 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!texts.size) {
       return true;
     }
+    const loads: Promise<void>[] = [];
     for (const [fontStack, stackTexts] of texts) {
       const loading = glyphs.load(fontStack, stackTexts);
       if (loading) {
-        const state = this.state;
-        state.glyphLoads = (state.glyphLoads || 0) + 1;
-        loading.then(() => {
-          state.glyphLoads!--;
-          // Unless the layer was finalized meanwhile.
-          if (this.state === state && this.props.glyphs === glyphs) {
-            this.setNeedsUpdate();
-          }
-        });
+        loads.push(loading);
       }
+    }
+    // The layer waits for one load at a time: updates meanwhile request what they need, and the
+    // update once it has loaded checks again.
+    const state = this.state;
+    if (loads.length && !state.glyphLoads) {
+      state.glyphLoads = 1;
+      Promise.all(loads).then(() => {
+        state.glyphLoads = 0;
+        // Unless the layer was finalized meanwhile.
+        if (this.state === state && this.props.glyphs === glyphs) {
+          this.setNeedsUpdate();
+        }
+      });
     }
     return false;
   }
@@ -2538,10 +2544,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         changed = true;
         if (!this.hasLabelGlyphs(tile.features)) {
           // Placed once the glyphs have loaded, when the layer updates again; until then the tile
-          // keeps the rows it had, if any.
+          // keeps the rows it had, if any. It draws them only while their text is the same: rows
+          // kept across a change of text or font would draw the new text without its glyphs.
           if (cached) {
             next.set(tileKey, cached);
-            return cached.rows;
+            return cached.glyphKey === glyphKey ? cached.rows : [];
           }
           return [];
         }
