@@ -245,3 +245,54 @@ export function compileStyleFilter(filter: unknown): StyleFilter {
   }
   return compiled;
 }
+
+/** A style's `light`, evaluated at one zoom. Colors are `[r, g, b, a]`, RGB in 0-255. */
+export type EvaluatedStyleLight = {
+  anchor: unknown;
+  position: unknown;
+  color: unknown;
+  intensity: unknown;
+};
+
+const LIGHT_PROPERTIES = ['anchor', 'position', 'color', 'intensity'] as const;
+
+/** The compiled properties per `light` object, `null` where it does not set a valid value. */
+const compiledLightCache = new WeakMap<
+  object,
+  Map<string, {evaluate: (globals: any) => any} | null>
+>();
+
+/**
+ * Evaluates a style's `light` at a zoom, property by property. A property the style does not set,
+ * or sets to a value the style spec rejects (logged once), takes the spec's default.
+ */
+export function evaluateStyleLight(light: unknown, zoom: number): EvaluatedStyleLight {
+  const values = (light && typeof light === 'object' ? light : {}) as Record<string, unknown>;
+  let compiled = compiledLightCache.get(values);
+  if (!compiled) {
+    compiled = new Map();
+    for (const name of LIGHT_PROPERTIES) {
+      let property: {evaluate: (globals: any) => any} | null = null;
+      if (values[name] !== undefined) {
+        try {
+          property = expression.normalizePropertyExpression(
+            values[name] as any,
+            (Reference as any).light[name]
+          ) as any;
+        } catch (error) {
+          warnInvalidValue(`light.${name}`, values[name], error);
+        }
+      }
+      compiled.set(name, property);
+    }
+    compiledLightCache.set(values, compiled);
+  }
+  const evaluated = {} as EvaluatedStyleLight;
+  for (const name of LIGHT_PROPERTIES) {
+    const property = compiled.get(name);
+    const value = property ? property.evaluate({zoom}) : (Reference as any).light[name].default;
+    evaluated[name] = typeof value === 'string' && name === 'color' ? Color.parse(value) : value;
+    evaluated[name] = toPlainValue(evaluated[name]);
+  }
+  return evaluated;
+}
