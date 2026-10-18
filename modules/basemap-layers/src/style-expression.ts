@@ -3,6 +3,8 @@
 import {log} from '@deck.gl/core';
 import {
   Color,
+  ColorArray,
+  NumberArray,
   Padding,
   expression,
   featureFilter,
@@ -133,12 +135,25 @@ export function getStylePropertyDefault(propertyName: string): unknown {
   if (reference?.type === 'padding') {
     return Padding.parse(value as number | number[])?.values;
   }
+  if (reference?.type === 'numberArray') {
+    return NumberArray.parse(value as number | number[])?.values;
+  }
+  if (reference?.type === 'colorArray') {
+    return ColorArray.parse(value as string | string[])?.values.map(colorToArray);
+  }
   return value;
 }
 
+/**
+ * Converts an evaluated value to plain data: colors as `[r, g, b, a]`, paddings and number arrays
+ * as arrays of numbers, color arrays as arrays of `[r, g, b, a]`.
+ */
 function toPlainValue(value: any): unknown {
-  if (value instanceof Padding) {
+  if (value instanceof Padding || value instanceof NumberArray) {
     return value.values;
+  }
+  if (value instanceof ColorArray) {
+    return value.values.map(colorToArray);
   }
   return value instanceof Color ? colorToArray(value) : value;
 }
@@ -156,9 +171,13 @@ export function compileStylePropertyValue(
   let compiled: any;
   try {
     // An array whose first element is not a known operator is read as a literal. That is only
-    // valid for array-typed properties (`text-font`, `line-dasharray`, ...) and paddings
-    // (`icon-padding: [2, 4]`).
-    const takesArray = reference?.type === 'array' || reference?.type === 'padding';
+    // valid for array-typed properties (`text-font`, `line-dasharray`, ...), paddings
+    // (`icon-padding: [2, 4]`) and number and color arrays.
+    const takesArray =
+      reference?.type === 'array' ||
+      reference?.type === 'padding' ||
+      reference?.type === 'numberArray' ||
+      reference?.type === 'colorArray';
     if (Array.isArray(value) && !takesArray && !expression.isExpression(value)) {
       throw new Error(`Unknown expression "${String(value[0])}"`);
     }
@@ -244,4 +263,55 @@ export function compileStyleFilter(filter: unknown): StyleFilter {
     compiledFilterCache.set(filter as object, {snapshot, compiled});
   }
   return compiled;
+}
+
+/** A style's `light`, evaluated at one zoom. Colors are `[r, g, b, a]`, RGB in 0-255. */
+export type EvaluatedStyleLight = {
+  anchor: unknown;
+  position: unknown;
+  color: unknown;
+  intensity: unknown;
+};
+
+const LIGHT_PROPERTIES = ['anchor', 'position', 'color', 'intensity'] as const;
+
+/** The compiled properties per `light` object, `null` where it does not set a valid value. */
+const compiledLightCache = new WeakMap<
+  object,
+  Map<string, {evaluate: (globals: any) => any} | null>
+>();
+
+/**
+ * Evaluates a style's `light` at a zoom, property by property. A property the style does not set,
+ * or sets to a value the style spec rejects (logged once), takes the spec's default.
+ */
+export function evaluateStyleLight(light: unknown, zoom: number): EvaluatedStyleLight {
+  const values = (light && typeof light === 'object' ? light : {}) as Record<string, unknown>;
+  let compiled = compiledLightCache.get(values);
+  if (!compiled) {
+    compiled = new Map();
+    for (const name of LIGHT_PROPERTIES) {
+      let property: {evaluate: (globals: any) => any} | null = null;
+      if (values[name] !== undefined) {
+        try {
+          property = expression.normalizePropertyExpression(
+            values[name] as any,
+            (Reference as any).light[name]
+          ) as any;
+        } catch (error) {
+          warnInvalidValue(`light.${name}`, values[name], error);
+        }
+      }
+      compiled.set(name, property);
+    }
+    compiledLightCache.set(values, compiled);
+  }
+  const evaluated = {} as EvaluatedStyleLight;
+  for (const name of LIGHT_PROPERTIES) {
+    const property = compiled.get(name);
+    const value = property ? property.evaluate({zoom}) : (Reference as any).light[name].default;
+    evaluated[name] = typeof value === 'string' && name === 'color' ? Color.parse(value) : value;
+    evaluated[name] = toPlainValue(evaluated[name]);
+  }
+  return evaluated;
 }
