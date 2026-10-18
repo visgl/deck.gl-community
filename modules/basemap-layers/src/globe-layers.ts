@@ -2655,9 +2655,34 @@ function createGeometrySubLayer({
   // deck.gl draws lines without antialiasing and cut to a line's pixels by `FillOutlineExtension`.
   const fadesLines = drawsLines && !isFill;
   const drawsOutline = drawsLines && isFill;
+  const geometryExtensions =
+    dashArray || lineOffset || fadesLines || drawsOutline || zoomPaint
+      ? [
+          ...(baseProps.extensions || []),
+          ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
+          ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
+          // Before the fade, which widens the stroke once its width is final.
+          ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : []),
+          ...(fadesLines
+            ? [
+                typeof lineBlur?.value === 'function'
+                  ? LINE_BLUR_PER_FEATURE_EXTENSION
+                  : LINE_BLUR_EXTENSION
+              ]
+            : []),
+          ...(drawsOutline ? [FILL_OUTLINE_EXTENSION] : [])
+        ]
+      : null;
+  // `fill-pattern` and `fill-translate` add their extensions to these, so an outlined fill keeps
+  // its outline's.
   const fillStyleProps =
     isFill && hasFillStyle
-      ? getFillStyleProps(first.styleLayer, zoom, baseProps.extensions, pattern)
+      ? getFillStyleProps(
+          first.styleLayer,
+          zoom,
+          geometryExtensions ?? baseProps.extensions,
+          pattern
+        )
       : {};
 
   const layerProps = {
@@ -2673,25 +2698,7 @@ function createGeometrySubLayer({
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     getLineWidth: lineWidth.value as any,
-    ...(dashArray || lineOffset || fadesLines || drawsOutline || zoomPaint
-      ? {
-          extensions: [
-            ...(baseProps.extensions || []),
-            ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
-            ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
-            // Before the fade, which widens the stroke once its width is final.
-            ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : []),
-            ...(fadesLines
-              ? [
-                  typeof lineBlur?.value === 'function'
-                    ? LINE_BLUR_PER_FEATURE_EXTENSION
-                    : LINE_BLUR_EXTENSION
-                ]
-              : []),
-            ...(drawsOutline ? [FILL_OUTLINE_EXTENSION] : [])
-          ]
-        }
-      : {}),
+    ...(geometryExtensions ? {extensions: geometryExtensions} : {}),
     ...(zoomPaint
       ? {
           zoomPaint,
