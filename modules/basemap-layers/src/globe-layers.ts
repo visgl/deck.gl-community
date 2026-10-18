@@ -20,6 +20,12 @@ import {
 } from './fill-pattern';
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
+import {
+  HillshadeTileLayer,
+  getDemUnpackVector,
+  getHillshadeParameters,
+  loadDemTile
+} from './hillshade-layer';
 import type {LabelPlacement} from './label-placement';
 import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
 import {isSameList} from './util';
@@ -97,11 +103,11 @@ type BasemapLayerGroup = {
 };
 
 /**
- * Style layers that draw together, in style order: a background or raster layer on its own, or
- * consecutive style layers of one vector source, which share one tile layer.
+ * Style layers that draw together, in style order: a background, raster or hillshade layer on its
+ * own, or consecutive style layers of one vector source, which share one tile layer.
  */
 export type StyleLayerRun = {
-  type: 'background' | 'raster' | 'vector';
+  type: 'background' | 'raster' | 'hillshade' | 'vector';
   /** The deck.gl layer id, without the basemap's id prefix. */
   id: string;
   sourceId?: string;
@@ -178,7 +184,8 @@ const SUPPORTED_TYPES = new Set([
   'fill-extrusion',
   'line',
   'symbol',
-  'raster'
+  'raster',
+  'hillshade'
 ]);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
 const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
@@ -782,6 +789,58 @@ function createRasterLayer({
     },
     onTileError: error => {
       logBasemapRuntimeError('Raster tile failed to load', error, {
+        layerId: layer.id,
+        sourceId: layer.source
+      });
+    },
+    parameters: getTileParameters(mode, depthTested)
+  });
+}
+
+/**
+ * A `hillshade` style layer over a `raster-dem` source. Its tiles are decoded on the main thread
+ * (see `HillshadeTileLayer`). MapLibre draws nothing at `hillshade-exaggeration: 0`.
+ */
+function createHillshadeLayer({
+  idPrefix,
+  layer,
+  source,
+  zoom,
+  mode,
+  loadOptions,
+  depthTested
+}: {
+  idPrefix: string;
+  layer: BasemapStyleLayer;
+  source: BasemapSource;
+  zoom: number;
+  mode: BasemapMode;
+  loadOptions?: BasemapLoadOptions;
+  /** Drawn after an extrusion, see `getTileParameters`. */
+  depthTested?: boolean;
+}) {
+  const hillshadeParameters = getHillshadeParameters(getPaint(layer, zoom));
+  const unpack = getDemUnpackVector(source);
+  const isNearest = getRasterPaintValue(getPaint(layer, zoom), 'resampling') === 'nearest';
+  const filter = isNearest ? 'nearest' : 'linear';
+
+  return new HillshadeTileLayer({
+    id: `${idPrefix}-${layer.id}`,
+    data: source.tiles,
+    ...getTilePyramidProps(source),
+    tileSize: source.tileSize || 512,
+    visible: hillshadeParameters.exaggeration !== 0,
+    getTileData: ({url, signal}) => (url ? loadDemTile(url, unpack, {signal, loadOptions}) : null),
+    // Reloads the tiles when the source's encoding changes.
+    updateTriggers: {getTileData: unpack.join()},
+    hillshadeParameters,
+    hillshadeSubLayerProps: {
+      // MapLibre samples the slopes without mipmaps.
+      textureParameters: {minFilter: filter, magFilter: filter, mipmapFilter: 'none'},
+      parameters: getTileParameters(mode, depthTested)
+    },
+    onTileError: error => {
+      logBasemapRuntimeError('DEM tile failed to load', error, {
         layerId: layer.id,
         sourceId: layer.source
       });
@@ -3056,13 +3115,13 @@ export function getSourceLoadOptions(
 }
 
 /**
- * Splits the style into runs that draw in style order, as in MapLibre: each background and raster
- * layer on its own, and consecutive layers of one vector source together, so that a raster
- * layer between two vector layers draws between them. Layers that cannot draw (a source without
- * tiles, labels turned off) do not split a run. Runs do not depend on zoom, so the tile layers
- * keep their ids and tiles when a layer leaves its zoom range. Background and raster runs have
- * their style layer's id. The first run of a source has the source id as its id, unless a
- * background or raster run already has that id; later runs, and a first run whose source id is
+ * Splits the style into runs that draw in style order, as in MapLibre: each background, raster
+ * and hillshade layer on its own, and consecutive layers of one vector source together, so that a
+ * raster layer between two vector layers draws between them. Layers that cannot draw (a source
+ * without tiles, labels turned off) do not split a run. Runs do not depend on zoom, so the tile
+ * layers keep their ids and tiles when a layer leaves its zoom range. Background, raster and
+ * hillshade runs have their style layer's id. The first run of a source has the source id as its
+ * id, unless a background, raster or hillshade run already has that id; later runs, and a first run whose source id is
  * taken, add the quoted id of their first style layer.
  */
 export function getStyleLayerRuns(
@@ -3082,7 +3141,9 @@ export function getStyleLayerRuns(
   const singleLayerRunIds = new Set(
     styleLayers
       .filter(
-        layer => layer.type === 'background' || (layer.type === 'raster' && getSource(layer)?.tiles)
+        layer =>
+          layer.type === 'background' ||
+          ((layer.type === 'raster' || layer.type === 'hillshade') && getSource(layer)?.tiles)
       )
       .map(layer => layer.id)
   );
@@ -3096,6 +3157,15 @@ export function getStyleLayerRuns(
         runs.push({type: 'raster', id: layer.id, sourceId, source, styleLayers: [layer]});
       } else {
         logBasemapRuntimeEvent('Skipping style layer without resolved tiles', {
+          layerId: layer.id,
+          sourceId
+        });
+      }
+    } else if (layer.type === 'hillshade') {
+      if (source?.tiles && source.type === 'raster-dem') {
+        runs.push({type: 'hillshade', id: layer.id, sourceId, source, styleLayers: [layer]});
+      } else {
+        logBasemapRuntimeEvent('Skipping hillshade layer without a raster-dem source', {
           layerId: layer.id,
           sourceId
         });
@@ -3200,6 +3270,17 @@ function getStyleLayers({
         source: run.source!,
         zoom,
         mode,
+        depthTested: depthTested.has(layer)
+      });
+    }
+    if (run.type === 'hillshade') {
+      return createHillshadeLayer({
+        idPrefix,
+        layer,
+        source: run.source!,
+        zoom,
+        mode,
+        loadOptions,
         depthTested: depthTested.has(layer)
       });
     }
