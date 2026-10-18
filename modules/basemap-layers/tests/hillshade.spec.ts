@@ -1,5 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import {describe, expect, test} from 'vitest';
+import {describe, expect, test, vi} from 'vitest';
+import {WebMercatorViewport} from '@deck.gl/core';
+import {SharedTileset2D} from '../../geo-layers/src';
+import {BasemapLayer} from '../src/basemap-layer';
 import {getBasemapLayers, getStyleLayerRuns} from '../src/globe-layers';
 import {
   type DemTile,
@@ -331,5 +334,122 @@ describe('hillshade layers', () => {
       magFilter: 'nearest',
       mipmapFilter: 'none'
     });
+  });
+});
+
+describe('hillshade layers share the decoded tiles of their source', () => {
+  // Fetch and decode counts against real tiles, and through a switch to a globe, are in
+  // `hillshade-shared-tiles.browser.spec.ts`.
+  const terrain = {
+    type: 'raster-dem',
+    tiles: ['https://dem.example.com/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    maxzoom: 0,
+    encoding: 'terrarium'
+  };
+  const style: any = {
+    version: 8,
+    sources: {terrain},
+    layers: [
+      {id: 'shadow', type: 'hillshade', source: 'terrain'},
+      {id: 'highlight', type: 'hillshade', source: 'terrain'}
+    ]
+  };
+  const viewport = new WebMercatorViewport({width: 128, height: 128, zoom: 0});
+
+  function createBasemap(props: Record<string, unknown> = {}) {
+    const basemap = new BasemapLayer({id: 'test', style, ...props});
+    basemap.initializeState();
+    basemap.state.resolvedStyle = style;
+    basemap.context = {viewport} as any;
+    return basemap;
+  }
+
+  test('both layers of a basemap draw from one tileset, kept through rerenders and a globe', () => {
+    const basemap = createBasemap();
+    const [shadow, highlight]: any[] = basemap.renderLayers();
+    expect(shadow).toBeInstanceOf(HillshadeTileLayer);
+    expect(shadow.props.data).toBeInstanceOf(SharedTileset2D);
+    expect(highlight.props.data).toBe(shadow.props.data);
+    expect(basemap.state.tilesets.get(terrain as any)).toBe(shadow.props.data);
+    expect((basemap.renderLayers()[0] as any).props.data).toBe(shadow.props.data);
+
+    const globe = basemap.clone({mode: 'globe'});
+    globe.state = basemap.state;
+    globe.context = basemap.context;
+    const finalize = vi.spyOn(shadow.props.data, 'finalize');
+    const globeLayers = globe.renderLayers() as any[];
+    expect(globeLayers.find(layer => layer.id === 'test-shadow').props.data).toBe(
+      shadow.props.data
+    );
+    expect(finalize).not.toHaveBeenCalled();
+    globe.finalizeState();
+    expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
+  test("a basemap replaces the tileset when the source's encoding changes", () => {
+    const basemap = createBasemap();
+    const tileset = (basemap.renderLayers()[0] as any).props.data;
+    const finalize = vi.spyOn(tileset, 'finalize');
+    (terrain as any).encoding = 'mapbox';
+    try {
+      expect((basemap.renderLayers()[0] as any).props.data).not.toBe(tileset);
+      expect(finalize).toHaveBeenCalledTimes(1);
+    } finally {
+      terrain.encoding = 'terrarium';
+      basemap.finalizeState();
+    }
+  });
+
+  test('direct helper callers load each tile once and release the tileset with the last layer', async () => {
+    const [shadow, highlight]: any[] = getBasemapLayers({styleDefinition: style});
+    const tileset = shadow.props.data;
+    expect(tileset).toBeInstanceOf(SharedTileset2D);
+    expect(highlight.props.data).toBe(tileset);
+    const load = vi.fn(async () => ({dim: 1, elevations: new Float32Array(1)}));
+    tileset.setOptions({getTileData: load});
+    const finalize = vi.spyOn(tileset, 'finalize');
+    for (const layer of [shadow, highlight]) {
+      layer.context = {viewport} as any;
+      layer.initializeState();
+      layer.setState = ((state: any) => Object.assign(layer.state, state)) as any;
+      layer.updateState({changeFlags: {dataChanged: true, propsOrDataChanged: true}} as any);
+    }
+    await vi.waitFor(() => expect(shadow.isLoaded && highlight.isLoaded).toBe(true));
+    expect(load).toHaveBeenCalledTimes(1);
+    shadow.finalizeState();
+    expect(finalize).not.toHaveBeenCalled();
+    highlight.finalizeState();
+    expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
+  test("a tile's load prepares its loaded neighbors' slopes again in every layer", async () => {
+    const [shadow, highlight]: any[] = getBasemapLayers({
+      styleDefinition: {...style, sources: {terrain: {...terrain, maxzoom: 1}}}
+    });
+    const tileset = shadow.props.data;
+    tileset.setOptions({getTileData: async () => ({dim: 1, elevations: new Float32Array(1)})});
+    const zoomed = new WebMercatorViewport({width: 512, height: 512, zoom: 1});
+    for (const layer of [shadow, highlight]) {
+      layer.context = {viewport: zoomed} as any;
+      layer.initializeState();
+      layer.setState = ((state: any) => Object.assign(layer.state, state)) as any;
+      layer.setNeedsUpdate = () => {};
+      layer.updateState({changeFlags: {dataChanged: true, propsOrDataChanged: true}} as any);
+    }
+    await vi.waitFor(() => expect(shadow.isLoaded && highlight.isLoaded).toBe(true));
+    const [first, second] = tileset.tiles;
+    expect(tileset.tiles.length).toBe(4);
+    for (const layer of [shadow, highlight]) {
+      layer.state.tileLayers.set(first.id, []);
+      layer.state.tileLayers.set(second.id, []);
+    }
+    // The shared tileset reports a load to each layer drawn from it.
+    for (const layer of [shadow, highlight]) {
+      layer._onTileLoad(second);
+      expect(layer.state.tileLayers.has(first.id)).toBe(false);
+    }
+    shadow.finalizeState();
+    highlight.finalizeState();
   });
 });
