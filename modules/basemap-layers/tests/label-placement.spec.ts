@@ -625,6 +625,31 @@ describe('MVTLabelLayer placement symbols', () => {
     ]);
   });
 
+  test('a text-size that changes with zoom collides at its size at the next integer zoom, as MapLibre', () => {
+    // MapLibre lays a point label's box out at `text-size` at the tile's zoom + 1: at z8.5, a size
+    // of 10 at z8 and 20 at z9 is drawn at 15 and collides at 20 ('abcd' is 2 ems by 1.2 ems).
+    const box = (layout: Record<string, unknown>) => {
+      const layer = labelLayer(
+        {
+          'text-field': ['get', 'name'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 9, 20],
+          'text-padding': 0,
+          ...layout
+        },
+        [{properties: {name: 'abcd'}, x: 100}],
+        {zoom: 8.5}
+      );
+      expect(layer.getLabelSize(layer.state.labelData[0].__source.object)).toBe(15);
+      const out: PlacementSymbol[] = [];
+      layer.getPlacementSymbols(VIEWPORT, 0, out);
+      const p = PLACEMENT_VIEWPORT_PADDING;
+      return out[0].text!.box!.map(v => Math.round((v - p - 100) * 100) / 100);
+    };
+    expect(box({})).toEqual([-20, -12, 20, 12]);
+    // The anchor and offset are laid out at that size too.
+    expect(box({'text-anchor': 'bottom', 'text-offset': [0, -1]})).toEqual([-20, -44, 20, -20]);
+  });
+
   test('the icon box: the image at icon-size, placed by icon-anchor, padded by icon-padding', () => {
     const box = (layout: Record<string, unknown>) => {
       const layer = labelLayer({'icon-image': 'dot', ...layout}, [{properties: {}, x: 100}]);
