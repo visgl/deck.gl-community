@@ -242,7 +242,10 @@ function applyLigatures(characters: ShapedCharacter[]): ShapedCharacter[] {
     }
     const joinedBefore = lam.form === MEDIAL || lam.form === FINAL;
     result.push({codePoint: ligature[joinedBefore ? 1 : 0], type: 'R', form: ISOLATED});
-    result.push(...characters.slice(i + 1, next));
+    // One at a time: spreading a long run of marks from tile text would overflow the call stack.
+    for (let k = i + 1; k < next; k++) {
+      result.push(characters[k]);
+    }
     i = next;
   }
   return result;

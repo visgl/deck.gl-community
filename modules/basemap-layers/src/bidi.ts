@@ -142,10 +142,18 @@ export function processBidirectionalText(text: string, lineBreakPoints: number[]
     .filter(point => point > 0 && point < text.length);
   const bounds = [...new Set([0, ...inside, text.length])].sort((a, b) => a - b);
   const lines: string[] = [];
+  // The bounds and the paragraphs are both in text order, so one pass finds each line's paragraph
+  // (tile text is untrusted: a label of many short lines must not cost lines times paragraphs).
+  let paragraph = 0;
   for (let i = 0; i + 1 < bounds.length; i++) {
     const start = bounds[i];
+    while (paragraph < paragraphs.length && paragraphs[paragraph].end < start) {
+      paragraph++;
+    }
     const paragraphLevel =
-      paragraphs.find(paragraph => start >= paragraph.start && start <= paragraph.end)?.level ?? 0;
+      paragraph < paragraphs.length && paragraphs[paragraph].start <= start
+        ? paragraphs[paragraph].level
+        : 0;
     lines.push(reorderLine(text, levels, paragraphLevel, start, bounds[i + 1]));
   }
   return lines;
