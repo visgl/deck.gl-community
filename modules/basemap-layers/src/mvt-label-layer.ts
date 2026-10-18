@@ -206,6 +206,8 @@ export type LabelTile = {
 type TileRows = {
   features: FeatureLike[];
   anchorKey: string;
+  /** The text and font the glyphs were loaded for (see `getGlyphKey`). */
+  glyphKey: string;
   /** The tile the rows report when picked (see `LabelTile.tile`). */
   tile: unknown;
   rows: LabelRow[];
@@ -452,6 +454,8 @@ type MVTLabelLayerState = {
   textRows?: {source: LabelRow[]; rows: LabelRow[]};
   /** The non-data inputs `labelData` was computed with; a change recomputes it. */
   anchorKey?: string;
+  /** The text and font `labelData`'s glyphs were loaded for (see `getGlyphKey`). */
+  glyphKey?: string;
   /** The map bearing, in `BEARING_STEP` steps, that upright line labels were turned for. */
   bearingStep?: number;
   /** Glyph ranges of the labels' text being loaded (see `hasLabelGlyphs`). */
@@ -1361,6 +1365,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   getFontKey(): string {
     const {glyphs} = this.props;
     return glyphs ? `${glyphs.url}|${this.getFontStack()}` : JSON.stringify(this.getFont());
+  }
+
+  /**
+   * The inputs that choose the glyphs of the label text: the style's glyphs, and `text-field`,
+   * `text-transform` and `text-font`, with the stepped zoom when any of them depends on zoom.
+   * Point anchors do not depend on them, so rows kept for unchanged anchors check their glyphs
+   * again when this changes: a zoom step can change the text to another glyph range or font stack.
+   */
+  getGlyphKey(): string {
+    const {glyphs} = this.props;
+    return glyphs
+      ? `${glyphs.url}|${this.getStyleUpdateTrigger('text-field', 'text-transform', 'text-font')}`
+      : '';
   }
 
   /**
@@ -2459,15 +2476,22 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     dataChanged: boolean
   ): void {
     const anchorKey = this.getAnchorKey(geographic);
-    if (dataChanged || anchorKey !== this.state.anchorKey) {
+    const glyphKey = this.getGlyphKey();
+    const anchorsChanged = dataChanged || anchorKey !== this.state.anchorKey;
+    if (anchorsChanged || glyphKey !== this.state.glyphKey) {
       const features = Array.isArray(data) ? data : data.features || [];
       if (!this.hasLabelGlyphs(features)) {
-        // Placed once the glyphs have loaded, when the layer updates again.
-        this.setState({labelData: [], anchorKey: undefined});
+        // Placed once the glyphs have loaded, when the layer updates again. Rows kept meanwhile
+        // would draw the new text without its glyphs.
+        this.setState({labelData: [], anchorKey: undefined, glyphKey: undefined});
         return;
       }
-      const labelData = this.getLabelData(features, geographic);
-      this.setState({labelData, anchorKey});
+      if (anchorsChanged) {
+        const labelData = this.getLabelData(features, geographic);
+        this.setState({labelData, anchorKey, glyphKey});
+      } else {
+        this.setState({glyphKey});
+      }
     }
   }
 
@@ -2487,6 +2511,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       this.placingTile = tile;
       try {
         const anchorKey = this.getAnchorKey(geographic);
+        const glyphKey = this.getGlyphKey();
         const cached = previous.get(tileKey);
         if (
           cached &&
@@ -2494,8 +2519,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           cached.anchorKey === anchorKey &&
           cached.tile === tile.tile
         ) {
-          next.set(tileKey, cached);
-          return cached.rows;
+          if (cached.glyphKey === glyphKey) {
+            next.set(tileKey, cached);
+            return cached.rows;
+          }
+          // The same anchors, with text or a font whose glyphs may not have loaded. The rows are
+          // kept, but the tile draws none until they have: they would draw the new text without
+          // its glyphs. The layer updates again once they have loaded.
+          changed = true;
+          if (!this.hasLabelGlyphs(tile.features)) {
+            next.set(tileKey, cached);
+            return [];
+          }
+          const entry = {...cached, glyphKey};
+          next.set(tileKey, entry);
+          return entry.rows;
         }
         changed = true;
         if (!this.hasLabelGlyphs(tile.features)) {
@@ -2522,7 +2560,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             (row as any).__tile = tile.tile;
           }
         }
-        const entry = {features: tile.features, anchorKey, tile: tile.tile, rows};
+        const entry = {features: tile.features, anchorKey, glyphKey, tile: tile.tile, rows};
         next.set(tileKey, entry);
         return rows;
       } finally {
