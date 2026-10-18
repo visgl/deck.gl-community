@@ -38,7 +38,12 @@ import {
   getZoomBucket,
   withOpacity
 } from './style-accessor';
-import {getStylePropertyDefault} from './style-expression';
+import {evaluateStyleLight, getStylePropertyDefault} from './style-expression';
+import {
+  DEFAULT_FILL_EXTRUSION_LIGHT,
+  type FillExtrusionLight,
+  FillExtrusionLightingExtension
+} from './fill-extrusion-lighting-extension';
 import {
   MAX_ZOOM_PAINT_PARTS,
   ZOOM_PAINT_FILL_COLOR_ROW,
@@ -1375,7 +1380,8 @@ function createStyledVectorSubLayer({
   loadOptions,
   fontFamily,
   glyphs,
-  labelPlacement
+  labelPlacement,
+  light
 }: {
   idPrefix: string;
   sourceId: string;
@@ -1395,6 +1401,8 @@ function createStyledVectorSubLayer({
   glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
+  /** The style's `light`, which shades `fill-extrusion` layers. */
+  light?: FillExtrusionLight;
 }) {
   if (features.length === 0) {
     return null;
@@ -1441,7 +1449,7 @@ function createStyledVectorSubLayer({
   }
 
   if (styleLayer.type === 'fill-extrusion') {
-    return createExtrusionSubLayer({props, styleLayer, features, zoom});
+    return createExtrusionSubLayer({props, styleLayer, features, zoom, light});
   }
 
   if (styleLayer.type === 'line') {
@@ -1729,7 +1737,8 @@ function createVectorLayerGroup({
             loadOptions,
             fontFamily,
             glyphs,
-            labelPlacement
+            labelPlacement,
+            light: getFillExtrusionLight(styleDefinition, zoom)
           })
         );
       });
@@ -2861,12 +2870,14 @@ function createExtrusionSubLayer({
   props,
   styleLayer,
   features,
-  zoom
+  zoom,
+  light = DEFAULT_FILL_EXTRUSION_LIGHT
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
   zoom: number;
+  light?: FillExtrusionLight;
 }) {
   const paint = getPaint(styleLayer, zoom);
   const color = getStyleAccessor(styleLayer, ['fill-extrusion-color'], zoom, ([value]) =>
@@ -2907,8 +2918,56 @@ function createExtrusionSubLayer({
     },
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
-    parameters: EXTRUSION_PARAMETERS
+    parameters: EXTRUSION_PARAMETERS,
+    extensions: [...(baseProps.extensions || []), FILL_EXTRUSION_LIGHTING_EXTENSION],
+    fillExtrusionLight: light,
+    fillExtrusionVerticalGradient: paint['fill-extrusion-vertical-gradient'] ?? true
   });
+}
+
+/** Shared by every extrusion sublayer, so deck.gl does not see their extensions change. */
+const FILL_EXTRUSION_LIGHTING_EXTENSION = new FillExtrusionLightingExtension();
+
+/** The latest evaluated `light` per style `light` object, reused within one zoom step. */
+const fillExtrusionLightCache = new WeakMap<
+  object,
+  {zoomBucket: number; light: FillExtrusionLight}
+>();
+
+/**
+ * Returns a style's `light` at the stepped zoom, the same object while it is unchanged, so tile
+ * sublayers are kept. A style without `light` takes the style spec's default.
+ */
+function getFillExtrusionLight(
+  styleDefinition: ResolvedBasemapStyle | undefined,
+  zoom: number
+): FillExtrusionLight {
+  const styleLight = styleDefinition?.light;
+  if (!styleLight || typeof styleLight !== 'object') {
+    return DEFAULT_FILL_EXTRUSION_LIGHT;
+  }
+  const zoomBucket = getZoomBucket(zoom);
+  const cached = fillExtrusionLightCache.get(styleLight);
+  if (cached && cached.zoomBucket === zoomBucket) {
+    return cached.light;
+  }
+  const {anchor, position, color, intensity} = evaluateStyleLight(styleLight, zoomBucket);
+  const isNumbers = (value: unknown, length: number): value is number[] =>
+    Array.isArray(value) &&
+    value.length >= length &&
+    value.slice(0, length).every(entry => Number.isFinite(entry));
+  const defaults = DEFAULT_FILL_EXTRUSION_LIGHT;
+  // Values of the wrong type (the expression engine passes a constant through) take the default.
+  const light: FillExtrusionLight = {
+    anchor: anchor === 'map' ? 'map' : 'viewport',
+    position: isNumbers(position, 3) ? [position[0], position[1], position[2]] : defaults.position,
+    color: isNumbers(color, 3) ? [color[0] / 255, color[1] / 255, color[2] / 255] : defaults.color,
+    intensity: Number.isFinite(intensity)
+      ? Math.min(Math.max(intensity as number, 0), 1)
+      : defaults.intensity
+  };
+  fillExtrusionLightCache.set(styleLight, {zoomBucket, light});
+  return light;
 }
 
 /** deck.gl's `CollisionFilterExtension` supports priorities from -1000 to 1000. */
