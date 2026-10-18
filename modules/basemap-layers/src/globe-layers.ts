@@ -11,6 +11,7 @@ import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
+import {sortFeaturesByKey} from './sort-key';
 import {getGeoJsonMaxZoom, getGeoJsonTileFeatures, isGeoJsonSource} from './geojson-source';
 import {
   type FillPatternGroup,
@@ -1735,7 +1736,12 @@ function createVectorLayerGroup({
         }
 
         const depthTested = depthTestedFrom >= 0 && styleLayerIndex >= depthTestedFrom;
-        const style = getBatchableGeometryStyle(styleLayer, filteredData, mode, zoom, depthTested);
+        // A sublayer draws its features in order: a line layer's, in the order of their keys.
+        const layerFeatures =
+          styleLayer.type === 'line'
+            ? sortFeaturesByKey(filteredData, styleLayer, 'line-sort-key', zoom)
+            : filteredData;
+        const style = getBatchableGeometryStyle(styleLayer, layerFeatures, mode, zoom, depthTested);
         if (style) {
           // A style layer that draws nothing in this tile does not separate its neighbours. A line
           // that draws nothing only because its width is 0 at this zoom step, and takes its width
@@ -1774,7 +1780,7 @@ function createVectorLayerGroup({
             idPrefix,
             sourceId,
             styleLayer,
-            features: filteredData,
+            features: layerFeatures,
             props: {...props, [STYLE_LAYER_INDEX]: styleLayerIndex},
             zoom,
             config,
