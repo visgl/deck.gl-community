@@ -22,8 +22,9 @@ import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensi
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
 import {
   HillshadeTileLayer,
-  createDemTileset,
+  createSharedDemTileset,
   getHillshadeParameters,
+  type DemTile,
   type DemTilesetOwner
 } from './hillshade-layer';
 import type {LabelPlacement} from './label-placement';
@@ -721,6 +722,19 @@ export function getTilePyramidProps(source: BasemapSource): {
     maxZoom: source.type === 'geojson' ? getGeoJsonMaxZoom(source) : (source.maxzoom ?? 22),
     extent: minZoom <= 0 ? WORLD_TILE_EXTENT : null
   };
+}
+
+/**
+ * Creates the tileset of a `raster-dem` source: each tile is fetched and decoded once, and shared by
+ * every `hillshade` layer drawn from it. `BasemapLayer` creates and finalizes these itself. Direct
+ * `getBasemapLayers` callers that call it on every render pass them in `tilesets`, keyed by source,
+ * to keep the tiles across calls, and finalize them when done.
+ */
+export function createDemTileset(
+  source: BasemapSource,
+  loadOptions?: BasemapLoadOptions
+): SharedTileset2D<DemTile | null> {
+  return createSharedDemTileset(source, loadOptions, getTilePyramidProps(source));
 }
 
 function createRasterLayer({
@@ -3280,7 +3294,7 @@ function getStyleLayers({
         owner = ownedDemTilesets.get(run.source!);
         if (!owner) {
           owner = {
-            tileset: createDemTileset(run.source!, loadOptions, getTilePyramidProps(run.source!)),
+            tileset: createDemTileset(run.source!, loadOptions),
             consumers: new Set()
           };
           ownedDemTilesets.set(run.source!, owner);

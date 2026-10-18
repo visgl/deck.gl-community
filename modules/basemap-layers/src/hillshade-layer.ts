@@ -535,7 +535,7 @@ type DemTileHeader = {
  * by every `HillshadeTileLayer` drawn from it, as the tiles of a vector source are shared by its
  * style runs. `tilesetProps` are the source's tile pyramid (see `getTilePyramidProps`).
  */
-export function createDemTileset(
+export function createSharedDemTileset(
   source: BasemapSource,
   loadOptions: BasemapLoadOptions | undefined,
   tilesetProps: Partial<SharedTileset2DProps<DemTile | null>> = {}
@@ -573,7 +573,7 @@ export type HillshadeTileLayerProps = SharedTile2DLayerProps<DemTile | null> & {
 /**
  * The tiles of a `raster-dem` source, shaded by one `hillshade` style layer. The decoded tiles
  * come from the source's tileset, shared with the source's other hillshade layers (see
- * `createDemTileset`); the slopes and the shading are the layer's own. Each tile's slopes are
+ * `createSharedDemTileset`); the slopes and the shading are the layer's own. Each tile's slopes are
  * prepared from its elevations and those of its loaded neighbors, so that tiles join without
  * seams. Draws nothing on WebGPU: the shader is GLSL.
  */

@@ -9,6 +9,7 @@ import {
 } from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
 import {
+  createDemTileset,
   getBasemapLayers,
   getSourceLoadOptions,
   getStyleDefinitionZoomLimits,
@@ -26,7 +27,7 @@ import {
   releaseSharedLabelPlacement
 } from './label-placement';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
-import {createDemTileset, getDemUnpackVector} from './hillshade-layer';
+import {getDemUnpackVector} from './hillshade-layer';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
 import {loadSpriteAtlases} from './sprite';
@@ -437,11 +438,7 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     }
     for (const source of demSources) {
       if (!this.state.tilesets.has(source)) {
-        const tileset = createDemTileset(
-          source,
-          this.props.loadOptions,
-          getTilePyramidProps(source)
-        );
+        const tileset = createDemTileset(source, this.props.loadOptions);
         this.state.tilesets.set(source, tileset);
         this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);
       }

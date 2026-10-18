@@ -3,6 +3,7 @@ import {describe, expect, test, vi} from 'vitest';
 import {WebMercatorViewport} from '@deck.gl/core';
 import {SharedTileset2D} from '../../geo-layers/src';
 import {BasemapLayer} from '../src/basemap-layer';
+import {createDemTileset} from '../src';
 import {getBasemapLayers, getStyleLayerRuns} from '../src/globe-layers';
 import {
   type DemTile,
@@ -421,6 +422,25 @@ describe('hillshade layers share the decoded tiles of their source', () => {
     expect(finalize).not.toHaveBeenCalled();
     highlight.finalizeState();
     expect(finalize).toHaveBeenCalledTimes(1);
+  });
+
+  test('direct helper callers keep the tiles across calls with their own createDemTileset', () => {
+    const tileset = createDemTileset(terrain as any);
+    expect(tileset).toBeInstanceOf(SharedTileset2D);
+    const finalize = vi.spyOn(tileset, 'finalize');
+    const tilesets = new Map([[terrain as any, tileset]]);
+    for (let call = 0; call < 2; call++) {
+      const layers: any[] = getBasemapLayers({styleDefinition: style, tilesets});
+      expect(layers.map(layer => layer.props.data)).toEqual([tileset, tileset]);
+      for (const layer of layers) {
+        layer.context = {viewport} as any;
+        layer.initializeState();
+        layer.finalizeState();
+      }
+    }
+    // The caller owns it.
+    expect(finalize).not.toHaveBeenCalled();
+    tileset.finalize();
   });
 
   test("a tile's load prepares its loaded neighbors' slopes again in every layer", async () => {
