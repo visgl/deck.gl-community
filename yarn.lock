@@ -879,6 +879,7 @@ __metadata:
     "@mapbox/tiny-sdf": "npm:^2.0.5"
     "@maplibre/maplibre-gl-style-spec": "npm:^24.8.1"
     "@turf/polygon-to-line": "npm:^6.0.3"
+    bidi-js: "npm:^1.1.0"
     maplibre-gl: "npm:6.13.0"
     vitest: "npm:^4.0.18"
     zod: "npm:^4.0.0"
