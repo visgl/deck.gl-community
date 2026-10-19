@@ -1041,8 +1041,16 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   /**
    * Text pixel offset from `text-offset`, which is in ems of `text-size`, or from a non-zero
    * `text-radial-offset`, which MapLibre GL JS takes instead, in the direction of `text-anchor`.
+   * A layer with variable anchors takes its offset from its anchor at placement, which MapLibre
+   * does only for point labels, so its line labels have none.
    */
   getLabelPixelOffset(feature: FeatureLike): [number, number] {
+    if (
+      this.getStyleProperty('text-variable-anchor-offset') ||
+      this.getStyleProperty('text-variable-anchor')
+    ) {
+      return [0, 0];
+    }
     const size = this.getLabelSize(feature);
     const radial = Number(this.evaluateStyleProperty('text-radial-offset', feature)) || 0;
     if (radial) {

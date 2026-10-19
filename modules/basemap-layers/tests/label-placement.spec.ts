@@ -739,6 +739,21 @@ describe('MVTLabelLayer placement symbols', () => {
     ]);
   });
 
+  test('line labels take text-radial-offset, but no offset with variable anchors, as MapLibre', () => {
+    const feature = {properties: {name: 'abcd'}};
+    const offset = (layout: Record<string, unknown>) =>
+      labelLayer(
+        {'text-field': ['get', 'name'], 'text-size': 10, 'symbol-placement': 'line', ...layout},
+        []
+      ).getLabelPixelOffset(feature);
+    expect(offset({'text-offset': [0, 1]})).toEqual([0, 10]);
+    expect(offset({'text-anchor': 'left', 'text-radial-offset': 1})).toEqual([10, 0]);
+    // MapLibre moves labels with variable anchors at placement, which it does only for points.
+    expect(offset({'text-offset': [0, 1], 'text-variable-anchor': ['top']})).toEqual([0, 0]);
+    expect(offset({'text-radial-offset': 1, 'text-variable-anchor': ['left']})).toEqual([0, 0]);
+    expect(offset({'text-variable-anchor-offset': ['top', [0, 1]]})).toEqual([0, 0]);
+  });
+
   test('text-variable-anchor: a text box per anchor, offset and padded as MapLibre', () => {
     const layout = {
       'text-field': ['get', 'name'],
