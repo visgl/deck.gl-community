@@ -147,4 +147,72 @@ describe('globe draw order in the browser', () => {
     // Away from the building, the line still draws over the globe.
     expect(isChannel(image, 4, middle, BLUE), String(pixel(image, 4, middle))).toBe(true);
   });
+
+  test('crossing lines stack by line-sort-key, not by their order in the tile', async () => {
+    const zoom = 16;
+    const layers: any[] = getBasemapLayers({
+      idPrefix: 'test',
+      mode: 'globe',
+      zoom,
+      styleDefinition: {
+        version: 8,
+        sources: {tiles: {type: 'vector', tiles: ['https://tiles.example.com/{z}/{x}/{y}.mvt']}},
+        layers: [
+          {id: 'background', type: 'background', paint: {'background-color': '#ffffff'}},
+          {
+            id: 'roads',
+            type: 'line',
+            source: 'tiles',
+            'source-layer': 'roads',
+            layout: {'line-sort-key': ['get', 'key']},
+            paint: {
+              'line-color': ['match', ['get', 'color'], 'red', '#ff0000', '#0000ff'],
+              'line-width': 12
+            }
+          }
+        ]
+      } as any
+    });
+    const background = layers.find(layer => layer.id === 'test-background');
+    const tileLayer = layers.find(layer => layer.id === 'test-tiles');
+    const road = (color: string, key: number, coordinates: number[][]) => ({
+      type: 'Feature',
+      geometry: {type: 'LineString', coordinates},
+      properties: {layerName: 'roads', color, key}
+    });
+    // A red line across the view, then a blue one crossing it, with a lower key.
+    const subLayers = tileLayer.props
+      .renderSubLayers({
+        pickable: false,
+        visible: true,
+        opacity: 1,
+        modelMatrix: null,
+        coordinateSystem: 'default',
+        coordinateOrigin: [0, 0, 0],
+        extensions: [],
+        highlightedObjectIndex: -1,
+        highlightColor: [0, 0, 128, 128],
+        wrapLongitude: false,
+        parameters: tileLayer.props.parameters,
+        id: 'test-tiles-tile',
+        data: [
+          road('red', 1, [
+            [-0.0012, 0],
+            [0.0012, 0]
+          ]),
+          road('blue', 0, [
+            [0, -0.0012],
+            [0, 0.0012]
+          ])
+        ],
+        tile: {index: {x: 0, y: 0, z: zoom}}
+      })
+      .flat(Infinity);
+
+    const image = await render([background, ...subLayers], {longitude: 0, latitude: 0, zoom});
+    const middle = SIZE / 2;
+    // The red line has the higher key, so it draws over the blue one where they cross.
+    expect(isChannel(image, middle, middle, RED), String(pixel(image, middle, middle))).toBe(true);
+    expect(isChannel(image, middle, 4, BLUE), String(pixel(image, middle, 4))).toBe(true);
+  });
 });

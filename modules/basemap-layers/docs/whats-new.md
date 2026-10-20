@@ -12,6 +12,7 @@
 - Style layers draw within their own `minzoom`/`maxzoom` only. A source's `maxzoom` no longer hides layers past it; its last tiles are overzoomed instead.
 - Text along lines follows the line glyph by glyph, as in MapLibre, instead of being drawn straight at its anchor's angle. Its collision circles follow the line too.
 - Zoom-dependent style values are evaluated in 0.25 zoom steps instead of at integer zooms, so widths and colors no longer jump a whole zoom level at a time. Tiles regenerate at each step. Filtered features are kept per tile and style layer and reused across steps; they are recomputed only when a filter reading `["zoom"]` crosses an integer zoom, so other steps do not re-tessellate. Label paint is evaluated once per style layer and step.
+- `line-sort-key` orders a line layer's features within a tile as MapLibre GL JS orders them, lowest key first: where lines cross, the one with the higher key draws on top, as on OSM Americana's roads, bridges and route lines. Dashed, offset and blurred lines are ordered too, also on a globe. Lines in different tiles are not ordered by key, and a `line-gap-width` draws one side of every line's gap before the other.
 
 ## April 2026
 
