@@ -12,6 +12,8 @@ import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
+import {sortFeaturesByKey} from './sort-key';
+import {getGeoJsonMaxZoom, getGeoJsonTileFeatures, isGeoJsonSource} from './geojson-source';
 import {
   type FillPatternGroup,
   getFeaturesWithoutPattern,
@@ -19,12 +21,14 @@ import {
   getFillPatternProps
 } from './fill-pattern';
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
+import {FillOutlineExtension} from './fill-outline-extension';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
 import {
   HillshadeTileLayer,
-  getDemUnpackVector,
+  createSharedDemTileset,
   getHillshadeParameters,
-  loadDemTile
+  type DemTile,
+  type DemTilesetOwner
 } from './hillshade-layer';
 import type {LabelPlacement} from './label-placement';
 import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
@@ -207,6 +211,8 @@ const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'pat
 /** `line-blur`, shared for the same reason: by layer, and per feature. */
 const LINE_BLUR_EXTENSION = new LineBlurExtension();
 const LINE_BLUR_PER_FEATURE_EXTENSION = new LineBlurExtension({perFeature: true});
+/** A fill's outline, drawn as a line; shared for the same reason. */
+const FILL_OUTLINE_EXTENSION = new FillOutlineExtension();
 
 /** `fill-pattern` and `fill-translate`, shared by every fill that sets them. */
 const FILL_PATTERN_EXTENSION = new FillPatternExtension();
@@ -720,9 +726,22 @@ export function getTilePyramidProps(source: BasemapSource): {
   const minZoom = source.minzoom ?? 0;
   return {
     minZoom,
-    maxZoom: source.maxzoom ?? 22,
+    maxZoom: source.type === 'geojson' ? getGeoJsonMaxZoom(source) : (source.maxzoom ?? 22),
     extent: minZoom <= 0 ? WORLD_TILE_EXTENT : null
   };
+}
+
+/**
+ * Creates the tileset of a `raster-dem` source: each tile is fetched and decoded once, and shared by
+ * every `hillshade` layer drawn from it. `BasemapLayer` creates and finalizes these itself. Direct
+ * `getBasemapLayers` callers that call it on every render pass them in `tilesets`, keyed by source,
+ * to keep the tiles across calls, and finalize them when done.
+ */
+export function createDemTileset(
+  source: BasemapSource,
+  loadOptions?: BasemapLoadOptions
+): SharedTileset2D<DemTile | null> {
+  return createSharedDemTileset(source, loadOptions, getTilePyramidProps(source));
 }
 
 function createRasterLayer({
@@ -798,41 +817,43 @@ function createRasterLayer({
 }
 
 /**
- * A `hillshade` style layer over a `raster-dem` source. Its tiles are decoded on the main thread
- * (see `HillshadeTileLayer`). MapLibre draws nothing at `hillshade-exaggeration: 0`.
+ * A `hillshade` style layer over a `raster-dem` source. Its tiles are decoded on the main thread,
+ * once for all of the source's hillshade layers, which share `tileset` (see `HillshadeTileLayer`).
+ * MapLibre draws nothing at `hillshade-exaggeration: 0`.
  */
 function createHillshadeLayer({
   idPrefix,
   layer,
+  tileset,
+  demTilesetOwner,
   source,
   zoom,
   mode,
-  loadOptions,
   depthTested
 }: {
   idPrefix: string;
   layer: BasemapStyleLayer;
+  /** The source's decoded tiles (see `createDemTileset`). */
+  tileset: SharedTileset2D;
+  /** Set when the layer shares a tileset that no `BasemapLayer` owns. */
+  demTilesetOwner?: DemTilesetOwner;
   source: BasemapSource;
   zoom: number;
   mode: BasemapMode;
-  loadOptions?: BasemapLoadOptions;
   /** Drawn after an extrusion, see `getTileParameters`. */
   depthTested?: boolean;
 }) {
   const hillshadeParameters = getHillshadeParameters(getPaint(layer, zoom));
-  const unpack = getDemUnpackVector(source);
   const isNearest = getRasterPaintValue(getPaint(layer, zoom), 'resampling') === 'nearest';
   const filter = isNearest ? 'nearest' : 'linear';
 
   return new HillshadeTileLayer({
     id: `${idPrefix}-${layer.id}`,
-    data: source.tiles,
+    data: tileset,
+    demTilesetOwner,
     ...getTilePyramidProps(source),
     tileSize: source.tileSize || 512,
     visible: hillshadeParameters.exaggeration !== 0,
-    getTileData: ({url, signal}) => (url ? loadDemTile(url, unpack, {signal, loadOptions}) : null),
-    // Reloads the tiles when the source's encoding changes.
-    updateTriggers: {getTileData: unpack.join()},
     hillshadeParameters,
     hillshadeSubLayerProps: {
       // MapLibre samples the slopes without mipmaps.
@@ -1746,7 +1767,12 @@ function createVectorLayerGroup({
         }
 
         const depthTested = depthTestedFrom >= 0 && styleLayerIndex >= depthTestedFrom;
-        const style = getBatchableGeometryStyle(styleLayer, filteredData, mode, zoom, depthTested);
+        // A sublayer draws its features in order: a line layer's, in the order of their keys.
+        const layerFeatures =
+          styleLayer.type === 'line'
+            ? sortFeaturesByKey(filteredData, styleLayer, 'line-sort-key', zoom)
+            : filteredData;
+        const style = getBatchableGeometryStyle(styleLayer, layerFeatures, mode, zoom, depthTested);
         if (style) {
           // A style layer that draws nothing in this tile does not separate its neighbours. A line
           // that draws nothing only because its width is 0 at this zoom step, and takes its width
@@ -1785,7 +1811,7 @@ function createVectorLayerGroup({
             idPrefix,
             sourceId,
             styleLayer,
-            features: filteredData,
+            features: layerFeatures,
             props: {...props, [STYLE_LAYER_INDEX]: styleLayerIndex},
             zoom,
             config,
@@ -2738,11 +2764,37 @@ function createGeometrySubLayer({
   // the line: a line narrower than a pixel still draws, fainter. `LineBlurExtension` draws that
   // fade, without a blur too; deck.gl draws lines without antialiasing aliased, and drops most of
   // a line narrower than a pixel. A fill's outline is MapLibre's aliased 1 pixel line, drawn as
-  // deck.gl draws lines without antialiasing.
+  // deck.gl draws lines without antialiasing and cut to a line's pixels by `FillOutlineExtension`.
   const fadesLines = drawsLines && !isFill;
+  const drawsOutline = drawsLines && isFill;
+  const geometryExtensions =
+    dashArray || lineOffset || fadesLines || drawsOutline || zoomPaint
+      ? [
+          ...(baseProps.extensions || []),
+          ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
+          ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
+          // Before the fade, which widens the stroke once its width is final.
+          ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : []),
+          ...(fadesLines
+            ? [
+                typeof lineBlur?.value === 'function'
+                  ? LINE_BLUR_PER_FEATURE_EXTENSION
+                  : LINE_BLUR_EXTENSION
+              ]
+            : []),
+          ...(drawsOutline ? [FILL_OUTLINE_EXTENSION] : [])
+        ]
+      : null;
+  // `fill-pattern` and `fill-translate` add their extensions to these, so an outlined fill keeps
+  // its outline's.
   const fillStyleProps =
     isFill && hasFillStyle
-      ? getFillStyleProps(first.styleLayer, zoom, baseProps.extensions, pattern)
+      ? getFillStyleProps(
+          first.styleLayer,
+          zoom,
+          geometryExtensions ?? baseProps.extensions,
+          pattern
+        )
       : {};
 
   const layerProps = {
@@ -2758,24 +2810,7 @@ function createGeometrySubLayer({
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     getLineWidth: lineWidth.value as any,
-    ...(dashArray || lineOffset || fadesLines || zoomPaint
-      ? {
-          extensions: [
-            ...(baseProps.extensions || []),
-            ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
-            ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
-            // Before the fade, which widens the stroke once its width is final.
-            ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : []),
-            ...(fadesLines
-              ? [
-                  typeof lineBlur?.value === 'function'
-                    ? LINE_BLUR_PER_FEATURE_EXTENSION
-                    : LINE_BLUR_EXTENSION
-                ]
-              : [])
-          ]
-        }
-      : {}),
+    ...(geometryExtensions ? {extensions: geometryExtensions} : {}),
     ...(zoomPaint
       ? {
           zoomPaint,
@@ -3060,6 +3095,30 @@ function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig
 }
 
 /**
+ * Whether a source's layers draw from vector tiles: a vector source with tile templates, or a
+ * GeoJSON source with data, which is cut into tiles on the client (see `getGeoJsonTileFeatures`).
+ */
+export function isVectorTileSource(source: BasemapSource | undefined): boolean {
+  return source?.type === 'geojson'
+    ? isGeoJsonSource(source)
+    : Boolean(source?.tiles) && source?.type === 'vector';
+}
+
+/**
+ * The `getTileData` of a vector tile source's tileset: `loader` fetches and decodes a vector
+ * source's tiles, and a GeoJSON source's tiles are cut from its data, in the same tile-local
+ * coordinates.
+ */
+export function getVectorTileLoader(
+  source: BasemapSource,
+  loader: SharedMVTLayer
+): (tile: Parameters<SharedMVTLayer['getTileData']>[0]) => Promise<any> {
+  return source.type === 'geojson'
+    ? tile => Promise.resolve().then(() => getGeoJsonTileFeatures(source, tile.index))
+    : tile => loader.getTileData(tile);
+}
+
+/**
  * The source layers drawn from each vector source, over all of its runs, sorted; `null` for a
  * source with a style layer that names none. Tiles decode only these: OpenMapTiles tiles, for
  * one, carry house numbers and peaks that few styles draw, and points of interest, most of a
@@ -3170,12 +3229,7 @@ export function getStyleLayerRuns(
           sourceId
         });
       }
-    } else if (
-      isVectorStyleLayer(layer, config) &&
-      sourceId &&
-      source?.tiles &&
-      source.type === 'vector'
-    ) {
+    } else if (isVectorStyleLayer(layer, config) && sourceId && isVectorTileSource(source)) {
       const last = runs[runs.length - 1];
       // Labels draw after all of their run's other layers, so a layer after a label starts a run.
       const followsLabel =
@@ -3257,6 +3311,7 @@ function getStyleLayers({
   const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
 
   const ownedTilesets = new Map<BasemapSource, SourceTilesetOwner>();
+  const ownedDemTilesets = new Map<BasemapSource, DemTilesetOwner>();
   let sourceLayers: Map<BasemapSource, string[] | null> | undefined;
   return runs.map(run => {
     const [layer] = run.styleLayers;
@@ -3274,13 +3329,28 @@ function getStyleLayers({
       });
     }
     if (run.type === 'hillshade') {
+      // One tileset per raster-dem source, shared by its hillshade layers.
+      let owner: DemTilesetOwner | undefined;
+      let tileset = tilesets?.get(run.source!);
+      if (!tileset) {
+        owner = ownedDemTilesets.get(run.source!);
+        if (!owner) {
+          owner = {
+            tileset: createDemTileset(run.source!, loadOptions),
+            consumers: new Set()
+          };
+          ownedDemTilesets.set(run.source!, owner);
+        }
+        tileset = owner.tileset;
+      }
       return createHillshadeLayer({
         idPrefix,
         layer,
+        tileset,
+        demTilesetOwner: owner,
         source: run.source!,
         zoom,
         mode,
-        loadOptions,
         depthTested: depthTested.has(layer)
       });
     }
@@ -3300,7 +3370,7 @@ function getStyleLayers({
           ...getTilePyramidProps(run.source!),
           tileSize: run.source!.tileSize || 512,
           zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
-          getTileData: tile => loader.getTileData(tile)
+          getTileData: getVectorTileLoader(run.source!, loader)
         });
         owner = {tileset, consumers: new Set()};
         ownedTilesets.set(run.source!, owner);

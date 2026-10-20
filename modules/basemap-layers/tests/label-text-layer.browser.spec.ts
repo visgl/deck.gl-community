@@ -6,7 +6,11 @@ import {Deck, OrthographicView} from '@deck.gl/core';
 import {TextLayer} from '@deck.gl/layers';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {afterEach, describe, expect, test} from 'vitest';
-import {LabelCharactersLayer, LabelTextLayer} from '../src/label-text-layer';
+import {
+  LabelCharactersLayer,
+  LabelTextLayer,
+  LINE_GLYPH_ATTRIBUTE_STATS
+} from '../src/label-text-layer';
 
 const WIDTH = 320;
 const HEIGHT = 64;
@@ -140,6 +144,134 @@ describe('LabelTextLayer in the browser', () => {
     const straight = await renderPixels(new LabelTextLayer({id: 'text', ...withMode(0)} as any));
     expect(straight.some(value => value > 0)).toBe(true);
     expect(hidden.some(value => value > 0)).toBe(false);
+  });
+
+  test('two views at different zooms keep their own glyphs, placed and uploaded once', async () => {
+    // A main view and a smaller-scale view beside it, as a minimap. The glyphs are drawn at the
+    // main view's zoom and hidden at the other's.
+    const placed: string[] = [];
+    const layer = new LabelTextLayer({
+      id: 'text',
+      ...PROPS,
+      getLineGlyphs: (d: any, viewport: any) => {
+        placed.push(viewport.id);
+        const glyphs = new Float32Array(Array.from(d.text as string).length * 4);
+        for (let i = 3; i < glyphs.length; i += 4) {
+          glyphs[i] = viewport.zoom === 0 ? 0 : -1;
+        }
+        return glyphs;
+      },
+      getLineGlyphKey: (viewport: any) => String(viewport.zoom)
+    } as any);
+    parent = document.createElement('div');
+    document.body.append(parent);
+    // Pixels with ink in each view, read as a frame is drawn.
+    const readInk = (): [number, number] => {
+      const copy = document.createElement('canvas');
+      copy.width = WIDTH * 2;
+      copy.height = HEIGHT;
+      const context = copy.getContext('2d')!;
+      context.drawImage(deck!.getCanvas()!, 0, 0);
+      return [0, WIDTH].map(x0 => {
+        const {data} = context.getImageData(x0, 0, WIDTH, HEIGHT);
+        let count = 0;
+        for (let i = 3; i < data.length; i += 4) {
+          count += data[i] > 128 ? 1 : 0;
+        }
+        return count;
+      }) as [number, number];
+    };
+    const drawn = () =>
+      new Promise<[number, number]>(resolve => {
+        deck!.setProps({onAfterRender: () => resolve(readInk())});
+        deck!.redraw('two views');
+      });
+    const first = await new Promise<[number, number]>((resolve, reject) => {
+      deck = new Deck({
+        parent: parent!,
+        width: WIDTH * 2,
+        height: HEIGHT,
+        useDevicePixels: false,
+        deviceProps: {adapters: [webgl2Adapter]},
+        views: [
+          new OrthographicView({id: 'main', x: 0, width: WIDTH}),
+          new OrthographicView({id: 'mini', x: WIDTH, width: WIDTH})
+        ],
+        viewState: {
+          main: {target: [0, 0, 0], zoom: 0},
+          mini: {target: [0, 0, 0], zoom: -1}
+        },
+        layers: [layer],
+        onAfterRender: () => {
+          const layers = (deck as any)?.layerManager?.getLayers() || [];
+          if (layers.length && layers.every((l: any) => l.isLoaded)) {
+            resolve(readInk());
+          }
+        },
+        onError: reject
+      });
+    });
+    // Each view draws its own glyphs from the first frame: the main view's label, none in the other.
+    expect(first[0]).toBeGreaterThan(20);
+    expect(first[1]).toBe(0);
+    await drawn();
+    // Steady frames: neither view's glyphs are placed or uploaded again.
+    placed.length = 0;
+    const refreshes = LINE_GLYPH_ATTRIBUTE_STATS.refreshes;
+    let ink: [number, number] = [0, 0];
+    for (let frame = 0; frame < 4; frame++) {
+      ink = await drawn();
+    }
+    expect(placed).toEqual([]);
+    expect(LINE_GLYPH_ATTRIBUTE_STATS.refreshes).toBe(refreshes);
+    expect(ink[0]).toBeGreaterThan(20);
+    expect(ink[1]).toBe(0);
+
+    // The other view zooms in to the main view's zoom: its glyphs are placed again, and drawn.
+    deck!.setProps({
+      viewState: {
+        main: {target: [0, 0, 0], zoom: 0},
+        mini: {target: [0, 0, 0], zoom: 0}
+      }
+    });
+    ink = await drawn();
+    expect(ink[0]).toBeGreaterThan(20);
+    expect(ink[1]).toBeGreaterThan(20);
+
+    // New rows, with the same text, whose glyphs are drawn straight (mode 0) or hidden (mode -1) at
+    // every zoom. Deck updates layers in its animation frame, which `redraw` skips: the frame it
+    // draws next is awaited instead.
+    const updateRows = (mode: number) => {
+      const updated = new Promise<[number, number]>(resolve => {
+        deck!.setProps({onAfterRender: () => resolve(readInk())});
+      });
+      deck!.setProps({
+        layers: [
+          new LabelTextLayer({
+            id: 'text',
+            ...PROPS,
+            data: [{position: [0, 0], text: PROPS.data[0].text}],
+            getLineGlyphs: (d: any) => {
+              const glyphs = new Float32Array(Array.from(d.text as string).length * 4);
+              for (let i = 3; i < glyphs.length; i += 4) {
+                glyphs[i] = mode;
+              }
+              return glyphs;
+            },
+            getLineGlyphKey: (viewport: any) => String(viewport.zoom)
+          } as any)
+        ]
+      });
+      return updated;
+    };
+    // The glyph attribute holds the view the layer was updated in, the other its own buffer: drawn
+    // rows first, so that each view holds glyphs of the old rows when they are hidden. Neither view
+    // draws them, from the frame that updates the layer.
+    ink = await updateRows(0);
+    expect(ink[0]).toBeGreaterThan(20);
+    expect(ink[1]).toBeGreaterThan(20);
+    ink = await updateRows(-1);
+    expect(ink).toEqual([0, 0]);
   });
 
   test('a label whose glyphs are placed along a line is picked by its glyphs, not its box', async () => {
