@@ -1512,8 +1512,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         // and smooths their edges over the same device pixels at every text size.
         edgeGammaCapped: false,
         fontSettings: GLYPH_FONT_SETTINGS,
-        // The atlas's cache key: deck.gl keys font atlases by their font and settings.
-        fontFamily: `glyphs ${glyphs.url} ${fontStack}`,
+        // The atlas's cache key: deck.gl keys font atlases by their font and settings, not by
+        // `_getFontRenderer`. The store's id keeps a new store for the same URL from drawing with
+        // the atlas of the old one; layers of one store share its atlases.
+        fontFamily: `glyphs ${glyphs.id} ${glyphs.url} ${fontStack}`,
         fontWeight: 400,
         _getFontRenderer: getGlyphFontRendererFactory(glyphs, fontStack)
       };
@@ -1525,10 +1527,15 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     };
   }
 
-  /** What the label text is drawn with: the font stack of the style's glyphs, or the CSS font. */
+  /**
+   * What the label text is drawn with: the font stack of the style's glyph store, or the CSS font.
+   * A new store for the same URL may hold other glyphs, so text is measured again with it.
+   */
   getFontKey(): string {
     const {glyphs} = this.props;
-    return glyphs ? `${glyphs.url}|${this.getFontStack()}` : JSON.stringify(this.getFont());
+    return glyphs
+      ? `${glyphs.id}|${glyphs.url}|${this.getFontStack()}`
+      : JSON.stringify(this.getFont());
   }
 
   /**
