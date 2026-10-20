@@ -2766,8 +2766,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         this.setState({labelData: [], anchorKey: undefined, glyphKey: undefined});
         return;
       }
-      // Kept rows are placed again when a font stack is refused, to leave its labels out.
-      if (anchorsChanged || refused.size) {
+      // Rows are placed again when a font stack is refused, to leave its labels out, and when
+      // they were placed while one was: the new text may be in font stacks the store retains.
+      if (anchorsChanged || refused.size || refusedGeneration !== undefined) {
         const labelData = this.getLabelData(
           this.withoutRefusedLabels(features, refused),
           geographic
@@ -2826,8 +2827,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             next.set(tileKey, cached);
             return [];
           }
-          // Unless a font stack is refused: the rows are placed again, to leave its labels out.
-          if (!refused.size) {
+          // Unless a font stack is refused, or was when the rows were placed: they are placed again,
+          // to leave out the labels of a refused font stack, and to place those of the others.
+          if (!refused.size && cached.refusedGeneration === undefined) {
             const entry = {...cached, glyphKey, fontStacks, refusedGeneration: undefined};
             next.set(tileKey, entry);
             return entry.rows;

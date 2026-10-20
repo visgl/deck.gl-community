@@ -173,6 +173,27 @@ describe.each(
   });
 });
 
+describe.each(
+  Object.entries(PATHS)
+)('the point labels of %s placed while a font stack was refused', (_name, source) => {
+  test('are placed again at a zoom step to a font stack the store retains', () => {
+    const glyphs = createGlyphStore({[REGULAR]: [0], [BOLD]: [0]});
+    const refused = new Set([BOLD]);
+    (glyphs.store as any).retain = (_owner: object, fontStack: string) => !refused.has(fontStack);
+    const state: Record<string, any> = {};
+    const props = {...source, styleLayer: FONT_STEP, glyphs: glyphs.store};
+
+    // Bold from zoom 10, refused: its label is left out.
+    update({...props, zoom: 10}, state);
+    expect(state.labelData).toEqual([]);
+
+    // Regular below zoom 10, which the store retains, with no change of its generation. The
+    // anchors are the same, but the rows left the label out.
+    update({...props, zoom: 9}, state);
+    expect(state.labelData).toHaveLength(1);
+  });
+});
+
 const line = {
   geometry: {
     type: 'LineString',
