@@ -4,6 +4,10 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- `SharedTile2DLayer` and `SharedTileset2D` skip tiles beyond the horizon in a `GlobeView`, as deck.gl's
+  `TileLayer` does, instead of requesting the far side of the globe. `BasemapLayer` vector and hillshade
+  sources on a globe request fewer tiles as a result.
+
 - [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new)
   turns MP4/MOV frames into a GPU-rendered image-X/image-Y/time volume with `currentFrame`,
   `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
