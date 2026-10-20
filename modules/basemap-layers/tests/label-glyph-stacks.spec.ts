@@ -202,3 +202,29 @@ describe.each([
     expect(state.labelData).toHaveLength(2);
   });
 });
+
+describe.each([
+  ['a layer of tiles', (count: number) => ({tiles: [getTile(count)]})],
+  ['a layer of one tile', (count: number) => ({data: getTile(count).features})]
+])('%s given a new glyph store while the old one is still loading', (_name, getSource) => {
+  test('waits for the new store, not the old one', async () => {
+    // The old store's ranges never finish loading.
+    const old = new GlyphStore({
+      url: 'https://glyphs.example/{fontstack}/{range}.pbf',
+      fetch: (() => new Promise(() => {})) as unknown as typeof globalThis.fetch
+    });
+    const state: Record<string, any> = {};
+    const source = getSource(2);
+    update({...source, styleLayer, glyphs: old}, state);
+    expect(state.glyphLoads).toBe(1);
+
+    const next = createGlyphStore();
+    update({...source, styleLayer, glyphs: next.store}, state);
+    await settle();
+    // The new store's ranges have loaded: the layer asks to update, and then draws its labels.
+    expect(state.updatesNeeded).toBe(1);
+    await updateUntilLoaded({...source, styleLayer, glyphs: next.store}, state);
+    expect(state.glyphLoads).toBeFalsy();
+    expect(state.labelData).toHaveLength(2);
+  });
+});

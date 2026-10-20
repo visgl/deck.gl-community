@@ -518,6 +518,8 @@ type MVTLabelLayerState = {
   bearingStep?: number;
   /** 1 while the layer waits for glyphs of the labels' text to load (see `hasLabelGlyphs`). */
   glyphLoads?: number;
+  /** The glyph store the layer waits on while `glyphLoads` is 1. */
+  glyphLoadStore?: unknown;
   /**
    * The glyph store's `generation` when it refused a font stack of `labelData`'s text, for a
    * layer of one tile's `data` (see `TileRows.refusedGeneration`).
@@ -1589,14 +1591,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       }
     }
     // The layer waits for one load at a time: updates meanwhile request what they need, and the
-    // update once it has loaded checks again.
+    // update once it has loaded checks again. A new glyph store replaces the wait on the old one,
+    // whose loads may never finish.
     const state = this.state;
-    if (loads.length && !state.glyphLoads) {
+    if (loads.length && !(state.glyphLoads && state.glyphLoadStore === glyphs)) {
       state.glyphLoads = 1;
+      state.glyphLoadStore = glyphs;
       Promise.all(loads).then(() => {
+        // Unless the layer was finalized, or given another store, meanwhile.
+        if (state.glyphLoadStore !== glyphs) {
+          return;
+        }
         state.glyphLoads = 0;
-        // Unless the layer was finalized meanwhile.
-        if (this.state === state && this.props.glyphs === glyphs) {
+        state.glyphLoadStore = undefined;
+        if (this.state === state) {
           this.setNeedsUpdate();
         }
       });
