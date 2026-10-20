@@ -23,9 +23,10 @@ import {FillOutlineExtension} from './fill-outline-extension';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
 import {
   HillshadeTileLayer,
-  getDemUnpackVector,
+  createSharedDemTileset,
   getHillshadeParameters,
-  loadDemTile
+  type DemTile,
+  type DemTilesetOwner
 } from './hillshade-layer';
 import type {LabelPlacement} from './label-placement';
 import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
@@ -726,6 +727,19 @@ export function getTilePyramidProps(source: BasemapSource): {
   };
 }
 
+/**
+ * Creates the tileset of a `raster-dem` source: each tile is fetched and decoded once, and shared by
+ * every `hillshade` layer drawn from it. `BasemapLayer` creates and finalizes these itself. Direct
+ * `getBasemapLayers` callers that call it on every render pass them in `tilesets`, keyed by source,
+ * to keep the tiles across calls, and finalize them when done.
+ */
+export function createDemTileset(
+  source: BasemapSource,
+  loadOptions?: BasemapLoadOptions
+): SharedTileset2D<DemTile | null> {
+  return createSharedDemTileset(source, loadOptions, getTilePyramidProps(source));
+}
+
 function createRasterLayer({
   idPrefix,
   layer,
@@ -799,41 +813,43 @@ function createRasterLayer({
 }
 
 /**
- * A `hillshade` style layer over a `raster-dem` source. Its tiles are decoded on the main thread
- * (see `HillshadeTileLayer`). MapLibre draws nothing at `hillshade-exaggeration: 0`.
+ * A `hillshade` style layer over a `raster-dem` source. Its tiles are decoded on the main thread,
+ * once for all of the source's hillshade layers, which share `tileset` (see `HillshadeTileLayer`).
+ * MapLibre draws nothing at `hillshade-exaggeration: 0`.
  */
 function createHillshadeLayer({
   idPrefix,
   layer,
+  tileset,
+  demTilesetOwner,
   source,
   zoom,
   mode,
-  loadOptions,
   depthTested
 }: {
   idPrefix: string;
   layer: BasemapStyleLayer;
+  /** The source's decoded tiles (see `createDemTileset`). */
+  tileset: SharedTileset2D;
+  /** Set when the layer shares a tileset that no `BasemapLayer` owns. */
+  demTilesetOwner?: DemTilesetOwner;
   source: BasemapSource;
   zoom: number;
   mode: BasemapMode;
-  loadOptions?: BasemapLoadOptions;
   /** Drawn after an extrusion, see `getTileParameters`. */
   depthTested?: boolean;
 }) {
   const hillshadeParameters = getHillshadeParameters(getPaint(layer, zoom));
-  const unpack = getDemUnpackVector(source);
   const isNearest = getRasterPaintValue(getPaint(layer, zoom), 'resampling') === 'nearest';
   const filter = isNearest ? 'nearest' : 'linear';
 
   return new HillshadeTileLayer({
     id: `${idPrefix}-${layer.id}`,
-    data: source.tiles,
+    data: tileset,
+    demTilesetOwner,
     ...getTilePyramidProps(source),
     tileSize: source.tileSize || 512,
     visible: hillshadeParameters.exaggeration !== 0,
-    getTileData: ({url, signal}) => (url ? loadDemTile(url, unpack, {signal, loadOptions}) : null),
-    // Reloads the tiles when the source's encoding changes.
-    updateTriggers: {getTileData: unpack.join()},
     hillshadeParameters,
     hillshadeSubLayerProps: {
       // MapLibre samples the slopes without mipmaps.
@@ -3265,6 +3281,7 @@ function getStyleLayers({
   const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
 
   const ownedTilesets = new Map<BasemapSource, SourceTilesetOwner>();
+  const ownedDemTilesets = new Map<BasemapSource, DemTilesetOwner>();
   let sourceLayers: Map<BasemapSource, string[] | null> | undefined;
   return runs.map(run => {
     const [layer] = run.styleLayers;
@@ -3282,13 +3299,28 @@ function getStyleLayers({
       });
     }
     if (run.type === 'hillshade') {
+      // One tileset per raster-dem source, shared by its hillshade layers.
+      let owner: DemTilesetOwner | undefined;
+      let tileset = tilesets?.get(run.source!);
+      if (!tileset) {
+        owner = ownedDemTilesets.get(run.source!);
+        if (!owner) {
+          owner = {
+            tileset: createDemTileset(run.source!, loadOptions),
+            consumers: new Set()
+          };
+          ownedDemTilesets.set(run.source!, owner);
+        }
+        tileset = owner.tileset;
+      }
       return createHillshadeLayer({
         idPrefix,
         layer,
+        tileset,
+        demTilesetOwner: owner,
         source: run.source!,
         zoom,
         mode,
-        loadOptions,
         depthTested: depthTested.has(layer)
       });
     }

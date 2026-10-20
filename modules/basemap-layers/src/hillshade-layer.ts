@@ -3,9 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 import {COORDINATE_SYSTEM, log} from '@deck.gl/core';
-import type {Layer, LayersList} from '@deck.gl/core';
-import {TileLayer} from '@deck.gl/geo-layers';
-import type {TileLayerProps} from '@deck.gl/geo-layers';
+import type {Layer, LayersList, UpdateParameters} from '@deck.gl/core';
+import {SharedTile2DLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import type {SharedTile2DLayerProps, SharedTileset2DProps} from '@deck.gl-community/geo-layers';
 import {BitmapLayer} from '@deck.gl/layers';
 import type {BasemapLoadOptions, BasemapSource} from './style-resolver';
 
@@ -518,39 +518,107 @@ export async function loadDemTile(
   }
 }
 
+/** The slope texture of a DEM tile, with the neighbors it was prepared with. */
+const preparedTextures = new WeakMap<DemTile, {key: string; image: ImageData}>();
+
 type TileIndex = {x: number; y: number; z: number};
 type DemTileHeader = {
+  id: string;
   index: TileIndex;
   bbox: unknown;
   content: DemTile | null;
   isLoaded: boolean;
-  layers?: unknown[] | null;
-};
-
-/** The slope texture of a DEM tile, with the neighbors it was prepared with. */
-const preparedTextures = new WeakMap<DemTile, {key: string; image: ImageData}>();
-
-/** Props of a `HillshadeTileLayer`. */
-export type HillshadeTileLayerProps = TileLayerProps<DemTile | null> & {
-  hillshadeParameters: HillshadeParameters;
-  /** Extra props of every tile's bitmap layer, such as `parameters`. */
-  hillshadeSubLayerProps?: Record<string, unknown>;
 };
 
 /**
- * The tiles of a `raster-dem` source, shaded by one `hillshade` style layer. Each tile's slopes
- * are prepared from its elevations and those of its loaded neighbors, so that tiles join without
+ * Creates the tileset of a `raster-dem` source: each tile is fetched and decoded once, and shared
+ * by every `HillshadeTileLayer` drawn from it, as the tiles of a vector source are shared by its
+ * style runs. `tilesetProps` are the source's tile pyramid (see `getTilePyramidProps`).
+ */
+export function createSharedDemTileset(
+  source: BasemapSource,
+  loadOptions: BasemapLoadOptions | undefined,
+  tilesetProps: Partial<SharedTileset2DProps<DemTile | null>> = {}
+): SharedTileset2D<DemTile | null> {
+  const unpack = getDemUnpackVector(source);
+  // Expands the source's URL template for a tile, as the layer does for its own tileset.
+  const loader = new SharedTile2DLayer<DemTile | null>({
+    data: source.tiles as string[],
+    getTileData: ({url, signal}) => (url ? loadDemTile(url, unpack, {signal, loadOptions}) : null)
+  });
+  return new SharedTileset2D<DemTile | null>({
+    ...loader._getTilesetOptions(),
+    ...tilesetProps,
+    tileSize: source.tileSize || 512,
+    getTileData: tile => loader.getTileData(tile)
+  } as SharedTileset2DProps<DemTile | null>);
+}
+
+/**
+ * A tileset shared by the `HillshadeTileLayer`s of one `raster-dem` source, finalized when the
+ * last of them is. `BasemapLayer` owns its sources' tilesets itself; this is for the layers that
+ * `getBasemapLayers` creates without it.
+ */
+export type DemTilesetOwner = {tileset: SharedTileset2D; consumers: Set<object>};
+
+/** Props of a `HillshadeTileLayer`. */
+export type HillshadeTileLayerProps = SharedTile2DLayerProps<DemTile | null> & {
+  hillshadeParameters: HillshadeParameters;
+  /** Extra props of every tile's bitmap layer, such as `parameters`. */
+  hillshadeSubLayerProps?: Record<string, unknown>;
+  /** The owner of a shared `data` tileset that the layer releases when finalized. */
+  demTilesetOwner?: DemTilesetOwner | null;
+};
+
+/**
+ * The tiles of a `raster-dem` source, shaded by one `hillshade` style layer. The decoded tiles
+ * come from the source's tileset, shared with the source's other hillshade layers (see
+ * `createSharedDemTileset`); the slopes and the shading are the layer's own. Each tile's slopes are
+ * prepared from its elevations and those of its loaded neighbors, so that tiles join without
  * seams. Draws nothing on WebGPU: the shader is GLSL.
  */
-export class HillshadeTileLayer extends TileLayer<DemTile | null, HillshadeTileLayerProps> {
+export class HillshadeTileLayer extends SharedTile2DLayer<DemTile | null, HillshadeTileLayerProps> {
   static layerName = 'HillshadeTileLayer';
   static defaultProps = {
+    ...SharedTile2DLayer.defaultProps,
     hillshadeParameters: {type: 'object', value: null, compare: false},
-    hillshadeSubLayerProps: {type: 'object', value: null, compare: false}
+    hillshadeSubLayerProps: {type: 'object', value: null, compare: false},
+    demTilesetOwner: {type: 'object', value: null, compare: false}
   };
 
+  declare state: SharedTile2DLayer<DemTile | null>['state'] & {
+    demTilesetOwner?: DemTilesetOwner;
+    /** Stands for this layer among an owner's consumers. */
+    demTilesetConsumer?: object;
+  };
+
+  updateState(params: UpdateParameters<this>): void {
+    const owner = this.props.demTilesetOwner || undefined;
+    if (owner !== this.state.demTilesetOwner) {
+      this.releaseDemTileset();
+      this.state.demTilesetConsumer ??= {};
+      owner?.consumers.add(this.state.demTilesetConsumer);
+      this.state.demTilesetOwner = owner;
+    }
+    super.updateState(params);
+  }
+
+  finalizeState(): void {
+    super.finalizeState();
+    this.releaseDemTileset();
+  }
+
+  private releaseDemTileset(): void {
+    const owner = this.state.demTilesetOwner;
+    if (owner) {
+      owner.consumers.delete(this.state.demTilesetConsumer!);
+      if (!owner.consumers.size) owner.tileset.finalize();
+      this.state.demTilesetOwner = undefined;
+    }
+  }
+
   _onTileLoad(tile: any): void {
-    // The tiles around it can now take its edge pixels.
+    // The tiles around it can now take its edge pixels: their sublayers are prepared again.
     const {x, y, z} = tile.index as TileIndex;
     const count = 2 ** z;
     for (const other of (this.state.tileset?.tiles || []) as DemTileHeader[]) {
@@ -562,7 +630,7 @@ export class HillshadeTileLayer extends TileLayer<DemTile | null, HillshadeTileL
         (dx <= 1 || dx === count - 1) &&
         other !== tile
       ) {
-        other.layers = null;
+        this.state.tileLayers.delete(other.id);
       }
     }
     super._onTileLoad(tile);
@@ -598,6 +666,7 @@ export class HillshadeTileLayer extends TileLayer<DemTile | null, HillshadeTileL
       .flatMap(dy => [-1, 0, 1].map(dx => ((dx || dy) && getNeighbor(dx, dy) ? 1 : 0)))
       .join('');
     const key = present;
+    // Kept with the decoded tile, so the source's hillshade layers prepare its slopes once.
     let prepared = preparedTextures.get(dem);
     if (prepared?.key !== key) {
       const size = dem.dim + 2;
