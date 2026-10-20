@@ -154,10 +154,10 @@ describe('GeoJSON source tiling', () => {
     expect(getTilePyramidProps({type: 'geojson', data: DATA, maxzoom: 9}).maxZoom).toBe(9);
   });
 
-  test('tiles hold GeoJSON features in tile-local coordinates, as decoded vector tiles', () => {
+  test('tiles hold GeoJSON features in tile-local coordinates, as decoded vector tiles', async () => {
     // Without a buffer, the zoom 0 tile holds no copies of features wrapped across the antimeridian.
     const source = {type: 'geojson', data: DATA, buffer: 0};
-    const features = getGeoJsonTileFeatures(source, {x: 0, y: 0, z: 0});
+    const features = await getGeoJsonTileFeatures(source, {x: 0, y: 0, z: 0});
     const byType = Object.fromEntries(features.map((f: any) => [f.geometry.type, f]));
     expect(Object.keys(byType).sort()).toEqual(['LineString', 'MultiPolygon', 'Point']);
 
@@ -178,8 +178,11 @@ describe('GeoJSON source tiling', () => {
     expect(line[line.length - 1][0]).toBeCloseTo(0.75, 3);
   });
 
-  test('the buffer holds the copies of features wrapped across the antimeridian', () => {
-    const features = getGeoJsonTileFeatures({type: 'geojson', data: DATA}, {x: 0, y: 0, z: 0});
+  test('the buffer holds the copies of features wrapped across the antimeridian', async () => {
+    const features = await getGeoJsonTileFeatures(
+      {type: 'geojson', data: DATA},
+      {x: 0, y: 0, z: 0}
+    );
     // The second square, at longitudes 100 to 120, also draws at -260 to -240, in the buffer.
     const polygons = features.filter((f: any) => f.geometry.type === 'Polygon') as any[];
     expect(polygons).toHaveLength(1);
@@ -187,13 +190,13 @@ describe('GeoJSON source tiling', () => {
     expect(Math.max(...xs)).toBeLessThan(0);
   });
 
-  test('a tile far from the data is empty, and deeper tiles clip to their buffer', () => {
+  test('a tile far from the data is empty, and deeper tiles clip to their buffer', async () => {
     const source = {type: 'geojson', data: DATA};
     // Zoom 2, tile (0, 0) covers longitudes -180 to -90 north of 66.5°: nothing there.
-    expect(getGeoJsonTileFeatures(source, {x: 0, y: 0, z: 2})).toEqual([]);
+    expect(await getGeoJsonTileFeatures(source, {x: 0, y: 0, z: 2})).toEqual([]);
     // Zoom 1, tile (1, 1) holds the south-east quadrant: the point at its corner, and parts of
     // the square, the line and the second square (north of the equator, within the buffer).
-    const features = getGeoJsonTileFeatures(source, {x: 1, y: 1, z: 1});
+    const features = await getGeoJsonTileFeatures(source, {x: 1, y: 1, z: 1});
     for (const feature of features as any[]) {
       const flat = JSON.stringify(feature.geometry.coordinates)
         .match(/-?[\d.e-]+/g)!
@@ -203,29 +206,29 @@ describe('GeoJSON source tiling', () => {
     }
   });
 
-  test('promoteId and generateId set feature ids', () => {
-    const promoted = getGeoJsonTileFeatures(
+  test('promoteId and generateId set feature ids', async () => {
+    const promoted = (await getGeoJsonTileFeatures(
       {type: 'geojson', data: DATA, buffer: 0, promoteId: 'name'},
       {x: 0, y: 0, z: 0}
-    ) as any[];
+    )) as any[];
     expect(promoted.find(f => f.geometry.type === 'Point').id).toBe('A');
-    const generated = getGeoJsonTileFeatures(
+    const generated = (await getGeoJsonTileFeatures(
       {type: 'geojson', data: DATA, buffer: 0, generateId: true},
       {x: 0, y: 0, z: 0}
-    ) as any[];
+    )) as any[];
     expect(generated.map(f => f.id).sort()).toEqual([0, 1, 2]);
   });
 
-  test('a clustered source draws clusters with point_count', () => {
+  test('a clustered source draws clusters with point_count', async () => {
     const points = Array.from({length: 10}, (_, i) => ({
       type: 'Feature',
       properties: {i},
       geometry: {type: 'Point', coordinates: [i * 0.001, 0]}
     }));
-    const features = getGeoJsonTileFeatures(
+    const features = (await getGeoJsonTileFeatures(
       {type: 'geojson', data: {type: 'FeatureCollection', features: points}, cluster: true},
       {x: 0, y: 0, z: 0}
-    ) as any[];
+    )) as any[];
     expect(features).toHaveLength(1);
     expect(features[0].properties).toMatchObject({cluster: true, point_count: 10});
   });
