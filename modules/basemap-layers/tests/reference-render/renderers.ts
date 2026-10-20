@@ -11,6 +11,7 @@ import mvtWorkerUrl from '@loaders.gl/mvt/mvt-worker.js?url';
 import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import {BasemapLayer} from '../../src/index';
+import type {GlyphStore} from '../../src/glyph-store';
 import {MVTLabelLayer} from '../../src/mvt-label-layer';
 import {fromFixtureUrl} from './fixtures';
 import {VIEWPORT, type ReferenceScene} from './scenes';
@@ -282,11 +283,30 @@ class ProbeLabelLayer extends MVTLabelLayer {
 }
 
 /**
+ * The glyph store of each `glyphs` URL while `renderBasemapLayer` draws a scene, shared by its two
+ * draws. `BasemapLayer` makes a new store each time it loads a style, and keys its font atlases by
+ * the store, so the read-back draw would find none of the atlases built from the first draw's.
+ */
+let sharedGlyphStores: Map<string, GlyphStore> | null = null;
+
+/**
  * `BasemapLayer` with only its label text pickable, so that the labels left after collision can be
  * read back by picking. Drawing is unchanged.
  */
 class ProbeBasemapLayer extends BasemapLayer {
   static layerName = 'ProbeBasemapLayer';
+
+  // Takes the glyph store of the render's other draw at the same URL (see `sharedGlyphStores`).
+  setState(partialState: any) {
+    const glyphs: GlyphStore | null | undefined = partialState?.glyphs;
+    if (glyphs && sharedGlyphStores) {
+      if (!sharedGlyphStores.has(glyphs.url)) {
+        sharedGlyphStores.set(glyphs.url, glyphs);
+      }
+      partialState = {...partialState, glyphs: sharedGlyphStores.get(glyphs.url)};
+    }
+    super.setState(partialState);
+  }
 
   renderLayers() {
     const toProbe = (layers: unknown): any[] =>
@@ -445,14 +465,22 @@ export async function renderBasemapLayer(
 ): Promise<Render> {
   const start = performance.now();
   resetFontAtlases();
-  const first = await draw(structuredClone(style), scene, layerProps, {
-    ...options,
-    onRendered: undefined
-  });
-  checkFontAtlases(first);
-  const prebuilt = resetFontAtlases(first.fontAtlases);
-  const second = await draw(style, scene, layerProps, options);
-  checkFontAtlases(second);
+  sharedGlyphStores = new Map();
+  let first: BasemapLayerDraw;
+  let prebuilt: Set<object>;
+  let second: BasemapLayerDraw;
+  try {
+    first = await draw(structuredClone(style), scene, layerProps, {
+      ...options,
+      onRendered: undefined
+    });
+    checkFontAtlases(first);
+    prebuilt = resetFontAtlases(first.fontAtlases);
+    second = await draw(style, scene, layerProps, options);
+    checkFontAtlases(second);
+  } finally {
+    sharedGlyphStores = null;
+  }
   const {fontAtlases, ...render} = second;
   return {
     ...render,
