@@ -4,7 +4,12 @@
 
 /* eslint-disable import/no-extraneous-dependencies */
 import {expect, test} from 'vitest';
-import {GlyphStore, MAX_GLYPH_STACKS} from '../src/glyph-store.ts';
+import {
+  GlyphStore,
+  MAX_GLYPH_STACKS,
+  MAX_RETAINED_GLYPH_STACKS,
+  MAX_STORE_RETAINED_GLYPH_STACKS
+} from '../src/glyph-store.ts';
 import {MVTLabelLayer} from '../src/mvt-label-layer.ts';
 
 /** A glyph store whose ranges load at once, empty; `urls` lists each range requested. */
@@ -73,6 +78,40 @@ test(`labels in more than ${MAX_GLYPH_STACKS} font stacks load their glyphs once
   });
   // One range of each font stack, each requested once.
   expect(urls).toHaveLength(count);
+});
+
+/** The font stacks a store holds glyphs for. */
+function getResidentStacks(store: GlyphStore): number {
+  return (store as any).stacks.size;
+}
+
+test('labels in far more font stacks than a layer can retain settle, with bounded requests', async () => {
+  const count = 10 * MAX_GLYPH_STACKS;
+  const {store, urls} = createGlyphStore();
+  const state: Record<string, any> = {};
+  await updateUntilLoaded({tiles: [getTile(count)], styleLayer, glyphs: store}, state);
+  expect(state.glyphLoads).toBeFalsy();
+  // The labels of the font stacks past the bound are left undrawn, with no request.
+  expect(urls).toHaveLength(MAX_RETAINED_GLYPH_STACKS);
+  expect(getResidentStacks(store)).toBe(MAX_RETAINED_GLYPH_STACKS);
+  // The same tile again loads nothing more.
+  await updateUntilLoaded({tiles: [getTile(count)], styleLayer, glyphs: store}, state);
+  expect(urls).toHaveLength(MAX_RETAINED_GLYPH_STACKS);
+});
+
+test('label layers sharing a store retain a bounded number of font stacks together', async () => {
+  const {store, urls} = createGlyphStore();
+  const layers = 2 * (MAX_STORE_RETAINED_GLYPH_STACKS / MAX_RETAINED_GLYPH_STACKS);
+  for (let i = 0; i < layers; i++) {
+    const state: Record<string, any> = {};
+    await updateUntilLoaded(
+      {tiles: [getTile(MAX_RETAINED_GLYPH_STACKS, `Layer ${i}`)], styleLayer, glyphs: store},
+      state
+    );
+    expect(state.glyphLoads).toBeFalsy();
+  }
+  expect(urls).toHaveLength(MAX_STORE_RETAINED_GLYPH_STACKS);
+  expect(getResidentStacks(store)).toBe(MAX_STORE_RETAINED_GLYPH_STACKS);
 });
 
 test('two label layers sharing a glyph store keep the glyphs of both', async () => {

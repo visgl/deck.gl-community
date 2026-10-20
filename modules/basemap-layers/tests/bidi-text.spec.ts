@@ -160,7 +160,7 @@ describe('labels', () => {
       glyphs: {
         url: 'glyphs/{fontstack}/{range}.pbf',
         hasGlyphs: () => false,
-        retain: () => {},
+        retain: () => true,
         load: (_fontStack: string, texts: string[]) => {
           requested.push(...texts);
           return null;
