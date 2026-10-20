@@ -1,10 +1,45 @@
 // deck.gl-community
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT AND BSD-3-Clause
 // Copyright (c) vis.gl contributors
+// Copyright (c) 2023, MapLibre contributors
+
+/**
+ * @license
+ * Portions of this file are adapted from MapLibre GL JS v6.13.0, src/symbol/bidi.ts,
+ * under this license:
+ *
+ * Copyright (c) 2023, MapLibre contributors
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ *     * Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright notice,
+ *       this list of conditions and the following disclaimer in the documentation
+ *       and/or other materials provided with the distribution.
+ *     * Neither the name of MapLibre GL JS nor the names of its contributors
+ *       may be used to endorse or promote products derived from this software
+ *       without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 // Reordering of bidirectional text as MapLibre GL JS 6.13 does it without a right-to-left text
-// plugin: its src/symbol/bidi.ts (BSD-3-Clause, Copyright (c) 2023, MapLibre contributors), on the
-// same Unicode Bidirectional Algorithm implementation, bidi-js.
+// plugin, on the same Unicode Bidirectional Algorithm implementation: the bidi-js package (MIT),
+// a dependency, which holds its own Unicode data.
 import bidiFactory, {type Bidi, type BidiCharTypeName} from 'bidi-js';
 
 let bidiInstance: Bidi | null = null;
