@@ -222,8 +222,8 @@ type TileRows = {
   /** The font stacks of the rows' text, which the layer retains in its glyph store. */
   fontStacks: ReadonlySet<string>;
   /**
-   * The glyph store's `generation` when it refused to retain a font stack of the rows' text, whose
-   * labels are then drawn without glyphs; the rows are placed again once it has changed.
+   * The glyph store's `generation` when it refused to retain a font stack of the tile's text, whose
+   * labels are then left out of the rows; the rows are placed again once it has changed.
    */
   refusedGeneration?: number;
 };
@@ -1553,6 +1553,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * `features` without those whose label text is in a font stack of `refused` (see
+   * `hasLabelGlyphs`). Their rows are left out rather than drawn without glyphs: `TextLayer` would
+   * draw their characters into the font atlas as empty cells, and keep drawing them so once the
+   * store retains the font stack and its glyphs load.
+   */
+  withoutRefusedLabels(features: FeatureLike[], refused: ReadonlySet<string>): FeatureLike[] {
+    return refused.size
+      ? features.filter(
+          feature =>
+            !this.getUnwrappedLabelText(feature) || !refused.has(this.getFontStack(feature))
+        )
+      : features;
+  }
+
+  /**
    * Whether the glyphs of the label text of `features` have loaded, with the style's glyphs. When
    * they have not, they are requested, and the layer updates once they have, as MapLibre GL JS
    * places a tile's symbols once their glyphs have loaded.
@@ -1561,7 +1576,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * and adds it to `fontStacks`: loading the glyphs of some font stacks then cannot drop those of
    * others that the layer draws or waits for. A feature whose font stack the store will not
    * retain (see `GlyphStore.retain`) is not waited for: its label is left undrawn, as that of a
-   * glyph range that fails to load, so that the labels of the other features settle.
+   * glyph range that fails to load, so that the labels of the other features settle. Its font
+   * stack is added to `refused`, and its row left out (see `withoutRefusedLabels`).
    */
   hasLabelGlyphs(
     features: FeatureLike[],
@@ -2750,8 +2766,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         this.setState({labelData: [], anchorKey: undefined, glyphKey: undefined});
         return;
       }
-      if (anchorsChanged) {
-        const labelData = this.getLabelData(features, geographic);
+      // Kept rows are placed again when a font stack is refused, to leave its labels out.
+      if (anchorsChanged || refused.size) {
+        const labelData = this.getLabelData(
+          this.withoutRefusedLabels(features, refused),
+          geographic
+        );
         this.setState({labelData, anchorKey, glyphKey});
       } else {
         this.setState({glyphKey});
@@ -2806,15 +2826,12 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             next.set(tileKey, cached);
             return [];
           }
-          refusedAny ||= refused.size > 0;
-          const entry = {
-            ...cached,
-            glyphKey,
-            fontStacks,
-            refusedGeneration: refused.size ? generation : undefined
-          };
-          next.set(tileKey, entry);
-          return entry.rows;
+          // Unless a font stack is refused: the rows are placed again, to leave its labels out.
+          if (!refused.size) {
+            const entry = {...cached, glyphKey, fontStacks, refusedGeneration: undefined};
+            next.set(tileKey, entry);
+            return entry.rows;
+          }
         }
         changed = true;
         const fontStacks = new Set<string>();
@@ -2830,7 +2847,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           }
           return [];
         }
-        let rows = this.getLabelData(tile.features, geographic);
+        let rows = this.getLabelData(this.withoutRefusedLabels(tile.features, refused), geographic);
         if (!geographic) {
           const scale = 2 ** z;
           rows = rows

@@ -141,6 +141,38 @@ describe.each(Object.entries(PATHS))('the kept point labels of %s', (_name, sour
   });
 });
 
+describe.each(
+  Object.entries(PATHS)
+)('the point labels of %s in a refused font stack', (_name, source) => {
+  test.each([
+    ['placed', []],
+    ['kept from another zoom', [9]]
+  ])('are left out of the rows when %s, and placed once retained', (_case, zooms) => {
+    const glyphs = createGlyphStore({[REGULAR]: [0], [BOLD]: [0]});
+    // The store will not retain the bold font stack (see `GlyphStore.retain`).
+    const refused = new Set([BOLD]);
+    (glyphs.store as any).retain = (_owner: object, fontStack: string) => !refused.has(fontStack);
+    const state: Record<string, any> = {};
+    const props = {...source, styleLayer: FONT_STEP, glyphs: glyphs.store};
+
+    for (const zoom of zooms) {
+      update({...props, zoom}, state);
+      expect(state.labelData).toHaveLength(1);
+    }
+    // Bold from zoom 10. A row drawn without the stack retained would put its text in the font
+    // atlas as empty cells, which deck.gl keeps once the glyphs load.
+    update({...props, zoom: 10}, state);
+    expect(state.labelData).toEqual([]);
+
+    // The store gives back font stacks of another layer, and retains bold now.
+    refused.clear();
+    glyphs.store.generation++;
+    update({...props, zoom: 10}, state);
+    expect(state.labelData).toHaveLength(1);
+    expect(glyphs.requests).toEqual([]);
+  });
+});
+
 const line = {
   geometry: {
     type: 'LineString',
