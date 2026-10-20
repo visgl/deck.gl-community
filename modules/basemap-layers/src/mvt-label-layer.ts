@@ -1530,7 +1530,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
-   * The inputs that choose the glyphs of the label text: the style's glyphs, and `text-field`,
+   * The inputs that choose the glyphs of the label text: the glyph store, as a new one for the same
+   * URL has none of the old one's glyphs loaded, the style's glyphs, and `text-field`,
    * `text-transform` and `text-font`, with the stepped zoom when any of them depends on zoom.
    * Point anchors do not depend on them, so rows kept for unchanged anchors check their glyphs
    * again when this changes: a zoom step can change the text to another glyph range or font stack.
@@ -1538,7 +1539,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   getGlyphKey(): string {
     const {glyphs} = this.props;
     return glyphs
-      ? `${glyphs.url}|${this.getStyleUpdateTrigger('text-field', 'text-transform', 'text-font')}`
+      ? `${glyphs.id}|${glyphs.url}|${this.getStyleUpdateTrigger('text-field', 'text-transform', 'text-font')}`
       : '';
   }
 

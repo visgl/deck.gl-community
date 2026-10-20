@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 /* eslint-disable import/no-extraneous-dependencies */
-import {expect, test} from 'vitest';
+import {describe, expect, test} from 'vitest';
 import {
   GlyphStore,
   MAX_GLYPH_STACKS,
@@ -178,4 +178,27 @@ test('the glyphs of font stacks no label layer uses are dropped', async () => {
   store.load('Unused', ['A']);
   expect(store.hasGlyphs('Other 0', 'A')).toBe(false);
   expect(urls.length).toBeGreaterThan(count);
+});
+
+describe.each([
+  ['a layer of tiles', (count: number) => ({tiles: [getTile(count)]})],
+  ['a layer of one tile', (count: number) => ({data: getTile(count).features})]
+])('%s given a new glyph store with the same URL', (_name, getSource) => {
+  test('loads the glyphs of its labels from it', async () => {
+    const first = createGlyphStore();
+    const state: Record<string, any> = {};
+    const source = getSource(2);
+    await updateUntilLoaded({...source, styleLayer, glyphs: first.store}, state);
+    expect(state.labelData).toHaveLength(2);
+
+    // As after a style reload: a new store, empty, for the same `glyphs` URL.
+    const second = createGlyphStore();
+    update({...source, styleLayer, glyphs: second.store}, state);
+    // The rows wait for the new store's glyphs, rather than drawing without them.
+    expect(state.glyphLoads).toBe(1);
+    expect(state.labelData).toEqual([]);
+    await updateUntilLoaded({...source, styleLayer, glyphs: second.store}, state);
+    expect(second.urls).toHaveLength(2);
+    expect(state.labelData).toHaveLength(2);
+  });
 });

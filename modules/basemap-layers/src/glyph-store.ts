@@ -53,7 +53,14 @@ type StackEntry = {
  * them, as MapLibre GL JS loads them. A range that fails to load holds no glyphs, so its
  * characters are not drawn, as in MapLibre.
  */
+let lastStoreId = 0;
+
 export class GlyphStore {
+  /**
+   * Names this store among others, as of a style loaded again: a new store for the same URL holds
+   * none of the glyphs this one loaded.
+   */
+  readonly id = ++lastStoreId;
   readonly url: string;
   private readonly fetch: typeof fetch;
   private readonly fetchOptions?: RequestInit;
