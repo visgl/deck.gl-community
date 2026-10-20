@@ -24,6 +24,8 @@ function createGlyphStore(loaded: Record<string, number[]>) {
     },
     store: {
       url: 'https://glyphs.example/{fontstack}/{range}.pbf',
+      retain() {},
+      release() {},
       getGlyph(fontStack: string, codePoint: number) {
         return ranges.get(fontStack)?.has(Math.floor(codePoint / 256) * 256)
           ? {

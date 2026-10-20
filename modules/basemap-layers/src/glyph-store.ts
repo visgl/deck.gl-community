@@ -20,7 +20,9 @@ const MAX_CODE_POINT = 0xffff;
 
 /**
  * Bound on the font stacks a store keeps glyphs for: stacks come from untrusted style and tile
- * data. When full, the stack used least recently is dropped, and loaded again if asked for.
+ * data. When full, the stack used least recently is dropped, and loaded again if asked for,
+ * unless a consumer retains it (see {@link GlyphStore.retain}): the store then holds more, until
+ * they are released.
  */
 export const MAX_GLYPH_STACKS = 64;
 
@@ -48,6 +50,8 @@ export class GlyphStore {
   private readonly fetch: typeof fetch;
   private readonly fetchOptions?: RequestInit;
   private readonly stacks = new Map<string, StackEntry>();
+  /** The font stacks each consumer retains (see `retain`). */
+  private readonly retained = new Map<object, ReadonlySet<string>>();
 
   constructor({url, baseUrl, fetch: fetchFn, fetchOptions}: GlyphStoreOptions) {
     this.url = resolveGlyphsUrl(url, baseUrl);
@@ -110,6 +114,25 @@ export class GlyphStore {
   }
 
   /**
+   * Keeps the glyphs of `fontStacks` for `owner`, in place of those it retained before, until
+   * it retains others or is released. A label layer retains the font stacks of the labels it
+   * draws and waits for, so that loading some of them does not drop the others: a batch of
+   * labels in more than {@link MAX_GLYPH_STACKS} font stacks could otherwise never load. Stacks
+   * no consumer retains are dropped beyond the bound.
+   */
+  retain(owner: object, fontStacks: Iterable<string>): void {
+    this.retained.set(owner, new Set(fontStacks));
+    this.evict();
+  }
+
+  /** Gives back the font stacks `owner` retains (see `retain`). */
+  release(owner: object): void {
+    if (this.retained.delete(owner)) {
+      this.evict();
+    }
+  }
+
+  /**
    * The URL of a range: the font names of the stack, each URL-encoded, joined by commas. Font
    * stacks can come from tile data (a data-driven `text-font`), so a name cannot add path
    * segments, a query or a fragment to the URL.
@@ -152,13 +175,35 @@ export class GlyphStore {
       this.stacks.delete(fontStack);
       this.stacks.set(fontStack, stack);
     } else if (create) {
-      if (this.stacks.size >= MAX_GLYPH_STACKS) {
-        this.stacks.delete(this.stacks.keys().next().value!);
-      }
       stack = {ranges: new Map(), requests: new Map()};
       this.stacks.set(fontStack, stack);
+      this.evict(fontStack);
     }
     return stack;
+  }
+
+  /**
+   * Drops the font stacks used least recently, beyond the bound, except those retained and
+   * `keep`, which is being loaded.
+   */
+  private evict(keep?: string): void {
+    for (const fontStack of this.stacks.keys()) {
+      if (this.stacks.size <= MAX_GLYPH_STACKS) {
+        return;
+      }
+      if (fontStack !== keep && !this.isRetained(fontStack)) {
+        this.stacks.delete(fontStack);
+      }
+    }
+  }
+
+  private isRetained(fontStack: string): boolean {
+    for (const fontStacks of this.retained.values()) {
+      if (fontStacks.has(fontStack)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 
