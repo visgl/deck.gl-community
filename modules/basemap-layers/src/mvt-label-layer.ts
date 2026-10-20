@@ -94,6 +94,13 @@ type LabelRow = {
   angle?: number;
   /** For labels along a line: the line, along which their glyphs are placed (see `getLineGlyphs`). */
   line?: RowLine;
+  /**
+   * With `text-variable-anchor`, a point label has a row per anchor, in order, one after the other
+   * in `labelData`: the index of this row's anchor (0, the default, for the first row, which also
+   * draws the icon) and the number of anchors.
+   */
+  textAnchorIndex?: number;
+  textAnchorCount?: number;
 };
 
 /**
@@ -372,7 +379,10 @@ function getGlobeDrawnAngle(
 type PlacementGeometry = {
   key: unknown[];
   rules: SymbolPlacementRules;
-  /** Indices into `labelData`, in placement order. */
+  /**
+   * Indices into `labelData`, in placement order. A label with variable anchors is placed from its
+   * first row, and its other rows follow it (see `LabelRow.textAnchorIndex`).
+   */
   order: number[];
   textBoxes: Float64Array;
   /** Each row's `text-offset` in pixels, `x, y`, which its text box includes. */
@@ -424,6 +434,46 @@ function getTextAnchorProps(anchor: unknown): {
     textAnchor: x < 0 ? 'start' : x > 0 ? 'end' : 'middle',
     alignmentBaseline: y < 0 ? 'top' : y > 0 ? 'bottom' : 'center'
   };
+}
+
+/**
+ * MapLibre GL JS's shift of the vertical offset of variable anchors, in ems: the offset is to the
+ * edge of the text box horizontally, but to the glyphs' baseline vertically, which MapLibre takes
+ * to be 7 of the 24 units of an em from the box's edge (`variable_text_anchor.ts`).
+ */
+const VARIABLE_ANCHOR_BASELINE = 7 / 24;
+
+/** A label anchor with variable anchors: the anchor, and its offset in ems of `text-size`. */
+export type TextAnchorOffset = {anchor: string; offset: [number, number]};
+
+/**
+ * The offset of text at `anchor`, in ems, from `text-radial-offset` (`radial`) or from the size of
+ * `text-offset`, as MapLibre GL JS's `evaluateVariableOffset`: away from the anchor point, in the
+ * anchor's direction, with the vertical baseline shift.
+ */
+export function getVariableAnchorOffset(
+  anchor: string,
+  offset: number[],
+  radial: boolean
+): [number, number] {
+  const [ax, ay] = ANCHOR_FRACTIONS[anchor] || ANCHOR_FRACTIONS.center;
+  let x: number;
+  let y: number;
+  if (radial) {
+    const distance = Math.max(0, Number(offset[0]) || 0);
+    // A corner anchor is offset along the diagonal.
+    const along = ax && ay ? distance / Math.SQRT2 : distance;
+    x = ax ? along : 0;
+    y = ay ? along : 0;
+  } else {
+    x = ax ? Math.abs(Number(offset[0]) || 0) : 0;
+    y = ay ? Math.abs(Number(offset[1]) || 0) : 0;
+  }
+  // `left` (ax < 0) moves the text right of the point, `top` (ay < 0) below it.
+  return [
+    ax < 0 ? x : ax > 0 ? -x : 0,
+    ay < 0 ? y - VARIABLE_ANCHOR_BASELINE : ay > 0 ? -y + VARIABLE_ANCHOR_BASELINE : 0
+  ];
 }
 
 type MVTLabelLayerState = {
@@ -1052,14 +1102,104 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     return [-ax * width + offset[0] * scale, -ay * height + offset[1] * scale];
   }
 
-  /** Text pixel offset from `text-offset`, which is in ems of `text-size`. */
+  /**
+   * Text pixel offset from `text-offset`, which is in ems of `text-size`, or from a non-zero
+   * `text-radial-offset`, which MapLibre GL JS takes instead, in the direction of `text-anchor`.
+   * A layer with variable anchors takes its offset from its anchor at placement, which MapLibre
+   * does only for point labels, so its line labels have none.
+   */
   getLabelPixelOffset(feature: FeatureLike): [number, number] {
+    if (
+      this.getStyleProperty('text-variable-anchor-offset') ||
+      this.getStyleProperty('text-variable-anchor')
+    ) {
+      return [0, 0];
+    }
+    const size = this.getLabelSize(feature);
+    const radial = Number(this.evaluateStyleProperty('text-radial-offset', feature)) || 0;
+    if (radial) {
+      const anchor = String(this.evaluateStyleProperty('text-anchor', feature) ?? 'center');
+      const [x, y] = getVariableAnchorOffset(anchor, [radial], true);
+      return [x * size, y * size];
+    }
     const offset = this.evaluateStyleProperty('text-offset', feature) as number[] | undefined;
     if (!offset) {
       return [0, 0];
     }
-    const size = this.getLabelSize(feature);
     return [offset[0] * size, offset[1] * size];
+  }
+
+  /**
+   * The anchors a point label tries, in order, with their offsets in ems, from
+   * `text-variable-anchor-offset`, or from `text-variable-anchor` with `text-radial-offset` (when
+   * the layer sets it) or `text-offset`, as MapLibre GL JS's `getTextVariableAnchorOffset`; `null`
+   * without variable anchors or along lines.
+   */
+  getTextAnchors(feature: FeatureLike, placement?: string): TextAnchorOffset[] | null {
+    if (
+      (!this.getStyleProperty('text-variable-anchor-offset') &&
+        !this.getStyleProperty('text-variable-anchor')) ||
+      isLinePlacement(placement ?? this.getSymbolPlacement())
+    ) {
+      return null;
+    }
+    const anchorOffsets = this.evaluateStyleProperty('text-variable-anchor-offset', feature);
+    if (Array.isArray(anchorOffsets) && anchorOffsets.length >= 2) {
+      const result: TextAnchorOffset[] = [];
+      for (let i = 0; i + 1 < anchorOffsets.length; i += 2) {
+        const anchor = String(anchorOffsets[i]);
+        const [x = 0, y = 0] = (anchorOffsets[i + 1] as number[]) || [];
+        const baseline = anchor.startsWith('top')
+          ? -VARIABLE_ANCHOR_BASELINE
+          : anchor.startsWith('bottom')
+            ? VARIABLE_ANCHOR_BASELINE
+            : 0;
+        result.push({anchor, offset: [Number(x) || 0, (Number(y) || 0) + baseline]});
+      }
+      return result;
+    }
+    const anchors = this.evaluateStyleProperty('text-variable-anchor', feature);
+    if (!Array.isArray(anchors) || !anchors.length) {
+      return null;
+    }
+    // The style spec says not to set both offsets; MapLibre takes the radial one when it is set.
+    const radial = Boolean(this.getStyleProperty('text-radial-offset'));
+    const offset = radial
+      ? [Number(this.evaluateStyleProperty('text-radial-offset', feature)) || 0]
+      : ((this.evaluateStyleProperty('text-offset', feature) as number[] | undefined) ?? [0, 0]);
+    return anchors.map(anchor => ({
+      anchor: String(anchor),
+      offset: getVariableAnchorOffset(String(anchor), offset, radial)
+    }));
+  }
+
+  /** The variable anchor a row's label is drawn at (see `LabelRow.textAnchorIndex`), or `null`. */
+  getRowTextAnchor(row: LabelRow): TextAnchorOffset | null {
+    const anchors = this.getTextAnchors((row as any).__source?.object ?? row);
+    return anchors ? anchors[Math.min(row.textAnchorIndex ?? 0, anchors.length - 1)] : null;
+  }
+
+  /** The `text-anchor` a row's label is drawn at: its variable anchor, or the feature's. */
+  getRowAnchor(row: LabelRow): string {
+    const variable = this.getRowTextAnchor(row);
+    return variable
+      ? variable.anchor
+      : String(this.evaluateStyleProperty('text-anchor', (row as any).__source?.object ?? row));
+  }
+
+  /** A row's text pixel offset: its variable anchor's, or the feature's (`getLabelPixelOffset`). */
+  getRowPixelOffset(row: LabelRow): [number, number] {
+    const feature = (row as any).__source?.object ?? row;
+    const variable = this.getRowTextAnchor(row);
+    if (!variable) {
+      return this.getLabelPixelOffset(feature);
+    }
+    const size = this.getLabelSize(feature);
+    // MapLibre GL JS shifts the text by half its padded box (`calculateVariableLayoutShift`), so
+    // `text-padding` moves the text away from the point too.
+    const [ax, ay] = ANCHOR_FRACTIONS[variable.anchor] || ANCHOR_FRACTIONS.center;
+    const padding = 2 * this.getTextPadding();
+    return [variable.offset[0] * size - ax * padding, variable.offset[1] * size - ay * padding];
   }
 
   /** `text-padding` at the stepped zoom, in pixels. */
@@ -1259,7 +1399,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     if (!this.props.spriteAtlases?.length || !this.getStyleProperty('icon-image')) {
       return rows.map(() => null);
     }
-    return rows.map(row => this.getIcon((row as any).__source?.object ?? row));
+    // A label with variable anchors draws its icon from its first row only.
+    return rows.map(row =>
+      row.textAnchorIndex ? null : this.getIcon((row as any).__source?.object ?? row)
+    );
   }
 
   /**
@@ -1698,14 +1841,31 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       // Text along a line turns its offset by the line (see `withLineDirection`).
       getPixelOffset: getTrigger(
         'text-offset',
+        'text-radial-offset',
+        'text-anchor',
+        'text-variable-anchor',
+        'text-variable-anchor-offset',
+        // Labels with variable anchors are moved by their padding too (see `getRowPixelOffset`).
+        'text-padding',
         'text-size',
         'text-rotation-alignment',
         'symbol-placement'
       ),
       getAngle: `${this.state?.bearingStep}|${getTrigger('text-keep-upright')}`,
       // Also lays out the lines of each label (see `LabelTextLayer`).
-      getTextAnchor: getTrigger('text-anchor', 'text-justify', 'symbol-placement'),
-      getAlignmentBaseline: getTrigger('text-anchor')
+      getTextAnchor: getTrigger(
+        'text-anchor',
+        'text-variable-anchor',
+        'text-variable-anchor-offset',
+        'text-justify',
+        'symbol-placement'
+      ),
+      getAlignmentBaseline: getTrigger(
+        'text-anchor',
+        'text-variable-anchor',
+        'text-variable-anchor-offset',
+        'symbol-placement'
+      )
     };
   }
 
@@ -2033,9 +2193,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
               lineBudget,
               lineContext
             ).map(row => this.getSubLayerRow(row, feature, index))
-        : this.getLabelAnchors(feature, geographic, placement, budget).map(position =>
-            this.getSubLayerRow({position}, feature, index)
-          )
+        : this.getLabelAnchors(feature, geographic, placement, budget).flatMap(position => {
+            // A row per variable anchor, so that each is laid out and drawn on its own, and
+            // placement shows the one it places the label at (see `getPlacementSymbols`).
+            const count = this.getTextAnchors(feature, placement)?.length ?? 0;
+            if (count < 2) {
+              return [this.getSubLayerRow({position}, feature, index)];
+            }
+            return Array.from({length: count}, (_, textAnchorIndex) =>
+              this.getSubLayerRow(
+                {position, textAnchorIndex, textAnchorCount: count} as LabelRow,
+                feature,
+                index
+              )
+            );
+          })
     );
   }
 
@@ -2052,6 +2224,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       geographic,
       geographic ? Math.floor(this.props.zoom || 0) : null,
       this.getTileBounds(geographic),
+      // The number of rows of a point label (see `getLabelData`).
+      isLinePlacement(placement)
+        ? null
+        : this.getStyleUpdateTrigger('text-variable-anchor', 'text-variable-anchor-offset'),
       isLinePlacement(placement)
         ? [
             this.getLinePlacementScale(),
@@ -2973,10 +3149,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         }
         const w = textWidth * size;
         const h = lines.length * lineHeight * size;
-        const [ax, ay] =
-          ANCHOR_FRACTIONS[String(this.evaluateStyleProperty('text-anchor', feature))] ||
-          ANCHOR_FRACTIONS.center;
-        const [dx, dy] = this.getLabelPixelOffset(feature);
+        const [ax, ay] = ANCHOR_FRACTIONS[this.getRowAnchor(row)] || ANCHOR_FRACTIONS.center;
+        const [dx, dy] = this.getRowPixelOffset(row);
         textBoxes.set([-(ax + 0.5) * w + dx, -(ay + 0.5) * h + dy, w, h], i * 4);
         textOffsets.set([dx, dy], i * 2);
       }
@@ -3001,8 +3175,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       boxes.set(textOffsets.subarray(i * 2, i * 2 + 2), 8);
       rowBoxes.boxes.set(row, boxes);
     }
-    // `labelData` order is feature order within each tile.
-    const order = Array.from({length: count}, (_, i) => i);
+    // `labelData` order is feature order within each tile. The other anchors of a label with
+    // variable anchors are placed with its first.
+    const order: number[] = [];
+    for (let i = 0; i < count; i++) {
+      if (!labelData[i].textAnchorIndex) {
+        order.push(i);
+      }
+    }
     const tiles = labelData.map(row => (row as any).__tile);
     order.sort(
       (a, b) => (keys ? keys[a] - keys[b] : 0) || compareTiles(tiles[a], tiles[b]) || a - b
@@ -3065,6 +3245,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const commons = this.props.tiles ? this.getPlacementCommons(viewport, geometry) : null;
     const m = viewport.pixelProjectionMatrix as number[];
     const horizon = isGlobe ? this.getHorizonTest(viewport) : null;
+    // The padded text box of row `j` at the grid point `x, y`.
+    const getTextBox = (j: number, x: number, y: number): PlacementShape => {
+      const x1 = textBoxes[j * 4];
+      const y1 = textBoxes[j * 4 + 1];
+      return {
+        box: [
+          x + x1 - textPadding,
+          y + y1 - textPadding,
+          x + x1 + textBoxes[j * 4 + 2] + textPadding,
+          y + y1 + textBoxes[j * 4 + 3] + textPadding
+        ]
+      };
+    };
     for (const i of order) {
       const row = labelData[i];
       let sx: number;
@@ -3107,6 +3300,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         getMapPlaneToScreen(viewport, common, sx, sy, toScreen);
       }
       let text: PlacementShape | null = null;
+      let textAnchors: PlacementSymbol['textAnchors'];
       const w = textBoxes[t + 2];
       if (!Number.isNaN(w)) {
         const x1 = textBoxes[t];
@@ -3192,14 +3386,25 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           }
           text = {circles};
         } else {
-          text = {
-            box: [
-              x + x1 - textPadding,
-              y + y1 - textPadding,
-              x + x1 + w + textPadding,
-              y + y1 + h + textPadding
-            ]
-          };
+          text = getTextBox(i, x, y);
+          const textAnchorCount = row.textAnchorCount ?? 0;
+          if (textAnchorCount > 1) {
+            // The label's text at each of its anchors, from the rows that follow (see
+            // `getLabelData`), and the slot each is drawn from.
+            const shapes: PlacementShape[] = [text];
+            const slots = [slotBase + count - 1 - i];
+            for (let k = 1; k < textAnchorCount; k++) {
+              const j = i + k;
+              if (labelData[j]?.textAnchorIndex !== k || Number.isNaN(textBoxes[j * 4 + 2])) {
+                break;
+              }
+              shapes.push(getTextBox(j, x, y));
+              slots.push(slotBase + count - 1 - j);
+            }
+            // A tile's rows are kept while it is drawn, so the first row names the label across
+            // placements.
+            textAnchors = {shapes, slots, key: row};
+          }
         }
       }
       let icon: PlacementShape | null = null;
@@ -3227,7 +3432,14 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       const iconPending =
         spritesLoading && Boolean(this.getIconImageName((row as any).__source?.object ?? row));
       if (text || icon || iconPending) {
-        out.push({slot: slotBase + count - 1 - i, text, icon, occluded, iconPending});
+        out.push({
+          slot: slotBase + count - 1 - i,
+          text,
+          icon,
+          occluded,
+          iconPending,
+          ...(textAnchors && {textAnchors})
+        });
       }
     }
     return rules;
@@ -3372,20 +3584,20 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
             [0, 0, 0, 0]
           ),
           getPixelOffset: withLineDirection(
-            forGroupRows((feature: FeatureLike) => this.getLabelPixelOffset(feature), [0, 0]),
+            forRows(rows, (row: LabelRow) => this.getRowPixelOffset(row), [0, 0]) as any,
             Boolean(lineLabelProps.getAngle)
           ),
           getLineGlyphs: lineGlyphs.getLineGlyphs,
           getLineGlyphKey: lineGlyphs.getLineGlyphKey,
-          getTextAnchor: forGroupRows(
-            (feature: FeatureLike) =>
-              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature)).textAnchor,
+          // A row of a label with variable anchors is drawn at its own anchor.
+          getTextAnchor: forRows(
+            rows,
+            (row: LabelRow) => getTextAnchorProps(this.getRowAnchor(row)).textAnchor,
             'middle'
           ),
-          getAlignmentBaseline: forGroupRows(
-            (feature: FeatureLike) =>
-              getTextAnchorProps(this.evaluateStyleProperty('text-anchor', feature))
-                .alignmentBaseline,
+          getAlignmentBaseline: forRows(
+            rows,
+            (row: LabelRow) => getTextAnchorProps(this.getRowAnchor(row)).alignmentBaseline,
             'center'
           ),
           // Constant where the style layer leaves the property at its default.
