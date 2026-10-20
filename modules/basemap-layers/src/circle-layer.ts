@@ -5,6 +5,7 @@
 import {LayerExtension} from '@deck.gl/core';
 import type {Layer} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
+import {sortFeaturesByKey} from './sort-key';
 import {getStyleAccessor, withOpacity} from './style-accessor';
 import {getStylePropertyDefault} from './style-expression';
 import type {ResolvedBasemapStyleLayer as BasemapStyleLayer} from './style-resolver';
@@ -59,10 +60,6 @@ export class CircleBlurExtension extends LayerExtension {
 const CIRCLE_BLUR_EXTENSION = new CircleBlurExtension();
 
 const pointFeatureCache = new WeakMap<any[], any[]>();
-const sortedFeatureCache = new WeakMap<
-  any[],
-  WeakMap<BasemapStyleLayer, {key: unknown[]; features: any[]}>
->();
 
 function getPointFeatures(features: any[]): any[] {
   const cached = pointFeatureCache.get(features);
@@ -82,39 +79,6 @@ function getPointFeatures(features: any[]): any[] {
       });
   pointFeatureCache.set(features, points);
   return points;
-}
-
-function getSortedFeatures(features: any[], styleLayer: BasemapStyleLayer, zoom: number): any[] {
-  const sortKey = styleLayer.layout?.['circle-sort-key'];
-  if (sortKey === undefined) {
-    return features;
-  }
-  const accessor = getStyleAccessor(
-    styleLayer,
-    ['circle-sort-key'],
-    zoom,
-    ([key]) => Number(key) || 0
-  );
-  const {value} = accessor;
-  const key = [sortKey, typeof value === 'function' ? accessor.updateTrigger : value];
-  let byStyleLayer = sortedFeatureCache.get(features);
-  if (!byStyleLayer) {
-    byStyleLayer = new WeakMap();
-    sortedFeatureCache.set(features, byStyleLayer);
-  }
-  const cached = byStyleLayer.get(styleLayer);
-  if (cached && cached.key.every((entry, index) => entry === key[index])) {
-    return cached.features;
-  }
-  const sorted =
-    typeof value === 'function'
-      ? features
-          .map(feature => ({feature, key: value(feature)}))
-          .sort((a, b) => a.key - b.key)
-          .map(entry => entry.feature)
-      : features;
-  byStyleLayer.set(styleLayer, {key, features: sorted});
-  return sorted;
 }
 
 /**
@@ -193,7 +157,7 @@ export function createCircleSubLayer({
   return new ScatterplotLayer({
     ...baseProps,
     id,
-    data: getSortedFeatures(points, styleLayer, zoom),
+    data: sortFeaturesByKey(points, styleLayer, 'circle-sort-key', zoom),
     getPosition: d => d.position ?? d.geometry.coordinates,
     getRadius: radius.value,
     getLineWidth: lineWidth.value,

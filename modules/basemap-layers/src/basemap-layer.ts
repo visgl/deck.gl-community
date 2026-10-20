@@ -9,6 +9,7 @@ import {
 } from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
 import {
+  createDemTileset,
   getBasemapLayers,
   getSourceLoadOptions,
   getStyleDefinitionZoomLimits,
@@ -26,6 +27,7 @@ import {
   releaseSharedLabelPlacement
 } from './label-placement';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
+import {getDemUnpackVector} from './hillshade-layer';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
 import {loadSpriteAtlases} from './sprite';
@@ -145,7 +147,10 @@ type BasemapLayerState = {
   spriteAtlases: SpriteAtlas[] | null;
   /** Decoded data caches owned by this basemap, shared across style runs. */
   tilesets: Map<BasemapSource, SharedTileset2D>;
-  /** The source layers each tileset decodes, as JSON (see `getStyleSourceLayers`). */
+  /**
+   * What each tileset decodes: for a vector source its source layers, as JSON (see
+   * `getStyleSourceLayers`), for a raster-dem source its encoding.
+   */
   tilesetSourceLayers: Map<BasemapSource, string>;
   /** Loading configuration used to construct the current source caches. */
   tileLoadOptions: unknown;
@@ -377,6 +382,12 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     const sources = new Set(
       Object.values(style.sources || {}).filter(source => isVectorTileSource(source))
     );
+    // The decoded tiles of a raster-dem source are shared by its hillshade layers.
+    const demSources = new Set(
+      Object.values(style.sources || {}).filter(
+        source => source?.type === 'raster-dem' && source.tiles
+      )
+    );
     const optionsChanged =
       this.state.tileLoadOptions !== this.props.loadOptions ||
       this.state.tileFetch !== this.props.fetch;
@@ -385,12 +396,16 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     const sourceLayers = getStyleSourceLayers(style, this.props.globe);
     const getDecodedLayers = (source: BasemapSource) =>
       (getSourceLoadOptions(this.props.loadOptions, sourceLayers.get(source)) as any)?.mvt?.layers;
-    const sourceLayerKeys = new Map(
-      [...sources].map(source => [source, JSON.stringify(getDecodedLayers(source) ?? null)])
-    );
+    const sourceLayerKeys = new Map([
+      ...[...sources].map(
+        source => [source, JSON.stringify(getDecodedLayers(source) ?? null)] as const
+      ),
+      // An encoding edited in place reloads the source's tiles.
+      ...[...demSources].map(source => [source, `dem:${getDemUnpackVector(source)}`] as const)
+    ]);
     for (const [source, tileset] of this.state.tilesets) {
       if (
-        !sources.has(source) ||
+        !sourceLayerKeys.has(source) ||
         optionsChanged ||
         this.state.tilesetSourceLayers.get(source) !== sourceLayerKeys.get(source)
       ) {
@@ -417,6 +432,13 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
           zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
           getTileData: getVectorTileLoader(source, loader)
         });
+        this.state.tilesets.set(source, tileset);
+        this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);
+      }
+    }
+    for (const source of demSources) {
+      if (!this.state.tilesets.has(source)) {
+        const tileset = createDemTileset(source, this.props.loadOptions);
         this.state.tilesets.set(source, tileset);
         this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);
       }

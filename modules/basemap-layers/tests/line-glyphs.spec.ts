@@ -14,7 +14,7 @@ import {
   type PlacementSymbol
 } from '../src/label-placement';
 import {getPathCircles, needsFlip, placeLineGlyphs, type LabelLine} from '../src/line-glyphs';
-import {MVTLabelLayer} from '../src/mvt-label-layer';
+import {LINE_GLYPH_STATS, MVTLabelLayer} from '../src/mvt-label-layer';
 import {getTextLayerFontWeight} from '../src/text-font';
 import {FALLBACK_CHARACTER_WIDTH, forgetCharacterWidths} from '../src/text-layout';
 
@@ -373,6 +373,22 @@ describe('MVTLabelLayer glyphs along lines', () => {
     expect(layer.getLineGlyphs(row, {zoom: 14.21}, 0, 'other')).not.toBe(
       layer.getLineGlyphs(row, {zoom: 14.21}, 0, 'style')
     );
+  });
+
+  test('keeps the glyphs of each view: views at different zooms do not place them in turn', () => {
+    const layer = lineLayer();
+    const [row] = rowsOf(layer, EAST);
+    const main = {id: 'main', zoom: 14};
+    const mini = {id: 'mini', zoom: 10};
+    const first = layer.getLineGlyphs(row, main, 0, 'style');
+    const other = layer.getLineGlyphs(row, mini, 0, 'style');
+    expect(other).not.toBe(first);
+    const rows = LINE_GLYPH_STATS.rows;
+    for (let frame = 0; frame < 3; frame++) {
+      expect(layer.getLineGlyphs(row, main, 0, 'style')).toBe(first);
+      expect(layer.getLineGlyphs(row, mini, 0, 'style')).toBe(other);
+    }
+    expect(LINE_GLYPH_STATS.rows).toBe(rows);
   });
 
   test('places glyphs again once the label font has loaded with other advances', () => {

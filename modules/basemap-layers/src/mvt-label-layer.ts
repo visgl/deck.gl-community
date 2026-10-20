@@ -444,8 +444,11 @@ type MVTLabelLayerState = {
   bearingStep?: number;
   /** The CSS font of labels along lines last seen loading; see `isLineTextFontLoading`. */
   loadingFont?: string;
-  /** Each row's glyphs along its line, with what they were placed for (see `getLineGlyphs`). */
-  lineGlyphs?: WeakMap<LabelRow, {key: string; placements: RowGlyphPlacements | null}>;
+  /**
+   * Each row's glyphs along its line, with what they were placed for, by the id of the view they
+   * were placed in, the first view placed in first (see `getLineGlyphs`).
+   */
+  lineGlyphs?: Map<string, WeakMap<LabelRow, {key: string; placements: RowGlyphPlacements | null}>>;
   /** The halos of the label rows: one entry per distinct halo, and each row's entry index. */
   halos?: LabelHalos;
   /** The `labelData` and style inputs `halos` was computed with; a change recomputes it. */
@@ -576,6 +579,9 @@ type RowGlyphPlacements = {
  * collision paths taken to the screen.
  */
 export const LINE_GLYPH_STATS = {rows: 0, cacheHits: 0, placementPaths: 0};
+
+/** The most views a label layer keeps the glyphs along lines of, as a main map and a minimap. */
+const MAX_LINE_GLYPH_VIEWS = 4;
 
 /**
  * Bearing step, in degrees, at which labels along lines are re-checked for `text-keep-upright`
@@ -2024,6 +2030,8 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * placed unturned). Null for a row drawn straight: not along a line, or multi-line text. The
    * placements are cached per row for the zoom step and style, both ways round, so that every text
    * sublayer and the placement share them, and a bearing step only checks which way each reads.
+   * Each view keeps its own, so that views at different zooms, as a main map and a minimap, do not
+   * place the glyphs again in turn.
    */
   getLineGlyphs(
     row: LabelRow,
@@ -2037,8 +2045,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     }
     const zoom = this.getGlyphZoom(viewport);
     const key = `${zoom}|${styleKey}`;
-    let cache = this.state.lineGlyphs;
-    let entry = cache?.get(row);
+    if (!this.state.lineGlyphs) {
+      this.state.lineGlyphs = new Map();
+    }
+    const views = this.state.lineGlyphs;
+    const viewId = String(viewport?.id ?? '');
+    let cache = views.get(viewId);
+    if (!cache) {
+      cache = new WeakMap();
+      views.set(viewId, cache);
+      // The view first placed in is forgotten.
+      if (views.size > MAX_LINE_GLYPH_VIEWS) {
+        views.delete(views.keys().next().value!);
+      }
+    }
+    let entry = cache.get(row);
     if (entry && entry.key === key) {
       LINE_GLYPH_STATS.cacheHits++;
     } else {
@@ -2050,10 +2071,6 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         placements:
           text && !text.includes('\n') ? this.placeRowGlyphs(row, line, feature, text, zoom) : null
       };
-      if (!cache) {
-        cache = new WeakMap();
-        this.state.lineGlyphs = cache;
-      }
       cache.set(row, entry);
     }
     const {placements} = entry;
