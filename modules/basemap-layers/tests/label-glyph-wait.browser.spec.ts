@@ -29,6 +29,8 @@ function createPendingGlyphStore() {
     hasGlyphs: () => false,
     retain: () => true,
     retainOnly: () => {},
+    onRetainedFreed: () => {},
+    generation: 0,
     release: () => {},
     load() {
       counts.loads++;

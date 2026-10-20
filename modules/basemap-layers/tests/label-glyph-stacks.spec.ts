@@ -32,7 +32,10 @@ function update(props: Record<string, any>, state: Record<string, any>): MVTLabe
   (layer as any).context = {viewport: {}};
   (layer as any).state = state;
   (layer as any).setState = (partial: Record<string, any>) => Object.assign(state, partial);
-  (layer as any).setNeedsUpdate = () => {};
+  // Counted in `state.updatesNeeded`, as deck.gl would update the layer again.
+  (layer as any).setNeedsUpdate = () => {
+    state.updatesNeeded = (state.updatesNeeded || 0) + 1;
+  };
   layer.updateState({changeFlags: {}} as any);
   return layer;
 }
@@ -97,6 +100,36 @@ test('labels in far more font stacks than a layer can retain settle, with bounde
   // The same tile again loads nothing more.
   await updateUntilLoaded({tiles: [getTile(count)], styleLayer, glyphs: store}, state);
   expect(urls).toHaveLength(MAX_RETAINED_GLYPH_STACKS);
+});
+
+test('labels whose font stacks were refused draw once the layer gives back its old ones', async () => {
+  const {store, urls} = createGlyphStore();
+  const state: Record<string, any> = {};
+  // The layer retains as many font stacks as it can.
+  const old = {tiles: [getTile(MAX_RETAINED_GLYPH_STACKS, 'Old')], styleLayer, glyphs: store};
+  await updateUntilLoaded(old, state);
+  expect(urls).toHaveLength(MAX_RETAINED_GLYPH_STACKS);
+
+  // The tile is loaded again with text in as many other font stacks: the store refuses them while
+  // the layer holds the old ones, which it gives back at the end of the update.
+  const next = {tiles: [getTile(MAX_RETAINED_GLYPH_STACKS, 'New')], styleLayer, glyphs: store};
+  state.updatesNeeded = 0;
+  update(next, state);
+  await settle();
+  // The layer asks to be updated again, once, as the old font stacks were given back.
+  expect(state.updatesNeeded).toBe(1);
+  await updateUntilLoaded(next, state);
+  for (let i = 0; i < MAX_RETAINED_GLYPH_STACKS; i++) {
+    expect(store.hasGlyphs(`New ${i}`, 'A')).toBe(true);
+  }
+  expect(urls).toHaveLength(2 * MAX_RETAINED_GLYPH_STACKS);
+  expect(state.labelData).toHaveLength(MAX_RETAINED_GLYPH_STACKS);
+
+  // Once the labels have settled, an idle layer asks for no more updates.
+  state.updatesNeeded = 0;
+  update(next, state);
+  await settle();
+  expect(state.updatesNeeded).toBe(0);
 });
 
 test('label layers sharing a store retain a bounded number of font stacks together', async () => {

@@ -62,6 +62,8 @@ export class GlyphStore {
   private readonly retained = new Map<object, Set<string>>();
   /** The number of consumers that retain each font stack retained. */
   private readonly retainCounts = new Map<string, number>();
+  /** Called once when a consumer next gives back a font stack (see `onRetainedFreed`). */
+  private readonly freedListeners = new Map<object, () => void>();
 
   constructor({url, baseUrl, fetch: fetchFn, fetchOptions}: GlyphStoreOptions) {
     this.url = resolveGlyphsUrl(url, baseUrl);
@@ -162,21 +164,51 @@ export class GlyphStore {
     if (!owned) {
       return;
     }
+    let freed = false;
     for (const fontStack of owned) {
       if (!fontStacks.has(fontStack)) {
         owned.delete(fontStack);
         this.unretain(fontStack);
+        freed = true;
       }
     }
     if (!owned.size) {
       this.retained.delete(owner);
     }
     this.evict();
+    if (freed) {
+      this.generation++;
+      const listeners = [...this.freedListeners.values()];
+      this.freedListeners.clear();
+      for (const listener of listeners) {
+        listener();
+      }
+    }
   }
 
   /** Gives back the font stacks `owner` retains (see `retain`). */
   release(owner: object): void {
+    this.freedListeners.delete(owner);
     this.retainOnly(owner, new Set());
+  }
+
+  /**
+   * Counts the times a consumer gave back font stacks: a `retain` refused before may succeed
+   * once it has changed.
+   */
+  generation = 0;
+
+  /**
+   * Calls `listener` once, the next time a consumer gives back font stacks, in place of the
+   * listener `owner` set before; null removes it. A label layer whose font stacks were refused
+   * updates again then, to retain and load them.
+   */
+  onRetainedFreed(owner: object, listener: (() => void) | null): void {
+    if (listener) {
+      this.freedListeners.set(owner, listener);
+    } else {
+      this.freedListeners.delete(owner);
+    }
   }
 
   /**

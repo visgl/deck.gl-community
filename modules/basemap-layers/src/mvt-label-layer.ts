@@ -214,6 +214,11 @@ type TileRows = {
   rows: LabelRow[];
   /** The font stacks of the rows' text, which the layer retains in its glyph store. */
   fontStacks: ReadonlySet<string>;
+  /**
+   * The glyph store's `generation` when it refused to retain a font stack of the rows' text, whose
+   * labels are then drawn without glyphs; the rows are placed again once it has changed.
+   */
+  refusedGeneration?: number;
 };
 
 /** The tile-local `[0, 1)` square, as `ClipExtension` clips tile sublayers to it by anchor. */
@@ -463,6 +468,11 @@ type MVTLabelLayerState = {
   bearingStep?: number;
   /** 1 while the layer waits for glyphs of the labels' text to load (see `hasLabelGlyphs`). */
   glyphLoads?: number;
+  /**
+   * The glyph store's `generation` when it refused a font stack of `labelData`'s text, for a
+   * layer of one tile's `data` (see `TileRows.refusedGeneration`).
+   */
+  refusedGeneration?: number;
   /** The CSS font of labels along lines last seen loading; see `isLineTextFontLoading`. */
   loadingFont?: string;
   /** Each row's glyphs along its line, with what they were placed for (see `getLineGlyphs`). */
@@ -1394,7 +1404,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * retain (see `GlyphStore.retain`) is not waited for: its label is left undrawn, as that of a
    * glyph range that fails to load, so that the labels of the other features settle.
    */
-  hasLabelGlyphs(features: FeatureLike[], fontStacks: Set<string>): boolean {
+  hasLabelGlyphs(
+    features: FeatureLike[],
+    fontStacks: Set<string>,
+    refused: Set<string> = new Set()
+  ): boolean {
     const {glyphs} = this.props;
     if (!glyphs || !this.getStyleProperty('text-field')) {
       return true;
@@ -1405,6 +1419,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
       if (text) {
         const fontStack = this.getFontStack(feature);
         if (!glyphs.retain(this.state, fontStack)) {
+          refused.add(fontStack);
           continue;
         }
         fontStacks.add(fontStack);
@@ -2507,12 +2522,19 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   ): void {
     const anchorKey = this.getAnchorKey(geographic);
     const glyphKey = this.getGlyphKey();
-    const anchorsChanged = dataChanged || anchorKey !== this.state.anchorKey;
+    // Rows placed while the glyph store refused font stacks are placed again once it may not.
+    const {refusedGeneration} = this.state;
+    const anchorsChanged =
+      dataChanged ||
+      anchorKey !== this.state.anchorKey ||
+      (refusedGeneration !== undefined && refusedGeneration !== this.props.glyphs?.generation);
     if (anchorsChanged || glyphKey !== this.state.glyphKey) {
       const features = Array.isArray(data) ? data : data.features || [];
       const fontStacks = new Set<string>();
-      const ready = this.hasLabelGlyphs(features, fontStacks);
-      this.retainGlyphs(fontStacks);
+      const refused = new Set<string>();
+      const ready = this.hasLabelGlyphs(features, fontStacks, refused);
+      this.state.refusedGeneration = refused.size ? this.props.glyphs?.generation : undefined;
+      this.retainGlyphs(fontStacks, refused.size > 0);
       if (!ready) {
         // Placed once the glyphs have loaded, when the layer updates again. Rows kept meanwhile
         // would draw the new text without its glyphs.
@@ -2540,6 +2562,9 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const next = new Map<string, TileRows>();
     // The font stacks of tiles that wait for their glyphs.
     const waiting = new Set<string>();
+    // Whether the glyph store refused a font stack of a tile (see `TileRows.refusedGeneration`).
+    let refusedAny = false;
+    const generation = this.props.glyphs?.generation;
     const tileRows = tiles.map(tile => {
       const {x, y, z} = tile.index;
       const tileKey = getTileKey(x, y, z);
@@ -2552,8 +2577,11 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           cached &&
           cached.features === tile.features &&
           cached.anchorKey === anchorKey &&
-          cached.tile === tile.tile
+          cached.tile === tile.tile &&
+          // Rows placed while the store refused font stacks are placed again once it may not.
+          (cached.refusedGeneration === undefined || cached.refusedGeneration === generation)
         ) {
+          refusedAny ||= cached.refusedGeneration !== undefined;
           if (cached.glyphKey === glyphKey) {
             next.set(tileKey, cached);
             return cached.rows;
@@ -2563,18 +2591,26 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           // its glyphs. The layer updates again once they have loaded.
           changed = true;
           const fontStacks = new Set<string>();
-          if (!this.hasLabelGlyphs(tile.features, fontStacks)) {
+          const refused = new Set<string>();
+          if (!this.hasLabelGlyphs(tile.features, fontStacks, refused)) {
             fontStacks.forEach(fontStack => waiting.add(fontStack));
             next.set(tileKey, cached);
             return [];
           }
-          const entry = {...cached, glyphKey, fontStacks};
+          refusedAny ||= refused.size > 0;
+          const entry = {
+            ...cached,
+            glyphKey,
+            fontStacks,
+            refusedGeneration: refused.size ? generation : undefined
+          };
           next.set(tileKey, entry);
           return entry.rows;
         }
         changed = true;
         const fontStacks = new Set<string>();
-        if (!this.hasLabelGlyphs(tile.features, fontStacks)) {
+        const refused = new Set<string>();
+        if (!this.hasLabelGlyphs(tile.features, fontStacks, refused)) {
           fontStacks.forEach(fontStack => waiting.add(fontStack));
           // Placed once the glyphs have loaded, when the layer updates again; until then the tile
           // keeps the rows it had, if any. It draws them only while their text is the same: rows
@@ -2606,8 +2642,10 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
           glyphKey,
           tile: tile.tile,
           rows,
-          fontStacks
+          fontStacks,
+          refusedGeneration: refused.size ? generation : undefined
         };
+        refusedAny ||= refused.size > 0;
         next.set(tileKey, entry);
         return rows;
       } finally {
@@ -2631,7 +2669,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     for (const entry of next.values()) {
       entry.fontStacks.forEach(fontStack => waiting.add(fontStack));
     }
-    this.retainGlyphs(waiting);
+    this.retainGlyphs(waiting, refusedAny);
     if (changed) {
       const combined = combineTileRows(tiles, tileRows);
       // A tile shown or hidden without rows of this layer leaves the rows as they are: the same
@@ -2651,8 +2689,28 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
    * Gives back the font stacks the layer retains in its glyph store other than `fontStacks`, those
    * of the rows it keeps and of the tiles that wait for glyphs (see `GlyphStore.retain`).
    */
-  retainGlyphs(fontStacks: ReadonlySet<string>): void {
-    this.props.glyphs?.retainOnly(this.state, fontStacks);
+  retainGlyphs(fontStacks: ReadonlySet<string>, refused: boolean): void {
+    const {glyphs} = this.props;
+    if (!glyphs) {
+      return;
+    }
+    // When the store refused font stacks, the layer updates again once stacks are given back, by
+    // this layer or another, to place the rows of their labels again. Only then: an idle layer
+    // does not update.
+    const state = this.state;
+    glyphs.onRetainedFreed(
+      state,
+      refused
+        ? () => {
+            Promise.resolve().then(() => {
+              if (this.state === state && this.props.glyphs === glyphs) {
+                this.setNeedsUpdate();
+              }
+            });
+          }
+        : null
+    );
+    glyphs.retainOnly(state, fontStacks);
   }
 
   /**
