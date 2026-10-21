@@ -7,7 +7,8 @@
 - Bring `BasemapLayer` substantially closer to MapLibre styling: style glyphs and sprites, CPU label placement and collision, line labels, patterns, hillshade, tiled GeoJSON, style order and globe-aware rendering (#818–#938).
 - Add edge snapping and reliable interleaved MapLibre/Mapbox interaction to editable layers, including correct lasso picking and primary-gesture handling (#672, #675, #914).
 - Improve shared tile traversal with globe-horizon culling, cache/view lifecycle fixes and correct selected-tile rendering; expand graph, panel, playground and multi-canvas examples and documentation.
-- **Compatibility:** `SplatShadowPass`, `SplatShadowProjection`, `maxShadowSplats`, foliage-shadow controls and SplatLayer shadow statistics are removed. Supply foliage shadows outside `TreeLayer` and `SplatLayer` if your application needs them.
+- **Migration:** `TreeLayer` is now native and canonical in `@deck.gl-community/layers`; the `@deck.gl-community/three` import remains a temporary compatibility re-export. Native foliage no longer supplies deck.gl shadows, `detail` is ignored, crop radius and canopy sublayer behavior changed, and Cartesian/metre-offset `modelMatrix` supports translation only.
+- **Migration:** `DOTGraphLoader` has moved to `@loaders.gl/graphs`; load DOT with `DOTLoaderWithParser` before constructing a graph-layer graph.
 - See [What's New](docs/whats-new.md) and the module API references for usage and migration details.
 
 ## v9.4.2

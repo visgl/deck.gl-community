@@ -11,4 +11,12 @@ Specification][mapbox_style_spec] with the intention of visualizing it using dec
 The runtime API is exported from `@deck.gl-community/basemap-layers`, and the map-style
 helpers are exported from `@deck.gl-community/basemap-layers/map-style`.
 
+Install the matching `@deck.gl-community/geo-layers` peer alongside this package:
+
+```sh
+npm install @deck.gl-community/basemap-layers @deck.gl-community/geo-layers
+```
+
+This peer is required explicitly in strict dependency resolvers such as Yarn Plug'n'Play.
+
 For more information, see the online documentation.
