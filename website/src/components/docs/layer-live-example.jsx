@@ -173,6 +173,20 @@ async function mountLayerDocsExample(container, highlight, mountProps = {}) {
       const {mountSeasonalFarmExample} = await import('../../../../examples/layers/seasonal-farm/app');
       return mountSeasonalFarmExample(container, mountProps);
     }
+    case 'flame-trail-layer': {
+      const {mountFlameTrailExample} = await import('../../../../examples/layers/flame-trail/app');
+      return mountFlameTrailExample(container, mountProps);
+    }
+    case 'volumetric-video-layer': {
+      const {mountVolumetricVideoExample} = await import(
+        '../../../../examples/layers/volumetric-video/app'
+      );
+      return mountVolumetricVideoExample(container, {
+        ...mountProps,
+        embedded: true,
+        sampleVideo: '/deck.gl-community/examples/layers/volumetric-video/sample.mp4'
+      });
+    }
     case 'horizon-graph-layer': {
       const {mountHorizonGraphLayerExample} = await import(
         '../../../../modules/timeline-layers/examples/horizon-graph-layer/app'

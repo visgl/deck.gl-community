@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # TreeLayer
+
+<LayerLiveExample highlight="tree-layer" size="tall" />
 
 An instanced, procedural tree layer built entirely with deck.gl, luma.gl and math.gl. Eight species share immutable Gaussian leaf templates and connected trunk-and-branch meshes. Winter removes deciduous foliage while retaining the same wood. Automatic screen-error refinement retains the full authored source for close views. No Three.js runtime dependency is required.
 
