@@ -4,7 +4,7 @@ import {makeImperativeExample} from '../../components';
 export default makeImperativeExample(
   {
     title: 'VolumetricVideoLayer',
-    deviceTabs: {placement: 'bottom-right'},
+    deviceTabs: {placement: 'top-right'},
     code: `${GITHUB_TREE}/examples/layers/volumetric-video`,
     async mount(container, props) {
       const {mountVolumetricVideoExample} = await import(
@@ -17,5 +17,5 @@ export default makeImperativeExample(
       });
     }
   },
-  {addInfoPanel: false}
+  {addInfoPanel: false, style: {height: 'clamp(420px, 62vh, 680px)'}}
 );
