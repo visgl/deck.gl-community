@@ -242,6 +242,9 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
     expect(
       new Set(compactForest.map(tree => `${tree.species}:${tree.characteristics?.seed}`))
     ).toHaveLength(TREE_LAB_SPECIES.length * 2);
+    expect(
+      new Set(compactForest.map(tree => (tree.position as [number, number, number]).join(',')))
+    ).toHaveLength(compactForest.length);
     const firstProfile = compactForest[0]!.characteristics!;
     const renderedFirstTree = getTree(compactForest[0]!);
     expect(renderedFirstTree).toMatchObject({
