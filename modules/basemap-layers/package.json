@@ -57,6 +57,7 @@
     "@maplibre/geojson-vt": "^6.1.2",
     "@maplibre/maplibre-gl-style-spec": "^24.8.1",
     "@turf/polygon-to-line": "^6.0.3",
+    "bidi-js": "^1.1.0",
     "zod": "^4.0.0"
   },
   "peerDependencies": {

@@ -70,7 +70,7 @@ function createTexture(
 export class SharedTextureSet {
   private images = new Set<object>();
   /** The options, as given at construction: they are part of the cache key. */
-  private options: SharedTextureOptions;
+  readonly options: Readonly<SharedTextureOptions>;
   private optionsKey: string;
 
   constructor(
