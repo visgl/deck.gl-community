@@ -273,10 +273,14 @@ void main() {
       };
       // Each view owns its opaque depth and optical accumulation. Overlapping views
       // must not count a Gaussian twice or inherit another camera's color/depth.
+      // Interleaved basemap hosts draw with clearCanvas: false; that preserves only their own
+      // canvas. This private depth must restart every frame, or a previous camera occludes it.
       this.passes[0].render({
         ...scaledOptions,
         pass: 'splat-opaque-depth',
-        target: this.targets[0]
+        target: this.targets[0],
+        clearCanvas: true,
+        clearColor: [0, 0, 0, 0]
       });
       const clear = this.device.beginRenderPass({
         framebuffer: this.targets[1],

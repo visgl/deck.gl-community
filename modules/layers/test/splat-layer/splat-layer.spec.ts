@@ -495,3 +495,69 @@ it('synchronizes shared multi-view raster density before tightening the pixel ca
   expect(resize).toHaveBeenLastCalledWith(50, 25, 'b');
   expect(render.mock.lastCall![0].shaderModuleProps.project.devicePixelRatio).toBe(0.5);
 });
+
+it('clears its private opaque depth when an interleaved basemap preserves the host canvas', () => {
+  const effect = new SplatEffect();
+  const passes = [0, 1, 2, 4].map(() => ({render: vi.fn()}));
+  Object.assign(effect, {
+    device: {
+      type: 'webgl',
+      canvasContext: {getDrawingBufferSize: () => [64, 64], cssToDeviceRatio: () => 1},
+      beginRenderPass: () => ({end() {}})
+    },
+    model: {shaderInputs: {setProps() {}}},
+    passes,
+    resize: () => Object.assign(effect, {targets: [{}, {}, {}, {}]})
+  });
+  const primitive = {
+    constructor: {layerName: 'SplatPrimitiveLayer'},
+    props: {visible: true, operation: 'draw', maxRenderPixels: Infinity}
+  };
+  // MapboxOverlay/MapLibreOverlay interleave deck into the basemap with clearCanvas: false.
+  effect.preRender({layers: [primitive], viewports: [{id: 'mapbox'}], clearCanvas: false} as any);
+  const opaque = passes[0].render.mock.lastCall![0];
+  expect(opaque.pass).toBe('splat-opaque-depth');
+  expect(opaque.clearCanvas).toBe(true);
+  expect(opaque.clearColor).toEqual([0, 0, 0, 0]);
+  // Accumulation targets are cleared by their own passes and must still blend onto them.
+  expect(passes[1].render.mock.lastCall![0].clearCanvas).toBe(false);
+});
+
+it('keeps the shared runtime grant while camera motion retains quantized demand', () => {
+  const data: PerspectiveRow[] = [
+    {id: 'near', position: [0, 0, -3], scale: 10},
+    ...Array.from({length: 9}, (_, index) => ({
+      id: `far-${index}`,
+      position: [0, 0, -10] as [number, number, number],
+      scale: 10
+    }))
+  ];
+  // TreeLayer canopies leave maxSplats unbounded and spend only the shared group cap.
+  const {layer} = makePerspective(data, {
+    pixelError: 0.001,
+    foveationStrength: 0,
+    _splatBudgetGroup: {maxSplats: 20}
+  });
+  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
+  vi.spyOn(layer, 'setNeedsRedraw').mockImplementation(() => {});
+  const ids = new Set([layer.id]);
+  const frame = (now: number) => {
+    layer.updateState({
+      props: layer.props,
+      oldProps: layer.props,
+      changeFlags: {viewportChanged: true}
+    } as any);
+    layer.state.runtime.reconcile(ids);
+    layer.state.runtime.sample(ids, now);
+  };
+  layer.state.runtime.reconcile(ids);
+  // The first viewport update observes the granted levels; the next one retains its demand.
+  frame(1);
+  const granted = new Map(
+    [...layer.state.refinement.entries].map(([key, entry]) => [key, [...entry.target]])
+  );
+  for (let now = 2; now < 400; now += 16) frame(now);
+  for (const [key, entry] of layer.state.refinement.entries)
+    expect(entry.target).toEqual(granted.get(key));
+  expect(layer.splatStats.renderedSplats).toBeLessThanOrEqual(20);
+});
