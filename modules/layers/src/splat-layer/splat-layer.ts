@@ -9,6 +9,7 @@ import {
   createIterable,
   type LayerProps,
   type Layer,
+  type PickingInfo,
   type Position,
   type UpdateParameters
 } from '@deck.gl/core';
@@ -35,6 +36,7 @@ import {getSplatDeformationRadius} from './splat-deformation';
 import {budgetSplatSelections, type SplatSelection} from './splat-budget';
 import {SplatRefinementTransition} from './splat-refinement-transition';
 import {retainSplatRows, getSplatChangedRanges} from './splat-row-diff';
+import {updateSplatSourceHighlight} from './splat-source-highlight';
 import {
   DEFAULT_GET_SOURCE,
   resolveSplatInput,
@@ -442,16 +444,24 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           blend: 0
         }))
       : demandCandidates;
-    const membershipChanged = this.state.refinement.reconcile(
-      budgetSplatSelections(
-        initialCandidates,
-        owner => owner.asset.hierarchy,
-        props.maxSplats * SETTLED_SPLAT_BUDGET_FRACTION
-      ),
-      owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
-      props.maxSplats,
-      owner => owner.key
-    );
+    // The shared runtime grants only changed demand. When quantized demand is retained, its last
+    // budgeted grant still holds; a local unbudgeted retarget would refine every owner unseen.
+    const demandRetained =
+      demandCandidates === this.state.candidates &&
+      props.maxSplats === oldProps.maxSplats &&
+      !needsInitialCoverage;
+    const membershipChanged =
+      !demandRetained &&
+      this.state.refinement.reconcile(
+        budgetSplatSelections(
+          initialCandidates,
+          owner => owner.asset.hierarchy,
+          props.maxSplats * SETTLED_SPLAT_BUDGET_FRACTION
+        ),
+        owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
+        props.maxSplats,
+        owner => owner.key
+      );
     const groups =
       membershipChanged || changeFlags.dataChanged || geometryChanged || assetsChanged
         ? this.getRefinementGroups(this.state.refinement)
@@ -509,6 +519,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
   finalizeState() {
     this.state.runtime?.delete(this.id);
+  }
+  /** Refinement levels hold different owner subsets; highlight the hovered owner in each. */
+  protected _updateAutoHighlight(info: PickingInfo): void {
+    updateSplatSourceHighlight(this, info);
   }
   /** Current submitted work and minimum retained coverage, including transition overlap. */
   get splatStats(): SplatLayerStats {

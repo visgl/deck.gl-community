@@ -10,7 +10,8 @@ import type {
   CompositeLayerProps,
   Position,
   Layer,
-  AccessorContext
+  AccessorContext,
+  PickingInfo
 } from '@deck.gl/core';
 import {Matrix4} from '@math.gl/core';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
@@ -29,6 +30,7 @@ import {
 export type {CropKind} from './tree-crop';
 export type {TreeCharacteristics} from './tree-characteristics';
 import {getTreeSplatData} from './tree-splats';
+import {updateSplatSourceHighlight} from '../splat-layer/splat-source-highlight';
 import type {SplatBudget, SplatBudgetGroup} from '../splat-layer/splat-runtime';
 
 /** Procedural species silhouette. */
@@ -705,6 +707,11 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       liveCrops,
       droppedCrops
     });
+  }
+
+  /** Wood partitions and canopy levels order trees differently; highlight the hovered tree in each. */
+  protected _updateAutoHighlight(info: PickingInfo): void {
+    updateSplatSourceHighlight(this, info);
   }
 
   private getTreeSubLayerProps(sublayerProps, legacyId?: string) {
