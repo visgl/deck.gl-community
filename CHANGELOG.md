@@ -1,5 +1,10 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.4
+
+- Publish v9.4.4 as a recovery release after an interrupted v9.4.3 npm provenance attestation. It carries the v9.4.3 source but does not republish existing v9.4.3 package versions; no consumer API or runtime behavior changes.
+- Serialize npm publication and recover an existing transparency-log entry on conflict so signed package provenance remains intact.
+
 ## v9.4.3
 
 - Render dense, mixed-species forests with native `TreeLayer` foliage backed by `SplatLayer`. Each visible canopy now selects its own screen-error resolution within a shared, device-aware budget, with stable optical transitions, picking, seasonal crops and wind on WebGL2 and WebGPU (#794, #807, #949).

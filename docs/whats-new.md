@@ -2,7 +2,7 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v9.4.3
 
 - `SharedTile2DLayer` and `SharedTileset2D` skip tiles beyond the horizon in a `GlobeView`, as deck.gl's
   `TileLayer` does, instead of requesting the far side of the globe. `BasemapLayer` vector and hillshade

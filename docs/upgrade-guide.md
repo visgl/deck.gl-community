@@ -4,7 +4,7 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
-## Unreleased
+## v9.4.3
 
 `RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
 compensated for oversized rings may need their radius retuned. Angular sectors use the leaf

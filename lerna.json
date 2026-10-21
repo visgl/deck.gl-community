@@ -5,6 +5,11 @@
     "modules/*",
     "dev/*"
   ],
+  "command": {
+    "publish": {
+      "concurrency": 1
+    }
+  },
   "publishConfig": {
     "access": "public"
   }
