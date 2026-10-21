@@ -1,6 +1,8 @@
 # Third-party notices
 
-`@deck.gl-community/basemap-layers` is released under the MIT license in [`LICENSE`](./LICENSE).
+`@deck.gl-community/basemap-layers` is released under the MIT license of the
+[deck.gl-community repository](https://github.com/visgl/deck.gl-community/blob/master/LICENSE).
+The release copies that file into the package as `LICENSE`.
 Some of its source files contain code or data adapted from the third-party projects below. Each
 of those files names its upstream source and carries the upstream notice in its header; this file
 collects the full license texts so that they ship with every copy of the package, including the
@@ -9,7 +11,6 @@ built `dist` files.
 | Upstream | License | Files in this package |
 | --- | --- | --- |
 | [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js) v6.13.0, which contains code from mapbox-gl-js v1.13 and earlier | BSD-3-Clause | `src/bidi.ts`, `src/arabic-shaping.ts`, `src/hillshade-layer.ts`, `src/raster-color-extension.ts` |
-| [polylabel](https://github.com/mapbox/polylabel) v2.0.1 | ISC | `src/polylabel.ts` |
 | [Unicode Character Database](https://www.unicode.org/ucd/) 17.0.0 | Unicode-3.0 | `src/arabic-shaping.ts` |
 
 ## MapLibre GL JS
@@ -145,31 +146,6 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
-
-## polylabel
-
-Source: <https://github.com/mapbox/polylabel/blob/v2.0.1/LICENSE>
-
-`src/polylabel.ts` adapts the pole-of-inaccessibility search of `polylabel.js`: the cell queue
-search, the signed point-to-polygon distance, the point-to-segment distance and the centroid
-starting cell.
-
-```text
-ISC License
-Copyright (c) 2016 Mapbox
-
-Permission to use, copy, modify, and/or distribute this software for any purpose
-with or without fee is hereby granted, provided that the above copyright notice
-and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH REGARD TO
-THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
-IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR
-CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA
-OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
-ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
-SOFTWARE.
 ```
 
 ## Unicode Character Database
