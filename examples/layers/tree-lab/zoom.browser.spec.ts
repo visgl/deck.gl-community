@@ -3,6 +3,7 @@
 import {expect, it} from 'vitest';
 import {MapController, MapView, type Deck, type WebMercatorViewport} from '@deck.gl/core';
 import {mountTreeLabExample} from './app';
+import {getCompactTreeLabForest} from './test-utils';
 
 type CameraState = {
   longitude: number;
@@ -30,6 +31,7 @@ it('switches between hero and whole-forest framing with resettable pointer-direc
   let frames = 0;
   const errors: string[] = [];
   const cleanup = mountTreeLabExample(parent, {
+    data: getCompactTreeLabForest(),
     onDeckInitialized(instance) {
       deck = instance;
       deck.setProps({

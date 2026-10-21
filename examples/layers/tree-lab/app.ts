@@ -83,7 +83,7 @@ type TourBearingKeyframe = {
   bearing: number;
   velocityDegPerMs: number;
 };
-type HeroTourProfile = {
+export type HeroTourProfile = {
   edition: CameraEdition;
   heroDetailWidth: number;
   heroDetailHeight: number;
@@ -686,7 +686,8 @@ function getBackdropTrees(): TreeSpec[] {
   return backdropTrees;
 }
 
-function getForestTrees(): TreeSpec[] {
+/** Return the deterministic 10,000-tree core and 6,600-owner continuation forest. */
+export function getTreeLabForest(): TreeSpec[] {
   forestTrees ??= [...getGroveTrees(), ...getBackdropTrees()];
   return forestTrees;
 }
@@ -797,7 +798,7 @@ function getTourBearing(tour: HeroTourProfile, elapsedMs: number): number {
   return keyframes[keyframes.length - 1]!.bearing;
 }
 
-function getHeroTourView(
+export function getHeroTourView(
   container: HTMLElement,
   elapsedMs: number,
   tour: HeroTourProfile = LANDSCAPE_TOUR
@@ -843,12 +844,16 @@ type MountOptions = Pick<
   DeckProps<MapView>,
   'device' | 'initialViewState' | 'widgets' | 'onViewStateChange'
 > & {
+  // The standalone demo always uses the authored forest. Browser tests may supply a compact,
+  // representative fixture when they are verifying camera/UI mechanics rather than forest scale.
+  data?: TreeSpec[];
   onDeckInitialized?: (deck: Deck<MapView>) => void;
 };
 
 // This stays private to the mounted demo. The deterministic capture harness sends a DOM event
 // because Deck is intentionally not exposed on the standalone page. It records just enough
-// state to prove the opening owner is using the automatic level-zero hierarchy source.
+// state to prove the opening owner is using automatic hierarchy selection. Its rendered level
+// may vary with the device-aware automatic splat budget.
 type HeroSplatInspection = {
   hero: {index: number; species: TreeType | null};
   automatic: boolean;
@@ -867,9 +872,11 @@ export function mountTreeLabExample(
   container: HTMLElement,
   options: MountOptions = {}
 ): () => void {
+  const {data: suppliedData, onDeckInitialized, ...deckOptions} = options;
   const params = new URLSearchParams(container.ownerDocument.defaultView?.location.search);
   const edition: CameraEdition = params.get('edition') === 'portrait' ? 'portrait' : 'landscape';
   const tour = getHeroTourProfile(edition);
+  const forest = suppliedData ?? getTreeLabForest();
   let cameraPreset: CameraPreset = 'hero';
   let currentViewState: MapViewState | undefined;
   let tourFrame: number | undefined;
@@ -926,7 +933,7 @@ export function mountTreeLabExample(
     getCameraPreset(stage, cameraPreset, tour);
   currentViewState = initialViewState;
   const deck = new Deck<MapView>({
-    ...options,
+    ...deckOptions,
     parent: stage,
     views: getSceneView(),
     initialViewState,
@@ -949,7 +956,7 @@ export function mountTreeLabExample(
       return nextViewState;
     }
   });
-  options.onDeckInitialized?.(deck);
+  onDeckInitialized?.(deck);
 
   const stopTour = (freezeCamera = true) => {
     if (!touring && tourFrame === undefined) return;
@@ -999,7 +1006,7 @@ export function mountTreeLabExample(
         }),
         new TreeLayer<TreeSpec>({
           id: 'trees',
-          data: getForestTrees(),
+          data: forest,
           ...METER_COORDINATES,
           // Only the focal citrus carries explicit fruit; every other owner has no crop and all
           // wind stays disabled so the splat layer can spend its work on canopy detail.

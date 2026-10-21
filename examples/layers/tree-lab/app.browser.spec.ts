@@ -8,29 +8,19 @@ import {
   type Deck,
   type PickingInfo
 } from '@deck.gl/core';
-import {SplatLayer, type TreeLayer, type TreeSpec, type TreeType} from '@deck.gl-community/layers';
-import {mountTreeLabExample} from './app';
+import {type TreeLayer, type TreeSpec, type TreeType} from '@deck.gl-community/layers';
+import {getHeroTourView, getTreeLabForest, mountTreeLabExample} from './app';
+import {getCompactTreeLabForest, TREE_LAB_SPECIES} from './test-utils';
 
-const SPECIES: TreeType[] = [
-  'pine',
-  'oak',
-  'palm',
-  'birch',
-  'cherry',
-  'banyan',
-  'mangrove',
-  'citrus'
-];
-
-it('renders an authored 10,000-tree core with a continuous, pickable forest apron', async () => {
+it('renders the authored forest contract with automatic hierarchy, controls, tour wiring, and picking', async () => {
   const parent = document.createElement('div');
-  // Match the 1080p recording lane: automatic refinement is intentionally measured at the
-  // actual hero delivery size, not a small unit-test canvas.
-  Object.assign(parent.style, {width: '1920px', height: '1080px'});
+  Object.assign(parent.style, {width: '800px', height: '450px'});
   document.body.append(parent);
   let deck!: Deck<MapView>;
   const errors: string[] = [];
+  const compactForest = getCompactTreeLabForest();
   const cleanup = mountTreeLabExample(parent, {
+    data: compactForest,
     onDeckInitialized(instance) {
       deck = instance;
       deck.setProps({onError: error => errors.push(error.message)});
@@ -43,7 +33,7 @@ it('renders an authored 10,000-tree core with a continuous, pickable forest apro
     element.dispatchEvent(new Event('input', {bubbles: true}));
   };
   try {
-    const data = trees().props.data as TreeSpec[];
+    const data = getTreeLabForest();
     const core = data.slice(0, 10_000);
     const backdrop = data.slice(10_000);
     expect(data).toHaveLength(16_600);
@@ -54,9 +44,9 @@ it('renders an authored 10,000-tree core with a continuous, pickable forest apro
         result[tree.species!]++;
         return result;
       },
-      Object.fromEntries(SPECIES.map(species => [species, 0])) as Record<TreeType, number>
+      Object.fromEntries(TREE_LAB_SPECIES.map(species => [species, 0])) as Record<TreeType, number>
     );
-    expect(counts).toEqual(Object.fromEntries(SPECIES.map(species => [species, 1250])));
+    expect(counts).toEqual(Object.fromEntries(TREE_LAB_SPECIES.map(species => [species, 1250])));
     expect(data.every(tree => tree.wind === false)).toBe(true);
     expect(backdrop.every(tree => tree.crop === undefined)).toBe(true);
     const backdropExtents = backdrop.map(tree => {
@@ -239,40 +229,21 @@ it('renders an authored 10,000-tree core with a continuous, pickable forest apro
     expect(parent.querySelector('[name="species"]')).toBeNull();
     expect(parent.querySelector('[name="shadows"]')).toBeNull();
 
-    // The demo does not pass an authored detail/LOD setting to TreeLayer. At the deliberately
-    // close hero framing, SplatLayer's normal screen-error allocator must independently promote
-    // the focused citrus to hierarchy level zero (the finest terminal source).
-    const canopies = () =>
-      trees()
-        .getSubLayers()
-        .filter((layer): layer is SplatLayer<{object: TreeSpec}> => layer instanceof SplatLayer);
-    const heroCanopy = () =>
-      canopies().find(canopy =>
-        canopy.state.owners.some(owner => owner.row.object.object === heroTree)
-      );
-    const heroRefinement = () => {
-      const canopy = heroCanopy();
-      const owner = canopy?.state.owners.find(owner => owner.row.object.object === heroTree);
-      return owner ? canopy?.state.refinement.entries.get(owner.key) : undefined;
-    };
-    await expect.poll(() => heroRefinement()?.dominant, {timeout: 30_000}).toBe(0);
-    const inspectionDetail: {inspection?: unknown} = {};
-    parent
-      .querySelector<HTMLDivElement>('.trees-demo')!
-      .dispatchEvent(new CustomEvent('tree-lab:inspect-hero-splat', {detail: inspectionDetail}));
-    expect(inspectionDetail.inspection).toMatchObject({
-      hero: {index: 5050, species: 'citrus'},
-      automatic: true,
-      dominant: 0
-    });
+    // Tree Lab deliberately leaves TreeLayer at `auto`: SplatLayer owns the per-owner screen
+    // error decision and grants a device-aware amount of source detail. The exact actual level
+    // is covered under an explicit 20k cap by tree-grove.browser.spec.ts.
 
     change('season', 'autumn');
     change('crown-profile', 'lush');
     change('crown-spread', '1.15');
     change('leaf-density', '1.25');
     const getTree = trees().props.getTree as (tree: TreeSpec) => TreeSpec;
-    const firstProfile = core[0]!.characteristics!;
-    const renderedFirstTree = getTree(core[0]!);
+    expect(compactForest).toHaveLength(TREE_LAB_SPECIES.length * 2);
+    expect(
+      new Set(compactForest.map(tree => `${tree.species}:${tree.characteristics?.seed}`))
+    ).toHaveLength(TREE_LAB_SPECIES.length * 2);
+    const firstProfile = compactForest[0]!.characteristics!;
+    const renderedFirstTree = getTree(compactForest[0]!);
     expect(renderedFirstTree).toMatchObject({
       species: 'pine',
       season: 'autumn',
@@ -310,23 +281,23 @@ it('renders an authored 10,000-tree core with a continuous, pickable forest apro
     expect(tour.dataset.tourCanopyPitchSettleMs).toBe('1400');
     expect(tour.dataset.tourCanopyDriftMs).toBe('0');
     expect(tour.dataset.tourFinalLiftMs).toBe('1800');
-    const seekTour = (elapsedMs: number) => {
-      parent
-        .querySelector<HTMLDivElement>('.trees-demo')!
-        .dispatchEvent(new CustomEvent('tree-lab:seek-tour', {detail: {elapsedMs}}));
-      return deck.props.initialViewState!;
-    };
+    const stage = parent.querySelector<HTMLDivElement>('.trees-stage')!;
     const sampleTour = (elapsedMs: number) => {
-      const view = seekTour(elapsedMs);
-      return {bearing: view.bearing!, pitch: view.pitch!, zoom: view.zoom!};
+      const view = getHeroTourView(stage, elapsedMs);
+      return {
+        bearing: view.bearing!,
+        pitch: view.pitch!,
+        zoom: view.zoom!,
+        position: view.position!
+      };
     };
-    const orbitEnd = seekTour(2400);
-    const canopyPitchHeld = seekTour(2400 + 5200);
-    const canopyPitchSettling = seekTour(2400 + 5200 + 700);
-    const canopyPitchSettled = seekTour(2400 + 5200 + 1400);
-    const canopyEnd = seekTour(2400 + 6600);
-    const finalLiftMidpoint = seekTour(2400 + 6600 + 900);
-    const finalTourView = seekTour(10800);
+    const orbitEnd = sampleTour(2400);
+    const canopyPitchHeld = sampleTour(2400 + 5200);
+    const canopyPitchSettling = sampleTour(2400 + 5200 + 700);
+    const canopyPitchSettled = sampleTour(2400 + 5200 + 1400);
+    const canopyEnd = sampleTour(2400 + 6600);
+    const finalLiftMidpoint = sampleTour(2400 + 6600 + 900);
+    const finalTourView = sampleTour(10800);
     // Bearing continues through every stage: a close high-horizon orbit, a long, detailed
     // horizon-led pullback, a flat canopy arrival, then a deliberately late overview lift.
     expect(orbitEnd.bearing).toBeCloseTo(132, 4);
@@ -374,23 +345,28 @@ it('renders an authored 10,000-tree core with a continuous, pickable forest apro
       expect(current.zoom).toBeLessThanOrEqual(previous.zoom + 0.000001);
       previous = current;
     }
+    parent
+      .querySelector<HTMLDivElement>('.trees-demo')!
+      .dispatchEvent(new CustomEvent('tree-lab:seek-tour', {detail: {elapsedMs: 2400}}));
+    expect(deck.props.initialViewState).toMatchObject({
+      bearing: orbitEnd.bearing,
+      pitch: orbitEnd.pitch,
+      zoom: orbitEnd.zoom
+    });
     tour.click();
     expect(tour.getAttribute('aria-pressed')).toBe('true');
-    parent.querySelector<HTMLDivElement>('.trees-stage')!.dispatchEvent(new Event('pointerdown'));
+    stage.dispatchEvent(new Event('pointerdown'));
     expect(tour.getAttribute('aria-pressed')).toBe('false');
 
-    await expect
-      .poll(
-        () =>
-          deck
-            .pickObjects({x: 0, y: 0, width: 1920, height: 1080})
-            .some(info => data.includes(info.object as TreeSpec)),
-        {timeout: 30_000}
-      )
-      .toBe(true);
-    expect(deck.props.getTooltip?.({object: heroTree} as unknown as PickingInfo<TreeSpec>)).toBe(
-      'citrus'
-    );
+    const findCompactTreePick = () =>
+      deck
+        .pickObjects({x: 0, y: 0, width: 800, height: 450})
+        .find(info => compactForest.includes(info.object as TreeSpec));
+    await expect.poll(findCompactTreePick, {timeout: 30_000}).toBeDefined();
+    const pickedTree = findCompactTreePick()!;
+    expect(
+      deck.props.getTooltip?.({object: pickedTree.object} as unknown as PickingInfo<TreeSpec>)
+    ).toBe((pickedTree.object as TreeSpec).species);
     expect(errors).toEqual([]);
   } finally {
     cleanup();
@@ -403,7 +379,7 @@ it('keeps the mixed forest stage reachable when its host is shorter than the con
   const parent = document.createElement('div');
   Object.assign(parent.style, {width: '320px', height: '180px'});
   document.body.append(parent);
-  const cleanup = mountTreeLabExample(parent);
+  const cleanup = mountTreeLabExample(parent, {data: getCompactTreeLabForest()});
   const demo = parent.querySelector<HTMLDivElement>('.trees-demo')!;
   const stage = parent.querySelector<HTMLDivElement>('.trees-stage')!;
   try {

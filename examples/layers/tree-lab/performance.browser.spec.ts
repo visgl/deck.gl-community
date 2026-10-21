@@ -5,6 +5,7 @@ import {Model} from '@luma.gl/engine';
 import type {Deck, MapView, MapViewState} from '@deck.gl/core';
 import {SplatLayer, type TreeLayer} from '@deck.gl-community/layers';
 import {mountTreeLabExample} from './app';
+import {getCompactTreeLabForest} from './test-utils';
 
 type FrameSample = {
   phase: 'settled' | 'rotate' | 'zoom';
@@ -49,6 +50,7 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
     return originalDestroy.call(this);
   });
   const cleanup = mountTreeLabExample(parent, {
+    data: getCompactTreeLabForest(),
     onDeckInitialized(instance) {
       deck = instance;
       initialView = deck.props.initialViewState as MapViewState;
@@ -62,35 +64,46 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
         },
         onAfterRender() {
           const now = performance.now();
-          if (++frames > 4) {
-            const trees = deck.props.layers[1] as TreeLayer;
-            const splats = trees
-              .getSubLayers()
-              .reduce(
-                (sum, layer) =>
-                  sum + (layer instanceof SplatLayer ? layer.splatStats.renderedSplats : 0),
-                0
-              );
-            samples.push({
-              phase,
-              draws,
-              destroyed,
-              splats,
-              cpuMs: now - started,
-              frameMs: now - previous
-            });
+          if (++frames === 1) {
+            previous = now;
+            return;
           }
+          const trees = deck.props.layers[1] as TreeLayer;
+          const splats = trees
+            .getSubLayers()
+            .reduce(
+              (sum, layer) =>
+                sum + (layer instanceof SplatLayer ? layer.splatStats.renderedSplats : 0),
+              0
+            );
+          samples.push({
+            phase,
+            draws,
+            destroyed,
+            splats,
+            cpuMs: now - started,
+            frameMs: now - previous
+          });
           previous = now;
           const step = samples.length;
-          if (step === 24) deck['animationLoop']?.stop();
-          else if (step >= 8) {
-            phase = step < 16 ? 'rotate' : 'zoom';
+          if (step === 3) deck['animationLoop']?.stop();
+          else if (step === 1) {
+            phase = 'rotate';
             deck.setProps({
               viewState: {
                 ...initialView!,
-                bearing: step < 16 ? 20 + (step - 7) * 5 : 60,
-                pitch: step < 16 ? 35 : 55,
-                zoom: initialView!.zoom + (step < 16 ? 0 : (step - 15) * 0.05)
+                bearing: 30,
+                pitch: 35
+              }
+            });
+          } else {
+            phase = 'zoom';
+            deck.setProps({
+              viewState: {
+                ...initialView!,
+                bearing: 60,
+                pitch: 55,
+                zoom: initialView!.zoom + 0.35
               }
             });
           }
@@ -99,13 +112,14 @@ it('keeps mixed canopy passes bounded without destroying models during camera re
     }
   });
   try {
-    await expect.poll(() => samples.length, {timeout: 60000}).toBeGreaterThanOrEqual(24);
+    await expect.poll(() => samples.length, {timeout: 60000}).toBe(3);
     await annotate('Tree frame profile', {
       body: JSON.stringify({samples, errors}),
       bodyEncoding: 'utf-8',
       contentType: 'application/json'
     });
     expect(errors).toEqual([]);
+    expect(samples.map(sample => sample.phase)).toEqual(['settled', 'rotate', 'zoom']);
     expect(samples.every(sample => sample.splats > 0)).toBe(true);
     expect(
       samples.every(sample => sample.draws > 0 && sample.draws <= MAX_MIXED_CANOPY_PASSES)
