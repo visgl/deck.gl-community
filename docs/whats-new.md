@@ -54,7 +54,7 @@ This page lists module additions and major changes in each release. For detailed
 
 - Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera culling includes the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
 
-- **Breaking:** `SplatShadowPass`, `SplatShadowProjection`, `maxShadowSplats`, foliage-shadow controls, and SplatLayer shadow statistics are removed. TreeLayer and SplatLayer now have no built-in deck.gl foliage-shadow integration. Remove those imports and props; provide shadows outside these renderers if they are required. This requires a major `@deck.gl-community/layers` release.
+- Native `TreeLayer` foliage and `SplatLayer` ship without built-in deck.gl foliage-shadow integration. Applications that require foliage shadows must provide them outside these renderers.
 
 - `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopy refinement is per owner within SplatLayer's shared budget, and foliage uses SplatLayer's weighted order-independent compositing path by default. Woody refinement selects opaque meshes with structural roots retained at a distance. The old import temporarily re-exports the same constructor.
 
