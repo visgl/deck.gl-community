@@ -27,6 +27,21 @@ import {
 import {SplatEffect} from './splat-effect';
 import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl';
 
+// Picking omits LightingEffect, but the effect's shadow shader remains a deck default module.
+// Retain its harmless fallback samplers from a draw pass so the pick pass can bind the module.
+const PICKING_SHADOW_BINDINGS = new WeakMap<object, Record<string, any>>();
+
+function withPickingShadowBindings(owner: object, props: Record<string, any>) {
+  if (props.shadow?.dummyShadowMap) PICKING_SHADOW_BINDINGS.set(owner, props.shadow);
+  const previous = PICKING_SHADOW_BINDINGS.get(owner);
+  return props.picking?.isActive && previous
+    ? {
+        ...props,
+        shadow: {...previous, project: props.project, shadowEnabled: false, drawToShadowMap: false}
+      }
+    : props;
+}
+
 export type PreparedSplatProps<DataT> = {
   data: DataT[];
   /** Color composition across prepared sources. @default 'weighted' */
@@ -197,6 +212,10 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     return [this.state.model, this.state.accumulationModel, this.state.transmissionModel].filter(
       (model): model is Model => Boolean(model)
     );
+  }
+
+  setShaderModuleProps(props: Parameters<Model['shaderInputs']['setProps']>[0]) {
+    super.setShaderModuleProps(withPickingShadowBindings(this, props));
   }
 
   private calculateWindData(attribute, {startRow, endRow}) {
