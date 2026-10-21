@@ -189,23 +189,31 @@ long-term plan.
 
 ### Label fonts
 
-Labels take their font from the symbol layer's `text-font`, or from the style spec's default
-(`Open Sans Regular`, `Arial Unicode MS Regular`) when the layer does not set it. Each font name
-is split into a family and its trailing weight and style words (`Thin`, `Light`, `Regular`,
+When the style sets `glyphs`, labels are drawn with its glyphs, as in MapLibre GL JS: the signed
+distance fields of each `text-font` stack, loaded per 256-character range as the labels of a tile
+need them, through the same `fetch` as the style and its tiles. A tile's labels are placed once
+the glyphs of their text have loaded, and their characters advance and line up as MapLibre lays
+them out. As in MapLibre, CJK ideographs, hangul, hiragana and katakana are drawn with the
+browser's `sans-serif` font instead (MapLibre's default `localIdeographFontFamily`), at one em of
+24 atlas pixels where MapLibre draws them at twice that. A character missing from its range is not
+drawn. A relative `glyphs` URL resolves against the style URL.
+
+Without `glyphs`, or with the [`fontFamily`](/docs/modules/basemap-layers/api-reference/basemap-layer#fontfamily)
+prop set, labels are drawn with the browser's fonts. Each font name of `text-font`, or of the
+style spec's default (`Open Sans Regular`, `Arial Unicode MS Regular`) when the layer does not set
+it, is split into a family and its trailing weight and style words (`Thin`, `Light`, `Regular`,
 `Medium`, `Semibold`, `Bold`, `ExtraBold`, `Black`, `Italic`, `Oblique`, and their variants), so
 `["Open Sans Semibold Italic", "Arial Unicode MS Bold"]` becomes the CSS family list
 `"Open Sans", "Arial Unicode MS", sans-serif` at weight 600, italic. The list ends with `serif` or
 `monospace` when the first name says `Serif` or `Mono`, and `sans-serif` otherwise, so labels
 still draw when none of the fonts is installed. No web fonts are loaded: the fonts must be
-installed or loaded by the page.
+installed or loaded by the page. The `fontFamily` prop overrides the mapping, with a fixed family
+list or a function from the font names to a family list, weight and style. `getLabelFont(fontStack)`
+exposes the default mapping.
 
-`TextLayer` takes one font per layer, so the weight and style come from the first font of the
-stack, and `text-font` is evaluated once per style layer and zoom step. A data-driven
-`text-font` uses the value of the first label feature in each tile.
-
-The [`fontFamily`](/docs/modules/basemap-layers/api-reference/basemap-layer#fontfamily) prop
-overrides the mapping, with a fixed family list or a function from the font names to a family
-list, weight and style. `getLabelFont(fontStack)` exposes the default mapping.
+`TextLayer` takes one font per layer, so `text-font` is evaluated once per style layer and zoom
+step; with browser fonts, the weight and style come from the first font of the stack. A
+data-driven `text-font` uses the value of the first label feature in each tile.
 
 ### Icons and sprites
 

@@ -47,6 +47,17 @@ type _LabelTextLayerProps<DataT> = {
    * as the layer draws.
    */
   getLineGlyphKey?: ((viewport: any) => string) | null;
+  /**
+   * Mip levels of the font atlas texture (see `LABEL_ATLAS_MIP_LEVELS`). 1 samples the atlas
+   * without mipmaps, as MapLibre GL JS samples its 24 px glyphs.
+   */
+  atlasMipLevels?: number;
+  /**
+   * Whether the glyph edge is smoothed no more than `fontSettings.smoothing`, which keeps small
+   * text from the 64 px label font atlas crisp. False smooths it as MapLibre GL JS smooths its
+   * 24 px glyphs, which is wider on small text.
+   */
+  edgeGammaCapped?: boolean;
 };
 
 /**
@@ -130,6 +141,8 @@ const defaultProps: DefaultProps<LabelTextLayerProps> = {
   getTextJustify: {type: 'accessor', value: 'auto'},
   getLineGlyphs: {type: 'function', value: null, optional: true} as any,
   getLineGlyphKey: {type: 'function', value: null, optional: true} as any,
+  atlasMipLevels: {type: 'number', value: 2},
+  edgeGammaCapped: {type: 'boolean', value: true},
   // Keeps the part of italic glyphs left of their origin (see `getLabelFontRenderer`).
   _getFontRenderer: {type: 'function', value: getLabelFontRenderer}
 };
@@ -193,7 +206,7 @@ export const LABEL_EDGE_DEVICE_PIXELS = 0.84;
 /**
  * `distancePerAtlasPixel`: distance field units per atlas pixel of the font atlas,
  * `1 / fontSettings.radius`. `foreshortening`: how much the view shortens screen y, see
- * `getLabelForeshortening`.
+ * `getLabelForeshortening`. `capped`: 1 when the glyph edge is smoothed no more than `sdf.gamma`.
  */
 const labelEdgeUniforms = {
   name: 'labelEdge',
@@ -201,9 +214,10 @@ const labelEdgeUniforms = {
 layout(std140) uniform labelEdgeUniforms {
   float distancePerAtlasPixel;
   float foreshortening;
+  float capped;
 } labelEdge;
 `,
-  uniformTypes: {distancePerAtlasPixel: 'f32', foreshortening: 'f32'}
+  uniformTypes: {distancePerAtlasPixel: 'f32', foreshortening: 'f32', capped: 'f32'}
 } as const;
 
 /** The cosine of 89 degrees: no label is foreshortened more, so the factor stays positive. */
@@ -243,7 +257,8 @@ const SDF_EDGES =
  * size, which cancels both. The atlas coordinates' rate of change along x holds that scale,
  * perspective included, at each pixel, so no term for w is added here.
  * - The glyph edge, as it would be unpitched, is never smoothed more than `TextLayer` smooths it
- *   (`sdf.gamma`): on small text at device pixel ratio 1, `TextLayer`'s edge is the narrower. The
+ *   (`sdf.gamma`), unless `labelEdge.capped` is 0: on small text at device pixel ratio 1,
+ *   `TextLayer`'s edge is the narrower, which suits the 64 px label font atlas. The
  *   cap applies before the 1 / cos(pitch) widening, so that it narrows pitched labels only where it
  *   would narrow them unpitched.
  * - The halo edge is smoothed as MapLibre's, also when it has no blur, unless the halo reaches so
@@ -265,7 +280,8 @@ if (sdf.enabled) {
       // TextLayer's smoothing caps the glyph edge as it would be on an unpitched map, before the
       // 1 / cos(pitch) widening: compared after it, the cap would undo the widening on the glyphs
       // that perspective draws small, toward the horizon.
-      float labelFillGamma = min(sdf.gamma, labelEdgeGamma * labelEdge.foreshortening) /
+      float unpitchedEdgeGamma = labelEdgeGamma * labelEdge.foreshortening;
+      float labelFillGamma = (labelEdge.capped > 0.5 ? min(sdf.gamma, unpitchedEdgeGamma) : unpitchedEdgeGamma) /
         labelEdge.foreshortening;
       alpha = smoothstep(sdf.buffer - labelFillGamma, sdf.buffer + labelFillGamma, distance);
       if (sdf.outlineBuffer > 0.0 && sdf.outlineBuffer < sdf.buffer) {
@@ -297,7 +313,10 @@ if (sdf.enabled) {
 /** @internal Exported for tests. */
 export class LabelCharactersLayer extends MultiIconLayer<any> {
   static layerName = 'LabelCharactersLayer';
-  static defaultProps: DefaultProps<any> = {sdfRadius: {type: 'number', value: 12}};
+  static defaultProps: DefaultProps<any> = {
+    sdfRadius: {type: 'number', value: 12},
+    sdfEdgeCapped: {type: 'boolean', value: true}
+  };
 
   declare state: MultiIconLayer<any>['state'] & {
     /** Each label's packed character definitions, by label object. */
@@ -407,7 +426,10 @@ ${HIDE_CHARACTER_BEFORE}`
   draw(params: any): void {
     const radius = Number((this.props as any).sdfRadius) || 12;
     const foreshortening = getLabelForeshortening(this.context.viewport, this.props.billboard);
-    this.setShaderModuleProps({labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening}});
+    const capped = (this.props as any).sdfEdgeCapped === false ? 0 : 1;
+    this.setShaderModuleProps({
+      labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening, capped}
+    });
     const {getLineGlyphs, getLineGlyphKey} = this.props as any;
     const attribute = this.getAttributeManager()?.attributes.instanceLineGlyphs;
     if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant && attribute.value) {
@@ -698,8 +720,10 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     const {device} = this.context;
     if (atlas && device) {
       let {atlasTextures} = this.state;
-      if (!atlasTextures) {
-        atlasTextures = new SharedTextureSet(device, {maxMipLevels: LABEL_ATLAS_MIP_LEVELS});
+      const maxMipLevels = this.props.atlasMipLevels ?? LABEL_ATLAS_MIP_LEVELS;
+      if (atlasTextures?.options.maxMipLevels !== maxMipLevels) {
+        atlasTextures?.releaseAll();
+        atlasTextures = new SharedTextureSet(device, {maxMipLevels});
         this.state.atlasTextures = atlasTextures;
       }
       // A new atlas, with more characters, is a new texture; the previous one is released.
@@ -729,6 +753,7 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
       }
       // The distance field's reach, from which the glyph layer measures its antialiasing.
       props.sdfRadius = this.props.fontSettings?.radius || 12;
+      props.sdfEdgeCapped = this.props.edgeGammaCapped !== false;
     }
     // The placement slot is a row's, and the sublayers draw this layer's rows: it is handed down
     // as is. deck.gl would otherwise call it with the feature a row was made from.

@@ -209,7 +209,13 @@ const CASES: VariableAnchorCase[] = [
     id: 'cities with icons',
     scene: CITY_SCENE,
     getStyle: getCityStyle,
-    minRecall: 1,
+    // 17 of MapLibre's 18. Both renderers place Lyon, whose point is 14 pixels left of the view,
+    // at its first anchor, `bottom`, with the same text box to a pixel, and neither draws any of
+    // its glyphs in the view. MapLibre's box ends 1 pixel inside the view, and its labels are read
+    // back by collision box (see `renderMapLibre`); `BasemapLayer`'s box ends at the view's edge,
+    // and its labels are read back by the text they draw. With the style's glyphs, the text is as narrow
+    // as MapLibre's; with the browser's fonts it was wider and drew into the view.
+    minRecall: 17 / 18,
     minPrecision: 1,
     minOverlap: 0.5
   }

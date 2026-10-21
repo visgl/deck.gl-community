@@ -11,6 +11,7 @@ import mvtWorkerUrl from '@loaders.gl/mvt/mvt-worker.js?url';
 import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import {BasemapLayer} from '../../src/index';
+import type {GlyphStore} from '../../src/glyph-store';
 import {MVTLabelLayer} from '../../src/mvt-label-layer';
 import {fromFixtureUrl} from './fixtures';
 import {VIEWPORT, type ReferenceScene} from './scenes';
@@ -282,11 +283,30 @@ class ProbeLabelLayer extends MVTLabelLayer {
 }
 
 /**
+ * The glyph store of each `glyphs` URL while `renderBasemapLayer` draws a scene, shared by its two
+ * draws. `BasemapLayer` makes a new store each time it loads a style, and keys its font atlases by
+ * the store, so the read-back draw would find none of the atlases built from the first draw's.
+ */
+let sharedGlyphStores: Map<string, GlyphStore> | null = null;
+
+/**
  * `BasemapLayer` with only its label text pickable, so that the labels left after collision can be
  * read back by picking. Drawing is unchanged.
  */
 class ProbeBasemapLayer extends BasemapLayer {
   static layerName = 'ProbeBasemapLayer';
+
+  // Takes the glyph store of the render's other draw at the same URL (see `sharedGlyphStores`).
+  setState(partialState: any) {
+    const glyphs: GlyphStore | null | undefined = partialState?.glyphs;
+    if (glyphs && sharedGlyphStores) {
+      if (!sharedGlyphStores.has(glyphs.url)) {
+        sharedGlyphStores.set(glyphs.url, glyphs);
+      }
+      partialState = {...partialState, glyphs: sharedGlyphStores.get(glyphs.url)};
+    }
+    super.setState(partialState);
+  }
 
   renderLayers() {
     const toProbe = (layers: unknown): any[] =>
@@ -326,18 +346,6 @@ function getResourceRequests(start: number): Array<{url: string; status: number}
       url: entry.name,
       status: (entry as any).responseStatus ?? 0
     }));
-}
-
-/**
- * The CSS fonts that draw the styles' `text-font` stacks, where the glyph server draws another
- * font than its first name says: CARTO's `Montserrat ... Italic` stacks are drawn with Open Sans
- * Italic glyphs (their advances match Open Sans Italic, and are 20% narrower than Montserrat
- * Italic's). Other stacks draw their first font.
- */
-function getReferenceFontFamily(fontStack: string[]) {
-  return /^Montserrat .*Italic$/.test(fontStack[0] || '')
-    ? {fontFamily: '"Open Sans", sans-serif'}
-    : null;
 }
 
 /** Frames drawn after everything has loaded and before the frame is read. */
@@ -457,14 +465,22 @@ export async function renderBasemapLayer(
 ): Promise<Render> {
   const start = performance.now();
   resetFontAtlases();
-  const first = await draw(structuredClone(style), scene, layerProps, {
-    ...options,
-    onRendered: undefined
-  });
-  checkFontAtlases(first);
-  const prebuilt = resetFontAtlases(first.fontAtlases);
-  const second = await draw(style, scene, layerProps, options);
-  checkFontAtlases(second);
+  sharedGlyphStores = new Map();
+  let first: BasemapLayerDraw;
+  let prebuilt: Set<object>;
+  let second: BasemapLayerDraw;
+  try {
+    first = await draw(structuredClone(style), scene, layerProps, {
+      ...options,
+      onRendered: undefined
+    });
+    checkFontAtlases(first);
+    prebuilt = resetFontAtlases(first.fontAtlases);
+    second = await draw(style, scene, layerProps, options);
+    checkFontAtlases(second);
+  } finally {
+    sharedGlyphStores = null;
+  }
   const {fontAtlases, ...render} = second;
   return {
     ...render,
@@ -525,7 +541,6 @@ async function drawBasemapLayer(
               id: 'basemap',
               style,
               loadOptions: {mvt: {workerUrl: mvtWorkerUrl}},
-              fontFamily: getReferenceFontFamily,
               // Placed at every frame, as MapLibre with `fadeDuration: 0`.
               labelPlacementInterval: 0,
               ...layerProps
@@ -597,7 +612,9 @@ async function drawBasemapLayer(
     })) {
       const labelLayer = info.sourceTileSubLayer;
       if (labelLayer instanceof ProbeLabelLayer && info.object) {
-        const text = labelLayer.getLabel(info.object);
+        // In logical order, as MapLibre's text is read back: the drawn text of a label with
+        // right-to-left characters is in the order it is drawn.
+        const text = labelLayer.getUnwrappedLabelText(info.object);
         if (text) {
           labels.add(String(text));
         }

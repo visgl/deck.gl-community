@@ -192,17 +192,25 @@ describe('TextHaloBlurExtension', () => {
     ).toEqual({});
   });
 
-  test('sets the blur uniform when drawing', () => {
+  test('sets the blur uniforms when drawing: capped unless the layer draws style glyphs', () => {
     const set: unknown[] = [];
-    extension.draw.call(
-      {
-        context: {device: {type: 'webgl'}},
-        props: {textHaloBlurGamma: 0.2},
-        setShaderModuleProps: (props: unknown) => set.push(props)
-      } as any,
-      {} as any,
-      extension
-    );
-    expect(set).toEqual([{textHaloBlur: {gamma: 0.2}}]);
+    for (const props of [
+      {textHaloBlurGamma: 0.2},
+      {textHaloBlurGamma: 0.2, textHaloBlurCapped: false}
+    ]) {
+      extension.draw.call(
+        {
+          context: {device: {type: 'webgl'}},
+          props,
+          setShaderModuleProps: (moduleProps: unknown) => set.push(moduleProps)
+        } as any,
+        {} as any,
+        extension
+      );
+    }
+    expect(set).toEqual([
+      {textHaloBlur: {gamma: 0.2, capped: 1}},
+      {textHaloBlur: {gamma: 0.2, capped: 0}}
+    ]);
   });
 });
