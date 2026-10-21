@@ -6,6 +6,13 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+### Removed `@deck.gl-community/three`
+
+The deprecated compatibility workspace has been removed. Import `TreeLayer`, `TreeLayerProps`,
+`TreeType`, `Season`, and `CropConfig` from `@deck.gl-community/layers` instead. This is a
+breaking package removal; previously published `@deck.gl-community/three` versions remain on npm.
+
+
 `RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
 compensated for oversized rings may need their radius retuned. Angular sectors use the leaf
 count rather than all graph nodes, so hierarchies with visible internal nodes fill the circle.

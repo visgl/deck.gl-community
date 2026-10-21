@@ -10,7 +10,7 @@ import {
   type WebMercatorViewport,
   type PickingInfo
 } from '@deck.gl/core';
-import {TreeLayer} from '@deck.gl-community/three';
+import {TreeLayer} from '@deck.gl-community/layers';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';

@@ -1,5 +1,11 @@
 # deck.gl-community CHANGELOG
 
+## Unreleased
+
+- **Breaking:** Remove the deprecated `@deck.gl-community/three` compatibility workspace. Import
+  `TreeLayer` and its types from `@deck.gl-community/layers`; the Seasonal Farm example now lives
+  under `examples/layers/seasonal-farm`.
+
 ## v9.4.2
 
 - Publish the playground package with customizable document languages, panels, template metadata, and cancellable asynchronous renderers (#788, #789).

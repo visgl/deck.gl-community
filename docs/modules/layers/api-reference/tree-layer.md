@@ -92,7 +92,7 @@ Wind is implemented in GLSL and WGSL. Trunks, branches, leaves and attached crop
 
 Remove `detail` from TreeLayer props and `TreeDetail` from type imports. TreeLayer now composes full leaf Gaussian sources and continuous woody meshes, with automatic refinement for subpixel crowns and branches. Legacy demo `detail` query parameters are ignored.
 
-The deprecated `@deck.gl-community/three` workspace temporarily re-exports the same native `TreeLayer` constructor. Update imports and dependencies to `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season` and `CropConfig`. The production renderer has no Three.js dependency; the compatibility workspace will be removed with the examples migration.
+The deprecated `@deck.gl-community/three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season` and `CropConfig`. Previously published package versions are unchanged. The production renderer has no Three.js dependency.
 
 **Breaking:** native foliage shadows were removed. Remove `shadowEnabled` and `maxShadowSplats` from TreeLayer and SplatLayer configuration, remove `SplatShadowPass` and `SplatShadowProjection` imports, and stop reading the removed shadow statistics. TreeLayer and SplatLayer now force their foliage and wood sublayers not to cast deck.gl shadows. Applications that need shadows must provide them outside this foliage renderer.
 
