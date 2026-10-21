@@ -1,5 +1,15 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.3
+
+- Render dense, mixed-species forests with native `TreeLayer` foliage backed by `SplatLayer`. Each visible canopy now selects its own screen-error resolution within a shared, device-aware budget, with stable optical transitions, picking, seasonal crops and wind on WebGL2 and WebGPU (#794, #807, #949).
+- Add `VolumetricVideoLayer` for GPU-rendered MP4/MOV frame volumes, including native-pixel sampling, bounded history, static-pixel filtering and matching WebGL2/WebGPU compositing (#822, #917, #919, #921).
+- Bring `BasemapLayer` substantially closer to MapLibre styling: style glyphs and sprites, CPU label placement and collision, line labels, patterns, hillshade, tiled GeoJSON, style order and globe-aware rendering (#818–#938).
+- Add edge snapping and reliable interleaved MapLibre/Mapbox interaction to editable layers, including correct lasso picking and primary-gesture handling (#672, #675, #914).
+- Improve shared tile traversal with globe-horizon culling, cache/view lifecycle fixes and correct selected-tile rendering; expand graph, panel, playground and multi-canvas examples and documentation.
+- **Compatibility:** `SplatShadowPass`, `SplatShadowProjection`, `maxShadowSplats`, foliage-shadow controls and SplatLayer shadow statistics are removed. Supply foliage shadows outside `TreeLayer` and `SplatLayer` if your application needs them.
+- See [What's New](docs/whats-new.md) and the module API references for usage and migration details.
+
 ## v9.4.2
 
 - Publish the playground package with customizable document languages, panels, template metadata, and cancellable asynchronous renderers (#788, #789).
