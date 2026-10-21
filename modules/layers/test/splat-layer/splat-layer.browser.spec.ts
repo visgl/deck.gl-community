@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {
-  Deck,
-  MapView,
+  AmbientLight,
   COORDINATE_SYSTEM,
   CompositeLayer,
-  WebMercatorViewport,
+  Deck,
+  DirectionalLight,
+  LightingEffect,
+  MapView,
   type Layer
 } from '@deck.gl/core';
-import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
+import {webgl2Adapter} from '@luma.gl/webgl';
 import {describe, expect, it, vi} from 'vitest';
-import {SplatLayer, SplatShadowPass, type SplatSource} from '../../src';
+import {SplatLayer, type SplatSource} from '../../src';
 
 function collectLeaves(layer: Layer): Layer[] {
   return layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(collectLeaves) : [layer];
@@ -94,9 +96,8 @@ describe('Gaussian canopy rendering', () => {
       expect(picked?.object).toBe(object);
       const leaves = collectLeaves((deck.props.layers as Layer[])[0]);
       const visual = leaves.find(layer => layer.id.includes('refinement'))!;
-      const caster = leaves.find(layer => layer.id.includes('shadow-casters'))!;
       const geometry = (visual.state.model as any)._gpuGeometry;
-      expect((caster.state.model as any)._gpuGeometry.indices).toBe(geometry.indices);
+      expect(visual.props.shadowEnabled).toBe(false);
       const positions = visual.getAttributeManager()!.getAttributes().instancePositions.getBuffer();
       const rows = (deck.props.layers as Layer[])[0].state.groups;
       const spatialIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
@@ -204,97 +205,6 @@ describe('Gaussian canopy rendering', () => {
           y: 256 - Math.round((bottom + top) / 2)
         })?.object
       ).toBe(distant);
-      // A light still selects the first owner when the camera sees only the second.
-      // Its texel error falls inside the refinement blend band.
-      const beforeHierarchy = frames;
-      deck.setProps({
-        layers: [
-          makeLayer(2).clone({
-            hierarchy: [
-              {source: SOURCE, error: 0},
-              {source: {...SOURCE}, error: 0.1}
-            ]
-          })
-        ]
-      });
-      await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeHierarchy + 3);
-      const shadowRoot = (deck.props.layers as SplatLayer[])[0];
-      const viewport = deck.getViewports()[0];
-      const factor = (8.25 * 2) / (256 * viewport.distanceScales.unitsPerMeter[2]);
-      shadowRoot.prepareShadow(
-        [
-          {
-            matrix: [factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, 1],
-            center: [0, 0, 0, 0],
-            width: 256,
-            height: 256
-          }
-        ],
-        viewport
-      );
-      const shadowAt = frames;
-      await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(shadowAt + 2);
-      const shadowRows = shadowRoot.state.shadowGroups.flat();
-      expect(shadowRows).toHaveLength(2);
-      expect(shadowRows.every(row => row.object === object)).toBe(true);
-      expect(shadowRows.reduce((sum, row) => sum + row.weight, 0)).toBeCloseTo(1, 6);
-      expect(shadowRows.every(row => row.weight > 0 && row.weight < 1)).toBe(true);
-      const beforeBlend = frames;
-      await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeBlend + 3);
-      const blendLayer = collectLeaves(shadowRoot).find(layer =>
-        layer.id.includes('shadow-casters-0')
-      )!;
-      const blendAttributes = blendLayer.getAttributeManager()!.getAttributes();
-      const blendWrites = vi.spyOn(blendAttributes.instancePositions.getBuffer()!, 'write');
-      const oldCoverage = blendAttributes.instanceWindData.value[4];
-      // Transmission is independent of camera aspect, inset placement and view count.
-      const lightMap = new SplatShadowPass(deck.device!);
-      const lightProjection = {
-        matrix: [factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, 1],
-        center: [0, 0, 0, 0],
-        width: 256,
-        height: 256
-      };
-      try {
-        const lightOptions = {layers: collectLeaves(shadowRoot), viewports: [viewport]};
-        lightMap.renderTransmission(lightOptions, lightProjection);
-        const readLight = () =>
-          (deck.device! as WebGLDevice).readPixelsToArrayWebGL(
-            lightMap.transmission!
-          ) as Uint8Array;
-        const baseline = readLight().slice();
-        expect(baseline.some(value => value < 240)).toBe(true);
-        const inset = new WebMercatorViewport({...viewport, x: 40, y: 20, width: 320, height: 240});
-        lightMap.renderTransmission(
-          {...lightOptions, viewports: [inset, viewport]},
-          lightProjection
-        );
-        expect(readLight()).toEqual(baseline);
-      } finally {
-        lightMap.destroy();
-      }
-      const beforeResize = frames;
-      shadowRoot.prepareShadow(
-        [
-          {
-            matrix: [factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, factor, 0, 0, 0, 0, 1],
-            center: [0, 0, 0, 0],
-            width: 258,
-            height: 256
-          }
-        ],
-        viewport
-      );
-      await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeResize + 3);
-      const changedBlend = collectLeaves(shadowRoot).find(layer =>
-        layer.id.includes('shadow-casters-0')
-      )!;
-      expect(
-        changedBlend.getAttributeManager()!.getAttributes().instanceWindData.value[4]
-      ).not.toBeCloseTo(oldCoverage, 5);
-      expect(blendWrites).not.toHaveBeenCalled();
-      blendWrites.mockRestore();
-
       expect(errors).toEqual([]);
     } finally {
       deck.finalize();
@@ -432,6 +342,58 @@ it('moves drawing and picking when a new data array reuses a mutated owner', asy
     expect(pixels[offset + 2]).toBeGreaterThan(150);
     expect(pixels[offset]).toBeLessThan(10);
     expect(deck.pickObject(after)?.object).toBe(row);
+    expect(errors).toEqual([]);
+  } finally {
+    deck.finalize();
+    parent.remove();
+  }
+}, 20000);
+
+it('picks non-shadow-casting splats with deck shadows enabled', async () => {
+  const parent = document.createElement('div');
+  parent.style.cssText = 'width:128px;height:128px';
+  document.body.append(parent);
+  const owner = {position: [0, 0, 0] as [number, number, number]};
+  const errors: string[] = [];
+  let frames = 0;
+  const deck = new Deck({
+    parent,
+    width: 128,
+    height: 128,
+    useDevicePixels: false,
+    _animate: true,
+    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
+    views: new MapView(),
+    initialViewState: {longitude: 0, latitude: 0, zoom: 21, pitch: 0},
+    // This makes the host install its global shadow shader module. The SplatLayer itself
+    // remains non-casting, which is the public foliage contract.
+    effects: [
+      new LightingEffect({
+        ambient: new AmbientLight({intensity: 0.5}),
+        sun: new DirectionalLight({direction: [-1, -1, -2], intensity: 1, _shadow: true})
+      })
+    ],
+    layers: [
+      new SplatLayer({
+        id: 'pick-with-host-shadow',
+        data: [owner],
+        source: SOURCE,
+        coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
+        coordinateOrigin: [0, 0, 0],
+        getTranslation: [0, 0, 5],
+        pickable: true,
+        material: {unlit: true}
+      })
+    ],
+    onError: error => errors.push(error.message),
+    onAfterRender: () => frames++
+  });
+  try {
+    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(5);
+    expect(
+      collectLeaves(deck.props.layers[0] as Layer).every(layer => !layer.props.shadowEnabled)
+    ).toBe(true);
+    expect(deck.pickObject({x: 64, y: 64})?.object).toBe(owner);
     expect(errors).toEqual([]);
   } finally {
     deck.finalize();

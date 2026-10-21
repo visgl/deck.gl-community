@@ -89,6 +89,21 @@ describe('Prepared Gaussian sources', () => {
     expect(merged.positions[0]).toBeCloseTo(0.15);
     expect(Math.max(...merged.scales)).toBeGreaterThan(0.05);
   });
+  it('keeps a requested terminal cluster instead of collapsing all spatial extent into one proxy', () => {
+    const cluster: SplatSource = {
+      ...source,
+      positions: new Float32Array([-3, 0, 0, -2, 0, 0, -1, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]),
+      scales: new Float32Array(Array.from({length: 6}, () => [0.03, 0.02, 0.01]).flat()),
+      rotations: new Float32Array(Array.from({length: 6}, () => [1, 0, 0, 0]).flat()),
+      colors: new Uint8Array(Array.from({length: 6}, () => [255, 128, 0, 128]).flat()),
+      opacities: new Float32Array(6).fill(0.7)
+    };
+    const hierarchy = createSplatHierarchy(cluster, [8], 2);
+    const terminal = hierarchy.at(-1)!.source;
+    expect(validateSplatSource(terminal)).toBe(2);
+    expect(terminal.positions[0]).toBeLessThan(0);
+    expect(terminal.positions[3]).toBeGreaterThan(0);
+  });
 });
 
 it('centers culling on translated crowns and respects their configured support', () => {

@@ -1,11 +1,17 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {WebMercatorViewport, _GlobeViewport as GlobeViewport} from '@deck.gl/core';
+import {WebMercatorViewport, _GlobeViewport as GlobeViewport, type Viewport} from '@deck.gl/core';
+import {Matrix4} from '@math.gl/core';
 import {expect, it, vi} from 'vitest';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
 import {SplatEffect} from '../../src/splat-layer/splat-effect';
+import {
+  getSplatBoundedPixelsPerMeter,
+  getSplatPixelsPerMeter,
+  getSplatViewportLodWeight
+} from '../../src/splat-layer/splat-culling';
 const SOURCE = {
   positions: new Float32Array([0, 0, 0]),
   scales: new Float32Array([1, 1, 1]),
@@ -39,7 +45,62 @@ function make(data: {position: [number, number, number]}[], flex = 1, extra = {}
   } as any);
   return layer;
 }
-it('includes absolute flex in both wind allowances for camera and light bounds', () => {
+
+type PerspectiveRow = {id: string; position: [number, number, number]; scale: number};
+function makePerspective(
+  data: PerspectiveRow[],
+  extra = {},
+  getViewports?: (viewport: Viewport) => Viewport[]
+) {
+  const coarse = {...SOURCE, scales: new Float32Array([0.1, 0.1, 0.1])};
+  const fine = Object.fromEntries(
+    Object.entries(coarse).map(([key, array]) => [
+      key,
+      new (array.constructor as typeof Float32Array)([...array, ...array, ...array, ...array])
+    ])
+  );
+  const layer = new SplatLayer<PerspectiveRow>({
+    data,
+    source: fine,
+    hierarchy: [
+      {source: fine, error: 0},
+      {source: coarse, error: 0.02}
+    ],
+    getPosition: row => row.position,
+    getScale: row => [row.scale, row.scale, row.scale],
+    pixelError: 0.9,
+    foveationStrength: 1,
+    ...extra
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  const viewport = {
+    viewProjectionMatrix: new Matrix4().perspective({
+      fovy: Math.PI / 2,
+      aspect: 1,
+      near: 0.1,
+      far: 100
+    }),
+    width: 100,
+    height: 100,
+    distanceScales: {unitsPerMeter: [1, 1, 1]}
+  } as unknown as Viewport;
+  Object.assign(layer, {
+    context: {
+      viewport,
+      device: {canvasContext: {cssToDeviceRatio: () => 1}},
+      deck: {getViewports: () => getViewports?.(viewport) ?? [viewport]}
+    }
+  });
+  vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {dataChanged: true}
+  } as any);
+  return {layer, viewport};
+}
+it('includes absolute flex in the camera wind allowance', () => {
   const data = [{position: [0, 0, 0] as [number, number, number]}];
   const rigid = make(data, 0),
     normal = make(data, 1),
@@ -65,122 +126,138 @@ it('starts shared capped registrations at coverage before their first joint gran
       {source: SOURCE, error: 1}
     ],
     pixelError: 0.001,
-    _splatBudgetGroup: {maxSplats: 100, maxShadowSplats: 100}
+    _splatBudgetGroup: {maxSplats: 100}
   });
   expect(layer.state.candidates[0].level).toBe(0);
   expect(layer.splatStats.renderedSplats).toBe(1);
   expect(layer.splatStats.coverageFloor).toBe(1);
 });
-it('reconciles fallback shadow membership on replacement without retaining removed owners', () => {
-  const a = {position: [0, 0, 0] as [number, number, number]},
-    b = {position: [1, 0, 0] as [number, number, number]};
-  const layer = make([a, b]);
-  const next = [b];
-  // updateState reads the current layer props, matching deck's state-transfer lifecycle.
-  Object.assign(layer, {props: layer.clone({data: next}).props});
-  layer.updateState({
-    props: layer.props,
-    oldProps: layer.props,
-    changeFlags: {dataChanged: true}
-  } as any);
-  expect(
-    [...layer.state.shadowRefinement.entries.values()].map(entry => entry.owner.row.object)
-  ).toEqual([b]);
-  expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual([b]);
-});
 
-it('refreshes light-space owner offsets before regrouping replaced or cleared assets', () => {
-  const first = {position: [0, 0, 0] as [number, number, number], splats: SOURCE};
-  const second = {
-    position: [0.1, 0, 0] as [number, number, number],
-    splats: {...SOURCE, colors: new Uint8Array([200, 20, 50, 255])}
+it("spends a shared same-source canopy cap by each owner's projected error", () => {
+  const data: PerspectiveRow[] = [
+    {id: 'near', position: [0, 0, -3], scale: 10},
+    ...Array.from({length: 9}, (_, index) => ({
+      id: `far-${index}`,
+      position: [0, 0, -10] as [number, number, number],
+      scale: 10
+    }))
+  ];
+  const {layer} = makePerspective(data, {
+    pixelError: 0.001,
+    foveationStrength: 0,
+    maxSplats: 20,
+    _splatBudgetGroup: {maxSplats: 20}
+  });
+  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
+  layer.state.runtime.reconcile(new Set([layer.id]));
+  // The runtime has every participating demand at this point, so its first globally budgeted
+  // allocation must be present immediately. A 10k canopy cannot wait for a per-frame fade to
+  // leave its all-coarse coverage floor before nearby crowns gain their selected detail.
+  expect(layer.state.refinement.active).toBe(false);
+  const level = (id: string) => {
+    const owner = layer.state.owners.find(row => row.row.object.id === id)!;
+    return layer.state.refinement.entries.get(owner.key)!.dominant;
   };
-  const layer = make([first, second], 0, {source: undefined, getSource: row => row.splats});
-  layer.prepareShadow(
-    [
-      {
-        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        center: [0, 0, 0, 0],
-        width: 256,
-        height: 256
-      }
-    ],
-    layer.context.viewport
+  const farLevels = data.slice(1).map(row => level(row.id));
+
+  expect(level('near')).toBe(0);
+  expect(Math.max(...farLevels)).toBe(1);
+  expect(level('near')).toBeLessThan(Math.max(...farLevels));
+});
+
+it('fades a broad runtime retarget instead of snapping the rendered canopy', () => {
+  const data: PerspectiveRow[] = Array.from({length: 64}, (_, index) => ({
+    id: `tree-${index}`,
+    position: [(index % 8) * 0.2 - 0.7, Math.floor(index / 8) * 0.2 - 0.7, -10],
+    scale: 1
+  }));
+  const {layer} = makePerspective(data, {maxSplats: 256});
+  const refinement = layer.state.refinement;
+  const counts = (owner: (typeof layer.state.owners)[number]) =>
+    owner.asset.hierarchy.map(level => level.source.positions.length / 3);
+  const coarseRows = layer.state.candidates.map(row => ({...row, level: 1, blend: 0}));
+  refinement.reconcile(coarseRows, counts, Infinity, owner => owner.key);
+  refinement.sample(1);
+  layer.state.awaitingInitialAllocation = false;
+  vi.spyOn(layer, 'setNeedsRedraw').mockImplementation(() => {});
+
+  (layer as any).applyAllocation(
+    layer.state.candidates.map(row => ({...row, level: 0, blend: 0})),
+    Infinity
   );
-  expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual([first, second]);
-  const retained = [...layer.state.shadowRefinement.entries.values()][1];
-  for (const data of [[second], []]) {
-    const oldProps = layer.props;
-    Object.assign(layer, {props: layer.clone({data}).props});
-    layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
-    expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual(data);
-    if (data.length) {
-      expect([...layer.state.shadowRefinement.entries.values()]).toEqual([retained]);
-      expect(retained.owner.offset).toBe(0);
-    }
-  }
-  expect(layer.state.shadowRefinement.entries.size).toBe(0);
-  expect(layer.renderLayers()).toEqual([]);
+
+  expect(refinement.active).toBe(true);
+  expect([...refinement.entries.values()]).toHaveLength(64);
+  expect(
+    [...refinement.entries.values()].every(
+      entry => entry.weights[1] === 1 && entry.weights[0] === 0 && entry.target[0] === 1
+    )
+  ).toBe(true);
+  refinement.sample(17);
+  expect([...refinement.entries.values()].every(entry => entry.weights[0] > 0)).toBe(true);
 });
 
-it('restores shifted-origin shadow casters immediately after an empty inventory', () => {
-  const layer = make([{position: [0, 0, 0]}], 0);
-  const projections = [
-    {
-      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-      center: [0, 0, 0, 0],
-      width: 256,
-      height: 256
-    }
-  ];
-  layer.prepareShadow(projections, layer.context.viewport);
-  for (const data of [[], [{position: [100, 0, 0] as [number, number, number]}]]) {
-    const oldProps = layer.props;
-    Object.assign(layer, {props: layer.clone({data}).props});
-    // A precision-preserving host origin shifts with the replacement owner's pose.
-    vi.mocked(layer.projectPosition).mockImplementation(() => [0, 0, 0]);
-    layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
-    expect(layer.state.shadowGroups.flat().map(row => row.object)).toEqual(data);
-  }
-});
-
-it('retains light-space selections on camera-only changes and invalidates changed source geometry', () => {
-  const layer = make([{position: [0, 0, 0]}], 0);
-  const viewport = layer.context.viewport;
-  const projections = [
-    {
-      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-      center: [0, 0, 0, 0],
-      width: 256,
-      height: 256
-    }
-  ];
-  layer.prepareShadow(projections, viewport);
-  const recull = vi.spyOn(layer.state.shadowRefinement, 'reconcile');
-  layer.updateState({
-    props: layer.props,
-    oldProps: layer.props,
-    changeFlags: {viewportChanged: true}
-  } as any);
-  layer.prepareShadow(projections, viewport);
-  expect(recull).not.toHaveBeenCalled();
-  layer.updateState({
-    props: layer.props,
-    oldProps: layer.props,
-    changeFlags: {dataChanged: true}
-  } as any);
-  expect(recull).toHaveBeenCalledOnce();
-  // Identical input light matrices in a different precision origin still select a new volume.
-  vi.mocked(layer.projectPosition).mockImplementation(point => [
-    point[0] + 0.5,
-    point[1],
-    point[2] ?? 0
+it('uses visible support for requested detail and foveation only for allocation priority', () => {
+  const {layer, viewport} = makePerspective([
+    {id: 'center', position: [0, 0, -10], scale: 10},
+    {id: 'peripheral', position: [3, 0, -10], scale: 10},
+    {id: 'corner', position: [8, 8, -7], scale: 5}
   ]);
-  layer.prepareShadow(projections, viewport);
-  expect(recull).toHaveBeenCalledTimes(2);
+  const candidate = new Map(
+    layer.state.candidates.map(row => [(row.owner.row.object as PerspectiveRow).id, row])
+  );
+  const center = candidate.get('center')!;
+  const peripheral = candidate.get('peripheral')!;
+  const corner = candidate.get('corner')!;
+  const centerOwner = layer.state.owners.find(owner => owner.row.object.id === 'center')!;
+  const peripheralOwner = layer.state.owners.find(owner => owner.row.object.id === 'peripheral')!;
+  const cornerOwner = layer.state.owners.find(owner => owner.row.object.id === 'corner')!;
+  const rawCenter = getSplatPixelsPerMeter(centerOwner.center, viewport) * centerOwner.scale;
+  const rawCorner = getSplatPixelsPerMeter(cornerOwner.center, viewport) * cornerOwner.scale;
+
+  // Both fully visible crowns request the same level even though one is peripheral.
+  expect(peripheral.pixels).toBeCloseTo(
+    getSplatBoundedPixelsPerMeter(peripheralOwner.center, peripheralOwner.radius, viewport) *
+      peripheralOwner.scale
+  );
+  expect(peripheral.level).toBe(center.level);
+  expect(peripheral.focus).toBeLessThan(center.focus!);
+  // The corner crown has the larger raw projected scale, but only a sliver reaches the viewport.
+  expect(rawCorner).toBeGreaterThan(rawCenter);
+  expect(corner.pixels).toBeLessThan(center.pixels);
+  expect(corner.focus).toBeLessThan(peripheral.focus!);
+  expect(corner.level).toBeGreaterThanOrEqual(center.level);
 });
 
-it('includes translated source centers in prepared camera and light wind bounds', () => {
+it('uses full requested detail when an owner is centered in any active viewport', () => {
+  const secondary = {
+    viewProjectionMatrix: new Matrix4()
+      .perspective({fovy: Math.PI / 2, aspect: 1, near: 0.1, far: 100})
+      .translate([-12, 0, 0]),
+    width: 100,
+    height: 100,
+    distanceScales: {unitsPerMeter: [1, 1, 1]}
+  } as unknown as Viewport;
+  const {layer, viewport} = makePerspective(
+    [{id: 'secondary', position: [12, 0, -10], scale: 10}],
+    {},
+    primary => [primary, secondary]
+  );
+  const candidate = layer.state.candidates[0];
+  const owner = layer.state.owners[0];
+  expect(candidate.pixels).toBeCloseTo(
+    Math.max(
+      getSplatBoundedPixelsPerMeter(owner.center, owner.radius, viewport) *
+        getSplatViewportLodWeight(owner.center, owner.radius, viewport),
+      getSplatBoundedPixelsPerMeter(owner.center, owner.radius, secondary) *
+        getSplatViewportLodWeight(owner.center, owner.radius, secondary)
+    ) * owner.scale
+  );
+  expect(candidate.focus).toBe(1);
+  expect(candidate.level).toBe(0);
+});
+
+it('includes translated source centers in prepared camera wind bounds', () => {
   const data = [{position: [0, 0, 0] as [number, number, number]}];
   const layer = make(data, 1);
   const rigidRadius = make(data, 0).state.owners[0].radius;
@@ -265,34 +342,10 @@ it('preserves a moving owner when other assets enter or leave and safely clears 
   }
   expect(layer.state.hierarchy).toEqual([]);
   expect(layer.state.groups.flat()).toEqual([]);
-  expect(layer.state.shadowGroups.flat()).toEqual([]);
   expect(layer.renderLayers()).toEqual([]);
 });
 
-it('retains light-volume selection across layer state transfer and invalidates changed maps', () => {
-  const layer = make([{position: [256, 256, 0]}], 0);
-  const projections = [
-    {
-      matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-      center: [0, 0, 0, 0],
-      width: 256,
-      height: 256
-    }
-  ];
-  layer.prepareShadow(projections, layer.context.viewport);
-  const candidates = layer.state.shadowCandidates;
-  const reconcile = vi.spyOn(layer.state.shadowRefinement, 'reconcile');
-  const replacement = layer.clone();
-  Object.assign(replacement, {state: layer.state, context: layer.context});
-  vi.spyOn(replacement, 'projectPosition').mockImplementation(point => Array.from(point));
-  replacement.prepareShadow(projections, layer.context.viewport);
-  expect(reconcile).not.toHaveBeenCalled();
-  expect(replacement.state.shadowCandidates).toBe(candidates);
-  replacement.prepareShadow([{...projections[0], width: 512}], layer.context.viewport);
-  expect(reconcile).toHaveBeenCalledTimes(1);
-});
-
-it('moves camera and shadow demand to the current device runtime even without prop changes', () => {
+it('moves selection to the current device runtime even without prop changes', () => {
   const layer = make([{position: [256, 256, 0]}], 0);
   const previous = layer.state.runtime;
   const remove = vi.spyOn(previous, 'delete');
@@ -317,84 +370,8 @@ it('moves camera and shadow demand to the current device runtime even without pr
   expect(tick).toHaveBeenCalledTimes(1);
   const allocations = vi.spyOn(layer as any, 'applyAllocation');
   current.reconcile(ids);
-  expect(allocations.mock.calls.map(call => call[0])).toEqual([false, true]);
+  expect(allocations).toHaveBeenCalledOnce();
   expect(layer.shouldUpdateState({changeFlags: {somethingChanged: false}})).toBe(false);
-});
-
-it.each([
-  {limit: 'parent', budget: 100},
-  {limit: 'total', budget: 100},
-  {limit: 'parent', budget: 2},
-  {limit: 'total', budget: 2}
-])('starts light-space demand at coverage and retains shared $limit allocations of $budget', ({
-  limit,
-  budget
-}) => {
-  const fine = Object.fromEntries(
-    Object.entries(SOURCE).map(([key, array]) => [
-      key,
-      new (array.constructor as typeof Float32Array)([...array, ...array, ...array])
-    ])
-  );
-  const layer = make([{position: [0, 0, 0]}], 0, {
-    source: fine,
-    hierarchy: [
-      {source: fine, error: 0},
-      {source: SOURCE, error: 1}
-    ],
-    pixelError: 0.001,
-    ...(limit === 'parent'
-      ? {_splatBudgetGroup: {maxSplats: budget, maxShadowSplats: budget}}
-      : {maxTotalSplats: budget})
-  });
-  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
-  layer.prepareShadow(
-    [
-      {
-        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-        center: [0, 0, 0, 0],
-        width: 256,
-        height: 256
-      }
-    ],
-    layer.context.viewport
-  );
-  expect(layer.state.shadowCandidates[0].level).toBe(0);
-  expect(layer.splatStats.shadowSplats).toBe(1);
-  expect(layer.splatStats.shadowCoverageFloor).toBe(1);
-  const ids = new Set([layer.id]);
-  layer.state.runtime.reconcile(ids);
-  expect(layer.state.shadowRefinement.active).toBe(budget === 100);
-  for (let now = 16; now <= 6400; now += 16) layer.state.runtime.sample(ids, now);
-  expect(layer.state.shadowRefinement.active).toBe(false);
-  expect(layer.splatStats.shadowSplats).toBe(budget === 100 ? 3 : 1);
-  const entry = [...layer.state.shadowRefinement.entries.values()][0];
-  const weights = [...entry.weights];
-  // Moving a light volume must not demote settled owners before the next joint grant.
-  const projections = layer.state.shadowProjections!;
-  layer.prepareShadow([{...projections[0], width: 512}], layer.context.viewport);
-  expect(layer.state.shadowRefinement.active).toBe(false);
-  expect(entry.weights).toEqual(weights);
-  // Inventory rebuilds retain the same settled light selection.
-  const oldProps = layer.props;
-  Object.assign(layer, {props: layer.clone({data: [...layer.state.input.data]}).props});
-  layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
-  expect(layer.state.shadowRefinement.active).toBe(false);
-  expect(entry.weights).toEqual(weights);
-  // A new owner waits at coverage without changing the existing owner's allocation.
-  const previous = layer.props;
-  Object.assign(layer, {
-    props: layer.clone({data: [...layer.state.input.data, {position: [0.1, 0, 0]}]}).props
-  });
-  layer.updateState({
-    props: layer.props,
-    oldProps: previous,
-    changeFlags: {dataChanged: true}
-  } as any);
-  const added = [...layer.state.shadowRefinement.entries.values()][1];
-  expect(entry.weights).toEqual(weights);
-  expect(added.weights).toEqual([0, 1]);
-  expect(layer.state.shadowRefinement.active).toBe(false);
 });
 
 it('refreshes mutated owner attributes on new data without discarding camera-only stability', () => {
@@ -402,7 +379,6 @@ it('refreshes mutated owner attributes on new data without discarding camera-onl
   const layer = make([row], 0);
   const initial = layer.state.groups[0];
   expect(initial).toHaveLength(1);
-  const initialShadow = layer.state.shadowGroups[0];
   const update = (data = layer.props.data, dataChanged = false) => {
     const oldProps = layer.props;
     Object.assign(layer, {props: layer.clone({data}).props});
@@ -414,12 +390,10 @@ it('refreshes mutated owner attributes on new data without discarding camera-onl
   };
   update();
   expect(layer.state.groups[0]).toBe(initial);
-  expect(layer.state.shadowGroups[0]).toBe(initialShadow);
   row.position[0] += 0.00001;
   update([row], true);
   expect(layer.state.groups[0][0].object).toBe(row);
   expect(layer.state.groups[0][0]).not.toBe(initial[0]);
-  expect(layer.state.shadowGroups[0][0]).not.toBe(initialShadow[0]);
   const moved = layer.state.groups[0];
   // A non-pose attribute may change even though the retained selection key does not.
   update([row], true);
@@ -500,7 +474,7 @@ it('synchronizes shared multi-view raster density before tightening the pixel ca
     props: {visible: true, operation: 'draw', maxRenderPixels: Infinity}
   };
   const render = vi.fn();
-  const resize = vi.fn(() => Object.assign(effect, {targets: [{}, {}]}));
+  const resize = vi.fn(() => Object.assign(effect, {targets: [{}, {}, {}]}));
   Object.assign(effect, {
     device: {
       type: 'webgl',
@@ -508,7 +482,7 @@ it('synchronizes shared multi-view raster density before tightening the pixel ca
       beginRenderPass: () => ({end() {}})
     },
     model: {shaderInputs: {setProps() {}}},
-    passes: [{render}, {render}, {render}],
+    passes: [{render}, {render}, {render}, {render}],
     resize
   });
   const options = {layers: [parent, primitive], viewports: [{id: 'a'}, {id: 'b'}]};

@@ -14,7 +14,6 @@ import {
   type UpdateParameters
 } from '@deck.gl/core';
 import {Model} from '@luma.gl/engine';
-import {getPickingShadowProps} from './splat-picking-shadow';
 import {phongMaterial, type PhongMaterialProps} from '@luma.gl/shadertools';
 import {acquireSplatGeometry, type SplatSource} from './splat-source';
 import {getSplatTransform} from './splat-transform';
@@ -22,10 +21,26 @@ import {
   SPLAT_VERTEX,
   SPLAT_FRAGMENT,
   SPLAT_ACCUMULATION_FRAGMENT,
+  SPLAT_TRANSMISSION_FRAGMENT,
   splatUniforms
 } from './splat-shaders';
 import {SplatEffect} from './splat-effect';
-import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL} from './splat.wgsl';
+import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl';
+
+// Picking omits LightingEffect, but the effect's shadow shader remains a deck default module.
+// Retain its harmless fallback samplers from a draw pass so the pick pass can bind the module.
+const PICKING_SHADOW_BINDINGS = new WeakMap<object, Record<string, any>>();
+
+function withPickingShadowBindings(owner: object, props: Record<string, any>) {
+  if (props.shadow?.dummyShadowMap) PICKING_SHADOW_BINDINGS.set(owner, props.shadow);
+  const previous = PICKING_SHADOW_BINDINGS.get(owner);
+  return props.picking?.isActive && previous
+    ? {
+        ...props,
+        shadow: {...previous, project: props.project, shadowEnabled: false, drawToShadowMap: false}
+      }
+    : props;
+}
 
 export type PreparedSplatProps<DataT> = {
   data: DataT[];
@@ -61,30 +76,25 @@ export type PreparedSplatProps<DataT> = {
   hierarchy?: import('./splat-hierarchy').SplatHierarchy;
   /** Maximum aggregate centre displacement in device pixels. @default 0.75 */
   pixelError?: number;
-  /** Screen-center refinement priority. Zero is uniform; one reduces peripheral error weight smoothly. @default 0 */
+  /** Screen-center allocation priority under a finite `maxSplats` budget. It never changes requested screen error. @default 0 */
   foveationStrength?: number;
-  /** Settled Gaussian submission budget. Optical fades can temporarily admit one extra owner representation to avoid stalling. Coarsest coverage is the minimum. @default Infinity */
+  /** Gaussian submission budget. Finite caps retain a small transition headroom for optical fades; coarsest coverage is the minimum. @default Infinity */
   maxSplats?: number;
-  /** Independent light-space submission budget. @default Infinity */
-  maxShadowSplats?: number;
   /** Maximum aggregate accumulation pixels across view targets. Picking and opaque draws keep host resolution. @default Infinity */
   maxRenderPixels?: number;
   /** Internal optical blend weight, independent of owner RGBA. */
   getCoverageWeight?: Accessor<DataT, number>;
   /** Lighting material for authored source normals; supports unlit rendering. */
   material?: PhongMaterialProps;
-  /** Exclude this source from light-space transmission when false. @default true */
-  shadowEnabled?: boolean;
 };
 export type SplatLayerProps<DataT = unknown> = PreparedSplatProps<DataT> & LayerProps;
-const defaultProps: DefaultProps<SplatLayerProps> = {
+const defaultProps: DefaultProps<SplatLayerProps> & {shadowEnabled: false} = {
   source: null,
   transparency: 'weighted',
   hierarchy: null,
   pixelError: 0.75,
   foveationStrength: {type: 'number', value: 0, min: 0, max: 1},
   maxSplats: Infinity,
-  maxShadowSplats: Infinity,
   maxRenderPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
   getPosition: {type: 'accessor', value: (d: any) => d.position},
@@ -100,7 +110,7 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   alphaCutoff: {type: 'number', value: 1 / 255, min: 0, max: 1},
   support: {type: 'number', value: 3, min: 1, max: 6},
   material: {ambient: 0.5, diffuse: 0.7, shininess: 2, specularColor: [0, 0, 0]},
-  shadowEnabled: true
+  shadowEnabled: false
 };
 
 /** Instanced, anisotropic 3D Gaussians with shared weighted transparency and stable owner picking. */
@@ -112,6 +122,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
   declare state: {
     model?: Model;
     accumulationModel?: Model;
+    transmissionModel?: Model;
     effect: SplatEffect;
     windRows: WeakMap<object, number[]>;
   };
@@ -155,15 +166,12 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
   }
 
   getShaders() {
-    const shaders = super.getShaders({
+    return super.getShaders({
       vs: SPLAT_VERTEX,
       fs: SPLAT_FRAGMENT,
       source: SPLAT_WGSL,
       modules: [project32, picking, phongMaterial, splatUniforms]
     });
-    if (this.props.operation.includes('shadow'))
-      shaders.modules = shaders.modules.filter(module => module.name !== 'shadow');
-    return shaders;
   }
 
   updateState(params: UpdateParameters<this>) {
@@ -173,29 +181,41 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     if (params.props.source !== params.oldProps.source || params.changeFlags.extensionsChanged) {
       this.state.model?.destroy();
       this.state.accumulationModel?.destroy();
-      const makeModel = (accumulation: boolean) =>
+      this.state.transmissionModel?.destroy();
+      const makeModel = (mode: 'picking' | 'accumulation' | 'transmission') =>
         new Model(this.context.device, {
           ...this.getShaders(),
-          ...(accumulation
+          ...(mode === 'accumulation'
             ? {fs: SPLAT_ACCUMULATION_FRAGMENT, source: SPLAT_ACCUMULATION_WGSL}
-            : {}),
-          id: `${this.id}-${accumulation ? 'accumulation' : 'picking'}`,
+            : mode === 'transmission'
+              ? {fs: SPLAT_TRANSMISSION_FRAGMENT, source: SPLAT_TRANSMISSION_WGSL}
+              : {}),
+          id: `${this.id}-${mode}`,
           geometry: acquireSplatGeometry(this.context.device, this.props.source),
           bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
           isInstanced: true
         });
+      const drawing = this.props.operation.includes('draw');
+      const webgpu = this.context.device.type === 'webgpu';
       this.setState({
-        model: makeModel(false),
-        accumulationModel: this.props.operation.includes('draw') ? makeModel(true) : undefined
+        model: makeModel('picking'),
+        // WebGL accumulates color and optical depth through MRT. WebGPU uses the normal
+        // single-target model for color and a dedicated optical-depth pass.
+        accumulationModel: drawing && !webgpu ? makeModel('accumulation') : undefined,
+        transmissionModel: drawing && webgpu ? makeModel('transmission') : undefined
       });
       this.getAttributeManager()!.invalidateAll();
     }
   }
 
   getModels(): Model[] {
-    return [this.state.model, this.state.accumulationModel].filter((model): model is Model =>
-      Boolean(model)
+    return [this.state.model, this.state.accumulationModel, this.state.transmissionModel].filter(
+      (model): model is Model => Boolean(model)
     );
+  }
+
+  setShaderModuleProps(props: Parameters<Model['shaderInputs']['setProps']>[0]) {
+    super.setShaderModuleProps(withPickingShadowBindings(this, props));
   }
 
   private calculateWindData(attribute, {startRow, endRow}) {
@@ -244,16 +264,9 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     }
   }
 
-  setShaderModuleProps(props: Parameters<Model['shaderInputs']['setProps']>[0]) {
-    super.setShaderModuleProps(getPickingShadowProps(this, props));
-  }
-
   draw({shaderModuleProps, renderPass}) {
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
-    // Ordinary depth maps cannot represent Gaussian transmission. The host light pass
-    // draws these sources separately into an optical transmission map.
-    if (shaderModuleProps.shadow?.drawToShadowMap) return;
     if (!pickingActive && mode === 0) {
       if (shaderModuleProps.splat?.resolve)
         this.state.effect.resolve(renderPass, shaderModuleProps.project.viewport.id);
@@ -263,7 +276,12 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     }
     const {deformationStrength, deformationTime, kernelVariance, alphaCutoff, support} = this.props;
     const time = deformationTime ?? this.context.timeline.getTime() / 1000;
-    const model = mode === 1 ? this.state.accumulationModel : this.state.model;
+    const model =
+      mode === 1
+        ? this.state.accumulationModel || this.state.model
+        : mode === 2
+          ? this.state.transmissionModel
+          : this.state.model;
     model?.shaderInputs.setProps({
       splat: {
         strength: deformationStrength,

@@ -29,7 +29,7 @@ import {
 export type {CropKind} from './tree-crop';
 export type {TreeCharacteristics} from './tree-characteristics';
 import {getTreeSplatData} from './tree-splats';
-import type {SplatBudgetGroup} from '../splat-layer/splat-runtime';
+import type {SplatBudget, SplatBudgetGroup} from '../splat-layer/splat-runtime';
 
 /** Procedural species silhouette. */
 export type TreeType =
@@ -53,7 +53,10 @@ export type CropConfig = {
   count: number;
   /** Supplied fallen crop count, independent of attached crops. @default 0 */
   droppedCount?: number;
-  /** Enclosing sphere radius in metres, including elongated crops and petals. */
+  /**
+   * Maximum enclosing sphere radius in metres; attached crops vary deterministically from 84% to
+   * this bound.
+   */
   radius: number;
 };
 
@@ -104,7 +107,7 @@ const TREE_PROPORTIONS: Record<TreeType, [number, number, number, number]> = {
 const DEFAULT_TRUNK_COLORS: Record<TreeType, Color> = {
   pine: [80, 50, 20, 255],
   oak: [91, 57, 23, 255],
-  palm: [140, 100, 55, 255],
+  palm: [188, 150, 94, 255],
   birch: [220, 215, 205, 255], // white-grey birch bark
   cherry: [100, 60, 40, 255],
   banyan: [145, 137, 117, 255],
@@ -254,7 +257,7 @@ type _TreeLayerProps<DataT> = {
    * The same accessor can express fruit, nuts, or flowering stage — pass
    * `kind: 'flower'` with a flower colour (e.g. `[255, 200, 220, 255]`) for blossom.
    *
-   * Crop positions are randomised deterministically from the tree's geographic
+   * Crop positions and sizes are randomised deterministically from the tree's geographic
    * coordinates; they are stable across re-renders.
    *
    * Attached crops too large to fit the foliage are omitted.
@@ -273,18 +276,17 @@ type _TreeLayerProps<DataT> = {
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
   windTime?: number | null;
-  /** Shared per-frame canopy Gaussian budget, allocated by projected error across species. Finest templates remain available. @default 250000 */
-  maxCanopySplats?: number;
-  /** Independent shadow-map Gaussian budget. @default 125000 */
-  maxShadowSplats?: number;
+  /**
+   * Maximum shared per-frame canopy Gaussian budget. `auto` keeps a stable device-aware budget;
+   * SplatLayer allocates it by projected error. @default 'auto'
+   */
+  maxCanopySplats?: SplatBudget;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
   maxCanopyPixels?: number;
-  /** Refine actual crowns around screen center while retaining every visible tree. @default 0 */
+  /** Screen-center canopy allocation priority under a finite budget. Requested screen error remains uniform. @default 0 */
   foveationStrength?: number;
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
-  /** Cast shadows when the host LightingEffect enables them. WebGL only until deck.gl supports WebGPU shadows. @default true */
-  shadowEnabled?: boolean;
 };
 
 export type TreeLayerProps<DataT = unknown> = _TreeLayerProps<DataT> & CompositeLayerProps;
@@ -307,13 +309,16 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   characteristics: {type: 'object', value: {}},
   windStrength: {type: 'number', value: 0, min: 0, max: 0.2},
   windTime: null,
-  maxCanopySplats: 250000,
-  maxShadowSplats: 125000,
+  maxCanopySplats: 'auto',
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
-  foveationStrength: {type: 'number', value: 0, min: 0, max: 1},
-  shadowEnabled: true
+  foveationStrength: {type: 'number', value: 0, min: 0, max: 1}
 };
+
+const DENSE_TREE_COUNT = 1024;
+// This is stable spatial coverage, not alpha: covered branch fragments keep their real depth and
+// the complementary fragments admit the weighted splat canopy behind them.
+const DENSE_GROVE_NEAR_BRANCH_COVERAGE = 0.55;
 
 type TreeRow<DataT> = {
   object: DataT;
@@ -420,6 +425,30 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
   static defaultProps = defaultProps;
   declare state: TreeState<DataT>;
 
+  private getTrunkColor = (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>): Color =>
+    (isDefaultTreeAccessor(this.props, 'getTrunkColor')
+      ? row.trunkColor
+      : getTreeAccessorValue(
+          this.getSubLayerAccessor(this.props.getTrunkColor) as Accessor<
+            TreeRow<DataT>,
+            Color | null
+          >,
+          row,
+          info
+        )) ?? DEFAULT_TRUNK_COLORS[row.type];
+
+  private getCanopyColor = (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>): Color =>
+    (isDefaultTreeAccessor(this.props, 'getCanopyColor')
+      ? row.canopyColor
+      : getTreeAccessorValue(
+          this.getSubLayerAccessor(this.props.getCanopyColor) as Accessor<
+            TreeRow<DataT>,
+            Color | null
+          >,
+          row,
+          info
+        )) ?? DEFAULT_CANOPY_COLORS[row.type][row.season];
+
   constructor(...props: (Partial<TreeLayerProps<DataT>> & Partial<NoInfer<ExtraPropsT>>)[]) {
     super(
       ...(props as Partial<
@@ -430,7 +459,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
 
   initializeState() {
     this.state = {
-      splatBudgetGroup: {maxSplats: Infinity, maxShadowSplats: Infinity},
+      splatBudgetGroup: {maxSplats: Infinity},
       authoredWindStrength: 0,
       hasAuthoredWind: false,
       hasDefaultWind: true,
@@ -604,6 +633,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       if (crop && Number.isFinite(crop.radius) && crop.radius > 0) {
         const cropRadius = crop.radius * sizeScale;
         const rng = createTreeRng(seed);
+        const cropSizeRng = createTreeRng(seed ^ 0x3c6ef372);
         // SimpleMeshLayer uses yaw about Z and pitch about Y (roll is zero).
         const transform = new Matrix4()
           .rotateZ((row.orientation[1] * Math.PI) / 180)
@@ -611,7 +641,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           .scale(row.scale);
         const count = Number.isFinite(crop.count) ? Math.max(0, Math.floor(crop.count)) : 0;
         for (let i = 0; i < count; i++) {
-          const point = sampleTreeFruit(type, levels, rng, row.scale, cropRadius, characteristics);
+          const radius = cropRadius * (0.84 + cropSizeRng() * 0.16);
+          const point = sampleTreeFruit(type, levels, rng, row.scale, radius, characteristics);
           if (!point) continue;
           const offset = transform.transformAsVector(point) as [number, number, number];
           offset[2] += row.translation[2];
@@ -621,7 +652,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
                 position: row.position,
                 translation: offset,
                 kind: crop.kind ?? 'fruit',
-                radius: cropRadius,
+                radius,
                 color: crop.color,
                 windStrength,
                 wind: row.wind
@@ -632,19 +663,21 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
           );
         }
         const groundRng = createTreeRng(seed ^ 0x1a2b3c4d);
+        const droppedSizeRng = createTreeRng(seed ^ 0x5be0cd19);
         const droppedCount = Number.isFinite(crop.droppedCount)
           ? Math.max(0, Math.floor(crop.droppedCount!))
           : 0;
         for (let i = 0; i < droppedCount; i++) {
           const theta = groundRng() * Math.PI * 2;
           const r = Math.sqrt(groundRng()) * radius * 0.5;
+          const droppedRadius = cropRadius * (0.84 + droppedSizeRng() * 0.16);
           droppedCrops.push(
             this.getSubLayerRow(
               {
                 position: row.position,
-                translation: [Math.cos(theta) * r, Math.sin(theta) * r, cropRadius],
+                translation: [Math.cos(theta) * r, Math.sin(theta) * r, droppedRadius],
                 kind: crop.kind ?? 'fruit',
-                radius: cropRadius,
+                radius: droppedRadius,
                 color: crop.color,
                 wind: [height, row.wind[1], 0]
               },
@@ -745,7 +778,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         'TreeLayer modelMatrix supports translation only in Cartesian and metre-offset coordinates.'
       );
     }
-    const {windTime, shadowEnabled, getTrunkColor, getCanopyColor, getSeason} = this.props;
+    const {windTime, getTrunkColor, getSeason} = this.props;
     const windStrength = Math.max(
       this.state.hasDefaultWind ? getFiniteDimension(this.props.windStrength, 0) : 0,
       this.state.authoredWindStrength
@@ -762,25 +795,13 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     const shared = {
       windStrength,
       windTime,
-      shadowEnabled,
-      foveationStrength: this.props.foveationStrength,
+      shadowEnabled: false,
       getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
       pickable: this.props.pickable
     };
     const layers: Layer[] = [];
     const foliage: Layer[] = [];
-    const barkAccessor = this.getSubLayerAccessor(getTrunkColor) as Accessor<
-      TreeRow<DataT>,
-      Color | null
-    >;
-    const foliageAccessor = this.getSubLayerAccessor(getCanopyColor) as Accessor<
-      TreeRow<DataT>,
-      Color | null
-    >;
-    const trunkColor = (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>) =>
-      (isDefaultTreeAccessor(this.props, 'getTrunkColor')
-        ? row.trunkColor
-        : getTreeAccessorValue(barkAccessor, row, info)) ?? DEFAULT_TRUNK_COLORS[row.type];
+    const trunkColor = this.getTrunkColor;
     // Prepared rows remain identical on animation, lighting and color-only updates.
     const trunks = (data: TreeRow<DataT>[], id: string, palm: boolean) => {
       if (!data.length) return;
@@ -819,44 +840,73 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       'trunks-palm',
       true
     );
-    this.state.splatBudgetGroup.maxSplats = this.props.maxCanopySplats;
-    this.state.splatBudgetGroup.maxShadowSplats = this.props.maxShadowSplats;
     this.state.splatBudgetGroup.parent = this.props._splatBudgetGroup;
+    // This cap is shared by currently visible, refined crowns. Do not scale it
+    // from total inventory size: a large grove must recover detail when zoomed in.
+    this.state.splatBudgetGroup.maxSplats = this.props.maxCanopySplats;
+    // Groups are split by species and morphology, not by spatial density. Use the complete
+    // inventory for the far-wood policy so a mixed grove does not draw a separate full branch
+    // lattice for every distant template batch.
+    const denseGrove = this.props.data.length >= DENSE_TREE_COUNT;
     for (const [key, data] of this.state.groups) {
       const {type, winter, levels, characteristics} = data[0];
       const wood = this.state.woodGroups.get(key)!;
-      if (wood.length)
+      if (wood.length) {
+        const woodProps = {
+          id: `wood-${key}`,
+          data: wood,
+          ...shared,
+          getPosition: (row: TreeRow<DataT>) => row.position,
+          getScale: (row: TreeRow<DataT>) => row.scale,
+          getTranslation: (row: TreeRow<DataT>) => row.translation,
+          getOrientation: (row: TreeRow<DataT>) => row.orientation,
+          getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
+          getStemRadius: (row: TreeRow<DataT>) => row.trunkRadius,
+          getRootLength: (row: TreeRow<DataT>) => row.height - row.scale[2],
+          getWind: treeWind,
+          getColor: trunkColor,
+          material: {ambient: 0.5, diffuse: 0.75, shininess: 2},
+          updateTriggers: {
+            getWind: windTrigger,
+            getDeformation: windTrigger,
+            getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
+            getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
+          }
+        };
+        // Near trees retain their connected branch lattice. In a dense grove the branch samples
+        // leave stable complementary coverage for the splat canopy, while distant wood can still
+        // simplify to a compact bole.
+        const mesh = getTreeWoodMesh(type, levels, false, characteristics);
         layers.push(
           new TreeWoodLayer(
             this.getTreeSubLayerProps(
               {
-                id: `wood-${key}`,
-                data: wood,
-                ...shared,
-                mesh: getTreeWoodMesh(type, levels, false, characteristics),
-                templateMesh: getTreeWoodMesh(type, levels, false, characteristics),
-                getPosition: (row: TreeRow<DataT>) => row.position,
-                getScale: (row: TreeRow<DataT>) => row.scale,
-                getTranslation: (row: TreeRow<DataT>) => row.translation,
-                getOrientation: (row: TreeRow<DataT>) => row.orientation,
-                getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
-                getStemRadius: (row: TreeRow<DataT>) => row.trunkRadius,
-                getRootLength: (row: TreeRow<DataT>) => row.height - row.scale[2],
-                getWind: treeWind,
-                getColor: trunkColor,
-                material: {ambient: 0.5, diffuse: 0.75, shininess: 2},
-                updateTriggers: {
-                  getWind: windTrigger,
-                  getDeformation: windTrigger,
-                  getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
-                  getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
-                }
+                ...woodProps,
+                mesh,
+                templateMesh: mesh,
+                farTrunkOnly: denseGrove,
+                nearBranchCoverage: denseGrove ? DENSE_GROVE_NEAR_BRANCH_COVERAGE : 1
               },
               'trunks'
             )
           )
         );
+      }
       if (winter) continue;
+      const canopyTriggers = {
+        getWind: windTrigger,
+        getDeformation: windTrigger,
+        getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
+        getColor: [
+          this.getCanopyColor,
+          this.props.getCanopyColor,
+          getTrunkColor,
+          getSeason,
+          this.props.updateTriggers?.getCanopyColor,
+          this.props.updateTriggers?.getTrunkColor,
+          this.props.updateTriggers?.getSeason
+        ]
+      };
       const CanopyLayer = SplatLayer;
       foliage.push(
         new CanopyLayer(
@@ -867,14 +917,12 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               data,
               ...shared,
               getSource: getTreeSplatData(type, levels, characteristics),
-              transparency: 'sorted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
-              pixelError: type === 'palm' ? 0.65 : 2.5,
+              support: type === 'palm' ? 1.4 : 2,
               maxRenderPixels: this.props.maxCanopyPixels,
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
               maxSplats: Infinity,
-              maxShadowSplats: Infinity,
               deformationStrength: windStrength,
               deformationTime: windTime,
               getDeformation: treeWind,
@@ -888,25 +936,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               getScale: (row: TreeRow<DataT>) => row.scale,
               getOrientation: (row: TreeRow<DataT>) => row.orientation,
               getWind: treeWind,
-              getColor: (row: TreeRow<DataT>, info: AccessorContext<TreeRow<DataT>>) =>
-                (isDefaultTreeAccessor(this.props, 'getCanopyColor')
-                  ? row.canopyColor
-                  : getTreeAccessorValue(foliageAccessor, row, info)) ??
-                DEFAULT_CANOPY_COLORS[type][row.season],
+              getColor: this.getCanopyColor,
               material: {ambient: 0.62, diffuse: 0.82, shininess: 2, specularColor: [0, 0, 0]},
-              updateTriggers: {
-                getWind: windTrigger,
-                getDeformation: windTrigger,
-                getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
-                getColor: [
-                  getCanopyColor,
-                  getTrunkColor,
-                  getSeason,
-                  this.props.updateTriggers?.getCanopyColor,
-                  this.props.updateTriggers?.getTrunkColor,
-                  this.props.updateTriggers?.getSeason
-                ]
-              }
+              updateTriggers: canopyTriggers
             },
             `canopy-${type}`
           )

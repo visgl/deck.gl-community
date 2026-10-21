@@ -187,6 +187,7 @@ test('tree accessors accept typed constants and serialized functions', () => {
     getCoverageWeight: 0.5
   };
   expect(schema.safeParse({...layer, ...constants}).success).toBe(true);
+  expect(schema.safeParse({...layer, maxCanopySplats: 'auto'}).success).toBe(true);
   for (const key of Object.keys(schema.shape).filter(
     name => name.startsWith('get') && name !== 'getPolygonOffset'
   )) {
@@ -201,7 +202,9 @@ test('tree accessors accept typed constants and serialized functions', () => {
     {getCrop: {kind: 'orange', color: [255, 0, 0], count: 4, radius: 0.1}},
     {foveationStrength: 2},
     {characteristics: {leafColor: 1}},
-    {maxCanopyPixels: 0}
+    {maxCanopyPixels: 0},
+    {maxShadowSplats: 1},
+    {shadowEnabled: true}
   ]) {
     expect(schema.safeParse({...layer, ...invalid}).success).toBe(false);
   }

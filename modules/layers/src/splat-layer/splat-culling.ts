@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {WebMercatorViewport, type Viewport} from '@deck.gl/core';
-import type {SplatShadowProjection} from './splat-shadow-pass';
+
+export type SplatProjection = {
+  matrix: number[];
+  center: number[];
+  width: number;
+  height: number;
+};
 
 /** Absolute Mercator positions and owner-local metre scales are independent of camera latitude. */
 export function getSplatProjectionKey(viewport: Viewport): string {
@@ -21,10 +27,7 @@ export function getSplatCommonUnits(common: number[], viewport: Viewport): numbe
 }
 
 /** Six normalized planes, with optional XY padding in the projection viewport's pixel units. */
-export function createSplatFrustum(
-  projection: SplatShadowProjection,
-  pixelPadding = 0
-): Float64Array {
+export function createSplatFrustum(projection: SplatProjection, pixelPadding = 0): Float64Array {
   const planes = new Float64Array(24);
   const m = projection.matrix;
   for (let axis = 0; axis < 3; axis++) {
@@ -70,17 +73,12 @@ export function intersectsSplatFrustum(
   return true;
 }
 
-/** Conservative sphere/light-volume intersection. It does not depend on screen visibility. */
-export function intersectsSplatLightVolume(
-  position: number[],
-  radius: number,
-  projection: SplatShadowProjection
-): boolean {
-  return intersectsSplatFrustum(position, radius, createSplatFrustum(projection));
-}
-
 /** Largest singular value of the perspective projection Jacobian, in pixels per metre. */
-export function getSplatPixelsPerMeter(position: number[], viewport: Viewport): number {
+export function getSplatPixelsPerMeter(
+  position: number[],
+  viewport: Viewport,
+  units = getSplatCommonUnits(position, viewport)
+): number {
   const m = viewport.viewProjectionMatrix;
   const x = m[0] * position[0] + m[4] * position[1] + m[8] * position[2] + m[12];
   const y = m[1] * position[0] + m[5] * position[1] + m[9] * position[2] + m[13];
@@ -89,7 +87,6 @@ export function getSplatPixelsPerMeter(position: number[], viewport: Viewport): 
   let a = 0,
     b = 0,
     c = 0;
-  const units = getSplatCommonUnits(position, viewport);
   for (let axis = 0; axis < 3; axis++) {
     const factor = units[axis] / (2 * w * w);
     const u = (m[axis * 4] * w - x * m[3 + axis * 4]) * viewport.width * factor;
@@ -101,18 +98,147 @@ export function getSplatPixelsPerMeter(position: number[], viewport: Viewport): 
   return Math.sqrt((a + c + Math.sqrt((a - c) ** 2 + 4 * b * b)) / 2);
 }
 
-/** Bound near-plane/behind-eye refinement by viewport coverage, while keeping intersecting owners. */
+/**
+ * Conservatively bound projected detail across an owner's full sphere, while keeping near-plane
+ * and behind-eye supports finite. Sampling only the center underestimates a crown that reaches
+ * toward a steeply pitched camera, so the Jacobian uses the closest possible clip-space depth.
+ */
 export function getSplatBoundedPixelsPerMeter(
+  position: number[],
+  radius: number,
+  viewport: Viewport,
+  units = getSplatCommonUnits(position, viewport)
+): number {
+  const maximum =
+    (2 * Math.max(viewport.width, viewport.height) * Math.max(...units)) / Math.max(radius, 1e-12);
+  const m = viewport.viewProjectionMatrix;
+  const x = m[0] * position[0] + m[4] * position[1] + m[8] * position[2] + m[12];
+  const y = m[1] * position[0] + m[5] * position[1] + m[9] * position[2] + m[13];
+  const w = m[3] * position[0] + m[7] * position[1] + m[11] * position[2] + m[15];
+  const wRadius = radius * Math.hypot(m[3], m[7], m[11]);
+  const minimumW = w - wRadius;
+  if (!(minimumW > 1e-8)) return maximum;
+  const maximumX = Math.abs(x) + radius * Math.hypot(m[0], m[4], m[8]);
+  const maximumY = Math.abs(y) + radius * Math.hypot(m[1], m[5], m[9]);
+  let uu = 0,
+    uv = 0,
+    vv = 0;
+  for (let axis = 0; axis < 3; axis++) {
+    const u =
+      (viewport.width *
+        units[axis] *
+        (Math.abs(m[axis * 4]) / minimumW +
+          (maximumX * Math.abs(m[3 + axis * 4])) / (minimumW * minimumW))) /
+      2;
+    const v =
+      (viewport.height *
+        units[axis] *
+        (Math.abs(m[1 + axis * 4]) / minimumW +
+          (maximumY * Math.abs(m[3 + axis * 4])) / (minimumW * minimumW))) /
+      2;
+    uu += u * u;
+    uv += u * v;
+    vv += v * v;
+  }
+  const upperBound = Math.sqrt((uu + vv + Math.sqrt((uu - vv) ** 2 + 4 * uv * uv)) / 2);
+  return Math.min(maximum, Math.max(getSplatPixelsPerMeter(position, viewport, units), upperBound));
+}
+
+function containsSplatProjectedPoint(
+  x: number,
+  y: number,
+  xx: number,
+  xy: number,
+  yy: number,
+  determinant: number,
+  support: number
+): boolean {
+  return yy * x * x - 2 * xy * x * y + xx * y * y <= support * support * determinant;
+}
+
+/**
+ * Fraction of a projected support that can contribute to the viewport's requested detail.
+ * A support centered in, or large enough to span, the viewport remains at full detail.
+ * Offscreen-centered supports taper continuously toward a true sliver. Near-eye supports stay
+ * conservative because their projected footprint is nonlinear.
+ */
+export function getSplatViewportLodWeight(
   position: number[],
   radius: number,
   viewport: Viewport
 ): number {
-  const units = Math.max(...getSplatCommonUnits(position, viewport));
-  const maximum = (2 * Math.max(viewport.width, viewport.height) * units) / Math.max(radius, 1e-12);
-  return Math.min(maximum, getSplatPixelsPerMeter(position, viewport));
+  const m = viewport.viewProjectionMatrix;
+  const x = m[0] * position[0] + m[4] * position[1] + m[8] * position[2] + m[12];
+  const y = m[1] * position[0] + m[5] * position[1] + m[9] * position[2] + m[13];
+  const w = m[3] * position[0] + m[7] * position[1] + m[11] * position[2] + m[15];
+  if (!(radius > 1e-8) || !Number.isFinite(radius) || w <= 1e-8) return 1;
+  // A sphere crossing the eye plane cannot use a linear projected support safely.
+  if (w - radius * Math.hypot(m[3], m[7], m[11]) <= 1e-8) return 1;
+  const centerX = ((x / w + 1) * viewport.width) / 2;
+  const centerY = ((1 - y / w) * viewport.height) / 2;
+  if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return 1;
+  const deltaX = centerX < 0 ? -centerX : centerX > viewport.width ? viewport.width - centerX : 0;
+  const deltaY = centerY < 0 ? -centerY : centerY > viewport.height ? viewport.height - centerY : 0;
+  const distance = Math.hypot(deltaX, deltaY);
+  if (!(distance > 1e-8)) return 1;
+  const directionX = deltaX / distance;
+  const directionY = deltaY / distance;
+  let xx = 0,
+    xy = 0,
+    yy = 0;
+  for (let axis = 0; axis < 3; axis++) {
+    const xDerivative = ((m[axis * 4] * w - x * m[3 + axis * 4]) * viewport.width) / (2 * w * w);
+    const yDerivative =
+      -((m[1 + axis * 4] * w - y * m[3 + axis * 4]) * viewport.height) / (2 * w * w);
+    xx += xDerivative * xDerivative;
+    xy += xDerivative * yDerivative;
+    yy += yDerivative * yDerivative;
+  }
+  const determinant = xx * yy - xy * xy;
+  if (
+    determinant > 1e-12 &&
+    Number.isFinite(determinant) &&
+    containsSplatProjectedPoint(-centerX, -centerY, xx, xy, yy, determinant, radius) &&
+    containsSplatProjectedPoint(
+      viewport.width - centerX,
+      -centerY,
+      xx,
+      xy,
+      yy,
+      determinant,
+      radius
+    ) &&
+    containsSplatProjectedPoint(
+      -centerX,
+      viewport.height - centerY,
+      xx,
+      xy,
+      yy,
+      determinant,
+      radius
+    ) &&
+    containsSplatProjectedPoint(
+      viewport.width - centerX,
+      viewport.height - centerY,
+      xx,
+      xy,
+      yy,
+      determinant,
+      radius
+    )
+  )
+    return 1;
+  const radiusPixels =
+    radius *
+    Math.sqrt(
+      directionX * directionX * xx + 2 * directionX * directionY * xy + directionY * directionY * yy
+    );
+  if (!(radiusPixels > 1e-8) || !Number.isFinite(radiusPixels)) return 1;
+  const overlap = Math.max(0, Math.min(1, 1 - distance / radiusPixels));
+  return overlap * overlap * (3 - 2 * overlap);
 }
 
-/** Smooth per-owner priority from its projected crown center. It never affects visibility or light-space LOD. */
+/** Smooth per-owner priority from its projected crown center. It never affects visibility. */
 export function getSplatFocusWeight(
   position: number[],
   viewport: Viewport,

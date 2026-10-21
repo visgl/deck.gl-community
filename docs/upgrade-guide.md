@@ -22,13 +22,24 @@ Sources and hierarchies are immutable; replace them when their columns change. S
 budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
 A tighter `maxRenderPixels` can take one frame to apply while visibility expands for the broader filter.
 Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
-(`MapView.repeat`), `GlobeView`, URL/RAD inputs and sorted
-transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
-for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream nested-render-pass path is fixed; overlapping views without clearing are supported.
+(`MapView.repeat`), `GlobeView` and URL/RAD inputs report explicit unsupported-input errors.
+`transparency: 'sorted'` is supported on WebGL2 and WebGPU, with additional selected-buffer memory
+and per-frame CPU sorting cost. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
+for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream
+nested-render-pass path is fixed; overlapping views without clearing are supported.
+
+#### Breaking: foliage shadows removed
+
+Remove `SplatShadowPass` and `SplatShadowProjection` imports, `shadowEnabled` and
+`maxShadowSplats` configuration, and the `shadowInstances`, `shadowSplats`, and
+`shadowCoverageFloor` SplatLayer statistics. TreeLayer and SplatLayer no longer provide
+light-space foliage selection or deck.gl foliage shadow casters. If an application requires
+shadows, provide them outside these renderers. This change requires a major
+`@deck.gl-community/layers` release.
 
 ### `@deck.gl-community/layers`: native `TreeLayer`
 
-- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail` and foliage-shadow props; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
 
 ### `@deck.gl-community/editable-layers`
 
