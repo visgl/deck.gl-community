@@ -1742,6 +1742,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
   }
 
   /**
+   * The font size a label's collision box is laid out at, as MapLibre GL JS lays it out: `text-size`
+   * at the zoom after the tile's, the integer zoom (its `layoutTextSize`). Where `text-size`
+   * changes with zoom, the box is that size and not the one drawn: at z3.6, a size that grows with
+   * zoom collides at its z4 size.
+   */
+  getCollisionLabelSize(feature: FeatureLike): number {
+    const property = this.getStyleProperty('text-size');
+    if (!property?.isZoomDependent) {
+      return this.getLabelSize(feature);
+    }
+    const size = property.evaluate(Math.floor(this.props.zoom || 0) + 1, feature);
+    return Number(size ?? getStylePropertyDefault('text-size'));
+  }
+
+  /**
    * Returns the text color for a decoded feature label, from `text-color` and `text-opacity`.
    * Falls back to the `textColor` prop, then to the style spec's default black, when the style
    * layer does not set `text-color`.
@@ -3148,6 +3163,7 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
     const icons = hasIconData ? this.getRowIcons() : null;
     const measure = this.getCharacterMeasurer();
     const lineHeight = this.getLineHeight();
+    const linePlacement = isLinePlacement(this.getSymbolPlacement());
     const textBoxes = new Float64Array(count * 4).fill(Number.NaN);
     const textOffsets = new Float64Array(count * 2);
     const iconBoxes = new Float64Array(count * 4).fill(Number.NaN);
@@ -3186,7 +3202,21 @@ export class MVTLabelLayer extends CompositeLayer<MVTLabelLayerProps> {
         const h = lines.length * lineHeight * size;
         const [ax, ay] = ANCHOR_FRACTIONS[this.getRowAnchor(row)] || ANCHOR_FRACTIONS.center;
         const [dx, dy] = this.getRowPixelOffset(row);
-        textBoxes.set([-(ax + 0.5) * w + dx, -(ay + 0.5) * h + dy, w, h], i * 4);
+        // A point label's box, offset included, is laid out at its collision size; text along a
+        // line collides by circles along the text as drawn.
+        const scale = linePlacement || !(size > 0) ? 1 : this.getCollisionLabelSize(feature) / size;
+        // Variable anchors include a shift by the padded box. Padding stays in pixels when the
+        // text and its em offsets are scaled to the collision size.
+        const padding = this.getRowTextAnchor(row) ? 2 * this.getTextPadding() : 0;
+        textBoxes.set(
+          [
+            (-(ax + 0.5) * w + dx + ax * padding) * scale - ax * padding,
+            (-(ay + 0.5) * h + dy + ay * padding) * scale - ay * padding,
+            w * scale,
+            h * scale
+          ],
+          i * 4
+        );
         textOffsets.set([dx, dy], i * 2);
       }
       const resolved = icons?.[rowIndex];

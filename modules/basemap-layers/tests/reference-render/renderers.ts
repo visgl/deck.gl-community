@@ -156,6 +156,11 @@ const GEOMETRY_TYPES = ['Unknown', 'Point', 'LineString', 'Polygon'];
  * icon) its collision index has in the view, as `queryRenderedFeatures` finds them, if that
  * symbol's text placed. `queryRenderedFeatures` alone would also return a symbol whose icon placed
  * without its optional text.
+ *
+ * `BasemapLayer`'s labels are read by their drawn glyphs instead (see `renderBasemapLayer`), so a
+ * label whose collision shape reaches into the view but whose glyphs do not counts here only. In
+ * `new-york-dark-z12.3`, "Bowery" is such a label: both renderers place it, with the same
+ * collision circles, which reach 1.2 px into the view, and neither draws a pixel of it there.
  */
 function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[] {
   const mapStyle = (map as any).style;

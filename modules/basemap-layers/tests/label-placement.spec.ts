@@ -719,6 +719,31 @@ describe('MVTLabelLayer placement symbols', () => {
     ]);
   });
 
+  test('a text-size that changes with zoom collides at its size at the next integer zoom, as MapLibre', () => {
+    // MapLibre lays a point label's box out at `text-size` at the tile's zoom + 1: at z8.5, a size
+    // of 10 at z8 and 20 at z9 is drawn at 15 and collides at 20 ('abcd' is 2 ems by 1.2 ems).
+    const box = (layout: Record<string, unknown>) => {
+      const layer = labelLayer(
+        {
+          'text-field': ['get', 'name'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 9, 20],
+          'text-padding': 0,
+          ...layout
+        },
+        [{properties: {name: 'abcd'}, x: 100}],
+        {zoom: 8.5}
+      );
+      expect(layer.getLabelSize(layer.state.labelData[0].__source.object)).toBe(15);
+      const out: PlacementSymbol[] = [];
+      layer.getPlacementSymbols(VIEWPORT, 0, out);
+      const p = PLACEMENT_VIEWPORT_PADDING;
+      return out[0].text!.box!.map(v => Math.round((v - p - 100) * 100) / 100);
+    };
+    expect(box({})).toEqual([-20, -12, 20, 12]);
+    // The anchor and offset are laid out at that size too.
+    expect(box({'text-anchor': 'bottom', 'text-offset': [0, -1]})).toEqual([-20, -44, 20, -20]);
+  });
+
   test('text-radial-offset moves the text away from its text-anchor, as MapLibre', () => {
     const layer = labelLayer(
       {
@@ -795,6 +820,33 @@ describe('MVTLabelLayer placement symbols', () => {
     ]);
     // Only the first row draws an icon.
     expect(layer.getRowIcons().map(Boolean)).toEqual([false, false, true]);
+  });
+
+  test('zoom-dependent collision sizes preserve variable-anchor padding in pixels', () => {
+    const layer = labelLayer(
+      {
+        'text-field': ['get', 'name'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 9, 20],
+        'text-variable-anchor': ['left', 'top'],
+        'text-radial-offset': 1,
+        'text-padding': 2
+      },
+      [],
+      {zoom: 8.5}
+    );
+    const feature = {geometry: {type: 'Point', coordinates: [100, 0]}, properties: {name: 'abcd'}};
+    layer.state.labelData = [0, 1].map(textAnchorIndex => ({
+      position: [100, 0],
+      textAnchorIndex,
+      textAnchorCount: 2,
+      __source: {object: feature, index: 0}
+    }));
+    const out: PlacementSymbol[] = [];
+    layer.getPlacementSymbols(VIEWPORT, 0, out);
+    const p = PLACEMENT_VIEWPORT_PADDING;
+    const box = out[0].textAnchors!.shapes[0].box!.map(v => Math.round((v - p - 100) * 100) / 100);
+    // The left anchor's offset and text scale to 20 px; its 2 px padding does not scale.
+    expect(box).toEqual([20, -14, 64, 14]);
   });
 
   test('getVariableAnchorOffset follows MapLibre evaluateVariableOffset', () => {
