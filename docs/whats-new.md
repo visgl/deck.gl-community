@@ -4,11 +4,18 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
-- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new) supports WebGL2 and WebGPU video-frame uploads, static-pixel filtering, GPU mip generation, and volume rendering.
+- `SharedTile2DLayer` and `SharedTileset2D` skip tiles beyond the horizon in a `GlobeView`, as deck.gl's
+  `TileLayer` does, instead of requesting the far side of the globe. `BasemapLayer` vector and hillshade
+  sources on a globe request fewer tiles as a result.
+
+- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new)
   turns MP4/MOV frames into a GPU-rendered image-X/image-Y/time volume with `currentFrame`,
   `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
-  [local-file demo](/examples/layers/volumetric-video) includes stabilized camera controls
-  and bounded GPU history that preserves the last working volume on allocation failure. Later valid
+  [community-site demo](/examples/layers/volumetric-video) uses shared device tabs and a settings panel;
+  the standalone version supports local MP4/MOV files and a WebGL/WebGPU toggle. Static filtering
+  applies to every frame, including the selected frame. Both demos include stabilized camera controls
+  and bounded GPU history
+  that preserves the last working volume on allocation failure. Later valid
   seeks recover from decode failures, failed writes cannot expose stale frame identities,
   and GPU filter retries restore playback controls. Metadata callbacks can replace the
   live layer without discarding its newly allocated history.
@@ -29,6 +36,9 @@ This page lists module additions and major changes in each release. For detailed
   mask synchronously instead of waiting 250 ms.
 
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
+
+- Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,
+  keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
@@ -72,6 +82,7 @@ Released: September 7, 2026
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
 - **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements.
+- **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3
 

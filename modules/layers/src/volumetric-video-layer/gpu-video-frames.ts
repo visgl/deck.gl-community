@@ -111,7 +111,10 @@ export class GPUVideoFrames {
 @group(0) @binding(auto) var videoTextureSampler: sampler;
 @fragment
 fn fragmentMain(input: FragmentInputs) -> @location(0) vec4<f32> {
-  var p = input.uv;
+  // WebGPU external images and texture reads use top-left coordinates, while
+  // ClipSpace interpolates its UVs from the bottom edge. Normalize once here so
+  // the volume shaders can use native WebGPU texture coordinates.
+  var p = vec2<f32>(input.uv.x, 1.0 - input.uv.y);
   if (videoCopy.flip > 0.5) { p.x = 1.0 - p.x; }
   if (videoCopy.rotation == 90.0) { p = vec2<f32>(p.y, 1.0 - p.x); }
   else if (videoCopy.rotation == 180.0) { p = vec2<f32>(1.0) - p; }

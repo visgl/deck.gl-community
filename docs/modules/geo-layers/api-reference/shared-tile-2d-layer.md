@@ -202,6 +202,8 @@ Each viewport gets its own traversal state. That means one `SharedTile2DLayer` c
 
 When a view is removed from the deck, the layer drops that viewport's traversal state at its next update. Its tiles are then no longer selected for it, no longer held against eviction, and no longer counted by `isLoaded`.
 
+Each view selects the same tiles deck.gl's `TileLayer` would select for it. In a `GlobeView` this includes skipping tiles that lie beyond the globe's horizon, so the far side of the globe is not requested.
+
 ## Shared Stats
 
 When a layer uses a shared `SharedTileset2D`, cache and visibility stats live on the tileset rather than on the layer. See [SharedTileset2D](./shared-tileset-2d.md) for the shared stats object and subscription callbacks.

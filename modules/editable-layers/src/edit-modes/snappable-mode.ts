@@ -71,7 +71,20 @@ export class SnappableMode extends GeoJsonEditMode {
       props.modeConfig?.enableSnapping && this._strategy
         ? this._strategy.snapMovementEvent(props, event)
         : event;
-    this._wrappedMode.handleStartDragging(snappedEvent, this._getEventProps(props, snappedEvent));
+    let startEvent = snappedEvent;
+    if (props.modeConfig?.enableSnapping && this._strategy) {
+      const pointerDownEvent = {
+        ...event,
+        screenCoords: event.pointerDownScreenCoords || event.screenCoords,
+        mapCoords: event.pointerDownMapCoords || event.mapCoords,
+        picks: event.pointerDownPicks || []
+      };
+      const snappedPointerDownEvent = this._strategy.snapMovementEvent(props, pointerDownEvent);
+      if (snappedPointerDownEvent !== pointerDownEvent) {
+        startEvent = {...snappedEvent, pointerDownMapCoords: snappedPointerDownEvent.mapCoords};
+      }
+    }
+    this._wrappedMode.handleStartDragging(startEvent, this._getEventProps(props, startEvent));
   }
 
   handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

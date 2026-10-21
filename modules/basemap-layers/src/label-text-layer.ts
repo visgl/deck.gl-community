@@ -12,6 +12,7 @@ import type {
   DefaultProps,
   FilterContext
 } from '@deck.gl/core';
+import {Buffer} from '@luma.gl/core';
 import type {Texture} from '@luma.gl/core';
 import {getLabelFontRenderer} from './label-font-renderer';
 import {SharedTextureSet} from './shared-texture';
@@ -153,6 +154,22 @@ type CachedIconDefs = {
   defs: Float32Array;
 };
 
+/** The glyphs along lines of a view other than the one the glyph attribute holds. */
+type ViewLineGlyphs = {
+  /** The `getLineGlyphKey` they were placed for. */
+  key: string;
+  /** The glyph attribute revision they were placed at. */
+  revision: number;
+  values: Float32Array;
+  buffer: Buffer;
+};
+
+/**
+ * The most views whose glyphs along lines a layer keeps beside the attribute's, as a main map and a
+ * minimap. The view drawn least recently is forgotten first.
+ */
+const MAX_LINE_GLYPH_VIEWS = 3;
+
 /** Whether two number lists hold the same values. */
 function isSameNumbers(a: number[], b: number[]): boolean {
   if (a.length !== b.length) {
@@ -285,8 +302,15 @@ export class LabelCharactersLayer extends MultiIconLayer<any> {
   declare state: MultiIconLayer<any>['state'] & {
     /** Each label's packed character definitions, by label object. */
     iconDefs?: WeakMap<object, CachedIconDefs>;
-    /** The `getLineGlyphKey` the glyphs along lines were last placed for. */
-    lineGlyphKey?: string | null;
+    /**
+     * The view whose glyphs along lines the glyph attribute holds, and the `getLineGlyphKey` they
+     * were placed for (null when some rows were placed for another).
+     */
+    lineGlyphView?: {id: string; key: string | null};
+    /** Glyphs along lines of the other views drawn, by view id, least recently drawn first. */
+    lineGlyphViews?: Map<string, ViewLineGlyphs>;
+    /** Counts the glyph attribute's updates, after which the other views' glyphs are placed again. */
+    lineGlyphRevision?: number;
   };
 
   /** Whether characters can be placed along lines: on WebGL, whose shader this layer extends. */
@@ -375,7 +399,10 @@ ${HIDE_CHARACTER_BEFORE}`
 
   /**
    * Places the glyphs along lines again before drawing when the view has moved to another zoom or
-   * bearing step (`getLineGlyphKey`). The rows and every other attribute stay as they are.
+   * bearing step (`getLineGlyphKey`). The rows and every other attribute stay as they are. A layer
+   * drawn in several views, as a main map and a minimap, keeps the glyphs of each: the attribute
+   * holds one view's, the others are kept in buffers of their own, bound in their place as each
+   * view is drawn.
    */
   draw(params: any): void {
     const radius = Number((this.props as any).sdfRadius) || 12;
@@ -383,16 +410,86 @@ ${HIDE_CHARACTER_BEFORE}`
     this.setShaderModuleProps({labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening}});
     const {getLineGlyphs, getLineGlyphKey} = this.props as any;
     const attribute = this.getAttributeManager()?.attributes.instanceLineGlyphs;
-    if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant) {
-      const key = getLineGlyphKey(this.context.viewport);
-      if (key !== this.state.lineGlyphKey && attribute.value) {
-        this.state.lineGlyphKey = key;
-        this.fillLineGlyphs(attribute, 0, Infinity);
-        (attribute as any).updateSubBuffer({startOffset: 0, endOffset: attribute.value.length});
-        LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+    if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant && attribute.value) {
+      const {viewport} = this.context;
+      const id = getViewId(viewport);
+      const key = getLineGlyphKey(viewport);
+      const held = this.state.lineGlyphView;
+      let buffer: Buffer | null = null;
+      if (!held || held.id === id) {
+        if (held?.key !== key) {
+          this.state.lineGlyphView = {id, key};
+          this.fillLineGlyphs(attribute, 0, Infinity);
+          (attribute as any).updateSubBuffer({startOffset: 0, endOffset: attribute.value.length});
+          LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+        }
+        buffer = attribute.getBuffer();
+      } else {
+        buffer = this.getViewLineGlyphs(attribute, id, key).buffer;
+      }
+      // With one view, the attribute stays bound; with more, each view binds its own glyphs.
+      if (this.state.lineGlyphViews?.size && buffer) {
+        this.state.model?.setAttributes({instanceLineGlyphs: buffer});
       }
     }
     super.draw(params);
+  }
+
+  /**
+   * The glyphs along lines of view `id`, which the glyph attribute does not hold: kept while its
+   * key and the attribute's rows are the same, placed again and uploaded otherwise.
+   */
+  getViewLineGlyphs(attribute: Attribute, id: string, key: string): ViewLineGlyphs {
+    if (!this.state.lineGlyphViews) {
+      this.state.lineGlyphViews = new Map();
+    }
+    const views = this.state.lineGlyphViews;
+    const revision = this.state.lineGlyphRevision ?? 0;
+    const length = (attribute.value as Float32Array).length;
+    let entry = views.get(id);
+    if (entry) {
+      // The most recently drawn view last.
+      views.delete(id);
+    }
+    if (!entry || entry.key !== key || entry.revision !== revision) {
+      if (!entry || entry.values.length !== length) {
+        entry?.buffer.destroy();
+        const values = new Float32Array(length);
+        const buffer = this.context.device.createBuffer({
+          id: `${this.id}-line-glyphs-${id}`,
+          usage: Buffer.VERTEX | Buffer.COPY_DST,
+          byteLength: values.byteLength
+        });
+        entry = {key, revision, values, buffer};
+      }
+      entry.key = key;
+      entry.revision = revision;
+      this.fillLineGlyphs(attribute, 0, Infinity, entry.values);
+      entry.buffer.write(entry.values);
+      LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+    }
+    views.set(id, entry);
+    for (const [oldId, old] of views) {
+      if (views.size <= MAX_LINE_GLYPH_VIEWS) {
+        break;
+      }
+      old.buffer.destroy();
+      views.delete(oldId);
+    }
+    return entry;
+  }
+
+  finalizeState(context: any): void {
+    super.finalizeState(context);
+    this.forgetViewLineGlyphs();
+  }
+
+  /** Releases the glyphs along lines kept for views other than the attribute's. */
+  forgetViewLineGlyphs(): void {
+    for (const entry of this.state.lineGlyphViews?.values() ?? []) {
+      entry.buffer.destroy();
+    }
+    this.state.lineGlyphViews?.clear();
   }
 
   /** Each character's `getLineGlyphs` values; a constant when no label is placed along a line. */
@@ -402,18 +499,37 @@ ${HIDE_CHARACTER_BEFORE}`
   ): void {
     const {getLineGlyphs, getLineGlyphKey} = this.props as any;
     if (!getLineGlyphs) {
+      this.forgetViewLineGlyphs();
       setConstant(attribute);
       return;
     }
-    this.state.lineGlyphKey = getLineGlyphKey?.(this.context.viewport) ?? null;
+    // The rows changed: every view's glyphs are placed again as it is drawn.
+    this.state.lineGlyphRevision = (this.state.lineGlyphRevision ?? 0) + 1;
+    const {viewport} = this.context;
+    const id = getViewId(viewport);
+    const key = getLineGlyphKey?.(viewport) ?? null;
+    const held = this.state.lineGlyphView;
+    // Rows left as they were hold the glyphs of the view and key the attribute held.
+    const allRows = startRow <= 0 && !Number.isFinite(endRow);
+    this.state.lineGlyphView = {
+      id,
+      key: allRows || (held?.id === id && held.key === key) ? key : null
+    };
     this.fillLineGlyphs(attribute, startRow, endRow);
   }
 
-  /** Writes the `getLineGlyphs` values of rows `startRow` to `endRow` at the current viewport. */
-  fillLineGlyphs(attribute: Attribute, startRow: number, endRow: number): void {
+  /**
+   * Writes the `getLineGlyphs` values of rows `startRow` to `endRow` at the current viewport, into
+   * `output`, laid out as the attribute: by default, its value.
+   */
+  fillLineGlyphs(
+    attribute: Attribute,
+    startRow: number,
+    endRow: number,
+    output = attribute.value as Float32Array
+  ): void {
     const {data, getIcon, getLineGlyphs} = this.props as any;
     const {viewport} = this.context;
-    const output = attribute.value as Float32Array;
     const {iterable, objectInfo} = createIterable(data, startRow, endRow);
     for (const object of iterable) {
       objectInfo.index++;
@@ -521,6 +637,11 @@ ${HIDE_CHARACTER_BEFORE}`
  * refreshes of the whole attribute when the view crosses a zoom or bearing step.
  */
 export const LINE_GLYPH_ATTRIBUTE_STATS = {fills: 0, bytes: 0, refreshes: 0};
+
+/** The id of the view `viewport` draws, by which a layer keeps each view's glyphs along lines. */
+function getViewId(viewport: any): string {
+  return String(viewport?.id ?? '');
+}
 
 /** Makes an attribute with a custom updater a constant zero. */
 function setConstant(attribute: Attribute): void {

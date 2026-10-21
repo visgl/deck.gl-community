@@ -14,6 +14,12 @@ import {REFERENCE_STYLES, type ReferenceStyleId} from './scenes';
  * The tiles hold OpenStreetMap data (© OpenStreetMap contributors, ODbL) in the OpenMapTiles
  * schema, from OpenFreeMap and CARTO, and Natural Earth relief (public domain). The styles are
  * OpenFreeMap's and CARTO's Positron (CC BY 4.0); the glyphs are Noto Sans and Montserrat (OFL).
+ *
+ * The four DEM tiles under `s3.amazonaws.com/elevation-tiles-prod/terrarium/11/` (Mount Rainier,
+ * for `hillshade.browser.spec.ts`) are from the Terrain Tiles open dataset on AWS (Mapzen
+ * terrarium encoding); in the United States its elevations come from USGS 3DEP and SRTM, both
+ * public domain. They were rounded down to whole meters (blue channel zeroed) to halve their size,
+ * and are committed as such: recording them again would replace them with the unrounded tiles.
  */
 export const FIXTURE_ROOT = 'modules/basemap-layers/tests/reference-render/fixtures';
 
