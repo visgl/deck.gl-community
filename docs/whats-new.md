@@ -72,6 +72,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## v10 — In Development
 
+- **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import
+  `TreeLayer` and its types from `@deck.gl-community/layers`.
+
 Support for the upcoming deck.gl v10 is in development.
 
 ## v9.4
