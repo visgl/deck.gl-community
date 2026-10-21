@@ -167,6 +167,27 @@ function pickTileJsonFields(tileJson: unknown): Partial<BasemapSource> {
 }
 
 /**
+ * Resolves a GeoJSON source whose `data` is a URL to one whose `data` is the fetched GeoJSON, as
+ * MapLibre loads it. Relative URLs resolve against the style's base URL. Throws if the data cannot
+ * be fetched or is not a GeoJSON object.
+ */
+async function resolveGeoJsonSource(
+  source: BasemapSource,
+  baseUrl: string | undefined,
+  loadOptions?: BasemapLoadOptions
+): Promise<BasemapSource> {
+  if (typeof source.data !== 'string') {
+    return {...source};
+  }
+  const dataUrl = normalizeUrl(source.data, baseUrl) || source.data;
+  const data = await fetchJson(dataUrl, loadOptions);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error(`Invalid GeoJSON: ${dataUrl}`);
+  }
+  return {...source, data};
+}
+
+/**
  * Resolves a single source, including optional TileJSON indirection. As in MapLibre, the style's
  * own source properties take precedence over the TileJSON's. Inline `tiles` resolve against the
  * style's base URL and TileJSON `tiles` against the TileJSON URL. Throws if the TileJSON cannot be
@@ -179,6 +200,10 @@ async function resolveSource(
 ) {
   if (!source) {
     return source;
+  }
+
+  if (source.type === 'geojson') {
+    return await resolveGeoJsonSource(source, baseUrl, loadOptions);
   }
 
   if (!source.url || !TILEJSON_SOURCE_TYPES.has(String(source.type))) {
@@ -245,7 +270,7 @@ export async function resolveBasemapStyle(
         }
         // One source that cannot be loaded must not fail the whole style. A source that also
         // lists its own `tiles` keeps them; otherwise it keeps no tile templates, and the layers
-        // that use it are skipped.
+        // that use it are skipped. A GeoJSON source whose data cannot be loaded keeps no data.
         const inlineTiles = source?.tiles?.length
           ? normalizeTiles(source.tiles, baseUrl)
           : undefined;
@@ -254,7 +279,10 @@ export async function resolveBasemapStyle(
             inlineTiles ? 'using its inline tiles' : 'its layers are skipped'
           }: ${String((error as Error)?.message ?? error)}`
         )();
-        resolvedSources[sourceId] = {...source, url: undefined, tiles: inlineTiles};
+        resolvedSources[sourceId] =
+          source?.type === 'geojson'
+            ? {...source, data: undefined}
+            : {...source, url: undefined, tiles: inlineTiles};
       }
     })
   );
