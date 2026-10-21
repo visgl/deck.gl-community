@@ -52,9 +52,11 @@ This page lists module additions and major changes in each release. For detailed
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
 
-- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera and light-map culling include the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
+- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera culling includes the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
 
-- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. The old import temporarily re-exports the same constructor.
+- **Breaking:** `SplatShadowPass`, `SplatShadowProjection`, `maxShadowSplats`, foliage-shadow controls, and SplatLayer shadow statistics are removed. TreeLayer and SplatLayer now have no built-in deck.gl foliage-shadow integration. Remove those imports and props; provide shadows outside these renderers if they are required. This requires a major `@deck.gl-community/layers` release.
+
+- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopy refinement is per owner within SplatLayer's shared budget, and foliage uses SplatLayer's weighted order-independent compositing path by default. Woody refinement selects opaque meshes with structural roots retained at a distance. The old import temporarily re-exports the same constructor.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 

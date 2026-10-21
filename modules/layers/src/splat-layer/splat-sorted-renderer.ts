@@ -31,8 +31,10 @@ const SORTED_PARAMETERS = {
   depthWriteEnabled: false,
   depthCompare: 'less-equal',
   blend: true,
+  blendColorOperation: 'add',
   blendColorSrcFactor: 'src-alpha',
   blendColorDstFactor: 'one-minus-src-alpha',
+  blendAlphaOperation: 'add',
   blendAlphaSrcFactor: 'one',
   blendAlphaDstFactor: 'one-minus-src-alpha',
   cullMode: 'none'

@@ -2,13 +2,64 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {expect, it} from 'vitest';
-import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
+import {
+  resolveSplatBudget,
+  SETTLED_SPLAT_BUDGET_FRACTION,
+  SplatRuntime,
+  type SplatBudgetGroup
+} from '../../src/splat-layer/splat-runtime';
 import type {SplatHierarchy} from '../../src/splat-layer/splat-hierarchy';
 const hierarchy = (counts: number[]): SplatHierarchy =>
   counts.map((count, i) => ({
     error: i * 10,
     source: {positions: new Float32Array(count * 3)} as any
   }));
+
+it('spends 90% of a public cap on settled detail while retaining the full cap for transitions', () => {
+  const runtime = SplatRuntime.get({}, {});
+  const applied: {rows: any[]; budget: number}[] = [];
+  runtime.set('one', {
+    rows: [{owner: 'one', pixels: 10, level: 0, blend: 0}],
+    hierarchy: () => hierarchy([90, 10]),
+    maxSplats: 100,
+    maxTotalSplats: 100,
+    apply: (rows, budget) => applied.push({rows, budget})
+  });
+
+  runtime.reconcile(new Set(['one']));
+
+  expect(SETTLED_SPLAT_BUDGET_FRACTION).toBe(0.9);
+  expect(applied).toHaveLength(1);
+  expect(applied[0].rows[0].level).toBe(0);
+  expect(applied[0].budget).toBe(100);
+});
+
+it('resolves an automatic shared cap once per device without changing explicit caps', () => {
+  const softwareDevice = {
+    info: {fallback: true, gpu: 'software' as const, gpuType: 'cpu' as const}
+  };
+  const gpuDevice = {
+    info: {fallback: false, gpu: 'apple' as const, gpuType: 'integrated' as const}
+  };
+  expect(resolveSplatBudget('auto', softwareDevice)).toBe(5_000);
+  expect(resolveSplatBudget(undefined, softwareDevice)).toBe(5_000);
+  expect(resolveSplatBudget('auto', gpuDevice)).toBe(20_000);
+  expect(resolveSplatBudget(1_234, softwareDevice)).toBe(1_234);
+
+  const runtime = SplatRuntime.get({}, softwareDevice);
+  const group: SplatBudgetGroup = {maxSplats: 'auto'};
+  const selected: any[] = [];
+  runtime.set('software-auto', {
+    rows: [{owner: 'tree', pixels: 10, level: 0, blend: 0}],
+    hierarchy: () => hierarchy([10_000, 1_000]),
+    maxSplats: Infinity,
+    maxTotalSplats: Infinity,
+    group,
+    apply: rows => selected.push(...rows)
+  });
+  runtime.reconcile(new Set(['software-auto']));
+  expect(selected[0].level).toBe(1);
+});
 
 it('allocates one parent cap across differently sized sources by screen error rather than row count', () => {
   const runtime = SplatRuntime.get({}, {});

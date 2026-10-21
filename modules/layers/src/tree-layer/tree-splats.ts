@@ -241,6 +241,9 @@ export function getTreeSplatSource(
 }
 
 const HIERARCHIES = new WeakMap<SplatSource, SplatHierarchy>();
+// The farthest tree canopy stays a two-point spatial cluster. A one-point covariance proxy can
+// preserve optical mass while collapsing a crown silhouette under a heavily pitched view.
+const MINIMUM_TREE_SPLATS = 2;
 /** Full leaf templates with progressively merged covariance moments for subpixel crowns. */
 export function getTreeSplatHierarchy(
   type: TreeType,
@@ -252,7 +255,7 @@ export function getTreeSplatHierarchy(
   if (!hierarchy) {
     const cellSizes =
       type === 'palm' ? [0.12, 0.5, 3.2] : [0.035, 0.075, 0.16, 0.32, 0.64, 1.28, 2.56];
-    hierarchy = createSplatHierarchy(source, cellSizes);
+    hierarchy = createSplatHierarchy(source, cellSizes, MINIMUM_TREE_SPLATS);
     HIERARCHIES.set(source, hierarchy);
   }
   return hierarchy;

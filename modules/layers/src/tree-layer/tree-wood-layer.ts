@@ -5,9 +5,9 @@ import {CompositeLayer, createIterable, type DefaultProps} from '@deck.gl/core';
 import {
   getSplatProjectionKey,
   getSplatCachedPosition,
+  getSplatCommonUnits,
   type SplatProjectedPosition,
-  getSplatBoundedPixelsPerMeter,
-  getSplatFocusWeight
+  getSplatBoundedPixelsPerMeter
 } from '../splat-layer/splat-culling';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
@@ -38,8 +38,10 @@ type Owner = {
   scale: number[];
   common: number[];
   center: number[];
+  units: number[];
   radius: number;
 };
+const MIN_WOOD_PIXELS = 2;
 /** Automatic woody refinement. The connected full branching mesh is retained for close views. */
 export class TreeWoodLayer extends CompositeLayer<any> {
   static layerName = 'TreeWoodLayer';
@@ -49,7 +51,10 @@ export class TreeWoodLayer extends CompositeLayer<any> {
     // SimpleMeshLayer's boolean metadata only compares material truthiness.
     material: {type: 'object', value: true, compare: 2},
     templateMesh: {type: 'object', value: null},
-    farTrunkOnly: false
+    farTrunkOnly: false,
+    // Dense canopies retain their native branch lattice, but use a stable spatial coverage mask
+    // so foliage can occupy the complementary samples rather than being cut out by opaque wood.
+    nearBranchCoverage: {type: 'number', value: 1, min: 0, max: 1}
   };
   declare state: {
     near: Row[];
@@ -104,12 +109,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       props.modelMatrix !== oldProps.modelMatrix ||
       props.coordinateSystem !== oldProps.coordinateSystem ||
       props.coordinateOrigin !== oldProps.coordinateOrigin;
-    if (
-      !rebuild &&
-      !changeFlags.viewportChanged &&
-      props.foveationStrength === oldProps.foveationStrength
-    )
-      return;
+    if (!rebuild && !changeFlags.viewportChanged) return;
     let {owners, spatialIndex} = this.state;
     if (rebuild) {
       const reset =
@@ -149,15 +149,17 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         );
         const common = projected.common,
           units = Math.max(...projected.units);
+        const center = [0, 1, 2].map(
+          axis =>
+            common[axis] + (translation[axis] + transform[axis + 6] * 0.6) * projected.units[axis]
+        );
         owners.push({
           row,
           position,
           scale,
           common,
-          center: [0, 1, 2].map(
-            axis =>
-              common[axis] + (translation[axis] + transform[axis + 6] * 0.6) * projected.units[axis]
-          ),
+          center,
+          units: getSplatCommonUnits(center, viewport),
           radius:
             (Math.max(...scale.map(Math.abs)) * 2 +
               Math.hypot(...translation) +
@@ -189,21 +191,33 @@ export class TreeWoodLayer extends CompositeLayer<any> {
     const nearWeights = new Map<Row, number>();
     const near: Row[] = [],
       far: Row[] = [];
-    for (const owner of this.hasCustomMesh()
+    const hasCustomMesh = this.hasCustomMesh();
+    for (const owner of hasCustomMesh
       ? owners
       : querySplatSpatialIndex(spatialIndex, projections)) {
       let pixelsPerMeter = 0;
       for (const view of views)
         pixelsPerMeter = Math.max(
           pixelsPerMeter,
-          getSplatBoundedPixelsPerMeter(owner.center, owner.radius, view) *
-            getSplatFocusWeight(owner.center, view, props.foveationStrength ?? 0)
+          getSplatBoundedPixelsPerMeter(
+            owner.center,
+            owner.radius,
+            view,
+            view === viewport ? owner.units : undefined
+          )
         );
       const t = Math.max(
         0,
         Math.min(1, (Math.max(...owner.scale.map(Math.abs)) * pixelsPerMeter - 80) / 100)
       );
       const weight = t * t * (3 - 2 * t);
+      // A subpixel bole cannot add readable structure but costs a full instanced mesh draw. The
+      // splat canopy remains present at every distance; restore wood once it spans two pixels.
+      if (
+        !hasCustomMesh &&
+        Math.max(...owner.scale.map(Math.abs)) * pixelsPerMeter < MIN_WOOD_PIXELS
+      )
+        continue;
       nearWeights.set(owner.row, weight);
       if (weight >= 0.5) near.push(owner.row);
       else far.push(owner.row);
@@ -237,23 +251,30 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               ...this.getSubLayerProps({id}),
               data,
               _dataDiff: getSplatChangedRanges,
-              // Wood is opaque. Dithering different skeletons exposes disconnected
-              // surfaces and cannot provide complementary pixel coverage.
+              // Global coverage applies to every wood fragment. Dense near branch coverage is
+              // independent so bole/root fades, picking and streamed replacement remain intact.
               getCoverageRange: [0, 1],
+              branchCoverage: aggregate || this.hasCustomMesh() ? 1 : this.props.nearBranchCoverage,
               shadowEnabled: false,
               pickable: this.props.pickable,
               woodMorph: !this.hasCustomMesh(),
               ...(this.hasCustomMesh() ? {getStemRadius: -1, getRootLength: -1} : {}),
               mesh: this.hasCustomMesh()
                 ? this.props.mesh
-                : getTreeWoodMesh(
-                    row.type,
-                    row.levels,
-                    aggregate,
-                    row.characteristics,
-                    true,
-                    aggregate && this.props.farTrunkOnly
-                  )
+                : (() => {
+                    const trunkOnly = aggregate && this.props.farTrunkOnly;
+                    // Far native wood can simplify to a compact bole. Near wood always retains
+                    // its connected branch lattice; dense canopies control its optical coverage
+                    // above instead of replacing the structure.
+                    return getTreeWoodMesh(
+                      row.type,
+                      row.levels,
+                      aggregate,
+                      row.characteristics,
+                      true,
+                      trunkOnly
+                    );
+                  })()
             })
           ]
         : []

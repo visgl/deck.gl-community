@@ -11,6 +11,7 @@ import {
   type SplatProjectedPosition,
   getSplatBoundedPixelsPerMeter,
   getSplatFocusWeight,
+  getSplatViewportLodWeight,
   createSplatFrustum,
   intersectsSplatFrustum
 } from '../../src/splat-layer/splat-culling';
@@ -135,8 +136,60 @@ it('keeps intersecting behind-eye crowns at bounded peripheral refinement priori
     distanceScales: {unitsPerMeter: [1, 1, 1]}
   } as unknown as Viewport;
   expect(getSplatBoundedPixelsPerMeter([0, 0, 5], 10, viewport)).toBe(20);
-  expect(getSplatBoundedPixelsPerMeter([0, 0, -5], 0.5, viewport)).toBeCloseTo(10);
+  expect(getSplatBoundedPixelsPerMeter([0, 0, -5], 0.5, viewport)).toBeGreaterThan(10);
   expect(getSplatFocusWeight([0, 0, 5], viewport, 1)).toBeCloseTo(0.15);
+});
+
+it('uses the nearest visible support depth when a pitched camera sees a crown approach its eye', () => {
+  const viewport = {
+    viewProjectionMatrix: matrix,
+    width: 100,
+    height: 100,
+    distanceScales: {unitsPerMeter: [1, 1, 1]}
+  } as unknown as Viewport;
+  const position = [0, 0, -5];
+  expect(getSplatPixelsPerMeter(position, viewport)).toBeCloseTo(10);
+  // A radius-four support reaches much closer than its center. The analytic bound resolves to
+  // the existing viewport cap rather than under-requesting the visible edge detail.
+  expect(getSplatBoundedPixelsPerMeter(position, 4, viewport)).toBe(50);
+  // A sphere touching the eye remains finite and bounded.
+  expect(getSplatBoundedPixelsPerMeter(position, 5, viewport)).toBe(40);
+});
+
+it('accepts owner-local unit scales without changing projected detail', () => {
+  const viewport = {
+    viewProjectionMatrix: matrix,
+    width: 100,
+    height: 100,
+    distanceScales: {unitsPerMeter: [2, 3, 4]}
+  } as unknown as Viewport;
+  const position = [0, 0, -5];
+  const units = getSplatCommonUnits(position, viewport);
+  expect(getSplatPixelsPerMeter(position, viewport, units)).toBeCloseTo(
+    getSplatPixelsPerMeter(position, viewport)
+  );
+  expect(getSplatBoundedPixelsPerMeter(position, 0.5, viewport, units)).toBeCloseTo(
+    getSplatBoundedPixelsPerMeter(position, 0.5, viewport)
+  );
+});
+
+it('keeps centered supports detailed and tapers offscreen support toward a sliver', () => {
+  const viewport = {viewProjectionMatrix: matrix, width: 100, height: 100} as unknown as Viewport;
+  const orthographic = {
+    viewProjectionMatrix: new Matrix4().scale([0.02, 0.02, 0.4]),
+    width: 100,
+    height: 100
+  } as unknown as Viewport;
+  const clipped = getSplatViewportLodWeight([8, 0, -5], 4, viewport);
+  const corner = getSplatViewportLodWeight([8, 8, -5], 4, viewport);
+  expect(getSplatViewportLodWeight([0, 0, -5], 0.5, viewport)).toBe(1);
+  expect(clipped).toBeGreaterThan(0);
+  expect(clipped).toBeLessThan(1);
+  expect(corner).toBeLessThan(clipped);
+  // A large orthographic support remains detailed when it contains the complete viewport.
+  expect(getSplatViewportLodWeight([55, 0, 0], 120, orthographic)).toBe(1);
+  expect(getSplatViewportLodWeight([0, 0, 5], 1, viewport)).toBe(1);
+  expect(getSplatViewportLodWeight([0, 0, -0.05], 0.1, viewport)).toBe(1);
 });
 
 it('reuses unchanged geographic positions across source batches without retaining removed entries', () => {

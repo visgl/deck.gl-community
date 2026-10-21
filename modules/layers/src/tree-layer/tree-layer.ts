@@ -29,7 +29,7 @@ import {
 export type {CropKind} from './tree-crop';
 export type {TreeCharacteristics} from './tree-characteristics';
 import {getTreeSplatData} from './tree-splats';
-import type {SplatBudgetGroup} from '../splat-layer/splat-runtime';
+import type {SplatBudget, SplatBudgetGroup} from '../splat-layer/splat-runtime';
 
 /** Procedural species silhouette. */
 export type TreeType =
@@ -276,11 +276,14 @@ type _TreeLayerProps<DataT> = {
   windStrength?: number;
   /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
   windTime?: number | null;
-  /** Maximum shared per-frame canopy Gaussian budget. Dense groups lower their target with tree count; finest templates remain available. @default 20000 */
-  maxCanopySplats?: number;
+  /**
+   * Maximum shared per-frame canopy Gaussian budget. `auto` keeps a stable device-aware budget;
+   * SplatLayer allocates it by projected error. @default 'auto'
+   */
+  maxCanopySplats?: SplatBudget;
   /** Pixel cap for the shared Gaussian accumulation pass, independent of opaque wood and picking. @default Infinity */
   maxCanopyPixels?: number;
-  /** Refine actual splat crowns around screen center while retaining every visible tree. @default 0.55 */
+  /** Screen-center canopy allocation priority under a finite budget. Requested screen error remains uniform. @default 0 */
   foveationStrength?: number;
   /** Optical coverage used by streaming transitions; does not rebuild owner geometry. @default 1 */
   getCoverageWeight?: Accessor<DataT, number>;
@@ -306,13 +309,16 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   characteristics: {type: 'object', value: {}},
   windStrength: {type: 'number', value: 0, min: 0, max: 0.2},
   windTime: null,
-  maxCanopySplats: 20000,
+  maxCanopySplats: 'auto',
   maxCanopyPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
-  foveationStrength: {type: 'number', value: 0.55, min: 0, max: 1}
+  foveationStrength: {type: 'number', value: 0, min: 0, max: 1}
 };
 
 const DENSE_TREE_COUNT = 1024;
+// This is stable spatial coverage, not alpha: covered branch fragments keep their real depth and
+// the complementary fragments admit the weighted splat canopy behind them.
+const DENSE_GROVE_NEAR_BRANCH_COVERAGE = 0.55;
 
 type TreeRow<DataT> = {
   object: DataT;
@@ -790,7 +796,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       windStrength,
       windTime,
       shadowEnabled: false,
-      foveationStrength: this.props.foveationStrength,
       getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),
       pickable: this.props.pickable
     };
@@ -836,14 +841,13 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       true
     );
     this.state.splatBudgetGroup.parent = this.props._splatBudgetGroup;
-    const denseCanopyTreeCount = [...this.state.groups.values()].reduce(
-      (count, rows) => count + (rows[0].winter ? 0 : rows.length),
-      0
-    );
-    const hasDenseCanopy = denseCanopyTreeCount >= DENSE_TREE_COUNT;
     // This cap is shared by currently visible, refined crowns. Do not scale it
     // from total inventory size: a large grove must recover detail when zoomed in.
     this.state.splatBudgetGroup.maxSplats = this.props.maxCanopySplats;
+    // Groups are split by species and morphology, not by spatial density. Use the complete
+    // inventory for the far-wood policy so a mixed grove does not draw a separate full branch
+    // lattice for every distant template batch.
+    const denseGrove = this.props.data.length >= DENSE_TREE_COUNT;
     for (const [key, data] of this.state.groups) {
       const {type, winter, levels, characteristics} = data[0];
       const wood = this.state.woodGroups.get(key)!;
@@ -869,8 +873,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
             getColor: [getTrunkColor, this.props.updateTriggers?.getTrunkColor]
           }
         };
-        // Keep detailed connected branching only for trees large enough to read on screen. Dense
-        // groves retain every splat crown, while their subpixel wood simplifies to one curved bole.
+        // Near trees retain their connected branch lattice. In a dense grove the branch samples
+        // leave stable complementary coverage for the splat canopy, while distant wood can still
+        // simplify to a compact bole.
         const mesh = getTreeWoodMesh(type, levels, false, characteristics);
         layers.push(
           new TreeWoodLayer(
@@ -879,7 +884,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
                 ...woodProps,
                 mesh,
                 templateMesh: mesh,
-                farTrunkOnly: data.length >= DENSE_TREE_COUNT
+                farTrunkOnly: denseGrove,
+                nearBranchCoverage: denseGrove ? DENSE_GROVE_NEAR_BRANCH_COVERAGE : 1
               },
               'trunks'
             )
@@ -911,12 +917,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               data,
               ...shared,
               getSource: getTreeSplatData(type, levels, characteristics),
-              transparency: hasDenseCanopy ? 'weighted' : 'sorted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
-              // Preserve full crown texture in the species lab; dense groves trade detail
-              // for a bounded shared splat budget and recover detail when zoomed in.
-              pixelError: hasDenseCanopy ? 3.5 : type === 'palm' ? 0.3 : 0.75,
-              support: hasDenseCanopy ? 1.5 : type === 'palm' ? 1.4 : 2,
+              support: type === 'palm' ? 1.4 : 2,
               maxRenderPixels: this.props.maxCanopyPixels,
               foveationStrength: this.props.foveationStrength,
               getCoverageWeight: this.getSubLayerAccessor(this.props.getCoverageWeight),

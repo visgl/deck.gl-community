@@ -68,9 +68,9 @@ describe('native tree geometry', () => {
         expect(crown).toBeUndefined();
       else {
         expect(crown).toBeInstanceOf(SplatLayer);
-        expect(crown!.props.transparency).toBe('sorted');
+        expect(crown!.props.transparency).toBe('weighted');
         expect(crown!.props.support).toBeCloseTo(type === 'palm' ? 1.4 : 2);
-        expect(crown!.props.pixelError).toBeCloseTo(type === 'palm' ? 0.3 : 0.75);
+        expect(crown!.props.pixelError).toBeCloseTo(0.75);
         expect(crown!.props.getSource.source.opacities.length).toBeGreaterThan(
           type === 'palm' ? 700 : 1000
         );
@@ -104,7 +104,7 @@ describe('native tree geometry', () => {
     const canopy = layer.renderLayers().find(child => child.id.includes('canopy'))!;
     expect(canopy).toBeInstanceOf(SplatLayer);
     expect(canopy.props.support).toBeCloseTo(1.4);
-    expect(canopy.props.pixelError).toBeCloseTo(0.3);
+    expect(canopy.props.pixelError).toBeCloseTo(0.75);
     const palmSplats = getTreeSplatSource('palm');
     expect(getTreeSplatHierarchy('palm')).toHaveLength(4);
     expect(palmSplats.positions.length / 3).toBeGreaterThan(700);
@@ -136,11 +136,12 @@ describe('native tree geometry', () => {
     expect(canopy.id).not.toContain('dense');
     expect(canopy.props.data).toHaveLength(denseData.length);
     expect(canopy.props.transparency).toBe('weighted');
-    expect(canopy.props.pixelError).toBe(3.5);
-    expect(canopy.props.foveationStrength).toBe(0.55);
-    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
+    expect(canopy.props.pixelError).toBe(0.75);
+    expect(canopy.props.foveationStrength).toBe(0);
+    expect(canopy.props._splatBudgetGroup).toMatchObject({maxSplats: 'auto'});
     expect(wood).toBeInstanceOf(TreeWoodLayer);
     expect(wood.props.farTrunkOnly).toBe(true);
+    expect(wood.props.nearBranchCoverage).toBe(0.55);
     expect(wood.props.data).toHaveLength(denseData.length);
 
     const {layer: close} = createLayer(denseData.slice(0, 1023));
@@ -149,12 +150,36 @@ describe('native tree geometry', () => {
     const closeWood = closeLayers.find(child => child.id.includes('wood'))!;
     expect(closeCanopy).toBeInstanceOf(SplatLayer);
     expect(closeCanopy.id).toBe(canopy.id);
+    expect(closeCanopy.props.pixelError).toBe(canopy.props.pixelError);
+    expect(closeCanopy.props.transparency).toBe(canopy.props.transparency);
     expect(closeWood).toBeInstanceOf(TreeWoodLayer);
     expect(closeWood.id).toBe(wood.id);
     expect(closeWood.props.farTrunkOnly).toBe(false);
+    expect(closeWood.props.nearBranchCoverage).toBe(1);
     const {layer: threshold} = createLayer(denseData.slice(0, 1024));
     const thresholdCanopy = threshold.renderLayers().find(child => child.id.includes('canopy'))!;
-    expect(thresholdCanopy.props._splatBudgetGroup).toMatchObject({maxSplats: 20000});
+    expect(thresholdCanopy.props._splatBudgetGroup).toMatchObject({maxSplats: 'auto'});
+  });
+  it('uses the complete mixed-grove inventory when simplifying distant wood', () => {
+    // Eight 1,000-row species groups are each below the dense threshold, while the complete
+    // 8,000-tree forest must still draw distant wood as trunks so the automatic splat crowns
+    // provide the background canopy rather than a branch lattice.
+    const mixedDenseData = Array.from({length: 8000}, (_, index) => ({
+      position: [index % 100, Math.floor(index / 100)] as [number, number],
+      type: (['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'] as const)[
+        index % 8
+      ],
+      season: 'summer' as const
+    }));
+    const {layer} = createLayer(mixedDenseData);
+    const woodLayers = layer
+      .renderLayers()
+      .filter((child): child is TreeWoodLayer => child instanceof TreeWoodLayer);
+
+    expect(woodLayers).toHaveLength(8);
+    expect(woodLayers.every(wood => wood.props.data.length < 1024)).toBe(true);
+    expect(woodLayers.every(wood => wood.props.farTrunkOnly)).toBe(true);
+    expect(woodLayers.every(wood => wood.props.nearBranchCoverage === 0.55)).toBe(true);
   });
   it('uses one stable canopy color accessor and blend mode across a mixed dense scene', () => {
     const mixedData = [

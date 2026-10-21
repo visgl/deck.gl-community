@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {describe, expect, it} from 'vitest';
 import {validateSplatSource} from '../../src/splat-layer/splat-source';
-import {getTreeSplatSource} from '../../src/tree-layer/tree-splats';
+import {getTreeSplatHierarchy, getTreeSplatSource} from '../../src/tree-layer/tree-splats';
 describe('Authored tree Gaussian templates', () => {
   for (const species of ['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove'] as const)
     it(`${species} authors real anisotropic leaf Gaussians and shares its template`, () => {
@@ -31,5 +31,21 @@ describe('Authored tree Gaussian templates', () => {
     expect(pine.scales[0]).toBeCloseTo(0.03);
     expect(pine.scales[1]).toBeCloseTo(0.015);
     expect(pine.scales[2]).toBeCloseTo(0.007);
+  });
+
+  it('retains a two-splat spatial cluster as every tree canopy hierarchy floor', () => {
+    for (const species of [
+      'pine',
+      'oak',
+      'palm',
+      'birch',
+      'cherry',
+      'banyan',
+      'mangrove',
+      'citrus'
+    ] as const) {
+      const terminal = getTreeSplatHierarchy(species).at(-1)!.source;
+      expect(validateSplatSource(terminal)).toBeGreaterThanOrEqual(2);
+    }
   });
 });

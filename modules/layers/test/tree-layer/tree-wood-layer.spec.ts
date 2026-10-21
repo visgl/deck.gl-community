@@ -101,6 +101,36 @@ it('renders camera detail and honors custom wood meshes', () => {
   }
 });
 
+it('keeps near branch meshes while dense-grove foliage fills stable complementary coverage', () => {
+  const row = {
+    position: [0, 0, 0],
+    scale: [1, 1, 5],
+    translation: [0, 0, 3],
+    type: 'oak' as const,
+    levels: 3,
+    characteristics: {},
+    height: 10,
+    wind: [0, 0, 0]
+  };
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data: [row],
+    mesh: templateMesh,
+    templateMesh,
+    nearBranchCoverage: 0.55
+  });
+  layer.initializeState();
+  Object.assign(layer.state, {near: [row], far: [row]});
+
+  const [near, far] = layer.renderLayers();
+  expect(near.props.mesh).toBe(getTreeWoodMesh('oak', 3, false, {}, true));
+  expect(near.props.getCoverageRange).toEqual([0, 1]);
+  expect(near.props.branchCoverage).toBe(0.55);
+  expect(far.props.mesh).toBe(getTreeWoodMesh('oak', 3, true, {}, true, false));
+  expect(far.props.getCoverageRange).toEqual([0, 1]);
+  expect(far.props.branchCoverage).toBe(1);
+});
+
 it('culls wood from resolved transforms and refreshes overridden accessor bounds', () => {
   const data = [
     {
@@ -143,6 +173,38 @@ it('culls wood from resolved transforms and refreshes overridden accessor bounds
   });
   expect(layer.state.owners[0].position).toEqual(position);
   expect(layer.state.owners[0]).not.toBe(before);
+});
+
+it('omits native wood once the projected bole is subpixel', () => {
+  const row = {
+    position: [0, 0, 0],
+    scale: [1, 1, 5],
+    translation: [0, 0, 3],
+    type: 'oak' as const,
+    levels: 3,
+    characteristics: {},
+    height: 10,
+    wind: [10, 0, 1]
+  };
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data: [row],
+    mesh: templateMesh,
+    templateMesh,
+    getPosition: value => value.position,
+    getScale: value => value.scale,
+    getTranslation: value => value.translation
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  const viewport = new OrthographicViewport({width: 256, height: 256, zoom: -4});
+  Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
+  vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
+  expect(layer.state.owners).toHaveLength(1);
+  expect(layer.state.near).toEqual([]);
+  expect(layer.state.far).toEqual([]);
+  expect(layer.renderLayers()).toEqual([]);
 });
 
 it('uses affine wood matrices for camera bounds and refreshes matrix triggers', () => {

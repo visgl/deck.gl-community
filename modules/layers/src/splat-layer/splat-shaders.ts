@@ -169,3 +169,10 @@ export const SPLAT_ACCUMULATION_FRAGMENT = SPLAT_FRAGMENT.replace(
   '  geometry.uv = gaussianPosition;',
   '  opticalDepth = vec4(min(depth, 80.0), 0.0, 0.0, 0.0);\n  geometry.uv = gaussianPosition;'
 );
+
+// WebGPU cannot apply this blend state to MRT attachment 1. Its weighted path therefore
+// renders optical depth separately into a single additive target.
+export const SPLAT_TRANSMISSION_FRAGMENT = SPLAT_FRAGMENT.replace(
+  /  geometry\.uv = gaussianPosition;[\s\S]*/,
+  '  fragColor = vec4(min(depth, 80.0), 0.0, 0.0, 0.0);\n}'
+);

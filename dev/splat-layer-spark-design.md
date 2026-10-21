@@ -25,7 +25,7 @@ animation loop. Performance targets are measured separately for each backend.
 The delivery order remains #807 → #794 → #806 → #808 → #809. The source contract in this
 specification uses `data` for an asset or owner rows and `getSource` for per-owner asset resolution.
 The current implementation revision establishes that contract for prepared assets. Streamed
-RAD, SH, globally sorted presentation and paged residency remain upstream integration gates.
+RAD, SH and paged residency remain upstream integration gates.
 
 | PR | Implementation responsibility |
 | --- | --- |
@@ -52,9 +52,9 @@ type PreparedSplatData = {
 };
 ```
 
-All prepared input forms retain weighted rendering, including direct assets and heterogeneous
-rows. A request for sorted rendering fails explicitly. The scene backend must establish its
-sorted/depth defaults when it is implemented; the prepared revision does not adopt those defaults.
+All prepared input forms support weighted rendering, including direct assets and heterogeneous
+rows; weighted remains the default. `transparency: 'sorted'` also orders selected prepared
+Gaussians across owners for each viewport, with selected-buffer memory and CPU sorting cost.
 A direct asset has one stable implicit owner `{splats: asset, position: [0, 0, 0]}`. Instance rows
 keep their caller-owned object and accessor context. Explicit `getSource` conflicts with legacy
 `source`; descriptors carry the hierarchy in the new form.
@@ -66,16 +66,16 @@ hierarchies retain their existing approximation; this does not implement RAD row
 The existing prepared primitive and `SplatEffect` present weighted output. Immutable uploads
 continue to be reference-counted per source and device.
 
-Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats` and
-`maxShadowSplats`; nested WorldTreeLayer consumers inherit the world ceiling. Local child caps
-remain effective. `maxTotalSplats` applies the strictest participating shared cap. Allocator
-priorities compare projected error reduction across source roots, preserving coarsest coverage.
+Canopy allocation groups are internal. TreeLayer groups share `maxCanopySplats`; nested
+WorldTreeLayer consumers inherit the world ceiling. Local child caps remain effective.
+`maxTotalSplats` applies the strictest participating shared cap. Allocator priorities compare
+per-owner projected error reduction across source roots while preserving coarsest coverage.
 Optical transitions retain the existing soft overlap allowance. These are submission budgets,
 not hard GPU memory or frame-time guarantees.
 
 `getTransformMatrix` replaces orientation, scale and translation with a finite affine local
 matrix, including covariance and conservative shear bounds. `splatStats` reports source/hierarchy
-pairs, selected owners, submitted camera/shadow work, coarsest coverage and moving refinements.
+pairs, selected owners, submitted camera work, coarsest coverage and moving refinements.
 Geographic inventory residency remains WorldTreeLayer's separate statistics lane.
 
 ### Required scene backend work
@@ -104,7 +104,7 @@ at `a32d110633a6dfb0088eb7a5da8c0d32e2ebc44c`, luma.gl #3340 at
 | luma `SplatResidencyManager` | Intact allocations, priorities, leases/ownership, bounded admission | Shared source registry and complete runtime memory accounting |
 | luma `GPUPagedSplatRenderer` | Sparse row projection, SH, global 32-bit linear-depth ordering, segmented output, borrowed host pass | Per-instance transforms and one order across participating sources |
 | luma prepared `SplatRenderer` | WebGL2/WebGPU drawing, covariance math, source conventions, CPU ordering | Scalable paged/index drawing and worker ordering with matching semantics |
-| community #807 | Template reuse, deck accessors, owner picking, deformation, refinement transitions, optical shadows | Source resolution, heterogeneous instances, shared runtime registration |
+| community #807 | Template reuse, deck accessors, owner picking, deformation, refinement transitions, optical-depth compositing | Source resolution, heterogeneous instances, shared runtime registration |
 | deck.gl Coit prototype | Worker ownership, load scheduling, admission, camera conversion, status, lifecycle regressions | Move reusable integration into the community layer after parity |
 
 The prepared renderer currently walks source rows on the CPU and rebuilds WebGL attributes. When
@@ -268,7 +268,8 @@ All participating SplatLayers in a deck instance register with an internal runti
 that deck and its device. Separate deck instances do not share GPU resources. Within a compatible
 draw domain, layers share source allocations, page request priority, worker resources, and the
 view's global splat ordering. Domains account for view, layer filtering, render operation, and
-transparency policy; picking and shadow passes have their own selection/output.
+transparency policy; picking has its own selection/output. Public foliage-shadow passes are
+intentionally absent.
 
 | State | Scope |
 | --- | --- |
@@ -333,7 +334,7 @@ Keep #807's weighted optical blending available as an explicitly approximate pol
 migration. Existing template callers retain their current policy until deliberately migrated.
 The new scene path targets sorted rendering. A mixed source layer must choose one common policy;
 independent weighted and sorted pipelines do not provide globally ordered overlap by being placed
-in one CompositeLayer. Preserve legacy template shading/deformation/shadow semantics until the
+in one CompositeLayer. Preserve legacy template shading and deformation semantics until the
 equivalent sorted path is verified; do not infer normals or relight trained SH captures as foliage.
 
 Follow the host device. Unsupported capabilities produce a clear layer error through deck's
@@ -348,7 +349,7 @@ deck meshes are not automatically sorted per fragment with Gaussians.
 | Current usage | Target | Preservation requirement |
 | --- | --- | --- |
 | #807 `data: owners, source: template` | Compatibility form; migrate to `data: owners, getSource: template` | Type surface, original-owner picking, accessors, explicit retained weighted appearance |
-| #807 supplied hierarchy and wind | Unchanged initially | Error units, optical transitions, deformation Jacobian, shadows |
+| #807 supplied hierarchy and wind | Unchanged initially | Error units, optical transitions, deformation Jacobian |
 | Coit `data: RAD URL/Blob` | Canonical direct-asset form, unchanged | Fixed camera/lens, source-local selection, native pages, SH, float colors |
 | Coit `maxActiveSplats` | Compatibility alias for the local `maxSplats` cap | Identical effective value; conflicting explicit values are rejected |
 | Coit `maxResidentSplats`, load concurrency, status callback | Retained during migration | Separate resident/active counts and source ownership |

@@ -21,6 +21,8 @@ type WindProps<DataT> = {
   getRootLength: Accessor<DataT, number>;
   getCoverageWeight: Accessor<DataT, number>;
   getCoverageRange: Accessor<DataT, [number, number]>;
+  /** Stable branch-only coverage; boles continue to use getCoverageWeight. */
+  branchCoverage: number;
   woodMorph: boolean;
   windStrength: number;
   windTime: number | null;
@@ -31,6 +33,7 @@ const UNIFORM_DECLARATION = [
   '  float strength;',
   '  float twoSided;',
   '  float woodMorph;',
+  '  float branchCoverage;',
   '  vec4 wave;',
   '} treeWind;'
 ].join(String.fromCharCode(10));
@@ -42,14 +45,22 @@ const TREE_WIND = {
   strength: f32,
   twoSided: f32,
   woodMorph: f32,
+  branchCoverage: f32,
   wave: vec4<f32>
 };
 @group(0) @binding(auto) var<uniform> treeWind: treeWindUniforms;`,
-  uniformTypes: {strength: 'f32', twoSided: 'f32', woodMorph: 'f32', wave: 'vec4<f32>'}
+  uniformTypes: {
+    strength: 'f32',
+    twoSided: 'f32',
+    woodMorph: 'f32',
+    branchCoverage: 'f32',
+    wave: 'vec4<f32>'
+  }
 } as const satisfies ShaderModule<{
   strength: number;
   twoSided: number;
   woodMorph: number;
+  branchCoverage: number;
   wave: [number, number, number, number];
 }>;
 
@@ -81,13 +92,17 @@ const GLSL_STEM = `
 // Coverage must run before host depth-only shortcuts, which enter at the default order.
 const TREE_COVERAGE = {
   name: 'treeCoverageFilter',
-  fs: 'in vec2 treeCoverage;\nin vec3 treeDitherPosition;',
+  fs: 'in vec2 treeCoverage;\nin vec3 treeDitherPosition;\nin vec2 treeDitherTexCoord;',
   inject: {
     'fs:#main-start': {
       order: -100,
       injection: `if (treeCoverage.x > 0.0 || treeCoverage.y < 1.0) {
-        float coverageNoise = fract(sin(dot(floor(treeDitherPosition * 40.0), vec3(12.9898,78.233,37.719))) * 43758.5453);
+        float coverageNoise = fract(sin(dot(floor(treeDitherPosition * 96.0), vec3(12.9898,78.233,37.719))) * 43758.5453);
         if (coverageNoise < treeCoverage.x || coverageNoise >= treeCoverage.y) discard;
+      }
+      if (treeDitherTexCoord.y < 0.5 && treeWind.branchCoverage < 1.0) {
+        float branchNoise = fract(sin(dot(floor(treeDitherPosition * 96.0) + vec3(19.19,47.23,73.31), vec3(39.3468,11.135,83.155))) * 24634.6345);
+        if (branchNoise >= treeWind.branchCoverage) discard;
       }`
     }
   }
@@ -147,6 +162,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
   static defaultProps: DefaultProps<SimpleMeshLayerProps<unknown> & WindProps<unknown>> = {
     getCoverageWeight: {type: 'accessor', value: 1},
     getCoverageRange: {type: 'accessor', value: [0, 1]},
+    branchCoverage: {type: 'number', value: 1, min: 0, max: 1},
     getRootLength: {type: 'accessor', value: -1},
     getStemRadius: {type: 'accessor', value: -1},
     getWind: {type: 'accessor', value: [1, 0, 1]},
@@ -161,6 +177,10 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     this.getAttributeManager()!.addInstanced({
       instanceTreeWindData: {
         size: 6,
+        // Meter-offset positions occupy two WebGPU slots for high/low precision. Pack the
+        // tree-specific columns together so MapView tree scenes remain below WebGPU's
+        // eight-vertex-buffer pipeline limit.
+        bufferGroup: 'tree-instance-data',
         accessor: 'getWind',
         update: this.calculateTreeWind,
         shaderAttributes: {
@@ -170,11 +190,22 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       },
       instanceTreeCoverage: {
         size: 2,
+        bufferGroup: 'tree-instance-data',
         accessor: ['getCoverageWeight', 'getCoverageRange'],
         update: this.calculateTreeCoverage
       },
-      instanceRootLength: {size: 1, accessor: 'getRootLength', defaultValue: -1},
-      instanceStemRadius: {size: 1, accessor: 'getStemRadius', defaultValue: -1}
+      instanceRootLength: {
+        size: 1,
+        bufferGroup: 'tree-instance-data',
+        accessor: 'getRootLength',
+        defaultValue: -1
+      },
+      instanceStemRadius: {
+        size: 1,
+        bufferGroup: 'tree-instance-data',
+        accessor: 'getStemRadius',
+        defaultValue: -1
+      }
     });
   }
 
@@ -209,15 +240,15 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
           )
           .replace(
             '@location(4) pickingColor: vec3<f32>,',
-            '@location(4) pickingColor: vec3<f32>,\n  @location(5) treeCoverage: vec2<f32>,\n  @location(6) treeDitherPosition: vec3<f32>,'
+            '@location(4) pickingColor: vec3<f32>,\n  @location(5) treeCoverage: vec2<f32>,\n  @location(6) treeDitherPosition: vec3<f32>,\n  @location(7) treeDitherTexCoord: vec2<f32>,'
           )
           .replace(
             '  return varyings;',
-            '  varyings.treeCoverage = attributes.instanceTreeCoverage;\n  varyings.treeDitherPosition = instanceModelMatrix * treePosition;\n  return varyings;'
+            '  varyings.treeCoverage = attributes.instanceTreeCoverage;\n  varyings.treeDitherPosition = instanceModelMatrix * treePosition + fract(attributes.instancePositions * vec3<f32>(0.1031,0.11369,0.13787));\n  varyings.treeDitherTexCoord = attributes.texCoords;\n  return varyings;'
           )
           .replace(
             '  geometry.uv = varyings.texCoords;',
-            '  if (varyings.treeCoverage.x > 0.0 || varyings.treeCoverage.y < 1.0) { let coverageNoise = fract(sin(dot(floor(varyings.treeDitherPosition * 40.0), vec3<f32>(12.9898,78.233,37.719))) * 43758.5453); if (coverageNoise < varyings.treeCoverage.x || coverageNoise >= varyings.treeCoverage.y) { discard; } }\n  geometry.uv = varyings.texCoords;'
+            '  if (varyings.treeCoverage.x > 0.0 || varyings.treeCoverage.y < 1.0) { let coverageNoise = fract(sin(dot(floor(varyings.treeDitherPosition * 96.0), vec3<f32>(12.9898,78.233,37.719))) * 43758.5453); if (coverageNoise < varyings.treeCoverage.x || coverageNoise >= varyings.treeCoverage.y) { discard; } }\n  if (varyings.treeDitherTexCoord.y < 0.5 && treeWind.branchCoverage < 1.0) { let branchNoise = fract(sin(dot(floor(varyings.treeDitherPosition * 96.0) + vec3<f32>(19.19,47.23,73.31), vec3<f32>(39.3468,11.135,83.155))) * 24634.6345); if (branchNoise >= treeWind.branchCoverage) { discard; } }\n  geometry.uv = varyings.texCoords;'
           )
           .replace(
             'attributes.colors * attributes.instanceColors.rgb',
@@ -257,7 +288,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       vs: shaders.vs
         .replace(
           'void main(void) {',
-          `in vec2 instanceTreeCoverage;\nout vec2 treeCoverage;\n out vec3 treeDitherPosition;\n${SPLAT_DEFORMATION_GLSL}\nvoid main(void) {\n  treeCoverage = instanceTreeCoverage;`
+          `in vec2 instanceTreeCoverage;\nout vec2 treeCoverage;\nout vec3 treeDitherPosition;\nout vec2 treeDitherTexCoord;\n${SPLAT_DEFORMATION_GLSL}\nvoid main(void) {\n  treeCoverage = instanceTreeCoverage;\n  treeDitherTexCoord = texCoords;`
         )
         .replace(
           'in vec3 instanceTranslation;',
@@ -265,7 +296,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
         )
         .replace(
           anchor,
-          `${GLSL_STEM}\n treeDitherPosition = instanceModelMatrix * treePosition;\n${anchor.replace('instanceModelMatrix * positions', 'instanceModelMatrix * treePosition')}\n${GLSL_WIND}`
+          `${GLSL_STEM}\n treeDitherPosition = instanceModelMatrix * treePosition + fract(instancePositions * vec3(0.1031,0.11369,0.13787));\n${anchor.replace('instanceModelMatrix * positions', 'instanceModelMatrix * treePosition')}\n${GLSL_WIND}`
         )
         .replaceAll('project_normal(instanceModelMatrix * normals)', 'project_normal(treeNormal)')
         .replace(
@@ -306,6 +337,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       treeWind: {
         strength: windStrength,
         woodMorph: this.props.woodMorph ? 1 : 0,
+        branchCoverage: this.props.branchCoverage,
         wave: [
           Math.sin(time * 1.6),
           Math.cos(time * 1.6),

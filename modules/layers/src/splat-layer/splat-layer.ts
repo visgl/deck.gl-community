@@ -16,8 +16,10 @@ import {SplatEffect} from './splat-effect';
 import {SplatPrimitiveLayer, type PreparedSplatProps} from './splat-primitive-layer';
 import {
   getSplatBoundedPixelsPerMeter,
+  getSplatCommonUnits,
   getSplatFocusWeight,
   getSplatProjectionKey,
+  getSplatViewportLodWeight,
   getSplatCachedPosition,
   type SplatProjectedPosition
 } from './splat-culling';
@@ -41,12 +43,18 @@ import {
   type SplatDataInput,
   type SplatInstance
 } from './splat-input';
-import {SplatRuntime, SplatSelectionEffect, type SplatBudgetGroup} from './splat-runtime';
+import {
+  SETTLED_SPLAT_BUDGET_FRACTION,
+  resolveSplatBudget,
+  SplatRuntime,
+  SplatSelectionEffect,
+  type SplatBudgetGroup
+} from './splat-runtime';
 import type {SplatSource} from './splat-source';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
-// Reuse the runtime demand until camera motion changes an LOD target or its priority by a quarter pixel.
+// Reuse the runtime demand until camera motion changes an LOD target or allocation priority meaningfully.
 function retainSplatSelections<T>(
   previous: SplatSelection<T>[],
   next: SplatSelection<T>[]
@@ -60,6 +68,7 @@ function retainSplatSelections<T>(
       a.level !== b.level ||
       Math.round(a.blend * 64) !== Math.round(b.blend * 64) ||
       Math.round(a.pixels * 4) !== Math.round(b.pixels * 4) ||
+      Math.round((a.focus ?? 1) * 64) !== Math.round((b.focus ?? 1) * 64) ||
       a.retainedLevel !== b.retainedLevel
     )
       return next;
@@ -75,6 +84,7 @@ type PreparedOwner<DataT> = {
   position: Position;
   common: number[];
   center: number[];
+  units: number[];
   scale: number;
   radius: number;
 };
@@ -143,6 +153,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       object,
       {owner: PreparedOwner<DataT>; revision: number; rows: (Owner<DataT> | undefined)[]}
     >;
+    awaitingInitialAllocation: boolean;
   };
   initializeState() {
     this.state = {
@@ -157,7 +168,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       projectionKey: '',
       projectedPositions: new Map(),
       refinement: new SplatRefinementTransition(),
-      refinementRows: new WeakMap()
+      refinementRows: new WeakMap(),
+      awaitingInitialAllocation: false
     };
   }
   get isLoaded(): boolean {
@@ -337,6 +349,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           position,
           common,
           center,
+          units: getSplatCommonUnits(center, viewport),
           scale: maximumScale,
           radius: radius * Math.max(...units)
         });
@@ -361,12 +374,22 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const filterPadding = (props.support * Math.sqrt(props.kernelVariance)) / renderPixelRatio;
     for (const owner of querySplatSpatialIndex(spatialIndex, projections, filterPadding)) {
       let metersToPixels = 0;
-      for (const view of views)
-        metersToPixels = Math.max(
-          metersToPixels,
-          getSplatBoundedPixelsPerMeter(owner.center, owner.radius, view) *
-            getSplatFocusWeight(owner.center, view, props.foveationStrength)
+      let focus = 0;
+      for (const view of views) {
+        const pixelsPerMeter = getSplatBoundedPixelsPerMeter(
+          owner.center,
+          owner.radius,
+          view,
+          view === viewport ? owner.units : undefined
         );
+        const viewportWeight = getSplatViewportLodWeight(owner.center, owner.radius, view);
+        metersToPixels = Math.max(metersToPixels, pixelsPerMeter * viewportWeight);
+        if (viewportWeight > 0)
+          focus = Math.max(
+            focus,
+            viewportWeight * getSplatFocusWeight(owner.center, view, props.foveationStrength)
+          );
+      }
       const pixels = metersToPixels * owner.scale * pixelRatio;
       const hierarchy = owner.asset.hierarchy;
       let selected = 0;
@@ -384,6 +407,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       candidates.push({
         owner,
         pixels,
+        focus,
         level: selected,
         blend,
         retainedLevel: this.state.refinement.getLevel(owner.key)
@@ -399,22 +423,30 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     }
     let sharedBudget = props.maxTotalSplats;
     for (let group = props._splatBudgetGroup; group; group = group.parent)
-      sharedBudget = Math.min(sharedBudget, group.maxSplats);
+      sharedBudget = Math.min(
+        sharedBudget,
+        resolveSplatBudget(group.maxSplats, this.context.device)
+      );
+    // Keep the local transition and the shared runtime on the same quantized demand. Otherwise a
+    // sub-deadband camera move can retarget an optical fade locally before the runtime correctly
+    // decides there is no meaningful allocation change.
+    const demandCandidates = retainSplatSelections(this.state.candidates, candidates);
     // New registrations have not received their joint grant yet. Start from coverage,
     // including after source replacement, rather than uploading an unbounded first draw.
-    const initialCandidates =
-      !this.state.refinement.entries.size && Number.isFinite(sharedBudget)
-        ? candidates.map(row => ({
-            ...row,
-            level: row.owner.asset.hierarchy.length - 1,
-            blend: 0
-          }))
-        : candidates;
+    const needsInitialCoverage =
+      !this.state.refinement.entries.size && Number.isFinite(sharedBudget);
+    const initialCandidates = needsInitialCoverage
+      ? demandCandidates.map(row => ({
+          ...row,
+          level: row.owner.asset.hierarchy.length - 1,
+          blend: 0
+        }))
+      : demandCandidates;
     const membershipChanged = this.state.refinement.reconcile(
       budgetSplatSelections(
         initialCandidates,
         owner => owner.asset.hierarchy,
-        props.maxSplats * 0.75
+        props.maxSplats * SETTLED_SPLAT_BUDGET_FRACTION
       ),
       owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
       props.maxSplats,
@@ -424,7 +456,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       membershipChanged || changeFlags.dataChanged || geometryChanged || assetsChanged
         ? this.getRefinementGroups(this.state.refinement)
         : this.state.groups;
-    const demandCandidates = retainSplatSelections(this.state.candidates, candidates);
     this.setState({
       groups: rebuild
         ? groups
@@ -436,6 +467,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       candidates: demandCandidates,
       spatialIndex,
       projectionKey,
+      awaitingInitialAllocation: this.state.awaitingInitialAllocation || needsInitialCoverage,
       ...(rebuild ? {members: []} : {})
     });
     this.publishDemand(demandCandidates);
@@ -457,14 +489,23 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
   private applyAllocation(rows: SplatSelection<PreparedOwner<DataT>>[], budget: number) {
     const refinement = this.state.refinement;
+    // A shared-cap registration has no existing presentation to preserve, so its first grant can
+    // draw immediately. Every later allocation—also a broad wheel-zoom retarget—updates its
+    // target now but retains the prior optical weights until the refinement fade completes.
+    const immediate = this.state.awaitingInitialAllocation;
     const changed = refinement.reconcile(
       rows,
       owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
       budget,
-      owner => owner.key
+      owner => owner.key,
+      immediate
     );
-    if (changed) this.setState({groups: this.getRefinementGroups(refinement)});
-    if (changed || refinement.active) this.setNeedsRedraw();
+    if (changed || immediate)
+      this.setState({
+        groups: this.getRefinementGroups(refinement),
+        ...(immediate ? {awaitingInitialAllocation: false} : {})
+      });
+    if (changed || immediate || refinement.active) this.setNeedsRedraw();
   }
   finalizeState() {
     this.state.runtime?.delete(this.id);

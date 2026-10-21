@@ -8,12 +8,14 @@ export type SplatBudgetLimit = {key: object; budget: number};
 export type SplatSelection<T> = {
   owner: T;
   pixels: number;
+  /** Relative allocation priority. It never changes the requested hierarchy level. */
+  focus?: number;
   level: number;
   blend: number;
   retainedLevel?: number;
 };
 
-/** Spend a fixed Gaussian budget on the largest screen-error reductions. Never discard an owner.
+/** Spend a fixed Gaussian budget on owners with the largest remaining screen error. Never discard an owner.
  * If the coarsest representation itself exceeds the budget, return that coverage floor.
  * The caller must use spatial/source aggregation to bound that floor, rather than punch holes.
  */
@@ -100,38 +102,53 @@ export function budgetSplatSelections<T>(
     }
     return result;
   };
-  const enqueue = (index: number) => {
+  const nextLevel = (index: number) => {
     const row = rows[index];
     const counts = sourceCounts[index];
-    const levels = getHierarchy(row);
-    const nextLevel = () => {
-      let level = row.level - 1;
-      // A finer representation with no greater cost dominates an intermediate
-      // level. Supplied hierarchies need not have monotonic row counts.
-      for (let finer = level - 1; finer >= desired[index].level; finer--)
-        if (counts[finer] <= counts[level]) level = finer;
-      return level;
-    };
-    // Equal-count (or cheaper) refinements need no scheduling or budget. Advancing
-    // these immediately avoids thousands of useless heap operations per camera frame.
-    while (row.level > desired[index].level && counts[nextLevel()] <= counts[row.level]) {
-      const level = nextLevel();
+    let level = row.level - 1;
+    // A finer representation with no greater cost dominates an intermediate
+    // level. Supplied hierarchies need not have monotonic row counts.
+    for (let finer = level - 1; finer >= desired[index].level; finer--)
+      if (counts[finer] <= counts[level]) level = finer;
+    return level;
+  };
+  // Equal-count (or cheaper) refinements need no scheduling or budget. Advancing
+  // these immediately avoids thousands of useless heap operations per camera frame.
+  rows.forEach((row, index) => {
+    const counts = sourceCounts[index];
+    while (row.level > desired[index].level && counts[nextLevel(index)] <= counts[row.level]) {
+      const level = nextLevel(index);
       const delta = counts[level] - counts[row.level];
       used += delta;
       charge(index, delta);
       row.level = level;
     }
+  });
+  const priority = (index: number, level: number) => {
+    const row = rows[index];
+    const levels = getHierarchy(row);
+    // Reduce the largest remaining projected error to each owner's requested target first.
+    // Ranking only the gain per added splat lets cheap far promotions exhaust the budget while a
+    // nearby owner remains a coarse proxy. Cost remains a hard feasibility constraint below.
+    const error =
+      Math.max(0, levels[row.level].error - levels[desired[index].level].error) * row.pixels;
+    return (
+      error *
+      Math.max(0, desired[index].focus ?? 1) *
+      ((desired[index].retainedLevel ?? Infinity) <= level ? 1.2 : 1)
+    );
+  };
+  const enqueue = (index: number) => {
+    const row = rows[index];
+    const counts = sourceCounts[index];
     if (row.level <= desired[index].level) return;
-    const level = nextLevel();
+    const level = nextLevel(index);
     const delta = counts[level] - counts[row.level];
-    const error = (levels[row.level].error - levels[level].error) * row.pixels;
     push({
       index,
       level,
       delta,
-      priority:
-        (error / Math.max(1, delta)) *
-        ((desired[index].retainedLevel ?? Infinity) <= level ? 1.2 : 1)
+      priority: priority(index, level)
     });
   };
   rows.forEach((_, index) => enqueue(index));
@@ -139,8 +156,8 @@ export function budgetSplatSelections<T>(
     const step = pop();
     if (used + step.delta > budget || !fits(step.index, step.delta)) continue;
     rows[step.index].level = step.level;
-    used += step.delta;
     charge(step.index, step.delta);
+    used += step.delta;
     enqueue(step.index);
   }
   // Preserve optical cross-fades when both representations fit. A budget-constrained

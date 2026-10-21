@@ -126,7 +126,14 @@ fn gaussianOpticalDepth(input: Varyings) -> f32 {
  let shaded = lighting_getLightColor2(input.color.rgb, project.cameraPosition, input.commonPosition, normal);
  var color = vec4<f32>(shaded, alpha);
  if (picking.isHighlightActive > 0.5 && picking_isColorZero(abs(input.pickingColor - picking_normalizeColor(picking.highlightedObjectColor)))) {
-  color = vec4<f32>(mix(color.rgb, picking.highlightColor.rgb, picking.highlightColor.a), color.a);
+  let highlightAlpha = picking.highlightColor.a;
+  let blendedAlpha = highlightAlpha + color.a * (1.0 - highlightAlpha);
+  if (blendedAlpha > 0.0) {
+   color = vec4<f32>(
+    mix(color.rgb, picking.highlightColor.rgb, highlightAlpha / blendedAlpha),
+    blendedAlpha
+   );
+  }
  }
  if (splat.mode > 1.5) { return vec4<f32>(alpha); }
  if (splat.mode > 0.5) {
@@ -147,3 +154,11 @@ struct SplatOutput { @location(0) accumulation: vec4<f32>, @location(1) opticalD
  let accumulation = shadeGaussian(input);
  return SplatOutput(accumulation, vec4<f32>(min(gaussianOpticalDepth(input), 80.0), 0.0, 0.0, 0.0));
 }`;
+
+// WebGPU blend parameters currently apply only to attachment zero. Keep optical depth in a
+// standalone target so every Gaussian adds to it before the weighted composite resolves.
+export const SPLAT_TRANSMISSION_WGSL = SPLAT_WGSL.replace(
+  / geometry\.position = vec4<f32>\(input\.commonPosition, 1\.0\);[\s\S]*/,
+  ` return vec4<f32>(min(gaussianOpticalDepth(input), 80.0), 0.0, 0.0, 0.0);
+}`
+);

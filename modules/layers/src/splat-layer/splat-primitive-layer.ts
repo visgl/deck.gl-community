@@ -21,10 +21,11 @@ import {
   SPLAT_VERTEX,
   SPLAT_FRAGMENT,
   SPLAT_ACCUMULATION_FRAGMENT,
+  SPLAT_TRANSMISSION_FRAGMENT,
   splatUniforms
 } from './splat-shaders';
 import {SplatEffect} from './splat-effect';
-import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL} from './splat.wgsl';
+import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl';
 
 export type PreparedSplatProps<DataT> = {
   data: DataT[];
@@ -60,9 +61,9 @@ export type PreparedSplatProps<DataT> = {
   hierarchy?: import('./splat-hierarchy').SplatHierarchy;
   /** Maximum aggregate centre displacement in device pixels. @default 0.75 */
   pixelError?: number;
-  /** Screen-center refinement priority. Zero is uniform; one reduces peripheral error weight smoothly. @default 0 */
+  /** Screen-center allocation priority under a finite `maxSplats` budget. It never changes requested screen error. @default 0 */
   foveationStrength?: number;
-  /** Settled Gaussian submission budget. Optical fades can temporarily admit one extra owner representation to avoid stalling. Coarsest coverage is the minimum. @default Infinity */
+  /** Gaussian submission budget. Finite caps retain a small transition headroom for optical fades; coarsest coverage is the minimum. @default Infinity */
   maxSplats?: number;
   /** Maximum aggregate accumulation pixels across view targets. Picking and opaque draws keep host resolution. @default Infinity */
   maxRenderPixels?: number;
@@ -106,6 +107,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
   declare state: {
     model?: Model;
     accumulationModel?: Model;
+    transmissionModel?: Model;
     effect: SplatEffect;
     windRows: WeakMap<object, number[]>;
   };
@@ -164,28 +166,36 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     if (params.props.source !== params.oldProps.source || params.changeFlags.extensionsChanged) {
       this.state.model?.destroy();
       this.state.accumulationModel?.destroy();
-      const makeModel = (accumulation: boolean) =>
+      this.state.transmissionModel?.destroy();
+      const makeModel = (mode: 'picking' | 'accumulation' | 'transmission') =>
         new Model(this.context.device, {
           ...this.getShaders(),
-          ...(accumulation
+          ...(mode === 'accumulation'
             ? {fs: SPLAT_ACCUMULATION_FRAGMENT, source: SPLAT_ACCUMULATION_WGSL}
-            : {}),
-          id: `${this.id}-${accumulation ? 'accumulation' : 'picking'}`,
+            : mode === 'transmission'
+              ? {fs: SPLAT_TRANSMISSION_FRAGMENT, source: SPLAT_TRANSMISSION_WGSL}
+              : {}),
+          id: `${this.id}-${mode}`,
           geometry: acquireSplatGeometry(this.context.device, this.props.source),
           bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
           isInstanced: true
         });
+      const drawing = this.props.operation.includes('draw');
+      const webgpu = this.context.device.type === 'webgpu';
       this.setState({
-        model: makeModel(false),
-        accumulationModel: this.props.operation.includes('draw') ? makeModel(true) : undefined
+        model: makeModel('picking'),
+        // WebGL accumulates color and optical depth through MRT. WebGPU uses the normal
+        // single-target model for color and a dedicated optical-depth pass.
+        accumulationModel: drawing && !webgpu ? makeModel('accumulation') : undefined,
+        transmissionModel: drawing && webgpu ? makeModel('transmission') : undefined
       });
       this.getAttributeManager()!.invalidateAll();
     }
   }
 
   getModels(): Model[] {
-    return [this.state.model, this.state.accumulationModel].filter((model): model is Model =>
-      Boolean(model)
+    return [this.state.model, this.state.accumulationModel, this.state.transmissionModel].filter(
+      (model): model is Model => Boolean(model)
     );
   }
 
@@ -247,7 +257,12 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     }
     const {deformationStrength, deformationTime, kernelVariance, alphaCutoff, support} = this.props;
     const time = deformationTime ?? this.context.timeline.getTime() / 1000;
-    const model = mode === 1 ? this.state.accumulationModel : this.state.model;
+    const model =
+      mode === 1
+        ? this.state.accumulationModel || this.state.model
+        : mode === 2
+          ? this.state.transmissionModel
+          : this.state.model;
     model?.shaderInputs.setProps({
       splat: {
         strength: deformationStrength,

@@ -2,14 +2,57 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import type {Effect, EffectContext, PreRenderOptions} from '@deck.gl/core';
+import type {DeviceInfo} from '@luma.gl/core';
 import type {SplatHierarchy} from './splat-hierarchy';
 import {budgetSplatSelections, type SplatSelection, type SplatBudgetLimit} from './splat-budget';
 
+/** A caller-specified cap or a stable device-aware default. */
+export type SplatBudget = number | 'auto';
+
 /** Internal parent cap shared by canopy children and nested inventory consumers. */
 export type SplatBudgetGroup = {
-  maxSplats: number;
+  maxSplats: SplatBudget;
   parent?: SplatBudgetGroup;
 };
+
+type SplatBudgetDevice = {
+  info?: Pick<DeviceInfo, 'fallback' | 'gpu' | 'gpuType'>;
+};
+
+const DEFAULT_AUTO_SPLAT_BUDGET = 20_000;
+const SOFTWARE_AUTO_SPLAT_BUDGET = 5_000;
+const AUTO_SPLAT_BUDGETS = new WeakMap<object, number>();
+
+/**
+ * Resolve automatic selection once per device. GPU resource limits describe allocation ceilings,
+ * not Gaussian throughput, so only known software/fallback adapters are down-tiered here.
+ */
+export function resolveSplatBudget(
+  budget: SplatBudget | undefined,
+  device?: SplatBudgetDevice
+): number {
+  if (budget !== 'auto' && budget !== undefined)
+    return typeof budget === 'number' ? budget : DEFAULT_AUTO_SPLAT_BUDGET;
+  if (!device) return DEFAULT_AUTO_SPLAT_BUDGET;
+  let resolved = AUTO_SPLAT_BUDGETS.get(device);
+  if (resolved === undefined) {
+    const info = device.info;
+    resolved =
+      info?.fallback || info?.gpu === 'software' || info?.gpuType === 'cpu'
+        ? SOFTWARE_AUTO_SPLAT_BUDGET
+        : DEFAULT_AUTO_SPLAT_BUDGET;
+    AUTO_SPLAT_BUDGETS.set(device, resolved);
+  }
+  return resolved;
+}
+
+/**
+ * Reserve a small part of each public cap for temporary old/new optical mixtures.
+ * Settled selection may spend this fraction; the full public cap remains available
+ * while a refinement transition advances.
+ */
+export const SETTLED_SPLAT_BUDGET_FRACTION = 0.9;
+
 type Demand = {
   rows: SplatSelection<any>[];
   hierarchy: (owner: any) => SplatHierarchy;
@@ -31,11 +74,12 @@ export class SplatRuntime {
     }
     let runtime = devices.get(device);
     if (!runtime) {
-      runtime = new SplatRuntime();
+      runtime = new SplatRuntime(device as SplatBudgetDevice);
       devices.set(device, runtime);
     }
     return runtime;
   }
+  private constructor(private device: SplatBudgetDevice) {}
   private snapshot = new Map<string, unknown[]>();
   private demands = new Map<string, Demand>();
 
@@ -58,7 +102,7 @@ export class SplatRuntime {
     for (const [id, demand] of participating) {
       const values: unknown[] = [demand.rows, demand.maxSplats, demand.maxTotalSplats];
       for (let group = demand.group; group; group = group.parent)
-        values.push(group, group.maxSplats);
+        values.push(group, resolveSplatBudget(group.maxSplats, this.device));
       snapshot.set(id, values);
     }
     if (
@@ -80,19 +124,27 @@ export class SplatRuntime {
       return;
     }
     const rows = participating.flatMap(([, demand]) =>
-      demand.rows.map(row => ({...row, owner: {demand, row}}))
+      demand.rows.map(row => ({
+        ...row,
+        owner: {demand, row}
+      }))
     );
     const total = Math.min(...participating.map(([, demand]) => demand.maxTotalSplats));
     const limits = ({demand}: {demand: Demand}): SplatBudgetLimit[] => {
-      const result: SplatBudgetLimit[] = [{key: demand, budget: demand.maxSplats * 0.75}];
+      const result: SplatBudgetLimit[] = [
+        {key: demand, budget: demand.maxSplats * SETTLED_SPLAT_BUDGET_FRACTION}
+      ];
       for (let group = demand.group; group; group = group.parent)
-        result.push({key: group, budget: group.maxSplats * 0.75});
+        result.push({
+          key: group,
+          budget: resolveSplatBudget(group.maxSplats, this.device) * SETTLED_SPLAT_BUDGET_FRACTION
+        });
       return result;
     };
     const allocated = budgetSplatSelections<{demand: Demand; row: SplatSelection<any>}>(
       rows,
       owner => owner.demand.hierarchy(owner.row.owner),
-      total * 0.75,
+      total * SETTLED_SPLAT_BUDGET_FRACTION,
       limits
     );
     const selections = new Map<Demand, SplatSelection<any>[]>();
@@ -112,11 +164,13 @@ export class SplatRuntime {
       costs.set(demand, (costs.get(demand) ?? 0) + cost);
     }
     for (const [, demand] of participating) {
-      // The reserved quarter allows each registration's optical mixtures to advance.
+      // The reserved headroom allows each registration's optical mixtures to advance.
       // Existing transition overlap remains a soft submission allowance, not a GPU byte cap.
       const budget = Math.min(
         demand.maxSplats,
-        Number.isFinite(total) || demand.group ? (costs.get(demand) ?? 0) / 0.75 : Infinity
+        Number.isFinite(total) || demand.group
+          ? (costs.get(demand) ?? 0) / SETTLED_SPLAT_BUDGET_FRACTION
+          : Infinity
       );
       demand.apply(selections.get(demand) ?? [], budget);
     }

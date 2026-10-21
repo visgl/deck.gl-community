@@ -1,11 +1,17 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {WebMercatorViewport, _GlobeViewport as GlobeViewport} from '@deck.gl/core';
+import {WebMercatorViewport, _GlobeViewport as GlobeViewport, type Viewport} from '@deck.gl/core';
+import {Matrix4} from '@math.gl/core';
 import {expect, it, vi} from 'vitest';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
 import {SplatEffect} from '../../src/splat-layer/splat-effect';
+import {
+  getSplatBoundedPixelsPerMeter,
+  getSplatPixelsPerMeter,
+  getSplatViewportLodWeight
+} from '../../src/splat-layer/splat-culling';
 const SOURCE = {
   positions: new Float32Array([0, 0, 0]),
   scales: new Float32Array([1, 1, 1]),
@@ -39,6 +45,61 @@ function make(data: {position: [number, number, number]}[], flex = 1, extra = {}
   } as any);
   return layer;
 }
+
+type PerspectiveRow = {id: string; position: [number, number, number]; scale: number};
+function makePerspective(
+  data: PerspectiveRow[],
+  extra = {},
+  getViewports?: (viewport: Viewport) => Viewport[]
+) {
+  const coarse = {...SOURCE, scales: new Float32Array([0.1, 0.1, 0.1])};
+  const fine = Object.fromEntries(
+    Object.entries(coarse).map(([key, array]) => [
+      key,
+      new (array.constructor as typeof Float32Array)([...array, ...array, ...array, ...array])
+    ])
+  );
+  const layer = new SplatLayer<PerspectiveRow>({
+    data,
+    source: fine,
+    hierarchy: [
+      {source: fine, error: 0},
+      {source: coarse, error: 0.02}
+    ],
+    getPosition: row => row.position,
+    getScale: row => [row.scale, row.scale, row.scale],
+    pixelError: 0.9,
+    foveationStrength: 1,
+    ...extra
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  const viewport = {
+    viewProjectionMatrix: new Matrix4().perspective({
+      fovy: Math.PI / 2,
+      aspect: 1,
+      near: 0.1,
+      far: 100
+    }),
+    width: 100,
+    height: 100,
+    distanceScales: {unitsPerMeter: [1, 1, 1]}
+  } as unknown as Viewport;
+  Object.assign(layer, {
+    context: {
+      viewport,
+      device: {canvasContext: {cssToDeviceRatio: () => 1}},
+      deck: {getViewports: () => getViewports?.(viewport) ?? [viewport]}
+    }
+  });
+  vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {dataChanged: true}
+  } as any);
+  return {layer, viewport};
+}
 it('includes absolute flex in the camera wind allowance', () => {
   const data = [{position: [0, 0, 0] as [number, number, number]}];
   const rigid = make(data, 0),
@@ -71,6 +132,131 @@ it('starts shared capped registrations at coverage before their first joint gran
   expect(layer.splatStats.renderedSplats).toBe(1);
   expect(layer.splatStats.coverageFloor).toBe(1);
 });
+
+it("spends a shared same-source canopy cap by each owner's projected error", () => {
+  const data: PerspectiveRow[] = [
+    {id: 'near', position: [0, 0, -3], scale: 10},
+    ...Array.from({length: 9}, (_, index) => ({
+      id: `far-${index}`,
+      position: [0, 0, -10] as [number, number, number],
+      scale: 10
+    }))
+  ];
+  const {layer} = makePerspective(data, {
+    pixelError: 0.001,
+    foveationStrength: 0,
+    maxSplats: 20,
+    _splatBudgetGroup: {maxSplats: 20}
+  });
+  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
+  layer.state.runtime.reconcile(new Set([layer.id]));
+  // The runtime has every participating demand at this point, so its first globally budgeted
+  // allocation must be present immediately. A 10k canopy cannot wait for a per-frame fade to
+  // leave its all-coarse coverage floor before nearby crowns gain their selected detail.
+  expect(layer.state.refinement.active).toBe(false);
+  const level = (id: string) => {
+    const owner = layer.state.owners.find(row => row.row.object.id === id)!;
+    return layer.state.refinement.entries.get(owner.key)!.dominant;
+  };
+  const farLevels = data.slice(1).map(row => level(row.id));
+
+  expect(level('near')).toBe(0);
+  expect(Math.max(...farLevels)).toBe(1);
+  expect(level('near')).toBeLessThan(Math.max(...farLevels));
+});
+
+it('fades a broad runtime retarget instead of snapping the rendered canopy', () => {
+  const data: PerspectiveRow[] = Array.from({length: 64}, (_, index) => ({
+    id: `tree-${index}`,
+    position: [(index % 8) * 0.2 - 0.7, Math.floor(index / 8) * 0.2 - 0.7, -10],
+    scale: 1
+  }));
+  const {layer} = makePerspective(data, {maxSplats: 256});
+  const refinement = layer.state.refinement;
+  const counts = (owner: (typeof layer.state.owners)[number]) =>
+    owner.asset.hierarchy.map(level => level.source.positions.length / 3);
+  const coarseRows = layer.state.candidates.map(row => ({...row, level: 1, blend: 0}));
+  refinement.reconcile(coarseRows, counts, Infinity, owner => owner.key);
+  refinement.sample(1);
+  layer.state.awaitingInitialAllocation = false;
+  vi.spyOn(layer, 'setNeedsRedraw').mockImplementation(() => {});
+
+  (layer as any).applyAllocation(
+    layer.state.candidates.map(row => ({...row, level: 0, blend: 0})),
+    Infinity
+  );
+
+  expect(refinement.active).toBe(true);
+  expect([...refinement.entries.values()]).toHaveLength(64);
+  expect(
+    [...refinement.entries.values()].every(
+      entry => entry.weights[1] === 1 && entry.weights[0] === 0 && entry.target[0] === 1
+    )
+  ).toBe(true);
+  refinement.sample(17);
+  expect([...refinement.entries.values()].every(entry => entry.weights[0] > 0)).toBe(true);
+});
+
+it('uses visible support for requested detail and foveation only for allocation priority', () => {
+  const {layer, viewport} = makePerspective([
+    {id: 'center', position: [0, 0, -10], scale: 10},
+    {id: 'peripheral', position: [3, 0, -10], scale: 10},
+    {id: 'corner', position: [8, 8, -7], scale: 5}
+  ]);
+  const candidate = new Map(
+    layer.state.candidates.map(row => [(row.owner.row.object as PerspectiveRow).id, row])
+  );
+  const center = candidate.get('center')!;
+  const peripheral = candidate.get('peripheral')!;
+  const corner = candidate.get('corner')!;
+  const centerOwner = layer.state.owners.find(owner => owner.row.object.id === 'center')!;
+  const peripheralOwner = layer.state.owners.find(owner => owner.row.object.id === 'peripheral')!;
+  const cornerOwner = layer.state.owners.find(owner => owner.row.object.id === 'corner')!;
+  const rawCenter = getSplatPixelsPerMeter(centerOwner.center, viewport) * centerOwner.scale;
+  const rawCorner = getSplatPixelsPerMeter(cornerOwner.center, viewport) * cornerOwner.scale;
+
+  // Both fully visible crowns request the same level even though one is peripheral.
+  expect(peripheral.pixels).toBeCloseTo(
+    getSplatBoundedPixelsPerMeter(peripheralOwner.center, peripheralOwner.radius, viewport) *
+      peripheralOwner.scale
+  );
+  expect(peripheral.level).toBe(center.level);
+  expect(peripheral.focus).toBeLessThan(center.focus!);
+  // The corner crown has the larger raw projected scale, but only a sliver reaches the viewport.
+  expect(rawCorner).toBeGreaterThan(rawCenter);
+  expect(corner.pixels).toBeLessThan(center.pixels);
+  expect(corner.focus).toBeLessThan(peripheral.focus!);
+  expect(corner.level).toBeGreaterThanOrEqual(center.level);
+});
+
+it('uses full requested detail when an owner is centered in any active viewport', () => {
+  const secondary = {
+    viewProjectionMatrix: new Matrix4()
+      .perspective({fovy: Math.PI / 2, aspect: 1, near: 0.1, far: 100})
+      .translate([-12, 0, 0]),
+    width: 100,
+    height: 100,
+    distanceScales: {unitsPerMeter: [1, 1, 1]}
+  } as unknown as Viewport;
+  const {layer, viewport} = makePerspective(
+    [{id: 'secondary', position: [12, 0, -10], scale: 10}],
+    {},
+    primary => [primary, secondary]
+  );
+  const candidate = layer.state.candidates[0];
+  const owner = layer.state.owners[0];
+  expect(candidate.pixels).toBeCloseTo(
+    Math.max(
+      getSplatBoundedPixelsPerMeter(owner.center, owner.radius, viewport) *
+        getSplatViewportLodWeight(owner.center, owner.radius, viewport),
+      getSplatBoundedPixelsPerMeter(owner.center, owner.radius, secondary) *
+        getSplatViewportLodWeight(owner.center, owner.radius, secondary)
+    ) * owner.scale
+  );
+  expect(candidate.focus).toBe(1);
+  expect(candidate.level).toBe(0);
+});
+
 it('includes translated source centers in prepared camera wind bounds', () => {
   const data = [{position: [0, 0, 0] as [number, number, number]}];
   const layer = make(data, 1);
@@ -288,7 +474,7 @@ it('synchronizes shared multi-view raster density before tightening the pixel ca
     props: {visible: true, operation: 'draw', maxRenderPixels: Infinity}
   };
   const render = vi.fn();
-  const resize = vi.fn(() => Object.assign(effect, {targets: [{}, {}]}));
+  const resize = vi.fn(() => Object.assign(effect, {targets: [{}, {}, {}]}));
   Object.assign(effect, {
     device: {
       type: 'webgl',
@@ -296,7 +482,7 @@ it('synchronizes shared multi-view raster density before tightening the pixel ca
       beginRenderPass: () => ({end() {}})
     },
     model: {shaderInputs: {setProps() {}}},
-    passes: [{render}, {render}, {render}],
+    passes: [{render}, {render}, {render}, {render}],
     resize
   });
   const options = {layers: [parent, primitive], viewports: [{id: 'a'}, {id: 'b'}]};
