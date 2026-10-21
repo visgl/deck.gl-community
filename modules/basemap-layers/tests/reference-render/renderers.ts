@@ -11,6 +11,7 @@ import mvtWorkerUrl from '@loaders.gl/mvt/mvt-worker.js?url';
 import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import {BasemapLayer} from '../../src/index';
+import type {GlyphStore} from '../../src/glyph-store';
 import {MVTLabelLayer} from '../../src/mvt-label-layer';
 import {fromFixtureUrl} from './fixtures';
 import {VIEWPORT, type ReferenceScene} from './scenes';
@@ -287,11 +288,30 @@ class ProbeLabelLayer extends MVTLabelLayer {
 }
 
 /**
+ * The glyph store of each `glyphs` URL while `renderBasemapLayer` draws a scene, shared by its two
+ * draws. `BasemapLayer` makes a new store each time it loads a style, and keys its font atlases by
+ * the store, so the read-back draw would find none of the atlases built from the first draw's.
+ */
+let sharedGlyphStores: Map<string, GlyphStore> | null = null;
+
+/**
  * `BasemapLayer` with only its label text pickable, so that the labels left after collision can be
  * read back by picking. Drawing is unchanged.
  */
 class ProbeBasemapLayer extends BasemapLayer {
   static layerName = 'ProbeBasemapLayer';
+
+  // Takes the glyph store of the render's other draw at the same URL (see `sharedGlyphStores`).
+  setState(partialState: any) {
+    const glyphs: GlyphStore | null | undefined = partialState?.glyphs;
+    if (glyphs && sharedGlyphStores) {
+      if (!sharedGlyphStores.has(glyphs.url)) {
+        sharedGlyphStores.set(glyphs.url, glyphs);
+      }
+      partialState = {...partialState, glyphs: sharedGlyphStores.get(glyphs.url)};
+    }
+    super.setState(partialState);
+  }
 
   renderLayers() {
     const toProbe = (layers: unknown): any[] =>
@@ -358,28 +378,59 @@ type FontAtlas = {
 };
 
 /**
+ * A field of deck.gl's font atlas manager that the prebuild reads. These are private, so a deck.gl
+ * release may rename one: then no font would be found, nothing prebuilt, and the order check would
+ * pass without checking anything. Throws instead.
+ */
+function getPrivateField(object: any, field: string, owner: string): any {
+  const value = object?.[field];
+  if (value === undefined || value === null) {
+    throw new Error(
+      `deck.gl ${owner} has no \`${field}\`: the font atlas prebuild reads private deck.gl ` +
+        'fields; update getFontAtlases for this deck.gl version'
+    );
+  }
+  return value;
+}
+
+/**
  * The fonts the text layers among `layers` draw, with every character any of them holds. A layer
  * not updated since its font gained characters still holds an earlier atlas of that font.
  */
-function getFontAtlases(layers: any[]): FontAtlas[] {
+export function getFontAtlases(layers: any[]): FontAtlas[] {
   // By deck.gl's font atlas cache key, which the layers of one font share.
   const fonts = new Map<string, FontAtlas>();
   for (const layer of layers) {
-    const manager = layer.state?.fontAtlasManager;
-    if (!manager?.mapping) {
+    // Every `TextLayer` builds its font's atlas when it first updates, with or without data.
+    if (!(layer instanceof TextLayer)) {
       continue;
     }
-    let font = fonts.get(manager._key);
+    const manager = getPrivateField(layer.state, 'fontAtlasManager', 'TextLayer state');
+    const key: string = getPrivateField(manager, '_key', 'FontAtlasManager');
+    const mapping = getPrivateField(manager, 'mapping', 'FontAtlasManager');
+    let font = fonts.get(key);
     if (!font) {
-      font = {key: manager._key, manager, characters: new Set(), atlases: new Set()};
-      fonts.set(manager._key, font);
+      font = {key, manager, characters: new Set(), atlases: new Set()};
+      fonts.set(key, font);
     }
-    font.atlases.add(manager.atlas);
-    for (const character of Object.keys(manager.mapping)) {
+    font.atlases.add(getPrivateField(manager, 'atlas', 'FontAtlasManager'));
+    for (const character of Object.keys(mapping)) {
       font.characters.add(character);
     }
   }
   return [...fonts.values()];
+}
+
+/**
+ * Throws when a draw drew labels but reports no font atlas: the atlases were not found, and the
+ * read-back draw's atlas order would go unchecked.
+ */
+function checkFontAtlases({labels, fontAtlases}: BasemapLayerDraw): void {
+  if (labels.length > 0 && fontAtlases.length === 0) {
+    throw new Error(
+      `BasemapLayer drew ${labels.length} labels from no font atlas that getFontAtlases found`
+    );
+  }
 }
 
 /**
@@ -419,12 +470,23 @@ export async function renderBasemapLayer(
 ): Promise<Render> {
   const start = performance.now();
   resetFontAtlases();
-  const first = await draw(structuredClone(style), scene, layerProps, {
-    ...options,
-    onRendered: undefined
-  });
-  const prebuilt = resetFontAtlases(first.fontAtlases);
-  const {fontAtlases, ...render} = await draw(style, scene, layerProps, options);
+  sharedGlyphStores = new Map();
+  let first: BasemapLayerDraw;
+  let prebuilt: Set<object>;
+  let second: BasemapLayerDraw;
+  try {
+    first = await draw(structuredClone(style), scene, layerProps, {
+      ...options,
+      onRendered: undefined
+    });
+    checkFontAtlases(first);
+    prebuilt = resetFontAtlases(first.fontAtlases);
+    second = await draw(style, scene, layerProps, options);
+    checkFontAtlases(second);
+  } finally {
+    sharedGlyphStores = null;
+  }
+  const {fontAtlases, ...render} = second;
   return {
     ...render,
     unsortedFontAtlases: fontAtlases
@@ -531,7 +593,12 @@ async function drawBasemapLayer(
             frameLayers = layers.filter(
               (layer: any) => !layer.isComposite && layer.props.visible
             ).length;
-            fontAtlases = getFontAtlases(layers);
+            try {
+              fontAtlases = getFontAtlases(layers);
+            } catch (error) {
+              reject(error);
+              return;
+            }
             resolve(readCanvas(deck!.getCanvas()!, pixelRatio));
           },
           onError: error => reject(error)

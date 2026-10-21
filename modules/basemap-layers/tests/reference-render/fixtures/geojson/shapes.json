@@ -1,0 +1,56 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"kind": "area"},
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [[-2, 38], [14, 38], [14, 50], [-2, 50], [-2, 38]],
+            [[3, 42], [3, 46], [9, 46], [9, 42], [3, 42]]
+          ],
+          [[[17, 36], [24, 36], [24, 41.5], [17, 41.5], [17, 36]]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"kind": "lake"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-5, 33], [6, 33], [1, 37], [-5, 33]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"kind": "route"},
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-4, 53], [6, 55], [16, 51], [25, 54]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"kind": "route"},
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [[16, 30], [16, 47]],
+          [[-6, 44], [1, 40]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"kind": "stop"},
+      "geometry": {"type": "MultiPoint", "coordinates": [[20, 48], [22.5, 45], [0, 35.5]]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"kind": "place", "name": "GeoJSON"},
+      "geometry": {"type": "Point", "coordinates": [10, 52.5]}
+    }
+  ]
+}

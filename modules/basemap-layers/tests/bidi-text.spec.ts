@@ -160,15 +160,17 @@ describe('labels', () => {
       glyphs: {
         url: 'glyphs/{fontstack}/{range}.pbf',
         hasGlyphs: () => false,
+        retain: () => true,
         load: (_fontStack: string, texts: string[]) => {
           requested.push(...texts);
           return null;
         }
       }
     } as any;
-    layer.hasLabelGlyphs([
-      {geometry: {type: 'Point', coordinates: [0, 0]}, properties: {name: CHAD}}
-    ] as any);
+    layer.hasLabelGlyphs(
+      [{geometry: {type: 'Point', coordinates: [0, 0]}, properties: {name: CHAD}}] as any,
+      new Set()
+    );
     expect(requested.map(codePoints)).toEqual([codePoints(CHAD_SHAPED)]);
   });
 });

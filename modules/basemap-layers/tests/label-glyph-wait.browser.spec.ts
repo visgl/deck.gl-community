@@ -27,6 +27,11 @@ function createPendingGlyphStore() {
     url: 'https://glyphs.example/{fontstack}/{range}.pbf',
     getGlyph: () => undefined,
     hasGlyphs: () => false,
+    retain: () => true,
+    retainOnly: () => {},
+    onRetainedFreed: () => {},
+    generation: 0,
+    release: () => {},
     load() {
       counts.loads++;
       return new Promise<void>(() => {});

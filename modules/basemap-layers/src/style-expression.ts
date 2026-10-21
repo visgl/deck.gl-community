@@ -6,6 +6,7 @@ import {
   ColorArray,
   NumberArray,
   Padding,
+  VariableAnchorOffsetCollection,
   expression,
   featureFilter,
   latest as Reference
@@ -155,6 +156,10 @@ function toPlainValue(value: any): unknown {
   if (value instanceof ColorArray) {
     return value.values.map(colorToArray);
   }
+  if (value instanceof VariableAnchorOffsetCollection) {
+    // `[anchor, [x, y], anchor, [x, y], ...]`.
+    return value.values;
+  }
   return value instanceof Color ? colorToArray(value) : value;
 }
 
@@ -172,12 +177,13 @@ export function compileStylePropertyValue(
   try {
     // An array whose first element is not a known operator is read as a literal. That is only
     // valid for array-typed properties (`text-font`, `line-dasharray`, ...), paddings
-    // (`icon-padding: [2, 4]`) and number and color arrays.
+    // (`icon-padding: [2, 4]`), number and color arrays and `text-variable-anchor-offset`.
     const takesArray =
       reference?.type === 'array' ||
       reference?.type === 'padding' ||
       reference?.type === 'numberArray' ||
-      reference?.type === 'colorArray';
+      reference?.type === 'colorArray' ||
+      reference?.type === 'variableAnchorOffsetCollection';
     if (Array.isArray(value) && !takesArray && !expression.isExpression(value)) {
       throw new Error(`Unknown expression "${String(value[0])}"`);
     }

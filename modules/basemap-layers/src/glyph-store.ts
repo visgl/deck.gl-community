@@ -20,9 +20,19 @@ const MAX_CODE_POINT = 0xffff;
 
 /**
  * Bound on the font stacks a store keeps glyphs for: stacks come from untrusted style and tile
- * data. When full, the stack used least recently is dropped, and loaded again if asked for.
+ * data. When full, the stack used least recently is dropped, and loaded again if asked for,
+ * unless a consumer retains it (see {@link GlyphStore.retain}).
  */
 export const MAX_GLYPH_STACKS = 64;
+
+/** Bound on the font stacks one consumer, such as a label layer, can retain. */
+export const MAX_RETAINED_GLYPH_STACKS = 2 * MAX_GLYPH_STACKS;
+
+/**
+ * Bound on the font stacks all the consumers of a store can retain together: the store never
+ * holds more than these, or {@link MAX_GLYPH_STACKS} when more.
+ */
+export const MAX_STORE_RETAINED_GLYPH_STACKS = 4 * MAX_GLYPH_STACKS;
 
 /**
  * Whether MapLibre GL JS draws a character with the browser's fonts rather than the style's
@@ -43,11 +53,24 @@ type StackEntry = {
  * them, as MapLibre GL JS loads them. A range that fails to load holds no glyphs, so its
  * characters are not drawn, as in MapLibre.
  */
+let lastStoreId = 0;
+
 export class GlyphStore {
+  /**
+   * Names this store among others, as of a style loaded again: a new store for the same URL holds
+   * none of the glyphs this one loaded.
+   */
+  readonly id = ++lastStoreId;
   readonly url: string;
   private readonly fetch: typeof fetch;
   private readonly fetchOptions?: RequestInit;
   private readonly stacks = new Map<string, StackEntry>();
+  /** The font stacks each consumer retains (see `retain`). */
+  private readonly retained = new Map<object, Set<string>>();
+  /** The number of consumers that retain each font stack retained. */
+  private readonly retainCounts = new Map<string, number>();
+  /** Called once when a consumer next gives back a font stack (see `onRetainedFreed`). */
+  private readonly freedListeners = new Map<object, () => void>();
 
   constructor({url, baseUrl, fetch: fetchFn, fetchOptions}: GlyphStoreOptions) {
     this.url = resolveGlyphsUrl(url, baseUrl);
@@ -110,6 +133,92 @@ export class GlyphStore {
   }
 
   /**
+   * Keeps the glyphs of `fontStack` for `owner` until it gives the stack back (see `retainOnly`
+   * and `release`). A label layer retains the font stack of each label it draws or waits for
+   * before it loads any, so that loading some of them does not drop the others: a batch of
+   * labels in more than {@link MAX_GLYPH_STACKS} font stacks could otherwise never load.
+   *
+   * Returns false when the stack cannot be retained: `owner` retains
+   * {@link MAX_RETAINED_GLYPH_STACKS} stacks already, or the store's consumers
+   * {@link MAX_STORE_RETAINED_GLYPH_STACKS}. Font stacks come from untrusted tile data, so
+   * those bounds hold whatever a tile names; a label layer leaves the labels of a font stack it
+   * cannot retain undrawn, as those of a glyph range that fails to load.
+   */
+  retain(owner: object, fontStack: string): boolean {
+    let owned = this.retained.get(owner);
+    if (owned?.has(fontStack)) {
+      return true;
+    }
+    const count = this.retainCounts.get(fontStack) || 0;
+    if (
+      (owned?.size ?? 0) >= MAX_RETAINED_GLYPH_STACKS ||
+      (!count && this.retainCounts.size >= MAX_STORE_RETAINED_GLYPH_STACKS)
+    ) {
+      return false;
+    }
+    if (!owned) {
+      owned = new Set();
+      this.retained.set(owner, owned);
+    }
+    owned.add(fontStack);
+    this.retainCounts.set(fontStack, count + 1);
+    return true;
+  }
+
+  /** Gives back the font stacks `owner` retains other than `fontStacks` (see `retain`). */
+  retainOnly(owner: object, fontStacks: ReadonlySet<string>): void {
+    const owned = this.retained.get(owner);
+    if (!owned) {
+      return;
+    }
+    let freed = false;
+    for (const fontStack of owned) {
+      if (!fontStacks.has(fontStack)) {
+        owned.delete(fontStack);
+        this.unretain(fontStack);
+        freed = true;
+      }
+    }
+    if (!owned.size) {
+      this.retained.delete(owner);
+    }
+    this.evict();
+    if (freed) {
+      this.generation++;
+      const listeners = [...this.freedListeners.values()];
+      this.freedListeners.clear();
+      for (const listener of listeners) {
+        listener();
+      }
+    }
+  }
+
+  /** Gives back the font stacks `owner` retains (see `retain`). */
+  release(owner: object): void {
+    this.freedListeners.delete(owner);
+    this.retainOnly(owner, new Set());
+  }
+
+  /**
+   * Counts the times a consumer gave back font stacks: a `retain` refused before may succeed
+   * once it has changed.
+   */
+  generation = 0;
+
+  /**
+   * Calls `listener` once, the next time a consumer gives back font stacks, in place of the
+   * listener `owner` set before; null removes it. A label layer whose font stacks were refused
+   * updates again then, to retain and load them.
+   */
+  onRetainedFreed(owner: object, listener: (() => void) | null): void {
+    if (listener) {
+      this.freedListeners.set(owner, listener);
+    } else {
+      this.freedListeners.delete(owner);
+    }
+  }
+
+  /**
    * The URL of a range: the font names of the stack, each URL-encoded, joined by commas. Font
    * stacks can come from tile data (a data-driven `text-font`), so a name cannot add path
    * segments, a query or a fragment to the URL.
@@ -152,13 +261,39 @@ export class GlyphStore {
       this.stacks.delete(fontStack);
       this.stacks.set(fontStack, stack);
     } else if (create) {
-      if (this.stacks.size >= MAX_GLYPH_STACKS) {
-        this.stacks.delete(this.stacks.keys().next().value!);
-      }
       stack = {ranges: new Map(), requests: new Map()};
       this.stacks.set(fontStack, stack);
+      this.evict(fontStack);
     }
     return stack;
+  }
+
+  /**
+   * Drops the font stacks used least recently, beyond the bound, except those retained and
+   * `keep`, which is being loaded.
+   */
+  private evict(keep?: string): void {
+    for (const fontStack of this.stacks.keys()) {
+      if (this.stacks.size <= MAX_GLYPH_STACKS) {
+        return;
+      }
+      if (fontStack !== keep && !this.isRetained(fontStack)) {
+        this.stacks.delete(fontStack);
+      }
+    }
+  }
+
+  private isRetained(fontStack: string): boolean {
+    return this.retainCounts.has(fontStack);
+  }
+
+  private unretain(fontStack: string): void {
+    const count = this.retainCounts.get(fontStack)! - 1;
+    if (count) {
+      this.retainCounts.set(fontStack, count);
+    } else {
+      this.retainCounts.delete(fontStack);
+    }
   }
 }
 
