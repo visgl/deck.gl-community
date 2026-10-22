@@ -34,7 +34,7 @@ Release date: 2023
 
 ## Exports
 
-- [`SplatLayer`](./api-reference/splat-layer.md): reusable prepared Gaussian renderer
+- [`SplatLayer`](./api-reference/splat-layer.md): prepared Gaussian and native RAD scene composite
 - [`TreeLayer`](./api-reference/tree-layer.md): canonical procedural tree renderer
 - [`SelectionPulseExtension`](./api-reference/selection-pulse-extension.md): GPU pulse for selected objects
 

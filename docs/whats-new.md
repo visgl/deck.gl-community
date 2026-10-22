@@ -2,6 +2,18 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- `SplatLayer` renders sorted Cartesian scenes: URL/Blob RAD files with off-thread range loading,
+  bounded page residency and retained camera refinement, plus static SPLAT/KSPLAT/SPZ files decoded
+  in a worker. Scenes share source residency, one global order per viewport and `sortDomain`,
+  affine/SH instance transforms, owner picking and the host render pass, and share
+  `maxTotalSplats` with prepared layers. `transparency` now defaults to `'auto'`, which keeps
+  prepared assets on weighted blending. RAD refinement requires perspective Cartesian views; static
+  sorted scenes also support orthographic views. The repository builds against a Yarn patch of
+  `@luma.gl/splats@9.4.2`; publishing requires the upstream luma 9.4 release that carries the
+  host-pass splat backport.
+
 ## v9.4.7
 
 - v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only

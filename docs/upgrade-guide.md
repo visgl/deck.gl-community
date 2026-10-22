@@ -4,6 +4,25 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### `@deck.gl-community/layers`: `SplatLayer` scenes
+
+`transparency` now defaults to `'auto'`. It keeps decoded prepared assets, including `TreeLayer`
+canopies, on weighted optical blending and selects sorted rendering for scene files, so existing
+prepared callers need no change. `transparency: 'sorted'` keeps direct prepared assets on the
+prepared compositor; Cartesian owner rows whose prepared sources have no `opticalDepths` now use
+the shared scene renderer so they can intersort with RAD/static scenes. `maxActiveSplats` is an
+alias for `maxSplats`; conflicting finite values fail.
+
+Use `data` for a scene URL, Blob or `{type: 'rad' | 'splats', url}` descriptor, or owner rows
+with `getSource`, and Cartesian coordinates for sorted scenes. Relative asset URLs resolve against
+`document.baseURI`, including any `<base>` element, before being sent to the bundled workers; Blob
+inputs remain unchanged. RAD assets require perspective views; static/prepared sorted assets also
+support orthographic views. Preserve opaque-before-splat layer order. See the [scene installation
+and residency contract](./modules/layers/api-reference/splat-layer.md#scene-assets-and-installation),
+including the upstream luma release prerequisite and ESM worker packaging.
+
 ## v9.4.7
 
 ### `@deck.gl-community/layers`: tree and splat shadows
