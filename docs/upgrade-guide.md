@@ -4,6 +4,17 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### `@deck.gl-community/layers`: tree and splat shadows
+
+`TreeLayer` and `SplatLayer` now cast deck.gl shadows when a `LightingEffect` has a
+`DirectionalLight` with `_shadow: true`; they previously forced `shadowEnabled: false` on their
+sub-layers. Pass `shadowEnabled: false` to either layer to keep the old behavior. A lit
+`SimpleMeshLayer` ground plane under a shadow light should also set `shadowEnabled: false`: in
+deck.gl 9.4 it writes a shaded depth and shadows itself. See
+[TreeLayer shadows](./modules/layers/api-reference/tree-layer.md#shadows).
+
 ## v9.4.6
 
 ### Removed `@deck.gl-community/three`

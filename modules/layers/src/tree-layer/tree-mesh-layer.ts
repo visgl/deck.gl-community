@@ -109,6 +109,13 @@ const TREE_COVERAGE = {
   }
 } as const;
 
+const GLSL_OUTPUT_ANCHOR = 'fragColor = vec4(lightColor, color.a * layer.opacity);';
+// deck.gl 9.4's SimpleMeshLayer applies DECKGL_FILTER_COLOR before lighting, which would shade the
+// depth its shadow module packs into the color. Write the packed depth after lighting instead.
+const GLSL_SHADOW_DEPTH = `#ifdef MODULE_SHADOW
+  if (shadow.drawShadowMap) fragColor = shadow_filterShadowColor(vec4(0.0));
+#endif`;
+
 const WGSL_STEM = `
   var treePosition = attributes.positions;
   var treeLocalNormal = attributes.normals;
@@ -296,15 +303,17 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     }
     const anchor =
       'vec3 pos = (instanceModelMatrix * positions) * simpleMesh.sizeScale + instanceTranslation;';
-    if (!shaders.vs.includes(anchor))
-      throw new Error('Unsupported SimpleMeshLayer GLSL wind anchor.');
+    if (!shaders.vs.includes(anchor) || !shaders.fs.includes(GLSL_OUTPUT_ANCHOR))
+      throw new Error('Unsupported SimpleMeshLayer GLSL tree anchor.');
     return {
       ...shaders,
       modules: [...shaders.modules, TREE_WIND, TREE_COVERAGE],
-      fs: shaders.fs.replace(
-        'vec3 lightColor =',
-        'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='
-      ),
+      fs: shaders.fs
+        .replace(
+          'vec3 lightColor =',
+          'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='
+        )
+        .replace(GLSL_OUTPUT_ANCHOR, `${GLSL_OUTPUT_ANCHOR}\n${GLSL_SHADOW_DEPTH}`),
       vs: shaders.vs
         .replace(
           'void main(void) {',
@@ -351,6 +360,9 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
   }
 
   draw(params) {
+    // deck.gl 9.4's shadow module has no WGSL: no WebGPU shader reads the shadow map.
+    if (params.shaderModuleProps?.shadow?.drawToShadowMap && this.context.device.type === 'webgpu')
+      return;
     const {windStrength, windTime} = this.props;
     const time = windTime ?? this.context.timeline.getTime() / 1000;
     this.state.model?.shaderInputs.setProps({

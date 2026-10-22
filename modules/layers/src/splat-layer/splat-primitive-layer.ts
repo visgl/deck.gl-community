@@ -88,9 +88,15 @@ export type PreparedSplatProps<DataT> = {
   _coverageRanges?: {startRow: number; endRow: number}[] | null;
   /** Lighting material for authored source normals; supports unlit rendering. */
   material?: PhongMaterialProps;
+  /**
+   * Cast shadows from a `LightingEffect` light with `_shadow: true` (WebGL2). Each Gaussian
+   * casts with a probability equal to its alpha. Gaussians receive shadows either way.
+   * @default true
+   */
+  shadowEnabled?: boolean;
 };
 export type SplatLayerProps<DataT = unknown> = PreparedSplatProps<DataT> & LayerProps;
-const defaultProps: DefaultProps<SplatLayerProps> & {shadowEnabled: false} = {
+const defaultProps: DefaultProps<SplatLayerProps> = {
   source: null,
   transparency: 'weighted',
   hierarchy: null,
@@ -113,7 +119,7 @@ const defaultProps: DefaultProps<SplatLayerProps> & {shadowEnabled: false} = {
   alphaCutoff: {type: 'number', value: 1 / 255, min: 0, max: 1},
   support: {type: 'number', value: 3, min: 1, max: 6},
   material: {ambient: 0.5, diffuse: 0.7, shininess: 2, specularColor: [0, 0, 0]},
-  shadowEnabled: false
+  shadowEnabled: true
 };
 
 /** Instanced, anisotropic 3D Gaussians with shared weighted transparency and stable owner picking. */
@@ -280,7 +286,10 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
   draw({shaderModuleProps, renderPass}) {
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
-    if (!pickingActive && mode === 0) {
+    // deck.gl's shadow pass. Its 9.4 shadow module has no WGSL: no WebGPU shader reads the map.
+    const shadowPass = Boolean(shaderModuleProps.shadow?.drawToShadowMap);
+    if (shadowPass && this.context.device.type === 'webgpu') return;
+    if (!pickingActive && mode === 0 && !shadowPass) {
       if (shaderModuleProps.splat?.resolve)
         this.state.effect.resolve(renderPass, shaderModuleProps.project.viewport.id);
       if (this.props.deformationStrength > 0 && this.props.deformationTime === null)

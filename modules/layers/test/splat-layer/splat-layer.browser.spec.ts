@@ -97,7 +97,7 @@ describe('Gaussian canopy rendering', () => {
       const leaves = collectLeaves((deck.props.layers as Layer[])[0]);
       const visual = leaves.find(layer => layer.id.includes('refinement'))!;
       const geometry = (visual.state.model as any)._gpuGeometry;
-      expect(visual.props.shadowEnabled).toBe(false);
+      expect(visual.props.shadowEnabled).toBe(true);
       const positions = visual.getAttributeManager()!.getAttributes().instancePositions.getBuffer();
       const rows = (deck.props.layers as Layer[])[0].state.groups;
       const spatialIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
@@ -349,7 +349,7 @@ it('moves drawing and picking when a new data array reuses a mutated owner', asy
   }
 }, 20000);
 
-it('picks non-shadow-casting splats with deck shadows enabled', async () => {
+it('picks shadow-casting splats with deck shadows enabled', async () => {
   const parent = document.createElement('div');
   parent.style.cssText = 'width:128px;height:128px';
   document.body.append(parent);
@@ -365,8 +365,8 @@ it('picks non-shadow-casting splats with deck shadows enabled', async () => {
     deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
     views: new MapView(),
     initialViewState: {longitude: 0, latitude: 0, zoom: 21, pitch: 0},
-    // This makes the host install its global shadow shader module. The SplatLayer itself
-    // remains non-casting, which is the public foliage contract.
+    // This makes the host install its global shadow shader module and draw the Gaussians into
+    // its shadow map before picking.
     effects: [
       new LightingEffect({
         ambient: new AmbientLight({intensity: 0.5}),
@@ -391,7 +391,7 @@ it('picks non-shadow-casting splats with deck shadows enabled', async () => {
   try {
     await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(5);
     expect(
-      collectLeaves(deck.props.layers[0] as Layer).every(layer => !layer.props.shadowEnabled)
+      collectLeaves(deck.props.layers[0] as Layer).every(layer => layer.props.shadowEnabled)
     ).toBe(true);
     expect(deck.pickObject({x: 64, y: 64})?.object).toBe(owner);
     expect(errors).toEqual([]);

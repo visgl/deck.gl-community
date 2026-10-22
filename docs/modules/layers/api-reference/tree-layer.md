@@ -83,6 +83,7 @@ Inherits the deck.gl `CompositeLayer` properties. Accessors accept constants or 
 | `characteristics` | `{}` | Shared broadleaf morphology; changes regenerate the connected wood, leaves and crop attachment together. See below. |
 | `windStrength` | `0` | Bend amplitude as a fraction of tree height. Zero stops continuous redraw when no per-tree wind is authored; a value around `0.025` is a gentle breeze. |
 | `windTime` | `null` | Wind time in seconds. `null` uses deck.gl's timeline; a number freezes the pose for controlled comparisons. |
+| `shadowEnabled` | `true` | Whether wood, crops and canopy cast shadows from a `LightingEffect` light with `_shadow: true`. Trees receive shadows either way. See [Shadows](#shadows). |
 
 ## Crops
 
@@ -108,13 +109,41 @@ new TreeLayer({
 });
 ```
 
+## Shadows
+
+Trees cast and receive shadows from deck.gl's `LightingEffect` when a `DirectionalLight` has `_shadow: true`:
+
+```ts
+import {AmbientLight, DirectionalLight, LightingEffect} from '@deck.gl/core';
+
+const lighting = new LightingEffect({
+  ambient: new AmbientLight({intensity: 0.6}),
+  sun: new DirectionalLight({direction: [1, 0.5, -1], intensity: 0.8, _shadow: true})
+});
+
+new Deck({effects: [lighting], layers: [ground, new TreeLayer({id: 'trees', data: trees})]});
+```
+
+Trunks, connected wood and crops draw into the shadow map with the same wind bend, stem and root morphs and coverage dither as their visible geometry. Gaussian crowns project each Gaussian's covariance into the light's view. deck.gl's shadow map stores one depth per texel and no transmittance, so each Gaussian casts the part of its footprint where its alpha exceeds a stable random threshold of its own. A canopy fragment therefore casts with a probability equal to its alpha, and overlapping leaves block light as `1 - Π(1 - alpha)`, the canopy's own opacity. Sparse crowns cast dappled shadows. `getCoverageWeight` and refinement fades thin the shadow as they thin the crown, without popping. The pattern stays fixed to each Gaussian as the camera and the shadow map move.
+
+Wood receives shadows from every casting layer, including its own crown. Leaves receive shadows from other trees and layers, but not from their own crown: weighted transparency averages leaves through the whole crown depth, so leaf-by-leaf self-shadowing would darken the sunlit side along with the shaded interior. Instead, each Gaussian tests its shadow where the light ray leaves its crown, and lighting shades the crown's sunny and shady sides. Picking, `autoHighlight`, `highlightedObjectIndex` and [`SelectionPulseExtension`](./selection-pulse-extension.md) work unchanged. Highlights and pulses change colors only, so a highlighted or pulsing tree casts the same shadow. Set `shadowEnabled: false` to stop trees casting.
+
+Limitations:
+
+- **WebGL2 only.** deck.gl 9.4's shadow module has no WGSL. On WebGPU trees render normally without deck.gl shadows and skip the shadow pass.
+- **Visible trees cast.** TreeLayer culls trees and refines canopy detail for the camera, and the shadow pass reuses that selection: a tree just outside the view casts no shadow into it.
+- **Interleaved maps.** `MapboxOverlay` and `MapLibreOverlay` with `interleaved: true` draw shadow maps per layer group, so a receiving layer needs the same `beforeId` and `slot` as the TreeLayer. The basemap itself receives no deck.gl shadows; add a deck.gl ground layer to show them.
+- **SimpleMeshLayer receivers.** deck.gl 9.4's lit `SimpleMeshLayer` filters colors before lighting, so the depth it writes to the shadow map is shaded and the mesh shadows itself. Set `shadowEnabled: false` on a `SimpleMeshLayer` ground plane that only needs to receive shadows. TreeLayer's own meshes write unshaded depth.
+
+Without a shadow light, nothing changes: deck.gl adds no shadow pass and the shadow shader branches compile out. With one, each shadow light adds one depth draw of the visible wood, crops and canopy selection per frame.
+
 ## Migration
 
 Remove `detail` from TreeLayer props and `TreeDetail` from type imports. TreeLayer now composes full leaf Gaussian sources and continuous woody meshes, with automatic refinement for subpixel crowns and branches. Legacy demo `detail` query parameters are ignored.
 
 The deprecated `@deck.gl-community/three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season` and `CropConfig`. Previously published package versions are unchanged. The production renderer has no Three.js dependency.
 
-Native TreeLayer and SplatLayer foliage ship without built-in deck.gl foliage-shadow integration. TreeLayer and SplatLayer force their foliage and wood sublayers not to cast deck.gl shadows. Applications that need shadows must provide them outside this foliage renderer.
+TreeLayer and SplatLayer cast deck.gl shadows under a `LightingEffect` shadow light. Earlier versions forced their wood and foliage sub-layers not to cast; set `shadowEnabled: false` to keep that behavior. See [Shadows](#shadows).
 
 Gaussian crowns and connected winter silhouettes deliberately differ from the original geometry. `CropConfig.radius` now matches its documented radius: older geometry rendered half that radius. Halve an existing crop radius to retain its old apparent size. Inspect your explicit seasonal foliage overrides, canopy sublayer overrides and custom winter branches when migrating; the native crown sublayer IDs include foliage/winter and tier information. Legacy species overrides such as `canopy-cherry` remain supported and apply after native defaults. Exact grouped sublayer IDs take precedence over species aliases. Custom wood meshes use camera LOD children without the native template morph; arbitrary custom geometry is kept conservatively visible. Overridden wood transform accessors and their triggers also determine culling bounds. Override accessors receive the source tree and its original accessor context; parameters and update triggers merge by key.
 

@@ -272,7 +272,6 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               // independent so bole/root fades, picking and streamed replacement remain intact.
               getCoverageRange: [0, 1],
               branchCoverage: aggregate || this.hasCustomMesh() ? 1 : this.props.nearBranchCoverage,
-              shadowEnabled: false,
               pickable: this.props.pickable,
               woodMorph: !this.hasCustomMesh(),
               ...(this.hasCustomMesh() ? {getStemRadius: -1, getRootLength: -1} : {}),
