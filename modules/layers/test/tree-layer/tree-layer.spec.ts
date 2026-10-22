@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, LayerManager, WebMercatorViewport} from '@deck.gl/core';
+import {device} from '@deck.gl/test-utils/vitest';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
+import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 import {
   getPalmFrondLeafletT,
@@ -828,4 +830,59 @@ it('maps a controlled highlightedObjectIndex onto each species partition', () =>
   }
   const {layer} = createLayer(data);
   for (const child of layer.renderLayers()) expect(child.props.highlightedObjectIndex).toBeNull();
+});
+
+it('recolors connected wood on a trunk color trigger and rewrites nothing on re-render', () => {
+  const viewport = new WebMercatorViewport({
+    width: 256,
+    height: 256,
+    longitude: 0,
+    latitude: 0,
+    zoom: 19,
+    pitch: 45
+  });
+  const layerManager = new LayerManager(device, {
+    viewport,
+    deck: {getViewports: () => [viewport]} as any
+  });
+  const data = [OAK];
+  const updateAttributes = vi.spyOn(TreeMeshLayer.prototype as any, 'updateAttributes');
+  const render = (color: [number, number, number], trigger: number) => {
+    updateAttributes.mockClear();
+    layerManager.setLayers([
+      new TreeLayer<Datum>({
+        id: 'trees',
+        data,
+        getTreeType: d => d.type,
+        getSeason: d => d.season,
+        getTrunkColor: () => color,
+        updateTriggers: {getTrunkColor: trigger}
+      })
+    ]);
+    const wood = layerManager
+      .getLayers()
+      .filter(layer => layer instanceof TreeMeshLayer && layer.id.includes('wood'));
+    const rewritten = updateAttributes.mock.contexts.flatMap((layer, call) =>
+      wood.includes(layer as TreeMeshLayer<unknown>)
+        ? Object.keys(updateAttributes.mock.calls[call][0] as object)
+        : []
+    );
+    const colors = wood.map(layer =>
+      Array.from(layer.getAttributeManager()!.attributes.instanceColors.value!.slice(0, 3))
+    );
+    return {wood, rewritten, colors};
+  };
+  try {
+    const initial = render([90, 60, 30], 0);
+    expect(initial.wood.length).toBeGreaterThan(0);
+    expect(initial.colors.every(color => color.join() === '90,60,30')).toBe(true);
+    // Rebuilt parent props with unchanged triggers leave every wood attribute in place.
+    expect(render([90, 60, 30], 0).rewritten).toEqual([]);
+    const recolored = render([200, 40, 30], 1);
+    expect(recolored.colors.every(color => color.join() === '200,40,30')).toBe(true);
+    expect(new Set(recolored.rewritten)).toEqual(new Set(['instanceColors']));
+  } finally {
+    updateAttributes.mockRestore();
+    layerManager.finalize();
+  }
 });
