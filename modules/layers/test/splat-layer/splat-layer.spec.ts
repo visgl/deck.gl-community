@@ -434,10 +434,11 @@ it('rejects WebGPU view clears before deck opens a nested render pass', () => {
 it.each([
   {width: 2048, height: 256, zoom: 0, longitude: 0},
   {width: 256, height: 256, zoom: 18, longitude: 200}
-])('rejects wrapped world copies before selecting one parent frustum: %o', options => {
+])('selects owners in the primary frustum of wrapped world copies: %o', options => {
   const layer = make([{position: [0, 0, 0]}], 0);
   const repeated = new WebMercatorViewport({...options, repeat: true});
   expect(repeated.subViewports!.some(view => view !== repeated)).toBe(true);
+  layer.context.viewport = repeated;
   layer.context.deck.getViewports = () => [repeated];
   expect(() =>
     layer.updateState({
@@ -445,7 +446,40 @@ it.each([
       oldProps: layer.props,
       changeFlags: {viewportChanged: true}
     } as any)
-  ).toThrow('wrapped world');
+  ).not.toThrow();
+});
+
+it('draws and composites Gaussians in the primary world copy only', () => {
+  const repeated = new WebMercatorViewport({width: 2048, height: 256, zoom: 0, repeat: true});
+  const [primary, copy] = [
+    repeated.subViewports!.find(view => view === repeated)!,
+    repeated.subViewports!.find(view => view !== repeated)!
+  ];
+  const layer = new SplatPrimitiveLayer({data: [{}], source: SOURCE});
+  const model = {shaderInputs: {setProps: vi.fn()}, setInstanceCount: vi.fn(), draw: vi.fn()};
+  const resolve = vi.fn();
+  Object.assign(layer, {
+    state: {model, effect: {resolve}},
+    context: {viewport: repeated, timeline: {getTime: () => 0}}
+  });
+  const draw = (viewport: Viewport, mode: number, isActive = false) =>
+    layer.draw({
+      shaderModuleProps: {
+        project: {viewport},
+        picking: {isActive},
+        splat: {mode, resolve: true}
+      },
+      renderPass: {}
+    } as any);
+  for (const viewport of [primary, copy]) {
+    draw(viewport, 1);
+    draw(viewport, 0);
+    draw(viewport, 0, true);
+  }
+  // One accumulation draw and one picking draw for the primary copy; a single resolve.
+  expect(model.draw).toHaveBeenCalledTimes(2);
+  expect(resolve).toHaveBeenCalledTimes(1);
+  expect(resolve).toHaveBeenCalledWith({}, repeated.id);
 });
 
 it('requeries visibility at a requested raster density without rebuilding owners', () => {

@@ -197,8 +197,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       throw new Error(
         'SplatLayer supports planar views; GlobeView requires globe-aligned covariance and bounds.'
       );
-    if (activeViewports.some(view => view.subViewports?.some(copy => copy !== view)))
-      throw new Error('SplatLayer does not support wrapped world copies; disable MapView.repeat.');
+    // A repeated MapView selects owners in its primary frustum; SplatPrimitiveLayer composites
+    // that copy alone, so wrapped world copies need no owner query of their own.
     const runtime = SplatRuntime.get(this.context.deck, this.context.device);
     const runtimeChanged = runtime !== this.state.runtime;
     const renderPixelRatio =

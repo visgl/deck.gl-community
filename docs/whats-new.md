@@ -10,6 +10,10 @@ This page lists module additions and major changes in each release. For detailed
 - `TreeLayer` connected wood now follows `updateTriggers.getTrunkColor`, `getCoverageWeight` and
   authored wind changes. Before, the wood kept its old values until its data changed.
 
+- `SplatLayer` and `TreeLayer` no longer throw when a `MapView` repeats wrapped world copies
+  (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
+  render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
+
 ## v9.4.6
 
 - **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import
