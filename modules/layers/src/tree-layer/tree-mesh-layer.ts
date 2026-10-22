@@ -212,11 +212,20 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
   updateState(params: UpdateParameters<this>) {
     super.updateState(params);
     // This derived attribute combines two accessors. Constants do not pass through
-    // the attribute manager's single-accessor value path and need invalidation.
+    // the attribute manager's single-accessor value path and need invalidation. Compare constant
+    // ranges by value: composite parents pass a new literal every render.
     for (const name of ['getCoverageWeight', 'getCoverageRange'] as const) {
+      const value = params.props[name] as unknown;
+      const old = params.oldProps[name] as unknown;
       if (
-        typeof params.props[name] !== 'function' &&
-        params.props[name] !== params.oldProps[name]
+        typeof value !== 'function' &&
+        value !== old &&
+        !(
+          Array.isArray(value) &&
+          Array.isArray(old) &&
+          value.length === old.length &&
+          value.every((item, i) => item === old[i])
+        )
       ) {
         this.getAttributeManager()!.invalidate('instanceTreeCoverage');
         break;

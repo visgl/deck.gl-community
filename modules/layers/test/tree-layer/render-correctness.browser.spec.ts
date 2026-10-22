@@ -138,8 +138,8 @@ it('keeps the interior of the banyan bole solid during woody refinement', async 
     const wood = scene.deck
       .layerManager!.getLayers()
       .find(layer => layer.constructor.layerName === 'TreeWoodLayer')!;
-    expect(Array.from(wood.state.nearWeights.values())[0]).toBeGreaterThan(0);
-    expect(Array.from(wood.state.nearWeights.values())[0]).toBeLessThan(1);
+    expect(wood.state.owners[0].weight).toBeGreaterThan(0);
+    expect(wood.state.owners[0].weight).toBeLessThan(1);
     const blended = scene.pixels().slice();
     const fine = scene.deck.layerManager!.getLayers().find(layer => layer.id.endsWith('-near'))!;
     scene.deck.setProps({

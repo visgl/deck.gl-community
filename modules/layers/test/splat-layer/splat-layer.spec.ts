@@ -9,9 +9,12 @@ import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
 import {SplatEffect} from '../../src/splat-layer/splat-effect';
 import {
   getSplatBoundedPixelsPerMeter,
+  getSplatCommonUnits,
   getSplatPixelsPerMeter,
   getSplatViewportLodWeight
 } from '../../src/splat-layer/splat-culling';
+import {SplatPrimitiveLayer} from '../../src/splat-layer/splat-primitive-layer';
+import {getSplatChangedRanges} from '../../src/splat-layer/splat-row-diff';
 const SOURCE = {
   positions: new Float32Array([0, 0, 0]),
   scales: new Float32Array([1, 1, 1]),
@@ -560,4 +563,182 @@ it('keeps the shared runtime grant while camera motion retains quantized demand'
   for (const [key, entry] of layer.state.refinement.entries)
     expect(entry.target).toEqual(granted.get(key));
   expect(layer.splatStats.renderedSplats).toBeLessThanOrEqual(20);
+});
+
+const moveCamera = (layer: SplatLayer<PerspectiveRow>, viewport: Viewport, offset: number[]) => {
+  const moved = {
+    ...viewport,
+    viewProjectionMatrix: new Matrix4(viewport.viewProjectionMatrix as number[]).translate(offset)
+  } as unknown as Viewport;
+  Object.assign(layer.context, {viewport: moved});
+  layer.context.deck!.getViewports = () => [moved];
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {viewportChanged: true}
+  } as any);
+  return moved;
+};
+
+it('keeps refinement-level instance slots when owners cross the view edge', () => {
+  const data: PerspectiveRow[] = [-14, -10, -6, -2, 2, 6, 10, 14].map((x, index) => ({
+    id: `${index}`,
+    position: [x, 0, -10],
+    scale: 1
+  }));
+  const {layer, viewport} = makePerspective(data, {pixelError: 1e6});
+  const coarse = layer.state.groups.length - 1;
+  const ids = (rows: {object: PerspectiveRow}[]) => rows.map(row => row.object.id);
+  const before = layer.state.groups[coarse];
+  expect(new Set(ids(before))).toEqual(new Set(['1', '2', '3', '4', '5', '6']));
+
+  // Owner 1 leaves the left edge as owner 7 enters on the right.
+  moveCamera(layer, viewport, [-4, 0, 0]);
+  const after = layer.state.groups[coarse];
+  expect(new Set(ids(after))).toEqual(new Set(['2', '3', '4', '5', '6', '7']));
+  for (const [slot, row] of before.entries())
+    if (row.object.id !== '1') expect(after[slot]).toBe(row);
+  const departed = ids(before).indexOf('1');
+  expect(after[departed].object.id).toBe('7');
+  expect(getSplatChangedRanges(after, before)).toEqual([
+    {startRow: departed, endRow: departed + 1}
+  ]);
+});
+
+it('leaves retained targets to the joint grant when the selection effect drives allocation', () => {
+  const data: PerspectiveRow[] = Array.from({length: 6}, (_, index) => ({
+    id: `${index}`,
+    position: [(index - 2.5) * 0.2, 0, -10],
+    scale: 2
+  }));
+  const {layer, viewport} = makePerspective(data, {foveationStrength: 0});
+  vi.spyOn(layer, 'getCurrentLayer').mockReturnValue(layer);
+  vi.spyOn(layer, 'setNeedsRedraw').mockImplementation(() => {});
+  const ids = new Set([layer.id]);
+  layer.state.runtime.reconcile(ids);
+  // deck.gl hosts install the selection effect, which grants changed demand before sampling.
+  Object.assign(layer.context.deck!, {_addDefaultEffect: vi.fn()});
+  const targets = () =>
+    new Map([...layer.state.refinement.entries].map(([key, entry]) => [key, entry.level]));
+  const granted = targets();
+
+  moveCamera(layer, viewport, [0, 0, 8.5]);
+  const requested = new Map(
+    layer.state.candidates.map(candidate => [candidate.owner.key, candidate.level])
+  );
+  expect([...requested].some(([key, level]) => granted.get(key) !== level)).toBe(true);
+  expect(targets()).toEqual(granted);
+  expect(layer.state.refinement.activeCount).toBe(0);
+
+  layer.state.runtime.reconcile(ids);
+  expect(targets()).toEqual(requested);
+});
+
+it('reuses cached owner metre scales for a newer camera with the same projection', () => {
+  const data = Array.from({length: 5}, (_, index) => ({
+    position: [256 + (index - 2) * 0.0001, 256 - (index - 2) * 0.00005, 0] as [
+      number,
+      number,
+      number
+    ]
+  }));
+  const layer = make(data);
+  // deck.gl updates a composite with its last drawn viewport while reporting the newer camera.
+  const next = new WebMercatorViewport({
+    width: 256,
+    height: 256,
+    zoom: 18.4,
+    pitch: 40,
+    bearing: 15
+  });
+  layer.context.deck!.getViewports = () => [next];
+  // Viewports are frozen; observe the per-owner geographic scale lookups on the prototype.
+  const scales = vi.spyOn(WebMercatorViewport.prototype, 'getDistanceScales');
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {viewportChanged: true}
+  } as any);
+  expect(scales).not.toHaveBeenCalled();
+  scales.mockRestore();
+  expect(layer.state.candidates.length).toBeGreaterThan(0);
+  for (const owner of layer.state.owners)
+    getSplatCommonUnits(owner.center, next).forEach((value, axis) =>
+      expect(owner.units[axis]).toBeCloseTo(value, 12)
+    );
+});
+
+it('rewrites only the coverage of slots whose optical weight changed', () => {
+  const data: PerspectiveRow[] = Array.from({length: 4}, (_, index) => ({
+    id: `${index}`,
+    position: [(index - 1.5) * 0.5, 0, -10],
+    scale: 1
+  }));
+  const {layer} = makePerspective(data, {pixelError: 1e6});
+  const coarse = layer.state.groups.length - 1;
+  const render = () => layer.renderLayers().find(child => child.id.endsWith(`-${coarse}`))!;
+  const first = render();
+  expect(first.props._coverageRanges).toEqual([{startRow: 0, endRow: 4}]);
+  expect(render().props._coverageRanges).toBe(first.props._coverageRanges);
+
+  const rows = [...layer.state.groups[coarse]];
+  rows[2] = {...rows[2], weight: 0.5};
+  layer.state.groups[coarse] = rows;
+  const faded = render();
+  // Membership is unchanged; only slot 2's coverage is invalidated, not every row's.
+  expect(faded.props.data).toBe(first.props.data);
+  expect(faded.props._coverageRanges).toEqual([{startRow: 2, endRow: 3}]);
+  expect(faded.props.updateTriggers.getCoverageWeight).not.toContain(rows);
+  expect(faded.props.getCoverageWeight(rows[2], {index: 2})).toBe(0.5);
+});
+
+it('maps a controlled highlightedObjectIndex onto each refinement level', () => {
+  const data: PerspectiveRow[] = [
+    {id: 'near', position: [0, 0, -3], scale: 10},
+    ...Array.from({length: 5}, (_, index) => ({
+      id: `far-${index}`,
+      position: [(index - 2) * 0.5, 0, -10] as [number, number, number],
+      scale: 1
+    }))
+  ];
+  for (const highlighted of [0, 3]) {
+    const {layer} = makePerspective(data, {highlightedObjectIndex: highlighted});
+    const children = layer.renderLayers();
+    expect(children.length).toBeGreaterThan(1);
+    let found = 0;
+    for (const child of children) {
+      const row = child.props.highlightedObjectIndex;
+      const rows = child.props.data as {index: number}[];
+      if (row >= 0) {
+        expect(rows[row].index).toBe(highlighted);
+        found++;
+      } else expect(rows.every(entry => entry.index !== highlighted)).toBe(true);
+    }
+    expect(found).toBeGreaterThan(0);
+  }
+  const {layer} = makePerspective(data);
+  for (const child of layer.renderLayers()) expect(child.props.highlightedObjectIndex).toBeNull();
+});
+
+it('invalidates coverage only for the supplied changed rows', () => {
+  const invalidate = vi.fn();
+  const layer = Object.assign(Object.create(SplatPrimitiveLayer.prototype), {
+    internalState: {hasPickingBuffer: false},
+    state: {windRows: new WeakMap()},
+    getAttributeManager: () => ({invalidate, invalidateAll: vi.fn()})
+  });
+  const base = {extensions: [], pickable: false, source: SOURCE, _coverageRanges: null};
+  const ranges = [
+    {startRow: 2, endRow: 3},
+    {startRow: 9, endRow: 12}
+  ];
+  layer.updateState({props: {...base, _coverageRanges: ranges}, oldProps: base, changeFlags: {}});
+  expect(invalidate.mock.calls).toEqual(ranges.map(range => ['getCoverageWeight', range]));
+  invalidate.mockClear();
+  layer.updateState({
+    props: {...base, _coverageRanges: ranges},
+    oldProps: {...base, _coverageRanges: ranges},
+    changeFlags: {}
+  });
+  expect(invalidate).not.toHaveBeenCalled();
 });

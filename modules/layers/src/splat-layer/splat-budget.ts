@@ -15,64 +15,94 @@ export type SplatSelection<T> = {
   retainedLevel?: number;
 };
 
+const LEVEL_COUNTS = new WeakMap<SplatHierarchy, number[]>();
+
+/** Gaussian count of each representation, cached per immutable hierarchy. */
+export function getSplatLevelCounts(hierarchy: SplatHierarchy): number[] {
+  let counts = LEVEL_COUNTS.get(hierarchy);
+  if (!counts) {
+    counts = hierarchy.map(level => level.source.positions.length / 3);
+    LEVEL_COUNTS.set(hierarchy, counts);
+  }
+  return counts;
+}
+
 /** Spend a fixed Gaussian budget on owners with the largest remaining screen error. Never discard an owner.
  * If the coarsest representation itself exceeds the budget, return that coverage floor.
  * The caller must use spatial/source aggregation to bound that floor, rather than punch holes.
+ * Callbacks also receive the row index, so callers can share one limit list across many rows.
  */
 export function budgetSplatSelections<T>(
   desired: SplatSelection<T>[],
-  hierarchy: SplatHierarchy | ((owner: T) => SplatHierarchy),
+  hierarchy: SplatHierarchy | ((owner: T, index: number) => SplatHierarchy),
   budget: number,
-  getLimits?: (owner: T) => SplatBudgetLimit[]
+  getLimits?: (owner: T, index: number) => SplatBudgetLimit[]
 ): SplatSelection<T>[] {
   if (!desired.length || (!Number.isFinite(budget) && !getLimits)) return desired;
-  const getHierarchy = (row: SplatSelection<T>) =>
-    typeof hierarchy === 'function' ? hierarchy(row.owner) : hierarchy;
-  const cachedCounts = new Map<SplatHierarchy, number[]>();
-  const sourceCounts = desired.map(row => {
-    const levels = getHierarchy(row);
-    let counts = cachedCounts.get(levels);
-    if (!counts) {
-      counts = levels.map(level => level.source.positions.length / 3);
-      cachedCounts.set(levels, counts);
+  const hierarchies: SplatHierarchy[] = new Array(desired.length);
+  const sourceCounts: number[][] = new Array(desired.length);
+  // Rows reference a few shared limit lists. Resolve each list once to dense counters.
+  const limits: number[][] = new Array(desired.length);
+  const limitKeys = new Map<object, number>();
+  const limitLists = new Map<SplatBudgetLimit[], number[]>();
+  const ceilings: number[] = [];
+  let previous: SplatHierarchy | undefined;
+  let previousCounts: number[] = [];
+  for (let index = 0; index < desired.length; index++) {
+    const owner = desired[index].owner;
+    const levels = typeof hierarchy === 'function' ? hierarchy(owner, index) : hierarchy;
+    if (levels !== previous) {
+      previous = levels;
+      previousCounts = getSplatLevelCounts(levels);
     }
-    return counts;
-  });
-  const limits = desired.map(row => getLimits?.(row.owner) ?? []);
-  const ceilings = new Map<object, number>();
-  const usage = new Map<object, number>();
-  limits.forEach(list =>
-    list.forEach(limit =>
-      ceilings.set(limit.key, Math.min(ceilings.get(limit.key) ?? Infinity, limit.budget))
-    )
-  );
-  const charge = (index: number, delta: number) =>
-    limits[index].forEach(limit => usage.set(limit.key, (usage.get(limit.key) ?? 0) + delta));
-  const fits = (index: number, delta: number) =>
-    limits[index].every(limit => (usage.get(limit.key) ?? 0) + delta <= ceilings.get(limit.key)!);
+    hierarchies[index] = levels;
+    sourceCounts[index] = previousCounts;
+    const list = getLimits?.(owner, index) ?? [];
+    let resolved = limitLists.get(list);
+    if (!resolved) {
+      resolved = list.map(limit => {
+        let key = limitKeys.get(limit.key);
+        if (key === undefined) {
+          key = ceilings.length;
+          limitKeys.set(limit.key, key);
+          ceilings.push(Infinity);
+        }
+        ceilings[key] = Math.min(ceilings[key], limit.budget);
+        return key;
+      });
+      limitLists.set(list, resolved);
+    }
+    limits[index] = resolved;
+  }
+  const usage = new Float64Array(ceilings.length);
+  const charge = (index: number, delta: number) => {
+    for (const key of limits[index]) usage[key] += delta;
+  };
+  const fits = (index: number, delta: number) => {
+    for (const key of limits[index]) if (usage[key] + delta > ceilings[key]) return false;
+    return true;
+  };
   const cost = (row: SplatSelection<T>, index: number) =>
     sourceCounts[index][row.level] + (row.blend > 0 ? sourceCounts[index][row.level + 1] : 0);
-  const desiredCost = desired.reduce((sum, row, index) => {
-    const count = cost(row, index);
+  let desiredCost = 0;
+  for (let index = 0; index < desired.length; index++) {
+    const count = cost(desired[index], index);
     charge(index, count);
-    return sum + count;
-  }, 0);
-  if (
-    !desired.length ||
-    (desiredCost <= budget && [...usage].every(([key, count]) => count <= ceilings.get(key)!))
-  )
-    return desired;
-  usage.clear();
+    desiredCost += count;
+  }
+  if (desiredCost <= budget && usage.every((count, key) => count <= ceilings[key])) return desired;
+  usage.fill(0);
   const rows = desired.map((row, index) => ({
     ...row,
     level: sourceCounts[index].length - 1,
     blend: 0
   }));
-  let used = rows.reduce((sum, row, index) => {
-    const count = cost(row, index);
+  let used = 0;
+  for (let index = 0; index < rows.length; index++) {
+    const count = cost(rows[index], index);
     charge(index, count);
-    return sum + count;
-  }, 0);
+    used += count;
+  }
   type Step = {index: number; level: number; delta: number; priority: number};
   const heap: Step[] = [];
   const push = (step: Step) => {
@@ -126,7 +156,7 @@ export function budgetSplatSelections<T>(
   });
   const priority = (index: number, level: number) => {
     const row = rows[index];
-    const levels = getHierarchy(row);
+    const levels = hierarchies[index];
     // Reduce the largest remaining projected error to each owner's requested target first.
     // Ranking only the gain per added splat lets cheap far promotions exhaust the budget while a
     // nearby owner remains a coarse proxy. Cost remains a hard feasibility constraint below.
@@ -151,7 +181,16 @@ export function budgetSplatSelections<T>(
       priority: priority(index, level)
     });
   };
-  rows.forEach((_, index) => enqueue(index));
+  // Every remaining first step adds Gaussians, and usage cannot fall until one is accepted. When
+  // the coverage floor already exhausts each owner's limits, no step can ever fit: skip the heap.
+  let refinable = false;
+  for (let index = 0; index < rows.length && !refinable; index++) {
+    const row = rows[index];
+    if (row.level <= desired[index].level) continue;
+    const delta = sourceCounts[index][nextLevel(index)] - sourceCounts[index][row.level];
+    refinable = used + delta <= budget && fits(index, delta);
+  }
+  if (refinable) rows.forEach((_, index) => enqueue(index));
   while (heap.length) {
     const step = pop();
     if (used + step.delta > budget || !fits(step.index, step.delta)) continue;

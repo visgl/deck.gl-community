@@ -5,7 +5,7 @@ import {Matrix4} from '@math.gl/core';
 import {WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
-import {getTreeWindPhases} from '../../src/tree-layer/tree-mesh-layer';
+import {getTreeWindPhases, TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
 it('preserves both wind modes when phases are cached per owner', () => {
   for (const phase of [-5, 0, 0.7, 5.2])
     for (const time of [0, 1.6, 45.7]) {
@@ -267,4 +267,112 @@ it('retains structural banyan aerial roots in the coarse woody shell', () => {
       }
     }
   }
+});
+
+function makeWoodRow(x: number) {
+  return {
+    position: [x, 0, 0],
+    scale: [1, 1, 5],
+    translation: [0, 0, 3],
+    type: 'oak' as const,
+    levels: 3,
+    characteristics: {},
+    height: 10,
+    wind: [10, 0, 1]
+  };
+}
+function makeWoodLayer(data: ReturnType<typeof makeWoodRow>[], extra = {}) {
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data,
+    mesh: templateMesh,
+    templateMesh,
+    getPosition: row => row.position,
+    getScale: row => row.scale,
+    getTranslation: row => row.translation,
+    ...extra
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
+  const look = (target: number[], changeFlags: object) => {
+    const viewport = new OrthographicViewport({width: 256, height: 256, target, zoom: 2});
+    Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
+    layer.updateState({props: layer.props, oldProps: layer.props, changeFlags});
+  };
+  look([0, 0, 0], {dataChanged: true});
+  return {layer, look};
+}
+
+it('keeps wood instance slots when trees cross the view edge', () => {
+  const data = [-100, -75, -50, -25, 0, 25, 50, 75, 100].map(makeWoodRow);
+  const {layer, look} = makeWoodLayer(data);
+  const before = layer.state.far;
+  expect(before.length).toBeGreaterThan(2);
+  look([30, 0, 0], {viewportChanged: true});
+  const after = layer.state.far;
+  const departed = before.filter(row => !after.includes(row));
+  const arrived = after.filter(row => !before.includes(row));
+  expect(departed.length).toBeGreaterThan(0);
+  expect(arrived.length).toBeGreaterThan(0);
+  // Retained trees stay in their instance rows; arrivals take the departed rows.
+  for (const [slot, row] of before.entries())
+    if (after.includes(row)) expect(after[slot]).toBe(row);
+  const rewritten = after.filter((row, slot) => row !== before[slot]);
+  expect(rewritten).toHaveLength(Math.max(departed.length, arrived.length));
+});
+
+it('reuses cached owner metre scales and records near weights on owners', () => {
+  const data = [-20, 0, 20].map(makeWoodRow);
+  const {layer} = makeWoodLayer(data);
+  const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18});
+  const next = new WebMercatorViewport({width: 256, height: 256, zoom: 18.5, pitch: 30});
+  Object.assign(layer, {context: {viewport, deck: {getViewports: () => [next]}}});
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
+  const scales = vi.spyOn(WebMercatorViewport.prototype, 'getDistanceScales');
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {viewportChanged: true}
+  });
+  expect(scales).not.toHaveBeenCalled();
+  scales.mockRestore();
+  expect(layer.state.owners.every(owner => owner.weight >= 0 && owner.weight <= 1)).toBe(true);
+});
+
+it('maps a controlled highlightedObjectIndex onto near and far wood rows', () => {
+  const data = [-50, -25, 0, 25, 50].map(makeWoodRow);
+  for (const highlighted of [0, 2, 4]) {
+    const {layer} = makeWoodLayer(data, {highlightedObjectIndex: highlighted});
+    Object.assign(layer.state, {near: [data[2]], far: [data[4], data[1], data[3]]});
+    const [near, far] = layer.renderLayers();
+    for (const child of [near, far]) {
+      const row = child.props.highlightedObjectIndex;
+      if (child.props.data.includes(data[highlighted]))
+        expect(child.props.data[row]).toBe(data[highlighted]);
+      else expect(row).toBe(-1);
+    }
+  }
+});
+
+it('compares constant wood coverage ranges by value', () => {
+  const invalidate = vi.fn();
+  const layer = Object.assign(Object.create(TreeMeshLayer.prototype), {
+    internalState: {hasPickingBuffer: false},
+    state: {},
+    props: {wireframe: false},
+    getAttributeManager: () => ({invalidate, invalidateAll: vi.fn()})
+  });
+  const base = {extensions: [], pickable: false, mesh: null, getCoverageWeight: 1};
+  const update = (range: number[], previous: number[]) =>
+    layer.updateState({
+      props: {...base, getCoverageRange: range},
+      oldProps: {...base, getCoverageRange: previous},
+      changeFlags: {}
+    });
+  // TreeWoodLayer passes a new [0, 1] literal on every camera render.
+  update([0, 1], [0, 1]);
+  expect(invalidate).not.toHaveBeenCalled();
+  update([0, 0.5], [0, 1]);
+  expect(invalidate).toHaveBeenCalledWith('instanceTreeCoverage');
 });

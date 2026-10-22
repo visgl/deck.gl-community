@@ -30,6 +30,28 @@ export function getSplatSourceRow(data: unknown, rootId: string, sourceIndex: nu
 }
 
 /**
+ * A controlled `highlightedObjectIndex` names a row of `layer`'s own data, but deck.gl forwards it
+ * unchanged to children whose rows are subsets in another order. Return the first child row that
+ * is that data row, or that wraps it as a sub-layer row, or -1. Uncontrolled values pass through.
+ */
+export function getSplatHighlightRow(
+  layer: Layer,
+  data: readonly unknown[]
+): number | null | undefined {
+  const index = layer.props.highlightedObjectIndex;
+  if (!Number.isInteger(index) || index! < 0) return index;
+  const own = layer.props.data as unknown;
+  const object = Array.isArray(own) ? own[index!] : undefined;
+  for (let row = 0; row < data.length; row++) {
+    const item = data[row] as SourceRow | null;
+    if (object !== undefined && item === object) return row;
+    const source = item?.__source;
+    if (source?.index === index && source.parent?.id === layer.id) return row;
+  }
+  return -1;
+}
+
+/**
  * Highlight one source object in every primitive descendant. deck.gl forwards the picked
  * sub-layer's color to all sub-layers, which selects unrelated owners when levels or wood
  * partitions hold different subsets in different orders.

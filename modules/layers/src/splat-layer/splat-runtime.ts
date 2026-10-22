@@ -4,7 +4,12 @@
 import type {Effect, EffectContext, PreRenderOptions} from '@deck.gl/core';
 import type {DeviceInfo} from '@luma.gl/core';
 import type {SplatHierarchy} from './splat-hierarchy';
-import {budgetSplatSelections, type SplatSelection, type SplatBudgetLimit} from './splat-budget';
+import {
+  budgetSplatSelections,
+  getSplatLevelCounts,
+  type SplatSelection,
+  type SplatBudgetLimit
+} from './splat-budget';
 
 /** A caller-specified cap or a stable device-aware default. */
 export type SplatBudget = number | 'auto';
@@ -123,57 +128,54 @@ export class SplatRuntime {
       participating.forEach(([, demand]) => demand.apply(demand.rows, Infinity));
       return;
     }
-    const rows = participating.flatMap(([, demand]) =>
-      demand.rows.map(row => ({
-        ...row,
-        owner: {demand, row}
-      }))
-    );
-    const total = Math.min(...participating.map(([, demand]) => demand.maxTotalSplats));
-    const limits = ({demand}: {demand: Demand}): SplatBudgetLimit[] => {
-      const result: SplatBudgetLimit[] = [
+    // Concatenate demand without per-row wrappers. Budgeting keeps row order, so each
+    // registration's allocation is the contiguous slice it contributed.
+    const demands = participating.map(([, demand]) => demand);
+    const rows = demands.length === 1 ? demands[0].rows : demands.flatMap(demand => demand.rows);
+    const owners: Demand[] = new Array(rows.length);
+    const starts: number[] = [];
+    let offset = 0;
+    for (const demand of demands) {
+      starts.push(offset);
+      owners.fill(demand, offset, offset + demand.rows.length);
+      offset += demand.rows.length;
+    }
+    const total = Math.min(...demands.map(demand => demand.maxTotalSplats));
+    const limits = new Map<Demand, SplatBudgetLimit[]>();
+    for (const demand of demands) {
+      const list: SplatBudgetLimit[] = [
         {key: demand, budget: demand.maxSplats * SETTLED_SPLAT_BUDGET_FRACTION}
       ];
       for (let group = demand.group; group; group = group.parent)
-        result.push({
+        list.push({
           key: group,
           budget: resolveSplatBudget(group.maxSplats, this.device) * SETTLED_SPLAT_BUDGET_FRACTION
         });
-      return result;
-    };
-    const allocated = budgetSplatSelections<{demand: Demand; row: SplatSelection<any>}>(
-      rows,
-      owner => owner.demand.hierarchy(owner.row.owner),
-      total * SETTLED_SPLAT_BUDGET_FRACTION,
-      limits
-    );
-    const selections = new Map<Demand, SplatSelection<any>[]>();
-    const costs = new Map<Demand, number>();
-    for (const row of allocated) {
-      const {demand, row: original} = row.owner;
-      let selected = selections.get(demand);
-      if (!selected) {
-        selected = [];
-        selections.set(demand, selected);
-      }
-      selected.push({...row, owner: original.owner});
-      const hierarchy = demand.hierarchy(original.owner);
-      const cost =
-        hierarchy[row.level].source.positions.length / 3 +
-        (row.blend > 0 ? hierarchy[row.level + 1].source.positions.length / 3 : 0);
-      costs.set(demand, (costs.get(demand) ?? 0) + cost);
+      limits.set(demand, list);
     }
-    for (const [, demand] of participating) {
+    const allocated = budgetSplatSelections(
+      rows,
+      (owner, index) => owners[index].hierarchy(owner),
+      total * SETTLED_SPLAT_BUDGET_FRACTION,
+      (_, index) => limits.get(owners[index])!
+    );
+    demands.forEach((demand, index) => {
+      const start = starts[index];
+      const selected =
+        allocated === rows ? demand.rows : allocated.slice(start, start + demand.rows.length);
+      let cost = 0;
+      for (const row of selected) {
+        const counts = getSplatLevelCounts(demand.hierarchy(row.owner));
+        cost += counts[row.level] + (row.blend > 0 ? counts[row.level + 1] : 0);
+      }
       // The reserved headroom allows each registration's optical mixtures to advance.
       // Existing transition overlap remains a soft submission allowance, not a GPU byte cap.
       const budget = Math.min(
         demand.maxSplats,
-        Number.isFinite(total) || demand.group
-          ? (costs.get(demand) ?? 0) / SETTLED_SPLAT_BUDGET_FRACTION
-          : Infinity
+        Number.isFinite(total) || demand.group ? cost / SETTLED_SPLAT_BUDGET_FRACTION : Infinity
       );
-      demand.apply(selections.get(demand) ?? [], budget);
-    }
+      demand.apply(selected, budget);
+    });
   }
 }
 

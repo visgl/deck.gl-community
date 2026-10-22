@@ -33,10 +33,10 @@ import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform, getSplatTransformScale} from './splat-transform';
 import {getSplatDeformationRadius} from './splat-deformation';
-import {budgetSplatSelections, type SplatSelection} from './splat-budget';
+import {budgetSplatSelections, getSplatLevelCounts, type SplatSelection} from './splat-budget';
 import {SplatRefinementTransition} from './splat-refinement-transition';
-import {retainSplatRows, getSplatChangedRanges} from './splat-row-diff';
-import {updateSplatSourceHighlight} from './splat-source-highlight';
+import {retainSplatRows, getSplatChangedRanges, SplatRowSlots} from './splat-row-diff';
+import {getSplatHighlightRow, updateSplatSourceHighlight} from './splat-source-highlight';
 import {
   DEFAULT_GET_SOURCE,
   resolveSplatInput,
@@ -155,6 +155,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       object,
       {owner: PreparedOwner<DataT>; revision: number; rows: (Owner<DataT> | undefined)[]}
     >;
+    slots: SplatRowSlots<Owner<DataT>>[];
+    coverage: {data: Owner<DataT>[]; ranges: {startRow: number; endRow: number}[]}[];
     awaitingInitialAllocation: boolean;
   };
   initializeState() {
@@ -171,6 +173,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       projectedPositions: new Map(),
       refinement: new SplatRefinementTransition(),
       refinementRows: new WeakMap(),
+      slots: [],
+      coverage: [],
       awaitingInitialAllocation: false
     };
   }
@@ -374,15 +378,21 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const candidates: SplatSelection<PreparedOwner<DataT>>[] = [];
     // Traverse persistent owner bounds. A camera move does not reread all accessors or rebuild the BVH.
     const filterPadding = (props.support * Math.sqrt(props.kernelVariance)) / renderPixelRatio;
+    // Cached owner metre scales hold for every view sharing this projection, including the newer
+    // camera deck.gl reports while a composite layer updates with its last drawn viewport.
+    const ownerUnits = views.map(
+      view => view === viewport || getSplatProjectionKey(view) === projectionKey
+    );
     for (const owner of querySplatSpatialIndex(spatialIndex, projections, filterPadding)) {
       let metersToPixels = 0;
       let focus = 0;
-      for (const view of views) {
+      for (let i = 0; i < views.length; i++) {
+        const view = views[i];
         const pixelsPerMeter = getSplatBoundedPixelsPerMeter(
           owner.center,
           owner.radius,
           view,
-          view === viewport ? owner.units : undefined
+          ownerUnits[i] ? owner.units : undefined
         );
         const viewportWeight = getSplatViewportLodWeight(owner.center, owner.radius, view);
         metersToPixels = Math.max(metersToPixels, pixelsPerMeter * viewportWeight);
@@ -420,8 +430,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     // deck.gl suppresses updateTriggers when dataChanged has partial ranges.
     // Changed data may reuse mutated owner objects. Refresh their row wrappers
     // so child attribute diffs upload the new values, while camera moves retain rows.
-    if (changeFlags.dataChanged || geometryChanged || assetsChanged) {
-      this.state.groups = [];
+    if (changeFlags.dataChanged || geometryChanged || assetsChanged || rebuild) {
+      this.state.slots = [];
     }
     let sharedBudget = props.maxTotalSplats;
     for (let group = props._splatBudgetGroup; group; group = group.parent)
@@ -450,35 +460,36 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       demandCandidates === this.state.candidates &&
       props.maxSplats === oldProps.maxSplats &&
       !needsInitialCoverage;
+    // Changed demand is granted jointly before this frame samples any fade. Locally, only admit
+    // arriving and drop departed owners; the joint grant retargets the retained ones.
+    const jointlyGranted = typeof this.context.deck._addDefaultEffect === 'function';
+    const counts = (owner: PreparedOwner<DataT>) => getSplatLevelCounts(owner.asset.hierarchy);
     const membershipChanged =
       !demandRetained &&
-      this.state.refinement.reconcile(
-        budgetSplatSelections(
-          initialCandidates,
-          owner => owner.asset.hierarchy,
-          props.maxSplats * SETTLED_SPLAT_BUDGET_FRACTION
-        ),
-        owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
-        props.maxSplats,
-        owner => owner.key
-      );
-    const groups =
-      membershipChanged || changeFlags.dataChanged || geometryChanged || assetsChanged
-        ? this.getRefinementGroups(this.state.refinement)
-        : this.state.groups;
+      (jointlyGranted
+        ? this.state.refinement.retain(initialCandidates, counts, owner => owner.key)
+        : this.state.refinement.reconcile(
+            budgetSplatSelections(
+              initialCandidates,
+              owner => owner.asset.hierarchy,
+              props.maxSplats * SETTLED_SPLAT_BUDGET_FRACTION
+            ),
+            counts,
+            props.maxSplats,
+            owner => owner.key
+          ));
     this.setState({
-      groups: rebuild
-        ? groups
-        : groups.map((rows, level) =>
-            retainSplatRows(this.state.groups[level] ?? [], rows, equalOwners)
-          ),
+      groups:
+        membershipChanged || changeFlags.dataChanged || geometryChanged || assetsChanged || rebuild
+          ? this.getRefinementGroups(this.state.refinement)
+          : this.state.groups,
       hierarchy,
       owners,
       candidates: demandCandidates,
       spatialIndex,
       projectionKey,
       awaitingInitialAllocation: this.state.awaitingInitialAllocation || needsInitialCoverage,
-      ...(rebuild ? {members: []} : {})
+      ...(rebuild ? {members: [], coverage: []} : {})
     });
     this.publishDemand(demandCandidates);
   }
@@ -505,7 +516,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
     const immediate = this.state.awaitingInitialAllocation;
     const changed = refinement.reconcile(
       rows,
-      owner => owner.asset.hierarchy.map(level => level.source.positions.length / 3),
+      owner => getSplatLevelCounts(owner.asset.hierarchy),
       budget,
       owner => owner.key,
       immediate
@@ -564,6 +575,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
   private getRefinementGroups(transition: SplatRefinementTransition<PreparedOwner<DataT>>) {
     const groups = this.state.hierarchy.map(() => [] as Owner<DataT>[]);
+    const keys = this.state.hierarchy.map(() => [] as number[]);
     for (const entry of transition.entries.values()) {
       const {owner, weights} = entry;
       let cached = this.state.refinementRows.get(entry);
@@ -582,12 +594,18 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       }
       for (let level = 0; level < cached.rows.length; level++) {
         const row = cached.rows[level];
-        if (row) groups[owner.offset + level].push(row);
+        if (row) {
+          groups[owner.offset + level].push(row);
+          keys[owner.offset + level].push(owner.row.index);
+        }
       }
     }
-    return groups.map((rows, level) =>
-      retainSplatRows(this.state.groups[level] ?? [], rows, equalOwners)
-    );
+    // Owners keep their instance slots, so edge membership changes upload only the slots they touch.
+    const slots = this.state.slots;
+    return groups.map((rows, level) => {
+      slots[level] ||= new SplatRowSlots();
+      return slots[level].update(rows, keys[level], equalOwners);
+    });
   }
 
   renderLayers(): Layer[] {
@@ -601,6 +619,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         (a, b) => a.object === b.object && a.index === b.index
       );
       memberGroups[level] = members;
+      // Weight-only changes keep members and rewrite only the coverage of the changed slots.
+      const coverage = this.state.coverage;
+      if (coverage[level]?.data !== data)
+        coverage[level] = {data, ranges: getSplatChangedRanges(data, coverage[level]?.data)};
 
       const props = this.getSubLayerProps({
         id: `refinement-${level}`,
@@ -632,12 +654,10 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           ...wrappedTriggers,
           getCoverageWeight: [
             props.updateTriggers?.getCoverageWeight,
-            typeof this.props.getCoverageWeight === 'function'
-              ? null
-              : this.props.getCoverageWeight,
-            data
+            typeof this.props.getCoverageWeight === 'function' ? null : this.props.getCoverageWeight
           ]
         },
+        _coverageRanges: coverage[level].ranges,
         _dataDiff: (next, previous) => {
           const ranges = getSplatChangedRanges(
             next as Owner<DataT>[],
@@ -648,6 +668,7 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         source: this.state.hierarchy[level].source,
         operation: 'draw',
         pickable: this.props.pickable,
+        highlightedObjectIndex: getSplatHighlightRow(this, members),
         shadowEnabled: false,
         getPosition: (row, info) => get(this.props.getPosition, row, info),
         getScale: (row, info) => get(this.props.getScale, row, info),
