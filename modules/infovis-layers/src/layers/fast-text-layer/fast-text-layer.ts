@@ -14,7 +14,7 @@ import {
   updateFastTextDynamicGlyphAttributes
 } from './fast-text-layout';
 import {DEFAULT_FAST_TEXT_FONT_SETTINGS, FastTextFontAtlasManager} from './font-atlas';
-import FAST_TEXT_WGSL from './fast-text-layer.wgsl';
+import FAST_TEXT_WGSL from './fast-text-layer.wgsl.js';
 
 import type {
   FastTextAlignmentBaseline,
