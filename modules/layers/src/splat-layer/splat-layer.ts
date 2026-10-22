@@ -788,6 +788,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           parameters,
           data: this.props.data,
           maxSplats: getEffectiveMaxSplats(this.props),
+          // Scenes neither cast nor receive deck.gl shadows; see SplatSceneLayer.
+          shadowEnabled: false,
           _resolvedAssets: this.state.rowSources,
           onStatusChange: this.props.onStatusChange
         })

@@ -22,7 +22,9 @@ export class SplatSceneLayer extends Layer<
     maxResidentSplats: 8_000_000,
     maxConcurrentLoads: 8,
     maxTotalSplats: Infinity,
-    sortDomain: 'default'
+    sortDomain: 'default',
+    // Sorted scenes have no shadow-map shader. Keep deck.gl's ShadowPass from drawing them.
+    shadowEnabled: false
   };
   declare state: {runtime: SplatSceneRuntime; disabledPickingIndices: Set<number>};
 
@@ -47,6 +49,8 @@ export class SplatSceneLayer extends Layer<
     return this.state.runtime?.isLoaded(this.id) ?? false;
   }
   draw(options: Parameters<Layer['draw']>[0]): void {
+    // The scene renderers would write camera-ordered color into the light's shadow map.
+    if (options.shaderModuleProps.shadow?.drawToShadowMap) return;
     this.state.runtime.draw(
       this,
       options.renderPass,

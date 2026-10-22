@@ -1030,6 +1030,19 @@ it.each([
   if (transparency === 'weighted') expect(layer.state.input.assets[0].source).toBe(secondSource);
 });
 
+it('renders scene children without deck.gl shadows even when the layer enables them', () => {
+  const layer = make(
+    '/scene.rad' as never,
+    0,
+    {source: undefined, shadowEnabled: true, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN},
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  expect(layer.state.scene).toBe(true);
+  const [scene] = layer.renderLayers();
+  expect(scene.id).toBe(`${layer.id}-scene`);
+  expect(scene.props.shadowEnabled).toBe(false);
+});
+
 it('retires scene children for unsupported coordinate systems and recovers on valid props', () => {
   const row = {position: [0, 0, 0] as [number, number, number]};
   const layer = make(

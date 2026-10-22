@@ -242,6 +242,22 @@ it('classifies unmarked Blob assets as RAD for budgets and projection checks', (
   }
 });
 
+it('keeps scene layers out of deck.gl shadow-map passes', () => {
+  const layer = new SplatSceneLayer({id: 'scene', data: '/capture.rad'});
+  expect(layer.props.shadowEnabled).toBe(false);
+  const draw = vi.fn();
+  const viewport = new FirstPersonViewport({width: 128, height: 128});
+  Object.assign(layer, {state: {runtime: {draw}}, context: {viewport}});
+  layer.draw({
+    renderPass: {},
+    parameters: {},
+    shaderModuleProps: {shadow: {drawToShadowMap: true}}
+  } as never);
+  expect(draw).not.toHaveBeenCalled();
+  layer.draw({renderPass: {}, parameters: {}, shaderModuleProps: {}} as never);
+  expect(draw).toHaveBeenCalledOnce();
+});
+
 it('keeps a covered RAD asset loaded while camera refinement continues', () => {
   const device = new NullDevice({});
   const runtime = new SplatSceneRuntime({} as Deck, device);
