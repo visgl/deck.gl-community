@@ -10,6 +10,7 @@ import {
   type Layer
 } from '@deck.gl/core';
 import {MapboxOverlay} from '@deck.gl/mapbox';
+import {SolidPolygonLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {luma, type Device} from '@luma.gl/core';
 import {CubeGeometry} from '@luma.gl/engine';
@@ -445,69 +446,92 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
   }, 60000);
 });
 
-it('casts tree shadows onto deck layers in an interleaved MapLibre map', async () => {
-  const container = document.createElement('div');
-  container.style.cssText = `width:${SIZE}px;height:${SIZE}px;position:relative`;
-  document.body.append(container);
-  const maplibre = (globalThis as any).maplibregl;
-  const map = new maplibre.Map({
-    container,
-    style: {
-      version: 8,
-      sources: {},
-      layers: [{id: 'background', type: 'background', paint: {'background-color': '#204020'}}]
-    },
-    center: [VIEW_STATE.longitude, VIEW_STATE.latitude],
-    zoom: VIEW_STATE.zoom,
-    pixelRatio: 1,
-    fadeDuration: 0
-  });
-  const errors: string[] = [];
-  let pixels = new Uint8Array(),
-    frames = 0;
-  const overlay = new MapboxOverlay({
-    interleaved: true,
-    effects: [lighting(true)],
-    onError: error => errors.push(error.message),
-    onAfterRender({gl}) {
-      pixels = new Uint8Array(SIZE * SIZE * 4);
-      gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      frames++;
-    }
-  });
-  const render = async (shadowEnabled: boolean) => {
-    // deck.gl draws shadow maps per interleaved layer group; the ground shares the trees' group.
-    overlay.setProps({
-      layers: [
-        ground(COORDINATE_SYSTEM.LNGLAT),
-        trees({coordinateSystem: COORDINATE_SYSTEM.LNGLAT, shadowEnabled})
+/** A transparent ground: it draws only the shadows falling on it, over the basemap. */
+function shadowCatcher() {
+  const half = 40 / 111320;
+  return new SolidPolygonLayer({
+    id: 'shadow-catcher',
+    data: [
+      [
+        [-half, -half],
+        [half, -half],
+        [half, half],
+        [-half, half]
       ]
+    ],
+    getPolygon: (polygon: number[][]) => polygon,
+    getFillColor: [0, 0, 0, 0],
+    shadowEnabled: false
+  } as any);
+}
+
+it.each([
+  ['a SimpleMeshLayer ground', () => ground(COORDINATE_SYSTEM.LNGLAT)],
+  ['a transparent shadow catcher over the basemap', shadowCatcher]
+] as const)(
+  'casts tree shadows onto %s in an interleaved MapLibre map',
+  async (_, receiver) => {
+    const container = document.createElement('div');
+    container.style.cssText = `width:${SIZE}px;height:${SIZE}px;position:relative`;
+    document.body.append(container);
+    const maplibre = (globalThis as any).maplibregl;
+    const map = new maplibre.Map({
+      container,
+      style: {
+        version: 8,
+        sources: {},
+        layers: [{id: 'background', type: 'background', paint: {'background-color': '#a89c6c'}}]
+      },
+      center: [VIEW_STATE.longitude, VIEW_STATE.latitude],
+      zoom: VIEW_STATE.zoom,
+      pixelRatio: 1,
+      fadeDuration: 0
     });
-    const before = frames;
-    await expect
-      .poll(
-        () => {
-          map.triggerRepaint();
-          return frames;
-        },
-        {timeout: 30000}
-      )
-      .toBeGreaterThan(before + 5);
-    return pixels;
-  };
-  try {
-    map.addControl(overlay);
-    await new Promise(resolve => map.once('load', resolve));
-    const shadowed = await render(true);
-    const lit = await render(false);
-    expect(errors).toEqual([]);
-    expect(brightness(lit, SHADOW)).toBeGreaterThan(100);
-    expect(brightness(shadowed, SHADOW)).toBeLessThan(brightness(lit, SHADOW) * 0.6);
-  } finally {
-    map.remove();
-    container.remove();
-  }
-}, 60000);
+    const errors: string[] = [];
+    let pixels = new Uint8Array(),
+      frames = 0;
+    const overlay = new MapboxOverlay({
+      interleaved: true,
+      effects: [lighting(true)],
+      onError: error => errors.push(error.message),
+      onAfterRender({gl}) {
+        pixels = new Uint8Array(SIZE * SIZE * 4);
+        gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        frames++;
+      }
+    });
+    const render = async (shadowEnabled: boolean) => {
+      // deck.gl draws shadow maps per interleaved layer group; the ground shares the trees' group.
+      overlay.setProps({
+        layers: [receiver(), trees({coordinateSystem: COORDINATE_SYSTEM.LNGLAT, shadowEnabled})]
+      });
+      const before = frames;
+      await expect
+        .poll(
+          () => {
+            map.triggerRepaint();
+            return frames;
+          },
+          {timeout: 30000}
+        )
+        .toBeGreaterThan(before + 5);
+      return pixels;
+    };
+    try {
+      map.addControl(overlay);
+      await new Promise(resolve => map.once('load', resolve));
+      const shadowed = await render(true);
+      const lit = await render(false);
+      expect(errors).toEqual([]);
+      expect(brightness(lit, SHADOW)).toBeGreaterThan(100);
+      expect(brightness(shadowed, SHADOW)).toBeLessThan(brightness(lit, SHADOW) * 0.6);
+    } finally {
+      map.remove();
+      container.remove();
+    }
+  },
+  60000
+);
 
 it('renders shadow-lit trees without errors on WebGPU, which casts no deck.gl shadows', async ({
   skip

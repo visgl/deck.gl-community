@@ -133,7 +133,17 @@ Limitations:
 - **WebGL2 only.** deck.gl 9.4's shadow module has no WGSL. On WebGPU trees render normally without deck.gl shadows and skip the shadow pass.
 - **Zoomed-out views.** deck.gl fits each shadow map to the whole view, and its shadow test ignores depth differences below 0.1–1% of the map's depth range. In a pitched view of a large grove that range spans kilometres, so the ground shadows of trees a few metres tall fade until you zoom in.
 - **Visible trees cast.** TreeLayer culls trees and refines canopy detail for the camera, and the shadow pass reuses that selection: a tree just outside the view casts no shadow into it.
-- **Interleaved maps.** `MapboxOverlay` and `MapLibreOverlay` with `interleaved: true` draw shadow maps per layer group, so a receiving layer needs the same `beforeId` and `slot` as the TreeLayer. The basemap itself receives no deck.gl shadows; add a deck.gl ground layer to show them.
+- **Interleaved maps.** `MapboxOverlay` and `MapLibreOverlay` with `interleaved: true` draw shadow maps per layer group, so a receiving layer needs the same `beforeId` and `slot` as the TreeLayer. The basemap itself receives no deck.gl shadows. To show them on it, add a transparent ground: deck.gl's shadow filter draws only the shadow that falls on a fully transparent surface.
+
+  ```ts
+  new SolidPolygonLayer({
+    id: 'shadow-catcher',
+    data: [fieldBoundary], // any polygon covering the trees and their shadows
+    getPolygon: polygon => polygon,
+    getFillColor: [0, 0, 0, 0],
+    shadowEnabled: false
+  });
+  ```
 - **Other deck.gl casters.** deck.gl 9.4's lit `SimpleMeshLayer` filters colors before lighting, so the depth it writes to the shadow map is shaded and the mesh shadows itself; set `shadowEnabled: false` on a `SimpleMeshLayer` ground plane that only needs to receive shadows. deck.gl also offsets each layer's depth by its position in the layer stack in the shadow pass, which can make layers late in a long stack shadow themselves. TreeLayer and SplatLayer write unshaded, unoffset shadow depth.
 
 Without a shadow light, nothing changes: deck.gl adds no shadow pass and the shadow shader branches compile out. With one, each shadow light adds one depth draw of the visible wood, crops and canopy selection per frame. Orbiting a 20,000-tree citrus block on an Apple M2 took about 26 ms per frame with a shadow light against 20 ms without, most of it the canopy's depth draw on the GPU; CPU time rose by about 1.5 ms.
