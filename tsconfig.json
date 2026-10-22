@@ -28,6 +28,7 @@
       "@deck.gl-community/leaflet": ["./modules/leaflet/src"],
       "@deck.gl-community/editable-layers": ["./modules/editable-layers/src"],
       "@deck.gl-community/experimental": ["./modules/experimental/src"],
+      "@deck.gl-community/extensions": ["./modules/extensions/src"],
       "@deck.gl-community/panels": ["./modules/panels/src"],
       "@deck.gl-community/playground": ["./modules/playground/src"],
       "@deck.gl-community/widgets": ["./modules/widgets/src"],
@@ -39,7 +40,6 @@
       "@deck.gl-community/react-fiber/*": ["./modules/react-fiber/src/*"],
       "@deck.gl-community/template": ["./modules/template/src"],
       "@deck.gl-community/graph-layers": ["./modules/graph-layers/src"],
-      "@deck.gl-community/three": ["./modules/three/src"],
       "@deck.gl-community/timeline-layers": ["./modules/timeline-layers/src"]
     },
     "typeRoots": ["./node_modules/@types"],
@@ -55,12 +55,12 @@
       },
       {
         "transform": "@vis.gl/ts-plugins/ts-transform-append-extension",
-        "extensions": [".js"],
+        "extensions": [".js", ".fs.js", ".glsl.js", ".vs.js", ".wgsl.js"],
         "after": true
       },
       {
         "transform": "@vis.gl/ts-plugins/ts-transform-append-extension",
-        "extensions": [".js"],
+        "extensions": [".js", ".fs.js", ".glsl.js", ".vs.js", ".wgsl.js"],
         "afterDeclarations": true
       }
     ],

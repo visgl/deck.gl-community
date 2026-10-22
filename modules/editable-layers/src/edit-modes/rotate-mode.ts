@@ -13,6 +13,7 @@ import {point, featureCollection, lineString} from '@turf/helpers';
 import {transformRotate} from '@turf/transform-rotate';
 import {polygonToLine} from '@turf/polygon-to-line';
 import {
+  BasePointerEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
@@ -112,7 +113,7 @@ export class RotateMode extends GeoJsonEditMode {
     event.cancelPan();
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (!this._isRotating) {
       const selectedEditHandle = getPickedEditHandle(event.picks);
       this._selectedEditHandle =
@@ -122,6 +123,11 @@ export class RotateMode extends GeoJsonEditMode {
     }
 
     this.updateCursor(props);
+  }
+
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
+    return Boolean(getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -152,7 +158,7 @@ export class RotateMode extends GeoJsonEditMode {
     }
   }
 
-  updateCursor(props: ModeProps<FeatureCollection>) {
+  updateCursor(props: ModeProps<SimpleFeatureCollection>) {
     if (this._selectedEditHandle) {
       // TODO: look at doing SVG cursors to get a better "rotate" cursor
       props.onUpdateCursor('crosshair');

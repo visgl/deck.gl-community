@@ -1,0 +1,41 @@
+{
+  "name": "@deck.gl-community/vega",
+  "version": "9.4.7",
+  "private": true,
+  "description": "Private experimental SandDance Vega renderer port for deck.gl 9.4",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prepublishOnly": "node -e \"throw new Error('Private workspace: publishing is disabled')\"",
+    "typecheck": "yarn --cwd ../.. tsc --noEmit -p modules/vega/tsconfig.json",
+    "build": "yarn --cwd ../.. ocular-build vega",
+    "test-browser": "yarn --cwd ../.. vitest run --project headless modules/vega/test/renderer.browser.spec.ts"
+  },
+  "dependencies": {
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@loaders.gl/core": "^4.3.0",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0",
+    "d3-color": "^3.1.0",
+    "d3-ease": "^3.0.1",
+    "deepmerge": "^4.3.1",
+    "tsx-create-element": "^2.2.9",
+    "vega": "^6.2.0"
+  },
+  "devDependencies": {
+    "@types/d3-color": "^3.1.3",
+    "@types/d3-ease": "^3.0.2",
+    "@types/react": "^18.3.3"
+  }
+}

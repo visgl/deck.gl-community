@@ -1,0 +1,9 @@
+{
+  "type": "category",
+  "label": "@deck.gl-community/extensions",
+  "items": [
+    "modules/extensions/README",
+    "modules/extensions/api-reference/selection-pulse-extension",
+    "modules/extensions/api-reference/zoom-opacity-extension"
+  ]
+}

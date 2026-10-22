@@ -189,6 +189,25 @@ beforeEach(() => {
 });
 
 describe('TextEditorPanel', () => {
+  it('forwards custom language identifiers without JSON diagnostics', async () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    render(
+      new TextEditorPanel({
+        id: 'custom-language',
+        title: 'Source',
+        language: 'custom-text',
+        jsonSchema: {type: 'object'}
+      }).content,
+      root
+    );
+    await waitForCondition(
+      () => monacoHarness.getLastCreatedModel()?.language === 'custom-text',
+      'Expected custom language identifier.'
+    );
+    expect(monacoHarness.configureJsonSchema).not.toHaveBeenCalled();
+  });
+
   it('creates a panel with the expected id and title', () => {
     const panel = new TextEditorPanel({
       id: 'text-editor',

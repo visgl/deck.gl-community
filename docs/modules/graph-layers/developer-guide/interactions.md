@@ -19,7 +19,7 @@ info: {
  - onMouseEnter: This callback will be called when the mouse enter a node. Default: `null`.
  - onHover: This callback will be called when the mouse hovers over a node. Default: `null`.
  - onMouseLeave: This callback will be called when the mouse leaves a node. Default: `null`.
- - onDrag: This callback will be called when draggin a node. Default: `null`.
+ - onDrag: This callback will be called when dragging a node. Default: `null`.
 
 
 ### `edgeEvents` (Object, optional)

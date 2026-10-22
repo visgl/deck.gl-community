@@ -1,10 +1,15 @@
 {
-  "version": "9.4.0-alpha.3",
+  "version": "9.4.7",
   "npmClient": "yarn",
   "packages": [
     "modules/*",
     "dev/*"
   ],
+  "command": {
+    "publish": {
+      "concurrency": 1
+    }
+  },
   "publishConfig": {
     "access": "public"
   }

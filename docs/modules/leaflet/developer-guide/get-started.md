@@ -26,10 +26,10 @@ const map = L.map(document.getElementById('map'), {
   center: [51.47, 0.45],
   zoom: 4,
 });
-L.tileLayer('https://tiles.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png', {
+L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg', {
   maxZoom: 22,
-  attribution:
-    '© <a href="https://carto.com/about-carto/" target="_blank" rel="noopener">CARTO</a>, © <a href="http://www.openstreetmap.org/about/" target="_blank">OpenStreetMap</a> contributors',
+  maxNativeZoom: 8,
+  attribution: 'Imagery courtesy NASA GIBS',
 }).addTo(map);
 
 // Add deck.gl overlay

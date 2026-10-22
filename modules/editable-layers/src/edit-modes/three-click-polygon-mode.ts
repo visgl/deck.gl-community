@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {
   ClickEvent,
   PointerMoveEvent,
@@ -9,16 +11,12 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {
-  Position,
-  Polygon,
-  Feature,
-  FeatureCollection,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {Position, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class ThreeClickPolygonMode extends GeoJsonEditMode {
+export class ThreeClickPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     this.addClickSequence(event);
 
@@ -42,7 +40,7 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
     }
   }
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const {lastPointerMoveEvent, modeConfig} = props;
     const clickSequence = this.getClickSequence();
 
@@ -92,12 +90,12 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
     return null;
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
   }
 
-  createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
+  createTentativeFeature(props: ModeProps<SimpleFeatureCollection>): TentativeFeature {
     const {lastPointerMoveEvent} = props;
     const clickSequence = this.getClickSequence();
 
@@ -114,5 +112,10 @@ export class ThreeClickPolygonMode extends GeoJsonEditMode {
     }
 
     return tentativeFeature;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new ClickSnappingStrategy();
   }
 }

@@ -65,7 +65,7 @@ export class TileSourceLayer extends CompositeLayer<TileSourceLayerProps> {
         minZoom,
         maxZoom,
         tileSize: 256,
-        // TOOD - why is this needed?
+        // TODO - why is this needed?
         zoomOffset: devicePixelRatio === 1 ? -1 : 0,
         renderSubLayers: renderSubLayers as any,
 

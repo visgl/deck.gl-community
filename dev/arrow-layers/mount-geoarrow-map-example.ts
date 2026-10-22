@@ -21,7 +21,7 @@ const MAP_STYLE = {
   inset: '0'
 } as const;
 
-const DEFAULT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json';
+const DEFAULT_MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
 type AnimationState = {
   currentTime: number;

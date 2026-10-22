@@ -1,5 +1,7 @@
 # Edit Modes
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 `EditMode`s provide a way of handling user interactions in order to manipulate GeoJSON features and geometries.
 
 The most basic modes are:

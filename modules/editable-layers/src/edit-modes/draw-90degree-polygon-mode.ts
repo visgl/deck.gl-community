@@ -19,17 +19,11 @@ import {
   GuideFeatureCollection,
   TentativeFeature
 } from './types';
-import {
-  Polygon,
-  LineString,
-  Position,
-  FeatureCollection,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
+import {Polygon, LineString, Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 
 export class Draw90DegreePolygonMode extends GeoJsonEditMode {
-  createTentativeFeature(props: ModeProps<FeatureCollection>): TentativeFeature {
+  createTentativeFeature(props: ModeProps<SimpleFeatureCollection>): TentativeFeature {
     const clickSequence = this.getClickSequence();
 
     const {mapCoords} = props.lastPointerMoveEvent;
@@ -74,7 +68,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
     return tentativeFeature;
   }
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const guides: GuideFeatureCollection = {
       type: 'FeatureCollection',
       features: []
@@ -99,7 +93,7 @@ export class Draw90DegreePolygonMode extends GeoJsonEditMode {
     return guides;
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     props.onUpdateCursor('cell');
     super.handlePointerMove(event, props);
   }

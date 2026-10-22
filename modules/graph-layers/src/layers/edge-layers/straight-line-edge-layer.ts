@@ -20,11 +20,13 @@ export class StraightLineEdgeLayer extends CompositeLayer {
     return [
       new LineLayer(
         this.getSubLayerProps({
+          transitions: this.props.transitions,
           id: '__line-layer',
           data,
           getSourcePosition: e => getLayoutInfo(e).sourcePosition,
           getTargetPosition: e => getLayoutInfo(e).targetPosition,
           updateTriggers: {
+            all: this.props.transitions,
             getColor: colorUpdateTrigger,
             getSourcePosition: positionUpdateTrigger,
             getTargetPosition: positionUpdateTrigger,

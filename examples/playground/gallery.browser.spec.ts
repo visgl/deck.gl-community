@@ -5,6 +5,9 @@
 import {Deck, Layer} from '@deck.gl/core';
 import type {SolidPolygonLayer} from '@deck.gl/layers';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
+import {GraphLayer} from '@deck.gl-community/graph-layers';
+import karateDot from '../../modules/graph-layers/test/data/__fixtures__/dot/karate.dot?raw';
+import graphUrlExample from './examples/16-graph-url.json';
 import {SkyboxLayer} from '@deck.gl-community/layers';
 import {page} from 'vitest/browser';
 import {afterEach, expect, test, vi} from 'vitest';
@@ -40,12 +43,15 @@ async function mockGalleryResources(): Promise<void> {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (url.startsWith('data:') || url.startsWith('blob:')) return fetchLocalResource(input, init);
-    if (url === 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json') {
+    if (url === 'https://tiles.openfreemap.org/styles/positron') {
       return Response.json({
         version: 8,
         sources: {},
         layers: [{id: 'background', type: 'background', paint: {'background-color': '#e2e8f0'}}]
       });
+    }
+    if (url === graphUrlExample.layers[0].data) {
+      return new Response(karateDot, {headers: {'content-type': 'text/vnd.graphviz'}});
     }
     if (cubemapUrls.has(url)) {
       return new Response(image, {headers: {'content-type': 'image/png'}});
@@ -107,6 +113,25 @@ test('renders the gallery forward, backward, and across different view types', a
         }
         // Include the automatically injected basemap as well as the document's own layers.
         for (const layer of layers) {
+          if (layer instanceof GraphLayer && layer.id === 'karate-club') {
+            expect(layer.state.graphEngine?.getNodes()).toHaveLength(8);
+            expect(layer.state.graphEngine?.getEdges()).toHaveLength(12);
+          }
+          if (layer instanceof GraphLayer && layer.id === 'radial-graph') {
+            const engine = layer.state.graphEngine!;
+            expect(engine.getNodes()).toHaveLength(6);
+            expect(engine.getEdges()).toHaveLength(6);
+            const edgeLayers = layer
+              .getSubLayers()
+              .filter(child => (child.constructor as typeof Layer).layerName === 'EdgeLayer');
+            expect(edgeLayers).toHaveLength(1);
+            const renderedEdges = edgeLayers[0].state.typedEdgeData as Record<string, unknown[]>;
+            expect(renderedEdges.line).toHaveLength(5);
+            expect(renderedEdges['spline-curve']).toHaveLength(1);
+            const positions = engine.getNodes().map(node => engine.getNodePosition(node)!);
+            expect(positions.every(point => point.every(Number.isFinite))).toBe(true);
+            expect(Math.max(...positions.map(point => Math.hypot(...point)))).toBeCloseTo(160);
+          }
           if (layer instanceof SkyboxLayer) {
             expect(layer.state?.cubemapTexture?.isReady, `${name}: cubemap uploaded`).toBe(true);
           }

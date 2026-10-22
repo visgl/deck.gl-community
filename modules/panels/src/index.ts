@@ -254,3 +254,13 @@ export {
   type WidgetTooltipPlacement,
   type WidgetTooltipProps
 } from './preact/widget-tooltip';
+export {
+  SourcePickerPanel,
+  type SourcePickerPanelProps,
+  type SourcePickerPreset
+} from './leaf-panels/source-picker/source-picker-panel';
+export {
+  MetricsPanel,
+  type MetricsPanelProps,
+  type MetricValue
+} from './leaf-panels/metrics/metrics-panel';

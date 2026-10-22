@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {FeatureCollection} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
+  BasePointerEvent,
   ModeProps,
   ClickEvent,
   PointerMoveEvent,
@@ -13,8 +14,9 @@ import {
   GuideFeatureCollection,
   GuideFeature
 } from './types';
-import {GeoJsonEditMode} from './geojson-edit-mode';
+import {GeoJsonEditMode, isPointerDownOwned} from './geojson-edit-mode';
 
+/** Combines GeoJSON edit modes that share SimpleFeatureCollection data. */
 export class CompositeMode extends GeoJsonEditMode {
   _modes: Array<GeoJsonEditMode>;
 
@@ -40,27 +42,31 @@ export class CompositeMode extends GeoJsonEditMode {
     return result;
   }
 
-  handleClick(event: ClickEvent, props: ModeProps<FeatureCollection>): void {
+  handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>): void {
     this._coalesce(handler => handler.handleClick(event, props));
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     return this._coalesce(handler => handler.handlePointerMove(event, props));
   }
 
-  handleStartDragging(event: StartDraggingEvent, props: ModeProps<FeatureCollection>): void {
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return this._modes.some(mode => isPointerDownOwned(mode, () => event, props));
+  }
+
+  handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     return this._coalesce(handler => handler.handleStartDragging(event, props));
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>): void {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     return this._coalesce(handler => handler.handleStopDragging(event, props));
   }
 
-  handleDragging(event: DraggingEvent, props: ModeProps<FeatureCollection>): void {
+  handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     return this._coalesce(handler => handler.handleDragging(event, props));
   }
 
-  getGuides(props: ModeProps<FeatureCollection>): GuideFeatureCollection {
+  getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     // TODO: Combine the guides *BUT* make sure if none of the results have
     // changed to return the same object so that "guides !== this.state.guides"
     // in editable-geojson-layer works.

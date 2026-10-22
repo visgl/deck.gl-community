@@ -4,6 +4,148 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### `SelectionPulseExtension` moves to `@deck.gl-community/extensions`
+
+v9.4.7 exported `SelectionPulseExtension` from `@deck.gl-community/layers`. It now lives in the new
+`@deck.gl-community/extensions` module and is no longer exported from `layers`. Install the new
+package and change the import; the props and behavior are unchanged:
+
+```ts
+// Before (v9.4.7)
+import {SelectionPulseExtension} from '@deck.gl-community/layers';
+// After
+import {SelectionPulseExtension} from '@deck.gl-community/extensions';
+```
+
+`TreeLayer` and `SplatLayer` still pulse with the extension on WebGL2 and WebGPU.
+
+## v9.4.7
+
+### `@deck.gl-community/layers`: tree and splat shadows
+
+`TreeLayer` and `SplatLayer` now cast deck.gl shadows when a `LightingEffect` has a
+`DirectionalLight` with `_shadow: true`; they previously forced `shadowEnabled: false` on their
+sub-layers. Pass `shadowEnabled: false` to either layer to keep the old behavior. A lit
+`SimpleMeshLayer` ground plane under a shadow light should also set `shadowEnabled: false`: in
+deck.gl 9.4 it writes a shaded depth and shadows itself. See
+[TreeLayer shadows](./modules/layers/api-reference/tree-layer.md#shadows).
+
+## v9.4.6
+
+### Removed `@deck.gl-community/three`
+
+The deprecated compatibility workspace has been removed. Import `TreeLayer`, `TreeLayerProps`,
+`TreeType`, `Season`, and `CropConfig` from `@deck.gl-community/layers` instead. This is a
+breaking package removal; previously published `@deck.gl-community/three` versions remain on npm.
+
+## v9.4.3
+
+`RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
+compensated for oversized rings may need their radius retuned. Angular sectors use the leaf
+count rather than all graph nodes, so hierarchies with visible internal nodes fill the circle.
+Nodes outside the hierarchy return no position, and edges with absent endpoints return no geometry.
+
+### `@deck.gl-community/layers`: prepared `SplatLayer`
+
+Use `data` for a direct prepared Gaussian asset or owner rows, and `getSource` for a constant
+or per-row asset. Put new hierarchies in a `{type: 'prepared-splats', source, hierarchy}`
+descriptor. The compatibility form `{data: rows, source, hierarchy}` remains supported, but
+cannot be combined with direct asset data or an explicit `getSource`.
+
+Sources and hierarchies are immutable; replace them when their columns change. Submission
+budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
+A tighter `maxRenderPixels` can take one frame to apply while visibility expands for the broader filter.
+Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
+(`MapView.repeat`), `GlobeView` and URL/RAD inputs report explicit unsupported-input errors.
+`transparency: 'sorted'` is supported on WebGL2 and WebGPU, with additional selected-buffer memory
+and per-frame CPU sorting cost. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
+for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream
+nested-render-pass path is fixed; overlapping views without clearing are supported.
+
+#### Foliage shadows
+
+Native `TreeLayer` foliage and `SplatLayer` ship without built-in deck.gl foliage-shadow
+integration. Applications that require foliage shadows must provide them outside these renderers.
+
+### `@deck.gl-community/layers`: native `TreeLayer`
+
+- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+
+### `@deck.gl-community/editable-layers`
+
+Edit modes now consistently accept `SimpleFeatureCollection`, which supports Point,
+LineString, Polygon and their Multi geometries, and excludes `GeometryCollection`.
+This fixes exported constructors such as `TranslateMode` being incompatible with
+`GeoJsonEditModeConstructor` in strict TypeScript projects.
+
+Use `SimpleFeatureCollection` for editable data and `ModeProps<SimpleFeatureCollection>`
+for custom mode handlers. Use `SimpleFeature` for individual editable features:
+
+```ts
+import type {
+  ModeProps,
+  SimpleFeature,
+  SimpleFeatureCollection
+} from '@deck.gl-community/editable-layers';
+
+const feature: SimpleFeature = {
+  type: 'Feature',
+  geometry: {type: 'Point', coordinates: [0, 0]},
+  properties: {}
+};
+const data: SimpleFeatureCollection = {type: 'FeatureCollection', features: [feature]};
+
+function handleModeData(props: ModeProps<SimpleFeatureCollection>) {
+  return props.data.features;
+}
+```
+
+GeoJSON's `FeatureCollection<SimpleGeometry>` is also compatible. Validate or narrow
+broader GeoJSON input before editing; `GeometryCollection` is not supported by the
+edit modes. The existing `Feature` and `FeatureCollection` re-exports remain available.
+
+#### SnappableMode strategies
+
+Existing `new SnappableMode(customMode)` wrappers keep source-handle snapping by default.
+Custom modes can implement `SnappableEditMode.getSnappingStrategy()` to choose
+`ClickSnappingStrategy`, `DragSnappingStrategy`, or `SourceSnappingStrategy`; returning
+`undefined` disables snapping. Strategy methods accept `ModeProps<SimpleFeatureCollection>`.
+Enable edge targets with `modeConfig.edgeSnapping` and supply the current viewport.
+`pickingRadius` controls the pixel threshold. Events resolve the target from the current screen
+position, including the first touch click and the first corner of drag-to-draw shapes; an existing
+rendered target guide is not required. Committed shapes and their preview share the resolved
+pointer position. Current drag-event handle picks take priority over the last hover cache. Source drags keep the real pointer-down origin until a target
+qualifies. `TransformMode` supports snapping directly and remains safe to wrap without duplicate
+snap guides. The legacy `SnappableMode._handler` inspection/replacement property remains available.
+Use `modeConfig.snapper` to provide a custom policy for target lookup, including external
+spatial indexes. Implement `Snapper.snap` with `ModeProps<SimpleFeatureCollection>` and
+omit `SnapResult.featureIndex` for external targets. Returning `null` suppresses targets
+for that lookup, including source-handle translation.
+
+The layer supplies an optional paired `ModeProps.projection` (`EditModeProjection`) for snap
+targets in planar views. It accounts for `coordinateOrigin`, offset coordinate systems,
+and `modelMatrix`; elevated edges retain projected depth before converting back to local data.
+Standalone modes without this pair retain viewport-based projection. This does not extend
+the existing unsnapped pointer-to-data conversion for offset editing; globe offsets are unverified.
+Two-element coordinate origins use zero altitude without mutating the supplied array.
+
+`additionalSnapTargets` is an array of features in the editable layer's local data frame,
+before its `modelMatrix`. It carries no source-layer transform metadata. When copying
+targets from a layer with a different coordinate system, origin or model matrix, convert
+their coordinates before supplying them; raw coordinates from another frame are unsupported.
+Set `snapToAdditionalTargetsOnly: true` to make the default snapper ignore editable-layer
+features as targets while retaining them as source handles. The default remains the combined
+target set. A custom `Snapper` selects its own targets and can apply the same policy directly.
+
+#### SelectionLayer polygon selection
+
+Polygon selection no longer waits 250 ms before calling `onSelect`. If an application relied on
+that delay, schedule its own deferred work in the callback. Keep `SelectionLayer` after its
+pickable target layers. Selection continues to return deck.gl GPU picking infos for visible
+rendered objects, including GeoJSON and binary layer data.
+
 ## Private playground schema preview
 
 The layer/view schema preview now rejects unknown props and invalid accessor constants. Extend a
@@ -18,6 +160,16 @@ in `@@type`. Abstract `View` is no longer accepted. See the
 
 Update deck.gl and luma.gl packages to `~9.4.0`. Modules that use loaders.gl require
 `@loaders.gl/*@^4.4.3`.
+
+### `@deck.gl-community/editable-layers`
+
+`EditableGeoJsonLayer` and `SelectionLayer` now prevent primary editing gestures from
+bubbling into an interleaved parent map by default. Remove application helpers that disable
+and re-enable map drag handlers solely for editing. The layer leaves handler enabled states
+unchanged and returns primary navigation to the map in `ViewMode` or inactive selection.
+If the application owns gesture coordination, set `autoPreventMapInteractions: false` on
+both the editable and selection layers. Right-button navigation, wheel zoom, and multi-touch
+gestures retain their existing behavior.
 
 ### `@deck.gl-community/panels`
 
@@ -61,6 +213,21 @@ Rename the React panel exports:
 | `WidgetPanel` | [`Panel`](/docs/modules/react/api-reference/panel) |
 | `WidgetPanelProps` | `PanelProps` |
 | `WidgetPanelThemeMode` | `PanelHostThemeMode` |
+
+
+### `@deck.gl-community/graph-layers`
+
+#### Graph loader imports
+
+`DOTGraphLoader` from `@deck.gl-community/graph-layers` has been removed. Import
+`DOTLoaderWithParser` from `@loaders.gl/graphs/dot-loader` for synchronous parsing or
+parser-bearing loader use. Pass graph URLs directly to `GraphLayer.data` with
+`loaders: [DOTLoaderWithParser]` and a `layout`; the layer converts the parsed
+records and creates its own engine. Already loaded graphs can also be passed to
+`data`. A custom `graphLoader` callback is unnecessary for normalized loader output.
+DOT syntax validation and strict-graph behavior follow loaders.gl. The loader returns
+plain graph data instead of Arrow data, and the old `dot.version` option is removed.
+
 
 ## v9.3
 

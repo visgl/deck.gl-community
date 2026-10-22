@@ -10,6 +10,7 @@
  */
 
 const layerDocs = require('../../docs/modules/layers/sidebar.json');
+const extensionDocs = require('../../docs/modules/extensions/sidebar.json');
 const basemapLayerDocs = require('../../docs/modules/basemap-layers/sidebar.json');
 
 const infovisLayerDocs = require('../../docs/modules/infovis-layers/sidebar.json');
@@ -17,7 +18,6 @@ const timelineLayerDocs = require('../../docs/modules/timeline-layers/sidebar.js
 const graphLayerDocs = require('../../docs/modules/graph-layers/sidebar.json');
 const editableLayerDocs = require('../../docs/modules/editable-layers/sidebar.json');
 // const arrowLayerDocs = require('../../docs/modules/arrow-layers/sidebar.json');
-const threeModuleDocs = require('../../docs/modules/three/sidebar.json');
 
 const geoLayerDocs = require('../../docs/modules/geo-layers/sidebar.json');
 
@@ -30,6 +30,7 @@ const reactFiberDocs = require('../../docs/modules/react-fiber/sidebar.json');
 const experimentalDocs = require('../../docs/modules/experimental/sidebar.json');
 const panelsDocs = require('../../docs/modules/panels/sidebar.json');
 const playgroundDocs = require('../../docs/modules/playground/sidebar.json');
+const vegaDocs = require('../../docs/modules/vega/sidebar.json');
 const widgetsDocs = require('../../docs/modules/widgets/sidebar.json');
 
 const sidebars = {
@@ -38,7 +39,7 @@ const sidebars = {
       type: 'category',
       label: 'Overview',
       className: 'heading_bold',
-      items: ['README', 'whats-new', 'webgpu', 'upgrade-guide', 'CONTRIBUTING']
+      items: ['README', 'working-with-ai', 'whats-new', 'webgpu', 'upgrade-guide', 'CONTRIBUTING']
     },
     {
       type: 'category',
@@ -58,10 +59,16 @@ const sidebars = {
         timelineLayerDocs,
         graphLayerDocs,
         geoLayerDocs,
-        editableLayerDocs,
-        threeModuleDocs
+        editableLayerDocs
         // arrowLayerDocs,
       ]
+    },
+    {
+      type: 'category',
+      label: 'Extensions',
+      className: 'heading_bold',
+      collapsed: false,
+      items: [extensionDocs]
     },
     {
       type: 'category',
@@ -73,7 +80,7 @@ const sidebars = {
         title: 'Components',
         description: 'deck.gl-community component packages and integrations.'
       },
-      items: [widgetsDocs, panelsDocs, playgroundDocs, reactDocs, reactFiberDocs, experimentalDocs]
+      items: [widgetsDocs, panelsDocs, playgroundDocs, reactDocs, reactFiberDocs, experimentalDocs, vegaDocs]
     }
   ]
 };

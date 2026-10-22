@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/basemap-layers",
-  "version": "9.4.0-alpha.3",
+  "version": "9.4.7",
   "description": "Basemap layer and map-style helpers for deck.gl.",
   "license": "MIT",
   "keywords": [
@@ -34,25 +34,37 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "scripts": {
     "test": "yarn --cwd ../.. vitest run --config modules/basemap-layers/vitest.config.ts",
     "test-watch": "yarn --cwd ../.. vitest --config modules/basemap-layers/vitest.config.ts"
   },
   "devDependencies": {
+    "@deck.gl-community/geo-layers": "workspace:*",
+    "@deck.gl/test-utils": "~9.4.0",
+    "@fontsource/montserrat": "5.3.0",
+    "@fontsource/noto-sans": "5.3.0",
+    "@fontsource/open-sans": "5.3.0",
     "@loaders.gl/core": "^4.5.1",
+    "maplibre-gl": "6.13.0",
     "vitest": "^4.0.18"
   },
   "dependencies": {
     "@loaders.gl/loader-utils": "^4.5.1",
     "@loaders.gl/mvt": "^4.5.1",
-    "@mapbox/mapbox-gl-style-spec": "^13.12.0",
+    "@mapbox/tiny-sdf": "^2.0.5",
+    "@maplibre/geojson-vt": "^6.1.2",
+    "@maplibre/maplibre-gl-style-spec": "^24.8.1",
     "@turf/polygon-to-line": "^6.0.3",
+    "bidi-js": "^1.1.0",
     "zod": "^4.0.0"
   },
   "peerDependencies": {
+    "@deck.gl-community/geo-layers": "~9.4.2",
     "@deck.gl/core": "~9.4.0",
+    "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/geo-layers": "~9.4.0",
     "@deck.gl/layers": "~9.4.0",
     "@loaders.gl/core": "^4.5.1",

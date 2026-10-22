@@ -22,11 +22,32 @@ export {
 export type {SkyboxLayerProps} from './skybox-layer/skybox-layer';
 export {SkyboxLayer} from './skybox-layer/skybox-layer';
 
-export type {ZoomOpacityExtensionProps} from './zoom-opacity-extension/zoom-opacity-extension';
-export {ZoomOpacityExtension} from './zoom-opacity-extension/zoom-opacity-extension';
+export type {FlameTrailLayerProps} from './flame-trail-layer/flame-trail-layer';
+export {FlameTrailLayer} from './flame-trail-layer/flame-trail-layer';
+
+export {VolumetricVideoLayer} from './volumetric-video-layer/volumetric-video-layer';
 export type {
-  ZoomBandOptions,
-  ZoomOpacityStop,
-  ZoomOpacityStops
-} from './zoom-opacity-extension/zoom-opacity';
-export {interpolateZoom, zoomBand} from './zoom-opacity-extension/zoom-opacity';
+  VolumetricVideoLayerProps,
+  VolumetricVideoInfo,
+  VolumetricVideoFrameInfo
+} from './volumetric-video-layer/volumetric-video-layer';
+
+export {getFrameHistoryBytes as getVolumetricVideoHistoryBytes} from './volumetric-video-layer/frame-utils';
+
+export {TreeLayer} from './tree-layer/tree-layer';
+export type {
+  TreeLayerProps,
+  TreeSpec,
+  TreeType,
+  Season,
+  CropConfig,
+  CropKind,
+  TreeCharacteristics
+} from './tree-layer/tree-layer';
+
+export {SplatLayer} from './splat-layer/splat-layer';
+export type {SplatLayerProps, SplatLayerStats} from './splat-layer/splat-layer';
+export type {SplatSource} from './splat-layer/splat-source';
+export {createSplatHierarchy} from './splat-layer/splat-hierarchy';
+export type {SplatHierarchy, SplatHierarchyLevel} from './splat-layer/splat-hierarchy';
+export type {SplatDataInput, PreparedSplatData, SplatInstance} from './splat-layer/splat-input';

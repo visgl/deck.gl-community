@@ -51,35 +51,52 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
     );
   }
 
+  /** Starts a worker simulation and publishes positions as it progresses. */
   start() {
     this._engageWorker();
-
-    this._onLayoutStart();
   }
 
+  /** Recomputes a changed graph and starts a new lifecycle cycle. */
   update() {
     this._engageWorker();
   }
 
-  _engageWorker() {
-    // prevent multiple start
-    if (this._worker) {
-      this._worker.terminate();
-    }
-
-    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
-
+  _engageWorker(isResume = false) {
+    this.stop();
     if (!this._graph) {
       return;
     }
 
-    const options = {...this.props};
+    this._worker = new Worker(new URL('./worker.js', import.meta.url).href);
+    const options = {...this.props, alpha: isResume ? this.props.resumeAlpha : this.props.alpha};
     delete options.onLayoutStart;
     delete options.onLayoutChange;
     delete options.onLayoutDone;
     delete options.onLayoutError;
 
-    this._worker.postMessage({
+    const worker = this._worker;
+    worker.onmessage = event => {
+      if (this._worker !== worker) {
+        return;
+      }
+      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
+      if (event.data.type === 'tick') {
+        this._applyWorkerNodes(event.data.nodes);
+        this._onLayoutChange();
+      } else if (event.data.type === 'end') {
+        this._applyWorkerNodes(event.data.nodes);
+        this.stop();
+        this._onLayoutChange();
+        this._onLayoutDone();
+      }
+    };
+
+    this._onLayoutStart();
+    // A start callback may stop or replace the calculation before it is dispatched.
+    if (this._worker !== worker) {
+      return;
+    }
+    worker.postMessage({
       nodes: Array.from(this._graph.getNodes(), node => {
         const id = node.getId();
         return {
@@ -94,28 +111,11 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       })),
       options
     });
-
-    this._worker.onmessage = event => {
-      log.log(0, 'D3ForceLayout: worker message', event.data?.type, event.data);
-      if (event.data.type !== 'end') {
-        return;
-      }
-
-      event.data.nodes.forEach(({id, ...d3}) =>
-        this._positionsByNodeId.set(id, {
-          ...d3,
-          // precompute so that when we return the node position we do not need to do the conversion
-          coordinates: [d3.x, d3.y]
-        })
-      );
-
-      this._onLayoutChange();
-      this._onLayoutDone();
-    };
   }
 
+  /** Restarts from cached positions using resumeAlpha. */
   resume() {
-    throw new Error('Resume unavailable');
+    this._engageWorker(true);
   }
 
   stop() {
@@ -195,5 +195,25 @@ export class D3ForceLayout extends GraphLayout<D3ForceLayoutOptions> {
       data => data?.coordinates as [number, number] | null | undefined
     );
     this._bounds = this._calculateBounds(positions);
+  }
+
+  private _applyWorkerNodes(nodes: unknown): void {
+    if (!Array.isArray(nodes)) {
+      return;
+    }
+
+    for (const item of nodes) {
+      if (!item || typeof item !== 'object') {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const {id, ...d3} = item as {id: string | number; x?: number; y?: number};
+      this._positionsByNodeId.set(id, {
+        ...d3,
+        // Precompute so getNodePosition does not need to convert every lookup.
+        coordinates: [d3.x, d3.y]
+      });
+    }
   }
 }

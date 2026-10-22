@@ -110,11 +110,10 @@ describe('BasemapLayer', () => {
         })
     );
 
-    const layer = {
-      state: {resolvedStyle: null, loadError: null, loadToken: 0},
-      setState(update) {
-        this.state = {...this.state, ...update};
-      }
+    const layer = new BasemapLayer({style: null});
+    layer.initializeState();
+    layer.setState = function (update) {
+      this.state = {...this.state, ...update};
     };
 
     BasemapLayer.prototype.loadStyle.call(layer, {version: 8, sources: {}, layers: []}, null);
@@ -409,7 +408,7 @@ describe('getBasemapLayers', () => {
       tile: {index: {x: 0, y: 0, z: 5}}
     });
 
-    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-roads-visible']);
+    expect(sublayers.map(layer => layer.id)).toEqual(['zoom-gate-carto-tile-"roads-visible"']);
   });
 
   test('keeps expected vector style misses behind probe logging', () => {
@@ -463,5 +462,43 @@ describe('getBasemapLayers', () => {
       infoSpy.mockRestore();
       probeSpy.mockRestore();
     }
+  });
+});
+
+describe('raster overzoom', () => {
+  for (const mode of ['map', 'globe']) {
+    for (const zoom of [7, 8, 12]) {
+      test(`${mode} keeps native zoom 8 imagery visible at zoom ${zoom}`, () => {
+        const layers = getBasemapLayers({
+          mode,
+          zoom,
+          globe: {config: {atmosphere: false}},
+          styleDefinition: {
+            version: 8,
+            sources: {
+              earth: {type: 'raster', tiles: ['https://example.com/{z}/{x}/{y}.jpeg'], maxzoom: 8}
+            },
+            layers: [{id: 'earth', type: 'raster', source: 'earth'}]
+          }
+        });
+        const raster = layers.find(layer => layer.id === 'basemap-earth');
+        expect(raster).toBeTruthy();
+        expect(raster.props.maxZoom).toBe(8);
+      });
+    }
+  }
+  test('respects an explicit raster layer visibility limit', () => {
+    expect(
+      getBasemapLayers({
+        zoom: 10,
+        styleDefinition: {
+          version: 8,
+          sources: {
+            earth: {type: 'raster', tiles: ['https://example.com/{z}/{x}/{y}.jpeg'], maxzoom: 8}
+          },
+          layers: [{id: 'earth', type: 'raster', source: 'earth', maxzoom: 10}]
+        }
+      })
+    ).toEqual([]);
   });
 });

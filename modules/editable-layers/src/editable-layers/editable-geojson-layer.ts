@@ -5,6 +5,7 @@
 /* eslint-env browser */
 
 import type {UpdateParameters, DefaultProps} from '@deck.gl/core';
+import type {MjolnirGestureEvent} from 'mjolnir.js';
 import {GeoJsonLayer, ScatterplotLayer, IconLayer, TextLayer} from '@deck.gl/layers';
 import {
   EditAction,
@@ -17,6 +18,7 @@ import {
   ModeProps
 } from '../edit-modes/types';
 import {fromDeckCoordinateSystem} from '../edit-modes/coordinate-system';
+import {createLayerProjection} from '../utils/layer-projection';
 
 import {ViewMode} from '../edit-modes/view-mode';
 import {TranslateMode} from '../edit-modes/translate-mode';
@@ -44,14 +46,14 @@ import {DrawPolygonByDraggingMode} from '../edit-modes/draw-polygon-by-dragging-
 import {SnappableMode} from '../edit-modes/snappable-mode';
 import {TransformMode} from '../edit-modes/transform-mode';
 import {DeleteMode} from '../edit-modes/delete-mode';
-import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
+import {GeoJsonEditModeType, isPointerDownOwned} from '../edit-modes/geojson-edit-mode';
 
 import {Color} from '../utils/types';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
 
 import {EditableLayer, EditableLayerProps} from './editable-layer';
 import {EditablePathLayer} from './editable-path-layer';
-import {Feature, FeatureCollection} from '../utils/geojson-types';
+import {Feature, FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
 
 const DEFAULT_LINE_COLOR: Color = [0x0, 0x0, 0x0, 0x99];
 const DEFAULT_FILL_COLOR: Color = [0x0, 0x0, 0x0, 0x90];
@@ -69,6 +71,16 @@ const DEFAULT_EDITING_SNAP_POINT_RADIUS = 7;
 const DEFAULT_TOOLTIP_FONT_SIZE = 32 * PROJECTED_PIXEL_SIZE_MULTIPLIER;
 
 const DEFAULT_EDIT_MODE = DrawPolygonMode;
+const PRIMARY_BUTTON = 0;
+
+function isPrimaryButtonEvent(event: {sourceEvent: any}): boolean {
+  const {button, buttons, which} = event.sourceEvent || {};
+  return (
+    (button === undefined || button === PRIMARY_BUTTON || button === -1) &&
+    (buttons === undefined || buttons === 0 || buttons === 1) &&
+    (which === undefined || which === 0 || which === 1)
+  );
+}
 
 function guideAccessor(accessor) {
   if (!accessor || typeof accessor !== 'function') {
@@ -247,7 +259,7 @@ const modeNameMapping = {
   modify: ModifyMode,
   translate: new SnappableMode(new TranslateMode()),
 
-  transform: new SnappableMode(new TransformMode()),
+  transform: TransformMode,
   scale: ScaleMode,
   rotate: RotateMode,
   duplicate: DuplicateMode,
@@ -273,14 +285,17 @@ const modeNameMapping = {
   drawPolygonByDragging: DrawPolygonByDraggingMode
 };
 
+/** Edits a SimpleFeatureCollection; GeometryCollection geometries are not supported. */
 export class EditableGeoJsonLayer extends EditableLayer<
-  FeatureCollection,
-  EditableGeoJsonLayerProps<FeatureCollection>
+  SimpleFeatureCollection,
+  EditableGeoJsonLayerProps<SimpleFeatureCollection>
 > {
   static layerName = 'EditableGeoJsonLayer';
   static defaultProps = defaultProps;
 
   state: EditableLayer['state'] & {
+    // deck.gl transfers layer state when replacing an instance during a gesture.
+    isDraggingWithPrimaryButton: boolean;
     cursor?: 'grabbing' | 'grab' | null;
     mode: GeoJsonEditModeType;
     lastPointerMoveEvent: PointerMoveEvent;
@@ -369,7 +384,8 @@ export class EditableGeoJsonLayer extends EditableLayer<
 
     this.setState({
       selectedFeatures: [],
-      editHandles: []
+      editHandles: [],
+      isDraggingWithPrimaryButton: false
     });
   }
 
@@ -384,7 +400,24 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   updateState({props, oldProps, changeFlags, context}: UpdateParameters<this>) {
+    const previousEventTarget = this.state?._editableLayerState?.eventTarget;
+    const hadActivePan = Boolean(this.state?._editableLayerState?.pointerDownMapCoords);
     super.updateState({oldProps, props, changeFlags, context});
+
+    const modeWithClickSequence = this.state.mode as GeoJsonEditModeType & {
+      getClickSequence?: () => unknown[];
+    };
+    if (
+      previousEventTarget !== this.state._editableLayerState.eventTarget &&
+      !hadActivePan &&
+      modeWithClickSequence.getClickSequence?.().length
+    ) {
+      // Clear click-to-draw state even when no pan gesture is active.
+      queueMicrotask(() => {
+        const currentLayer = (this.getCurrentLayer() || this) as this;
+        currentLayer.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+      });
+    }
 
     if (changeFlags.propsOrDataChanged) {
       const modePropChanged = Object.keys(oldProps).length === 0 || props.mode !== oldProps.mode;
@@ -396,7 +429,8 @@ export class EditableGeoJsonLayer extends EditableLayer<
           mode = new ModeConstructor();
         } else if (typeof props.mode === 'string') {
           // Lookup the mode based on its name (for backwards compatibility)
-          mode = modeNameMapping[props.mode];
+          const mappedMode = modeNameMapping[props.mode];
+          mode = typeof mappedMode === 'function' ? new mappedMode() : mappedMode;
           // eslint-disable-next-line no-console
           console.warn(
             "Deprecated use of passing `mode` as a string. Pass the mode's class constructor instead."
@@ -413,7 +447,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
         }
 
         if (mode !== this.state.mode) {
-          this.setState({mode, cursor: null});
+          if (this.state.isDraggingWithPrimaryButton) {
+            this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+          }
+          this.setState({mode, cursor: null, isDraggingWithPrimaryButton: false});
         }
       }
     }
@@ -432,12 +469,23 @@ export class EditableGeoJsonLayer extends EditableLayer<
     this.setState({selectedFeatures});
   }
 
+  _isEditing(): boolean {
+    return Boolean(this.state.mode) && !(this.state.mode instanceof ViewMode);
+  }
+
+  _ownsPointerDown(event: MouseEvent): boolean {
+    const getEvent = () => this.toBasePointerEvent(event);
+    return isPointerDownOwned(this.getActiveMode(), getEvent, this.getModeProps(this.props));
+  }
+
   getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
     return {
       modeConfig: props.modeConfig,
       data: props.data,
       selectedIndexes: props.selectedFeatureIndexes,
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
+      pickingRadius: props.pickingRadius,
+      projection: createLayerProjection(this),
       cursor: this.state.cursor,
       // Derive edit-mode math from deck.gl's coordinateSystem layer prop.
       // This ensures that when the layer is configured for Cartesian or other
@@ -579,7 +627,9 @@ export class EditableGeoJsonLayer extends EditableLayer<
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
       ...this.getSubLayerProps({
         id: 'tooltips',
-        data: tooltips
+        data: tooltips,
+        // Edit modes treat every non-guide pick as a data feature.
+        pickable: false
       })
     });
 
@@ -587,32 +637,93 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   onLayerClick(event: ClickEvent): void {
+    if (!isPrimaryButtonEvent(event)) {
+      return;
+    }
     this.getActiveMode().handleClick(event, this.getModeProps(this.props));
   }
 
   onLayerDoubleClick(event: DoubleClickEvent): void {
+    if (!isPrimaryButtonEvent(event)) {
+      return;
+    }
     if (this.getActiveMode().handleDoubleClick) {
       this.getActiveMode().handleDoubleClick(event, this.getModeProps(this.props));
     }
   }
 
   onLayerKeyUp(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.setState({isDraggingWithPrimaryButton: false});
+      this._resetPointerDownState();
+    }
     this.getActiveMode().handleKeyUp(event, this.getModeProps(this.props));
   }
 
+  _onpancancel(event: MjolnirGestureEvent): void {
+    if (this.state.isDraggingWithPrimaryButton) {
+      // Edit modes expose cancellation through their existing Escape handler.
+      this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+    }
+    super._onpancancel(event);
+  }
+
   onStartDragging(event: StartDraggingEvent): void {
+    // A native context menu may swallow pointerup, leaving the recognizer active on hover.
+    const isDraggingWithPrimaryButton =
+      isPrimaryButtonEvent(event) && event.sourceEvent?.buttons !== 0;
+    this.setState({isDraggingWithPrimaryButton});
+    if (!isDraggingWithPrimaryButton) {
+      return;
+    }
+    this.setState({lastPointerMoveEvent: {...event, isDragging: true}});
     this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
   onDragging(event: DraggingEvent): void {
+    if (this.state.isDraggingWithPrimaryButton && event.sourceEvent?.buttons === 0) {
+      // Recover an accepted drag whose release was consumed outside the canvas.
+      this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+    }
+    if (!this.state.isDraggingWithPrimaryButton || !isPrimaryButtonEvent(event)) {
+      return;
+    }
+    this.setState({lastPointerMoveEvent: {...event, isDragging: true}});
     this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 
   onStopDragging(event: StopDraggingEvent): void {
+    if (!this.state.isDraggingWithPrimaryButton) {
+      return;
+    }
+    this.setState({isDraggingWithPrimaryButton: false});
+    if (!isPrimaryButtonEvent(event)) {
+      this.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+      return;
+    }
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
   }
 
+  _resetPointerDownState(): void {
+    super._resetPointerDownState();
+    const previousMove = this.state.lastPointerMoveEvent;
+    if (previousMove) {
+      this.setState({
+        lastPointerMoveEvent: {
+          ...previousMove,
+          pointerDownPicks: null,
+          pointerDownMapCoords: null,
+          pointerDownScreenCoords: null,
+          isDragging: false
+        }
+      });
+    }
+  }
+
   onPointerMove(event: PointerMoveEvent): void {
+    if (!isPrimaryButtonEvent(event)) {
+      return;
+    }
     this.setState({lastPointerMoveEvent: event});
     this.getActiveMode().handlePointerMove(event, this.getModeProps(this.props));
   }

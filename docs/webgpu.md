@@ -9,12 +9,15 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | Module | Layer or integration | WebGL2 | WebGPU | Notes |
 | --- | --- | :---: | :---: | --- |
 | `@deck.gl-community/layers` | `SkyboxLayer` | ✅ | ✅ | Native GLSL and WGSL cubemap shaders. |
+| `@deck.gl-community/layers` | `FlameTrailLayer` | ✅ | ✅ | Native GLSL/WGSL flames and embers. TerrainExtension height-map fitting requires WebGL2; elevated XYZ paths work on both backends. |
+| `@deck.gl-community/layers` | [`VolumetricVideoLayer`](./modules/layers/api-reference/volumetric-video-layer.md) | ✅ | ✅ | Native GLSL/WGSL splats and texture-array history; requires a browser-supported video codec. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `line` mode | ✅ | ✅ | Portable `LineLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `arc` mode | ✅ | ✅ | Browser-verified upstream `ArcLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |
 | `@deck.gl-community/layers` | `PathOutlineLayer` | ✅ | ✅ | Upstream dual-backend `PathLayer`; a local WGSL dash plugin bridges the still-GLSL-only `PathStyleExtension`. |
 | `@deck.gl-community/layers` | `PathMarkerLayer` | ✅ | ✅ | Browser-verified outlined and dashed paths with native WGSL marker geometry. |
-| `@deck.gl-community/layers` | `ZoomOpacityExtension` | ✅ | ✅ | Browser-verified fading and no drawing or picking at opacity 0. WebGL collapses geometry in the vertex shader; WebGPU skips the draw call. |
+| `@deck.gl-community/extensions` | [`SelectionPulseExtension`](./modules/extensions/api-reference/selection-pulse-extension.md) | ✅ | 🚧 | WebGPU pulses `TreeLayer` and `SplatLayer` through their WGSL color anchor; deck.gl 9.4 core layers have no WGSL color hook and are left unchanged. |
+| `@deck.gl-community/extensions` | [`ZoomOpacityExtension`](./modules/extensions/api-reference/zoom-opacity-extension.md) | ✅ | ✅ | Browser-verified fading and no drawing or picking at opacity 0. WebGL collapses geometry in the vertex shader; WebGPU skips the draw call. |
 | `@deck.gl-community/infovis-layers` | `BlockLayer` | ✅ | ✅ | Native WGSL, projection, picking, fills, outlines, and float32 binary attributes. |
 | `@deck.gl-community/infovis-layers` | `AnimationLayer` | ✅ | 🚧 | Depends on the wrapped layer's backend support. |
 | `@deck.gl-community/infovis-layers` | `TimeDeltaLayer` | ✅ | ✅ | Portable interval guides and native WGSL `FastTextLayer` labels. |
@@ -42,14 +45,15 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/editable-layers` | GeoJSON paths, polygons, and edit handles | ✅ | ✅ | Browser-verified `EditableGeoJsonLayer` rendering in `ModifyMode`, including the WebGPU picking-width shader path. |
 | `@deck.gl-community/editable-layers` | Editing and selection interactions | ✅ | 🚧 | Pointer, drag, snapping, and selection behavior still require browser interaction coverage on WebGPU. |
 | `@deck.gl-community/basemap-layers` | `BasemapLayer` | ✅ | 🚧 | Support depends on the selected style's polygon, path, and label sublayers. |
-| `@deck.gl-community/three` | `TreeLayer` | ✅ | ✅ | Browser-verified procedural Three.js geometry rendered through upstream `SimpleMeshLayer`. |
+| `@deck.gl-community/layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with instanced deformation, owner picking, and weighted or sorted transparency; no public foliage-shadow integration. |
+| `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Connected wood and Gaussian foliage with GLSL/WGSL wind; no built-in foliage-shadow integration. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/bing-maps` | Bing Maps overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/widgets` | `DeviceManagerController` and `DeviceTabsWidget` | ✅ | ✅ | Selects and attaches an independently managed real rendering device. |
 
 ## Selecting a graphics backend
 
-The website injects luma.gl-style WebGPU/WebGL2 tabs into every gallery example and live
+The website injects luma.gl-style WebGPU/WebGL2 tabs into compatible gallery examples and live
 layer-reference example. Its shared imperative-example host owns a separate
 `DeviceManagerController` and standalone `DeviceTabsWidget` for each mounted surface, preserves the
 example's existing widgets and view state, and passes the selected luma.gl device to the actual

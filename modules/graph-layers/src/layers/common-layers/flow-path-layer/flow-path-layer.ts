@@ -5,8 +5,8 @@
 // import {Buffer, Transform} from '@luma.gl/core';
 import {LineLayer} from '@deck.gl/layers';
 
-import {vs} from './flow-path-layer-vertex.glsl';
-import {fs} from './flow-path-layer-fragment.glsl';
+import {vs} from './flow-path-layer-vertex.glsl.js';
+import {fs} from './flow-path-layer-fragment.glsl.js';
 // import {tfvs} from './flow-path-layer-vertex-tf.glsl';
 
 const defaultProps = {

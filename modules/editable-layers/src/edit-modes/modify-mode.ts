@@ -2,45 +2,41 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {point, lineString as toLineString} from '@turf/helpers';
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {
-  recursivelyTraverseNestedArrays,
-  nearestPointOnProjectedLine,
-  nearestPointOnLine,
   getEditHandlesForGeometry,
   getPickedEditHandles,
   getPickedEditHandle,
   getPickedExistingEditHandle,
   getPickedIntermediateEditHandle,
   updateRectanglePosition,
-  NearestPointType,
-  shouldCancelPan
+  shouldCancelPan,
+  findNearestPointOnGeometry,
+  getNearestPoint,
+  NearestPointType
 } from './utils';
+import {LineString, Point, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
-  LineString,
-  Point,
-  Polygon,
-  FeatureCollection,
-  Feature,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
-import {
+  BasePointerEvent,
   ModeProps,
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
-  Viewport,
   GuideFeatureCollection,
   EditHandleFeature,
-  GuideFeature
+  GuideFeature,
+  Viewport
 } from './types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {EditModeCoordinateSystem} from './coordinate-system';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {DragSnappingStrategy} from './snapping/drag-snapping-strategy';
 
-export class ModifyMode extends GeoJsonEditMode {
+export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
   // eslint-disable-next-line complexity
   getGuides(props: ModeProps<SimpleFeatureCollection>): GuideFeatureCollection {
     const handles: GuideFeature[] = [];
@@ -74,31 +70,13 @@ export class ModifyMode extends GeoJsonEditMode {
         ) &&
         props.selectedIndexes.includes(featureAsPick.index)
       ) {
-        let intermediatePoint: NearestPointType | null | undefined = null;
-        let positionIndexPrefix: number[] = [];
-        const referencePoint = point(mapCoords);
-        // process all lines of the (single) feature
-        recursivelyTraverseNestedArrays(
-          featureAsPick.object.geometry.coordinates,
-          [],
-          (lineString, prefix) => {
-            const lineStringFeature = toLineString(lineString);
-            const candidateIntermediatePoint = this.getNearestPoint(
-              lineStringFeature,
-              referencePoint,
-              props.modeConfig && props.modeConfig.viewport,
-              props.coordinateSystem
-            );
-            if (
-              !intermediatePoint ||
-              candidateIntermediatePoint.properties.dist < intermediatePoint.properties.dist
-            ) {
-              intermediatePoint = candidateIntermediatePoint;
-              positionIndexPrefix = prefix;
-            }
-          }
+        const {nearestPoint: intermediatePoint, positionIndexPrefix} = findNearestPointOnGeometry(
+          featureAsPick.object,
+          mapCoords,
+          props.modeConfig?.viewport,
+          props.coordinateSystem,
+          this.getNearestPoint.bind(this)
         );
-        // tack on the lone intermediate point to the set of handles
         if (intermediatePoint) {
           const {
             geometry: {coordinates: position},
@@ -127,25 +105,13 @@ export class ModifyMode extends GeoJsonEditMode {
     };
   }
 
-  // turf.js does not support elevation for nearestPointOnLine
   getNearestPoint(
     line: Feature<LineString>,
     inPoint: Feature<Point>,
     viewport: Viewport | null | undefined,
     coordinateSystem?: EditModeCoordinateSystem
   ): NearestPointType {
-    const {coordinates} = line.geometry;
-    if (coordinates.some(coord => coord.length > 2)) {
-      if (viewport) {
-        // This line has elevation, we need to use alternative algorithm
-        return nearestPointOnProjectedLine(line, inPoint, viewport, coordinateSystem);
-      }
-      // eslint-disable-next-line no-console,no-undef
-      console.log(
-        'Editing 3D point but modeConfig.viewport not provided. Falling back to 2D logic.'
-      );
-    }
-    return nearestPointOnLine(line, inPoint, viewport, coordinateSystem);
+    return getNearestPoint(line, inPoint, viewport, coordinateSystem);
   }
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -229,6 +195,13 @@ export class ModifyMode extends GeoJsonEditMode {
     const editHandleProperties = editHandle.properties;
     const editedFeature = props.data.features[editHandleProperties.featureIndex];
 
+    if (
+      !editedFeature ||
+      !props.selectedIndexes.includes(editHandleProperties.featureIndex) ||
+      !['existing', 'intermediate'].includes(editHandleProperties.editHandleType)
+    )
+      return;
+
     let updatedData;
     if (props.modeConfig?.lockRectangles && editedFeature.properties.shape === 'Rectangle') {
       const coordinates = updateRectanglePosition(
@@ -261,9 +234,14 @@ export class ModifyMode extends GeoJsonEditMode {
     });
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>): void {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const cursor = this.getCursor(event);
     props.onUpdateCursor(cursor);
+  }
+
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
+    return Boolean(getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -313,5 +291,10 @@ export class ModifyMode extends GeoJsonEditMode {
       return 'cell';
     }
     return null;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new DragSnappingStrategy();
   }
 }

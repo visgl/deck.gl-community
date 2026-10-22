@@ -1,5 +1,7 @@
 # Measurement Modes
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 A number of modes provide various measurement capabilities
 
 ## MeasureDistanceMode
@@ -93,3 +95,11 @@ if (mode === 'elevation') {
 }
 ```
 [Source code](https://github.com/visgl/deck.gl-community/blob/master/modules/editable-layers/src/edit-modes/elevation-mode.ts)
+
+### Snapping capabilities
+
+The following modes support snapping when wrapped with `SnappableMode`:
+
+- `MeasureDistanceMode`
+- `MeasureAreaMode`
+- `MeasureAngleMode`

@@ -85,13 +85,54 @@ export function GeometryEditor() {
       layers={[layer]}
       getCursor={layer.getCursor.bind(layer)}
     >
-      <StaticMap mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" />
+      <StaticMap mapStyle="https://tiles.openfreemap.org/styles/positron" />
     </DeckGL>
   );
 }
 ```
 
 See the [getting-started example](https://github.com/visgl/deck.gl-community/tree/master/examples/editable-layers/getting-started) for a complete runnable version.
+
+## MapLibre and Mapbox Interleaved Editing
+
+With `MapboxOverlay({interleaved: true})`, handle drags and drag-to-draw gestures do not pan
+the MapLibre/Mapbox map; other mouse presses pan and click it. Use `ViewMode` to navigate or set
+`autoPreventMapInteractions: false` to manage gesture propagation yourself. Multi-touch
+navigation and the map's configured controls remain available.
+
+```ts
+const overlay = new MapboxOverlay({
+  interleaved: true,
+  layers: [new EditableGeoJsonLayer({
+    id: 'editable',
+    data,
+    mode: DrawPolygonMode,
+    selectedFeatureIndexes: [],
+    onEdit: ({updatedData}) => updateData(updatedData)
+  })]
+});
+map.addControl(overlay);
+```
+
+## MapLibre and Mapbox Overlaid Editing
+
+With `MapboxOverlay({interleaved: false})`, set `eventTarget: map.getCanvas()` on editable
+and selection layers. Interleaved overlays use the shared canvas automatically.
+
+```ts
+const overlay = new MapboxOverlay({
+  interleaved: false,
+  layers: [new EditableGeoJsonLayer({
+    id: 'editable',
+    data,
+    mode: DrawPolygonMode,
+    eventTarget: map.getCanvas(),
+    selectedFeatureIndexes: [],
+    onEdit: ({updatedData}) => updateData(updatedData)
+  })]
+});
+map.addControl(overlay);
+```
 
 ## Widgets
 

@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {ModeProps, PointerMoveEvent, StopDraggingEvent} from './types';
-import {Position, FeatureCollection} from '../utils/geojson-types';
+import {Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {ModifyMode} from './modify-mode';
 
@@ -21,7 +21,7 @@ export class ElevationMode extends ModifyMode {
   makeElevatedEvent(
     event: PointerMoveEvent | StopDraggingEvent,
     position: Position,
-    props: ModeProps<FeatureCollection>
+    props: ModeProps<SimpleFeatureCollection>
   ): Record<string, any> {
     const {
       minElevation = 0,
@@ -49,14 +49,14 @@ export class ElevationMode extends ModifyMode {
     });
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     const editHandle = getPickedEditHandle(event.pointerDownPicks);
     const position = editHandle ? editHandle.geometry.coordinates : event.mapCoords;
     // @ts-expect-error return type too wide
     super.handlePointerMove(this.makeElevatedEvent(event, position, props), props);
   }
 
-  handleStopDragging(event: StopDraggingEvent, props: ModeProps<FeatureCollection>) {
+  handleStopDragging(event: StopDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     const editHandle = getPickedEditHandle(event.picks);
     const position = editHandle ? editHandle.geometry.coordinates : event.mapCoords;
     // @ts-expect-error return type too wide

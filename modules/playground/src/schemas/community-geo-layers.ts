@@ -3,6 +3,9 @@
 import {z} from 'zod';
 import {
   CallbackSchema,
+  createAccessorSchema,
+  NumberAccessorSchema,
+  PositionAccessorSchema,
   ColorSchema,
   CompositeLayerPropsSchema,
   ConstantSchema,
@@ -11,11 +14,13 @@ import {
   JsonValueSchema,
   StringAccessorSchema,
   Vector2Schema,
+  Vector3Schema,
+  MaterialSchema,
   Vector4Schema,
   defineLayer
 } from './common';
 import {Tile3DLayerPropsSchema, TileLayerPropsSchema, URLTemplateSchema} from './geo-layers';
-import {PolygonLayerPropsSchema} from './layers';
+import {GeoJsonLayerPropsSchema, PolygonLayerPropsSchema} from './layers';
 
 /** TileSource instances are supplied by the host, not constructed from editable JSON. */
 export const TileSourceLayerPropsSchema = TileLayerPropsSchema.extend({
@@ -23,11 +28,25 @@ export const TileSourceLayerPropsSchema = TileLayerPropsSchema.extend({
   showTileBorders: z.boolean().optional()
 });
 
-/** Shared tilesets and TileSource instances use host constants; URL templates remain editable. */
+/**
+ * Shared tilesets and TileSource instances use host constants; URL templates remain editable.
+ * Unlike `TileLayer`, the shared layers support only the named refinement strategies.
+ */
 export const SharedTile2DLayerPropsSchema = TileLayerPropsSchema.omit({
   visibleMinZoom: true,
   visibleMaxZoom: true
-}).extend({data: URLTemplateSchema.nullable().optional()});
+}).extend({
+  data: URLTemplateSchema.nullable().optional(),
+  refinementStrategy: z.enum(['best-available', 'no-overlap', 'never']).optional()
+});
+
+/** Tile-local GeoJSON rendering props for the shared MVT adapter. */
+export const SharedMVTLayerPropsSchema = SharedTile2DLayerPropsSchema.extend({
+  ...GeoJsonLayerPropsSchema.shape,
+  data: URLTemplateSchema.nullable().optional(),
+  uniqueIdProperty: z.string().optional(),
+  highlightedFeatureId: z.union([z.string(), z.number()]).nullable().optional()
+});
 
 /** JSON props for a tile-header overlay; the tile header is a host-owned instance. */
 export const TileGridLayerPropsSchema = CompositeLayerPropsSchema.extend({
@@ -139,6 +158,7 @@ const BasemapStyleSchema = z
 export const BasemapLayerPropsSchema = CompositeLayerPropsSchema.extend({
   style: z.union([z.string(), BasemapStyleSchema]).nullable().meta({'x-playground-literal': true}),
   loadOptions: JsonObjectSchema.nullable().optional(),
+  fontFamily: z.union([z.string(), CallbackSchema]).nullable().optional(),
   mode: z.enum(['map', 'globe']).optional(),
   globe: z
     .strictObject({
@@ -175,22 +195,107 @@ export const DataDrivenTile3DLayerPropsSchema = Tile3DLayerPropsSchema.extend({
     .optional()
 });
 
-/** JSON props for procedural trees; accessors must be functions because TreeLayer calls them. */
+/** JSON props for procedural tree crops. */
+const TreeCropSchema = z
+  .object({
+    kind: z.enum(['fruit', 'lemon', 'cone', 'acorn', 'catkin', 'flower', 'propagule']).optional(),
+    color: ColorSchema,
+    count: z.number(),
+    radius: z.number(),
+    droppedCount: z.number().optional()
+  })
+  .strict();
+const TreeCharacteristicsSchema = z
+  .object({
+    seed: z.number().optional(),
+    crownSpread: z.number().optional(),
+    crownDepth: z.number().optional(),
+    crownAsymmetry: z.number().optional(),
+    branchDensity: z.number().optional(),
+    branchLift: z.number().optional(),
+    internodeLength: z.number().optional(),
+    leafSize: z.number().optional(),
+    leafDensity: z.number().optional()
+  })
+  .strict();
+/** Authored traits consumed by TreeLayer's unified getTree accessor. */
+export const TreeSpecSchema = z
+  .object({
+    position: z.union([Vector2Schema, Vector3Schema]).optional(),
+    species: z
+      .enum(['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'])
+      .optional(),
+    height: z.number().nonnegative().optional(),
+    crownRadius: z.number().nonnegative().optional(),
+    trunkRadius: z.number().nonnegative().optional(),
+    trunkHeightFraction: z.number().min(0).max(1).optional(),
+    elevation: z.number().optional(),
+    season: z.enum(['spring', 'summer', 'autumn', 'winter']).optional(),
+    characteristics: TreeCharacteristicsSchema.optional(),
+    crop: TreeCropSchema.nullable().optional(),
+    wind: z.union([z.boolean(), z.number().min(0).max(0.2)]).optional(),
+    trunkColor: ColorSchema.nullable().optional(),
+    canopyColor: ColorSchema.nullable().optional(),
+    branchLevels: z.number().optional()
+  })
+  .strict();
+
+/** JSON props for the canonical TreeLayer, including constants and serialized accessors. */
 export const TreeLayerPropsSchema = CompositeLayerPropsSchema.extend({
-  getPosition: FunctionSchema.optional(),
-  getElevation: FunctionSchema.optional(),
-  getTreeType: FunctionSchema.optional(),
-  getHeight: FunctionSchema.optional(),
-  getTrunkHeightFraction: FunctionSchema.optional(),
-  getTrunkRadius: FunctionSchema.optional(),
-  getCanopyRadius: FunctionSchema.optional(),
-  getTrunkColor: FunctionSchema.optional(),
-  getCanopyColor: FunctionSchema.optional(),
-  getSeason: FunctionSchema.optional(),
-  getBranchLevels: FunctionSchema.optional(),
-  getCrop: FunctionSchema.optional(),
-  sizeScale: z.number().nonnegative().optional()
+  getTree: createAccessorSchema(TreeSpecSchema).optional(),
+  getPosition: PositionAccessorSchema.optional(),
+  getElevation: NumberAccessorSchema.optional(),
+  getTreeType: createAccessorSchema(
+    z.enum(['pine', 'oak', 'palm', 'birch', 'cherry', 'banyan', 'mangrove', 'citrus'])
+  ).optional(),
+  getHeight: NumberAccessorSchema.optional(),
+  getTrunkHeightFraction: NumberAccessorSchema.optional(),
+  getTrunkRadius: NumberAccessorSchema.optional(),
+  getCanopyRadius: NumberAccessorSchema.optional(),
+  getTrunkColor: createAccessorSchema(ColorSchema.nullable()).optional(),
+  getCanopyColor: createAccessorSchema(ColorSchema.nullable()).optional(),
+  getSeason: createAccessorSchema(z.enum(['spring', 'summer', 'autumn', 'winter'])).optional(),
+  getBranchLevels: NumberAccessorSchema.optional(),
+  getCrop: createAccessorSchema(TreeCropSchema.nullable()).optional(),
+  getCoverageWeight: NumberAccessorSchema.optional(),
+  sizeScale: z.number().nonnegative().optional(),
+  characteristics: TreeCharacteristicsSchema.optional(),
+  windStrength: z.number().min(0).max(0.2).optional(),
+  windTime: z.number().nullable().optional(),
+  foveationStrength: z.number().min(0).max(1).optional(),
+  maxCanopySplats: z.union([z.literal('auto'), z.number().nonnegative()]).optional(),
+  maxCanopyPixels: z.number().positive().optional()
 });
+
+/** Prepared Gaussian buffers and hierarchies remain host-owned constants. */
+export const SplatLayerPropsSchema = CompositeLayerPropsSchema.extend({
+  source: ConstantSchema.optional(),
+  getSource: createAccessorSchema(ConstantSchema).optional(),
+  transparency: z.enum(['weighted', 'sorted']).optional(),
+  maxTotalSplats: z.number().nonnegative().optional(),
+  hierarchy: ConstantSchema.optional(),
+  getPosition: PositionAccessorSchema.optional(),
+  getOrientation: createAccessorSchema(Vector3Schema).optional(),
+  getScale: createAccessorSchema(Vector3Schema).optional(),
+  getTranslation: createAccessorSchema(Vector3Schema).optional(),
+  getTransformMatrix: createAccessorSchema(z.array(z.number()).length(16).nullable()).optional(),
+  getColor: createAccessorSchema(ColorSchema).optional(),
+  getDeformation: createAccessorSchema(Vector3Schema).optional(),
+  getCoverageWeight: NumberAccessorSchema.optional(),
+  deformationStrength: z.number().nonnegative().optional(),
+  deformationTime: z.number().nullable().optional(),
+  kernelVariance: z.number().nonnegative().optional(),
+  alphaCutoff: z.number().min(0).max(1).optional(),
+  support: z.number().positive().optional(),
+  pixelError: z.number().positive().optional(),
+  foveationStrength: z.number().min(0).max(1).optional(),
+  maxSplats: z.number().nonnegative().optional(),
+  maxRenderPixels: z.number().positive().optional(),
+  material: MaterialSchema.optional()
+});
+
+/** JSON representation of SplatLayer with host-owned source buffers. */
+export const SplatLayerSchema = defineLayer('SplatLayer', SplatLayerPropsSchema);
 
 /** JSON representation of TileSourceLayer. */
 export const TileSourceLayerSchema = defineLayer('TileSourceLayer', TileSourceLayerPropsSchema);
@@ -199,6 +304,8 @@ export const SharedTile2DLayerSchema = defineLayer(
   'SharedTile2DLayer',
   SharedTile2DLayerPropsSchema
 );
+/** JSON representation of SharedMVTLayer. */
+export const SharedMVTLayerSchema = defineLayer('SharedMVTLayer', SharedMVTLayerPropsSchema);
 /** JSON representation of TileGridLayer. */
 export const TileGridLayerSchema = defineLayer('TileGridLayer', TileGridLayerPropsSchema);
 /** JSON representation of DelaunayCoverLayer. */
@@ -228,6 +335,7 @@ export const TreeLayerSchema = defineLayer('TreeLayer', TreeLayerPropsSchema);
 export const CommunityGeoLayerSchemas = {
   TileSourceLayer: TileSourceLayerSchema,
   SharedTile2DLayer: SharedTile2DLayerSchema,
+  SharedMVTLayer: SharedMVTLayerSchema,
   TileGridLayer: TileGridLayerSchema,
   DelaunayCoverLayer: DelaunayCoverLayerSchema,
   ElevationLayer: ElevationLayerSchema,
@@ -236,5 +344,6 @@ export const CommunityGeoLayerSchemas = {
   GlobalGridLayer: GlobalGridLayerSchema,
   BasemapLayer: BasemapLayerSchema,
   DataDrivenTile3DLayer: DataDrivenTile3DLayerSchema,
-  TreeLayer: TreeLayerSchema
+  TreeLayer: TreeLayerSchema,
+  SplatLayer: SplatLayerSchema
 };

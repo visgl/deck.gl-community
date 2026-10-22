@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {circle} from '@turf/circle';
 import {distance} from '@turf/distance';
 import {area} from '@turf/area';
 import {memoize} from '../utils/memoize';
 import {ModeProps, Tooltip} from './types';
-import {Position, Polygon, Feature, FeatureCollection} from '../utils/geojson-types';
+import {Position, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getIntermediatePosition} from './geojson-edit-mode';
 import {TwoClickPolygonMode} from './two-click-polygon-mode';
 
@@ -53,7 +55,7 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
    * nebula geometry mode type
    * @param props properties of geometry nebula mode
    */
-  getTooltips(props: ModeProps<FeatureCollection>): Tooltip[] {
+  getTooltips(props: ModeProps<SimpleFeatureCollection>): Tooltip[] {
     return this._getTooltips({
       modeConfig: props.modeConfig,
       radius: this.radius,
@@ -93,4 +95,9 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
 
     return tooltips;
   });
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
+  }
 }

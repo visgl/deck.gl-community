@@ -12,7 +12,7 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
 
 ## Usage
 
-Use `TextEditorPanel` when a sidebar or modal needs inline JSON or plaintext editing without building a custom editor shell.
+Use `TextEditorPanel` when a sidebar or modal needs inline document editing without building a custom editor shell.
 
 ```ts
 import {TextEditorPanel, type TextEditorPanelProps} from '@deck.gl-community/panels';
@@ -27,7 +27,7 @@ type TextEditorPanelProps = {
   value?: string;
   defaultValue?: string;
   onValueChange?: (nextValue: string) => void;
-  language?: 'json' | 'plaintext';
+  language?: string;
   jsonSchema?: Record<string, unknown>;
   readOnly?: boolean;
   placeholder?: string;
@@ -43,3 +43,6 @@ type TextEditorPanelProps = {
 - Loads the Monaco runtime on demand instead of at initial panel mount.
 - Supports controlled and uncontrolled text values.
 - Applies JSON schema validation in `json` mode and swaps Monaco themes with the effective panel theme.
+
+- Defaults to the `json` language identifier. Other Monaco identifiers pass through unchanged;
+  the host registers any additional languages and language services.

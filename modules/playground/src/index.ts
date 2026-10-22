@@ -6,6 +6,8 @@ export {
   Playground,
   type PlaygroundProps,
   type PlaygroundRenderer,
+  type PlaygroundUpdateContext,
+  type PlaygroundStatus,
   type PlaygroundTemplate,
   type PlaygroundTemplateMetadata
 } from './playground';

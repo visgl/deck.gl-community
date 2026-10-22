@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # SelectionLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="selection-layer" />
 
 This layer can be used to select deck.gl objects using mouse drawing.
@@ -77,14 +79,40 @@ Also inherites **some** EditableGeoJsonLayer properties.
 
 #### `selectionType` (String, required)
 
+- Default: `rectangle`
+
+`rectangle` or `polygon`; `null` disables selection.
+
+#### `autoPreventMapInteractions` (Boolean, optional)
+
+- Default: `true`
+
+Keeps selection drags, lasso handles, and single-touch selection gestures from the parent map.
+Set to `false` when the application coordinates map gestures itself. This is forwarded to
+SelectionLayer's internal `EditableGeoJsonLayer`; inactive selection uses `ViewMode`.
+
+#### `eventTarget` (HTMLElement, optional)
+
 - Default: `null`
 
-Either `rectangle` or `polygon`
+Element receiving selection gestures. For overlaid `MapboxOverlay`, use `map.getCanvas()`.
 
 #### `onSelect` (Function, required)
 
-Called when selection is completed.
+Called when selection is completed with `{pickingInfos}`. Each entry is the original
+[deck.gl picking info](https://deck.gl/docs/developer-guide/interactivity#the-picking-info-object),
+including the selected object, source layer, and object index.
+
+Edit guides are excluded using the picking info's `isGuide` marker. Application feature
+properties, including `guideType`, do not exclude features from selection.
+
+Both selection modes use deck.gl's WebGL GPU picking. Polygon selection masks pixels outside
+the drawn lasso, including for wide, diagonal, and concave lassos. Objects are selected when visible rendered
+pixels intersect the selection; overlapping objects hidden behind another object are not included.
+The layer does not scan target data or require a `getPosition` accessor.
 
 #### `layerIds` (String[], required)
 
-Array of layer ids where we will search.
+Array of pickable layer IDs to search, including their sublayers. Place the `SelectionLayer`
+after its target layers in the deck layer list so its picking mask covers those layers.
+Layers must have `pickable: true`; hidden or fully occluded objects are not selected.

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {bboxPolygon} from '@turf/bbox-polygon';
 import {distance} from '@turf/distance';
 import {ellipse} from '@turf/ellipse';
@@ -34,5 +36,10 @@ export class DrawEllipseByBoundingBoxMode extends TwoClickPolygonMode {
     geometry.properties.editProperties.center = centerCoordinates;
 
     return geometry;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
   }
 }

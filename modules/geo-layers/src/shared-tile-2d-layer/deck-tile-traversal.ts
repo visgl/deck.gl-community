@@ -33,6 +33,14 @@ const REF_POINTS_11 = REF_POINTS_9.concat([
   [0.75, 0.5]
 ]);
 
+/**
+ * Whether a `CullingVolume.computeVisibility` result is outside the volume. math.gl 4 returns
+ * -1 | 0 | 1 and math.gl 5 returns 'outside' | 'intersecting' | 'inside'.
+ */
+export function isOutsideCullingVolume(visibility: number | string): boolean {
+  return visibility === 'outside' || (typeof visibility === 'number' && visibility < 0);
+}
+
 class OSMNode {
   x: number;
   y: number;
@@ -80,8 +88,12 @@ class OSMNode {
       return false;
     }
 
-    const isInside = cullingVolume.computeVisibility(boundingVolume);
-    if (isInside < 0) {
+    if (isOutsideCullingVolume(cullingVolume.computeVisibility(boundingVolume))) {
+      return false;
+    }
+
+    // Globe: reject tiles occluded by the near hemisphere
+    if (project && this.beyondHorizon(viewport.cameraPosition, project, elevationBounds[1])) {
       return false;
     }
 
@@ -116,6 +128,38 @@ class OSMNode {
       }
     }
     return result;
+  }
+
+  /**
+   * Whether the tile lies wholly beyond the globe's horizon as seen from the camera. Projects the
+   * tile point closest to the camera's sub-point, raised to the top of the elevation bounds, and
+   * tests it against the tangent plane through that point.
+   */
+  beyondHorizon(
+    cameraPosition: number[],
+    project: (xyz: number[]) => number[],
+    elevation: number
+  ): boolean {
+    const cx = cameraPosition[0];
+    const cy = cameraPosition[1];
+    const cz = cameraPosition[2];
+    const cMag = Math.sqrt(cx * cx + cy * cy + cz * cz);
+
+    const camLng = (Math.atan2(cx, -cy) * 180) / Math.PI;
+    const camLat = (Math.asin(cz / cMag) * 180) / Math.PI;
+
+    const [west, north] = osmTile2lngLat(this.x, this.y, this.z);
+    const [east, south] = osmTile2lngLat(this.x + 1, this.y + 1, this.z);
+
+    const tileCenterLng = (west + east) / 2;
+    const wrappedCamLng = tileCenterLng + (((camLng - tileCenterLng + 540) % 360) - 180);
+    const closestLng = Math.max(west, Math.min(wrappedCamLng, east));
+    const closestLat = Math.max(south, Math.min(camLat, north));
+
+    const closest = project([closestLng, closestLat, elevation]);
+    const dot = closest[0] * cx + closest[1] * cy + closest[2] * cz;
+    const magSq = closest[0] * closest[0] + closest[1] * closest[1] + closest[2] * closest[2];
+    return dot <= magSq;
   }
 
   insideBounds([minX, minY, maxX, maxY]: Bounds): boolean {

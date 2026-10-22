@@ -1,13 +1,15 @@
 # Overview
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 ![deck.gl v9](https://img.shields.io/badge/deck.gl-v9-green.svg?style=flat-square")
-![WebGPU supported](https://img.shields.io/badge/webgpu-yes-green.svg?style=flat-square")
+![WebGPU partial](https://img.shields.io/badge/webgpu-partial-orange.svg?style=flat-square)
 
 This module provides a suite of reusable layers for [deck.gl](https://deck.gl).
 The layers in this module are generic primitives that are intended to be usable in both geospatial and non-geospatial visualizations.
 
 :::caution
-The deck.gl-community repository is semi-maintaned. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
+The deck.gl-community repository is semi-maintained. One of its goals is to collect and preserve valuable deck.gl ecosystem related code that does not have a dedicated home. Some modules may no longer have dedicated maintainers. This means that there is sometimes no one who can respond quickly to issues.
 :::
 
 ## Installation
@@ -32,11 +34,16 @@ Release date: 2023
 
 ## Exports
 
+- [`SplatLayer`](./api-reference/splat-layer.md): reusable prepared Gaussian renderer
+- [`TreeLayer`](./api-reference/tree-layer.md): canonical procedural tree renderer
+
+- [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
+- [`VolumetricVideoLayer`](./api-reference/volumetric-video-layer.md) (WebGL2 and WebGPU)
+- [`getVolumetricVideoHistoryBytes`](./api-reference/volumetric-video-layer.md#gpu-and-decoding)
 - `DependencyArrowLayer`
 - `PathMarkerLayer`
 - `PathOutlineLayer`
 - `SkyboxLayer`
-- `ZoomOpacityExtension`, with the `zoomBand` and `interpolateZoom` helpers
 
 <p class="badges">
   <img src="https://img.shields.io/badge/From-v9.3-blue.svg?style=flat-square" alt="From v9.3" />
@@ -45,6 +52,8 @@ Release date: 2023
 
 ## Examples
 
+- [FlameTrailLayer](/examples/layers/flame-trail)
+- [VolumetricVideoLayer](/examples/layers/volumetric-video)
 - [Path outline, marker, and dependency arrow](/examples/layers/path-outline-and-markers)
 - [SkyboxLayer MapView](/examples/layers/skybox-map-view)
 - [SkyboxLayer GlobeView](/examples/layers/skybox-globe)

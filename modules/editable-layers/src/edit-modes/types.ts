@@ -80,6 +80,13 @@ export type PointerMoveEvent = BasePointerEvent & {
   isDragging?: boolean;
 };
 
+/** Pointer movement and drag lifecycle events that can be snapped. */
+export type MovementEvent =
+  | PointerMoveEvent
+  | StartDraggingEvent
+  | StopDraggingEvent
+  | DraggingEvent;
+
 export type Tooltip = {
   position: Position;
   text: string;
@@ -120,6 +127,14 @@ export type GuideFeatureCollection = {
   properties?: {};
 };
 
+/** Converts local feature positions to pixel XYZ and reverses that same render transform. */
+export type EditModeProjection = {
+  /** Projects local coordinates, retaining pixel depth for elevated edge snapping. */
+  project: (position: Position) => Position;
+  /** Returns local coordinates, or undefined when the inverse is invalid or singular. */
+  unproject: (screenPosition: Position) => Position | undefined;
+};
+
 export type ModeProps<TData> = {
   // The data being edited, this can be an array or an object
   data: TData;
@@ -139,11 +154,17 @@ export type ModeProps<TData> = {
   // Coordinate system to use for geometric calculations (defaults to GeoCoordinateSystem)
   coordinateSystem?: EditModeCoordinateSystem;
 
+  /** Optional paired render projection; supplied by the layer for origins and model matrices. */
+  projection?: EditModeProjection;
+
   // Callback used to notify applications of an edit action
   onEdit: (editAction: EditAction<TData>) => void;
 
   // Callback used to update cursor
   onUpdateCursor: (cursor: string | null | undefined) => void;
+
+  // The picking radius used by the layer, in pixels
+  pickingRadius?: number;
 };
 
 export type PointWithIndex = {

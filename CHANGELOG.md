@@ -1,5 +1,58 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.7
+
+- Publish the v9.4.6 changes to npm. The v9.4.6 release run was cancelled after only `@deck.gl-community/react` published, so every other package moves from v9.4.5 to v9.4.7 and also includes the v9.4.6 notes below.
+- Cast and receive deck.gl shadows in `TreeLayer` and `SplatLayer` under a `LightingEffect` `DirectionalLight` with `_shadow: true` (WebGL2 only). Set `shadowEnabled: false` to keep trees from casting, as before (#969).
+- Add `SelectionPulseExtension`, which pulses selected objects on the GPU: a selection change writes one value per object, and each animation frame sets only uniforms (#965).
+- Keep `TreeLayer` sub-layer attributes when an unrelated prop such as `windTime`, `opacity` or `highlightedObjectIndex` changes, instead of recomputing every canopy color and crop attribute. Extension accessors and their update triggers now reach the wood, crop and canopy sub-layers (#967).
+- Forward `updateTriggers.getTrunkColor`, `getCoverageWeight` and authored wind changes to `TreeLayer`'s connected wood (#966).
+- Render `SplatLayer` and `TreeLayer` canopies in the primary world copy instead of throwing when a `MapView` repeats wrapped world copies (#962).
+- Leave presses the active edit mode does not use to an interleaved MapLibre/Mapbox map, so `EditableGeoJsonLayer` no longer blocks panning and map clicks while drawing by clicks or in `ModifyMode`. Custom drag modes declare their presses with `EditMode.ownsPointerDown()` (#960).
+- Make `EditableGeoJsonLayer` tooltips non-pickable, so a measurement tooltip under the cursor no longer makes `ModifyMode` throw (#968).
+- Load the `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds in Node's native ESM loader: shader-module imports carry their `.js` extension (#963, #964).
+- Ship third-party notices with `@deck.gl-community/basemap-layers` and replace its adapted polylabel code with an independent implementation (#950).
+
+## v9.4.6
+
+- Spend about a quarter of the CPU time per moving frame in `TreeLayer` and `SplatLayer` over large groves, with the same rendered selection. A controlled `highlightedObjectIndex` now highlights the source tree or owner in every wood, canopy and crop partition, as `autoHighlight` does (#956).
+- Embed live layer demos in the layer API documentation (#954).
+- **Breaking:** Remove the deprecated `@deck.gl-community/three` compatibility workspace; v9.4.5 is its final published version. Import `TreeLayer` and its types from `@deck.gl-community/layers`; the Seasonal Farm example now lives under `examples/layers/seasonal-farm` (#953).
+
+## v9.4.5
+
+- Keep `TreeLayer` and `SplatLayer` canopies visible in interleaved `MapboxOverlay`/`MapLibreOverlay` maps after zooming or panning: the Gaussian depth pre-pass clears its private target instead of inheriting `clearCanvas: false` (#955).
+- Keep the shared canopy splat budget during small camera moves and orbits instead of refining every visible crown (#955).
+- Highlight the hovered tree across `TreeLayer` wood and canopy sub-layers with `autoHighlight`, instead of unrelated trees at the same row index (#955).
+
+## v9.4.4
+
+- Publish v9.4.4 as a recovery release after an interrupted v9.4.3 npm provenance attestation. It carries the v9.4.3 source but does not republish existing v9.4.3 package versions; no consumer API or runtime behavior changes.
+- Serialize npm publication and recover an existing transparency-log entry on conflict so signed package provenance remains intact.
+
+## v9.4.3
+
+- Render dense, mixed-species forests with native `TreeLayer` foliage backed by `SplatLayer`. Each visible canopy now selects its own screen-error resolution within a shared, device-aware budget, with stable optical transitions, picking, seasonal crops and wind on WebGL2 and WebGPU (#794, #807, #949).
+- Add `VolumetricVideoLayer` for GPU-rendered MP4/MOV frame volumes, including native-pixel sampling, bounded history, static-pixel filtering and matching WebGL2/WebGPU compositing (#822, #917, #919, #921).
+- Bring `BasemapLayer` substantially closer to MapLibre styling: style glyphs and sprites, CPU label placement and collision, line labels, patterns, hillshade, tiled GeoJSON, style order and globe-aware rendering (#818–#938).
+- Add edge snapping and reliable interleaved MapLibre/Mapbox interaction to editable layers, including correct lasso picking and primary-gesture handling (#672, #675, #914).
+- Improve shared tile traversal with globe-horizon culling, cache/view lifecycle fixes and correct selected-tile rendering; expand graph, panel, playground and multi-canvas examples and documentation.
+- **Migration:** `TreeLayer` is now native and canonical in `@deck.gl-community/layers`; the `@deck.gl-community/three` import remains a temporary compatibility re-export. Native TreeLayer and SplatLayer foliage ship without built-in deck.gl shadows, `detail` is ignored, crop radius and canopy sublayer behavior changed, and Cartesian/metre-offset `modelMatrix` supports translation only.
+- **Migration:** `DOTGraphLoader` has moved to `@loaders.gl/graphs`; load DOT with `DOTLoaderWithParser` before constructing a graph-layer graph.
+- See [What's New](docs/whats-new.md) and the module API references for usage and migration details.
+
+## v9.4.2
+
+- Publish the playground package with customizable document languages, panels, template metadata, and cancellable asynchronous renderers (#788, #789).
+- Add FlameTrailLayer with the TripsLayer API, rising 3D flames, drifting embers, and animation while the playhead stays still on WebGL2 and WebGPU (#765).
+- Fit the full flame footprint and embers to WebGPU terrain when using the upstream deck.gl TerrainExtension port (#773; visgl/deck.gl#10751). With the published SDK, WebGPU paths use supplied XYZ elevations; WebGL2 supports GPU height-map fitting.
+- Add the FlameTrailLayer terrain example with two continuous flames and Length, Width, and Color controls (#769).
+- React Fiber remains excluded pending its initial npm setup; its source and examples remain available.
+- Improve TreeLayer orientation and geometry reuse; add Seasonal Farm and GlobalGridLayer examples (#743, #749, #752).
+- Expand the website gallery and playground with schema validation, managed data sources, host-owned SQL, camera controls, and editing tools.
+- Align loaders.gl dependencies on 4.5.1 and Apache Arrow on 17; fix layer rendering and resource cleanup.
+- See [What's New](docs/whats-new.md) and the [Upgrade Guide](docs/upgrade-guide.md) for details.
+
 ## v9.4.0-alpha.3
 
 - feat(widgets): add async search lifecycle controls to OmniBoxWidget (#723)
@@ -151,7 +204,7 @@ fix(panels) remove unused widgets dependency (#648)
 
 ## v9.2.1
 
-- See all beta releases below, the whats new and upgrade guide in website for full v9.1 -> 9.2 changelog
+- See all beta releases below, the what's new and upgrade guide in website for full v9.1 -> 9.2 changelog
 
 ## v9.2.0-beta.10
 
@@ -253,7 +306,7 @@ fix(panels) remove unused widgets dependency (#648)
 - chore: Mark geo-layers for public publishing (#376)
 - Add Charles as the editable-layer maintainer (#371)
 - feat(graph-layers): Layered DAG support (#375)
-- feat(graph-layers): break out collapsable D3 DAG layout subclass (#373)
+- feat(graph-layers): break out collapsible D3 DAG layout subclass (#373)
 
 ## v9.2.0-beta.2
 
@@ -261,7 +314,7 @@ fix(panels) remove unused widgets dependency (#648)
 - chore: Mark geo-layers for public publishing (#376)
 - Add Charles as the editable-layer maintainer (#371)
 - feat(graph-layers): Layered DAG support (#375)
-- feat(graph-layers): break out collapsable D3 DAG layout subclass (#373)
+- feat(graph-layers): break out collapsible D3 DAG layout subclass (#373)
 
 ## v9.2.0-beta.1
 
@@ -269,7 +322,7 @@ fix(panels) remove unused widgets dependency (#648)
 - feat(graph-viewer): add dag layout configuration controls (#359)
 - feat(graph-layers) add bounds calculation to layouts and graph-viewer (#357)
 - chore(graph-layers): refactor collapsed chain utilities (#353)
-- feat(graph-layers): collapsable linear DAG chains (#337)
+- feat(graph-layers): collapsible linear DAG chains (#337)
 - fix(graph-layers): restore dag arrow decorator color property (#343)
 - [editable-layers] Real double-click used to finish drawing (#225)
 - feat(experimental): add pan and zoom widget (#341)

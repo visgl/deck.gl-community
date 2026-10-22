@@ -2,6 +2,8 @@ import LayerLiveExample from '@site/src/components/docs/layer-live-example';
 
 # SplineLayer
 
+![From v9.0](https://img.shields.io/badge/from-v9.0-green.svg?style=flat-square)
+
 <LayerLiveExample highlight="spline-layer" size="tall" />
 
 `SplineLayer` evaluates Catmull–Rom splines through supplied control points and

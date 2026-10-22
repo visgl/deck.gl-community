@@ -1,0 +1,118 @@
+{
+  "$schema": "https://vega.github.io/schema/vega/v6.json",
+  "description": "180 records move between grid, scatter and grouped stacks. Based on Microsoft Research SandDance.",
+  "width": 500,
+  "height": 320,
+  "padding": 20,
+  "signals": [
+    {
+      "name": "layout",
+      "value": "grid",
+      "bind": {
+        "input": "select",
+        "options": [
+          "grid",
+          "scatter",
+          "stacks"
+        ],
+        "labels": [
+          "Grid",
+          "Scatter",
+          "Grouped stacks"
+        ],
+        "name": "Layout "
+      }
+    },
+    {
+      "name": "is3d",
+      "value": false,
+      "bind": {
+        "input": "checkbox",
+        "name": "3D view "
+      }
+    }
+  ],
+  "data": [
+    {
+      "name": "table",
+      "transform": [
+        {
+          "type": "sequence",
+          "start": 0,
+          "stop": 180,
+          "as": "id"
+        },
+        {
+          "type": "formula",
+          "expr": "datum.id % 3",
+          "as": "group"
+        },
+        {
+          "type": "formula",
+          "expr": "floor(datum.id / 3)",
+          "as": "rank"
+        },
+        {
+          "type": "formula",
+          "expr": "(datum.id * 137) % 450",
+          "as": "x"
+        },
+        {
+          "type": "formula",
+          "expr": "(datum.id * 83) % 270",
+          "as": "y"
+        }
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "color",
+      "type": "ordinal",
+      "domain": [
+        0,
+        1,
+        2
+      ],
+      "range": [
+        "#3688c8",
+        "#e69f00",
+        "#009e73"
+      ]
+    }
+  ],
+  "marks": [
+    {
+      "type": "rect",
+      "from": {
+        "data": "table"
+      },
+      "encode": {
+        "update": {
+          "x": {
+            "signal": "layout === 'grid' ? (datum.id % 18) * 26 : layout === 'scatter' ? datum.x : datum.group * 155 + (datum.rank % 6) * 20"
+          },
+          "y": {
+            "signal": "layout === 'grid' ? floor(datum.id / 18) * 26 : layout === 'scatter' ? datum.y : 290 - floor(datum.rank / 6) * 24"
+          },
+          "width": {
+            "signal": "layout === 'scatter' ? 9 : 18"
+          },
+          "height": {
+            "signal": "layout === 'scatter' ? 9 : 18"
+          },
+          "fill": {
+            "scale": "color",
+            "field": "group"
+          },
+          "depth": {
+            "signal": "is3d ? 12 : 0"
+          },
+          "tooltip": {
+            "signal": "datum"
+          }
+        }
+      }
+    }
+  ]
+}

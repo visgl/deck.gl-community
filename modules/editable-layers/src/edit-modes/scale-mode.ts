@@ -14,6 +14,7 @@ import {transformScale} from '@turf/transform-scale';
 import {getCoord, getGeom} from '@turf/invariant';
 import {FeatureCollection, Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
+  BasePointerEvent,
   ModeProps,
   PointerMoveEvent,
   StartDraggingEvent,
@@ -143,6 +144,11 @@ export class ScaleMode extends GeoJsonEditMode {
 
       this.updateCursor(props);
     }
+  }
+
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
+    return Boolean(getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

@@ -145,7 +145,7 @@ Overview of each key:
 - `type`: one of: `background`, `fill`, `line`, `symbol`, `raster`, `circle`, `fill`,-extrusion `heatmap`, `hillshade`, `sky` (v2 only).
 - `source`: must be one of the keys defined in the initial `sources` object. So here each must be either `satellite-source` or `vector-source`.
 - `source-layer`: For vector sources, each styling layer is rendered on only a single vector tile layer within the source. So when `source-layer` is `landuse`, the vector tiles provided by the `vector-source` source are expected to contain a layer named `landuse`, and this styling layer will apply only to that layer. This is required for vector sources.
-- `minzoom`, `maxzoom`: zoom range for layer. Falls back to source's available zoom range, but can be a narrower range than the source provides
+- `minzoom`, `maxzoom`: zoom range in which the layer draws. Without them the layer draws at every zoom, as in MapLibre. The source's `minzoom`/`maxzoom` only limit which tiles are requested: past the source `maxzoom`, the last tiles are overzoomed.
 - `filter`: A filter expression that is tested against every object within the vector tile layer.
 - `layout`: A layout expression. These are less commonly used, and usually don't have a great equivalent in deck.gl.
 - `paint`: Properties used for styling. Each layer type has a list of available paint properties. All properties except `visibility` are prefixed by the layer's type, hence `fill-color` and `line-width`. The value of each paint property can be either a constant value or color, or a styling expression that changes appearance based on zoom.
@@ -165,14 +165,55 @@ Mapbox layers have a deck.gl equivalent:
 | `circle`          | `MVTLayer` ?                |
 | `fill-extrusion`  | `MVTLayer` (`PolygonLayer`) |
 | `heatmap`         | `HeatmapLayer`              |
-| `hillshade`       | N/A                         |
+| `hillshade`       | `BitmapLayer` (slope tiles) |
 | `sky` (v2 only)   | N/A                         |
 
-Mapbox GL JS [exposes a standalone parser][mapbox-style-spec-js] for their style specification. (This is apparently [still open source][mapbox-style-spec-js-license] in v2). This parser is quite helpful, it:
+The module evaluates styles with [`@maplibre/maplibre-gl-style-spec`][maplibre-style-spec-js], the standalone style-spec package from MapLibre GL JS. It:
 
 - parses all permissible color descriptions into an rgba array
 - Evaluates filter expressions for each GeoJSON `Feature` input
 - Evaluates paint expressions given the zoom level
 
-[mapbox-style-spec-js]: https://github.com/mapbox/mapbox-gl-js/blob/main/src/style-spec/README.md
-[mapbox-style-spec-js-license]: https://github.com/mapbox/mapbox-gl-js/blob/0063cbd10a97218fb6a0f64c99bf18609b918f4c/src/style-spec/package.json#L11
+Zoom-dependent paint and layout values are evaluated at the zoom rounded down to a 0.25 step
+(`STYLE_ZOOM_STEP`), and every visible tile uses the same evaluation zoom, so tiles agree at their
+seams. Filters use the integer zoom, as the style spec specifies, and layer visibility uses the
+exact zoom. MapLibre instead evaluates zoom expressions at the integer zooms on either side of
+the current zoom and interpolates on the GPU; moving interpolation to the GPU remains the
+long-term plan.
+
+### Icons and sprites
+
+When a style sets `sprite`, `BasemapLayer` loads the sprite's JSON index and image after the
+style resolves, through the same `fetch` as the style and its tiles. The image is decoded once
+and shared by every tile's icon layer. It requests the `@2x` sprite first
+on high-density screens and falls back to `@1x`. A relative `sprite` URL resolves against the
+style URL, and the array form (`[{id, url}]`) is supported: images from a sprite other than
+`default` are named `id:name`.
+
+Symbol layers with `icon-image` draw a deck.gl `IconLayer` per sprite under their labels.
+`icon-image` accepts expressions and legacy `{token}` names; `icon-size`, `icon-opacity`,
+`icon-anchor` and `icon-offset` are applied, and SDF images take `icon-color`. An image that no
+sprite contains is skipped with one warning per name, and a sprite that fails to load is skipped
+with a warning.
+
+`text-offset` (in ems of `text-size`) and `text-anchor` position labels relative to their point.
+
+Approximations:
+
+- Labels and icons are placed as in MapLibre: style layers from the top down, each symbol
+  against those placed before it, by its text box (text along lines: circles along the label) and
+  its icon box, each padded by `text-padding` / `icon-padding`. `*-allow-overlap` and `*-overlap`
+  (`never`, `always`, `cooperative`), `*-ignore-placement` and `*-optional` follow MapLibre's
+  rules. Placement runs when the view or the labels change: at most every
+  `labelPlacementInterval` ms (300) while the view moves, and at once when it rests. Labels
+  switch without MapLibre's fade. The `BasemapLayer`s of a deck place their labels together, as
+  one style whose later layers are drawn on top, unless `separateLabelPlacement` is set.
+- Text along lines is drawn glyph by glyph, as MapLibre draws it: each glyph on the line, turned
+  to the segment it lands on, and the label hidden where it does not fit on the line. The glyphs
+  are placed again at every 1/128 zoom step; a label turns upright at 5° bearing steps, by its
+  first and last glyph. Text keeps its size in pixels under pitch, where MapLibre scales pitched
+  text by its distance from the camera. On a globe, on WebGPU and for multi-line text, labels
+  along lines are drawn straight, turned to the line at their anchor.
+- `icon-text-fit` is not applied.
+
+[maplibre-style-spec-js]: https://github.com/maplibre/maplibre-style-spec

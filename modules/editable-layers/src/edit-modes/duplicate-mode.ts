@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {StartDraggingEvent, ModeProps} from './types';
-import {FeatureCollection, SimpleFeatureCollection} from '../utils/geojson-types';
+import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 
 export class DuplicateMode extends TranslateMode {
@@ -15,11 +17,16 @@ export class DuplicateMode extends TranslateMode {
     }
   }
 
-  updateCursor(props: ModeProps<FeatureCollection>) {
+  updateCursor(props: ModeProps<SimpleFeatureCollection>) {
     if (this._isTranslatable) {
       props.onUpdateCursor('copy');
     } else {
       props.onUpdateCursor(null);
     }
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
   }
 }

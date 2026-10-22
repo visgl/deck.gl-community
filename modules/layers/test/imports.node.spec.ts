@@ -20,3 +20,11 @@ it('exports DependencyArrowLayer', () => {
 it('exports SkyboxLayer', () => {
   expect(Layers.SkyboxLayer).toBeDefined();
 });
+
+it('exports VolumetricVideoLayer', () => {
+  expect(Layers.VolumetricVideoLayer).toBeDefined();
+});
+
+it('exports the volumetric history memory estimator', () => {
+  expect(Layers.getVolumetricVideoHistoryBytes(1, 1, 1)).toBe(12);
+});

@@ -2,28 +2,27 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {clone} from '@turf/clone';
-import {WebMercatorViewport} from '@math.gl/web-mercator';
+import {Position, SimpleGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
-  FeatureCollection,
-  Position,
-  SimpleGeometry,
-  SimpleFeatureCollection
-} from '../utils/geojson-types';
-import {
+  BasePointerEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
   DraggingEvent,
   ModeProps
 } from './types';
-import {mapCoords} from './utils';
+import {mapCoords, toWebMercatorViewport} from './utils';
 import {translateFromCenter} from '../utils/translate-from-center';
 import {GeoJsonEditMode, GeoJsonEditAction} from './geojson-edit-mode';
 import {ImmutableFeatureCollection} from './immutable-feature-collection';
 import {getEditModeCoordinateSystem} from './coordinate-system';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {SourceSnappingStrategy} from './snapping/source-snapping-strategy';
 
-export class TranslateMode extends GeoJsonEditMode {
+export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode {
   _geometryBeforeTranslate: SimpleFeatureCollection | null | undefined;
   _isTranslatable: boolean = undefined!;
 
@@ -51,10 +50,15 @@ export class TranslateMode extends GeoJsonEditMode {
     event.cancelPan();
   }
 
-  handlePointerMove(event: PointerMoveEvent, props: ModeProps<FeatureCollection>) {
+  handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
     this._isTranslatable = this.isSelectionPicked(event.pointerDownPicks || event.picks, props);
 
     this.updateCursor(props);
+  }
+
+  /** Owns presses on the selection, which drag it. */
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return this.isSelectionPicked(event.picks, props);
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -84,7 +88,7 @@ export class TranslateMode extends GeoJsonEditMode {
     }
   }
 
-  updateCursor(props: ModeProps<FeatureCollection>) {
+  updateCursor(props: ModeProps<SimpleFeatureCollection>) {
     if (this._isTranslatable) {
       props.onUpdateCursor('move');
     } else {
@@ -110,7 +114,7 @@ export class TranslateMode extends GeoJsonEditMode {
 
     // move features without adapting to mercator projection
     if (viewportDesc && screenSpace) {
-      const viewport = viewportDesc.project ? viewportDesc : new WebMercatorViewport(viewportDesc);
+      const viewport = toWebMercatorViewport(viewportDesc);
 
       const from = viewport.project(startDragPoint);
       const to = viewport.project(currentPoint);
@@ -163,5 +167,10 @@ export class TranslateMode extends GeoJsonEditMode {
         featureIndexes: selectedIndexes
       }
     };
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new SourceSnappingStrategy();
   }
 }
