@@ -201,7 +201,13 @@ jobs:
             }
 
   test-headless:
+    name: test-headless (${{ matrix.shard }}/4)
     runs-on: ubuntu-26.04
+    # Browser suites run one file at a time on CI's software renderer, so split them across runners.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -226,26 +232,50 @@ jobs:
         run: yarn playwright:install --with-deps
 
       - name: Run headless browser tests
-        id: headless
-        run: yarn test-headless
+        run: yarn test-headless --shard=${{ matrix.shard }}/4
 
       - name: Upload basemap reference-render report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: basemap-reference-render
+          name: basemap-reference-render-${{ matrix.shard }}
           path: modules/basemap-layers/tests/reference-render/__output__
           if-no-files-found: ignore
 
+  # A separate job, so that unrelated browser failures do not suppress the backend verification.
+  test-webgpu:
+    runs-on: ubuntu-26.04
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Enable Corepack
+        run: corepack enable yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        env:
+          YARN_ENABLE_HARDENED_MODE: 0
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Install Playwright Chromium
+        run: yarn playwright:install --with-deps
+
       - name: Verify WebGPU layers with a required software adapter
-        # Unrelated browser failures must not suppress the backend verification.
-        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        id: webgpu
         run: yarn vitest run --project headless modules/layers/test/webgpu-layers.browser.spec.ts modules/layers/test/splat-layer/webgpu-layers.browser.spec.ts modules/layers/test/tree-layer/webgpu-layers.browser.spec.ts modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts modules/layers/test/volumetric-video-layer/volumetric-video-layer.browser.spec.ts examples/layers/flame-trail/scene.browser.spec.ts examples/layers/volumetric-video/app.browser.spec.ts -t "webgpu|WebGPU"
         env:
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
       - name: Check out the upstream WebGPU terrain port
-        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        if: ${{ !cancelled() && steps.webgpu.outcome != 'skipped' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: visgl/deck.gl
@@ -254,7 +284,7 @@ jobs:
           path: .terrain-sdk
 
       - name: Verify WebGPU terrain fitting against the upstream port
-        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        if: ${{ !cancelled() && steps.webgpu.outcome != 'skipped' }}
         run: yarn vitest run --project headless modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts -t webgpu
         env:
           DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
