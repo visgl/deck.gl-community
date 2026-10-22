@@ -34,7 +34,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "scripts": {
     "test": "yarn --cwd ../.. vitest run --config modules/basemap-layers/vitest.config.ts",
