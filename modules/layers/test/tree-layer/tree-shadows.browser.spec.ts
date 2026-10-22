@@ -278,6 +278,40 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
     }
   }, 60000);
 
+  it('keeps every crown of a mixed grove lit: later sub-layers do not shadow themselves', async () => {
+    // deck.gl offsets each layer's depth by its stack index, also in its shadow pass. Species
+    // groups give many wood, crop and canopy sub-layers, and a pitched view deepens the light's
+    // depth range; trees stand in north-south lines so the western sun cannot shade one with another.
+    const species = ['oak', 'citrus', 'pine', 'birch', 'banyan', 'palm', 'cherry', 'mangrove'];
+    const metre = 1 / 111320;
+    const grove = species.flatMap((name, column) =>
+      [0, 1, 2].map(
+        (row): TreeSpec => ({
+          species: name as TreeSpec['species'],
+          position: [(column - 3.5) * 9 * metre, (row - 1) * 30 * metre, 0],
+          height: 8,
+          crownRadius: 3,
+          trunkRadius: 0.3,
+          crop: name === 'citrus' ? OAK.crop : undefined
+        })
+      )
+    );
+    const scene = mount();
+    scene.deck.setProps({viewState: {...VIEW_STATE, zoom: 18.2, pitch: 55}});
+    try {
+      const all = {x0: 0, y0: 0, x1: SIZE, y1: SIZE};
+      const make = (shadowEnabled: boolean) =>
+        trees({data: grove, coordinateSystem: COORDINATE_SYSTEM.LNGLAT, shadowEnabled});
+      const casting = await scene.render([make(true)]);
+      const receiving = await scene.render([make(false)]);
+      expect(scene.errors).toEqual([]);
+      expect(brightness(receiving, all)).toBeGreaterThan(0);
+      expect(brightness(casting, all)).toBeGreaterThan(brightness(receiving, all) * 0.9);
+    } finally {
+      scene.cleanup();
+    }
+  }, 60000);
+
   it.each([
     ['canopy', {}],
     ['winter wood', {getSeason: 'winter'}]

@@ -11,6 +11,7 @@ import {
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
+import {clearShadowDepthOffset} from '../splat-layer/splat-shadow';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
 
 type WindProps<DataT> = {
@@ -360,9 +361,11 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
   }
 
   draw(params) {
-    // deck.gl 9.4's shadow module has no WGSL: no WebGPU shader reads the shadow map.
-    if (params.shaderModuleProps?.shadow?.drawToShadowMap && this.context.device.type === 'webgpu')
-      return;
+    if (params.shaderModuleProps?.shadow?.drawToShadowMap) {
+      // deck.gl 9.4's shadow module has no WGSL: no WebGPU shader reads the shadow map.
+      if (this.context.device.type === 'webgpu') return;
+      clearShadowDepthOffset(this);
+    }
     const {windStrength, windTime} = this.props;
     const time = windTime ?? this.context.timeline.getTime() / 1000;
     this.state.model?.shaderInputs.setProps({

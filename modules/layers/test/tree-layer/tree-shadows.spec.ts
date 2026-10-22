@@ -62,7 +62,7 @@ describe('SplatPrimitiveLayer shadow pass', () => {
   function makeLayer(type: 'webgl' | 'webgpu') {
     const model = {shaderInputs: {setProps: vi.fn()}, setInstanceCount: vi.fn(), draw: vi.fn()};
     const layer = Object.assign(Object.create(SplatPrimitiveLayer.prototype), {
-      context: {device: {type}, timeline: {getTime: () => 0}},
+      context: {device: {type, setParametersWebGL: vi.fn()}, timeline: {getTime: () => 0}},
       state: {model, effect: {resolve: vi.fn()}},
       props: {...SplatPrimitiveLayer.defaultProps, source: {}, deformationTime: 0},
       getNumInstances: () => 3,
@@ -83,6 +83,8 @@ describe('SplatPrimitiveLayer shadow pass', () => {
     expect(model.draw).toHaveBeenCalledWith(renderPass);
     expect(model.setInstanceCount).toHaveBeenCalledWith(3);
     expect(model.shaderInputs.setProps.mock.lastCall![0].splat.mode).toBe(0);
+    // deck.gl's per-layer depth offset would pull later layers' shadow depth toward the light.
+    expect(layer.context.device.setParametersWebGL).toHaveBeenCalledWith({polygonOffset: [0, 0]});
   });
 
   it('skips the shadow pass on WebGPU and still defers ordinary draws to its effect', () => {
@@ -128,6 +130,30 @@ describe('TreeMeshLayer shadow pass', () => {
     expect(fs).toMatch(
       /lighting_getLightColor[\s\S]*fragColor = vec4\(lightColor, color\.a \* layer\.opacity\);\n#ifdef MODULE_SHADOW\n {2}if \(shadow\.drawShadowMap\) fragColor = shadow_filterShadowColor\(vec4\(0\.0\)\);\n#endif/
     );
+  });
+
+  it('draws shadow depth without deck.gl layer depth offsets on WebGL2', () => {
+    const layer = makeLayer('webgl');
+    const setParametersWebGL = vi.fn();
+    const draw = vi.spyOn(Object.getPrototypeOf(TreeMeshLayer.prototype), 'draw');
+    draw.mockImplementation(() => {});
+    Object.assign(layer, {
+      context: {
+        ...layer.context,
+        device: {type: 'webgl', setParametersWebGL},
+        timeline: {getTime: () => 0}
+      },
+      state: {model: {shaderInputs: {setProps: vi.fn()}}},
+      props: {...TreeMeshLayer.defaultProps, extensions: []},
+      setNeedsRedraw: vi.fn()
+    });
+    layer.draw({shaderModuleProps: {shadow: {drawToShadowMap: true}}});
+    expect(setParametersWebGL).toHaveBeenCalledWith({polygonOffset: [0, 0]});
+    expect(draw).toHaveBeenCalled();
+    setParametersWebGL.mockClear();
+    layer.draw({shaderModuleProps: {shadow: {drawToShadowMap: false}}});
+    expect(setParametersWebGL).not.toHaveBeenCalled();
+    draw.mockRestore();
   });
 
   it('skips the shadow pass on WebGPU', () => {
