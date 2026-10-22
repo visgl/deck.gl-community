@@ -7,6 +7,12 @@ This page lists module additions and major changes in each release. For detailed
 - v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only
   `@deck.gl-community/react` published.
 
+- Breaking change for v10: editable-layers removes nine standard
+  GeoJSON type re-exports, unused `AnyGeoJson` and `Style` aliases, and the generic
+  `toDeckColor`, `utils`, and `_memoize` exports. Import GeoJSON types from `geojson`;
+  use the package's `Simple*` types for editable data. See the
+  [public export migration](./upgrade-guide.md#public-export-cleanup).
+
 - `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
   (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
   `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
