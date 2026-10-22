@@ -168,6 +168,80 @@ it.each([
   device.destroy();
 });
 
+it('budgets and limits equivalent RAD descriptors as one shared source', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const viewport = new FirstPersonViewport({id: 'view', width: 128, height: 128});
+  const renderer = {
+    setProps: vi.fn(),
+    setFrontier: vi.fn(),
+    prepare: vi.fn(),
+    destroy: vi.fn(),
+    draw: vi.fn()
+  };
+  runtime['domains'].set(JSON.stringify([viewport.id, 'default']), {
+    renderer,
+    leader: '',
+    layers: new Set<string>(),
+    owners: [],
+    pages: []
+  } as never);
+  // Each row recreates an equivalent descriptor, within one layer and across two layers.
+  const capture = () => ({type: 'rad' as const, url: '/capture.rad'});
+  const layers = [
+    new SplatSceneLayer({
+      id: 'a',
+      data: [capture(), capture()].map(splats => ({splats, position: [0, 0, 0]})),
+      maxSplats: 1_000_000,
+      maxConcurrentLoads: 8
+    }),
+    new SplatSceneLayer({
+      id: 'b',
+      data: [{splats: capture(), position: [0, 0, 0]}],
+      maxSplats: 1_000_000,
+      maxConcurrentLoads: 2
+    })
+  ];
+  for (const layer of layers) {
+    vi.spyOn(layer, 'getOwnerMatrix').mockReturnValue(new Matrix4());
+    runtime.register(layer);
+  }
+  const acquire = vi.spyOn(runtime as any, 'acquireAsset').mockReturnValue({id: 0});
+  try {
+    runtime.preRender({layers, viewports: [viewport], isPicking: false} as PreRenderOptions);
+    expect(acquire).toHaveBeenCalledTimes(3);
+    for (const [, , active, resident, concurrency] of acquire.mock.calls) {
+      // One source receives the whole per-layer grant and resident cap, not a share per descriptor.
+      expect(active).toBe(1_000_000);
+      expect(resident).toBe(8_000_000);
+      // Every owner applies the strictest download limit, so no layer overwrites another.
+      expect(concurrency).toBe(2);
+    }
+    expect(runtime.getStats('a').sourceCount).toBe(1);
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
+it('classifies unmarked Blob assets as RAD for budgets and projection checks', () => {
+  const device = new NullDevice({});
+  const runtime = new SplatSceneRuntime({} as Deck, device);
+  const blob = new Blob(['rad'], {type: 'application/octet-stream'});
+  const layer = new SplatSceneLayer({id: 'blob', data: blob});
+  try {
+    runtime.register(layer);
+    expect(runtime['radLayers'].has('blob')).toBe(true);
+    expect(runtime['getAssetKey'](blob)).toBe(runtime['getAssetKey']({type: 'rad', url: blob}));
+    expect(runtime['getAssetKey'](blob)).not.toBe(
+      runtime['getAssetKey']({type: 'splats', url: blob})
+    );
+  } finally {
+    runtime.cleanup();
+    device.destroy();
+  }
+});
+
 it('keeps a covered RAD asset loaded while camera refinement continues', () => {
   const device = new NullDevice({});
   const runtime = new SplatSceneRuntime({} as Deck, device);

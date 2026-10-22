@@ -350,11 +350,14 @@ export class SplatSceneRuntime implements Effect {
             shouldDraw(layer as SplatSceneLayer, viewport, true)
         )
     ) as SplatSceneLayer[];
+    // Equivalent URL/Blob descriptors share one source in acquireAsset. Count, budget and limit
+    // sources by that same canonical key, so recreated descriptors neither split the grant nor
+    // apply different budgets or download limits to one shared scene.
     const radCount = new Set(
       visible.flatMap(layer =>
         (this.owners.get(layer.id) ?? [])
           .filter(owner => isRADAsset(owner.asset))
-          .map(owner => owner.asset)
+          .map(owner => this.getAssetKey(owner.asset))
       )
     ).size;
     const limit = Math.min(...visible.map(layer => layer.props.maxTotalSplats), Infinity);
@@ -405,16 +408,18 @@ export class SplatSceneRuntime implements Effect {
     const assetCaps = new Map<SplatDataInput, number>();
     const assetConcurrency = new Map<SplatDataInput, number>();
     for (const layer of visible) {
-      const sources = new Set((this.owners.get(layer.id) ?? []).map(owner => owner.asset));
-      const localRadCount = [...sources].filter(isRADAsset).length;
+      const sources = new Map(
+        (this.owners.get(layer.id) ?? []).map(owner => [this.getAssetKey(owner.asset), owner.asset])
+      );
+      const localRadCount = [...sources.values()].filter(isRADAsset).length;
       const localGrant =
         (grants.get(layer.id)! - staticCosts.get(layer.id)!) / Math.max(localRadCount, 1);
       const sharedGrant = (cap - staticFloor) / Math.max(radCount, 1);
-      for (const input of sources) {
-        assetCaps.set(input, Math.min(assetCaps.get(input) ?? Infinity, localGrant, sharedGrant));
+      for (const key of sources.keys()) {
+        assetCaps.set(key, Math.min(assetCaps.get(key) ?? Infinity, localGrant, sharedGrant));
         assetConcurrency.set(
-          input,
-          Math.min(assetConcurrency.get(input) ?? Infinity, layer.props.maxConcurrentLoads)
+          key,
+          Math.min(assetConcurrency.get(key) ?? Infinity, layer.props.maxConcurrentLoads)
         );
       }
     }
@@ -427,12 +432,13 @@ export class SplatSceneRuntime implements Effect {
         if (!screen && !pick) continue;
         const entries: SceneEntry[] = [];
         for (const owner of this.owners.get(layer.id) ?? []) {
+          const sourceKey = this.getAssetKey(owner.asset);
           const asset = this.acquireAsset(
             owner.asset,
             layer,
-            assetCaps.get(owner.asset)!,
+            assetCaps.get(sourceKey)!,
             residentCap / Math.max(radCount, 1),
-            assetConcurrency.get(owner.asset)!
+            assetConcurrency.get(sourceKey)!
           );
           const model = layer.getOwnerMatrix(owner.object, owner.index, owner.data, viewport);
           if (!Number.isFinite(model.determinant()) || Math.abs(model.determinant()) < 1e-15)
@@ -595,7 +601,7 @@ export class SplatSceneRuntime implements Effect {
         .reduce((sum, page) => sum + (page.activeRows?.length ?? page.data.length), 0)
     );
     return {
-      sourceCount: new Set(owners.map(owner => owner.asset)).size,
+      sourceCount: new Set(owners.map(owner => this.getAssetKey(owner.asset))).size,
       visibleInstances: counts.some(Boolean) ? owners.length : 0,
       renderedSplats: Math.max(0, ...counts),
       coverageFloor: owners.reduce(
@@ -637,13 +643,7 @@ export class SplatSceneRuntime implements Effect {
       if (isSplatSceneData(input)) {
         const target = asset;
         const data = typeof input === 'object' && 'url' in input ? input.url : input;
-        const rad =
-          typeof input === 'object' && 'url' in input
-            ? input.type === 'rad'
-            : typeof input === 'string'
-              ? /\.rad(?:$|[?#])/i.test(input)
-              : true;
-        if (!rad) {
+        if (!isRADAsset(input)) {
           const loading = loadStaticSplatSource(
             data,
             typeof input === 'object' && 'format' in input ? input.format : undefined,
@@ -723,22 +723,17 @@ export class SplatSceneRuntime implements Effect {
   }
   private getAssetKey(input: SplatDataInput): SplatDataInput {
     if (!isSplatSceneData(input)) return input;
-    let type: 'rad' | 'splats';
     let url: string | Blob;
     let format: string | null = null;
-    if (typeof input === 'string') {
-      type = /\.rad(?:$|[?#])/i.test(input) ? 'rad' : 'splats';
-      url = input;
-    } else if (typeof Blob !== 'undefined' && input instanceof Blob) {
-      type = 'rad';
+    if (typeof input === 'string' || (typeof Blob !== 'undefined' && input instanceof Blob)) {
       url = input;
     } else if ('url' in input) {
-      type = input.type;
       url = input.url;
       if (input.type === 'splats') format = input.format ?? null;
     } else {
       return input;
     }
+    const type = isRADAsset(input) ? 'rad' : 'splats';
     const location = typeof url === 'string' ? ['url', url] : ['blob', this.getBlobId(url)];
     return `splat-scene:${JSON.stringify([type, location, format])}`;
   }
@@ -774,8 +769,13 @@ export class SplatSceneRuntime implements Effect {
   }
 }
 
+/**
+ * Classify a scene input once for loading, canonical keys and budgets. Unmarked Blobs are RAD;
+ * check them before descriptors because a Blob's MIME `type` is not a scene discriminant.
+ */
 function isRADAsset(input: SplatDataInput): boolean {
   if (!isSplatSceneData(input)) return false;
-  if (typeof input === 'object' && 'type' in input) return input.type === 'rad';
-  return typeof input !== 'string' || /\.rad(?:$|[?#])/i.test(input);
+  if (typeof input === 'string') return /\.rad(?:$|[?#])/i.test(input);
+  if (typeof Blob !== 'undefined' && input instanceof Blob) return true;
+  return input.type === 'rad';
 }
