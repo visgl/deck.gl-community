@@ -4,6 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
+  (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
+  `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
 - The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
   in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
   their `.js` extension.

@@ -627,7 +627,9 @@ export class EditableGeoJsonLayer extends EditableLayer<
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
       ...this.getSubLayerProps({
         id: 'tooltips',
-        data: tooltips
+        data: tooltips,
+        // Edit modes treat every non-guide pick as a data feature.
+        pickable: false
       })
     });
 
