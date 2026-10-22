@@ -11,6 +11,7 @@ import {
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
+import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
 
 type WindProps<DataT> = {
@@ -105,7 +106,14 @@ const TREE_COVERAGE = {
         float branchNoise = fract(sin(dot(floor(treeDitherPosition * 96.0) + vec3(19.19,47.23,73.31), vec3(39.3468,11.135,83.155))) * 24634.6345);
         if (branchNoise >= treeWind.branchCoverage) discard;
       }`
-    }
+    },
+    // deck.gl 9.4's SimpleMeshLayer applies DECKGL_FILTER_COLOR before lighting, which would shade
+    // the depth its shadow module packs into the color. Write the packed depth after lighting.
+    'fs:#main-end': `
+#ifdef MODULE_SHADOW
+  if (shadow.drawShadowMap) fragColor = shadow_filterShadowColor(vec4(0.0));
+#endif
+`
   }
 } as const;
 
@@ -351,6 +359,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
   }
 
   draw(params) {
+    if (params.shaderModuleProps?.shadow?.drawToShadowMap && !prepareShadowDraw(this)) return;
     const {windStrength, windTime} = this.props;
     const time = windTime ?? this.context.timeline.getTime() / 1000;
     this.state.model?.shaderInputs.setProps({

@@ -84,6 +84,7 @@ Inherits the deck.gl `CompositeLayer` properties. Accessors accept constants or 
 | `characteristics` | `{}` | Shared broadleaf morphology; changes regenerate the connected wood, leaves and crop attachment together. See below. |
 | `windStrength` | `0` | Bend amplitude as a fraction of tree height. Zero stops continuous redraw when no per-tree wind is authored; a value around `0.025` is a gentle breeze. |
 | `windTime` | `null` | Wind time in seconds. `null` uses deck.gl's timeline; a number freezes the pose for controlled comparisons. |
+| `shadowEnabled` | `true` | Whether wood, crops and canopy cast shadows from a `LightingEffect` light with `_shadow: true`. Trees receive shadows either way. See [Shadows](#shadows). |
 
 ## Crops
 
@@ -109,13 +110,52 @@ new TreeLayer({
 });
 ```
 
+## Shadows
+
+Trees cast and receive shadows from deck.gl's `LightingEffect` when a `DirectionalLight` has `_shadow: true`:
+
+```ts
+import {AmbientLight, DirectionalLight, LightingEffect} from '@deck.gl/core';
+
+const lighting = new LightingEffect({
+  ambient: new AmbientLight({intensity: 0.6}),
+  sun: new DirectionalLight({direction: [1, 0.5, -1], intensity: 0.8, _shadow: true})
+});
+
+new Deck({effects: [lighting], layers: [ground, new TreeLayer({id: 'trees', data: trees})]});
+```
+
+Wood, crops and leaves cast with the same wind bend, morphs and coverage as their visible geometry. Leaves cast as densely as the canopy is opaque, so sparse crowns cast dappled shadows and coverage fades thin them smoothly; see [SplatLayer](./splat-layer.md#rendering-and-refinement) for how translucent Gaussians cast. Wood receives shadows from every casting layer, including its own crown. A crown is shaded by other trees and layers but not by its own leaves, so its sunlit side stays bright.
+
+Picking, `autoHighlight`, `highlightedObjectIndex` and [`SelectionPulseExtension`](./selection-pulse-extension.md) work unchanged; highlights and pulses change colors only, so they don't change shadows. Set `shadowEnabled: false` to stop trees casting.
+
+Limitations:
+
+- **WebGL2 only.** deck.gl 9.4's shadow module has no WGSL. On WebGPU trees render normally without deck.gl shadows and skip the shadow pass.
+- **Zoomed-out views.** deck.gl fits each shadow map to the whole view, and its shadow test ignores depth differences below 0.1–1% of the map's depth range. In a pitched view of a large grove that range spans kilometres, so the ground shadows of trees a few metres tall fade until you zoom in.
+- **Visible trees cast.** TreeLayer culls trees and refines canopy detail for the camera, and the shadow pass reuses that selection: a tree just outside the view casts no shadow into it.
+- **Interleaved maps.** `MapboxOverlay` and `MapLibreOverlay` with `interleaved: true` draw shadow maps per layer group, so a receiving layer needs the same `beforeId` and `slot` as the TreeLayer. The basemap itself receives no deck.gl shadows. To show them on it, add a transparent ground: deck.gl's shadow filter draws only the shadow that falls on a fully transparent surface.
+
+  ```ts
+  new SolidPolygonLayer({
+    id: 'shadow-catcher',
+    data: [fieldBoundary], // any polygon covering the trees and their shadows
+    getPolygon: polygon => polygon,
+    getFillColor: [0, 0, 0, 0],
+    shadowEnabled: false
+  });
+  ```
+- **Other deck.gl casters.** deck.gl 9.4's lit `SimpleMeshLayer` filters colors before lighting, so the depth it writes to the shadow map is shaded and the mesh shadows itself; set `shadowEnabled: false` on a `SimpleMeshLayer` ground plane that only needs to receive shadows. deck.gl also offsets each layer's depth by its position in the layer stack in the shadow pass, which can make layers late in a long stack shadow themselves. TreeLayer and SplatLayer write unshaded, unoffset shadow depth.
+
+Without a shadow light, nothing changes: deck.gl adds no shadow pass and the shadow shader branches compile out. With one, each shadow light adds one depth draw of the visible wood, crops and canopy selection per frame. Orbiting a 20,000-tree citrus block on an Apple M2 took about 26 ms per frame with a shadow light against 20 ms without, most of it the canopy's depth draw on the GPU; CPU time rose by about 1.5 ms.
+
 ## Migration
 
 Remove `detail` from TreeLayer props and `TreeDetail` from type imports. TreeLayer now composes full leaf Gaussian sources and continuous woody meshes, with automatic refinement for subpixel crowns and branches. Legacy demo `detail` query parameters are ignored.
 
 The deprecated `@deck.gl-community/three` workspace has been removed. Update imports and dependencies to `@deck.gl-community/layers`, including `TreeLayerProps`, `TreeType`, `Season` and `CropConfig`. Previously published package versions are unchanged. The production renderer has no Three.js dependency.
 
-Native TreeLayer and SplatLayer foliage ship without built-in deck.gl foliage-shadow integration. TreeLayer and SplatLayer force their foliage and wood sublayers not to cast deck.gl shadows. Applications that need shadows must provide them outside this foliage renderer.
+TreeLayer and SplatLayer cast deck.gl shadows under a `LightingEffect` shadow light. Earlier versions forced their wood and foliage sub-layers not to cast; set `shadowEnabled: false` to keep that behavior. See [Shadows](#shadows).
 
 Gaussian crowns and connected winter silhouettes deliberately differ from the original geometry. `CropConfig.radius` now matches its documented radius: older geometry rendered half that radius. Halve an existing crop radius to retain its old apparent size. Inspect your explicit seasonal foliage overrides, canopy sublayer overrides and custom winter branches when migrating; the native crown sublayer IDs include foliage/winter and tier information. Legacy species overrides such as `canopy-cherry` remain supported and apply after native defaults. Exact grouped sublayer IDs take precedence over species aliases. Custom wood meshes use camera LOD children without the native template morph; arbitrary custom geometry is kept conservatively visible. Overridden wood transform accessors and their triggers also determine culling bounds. Override accessors receive the source tree and its original accessor context; parameters and update triggers merge by key.
 

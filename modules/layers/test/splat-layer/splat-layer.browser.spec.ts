@@ -1,16 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {
-  AmbientLight,
-  COORDINATE_SYSTEM,
-  CompositeLayer,
-  Deck,
-  DirectionalLight,
-  LightingEffect,
-  MapView,
-  type Layer
-} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, CompositeLayer, Deck, MapView, type Layer} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {describe, expect, it, vi} from 'vitest';
 import {SplatLayer, type SplatSource} from '../../src';
@@ -97,7 +88,6 @@ describe('Gaussian canopy rendering', () => {
       const leaves = collectLeaves((deck.props.layers as Layer[])[0]);
       const visual = leaves.find(layer => layer.id.includes('refinement'))!;
       const geometry = (visual.state.model as any)._gpuGeometry;
-      expect(visual.props.shadowEnabled).toBe(false);
       const positions = visual.getAttributeManager()!.getAttributes().instancePositions.getBuffer();
       const rows = (deck.props.layers as Layer[])[0].state.groups;
       const spatialIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
@@ -342,58 +332,6 @@ it('moves drawing and picking when a new data array reuses a mutated owner', asy
     expect(pixels[offset + 2]).toBeGreaterThan(150);
     expect(pixels[offset]).toBeLessThan(10);
     expect(deck.pickObject(after)?.object).toBe(row);
-    expect(errors).toEqual([]);
-  } finally {
-    deck.finalize();
-    parent.remove();
-  }
-}, 20000);
-
-it('picks non-shadow-casting splats with deck shadows enabled', async () => {
-  const parent = document.createElement('div');
-  parent.style.cssText = 'width:128px;height:128px';
-  document.body.append(parent);
-  const owner = {position: [0, 0, 0] as [number, number, number]};
-  const errors: string[] = [];
-  let frames = 0;
-  const deck = new Deck({
-    parent,
-    width: 128,
-    height: 128,
-    useDevicePixels: false,
-    _animate: true,
-    deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
-    views: new MapView(),
-    initialViewState: {longitude: 0, latitude: 0, zoom: 21, pitch: 0},
-    // This makes the host install its global shadow shader module. The SplatLayer itself
-    // remains non-casting, which is the public foliage contract.
-    effects: [
-      new LightingEffect({
-        ambient: new AmbientLight({intensity: 0.5}),
-        sun: new DirectionalLight({direction: [-1, -1, -2], intensity: 1, _shadow: true})
-      })
-    ],
-    layers: [
-      new SplatLayer({
-        id: 'pick-with-host-shadow',
-        data: [owner],
-        source: SOURCE,
-        coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,
-        coordinateOrigin: [0, 0, 0],
-        getTranslation: [0, 0, 5],
-        pickable: true,
-        material: {unlit: true}
-      })
-    ],
-    onError: error => errors.push(error.message),
-    onAfterRender: () => frames++
-  });
-  try {
-    await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(5);
-    expect(
-      collectLeaves(deck.props.layers[0] as Layer).every(layer => !layer.props.shadowEnabled)
-    ).toBe(true);
-    expect(deck.pickObject({x: 64, y: 64})?.object).toBe(owner);
     expect(errors).toEqual([]);
   } finally {
     deck.finalize();

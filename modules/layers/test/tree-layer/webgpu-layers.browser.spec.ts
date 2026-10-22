@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import {COORDINATE_SYSTEM, Deck, MapView} from '@deck.gl/core';
+import {
+  AmbientLight,
+  COORDINATE_SYSTEM,
+  Deck,
+  DirectionalLight,
+  LightingEffect,
+  MapView,
+  type Effect
+} from '@deck.gl/core';
 import {luma, Buffer, Texture, type Device, type Framebuffer} from '@luma.gl/core';
 import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -181,7 +189,7 @@ async function renderDenseCanopy(type: 'webgl' | 'webgpu'): Promise<CanopyMetric
   }
 }
 
-async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
+async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = []): Promise<void> {
   const parent = document.createElement('div');
   parent.style.width = '128px';
   parent.style.height = '128px';
@@ -222,6 +230,7 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu'): Promise<void> {
         _animate: true,
         views: new MapView({id: 'tree-webgpu-test'}),
         initialViewState: {longitude: 0, latitude: 0, zoom: 15, pitch: 45},
+        effects,
         layers: [
           new TreeLayer({
             id: `tree-${type}`,
@@ -300,7 +309,14 @@ describe('TreeLayer graphics backend compatibility', () => {
     }
 
     await renderTreeLayer('webgpu');
-  }, 40_000);
+    // deck.gl 9.4's shadow module has no WGSL: trees skip its shadow pass and render without error.
+    await renderTreeLayer('webgpu', [
+      new LightingEffect({
+        ambient: new AmbientLight({intensity: 0.6}),
+        sun: new DirectionalLight({direction: [1, 0, -1], intensity: 0.8, _shadow: true})
+      })
+    ]);
+  }, 60_000);
 
   it('keeps a dense hierarchical canopy opaque on both WebGL2 and WebGPU', async ({skip}) => {
     const gpu = (navigator as Navigator & {gpu?: BrowserGpu}).gpu;

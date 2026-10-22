@@ -754,6 +754,22 @@ it('maps a controlled highlightedObjectIndex onto each refinement level', () => 
   for (const child of layer.renderLayers()) expect(child.props.highlightedObjectIndex).toBeNull();
 });
 
+it('casts deck.gl shadows from every refinement level unless shadowEnabled is false', () => {
+  const data: PerspectiveRow[] = [
+    {id: 'near', position: [0, 0, -3], scale: 10},
+    {id: 'far', position: [0.5, 0, -10], scale: 1}
+  ];
+  for (const [extra, expected] of [
+    [{}, true],
+    [{shadowEnabled: false}, false]
+  ] as const) {
+    const {layer} = makePerspective(data, extra);
+    const children = layer.renderLayers();
+    expect(children.length).toBeGreaterThan(0);
+    for (const child of children) expect(child.props.shadowEnabled).toBe(expected);
+  }
+});
+
 it('invalidates coverage only for the supplied changed rows', () => {
   const invalidate = vi.fn();
   const layer = Object.assign(Object.create(SplatPrimitiveLayer.prototype), {

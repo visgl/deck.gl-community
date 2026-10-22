@@ -677,7 +677,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         operation: 'draw',
         pickable: this.props.pickable,
         highlightedObjectIndex: getSplatHighlightRow(this, members),
-        shadowEnabled: false,
         getPosition: (row, info) => get(this.props.getPosition, row, info),
         getScale: (row, info) => get(this.props.getScale, row, info),
         getOrientation: (row, info) => get(this.props.getOrientation, row, info),

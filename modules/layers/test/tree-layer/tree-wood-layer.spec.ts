@@ -93,7 +93,6 @@ it('renders camera detail and honors custom wood meshes', () => {
   layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
   const children = layer.renderLayers();
   expect(children.length).toBeGreaterThan(0);
-  expect(children.every(child => child.props.shadowEnabled === false)).toBe(true);
   for (const child of children) {
     expect(child.props.mesh).toBe(mesh);
     expect(child.props.woodMorph).toBe(false);
@@ -401,4 +400,15 @@ it('compares constant wood coverage ranges by value', () => {
   expect(invalidate).not.toHaveBeenCalled();
   update([0, 0.5], [0, 1]);
   expect(invalidate).toHaveBeenCalledWith('instanceTreeCoverage');
+});
+
+it('passes shadowEnabled to its near and far wood meshes', () => {
+  const data = [-50, 0, 50].map(makeWoodRow);
+  for (const shadowEnabled of [true, false]) {
+    const {layer} = makeWoodLayer(data, {shadowEnabled});
+    Object.assign(layer.state, {near: [data[1]], far: [data[0], data[2]]});
+    const children = layer.renderLayers();
+    expect(children).toHaveLength(2);
+    for (const child of children) expect(child.props.shadowEnabled).toBe(shadowEnabled);
+  }
 });
