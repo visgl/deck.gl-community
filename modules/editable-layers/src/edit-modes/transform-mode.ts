@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {featureCollection} from '@turf/helpers';
-import {PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
+import {BasePointerEvent, PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
 import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 import {ScaleMode} from './scale-mode';
@@ -33,6 +33,11 @@ export class TransformMode extends CompositeMode {
       }
     });
     props.onUpdateCursor(updatedCursor);
+  }
+
+  // Its drags start in its child modes, so it uses their presses.
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return super.ownsPointerDown(event, props);
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

@@ -82,8 +82,10 @@ There are a extensive number of modes that come out-of-the-box with from '@deck.
 
 - Default: `true`
 
-Prevents edit gestures from panning the parent MapLibre/Mapbox map. Multi-touch navigation
-remains available; set to `false` to manage gesture propagation yourself.
+Keeps the presses the mode uses (edit handles, the `TranslateMode` selection, drag-to-draw) from
+the parent MapLibre/Mapbox map; other mouse presses pan and click the map. Modes declare these
+presses with `ownsPointerDown()`. Multi-touch navigation remains available; set to `false` to
+manage gesture propagation yourself.
 
 #### `eventTarget` (HTMLElement, optional) {/* #eventtarget */}
 

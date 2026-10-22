@@ -5,6 +5,7 @@
 /* istanbul ignore file */
 
 import {
+  BasePointerEvent,
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
@@ -22,6 +23,8 @@ export interface EditMode<TData, TGuides> {
   handleDoubleClick(event: DoubleClickEvent, props: ModeProps<TData>): void;
   // Called when the pointer moved, regardless of whether the pointer is down, up, and whether something was picked
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<TData>): void;
+  // Return whether a primary press is used by this mode; layers leave other presses to a parent map
+  ownsPointerDown?(event: BasePointerEvent, props: ModeProps<TData>): boolean;
   // Called when the pointer went down on something rendered by this layer and the pointer started to move
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<TData>): void;
   // Called when the pointer went down on something rendered by this layer, the pointer moved, and now the pointer is up

@@ -7,6 +7,7 @@ import type {SnappingStrategy} from './snapping/snapping-strategy';
 import {clone} from '@turf/clone';
 import {Position, SimpleGeometry, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
+  BasePointerEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
@@ -53,6 +54,11 @@ export class TranslateMode extends GeoJsonEditMode implements SnappableEditMode 
     this._isTranslatable = this.isSelectionPicked(event.pointerDownPicks || event.picks, props);
 
     this.updateCursor(props);
+  }
+
+  /** Owns presses on the selection, which drag it. */
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return this.isSelectionPicked(event.picks, props);
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
