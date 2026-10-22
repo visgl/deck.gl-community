@@ -8,6 +8,10 @@ This page lists module additions and major changes in each release. For detailed
   in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
   their `.js` extension.
 
+- `TreeLayer` no longer rewrites every canopy color and crop attribute when an unrelated prop
+  changes, such as `windTime`, `opacity` or `highlightedObjectIndex`. Extension accessors and their
+  update triggers now reach the wood, crop and canopy sub-layers.
+
 ## v9.4.6
 
 - **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import

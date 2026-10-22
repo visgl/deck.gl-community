@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, it, expect, vi} from 'vitest';
-import {COORDINATE_SYSTEM} from '@deck.gl/core';
+import {COORDINATE_SYSTEM, LayerExtension, LayerManager, WebMercatorViewport} from '@deck.gl/core';
+import {device} from '@deck.gl/test-utils/vitest';
 import {TreeLayer, type TreeType} from '../../src/tree-layer/tree-layer';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
+import {TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
 import {getTreeWoodMesh} from '../../src/tree-layer/tree-wood';
 import {
   getPalmFrondLeafletT,
@@ -828,4 +830,74 @@ it('maps a controlled highlightedObjectIndex onto each species partition', () =>
   }
   const {layer} = createLayer(data);
   for (const child of layer.renderLayers()) expect(child.props.highlightedObjectIndex).toBeNull();
+});
+
+/** An extension with only an accessor prop, as passed to sub-layers by `getSubLayerProps`. */
+class TagExtension extends LayerExtension {
+  static extensionName = 'TagExtension';
+  static defaultProps = {getTag: {type: 'accessor', value: 0}};
+}
+
+it('passes extension accessors and their update triggers to every sub-layer', () => {
+  const data = [OAK, {...OAK, position: [10, 0], type: 'citrus'}] as Datum[];
+  const {layer} = createLayer(data, {
+    getCrop: () => ({count: 2, radius: 0.04, color: [200, 140, 40]}),
+    extensions: [new TagExtension()],
+    getTag: (d: Datum) => d.type,
+    updateTriggers: {getTag: 'tag-v2'}
+  });
+  const children = layer.renderLayers();
+  for (const part of ['wood', 'canopy', 'crops'])
+    expect(
+      children.some(child => child.id.includes(part)),
+      part
+    ).toBe(true);
+  for (const child of children) {
+    expect(child.props.updateTriggers.getTag, child.id).toBe('tag-v2');
+    // Sub-layer rows map back to the source tree.
+    const rows = child.props.data as {__source: {index: number}}[];
+    for (const row of rows)
+      expect(child.props.getTag(row, {index: -1})).toBe(data[row.__source.index].type);
+  }
+});
+
+it('re-renders for an unrelated prop change without recomputing sub-layer attributes', () => {
+  // deck.gl re-renders a composite whenever a prop changes. Each child must keep its data and
+  // triggers, or every canopy color and crop attribute is rewritten, e.g. per windTime frame.
+  const calculateTreeWind = vi.spyOn(TreeMeshLayer.prototype as any, 'calculateTreeWind');
+  const getCanopyColor = vi.fn(() => [60, 170, 60, 255]);
+  const viewport = new WebMercatorViewport({width: 128, height: 128, zoom: 20});
+  const layerManager = new LayerManager(device, {
+    viewport,
+    deck: {getViewports: () => [viewport]}
+  } as any);
+  const data = [OAK, {...OAK, position: [1e-5, 0], type: 'citrus'}];
+  const render = (windTime: number) =>
+    layerManager.setLayers([
+      new TreeLayer<Datum>({
+        id: 'trees',
+        data,
+        getTreeType: d => d.type,
+        getCrop: () => ({count: 2, droppedCount: 2, radius: 0.04, color: [200, 140, 40]}),
+        getCanopyColor,
+        maxCanopySplats: 0,
+        windTime
+      })
+    ]);
+  try {
+    for (let frame = 0; frame < 4; frame++) render(0);
+    const ids = layerManager.getLayers().map(layer => layer.id);
+    for (const part of ['wood', 'refinement', 'live-crops', 'dropped-crops'])
+      expect(
+        ids.some(id => id.includes(part)),
+        part
+      ).toBe(true);
+    const calls = [getCanopyColor.mock.calls.length, calculateTreeWind.mock.calls.length];
+    expect(calls.every(count => count > 0)).toBe(true);
+    for (const windTime of [1, 2, 3]) render(windTime);
+    expect([getCanopyColor.mock.calls.length, calculateTreeWind.mock.calls.length]).toEqual(calls);
+  } finally {
+    layerManager.finalize();
+    calculateTreeWind.mockRestore();
+  }
 });
