@@ -14,6 +14,10 @@ This page lists module additions and major changes in each release. For detailed
   (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
   render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
 
+- `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
+  (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
+  `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
+
 ## v9.4.6
 
 - **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import

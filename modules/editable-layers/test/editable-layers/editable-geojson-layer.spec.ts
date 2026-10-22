@@ -271,3 +271,17 @@ test('fresh drag gestures update the raw pointer cache used by snap guides', () 
     dragging.mapCoords
   );
 });
+
+test('tooltips are not pickable, so edit modes never read them as features', () => {
+  const layer = new EditableGeoJsonLayer({
+    id: 'tooltips-test',
+    data: createFeatureCollection(),
+    mode: DrawPointMode,
+    selectedFeatureIndexes: []
+  });
+  layer.state = {mode: new DrawPointMode()} as any;
+
+  const [tooltipsLayer] = layer.createTooltipsLayers();
+  expect(layer.props.pickable).toBe(true);
+  expect(tooltipsLayer.props.pickable).toBe(false);
+});
