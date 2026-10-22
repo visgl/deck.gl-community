@@ -4,6 +4,10 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
+  in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
+  their `.js` extension.
+
 - `EditableGeoJsonLayer` in interleaved MapLibre/Mapbox maps keeps only the presses the mode uses
   (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
   in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.

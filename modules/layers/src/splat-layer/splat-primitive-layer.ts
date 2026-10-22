@@ -25,7 +25,7 @@ import {
   splatUniforms
 } from './splat-shaders';
 import {SplatEffect} from './splat-effect';
-import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl';
+import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl.js';
 
 // Picking omits LightingEffect, but the effect's shadow shader remains a deck default module.
 // Retain its harmless fallback samplers from a draw pass so the pick pass can bind the module.
