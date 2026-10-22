@@ -1,5 +1,11 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.5
+
+- Keep `TreeLayer` and `SplatLayer` canopies visible in interleaved `MapboxOverlay`/`MapLibreOverlay` maps after zooming or panning: the Gaussian depth pre-pass clears its private target instead of inheriting `clearCanvas: false` (#955).
+- Keep the shared canopy splat budget during small camera moves and orbits instead of refining every visible crown (#955).
+- Highlight the hovered tree across `TreeLayer` wood and canopy sub-layers with `autoHighlight`, instead of unrelated trees at the same row index (#955).
+
 ## v9.4.4
 
 - Publish v9.4.4 as a recovery release after an interrupted v9.4.3 npm provenance attestation. It carries the v9.4.3 source but does not republish existing v9.4.3 package versions; no consumer API or runtime behavior changes.

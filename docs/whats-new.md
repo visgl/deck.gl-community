@@ -2,13 +2,15 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## v9.4.3
+## v9.4.5
 
 - `TreeLayer` and `SplatLayer` canopies stay visible in interleaved `MapboxOverlay`/`MapLibreOverlay`
   maps after zooming or panning: the Gaussian depth pre-pass now clears its private target instead
   of inheriting the basemap's `clearCanvas: false`. Small camera moves and orbits keep the shared
   canopy budget rather than refining every visible crown, and `autoHighlight` highlights the hovered
   tree across wood and canopy sub-layers instead of unrelated trees at the same row index.
+
+## v9.4.3
 
 - `SharedTile2DLayer` and `SharedTileset2D` skip tiles beyond the horizon in a `GlobeView`, as deck.gl's
   `TileLayer` does, instead of requesting the far side of the globe. `BasemapLayer` vector and hillshade
