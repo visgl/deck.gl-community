@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Matrix4} from '@math.gl/core';
-import {WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
+import {LayerExtension, WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
 import {getTreeWindPhases, TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
@@ -338,6 +338,32 @@ it('reuses cached owner metre scales and records near weights on owners', () => 
   expect(scales).not.toHaveBeenCalled();
   scales.mockRestore();
   expect(layer.state.owners.every(owner => owner.weight >= 0 && owner.weight <= 1)).toBe(true);
+});
+
+class SelectedExtension extends LayerExtension {
+  static extensionName = 'SelectedExtension';
+  static defaultProps = {getSelected: {type: 'accessor', value: 0}};
+}
+it('forwards its own and extension update triggers to near and far wood meshes', () => {
+  const row = makeWoodRow(0);
+  const getColor = () => [200, 40, 30];
+  const updateTriggers = {
+    getColor: [getColor, 1],
+    getWind: [0.5, 0.25],
+    getDeformation: [0.5, 0.25],
+    getCoverageWeight: 2,
+    getSelected: 7
+  };
+  const {layer} = makeWoodLayer([row], {
+    extensions: [new SelectedExtension()],
+    getColor,
+    getSelected: () => 1,
+    updateTriggers
+  });
+  Object.assign(layer.state, {near: [row], far: [row]});
+  const children = layer.renderLayers();
+  expect(children).toHaveLength(2);
+  for (const child of children) expect(child.props.updateTriggers).toMatchObject(updateTriggers);
 });
 
 it('maps a controlled highlightedObjectIndex onto near and far wood rows', () => {

@@ -7,6 +7,8 @@ This page lists module additions and major changes in each release. For detailed
 - The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
   in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
   their `.js` extension.
+- `TreeLayer` connected wood now follows `updateTriggers.getTrunkColor`, `getCoverageWeight` and
+  authored wind changes. Before, the wood kept its old values until its data changed.
 
 ## v9.4.6
 
