@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {SPLAT_DEFORMATION_WGSL} from './splat-deformation';
+import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
 export const SPLAT_WGSL = `
 ${SPLAT_DEFORMATION_WGSL}
 struct Attributes {
@@ -96,7 +97,10 @@ struct Varyings {
  if (abs(b) > 1e-8) { direction = normalize(vec2<f32>(b, major-a)); }
  let offset = (direction * sqrt(major) * attributes.splatCorners.x + vec2<f32>(-direction.y,direction.x) * sqrt(minor) * attributes.splatCorners.y) * splat.support;
  output.gaussianPosition = attributes.splatCorners * splat.support;
- output.color = vec4<f32>(attributes.splatColors.rgb * attributes.instanceColors.rgb, attributes.splatColors.a * attributes.instanceColors.a * layer.opacity * compensation);
+ var vertexColor = vec4<f32>(attributes.splatColors.rgb * attributes.instanceColors.rgb, attributes.splatColors.a * attributes.instanceColors.a * layer.opacity * compensation);
+ let instanceIndex = attributes.instanceIndex;
+ ${WGSL_FILTER_COLOR_ANCHOR}
+ output.color = vertexColor;
  output.position = vec4<f32>(center.xy + offset / viewportSize * 2.0 * center.w, center.zw);
  if (center.w <= 0.0 || center.z < -center.w || output.color.a < splat.alphaCutoff) { output.position = vec4<f32>(2.0,2.0,2.0,1.0); }
  output.pickingColor = geometry.pickingColor;

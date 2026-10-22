@@ -122,6 +122,12 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
 > {
   static layerName = 'SplatPrimitiveLayer';
   static defaultProps = defaultProps;
+  /**
+   * The vertex attributes fill the 16 slots WebGL2 and WebGPU guarantee: per-object color filters
+   * such as `SelectionPulseExtension` read their data by instance index. The WGSL exposes
+   * `WGSL_FILTER_COLOR_ANCHOR`.
+   */
+  static instanceColorFilters = true;
   declare state: {
     model?: Model;
     accumulationModel?: Model;

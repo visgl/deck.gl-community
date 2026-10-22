@@ -25,6 +25,13 @@ This page lists module additions and major changes in each release. For detailed
   (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
   in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
 
+- [`SelectionPulseExtension`](/docs/modules/layers/api-reference/selection-pulse-extension) (new)
+  pulses selected objects on the GPU. A selection change writes one value per object from
+  `getSelected`; each animation frame sets only uniforms, so a pulse reruns no color accessor and
+  uploads no attributes. It works on deck.gl layers with the GLSL `DECKGL_FILTER_COLOR` hook, such
+  as `ScatterplotLayer`, `ColumnLayer`, `PolygonLayer` and `SimpleMeshLayer`, and on `TreeLayer`
+  and `SplatLayer` in WebGL2 and WebGPU.
+
 ## v9.4.6
 
 - **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import

@@ -97,6 +97,18 @@ Wind is implemented in GLSL and WGSL. Trunks, branches, leaves and attached crop
 
 `extensions` and their props pass to the wood, crop and canopy sub-layers; extension accessors receive the source tree and its index, and their `updateTriggers` apply. The wood, crop and canopy shaders already use the 16 vertex attributes that WebGL2 guarantees, so extensions that add a vertex attribute, such as `DataFilterExtension`, do not link on those sub-layers.
 
+[`SelectionPulseExtension`](./selection-pulse-extension.md) reads its data from a texture instead, so it pulses selected trees on the GPU in WebGL2 and WebGPU:
+
+```ts
+new TreeLayer({
+  id: 'trees',
+  data: trees,
+  extensions: [new SelectionPulseExtension()],
+  getSelected: tree => selectedIds.has(tree.id),
+  updateTriggers: {getSelected: [selectedIds]}
+});
+```
+
 ## Migration
 
 Remove `detail` from TreeLayer props and `TreeDetail` from type imports. TreeLayer now composes full leaf Gaussian sources and continuous woody meshes, with automatic refinement for subpixel crowns and branches. Legacy demo `detail` query parameters are ignored.

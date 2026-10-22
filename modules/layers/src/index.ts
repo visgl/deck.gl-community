@@ -45,6 +45,9 @@ export type {
   TreeCharacteristics
 } from './tree-layer/tree-layer';
 
+export {SelectionPulseExtension} from './selection-pulse-extension/selection-pulse-extension';
+export type {SelectionPulseExtensionProps} from './selection-pulse-extension/selection-pulse-extension';
+
 export {SplatLayer} from './splat-layer/splat-layer';
 export type {SplatLayerProps, SplatLayerStats} from './splat-layer/splat-layer';
 export type {SplatSource} from './splat-layer/splat-source';
