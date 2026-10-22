@@ -4,13 +4,26 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
+  (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
+  `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
 - The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
   in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
   their `.js` extension.
+- `TreeLayer` connected wood now follows `updateTriggers.getTrunkColor`, `getCoverageWeight` and
+  authored wind changes. Before, the wood kept its old values until its data changed.
+
+- `SplatLayer` and `TreeLayer` no longer throw when a `MapView` repeats wrapped world copies
+  (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
+  render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
 
 - `TreeLayer` no longer rewrites every canopy color and crop attribute when an unrelated prop
   changes, such as `windTime`, `opacity` or `highlightedObjectIndex`. Extension accessors and their
   update triggers now reach the wood, crop and canopy sub-layers.
+
+- `EditableGeoJsonLayer` in interleaved MapLibre/Mapbox maps keeps only the presses the mode uses
+  (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
+  in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
 
 - [`SelectionPulseExtension`](/docs/modules/layers/api-reference/selection-pulse-extension) (new)
   pulses selected objects on the GPU. A selection change writes one value per object from

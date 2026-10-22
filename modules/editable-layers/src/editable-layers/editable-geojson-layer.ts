@@ -46,7 +46,7 @@ import {DrawPolygonByDraggingMode} from '../edit-modes/draw-polygon-by-dragging-
 import {SnappableMode} from '../edit-modes/snappable-mode';
 import {TransformMode} from '../edit-modes/transform-mode';
 import {DeleteMode} from '../edit-modes/delete-mode';
-import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
+import {GeoJsonEditModeType, isPointerDownOwned} from '../edit-modes/geojson-edit-mode';
 
 import {Color} from '../utils/types';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
@@ -473,6 +473,11 @@ export class EditableGeoJsonLayer extends EditableLayer<
     return Boolean(this.state.mode) && !(this.state.mode instanceof ViewMode);
   }
 
+  _ownsPointerDown(event: MouseEvent): boolean {
+    const getEvent = () => this.toBasePointerEvent(event);
+    return isPointerDownOwned(this.getActiveMode(), getEvent, this.getModeProps(this.props));
+  }
+
   getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
     return {
       modeConfig: props.modeConfig,
@@ -622,7 +627,9 @@ export class EditableGeoJsonLayer extends EditableLayer<
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
       ...this.getSubLayerProps({
         id: 'tooltips',
-        data: tooltips
+        data: tooltips,
+        // Edit modes treat every non-guide pick as a data feature.
+        pickable: false
       })
     });
 

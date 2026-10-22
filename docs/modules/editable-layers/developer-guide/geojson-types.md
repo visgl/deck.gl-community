@@ -17,3 +17,7 @@ export class MyEditMode extends GeoJsonEditMode {
   }
 }
 ```
+
+A mode that handles drags should implement `ownsPointerDown(event, props)` and return `true` for
+the presses its drag handlers use, so interleaved MapLibre/Mapbox maps can pan from the rest.
+Without it, a mode that overrides a drag handler owns every press.

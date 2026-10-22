@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {getTreeMesh, type TreeMesh} from './tree-geometry';
 
-/** Crop geometry; radius is the enclosing sphere radius for every shape. */
+/** Crop geometry; `CropConfig.radius` bounds every shape, and attached crops vary below it. */
 export type CropKind = 'fruit' | 'lemon' | 'cone' | 'acorn' | 'catkin' | 'flower' | 'propagule';
 const CACHE = new Map<CropKind, TreeMesh>();
 /** Shared crop templates retain conservative spherical bounds for shoot attachment. */

@@ -1,6 +1,6 @@
 # SplatLayer
 
-Prepared anisotropic 3D Gaussians, instanced by owning data rows. `SplatLayer` is a `CompositeLayer` built on deck.gl, luma.gl and math.gl, with WebGL2 and WebGPU shaders. It supports planar Cartesian and Web Mercator views in the unwrapped world; wrapped world copies (`MapView.repeat`) report an explicit error, and `GlobeView` reports an explicit unsupported-projection error. It accepts a direct prepared asset or instance rows whose assets are resolved by `getSource`, and shares immutable template buffers per device; file decoding, training, streaming and spherical harmonics are outside this API.
+Prepared anisotropic 3D Gaussians, instanced by owning data rows. `SplatLayer` is a `CompositeLayer` built on deck.gl, luma.gl and math.gl, with WebGL2 and WebGPU shaders. It supports planar Cartesian and Web Mercator views; with wrapped world copies (`MapView.repeat`) Gaussians render in the primary world copy only, and `GlobeView` reports an explicit unsupported-projection error. It accepts a direct prepared asset or instance rows whose assets are resolved by `getSource`, and shares immutable template buffers per device; file decoding, training, streaming and spherical harmonics are outside this API.
 
 ```ts
 import {SplatLayer, createSplatHierarchy, type SplatSource} from '@deck.gl-community/layers';
