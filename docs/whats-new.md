@@ -4,6 +4,12 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Breaking change for v10: editable-layers removes nine standard
+  GeoJSON type re-exports, unused `AnyGeoJson` and `Style` aliases, and the generic
+  `toDeckColor`, `utils`, and `_memoize` exports. Import GeoJSON types from `geojson`;
+  use the package's `Simple*` types for editable data. See the
+  [public export migration](./upgrade-guide.md#public-export-cleanup).
+
 - `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
   (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
   `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
@@ -99,12 +105,6 @@ This page lists module additions and major changes in each release. For detailed
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
   example demonstrates independent maps, shared hover state and canvas cleanup.
-
-- Breaking change for v10: editable-layers removes nine standard
-  GeoJSON type re-exports, unused `AnyGeoJson` and `Style` aliases, and the generic
-  `toDeckColor`, `utils`, and `_memoize` exports. Import GeoJSON types from `geojson`;
-  use the package's `Simple*` types for editable data. See the
-  [public export migration](./upgrade-guide.md#public-export-cleanup).
 
 - Private Vega renderer: a shared declarative US-map-to-stacked-bars example moves 24,669 places from SandDance’s historical sample with GPU position/size transitions in the playground, gallery and inline docs, with smooth 2D/3D camera and lighting transitions.
 

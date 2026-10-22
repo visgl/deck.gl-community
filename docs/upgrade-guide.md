@@ -15,6 +15,37 @@ sub-layers. Pass `shadowEnabled: false` to either layer to keep the old behavior
 deck.gl 9.4 it writes a shaded depth and shadows itself. See
 [TreeLayer shadows](./modules/layers/api-reference/tree-layer.md#shadows).
 
+### `@deck.gl-community/editable-layers`
+
+#### Public export cleanup {/* #public-export-cleanup */}
+
+v10 removes redundant GeoJSON aliases and implementation helpers
+from `@deck.gl-community/editable-layers`. This is a breaking change to public imports:
+
+| Removed export | Migration |
+| --- | --- |
+| `Position`, `Point`, `LineString`, `Polygon`, `MultiPoint`, `MultiLineString`, `MultiPolygon`, `Feature`, `FeatureCollection` | Import the same type directly from `geojson`. |
+| `AnyGeoJson` | Use `SimpleFeatureCollection` for editable data, or a union of `Feature` and `FeatureCollection` from `geojson` for the former broad union. |
+| `Style` | Define the styles your application uses through the layer's typed props. The old type was not used by the editing API. |
+| `toDeckColor`, `utils`, `_memoize` | Move general color, array, and memoization helpers into your application or use an existing application utility. These are implementation details rather than editing APIs. |
+
+```ts
+import type {Feature, FeatureCollection, Point, Position} from 'geojson';
+import type {
+  Color,
+  SimpleFeatureCollection,
+  SimpleGeometry,
+  Viewport
+} from '@deck.gl-community/editable-layers';
+```
+
+`SimpleFeature`, `SimpleFeatureCollection`, `SimpleGeometry`,
+`SimpleGeometryCoordinates`, and `PolygonGeometry` remain available, as do `Color`,
+`Viewport`, edit-event types, and the helpers for custom edit handles. `Viewport` is
+the editing mode's viewport state shape; it is distinct from deck.gl's viewport class.
+Layer, widget, and edit-mode exports keep their existing names and behavior.
+Imports of standard GeoJSON types preserve their geometry and property generics.
+
 ## v9.4.6
 
 ### Removed `@deck.gl-community/three`
@@ -87,36 +118,7 @@ function handleModeData(props: ModeProps<SimpleFeatureCollection>) {
 
 GeoJSON's `FeatureCollection<SimpleGeometry>` is also compatible. Validate or narrow
 broader GeoJSON input before editing; `GeometryCollection` is not supported by the
-edit modes.
-
-#### Public export cleanup {/* #public-export-cleanup */}
-
-v10 removes redundant GeoJSON aliases and implementation helpers
-from `@deck.gl-community/editable-layers`. This is a breaking change to public imports:
-
-| Removed export | Migration |
-| --- | --- |
-| `Position`, `Point`, `LineString`, `Polygon`, `MultiPoint`, `MultiLineString`, `MultiPolygon`, `Feature`, `FeatureCollection` | Import the same type directly from `geojson`. |
-| `AnyGeoJson` | Use `SimpleFeatureCollection` for editable data, or a union of `Feature` and `FeatureCollection` from `geojson` for the former broad union. |
-| `Style` | Define the styles your application uses through the layer's typed props. The old type was not used by the editing API. |
-| `toDeckColor`, `utils`, `_memoize` | Move general color, array, and memoization helpers into your application or use an existing application utility. These are implementation details rather than editing APIs. |
-
-```ts
-import type {Feature, FeatureCollection, Point, Position} from 'geojson';
-import type {
-  Color,
-  SimpleFeatureCollection,
-  SimpleGeometry,
-  Viewport
-} from '@deck.gl-community/editable-layers';
-```
-
-`SimpleFeature`, `SimpleFeatureCollection`, `SimpleGeometry`,
-`SimpleGeometryCoordinates`, and `PolygonGeometry` remain available, as do `Color`,
-`Viewport`, edit-event types, and the helpers for custom edit handles. `Viewport` is
-the editing mode's viewport state shape; it is distinct from deck.gl's viewport class.
-Layer, widget, and edit-mode exports keep their existing names and behavior.
-Imports of standard GeoJSON types preserve their geometry and property generics.
+edit modes. The existing `Feature` and `FeatureCollection` re-exports remain available.
 
 #### SnappableMode strategies
 
