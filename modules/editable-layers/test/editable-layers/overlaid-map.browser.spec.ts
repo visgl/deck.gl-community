@@ -320,7 +320,9 @@ test('rectangle selection uses the map canvas in overlaid mode without panning t
 
     expect.soft(innerEditableLayer).toBeDefined();
     expect.soft(innerEditableLayer?.props.eventTarget).toBe(map.getCanvas());
-    expect.soft(innerEditableLayer?.state._editableLayerState.eventTarget).toBe(map.getCanvas());
+    expect
+      .soft(innerEditableLayer?.state._editableLayerState.input.eventTarget)
+      .toBe(map.getCanvas());
     expect.soft(innerEditableLayer?._isEditing()).toBe(true);
     expect.soft(selected).toHaveLength(1);
     expect.soft(map.getCenter().lng).toBeCloseTo(center.lng, 8);
