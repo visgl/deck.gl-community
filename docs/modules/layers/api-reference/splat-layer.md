@@ -93,8 +93,12 @@ do not bound allocated GPU bytes. See [Bounded refinement](#bounded-refinement) 
 | `support` | `3` | Gaussian support in standard deviations, between 1 and 6. |
 | `alphaCutoff` | `1/255` | Minimum retained fragment contribution. |
 | `hierarchy` | `null` | Finest source at error zero, followed by increasing finite local error bounds. |
+| `maxSplats` | `Infinity` | Per-layer Gaussian submission budget. A finite value uses screen error and optional foveation to distribute detail independently across visible owners. |
 | `maxTotalSplats` | `Infinity` | Aggregate settled submission cap across participating visible SplatLayers on one deck/device. The strictest supplied value wins. |
+| `maxRenderPixels` | `Infinity` | Maximum shared accumulation-target pixels across views. Opaque drawing and picking stay at host resolution. |
 | `pixelError` | `0.75` | Device-pixel bound used to select a spatial aggregate. |
+| `foveationStrength` | `0` | Screen-center priority from 0 to 1 for a finite `maxSplats` budget; it does not lower an owner's requested screen error. |
+| `getCoverageWeight` | `1` | Per-owner optical coverage multiplier. This is primarily for composing transitions; it multiplies owner opacity independently of `getColor`. |
 | `getDeformation` | `[1, 0, 0]` | Bend height, stable phase and flex multiplier. |
 | `deformationStrength` | `0` | Bend amplitude as a fraction of owner height. |
 | `deformationTime` | `null` | Seconds; null uses the shared deck timeline. |
