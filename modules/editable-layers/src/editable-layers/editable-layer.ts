@@ -6,7 +6,7 @@
 
 import type {CompositeLayerProps, DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {EventManager, Pan, MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
+import type {MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
 
 import {
   DraggingEvent,
@@ -19,76 +19,8 @@ import {
   ScreenCoordinates
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
-
-const NATIVE_EVENT_HANDLERS: Record<string, keyof EditableLayer> = {
-  pointerdown: '_onNativeClick',
-  click: '_onNativeClick',
-  dblclick: '_onNativeClick',
-  mousedown: '_onNativeMapInteraction',
-  touchstart: '_onNativeMapInteraction',
-  touchmove: '_onNativeMapInteraction',
-  touchend: '_onNativeMapInteraction',
-  touchcancel: '_onNativeMapInteraction'
-};
-
-export const EVENT_TYPES = [
-  'click',
-  'pointermove',
-  'panstart',
-  'panmove',
-  'panend',
-  'pancancel',
-  'keyup',
-  'dblclick'
-];
-
-type TouchActionLease = {
-  owners: Set<object>;
-  previousTouchAction: string;
-  managedTouchAction: string;
-};
-
-// Several editable layers may share one map canvas; restore its style after the last layer leaves.
-const TOUCH_ACTION_LEASES = new WeakMap<HTMLElement, TouchActionLease>();
-
-function acquireTouchAction(target: HTMLElement, owner: object) {
-  let lease = TOUCH_ACTION_LEASES.get(target);
-  if (!lease) {
-    lease = {
-      owners: new Set(),
-      previousTouchAction: target.style.touchAction,
-      managedTouchAction: target.style.touchAction
-    };
-    TOUCH_ACTION_LEASES.set(target, lease);
-  } else if (target.style.touchAction !== lease.managedTouchAction) {
-    // Treat a style change made while a target is leased as the application's new baseline.
-    lease.previousTouchAction = target.style.touchAction;
-  }
-  lease.owners.add(owner);
-}
-
-function recordTouchAction(target: HTMLElement) {
-  const lease = TOUCH_ACTION_LEASES.get(target);
-  if (lease) {
-    lease.managedTouchAction = target.style.touchAction;
-  }
-}
-
-function releaseTouchAction(target: HTMLElement, owner: object, touchActionBeforeDestroy: string) {
-  const lease = TOUCH_ACTION_LEASES.get(target);
-  if (!lease || !lease.owners.delete(owner)) {
-    return;
-  }
-  if (lease.owners.size > 0) {
-    target.style.touchAction = touchActionBeforeDestroy;
-    return;
-  }
-  target.style.touchAction =
-    touchActionBeforeDestroy === lease.managedTouchAction
-      ? lease.previousTouchAction
-      : touchActionBeforeDestroy;
-  TOUCH_ACTION_LEASES.delete(target);
-}
+import {EditableLayerInput, NATIVE_EVENT_HANDLERS} from './editable-layer-input';
+export {EVENT_TYPES} from './editable-layer-input';
 
 // TODO(v9): remove generic layer
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -148,12 +80,14 @@ export abstract class EditableLayer<
   // TODO: implement onCancelDragging (e.g. drag off screen)
 
   initializeState() {
-    const canvas = this.context.deck.getCanvas?.();
+    const canvas = this.context.deck.getCanvas?.() || null;
     // @ts-expect-error accessing protected props
     const deckEventManager = this.context.deck.eventManager;
-    // React <DeckGL> renders children such as a base map above the canvas, so Deck listens
-    // on a wrapper containing both. Native input must use that element to receive their clicks.
-    const deckEventRoot: HTMLElement | undefined = deckEventManager?.getElement?.() || canvas;
+    const input = new EditableLayerInput({
+      canvas,
+      deckEventManager,
+      onEvent: this._forwardEventToCurrentLayer.bind(this)
+    });
     this.setState({
       _editableLayerState: {
         // Picked objects at the time the pointer went down
@@ -165,29 +99,18 @@ export abstract class EditableLayer<
         pressScreenCoords: null,
         didDrag: false,
         canvas,
-        deckEventRoot,
-        eventTarget: this.props.eventTarget || deckEventRoot,
-        // This token survives layer replacement so the original target lease can be released.
-        touchActionOwner: {},
-        // Native clicks bypass the recognizer's 300ms double-click failure delay.
-        gestureEventTypes: deckEventRoot
-          ? EVENT_TYPES.filter(type => !NATIVE_EVENT_HANDLERS[type])
-          : EVENT_TYPES,
-
-        // Retain one callback for registration, layer replacement, and cleanup.
-        eventHandler: this._forwardEventToCurrentLayer.bind(this)
+        input
       }
     });
-
-    this._addEventHandlers();
+    input.setTarget(this.props.eventTarget || canvas);
   }
 
   updateState(params: UpdateParameters<this>) {
     super.updateState(params);
-    const {eventTarget, deckEventRoot} = this.state._editableLayerState;
-    const nextTarget = this.props.eventTarget || deckEventRoot;
-    if (nextTarget !== eventTarget) {
-      this._removeEventHandlers();
+    const {input, canvas} = this.state._editableLayerState;
+    const nextTarget = this.props.eventTarget || canvas;
+    if (nextTarget !== input.eventTarget) {
+      input.setTarget(nextTarget);
       if (this.state._editableLayerState.pointerDownMapCoords) {
         // onEdit may replace layers; finish Deck's reconciliation before notifying the app.
         queueMicrotask(() => {
@@ -196,79 +119,20 @@ export abstract class EditableLayer<
         });
       }
       this._resetPointerDownState();
-      this.setState({
-        _editableLayerState: {...this.state._editableLayerState, eventTarget: nextTarget}
-      });
-      this._addEventHandlers();
     }
   }
 
   finalizeState() {
-    this._removeEventHandlers();
-  }
-
-  _addEventHandlers() {
-    // @ts-expect-error accessing protected props
-    const deckEventManager = this.context.deck.eventManager;
-    const editableState = this.state._editableLayerState;
-    const {eventHandler, deckEventRoot, eventTarget, gestureEventTypes} = editableState;
-    if (eventTarget && eventTarget !== deckEventRoot) {
-      acquireTouchAction(eventTarget, editableState.touchActionOwner);
-    }
-    // MapboxOverlay forwards map callbacks directly to Deck, bypassing its event
-    // manager. Recognize input on the supplied map canvas instead of intercepting
-    // private Deck/Mapbox handlers or changing the render canvas's pointer events.
-    const eventManager =
-      eventTarget && eventTarget !== deckEventRoot
-        ? new EventManager(eventTarget, {recognizers: [[Pan, {threshold: 3}]], cssProps: {}})
-        : deckEventManager;
-    editableState.eventManager = eventManager;
-    for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
-      eventTarget?.addEventListener(eventType, eventHandler);
-    }
-
-    for (const eventType of gestureEventTypes) {
-      eventManager.on(eventType, eventHandler, {
-        // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
-        priority: 100
-      });
-    }
-    if (eventTarget && eventTarget !== deckEventRoot) {
-      recordTouchAction(eventTarget);
-    }
-  }
-
-  _removeEventHandlers() {
-    const {
-      eventHandler,
-      deckEventRoot,
-      eventTarget,
-      eventManager,
-      gestureEventTypes,
-      touchActionOwner
-    } = this.state._editableLayerState;
-    const touchActionBeforeCleanup =
-      eventTarget && eventTarget !== deckEventRoot ? eventTarget.style.touchAction : undefined;
-    for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
-      eventTarget?.removeEventListener(eventType, eventHandler);
-    }
-
-    for (const eventType of gestureEventTypes) {
-      eventManager.off(eventType, eventHandler);
-    }
-    if (eventTarget && eventTarget !== deckEventRoot) {
-      eventManager.destroy();
-      // Release our recognizer's CSS without overwriting later application changes.
-      releaseTouchAction(eventTarget, touchActionOwner, touchActionBeforeCleanup!);
-    }
+    this.state._editableLayerState.input.destroy();
   }
 
   // The original listener forwards native and recognized events after layer replacement.
   _forwardEventToCurrentLayer(event: MjolnirEvent | Event) {
     const currentLayer = this.getCurrentLayer() || this;
-    const handlerName =
-      'srcEvent' in event ? `_on${event.type}` : NATIVE_EVENT_HANDLERS[event.type];
-    const handler = currentLayer[handlerName];
+    const handlerName = (
+      'srcEvent' in event ? `_on${event.type}` : NATIVE_EVENT_HANDLERS[event.type]
+    ) as keyof EditableLayer | undefined;
+    const handler = handlerName && currentLayer[handlerName];
     if (!handler) {
       console.warn(`no handler for mjolnir.js event ${event.type}`); // eslint-disable-line
       return;
