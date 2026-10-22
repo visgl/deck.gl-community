@@ -78,16 +78,54 @@ The `mode` property defines the mode used to handle user interaction events (e.g
 
 There are a extensive number of modes that come out-of-the-box with from '@deck.gl-community/editable-layers';. 
 
+#### `autoPreventMapInteractions` (Boolean, optional)
+
+- Default: `true`
+
+Keeps the presses the mode uses (edit handles, the `TranslateMode` selection, drag-to-draw) from
+the parent MapLibre/Mapbox map; other mouse presses pan and click the map. Modes declare these
+presses with `ownsPointerDown()`. Multi-touch navigation remains available; set to `false` to
+manage gesture propagation yourself.
+
+#### `eventTarget` (HTMLElement, optional) {/* #eventtarget */}
+
+- Default: `null` (use deck.gl's render canvas)
+
+The input element when it differs from deck.gl's render canvas. For overlaid
+`MapboxOverlay`, use `map.getCanvas()` and keep it aligned with the rendered viewport.
+
+```ts
+new EditableGeoJsonLayer({
+  // Other editing props...
+  eventTarget: map.getCanvas()
+});
+```
+
+Changing the target cancels active drawing; removing the layer releases listeners and restores
+the target's touch style.
+
 #### `modeConfig` (Object, optional)
 
 - Default: `null`
 
 An arbitrary object used to further configure the current mode.
 
-Snapping-related `modeConfig` properties:
+Snapping-related `modeConfig` properties (used by `SnappableMode`):
 
-- `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as translate mode.
-- `additionalSnapTargets` (Object[], optional) - An array of GeoJSON Features that can be snapped to. This property only needs to be specified if you want to snap to features in other deck.gl layers. All features in this `EditableGeoJsonLayer` will be snap targets.
+- `enableSnapping` (Boolean, optional) - Enables snapping for modes that support snapping such as `TranslateMode`.
+- `edgeSnapping` (Boolean, optional) - When `true`, snap targets include the nearest point on any edge of a candidate feature, not just its vertices. **The default policy requires `viewport` to be set**.
+- `snapper` (`Snapper`, optional) - Custom `Snapper` implementation. Its `snap(event, props, excludedFeatureIndexes)` method receives the raw current pointer event, `ModeProps<SimpleFeatureCollection>`, and editable-layer feature indexes to exclude. Return `{mapCoords, featureIndex?}` or `null`; omit `featureIndex` for external targets. The policy governs draw, edit and source-handle targets with or without `edgeSnapping`. Preserve the input event, props and exclusion set.
+- `additionalSnapTargets` (Object[], optional) - An array of GeoJSON Features that can be snapped to. Use this for features outside the edited data, including features rendered by other deck.gl layers. Coordinates must already be converted to this editable layer's local data frame, before its `modelMatrix`. A source layer's coordinate system, origin or model matrix is not inferred from a GeoJSON feature. Convert positions when those transforms differ. All features in this `EditableGeoJsonLayer` are also snap targets unless `snapToAdditionalTargetsOnly` is set.
+- `snapToAdditionalTargetsOnly` (Boolean, optional) - When `true`, the default snapper only considers `additionalSnapTargets` as snap targets. Editable-layer features remain available as source handles during translation. The default is `false`, preserving the existing combined target set. Custom `Snapper` implementations select their own targets and must apply this policy themselves if needed.
+- `viewport` (Viewport, optional) - The current deck.gl viewport. Required for certain snapping behavior.
+
+The default policy uses the layer's `pickingRadius` prop as its snap distance threshold.
+Custom `snapper` policies can define their own threshold and viewport requirements.
+Their returned `mapCoords` must use the editable data's local frame, before its model matrix.
+A policy querying another layer may project a source point with that layer, then convert the
+winning pixel XYZ with `props.projection?.unproject(pixelXYZ)`; return `null` if the projection
+is unavailable or conversion fails, and omit `featureIndex` for the external result.
+Do not return raw source-frame coordinates.
 
 #### `selectedFeatureIndexes` (Array, optional)
 

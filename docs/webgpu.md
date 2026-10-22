@@ -10,7 +10,7 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | --- | --- | :---: | :---: | --- |
 | `@deck.gl-community/layers` | `SkyboxLayer` | ✅ | ✅ | Native GLSL and WGSL cubemap shaders. |
 | `@deck.gl-community/layers` | `FlameTrailLayer` | ✅ | ✅ | Native GLSL/WGSL flames and embers. TerrainExtension height-map fitting requires WebGL2; elevated XYZ paths work on both backends. |
-| `@deck.gl-community/layers` | [`VolumetricVideoLayer`](./modules/layers/api-reference/volumetric-video-layer.md) | ✅ | ❌ | WebGL2 texture-array history and GLSL splats; requires a browser-supported video codec. |
+| `@deck.gl-community/layers` | [`VolumetricVideoLayer`](./modules/layers/api-reference/volumetric-video-layer.md) | ✅ | ✅ | Native GLSL/WGSL splats and texture-array history; requires a browser-supported video codec. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `line` mode | ✅ | ✅ | Portable `LineLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `arc` mode | ✅ | ✅ | Browser-verified upstream `ArcLayer` and native WGSL marker geometry. |
 | `@deck.gl-community/layers` | `DependencyArrowLayer`, `path` mode | ✅ | ✅ | Browser-verified upstream `PathLayer`, outlines, and native WGSL markers. |
@@ -43,9 +43,8 @@ deck.gl-community is adding WebGPU support incrementally while continuing to sup
 | `@deck.gl-community/editable-layers` | GeoJSON paths, polygons, and edit handles | ✅ | ✅ | Browser-verified `EditableGeoJsonLayer` rendering in `ModifyMode`, including the WebGPU picking-width shader path. |
 | `@deck.gl-community/editable-layers` | Editing and selection interactions | ✅ | 🚧 | Pointer, drag, snapping, and selection behavior still require browser interaction coverage on WebGPU. |
 | `@deck.gl-community/basemap-layers` | `BasemapLayer` | ✅ | 🚧 | Support depends on the selected style's polygon, path, and label sublayers. |
-| `@deck.gl-community/layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with instanced deformation and owner picking; optical shadow integration remains WebGL-only. |
-| `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Connected wood and Gaussian foliage with GLSL/WGSL wind; deck.gl shadows remain WebGL-only. |
-| `@deck.gl-community/three` | `TreeLayer` | ✅ | ✅ | Compatibility import for the canonical native TreeLayer. |
+| `@deck.gl-community/layers` | `SplatLayer` | ✅ | ✅ | Prepared anisotropic Gaussians with instanced deformation, owner picking, and weighted or sorted transparency; no public foliage-shadow integration. |
+| `@deck.gl-community/layers` | `TreeLayer` | ✅ | ✅ | Connected wood and Gaussian foliage with GLSL/WGSL wind; no built-in foliage-shadow integration. |
 | `@deck.gl-community/leaflet` | Leaflet map overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/bing-maps` | Bing Maps overlay | ✅ | ❌ | A host-owned WebGL context cannot be switched to WebGPU. |
 | `@deck.gl-community/widgets` | `DeviceManagerController` and `DeviceTabsWidget` | ✅ | ✅ | Selects and attaches an independently managed real rendering device. |

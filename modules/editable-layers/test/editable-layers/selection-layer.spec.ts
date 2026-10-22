@@ -114,3 +114,77 @@ test('rectangle selection retains deck.gl GPU picking', () => {
   expect(onSelect).toHaveBeenCalledExactlyOnceWith({pickingInfos: []});
   expect(updateLayers).not.toHaveBeenCalled();
 });
+
+test('rectangle selection deduplicates picked objects without conflating same-index tile features', () => {
+  const {layer, onSelect, pickObjects} = makeSelectionLayer();
+  const feature = {
+    layer: {id: 'points'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
+  const featureFromAnotherTile = {
+    ...feature,
+    object: {type: 'Feature', properties: {tile: 'another'}}
+  };
+  pickObjects.mockReturnValue([
+    feature,
+    featureFromAnotherTile,
+    {layer: feature.layer, index: 3, isGuide: true},
+    {
+      layer: feature.layer,
+      index: 7,
+      isGuide: true,
+      object: {properties: {guideType: 'editHandle'}}
+    },
+    {...feature, index: 7}
+  ] as any);
+
+  layer._selectRectangleObjects(COORDINATES);
+
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({
+    pickingInfos: [feature, featureFromAnotherTile]
+  });
+});
+
+test('polygon selection deduplicates picked objects without conflating same-index tile features', () => {
+  const {layer, onSelect, pickObjects, updateLayers} = makeSelectionLayer();
+  const feature = {
+    layer: {id: 'points'},
+    index: 0,
+    object: {type: 'Feature', properties: {guideType: 'editHandle'}}
+  };
+  const featureFromAnotherTile = {
+    ...feature,
+    object: {type: 'Feature', properties: {tile: 'another'}}
+  };
+  pickObjects.mockImplementation(() => {
+    expect(layer.state.isSelecting).toBe(true);
+    expect(updateLayers).toHaveBeenCalledOnce();
+    return [
+      feature,
+      featureFromAnotherTile,
+      {layer: feature.layer, index: 3, isGuide: true},
+      {
+        layer: feature.layer,
+        index: 7,
+        isGuide: true,
+        object: {properties: {guideType: 'editHandle'}}
+      },
+      {...feature, index: 7},
+      {layer, index: 0}
+    ] as any;
+  });
+
+  layer._selectPolygonObjects(COORDINATES);
+
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith({
+    pickingInfos: [feature, featureFromAnotherTile]
+  });
+});
+
+test('selection forwards the application interaction override to its editable sublayer', () => {
+  const layer = new SelectionLayer({id: 'selection', autoPreventMapInteractions: false});
+  layer.state = {selectionMask: [], isSelecting: false};
+  const editable = layer.renderLayers()[0];
+  expect(editable.props.autoPreventMapInteractions).toBe(false);
+});

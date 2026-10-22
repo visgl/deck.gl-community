@@ -20,7 +20,6 @@
     "@deck.gl-community/layers": "workspace:*",
     "@deck.gl-community/panels": "workspace:*",
     "@deck.gl-community/playground": "workspace:*",
-    "@deck.gl-community/three": "workspace:*",
     "@deck.gl-community/timeline-layers": "workspace:*",
     "@deck.gl/aggregation-layers": "~9.4.0",
     "@deck.gl/core": "~9.4.0",

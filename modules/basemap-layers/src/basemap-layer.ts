@@ -9,11 +9,14 @@ import {
 } from '@deck.gl/core';
 import {load} from '@loaders.gl/core';
 import {
+  createDemTileset,
   getBasemapLayers,
   getSourceLoadOptions,
   getStyleDefinitionZoomLimits,
   getStyleSourceLayers,
   getTilePyramidProps,
+  getVectorTileLoader,
+  isVectorTileSource,
   VECTOR_TILE_ZOOM_OFFSET
 } from './globe-layers';
 import {
@@ -24,8 +27,10 @@ import {
   releaseSharedLabelPlacement
 } from './label-placement';
 import {MapStyleLoader, type MapStyleLoaderOptions} from './map-style-loader';
+import {getDemUnpackVector} from './hillshade-layer';
 import {getStyleZoomKey} from './style-accessor';
 import type {BasemapStyle, ResolvedBasemapStyle} from './style-resolver';
+import {GlyphStore} from './glyph-store';
 import {loadSpriteAtlases} from './sprite';
 import type {SpriteAtlas} from './sprite';
 import type {LabelFontFamily} from './text-font';
@@ -82,10 +87,12 @@ export type BasemapLayerProps = {
     config?: BasemapGlobeConfig;
   };
   /**
-   * Overrides the label font. By default each symbol layer's `text-font` is mapped to a CSS
-   * family list, weight and style (see the module docs). A string replaces the family list for
-   * every label; a function receives the `text-font` names and returns a family list or
-   * `LabelFont` fields. Pass a stable function: tiles regenerate when it changes.
+   * Draws labels with the browser's fonts instead of the style's `glyphs`. By default labels are
+   * drawn with the style's glyphs, as in MapLibre GL JS, and a style without `glyphs` maps each
+   * symbol layer's `text-font` to a CSS family list, weight and style (see the module docs). A
+   * string replaces the family list for every label; a function receives the `text-font` names
+   * and returns a family list or `LabelFont` fields. Pass a stable function: tiles regenerate when
+   * it changes.
    */
   fontFamily?: LabelFontFamily | null;
   /**
@@ -141,9 +148,14 @@ type BasemapLayerState = {
   zoomKey: string | null;
   /** Sprites of the resolved style, once loaded. */
   spriteAtlases: SpriteAtlas[] | null;
+  /** The glyphs of the resolved style's `glyphs` URL, or null without one. */
+  glyphs: GlyphStore | null;
   /** Decoded data caches owned by this basemap, shared across style runs. */
   tilesets: Map<BasemapSource, SharedTileset2D>;
-  /** The source layers each tileset decodes, as JSON (see `getStyleSourceLayers`). */
+  /**
+   * What each tileset decodes: for a vector source its source layers, as JSON (see
+   * `getStyleSourceLayers`), for a raster-dem source its encoding.
+   */
   tilesetSourceLayers: Map<BasemapSource, string>;
   /** Loading configuration used to construct the current source caches. */
   tileLoadOptions: unknown;
@@ -195,7 +207,8 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       tilesetSourceLayers: new Map(),
       tileLoadOptions: null,
       tileFetch: null,
-      spriteAtlases: null
+      spriteAtlases: null,
+      glyphs: null
     };
   }
 
@@ -255,7 +268,13 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       const loadToken = this.state.loadToken + 1;
       logBasemapLayerEvent('Clearing basemap style');
       this.clearSourceTilesets();
-      this.setState({resolvedStyle: null, loadError: null, loadToken, spriteAtlases: null});
+      this.setState({
+        resolvedStyle: null,
+        loadError: null,
+        loadToken,
+        spriteAtlases: null,
+        glyphs: null
+      });
       return;
     }
 
@@ -281,7 +300,12 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
             sources: Object.keys(resolvedStyle.sources || {}),
             layers: resolvedStyle.layers?.length || 0
           });
-          this.setState({resolvedStyle, loadError: null, spriteAtlases: null});
+          this.setState({
+            resolvedStyle,
+            loadError: null,
+            spriteAtlases: null,
+            glyphs: getGlyphStore(resolvedStyle, style, loadOptions)
+          });
           this.loadSprites(resolvedStyle, style, loadOptions, loadToken);
         }
       })
@@ -373,7 +397,13 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
 
   private updateSourceTilesets(style: ResolvedBasemapStyle): void {
     const sources = new Set(
-      Object.values(style.sources || {}).filter(source => source.type === 'vector' && source.tiles)
+      Object.values(style.sources || {}).filter(source => isVectorTileSource(source))
+    );
+    // The decoded tiles of a raster-dem source are shared by its hillshade layers.
+    const demSources = new Set(
+      Object.values(style.sources || {}).filter(
+        source => source?.type === 'raster-dem' && source.tiles
+      )
     );
     const optionsChanged =
       this.state.tileLoadOptions !== this.props.loadOptions ||
@@ -383,12 +413,16 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
     const sourceLayers = getStyleSourceLayers(style, this.props.globe);
     const getDecodedLayers = (source: BasemapSource) =>
       (getSourceLoadOptions(this.props.loadOptions, sourceLayers.get(source)) as any)?.mvt?.layers;
-    const sourceLayerKeys = new Map(
-      [...sources].map(source => [source, JSON.stringify(getDecodedLayers(source) ?? null)])
-    );
+    const sourceLayerKeys = new Map([
+      ...[...sources].map(
+        source => [source, JSON.stringify(getDecodedLayers(source) ?? null)] as const
+      ),
+      // An encoding edited in place reloads the source's tiles.
+      ...[...demSources].map(source => [source, `dem:${getDemUnpackVector(source)}`] as const)
+    ]);
     for (const [source, tileset] of this.state.tilesets) {
       if (
-        !sources.has(source) ||
+        !sourceLayerKeys.has(source) ||
         optionsChanged ||
         this.state.tilesetSourceLayers.get(source) !== sourceLayerKeys.get(source)
       ) {
@@ -413,8 +447,15 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
           ...getTilePyramidProps(source),
           tileSize: source.tileSize || 512,
           zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
-          getTileData: tile => loader.getTileData(tile)
+          getTileData: getVectorTileLoader(source, loader)
         });
+        this.state.tilesets.set(source, tileset);
+        this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);
+      }
+    }
+    for (const source of demSources) {
+      if (!this.state.tilesets.has(source)) {
+        const tileset = createDemTileset(source, this.props.loadOptions);
         this.state.tilesets.set(source, tileset);
         this.state.tilesetSourceLayers.set(source, sourceLayerKeys.get(source)!);
       }
@@ -452,8 +493,36 @@ export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
       loadOptions: this.props.loadOptions,
       spriteAtlases: this.state.spriteAtlases,
       fontFamily: this.props.fontFamily,
+      // A label font of the caller's is drawn with the browser's fonts.
+      glyphs: this.props.fontFamily ? null : this.state.glyphs,
       labelPlacement: this.getLabelPlacement(),
       tilesets: this.state.tilesets
     });
   }
+}
+
+/**
+ * The glyph store of a style's `glyphs` URL, or null without one. A relative URL resolves against
+ * the style URL, as sprite URLs do.
+ */
+function getGlyphStore(
+  resolvedStyle: ResolvedBasemapStyle,
+  style: BasemapLayerProps['style'],
+  loadOptions: BasemapLayerProps['loadOptions']
+): GlyphStore | null {
+  const url = resolvedStyle.glyphs;
+  if (typeof url !== 'string' || !url) {
+    return null;
+  }
+  const options = (loadOptions || {}) as {
+    baseUrl?: string;
+    fetch?: typeof fetch;
+    fetchOptions?: RequestInit;
+  };
+  return new GlyphStore({
+    url,
+    baseUrl: typeof style === 'string' ? style : options.baseUrl,
+    fetch: options.fetch,
+    fetchOptions: options.fetchOptions
+  });
 }

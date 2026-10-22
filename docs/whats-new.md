@@ -4,16 +4,85 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
-- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new) supports WebGL2 and WebGPU video-frame uploads, static-pixel filtering, GPU mip generation, and volume rendering.
+- `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
+  (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
+  `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
+- The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
+  in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
+  their `.js` extension.
+- `TreeLayer` connected wood now follows `updateTriggers.getTrunkColor`, `getCoverageWeight` and
+  authored wind changes. Before, the wood kept its old values until its data changed.
+
+- `SplatLayer` and `TreeLayer` no longer throw when a `MapView` repeats wrapped world copies
+  (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
+  render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
+
+- `TreeLayer` no longer rewrites every canopy color and crop attribute when an unrelated prop
+  changes, such as `windTime`, `opacity` or `highlightedObjectIndex`. Extension accessors and their
+  update triggers now reach the wood, crop and canopy sub-layers.
+
+- `EditableGeoJsonLayer` in interleaved MapLibre/Mapbox maps keeps only the presses the mode uses
+  (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
+  in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
+
+## v9.4.6
+
+- **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import
+  `TreeLayer` and its types from `@deck.gl-community/layers`.
+
+- `TreeLayer` and `SplatLayer` spend about a quarter of the CPU time per moving frame over large
+  groves: a generated 17,000-tree orchard with ~15,000 crowns in view orbits at ~11 ms instead of
+  ~48 ms per frame, with the same rendered selection. Trees crossing the view edge keep their
+  instance slots and upload only their own rows, optical fades rewrite only the changed coverage, and
+  the shared canopy budget no longer schedules refinements once the coverage floor exhausts it. A
+  controlled `highlightedObjectIndex` now highlights that source tree or owner in every wood, canopy
+  and crop partition, as `autoHighlight` does.
+
+## v9.4.5
+
+- `TreeLayer` and `SplatLayer` canopies stay visible in interleaved `MapboxOverlay`/`MapLibreOverlay`
+  maps after zooming or panning: the Gaussian depth pre-pass now clears its private target instead
+  of inheriting the basemap's `clearCanvas: false`. Small camera moves and orbits keep the shared
+  canopy budget rather than refining every visible crown, and `autoHighlight` highlights the hovered
+  tree across wood and canopy sub-layers instead of unrelated trees at the same row index.
+
+## v9.4.3
+
+- `SharedTile2DLayer` and `SharedTileset2D` skip tiles beyond the horizon in a `GlobeView`, as deck.gl's
+  `TileLayer` does, instead of requesting the far side of the globe. `BasemapLayer` vector and hillshade
+  sources on a globe request fewer tiles as a result.
+
+- [`VolumetricVideoLayer`](/docs/modules/layers/api-reference/volumetric-video-layer) (new)
   turns MP4/MOV frames into a GPU-rendered image-X/image-Y/time volume with `currentFrame`,
   `frameTrail`, native-pixel sampling, and GPU static-pixel removal. The
-  [local-file demo](/examples/layers/volumetric-video) includes stabilized camera controls
-  and bounded GPU history that preserves the last working volume on allocation failure. Later valid
+  [community-site demo](/examples/layers/volumetric-video) uses shared device tabs and a settings panel;
+  the standalone version supports local MP4/MOV files and a WebGL/WebGPU toggle. Static filtering
+  applies to every frame, including the selected frame. Both demos include stabilized camera controls
+  and bounded GPU history
+  that preserves the last working volume on allocation failure. Later valid
   seeks recover from decode failures, failed writes cannot expose stale frame identities,
   and GPU filter retries restore playback controls. Metadata callbacks can replace the
   live layer without discarding its newly allocated history.
 
+- `SnappableMode` adds optional edge snapping and mode-specific click, drag, and source-handle
+  strategies for drawing and editing. Initial clicks and drag-to-draw corners resolve targets before a guide is rendered.
+  Committed shapes use the same snapped position as their preview, and drag events provide the
+  current handle picks even before a pointer move is cached. Existing custom wrappers remain supported. Edge proximity
+  is measured in screen pixels, including Cartesian views and bounded elevated segments. Layer-provided projection accounts for
+  offset origins and model matrices, retaining local coordinates in snap results and padding
+  omitted origin altitude with zero. Additional targets must be converted to the editable data frame.
+  `modeConfig.snapper` accepts a custom `Snapper` policy; external targets omit editable feature indexes.
+  `modeConfig.snapToAdditionalTargetsOnly` makes the default policy target only supplied external
+  features while retaining editable-layer source handles.
+
+- `SelectionLayer` polygon selection masks the full picking rectangle, fixing false positives
+  outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
+  mask synchronously instead of waiting 250 ms.
+
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
+
+- Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,
+  keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 - **react-fiber POC:** `DeckCanvas` attaches multiple React presentation canvases to
   one shared Deck, with scoped views, layers and widgets. A four-city standalone
@@ -27,9 +96,11 @@ This page lists module additions and major changes in each release. For detailed
 
 - The private Vega renderer adds circle/square symbols and stable GPU cuboid entry/exit transitions, with a shared declarative filtering example.
 
-- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera and light-map culling include the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
+- Added reusable `SplatLayer` with direct prepared assets, constant/per-row `getSource`, heterogeneous instances, affine transforms, shared refinement budgets, optical transitions and WebGL2/WebGPU rendering. Camera culling includes the filtered footprint, including reduced-resolution targets. Existing `source` callers remain compatible; prepared sources support globally sorted alpha blending with compatible sources batched together and working buffers retained through refinement; streamed RAD and file-backed scene rendering remain separate upstream work.
 
-- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopies sort across trees, and woody refinement selects opaque meshes with structural roots retained at a distance. The old import temporarily re-exports the same constructor.
+- Native `TreeLayer` foliage and `SplatLayer` ship without built-in deck.gl foliage-shadow integration. Applications that require foliage shadows must provide them outside these renderers.
+
+- `TreeLayer` moves to native vis.gl rendering with one `getTree` traits accessor, Gaussian foliage, connected wood, eight species, explicit crops and GPU wind. Canopy refinement is per owner within SplatLayer's shared budget, and foliage uses SplatLayer's weighted order-independent compositing path by default. Woody refinement selects opaque meshes with structural roots retained at a distance. The old import temporarily re-exports the same constructor.
 
 - The playground adds a **Vega** tab with live JSON editing and shared declarative unit-layout and bar-chart examples.
 
@@ -182,6 +253,7 @@ Highlights:
 - **infovis-layers:** new animation, interval-block, and time-delta layers.
 - **widgets and panels:** new color legends, reusable panel components, floating dialogs, and binary and Apache Arrow data previews.
 - **react-fiber — new module:** a community fork of the React Fiber renderer for composing deck.gl layers and views as React elements.
+- **editable-layers:** isolates edits from interleaved MapLibre/Mapbox pans, keeps `guideType` features selectable, and resumes editing after two-finger navigation.
 
 ## v9.3
 

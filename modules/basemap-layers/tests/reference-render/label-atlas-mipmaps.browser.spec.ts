@@ -14,9 +14,13 @@
  * the eroded and the full-resolution strokes. Labels drawn in the reference scenes' own styles carry
  * about as much ink as MapLibre's with the half-size level, and 16 to 27% less with the full chain.
  *
- * Each case renders the labels of a reference scene alone (see `getLabelStyle`) with `BasemapLayer`.
- * With `VITE_LABEL_EDGES_RECORD=1`, MapLibre renders each case too, and both measures are written
- * to `__output__/label-atlas-mipmaps.json`.
+ * Each case renders the labels of a reference scene alone (see `getLabelStyle`) with `BasemapLayer`,
+ * without the style's `glyphs`, so that they are drawn from the 64 px label font atlas. With
+ * `VITE_LABEL_EDGES_RECORD=1`, MapLibre renders each case too, and both measures are written to
+ * `__output__/label-atlas-mipmaps.json`.
+ *
+ * Labels drawn from the style's `glyphs` share MapLibre's 24 px glyphs, sampling and edge: their
+ * strokes carry MapLibre's ink, within {@link MAX_GLYPH_INK_DIFFERENCE}.
  */
 
 import '@fontsource/noto-sans/latin-400.css';
@@ -54,6 +58,13 @@ const MIN_STEM_PEAK = 0.8;
  */
 const MIN_INK_DENSITY = 0.6;
 
+/**
+ * Most that the stroke peak and ink density of labels drawn from the style's glyphs may differ from
+ * MapLibre's. They differ by less than 0.001 at 10 and 12 px; with the glyph edge smoothed no more
+ * than `TextLayer`'s `smoothing`, as the label font atlas's is, by 0.15 to 0.19.
+ */
+const MAX_GLYPH_INK_DIFFERENCE = 0.02;
+
 function measure(pixels: Uint8ClampedArray): LabelEdgeMetrics {
   const {width, height} = VIEWPORT;
   return measureLabelEdges(getInk(pixels, width, height, {background: 255, ink: 0}), width, height);
@@ -68,6 +79,7 @@ describe('label atlas mipmaps', () => {
 
   test.each(CASES)('$id', async mipmapCase => {
     const style = getLabelStyle(await loadReferenceStyle(SCENE.style), {size: mipmapCase.size});
+    delete style.glyphs;
     const candidate = await renderBasemapLayer(structuredClone(style), SCENE);
     const measured = measure(candidate.pixels);
     if (RECORD) {
@@ -77,6 +89,23 @@ describe('label atlas mipmaps', () => {
     expect(candidate.problems).toEqual([]);
     expect(measured.stemPeak).toBeGreaterThanOrEqual(MIN_STEM_PEAK);
     expect(measured.inkDensity).toBeGreaterThanOrEqual(MIN_INK_DENSITY);
+  }, 120_000);
+
+  test.each(CASES)('$id, from the style glyphs, as MapLibre', async mipmapCase => {
+    const style = getLabelStyle(await loadReferenceStyle(SCENE.style), {size: mipmapCase.size});
+    expect(style.glyphs).toBeTruthy();
+    const candidate = await renderBasemapLayer(structuredClone(style), SCENE);
+    const reference = await renderMapLibre(structuredClone(style), SCENE);
+    const measured = measure(candidate.pixels);
+    const maplibre = measure(reference.pixels);
+    if (RECORD) {
+      recorded[`${mipmapCase.id}, style glyphs`] = {maplibre, measured};
+    }
+    expect(candidate.problems).toEqual([]);
+    expect(Math.abs(measured.stemPeak - maplibre.stemPeak)).toBeLessThan(MAX_GLYPH_INK_DIFFERENCE);
+    expect(Math.abs(measured.inkDensity - maplibre.inkDensity)).toBeLessThan(
+      MAX_GLYPH_INK_DIFFERENCE
+    );
   }, 120_000);
 
   afterAll(async () => {

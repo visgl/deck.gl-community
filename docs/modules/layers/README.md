@@ -38,7 +38,7 @@ Release date: 2023
 - [`TreeLayer`](./api-reference/tree-layer.md): canonical procedural tree renderer
 
 - [`FlameTrailLayer`](./api-reference/flame-trail-layer.md) (WebGL2 and WebGPU)
-- [`VolumetricVideoLayer`](./api-reference/volumetric-video-layer.md) (WebGL2)
+- [`VolumetricVideoLayer`](./api-reference/volumetric-video-layer.md) (WebGL2 and WebGPU)
 - [`getVolumetricVideoHistoryBytes`](./api-reference/volumetric-video-layer.md#gpu-and-decoding)
 - `DependencyArrowLayer`
 - `PathMarkerLayer`

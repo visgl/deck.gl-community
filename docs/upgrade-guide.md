@@ -4,7 +4,15 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
-## Unreleased
+## v9.4.6
+
+### Removed `@deck.gl-community/three`
+
+The deprecated compatibility workspace has been removed. Import `TreeLayer`, `TreeLayerProps`,
+`TreeType`, `Season`, and `CropConfig` from `@deck.gl-community/layers` instead. This is a
+breaking package removal; previously published `@deck.gl-community/three` versions remain on npm.
+
+## v9.4.3
 
 `RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
 compensated for oversized rings may need their radius retuned. Angular sectors use the leaf
@@ -22,9 +30,16 @@ Sources and hierarchies are immutable; replace them when their columns change. S
 budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
 A tighter `maxRenderPixels` can take one frame to apply while visibility expands for the broader filter.
 Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
-(`MapView.repeat`), `GlobeView`, URL/RAD inputs and sorted
-transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
-for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream nested-render-pass path is fixed; overlapping views without clearing are supported.
+(`MapView.repeat`), `GlobeView` and URL/RAD inputs report explicit unsupported-input errors.
+`transparency: 'sorted'` is supported on WebGL2 and WebGPU, with additional selected-buffer memory
+and per-frame CPU sorting cost. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
+for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream
+nested-render-pass path is fixed; overlapping views without clearing are supported.
+
+#### Foliage shadows
+
+Native `TreeLayer` foliage and `SplatLayer` ship without built-in deck.gl foliage-shadow
+integration. Applications that require foliage shadows must provide them outside these renderers.
 
 ### `@deck.gl-community/layers`: native `TreeLayer`
 
@@ -63,6 +78,39 @@ GeoJSON's `FeatureCollection<SimpleGeometry>` is also compatible. Validate or na
 broader GeoJSON input before editing; `GeometryCollection` is not supported by the
 edit modes. The existing `Feature` and `FeatureCollection` re-exports remain available.
 
+#### SnappableMode strategies
+
+Existing `new SnappableMode(customMode)` wrappers keep source-handle snapping by default.
+Custom modes can implement `SnappableEditMode.getSnappingStrategy()` to choose
+`ClickSnappingStrategy`, `DragSnappingStrategy`, or `SourceSnappingStrategy`; returning
+`undefined` disables snapping. Strategy methods accept `ModeProps<SimpleFeatureCollection>`.
+Enable edge targets with `modeConfig.edgeSnapping` and supply the current viewport.
+`pickingRadius` controls the pixel threshold. Events resolve the target from the current screen
+position, including the first touch click and the first corner of drag-to-draw shapes; an existing
+rendered target guide is not required. Committed shapes and their preview share the resolved
+pointer position. Current drag-event handle picks take priority over the last hover cache. Source drags keep the real pointer-down origin until a target
+qualifies. `TransformMode` supports snapping directly and remains safe to wrap without duplicate
+snap guides. The legacy `SnappableMode._handler` inspection/replacement property remains available.
+Use `modeConfig.snapper` to provide a custom policy for target lookup, including external
+spatial indexes. Implement `Snapper.snap` with `ModeProps<SimpleFeatureCollection>` and
+omit `SnapResult.featureIndex` for external targets. Returning `null` suppresses targets
+for that lookup, including source-handle translation.
+
+The layer supplies an optional paired `ModeProps.projection` (`EditModeProjection`) for snap
+targets in planar views. It accounts for `coordinateOrigin`, offset coordinate systems,
+and `modelMatrix`; elevated edges retain projected depth before converting back to local data.
+Standalone modes without this pair retain viewport-based projection. This does not extend
+the existing unsnapped pointer-to-data conversion for offset editing; globe offsets are unverified.
+Two-element coordinate origins use zero altitude without mutating the supplied array.
+
+`additionalSnapTargets` is an array of features in the editable layer's local data frame,
+before its `modelMatrix`. It carries no source-layer transform metadata. When copying
+targets from a layer with a different coordinate system, origin or model matrix, convert
+their coordinates before supplying them; raw coordinates from another frame are unsupported.
+Set `snapToAdditionalTargetsOnly: true` to make the default snapper ignore editable-layer
+features as targets while retaining them as source handles. The default remains the combined
+target set. A custom `Snapper` selects its own targets and can apply the same policy directly.
+
 #### SelectionLayer polygon selection
 
 Polygon selection no longer waits 250 ms before calling `onSelect`. If an application relied on
@@ -84,6 +132,16 @@ in `@@type`. Abstract `View` is no longer accepted. See the
 
 Update deck.gl and luma.gl packages to `~9.4.0`. Modules that use loaders.gl require
 `@loaders.gl/*@^4.4.3`.
+
+### `@deck.gl-community/editable-layers`
+
+`EditableGeoJsonLayer` and `SelectionLayer` now prevent primary editing gestures from
+bubbling into an interleaved parent map by default. Remove application helpers that disable
+and re-enable map drag handlers solely for editing. The layer leaves handler enabled states
+unchanged and returns primary navigation to the map in `ViewMode` or inactive selection.
+If the application owns gesture coordination, set `autoPreventMapInteractions: false` on
+both the editable and selection layers. Right-button navigation, wheel zoom, and multi-touch
+gestures retain their existing behavior.
 
 ### `@deck.gl-community/panels`
 

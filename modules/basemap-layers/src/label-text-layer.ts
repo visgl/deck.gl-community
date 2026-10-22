@@ -12,6 +12,7 @@ import type {
   DefaultProps,
   FilterContext
 } from '@deck.gl/core';
+import {Buffer} from '@luma.gl/core';
 import type {Texture} from '@luma.gl/core';
 import {getLabelFontRenderer} from './label-font-renderer';
 import {SharedTextureSet} from './shared-texture';
@@ -46,6 +47,17 @@ type _LabelTextLayerProps<DataT> = {
    * as the layer draws.
    */
   getLineGlyphKey?: ((viewport: any) => string) | null;
+  /**
+   * Mip levels of the font atlas texture (see `LABEL_ATLAS_MIP_LEVELS`). 1 samples the atlas
+   * without mipmaps, as MapLibre GL JS samples its 24 px glyphs.
+   */
+  atlasMipLevels?: number;
+  /**
+   * Whether the glyph edge is smoothed no more than `fontSettings.smoothing`, which keeps small
+   * text from the 64 px label font atlas crisp. False smooths it as MapLibre GL JS smooths its
+   * 24 px glyphs, which is wider on small text.
+   */
+  edgeGammaCapped?: boolean;
 };
 
 /**
@@ -129,6 +141,8 @@ const defaultProps: DefaultProps<LabelTextLayerProps> = {
   getTextJustify: {type: 'accessor', value: 'auto'},
   getLineGlyphs: {type: 'function', value: null, optional: true} as any,
   getLineGlyphKey: {type: 'function', value: null, optional: true} as any,
+  atlasMipLevels: {type: 'number', value: 2},
+  edgeGammaCapped: {type: 'boolean', value: true},
   // Keeps the part of italic glyphs left of their origin (see `getLabelFontRenderer`).
   _getFontRenderer: {type: 'function', value: getLabelFontRenderer}
 };
@@ -153,6 +167,22 @@ type CachedIconDefs = {
   defs: Float32Array;
 };
 
+/** The glyphs along lines of a view other than the one the glyph attribute holds. */
+type ViewLineGlyphs = {
+  /** The `getLineGlyphKey` they were placed for. */
+  key: string;
+  /** The glyph attribute revision they were placed at. */
+  revision: number;
+  values: Float32Array;
+  buffer: Buffer;
+};
+
+/**
+ * The most views whose glyphs along lines a layer keeps beside the attribute's, as a main map and a
+ * minimap. The view drawn least recently is forgotten first.
+ */
+const MAX_LINE_GLYPH_VIEWS = 3;
+
 /** Whether two number lists hold the same values. */
 function isSameNumbers(a: number[], b: number[]): boolean {
   if (a.length !== b.length) {
@@ -176,7 +206,7 @@ export const LABEL_EDGE_DEVICE_PIXELS = 0.84;
 /**
  * `distancePerAtlasPixel`: distance field units per atlas pixel of the font atlas,
  * `1 / fontSettings.radius`. `foreshortening`: how much the view shortens screen y, see
- * `getLabelForeshortening`.
+ * `getLabelForeshortening`. `capped`: 1 when the glyph edge is smoothed no more than `sdf.gamma`.
  */
 const labelEdgeUniforms = {
   name: 'labelEdge',
@@ -184,9 +214,10 @@ const labelEdgeUniforms = {
 layout(std140) uniform labelEdgeUniforms {
   float distancePerAtlasPixel;
   float foreshortening;
+  float capped;
 } labelEdge;
 `,
-  uniformTypes: {distancePerAtlasPixel: 'f32', foreshortening: 'f32'}
+  uniformTypes: {distancePerAtlasPixel: 'f32', foreshortening: 'f32', capped: 'f32'}
 } as const;
 
 /** The cosine of 89 degrees: no label is foreshortened more, so the factor stays positive. */
@@ -226,15 +257,21 @@ const SDF_EDGES =
  * size, which cancels both. The atlas coordinates' rate of change along x holds that scale,
  * perspective included, at each pixel, so no term for w is added here.
  * - The glyph edge, as it would be unpitched, is never smoothed more than `TextLayer` smooths it
- *   (`sdf.gamma`): on small text at device pixel ratio 1, `TextLayer`'s edge is the narrower. The
+ *   (`sdf.gamma`), unless `labelEdge.capped` is 0: on small text at device pixel ratio 1,
+ *   `TextLayer`'s edge is the narrower, which suits the 64 px label font atlas. The
  *   cap applies before the 1 / cos(pitch) widening, so that it narrows pitched labels only where it
  *   would narrow them unpitched.
  * - The halo edge is smoothed as MapLibre's, also when it has no blur, unless the halo reaches so
  *   far out that the distance field ends within the smoothing: then it is smoothed no more than
  *   that allows, or than `sdf.gamma`. `TextHaloBlurExtension` widens it
- *   from `labelHaloGamma`, after `alpha = inBorder;`.
- * - The pass that draws the glyphs again over every halo (`sdf.outlineBuffer` at `sdf.buffer`)
- *   blends their edge with the halo color, as `TextLayer`'s does, over the glyph edge's own width.
+ *   from `labelHaloGamma`, after `alpha = inBorder;`, and sets `haloGamma` to the width it fades
+ *   over.
+ * - The halo is a ring, as MapLibre's: it fades out inside the glyph, from the glyph edge over
+ *   `2 * haloGamma` (MapLibre's `inner_edge`). The halo pass draws the halo alone, and the pass that
+ *   draws the glyphs over every halo (`sdf.outlineBuffer` at `sdf.buffer`) draws the glyphs alone,
+ *   as MapLibre's two passes. A glyph's antialiased edge, and a translucent glyph, show the ring
+ *   where it reaches in, and the map beyond it; `TextLayer` mixes the glyph color into the halo
+ *   pass instead, which shows much less of the halo there than MapLibre.
  */
 const LABEL_SDF_EDGES = /* glsl */ `\
 if (sdf.enabled) {
@@ -248,23 +285,22 @@ if (sdf.enabled) {
       // TextLayer's smoothing caps the glyph edge as it would be on an unpitched map, before the
       // 1 / cos(pitch) widening: compared after it, the cap would undo the widening on the glyphs
       // that perspective draws small, toward the horizon.
-      float labelFillGamma = min(sdf.gamma, labelEdgeGamma * labelEdge.foreshortening) /
+      float unpitchedEdgeGamma = labelEdgeGamma * labelEdge.foreshortening;
+      float labelFillGamma = (labelEdge.capped > 0.5 ? min(sdf.gamma, unpitchedEdgeGamma) : unpitchedEdgeGamma) /
         labelEdge.foreshortening;
       alpha = smoothstep(sdf.buffer - labelFillGamma, sdf.buffer + labelFillGamma, distance);
       if (sdf.outlineBuffer > 0.0 && sdf.outlineBuffer < sdf.buffer) {
-        float inFill = alpha;
         // Capped, as TextHaloBlurExtension caps its blur, so that the halo fades out before the
         // distance field ends, at the edge of the glyph's quad, or no later than with sdf.gamma.
         float labelHaloGamma = min(labelEdgeGamma, max(sdf.gamma, sdf.outlineBuffer - 4.0 / 255.0));
         float inBorder = smoothstep(
           sdf.outlineBuffer - labelHaloGamma, sdf.outlineBuffer + labelHaloGamma, distance
         );
-        color = mix(sdf.outlineColor, vColor, inFill);
+        color = sdf.outlineColor;
+        float haloGamma = labelHaloGamma;
         alpha = inBorder;
-      } else if (sdf.outlineBuffer > 0.0) {
-        // The glyphs drawn again over the halos, blended with the halo color at their edge as the
-        // halo pass blends them, so that an edge pixel is half glyph and half halo, as MapLibre's.
-        color = mix(sdf.outlineColor, vColor, alpha);
+        // The ring's inner edge, inside the glyph, fading over the halo's own width.
+        alpha = min(alpha, 1.0 - smoothstep(sdf.buffer, sdf.buffer + 2.0 * haloGamma, distance));
       }
     }`;
 
@@ -280,13 +316,23 @@ if (sdf.enabled) {
 /** @internal Exported for tests. */
 export class LabelCharactersLayer extends MultiIconLayer<any> {
   static layerName = 'LabelCharactersLayer';
-  static defaultProps: DefaultProps<any> = {sdfRadius: {type: 'number', value: 12}};
+  static defaultProps: DefaultProps<any> = {
+    sdfRadius: {type: 'number', value: 12},
+    sdfEdgeCapped: {type: 'boolean', value: true}
+  };
 
   declare state: MultiIconLayer<any>['state'] & {
     /** Each label's packed character definitions, by label object. */
     iconDefs?: WeakMap<object, CachedIconDefs>;
-    /** The `getLineGlyphKey` the glyphs along lines were last placed for. */
-    lineGlyphKey?: string | null;
+    /**
+     * The view whose glyphs along lines the glyph attribute holds, and the `getLineGlyphKey` they
+     * were placed for (null when some rows were placed for another).
+     */
+    lineGlyphView?: {id: string; key: string | null};
+    /** Glyphs along lines of the other views drawn, by view id, least recently drawn first. */
+    lineGlyphViews?: Map<string, ViewLineGlyphs>;
+    /** Counts the glyph attribute's updates, after which the other views' glyphs are placed again. */
+    lineGlyphRevision?: number;
   };
 
   /** Whether characters can be placed along lines: on WebGL, whose shader this layer extends. */
@@ -375,24 +421,100 @@ ${HIDE_CHARACTER_BEFORE}`
 
   /**
    * Places the glyphs along lines again before drawing when the view has moved to another zoom or
-   * bearing step (`getLineGlyphKey`). The rows and every other attribute stay as they are.
+   * bearing step (`getLineGlyphKey`). The rows and every other attribute stay as they are. A layer
+   * drawn in several views, as a main map and a minimap, keeps the glyphs of each: the attribute
+   * holds one view's, the others are kept in buffers of their own, bound in their place as each
+   * view is drawn.
    */
   draw(params: any): void {
     const radius = Number((this.props as any).sdfRadius) || 12;
     const foreshortening = getLabelForeshortening(this.context.viewport, this.props.billboard);
-    this.setShaderModuleProps({labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening}});
+    const capped = (this.props as any).sdfEdgeCapped === false ? 0 : 1;
+    this.setShaderModuleProps({
+      labelEdge: {distancePerAtlasPixel: 1 / radius, foreshortening, capped}
+    });
     const {getLineGlyphs, getLineGlyphKey} = this.props as any;
     const attribute = this.getAttributeManager()?.attributes.instanceLineGlyphs;
-    if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant) {
-      const key = getLineGlyphKey(this.context.viewport);
-      if (key !== this.state.lineGlyphKey && attribute.value) {
-        this.state.lineGlyphKey = key;
-        this.fillLineGlyphs(attribute, 0, Infinity);
-        (attribute as any).updateSubBuffer({startOffset: 0, endOffset: attribute.value.length});
-        LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+    if (getLineGlyphs && getLineGlyphKey && attribute && !attribute.isConstant && attribute.value) {
+      const {viewport} = this.context;
+      const id = getViewId(viewport);
+      const key = getLineGlyphKey(viewport);
+      const held = this.state.lineGlyphView;
+      let buffer: Buffer | null = null;
+      if (!held || held.id === id) {
+        if (held?.key !== key) {
+          this.state.lineGlyphView = {id, key};
+          this.fillLineGlyphs(attribute, 0, Infinity);
+          (attribute as any).updateSubBuffer({startOffset: 0, endOffset: attribute.value.length});
+          LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+        }
+        buffer = attribute.getBuffer();
+      } else {
+        buffer = this.getViewLineGlyphs(attribute, id, key).buffer;
+      }
+      // With one view, the attribute stays bound; with more, each view binds its own glyphs.
+      if (this.state.lineGlyphViews?.size && buffer) {
+        this.state.model?.setAttributes({instanceLineGlyphs: buffer});
       }
     }
     super.draw(params);
+  }
+
+  /**
+   * The glyphs along lines of view `id`, which the glyph attribute does not hold: kept while its
+   * key and the attribute's rows are the same, placed again and uploaded otherwise.
+   */
+  getViewLineGlyphs(attribute: Attribute, id: string, key: string): ViewLineGlyphs {
+    if (!this.state.lineGlyphViews) {
+      this.state.lineGlyphViews = new Map();
+    }
+    const views = this.state.lineGlyphViews;
+    const revision = this.state.lineGlyphRevision ?? 0;
+    const length = (attribute.value as Float32Array).length;
+    let entry = views.get(id);
+    if (entry) {
+      // The most recently drawn view last.
+      views.delete(id);
+    }
+    if (!entry || entry.key !== key || entry.revision !== revision) {
+      if (!entry || entry.values.length !== length) {
+        entry?.buffer.destroy();
+        const values = new Float32Array(length);
+        const buffer = this.context.device.createBuffer({
+          id: `${this.id}-line-glyphs-${id}`,
+          usage: Buffer.VERTEX | Buffer.COPY_DST,
+          byteLength: values.byteLength
+        });
+        entry = {key, revision, values, buffer};
+      }
+      entry.key = key;
+      entry.revision = revision;
+      this.fillLineGlyphs(attribute, 0, Infinity, entry.values);
+      entry.buffer.write(entry.values);
+      LINE_GLYPH_ATTRIBUTE_STATS.refreshes++;
+    }
+    views.set(id, entry);
+    for (const [oldId, old] of views) {
+      if (views.size <= MAX_LINE_GLYPH_VIEWS) {
+        break;
+      }
+      old.buffer.destroy();
+      views.delete(oldId);
+    }
+    return entry;
+  }
+
+  finalizeState(context: any): void {
+    super.finalizeState(context);
+    this.forgetViewLineGlyphs();
+  }
+
+  /** Releases the glyphs along lines kept for views other than the attribute's. */
+  forgetViewLineGlyphs(): void {
+    for (const entry of this.state.lineGlyphViews?.values() ?? []) {
+      entry.buffer.destroy();
+    }
+    this.state.lineGlyphViews?.clear();
   }
 
   /** Each character's `getLineGlyphs` values; a constant when no label is placed along a line. */
@@ -402,18 +524,37 @@ ${HIDE_CHARACTER_BEFORE}`
   ): void {
     const {getLineGlyphs, getLineGlyphKey} = this.props as any;
     if (!getLineGlyphs) {
+      this.forgetViewLineGlyphs();
       setConstant(attribute);
       return;
     }
-    this.state.lineGlyphKey = getLineGlyphKey?.(this.context.viewport) ?? null;
+    // The rows changed: every view's glyphs are placed again as it is drawn.
+    this.state.lineGlyphRevision = (this.state.lineGlyphRevision ?? 0) + 1;
+    const {viewport} = this.context;
+    const id = getViewId(viewport);
+    const key = getLineGlyphKey?.(viewport) ?? null;
+    const held = this.state.lineGlyphView;
+    // Rows left as they were hold the glyphs of the view and key the attribute held.
+    const allRows = startRow <= 0 && !Number.isFinite(endRow);
+    this.state.lineGlyphView = {
+      id,
+      key: allRows || (held?.id === id && held.key === key) ? key : null
+    };
     this.fillLineGlyphs(attribute, startRow, endRow);
   }
 
-  /** Writes the `getLineGlyphs` values of rows `startRow` to `endRow` at the current viewport. */
-  fillLineGlyphs(attribute: Attribute, startRow: number, endRow: number): void {
+  /**
+   * Writes the `getLineGlyphs` values of rows `startRow` to `endRow` at the current viewport, into
+   * `output`, laid out as the attribute: by default, its value.
+   */
+  fillLineGlyphs(
+    attribute: Attribute,
+    startRow: number,
+    endRow: number,
+    output = attribute.value as Float32Array
+  ): void {
     const {data, getIcon, getLineGlyphs} = this.props as any;
     const {viewport} = this.context;
-    const output = attribute.value as Float32Array;
     const {iterable, objectInfo} = createIterable(data, startRow, endRow);
     for (const object of iterable) {
       objectInfo.index++;
@@ -522,6 +663,11 @@ ${HIDE_CHARACTER_BEFORE}`
  */
 export const LINE_GLYPH_ATTRIBUTE_STATS = {fills: 0, bytes: 0, refreshes: 0};
 
+/** The id of the view `viewport` draws, by which a layer keeps each view's glyphs along lines. */
+function getViewId(viewport: any): string {
+  return String(viewport?.id ?? '');
+}
+
 /** Makes an attribute with a custom updater a constant zero. */
 function setConstant(attribute: Attribute): void {
   (attribute as any).constant = true;
@@ -577,8 +723,10 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
     const {device} = this.context;
     if (atlas && device) {
       let {atlasTextures} = this.state;
-      if (!atlasTextures) {
-        atlasTextures = new SharedTextureSet(device, {maxMipLevels: LABEL_ATLAS_MIP_LEVELS});
+      const maxMipLevels = this.props.atlasMipLevels ?? LABEL_ATLAS_MIP_LEVELS;
+      if (atlasTextures?.options.maxMipLevels !== maxMipLevels) {
+        atlasTextures?.releaseAll();
+        atlasTextures = new SharedTextureSet(device, {maxMipLevels});
         this.state.atlasTextures = atlasTextures;
       }
       // A new atlas, with more characters, is a new texture; the previous one is released.
@@ -608,6 +756,7 @@ export class LabelTextLayer<DataT = any, ExtraPropsT extends {} = {}> extends Te
       }
       // The distance field's reach, from which the glyph layer measures its antialiasing.
       props.sdfRadius = this.props.fontSettings?.radius || 12;
+      props.sdfEdgeCapped = this.props.edgeGammaCapped !== false;
     }
     // The placement slot is a row's, and the sublayers draw this layer's rows: it is handed down
     // as is. deck.gl would otherwise call it with the feature a row was made from.

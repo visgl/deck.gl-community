@@ -18,6 +18,7 @@ import {
   ModeProps
 } from '../edit-modes/types';
 import {fromDeckCoordinateSystem} from '../edit-modes/coordinate-system';
+import {createLayerProjection} from '../utils/layer-projection';
 
 import {ViewMode} from '../edit-modes/view-mode';
 import {TranslateMode} from '../edit-modes/translate-mode';
@@ -45,7 +46,7 @@ import {DrawPolygonByDraggingMode} from '../edit-modes/draw-polygon-by-dragging-
 import {SnappableMode} from '../edit-modes/snappable-mode';
 import {TransformMode} from '../edit-modes/transform-mode';
 import {DeleteMode} from '../edit-modes/delete-mode';
-import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
+import {GeoJsonEditModeType, isPointerDownOwned} from '../edit-modes/geojson-edit-mode';
 
 import {Color} from '../utils/types';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
@@ -258,7 +259,7 @@ const modeNameMapping = {
   modify: ModifyMode,
   translate: new SnappableMode(new TranslateMode()),
 
-  transform: new SnappableMode(new TransformMode()),
+  transform: TransformMode,
   scale: ScaleMode,
   rotate: RotateMode,
   duplicate: DuplicateMode,
@@ -399,7 +400,24 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   updateState({props, oldProps, changeFlags, context}: UpdateParameters<this>) {
+    const previousEventTarget = this.state?._editableLayerState?.eventTarget;
+    const hadActivePan = Boolean(this.state?._editableLayerState?.pointerDownMapCoords);
     super.updateState({oldProps, props, changeFlags, context});
+
+    const modeWithClickSequence = this.state.mode as GeoJsonEditModeType & {
+      getClickSequence?: () => unknown[];
+    };
+    if (
+      previousEventTarget !== this.state._editableLayerState.eventTarget &&
+      !hadActivePan &&
+      modeWithClickSequence.getClickSequence?.().length
+    ) {
+      // Clear click-to-draw state even when no pan gesture is active.
+      queueMicrotask(() => {
+        const currentLayer = (this.getCurrentLayer() || this) as this;
+        currentLayer.onLayerKeyUp({key: 'Escape'} as KeyboardEvent);
+      });
+    }
 
     if (changeFlags.propsOrDataChanged) {
       const modePropChanged = Object.keys(oldProps).length === 0 || props.mode !== oldProps.mode;
@@ -411,7 +429,8 @@ export class EditableGeoJsonLayer extends EditableLayer<
           mode = new ModeConstructor();
         } else if (typeof props.mode === 'string') {
           // Lookup the mode based on its name (for backwards compatibility)
-          mode = modeNameMapping[props.mode];
+          const mappedMode = modeNameMapping[props.mode];
+          mode = typeof mappedMode === 'function' ? new mappedMode() : mappedMode;
           // eslint-disable-next-line no-console
           console.warn(
             "Deprecated use of passing `mode` as a string. Pass the mode's class constructor instead."
@@ -450,12 +469,23 @@ export class EditableGeoJsonLayer extends EditableLayer<
     this.setState({selectedFeatures});
   }
 
+  _isEditing(): boolean {
+    return Boolean(this.state.mode) && !(this.state.mode instanceof ViewMode);
+  }
+
+  _ownsPointerDown(event: MouseEvent): boolean {
+    const getEvent = () => this.toBasePointerEvent(event);
+    return isPointerDownOwned(this.getActiveMode(), getEvent, this.getModeProps(this.props));
+  }
+
   getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
     return {
       modeConfig: props.modeConfig,
       data: props.data,
       selectedIndexes: props.selectedFeatureIndexes,
       lastPointerMoveEvent: this.state.lastPointerMoveEvent,
+      pickingRadius: props.pickingRadius,
+      projection: createLayerProjection(this),
       cursor: this.state.cursor,
       // Derive edit-mode math from deck.gl's coordinateSystem layer prop.
       // This ensures that when the layer is configured for Cartesian or other
@@ -597,7 +627,9 @@ export class EditableGeoJsonLayer extends EditableLayer<
       getSize: DEFAULT_TOOLTIP_FONT_SIZE,
       ...this.getSubLayerProps({
         id: 'tooltips',
-        data: tooltips
+        data: tooltips,
+        // Edit modes treat every non-guide pick as a data feature.
+        pickable: false
       })
     });
 
@@ -644,6 +676,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
     if (!isDraggingWithPrimaryButton) {
       return;
     }
+    this.setState({lastPointerMoveEvent: {...event, isDragging: true}});
     this.getActiveMode().handleStartDragging(event, this.getModeProps(this.props));
   }
 
@@ -655,6 +688,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
     if (!this.state.isDraggingWithPrimaryButton || !isPrimaryButtonEvent(event)) {
       return;
     }
+    this.setState({lastPointerMoveEvent: {...event, isDragging: true}});
     this.getActiveMode().handleDragging(event, this.getModeProps(this.props));
   }
 
@@ -668,6 +702,22 @@ export class EditableGeoJsonLayer extends EditableLayer<
       return;
     }
     this.getActiveMode().handleStopDragging(event, this.getModeProps(this.props));
+  }
+
+  _resetPointerDownState(): void {
+    super._resetPointerDownState();
+    const previousMove = this.state.lastPointerMoveEvent;
+    if (previousMove) {
+      this.setState({
+        lastPointerMoveEvent: {
+          ...previousMove,
+          pointerDownPicks: null,
+          pointerDownMapCoords: null,
+          pointerDownScreenCoords: null,
+          isDragging: false
+        }
+      });
+    }
   }
 
   onPointerMove(event: PointerMoveEvent): void {

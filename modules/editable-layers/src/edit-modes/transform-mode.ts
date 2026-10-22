@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {featureCollection} from '@turf/helpers';
-import {PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
+import {BasePointerEvent, PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
 import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 import {ScaleMode} from './scale-mode';
@@ -11,10 +11,17 @@ import {RotateMode} from './rotate-mode';
 
 import {CompositeMode} from './composite-mode';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {SnappableMode} from './snappable-mode';
+import {SnappingStrategy} from './snapping/snapping-strategy';
 
 export class TransformMode extends CompositeMode {
   constructor() {
-    super([new TranslateMode(), new ScaleMode(), new RotateMode()]);
+    super([new SnappableMode(new TranslateMode()), new ScaleMode(), new RotateMode()]);
+  }
+
+  /** Translation already applies its own snapping policy inside this composite. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
   }
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -28,9 +35,14 @@ export class TransformMode extends CompositeMode {
     props.onUpdateCursor(updatedCursor);
   }
 
+  // Its drags start in its child modes, so it uses their presses.
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return super.ownsPointerDown(event, props);
+  }
+
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
     let scaleMode: ScaleMode | null = null;
-    let translateMode: TranslateMode | null = null;
+    let translateMode: GeoJsonEditMode | null = null;
     const filteredModes: GeoJsonEditMode[] = [];
 
     if (event.picks.length) {
@@ -42,7 +54,7 @@ export class TransformMode extends CompositeMode {
     // this simultaneous action trigger from happening by putting a higher priority on scaling
     // since the user needs to be more precise to hover over a scaling edit handle.
     this._modes.forEach(mode => {
-      if (mode instanceof TranslateMode) {
+      if (mode instanceof SnappableMode && mode._wrappedMode instanceof TranslateMode) {
         translateMode = mode;
       } else {
         if (mode instanceof ScaleMode) {

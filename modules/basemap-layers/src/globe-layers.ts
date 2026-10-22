@@ -1,3 +1,4 @@
+import type {GlyphStore} from './glyph-store';
 import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
 import {
   COORDINATE_SYSTEM,
@@ -11,6 +12,8 @@ import {TileLayer} from '@deck.gl/geo-layers';
 import {BitmapLayer, GeoJsonLayer, SolidPolygonLayer} from '@deck.gl/layers';
 import {getGlobeAtmosphereLayer, getGlobeAtmosphereSkyLayer} from './atmosphere-layer';
 import {createCircleSubLayer} from './circle-layer';
+import {sortFeaturesByKey} from './sort-key';
+import {getGeoJsonMaxZoom, getGeoJsonTileFeatures, isGeoJsonSource} from './geojson-source';
 import {
   type FillPatternGroup,
   getFeaturesWithoutPattern,
@@ -18,7 +21,15 @@ import {
   getFillPatternProps
 } from './fill-pattern';
 import {FillPatternExtension, FillTranslateExtension} from './fill-style-extensions';
+import {FillOutlineExtension} from './fill-outline-extension';
 import {LineBlurExtension, getBlurredLineWidth} from './line-blur-extension';
+import {
+  HillshadeTileLayer,
+  createSharedDemTileset,
+  getHillshadeParameters,
+  type DemTile,
+  type DemTilesetOwner
+} from './hillshade-layer';
 import type {LabelPlacement} from './label-placement';
 import {MVTLabelLayer, type LabelTile} from './mvt-label-layer';
 import {isSameList} from './util';
@@ -37,7 +48,12 @@ import {
   getZoomBucket,
   withOpacity
 } from './style-accessor';
-import {getStylePropertyDefault} from './style-expression';
+import {evaluateStyleLight, getStylePropertyDefault} from './style-expression';
+import {
+  DEFAULT_FILL_EXTRUSION_LIGHT,
+  type FillExtrusionLight,
+  FillExtrusionLightingExtension
+} from './fill-extrusion-lighting-extension';
 import {
   MAX_ZOOM_PAINT_PARTS,
   ZOOM_PAINT_FILL_COLOR_ROW,
@@ -82,6 +98,8 @@ type BasemapLayerGroup = {
   spriteAtlases?: SpriteAtlas[] | null;
   /** Overrides the label font that `text-font` maps to (see `BasemapLayerProps.fontFamily`). */
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
   /** Externally owned source caches; BasemapLayer supplies and finalizes these. */
@@ -89,11 +107,11 @@ type BasemapLayerGroup = {
 };
 
 /**
- * Style layers that draw together, in style order: a background or raster layer on its own, or
- * consecutive style layers of one vector source, which share one tile layer.
+ * Style layers that draw together, in style order: a background, raster or hillshade layer on its
+ * own, or consecutive style layers of one vector source, which share one tile layer.
  */
 export type StyleLayerRun = {
-  type: 'background' | 'raster' | 'vector';
+  type: 'background' | 'raster' | 'hillshade' | 'vector';
   /** The deck.gl layer id, without the basemap's id prefix. */
   id: string;
   sourceId?: string;
@@ -170,7 +188,8 @@ const SUPPORTED_TYPES = new Set([
   'fill-extrusion',
   'line',
   'symbol',
-  'raster'
+  'raster',
+  'hillshade'
 ]);
 const DEFAULT_CONFIG: BasemapLayerConfig = {atmosphere: false, basemap: true, labels: true};
 const DEFAULT_TEXT_COLOR = [0, 0, 0, 1];
@@ -192,6 +211,8 @@ const DASH_OFFSET_EXTENSION = new PathStyleExtension({dash: true, dashMode: 'pat
 /** `line-blur`, shared for the same reason: by layer, and per feature. */
 const LINE_BLUR_EXTENSION = new LineBlurExtension();
 const LINE_BLUR_PER_FEATURE_EXTENSION = new LineBlurExtension({perFeature: true});
+/** A fill's outline, drawn as a line; shared for the same reason. */
+const FILL_OUTLINE_EXTENSION = new FillOutlineExtension();
 
 /** `fill-pattern` and `fill-translate`, shared by every fill that sets them. */
 const FILL_PATTERN_EXTENSION = new FillPatternExtension();
@@ -705,9 +726,22 @@ export function getTilePyramidProps(source: BasemapSource): {
   const minZoom = source.minzoom ?? 0;
   return {
     minZoom,
-    maxZoom: source.maxzoom ?? 22,
+    maxZoom: source.type === 'geojson' ? getGeoJsonMaxZoom(source) : (source.maxzoom ?? 22),
     extent: minZoom <= 0 ? WORLD_TILE_EXTENT : null
   };
+}
+
+/**
+ * Creates the tileset of a `raster-dem` source: each tile is fetched and decoded once, and shared by
+ * every `hillshade` layer drawn from it. `BasemapLayer` creates and finalizes these itself. Direct
+ * `getBasemapLayers` callers that call it on every render pass them in `tilesets`, keyed by source,
+ * to keep the tiles across calls, and finalize them when done.
+ */
+export function createDemTileset(
+  source: BasemapSource,
+  loadOptions?: BasemapLoadOptions
+): SharedTileset2D<DemTile | null> {
+  return createSharedDemTileset(source, loadOptions, getTilePyramidProps(source));
 }
 
 function createRasterLayer({
@@ -774,6 +808,60 @@ function createRasterLayer({
     },
     onTileError: error => {
       logBasemapRuntimeError('Raster tile failed to load', error, {
+        layerId: layer.id,
+        sourceId: layer.source
+      });
+    },
+    parameters: getTileParameters(mode, depthTested)
+  });
+}
+
+/**
+ * A `hillshade` style layer over a `raster-dem` source. Its tiles are decoded on the main thread,
+ * once for all of the source's hillshade layers, which share `tileset` (see `HillshadeTileLayer`).
+ * MapLibre draws nothing at `hillshade-exaggeration: 0`.
+ */
+function createHillshadeLayer({
+  idPrefix,
+  layer,
+  tileset,
+  demTilesetOwner,
+  source,
+  zoom,
+  mode,
+  depthTested
+}: {
+  idPrefix: string;
+  layer: BasemapStyleLayer;
+  /** The source's decoded tiles (see `createDemTileset`). */
+  tileset: SharedTileset2D;
+  /** Set when the layer shares a tileset that no `BasemapLayer` owns. */
+  demTilesetOwner?: DemTilesetOwner;
+  source: BasemapSource;
+  zoom: number;
+  mode: BasemapMode;
+  /** Drawn after an extrusion, see `getTileParameters`. */
+  depthTested?: boolean;
+}) {
+  const hillshadeParameters = getHillshadeParameters(getPaint(layer, zoom));
+  const isNearest = getRasterPaintValue(getPaint(layer, zoom), 'resampling') === 'nearest';
+  const filter = isNearest ? 'nearest' : 'linear';
+
+  return new HillshadeTileLayer({
+    id: `${idPrefix}-${layer.id}`,
+    data: tileset,
+    demTilesetOwner,
+    ...getTilePyramidProps(source),
+    tileSize: source.tileSize || 512,
+    visible: hillshadeParameters.exaggeration !== 0,
+    hillshadeParameters,
+    hillshadeSubLayerProps: {
+      // MapLibre samples the slopes without mipmaps.
+      textureParameters: {minFilter: filter, magFilter: filter, mipmapFilter: 'none'},
+      parameters: getTileParameters(mode, depthTested)
+    },
+    onTileError: error => {
+      logBasemapRuntimeError('DEM tile failed to load', error, {
         layerId: layer.id,
         sourceId: layer.source
       });
@@ -1371,7 +1459,9 @@ function createStyledVectorSubLayer({
   spriteAtlases,
   loadOptions,
   fontFamily,
-  labelPlacement
+  glyphs,
+  labelPlacement,
+  light
 }: {
   idPrefix: string;
   sourceId: string;
@@ -1387,8 +1477,12 @@ function createStyledVectorSubLayer({
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
+  /** The style's `light`, which shades `fill-extrusion` layers. */
+  light?: FillExtrusionLight;
 }) {
   if (features.length === 0) {
     return null;
@@ -1409,6 +1503,7 @@ function createStyledVectorSubLayer({
       spriteAtlases,
       loadOptions,
       fontFamily,
+      glyphs,
       labelPlacement
     });
   }
@@ -1434,7 +1529,7 @@ function createStyledVectorSubLayer({
   }
 
   if (styleLayer.type === 'fill-extrusion') {
-    return createExtrusionSubLayer({props, styleLayer, features, zoom});
+    return createExtrusionSubLayer({props, styleLayer, features, zoom, light});
   }
 
   if (styleLayer.type === 'line') {
@@ -1503,6 +1598,7 @@ function createVectorLayerGroup({
   styleDefinition,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement
 }: {
   idPrefix: string;
@@ -1526,6 +1622,8 @@ function createVectorLayerGroup({
   spriteAtlases?: SpriteAtlas[] | null;
   /** Label font override; tiles regenerate when it changes. */
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
 }) {
@@ -1577,6 +1675,7 @@ function createVectorLayerGroup({
         styleDefinition,
         spriteAtlases,
         fontFamily,
+        glyphs,
         labelPlacement
       ]
     },
@@ -1606,6 +1705,7 @@ function createVectorLayerGroup({
           spriteAtlases,
           loadOptions,
           fontFamily,
+          glyphs,
           labelPlacement
         });
       })) as RenderLabelLayers,
@@ -1667,7 +1767,12 @@ function createVectorLayerGroup({
         }
 
         const depthTested = depthTestedFrom >= 0 && styleLayerIndex >= depthTestedFrom;
-        const style = getBatchableGeometryStyle(styleLayer, filteredData, mode, zoom, depthTested);
+        // A sublayer draws its features in order: a line layer's, in the order of their keys.
+        const layerFeatures =
+          styleLayer.type === 'line'
+            ? sortFeaturesByKey(filteredData, styleLayer, 'line-sort-key', zoom)
+            : filteredData;
+        const style = getBatchableGeometryStyle(styleLayer, layerFeatures, mode, zoom, depthTested);
         if (style) {
           // A style layer that draws nothing in this tile does not separate its neighbours. A line
           // that draws nothing only because its width is 0 at this zoom step, and takes its width
@@ -1706,7 +1811,7 @@ function createVectorLayerGroup({
             idPrefix,
             sourceId,
             styleLayer,
-            features: filteredData,
+            features: layerFeatures,
             props: {...props, [STYLE_LAYER_INDEX]: styleLayerIndex},
             zoom,
             config,
@@ -1716,7 +1821,9 @@ function createVectorLayerGroup({
             spriteAtlases,
             loadOptions,
             fontFamily,
-            labelPlacement
+            glyphs,
+            labelPlacement,
+            light: getFillExtrusionLight(styleDefinition, zoom)
           })
         );
       });
@@ -1759,6 +1866,7 @@ export function getBasemapLayers({
   loadOptions,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement,
   tilesets
 }: BasemapLayerGroup) {
@@ -1787,6 +1895,7 @@ export function getBasemapLayers({
         mode,
         spriteAtlases,
         fontFamily,
+        glyphs,
         labelPlacement,
         tilesets
       })
@@ -1806,6 +1915,7 @@ export function getGlobeBaseLayers({
   loadOptions,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement
 }: Omit<BasemapLayerGroup, 'mode'>) {
   return getBasemapLayers({
@@ -1817,6 +1927,7 @@ export function getGlobeBaseLayers({
     loadOptions,
     spriteAtlases,
     fontFamily,
+    glyphs,
     labelPlacement
   });
 }
@@ -1839,6 +1950,7 @@ function createSymbolSubLayer({
   spriteAtlases,
   loadOptions,
   fontFamily,
+  glyphs,
   labelPlacement,
   tiles
 }: {
@@ -1856,6 +1968,8 @@ function createSymbolSubLayer({
   spriteAtlases?: SpriteAtlas[] | null;
   loadOptions?: BasemapLoadOptions;
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
 }) {
@@ -1871,6 +1985,7 @@ function createSymbolSubLayer({
     // The sprite atlas images load through the same fetch as the style and its tiles.
     iconLoadOptions: loadOptions,
     fontFamily,
+    glyphs,
     labelPlacement,
     // Polygon labels outside the tile's own extent are left to the neighbouring tile.
     tileBoundingBox: props.tile?.bbox ?? null,
@@ -2649,11 +2764,37 @@ function createGeometrySubLayer({
   // the line: a line narrower than a pixel still draws, fainter. `LineBlurExtension` draws that
   // fade, without a blur too; deck.gl draws lines without antialiasing aliased, and drops most of
   // a line narrower than a pixel. A fill's outline is MapLibre's aliased 1 pixel line, drawn as
-  // deck.gl draws lines without antialiasing.
+  // deck.gl draws lines without antialiasing and cut to a line's pixels by `FillOutlineExtension`.
   const fadesLines = drawsLines && !isFill;
+  const drawsOutline = drawsLines && isFill;
+  const geometryExtensions =
+    dashArray || lineOffset || fadesLines || drawsOutline || zoomPaint
+      ? [
+          ...(baseProps.extensions || []),
+          ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
+          ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
+          // Before the fade, which widens the stroke once its width is final.
+          ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : []),
+          ...(fadesLines
+            ? [
+                typeof lineBlur?.value === 'function'
+                  ? LINE_BLUR_PER_FEATURE_EXTENSION
+                  : LINE_BLUR_EXTENSION
+              ]
+            : []),
+          ...(drawsOutline ? [FILL_OUTLINE_EXTENSION] : [])
+        ]
+      : null;
+  // `fill-pattern` and `fill-translate` add their extensions to these, so an outlined fill keeps
+  // its outline's.
   const fillStyleProps =
     isFill && hasFillStyle
-      ? getFillStyleProps(first.styleLayer, zoom, baseProps.extensions, pattern)
+      ? getFillStyleProps(
+          first.styleLayer,
+          zoom,
+          geometryExtensions ?? baseProps.extensions,
+          pattern
+        )
       : {};
 
   const layerProps = {
@@ -2669,24 +2810,7 @@ function createGeometrySubLayer({
     getFillColor: isFill ? (fillColor.value as any) : [0, 0, 0, 0],
     getLineColor: lineColor.value as any,
     getLineWidth: lineWidth.value as any,
-    ...(dashArray || lineOffset || fadesLines || zoomPaint
-      ? {
-          extensions: [
-            ...(baseProps.extensions || []),
-            ...(dashArray ? [lineOffset ? DASH_OFFSET_EXTENSION : DASH_EXTENSION] : []),
-            ...(!dashArray && lineOffset ? [OFFSET_EXTENSION] : []),
-            // Before the fade, which widens the stroke once its width is final.
-            ...(zoomPaint ? [ZOOM_PAINT_EXTENSION] : []),
-            ...(fadesLines
-              ? [
-                  typeof lineBlur?.value === 'function'
-                    ? LINE_BLUR_PER_FEATURE_EXTENSION
-                    : LINE_BLUR_EXTENSION
-                ]
-              : [])
-          ]
-        }
-      : {}),
+    ...(geometryExtensions ? {extensions: geometryExtensions} : {}),
     ...(zoomPaint
       ? {
           zoomPaint,
@@ -2840,12 +2964,14 @@ function createExtrusionSubLayer({
   props,
   styleLayer,
   features,
-  zoom
+  zoom,
+  light = DEFAULT_FILL_EXTRUSION_LIGHT
 }: {
   props: any;
   styleLayer: BasemapStyleLayer;
   features: any[];
   zoom: number;
+  light?: FillExtrusionLight;
 }) {
   const paint = getPaint(styleLayer, zoom);
   const color = getStyleAccessor(styleLayer, ['fill-extrusion-color'], zoom, ([value]) =>
@@ -2886,8 +3012,56 @@ function createExtrusionSubLayer({
     },
     getPointRadius: 0,
     pointRadiusMinPixels: 0,
-    parameters: EXTRUSION_PARAMETERS
+    parameters: EXTRUSION_PARAMETERS,
+    extensions: [...(baseProps.extensions || []), FILL_EXTRUSION_LIGHTING_EXTENSION],
+    fillExtrusionLight: light,
+    fillExtrusionVerticalGradient: paint['fill-extrusion-vertical-gradient'] ?? true
   });
+}
+
+/** Shared by every extrusion sublayer, so deck.gl does not see their extensions change. */
+const FILL_EXTRUSION_LIGHTING_EXTENSION = new FillExtrusionLightingExtension();
+
+/** The latest evaluated `light` per style `light` object, reused within one zoom step. */
+const fillExtrusionLightCache = new WeakMap<
+  object,
+  {zoomBucket: number; light: FillExtrusionLight}
+>();
+
+/**
+ * Returns a style's `light` at the stepped zoom, the same object while it is unchanged, so tile
+ * sublayers are kept. A style without `light` takes the style spec's default.
+ */
+function getFillExtrusionLight(
+  styleDefinition: ResolvedBasemapStyle | undefined,
+  zoom: number
+): FillExtrusionLight {
+  const styleLight = styleDefinition?.light;
+  if (!styleLight || typeof styleLight !== 'object') {
+    return DEFAULT_FILL_EXTRUSION_LIGHT;
+  }
+  const zoomBucket = getZoomBucket(zoom);
+  const cached = fillExtrusionLightCache.get(styleLight);
+  if (cached && cached.zoomBucket === zoomBucket) {
+    return cached.light;
+  }
+  const {anchor, position, color, intensity} = evaluateStyleLight(styleLight, zoomBucket);
+  const isNumbers = (value: unknown, length: number): value is number[] =>
+    Array.isArray(value) &&
+    value.length >= length &&
+    value.slice(0, length).every(entry => Number.isFinite(entry));
+  const defaults = DEFAULT_FILL_EXTRUSION_LIGHT;
+  // Values of the wrong type (the expression engine passes a constant through) take the default.
+  const light: FillExtrusionLight = {
+    anchor: anchor === 'map' ? 'map' : 'viewport',
+    position: isNumbers(position, 3) ? [position[0], position[1], position[2]] : defaults.position,
+    color: isNumbers(color, 3) ? [color[0] / 255, color[1] / 255, color[2] / 255] : defaults.color,
+    intensity: Number.isFinite(intensity)
+      ? Math.min(Math.max(intensity as number, 0), 1)
+      : defaults.intensity
+  };
+  fillExtrusionLightCache.set(styleLight, {zoomBucket, light});
+  return light;
 }
 
 /** deck.gl's `CollisionFilterExtension` supports priorities from -1000 to 1000. */
@@ -2918,6 +3092,30 @@ function isVectorStyleLayer(layer: BasemapStyleLayer, config: BasemapLayerConfig
         layer.type === 'fill-extrusion' ||
         layer.type === 'line' ||
         layer.type === 'circle';
+}
+
+/**
+ * Whether a source's layers draw from vector tiles: a vector source with tile templates, or a
+ * GeoJSON source with data, which is cut into tiles on the client (see `getGeoJsonTileFeatures`).
+ */
+export function isVectorTileSource(source: BasemapSource | undefined): boolean {
+  return source?.type === 'geojson'
+    ? isGeoJsonSource(source)
+    : Boolean(source?.tiles) && source?.type === 'vector';
+}
+
+/**
+ * The `getTileData` of a vector tile source's tileset: `loader` fetches and decodes a vector
+ * source's tiles, and a GeoJSON source's tiles are cut from its data, in the same tile-local
+ * coordinates.
+ */
+export function getVectorTileLoader(
+  source: BasemapSource,
+  loader: SharedMVTLayer
+): (tile: Parameters<SharedMVTLayer['getTileData']>[0]) => Promise<any> {
+  return source.type === 'geojson'
+    ? tile => getGeoJsonTileFeatures(source, tile.index)
+    : tile => loader.getTileData(tile);
 }
 
 /**
@@ -2976,13 +3174,13 @@ export function getSourceLoadOptions(
 }
 
 /**
- * Splits the style into runs that draw in style order, as in MapLibre: each background and raster
- * layer on its own, and consecutive layers of one vector source together, so that a raster
- * layer between two vector layers draws between them. Layers that cannot draw (a source without
- * tiles, labels turned off) do not split a run. Runs do not depend on zoom, so the tile layers
- * keep their ids and tiles when a layer leaves its zoom range. Background and raster runs have
- * their style layer's id. The first run of a source has the source id as its id, unless a
- * background or raster run already has that id; later runs, and a first run whose source id is
+ * Splits the style into runs that draw in style order, as in MapLibre: each background, raster
+ * and hillshade layer on its own, and consecutive layers of one vector source together, so that a
+ * raster layer between two vector layers draws between them. Layers that cannot draw (a source
+ * without tiles, labels turned off) do not split a run. Runs do not depend on zoom, so the tile
+ * layers keep their ids and tiles when a layer leaves its zoom range. Background, raster and
+ * hillshade runs have their style layer's id. The first run of a source has the source id as its
+ * id, unless a background, raster or hillshade run already has that id; later runs, and a first run whose source id is
  * taken, add the quoted id of their first style layer.
  */
 export function getStyleLayerRuns(
@@ -3002,7 +3200,9 @@ export function getStyleLayerRuns(
   const singleLayerRunIds = new Set(
     styleLayers
       .filter(
-        layer => layer.type === 'background' || (layer.type === 'raster' && getSource(layer)?.tiles)
+        layer =>
+          layer.type === 'background' ||
+          ((layer.type === 'raster' || layer.type === 'hillshade') && getSource(layer)?.tiles)
       )
       .map(layer => layer.id)
   );
@@ -3020,12 +3220,16 @@ export function getStyleLayerRuns(
           sourceId
         });
       }
-    } else if (
-      isVectorStyleLayer(layer, config) &&
-      sourceId &&
-      source?.tiles &&
-      source.type === 'vector'
-    ) {
+    } else if (layer.type === 'hillshade') {
+      if (source?.tiles && source.type === 'raster-dem') {
+        runs.push({type: 'hillshade', id: layer.id, sourceId, source, styleLayers: [layer]});
+      } else {
+        logBasemapRuntimeEvent('Skipping hillshade layer without a raster-dem source', {
+          layerId: layer.id,
+          sourceId
+        });
+      }
+    } else if (isVectorStyleLayer(layer, config) && sourceId && isVectorTileSource(source)) {
       const last = runs[runs.length - 1];
       // Labels draw after all of their run's other layers, so a layer after a label starts a run.
       const followsLabel =
@@ -3070,6 +3274,7 @@ function getStyleLayers({
   mode,
   spriteAtlases,
   fontFamily,
+  glyphs,
   labelPlacement,
   tilesets
 }: {
@@ -3082,6 +3287,8 @@ function getStyleLayers({
   mode: BasemapMode;
   spriteAtlases?: SpriteAtlas[] | null;
   fontFamily?: LabelFontFamily | null;
+  /** The style's glyphs, which labels are drawn with (see `MVTLabelLayerProps.glyphs`). */
+  glyphs?: GlyphStore | null;
   /** The label placement shared by the map's label layers (see `LabelPlacement`). */
   labelPlacement?: LabelPlacement | null;
   tilesets?: Map<BasemapSource, SharedTileset2D>;
@@ -3104,6 +3311,7 @@ function getStyleLayers({
   const depthTested = new Set(extrusionIndex >= 0 ? styleLayers.slice(extrusionIndex + 1) : []);
 
   const ownedTilesets = new Map<BasemapSource, SourceTilesetOwner>();
+  const ownedDemTilesets = new Map<BasemapSource, DemTilesetOwner>();
   let sourceLayers: Map<BasemapSource, string[] | null> | undefined;
   return runs.map(run => {
     const [layer] = run.styleLayers;
@@ -3114,6 +3322,32 @@ function getStyleLayers({
       return createRasterLayer({
         idPrefix,
         layer,
+        source: run.source!,
+        zoom,
+        mode,
+        depthTested: depthTested.has(layer)
+      });
+    }
+    if (run.type === 'hillshade') {
+      // One tileset per raster-dem source, shared by its hillshade layers.
+      let owner: DemTilesetOwner | undefined;
+      let tileset = tilesets?.get(run.source!);
+      if (!tileset) {
+        owner = ownedDemTilesets.get(run.source!);
+        if (!owner) {
+          owner = {
+            tileset: createDemTileset(run.source!, loadOptions),
+            consumers: new Set()
+          };
+          ownedDemTilesets.set(run.source!, owner);
+        }
+        tileset = owner.tileset;
+      }
+      return createHillshadeLayer({
+        idPrefix,
+        layer,
+        tileset,
+        demTilesetOwner: owner,
         source: run.source!,
         zoom,
         mode,
@@ -3136,7 +3370,7 @@ function getStyleLayers({
           ...getTilePyramidProps(run.source!),
           tileSize: run.source!.tileSize || 512,
           zoomOffset: VECTOR_TILE_ZOOM_OFFSET,
-          getTileData: tile => loader.getTileData(tile)
+          getTileData: getVectorTileLoader(run.source!, loader)
         });
         owner = {tileset, consumers: new Set()};
         ownedTilesets.set(run.source!, owner);
@@ -3160,6 +3394,7 @@ function getStyleLayers({
       styleDefinition,
       spriteAtlases,
       fontFamily,
+      glyphs,
       labelPlacement
     });
   });

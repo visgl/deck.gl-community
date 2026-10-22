@@ -3,7 +3,7 @@
 ## Installing
 
 ```sh
-yarn add @deck.gl/core @deck.gl-community/basemap-layers
+yarn add @deck.gl/core @deck.gl-community/basemap-layers @deck.gl-community/geo-layers@~9.4.2
 ```
 
 ## Using in deck.gl

@@ -46,6 +46,13 @@ export type PlacementSymbol = {
    * alone, would hide when the icon arrives and collides.
    */
   iconPending?: boolean;
+  /**
+   * With `text-variable-anchor`: the text's shape at each of its anchors, in the order they are
+   * tried, and the slot whose text is drawn at each. `text` is the first one's shape, and `key`
+   * names the symbol across placements, so that it keeps the anchor it was placed at while that
+   * still fits, as in MapLibre GL JS.
+   */
+  textAnchors?: {shapes: PlacementShape[]; slots: number[]; key: object};
 };
 
 /** A symbol style layer's placement rules, from its layout, as MapLibre GL JS reads them. */
@@ -64,6 +71,8 @@ export type SymbolPlacementRules = {
 /** Visibility bits of a placed symbol. */
 export const TEXT_VISIBLE = 1;
 export const ICON_VISIBLE = 2;
+/** `placeSymbol` returns the index of the anchor its text is placed at above the visibility bits. */
+export const ANCHOR_SHIFT = 2;
 
 function isPlaceable(grid: GridIndex, shape: PlacementShape, mode: OverlapMode): boolean {
   if (shape.box) {
@@ -97,25 +106,64 @@ function insertShape(grid: GridIndex, shape: PlacementShape, mode: OverlapMode):
 }
 
 /**
+ * The anchor that text with `text-variable-anchor` is placed at, as MapLibre GL JS's
+ * `placeBoxForVariableAnchors`: the anchor it was placed at before while it still fits, else the
+ * first anchor where it overlaps nothing, else, when the text may overlap, the first anchor where
+ * it may be placed so. Returns the anchor's index, or -1 when it fits at none.
+ */
+function getTextAnchor(
+  grid: GridIndex,
+  shapes: PlacementShape[],
+  overlap: OverlapMode,
+  previous: number
+): number {
+  if (previous >= 0 && previous < shapes.length && isPlaceable(grid, shapes[previous], 'never')) {
+    return previous;
+  }
+  const modes: OverlapMode[] = overlap === 'never' ? ['never'] : ['never', overlap];
+  for (const mode of modes) {
+    for (let index = 0; index < shapes.length; index++) {
+      if (isPlaceable(grid, shapes[index], mode)) {
+        return index;
+      }
+    }
+  }
+  return -1;
+}
+
+/**
  * Places one symbol in `grid`, as MapLibre GL JS's `Placement.placeLayerBucketPart` places a
  * symbol instance: each part is placeable where it lies in the grid and overlaps nothing it may not
  * overlap; a part that is not optional is placed only with the other part; placed parts are added
- * to the grid unless they ignore placement. Returns the visibility bits (`TEXT_VISIBLE`,
- * `ICON_VISIBLE`). A part that always overlaps, of a symbol whose other part does too or is
- * optional or absent, is shown even outside the grid (MapLibre's `alwaysShowText`/`Icon`).
+ * to the grid unless they ignore placement. Text with variable anchors is placed at the first of
+ * them where it fits (see `getTextAnchor`); its icon stays where it is. Returns the visibility bits
+ * (`TEXT_VISIBLE`, `ICON_VISIBLE`), and the index of the text's anchor shifted by `ANCHOR_SHIFT`.
+ * A part that always overlaps, of a symbol whose other part does too or is optional or absent, is
+ * shown even outside the grid (MapLibre's `alwaysShowText`/`Icon`).
  */
 export function placeSymbol(
   grid: GridIndex,
   symbol: PlacementSymbol,
-  rules: SymbolPlacementRules
+  rules: SymbolPlacementRules,
+  previousAnchor = -1
 ): number {
   // Beyond the horizon, or waiting for its icon: neither drawn nor in the way of the symbols placed
   // after it.
   if (symbol.occluded || (symbol.iconPending && !rules.iconOptional)) {
     return 0;
   }
-  const {text, icon} = symbol;
-  let placeText = Boolean(text) && isPlaceable(grid, text!, rules.textOverlap);
+  const {icon, textAnchors} = symbol;
+  let {text} = symbol;
+  let anchor = 0;
+  let placeText: boolean;
+  if (text && textAnchors && textAnchors.shapes.length > 1) {
+    const index = getTextAnchor(grid, textAnchors.shapes, rules.textOverlap, previousAnchor);
+    placeText = index >= 0;
+    anchor = Math.max(index, 0);
+    text = textAnchors.shapes[anchor];
+  } else {
+    placeText = Boolean(text) && isPlaceable(grid, text!, rules.textOverlap);
+  }
   let placeIcon = Boolean(icon) && isPlaceable(grid, icon!, rules.iconOverlap);
 
   const iconWithoutText = rules.textOptional || !text;
@@ -141,7 +189,8 @@ export function placeSymbol(
   const alwaysShowIcon = iconAlways && (textAlways || !rules.hasTextData || rules.textOptional);
   return (
     (placeText || (alwaysShowText && Boolean(text)) ? TEXT_VISIBLE : 0) |
-    (placeIcon || (alwaysShowIcon && Boolean(icon)) ? ICON_VISIBLE : 0)
+    (placeIcon || (alwaysShowIcon && Boolean(icon)) ? ICON_VISIBLE : 0) |
+    (anchor << ANCHOR_SHIFT)
   );
 }
 
@@ -215,6 +264,8 @@ type ViewPlacement = {
   frame: number;
   frameViewport: Viewport | null;
   lastViewport: Viewport | null;
+  /** The anchor each symbol with variable anchors had its text placed at (see `textAnchors`). */
+  anchors: WeakMap<object, number>;
 };
 
 /** The width of the visibility textures, in slots. */
@@ -332,7 +383,8 @@ export class LabelPlacement {
         placedAt: Number.NEGATIVE_INFINITY,
         frame: Number.NaN,
         frameViewport: null,
-        lastViewport: null
+        lastViewport: null,
+        anchors: new WeakMap()
       };
       this.views.set(viewport.id, view);
     }
@@ -467,6 +519,8 @@ export class LabelPlacement {
     );
     view.values.fill(0);
     const symbols = this.symbols;
+    const previousAnchors = view.anchors;
+    const anchors = new WeakMap<object, number>();
     for (const {layer, base} of this.getPlacementOrder()) {
       symbols.length = 0;
       const rules = layer.getPlacementSymbols(viewport, base, symbols);
@@ -474,11 +528,21 @@ export class LabelPlacement {
         continue;
       }
       for (const symbol of symbols) {
-        const bits = placeSymbol(grid, symbol, rules);
-        view.values[symbol.slot * 4] = bits & TEXT_VISIBLE ? 255 : 0;
+        const {textAnchors} = symbol;
+        const previous = textAnchors ? (previousAnchors.get(textAnchors.key) ?? -1) : -1;
+        const bits = placeSymbol(grid, symbol, rules, previous);
+        // Text with variable anchors is drawn from the slot of the anchor it is placed at; the
+        // slots of its other anchors stay hidden.
+        const anchor = bits >> ANCHOR_SHIFT;
+        const textSlot = textAnchors ? textAnchors.slots[anchor] : symbol.slot;
+        view.values[textSlot * 4] = bits & TEXT_VISIBLE ? 255 : 0;
         view.values[symbol.slot * 4 + 1] = bits & ICON_VISIBLE ? 255 : 0;
+        if (textAnchors && bits & TEXT_VISIBLE) {
+          anchors.set(textAnchors.key, anchor);
+        }
       }
     }
+    view.anchors = anchors;
     symbols.length = 0;
     view.viewport = viewport;
     view.revision = revision;

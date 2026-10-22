@@ -76,7 +76,8 @@ fn fragmentMain(input: VolumetricVideoVaryings) -> @location(0) vec4<f32> {
   let edgeWidth = max(fwidth(radiusSquared), 0.0001);
   let edge = 1.0 - smoothstep(1.0 - edgeWidth, 1.0 + edgeWidth, radiusSquared);
   let gaussian = exp(-3.0 * radiusSquared / filterScale);
-  return vec4<f32>(input.splatColor.rgb, input.splatColor.a * gaussian * edge);
+  let alpha = input.splatColor.a * gaussian * edge;
+  return vec4<f32>(input.splatColor.rgb * alpha, alpha);
 }
 `;
 
@@ -136,19 +137,15 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
   let q = input.frameUV * volumetricVideo.gridSize;
   let uvx = dpdx(input.frameUV);
   let uvy = dpdy(input.frameUV);
-  let footprint = max(length(uvx * volumetricVideo.gridSize), length(uvy * volumetricVideo.gridSize));
+  let footprintX = length(uvx * volumetricVideo.gridSize);
+  let footprintY = length(uvy * volumetricVideo.gridSize);
+  let footprint = max(footprintX, footprintY);
   let filteredMix = smoothstep(0.6, 1.5, footprint);
   let slot = i32(input.videoFrame) % i32(volumetricVideo.capacity);
   var result = vec4<f32>(0.0);
   if (filteredMix > 0.0) {
-    result = textureSampleGrad(
-      filteredFrames,
-      filteredFramesSampler,
-      clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0)),
-      slot,
-      uvx,
-      uvy
-    );
+    let uv = clamp(input.frameUV, vec2<f32>(0.0), vec2<f32>(1.0));
+    result = textureSampleGrad(filteredFrames, filteredFramesSampler, uv, slot, uvx, uvy);
   }
   if (filteredMix < 1.0) {
     let size = volumetricVideo.splatSize;
@@ -183,6 +180,6 @@ fn fragmentMain(input: VolumetricVideoRasterVaryings) -> @location(0) vec4<f32> 
     result = mix(detail, result, filteredMix);
   }
   if (result.a == 0.0 || input.planeOpacity == 0.0) { discard; }
-  return vec4<f32>(result.rgb / result.a, result.a * input.planeOpacity);
+  return vec4<f32>(result.rgb * input.planeOpacity, result.a * input.planeOpacity);
 }
 `;

@@ -3,6 +3,9 @@
 // Copyright (c) vis.gl contributors
 
 // Line breaking follows MapLibre GL JS's src/symbol/shaping.ts (BSD-3-Clause).
+import {applyArabicShaping} from './arabic-shaping';
+import {containsRightToLeftText, processBidirectionalText} from './bidi';
+
 const WHITESPACE = new Set([0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20]);
 const BREAKABLE = new Set([
   0x0a, 0x20, 0x26, 0x29, 0x2b, 0x2d, 0x2f, 0xad, 0xb7, 0x200b, 0x2010, 0x2013, 0x2027
@@ -62,11 +65,15 @@ function charAllowsIdeographicBreaking(codePoint: number): boolean {
   return IDEOGRAPHIC_BREAKING_REGEXP.test(String.fromCodePoint(codePoint));
 }
 
-/** `text-transform`, as MapLibre applies it: locale-aware upper or lower case. */
+/**
+ * `text-transform`, as MapLibre applies it: locale-aware upper or lower case, then Arabic shaping
+ * (see {@link applyArabicShaping}), so that the glyphs looked up, measured and drawn are those of
+ * the shapes the letters take.
+ */
 export function transformText(text: string, transform: unknown): string {
-  if (transform === 'uppercase') return text.toLocaleUpperCase();
-  if (transform === 'lowercase') return text.toLocaleLowerCase();
-  return text;
+  if (transform === 'uppercase') text = text.toLocaleUpperCase();
+  else if (transform === 'lowercase') text = text.toLocaleLowerCase();
+  return applyArabicShaping(text);
 }
 
 /** Calculates the target width, including whitespace advances as MapLibre does. */
@@ -206,10 +213,10 @@ export type WrapBudget = {steps: number};
 
 /**
  * Breaks `text` into lines no wider than `maxWidth` ems where it can, with MapLibre's balanced
- * line breaking, and returns the lines joined by '\n'. Advances from `measure` are in ems;
- * words without break opportunities stay intact, even when they exceed the requested width.
- * Text longer than {@link MAX_WRAPPED_TEXT_LENGTH}, or whose cost exceeds `budget`, is returned
- * unchanged.
+ * line breaking, and returns the lines joined by '\n', each in the order it is drawn (see
+ * {@link orderBidirectionalText}). Advances from `measure` are in ems; words without break
+ * opportunities stay intact, even when they exceed the requested width. Text longer than
+ * {@link MAX_WRAPPED_TEXT_LENGTH}, or whose cost exceeds `budget`, is not broken.
  */
 export function wrapText(
   text: string,
@@ -217,8 +224,29 @@ export function wrapText(
   measure: (character: string) => number,
   budget?: WrapBudget
 ): string {
+  return layOutLines(text, getLineBreaks(text, maxWidth, measure, budget));
+}
+
+/**
+ * Puts text that is not wrapped, such as a label along a line, into the order it is drawn: right-
+ * to-left runs reversed, as MapLibre does. Text without right-to-left characters is unchanged.
+ */
+export function orderBidirectionalText(text: string): string {
+  return layOutLines(text, null);
+}
+
+/**
+ * The code point offsets where `wrapText` ends the lines of `text`, the last being its length, or
+ * null when it is not broken.
+ */
+function getLineBreaks(
+  text: string,
+  maxWidth: number,
+  measure: (character: string) => number,
+  budget?: WrapBudget
+): number[] | null {
   if (text.length > MAX_WRAPPED_TEXT_LENGTH) {
-    return text;
+    return null;
   }
   const characters = Array.from(text);
   let breakOpportunities = 0;
@@ -232,21 +260,54 @@ export function wrapText(
       breakOpportunities++;
     }
   }
-  if (!breakOpportunities) return text;
+  if (!breakOpportunities) return null;
   if (budget) {
     const cost = characters.length + (breakOpportunities * (breakOpportunities + 1)) / 2;
-    if (cost > budget.steps) return text;
+    if (cost > budget.steps) return null;
     budget.steps -= cost;
   }
+  return determineLineBreaks(characters, maxWidth, measure);
+}
 
+/** Trims whitespace from both ends of a line, given as code points. */
+function trimLine(characters: string[]): string {
+  let first = 0;
+  let last = characters.length;
+  while (first < last && WHITESPACE.has(characters[first].codePointAt(0)!)) first++;
+  while (last > first && WHITESPACE.has(characters[last - 1].codePointAt(0)!)) last--;
+  return characters.slice(first, last).join('');
+}
+
+/**
+ * Breaks `text` at `breaks` (code point offsets, or null for none) into trimmed lines joined by
+ * '\n'. As MapLibre's shaping, text with right-to-left characters is broken in logical order and
+ * each line is then reordered by the Unicode Bidirectional Algorithm, with the embedding levels of
+ * the whole label (see {@link processBidirectionalText}).
+ */
+function layOutLines(text: string, breaks: number[] | null): string {
+  const rightToLeft = containsRightToLeftText(text);
+  if (!breaks && !rightToLeft) {
+    return text;
+  }
+  const characters = Array.from(text);
+  if (rightToLeft) {
+    const codeUnitBreaks: number[] = [];
+    if (breaks) {
+      let codeUnit = 0;
+      let index = 0;
+      for (const end of breaks) {
+        for (; index < end; index++) codeUnit += characters[index].length;
+        codeUnitBreaks.push(codeUnit);
+      }
+    }
+    return processBidirectionalText(text, codeUnitBreaks)
+      .map(line => trimLine(Array.from(line)))
+      .join('\n');
+  }
   const lines: string[] = [];
   let start = 0;
-  for (const end of determineLineBreaks(characters, maxWidth, measure)) {
-    let first = start;
-    let last = end;
-    while (first < last && WHITESPACE.has(characters[first].codePointAt(0)!)) first++;
-    while (last > first && WHITESPACE.has(characters[last - 1].codePointAt(0)!)) last--;
-    lines.push(characters.slice(first, last).join(''));
+  for (const end of breaks!) {
+    lines.push(trimLine(characters.slice(start, end)));
     start = end;
   }
   return lines.join('\n');

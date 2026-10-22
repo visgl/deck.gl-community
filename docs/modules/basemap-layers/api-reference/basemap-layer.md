@@ -18,7 +18,7 @@ Recommended example:
 ## Installation
 
 ```sh
-yarn add @deck.gl-community/basemap-layers
+yarn add @deck.gl-community/basemap-layers @deck.gl-community/geo-layers@~9.4.2
 ```
 
 ## Main Export
@@ -35,7 +35,8 @@ import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 `BasemapLayer` is a `CompositeLayer` that:
 
 - accepts a style URL or parsed style object
-- resolves TileJSON-backed sources
+- resolves TileJSON-backed sources, and fetches the data of GeoJSON sources given by URL
+- cuts GeoJSON sources into vector tiles on the client, in a web worker
 - generates `background`, `fill`, `line`, `symbol`, and `raster` sublayers
 - supports both flat map rendering and globe rendering
 
@@ -70,8 +71,9 @@ Optional loader configuration used by `resolveBasemapStyle`. This can include:
 
 Type: `string | ((fontStack: string[]) => string | Partial<LabelFont> | null) | null`
 
-Overrides the label font. By default, each symbol layer's `text-font` is mapped to a CSS font
-(see [Label fonts](/docs/modules/basemap-layers#label-fonts)). Defaults to `null`.
+Draws labels with the browser's fonts instead of the style's `glyphs`. By default, labels are
+drawn with the style's glyphs, and a style without `glyphs` maps each symbol layer's `text-font`
+to a CSS font (see [Label fonts](/docs/modules/basemap-layers#label-fonts)). Defaults to `null`.
 
 - A string replaces the CSS family list for every label. The weight and style still come from
   `text-font`. `'Monaco, monospace'` restores the font used before `text-font` was read.
@@ -80,7 +82,8 @@ Overrides the label font. By default, each symbol layer's `text-font` is mapped 
   (`'normal'` or `'italic'`). Fields it leaves out, and a `null` result, keep the mapped values.
   Pass a stable function: tiles regenerate when it changes.
 
-`getBasemapLayers` and `getGlobeBaseLayers` accept the same `fontFamily` option.
+`getBasemapLayers` and `getGlobeBaseLayers` accept the same `fontFamily` option, and a `glyphs`
+option, a `GlyphStore` of the style's `glyphs` URL, to draw labels with the style's glyphs.
 
 ### `globe`
 
@@ -102,6 +105,17 @@ Optional globe-specific toggles:
 </p>
 
 Generates the deck.gl sublayers for an already-resolved style definition. Use this when you want the sublayers without creating a `BasemapLayer` instance.
+
+`BasemapLayer` keeps each source's tiles in a shared tileset across renders. A direct caller that calls `getBasemapLayers` on every render keeps them by passing its own `tilesets` map, keyed by source, and finalizes those tilesets when done.
+
+### `createDemTileset(source, loadOptions?)`
+
+<p class="badges">
+  <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
+  <img src="https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square" alt="experimental" />
+</p>
+
+Creates the shared tileset of a `raster-dem` source, for the `tilesets` map of `getBasemapLayers`: each tile is fetched and decoded once for all of the source's `hillshade` layers. The caller finalizes it.
 
 ### `getGlobeBaseLayers(options)`
 
@@ -132,6 +146,7 @@ Loads and normalizes a style document. This resolves:
 
 - remote style JSON URLs
 - TileJSON-backed source definitions
+- GeoJSON source `data` URLs, fetched into the source's `data`
 - relative tile template URLs
 - legacy Mapbox `ref` layer inheritance
 

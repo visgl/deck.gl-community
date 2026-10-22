@@ -82,6 +82,7 @@ Resolves a style URL or in-memory style document into a fully normalized style d
 - validates the input style shape
 - fetches the top-level style document when given a URL
 - resolves TileJSON-backed sources
+- fetches the data of GeoJSON sources whose `data` is a URL, through the same `fetch` and `fetchOptions`; if it cannot be fetched, a warning is logged and the source's layers are skipped
 - normalizes relative URLs against the style URL or provided `baseUrl`
 - dereferences legacy Mapbox `ref` layers before output validation
 - returns a `ResolvedBasemapStyle`

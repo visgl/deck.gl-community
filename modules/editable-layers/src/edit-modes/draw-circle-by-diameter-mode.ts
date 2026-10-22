@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {circle} from '@turf/circle';
 import {distance} from '@turf/distance';
 import {area} from '@turf/area';
@@ -93,4 +95,9 @@ export class DrawCircleByDiameterMode extends TwoClickPolygonMode {
 
     return tooltips;
   });
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
+  }
 }

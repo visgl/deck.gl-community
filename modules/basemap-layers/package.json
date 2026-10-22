@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/basemap-layers",
-  "version": "9.4.2",
+  "version": "9.4.6",
   "description": "Basemap layer and map-style helpers for deck.gl.",
   "license": "MIT",
   "keywords": [
@@ -34,7 +34,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "scripts": {
     "test": "yarn --cwd ../.. vitest run --config modules/basemap-layers/vitest.config.ts",
@@ -54,8 +55,10 @@
     "@loaders.gl/loader-utils": "^4.5.1",
     "@loaders.gl/mvt": "^4.5.1",
     "@mapbox/tiny-sdf": "^2.0.5",
+    "@maplibre/geojson-vt": "^6.1.2",
     "@maplibre/maplibre-gl-style-spec": "^24.8.1",
     "@turf/polygon-to-line": "^6.0.3",
+    "bidi-js": "^1.1.0",
     "zod": "^4.0.0"
   },
   "peerDependencies": {

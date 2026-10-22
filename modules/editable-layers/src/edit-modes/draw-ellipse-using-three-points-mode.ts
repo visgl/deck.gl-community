@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {distance} from '@turf/distance';
 import {ellipse} from '@turf/ellipse';
 import {bearing} from '@turf/bearing';
@@ -32,5 +34,10 @@ export class DrawEllipseUsingThreePointsMode extends ThreeClickPolygonMode {
     geometry.properties.editProperties.center = centerCoordinates;
 
     return geometry;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return undefined;
   }
 }

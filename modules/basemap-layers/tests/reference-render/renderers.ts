@@ -11,6 +11,7 @@ import mvtWorkerUrl from '@loaders.gl/mvt/mvt-worker.js?url';
 import * as maplibregl from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import {BasemapLayer} from '../../src/index';
+import type {GlyphStore} from '../../src/glyph-store';
 import {MVTLabelLayer} from '../../src/mvt-label-layer';
 import {fromFixtureUrl} from './fixtures';
 import {VIEWPORT, type ReferenceScene} from './scenes';
@@ -62,6 +63,8 @@ export type RenderOptions = {
   pixelRatio?: number;
   /** Camera pitch, in degrees. Default 0. */
   pitch?: number;
+  /** Camera bearing, in degrees. Default 0. */
+  bearing?: number;
 };
 
 /** Options of a `BasemapLayer` render. */
@@ -153,6 +156,11 @@ const GEOMETRY_TYPES = ['Unknown', 'Point', 'LineString', 'Polygon'];
  * icon) its collision index has in the view, as `queryRenderedFeatures` finds them, if that
  * symbol's text placed. `queryRenderedFeatures` alone would also return a symbol whose icon placed
  * without its optional text.
+ *
+ * `BasemapLayer`'s labels are read by their drawn glyphs instead (see `renderBasemapLayer`), so a
+ * label whose collision shape reaches into the view but whose glyphs do not counts here only. In
+ * `new-york-dark-z12.3`, "Bowery" is such a label: both renderers place it, with the same
+ * collision circles, which reach 1.2 px into the view, and neither draws a pixel of it there.
  */
 function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[] {
   const mapStyle = (map as any).style;
@@ -217,7 +225,7 @@ function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[]
 export async function renderMapLibre(
   style: any,
   scene: ReferenceScene,
-  {pixelRatio = 1, pitch = 0}: RenderOptions = {}
+  {pixelRatio = 1, pitch = 0, bearing = 0}: RenderOptions = {}
 ): Promise<Render> {
   const container = createContainer();
   const requests: string[] = [];
@@ -229,6 +237,7 @@ export async function renderMapLibre(
     center: scene.center,
     zoom: scene.zoom,
     pitch,
+    bearing,
     pixelRatio,
     // Labels at full opacity in the first idle frame.
     fadeDuration: 0,
@@ -279,11 +288,30 @@ class ProbeLabelLayer extends MVTLabelLayer {
 }
 
 /**
+ * The glyph store of each `glyphs` URL while `renderBasemapLayer` draws a scene, shared by its two
+ * draws. `BasemapLayer` makes a new store each time it loads a style, and keys its font atlases by
+ * the store, so the read-back draw would find none of the atlases built from the first draw's.
+ */
+let sharedGlyphStores: Map<string, GlyphStore> | null = null;
+
+/**
  * `BasemapLayer` with only its label text pickable, so that the labels left after collision can be
  * read back by picking. Drawing is unchanged.
  */
 class ProbeBasemapLayer extends BasemapLayer {
   static layerName = 'ProbeBasemapLayer';
+
+  // Takes the glyph store of the render's other draw at the same URL (see `sharedGlyphStores`).
+  setState(partialState: any) {
+    const glyphs: GlyphStore | null | undefined = partialState?.glyphs;
+    if (glyphs && sharedGlyphStores) {
+      if (!sharedGlyphStores.has(glyphs.url)) {
+        sharedGlyphStores.set(glyphs.url, glyphs);
+      }
+      partialState = {...partialState, glyphs: sharedGlyphStores.get(glyphs.url)};
+    }
+    super.setState(partialState);
+  }
 
   renderLayers() {
     const toProbe = (layers: unknown): any[] =>
@@ -325,18 +353,6 @@ function getResourceRequests(start: number): Array<{url: string; status: number}
     }));
 }
 
-/**
- * The CSS fonts that draw the styles' `text-font` stacks, where the glyph server draws another
- * font than its first name says: CARTO's `Montserrat ... Italic` stacks are drawn with Open Sans
- * Italic glyphs (their advances match Open Sans Italic, and are 20% narrower than Montserrat
- * Italic's). Other stacks draw their first font.
- */
-function getReferenceFontFamily(fontStack: string[]) {
-  return /^Montserrat .*Italic$/.test(fontStack[0] || '')
-    ? {fontFamily: '"Open Sans", sans-serif'}
-    : null;
-}
-
 /** Frames drawn after everything has loaded and before the frame is read. */
 const SETTLE_FRAMES = 1;
 
@@ -362,28 +378,59 @@ type FontAtlas = {
 };
 
 /**
+ * A field of deck.gl's font atlas manager that the prebuild reads. These are private, so a deck.gl
+ * release may rename one: then no font would be found, nothing prebuilt, and the order check would
+ * pass without checking anything. Throws instead.
+ */
+function getPrivateField(object: any, field: string, owner: string): any {
+  const value = object?.[field];
+  if (value === undefined || value === null) {
+    throw new Error(
+      `deck.gl ${owner} has no \`${field}\`: the font atlas prebuild reads private deck.gl ` +
+        'fields; update getFontAtlases for this deck.gl version'
+    );
+  }
+  return value;
+}
+
+/**
  * The fonts the text layers among `layers` draw, with every character any of them holds. A layer
  * not updated since its font gained characters still holds an earlier atlas of that font.
  */
-function getFontAtlases(layers: any[]): FontAtlas[] {
+export function getFontAtlases(layers: any[]): FontAtlas[] {
   // By deck.gl's font atlas cache key, which the layers of one font share.
   const fonts = new Map<string, FontAtlas>();
   for (const layer of layers) {
-    const manager = layer.state?.fontAtlasManager;
-    if (!manager?.mapping) {
+    // Every `TextLayer` builds its font's atlas when it first updates, with or without data.
+    if (!(layer instanceof TextLayer)) {
       continue;
     }
-    let font = fonts.get(manager._key);
+    const manager = getPrivateField(layer.state, 'fontAtlasManager', 'TextLayer state');
+    const key: string = getPrivateField(manager, '_key', 'FontAtlasManager');
+    const mapping = getPrivateField(manager, 'mapping', 'FontAtlasManager');
+    let font = fonts.get(key);
     if (!font) {
-      font = {key: manager._key, manager, characters: new Set(), atlases: new Set()};
-      fonts.set(manager._key, font);
+      font = {key, manager, characters: new Set(), atlases: new Set()};
+      fonts.set(key, font);
     }
-    font.atlases.add(manager.atlas);
-    for (const character of Object.keys(manager.mapping)) {
+    font.atlases.add(getPrivateField(manager, 'atlas', 'FontAtlasManager'));
+    for (const character of Object.keys(mapping)) {
       font.characters.add(character);
     }
   }
   return [...fonts.values()];
+}
+
+/**
+ * Throws when a draw drew labels but reports no font atlas: the atlases were not found, and the
+ * read-back draw's atlas order would go unchecked.
+ */
+function checkFontAtlases({labels, fontAtlases}: BasemapLayerDraw): void {
+  if (labels.length > 0 && fontAtlases.length === 0) {
+    throw new Error(
+      `BasemapLayer drew ${labels.length} labels from no font atlas that getFontAtlases found`
+    );
+  }
 }
 
 /**
@@ -423,12 +470,23 @@ export async function renderBasemapLayer(
 ): Promise<Render> {
   const start = performance.now();
   resetFontAtlases();
-  const first = await draw(structuredClone(style), scene, layerProps, {
-    ...options,
-    onRendered: undefined
-  });
-  const prebuilt = resetFontAtlases(first.fontAtlases);
-  const {fontAtlases, ...render} = await draw(style, scene, layerProps, options);
+  sharedGlyphStores = new Map();
+  let first: BasemapLayerDraw;
+  let prebuilt: Set<object>;
+  let second: BasemapLayerDraw;
+  try {
+    first = await draw(structuredClone(style), scene, layerProps, {
+      ...options,
+      onRendered: undefined
+    });
+    checkFontAtlases(first);
+    prebuilt = resetFontAtlases(first.fontAtlases);
+    second = await draw(style, scene, layerProps, options);
+    checkFontAtlases(second);
+  } finally {
+    sharedGlyphStores = null;
+  }
+  const {fontAtlases, ...render} = second;
   return {
     ...render,
     unsortedFontAtlases: fontAtlases
@@ -448,7 +506,7 @@ async function drawBasemapLayer(
   style: any,
   scene: ReferenceScene,
   layerProps: Record<string, unknown>,
-  {pixelRatio = 1, pitch = 0, onRendered}: BasemapLayerRenderOptions
+  {pixelRatio = 1, pitch = 0, bearing = 0, onRendered}: BasemapLayerRenderOptions
 ): Promise<BasemapLayerDraw> {
   const parent = createContainer();
   performance.clearResourceTimings();
@@ -481,14 +539,13 @@ async function drawBasemapLayer(
             latitude: scene.center[1],
             zoom: scene.zoom,
             pitch,
-            bearing: 0
+            bearing
           },
           layers: [
             new ProbeBasemapLayer({
               id: 'basemap',
               style,
               loadOptions: {mvt: {workerUrl: mvtWorkerUrl}},
-              fontFamily: getReferenceFontFamily,
               // Placed at every frame, as MapLibre with `fadeDuration: 0`.
               labelPlacementInterval: 0,
               ...layerProps
@@ -536,7 +593,12 @@ async function drawBasemapLayer(
             frameLayers = layers.filter(
               (layer: any) => !layer.isComposite && layer.props.visible
             ).length;
-            fontAtlases = getFontAtlases(layers);
+            try {
+              fontAtlases = getFontAtlases(layers);
+            } catch (error) {
+              reject(error);
+              return;
+            }
             resolve(readCanvas(deck!.getCanvas()!, pixelRatio));
           },
           onError: error => reject(error)
@@ -555,7 +617,9 @@ async function drawBasemapLayer(
     })) {
       const labelLayer = info.sourceTileSubLayer;
       if (labelLayer instanceof ProbeLabelLayer && info.object) {
-        const text = labelLayer.getLabel(info.object);
+        // In logical order, as MapLibre's text is read back: the drawn text of a label with
+        // right-to-left characters is in the order it is drawn.
+        const text = labelLayer.getUnwrappedLabelText(info.object);
         if (text) {
           labels.add(String(text));
         }

@@ -1,5 +1,33 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.6
+
+- Spend about a quarter of the CPU time per moving frame in `TreeLayer` and `SplatLayer` over large groves, with the same rendered selection. A controlled `highlightedObjectIndex` now highlights the source tree or owner in every wood, canopy and crop partition, as `autoHighlight` does (#956).
+- Embed live layer demos in the layer API documentation (#954).
+- **Breaking:** Remove the deprecated `@deck.gl-community/three` compatibility workspace; v9.4.5 is its final published version. Import `TreeLayer` and its types from `@deck.gl-community/layers`; the Seasonal Farm example now lives under `examples/layers/seasonal-farm` (#953).
+
+## v9.4.5
+
+- Keep `TreeLayer` and `SplatLayer` canopies visible in interleaved `MapboxOverlay`/`MapLibreOverlay` maps after zooming or panning: the Gaussian depth pre-pass clears its private target instead of inheriting `clearCanvas: false` (#955).
+- Keep the shared canopy splat budget during small camera moves and orbits instead of refining every visible crown (#955).
+- Highlight the hovered tree across `TreeLayer` wood and canopy sub-layers with `autoHighlight`, instead of unrelated trees at the same row index (#955).
+
+## v9.4.4
+
+- Publish v9.4.4 as a recovery release after an interrupted v9.4.3 npm provenance attestation. It carries the v9.4.3 source but does not republish existing v9.4.3 package versions; no consumer API or runtime behavior changes.
+- Serialize npm publication and recover an existing transparency-log entry on conflict so signed package provenance remains intact.
+
+## v9.4.3
+
+- Render dense, mixed-species forests with native `TreeLayer` foliage backed by `SplatLayer`. Each visible canopy now selects its own screen-error resolution within a shared, device-aware budget, with stable optical transitions, picking, seasonal crops and wind on WebGL2 and WebGPU (#794, #807, #949).
+- Add `VolumetricVideoLayer` for GPU-rendered MP4/MOV frame volumes, including native-pixel sampling, bounded history, static-pixel filtering and matching WebGL2/WebGPU compositing (#822, #917, #919, #921).
+- Bring `BasemapLayer` substantially closer to MapLibre styling: style glyphs and sprites, CPU label placement and collision, line labels, patterns, hillshade, tiled GeoJSON, style order and globe-aware rendering (#818–#938).
+- Add edge snapping and reliable interleaved MapLibre/Mapbox interaction to editable layers, including correct lasso picking and primary-gesture handling (#672, #675, #914).
+- Improve shared tile traversal with globe-horizon culling, cache/view lifecycle fixes and correct selected-tile rendering; expand graph, panel, playground and multi-canvas examples and documentation.
+- **Migration:** `TreeLayer` is now native and canonical in `@deck.gl-community/layers`; the `@deck.gl-community/three` import remains a temporary compatibility re-export. Native TreeLayer and SplatLayer foliage ship without built-in deck.gl shadows, `detail` is ignored, crop radius and canopy sublayer behavior changed, and Cartesian/metre-offset `modelMatrix` supports translation only.
+- **Migration:** `DOTGraphLoader` has moved to `@loaders.gl/graphs`; load DOT with `DOTLoaderWithParser` before constructing a graph-layer graph.
+- See [What's New](docs/whats-new.md) and the module API references for usage and migration details.
+
 ## v9.4.2
 
 - Publish the playground package with customizable document languages, panels, template metadata, and cancellable asynchronous renderers (#788, #789).

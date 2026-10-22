@@ -150,9 +150,8 @@ describe('draw order across sources', () => {
       {id: 'missing', type: 'raster', source: 'unknown'},
       {id: 'roads', type: 'line', source: 'tiles', 'source-layer': 'road'}
     ];
-    // Unsupported types are filtered before runs are made, as in getBasemapLayers.
-    const supported = layers.filter(layer => layer.type !== 'hillshade');
-    expect(getRuns(supported, {atmosphere: false, basemap: true, labels: false})).toEqual([
+    // The hillshade's source is not a `raster-dem` source, so it draws nothing.
+    expect(getRuns(layers, {atmosphere: false, basemap: true, labels: false})).toEqual([
       {type: 'vector', id: 'tiles', layers: ['water', 'roads']}
     ]);
     expect(getLayerIds(layers, 4, {labels: false})).toEqual(['test-tiles']);

@@ -16,7 +16,10 @@ const props: TreeLayerProps<(typeof data)[number]> = {
   maxCanopySplats: 20000
 };
 new TreeLayer(props);
+new TreeLayer({data, getTreeType: 'oak', maxCanopySplats: 'auto'});
 new TreeLayer({data, getTreeType: 'oak', getElevation: -10, getTrunkColor: null});
+// @ts-expect-error Only a numeric canopy cap or the automatic policy is supported.
+new TreeLayer({data, maxCanopySplats: 'dynamic'});
 const crop: CropConfig = {kind: 'acorn', color: [100, 70, 30], count: 4, radius: 0.1};
 new TreeLayer({...props, getCrop: crop});
 // @ts-expect-error Manual detail modes are no longer part of the canonical API.

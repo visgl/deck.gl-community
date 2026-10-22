@@ -114,7 +114,8 @@
     "@luma.gl/webgpu": "~9.4.0",
     "fast-xml-parser": "5.5.3",
     "fast-uri": "3.1.7",
-    "mjolnir.js": "3.1.1"
+    "mjolnir.js": "3.1.1",
+    "sigstore@npm:^4.0.0": "patch:sigstore@npm%3A4.1.1#~/.yarn/patches/sigstore-npm-4.1.1-9ab7be1c91.patch"
   },
   "packageExtensions": {
     "deck.gl@*": {

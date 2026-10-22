@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import type {SnappingStrategy} from './snapping/snapping-strategy';
+
 import {
+  BasePointerEvent,
   ClickEvent,
   StartDraggingEvent,
   StopDraggingEvent,
@@ -13,8 +16,11 @@ import {
 } from './types';
 import {Polygon, Feature, Position, SimpleFeatureCollection} from '../utils/geojson-types';
 import {GeoJsonEditMode} from './geojson-edit-mode';
+import {getPickedEditHandle} from './utils';
+import {SnappableEditMode} from './snappable-edit-mode';
+import {ClickSnappingStrategy} from './snapping/click-snapping-strategy';
 
-export class TwoClickPolygonMode extends GeoJsonEditMode {
+export class TwoClickPolygonMode extends GeoJsonEditMode implements SnappableEditMode {
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     if (props.modeConfig && props.modeConfig.dragToDraw) {
       // handled in drag handlers
@@ -26,13 +32,21 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     this.checkAndFinishPolygon(props);
   }
 
+  /** Owns every press with `dragToDraw`, otherwise presses on edit handles. */
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return Boolean(props.modeConfig?.dragToDraw || getPickedEditHandle(event.picks));
+  }
+
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {
     if (!props.modeConfig || !props.modeConfig.dragToDraw) {
       // handled in click handlers
       return;
     }
 
-    this.addClickSequence(event);
+    // Anchor at pointer-down, before the pan recognizer's movement threshold.
+    // Discard any unfinished drag so it cannot offset the next rectangle.
+    this.resetClickSequence();
+    this.addClickSequence({...event, mapCoords: event.pointerDownMapCoords || event.mapCoords});
     event.cancelPan();
   }
 
@@ -132,5 +146,10 @@ export class TwoClickPolygonMode extends GeoJsonEditMode {
     }
 
     return tentativeFeature;
+  }
+
+  /** Returns the snapping policy for this mode, or undefined to opt out. */
+  getSnappingStrategy(): SnappingStrategy | undefined {
+    return new ClickSnappingStrategy();
   }
 }

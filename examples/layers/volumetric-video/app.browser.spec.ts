@@ -27,6 +27,46 @@ function chooseFile(input: HTMLInputElement, file: File) {
 }
 
 describe('mounted volumetric video demo', () => {
+  // Value: protects=the community website mount uses the shared panel and the sample video;
+  // fails_when=the bespoke sidebar appears in the embedded example or its standard controls are absent;
+  // why_new=standalone demo tests do not pass the website-only mount options; seam=embedded mount.
+  it('uses the standard panel when embedded by the community website', async () => {
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    let cleanup: (() => void) | undefined;
+    try {
+      cleanup = mountVolumetricVideoExample(parent, {embedded: true});
+      await vi.waitFor(
+        () => expect(parent.querySelector<HTMLElement>('.vv-demo')?.dataset.frameReady).toBe('88'),
+        {timeout: 5000}
+      );
+      const customPanel = parent.querySelector<HTMLElement>('.vv-panel')!;
+      expect(getComputedStyle(customPanel).display).toBe('none');
+      expect(getComputedStyle(parent.querySelector<HTMLElement>('.vv-stage-top')!).display).toBe(
+        'none'
+      );
+      expect(parent.textContent).toContain('Current frame');
+      expect(parent.textContent).toContain('Remove static pixels');
+      const controlPanel = parent.querySelector<HTMLElement>('.deck-widget-box')!;
+      const frameTrailRow = parent.querySelector<HTMLElement>(
+        '[data-setting-row-for="frameTrail"]'
+      )!;
+      const panelBounds = controlPanel.getBoundingClientRect();
+      const rowBounds = frameTrailRow.getBoundingClientRect();
+      expect(rowBounds.left).toBeGreaterThanOrEqual(panelBounds.left);
+      expect(rowBounds.right).toBeLessThanOrEqual(panelBounds.right);
+      const status = parent.querySelector<HTMLElement>('#vv-status')!;
+      expect(status.closest<HTMLElement>('.vv-stage-meta')).not.toBeNull();
+      expect(getComputedStyle(status.closest<HTMLElement>('.vv-stage-meta')!).display).not.toBe(
+        'none'
+      );
+    } finally {
+      cleanup?.();
+      parent.remove();
+    }
+  });
+
   // Value: protects=a full WebGPU demo teardown and fresh mount remain usable after a page reload;
   // fails_when=stale WebGPU resources, errors, or pending decode state survive the replacement;
   // why_new=the general remount test can use WebGL where available; seam=mounted demo lifecycle.
@@ -59,6 +99,186 @@ describe('mounted volumetric video demo', () => {
     }
   }, 35_000);
 
+  // Value: protects=the standalone comparison controls replace the Deck device in place;
+  // fails_when=switching loses the source timeline, leaves a stale backend label, or requires a page reload;
+  // why_new=the embedded site owns its standard device tabs, while this test exercises the standalone seam.
+  it('switches the standalone demo between WebGL and WebGPU in place', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    let cleanup: (() => void) | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent);
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+        },
+        {timeout: 15_000}
+      );
+      const webgl = element<HTMLButtonElement>('[data-backend-option="webgl"]');
+      const webgpu = element<HTMLButtonElement>('[data-backend-option="webgpu"]');
+      webgl.click();
+      expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBeUndefined();
+      expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+          expect(webgl.getAttribute('aria-pressed')).toBe('true');
+        },
+        {timeout: 15_000}
+      );
+      change(element<HTMLInputElement>('#vv-frame'), '40');
+      change(element<HTMLInputElement>('#vv-trail'), '20');
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('40'),
+        {
+          timeout: 10_000
+        }
+      );
+      webgpu.click();
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('40');
+          expect(element<HTMLInputElement>('#vv-frame').value).toBe('40');
+          expect(element<HTMLInputElement>('#vv-trail').value).toBe('20');
+          expect(webgpu.getAttribute('aria-pressed')).toBe('true');
+        },
+        {timeout: 15_000}
+      );
+    } finally {
+      cleanup?.();
+      parent.remove();
+    }
+  }, 45_000);
+
+  // Value: protects=the community website's standard panel can select the backend rather than
+  // hiding the WebGL/WebGPU comparison behind the standalone demo; fails_when=the embedded
+  // mount omits the selector or loses its loaded video while replacing the Deck device.
+  it('switches the embedded website example between WebGL and WebGPU', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    let cleanup: (() => void) | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent, {embedded: true});
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+        },
+        {timeout: 15_000}
+      );
+      const backend = element<HTMLButtonElement>('#settings-panel-input-backend');
+      expect(backend.textContent).toContain('WebGPU');
+      backend.click();
+      await Promise.resolve();
+      const webgl = Array.from(
+        document.body.querySelectorAll<HTMLButtonElement>('[role="option"]')
+      ).find(option => option.textContent?.includes('WebGL2'));
+      expect(webgl).toBeTruthy();
+      webgl?.click();
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+          expect(element<HTMLButtonElement>('#settings-panel-input-backend').textContent).toContain(
+            'WebGL2'
+          );
+        },
+        {timeout: 15_000}
+      );
+    } finally {
+      cleanup?.();
+      parent.remove();
+    }
+  }, 35_000);
+
+  // Value: protects=a user-selected WebGL backend wins while the initial WebGPU probe is pending;
+  // fails_when=the delayed probe creates a second WebGPU Deck after the WebGL replacement;
+  // why_new=the normal toggle test waits for the initial device before clicking; seam=async startup.
+  it('honors a WebGL selection while initial WebGPU detection is pending', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    const gpu = (navigator as Navigator & {gpu: {requestAdapter: () => Promise<unknown>}}).gpu;
+    let resolveAdapter: (adapter: unknown) => void = () => {};
+    const requestAdapter = vi
+      .spyOn(gpu, 'requestAdapter')
+      .mockImplementationOnce(() => new Promise(resolve => (resolveAdapter = resolve)));
+    let cleanup: (() => void) | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent);
+      element<HTMLButtonElement>('[data-backend-option="webgl"]').click();
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl'),
+        {timeout: 15_000}
+      );
+      resolveAdapter({});
+      await vi.waitFor(
+        () => {
+          expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+          expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+        },
+        {timeout: 15_000}
+      );
+    } finally {
+      cleanup?.();
+      requestAdapter.mockRestore();
+      parent.remove();
+    }
+  }, 35_000);
+
+  // Value: protects=an unavailable WebGPU request leaves the working WebGL decoder and callbacks intact;
+  // fails_when=the failed capability probe invalidates the existing Deck and strands the loading UI;
+  // why_new=successful backend changes replace their Deck; seam=failed WebGPU capability probe.
+  it('keeps the active WebGL volume live when a WebGPU switch is unavailable', async ({skip}) => {
+    await requireWebGPUAdapter(skip);
+    const parent = document.createElement('div');
+    parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
+    document.body.append(parent);
+    const gpu = (navigator as Navigator & {gpu: {requestAdapter: () => Promise<unknown>}}).gpu;
+    let cleanup: (() => void) | undefined;
+    let requestAdapter: {mockRestore: () => void} | undefined;
+    const element = <T extends HTMLElement>(selector: string) => parent.querySelector<T>(selector)!;
+    try {
+      cleanup = mountVolumetricVideoExample(parent);
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgpu'),
+        {timeout: 15_000}
+      );
+      const webgl = element<HTMLButtonElement>('[data-backend-option="webgl"]');
+      webgl.click();
+      await vi.waitFor(
+        () => expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88'),
+        {timeout: 15_000}
+      );
+      requestAdapter = vi
+        .spyOn(gpu, 'requestAdapter')
+        .mockRejectedValueOnce(new Error('Adapter unavailable'));
+      element<HTMLButtonElement>('[data-backend-option="webgpu"]').click();
+      await vi.waitFor(
+        () => expect(element('#vv-error').textContent).toContain('WebGPU is unavailable'),
+        {timeout: 5_000}
+      );
+      expect(element<HTMLElement>('.vv-demo').dataset.backend).toBe('webgl');
+      expect(element<HTMLElement>('.vv-demo').dataset.frameReady).toBe('88');
+      expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(false);
+      expect(webgl.getAttribute('aria-pressed')).toBe('true');
+    } finally {
+      cleanup?.();
+      requestAdapter?.mockRestore();
+      parent.remove();
+    }
+  }, 35_000);
+
   // Value: protects=automatic recovery restores playback with the latest filter state;
   // fails_when=a successful visibility retry never reports readiness to the mounted UI or applies
   // settings from a replaced layer instance;
@@ -67,18 +287,23 @@ describe('mounted volumetric video demo', () => {
     const parent = document.createElement('div');
     parent.style.cssText = 'position:fixed;inset:0;width:1000px;height:700px';
     document.body.append(parent);
-    const updates = vi.spyOn(Deck.prototype, 'setProps');
     let cleanup: (() => void) | undefined;
+    let activeDeck: Deck<OrbitView> | undefined;
     const element = <T extends HTMLElement>(id: string) => parent.querySelector<T>(id)!;
     try {
-      cleanup = mountVolumetricVideoExample(parent);
+      cleanup = mountVolumetricVideoExample(parent, {
+        onDeckInitialized: deck => {
+          activeDeck = deck;
+        }
+      });
       await vi.waitFor(() => expect(element('.vv-demo').dataset.frameReady).toBe('88'), {
         timeout: 5000
       });
       change(element<HTMLSelectElement>('#vv-resolution'), '128', 'change');
       const layer = () =>
-        (updates.mock.contexts.at(-1)! as Deck<OrbitView[]>).props
-          .layers![0] as VolumetricVideoLayer;
+        activeDeck!
+          .layerManager!.getLayers()
+          .find(layer => layer.id === 'video-volume') as VolumetricVideoLayer;
       await vi.waitFor(() => expect(layer().state.frames!.width).toBe(128), {timeout: 5000});
       const appearance = layer().state.frames!.appearance;
       const updateAppearance = vi.spyOn(appearance, 'update');
@@ -107,7 +332,9 @@ describe('mounted volumetric video demo', () => {
       );
       expect(element<HTMLButtonElement>('#vv-play').disabled).toBe(true);
       change(element<HTMLInputElement>('#vv-static'), '0.75');
-      expect(layer().props.staticPixelRemoval).toBe(0.75);
+      await vi.waitFor(() => expect(layer().props.staticPixelRemoval).toBe(0.75), {
+        timeout: 3000
+      });
       allowRetry = true;
       await vi.waitFor(
         () => {

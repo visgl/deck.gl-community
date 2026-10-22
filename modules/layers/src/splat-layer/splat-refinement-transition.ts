@@ -3,6 +3,10 @@
 // Copyright (c) vis.gl contributors
 import type {SplatSelection} from './splat-budget';
 
+const REFINEMENT_DURATION = 180;
+const SMOOTH_FRAME_DURATION = 4;
+const SETTLED_DELTA = 0.05;
+
 type Entry<T> = {
   owner: T;
   counts: number[];
@@ -37,9 +41,31 @@ export class SplatRefinementTransition<T> {
     rows: SplatSelection<T>[],
     counts: number[] | ((owner: T) => number[]),
     budget: number,
-    key: (owner: T) => string
+    key: (owner: T) => string,
+    immediate = false
   ) {
     this.budget = budget;
+    return this.update(rows, counts, key, immediate, true);
+  }
+  /**
+   * Admit arriving owners and drop departed ones, leaving retained targets and the budget to the
+   * next reconcile. A joint allocation that follows in the same frame would discard any local
+   * retarget, and retargeting every visible owner twice per camera frame dominates large groves.
+   */
+  retain(
+    rows: SplatSelection<T>[],
+    counts: number[] | ((owner: T) => number[]),
+    key: (owner: T) => string
+  ) {
+    return this.update(rows, counts, key, false, false);
+  }
+  private update(
+    rows: SplatSelection<T>[],
+    counts: number[] | ((owner: T) => number[]),
+    key: (owner: T) => string,
+    immediate: boolean,
+    retarget: boolean
+  ) {
     let membershipChanged = false;
     const initial = this.entries.size === 0;
     const epoch = ++this.epoch;
@@ -54,9 +80,10 @@ export class SplatRefinementTransition<T> {
         const target = rowCounts.map((_, level) =>
           level === row.level ? 1 - blend : level === row.level + 1 ? blend : 0
         );
-        const weights = initial
-          ? [...target]
-          : rowCounts.map((_, level) => (level === rowCounts.length - 1 ? 1 : 0));
+        const weights =
+          initial || immediate
+            ? [...target]
+            : rowCounts.map((_, level) => (level === rowCounts.length - 1 ? 1 : 0));
         const cost = weights.reduce(
           (sum, weight, level) => sum + (weight > 0 ? rowCounts[level] : 0),
           0
@@ -84,7 +111,7 @@ export class SplatRefinementTransition<T> {
         entry.owner = row.owner;
         entry.counts = rowCounts;
         entry.seen = epoch;
-        if (entry.level !== row.level || entry.blend !== blend) {
+        if (retarget && (entry.level !== row.level || entry.blend !== blend)) {
           entry.level = row.level;
           entry.blend = blend;
           entry.target.fill(0);
@@ -92,6 +119,7 @@ export class SplatRefinementTransition<T> {
           if (blend > 0) entry.target[row.level + 1] = blend;
           this.updateTarget(entry);
         }
+        if (immediate) this.snap(entry);
       }
     }
     for (const [id, entry] of this.entries)
@@ -103,6 +131,17 @@ export class SplatRefinementTransition<T> {
       }
     this.revision++;
     return membershipChanged;
+  }
+  /** Apply a complete runtime allocation before presentation; ordinary camera changes retain fades. */
+  private snap(entry: Entry<T>) {
+    const before = entry.cost;
+    entry.weights = [...entry.target];
+    entry.cost = entry.targetCost;
+    entry.missingCost = 0;
+    entry.dominant = entry.weights.indexOf(Math.max(...entry.weights));
+    entry.revision++;
+    this.used += entry.cost - before;
+    this.moving.delete(entry);
   }
   private updateTarget(entry: Entry<T>) {
     entry.targetCost = 0;
@@ -118,15 +157,18 @@ export class SplatRefinementTransition<T> {
     if (changing) this.moving.add(entry);
     else this.moving.delete(entry);
   }
-  /** Slow frames cannot turn a detail change into one large optical step.
-   * Forced quota reductions retain old work until faded, admitting at most one
-   * additional owner representation above that existing work to make progress.
+  /**
+   * Forced quota reductions retain old work until faded, admitting at most one additional owner
+   * representation above that existing work to make progress. Keep optical continuity while
+   * making camera-selected detail visible within a short wall-time
+   * interval. A long render frame must not turn a detail change into one visible optical step.
    */
-  sample(now: number, duration = 900): boolean {
-    const elapsed = this.previous ? Math.max(0, Math.min(16, now - this.previous)) : 0;
+  sample(now: number, duration = REFINEMENT_DURATION): boolean {
+    const wallElapsed = this.previous ? Math.max(0, now - this.previous) : 0;
     this.previous = now;
-    if (!this.active || !elapsed) return false;
-    const alpha = 1 - Math.exp(-elapsed / (duration / 3));
+    if (!this.active || !wallElapsed) return false;
+    const elapsed = Math.min(wallElapsed, SMOOTH_FRAME_DURATION);
+    const alpha = duration <= 0 ? 1 : 1 - Math.exp(-elapsed / (duration / 3));
     let reserve = 0;
     for (const entry of this.moving)
       if (entry.targetCost <= entry.cost) reserve = Math.max(reserve, entry.missingCost);
@@ -156,7 +198,7 @@ export class SplatRefinementTransition<T> {
           const delta = entry.target[i] - entry.weights[i];
           if (delta !== 0) {
             entry.weights[i] =
-              Math.abs(delta) < 0.0001 ? entry.target[i] : entry.weights[i] + delta * alpha;
+              Math.abs(delta) < SETTLED_DELTA ? entry.target[i] : entry.weights[i] + delta * alpha;
             changed = true;
           }
           if (entry.weights[i] > 0) cost += entry.counts[i];

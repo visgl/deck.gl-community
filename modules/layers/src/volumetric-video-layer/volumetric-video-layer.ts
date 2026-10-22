@@ -16,7 +16,7 @@ import {
 import {GPUVideoFrames} from './gpu-video-frames';
 import {assertGPUVideoResources} from './gpu-video-resources';
 import {VideoFrameSource, type VolumetricVideoInfo} from './video-frame-source';
-import {VOLUMETRIC_VIDEO_RASTER_WGSL, VOLUMETRIC_VIDEO_WGSL} from './volumetric-video.wgsl';
+import {VOLUMETRIC_VIDEO_RASTER_WGSL, VOLUMETRIC_VIDEO_WGSL} from './volumetric-video.wgsl.js';
 
 export type {VolumetricVideoInfo} from './video-frame-source';
 
@@ -69,7 +69,7 @@ type VideoProps = {
   luminanceThreshold?: number;
   /** Removal strength for pixel splats similar to the same pixel in the preceding frame.
    * 0 shows every pixel; 1 aggressively removes changes of up to 50% in any RGBA channel.
-   * The change threshold is 0.5 * strength squared. Frame 0 stays visible.
+   * The change threshold is 0.5 * strength squared and applies to every frame in the volume.
    * @default 0
    */
   staticPixelRemoval?: number;
@@ -215,6 +215,7 @@ export class VolumetricVideoLayer<
     filterError: GPUVideoFrames | null;
     appearanceRetry: ReturnType<typeof setTimeout> | undefined;
     appearanceRetryCount: number;
+    activeStaticPixelRemoval: number;
   };
 
   getShaders() {
@@ -243,7 +244,8 @@ export class VolumetricVideoLayer<
       cacheError: null,
       filterError: null,
       appearanceRetry: undefined,
-      appearanceRetryCount: 0
+      appearanceRetryCount: 0,
+      activeStaticPixelRemoval: 0
     });
   }
 
@@ -275,6 +277,7 @@ export class VolumetricVideoLayer<
       this.state.frames &&
       (props.luminanceThreshold !== oldProps.luminanceThreshold ||
         props.staticPixelRemoval !== oldProps.staticPixelRemoval ||
+        props.maxTextureBytes !== oldProps.maxTextureBytes ||
         props.renderMode !== oldProps.renderMode ||
         props.coordinateSystem !== oldProps.coordinateSystem ||
         props.splatSize !== oldProps.splatSize ||
@@ -298,41 +301,43 @@ export class VolumetricVideoLayer<
     const model = raster || this.state.model;
     const window = frames?.getReadyWindow();
     if (!frames || !source?.info || !window) return;
-    const {
-      width,
+    // WebGL can retry a failed appearance update during a subsequent draw.
+    const staticPixelRemoval =
+      this.state.filterError === frames
+        ? this.props.staticPixelRemoval
+        : this.state.activeStaticPixelRemoval;
+    const {width, position, frameSpacing, splatSize, frameOpacity, trailFade, luminanceThreshold} =
+      this.props;
+    const height = (width * source.info.height) / source.info.width;
+    // Frame planes are parallel. Sort their centers back-to-front for the active
+    // viewport. Coplanar texels retain a fixed grid order.
+    const near = this.project(position);
+    const far = this.project([position[0], position[1], position[2] - frameSpacing]);
+    const uniforms: VideoUniforms = {
+      gridSize: [frames.width, frames.height],
+      planeSize: [width, height],
       position,
+      currentFrame: window.currentFrame,
+      frameCount: window.frameCount,
+      capacity: frames.capacity,
+      reverse: Number(far[2] < near[2]),
       frameSpacing,
       splatSize,
       frameOpacity,
       trailFade,
       luminanceThreshold,
       staticPixelRemoval
-    } = this.props;
-    const height = (width * source.info.height) / source.info.width;
-    // Frame planes are parallel. Sort their centers back-to-front for the active
-    // viewport. Coplanar texels retain a fixed grid order.
-    const near = this.project(position);
-    const far = this.project([position[0], position[1], position[2] - frameSpacing]);
-    model.shaderInputs.setProps({
-      volumetricVideo: {
-        gridSize: [frames.width, frames.height],
-        planeSize: [width, height],
-        position,
-        currentFrame: window.currentFrame,
-        frameCount: window.frameCount,
-        capacity: frames.capacity,
-        reverse: Number(far[2] < near[2]),
-        frameSpacing,
-        splatSize,
-        frameOpacity,
-        trailFade,
-        luminanceThreshold,
-        staticPixelRemoval
-      }
-    });
+    };
+    model.shaderInputs.setProps({volumetricVideo: uniforms});
     if (raster && this.context.device.type === 'webgl') {
       try {
-        this.updateAppearance(frames);
+        this.updateAppearance(frames, staticPixelRemoval);
+        if (this.state.filterError === frames) {
+          this.setState({
+            appearanceRetryCount: 0,
+            activeStaticPixelRemoval: staticPixelRemoval
+          });
+        }
       } catch (error) {
         // Dirty slots remain queued until the complete filter/mip commit succeeds.
         this.setState({filterError: frames});
@@ -357,10 +362,29 @@ export class VolumetricVideoLayer<
     } else {
       model.setBindings({videoFrames: frames.texture, pixelChanges: frames.changes.texture});
     }
-    model.setInstanceCount(
-      raster ? window.frameCount : frames.width * frames.height * window.frameCount
-    );
-    const drawn = model.draw(this.context.renderPass);
+    let drawn = false;
+    if (raster && this.context.device.type === 'webgpu') {
+      // Draw one plane at a time in the same back-to-front sequence as the regular
+      // instanced path. WebGPU's firstInstance advances the builtin instance index
+      // without mutating a uniform buffer while deck's render pass is active.
+      model.setInstanceCount(1);
+      drawn = model.draw(this.context.renderPass);
+      if (drawn) {
+        for (let firstInstance = 1; firstInstance < window.frameCount; firstInstance++) {
+          drawn =
+            this.context.renderPass.draw({
+              vertexCount: model.vertexCount,
+              instanceCount: 1,
+              firstInstance
+            }) || drawn;
+        }
+      }
+    } else {
+      model.setInstanceCount(
+        raster ? window.frameCount : frames.width * frames.height * window.frameCount
+      );
+      drawn = model.draw(this.context.renderPass);
+    }
     if (this.state.filterError === frames) {
       if (!drawn) {
         this.setNeedsRedraw();
@@ -397,7 +421,7 @@ export class VolumetricVideoLayer<
     return this.createModel(true);
   }
 
-  private usesRaster(): boolean {
+  private supportsRaster(): boolean {
     return (
       this.props.renderMode === 'auto' &&
       this.props.coordinateSystem === COORDINATE_SYSTEM.CARTESIAN &&
@@ -406,21 +430,31 @@ export class VolumetricVideoLayer<
     );
   }
 
+  private usesRaster(): boolean {
+    return this.supportsRaster();
+  }
+
   /** Prepares the raster visibility pyramid before deck opens its presentation pass. */
-  private updateAppearance(frames: GPUVideoFrames): void {
-    if (!this.usesRaster()) return;
+  private updateAppearance(
+    frames: GPUVideoFrames,
+    staticPixelRemoval = this.state.activeStaticPixelRemoval
+  ): void {
+    if (!this.supportsRaster()) return;
     frames.appearance.update(frames.texture, frames.changes.texture, frames.resident, {
       luminanceThreshold: this.props.luminanceThreshold,
-      staticPixelRemoval: this.props.staticPixelRemoval
+      staticPixelRemoval
     });
   }
 
   private prepareAppearance(frames: GPUVideoFrames): boolean {
     try {
-      this.updateAppearance(frames);
+      this.updateAppearance(frames, this.props.staticPixelRemoval);
       const recovered = this.state.filterError === frames;
       if (recovered) this.setState({filterError: null});
-      this.setState({appearanceRetryCount: 0});
+      this.setState({
+        appearanceRetryCount: 0,
+        activeStaticPixelRemoval: this.props.staticPixelRemoval
+      });
       this.setNeedsRedraw();
       if (recovered) this.reportCurrentFrameLoad(frames);
       return true;
@@ -503,7 +537,9 @@ export class VolumetricVideoLayer<
         cullMode: 'none',
         blend: true,
         blendColorOperation: 'add',
-        blendColorSrcFactor: 'src-alpha',
+        // Native WebGPU volumes emit premultiplied RGB. WebGL keeps the
+        // established straight-alpha shader output and source-alpha blend state.
+        blendColorSrcFactor: this.context.device.type === 'webgpu' ? 'one' : 'src-alpha',
         blendColorDstFactor: 'one-minus-src-alpha',
         blendAlphaOperation: 'add',
         blendAlphaSrcFactor: 'one',
@@ -615,8 +651,10 @@ export class VolumetricVideoLayer<
           if (layer.state.pendingFrames === frames) {
             try {
               assertGPUVideoResources(layer.context.device);
-              if (layer.usesRaster()) {
-                layer.updateAppearance(frames);
+              const prepared = layer.prepareAppearance(frames);
+              if (!prepared && layer.state.filterError === frames) {
+                layer.failFrameCache(frames, new Error('The GPU could not filter video history.'));
+                return;
               }
             } catch (error) {
               layer.failFrameCache(
@@ -627,7 +665,11 @@ export class VolumetricVideoLayer<
             }
             const oldFrames = layer.state.frames;
             layer.clearAppearanceRetry();
-            layer.setState({frames, pendingFrames: null, filterError: null});
+            layer.setState({
+              frames,
+              pendingFrames: null,
+              filterError: null
+            });
             oldFrames?.destroy();
           } else if (layer.state.frames !== frames || layer.state.pendingFrames) return;
           else if (!layer.prepareAppearance(frames)) return;
@@ -779,8 +821,8 @@ void main() {
   // The pyramid averages premultiplied, visibility-masked pixels, preserving
   // brightness and avoiding nearest-cell shimmer when several texels fit a fragment.
   if (filteredMix > 0.0) {
-    result = textureGrad(filteredFrames, vec3(clamp(frameUV, vec2(0.0), vec2(1.0)), float(slot)),
-      uvx, uvy);
+    vec2 uv = clamp(frameUV, vec2(0.0), vec2(1.0));
+    result = textureGrad(filteredFrames, vec3(uv, float(slot)), uvx, uvy);
   }
   if (filteredMix < 1.0) {
     float size = volumetricVideo.splatSize;

@@ -4,9 +4,9 @@
 
 /* eslint-env browser */
 
-import type {CompositeLayerProps} from '@deck.gl/core';
+import type {CompositeLayerProps, DefaultProps, UpdateParameters} from '@deck.gl/core';
 import {CompositeLayer} from '@deck.gl/core';
-import {MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
+import {EventManager, Pan, MjolnirEvent, MjolnirGestureEvent, MjolnirKeyEvent} from 'mjolnir.js';
 
 import {
   DraggingEvent,
@@ -20,6 +20,17 @@ import {
 } from '../edit-modes/types';
 import {Position} from '../utils/geojson-types';
 
+const NATIVE_EVENT_HANDLERS: Record<string, keyof EditableLayer> = {
+  pointerdown: '_onNativeClick',
+  click: '_onNativeClick',
+  dblclick: '_onNativeClick',
+  mousedown: '_onNativeMapInteraction',
+  touchstart: '_onNativeMapInteraction',
+  touchmove: '_onNativeMapInteraction',
+  touchend: '_onNativeMapInteraction',
+  touchcancel: '_onNativeMapInteraction'
+};
+
 export const EVENT_TYPES = [
   'click',
   'pointermove',
@@ -31,12 +42,67 @@ export const EVENT_TYPES = [
   'dblclick'
 ];
 
+type TouchActionLease = {
+  owners: Set<object>;
+  previousTouchAction: string;
+  managedTouchAction: string;
+};
+
+// Several editable layers may share one map canvas; restore its style after the last layer leaves.
+const TOUCH_ACTION_LEASES = new WeakMap<HTMLElement, TouchActionLease>();
+
+function acquireTouchAction(target: HTMLElement, owner: object) {
+  let lease = TOUCH_ACTION_LEASES.get(target);
+  if (!lease) {
+    lease = {
+      owners: new Set(),
+      previousTouchAction: target.style.touchAction,
+      managedTouchAction: target.style.touchAction
+    };
+    TOUCH_ACTION_LEASES.set(target, lease);
+  } else if (target.style.touchAction !== lease.managedTouchAction) {
+    // Treat a style change made while a target is leased as the application's new baseline.
+    lease.previousTouchAction = target.style.touchAction;
+  }
+  lease.owners.add(owner);
+}
+
+function recordTouchAction(target: HTMLElement) {
+  const lease = TOUCH_ACTION_LEASES.get(target);
+  if (lease) {
+    lease.managedTouchAction = target.style.touchAction;
+  }
+}
+
+function releaseTouchAction(target: HTMLElement, owner: object, touchActionBeforeDestroy: string) {
+  const lease = TOUCH_ACTION_LEASES.get(target);
+  if (!lease || !lease.owners.delete(owner)) {
+    return;
+  }
+  if (lease.owners.size > 0) {
+    target.style.touchAction = touchActionBeforeDestroy;
+    return;
+  }
+  target.style.touchAction =
+    touchActionBeforeDestroy === lease.managedTouchAction
+      ? lease.previousTouchAction
+      : touchActionBeforeDestroy;
+  TOUCH_ACTION_LEASES.delete(target);
+}
+
 // TODO(v9): remove generic layer
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type EditableLayerProps<_DataType = any> = CompositeLayerProps & {
   pickingRadius?: number;
   pickingDepth?: number;
   onCancelPan?: () => void;
+  /**
+   * Element receiving editing input when it differs from deck.gl's render canvas.
+   * For an overlaid MapboxOverlay, pass the base map's public getCanvas() result.
+   * Defaults to deck.gl's canvas. The element must align with the rendered viewport.
+   */
+  eventTarget?: HTMLElement | null;
+  autoPreventMapInteractions?: boolean;
 };
 
 export abstract class EditableLayer<
@@ -44,6 +110,10 @@ export abstract class EditableLayer<
   ExtraPropsT = Record<string, unknown>
 > extends CompositeLayer<ExtraPropsT & Required<EditableLayerProps<DataT>>> {
   static layerName = 'EditableLayer';
+  static defaultProps: DefaultProps<EditableLayerProps<any>> = {
+    autoPreventMapInteractions: true,
+    eventTarget: {type: 'object', value: null, compare: 0}
+  };
 
   state: {_editableLayerState: any} = undefined!;
 
@@ -77,6 +147,7 @@ export abstract class EditableLayer<
   // TODO: implement onCancelDragging (e.g. drag off screen)
 
   initializeState() {
+    const canvas = this.context.deck.getCanvas?.();
     this.setState({
       _editableLayerState: {
         // Picked objects at the time the pointer went down
@@ -85,13 +156,44 @@ export abstract class EditableLayer<
         pointerDownScreenCoords: null,
         // Ground coordinates where the pointer went down
         pointerDownMapCoords: null,
+        pressScreenCoords: null,
+        didDrag: false,
+        canvas,
+        eventTarget: this.props.eventTarget || canvas,
+        // This token survives layer replacement so the original target lease can be released.
+        touchActionOwner: {},
+        // Native clicks bypass the recognizer's 300ms double-click failure delay.
+        gestureEventTypes: canvas
+          ? EVENT_TYPES.filter(type => !NATIVE_EVENT_HANDLERS[type])
+          : EVENT_TYPES,
 
-        // Keep track of the mjolnir.js event handler so it can be deregistered
+        // Retain one callback for registration, layer replacement, and cleanup.
         eventHandler: this._forwardEventToCurrentLayer.bind(this)
       }
     });
 
     this._addEventHandlers();
+  }
+
+  updateState(params: UpdateParameters<this>) {
+    super.updateState(params);
+    const {eventTarget, canvas} = this.state._editableLayerState;
+    const nextTarget = this.props.eventTarget || canvas;
+    if (nextTarget !== eventTarget) {
+      this._removeEventHandlers();
+      if (this.state._editableLayerState.pointerDownMapCoords) {
+        // onEdit may replace layers; finish Deck's reconciliation before notifying the app.
+        queueMicrotask(() => {
+          const currentLayer = (this.getCurrentLayer() || this) as this;
+          currentLayer._onpancancel({} as MjolnirGestureEvent);
+        });
+      }
+      this._resetPointerDownState();
+      this.setState({
+        _editableLayerState: {...this.state._editableLayerState, eventTarget: nextTarget}
+      });
+      this._addEventHandlers();
+    }
   }
 
   finalizeState() {
@@ -100,40 +202,65 @@ export abstract class EditableLayer<
 
   _addEventHandlers() {
     // @ts-expect-error accessing protected props
-    const {eventManager} = this.context.deck;
-    const {eventHandler} = this.state._editableLayerState;
+    const deckEventManager = this.context.deck.eventManager;
+    const editableState = this.state._editableLayerState;
+    const {eventHandler, canvas, eventTarget, gestureEventTypes} = editableState;
+    if (eventTarget && eventTarget !== canvas) {
+      acquireTouchAction(eventTarget, editableState.touchActionOwner);
+    }
+    // MapboxOverlay forwards map callbacks directly to Deck, bypassing its event
+    // manager. Recognize input on the supplied map canvas instead of intercepting
+    // private Deck/Mapbox handlers or changing the render canvas's pointer events.
+    const eventManager =
+      eventTarget && eventTarget !== canvas
+        ? new EventManager(eventTarget, {recognizers: [[Pan, {threshold: 3}]], cssProps: {}})
+        : deckEventManager;
+    editableState.eventManager = eventManager;
+    for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
+      eventTarget?.addEventListener(eventType, eventHandler);
+    }
 
-    for (const eventType of EVENT_TYPES) {
+    for (const eventType of gestureEventTypes) {
       eventManager.on(eventType, eventHandler, {
         // give nebula a higher priority so that it can stop propagation to deck.gl's map panning handlers
         priority: 100
       });
     }
+    if (eventTarget && eventTarget !== canvas) {
+      recordTouchAction(eventTarget);
+    }
   }
 
   _removeEventHandlers() {
-    // @ts-expect-error accessing protected props
-    const {eventManager} = this.context.deck;
-    const {eventHandler} = this.state._editableLayerState;
+    const {eventHandler, canvas, eventTarget, eventManager, gestureEventTypes, touchActionOwner} =
+      this.state._editableLayerState;
+    const touchActionBeforeCleanup =
+      eventTarget && eventTarget !== canvas ? eventTarget.style.touchAction : undefined;
+    for (const eventType of Object.keys(NATIVE_EVENT_HANDLERS)) {
+      eventTarget?.removeEventListener(eventType, eventHandler);
+    }
 
-    for (const eventType of EVENT_TYPES) {
+    for (const eventType of gestureEventTypes) {
       eventManager.off(eventType, eventHandler);
+    }
+    if (eventTarget && eventTarget !== canvas) {
+      eventManager.destroy();
+      // Release our recognizer's CSS without overwriting later application changes.
+      releaseTouchAction(eventTarget, touchActionOwner, touchActionBeforeCleanup!);
     }
   }
 
-  // A new layer instance is created on every render, so forward the event to the current layer
-  // This means that the first layer instance will stick around to be the event listener, but will forward the event
-  // to the latest layer instance.
-  _forwardEventToCurrentLayer(event: MjolnirEvent) {
-    const currentLayer = this.getCurrentLayer();
-
-    // Use a naming convention to find the event handling function for this event type
-    const func = currentLayer[`_on${event.type}`].bind(currentLayer);
-    if (!func) {
+  // The original listener forwards native and recognized events after layer replacement.
+  _forwardEventToCurrentLayer(event: MjolnirEvent | Event) {
+    const currentLayer = this.getCurrentLayer() || this;
+    const handlerName =
+      'srcEvent' in event ? `_on${event.type}` : NATIVE_EVENT_HANDLERS[event.type];
+    const handler = currentLayer[handlerName];
+    if (!handler) {
       console.warn(`no handler for mjolnir.js event ${event.type}`); // eslint-disable-line
       return;
     }
-    func(event);
+    handler.call(currentLayer, event);
   }
 
   _onclick(event: MjolnirGestureEvent) {
@@ -142,6 +269,67 @@ export abstract class EditableLayer<
       return;
     }
     this.onLayerClick(basePointerEvent);
+  }
+
+  _isEditing(): boolean {
+    return false;
+  }
+
+  /** Returns whether editing uses a primary mouse press; the parent map handles the others. */
+  _ownsPointerDown(_event: MouseEvent): boolean {
+    return true;
+  }
+
+  _onNativeMapInteraction(event: Event) {
+    const preventMapInteractions =
+      this.props.autoPreventMapInteractions !== false && this.props.visible && this._isEditing();
+    if (event.type.startsWith('touch')) {
+      const touchEvent = event as TouchEvent;
+      const editableState = this.state._editableLayerState;
+      if (event.type === 'touchstart') {
+        editableState.mapTouchGesture = !preventMapInteractions || touchEvent.touches.length > 1;
+      }
+      // Preserve map gesture releases, but reserve remaining single-finger movement for editing.
+      const block =
+        preventMapInteractions &&
+        (!editableState.mapTouchGesture ||
+          (event.type === 'touchmove' && touchEvent.touches.length === 1));
+      if (touchEvent.touches.length === 0) {
+        editableState.mapTouchGesture = false;
+      }
+      if (block) event.stopPropagation();
+    } else if (preventMapInteractions && (event as MouseEvent).button === 0) {
+      if (event.type === 'mousedown' && !this._ownsPointerDown(event as MouseEvent)) return;
+      // MapLibre/Mapbox handle these on the canvas container. Other listeners
+      // on the canvas, including deck.gl's pointer recognizer, still receive them.
+      event.stopPropagation();
+    }
+  }
+
+  _onNativeClick(event: MouseEvent) {
+    if (event.type === 'dblclick') this._onNativeMapInteraction(event);
+    const editableState = this.state._editableLayerState;
+    if (event.type === 'pointerdown') {
+      if ((event as PointerEvent).isPrimary !== false) {
+        editableState.didDrag = false;
+        editableState.pressScreenCoords = this.getScreenCoords(event);
+      }
+      return;
+    }
+    if (
+      event.button !== 0 ||
+      editableState.didDrag ||
+      (event.type === 'click' && event.detail > 1)
+    ) {
+      return;
+    }
+    const pointerEvent = this.toBasePointerEvent(event);
+    if (!pointerEvent) return;
+    if (event.type === 'dblclick') {
+      this.onLayerDoubleClick(pointerEvent);
+    } else {
+      this.onLayerClick(pointerEvent);
+    }
   }
 
   _ondblclick(event: MjolnirGestureEvent) {
@@ -157,12 +345,22 @@ export abstract class EditableLayer<
   }
 
   _onpanstart(event: MjolnirGestureEvent) {
+    this.state._editableLayerState.didDrag = true;
     const basePointerEvent = this.toBasePointerEvent(event);
     if (!basePointerEvent) {
       this._onpancancel(event);
       return;
     }
-    const {picks, screenCoords, mapCoords} = basePointerEvent;
+    const screenCoords: ScreenCoordinates = this.state._editableLayerState.pressScreenCoords || [
+      basePointerEvent.screenCoords[0] - (event.deltaX || 0),
+      basePointerEvent.screenCoords[1] - (event.deltaY || 0)
+    ];
+    const mapCoords = this.getMapCoords(screenCoords);
+    if (!mapCoords) {
+      this._onpancancel(event);
+      return;
+    }
+    const picks = this.getPicks(screenCoords);
 
     this.setState({
       _editableLayerState: {
@@ -214,6 +412,11 @@ export abstract class EditableLayer<
     const {pointerDownPicks, pointerDownScreenCoords, pointerDownMapCoords} =
       this.state._editableLayerState;
 
+    if (!pointerDownScreenCoords) {
+      this._resetPointerDownState();
+      return;
+    }
+
     if (basePointerEvent) {
       this.onStopDragging({
         ...basePointerEvent,
@@ -238,7 +441,8 @@ export abstract class EditableLayer<
         ...this.state._editableLayerState,
         pointerDownScreenCoords: null,
         pointerDownMapCoords: null,
-        pointerDownPicks: null
+        pointerDownPicks: null,
+        pressScreenCoords: null
       }
     });
   }
@@ -260,8 +464,12 @@ export abstract class EditableLayer<
     });
   }
 
-  toBasePointerEvent(event: MjolnirGestureEvent): BasePointerEvent | null {
-    const screenCoords: ScreenCoordinates = [event.offsetCenter.x, event.offsetCenter.y];
+  /** Converts native or recognized pointer input into an edit-mode event. */
+  toBasePointerEvent(event: MjolnirGestureEvent | MouseEvent): BasePointerEvent | null {
+    const screenCoords: ScreenCoordinates =
+      'offsetCenter' in event
+        ? [event.offsetCenter.x, event.offsetCenter.y]
+        : (this.getScreenCoords(event) as ScreenCoordinates);
     const mapCoords = this.getMapCoords(screenCoords);
     if (!mapCoords) {
       return null;
@@ -271,7 +479,7 @@ export abstract class EditableLayer<
       screenCoords,
       mapCoords,
       picks,
-      sourceEvent: event.srcEvent
+      sourceEvent: 'srcEvent' in event ? event.srcEvent : event
     };
   }
 
@@ -286,11 +494,14 @@ export abstract class EditableLayer<
   }
 
   getScreenCoords(pointerEvent: any): Position {
+    const canvas = (this.state._editableLayerState.canvas ||
+      this.context.gl.canvas) as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / canvas.offsetWidth || 1;
+    const scaleY = rect.height / canvas.offsetHeight || 1;
     return [
-      pointerEvent.clientX -
-        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().left,
-      pointerEvent.clientY -
-        (this.context.gl.canvas as HTMLCanvasElement).getBoundingClientRect().top
+      (pointerEvent.clientX - rect.left - canvas.clientLeft) / scaleX,
+      (pointerEvent.clientY - rect.top - canvas.clientTop) / scaleY
     ];
   }
 
