@@ -1,6 +1,6 @@
 {
   "name": "@deck.gl-community/vega",
-  "version": "9.4.4",
+  "version": "9.4.5",
   "private": true,
   "description": "Private experimental SandDance Vega renderer port for deck.gl 9.4",
   "license": "MIT",
