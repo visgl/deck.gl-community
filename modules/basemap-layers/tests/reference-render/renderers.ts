@@ -13,6 +13,7 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import {BasemapLayer} from '../../src/index';
 import type {GlyphStore} from '../../src/glyph-store';
 import {MVTLabelLayer} from '../../src/mvt-label-layer';
+import {renderMapLibreScene} from '../../../../dev/basemap-conformance/src/maplibre';
 import {fromFixtureUrl} from './fixtures';
 import {VIEWPORT, type ReferenceScene} from './scenes';
 
@@ -109,171 +110,25 @@ function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   });
 }
 
-const textFieldCache = new Map<unknown, any>();
-
 /**
- * The text a symbol layer's `text-field` gives a feature, evaluated with the style specification
- * package (independently of `BasemapLayer`'s own evaluation). `{token}` strings are resolved as
- * MapLibre resolves them.
+ * Renders a scene with MapLibre GL JS and reads back the placed labels. The renderer lives in
+ * `dev/basemap-conformance`, where other renderers' harnesses can share it.
  */
-function evaluateTextField(textField: unknown, feature: any, zoom: number): string {
-  if (textField === undefined || textField === null) {
-    return '';
-  }
-  let compiled = textFieldCache.get(textField);
-  if (!compiled) {
-    // Handles expressions, constants and legacy `{stops}` functions.
-    compiled = styleExpression.normalizePropertyExpression(
-      textField as any,
-      (latest as any).layout_symbol['text-field']
-    );
-    textFieldCache.set(textField, compiled);
-  }
-  const value = compiled.evaluate(
-    {zoom},
-    {
-      type: feature.geometry?.type,
-      properties: feature.properties,
-      id: feature.id
-    }
-  );
-  const text = typeof value === 'string' ? value : value?.toString?.() || '';
-  // MapLibre resolves `{token}`s only in constants and zoom functions, as `getValueAndResolveTokens`.
-  const dataDriven = Boolean(textField && typeof textField === 'object' && 'property' in textField);
-  if (styleExpression.isExpression(textField) || dataDriven) {
-    return text;
-  }
-  return text.replace(/{([^{}]+)}/g, (_: string, key: string) => {
-    const property = feature.properties?.[key];
-    return property === undefined || property === null ? '' : String(property);
-  });
-}
-
-const GEOMETRY_TYPES = ['Unknown', 'Point', 'LineString', 'Polygon'];
-
-/**
- * The text of every label MapLibre drew in the view: of each symbol whose collision box (text or
- * icon) its collision index has in the view, as `queryRenderedFeatures` finds them, if that
- * symbol's text placed. `queryRenderedFeatures` alone would also return a symbol whose icon placed
- * without its optional text.
- *
- * `BasemapLayer`'s labels are read by their drawn glyphs instead (see `renderBasemapLayer`), so a
- * label whose collision shape reaches into the view but whose glyphs do not counts here only. In
- * `new-york-dark-z12.3`, "Bowery" is such a label: both renderers place it, with the same
- * collision circles, which reach 1.2 px into the view, and neither draws a pixel of it there.
- */
-function getPlacedTexts(map: maplibregl.Map, style: any, zoom: number): string[] {
-  const mapStyle = (map as any).style;
-  const placement = mapStyle.placement;
-  if (!placement) {
-    return [];
-  }
-  const {width, height} = VIEWPORT;
-  // Bucket instance id -> feature indices with a collision box in the view.
-  const inView: Record<number, number[]> = placement.collisionIndex.queryRenderedSymbols([
-    {x: 0, y: 0},
-    {x: width, y: 0},
-    {x: width, y: height},
-    {x: 0, y: height}
-  ]);
-  const texts: string[] = [];
-  for (const tileManager of Object.values<any>(mapStyle.tileManagers)) {
-    for (const id of tileManager.getRenderableIds(true)) {
-      const tile = tileManager.getTileByID(id);
-      const featureIndex = tile?.latestFeatureIndex;
-      for (const bucket of Object.values<any>(tile?.buckets || {})) {
-        const features = inView[bucket.bucketInstanceId];
-        if (!features || bucket.layers?.[0]?.type !== 'symbol' || !featureIndex) {
-          continue;
-        }
-        const wanted = new Set(features);
-        // The layers of a bucket share their layout, and so their text.
-        const layer = style.layers.find((styleLayer: any) => styleLayer.id === bucket.layerIds[0]);
-        const sourceLayer =
-          featureIndex.loadVTLayers()[
-            featureIndex.sourceLayerCoder.decode(bucket.sourceLayerIndex)
-          ];
-        const placed = new Set<number>();
-        for (let i = 0; i < bucket.symbolInstances.length; i++) {
-          const symbol = bucket.symbolInstances.get(i);
-          if (wanted.has(symbol.featureIndex) && placement.placements[symbol.crossTileID]?.text) {
-            placed.add(symbol.featureIndex);
-          }
-        }
-        for (const index of placed) {
-          const feature = sourceLayer.feature(index);
-          const text = evaluateTextField(
-            layer?.layout?.['text-field'],
-            {
-              geometry: {type: GEOMETRY_TYPES[feature.type]},
-              properties: feature.properties,
-              id: feature.id
-            },
-            zoom
-          );
-          if (text) {
-            texts.push(text);
-          }
-        }
-      }
-    }
-  }
-  return texts;
-}
-
-/** Renders a scene with MapLibre GL JS and reads back the placed labels. */
-export async function renderMapLibre(
+export function renderMapLibre(
   style: any,
   scene: ReferenceScene,
-  {pixelRatio = 1, pitch = 0, bearing = 0}: RenderOptions = {}
+  options: RenderOptions = {}
 ): Promise<Render> {
-  const container = createContainer();
-  const requests: string[] = [];
-  const problems: string[] = [];
-  const start = performance.now();
-  const map = new maplibregl.Map({
-    container,
+  return renderMapLibreScene(
+    {maplibregl, styleSpec: {expression: styleExpression, latest}},
     style,
-    center: scene.center,
-    zoom: scene.zoom,
-    pitch,
-    bearing,
-    pixelRatio,
-    // Labels at full opacity in the first idle frame.
-    fadeDuration: 0,
-    interactive: false,
-    attributionControl: false,
-    canvasContextAttributes: {preserveDrawingBuffer: true},
-    transformRequest: url => {
-      if (!url.startsWith(location.origin)) {
-        problems.push(`Off-origin request: ${url}`);
-        return {url: `${location.origin}/__blocked__`};
-      }
-      requests.push(url);
-      return {url};
+    scene,
+    {
+      ...options,
+      width: VIEWPORT.width,
+      height: VIEWPORT.height
     }
-  });
-  map.on('error', event => {
-    const error = (event as any).error;
-    const status = error?.status ? ` (${error.status})` : '';
-    const url = error?.url ? ` ${error.url}` : '';
-    problems.push(`MapLibre error${status}${url}: ${error?.message || error}`);
-  });
-  try {
-    await withTimeout(new Promise(resolve => map.once('idle', resolve)), 'MapLibre render');
-    const pixels = readCanvas(map.getCanvas(), pixelRatio);
-    const labels = getPlacedTexts(map, style, map.getZoom());
-    return {
-      pixels,
-      labels,
-      requests,
-      problems,
-      duration: performance.now() - start
-    };
-  } finally {
-    map.remove();
-    container.remove();
-  }
+  );
 }
 
 /** A label layer whose icons are not pickable, so that a pick means its text was drawn. */

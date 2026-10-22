@@ -8591,6 +8591,12 @@ __metadata:
   languageName: node
   linkType: hard
 
+"basemap-conformance@workspace:dev/basemap-conformance":
+  version: 0.0.0-use.local
+  resolution: "basemap-conformance@workspace:dev/basemap-conformance"
+  languageName: unknown
+  linkType: soft
+
 "basemap-layer-map-view-7c2ef2@workspace:examples/layers/basemap-layer-map-view":
   version: 0.0.0-use.local
   resolution: "basemap-layer-map-view-7c2ef2@workspace:examples/layers/basemap-layer-map-view"

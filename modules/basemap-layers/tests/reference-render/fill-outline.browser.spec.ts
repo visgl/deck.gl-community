@@ -11,7 +11,7 @@
 
 import {expect, test} from 'vitest';
 import {loadReferenceStyle} from './fixtures';
-import {toGray} from './metrics';
+import {toGray} from '../../../../dev/basemap-conformance/src/metrics';
 import {renderBasemapLayer, renderMapLibre} from './renderers';
 import {DEFAULT_SCENES, VIEWPORT} from './scenes';
 
