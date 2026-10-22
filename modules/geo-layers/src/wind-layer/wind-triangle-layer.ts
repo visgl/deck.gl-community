@@ -5,7 +5,7 @@
 import {color, Layer, picking, project32} from '@deck.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
 
-import source from './wind-triangle-layer.wgsl';
+import source from './wind-triangle-layer.wgsl.js';
 
 import type {
   Accessor,

@@ -16,7 +16,7 @@ import {
 import {GPUVideoFrames} from './gpu-video-frames';
 import {assertGPUVideoResources} from './gpu-video-resources';
 import {VideoFrameSource, type VolumetricVideoInfo} from './video-frame-source';
-import {VOLUMETRIC_VIDEO_RASTER_WGSL, VOLUMETRIC_VIDEO_WGSL} from './volumetric-video.wgsl';
+import {VOLUMETRIC_VIDEO_RASTER_WGSL, VOLUMETRIC_VIDEO_WGSL} from './volumetric-video.wgsl.js';
 
 export type {VolumetricVideoInfo} from './video-frame-source';
 

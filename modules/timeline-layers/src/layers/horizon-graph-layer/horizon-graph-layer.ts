@@ -5,9 +5,9 @@
 import type {DefaultProps, LayerProps, Color, LayerContext, UpdateParameters} from '@deck.gl/core';
 import {Layer, project32} from '@deck.gl/core';
 import {Model, Geometry} from '@luma.gl/engine';
-import vs from './horizon-graph-layer.vs';
-import fs from './horizon-graph-layer.fs';
-import source from './horizon-graph-layer.wgsl';
+import vs from './horizon-graph-layer.vs.js';
+import fs from './horizon-graph-layer.fs.js';
+import source from './horizon-graph-layer.wgsl.js';
 import {Texture} from '@luma.gl/core';
 import {horizonLayerUniforms} from './horizon-graph-layer-uniforms';
 
