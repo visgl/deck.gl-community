@@ -11,7 +11,7 @@ import {
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
-import {clearShadowDepthOffset} from '../splat-layer/splat-shadow';
+import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
 
 type WindProps<DataT> = {
@@ -106,16 +106,16 @@ const TREE_COVERAGE = {
         float branchNoise = fract(sin(dot(floor(treeDitherPosition * 96.0) + vec3(19.19,47.23,73.31), vec3(39.3468,11.135,83.155))) * 24634.6345);
         if (branchNoise >= treeWind.branchCoverage) discard;
       }`
-    }
+    },
+    // deck.gl 9.4's SimpleMeshLayer applies DECKGL_FILTER_COLOR before lighting, which would shade
+    // the depth its shadow module packs into the color. Write the packed depth after lighting.
+    'fs:#main-end': `
+#ifdef MODULE_SHADOW
+  if (shadow.drawShadowMap) fragColor = shadow_filterShadowColor(vec4(0.0));
+#endif
+`
   }
 } as const;
-
-const GLSL_OUTPUT_ANCHOR = 'fragColor = vec4(lightColor, color.a * layer.opacity);';
-// deck.gl 9.4's SimpleMeshLayer applies DECKGL_FILTER_COLOR before lighting, which would shade the
-// depth its shadow module packs into the color. Write the packed depth after lighting instead.
-const GLSL_SHADOW_DEPTH = `#ifdef MODULE_SHADOW
-  if (shadow.drawShadowMap) fragColor = shadow_filterShadowColor(vec4(0.0));
-#endif`;
 
 const WGSL_STEM = `
   var treePosition = attributes.positions;
@@ -304,17 +304,15 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     }
     const anchor =
       'vec3 pos = (instanceModelMatrix * positions) * simpleMesh.sizeScale + instanceTranslation;';
-    if (!shaders.vs.includes(anchor) || !shaders.fs.includes(GLSL_OUTPUT_ANCHOR))
-      throw new Error('Unsupported SimpleMeshLayer GLSL tree anchor.');
+    if (!shaders.vs.includes(anchor))
+      throw new Error('Unsupported SimpleMeshLayer GLSL wind anchor.');
     return {
       ...shaders,
       modules: [...shaders.modules, TREE_WIND, TREE_COVERAGE],
-      fs: shaders.fs
-        .replace(
-          'vec3 lightColor =',
-          'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='
-        )
-        .replace(GLSL_OUTPUT_ANCHOR, `${GLSL_OUTPUT_ANCHOR}\n${GLSL_SHADOW_DEPTH}`),
+      fs: shaders.fs.replace(
+        'vec3 lightColor =',
+        'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='
+      ),
       vs: shaders.vs
         .replace(
           'void main(void) {',
@@ -361,11 +359,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
   }
 
   draw(params) {
-    if (params.shaderModuleProps?.shadow?.drawToShadowMap) {
-      // deck.gl 9.4's shadow module has no WGSL: no WebGPU shader reads the shadow map.
-      if (this.context.device.type === 'webgpu') return;
-      clearShadowDepthOffset(this);
-    }
+    if (params.shaderModuleProps?.shadow?.drawToShadowMap && !prepareShadowDraw(this)) return;
     const {windStrength, windTime} = this.props;
     const time = windTime ?? this.context.timeline.getTime() / 1000;
     this.state.model?.shaderInputs.setProps({

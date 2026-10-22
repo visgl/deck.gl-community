@@ -32,14 +32,10 @@ This page lists module additions and major changes in each release. For detailed
   as `ScatterplotLayer`, `ColumnLayer`, `PolygonLayer` and `SimpleMeshLayer`, and on `TreeLayer`
   and `SplatLayer` in WebGL2 and WebGPU.
 
-- `TreeLayer` and `SplatLayer` cast and receive deck.gl shadows under a `LightingEffect`
-  `DirectionalLight` with `_shadow: true`. Wood, crops and the Gaussian canopy draw into the shadow
-  map with their wind bend. Each Gaussian casts with a probability equal to its alpha, so canopy
-  shadows are as dense as the canopy is opaque and fade with it. Crowns are shaded by other trees and
-  layers, not by their own leaves, so their sunlit sides stay bright. Picking, `autoHighlight`,
-  `SelectionPulseExtension` and interleaved `MapboxOverlay`/`MapLibreOverlay` maps keep working.
-  Shadows are WebGL2-only, because deck.gl 9.4's shadow module has no WGSL. Set `shadowEnabled: false`
-  to keep trees from casting, as before. See [TreeLayer shadows](/docs/modules/layers/api-reference/tree-layer#shadows).
+- `TreeLayer` and `SplatLayer` cast and receive deck.gl shadows under a `LightingEffect` light with
+  `_shadow: true` (WebGL2), including the translucent canopy, wind, picking and interleaved maps.
+  Set `shadowEnabled: false` to keep trees from casting, as before. See
+  [TreeLayer shadows](/docs/modules/layers/api-reference/tree-layer#shadows).
 
 ## v9.4.6
 

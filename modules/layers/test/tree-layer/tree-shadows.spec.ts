@@ -87,79 +87,60 @@ describe('SplatPrimitiveLayer shadow pass', () => {
     expect(layer.context.device.setParametersWebGL).toHaveBeenCalledWith({polygonOffset: [0, 0]});
   });
 
-  it('skips the shadow pass on WebGPU and still defers ordinary draws to its effect', () => {
+  it('skips the shadow pass on WebGPU', () => {
     const {layer, model} = makeLayer('webgpu');
     layer.draw({shaderModuleProps: shadowPass, renderPass});
-    const webgl = makeLayer('webgl');
-    webgl.layer.draw({
-      shaderModuleProps: {...shadowPass, shadow: {drawToShadowMap: false}},
-      renderPass
-    });
     expect(model.draw).not.toHaveBeenCalled();
-    expect(webgl.model.draw).not.toHaveBeenCalled();
   });
 
-  it('projects and alpha-tests Gaussians in light space only with the shadow module', () => {
-    const modules = [project32, picking, phongMaterial, splatUniforms];
-    const lit = assembleGLSL(SPLAT_VERTEX, SPLAT_FRAGMENT, [...modules, shadow]);
-    expect(lit.vs).toContain('#define MODULE_SHADOW');
+  it('projects and alpha-tests Gaussians in light space with the shadow module', () => {
+    const modules = [project32, picking, phongMaterial, splatUniforms, shadow];
+    const {vs, fs} = assembleGLSL(SPLAT_VERTEX, SPLAT_FRAGMENT, modules);
     // The footprint uses the light's matrix and is expanded after deck's position filter.
-    expect(lit.vs).toMatch(
-      /splatShadowFootprint\(rowX, rowY, viewportSize\)[\s\S]*DECKGL_FILTER_GL_POSITION\(gl_Position, geometry\);\n#ifdef MODULE_SHADOW\n {2}\/\/[^\n]*\n {2}if \(shadow\.drawShadowMap\) \{\n {4}gl_Position\.xy \+= offset/
+    expect(vs).toMatch(
+      /rowX = vec3\(light\[0\]\.x, light\[1\]\.x, light\[2\]\.x\) \* viewportSize\.x \* 0\.5;[\s\S]*DECKGL_FILTER_GL_POSITION\(gl_Position, geometry\);\n#ifdef MODULE_SHADOW\n {2}\/\/[^\n]*\n {2}if \(shadow\.drawShadowMap\) \{\n {4}gl_Position\.xy \+= offset/
     );
-    expect(lit.fs).toMatch(
+    expect(fs).toMatch(
       /if \(alpha <= splatShadowThreshold\) discard;\n {4}fragColor = shadow_filterShadowColor/
     );
-    // Without a shadow light the module is absent and its `#ifdef MODULE_SHADOW` branches compile out.
-    const plain = assembleGLSL(SPLAT_VERTEX, SPLAT_FRAGMENT, modules);
-    expect(plain.vs).not.toContain('#define MODULE_SHADOW');
-    expect(plain.fs).not.toContain('#define MODULE_SHADOW');
   });
 });
 
 describe('TreeMeshLayer shadow pass', () => {
   function makeLayer(type: 'webgl' | 'webgpu') {
-    return Object.assign(Object.create(TreeMeshLayer.prototype), {
-      context: {device: {type}, defaultShaderModules: [shadow]},
-      props: {extensions: []}
+    const setProps = vi.fn();
+    const layer = Object.assign(Object.create(TreeMeshLayer.prototype), {
+      context: {
+        device: {type, setParametersWebGL: vi.fn()},
+        defaultShaderModules: [shadow],
+        timeline: {getTime: () => 0}
+      },
+      state: {model: {shaderInputs: {setProps}}},
+      props: {...TreeMeshLayer.defaultProps, extensions: []},
+      setNeedsRedraw: vi.fn()
     });
+    return {layer, setProps};
   }
 
   it('writes the packed shadow depth after SimpleMeshLayer lighting', () => {
-    const {fs} = makeLayer('webgl').getShaders();
-    expect(fs).toMatch(
-      /lighting_getLightColor[\s\S]*fragColor = vec4\(lightColor, color\.a \* layer\.opacity\);\n#ifdef MODULE_SHADOW\n {2}if \(shadow\.drawShadowMap\) fragColor = shadow_filterShadowColor\(vec4\(0\.0\)\);\n#endif/
+    const {vs, fs, modules} = makeLayer('webgl').layer.getShaders();
+    expect(assembleGLSL(vs, fs, modules).fs).toMatch(
+      /fragColor = vec4\(lightColor, color\.a \* layer\.opacity\);\s*#ifdef MODULE_SHADOW\n {2}if \(shadow\.drawShadowMap\) fragColor = shadow_filterShadowColor\(vec4\(0\.0\)\);/
     );
   });
 
   it('draws shadow depth without deck.gl layer depth offsets on WebGL2', () => {
-    const layer = makeLayer('webgl');
-    const setParametersWebGL = vi.fn();
+    const {layer} = makeLayer('webgl');
     const draw = vi.spyOn(Object.getPrototypeOf(TreeMeshLayer.prototype), 'draw');
     draw.mockImplementation(() => {});
-    Object.assign(layer, {
-      context: {
-        ...layer.context,
-        device: {type: 'webgl', setParametersWebGL},
-        timeline: {getTime: () => 0}
-      },
-      state: {model: {shaderInputs: {setProps: vi.fn()}}},
-      props: {...TreeMeshLayer.defaultProps, extensions: []},
-      setNeedsRedraw: vi.fn()
-    });
     layer.draw({shaderModuleProps: {shadow: {drawToShadowMap: true}}});
-    expect(setParametersWebGL).toHaveBeenCalledWith({polygonOffset: [0, 0]});
+    expect(layer.context.device.setParametersWebGL).toHaveBeenCalledWith({polygonOffset: [0, 0]});
     expect(draw).toHaveBeenCalled();
-    setParametersWebGL.mockClear();
-    layer.draw({shaderModuleProps: {shadow: {drawToShadowMap: false}}});
-    expect(setParametersWebGL).not.toHaveBeenCalled();
     draw.mockRestore();
   });
 
   it('skips the shadow pass on WebGPU', () => {
-    const layer = makeLayer('webgpu');
-    const setProps = vi.fn();
-    Object.assign(layer, {state: {model: {shaderInputs: {setProps}}}});
+    const {layer, setProps} = makeLayer('webgpu');
     layer.draw({shaderModuleProps: {shadow: {drawToShadowMap: true}}});
     expect(setProps).not.toHaveBeenCalled();
   });

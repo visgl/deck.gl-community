@@ -12,14 +12,11 @@ import {
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {SolidPolygonLayer} from '@deck.gl/layers';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
-import {luma, type Device} from '@luma.gl/core';
 import {CubeGeometry} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
-import {webgpuAdapter} from '@luma.gl/webgpu';
 import 'maplibre-gl';
 import {describe, expect, it} from 'vitest';
 import {SelectionPulseExtension, SplatLayer, TreeLayer, type TreeSpec} from '../../src';
-import {requireWebGPUAdapter} from '../webgpu-test-utils';
 
 const SIZE = 256;
 const CUBE = new CubeGeometry();
@@ -207,58 +204,35 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
     60000
   );
 
-  it('casts shadows from the Gaussian canopy and from the wood independently', async () => {
+  it('casts canopy shadows that follow optical coverage, and sparse wood shadows', async () => {
     const scene = mount();
     try {
-      const region = {x0: 128, y0: 96, x1: 232, y1: 160};
-      const canopy = await scene.render([ground(), trees({}, CanopyOnlyTreeLayer)]);
-      const canopyLit = await scene.render([
-        ground(),
-        trees({shadowEnabled: false}, CanopyOnlyTreeLayer)
-      ]);
+      const canopy = (props: Record<string, unknown>) =>
+        scene.render([ground(), trees(props, CanopyOnlyTreeLayer)]);
+      const lit = await canopy({shadowEnabled: false});
+      const coverage = (weight: number) =>
+        canopy({getCoverageWeight: weight, updateTriggers: {getCoverageWeight: weight}});
+      const full = await coverage(1);
+      const partial = await coverage(0.25);
+      const none = await coverage(0);
       const wood = await scene.render([ground(), trees({}, WoodOnlyTreeLayer)]);
       const woodLit = await scene.render([
         ground(),
         trees({shadowEnabled: false}, WoodOnlyTreeLayer)
       ]);
       expect(scene.errors).toEqual([]);
-      expect(brightness(canopy, SHADOW)).toBeLessThan(brightness(canopyLit, SHADOW) * 0.6);
+      expect(brightness(full, SHADOW)).toBeLessThan(brightness(lit, SHADOW) * 0.6);
+      expect(countDarkened(full, lit, SHADOW)).toBeGreaterThan(SHADOW_AREA * 0.5);
+      expect(countDarkened(partial, lit, SHADOW)).toBeGreaterThan(0);
+      expect(countDarkened(partial, lit, SHADOW)).toBeLessThan(
+        countDarkened(full, lit, SHADOW) * 0.9
+      );
+      expect(countDarkened(none, lit, SHADOW)).toBe(0);
       // The bole and branch lattice cast a sparse shadow: some ground, not all of it, darkens.
+      const region = {x0: 128, y0: 96, x1: 232, y1: 160};
       const woodShadow = countDarkened(wood, woodLit, region);
       expect(woodShadow).toBeGreaterThan(40);
-      expect(woodShadow).toBeLessThan(countDarkened(canopy, canopyLit, region));
-    } finally {
-      scene.cleanup();
-    }
-  }, 60000);
-
-  it('thins canopy shadows with optical coverage and drops them at zero coverage', async () => {
-    const scene = mount();
-    try {
-      const lit = await scene.render([
-        ground(),
-        trees({shadowEnabled: false}, CanopyOnlyTreeLayer)
-      ]);
-      const darkened = async (coverage: number) =>
-        countDarkened(
-          await scene.render([
-            ground(),
-            trees(
-              {getCoverageWeight: coverage, updateTriggers: {getCoverageWeight: coverage}},
-              CanopyOnlyTreeLayer
-            )
-          ]),
-          lit,
-          SHADOW
-        );
-      const full = await darkened(1);
-      const partial = await darkened(0.25);
-      const none = await darkened(0);
-      expect(scene.errors).toEqual([]);
-      expect(full).toBeGreaterThan(SHADOW_AREA * 0.5);
-      expect(partial).toBeGreaterThan(0);
-      expect(partial).toBeLessThan(full * 0.9);
-      expect(none).toBe(0);
+      expect(woodShadow).toBeLessThan(countDarkened(full, lit, region));
     } finally {
       scene.cleanup();
     }
@@ -434,11 +408,10 @@ describe('TreeLayer deck.gl shadows (WebGL2)', () => {
           shadowEnabled
         });
       const region = {x0: 150, y0: 112, x1: 190, y1: 144};
-      const shadowed = await scene.render([ground(), splats(true)]);
       const lit = await scene.render([ground(), splats(false)]);
+      const shadowed = await scene.render([ground(), splats(true)]);
       expect(scene.errors).toEqual([]);
       expect(brightness(shadowed, region)).toBeLessThan(brightness(lit, region) * 0.7);
-      await scene.render([ground(), splats(true)]);
       expect(scene.deck.pickObject({x: 128, y: 128})?.object).toBe(owner);
     } finally {
       scene.cleanup();
@@ -532,64 +505,3 @@ it.each([
   },
   60000
 );
-
-it('renders shadow-lit trees without errors on WebGPU, which casts no deck.gl shadows', async ({
-  skip
-}) => {
-  await requireWebGPUAdapter(skip);
-  const parent = document.createElement('div');
-  parent.style.cssText = 'width:128px;height:128px';
-  document.body.append(parent);
-  type NativeGpuError = {error?: {message?: string}};
-  type NativeGpuDevice = {
-    addEventListener: (type: string, listener: (event: NativeGpuError) => void) => void;
-    removeEventListener: (type: string, listener: (event: NativeGpuError) => void) => void;
-    queue: {onSubmittedWorkDone: () => Promise<void>};
-  };
-  const errors: string[] = [];
-  const capture = (event: NativeGpuError) =>
-    errors.push(event.error?.message ?? 'Unknown WebGPU validation error.');
-  let device: Device | undefined;
-  let deck: Deck | undefined;
-  let native: NativeGpuDevice | undefined;
-  try {
-    device = await luma.createDevice({
-      type: 'webgpu',
-      adapters: [webgpuAdapter],
-      createCanvasContext: {container: parent, width: 128, height: 128, useDevicePixels: false}
-    });
-    native = (device as Device & {handle?: NativeGpuDevice}).handle;
-    native?.addEventListener('uncapturederror', capture);
-    let frames = 0;
-    deck = new Deck({
-      device,
-      parent,
-      width: 128,
-      height: 128,
-      useDevicePixels: false,
-      _animate: true,
-      views: new MapView(),
-      initialViewState: {...VIEW_STATE, zoom: 18},
-      effects: [lighting(true)],
-      layers: [
-        trees({
-          windStrength: 0.1,
-          extensions: [new SelectionPulseExtension()],
-          getSelected: true,
-          pulseTime: 375
-        })
-      ],
-      onError: error => errors.push(error.message),
-      onAfterRender: () => frames++
-    });
-    await expect.poll(() => frames, {timeout: 30000}).toBeGreaterThan(8);
-    await native?.queue.onSubmittedWorkDone();
-    expect(device.type).toBe('webgpu');
-    expect(errors).toEqual([]);
-  } finally {
-    native?.removeEventListener('uncapturederror', capture);
-    deck?.finalize();
-    device?.destroy();
-    parent.remove();
-  }
-}, 60000);

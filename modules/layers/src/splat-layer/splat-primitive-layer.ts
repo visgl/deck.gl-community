@@ -25,7 +25,7 @@ import {
   splatUniforms
 } from './splat-shaders';
 import {SplatEffect} from './splat-effect';
-import {clearShadowDepthOffset} from './splat-shadow';
+import {prepareShadowDraw} from './splat-shadow';
 import {SPLAT_WGSL, SPLAT_ACCUMULATION_WGSL, SPLAT_TRANSMISSION_WGSL} from './splat.wgsl.js';
 
 // Picking omits LightingEffect, but the effect's shadow shader remains a deck default module.
@@ -292,11 +292,9 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     if (viewport !== this.context.viewport && viewport.id === this.context.viewport?.id) return;
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
-    // deck.gl's shadow pass. Its 9.4 shadow module has no WGSL: no WebGPU shader reads the map.
-    const shadowPass = Boolean(shaderModuleProps.shadow?.drawToShadowMap);
-    if (shadowPass && this.context.device.type === 'webgpu') return;
-    if (shadowPass) clearShadowDepthOffset(this);
-    if (!pickingActive && mode === 0 && !shadowPass) {
+    if (shaderModuleProps.shadow?.drawToShadowMap) {
+      if (!prepareShadowDraw(this)) return;
+    } else if (!pickingActive && mode === 0) {
       if (shaderModuleProps.splat?.resolve)
         this.state.effect.resolve(renderPass, shaderModuleProps.project.viewport.id);
       if (this.props.deformationStrength > 0 && this.props.deformationTime === null)

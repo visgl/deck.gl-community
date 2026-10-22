@@ -34,28 +34,15 @@ export const splatUniforms = {
 
 /**
  * deck.gl's `shadow` module (GLSL only), present while a `LightingEffect` has a shadow light.
- *
- * Casting: in its shadow pass a Gaussian projects its covariance with the light's orthographic
- * matrix. A binary depth map cannot store partial transmittance, so each Gaussian keeps the
- * fragments whose alpha exceeds one stable random threshold of its own: a fragment casts with
- * probability equal to its alpha, overlapping Gaussians block light as `1 - Π(1 - alpha)`, and
- * refinement fades thin the shadow as they thin the canopy.
- *
- * Receiving: weighted transparency averages Gaussians through an owner's whole depth, so
- * self-shadowing would darken the sunlit side of a crown with its shaded interior. A Gaussian
- * instead tests its shadow at the light-facing side of a sphere around its owner's source origin,
- * which encloses a TreeLayer crown: other owners and layers shadow it, while its own owner shades
- * it by lighting.
+ * Casting projects each covariance with the light's orthographic matrix and keeps the fragments
+ * whose alpha exceeds a stable per-Gaussian random threshold, so overlapping Gaussians block light
+ * as `1 - Π(1 - alpha)`. Receiving tests the owner's light-facing side, so a crown is shaded by
+ * other owners and layers but not, through weighted transparency, by its own interior.
  */
 const SPLAT_SHADOW_VERTEX = `#ifdef MODULE_SHADOW
 flat out float splatShadowThreshold;
 // Receiver light depths at the owner's tangent plane, for up to two lights.
 out vec2 splatShadowDepth;
-void splatShadowFootprint(inout vec3 rowX, inout vec3 rowY, vec2 size) {
-  mat4 light = shadow.lightId == 0 ? shadow.viewProjectionMatrix0 : shadow.viewProjectionMatrix1;
-  rowX = vec3(light[0].x, light[1].x, light[2].x) * size.x * 0.5;
-  rowY = vec3(light[0].y, light[1].y, light[2].y) * size.y * 0.5;
-}
 // Source-unit radius around a source's origin that holds every Gaussian centre: TreeLayer crowns
 // lie within 1.1 units.
 const float SPLAT_SHADOW_OWNER_RADIUS = 1.25;
@@ -64,15 +51,15 @@ const float SPLAT_SHADOW_OWNER_RADIUS = 1.25;
 // Gaussians lies nearer the light than that plane, however wide; nearer owners still shadow it.
 // transform maps source units to owner metres; ownerOffset is the receiver minus the source
 // origin, in common units.
-float splatShadowReceiveOffset(mat4 light, mat3 transform, vec3 ownerOffset, vec2 mapSize) {
+float splatShadowReceiveOffset(mat4 light, mat3 transform, vec3 ownerOffset) {
   // Light depth grows away from the light, along this row of its view-projection.
   vec3 depthAxis = vec3(light[0].z, light[1].z, light[2].z);
-  float depthPerCommon = max(length(depthAxis), 1e-20);
-  // The owner sphere's extent toward the light, in metres.
-  float reach = SPLAT_SHADOW_OWNER_RADIUS * length(transpose(transform) * depthAxis) / depthPerCommon;
-  vec2 texel = 2.0 / max(mapSize * vec2(length(vec3(light[0].x, light[1].x, light[2].x)),
+  // deck.gl sizes its shadow maps like the viewport.
+  vec2 texel = 2.0 / max(project.viewportSize * vec2(length(vec3(light[0].x, light[1].x, light[2].x)),
     length(vec3(light[0].y, light[1].y, light[2].y))), vec2(1e-20));
-  float plane = -dot(depthAxis, ownerOffset) - (reach * project_size(1.0) + max(texel.x, texel.y)) * depthPerCommon;
+  float plane = -dot(depthAxis, ownerOffset)
+    - SPLAT_SHADOW_OWNER_RADIUS * project_size(1.0) * length(transpose(transform) * depthAxis)
+    - max(texel.x, texel.y) * length(depthAxis);
   return min(plane * 0.5, 0.0);
 }
 // pcg3d (Jarzynski and Olano 2020): independent per Gaussian, stable across frames and map fits.
@@ -164,7 +151,9 @@ void main() {
 #ifdef MODULE_SHADOW
   if (shadow.drawShadowMap) {
     // The shadow map is an orthographic light view: its linear part projects the covariance.
-    splatShadowFootprint(rowX, rowY, viewportSize);
+    mat4 light = shadow.lightId == 0 ? shadow.viewProjectionMatrix0 : shadow.viewProjectionMatrix1;
+    rowX = vec3(light[0].x, light[1].x, light[2].x) * viewportSize.x * 0.5;
+    rowY = vec3(light[0].y, light[1].y, light[2].y) * viewportSize.y * 0.5;
     clipWeight = 1.0;
   }
 #endif
@@ -200,13 +189,11 @@ void main() {
     if (vColor.a < splat.alphaCutoff) gl_Position = vec4(2,2,2,1);
     splatShadowThreshold = splatShadowHash(splatCenters, instancePositions, instancePositions64Low);
   } else if (shadow.useShadowMap) {
-    // deck.gl sizes its shadow maps like the viewport.
     vec3 ownerOffset = project_size(position - instanceTranslation);
-    splatShadowDepth = vec2(
-      shadow_vPosition[0].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix0, transform, ownerOffset, project.viewportSize), 0.0);
+    splatShadowDepth = vec2(shadow_vPosition[0].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix0, transform, ownerOffset), 0.0);
     // deck.gl leaves an unused light's matrix zero.
     if (shadow.lightCount > 1.0)
-      splatShadowDepth.y = shadow_vPosition[1].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix1, transform, ownerOffset, project.viewportSize);
+      splatShadowDepth.y = shadow_vPosition[1].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix1, transform, ownerOffset);
     // deck.gl's color filter would tint a translucent Gaussian as a shadow film laid over it; the
     // fragment shader tints it as a surface instead.
     shadow_vPosition[0].z = -1.0;
@@ -227,15 +214,11 @@ in float vCoverageWeight;
 #ifdef MODULE_SHADOW
 flat in float splatShadowThreshold;
 in vec2 splatShadowDepth;
-float splatShadowWeight(sampler2D shadowMap, vec2 uv, float depth) {
-  return smoothstep(0.001, 0.01, depth - dot(texture(shadowMap, uv), bitUnpackShift));
-}
-// deck.gl's filter mixes toward the shadow color by s / (s + alpha (1 - s)), which blackens faint
-// Gaussians under a weak shadow. Light reaching a Gaussian does not depend on its own alpha.
+// Light reaching a Gaussian does not depend on its own alpha: tint it like an opaque surface.
 vec3 splatShadowReceive(vec3 color) {
-  float weight = splatShadowWeight(shadow_uShadowMap0, shadow_vPosition[0].xy, splatShadowDepth.x);
+  float weight = shadow_getShadowWeight(vec3(shadow_vPosition[0].xy, splatShadowDepth.x), shadow_uShadowMap0);
   if (shadow.lightCount > 1.0)
-    weight += splatShadowWeight(shadow_uShadowMap1, shadow_vPosition[1].xy, splatShadowDepth.y);
+    weight += shadow_getShadowWeight(vec3(shadow_vPosition[1].xy, splatShadowDepth.y), shadow_uShadowMap1);
   return mix(color, shadow.color.rgb, weight * shadow.color.a / shadow.lightCount);
 }
 #endif

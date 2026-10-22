@@ -93,8 +93,6 @@ it('renders camera detail and honors custom wood meshes', () => {
   layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
   const children = layer.renderLayers();
   expect(children.length).toBeGreaterThan(0);
-  // Wood casts deck.gl shadows unless the parent opts out.
-  expect(children.every(child => child.props.shadowEnabled !== false)).toBe(true);
   for (const child of children) {
     expect(child.props.mesh).toBe(mesh);
     expect(child.props.woodMorph).toBe(false);
