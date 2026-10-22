@@ -2,7 +2,10 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v9.4.7
+
+- v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only
+  `@deck.gl-community/react` published.
 
 - `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
   (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made

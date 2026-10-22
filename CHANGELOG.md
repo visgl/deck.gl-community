@@ -1,5 +1,18 @@
 # deck.gl-community CHANGELOG
 
+## v9.4.7
+
+- Publish the v9.4.6 changes to npm. The v9.4.6 release run was cancelled after only `@deck.gl-community/react` published, so every other package moves from v9.4.5 to v9.4.7 and also includes the v9.4.6 notes below.
+- Cast and receive deck.gl shadows in `TreeLayer` and `SplatLayer` under a `LightingEffect` `DirectionalLight` with `_shadow: true` (WebGL2 only). Set `shadowEnabled: false` to keep trees from casting, as before (#969).
+- Add `SelectionPulseExtension`, which pulses selected objects on the GPU: a selection change writes one value per object, and each animation frame sets only uniforms (#965).
+- Keep `TreeLayer` sub-layer attributes when an unrelated prop such as `windTime`, `opacity` or `highlightedObjectIndex` changes, instead of recomputing every canopy color and crop attribute. Extension accessors and their update triggers now reach the wood, crop and canopy sub-layers (#967).
+- Forward `updateTriggers.getTrunkColor`, `getCoverageWeight` and authored wind changes to `TreeLayer`'s connected wood (#966).
+- Render `SplatLayer` and `TreeLayer` canopies in the primary world copy instead of throwing when a `MapView` repeats wrapped world copies (#962).
+- Leave presses the active edit mode does not use to an interleaved MapLibre/Mapbox map, so `EditableGeoJsonLayer` no longer blocks panning and map clicks while drawing by clicks or in `ModifyMode`. Custom drag modes declare their presses with `EditMode.ownsPointerDown()` (#960).
+- Make `EditableGeoJsonLayer` tooltips non-pickable, so a measurement tooltip under the cursor no longer makes `ModifyMode` throw (#968).
+- Load the `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds in Node's native ESM loader: shader-module imports carry their `.js` extension (#963, #964).
+- Ship third-party notices with `@deck.gl-community/basemap-layers` and replace its adapted polylabel code with an independent implementation (#950).
+
 ## v9.4.6
 
 - Spend about a quarter of the CPU time per moving frame in `TreeLayer` and `SplatLayer` over large groves, with the same rendered selection. A controlled `highlightedObjectIndex` now highlights the source tree or owner in every wood, canopy and crop partition, as `autoHighlight` does (#956).

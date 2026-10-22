@@ -4,7 +4,7 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
-## Unreleased
+## v9.4.7
 
 ### `@deck.gl-community/layers`: tree and splat shadows
 
