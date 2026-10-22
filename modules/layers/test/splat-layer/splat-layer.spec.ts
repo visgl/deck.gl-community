@@ -1043,6 +1043,25 @@ it('renders scene children without deck.gl shadows even when the layer enables t
   expect(scene.props.shadowEnabled).toBe(false);
 });
 
+it.each([
+  'cartesian',
+  'default'
+] as const)('accepts the deck.gl 9.4 %s coordinate string for sorted scene URLs', coordinateSystem => {
+  // deck.gl 9.4 COORDINATE_SYSTEM constants are these strings; the Coit example passes 'cartesian'.
+  expect(coordinateSystem).toBe(
+    coordinateSystem === 'cartesian' ? COORDINATE_SYSTEM.CARTESIAN : COORDINATE_SYSTEM.DEFAULT
+  );
+  const layer = make(
+    '/coit.rad' as never,
+    0,
+    {source: undefined, transparency: 'sorted', coordinateSystem},
+    new OrthographicViewport({width: 256, height: 256})
+  );
+  expect(layer.state.scene).toBe(true);
+  expect(layer.state.sceneProjectionError).toBeNull();
+  expect(layer.renderLayers()).toHaveLength(1);
+});
+
 it('retires scene children for unsupported coordinate systems and recovers on valid props', () => {
   const row = {position: [0, 0, 0] as [number, number, number]};
   const layer = make(

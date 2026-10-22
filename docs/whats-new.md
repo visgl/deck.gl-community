@@ -14,6 +14,9 @@ This page lists module additions and major changes in each release. For detailed
   `@luma.gl/splats@9.4.2`; publishing requires the upstream luma 9.4 release that carries the
   host-pass splat backport.
 
+- Added a public [Coit RAD scene example](/examples/layers/coit) that streams a hosted `.rad`
+  capture through `SplatLayer` on WebGPU, migrated from the private experimental viewer.
+
 ## v9.4.7
 
 - v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only
