@@ -2,6 +2,7 @@ import {expect, test, vi} from 'vitest';
 import 'maplibre-gl';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
+import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
 import {DrawRectangleMode} from '../../src/edit-modes/draw-rectangle-mode';
 import {ModifyMode} from '../../src/edit-modes/modify-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
@@ -213,7 +214,7 @@ test('interleaved editing preserves map controls, view navigation, and the appli
   }
 }, 30000);
 
-test('interleaved ModifyMode handle drag edits the feature without moving the map', async () => {
+test('interleaved handle drags edit without moving the map; other presses pan and click it', async () => {
   const container = document.createElement('div');
   container.style.cssText = 'width:512px;height:384px;position:relative';
   document.body.append(container);
@@ -225,45 +226,49 @@ test('interleaved ModifyMode handle drag edits the feature without moving the ma
     pixelRatio: 1
   });
   const overlay = new MapboxOverlay({interleaved: true});
-  const initialPosition: [number, number] = [-20, -15];
-  const data: any = {
+  const corner: [number, number] = [-5, -5];
+  let data: any = {
     type: 'FeatureCollection',
     features: [
       {
         type: 'Feature',
         properties: {},
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[initialPosition, [20, -15], [20, 15], [-20, 15], initialPosition]]
-        }
+        geometry: {type: 'Polygon', coordinates: [[corner, [5, -5], [5, 5], [-5, 5], corner]]}
       }
     ]
   };
-  let editedData: any;
-  const layer = new EditableGeoJsonLayer({
-    id: 'editable',
-    data,
-    mode: ModifyMode,
-    selectedFeatureIndexes: [0],
-    onEdit: action => (editedData = action.updatedData)
-  });
+  const edits: string[] = [];
+  let mapClicks = 0;
+  const setMode = (mode, selectedFeatureIndexes: number[]) => {
+    const layer = new EditableGeoJsonLayer({
+      id: 'editable',
+      data,
+      mode,
+      selectedFeatureIndexes,
+      onEdit: action => {
+        // Pointer movement only refreshes the tentative guide.
+        if (action.editType !== 'updateTentativeFeature') edits.push(action.editType);
+        data = action.updatedData;
+        setMode(mode, selectedFeatureIndexes);
+      }
+    });
+    overlay.setProps({layers: [layer]});
+    return vi.waitFor(() => expect(layer.getCurrentLayer()?.isLoaded).toBe(true));
+  };
+  const frame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   try {
     await new Promise<void>(resolve => map.once('load', resolve));
     map.addControl(overlay);
-    overlay.setProps({layers: [layer]});
-    await vi.waitFor(() => expect(layer.getCurrentLayer()?.isLoaded).toBe(true));
-
+    map.on('click', () => mapClicks++);
     const canvas = map.getCanvas();
     const bounds = canvas.getBoundingClientRect();
-    const handle = map.project(initialPosition);
-    const center = map.getCenter();
-    const frame = () => new Promise<void>(resolve => requestAnimationFrame(resolve));
-    const dispatch = (type: string, x: number, y: number, buttons: number) => {
-      const event = {
+    const dispatch = (type: string, [x, y]: number[], buttons: number) => {
+      const init = {
         clientX: bounds.left + x,
         clientY: bounds.top + y,
         button: 0,
         buttons,
+        detail: 1,
         bubbles: true,
         cancelable: true,
         pointerId: 1,
@@ -271,22 +276,56 @@ test('interleaved ModifyMode handle drag edits the feature without moving the ma
         isPrimary: true
       };
       canvas.dispatchEvent(
-        type.startsWith('pointer') ? new PointerEvent(type, event) : new MouseEvent(type, event)
+        type.startsWith('pointer') ? new PointerEvent(type, init) : new MouseEvent(type, init)
       );
     };
-    dispatch('pointerdown', handle.x, handle.y, 1);
-    dispatch('mousedown', handle.x, handle.y, 1);
-    dispatch('pointermove', handle.x + 40, handle.y + 30, 1);
-    dispatch('mousemove', handle.x + 40, handle.y + 30, 1);
-    await frame();
-    dispatch('pointerup', handle.x + 40, handle.y + 30, 0);
-    dispatch('mouseup', handle.x + 40, handle.y + 30, 0);
-    await frame();
+    const press = async (from: number[], to = from) => {
+      dispatch('pointerdown', from, 1);
+      dispatch('mousedown', from, 1);
+      for (const t of to === from ? [] : [0.5, 1]) {
+        const at = [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+        dispatch('pointermove', at, 1);
+        dispatch('mousemove', at, 1);
+        await frame();
+      }
+      dispatch('pointerup', to, 0);
+      dispatch('mouseup', to, 0);
+      dispatch('click', to, 0);
+      await frame();
+    };
+    const expectPan = async () => {
+      await vi.waitFor(() => expect(Math.abs(map.getCenter().lng)).toBeGreaterThan(1));
+      map.stop();
+      map.jumpTo({center: [0, 0]});
+    };
 
-    await vi.waitFor(() => expect(editedData).toBeDefined());
-    expect(editedData.features[0].geometry.coordinates[0][0]).not.toEqual(initialPosition);
-    expect(map.getCenter().lng).toBeCloseTo(center.lng, 8);
-    expect(map.getCenter().lat).toBeCloseTo(center.lat, 8);
+    // Click-to-draw: dragging empty map pans it; a click adds a vertex and reaches the map.
+    await setMode(DrawPolygonMode, []);
+    await press([60, 60], [120, 100]);
+    await expectPan();
+    expect(edits).toEqual([]);
+    await press([80, 300]);
+    await vi.waitFor(() => expect(edits).toEqual(['addTentativePosition']));
+    // MapLibre ignores the click that ends the pan.
+    expect(mapClicks).toBe(1);
+
+    await setMode(ModifyMode, [0]);
+    await press([60, 60], [120, 100]);
+    await expectPan();
+    expect(edits).toEqual(['addTentativePosition']);
+    const handle = map.project(corner);
+    await vi.waitFor(() =>
+      expect(
+        overlay
+          .pickMultipleObjects({x: handle.x, y: handle.y, radius: 5, depth: 4})
+          .some(info => info.object?.properties?.editHandleType === 'existing')
+      ).toBe(true)
+    );
+    await press([handle.x, handle.y], [handle.x + 40, handle.y + 30]);
+    await vi.waitFor(() => expect(edits).toContain('finishMovePosition'));
+    expect(data.features[0].geometry.coordinates[0][0]).not.toEqual(corner);
+    expect(map.getCenter().lng).toBeCloseTo(0, 8);
+    expect(map.getCenter().lat).toBeCloseTo(0, 8);
   } finally {
     map.removeControl(overlay);
     overlay.finalize();
