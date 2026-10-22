@@ -150,6 +150,31 @@ test.each([
   expect(mode.handleStopDragging).toHaveBeenCalledOnce();
 });
 
+test('changing eventTarget cancels an unfinished click sequence', async () => {
+  const {layer, mode} = createGestureLayer();
+  Object.assign(mode, {getClickSequence: () => [[0, 0]]});
+  const {input} = layer.state._editableLayerState;
+  // Record the target without attaching mjolnir.js listeners in Node.
+  vi.spyOn(input, 'setTarget').mockImplementation(target => {
+    input.eventTarget = target;
+  });
+  const eventTarget = {} as HTMLElement;
+  layer.props = layer.clone({eventTarget}).props;
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {},
+    context: layer.context
+  } as any);
+  await Promise.resolve();
+
+  expect(input.eventTarget).toBe(eventTarget);
+  expect(mode.handleKeyUp).toHaveBeenCalledWith(
+    expect.objectContaining({key: 'Escape'}),
+    expect.anything()
+  );
+});
+
 test.each([0, 3])('movement with buttons=%i and non-primary release cannot edit', buttons => {
   const {layer, mode} = createGestureLayer();
   layer._onpanstart(createGestureEvent({button: 0, buttons: 1}));
