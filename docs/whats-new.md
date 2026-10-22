@@ -2,7 +2,10 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v9.4.6
+
+- **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import
+  `TreeLayer` and its types from `@deck.gl-community/layers`.
 
 - `TreeLayer` and `SplatLayer` spend about a quarter of the CPU time per moving frame over large
   groves: a generated 17,000-tree orchard with ~15,000 crowns in view orbits at ~11 ms instead of
@@ -89,9 +92,6 @@ This page lists module additions and major changes in each release. For detailed
   adds a declarative graph overview using two `OrthographicView`s and one shared `GraphLayer`.
 
 ## v10 — In Development
-
-- **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import
-  `TreeLayer` and its types from `@deck.gl-community/layers`.
 
 Support for the upcoming deck.gl v10 is in development.
 

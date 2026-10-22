@@ -1,10 +1,10 @@
 # deck.gl-community CHANGELOG
 
-## Unreleased
+## v9.4.6
 
-- **Breaking:** Remove the deprecated `@deck.gl-community/three` compatibility workspace. Import
-  `TreeLayer` and its types from `@deck.gl-community/layers`; the Seasonal Farm example now lives
-  under `examples/layers/seasonal-farm`.
+- Spend about a quarter of the CPU time per moving frame in `TreeLayer` and `SplatLayer` over large groves, with the same rendered selection. A controlled `highlightedObjectIndex` now highlights the source tree or owner in every wood, canopy and crop partition, as `autoHighlight` does (#956).
+- Embed live layer demos in the layer API documentation (#954).
+- **Breaking:** Remove the deprecated `@deck.gl-community/three` compatibility workspace; v9.4.5 is its final published version. Import `TreeLayer` and its types from `@deck.gl-community/layers`; the Seasonal Farm example now lives under `examples/layers/seasonal-farm` (#953).
 
 ## v9.4.5
 
