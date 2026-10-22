@@ -275,6 +275,11 @@ export abstract class EditableLayer<
     return false;
   }
 
+  /** Returns whether editing uses a primary mouse press; the parent map handles the others. */
+  _ownsPointerDown(_event: MouseEvent): boolean {
+    return true;
+  }
+
   _onNativeMapInteraction(event: Event) {
     const preventMapInteractions =
       this.props.autoPreventMapInteractions !== false && this.props.visible && this._isEditing();
@@ -294,6 +299,7 @@ export abstract class EditableLayer<
       }
       if (block) event.stopPropagation();
     } else if (preventMapInteractions && (event as MouseEvent).button === 0) {
+      if (event.type === 'mousedown' && !this._ownsPointerDown(event as MouseEvent)) return;
       // MapLibre/Mapbox handle these on the canvas container. Other listeners
       // on the canvas, including deck.gl's pointer recognizer, still receive them.
       event.stopPropagation();

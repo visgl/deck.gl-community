@@ -264,7 +264,9 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         ? [
             new TreeMeshLayer({
               ...this.props,
-              ...this.getSubLayerProps({id}),
+              // Forward the parent's accessor triggers (getColor, getWind, ...). Without them
+              // getSubLayerProps would replace this.props.updateTriggers with `all` alone.
+              ...this.getSubLayerProps({id, updateTriggers: this.props.updateTriggers}),
               data,
               _dataDiff: getSplatChangedRanges,
               highlightedObjectIndex: getSplatHighlightRow(this, data),
