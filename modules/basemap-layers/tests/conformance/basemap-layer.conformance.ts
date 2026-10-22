@@ -56,7 +56,13 @@ const basemapLayerRenderer: ConformanceRenderer = {
   name: `BasemapLayer ${packageJson.version}`,
   supports: () => true,
   async render(scene, style) {
-    const render = await renderBasemapLayer(style, scene as any);
+    // The scene's camera, as MapLibre's renderer reads it from the scene.
+    const render = await renderBasemapLayer(
+      style,
+      scene as any,
+      {},
+      {pitch: scene.pitch, bearing: scene.bearing}
+    );
     const unsorted = render.unsortedFontAtlases || [];
     return {
       pixels: render.pixels,
