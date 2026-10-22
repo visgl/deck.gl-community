@@ -2,6 +2,12 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- `SplatLayer` and `TreeLayer` no longer throw when a `MapView` repeats wrapped world copies
+  (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
+  render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
+
 ## v9.4.6
 
 - **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import

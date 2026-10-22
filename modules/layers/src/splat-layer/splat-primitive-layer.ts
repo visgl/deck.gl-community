@@ -272,6 +272,11 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
   }
 
   draw({shaderModuleProps, renderPass}) {
+    // A repeated MapView draws each wrapped world copy with its own viewport object. Owners are
+    // selected for, and composited into, the primary copy only: shifted duplicates would add to the
+    // shared optical targets and resolve them once per copy.
+    const viewport = shaderModuleProps.project.viewport;
+    if (viewport !== this.context.viewport && viewport.id === this.context.viewport?.id) return;
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
     if (!pickingActive && mode === 0) {
