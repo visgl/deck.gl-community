@@ -14,6 +14,10 @@ This page lists module additions and major changes in each release. For detailed
   (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
   render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
 
+- `TreeLayer` no longer rewrites every canopy color and crop attribute when an unrelated prop
+  changes, such as `windTime`, `opacity` or `highlightedObjectIndex`. Extension accessors and their
+  update triggers now reach the wood, crop and canopy sub-layers.
+
 - `EditableGeoJsonLayer` in interleaved MapLibre/Mapbox maps keeps only the presses the mode uses
   (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
   in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.

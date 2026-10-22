@@ -77,6 +77,17 @@ function retainSplatSelections<T>(
   }
   return previous;
 }
+/**
+ * A child trigger that changes with the parent's trigger or a constant accessor value. deck.gl
+ * compares the elements of an array trigger by identity, so a nested array from a composite parent
+ * such as TreeLayer would read as changed on every render; flatten both, after the trigger length.
+ */
+function getWrappedTrigger(trigger: unknown, accessor: unknown): unknown[] {
+  const elements = Array.isArray(trigger) ? trigger : [trigger];
+  const constant =
+    typeof accessor === 'function' ? [null] : Array.isArray(accessor) ? accessor : [accessor];
+  return [elements.length, ...elements, ...constant];
+}
 type Owner<DataT> = {object: DataT; weight: number; index: number};
 type PreparedOwner<DataT> = {
   key: string;
@@ -642,20 +653,17 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
         'getColor',
         'getDeformation'
       ] as const)
-        wrappedTriggers[name] = [
-          props.updateTriggers?.[name],
-          typeof this.props[name] === 'function' ? null : this.props[name]
-        ];
+        wrappedTriggers[name] = getWrappedTrigger(props.updateTriggers?.[name], this.props[name]);
       return new SplatPrimitiveLayer<Owner<DataT>>({
         ...this.props,
         ...props,
         data: members,
         updateTriggers: {
           ...wrappedTriggers,
-          getCoverageWeight: [
+          getCoverageWeight: getWrappedTrigger(
             props.updateTriggers?.getCoverageWeight,
-            typeof this.props.getCoverageWeight === 'function' ? null : this.props.getCoverageWeight
-          ]
+            this.props.getCoverageWeight
+          )
         },
         _coverageRanges: coverage[level].ranges,
         _dataDiff: (next, previous) => {

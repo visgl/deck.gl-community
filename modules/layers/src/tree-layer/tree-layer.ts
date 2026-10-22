@@ -419,6 +419,35 @@ function getFiniteDimension(value: number, fallback: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : fallback;
 }
 
+// Sub-layer data derived from state keeps its identity until the state rows change: a new array
+// makes deck.gl rewrite every attribute of that sub-layer, e.g. whenever any TreeLayer prop changes.
+const CROWNLESS_ROWS = new WeakMap<object, TreeRow<unknown>[]>();
+const CROPS_BY_KIND = new WeakMap<CropRow[], Map<CropKind, CropRow[]>>();
+
+/** Trees without a crown, drawn with a plain trunk. */
+function getCrownlessRows<DataT>(rows: TreeRow<DataT>[]): TreeRow<DataT>[] {
+  let crownless = CROWNLESS_ROWS.get(rows) as TreeRow<DataT>[] | undefined;
+  if (!crownless) {
+    crownless = rows.filter(row => row.scale.some(value => value <= 0));
+    CROWNLESS_ROWS.set(rows, crownless as TreeRow<unknown>[]);
+  }
+  return crownless;
+}
+
+function getCropsByKind(rows: CropRow[]): Map<CropKind, CropRow[]> {
+  let byKind = CROPS_BY_KIND.get(rows);
+  if (!byKind) {
+    byKind = new Map();
+    for (const row of rows) {
+      const group = byKind.get(row.kind) ?? [];
+      group.push(row);
+      byKind.set(row.kind, group);
+    }
+    CROPS_BY_KIND.set(rows, byKind);
+  }
+  return byKind;
+}
+
 /**
  * Layered, instanced trees built with vis.gl geometry, seasonal crowns and optional GPU wind.
  * In Cartesian and metre-offset coordinates, modelMatrix supports translation only.
@@ -770,7 +799,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       delete props.source;
       delete props.hierarchy;
     }
-    return {...props, parameters, updateTriggers};
+    // getSubLayerProps adds the triggers of extension accessors, such as `getSelected`.
+    return {...props, parameters, updateTriggers: {...props.updateTriggers, ...updateTriggers}};
   }
 
   renderLayers() {
@@ -843,16 +873,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       );
     };
 
-    trunks(
-      this.state.trunks.filter(row => row.scale.some(value => value <= 0)),
-      'trunks',
-      false
-    );
-    trunks(
-      this.state.palms.filter(row => row.scale.some(value => value <= 0)),
-      'trunks-palm',
-      true
-    );
+    trunks(getCrownlessRows(this.state.trunks), 'trunks', false);
+    trunks(getCrownlessRows(this.state.palms), 'trunks-palm', true);
     this.state.splatBudgetGroup.parent = this.props._splatBudgetGroup;
     // This cap is shared by currently visible, refined crowns. Do not scale it
     // from total inventory size: a large grove must recover detail when zoomed in.
@@ -910,8 +932,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
         getWind: windTrigger,
         getDeformation: windTrigger,
         getCoverageWeight: this.props.updateTriggers?.getCoverageWeight,
+        // Not `this.getCanopyColor`: each layer instance has its own, which would recolor every
+        // canopy whenever any TreeLayer prop changes.
         getColor: [
-          this.getCanopyColor,
           this.props.getCanopyColor,
           getTrunkColor,
           getSeason,
@@ -963,13 +986,7 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       ['dropped-crops', this.state.droppedCrops]
     ] as const) {
       if (!data.length) continue;
-      const byKind = new Map<CropKind, CropRow[]>();
-      for (const row of data) {
-        const group = byKind.get(row.kind) ?? [];
-        group.push(row);
-        byKind.set(row.kind, group);
-      }
-      for (const [kind, rows] of byKind)
+      for (const [kind, rows] of getCropsByKind(data))
         layers.push(
           new TreeMeshLayer(
             this.getTreeSubLayerProps(
