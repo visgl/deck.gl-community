@@ -11,6 +11,7 @@ import {
 import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
+import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
 
 type WindProps<DataT> = {
   /** [tree height in metres, stable wind phase, flex multiplier]. */
@@ -159,6 +160,12 @@ const WGSL_WIND = `
 /** Shared shader deformation for trunks, crowns and attached crops. */
 export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT>> {
   static layerName = 'TreeMeshLayer';
+  /**
+   * The vertex attributes fill the 16 slots WebGL2 and WebGPU guarantee: per-object color filters
+   * such as `SelectionPulseExtension` read their data by instance index. The WGSL exposes
+   * `WGSL_FILTER_COLOR_ANCHOR`.
+   */
+  static instanceColorFilters = true;
   static defaultProps: DefaultProps<SimpleMeshLayerProps<unknown> & WindProps<unknown>> = {
     getCoverageWeight: {type: 'accessor', value: 1},
     getCoverageRange: {type: 'accessor', value: [0, 1]},
@@ -246,6 +253,10 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
           .replace(
             '  @location(10) instanceTranslation: vec3<f32>,',
             '  @location(10) instanceTranslation: vec3<f32>,\n  @location(11) instanceTreeWind: vec4<f32>,\n  @location(12) instanceStemRadius: f32,\n  @location(13) instanceRootLength: f32,\n  @location(14) instanceTreeCrownWind: vec2<f32>,\n  @location(15) instanceTreeCoverage: vec2<f32>,'
+          )
+          .replace(
+            '  varyings.texCoords = attributes.texCoords;',
+            `  var vertexColor = varyings.color;\n  let instanceIndex = attributes.instanceIndex;\n  ${WGSL_FILTER_COLOR_ANCHOR}\n  varyings.color = vertexColor;\n  varyings.texCoords = attributes.texCoords;`
           )
           .replace(
             '@location(4) pickingColor: vec3<f32>,',
