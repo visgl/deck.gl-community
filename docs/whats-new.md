@@ -4,6 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
+  (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
+  `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
 - The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
   in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
   their `.js` extension.
@@ -14,9 +17,9 @@ This page lists module additions and major changes in each release. For detailed
   (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
   render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
 
-- `EditableGeoJsonLayer` tooltips are no longer pickable. Before, hovering a measurement tooltip
-  (such as the one left under the cursor after finishing a `DrawLineStringMode` line) made
-  `ModifyMode` throw and passed the tooltip to modes as if it were a feature.
+- `EditableGeoJsonLayer` in interleaved MapLibre/Mapbox maps keeps only the presses the mode uses
+  (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
+  in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
 
 ## v9.4.6
 

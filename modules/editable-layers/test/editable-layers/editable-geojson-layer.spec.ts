@@ -2,6 +2,10 @@ import {test, expect, vi} from 'vitest';
 import {EditableGeoJsonLayer} from '../../src/editable-layers/editable-geojson-layer';
 import {EditableH3ClusterLayer} from '../../src/editable-layers/editable-h3-cluster-layer';
 import {DrawPointMode} from '../../src/edit-modes/draw-point-mode';
+import {DrawPolygonMode} from '../../src/edit-modes/draw-polygon-mode';
+import {DrawPolygonByDraggingMode} from '../../src/edit-modes/draw-polygon-by-dragging-mode';
+import {DrawRectangleMode} from '../../src/edit-modes/draw-rectangle-mode';
+import {ModifyMode} from '../../src/edit-modes/modify-mode';
 import {ViewMode} from '../../src/edit-modes/view-mode';
 import {TransformMode} from '../../src/edit-modes/transform-mode';
 import {
@@ -156,40 +160,70 @@ test.each([0, 3])('movement with buttons=%i and non-primary release cannot edit'
   expect(layer.state.isDraggingWithPrimaryButton).toBe(false);
 });
 
-test('active edit modes own primary map gestures while view mode and overrides allow navigation', () => {
-  const layer = new EditableGeoJsonLayer({data: null, mode: DrawPointMode});
-  layer.state = {_editableLayerState: {}, mode: new DrawPointMode()} as any;
-  const press = (button = 0, type = 'mousedown') => ({type, button, stopPropagation: vi.fn()});
-  const drawingPress = press();
-  layer._onNativeMapInteraction(drawingPress as any);
-  expect(drawingPress.stopPropagation).toHaveBeenCalledOnce();
-  const secondaryPress = press(2);
-  layer._onNativeMapInteraction(secondaryPress as any);
-  expect(secondaryPress.stopPropagation).not.toHaveBeenCalled();
-  const doubleClick = press(0, 'dblclick');
+const HANDLE_PICK = {index: 0, isGuide: true, object: {properties: {guideType: 'editHandle'}}};
+
+/** Presses a layer once and reports whether its mousedown was kept from the parent map. */
+function pressLayer(
+  props: Record<string, any>,
+  picks: any[] = [],
+  {button = 0, onMap = true} = {}
+) {
+  const layer = new EditableGeoJsonLayer({id: 'press', data: createFeatureCollection(), ...props});
+  const canvas = {
+    offsetWidth: 1,
+    offsetHeight: 1,
+    getBoundingClientRect: () => ({left: 0, top: 0, width: 1, height: 1})
+  };
+  layer.context = {
+    deck: {pickMultipleObjects: () => picks},
+    layerManager: {getLayers: () => []},
+    viewport: {unproject: coords => (onMap ? coords : null)}
+  } as any;
+  const {mode} = props;
+  layer.state = {_editableLayerState: {canvas}, mode: mode.prototype ? new mode() : mode} as any;
+  const mouseDown = {type: 'mousedown', button, clientX: 0, clientY: 0, stopPropagation: vi.fn()};
+  layer._onNativeMapInteraction(mouseDown as any);
+  return mouseDown.stopPropagation.mock.calls.length > 0;
+}
+
+test.each([
+  ['click-to-draw on the map', {mode: DrawPolygonMode}, [], {}, false],
+  ['click-to-draw on an edit handle', {mode: DrawPolygonMode}, [HANDLE_PICK], {}, true],
+  ['ModifyMode on the map', {mode: ModifyMode}, [], {}, false],
+  [
+    'drag-to-draw on the map',
+    {mode: DrawRectangleMode, modeConfig: {dragToDraw: true}},
+    [],
+    {},
+    true
+  ],
+  ['a mode without ownsPointerDown', {mode: {handleClick: vi.fn()}}, [], {}, true],
+  [
+    'a press off the map',
+    {mode: DrawRectangleMode, modeConfig: {dragToDraw: true}},
+    [],
+    {onMap: false},
+    false
+  ],
+  ['a secondary button', {mode: DrawPolygonByDraggingMode}, [], {button: 2}, false],
+  ['ViewMode', {mode: ViewMode}, [HANDLE_PICK], {}, false],
+  [
+    'an override',
+    {mode: DrawPolygonByDraggingMode, autoPreventMapInteractions: false},
+    [],
+    {},
+    false
+  ],
+  ['a hidden layer', {mode: DrawPolygonByDraggingMode, visible: false}, [], {}, false]
+])('%s: the press is kept from the map: %s', (_name, props, picks, options, kept) => {
+  expect(pressLayer(props, picks, options)).toBe(kept);
+});
+
+test('double-clicks stay with editing', () => {
+  const {layer} = createGestureLayer();
+  const doubleClick = {type: 'dblclick', button: 0, stopPropagation: vi.fn()};
   layer._onNativeMapInteraction(doubleClick as any);
   expect(doubleClick.stopPropagation).toHaveBeenCalledOnce();
-
-  const viewLayer = new EditableGeoJsonLayer({data: null, mode: ViewMode});
-  viewLayer.state = {_editableLayerState: {}, mode: new ViewMode()} as any;
-  const viewPress = press();
-  viewLayer._onNativeMapInteraction(viewPress as any);
-  expect(viewPress.stopPropagation).not.toHaveBeenCalled();
-
-  const overrideLayer = new EditableGeoJsonLayer({
-    data: null,
-    mode: DrawPointMode,
-    autoPreventMapInteractions: false
-  });
-  overrideLayer.state = layer.state;
-  const overridePress = press();
-  overrideLayer._onNativeMapInteraction(overridePress as any);
-  expect(overridePress.stopPropagation).not.toHaveBeenCalled();
-  const hiddenLayer = new EditableGeoJsonLayer({data: null, mode: DrawPointMode, visible: false});
-  hiddenLayer.state = layer.state;
-  const hiddenPress = press();
-  hiddenLayer._onNativeMapInteraction(hiddenPress as any);
-  expect(hiddenPress.stopPropagation).not.toHaveBeenCalled();
 });
 
 test.each([

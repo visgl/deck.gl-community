@@ -18,6 +18,7 @@ import {
 } from './utils';
 import {LineString, Point, Polygon, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {
+  BasePointerEvent,
   ModeProps,
   ClickEvent,
   PointerMoveEvent,
@@ -236,6 +237,11 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     const cursor = this.getCursor(event);
     props.onUpdateCursor(cursor);
+  }
+
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
+    return Boolean(getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
