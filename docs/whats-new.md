@@ -10,6 +10,14 @@ This page lists module additions and major changes in each release. For detailed
   canopy budget rather than refining every visible crown, and `autoHighlight` highlights the hovered
   tree across wood and canopy sub-layers instead of unrelated trees at the same row index.
 
+- `TreeLayer` and `SplatLayer` spend about a quarter of the CPU time per moving frame over large
+  groves: a generated 17,000-tree orchard with ~15,000 crowns in view orbits at ~11 ms instead of
+  ~48 ms per frame, with the same rendered selection. Trees crossing the view edge keep their
+  instance slots and upload only their own rows, optical fades rewrite only the changed coverage, and
+  the shared canopy budget no longer schedules refinements once the coverage floor exhausts it. A
+  controlled `highlightedObjectIndex` now highlights that source tree or owner in every wood, canopy
+  and crop partition, as `autoHighlight` does.
+
 - `SharedTile2DLayer` and `SharedTileset2D` skip tiles beyond the horizon in a `GlobeView`, as deck.gl's
   `TileLayer` does, instead of requesting the far side of the globe. `BasemapLayer` vector and hillshade
   sources on a globe request fewer tiles as a result.

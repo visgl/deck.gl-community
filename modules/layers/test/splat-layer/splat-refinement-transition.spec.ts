@@ -146,3 +146,29 @@ it('admits only one extra owner representation when several promotions are block
   expect(transition.active).toBe(false);
   expect([...transition.entries.values()].every(entry => entry.weights[0] === 1)).toBe(true);
 });
+
+it('admits and drops owners without retargeting retained mixtures', () => {
+  const transition = new SplatRefinementTransition<string>();
+  const rows = (owners: string[], level: number) =>
+    owners.map(owner => ({owner, pixels: 10, level, blend: 0}));
+  transition.reconcile(rows(['a', 'b'], 1), counts, 1200, owner => owner);
+  transition.sample(1);
+  for (let now = 17; now < 2000; now += 16) transition.sample(now);
+  const a = transition.entries.get('a')!;
+  const settled = [...a.weights];
+
+  // A local camera update proposes level 0 for a retained owner; the joint grant decides it.
+  expect(transition.retain(rows(['a', 'c'], 0), counts, owner => owner)).toBe(true);
+  expect(transition.entries.has('b')).toBe(false);
+  expect(transition.entries.get('a')).toBe(a);
+  expect(a.target).toEqual([0, 1, 0]);
+  expect(a.weights).toEqual(settled);
+  // Arrivals start from coverage, exactly as a full reconcile admits them.
+  expect(transition.entries.get('c')!.weights).toEqual([0, 0, 1]);
+  expect(transition.activeCount).toBe(1);
+  expect(transition.retain(rows(['a', 'c'], 2), counts, owner => owner)).toBe(false);
+
+  // The joint grant then retargets with its own budget.
+  transition.reconcile(rows(['a', 'c'], 0), counts, 1200, owner => owner);
+  expect(a.target).toEqual([1, 0, 0]);
+});

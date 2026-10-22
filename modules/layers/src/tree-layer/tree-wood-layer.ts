@@ -18,7 +18,8 @@ import {
   querySplatSpatialIndex,
   type SplatSpatialNode
 } from '../splat-layer/splat-spatial-index';
-import {retainSplatRows, getSplatChangedRanges} from '../splat-layer/splat-row-diff';
+import {getSplatChangedRanges, SplatRowSlots} from '../splat-layer/splat-row-diff';
+import {getSplatHighlightRow} from '../splat-layer/splat-source-highlight';
 import type {TreeType} from './tree-layer';
 import type {TreeCharacteristics} from './tree-characteristics';
 
@@ -34,12 +35,18 @@ type Row = {
 };
 type Owner = {
   row: Row;
+  /** Data index, which keys the owner's stable instance slot. */
+  index: number;
   position: number[];
   scale: number[];
+  /** Largest absolute scale axis. */
+  extent: number;
   common: number[];
   center: number[];
   units: number[];
   radius: number;
+  /** Last near-wood blend weight. */
+  weight: number;
 };
 const MIN_WOOD_PIXELS = 2;
 /** Automatic woody refinement. The connected full branching mesh is retained for close views. */
@@ -58,8 +65,9 @@ export class TreeWoodLayer extends CompositeLayer<any> {
   };
   declare state: {
     near: Row[];
-    nearWeights: Map<Row, number>;
     far: Row[];
+    nearSlots: SplatRowSlots<Row>;
+    farSlots: SplatRowSlots<Row>;
     owners: Owner[];
     spatialIndex: SplatSpatialNode<Owner> | null;
     projectionKey: string;
@@ -68,8 +76,9 @@ export class TreeWoodLayer extends CompositeLayer<any> {
   initializeState() {
     this.state = {
       near: [],
-      nearWeights: new Map(),
       far: [],
+      nearSlots: new SplatRowSlots(),
+      farSlots: new SplatRowSlots(),
       owners: [],
       spatialIndex: null,
       projectionKey: '',
@@ -155,8 +164,10 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         );
         owners.push({
           row,
+          index: objectInfo.index,
           position,
           scale,
+          extent: Math.max(...scale.map(Math.abs)),
           common,
           center,
           units: getSplatCommonUnits(center, viewport),
@@ -167,7 +178,8 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               Math.max(0, get(props.getStemRadius, row, objectInfo)) +
               Math.abs(props.windStrength * wind[2]) *
                 (Math.abs(wind[0]) * 1.5 + Math.max(...scale.map(Math.abs)) * 0.5)) *
-            units
+            units,
+          weight: 0
         });
       }
       this.state.projectedPositions = next;
@@ -188,44 +200,48 @@ export class TreeWoodLayer extends CompositeLayer<any> {
       height: view.height
     }));
 
-    const nearWeights = new Map<Row, number>();
+    // Cached owner metre scales hold for every view sharing this projection, including the newer
+    // camera deck.gl reports while a composite layer updates with its last drawn viewport.
+    const ownerUnits = views.map(
+      view => view === viewport || getSplatProjectionKey(view) === projectionKey
+    );
     const near: Row[] = [],
-      far: Row[] = [];
+      far: Row[] = [],
+      nearKeys: number[] = [],
+      farKeys: number[] = [];
     const hasCustomMesh = this.hasCustomMesh();
     for (const owner of hasCustomMesh
       ? owners
       : querySplatSpatialIndex(spatialIndex, projections)) {
       let pixelsPerMeter = 0;
-      for (const view of views)
+      for (let i = 0; i < views.length; i++)
         pixelsPerMeter = Math.max(
           pixelsPerMeter,
           getSplatBoundedPixelsPerMeter(
             owner.center,
             owner.radius,
-            view,
-            view === viewport ? owner.units : undefined
+            views[i],
+            ownerUnits[i] ? owner.units : undefined
           )
         );
-      const t = Math.max(
-        0,
-        Math.min(1, (Math.max(...owner.scale.map(Math.abs)) * pixelsPerMeter - 80) / 100)
-      );
+      const t = Math.max(0, Math.min(1, (owner.extent * pixelsPerMeter - 80) / 100));
       const weight = t * t * (3 - 2 * t);
       // A subpixel bole cannot add readable structure but costs a full instanced mesh draw. The
       // splat canopy remains present at every distance; restore wood once it spans two pixels.
-      if (
-        !hasCustomMesh &&
-        Math.max(...owner.scale.map(Math.abs)) * pixelsPerMeter < MIN_WOOD_PIXELS
-      )
-        continue;
-      nearWeights.set(owner.row, weight);
-      if (weight >= 0.5) near.push(owner.row);
-      else far.push(owner.row);
+      if (!hasCustomMesh && owner.extent * pixelsPerMeter < MIN_WOOD_PIXELS) continue;
+      owner.weight = weight;
+      if (weight >= 0.5) {
+        near.push(owner.row);
+        nearKeys.push(owner.index);
+      } else {
+        far.push(owner.row);
+        farKeys.push(owner.index);
+      }
     }
+    // Rows keep their instance slots, so trees crossing the view edge upload only their slots.
     this.setState({
-      near: retainSplatRows(this.state.near, near),
-      nearWeights,
-      far: retainSplatRows(this.state.far, far),
+      near: this.state.nearSlots.update(near, nearKeys),
+      far: this.state.farSlots.update(far, farKeys),
       owners,
       spatialIndex,
       projectionKey
@@ -251,6 +267,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               ...this.getSubLayerProps({id}),
               data,
               _dataDiff: getSplatChangedRanges,
+              highlightedObjectIndex: getSplatHighlightRow(this, data),
               // Global coverage applies to every wood fragment. Dense near branch coverage is
               // independent so bole/root fades, picking and streamed replacement remain intact.
               getCoverageRange: [0, 1],

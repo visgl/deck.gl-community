@@ -30,7 +30,10 @@ import {
 export type {CropKind} from './tree-crop';
 export type {TreeCharacteristics} from './tree-characteristics';
 import {getTreeSplatData} from './tree-splats';
-import {updateSplatSourceHighlight} from '../splat-layer/splat-source-highlight';
+import {
+  getSplatHighlightRow,
+  updateSplatSourceHighlight
+} from '../splat-layer/splat-source-highlight';
 import type {SplatBudget, SplatBudgetGroup} from '../splat-layer/splat-runtime';
 
 /** Procedural species silhouette. */
@@ -744,6 +747,9 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     for (const name of TREE_MESH_ACCESSORS) {
       if (name in overrides) props[name] = this.getSubLayerAccessor(overrides[name]);
     }
+    // A controlled tree index must name the same tree in each partition's own row order.
+    if (!('highlightedObjectIndex' in overrides))
+      props.highlightedObjectIndex = getSplatHighlightRow(this, sublayerProps.data);
     if (
       sublayerProps.type === SplatLayer &&
       ('source' in overrides || 'hierarchy' in overrides) &&

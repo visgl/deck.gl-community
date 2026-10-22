@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import {expect, it, vi} from 'vitest';
 import {
+  getSplatHighlightRow,
   getSplatSourceRow,
   updateSplatSourceHighlight
 } from '../../src/splat-layer/splat-source-highlight';
@@ -69,4 +70,24 @@ it('resolves source rows per root and ignores non-array data', () => {
   expect(getSplatSourceRow(data, 'other', 0)).toBe(0);
   expect(getSplatSourceRow(data, 'root', 0)).toBe(-1);
   expect(getSplatSourceRow({length: 1}, 'root', 0)).toBe(-1);
+});
+
+it('maps a controlled highlight to a child row by sub-layer source or identity', () => {
+  const objects = ['a', 'b', 'c'];
+  // Rows created by an earlier instance of the same layer keep that instance as parent.
+  const previous = {id: 'trees'};
+  const layer = {id: 'trees', props: {data: objects, highlightedObjectIndex: 1}};
+  const wrapped = [wrap(previous, 'c', 2), wrap(previous, 'b', 1)];
+  expect(getSplatHighlightRow(layer as any, wrapped)).toBe(1);
+  expect(getSplatHighlightRow(layer as any, [wrap({id: 'other'}, 'b', 1)])).toBe(-1);
+  // A child that draws the layer's own rows, as wood partitions do.
+  expect(getSplatHighlightRow(layer as any, ['c', 'b'])).toBe(1);
+  expect(getSplatHighlightRow(layer as any, ['c'])).toBe(-1);
+  for (const uncontrolled of [null, undefined, -1])
+    expect(
+      getSplatHighlightRow(
+        {...layer, props: {...layer.props, highlightedObjectIndex: uncontrolled}} as any,
+        wrapped
+      )
+    ).toBe(uncontrolled);
 });

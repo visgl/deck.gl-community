@@ -13,7 +13,8 @@ import {
   getSplatFocusWeight,
   getSplatViewportLodWeight,
   createSplatFrustum,
-  intersectsSplatFrustum
+  intersectsSplatFrustum,
+  classifySplatFrustum
 } from '../../src/splat-layer/splat-culling';
 const matrix = new Matrix4().perspective({fovy: Math.PI / 2, aspect: 1, near: 0.1, far: 100});
 const projection = {matrix, center: [0, 0, 0, 0], width: 100, height: 100};
@@ -222,4 +223,52 @@ it.each([0, 1])('retains filtered pixels beyond camera axis %i without expanding
   ]);
   expect(querySplatSpatialIndex(index, [projection])).not.toContain('filtered-edge');
   expect(querySplatSpatialIndex(index, [projection], 3 * Math.sqrt(4))).toEqual(['filtered-edge']);
+});
+
+it('accepts contained BVH branches with the same owners and order as testing every owner', () => {
+  const planes = createSplatFrustum(projection);
+  expect(classifySplatFrustum([0, 0, -5], 0.5, planes)).toBe(1);
+  expect(classifySplatFrustum([5, 0, -5], 0.5, planes)).toBe(0);
+  expect(classifySplatFrustum([0, 0, 5], 0.5, planes)).toBe(-1);
+  // Pseudo-random crowns in, across and outside two overlapping frusta.
+  let seed = 7;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed / 2147483647) * 2 - 1;
+  };
+  const entries = Array.from({length: 3000}, (_, i) => ({
+    center: [random() * 30, random() * 30, -15 + random() * 14],
+    radius: Math.abs(random()) * 2,
+    value: i
+  }));
+  const index = createSplatSpatialIndex(entries)!;
+  for (const views of [[projection], [projection, {...projection, center: [-6, 3, 0, 0]}]]) {
+    const frusta = views.map(view => createSplatFrustum(view, 2));
+    const reference: number[] = [];
+    // The previous traversal: test every node and every owner against each frustum.
+    const visit = (node: typeof index) => {
+      const hit = (entry: {center: number[]; radius: number}) =>
+        frusta.some(frustum => intersectsSplatFrustum(entry.center, entry.radius, frustum));
+      if (!hit(node)) return;
+      if (node.children) node.children.forEach(visit);
+      else for (const entry of node.entries!) if (hit(entry)) reference.push(entry.value);
+    };
+    visit(index);
+    expect(reference.length).toBeGreaterThan(100);
+    expect(reference.length).toBeLessThan(entries.length);
+    expect(querySplatSpatialIndex(index, views, 2)).toEqual(reference);
+  }
+});
+
+it('caches per-view projection scales without changing bounded detail', () => {
+  const viewport = new WebMercatorViewport({width: 800, height: 600, zoom: 16, pitch: 50});
+  const position = viewport.projectPosition([0.001, 0.001, 0]);
+  const units = getSplatCommonUnits(position, viewport);
+  const first = getSplatBoundedPixelsPerMeter(position, 0.01, viewport, units);
+  const other = new WebMercatorViewport({width: 400, height: 900, zoom: 17, pitch: 20});
+  const second = getSplatBoundedPixelsPerMeter(position, 0.01, other, units);
+  // Alternating views must not reuse another camera's scales.
+  expect(getSplatBoundedPixelsPerMeter(position, 0.01, viewport, units)).toBe(first);
+  expect(getSplatBoundedPixelsPerMeter(position, 0.01, other, units)).toBe(second);
+  expect(second).not.toBe(first);
 });
