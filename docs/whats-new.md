@@ -2,6 +2,12 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
+  in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
+  their `.js` extension.
+
 ## v9.4.6
 
 - **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import
