@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+export {pickTerrainSurface} from './terrain/terrain-query';
+export type {TerrainSurface, TerrainSurfaceHit} from './terrain/terrain-query';
+
 export type {TileSourceLayerProps} from './tile-source-layer/tile-source-layer';
 export {TileSourceLayer} from './tile-source-layer/tile-source-layer';
 export type {

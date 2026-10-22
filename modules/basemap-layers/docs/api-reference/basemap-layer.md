@@ -138,6 +138,32 @@ Loads and normalizes a style document. This resolves:
 
 ## Example
 
+### Host-owned terrain queries
+
+`layer.getTerrainAt(viewport, pixel, surface, commonToSurface)` routes an absolute
+top-origin CSS pixel through the specified deck viewport/eye to a caller-owned
+`TerrainSurface`. The same helper is available as `pickTerrainSurface` from
+`@deck.gl-community/geo-layers`.
+
+`commonToSurface` is an explicit affine matrix mapping the viewport's common
+coordinates into the surface frame, including scale and origin. Use identity only
+when those frames really agree. The helper clips queries to the eye's rectangle
+and near/far segment; it does not guess Mercator units or a globe radius.
+
+The structural surface contract matches the loaders.gl terrain proposal and Tangram:
+`projection`, `intersectRay({origin, direction}, maxDistance?)`, and hits containing
+`position`, `coordinate`, `distance`, `normal`, `triangleIndex` and `barycentric`.
+Displayed `position` can be exaggerated; `coordinate[2]` remains physical source
+elevation in meters. A miss does not establish loaded coverage. The surface owner
+must keep queries synchronized with its displayed geometry generation.
+
+This adds no terrain rendering, implicit draping, provider acquisition, index ownership
+or Tangram dependency to BasemapLayer. The [shared terrain contract example](/examples/basemap-layers/terrain-contract)
+uses an offline 2×2 physical grid and the same two triangles for drawing and analytic
+queries. It demonstrates the boundary, not production terrain meshing or stitching.
+
+### Basic basemap
+
 ```ts
 import {Deck, _GlobeView} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';

@@ -94,6 +94,9 @@ This page lists module additions and major changes in each release. For detailed
   outside wide, diagonal, and concave lassos. It keeps GPU picking and initializes the temporary
   mask synchronously instead of waiting 250 ms.
 
+- Added experimental host-owned terrain query contracts and explicit per-view coordinate
+  routing, with an offline [physical/display terrain example](/examples/basemap-layers/terrain-contract).
+
 - Added a compact [TreeLayer demo](/examples/layers/tree-lab) with eight species, seasons, crops, wind and picking.
 
 - Editable layers support overlaid MapLibre/Mapbox input targets. Selection masks the full lasso,

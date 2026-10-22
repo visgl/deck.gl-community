@@ -1,4 +1,10 @@
-import {SharedMVTLayer, SharedTileset2D} from '@deck.gl-community/geo-layers';
+import {
+  SharedMVTLayer,
+  SharedTileset2D,
+  pickTerrainSurface,
+  type TerrainSurface,
+  type TerrainSurfaceHit
+} from '@deck.gl-community/geo-layers';
 import type {BasemapSource} from './style-resolver';
 import {
   CompositeLayer,
@@ -168,6 +174,15 @@ type BasemapLayerState = {
  * corresponding basemap sublayers.
  */
 export class BasemapLayer extends CompositeLayer<Required<BasemapLayerProps>> {
+  /** Query a caller-owned displayed terrain generation through the actual deck view/eye. */
+  getTerrainAt(
+    viewport: Viewport,
+    pixel: readonly [number, number],
+    surface: TerrainSurface,
+    commonToSurface: Readonly<ArrayLike<number>>
+  ): TerrainSurfaceHit | null {
+    return pickTerrainSurface(viewport, pixel, surface, commonToSurface);
+  }
   /** Deck.gl layer name. */
   static layerName = 'BasemapLayer';
 
