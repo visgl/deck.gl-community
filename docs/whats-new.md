@@ -4,14 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
-- `EditableGeoJsonLayer` and `SelectionLayer` in interleaved or overlaid MapLibre/Mapbox maps keep
-  only the mouse presses that the edit mode uses from the map: presses on edit handles, on the
-  selection in `TranslateMode`, and every press in drag-to-draw modes. Other presses pan and click
-  the map, so drawing by clicks or editing in `ModifyMode` no longer needs
-  `autoPreventMapInteractions: false` or a disabled `dragPan`, and MapLibre `click` events no
-  longer go missing during editing. Custom modes can declare their presses with the new optional
-  `EditMode.ownsPointerDown()`; modes that override drag handlers without it keep every press.
-  Double-clicks and single-finger touch gestures are unchanged.
+- `EditableGeoJsonLayer` in interleaved MapLibre/Mapbox maps keeps only the presses the mode uses
+  (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
+  in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
 
 ## v9.4.6
 

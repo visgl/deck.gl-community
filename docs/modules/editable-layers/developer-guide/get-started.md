@@ -95,12 +95,10 @@ See the [getting-started example](https://github.com/visgl/deck.gl-community/tre
 
 ## MapLibre and Mapbox Interleaved Editing
 
-With `MapboxOverlay({interleaved: true})`, editing and selection gestures do not pan
-the MapLibre/Mapbox map: dragging an edit handle edits the feature, and drag-to-draw modes
-draw. Mouse presses away from edit handles still pan and click the map, so applications
-do not need to disable `dragPan` while drawing or modifying. Use `ViewMode` for single-finger
-touch navigation or set `autoPreventMapInteractions: false` to manage gesture propagation yourself.
-Multi-touch navigation and the map's configured controls remain available.
+With `MapboxOverlay({interleaved: true})`, handle drags and drag-to-draw gestures do not pan
+the MapLibre/Mapbox map; other mouse presses pan and click it. Use `ViewMode` to navigate or set
+`autoPreventMapInteractions: false` to manage gesture propagation yourself. Multi-touch
+navigation and the map's configured controls remain available.
 
 ```ts
 const overlay = new MapboxOverlay({

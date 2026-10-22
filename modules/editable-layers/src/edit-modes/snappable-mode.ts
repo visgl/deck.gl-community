@@ -14,7 +14,7 @@ import {
   ModeProps,
   GuideFeatureCollection
 } from './types';
-import {GeoJsonEditMode} from './geojson-edit-mode';
+import {GeoJsonEditMode, isPointerDownOwned} from './geojson-edit-mode';
 import {SnappableEditMode} from './snappable-edit-mode';
 import {SnappingStrategy} from './snapping/snapping-strategy';
 import {SourceSnappingStrategy} from './snapping/source-snapping-strategy';
@@ -67,7 +67,7 @@ export class SnappableMode extends GeoJsonEditMode {
   }
 
   ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
-    return this._wrappedMode.ownsPointerDown(event, props);
+    return isPointerDownOwned(this._wrappedMode, () => event, props);
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

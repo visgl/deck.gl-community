@@ -35,9 +35,9 @@ export class TransformMode extends CompositeMode {
     props.onUpdateCursor(updatedCursor);
   }
 
-  /** Owns presses on anything this layer picks, as `handleStartDragging` cancels their pan. */
-  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
-    return event.picks.length > 0;
+  // Its drags start in its child modes, so it uses their presses.
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return super.ownsPointerDown(event, props);
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

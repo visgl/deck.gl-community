@@ -239,9 +239,9 @@ export class ModifyMode extends GeoJsonEditMode implements SnappableEditMode {
     props.onUpdateCursor(cursor);
   }
 
-  /** Owns presses on points, including edit handles, as `handleStartDragging` cancels their pan. */
-  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
-    return Boolean(shouldCancelPan(event));
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
+    return Boolean(getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

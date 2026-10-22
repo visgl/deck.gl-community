@@ -9,14 +9,7 @@ To simplify working with the library in TypeScript, the package exports a `Simpl
 These are useful when building your own editing modes:
 
 ```ts
-import {
-  GeoJsonEditMode,
-  SimpleFeatureCollection,
-  ModeProps,
-  BasePointerEvent,
-  ClickEvent,
-  DraggingEvent
-} from '@deck.gl-community/editable-layers';
+import { GeoJsonEditMode, SimpleFeatureCollection, ModeProps } from '@deck.gl-community/editable-layers';
 
 export class MyEditMode extends GeoJsonEditMode {
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
@@ -25,22 +18,6 @@ export class MyEditMode extends GeoJsonEditMode {
 }
 ```
 
-A mode that handles drags should also say which presses start them, so that interleaved
-MapLibre/Mapbox maps keep panning and clicking from the others. Return `true` for the presses
-on which the mode's drag handlers call `event.cancelPan()`:
-
-```ts
-export class MyDragMode extends GeoJsonEditMode {
-  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>) {
-    return this.isSelectionPicked(event.picks, props);
-  }
-
-  handleDragging(event: DraggingEvent, props: ModeProps<SimpleFeatureCollection>) {
-    event.cancelPan();
-    // custom logic here
-  }
-}
-```
-
-By default a `GeoJsonEditMode` owns presses on its edit handles, and a subclass that overrides a
-drag handler without `ownsPointerDown` owns every press.
+A mode that handles drags should implement `ownsPointerDown(event, props)` and return `true` for
+the presses its drag handlers use, so interleaved MapLibre/Mapbox maps can pan from the rest.
+Without it, a mode that overrides a drag handler owns every press.

@@ -34,7 +34,7 @@ export class TwoClickPolygonMode extends GeoJsonEditMode implements SnappableEdi
 
   /** Owns every press with `dragToDraw`, otherwise presses on edit handles. */
   ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
-    return Boolean(props.modeConfig?.dragToDraw) || Boolean(getPickedEditHandle(event.picks));
+    return Boolean(props.modeConfig?.dragToDraw || getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {

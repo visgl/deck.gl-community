@@ -182,8 +182,8 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
     props.onUpdateCursor(cursor);
   }
 
-  /** Owns presses on the circle's edit handles. */
-  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
     return Boolean(getPickedEditHandle(event.picks));
   }
 

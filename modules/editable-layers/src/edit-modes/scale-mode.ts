@@ -146,8 +146,8 @@ export class ScaleMode extends GeoJsonEditMode {
     }
   }
 
-  /** Owns presses on scale handles. */
-  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
     return Boolean(getPickedEditHandle(event.picks));
   }
 

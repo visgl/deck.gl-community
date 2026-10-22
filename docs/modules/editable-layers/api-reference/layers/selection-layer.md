@@ -87,8 +87,7 @@ Also inherites **some** EditableGeoJsonLayer properties.
 
 - Default: `true`
 
-Keeps rectangle selection drags, lasso vertex handles, and single-touch selection gestures from
-bubbling into the parent map; other mouse presses during lasso selection pan and click the map.
+Keeps selection drags, lasso handles, and single-touch selection gestures from the parent map.
 Set to `false` when the application coordinates map gestures itself. This is forwarded to
 SelectionLayer's internal `EditableGeoJsonLayer`; inactive selection uses `ViewMode`.
 

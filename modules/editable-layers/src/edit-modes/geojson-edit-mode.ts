@@ -9,8 +9,8 @@ import {intersect} from '@turf/intersect';
 import {rewind} from '@turf/rewind';
 
 import {
-  EditAction,
   BasePointerEvent,
+  EditAction,
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
@@ -42,16 +42,7 @@ const DEFAULT_GUIDES: GuideFeatureCollection = {
   features: []
 };
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
-
-// Drag modes written before ownsPointerDown may use any press, so they keep owning all of them.
-function hasCustomDragHandlers(mode: GeoJsonEditMode): boolean {
-  const base = GeoJsonEditMode.prototype;
-  return (
-    mode.handleStartDragging !== base.handleStartDragging ||
-    mode.handleDragging !== base.handleDragging ||
-    mode.handleStopDragging !== base.handleStopDragging
-  );
-}
+const DRAG_HANDLERS = ['handleStartDragging', 'handleDragging', 'handleStopDragging'];
 
 /**
  * An edit mode for GeoJSON features with simple geometries and typed editing guides.
@@ -62,6 +53,26 @@ export type GeoJsonEditModeType = EditMode<SimpleFeatureCollection, GuideFeature
 /** A zero-argument constructor for a GeoJSON edit mode. */
 export interface GeoJsonEditModeConstructor {
   new (): GeoJsonEditModeType;
+}
+
+/**
+ * Returns whether `mode` uses a primary press. Modes without `ownsPointerDown`, and subclasses that
+ * override a drag handler without redeclaring it, own every press as they did before the hook.
+ */
+export function isPointerDownOwned(
+  mode: GeoJsonEditModeType,
+  getEvent: () => BasePointerEvent | null,
+  props: ModeProps<SimpleFeatureCollection>
+): boolean {
+  for (let proto: object | null = mode; proto; proto = Object.getPrototypeOf(proto)) {
+    const level: object = proto;
+    if (Object.hasOwn(level, 'ownsPointerDown')) {
+      const event = getEvent();
+      return Boolean(event && mode.ownsPointerDown?.(event, props));
+    }
+    if (DRAG_HANDLERS.some(name => Object.hasOwn(level, name))) return true;
+  }
+  return true;
 }
 
 /** Base class for custom modes that edit SimpleFeatureCollection data. */
@@ -294,12 +305,9 @@ export class GeoJsonEditMode implements EditMode<SimpleFeatureCollection, GuideF
       });
     }
   }
-  /**
-   * Owns presses on this mode's edit handles. Subclasses that handle drags without overriding
-   * this method keep owning every primary press.
-   */
+  /** Owns presses on this mode's edit handles. */
   ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
-    return getPickedEditHandles(event.picks).length > 0 || hasCustomDragHandlers(this);
+    return getPickedEditHandles(event.picks).length > 0;
   }
 
   handleStartDragging(

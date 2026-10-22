@@ -125,8 +125,8 @@ export class RotateMode extends GeoJsonEditMode {
     this.updateCursor(props);
   }
 
-  /** Owns presses on the rotate handle. */
-  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
     return Boolean(getPickedEditHandle(event.picks));
   }
 

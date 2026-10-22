@@ -46,7 +46,7 @@ import {DrawPolygonByDraggingMode} from '../edit-modes/draw-polygon-by-dragging-
 import {SnappableMode} from '../edit-modes/snappable-mode';
 import {TransformMode} from '../edit-modes/transform-mode';
 import {DeleteMode} from '../edit-modes/delete-mode';
-import {GeoJsonEditModeType} from '../edit-modes/geojson-edit-mode';
+import {GeoJsonEditModeType, isPointerDownOwned} from '../edit-modes/geojson-edit-mode';
 
 import {Color} from '../utils/types';
 import {PROJECTED_PIXEL_SIZE_MULTIPLIER} from '../constants';
@@ -474,13 +474,8 @@ export class EditableGeoJsonLayer extends EditableLayer<
   }
 
   _ownsPointerDown(event: MouseEvent): boolean {
-    const mode = this.getActiveMode();
-    if (!mode.ownsPointerDown) {
-      return true;
-    }
-    // Without map coordinates the press cannot edit, so it stays with the map.
-    const pointerEvent = this.toBasePointerEvent(event);
-    return pointerEvent ? mode.ownsPointerDown(pointerEvent, this.getModeProps(this.props)) : false;
+    const getEvent = () => this.toBasePointerEvent(event);
+    return isPointerDownOwned(this.getActiveMode(), getEvent, this.getModeProps(this.props));
   }
 
   getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
@@ -674,10 +669,7 @@ export class EditableGeoJsonLayer extends EditableLayer<
   onStartDragging(event: StartDraggingEvent): void {
     // A native context menu may swallow pointerup, leaving the recognizer active on hover.
     const isDraggingWithPrimaryButton =
-      isPrimaryButtonEvent(event) &&
-      event.sourceEvent?.buttons !== 0 &&
-      // A press left to the parent map pans it; editing must not also drag.
-      this.state._editableLayerState.pressOwner !== 'map';
+      isPrimaryButtonEvent(event) && event.sourceEvent?.buttons !== 0;
     this.setState({isDraggingWithPrimaryButton});
     if (!isDraggingWithPrimaryButton) {
       return;
