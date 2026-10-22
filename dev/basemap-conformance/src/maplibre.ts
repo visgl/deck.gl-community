@@ -5,9 +5,14 @@
 /**
  * The reference renderer: MapLibre GL JS, with the text of every label it placed read back from
  * its collision index. Moved from basemap-layers' `tests/reference-render/renderers.ts`, unchanged
- * except that MapLibre and its style specification package are passed in. This file imports
- * nothing, so a harness can import it by path and render with its own pinned copy of MapLibre.
+ * except that MapLibre and its style specification package are passed in. It imports neither, so a
+ * harness can import it by path and render with its own pinned copy of MapLibre (and the report
+ * records which version).
  */
+
+import {withTimeout} from './browser';
+import {VIEWPORT} from './scenes';
+import type {ConformanceRenderer} from './types';
 
 /** What the reference renderer needs from the harness's dependencies. */
 export type MapLibreDependencies = {
@@ -36,42 +41,27 @@ export type MapLibreScene = {
   /** `[longitude, latitude]`. */
   center: [number, number];
   zoom: number;
+  /** Camera pitch, in degrees, unless the options give one. Default 0. */
+  pitch?: number;
+  /** Camera bearing, in degrees, unless the options give one. Default 0. */
+  bearing?: number;
 };
 
 /** Options of a MapLibre render. */
 export type MapLibreRenderOptions = {
-  /** Canvas width, in CSS pixels. */
-  width: number;
-  /** Canvas height, in CSS pixels. */
-  height: number;
+  /** Canvas width, in CSS pixels. Default `VIEWPORT.width`. */
+  width?: number;
+  /** Canvas height, in CSS pixels. Default `VIEWPORT.height`. */
+  height?: number;
   /** Device pixel ratio: the pixels are `width` by `height` times this. Default 1. */
   pixelRatio?: number;
-  /** Camera pitch, in degrees. Default 0. */
+  /** Camera pitch, in degrees. Default the scene's. */
   pitch?: number;
-  /** Camera bearing, in degrees. Default 0. */
+  /** Camera bearing, in degrees. Default the scene's. */
   bearing?: number;
 };
 
 const RENDER_TIMEOUT = 60_000;
-
-function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(
-      () => reject(new Error(`${label} timed out after ${RENDER_TIMEOUT} ms`)),
-      RENDER_TIMEOUT
-    );
-    promise.then(
-      value => {
-        window.clearTimeout(timer);
-        resolve(value);
-      },
-      error => {
-        window.clearTimeout(timer);
-        reject(error);
-      }
-    );
-  });
-}
 
 const textFieldCaches = new WeakMap<object, Map<unknown, any>>();
 
@@ -231,7 +221,13 @@ export async function renderMapLibreScene(
   {maplibregl, styleSpec}: MapLibreDependencies,
   style: any,
   scene: MapLibreScene,
-  {width, height, pixelRatio = 1, pitch = 0, bearing = 0}: MapLibreRenderOptions
+  {
+    width = VIEWPORT.width,
+    height = VIEWPORT.height,
+    pixelRatio = 1,
+    pitch = scene.pitch ?? 0,
+    bearing = scene.bearing ?? 0
+  }: MapLibreRenderOptions = {}
 ): Promise<MapLibreRender> {
   const container = document.createElement('div');
   container.style.cssText = `position: absolute; left: 0; top: 0; width: ${width}px; height: ${height}px;`;
@@ -268,7 +264,11 @@ export async function renderMapLibreScene(
     problems.push(`MapLibre error${status}${url}: ${error?.message || error}`);
   });
   try {
-    await withTimeout(new Promise(resolve => map.once('idle', resolve)), 'MapLibre render');
+    await withTimeout(
+      new Promise(resolve => map.once('idle', resolve)),
+      'MapLibre render',
+      RENDER_TIMEOUT
+    );
     const pixels = readCanvas(map.getCanvas(), width, height, pixelRatio);
     const labels = getPlacedTexts(styleSpec, map, style, map.getZoom(), width, height);
     return {pixels, labels, requests, problems, duration: performance.now() - start};
@@ -276,4 +276,33 @@ export async function renderMapLibreScene(
     map.remove();
     container.remove();
   }
+}
+
+/**
+ * The reference renderer of a conformance runner. Its id, `maplibre`, is what the scorer compares
+ * every other renderer with. A runner that renders a second MapLibre (another version, or another
+ * repository's copy) gives it another id starting with `maplibre`, and the scorer reports how far
+ * it is from the reference.
+ */
+export function createMapLibreRenderer(
+  dependencies: MapLibreDependencies,
+  id = 'maplibre'
+): ConformanceRenderer {
+  const version = dependencies.maplibregl.getVersion?.() || 'unknown';
+  return {
+    id,
+    name: `MapLibre GL JS ${version}`,
+    supports: () => true,
+    async render(scene, style) {
+      const result = await renderMapLibreScene(dependencies, style, scene);
+      return {
+        pixels: result.pixels,
+        width: VIEWPORT.width,
+        height: VIEWPORT.height,
+        labels: result.labels,
+        problems: result.problems,
+        meta: {renderMs: Math.round(result.duration), version}
+      };
+    }
+  };
 }
