@@ -2,6 +2,13 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
+  extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
+  released in v9.4.7 from `@deck.gl-community/layers`, moves there; import it from
+  `@deck.gl-community/extensions`. See the [upgrade guide](./upgrade-guide.md).
+
 ## v9.4.7
 
 - v9.4.7 also publishes the v9.4.6 changes below, whose npm release was interrupted after only
@@ -28,7 +35,7 @@ This page lists module additions and major changes in each release. For detailed
   (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
   in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
 
-- [`SelectionPulseExtension`](/docs/modules/layers/api-reference/selection-pulse-extension) (new)
+- [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension) (new)
   pulses selected objects on the GPU. A selection change writes one value per object from
   `getSelected`; each animation frame sets only uniforms, so a pulse reruns no color accessor and
   uploads no attributes. It works on deck.gl layers with the GLSL `DECKGL_FILTER_COLOR` hook, such

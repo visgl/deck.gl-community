@@ -98,7 +98,7 @@ Wind is implemented in GLSL and WGSL. Trunks, branches, leaves and attached crop
 
 `extensions` and their props pass to the wood, crop and canopy sub-layers; extension accessors receive the source tree and its index, and their `updateTriggers` apply. The wood, crop and canopy shaders already use the 16 vertex attributes that WebGL2 guarantees, so extensions that add a vertex attribute, such as `DataFilterExtension`, do not link on those sub-layers.
 
-[`SelectionPulseExtension`](./selection-pulse-extension.md) reads its data from a texture instead, so it pulses selected trees on the GPU in WebGL2 and WebGPU:
+[`SelectionPulseExtension`](../../extensions/api-reference/selection-pulse-extension.md) from `@deck.gl-community/extensions` reads its data from a texture instead, so it pulses selected trees on the GPU in WebGL2 and WebGPU:
 
 ```ts
 new TreeLayer({
@@ -127,7 +127,7 @@ new Deck({effects: [lighting], layers: [ground, new TreeLayer({id: 'trees', data
 
 Wood, crops and leaves cast with the same wind bend, morphs and coverage as their visible geometry. Leaves cast as densely as the canopy is opaque, so sparse crowns cast dappled shadows and coverage fades thin them smoothly; see [SplatLayer](./splat-layer.md#rendering-and-refinement) for how translucent Gaussians cast. Wood receives shadows from every casting layer, including its own crown. A crown is shaded by other trees and layers but not by its own leaves, so its sunlit side stays bright.
 
-Picking, `autoHighlight`, `highlightedObjectIndex` and [`SelectionPulseExtension`](./selection-pulse-extension.md) work unchanged; highlights and pulses change colors only, so they don't change shadows. Set `shadowEnabled: false` to stop trees casting.
+Picking, `autoHighlight`, `highlightedObjectIndex` and [`SelectionPulseExtension`](../../extensions/api-reference/selection-pulse-extension.md) work unchanged; highlights and pulses change colors only, so they don't change shadows. Set `shadowEnabled: false` to stop trees casting.
 
 Limitations:
 

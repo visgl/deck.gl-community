@@ -53,7 +53,7 @@ picking receive its implicit owner; row accessors and picking receive the origin
 All supported forms accept `transparency: 'weighted'` (the default) or `'sorted'`. Sorted mode
 orders individual selected Gaussians across prepared sources and owners for each viewport,
 including their transforms and wind pose. Streaming RAD, file decoding and SH remain outside
-this prepared API. [`SelectionPulseExtension`](./selection-pulse-extension.md) pulses selected
+this prepared API. [`SelectionPulseExtension`](../../extensions/api-reference/selection-pulse-extension.md) pulses selected
 owners with weighted transparency; sorted mode draws Gaussians without owner instances and does
 not pulse.
 
