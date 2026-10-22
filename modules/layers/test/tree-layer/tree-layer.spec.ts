@@ -901,3 +901,58 @@ it('re-renders for an unrelated prop change without recomputing sub-layer attrib
     calculateTreeWind.mockRestore();
   }
 });
+
+it('recolors connected wood on a trunk color trigger and rewrites nothing on re-render', () => {
+  const viewport = new WebMercatorViewport({
+    width: 256,
+    height: 256,
+    longitude: 0,
+    latitude: 0,
+    zoom: 19,
+    pitch: 45
+  });
+  const layerManager = new LayerManager(device, {
+    viewport,
+    deck: {getViewports: () => [viewport]} as any
+  });
+  const data = [OAK];
+  const updateAttributes = vi.spyOn(TreeMeshLayer.prototype as any, 'updateAttributes');
+  const render = (color: [number, number, number], trigger: number) => {
+    updateAttributes.mockClear();
+    layerManager.setLayers([
+      new TreeLayer<Datum>({
+        id: 'trees',
+        data,
+        getTreeType: d => d.type,
+        getSeason: d => d.season,
+        getTrunkColor: () => color,
+        updateTriggers: {getTrunkColor: trigger}
+      })
+    ]);
+    const wood = layerManager
+      .getLayers()
+      .filter(layer => layer instanceof TreeMeshLayer && layer.id.includes('wood'));
+    const rewritten = updateAttributes.mock.contexts.flatMap((layer, call) =>
+      wood.includes(layer as TreeMeshLayer<unknown>)
+        ? Object.keys(updateAttributes.mock.calls[call][0] as object)
+        : []
+    );
+    const colors = wood.map(layer =>
+      Array.from(layer.getAttributeManager()!.attributes.instanceColors.value!.slice(0, 3))
+    );
+    return {wood, rewritten, colors};
+  };
+  try {
+    const initial = render([90, 60, 30], 0);
+    expect(initial.wood.length).toBeGreaterThan(0);
+    expect(initial.colors.every(color => color.join() === '90,60,30')).toBe(true);
+    // Rebuilt parent props with unchanged triggers leave every wood attribute in place.
+    expect(render([90, 60, 30], 0).rewritten).toEqual([]);
+    const recolored = render([200, 40, 30], 1);
+    expect(recolored.colors.every(color => color.join() === '200,40,30')).toBe(true);
+    expect(new Set(recolored.rewritten)).toEqual(new Set(['instanceColors']));
+  } finally {
+    updateAttributes.mockRestore();
+    layerManager.finalize();
+  }
+});

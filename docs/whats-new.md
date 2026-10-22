@@ -7,6 +7,12 @@ This page lists module additions and major changes in each release. For detailed
 - The `layers`, `geo-layers`, `infovis-layers`, `timeline-layers` and `graph-layers` ESM builds load
   in Node's native ESM loader (Vitest, SSR): shader-module imports such as `./splat.wgsl` now carry
   their `.js` extension.
+- `TreeLayer` connected wood now follows `updateTriggers.getTrunkColor`, `getCoverageWeight` and
+  authored wind changes. Before, the wood kept its old values until its data changed.
+
+- `SplatLayer` and `TreeLayer` no longer throw when a `MapView` repeats wrapped world copies
+  (`repeat: true`, as `MapboxOverlay`/`MapLibreOverlay` set from `renderWorldCopies`). Gaussians
+  render in the primary world copy only, so apps no longer need to drop the layer at low zoom.
 
 - `TreeLayer` no longer rewrites every canopy color and crop attribute when an unrelated prop
   changes, such as `windTime`, `opacity` or `highlightedObjectIndex`. Extension accessors and their
