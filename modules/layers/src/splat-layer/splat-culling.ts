@@ -73,6 +73,51 @@ export function intersectsSplatFrustum(
   return true;
 }
 
+/**
+ * Sphere/frustum classification: -1 outside, 0 crossing a plane, 1 inside every plane. A
+ * degenerate plane is never treated as containing a sphere it does not pass by its radius.
+ */
+export function classifySplatFrustum(
+  position: number[],
+  radius: number,
+  planes: Float64Array
+): -1 | 0 | 1 {
+  let inside = true;
+  for (let offset = 0; offset < 24; offset += 4) {
+    const distance =
+      planes[offset] * position[0] +
+      planes[offset + 1] * position[1] +
+      planes[offset + 2] * position[2] +
+      planes[offset + 3];
+    if (distance < -radius) return -1;
+    if (distance < radius) inside = false;
+  }
+  return inside ? 1 : 0;
+}
+
+type SplatViewScales = {size: number; x: number; y: number; w: number};
+const VIEW_SCALES = new WeakMap<Viewport, SplatViewScales>();
+let lastViewport: Viewport | null = null;
+let lastScales: SplatViewScales | null = null;
+/** Per-view projection row norms; culling evaluates them for every owner in every frame. */
+function getSplatViewScales(viewport: Viewport): SplatViewScales {
+  if (viewport === lastViewport) return lastScales!;
+  let scales = VIEW_SCALES.get(viewport);
+  if (!scales) {
+    const m = viewport.viewProjectionMatrix;
+    scales = {
+      size: Math.max(viewport.width, viewport.height),
+      x: Math.hypot(m[0], m[4], m[8]),
+      y: Math.hypot(m[1], m[5], m[9]),
+      w: Math.hypot(m[3], m[7], m[11])
+    };
+    VIEW_SCALES.set(viewport, scales);
+  }
+  lastViewport = viewport;
+  lastScales = scales;
+  return scales;
+}
+
 /** Largest singular value of the perspective projection Jacobian, in pixels per metre. */
 export function getSplatPixelsPerMeter(
   position: number[],
@@ -109,17 +154,18 @@ export function getSplatBoundedPixelsPerMeter(
   viewport: Viewport,
   units = getSplatCommonUnits(position, viewport)
 ): number {
+  const scales = getSplatViewScales(viewport);
   const maximum =
-    (2 * Math.max(viewport.width, viewport.height) * Math.max(...units)) / Math.max(radius, 1e-12);
+    (2 * scales.size * Math.max(units[0], units[1], units[2])) / Math.max(radius, 1e-12);
   const m = viewport.viewProjectionMatrix;
   const x = m[0] * position[0] + m[4] * position[1] + m[8] * position[2] + m[12];
   const y = m[1] * position[0] + m[5] * position[1] + m[9] * position[2] + m[13];
   const w = m[3] * position[0] + m[7] * position[1] + m[11] * position[2] + m[15];
-  const wRadius = radius * Math.hypot(m[3], m[7], m[11]);
+  const wRadius = radius * scales.w;
   const minimumW = w - wRadius;
   if (!(minimumW > 1e-8)) return maximum;
-  const maximumX = Math.abs(x) + radius * Math.hypot(m[0], m[4], m[8]);
-  const maximumY = Math.abs(y) + radius * Math.hypot(m[1], m[5], m[9]);
+  const maximumX = Math.abs(x) + radius * scales.x;
+  const maximumY = Math.abs(y) + radius * scales.y;
   let uu = 0,
     uv = 0,
     vv = 0;
@@ -173,7 +219,7 @@ export function getSplatViewportLodWeight(
   const w = m[3] * position[0] + m[7] * position[1] + m[11] * position[2] + m[15];
   if (!(radius > 1e-8) || !Number.isFinite(radius) || w <= 1e-8) return 1;
   // A sphere crossing the eye plane cannot use a linear projected support safely.
-  if (w - radius * Math.hypot(m[3], m[7], m[11]) <= 1e-8) return 1;
+  if (w - radius * getSplatViewScales(viewport).w <= 1e-8) return 1;
   const centerX = ((x / w + 1) * viewport.width) / 2;
   const centerY = ((1 - y / w) * viewport.height) / 2;
   if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return 1;

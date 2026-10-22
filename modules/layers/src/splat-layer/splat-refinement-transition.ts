@@ -45,6 +45,27 @@ export class SplatRefinementTransition<T> {
     immediate = false
   ) {
     this.budget = budget;
+    return this.update(rows, counts, key, immediate, true);
+  }
+  /**
+   * Admit arriving owners and drop departed ones, leaving retained targets and the budget to the
+   * next reconcile. A joint allocation that follows in the same frame would discard any local
+   * retarget, and retargeting every visible owner twice per camera frame dominates large groves.
+   */
+  retain(
+    rows: SplatSelection<T>[],
+    counts: number[] | ((owner: T) => number[]),
+    key: (owner: T) => string
+  ) {
+    return this.update(rows, counts, key, false, false);
+  }
+  private update(
+    rows: SplatSelection<T>[],
+    counts: number[] | ((owner: T) => number[]),
+    key: (owner: T) => string,
+    immediate: boolean,
+    retarget: boolean
+  ) {
     let membershipChanged = false;
     const initial = this.entries.size === 0;
     const epoch = ++this.epoch;
@@ -90,7 +111,7 @@ export class SplatRefinementTransition<T> {
         entry.owner = row.owner;
         entry.counts = rowCounts;
         entry.seen = epoch;
-        if (entry.level !== row.level || entry.blend !== blend) {
+        if (retarget && (entry.level !== row.level || entry.blend !== blend)) {
           entry.level = row.level;
           entry.blend = blend;
           entry.target.fill(0);

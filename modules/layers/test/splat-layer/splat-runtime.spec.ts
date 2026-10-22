@@ -141,3 +141,42 @@ it('reallocates when a shared cap changes or its restrictive registration disapp
   runtime.reconcile(new Set(['b']));
   expect(selected.get('b')![0].level).toBe(1);
 });
+
+it('returns each registration its own contiguous allocation, even when owner values coincide', () => {
+  const runtime = SplatRuntime.get({}, {});
+  const group = {maxSplats: 250};
+  const selected = new Map<string, any[]>();
+  const fine = hierarchy([200, 10]);
+  const coarse = hierarchy([100, 10]);
+  const demands = {
+    a: [
+      {owner: 'tree', pixels: 1, level: 0, blend: 0},
+      {owner: 'tree', pixels: 100, level: 0, blend: 0}
+    ],
+    b: [{owner: 'tree', pixels: 10, level: 0, blend: 0}]
+  };
+  for (const [id, rows] of Object.entries(demands))
+    runtime.set(id, {
+      rows,
+      hierarchy: () => (id === 'a' ? fine : coarse),
+      maxSplats: Infinity,
+      maxTotalSplats: Infinity,
+      group,
+      apply: allocated => selected.set(id, allocated)
+    });
+  runtime.reconcile(new Set(['a', 'b']));
+  // The settled 225 Gaussian cap funds only the highest-error owner of registration a.
+  expect(selected.get('a')!.map(row => [row.owner, row.pixels, row.level])).toEqual([
+    ['tree', 1, 1],
+    ['tree', 100, 0]
+  ]);
+  expect(selected.get('b')!.map(row => [row.owner, row.pixels, row.level])).toEqual([
+    ['tree', 10, 1]
+  ]);
+
+  // A fitting allocation hands back each registration's own rows without copying them.
+  group.maxSplats = 10_000;
+  runtime.reconcile(new Set(['a', 'b']));
+  expect(selected.get('a')).toBe(demands.a);
+  expect(selected.get('b')).toBe(demands.b);
+});

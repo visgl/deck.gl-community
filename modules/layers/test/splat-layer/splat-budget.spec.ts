@@ -1,8 +1,8 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {expect, it} from 'vitest';
-import {budgetSplatSelections} from '../../src/splat-layer/splat-budget';
+import {expect, it, vi} from 'vitest';
+import {budgetSplatSelections, getSplatLevelCounts} from '../../src/splat-layer/splat-budget';
 import type {SplatHierarchy} from '../../src/splat-layer/splat-hierarchy';
 const hierarchy: SplatHierarchy = [1000, 100, 10].map((count, i) => ({
   error: i,
@@ -156,4 +156,43 @@ it('reaches fitting finer levels across expensive supplied intermediate represen
   expect(rows.reduce((sum, row) => sum + nonmonotonic[row.level].source.opacities.length, 0)).toBe(
     110
   );
+});
+
+it('returns the coverage floor without scheduling refinements when it exhausts every limit', () => {
+  let priorityReads = 0;
+  // The refinement heap ranks each step by its row's focus; the floor path must rank none.
+  const row = (owner: number) =>
+    Object.defineProperty({owner, pixels: 10, level: 0, blend: 0.5}, 'focus', {
+      enumerable: false,
+      get: () => {
+        priorityReads++;
+        return 1;
+      }
+    });
+  const input = Array.from({length: 50}, (_, owner) => row(owner));
+  const group = {};
+  const limits = vi.fn((_owner: number, _index: number) => [{key: group, budget: 400}]);
+  const shared = [{key: group, budget: 400}];
+  limits.mockReturnValue(shared);
+  const rows = budgetSplatSelections(input, () => hierarchy, Infinity, limits);
+  expect(rows.map(selected => [selected.level, selected.blend])).toEqual(input.map(() => [2, 0]));
+  expect(priorityReads).toBe(0);
+  // Callbacks receive each row's index, so registrations can share one limit list.
+  expect(limits.mock.calls.map(call => call[1])).toEqual(input.map((_, index) => index));
+
+  // One affordable step still runs the full allocator.
+  const funded = budgetSplatSelections(
+    input,
+    () => hierarchy,
+    Infinity,
+    () => [{key: group, budget: 590}]
+  );
+  expect(funded.filter(selected => selected.level === 1)).toHaveLength(1);
+  expect(priorityReads).toBeGreaterThan(0);
+});
+
+it('caches level counts per immutable hierarchy', () => {
+  const counts = getSplatLevelCounts(hierarchy);
+  expect(counts).toEqual([1000, 100, 10]);
+  expect(getSplatLevelCounts(hierarchy)).toBe(counts);
 });

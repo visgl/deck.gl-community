@@ -86,7 +86,7 @@ Inherits the deck.gl `CompositeLayer` properties. Accessors accept constants or 
 
 ## Crops
 
-`CropConfig` has `color`, `count`, `radius` and optional `droppedCount` and `kind`. Shapes are `fruit` (the default sphere), `lemon`, `cone`, `acorn`, `catkin`, `flower` and `propagule`. Radius is the enclosing sphere radius in metres, including elongated shapes and petals. Counts are explicitly supplied, rounded down and clamped at zero. Broadleaf crops attach to leaf-bearing shoots inside the same clusters used for foliage. Placement reserves clearance for the complete sphere under the tree’s anisotropic scale; attached crops too large to fit are omitted. Palm crops cluster beneath the frond sockets. Dropped crops use the same conservative spherical bounds above the ground. Positions are deterministic, remain stable when counts grow, and picking returns the owning source tree. Attached crops share the tree's GPU bend; dropped crops remain still.
+`CropConfig` has `color`, `count`, `radius` and optional `droppedCount` and `kind`. Shapes are `fruit` (the default sphere), `lemon`, `cone`, `acorn`, `catkin`, `flower` and `propagule`. Radius is the enclosing sphere radius in metres, including elongated shapes and petals. Counts are explicitly supplied, rounded down and clamped at zero. Broadleaf crops attach to leaf-bearing shoots inside the same clusters used for foliage. Placement reserves clearance for the complete sphere under the tree’s anisotropic scale; attached crops too large to fit are omitted. Palm crops cluster beneath the frond sockets. Dropped crops use the same conservative spherical bounds above the ground. Positions are deterministic, remain stable when counts grow, and picking returns the owning source tree. A controlled `highlightedObjectIndex` names a source tree and highlights it in every wood, canopy and crop partition. Attached crops share the tree's GPU bend; dropped crops remain still.
 
 ## Animation
 
@@ -157,7 +157,7 @@ Shaped crops use suffixes such as `live-crops-lemon`; spherical fruit retains `l
 
 Wood and foliage keep persistent owner bounds for camera queries. Mercator bounds use each owner's geographic latitude, so camera pans preserve the index. Mesh wind phases are prepared per owner while the animation clock supplies shared frame uniforms.
 
-The highest source detail remains available. Cost depends on visible crowns and projected Gaussian support, rather than tree count alone. Subpixel wood simplifies to a bole; high-density groves retain nearby branches through stable complementary coverage with their splat crowns, while distant wood uses compact boles. Measure delivered frame intervals and tail latency on the intended device.
+The highest source detail remains available. Cost depends on visible crowns and projected Gaussian support, rather than tree count alone. Camera motion keeps each visible tree in its instance slot, so trees crossing the view edge update only their own wood and canopy rows. Subpixel wood simplifies to a bole; high-density groves retain nearby branches through stable complementary coverage with their splat crowns, while distant wood uses compact boles. Measure delivered frame intervals and tail latency on the intended device.
 
 ### Automatic submission budgets
 

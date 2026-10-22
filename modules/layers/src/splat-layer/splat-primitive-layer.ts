@@ -84,6 +84,8 @@ export type PreparedSplatProps<DataT> = {
   maxRenderPixels?: number;
   /** Internal optical blend weight, independent of owner RGBA. */
   getCoverageWeight?: Accessor<DataT, number>;
+  /** @internal Rows whose coverage weight changed; each new list invalidates only those rows. */
+  _coverageRanges?: {startRow: number; endRow: number}[] | null;
   /** Lighting material for authored source normals; supports unlit rendering. */
   material?: PhongMaterialProps;
 };
@@ -97,6 +99,7 @@ const defaultProps: DefaultProps<SplatLayerProps> & {shadowEnabled: false} = {
   maxSplats: Infinity,
   maxRenderPixels: Infinity,
   getCoverageWeight: {type: 'accessor', value: 1},
+  _coverageRanges: null,
   getPosition: {type: 'accessor', value: (d: any) => d.position},
   getOrientation: {type: 'accessor', value: [0, 0, 0]},
   getScale: {type: 'accessor', value: [1, 1, 1]},
@@ -178,6 +181,10 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     super.updateState(params);
     const triggers = params.changeFlags.updateTriggersChanged;
     if (triggers && (triggers.getDeformation || triggers.all)) this.state.windRows = new WeakMap();
+    const coverage = params.props._coverageRanges;
+    if (coverage && coverage !== params.oldProps._coverageRanges)
+      for (const range of coverage)
+        this.getAttributeManager()!.invalidate('getCoverageWeight', range);
     if (params.props.source !== params.oldProps.source || params.changeFlags.extensionsChanged) {
       this.state.model?.destroy();
       this.state.accumulationModel?.destroy();

@@ -1,7 +1,7 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {createSplatFrustum, intersectsSplatFrustum} from './splat-culling';
+import {classifySplatFrustum, createSplatFrustum, intersectsSplatFrustum} from './splat-culling';
 import type {SplatProjection} from './splat-culling';
 
 export type SplatSpatialEntry<T> = {center: number[]; radius: number; value: T};
@@ -37,7 +37,10 @@ export function createSplatSpatialIndex<T>(
   return build([...entries]);
 }
 
-/** Visit visible branches of the BVH, then test each surviving owner's bounds. */
+/**
+ * Visit visible branches of the BVH, then test each surviving owner's bounds. A node whose bounds
+ * lie inside a frustum contributes every owner below it without further tests.
+ */
 export function querySplatSpatialIndex<T>(
   root: SplatSpatialNode<T> | null,
   projections: readonly SplatProjection[],
@@ -45,12 +48,29 @@ export function querySplatSpatialIndex<T>(
 ): T[] {
   const visible: T[] = [];
   const frusta = projections.map(projection => createSplatFrustum(projection, pixelPadding));
-  const intersects = (entry: {center: number[]; radius: number}) =>
-    frusta.some(frustum => intersectsSplatFrustum(entry.center, entry.radius, frustum));
+  const collect = (node: SplatSpatialNode<T>) => {
+    if (node.children) for (const child of node.children) collect(child);
+    else for (const entry of node.entries!) visible.push(entry.value);
+  };
   const visit = (node: SplatSpatialNode<T>) => {
-    if (!intersects(node)) return;
+    let intersects = false;
+    for (const frustum of frusta) {
+      const side = classifySplatFrustum(node.center, node.radius, frustum);
+      if (side > 0) {
+        collect(node);
+        return;
+      }
+      intersects ||= side === 0;
+    }
+    if (!intersects) return;
     if (node.children) for (const child of node.children) visit(child);
-    else for (const entry of node.entries!) if (intersects(entry)) visible.push(entry.value);
+    else
+      for (const entry of node.entries!)
+        for (const frustum of frusta)
+          if (intersectsSplatFrustum(entry.center, entry.radius, frustum)) {
+            visible.push(entry.value);
+            break;
+          }
   };
   if (root) visit(root);
   return visible;

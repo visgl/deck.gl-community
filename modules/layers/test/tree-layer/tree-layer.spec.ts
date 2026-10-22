@@ -804,3 +804,28 @@ it('rejects compositional layer transforms that would detach foliage from wood',
   });
   expect(() => layer.renderLayers()).not.toThrow();
 });
+
+it('maps a controlled highlightedObjectIndex onto each species partition', () => {
+  const data: Datum[] = [OAK, {...OAK, type: 'citrus'}, {...OAK}, {...OAK, type: 'citrus'}];
+  for (const highlighted of [1, 2]) {
+    const {layer} = createLayer(data, {
+      highlightedObjectIndex: highlighted,
+      getCrop: () => ({count: 2, radius: 0.04, color: [200, 140, 40]})
+    });
+    const children = layer.renderLayers();
+    let found = 0;
+    for (const child of children) {
+      const rows = child.props.data as {__source: {index: number}}[];
+      const row = child.props.highlightedObjectIndex;
+      // Each partition holds a subset of trees in its own order; name the same tree or none.
+      if (rows.some(entry => entry.__source.index === highlighted)) {
+        expect(rows[row].__source.index).toBe(highlighted);
+        found++;
+      } else expect(row).toBe(-1);
+    }
+    // Wood, canopy and crops each hold the highlighted tree.
+    expect(found).toBeGreaterThanOrEqual(3);
+  }
+  const {layer} = createLayer(data);
+  for (const child of layer.renderLayers()) expect(child.props.highlightedObjectIndex).toBeNull();
+});

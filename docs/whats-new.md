@@ -2,6 +2,16 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- `TreeLayer` and `SplatLayer` spend about a quarter of the CPU time per moving frame over large
+  groves: a generated 17,000-tree orchard with ~15,000 crowns in view orbits at ~11 ms instead of
+  ~48 ms per frame, with the same rendered selection. Trees crossing the view edge keep their
+  instance slots and upload only their own rows, optical fades rewrite only the changed coverage, and
+  the shared canopy budget no longer schedules refinements once the coverage floor exhausts it. A
+  controlled `highlightedObjectIndex` now highlights that source tree or owner in every wood, canopy
+  and crop partition, as `autoHighlight` does.
+
 ## v9.4.5
 
 - `TreeLayer` and `SplatLayer` canopies stay visible in interleaved `MapboxOverlay`/`MapLibreOverlay`
