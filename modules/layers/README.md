@@ -11,7 +11,7 @@ They can be quite useful in applications, however they are not officially suppor
 3D flames and embers with the TripsLayer API. It requires WebGL2.
 
 [`VolumetricVideoLayer`](../../docs/modules/layers/api-reference/volumetric-video-layer.md)
-renders MP4/MOV frames as a time volume with GPU static-pixel removal. It requires WebGL2.
+renders MP4/MOV frames as a time volume with GPU static-pixel removal on WebGL2 and WebGPU.
 Run the [local-file example](../../examples/layers/volumetric-video/README.md) to explore it.
 
 [`SplatLayer`](../../docs/modules/layers/api-reference/splat-layer.md) renders prepared Gaussian sources with shared instancing, automatic refinement, deformation and owner picking on WebGL2 and WebGPU. It has no TreeLayer dependency.

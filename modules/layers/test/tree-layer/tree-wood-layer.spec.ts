@@ -2,76 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {Matrix4} from '@math.gl/core';
-import {WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
+import {LayerExtension, WebMercatorViewport, OrthographicViewport} from '@deck.gl/core';
 import {expect, it, vi} from 'vitest';
 import {TreeWoodLayer} from '../../src/tree-layer/tree-wood-layer';
-it('reuses 20K bounds during camera motion and retains off-camera light casters', () => {
-  const data = Array.from({length: 20000}, (_, i) => ({
-    position: [(i - 10000) / 111320, 0, 0] as [number, number, number],
-    scale: [1, 1, 1],
-    translation: [0, 0, 5],
-    height: 10,
-    wind: [10, 0, 1]
-  }));
-  const layer = new TreeWoodLayer({id: 'wood', data, windStrength: 0.1});
-  layer.initializeState();
-  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
-  let viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18});
-  Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
-  const project = vi
-    .spyOn(layer, 'projectPosition')
-    .mockImplementation((point, options) =>
-      options?.autoOffset === false
-        ? [point[0] * 111320, point[1], point[2]]
-        : [point[0] * 111320 - 100, point[1], point[2]]
-    );
-  const update = (dataChanged = false) =>
-    layer.updateState({
-      props: layer.props,
-      oldProps: layer.props,
-      changeFlags: {dataChanged, viewportChanged: true}
-    });
-  update(true);
-  const index = layer.state.spatialIndex,
-    owners = layer.state.owners;
-  const light = {
-    matrix: Array.from(new Matrix4().scale([0.05, 0.05, 0.05])),
-    center: [0, 0, 0, 0],
-    width: 256,
-    height: 256
-  };
-  layer.prepareShadow([light], viewport);
-  const casters = layer.state.shadow;
-  expect(casters.length).toBeGreaterThan(0);
-  expect(layer.state.shadowNear.length + layer.state.shadowFar.length).toBe(casters.length);
-  expect(casters.length).toBeLessThan(100);
-  expect(casters).toContain(data[10100]);
-  viewport = new WebMercatorViewport({
-    width: 256,
-    height: 256,
-    zoom: 18,
-    longitude: 0.05,
-    latitude: 0.03,
-    bearing: 80,
-    pitch: 80
-  });
-  layer.context.viewport = viewport;
-  project.mockClear();
-  update();
-  expect(project).not.toHaveBeenCalled();
-  expect(layer.state.spatialIndex).toBe(index);
-  expect(layer.state.owners).toBe(owners);
-  expect(layer.state.shadow).toBe(casters);
-  layer.prepareShadow([light], viewport);
-  expect(project).not.toHaveBeenCalled();
-  expect(layer.state.shadow).toBe(casters);
-  layer.prepareShadow([{...light, center: [-50, 0, 0, 0]}], viewport);
-  expect(layer.state.shadow).not.toBe(casters);
-  expect(layer.state.shadow).toContain(data[11100]);
-  expect(layer.state.shadow.length).toBeLessThan(100);
-});
-
-import {getTreeWindPhases} from '../../src/tree-layer/tree-mesh-layer';
+import {getTreeWindPhases, TreeMeshLayer} from '../../src/tree-layer/tree-mesh-layer';
 it('preserves both wind modes when phases are cached per owner', () => {
   for (const phase of [-5, 0, 0.7, 5.2])
     for (const time of [0, 1.6, 45.7]) {
@@ -130,7 +64,7 @@ it('keeps physical bole width independent of crown spread and retains branch cen
   }
 });
 
-it('retains conservative default LightingEffect casters and honors custom wood meshes', () => {
+it('renders camera detail and honors custom wood meshes', () => {
   const data = [
     {
       position: [30, 0, 0],
@@ -157,16 +91,44 @@ it('retains conservative default LightingEffect casters and honors custom wood m
   Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
   vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
   layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
-  expect(layer.state.shadow).toEqual(data);
-  expect(layer.state.shadowNear).toEqual(data);
   const children = layer.renderLayers();
-  expect(children.length).toBeGreaterThan(1);
-  expect(children.some(child => child.props.operation === 'shadow')).toBe(true);
+  expect(children.length).toBeGreaterThan(0);
+  expect(children.every(child => child.props.shadowEnabled === false)).toBe(true);
   for (const child of children) {
     expect(child.props.mesh).toBe(mesh);
     expect(child.props.woodMorph).toBe(false);
     expect(child.props.getStemRadius).toBe(-1);
   }
+});
+
+it('keeps near branch meshes while dense-grove foliage fills stable complementary coverage', () => {
+  const row = {
+    position: [0, 0, 0],
+    scale: [1, 1, 5],
+    translation: [0, 0, 3],
+    type: 'oak' as const,
+    levels: 3,
+    characteristics: {},
+    height: 10,
+    wind: [0, 0, 0]
+  };
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data: [row],
+    mesh: templateMesh,
+    templateMesh,
+    nearBranchCoverage: 0.55
+  });
+  layer.initializeState();
+  Object.assign(layer.state, {near: [row], far: [row]});
+
+  const [near, far] = layer.renderLayers();
+  expect(near.props.mesh).toBe(getTreeWoodMesh('oak', 3, false, {}, true));
+  expect(near.props.getCoverageRange).toEqual([0, 1]);
+  expect(near.props.branchCoverage).toBe(0.55);
+  expect(far.props.mesh).toBe(getTreeWoodMesh('oak', 3, true, {}, true, false));
+  expect(far.props.getCoverageRange).toEqual([0, 1]);
+  expect(far.props.branchCoverage).toBe(1);
 });
 
 it('culls wood from resolved transforms and refreshes overridden accessor bounds', () => {
@@ -211,10 +173,41 @@ it('culls wood from resolved transforms and refreshes overridden accessor bounds
   });
   expect(layer.state.owners[0].position).toEqual(position);
   expect(layer.state.owners[0]).not.toBe(before);
-  expect(layer.state.shadow).toEqual(data);
 });
 
-it('uses affine wood matrices for camera and light bounds and refreshes matrix triggers', () => {
+it('omits native wood once the projected bole is subpixel', () => {
+  const row = {
+    position: [0, 0, 0],
+    scale: [1, 1, 5],
+    translation: [0, 0, 3],
+    type: 'oak' as const,
+    levels: 3,
+    characteristics: {},
+    height: 10,
+    wind: [10, 0, 1]
+  };
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data: [row],
+    mesh: templateMesh,
+    templateMesh,
+    getPosition: value => value.position,
+    getScale: value => value.scale,
+    getTranslation: value => value.translation
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  const viewport = new OrthographicViewport({width: 256, height: 256, zoom: -4});
+  Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
+  vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
+  expect(layer.state.owners).toHaveLength(1);
+  expect(layer.state.near).toEqual([]);
+  expect(layer.state.far).toEqual([]);
+  expect(layer.renderLayers()).toEqual([]);
+});
+
+it('uses affine wood matrices for camera bounds and refreshes matrix triggers', () => {
   const row = {
     position: [40, 0, 0],
     scale: [1, 1, 1],
@@ -274,4 +267,138 @@ it('retains structural banyan aerial roots in the coarse woody shell', () => {
       }
     }
   }
+});
+
+function makeWoodRow(x: number) {
+  return {
+    position: [x, 0, 0],
+    scale: [1, 1, 5],
+    translation: [0, 0, 3],
+    type: 'oak' as const,
+    levels: 3,
+    characteristics: {},
+    height: 10,
+    wind: [10, 0, 1]
+  };
+}
+function makeWoodLayer(data: ReturnType<typeof makeWoodRow>[], extra = {}) {
+  const templateMesh = getTreeWoodMesh('oak');
+  const layer = new TreeWoodLayer({
+    data,
+    mesh: templateMesh,
+    templateMesh,
+    getPosition: row => row.position,
+    getScale: row => row.scale,
+    getTranslation: row => row.translation,
+    ...extra
+  });
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));
+  const look = (target: number[], changeFlags: object) => {
+    const viewport = new OrthographicViewport({width: 256, height: 256, target, zoom: 2});
+    Object.assign(layer, {context: {viewport, deck: {getViewports: () => [viewport]}}});
+    layer.updateState({props: layer.props, oldProps: layer.props, changeFlags});
+  };
+  look([0, 0, 0], {dataChanged: true});
+  return {layer, look};
+}
+
+it('keeps wood instance slots when trees cross the view edge', () => {
+  const data = [-100, -75, -50, -25, 0, 25, 50, 75, 100].map(makeWoodRow);
+  const {layer, look} = makeWoodLayer(data);
+  const before = layer.state.far;
+  expect(before.length).toBeGreaterThan(2);
+  look([30, 0, 0], {viewportChanged: true});
+  const after = layer.state.far;
+  const departed = before.filter(row => !after.includes(row));
+  const arrived = after.filter(row => !before.includes(row));
+  expect(departed.length).toBeGreaterThan(0);
+  expect(arrived.length).toBeGreaterThan(0);
+  // Retained trees stay in their instance rows; arrivals take the departed rows.
+  for (const [slot, row] of before.entries())
+    if (after.includes(row)) expect(after[slot]).toBe(row);
+  const rewritten = after.filter((row, slot) => row !== before[slot]);
+  expect(rewritten).toHaveLength(Math.max(departed.length, arrived.length));
+});
+
+it('reuses cached owner metre scales and records near weights on owners', () => {
+  const data = [-20, 0, 20].map(makeWoodRow);
+  const {layer} = makeWoodLayer(data);
+  const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18});
+  const next = new WebMercatorViewport({width: 256, height: 256, zoom: 18.5, pitch: 30});
+  Object.assign(layer, {context: {viewport, deck: {getViewports: () => [next]}}});
+  layer.updateState({props: layer.props, oldProps: layer.props, changeFlags: {dataChanged: true}});
+  const scales = vi.spyOn(WebMercatorViewport.prototype, 'getDistanceScales');
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {viewportChanged: true}
+  });
+  expect(scales).not.toHaveBeenCalled();
+  scales.mockRestore();
+  expect(layer.state.owners.every(owner => owner.weight >= 0 && owner.weight <= 1)).toBe(true);
+});
+
+class SelectedExtension extends LayerExtension {
+  static extensionName = 'SelectedExtension';
+  static defaultProps = {getSelected: {type: 'accessor', value: 0}};
+}
+it('forwards its own and extension update triggers to near and far wood meshes', () => {
+  const row = makeWoodRow(0);
+  const getColor = () => [200, 40, 30];
+  const updateTriggers = {
+    getColor: [getColor, 1],
+    getWind: [0.5, 0.25],
+    getDeformation: [0.5, 0.25],
+    getCoverageWeight: 2,
+    getSelected: 7
+  };
+  const {layer} = makeWoodLayer([row], {
+    extensions: [new SelectedExtension()],
+    getColor,
+    getSelected: () => 1,
+    updateTriggers
+  });
+  Object.assign(layer.state, {near: [row], far: [row]});
+  const children = layer.renderLayers();
+  expect(children).toHaveLength(2);
+  for (const child of children) expect(child.props.updateTriggers).toMatchObject(updateTriggers);
+});
+
+it('maps a controlled highlightedObjectIndex onto near and far wood rows', () => {
+  const data = [-50, -25, 0, 25, 50].map(makeWoodRow);
+  for (const highlighted of [0, 2, 4]) {
+    const {layer} = makeWoodLayer(data, {highlightedObjectIndex: highlighted});
+    Object.assign(layer.state, {near: [data[2]], far: [data[4], data[1], data[3]]});
+    const [near, far] = layer.renderLayers();
+    for (const child of [near, far]) {
+      const row = child.props.highlightedObjectIndex;
+      if (child.props.data.includes(data[highlighted]))
+        expect(child.props.data[row]).toBe(data[highlighted]);
+      else expect(row).toBe(-1);
+    }
+  }
+});
+
+it('compares constant wood coverage ranges by value', () => {
+  const invalidate = vi.fn();
+  const layer = Object.assign(Object.create(TreeMeshLayer.prototype), {
+    internalState: {hasPickingBuffer: false},
+    state: {},
+    props: {wireframe: false},
+    getAttributeManager: () => ({invalidate, invalidateAll: vi.fn()})
+  });
+  const base = {extensions: [], pickable: false, mesh: null, getCoverageWeight: 1};
+  const update = (range: number[], previous: number[]) =>
+    layer.updateState({
+      props: {...base, getCoverageRange: range},
+      oldProps: {...base, getCoverageRange: previous},
+      changeFlags: {}
+    });
+  // TreeWoodLayer passes a new [0, 1] literal on every camera render.
+  update([0, 1], [0, 1]);
+  expect(invalidate).not.toHaveBeenCalled();
+  update([0, 0.5], [0, 1]);
+  expect(invalidate).toHaveBeenCalledWith('instanceTreeCoverage');
 });

@@ -81,13 +81,17 @@ export function getSplatMeanArea(scales: ArrayLike<number>): number {
  * Build immutable spatial aggregates once; the original source remains the finest level.
  * @param source - Decoded Gaussian columns in source-local units.
  * @param cellSizes - Finite, positive, strictly increasing cell widths in the same units.
+ * @param minimumSplats - Minimum spatial clusters retained by the coarsest aggregate. @default 1
  * @returns Finest source followed by covariance and optical-mass aggregates.
  */
 export function createSplatHierarchy(
   source: SplatSource,
-  cellSizes: readonly number[]
+  cellSizes: readonly number[],
+  minimumSplats = 1
 ): SplatHierarchy {
   const count = validateSplatSource(source);
+  if (!Number.isInteger(minimumSplats) || minimumSplats < 1)
+    throw new Error('Splat hierarchy minimum splats must be a positive integer.');
   const levels: SplatHierarchyLevel[] = [{source, error: 0}];
   const origin = [Infinity, Infinity, Infinity];
   for (let i = 0; i < source.positions.length; i++)
@@ -99,7 +103,7 @@ export function createSplatHierarchy(
       (cellIndex > 0 && cell <= cellSizes[cellIndex - 1])
     )
       throw new Error('Splat hierarchy cells must be finite, positive, and increasing.');
-    const groups = new Map<string, number[]>();
+    let groups = new Map<string, number[]>();
     for (let index = 0; index < count; index++) {
       const key = [0, 1, 2]
         .map(axis => Math.floor((source.positions[index * 3 + axis] - origin[axis]) / cell))
@@ -107,6 +111,39 @@ export function createSplatHierarchy(
       const group = groups.get(key) ?? [];
       group.push(index);
       groups.set(key, group);
+    }
+    // One covariance proxy preserves optical mass but loses all crown extent. Keep a requested
+    // terminal cluster by splitting along the widest source axis without duplicating its mass.
+    const floor = Math.min(minimumSplats, count);
+    const reachesFloor = groups.size < floor;
+    if (reachesFloor) {
+      const bounds = [0, 1, 2].map(axis => {
+        let minimum = Infinity;
+        let maximum = -Infinity;
+        for (let index = 0; index < count; index++) {
+          const value = source.positions[index * 3 + axis];
+          minimum = Math.min(minimum, value);
+          maximum = Math.max(maximum, value);
+        }
+        return [minimum, maximum] as const;
+      });
+      const axis = bounds.reduce(
+        (widest, bound, index) =>
+          bound[1] - bound[0] > bounds[widest][1] - bounds[widest][0] ? index : widest,
+        0
+      );
+      const ordered = Array.from({length: count}, (_, index) => index).sort(
+        (a, b) => source.positions[a * 3 + axis] - source.positions[b * 3 + axis]
+      );
+      groups = new Map(
+        Array.from({length: floor}, (_, index) => [
+          String(index),
+          ordered.slice(
+            Math.floor((index * count) / floor),
+            Math.floor(((index + 1) * count) / floor)
+          )
+        ])
+      );
     }
     let maximumDisplacement = 0;
     const positions: number[] = [],
@@ -191,6 +228,7 @@ export function createSplatHierarchy(
         opticalDepths: new Float32Array(opticalDepths)
       }
     });
+    if (reachesFloor) break;
   }
   return levels;
 }

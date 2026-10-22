@@ -1,0 +1,15 @@
+diff --git a/dist/config.js b/dist/config.js
+index 373149fe22fb750faeefba5d20a0e432bb91df14..b86e871dd500cda5b9f3cd9a3e4892dc1c6711ec 100644
+--- a/dist/config.js
++++ b/dist/config.js
+@@ -102,7 +102,9 @@ function initWitnesses(options) {
+         witnesses.push(new sign_1.RekorWitness({
+             rekorBaseURL: options.rekorURL,
+             entryType: options.legacyCompatibility ? 'intoto' : 'dsse',
+-            fetchOnConflict: false,
++            // A successful attestation can race its response: reuse the entry Rekor
++            // already recorded instead of treating that provenance-preserving 409 as fatal.
++            fetchOnConflict: true,
+             retry: options.retry ?? exports.DEFAULT_RETRY,
+             timeout: options.timeout ?? exports.DEFAULT_TIMEOUT,
+         }));

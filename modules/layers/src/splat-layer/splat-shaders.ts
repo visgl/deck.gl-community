@@ -13,15 +13,12 @@ const DECLARATION = `uniform splatUniforms {
   float support;
   float opticalDepthMode;
   vec4 wave;
-  mat4 lightMatrix;
-  vec4 lightCenter;
-  vec2 lightViewport;
 } splat;`;
 export const splatUniforms = {
   name: 'splat',
   vs: DECLARATION,
   fs: DECLARATION,
-  source: `struct SplatUniforms { strength: f32, time: f32, mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32, wave: vec4<f32>, lightMatrix: mat4x4<f32>, lightCenter: vec4<f32>, lightViewport: vec2<f32> };
+  source: `struct SplatUniforms { strength: f32, time: f32, mode: f32, kernelVariance: f32, alphaCutoff: f32, support: f32, opticalDepthMode: f32, wave: vec4<f32> };
 @group(0) @binding(auto) var<uniform> splat: SplatUniforms;`,
   uniformTypes: {
     strength: 'f32',
@@ -31,10 +28,7 @@ export const splatUniforms = {
     alphaCutoff: 'f32',
     support: 'f32',
     opticalDepthMode: 'f32',
-    wave: 'vec4<f32>',
-    lightMatrix: 'mat4x4<f32>',
-    lightCenter: 'vec4<f32>',
-    lightViewport: 'vec2<f32>'
+    wave: 'vec4<f32>'
   }
 } as const satisfies ShaderModule;
 
@@ -81,10 +75,9 @@ void main() {
   mat3 jacobian = mat3(1.0);
   if (splat.strength != 0.0) jacobian = splatDeform(position, height, splat.strength * instanceDeformation.y, wave);
   covariance = jacobian * covariance;
-  if (splat.mode < 2.5) normal = splatDeformNormal(jacobian, normal);
+  normal = splatDeformNormal(jacobian, normal);
   vec4 commonPosition;
   vec4 center = project_position_to_clipspace(instancePositions, instancePositions64Low, project_size(position), commonPosition);
-  if (splat.mode > 2.5) center = splat.lightMatrix * commonPosition + splat.lightCenter;
   geometry.position = commonPosition;
   vPosition = commonPosition.xyz;
   vCamera = project.cameraPosition;
@@ -92,8 +85,8 @@ void main() {
   vNormal = project_normal(normal);
   geometry.normal = vNormal;
   // Reuse the perspective Jacobian for all three covariance axes.
-  mat4 projectionMatrix = splat.mode > 2.5 ? splat.lightMatrix : project.viewProjectionMatrix;
-  vec2 viewportSize = splat.mode > 2.5 ? splat.lightViewport : project.viewportSize;
+  mat4 projectionMatrix = project.viewProjectionMatrix;
+  vec2 viewportSize = project.viewportSize;
   vec3 rowW = vec3(projectionMatrix[0].w, projectionMatrix[1].w, projectionMatrix[2].w);
   vec3 axisX = project_size(covariance[0]);
   vec3 axisY = project_size(covariance[1]);
@@ -108,7 +101,7 @@ void main() {
   vec3 rowY = (vec3(projectionMatrix[0].y, projectionMatrix[1].y, projectionMatrix[2].y) - rowW * ndc.y) * viewportSize.y / (2.0 * safeW);
   vec3 rowNear = vec3(projectionMatrix[0].z, projectionMatrix[1].z, projectionMatrix[2].z) + rowW;
   float nearSigma = length(vec3(dot(rowNear, axisX), dot(rowNear, axisY), dot(rowNear, axisZ)));
-  float clipWeight = splat.mode > 2.5 ? 1.0 : smoothstep(0.0, max(nearSigma * splat.support, 1e-8), center.z + center.w);
+  float clipWeight = smoothstep(0.0, max(nearSigma * splat.support, 1e-8), center.z + center.w);
   vCoverageWeight *= clipWeight;
   vec2 x = vec2(dot(rowX, axisX), dot(rowY, axisX));
   vec2 y = vec2(dot(rowX, axisY), dot(rowY, axisY));
@@ -129,7 +122,7 @@ void main() {
   vec2 direction = abs(b) > 1e-8 ? normalize(vec2(b, major-a)) : (a >= c ? vec2(1,0) : vec2(0,1));
   vec2 offset = (direction * sqrt(major) * splatCorners.x + vec2(-direction.y,direction.x) * sqrt(minor) * splatCorners.y) * splat.support;
   gaussianPosition = splatCorners * splat.support;
-  vColor = vec4(splatColors.rgb * instanceColors.rgb, splatColors.a * instanceColors.a * (splat.mode > 2.5 ? 1.0 : layer.opacity) * compensation);
+  vColor = vec4(splatColors.rgb * instanceColors.rgb, splatColors.a * instanceColors.a * layer.opacity * compensation);
   gl_Position = center;
   gl_Position.xy += offset / viewportSize * 2.0 * center.w;
   if (center.w <= 0.0 || center.z < -center.w || vColor.a < splat.alphaCutoff) gl_Position = vec4(2,2,2,1);
@@ -155,7 +148,6 @@ void main() {
   float alpha = splat.opticalDepthMode < 0.5 && vCoverageWeight == 1.0 ? min(0.995, coverage) : min(0.995, 1.0 - exp(-depth));
   if (alpha < splat.alphaCutoff || (picking.isActive > 0.5 && alpha < 0.08)) discard;
   geometry.uv = gaussianPosition;
-  if (splat.mode > 2.5) { fragColor = vec4(alpha); return; }
   vec3 normal = normalize(vNormal);
   // Authored normals stay in the foliage frame, including at grazing camera angles.
   vec3 shaded = lighting_getLightColor(vColor.rgb, vCamera, vPosition, normal);
@@ -176,4 +168,11 @@ export const SPLAT_ACCUMULATION_FRAGMENT = SPLAT_FRAGMENT.replace(
 ).replace(
   '  geometry.uv = gaussianPosition;',
   '  opticalDepth = vec4(min(depth, 80.0), 0.0, 0.0, 0.0);\n  geometry.uv = gaussianPosition;'
+);
+
+// WebGPU cannot apply this blend state to MRT attachment 1. Its weighted path therefore
+// renders optical depth separately into a single additive target.
+export const SPLAT_TRANSMISSION_FRAGMENT = SPLAT_FRAGMENT.replace(
+  /  geometry\.uv = gaussianPosition;[\s\S]*/,
+  '  fragColor = vec4(min(depth, 80.0), 0.0, 0.0, 0.0);\n}'
 );

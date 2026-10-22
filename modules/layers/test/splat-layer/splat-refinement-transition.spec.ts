@@ -20,7 +20,7 @@ it('keeps optical mass continuous when budget or camera retargets a crown mid-re
   transition.sample(17);
   const refined = [...transition.entries.get('tree')!.weights];
   expect(refined[0]).toBeGreaterThan(0);
-  expect(refined[0]).toBeLessThan(0.2);
+  expect(refined[0]).toBeLessThan(0.1);
   expect(refined.reduce((sum, value) => sum + value, 0)).toBeCloseTo(1, 5);
   transition.reconcile(target(1), counts, 1200, owner => owner);
   expect(transition.entries.get('tree')!.weights).toEqual(refined);
@@ -32,6 +32,43 @@ it('keeps optical mass continuous when budget or camera retargets a crown mid-re
   expect(transition.active).toBe(false);
   expect(transition.entries.get('tree')!.weights).toEqual([0, 1, 0]);
 });
+it('settles a camera-selected level within a short optical transition', () => {
+  const transition = new SplatRefinementTransition<string>();
+  transition.reconcile(target(2), counts, 1200, owner => owner);
+  transition.sample(1);
+  transition.reconcile(target(0), counts, 1200, owner => owner);
+  for (let now = 17; now <= 800; now += 16) transition.sample(now);
+  expect(transition.active).toBe(false);
+  expect(transition.entries.get('tree')!.weights).toEqual([1, 0, 0]);
+});
+
+it('limits the first optical step for a bulk refinement after a render hitch', () => {
+  const transition = new SplatRefinementTransition<string>();
+  const rows = (level: number) =>
+    Array.from({length: 8}, (_, index) => ({owner: `${index}`, pixels: 10, level, blend: 0}));
+  transition.reconcile(rows(2), counts, Infinity, owner => owner);
+  transition.sample(1);
+  transition.reconcile(rows(0), counts, Infinity, owner => owner);
+  transition.sample(1000);
+  expect([...transition.entries.values()].every(entry => entry.weights[0] < 0.1)).toBe(true);
+  for (let now = 1016; now < 3000; now += 16) transition.sample(now);
+  expect(transition.active).toBe(false);
+  expect([...transition.entries.values()].every(entry => entry.weights[0] === 1)).toBe(true);
+});
+
+it('limits the first optical step for one crown after a short render hitch', () => {
+  const transition = new SplatRefinementTransition<string>();
+  transition.reconcile(target(2), counts, 1200, owner => owner);
+  transition.sample(1);
+  transition.reconcile(target(0), counts, 1200, owner => owner);
+  transition.sample(101);
+  expect(transition.entries.get('tree')!.weights[0]).toBeGreaterThan(0);
+  expect(transition.entries.get('tree')!.weights[0]).toBeLessThan(0.1);
+  for (let now = 117; now < 2000; now += 16) transition.sample(now);
+  expect(transition.active).toBe(false);
+  expect(transition.entries.get('tree')!.weights).toEqual([1, 0, 0]);
+});
+
 it('reserves submissions for mixtures, retaining coverage and making progress after a forced budget reduction', () => {
   const transition = new SplatRefinementTransition<string>();
   transition.reconcile(target(0), counts, 1200, owner => owner);
@@ -58,7 +95,8 @@ it('retains pose identity across streamed wrapper replacements and limits the fi
   expect(transition.entries.get('pose')!.owner).toBe('replacement');
   expect(transition.entries.get('pose')!.weights).toEqual([0, 0, 1]);
   transition.sample(10000);
-  expect(transition.entries.get('pose')!.weights[0]).toBeLessThan(0.4);
+  expect(transition.entries.get('pose')!.weights[0]).toBeLessThan(0.1);
+  expect(transition.active).toBe(true);
 });
 
 it('does not deadlock a forced reduction to an intermediate aggregate that costs more than the coverage floor', () => {
@@ -107,4 +145,30 @@ it('admits only one extra owner representation when several promotions are block
   }
   expect(transition.active).toBe(false);
   expect([...transition.entries.values()].every(entry => entry.weights[0] === 1)).toBe(true);
+});
+
+it('admits and drops owners without retargeting retained mixtures', () => {
+  const transition = new SplatRefinementTransition<string>();
+  const rows = (owners: string[], level: number) =>
+    owners.map(owner => ({owner, pixels: 10, level, blend: 0}));
+  transition.reconcile(rows(['a', 'b'], 1), counts, 1200, owner => owner);
+  transition.sample(1);
+  for (let now = 17; now < 2000; now += 16) transition.sample(now);
+  const a = transition.entries.get('a')!;
+  const settled = [...a.weights];
+
+  // A local camera update proposes level 0 for a retained owner; the joint grant decides it.
+  expect(transition.retain(rows(['a', 'c'], 0), counts, owner => owner)).toBe(true);
+  expect(transition.entries.has('b')).toBe(false);
+  expect(transition.entries.get('a')).toBe(a);
+  expect(a.target).toEqual([0, 1, 0]);
+  expect(a.weights).toEqual(settled);
+  // Arrivals start from coverage, exactly as a full reconcile admits them.
+  expect(transition.entries.get('c')!.weights).toEqual([0, 0, 1]);
+  expect(transition.activeCount).toBe(1);
+  expect(transition.retain(rows(['a', 'c'], 2), counts, owner => owner)).toBe(false);
+
+  // The joint grant then retargets with its own budget.
+  transition.reconcile(rows(['a', 'c'], 0), counts, 1200, owner => owner);
+  expect(a.target).toEqual([1, 0, 0]);
 });

@@ -1,4 +1,8 @@
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # VolumetricVideoLayer
+
+<LayerLiveExample highlight="volumetric-video-layer" size="tall" />
 
 Renders an MP4 or MOV as a volume of Gaussian splats. Each video frame becomes an XY
 plane; earlier frames extend along local -Z. `currentFrame` selects the end of the

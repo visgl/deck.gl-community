@@ -19,6 +19,7 @@ import {
 import {LineString, Point, Feature, SimpleFeatureCollection} from '../utils/geojson-types';
 import {Viewport} from '../utils/types';
 import {
+  BasePointerEvent,
   ModeProps,
   PointerMoveEvent,
   StartDraggingEvent,
@@ -179,6 +180,11 @@ export class ResizeCircleMode extends GeoJsonEditMode implements SnappableEditMo
 
     const cursor = this.getCursor(event);
     props.onUpdateCursor(cursor);
+  }
+
+  /** Owns presses on edit handles, which start its drags. */
+  ownsPointerDown(event: BasePointerEvent): boolean {
+    return Boolean(getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

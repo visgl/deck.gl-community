@@ -50,6 +50,7 @@ class SplatPass extends _LayersPass {
   }
   protected getLayerParameters(layer: Layer): Parameters {
     if (this.mode === 0) return layer.props.parameters;
+    const additive = this.mode === 1 || this.mode === 2;
     return {
       ...layer.props.parameters,
       depthWriteEnabled: false,
@@ -57,10 +58,10 @@ class SplatPass extends _LayersPass {
       blend: true,
       blendColorOperation: 'add',
       blendAlphaOperation: 'add',
-      blendColorSrcFactor: this.mode === 1 ? 'one' : 'zero',
-      blendColorDstFactor: this.mode === 1 ? 'one' : 'one-minus-src-alpha',
-      blendAlphaSrcFactor: this.mode === 1 ? 'one' : 'zero',
-      blendAlphaDstFactor: this.mode === 1 ? 'one' : 'one-minus-src-alpha',
+      blendColorSrcFactor: additive ? 'one' : 'zero',
+      blendColorDstFactor: additive ? 'one' : 'one-minus-src-alpha',
+      blendAlphaSrcFactor: additive ? 'one' : 'zero',
+      blendAlphaDstFactor: additive ? 'one' : 'one-minus-src-alpha',
       cullMode: 'none'
     };
   }
@@ -104,7 +105,7 @@ export class SplatEffect implements Effect {
     this.device = device;
     if (device.type === 'webgpu')
       this.sampler = device.createSampler({minFilter: 'linear', magFilter: 'linear'});
-    this.passes = [0, 1, 4].map(mode => new SplatPass(device, mode, this.last));
+    this.passes = [0, 1, 2, 4].map(mode => new SplatPass(device, mode, this.last));
     this.model = new ClipSpace(device, {
       id: 'gaussian-splat-composite',
       modules: [compositeUniforms],
@@ -136,8 +137,10 @@ void main() {
         depthWriteEnabled: false,
         depthCompare: 'always',
         blend: true,
+        blendColorOperation: 'add',
         blendColorSrcFactor: 'one',
         blendColorDstFactor: 'one-minus-src-alpha',
+        blendAlphaOperation: 'add',
         blendAlphaSrcFactor: 'one',
         blendAlphaDstFactor: 'one-minus-src-alpha'
       }
@@ -164,6 +167,9 @@ void main() {
       sorted = color('rgba16float');
     const depth = this.device.createTexture({format: 'depth24plus', width, height});
     this.textures = [opaque, accum, transmission, depth, sorted];
+    // WebGL applies a blend state to every MRT attachment. luma's WebGPU mapper currently
+    // applies it only to attachment zero, so optical depth gets its own additive target there.
+    const accumulationAttachments = this.device.type === 'webgpu' ? [accum] : [accum, transmission];
     this.targets = [
       this.device.createFramebuffer({
         width,
@@ -174,13 +180,19 @@ void main() {
       this.device.createFramebuffer({
         width,
         height,
-        colorAttachments: [accum, transmission],
+        colorAttachments: accumulationAttachments,
         depthStencilAttachment: depth
       }),
       this.device.createFramebuffer({
         width,
         height,
         colorAttachments: [sorted],
+        depthStencilAttachment: depth
+      }),
+      this.device.createFramebuffer({
+        width,
+        height,
+        colorAttachments: [transmission],
         depthStencilAttachment: depth
       })
     ];
@@ -261,10 +273,14 @@ void main() {
       };
       // Each view owns its opaque depth and optical accumulation. Overlapping views
       // must not count a Gaussian twice or inherit another camera's color/depth.
+      // Interleaved basemap hosts draw with clearCanvas: false; that preserves only their own
+      // canvas. This private depth must restart every frame, or a previous camera occludes it.
       this.passes[0].render({
         ...scaledOptions,
         pass: 'splat-opaque-depth',
-        target: this.targets[0]
+        target: this.targets[0],
+        clearCanvas: true,
+        clearColor: [0, 0, 0, 0]
       });
       const clear = this.device.beginRenderPass({
         framebuffer: this.targets[1],
@@ -278,6 +294,20 @@ void main() {
         target: this.targets[1],
         clearCanvas: false
       });
+      if (this.device.type === 'webgpu') {
+        const clearTransmission = this.device.beginRenderPass({
+          framebuffer: this.targets[3],
+          clearColor: [0, 0, 0, 0],
+          clearDepth: false
+        });
+        clearTransmission.end();
+        this.passes[2].render({
+          ...scaledOptions,
+          pass: 'splat-optical-depth',
+          target: this.targets[3],
+          clearCanvas: false
+        });
+      }
       let renderer = this.sorted.get(viewport.id);
       if (!renderer) {
         renderer = new SplatSortedRenderer(this.device);
@@ -287,7 +317,7 @@ void main() {
       this.collecting = renderer;
       // This pass visits only eligible primitives and captures their evaluated uniforms.
       // It also chooses the last eligible primitive for the ordinary-pass resolve.
-      this.passes[2].render({
+      this.passes[3].render({
         ...scaledOptions,
         pass: 'splat-sort-collection',
         target: this.targets[2],

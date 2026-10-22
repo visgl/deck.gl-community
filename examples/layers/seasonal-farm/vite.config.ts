@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 // Local vite config for the seasonal-farm example.
-// Resolve the local TreeLayer package from source,
+// Resolve the canonical TreeLayer package from source,
 // so a fresh checkout can start without a package build.
 import {defineConfig} from 'vite';
 import path from 'path';
@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      '@deck.gl-community/three': path.resolve(__dirname, '../../../modules/three/src/index.ts')
+      '@deck.gl-community/layers': path.resolve(__dirname, '../../../modules/layers/src/index.ts')
     }
   },
   server: {

@@ -4,7 +4,15 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
-## Unreleased
+## v9.4.6
+
+### Removed `@deck.gl-community/three`
+
+The deprecated compatibility workspace has been removed. Import `TreeLayer`, `TreeLayerProps`,
+`TreeType`, `Season`, and `CropConfig` from `@deck.gl-community/layers` instead. This is a
+breaking package removal; previously published `@deck.gl-community/three` versions remain on npm.
+
+## v9.4.3
 
 `RadialLayout.radius` now sets the radius of the deepest hierarchy ring. Existing layouts that
 compensated for oversized rings may need their radius retuned. Angular sectors use the leaf
@@ -22,9 +30,16 @@ Sources and hierarchies are immutable; replace them when their columns change. S
 budgets retain minimum visible coverage and transition overlap, and do not cap GPU memory.
 A tighter `maxRenderPixels` can take one frame to apply while visibility expands for the broader filter.
 Planar Cartesian and Web Mercator views in the unwrapped world are supported. Wrapped world copies
-(`MapView.repeat`), `GlobeView`, URL/RAD inputs and sorted
-transparency report explicit unsupported-input errors. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
-for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream nested-render-pass path is fixed; overlapping views without clearing are supported.
+(`MapView.repeat`), `GlobeView` and URL/RAD inputs report explicit unsupported-input errors.
+`transparency: 'sorted'` is supported on WebGL2 and WebGPU, with additional selected-buffer memory
+and per-frame CPU sorting cost. See [SplatLayer](./modules/layers/api-reference/splat-layer.md)
+for input forms and rendering limits. On WebGPU, `View.clear` is rejected until the upstream
+nested-render-pass path is fixed; overlapping views without clearing are supported.
+
+#### Foliage shadows
+
+Native `TreeLayer` foliage and `SplatLayer` ship without built-in deck.gl foliage-shadow
+integration. Applications that require foliage shadows must provide them outside these renderers.
 
 ### `@deck.gl-community/layers`: native `TreeLayer`
 

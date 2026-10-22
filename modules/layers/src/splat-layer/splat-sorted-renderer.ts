@@ -31,8 +31,10 @@ const SORTED_PARAMETERS = {
   depthWriteEnabled: false,
   depthCompare: 'less-equal',
   blend: true,
+  blendColorOperation: 'add',
   blendColorSrcFactor: 'src-alpha',
   blendColorDstFactor: 'one-minus-src-alpha',
+  blendAlphaOperation: 'add',
   blendAlphaSrcFactor: 'one',
   blendAlphaDstFactor: 'one-minus-src-alpha',
   cullMode: 'none'
@@ -72,7 +74,7 @@ type Entry = {
 };
 
 /** A viewport-wide permutation of the selected prepared Gaussians. The original source
- * models still own picking and shadows; this working buffer only changes color draw order.
+ * models still own picking; this working buffer only changes color draw order.
  */
 export class SplatSortedRenderer {
   private entries = new Map<string, Entry>();

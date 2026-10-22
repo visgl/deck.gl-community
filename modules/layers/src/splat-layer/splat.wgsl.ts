@@ -53,19 +53,17 @@ struct Varyings {
   let deformation = splatDeform(position, height, splat.strength * attributes.instanceDeformation.y, wave);
   position = deformation.position;
   covariance = deformation.jacobian * covariance;
-  if (splat.mode < 2.5) { normal = splatDeformNormal(deformation.jacobian, normal); }
+  normal = splatDeformNormal(deformation.jacobian, normal);
  }
  let projection = project_position_to_clipspace_and_commonspace(attributes.instancePositions, attributes.instancePositions64Low, project_size_vec3(position));
- var center = projection.clipPosition;
- var viewportSize = project.viewportSize;
- if (splat.mode > 2.5) { center = splat.lightMatrix * projection.commonPosition + splat.lightCenter; viewportSize = splat.lightViewport; }
+ let center = projection.clipPosition;
+ let viewportSize = project.viewportSize;
  geometry.position = projection.commonPosition;
  output.commonPosition = projection.commonPosition.xyz;
  output.normal = project_normal(normal);
  geometry.normal = output.normal;
  // Reuse the perspective Jacobian for all three covariance axes.
- var matrix = project.viewProjectionMatrix;
- if (splat.mode > 2.5) { matrix = splat.lightMatrix; }
+ let matrix = project.viewProjectionMatrix;
  let rowW = vec3<f32>(matrix[0].w, matrix[1].w, matrix[2].w);
  let axisX = project_size_vec3(covariance[0]);
  let axisY = project_size_vec3(covariance[1]);
@@ -78,7 +76,7 @@ struct Varyings {
  let rowY = (vec3<f32>(matrix[0].y, matrix[1].y, matrix[2].y) - rowW * ndc.y) * viewportSize.y / (2.0 * safeW);
  let rowNear = vec3<f32>(matrix[0].z, matrix[1].z, matrix[2].z) + rowW;
  let nearSigma = length(vec3<f32>(dot(rowNear, axisX), dot(rowNear, axisY), dot(rowNear, axisZ)));
- let clipWeight = select(smoothstep(0.0, max(nearSigma * splat.support, 1e-8), center.z + center.w), 1.0, splat.mode > 2.5);
+ let clipWeight = smoothstep(0.0, max(nearSigma * splat.support, 1e-8), center.z + center.w);
  let x = vec2<f32>(dot(rowX, axisX), dot(rowY, axisX));
  let y = vec2<f32>(dot(rowX, axisY), dot(rowY, axisY));
  let z = vec2<f32>(dot(rowX, axisZ), dot(rowY, axisZ));
@@ -98,7 +96,7 @@ struct Varyings {
  if (abs(b) > 1e-8) { direction = normalize(vec2<f32>(b, major-a)); }
  let offset = (direction * sqrt(major) * attributes.splatCorners.x + vec2<f32>(-direction.y,direction.x) * sqrt(minor) * attributes.splatCorners.y) * splat.support;
  output.gaussianPosition = attributes.splatCorners * splat.support;
- output.color = vec4<f32>(attributes.splatColors.rgb * attributes.instanceColors.rgb, attributes.splatColors.a * attributes.instanceColors.a * select(layer.opacity, 1.0, splat.mode > 2.5) * compensation);
+ output.color = vec4<f32>(attributes.splatColors.rgb * attributes.instanceColors.rgb, attributes.splatColors.a * attributes.instanceColors.a * layer.opacity * compensation);
  output.position = vec4<f32>(center.xy + offset / viewportSize * 2.0 * center.w, center.zw);
  if (center.w <= 0.0 || center.z < -center.w || output.color.a < splat.alphaCutoff) { output.position = vec4<f32>(2.0,2.0,2.0,1.0); }
  output.pickingColor = geometry.pickingColor;
@@ -124,12 +122,18 @@ fn gaussianOpticalDepth(input: Varyings) -> f32 {
   if (!picking_isColorValid(input.pickingColor)) { discard; }
   return vec4<f32>(input.pickingColor, 1.0);
  }
- if (splat.mode > 2.5) { return vec4<f32>(alpha); }
  let normal = normalize(input.normal);
  let shaded = lighting_getLightColor2(input.color.rgb, project.cameraPosition, input.commonPosition, normal);
  var color = vec4<f32>(shaded, alpha);
  if (picking.isHighlightActive > 0.5 && picking_isColorZero(abs(input.pickingColor - picking_normalizeColor(picking.highlightedObjectColor)))) {
-  color = vec4<f32>(mix(color.rgb, picking.highlightColor.rgb, picking.highlightColor.a), color.a);
+  let highlightAlpha = picking.highlightColor.a;
+  let blendedAlpha = highlightAlpha + color.a * (1.0 - highlightAlpha);
+  if (blendedAlpha > 0.0) {
+   color = vec4<f32>(
+    mix(color.rgb, picking.highlightColor.rgb, highlightAlpha / blendedAlpha),
+    blendedAlpha
+   );
+  }
  }
  if (splat.mode > 1.5) { return vec4<f32>(alpha); }
  if (splat.mode > 0.5) {
@@ -150,3 +154,11 @@ struct SplatOutput { @location(0) accumulation: vec4<f32>, @location(1) opticalD
  let accumulation = shadeGaussian(input);
  return SplatOutput(accumulation, vec4<f32>(min(gaussianOpticalDepth(input), 80.0), 0.0, 0.0, 0.0));
 }`;
+
+// WebGPU blend parameters currently apply only to attachment zero. Keep optical depth in a
+// standalone target so every Gaussian adds to it before the weighted composite resolves.
+export const SPLAT_TRANSMISSION_WGSL = SPLAT_WGSL.replace(
+  / geometry\.position = vec4<f32>\(input\.commonPosition, 1\.0\);[\s\S]*/,
+  ` return vec4<f32>(min(gaussianOpticalDepth(input), 80.0), 0.0, 0.0, 0.0);
+}`
+);

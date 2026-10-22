@@ -2,9 +2,13 @@
 title: FlameTrailLayer
 ---
 
+import LayerLiveExample from '@site/src/components/docs/layer-live-example';
+
 # FlameTrailLayer
 
 ![From v9.4](https://img.shields.io/badge/from-v9.4-green.svg?style=flat-square)
+
+<LayerLiveExample highlight="flame-trail-layer" />
 
 `FlameTrailLayer` renders timestamped paths as rising 3D fire: a white-hot leading
 head, curling orange tongues, a blue reaction zone, and drifting ember particles.

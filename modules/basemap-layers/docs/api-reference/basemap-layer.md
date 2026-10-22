@@ -14,7 +14,7 @@ Recommended example:
 ## Installation
 
 ```sh
-yarn add @deck.gl-community/basemap-layers
+yarn add @deck.gl-community/basemap-layers @deck.gl-community/geo-layers@~9.4.2
 ```
 
 ## Main Export

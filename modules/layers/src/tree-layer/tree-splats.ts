@@ -6,6 +6,7 @@ import {createSplatHierarchy, type SplatHierarchy} from '../splat-layer/splat-hi
 import type {SplatSource} from '../splat-layer/splat-source';
 import type {PreparedSplatData} from '../splat-layer/splat-input';
 import {createTreeRng, samplePineSurface, createPineTiers} from './tree-geometry';
+import {evaluatePalmFrond, getPalmFronds} from './tree-palm';
 import type {TreeType} from './tree-layer';
 import {getTreeBotany} from './tree-botany';
 import {
@@ -17,6 +18,12 @@ import {
 
 type Point = [number, number, number];
 const CACHE = new TreeTemplateCache<SplatSource>();
+const PALM_LEAFLET_COUNT = 15;
+
+/** Return nominal leaflet anchors along the rachis without extrapolating past its tip. */
+export function getPalmFrondLeafletT(index: number): number {
+  return 0.15 + (index / (PALM_LEAFLET_COUNT - 1)) * 0.71;
+}
 
 /** Procedural leaf clusters, not sampled opaque crown triangles. Templates are shared by species/tier. */
 export function getTreeSplatSource(
@@ -37,7 +44,14 @@ export function getTreeSplatSource(
   const colors: number[] = [];
   const opacities: number[] = [];
   const normals: number[] = [];
-  const add = (point: Point, size: Point, normal: Point, opacity = 0.86, longAxis?: Point) => {
+  const add = (
+    point: Point,
+    size: Point,
+    normal: Point,
+    opacity = 0.86,
+    longAxis?: Point,
+    tint?: Point
+  ) => {
     const n = new Vector3(normal).normalize();
     const tangent = longAxis
       ? new Vector3(longAxis).normalize()
@@ -48,69 +62,92 @@ export function getTreeSplatSource(
     scales.push(...size);
     rotations.push(q[3], q[0], q[1], q[2]);
     const shade = 0.64 + rng() * 0.32;
-    colors.push(shade, Math.min(1, shade * (0.97 + rng() * 0.08)), shade * 0.93, 1);
+    colors.push(
+      shade * (tint?.[0] ?? 1),
+      Math.min(1, shade * (0.97 + rng() * 0.08)) * (tint?.[1] ?? 1),
+      shade * 0.93 * (tint?.[2] ?? 1),
+      1
+    );
     opacities.push(opacity);
     normals.push(...n);
   };
   if (type === 'palm') {
-    // Cubic fronds and pinnate leaflets use the native palm's botanical skeleton.
-    for (let k = 0; k < 28; k++) {
-      const spear = k >= 20;
-      const index = spear ? k - 20 : k;
-      const count = spear ? 8 : 20;
-      const angle =
-        ((index + (spear ? 0.5 : 0)) / count) * Math.PI * 2 +
-        (spear ? 0 : Math.sin(index * 5.37) * 0.07);
-      const tier = index % 4;
-      const controls = spear
-        ? [
-            [0.025, 0.44],
-            [0.12, 0.82],
-            [0.38, 1.04],
-            [0.62, 0.96]
-          ]
-        : [
-            [0.035, 0.43 + tier * 0.012],
-            [0.28, 0.72 - tier * 0.025],
-            [0.68, 0.55 - tier * 0.045],
-            [0.84 + ((index * 7) % 9) * 0.018, 0.25 - tier * 0.035]
-          ];
-      const evaluate = (t: number): Vector3 => {
-        const u = 1 - t;
-        const coefficients = [u ** 3, 3 * u * u * t, 3 * u * t * t, t ** 3];
-        const radius = controls.reduce((sum, control, i) => sum + control[0] * coefficients[i], 0);
-        const z = controls.reduce((sum, control, i) => sum + control[1] * coefficients[i], 0);
-        return new Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
-      };
-      const pairs = spear ? 8 : 11;
-      for (let j = 0; j < pairs; j++) {
-        const t = 0.2 + (j / (pairs - 1)) * 0.72;
-        const point = evaluate(t);
-        const tangent = evaluate(t + 0.001)
-          .subtract(evaluate(t - 0.001))
-          .normalize();
-        const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
-        const fullness = Math.sin(((j + 0.75) / pairs) * Math.PI);
-        for (const side of [-1, 1]) {
-          const direction = new Vector3(sideways)
-            .scale(side)
-            .add(new Vector3(tangent).scale(0.18 + Math.sin(angle + j * 0.7) * 0.06))
-            .add([0, 0, 0.12 - t * 0.2])
+    for (const frond of getPalmFronds()) {
+      const {spear} = frond;
+      const evaluate = (t: number) => new Vector3(evaluatePalmFrond(frond, t));
+      if (spear) {
+        for (let j = 0; j < 9; j++) {
+          const t = 0.06 + (j / 8) * 0.88;
+          const point = evaluate(t);
+          const tangent = evaluate(t + 0.001)
+            .subtract(evaluate(t - 0.001))
             .normalize();
-          const normal = new Vector3(direction).cross(tangent).normalize();
-          const length = 0.055 + fullness * 0.095;
-          // Several elongated Gaussians keep sharp botanical tips and soft optical edges.
-          for (let segment = 0; segment < 3; segment++) {
-            const progress = (segment + 0.5) / 3;
+          const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
+          const fullness = Math.sin(((j + 0.5) / 9) * Math.PI);
+          const normal = new Vector3(tangent).cross(sideways).normalize();
+          add(
+            Array.from(point) as Point,
+            [0.035 + fullness * 0.015, 0.007 + fullness * 0.004, 0.002],
+            Array.from(normal) as Point,
+            0.82,
+            Array.from(tangent) as Point,
+            [0.9, 1.04, 0.86]
+          );
+        }
+        continue;
+      }
+
+      const pairs = PALM_LEAFLET_COUNT;
+      // Small differences in each frond's plane stop the leaflet rows from reading
+      // as flat, evenly combed spokes when several crowns overlap.
+      const frondRoll = (rng() - 0.5) * 0.72;
+      for (let j = 0; j < pairs; j++) {
+        const t = getPalmFrondLeafletT(j);
+        const fullness = Math.sin(((j + 0.5) / pairs) * Math.PI);
+        for (const side of [-1, 1]) {
+          // Stagger opposing leaflets along the rachis rather than lining them up as rungs.
+          const leafT = Math.max(0.02, Math.min(0.98, t + side * 0.025 + (rng() - 0.5) * 0.14));
+          const point = evaluate(leafT);
+          const tangent = evaluate(leafT + 0.001)
+            .subtract(evaluate(leafT - 0.001))
+            .normalize();
+          const sideways = new Vector3(-tangent.y, tangent.x, 0).normalize();
+          const crownNormal = new Vector3(tangent).cross(sideways).normalize();
+          const roll = frondRoll + (rng() - 0.5) * 0.5;
+          const leafletAxis = new Vector3(sideways)
+            .scale(Math.cos(roll))
+            .add(new Vector3(crownNormal).scale(Math.sin(roll)))
+            .normalize();
+          const direction = new Vector3(leafletAxis)
+            .scale(side)
+            .add(
+              new Vector3(tangent).scale(0.08 + leafT * 0.2 + side * 0.05 + (rng() - 0.5) * 0.42)
+            )
+            .add([0, 0, -0.04 - leafT * 0.3 - rng() * 0.2])
+            .normalize();
+          const bladeBend = new Vector3(tangent)
+            .scale((rng() - 0.5) * 0.65)
+            .add([(rng() - 0.5) * 0.12, (rng() - 0.5) * 0.12, -0.04 - rng() * 0.32]);
+          const length = (0.08 + fullness * 0.15) * (0.62 + rng() * 0.76) * (side < 0 ? 0.9 : 1.1);
+          for (const [progress, widthScale] of [
+            [0.28, 1],
+            [0.68, 0.55]
+          ]) {
+            const bladeDirection = new Vector3(direction)
+              .add(new Vector3(bladeBend).scale(progress))
+              .normalize();
             const center = new Vector3(point)
-              .add(new Vector3(sideways).scale(side * 0.008))
-              .add(new Vector3(direction).scale(length * progress));
+              .add(new Vector3(sideways).scale(side * 0.018))
+              .add(new Vector3(direction).scale(length * progress))
+              .add(new Vector3(bladeBend).scale(length * progress * progress));
+            const normal = new Vector3(bladeDirection).cross(tangent).normalize();
             add(
               Array.from(center) as Point,
-              [length / 7, ((0.007 + fullness * 0.008) * (1 - progress * 0.55)) / 2, 0.0018],
+              [length * 0.42 * widthScale, (0.006 + fullness * 0.015) * widthScale, 0.0025],
               Array.from(normal) as Point,
-              0.94,
-              Array.from(direction) as Point
+              progress < 0.5 ? 0.56 : 0.44,
+              Array.from(bladeDirection) as Point,
+              [0.91, 1.04, 0.88]
             );
           }
         }
@@ -118,7 +155,7 @@ export function getTreeSplatSource(
     }
   } else if (type === 'pine') {
     // Area-weighted placement keeps wide lower whorls as dense as the apex.
-    for (let i = 0; i < 8192; i++) {
+    for (let i = 0; i < 4096; i++) {
       const z = rng() * 1.04;
       const theta = rng() * Math.PI * 2;
       const outer = samplePineSurface(levels, z, theta);
@@ -128,7 +165,7 @@ export function getTreeSplatSource(
       }
       const radial = Math.sqrt(rng()) * 0.94;
       const point: Point = [outer[0] * radial, outer[1] * radial, z];
-      add(point, [0.02, 0.009, 0.003], [Math.cos(theta), Math.sin(theta), 0.5 + rng() * 0.5], 0.9);
+      add(point, [0.03, 0.015, 0.007], [Math.cos(theta), Math.sin(theta), 0.5 + rng() * 0.5], 0.9);
     }
     const {tipStart, tipEnd} = createPineTiers(levels);
     for (let i = 0; i < 384; i++) {
@@ -156,7 +193,8 @@ export function getTreeSplatSource(
     const totalWeight = weights.reduce((sum, value) => sum + value, 0);
     let clusterIndex = 0,
       cumulativeWeight = weights[0];
-    const leafCount = Math.round(12288 * traits.leafDensity);
+    // Broader, less numerous leaf Gaussians retain crown coverage at the dense-scene LOD floor.
+    const leafCount = Math.round(6144 * traits.leafDensity);
     for (let i = 0; i < leafCount; i++) {
       const target = ((i + 0.5) / leafCount) * totalWeight;
       while (target > cumulativeWeight && clusterIndex < clusters.length - 1)
@@ -181,11 +219,12 @@ export function getTreeSplatSource(
       // Red mangrove has large opposite leathery elliptical leaves; banyan has
       // broad ovate leaves. Lengths are local one-sigma values, not botanical measurements.
       const largeLeaf = type === 'mangrove' || type === 'banyan';
-      const size = (largeLeaf ? 0.011 + rng() * 0.008 : 0.007 + rng() * 0.005) * traits.leafSize;
+      const size = (largeLeaf ? 0.017 + rng() * 0.01 : 0.012 + rng() * 0.008) * traits.leafSize;
       add(
         point,
-        [size, size * (type === 'mangrove' || type === 'citrus' ? 0.38 : 0.55), size * 0.08],
-        normal
+        [size, size * (type === 'mangrove' || type === 'citrus' ? 0.58 : 0.72), size * 0.16],
+        normal,
+        0.8
       );
     }
   }
@@ -202,6 +241,9 @@ export function getTreeSplatSource(
 }
 
 const HIERARCHIES = new WeakMap<SplatSource, SplatHierarchy>();
+// The farthest tree canopy stays a two-point spatial cluster. A one-point covariance proxy can
+// preserve optical mass while collapsing a crown silhouette under a heavily pitched view.
+const MINIMUM_TREE_SPLATS = 2;
 /** Full leaf templates with progressively merged covariance moments for subpixel crowns. */
 export function getTreeSplatHierarchy(
   type: TreeType,
@@ -211,7 +253,9 @@ export function getTreeSplatHierarchy(
   const source = getTreeSplatSource(type, levels, characteristics);
   let hierarchy = HIERARCHIES.get(source);
   if (!hierarchy) {
-    hierarchy = createSplatHierarchy(source, [0.035, 0.075, 0.16, 0.32, 0.64, 1.28, 2.56]);
+    const cellSizes =
+      type === 'palm' ? [0.12, 0.5, 3.2] : [0.035, 0.075, 0.16, 0.32, 0.64, 1.28, 2.56];
+    hierarchy = createSplatHierarchy(source, cellSizes, MINIMUM_TREE_SPLATS);
     HIERARCHIES.set(source, hierarchy);
   }
   return hierarchy;

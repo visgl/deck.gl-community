@@ -1114,7 +1114,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers, @deck.gl-community/layers@workspace:~":
+"@deck.gl-community/layers@workspace:*, @deck.gl-community/layers@workspace:modules/layers":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
@@ -1258,18 +1258,6 @@ __metadata:
 "@deck.gl-community/template@workspace:modules/template":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/template@workspace:modules/template"
-  languageName: unknown
-  linkType: soft
-
-"@deck.gl-community/three@workspace:*, @deck.gl-community/three@workspace:modules/three":
-  version: 0.0.0-use.local
-  resolution: "@deck.gl-community/three@workspace:modules/three"
-  dependencies:
-    "@deck.gl-community/layers": "workspace:~"
-  peerDependencies:
-    "@deck.gl-community/layers": ~9.4.2
-    "@deck.gl/core": ~9.4.0
-    "@deck.gl/mesh-layers": ~9.4.0
   languageName: unknown
   linkType: soft
 
@@ -16387,7 +16375,6 @@ __metadata:
     "@deck.gl-community/layers": "workspace:*"
     "@deck.gl-community/panels": "workspace:*"
     "@deck.gl-community/playground": "workspace:*"
-    "@deck.gl-community/three": "workspace:*"
     "@deck.gl-community/timeline-layers": "workspace:*"
     "@deck.gl/aggregation-layers": "npm:~9.4.0"
     "@deck.gl/core": "npm:~9.4.0"
@@ -17674,11 +17661,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"seasonal-farm-6a8c04@workspace:examples/three/seasonal-farm":
+"seasonal-farm-7257db@workspace:examples/layers/seasonal-farm":
   version: 0.0.0-use.local
-  resolution: "seasonal-farm-6a8c04@workspace:examples/three/seasonal-farm"
+  resolution: "seasonal-farm-7257db@workspace:examples/layers/seasonal-farm"
   dependencies:
-    "@deck.gl-community/three": "workspace:*"
+    "@deck.gl-community/layers": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
     "@deck.gl/mesh-layers": "npm:~9.4.0"
@@ -18115,7 +18102,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sigstore@npm:^4.0.0":
+"sigstore@npm:4.1.1":
   version: 4.1.1
   resolution: "sigstore@npm:4.1.1"
   dependencies:
@@ -18126,6 +18113,20 @@ __metadata:
     "@sigstore/tuf": "npm:^4.0.2"
     "@sigstore/verify": "npm:^3.1.1"
   checksum: 10c0/8ebe0c2a7cb3cf9ed9fb775636ab2ae364cbdea9360ea256ab003d83b83dd5eeda8dd899cffcd3853fe711425c481fab2a74246772d75e3ecb9a9483f6700289
+  languageName: node
+  linkType: hard
+
+"sigstore@patch:sigstore@npm%3A4.1.1#~/.yarn/patches/sigstore-npm-4.1.1-9ab7be1c91.patch":
+  version: 4.1.1
+  resolution: "sigstore@patch:sigstore@npm%3A4.1.1#~/.yarn/patches/sigstore-npm-4.1.1-9ab7be1c91.patch::version=4.1.1&hash=e6365e"
+  dependencies:
+    "@sigstore/bundle": "npm:^4.0.0"
+    "@sigstore/core": "npm:^3.2.1"
+    "@sigstore/protobuf-specs": "npm:^0.5.0"
+    "@sigstore/sign": "npm:^4.1.1"
+    "@sigstore/tuf": "npm:^4.0.2"
+    "@sigstore/verify": "npm:^3.1.1"
+  checksum: 10c0/3ea542018df29c004dd24599e90583d3ac404f3a5f029e811542e26d63fe1726eaf003705aa08aaa6fe7c138583424ea3dd0f6437742339aacdd026c33ae614c
   languageName: node
   linkType: hard
 

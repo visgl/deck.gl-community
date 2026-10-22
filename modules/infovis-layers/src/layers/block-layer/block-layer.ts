@@ -20,10 +20,10 @@ import {
 } from '@deck.gl/core';
 import {Geometry, Model} from '@luma.gl/engine';
 
-import fs from './block-layer-fragment.glsl';
+import fs from './block-layer-fragment.glsl.js';
 import {BlockProps, blockUniforms} from './block-layer-uniforms';
-import vs from './block-layer-vertex.glsl';
-import source from './block-layer.wgsl';
+import vs from './block-layer-vertex.glsl.js';
+import source from './block-layer.wgsl.js';
 
 const DEFAULT_COLOR: [number, number, number, number] = [0, 0, 0, 255];
 
