@@ -4,6 +4,7 @@
 
 import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {
+  BasePointerEvent,
   ModeProps,
   ClickEvent,
   PointerMoveEvent,
@@ -47,6 +48,10 @@ export class CompositeMode extends GeoJsonEditMode {
 
   handlePointerMove(event: PointerMoveEvent, props: ModeProps<SimpleFeatureCollection>): void {
     return this._coalesce(handler => handler.handlePointerMove(event, props));
+  }
+
+  ownsPointerDown(event: BasePointerEvent, props: ModeProps<SimpleFeatureCollection>): boolean {
+    return this._modes.some(mode => mode.ownsPointerDown(event, props));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>): void {

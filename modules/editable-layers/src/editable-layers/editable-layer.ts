@@ -157,6 +157,8 @@ export abstract class EditableLayer<
         // Ground coordinates where the pointer went down
         pointerDownMapCoords: null,
         pressScreenCoords: null,
+        // Whether editing ('edit') or the parent map ('map') received the current primary press
+        pressOwner: null,
         didDrag: false,
         canvas,
         eventTarget: this.props.eventTarget || canvas,
@@ -275,6 +277,11 @@ export abstract class EditableLayer<
     return false;
   }
 
+  /** Returns whether editing uses a primary mouse press; other presses go to the parent map. */
+  _ownsPointerDown(_event: MouseEvent): boolean {
+    return true;
+  }
+
   _onNativeMapInteraction(event: Event) {
     const preventMapInteractions =
       this.props.autoPreventMapInteractions !== false && this.props.visible && this._isEditing();
@@ -294,6 +301,11 @@ export abstract class EditableLayer<
       }
       if (block) event.stopPropagation();
     } else if (preventMapInteractions && (event as MouseEvent).button === 0) {
+      if (event.type === 'mousedown') {
+        const editableState = this.state._editableLayerState;
+        editableState.pressOwner = this._ownsPointerDown(event as MouseEvent) ? 'edit' : 'map';
+        if (editableState.pressOwner === 'map') return;
+      }
       // MapLibre/Mapbox handle these on the canvas container. Other listeners
       // on the canvas, including deck.gl's pointer recognizer, still receive them.
       event.stopPropagation();
@@ -307,8 +319,13 @@ export abstract class EditableLayer<
       if ((event as PointerEvent).isPrimary !== false) {
         editableState.didDrag = false;
         editableState.pressScreenCoords = this.getScreenCoords(event);
+        editableState.pressOwner = null;
       }
       return;
+    }
+    if (event.type === 'click' && editableState.pressOwner === 'edit') {
+      // The map never saw this press, so it would pair the click with an older mousedown.
+      event.stopPropagation();
     }
     if (
       event.button !== 0 ||

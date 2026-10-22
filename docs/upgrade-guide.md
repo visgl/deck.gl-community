@@ -143,6 +143,11 @@ If the application owns gesture coordination, set `autoPreventMapInteractions: f
 both the editable and selection layers. Right-button navigation, wheel zoom, and multi-touch
 gestures retain their existing behavior.
 
+Mouse presses that the active mode does not use, such as presses away from edit handles while
+drawing by clicks or in `ModifyMode`, pan and click the map. Custom modes that override drag
+handlers keep every primary press until they implement
+[`ownsPointerDown`](./modules/editable-layers/developer-guide/geojson-types.md).
+
 ### `@deck.gl-community/panels`
 
 Panel APIs now use panel-oriented names consistently:

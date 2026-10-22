@@ -10,7 +10,7 @@ import {pointToLineDistance} from '@turf/point-to-line-distance';
 import {point, lineString} from '@turf/helpers';
 import {getCoords} from '@turf/invariant';
 import {WebMercatorViewport} from '@math.gl/web-mercator';
-import {Viewport, Pick, EditHandleFeature, EditHandleType, StartDraggingEvent} from './types';
+import {Viewport, Pick, EditHandleFeature, EditHandleType, BasePointerEvent} from './types';
 import {
   SimpleGeometry,
   Position,
@@ -572,7 +572,7 @@ export function mapCoords(
     .filter(Boolean);
 }
 
-export function shouldCancelPan(event: StartDraggingEvent) {
+export function shouldCancelPan(event: BasePointerEvent) {
   return event.picks.length && event.picks.find(p => p.featureType === 'points');
 }
 

@@ -5,7 +5,14 @@
 import type {SnappingStrategy} from './snapping/snapping-strategy';
 
 import throttle from 'lodash.throttle';
-import {ClickEvent, StartDraggingEvent, StopDraggingEvent, DraggingEvent, ModeProps} from './types';
+import {
+  BasePointerEvent,
+  ClickEvent,
+  StartDraggingEvent,
+  StopDraggingEvent,
+  DraggingEvent,
+  ModeProps
+} from './types';
 import {Polygon, SimpleFeatureCollection} from '../utils/geojson-types';
 import {getPickedEditHandle} from './utils';
 import {DrawPolygonMode} from './draw-polygon-mode';
@@ -32,6 +39,11 @@ export class DrawPolygonByDraggingMode extends DrawPolygonMode {
 
   handleClick(event: ClickEvent, props: ModeProps<SimpleFeatureCollection>) {
     // No-op
+  }
+
+  /** Every press starts a polygon. */
+  ownsPointerDown(_event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
+    return true;
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

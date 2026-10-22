@@ -2,6 +2,17 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- `EditableGeoJsonLayer` and `SelectionLayer` in interleaved or overlaid MapLibre/Mapbox maps keep
+  only the mouse presses that the edit mode uses from the map: presses on edit handles, on the
+  selection in `TranslateMode`, and every press in drag-to-draw modes. Other presses pan and click
+  the map, so drawing by clicks or editing in `ModifyMode` no longer needs
+  `autoPreventMapInteractions: false` or a disabled `dragPan`, and MapLibre `click` events no
+  longer go missing during editing. Custom modes can declare their presses with the new optional
+  `EditMode.ownsPointerDown()`; modes that override drag handlers without it keep every press.
+  Double-clicks and single-finger touch gestures are unchanged.
+
 ## v9.4.6
 
 - **Breaking:** Removed the deprecated `@deck.gl-community/three` compatibility workspace. Import

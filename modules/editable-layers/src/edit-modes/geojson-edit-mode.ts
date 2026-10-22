@@ -10,6 +10,7 @@ import {rewind} from '@turf/rewind';
 
 import {
   EditAction,
+  BasePointerEvent,
   ClickEvent,
   PointerMoveEvent,
   StartDraggingEvent,
@@ -41,6 +42,16 @@ const DEFAULT_GUIDES: GuideFeatureCollection = {
   features: []
 };
 const DEFAULT_TOOLTIPS: Tooltip[] = [];
+
+// Drag modes written before ownsPointerDown may use any press, so they keep owning all of them.
+function hasCustomDragHandlers(mode: GeoJsonEditMode): boolean {
+  const base = GeoJsonEditMode.prototype;
+  return (
+    mode.handleStartDragging !== base.handleStartDragging ||
+    mode.handleDragging !== base.handleDragging ||
+    mode.handleStopDragging !== base.handleStopDragging
+  );
+}
 
 /**
  * An edit mode for GeoJSON features with simple geometries and typed editing guides.
@@ -283,6 +294,14 @@ export class GeoJsonEditMode implements EditMode<SimpleFeatureCollection, GuideF
       });
     }
   }
+  /**
+   * Owns presses on this mode's edit handles. Subclasses that handle drags without overriding
+   * this method keep owning every primary press.
+   */
+  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
+    return getPickedEditHandles(event.picks).length > 0 || hasCustomDragHandlers(this);
+  }
+
   handleStartDragging(
     _event: StartDraggingEvent,
     _props: ModeProps<SimpleFeatureCollection>

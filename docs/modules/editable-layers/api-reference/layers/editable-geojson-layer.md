@@ -82,8 +82,16 @@ There are a extensive number of modes that come out-of-the-box with from '@deck.
 
 - Default: `true`
 
-Prevents edit gestures from panning the parent MapLibre/Mapbox map. Multi-touch navigation
-remains available; set to `false` to manage gesture propagation yourself.
+Keeps the presses that the active mode uses from reaching the parent MapLibre/Mapbox map:
+presses on edit handles, on the selection in `TranslateMode`, and every press in drag-to-draw
+modes such as `DrawPolygonByDraggingMode` or `modeConfig.dragToDraw`. Other primary mouse
+presses pan and click the map, so click-to-draw and `ModifyMode` sessions can still navigate.
+The click that ends a kept press does not reach the map either. Double-clicks and single-finger
+touch gestures stay with editing while a mode other than `ViewMode` is active; multi-touch
+navigation remains available. Set to `false` to manage gesture propagation yourself.
+
+Modes decide which presses they use with `ownsPointerDown(event, props)`. Custom modes that
+override a drag handler without implementing it keep every primary press.
 
 #### `eventTarget` (HTMLElement, optional) {/* #eventtarget */}
 

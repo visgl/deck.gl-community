@@ -13,6 +13,7 @@ import {point, featureCollection, lineString} from '@turf/helpers';
 import {transformRotate} from '@turf/transform-rotate';
 import {polygonToLine} from '@turf/polygon-to-line';
 import {
+  BasePointerEvent,
   PointerMoveEvent,
   StartDraggingEvent,
   StopDraggingEvent,
@@ -122,6 +123,11 @@ export class RotateMode extends GeoJsonEditMode {
     }
 
     this.updateCursor(props);
+  }
+
+  /** Owns presses on the rotate handle. */
+  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
+    return Boolean(getPickedEditHandle(event.picks));
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

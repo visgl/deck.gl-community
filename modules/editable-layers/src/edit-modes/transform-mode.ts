@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import {featureCollection} from '@turf/helpers';
-import {PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
+import {BasePointerEvent, PointerMoveEvent, ModeProps, StartDraggingEvent} from './types';
 import {SimpleFeatureCollection} from '../utils/geojson-types';
 import {TranslateMode} from './translate-mode';
 import {ScaleMode} from './scale-mode';
@@ -33,6 +33,11 @@ export class TransformMode extends CompositeMode {
       }
     });
     props.onUpdateCursor(updatedCursor);
+  }
+
+  /** Owns presses on anything this layer picks, as `handleStartDragging` cancels their pan. */
+  ownsPointerDown(event: BasePointerEvent, _props: ModeProps<SimpleFeatureCollection>): boolean {
+    return event.picks.length > 0;
   }
 
   handleStartDragging(event: StartDraggingEvent, props: ModeProps<SimpleFeatureCollection>) {

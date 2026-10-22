@@ -473,6 +473,16 @@ export class EditableGeoJsonLayer extends EditableLayer<
     return Boolean(this.state.mode) && !(this.state.mode instanceof ViewMode);
   }
 
+  _ownsPointerDown(event: MouseEvent): boolean {
+    const mode = this.getActiveMode();
+    if (!mode.ownsPointerDown) {
+      return true;
+    }
+    // Without map coordinates the press cannot edit, so it stays with the map.
+    const pointerEvent = this.toBasePointerEvent(event);
+    return pointerEvent ? mode.ownsPointerDown(pointerEvent, this.getModeProps(this.props)) : false;
+  }
+
   getModeProps<DataT>(props: EditableGeoJsonLayerProps<DataT>): ModeProps<DataT> {
     return {
       modeConfig: props.modeConfig,
@@ -664,7 +674,10 @@ export class EditableGeoJsonLayer extends EditableLayer<
   onStartDragging(event: StartDraggingEvent): void {
     // A native context menu may swallow pointerup, leaving the recognizer active on hover.
     const isDraggingWithPrimaryButton =
-      isPrimaryButtonEvent(event) && event.sourceEvent?.buttons !== 0;
+      isPrimaryButtonEvent(event) &&
+      event.sourceEvent?.buttons !== 0 &&
+      // A press left to the parent map pans it; editing must not also drag.
+      this.state._editableLayerState.pressOwner !== 'map';
     this.setState({isDraggingWithPrimaryButton});
     if (!isDraggingWithPrimaryButton) {
       return;
