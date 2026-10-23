@@ -6,6 +6,21 @@ Please refer the documentation of each module for detailed upgrade guides.
 
 ## Unreleased
 
+### `SelectionPulseExtension` moves to `@deck.gl-community/extensions`
+
+v9.4.7 exported `SelectionPulseExtension` from `@deck.gl-community/layers`. It now lives in the new
+`@deck.gl-community/extensions` module and is no longer exported from `layers`. Install the new
+package and change the import; the props and behavior are unchanged:
+
+```ts
+// Before (v9.4.7)
+import {SelectionPulseExtension} from '@deck.gl-community/layers';
+// After
+import {SelectionPulseExtension} from '@deck.gl-community/extensions';
+```
+
+`TreeLayer` and `SplatLayer` still pulse with the extension on WebGL2 and WebGPU.
+
 ### `@deck.gl-community/layers`: `SplatLayer` scenes
 
 `transparency` now defaults to `'auto'`. It keeps decoded prepared assets, including `TreeLayer`

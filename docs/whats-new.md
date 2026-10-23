@@ -4,6 +4,11 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
+  extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
+  released in v9.4.7 from `@deck.gl-community/layers`, moves there; import it from
+  `@deck.gl-community/extensions`. See the [upgrade guide](./upgrade-guide.md).
+
 - `SplatLayer` renders sorted Cartesian scenes: URL/Blob RAD files with off-thread range loading,
   bounded page residency and retained camera refinement, plus static SPLAT/KSPLAT/SPZ files decoded
   in a worker. Scenes share source residency, one global order per viewport and `sortDomain`,
@@ -40,7 +45,7 @@ This page lists module additions and major changes in each release. For detailed
   (edit handles, drag-to-draw) from the map, so the map pans and clicks while drawing by clicks or
   in `ModifyMode`. Custom drag modes can declare their presses with `EditMode.ownsPointerDown()`.
 
-- [`SelectionPulseExtension`](/docs/modules/layers/api-reference/selection-pulse-extension) (new)
+- [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension) (new)
   pulses selected objects on the GPU. A selection change writes one value per object from
   `getSelected`; each animation frame sets only uniforms, so a pulse reruns no color accessor and
   uploads no attributes. It works on deck.gl layers with the GLSL `DECKGL_FILTER_COLOR` hook, such

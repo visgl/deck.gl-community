@@ -8,8 +8,8 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 /**
  * deck.gl 9.4 has no WGSL shader hooks. A layer accepts vertex color filters on WebGPU by placing
  * this line in its vertex entry point where `vertexColor` (a mutable `vec4<f32>`) and
- * `instanceIndex` (`u32`) are in scope; filters inject code after it. The splat canopy and tree
- * mesh layers in this module expose it.
+ * `instanceIndex` (`u32`) are in scope; filters inject code after it. `SplatLayer` and
+ * `TreeLayer` in `@deck.gl-community/layers` expose it.
  */
 export const WGSL_FILTER_COLOR_ANCHOR = '// DECKGL_FILTER_COLOR(vertexColor, instanceIndex)';
 

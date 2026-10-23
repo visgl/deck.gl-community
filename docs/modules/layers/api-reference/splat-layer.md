@@ -57,8 +57,9 @@ including their transforms and wind pose. Cartesian owner rows with prepared sou
 use `opticalDepths` use the scene renderer, so those rows can share one order with file/RAD scenes
 and other compatible owner rows. Use `sortDomain` to coordinate scene layers. `weighted` explicitly
 selects the approximate prepared-foliage path and rejects file scenes.
-[`SelectionPulseExtension`](./selection-pulse-extension.md) pulses selected owners with weighted
-transparency; sorted and scene rendering draw Gaussians without owner instances and do not pulse.
+[`SelectionPulseExtension`](../../extensions/api-reference/selection-pulse-extension.md) pulses
+selected owners with weighted transparency; sorted and scene rendering draw Gaussians without owner
+instances and do not pulse.
 
 The legacy `data: objects, source, hierarchy` form remains supported. It conflicts with direct
 asset data or an explicit `getSource`; place new hierarchies in the prepared descriptor instead.
