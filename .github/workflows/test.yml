@@ -237,8 +237,32 @@ jobs:
           path: modules/basemap-layers/tests/reference-render/__output__
           if-no-files-found: ignore
 
+      - name: Verify WebGPU layers with a required software adapter
+        # Unrelated browser failures must not suppress the backend verification.
+        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        run: yarn vitest run --project headless modules/layers/test/webgpu-layers.browser.spec.ts modules/layers/test/splat-layer/webgpu-layers.browser.spec.ts modules/layers/test/selection-pulse-extension/selection-pulse-extension.browser.spec.ts modules/layers/test/tree-layer/webgpu-layers.browser.spec.ts modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts modules/layers/test/volumetric-video-layer/volumetric-video-layer.browser.spec.ts examples/layers/flame-trail/scene.browser.spec.ts examples/layers/volumetric-video/app.browser.spec.ts -t "webgpu|WebGPU"
+        env:
+          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
+
+      - name: Check out the upstream WebGPU terrain port
+        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: visgl/deck.gl
+          # Temporary integration pin until deck.gl#10751 is released.
+          ref: 98dbf01f74641c3d12283522bf2e9561fed00d82
+          path: .terrain-sdk
+
+      - name: Verify WebGPU terrain fitting against the upstream port
+        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        run: yarn vitest run --project headless modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts -t webgpu
+        env:
+          DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
+          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
+
       # Report only: scores BasemapLayer against MapLibre on the shared conformance corpus
-      # (dev/basemap-conformance). Neither step can fail the job.
+      # (dev/basemap-conformance). Neither step can fail the job, and they run last so that they
+      # cannot slow down or starve the GPU-bound verification steps above.
       - name: Render the basemap conformance corpus
         id: conformance
         if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
@@ -262,29 +286,6 @@ jobs:
             dev/basemap-conformance/__output__/scores.json
             dev/basemap-conformance/__output__/images
           if-no-files-found: ignore
-
-      - name: Verify WebGPU layers with a required software adapter
-        # Unrelated browser failures must not suppress the backend verification.
-        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
-        run: yarn vitest run --project headless modules/layers/test/webgpu-layers.browser.spec.ts modules/layers/test/splat-layer/webgpu-layers.browser.spec.ts modules/layers/test/selection-pulse-extension/selection-pulse-extension.browser.spec.ts modules/layers/test/tree-layer/webgpu-layers.browser.spec.ts modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts modules/layers/test/volumetric-video-layer/volumetric-video-layer.browser.spec.ts examples/layers/flame-trail/scene.browser.spec.ts examples/layers/volumetric-video/app.browser.spec.ts -t "webgpu|WebGPU"
-        env:
-          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
-
-      - name: Check out the upstream WebGPU terrain port
-        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: visgl/deck.gl
-          # Temporary integration pin until deck.gl#10751 is released.
-          ref: 98dbf01f74641c3d12283522bf2e9561fed00d82
-          path: .terrain-sdk
-
-      - name: Verify WebGPU terrain fitting against the upstream port
-        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
-        run: yarn vitest run --project headless modules/layers/test/flame-trail-layer/flame-trail-layer.browser.spec.ts -t webgpu
-        env:
-          DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
-          DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
   website-build:
     runs-on: ubuntu-26.04
