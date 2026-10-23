@@ -52,7 +52,7 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
   const inspector = new PinnablePanelContainer({
     title: 'Inspector',
     side: 'right',
-    placement: 'top-right',
+    placement: 'top-left',
     widthPx: 280,
     panel: new InspectorPanel({
       id: 'inspector-content',
