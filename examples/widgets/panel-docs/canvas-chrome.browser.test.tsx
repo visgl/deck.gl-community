@@ -12,11 +12,25 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     await settle();
     const canvas = host.querySelector('canvas')!;
     const originalWidth = canvas.getBoundingClientRect().width;
+    const content = canvas.parentElement!;
+    const center = content.parentElement!;
+    const inspector = host.querySelector<HTMLElement>('[data-pinnable="true"]')!;
+    expect(center.contains(inspector)).toBe(true);
+    expect(getComputedStyle(inspector).borderRadius).toBe('12px');
+    const pinButton = inspector.querySelector<HTMLButtonElement>('[aria-label="Pin panel"]')!;
+    expect(pinButton.title).toBe('Pin panel');
+    expect(pinButton.textContent).toBe('');
+    expect(pinButton.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     const input = host.querySelector('input')!;
     input.value = 'Preserved scene';
     host.querySelector<HTMLButtonElement>('[aria-label="Pin panel"]')!.click();
     await settle();
     expect(host.textContent).toContain('Pinned right');
+    expect(center.contains(inspector)).toBe(false);
+    expect(content.contains(inspector)).toBe(false);
+    expect(inspector.parentElement?.getAttribute('data-side')).toBe('right');
+    expect(getComputedStyle(inspector).borderRadius).toBe('0px');
+    expect(getComputedStyle(inspector).boxShadow).toBe('none');
     expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth - 280);
     expect(canvas.width).toBe(
       Math.round(canvas.getBoundingClientRect().width * window.devicePixelRatio)
@@ -29,6 +43,8 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth);
     host.querySelector<HTMLButtonElement>('[aria-label="Unpin panel"]')!.click();
     await settle();
+    expect(center.contains(inspector)).toBe(true);
+    expect(getComputedStyle(inspector).borderRadius).toBe('12px');
     expect(host.querySelector('input')).toBe(input);
     expect(input.value).toBe('Preserved scene');
   } finally {

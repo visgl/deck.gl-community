@@ -44,6 +44,10 @@ const PANEL_CHROME_STYLES = `.deck-panel-layout {
   backdrop-filter: var(--menu-backdrop-filter, unset);
   box-shadow: var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.16));
 }
+.deck-panel-chrome[data-pinnable="true"][data-pinned="true"] {
+  border-radius: 0;
+  box-shadow: none;
+}
 .deck-panel-chrome[data-pinnable="true"] > .deck-panel-chrome-shell {
   box-sizing: border-box;
   border: var(--menu-border, 1px solid rgba(148, 163, 184, 0.35));
@@ -58,8 +62,11 @@ const PANEL_CHROME_STYLES = `.deck-panel-layout {
   color: var(--button-text, currentColor);
 }
 .deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  padding: 6px 8px;
+  padding: 6px;
   border: none;
   border-radius: 6px;
   background: transparent;

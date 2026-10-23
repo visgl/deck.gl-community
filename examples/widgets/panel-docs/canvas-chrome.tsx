@@ -105,9 +105,9 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
     const context = canvas.getContext('2d');
     if (!context) return;
     context.scale(ratio, ratio);
-    context.fillStyle = '#183044';
+    context.fillStyle = '#e5e7eb';
     context.fillRect(0, 0, width, height);
-    context.strokeStyle = '#31556e';
+    context.strokeStyle = '#cbd0d6';
     for (let x = 0; x < width; x += 40) {
       context.beginPath();
       context.moveTo(x, 0);
@@ -120,7 +120,7 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
       context.lineTo(width, y);
       context.stroke();
     }
-    context.fillStyle = '#fff';
+    context.fillStyle = '#374151';
     context.font = '16px system-ui';
     context.fillText(`Canvas: ${Math.round(width)} × ${Math.round(height)}`, 20, height - 24);
   };
