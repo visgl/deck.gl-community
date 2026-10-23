@@ -151,7 +151,6 @@ const config = {
             '@deck.gl-community/arrow-layers': resolve('../modules/arrow-layers/src'),
             '@deck.gl-community/editable-layers': resolve('../modules/editable-layers/src'),
             '@deck.gl-community/experimental': resolve('../modules/experimental/src'),
-            '@deck.gl-community/extensions': resolve('../modules/extensions/src'),
             '@deck.gl-community/panels': resolve('../modules/panels/src'),
             '@deck.gl-community/playground': resolve('../modules/playground/src'),
             '@deck.gl-community/widgets': resolve('../modules/widgets/src'),

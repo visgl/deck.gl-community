@@ -16,8 +16,7 @@ import {CubeGeometry} from '@luma.gl/engine';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import 'maplibre-gl';
 import {describe, expect, it} from 'vitest';
-import {SelectionPulseExtension} from '../../../extensions/src';
-import {SplatLayer, TreeLayer, type TreeSpec} from '../../src';
+import {SelectionPulseExtension, SplatLayer, TreeLayer, type TreeSpec} from '../../src';
 
 const SIZE = 256;
 const CUBE = new CubeGeometry();

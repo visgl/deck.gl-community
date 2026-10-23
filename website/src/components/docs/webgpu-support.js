@@ -56,7 +56,6 @@ const MODULE_STATUS = {
   'bing-maps': 'unsupported',
   'editable-layers': 'partial',
   experimental: 'unsupported',
-  extensions: 'partial',
   'geo-layers': 'partial',
   'graph-layers': 'partial',
   'infovis-layers': 'partial',
