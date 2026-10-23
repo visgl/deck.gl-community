@@ -1,14 +1,27 @@
+.panelHost {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.sourceLink {
+  display: block;
+  margin-top: 12px;
+  color: var(--panel-accent-color);
+}
+
 .infoPanelContent hr {
-  margin: 12px -24px;
+  margin: 12px 0;
   border: none;
-  background: var(--ifm-color-gray-400);
+  background: var(--menu-divider);
   height: 1px;
 }
 
 .infoPanelContent a {
   text-decoration: none;
   display: inline;
-  color: var(--ifm-color-primary);
+  color: var(--panel-accent-color);
 }
 
 .infoPanelContent p {

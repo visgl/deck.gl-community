@@ -1,4 +1,5 @@
 import React, {useEffect, useRef} from 'react';
+import {EXAMPLE_PANEL_STYLE} from '../../../../examples/utils/panel-theme';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import '@deck.gl/widgets/stylesheet.css';
 
@@ -860,6 +861,7 @@ async function mountInfoDeck(container, {title, markdown}, mountProps = {}) {
     widgets: [
       ...(mountProps.widgets ?? []),
       new BoxPanelWidget({
+        style: EXAMPLE_PANEL_STYLE,
         id: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-docs-info`,
         placement: 'top-left',
         widthPx: 380,

@@ -6,6 +6,7 @@
     "start": "yarn --cwd ../../.. vite modules/vega/demo"
   },
   "dependencies": {
+    "@deck.gl-community/panels": "workspace:*",
     "react": "^18.3.1"
   }
 }

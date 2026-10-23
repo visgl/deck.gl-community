@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, WebMercatorViewport, type MapViewState, type PickingInfo} from '@deck.gl/core';
 import {
   DependencyArrowLayer,
@@ -227,6 +228,7 @@ export function mountPathOutlineAndMarkersExample(
         ? []
         : [
             new BoxPanelWidget({
+              style: EXAMPLE_PANEL_STYLE,
               id: 'path-outline-and-markers-info',
               placement: 'top-left',
               widthPx: 300,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, MapView, type MapViewState} from '@deck.gl/core';
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
@@ -448,6 +449,7 @@ export function mountSharedTile2DLayerExample(
     options.showInfoWidget === false
       ? null
       : new BoxPanelWidget({
+          style: EXAMPLE_PANEL_STYLE,
           id: 'shared-tile-2d-layer-info',
           placement: 'top-left',
           widthPx: mode === 'compact' ? 286 : 340,
