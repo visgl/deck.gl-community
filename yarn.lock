@@ -816,6 +816,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community-examples/vega-geospatial@workspace:examples/vega/geospatial"
   dependencies:
+    "@deck.gl-community/panels": "workspace:*"
     vega: "npm:^6.2.0"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -825,6 +826,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community-examples/vega-map-to-stacks@workspace:examples/vega/map-to-stacks"
   dependencies:
+    "@deck.gl-community/panels": "workspace:*"
     vega: "npm:^6.2.0"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -834,6 +836,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community-examples/vega-mark-transitions@workspace:examples/vega/mark-transitions"
   dependencies:
+    "@deck.gl-community/panels": "workspace:*"
     vega: "npm:^6.2.0"
     vite: "npm:^7.3.1"
   languageName: unknown
@@ -843,6 +846,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community-examples/vega-unit-layouts@workspace:examples/vega/unit-layouts"
   dependencies:
+    "@deck.gl-community/panels": "workspace:*"
     react: "npm:^18.3.1"
   languageName: unknown
   linkType: soft
@@ -8623,6 +8627,8 @@ __metadata:
   resolution: "basemap-layers-split-view-example@workspace:examples/basemap-layers/split-view"
   dependencies:
     "@deck.gl-community/basemap-layers": "workspace:*"
+    "@deck.gl-community/panels": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/extensions": "npm:~9.4.0"
     "@deck.gl/geo-layers": "npm:~9.4.0"
@@ -13028,6 +13034,8 @@ __metadata:
   resolution: "infovis-layer-primitives-example@workspace:examples/infovis-layers/layer-primitives"
   dependencies:
     "@deck.gl-community/infovis-layers": "workspace:*"
+    "@deck.gl-community/panels": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/layers": "npm:~9.4.0"
     "@loaders.gl/core": "npm:^4.5.1"
@@ -20909,6 +20917,8 @@ __metadata:
   resolution: "wind-layer-example@workspace:examples/geo-layers/wind"
   dependencies:
     "@deck.gl-community/geo-layers": "workspace:*"
+    "@deck.gl-community/panels": "workspace:*"
+    "@deck.gl-community/widgets": "workspace:*"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/extensions": "npm:~9.4.0"
     "@deck.gl/geo-layers": "npm:~9.4.0"

@@ -29,16 +29,16 @@
 }
 .trees-camera button {
   padding: 5px 8px;
-  border: 1px solid #9ead99;
+  border: 1px solid var(--menu-border-color, #9ead99);
   border-radius: 4px;
   color: inherit;
-  background: #fff;
+  background: var(--menu-weak-background, #fff);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
 }
 .trees-camera button:hover {
-  background: #edf2e8;
+  background: var(--panel-hover-background, #edf2e8);
 }
 .trees-camera button[aria-pressed='true'] {
   border-color: #356d34;

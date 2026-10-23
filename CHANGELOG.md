@@ -1,5 +1,9 @@
 # deck.gl-community CHANGELOG
 
+## Unreleased
+
+- Use current panel containers, React/HTML content bridges, and shared sleek-dark styling throughout community examples and inline demos. Add an optional Playground theme for sidebar, editor, and picker styling.
+
 ## v9.4.8
 
 - Read border-only glyph bitmaps without treating them as missing ink in `BasemapLayer` (#973).

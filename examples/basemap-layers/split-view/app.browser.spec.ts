@@ -15,16 +15,34 @@ const mocks = vi.hoisted(() => ({
   maxPitch: 60
 }));
 
-vi.mock('@deck.gl/core', () => {
+vi.mock('@deck.gl/core', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deck.gl/core')>();
   class View {}
   return {
+    ...actual,
     MapView: View,
     FirstPersonView: View,
     _GlobeView: View,
     WebMercatorViewport: View,
     Deck: class {
+      private widgets: import('@deck.gl/core').Widget[];
+      constructor({
+        parent,
+        widgets = []
+      }: {parent: HTMLElement; widgets?: import('@deck.gl/core').Widget[]}) {
+        this.widgets = widgets;
+        for (const widget of widgets) {
+          widget.deck = this as never;
+          widget.rootElement = widget._onAdd({deck: this as never, viewId: null});
+          parent.append(widget.rootElement);
+          widget.updateHTML();
+        }
+      }
       setProps() {}
-      finalize = mocks.finalize;
+      finalize() {
+        for (const widget of this.widgets) widget.onRemove();
+        mocks.finalize();
+      }
     }
   };
 });

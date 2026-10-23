@@ -4,6 +4,9 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
+  panel preset or custom theme through `theme`, including its editors and example picker.
+
 - Shorter [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) and
   [`SplatLayer`](/docs/modules/layers/api-reference/splat-layer) reference pages. The TreeLayer docs
   demo and the [TreeLayer example](/examples/layers/tree-lab) now use a settings panel for season,

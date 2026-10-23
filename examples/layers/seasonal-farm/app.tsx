@@ -17,6 +17,7 @@ import type {Device} from '@luma.gl/core';
 import {TreeLayer} from '@deck.gl-community/layers';
 import {SettingsPanel, type SettingsState} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {
   createFarmPlots,
   createTreeSamples,
@@ -99,12 +100,16 @@ export function mountSeasonalFarmExample(
   let settings = HOST_SETTINGS.get(container) ?? DEFAULT_FARM_SETTINGS;
   root.dataset.season = settings.season;
   let farm = FARMS[container.clientWidth < NARROW_WIDTH ? 0 : 1];
+  // Keep the planting fitted to the container until the camera moves. The website can mount the
+  // demo before its container has a size.
+  let fitted = !options.initialViewState;
   let currentView: MapViewState = {
     ...(options.initialViewState ??
       getFarmView(container.clientWidth, container.clientHeight, farm.plots)),
     ...VIEW_LIMITS
   };
   const controls = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'seasonal-farm-controls',
     title: 'TreeLayer',
     placement: 'top-left',
@@ -132,6 +137,9 @@ export function mountSeasonalFarmExample(
     initialViewState: currentView,
     controller: {type: MapController, touchRotate: true},
     onViewStateChange(params) {
+      // MapController also reports programmatic camera updates, without any active interaction.
+      const {isDragging, isPanning, isRotating, isZooming} = params.interactionState;
+      if (isDragging || isPanning || isRotating || isZooming) fitted = false;
       currentView = options.onViewStateChange?.(params) || params.viewState;
       return currentView as typeof params.viewState;
     },
@@ -141,8 +149,9 @@ export function mountSeasonalFarmExample(
       // A website-managed device starts with a 1×1 canvas before reparenting.
       const {clientWidth: width, clientHeight: height} = container;
       const next = FARMS[width < NARROW_WIDTH ? 0 : 1];
-      if (next === farm) return;
+      if (next === farm && !fitted) return;
       farm = next;
+      fitted = true;
       const viewState = getFarmView(width, height, farm.plots);
       currentView =
         options.onViewStateChange?.({

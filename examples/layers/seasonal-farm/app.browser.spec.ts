@@ -224,9 +224,11 @@ describe('Seasonal Farm integration', () => {
         expect(viewport().longitude).toBe(navigated.longitude);
         expect(viewport().bearing).toBe(navigated.bearing);
         expect(parent.querySelectorAll('.seasonal-farm')).toHaveLength(1);
+        // Layout switches refit the farm, and so does any resize until the camera moves.
         for (const [width, height, columns] of [
           [390, 740, 2],
-          [900, 600, 3]
+          [900, 600, 3],
+          [800, 480, 3]
         ]) {
           Object.assign(parent.style, {width: `${width}px`, height: `${height}px`});
           await expect.poll(() => viewport().width, {timeout: 5000}).toBe(width);

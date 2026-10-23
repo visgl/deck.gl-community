@@ -26,6 +26,7 @@ import {
   type SettingsState
 } from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {
   CROWN_PROFILES,
   DEFAULT_TREE_LAB_SETTINGS,
@@ -933,6 +934,7 @@ export function mountTreeLabExample(
     return () => element.removeEventListener('click', onClick);
   };
   const controls = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'tree-lab-controls',
     title: 'TreeLayer',
     placement: 'top-left',

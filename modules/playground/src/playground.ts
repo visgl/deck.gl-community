@@ -5,10 +5,14 @@
 import {
   CustomPanel,
   PanelManager,
+  PANEL_THEME_PRESETS,
+  resolvePanelThemeVariables,
   SidebarPanelContainer,
   TabbedPanel,
   TextEditorPanel,
-  type Panel
+  type Panel,
+  type PanelThemePreset,
+  type PanelThemeDefinition
 } from '@deck.gl-community/panels';
 import {registerPlaygroundTools, type PlaygroundWebMCPOptions} from './playground-webmcp';
 
@@ -60,6 +64,8 @@ export type PlaygroundRenderer = {
 export type PlaygroundProps = {
   /** Element into which the playground UI is mounted. */
   parentElement: HTMLElement;
+  /** Optional preset or custom theme for sidebar panels and editors. */
+  theme?: PanelThemePreset | PanelThemeDefinition;
   /** Named objects or text documents shown in the example card picker. */
   templates: Record<string, PlaygroundTemplate>;
   /** Monaco language identifier; defaults to JSON. Hosts register additional languages. */
@@ -153,7 +159,14 @@ export class Playground {
       className: 'deckgl-playground-template-picker-panel',
       onRenderHTML: this.renderPicker
     });
+    const theme =
+      typeof props.theme === 'string'
+        ? PANEL_THEME_PRESETS[props.theme]
+        : props.theme
+          ? resolvePanelThemeVariables(props.theme)
+          : undefined;
     this.sidebarContainer = new SidebarPanelContainer({
+      style: theme ? {...theme, color: 'var(--menu-text)'} : undefined,
       id: 'playground-json-sidebar',
       className: 'deckgl-playground-sidebar',
       title: props.editorTitle ?? 'JSON',
@@ -218,7 +231,7 @@ export class Playground {
       onValueChange: this.handleTextChange,
       language: this.props.language ?? 'json',
       jsonSchema: (this.props.language ?? 'json') === 'json' ? this.props.jsonSchema : undefined,
-      theme: 'invert'
+      theme: this.props.theme ? 'inherit' : 'invert'
     });
     editorPanel.placement = 'fill';
     this.editorPanel = editorPanel;
@@ -478,7 +491,7 @@ function ensurePlaygroundStyles(document: Document): void {
     .deckgl-playground-sidebar { --menu-background: #f8fafc; --menu-weak-background: #eef2f7; --menu-text: #172033; --menu-border: 1px solid #d8e0ea; --menu-shadow: -12px 0 36px rgba(15, 23, 42, 0.18); --button-background: #fff; --button-text: #172033; --button-icon-idle: #526174; --button-icon-hover: #172033; --button-inner-stroke: 1px solid #d8e0ea; --button-corner-radius: 10px; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     .deckgl-playground-sidebar [data-panel-tabs] { padding: 8px 10px 0 !important; }
     .deckgl-playground-template-picker-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 4px; }
-    .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid #d5dbe3; border-radius: 6px; background: #fff center / cover no-repeat; color: #172033; text-align: left; cursor: pointer; }
+    .deckgl-playground-template-card { display: flex; min-height: 88px; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 10px; border: 1px solid var(--menu-border-color, #d5dbe3); border-radius: 6px; background: var(--menu-weak-background, #fff) center / cover no-repeat; color: var(--menu-text, #172033); text-align: left; cursor: pointer; }
     .deckgl-playground-template-card:hover, .deckgl-playground-template-card[aria-selected="true"] { border-color: #2878d8; box-shadow: 0 0 0 2px rgba(40,120,216,0.2); }
     .deckgl-playground-template-card span { font-size: 11px; line-height: 1.3; opacity: 0.78; }
     .deckgl-playground-template-card.has-screencap { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }

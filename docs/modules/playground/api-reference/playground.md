@@ -230,6 +230,8 @@ that capability and understands the database effects.
 ### `PlaygroundProps` {/* #playgroundprops */}
 
 - `parentElement`: host element for the editor and preview.
+- `theme`: optional panel preset (`light`, `dark`, `sleek-light`, `sleek-dark`) or custom
+  theme definition. Applies to the sidebar, picker, and editors; omitted preserves the default styling.
 - `templates`: named JSON objects or text documents. Object templates may include `metadata` with
   `title`, `description`, and `screencap` for the picker; it is omitted from the editor document.
   Top-level `name` and `description` take precedence for card labels and remain in the editor JSON.

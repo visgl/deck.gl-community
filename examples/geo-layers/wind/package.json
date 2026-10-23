@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@deck.gl-community/geo-layers": "workspace:*",
+    "@deck.gl-community/panels": "workspace:*",
+    "@deck.gl-community/widgets": "workspace:*",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/geo-layers": "~9.4.0",
