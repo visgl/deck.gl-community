@@ -87,7 +87,7 @@ const PANEL_THEME_STYLES = `/* Stop at nested scopes so explicit original preset
     border-radius: 50%;
     background: var(--panel-accent-color);
   }
-  button:not(:disabled):hover {
+  button:not(:disabled):not([aria-pressed='true']):not([aria-selected='true']):not([data-panel-active='true']):hover {
     background-color: var(--panel-hover-background) !important;
   }
   :is(button, input, select, textarea):disabled {

@@ -1,5 +1,8 @@
 /** @jsxImportSource preact */
 import {render} from 'preact';
+import {userEvent} from 'vitest/browser';
+import {TabbedPanel} from '../composite-panels/tabbed-panel';
+import {ToolbarComponent} from '../components/toolbar-component';
 import {afterEach, describe, expect, it} from 'vitest';
 import {PANEL_THEME_PRESETS, applyPanelTheme} from '../lib/panel-theme';
 import {ensurePanelStylesheet} from '../lib/panel-styles';
@@ -253,3 +256,67 @@ it('installs sleek interaction styles when mounted without PanelManager', async 
     "input[type='checkbox']:checked::before"
   );
 });
+
+it.each([
+  'sleek-light',
+  'sleek-dark'
+] as const)('preserves selected backgrounds on hover in %s', async preset => {
+  const host = createHost();
+  const panel = new TabbedPanel({
+    theme: preset,
+    panels: [
+      new TestPanel({
+        id: 'selected',
+        title: 'Selected',
+        content: (
+          <>
+            <div data-hover-toolbar />
+            <SelectComponent
+              id="hover-mode"
+              label="Mode"
+              value="fast"
+              options={[
+                {label: 'Fast', value: 'fast'},
+                {label: 'Quality', value: 'quality'}
+              ]}
+              onValueChange={() => {}}
+            />
+          </>
+        )
+      }),
+      new TestPanel({id: 'idle', title: 'Idle', content: 'Idle'})
+    ]
+  });
+  panel.onRenderHTML(host);
+  await settleRender();
+  const tabs = host.querySelectorAll<HTMLButtonElement>('[data-panel-tabs] button');
+  await expectHoverKeepsBackground(tabs[0]);
+  tabs[1].style.transition = 'none';
+  await userEvent.unhover(tabs[1]);
+  const idleBackground = getComputedStyle(tabs[1]).backgroundColor;
+  await userEvent.hover(tabs[1]);
+  await settleRender();
+  expect(tabs[1].matches(':hover')).toBe(true);
+  expect(getComputedStyle(tabs[1]).backgroundColor).not.toBe(idleBackground);
+  const toolbarHost = host.querySelector<HTMLElement>('[data-hover-toolbar]');
+  const toolbar = new ToolbarComponent({
+    items: [{kind: 'action', id: 'active', label: 'Active', active: true}]
+  });
+  toolbar.onRenderHTML(toolbarHost);
+  await expectHoverKeepsBackground(toolbarHost.querySelector('button'));
+  host.querySelector<HTMLButtonElement>('#hover-mode').click();
+  await settleRender();
+  await expectHoverKeepsBackground(document.querySelector('[role="option"][aria-selected="true"]'));
+  toolbar.onRemove();
+});
+
+async function expectHoverKeepsBackground(button: HTMLButtonElement) {
+  button.style.transition = 'none';
+  await userEvent.unhover(button);
+  await settleRender();
+  const background = getComputedStyle(button).backgroundColor;
+  await userEvent.hover(button);
+  await settleRender();
+  expect(button.matches(':hover')).toBe(true);
+  expect(getComputedStyle(button).backgroundColor).toBe(background);
+}

@@ -253,6 +253,7 @@ export function PanelSelect({
                     type="button"
                     role="option"
                     aria-selected={selected}
+                    data-panel-active={active}
                     style={{
                       ...PANEL_SELECT_STYLES.option,
                       ...(active ? PANEL_SELECT_STYLES.optionActive : {}),

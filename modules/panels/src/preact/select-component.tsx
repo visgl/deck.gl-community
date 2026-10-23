@@ -440,6 +440,7 @@ export function SelectComponent({
                   type="button"
                   role="option"
                   aria-selected={isSelected}
+                  data-panel-active={isActive}
                   style={{
                     ...SELECT_OPTION_STYLE,
                     ...(fontSize === undefined ? {} : {fontSize}),

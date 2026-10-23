@@ -96,6 +96,7 @@ export function TabbedPanelContainer({
           return (
             <button
               key={panel.id}
+              data-panel-active={isActive}
               type="button"
               style={{
                 ...TAB_BUTTON_STYLE,
