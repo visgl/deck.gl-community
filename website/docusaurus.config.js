@@ -109,6 +109,10 @@ const config = {
           {
             from: ['/examples/three/seasonal-farm'],
             to: '/examples/layers/seasonal-farm'
+          },
+          {
+            from: ['/docs/modules/layers/api-reference/selection-pulse-extension'],
+            to: '/docs/modules/extensions/api-reference/selection-pulse-extension'
           }
         ]
       }

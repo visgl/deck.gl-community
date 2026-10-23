@@ -1027,7 +1027,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@deck.gl-community/extensions@workspace:modules/extensions":
+"@deck.gl-community/extensions@npm:~9.4.8, @deck.gl-community/extensions@workspace:modules/extensions":
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/extensions@workspace:modules/extensions"
   dependencies:
@@ -1138,6 +1138,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@deck.gl-community/layers@workspace:modules/layers"
   dependencies:
+    "@deck.gl-community/extensions": "npm:~9.4.8"
     "@deck.gl/core": "npm:~9.4.0"
     "@deck.gl/extensions": "npm:~9.4.0"
     "@deck.gl/geo-layers": "npm:~9.4.0"

@@ -3,7 +3,12 @@
 // Copyright (c) vis.gl contributors
 
 import {it, expect} from 'vitest';
+import * as Extensions from '@deck.gl-community/extensions';
 import * as Layers from '../src/index';
+
+it('re-exports the deprecated SelectionPulseExtension from extensions', () => {
+  expect(Layers.SelectionPulseExtension).toBe(Extensions.SelectionPulseExtension);
+});
 
 it('exports PathOutlineLayer', () => {
   expect(Layers.PathOutlineLayer).toBeDefined();

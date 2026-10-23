@@ -9,8 +9,9 @@ Please refer the documentation of each module for detailed upgrade guides.
 ### `SelectionPulseExtension` moves to `@deck.gl-community/extensions`
 
 v9.4.7 exported `SelectionPulseExtension` from `@deck.gl-community/layers`. It now lives in the new
-`@deck.gl-community/extensions` module and is no longer exported from `layers`. Install the new
-package and change the import; the props and behavior are unchanged:
+`@deck.gl-community/extensions` module. `layers` depends on `extensions` and re-exports it, so
+existing imports keep working without a new install, but that export is deprecated and will be
+removed in the next major release. Change the import; the props and behavior are unchanged:
 
 ```ts
 // Before (v9.4.7)

@@ -4,6 +4,25 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
+  extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
+  released in v9.4.7 from `@deck.gl-community/layers`, now lives there. `layers` still exports it,
+  so existing imports keep working; new code should import it from `@deck.gl-community/extensions`.
+  See the [upgrade guide](./upgrade-guide.md).
+
+- `@deck.gl-community/extensions` adds [`ZoomOpacityExtension`](/docs/modules/extensions/api-reference/zoom-opacity-extension),
+  which fades a layer by viewport zoom using MapLibre-style `zoomOpacity: [zoom, opacity][]` stops.
+  The `zoomBand` helper builds crossfading zoom bands. Fully faded layers are not drawn or
+  pickable. The extension works with aggregation layers, including GPU aggregation, on WebGL2
+  and WebGPU.
+
+## v9.4.8
+
+- `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.
+
+- Panels adds compact translucent `sleek-light` and `sleek-dark` presets, custom theme
+  definitions, and preset-aware nested inheritance and inversion.
+
 - Panels adds permanent header, footer, and side chrome and optional pinning on `BoxPanelContainer`.
   Opt into docking with `PanelManager.contentElement`; nested panels can adapt through
   `usePanelContainerState()`. See [canvas chrome](./modules/panels/api-reference/panel-containers/canvas-chrome.md).
@@ -12,17 +31,6 @@ This page lists module additions and major changes in each release. For detailed
   React hosts accept sleek presets and custom theme definitions; React-owned content
   retains its context and follows panel mount policies. Collapsing a pinned box releases
   its docked space and leaves a compact title bar for restoring the panel.
-
-- New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
-  extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
-  released in v9.4.7 from `@deck.gl-community/layers`, moves there; import it from
-  `@deck.gl-community/extensions`. See the [upgrade guide](./upgrade-guide.md).
-
-- `@deck.gl-community/extensions` adds [`ZoomOpacityExtension`](/docs/modules/extensions/api-reference/zoom-opacity-extension),
-  which fades a layer by viewport zoom using MapLibre-style `zoomOpacity: [zoom, opacity][]` stops.
-  The `zoomBand` helper builds crossfading zoom bands. Fully faded layers are not drawn or
-  pickable. The extension works with aggregation layers, including GPU aggregation, on WebGL2
-  and WebGPU.
 
 ## v9.4.7
 

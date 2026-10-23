@@ -45,6 +45,14 @@ export type {
   TreeCharacteristics
 } from './tree-layer/tree-layer';
 
+/**
+ * @deprecated Import `SelectionPulseExtension` from `@deck.gl-community/extensions`. Re-exported so
+ * imports written against v9.4.7 keep working.
+ */
+export {SelectionPulseExtension} from '@deck.gl-community/extensions';
+/** @deprecated Import `SelectionPulseExtensionProps` from `@deck.gl-community/extensions`. */
+export type {SelectionPulseExtensionProps} from '@deck.gl-community/extensions';
+
 export {SplatLayer} from './splat-layer/splat-layer';
 export type {SplatLayerProps, SplatLayerStats} from './splat-layer/splat-layer';
 export type {SplatSource} from './splat-layer/splat-source';
