@@ -74,6 +74,10 @@ export function interpolateZoom(zoom: number, stops?: ZoomOpacityStops | null): 
  * Adjacent bands that share an edge and a `fadeWidth` therefore crossfade, with opacities that
  * sum to 1 across the transition.
  *
+ * A band narrower than `fadeWidth` shrinks its ramps to fit, so it peaks at full opacity only at
+ * its center. A zero-width band (`minZoom === maxZoom`) is never visible, matching both MapLibre
+ * (`minzoom === maxzoom` hides a layer) and the crossfade: its neighbors already sum to 1.
+ *
  * @example
  * ```ts
  * zoomBand({minZoom: 8, maxZoom: 11, fadeWidth: 1});

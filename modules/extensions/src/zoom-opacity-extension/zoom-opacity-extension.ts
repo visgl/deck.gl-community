@@ -25,11 +25,14 @@ const defaultProps = {
   zoomOpacity: {type: 'array', value: null, optional: true, compare: 2}
 };
 
-/** Zoom opacity applied by {@link drawWithInheritedOpacity}, keyed by layer instance. */
-const inheritedOpacity = new WeakMap<Layer, number>();
+/** Zoom opacity applied by a layer's draw wrapper, and the layer whose extension computed it. */
+type InheritedOpacity = {opacity: number; owner: Layer};
 
-/** The `draw` each layer had before {@link setInheritedOpacity} wrapped it. */
-const wrappedDraws = new WeakMap<Layer, Layer['draw']>();
+/** Zoom opacity applied by {@link createDrawWithInheritedOpacity}, keyed by layer instance. */
+const inheritedOpacity = new WeakMap<Layer, InheritedOpacity>();
+
+/** The draw wrapper {@link setInheritedOpacity} last installed on each layer. */
+const installedDraws = new WeakMap<Layer, Layer['draw']>();
 
 /**
  * Makes a layer's opacity a function of the viewport zoom, like a MapLibre
@@ -71,13 +74,13 @@ export class ZoomOpacityExtension extends LayerExtension {
     if (this.isComposite) {
       // Drawable composites (deck.gl aggregation layers) draw before their sublayers in every
       // pass and viewport, but render cells with `extensions: []`. Fade those cells from here.
-      applyToSublayers(this as unknown as CompositeLayer, extension, opacity);
+      applyToSublayers(this as unknown as CompositeLayer, this, extension, opacity);
       return;
     }
 
     if (this.context.device.type === 'webgpu') {
       // No WGSL geometry collapse yet: fade and skip drawing through the instance `draw` instead
-      setInheritedOpacity(this, opacity);
+      setInheritedOpacity(this, this, opacity);
       return;
     }
 
@@ -92,6 +95,7 @@ export class ZoomOpacityExtension extends LayerExtension {
 
 function applyToSublayers(
   parent: CompositeLayer,
+  owner: Layer,
   extension: ZoomOpacityExtension,
   opacity: number
 ): void {
@@ -101,41 +105,58 @@ function applyToSublayers(
       continue;
     }
     if (sublayer.isComposite) {
-      applyToSublayers(sublayer as unknown as CompositeLayer, extension, opacity);
+      applyToSublayers(sublayer as unknown as CompositeLayer, owner, extension, opacity);
       continue;
     }
-    setInheritedOpacity(sublayer, opacity);
+    setInheritedOpacity(sublayer, owner, opacity);
   }
 }
 
 /**
  * Installs an instance-level `draw` on a primitive layer that applies `opacity`. Used for
  * sublayers that do not carry the extension and on WebGPU.
+ *
+ * @param layer - Primitive layer to fade.
+ * @param owner - Layer whose `ZoomOpacityExtension` computed `opacity`: `layer` itself, or the
+ * composite it inherits from.
+ * @param opacity - Zoom opacity multiplier.
  */
-function setInheritedOpacity(layer: Layer, opacity: number): void {
-  inheritedOpacity.set(layer, opacity);
-  if (layer.draw !== drawWithInheritedOpacity) {
+function setInheritedOpacity(layer: Layer, owner: Layer, opacity: number): void {
+  inheritedOpacity.set(layer, {opacity, owner});
+  if (layer.draw !== installedDraws.get(layer)) {
     // Wrap the draw the layer uses now: its class method, or one it owns, such as an instance
-    // field or another integration's wrapper
-    wrappedDraws.set(layer, layer.draw);
-    Object.defineProperty(layer, 'draw', {
-      configurable: true,
-      writable: true,
-      value: drawWithInheritedOpacity
-    });
+    // field or another integration's wrapper. Each wrapper calls the draw it captured, so
+    // wrapping a wrapper that calls through to an earlier one of ours cannot recurse.
+    const draw = createDrawWithInheritedOpacity(layer.draw);
+    installedDraws.set(layer, draw);
+    Object.defineProperty(layer, 'draw', {configurable: true, writable: true, value: draw});
   }
 }
 
 /**
+ * Returns a `draw` that applies the layer's inherited zoom opacity before calling `innerDraw`.
+ *
  * deck.gl calls `layer.draw()` after applying per-pass shader module props and extension draw
  * hooks, so the opacity set here wins.
  */
-function drawWithInheritedOpacity(this: Layer, opts: any): void {
-  const opacity = inheritedOpacity.get(this) ?? 1;
-  // Skip fully faded layers entirely, so they are neither rendered nor pickable
-  if (opacity <= 0) {
-    return;
-  }
-  this.setShaderModuleProps({layer: {opacity: this.props.opacity * opacity}});
-  wrappedDraws.get(this)?.call(this, opts);
+function createDrawWithInheritedOpacity(innerDraw: Layer['draw']): Layer['draw'] {
+  return function drawWithInheritedOpacity(this: Layer, opts: any): void {
+    const inherited = inheritedOpacity.get(this);
+    if (inherited && !hasZoomOpacityExtension(inherited.owner)) {
+      // deck.gl calls no extension hook when an extension is removed, so drop the last opacity
+      // here once its owner no longer applies the extension
+      inheritedOpacity.delete(this);
+    } else if (inherited) {
+      // Skip fully faded layers entirely, so they are neither rendered nor pickable
+      if (inherited.opacity <= 0) {
+        return;
+      }
+      this.setShaderModuleProps({layer: {opacity: this.props.opacity * inherited.opacity}});
+    }
+    innerDraw.call(this, opts);
+  };
+}
+
+function hasZoomOpacityExtension(layer: Layer): boolean {
+  return layer.props.extensions.some(extension => extension instanceof ZoomOpacityExtension);
 }

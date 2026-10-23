@@ -100,6 +100,16 @@ describe('zoomBand', () => {
     expect(interpolateZoom(5.25, stops)).toBe(1);
   });
 
+  it('never shows a zero-width band', () => {
+    // Its neighbors already crossfade to 1 at the shared edge, so there is no room left for it
+    for (const fadeWidth of [0, 1]) {
+      const stops = zoomBand({minZoom: 10, maxZoom: 10, fadeWidth});
+      for (const zoom of [9, 9.5, 10, 10.5, 11]) {
+        expect(interpolateZoom(zoom, stops)).toBe(0);
+      }
+    }
+  });
+
   it('crossfades adjacent bands', () => {
     const lower = zoomBand({maxZoom: 10, fadeWidth: 2});
     const upper = zoomBand({minZoom: 10, fadeWidth: 2});
@@ -144,7 +154,7 @@ function createLayerHarness({
   return {
     isComposite,
     context: {device: {type: deviceType}, viewport: {zoom}},
-    props: {opacity: 0.8, updateTriggers: {}, ...props},
+    props: {opacity: 0.8, updateTriggers: {}, extensions: [new ZoomOpacityExtension()], ...props},
     setShaderModuleProps: vi.fn()
   };
 }
@@ -256,6 +266,51 @@ describe('ZoomOpacityExtension', () => {
     expect(protoDraw).not.toHaveBeenCalled();
   });
 
+  it('wraps a draw that calls through to its wrapper without recursing', () => {
+    const protoDraw = vi.fn();
+    const layer = Object.assign(Object.create({draw: protoDraw}), {
+      ...createLayerHarness({deviceType: 'webgpu', zoom: 9, props: {zoomOpacity: stops}})
+    });
+    extension.draw.call(layer, {context: layer.context}, extension);
+
+    // Another integration wraps the extension's draw wrapper and calls through to it
+    const previousDraw = layer.draw;
+    const integrationDraw = vi.fn(function (this: any, opts) {
+      previousDraw.call(this, opts);
+    });
+    layer.draw = integrationDraw;
+
+    for (let frame = 0; frame < 3; frame++) {
+      extension.draw.call(layer, {context: layer.context}, extension);
+      layer.draw({});
+    }
+    expect(integrationDraw).toHaveBeenCalledTimes(3);
+    expect(protoDraw).toHaveBeenCalledTimes(3);
+    expect(layer.setShaderModuleProps).toHaveBeenLastCalledWith({layer: {opacity: 0.4}});
+
+    // Fully faded: the outer wrapper skips the whole chain
+    layer.context.viewport.zoom = 7;
+    extension.draw.call(layer, {context: layer.context}, extension);
+    layer.draw({});
+    expect(integrationDraw).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops fading on WebGPU once the layer drops the extension', () => {
+    const protoDraw = vi.fn();
+    const layer = Object.assign(Object.create({draw: protoDraw}), {
+      ...createLayerHarness({deviceType: 'webgpu', zoom: 7, props: {zoomOpacity: stops}})
+    });
+    extension.draw.call(layer, {context: layer.context}, extension);
+    layer.draw({});
+    expect(protoDraw).not.toHaveBeenCalled();
+
+    // deck.gl runs no extension hook on removal, and the wrapper stays installed
+    layer.props = {...layer.props, extensions: []};
+    layer.draw({});
+    expect(protoDraw).toHaveBeenCalledTimes(1);
+    expect(layer.setShaderModuleProps).not.toHaveBeenCalled();
+  });
+
   it('fades sublayers of drawable composites that drop the extension', () => {
     const cellDraw = vi.fn();
     class CellLayer {
@@ -289,6 +344,13 @@ describe('ZoomOpacityExtension', () => {
     cellDraw.mockClear();
     (cells as any).draw(opts);
     expect(cellDraw).not.toHaveBeenCalled();
+
+    // Removing the extension from the parent restores the reused sublayer
+    parent.props = {...parent.props, extensions: []};
+    cells.setShaderModuleProps.mockClear();
+    (cells as any).draw(opts);
+    expect(cellDraw).toHaveBeenCalledWith(opts);
+    expect(cells.setShaderModuleProps).not.toHaveBeenCalled();
   });
 
   it('passes stops through to sublayers', () => {
