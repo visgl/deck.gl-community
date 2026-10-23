@@ -218,7 +218,7 @@ function SPLITTER_PANE_STYLE(
     minWidth: 0,
     minHeight: 0,
     overflow: 'auto',
-    padding: '0 8px',
+    padding: 'var(--panel-padding, 0 8px)',
     boxSizing: 'border-box'
   };
 }

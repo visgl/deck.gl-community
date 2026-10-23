@@ -162,17 +162,18 @@ const FULL_SCREEN_PANEL_STYLE = (marginPx: number): JSX.CSSProperties => ({
   display: 'grid',
   gridTemplateRows: 'auto minmax(0, 1fr)',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.42))',
-  borderRadius: '18px',
+  borderRadius: 'var(--panel-surface-radius, var(--panel-corner-radius, 18px))',
   background: 'var(--menu-background, rgba(255, 255, 255, 0.94))',
   backdropFilter: 'var(--menu-backdrop-filter, blur(18px))',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, blur(18px))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   boxShadow: 'var(--menu-shadow, 0 28px 80px rgba(15, 23, 42, 0.24))',
   overflow: 'hidden'
 });
 
 const FULL_SCREEN_HEADER_STYLE: JSX.CSSProperties = {
-  padding: '18px 22px 12px',
-  fontSize: '24px',
+  padding: 'var(--panel-padding, 18px 22px 12px)',
+  fontSize: 'var(--panel-font-size, 24px)',
   fontWeight: 800,
   lineHeight: 1.1,
   letterSpacing: '-0.03em',
@@ -182,5 +183,5 @@ const FULL_SCREEN_HEADER_STYLE: JSX.CSSProperties = {
 const FULL_SCREEN_CONTENT_STYLE: JSX.CSSProperties = {
   minHeight: 0,
   overflow: 'auto',
-  padding: '0 22px 22px'
+  padding: 'var(--panel-padding, 0 22px 22px)'
 };

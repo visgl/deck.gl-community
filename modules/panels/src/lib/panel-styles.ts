@@ -4,9 +4,242 @@
 
 const PANEL_BASE_STYLESHEET_ATTRIBUTE = 'data-deck-gl-community-panels-styles';
 
+const PANEL_THEME_STYLES = `/* Stop at nested scopes so explicit original presets retain their native states. */
+@scope ([data-panel-theme-preset^="sleek-"]) to ([data-panel-theme-preset]) {
+  :is(button, input, select, textarea):focus-visible {
+    outline: var(--panel-focus-color) solid 2px !important;
+    outline-offset: -2px;
+  }
+  input[type='checkbox'] {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    box-sizing: border-box;
+    width: 26px !important;
+    height: 14px;
+    border: 1px solid var(--panel-accent-color);
+    border-radius: 7px;
+    background: var(--button-background);
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  input[type='checkbox']::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 1px;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-sizing: border-box;
+    border: 1px solid var(--button-icon-idle);
+    background: transparent;
+    transition: transform 120ms ease, background-color 120ms ease;
+  }
+  input[type='checkbox']:checked {
+    background: var(--button-background);
+    border-color: var(--panel-accent-color);
+  }
+  input[type='checkbox']:checked::before {
+    transform: translate(12px, -50%);
+    border-color: var(--panel-accent-color);
+    background: var(--panel-accent-color);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    input[type='checkbox'], input[type='checkbox']::before { transition: none; }
+  }
+  @media (forced-colors: active) {
+    input[type='checkbox'] { appearance: auto; -webkit-appearance: auto; }
+    input[type='checkbox']::before { display: none; }
+  }
+  input[type='range'] {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 16px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 2px;
+    background: var(--range-track-color);
+    border-radius: 1px;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -6px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--panel-accent-color);
+  }
+  input[type='range']::-moz-range-track {
+    height: 2px;
+    background: var(--range-track-color);
+    border-radius: 1px;
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--panel-accent-color);
+  }
+  button:not(:disabled):not([aria-pressed='true']):not([aria-selected='true']):not([data-panel-active='true']):hover {
+    background-color: var(--panel-hover-background) !important;
+  }
+  :is(button, input, select, textarea):disabled {
+    opacity: var(--panel-disabled-opacity);
+  }
+}
+`;
+
+const PANEL_CHROME_STYLES = `.deck-panel-layout {
+  position: relative;
+  display: grid;
+  grid-template-areas: "top top top" "left center right" "bottom bottom bottom";
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) minmax(0, max-content);
+  grid-template-rows: minmax(0, max-content) minmax(0, 1fr) minmax(0, max-content);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.deck-panel-layout-center { grid-area: center; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.deck-panel-layout-edge { display: flex; min-width: 0; min-height: 0; overflow: auto; }
+.deck-panel-layout-edge[data-side="top"] { grid-area: top; }
+.deck-panel-layout-edge[data-side="bottom"] { grid-area: bottom; }
+.deck-panel-layout-edge[data-side="left"] { grid-area: left; flex-direction: column; }
+.deck-panel-layout-edge[data-side="right"] { grid-area: right; flex-direction: column; }
+.deck-panel-chrome {
+  position: relative; pointer-events: auto; min-width: 0; min-height: 0;
+  box-sizing: border-box; flex: 0 1 auto;
+  color: var(--menu-text, #18181a); background: var(--menu-background, #fff);
+  font: 13px system-ui, sans-serif;
+}
+.deck-panel-chrome[hidden] { display: none; }
+.deck-panel-chrome[data-docked="true"][data-side="left"],
+.deck-panel-chrome[data-docked="true"][data-side="right"] { flex: 1 1 auto; }
+.deck-panel-chrome-shell { position: relative; display: flex; flex-direction: column; height: 100%; max-height: inherit; min-height: 0; }
+.deck-panel-chrome-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px; flex: 0 0 auto; }
+.deck-panel-chrome-header button { color: inherit; font: inherit; cursor: pointer; }
+.deck-panel-chrome-header button:disabled { cursor: default; }
+.deck-panel-chrome-content { overflow: auto; min-width: 0; min-height: 0; flex: 1 1 auto; padding: 8px; }
+.deck-panel-chrome[data-pinnable="true"] {
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: 12px;
+  background: var(--menu-background, rgba(255, 255, 255, 0.96));
+  backdrop-filter: var(--menu-backdrop-filter, unset);
+  box-shadow: var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.16));
+}
+.deck-panel-chrome[data-pinnable="true"][data-docked="true"] {
+  border-radius: 0;
+  box-shadow: none;
+}
+.deck-panel-chrome[data-pinnable="true"] > .deck-panel-chrome-shell {
+  box-sizing: border-box;
+  border: var(--menu-border, 1px solid rgba(148, 163, 184, 0.35));
+  border-radius: inherit;
+  overflow: hidden;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header {
+  padding: 14px 16px 10px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--button-text, currentColor);
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--button-icon-idle, #616166);
+  font: 500 12px/1.2 system-ui, sans-serif;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:hover:enabled {
+  background: var(--menu-item-hover, rgba(0, 0, 0, 0.08));
+  color: var(--button-icon-hover, #18181a);
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:disabled { opacity: 0.45; }
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-content {
+  padding: 0 16px 16px;
+  overscroll-behavior: contain;
+}
+.deck-panel-chrome-content[hidden] { display: none; }
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header .deck-panel-chrome-toggle {
+  flex: 1 1 auto;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.deck-panel-chrome-header .deck-panel-chrome-hide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--button-icon-idle, #616166);
+}
+.deck-panel-chrome-header .deck-panel-chrome-hide:hover,
+.deck-panel-chrome-restore:hover {
+  background: var(--menu-item-hover, rgba(0, 0, 0, 0.08));
+  color: var(--button-icon-hover, #18181a);
+}
+.deck-panel-chrome-hide:focus-visible,
+.deck-panel-chrome-restore:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.deck-panel-chrome-restore {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  border: var(--menu-border, 1px solid #cbd0d6);
+  border-radius: 6px;
+  background: var(--menu-background, #fff);
+  color: var(--menu-text, #18181a);
+  box-shadow: var(--menu-shadow, 0 2px 8px rgba(15, 23, 42, 0.16));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+}
+.deck-panel-chrome-divider { position: absolute; touch-action: none; z-index: 1; background: transparent; }
+.deck-panel-chrome-divider:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+.deck-panel-chrome[data-side="left"] .deck-panel-chrome-divider { right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.deck-panel-chrome[data-side="right"] .deck-panel-chrome-divider { left: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.deck-panel-chrome[data-side="top"] .deck-panel-chrome-divider { bottom: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.deck-panel-chrome[data-side="bottom"] .deck-panel-chrome-divider { top: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+`;
+
 const PANEL_BASE_STYLES = `.deck-widget {
   margin: var(--widget-margin, 12px);
   box-sizing: border-box;
+  font-size: var(--panel-font-size);
 }
 
 /* Common button container styles */
@@ -276,7 +509,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   position: relative;
   pointer-events: none;
   width: fit-content;
-  font-size: 13px;
+  font-size: var(--panel-font-size, 13px);
   color: var(--menu-text, rgb(24, 24, 26));
   white-space: nowrap;
 }
@@ -346,7 +579,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: var(--panel-font-size, 13px);
 }
 
 .deck-widget .deck-widget-geocoder-input:focus {
@@ -362,7 +595,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   top: calc(100% + var(--menu-gap, 4px));
   left: 1px;
   right: 1px;
-  padding: 6px 10px;
+  padding: var(--panel-padding, 6px 10px);
   background: var(--button-background, #fff);
   backdrop-filter: var(--button-backdrop-filter, unset);
   border: var(--button-inner-stroke, unset);
@@ -370,7 +603,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   box-shadow: var(--button-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25));
   color: rgb(220, 80, 80);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: var(--panel-font-size, 12px);
   text-align: center;
 }
 
@@ -436,11 +669,11 @@ const PANEL_BASE_STYLES = `.deck-widget {
   border-radius: var(--button-corner-radius, 8px);
   box-shadow: var(--menu-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25));
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: var(--panel-font-size, 13px);
 }
 
 .deck-widget .deck-widget-dropdown-item {
-  padding: 8px 12px;
+  padding: var(--panel-padding, 8px 12px);
   white-space: nowrap;
   overflow: hidden;
   cursor: default;
@@ -509,7 +742,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   border: none;
 }
 .deck-widget-stats-content {
-  padding: 4px 8px 8px;
+  padding: var(--panel-padding, 4px 8px 8px);
 }
 
 /* Popup styles */
@@ -521,7 +754,7 @@ const PANEL_BASE_STYLES = `.deck-widget {
   background: var(--menu-background, #fff);
   color: var(--menu-text, rgb(24, 24, 26));
   box-shadow: var(--menu-shadow, 0px 0px 8px 0px rgba(0, 0, 0, 0.25));
-  padding: 10px;
+  padding: var(--panel-padding, 10px);
 }
 .deck-widget-popup-content .deck-widget-popup-controls {
   --button-size: 20px;
@@ -749,6 +982,12 @@ function hasDeckPanelBaseStyles(document: Document): boolean {
 }
 
 export function ensurePanelStylesheet(document: Document): void {
+  if (!document.querySelector('style[data-panel-theme-styles]')) {
+    const themeStyle = document.createElement('style');
+    themeStyle.setAttribute('data-panel-theme-styles', 'true');
+    themeStyle.textContent = PANEL_THEME_STYLES;
+    document.head.appendChild(themeStyle);
+  }
   if (document.querySelector(`style[${PANEL_BASE_STYLESHEET_ATTRIBUTE}]`)) {
     return;
   }
@@ -761,4 +1000,13 @@ export function ensurePanelStylesheet(document: Document): void {
   styleElement.setAttribute(PANEL_BASE_STYLESHEET_ATTRIBUTE, 'true');
   styleElement.textContent = PANEL_BASE_STYLES;
   document.head.appendChild(styleElement);
+}
+
+/** Installs chrome styles even when an application already loads deck widget CSS. */
+export function ensurePanelChromeStylesheet(document: Document): void {
+  if (document.querySelector('style[data-panel-chrome-styles]')) return;
+  const style = document.createElement('style');
+  style.setAttribute('data-panel-chrome-styles', 'true');
+  style.textContent = PANEL_CHROME_STYLES;
+  document.head.append(style);
 }

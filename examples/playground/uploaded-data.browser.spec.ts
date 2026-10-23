@@ -2,6 +2,7 @@ import {Deck} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
 /** @jsxImportSource preact */
 import {render} from 'preact';
+import {act} from 'preact/test-utils';
 import {tableFromArrays, tableToIPC} from 'apache-arrow';
 import {afterEach, expect, test, vi} from 'vitest';
 import {DeckPlayground, PlaygroundDataSourceManager} from '@deck.gl-community/playground';
@@ -108,13 +109,19 @@ test('composed panel shows upload controls, source references, and existing Arro
     void manager.finalize();
   });
   const panel = createDataSourcesPanel(sources);
-  render(panel.content, root);
+  await act(() => {
+    render(panel.content, root);
+  });
   expect(root.querySelector('input[type=url]')).toBeNull();
   const transfer = new DataTransfer();
   transfer.items.add(new File(['[{"value":42}]'], 'sample.json'));
   const input = root.querySelector<HTMLInputElement>('input[type=file]')!;
   input.files = transfer.files;
-  input.dispatchEvent(new Event('change', {bubbles: true}));
+  // Flush mount effects before interacting with the new inspector tabs.
+  await act(async () => {
+    input.dispatchEvent(new Event('change', {bubbles: true}));
+    await vi.waitFor(() => expect(sources.entries[0]?.value).toBeDefined());
+  });
   await vi.waitFor(() => expect(root.textContent).toContain('JSON: 1 rows'));
   expect(root.querySelector<HTMLInputElement>('[aria-label="Table name"]')!.value).toBe('sample');
   expect(root.querySelector<HTMLInputElement>('[aria-label="Source URL reference"]')!.value).toBe(
@@ -127,9 +134,11 @@ test('composed panel shows upload controls, source references, and existing Arro
     'visible'
   );
   const buttons = () => Array.from(root.querySelectorAll('button'));
-  buttons()
-    .find(button => button.textContent === 'Schema')!
-    .click();
+  await act(() => {
+    buttons()
+      .find(button => button.textContent === 'Schema')!
+      .click();
+  });
   await vi.waitFor(() => {
     expect(getComputedStyle(root.querySelector('[data-arrow-schema-panel]')!).visibility).toBe(
       'visible'
@@ -138,9 +147,11 @@ test('composed panel shows upload controls, source references, and existing Arro
       'hidden'
     );
   });
-  buttons()
-    .find(button => button.textContent === 'Batches')!
-    .click();
+  await act(() => {
+    buttons()
+      .find(button => button.textContent === 'Batches')!
+      .click();
+  });
   await vi.waitFor(() => {
     expect(getComputedStyle(root.querySelector('[data-arrow-batches-panel]')!).visibility).toBe(
       'visible'
@@ -149,8 +160,10 @@ test('composed panel shows upload controls, source references, and existing Arro
       'hidden'
     );
   });
-  render(null, root);
-  render(panel.content, root);
+  await act(() => {
+    render(null, root);
+    render(panel.content, root);
+  });
   expect(root.textContent).toContain('sample.json');
 });
 

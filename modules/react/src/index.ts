@@ -18,3 +18,10 @@ export {
 } from './components/panel';
 
 // Overlays migrated to @deck.gl-community/widgets
+
+export {
+  ReactPanel,
+  useReactPanel,
+  type ReactPanelProps,
+  type ReactPanelContentProps
+} from './components/react-panel';

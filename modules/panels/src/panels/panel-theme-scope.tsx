@@ -2,32 +2,42 @@
 import {createContext} from 'preact';
 import {useContext, useLayoutEffect, useRef, useState} from 'preact/hooks';
 
-import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
+import {
+  PANEL_THEME_PRESETS,
+  resolvePanelThemeVariables,
+  type PanelThemePreset
+} from '../lib/panel-theme';
+
+import {ensurePanelStylesheet} from '../lib/panel-styles';
 
 import type {ComponentChildren, JSX} from 'preact';
 import type {Panel, PanelTheme, PanelThemeMode} from './panel';
 
-const PanelThemeModeContext = createContext<PanelThemeMode | undefined>(undefined);
+const PanelThemePresetContext = createContext<PanelThemePreset | undefined>(undefined);
 
 /**
  * Returns the effective light/dark theme mode for the current panel subtree.
  */
 export function useEffectivePanelThemeMode(): PanelThemeMode {
-  return useContext(PanelThemeModeContext) ?? 'light';
+  return getPanelThemeMode(useContext(PanelThemePresetContext) ?? 'light');
 }
 
 /**
  * Applies a panel-level theme override and exposes the resolved mode to descendants.
  */
 export function PanelThemeScope({panel, children}: {panel: Panel; children?: ComponentChildren}) {
-  const inheritedMode = useContext(PanelThemeModeContext);
+  const inheritedPreset = useContext(PanelThemePresetContext);
   const hostElementRef = useRef<HTMLDivElement | null>(null);
-  const [rootMode, setRootMode] = useState<PanelThemeMode>('light');
-  const parentMode = inheritedMode ?? rootMode;
-  const resolvedMode = resolvePanelThemeMode(parentMode, panel.theme);
+  const [hasHostPreset, setHasHostPreset] = useState(false);
+  const [rootPreset, setRootPreset] = useState<PanelThemePreset>('light');
+  const parentPreset = inheritedPreset ?? rootPreset;
+  const resolvedPreset = resolvePanelThemePreset(parentPreset, panel.theme);
 
   useLayoutEffect(() => {
-    if (!inheritedMode) {
+    if (hostElementRef.current) {
+      ensurePanelStylesheet(hostElementRef.current.ownerDocument);
+    }
+    if (!inheritedPreset) {
       const hostElement = hostElementRef.current;
       if (!hostElement) {
         return undefined;
@@ -35,15 +45,22 @@ export function PanelThemeScope({panel, children}: {panel: Panel; children?: Com
       const parentHostElement =
         hostElement.parentElement instanceof HTMLElement ? hostElement.parentElement : hostElement;
 
-      const updateRootMode = () => {
-        const inferredMode = inferPanelThemeMode(parentHostElement);
-        setRootMode(previousMode => (previousMode === inferredMode ? previousMode : inferredMode));
+      const updateRootPreset = () => {
+        const marker = parentHostElement.ownerDocument.defaultView
+          ?.getComputedStyle(parentHostElement)
+          .getPropertyValue('--panel-preset')
+          .trim();
+        setHasHostPreset(Boolean(marker && Object.hasOwn(PANEL_THEME_PRESETS, marker)));
+        const inferredPreset = inferPanelThemePreset(parentHostElement);
+        setRootPreset(previousPreset =>
+          previousPreset === inferredPreset ? previousPreset : inferredPreset
+        );
       };
 
-      updateRootMode();
+      updateRootPreset();
 
       const mutationObserver = new MutationObserver(() => {
-        updateRootMode();
+        updateRootPreset();
       });
 
       for (const themeHostElement of getThemeHostElements(parentHostElement)) {
@@ -59,35 +76,45 @@ export function PanelThemeScope({panel, children}: {panel: Panel; children?: Com
     }
 
     return undefined;
-  }, [inheritedMode]);
+  }, [inheritedPreset]);
 
   return (
-    <PanelThemeModeContext.Provider value={resolvedMode}>
+    <PanelThemePresetContext.Provider value={resolvedPreset}>
       <div
         ref={hostElementRef}
-        data-panel-theme-mode={resolvedMode}
-        style={getPanelThemeScopeStyle(resolvedMode)}
+        data-panel-theme-mode={getPanelThemeMode(resolvedPreset)}
+        data-panel-theme-preset={resolvedPreset}
+        style={
+          (!panel.theme || panel.theme === 'inherit') && (inheritedPreset || hasHostPreset)
+            ? undefined
+            : getPanelThemeScopeStyle(resolvedPreset, panel.theme)
+        }
       >
         {children}
       </div>
-    </PanelThemeModeContext.Provider>
+    </PanelThemePresetContext.Provider>
   );
 }
 
-function resolvePanelThemeMode(
-  parentMode: PanelThemeMode,
+function getPanelThemeMode(preset: PanelThemePreset): PanelThemeMode {
+  return preset === 'dark' || preset === 'sleek-dark' ? 'dark' : 'light';
+}
+
+function resolvePanelThemePreset(
+  parentPreset: PanelThemePreset,
   theme: PanelTheme | undefined
-): PanelThemeMode {
-  if (theme === 'dark') {
-    return 'dark';
+): PanelThemePreset {
+  if (typeof theme === 'object') {
+    return theme.base;
   }
-  if (theme === 'light') {
-    return 'light';
+  if (theme && theme !== 'inherit' && theme !== 'invert') {
+    return theme;
   }
   if (theme === 'invert') {
-    return parentMode === 'dark' ? 'light' : 'dark';
+    const mode = getPanelThemeMode(parentPreset) === 'dark' ? 'light' : 'dark';
+    return parentPreset.startsWith('sleek-') ? `sleek-${mode}` : mode;
   }
-  return parentMode;
+  return parentPreset;
 }
 
 function getThemeHostElements(hostElement: HTMLElement): HTMLElement[] {
@@ -106,18 +133,23 @@ function getThemeHostElements(hostElement: HTMLElement): HTMLElement[] {
   return elements;
 }
 
-function getPanelThemeScopeStyle(mode: PanelThemeMode): JSX.CSSProperties {
-  const themeVariables = mode === 'dark' ? PANEL_THEME_DARK : PANEL_THEME_LIGHT;
+function getPanelThemeScopeStyle(preset: PanelThemePreset, theme?: PanelTheme): JSX.CSSProperties {
+  const themeVariables =
+    typeof theme === 'object' ? resolvePanelThemeVariables(theme) : PANEL_THEME_PRESETS[preset];
   return {...themeVariables} as JSX.CSSProperties;
 }
 
-function inferPanelThemeMode(hostElement: HTMLElement): PanelThemeMode {
+function inferPanelThemePreset(hostElement: HTMLElement): PanelThemePreset {
   const ownerWindow = hostElement.ownerDocument.defaultView;
   if (!ownerWindow) {
     return 'light';
   }
 
   const computedStyle = ownerWindow.getComputedStyle(hostElement);
+  const preset = computedStyle.getPropertyValue('--panel-preset').trim();
+  if (Object.hasOwn(PANEL_THEME_PRESETS, preset)) {
+    return preset as PanelThemePreset;
+  }
   const menuBackground = computedStyle.getPropertyValue('--menu-background').trim();
   const parsedColor = parseThemeColor(menuBackground);
   if (!parsedColor) {

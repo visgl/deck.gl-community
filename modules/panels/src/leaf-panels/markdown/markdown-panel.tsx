@@ -245,9 +245,9 @@ function getMarkdownHeadingStyle(level: number): JSX.CSSProperties {
 const MARKDOWN_PANEL_STYLE: JSX.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '12px',
+  gap: 'var(--panel-gap, 12px)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '13px',
+  fontSize: 'var(--panel-font-size, 13px)',
   lineHeight: '1.5'
 };
 
@@ -258,30 +258,30 @@ const MARKDOWN_LIST_STYLE: JSX.CSSProperties = {
   paddingLeft: '18px',
   display: 'flex',
   flexDirection: 'column',
-  gap: '6px'
+  gap: 'var(--panel-gap, 6px)'
 };
 
 const MARKDOWN_LIST_ITEM_STYLE: JSX.CSSProperties = {margin: '0'};
 
 const MARKDOWN_CODE_BLOCK_STYLE: JSX.CSSProperties = {
   margin: '0',
-  padding: '10px 12px',
-  borderRadius: '8px',
+  padding: 'var(--panel-padding, 10px 12px)',
+  borderRadius: 'var(--panel-corner-radius, 8px)',
   overflowX: 'auto',
   background: 'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
-  border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.2))',
+  border: '1px solid var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.2)))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '1.45'
 };
 
 const MARKDOWN_INLINE_CODE_STYLE: JSX.CSSProperties = {
-  padding: '1px 5px',
-  borderRadius: '4px',
+  padding: 'var(--panel-padding, 1px 5px)',
+  borderRadius: 'var(--panel-corner-radius, 4px)',
   background: 'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
-  border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.2))',
+  border: '1px solid var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.2)))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px'
+  fontSize: 'var(--panel-font-size, 12px)'
 };
 
 const MARKDOWN_LINK_STYLE: JSX.CSSProperties = {
@@ -290,28 +290,28 @@ const MARKDOWN_LINK_STYLE: JSX.CSSProperties = {
 
 const MARKDOWN_HEADING_1_STYLE: JSX.CSSProperties = {
   margin: '0',
-  fontSize: '20px',
+  fontSize: 'var(--panel-font-size, 20px)',
   fontWeight: 700,
   lineHeight: '1.25'
 };
 
 const MARKDOWN_HEADING_2_STYLE: JSX.CSSProperties = {
   margin: '0',
-  fontSize: '17px',
+  fontSize: 'var(--panel-font-size, 17px)',
   fontWeight: 700,
   lineHeight: '1.3'
 };
 
 const MARKDOWN_HEADING_3_STYLE: JSX.CSSProperties = {
   margin: '0',
-  fontSize: '15px',
+  fontSize: 'var(--panel-font-size, 15px)',
   fontWeight: 700,
   lineHeight: '1.35'
 };
 
 const MARKDOWN_HEADING_4_TO_6_STYLE: JSX.CSSProperties = {
   margin: '0',
-  fontSize: '13px',
+  fontSize: 'var(--panel-font-size, 13px)',
   fontWeight: 700,
   lineHeight: '1.4'
 };
