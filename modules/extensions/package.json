@@ -45,6 +45,7 @@
     "@luma.gl/core": "~9.4.0"
   },
   "devDependencies": {
+    "@deck.gl/aggregation-layers": "~9.4.0",
     "@deck.gl/core": "~9.4.0",
     "@deck.gl/extensions": "~9.4.0",
     "@deck.gl/layers": "~9.4.0",

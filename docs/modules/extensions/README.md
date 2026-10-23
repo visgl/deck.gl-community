@@ -19,3 +19,4 @@ npm install @deck.gl-community/extensions
 ## Exports
 
 - [`SelectionPulseExtension`](./api-reference/selection-pulse-extension.md): GPU pulse for selected objects
+- [`ZoomOpacityExtension`](./api-reference/zoom-opacity-extension.md): layer opacity as a function of zoom, with the `zoomBand` and `interpolateZoom` helpers

@@ -11,4 +11,8 @@ They can be quite useful in applications, however they are not officially suppor
 pulses the color of selected objects on the GPU. A selection change writes one value per object,
 and each animation frame sets only uniforms.
 
+[`ZoomOpacityExtension`](../../docs/modules/extensions/api-reference/zoom-opacity-extension.md)
+makes a layer's opacity a function of the viewport zoom, like a MapLibre zoom expression on
+`*-opacity`.
+
 See the [module documentation](../../docs/modules/extensions/README.md).
