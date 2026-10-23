@@ -1,3 +1,4 @@
+import {getPanelThemeVariables, observePanelTheme} from '../lib/panel-theme';
 /** @jsxImportSource preact */
 
 import {createPortal} from 'preact/compat';
@@ -99,7 +100,7 @@ export function PanelSelect({
   useEffect(() => {
     const ownerDocument = shellRef.current?.ownerDocument;
     if (!open || !ownerDocument) {
-      return;
+      return undefined;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -124,7 +125,7 @@ export function PanelSelect({
     const ownerDocument = shellRef.current?.ownerDocument;
     const ownerWindow = ownerDocument?.defaultView;
     if (!open || !shellRef.current || !ownerWindow) {
-      return;
+      return undefined;
     }
 
     const updateMenuStyle = () => {
@@ -135,6 +136,7 @@ export function PanelSelect({
       const rect = shell.getBoundingClientRect();
       setMenuStyle({
         ...PANEL_SELECT_STYLES.menu,
+        ...getPanelThemeVariables(shell),
         top: `${rect.bottom + 4}px`,
         left: `${rect.left}px`,
         width: `${rect.width}px`
@@ -142,9 +144,11 @@ export function PanelSelect({
     };
 
     updateMenuStyle();
+    const stopObserving = observePanelTheme(shellRef.current, updateMenuStyle);
     ownerWindow.addEventListener('resize', updateMenuStyle);
     ownerWindow.addEventListener('scroll', updateMenuStyle, true);
     return () => {
+      stopObserving();
       ownerWindow.removeEventListener('resize', updateMenuStyle);
       ownerWindow.removeEventListener('scroll', updateMenuStyle, true);
     };
@@ -229,6 +233,7 @@ export function PanelSelect({
               ref={listboxRef}
               id={listboxId}
               role="listbox"
+              data-panel-theme-preset={menuStyle['--panel-preset'] as string | undefined}
               aria-label={`${ariaLabel} options`}
               style={menuStyle}
               onPointerDown={event => stopEventPropagation(event as unknown as Event)}
@@ -316,7 +321,7 @@ export function PanelMultiSelect({
   useEffect(() => {
     const ownerDocument = shellRef.current?.ownerDocument;
     if (!open || !ownerDocument) {
-      return;
+      return undefined;
     }
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -341,7 +346,7 @@ export function PanelMultiSelect({
     const ownerDocument = shellRef.current?.ownerDocument;
     const ownerWindow = ownerDocument?.defaultView;
     if (!open || !shellRef.current || !ownerWindow) {
-      return;
+      return undefined;
     }
 
     const updateMenuStyle = () => {
@@ -352,6 +357,7 @@ export function PanelMultiSelect({
       const rect = shell.getBoundingClientRect();
       setMenuStyle({
         ...PANEL_SELECT_STYLES.menu,
+        ...getPanelThemeVariables(shell),
         top: `${rect.bottom + 4}px`,
         left: `${rect.left}px`,
         width: `${rect.width}px`
@@ -359,9 +365,11 @@ export function PanelMultiSelect({
     };
 
     updateMenuStyle();
+    const stopObserving = observePanelTheme(shellRef.current, updateMenuStyle);
     ownerWindow.addEventListener('resize', updateMenuStyle);
     ownerWindow.addEventListener('scroll', updateMenuStyle, true);
     return () => {
+      stopObserving();
       ownerWindow.removeEventListener('resize', updateMenuStyle);
       ownerWindow.removeEventListener('scroll', updateMenuStyle, true);
     };
@@ -421,6 +429,7 @@ export function PanelMultiSelect({
               ref={listboxRef}
               id={listboxId}
               role="listbox"
+              data-panel-theme-preset={menuStyle['--panel-preset'] as string | undefined}
               aria-label={`${ariaLabel} options`}
               aria-multiselectable="true"
               style={menuStyle}
@@ -598,16 +607,16 @@ const PANEL_SELECT_STYLES = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     width: '100%',
-    minHeight: 36,
-    borderRadius: 13,
+    minHeight: 'var(--panel-control-height, 36px)',
+    borderRadius: 'var(--panel-corner-radius, 13px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.24))',
     background: 'var(--menu-background, rgba(51, 65, 85, 0.78))',
     color: 'var(--menu-text, #f8fafc)',
-    padding: '0 14px',
+    padding: 'var(--panel-control-padding, 0 14px)',
     font: 'inherit',
-    fontSize: 12,
+    fontSize: 'var(--panel-font-size, 12px)',
     fontWeight: 650,
     textAlign: 'left',
     cursor: 'pointer'
@@ -618,33 +627,36 @@ const PANEL_SELECT_STYLES = {
   },
   menu: {
     position: 'fixed',
+    backdropFilter: 'var(--menu-backdrop-filter, unset)',
+    WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
+    fontSize: 'var(--panel-font-size)',
     zIndex: 10000,
     display: 'grid',
-    gap: 2,
+    gap: 'var(--panel-gap, 2px)',
     maxHeight: 260,
     overflow: 'auto',
-    borderRadius: 13,
+    borderRadius: 'var(--panel-corner-radius, 13px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.28))',
     background: 'var(--menu-background, #334155)',
     boxShadow: 'var(--menu-shadow, 0 16px 34px rgba(0, 0, 0, 0.32))',
-    padding: 4
+    padding: 'var(--panel-control-padding, 4px)'
   },
   option: {
-    minHeight: 30,
+    minHeight: 'var(--panel-control-height, 30px)',
     border: 'none',
-    borderRadius: 9,
+    borderRadius: 'var(--panel-corner-radius, 9px)',
     background: 'transparent',
     color: 'var(--menu-text, #f8fafc)',
     font: 'inherit',
-    fontSize: 12,
+    fontSize: 'var(--panel-font-size, 12px)',
     fontWeight: 430,
     textAlign: 'left',
     cursor: 'pointer',
-    padding: '0 10px',
+    padding: 'var(--panel-control-padding, 0 10px)',
     display: 'grid',
     gridTemplateColumns: 'minmax(0, 1fr) auto',
     alignItems: 'center',
-    gap: 8
+    gap: 'var(--panel-gap, 8px)'
   },
   optionActive: {
     background: 'var(--menu-item-hover, rgba(148, 163, 184, 0.16))'
@@ -661,33 +673,33 @@ const PANEL_SELECT_STYLES = {
     whiteSpace: 'nowrap'
   },
   searchInput: {
-    minHeight: 30,
+    minHeight: 'var(--panel-control-height, 30px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.28))',
-    borderRadius: 9,
+    borderRadius: 'var(--panel-corner-radius, 9px)',
     background: 'var(--button-background, rgba(15, 23, 42, 0.22))',
     color: 'var(--menu-text, #f8fafc)',
     font: 'inherit',
-    fontSize: 12,
-    padding: '0 10px',
+    fontSize: 'var(--panel-font-size, 12px)',
+    padding: 'var(--panel-control-padding, 0 10px)',
     outline: 'none'
   },
   emptyState: {
     color: 'var(--button-text, #94a3b8)',
-    fontSize: 12,
-    padding: '8px 10px'
+    fontSize: 'var(--panel-font-size, 12px)',
+    padding: 'var(--panel-control-padding, 8px 10px)'
   },
   clearButton: {
-    minHeight: 30,
+    minHeight: 'var(--panel-control-height, 30px)',
     border: 'none',
-    borderRadius: 9,
+    borderRadius: 'var(--panel-corner-radius, 9px)',
     background: 'transparent',
     color: 'var(--button-text, #94a3b8)',
     font: 'inherit',
-    fontSize: 12,
+    fontSize: 'var(--panel-font-size, 12px)',
     fontWeight: 520,
     textAlign: 'left',
     cursor: 'pointer',
-    padding: '0 10px'
+    padding: 'var(--panel-control-padding, 0 10px)'
   },
   chevron: {
     width: 18,

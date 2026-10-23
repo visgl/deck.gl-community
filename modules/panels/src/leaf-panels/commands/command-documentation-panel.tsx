@@ -212,15 +212,15 @@ function renderAvailabilityIndicator(value: boolean): string {
 
 const COMMAND_LIST_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '10px'
+  gap: 'var(--panel-gap, 10px)'
 };
 
 const INTRO_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
-  padding: '4px 2px 6px',
+  gap: 'var(--panel-gap, 4px)',
+  padding: 'var(--panel-padding, 4px 2px 6px)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 
@@ -241,16 +241,16 @@ const COMMAND_TABLE_STYLE: JSX.CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 
 const COMMAND_HEADER_CELL_STYLE: JSX.CSSProperties = {
-  padding: '9px 10px',
+  padding: 'var(--panel-padding, 9px 10px)',
   borderBottom: '1px solid rgba(148, 163, 184, 0.24)',
   color: 'var(--button-icon-idle, rgb(71, 85, 105))',
   backgroundColor: 'rgba(248, 250, 252, 0.72)',
-  fontSize: '10px',
+  fontSize: 'var(--panel-font-size, 10px)',
   lineHeight: '13px',
   fontWeight: 800,
   letterSpacing: '0.04em',
@@ -265,7 +265,7 @@ const COMMAND_CENTER_HEADER_CELL_STYLE: JSX.CSSProperties = {
 };
 
 const COMMAND_CELL_STYLE: JSX.CSSProperties = {
-  padding: '10px',
+  padding: 'var(--panel-padding, 10px)',
   borderBottom: '1px solid rgba(148, 163, 184, 0.16)',
   verticalAlign: 'top'
 };
@@ -282,7 +282,7 @@ const COMMAND_ID_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   overflowWrap: 'anywhere',
   color: 'var(--button-icon-idle, rgb(71, 85, 105))',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   lineHeight: '15px',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace'
 };
@@ -290,62 +290,62 @@ const COMMAND_ID_STYLE: JSX.CSSProperties = {
 const COMMAND_LABEL_ID_STYLE: JSX.CSSProperties = {
   ...COMMAND_ID_STYLE,
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '13px',
+  fontSize: 'var(--panel-font-size, 13px)',
   lineHeight: '17px'
 };
 
 const COMMAND_LABEL_STYLE: JSX.CSSProperties = {
-  fontSize: '14px',
+  fontSize: 'var(--panel-font-size, 14px)',
   lineHeight: '18px',
   fontWeight: 700
 };
 
 const COMMAND_DESCRIPTION_STYLE: JSX.CSSProperties = {
   color: 'var(--button-icon-idle, rgb(71, 85, 105))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 
 const POSTMESSAGE_SECTION_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '8px',
-  padding: '10px 12px',
+  gap: 'var(--panel-gap, 8px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   borderRadius: 'var(--button-corner-radius, 14px)',
   border: '1px solid rgba(100, 116, 139, 0.18)',
   color: 'var(--button-icon-idle, rgb(71, 85, 105))',
   backgroundColor: 'rgba(248, 250, 252, 0.56)',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 
 const AUTOMATION_SUPPORT_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px'
+  gap: 'var(--panel-gap, 4px)'
 };
 
 const INLINE_CODE_STYLE: JSX.CSSProperties = {
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace'
 };
 
 const COMMAND_EXAMPLE_STYLE: JSX.CSSProperties = {
   display: 'block',
   overflowX: 'auto',
-  padding: '7px 8px',
-  borderRadius: '8px',
+  padding: 'var(--panel-padding, 7px 8px)',
+  borderRadius: 'var(--panel-corner-radius, 8px)',
   border: '1px solid rgba(100, 116, 139, 0.18)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   backgroundColor: 'rgba(255, 255, 255, 0.72)',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   lineHeight: '15px',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace'
 };
 
 const EMPTY_STATE_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
-  padding: '12px',
+  gap: 'var(--panel-gap, 4px)',
+  padding: 'var(--panel-padding, 12px)',
   color: 'var(--button-icon-idle, rgb(71, 85, 105))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };

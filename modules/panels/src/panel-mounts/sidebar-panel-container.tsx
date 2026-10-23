@@ -541,13 +541,15 @@ function isElementNode(value: Element | null | undefined): value is HTMLElement 
 }
 
 const SIDEBAR_TRIGGER_STYLE: JSX.CSSProperties = {
-  border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.35))',
-  borderRadius: '6px',
+  border: '1px solid var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.35)))',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
   background: 'var(--menu-background, #fff)',
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
   color: 'var(--button-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '1.1',
-  padding: '8px 10px',
+  padding: 'var(--panel-padding, 8px 10px)',
   cursor: 'pointer'
 };
 
@@ -611,7 +613,7 @@ const SIDEBAR_HANDLE_BUTTON_STYLE = (
   minWidth: `${SIDEBAR_HANDLE_WIDTH_PX}px`,
   height: '40px',
   border: 'var(--button-inner-stroke, 1px solid rgba(148, 163, 184, 0.35))',
-  borderRadius: '2px',
+  borderRadius: 'var(--panel-corner-radius, 2px)',
   background: 'var(--button-background, #fff)',
   backdropFilter: 'var(--button-backdrop-filter, unset)',
   color: 'var(--button-text, rgb(24, 24, 26))',
@@ -619,7 +621,7 @@ const SIDEBAR_HANDLE_BUTTON_STYLE = (
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: '2px',
+  gap: 'var(--panel-gap, 2px)',
   cursor: 'pointer',
   pointerEvents: 'auto',
   padding: '0',
@@ -649,7 +651,7 @@ function getSidebarHandleIconStyle(triggerIcon: string, open: boolean): JSX.CSSP
     ? getMaskIconStyle(triggerIcon, color)
     : {
         display: 'block',
-        fontSize: '12px',
+        fontSize: 'var(--panel-font-size, 12px)',
         fontWeight: 700,
         lineHeight: '1',
         color
@@ -659,7 +661,7 @@ function getSidebarHandleIconStyle(triggerIcon: string, open: boolean): JSX.CSSP
 function getSidebarHandleChevronStyle(open: boolean): JSX.CSSProperties {
   return {
     display: 'block',
-    fontSize: '22px',
+    fontSize: 'var(--panel-font-size, 22px)',
     fontWeight: 700,
     lineHeight: '1',
     transform: 'translateY(-1px)',
@@ -679,10 +681,16 @@ const SIDEBAR_PANEL_STYLE = (
   minWidth: `${Math.min(panelWidthPx, 260)}px`,
   height: '100%',
   borderLeft:
-    side === 'right' ? '1px solid var(--menu-border, rgba(148, 163, 184, 0.35))' : undefined,
+    side === 'right'
+      ? '1px solid var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.35)))'
+      : undefined,
   borderRight:
-    side === 'left' ? '1px solid var(--menu-border, rgba(148, 163, 184, 0.35))' : undefined,
+    side === 'left'
+      ? '1px solid var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.35)))'
+      : undefined,
   background: 'var(--menu-background, #fff)',
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   boxShadow: 'var(--menu-shadow, -8px 0 25px rgba(0, 0, 0, 0.22))',
   display: 'flex',
@@ -694,19 +702,19 @@ const SIDEBAR_HEADER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '10px',
-  padding: '10px 12px',
+  gap: 'var(--panel-gap, 10px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   borderBottom: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.25)))',
   background: 'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '13px',
+  fontSize: 'var(--panel-font-size, 13px)',
   fontWeight: 700
 };
 
 const SIDEBAR_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   width: '24px',
   height: '24px',
-  borderRadius: '999px',
+  borderRadius: 'var(--panel-corner-radius, 999px)',
   border: 'var(--menu-inner-border, 1px solid rgba(148, 163, 184, 0.35))',
   backgroundColor: 'transparent',
   color: 'var(--button-text, rgb(24, 24, 26))',
@@ -716,5 +724,5 @@ const SIDEBAR_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
 const SIDEBAR_CONTENT_STYLE: JSX.CSSProperties = {
   flex: 1,
   overflow: 'auto',
-  padding: '10px'
+  padding: 'var(--panel-padding, 10px)'
 };

@@ -27,6 +27,8 @@ it('exports panel component primitives', () => {
 it('exports panel theme primitives', () => {
   expect(Panels.PANEL_THEME_LIGHT).toBeDefined();
   expect(Panels.PANEL_THEME_DARK).toBeDefined();
+  expect(Panels.PANEL_THEME_SLEEK_LIGHT).toBeDefined();
+  expect(Panels.PANEL_THEME_SLEEK_DARK).toBeDefined();
   expect(Panels.applyPanelTheme).toBeDefined();
 });
 

@@ -253,8 +253,8 @@ describe('SettingsPanel', () => {
 
     const numberInput = getRequiredInput(root, 'input[type="number"]');
     expect(numberInput.getAttribute('style')).toContain('var(--button-backdrop-filter');
-    expect(numberInput.style.height).toBe('28px');
-    expect(numberInput.style.padding).toBe('2px 6px');
+    expect(getComputedStyle(numberInput).height).toBe('28px');
+    expect(getComputedStyle(numberInput).padding).toBe('2px 6px');
 
     cleanup();
   });
@@ -325,7 +325,7 @@ describe('SettingsPanel', () => {
     expect(optionLabel?.style.whiteSpace).toBe('nowrap');
     expect(optionLabel?.style.textOverflow).toBe('');
     expect(optionDescription?.textContent).toBe('Only keep critical traces visible.');
-    expect(optionDescription?.style.fontSize).toBe('11px');
+    expect(optionDescription && getComputedStyle(optionDescription).fontSize).toBe('11px');
 
     cleanup();
   });

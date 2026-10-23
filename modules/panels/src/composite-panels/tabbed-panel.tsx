@@ -104,7 +104,7 @@ export function TabbedPanelContainer({
                   ? 'var(--button-background, rgba(255, 255, 255, 0.96))'
                   : 'transparent',
                 borderColor: isActive
-                  ? 'var(--menu-border, rgba(148, 163, 184, 0.35))'
+                  ? 'var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.35)))'
                   : 'transparent',
                 color: isActive
                   ? 'var(--button-text, rgb(24, 24, 26))'
@@ -152,10 +152,13 @@ const TABBED_CONTAINER_STYLE: JSX.CSSProperties = {
   flexDirection: 'column',
   minWidth: '220px',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
-  borderRadius: 'var(--button-corner-radius, 8px)',
+  borderRadius: 'var(--panel-surface-radius, var(--button-corner-radius, 8px))',
   overflow: 'hidden',
   backgroundColor: 'var(--menu-background, #fff)',
-  color: 'var(--menu-text, rgb(24, 24, 26))'
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
+  color: 'var(--menu-text, rgb(24, 24, 26))',
+  boxShadow: 'var(--menu-shadow, none)'
 };
 
 function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
@@ -163,12 +166,12 @@ function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
     display: 'flex',
     alignItems: 'flex-start',
     flexWrap: tabListLayout === 'wrap' ? 'wrap' : 'nowrap',
-    gap: '4px',
+    gap: 'var(--panel-gap, 4px)',
     overflowX: tabListLayout === 'scroll' ? 'auto' : 'hidden',
     overflowY: 'hidden',
     background:
       'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
-    padding: '4px 6px',
+    padding: 'var(--panel-padding, 4px 6px)',
     borderBottom: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.2)))',
     position: 'sticky',
     top: 0,
@@ -179,10 +182,10 @@ function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
 const TAB_BUTTON_STYLE: JSX.CSSProperties = {
   flex: '0 0 auto',
   border: '1px solid transparent',
-  borderRadius: '4px',
+  borderRadius: 'var(--panel-corner-radius, 4px)',
   margin: 0,
-  padding: '4px 8px',
-  fontSize: '12px',
+  padding: 'var(--panel-control-padding, 4px 8px)',
+  fontSize: 'var(--panel-font-size, 12px)',
   fontWeight: 600,
   lineHeight: 1.25,
   cursor: 'pointer',
@@ -195,7 +198,7 @@ const TAB_BUTTON_STYLE: JSX.CSSProperties = {
 const TAB_PANEL_STYLE: JSX.CSSProperties = {
   display: 'grid',
   alignItems: 'start',
-  padding: '10px',
+  padding: 'var(--panel-padding, 10px)',
   overflow: 'auto'
 };
 

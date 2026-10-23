@@ -128,34 +128,37 @@ export function AccordeonPanelContainer({
 const ACCORDEON_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '8px'
+  gap: 'var(--panel-gap, 8px)'
 };
 
 const ACCORDION_PANEL_STYLE: JSX.CSSProperties = {
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
-  borderRadius: 'var(--button-corner-radius, 8px)',
-  overflow: 'hidden'
+  borderRadius: 'var(--panel-surface-radius, var(--button-corner-radius, 8px))',
+  overflow: 'hidden',
+  backgroundColor: 'var(--menu-background, transparent)',
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)'
 };
 
 const ACCORDION_HEADING_STYLE: JSX.CSSProperties = {
   width: '100%',
   border: '0',
   margin: '0',
-  padding: '10px 12px',
+  padding: 'var(--panel-padding, 10px 12px)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '8px',
-  backgroundColor: 'var(--menu-background, #fff)',
+  gap: 'var(--panel-gap, 8px)',
+  backgroundColor: 'var(--panel-content-background, var(--menu-background, #fff))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: 1.2,
   fontWeight: 700
 };
 
 const ACCORDION_CONTENT_STYLE: JSX.CSSProperties = {
-  padding: '8px 10px 10px 12px',
+  padding: 'var(--panel-padding, 8px 10px 10px 12px)',
   borderTop: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.25)))',
-  backgroundColor: 'var(--menu-background, #fff)',
+  backgroundColor: 'var(--panel-content-background, var(--menu-background, #fff))',
   color: 'var(--menu-text, rgb(24, 24, 26))'
 };

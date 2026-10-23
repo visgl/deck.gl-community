@@ -178,8 +178,8 @@ function ArrowTablePanelContent({
 const ARROW_TABLE_PANEL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   overflow: 'hidden',
-  borderRadius: '6px',
-  padding: '10px 12px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   font: '500 12px/1.45 ui-sans-serif,system-ui,sans-serif'
 };
 
@@ -208,7 +208,7 @@ const ARROW_TABLE_HEADER_CELL_STYLE: JSX.CSSProperties = {
   zIndex: 1,
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '6px 8px',
+  padding: 'var(--panel-padding, 6px 8px)',
   textAlign: 'left',
   font: '700 11px/1.4 ui-sans-serif,system-ui,sans-serif',
   whiteSpace: 'nowrap'
@@ -217,7 +217,7 @@ const ARROW_TABLE_HEADER_CELL_STYLE: JSX.CSSProperties = {
 const ARROW_TABLE_CELL_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '5px 8px',
+  padding: 'var(--panel-padding, 5px 8px)',
   maxWidth: '240px',
   overflow: 'hidden',
   textOverflow: 'ellipsis',

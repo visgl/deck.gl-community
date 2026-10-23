@@ -97,10 +97,10 @@ const ROOT_STYLE: Partial<CSSStyleDeclaration> = {
 const TOOLBAR_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   flexWrap: 'wrap',
-  padding: '8px 10px',
-  borderRadius: '999px',
+  padding: 'var(--panel-padding, 8px 10px)',
+  borderRadius: 'var(--panel-corner-radius, 999px)',
   background: 'rgba(36, 40, 41, 0.88)',
   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)'
 };
@@ -108,24 +108,24 @@ const TOOLBAR_STYLE: JSX.CSSProperties = {
 const ITEM_GROUP_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '6px',
+  gap: 'var(--panel-gap, 6px)',
   minWidth: '0'
 };
 
 const BUTTON_STYLE: JSX.CSSProperties = {
   appearance: 'none',
   border: 'none',
-  borderRadius: '999px',
+  borderRadius: 'var(--panel-corner-radius, 999px)',
   background: 'transparent',
   color: '#f0f0f0',
   minHeight: '30px',
-  padding: '0 10px',
+  padding: 'var(--panel-padding, 0 10px)',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: '6px',
+  gap: 'var(--panel-gap, 6px)',
   cursor: 'pointer',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   fontWeight: '500',
   transition: 'background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease',
@@ -145,21 +145,21 @@ const DISABLED_BUTTON_STYLE: JSX.CSSProperties = {
 
 const GROUP_LABEL_STYLE: JSX.CSSProperties = {
   color: 'rgba(255, 255, 255, 0.65)',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   whiteSpace: 'nowrap'
 };
 
 const BADGE_STYLE: JSX.CSSProperties = {
-  padding: '0 8px',
+  padding: 'var(--panel-padding, 0 8px)',
   minHeight: '28px',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  borderRadius: '999px',
+  borderRadius: 'var(--panel-corner-radius, 999px)',
   background: 'rgba(255, 255, 255, 0.12)',
   color: 'rgba(255, 255, 255, 0.88)',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   whiteSpace: 'nowrap'
 };
