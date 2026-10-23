@@ -260,6 +260,33 @@ jobs:
           DECK_GL_SOURCE: ${{ github.workspace }}/.terrain-sdk
           DECK_GL_COMMUNITY_SOFTWARE_WEBGPU: 'true'
 
+      # Report only: scores BasemapLayer against MapLibre on the shared conformance corpus
+      # (dev/basemap-conformance). Neither step can fail the job, and they run last so that they
+      # cannot slow down or starve the GPU-bound verification steps above.
+      - name: Render the basemap conformance corpus
+        id: conformance
+        if: ${{ !cancelled() && steps.headless.outcome != 'skipped' }}
+        continue-on-error: true
+        run: yarn test-conformance
+
+      - name: Score the basemap conformance renders
+        if: ${{ !cancelled() && steps.conformance.outcome != 'skipped' }}
+        continue-on-error: true
+        run: |
+          yarn conformance-report
+          cat dev/basemap-conformance/__output__/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload basemap conformance report
+        if: ${{ !cancelled() && steps.conformance.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: basemap-conformance
+          path: |
+            dev/basemap-conformance/__output__/report.md
+            dev/basemap-conformance/__output__/scores.json
+            dev/basemap-conformance/__output__/images
+          if-no-files-found: ignore
+
   website-build:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
