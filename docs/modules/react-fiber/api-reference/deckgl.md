@@ -7,66 +7,64 @@ import {DeckGL} from '@deck.gl-community/react-fiber';
 import type {DeckglInstance, DeckglProps, OnDeckglChange} from '@deck.gl-community/react-fiber';
 ```
 
-`DeckGL` is the native React Fiber root for deck.gl. It owns a standalone `Deck` by default and owns a `MapboxOverlay` when the `interleaved` prop is present. It renders its React children as deck.gl descriptors through the native `<layer>` and `<view>` elements.
+The root import creates only a standalone `Deck`. It owns a canvas unless the caller supplies `canvas`, and sends JSX `<view>` descriptors to deck.gl. Its props are `DeckProps`, which has no `interleaved` option.
 
-`DeckGL` creates a browser renderer. In an application that uses React Server Components, import and render it from a module marked with the React `'use client'` directive, or from that module's client-marked dependency tree. In traditional SSR without React Server Components, initialize browser-only map work after hydration instead.
+## Provider roots
 
-## Props
-
-`DeckglProps` combines deck.gl's `DeckProps` with the `MapboxOverlay` options that are relevant to an interleaved root. It also adds the following lifecycle prop:
-
-| Prop | Type | Behavior |
-| --- | --- | --- |
-| `onDeckglChange` | `OnDeckglChange` | Receives the root's `Deck` or `MapboxOverlay` instance after configuration, then `null` when the root cleans up. |
-
-All ordinary deck.gl properties, including `initialViewState`, `controller`, `layers`, event handlers, and rendering parameters, are forwarded to the owned renderer. Set `interleaved` when a map integration owns the map canvas and the root should create a `MapboxOverlay`.
-
-For a standalone root, `DeckGL` creates a wrapper and canvas when the caller does not supply a canvas. Supplying `canvas` makes the component use that canvas instead and render no wrapper or canvas of its own. Supplying `parent` lets the deck.gl configuration use a specific parent element. The `debug` prop enables the renderer's shared internal logger while it is true; use it for development diagnostics rather than application logging, especially when a page has more than one root.
-
-## Children and layer sources
-
-Use `<layer>` and `<view>` as children. The renderer recursively flattens the committed React tree, separates layers from views, and sends those arrays to deck.gl. It accepts the normal `layers` prop too; those layers are prepended to the JSX layers.
-
-Every layer across both sources must use a unique, stable ID. Duplicate IDs make deck.gl's diffing unreliable. A view also needs an explicit ID. Read [Native elements](./native-elements.md) for the complete intrinsic-element contract and the interleaved view limitation.
-
-## Instance lifecycle
-
-`DeckglInstance` is `Deck | MapboxOverlay`. `onDeckglChange` is the native instance-access point:
+Choose an external overlay by import path, not by a runtime provider-selection prop:
 
 ```tsx
-import {useEffect, useState} from 'react';
-import {DeckGL, type DeckglInstance} from '@deck.gl-community/react-fiber';
-
-export function Map() {
-  const [deckgl, setDeckgl] = useState<DeckglInstance | null>(null);
-
-  useEffect(() => {
-    if (!deckgl) {
-      return;
-    }
-
-    // Register root-specific imperative integration here.
-    return () => {
-      // Remove that integration before this instance changes or disappears.
-    };
-  }, [deckgl]);
-
-  return <DeckGL onDeckglChange={setDeckgl} />;
-}
+import {DeckGL as MapboxDeckGL} from '@deck.gl-community/react-fiber/mapbox';
+import {DeckGL as MapLibreDeckGL} from '@deck.gl-community/react-fiber/maplibre';
 ```
 
-The callback runs after initial configuration and can run again after relevant configuration or child updates. It is a lifecycle notification, not a React callback ref. Changing only its identity does not recreate, reconfigure, or unmount the root, and it does not immediately call the replacement. The latest callback is used for later notifications, including the final `null` during cleanup.
+`/mapbox` always creates `MapboxOverlay`; `/maplibre` always creates `MapLibreOverlay`. They pass `interleaved` to the overlay unchanged, so the overlay's own default applies: `false` for [`MapboxOverlay`](https://deck.gl/docs/api-reference/mapbox/mapbox-overlay#constructor) and [`MapLibreOverlay`](https://deck.gl/docs/api-reference/maplibre/overview). Both overlays read `interleaved` only in their constructors. When the prop changes, the root finalizes the current overlay, which removes it from the map, and creates a new one. `onDeckglChange` receives `null` and then the new instance, which the application attaches. Provider roots render no host DOM node and use a detached internal registry key, so they are safe inside a map container that must remain child-free.
 
-## Standalone and interleaved roots
+Each provider entry point exposes its concrete overlay contract:
 
-A standalone root owns its deck.gl canvas and sends its JSX view list to `Deck`. An interleaved root uses `MapboxOverlay`; the host map owns views in that mode, so JSX `<view>` elements do not configure the overlay's views. Keep map-owned view configuration with the map integration. Add the overlay to the host Mapbox- or MapLibre-style map after `onDeckglChange` supplies it, and remove it before the map is destroyed.
+| Entry point | Props and instance |
+| --- | --- |
+| Root or `/dom` | `DeckglProps` and `DeckglInstance`, which is `Deck` |
+| `/mapbox` | `MapboxDeckGLProps`; `onDeckglChange` receives `MapboxOverlay \| null` |
+| `/maplibre` | `MapLibreDeckGLProps`; `onDeckglChange` receives `MapLibreOverlay \| null` |
 
-`interleaved` is presence-based: passing `interleaved`, including `interleaved={false}`, selects the `MapboxOverlay` path. Omit the prop entirely for a standalone `Deck` root. In interleaved mode the component renders a hidden anchor instead of its normal wrapper and canvas.
+Provider overlay props exclude map-owned configuration such as `canvas`, `parent`, `device`, `viewState`, `initialViewState`, and `controller`. The MapLibre provider also excludes `width`, `height`, and `gl`. Configure those options on the application-owned Mapbox or MapLibre map, then attach the instance from `onDeckglChange` with `map.addControl` and remove the same control during cleanup. JSX `<view>` descriptors are not forwarded to external overlays because the host map owns views. See [Using with maps](../developer-guide/using-with-maps.md) for complete attachment and shared-context guidance.
 
-Deck event properties such as `onClick` remain deck.gl callbacks. They are forwarded to `Deck` or `MapboxOverlay`; they are not React synthetic events on the `<layer>` and `<view>` descriptor elements.
+## Props and lifecycle
 
-Use the native root when the application needs low-level renderer ownership, such as `gl`, `canvas`, `parent`, or `_customRender`. The [`/compat` adapter](../developer-guide/migrate-from-deckgl-react.md) does not support those props and intentionally has a smaller ref and context API.
+`DeckglProps` is the standalone `DeckProps` surface plus React children and `onDeckglChange`; `DeckglInstance` is `Deck`. Provider entry points infer their concrete overlay instance in `onDeckglChange`.
+
+The notification runs after configuration and receives `null` during cleanup. It is a lifecycle notification rather than a callback ref: replacing only its identity does not recreate the root, but later notifications use the replacement.
+
+On the standalone root, `canvas` accepts an `HTMLCanvasElement` or the id of a `<canvas>` element. An id is resolved with `document.getElementById` on the client after mount, so the canvas may be rendered in the same commit as `DeckGL`. An id that does not name a mounted `<canvas>` throws. Without `parent`, deck.gl uses the canvas's parent element. The root binds to the element found at mount; to bind a replacement element that reuses the id, pass that element as `canvas` or remount with a different React `key`.
+
+Deck event properties such as `onClick` remain deck.gl callbacks, not React synthetic events on `<layer>` or `<view>`.
+
+## Custom compatible overlays
+
+For a compatible overlay not covered by the provider roots, bind its factory once:
+
+```tsx
+import {createDeckGL} from '@deck.gl-community/react-fiber';
+
+const DeckGL = createDeckGL({
+  createExternalOverlay: props => new MyCompatibleOverlay(props)
+});
+```
+
+The factory runs only when the root is initially configured. It is not a render prop and never reaches `setProps`. The result must implement deck.gl's `setProps` and `finalize` lifecycle. See [Using with custom overlays](../developer-guide/base-maps/using-with-custom-overlays.md) for the overlay requirements and host attachment.
+
+`recreateOnChange` lists props that the overlay reads only at construction or attach time. When one of them changes (compared with `Object.is`), the component finalizes the overlay and calls the factory again with the full props. `onDeckglChange` receives `null` and then the new instance. The provider roots declare `recreateOnChange: ['interleaved']`.
+
+```tsx
+const DeckGL = createDeckGL({
+  createExternalOverlay: props => new MyCompatibleOverlay(props),
+  recreateOnChange: ['interleaved']
+});
+```
+
+Recreating an overlay discards its internal state, such as the hovered object.
 
 ## Advanced reconciler APIs
 
-`@deck.gl-community/react-fiber/reconciler` exports `createRoot` and `unmountAtNode` for direct integration. These are advanced APIs: `DeckGL` manages the root, configuration, rendering, and cleanup for normal React applications. Use the reconciler entry point only when the application must own that lifecycle itself; do not depend on its deep implementation subpaths.
+`@deck.gl-community/react-fiber/reconciler` exports `createRoot` and `unmountAtNode` for direct integration. These are advanced APIs; normal applications should use one of the entry points above.

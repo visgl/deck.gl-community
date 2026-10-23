@@ -14,11 +14,11 @@ The package has two deliberately different public surfaces:
 
 ## Client-only renderer
 
-The native root creates a canvas-backed deck.gl renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports and renders `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In a traditional SSR application without React Server Components, create the map or overlay after hydration in an effect.
+The native root creates a canvas-backed deck.gl renderer. In an application that uses React Server Components, put `'use client'` at the beginning of the module that imports and renders `DeckGL`, or import it from an existing client-marked module. This React directive marks that module and its transitive dependencies as client code; Next.js is one framework that supports it. In a traditional SSR application without React Server Components, create the map or overlay after hydration in an effect. Server rendering a `DeckGL` root does not require `ssr: false`: the standalone root renders its wrapper and canvas markup, provider roots render no markup, and deck.gl or the overlay is created only after hydration.
 
 ## How the native API works
 
-`DeckGL` owns one `Deck` instance for standalone rendering, or one `MapboxOverlay` when `interleaved` is present. Its children use two intrinsic React elements:
+The root `DeckGL` entry point owns one standalone `Deck`. Import `/mapbox` or `/maplibre` when an application needs an external provider overlay; `interleaved` then selects that bound overlay's mode. Its children use two intrinsic React elements:
 
 - `<layer>` receives a constructed deck.gl `Layer` instance.
 - `<view>` receives a constructed deck.gl `View` instance.
@@ -54,10 +54,10 @@ export function Map({data}: {data: Array<{coordinates: [number, number]}>) {
 Install React 19 or later, the package, and the deck.gl packages that your application uses. This example installs the packages needed for the native scatterplot example:
 
 ```bash
-npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers @deck.gl/mapbox
+npm install react react-dom @deck.gl-community/react-fiber @deck.gl/core @deck.gl/layers
 ```
 
-The package is built against the deck.gl 9.4 package family. It has non-optional deck.gl, loaders.gl, and luma.gl peer dependencies, including `@deck.gl/mapbox`, because the renderer imports `MapboxOverlay` for its root implementation. Let your package manager satisfy that peer-dependency contract and install the matching deck.gl layer package before importing a compatibility wrapper from that layer family.
+The package is built against the deck.gl 9.4 package family. `@deck.gl/mapbox` and `@deck.gl/maplibre` are optional peers: install the one required by the provider entry point you import. The plain root imports neither provider.
 
 ## Standalone layout
 
@@ -66,6 +66,7 @@ Without `canvas`, a standalone root renders an unstyled wrapper and canvas. Give
 ## Guides and API reference
 
 - [Get started](./developer-guide/get-started.md) explains the native root, client boundaries, layers, views, and instance access.
+- [Using with maps](./developer-guide/using-with-maps.md) explains provider roots and links the [Mapbox](./developer-guide/base-maps/using-with-mapbox.md) and [MapLibre](./developer-guide/base-maps/using-with-maplibre.md) guides.
 - [Migrate from `@deck.gl/react`](./developer-guide/migrate-from-deckgl-react.md) lists the supported compatibility wrappers and their limits.
 - [DeckGL API](./api-reference/deckgl.md) documents root ownership and lifecycle behavior.
 - [Native elements](./api-reference/native-elements.md) documents `<layer>` and `<view>`.

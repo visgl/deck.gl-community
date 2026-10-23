@@ -1,5 +1,4 @@
-import {createServerFn} from '@tanstack/start';
-import {zodValidator} from '@tanstack/zod-adapter';
+import {createServerFn} from '@tanstack/react-start';
 import {z} from 'zod';
 
 // Types
@@ -49,11 +48,9 @@ const API_URL =
 // Server function to get airports list
 export const getAirports = createServerFn({method: 'GET'})
   .validator(
-    zodValidator(
-      z.object({
-        search: z.string().optional()
-      })
-    )
+    z.object({
+      search: z.string().optional()
+    })
   )
   .handler(async ({data}) => {
     try {
@@ -100,11 +97,9 @@ export const getAirports = createServerFn({method: 'GET'})
 // Server function to get single airport by ID
 export const getAirportById = createServerFn({method: 'GET'})
   .validator(
-    zodValidator(
-      z.object({
-        id: z.string()
-      })
-    )
+    z.object({
+      id: z.string()
+    })
   )
   .handler(async ({data}) => {
     try {

@@ -1,4 +1,4 @@
-export {DeckGL} from './components';
+export {createDeckGL, DeckGL} from './components';
 /**
  * Re-export public types from the package root.
  *
@@ -12,6 +12,6 @@ export {DeckGL} from './components';
  * import type {DeckglInstance} from '@deck.gl-community/react-fiber/types';
  * ```
  */
-export type {DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';
+export type {DeckGLRootProps, DeckglInstance, DeckglProps, OnDeckglChange} from '../types/index';
 export {DeckCanvas} from './deck-canvas';
 export type {DeckCanvasProps} from './deck-canvas';

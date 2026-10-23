@@ -1,11 +1,68 @@
 import {MapView} from '@deck.gl/core';
 import {ScatterplotLayer} from '@deck.gl/layers';
-import type {ReactNode} from 'react';
+import type {MapboxOverlay} from '@deck.gl/mapbox';
+import type {MapLibreOverlay} from '@deck.gl/maplibre';
+import type {ComponentProps, ReactNode} from 'react';
+import {DeckGL} from '../../dom/components';
+import {DeckGL as MapboxDeckGL} from '../../dom/mapbox';
+import {DeckGL as MapLibreDeckGL} from '../../dom/maplibre';
 import {describe, expect, expectTypeOf, it} from 'vitest';
 
 import type {DeckglInstance, DeckglProps} from '../react';
 
 describe('Props Type Tests', () => {
+  it('keeps plain and provider root callback types distinct', () => {
+    const mapboxProps = {
+      children: null,
+      interleaved: true,
+      onDeckglChange: deckgl => {
+        const instance: MapboxOverlay | null = deckgl;
+        expect(instance).toBeDefined();
+      }
+    } satisfies ComponentProps<typeof MapboxDeckGL>;
+    const maplibreProps = {
+      children: null,
+      interleaved: false,
+      onDeckglChange: deckgl => {
+        const instance: MapLibreOverlay | null = deckgl;
+        expect(instance).toBeDefined();
+      }
+    } satisfies ComponentProps<typeof MapLibreDeckGL>;
+
+    // @ts-expect-error `interleaved` is an overlay option that `DeckProps` does not declare.
+    const plainInterleaved: DeckglProps = {interleaved: true};
+    // @ts-expect-error The exported plain component rejects `interleaved`, not just its props alias.
+    const plainComponentInterleaved = {children: null, interleaved: true} satisfies ComponentProps<
+      typeof DeckGL
+    >;
+    void mapboxProps;
+    void maplibreProps;
+    void plainInterleaved;
+    void plainComponentInterleaved;
+  });
+
+  it('accepts a canvas element or element id only on the plain root', () => {
+    const byId = {canvas: 'map-canvas', children: null} satisfies ComponentProps<typeof DeckGL>;
+    const byElement = {
+      canvas: document.createElement('canvas'),
+      children: null
+    } satisfies ComponentProps<typeof DeckGL>;
+    const mapboxCanvas: ComponentProps<typeof MapboxDeckGL> = {
+      // @ts-expect-error The host map owns the canvas of a Mapbox provider root.
+      canvas: 'map-canvas',
+      children: null
+    };
+    const maplibreCanvas: ComponentProps<typeof MapLibreDeckGL> = {
+      // @ts-expect-error The host map owns the canvas of a MapLibre provider root.
+      canvas: 'map-canvas',
+      children: null
+    };
+    void byId;
+    void byElement;
+    void mapboxCanvas;
+    void maplibreCanvas;
+  });
+
   it('should DeckglProps accept initialViewState', () => {
     // Arrange
     const props: DeckglProps = {

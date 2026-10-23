@@ -327,6 +327,29 @@ describe('config-tree-operations', () => {
       });
     });
 
+    it.each(['Mapbox', 'MapLibre'])('omits JSX views for a %s external overlay root', () => {
+      const layer = new ScatterplotLayer({data: [], id: 'layer'});
+      const view = new MapView({id: 'view'});
+      const mockDeckgl = {
+        setProps: vi.fn<(props: {layers: unknown[]; views?: unknown[]}) => void>()
+      };
+      const container = {
+        store: {
+          getState: vi.fn(() => ({
+            _passedLayers: [],
+            deckgl: mockDeckgl,
+            isExternalOverlay: true
+          }))
+        }
+      } as unknown as Container;
+
+      replaceContainerChildren(container, [createMockInstance(view), createMockInstance(layer)]);
+      replaceContainerChildren(container, [createMockInstance(layer)]);
+
+      expect(mockDeckgl.setProps).toHaveBeenNthCalledWith(1, {layers: [layer]});
+      expect(mockDeckgl.setProps).toHaveBeenNthCalledWith(2, {layers: [layer]});
+    });
+
     it('should combine _passedLayers with JSX layers', () => {
       // Arrange
       const passedLayer = new ScatterplotLayer({data: [], id: 'passed'});

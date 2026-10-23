@@ -25,7 +25,8 @@
       "examples/**/*.js",
       "examples/**/*.jsx",
       "examples/**/*.ts",
-      "examples/**/*.tsx"
+      "examples/**/*.tsx",
+      "!**/routeTree.gen.ts"
     ]
   },
   "formatter": {

@@ -1,3 +1,4 @@
+import {Deck} from '@deck.gl/core';
 import {PolygonLayer, ScatterplotLayer} from '@deck.gl/layers';
 import * as fc from 'fast-check';
 import React from 'react';
@@ -175,22 +176,72 @@ describe('renderer', () => {
       expect(root.store.getState()._passedLayers).toStrictEqual([]);
     });
 
-    it('should create MapboxOverlay when interleaved prop is present', () => {
-      // Arrange
+    it('creates a plain Deck root without inspecting interleaved', () => {
+      const canvas = document.createElement('canvas');
+      const root = createRoot(canvas);
+
+      expect(() => root.configure({canvas, interleaved: true} as never)).not.toThrow();
+      expect(root.store.getState().deckgl).toBeInstanceOf(Deck);
+    });
+
+    it('creates a bound external overlay once and forwards later props', () => {
+      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
+      const createExternalOverlay = vi.fn(() => overlay);
+      const root = createRoot(createTestRootElement(), {createExternalOverlay});
+
+      root.configure({interleaved: true});
+      root.configure({interleaved: true, layers: []});
+
+      expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith({interleaved: true});
+      expect(root.isExternalOverlay).toBe(true);
+      expect(root.store.getState().isExternalOverlay).toBe(true);
+      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({interleaved: true, layers: []});
+    });
+
+    // Recreating the overlay for a construction-only prop is the component's job
+    // (`createDeckGL({recreateOnChange})`); the root itself only forwards props.
+    it.each([
+      {initialProps: {}, name: 'omitted interleaved', updateProps: {interleaved: false}},
+      {
+        initialProps: {interleaved: false},
+        name: 'interleaved false',
+        updateProps: {interleaved: false}
+      },
+      {
+        initialProps: {interleaved: true},
+        name: 'interleaved true',
+        updateProps: {interleaved: true}
+      },
+      {
+        initialProps: {interleaved: false},
+        name: 'interleaved false then true',
+        updateProps: {interleaved: true}
+      },
+      {
+        initialProps: {interleaved: true},
+        name: 'interleaved true then false',
+        updateProps: {interleaved: false}
+      }
+    ])('creates an external overlay once when $name', ({initialProps, updateProps}) => {
+      const overlay = {finalize: vi.fn(), setProps: vi.fn()};
+      const createExternalOverlay = vi.fn(() => overlay);
+      const root = createRoot(createTestRootElement(), {createExternalOverlay});
+
+      root.configure(initialProps);
+      root.configure({...updateProps, layers: []});
+
+      expect(createExternalOverlay).toHaveBeenCalledExactlyOnceWith(initialProps);
+      expect(overlay.setProps).toHaveBeenCalledExactlyOnceWith({...updateProps, layers: []});
+    });
+
+    it('rejects reuse of a root with a different overlay factory', () => {
       const node = createTestRootElement();
-      const root = createRoot(node);
+      const firstFactory = vi.fn(() => ({finalize: vi.fn(), setProps: vi.fn()}));
+      const secondFactory = vi.fn(() => ({finalize: vi.fn(), setProps: vi.fn()}));
 
-      // Act
-      root.configure({
-        interleaved: true
-      });
+      createRoot(node, {createExternalOverlay: firstFactory});
 
-      // Assert
-      const state = root.store.getState();
-      expect(state.deckgl).not.toBeNull();
-      expect(state.deckgl).toBeTypeOf('object');
-      expect(state.deckgl).toHaveProperty('setProps');
-      expect(state.deckgl).toHaveProperty('finalize');
+      expect(() => createRoot(node, {createExternalOverlay: secondFactory})).toThrow();
     });
   });
 
