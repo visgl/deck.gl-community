@@ -332,7 +332,7 @@ const TEXT_EDITOR_PANEL_STYLE: JSX.CSSProperties = {
 const TEXT_EDITOR_SURFACE_STYLE: JSX.CSSProperties = {
   position: 'relative',
   minHeight: '280px',
-  border: '1px solid var(--menu-border, rgba(148, 163, 184, 0.35))',
+  border: '1px solid var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.35)))',
   borderRadius: 'var(--button-corner-radius, 8px)',
   overflow: 'hidden',
   background: 'var(--menu-background, #fff)'
@@ -349,8 +349,8 @@ const TEXT_EDITOR_STATUS_STYLE: JSX.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
-  padding: '16px'
+  fontSize: 'var(--panel-font-size, 12px)',
+  padding: 'var(--panel-padding, 16px)'
 };
 
 const TEXT_EDITOR_ERROR_STYLE: JSX.CSSProperties = {
@@ -364,7 +364,7 @@ const TEXT_EDITOR_PLACEHOLDER_STYLE: JSX.CSSProperties = {
   left: '14px',
   right: '14px',
   color: 'var(--button-icon-idle, rgb(100, 116, 139))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   pointerEvents: 'none',
   whiteSpace: 'nowrap',
   overflow: 'hidden',

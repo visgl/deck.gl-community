@@ -44,7 +44,7 @@ function MetricsContent({metrics, metricNames, labels, formatValue}: MetricsPane
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr auto',
-        gap: '8px 12px',
+        gap: 'var(--panel-gap, 8px 12px)',
         margin: 0,
         color: 'var(--menu-text, inherit)'
       }}

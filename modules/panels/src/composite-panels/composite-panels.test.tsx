@@ -571,3 +571,23 @@ describe('composite panels', () => {
     expect(root.textContent).toContain('<b>unsafe</b>');
   });
 });
+
+it('retains an immediate tab click before default-selection effects flush', async () => {
+  const root = document.createElement('div');
+  document.body.append(root);
+  render(
+    h(TabbedPanelContainer, {
+      panels: [
+        new TestPanel({id: 'initial', title: 'Initial', content: createPanelContent('initial')}),
+        new TestPanel({id: 'chosen', title: 'Chosen', content: createPanelContent('chosen')})
+      ]
+    }),
+    root
+  );
+  root.querySelectorAll<HTMLButtonElement>('button')[1].click();
+  await new Promise<void>(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  );
+  expect(getComputedStyle(getPanelContent(root, 'chosen')!).visibility).toBe('visible');
+  expect(getComputedStyle(getPanelContent(root, 'initial')!).visibility).toBe('hidden');
+});

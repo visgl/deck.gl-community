@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panel theme presets</title>
+    <style>
+      body {
+        margin: 24px;
+        background: #080c14;
+        color: #e7ece9;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 400px));
+        justify-content: center;
+        gap: 20px;
+      }
+      main {
+        position: relative;
+        padding: 28px;
+        border-radius: 12px;
+        background:
+          radial-gradient(ellipse at 72% 50%, #16416a 0%, transparent 44%),
+          linear-gradient(140deg, #09121f, #04070d);
+        isolation: isolate;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        opacity: 0.8;
+        pointer-events: none;
+      }
+      @media (max-width: 760px) {
+        main { grid-template-columns: minmax(0, 400px); padding: 20px; }
+      }
+      article {
+        min-width: 0;
+      }
+      .preview {
+        padding: 0;
+        color: var(--menu-text);
+        border-radius: var(--panel-surface-radius, var(--button-corner-radius));
+        font-size: var(--panel-font-size, 14px);
+      }
+      .fields {
+        display: grid;
+        gap: var(--panel-gap, 10px);
+        padding: var(--panel-padding, 10px);
+      }
+      .fields input[type='text'] {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        height: var(--panel-control-height, 32px);
+        padding: var(--panel-control-padding, 4px 8px);
+        border: var(--button-inner-stroke, 1px solid #999);
+        border-radius: var(--panel-corner-radius, 6px);
+        background: var(--button-background);
+        color: var(--button-text);
+        font: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Panel theme presets</h1>
+    <p>
+      Original themes and luma.gl-style glass overlays on the same scene. Switch tabs, open menus
+      and use Tab to inspect focus.
+    </p>
+    <main id="app">
+      <svg class="scene" viewBox="0 0 1400 500" preserveAspectRatio="none" aria-hidden="true">
+        <g fill="none" stroke="#6e9bcb" stroke-width="3" opacity="0.6">
+          <path
+            d="M20 400L200 80L420 330L650 90L850 380L1110 80L1380 400M20 100L200 420L420 90L650 400L850 90L1110 420L1380 100M20 260L1380 260M200 80L1110 420M200 420L1110 80"
+          />
+        </g>
+        <g fill="#123456" stroke="#82acdc" stroke-width="2">
+          <circle cx="200" cy="80" r="28" />
+          <circle cx="420" cy="330" r="28" />
+          <circle cx="650" cy="90" r="28" />
+          <circle cx="850" cy="380" r="28" />
+          <circle cx="1110" cy="80" r="28" />
+        </g>
+        <g fill="#63d8b0">
+          <circle cx="290" cy="185" r="9" />
+          <circle cx="710" cy="177" r="9" />
+          <circle cx="1170" cy="158" r="9" />
+        </g>
+        <g fill="#f66d83">
+          <circle cx="340" cy="240" r="8" />
+          <circle cx="750" cy="240" r="8" />
+          <circle cx="1240" cy="245" r="8" />
+        </g>
+      </svg>
+    </main>
+    <script type="module" src="./theme-presets.tsx"></script>
+  </body>
+</html>

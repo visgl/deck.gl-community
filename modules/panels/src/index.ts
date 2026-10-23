@@ -25,6 +25,10 @@ export {
 
 export {
   PANEL_THEME_DARK,
+  PANEL_THEME_SLEEK_LIGHT,
+  PANEL_THEME_SLEEK_DARK,
+  type PanelThemePreset,
+  type PanelThemeDefinition,
   PANEL_THEME_LIGHT,
   applyPanelTheme,
   type PanelThemeVariables

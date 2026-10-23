@@ -47,7 +47,9 @@ export function KeyboardShortcutsPanelContent({
   const shortcutSections = buildKeyboardShortcutSections(shortcutRows);
 
   return (
-    <div style={{overflowY: 'auto', padding: '10px 12px', flex: 1, minHeight: 0}}>
+    <div
+      style={{overflowY: 'auto', padding: 'var(--panel-padding, 10px 12px)', flex: 1, minHeight: 0}}
+    >
       <div style={{display: 'flex', flexDirection: 'column'}}>
         {shortcutSections.map(section => (
           <section
@@ -380,11 +382,11 @@ function mergeShortcutBadges(...shortcuts: KeyboardShortcut[]): string[] {
 }
 
 const KEY_STYLE: JSX.CSSProperties = {
-  borderRadius: '6px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
   border: '1px solid rgba(148, 163, 184, 0.85)',
   backgroundColor: 'rgba(248, 250, 252, 1)',
-  padding: '2px 8px',
-  fontSize: '11px',
+  padding: 'var(--panel-padding, 2px 8px)',
+  fontSize: 'var(--panel-font-size, 11px)',
   color: 'var(--button-text, #0f172a)',
   whiteSpace: 'nowrap'
 };
@@ -392,11 +394,11 @@ const KEY_STYLE: JSX.CSSProperties = {
 const SHORTCUT_BADGE_STYLE: JSX.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  borderRadius: '999px',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   border: '1px solid rgba(148, 163, 184, 0.55)',
   backgroundColor: 'rgba(248, 250, 252, 0.8)',
-  padding: '0 5px',
-  fontSize: '9px',
+  padding: 'var(--panel-padding, 0 5px)',
+  fontSize: 'var(--panel-font-size, 9px)',
   lineHeight: '11px',
   color: 'rgb(100, 116, 139)',
   transform: 'translateY(-2px)',
@@ -411,7 +413,7 @@ const SHORTCUT_SECTION_STYLE: JSX.CSSProperties = {
 const SHORTCUT_SECTION_HEADING_STYLE: JSX.CSSProperties = {
   margin: '12px 0 4px',
   color: 'rgb(100, 116, 139)',
-  fontSize: '10px',
+  fontSize: 'var(--panel-font-size, 10px)',
   fontWeight: 700,
   letterSpacing: '0',
   lineHeight: '14px',
@@ -421,9 +423,9 @@ const SHORTCUT_SECTION_HEADING_STYLE: JSX.CSSProperties = {
 const SHORTCUT_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(124px, 180px) minmax(0, 1fr)',
-  gap: '8px 10px',
+  gap: 'var(--panel-gap, 8px 10px)',
   alignItems: 'center',
-  padding: '6px 0',
+  padding: 'var(--panel-padding, 6px 0)',
   borderBottom: '1px solid rgba(226, 232, 240, 0.8)'
 };
 
@@ -431,7 +433,7 @@ const SHORTCUT_KEYS_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   flexWrap: 'wrap',
-  gap: '11px',
+  gap: 'var(--panel-gap, 11px)',
   minWidth: 0
 };
 
@@ -439,12 +441,12 @@ const SHORTCUT_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'start',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   minWidth: 0
 };
 
 const SHORTCUT_DESCRIPTION_STYLE: JSX.CSSProperties = {
-  fontSize: '13px',
+  fontSize: 'var(--panel-font-size, 13px)',
   lineHeight: '18px',
   fontWeight: 400,
   color: 'rgb(51, 65, 85)',
@@ -456,7 +458,7 @@ const SHORTCUT_DESCRIPTION_STYLE: JSX.CSSProperties = {
 const SHORTCUT_BADGES_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '6px',
+  gap: 'var(--panel-gap, 6px)',
   flexWrap: 'nowrap',
   justifyContent: 'flex-end',
   justifySelf: 'end',
@@ -468,14 +470,14 @@ const SHORTCUT_INPUTS_STYLE: JSX.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   flexWrap: 'wrap',
-  gap: '2px'
+  gap: 'var(--panel-gap, 2px)'
 };
 
 const SHORTCUT_CHORD_STYLE: JSX.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: '2px',
+  gap: 'var(--panel-gap, 2px)',
   color: 'rgb(51, 65, 85)',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   whiteSpace: 'nowrap'
 };

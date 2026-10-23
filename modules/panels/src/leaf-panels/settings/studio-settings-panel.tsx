@@ -1054,7 +1054,7 @@ const STYLES = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 18px',
+    padding: 'var(--panel-padding, 0 18px)',
     borderBottom: 'var(--menu-border, 1px solid rgba(15, 23, 42, 0.35))',
     background: 'var(--button-background, rgba(15, 23, 42, 0.16))',
     cursor: 'grab',
@@ -1064,14 +1064,14 @@ const STYLES = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     width: '100%',
     minWidth: 0
   },
   headerTitle: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
+    gap: 'var(--panel-gap, 10px)',
     height: 24,
     minWidth: 0,
     color: 'var(--button-text, #dbeafe)'
@@ -1079,12 +1079,12 @@ const STYLES = {
   headerActions: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
+    gap: 'var(--panel-gap, 8px)',
     flex: '0 0 auto'
   },
   heading: {
     margin: 0,
-    fontSize: 14,
+    fontSize: 'var(--panel-font-size, 14px)',
     fontWeight: 800,
     lineHeight: '18px',
     letterSpacing: '0.08em',
@@ -1098,16 +1098,16 @@ const STYLES = {
     minWidth: 74,
     height: 24,
     border: '1px solid var(--menu-border-color, rgba(148, 163, 184, 0.26))',
-    borderRadius: 7,
+    borderRadius: 'var(--panel-corner-radius, 7px)',
     background: 'var(--menu-background, rgba(15, 23, 42, 0.12))',
     color: 'var(--menu-text, #e2e8f0)',
     boxShadow: 'none',
     font: 'inherit',
-    fontSize: 12,
+    fontSize: 'var(--panel-font-size, 12px)',
     fontWeight: 650,
     lineHeight: 1,
     outline: 'none',
-    padding: '0 10px',
+    padding: 'var(--panel-padding, 0 10px)',
     cursor: 'pointer'
   },
   navigationModeButtonActive: {
@@ -1118,16 +1118,16 @@ const STYLES = {
     minWidth: 74,
     height: 24,
     border: '1px solid var(--menu-border-color, rgba(148, 163, 184, 0.3))',
-    borderRadius: 7,
+    borderRadius: 'var(--panel-corner-radius, 7px)',
     background: 'var(--menu-item-hover, rgba(15, 23, 42, 0.2))',
     color: 'var(--menu-text, #f8fafc)',
     boxShadow: 'none',
     font: 'inherit',
-    fontSize: 12,
+    fontSize: 'var(--panel-font-size, 12px)',
     fontWeight: 650,
     lineHeight: 1,
     outline: 'none',
-    padding: '0 10px',
+    padding: 'var(--panel-padding, 0 10px)',
     cursor: 'pointer'
   },
   headerCloseButton: {
@@ -1137,11 +1137,11 @@ const STYLES = {
     width: 34,
     height: 30,
     border: 'none',
-    borderRadius: 10,
+    borderRadius: 'var(--panel-corner-radius, 10px)',
     background: 'transparent',
     color: 'var(--button-text, #94a3b8)',
     font: 'inherit',
-    fontSize: 23,
+    fontSize: 'var(--panel-font-size, 23px)',
     lineHeight: 1,
     padding: 0,
     cursor: 'pointer'
@@ -1162,18 +1162,18 @@ const STYLES = {
   },
   rail: {
     borderRight: 'var(--menu-border, 1px solid rgba(15, 23, 42, 0.28))',
-    padding: 12,
+    padding: 'var(--panel-padding, 12px)',
     overflowY: 'auto'
   },
   railGroup: {
     display: 'grid',
-    gap: 6,
+    gap: 'var(--panel-gap, 6px)',
     marginBottom: 14
   },
   railGroupTitle: {
-    padding: '0 8px',
+    padding: 'var(--panel-padding, 0 8px)',
     color: 'var(--button-text, #94a3b8)',
-    fontSize: 10,
+    fontSize: 'var(--panel-font-size, 10px)',
     fontWeight: 820,
     letterSpacing: '0.12em',
     textAlign: 'center',
@@ -1181,24 +1181,24 @@ const STYLES = {
   },
   tabList: {
     display: 'grid',
-    gap: 3,
-    padding: 5,
-    borderRadius: 16,
+    gap: 'var(--panel-gap, 3px)',
+    padding: 'var(--panel-padding, 5px)',
+    borderRadius: 'var(--panel-corner-radius, 16px)',
     background: 'var(--menu-item-hover, rgba(15, 23, 42, 0.22))'
   },
   tabButton: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
+    gap: 'var(--panel-gap, 10px)',
     width: '100%',
     minHeight: 34,
     border: '1px solid transparent',
-    borderRadius: 11,
-    padding: '0 10px',
+    borderRadius: 'var(--panel-corner-radius, 11px)',
+    padding: 'var(--panel-padding, 0 10px)',
     background: 'transparent',
     color: 'var(--button-text, #94a3b8)',
     font: 'inherit',
-    fontSize: 13,
+    fontSize: 'var(--panel-font-size, 13px)',
     fontWeight: 700,
     textAlign: 'left',
     cursor: 'pointer'
@@ -1206,74 +1206,74 @@ const STYLES = {
   tabButtonActive: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
+    gap: 'var(--panel-gap, 10px)',
     width: '100%',
     minHeight: 34,
     border: 'var(--menu-border, 1px solid rgba(103, 232, 249, 0.45))',
-    borderRadius: 11,
-    padding: '0 10px',
+    borderRadius: 'var(--panel-corner-radius, 11px)',
+    padding: 'var(--panel-padding, 0 10px)',
     background: 'var(--button-background, rgba(103, 232, 249, 0.14))',
     color: 'var(--button-icon-hover, #cffafe)',
     font: 'inherit',
-    fontSize: 13,
+    fontSize: 'var(--panel-font-size, 13px)',
     fontWeight: 760,
     textAlign: 'left',
     cursor: 'pointer'
   },
   preset: {
     marginTop: 18,
-    borderRadius: 20,
+    borderRadius: 'var(--panel-corner-radius, 20px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.18))',
     background: 'var(--menu-item-hover, rgba(15, 23, 42, 0.18))',
-    padding: 14
+    padding: 'var(--panel-padding, 14px)'
   },
   presetEyebrow: {
     marginBottom: 10,
-    fontSize: 11,
+    fontSize: 'var(--panel-font-size, 11px)',
     fontWeight: 800,
     letterSpacing: '0.12em',
     textTransform: 'uppercase',
     color: 'var(--button-text, #94a3b8)'
   },
   presetCard: {
-    borderRadius: 14,
+    borderRadius: 'var(--panel-corner-radius, 14px)',
     border: 'var(--menu-border, 1px solid rgba(103, 232, 249, 0.28))',
     background: 'var(--button-background, rgba(103, 232, 249, 0.12))',
     color: 'var(--button-icon-hover, #cffafe)',
-    padding: '12px 14px',
-    fontSize: 14,
+    padding: 'var(--panel-padding, 12px 14px)',
+    fontSize: 'var(--panel-font-size, 14px)',
     fontWeight: 850
   },
   main: {
     display: 'grid',
-    gap: 10,
+    gap: 'var(--panel-gap, 10px)',
     alignContent: 'start',
     minWidth: 0,
     minHeight: 0,
-    padding: 16,
+    padding: 'var(--panel-padding, 16px)',
     overflowY: 'auto',
     overscrollBehavior: 'contain'
   },
   mainCollapsed: {
     display: 'grid',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     alignContent: 'start',
     minWidth: 0,
     minHeight: 0,
-    padding: 16,
+    padding: 'var(--panel-padding, 16px)',
     overflowY: 'auto',
     overscrollBehavior: 'contain'
   },
   sectionStackItem: {
     display: 'grid',
-    gap: 10,
+    gap: 'var(--panel-gap, 10px)',
     minWidth: 0
   },
   section: {
-    borderRadius: 18,
+    borderRadius: 'var(--panel-corner-radius, 18px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.24))',
     background: 'var(--menu-item-hover, rgba(255, 255, 255, 0.035))',
-    padding: 14
+    padding: 'var(--panel-padding, 14px)'
   },
   sectionHeader: {
     paddingBottom: 12,
@@ -1283,7 +1283,7 @@ const STYLES = {
   eyebrow: {
     marginBottom: 6,
     color: 'var(--button-icon-hover, #99f6e4)',
-    fontSize: 10,
+    fontSize: 'var(--panel-font-size, 10px)',
     fontWeight: 900,
     letterSpacing: '0.22em',
     textTransform: 'uppercase'
@@ -1291,72 +1291,72 @@ const STYLES = {
   sectionTitle: {
     margin: 0,
     color: 'var(--menu-text, #f8fafc)',
-    fontSize: 18,
+    fontSize: 'var(--panel-font-size, 18px)',
     lineHeight: 1.1,
     fontWeight: 900
   },
   sectionBody: {
     display: 'grid',
-    gap: 14
+    gap: 'var(--panel-gap, 14px)'
   },
   settingGroup: {
     display: 'grid',
-    gap: 8
+    gap: 'var(--panel-gap, 8px)'
   },
   settingGroupTitle: {
     color: 'var(--button-icon-hover, #99f6e4)',
-    fontSize: 10,
+    fontSize: 'var(--panel-font-size, 10px)',
     fontWeight: 820,
     letterSpacing: '0.16em',
     textTransform: 'uppercase'
   },
   settingGroupBody: {
     display: 'grid',
-    gap: 10
+    gap: 'var(--panel-gap, 10px)'
   },
   settingPill: {
     display: 'grid',
     gridTemplateColumns: 'minmax(170px, 220px) minmax(180px, 1fr)',
     alignItems: 'center',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: 'var(--panel-corner-radius, 14px)',
     background: 'var(--button-background, rgba(15, 23, 42, 0.32))',
     boxShadow: 'inset 0 0 0 1px rgba(15, 23, 42, 0.08)',
-    padding: '10px 14px'
+    padding: 'var(--panel-padding, 10px 14px)'
   },
   settingPillCollapsed: {
     display: 'grid',
     gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
     alignItems: 'center',
-    gap: 10,
+    gap: 'var(--panel-gap, 10px)',
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: 'var(--panel-corner-radius, 14px)',
     background: 'var(--button-background, rgba(15, 23, 42, 0.32))',
     boxShadow: 'inset 0 0 0 1px rgba(15, 23, 42, 0.08)',
-    padding: '10px 14px'
+    padding: 'var(--panel-padding, 10px 14px)'
   },
   settingPillFitLabels: {
     display: 'grid',
     gridTemplateColumns: 'max-content minmax(180px, 1fr)',
     alignItems: 'center',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: 'var(--panel-corner-radius, 14px)',
     background: 'var(--button-background, rgba(15, 23, 42, 0.32))',
     boxShadow: 'inset 0 0 0 1px rgba(15, 23, 42, 0.08)',
-    padding: '10px 14px'
+    padding: 'var(--panel-padding, 10px 14px)'
   },
   settingPillCollapsedFitLabels: {
     display: 'grid',
     gridTemplateColumns: 'max-content minmax(0, 1fr)',
     alignItems: 'center',
-    gap: 10,
+    gap: 'var(--panel-gap, 10px)',
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: 'var(--panel-corner-radius, 14px)',
     background: 'var(--button-background, rgba(15, 23, 42, 0.32))',
     boxShadow: 'inset 0 0 0 1px rgba(15, 23, 42, 0.08)',
-    padding: '10px 14px'
+    padding: 'var(--panel-padding, 10px 14px)'
   },
   settingMeta: {
     minWidth: 0
@@ -1366,13 +1366,13 @@ const STYLES = {
   },
   settingLabel: {
     color: 'var(--menu-text, #dbeafe)',
-    fontSize: 13,
+    fontSize: 'var(--panel-font-size, 13px)',
     fontWeight: 760
   },
   settingHint: {
     marginTop: 3,
     color: 'var(--button-text, #94a3b8)',
-    fontSize: 11,
+    fontSize: 'var(--panel-font-size, 11px)',
     lineHeight: 1.3,
     fontWeight: 620
   },
@@ -1381,7 +1381,7 @@ const STYLES = {
     width: '100%',
     minWidth: 0,
     gridTemplateColumns: 'minmax(0, 1fr) 70px',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     alignItems: 'center'
   },
   range: {
@@ -1394,32 +1394,32 @@ const STYLES = {
     minWidth: 0,
     minHeight: 36,
     boxSizing: 'border-box',
-    borderRadius: 13,
+    borderRadius: 'var(--panel-corner-radius, 13px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.24))',
     background: 'var(--menu-background, rgba(51, 65, 85, 0.78))',
     color: 'var(--menu-text, #f8fafc)',
     textAlign: 'center',
     font: 'inherit',
-    fontSize: 13,
+    fontSize: 'var(--panel-font-size, 13px)',
     fontWeight: 760
   },
   textInput: {
     width: '100%',
     minHeight: 36,
-    borderRadius: 13,
+    borderRadius: 'var(--panel-corner-radius, 13px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.24))',
     background: 'var(--menu-background, rgba(51, 65, 85, 0.78))',
     color: 'var(--menu-text, #f8fafc)',
-    padding: '0 16px',
+    padding: 'var(--panel-padding, 0 16px)',
     font: 'inherit',
-    fontSize: 13,
+    fontSize: 'var(--panel-font-size, 13px)',
     fontWeight: 700
   },
   switchButton: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     width: '100%',
     minHeight: 36,
     border: 'none',
@@ -1432,7 +1432,7 @@ const STYLES = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     width: '100%',
     minHeight: 36,
     border: 'none',
@@ -1442,7 +1442,7 @@ const STYLES = {
     cursor: 'pointer'
   },
   switchText: {
-    fontSize: 13,
+    fontSize: 'var(--panel-font-size, 13px)',
     fontWeight: 700
   },
   switchTrack: {
@@ -1450,59 +1450,59 @@ const STYLES = {
     alignItems: 'center',
     width: 44,
     height: 24,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--menu-item-hover, rgba(15, 23, 42, 0.48))',
-    padding: 2
+    padding: 'var(--panel-switch-padding, 2px)'
   },
   switchTrackActive: {
     display: 'flex',
     alignItems: 'center',
     width: 44,
     height: 24,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--button-icon-hover, #60a5fa)',
-    padding: 2
+    padding: 'var(--panel-switch-padding, 2px)'
   },
   switchKnob: {
     width: 20,
     height: 20,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--button-text, #94a3b8)'
   },
   switchKnobActive: {
     width: 20,
     height: 20,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--menu-text, #ffffff)',
     transform: 'translateX(20px)'
   },
   emptyState: {
     color: 'var(--button-text, #94a3b8)',
-    fontSize: 12
+    fontSize: 'var(--panel-font-size, 12px)'
   },
   shapeSection: {
-    borderRadius: 16,
+    borderRadius: 'var(--panel-corner-radius, 16px)',
     border: 'var(--menu-border, 1px solid rgba(103, 232, 249, 0.24))',
     background: 'var(--menu-item-hover, rgba(103, 232, 249, 0.045))',
-    padding: 14
+    padding: 'var(--panel-padding, 14px)'
   },
   shapeHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'start',
-    gap: 12,
+    gap: 'var(--panel-gap, 12px)',
     marginBottom: 12
   },
   shapeTitle: {
     margin: 0,
     color: 'var(--menu-text, #f8fafc)',
-    fontSize: 14,
+    fontSize: 'var(--panel-font-size, 14px)',
     fontWeight: 800
   },
   shapeDescription: {
     margin: '4px 0 0',
     color: 'var(--button-text, #94a3b8)',
-    fontSize: 12,
+    fontSize: 'var(--panel-font-size, 12px)',
     fontWeight: 620
   },
   shapeIcon: {
@@ -1511,17 +1511,17 @@ const STYLES = {
   shapeGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-    gap: 8
+    gap: 'var(--panel-gap, 8px)'
   },
   shapeCard: {
     minHeight: 82,
     display: 'grid',
     alignContent: 'space-between',
-    borderRadius: 12,
+    borderRadius: 'var(--panel-corner-radius, 12px)',
     border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.18))',
     background: 'var(--button-background, rgba(15, 23, 42, 0.32))',
     color: 'var(--menu-text, #f8fafc)',
-    padding: 9,
+    padding: 'var(--panel-padding, 9px)',
     textAlign: 'left',
     cursor: 'pointer'
   },
@@ -1529,11 +1529,11 @@ const STYLES = {
     minHeight: 82,
     display: 'grid',
     alignContent: 'space-between',
-    borderRadius: 12,
+    borderRadius: 'var(--panel-corner-radius, 12px)',
     border: 'var(--menu-border, 1px solid rgba(103, 232, 249, 0.7))',
     background: 'var(--button-background, rgba(103, 232, 249, 0.14))',
     color: 'var(--menu-text, #f8fafc)',
-    padding: 9,
+    padding: 'var(--panel-padding, 9px)',
     textAlign: 'left',
     cursor: 'pointer'
   },
@@ -1557,17 +1557,17 @@ const STYLES = {
     display: 'flex',
     alignItems: 'end',
     justifyContent: 'space-between',
-    gap: 10
+    gap: 'var(--panel-gap, 10px)'
   },
   shapeCardTitle: {
     color: 'var(--menu-text, #f8fafc)',
-    fontSize: 11,
+    fontSize: 'var(--panel-font-size, 11px)',
     fontWeight: 800
   },
   shapeCardSubtitle: {
     marginTop: 2,
     color: 'var(--button-text, #94a3b8)',
-    fontSize: 10,
+    fontSize: 'var(--panel-font-size, 10px)',
     fontWeight: 620
   },
   radio: {
@@ -1575,7 +1575,7 @@ const STYLES = {
     placeItems: 'center',
     width: 14,
     height: 14,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     border: 'var(--menu-border, 2px solid rgba(148, 163, 184, 0.65))'
   },
   radioSelected: {
@@ -1583,20 +1583,20 @@ const STYLES = {
     placeItems: 'center',
     width: 14,
     height: 14,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     border: 'var(--menu-border, 2px solid rgba(103, 232, 249, 0.9))',
     background: 'var(--button-background, rgba(103, 232, 249, 0.16))'
   },
   radioDot: {
     width: 5,
     height: 5,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'transparent'
   },
   radioDotSelected: {
     width: 5,
     height: 5,
-    borderRadius: 999,
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--button-icon-hover, #a5f3fc)'
   }
 } satisfies Record<string, JSX.CSSProperties>;

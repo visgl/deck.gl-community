@@ -343,17 +343,18 @@ const BOX_STYLE = (widthPx: number, maxHeightPx?: number): JSX.CSSProperties => 
   flexDirection: 'column',
   pointerEvents: 'auto',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
-  borderRadius: '12px',
+  borderRadius: 'var(--panel-surface-radius, var(--panel-corner-radius, 12px))',
   background: 'var(--menu-background, rgba(255, 255, 255, 0.96))',
   backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   boxShadow: 'var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.16))',
   overflow: 'hidden'
 });
 
 const BOX_HEADER_STYLE: JSX.CSSProperties = {
-  padding: '14px 16px 10px',
-  fontSize: '18px',
+  padding: 'var(--panel-padding, 14px 16px 10px)',
+  fontSize: 'var(--panel-font-size, 18px)',
   fontWeight: 700,
   lineHeight: 1.2,
   color: 'var(--button-text, currentColor)'
@@ -364,7 +365,7 @@ const BOX_HEADER_BUTTON_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '12px',
+  gap: 'var(--panel-gap, 12px)',
   border: 'none',
   background: 'none',
   color: 'inherit',
@@ -376,7 +377,7 @@ const BOX_HEADER_BUTTON_STYLE: JSX.CSSProperties = {
 };
 
 const BOX_HEADER_CHEVRON_STYLE = (open: boolean): JSX.CSSProperties => ({
-  fontSize: '18px',
+  fontSize: 'var(--panel-font-size, 18px)',
   lineHeight: 1,
   color: 'var(--button-icon-idle, #616166)',
   transform: open ? 'translateY(1px)' : 'translateY(-1px)'
@@ -390,5 +391,5 @@ const BOX_CONTENT_STYLE = (open: boolean): JSX.CSSProperties => ({
   overflowY: 'auto',
   touchAction: 'pan-y',
   overscrollBehavior: 'contain',
-  padding: '0 16px 16px'
+  padding: 'var(--panel-padding, 0 16px 16px)'
 });

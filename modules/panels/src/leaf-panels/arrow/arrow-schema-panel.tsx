@@ -180,8 +180,8 @@ function MetadataPreview({
 const ARROW_SCHEMA_PANEL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   overflow: 'hidden',
-  borderRadius: '6px',
-  padding: '10px 12px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   font: '500 12px/1.45 ui-sans-serif,system-ui,sans-serif'
 };
 
@@ -197,8 +197,8 @@ const ARROW_SCHEMA_SCROLL_STYLE: JSX.CSSProperties = {
 const ARROW_SCHEMA_METADATA_SECTION_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '1px',
-  borderRadius: '6px',
-  padding: '8px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 8px)',
   marginBottom: '10px'
 };
 
@@ -219,7 +219,7 @@ const ARROW_SCHEMA_TABLE_STYLE: JSX.CSSProperties = {
 const ARROW_SCHEMA_HEADER_CELL_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '6px 8px',
+  padding: 'var(--panel-padding, 6px 8px)',
   textAlign: 'left',
   font: '700 11px/1.4 ui-sans-serif,system-ui,sans-serif',
   whiteSpace: 'nowrap'
@@ -228,7 +228,7 @@ const ARROW_SCHEMA_HEADER_CELL_STYLE: JSX.CSSProperties = {
 const ARROW_SCHEMA_CELL_STYLE: JSX.CSSProperties = {
   borderStyle: 'solid',
   borderWidth: '0 1px 1px 0',
-  padding: '5px 8px',
+  padding: 'var(--panel-padding, 5px 8px)',
   maxWidth: '260px',
   overflow: 'hidden',
   textOverflow: 'ellipsis',
@@ -244,14 +244,14 @@ const ARROW_SCHEMA_METADATA_CELL_STYLE: JSX.CSSProperties = {
 
 const ARROW_SCHEMA_METADATA_LIST_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
+  gap: 'var(--panel-gap, 4px)',
   margin: 0
 };
 
 const ARROW_SCHEMA_METADATA_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(5rem, auto) minmax(0, 1fr)',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   alignItems: 'baseline'
 };
 
