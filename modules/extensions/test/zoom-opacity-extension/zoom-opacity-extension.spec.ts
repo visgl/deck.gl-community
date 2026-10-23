@@ -353,6 +353,39 @@ describe('ZoomOpacityExtension', () => {
     expect(cells.setShaderModuleProps).not.toHaveBeenCalled();
   });
 
+  it('leaves sublayers with their own ZoomOpacityExtension instance alone', () => {
+    const cellDraw = vi.fn();
+    const cells = {
+      isComposite: false,
+      props: {opacity: 1, extensions: [] as ZoomOpacityExtension[]},
+      setShaderModuleProps: vi.fn(),
+      draw: cellDraw
+    };
+    const otherInstance = {
+      ...cells,
+      props: {opacity: 1, extensions: [new ZoomOpacityExtension()]},
+      draw: vi.fn()
+    };
+    const otherInstanceDraw = otherInstance.draw;
+    const parent = {
+      ...createLayerHarness({isComposite: true, zoom: 7, props: {zoomOpacity: stops}}),
+      getSubLayers: () => [cells, otherInstance]
+    };
+
+    extension.draw.call(parent as any, {context: parent.context}, extension);
+    // A different instance of the extension still applies itself, so the parent does not wrap it
+    expect(otherInstance.draw).toBe(otherInstanceDraw);
+
+    // A sublayer faded by the parent that later gets its own extension stops inheriting
+    cells.draw({});
+    expect(cellDraw).not.toHaveBeenCalled();
+    cells.props = {...cells.props, extensions: [new ZoomOpacityExtension()]};
+    extension.draw.call(parent as any, {context: parent.context}, extension);
+    cells.draw({});
+    expect(cellDraw).toHaveBeenCalledTimes(1);
+    expect(cells.setShaderModuleProps).not.toHaveBeenCalled();
+  });
+
   it('passes stops through to sublayers', () => {
     const composite = createLayerHarness({isComposite: true, props: {zoomOpacity: stops}});
     const passThrough = extension.getSubLayerProps.call(composite as any, extension);

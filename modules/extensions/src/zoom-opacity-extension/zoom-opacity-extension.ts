@@ -74,7 +74,7 @@ export class ZoomOpacityExtension extends LayerExtension {
     if (this.isComposite) {
       // Drawable composites (deck.gl aggregation layers) draw before their sublayers in every
       // pass and viewport, but render cells with `extensions: []`. Fade those cells from here.
-      applyToSublayers(this as unknown as CompositeLayer, this, extension, opacity);
+      applyToSublayers(this as unknown as CompositeLayer, this, opacity);
       return;
     }
 
@@ -93,19 +93,18 @@ export class ZoomOpacityExtension extends LayerExtension {
   }
 }
 
-function applyToSublayers(
-  parent: CompositeLayer,
-  owner: Layer,
-  extension: ZoomOpacityExtension,
-  opacity: number
-): void {
+function applyToSublayers(parent: CompositeLayer, owner: Layer, opacity: number): void {
   for (const sublayer of parent.getSubLayers()) {
-    if (sublayer.props.extensions.includes(extension)) {
-      // The sublayer applies the extension itself
+    if (hasZoomOpacityExtension(sublayer)) {
+      // The sublayer applies its own ZoomOpacityExtension, whichever instance it is. Drop any
+      // opacity inherited from this owner before it had one, so the two do not both apply.
+      if (inheritedOpacity.get(sublayer)?.owner === owner) {
+        inheritedOpacity.delete(sublayer);
+      }
       continue;
     }
     if (sublayer.isComposite) {
-      applyToSublayers(sublayer as unknown as CompositeLayer, owner, extension, opacity);
+      applyToSublayers(sublayer as unknown as CompositeLayer, owner, opacity);
       continue;
     }
     setInheritedOpacity(sublayer, owner, opacity);
