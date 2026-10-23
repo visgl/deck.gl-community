@@ -121,22 +121,22 @@ export function DocumentationLinksPanelContent({
 
 const LINK_LIST_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '10px'
+  gap: 'var(--panel-gap, 10px)'
 };
 
 const DOCUMENTATION_INTRO_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
-  padding: '4px 2px 6px',
+  gap: 'var(--panel-gap, 4px)',
+  padding: 'var(--panel-padding, 4px 2px 6px)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 
 const LINK_CARD_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
-  padding: '14px 16px',
+  gap: 'var(--panel-gap, 4px)',
+  padding: 'var(--panel-padding, 14px 16px)',
   borderRadius: 'var(--button-corner-radius, 8px)',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.42))',
   color: 'var(--menu-text, rgb(24, 24, 26))',
@@ -175,25 +175,25 @@ const LINK_TITLE_ROW_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '8px'
+  gap: 'var(--panel-gap, 8px)'
 };
 
 const LINK_TITLE_STYLE: JSX.CSSProperties = {
-  fontSize: '16px',
+  fontSize: 'var(--panel-font-size, 16px)',
   lineHeight: '22px',
   fontWeight: 750
 };
 
 const LINK_DESCRIPTION_STYLE: JSX.CSSProperties = {
   color: 'var(--button-icon-idle, rgb(71, 85, 105))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 
 const LINK_BADGE_STYLE: JSX.CSSProperties = {
-  borderRadius: '999px',
-  padding: '2px 8px',
-  fontSize: '10px',
+  borderRadius: 'var(--panel-round-radius, 999px)',
+  padding: 'var(--panel-padding, 2px 8px)',
+  fontSize: 'var(--panel-font-size, 10px)',
   lineHeight: '13px',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -206,10 +206,10 @@ const LINK_SPACER_STYLE: JSX.CSSProperties = {
 
 const EMPTY_STATE_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '4px',
-  padding: '12px',
+  gap: 'var(--panel-gap, 4px)',
+  padding: 'var(--panel-padding, 12px)',
   color: 'var(--button-icon-idle, rgb(71, 85, 105))',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   lineHeight: '16px'
 };
 

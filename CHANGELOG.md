@@ -1,5 +1,10 @@
 # deck.gl-community CHANGELOG
 
+## Unreleased
+
+- Add compact translucent `sleek-light` and `sleek-dark` panel presets, custom theme definitions, and preset-aware nested inheritance and inversion.
+
+
 ## v9.4.7
 
 - Publish the v9.4.6 changes to npm. The v9.4.6 release run was cancelled after only `@deck.gl-community/react` published, so every other package moves from v9.4.5 to v9.4.7 and also includes the v9.4.6 notes below.

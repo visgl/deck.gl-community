@@ -1,3 +1,4 @@
+import {getPanelThemeVariables, observePanelTheme} from '../lib/panel-theme';
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
 import {createPortal} from 'preact/compat';
@@ -40,18 +41,18 @@ const SELECT_ROOT_STYLE: JSX.CSSProperties = {
 
 const SELECT_BUTTON_STYLE: JSX.CSSProperties = {
   width: '100%',
-  minHeight: '32px',
+  minHeight: 'var(--panel-control-height, 32px)',
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'center',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   border: 'var(--button-inner-stroke, 1px solid rgba(148, 163, 184, 0.48))',
   borderRadius: 'var(--button-corner-radius, 8px)',
   background: 'var(--button-background, rgba(255, 255, 255, 0.94))',
   color: 'var(--button-text, currentColor)',
   boxSizing: 'border-box',
-  padding: '6px 8px 6px 10px',
-  fontSize: '12px',
+  padding: 'var(--panel-control-padding, 6px 8px 6px 10px)',
+  fontSize: 'var(--panel-font-size, 12px)',
   fontWeight: 600,
   cursor: 'pointer',
   boxShadow: 'none',
@@ -77,23 +78,27 @@ const SELECT_CARET_STYLE: JSX.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   color: 'var(--button-icon-idle, currentColor)',
-  fontSize: '10px',
+  fontSize: 'var(--panel-font-size, 10px)',
   lineHeight: 1,
   transition: 'transform 120ms ease'
 };
 
 const SELECT_LIST_STYLE: JSX.CSSProperties = {
   position: 'fixed',
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
+  fontSize: 'var(--panel-font-size)',
   zIndex: 10000,
   width: 'max-content',
   maxWidth: 'calc(100vw - 16px)',
   maxHeight: '192px',
   overflowX: 'hidden',
   overflowY: 'auto',
-  padding: '4px',
+  padding: 'var(--panel-control-padding, 4px)',
   border: 'var(--button-inner-stroke, 1px solid rgba(148, 163, 184, 0.48))',
   borderRadius: 'var(--button-corner-radius, 8px)',
-  background: 'var(--container-background, var(--button-background, rgba(255, 255, 255, 0.98)))',
+  background:
+    'var(--menu-background, var(--container-background, var(--button-background, rgba(255, 255, 255, 0.98))))',
   color: 'var(--button-text, currentColor)',
   boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)',
   boxSizing: 'border-box'
@@ -101,26 +106,26 @@ const SELECT_LIST_STYLE: JSX.CSSProperties = {
 
 const SELECT_OPTION_STYLE: JSX.CSSProperties = {
   width: '100%',
-  minHeight: '28px',
+  minHeight: 'var(--panel-control-height, 28px)',
   border: 0,
   borderRadius: 'calc(var(--button-corner-radius, 8px) - 1px)',
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'center',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   margin: 0,
-  padding: '5px 8px',
+  padding: 'var(--panel-control-padding, 5px 8px)',
   background: 'transparent',
   color: 'var(--button-text, currentColor)',
   cursor: 'pointer',
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   textAlign: 'left'
 };
 
 const SELECT_OPTION_CONTENT_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   display: 'grid',
-  gap: '1px'
+  gap: 'var(--panel-gap, 1px)'
 };
 
 const SELECT_OPTION_LABEL_STYLE: JSX.CSSProperties = {
@@ -130,7 +135,7 @@ const SELECT_OPTION_LABEL_STYLE: JSX.CSSProperties = {
 
 const SELECT_OPTION_DESCRIPTION_STYLE: JSX.CSSProperties = {
   color: 'var(--button-icon-idle, currentColor)',
-  fontSize: '11px',
+  fontSize: 'var(--panel-font-size, 11px)',
   fontWeight: 400,
   lineHeight: 1.25,
   opacity: 0.78,
@@ -299,6 +304,7 @@ export function SelectComponent({
         : Math.max(viewportWidth - edgeOffset - viewportPadding, 0);
       setListStyle({
         ...SELECT_LIST_STYLE,
+        ...getPanelThemeVariables(rootRef.current),
         top: `${rect.bottom + 4}px`,
         left: alignRight ? undefined : `${edgeOffset}px`,
         right: alignRight ? `${edgeOffset}px` : undefined,
@@ -308,9 +314,11 @@ export function SelectComponent({
     };
 
     updateListStyle();
+    const stopObserving = observePanelTheme(rootRef.current, updateListStyle);
     ownerWindow.addEventListener('resize', updateListStyle);
     ownerWindow.addEventListener('scroll', updateListStyle, true);
     return () => {
+      stopObserving();
       ownerWindow.removeEventListener('resize', updateListStyle);
       ownerWindow.removeEventListener('scroll', updateListStyle, true);
     };
@@ -410,6 +418,7 @@ export function SelectComponent({
             ref={listboxRef}
             id={listboxId}
             role="listbox"
+            data-panel-theme-preset={listStyle['--panel-preset'] as string | undefined}
             aria-label={label}
             style={listStyle}
             onPointerDown={event => stopEventPropagation(event as unknown as Event)}
@@ -431,6 +440,7 @@ export function SelectComponent({
                   type="button"
                   role="option"
                   aria-selected={isSelected}
+                  data-panel-active={isActive}
                   style={{
                     ...SELECT_OPTION_STYLE,
                     ...(fontSize === undefined ? {} : {fontSize}),

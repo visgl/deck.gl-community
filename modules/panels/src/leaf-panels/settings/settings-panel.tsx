@@ -61,38 +61,39 @@ const SECTION_TOGGLE_STYLE: JSX.CSSProperties = {
   width: '100%',
   border: 0,
   margin: 0,
-  padding: '8px 12px',
+  padding: 'var(--panel-padding, 8px 12px)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '8px',
+  gap: 'var(--panel-gap, 8px)',
   background: 'transparent',
   color: 'inherit',
   cursor: 'pointer',
-  fontSize: '12px'
+  fontSize: 'var(--panel-font-size, 12px)'
 };
 
 const SECTION_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '8px',
-  padding: '8px 12px 12px 18px'
+  gap: 'var(--panel-gap, 8px)',
+  padding: 'var(--panel-padding, 8px 12px 12px 18px)'
 };
 
 const SECTION_PANEL_CONTENT_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '8px',
-  padding: '10px 12px 12px'
+  gap: 'var(--panel-gap, 8px)',
+  padding: 'var(--panel-padding, 10px 12px 12px)'
 };
 
 const SETTING_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
+  minHeight: 'var(--panel-control-height, 0px)',
   gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.4fr)',
   alignItems: 'center',
-  gap: '8px'
+  gap: 'var(--panel-gap, 8px)'
 };
 
 const SETTING_LABEL_STYLE: JSX.CSSProperties = {
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   fontWeight: 600,
   color: 'var(--button-text, currentColor)',
   whiteSpace: 'nowrap',
@@ -110,12 +111,13 @@ const SETTING_CONTROL_STYLE: JSX.CSSProperties = {
 const INPUT_STYLE: JSX.CSSProperties = {
   width: '100%',
   border: 'var(--button-inner-stroke, 1px solid rgba(128, 128, 128, 0.35))',
-  borderRadius: 'calc(var(--button-corner-radius, 8px) - 2px)',
+  borderRadius:
+    'var(--panel-input-corner-radius, var(--panel-corner-radius, calc(var(--button-corner-radius, 8px) - 2px)))',
   backgroundColor: 'var(--button-background, #fff)',
   backdropFilter: 'var(--button-backdrop-filter, unset)',
   color: 'var(--button-text, currentColor)',
-  fontSize: '12px',
-  padding: '4px 6px',
+  fontSize: 'var(--panel-font-size, 12px)',
+  padding: 'var(--panel-control-padding, 4px 6px)',
   boxSizing: 'border-box'
 };
 
@@ -126,11 +128,11 @@ const STRING_CONTROL_STYLE: JSX.CSSProperties = {
 
 const STRING_APPLY_BUTTON_STYLE: JSX.CSSProperties = {
   border: 'var(--button-inner-stroke, 1px solid rgba(128, 128, 128, 0.35))',
-  borderRadius: 'calc(var(--button-corner-radius, 8px) - 2px)',
+  borderRadius: 'var(--panel-corner-radius, calc(var(--button-corner-radius, 8px) - 2px))',
   backgroundColor: 'var(--button-background, #fff)',
   color: 'var(--button-text, currentColor)',
-  fontSize: '11px',
-  padding: '4px 8px',
+  fontSize: 'var(--panel-font-size, 11px)',
+  padding: 'var(--panel-padding, 4px 8px)',
   cursor: 'pointer',
   whiteSpace: 'nowrap'
 };
@@ -145,16 +147,16 @@ const NUMBER_INPUT_STYLE: JSX.CSSProperties = {
   ...INPUT_STYLE,
   width: '84px',
   flexShrink: 0,
-  height: '28px',
+  height: 'var(--panel-control-height, 28px)',
   lineHeight: '16px',
-  padding: '2px 6px'
+  padding: 'var(--panel-control-padding, 2px 6px)'
 };
 
 const CHECKBOX_STYLE: JSX.CSSProperties = {
   width: '14px',
   height: '14px',
   margin: 0,
-  accentColor: 'var(--button-icon-hover, currentColor)'
+  accentColor: 'var(--panel-accent-color, var(--button-icon-hover, currentColor))'
 };
 
 function withFontSize(
@@ -359,7 +361,15 @@ function NumberSettingControl({
   }
 
   return (
-    <div style={{display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, width: '100%'}}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--panel-gap, 8px)',
+        minWidth: 0,
+        width: '100%'
+      }}
+    >
       <input
         id={inputId}
         type="range"
@@ -677,12 +687,14 @@ export function SettingsPanelContent({
                 }
                 aria-expanded={!isCollapsed}
               >
-                <span style={{display: 'grid', gap: '2px', textAlign: 'left'}}>
-                  <span style={{fontWeight: 700, fontSize: '12px'}}>{section.name}</span>
+                <span style={{display: 'grid', gap: 'var(--panel-gap, 2px)', textAlign: 'left'}}>
+                  <span style={{fontWeight: 700, fontSize: 'var(--panel-font-size, 12px)'}}>
+                    {section.name}
+                  </span>
                   {section.description && (
                     <span
                       style={{
-                        fontSize: '11px',
+                        fontSize: 'var(--panel-font-size, 11px)',
                         color: 'var(--button-icon-idle, currentColor)'
                       }}
                     >

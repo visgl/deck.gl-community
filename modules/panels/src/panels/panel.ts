@@ -3,6 +3,7 @@ import {h, render} from 'preact';
 import {PanelComponent, type PanelComponentProps, type PanelPlacement} from './panel-component';
 import {PanelThemeScope} from './panel-theme-scope';
 
+import type {PanelThemeDefinition} from '../lib/panel-theme';
 import type {ComponentChildren} from 'preact';
 
 /** Stable panel identifier used for container state. */
@@ -12,7 +13,14 @@ export type PanelId = string;
 export type PanelThemeMode = 'light' | 'dark';
 
 /** Public theme override options for panels. */
-export type PanelTheme = 'inherit' | 'light' | 'dark' | 'invert';
+export type PanelTheme =
+  | 'inherit'
+  | 'light'
+  | 'dark'
+  | 'sleek-light'
+  | 'sleek-dark'
+  | 'invert'
+  | PanelThemeDefinition;
 
 /**
  * Props used to construct one panel definition.

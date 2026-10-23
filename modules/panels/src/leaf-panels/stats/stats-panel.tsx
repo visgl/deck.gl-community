@@ -70,14 +70,14 @@ function StatsPanelContent({stats, statNames, labels, className}: StatsPanelProp
         };
 
   return (
-    <div className={className} style={{display: 'grid', gap: '8px'}}>
+    <div className={className} style={{display: 'grid', gap: 'var(--panel-gap, 8px)'}}>
       {rows.map((row, index) => (
         <div
           key={row.name}
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr auto',
-            gap: '12px',
+            gap: 'var(--panel-gap, 12px)',
             alignItems: 'baseline',
             paddingTop: index === 0 ? '0' : '8px',
             borderTop: index === 0 ? 'none' : `1px solid ${colors.divider}`

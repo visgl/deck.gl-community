@@ -213,15 +213,15 @@ function formatByteCount(byteLength: number): string {
 const BINARY_PANEL_STYLE: JSX.CSSProperties = {
   minWidth: 0,
   overflow: 'auto',
-  borderRadius: '6px',
-  padding: '10px 12px',
+  borderRadius: 'var(--panel-corner-radius, 6px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   font: '700 12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace'
 };
 
 const BINARY_HEADER_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '4.5rem 1fr',
-  gap: '12px',
+  gap: 'var(--panel-gap, 12px)',
   paddingBottom: '7px',
   marginBottom: '8px',
   font: '700 11px/1.4 ui-sans-serif,system-ui,sans-serif',
@@ -231,7 +231,7 @@ const BINARY_HEADER_STYLE: JSX.CSSProperties = {
 const BINARY_ROW_STYLE: JSX.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '4.5rem 1fr',
-  gap: '12px',
+  gap: 'var(--panel-gap, 12px)',
   alignItems: 'start',
   marginBottom: '5px'
 };
@@ -242,7 +242,7 @@ const BINARY_OFFSET_STYLE: JSX.CSSProperties = {
 
 const BINARY_BYTES_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '6px 7px',
+  gap: 'var(--panel-gap, 6px 7px)',
   overflowX: 'auto'
 };
 
