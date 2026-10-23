@@ -47,6 +47,13 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     expect(canvas.width).toBe(
       Math.round(canvas.getBoundingClientRect().width * window.devicePixelRatio)
     );
+    host.querySelector<HTMLButtonElement>('[aria-label="Collapse Inspector"]')!.click();
+    await settle();
+    expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth);
+    expect(inspector.closest('.deck-panel-layout-center')).toBe(center);
+    host.querySelector<HTMLButtonElement>('[aria-label="Expand Inspector"]')!.click();
+    await settle();
+    expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth - 280);
     const edge = host.querySelector('select')!;
     edge.value = 'bottom';
     edge.dispatchEvent(new Event('change', {bubbles: true}));

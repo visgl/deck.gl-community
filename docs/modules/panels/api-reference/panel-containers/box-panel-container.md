@@ -130,3 +130,15 @@ See [adaptive subpanels](./canvas-chrome.md#adaptive-subpanels) for an inline ex
 
 See the [panel system walkthrough](../../README.md#build-chrome-around-a-canvas),
 [layout contract](./canvas-chrome.md), and [website example](/examples/widgets/canvas-chrome).
+
+## Collapse a pinned box
+
+`collapsible` defaults to `true`. Clicking the title collapses the box into a compact
+floating title bar, releasing its docked width or height back to the visualization.
+Expanding restores the previous docking edge and user-resized size. Pin state and
+mounted content are retained; collapsing does not emit `onPinnedChange`.
+
+Use `defaultOpen` for the initial state or `open` and `onOpenChange` for controlled
+expansion. The title bar remains available to expand the panel. If no container title
+is supplied, it uses the content panel's title or "Panel". Set `collapsible: false`
+to omit the user collapse control.

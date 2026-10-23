@@ -121,8 +121,8 @@ const PANEL_CHROME_STYLES = `.deck-panel-layout {
   font: 13px system-ui, sans-serif;
 }
 .deck-panel-chrome[hidden] { display: none; }
-.deck-panel-chrome[data-pinned="true"][data-side="left"],
-.deck-panel-chrome[data-pinned="true"][data-side="right"] { flex: 1 1 auto; }
+.deck-panel-chrome[data-docked="true"][data-side="left"],
+.deck-panel-chrome[data-docked="true"][data-side="right"] { flex: 1 1 auto; }
 .deck-panel-chrome-shell { position: relative; display: flex; flex-direction: column; height: 100%; max-height: inherit; min-height: 0; }
 .deck-panel-chrome-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px; flex: 0 0 auto; }
 .deck-panel-chrome-header button { color: inherit; font: inherit; cursor: pointer; }
@@ -136,7 +136,7 @@ const PANEL_CHROME_STYLES = `.deck-panel-layout {
   backdrop-filter: var(--menu-backdrop-filter, unset);
   box-shadow: var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.16));
 }
-.deck-panel-chrome[data-pinnable="true"][data-pinned="true"] {
+.deck-panel-chrome[data-pinnable="true"][data-docked="true"] {
   border-radius: 0;
   box-shadow: none;
 }
@@ -182,6 +182,7 @@ const PANEL_CHROME_STYLES = `.deck-panel-layout {
 .deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header .deck-panel-chrome-toggle {
   flex: 1 1 auto;
   justify-content: space-between;
+  gap: 8px;
   padding: 0;
   color: inherit;
   font: inherit;

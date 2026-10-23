@@ -10,7 +10,8 @@ This page lists module additions and major changes in each release. For detailed
 
 - Panel content can be embedded with `mountPanel`, `ReactPanel`, and `useReactPanel`.
   React hosts accept sleek presets and custom theme definitions; React-owned content
-  retains its context and follows panel mount policies.
+  retains its context and follows panel mount policies. Collapsing a pinned box releases
+  its docked space and leaves a compact title bar for restoring the panel.
 
 - New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
   extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),

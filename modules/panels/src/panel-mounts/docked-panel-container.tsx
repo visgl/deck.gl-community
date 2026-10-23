@@ -50,6 +50,10 @@ export abstract class DockedPanelContainer<
   get isPinned(): boolean {
     return true;
   }
+  /** Whether this container currently consumes space in an edge region. */
+  get isDocked(): boolean {
+    return this.isPinned;
+  }
   /** Whether pin/unpin chrome should be rendered. */
   protected get isPinnable(): boolean {
     return false;
@@ -87,7 +91,7 @@ export abstract class DockedPanelContainer<
       }
     }
     ensurePanelChromeStylesheet(root.ownerDocument);
-    root.style.margin = this.isPinned ? '0' : `${this.floatingOffsetPx}px`;
+    root.style.margin = this.isDocked ? '0' : `${this.floatingOffsetPx}px`;
     (this.panelManager as PanelManager | undefined)?.updateDockedContainer?.(this);
     root.hidden = this.isPinned && !this.canPin;
     const {panel, title, fitContent, resizable} = this.props;
@@ -96,15 +100,16 @@ export abstract class DockedPanelContainer<
     const height = this.resizedHeight ?? normalizeSize(this.props.heightPx, 240);
     root.dataset.side = this.side;
     root.dataset.pinned = String(this.isPinned);
+    root.dataset.docked = String(this.isDocked);
     root.dataset.pinnable = String(this.isPinnable);
     root.style.width =
-      this.isPinned && !horizontal
+      this.isDocked && !horizontal
         ? '100%'
         : fitContent && this.resizedWidth === undefined
           ? 'max-content'
           : `${width}px`;
     root.style.height =
-      this.isPinned && !horizontal
+      this.isDocked && !horizontal
         ? fitContent && this.resizedHeight === undefined
           ? 'max-content'
           : `${height}px`
@@ -149,7 +154,7 @@ export abstract class DockedPanelContainer<
           <div className="deck-panel-chrome-content" hidden={!this.isContentOpen}>
             {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
           </div>
-          {this.isPinned && this.canPin && resizable ? (
+          {this.isDocked && this.canPin && resizable ? (
             <div
               className="deck-panel-chrome-divider"
               role="separator"
@@ -253,7 +258,7 @@ export abstract class DockedPanelContainer<
     const side = this.side;
     divider.setPointerCapture(event.pointerId);
     const move = (next: PointerEvent) => {
-      if (this.side !== side || !this.isPinned) {
+      if (this.side !== side || !this.isDocked) {
         this.stopDrag?.();
         return;
       }
