@@ -1,10 +1,16 @@
 # Seasonal Farm
 
-A compact TreeLayer demo with seven labelled plots and 416 varied trees. Switch seasons
-to change foliage, blossom, fruit, and bare branches. Hover a tree or plot to inspect it.
-The farm starts fitted to the screen. Drag to pan, scroll or pinch to zoom, and
-right-drag to tilt or rotate using the standard MapController, up to zoom 23 and an
-80° pitch. No basemap is required.
+A compact TreeLayer demo with seven plots and 416 varied trees. It is the live example on the
+TreeLayer docs page. Hover a tree or plot to inspect it.
+
+The **TreeLayer** panel maps directly onto layer props:
+
+- **Trees**: season (`getSeason`), fruit and flowers (`getCrop`), wind (`windStrength`) and size
+  (`sizeScale`).
+- **Crown**: every shared `characteristics` field, from seed and spread to leaf density.
+
+Drag to pan, scroll or pinch to zoom, and right-drag to tilt or rotate, up to zoom 23 and an 80°
+pitch. No basemap is required.
 
 ## Run
 
@@ -16,11 +22,11 @@ yarn --cwd examples/layers/seasonal-farm start
 ```
 
 TreeLayer loads from source. The same demo runs standalone, on the website, and in the
-gallery. Switching graphics backends preserves the camera and season.
+gallery. Switching graphics backends preserves the camera and panel settings.
 
 ## Data
 
-The farm is a procedural illustration, not a real planting or agricultural guide. Its
-seven species demonstrate all five TreeLayer silhouettes with varied ages, dimensions,
-foliage, and crop loads. Seasons are illustrative and fruit and flowers are enlarged.
-Ornamental cherries show blossom only. The demo makes no map or data requests.
+The farm is a procedural illustration, not a real planting or agricultural guide. Ages,
+dimensions, foliage and crop loads vary per tree. Seasons are illustrative and fruit and
+flowers are enlarged. Ornamental cherries show blossom only. The demo makes no map or data
+requests.

@@ -19,6 +19,20 @@ import {
   type TreeSpec,
   type TreeType
 } from '@deck.gl-community/layers';
+import {
+  ColumnPanel,
+  CustomPanel,
+  SettingsPanel,
+  type SettingsState
+} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {
+  CROWN_PROFILES,
+  DEFAULT_TREE_LAB_SETTINGS,
+  SETTINGS_SCHEMA,
+  type TreeLabSettings
+} from './settings';
+import '@deck.gl/widgets/stylesheet.css';
 import './style.css';
 
 const SPECIES: TreeType[] = [
@@ -46,11 +60,8 @@ const GROVE_EXTENT = GROVE_HALF_EXTENT * 2;
 // leaving a visibly bounded square grove surrounded by a sparse lawn.
 const BACKDROP_INNER_APRON_TREE_COUNT = 2_800;
 const BACKDROP_OUTER_APRON_TREE_COUNT = 2_000;
-const BACKDROP_APRON_TREE_COUNT = BACKDROP_INNER_APRON_TREE_COUNT + BACKDROP_OUTER_APRON_TREE_COUNT;
 const BACKDROP_TAPER_TREE_COUNT = 1_200;
 const BACKDROP_HORIZON_TREE_COUNT = 600;
-const BACKDROP_TREE_COUNT =
-  BACKDROP_APRON_TREE_COUNT + BACKDROP_TAPER_TREE_COUNT + BACKDROP_HORIZON_TREE_COUNT;
 const BACKDROP_INNER_APRON_SPACING = 12;
 const BACKDROP_OUTER_APRON_SPACING = 23;
 const BACKDROP_TAPER_SPACING = 80;
@@ -178,25 +189,6 @@ const GROVE_DIMENSIONS: Record<
   banyan: {height: 11, crownRadius: 4.8, trunkRadius: 0.38},
   mangrove: {height: 8.5, crownRadius: 3.5, trunkRadius: 0.25},
   citrus: {height: 5.6, crownRadius: 2.5, trunkRadius: 0.16}
-};
-
-const CROWN_PROFILES: Record<string, {label: string; characteristics: TreeCharacteristics}> = {
-  natural: {
-    label: 'Natural',
-    characteristics: {crownDepth: 1, crownAsymmetry: 1, branchDensity: 1, branchLift: 1}
-  },
-  open: {
-    label: 'Open',
-    characteristics: {crownDepth: 0.9, crownAsymmetry: 1.15, branchDensity: 0.82, branchLift: 1.1}
-  },
-  lush: {
-    label: 'Lush',
-    characteristics: {crownDepth: 1.08, crownAsymmetry: 1.18, branchDensity: 1.18, branchLift: 0.92}
-  },
-  sculpted: {
-    label: 'Sculpted',
-    characteristics: {crownDepth: 1.14, crownAsymmetry: 0.62, branchDensity: 0.9, branchLift: 1.22}
-  }
 };
 
 // These are deliberately a tiny shared palette, not per-tree random traits. TreeLayer groups
@@ -534,12 +526,12 @@ function getGroveTrees(): TreeSpec[] {
         branchLevels: species === 'pine' ? 3 + Math.floor(getGroveVariation(index, 4) * 3) : 3,
         characteristics: morphology,
         // Fruit is deliberately limited to the focal citrus. It makes the close orbit legible
-        // without turning the 10,000-tree overview into a crop-mesh workload.
+        // without turning the 10,000-tree overview into a crop-mesh workload. Wind is left to the
+        // layer's `windStrength` control.
         crop: isHero
           ? {kind: 'fruit' as const, color: [244, 153, 34, 255], count: 88, radius: 0.085}
           : undefined,
-        season: 'summer',
-        wind: false
+        season: 'summer'
       };
     });
   })();
@@ -678,8 +670,7 @@ function getBackdropTrees(): TreeSpec[] {
           species === 'pine' ? 3 + Math.floor(getGroveVariation(cell.index, 79) * 3) : 3,
         characteristics:
           GROVE_MORPHOLOGY_PROFILES[getGroveVariation(cell.index, 83) < 0.5 ? 0 : 1]!,
-        season: 'summer',
-        wind: false
+        season: 'summer'
       };
     });
   })();
@@ -872,11 +863,14 @@ export function mountTreeLabExample(
   container: HTMLElement,
   options: MountOptions = {}
 ): () => void {
-  const {data: suppliedData, onDeckInitialized, ...deckOptions} = options;
+  const {data: suppliedData, onDeckInitialized, widgets = [], ...deckOptions} = options;
   const params = new URLSearchParams(container.ownerDocument.defaultView?.location.search);
   const edition: CameraEdition = params.get('edition') === 'portrait' ? 'portrait' : 'landscape';
   const tour = getHeroTourProfile(edition);
   const forest = suppliedData ?? getTreeLabForest();
+  let settings = DEFAULT_TREE_LAB_SETTINGS;
+  let crownKey = '';
+  let crownCharacteristics: TreeCharacteristics = {};
   let cameraPreset: CameraPreset = 'hero';
   let currentViewState: MapViewState | undefined;
   let tourFrame: number | undefined;
@@ -885,48 +879,90 @@ export function mountTreeLabExample(
   let destroyed = false;
   const root = container.ownerDocument.createElement('div');
   root.className = 'trees-demo';
-  root.innerHTML = `<div class="trees-controls">
-    <strong>10,000-tree core + continuation forest</strong>
-    <label>Season <select name="season">${['spring', 'summer', 'autumn', 'winter'].map(season => `<option${season === 'summer' ? ' selected' : ''}>${season}</option>`).join('')}</select></label>
-    <label>Crown profile <select name="crown-profile">${Object.entries(CROWN_PROFILES)
-      .map(([value, profile]) => `<option value="${value}">${profile.label}</option>`)
-      .join('')}</select></label>
-    <label>Crown spread <input name="crown-spread" type="range" min="0.75" max="1.25" step="0.05" value="1"></label>
-    <label>Leaf density <input name="leaf-density" type="range" min="0.7" max="1.35" step="0.05" value="1"></label>
-    <span class="trees-camera-presets" role="group" aria-label="Camera framing">
-      <span class="trees-control-label">Camera</span>
-      <button type="button" data-camera-preset="hero" aria-pressed="true">Hero citrus</button>
-      <button type="button" data-camera-preset="overview" aria-pressed="false">Whole forest</button>
-    </span>
-    <button name="play-tour" type="button" data-tour-edition="${edition}" data-tour-duration-ms="${tour.durationMs}" data-tour-orbit-ms="${tour.orbitDurationMs}" data-tour-canopy-pullback-ms="${tour.highPitchPullbackDurationMs + tour.pitchSettleDurationMs + tour.canopyDriftDurationMs}" data-tour-high-pitch-pullback-ms="${tour.highPitchPullbackDurationMs}" data-tour-canopy-pitch-settle-ms="${tour.pitchSettleDurationMs}" data-tour-canopy-drift-ms="${tour.canopyDriftDurationMs}" data-tour-final-lift-ms="${tour.finalLiftDurationMs}" aria-pressed="false">Play hero tour</button>
-    <button name="reset-view" type="button">Reset camera</button>
-    <span data-scene-note>${TREES_PER_SPECIES.toLocaleString()} each in the authored core · ${BACKDROP_TREE_COUNT.toLocaleString()} scattered continuation trees · clustered interior orchard · automatic per-crown splat LOD · hover to identify · drag to pan · scroll or pinch to zoom · right-drag or Ctrl-drag to tilt and rotate</span>
-  </div><div class="trees-stage"></div>`;
+  root.dataset.edition = edition;
+  root.innerHTML = '<div class="trees-stage"></div>';
   container.append(root);
   const stage = root.querySelector<HTMLDivElement>('.trees-stage')!;
-  const control = <T extends HTMLInputElement | HTMLSelectElement>(name: string) =>
-    root.querySelector<T>(`[name="${name}"]`)!;
-  const resetView = root.querySelector<HTMLButtonElement>('[name="reset-view"]')!;
-  const playTour = root.querySelector<HTMLButtonElement>('[name="play-tour"]')!;
-  const cameraButtons = root.querySelectorAll<HTMLButtonElement>('[data-camera-preset]');
-  const getSelectedCharacteristics = (): TreeCharacteristics => {
-    const profile = CROWN_PROFILES[control<HTMLSelectElement>('crown-profile').value]!;
-    return {
-      ...profile.characteristics,
-      crownSpread: Number(control<HTMLInputElement>('crown-spread').value),
-      leafDensity: Number(control<HTMLInputElement>('leaf-density').value)
-    };
+  // Keep one characteristics object per crown setting so unrelated controls, such as wind or the
+  // splat budget, update TreeLayer without regenerating any tree templates.
+  const getCrownCharacteristics = (): TreeCharacteristics => {
+    const {crownProfile, crownSpread, leafSize, leafDensity} = settings;
+    const key = [crownProfile, crownSpread, leafSize, leafDensity].join();
+    if (key !== crownKey) {
+      crownKey = key;
+      crownCharacteristics = {
+        ...CROWN_PROFILES[crownProfile]!.characteristics,
+        crownSpread,
+        leafSize,
+        leafDensity
+      };
+    }
+    return crownCharacteristics;
   };
+  // The camera buttons live in the settings widget, which may render after this function returns.
   const setControlState = () => {
-    const season = control<HTMLSelectElement>('season').value as Season;
-    root.dataset.season = season;
-    root.dataset.edition = edition;
-    cameraButtons.forEach(button => {
+    root.dataset.season = settings.season;
+    root.querySelectorAll<HTMLButtonElement>('[data-camera-preset]').forEach(button => {
       button.setAttribute('aria-pressed', String(button.dataset.cameraPreset === cameraPreset));
     });
-    playTour.textContent = touring ? 'Stop tour' : 'Play hero tour';
-    playTour.setAttribute('aria-pressed', String(touring));
+    const playTour = root.querySelector<HTMLButtonElement>('[name="play-tour"]');
+    if (playTour) {
+      playTour.textContent = touring ? 'Stop tour' : 'Play hero tour';
+      playTour.setAttribute('aria-pressed', String(touring));
+    }
   };
+  const renderCameraControls = (element: HTMLElement) => {
+    element.innerHTML = `
+      <button type="button" data-camera-preset="hero" aria-pressed="true">Hero citrus</button>
+      <button type="button" data-camera-preset="overview" aria-pressed="false">Whole forest</button>
+      <button name="play-tour" type="button" data-tour-edition="${edition}" data-tour-duration-ms="${tour.durationMs}" data-tour-orbit-ms="${tour.orbitDurationMs}" data-tour-canopy-pullback-ms="${tour.highPitchPullbackDurationMs + tour.pitchSettleDurationMs + tour.canopyDriftDurationMs}" data-tour-high-pitch-pullback-ms="${tour.highPitchPullbackDurationMs}" data-tour-canopy-pitch-settle-ms="${tour.pitchSettleDurationMs}" data-tour-canopy-drift-ms="${tour.canopyDriftDurationMs}" data-tour-final-lift-ms="${tour.finalLiftDurationMs}" aria-pressed="false">Play hero tour</button>
+      <button name="reset-view" type="button">Reset camera</button>`;
+    const onClick = (event: MouseEvent) => {
+      const button = (event.target as HTMLElement).closest('button');
+      if (button?.dataset.cameraPreset) {
+        selectCameraPreset(button.dataset.cameraPreset as CameraPreset);
+      } else if (button?.name === 'play-tour') {
+        if (touring) stopTour();
+        else startTour();
+      } else if (button?.name === 'reset-view') {
+        selectCameraPreset(cameraPreset);
+      }
+    };
+    element.addEventListener('click', onClick);
+    setControlState();
+    return () => element.removeEventListener('click', onClick);
+  };
+  const controls = new BoxPanelWidget({
+    id: 'tree-lab-controls',
+    title: 'TreeLayer',
+    placement: 'top-left',
+    widthPx: 320,
+    collapsible: true,
+    defaultOpen: container.clientWidth >= 600,
+    panel: new ColumnPanel({
+      id: 'tree-lab-panels',
+      title: '',
+      panels: [
+        new CustomPanel({
+          id: 'tree-lab-camera',
+          title: 'Camera',
+          className: 'trees-camera',
+          onRenderHTML: renderCameraControls
+        }),
+        new SettingsPanel({
+          id: 'tree-lab-settings',
+          label: '',
+          schema: SETTINGS_SCHEMA,
+          settings: settings as unknown as SettingsState,
+          onSettingsChange: nextSettings => {
+            settings = nextSettings as unknown as TreeLabSettings;
+            stopTour();
+            render();
+          }
+        })
+      ]
+    })
+  });
   setControlState();
   const initialViewState =
     (options.initialViewState as MapViewState | undefined) ??
@@ -935,6 +971,7 @@ export function mountTreeLabExample(
   const deck = new Deck<MapView>({
     ...deckOptions,
     parent: stage,
+    widgets: [...widgets, controls],
     views: getSceneView(),
     initialViewState,
     controller: {
@@ -984,8 +1021,8 @@ export function mountTreeLabExample(
     resetCamera();
   };
   const render = () => {
-    const season = control<HTMLSelectElement>('season').value as Season;
-    const characteristics = getSelectedCharacteristics();
+    const {season, windStrength, maxCanopySplats, maxCanopyPixels, foveationStrength} = settings;
+    const characteristics = getCrownCharacteristics();
     root.dataset.season = season;
     deck.setProps({
       layers: [
@@ -1008,8 +1045,6 @@ export function mountTreeLabExample(
           id: 'trees',
           data: forest,
           ...METER_COORDINATES,
-          // Only the focal citrus carries explicit fruit; every other owner has no crop and all
-          // wind stays disabled so the splat layer can spend its work on canopy detail.
           // The two finite authored morphology profiles are multiplied by the UI controls, so
           // changing a shared control preserves natural per-tree variation without template churn.
           getTree: tree => ({
@@ -1017,9 +1052,10 @@ export function mountTreeLabExample(
             season,
             characteristics: getTreeCharacteristics(tree.characteristics, characteristics)
           }),
-          // This is only automatic screen-center allocation priority: it does not author a
-          // hierarchy level or cap, so every nearby and distant crown continues to resolve alone.
-          foveationStrength: 1,
+          windStrength,
+          maxCanopySplats,
+          maxCanopyPixels,
+          foveationStrength,
           pickable: true,
           updateTriggers: {getTree: [season, characteristics]}
         })
@@ -1059,15 +1095,6 @@ export function mountTreeLabExample(
       setTourTime(0);
       tourFrame = container.ownerDocument.defaultView?.requestAnimationFrame(animate);
     });
-  };
-  const onCameraButton = (event: MouseEvent) => {
-    selectCameraPreset(
-      (event.currentTarget as HTMLButtonElement).dataset.cameraPreset as CameraPreset
-    );
-  };
-  const onControlInput = () => {
-    stopTour();
-    render();
   };
   const cancelTourOnInteraction = () => stopTour();
   const seekTour = (event: Event) => {
@@ -1132,10 +1159,6 @@ export function mountTreeLabExample(
     };
   };
 
-  root.addEventListener('input', onControlInput);
-  resetView.addEventListener('click', () => selectCameraPreset(cameraPreset));
-  playTour.addEventListener('click', () => (touring ? stopTour() : startTour()));
-  cameraButtons.forEach(button => button.addEventListener('click', onCameraButton));
   stage.addEventListener('pointerdown', cancelTourOnInteraction);
   stage.addEventListener('wheel', cancelTourOnInteraction, {passive: true});
   stage.addEventListener('touchstart', cancelTourOnInteraction, {passive: true});
@@ -1149,8 +1172,6 @@ export function mountTreeLabExample(
   return () => {
     destroyed = true;
     stopTour(false);
-    root.removeEventListener('input', onControlInput);
-    cameraButtons.forEach(button => button.removeEventListener('click', onCameraButton));
     stage.removeEventListener('pointerdown', cancelTourOnInteraction);
     stage.removeEventListener('wheel', cancelTourOnInteraction);
     stage.removeEventListener('touchstart', cancelTourOnInteraction);

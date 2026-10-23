@@ -1,6 +1,6 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
-import {expect, it} from 'vitest';
+import {expect, it, vi} from 'vitest';
 import {
   COORDINATE_SYSTEM,
   MapController,
@@ -27,10 +27,23 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
     }
   });
   const trees = () => deck.props.layers[1] as TreeLayer<TreeSpec>;
-  const change = (name: string, value: string) => {
-    const element = parent.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!;
-    element.value = value;
-    element.dispatchEvent(new Event('input', {bubbles: true}));
+  const select = async (name: string, label: string) => {
+    parent.querySelector<HTMLButtonElement>(`#settings-panel-input-${name}`)!.click();
+    const option = await vi.waitFor(() => {
+      const match = Array.from(document.body.querySelectorAll<HTMLElement>('[role="option"]')).find(
+        element => element.textContent?.includes(label)
+      );
+      expect(match).toBeDefined();
+      return match!;
+    });
+    option.click();
+  };
+  const setNumber = (label: string, value: number) => {
+    const input = parent.querySelector<HTMLInputElement>(
+      `input[aria-label="${label} numeric value"]`
+    )!;
+    input.value = String(value);
+    input.dispatchEvent(new Event('input', {bubbles: true}));
   };
   try {
     const data = getTreeLabForest();
@@ -47,7 +60,8 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
       Object.fromEntries(TREE_LAB_SPECIES.map(species => [species, 0])) as Record<TreeType, number>
     );
     expect(counts).toEqual(Object.fromEntries(TREE_LAB_SPECIES.map(species => [species, 1250])));
-    expect(data.every(tree => tree.wind === false)).toBe(true);
+    // Wind is left to the layer's `windStrength` control rather than authored per tree.
+    expect(data.every(tree => tree.wind === undefined)).toBe(true);
     expect(backdrop.every(tree => tree.crop === undefined)).toBe(true);
     const backdropExtents = backdrop.map(tree => {
       const [x, y] = tree.position as [number, number, number];
@@ -144,7 +158,7 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
     expect(Math.max(...backdropExtents)).toBeGreaterThan(3_000);
     expect(Math.max(...backdropExtents)).toBeLessThanOrEqual(4_200);
     const heroTree = core[5050]!;
-    expect(heroTree).toMatchObject({species: 'citrus', wind: false});
+    expect(heroTree.species).toBe('citrus');
     expect(heroTree.height).toBeCloseTo(7, 4);
     expect(heroTree.crownRadius).toBeCloseTo(3.125, 4);
     expect(heroTree.characteristics).toMatchObject({
@@ -233,10 +247,18 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
     // error decision and grants a device-aware amount of source detail. The exact actual level
     // is covered under an explicit 20k cap by tree-grove.browser.spec.ts.
 
-    change('season', 'autumn');
-    change('crown-profile', 'lush');
-    change('crown-spread', '1.15');
-    change('leaf-density', '1.25');
+    // The camera and TreeLayer controls live in a deck.gl panel widget, not in-canvas copy.
+    await expect
+      .poll(() => parent.querySelector('#settings-panel-input-season'), {timeout: 15_000})
+      .not.toBeNull();
+    expect(parent.querySelector('.trees-controls, [data-scene-note]')).toBeNull();
+    await select('season', 'Autumn');
+    await select('crownProfile', 'Lush');
+    setNumber('Spread', 1.15);
+    setNumber('Leaf density', 1.25);
+    await expect
+      .poll(() => (trees().props.getTree as (tree: TreeSpec) => TreeSpec)(compactForest[0]!))
+      .toMatchObject({season: 'autumn', characteristics: {leafDensity: expect.any(Number)}});
     const getTree = trees().props.getTree as (tree: TreeSpec) => TreeSpec;
     expect(compactForest).toHaveLength(TREE_LAB_SPECIES.length * 2);
     expect(
@@ -250,7 +272,6 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
     expect(renderedFirstTree).toMatchObject({
       species: 'pine',
       season: 'autumn',
-      wind: false,
       characteristics: {
         seed: firstProfile.seed,
         crownSpread: Math.round(firstProfile.crownSpread! * 1.15 * 100) / 100,
@@ -261,6 +282,27 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
       }
     });
     expect(parent.querySelector<HTMLElement>('.trees-demo')!.dataset.season).toBe('autumn');
+    // Wind and rendering controls update layer props without rebuilding tree templates.
+    setNumber('Wind', 0.03);
+    await expect.poll(() => trees().props.windStrength).toBe(0.03);
+    const characteristicsTrigger = (trees().props.updateTriggers as {getTree: unknown[]})
+      .getTree[1];
+    setNumber('Wind', 0);
+    Array.from(parent.querySelectorAll<HTMLButtonElement>('button'))
+      .find(button => button.textContent?.includes('Rendering'))!
+      .click();
+    await expect
+      .poll(() => parent.querySelector('#settings-panel-input-maxCanopySplats'))
+      .not.toBeNull();
+    await select('maxCanopySplats', '5,000');
+    await expect.poll(() => trees().props.maxCanopySplats).toBe(5_000);
+    await select('maxCanopyPixels', '1 MP');
+    await expect.poll(() => trees().props.maxCanopyPixels).toBe(1_000_000);
+    setNumber('Foveation', 0.5);
+    await expect.poll(() => trees().props.foveationStrength).toBe(0.5);
+    expect((trees().props.updateTriggers as {getTree: unknown[]}).getTree[1]).toBe(
+      characteristicsTrigger
+    );
 
     const hero = parent.querySelector<HTMLButtonElement>('[data-camera-preset="hero"]')!;
     const overview = parent.querySelector<HTMLButtonElement>('[data-camera-preset="overview"]')!;
@@ -378,7 +420,7 @@ it('renders the authored forest contract with automatic hierarchy, controls, tou
   }
 }, 60_000);
 
-it('keeps the mixed forest stage reachable when its host is shorter than the controls', () => {
+it('fills its host with the forest stage and overlays collapsible controls', async () => {
   const parent = document.createElement('div');
   Object.assign(parent.style, {width: '320px', height: '180px'});
   document.body.append(parent);
@@ -386,15 +428,15 @@ it('keeps the mixed forest stage reachable when its host is shorter than the con
   const demo = parent.querySelector<HTMLDivElement>('.trees-demo')!;
   const stage = parent.querySelector<HTMLDivElement>('.trees-stage')!;
   try {
-    expect(getComputedStyle(demo).overflowY).toBe('auto');
-    expect(demo.scrollHeight).toBeGreaterThan(demo.clientHeight);
-    expect(stage.getBoundingClientRect().bottom).toBeGreaterThan(
-      demo.getBoundingClientRect().bottom
-    );
-    demo.scrollTop = demo.scrollHeight;
-    expect(stage.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      demo.getBoundingClientRect().bottom
-    );
+    expect(stage.getBoundingClientRect()).toMatchObject({
+      width: demo.getBoundingClientRect().width,
+      height: demo.getBoundingClientRect().height
+    });
+    // Narrow hosts start with the panel collapsed so the forest stays visible.
+    await expect
+      .poll(() => parent.querySelector('[aria-label="TreeLayer"]'), {timeout: 15_000})
+      .not.toBeNull();
+    expect(parent.querySelector('#settings-panel-input-season')!.checkVisibility()).toBe(false);
   } finally {
     cleanup();
     parent.remove();

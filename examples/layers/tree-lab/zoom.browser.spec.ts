@@ -30,11 +30,16 @@ it('switches between hero and whole-forest framing with resettable camera contro
       });
     }
   });
+  // The camera buttons render inside the deck.gl settings widget after Deck initializes.
+  const button = (selector: string) => parent.querySelector<HTMLButtonElement>(selector)!;
   const cameraButtons = {
-    hero: parent.querySelector<HTMLButtonElement>('[data-camera-preset="hero"]')!,
-    overview: parent.querySelector<HTMLButtonElement>('[data-camera-preset="overview"]')!
+    get hero() {
+      return button('[data-camera-preset="hero"]');
+    },
+    get overview() {
+      return button('[data-camera-preset="overview"]');
+    }
   };
-  const resetView = parent.querySelector<HTMLButtonElement>('[name="reset-view"]')!;
   const configured = () => deck.props.initialViewState as CameraState;
   const selectPreset = (preset: 'hero' | 'overview') => {
     cameraButtons[preset].click();
@@ -48,6 +53,9 @@ it('switches between hero and whole-forest framing with resettable camera contro
   };
   try {
     await expect.poll(() => deck.getViewports().length, {timeout: 15_000}).toBe(1);
+    await expect
+      .poll(() => parent.querySelector('[name="reset-view"]'), {timeout: 15_000})
+      .not.toBeNull();
     expect(deck.props.views).toBeInstanceOf(MapView);
     expect((deck.props.views as MapView).props.nearZMultiplier).toBe(0.02);
     expect((deck.props.views as MapView).props.altitude).toBe(3);
@@ -80,7 +88,7 @@ it('switches between hero and whole-forest framing with resettable camera contro
     // controller configuration and to restore its authored preset without waiting on a software
     // GPU frame. This keeps the demo contract test deterministic in CI's serialized GPU suite.
     deck.setProps({initialViewState: {...inspected, zoom: inspected.zoom + 1}});
-    resetView.click();
+    button('[name="reset-view"]').click();
     const reset = configured();
     expect(reset.zoom).toBeCloseTo(inspected.zoom, 4);
     expect(reset.longitude).toBeCloseTo(inspected.longitude, 9);

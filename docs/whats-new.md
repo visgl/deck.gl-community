@@ -2,6 +2,13 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- Shorter [`TreeLayer`](/docs/modules/layers/api-reference/tree-layer) and
+  [`SplatLayer`](/docs/modules/layers/api-reference/splat-layer) reference pages. The TreeLayer docs
+  demo and the [TreeLayer example](/examples/layers/tree-lab) now use a settings panel for season,
+  crops, wind, size, crown characteristics and canopy budgets, with no text drawn over the canvas.
+
 ## v9.4.8
 
 - `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.

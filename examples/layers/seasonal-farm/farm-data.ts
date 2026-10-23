@@ -26,7 +26,6 @@ export type FarmTree = {
   phenology: number;
   cropLoad: number;
   fruitSize: number;
-  branchPhase: number;
 };
 
 const SPECIES: Record<
@@ -35,7 +34,7 @@ const SPECIES: Record<
 > = {
   date: {type: 'palm', label: 'Date palm', height: 17, radius: 4.8, trunk: 0.45, fraction: 0.8},
   orange: {
-    type: 'cherry',
+    type: 'citrus',
     label: 'Orange tree',
     height: 4.8,
     radius: 4,
@@ -147,8 +146,7 @@ export function createTreeSamples(plots = createFarmPlots()): FarmTree[] {
         barkTone: random(),
         phenology: random(),
         cropLoad: maturity === 'sapling' ? 0 : (0.25 + random() * 1.4) * vigor * growth,
-        fruitSize: 0.7 + random() * 0.6,
-        branchPhase: random() * Math.PI * 2
+        fruitSize: 0.7 + random() * 0.6
       };
     });
   });
@@ -197,6 +195,11 @@ export function getFoliageColor(tree: FarmTree, season: Season): Color {
     tree.foliageTone > 0.5 ? [223, 209, 111, 255] : [25, 69, 44, 255],
     Math.abs(tree.foliageTone - 0.5) * 0.55 + (1 - tree.vigor) * 0.15
   );
+}
+
+/** Cork oak is evergreen, but TreeLayer's oak template drops its leaves in winter. */
+export function getTreeSeason(tree: FarmTree, season: Season): Season {
+  return tree.species === 'cork-oak' && season === 'winter' ? 'summer' : season;
 }
 
 function getSeasonColor(tree: FarmTree, season: Season): Color {
@@ -248,33 +251,4 @@ export function getSeasonalCrop(tree: FarmTree, season: Season): CropConfig | nu
     radius: radius * tree.fruitSize * 2.5,
     droppedCount: Math.round(droppedCount * tree.cropLoad * (0.35 + tree.phenology))
   };
-}
-
-export type TreeBranch = {source: [number, number, number]; target: [number, number, number]};
-
-/** A lightweight branching scaffold for winter's leafless orchard silhouettes. */
-export function createWinterBranches(trees: FarmTree[]): TreeBranch[] {
-  return trees
-    .filter(tree => ['cherry', 'birch', 'almond'].includes(tree.species))
-    .flatMap(tree => {
-      const h = tree.height;
-      const base = h * tree.trunkFraction;
-      return Array.from({length: 5 + tree.branchLevels * 2}, (_, index) => {
-        const angle = tree.branchPhase + index * 2.39996;
-        const level = 0.25 + (index % 3) * 0.24;
-        const radius = tree.canopyRadius * 0.45 * (1 - level * 0.55);
-        return {
-          source: [tree.position[0], tree.position[1], base + (h - base) * level * 0.4] as [
-            number,
-            number,
-            number
-          ],
-          target: addMetersToLngLat(tree.position, [
-            Math.cos(angle) * radius,
-            Math.sin(angle) * radius,
-            base + (h - base) * level
-          ]) as [number, number, number]
-        };
-      });
-    });
 }

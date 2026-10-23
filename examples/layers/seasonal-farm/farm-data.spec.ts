@@ -9,7 +9,7 @@ import {
   getFarmPosition,
   getFoliageColor,
   getSeasonalCrop,
-  createWinterBranches
+  getTreeSeason
 } from './farm-data';
 
 describe('demonstration farm', () => {
@@ -21,7 +21,7 @@ describe('demonstration farm', () => {
       expect(trees).toHaveLength(416);
       expect(new Set(trees.map(tree => tree.id)).size).toBe(trees.length);
       expect(new Set(trees.map(tree => tree.type))).toEqual(
-        new Set(['pine', 'oak', 'palm', 'birch', 'cherry'])
+        new Set(['pine', 'oak', 'palm', 'birch', 'cherry', 'citrus'])
       );
       for (const plot of plots) {
         const planted = trees.filter(tree => tree.plotId === plot.species);
@@ -61,7 +61,11 @@ describe('demonstration farm', () => {
     for (const tree of trees) {
       const leafless = ['cherry', 'birch', 'almond'].includes(tree.species);
       expect(getFoliageColor(tree, 'winter')[3] === 0).toBe(leafless);
-      expect(createWinterBranches([tree]).length > 0).toBe(leafless);
+      // TreeLayer drops oak, birch and cherry foliage in winter. Cork oak stays evergreen.
+      const bare =
+        getTreeSeason(tree, 'winter') === 'winter' &&
+        ['oak', 'birch', 'cherry'].includes(tree.type);
+      expect(bare).toBe(leafless);
       if (tree.maturity === 'sapling') expect(getSeasonalCrop(tree, 'autumn')).toBeNull();
     }
     for (const species of ['cherry', 'almond'] as const) {
