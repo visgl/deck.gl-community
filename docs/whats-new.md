@@ -2,6 +2,11 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
+  panel preset or custom theme through `theme`, including its editors and example picker.
+
 ## v9.4.8
 
 - `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.

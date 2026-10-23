@@ -2,8 +2,16 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, OrbitView, type DeckProps, type OrbitViewState} from '@deck.gl/core';
-import {SettingsPanel, type SettingsSchema} from '@deck.gl-community/panels';
+import {
+  PanelManager,
+  applyPanelTheme,
+  SidePanelContainer,
+  CustomPanel,
+  SettingsPanel,
+  type SettingsSchema
+} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {
@@ -147,13 +155,13 @@ export function mountVolumetricVideoExample(
   root.className = options.embedded ? 'vv-demo vv-embedded' : 'vv-demo';
   root.innerHTML = `
     <style>
-      .vv-demo {width:100%;height:100%;min-height:540px;display:grid;grid-template-columns:300px 1fr;background:#080c12;color:#e7edf6;font:16px/1.5 system-ui,sans-serif;overflow:hidden}
+      .vv-demo {width:100%;height:100%;min-height:540px;display:block;background:#080c12;color:#e7edf6;font:16px/1.5 system-ui,sans-serif;overflow:hidden}
       .vv-demo * {box-sizing:border-box}
       .vv-demo.vv-embedded {grid-template-columns:1fr;min-height:0}
       .vv-demo.vv-embedded .vv-panel {display:none}
       .vv-demo.vv-embedded .vv-backend-toggle {display:none}
       .vv-demo.vv-embedded .vv-stage-top {display:none}
-      .vv-panel {padding:32px 26px;display:flex;flex-direction:column;gap:24px;border-right:1px solid #ffffff12;background:#0d121b;overflow:auto;z-index:2}
+      .vv-panel {padding:32px 26px;display:flex;flex-direction:column;gap:24px;border-right:1px solid #ffffff12;background:var(--menu-background);color:var(--menu-text);overflow:auto;z-index:2}
       .vv-eyebrow {font:11px/1.4 ui-monospace,monospace;letter-spacing:.18em;color:#80a3c5;text-transform:uppercase}
       .vv-panel h1 {font-size:32px;line-height:1.12;letter-spacing:-.04em;font-weight:550;margin:12px 0}
       .vv-panel p {color:#8592a6;margin:0;font-size:16px}
@@ -171,7 +179,7 @@ export function mountVolumetricVideoExample(
       .vv-demo details {font-size:12px;color:#9cacc1}
       .vv-demo summary {cursor:pointer;margin-bottom:16px}
       .vv-demo details .vv-control {margin-bottom:14px}
-      .vv-stage {position:relative;min-width:0;background:radial-gradient(ellipse at 50% 48%,#152131,#080c12 68%)}
+      .vv-stage {position:relative;min-width:0;height:100%;background:radial-gradient(ellipse at 50% 48%,#152131,#080c12 68%)}
       .vv-canvas {position:absolute;inset:0}
       .vv-stage-top {position:absolute;top:28px;left:32px;right:32px;display:flex;align-items:center;justify-content:space-between;pointer-events:none;gap:12px}
       .vv-stage-top span:last-child {font:11px ui-monospace,monospace;color:#546c86}
@@ -211,7 +219,34 @@ export function mountVolumetricVideoExample(
       <div class="vv-source"><video muted playsinline preload="auto" aria-label="Source video frame"></video><span>Source frame</span></div>
       <div class="vv-views"><button data-view="volume">Volume</button><button data-view="front">Front</button><button data-view="side">Side</button></div>
     </main>`;
+  applyPanelTheme(root, EXAMPLE_PANEL_STYLE);
   container.append(root);
+  let chrome: PanelManager | undefined;
+  if (!options.embedded) {
+    const content = root.querySelector<HTMLElement>('.vv-stage')!;
+    const controls = root.querySelector<HTMLElement>('.vv-panel')!;
+    chrome = new PanelManager({parentElement: root, contentElement: content});
+    chrome.setProps({
+      components: [
+        new SidePanelContainer({
+          title: 'Video controls',
+          side: 'left',
+          widthPx: 300,
+          hidable: true,
+          resizable: true,
+          style: EXAMPLE_PANEL_STYLE,
+          panel: new CustomPanel({
+            id: 'video-volume-controls',
+            title: '',
+            onRenderHTML(element) {
+              element.append(controls);
+              return () => controls.remove();
+            }
+          })
+        })
+      ]
+    });
+  }
   const getElement = <T extends HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const frameInput = getElement<HTMLInputElement>('#vv-frame');
   const trailInput = getElement<HTMLInputElement>('#vv-trail');
@@ -261,6 +296,7 @@ export function mountVolumetricVideoExample(
   let deck: Deck | undefined;
   const standardPanel = options.embedded
     ? new BoxPanelWidget({
+        style: EXAMPLE_PANEL_STYLE,
         id: 'volumetric-video-controls',
         title: 'VolumetricVideoLayer',
         placement: 'top-left',
@@ -710,6 +746,7 @@ export function mountVolumetricVideoExample(
     deckGeneration++;
     cancelAnimationFrame(animation);
     deck?.finalize();
+    chrome?.finalize();
     preview.pause();
     preview.removeAttribute('src');
     preview.load();

@@ -9,6 +9,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@deck.gl-community/panels": "workspace:*",
     "vega": "^6.2.0",
     "vite": "^7.3.1"
   }

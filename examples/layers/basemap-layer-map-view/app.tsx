@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, MapView, _GlobeView} from '@deck.gl/core';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
 import {
@@ -164,6 +165,7 @@ export function mountBasemapLayerMapViewExample(container: HTMLElement): () => v
     lastError: null
   };
   const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'basemap-map-view-info',
     placement: 'top-left',
     widthPx: 360,
