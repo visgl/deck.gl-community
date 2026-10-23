@@ -295,7 +295,8 @@ describe('canvas chrome', () => {
     fitContent
   }) => {
     const {manager} = createHost();
-    const content = createPanel(<div style={{width: '140px', height: '50px'}}>Content</div>);
+    // Keep the content wider than either header so title updates do not change natural sizing.
+    const content = createPanel(<div style={{width: '220px', height: '50px'}}>Content</div>);
     const props = {id: 'reconciled', side, fitContent, defaultPinned: true, panel: content};
     const panel = new PinnablePanelContainer(props);
     manager.setProps({components: [panel]});
