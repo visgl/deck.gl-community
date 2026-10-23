@@ -234,7 +234,20 @@ export class PanelManager {
         : this._getContainer(component._container ?? component.viewId ?? null, component.placement);
     if (root.parentElement !== destination) {
       const activeElement = root.ownerDocument.activeElement;
-      destination.append(root);
+      const componentIndex = this.resolvedComponents.indexOf(component);
+      const following =
+        component.isPinned && componentIndex >= 0
+          ? this.resolvedComponents
+              .slice(componentIndex + 1)
+              .find(
+                candidate =>
+                  candidate instanceof DockedPanelContainer &&
+                  candidate.isPinned &&
+                  candidate.side === component.side &&
+                  candidate.rootElement?.parentElement === destination
+              )
+          : undefined;
+      destination.insertBefore(root, following?.rootElement ?? null);
       if (activeElement instanceof HTMLElement && root.contains(activeElement)) {
         activeElement.focus({preventScroll: true});
       }

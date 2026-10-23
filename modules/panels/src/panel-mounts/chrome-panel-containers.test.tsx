@@ -358,6 +358,19 @@ describe('canvas chrome', () => {
     }
   });
 
+  it('keeps registration order when a panel returns to a shared docking edge', () => {
+    const {manager} = createHost();
+    const first = new PinnablePanelContainer({id: 'first', defaultPinned: true});
+    const second = new PinnablePanelContainer({id: 'second', defaultPinned: true});
+    manager.setProps({components: [first, second]});
+    first.setProps({pinned: false});
+    first.setProps({pinned: true});
+    expect(first.rootElement!.nextElementSibling).toBe(second.rootElement);
+    first.setProps({side: 'left'});
+    first.setProps({side: 'right'});
+    expect(first.rootElement!.nextElementSibling).toBe(second.rootElement);
+  });
+
   it('validates the content element before modifying the host', () => {
     const parent = document.createElement('div');
     expect(
