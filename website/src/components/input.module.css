@@ -20,17 +20,11 @@
   margin-bottom: 2px;
 }
 
+.inputContainer input,
 .inputContainer select,
-.inputContainer input,
 .inputContainer a,
-.inputContainer input,
-.inputContainer select {
-  color: var(--menu-text, inherit);
-  accent-color: var(--panel-accent-color, auto);
-  color-scheme: dark;
-}
-
 .inputContainer button {
+  box-sizing: border-box;
   background: var(--menu-weak-background, var(--ifm-background-surface-color));
   font-size: 0.9em;
   text-transform: none;
@@ -43,6 +37,13 @@
   height: 20px;
   line-height: 1.833;
   text-align: left;
+}
+
+.inputContainer input,
+.inputContainer select {
+  color: var(--menu-text, inherit);
+  accent-color: var(--panel-accent-color, auto);
+  color-scheme: dark;
 }
 
 .inputContainer button {

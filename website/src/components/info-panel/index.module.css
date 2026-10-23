@@ -14,13 +14,12 @@
 .infoPanelContent hr {
   margin: 12px 0;
   border: none;
-  background: var(--menu-divider);
-  height: 1px;
+  border-top: var(--menu-divider);
+  height: 0;
 }
 
 .infoPanelContent a {
   text-decoration: none;
-  display: inline;
   color: var(--panel-accent-color);
 }
 

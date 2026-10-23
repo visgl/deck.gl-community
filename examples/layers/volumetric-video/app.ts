@@ -6,6 +6,7 @@ import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, OrbitView, type DeckProps, type OrbitViewState} from '@deck.gl/core';
 import {
   PanelManager,
+  applyPanelTheme,
   SidePanelContainer,
   CustomPanel,
   SettingsPanel,
@@ -218,6 +219,7 @@ export function mountVolumetricVideoExample(
       <div class="vv-source"><video muted playsinline preload="auto" aria-label="Source video frame"></video><span>Source frame</span></div>
       <div class="vv-views"><button data-view="volume">Volume</button><button data-view="front">Front</button><button data-view="side">Side</button></div>
     </main>`;
+  applyPanelTheme(root, EXAMPLE_PANEL_STYLE);
   container.append(root);
   let chrome: PanelManager | undefined;
   if (!options.embedded) {

@@ -40,7 +40,12 @@ function InfoPanel({title, children, sourceLink}) {
         })
       ]
     });
-    return () => manager.finalize();
+    const observer = new ResizeObserver(() => manager.onRedraw({viewports: [], layers: []}));
+    observer.observe(hostRef.current);
+    return () => {
+      observer.disconnect();
+      manager.finalize();
+    };
   }, [panel, title]);
 
   return (
