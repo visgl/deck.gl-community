@@ -37,6 +37,7 @@
     "test-watch": "vitest"
   },
   "dependencies": {
+    "@deck.gl-community/extensions": "~9.4.8",
     "@loaders.gl/textures": "^4.5.1",
     "@luma.gl/constants": "~9.4.0",
     "@luma.gl/shadertools": "~9.4.0",

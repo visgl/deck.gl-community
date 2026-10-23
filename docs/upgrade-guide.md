@@ -4,6 +4,24 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### `SelectionPulseExtension` moves to `@deck.gl-community/extensions`
+
+v9.4.7 exported `SelectionPulseExtension` from `@deck.gl-community/layers`. It now lives in the new
+`@deck.gl-community/extensions` module. `layers` depends on `extensions` and re-exports it, so
+existing imports keep working without a new install, but that export is deprecated and will be
+removed in the next major release. Change the import; the props and behavior are unchanged:
+
+```ts
+// Before (v9.4.7)
+import {SelectionPulseExtension} from '@deck.gl-community/layers';
+// After
+import {SelectionPulseExtension} from '@deck.gl-community/extensions';
+```
+
+`TreeLayer` and `SplatLayer` still pulse with the extension on WebGL2 and WebGPU.
+
 ## v9.4.7
 
 ### `@deck.gl-community/layers`: tree and splat shadows
