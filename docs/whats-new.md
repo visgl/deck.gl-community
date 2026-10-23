@@ -6,9 +6,8 @@ This page lists module additions and major changes in each release. For detailed
 
 - New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
   extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
-  released in v9.4.7 from `@deck.gl-community/layers`, now lives there. `layers` still exports it,
-  so existing imports keep working; new code should import it from `@deck.gl-community/extensions`.
-  See the [upgrade guide](./upgrade-guide.md).
+  released in v9.4.7 from `@deck.gl-community/layers`, moves there and is no longer exported from
+  `layers`; import it from `@deck.gl-community/extensions`. See the [upgrade guide](./upgrade-guide.md).
 
 ## v9.4.8
 
