@@ -7,6 +7,11 @@ This page lists module additions and major changes in each release. For detailed
 - Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
   panel preset or custom theme through `theme`, including its editors and example picker.
 
+- `SplatLayer` and `TreeLayer` render on `GlobeView`, including MapLibre's globe projection through
+  `MapLibreOverlay`. Before, they threw an unsupported-projection error. Gaussians, wood and crops
+  keep an east-north-up pose at each owner, unchanged when the globe switches to Web Mercator above
+  zoom 12, and the globe hides its far side.
+
 ## v9.4.8
 
 - `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.

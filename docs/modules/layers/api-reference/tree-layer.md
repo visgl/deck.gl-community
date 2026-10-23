@@ -51,9 +51,12 @@ Explicit granular accessors override corresponding `getTree` fields, so hosts ca
 Leaf-on tree canopies always use `SplatLayer`; there is no triangle-mesh foliage fallback. `TreeWoodLayer` composes connected trunks and branches through internal `TreeMeshLayer` children, while crop layers remain meshes. `TreeLayer` owns the authored tree shape and template selection; `SplatLayer` owns spatial visibility, refinement and bounded Gaussian work. There is no manual `detail` mode. Keep common morphology presets shared: unique botanical skeletons require distinct templates and draws. Sizes, colors, seasons and wind vary per instance without unique meshes. Dense scenes keep their splat crowns and their nearby connected branch lattice; a stable coverage mask lets foliage fill between branch samples rather than cutting a hard opaque lattice through the canopy. Distant native wood simplifies to compact boles.
 
 Foliage inherits the [SplatLayer rendering limits](./splat-layer.md#rendering-and-refinement):
-use planar Cartesian or Web Mercator views. With wrapped world copies (`MapView.repeat`),
-canopies render in the primary world copy only. GlobeView and WebGPU `View.clear` are
-unsupported.
+use planar Cartesian, Web Mercator or `GlobeView` views. With wrapped world copies
+(`MapView.repeat`), canopies render in the primary world copy only. WebGPU `View.clear` is
+unsupported. On `GlobeView`, wood, crops and canopies share one east-north-up pose at each tree,
+which is unchanged across GlobeView's zoom-12 switch to Web Mercator. Canopies and connected wood
+behind the globe's horizon are skipped; other meshes, like deck.gl's own layers, rely on the
+depth of a globe surface, such as a MapLibre globe, to hide the far side.
 In Cartesian and metre-offset coordinates, layer `modelMatrix` supports translation only;
 rotation, scaling and shear report an explicit error to keep wood and foliage aligned.
 Use authored tree dimensions and positions to set the tree pose.

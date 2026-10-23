@@ -3,8 +3,10 @@
 // Copyright (c) vis.gl contributors
 import {SPLAT_DEFORMATION_WGSL} from './splat-deformation';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
+import {SPLAT_GLOBE_WGSL} from './splat-globe';
 export const SPLAT_WGSL = `
 ${SPLAT_DEFORMATION_WGSL}
+${SPLAT_GLOBE_WGSL}
 struct Attributes {
  @builtin(instance_index) instanceIndex: u32,
  @location(0) splatCorners: vec2<f32>,
@@ -56,19 +58,22 @@ struct Varyings {
   covariance = deformation.jacobian * covariance;
   normal = splatDeformNormal(deformation.jacobian, normal);
  }
- let projection = project_position_to_clipspace_and_commonspace(attributes.instancePositions, attributes.instancePositions64Low, project_size_vec3(position));
- let center = projection.clipPosition;
+ // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.
+ let anchor = project_position_vec3_f64(attributes.instancePositions, attributes.instancePositions64Low);
+ let frame = splatTangentFrame(anchor);
+ let commonPosition = vec4<f32>(anchor + frame * project_size_vec3(position), 1.0);
+ let center = project_common_position_to_clipspace(commonPosition);
  let viewportSize = project.viewportSize;
- geometry.position = projection.commonPosition;
- output.commonPosition = projection.commonPosition.xyz;
- output.normal = project_normal(normal);
+ geometry.position = commonPosition;
+ output.commonPosition = commonPosition.xyz;
+ output.normal = splatProjectNormal(normal, anchor);
  geometry.normal = output.normal;
  // Reuse the perspective Jacobian for all three covariance axes.
  let matrix = project.viewProjectionMatrix;
  let rowW = vec3<f32>(matrix[0].w, matrix[1].w, matrix[2].w);
- let axisX = project_size_vec3(covariance[0]);
- let axisY = project_size_vec3(covariance[1]);
- let axisZ = project_size_vec3(covariance[2]);
+ let axisX = frame * project_size_vec3(covariance[0]);
+ let axisY = frame * project_size_vec3(covariance[1]);
+ let axisZ = frame * project_size_vec3(covariance[2]);
  let depthAxes = vec3<f32>(dot(rowW, axisX), dot(rowW, axisY), dot(rowW, axisZ));
  let depthSigma = length(depthAxes);
  let safeW = max(max(center.w, depthSigma * splat.support * 0.5), 1e-8);
@@ -102,7 +107,8 @@ struct Varyings {
  ${WGSL_FILTER_COLOR_ANCHOR}
  output.color = vertexColor;
  output.position = vec4<f32>(center.xy + offset / viewportSize * 2.0 * center.w, center.zw);
- if (center.w <= 0.0 || center.z < -center.w || output.color.a < splat.alphaCutoff) { output.position = vec4<f32>(2.0,2.0,2.0,1.0); }
+ // Weighted transparency resolves without the basemap's depth: the globe must hide its far side.
+ if (center.w <= 0.0 || center.z < -center.w || output.color.a < splat.alphaCutoff || splatBehindGlobe(commonPosition.xyz)) { output.position = vec4<f32>(2.0,2.0,2.0,1.0); }
  output.pickingColor = geometry.pickingColor;
  output.coverageWeight = attributes.instanceCoverageWeight.x * clipWeight;
  return output;

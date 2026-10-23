@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Use current panel containers, React/HTML content bridges, and shared sleek-dark styling throughout community examples and inline demos. Add an optional Playground theme for sidebar, editor, and picker styling.
+- Render `SplatLayer` and `TreeLayer` on `GlobeView`, including MapLibre's globe through `MapLibreOverlay`, instead of throwing. Gaussians, wood and crops keep an east-north-up pose at each owner across the zoom-12 switch to Web Mercator, and the globe hides its far side (#985).
 
 ## v9.4.8
 

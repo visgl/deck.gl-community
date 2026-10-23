@@ -1,13 +1,16 @@
 // deck.gl-community
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
-import {WebMercatorViewport, type Viewport} from '@deck.gl/core';
+import {_GlobeViewport as GlobeViewport, WebMercatorViewport, type Viewport} from '@deck.gl/core';
+import type {SplatHorizon} from './splat-globe';
 
 export type SplatProjection = {
   matrix: number[];
   center: number[];
   width: number;
   height: number;
+  /** On deck.gl's globe, the camera horizon that hides the globe's far side. */
+  horizon?: SplatHorizon | null;
 };
 
 /** Absolute Mercator positions and owner-local metre scales are independent of camera latitude. */
@@ -17,6 +20,17 @@ export function getSplatProjectionKey(viewport: Viewport): string {
     viewport.resolution,
     ...(viewport instanceof WebMercatorViewport ? [] : viewport.distanceScales.unitsPerMeter)
   ].join(',');
+}
+
+/**
+ * Active views whose common space holds owner bounds built in `viewport`. deck.gl can report a
+ * camera on the other side of GlobeView's zoom-12 switch, or of a basemap's projection change,
+ * before it updates a composite layer with that camera; that update rebuilds the bounds.
+ */
+export function getSplatQueryViews(viewport: Viewport, viewports: Viewport[]): Viewport[] {
+  const globe = viewport instanceof GlobeViewport;
+  const views = viewports.filter(view => view instanceof GlobeViewport === globe);
+  return views.length ? views : [viewport];
 }
 
 /** Metre conversion at the owner's geographic latitude, rather than the moving camera's centre. */

@@ -7,6 +7,7 @@ import {Model, DynamicBuffer} from '@luma.gl/engine';
 import {getSplatGeometry} from './splat-source';
 import {getSplatTransform} from './splat-transform';
 import {getSplatCommonUnits, getSplatProjectionKey} from './splat-culling';
+import {getSplatTangentFrame} from './splat-globe';
 import type {SplatPrimitiveLayer} from './splat-primitive-layer';
 
 const ATTRIBUTES = {
@@ -58,7 +59,13 @@ const LAYOUT: BufferLayout[] = [
     attributes: [{attribute: 'instanceCoverageWeight', format: 'float32x3', byteOffset: 0}]
   }
 ];
-type Owner = {common: number[]; units: number[]; matrix: number[]; wind: number[]};
+type Owner = {
+  common: number[];
+  /** Common-space columns of the owner's east, north and up metres. */
+  axes: number[];
+  matrix: number[];
+  wind: number[];
+};
 type Entry = {
   layer: SplatPrimitiveLayer;
   model: Model;
@@ -173,7 +180,14 @@ export class SplatSortedRenderer {
         Math.cos(phase * 1.7)
       ];
       const common = layer.projectPosition(position, {viewport: this.viewport, autoOffset: false});
-      owners.push({common, units: getSplatCommonUnits(common, this.viewport), matrix, wind});
+      const units = getSplatCommonUnits(common, this.viewport);
+      const frame = getSplatTangentFrame(common, this.viewport) ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
+      owners.push({
+        common,
+        axes: frame.map((value, i) => value * units[Math.floor(i / 3)]),
+        matrix,
+        wind
+      });
       const color = get('getColor', object);
       const instance = {
         instancePositions: position,
@@ -455,9 +469,10 @@ export class SplatSortedRenderer {
           x += dx;
           y += dy;
         }
-        const worldX = owner.common[0] + x * owner.units[0],
-          worldY = owner.common[1] + y * owner.units[1],
-          worldZ = owner.common[2] + z * owner.units[2];
+        const a = owner.axes;
+        const worldX = owner.common[0] + a[0] * x + a[3] * y + a[6] * z,
+          worldY = owner.common[1] + a[1] * x + a[4] * y + a[7] * z,
+          worldZ = owner.common[2] + a[2] * x + a[5] * y + a[8] * z;
         const clipZ =
           projection[2] * worldX +
           projection[6] * worldY +
