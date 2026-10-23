@@ -81,6 +81,40 @@ describe('canvas chrome', () => {
     expect(parent.querySelector('[aria-label="Show Tools"]')).toBeNull();
   });
 
+  it('contains restore-control gestures while leaving canvas gestures and native defaults intact', () => {
+    const {parent, content, manager} = createHost();
+    const panel = new SidePanelContainer({hidable: true, title: 'Tools', hidden: true});
+    manager.setProps({components: [panel]});
+    const restore = parent.querySelector<HTMLButtonElement>('[aria-label="Show Tools"]')!;
+    for (const type of [
+      'pointerdown',
+      'pointermove',
+      'pointerup',
+      'pointercancel',
+      'mousedown',
+      'mousemove',
+      'mouseup',
+      'click',
+      'dblclick',
+      'contextmenu',
+      'wheel',
+      'touchstart',
+      'touchmove',
+      'touchend',
+      'touchcancel'
+    ]) {
+      const ancestor = vi.fn();
+      parent.addEventListener(type, ancestor);
+      const event = new Event(type, {bubbles: true, cancelable: true});
+      restore.dispatchEvent(event);
+      expect(ancestor, type).not.toHaveBeenCalled();
+      expect(event.defaultPrevented, type).toBe(false);
+      content.dispatchEvent(new Event(type, {bubbles: true}));
+      expect(ancestor, type).toHaveBeenCalledTimes(1);
+      parent.removeEventListener(type, ancestor);
+    }
+  });
+
   it('opts into hiding and supports controlled side visibility', async () => {
     const {parent, manager} = createHost();
     const onHiddenChange = vi.fn();

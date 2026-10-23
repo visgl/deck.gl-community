@@ -1,5 +1,9 @@
 /** @jsxImportSource preact */
-import {DockedPanelContainer, type DockedPanelContainerProps} from './docked-panel-container';
+import {
+  DockedPanelContainer,
+  PANEL_INTERACTION_EVENTS,
+  type DockedPanelContainerProps
+} from './docked-panel-container';
 import type {PanelManager} from '../panels/panel-manager';
 
 /** Content, sizing, visibility, and edge options for side chrome. */
@@ -96,14 +100,7 @@ export class SidePanelContainer extends DockedPanelContainer<SidePanelContainerP
         this.restoreButton.type = 'button';
         this.restoreButton.className = 'deck-panel-chrome-restore';
         this.restoreButton.onclick = () => this.changeHidden(false);
-        for (const type of [
-          'pointerdown',
-          'pointerup',
-          'click',
-          'wheel',
-          'touchstart',
-          'touchend'
-        ]) {
+        for (const type of PANEL_INTERACTION_EVENTS) {
           this.restoreButton.addEventListener(type, event => event.stopPropagation());
         }
       }

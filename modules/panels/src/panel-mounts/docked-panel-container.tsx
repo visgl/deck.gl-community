@@ -284,7 +284,8 @@ function normalizeSize(size: number | undefined, fallback: number): number {
 
 // Native listeners also contain touch events on desktop browsers, where Preact
 // cannot infer their lowercase names from DOM event properties.
-const PANEL_INTERACTION_EVENTS = [
+/** @internal Shared gesture guards for panel shells and floating chrome controls. */
+export const PANEL_INTERACTION_EVENTS = [
   'pointerdown',
   'pointermove',
   'pointerup',
