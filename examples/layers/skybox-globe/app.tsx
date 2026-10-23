@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, _GlobeView, type PickingInfo} from '@deck.gl/core';
 import {ArcLayer, ScatterplotLayer} from '@deck.gl/layers';
 import {BasemapLayer} from '@deck.gl-community/basemap-layers';
@@ -83,6 +84,7 @@ export function mountSkyboxGlobeExample(container: HTMLElement): () => void {
   };
 
   const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'skybox-globe-info',
     placement: 'top-left',
     widthPx: 340,

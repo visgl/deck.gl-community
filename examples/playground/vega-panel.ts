@@ -130,7 +130,7 @@ export function createVegaPanel() {
         title: 'Vega JSON',
         value: text,
         language: 'json',
-        theme: 'invert',
+        theme: 'inherit',
         onValueChange: nextText => void updatePreview(nextText)
       });
       editor.onRenderHTML(editorHost);
