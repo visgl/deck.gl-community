@@ -6,6 +6,7 @@ export {PanelComponent} from './panels/panel-component';
 export type {PanelComponentProps, PanelPlacement} from './panels/panel-component';
 export {PanelContainer} from './panels/panel-container';
 export type {PanelContainerProps} from './panels/panel-container';
+export {mountPanel, type PanelMount, type PanelMountOptions} from './panels/mount-panel';
 export {PanelManager, type PanelManagerProps} from './panels/panel-manager';
 export {BoxPanelContainer, type BoxPanelContainerProps} from './panel-mounts/box-panel-container';
 export {
@@ -24,6 +25,8 @@ export {
 } from './panel-mounts/full-screen-panel-container';
 
 export {
+  PANEL_THEME_PRESETS,
+  resolvePanelThemeVariables,
   PANEL_THEME_DARK,
   PANEL_THEME_SLEEK_LIGHT,
   PANEL_THEME_SLEEK_DARK,

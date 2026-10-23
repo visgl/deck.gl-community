@@ -1,3 +1,4 @@
+import PanelContentBridgeDemo from '@site/src/components/docs/panel-content-bridge-demo';
 import * as React from 'react';
 import {Panel as PanelHost} from '@deck.gl-community/react';
 import {ColumnPanel, MarkdownPanel} from '@deck.gl-community/panels';
@@ -20,6 +21,7 @@ import {Panel, type PanelProps} from '@deck.gl-community/react';
 type PanelProps = {
   panel: PanelDefinition;
   themeMode?: 'inherit' | 'light' | 'dark';
+  theme?: PanelThemePreset | PanelThemeDefinition | 'inherit';
   className?: string;
   style?: CSSProperties;
   framed?: boolean;
@@ -100,3 +102,54 @@ export function ArrowTableDocsPanel() {
 - Uses the panels module's existing Preact renderer internally, so existing panel implementations keep working unchanged.
 - Supports `light`, `dark`, and `inherit` theme modes using the panels module's theme variables.
 - `framed={false}` is useful when the surrounding React layout already provides the outer surface.
+
+## Presets and custom themes
+
+The `theme` prop accepts the panel presets (`light`, `dark`, `sleek-light`, `sleek-dark`)
+or a `PanelThemeDefinition`. It takes precedence over the existing `themeMode` prop.
+Set `theme="inherit"` to inherit application CSS variables. Explicit per-panel themes
+still apply within a composition. Frame padding and corner radius follow the preset.
+
+```tsx
+<Panel panel={summaryPanel} theme={{
+  base: 'sleek-dark',
+  variables: {'--button-text': '#ddffee', '--panel-accent-color': '#16856b'}
+}} />
+```
+
+## React-owned content
+
+Use `ReactPanel` for a direct surface containing React children. Context, hooks, events,
+and state belong to the caller's React tree; the bridge does not create another React root.
+`title` is required, `id` is optional, and the host accepts the same theme/frame props as `Panel`.
+
+```tsx
+import {ReactPanel} from '@deck.gl-community/react';
+
+<ReactPanel title="Controls" theme="sleek-light">
+  <ApplicationControls />
+</ReactPanel>
+```
+
+For tabs, columns, accordions, or manager-owned containers, `useReactPanel` returns a
+panel definition and a React portal. Include the definition in your composition and
+render the portal in your React tree, beneath the context providers your controls need.
+
+```tsx
+const {panel, portal} = useReactPanel({
+  id: 'controls', title: 'Controls', children: <ApplicationControls />,
+  keepMounted: true
+});
+const tabs = useMemo(() => new TabbedPanel({panels: [panel, notesPanel]}), [panel]);
+return <ApplicationContext.Provider value={state}>
+  <Panel panel={tabs} theme="inherit" />
+  {portal}
+</ApplicationContext.Provider>;
+```
+
+The hook also accepts panel `theme`, `disabled`, and `keepMounted` options. Changing
+children updates the portal without rebuilding the panel. Inactive content follows the
+composition's normal mount policy; use `keepMounted` when local state must survive hiding.
+Unmounting cleans up the portal. React StrictMode is supported.
+
+<PanelContentBridgeDemo />
