@@ -4,6 +4,145 @@
 
 const PANEL_BASE_STYLESHEET_ATTRIBUTE = 'data-deck-gl-community-panels-styles';
 
+const PANEL_CHROME_STYLES = `.deck-panel-layout {
+  position: relative;
+  display: grid;
+  grid-template-areas: "top top top" "left center right" "bottom bottom bottom";
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) minmax(0, max-content);
+  grid-template-rows: minmax(0, max-content) minmax(0, 1fr) minmax(0, max-content);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.deck-panel-layout-center { grid-area: center; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.deck-panel-layout-edge { display: flex; min-width: 0; min-height: 0; overflow: auto; }
+.deck-panel-layout-edge[data-side="top"] { grid-area: top; }
+.deck-panel-layout-edge[data-side="bottom"] { grid-area: bottom; }
+.deck-panel-layout-edge[data-side="left"] { grid-area: left; flex-direction: column; }
+.deck-panel-layout-edge[data-side="right"] { grid-area: right; flex-direction: column; }
+.deck-panel-chrome {
+  position: relative; pointer-events: auto; min-width: 0; min-height: 0;
+  box-sizing: border-box; flex: 0 1 auto;
+  color: var(--menu-text, #18181a); background: var(--menu-background, #fff);
+  font: 13px system-ui, sans-serif;
+}
+.deck-panel-chrome[hidden] { display: none; }
+.deck-panel-chrome[data-pinned="true"][data-side="left"],
+.deck-panel-chrome[data-pinned="true"][data-side="right"] { flex: 1 1 auto; }
+.deck-panel-chrome-shell { position: relative; display: flex; flex-direction: column; height: 100%; max-height: inherit; min-height: 0; }
+.deck-panel-chrome-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px; flex: 0 0 auto; }
+.deck-panel-chrome-header button { color: inherit; font: inherit; cursor: pointer; }
+.deck-panel-chrome-header button:disabled { cursor: default; }
+.deck-panel-chrome-content { overflow: auto; min-width: 0; min-height: 0; flex: 1 1 auto; padding: 8px; }
+.deck-panel-chrome[data-pinnable="true"] {
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: 12px;
+  background: var(--menu-background, rgba(255, 255, 255, 0.96));
+  backdrop-filter: var(--menu-backdrop-filter, unset);
+  box-shadow: var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.16));
+}
+.deck-panel-chrome[data-pinnable="true"][data-pinned="true"] {
+  border-radius: 0;
+  box-shadow: none;
+}
+.deck-panel-chrome[data-pinnable="true"] > .deck-panel-chrome-shell {
+  box-sizing: border-box;
+  border: var(--menu-border, 1px solid rgba(148, 163, 184, 0.35));
+  border-radius: inherit;
+  overflow: hidden;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header {
+  padding: 14px 16px 10px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--button-text, currentColor);
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--button-icon-idle, #616166);
+  font: 500 12px/1.2 system-ui, sans-serif;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:hover:enabled {
+  background: var(--menu-item-hover, rgba(0, 0, 0, 0.08));
+  color: var(--button-icon-hover, #18181a);
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:disabled { opacity: 0.45; }
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-content {
+  padding: 0 16px 16px;
+  overscroll-behavior: contain;
+}
+.deck-panel-chrome-content[hidden] { display: none; }
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header .deck-panel-chrome-toggle {
+  flex: 1 1 auto;
+  justify-content: space-between;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.deck-panel-chrome-header .deck-panel-chrome-hide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--button-icon-idle, #616166);
+}
+.deck-panel-chrome-header .deck-panel-chrome-hide:hover,
+.deck-panel-chrome-restore:hover {
+  background: var(--menu-item-hover, rgba(0, 0, 0, 0.08));
+  color: var(--button-icon-hover, #18181a);
+}
+.deck-panel-chrome-hide:focus-visible,
+.deck-panel-chrome-restore:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.deck-panel-chrome-restore {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  border: var(--menu-border, 1px solid #cbd0d6);
+  border-radius: 6px;
+  background: var(--menu-background, #fff);
+  color: var(--menu-text, #18181a);
+  box-shadow: var(--menu-shadow, 0 2px 8px rgba(15, 23, 42, 0.16));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+}
+.deck-panel-chrome-divider { position: absolute; touch-action: none; z-index: 1; background: transparent; }
+.deck-panel-chrome-divider:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+.deck-panel-chrome[data-side="left"] .deck-panel-chrome-divider { right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.deck-panel-chrome[data-side="right"] .deck-panel-chrome-divider { left: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.deck-panel-chrome[data-side="top"] .deck-panel-chrome-divider { bottom: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.deck-panel-chrome[data-side="bottom"] .deck-panel-chrome-divider { top: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+`;
+
 const PANEL_BASE_STYLES = `.deck-widget {
   margin: var(--widget-margin, 12px);
   box-sizing: border-box;
@@ -761,4 +900,13 @@ export function ensurePanelStylesheet(document: Document): void {
   styleElement.setAttribute(PANEL_BASE_STYLESHEET_ATTRIBUTE, 'true');
   styleElement.textContent = PANEL_BASE_STYLES;
   document.head.appendChild(styleElement);
+}
+
+/** Installs chrome styles even when an application already loads deck widget CSS. */
+export function ensurePanelChromeStylesheet(document: Document): void {
+  if (document.querySelector('style[data-panel-chrome-styles]')) return;
+  const style = document.createElement('style');
+  style.setAttribute('data-panel-chrome-styles', 'true');
+  style.textContent = PANEL_CHROME_STYLES;
+  document.head.append(style);
 }
