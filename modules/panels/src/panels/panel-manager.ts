@@ -239,8 +239,8 @@ export class PanelManager {
         activeElement.focus({preventScroll: true});
       }
     }
-    root.style.maxWidth = component.isPinned ? '' : '100%';
-    root.style.maxHeight = component.isPinned ? '' : '100%';
+    root.style.maxWidth = '';
+    root.style.maxHeight = '';
     this._updateContainers();
   }
 
@@ -382,6 +382,17 @@ export class PanelManager {
       this.layout?.center.clientWidth ?? deck?.width ?? this.parentElement.clientWidth;
     const canvasHeight =
       this.layout?.center.clientHeight ?? deck?.height ?? this.parentElement.clientHeight;
+
+    for (const component of this.resolvedComponents) {
+      if (
+        component instanceof DockedPanelContainer &&
+        !component.isPinned &&
+        component.rootElement
+      ) {
+        component.rootElement.style.maxWidth = `${canvasWidth}px`;
+        component.rootElement.style.maxHeight = `${canvasHeight}px`;
+      }
+    }
 
     for (const id in this.containers) {
       const viewport = this.lastViewports[id] || null;

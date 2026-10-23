@@ -16,9 +16,10 @@ without creating a `Deck` instance.
 A `PanelManager` mounts panel-module UI such as direct `Panel` instances, real
 `PanelContainer` instances, `ToolbarComponent`, and `ToastComponent`.
 
-Note: If your application is using deck.gl it is recommended to use the panel
-widgets in [`@deck.gl-community/widgets`](/docs/modules/widgets) directly
-instead of instantiating a `PanelManager`.
+For overlays owned by deck.gl's widget lifecycle, use the adapters in
+[`@deck.gl-community/widgets`](/docs/modules/widgets). For permanent chrome and pinnable
+panels around a deck.gl canvas, use `PanelManager` with `contentElement` and mount deck.gl
+inside that content host.
 
 ```ts
 import {PanelManager} from '@deck.gl-community/panels';

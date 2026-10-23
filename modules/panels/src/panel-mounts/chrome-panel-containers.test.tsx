@@ -265,6 +265,26 @@ describe('canvas chrome', () => {
     deckStyle.remove();
   });
 
+  it('keeps large floating panels scrollable within a small content region', async () => {
+    const {parent, manager} = createHost();
+    parent.style.width = '200px';
+    parent.style.height = '120px';
+    const panel = new PinnablePanelContainer({
+      title: 'Inspector',
+      widthPx: 500,
+      panel: createPanel(<div style={{width: '500px', height: '500px'}}>Large content</div>)
+    });
+    manager.setProps({components: [panel]});
+    await settle();
+    expect(bounds(panel.rootElement!).width).toBeLessThanOrEqual(200);
+    expect(bounds(panel.rootElement!).height).toBeLessThanOrEqual(120);
+    const body = panel.rootElement!.querySelector('.deck-panel-chrome-content')!;
+    expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+    parent.style.height = '200px';
+    await settle();
+    expect(bounds(panel.rootElement!).height).toBeCloseTo(200);
+  });
+
   it('validates the content element before modifying the host', () => {
     const parent = document.createElement('div');
     expect(
