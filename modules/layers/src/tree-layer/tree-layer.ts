@@ -960,6 +960,8 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
               data,
               ...shared,
               getSource: getTreeSplatData(type, levels, characteristics),
+              // Procedural canopies blend optical depth; keep them off SplatLayer's 'auto' routing.
+              transparency: 'weighted',
               _splatBudgetGroup: this.state.splatBudgetGroup,
               support: type === 'palm' ? 1.4 : 2,
               maxRenderPixels: this.props.maxCanopyPixels,

@@ -101,6 +101,9 @@ const BROWSER_OPTIMIZE_DEPS_CONFIG = {
   include: [
     '@deck.gl/mesh-layers',
     '@loaders.gl/arrow',
+    '@loaders.gl/splats',
+    '@luma.gl/webgl',
+    '@luma.gl/webgpu',
     'apache-arrow',
     'zod',
     'vega',

@@ -1,6 +1,6 @@
 # SplatLayer
 
-Prepared anisotropic 3D Gaussians, instanced by owning data rows. `SplatLayer` is a `CompositeLayer` built on deck.gl, luma.gl and math.gl, with WebGL2 and WebGPU shaders. It supports planar Cartesian and Web Mercator views; with wrapped world copies (`MapView.repeat`) Gaussians render in the primary world copy only, and `GlobeView` reports an explicit unsupported-projection error. It accepts a direct prepared asset or instance rows whose assets are resolved by `getSource`, and shares immutable template buffers per device; file decoding, training, streaming and spherical harmonics are outside this API.
+Anisotropic 3D Gaussians and native RAD scenes, instanced by owning data rows. `SplatLayer` is a `CompositeLayer` built on deck.gl, luma.gl and math.gl, with WebGL2 and WebGPU shaders. It accepts decoded Gaussian assets, URL/Blob scene assets, or owner rows whose assets are resolved by `getSource`. Prepared foliage uses weighted blending; scenes use shared global ordering and native source-page residency on the host deck/device. Training remains outside this API. Prepared assets support planar Cartesian and Web Mercator views; with wrapped world copies (`MapView.repeat`) Gaussians render in the primary world copy only, and `GlobeView` reports an explicit unsupported-projection error. Sorted scenes require Cartesian coordinates.
 
 ```ts
 import {SplatLayer, createSplatHierarchy, type SplatSource} from '@deck.gl-community/layers';
@@ -50,17 +50,110 @@ new SplatLayer({data: objects, getSource: asset});
 
 Keep the descriptor stable with the source and hierarchy. A direct asset's function accessors and
 picking receive its implicit owner; row accessors and picking receive the original row and index.
-All supported forms accept `transparency: 'weighted'` (the default) or `'sorted'`. Sorted mode
+`transparency: 'auto'` (the default) selects weighted blending for prepared assets and sorted
+rendering for file/RAD scenes. `sorted` uses the prepared compositor for direct prepared assets: it
 orders individual selected Gaussians across prepared sources and owners for each viewport,
-including their transforms and wind pose. Streaming RAD, file decoding and SH remain outside
-this prepared API. [`SelectionPulseExtension`](../../extensions/api-reference/selection-pulse-extension.md) pulses selected
-owners with weighted transparency; sorted mode draws Gaussians without owner instances and does
-not pulse.
+including their transforms and wind pose. Cartesian owner rows with prepared sources that do not
+use `opticalDepths` use the scene renderer, so those rows can share one order with file/RAD scenes
+and other compatible owner rows. Use `sortDomain` to coordinate scene layers. `weighted` explicitly
+selects the approximate prepared-foliage path and rejects file scenes.
+[`SelectionPulseExtension`](../../extensions/api-reference/selection-pulse-extension.md) pulses
+selected owners with weighted transparency; sorted and scene rendering draw Gaussians without owner
+instances and do not pulse.
 
 The legacy `data: objects, source, hierarchy` form remains supported. It conflicts with direct
 asset data or an explicit `getSource`; place new hierarchies in the prepared descriptor instead.
 Empty owner arrays render no implicit instance. Camera changes do not rerun `getSource`; use
 `updateTriggers.getSource` when its result changes without replacing data.
+
+## Scene assets and installation
+
+```ts
+import {COORDINATE_SYSTEM} from '@deck.gl/core';
+
+new SplatLayer({data: 'https://example.com/scene.rad', coordinateSystem: COORDINATE_SYSTEM.CARTESIAN, maxSplats: 1_000_000, maxResidentSplats: 4_000_000});
+new SplatLayer({data: {type: 'splats', url: blob, format: 'splat'}, coordinateSystem: COORDINATE_SYSTEM.CARTESIAN});
+new SplatLayer({data: owners, getSource: d => d.asset, transparency: 'sorted', sortDomain: 'scene', coordinateSystem: COORDINATE_SYSTEM.CARTESIAN});
+```
+
+RAD URLs containing `.rad` and unmarked Blobs use native RAD decoding. For other URLs (including
+signed URLs without a suffix), use `{type: 'rad', url}` or `{type: 'splats', url, format}` explicitly.
+String asset URLs resolve against `document.baseURI` before crossing the worker boundary, including relative paths and a document `<base>` element. Blobs pass through unchanged.
+Static SPLAT, KSPLAT and SPZ decoding runs in a worker. RAD metadata, HTTP ranges, selection and
+retained camera refinement run off-thread; immutable decoded source pages upload once and are
+borrowed by every owner/view. The fetch adapter preserves range headers and cancellation signals.
+RAD retains native hierarchy row IDs, directional SH and floating-point radiance.
+
+This repository carries a Yarn compatibility patch for `@luma.gl/splats@9.4.2` pending its upstream
+9.4 host-pass release. A fresh root `yarn` install applies it automatically. **Publishing this
+community package requires that compatible luma release and removal of the repository patch.**
+An npm consumer does not inherit root Yarn resolutions. The default worker URLs require an ESM
+browser bundler. `workerFactory(type)` supports CommonJS or custom hosts; return a module Worker
+for `rad` or `static` from the package's bundled `dist/splat-layer/scene/*-source-worker.js` files.
+The layer owns and terminates each returned worker. Coit requires WebGPU; the exact CPU sorted
+WebGL2 path is intended for smaller static/selected frontiers.
+
+Sorted scenes currently require Cartesian views. Unsupported coordinate systems report a layer
+error and retire its scene children. Unsupported geospatial views report a layer error only when
+the scene is eligible for that view/pass; unrelated layers keep rendering and the scene recovers
+when a supported view returns. **Layers containing RAD assets require perspective Cartesian views**:
+RAD's distance-based refinement cannot represent orthographic screen-space error. An eligible
+orthographic view reports a recoverable layer error before source allocation or refinement;
+other layers and supported sibling views keep rendering. Root filters can exclude a scene from
+unrelated GlobeView or repeated MapView viewports without preventing Cartesian scene initialization. Static/prepared sorted layers support
+both perspective and orthographic Cartesian views. Switching back to perspective recovers RAD.
+The complete layer/owner affine transform is
+included in covariance projection, and camera position is transformed to source space before SH.
+Each viewport and `sortDomain` has one global ordering renderer. Owners retain original picking
+identity even when source pages are shared. Multi-depth picking excludes complete owners for
+the duration of the query and restores them for subsequent picks. **Place opaque layers before the sorted domain and
+keep its layers contiguous**; the renderer draws once into deck's existing color/depth pass.
+The host owns the canvas, device, render pass and presentation. Separate domains do not intersort.
+The first visible layer in a domain supplies its shared `alphaCutoff`, `kernelVariance` and
+`support`; keep these equal among domain members. Owner transforms, tint, opacity, coverage and
+picking remain per owner. The domain leader supplies draw parameters to the combined color draw;
+use separate domains when layers need different draw state, accepting that they will not intersort.
+Picking uses the same appearance settings with its own depth state.
+Sorted scene shaders output straight color and alpha. Their default draw parameters use
+`blendColorSrcFactor: 'src-alpha'` and `depthWriteEnabled: false`; explicit layer `parameters`
+override those defaults. Both backends apply blend factors together with their operations and
+restore defaults when an override is removed.
+Prepared hierarchies forced to sorted currently submit their finest source; weighted optical
+hierarchy blending, wind/material lighting and deck.gl shadow casting and receiving remain on the
+prepared path. Scene layers ignore `shadowEnabled` and draw no shadows.
+Sorted rendering rejects finest sources with `opticalDepths`; use `transparency: 'weighted'`
+for those assets. Converting density to a peak opacity would change the Gaussian's radial
+transmission and is not an equivalent fallback.
+
+**`maxActiveSplats` is a compatibility alias for `maxSplats`, not an additional quota.**
+Conflicting finite values fail.
+`maxSplats` controls per-layer scene refinement and `maxTotalSplats` shares the strictest host
+submission grant with prepared layers. `maxResidentSplats` bounds retained RAD source rows with
+an additional active-frontier transition allowance. Source pages and coarsest coverage are
+indivisible; a limit below coverage cannot be achieved by dropping arbitrary rows. Multi-view
+selection shares the source grant, pins the union of visible pages, and retains each view's
+coherent frontier. Hidden owners stop scheduling; finalized owners release their references, and
+last-owner removal aborts workers and destroys source/ordering/picking resources. Resident limits
+count source rows rather than a hard byte or frame-time limit.
+
+`maxConcurrentLoads` controls RAD download admission and updates without recreating the source
+worker or discarding resident pages. Shared sources use the lowest limit among visible owners.
+Increasing it admits queued work; decreasing it lets existing downloads finish and delays new
+admission until active requests fall below the limit. It does not change static-file decoding.
+
+`onStatusChange(status)` reports loading, refinement, ready, budget-limited or error, including
+active/source rows and pending/resident pages. A status notification describes the source asset;
+multiple owners can share that asset. `splatStats.renderedSplats` reports the maximum submitted
+count across viewports rather than summing repeated viewport presentation.
+
+Hiding all owners settles completed refinement and discards cancelled decoded uploads without
+publishing a hidden frontier. In-flight traversals retain their leases until they settle; the
+last visible coverage remains available when owners return.
+
+A terminal RAD source/worker error stops new downloads and uploads while retaining the last
+coherent visible frontier. Outstanding view selections settle before unused traversal pages
+are unpinned; reducing the resident budget can then reclaim those pages. Replace the source
+or remount the layer to retry a failed asset.
 
 ## Source
 
@@ -80,10 +173,10 @@ do not bound allocated GPU bytes. See [Bounded refinement](#bounded-refinement) 
 
 | Property | Default | Meaning |
 | --- | --- | --- |
-| `data` | `[]` | Direct prepared asset or original instance rows. |
+| `data` | `[]` | Direct Gaussian asset, URL/Blob, explicit file descriptor or original owner rows. |
 | `getSource` | `d => d.splats` | Constant prepared asset or per-row accessor. |
 | `source` | `null` | Compatibility template for owner rows without explicit `getSource`. |
-| `transparency` | `weighted` | Approximate weighted optical blending, or `sorted` for back-to-front alpha blending across prepared Gaussians. |
+| `transparency` | `auto` | Weighted prepared assets or sorted scenes; `sorted` uses the prepared compositor for direct assets and the scene renderer for compatible Cartesian owner rows, while `weighted` rejects file scenes. |
 | `getPosition` | `d => d.position` | Owner position in the layer coordinate system. |
 | `getOrientation` | `[0, 0, 0]` | Pitch, yaw and roll in degrees. |
 | `getScale` | `[1, 1, 1]` | Local XYZ scale. |
@@ -133,4 +226,4 @@ Prepared `SplatSource.opticalDepths` optionally overrides peak `opacities`: tran
 Read `layer.splatStats` after deck initializes the layer. It exposes `sourceCount`,
 `visibleInstances`, `renderedSplats`, `coverageFloor`, and `refiningInstances`. Submission counts include optical transition
 overlap. Source counts describe resolved source/hierarchy pairs, rather than GPU byte residency.
-These counters do not establish a hard GPU memory cap. Sorted mode allocates an additional selected working buffer.
+These counters do not establish a hard GPU memory or frame-time cap. Sorted mode allocates a selected working buffer and CPU-sorts within each viewport/domain.
