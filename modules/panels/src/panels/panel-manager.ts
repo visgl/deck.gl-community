@@ -271,7 +271,9 @@ export class PanelManager {
         this._removeComponent(oldComponent);
         this._addComponent(component);
       } else if (component !== oldComponent) {
-        oldComponent.setProps(component.props);
+        if (oldComponent instanceof DockedPanelContainer)
+          oldComponent.reconcileProps(component.props);
+        else oldComponent.setProps(component.props);
         component = oldComponent;
       }
 

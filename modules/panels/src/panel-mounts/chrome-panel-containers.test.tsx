@@ -285,6 +285,79 @@ describe('canvas chrome', () => {
     expect(bounds(panel.rootElement!).height).toBeCloseTo(200);
   });
 
+  it.each([
+    {side: 'left' as const, fitContent: false},
+    {side: 'left' as const, fitContent: true},
+    {side: 'top' as const, fitContent: false},
+    {side: 'top' as const, fitContent: true}
+  ])('preserves manually resized $side chrome on descriptor updates (fitContent=$fitContent)', async ({
+    side,
+    fitContent
+  }) => {
+    const {manager} = createHost();
+    const content = createPanel(<div style={{width: '140px', height: '50px'}}>Content</div>);
+    const props = {id: 'reconciled', side, fitContent, defaultPinned: true, panel: content};
+    const panel = new PinnablePanelContainer(props);
+    manager.setProps({components: [panel]});
+    await settle();
+    const horizontal = side === 'left';
+    const getSize = () =>
+      horizontal ? bounds(panel.rootElement!).width : bounds(panel.rootElement!).height;
+    const initialSize = getSize();
+    const divider = panel.rootElement!.querySelector('[role="separator"]')!;
+    divider.dispatchEvent(
+      new KeyboardEvent('keydown', {key: horizontal ? 'ArrowRight' : 'ArrowDown', bubbles: true})
+    );
+    await settle();
+    expect(getSize()).toBeCloseTo(initialSize + 10);
+    const root = panel.rootElement;
+    manager.setProps({components: [new PinnablePanelContainer({...props, title: 'Updated'})]});
+    await settle();
+    expect(panel.rootElement).toBe(root);
+    expect(root!.textContent).toContain('Updated');
+    expect(getSize()).toBeCloseTo(initialSize + 10);
+    if (fitContent) {
+      panel.setProps({fitContent: true});
+      await settle();
+      expect(getSize()).toBeCloseTo(initialSize);
+    } else {
+      panel.setProps(horizontal ? {widthPx: 210} : {heightPx: 110});
+      await settle();
+      expect(getSize()).toBeCloseTo(horizontal ? 210 : 110);
+    }
+  });
+
+  it('contains visualization gestures while leaving native panel interactions enabled', () => {
+    const {parent, content, manager} = createHost();
+    const panel = new PinnablePanelContainer({panel: createPanel()});
+    manager.setProps({components: [panel]});
+    const input = panel.rootElement!.querySelector('input')!;
+    for (const type of [
+      'pointerdown',
+      'pointermove',
+      'pointerup',
+      'mousedown',
+      'mousemove',
+      'mouseup',
+      'touchstart',
+      'touchmove',
+      'touchend',
+      'click',
+      'contextmenu',
+      'wheel'
+    ]) {
+      const handler = vi.fn();
+      parent.addEventListener(type, handler);
+      const event = new Event(type, {bubbles: true, cancelable: true});
+      input.dispatchEvent(event);
+      expect(handler, type).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+      content.dispatchEvent(new Event(type, {bubbles: true}));
+      expect(handler).toHaveBeenCalledOnce();
+      parent.removeEventListener(type, handler);
+    }
+  });
+
   it('validates the content element before modifying the host', () => {
     const parent = document.createElement('div');
     expect(

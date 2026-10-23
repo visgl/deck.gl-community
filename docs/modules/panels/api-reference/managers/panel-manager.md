@@ -61,6 +61,7 @@ type PanelManagerProps = {
 ```ts
 new PanelManager({
   parentElement,
+  contentElement,
   deck,
   className
 });

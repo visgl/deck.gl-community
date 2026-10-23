@@ -42,6 +42,7 @@ export abstract class DockedPanelContainer<
   private resizedWidth?: number;
   private resizedHeight?: number;
   private stopDrag?: () => void;
+  private eventRoot?: HTMLElement;
 
   /** Edge assigned by the concrete container. */
   abstract get side(): PanelDockSide;
@@ -63,12 +64,28 @@ export abstract class DockedPanelContainer<
       this.resizedWidth = undefined;
       this.resizedHeight = undefined;
     }
-    if (props.widthPx !== undefined) this.resizedWidth = undefined;
-    if (props.heightPx !== undefined) this.resizedHeight = undefined;
+    if (props.widthPx !== undefined && props.widthPx !== this.props.widthPx)
+      this.resizedWidth = undefined;
+    if (props.heightPx !== undefined && props.heightPx !== this.props.heightPx)
+      this.resizedHeight = undefined;
     super.setProps(props);
   }
 
+  /** @internal Apply a declarative descriptor without treating unchanged fitting as a reset. */
+  reconcileProps(props: Partial<PropsT>): void {
+    const changes = {...props};
+    if (changes.fitContent === this.props.fitContent) delete changes.fitContent;
+    this.setProps(changes);
+  }
+
   override onRenderHTML(root: HTMLElement): void {
+    if (this.eventRoot !== root) {
+      this.removeEventListeners();
+      this.eventRoot = root;
+      for (const eventType of PANEL_INTERACTION_EVENTS) {
+        root.addEventListener(eventType, stopPanelEventPropagation);
+      }
+    }
     ensurePanelChromeStylesheet(root.ownerDocument);
     (this.panelManager as PanelManager | undefined)?.updateDockedContainer?.(this);
     root.hidden = this.isPinned && !this.canPin;
@@ -152,10 +169,20 @@ export abstract class DockedPanelContainer<
 
   override onRemove(): void {
     this.stopDrag?.();
+    this.removeEventListeners();
     if (this.rootElement) render(null, this.rootElement);
   }
 
   protected changePinned(_pinned: boolean): void {}
+
+  private removeEventListeners(): void {
+    if (this.eventRoot) {
+      for (const eventType of PANEL_INTERACTION_EVENTS) {
+        this.eventRoot.removeEventListener(eventType, stopPanelEventPropagation);
+      }
+    }
+    this.eventRoot = undefined;
+  }
 
   private getResizeSign(): number {
     return this.side === 'right' || this.side === 'bottom' ? -1 : 1;
@@ -215,4 +242,28 @@ export abstract class DockedPanelContainer<
 
 function normalizeSize(size: number | undefined, fallback: number): number {
   return Number.isFinite(size) ? Math.max(0, size!) : fallback;
+}
+
+// Native listeners also contain touch events on desktop browsers, where Preact
+// cannot infer their lowercase names from DOM event properties.
+const PANEL_INTERACTION_EVENTS = [
+  'pointerdown',
+  'pointermove',
+  'pointerup',
+  'pointercancel',
+  'mousedown',
+  'mousemove',
+  'mouseup',
+  'touchstart',
+  'touchmove',
+  'touchend',
+  'touchcancel',
+  'click',
+  'dblclick',
+  'contextmenu',
+  'wheel'
+] as const;
+
+function stopPanelEventPropagation(event: Event): void {
+  event.stopPropagation();
 }
