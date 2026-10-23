@@ -7,10 +7,11 @@ runs:
       shell: bash
       run: |
         # The Azure mirror can take minutes to serve Playwright's fonts and libraries.
-        # Support both legacy apt lists and Ubuntu's deb822 source files.
-        for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+        # Hosted runners also select mirrors through file-based mirror lists.
+        for source in /etc/apt/apt-mirrors*.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
           if [[ -f "$source" ]]; then
-            sudo sed -E -i 's@https?://azure\.archive\.ubuntu\.com/ubuntu([ /]|$)@https://archive.ubuntu.com/ubuntu\1@g' "$source"
+            echo "Configuring Ubuntu archive in $source"
+            sudo sed -E -i 's@https?://azure\.archive\.ubuntu\.com/ubuntu([[:space:]/]|$)@https://archive.ubuntu.com/ubuntu\1@g' "$source"
           fi
         done
 
