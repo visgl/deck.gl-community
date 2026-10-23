@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import {useEffect, useMemo} from 'preact/hooks';
+import {useLayoutEffect, useMemo} from 'preact/hooks';
 
 import {useControlledStringState} from '../panels/panel-state';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
@@ -78,7 +78,7 @@ export function TabbedPanelContainer({
     return isActivePanelEnabled ? currentActivePanelId : enabledPanels[0]?.id;
   }, [currentActivePanelId, enabledPanels]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const shouldSyncActivePanel = currentActivePanelId !== initialActivePanelId;
     if (!shouldSyncActivePanel || !initialActivePanelId) {
       return;
