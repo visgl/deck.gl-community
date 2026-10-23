@@ -8,6 +8,8 @@ import {
   type PanelThemePreset
 } from '../lib/panel-theme';
 
+import {ensurePanelStylesheet} from '../lib/panel-styles';
+
 import type {ComponentChildren, JSX} from 'preact';
 import type {Panel, PanelTheme, PanelThemeMode} from './panel';
 
@@ -32,6 +34,9 @@ export function PanelThemeScope({panel, children}: {panel: Panel; children?: Com
   const resolvedPreset = resolvePanelThemePreset(parentPreset, panel.theme);
 
   useLayoutEffect(() => {
+    if (hostElementRef.current) {
+      ensurePanelStylesheet(hostElementRef.current.ownerDocument);
+    }
     if (!inheritedPreset) {
       const hostElement = hostElementRef.current;
       if (!hostElement) {

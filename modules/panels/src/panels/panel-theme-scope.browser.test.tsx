@@ -243,3 +243,13 @@ it('inherits a custom panel definition and switches back to a built-in theme', a
   await settleRender();
   expect(getComputedStyle(child).getPropertyValue('--panel-control-height').trim()).toBe('');
 });
+
+it('installs sleek interaction styles when mounted without PanelManager', async () => {
+  document.querySelector('style[data-panel-theme-styles]')?.remove();
+  const host = createHost();
+  mountPanel(host, 'sleek-dark');
+  await settleRender();
+  expect(document.querySelector('style[data-panel-theme-styles]')?.textContent).toContain(
+    "input[type='checkbox']:checked::before"
+  );
+});
