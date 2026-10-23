@@ -32,9 +32,10 @@ vi.mock('@deck.gl/core', async importOriginal => {
       }: {parent: HTMLElement; widgets?: import('@deck.gl/core').Widget[]}) {
         this.widgets = widgets;
         for (const widget of widgets) {
-          const element = widget.onAdd({deck: this as never, viewId: null});
-          parent.append(element);
-          widget.onRenderHTML(element);
+          widget.deck = this as never;
+          widget.rootElement = widget._onAdd({deck: this as never, viewId: null});
+          parent.append(widget.rootElement);
+          widget.updateHTML();
         }
       }
       setProps() {}
