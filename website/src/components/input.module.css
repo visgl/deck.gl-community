@@ -23,6 +23,13 @@
 .inputContainer select,
 .inputContainer input,
 .inputContainer a,
+.inputContainer input,
+.inputContainer select {
+  color: var(--menu-text, inherit);
+  accent-color: var(--panel-accent-color, auto);
+  color-scheme: dark;
+}
+
 .inputContainer button {
   background: var(--menu-weak-background, var(--ifm-background-surface-color));
   font-size: 0.9em;
