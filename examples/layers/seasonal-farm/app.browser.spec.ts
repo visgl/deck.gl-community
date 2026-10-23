@@ -71,16 +71,19 @@ describe('Seasonal Farm integration', () => {
         (trees().props.getCrop as (tree: FarmTree) => CropConfig | null)(tree);
       const getSeason = (tree: FarmTree) =>
         (trees().props.getSeason as (tree: FarmTree) => Season)(tree);
-      const select = async (season: string) => {
-        parent.querySelector<HTMLButtonElement>('#settings-panel-input-season')!.click();
+      const selectOption = async (name: string, label: string) => {
+        parent.querySelector<HTMLButtonElement>(`#settings-panel-input-${name}`)!.click();
         const option = await vi.waitFor(() => {
           const match = Array.from(
             document.body.querySelectorAll<HTMLElement>('[role="option"]')
-          ).find(element => element.textContent?.toLowerCase().includes(season));
+          ).find(element => element.textContent?.toLowerCase().includes(label.toLowerCase()));
           expect(match).toBeDefined();
           return match!;
         });
         option.click();
+      };
+      const select = async (season: string) => {
+        await selectOption('season', season);
         await expect.poll(() => root().dataset.season).toBe(season);
       };
       const setNumber = (label: string, value: number) => {
@@ -129,6 +132,18 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => trees().props.windStrength).toBe(0.05);
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
+        Array.from(parent.querySelectorAll<HTMLButtonElement>('button'))
+          .find(button => button.textContent?.includes('Rendering'))!
+          .click();
+        await expect
+          .poll(() => parent.querySelector('#settings-panel-input-maxCanopySplats'))
+          .not.toBeNull();
+        await selectOption('maxCanopySplats', '5,000');
+        await expect.poll(() => trees().props.maxCanopySplats).toBe(5_000);
+        await selectOption('maxCanopyPixels', '1 MP');
+        await expect.poll(() => trees().props.maxCanopyPixels).toBe(1_000_000);
+        setNumber('Foveation', 0.5);
+        await expect.poll(() => trees().props.foveationStrength).toBe(0.5);
         setNumber('Wind', 0);
         setNumber('Size', 1);
         parent.querySelector<HTMLInputElement>('#settings-panel-input-crops')!.click();

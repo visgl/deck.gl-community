@@ -82,7 +82,6 @@ arrays.
 | `getTransformMatrix` | `null` | Affine 4×4 matrix. Replaces orientation, scale and translation. |
 | `getColor` | white | RGBA tint. Alpha multiplies opacity. |
 | `getCoverageWeight` | `1` | Opacity multiplier, for fading instances in and out. |
-| `source` | `null` | Legacy alternative to `getSource`, paired with `hierarchy`. |
 
 ### Rendering
 
@@ -93,7 +92,6 @@ arrays.
 | `kernelVariance` | `0.3` | Anti-aliasing blur added to each Gaussian, in pixels. |
 | `support` | `3` | Gaussian extent in standard deviations, `1`–`6`. |
 | `alphaCutoff` | `1/255` | Fragments below this opacity are discarded. |
-| `shadowEnabled` | `true` | Cast shadows from a `LightingEffect` shadow light (WebGL2). |
 
 ### Level of detail
 
@@ -141,8 +139,7 @@ After initialization, `layer.splatStats` reports `sourceCount`, `visibleInstance
 
 - Supports `MapView` and Cartesian views. With `MapView.repeat`, splats render in the primary
   world copy only. `GlobeView` reports an error.
-- Shadows are WebGL2 only. See [TreeLayer shadows](./tree-layer.md#shadows).
-- [`SelectionPulseExtension`](./selection-pulse-extension.md) pulses weighted splats only.
+- deck.gl `LightingEffect` shadows work on WebGL2 only.
 - Place opaque layers before splat layers so that they occlude splats.
 - Weighted transparency approximates alpha blending. Overlapping colors can differ from a
   depth-sorted renderer.

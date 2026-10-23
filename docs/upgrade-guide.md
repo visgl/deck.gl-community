@@ -4,6 +4,23 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### `@deck.gl-community/layers`: `SplatLayer` legacy props removed
+
+`SplatLayer` no longer accepts the top-level `source` and `hierarchy` props. Pass the source
+through `getSource`, with its hierarchy in a prepared descriptor:
+
+```ts
+// Before
+new SplatLayer({data: rows, source, hierarchy});
+// After
+new SplatLayer({data: rows, getSource: {type: 'prepared-splats', source, hierarchy}});
+```
+
+TreeLayer canopy overrides follow the same rule: set `getSource` in `_subLayerProps` instead of
+`source` or `hierarchy`.
+
 ## v9.4.7
 
 ### `@deck.gl-community/layers`: tree and splat shadows

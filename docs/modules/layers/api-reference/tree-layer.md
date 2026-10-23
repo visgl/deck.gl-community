@@ -9,7 +9,7 @@ Gaussian-splat foliage drawn by [`SplatLayer`](./splat-layer.md). Eight species 
 templates, so size, season, color, crops and wind vary per tree without unique meshes. It
 runs on WebGL2 and WebGPU.
 
-See the [TreeLayer example](/examples/layers/tree-lab) for a 16,600-tree forest.
+The demo above is the [Seasonal Farm example](/examples/layers/seasonal-farm).
 
 ## Usage
 
@@ -57,7 +57,6 @@ properties. Picking, `autoHighlight` and `highlightedObjectIndex` use the source
 | `maxCanopyPixels` | `Infinity` | Pixel cap for foliage rendering. Lower values soften leaves. |
 | `foveationStrength` | `0` | `0`–`1`. Under a tight budget, favors crowns near the screen center. |
 | `getCoverageWeight` | `1` | Per-tree optical coverage, for fading trees in and out. |
-| `shadowEnabled` | `true` | Cast shadows from a `LightingEffect` shadow light. See [Shadows](#shadows). |
 
 ### Per-field accessors
 
@@ -137,47 +136,8 @@ small.
 
 ## Shadows
 
-Trees cast and receive shadows when a `LightingEffect` has a `DirectionalLight` with
-`_shadow: true`:
-
-```ts
-import {AmbientLight, DirectionalLight, LightingEffect} from '@deck.gl/core';
-
-const lighting = new LightingEffect({
-  ambient: new AmbientLight({intensity: 0.6}),
-  sun: new DirectionalLight({direction: [1, 0.5, -1], intensity: 0.8, _shadow: true})
-});
-
-new Deck({effects: [lighting], layers: [ground, new TreeLayer({id: 'trees', data: trees})]});
-```
-
-Sparse crowns cast dappled shadows, and each crown is shaded by other trees but not by its own
-leaves. Set `shadowEnabled: false` to stop trees casting.
-
-- Shadows are WebGL2 only. On WebGPU, trees render without them.
-- Only trees in view cast, so a tree just outside the view casts no shadow into it.
-- In zoomed-out views of large groves, ground shadows fade until you zoom in.
-- With interleaved `MapboxOverlay` or `MapLibreOverlay`, the basemap receives no shadows. Add a
-  transparent ground layer (`getFillColor: [0, 0, 0, 0]`, `shadowEnabled: false`) under the trees,
-  with the same `beforeId` and `slot`.
-- Set `shadowEnabled: false` on a lit `SimpleMeshLayer` ground plane, or it shadows itself.
-
-## Extensions
-
-`extensions` and their props pass to the wood, crop and canopy sub-layers, and extension
-accessors receive the source tree. Extensions that add a vertex attribute, such as
-`DataFilterExtension`, are not supported. [`SelectionPulseExtension`](./selection-pulse-extension.md)
-works on WebGL2 and WebGPU:
-
-```ts
-new TreeLayer({
-  id: 'trees',
-  data: trees,
-  extensions: [new SelectionPulseExtension()],
-  getSelected: tree => selectedIds.has(tree.id),
-  updateTriggers: {getSelected: [selectedIds]}
-});
-```
+Trees cast and receive deck.gl `LightingEffect` shadows on WebGL2, like other deck.gl layers.
+Opt out with deck.gl's standard `shadowEnabled: false`.
 
 ## Limitations
 

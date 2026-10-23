@@ -115,7 +115,8 @@ export function mountSeasonalFarmExample(
     placement: 'top-left',
     widthPx: 320,
     collapsible: true,
-    defaultOpen: container.clientWidth >= NARROW_WIDTH,
+    // Start open unless the container is known to be narrow; it can mount before it has a size.
+    defaultOpen: !(container.clientWidth > 0 && container.clientWidth < NARROW_WIDTH),
     panel: new SettingsPanel({
       id: 'seasonal-farm-settings',
       schema: SETTINGS_SCHEMA,
@@ -207,7 +208,16 @@ export function mountSeasonalFarmExample(
   }
 
   function createLayers() {
-    const {season, crops, windStrength, sizeScale, characteristics} = settings;
+    const {
+      season,
+      crops,
+      windStrength,
+      sizeScale,
+      characteristics,
+      maxCanopySplats,
+      maxCanopyPixels,
+      foveationStrength
+    } = settings;
     return [
       new PolygonLayer<FarmPlot>({
         id: 'farm-plots',
@@ -235,6 +245,9 @@ export function mountSeasonalFarmExample(
         sizeScale,
         characteristics,
         windStrength,
+        maxCanopySplats,
+        maxCanopyPixels,
+        foveationStrength,
         parameters: {cullMode: 'none'},
         updateTriggers: {
           getCanopyRadius: season,

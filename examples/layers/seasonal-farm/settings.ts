@@ -12,6 +12,9 @@ export type FarmSettings = {
   windStrength: number;
   sizeScale: number;
   characteristics: Required<TreeCharacteristics>;
+  maxCanopySplats: 'auto' | number;
+  maxCanopyPixels: number;
+  foveationStrength: number;
 };
 
 export const DEFAULT_FARM_SETTINGS: FarmSettings = {
@@ -29,7 +32,10 @@ export const DEFAULT_FARM_SETTINGS: FarmSettings = {
     internodeLength: 1,
     leafSize: 1,
     leafDensity: 1
-  }
+  },
+  maxCanopySplats: 'auto',
+  maxCanopyPixels: Infinity,
+  foveationStrength: 0
 };
 
 // Geometry props regenerate tree templates, so sliders only apply once dragging pauses.
@@ -98,6 +104,44 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
         crownSetting('internodeLength', 'Internode', 0.7, 1.4),
         crownSetting('leafSize', 'Leaf size', 0.5, 1.8),
         crownSetting('leafDensity', 'Leaf density', 0.25, 2)
+      ]
+    },
+    {
+      name: 'Rendering',
+      initiallyCollapsed: true,
+      settings: [
+        {
+          name: 'maxCanopySplats',
+          label: 'Splat budget',
+          description: 'Shared foliage splat budget. Auto picks one for the device.',
+          type: 'select',
+          options: [
+            {label: 'Auto', value: 'auto'},
+            {label: '5,000', value: 5_000},
+            {label: '20,000', value: 20_000},
+            {label: '100,000', value: 100_000}
+          ]
+        },
+        {
+          name: 'maxCanopyPixels',
+          label: 'Canopy pixels',
+          description: 'Pixel cap for foliage rendering. Lower values soften leaves.',
+          type: 'select',
+          options: [
+            {label: 'Full', value: Infinity},
+            {label: '1 MP', value: 1_000_000},
+            {label: '0.25 MP', value: 250_000}
+          ]
+        },
+        {
+          name: 'foveationStrength',
+          label: 'Foveation',
+          description: 'Under a tight budget, favors crowns near the screen center.',
+          type: 'number',
+          min: 0,
+          max: 1,
+          step: 0.05
+        }
       ]
     }
   ]
