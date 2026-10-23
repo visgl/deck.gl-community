@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import maplibregl from 'maplibre-gl';
 import {h} from 'preact';
@@ -53,6 +54,7 @@ export function mountOverlaysExample(container: HTMLElement): () => void {
 
   const overlayWidget = new HtmlOverlayWidget<HtmlOverlayWidgetProps>({id: 'wikipedia-overlay'});
   const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'wikipedia-overlays-info',
     placement: 'top-right',
     widthPx: 320,

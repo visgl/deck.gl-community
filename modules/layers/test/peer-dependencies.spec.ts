@@ -23,15 +23,6 @@ const SINGLETON_PATTERNS = [
  */
 const TILDE_REQUIRED_PATTERNS = [/^@deck\.gl\//, /^@deck\.gl-community\//, /^@luma\.gl\//];
 
-/**
- * Deliberate exceptions to the singleton rule, keyed by module directory. `layers` re-exports the
- * deprecated `SelectionPulseExtension` from `extensions` so v9.4.7 imports keep working without a
- * new install; remove this entry with that re-export in the next major release.
- */
-const ALLOWED_SINGLETON_DEPENDENCIES: Record<string, string[]> = {
-  layers: ['@deck.gl-community/extensions']
-};
-
 function isSingleton(pkg: string): boolean {
   return SINGLETON_PATTERNS.some(p => p.test(pkg));
 }
@@ -69,8 +60,7 @@ describe('peer dependency structure', () => {
   it.each(
     modules.map(({name, pkg}) => [name, pkg.dependencies ?? {}])
   )('%s should not have singleton vis.gl packages in dependencies', (name, deps) => {
-    const allowed = ALLOWED_SINGLETON_DEPENDENCIES[name] ?? [];
-    const violations = Object.keys(deps).filter(dep => isSingleton(dep) && !allowed.includes(dep));
+    const violations = Object.keys(deps).filter(isSingleton);
     expect(
       violations,
       `${name} has singleton packages in dependencies instead of peerDependencies`

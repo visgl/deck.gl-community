@@ -5,7 +5,10 @@
 
 import {Deck, OrthographicView} from '@deck.gl/core';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-import {DarkTheme, LightTheme} from '@deck.gl/widgets';
+import {
+  PANEL_THEME_SLEEK_DARK as DarkTheme,
+  PANEL_THEME_SLEEK_LIGHT as LightTheme
+} from '@deck.gl-community/panels';
 import {toastManager} from '@deck.gl-community/panels';
 import {h, type VNode} from 'preact';
 import {
@@ -206,7 +209,7 @@ export function mountWidgetDocsExample(
   const rootElement = container.ownerDocument.createElement('div');
   rootElement.className = 'widget-docs-example deck-widget-container';
   applyElementStyle(rootElement, ROOT_STYLE);
-  applyElementStyle(rootElement, LightTheme);
+  applyElementStyle(rootElement, DarkTheme);
   container.replaceChildren(rootElement);
 
   const cleanupThemeToggle = renderDocsThemeToggle(rootElement);
@@ -561,10 +564,10 @@ function renderCaption(rootElement: HTMLElement, highlight: WidgetDocsExampleHig
 
 function renderDocsThemeToggle(rootElement: HTMLElement): () => void {
   const buttonElement = rootElement.ownerDocument.createElement('button');
-  let themeMode: 'light' | 'dark' = 'light';
+  let themeMode: 'light' | 'dark' = 'dark';
 
   buttonElement.type = 'button';
-  buttonElement.textContent = 'Dark theme';
+  buttonElement.textContent = 'Light theme';
   applyElementStyle(buttonElement, THEME_TOGGLE_STYLE);
   rootElement.append(buttonElement);
 

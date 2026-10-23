@@ -4,11 +4,13 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
+  panel preset or custom theme through `theme`, including its editors and example picker.
+
 - New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
   extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
-  released in v9.4.7 from `@deck.gl-community/layers`, now lives there. `layers` still exports it,
-  so existing imports keep working; new code should import it from `@deck.gl-community/extensions`.
-  See the [upgrade guide](./upgrade-guide.md).
+  released in v9.4.7 from `@deck.gl-community/layers`, moves there and is no longer exported from
+  `layers`; import it from `@deck.gl-community/extensions`. See the [upgrade guide](./upgrade-guide.md).
 
 - `@deck.gl-community/extensions` adds [`ZoomOpacityExtension`](/docs/modules/extensions/api-reference/zoom-opacity-extension),
   which fades a layer by viewport zoom using MapLibre-style `zoomOpacity: [zoom, opacity][]` stops.

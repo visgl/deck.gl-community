@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {MapboxOverlay} from '@deck.gl/mapbox';
 import {
   ViewMode,
@@ -171,6 +172,7 @@ export function mountEditableLayersWidgetExample(container: HTMLElement): () => 
   });
 
   const infoWidget = new BoxPanelWidget({
+    style: EXAMPLE_PANEL_STYLE,
     id: 'editable-layers-widget-info',
     placement: 'top-right',
     widthPx: 320,

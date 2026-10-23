@@ -13,6 +13,9 @@ import {
   type Widget
 } from '@deck.gl/core';
 import {LineLayer} from '@deck.gl/layers';
+import {MarkdownPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {
   AnimationLayer,
   BlockLayer,
@@ -27,7 +30,7 @@ type InfovisLayerHighlight = 'all' | 'animation-layer' | 'block-layer' | 'time-d
 export type InfovisLayerPrimitivesExampleProps = {
   /** Layer family emphasized by the example. @defaultValue 'all' */
   highlight?: InfovisLayerHighlight;
-  /** Whether to render the title overlay. @defaultValue true */
+  /** Whether to render the info panel. @defaultValue true */
   showInfoOverlay?: boolean;
   /** Optional rendering device supplied by the website example host. */
   device?: Device;
@@ -65,9 +68,22 @@ export function mountInfovisLayerPrimitivesExample(
 ): () => void {
   const {highlight = 'all', showInfoOverlay = true} = options;
   const rootElement = createRoot(container);
-  if (showInfoOverlay) {
-    rootElement.appendChild(createInfoOverlay(rootElement.ownerDocument));
-  }
+  const infoWidget = showInfoOverlay
+    ? new BoxPanelWidget({
+        id: 'infovis-layer-info',
+        title: 'Layer primitives',
+        placement: 'top-left',
+        widthPx: 344,
+        offsetPx: 16,
+        collapsible: true,
+        style: EXAMPLE_PANEL_STYLE,
+        panel: new MarkdownPanel({
+          id: 'infovis-layer-description',
+          title: '',
+          markdown: 'AnimationLayer, BlockLayer, and TimeDeltaLayer'
+        })
+      })
+    : null;
 
   const deck = new Deck({
     device: options.device,
@@ -79,7 +95,7 @@ export function mountInfovisLayerPrimitivesExample(
     },
     onViewStateChange: options.onViewStateChange,
     controller: true,
-    widgets: options.widgets ?? [],
+    widgets: [...(options.widgets ?? []), ...(infoWidget ? [infoWidget] : [])],
     layers: createLayers(highlight)
   });
   options.onDeckInitialized?.(deck);
@@ -197,25 +213,4 @@ function createRoot(container: HTMLElement): HTMLDivElement {
   rootElement.style.background = 'linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)';
   container.replaceChildren(rootElement);
   return rootElement;
-}
-
-function createInfoOverlay(document: Document): HTMLDivElement {
-  const infoElement = document.createElement('div');
-  infoElement.textContent = 'AnimationLayer, BlockLayer, and TimeDeltaLayer';
-  Object.assign(infoElement.style, {
-    position: 'absolute',
-    top: '16px',
-    left: '16px',
-    zIndex: '1',
-    maxWidth: 'min(360px, calc(100% - 32px))',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    borderRadius: '8px',
-    background: 'rgba(255, 255, 255, 0.88)',
-    boxShadow: '0 12px 28px rgba(15, 23, 42, 0.12)',
-    color: '#0f172a',
-    font: '600 14px/1.4 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    padding: '10px 12px',
-    pointerEvents: 'none'
-  });
-  return infoElement;
 }

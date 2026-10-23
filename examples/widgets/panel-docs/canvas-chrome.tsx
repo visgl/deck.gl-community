@@ -1,6 +1,8 @@
 /** @jsxImportSource preact */
 import {
   PanelManager,
+  applyPanelTheme,
+  PANEL_THEME_SLEEK_DARK,
   HeaderPanelContainer,
   FooterPanelContainer,
   SidePanelContainer,
@@ -40,6 +42,7 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
   content.append(canvas);
   parent.append(content);
   container.append(parent);
+  applyPanelTheme(parent, PANEL_THEME_SLEEK_DARK);
   const manager = new PanelManager({parentElement: parent, contentElement: content});
   const textPanel = (id: string, text: string) =>
     new CustomPanel({

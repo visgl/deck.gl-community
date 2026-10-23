@@ -11,6 +11,8 @@ import {
   type MapViewState
 } from '@deck.gl/core';
 import {SolidPolygonLayer} from '@deck.gl/layers';
+import {PanelManager, HeaderPanelContainer, CustomPanel} from '@deck.gl-community/panels';
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {
   SplatLayer,
   TreeLayer,
@@ -904,6 +906,24 @@ export function mountTreeLabExample(
   </div><div class="trees-stage"></div>`;
   container.append(root);
   const stage = root.querySelector<HTMLDivElement>('.trees-stage')!;
+  const controls = root.querySelector<HTMLDivElement>('.trees-controls')!;
+  const panelManager = new PanelManager({parentElement: root, contentElement: stage});
+  panelManager.setProps({
+    components: [
+      new HeaderPanelContainer({
+        fitContent: true,
+        style: EXAMPLE_PANEL_STYLE,
+        panel: new CustomPanel({
+          id: 'tree-lab-controls',
+          title: '',
+          onRenderHTML(element) {
+            element.append(controls);
+            return () => controls.remove();
+          }
+        })
+      })
+    ]
+  });
   const control = <T extends HTMLInputElement | HTMLSelectElement>(name: string) =>
     root.querySelector<T>(`[name="${name}"]`)!;
   const resetView = root.querySelector<HTMLButtonElement>('[name="reset-view"]')!;
@@ -1157,6 +1177,7 @@ export function mountTreeLabExample(
     root.removeEventListener('tree-lab:seek-tour', seekTour);
     root.removeEventListener('tree-lab:inspect-hero-splat', inspectHeroSplat);
     deck.finalize();
+    panelManager.finalize();
     root.remove();
   };
 }
