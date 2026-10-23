@@ -1,11 +1,10 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
 import {render} from 'preact';
-import {
-  PanelContainer,
-  type PanelContainerProps,
-  type PanelPlacement
-} from '../panels/panel-container';
+import {DockedPanelContainer, type DockedPanelContainerProps} from './docked-panel-container';
+import type {PanelManager} from '../panels/panel-manager';
+import type {PanelDockSide} from '../panels/panel-container-state';
+import type {PanelPlacement} from '../panels/panel-container';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 
 import type {Panel} from '../panels/panel';
@@ -14,7 +13,19 @@ import type {JSX} from 'preact';
 /**
  * Props for {@link BoxPanelContainer}.
  */
-export type BoxPanelContainerProps = PanelContainerProps & {
+export type BoxPanelContainerProps = DockedPanelContainerProps & {
+  /** Enable floating/docked pin controls. Default false. */
+  pinnable?: boolean;
+  /** Docking edge when pinned. Default right. */
+  side?: PanelDockSide;
+  /** Controlled pin state, effective when pinnable is true. */
+  pinned?: boolean;
+  /** Initial uncontrolled pin state. Default false. */
+  defaultPinned?: boolean;
+  /** Called on user pin/unpin requests. */
+  onPinnedChange?: (pinned: boolean) => void;
+  /** Inset from the placement edges while floating, in pixels. Default zero. */
+  offsetPx?: number;
   /** Panel content rendered inside the box shell. */
   panel?: Panel;
   /** Placement anchor used when mounted by {@link PanelManager}. */
@@ -101,10 +112,17 @@ function BoxPanelContainerView({
 /**
  * Fixed-size standalone panel container for compact, always-available content.
  */
-export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
+export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerProps> {
   /** Default props applied before caller-provided box container props. */
   static defaultProps: Required<BoxPanelContainerProps> = {
-    ...PanelContainer.defaultProps,
+    ...DockedPanelContainer.defaultProps,
+    pinnable: false,
+    side: 'right',
+    pinned: undefined!,
+    defaultPinned: false,
+    onPinnedChange: undefined!,
+    offsetPx: 0,
+    resizable: true,
     id: 'box-panel-container',
     placement: 'bottom-left',
     title: undefined!,
@@ -128,6 +146,7 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
   collapsible = BoxPanelContainer.defaultProps.collapsible;
   /** Current controlled or uncontrolled open state. */
   isOpen = BoxPanelContainer.defaultProps.defaultOpen;
+  private uncontrolledPinned = false;
   #panel: Panel | undefined = BoxPanelContainer.defaultProps.panel;
   #rootElement: HTMLElement | null = null;
   #maxHeightPx: number | undefined = undefined;
@@ -141,11 +160,58 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
       ...BoxPanelContainer.defaultProps,
       ...props
     } as BoxPanelContainerProps);
+    this.uncontrolledPinned = this.props.defaultPinned;
     this.setProps(this.props);
+  }
+
+  get side(): PanelDockSide {
+    return this.props.side;
+  }
+
+  get isPinned(): boolean {
+    return this.props.pinnable && (this.props.pinned ?? this.uncontrolledPinned);
+  }
+
+  protected override get isPinnable(): boolean {
+    return this.props.pinnable;
+  }
+
+  protected override get floatingOffsetPx(): number {
+    return Number.isFinite(this.props.offsetPx) ? Math.max(0, this.props.offsetPx) : 0;
+  }
+
+  protected override get isContentOpen(): boolean {
+    return this.isOpen;
+  }
+
+  protected override renderHeaderTitle() {
+    return this.collapsible && this.title ? (
+      <button
+        type="button"
+        className="deck-panel-chrome-toggle"
+        aria-expanded={this.isOpen}
+        onClick={() => this.#handleOpenChange(!this.isOpen)}
+      >
+        <span>{this.title}</span>
+        <span aria-hidden="true">{this.isOpen ? '▾' : '▸'}</span>
+      </button>
+    ) : (
+      <span>{this.title}</span>
+    );
+  }
+
+  protected override changePinned(pinned: boolean): void {
+    if (!this.canPin || !this.props.pinnable) return;
+    if (this.props.pinned === undefined) this.uncontrolledPinned = pinned;
+    this.props.onPinnedChange?.(pinned);
+    this.updateHTML();
   }
 
   /** Updates box container props and refreshes mounted content when present. */
   override setProps(props: Partial<BoxPanelContainerProps>): void {
+    if (this.props.pinned !== undefined && 'pinned' in props && props.pinned === undefined) {
+      this.uncontrolledPinned = this.props.pinned;
+    }
     if (props.placement !== undefined) {
       this.placement = props.placement;
     }
@@ -169,15 +235,13 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
 
   /** Unmounts box content from the current root element. */
   override onRemove(): void {
-    if (this.#rootElement) {
-      render(null, this.#rootElement);
-    }
+    super.onRemove();
+    if (this.#rootElement) render(null, this.#rootElement);
   }
 
   /** Renders box chrome and panel content into a mounted root element. */
   override onRenderHTML(rootElement: HTMLElement): void {
     this.#rootElement = rootElement;
-    rootElement.style.margin = '0';
     this.#render();
   }
 
@@ -198,7 +262,24 @@ export class BoxPanelContainer extends PanelContainer<BoxPanelContainerProps> {
     if (!this.#rootElement) {
       return;
     }
-    this.#maxHeightPx = getBoxHostMaxHeightPx(this.#rootElement);
+    const root = this.#rootElement;
+    root.classList.toggle('deck-panel-chrome', this.props.pinnable);
+    if (this.props.pinnable) {
+      super.onRenderHTML(root);
+    } else {
+      if (root.dataset.pinnable === 'true') {
+        (this.panelManager as PanelManager | undefined)?.updateDockedContainer(this);
+        root.hidden = false;
+        root.style.width = '';
+        root.style.height = '';
+        root.style.maxWidth = '';
+        root.style.maxHeight = '';
+        root.dataset.pinnable = 'false';
+      }
+      this.#maxHeightPx = getBoxHostMaxHeightPx(root);
+    }
+    root.style.margin = this.isPinned ? '0' : `${this.floatingOffsetPx}px`;
+    if (this.props.pinnable) return;
 
     render(
       <BoxPanelContainerView

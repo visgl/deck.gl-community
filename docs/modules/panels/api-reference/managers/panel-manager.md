@@ -16,9 +16,10 @@ without creating a `Deck` instance.
 A `PanelManager` mounts panel-module UI such as direct `Panel` instances, real
 `PanelContainer` instances, `ToolbarComponent`, and `ToastComponent`.
 
-Note: If your application is using deck.gl it is recommended to use the panel
-widgets in [`@deck.gl-community/widgets`](/docs/modules/widgets) directly
-instead of instantiating a `PanelManager`.
+For overlays owned by deck.gl's widget lifecycle, use the adapters in
+[`@deck.gl-community/widgets`](/docs/modules/widgets). For permanent chrome and pinnable
+panels around a deck.gl canvas, use `PanelManager` with `contentElement` and mount deck.gl
+inside that content host.
 
 ```ts
 import {PanelManager} from '@deck.gl-community/panels';
@@ -49,6 +50,7 @@ existing deck.gl widget styling and theming instead.
 ```ts
 type PanelManagerProps = {
   parentElement: HTMLElement;
+  contentElement?: HTMLElement;
   deck?: unknown | null;
   className?: string;
 };
@@ -59,6 +61,7 @@ type PanelManagerProps = {
 ```ts
 new PanelManager({
   parentElement,
+  contentElement,
   deck,
   className
 });
@@ -94,3 +97,10 @@ onEvent(
 - Honors `_container` when a component points at an explicit `HTMLElement`.
 - Can optionally forward redraw, viewport, hover, and gesture hooks when paired with a real deck instance or another runtime that can supply equivalent event data.
 - Does not make deck-coupled widget adapters useful on its own; controls that fundamentally depend on view-state mutation, redraws, or picking still need those inputs.
+
+## Canvas chrome
+
+Pass optional `contentElement`, an application-created direct child of `parentElement`, to enable
+[permanent chrome and pinnable panels](../panel-containers/canvas-chrome.md). The manager arranges
+this canvas host alongside docked panels inside the outer boundary, preserving the application's
+positioning of `parentElement`. Omit it to retain overlay-only behavior; docked chrome stays hidden.
