@@ -281,11 +281,6 @@ export {
 } from './panel-mounts/side-panel-container';
 
 export {
-  PinnablePanelContainer,
-  type PinnablePanelContainerProps
-} from './panel-mounts/pinnable-panel-container';
-
-export {
   usePanelContainerState,
   type PanelContainerState,
   type PanelDockSide

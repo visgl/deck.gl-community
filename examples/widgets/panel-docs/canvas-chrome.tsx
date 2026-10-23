@@ -4,7 +4,7 @@ import {
   HeaderPanelContainer,
   FooterPanelContainer,
   SidePanelContainer,
-  PinnablePanelContainer,
+  BoxPanelContainer,
   CustomPanel,
   usePanelContainerState
 } from '../../../modules/panels/src';
@@ -49,8 +49,11 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
         element.textContent = text;
       }
     });
-  const inspector = new PinnablePanelContainer({
+  const inspector = new BoxPanelContainer({
+    pinnable: true,
     title: 'Inspector',
+    collapsible: false,
+    offsetPx: 16,
     side: 'right',
     placement: 'top-left',
     widthPx: 280,
@@ -90,6 +93,8 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
         )
       }),
       new SidePanelContainer({
+        title: 'Tools',
+        hidable: true,
         widthPx: 150,
         resizable: true,
         panel: textPanel('tools', 'Permanent tools')

@@ -4,7 +4,7 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
-- Panels adds permanent header, footer, and side chrome and a `PinnablePanelContainer`.
+- Panels adds permanent header, footer, and side chrome and optional pinning on `BoxPanelContainer`.
   Opt into docking with `PanelManager.contentElement`; nested panels can adapt through
   `usePanelContainerState()`. See [canvas chrome](./modules/panels/api-reference/panel-containers/canvas-chrome.md).
 

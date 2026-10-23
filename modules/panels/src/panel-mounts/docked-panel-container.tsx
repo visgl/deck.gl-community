@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import {render} from 'preact';
+import {render, type ComponentChildren} from 'preact';
 import {ensurePanelChromeStylesheet} from '../lib/panel-styles';
 import {
   PanelContainer,
@@ -87,6 +87,7 @@ export abstract class DockedPanelContainer<
       }
     }
     ensurePanelChromeStylesheet(root.ownerDocument);
+    root.style.margin = this.isPinned ? '0' : `${this.floatingOffsetPx}px`;
     (this.panelManager as PanelManager | undefined)?.updateDockedContainer?.(this);
     root.hidden = this.isPinned && !this.canPin;
     const {panel, title, fitContent, resizable} = this.props;
@@ -96,7 +97,6 @@ export abstract class DockedPanelContainer<
     root.dataset.side = this.side;
     root.dataset.pinned = String(this.isPinned);
     root.dataset.pinnable = String(this.isPinnable);
-    root.style.margin = '0';
     root.style.width =
       this.isPinned && !horizontal
         ? '100%'
@@ -113,9 +113,10 @@ export abstract class DockedPanelContainer<
     render(
       <PanelContainerStateContext.Provider value={state}>
         <section className="deck-panel-chrome-shell" aria-label={title ?? 'Panel'}>
-          {title || this.isPinnable ? (
+          {title || this.isPinnable || this.hasHeaderActions ? (
             <header className="deck-panel-chrome-header">
-              <span>{title}</span>
+              {this.renderHeaderTitle()}
+              {this.renderHeaderActions()}
               {this.isPinnable ? (
                 <button
                   type="button"
@@ -145,7 +146,7 @@ export abstract class DockedPanelContainer<
               ) : null}
             </header>
           ) : null}
-          <div className="deck-panel-chrome-content">
+          <div className="deck-panel-chrome-content" hidden={!this.isContentOpen}>
             {panel ? <PanelThemeScope panel={panel}>{panel.content}</PanelThemeScope> : null}
           </div>
           {this.isPinned && this.canPin && resizable ? (
@@ -188,6 +189,26 @@ export abstract class DockedPanelContainer<
     this.stopDrag?.();
     this.removeEventListeners();
     if (this.rootElement) render(null, this.rootElement);
+  }
+
+  protected get floatingOffsetPx(): number {
+    return 0;
+  }
+
+  protected get hasHeaderActions(): boolean {
+    return false;
+  }
+
+  protected renderHeaderActions(): ComponentChildren {
+    return null;
+  }
+
+  protected get isContentOpen(): boolean {
+    return true;
+  }
+
+  protected renderHeaderTitle() {
+    return <span>{this.props.title}</span>;
   }
 
   protected changePinned(_pinned: boolean): void {}

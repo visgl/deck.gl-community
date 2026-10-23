@@ -43,3 +43,21 @@ The renderer must follow the changing content-region size.
 
 See the [panel system walkthrough](../../README.md#build-chrome-around-a-canvas),
 [layout contract](./canvas-chrome.md), and [website example](/examples/widgets/canvas-chrome).
+
+## Hide and restore
+
+Set `hidable: true` to add a hide button to the title bar. Hidden panels release their
+layout space and leave a floating restore button at their edge. The content stays mounted.
+The default is `false`, so existing side panels remain permanently visible.
+
+```ts
+new SidePanelContainer({
+  title: 'Tools',
+  panel: toolsPanel,
+  hidable: true,
+  defaultHidden: false
+});
+```
+
+Use `hidden` and `onHiddenChange` for controlled visibility, or `defaultHidden` for the
+initial uncontrolled state. Configured visibility is ignored while `hidable` is false.

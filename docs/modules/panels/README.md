@@ -94,7 +94,7 @@ box, modal, sidebar, or full-screen chrome.
   [HeaderPanelContainer](./api-reference/panel-containers/header-panel-container.md),
   [FooterPanelContainer](./api-reference/panel-containers/footer-panel-container.md),
   [SidePanelContainer](./api-reference/panel-containers/side-panel-container.md),
-  [PinnablePanelContainer](./api-reference/panel-containers/pinnable-panel-container.md)
+  optional pinning on [BoxPanelContainer](./api-reference/panel-containers/box-panel-container.md)
 
 ## Build chrome around a canvas
 
@@ -145,15 +145,15 @@ for application-specific DOM. Each mounted container needs a distinct id.
 ```ts
 import {
   MarkdownPanel, HeaderPanelContainer, FooterPanelContainer,
-  SidePanelContainer, PinnablePanelContainer
+  SidePanelContainer, BoxPanelContainer
 } from '@deck.gl-community/panels';
 
 const createTextPanel = (id: string, markdown: string) =>
   new MarkdownPanel({id, title: id, markdown});
 
-const inspector = new PinnablePanelContainer({
+const inspector = new BoxPanelContainer({pinnable: true,
   id: 'inspector', title: 'Inspector', side: 'right',
-  placement: 'top-right', widthPx: 280,
+  placement: 'top-left', offsetPx: 16, widthPx: 280,
   panel: createTextPanel('selection', 'Select an object to inspect it.')
 });
 
@@ -166,7 +166,7 @@ manager.setProps({components: [
     id: 'status', heightPx: 36,
     panel: createTextPanel('status-text', 'Ready')
   }),
-  new SidePanelContainer({
+  new SidePanelContainer({hidable: true, title: 'Tools',
     id: 'tools', side: 'left', widthPx: 180, resizable: true,
     panel: createTextPanel('tool-list', 'Layers · Selection · Settings')
   }),
@@ -232,6 +232,10 @@ Their configured state is preserved, and no pin-change callback fires because do
 Use standalone `PanelManager` for canvas chrome, including in deck.gl applications.
 `PanelWidget` adapters remain useful for existing overlays but do not provide the content layout
 contract needed for docking. The panels package itself does not import deck.gl.
+
+Side panels can opt into hide/restore controls with `hidable: true`. Use `hidden` and
+`onHiddenChange` to control their visibility, or `defaultHidden` for the initial state.
+Hidden panels release canvas space and leave a floating restore button.
 
 ### Try the complete example
 

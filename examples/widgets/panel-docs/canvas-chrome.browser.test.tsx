@@ -16,11 +16,23 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     const center = content.parentElement!;
     const inspector = host.querySelector<HTMLElement>('[data-pinnable="true"]')!;
     expect(center.contains(inspector)).toBe(true);
+    expect(
+      inspector.getBoundingClientRect().left - content.getBoundingClientRect().left
+    ).toBeCloseTo(16);
+    expect(inspector.getBoundingClientRect().top - content.getBoundingClientRect().top).toBeCloseTo(
+      16
+    );
     expect(getComputedStyle(inspector).borderRadius).toBe('12px');
     const pinButton = inspector.querySelector<HTMLButtonElement>('[aria-label="Pin panel"]')!;
     expect(pinButton.title).toBe('Pin panel');
     expect(pinButton.textContent).toBe('');
     expect(pinButton.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    host.querySelector<HTMLButtonElement>('[aria-label="Hide Tools"]')!.click();
+    await settle();
+    expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth + 150);
+    host.querySelector<HTMLButtonElement>('[aria-label="Show Tools"]')!.click();
+    await settle();
+    expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth);
     const input = host.querySelector('input')!;
     input.value = 'Preserved scene';
     host.querySelector<HTMLButtonElement>('[aria-label="Pin panel"]')!.click();

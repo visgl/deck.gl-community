@@ -404,8 +404,13 @@ export class PanelManager {
         !component.isPinned &&
         component.rootElement
       ) {
-        component.rootElement.style.maxWidth = `${canvasWidth}px`;
-        component.rootElement.style.maxHeight = `${canvasHeight}px`;
+        const style = component.rootElement.style;
+        const horizontalMargin =
+          (parseFloat(style.marginLeft) || 0) + (parseFloat(style.marginRight) || 0);
+        const verticalMargin =
+          (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
+        style.maxWidth = `${Math.max(0, canvasWidth - horizontalMargin)}px`;
+        style.maxHeight = `${Math.max(0, canvasHeight - verticalMargin)}px`;
       }
     }
 

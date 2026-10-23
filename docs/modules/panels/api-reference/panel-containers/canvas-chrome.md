@@ -5,8 +5,8 @@ import Demo from '@site/src/examples/widgets/canvas-chrome';
 <Demo />
 
 `HeaderPanelContainer`, `FooterPanelContainer`, and `SidePanelContainer` create permanent
-chrome around a canvas host. `PinnablePanelContainer` switches between an anchored overlay
-and an edge of the same layout. These containers work without deck.gl.
+chrome around a canvas host. `BoxPanelContainer` switches between an anchored overlay
+and an edge of the same layout when `pinnable: true`. These containers work without deck.gl.
 
 ## Application-owned layout
 
@@ -16,7 +16,7 @@ changes the positioning of the outer boundary:
 ```ts
 import {
   PanelManager, HeaderPanelContainer, FooterPanelContainer,
-  SidePanelContainer, PinnablePanelContainer
+  SidePanelContainer, BoxPanelContainer
 } from '@deck.gl-community/panels';
 
 const parentElement = document.createElement('div');
@@ -31,7 +31,7 @@ manager.setProps({components: [
   new HeaderPanelContainer({id: 'header', panel: headerPanel, fitContent: true}),
   new FooterPanelContainer({id: 'footer', panel: statusPanel, heightPx: 32}),
   new SidePanelContainer({id: 'tools', panel: toolsPanel, side: 'left', widthPx: 180}),
-  new PinnablePanelContainer({id: 'inspector', title: 'Inspector', panel: inspectorPanel,
+  new BoxPanelContainer({pinnable: true, id: 'inspector', title: 'Inspector', panel: inspectorPanel,
     side: 'right', placement: 'top-right', defaultPinned: false})
 ]});
 ```
@@ -66,7 +66,7 @@ Permanent containers omit their title bar when no title is supplied.
 
 | Prop | Default | Behavior |
 | --- | --- | --- |
-| `widthPx` | `320` | Left/right docking thickness and floating width |
+| `widthPx` | `320` for chrome, `360` for boxes | Left/right docking thickness and floating width |
 | `heightPx` | `240` | Top/bottom docking thickness |
 | `fitContent` | `false` | Follow natural content size until manually resized |
 | `resizable` | `false` for permanent chrome; `true` for pinnable | Show a divider while docked |
@@ -81,12 +81,14 @@ Headers always use the top edge and footers the bottom. `SidePanelContainer.side
 
 ## Pin state
 
-`PinnablePanelContainer` adds these props:
+`BoxPanelContainer` enables pinning with `pinnable: true` and adds these props:
+
+- `offsetPx`: floating inset in pixels (default zero); removed while pinned.
 
 | Prop | Default | Behavior |
 | --- | --- | --- |
 | `side` | `'right'` | `'left'`, `'right'`, `'top'`, or `'bottom'` |
-| `placement` | `'top-left'` | Existing overlay placement anchor |
+| `placement` | `'bottom-left'` | Existing overlay placement anchor |
 | `pinned` | `undefined` | Controlled pin state |
 | `defaultPinned` | `false` | Initial uncontrolled state |
 | `onPinnedChange` | `undefined` | Receives user pin/unpin requests |
@@ -115,3 +117,10 @@ function AdaptiveContent() {
 The hook returns `{pinned, side, canPin}` for the nearest chrome container, or `undefined`
 outside one. `pinned` is the configured effective state; `canPin` reports whether the manager
 supplies `contentElement`. Permanent chrome reports `pinned: true`.
+
+## Hideable side panels
+
+`SidePanelContainer` accepts `hidable` (default `false`), controlled `hidden`,
+`defaultHidden` (default `false`), and `onHiddenChange`. Opting in adds a hide
+button to the title bar. Hidden panels release layout space and show a floating
+restore button while preserving their mounted content.

@@ -9,7 +9,6 @@ import {usePanelContainerState} from '../panels/panel-container-state';
 import {HeaderPanelContainer} from './header-panel-container';
 import {FooterPanelContainer} from './footer-panel-container';
 import {SidePanelContainer} from './side-panel-container';
-import {PinnablePanelContainer} from './pinnable-panel-container';
 import {BoxPanelContainer} from './box-panel-container';
 
 class TestPanel extends Panel {}
@@ -47,6 +46,90 @@ function bounds(element: Element) {
 }
 
 describe('canvas chrome', () => {
+  it.each([
+    'left',
+    'right'
+  ] as const)('hides and restores %s side chrome without remounting content', async side => {
+    const {parent, content, manager} = createHost();
+    const panel = new SidePanelContainer({
+      side,
+      hidable: true,
+      title: 'Tools',
+      widthPx: 180,
+      panel: createPanel()
+    });
+    manager.setProps({components: [panel]});
+    await settle();
+    const input = panel.rootElement!.querySelector('input')!;
+    input.value = 'Keep tools';
+    expect(bounds(content).width).toBeCloseTo(820);
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Hide Tools"]')!.click();
+    await settle();
+    expect(panel.rootElement!.hidden).toBe(true);
+    expect(bounds(content).width).toBeCloseTo(1000);
+    const restore = parent.querySelector<HTMLButtonElement>('[aria-label="Show Tools"]')!;
+    expect(restore.closest('.deck-panel-layout-center')).toBeTruthy();
+    restore.click();
+    await settle();
+    expect(panel.rootElement!.hidden).toBe(false);
+    expect(bounds(content).width).toBeCloseTo(820);
+    expect(panel.rootElement!.querySelector('input')).toBe(input);
+    expect(input.value).toBe('Keep tools');
+    expect(parent.querySelector('[aria-label="Show Tools"]')).toBeNull();
+    panel.setProps({hidden: true});
+    manager.finalize();
+    expect(parent.querySelector('[aria-label="Show Tools"]')).toBeNull();
+  });
+
+  it('opts into hiding and supports controlled side visibility', async () => {
+    const {parent, manager} = createHost();
+    const onHiddenChange = vi.fn();
+    const panel = new SidePanelContainer({title: 'Tools', hidden: true, onHiddenChange});
+    manager.setProps({components: [panel]});
+    expect(panel.rootElement!.hidden).toBe(false);
+    expect(panel.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')).toBeNull();
+    panel.setProps({hidable: true});
+    expect(panel.rootElement!.hidden).toBe(true);
+    parent.querySelector<HTMLButtonElement>('[aria-label="Show Tools"]')!.click();
+    expect(onHiddenChange).toHaveBeenCalledWith(false);
+    expect(panel.rootElement!.hidden).toBe(true);
+    panel.setProps({hidden: false});
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Hide Tools"]')!.click();
+    expect(onHiddenChange).toHaveBeenLastCalledWith(true);
+    expect(panel.rootElement!.hidden).toBe(false);
+    panel.setProps({hidden: undefined});
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Hide Tools"]')!.click();
+    expect(panel.rootElement!.hidden).toBe(true);
+    panel.setProps({hidable: false});
+    expect(panel.rootElement!.hidden).toBe(false);
+    expect(parent.querySelector('[aria-label="Show Tools"]')).toBeNull();
+    await settle();
+  });
+
+  it('preserves box collapse controls and removes docking when pinning is disabled', async () => {
+    const {content, manager} = createHost();
+    const panel = new BoxPanelContainer({
+      pinnable: true,
+      title: 'Inspector',
+      defaultPinned: true,
+      panel: createPanel()
+    });
+    manager.setProps({components: [panel]});
+    const collapse = panel.rootElement!.querySelector<HTMLButtonElement>('[aria-expanded]')!;
+    collapse.click();
+    expect(panel.isOpen).toBe(false);
+    expect(
+      panel.rootElement!.querySelector<HTMLElement>('.deck-panel-chrome-content')!.hidden
+    ).toBe(true);
+    panel.setProps({pinnable: false});
+    await settle();
+    expect(panel.isPinned).toBe(false);
+    expect(bounds(content).width).toBeCloseTo(1000);
+    expect(panel.rootElement!.closest('.deck-panel-layout-center')).toBeTruthy();
+    expect(panel.rootElement!.querySelector('[aria-pressed]')).toBeNull();
+    expect(panel.isOpen).toBe(false);
+  });
+
   it('lays out every edge without moving or restyling the outer parent', async () => {
     const {parent, content, manager} = createHost();
     const original = parent.getAttribute('style');
@@ -54,7 +137,10 @@ describe('canvas chrome', () => {
     const footer = new FooterPanelContainer({heightPx: 40});
     const left = new SidePanelContainer({widthPx: 100});
     const right = new SidePanelContainer({id: 'right', side: 'right', widthPx: 120});
-    const overlay = new BoxPanelContainer({placement: 'bottom-right', title: 'Overlay'});
+    const overlay = new BoxPanelContainer({
+      placement: 'bottom-right',
+      title: 'Overlay'
+    });
     manager.setProps({components: [header, footer, left, right, overlay]});
     await settle();
     expect(parent.getAttribute('style')).toBe(original);
@@ -70,13 +156,15 @@ describe('canvas chrome', () => {
   it('keeps missing-content chrome hidden and floating pin controls disabled', () => {
     const {parent, manager} = createHost(false);
     const change = vi.fn();
-    const floating = new PinnablePanelContainer({onPinnedChange: change});
-    const pinned = new PinnablePanelContainer({id: 'pinned', pinned: true});
+    const floating = new BoxPanelContainer({pinnable: true, onPinnedChange: change});
+    const pinned = new BoxPanelContainer({pinnable: true, id: 'pinned', pinned: true});
     const header = new HeaderPanelContainer();
     manager.setProps({components: [floating, pinned, header]});
     expect(floating.rootElement!.hidden).toBe(false);
-    expect(floating.rootElement!.querySelector('button')!.disabled).toBe(true);
-    floating.rootElement!.querySelector('button')!.click();
+    expect(floating.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!.disabled).toBe(
+      true
+    );
+    floating.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!.click();
     expect(change).not.toHaveBeenCalled();
     expect(pinned.isPinned).toBe(true);
     expect(pinned.rootElement!.hidden).toBe(true);
@@ -98,7 +186,8 @@ describe('canvas chrome', () => {
         </div>
       );
     }
-    const panel = new PinnablePanelContainer({
+    const panel = new BoxPanelContainer({
+      pinnable: true,
       panel: new ColumnPanel({panels: [createPanel(<AdaptiveContent />)]})
     });
     manager.setProps({components: [panel]});
@@ -110,14 +199,14 @@ describe('canvas chrome', () => {
     await settle();
     expect(counter.textContent).toBe('1');
     panel
-      .rootElement!.querySelector<HTMLButtonElement>('header button')!
+      .rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!
       .dispatchEvent(new MouseEvent('click', {bubbles: true}));
     await settle();
     expect(panel.isPinned).toBe(true);
     expect(output.textContent).toBe('true:right:true');
     expect(panel.rootElement!.querySelector('output')).toBe(output);
     expect(counter.textContent).toBe('1');
-    expect(bounds(content).width).toBeCloseTo(680);
+    expect(bounds(content).width).toBeCloseTo(640);
     panel.setProps({side: 'bottom', pinned: false});
     await settle();
     expect(output.textContent).toBe('false:bottom:true');
@@ -127,9 +216,9 @@ describe('canvas chrome', () => {
   it('requests controlled changes without changing state until props update', () => {
     const {manager} = createHost();
     const onPinnedChange = vi.fn();
-    const panel = new PinnablePanelContainer({pinned: false, onPinnedChange});
+    const panel = new BoxPanelContainer({pinnable: true, pinned: false, onPinnedChange});
     manager.setProps({components: [panel]});
-    panel.rootElement!.querySelector('button')!.click();
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!.click();
     expect(onPinnedChange).toHaveBeenCalledWith(true);
     expect(panel.isPinned).toBe(false);
     panel.setProps({pinned: true});
@@ -168,7 +257,8 @@ describe('canvas chrome', () => {
 
   it('fits natural content until keyboard resizing, and allows resetting to fit', async () => {
     const {manager} = createHost();
-    const panel = new PinnablePanelContainer({
+    const panel = new BoxPanelContainer({
+      pinnable: true,
       defaultPinned: true,
       side: 'left',
       fitContent: true,
@@ -189,7 +279,7 @@ describe('canvas chrome', () => {
 
   it('clamps large panels on small hosts and updates overlay bounds on resize', async () => {
     const {parent, content, manager} = createHost();
-    const panel = new PinnablePanelContainer({defaultPinned: true, widthPx: 5000});
+    const panel = new BoxPanelContainer({pinnable: true, defaultPinned: true, widthPx: 5000});
     manager.setProps({components: [panel]});
     await settle();
     expect(bounds(panel.rootElement!).width).toBeCloseTo(450);
@@ -206,15 +296,15 @@ describe('canvas chrome', () => {
     'bottom'
   ] as const)('pins and unpins on %s while preserving the content element', async side => {
     const {content, manager} = createHost();
-    const panel = new PinnablePanelContainer({side, panel: createPanel()});
+    const panel = new BoxPanelContainer({pinnable: true, side, panel: createPanel()});
     manager.setProps({components: [panel]});
     const input = panel.rootElement!.querySelector('input')!;
-    panel.rootElement!.querySelector<HTMLButtonElement>('header button')!.click();
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!.click();
     await settle();
     expect(panel.rootElement!.parentElement!.dataset.side).toBe(side);
-    expect(bounds(content).width).toBeCloseTo(side === 'left' || side === 'right' ? 680 : 1000);
+    expect(bounds(content).width).toBeCloseTo(side === 'left' || side === 'right' ? 640 : 1000);
     expect(bounds(content).height).toBeCloseTo(side === 'top' || side === 'bottom' ? 460 : 700);
-    panel.rootElement!.querySelector<HTMLButtonElement>('header button')!.click();
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!.click();
     await settle();
     expect(panel.rootElement!.querySelector('input')).toBe(input);
     expect(bounds(content).width).toBeCloseTo(1000);
@@ -223,7 +313,12 @@ describe('canvas chrome', () => {
 
   it('supports real pointer dragging and retains its size across pin cycles', async () => {
     const {parent, manager} = createHost();
-    const panel = new PinnablePanelContainer({side: 'left', defaultPinned: true, widthPx: 100});
+    const panel = new BoxPanelContainer({
+      pinnable: true,
+      side: 'left',
+      defaultPinned: true,
+      widthPx: 100
+    });
     manager.setProps({components: [panel]});
     await settle();
     const target = document.createElement('div');
@@ -241,8 +336,8 @@ describe('canvas chrome', () => {
     const width = bounds(panel.rootElement!).width;
     expect(width).toBeGreaterThan(190);
     expect(width).toBeLessThan(220);
-    panel.rootElement!.querySelector<HTMLButtonElement>('header button')!.click();
-    panel.rootElement!.querySelector<HTMLButtonElement>('header button')!.click();
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!.click();
+    panel.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')!.click();
     await settle();
     expect(bounds(panel.rootElement!).width).toBeCloseTo(width);
   });
@@ -269,7 +364,8 @@ describe('canvas chrome', () => {
     const {parent, manager} = createHost();
     parent.style.width = '200px';
     parent.style.height = '120px';
-    const panel = new PinnablePanelContainer({
+    const panel = new BoxPanelContainer({
+      pinnable: true,
       title: 'Inspector',
       widthPx: 500,
       panel: createPanel(<div style={{width: '500px', height: '500px'}}>Large content</div>)
@@ -297,8 +393,15 @@ describe('canvas chrome', () => {
     const {manager} = createHost();
     // Keep the content wider than either header so title updates do not change natural sizing.
     const content = createPanel(<div style={{width: '220px', height: '50px'}}>Content</div>);
-    const props = {id: 'reconciled', side, fitContent, defaultPinned: true, panel: content};
-    const panel = new PinnablePanelContainer(props);
+    const props = {
+      pinnable: true,
+      id: 'reconciled',
+      side,
+      fitContent,
+      defaultPinned: true,
+      panel: content
+    };
+    const panel = new BoxPanelContainer({...props, pinnable: true});
     manager.setProps({components: [panel]});
     await settle();
     const horizontal = side === 'left';
@@ -312,7 +415,9 @@ describe('canvas chrome', () => {
     await settle();
     expect(getSize()).toBeCloseTo(initialSize + 10);
     const root = panel.rootElement;
-    manager.setProps({components: [new PinnablePanelContainer({...props, title: 'Updated'})]});
+    manager.setProps({
+      components: [new BoxPanelContainer({pinnable: true, ...props, title: 'Updated'})]
+    });
     await settle();
     expect(panel.rootElement).toBe(root);
     expect(root!.textContent).toContain('Updated');
@@ -330,7 +435,7 @@ describe('canvas chrome', () => {
 
   it('contains visualization gestures while leaving native panel interactions enabled', () => {
     const {parent, content, manager} = createHost();
-    const panel = new PinnablePanelContainer({panel: createPanel()});
+    const panel = new BoxPanelContainer({pinnable: true, panel: createPanel()});
     manager.setProps({components: [panel]});
     const input = panel.rootElement!.querySelector('input')!;
     for (const type of [
@@ -361,8 +466,8 @@ describe('canvas chrome', () => {
 
   it('keeps registration order when a panel returns to a shared docking edge', () => {
     const {manager} = createHost();
-    const first = new PinnablePanelContainer({id: 'first', defaultPinned: true});
-    const second = new PinnablePanelContainer({id: 'second', defaultPinned: true});
+    const first = new BoxPanelContainer({pinnable: true, id: 'first', defaultPinned: true});
+    const second = new BoxPanelContainer({pinnable: true, id: 'second', defaultPinned: true});
     manager.setProps({components: [first, second]});
     first.setProps({pinned: false});
     first.setProps({pinned: true});
