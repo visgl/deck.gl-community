@@ -44,10 +44,6 @@ const ALIASES = [
     replacement: fileURLToPath(new URL('./modules/widgets/src/index.ts', import.meta.url))
   },
   {
-    find: /^@deck\.gl-community\/extensions$/,
-    replacement: fileURLToPath(new URL('./modules/extensions/src/index.ts', import.meta.url))
-  },
-  {
     find: /^@deck\.gl-community\/infovis-layers$/,
     replacement: fileURLToPath(new URL('./modules/infovis-layers/src/index.ts', import.meta.url))
   },

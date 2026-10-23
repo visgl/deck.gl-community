@@ -1,9 +1,11 @@
 # deck.gl-community CHANGELOG
 
-## Unreleased
+## v9.4.8
 
-- Add compact translucent `sleek-light` and `sleek-dark` panel presets, custom theme definitions, and preset-aware nested inheritance and inversion.
-
+- Read border-only glyph bitmaps without treating them as missing ink in `BasemapLayer` (#973).
+- Add compact translucent `sleek-light` and `sleek-dark` panel presets, custom theme definitions, and preset-aware nested inheritance and inversion (#977).
+- Add header, footer, and hidable side panels and optional box pinning around an application-owned `PanelManager.contentElement`; nested panels can observe container state (#976).
+- Embed panels with `mountPanel`, `ReactPanel`, and `useReactPanel`, preserving React context and supporting inherited or custom themes. Collapsing a pinned box releases its docked space and leaves a compact restore bar (#978).
 
 ## v9.4.7
 
