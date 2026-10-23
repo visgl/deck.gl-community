@@ -1,0 +1,19 @@
+name: Install CI browser
+description: Install Chromium and its system dependencies using the Ubuntu archive.
+runs:
+  using: composite
+  steps:
+    - name: Use the Ubuntu package archive
+      shell: bash
+      run: |
+        # The Azure mirror can take minutes to serve Playwright's fonts and libraries.
+        # Support both legacy apt lists and Ubuntu's deb822 source files.
+        for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+          if [[ -f "$source" ]]; then
+            sudo sed -E -i 's@https?://azure\.archive\.ubuntu\.com/ubuntu([ /]|$)@https://archive.ubuntu.com/ubuntu\1@g' "$source"
+          fi
+        done
+
+    - name: Install Playwright Chromium
+      shell: bash
+      run: yarn playwright:install --with-deps

@@ -234,7 +234,7 @@ jobs:
         run: yarn build
 
       - name: Install Playwright Chromium
-        run: yarn playwright:install --with-deps
+        uses: ./.github/actions/setup-browser
 
       - name: Run headless browser tests
         id: headless
@@ -272,7 +272,7 @@ jobs:
 
       - name: Install Playwright Chromium
         id: browser-setup
-        run: yarn playwright:install --with-deps
+        uses: ./.github/actions/setup-browser
 
       - name: Verify WebGPU layers with a required software adapter
         # Unrelated browser failures must not suppress the backend verification.
