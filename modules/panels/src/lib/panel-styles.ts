@@ -36,6 +36,49 @@ const PANEL_CHROME_STYLES = `.deck-panel-layout {
 .deck-panel-chrome-header button { color: inherit; font: inherit; cursor: pointer; }
 .deck-panel-chrome-header button:disabled { cursor: default; }
 .deck-panel-chrome-content { overflow: auto; min-width: 0; min-height: 0; flex: 1 1 auto; padding: 8px; }
+.deck-panel-chrome[data-pinnable="true"] {
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: 12px;
+  background: var(--menu-background, rgba(255, 255, 255, 0.96));
+  backdrop-filter: var(--menu-backdrop-filter, unset);
+  box-shadow: var(--menu-shadow, 0 18px 40px rgba(15, 23, 42, 0.16));
+}
+.deck-panel-chrome[data-pinnable="true"] > .deck-panel-chrome-shell {
+  box-sizing: border-box;
+  border: var(--menu-border, 1px solid rgba(148, 163, 184, 0.35));
+  border-radius: inherit;
+  overflow: hidden;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header {
+  padding: 14px 16px 10px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--button-text, currentColor);
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--button-icon-idle, #616166);
+  font: 500 12px/1.2 system-ui, sans-serif;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:hover:enabled {
+  background: var(--menu-item-hover, rgba(0, 0, 0, 0.08));
+  color: var(--button-icon-hover, #18181a);
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-header button:disabled { opacity: 0.45; }
+.deck-panel-chrome[data-pinnable="true"] .deck-panel-chrome-content {
+  padding: 0 16px 16px;
+  overscroll-behavior: contain;
+}
 .deck-panel-chrome-divider { position: absolute; touch-action: none; z-index: 1; background: transparent; }
 .deck-panel-chrome-divider:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 .deck-panel-chrome[data-side="left"] .deck-panel-chrome-divider { right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }

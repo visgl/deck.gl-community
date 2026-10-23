@@ -177,7 +177,7 @@ describe('canvas chrome', () => {
     manager.setProps({components: [panel]});
     await settle();
     const initial = bounds(panel.rootElement!).width;
-    expect(initial).toBeCloseTo(166);
+    expect(initial).toBeCloseTo(184);
     const divider = panel.rootElement!.querySelector('[role="separator"]')!;
     divider.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowRight', bubbles: true}));
     await settle();

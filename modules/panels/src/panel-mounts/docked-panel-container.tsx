@@ -95,6 +95,7 @@ export abstract class DockedPanelContainer<
     const height = this.resizedHeight ?? normalizeSize(this.props.heightPx, 240);
     root.dataset.side = this.side;
     root.dataset.pinned = String(this.isPinned);
+    root.dataset.pinnable = String(this.isPinnable);
     root.style.margin = '0';
     root.style.width =
       this.isPinned && !horizontal
