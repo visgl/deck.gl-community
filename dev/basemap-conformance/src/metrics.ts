@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 /**
- * Structural metrics comparing a candidate render (`BasemapLayer`) with a reference render
+ * Structural metrics comparing a candidate render (any renderer) with a reference render
  * (MapLibre GL JS) of the same scene: SSIM, edge alignment and label recall. Plain functions over
  * pixel arrays, so they run (and are tested) in Node as well as in the browser.
  */

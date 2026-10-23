@@ -55,7 +55,7 @@ import {
   tightenBaseline,
   type Baseline,
   type SceneMetrics
-} from './metrics';
+} from '../../../../dev/basemap-conformance/src/metrics';
 import {renderBasemapLayer, renderMapLibre, type Render} from './renderers';
 import {DEFAULT_SCENES, VIEWPORT, selectScenes, type ReferenceScene} from './scenes';
 
