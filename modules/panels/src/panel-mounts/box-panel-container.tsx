@@ -34,7 +34,7 @@ export type BoxPanelContainerProps = DockedPanelContainerProps & {
   title?: string;
   /** Preferred box width in pixels. */
   widthPx?: number;
-  /** Whether the header toggles the open state. */
+  /** Whether the header toggles the open state. Collapsed pinnable boxes release docked space. */
   collapsible?: boolean;
   /** Initial open state for uncontrolled usage. */
   defaultOpen?: boolean;
@@ -172,6 +172,10 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
     return this.props.pinnable && (this.props.pinned ?? this.uncontrolledPinned);
   }
 
+  override get isDocked(): boolean {
+    return this.isPinned && this.isOpen;
+  }
+
   protected override get isPinnable(): boolean {
     return this.props.pinnable;
   }
@@ -185,18 +189,34 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
   }
 
   protected override renderHeaderTitle() {
-    return this.collapsible && this.title ? (
+    const title = this.title ?? this.#panel?.title ?? 'Panel';
+    return this.collapsible ? (
       <button
         type="button"
         className="deck-panel-chrome-toggle"
         aria-expanded={this.isOpen}
+        aria-label={`${this.isOpen ? 'Collapse' : 'Expand'} ${title}`}
+        title={`${this.isOpen ? 'Collapse' : 'Expand'} ${title}`}
         onClick={() => this.#handleOpenChange(!this.isOpen)}
       >
-        <span>{this.title}</span>
-        <span aria-hidden="true">{this.isOpen ? '▾' : '▸'}</span>
+        <span>{title}</span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d={this.isOpen ? 'm6 9 6 6 6-6' : 'm9 6 6 6-6 6'} />
+        </svg>
       </button>
     ) : (
-      <span>{this.title}</span>
+      <span>{title}</span>
     );
   }
 
@@ -278,8 +298,11 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
       }
       this.#maxHeightPx = getBoxHostMaxHeightPx(root);
     }
-    root.style.margin = this.isPinned ? '0' : `${this.floatingOffsetPx}px`;
-    if (this.props.pinnable) return;
+    root.style.margin = this.isDocked ? '0' : `${this.floatingOffsetPx}px`;
+    if (this.props.pinnable) {
+      if (!this.isOpen) root.style.width = 'max-content';
+      return;
+    }
 
     render(
       <BoxPanelContainerView
@@ -296,7 +319,7 @@ export class BoxPanelContainer extends DockedPanelContainer<BoxPanelContainerPro
   };
 
   #setOpenProps(props: Partial<BoxPanelContainerProps>): void {
-    this.#isControlled = props.open !== undefined;
+    this.#isControlled = ('open' in props ? props.open : this.props.open) !== undefined;
     if (props.onOpenChange !== undefined) {
       this.#openChange = props.onOpenChange;
     }

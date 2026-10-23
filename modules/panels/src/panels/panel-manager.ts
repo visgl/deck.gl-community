@@ -229,20 +229,20 @@ export class PanelManager {
     }
     root.hidden = component.isPinned && !this.contentElement;
     const destination =
-      component.isPinned && this.layout
+      component.isDocked && this.layout
         ? this.layout.edges[component.side]
         : this._getContainer(component._container ?? component.viewId ?? null, component.placement);
     if (root.parentElement !== destination) {
       const activeElement = root.ownerDocument.activeElement;
       const componentIndex = this.resolvedComponents.indexOf(component);
       const following =
-        component.isPinned && componentIndex >= 0
+        component.isDocked && componentIndex >= 0
           ? this.resolvedComponents
               .slice(componentIndex + 1)
               .find(
                 candidate =>
                   candidate instanceof DockedPanelContainer &&
-                  candidate.isPinned &&
+                  candidate.isDocked &&
                   candidate.side === component.side &&
                   candidate.rootElement?.parentElement === destination
               )
@@ -306,7 +306,7 @@ export class PanelManager {
     for (const component of this.resolvedComponents) {
       if (
         component instanceof DockedPanelContainer &&
-        component.isPinned &&
+        component.isDocked &&
         this.layout &&
         component.rootElement
       ) {
@@ -401,7 +401,7 @@ export class PanelManager {
     for (const component of this.resolvedComponents) {
       if (
         component instanceof DockedPanelContainer &&
-        !component.isPinned &&
+        !component.isDocked &&
         component.rootElement
       ) {
         const style = component.rootElement.style;

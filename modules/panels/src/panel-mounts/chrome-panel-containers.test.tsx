@@ -140,6 +140,76 @@ describe('canvas chrome', () => {
     await settle();
   });
 
+  it.each([
+    'left',
+    'right',
+    'top',
+    'bottom'
+  ] as const)('reclaims %s docking space while collapsed and restores user sizing', async side => {
+    const {content, manager} = createHost();
+    const onPinnedChange = vi.fn();
+    const box = new BoxPanelContainer({
+      pinnable: true,
+      title: 'Inspector',
+      side,
+      defaultPinned: true,
+      widthPx: 280,
+      heightPx: 190,
+      offsetPx: 16,
+      onPinnedChange,
+      panel: createPanel()
+    });
+    manager.setProps({components: [box]});
+    await settle();
+    const input = box.rootElement!.querySelector('input')!;
+    input.value = 'Preserved';
+    const horizontal = side === 'left' || side === 'right';
+    const divider = box.rootElement!.querySelector('[role="separator"]')!;
+    divider.dispatchEvent(
+      new KeyboardEvent('keydown', {key: horizontal ? 'ArrowLeft' : 'ArrowUp', bubbles: true})
+    );
+    await settle();
+    const size = horizontal ? bounds(box.rootElement!).width : bounds(box.rootElement!).height;
+    box.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Collapse Inspector"]')!.click();
+    await settle();
+    expect(box.isPinned).toBe(true);
+    expect(box.isDocked).toBe(false);
+    expect(bounds(content).width).toBeCloseTo(1000);
+    expect(bounds(content).height).toBeCloseTo(700);
+    expect(box.rootElement!.closest('.deck-panel-layout-center')).toBeTruthy();
+    expect(bounds(box.rootElement!).height).toBeLessThan(100);
+    expect(box.rootElement!.querySelector('[role="separator"]')).toBeNull();
+    box.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Expand Inspector"]')!.click();
+    await settle();
+    expect(box.isDocked).toBe(true);
+    expect(
+      horizontal ? bounds(box.rootElement!).width : bounds(box.rootElement!).height
+    ).toBeCloseTo(size);
+    expect(box.rootElement!.parentElement!.dataset.side).toBe(side);
+    expect(box.rootElement!.querySelector('input')).toBe(input);
+    expect(input.value).toBe('Preserved');
+    expect(onPinnedChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps controlled open state across partial updates and provides an untitled restore control', async () => {
+    const {content, manager} = createHost();
+    const onOpenChange = vi.fn();
+    const box = new BoxPanelContainer({pinnable: true, pinned: true, open: false, onOpenChange});
+    manager.setProps({components: [box]});
+    await settle();
+    expect(bounds(content).width).toBeCloseTo(1000);
+    box.setProps({side: 'left'});
+    box.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Expand Panel"]')!.click();
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+    expect(box.isOpen).toBe(false);
+    box.setProps({open: true});
+    await settle();
+    expect(bounds(content).width).toBeCloseTo(640);
+    box.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Collapse Panel"]')!.click();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+    expect(box.isOpen).toBe(true);
+  });
+
   it('preserves box collapse controls and removes docking when pinning is disabled', async () => {
     const {content, manager} = createHost();
     const panel = new BoxPanelContainer({

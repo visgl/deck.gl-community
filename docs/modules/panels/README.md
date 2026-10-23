@@ -177,6 +177,8 @@ manager.setProps({components: [
 Header and footer span the full width. Side chrome flanks the center between them. The inspector
 starts floating over the canvas; its pin button moves it to the right edge and makes the canvas
 region narrower. Unpinning returns it to its overlay anchor, preserving mounted content state.
+Collapsing its title releases the docked space and leaves a compact floating title bar.
+Expanding restores its pin state and resized dimensions.
 
 Use `widthPx` for side thickness and `heightPx` for top/bottom thickness. `fitContent: true`
 follows natural content size. With `resizable: true`, a divider supports pointer dragging and

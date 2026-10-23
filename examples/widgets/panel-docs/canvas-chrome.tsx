@@ -52,7 +52,7 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
   const inspector = new BoxPanelContainer({
     pinnable: true,
     title: 'Inspector',
-    collapsible: false,
+    collapsible: true,
     offsetPx: 16,
     side: 'right',
     placement: 'top-left',
@@ -89,7 +89,7 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
         fitContent: true,
         panel: textPanel(
           'status',
-          'Drag the inspector divider to resize. Pin/unpin preserves the scene name.'
+          'Collapse the inspector to reclaim canvas space. Pin/unpin preserves the scene name.'
         )
       }),
       new SidePanelContainer({
