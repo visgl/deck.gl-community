@@ -1,5 +1,10 @@
 # Using Panels
 
+For a complete application layout with headers, footers, tools, and a pinnable inspector,
+start with the [canvas chrome walkthrough](../README.md#build-chrome-around-a-canvas).
+It explains application-owned `parentElement` and optional `contentElement`, panel composition,
+resizing, and cleanup.
+
 <p className="badges">
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>

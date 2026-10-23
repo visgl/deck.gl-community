@@ -4,6 +4,46 @@
 
 const PANEL_BASE_STYLESHEET_ATTRIBUTE = 'data-deck-gl-community-panels-styles';
 
+const PANEL_CHROME_STYLES = `.deck-panel-layout {
+  position: relative;
+  display: grid;
+  grid-template-areas: "top top top" "left center right" "bottom bottom bottom";
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) minmax(0, max-content);
+  grid-template-rows: minmax(0, max-content) minmax(0, 1fr) minmax(0, max-content);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.deck-panel-layout-center { grid-area: center; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.deck-panel-layout-edge { display: flex; min-width: 0; min-height: 0; overflow: auto; }
+.deck-panel-layout-edge[data-side="top"] { grid-area: top; }
+.deck-panel-layout-edge[data-side="bottom"] { grid-area: bottom; }
+.deck-panel-layout-edge[data-side="left"] { grid-area: left; flex-direction: column; }
+.deck-panel-layout-edge[data-side="right"] { grid-area: right; flex-direction: column; }
+.deck-panel-chrome {
+  position: relative; pointer-events: auto; min-width: 0; min-height: 0;
+  box-sizing: border-box; flex: 0 1 auto;
+  color: var(--menu-text, #18181a); background: var(--menu-background, #fff);
+  font: 13px system-ui, sans-serif;
+}
+.deck-panel-chrome[hidden] { display: none; }
+.deck-panel-chrome[data-pinned="true"][data-side="left"],
+.deck-panel-chrome[data-pinned="true"][data-side="right"] { flex: 1 1 auto; }
+.deck-panel-chrome-shell { position: relative; display: flex; flex-direction: column; height: 100%; max-height: inherit; min-height: 0; }
+.deck-panel-chrome-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px; flex: 0 0 auto; }
+.deck-panel-chrome-header button { color: inherit; font: inherit; cursor: pointer; }
+.deck-panel-chrome-header button:disabled { cursor: default; }
+.deck-panel-chrome-content { overflow: auto; min-width: 0; min-height: 0; flex: 1 1 auto; padding: 8px; }
+.deck-panel-chrome-divider { position: absolute; touch-action: none; z-index: 1; background: transparent; }
+.deck-panel-chrome-divider:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+.deck-panel-chrome[data-side="left"] .deck-panel-chrome-divider { right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.deck-panel-chrome[data-side="right"] .deck-panel-chrome-divider { left: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.deck-panel-chrome[data-side="top"] .deck-panel-chrome-divider { bottom: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+.deck-panel-chrome[data-side="bottom"] .deck-panel-chrome-divider { top: 0; left: 0; right: 0; height: 6px; cursor: ns-resize; }
+`;
+
 const PANEL_BASE_STYLES = `.deck-widget {
   margin: var(--widget-margin, 12px);
   box-sizing: border-box;
@@ -761,4 +801,13 @@ export function ensurePanelStylesheet(document: Document): void {
   styleElement.setAttribute(PANEL_BASE_STYLESHEET_ATTRIBUTE, 'true');
   styleElement.textContent = PANEL_BASE_STYLES;
   document.head.appendChild(styleElement);
+}
+
+/** Installs chrome styles even when an application already loads deck widget CSS. */
+export function ensurePanelChromeStylesheet(document: Document): void {
+  if (document.querySelector('style[data-panel-chrome-styles]')) return;
+  const style = document.createElement('style');
+  style.setAttribute('data-panel-chrome-styles', 'true');
+  style.textContent = PANEL_CHROME_STYLES;
+  document.head.append(style);
 }

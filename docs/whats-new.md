@@ -4,6 +4,10 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- Panels adds permanent header, footer, and side chrome and a `PinnablePanelContainer`.
+  Opt into docking with `PanelManager.contentElement`; nested panels can adapt through
+  `usePanelContainerState()`. See [canvas chrome](./modules/panels/api-reference/panel-containers/canvas-chrome.md).
+
 - New [`@deck.gl-community/extensions`](/docs/modules/extensions) module for deck.gl layer
   extensions. [`SelectionPulseExtension`](/docs/modules/extensions/api-reference/selection-pulse-extension),
   released in v9.4.7 from `@deck.gl-community/layers`, moves there; import it from

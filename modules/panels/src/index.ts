@@ -264,3 +264,29 @@ export {
   type MetricsPanelProps,
   type MetricValue
 } from './leaf-panels/metrics/metrics-panel';
+
+export {
+  HeaderPanelContainer,
+  type HeaderPanelContainerProps
+} from './panel-mounts/header-panel-container';
+
+export {
+  FooterPanelContainer,
+  type FooterPanelContainerProps
+} from './panel-mounts/footer-panel-container';
+
+export {
+  SidePanelContainer,
+  type SidePanelContainerProps
+} from './panel-mounts/side-panel-container';
+
+export {
+  PinnablePanelContainer,
+  type PinnablePanelContainerProps
+} from './panel-mounts/pinnable-panel-container';
+
+export {
+  usePanelContainerState,
+  type PanelContainerState,
+  type PanelDockSide
+} from './panels/panel-container-state';

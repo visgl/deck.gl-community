@@ -33,3 +33,10 @@ application-specific panel-managed controls extend it.
 keyboard shortcut managers, `URLManager`, `CommandManager`, and `toastManager`
 keep app behavior and state outside rendering so panels and components can
 reuse the same descriptors or state.
+
+## Canvas chrome
+
+`PanelManager` accepts optional `contentElement` to arrange `HeaderPanelContainer`,
+`FooterPanelContainer`, `SidePanelContainer`, and `PinnablePanelContainer` around a canvas host.
+Without it, floating panels remain available and docked chrome stays hidden. Descendants can
+use `usePanelContainerState()` to adapt to pin state and docking edge changes.

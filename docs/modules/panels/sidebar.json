@@ -80,6 +80,11 @@
       "items": [
         "modules/panels/api-reference/panel-containers/panel-container",
         "modules/panels/api-reference/panel-containers/box-panel-container",
+        "modules/panels/api-reference/panel-containers/canvas-chrome",
+        "modules/panels/api-reference/panel-containers/header-panel-container",
+        "modules/panels/api-reference/panel-containers/footer-panel-container",
+        "modules/panels/api-reference/panel-containers/side-panel-container",
+        "modules/panels/api-reference/panel-containers/pinnable-panel-container",
         "modules/panels/api-reference/panel-containers/modal-panel-container",
         "modules/panels/api-reference/panel-containers/sidebar-panel-container",
         "modules/panels/api-reference/panel-containers/full-screen-panel-container"

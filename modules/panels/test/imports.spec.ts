@@ -92,3 +92,11 @@ it('exports SourcePickerPanel', () => {
 it('exports MetricsPanel', () => {
   expect(Panels.MetricsPanel).toBeDefined();
 });
+
+it('exports canvas chrome and adaptive container state', () => {
+  expect(Panels.HeaderPanelContainer).toBeDefined();
+  expect(Panels.FooterPanelContainer).toBeDefined();
+  expect(Panels.SidePanelContainer).toBeDefined();
+  expect(Panels.PinnablePanelContainer).toBeDefined();
+  expect(Panels.usePanelContainerState).toBeDefined();
+});
