@@ -100,7 +100,7 @@ const TOOLBAR_STYLE: JSX.CSSProperties = {
   gap: 'var(--panel-gap, 8px)',
   flexWrap: 'wrap',
   padding: 'var(--panel-padding, 8px 10px)',
-  borderRadius: 'var(--panel-corner-radius, 999px)',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   background: 'rgba(36, 40, 41, 0.88)',
   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)'
 };
@@ -115,7 +115,7 @@ const ITEM_GROUP_STYLE: JSX.CSSProperties = {
 const BUTTON_STYLE: JSX.CSSProperties = {
   appearance: 'none',
   border: 'none',
-  borderRadius: 'var(--panel-corner-radius, 999px)',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   background: 'transparent',
   color: '#f0f0f0',
   minHeight: '30px',
@@ -156,7 +156,7 @@ const BADGE_STYLE: JSX.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  borderRadius: 'var(--panel-corner-radius, 999px)',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   background: 'rgba(255, 255, 255, 0.12)',
   color: 'rgba(255, 255, 255, 0.88)',
   fontSize: 'var(--panel-font-size, 11px)',

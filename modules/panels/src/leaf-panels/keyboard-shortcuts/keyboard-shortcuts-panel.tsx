@@ -394,7 +394,7 @@ const KEY_STYLE: JSX.CSSProperties = {
 const SHORTCUT_BADGE_STYLE: JSX.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  borderRadius: 'var(--panel-corner-radius, 999px)',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   border: '1px solid rgba(148, 163, 184, 0.55)',
   backgroundColor: 'rgba(248, 250, 252, 0.8)',
   padding: 'var(--panel-padding, 0 5px)',

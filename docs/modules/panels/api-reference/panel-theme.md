@@ -106,3 +106,8 @@ mode and control styling. Explicit preset names reset overrides; `invert` select
 opposite built-in preset in the base's family. For a custom opposite palette, supply
 another theme definition. Existing CSS variable objects and spread overrides remain
 supported by `applyPanelTheme()`.
+
+Circular controls use `--panel-round-radius` (default `999px`) independently of
+rectangular `--panel-corner-radius`. Studio switch tracks use
+`--panel-switch-padding` (default `2px`) so general panel padding does not change
+the thumb inset.

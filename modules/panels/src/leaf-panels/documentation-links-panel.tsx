@@ -191,7 +191,7 @@ const LINK_DESCRIPTION_STYLE: JSX.CSSProperties = {
 };
 
 const LINK_BADGE_STYLE: JSX.CSSProperties = {
-  borderRadius: 'var(--panel-corner-radius, 999px)',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   padding: 'var(--panel-padding, 2px 8px)',
   fontSize: 'var(--panel-font-size, 10px)',
   lineHeight: '13px',

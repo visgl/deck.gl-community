@@ -721,7 +721,7 @@ const MODAL_HEADER_TITLE_STYLE: JSX.CSSProperties = {
 const MODAL_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   width: '24px',
   height: '24px',
-  borderRadius: 'var(--panel-corner-radius, 999px)',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   border: 'var(--menu-inner-border, 1px solid rgba(148, 163, 184, 0.35))',
   backgroundColor: 'transparent',
   color: 'var(--button-text, rgb(24, 24, 26))',

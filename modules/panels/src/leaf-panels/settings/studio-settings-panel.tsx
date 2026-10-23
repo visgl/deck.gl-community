@@ -1450,29 +1450,29 @@ const STYLES = {
     alignItems: 'center',
     width: 44,
     height: 24,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--menu-item-hover, rgba(15, 23, 42, 0.48))',
-    padding: 'var(--panel-padding, 2px)'
+    padding: 'var(--panel-switch-padding, 2px)'
   },
   switchTrackActive: {
     display: 'flex',
     alignItems: 'center',
     width: 44,
     height: 24,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--button-icon-hover, #60a5fa)',
-    padding: 'var(--panel-padding, 2px)'
+    padding: 'var(--panel-switch-padding, 2px)'
   },
   switchKnob: {
     width: 20,
     height: 20,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--button-text, #94a3b8)'
   },
   switchKnobActive: {
     width: 20,
     height: 20,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--menu-text, #ffffff)',
     transform: 'translateX(20px)'
   },
@@ -1575,7 +1575,7 @@ const STYLES = {
     placeItems: 'center',
     width: 14,
     height: 14,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     border: 'var(--menu-border, 2px solid rgba(148, 163, 184, 0.65))'
   },
   radioSelected: {
@@ -1583,20 +1583,20 @@ const STYLES = {
     placeItems: 'center',
     width: 14,
     height: 14,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     border: 'var(--menu-border, 2px solid rgba(103, 232, 249, 0.9))',
     background: 'var(--button-background, rgba(103, 232, 249, 0.16))'
   },
   radioDot: {
     width: 5,
     height: 5,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'transparent'
   },
   radioDotSelected: {
     width: 5,
     height: 5,
-    borderRadius: 'var(--panel-corner-radius, 999px)',
+    borderRadius: 'var(--panel-round-radius, 999px)',
     background: 'var(--button-icon-hover, #a5f3fc)'
   }
 } satisfies Record<string, JSX.CSSProperties>;
