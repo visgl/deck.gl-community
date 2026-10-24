@@ -150,6 +150,7 @@ test('toBasePointerEvent aligns Mjolnir and native coordinates on a scaled canva
 });
 
 test('native clicks are immediate, scale-aware, and forwarded to the current layer', () => {
+  layer.finalizeState();
   const handlers = new Map<string, any[]>();
   const canvas = {
     offsetWidth: 128,
@@ -317,7 +318,7 @@ test('getMapCoords returns null when terrain pick misses', () => {
 });
 
 test('initializeState registers event handlers', () => {
-  const registeredHandler = layer.state._editableLayerState.eventHandler;
+  const registeredHandler = mockContext.deck.eventManager.on.mock.calls[0][1];
 
   expect(mockContext.deck.eventManager.on).toHaveBeenCalledTimes(EVENT_TYPES.length);
   for (const eventType of EVENT_TYPES) {
@@ -328,7 +329,7 @@ test('initializeState registers event handlers', () => {
 });
 
 test('finalizeState deregisters event handlers', () => {
-  const registeredHandler = layer.state._editableLayerState.eventHandler;
+  const registeredHandler = mockContext.deck.eventManager.on.mock.calls[0][1];
 
   layer.finalizeState();
 
