@@ -198,4 +198,6 @@ Follow-ups:
 - spatial gusts: a gust front travelling along `direction`, phased by owner position, so a wave
   crosses a field instead of every tree swelling at once;
 - WGSL support for `WindExtension`, and bent normals for layers that light after the hook;
-- propose the effect, module and extension to deck.gl core once the API has settled.
+- propose the effect, module and extension to deck.gl core once the API has settled;
+- share one wind with luma.gl's weather modules (rain, fog, clouds): see
+  [wind-effect-weather.md](./wind-effect-weather.md).
