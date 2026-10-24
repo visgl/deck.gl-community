@@ -110,8 +110,8 @@ Budgets count submitted Gaussians, not GPU memory.
 | Property | Default | Description |
 | --- | --- | --- |
 | `getDeformation` | `[1, 0, 0]` | Per-instance `[height, phase, flex]` for wind bending. |
-| `deformationStrength` | `0` | Bend as a fraction of instance height. |
-| `deformationTime` | `null` | Seconds. `null` follows deck.gl's animation timeline. |
+| `deformationStrength` | `null` | Bend as a fraction of instance height. `null` follows the [`WindEffect`](./wind-effect.md); `0` keeps this layer still. |
+| `deformationTime` | `null` | Seconds. `null` follows the `WindEffect`, then deck.gl's animation timeline. |
 
 ## Types
 

@@ -11,6 +11,7 @@
     "modules/layers/api-reference/volumetric-video-layer",
     "modules/layers/api-reference/splat-layer",
     "modules/layers/api-reference/tree-layer",
+    "modules/layers/api-reference/wind-effect",
     "modules/layers/api-reference/selection-pulse-extension"
   ]
 }

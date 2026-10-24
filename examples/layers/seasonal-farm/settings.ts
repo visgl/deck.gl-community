@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
-import type {Season, TreeCharacteristics} from '@deck.gl-community/layers';
+import type {Season, TreeCharacteristics, WindEffectProps} from '@deck.gl-community/layers';
 import type {SettingDescriptor, SettingsSchema} from '@deck.gl-community/panels';
 
-/** TreeLayer props driven by the demo's settings panel. */
+/** TreeLayer and WindEffect props driven by the demo's settings panel. */
 export type FarmSettings = {
   season: Season;
   crops: boolean;
-  windStrength: number;
+  /** The scene's WindEffect: the trees follow it. */
+  wind: Required<Pick<WindEffectProps, 'strength' | 'direction' | 'gust'>>;
   sizeScale: number;
   characteristics: Required<TreeCharacteristics>;
   maxCanopySplats: 'auto' | number;
@@ -20,7 +21,7 @@ export type FarmSettings = {
 export const DEFAULT_FARM_SETTINGS: FarmSettings = {
   season: 'spring',
   crops: true,
-  windStrength: 0,
+  wind: {strength: 0, direction: 90, gust: 0},
   sizeScale: 1,
   characteristics: {
     seed: 0,
@@ -78,7 +79,25 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
           ]
         },
         {name: 'crops', label: 'Fruit & flowers', type: 'boolean'},
-        {name: 'windStrength', label: 'Wind', type: 'number', min: 0, max: 0.1, step: 0.005},
+        {name: 'wind.strength', label: 'Wind', type: 'number', min: 0, max: 0.1, step: 0.005},
+        {
+          name: 'wind.direction',
+          label: 'Wind direction',
+          description: 'Compass bearing the wind blows toward.',
+          type: 'number',
+          min: 0,
+          max: 345,
+          step: 15
+        },
+        {
+          name: 'wind.gust',
+          label: 'Gusts',
+          description: 'How far the wind swells above and below its strength.',
+          type: 'number',
+          min: 0,
+          max: 1,
+          step: 0.05
+        },
         {
           name: 'sizeScale',
           label: 'Size',

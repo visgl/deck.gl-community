@@ -11,6 +11,7 @@ import {
 } from '../splat-layer/splat-culling';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
+import {getSplatBranchSwayRadius} from '../splat-layer/splat-deformation';
 import {getSplatTransform, getSplatTransformScale} from '../splat-layer/splat-transform';
 import {getTreeWoodMesh} from './tree-wood';
 import {
@@ -22,6 +23,7 @@ import {getSplatChangedRanges, SplatRowSlots} from '../splat-layer/splat-row-dif
 import {getSplatHighlightRow} from '../splat-layer/splat-source-highlight';
 import type {TreeType} from './tree-layer';
 import type {TreeCharacteristics} from './tree-characteristics';
+import {getLayerWindBound} from '../wind-effect/wind-effect';
 
 type Row = {
   position: [number, number, number];
@@ -72,6 +74,9 @@ export class TreeWoodLayer extends CompositeLayer<any> {
     spatialIndex: SplatSpatialNode<Owner> | null;
     projectionKey: string;
     projectedPositions: Map<string, SplatProjectedPosition>;
+    /** Peak wind and crown scale the owner radii cover; a `WindEffect` change rebuilds them. */
+    windBound?: string;
+    windKey?: string;
   };
   initializeState() {
     this.state = {
@@ -108,13 +113,17 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         triggers?.all ||
         triggers?.[key]
     );
+    const wind = getLayerWindBound(this, props.windStrength);
+    const windBound = `${wind.peak}|${wind.turbulence}`;
+    const windBoundChanged = windBound !== this.state.windBound;
+    this.state.windBound = windBound;
     const rebuild =
+      windBoundChanged ||
       accessorChanged ||
       props.mesh !== oldProps.mesh ||
       props.sizeScale !== oldProps.sizeScale ||
       Boolean(changeFlags.dataChanged) ||
       projectionKey !== this.state.projectionKey ||
-      props.windStrength !== oldProps.windStrength ||
       props.modelMatrix !== oldProps.modelMatrix ||
       props.coordinateSystem !== oldProps.coordinateSystem ||
       props.coordinateOrigin !== oldProps.coordinateOrigin;
@@ -145,7 +154,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         const translation = matrix
           ? Array.from(matrix).slice(12, 15)
           : get(props.getTranslation, row, objectInfo);
-        const wind = get(props.getWind, row, objectInfo);
+        const windRow = get(props.getWind, row, objectInfo);
         const transform = getSplatTransform(
           get(props.getOrientation, row, objectInfo),
           scale,
@@ -176,8 +185,17 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               Math.hypot(...translation) +
               Math.max(0, get(props.getRootLength, row, objectInfo)) +
               Math.max(0, get(props.getStemRadius, row, objectInfo)) +
-              Math.abs(props.windStrength * wind[2]) *
-                (Math.abs(wind[0]) * 1.5 + Math.max(...scale.map(Math.abs)) * 0.5)) *
+              // Trunk lean with sway (1.25 × |axis| < 1.5), the crown mode (0.35 × ‖mode‖ < 0.6)
+              // and branch sway out to the wood's full lateral extent.
+              wind.peak *
+                Math.abs(windRow[2]) *
+                (Math.abs(windRow[0]) * 1.5 +
+                  Math.max(...scale.map(Math.abs)) * 0.6 * wind.turbulence +
+                  getSplatBranchSwayRadius(
+                    Math.max(...scale.map(Math.abs)) * 2 + Math.hypot(...translation),
+                    Math.abs(windRow[0]),
+                    wind.turbulence
+                  ))) *
             units,
           weight: 0
         });
