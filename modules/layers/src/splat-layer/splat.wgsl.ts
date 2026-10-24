@@ -51,8 +51,10 @@ struct Varyings {
  let wave = vec2<f32>(wind.wave.x * attributes.instanceDeformation.w + wind.wave.y * attributes.instanceDeformation.z,
    wind.wave.z * attributes.instanceCoverageWeight.z + wind.wave.w * attributes.instanceCoverageWeight.y);
  if (wind.strength != 0.0) {
-  let deformation = splatDeform(position, height, wind.strength * attributes.instanceDeformation.y, wave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw));
-  position = deformation.position;
+  let windStrength = wind.strength * attributes.instanceDeformation.y;
+  let flutter = splatFlutter(position, attributes.splatCenters, height, windStrength, attributes.instanceDeformation.zw, wind.axis, wind.flutter);
+  let deformation = splatDeform(position, height, windStrength, wave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw));
+  position = deformation.position + flutter;
   covariance = deformation.jacobian * covariance;
   normal = splatDeformNormal(deformation.jacobian, normal);
  }

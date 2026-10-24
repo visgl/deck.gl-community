@@ -184,10 +184,11 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               Math.hypot(...translation) +
               Math.max(0, get(props.getRootLength, row, objectInfo)) +
               Math.max(0, get(props.getStemRadius, row, objectInfo)) +
+              // Trunk lean with sway (1.25 × |axis| < 1.5) and the crown mode (0.5 × ‖mode‖ < 0.6).
               wind.peak *
                 Math.abs(windRow[2]) *
                 (Math.abs(windRow[0]) * 1.5 +
-                  Math.max(...scale.map(Math.abs)) * 0.5 * wind.turbulence)) *
+                  Math.max(...scale.map(Math.abs)) * 0.6 * wind.turbulence)) *
             units,
           weight: 0
         });

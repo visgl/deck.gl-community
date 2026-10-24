@@ -88,6 +88,19 @@ describe('wind shader module', () => {
     getWindUniforms({}).mode.forEach((value, i) => expect(doubled[i]).toBeCloseTo(value * 2, 12));
     expect(getWindUniforms({turbulence: 0}).mode.every(value => value === 0)).toBe(true);
   });
+
+  it('runs the leaf flutter faster than the trunk, scaled by turbulence', () => {
+    const {flutter} = getWindUniforms({time: 2, turbulence: 1.5});
+    expect(flutter).toEqual([
+      1.5 * Math.sin(2 * 6.1),
+      1.5 * Math.cos(2 * 6.1),
+      1.5 * Math.sin(2 * 9.7),
+      1.5 * Math.cos(2 * 9.7)
+    ]);
+    expect(getWindUniforms({turbulence: 0, time: 4}).flutter.every(value => value === 0)).toBe(
+      true
+    );
+  });
 });
 
 describe('physical wind helpers', () => {

@@ -34,9 +34,13 @@ export type WindModuleProps = {
 type WindUniforms = {
   wave: [number, number, number, number];
   mode: [number, number, number, number];
+  flutter: [number, number, number, number];
   axis: [number, number];
   strength: number;
 };
+
+/** Leaf flutter angular frequencies in rad/s: about 1 and 1.5 Hz, faster than the trunk's 0.25 Hz. */
+const WIND_FLUTTER_FREQUENCIES = [6.1, 9.7] as const;
 
 /** The moving air a wind describes, for consumers that travel with it: rain, clouds, particles. */
 export type WindAirProps = {
@@ -147,6 +151,12 @@ export function getWindUniforms(props: WindModuleProps = {}): WindUniforms {
       turbulence * (rm[0] * s + rm[2] * c),
       turbulence * (rm[1] * s + rm[3] * c)
     ],
+    flutter: [
+      turbulence * Math.sin(time * WIND_FLUTTER_FREQUENCIES[0]),
+      turbulence * Math.cos(time * WIND_FLUTTER_FREQUENCIES[0]),
+      turbulence * Math.sin(time * WIND_FLUTTER_FREQUENCIES[1]),
+      turbulence * Math.cos(time * WIND_FLUTTER_FREQUENCIES[1])
+    ],
     axis: [c * LEGACY_AXIS[0] - s * LEGACY_AXIS[1], s * LEGACY_AXIS[0] + c * LEGACY_AXIS[1]],
     strength: strength * (1 + gust * getWindGust(time))
   };
@@ -155,13 +165,15 @@ export function getWindUniforms(props: WindModuleProps = {}): WindUniforms {
 const DECLARATION = `layout(std140) uniform windUniforms {
   vec4 wave;
   vec4 mode;
+  vec4 flutter;
   vec2 axis;
   float strength;
 } wind;`;
 
 /**
- * Shared wind uniforms for `splatDeform`: the wave phases, the bend axis, the crown mode
- * (mat2 columns) and the gust-modulated strength. `WindEffect` supplies its props.
+ * Shared wind uniforms for `splatDeform` and `splatFlutter`: the trunk and crown wave phases, the
+ * crown mode (mat2 columns), the leaf flutter phases (scaled by turbulence), the bend axis and the
+ * gust-modulated strength. `WindEffect` supplies its props.
  */
 export const wind = {
   name: 'wind',
@@ -169,6 +181,7 @@ export const wind = {
   source: `struct WindUniforms {
   wave: vec4<f32>,
   mode: vec4<f32>,
+  flutter: vec4<f32>,
   axis: vec2<f32>,
   strength: f32
 };
@@ -176,6 +189,7 @@ export const wind = {
   uniformTypes: {
     wave: 'vec4<f32>',
     mode: 'vec4<f32>',
+    flutter: 'vec4<f32>',
     axis: 'vec2<f32>',
     strength: 'f32'
   },

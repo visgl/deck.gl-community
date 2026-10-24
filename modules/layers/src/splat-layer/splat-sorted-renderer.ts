@@ -7,6 +7,7 @@ import {Model, DynamicBuffer} from '@luma.gl/engine';
 import {getSplatGeometry} from './splat-source';
 import {getSplatTransform} from './splat-transform';
 import {getSplatCommonUnits, getSplatProjectionKey} from './splat-culling';
+import {getSplatWindOffset, type SplatWindUniforms} from './splat-deformation';
 import type {SplatPrimitiveLayer} from './splat-primitive-layer';
 
 const ATTRIBUTES = {
@@ -428,10 +429,12 @@ export class SplatSortedRenderer {
   private updateDepths(entry: Entry) {
     const source = entry.layer.props.source;
     const uniforms = entry.model.shaderInputs.getUniformValues().wind!;
-    const wave = uniforms.wave as number[];
-    const axis = uniforms.axis as number[];
-    const mode = uniforms.mode as number[];
+    const windUniforms = uniforms as unknown as SplatWindUniforms;
     const strength = uniforms.strength as number;
+    const point = [0, 0, 0],
+      seed = [0, 0, 0],
+      phase = [0, 0, 0, 0],
+      offset = [0, 0, 0];
     const projection = this.viewport.viewProjectionMatrix;
     const count = source.opacities.length;
     for (let ownerIndex = 0; ownerIndex < entry.owners.length; ownerIndex++) {
@@ -442,20 +445,24 @@ export class SplatSortedRenderer {
           py = source.positions[i * 3 + 1],
           pz = source.positions[i * 3 + 2];
         let x = m[0] * px + m[3] * py + m[6] * pz + m[9],
-          y = m[1] * px + m[4] * py + m[7] * pz + m[10];
-        const z = m[2] * px + m[5] * py + m[8] * pz + m[11];
+          y = m[1] * px + m[4] * py + m[7] * pz + m[10],
+          z = m[2] * px + m[5] * py + m[8] * pz + m[11];
         if (strength) {
           const [height, flex, sin, cos, sinCrown, cosCrown] = owner.wind;
-          const u = Math.max(0, Math.min(1, z / Math.max(height, 0.001)));
-          const f = 0.5 * u * u * (3 - u),
-            g = Math.max((u - 0.3) / 0.7, 0) ** 2;
-          const bend =
-            strength * flex * (wave[0] * cos + wave[1] * sin) * Math.max(height, 0.001) * f;
-          const branch = 0.35 * strength * flex * (wave[2] * cosCrown + wave[3] * sinCrown) * g;
-          const dx = bend * axis[0] + branch * (mode[0] * x + mode[2] * y),
-            dy = bend * axis[1] + branch * (mode[1] * x + mode[3] * y);
-          x += dx;
-          y += dy;
+          point[0] = x;
+          point[1] = y;
+          point[2] = z;
+          seed[0] = px;
+          seed[1] = py;
+          seed[2] = pz;
+          phase[0] = sin;
+          phase[1] = cos;
+          phase[2] = sinCrown;
+          phase[3] = cosCrown;
+          getSplatWindOffset(offset, point, seed, height, strength * flex, phase, windUniforms);
+          x += offset[0];
+          y += offset[1];
+          z += offset[2];
         }
         const worldX = owner.common[0] + x * owner.units[0],
           worldY = owner.common[1] + y * owner.units[1],

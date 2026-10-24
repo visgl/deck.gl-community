@@ -113,7 +113,12 @@ void main() {
   vec2 wave = vec2(wind.wave.x * instanceDeformation.w + wind.wave.y * instanceDeformation.z,
     wind.wave.z * instanceCoverageWeight.z + wind.wave.w * instanceCoverageWeight.y);
   mat3 jacobian = mat3(1.0);
-  if (wind.strength != 0.0) jacobian = splatDeform(position, height, wind.strength * instanceDeformation.y, wave, wind.axis, mat2(wind.mode));
+  if (wind.strength != 0.0) {
+    float windStrength = wind.strength * instanceDeformation.y;
+    vec3 flutter = splatFlutter(position, splatCenters, height, windStrength, instanceDeformation.zw, wind.axis, wind.flutter);
+    jacobian = splatDeform(position, height, windStrength, wave, wind.axis, mat2(wind.mode));
+    position += flutter;
+  }
   covariance = jacobian * covariance;
   normal = splatDeformNormal(jacobian, normal);
   vec4 commonPosition;

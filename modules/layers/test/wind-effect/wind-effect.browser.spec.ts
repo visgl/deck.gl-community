@@ -14,6 +14,8 @@ import {
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it} from 'vitest';
 import {SplatLayer, TreeLayer, WindEffect, type SplatSource} from '../../src';
+import {getSplatWindOffset} from '../../src/splat-layer/splat-deformation';
+import {getWindUniforms} from '../../src/wind-effect/wind-module';
 
 const SIZE = 256;
 const METER_OFFSETS = {
@@ -120,7 +122,7 @@ it('bends a SplatLayer with no wind props toward the WindEffect direction, and p
       const [x, y] = getCentroid(view.pixels);
       shifts[direction] = [x - stillX, y - stillY];
     }
-    // A 0.69 m bend at about 0.075 m per pixel.
+    // About a 0.8 m lean, at its sway peak, at about 0.075 m per pixel.
     expect(shifts[90][0]).toBeGreaterThan(5);
     expect(Math.abs(shifts[90][1])).toBeLessThan(1.5);
     expect(shifts[0][1]).toBeGreaterThan(5);
@@ -134,6 +136,65 @@ it('bends a SplatLayer with no wind props toward the WindEffect direction, and p
     deck.setProps({effects: [wind(270, 0.1)]});
     await settle();
     expect((deck.props.layers as Layer[])[0].state.owners).not.toBe(owners);
+    expect(view.errors).toEqual([]);
+  } finally {
+    cleanup();
+  }
+}, 40000);
+
+it('flutters a leaf Gaussian exactly where the CPU twin of the shader puts it', async () => {
+  // A leaf high on the crown's edge: template centre `seed`, placed at [3, 1, 9] of a 12 m owner
+  // that stands at [-4, -1], so the leaf stays in view.
+  const owner = [-4, -1, 0];
+  const seed = new Float32Array([0.8, 0.3, 0.4]);
+  const translation = [2.2, 0.7, 8.6];
+  const local = [0, 1, 2].map(i => Math.fround(seed[i]) + translation[i]);
+  const leaf: SplatSource = {...SOURCE, positions: seed, scales: new Float32Array([0.1, 0.1, 0.1])};
+  const layer = new SplatLayer({
+    ...METER_OFFSETS,
+    id: 'leaf',
+    data: [{position: owner}],
+    getSource: leaf,
+    getTranslation: translation as [number, number, number],
+    getDeformation: [12, PHASE, 1],
+    material: {unlit: true}
+  });
+  const wind = (time: number, turbulence: number) =>
+    new WindEffect({strength: 0.08, direction: 120, turbulence, time});
+  const {deck, view, settle, cleanup} = createDeck({
+    initialViewState: {longitude: 0, latitude: 0, zoom: 20.5, pitch: 0},
+    effects: [wind(0, 1)],
+    layers: [layer]
+  });
+  const phase = [Math.sin(PHASE), Math.cos(PHASE), Math.sin(PHASE * 1.7), Math.cos(PHASE * 1.7)];
+  const expected = (time: number, turbulence: number): [number, number] => {
+    const uniforms = getWindUniforms({strength: 0.08, direction: 120, turbulence, time});
+    const offset = getSplatWindOffset([], local, Array.from(seed), 12, 0.08, phase, uniforms);
+    const viewport = deck.getViewports()[0] as any;
+    const lngLat = viewport.addMetersToLngLat(
+      [0, 0, 0],
+      local.map((v, i) => owner[i] + v + offset[i])
+    );
+    const [x, y] = viewport.project(lngLat);
+    // `getCentroid` counts pixels from their corner; projected coordinates from their centre.
+    return [x - 0.5, SIZE - y - 0.5];
+  };
+  try {
+    for (const time of [0.4, 1.9, 3.3]) {
+      const shifts: number[][] = [];
+      for (const turbulence of [1, 0]) {
+        deck.setProps({effects: [wind(time, turbulence)]});
+        await settle(6);
+        const actual = getCentroid(view.pixels);
+        const target = expected(time, turbulence);
+        expect(Math.hypot(actual[0] - target[0], actual[1] - target[1])).toBeLessThan(0.75);
+        shifts.push(actual);
+      }
+      // The flutter itself is several pixels, so the comparison is not trivially met.
+      expect(Math.hypot(shifts[0][0] - shifts[1][0], shifts[0][1] - shifts[1][1])).toBeGreaterThan(
+        3
+      );
+    }
     expect(view.errors).toEqual([]);
   } finally {
     cleanup();

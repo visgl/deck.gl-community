@@ -56,12 +56,41 @@ A `wind` shader module (GLSL uniform block and WGSL struct) carries four values:
 | Uniform | Type | Derived on the CPU from |
 | --- | --- | --- |
 | `wave` | `vec4` | `sin/cos(1.6t)`, `sin/cos(3.2t)`, as today |
-| `axis` | `vec2` | `R(direction) · (1, 0.45)` |
 | `mode` | `vec4` (mat2 columns) | `turbulence · R · M · Rᵀ` |
+| `flutter` | `vec4` | `turbulence · sin/cos(6.1t)`, `turbulence · sin/cos(9.7t)` |
+| `axis` | `vec2` | `R(direction) · (1, 0.45)` |
 | `strength` | `f32` | `strength · gust(t)` |
 
-`getUniforms` does the trigonometry once per draw, so the per-vertex work is unchanged: the shared
-`splatDeform()` takes `axis` and `mode` as arguments instead of constants.
+`getUniforms` does the trigonometry once per draw: the shared `splatDeform()` takes `axis` and
+`mode` as arguments instead of constants.
+
+### Motion
+
+The first prototype swung every object symmetrically through upright on one sine,
+`strength · sin(1.6t + φ)`, and the crown mode was a small 0.35× shear. Trees do not do that. Their
+mean drag holds a downwind lean; the trunk sways a little around it near its natural frequency,
+and most of the visible motion is in the twigs and leaves. The motion follows the usual split of
+vegetation animation into a main bend, a branch bend and leaf flutter (as in Crytek's procedural
+vegetation in *GPU Gems 3*, chapter 16):
+
+| Part | Displacement | Where |
+| --- | --- | --- |
+| Trunk | `axis · strength · H · f(u) · (1 + 0.25 (0.75 w₁ + 0.25 w₂))` | Everything: wood, crops, splats, `WindExtension` |
+| Crown | `0.5 · strength · w₂ · g(u) · mode · xy` | Everything |
+| Leaves | `0.5 · strength · H · c(p) · (axis w₃ + 0.4 axis⊥ w₄, 0.5 w₄)` | `SplatLayer` Gaussians only |
+
+`w₁ = sin(1.6t + φ)` and `w₂` (the crown wave) use the owner's phase. The trunk factor stays in
+[0.75, 1.25]. `w₃` and `w₄` are the `flutter` waves at the leaf's own phase: a spatial term
+`(7, 9, 5) · p / H` makes branch-sized patches move together, a hash of the Gaussian's template
+centre adds up to 1.2 rad of jitter, and the owner phase separates trees that share a template.
+The crown weight `c(p)` rises from 15% to 50% of the height, and from 0.4 at the trunk axis to 1
+at 0.2 H out. At 6 m/s on a 12 m tree the trunk top leans 0.34 to 0.52 m, and a leaf at the
+crown's edge flutters up to 0.25 m.
+
+Flutter moves each Gaussian rigidly, so it adds nothing to the Jacobian. The hash runs on a
+1/64 m integer grid with `uint` arithmetic, which float32 represents exactly. The CPU depth sort
+(`getSplatWindOffset`) therefore reproduces the shaders: a headless test checks a fluttering
+Gaussian against it to within a pixel. Bounds add the flutter reach `0.5 · 1.28 · strength · H`.
 
 The effect supplies the module props the way `LightingEffect` supplies `lighting`:
 
