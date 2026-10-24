@@ -14,7 +14,7 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     const originalWidth = canvas.getBoundingClientRect().width;
     const content = canvas.parentElement!;
     const center = content.parentElement!;
-    const inspector = host.querySelector<HTMLElement>('[data-pinnable="true"]')!;
+    const inspector = host.querySelector<HTMLElement>('.deck-widget-box[data-pinnable="true"]')!;
     expect(center.contains(inspector)).toBe(true);
     expect(
       inspector.getBoundingClientRect().left - content.getBoundingClientRect().left
@@ -35,7 +35,7 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth);
     const input = host.querySelector('input')!;
     input.value = 'Preserved scene';
-    host.querySelector<HTMLButtonElement>('[aria-label="Pin panel"]')!.click();
+    inspector.querySelector<HTMLButtonElement>('[aria-label="Pin panel"]')!.click();
     await settle();
     expect(host.textContent).toContain('Pinned right');
     expect(center.contains(inspector)).toBe(false);
@@ -60,7 +60,7 @@ it('keeps the canvas and adaptive inspector in sync with the live chrome example
     await settle();
     expect(host.textContent).toContain('Pinned bottom');
     expect(canvas.getBoundingClientRect().width).toBeCloseTo(originalWidth);
-    host.querySelector<HTMLButtonElement>('[aria-label="Unpin panel"]')!.click();
+    inspector.querySelector<HTMLButtonElement>('[aria-label="Unpin panel"]')!.click();
     await settle();
     expect(center.contains(inspector)).toBe(true);
     expect(getComputedStyle(inspector).borderRadius).toBe('12px');

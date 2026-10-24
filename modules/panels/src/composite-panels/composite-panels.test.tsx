@@ -3,7 +3,7 @@ import {h, render} from 'preact';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {PANEL_THEME_DARK, PANEL_THEME_LIGHT} from '../lib/panel-theme';
 
-import {AccordeonPanelContainer, AccordeonPanel} from './accordeon-panel';
+import {AccordionPanelContainer, AccordionPanel} from './accordion-panel';
 import {ColumnPanelContainer, ColumnPanel} from './column-panel';
 import {SplitterPanel} from './splitter-panel';
 import {TabbedPanelContainer, TabbedPanel} from './tabbed-panel';
@@ -58,13 +58,55 @@ afterEach(() => {
 });
 
 describe('composite panels', () => {
+  it('exposes initial tab selection through the panel definition', () => {
+    const root = document.createElement('div');
+    const panels = ['first', 'second'].map(
+      id => new TestPanel({id, title: id, content: createPanelContent(id)})
+    );
+    renderPanel(new TabbedPanel({panels, defaultActivePanelId: 'second'}), root);
+    expect(getPanelContent(root, 'second')).toBeTruthy();
+    expect(
+      getPanelContent(root, 'first')?.closest('[aria-hidden]')?.getAttribute('aria-hidden')
+    ).toBe('true');
+    expect(
+      getPanelContent(root, 'second')?.closest('[aria-hidden]')?.getAttribute('aria-hidden')
+    ).toBe('false');
+    render(null, root);
+  });
+
+  it('exposes controlled accordion expansion without requiring a raw component', async () => {
+    const root = document.createElement('div');
+    const panels = ['first', 'second'].map(
+      id => new TestPanel({id, title: id, content: createPanelContent(id)})
+    );
+    const onExpandedPanelIdsChange = vi.fn();
+    renderPanel(
+      new AccordionPanel({
+        panels,
+        expandedPanelIds: ['second'],
+        allowMultipleExpanded: false,
+        onExpandedPanelIdsChange
+      }),
+      root
+    );
+    expect(getPanelContent(root, 'second')).toBeTruthy();
+    root
+      .querySelector<HTMLButtonElement>('section > button')
+      ?.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, cancelable: true}));
+    await Promise.resolve();
+    expect(onExpandedPanelIdsChange).toHaveBeenCalledWith(['first']);
+    expect(getPanelContent(root, 'second')).toBeTruthy();
+    expect(getPanelContent(root, 'first')).toBeFalsy();
+    render(null, root);
+  });
+
   it('toggles accordion panels with uncontrolled multi-expand behavior and emits panel ids', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
     const onExpandedPanelIdsChange = vi.fn();
     render(
-      h(AccordeonPanelContainer, {
+      h(AccordionPanelContainer, {
         panels: [
           new TestPanel({id: 'first', title: 'First', content: createPanelContent('first')}),
           new TestPanel({id: 'second', title: 'Second', content: createPanelContent('second')})
@@ -244,7 +286,7 @@ describe('composite panels', () => {
 
     const horizontalPanel = new SplitterPanel({
       orientation: 'horizontal',
-      initialSplit: 0.25,
+      defaultSplit: 0.25,
       panels: [
         new TestPanel({id: 'first', title: 'First', content: createPanelContent('first')}),
         new TestPanel({id: 'second', title: 'Second', content: createPanelContent('second')})
@@ -261,7 +303,7 @@ describe('composite panels', () => {
 
     const verticalPanel = new SplitterPanel({
       orientation: 'vertical',
-      initialSplit: 0.25,
+      defaultSplit: 0.25,
       panels: [
         new TestPanel({id: 'first', title: 'First', content: createPanelContent('first')}),
         new TestPanel({id: 'second', title: 'Second', content: createPanelContent('second')})
@@ -280,14 +322,14 @@ describe('composite panels', () => {
   it('clamps splitter drag changes and emits drag lifecycle callbacks', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const onChange = vi.fn();
+    const onSplitChange = vi.fn();
     const onDragStart = vi.fn();
     const onDragEnd = vi.fn();
     const panel = new SplitterPanel({
-      initialSplit: 2,
+      defaultSplit: 2,
       minSplit: 0.2,
       maxSplit: 0.8,
-      onChange,
+      onSplitChange,
       onDragStart,
       onDragEnd,
       panels: [
@@ -312,17 +354,17 @@ describe('composite panels', () => {
     await Promise.resolve();
 
     expect(onDragStart).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenLastCalledWith(0.2);
+    expect(onSplitChange).toHaveBeenLastCalledWith(0.2);
     expect(onDragEnd).toHaveBeenCalledTimes(1);
   });
 
   it('does not drag when the splitter is not editable', async () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const onChange = vi.fn();
+    const onSplitChange = vi.fn();
     const panel = new SplitterPanel({
       editable: false,
-      onChange,
+      onSplitChange,
       panels: [
         new TestPanel({id: 'first', title: 'First', content: createPanelContent('first')}),
         new TestPanel({id: 'second', title: 'Second', content: createPanelContent('second')})
@@ -336,7 +378,7 @@ describe('composite panels', () => {
     document.dispatchEvent(new MouseEvent('pointermove', {clientX: 10, bubbles: true}));
     await Promise.resolve();
 
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onSplitChange).not.toHaveBeenCalled();
   });
 
   it('renders one splitter panel without a handle and renders empty input as empty content', () => {
@@ -381,7 +423,7 @@ describe('composite panels', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    const panel = new AccordeonPanel({
+    const panel = new AccordionPanel({
       panels: [
         new TestPanel({id: 'first', title: 'First', content: <div>first content</div>}),
         new TestPanel({id: 'second', title: 'Second', content: <div>second content</div>})

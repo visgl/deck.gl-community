@@ -4,6 +4,19 @@ This page lists module additions and major changes in each release. For detailed
 
 ## Unreleased
 
+- **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
+  independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
+  aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
+
+- **Breaking panels API:** specialized panels render from typed live props; rename
+  `AccordeonPanel` to `AccordionPanel`, splitter `onChange` to `onSplitChange`, and
+  `initialSplit` to `defaultSplit`. Controlled `split` is authoritative during dragging.
+  No compatibility names are exported. See the upgrade guide.
+
+- Panels adds constructor components and automatic host resizing to `PanelManager`,
+  declarative accordion expansion and initial tab selection, and an updated guide
+  to composition, controlled state, canvas chrome, and dynamically loaded Monaco.
+
 - Community examples and inline demos use shared sleek-dark panel chrome. Playground accepts a
   panel preset or custom theme through `theme`, including its editors and example picker.
 

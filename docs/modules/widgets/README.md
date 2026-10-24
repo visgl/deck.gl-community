@@ -121,5 +121,5 @@ Use panel definitions from [`@deck.gl-community/panels`](/docs/modules/panels):
 
 - [Using with deck.gl](/docs/modules/panels/developer-guide/using-with-deck-gl)
 - [Leaf Panels](/docs/modules/panels/api-reference/custom-panel)
-- [Composite Panels](/docs/modules/panels/api-reference/composite-panels/accordeon-panel)
+- [Composite Panels](/docs/modules/panels/api-reference/composite-panels/accordion-panel)
 - [Panel Containers](/docs/modules/panels/api-reference/panel-containers/panel-container)

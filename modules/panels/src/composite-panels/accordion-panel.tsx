@@ -4,20 +4,29 @@ import {useCallback, useMemo} from 'preact/hooks';
 import {useControlledStringListState} from '../panels/panel-state';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {JSX} from 'preact';
 import type {PanelId, PanelListContainerProps, PanelTheme} from '../panels/panel';
 
-/** Props for the composite `AccordeonPanel` definition. */
-export type AccordeonPanelProps = {
+/** Props for the composite `AccordionPanel` definition. */
+export type AccordionPanelProps = PanelProps & {
   panels: ReadonlyArray<Panel>;
   id?: string;
   title?: string;
   theme?: PanelTheme;
+  /** Initially expanded sections when expansion is uncontrolled. */
+  defaultExpandedPanelIds?: ReadonlyArray<PanelId>;
+  /** Expanded sections when expansion is controlled. */
+  expandedPanelIds?: ReadonlyArray<PanelId>;
+  /** Called with the requested expanded section ids. */
+  onExpandedPanelIdsChange?: (expandedPanelIds: ReadonlyArray<PanelId>) => void;
+  /** Whether more than one section may be expanded. Defaults to true. */
+  allowMultipleExpanded?: boolean;
 };
 
 /** Props for the rendered accordion panel list. */
-export type AccordeonPanelContainerProps = PanelListContainerProps & {
+export type AccordionPanelContainerProps = PanelListContainerProps & {
   defaultExpandedPanelIds?: ReadonlyArray<PanelId>;
   expandedPanelIds?: ReadonlyArray<PanelId>;
   onExpandedPanelIdsChange?: (expandedPanelIds: ReadonlyArray<PanelId>) => void;
@@ -25,26 +34,49 @@ export type AccordeonPanelContainerProps = PanelListContainerProps & {
 };
 
 /** Panel definition that renders child panels as expandable accordion sections. */
-export class AccordeonPanel extends Panel {
-  constructor({
-    panels,
-    id = 'accordeon-panels',
-    title = 'Panels',
-    theme = 'inherit'
-  }: AccordeonPanelProps) {
-    super({id, title, theme, content: <AccordeonPanelContainer panels={panels} />});
+export class AccordionPanel extends Panel<AccordionPanelProps> {
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'accordion-panels',
+    title: 'Panels',
+    theme: 'inherit'
+  } satisfies PanelProps & Partial<AccordionPanelProps>;
+
+  override getChildPanels(): ReadonlyArray<Panel> {
+    return this.props.panels;
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {
+      panels,
+      defaultExpandedPanelIds,
+      expandedPanelIds,
+      onExpandedPanelIdsChange,
+      allowMultipleExpanded
+    } = this.props;
+    return (
+      <AccordionPanelContainer
+        panels={panels}
+        defaultExpandedPanelIds={defaultExpandedPanelIds}
+        expandedPanelIds={expandedPanelIds}
+        onExpandedPanelIdsChange={onExpandedPanelIdsChange}
+        allowMultipleExpanded={allowMultipleExpanded}
+      />
+    );
   }
 }
 
 /** Renders ordered panels as an accordion layout. */
-export function AccordeonPanelContainer({
+export function AccordionPanelContainer({
   panels,
   className,
   defaultExpandedPanelIds = [],
   expandedPanelIds,
   onExpandedPanelIdsChange,
   allowMultipleExpanded = true
-}: AccordeonPanelContainerProps) {
+}: AccordionPanelContainerProps) {
   const [currentExpandedPanelIds, setCurrentExpandedPanelIds] = useControlledStringListState(
     expandedPanelIds,
     defaultExpandedPanelIds
@@ -74,7 +106,7 @@ export function AccordeonPanelContainer({
   );
 
   return (
-    <div className={className} style={ACCORDEON_CONTAINER_STYLE}>
+    <div className={className} style={ACCORDION_CONTAINER_STYLE}>
       {panels.map(panel => {
         const isExpanded = expandedPanelIdSet.has(panel.id);
         const shouldRenderContent = panel.keepMounted || isExpanded;
@@ -125,7 +157,7 @@ export function AccordeonPanelContainer({
   );
 }
 
-const ACCORDEON_CONTAINER_STYLE: JSX.CSSProperties = {
+const ACCORDION_CONTAINER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 'var(--panel-gap, 8px)'

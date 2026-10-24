@@ -6,12 +6,12 @@ import PanelLiveExample from '@site/src/components/docs/panel-live-example';
   <img src="https://img.shields.io/badge/from-v9.3-green.svg?style=flat-square" alt="from v9.3" />
 </p>
 
-<PanelLiveExample highlight="box-panel-container" />
-
 `BoxPanelContainer` renders one panel inside a themed card with optional pinning.
 
 Use it when panel content should stay visible in a fixed standalone card without
 deck.gl widget placement.
+
+<PanelLiveExample highlight="box-panel-container" />
 
 ## Usage
 

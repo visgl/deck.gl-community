@@ -98,6 +98,13 @@ it('exports MetricsPanel', () => {
 it('exports canvas chrome and adaptive container state', () => {
   expect(Panels.HeaderPanelContainer).toBeDefined();
   expect(Panels.FooterPanelContainer).toBeDefined();
-  expect(Panels.SidePanelContainer).toBeDefined();
+  expect('SidePanelContainer' in Panels).toBe(false);
   expect(Panels.usePanelContainerState).toBeDefined();
+});
+
+it('exports only the corrected accordion class and rendering component names', () => {
+  expect(Panels.AccordionPanel).toBeDefined();
+  expect(Panels.AccordionPanelContainer).toBeDefined();
+  expect('AccordeonPanel' in Panels).toBe(false);
+  expect('AccordeonPanelContainer' in Panels).toBe(false);
 });
