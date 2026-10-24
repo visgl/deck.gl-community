@@ -485,7 +485,7 @@ function buildHighlightPanel(highlight: PanelDocsExampleHighlight) {
       return new TextEditorPanel({
         id: 'editor',
         title: 'Editor',
-        value: JSON.stringify({theme: 'light', layers: 3}, null, 2),
+        defaultValue: JSON.stringify({theme: 'light', layers: 3}, null, 2),
         language: 'json'
       });
 

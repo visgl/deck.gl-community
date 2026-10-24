@@ -460,6 +460,7 @@ export function mountGraphViewerExample(
     },
     onStylesheetChange(nextValue: string) {
       state.stylesheetValue = nextValue;
+      syncWidgets();
     }
   };
 
