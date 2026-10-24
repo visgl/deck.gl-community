@@ -354,6 +354,29 @@ describe('rendering from public panel props', () => {
     expect(root.textContent).toContain('Fresh child');
   });
 
+  it('reconciles enabled tab selection after nested child updates without replacing the array', async () => {
+    const a = new MarkdownPanel({id: 'a', title: 'A', markdown: 'Alpha'});
+    const b = new MarkdownPanel({id: 'b', title: 'B', markdown: 'Beta'});
+    const panels = [a, b];
+    const onActivePanelIdChange = vi.fn();
+    const tabs = new TabbedPanel({panels, defaultActivePanelId: 'a', onActivePanelIdChange});
+    const root = embed(new ColumnPanel({panels: [tabs]}));
+    const activeTitle = () => root.querySelector('[data-panel-active="true"]')?.textContent;
+    expect(activeTitle()).toBe('A');
+    a.setProps({disabled: true});
+    await settle();
+    expect(activeTitle()).toBe('B');
+    expect(onActivePanelIdChange).toHaveBeenLastCalledWith('b');
+    a.setProps({disabled: false});
+    await settle();
+    expect(activeTitle()).toBe('B');
+    b.setProps({disabled: true});
+    await settle();
+    expect(activeTitle()).toBe('A');
+    expect(onActivePanelIdChange).toHaveBeenLastCalledWith('a');
+    expect(tabs.props.panels).toBe(panels);
+  });
+
   it('applies controlled tab selection and current callbacks through the public class', async () => {
     const first = vi.fn(),
       next = vi.fn();

@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import {useLayoutEffect, useMemo} from 'preact/hooks';
+import {useLayoutEffect} from 'preact/hooks';
 
 import {useControlledStringState} from '../panels/panel-state';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
@@ -77,13 +77,9 @@ export function TabbedPanelContainer({
     defaultActivePanelId
   );
 
-  const enabledPanels = useMemo(() => panels.filter(panel => !panel.disabled), [panels]);
-  const initialActivePanelId = useMemo(() => {
-    const isActivePanelEnabled = currentActivePanelId
-      ? enabledPanels.some(panel => panel.id === currentActivePanelId)
-      : false;
-    return isActivePanelEnabled ? currentActivePanelId : enabledPanels[0]?.id;
-  }, [currentActivePanelId, enabledPanels]);
+  const enabledPanels = panels.filter(panel => !panel.disabled);
+  const isActivePanelEnabled = enabledPanels.some(panel => panel.id === currentActivePanelId);
+  const initialActivePanelId = isActivePanelEnabled ? currentActivePanelId : enabledPanels[0]?.id;
 
   useLayoutEffect(() => {
     const shouldSyncActivePanel = currentActivePanelId !== initialActivePanelId;
