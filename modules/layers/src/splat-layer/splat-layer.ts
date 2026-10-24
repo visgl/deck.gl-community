@@ -3,7 +3,6 @@
 // Copyright (c) vis.gl contributors
 import {
   CompositeLayer,
-  _GlobeViewport as GlobeViewport,
   type Accessor,
   type DefaultProps,
   createIterable,
@@ -18,6 +17,7 @@ import {SplatPrimitiveLayer, type PreparedSplatProps} from './splat-primitive-la
 import {
   getSplatBoundedPixelsPerMeter,
   getSplatCommonUnits,
+  getSplatQueryViews,
   getSplatFocusWeight,
   getSplatProjectionKey,
   getSplatViewportLodWeight,
@@ -29,6 +29,7 @@ import {
   querySplatSpatialIndex,
   type SplatSpatialNode
 } from './splat-spatial-index';
+import {getSplatHorizon, getSplatTangentFrame, offsetSplatCommonPosition} from './splat-globe';
 import type {SplatHierarchy} from './splat-hierarchy';
 import {getSplatRadius, getSplatCenter} from './splat-source';
 import {getSplatTransform, getSplatTransformScale} from './splat-transform';
@@ -116,7 +117,7 @@ type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'
   _splatBudgetGroup?: SplatBudgetGroup;
 };
 
-/** Properties for prepared assets and their original owner rows in single-world planar views. */
+/** Properties for prepared assets and their original owner rows in map, globe and planar views. */
 export type SplatLayerProps<DataT = SplatInstance> = _SplatLayerProps<DataT> & LayerProps;
 
 /** Counts submitted Gaussians independently from the number of owning instances. */
@@ -203,11 +204,6 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
   }
 
   updateState({changeFlags, props, oldProps}: UpdateParameters<this>) {
-    const activeViewports = [this.context.viewport, ...this.context.deck.getViewports()];
-    if (activeViewports.some(view => view instanceof GlobeViewport))
-      throw new Error(
-        'SplatLayer supports planar views; GlobeView requires globe-aligned covariance and bounds.'
-      );
     // A repeated MapView selects owners in its primary frustum; SplatPrimitiveLayer composites
     // that copy alone, so wrapped world copies need no owner query of their own.
     const runtime = SplatRuntime.get(this.context.deck, this.context.device);
@@ -348,7 +344,13 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
           deformation[0],
           strength
         );
-        const center = localCenter.map((value, axis) => common[axis] + value * units[axis]);
+        // On the globe, owner metres point along the east-north-up frame at the anchor.
+        const center = offsetSplatCommonPosition(
+          common,
+          localCenter,
+          units,
+          getSplatTangentFrame(common, viewport)
+        );
         // Physical pose survives streamed wrapper/index replacement. Duplicate poses
         // remain separate owners; the template/hierarchy belongs to this layer.
         const pose = [asset.id, ...position, ...transform, ...deformation].join(',');
@@ -377,13 +379,13 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       );
     }
 
-    const viewports = this.context.deck.getViewports();
-    const views = viewports.length ? viewports : [viewport];
+    const views = getSplatQueryViews(viewport, this.context.deck.getViewports());
     const projections = views.map(view => ({
       matrix: view.viewProjectionMatrix,
       center: [0, 0, 0, 0],
       width: view.width,
-      height: view.height
+      height: view.height,
+      horizon: getSplatHorizon(view)
     }));
     const pixelRatio = this.context.device.canvasContext?.cssToDeviceRatio() ?? 1;
     const candidates: SplatSelection<PreparedOwner<DataT>>[] = [];

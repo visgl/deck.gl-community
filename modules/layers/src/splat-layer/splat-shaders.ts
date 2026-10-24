@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL} from './splat-deformation';
+import {SPLAT_GLOBE_GLSL} from './splat-globe';
 
 const DECLARATION = `uniform splatUniforms {
   float strength;
@@ -49,8 +50,8 @@ const float SPLAT_SHADOW_OWNER_RADIUS = 1.25;
 // The light-depth offset from a receiver to its owner's light-facing tangent plane, less one
 // shadow-map texel. A caster draws a flat footprint at its centre depth, so none of this owner's
 // Gaussians lies nearer the light than that plane, however wide; nearer owners still shadow it.
-// transform maps source units to owner metres; ownerOffset is the receiver minus the source
-// origin, in common units.
+// transform maps source units to metres along the common axes; ownerOffset is the receiver minus
+// the source origin, in common units.
 float splatShadowReceiveOffset(mat4 light, mat3 transform, vec3 ownerOffset) {
   // Light depth grows away from the light, along this row of its view-projection.
   vec3 depthAxis = vec3(light[0].z, light[1].z, light[2].z);
@@ -101,6 +102,7 @@ out vec3 vPosition;
 out vec3 vCamera;
 out float vCoverageWeight;
 ${SPLAT_DEFORMATION_GLSL}
+${SPLAT_GLOBE_GLSL}
 ${SPLAT_SHADOW_VERTEX}
 void main() {
   geometry.worldPosition = instancePositions;
@@ -122,21 +124,24 @@ void main() {
   if (splat.strength != 0.0) jacobian = splatDeform(position, height, splat.strength * instanceDeformation.y, wave);
   covariance = jacobian * covariance;
   normal = splatDeformNormal(jacobian, normal);
-  vec4 commonPosition;
-  vec4 center = project_position_to_clipspace(instancePositions, instancePositions64Low, project_size(position), commonPosition);
+  // Owner metres point east, north and up of the anchor, on deck.gl's globe as in planar views.
+  vec3 anchor = project_position(instancePositions, instancePositions64Low);
+  mat3 frame = splatTangentFrame(anchor);
+  vec4 commonPosition = vec4(anchor + frame * project_size(position), 1.0);
+  vec4 center = project_common_position_to_clipspace(commonPosition);
   geometry.position = commonPosition;
   vPosition = commonPosition.xyz;
   vCamera = project.cameraPosition;
   vCoverageWeight = instanceCoverageWeight.x;
-  vNormal = project_normal(normal);
+  vNormal = splatProjectNormal(normal, anchor);
   geometry.normal = vNormal;
   // Reuse the perspective Jacobian for all three covariance axes.
   mat4 projectionMatrix = project.viewProjectionMatrix;
   vec2 viewportSize = project.viewportSize;
   vec3 rowW = vec3(projectionMatrix[0].w, projectionMatrix[1].w, projectionMatrix[2].w);
-  vec3 axisX = project_size(covariance[0]);
-  vec3 axisY = project_size(covariance[1]);
-  vec3 axisZ = project_size(covariance[2]);
+  vec3 axisX = frame * project_size(covariance[0]);
+  vec3 axisY = frame * project_size(covariance[1]);
+  vec3 axisZ = frame * project_size(covariance[2]);
   vec3 depthAxes = vec3(dot(rowW, axisX), dot(rowW, axisY), dot(rowW, axisZ));
   float depthSigma = length(depthAxes);
   // EWA is a local perspective approximation. Clamp its off-axis derivative like
@@ -180,7 +185,8 @@ void main() {
   vColor = vec4(splatColors.rgb * instanceColors.rgb, splatColors.a * instanceColors.a * layer.opacity * compensation);
   gl_Position = center;
   gl_Position.xy += offset / viewportSize * 2.0 * center.w;
-  if (center.w <= 0.0 || center.z < -center.w || vColor.a < splat.alphaCutoff) gl_Position = vec4(2,2,2,1);
+  // Weighted transparency resolves without the basemap's depth: the globe must hide its far side.
+  if (center.w <= 0.0 || center.z < -center.w || vColor.a < splat.alphaCutoff || splatBehindGlobe(commonPosition.xyz)) gl_Position = vec4(2,2,2,1);
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 #ifdef MODULE_SHADOW
   // The shadow filter moved the center into light clip space; expand the footprint there.
@@ -189,11 +195,11 @@ void main() {
     if (vColor.a < splat.alphaCutoff) gl_Position = vec4(2,2,2,1);
     splatShadowThreshold = splatShadowHash(splatCenters, instancePositions, instancePositions64Low);
   } else if (shadow.useShadowMap) {
-    vec3 ownerOffset = project_size(position - instanceTranslation);
-    splatShadowDepth = vec2(shadow_vPosition[0].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix0, transform, ownerOffset), 0.0);
+    vec3 ownerOffset = frame * project_size(position - instanceTranslation);
+    splatShadowDepth = vec2(shadow_vPosition[0].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix0, frame * transform, ownerOffset), 0.0);
     // deck.gl leaves an unused light's matrix zero.
     if (shadow.lightCount > 1.0)
-      splatShadowDepth.y = shadow_vPosition[1].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix1, transform, ownerOffset);
+      splatShadowDepth.y = shadow_vPosition[1].z + splatShadowReceiveOffset(shadow.viewProjectionMatrix1, frame * transform, ownerOffset);
     // deck.gl's color filter would tint a translucent Gaussian as a shadow film laid over it; the
     // fragment shader tints it as a surface instead.
     shadow_vPosition[0].z = -1.0;
