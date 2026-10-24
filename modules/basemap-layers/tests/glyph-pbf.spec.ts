@@ -2,6 +2,8 @@
 import {readFileSync} from 'node:fs';
 import {describe, expect, test} from 'vitest';
 import {GLYPH_BORDER, parseGlyphRange} from '../src/glyph-pbf.ts';
+import {getGlyphCharacterMeasurer, getGlyphFontRenderer} from '../src/glyph-font-renderer.ts';
+import {GlyphStore} from '../src/glyph-store.ts';
 
 const NOTO_SANS = new URL(
   './reference-render/fixtures/tiles.openfreemap.org/fonts/Noto Sans Regular/',
@@ -23,6 +25,18 @@ function field(tag: number, wireType: number, payload: number[]): number[] {
   const key = varint(tag * 8 + wireType);
   return wireType === 2 ? [...key, ...varint(payload.length), ...payload] : [...key, ...payload];
 }
+
+/**
+ * The space of CARTO's Montserrat Regular glyph range, byte for byte: no ink (`width` and `height`
+ * 0), but a bitmap of just its 3 pixel border on every side, 6 by 6 zeros.
+ */
+const PADDED_SPACE = Uint8Array.from(
+  Buffer.from(
+    '0820122400000000000000000000000000000000000000000000000000000000000000000000' +
+      '0000180020002800302f3806',
+    'hex'
+  )
+);
 
 const zigzag = (value: number) => (value < 0 ? -2 * value - 1 : 2 * value);
 
@@ -115,6 +129,55 @@ describe('parseGlyphRange', () => {
       ])
     );
     expect(glyphs.map(({id}) => id)).toEqual([66]);
+  });
+
+  test('reads a glyph without ink whose bitmap is only its border, as MapLibre GL JS does', () => {
+    const [space, a] = parseGlyphRange(
+      glyphRange([[...PADDED_SPACE], glyph({id: 65, width: 2, height: 2})])
+    );
+    expect({...space, bitmap: space.bitmap.length}).toEqual({
+      id: 32,
+      bitmap: 0,
+      width: 0,
+      height: 0,
+      left: 0,
+      top: -24,
+      advance: 6
+    });
+    expect(a.id).toBe(65);
+  });
+
+  test('skips a glyph without ink whose bitmap is not its border', () => {
+    const glyphs = parseGlyphRange(
+      glyphRange([
+        glyph({id: 32, width: 0, height: 0, bitmapLength: 35}),
+        glyph({id: 33, width: 0, height: 0, bitmapLength: 37}),
+        glyph({id: 34, width: 0, height: 4, bitmapLength: 36}),
+        glyph({id: 35, width: 0, height: 4, bitmapLength: 6 * 10}),
+        glyph({id: 36, width: 0, height: 0})
+      ])
+    );
+    expect(glyphs.map(({id}) => id)).toEqual([35, 36]);
+  });
+
+  test('keeps the spaces of a label whose space glyph is only its border', async () => {
+    const range = glyphRange([
+      [...PADDED_SPACE],
+      ...[...'UnioSqar'].map(character =>
+        glyph({id: character.codePointAt(0)!, width: 10, height: 12, advance: 12})
+      )
+    ]);
+    const store = new GlyphStore({
+      url: 'https://tiles.example.com/fonts/{fontstack}/{range}.pbf',
+      fetch: (async () => new Response(range)) as unknown as typeof fetch
+    });
+    await store.load('Test Regular', ['Union Square']);
+    const measure = getGlyphCharacterMeasurer(store, 'Test Regular');
+    const width = (text: string) =>
+      [...text].reduce((sum, character) => sum + measure(character), 0);
+    expect(measure(' ')).toBe(6 / 24);
+    expect(width('Union Square')).toBeGreaterThan(width('UnionSquare'));
+    expect(getGlyphFontRenderer(store, 'Test Regular').measure(' ').advance).toBe(6);
   });
 
   test('skips fields it does not know', () => {

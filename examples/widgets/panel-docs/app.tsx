@@ -16,8 +16,8 @@ import {
   DocumentationLinksPanel,
   KeyboardShortcutsPanel,
   MarkdownPanel,
-  PANEL_THEME_DARK,
-  PANEL_THEME_LIGHT,
+  PANEL_THEME_SLEEK_DARK as PANEL_THEME_DARK,
+  PANEL_THEME_SLEEK_LIGHT as PANEL_THEME_LIGHT,
   BoxPanelContainer,
   FullScreenPanelContainer,
   PanelManager,
@@ -81,7 +81,7 @@ export function mountPanelDocsExample(
   container.replaceChildren(rootElement);
 
   const state = {
-    theme: 'light' as 'light' | 'dark'
+    theme: 'dark' as 'light' | 'dark'
   };
 
   applyStyle(rootElement, {

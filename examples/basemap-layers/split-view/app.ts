@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {CustomPanel, applyPanelTheme} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {
   Deck,
   MapView,
@@ -38,15 +41,17 @@ export function mountBasemapSplitViewExample(container: HTMLElement): () => void
     pane.style.cssText = 'position:relative;flex:1;min-width:0;overflow:hidden;';
     pane.setAttribute('aria-label', label);
     root.appendChild(pane);
+    applyPanelTheme(pane, EXAMPLE_PANEL_STYLE);
     const heading = document.createElement('div');
     heading.textContent = label;
     heading.style.cssText =
-      'position:absolute;top:12px;left:12px;z-index:2;background:white;color:#222;padding:6px 10px;border-radius:4px;pointer-events:none;';
+      'position:absolute;top:12px;left:12px;z-index:2;background:var(--menu-background);color:var(--menu-text);padding:6px 10px;border-radius:4px;pointer-events:none;';
     pane.appendChild(heading);
     return pane;
   };
   const deckPane = createPane('basemap-layers · deck.gl');
   const mapPane = createPane('MapLibre GL JS');
+  deckPane.firstElementChild?.remove();
   mapPane.style.boxShadow = 'inset 2px 0 #888';
   const select = document.createElement('select');
   select.setAttribute('aria-label', 'Shared map style');
@@ -61,7 +66,7 @@ export function mountBasemapSplitViewExample(container: HTMLElement): () => void
   deckPane.appendChild(select);
   const attribution = document.createElement('div');
   attribution.style.cssText =
-    'position:absolute;bottom:0;right:0;z-index:2;background:white;color:#222;padding:2px 5px;font-size:11px;';
+    'position:absolute;bottom:0;right:0;z-index:2;background:var(--menu-background);color:var(--menu-text);padding:2px 5px;font-size:11px;';
   attribution.innerHTML =
     '<a href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>';
   deckPane.appendChild(attribution);
@@ -85,6 +90,30 @@ export function mountBasemapSplitViewExample(container: HTMLElement): () => void
     'position:absolute;top:122px;left:12px;right:12px;z-index:2;font:12px sans-serif;color:#222;background:#ffffffe0;padding:6px;pointer-events:none;';
   hint.textContent = 'Drag to pan; shift/right-drag to rotate and tilt.';
   deckPane.appendChild(hint);
+  const controls = document.createElement('div');
+  controls.style.cssText = 'display:grid;gap:8px';
+  for (const element of [select, viewSelect, hint]) {
+    element.style.cssText =
+      'font:inherit;color:var(--menu-text);background:var(--menu-weak-background);padding:6px';
+    controls.append(element);
+  }
+  const infoWidget = new BoxPanelWidget({
+    id: 'basemap-comparison-controls',
+    title: 'basemap-layers · deck.gl',
+    placement: 'top-left',
+    widthPx: 260,
+    offsetPx: 12,
+    collapsible: true,
+    style: EXAMPLE_PANEL_STYLE,
+    panel: new CustomPanel({
+      id: 'basemap-comparison-settings',
+      title: '',
+      onRenderHTML(element) {
+        element.append(controls);
+        return () => controls.remove();
+      }
+    })
+  });
   const unavailable = document.createElement('div');
   unavailable.setAttribute('role', 'status');
   unavailable.style.cssText =
@@ -230,6 +259,7 @@ export function mountBasemapSplitViewExample(container: HTMLElement): () => void
   try {
     deck = new Deck<MapView | FirstPersonView | _GlobeView>({
       parent: deckPane,
+      widgets: [infoWidget],
       views: new MapView({repeat: true}),
       viewState,
       controller: true,

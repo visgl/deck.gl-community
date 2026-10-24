@@ -14,6 +14,7 @@ export function mountPlaygroundExample(container: HTMLElement): () => void {
   const editing = createEditablePlaygroundControls();
   const playground = new DeckPlayground({
     parentElement: container,
+    theme: 'sleek-dark',
     templates: TEMPLATES,
     registry: createPlaygroundRegistry(editing.constants),
     onPanelChange: panelId => vega.setActive(panelId === 'vega'),

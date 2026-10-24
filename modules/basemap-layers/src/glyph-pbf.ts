@@ -120,12 +120,15 @@ function readGlyph(bytes: Uint8Array): Glyph | null {
   if (id === undefined) {
     return null;
   }
-  const bitmap = glyph.bitmap || new Uint8Array(0);
-  // A bitmap of any other size cannot be read as a distance field, as in MapLibre's `AlphaImage`.
-  const size = width && height ? (width + 2 * GLYPH_BORDER) * (height + 2 * GLYPH_BORDER) : 0;
-  if (bitmap.length !== size) {
+  // MapLibre GL JS reads every bitmap as `width + 6` by `height + 6` (its `AlphaImage`) and fails on
+  // any other size. A glyph without ink, such as a space, may leave its bitmap out or carry just
+  // the border (CARTO's glyphs do): either way it draws nothing, and only its advance counts.
+  const inked = width > 0 && height > 0;
+  const size = (width + 2 * GLYPH_BORDER) * (height + 2 * GLYPH_BORDER);
+  if (glyph.bitmap ? glyph.bitmap.length !== size : inked) {
     return null;
   }
+  const bitmap = inked ? glyph.bitmap! : new Uint8Array(0);
   return {id, bitmap, width, height, left, top, advance};
 }
 

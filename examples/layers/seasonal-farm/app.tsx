@@ -15,6 +15,9 @@ import {
 import {LineLayer, PolygonLayer, TextLayer} from '@deck.gl/layers';
 import type {Device} from '@luma.gl/core';
 import {TreeLayer, type Season} from '@deck.gl-community/layers';
+import {CustomPanel} from '@deck.gl-community/panels';
+import {BoxPanelWidget} from '@deck.gl-community/widgets';
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {
   createFarmPlots,
   SEASONS,
@@ -94,12 +97,30 @@ export function mountSeasonalFarmExample(
   root.dataset.managedDevice = String(Boolean(options.device));
   root.innerHTML = `
     <div class="farm-canvas"></div>
-    <header class="farm-title"><h1>Seasonal Farm</h1><p>7 plots · ${FARMS[0].trees.length} trees · hover to inspect</p></header>
+    <div class="farm-panel-content"><p>7 plots · ${FARMS[0].trees.length} trees · hover to inspect</p>
     <div class="farm-seasons" role="group" aria-label="Season" ${options.showControlsWidget === false ? 'hidden' : ''}>
       ${SEASONS.map(season => `<button type="button" data-season="${season}" aria-pressed="false">${season[0].toUpperCase() + season.slice(1)}</button>`).join('')}
     </div>
-    <small class="farm-note">Illustrative planting · fruit and flowers enlarged</small>`;
+    <small class="farm-note">Illustrative planting · fruit and flowers enlarged</small></div>`;
   container.replaceChildren(root);
+  const content = root.querySelector<HTMLElement>('.farm-panel-content')!;
+  const infoWidget = new BoxPanelWidget({
+    id: 'farm-controls',
+    title: 'Seasonal Farm',
+    collapsible: true,
+    placement: 'top-left',
+    widthPx: 344,
+    offsetPx: 16,
+    style: EXAMPLE_PANEL_STYLE,
+    panel: new CustomPanel({
+      id: 'farm-controls-content',
+      title: '',
+      onRenderHTML(element) {
+        element.append(content);
+        return () => content.remove();
+      }
+    })
+  });
   let season = HOST_SEASON.get(container) ?? 'spring';
   let farm = FARMS[container.clientWidth < 600 ? 0 : 1];
   let currentView: MapViewState = {
@@ -110,7 +131,7 @@ export function mountSeasonalFarmExample(
   const deck = new Deck({
     parent: root.querySelector<HTMLDivElement>('.farm-canvas')!,
     device: options.device,
-    widgets: options.widgets ?? [],
+    widgets: [...(options.widgets ?? []), infoWidget],
     views: new MapView({id: 'farm'}),
     initialViewState: currentView,
     controller: {type: MapController, touchRotate: true},
