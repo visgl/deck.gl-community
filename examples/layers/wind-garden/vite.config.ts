@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 // Local vite config for the wind-garden example.
-// Resolve the layers, panels and widgets packages from source,
+// Resolve the layers, geo-layers, panels and widgets packages from source,
 // so a fresh checkout can start without a package build.
 import {defineConfig} from 'vite';
 import path from 'path';
@@ -14,6 +14,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      '@deck.gl-community/geo-layers': path.resolve(
+        __dirname,
+        '../../../modules/geo-layers/src/index.ts'
+      ),
       '@deck.gl-community/layers': path.resolve(__dirname, '../../../modules/layers/src/index.ts'),
       '@deck.gl-community/panels': path.resolve(__dirname, '../../../modules/panels/src/index.ts'),
       '@deck.gl-community/widgets': path.resolve(__dirname, '../../../modules/widgets/src/index.ts')

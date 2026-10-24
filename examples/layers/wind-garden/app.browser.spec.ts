@@ -3,7 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 import type {Deck, Layer, MapView} from '@deck.gl/core';
-import {WindEffect, WindExtension} from '@deck.gl-community/layers';
+import {WindEffect, WindExtension, getWindStrength, type TreeSpec} from '@deck.gl-community/layers';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it, vi} from 'vitest';
@@ -42,6 +42,22 @@ it('drives every garden layer from one panel-controlled WindEffect', {
     input.value = String(value);
     input.dispatchEvent(new Event('input', {bubbles: true}));
   };
+  const selectOption = async (name: string, label: string) => {
+    parent.querySelector<HTMLButtonElement>(`#settings-panel-input-${name}`)!.click();
+    const option = await vi.waitFor(() => {
+      const match = Array.from(document.body.querySelectorAll<HTMLElement>('[role="option"]')).find(
+        element => element.textContent?.toLowerCase().includes(label.toLowerCase())
+      );
+      expect(match).toBeDefined();
+      return match!;
+    });
+    option.click();
+  };
+  const flexes = (id: string) => {
+    const reeds = layer(id)!;
+    const getWind = reeds.props.getWind as (d: unknown) => [number, number, number];
+    return (reeds.props.data as unknown[]).map(d => getWind(d)[2]);
+  };
   // A frozen clock leaves the garden idle: each change then draws once.
   const settle = async (count = 5) => {
     const before = frames.mock.calls.length;
@@ -78,13 +94,18 @@ it('drives every garden layer from one panel-controlled WindEffect', {
         id
       ).toBe(true);
     expect(layer('TreeLayer')).toBeDefined();
-    expect(wind().props).toMatchObject({strength: 0.03, direction: 90, gust: 0.3, time: null});
+    // The Wind control is a speed in m/s; the bend follows the response curve.
+    expect(wind().props).toMatchObject({speed: 6, direction: 90, gust: 0.3, time: null});
+    expect(wind().props.strength).toBeNull();
+    expect(wind().strength).toBeCloseTo(getWindStrength(6), 12);
 
     // Freeze the clock, then turn the wind around: the frozen garden changes pose.
     parent.querySelector<HTMLInputElement>('#settings-panel-input-frozen')!.click();
     await expect.poll(() => wind().props.time).toBe(2);
-    setNumber('Wind', 0.1);
-    await expect.poll(() => wind().props.strength).toBe(0.1);
+    setNumber('Wind (m/s)', 15);
+    await expect.poll(() => wind().props.speed).toBe(15);
+    expect(wind().strength).toBeCloseTo(getWindStrength(15), 12);
+    expect(new Set(flexes('SimpleMeshLayer'))).toEqual(new Set([3]));
     await settle(1);
     const east = pixels.slice();
     setNumber('Wind direction', 270);
@@ -93,6 +114,30 @@ it('drives every garden layer from one panel-controlled WindEffect', {
     expect(changed(east, pixels)).toBeGreaterThan(500);
     setNumber('Turbulence', 0);
     await expect.poll(() => wind().props.turbulence).toBe(0);
+    await settle(1);
+    const uniform = pixels.slice();
+
+    // Station wind: the scene takes the central station's wind and each object its own spot's.
+    await selectOption('source', 'Stations');
+    await expect.poll(() => wind().props.speed).toBeCloseTo(6, 6);
+    expect(wind().props.direction).toBeCloseTo(45, 6);
+    const trees = layer('TreeLayer')!.props.data as TreeSpec[];
+    const strengths = trees.map(tree => tree.wind as number);
+    expect(strengths.every(value => value > 0 && value < 0.2)).toBe(true);
+    expect(new Set(strengths).size).toBe(trees.length);
+    // Reeds further east and north stand in more wind and bend further.
+    const reedFlex = flexes('SimpleMeshLayer');
+    expect(Math.max(...reedFlex)).toBeGreaterThan(Math.min(...reedFlex) * 1.1);
+    await settle(1);
+    expect(changed(uniform, pixels)).toBeGreaterThan(500);
+    expect(
+      deck!.props.getTooltip!({layer: layer('ColumnLayer'), object: {position: [-8, 0, 0]}} as any)
+    ).toMatchObject({text: expect.stringMatching(/ColumnLayer · \d+\.\d m\/s at this spot/)});
+    await selectOption('source', 'Uniform');
+    await expect.poll(() => wind().props.speed).toBe(15);
+    expect(
+      (layer('TreeLayer')!.props.data as TreeSpec[]).every(tree => tree.wind === undefined)
+    ).toBe(true);
     // A layer toggle removes only that layer; the rest keep the effect.
     parent.querySelector<HTMLInputElement>('#settings-panel-input-layers-columns')!.click();
     await expect.poll(() => layer('ColumnLayer')).toBeUndefined();

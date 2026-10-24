@@ -61,3 +61,13 @@ export {wind} from './wind-effect/wind-module';
 export type {WindModuleProps} from './wind-effect/wind-module';
 export {WindExtension} from './wind-effect/wind-extension';
 export type {WindExtensionProps} from './wind-effect/wind-extension';
+export {
+  getWindStrength,
+  getWindVelocity,
+  getWindDisplacement,
+  WIND_REFERENCE_HEIGHT,
+  WIND_DEFAULT_SHEAR
+} from './wind-effect/wind-module';
+export type {WindAirProps} from './wind-effect/wind-module';
+export {getLocalWindStrengths} from './wind-effect/local-wind';
+export type {LocalWind, LocalWindStrengthOptions, WindSampler} from './wind-effect/local-wind';

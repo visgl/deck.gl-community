@@ -6,8 +6,12 @@ import {TreeLayer, WindEffect, WindExtension, type TreeSpec} from '../../src';
 import {getLayerWind, getLayerWindBound} from '../../src/wind-effect/wind-effect';
 import {
   WIND_DEFAULT_DIRECTION,
+  getWindDisplacement,
   getWindGust,
-  getWindUniforms
+  getWindGustIntegral,
+  getWindStrength,
+  getWindUniforms,
+  getWindVelocity
 } from '../../src/wind-effect/wind-module';
 
 const device = {} as any;
@@ -86,6 +90,78 @@ describe('wind shader module', () => {
   });
 });
 
+describe('physical wind helpers', () => {
+  it('maps speed to bend on the vegetation response curve, capped at 0.2', () => {
+    expect(getWindStrength(5)).toBeCloseTo(0.025, 12);
+    expect(getWindStrength(6)).toBeCloseTo(0.025 * 1.2 ** 1.4, 12);
+    expect(getWindStrength(6)).toBeCloseTo(0.032, 3);
+    expect(getWindStrength(15)).toBeCloseTo(0.116, 3);
+    // Doubling the speed less than quadruples the bend: crowns streamline.
+    expect(getWindStrength(10) / getWindStrength(5)).toBeCloseTo(2 ** 1.4, 12);
+    const speeds = Array.from({length: 61}, (_, i) => i * 0.5);
+    const strengths = speeds.map(getWindStrength);
+    strengths.slice(1).forEach((value, i) => expect(value).toBeGreaterThanOrEqual(strengths[i]));
+    const capped = 5 * 8 ** (1 / 1.4);
+    expect(getWindStrength(capped - 0.01)).toBeLessThan(0.2);
+    expect(getWindStrength(capped + 0.01)).toBe(0.2);
+    expect(getWindStrength(60)).toBe(0.2);
+    for (const still of [0, -4, Number.NaN]) expect(getWindStrength(still)).toBe(0);
+  });
+
+  it('follows the power-law height profile along the bearing the wind blows toward', () => {
+    const [east, north] = getWindVelocity({speed: 6, direction: 90}, 10);
+    expect(east).toBeCloseTo(6, 12);
+    expect(north).toBeCloseTo(0, 12);
+    // Default shear 1/7: four times higher is 4^(1/7) faster.
+    expect(getWindVelocity({speed: 6, direction: 0}, 40)[1]).toBeCloseTo(6 * 4 ** (1 / 7), 12);
+    // A rougher city profile.
+    const city = getWindVelocity({speed: 6, direction: 180, shear: 0.25}, 2.5);
+    expect(city[1]).toBeCloseTo(-6 * 0.25 ** 0.25, 12);
+    expect(getWindVelocity({speed: 6, direction: 0, shear: 0}, 300)[1]).toBeCloseTo(6, 12);
+    // Southwest-bound wind has equal, negative components.
+    const southwest = getWindVelocity({speed: Math.SQRT2, direction: 225}, 10);
+    southwest.forEach(value => expect(value).toBeCloseTo(-1, 12));
+    expect(getWindVelocity({speed: 6}, 0)).toEqual([0, 0]);
+    expect(getWindVelocity({speed: null}, 10)).toEqual([0, 0]);
+    expect(getWindVelocity({}, 10)).toEqual([0, 0]);
+    // The gust swell is the one that scales the bend.
+    for (const time of [0, 1.7, 12.25]) {
+      const gusty = getWindVelocity({speed: 4, direction: 90, gust: 0.5}, 10, time);
+      expect(gusty[0]).toBeCloseTo(4 * (1 + 0.5 * getWindGust(time)), 12);
+    }
+  });
+
+  it('integrates the gusty velocity exactly into the displacement', () => {
+    const wind = {speed: 7, direction: 200, gust: 0.6, shear: 0.2};
+    // Simpson's rule over the velocity, against the closed form.
+    const integrate = (height: number, end: number) => {
+      const steps = 4000;
+      const h = end / steps;
+      const sum = [0, 0];
+      for (let i = 0; i <= steps; i++) {
+        const weight = i === 0 || i === steps ? 1 : i % 2 ? 4 : 2;
+        const velocity = getWindVelocity(wind, height, i * h);
+        sum[0] += weight * velocity[0];
+        sum[1] += weight * velocity[1];
+      }
+      return sum.map(value => (value * h) / 3);
+    };
+    for (const [height, end] of [
+      [10, 3],
+      [225, 17.5],
+      [1500, 120]
+    ]) {
+      const exact = getWindDisplacement(wind, height, end);
+      integrate(height, end).forEach((value, i) => expect(exact[i]).toBeCloseTo(value, 6));
+    }
+    getWindDisplacement(wind, 10, 0).forEach(value => expect(value).toBeCloseTo(0, 12));
+    expect(getWindGustIntegral(0)).toBeCloseTo(0, 15);
+    // Without gusts the air travels velocity × time.
+    const steady = getWindDisplacement({speed: 5, direction: 90}, 10, 8);
+    expect(steady[0]).toBeCloseTo(40, 12);
+  });
+});
+
 describe('WindEffect', () => {
   it('registers per deck and supplies module props on the layer timeline or a fixed clock', () => {
     const deck = {};
@@ -109,6 +185,69 @@ describe('WindEffect', () => {
     expect(effect.getShaderModuleProps(layer).wind.time).toBe(7);
     effect.cleanup({deck, device} as any);
     expect(WindEffect.get(deck)).toBeUndefined();
+  });
+
+  it('derives the bend from speed unless strength is given', () => {
+    expect(new WindEffect().strength).toBe(0.025);
+    expect(new WindEffect({speed: undefined, strength: undefined}).strength).toBe(0.025);
+    expect(new WindEffect({speed: 5}).strength).toBeCloseTo(0.025, 12);
+    expect(new WindEffect({speed: 15}).strength).toBe(getWindStrength(15));
+    expect(new WindEffect({speed: 0}).strength).toBe(0);
+    expect(new WindEffect({speed: 40}).strength).toBe(0.2);
+    // An explicit strength wins over speed, and 0 is still air.
+    expect(new WindEffect({speed: 15, strength: 0.01}).strength).toBe(0.01);
+    expect(new WindEffect({speed: 15, strength: 0}).strength).toBe(0);
+    expect(new WindEffect({speed: 6}).props).toMatchObject({
+      speed: 6,
+      strength: null,
+      shear: 1 / 7
+    });
+
+    const deck = {};
+    const effect = new WindEffect({speed: 10, gust: 0.5});
+    effect.setup({deck, device} as any);
+    const layer = createLayer(deck, 1);
+    expect(effect.getShaderModuleProps(layer).wind.strength).toBe(getWindStrength(10));
+    expect(getLayerWind(layer).wind.strength).toBe(getWindStrength(10));
+    const bound = getLayerWindBound(layer);
+    expect(bound.strength).toBe(getWindStrength(10));
+    expect(bound.peak).toBeCloseTo(getWindStrength(10) * 1.5, 12);
+    expect(layer.state.windKey).toBe(effect.boundKey);
+    // A new speed changes the bound; a new shear, or a speed past the cap, does not.
+    effect.setProps({speed: 12, gust: 0.5});
+    effect.preRender({layers: [layer]} as any);
+    expect(layer.setNeedsUpdate).toHaveBeenCalledOnce();
+    getLayerWindBound(layer);
+    effect.setProps({speed: 12, gust: 0.5, shear: 0.3});
+    effect.preRender({layers: [layer]} as any);
+    expect(layer.setNeedsUpdate).toHaveBeenCalledOnce();
+    effect.setProps({speed: 30, gust: 0.5});
+    getLayerWindBound(layer);
+    effect.setProps({speed: 45, gust: 0.5});
+    effect.preRender({layers: [layer]} as any);
+    expect(layer.setNeedsUpdate).toHaveBeenCalledOnce();
+    effect.cleanup({deck, device} as any);
+  });
+
+  it('reads an app-owned callback clock without requesting redraws', () => {
+    const deck = {};
+    let seconds = 1.5;
+    const clock = vi.fn(() => seconds);
+    const effect = new WindEffect({speed: 8, time: clock});
+    effect.setup({deck, device} as any);
+    const layer = createLayer(deck, 30);
+    expect(effect.getShaderModuleProps(layer).wind.time).toBe(1.5);
+    expect(getLayerWind(layer)).toMatchObject({wind: {time: 1.5}, animated: false});
+    seconds = 4;
+    expect(getLayerWind(layer).wind.time).toBe(4);
+    expect(getLayerWind(layer).wind.strength).toBe(getWindStrength(8));
+    expect(clock).toHaveBeenCalled();
+    // A layer's own clock still wins.
+    expect(getLayerWind(layer, null, 9).wind.time).toBe(9);
+    // `null` returns to the deck timeline and its redraw requests.
+    effect.setProps({speed: 8, time: null});
+    expect(getLayerWind(layer)).toMatchObject({wind: {time: 30}, animated: true});
+    effect.cleanup({deck, device} as any);
   });
 
   it('updates layers whose wind bounds came from another wind', () => {
@@ -285,6 +424,12 @@ describe('WindExtension', () => {
       time: 1
     });
     expect(pinned.layer.setNeedsRedraw).not.toHaveBeenCalled();
+    // An app-owned clock: the extension draws the app's time and leaves scheduling to the app.
+    effect.setProps({strength: 0.05, direction: 200, time: () => 6.5});
+    const scheduled = createExtended(deck);
+    scheduled.extension.draw.call(scheduled.layer, {}, scheduled.extension);
+    expect(scheduled.layer.setShaderModuleProps.mock.calls[0][0].wind.time).toBe(6.5);
+    expect(scheduled.layer.setNeedsRedraw).not.toHaveBeenCalled();
     effect.cleanup({deck, device} as any);
   });
 });

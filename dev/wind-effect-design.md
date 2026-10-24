@@ -34,11 +34,13 @@ new Deck({
 
 | Prop | Default | Meaning |
 | --- | --- | --- |
-| `strength` | `0.025` | Bend as a fraction of object height for flex 1 (the units of `windStrength`). `0` is still air. |
+| `speed` | `null` | m/s at 10 m. Without `strength`, the bend is `getWindStrength(speed)`, `0.025 × (speed / 5)^1.4` capped at 0.2 ([weather](./wind-effect-weather.md)). |
+| `strength` | `null` | Bend as a fraction of object height for flex 1 (the units of `windStrength`). Wins over `speed`; `0.025` when neither is set. `0` is still air. |
 | `direction` | `≈65.8` | Compass bearing the wind blows *toward*, degrees clockwise from north, like `DirectionalLight.direction`. The default reproduces today's fixed `(1, 0.45)` axis. |
 | `gust` | `0` | Slow strength swell: strength varies within `strength × (1 ± gust)`. |
 | `turbulence` | `1` | Scale of the crown flutter mode. `0` leaves a pure bend. |
-| `time` | `null` | Seconds. `null` follows the deck timeline, so `timeline.setTime()` and `pause()` apply. |
+| `shear` | `1/7` | Power-law profile exponent for `getWindVelocity` and `getWindDisplacement`. |
+| `time` | `null` | Seconds. `null` follows the deck timeline, so `timeline.setTime()` and `pause()` apply. A `() => number` callback is an app-owned clock: layers then request no redraws. |
 
 Like `LightingEffect`, the effect is replaced by passing a new instance with the same `id`. deck.gl
 then calls `setProps` on the existing one. One `WindEffect` per deck: it is the scene's wind field.

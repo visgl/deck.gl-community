@@ -1,6 +1,8 @@
 # WindEffect and luma.gl weather
 
-Status: proposal. How [`WindEffect`](./wind-effect-design.md) and the luma.gl
+Status: step 1 prototyped in `modules/layers/src/wind-effect/` (`speed`, `shear`, the callback
+clock, `getWindVelocity` and `getWindDisplacement`); steps 2 and 3 are open. How
+[`WindEffect`](./wind-effect-design.md) and the luma.gl
 [Riverfront weather](https://luma.gl/next/examples/deck/weather) example
 (`visgl/luma.gl` `examples/deck/weather`) could share one wind.
 

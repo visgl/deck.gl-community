@@ -4,16 +4,22 @@
 
 import type {SettingsSchema} from '@deck.gl-community/panels';
 
+/** Where the garden's wind comes from: one wind everywhere, or interpolated weather stations. */
+export type WindSource = 'uniform' | 'stations';
+
 /** The garden's WindEffect, lighting and layer visibility, driven by the settings panel. */
 export type GardenSettings = {
-  wind: {strength: number; direction: number; gust: number; turbulence: number};
+  /** Speed in m/s at 10 m, and the effect's direction, gusts and turbulence. */
+  wind: {speed: number; direction: number; gust: number; turbulence: number};
+  source: WindSource;
   frozen: boolean;
   shadows: boolean;
   layers: {trees: boolean; reeds: boolean; columns: boolean; cells: boolean; scan: boolean};
 };
 
 export const DEFAULT_GARDEN_SETTINGS: GardenSettings = {
-  wind: {strength: 0.03, direction: 90, gust: 0.3, turbulence: 1},
+  wind: {speed: 6, direction: 90, gust: 0.3, turbulence: 1},
+  source: 'uniform',
   frozen: false,
   shadows: false,
   layers: {trees: true, reeds: true, columns: true, cells: true, scan: true}
@@ -25,7 +31,26 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
       name: 'WindEffect',
       initiallyCollapsed: false,
       settings: [
-        {name: 'wind.strength', label: 'Wind', type: 'number', min: 0, max: 0.1, step: 0.005},
+        {
+          name: 'source',
+          label: 'Wind source',
+          description:
+            'Uniform: the Wind and Wind direction controls everywhere. Stations: five weather stations around the garden, calm in the southwest and windy in the northeast.',
+          type: 'select',
+          options: [
+            {label: 'Uniform', value: 'uniform'},
+            {label: 'Stations', value: 'stations'}
+          ]
+        },
+        {
+          name: 'wind.speed',
+          label: 'Wind (m/s)',
+          description: 'Speed at the 10 m reference height. 5 m/s is a gentle breeze.',
+          type: 'number',
+          min: 0,
+          max: 25,
+          step: 0.5
+        },
         {
           name: 'wind.direction',
           label: 'Wind direction',

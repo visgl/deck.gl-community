@@ -10,6 +10,12 @@ const LEGACY_MODE = [0.65, -0.25, 0.3, 0.8] as const;
 
 /** Compass bearing of the original fixed bend axis, about 65.8° (east-north-east). */
 export const WIND_DEFAULT_DIRECTION = (Math.atan2(LEGACY_AXIS[0], LEGACY_AXIS[1]) * 180) / Math.PI;
+/** Anemometer height, in metres, that wind `speed` refers to. */
+export const WIND_REFERENCE_HEIGHT = 10;
+/** Power-law shear exponent over open ground: `v(z) = v₁₀ (z / 10)^(1/7)`. */
+export const WIND_DEFAULT_SHEAR = 1 / 7;
+/** Largest bend the speed response reaches, as a fraction of object height. */
+const WIND_MAX_STRENGTH = 0.2;
 
 /** Resolved wind for one draw. Layers and `WindEffect` both supply these. */
 export type WindModuleProps = {
@@ -32,9 +38,86 @@ type WindUniforms = {
   strength: number;
 };
 
+/** The moving air a wind describes, for consumers that travel with it: rain, clouds, particles. */
+export type WindAirProps = {
+  /** Wind speed in m/s at the 10 m reference height; null or 0 is still air. @default 0 */
+  speed?: number | null;
+  /** Compass bearing the wind blows toward, in degrees clockwise from north. */
+  direction?: number;
+  /** Fractional speed swell: speed varies within `speed × (1 ± gust)`. @default 0 */
+  gust?: number;
+  /** Exponent of the power-law height profile `v(z) = v₁₀ (z / 10)^shear`. @default 1/7 */
+  shear?: number;
+};
+
 /** Slow strength swell in [-1, 1]: two incommensurate sines, periods of about 7.6 s and 3 s. */
 export function getWindGust(time: number): number {
   return 0.6 * Math.sin(time * 0.83) + 0.4 * Math.sin(time * 2.09 + 1.3);
+}
+
+/** Closed-form `∫₀ᵗ getWindGust`, so displacement stays exact over any session length. */
+export function getWindGustIntegral(time: number): number {
+  return (
+    (0.6 / 0.83) * (1 - Math.cos(time * 0.83)) +
+    (0.4 / 2.09) * (Math.cos(1.3) - Math.cos(time * 2.09 + 1.3))
+  );
+}
+
+/**
+ * Vegetation bend for a wind speed: `0.025 × (speed / 5)^1.4`, capped at 0.2. 5 m/s at 10 m gives
+ * TreeLayer's gentle 0.025 breeze, a 15 m/s gale about 0.12. The exponent below 2 reflects flexible
+ * plants streamlining as the wind grows.
+ * @param speed - Wind speed in m/s at the 10 m reference height.
+ * @returns Bend as a fraction of object height, in [0, 0.2].
+ */
+export function getWindStrength(speed: number): number {
+  if (!(speed > 0)) return 0;
+  return Math.min(WIND_MAX_STRENGTH, 0.025 * (speed / 5) ** 1.4);
+}
+
+/** Speed at `height` metres on the power-law profile, before gusts. */
+function getWindProfileSpeed(props: WindAirProps, height: number): number {
+  const {speed = 0, shear = WIND_DEFAULT_SHEAR} = props;
+  if (!(speed !== null && speed > 0 && height > 0)) return 0;
+  return speed * (height / WIND_REFERENCE_HEIGHT) ** shear;
+}
+
+/** Unit `[east, north]` vector of a compass bearing. */
+function getWindHeading(direction = WIND_DEFAULT_DIRECTION): [number, number] {
+  const radians = (direction * Math.PI) / 180;
+  return [Math.sin(radians), Math.cos(radians)];
+}
+
+/**
+ * Air velocity at a height, with the gust swell that bends the trees on the same clock.
+ * @param props - The wind, for example `WindEffect.props`.
+ * @param height - Height above ground in metres.
+ * @param time - Wind clock in seconds.
+ * @returns `[east, north]` in m/s.
+ */
+export function getWindVelocity(props: WindAirProps, height: number, time = 0): [number, number] {
+  const speed = getWindProfileSpeed(props, height) * (1 + (props.gust ?? 0) * getWindGust(time));
+  const [east, north] = getWindHeading(props.direction);
+  return [east * speed, north * speed];
+}
+
+/**
+ * Distance the air has travelled since time 0: the exact integral of `getWindVelocity`. Rain or
+ * cloud offsets built on it stay continuous through gusts, unlike `velocity × time`.
+ * @param props - The wind, for example `WindEffect.props`.
+ * @param height - Height above ground in metres.
+ * @param time - Wind clock in seconds.
+ * @returns `[east, north]` in metres.
+ */
+export function getWindDisplacement(
+  props: WindAirProps,
+  height: number,
+  time = 0
+): [number, number] {
+  const distance =
+    getWindProfileSpeed(props, height) * (time + (props.gust ?? 0) * getWindGustIntegral(time));
+  const [east, north] = getWindHeading(props.direction);
+  return [east * distance, north * distance];
 }
 
 /**
