@@ -35,6 +35,7 @@ import {
   updateSplatSourceHighlight
 } from '../splat-layer/splat-source-highlight';
 import type {SplatBudget, SplatBudgetGroup} from '../splat-layer/splat-runtime';
+import {getLayerWindBound} from '../wind-effect/wind-effect';
 
 /** Procedural species silhouette. */
 export type TreeType =
@@ -87,7 +88,10 @@ export type TreeSpec = {
   characteristics?: TreeCharacteristics;
   /** Explicit crops; omitted/null means none. */
   crop?: CropConfig | null;
-  /** Per-tree bend fraction; true is a gentle 0.025 breeze, false disables bending. */
+  /**
+   * Per-tree bend fraction; true is a gentle 0.025 breeze, false disables bending. Omit it to
+   * follow the layer's `windStrength`, or the deck's `WindEffect`.
+   */
   wind?: boolean | number;
   /** Explicit bark tint. */
   trunkColor?: Color | null;
@@ -277,9 +281,16 @@ type _TreeLayerProps<DataT> = {
   sizeScale?: number;
   /** Shared broadleaf branching and leaf morphology. Pine/palm retain their specialized skeletons. @default {} */
   characteristics?: TreeCharacteristics;
-  /** Fraction of tree height used for optional GPU wind deformation. Zero stops continuous redraw. @default 0 */
-  windStrength?: number;
-  /** Wind clock in seconds, or null to use deck.gl's timeline. Set a number for repeatable comparisons. @default null */
+  /**
+   * Fraction of tree height used for GPU wind deformation. `null` follows the deck's `WindEffect`,
+   * or no wind without one; `0` keeps this layer still under a windy scene. Direction and gusts
+   * always come from the effect. Zero wind stops continuous redraw. @default null
+   */
+  windStrength?: number | null;
+  /**
+   * Wind clock in seconds, or null to follow the `WindEffect` and then deck.gl's timeline. Set a
+   * number for repeatable comparisons. @default null
+   */
   windTime?: number | null;
   /**
    * Maximum shared per-frame canopy Gaussian budget. `auto` keeps a stable device-aware budget;
@@ -318,7 +329,7 @@ const defaultProps: DefaultProps<TreeLayerProps<unknown>> = {
   getCrop: {type: 'accessor', value: (_d: any) => null},
   sizeScale: {type: 'number', value: 1, min: 0},
   characteristics: {type: 'object', value: {}},
-  windStrength: {type: 'number', value: 0, min: 0, max: 0.2},
+  windStrength: null,
   windTime: null,
   maxCanopySplats: 'auto',
   maxCanopyPixels: Infinity,
@@ -371,6 +382,8 @@ type TreeState<DataT> = {
   palms: TreeRow<DataT>[];
   liveCrops: CropRow[];
   droppedCrops: CropRow[];
+  /** The `WindEffect` state the sublayers' strength came from. */
+  windKey?: string;
 };
 
 const GEOMETRY_PROPS = [
@@ -809,17 +822,22 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
       );
     }
     const {windTime, getTrunkColor, getSeason} = this.props;
+    // Sublayers receive the resolved strength; a WindEffect change updates this layer.
+    const layerWindStrength = getFiniteDimension(
+      getLayerWindBound(this, this.props.windStrength).strength,
+      0
+    );
     const windStrength = Math.max(
-      this.state.hasDefaultWind ? getFiniteDimension(this.props.windStrength, 0) : 0,
+      this.state.hasDefaultWind ? layerWindStrength : 0,
       this.state.authoredWindStrength
     );
-    const windTrigger = this.state.hasAuthoredWind ? [this.props.windStrength, windStrength] : null;
+    const windTrigger = this.state.hasAuthoredWind ? [layerWindStrength, windStrength] : null;
     const treeWind = (row: TreeRow<DataT> | CropRow): [number, number, number] =>
       this.state.hasAuthoredWind && windStrength > 0
         ? [
             row.wind[0],
             row.wind[1],
-            (row.wind[2] * (row.windStrength ?? this.props.windStrength)) / windStrength
+            (row.wind[2] * (row.windStrength ?? layerWindStrength)) / windStrength
           ]
         : row.wind;
     const shared = {

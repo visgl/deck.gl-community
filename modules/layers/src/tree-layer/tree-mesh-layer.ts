@@ -13,6 +13,8 @@ import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
 import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
+import {getLayerWind} from '../wind-effect/wind-effect';
+import {wind} from '../wind-effect/wind-module';
 
 type WindProps<DataT> = {
   /** [tree height in metres, stable wind phase, flex multiplier]. */
@@ -26,17 +28,17 @@ type WindProps<DataT> = {
   /** Stable branch-only coverage; boles continue to use getCoverageWeight. */
   branchCoverage: number;
   woodMorph: boolean;
-  windStrength: number;
+  /** Overrides the deck's `WindEffect` strength; null follows it. */
+  windStrength: number | null;
+  /** Overrides the deck's `WindEffect` clock, in seconds; null follows it. */
   windTime: number | null;
   doubleSided: boolean;
 };
 const UNIFORM_DECLARATION = [
   'layout(std140) uniform treeWindUniforms {',
-  '  float strength;',
   '  float twoSided;',
   '  float woodMorph;',
   '  float branchCoverage;',
-  '  vec4 wave;',
   '} treeWind;'
 ].join(String.fromCharCode(10));
 const TREE_WIND = {
@@ -44,26 +46,20 @@ const TREE_WIND = {
   vs: UNIFORM_DECLARATION,
   fs: UNIFORM_DECLARATION,
   source: `struct treeWindUniforms {
-  strength: f32,
   twoSided: f32,
   woodMorph: f32,
-  branchCoverage: f32,
-  wave: vec4<f32>
+  branchCoverage: f32
 };
 @group(0) @binding(auto) var<uniform> treeWind: treeWindUniforms;`,
   uniformTypes: {
-    strength: 'f32',
     twoSided: 'f32',
     woodMorph: 'f32',
-    branchCoverage: 'f32',
-    wave: 'vec4<f32>'
+    branchCoverage: 'f32'
   }
 } as const satisfies ShaderModule<{
-  strength: number;
   twoSided: number;
   woodMorph: number;
   branchCoverage: number;
-  wave: [number, number, number, number];
 }>;
 
 const GLSL_STEM = `
@@ -146,20 +142,20 @@ const WGSL_STEM = `
 const GLSL_WIND = `
   vec3 treeSquaredScale = max(vec3(dot(instanceModelMatrixCol0, instanceModelMatrixCol0), dot(instanceModelMatrixCol1, instanceModelMatrixCol1), dot(instanceModelMatrixCol2, instanceModelMatrixCol2)), vec3(0.000001));
   vec3 treeNormal = instanceModelMatrix * (treeLocalNormal / treeSquaredScale);
-  if (treeWind.strength > 0.0) {
+  if (wind.strength > 0.0) {
   float treeHeight = max(instanceTreeWind.x, 0.001);
-  vec2 treeWave = vec2(treeWind.wave.x * instanceTreeWind.w + treeWind.wave.y * instanceTreeWind.z, treeWind.wave.z * instanceTreeCrownWind.y + treeWind.wave.w * instanceTreeCrownWind.x);
-  mat3 treeJacobian = splatDeform(pos, treeHeight, treeWind.strength * instanceTreeWind.y, treeWave);
+  vec2 treeWave = vec2(wind.wave.x * instanceTreeWind.w + wind.wave.y * instanceTreeWind.z, wind.wave.z * instanceTreeCrownWind.y + wind.wave.w * instanceTreeCrownWind.x);
+  mat3 treeJacobian = splatDeform(pos, treeHeight, wind.strength * instanceTreeWind.y, treeWave, wind.axis, mat2(wind.mode));
   treeNormal = splatDeformNormal(treeJacobian, treeNormal);
   }
 `;
 const WGSL_WIND = `
   let treeSquaredScale = max(vec3<f32>(dot(attributes.instanceModelMatrixCol0, attributes.instanceModelMatrixCol0), dot(attributes.instanceModelMatrixCol1, attributes.instanceModelMatrixCol1), dot(attributes.instanceModelMatrixCol2, attributes.instanceModelMatrixCol2)), vec3<f32>(0.000001));
   var treeNormal = instanceModelMatrix * (treeLocalNormal / treeSquaredScale);
-  if (treeWind.strength > 0.0) {
+  if (wind.strength > 0.0) {
   let treeHeight = max(attributes.instanceTreeWind.x, 0.001);
-  let treeWave = vec2<f32>(treeWind.wave.x * attributes.instanceTreeWind.w + treeWind.wave.y * attributes.instanceTreeWind.z, treeWind.wave.z * attributes.instanceTreeCrownWind.y + treeWind.wave.w * attributes.instanceTreeCrownWind.x);
-  let treeDeformation = splatDeform(meshPosition, treeHeight, treeWind.strength * attributes.instanceTreeWind.y, treeWave);
+  let treeWave = vec2<f32>(wind.wave.x * attributes.instanceTreeWind.w + wind.wave.y * attributes.instanceTreeWind.z, wind.wave.z * attributes.instanceTreeCrownWind.y + wind.wave.w * attributes.instanceTreeCrownWind.x);
+  let treeDeformation = splatDeform(meshPosition, treeHeight, wind.strength * attributes.instanceTreeWind.y, treeWave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw));
   meshPosition = treeDeformation.position;
   treeNormal = splatDeformNormal(treeDeformation.jacobian, treeNormal);
   }
@@ -182,7 +178,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     getStemRadius: {type: 'accessor', value: -1},
     getWind: {type: 'accessor', value: [1, 0, 1]},
     woodMorph: false,
-    windStrength: 0,
+    windStrength: null,
     windTime: null,
     doubleSided: false
   };
@@ -256,7 +252,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
         throw new Error('Unsupported SimpleMeshLayer WGSL wind anchor.');
       return {
         ...shaders,
-        modules: [...shaders.modules, TREE_WIND],
+        modules: [...shaders.modules, wind, TREE_WIND],
         source: `${SPLAT_DEFORMATION_WGSL}\n${shaders.source}`
           .replace(
             '  @location(10) instanceTranslation: vec3<f32>,',
@@ -308,7 +304,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
       throw new Error('Unsupported SimpleMeshLayer GLSL wind anchor.');
     return {
       ...shaders,
-      modules: [...shaders.modules, TREE_WIND, TREE_COVERAGE],
+      modules: [...shaders.modules, wind, TREE_WIND, TREE_COVERAGE],
       fs: shaders.fs.replace(
         'vec3 lightColor =',
         'if (treeWind.twoSided > 0.5 && !gl_FrontFacing) normal = -normal;\nvec3 lightColor ='
@@ -360,24 +356,22 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
 
   draw(params) {
     if (params.shaderModuleProps?.shadow?.drawToShadowMap && !prepareShadowDraw(this)) return;
-    const {windStrength, windTime} = this.props;
-    const time = windTime ?? this.context.timeline.getTime() / 1000;
+    // Shadow passes receive no effect props: resolve the deck's WindEffect here for every pass.
+    const {wind: windProps, animated} = getLayerWind(
+      this,
+      this.props.windStrength,
+      this.props.windTime
+    );
     this.state.model?.shaderInputs.setProps({
+      wind: windProps,
       treeWind: {
-        strength: windStrength,
         woodMorph: this.props.woodMorph ? 1 : 0,
         branchCoverage: this.props.branchCoverage,
-        wave: [
-          Math.sin(time * 1.6),
-          Math.cos(time * 1.6),
-          Math.sin(time * 3.2),
-          Math.cos(time * 3.2)
-        ],
         twoSided: this.props.doubleSided ? 1 : 0
       }
     });
     super.draw(params);
-    if (windStrength > 0 && windTime === null) this.setNeedsRedraw();
+    if (animated) this.setNeedsRedraw();
   }
 }
 

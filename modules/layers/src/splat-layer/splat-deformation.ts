@@ -5,12 +5,15 @@
 /** Conservative radius around the undeformed transformed center, including covariance shear.
  * Both shader waves have unit amplitude. The branch-mode operator norm is bounded
  * by its Frobenius norm; derivatives vanish above the bend height and below zero.
+ * Wind direction rotates the axis and mode without changing either norm. `strength` is the
+ * peak, including any gust; `turbulence` scales the crown mode.
  */
 export function getSplatDeformationRadius(
   center: number[],
   radius: number,
   height: number,
-  strength: number
+  strength: number,
+  turbulence = 1
 ): number {
   if (!strength || center[2] + radius <= 0) return radius;
   const bendHeight = Math.max(height, 0.001);
@@ -20,7 +23,7 @@ export function getSplatDeformationRadius(
   const g = v * v;
   const lateral = Math.hypot(center[0], center[1]) + radius;
   const bend = Math.hypot(1, 0.45);
-  const branch = 0.35 * Math.hypot(0.65, 0.25, 0.3, 0.8);
+  const branch = 0.35 * turbulence * Math.hypot(0.65, 0.25, 0.3, 0.8);
   const derivatives = center[2] - radius < bendHeight;
   const shear = derivatives ? bend * 1.5 + (branch * 2 * v * lateral) / (0.7 * bendHeight) : 0;
   return (
@@ -34,17 +37,17 @@ export function getSplatDeformationRadius(
  * Reduced cantilever motion: a clamped cubic bending shape plus a spatial crown
  * mode at twice the fundamental frequency. It is an animation approximation,
  * not a structural solver. The analytic Jacobian keeps meshes, splat covariance,
- * shading normals and picking on the same deformation.
+ * shading normals and picking on the same deformation. `axis` and `mode` (the bend
+ * direction and crown mode) come from the `wind` shader module.
  */
 export const SPLAT_DEFORMATION_GLSL = `
-mat3 splatDeform(inout vec3 position, float height, float strength, vec2 wave) {
+mat3 splatDeform(inout vec3 position, float height, float strength, vec2 wave, vec2 axis, mat2 mode) {
   float u = clamp(position.z / height, 0.0, 1.0);
   float f = 0.5 * u * u * (3.0 - u);
   float v = max((u - 0.3) / 0.7, 0.0);
   float g = v * v;
-  vec2 bend = vec2(1.0, 0.45) * strength * wave.x;
+  vec2 bend = axis * strength * wave.x;
   float branch = 0.35 * strength * wave.y;
-  mat2 mode = mat2(0.65, -0.25, 0.3, 0.8);
   vec2 lateral = mode * position.xy;
   mat2 xy = mat2(1.0) + branch * g * mode;
   float df = position.z > 0.0 && position.z < height ? 3.0 * u - 1.5 * u * u : 0.0;
@@ -62,14 +65,13 @@ vec3 splatDeformNormal(mat3 jacobian, vec3 normal) {
 
 export const SPLAT_DEFORMATION_WGSL = `
 struct SplatDeformation {position: vec3<f32>, jacobian: mat3x3<f32>};
-fn splatDeform(position: vec3<f32>, height: f32, strength: f32, wave: vec2<f32>) -> SplatDeformation {
+fn splatDeform(position: vec3<f32>, height: f32, strength: f32, wave: vec2<f32>, axis: vec2<f32>, mode: mat2x2<f32>) -> SplatDeformation {
   let u = clamp(position.z / height, 0.0, 1.0);
   let f = 0.5 * u * u * (3.0 - u);
   let v = max((u - 0.3) / 0.7, 0.0);
   let g = v * v;
-  let bend = vec2<f32>(1.0, 0.45) * strength * wave.x;
+  let bend = axis * strength * wave.x;
   let branch = 0.35 * strength * wave.y;
-  let mode = mat2x2<f32>(vec2<f32>(0.65, -0.25), vec2<f32>(0.3, 0.8));
   let lateral = mode * position.xy;
   let xy = mat2x2<f32>(vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 1.0)) + branch * g * mode;
   let df = select(0.0, 3.0 * u - 1.5 * u * u, position.z > 0.0 && position.z < height);

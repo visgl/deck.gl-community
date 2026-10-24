@@ -10,7 +10,7 @@ import {
   type WebMercatorViewport,
   type PickingInfo
 } from '@deck.gl/core';
-import {TreeLayer, type CropConfig, type Season} from '@deck.gl-community/layers';
+import {TreeLayer, WindEffect, type CropConfig, type Season} from '@deck.gl-community/layers';
 import {luma, type Device} from '@luma.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
@@ -67,6 +67,8 @@ describe('Seasonal Farm integration', () => {
       const root = () => parent.querySelector<HTMLElement>('.seasonal-farm')!;
       const trees = () =>
         (deck!.props.layers as TreeLayer<FarmTree>[]).find(layer => layer instanceof TreeLayer)!;
+      const wind = () =>
+        (deck!.props.effects as WindEffect[]).find(effect => effect instanceof WindEffect)!;
       const getCrop = (tree: FarmTree) =>
         (trees().props.getCrop as (tree: FarmTree) => CropConfig | null)(tree);
       const getSeason = (tree: FarmTree) =>
@@ -125,11 +127,17 @@ describe('Seasonal Farm integration', () => {
         const orange = data.find(tree => tree.species === 'orange')!;
         expect(orange.type).toBe('citrus');
         expect(getCrop(orange)!.count).toBeGreaterThan(0);
-        // Every panel control maps directly onto a TreeLayer prop.
+        // Every panel control maps directly onto a TreeLayer or WindEffect prop.
         parent.querySelector<HTMLInputElement>('#settings-panel-input-crops')!.click();
         await expect.poll(() => getCrop(orange)).toBeNull();
+        // The trees follow the scene's WindEffect rather than a layer prop.
         setNumber('Wind', 0.05);
-        await expect.poll(() => trees().props.windStrength).toBe(0.05);
+        await expect.poll(() => wind().props.strength).toBe(0.05);
+        setNumber('Wind direction', 270);
+        await expect.poll(() => wind().props.direction).toBe(270);
+        setNumber('Gusts', 0.5);
+        await expect.poll(() => wind().props.gust).toBe(0.5);
+        expect(trees().props.windStrength).toBeNull();
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
         Array.from(parent.querySelectorAll<HTMLButtonElement>('button'))
@@ -145,6 +153,7 @@ describe('Seasonal Farm integration', () => {
         setNumber('Foveation', 0.5);
         await expect.poll(() => trees().props.foveationStrength).toBe(0.5);
         setNumber('Wind', 0);
+        setNumber('Gusts', 0);
         setNumber('Size', 1);
         parent.querySelector<HTMLInputElement>('#settings-panel-input-crops')!.click();
         await expect.poll(() => getCrop(orange)?.count).toBeGreaterThan(0);
