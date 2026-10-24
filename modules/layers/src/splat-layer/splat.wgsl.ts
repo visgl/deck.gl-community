@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {SPLAT_DEFORMATION_WGSL} from './splat-deformation';
-import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
+import {WGSL_FILTER_COLOR_ANCHOR} from './wgsl-filter-color-anchor';
 export const SPLAT_WGSL = `
 ${SPLAT_DEFORMATION_WGSL}
 struct Attributes {

@@ -15,7 +15,8 @@ while the selection pulses, no accessor reruns and no attribute is uploaded.
 
 ```ts
 import {ScatterplotLayer} from '@deck.gl/layers';
-import {SelectionPulseExtension, TreeLayer} from '@deck.gl-community/layers';
+import {SelectionPulseExtension} from '@deck.gl-community/extensions';
+import {TreeLayer} from '@deck.gl-community/layers';
 
 const selectionPulse = new SelectionPulseExtension();
 
@@ -149,4 +150,4 @@ getSelected: d => selectedIds.has(d.id),
 updateTriggers: {getFillColor: [colorTheme], getSelected: [selectedIds]}
 ```
 
-[Source](https://github.com/visgl/deck.gl-community/tree/master/modules/layers/src/selection-pulse-extension)
+[Source](https://github.com/visgl/deck.gl-community/tree/master/modules/extensions/src/selection-pulse-extension)
