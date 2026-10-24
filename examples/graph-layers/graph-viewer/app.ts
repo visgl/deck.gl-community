@@ -460,7 +460,6 @@ export function mountGraphViewerExample(
     },
     onStylesheetChange(nextValue: string) {
       state.stylesheetValue = nextValue;
-      syncWidgets();
     }
   };
 
@@ -974,18 +973,20 @@ function buildSidebarPanel(
     })
   );
 
-  panels.push(
-    new TextEditorPanel({
-      id: 'stylesheet-json',
-      title: 'Stylesheet JSON',
-      language: 'json',
-      value: state.stylesheetValue,
-      onValueChange: handlers.onStylesheetChange,
-      readOnly: false,
-      placeholder: DEFAULT_STYLESHEET_MESSAGE,
-      theme: 'inherit'
-    })
-  );
+  const stylesheetPanel: TextEditorPanel = new TextEditorPanel({
+    id: 'stylesheet-json',
+    title: 'Stylesheet JSON',
+    language: 'json',
+    value: state.stylesheetValue,
+    onValueChange: value => {
+      stylesheetPanel.setProps({value});
+      handlers.onStylesheetChange(value);
+    },
+    readOnly: false,
+    placeholder: DEFAULT_STYLESHEET_MESSAGE,
+    theme: 'inherit'
+  });
+  panels.push(stylesheetPanel);
 
   return new AccordionPanel({
     id: 'graph-viewer-sidebar-panels',
