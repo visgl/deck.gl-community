@@ -11,6 +11,7 @@ import {
 } from '../splat-layer/splat-culling';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
+import {getSplatBranchSwayRadius} from '../splat-layer/splat-deformation';
 import {getSplatTransform, getSplatTransformScale} from '../splat-layer/splat-transform';
 import {getTreeWoodMesh} from './tree-wood';
 import {
@@ -184,11 +185,17 @@ export class TreeWoodLayer extends CompositeLayer<any> {
               Math.hypot(...translation) +
               Math.max(0, get(props.getRootLength, row, objectInfo)) +
               Math.max(0, get(props.getStemRadius, row, objectInfo)) +
-              // Trunk lean with sway (1.25 × |axis| < 1.5) and the crown mode (0.5 × ‖mode‖ < 0.6).
+              // Trunk lean with sway (1.25 × |axis| < 1.5), the crown mode (0.35 × ‖mode‖ < 0.6)
+              // and branch sway out to the wood's full lateral extent.
               wind.peak *
                 Math.abs(windRow[2]) *
                 (Math.abs(windRow[0]) * 1.5 +
-                  Math.max(...scale.map(Math.abs)) * 0.6 * wind.turbulence)) *
+                  Math.max(...scale.map(Math.abs)) * 0.6 * wind.turbulence +
+                  getSplatBranchSwayRadius(
+                    Math.max(...scale.map(Math.abs)) * 2 + Math.hypot(...translation),
+                    Math.abs(windRow[0]),
+                    wind.turbulence
+                  ))) *
             units,
           weight: 0
         });

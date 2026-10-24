@@ -72,7 +72,8 @@ ${SPLAT_DEFORMATION_GLSL}`,
     vec2 windWave = vec2(wind.wave.x * windCos + wind.wave.y * windSin,
       wind.wave.z * (windCos * windCos - windSin * windSin) + wind.wave.w * 2.0 * windSin * windCos);
     mat3 windJacobian = splatDeform(windBent, max(instanceWindExtension.x, 0.001),
-      wind.strength * instanceWindExtension.y, windWave, wind.axis, mat2(wind.mode));
+      wind.strength * instanceWindExtension.y, windWave, wind.axis, mat2(wind.mode),
+      instanceWindExtension.zw, wind.branch);
     vec4 windOffset = vec4((windBent.xy - windLocal.xy) * windUnits.xy, 0.0, 0.0);
     geometry.position += windOffset;
     position += project.viewProjectionMatrix * windOffset;

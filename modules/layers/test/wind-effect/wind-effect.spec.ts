@@ -89,17 +89,14 @@ describe('wind shader module', () => {
     expect(getWindUniforms({turbulence: 0}).mode.every(value => value === 0)).toBe(true);
   });
 
-  it('runs the leaf flutter faster than the trunk, scaled by turbulence', () => {
-    const {flutter} = getWindUniforms({time: 2, turbulence: 1.5});
-    expect(flutter).toEqual([
-      1.5 * Math.sin(2 * 6.1),
-      1.5 * Math.cos(2 * 6.1),
-      1.5 * Math.sin(2 * 9.7),
-      1.5 * Math.cos(2 * 9.7)
-    ]);
-    expect(getWindUniforms({turbulence: 0, time: 4}).flutter.every(value => value === 0)).toBe(
-      true
-    );
+  it('sways branches and shimmers leaves faster than the trunk, scaled by turbulence', () => {
+    const {branch, flutter} = getWindUniforms({time: 2, turbulence: 1.5});
+    const waves = (a: number, b: number) =>
+      [Math.sin(2 * a), Math.cos(2 * a), Math.sin(2 * b), Math.cos(2 * b)].map(v => 1.5 * v);
+    expect(branch).toEqual(waves(4.4, 7.1));
+    expect(flutter).toEqual(waves(14.3, 21.7));
+    const still = getWindUniforms({turbulence: 0, time: 4});
+    expect([...still.branch, ...still.flutter].every(value => value === 0)).toBe(true);
   });
 });
 

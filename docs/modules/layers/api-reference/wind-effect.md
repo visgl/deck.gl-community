@@ -32,7 +32,7 @@ props, as it does for `LightingEffect`.
 | `strength` | `null` | Bend as a fraction of object height. Wins over `speed`. With neither, the bend is `0.025`, a gentle breeze; `0` is still air. |
 | `direction` | `≈65.8` | Compass bearing the wind blows toward, in degrees clockwise from north. The default is the fixed direction TreeLayer and SplatLayer used before this effect. |
 | `gust` | `0` | `0`–`1`. Slow swell: strength (and speed) varies between `× (1 − gust)` and `× (1 + gust)`. |
-| `turbulence` | `1` | Scale of the crown mode and the leaf flutter. `0` leaves a pure bend. |
+| `turbulence` | `1` | Scale of the crown, branch and leaf motion. `0` leaves a pure bend. |
 | `shear` | `1/7` | Exponent of the height profile `v(z) = v₁₀ (z / 10)^shear`, used by [`getWindVelocity`](#getwindvelocity). About `0.25` over a city or an orchard. |
 | `time` | `null` | Wind clock in seconds. `null` follows deck.gl's animation timeline; a number freezes the pose; a function `() => number` is an app-owned clock. |
 
@@ -58,13 +58,16 @@ Wind bends the geometry in the vertex shader on WebGL2 and WebGPU, in three part
 - **Trunk.** Each object leans downwind by `strength` (the mean drag) and sways around that lean,
   between 0.75 and 1.25 of it, on two harmonics with its own phase. It never swings upwind.
   Gusts swell and ease the lean.
-- **Crown.** Branches sway with a crown mode at twice the trunk frequency, larger toward the
-  crown's edge and top.
-- **Leaves.** Every Gaussian of a `SplatLayer`, which includes TreeLayer canopies, flutters on its
-  own: along the wind, across it and up and down, at about 1 to 1.5 Hz. Leaves move further than
-  the trunk sways, and more toward the crown's edge and top. Neighbouring leaves move nearly
-  together and patches across the crown move apart. Wood, crops and `WindExtension` layers lean
-  and sway but do not flutter.
+- **Branches.** Branches sway at about 0.7 and 1.1 Hz. The motion is zero at the trunk and grows
+  toward the branch tips, and each branch sways as one. Branches around the crown and up its
+  tiers move out of step. Wood, fruit and leaves share this motion, so branches carry their leaves
+  and fruit.
+- **Leaves.** Each Gaussian of a `SplatLayer`, including TreeLayer canopies, adds a small, fast
+  shimmer of its own (2 to 3.5 Hz, a few centimetres in a breeze), up and down as well as
+  sideways.
+
+At 6 m/s on a 12 m tree, the top of the trunk leans 0.34 to 0.52 m downwind, branch tips sway up
+to 0.21 m on top of that, and leaves shimmer up to 4 cm off their branch.
 
 Shadows, picking and the sorted splat transparency use the same motion. While the strength is above zero and the clock follows the
 timeline, deck.gl redraws every frame. With no wind, or a fixed `time`, it idles.

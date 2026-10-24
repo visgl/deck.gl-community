@@ -116,7 +116,7 @@ void main() {
   if (wind.strength != 0.0) {
     float windStrength = wind.strength * instanceDeformation.y;
     vec3 flutter = splatFlutter(position, splatCenters, height, windStrength, instanceDeformation.zw, wind.axis, wind.flutter);
-    jacobian = splatDeform(position, height, windStrength, wave, wind.axis, mat2(wind.mode));
+    jacobian = splatDeform(position, height, windStrength, wave, wind.axis, mat2(wind.mode), instanceDeformation.zw, wind.branch);
     position += flutter;
   }
   covariance = jacobian * covariance;

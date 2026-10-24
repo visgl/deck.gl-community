@@ -34,13 +34,30 @@ export type WindModuleProps = {
 type WindUniforms = {
   wave: [number, number, number, number];
   mode: [number, number, number, number];
+  branch: [number, number, number, number];
   flutter: [number, number, number, number];
   axis: [number, number];
   strength: number;
 };
 
-/** Leaf flutter angular frequencies in rad/s: about 1 and 1.5 Hz, faster than the trunk's 0.25 Hz. */
-const WIND_FLUTTER_FREQUENCIES = [6.1, 9.7] as const;
+/** Branch sway angular frequencies in rad/s: about 0.7 and 1.1 Hz, above the trunk's 0.25 Hz. */
+const WIND_BRANCH_FREQUENCIES = [4.4, 7.1] as const;
+/** Leaf shimmer angular frequencies in rad/s: about 2.3 and 3.5 Hz. */
+const WIND_FLUTTER_FREQUENCIES = [14.3, 21.7] as const;
+
+/** `turbulence × [sin ω₁t, cos ω₁t, sin ω₂t, cos ω₂t]`. */
+function getWindWaves(
+  frequencies: readonly [number, number],
+  time: number,
+  turbulence: number
+): [number, number, number, number] {
+  return [
+    turbulence * Math.sin(time * frequencies[0]),
+    turbulence * Math.cos(time * frequencies[0]),
+    turbulence * Math.sin(time * frequencies[1]),
+    turbulence * Math.cos(time * frequencies[1])
+  ];
+}
 
 /** The moving air a wind describes, for consumers that travel with it: rain, clouds, particles. */
 export type WindAirProps = {
@@ -151,12 +168,8 @@ export function getWindUniforms(props: WindModuleProps = {}): WindUniforms {
       turbulence * (rm[0] * s + rm[2] * c),
       turbulence * (rm[1] * s + rm[3] * c)
     ],
-    flutter: [
-      turbulence * Math.sin(time * WIND_FLUTTER_FREQUENCIES[0]),
-      turbulence * Math.cos(time * WIND_FLUTTER_FREQUENCIES[0]),
-      turbulence * Math.sin(time * WIND_FLUTTER_FREQUENCIES[1]),
-      turbulence * Math.cos(time * WIND_FLUTTER_FREQUENCIES[1])
-    ],
+    branch: getWindWaves(WIND_BRANCH_FREQUENCIES, time, turbulence),
+    flutter: getWindWaves(WIND_FLUTTER_FREQUENCIES, time, turbulence),
     axis: [c * LEGACY_AXIS[0] - s * LEGACY_AXIS[1], s * LEGACY_AXIS[0] + c * LEGACY_AXIS[1]],
     strength: strength * (1 + gust * getWindGust(time))
   };
@@ -165,6 +178,7 @@ export function getWindUniforms(props: WindModuleProps = {}): WindUniforms {
 const DECLARATION = `layout(std140) uniform windUniforms {
   vec4 wave;
   vec4 mode;
+  vec4 branch;
   vec4 flutter;
   vec2 axis;
   float strength;
@@ -172,8 +186,8 @@ const DECLARATION = `layout(std140) uniform windUniforms {
 
 /**
  * Shared wind uniforms for `splatDeform` and `splatFlutter`: the trunk and crown wave phases, the
- * crown mode (mat2 columns), the leaf flutter phases (scaled by turbulence), the bend axis and the
- * gust-modulated strength. `WindEffect` supplies its props.
+ * crown mode (mat2 columns), the branch sway and leaf shimmer phases (scaled by turbulence), the
+ * bend axis and the gust-modulated strength. `WindEffect` supplies its props.
  */
 export const wind = {
   name: 'wind',
@@ -181,6 +195,7 @@ export const wind = {
   source: `struct WindUniforms {
   wave: vec4<f32>,
   mode: vec4<f32>,
+  branch: vec4<f32>,
   flutter: vec4<f32>,
   axis: vec2<f32>,
   strength: f32
@@ -189,6 +204,7 @@ export const wind = {
   uniformTypes: {
     wave: 'vec4<f32>',
     mode: 'vec4<f32>',
+    branch: 'vec4<f32>',
     flutter: 'vec4<f32>',
     axis: 'vec2<f32>',
     strength: 'f32'

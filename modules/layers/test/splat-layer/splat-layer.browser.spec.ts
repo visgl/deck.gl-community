@@ -93,8 +93,8 @@ describe('Gaussian canopy rendering', () => {
       const spatialIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
       const before = pixels.slice();
       const oldFrame = frames;
-      // 0.75 s later the lean has eased and the leaf flutter swung: about 0.3 m, 4 pixels.
-      deck.setProps({layers: [makeLayer(0.75)]});
+      // On the trunk axis only the trunk sways: 2.75 s later it has eased by 0.17 m, 2 pixels.
+      deck.setProps({layers: [makeLayer(2.75)]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(oldFrame + 3);
       let changed = 0;
       for (let i = 0; i < pixels.length; i += 4)
@@ -120,7 +120,7 @@ describe('Gaussian canopy rendering', () => {
       // A bounded accumulation target preserves the footprint and full-resolution owner picking.
       const beforePixels = pixels.slice();
       const beforeLowResolution = frames;
-      deck.setProps({layers: [makeLayer(0.75).clone({maxRenderPixels: 128 * 128})]});
+      deck.setProps({layers: [makeLayer(2.75).clone({maxRenderPixels: 128 * 128})]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeLowResolution + 3);
       const lowResolution = collectLeaves((deck.props.layers as Layer[])[0]).find(layer =>
         layer.id.includes('refinement')
@@ -157,7 +157,7 @@ describe('Gaussian canopy rendering', () => {
       }
       // Changing scale keeps the owning object but requires fresh transforms and bounds.
       const beforeScale = frames;
-      deck.setProps({layers: [makeLayer(0.75).clone({getScale: [1.2, 1, 1]})]});
+      deck.setProps({layers: [makeLayer(2.75).clone({getScale: [1.2, 1, 1]})]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeScale + 3);
       const scaled = collectLeaves((deck.props.layers as Layer[])[0]).find(layer =>
         layer.id.includes('refinement')
@@ -167,7 +167,7 @@ describe('Gaussian canopy rendering', () => {
       ).toBeCloseTo(1.2);
       expect((deck.props.layers as Layer[])[0].state.spatialIndex).not.toBe(spatialIndex);
       const beforeQuality = frames;
-      deck.setProps({layers: [makeLayer(0.75, 1)]});
+      deck.setProps({layers: [makeLayer(2.75, 1)]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeQuality + 3);
       const refinedIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
       const beforePan = frames;

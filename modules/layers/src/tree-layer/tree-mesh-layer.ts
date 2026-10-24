@@ -145,7 +145,7 @@ const GLSL_WIND = `
   if (wind.strength > 0.0) {
   float treeHeight = max(instanceTreeWind.x, 0.001);
   vec2 treeWave = vec2(wind.wave.x * instanceTreeWind.w + wind.wave.y * instanceTreeWind.z, wind.wave.z * instanceTreeCrownWind.y + wind.wave.w * instanceTreeCrownWind.x);
-  mat3 treeJacobian = splatDeform(pos, treeHeight, wind.strength * instanceTreeWind.y, treeWave, wind.axis, mat2(wind.mode));
+  mat3 treeJacobian = splatDeform(pos, treeHeight, wind.strength * instanceTreeWind.y, treeWave, wind.axis, mat2(wind.mode), instanceTreeWind.zw, wind.branch);
   treeNormal = splatDeformNormal(treeJacobian, treeNormal);
   }
 `;
@@ -155,7 +155,7 @@ const WGSL_WIND = `
   if (wind.strength > 0.0) {
   let treeHeight = max(attributes.instanceTreeWind.x, 0.001);
   let treeWave = vec2<f32>(wind.wave.x * attributes.instanceTreeWind.w + wind.wave.y * attributes.instanceTreeWind.z, wind.wave.z * attributes.instanceTreeCrownWind.y + wind.wave.w * attributes.instanceTreeCrownWind.x);
-  let treeDeformation = splatDeform(meshPosition, treeHeight, wind.strength * attributes.instanceTreeWind.y, treeWave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw));
+  let treeDeformation = splatDeform(meshPosition, treeHeight, wind.strength * attributes.instanceTreeWind.y, treeWave, wind.axis, mat2x2<f32>(wind.mode.xy, wind.mode.zw), attributes.instanceTreeWind.zw, wind.branch);
   meshPosition = treeDeformation.position;
   treeNormal = splatDeformNormal(treeDeformation.jacobian, treeNormal);
   }
