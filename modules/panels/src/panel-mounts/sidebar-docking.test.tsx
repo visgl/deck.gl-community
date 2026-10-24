@@ -144,6 +144,36 @@ describe('consolidated sidebar docking', () => {
     expect(content.clientWidth).toBe(810);
   });
 
+  it('keeps restore focus for docked chrome and returns overlay focus to the Deck canvas', async () => {
+    const {parent, content, manager} = host();
+    const canvas = document.createElement('canvas');
+    canvas.tabIndex = 0;
+    content.append(canvas);
+    manager.deck = {canvas};
+    const sidebar = new SidebarPanelContainer({
+      title: 'Tools',
+      defaultPinned: true,
+      pinnable: true
+    });
+    manager.setProps({components: [sidebar]});
+    const root = sidebar.rootElement!;
+    click(root, 'Hide Tools');
+    await settle();
+    expect(document.activeElement).toBe(parent.querySelector('[aria-label="Show Tools"]'));
+    click(parent, 'Show Tools');
+    click(root, 'Unpin panel');
+    click(root, 'Close');
+    await settle();
+    expect(document.activeElement).toBe(canvas);
+    sidebar.setProps({open: true});
+    const close = root.querySelector<HTMLButtonElement>('[aria-label="Close"]')!;
+    close.focus();
+    close.click();
+    await settle();
+    expect(sidebar.isOpen).toBe(true);
+    expect(document.activeElement).toBe(close);
+  });
+
   it('keeps controlled open and pin props authoritative across unrelated updates and user requests', async () => {
     const {parent, content, manager} = host();
     const onPinnedChange = vi.fn(),

@@ -499,10 +499,9 @@ export class SidebarPanelContainer extends DockedPanelContainer<SidebarPanelCont
     if (this.props.open === undefined) this.uncontrolledOpen = open;
     this.props.onOpenChange?.(open);
     this.updateHTML();
-    if (!open) {
-      focusDeckCanvas(this.deck);
-      if (!this.isOpen && this.isPinned)
-        this.restoreHost?.querySelector('button')?.focus({preventScroll: true});
+    if (!this.isOpen) {
+      if (this.isPinned) this.restoreHost?.querySelector('button')?.focus({preventScroll: true});
+      else focusDeckCanvas(this.deck);
     }
   };
 
