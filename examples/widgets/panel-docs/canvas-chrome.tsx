@@ -5,7 +5,7 @@ import {
   PANEL_THEME_SLEEK_DARK,
   HeaderPanelContainer,
   FooterPanelContainer,
-  SidePanelContainer,
+  SidebarPanelContainer,
   BoxPanelContainer,
   CustomPanel,
   usePanelContainerState
@@ -95,7 +95,10 @@ export function mountCanvasChromeExample(container: HTMLElement): () => void {
           'Collapse the inspector to reclaim canvas space. Pin/unpin preserves the scene name.'
         )
       }),
-      new SidePanelContainer({
+      new SidebarPanelContainer({
+        pinned: true,
+        pinnable: true,
+        side: 'left',
         title: 'Tools',
         hidable: true,
         widthPx: 150,

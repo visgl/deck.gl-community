@@ -2,11 +2,11 @@ import Demo from '@site/src/examples/widgets/canvas-chrome';
 
 # Canvas Chrome Containers
 
-<Demo />
-
-`HeaderPanelContainer`, `FooterPanelContainer`, and `SidePanelContainer` create permanent
+`HeaderPanelContainer`, `FooterPanelContainer`, and pinned `SidebarPanelContainer` create permanent
 chrome around a canvas host. `BoxPanelContainer` switches between an anchored overlay
 and an edge of the same layout when `pinnable: true`. These containers work without deck.gl.
+
+<Demo />
 
 ## Application-owned layout
 
@@ -16,7 +16,7 @@ changes the positioning of the outer boundary:
 ```ts
 import {
   PanelManager, HeaderPanelContainer, FooterPanelContainer,
-  SidePanelContainer, BoxPanelContainer
+  SidebarPanelContainer, BoxPanelContainer
 } from '@deck.gl-community/panels';
 
 const parentElement = document.createElement('div');
@@ -30,7 +30,7 @@ const manager = new PanelManager({parentElement, contentElement});
 manager.setProps({components: [
   new HeaderPanelContainer({id: 'header', panel: headerPanel, fitContent: true}),
   new FooterPanelContainer({id: 'footer', panel: statusPanel, heightPx: 32}),
-  new SidePanelContainer({id: 'tools', panel: toolsPanel, side: 'left', widthPx: 180}),
+  new SidebarPanelContainer({pinned: true, hidable: false, id: 'tools', panel: toolsPanel, side: 'left', widthPx: 180}),
   new BoxPanelContainer({pinnable: true, id: 'inspector', title: 'Inspector', panel: inspectorPanel,
     side: 'right', placement: 'top-right', defaultPinned: false})
 ]});
@@ -76,7 +76,7 @@ Overflowing content scrolls. Dividers support pointer dragging and arrow keys (1
 Manual resizing retains pixel dimensions across pin/unpin transitions. Calling
 `container.setProps({fitContent: true})` resets sizing to follow content again.
 
-Headers always use the top edge and footers the bottom. `SidePanelContainer.side` accepts
+Headers always use the top edge and footers the bottom. `SidebarPanelContainer.side` accepts
 `'left' | 'right'` and defaults to `'left'`.
 
 ## Pin state
@@ -120,7 +120,8 @@ supplies `contentElement`. Permanent chrome reports `pinned: true`.
 
 ## Hideable side panels
 
-`SidePanelContainer` accepts `hidable` (default `false`), controlled `hidden`,
-`defaultHidden` (default `false`), and `onHiddenChange`. Opting in adds a hide
-button to the title bar. Hidden panels release layout space and show a floating
-restore button while preserving their mounted content.
+`SidebarPanelContainer` uses `open` / `defaultOpen` / `onOpenChange` for visibility in both
+overlay and pinned modes. `hidable` defaults to true; setting it to false removes user
+hide/restore controls. Closing pinned chrome releases layout space and preserves the
+mounted content and pin state. Permanent chrome uses
+`{pinned: true, pinnable: false, hidable: false}`. See [SidebarPanelContainer](./sidebar-panel-container.md).

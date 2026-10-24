@@ -8,7 +8,7 @@ import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, OrthographicView, type DeckProps, type PickingInfo} from '@deck.gl/core';
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {
-  AccordeonPanel,
+  AccordionPanel,
   CustomPanel,
   MarkdownPanel,
   SettingsPanel,
@@ -986,7 +986,7 @@ function buildSidebarPanel(
     })
   );
 
-  return new AccordeonPanel({
+  return new AccordionPanel({
     id: 'graph-viewer-sidebar-panels',
     title: '',
     panels,

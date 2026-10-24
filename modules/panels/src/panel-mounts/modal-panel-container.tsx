@@ -466,6 +466,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
 
   /** Stops modal listeners and unmounts modal content from the current root. */
   override onRemove(): void {
+    super.onRemove();
     this.#detachDocumentKeyListener();
     this.#syncPlacementZIndex(false);
     if (this.#keyboardShortcutsManager) {

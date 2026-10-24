@@ -4,6 +4,57 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased: panel props API
+
+### Consolidated sidebars
+
+`SidePanelContainer` and `SidePanelContainerProps` are removed without compatibility aliases.
+Use `SidebarPanelContainer` for both overlay drawers and docked side chrome:
+
+```ts
+new SidebarPanelContainer({
+  side: 'left', pinned: true, hidable: true, panel: toolsPanel
+});
+```
+
+- Set `pinned: true` to preserve the old docked layout. The sidebar's default side is `right`;
+  set `side: 'left'` to preserve the old side-panel default.
+- Replace `hidden` with `open: !hidden`, `defaultHidden` with `defaultOpen: !defaultHidden`,
+  and `onHiddenChange` with `onOpenChange`, inverting the callback value.
+- `hidable` now defaults to true. Use `{pinned: true, pinnable: false, hidable: false}` for
+  permanent chrome without user controls. Application-owned `open` still applies even when
+  hiding controls are disabled.
+- Enable `pinnable` to expose pin/unpin controls. Closing releases layout space; reopening
+  restores pin state, user sizing, and mounted content. Without `contentElement`, overlays
+  remain available while configured pinned sidebars stay hidden.
+- Remove old `side-panel-container` import paths and reference links; use the
+  [sidebar reference](./modules/panels/api-reference/panel-containers/sidebar-panel-container.md).
+
+### Declarative panel props
+
+This is a breaking panel API cleanup. No compatibility exports or aliases are provided.
+
+- Rename `AccordeonPanel`, `AccordeonPanelProps`, `AccordeonPanelContainer`, and
+  `AccordeonPanelContainerProps` to their `Accordion…` spellings. Update direct source paths
+  to `accordion-panel` and documentation links to the renamed reference page.
+- Rename `SplitterPanel.onChange` to `onSplitChange` and `initialSplit` to `defaultSplit`.
+  `defaultSplit` is now initialization-only. To change the ratio after mounting, use controlled
+  `split` with `onSplitChange`. A supplied `split` takes precedence over the default. Controlled
+  dragging requests changes and waits for the application's next value.
+- Panel IDs are optional in every constructor. Each concrete panel has a stable default ID;
+  supply an explicit ID when multiple instances of that kind share a parent.
+- Specialized panel classes now extend `Panel<TheirPublicProps>` and render from current props.
+  Use `markdownPanel.setProps({markdown})`, `tabs.setProps({panels})`, and equivalent typed
+  updates directly, including when nested. Fresh definitions with stable IDs still reconcile.
+- Custom subclasses should render live values in `renderContent()` rather than capture
+  specialized constructor values in a permanent JSX `content` snapshot. Override
+  `getChildPanels()` when implementing a composition over child definitions.
+- Panel metadata and `content` accessors are read-only. Replace direct field assignments with
+  `setProps`. Keep IDs stable while updating; use a new definition/ID to start a new lifecycle.
+
+See [Panel](./modules/panels/api-reference/panel.md) and
+[SplitterPanel](./modules/panels/api-reference/composite-panels/splitter-panel.md).
+
 ## v9.4.7
 
 ### `@deck.gl-community/layers`: tree and splat shadows
@@ -163,7 +214,7 @@ Panel APIs now use panel-oriented names consistently:
 | `WidgetPanel` | [`Panel`](/docs/modules/panels/api-reference/panel) |
 | `WidgetPanelTheme` | [`PanelTheme`](/docs/modules/panels/api-reference/panel-theme) |
 | `WidgetPanelThemeMode` | `PanelThemeMode` |
-| `AccordeonWidgetContainer` | [`AccordeonPanelContainer`](/docs/modules/panels/api-reference/composite-panels/accordeon-panel) |
+| `AccordionWidgetContainer` | [`AccordionPanelContainer`](/docs/modules/panels/api-reference/composite-panels/accordion-panel) |
 | `TabbedWidgetContainer` | [`TabbedPanelContainer`](/docs/modules/panels/api-reference/composite-panels/tabbed-panel) |
 | `ColumnWidgetContainer` | [`ColumnPanelContainer`](/docs/modules/panels/api-reference/composite-panels/column-panel) |
 | `PanelBox` | [`BoxPanelContainer`](/docs/modules/panels/api-reference/panel-containers/box-panel-container) |

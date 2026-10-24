@@ -4,18 +4,21 @@ import {useLayoutEffect, useMemo} from 'preact/hooks';
 import {useControlledStringState} from '../panels/panel-state';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {JSX} from 'preact';
 import type {PanelId, PanelListContainerProps, PanelTheme} from '../panels/panel';
 
 /** Props for the composite `TabbedPanel` definition. */
-export type TabbedPanelProps = {
+export type TabbedPanelProps = PanelProps & {
   panels: ReadonlyArray<Panel>;
   id?: string;
   title?: string;
   tabListLayout?: 'wrap' | 'scroll';
   theme?: PanelTheme;
-  /** Initially selected panel, or the selected panel when controlled. */
+  /** Initially selected panel when selection is uncontrolled. */
+  defaultActivePanelId?: PanelId;
+  /** Selected panel when selection is controlled. */
   activePanelId?: PanelId;
   /** Called when the selected panel changes. */
   onActivePanelIdChange?: (activePanelId: PanelId | undefined) => void;
@@ -30,29 +33,33 @@ export type TabbedPanelContainerProps = PanelListContainerProps & {
 };
 
 /** Panel definition that renders child panels behind a tab strip. */
-export class TabbedPanel extends Panel {
-  constructor({
-    panels,
-    id = 'tabbed-panels',
-    title = 'Panels',
-    tabListLayout = 'wrap',
-    theme = 'inherit',
-    activePanelId,
-    onActivePanelIdChange
-  }: TabbedPanelProps) {
-    super({
-      id,
-      title,
-      theme,
-      content: (
-        <TabbedPanelContainer
-          panels={panels}
-          tabListLayout={tabListLayout}
-          activePanelId={activePanelId}
-          onActivePanelIdChange={onActivePanelIdChange}
-        />
-      )
-    });
+export class TabbedPanel extends Panel<TabbedPanelProps> {
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'tabbed-panels',
+    title: 'Panels',
+    tabListLayout: 'wrap',
+    theme: 'inherit'
+  } satisfies PanelProps & Partial<TabbedPanelProps>;
+
+  override getChildPanels(): ReadonlyArray<Panel> {
+    return this.props.panels;
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {panels, tabListLayout, defaultActivePanelId, activePanelId, onActivePanelIdChange} =
+      this.props;
+    return (
+      <TabbedPanelContainer
+        panels={panels}
+        tabListLayout={tabListLayout}
+        defaultActivePanelId={defaultActivePanelId}
+        activePanelId={activePanelId}
+        onActivePanelIdChange={onActivePanelIdChange}
+      />
+    );
   }
 }
 

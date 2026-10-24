@@ -3,6 +3,7 @@
 import {formatKey} from '../../lib/keyboard-shortcuts/keyboard-shortcuts';
 import {InteractionIcon} from '../../preact/interaction-icons';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 
 import type {
   KeyboardShortcut,
@@ -13,7 +14,7 @@ import type {
 import type {PanelTheme} from '../../panels/panel';
 import type {JSX} from 'preact';
 
-export type KeyboardShortcutsPanelProps = {
+export type KeyboardShortcutsPanelProps = PanelProps & {
   /** Optional list of keyboard shortcuts to render in the panel. */
   keyboardShortcuts?: KeyboardShortcut[];
   /** Optional theme override applied to this panel subtree. */
@@ -23,14 +24,24 @@ export type KeyboardShortcutsPanelProps = {
 /**
  * A panel definition representing keyboard, mouse, and trackpad interaction details.
  */
-export class KeyboardShortcutsPanel extends Panel {
-  constructor({keyboardShortcuts = [], theme = 'inherit'}: KeyboardShortcutsPanelProps = {}) {
-    super({
-      id: 'keyboard-shortcuts',
-      title: 'Keyboard & Mouse',
-      theme,
-      content: <KeyboardShortcutsPanelContent keyboardShortcuts={keyboardShortcuts} />
-    });
+export class KeyboardShortcutsPanel extends Panel<KeyboardShortcutsPanelProps> {
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    keyboardShortcuts: [],
+    theme: 'inherit',
+    id: 'keyboard-shortcuts',
+    title: 'Keyboard & Mouse'
+  } satisfies PanelProps & Partial<KeyboardShortcutsPanelProps>;
+
+  constructor(props: KeyboardShortcutsPanelProps = {}) {
+    super(props);
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {keyboardShortcuts} = this.props;
+    return <KeyboardShortcutsPanelContent keyboardShortcuts={keyboardShortcuts} />;
   }
 }
 

@@ -20,7 +20,7 @@ Use the standalone path when:
 ## Core pieces
 
 - `MarkdownPanel`, `CustomPanel`, `StatsPanel`, `SettingsPanel`, Arrow inspection panels, and similar classes define content
-- `ColumnPanel`, `TabbedPanel`, and `AccordeonPanel` compose multiple panels
+- `ColumnPanel`, `TabbedPanel`, and `AccordionPanel` compose multiple panels
 - `BoxPanelContainer`, `ModalPanelContainer`, `SidebarPanelContainer`, and
   `FullScreenPanelContainer` mount panel content into concrete standalone containers
 - `ToolbarComponent` and `ToastComponent` are specialized standalone
