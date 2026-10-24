@@ -234,7 +234,7 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
         layers: [
           new TreeLayer({
             id: `tree-${type}`,
-            // Tree Lab uses local metre coordinates under MapView. In WebGPU, the first
+            // Local metre coordinates under MapView: in WebGPU, the first
             // TreeMesh pipeline must support its high/low position layout without exceeding
             // the device's eight-vertex-buffer limit.
             coordinateSystem: COORDINATE_SYSTEM.METER_OFFSETS,

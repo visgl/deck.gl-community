@@ -786,26 +786,6 @@ export class TreeLayer<DataT = unknown, ExtraPropsT extends {} = {}> extends Com
     // A controlled tree index must name the same tree in each partition's own row order.
     if (!('highlightedObjectIndex' in overrides))
       props.highlightedObjectIndex = getSplatHighlightRow(this, sublayerProps.data);
-    if (
-      sublayerProps.type === SplatLayer &&
-      ('source' in overrides || 'hierarchy' in overrides) &&
-      !('getSource' in overrides)
-    ) {
-      const prepared = sublayerProps.getSource;
-      const source = overrides.source ?? prepared.source;
-      props.getSource = {
-        type: 'prepared-splats',
-        source,
-        hierarchy:
-          'hierarchy' in overrides
-            ? (overrides.hierarchy ?? undefined)
-            : source === prepared.source
-              ? prepared.hierarchy
-              : undefined
-      };
-      delete props.source;
-      delete props.hierarchy;
-    }
     // getSubLayerProps adds the triggers of extension accessors, such as `getSelected`.
     return {...props, parameters, updateTriggers: {...props.updateTriggers, ...updateTriggers}};
   }

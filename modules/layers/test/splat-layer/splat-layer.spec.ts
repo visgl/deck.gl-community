@@ -25,7 +25,7 @@ const SOURCE = {
 function make(data: {position: [number, number, number]}[], flex = 1, extra = {}) {
   const layer = new SplatLayer({
     data,
-    source: SOURCE,
+    getSource: SOURCE,
     deformationStrength: 0.1,
     getDeformation: [10, 0, flex],
     ...extra
@@ -64,11 +64,14 @@ function makePerspective(
   );
   const layer = new SplatLayer<PerspectiveRow>({
     data,
-    source: fine,
-    hierarchy: [
-      {source: fine, error: 0},
-      {source: coarse, error: 0.02}
-    ],
+    getSource: {
+      type: 'prepared-splats',
+      source: fine,
+      hierarchy: [
+        {source: fine, error: 0},
+        {source: coarse, error: 0.02}
+      ]
+    },
     getPosition: row => row.position,
     getScale: row => [row.scale, row.scale, row.scale],
     pixelError: 0.9,
@@ -115,6 +118,11 @@ it('includes absolute flex in the camera wind allowance', () => {
   );
 });
 
+it('takes prepared assets only from data or getSource', () => {
+  expect(SplatLayer.defaultProps).not.toHaveProperty('source');
+  expect(SplatLayer.defaultProps).not.toHaveProperty('hierarchy');
+});
+
 it('starts shared capped registrations at coverage before their first joint grant', () => {
   const fine = Object.fromEntries(
     Object.entries(SOURCE).map(([key, array]) => [
@@ -123,11 +131,14 @@ it('starts shared capped registrations at coverage before their first joint gran
     ])
   );
   const layer = make([{position: [256, 256, 0]}], 0, {
-    source: fine,
-    hierarchy: [
-      {source: fine, error: 0},
-      {source: SOURCE, error: 1}
-    ],
+    getSource: {
+      type: 'prepared-splats',
+      source: fine,
+      hierarchy: [
+        {source: fine, error: 0},
+        {source: SOURCE, error: 1}
+      ]
+    },
     pixelError: 0.001,
     _splatBudgetGroup: {maxSplats: 100}
   });
@@ -267,7 +278,7 @@ it('includes translated source centers in prepared camera wind bounds', () => {
   const oldProps = layer.props;
   Object.assign(layer, {
     props: layer.clone({
-      source: {...SOURCE, scales: new Float32Array([0.1, 0.1, 0.1])},
+      getSource: {...SOURCE, scales: new Float32Array([0.1, 0.1, 0.1])},
       getTranslation: [100, 0, 1],
       getDeformation: [1, 0, 1]
     }).props
@@ -287,7 +298,7 @@ it('keeps heterogeneous source identity and original accessor contexts through r
     expect(info.data).toBe(data);
     return info.index ? second : SOURCE;
   });
-  Object.assign(layer, {props: layer.clone({source: undefined, getSource}).props});
+  Object.assign(layer, {props: layer.clone({getSource}).props});
   layer.updateState({props: layer.props, oldProps, changeFlags: {dataChanged: true}} as any);
   expect(layer.state.owners.map(owner => owner.row.object)).toEqual(data);
   expect(layer.state.owners.map(owner => owner.asset.source)).toEqual([SOURCE, second]);
@@ -320,7 +331,6 @@ it('preserves a moving owner when other assets enter or leave and safely clears 
   const first = {position: [256, 256, 0] as [number, number, number], splats: firstAsset};
   const second = {position: [257, 256, 0] as [number, number, number], splats: secondAsset};
   const layer = make([first], 0, {
-    source: undefined,
     getSource: row => row.splats,
     pixelError: 0.001
   });

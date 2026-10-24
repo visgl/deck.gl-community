@@ -4,6 +4,23 @@ Modules in `@deck.gl-community` are independently maintained, so this page will 
 
 Please refer the documentation of each module for detailed upgrade guides.
 
+## Unreleased
+
+### `@deck.gl-community/layers`: `SplatLayer` legacy props removed
+
+`SplatLayer` no longer accepts the top-level `source` and `hierarchy` props. Pass the source
+through `getSource`, with its hierarchy in a prepared descriptor:
+
+```ts
+// Before
+new SplatLayer({data: rows, source, hierarchy});
+// After
+new SplatLayer({data: rows, getSource: {type: 'prepared-splats', source, hierarchy}});
+```
+
+TreeLayer canopy overrides follow the same rule: set `getSource` in `_subLayerProps` instead of
+`source` or `hierarchy`.
+
 ## v9.4.7
 
 ### `@deck.gl-community/layers`: tree and splat shadows
@@ -54,7 +71,16 @@ integration. Applications that require foliage shadows must provide them outside
 
 ### `@deck.gl-community/layers`: native `TreeLayer`
 
-- `TreeLayer` is now exported by `@deck.gl-community/layers`; the deprecated `three` workspace temporarily re-exports the same constructor. Update imports to the native package. Remove `detail` / `TreeDetail`; canopy overrides target `SplatLayer`, and wood overrides target connected meshes. Crop radii now match metres, so halve old values to retain their apparent size. See the [native migration notes](./modules/layers/api-reference/tree-layer.md#migration).
+- Import `TreeLayer` and its types from `@deck.gl-community/layers`.
+- Remove `detail` and `TreeDetail`. Refinement is automatic.
+- `CropConfig.radius` is now the radius in metres; older versions rendered half of it. Halve
+  existing values to keep their apparent size.
+- Foliage renders as Gaussian splats and winter trees show connected branches, so trees look
+  different from earlier versions.
+- `canopy-{species}-foliage-{tier}` sublayers are now `SplatLayer`s, so mesh-specific canopy
+  overrides no longer apply. `wood-{species}-{foliage|winter}-{tier}` sublayers own the connected
+  wood mesh, and the `trunks` alias applies bark overrides to it. Legacy aliases such as
+  `canopy-cherry` still apply after native defaults; exact sublayer IDs take precedence.
 
 ### `@deck.gl-community/editable-layers`
 
