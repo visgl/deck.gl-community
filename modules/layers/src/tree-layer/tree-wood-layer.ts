@@ -6,9 +6,15 @@ import {
   getSplatProjectionKey,
   getSplatCachedPosition,
   getSplatCommonUnits,
+  getSplatQueryViews,
   type SplatProjectedPosition,
   getSplatBoundedPixelsPerMeter
 } from '../splat-layer/splat-culling';
+import {
+  getSplatHorizon,
+  getSplatTangentFrame,
+  offsetSplatCommonPosition
+} from '../splat-layer/splat-globe';
 import {TreeMeshLayer} from './tree-mesh-layer';
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
 import {getSplatBranchSwayRadius} from '../splat-layer/splat-deformation';
@@ -167,9 +173,11 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         );
         const common = projected.common,
           units = Math.max(...projected.units);
-        const center = [0, 1, 2].map(
-          axis =>
-            common[axis] + (translation[axis] + transform[axis + 6] * 0.6) * projected.units[axis]
+        const center = offsetSplatCommonPosition(
+          common,
+          [0, 1, 2].map(axis => translation[axis] + transform[axis + 6] * 0.6),
+          projected.units,
+          getSplatTangentFrame(common, viewport)
         );
         owners.push({
           row,
@@ -209,13 +217,13 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         }))
       );
     }
-    const viewports = this.context.deck.getViewports();
-    const views = viewports.length ? viewports : [viewport];
+    const views = getSplatQueryViews(viewport, this.context.deck.getViewports());
     const projections = views.map(view => ({
       matrix: view.viewProjectionMatrix,
       center: [0, 0, 0, 0],
       width: view.width,
-      height: view.height
+      height: view.height,
+      horizon: getSplatHorizon(view)
     }));
 
     // Cached owner metre scales hold for every view sharing this projection, including the newer

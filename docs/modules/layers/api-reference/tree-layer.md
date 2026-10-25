@@ -143,8 +143,11 @@ Opt out with deck.gl's standard `shadowEnabled: false`.
 
 ## Limitations
 
-- Supports `MapView` and Cartesian views. With `MapView.repeat`, trees render in the primary world
-  copy only. `GlobeView` is not supported. See [SplatLayer limitations](./splat-layer.md#limitations).
+- Supports `MapView`, `GlobeView` and Cartesian views. With `MapView.repeat`, trees render in the
+  primary world copy only. See [SplatLayer limitations](./splat-layer.md#limitations).
+- On `GlobeView`, wood, crops and canopies share one east-north-up pose per tree, unchanged across
+  the zoom-12 switch to Web Mercator. Canopies and connected wood behind the horizon are skipped;
+  crops rely on a globe surface's depth, such as MapLibre's globe, to hide the far side.
 - In Cartesian and metre-offset coordinates, `modelMatrix` supports translation only.
 
 ## Source

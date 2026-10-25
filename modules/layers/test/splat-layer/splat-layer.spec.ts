@@ -414,17 +414,85 @@ it('refreshes mutated owner attributes on new data without discarding camera-onl
   expect(layer.state.groups[0][0]).not.toBe(moved[0]);
 });
 
-it('rejects globe projections before applying planar prepared bounds', () => {
-  const layer = make([{position: [0, 0, 0]}], 0);
-  const globe = new GlobeViewport({width: 256, height: 256, longitude: 0, latitude: 0, zoom: 2});
-  layer.context.deck.getViewports = () => [layer.context.viewport, globe];
-  expect(() =>
-    layer.updateState({
-      props: layer.props,
-      oldProps: layer.props,
-      changeFlags: {viewportChanged: true}
-    } as any)
-  ).toThrow('GlobeView');
+function makeGlobe(data: {position: [number, number, number]}[], viewport: Viewport, extra = {}) {
+  const layer = new SplatLayer({data, getSource: SOURCE, ...extra});
+  layer.initializeState();
+  vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
+  Object.assign(layer, {
+    context: {
+      viewport,
+      device: {canvasContext: {cssToDeviceRatio: () => 1}},
+      deck: {getViewports: () => [viewport]}
+    }
+  });
+  vi.spyOn(layer, 'projectPosition').mockImplementation((point, options) =>
+    (options!.viewport as Viewport).projectPosition(Array.from(point))
+  );
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {dataChanged: true}
+  } as any);
+  return layer;
+}
+const switchViewport = (layer: SplatLayer<any>, viewport: Viewport, viewports = [viewport]) => {
+  Object.assign(layer.context, {viewport});
+  layer.context.deck!.getViewports = () => viewports;
+  layer.updateState({
+    props: layer.props,
+    oldProps: layer.props,
+    changeFlags: {viewportChanged: true}
+  } as any);
+};
+const selected = (layer: SplatLayer<any>) =>
+  layer.state.candidates.map(candidate => candidate.owner.position[0]).sort((a, b) => a - b);
+
+it('bounds globe owners in their east-north-up frame and omits the far side', () => {
+  const globe = new GlobeViewport({width: 512, height: 512, longitude: 0, latitude: 0, zoom: 1});
+  const layer = makeGlobe(
+    [{position: [0, 0, 0]}, {position: [30, 20, 0]}, {position: [180, 0, 0]}],
+    globe,
+    {getTranslation: [5000, 2000, 300]}
+  );
+  // 5 km east, 2 km north and 300 m up of each anchor, as in a Web Mercator view: along the
+  // axes of deck.gl's own globe projection at the anchor.
+  const [owner] = layer.state.owners;
+  const anchor = globe.projectPosition([0, 0, 0]);
+  const axis = (point: number[]) => {
+    const delta = globe.projectPosition(point).map((value, i) => value - anchor[i]);
+    return delta.map(value => value / Math.hypot(...delta));
+  };
+  const [east, north, up] = [axis([1e-4, 0, 0]), axis([0, 1e-4, 0]), axis([0, 0, 1])];
+  const expected = anchor.map(
+    (value, i) => value + (5000 * east[i] + 2000 * north[i] + 300 * up[i]) * owner.units[0]
+  );
+  const metres =
+    Math.hypot(...owner.center.map((value, i) => value - expected[i])) / owner.units[0];
+  expect(metres).toBeLessThan(0.01);
+  expect(selected(layer)).toEqual([0, 30]);
+});
+
+it('rebuilds owner bounds as GlobeView switches to and from Web Mercator', () => {
+  const data = [{position: [0, 0, 0]}, {position: [0.002, 0.001, 0]}, {position: [180, 0, 0]}] as {
+    position: [number, number, number];
+  }[];
+  const globe = new GlobeViewport({width: 512, height: 512, longitude: 0, latitude: 0, zoom: 1});
+  const mercator = new WebMercatorViewport({width: 512, height: 512, zoom: 13});
+  const layer = makeGlobe(data, globe);
+  const keys = layer.state.owners.map(owner => owner.key);
+  expect(selected(layer)).toEqual([0, 0.002]);
+  // deck.gl may report the next projection's camera before updating the layer with it.
+  switchViewport(layer, globe, [mercator]);
+  expect(selected(layer)).toEqual([0, 0.002]);
+  switchViewport(layer, mercator);
+  const owner = layer.state.owners[1];
+  const common = mercator.projectPosition([0.002, 0.001, 0]);
+  owner.center.forEach((value, axis) => expect(value).toBeCloseTo(common[axis], 9));
+  expect(layer.state.owners.map(row => row.key)).toEqual(keys);
+  expect(selected(layer)).toEqual([0, 0.002]);
+  switchViewport(layer, globe);
+  expect(selected(layer)).toEqual([0, 0.002]);
+  expect(layer.state.owners[1].center).toEqual(globe.projectPosition([0.002, 0.001, 0]));
 });
 
 it('rejects WebGPU view clears before deck opens a nested render pass', () => {
