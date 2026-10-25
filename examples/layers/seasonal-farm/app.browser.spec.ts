@@ -138,6 +138,11 @@ describe('Seasonal Farm integration', () => {
         setNumber('Gusts', 0.5);
         await expect.poll(() => wind().props.gust).toBe(0.5);
         expect(trees().props.windEnabled).toBe(true);
+        // Calm the scene again: a live wind redraws all 416 trees every frame, which is slow on
+        // CI's software GPU and would hold back every later step.
+        setNumber('Wind', 0);
+        setNumber('Gusts', 0);
+        await expect.poll(() => wind().props.strength).toBe(0);
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
         Array.from(parent.querySelectorAll<HTMLButtonElement>('button'))
@@ -152,8 +157,6 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => trees().props.maxCanopyPixels).toBe(1_000_000);
         setNumber('Foveation', 0.5);
         await expect.poll(() => trees().props.foveationStrength).toBe(0.5);
-        setNumber('Wind', 0);
-        setNumber('Gusts', 0);
         setNumber('Size', 1);
         parent.querySelector<HTMLInputElement>('#settings-panel-input-crops')!.click();
         await expect.poll(() => getCrop(orange)?.count).toBeGreaterThan(0);
