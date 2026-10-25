@@ -2,7 +2,9 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## Unreleased
+## v9.4.9-beta.1
+
+Release Date: Oct 25, 2026 (beta)
 
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
