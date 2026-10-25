@@ -2,7 +2,7 @@
 
 This page lists module additions and major changes in each release. For detailed release notes, see the [repository changelog](https://github.com/visgl/deck.gl-community/blob/master/CHANGELOG.md).
 
-## v9.4.9-beta.1
+## v9.4.9-beta.2
 
 Release Date: Oct 25, 2026 (beta)
 

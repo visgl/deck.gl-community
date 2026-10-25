@@ -1,6 +1,6 @@
 # deck.gl-community CHANGELOG
 
-## v9.4.9-beta.1
+## v9.4.9-beta.2
 
 - **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
   independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
