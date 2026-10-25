@@ -471,8 +471,12 @@ it('projects tree mesh offsets and normals in the east-north-up globe frame', ()
     expect(code).not.toMatch(
       /project_position_to_clipspace(_and_commonspace)?\(\s*(attributes\.)?instancePositions,/
     );
-    expect(code).toMatch(/splatProjectOffset\(\s*(attributes\.)?instancePositions,/);
+    expect(code).toContain('splatProjectOffset(treeAnchor, treeFrame,');
     expect(code).not.toContain('project_normal(treeNormal)');
-    expect(code.match(/treeProjectNormal\(treeNormal/g)).toHaveLength(2);
+    expect(code.match(/splatProjectNormal\(treeNormal, treeFrame\)/g)).toHaveLength(2);
+    // SwiftShader compiles and runs both SimpleMeshLayer branches: project the anchor once.
+    expect(
+      code.match(/project_position(_vec3_f64)?\(\s*(attributes\.)?instancePositions,/g)
+    ).toHaveLength(1);
   }
 });

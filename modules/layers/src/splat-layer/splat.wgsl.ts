@@ -66,7 +66,7 @@ struct Varyings {
  let viewportSize = project.viewportSize;
  geometry.position = commonPosition;
  output.commonPosition = commonPosition.xyz;
- output.normal = splatProjectNormal(normal, anchor);
+ output.normal = splatProjectNormal(normal, frame);
  geometry.normal = output.normal;
  // Reuse the perspective Jacobian for all three covariance axes.
  let matrix = project.viewProjectionMatrix;
