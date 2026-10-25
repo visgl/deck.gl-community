@@ -12,7 +12,7 @@ import {SimpleMeshLayer, type SimpleMeshLayerProps} from '@deck.gl/mesh-layers';
 import type {ShaderModule} from '@luma.gl/shadertools';
 import {SPLAT_DEFORMATION_GLSL, SPLAT_DEFORMATION_WGSL} from '../splat-layer/splat-deformation';
 import {prepareShadowDraw} from '../splat-layer/splat-shadow';
-import {WGSL_FILTER_COLOR_ANCHOR} from '../selection-pulse-extension/selection-pulse-shaders';
+import {WGSL_FILTER_COLOR_ANCHOR} from '../splat-layer/wgsl-filter-color-anchor';
 
 type WindProps<DataT> = {
   /** [tree height in metres, stable wind phase, flex multiplier]. */
