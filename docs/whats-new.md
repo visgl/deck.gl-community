@@ -29,6 +29,11 @@ This page lists module additions and major changes in each release. For detailed
 - **Breaking:** `SplatLayer` drops the legacy top-level `source` and `hierarchy` props. Pass
   sources through `getSource`; see the [upgrade guide](./upgrade-guide.md).
 
+- `SplatLayer` and `TreeLayer` render on `GlobeView`, including MapLibre's globe projection through
+  `MapLibreOverlay`. Before, they threw an unsupported-projection error. Gaussians, wood and crops
+  keep an east-north-up pose at each owner, unchanged when the globe switches to Web Mercator above
+  zoom 12, and the globe hides its far side.
+
 ## v9.4.8
 
 - `BasemapLayer` reads glyph bitmaps containing only the border without treating their ink as missing.
