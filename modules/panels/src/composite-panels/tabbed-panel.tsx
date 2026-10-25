@@ -1,21 +1,24 @@
 /** @jsxImportSource preact */
-import {useEffect, useMemo} from 'preact/hooks';
+import {useLayoutEffect} from 'preact/hooks';
 
 import {useControlledStringState} from '../panels/panel-state';
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {JSX} from 'preact';
 import type {PanelId, PanelListContainerProps, PanelTheme} from '../panels/panel';
 
 /** Props for the composite `TabbedPanel` definition. */
-export type TabbedPanelProps = {
+export type TabbedPanelProps = PanelProps & {
   panels: ReadonlyArray<Panel>;
   id?: string;
   title?: string;
   tabListLayout?: 'wrap' | 'scroll';
   theme?: PanelTheme;
-  /** Initially selected panel, or the selected panel when controlled. */
+  /** Initially selected panel when selection is uncontrolled. */
+  defaultActivePanelId?: PanelId;
+  /** Selected panel when selection is controlled. */
   activePanelId?: PanelId;
   /** Called when the selected panel changes. */
   onActivePanelIdChange?: (activePanelId: PanelId | undefined) => void;
@@ -30,29 +33,33 @@ export type TabbedPanelContainerProps = PanelListContainerProps & {
 };
 
 /** Panel definition that renders child panels behind a tab strip. */
-export class TabbedPanel extends Panel {
-  constructor({
-    panels,
-    id = 'tabbed-panels',
-    title = 'Panels',
-    tabListLayout = 'wrap',
-    theme = 'inherit',
-    activePanelId,
-    onActivePanelIdChange
-  }: TabbedPanelProps) {
-    super({
-      id,
-      title,
-      theme,
-      content: (
-        <TabbedPanelContainer
-          panels={panels}
-          tabListLayout={tabListLayout}
-          activePanelId={activePanelId}
-          onActivePanelIdChange={onActivePanelIdChange}
-        />
-      )
-    });
+export class TabbedPanel extends Panel<TabbedPanelProps> {
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'tabbed-panels',
+    title: 'Panels',
+    tabListLayout: 'wrap',
+    theme: 'inherit'
+  } satisfies PanelProps & Partial<TabbedPanelProps>;
+
+  override getChildPanels(): ReadonlyArray<Panel> {
+    return this.props.panels;
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {panels, tabListLayout, defaultActivePanelId, activePanelId, onActivePanelIdChange} =
+      this.props;
+    return (
+      <TabbedPanelContainer
+        panels={panels}
+        tabListLayout={tabListLayout}
+        defaultActivePanelId={defaultActivePanelId}
+        activePanelId={activePanelId}
+        onActivePanelIdChange={onActivePanelIdChange}
+      />
+    );
   }
 }
 
@@ -70,15 +77,11 @@ export function TabbedPanelContainer({
     defaultActivePanelId
   );
 
-  const enabledPanels = useMemo(() => panels.filter(panel => !panel.disabled), [panels]);
-  const initialActivePanelId = useMemo(() => {
-    const isActivePanelEnabled = currentActivePanelId
-      ? enabledPanels.some(panel => panel.id === currentActivePanelId)
-      : false;
-    return isActivePanelEnabled ? currentActivePanelId : enabledPanels[0]?.id;
-  }, [currentActivePanelId, enabledPanels]);
+  const enabledPanels = panels.filter(panel => !panel.disabled);
+  const isActivePanelEnabled = enabledPanels.some(panel => panel.id === currentActivePanelId);
+  const initialActivePanelId = isActivePanelEnabled ? currentActivePanelId : enabledPanels[0]?.id;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const shouldSyncActivePanel = currentActivePanelId !== initialActivePanelId;
     if (!shouldSyncActivePanel || !initialActivePanelId) {
       return;
@@ -96,6 +99,7 @@ export function TabbedPanelContainer({
           return (
             <button
               key={panel.id}
+              data-panel-active={isActive}
               type="button"
               style={{
                 ...TAB_BUTTON_STYLE,
@@ -104,7 +108,7 @@ export function TabbedPanelContainer({
                   ? 'var(--button-background, rgba(255, 255, 255, 0.96))'
                   : 'transparent',
                 borderColor: isActive
-                  ? 'var(--menu-border, rgba(148, 163, 184, 0.35))'
+                  ? 'var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.35)))'
                   : 'transparent',
                 color: isActive
                   ? 'var(--button-text, rgb(24, 24, 26))'
@@ -152,10 +156,13 @@ const TABBED_CONTAINER_STYLE: JSX.CSSProperties = {
   flexDirection: 'column',
   minWidth: '220px',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
-  borderRadius: 'var(--button-corner-radius, 8px)',
+  borderRadius: 'var(--panel-surface-radius, var(--button-corner-radius, 8px))',
   overflow: 'hidden',
   backgroundColor: 'var(--menu-background, #fff)',
-  color: 'var(--menu-text, rgb(24, 24, 26))'
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
+  color: 'var(--menu-text, rgb(24, 24, 26))',
+  boxShadow: 'var(--menu-shadow, none)'
 };
 
 function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
@@ -163,12 +170,12 @@ function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
     display: 'flex',
     alignItems: 'flex-start',
     flexWrap: tabListLayout === 'wrap' ? 'wrap' : 'nowrap',
-    gap: '4px',
+    gap: 'var(--panel-gap, 4px)',
     overflowX: tabListLayout === 'scroll' ? 'auto' : 'hidden',
     overflowY: 'hidden',
     background:
       'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
-    padding: '4px 6px',
+    padding: 'var(--panel-padding, 4px 6px)',
     borderBottom: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.2)))',
     position: 'sticky',
     top: 0,
@@ -179,10 +186,10 @@ function getTabListStyle(tabListLayout: 'wrap' | 'scroll'): JSX.CSSProperties {
 const TAB_BUTTON_STYLE: JSX.CSSProperties = {
   flex: '0 0 auto',
   border: '1px solid transparent',
-  borderRadius: '4px',
+  borderRadius: 'var(--panel-corner-radius, 4px)',
   margin: 0,
-  padding: '4px 8px',
-  fontSize: '12px',
+  padding: 'var(--panel-control-padding, 4px 8px)',
+  fontSize: 'var(--panel-font-size, 12px)',
   fontWeight: 600,
   lineHeight: 1.25,
   cursor: 'pointer',
@@ -195,7 +202,7 @@ const TAB_BUTTON_STYLE: JSX.CSSProperties = {
 const TAB_PANEL_STYLE: JSX.CSSProperties = {
   display: 'grid',
   alignItems: 'start',
-  padding: '10px',
+  padding: 'var(--panel-padding, 10px)',
   overflow: 'auto'
 };
 

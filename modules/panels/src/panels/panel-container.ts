@@ -28,6 +28,33 @@ export abstract class PanelContainer<
     panel: undefined!,
     placement: 'top-left'
   };
+
+  private stopObservingPanel?: () => void;
+
+  /** Start observing live content metadata when a host mounts this shell. */
+  override _onAdd(params: {deck: unknown; viewId: string | null}): HTMLDivElement {
+    const root = super._onAdd(params);
+    this.observePanel();
+    return root;
+  }
+
+  /** Replace shell props and reconnect when the panel definition changes. */
+  override setProps(props: Partial<PropsT>): void {
+    super.setProps(props);
+    if (this.rootElement) this.observePanel();
+  }
+
+  /** Release content subscriptions when the shell is removed. */
+  override onRemove(): void {
+    this.stopObservingPanel?.();
+    this.stopObservingPanel = undefined;
+    super.onRemove();
+  }
+
+  private observePanel(): void {
+    this.stopObservingPanel?.();
+    this.stopObservingPanel = this.props.panel?.subscribe(() => this.updateHTML());
+  }
 }
 
 export type {PanelPlacement} from './panel-component';

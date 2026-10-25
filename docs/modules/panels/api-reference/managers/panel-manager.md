@@ -16,9 +16,10 @@ without creating a `Deck` instance.
 A `PanelManager` mounts panel-module UI such as direct `Panel` instances, real
 `PanelContainer` instances, `ToolbarComponent`, and `ToastComponent`.
 
-Note: If your application is using deck.gl it is recommended to use the panel
-widgets in [`@deck.gl-community/widgets`](/docs/modules/widgets) directly
-instead of instantiating a `PanelManager`.
+For overlays owned by deck.gl's widget lifecycle, use the adapters in
+[`@deck.gl-community/widgets`](/docs/modules/widgets). For permanent chrome and pinnable
+panels around a deck.gl canvas, use `PanelManager` with `contentElement` and mount deck.gl
+inside that content host.
 
 ```ts
 import {PanelManager} from '@deck.gl-community/panels';
@@ -49,6 +50,8 @@ existing deck.gl widget styling and theming instead.
 ```ts
 type PanelManagerProps = {
   parentElement: HTMLElement;
+  components?: (PanelComponent | null | undefined)[];
+  contentElement?: HTMLElement;
   deck?: unknown | null;
   className?: string;
 };
@@ -59,6 +62,8 @@ type PanelManagerProps = {
 ```ts
 new PanelManager({
   parentElement,
+  contentElement,
+  components,
   deck,
   className
 });
@@ -94,3 +99,28 @@ onEvent(
 - Honors `_container` when a component points at an explicit `HTMLElement`.
 - Can optionally forward redraw, viewport, hover, and gesture hooks when paired with a real deck instance or another runtime that can supply equivalent event data.
 - Does not make deck-coupled widget adapters useful on its own; controls that fundamentally depend on view-state mutation, redraws, or picking still need those inputs.
+
+## Canvas chrome
+
+Pass optional `contentElement`, an application-created direct child of `parentElement`, to enable
+[permanent chrome and pinnable panels](../panel-containers/canvas-chrome.md). The manager arranges
+this canvas host alongside docked panels inside the outer boundary, preserving the application's
+positioning of `parentElement`. Omit it to retain overlay-only behavior; docked chrome stays hidden.
+
+## Declarative lifecycle
+
+Supply `components` in the constructor to mount the initial UI in one expression. Later
+`setProps({components})` calls replace that list. `null` and `undefined` entries are ignored,
+so conditional entries can stay inline. `[]` removes every declarative component;
+omitting `components` leaves the list unchanged. Components added with `addDefault` are
+independent of that list.
+
+The manager observes its parent for size changes when `ResizeObserver` is available.
+Overlay placement hosts follow the available area automatically; applications do not need
+an observer just to reposition panels. Canvas chrome also observes its content region.
+The renderer still needs to follow `contentElement` size through its own resize support.
+All manager-owned observers are disconnected by `finalize()`.
+
+Only `components` is mutable through `setProps`. Recreate the manager to change its host
+configuration. See [state and updates](../../developer-guide/using-panels.md#state-and-updates)
+for a complete reconciliation example.

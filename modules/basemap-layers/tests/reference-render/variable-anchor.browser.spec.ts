@@ -16,7 +16,7 @@
 import {afterAll, describe, expect, test} from 'vitest';
 import {commands} from 'vitest/browser';
 import {loadReferenceStyle} from './fixtures';
-import {labelScores, ssim, toGray} from './metrics';
+import {labelScores, ssim, toGray} from '../../../../dev/basemap-conformance/src/metrics';
 import {renderBasemapLayer, renderMapLibre} from './renderers';
 import {VIEWPORT, type ReferenceScene} from './scenes';
 

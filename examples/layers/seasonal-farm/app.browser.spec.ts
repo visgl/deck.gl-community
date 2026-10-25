@@ -79,7 +79,7 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => frames.mock.calls.length, {timeout: 5000}).toBeGreaterThan(0);
         expect(deck!.props.device).toBe(device);
         expect(deck!.props.controller).toMatchObject({type: MapController});
-        expect(parent.querySelectorAll('button')).toHaveLength(4);
+        expect(parent.querySelectorAll('.farm-seasons button')).toHaveLength(4);
         expect(parent.querySelectorAll('select, input')).toHaveLength(0);
         expect(root().dataset.season).toBe('spring');
         expect(treeLayers()).toHaveLength(7);
@@ -112,6 +112,12 @@ describe('Seasonal Farm integration', () => {
         expect(deck!.props.getTooltip!({x, y} as PickingInfo)).toMatchObject({
           text: expect.stringContaining('Orange tree')
         });
+        // Reclaim the canvas before testing picking and camera gestures behind the info box.
+        const panelToggle = parent.querySelector<HTMLButtonElement>(
+          'section[aria-label="Seasonal Farm"] header button'
+        )!;
+        await userEvent.click(panelToggle);
+        expect(panelToggle.getAttribute('aria-expanded')).toBe('false');
         const canvas = deck!.getCanvas()!;
         await userEvent.hover(canvas, {position: {x, y}});
         await expect

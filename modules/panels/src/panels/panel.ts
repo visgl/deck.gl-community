@@ -1,8 +1,10 @@
 import {h, render} from 'preact';
+import {useLayoutEffect, useReducer} from 'preact/hooks';
 
 import {PanelComponent, type PanelComponentProps, type PanelPlacement} from './panel-component';
 import {PanelThemeScope} from './panel-theme-scope';
 
+import type {PanelThemeDefinition} from '../lib/panel-theme';
 import type {ComponentChildren} from 'preact';
 
 /** Stable panel identifier used for container state. */
@@ -12,18 +14,25 @@ export type PanelId = string;
 export type PanelThemeMode = 'light' | 'dark';
 
 /** Public theme override options for panels. */
-export type PanelTheme = 'inherit' | 'light' | 'dark' | 'invert';
+export type PanelTheme =
+  | 'inherit'
+  | 'light'
+  | 'dark'
+  | 'sleek-light'
+  | 'sleek-dark'
+  | 'invert'
+  | PanelThemeDefinition;
 
 /**
  * Props used to construct one panel definition.
  */
 export type PanelProps = PanelComponentProps & {
   /** Stable id used for expansion/selection bookkeeping. */
-  id: PanelId;
+  id?: PanelId;
   /** Visible heading text for the panel. */
-  title: string;
+  title?: string;
   /** Renderable panel body. */
-  content: ComponentChildren;
+  content?: ComponentChildren;
   /** Optional theme override applied to this panel subtree. */
   theme?: PanelTheme;
   /** If true, the panel can not be interacted with and will not switch/expand. */
@@ -35,8 +44,8 @@ export type PanelProps = PanelComponentProps & {
 /**
  * Base class for titled panel content rendered directly or by panel containers.
  */
-export abstract class Panel extends PanelComponent<PanelProps> {
-  /** Default props applied before caller-provided panel props. */
+export abstract class Panel<PropsT extends PanelProps = PanelProps> extends PanelComponent<PropsT> {
+  /** Defaults shared by every panel type. */
   static defaultProps: Required<PanelProps> = {
     ...PanelComponent.defaultProps,
     id: 'panel',
@@ -47,40 +56,69 @@ export abstract class Panel extends PanelComponent<PanelProps> {
     keepMounted: false
   };
 
-  /** Default standalone placement used when a panel is mounted directly. */
   placement: PanelPlacement = 'top-left';
-  /** Root CSS class applied when a panel is mounted directly. */
   className = 'deck-widget-panel';
-  /** Visible panel heading text. */
-  title: string;
-  /** Renderable panel body. */
-  content: ComponentChildren;
-  /** Optional panel-scoped theme override. */
-  theme?: PanelTheme;
-  /** Whether the panel should be treated as disabled by parent compositions. */
-  disabled?: boolean;
-  /** Whether parent compositions should keep collapsed content mounted. */
-  keepMounted?: boolean;
+  private listeners = new Set<() => void>();
 
-  /** Creates one titled panel definition. */
-  constructor(props: PanelProps) {
-    super(props);
-    this.title = this.props.title;
-    this.content = this.props.content;
-    this.theme = this.props.theme;
-    this.disabled = this.props.disabled;
-    this.keepMounted = this.props.keepMounted;
+  /** Create a definition, applying defaults even for explicitly undefined optional props. */
+  constructor(props: PropsT) {
+    super(
+      resolvePanelProps(
+        props,
+        (new.target as typeof Panel).defaultProps as Partial<PropsT>
+      ) as PropsT
+    );
   }
 
-  /** Updates panel props and refreshes direct mounted content when present. */
-  override setProps(props: Partial<PanelProps>): void {
-    const nextProps = {...this.props, ...props} as Required<PanelProps>;
-    this.title = nextProps.title;
-    this.content = nextProps.content;
-    this.theme = nextProps.theme;
-    this.disabled = nextProps.disabled;
-    this.keepMounted = nextProps.keepMounted;
-    super.setProps(props);
+  /** Current heading, derived from props. */
+  get title(): string {
+    return this.props.title;
+  }
+  /** Reactive content surface, safe to embed in another panel. */
+  get content(): ComponentChildren {
+    return h(PanelContent, {panel: this});
+  }
+  /** Theme override for this panel subtree. */
+  get theme(): PanelTheme | undefined {
+    return this.props.theme;
+  }
+  /** Whether compositions should disable interaction with this panel. */
+  get disabled(): boolean | undefined {
+    return this.props.disabled;
+  }
+  /** Whether collapsed compositions retain this panel's content. */
+  get keepMounted(): boolean | undefined {
+    return this.props.keepMounted;
+  }
+
+  /** Render the body from current props. Specialized panels override this method. */
+  renderContent(): ComponentChildren {
+    return this.props.content;
+  }
+
+  /** Child definitions observed along with this panel's own props. */
+  getChildPanels(): ReadonlyArray<Panel> {
+    return [];
+  }
+
+  /** @internal Subscribe a rendered surface to this panel tree. */
+  subscribe(listener: () => void, includeChildren = true): () => void {
+    this.listeners.add(listener);
+    const cleanups = includeChildren
+      ? this.getChildPanels().map(panel => panel.subscribe(listener))
+      : [];
+    return () => {
+      this.listeners.delete(listener);
+      cleanups.forEach(cleanup => cleanup());
+    };
+  }
+
+  /** Merge typed public props and refresh every mounted content surface. */
+  override setProps(props: Partial<PropsT>): void {
+    super.setProps(
+      resolvePanelProps(props, (this.constructor as typeof Panel).defaultProps as Partial<PropsT>)
+    );
+    for (const listener of this.listeners) listener();
   }
 
   /** Renders themed panel content into a mounted root element. */
@@ -103,3 +141,23 @@ export type PanelListContainerProps = {
   /** Ordered panels rendered by the container. */
   panels: ReadonlyArray<Panel>;
 };
+
+/** Keeps nested content reactive without remounting its component tree on prop updates. */
+function PanelContent({panel}: {panel: Panel}) {
+  const [, refresh] = useReducer((value: number) => value + 1, 0);
+  useLayoutEffect(() => panel.subscribe(() => refresh(undefined)));
+  return panel.renderContent();
+}
+
+/** Undefined optional values restore declared defaults; controlled props without defaults stay undefined. */
+function resolvePanelProps<PropsT extends PanelProps>(
+  props: Partial<PropsT>,
+  defaults: Partial<PropsT>
+): Partial<PropsT> {
+  return Object.fromEntries(
+    Object.entries(props).map(([key, value]) => [
+      key,
+      value === undefined && Object.hasOwn(defaults, key) ? defaults[key as keyof PropsT] : value
+    ])
+  ) as Partial<PropsT>;
+}

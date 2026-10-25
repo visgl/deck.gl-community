@@ -16,7 +16,9 @@ import '@fontsource/montserrat/latin-400.css';
 import '@fontsource/montserrat/latin-400-italic.css';
 import '@fontsource/open-sans/latin-400-italic.css';
 import type {Deck} from '@deck.gl/core';
-import {expect, test} from 'vitest';
+import {Model} from '@luma.gl/engine';
+import type {WebGLDevice} from '@luma.gl/webgl';
+import {expect, test, vi} from 'vitest';
 import {commands} from 'vitest/browser';
 import {LINE_GLYPH_ATTRIBUTE_STATS} from '../../src/label-text-layer';
 import {LINE_GLYPH_STATS} from '../../src/mvt-label-layer';
@@ -93,26 +95,35 @@ test('counts the work of glyphs along lines in an orbit, a tilt and a zoom', asy
     {},
     {
       onRendered: async deck => {
-        // Settles the controlled view first.
-        await drawFrame(deck, {...base, pitch: 0, bearing: 0});
-        await drawFrame(deck, {...base, pitch: 0, bearing: 0});
-        work.orbit = await countWork(
-          deck,
-          Array.from({length: 60}, (_, i) => ({...base, pitch: 40, bearing: (i + 1) * 3}))
-        );
-        work.tilt = await countWork(
-          deck,
-          Array.from({length: 30}, (_, i) => ({...base, pitch: i, bearing: 180}))
-        );
-        work.zoom = await countWork(
-          deck,
-          Array.from({length: 30}, (_, i) => ({
-            ...base,
-            zoom: scene.zoom + i / 64,
-            pitch: 0,
-            bearing: 0
-          }))
-        );
+        // The scene has rendered. Count CPU placement and attribute work while stepping
+        // views, without queuing 120 frames of GPU rasterization on software renderers.
+        const draw = vi.spyOn(Model.prototype, 'draw').mockReturnValue(true);
+        try {
+          // Settles the controlled view first.
+          await drawFrame(deck, {...base, pitch: 0, bearing: 0});
+          await drawFrame(deck, {...base, pitch: 0, bearing: 0});
+          work.orbit = await countWork(
+            deck,
+            Array.from({length: 60}, (_, i) => ({...base, pitch: 40, bearing: (i + 1) * 3}))
+          );
+          work.tilt = await countWork(
+            deck,
+            Array.from({length: 30}, (_, i) => ({...base, pitch: i, bearing: 180}))
+          );
+          work.zoom = await countWork(
+            deck,
+            Array.from({length: 30}, (_, i) => ({
+              ...base,
+              zoom: scene.zoom + i / 64,
+              pitch: 0,
+              bearing: 0
+            }))
+          );
+        } finally {
+          draw.mockRestore();
+          // Keep submitted GPU work inside the test, rather than deferring it to iframe removal.
+          (deck.device as WebGLDevice).gl.finish();
+        }
       }
     }
   );

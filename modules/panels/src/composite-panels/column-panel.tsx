@@ -1,12 +1,13 @@
 /** @jsxImportSource preact */
 import {PanelThemeScope} from '../panels/panel-theme-scope';
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {JSX} from 'preact';
 import type {PanelListContainerProps, PanelTheme} from '../panels/panel';
 
 /** Props for the composite `ColumnPanel` definition. */
-export type ColumnPanelProps = {
+export type ColumnPanelProps = PanelProps & {
   panels: ReadonlyArray<Panel>;
   id?: string;
   title?: string;
@@ -17,14 +18,23 @@ export type ColumnPanelProps = {
 export type ColumnPanelContainerProps = PanelListContainerProps;
 
 /** Panel definition that renders child panels in one vertical column. */
-export class ColumnPanel extends Panel {
-  constructor({
-    panels,
-    id = 'column-panels',
-    title = 'Panels',
-    theme = 'inherit'
-  }: ColumnPanelProps) {
-    super({id, title, theme, content: <ColumnPanelContainer panels={panels} />});
+export class ColumnPanel extends Panel<ColumnPanelProps> {
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'column-panels',
+    title: 'Panels',
+    theme: 'inherit'
+  } satisfies PanelProps & Partial<ColumnPanelProps>;
+
+  override getChildPanels(): ReadonlyArray<Panel> {
+    return this.props.panels;
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {panels} = this.props;
+    return <ColumnPanelContainer panels={panels} />;
   }
 }
 
@@ -38,7 +48,9 @@ export function ColumnPanelContainer({panels, className}: ColumnPanelContainerPr
           style={{
             ...COLUMN_PANEL_STYLE,
             borderTop:
-              panelIndex > 0 ? '1px solid var(--menu-border, rgba(148, 163, 184, 0.25))' : 'none',
+              panelIndex > 0
+                ? '1px solid var(--menu-border-color, var(--menu-border, rgba(148, 163, 184, 0.25)))'
+                : 'none',
             opacity: panel.disabled ? 0.55 : 1
           }}
         >
@@ -59,15 +71,15 @@ const COLUMN_CONTAINER_STYLE: JSX.CSSProperties = {
 
 const COLUMN_PANEL_STYLE: JSX.CSSProperties = {
   display: 'grid',
-  gap: '10px',
-  padding: '12px 0'
+  gap: 'var(--panel-gap, 10px)',
+  padding: 'var(--panel-padding, 12px 0)'
 };
 
 const COLUMN_PANEL_HEADER_STYLE: JSX.CSSProperties = {
-  fontSize: '12px',
+  fontSize: 'var(--panel-font-size, 12px)',
   fontWeight: 700,
   color: 'var(--button-text, currentColor)',
-  padding: '0 2px'
+  padding: 'var(--panel-padding, 0 2px)'
 };
 
 const COLUMN_PANEL_CONTENT_STYLE: JSX.CSSProperties = {

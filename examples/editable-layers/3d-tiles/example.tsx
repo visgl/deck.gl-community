@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {useState, useEffect, useCallback, useMemo} from 'react';
 import DeckGL from '@deck.gl/react';
 import {MapView, TerrainController} from '@deck.gl/core';
@@ -93,6 +94,7 @@ export function Example() {
   const infoWidget = useMemo(
     () =>
       new BoxPanelWidget({
+        style: EXAMPLE_PANEL_STYLE,
         id: 'editor-info',
         placement: 'top-right',
         widthPx: 320,

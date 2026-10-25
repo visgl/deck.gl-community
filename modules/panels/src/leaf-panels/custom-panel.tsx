@@ -1,12 +1,13 @@
 /** @jsxImportSource preact */
 import {useLayoutEffect, useRef} from 'preact/hooks';
 import {Panel} from '../panels/panel';
+import type {PanelProps} from '../panels/panel';
 
 import type {PanelTheme} from '../panels/panel';
 
 /** Props for an imperative DOM-backed panel definition. */
-export type CustomPanelProps = {
-  id: string;
+export type CustomPanelProps = PanelProps & {
+  id?: string;
   title: string;
   onRenderHTML: (rootElement: HTMLElement) => void | (() => void);
   disabled?: boolean;
@@ -39,23 +40,13 @@ function CustomPanelContent({
 }
 
 /** Panel definition that lets callers render custom HTML into a managed host. */
-export class CustomPanel extends Panel {
-  constructor({
-    id,
-    title,
-    onRenderHTML,
-    disabled,
-    keepMounted,
-    className,
-    theme = 'inherit'
-  }: CustomPanelProps) {
-    super({
-      id,
-      title,
-      theme,
-      disabled,
-      keepMounted,
-      content: <CustomPanelContent className={className} onRenderHTML={onRenderHTML} />
-    });
+export class CustomPanel extends Panel<CustomPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'custom-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {onRenderHTML, className} = this.props;
+    return <CustomPanelContent className={className} onRenderHTML={onRenderHTML} />;
   }
 }

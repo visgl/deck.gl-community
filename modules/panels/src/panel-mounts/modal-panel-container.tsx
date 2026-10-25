@@ -466,6 +466,7 @@ export class ModalPanelContainer extends PanelContainer<ModalPanelContainerProps
 
   /** Stops modal listeners and unmounts modal content from the current root. */
   override onRemove(): void {
+    super.onRemove();
     this.#detachDocumentKeyListener();
     this.#syncPlacementZIndex(false);
     if (this.#keyboardShortcutsManager) {
@@ -612,7 +613,7 @@ function isElementNode(value: Element | null | undefined): value is HTMLElement 
 
 const MODAL_TRIGGER_ICON_STYLE: JSX.CSSProperties = {
   display: 'block',
-  fontSize: '16px',
+  fontSize: 'var(--panel-font-size, 16px)',
   lineHeight: 1,
   color: 'var(--button-icon-idle, #616166)'
 };
@@ -653,7 +654,7 @@ function getModalDialogWrapperStyle(
     dialogPlacement === 'left'
       ? {
           justifyContent: 'flex-start',
-          padding: '24px'
+          padding: 'var(--panel-padding, 24px)'
         }
       : {};
   const transformStyle =
@@ -675,6 +676,8 @@ const MODAL_DIALOG_PANEL_STYLE: JSX.CSSProperties = {
   borderRadius: 'var(--menu-corner-radius, 10px)',
   border: 'var(--menu-border, 1px solid rgba(148, 163, 184, 0.35))',
   background: 'var(--menu-background, #fff)',
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
   color: 'var(--menu-text, rgb(24, 24, 26))',
   boxShadow: 'var(--menu-shadow, 0px 12px 30px rgba(0,0,0,0.25))',
   overflow: 'hidden',
@@ -702,8 +705,8 @@ const MODAL_HEADER_STYLE: JSX.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: '10px',
-  padding: '10px 12px',
+  gap: 'var(--panel-gap, 10px)',
+  padding: 'var(--panel-padding, 10px 12px)',
   borderBottom: 'var(--menu-divider, var(--menu-border, 1px solid rgba(148, 163, 184, 0.25)))',
   backgroundColor:
     'var(--menu-weak-background, var(--button-background, var(--menu-background, #fff)))',
@@ -712,14 +715,14 @@ const MODAL_HEADER_STYLE: JSX.CSSProperties = {
 
 const MODAL_HEADER_TITLE_STYLE: JSX.CSSProperties = {
   margin: 0,
-  fontSize: '13px',
+  fontSize: 'var(--panel-font-size, 13px)',
   fontWeight: 700
 };
 
 const MODAL_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   width: '24px',
   height: '24px',
-  borderRadius: '999px',
+  borderRadius: 'var(--panel-round-radius, 999px)',
   border: 'var(--menu-inner-border, 1px solid rgba(148, 163, 184, 0.35))',
   backgroundColor: 'transparent',
   color: 'var(--button-text, rgb(24, 24, 26))',
@@ -733,13 +736,15 @@ const MODAL_FLOATING_CLOSE_BUTTON_STYLE: JSX.CSSProperties = {
   right: '12px',
   zIndex: 2,
   backgroundColor: 'var(--menu-background, #fff)',
+  backdropFilter: 'var(--menu-backdrop-filter, unset)',
+  WebkitBackdropFilter: 'var(--menu-backdrop-filter, unset)',
   boxShadow: '0 4px 12px rgba(15, 23, 42, 0.12)'
 };
 
 const MODAL_CONTENT_STYLE: JSX.CSSProperties = {
   flex: 1,
   overflow: 'auto',
-  padding: '10px'
+  padding: 'var(--panel-padding, 10px)'
 };
 
 const MODAL_FLOATING_CONTENT_STYLE: JSX.CSSProperties = {

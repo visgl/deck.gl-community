@@ -3,6 +3,7 @@
 // Copyright (c) vis.gl contributors
 
 /* eslint-env browser */
+import {EXAMPLE_PANEL_STYLE} from '../../../utils/panel-theme';
 import * as React from 'react';
 import {useState, useCallback} from 'react';
 import DeckGL from '@deck.gl/react';
@@ -350,6 +351,7 @@ export function Example() {
   const infoWidget = React.useMemo(
     () =>
       new BoxPanelWidget({
+        style: EXAMPLE_PANEL_STYLE,
         id: 'advanced-editable-layers-info',
         placement: 'top-right',
         widthPx: 360,

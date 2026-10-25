@@ -20,7 +20,7 @@ Use the standalone path when:
 ## Core pieces
 
 - `MarkdownPanel`, `CustomPanel`, `StatsPanel`, `SettingsPanel`, Arrow inspection panels, and similar classes define content
-- `ColumnPanel`, `TabbedPanel`, and `AccordeonPanel` compose multiple panels
+- `ColumnPanel`, `TabbedPanel`, and `AccordionPanel` compose multiple panels
 - `BoxPanelContainer`, `ModalPanelContainer`, `SidebarPanelContainer`, and
   `FullScreenPanelContainer` mount panel content into concrete standalone containers
 - `ToolbarComponent` and `ToastComponent` are specialized standalone
@@ -76,3 +76,34 @@ toastManager.toast({
 - [Using Components](./using-components.md)
 - [Using Managers](./using-managers.md)
 - [Standalone panels example](/examples/widgets/standalone-widgets)
+
+## Embed content in an existing surface
+
+Use `mountPanel` when your application already owns the chrome, such as an InfoBox.
+This mounts content without placement hosts, overlay positioning, or a `PanelManager`.
+It inherits the host's panel theme, including custom definitions and runtime changes.
+
+```ts
+import {applyPanelTheme, mountPanel, MarkdownPanel} from '@deck.gl-community/panels';
+
+applyPanelTheme(hostElement, {
+  base: 'sleek-dark', variables: {'--button-text': '#ddffee'}
+});
+const mounted = mountPanel(new MarkdownPanel({
+  id: 'summary', title: 'Summary', markdown: 'Embedded content'
+}), hostElement);
+
+// Replace or refresh content; matching panel ids preserve component state.
+mounted.setPanel(nextPanel);
+// Clear content while retaining the mount for later use.
+mounted.setPanel(null);
+// Unmount and remove only the owned surface; unrelated host children remain.
+mounted.finalize();
+```
+
+Titles are omitted by default because the application usually supplies its own header.
+Pass `{showTitle: true}` as the third argument to render the title. `finalize()` is
+idempotent, and later `setPanel()` calls are ignored. This helper does not take ownership
+of the panel definition or alter its standalone manager lifecycle.
+
+For React-owned controls, use the [React content bridge](../../react/api-reference/panel.md#react-owned-content).

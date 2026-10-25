@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 
+import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {Deck, MapView, type MapViewState} from '@deck.gl/core';
 import {ThemeWidget, DarkTheme, LightTheme} from '@deck.gl/widgets';
 import {ScatterplotLayer, TextLayer} from '@deck.gl/layers';
-import {AccordeonPanel, ColumnPanel, MarkdownPanel, StatsPanel} from '../../../modules/panels/src';
+import {AccordionPanel, ColumnPanel, MarkdownPanel, StatsPanel} from '../../../modules/panels/src';
 import {BoxPanelWidget} from '../../../modules/widgets/src';
 import {SharedTile2DLayer, TileGridLayer} from '../../../modules/geo-layers/src';
 import {SharedTileset2D} from '../../../modules/geo-layers/src/tileset';
@@ -380,7 +381,7 @@ function buildInfoPanel(
           `Selected feature: **${selectedId ?? 'none'}**`
         ].join('\n\n')
       }),
-      new AccordeonPanel({
+      new AccordionPanel({
         id: 'shared-tile-2d-layer-stats-accordion',
         title: '',
         panels: [
@@ -448,6 +449,7 @@ export function mountSharedTile2DLayerExample(
     options.showInfoWidget === false
       ? null
       : new BoxPanelWidget({
+          style: EXAMPLE_PANEL_STYLE,
           id: 'shared-tile-2d-layer-info',
           placement: 'top-left',
           widthPx: mode === 'compact' ? 286 : 340,
