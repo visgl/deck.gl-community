@@ -22,6 +22,7 @@ import type {
   SettingValue
 } from '../../lib/settings/settings';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 
 import type {PanelTheme} from '../../panels/panel';
 import type {JSX} from 'preact';
@@ -40,7 +41,7 @@ type SettingsPanelChangeHandler = (
 export type SettingsPanelFontSize = number | string;
 
 /** Settings panel configuration for sidebar/modal container composition. */
-export type SettingsPanelProps = {
+export type SettingsPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
   id?: string;
   /** Fallback title used when the schema does not provide one. */
@@ -725,7 +726,7 @@ export function SettingsPanelContent({
 /**
  * A reusable settings panel that can be mounted inside modal and sidebar panel containers.
  */
-export class SettingsPanel extends Panel {
+export class SettingsPanel extends Panel<SettingsPanelProps> {
   /**
    * Creates one panel per top-level settings schema section for generic composition.
    */
@@ -736,48 +737,66 @@ export class SettingsPanel extends Panel {
     onSettingsChange,
     fontSize,
     theme = 'inherit'
-  }: Omit<SettingsPanelProps, 'id'>): Panel[] {
+  }: Omit<SettingsPanelProps, 'id'>): SettingsSectionPanel[] {
     return schema.sections.map((section, index) => {
       const panelId = getSectionKey(section, index);
       return new SettingsSectionPanel({
         id: panelId,
         title: section.name || label,
         theme,
-        content: (
-          <SettingsSectionPanelContent
-            fontSize={fontSize}
-            onSettingsChange={onSettingsChange}
-            section={section}
-            settings={settings}
-          />
-        )
+        fontSize,
+        onSettingsChange,
+        section,
+        settings
       });
     });
   }
 
-  constructor({
-    id = 'settings-panel',
-    label = 'Settings',
-    schema = DEFAULT_SETTINGS_PANEL_SCHEMA,
-    settings = DEFAULT_SETTINGS_PANEL_STATE,
-    onSettingsChange,
-    fontSize,
-    theme = 'inherit'
-  }: SettingsPanelProps = {}) {
-    super({
-      id,
-      title: schema.title ?? label,
-      theme,
-      content: (
-        <SettingsPanelContent
-          fontSize={fontSize}
-          schema={schema}
-          settings={settings}
-          onSettingsChange={onSettingsChange}
-        />
-      )
-    });
+  override get title(): string {
+    return this.props.title ?? this.props.schema?.title ?? this.props.label;
+  }
+
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    id: 'settings-panel',
+    label: 'Settings',
+    schema: DEFAULT_SETTINGS_PANEL_SCHEMA,
+    settings: DEFAULT_SETTINGS_PANEL_STATE,
+    theme: 'inherit',
+    title: undefined!
+  } satisfies PanelProps & Partial<SettingsPanelProps>;
+
+  constructor(props: SettingsPanelProps = {}) {
+    super(props);
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {schema, settings, onSettingsChange, fontSize} = this.props;
+    return (
+      <SettingsPanelContent
+        fontSize={fontSize}
+        schema={schema}
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+      />
+    );
   }
 }
 
-class SettingsSectionPanel extends Panel {}
+type SettingsSectionPanelProps = PanelProps & {
+  section: SettingsSectionDescriptor;
+  settings: SettingsState;
+  onSettingsChange?: SettingsPanelChangeHandler;
+  fontSize?: SettingsPanelFontSize;
+};
+
+class SettingsSectionPanel extends Panel<SettingsSectionPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'settings-section-panel'};
+
+  override renderContent() {
+    return <SettingsSectionPanelContent {...this.props} />;
+  }
+}

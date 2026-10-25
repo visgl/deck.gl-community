@@ -3,7 +3,7 @@ import {render} from 'preact';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {SettingsPanel} from './settings-panel';
-import {AccordeonPanel} from '../../composite-panels/accordeon-panel';
+import {AccordionPanel} from '../../composite-panels/accordion-panel';
 import {TabbedPanel} from '../../composite-panels/tabbed-panel';
 
 import type {SettingsSchema, SettingsState} from '../../lib/settings/settings';
@@ -503,7 +503,7 @@ describe('SettingsPanel', () => {
     const root = document.createElement('div');
     document.body.appendChild(root);
 
-    const panel = new AccordeonPanel({
+    const panel = new AccordionPanel({
       id: 'settings-accordion',
       title: 'Settings accordion',
       panels: SettingsPanel.createSectionPanels({

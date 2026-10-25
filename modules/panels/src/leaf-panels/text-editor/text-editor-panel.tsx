@@ -1,9 +1,10 @@
 /* eslint react/react-in-jsx-scope: 0 */
 /** @jsxImportSource preact */
-import {useEffect, useRef, useState} from 'preact/hooks';
+import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks';
 
-import {loadTextEditorMonacoRuntime} from './text-editor-panel-monaco-runtime';
+import type {TextEditorMonacoRuntime} from './text-editor-panel-monaco-runtime';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 
 import type {PanelTheme} from '../../panels/panel';
@@ -11,9 +12,9 @@ import type {editor as EditorNamespace, IDisposable} from 'monaco-editor';
 import type {JSX} from 'preact';
 
 /** Text-editor panel configuration. */
-export type TextEditorPanelProps = {
+export type TextEditorPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Controlled editor text. If supplied, callers own the current value. */
@@ -43,14 +44,13 @@ export type TextEditorPanelProps = {
 /**
  * A panel that lazily loads Monaco and edits one text document.
  */
-export class TextEditorPanel extends Panel {
-  constructor(props: TextEditorPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <TextEditorPanelContent {...props} />
-    });
+export class TextEditorPanel extends Panel<TextEditorPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'text-editor-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <TextEditorPanelContent {...this.props} />;
   }
 }
 
@@ -59,7 +59,7 @@ export class TextEditorPanel extends Panel {
  */
 type TextEditorLoadState =
   | {status: 'loading'}
-  | {status: 'ready'; runtime: Awaited<ReturnType<typeof loadTextEditorMonacoRuntime>>}
+  | {status: 'ready'; runtime: TextEditorMonacoRuntime}
   | {status: 'error'; error: Error};
 
 /**
@@ -96,7 +96,7 @@ function TextEditorPanelContent({
   const runtime = loadState.status === 'ready' ? loadState.runtime : undefined;
   const themeMode = useEffectivePanelThemeMode();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     isControlledRef.current = isControlled;
     resolvedValueRef.current = resolvedValue;
     languageRef.current = language;
@@ -106,7 +106,8 @@ function TextEditorPanelContent({
   useEffect(() => {
     let isDisposed = false;
 
-    loadTextEditorMonacoRuntime()
+    import('./text-editor-panel-monaco-runtime')
+      .then(({loadTextEditorMonacoRuntime}) => loadTextEditorMonacoRuntime())
       .then(loadedRuntime => {
         if (isDisposed) {
           return;
@@ -135,18 +136,11 @@ function TextEditorPanelContent({
 
     const {monaco} = runtime;
     const modelUri = monaco.Uri.parse(getTextEditorModelUri(id));
-    const existingModel = monaco.editor.getModel(modelUri);
-    const model =
-      existingModel ??
-      monaco.editor.createModel(
-        resolvedValueRef.current,
-        getTextEditorLanguageId(languageRef.current),
-        modelUri
-      );
-
-    if (existingModel && existingModel.getValue() !== resolvedValueRef.current) {
-      model.setValue(resolvedValueRef.current);
-    }
+    const model = monaco.editor.createModel(
+      resolvedValueRef.current,
+      getTextEditorLanguageId(languageRef.current),
+      modelUri
+    );
 
     modelRef.current = model;
     monaco.editor.setTheme(getMonacoThemeId(themeMode, lightMonacoTheme, darkMonacoTheme));
@@ -166,7 +160,19 @@ function TextEditorPanelContent({
       setDisplayValue(nextValue);
       onValueChangeRef.current?.(nextValue);
       if (isControlledRef.current) {
-        return;
+        // Let synchronous application updates reach the mounted props before rejecting an edit.
+        queueMicrotask(() => {
+          if (
+            modelRef.current !== model ||
+            !isControlledRef.current ||
+            model.getValue() === resolvedValueRef.current
+          )
+            return;
+          isApplyingExternalValueRef.current = true;
+          model.setValue(resolvedValueRef.current);
+          isApplyingExternalValueRef.current = false;
+          setDisplayValue(resolvedValueRef.current);
+        });
       }
     });
 
@@ -179,7 +185,7 @@ function TextEditorPanelContent({
       model.dispose();
       modelRef.current = null;
     };
-  }, [darkMonacoTheme, id, lightMonacoTheme, runtime, themeMode]);
+  }, [id, runtime]);
 
   useEffect(() => {
     if (!runtime) {
@@ -279,11 +285,12 @@ function resolveInitialEditorValue(value: string | undefined, defaultValue: stri
   return value ?? defaultValue;
 }
 
-/**
- * Returns the stable in-memory Monaco model URI for one panel id.
- */
+// Panel ids are scoped to their parent; Monaco model URIs belong to a global registry.
+let textEditorModelSerial = 0;
+
+/** Returns a unique resource URI for one mounted editor, retaining its panel id for debugging. */
 function getTextEditorModelUri(id: string): string {
-  return `inmemory://deck-gl-community/panels/${encodeURIComponent(id)}`;
+  return `inmemory://deck-gl-community/panels/${encodeURIComponent(id)}/${textEditorModelSerial++}`;
 }
 
 /**

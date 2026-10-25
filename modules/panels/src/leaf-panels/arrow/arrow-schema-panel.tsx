@@ -3,6 +3,7 @@
 import {useMemo} from 'preact/hooks';
 
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 import {
   createArrowSchemaPreview,
@@ -17,9 +18,9 @@ export type {ArrowMetadataLike, ArrowSchemaFieldLike, ArrowSchemaLike} from './a
 export type {ArrowMetadataEntry};
 
 /** Props for {@link ArrowSchemaPanel}. */
-export type ArrowSchemaPanelProps = {
+export type ArrowSchemaPanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Schema to display. Accepts Apache Arrow Schema-like objects. */
@@ -31,15 +32,13 @@ export type ArrowSchemaPanelProps = {
 };
 
 /** Panel that renders an Arrow schema as one table row per field. */
-export class ArrowSchemaPanel extends Panel {
-  /** Creates an Arrow schema panel. */
-  constructor(props: ArrowSchemaPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <ArrowSchemaPanelContent {...props} />
-    });
+export class ArrowSchemaPanel extends Panel<ArrowSchemaPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'arrow-schema-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <ArrowSchemaPanelContent {...this.props} />;
   }
 }
 

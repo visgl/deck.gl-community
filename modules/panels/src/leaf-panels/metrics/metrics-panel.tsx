@@ -1,14 +1,15 @@
 /** @jsxImportSource preact */
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import type {PanelTheme} from '../../panels/panel';
 
 /** Scalar telemetry value displayed by a metrics panel. */
 export type MetricValue = string | number | boolean | null | undefined;
 
 /** Configuration for a plain-data metrics panel. */
-export type MetricsPanelProps = {
+export type MetricsPanelProps = PanelProps & {
   /** Stable panel identifier. */
-  id: string;
+  id?: string;
   /** Visible panel title. */
   title: string;
   /** Metric values keyed by their stable names. */
@@ -24,15 +25,13 @@ export type MetricsPanelProps = {
 };
 
 /** Renders scalar telemetry without requiring a probe.gl Stats instance. */
-export class MetricsPanel extends Panel {
-  /** Creates a metrics panel from a host-owned snapshot. */
-  constructor(props: MetricsPanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme,
-      content: <MetricsContent {...props} />
-    });
+export class MetricsPanel extends Panel<MetricsPanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'metrics-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <MetricsContent {...this.props} />;
   }
 }
 

@@ -2,6 +2,7 @@
 
 import type {URLParameter} from '../../lib/url-parameters/url-parameters';
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 
 import type {PanelTheme} from '../../panels/panel';
 import type {JSX} from 'preact';
@@ -9,7 +10,7 @@ import type {JSX} from 'preact';
 /**
  * Props used to construct the URL-parameter help panel.
  */
-export type URLParametersPanelProps = {
+export type URLParametersPanelProps = PanelProps & {
   /** URL parameters documented for the current view. */
   urlParameters?: readonly URLParameter[];
   /** Optional theme override. */
@@ -19,17 +20,27 @@ export type URLParametersPanelProps = {
 /**
  * A panel definition that renders supported URL query parameters for deep links.
  */
-export class URLParametersPanel extends Panel {
+export class URLParametersPanel extends Panel<URLParametersPanelProps> {
   /**
    * Creates a URL parameter help panel.
    */
-  constructor({urlParameters = [], theme = 'inherit'}: URLParametersPanelProps = {}) {
-    super({
-      id: 'url-parameters',
-      title: 'URL Deep Links',
-      theme,
-      content: <URLParametersPanelContent urlParameters={urlParameters} />
-    });
+  /** Defaults applied before caller props. */
+  static defaultProps = {
+    ...Panel.defaultProps,
+    urlParameters: [],
+    theme: 'inherit',
+    id: 'url-parameters',
+    title: 'URL Deep Links'
+  } satisfies PanelProps & Partial<URLParametersPanelProps>;
+
+  constructor(props: URLParametersPanelProps = {}) {
+    super(props);
+  }
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    const {urlParameters} = this.props;
+    return <URLParametersPanelContent urlParameters={urlParameters} />;
   }
 }
 
