@@ -56,7 +56,7 @@ it('renders tree parts and removes every part at zero coverage', async () => {
       getTrunkRadius: 0.35,
       getTrunkHeightFraction: row => (row.species === 'pine' ? 0 : 0.35),
       getCrop: {kind: 'cone', color: [200, 100, 40], count: 4, droppedCount: 2, radius: 0.25},
-      windStrength: 0,
+      windEnabled: false,
       getCoverageWeight: coverage,
       // Retain coarse crowns so software adapters focus on the tree parts and coverage.
       maxCanopySplats: 0,

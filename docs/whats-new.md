@@ -18,9 +18,10 @@ This page lists module additions and major changes in each release. For detailed
 
 - New [`WindEffect`](/docs/modules/layers/api-reference/wind-effect) sets one wind for the scene,
   with direction, gusts and turbulence. Every `TreeLayer` and `SplatLayer` follows it, including
-  shadows and picking, on WebGL2 and WebGPU. `windStrength` and `deformationStrength` now default
-  to `null` (follow the effect, or no wind without one) and override it per layer. The Seasonal
-  Farm Wind controls drive the effect. `WindExtension` bends `SimpleMeshLayer`, `ScenegraphLayer`,
+  shadows and picking, on WebGL2 and WebGPU. **Breaking:** wind is deck-wide, so `TreeLayer`
+  `windStrength`/`windTime`, `TreeSpec.wind` and `SplatLayer` `deformationStrength`/
+  `deformationTime` are removed; `windEnabled: false` keeps one layer still. See the
+  [upgrade guide](./upgrade-guide.md). The Seasonal Farm Wind controls drive the effect. `WindExtension` bends `SimpleMeshLayer`, `ScenegraphLayer`,
   `ColumnLayer`, `GridCellLayer` and `PointCloudLayer` with the same wind (WebGL2); the new
   [Wind Garden](/examples/layers/wind-garden) example shows them together.
 

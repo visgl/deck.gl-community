@@ -65,10 +65,8 @@ export type PreparedSplatProps<DataT> = {
   getColor?: Accessor<DataT, Color>;
   /** Bend height, stable phase, and flex multiplier. Defaults to a rigid source. */
   getDeformation?: Accessor<DataT, number[]>;
-  /** Bend strength as a fraction of the owner's height, or null to follow the deck's `WindEffect`. @default null */
-  deformationStrength?: number | null;
-  /** Seconds, or null to follow the deck's `WindEffect` and then deck.gl's timeline. @default null */
-  deformationTime?: number | null;
+  /** Bend with the deck's `WindEffect`; `false` keeps this layer still in a windy scene. @default true */
+  windEnabled?: boolean;
   /** Pixel variance added to projected covariance, with determinant opacity compensation. @default 0.3 */
   kernelVariance?: number;
   /** Fragment contribution threshold. @default 0.0039215686 */
@@ -116,8 +114,7 @@ const defaultProps: DefaultProps<SplatLayerProps> = {
   getTransformMatrix: {type: 'accessor', value: null},
   getColor: {type: 'accessor', value: [255, 255, 255, 255]},
   getDeformation: {type: 'accessor', value: [1, 0, 0]},
-  deformationStrength: null,
-  deformationTime: null,
+  windEnabled: true,
   kernelVariance: {type: 'number', value: 0.3, min: 0},
   alphaCutoff: {type: 'number', value: 1 / 255, min: 0, max: 1},
   support: {type: 'number', value: 3, min: 1, max: 6},
@@ -295,11 +292,7 @@ export class SplatPrimitiveLayer<DataT = unknown> extends Layer<
     const pickingActive = shaderModuleProps.picking?.isActive;
     const mode = shaderModuleProps.splat?.mode ?? 0;
     // Shadow passes receive no effect props: resolve the deck's WindEffect here for every pass.
-    const {wind: windProps, animated} = getLayerWind(
-      this,
-      this.props.deformationStrength,
-      this.props.deformationTime
-    );
+    const {wind: windProps, animated} = getLayerWind(this, this.props.windEnabled);
     if (shaderModuleProps.shadow?.drawToShadowMap) {
       if (!prepareShadowDraw(this)) return;
     } else if (!pickingActive && mode === 0) {

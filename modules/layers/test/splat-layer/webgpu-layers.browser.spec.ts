@@ -17,7 +17,7 @@ import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, inject, it} from 'vitest';
 
-import {SplatLayer} from '../../src';
+import {SplatLayer, WindEffect} from '../../src';
 
 class TestDeck extends Deck {
   pause() {
@@ -162,6 +162,7 @@ async function renderSplatLayer(
         _animate: true,
         views: new MapView({id: 'tree-webgpu-test'}),
         initialViewState: {longitude: 0, latitude: 0, zoom: 20, pitch: 0},
+        effects: [new WindEffect({strength: 0.025, time: 1.25})],
         layers: [
           new SplatLayer({
             id: `splats-${type}`,
@@ -174,8 +175,6 @@ async function renderSplatLayer(
             transparency,
             getTranslation: [0, 0, 5],
             getDeformation: [10, 0.7, 1],
-            deformationStrength: 0.025,
-            deformationTime: 1.25,
             maxRenderPixels: mode === 'constant' ? Infinity : 64 * 64,
             pickable: true,
             material: {unlit: true}

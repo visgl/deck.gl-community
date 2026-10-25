@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) vis.gl contributors
 import {describe, expect, it, vi} from 'vitest';
-import {TreeLayer, WindEffect, WindExtension, type TreeSpec} from '../../src';
+import {SplatLayer, TreeLayer, WindEffect, WindExtension, type TreeSpec} from '../../src';
 import {getLayerWind, getLayerWindBound} from '../../src/wind-effect/wind-effect';
 import {
   WIND_DEFAULT_DIRECTION,
@@ -252,8 +252,11 @@ describe('WindEffect', () => {
     expect(getLayerWind(layer).wind.time).toBe(4);
     expect(getLayerWind(layer).wind.strength).toBe(getWindStrength(8));
     expect(clock).toHaveBeenCalled();
-    // A layer's own clock still wins.
-    expect(getLayerWind(layer, null, 9).wind.time).toBe(9);
+    // An opted-out layer is still, on the same clock.
+    expect(getLayerWind(layer, false)).toMatchObject({
+      wind: {strength: 0, time: 4},
+      animated: false
+    });
     // `null` returns to the deck timeline and its redraw requests.
     effect.setProps({speed: 8, time: null});
     expect(getLayerWind(layer)).toMatchObject({wind: {time: 30}, animated: true});
@@ -283,14 +286,12 @@ describe('WindEffect', () => {
     expect(current.setNeedsUpdate).toHaveBeenCalledTimes(2);
   });
 
-  it('lets layer strength and clock override the effect and redraws only on the timeline', () => {
+  it('follows the effect, is still without one or when opted out, and redraws only on the timeline', () => {
     const still = createLayer({});
     expect(getLayerWind(still)).toEqual({
       wind: {strength: 0, direction: WIND_DEFAULT_DIRECTION, gust: 0, turbulence: 1, time: 2},
       animated: false
     });
-    expect(getLayerWind(still, 0.03).animated).toBe(true);
-    expect(getLayerWind(still, 0.03, 5)).toMatchObject({wind: {time: 5}, animated: false});
 
     const deck = {};
     const effect = new WindEffect({strength: 0.04, direction: 120, gust: 0.5, turbulence: 0.5});
@@ -300,10 +301,11 @@ describe('WindEffect', () => {
       wind: {strength: 0.04, direction: 120, gust: 0.5, turbulence: 0.5, time: 4},
       animated: true
     });
-    // A sheltered layer keeps the scene's direction and gusts.
-    expect(getLayerWind(layer, 0.01).wind).toMatchObject({strength: 0.01, direction: 120});
-    expect(getLayerWind(layer, 0).animated).toBe(false);
-    expect(getLayerWind(layer, null, 9)).toMatchObject({wind: {time: 9}, animated: false});
+    // `windEnabled: false` keeps one layer still in the windy scene, and asks for no frames.
+    expect(getLayerWind(layer, false)).toEqual({
+      wind: {strength: 0, direction: 120, gust: 0.5, turbulence: 0.5, time: 4},
+      animated: false
+    });
     effect.setProps({...effect.props, time: 6});
     expect(getLayerWind(layer)).toMatchObject({wind: {time: 6}, animated: false});
     effect.cleanup({deck, device} as any);
@@ -321,12 +323,12 @@ describe('WindEffect', () => {
     expect(bound.peak).toBeCloseTo(0.06, 12);
     expect(bound.turbulence).toBe(2);
     expect(layer.state.windKey).toBe(effect.boundKey);
-    expect(getLayerWindBound(layer, 0.1).peak).toBeCloseTo(0.15, 12);
+    expect(getLayerWindBound(layer, false)).toEqual({strength: 0, peak: 0, turbulence: 2});
     effect.cleanup({deck, device} as any);
   });
 });
 
-describe('TreeLayer under a WindEffect', () => {
+describe('TreeLayer and SplatLayer under a WindEffect', () => {
   function prepare(data: TreeSpec[], deck: object, extra = {}) {
     const layer = new TreeLayer<TreeSpec>({id: 'wind-trees', data, ...extra});
     layer.initializeState();
@@ -339,38 +341,37 @@ describe('TreeLayer under a WindEffect', () => {
     (layer as any).context = {deck};
     return layer;
   }
-  const strengths = (layer: TreeLayer<TreeSpec>) =>
-    layer
-      .renderLayers()
-      .map(child => [
-        child.props.windStrength ?? child.props.deformationStrength,
-        child.props.windTime ?? child.props.deformationTime
-      ]);
 
-  it('follows the effect strength unless the layer or a tree sets its own', () => {
+  it('have no wind props of their own: only the deck-wide effect and a per-layer opt-out', () => {
+    for (const Layer of [TreeLayer, SplatLayer] as any[]) {
+      for (const removed of ['windStrength', 'windTime', 'deformationStrength', 'deformationTime'])
+        expect(Layer.defaultProps).not.toHaveProperty(removed);
+      expect(Layer.defaultProps.windEnabled).toBe(true);
+    }
+    expect(WindExtension.defaultProps).not.toHaveProperty('windStrength');
+    expect(WindExtension.defaultProps).not.toHaveProperty('windTime');
+  });
+
+  it('bend every part of every tree with the effect unless the layer opts out', () => {
     const deck = {};
-    const trees: TreeSpec[] = [{position: [0, 0], species: 'oak'}];
-    expect(strengths(prepare(trees, deck))).toContainEqual([0, null]);
-    const effect = new WindEffect({strength: 0.04});
+    const effect = new WindEffect({strength: 0.04, time: 3});
     effect.setup({deck, device} as any);
-    const layer = prepare(trees, deck);
-    const inherited = strengths(layer);
-    expect(inherited.length).toBeGreaterThan(1);
-    expect(inherited.every(([strength]) => strength === 0.04)).toBe(true);
-    expect(layer.state.windKey).toBe(effect.boundKey);
-    // An explicit 0 keeps a sheltered layer still; a clock override passes through.
-    expect(strengths(prepare(trees, deck, {windStrength: 0, windTime: 2}))).toContainEqual([0, 2]);
-    // A pinned tree keeps its own strength relative to the effect's.
-    const pinned = prepare(
-      [
-        {position: [0, 0], species: 'citrus'},
-        {position: [0.0001, 0], species: 'citrus', wind: 0.08}
-      ],
-      deck
-    );
-    const wood = pinned.renderLayers().find(child => child.id.includes('-wood-'))!;
-    expect(wood.props.windStrength).toBe(0.08);
-    expect(wood.props.data.map(row => wood.props.getWind(row)[2])).toEqual([0.5, 1]);
+    const trees: TreeSpec[] = [
+      {position: [0, 0], species: 'oak', crop: {count: 2, radius: 0.2}},
+      {position: [0.0001, 0], species: 'citrus'}
+    ];
+    const resolve = (child: any) =>
+      getLayerWind({context: {deck, timeline: {getTime: () => 0}}} as any, child.props.windEnabled)
+        .wind;
+    const windy = prepare(trees, deck).renderLayers();
+    expect(windy.length).toBeGreaterThan(2);
+    for (const child of windy) expect(resolve(child)).toMatchObject({strength: 0.04, time: 3});
+    // Every tree bends alike: no per-tree strength.
+    const wood = windy.find(child => child.id.includes('-wood-'))!;
+    expect(new Set(wood.props.data.map(row => wood.props.getWind(row)[2]))).toEqual(new Set([1]));
+    // A sheltered grove opts out, like `shadowEnabled`.
+    for (const child of prepare(trees, deck, {windEnabled: false}).renderLayers())
+      expect(resolve(child).strength).toBe(0);
     effect.cleanup({deck, device} as any);
   });
 });
@@ -415,7 +416,7 @@ describe('WindExtension', () => {
     expect(second[1] - first[1]).toBeCloseTo(Math.PI * (3 - Math.sqrt(5)), 12);
   });
 
-  it('draws with the effect, its own overrides, and redraws only on the timeline', () => {
+  it('draws with the effect and redraws only on the timeline', () => {
     const deck = {};
     const effect = new WindEffect({strength: 0.05, direction: 200});
     effect.setup({deck, device} as any);
@@ -426,14 +427,6 @@ describe('WindExtension', () => {
       windExtension: {ground: 1}
     });
     expect(layer.setNeedsRedraw).toHaveBeenCalledOnce();
-    const pinned = createExtended(deck, 'webgl', {windStrength: 0, windTime: 1});
-    pinned.extension.draw.call(pinned.layer, {}, pinned.extension);
-    expect(pinned.layer.setShaderModuleProps.mock.calls[0][0].wind).toMatchObject({
-      strength: 0,
-      direction: 200,
-      time: 1
-    });
-    expect(pinned.layer.setNeedsRedraw).not.toHaveBeenCalled();
     // An app-owned clock: the extension draws the app's time and leaves scheduling to the app.
     effect.setProps({strength: 0.05, direction: 200, time: () => 6.5});
     const scheduled = createExtended(deck);

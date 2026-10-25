@@ -4,7 +4,7 @@
 import {COORDINATE_SYSTEM, CompositeLayer, Deck, MapView, type Layer} from '@deck.gl/core';
 import {webgl2Adapter} from '@luma.gl/webgl';
 import {describe, expect, it, vi} from 'vitest';
-import {SplatLayer, type SplatSource} from '../../src';
+import {SplatLayer, WindEffect, type SplatSource} from '../../src';
 
 function collectLeaves(layer: Layer): Layer[] {
   return layer instanceof CompositeLayer ? layer.getSubLayers().flatMap(collectLeaves) : [layer];
@@ -29,7 +29,9 @@ describe('Gaussian canopy rendering', () => {
     const errors: string[] = [];
     let frames = 0;
     let pixels = new Uint8Array();
-    const makeLayer = (time: number, pixelError = 0.75) =>
+    // The scene's wind; its clock moves the canopy through uniforms alone.
+    const wind = (time: number) => new WindEffect({strength: 0.1, time});
+    const makeLayer = (pixelError = 0.75) =>
       new SplatLayer({
         id: 'canopy',
         data,
@@ -39,8 +41,6 @@ describe('Gaussian canopy rendering', () => {
         coordinateOrigin: [0, 0, 0],
         getTranslation: [0, 0, 5],
         getDeformation: [10, 0.7, 1],
-        deformationStrength: 0.1,
-        deformationTime: time,
         pickable: true,
         material: {unlit: true}
       });
@@ -53,7 +53,8 @@ describe('Gaussian canopy rendering', () => {
       deviceProps: {type: 'webgl', adapters: [webgl2Adapter]},
       views: new MapView({id: 'gaussian'}),
       initialViewState: {longitude: 0, latitude: 0, zoom: 21, pitch: 0},
-      layers: [makeLayer(0)],
+      effects: [wind(0)],
+      layers: [makeLayer()],
       onError: error => errors.push(error.message),
       onAfterRender({gl}) {
         pixels = new Uint8Array(256 * 256 * 4);
@@ -94,7 +95,7 @@ describe('Gaussian canopy rendering', () => {
       const before = pixels.slice();
       const oldFrame = frames;
       // On the trunk axis only the trunk sways: 2.75 s later it has eased by 0.17 m, 2 pixels.
-      deck.setProps({layers: [makeLayer(2.75)]});
+      deck.setProps({effects: [wind(2.75)]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(oldFrame + 3);
       let changed = 0;
       for (let i = 0; i < pixels.length; i += 4)
@@ -120,7 +121,7 @@ describe('Gaussian canopy rendering', () => {
       // A bounded accumulation target preserves the footprint and full-resolution owner picking.
       const beforePixels = pixels.slice();
       const beforeLowResolution = frames;
-      deck.setProps({layers: [makeLayer(2.75).clone({maxRenderPixels: 128 * 128})]});
+      deck.setProps({layers: [makeLayer().clone({maxRenderPixels: 128 * 128})]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeLowResolution + 3);
       const lowResolution = collectLeaves((deck.props.layers as Layer[])[0]).find(layer =>
         layer.id.includes('refinement')
@@ -157,7 +158,7 @@ describe('Gaussian canopy rendering', () => {
       }
       // Changing scale keeps the owning object but requires fresh transforms and bounds.
       const beforeScale = frames;
-      deck.setProps({layers: [makeLayer(2.75).clone({getScale: [1.2, 1, 1]})]});
+      deck.setProps({layers: [makeLayer().clone({getScale: [1.2, 1, 1]})]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeScale + 3);
       const scaled = collectLeaves((deck.props.layers as Layer[])[0]).find(layer =>
         layer.id.includes('refinement')
@@ -167,7 +168,7 @@ describe('Gaussian canopy rendering', () => {
       ).toBeCloseTo(1.2);
       expect((deck.props.layers as Layer[])[0].state.spatialIndex).not.toBe(spatialIndex);
       const beforeQuality = frames;
-      deck.setProps({layers: [makeLayer(2.75, 1)]});
+      deck.setProps({layers: [makeLayer(1)]});
       await expect.poll(() => frames, {timeout: 15000}).toBeGreaterThan(beforeQuality + 3);
       const refinedIndex = (deck.props.layers as Layer[])[0].state.spatialIndex;
       const beforePan = frames;

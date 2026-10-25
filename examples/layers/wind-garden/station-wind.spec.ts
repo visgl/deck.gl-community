@@ -3,14 +3,14 @@
 // Copyright (c) vis.gl contributors
 
 import {createWindField, sampleWindField} from '@deck.gl-community/geo-layers';
-import {getLocalWindStrengths, getWindVelocity} from '@deck.gl-community/layers';
+import {getWindVelocity} from '@deck.gl-community/layers';
 import {describe, expect, it} from 'vitest';
 import {
   GARDEN_CENTER,
+  GARDEN_STATION_WIND,
   GARDEN_WIND_FIELD,
-  createStationSampler,
   getWindSampleBearing,
-  sampleGardenWind
+  sampleStationWind
 } from './station-wind';
 
 describe('station wind', () => {
@@ -54,22 +54,12 @@ describe('station wind', () => {
       expect(east).toBeCloseTo(sample.velocity[0], 9);
       expect(north).toBeCloseTo(sample.velocity[1], 9);
     }
-    // The sampler reports garden metres in m/s and bearings, and nothing outside the stations.
-    const sampler = createStationSampler(GARDEN_WIND_FIELD);
-    const center = sampler(GARDEN_CENTER, 0)!;
+    // Sampling reports garden metres in m/s and bearings, and nothing outside the stations.
+    const center = sampleStationWind(GARDEN_WIND_FIELD, GARDEN_CENTER)!;
     expect(center.speed).toBeCloseTo(6, 9);
     expect(center.direction).toBeCloseTo(45, 9);
-    expect(sampler([500, 0], 0)).toBeNull();
-  });
-
-  it('varies the garden wind across its rows', () => {
-    const rows = [-44, -25, -8, 8, 30];
-    const speeds = rows.map(x => sampleGardenWind([x, 0], 0)!.speed);
-    speeds.slice(1).forEach((speed, i) => expect(speed).toBeGreaterThan(speeds[i]));
-    // Within the tree row, the calm southwest end bends least.
-    const trees = [-20, -12, -4, 4, 12, 20].map(y => ({position: [-44, y]}));
-    const strengths = getLocalWindStrengths(trees, sampleGardenWind) as number[];
-    expect(strengths.every(Number.isFinite)).toBe(true);
-    expect(strengths[0]).toBeLessThan(strengths[5] * 0.75);
+    expect(sampleStationWind(GARDEN_WIND_FIELD, [500, 0])).toBeNull();
+    // The garden's one wind is the field at its centre.
+    expect(GARDEN_STATION_WIND).toEqual(center);
   });
 });

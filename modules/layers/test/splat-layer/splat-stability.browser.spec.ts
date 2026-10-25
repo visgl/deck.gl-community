@@ -38,7 +38,7 @@ it('renders an optical transition through a forced crown budget reduction, then 
       pixelError: 0.01,
       getScale: [12, 12, 12],
       getTranslation: [0, 0, 12],
-      deformationStrength: 0,
+      windEnabled: false,
       material: {unlit: true}
     });
   const deck = new Deck({
@@ -144,7 +144,7 @@ it('keeps authored foliage lighting continuous across a grazing camera angle', a
         getSource: source,
         getPosition: [0, 0, 0],
         getTranslation: [0, 0, 0],
-        deformationStrength: 0,
+        windEnabled: false,
         material: {ambient: 0.5, diffuse: 0.7, specularColor: [0, 0, 0]}
       })
     ],

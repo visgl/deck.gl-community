@@ -21,6 +21,29 @@ new SplatLayer({data: rows, getSource: {type: 'prepared-splats', source, hierarc
 TreeLayer canopy overrides follow the same rule: set `getSource` in `_subLayerProps` instead of
 `source` or `hierarchy`.
 
+### `@deck.gl-community/layers`: wind comes from `WindEffect`
+
+Wind is deck-wide. `TreeLayer` and `SplatLayer` no longer have their own wind props; they bend
+with the deck's [`WindEffect`](./modules/layers/api-reference/wind-effect.md) and are still
+without one.
+
+| Removed | Use instead |
+| --- | --- |
+| `TreeLayer` `windStrength`, `SplatLayer` `deformationStrength` | `new WindEffect({strength})`, or `{speed}` in m/s, in `effects`. `windEnabled: false` keeps one layer still. |
+| `TreeLayer` `windTime`, `SplatLayer` `deformationTime` | `new WindEffect({time})`: a number freezes the pose, `() => number` is an app-owned clock. |
+| `TreeSpec.wind` | No per-tree wind; every tree in the scene bends with the same effect. |
+| `WindExtension` `windStrength`, `windTime` | The effect's `strength` and `time`. Remove the extension to keep a layer still. |
+
+```ts
+// Before
+new Deck({layers: [new TreeLayer({data, windStrength: 0.03, windTime: 2})]});
+// After
+new Deck({
+  effects: [new WindEffect({strength: 0.03, time: 2})],
+  layers: [new TreeLayer({data})]
+});
+```
+
 ## v9.4.7
 
 ### `@deck.gl-community/layers`: tree and splat shadows

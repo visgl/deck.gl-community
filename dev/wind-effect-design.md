@@ -35,7 +35,7 @@ new Deck({
 | Prop | Default | Meaning |
 | --- | --- | --- |
 | `speed` | `null` | m/s at 10 m. Without `strength`, the bend is `getWindStrength(speed)`, `0.025 × (speed / 5)^1.4` capped at 0.2 ([weather](./wind-effect-weather.md)). |
-| `strength` | `null` | Bend as a fraction of object height for flex 1 (the units of `windStrength`). Wins over `speed`; `0.025` when neither is set. `0` is still air. |
+| `strength` | `null` | Bend as a fraction of object height for flex 1 (the units of the former `windStrength`). Wins over `speed`; `0.025` when neither is set. `0` is still air. |
 | `direction` | `≈65.8` | Compass bearing the wind blows *toward*, degrees clockwise from north, like `DirectionalLight.direction`. The default reproduces today's fixed `(1, 0.45)` axis. |
 | `gust` | `0` | Slow strength swell: strength varies within `strength × (1 ± gust)`. |
 | `turbulence` | `1` | Scale of the crown flutter mode. `0` leaves a pure bend. |
@@ -133,29 +133,27 @@ Layers cache the bound, so they must learn when the effect changes. deck.gl does
 when only `effects` change. Layers that read the effect record its bound key (`strength`, `gust`,
 `turbulence`) in `state.windKey`. In `preRender` the effect calls `setNeedsUpdate()` on every
 layer whose key differs; `cleanup()` does the same for layers that used it. The cost is that of
-changing `windStrength` today, one frame later.
+changing a layer's bounds-affecting prop, one frame later.
 
-## TreeLayer and SplatLayer props: overrides, not deprecation
+## TreeLayer and SplatLayer props: one deck-wide wind
 
-Keep the current props, with one change: `windStrength` and `deformationStrength` default to
-`null`, meaning "follow the WindEffect". Without an effect, `null` is still air, so existing apps
-render the same. Precedence, most specific first:
+The first prototype kept the layer props as overrides (`windStrength`, `windTime`,
+`deformationStrength`, `deformationTime`, and a per-tree `TreeSpec.wind`). They are removed: wind
+is a property of the scene, like light, so the effect is its only source. Each layer keeps one
+opt-out, `windEnabled` (default `true`), in the same spirit as deck.gl's `shadowEnabled`:
 
-| Source | TreeLayer | SplatLayer |
+| | TreeLayer | SplatLayer |
 | --- | --- | --- |
-| Per object | `TreeSpec.wind` (a strength; `false` is rigid) | `getDeformation` flex (a multiplier) |
-| Per layer | `windStrength`, `windTime` | `deformationStrength`, `deformationTime` |
-| Scene | `WindEffect` `strength`, `time` | `WindEffect` `strength`, `time` |
+| Scene | `WindEffect` `speed` or `strength`, `direction`, `gust`, `turbulence`, `time` | Same |
+| Per layer | `windEnabled: false` keeps it still | Same |
+| Per object | None: every tree bends alike | `getDeformation` `[height, phase, flex]`: the object's bend height and stiffness, not its wind |
 
-`direction`, `gust` and `turbulence` always come from the effect, so even a pinned tree turns and
-swells with the scene. An explicit `0` makes a layer rigid under a windy scene, for example a
-sheltered courtyard. `windTime` and `deformationTime` stay: tests, screenshots and side-by-side
-comparisons need a fixed pose.
-
-Why not deprecate? The overrides cost a `??` each, and removing them would force every
-deterministic test to construct an effect. The per-layer strength is also the only way to give one
-grove less wind. Revisit when deck.gl core has a shared `WindEffect`; the layer props would then
-become thin aliases.
+- Tests and screenshots set the effect's `time` instead of a layer clock.
+- Without an effect, layers are still, which is what existing apps that passed no wind props
+  saw before.
+- Wind that varies across the scene (station fields, shelter behind windbreaks) belongs in the
+  effect as a field the layers sample, not in per-tree strengths. Until then, a station field
+  sets the effect's one speed and direction, as the Wind Garden's Stations mode does.
 
 ## A `WindExtension` for other layers
 
@@ -183,7 +181,8 @@ How it works:
   crown mode uses twice the phase, derived in the shader. The default spreads phases by the golden
   angle per index, so a field of reeds does not sway in step.
 - **Same effect plumbing.** The extension's `draw` hook resolves `getLayerWind`, like TreeLayer,
-  so `windStrength` and `windTime` override the effect per layer and shadows stay current.
+  so shadows stay current. It has no strength or clock of its own; remove the extension to keep a
+  layer still.
 
 Limits of the prototype:
 
@@ -228,7 +227,7 @@ In this branch:
   `@deck.gl-community/layers`;
 - TreeLayer (wood, crops and canopy) and SplatLayer on WebGL2 and WebGPU, including shadows,
   picking and the sorted CPU depth;
-- `windStrength` and `deformationStrength` default to `null`;
+- TreeLayer and SplatLayer drop their wind props for the effect and a `windEnabled` opt-out;
 - the Seasonal Farm Wind, Wind direction and Gusts controls drive the effect;
 - `WindExtension` for SimpleMeshLayer, ScenegraphLayer, ColumnLayer, GridCellLayer and
   PointCloudLayer (WebGL2);

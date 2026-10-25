@@ -7,6 +7,7 @@ import {expect, it, vi} from 'vitest';
 import {SplatLayer} from '../../src/splat-layer/splat-layer';
 import {SplatRuntime} from '../../src/splat-layer/splat-runtime';
 import {SplatEffect} from '../../src/splat-layer/splat-effect';
+import {WindEffect} from '../../src/wind-effect/wind-effect';
 import {
   getSplatBoundedPixelsPerMeter,
   getSplatCommonUnits,
@@ -26,18 +27,19 @@ function make(data: {position: [number, number, number]}[], flex = 1, extra = {}
   const layer = new SplatLayer({
     data,
     getSource: SOURCE,
-    deformationStrength: 0.1,
     getDeformation: [10, 0, flex],
     ...extra
   });
   layer.initializeState();
   vi.spyOn(layer, 'setState').mockImplementation(state => Object.assign(layer.state, state));
   const viewport = new WebMercatorViewport({width: 256, height: 256, zoom: 18});
+  const deck = {getViewports: () => [viewport]};
+  new WindEffect({strength: 0.1}).setup({deck} as any);
   Object.assign(layer, {
     context: {
       viewport,
       device: {canvasContext: {cssToDeviceRatio: () => 1}},
-      deck: {getViewports: () => [viewport]}
+      deck
     }
   });
   vi.spyOn(layer, 'projectPosition').mockImplementation(point => Array.from(point));

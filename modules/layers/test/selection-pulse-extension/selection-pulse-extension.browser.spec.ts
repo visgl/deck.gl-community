@@ -626,7 +626,7 @@ describe('SelectionPulseExtension on TreeLayer', () => {
         id: 'trees',
         data: trees,
         getTree: d => d,
-        windStrength: 0,
+        windEnabled: false,
         getCrop: () => ({count: 6, droppedCount: 4, radius: 0.1, color: [230, 120, 20, 255]}),
         // Coarse crowns keep software adapters fast and the frame stable.
         maxCanopySplats: 0,
@@ -745,7 +745,7 @@ describe('SelectionPulseExtension on WebGPU', () => {
         id: 'webgpu-trees',
         data: trees,
         getTree: d => d,
-        windStrength: 0,
+        windEnabled: false,
         maxCanopySplats: 0,
         getCanopyColor: [60, 170, 60, 255],
         getSelected: d => d.selected,

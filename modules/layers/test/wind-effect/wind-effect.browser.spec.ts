@@ -15,6 +15,7 @@ import {webgl2Adapter} from '@luma.gl/webgl';
 import {expect, it} from 'vitest';
 import {SplatLayer, TreeLayer, WindEffect, type SplatSource} from '../../src';
 import {getSplatWindOffset} from '../../src/splat-layer/splat-deformation';
+import {getLayerWind} from '../../src/wind-effect/wind-effect';
 import {getWindUniforms} from '../../src/wind-effect/wind-module';
 
 const SIZE = 256;
@@ -201,7 +202,7 @@ it('flutters a leaf Gaussian exactly where the CPU twin of the shader puts it', 
   }
 }, 40000);
 
-it('stills every tree part when the WindEffect calms or is removed', async () => {
+it('stills every tree part when the WindEffect calms, is removed, or the layer opts out', async () => {
   const lighting = new LightingEffect({
     ambient: new AmbientLight({intensity: 1}),
     directional: new DirectionalLight({direction: [-1, -1, -1], intensity: 0.5})
@@ -213,7 +214,6 @@ it('stills every tree part when the WindEffect calms or is removed', async () =>
     getHeight: 12,
     getCanopyRadius: 4,
     getCrop: {kind: 'fruit', color: [230, 120, 40], count: 6, radius: 0.3},
-    windTime: 1,
     maxCanopySplats: 0,
     maxCanopyPixels: SIZE * SIZE
   });
@@ -230,21 +230,29 @@ it('stills every tree part when the WindEffect calms or is removed', async () =>
     await settle();
     return view.pixels.slice();
   };
+  // What each drawn part resolves from the deck's WindEffect.
   const strengths = () =>
     collectLeaves((deck.props.layers as Layer[])[0]).map(
-      layer => layer.props.windStrength ?? layer.props.deformationStrength
+      layer => getLayerWind(layer, layer.props.windEnabled).wind.strength
     );
+  // A fixed clock keeps each pose still, so captures compare poses, not animation frames.
+  const windy = () => new WindEffect({strength: 0.15, gust: 0.5, time: 1});
   try {
     const still = await capture();
     expect(strengths().every(strength => strength === 0)).toBe(true);
-    deck.setProps({effects: [lighting, new WindEffect({strength: 0.15, gust: 0.5})]});
-    const windy = await capture();
+    deck.setProps({effects: [lighting, windy()]});
+    const bent = await capture();
     expect(strengths().every(strength => strength === 0.15)).toBe(true);
-    expect(countChanged(still, windy)).toBeGreaterThan(200);
-    // A calm effect updates the trees without new layer props.
-    deck.setProps({effects: [lighting, new WindEffect({strength: 0})]});
+    expect(countChanged(still, bent)).toBeGreaterThan(200);
+    // A sheltered grove opts out in the same windy scene.
+    deck.setProps({layers: [trees.clone({windEnabled: false})]});
     expect(countChanged(still, await capture())).toBeLessThan(40);
-    deck.setProps({effects: [lighting, new WindEffect({strength: 0.15, gust: 0.5})]});
+    expect(strengths().every(strength => strength === 0)).toBe(true);
+    deck.setProps({layers: [trees]});
+    // A calm effect updates the trees without new layer props.
+    deck.setProps({effects: [lighting, new WindEffect({strength: 0, time: 1})]});
+    expect(countChanged(still, await capture())).toBeLessThan(40);
+    deck.setProps({effects: [lighting, windy()]});
     expect(countChanged(still, await capture())).toBeGreaterThan(200);
     deck.setProps({effects: [lighting]});
     expect(countChanged(still, await capture())).toBeLessThan(40);

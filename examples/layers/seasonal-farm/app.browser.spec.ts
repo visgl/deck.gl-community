@@ -137,7 +137,7 @@ describe('Seasonal Farm integration', () => {
         await expect.poll(() => wind().props.direction).toBe(270);
         setNumber('Gusts', 0.5);
         await expect.poll(() => wind().props.gust).toBe(0.5);
-        expect(trees().props.windStrength).toBeNull();
+        expect(trees().props.windEnabled).toBe(true);
         setNumber('Size', 1.2);
         await expect.poll(() => trees().props.sizeScale).toBe(1.2);
         Array.from(parent.querySelectorAll<HTMLButtonElement>('button'))

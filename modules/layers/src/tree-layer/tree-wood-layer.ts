@@ -113,7 +113,7 @@ export class TreeWoodLayer extends CompositeLayer<any> {
         triggers?.all ||
         triggers?.[key]
     );
-    const wind = getLayerWindBound(this, props.windStrength);
+    const wind = getLayerWindBound(this, props.windEnabled);
     const windBound = `${wind.peak}|${wind.turbulence}`;
     const windBoundChanged = windBound !== this.state.windBound;
     this.state.windBound = windBound;

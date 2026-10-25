@@ -64,7 +64,7 @@ describe('SplatPrimitiveLayer shadow pass', () => {
     const layer = Object.assign(Object.create(SplatPrimitiveLayer.prototype), {
       context: {device: {type, setParametersWebGL: vi.fn()}, timeline: {getTime: () => 0}},
       state: {model, effect: {resolve: vi.fn()}},
-      props: {...SplatPrimitiveLayer.defaultProps, source: {}, deformationTime: 0},
+      props: {...SplatPrimitiveLayer.defaultProps, source: {}},
       getNumInstances: () => 3,
       setNeedsRedraw: vi.fn()
     });

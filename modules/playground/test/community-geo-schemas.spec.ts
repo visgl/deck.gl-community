@@ -219,7 +219,6 @@ test('supports unified authored traits without requiring renderer configuration'
       height: 5,
       crownRadius: 2,
       season: 'winter',
-      wind: true,
       characteristics: {leafSize: 1.2}
     }
   };
@@ -227,6 +226,14 @@ test('supports unified authored traits without requiring renderer configuration'
   expect(
     CommunityGeoLayerSchemas.TreeLayer.safeParse({...valid, getTree: {species: 'maple'}}).success
   ).toBe(false);
+  // Wind is deck-wide: trees carry none, and a layer can only opt out.
+  expect(
+    CommunityGeoLayerSchemas.TreeLayer.safeParse({...valid, getTree: {species: 'oak', wind: 0.1}})
+      .success
+  ).toBe(false);
+  expect(CommunityGeoLayerSchemas.TreeLayer.safeParse({...valid, windEnabled: false}).success).toBe(
+    true
+  );
 });
 
 test('basemap font overrides accept CSS families and registered callbacks', () => {

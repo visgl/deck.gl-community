@@ -179,11 +179,12 @@ Report a gust load index against species values, as a ranking rather than a stru
 
 ### Rendering coupling
 
-- **Per-tree sway now.** Each tree's local-to-scene wind ratio becomes its flex, which TreeLayer
-  already accepts per tree (`wind[2]`). Sheltered trees then visibly sway less, with no shader
-  change.
-- **Spatial wind field later.** Varying direction across the scene needs a wind raster in the
-  `wind` module, sampled at each anchor.
+- **One wind per deck.** Wind is deck-wide: TreeLayer has no per-tree wind strength. Local wind
+  (stations, shelter) therefore belongs in the `WindEffect` itself, as a field that every layer
+  samples at its objects' anchors. Sheltered trees then sway less, and every layer agrees.
+- **Spatial wind field.** Varying speed and direction across the scene needs that field in the
+  `wind` module: a CPU sampler for per-object factors first, a wind raster sampled in the shader
+  later.
 - **Particles.** `DelaunayInterpolation` already rasterizes the field. Multiplied by the shelter
   grid, it lets `ParticleLayer` show the air slowing behind rows.
 
@@ -219,9 +220,9 @@ Each phase ships a tested engine piece and a demo.
 | Phase | Deliverable | Test | Demo |
 | --- | --- | --- | --- |
 | L1 | Sun path, porous-crown CPU engine, per-tree sunlit hours and PAR | Analytic cases in node | Seasonal Farm "Light" panel: date, latitude, metric colours the crowns |
-| W1 | `WindEffect` speed, shear and time callback; per-tree local wind from `WindField` | Sampling and conversion tests | Wind Garden fed by station data |
+| W1 | `WindEffect` speed, shear and time callback; the effect fed from a `WindField` | Sampling and conversion tests | Wind Garden fed by station data |
 | L2 | Layout generator, azimuth sweep, split view | Sweep reproduces the north–south balance | Two layouts side by side, metric vs azimuth chart |
-| W2 | Shelter grid from crowns; flex per tree; windbreak what-if | Textbook curve behind one row | Sheltered trees sway less; particles slow behind rows |
+| W2 | Shelter grid from crowns, as a field in the `WindEffect`; windbreak what-if | Textbook curve behind one row | Sheltered trees sway less; particles slow behind rows |
 | L3 | GPU exposure pass, per-Gaussian exposure, ground sun-hours map | Matches L1 on shared scenes | Leaves coloured by their own light |
 | L4 / W3 | Fruit exposure and sunburn index; gust load; shade-vs-shelter trade-off chart | Threshold-hour cases | Risk overlay with weather timeline |
 

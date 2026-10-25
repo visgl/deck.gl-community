@@ -9,16 +9,18 @@ import {
   type WindMeasurement,
   type WindStation
 } from '@deck.gl-community/geo-layers';
-import type {WindSampler} from '@deck.gl-community/layers';
 
 /** Web Mercator metres per degree at the garden's origin, (0, 0), on both axes. */
 const METERS_PER_DEGREE = 111_319.49;
 
-/** Where the garden takes its scene-wide direction and speed: the central station. */
+/** Wind at one place: m/s at 10 m, and the compass bearing it blows toward. */
+export type StationWind = {speed: number; direction: number};
+
+/** Where the garden takes its one scene-wide wind: the central station. */
 export const GARDEN_CENTER: [number, number] = [-7, 0];
 
-// A calm southwest corner and a windy northeast one, so speed rises across the rows. Directions
-// are eighth-turns counterclockwise from east: 0 blows toward the east, 1 toward the northeast.
+// A calm southwest corner and a windy northeast one. Directions are eighth-turns counterclockwise
+// from east: 0 blows toward the east, 1 toward the northeast.
 const STATIONS: {name: string; position: [number, number]; measurement: WindMeasurement}[] = [
   {name: 'Southwest', position: [-70, -40], measurement: [1, 2, 18]},
   {name: 'Northwest', position: [-70, 40], measurement: [0, 7, 17]},
@@ -53,13 +55,18 @@ export function getWindSampleBearing(direction: number): number {
   return ((bearing % 360) + 360) % 360;
 }
 
-/** Adapt a geo-layers `WindField` to a sampler over garden metres. */
-export function createStationSampler(field: WindField): WindSampler {
-  return (position, time) => {
-    const sample = sampleWindField(field, getLngLat(position), time);
-    return sample && {speed: sample.speed, direction: getWindSampleBearing(sample.direction)};
-  };
+/** Sample a geo-layers `WindField` at garden metres, as `WindEffect` speed and bearing. */
+export function sampleStationWind(
+  field: WindField,
+  position: readonly number[],
+  time = 0
+): StationWind | null {
+  const sample = sampleWindField(field, getLngLat(position), time);
+  return sample && {speed: sample.speed, direction: getWindSampleBearing(sample.direction)};
 }
 
-/** The garden's station wind, in m/s at 10 m. Null outside the stations. */
-export const sampleGardenWind: WindSampler = createStationSampler(GARDEN_WIND_FIELD);
+/** The garden's one wind: the station field at its centre. */
+export const GARDEN_STATION_WIND: StationWind = sampleStationWind(
+  GARDEN_WIND_FIELD,
+  GARDEN_CENTER
+)!;

@@ -85,32 +85,24 @@ it('shares identical morphology templates and pairs each distinct wood/crown gro
     expect(crown.props.data[0]).toBe(rows[0]);
   }
 });
-it('normalizes independent wind amplitudes without rebuilding geometry on global wind updates', () => {
-  const data: TreeSpec[] = [false, true, 0.1].map((wind, index) => ({
+it('bends every tree alike and toggles wind without rebuilding geometry', () => {
+  const data: TreeSpec[] = [0, 1, 2].map(index => ({
     position: [index * 0.0001, 0],
-    species: 'citrus',
-    wind
+    species: 'citrus'
   }));
-  const layer = prepare(data, {windStrength: 0.05});
-  const children = layer.renderLayers();
-  const wood = children.find(child => child.id.includes('-wood-'))!;
-  expect(wood.props.windStrength).toBe(0.1);
-  expect(wood.props.data.map(row => wood.props.getWind(row)[2])).toEqual([0, 0.25, 1]);
+  const layer = prepare(data);
+  const wood = layer.renderLayers().find(child => child.id.includes('-wood-'))!;
+  expect(wood.props.windEnabled).toBe(true);
+  expect(wood.props.data.map(row => wood.props.getWind(row)[2])).toEqual([1, 1, 1]);
   const rows = layer.state.groups;
   vi.mocked(layer.setState).mockClear();
   layer.updateState({
-    props: layer.clone({windStrength: 0.08}).props,
+    props: layer.clone({windEnabled: false}).props,
     oldProps: layer.props,
     changeFlags: {propsChanged: true} as any
   });
   expect(layer.setState).not.toHaveBeenCalled();
   expect(layer.state.groups).toBe(rows);
-  const still = prepare([{position: [0, 0], species: 'citrus', wind: false}] as TreeSpec[], {
-    windStrength: 0.05
-  });
-  expect(still.renderLayers().find(child => child.id.includes('-wood-'))!.props.windStrength).toBe(
-    0
-  );
 });
 
 it('derives matching dimensions from species traits and explicit getTreeType accessors', () => {

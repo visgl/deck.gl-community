@@ -28,10 +28,8 @@ type WindProps<DataT> = {
   /** Stable branch-only coverage; boles continue to use getCoverageWeight. */
   branchCoverage: number;
   woodMorph: boolean;
-  /** Overrides the deck's `WindEffect` strength; null follows it. */
-  windStrength: number | null;
-  /** Overrides the deck's `WindEffect` clock, in seconds; null follows it. */
-  windTime: number | null;
+  /** Bend with the deck's `WindEffect`; `false` keeps this layer still. */
+  windEnabled: boolean;
   doubleSided: boolean;
 };
 const UNIFORM_DECLARATION = [
@@ -178,8 +176,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
     getStemRadius: {type: 'accessor', value: -1},
     getWind: {type: 'accessor', value: [1, 0, 1]},
     woodMorph: false,
-    windStrength: null,
-    windTime: null,
+    windEnabled: true,
     doubleSided: false
   };
 
@@ -357,11 +354,7 @@ export class TreeMeshLayer<DataT> extends SimpleMeshLayer<DataT, WindProps<DataT
   draw(params) {
     if (params.shaderModuleProps?.shadow?.drawToShadowMap && !prepareShadowDraw(this)) return;
     // Shadow passes receive no effect props: resolve the deck's WindEffect here for every pass.
-    const {wind: windProps, animated} = getLayerWind(
-      this,
-      this.props.windStrength,
-      this.props.windTime
-    );
+    const {wind: windProps, animated} = getLayerWind(this, this.props.windEnabled);
     this.state.model?.shaderInputs.setProps({
       wind: windProps,
       treeWind: {

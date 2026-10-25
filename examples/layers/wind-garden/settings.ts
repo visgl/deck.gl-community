@@ -35,7 +35,7 @@ export const SETTINGS_SCHEMA: SettingsSchema = {
           name: 'source',
           label: 'Wind source',
           description:
-            'Uniform: the Wind and Wind direction controls everywhere. Stations: five weather stations around the garden, calm in the southwest and windy in the northeast.',
+            'Uniform: the Wind and Wind direction controls. Stations: the wind five weather stations around the garden report at its centre.',
           type: 'select',
           options: [
             {label: 'Uniform', value: 'uniform'},

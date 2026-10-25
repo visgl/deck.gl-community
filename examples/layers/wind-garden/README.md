@@ -8,12 +8,12 @@ The **WindEffect** panel sets the scene's wind:
 
 - **WindEffect**: the wind source, speed in m/s at 10 m, direction, gusts and turbulence, and a
   toggle that freezes the clock.
-  - **Uniform**: one speed and direction everywhere. The bend follows `getWindStrength(speed)`.
+  - **Uniform**: the Wind and Wind direction controls set the effect. The bend follows
+    `getWindStrength(speed)`.
   - **Stations**: five synthetic weather stations around the garden, a geo-layers `WindField`
-    built with `createWindField`. The effect takes the central station's wind; each tree pins the
-    strength sampled at its own position (`getLocalWindStrengths`), and the other layers scale
-    their flex the same way. The calm southwest corner bends least. Hover an object to read its
-    local speed. `station-wind.ts` converts geo-layers' directions to `WindEffect` bearings.
+    built with `createWindField`. The effect takes the wind they report at the garden's centre,
+    and the whole garden bends with it. `station-wind.ts` converts geo-layers' directions to
+    `WindEffect` bearings.
 - **Layers**: show or hide each layer kind.
 - **Lighting**: a shadow-casting sun (WebGL2). Shadows bend with the geometry.
 

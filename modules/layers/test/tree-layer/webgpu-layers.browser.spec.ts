@@ -16,7 +16,7 @@ import {webgl2Adapter, type WebGLDevice} from '@luma.gl/webgl';
 import {webgpuAdapter} from '@luma.gl/webgpu';
 import {describe, expect, inject, it} from 'vitest';
 
-import {TreeLayer} from '../../src';
+import {TreeLayer, WindEffect} from '../../src';
 
 type BrowserGpu = {requestAdapter: () => Promise<unknown>};
 type NativeGpuError = {error?: {message?: string}};
@@ -144,7 +144,6 @@ async function renderDenseCanopy(type: 'webgl' | 'webgpu'): Promise<CanopyMetric
               height: 4.8,
               crownRadius: 2.4,
               trunkRadius: 0.1,
-              wind: false,
               canopyColor: [33, 112, 29, 255] as [number, number, number, number]
             })),
             getTree: datum => datum,
@@ -230,7 +229,8 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
         _animate: true,
         views: new MapView({id: 'tree-webgpu-test'}),
         initialViewState: {longitude: 0, latitude: 0, zoom: 15, pitch: 45},
-        effects,
+        // A fixed wind clock bends every tree part on both backends.
+        effects: [...effects, new WindEffect({strength: 0.025, time: 1.25})],
         layers: [
           new TreeLayer({
             id: `tree-${type}`,
@@ -253,7 +253,6 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
               species: datum.species,
               season: datum.season,
               height: 12,
-              wind: true,
               characteristics: {seed: 19, branchLift: 0.8, leafSize: 1.1},
               crop: {
                 kind:
@@ -269,7 +268,6 @@ async function renderTreeLayer(type: 'webgl' | 'webgpu', effects: Effect[] = [])
               }
             }),
             maxCanopyPixels: 64 * 64,
-            windTime: 1.25,
             pickable: true
           })
         ],

@@ -38,18 +38,20 @@ props, as it does for `LightingEffect`.
 
 `effect.strength` is the resolved bend: `strength`, else the response to `speed`, else `0.025`.
 
-## Layer overrides
+## One wind per deck
 
-Layer props override the effect for that layer only:
+Wind is deck-wide: layers have no strength or clock of their own. Every part of every tree bends
+with the effect, and layers are still without one. To keep one layer still in a windy scene, such
+as a sheltered courtyard, set `windEnabled: false` on it, as `shadowEnabled: false` opts a layer
+out of shadows.
 
-| Layer | Strength | Clock |
+| Layer | Opt out | Per object |
 | --- | --- | --- |
-| `TreeLayer` | `windStrength`; a tree's own `wind` overrides it in turn | `windTime` |
-| `SplatLayer` | `deformationStrength`; `getDeformation` flex multiplies it | `deformationTime` |
+| `TreeLayer` | `windEnabled: false` | None: every tree bends alike. |
+| `SplatLayer` | `windEnabled: false` | `getDeformation` `[height, phase, flex]` says how each instance bends; flex `0` is rigid. |
+| `WindExtension` layers | Remove the extension. | `getWind` `[height, phase, flex]`, as above. |
 
-`null`, the default, follows the effect. `0` keeps a layer still in a windy scene. Direction, gusts
-and turbulence always come from the effect. Without a `WindEffect`, the layer props work on their
-own, with the default direction.
+For repeatable screenshots and tests, give the effect a fixed `time`.
 
 ## Rendering
 
@@ -121,36 +123,21 @@ const clouds = getWindVelocity(wind.props, 1500, time); // m/s
 const rainOffset = getWindDisplacement(wind.props, 225, time); // metres
 ```
 
-### getLocalWindStrengths
+### Wind from station data
 
-`getLocalWindStrengths(data, sampler, {getPosition?, time?}): (number | undefined)[]`
-
-Per-tree bend strengths from local wind, for `TreeSpec.wind`. The `sampler`,
-`(position, time) => {speed, direction?} | null`, reports the wind at each tree: a station field, a
-forecast grid or a shelter model. Each strength is `getWindStrength` of the sampled speed. Where
-the sampler returns `null` the strength is `undefined`, so that tree follows the scene's wind.
-
-A pinned tree still takes its direction, gusts and clock from the `WindEffect`, so set the effect's
-direction from the wind at the scene's centre. Per-tree directions do not reach the bend yet.
+The effect can take its speed and direction from measurements. Sample a geo-layers `WindField` at
+the scene's centre and pass the result to the effect:
 
 ```ts
-import {sampleWindField, type WindField} from '@deck.gl-community/geo-layers';
-import {getLocalWindStrengths, TreeLayer, WindEffect} from '@deck.gl-community/layers';
+import {sampleWindField} from '@deck.gl-community/geo-layers';
+import {TreeLayer, WindEffect} from '@deck.gl-community/layers';
 
 // WindSample.direction is the direction of travel, counterclockwise radians from east.
 const toBearing = (radians: number) => (((90 - (radians * 180) / Math.PI) % 360) + 360) % 360;
-const sampleStations = (field: WindField) => (position: readonly number[], time: number) => {
-  const sample = sampleWindField(field, [position[0], position[1]], time);
-  return sample && {speed: sample.speed, direction: toBearing(sample.direction)};
-};
-
-// Trees positioned in longitude/latitude, like the field's stations.
-const sampler = sampleStations(field);
-const strengths = getLocalWindStrengths(trees, sampler);
-const center = sampler(orchardCenter, 0)!;
+const sample = sampleWindField(field, orchardCenter, forecastFrame)!;
 new Deck({
-  effects: [new WindEffect({speed: center.speed, direction: center.direction})],
-  layers: [new TreeLayer({data: trees.map((tree, i) => ({...tree, wind: strengths[i]}))})]
+  effects: [new WindEffect({speed: sample.speed, direction: toBearing(sample.direction)})],
+  layers: [new TreeLayer({data: trees})]
 });
 ```
 
@@ -162,7 +149,8 @@ apart from the angle units. Station data that reports where the wind comes *from
 ## WindExtension
 
 A layer extension that bends deck.gl's instanced 3D layers with the scene's `WindEffect`, using
-the same bend as TreeLayer.
+the same bend as TreeLayer. Those layers have no wind code of their own; TreeLayer and SplatLayer
+bend natively and need no extension.
 
 ```ts
 import {SimpleMeshLayer} from '@deck.gl/mesh-layers';
@@ -187,8 +175,6 @@ new SimpleMeshLayer({
 | --- | --- | --- |
 | `getWind` | `[10, index × golden angle, 1]` | Per-object `[height, phase, flex]`: the bend reaches full strength at `height` metres above the base, `phase` (radians) offsets its sway, `flex` multiplies its strength. |
 | `windBase` | `'instance'` | `'instance'` bends from each object's anchor; `'ground'` from z = 0, for point clouds. |
-| `windStrength` | `null` | Overrides the effect's strength for this layer. |
-| `windTime` | `null` | Overrides the effect's clock for this layer. |
 
 The extension is WebGL2 only: deck.gl's WGSL layers have no vertex filter hook, so on WebGPU it
 leaves the layer unchanged. Column heights often encode data; bending them suits decorative

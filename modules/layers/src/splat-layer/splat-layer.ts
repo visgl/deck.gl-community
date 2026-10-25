@@ -234,14 +234,14 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       'getScale',
       'getOrientation',
       'getTranslation',
-      'deformationStrength',
+      'windEnabled',
       'getDeformation',
       'modelMatrix',
       'coordinateSystem',
       'coordinateOrigin'
     ] as const;
     const triggers = changeFlags.updateTriggersChanged;
-    const wind = getLayerWindBound(this, props.deformationStrength);
+    const wind = getLayerWindBound(this, props.windEnabled);
     const windBound = `${wind.peak}|${wind.turbulence}`;
     const windBoundChanged = windBound !== this.state.windBound;
     this.state.windBound = windBound;

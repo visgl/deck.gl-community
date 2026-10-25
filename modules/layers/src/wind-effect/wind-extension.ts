@@ -22,10 +22,6 @@ export type WindExtensionProps<DataT = unknown> = {
    * z = 0, for point clouds whose points are their own anchors. @default 'instance'
    */
   windBase?: 'instance' | 'ground';
-  /** Overrides the deck's `WindEffect` strength for this layer; null follows it. @default null */
-  windStrength?: number | null;
-  /** Overrides the deck's `WindEffect` clock, in seconds; null follows it. @default null */
-  windTime?: number | null;
 };
 
 const defaultProps: DefaultProps<WindExtensionProps> = {
@@ -33,9 +29,7 @@ const defaultProps: DefaultProps<WindExtensionProps> = {
     type: 'accessor',
     value: (_: unknown, {index}: {index: number}) => [10, index * GOLDEN_ANGLE, 1]
   },
-  windBase: 'instance',
-  windStrength: null,
-  windTime: null
+  windBase: 'instance'
 };
 
 /** Pack `[height, phase, flex]` as `[height, flex, sin(phase), cos(phase)]`. */
@@ -106,11 +100,7 @@ export class WindExtension extends LayerExtension {
 
   // Every pass, shadows included, draws with this frame's wind.
   draw(this: Layer<WindExtensionProps>) {
-    const {wind: windProps, animated} = getLayerWind(
-      this,
-      this.props.windStrength,
-      this.props.windTime
-    );
+    const {wind: windProps, animated} = getLayerWind(this);
     this.setShaderModuleProps({
       wind: windProps,
       windExtension: {ground: this.props.windBase === 'ground' ? 1 : 0}

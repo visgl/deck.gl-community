@@ -29,8 +29,6 @@ import {
   TreeLayer,
   WindEffect,
   WindExtension,
-  getLocalWindStrengths,
-  getWindStrength,
   type TreeSpec,
   type WindExtensionProps
 } from '@deck.gl-community/layers';
@@ -38,7 +36,7 @@ import {SettingsPanel, type SettingsState} from '@deck.gl-community/panels';
 import {BoxPanelWidget} from '@deck.gl-community/widgets';
 import {EXAMPLE_PANEL_STYLE} from '../../utils/panel-theme';
 import {DEFAULT_GARDEN_SETTINGS, SETTINGS_SCHEMA, type GardenSettings} from './settings';
-import {GARDEN_CENTER, sampleGardenWind} from './station-wind';
+import {GARDEN_STATION_WIND} from './station-wind';
 import '@deck.gl/widgets/stylesheet.css';
 import './style.css';
 
@@ -141,20 +139,6 @@ const SCAN = (() => {
   return points;
 })();
 
-// Station wind: the scene's WindEffect takes the central station's wind, and each object bends
-// with the wind at its own position. Trees pin their strength; WindExtension layers scale flex.
-const STATION_CENTER = sampleGardenWind(GARDEN_CENTER, 0)!;
-const STATION_TREES: TreeSpec[] = (() => {
-  const strengths = getLocalWindStrengths(TREES, sampleGardenWind);
-  return TREES.map((tree, i) => ({...tree, wind: strengths[i]}));
-})();
-
-/** Local bend relative to the scene's, at one position. */
-function getStationScale(position: readonly number[]): number {
-  const local = sampleGardenWind(position, 0);
-  return local ? getWindStrength(local.speed) / getWindStrength(STATION_CENTER.speed) : 1;
-}
-
 /** Mount a garden where one WindEffect bends trees, meshes, columns, cells and a point cloud. */
 export function mountWindGardenExample(
   container: HTMLElement,
@@ -199,18 +183,8 @@ export function mountWindGardenExample(
     useDevicePixels: Math.min(2, container.ownerDocument.defaultView?.devicePixelRatio || 1),
     effects: createEffects(),
     layers: createLayers(),
-    getTooltip: ({layer, object}: PickingInfo) => {
-      if (!layer) return null;
-      const local =
-        settings.source === 'stations' && object?.position
-          ? sampleGardenWind(object.position, 0)
-          : null;
-      return {
-        text: local
-          ? `${layer.id} · ${local.speed.toFixed(1)} m/s at this spot`
-          : `${layer.id} · bent by the scene's WindEffect`
-      };
-    }
+    getTooltip: (info: PickingInfo) =>
+      info.layer ? {text: `${info.layer.id} · bent by the scene's WindEffect`} : null
   });
   options.onDeckInitialized?.(deck);
   return () => {
@@ -221,11 +195,11 @@ export function mountWindGardenExample(
 
   // deck.gl keeps the registered effects and passes them the new props.
   function createEffects(): Effect[] {
+    // One wind for the whole scene: the panel's, or the station field's at the garden centre.
     const time = settings.frozen ? 2 : null;
-    const {speed, direction = settings.wind.direction} = STATION_CENTER;
     const wind = new WindEffect(
       settings.source === 'stations'
-        ? {...settings.wind, speed, direction, time}
+        ? {...settings.wind, ...GARDEN_STATION_WIND, time}
         : {...settings.wind, time}
     );
     if (!settings.shadows) return [wind];
@@ -239,17 +213,11 @@ export function mountWindGardenExample(
   }
 
   function createLayers() {
-    const {layers: visible, source} = settings;
-    const stations = source === 'stations';
+    const {layers: visible} = settings;
     const extensions = [new WindExtension()];
     const instance = (d: Instance) => d.position;
     const wind = (flex: number) => (d: Instance) =>
-      [d.height, d.phase, stations ? flex * getStationScale(d.position) : flex] as [
-        number,
-        number,
-        number
-      ];
-    const updateTriggers = {getWind: source};
+      [d.height, d.phase, flex] as [number, number, number];
     return [
       new PolygonLayer({
         ...METER_OFFSETS,
@@ -267,12 +235,7 @@ export function mountWindGardenExample(
         stroked: false
       }),
       visible.trees &&
-        new TreeLayer({
-          ...METER_OFFSETS,
-          id: 'TreeLayer',
-          data: stations ? STATION_TREES : TREES,
-          pickable: true
-        }),
+        new TreeLayer({...METER_OFFSETS, id: 'TreeLayer', data: TREES, pickable: true}),
       visible.reeds &&
         new SimpleMeshLayer<Instance, WindExtensionProps<Instance>>({
           ...METER_OFFSETS,
@@ -286,7 +249,6 @@ export function mountWindGardenExample(
           extensions,
           // Reeds are slender: they bend further than a tree in the same wind.
           getWind: wind(3),
-          updateTriggers,
           pickable: true
         }),
       visible.columns &&
@@ -301,7 +263,6 @@ export function mountWindGardenExample(
           getFillColor: [214, 120, 72],
           extensions,
           getWind: wind(1),
-          updateTriggers,
           pickable: true
         }),
       visible.cells &&
@@ -315,7 +276,6 @@ export function mountWindGardenExample(
           getFillColor: d => [70, 110 + d.height * 12, 200],
           extensions,
           getWind: wind(1),
-          updateTriggers,
           pickable: true
         }),
       visible.scan &&
@@ -329,7 +289,7 @@ export function mountWindGardenExample(
           pointSize: 3,
           extensions,
           windBase: 'ground',
-          getWind: [8.6, 0.4, stations ? getStationScale([ROWS.scan, 0]) : 1],
+          getWind: [8.6, 0.4, 1],
           pickable: true
         }),
       new TextLayer({
