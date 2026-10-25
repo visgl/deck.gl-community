@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Breaking:** consolidate overlay and docked side chrome in `SidebarPanelContainer` with
+  independent pin/open state and user pin/hide controls. Remove `SidePanelContainer` without
+  aliases; migrate visibility to `open` / `onOpenChange`. Content stays mounted across modes.
+
+- **Breaking panels API:** specialized panels render from typed live props; rename
+  `AccordeonPanel` to `AccordionPanel`, splitter `onChange` to `onSplitChange`, and
+  `initialSplit` to `defaultSplit`. Controlled `split` is authoritative during dragging.
+  No compatibility names are exported. See the upgrade guide.
+
+- Simplify standalone panel setup with initial components and automatic resize handling; expose accordion state and initial tab selection on panel classes. Refresh panel guides and references, and defer the Monaco runtime bridge until editor content mounts.
+
 - Use current panel containers, React/HTML content bridges, and shared sleek-dark styling throughout community examples and inline demos. Add an optional Playground theme for sidebar, editor, and picker styling.
 - Render `SplatLayer` and `TreeLayer` on `GlobeView`, including MapLibre's globe through `MapLibreOverlay`, instead of throwing. Gaussians, wood and crops keep an east-north-up pose at each owner across the zoom-12 switch to Web Mercator, and the globe hides its far side (#985).
 

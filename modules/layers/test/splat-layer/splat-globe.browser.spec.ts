@@ -53,7 +53,7 @@ describe('Gaussian canopies on GlobeView', () => {
       new SplatLayer({
         id: 'globe-canopy',
         data: [object],
-        source: SOURCE,
+        getSource: SOURCE,
         getScale: [SCALE, SCALE, SCALE],
         getTranslation: [400000, 0, 0],
         pickable: true,

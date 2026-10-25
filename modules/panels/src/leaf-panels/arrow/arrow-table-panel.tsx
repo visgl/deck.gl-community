@@ -3,6 +3,7 @@
 import {useMemo} from 'preact/hooks';
 
 import {Panel} from '../../panels/panel';
+import type {PanelProps} from '../../panels/panel';
 import {useEffectivePanelThemeMode} from '../../panels/panel-theme-scope';
 import {
   createArrowTablePreview,
@@ -27,9 +28,9 @@ export type {
 } from './arrow-preview-utils';
 
 /** Props for {@link ArrowTablePanel}. */
-export type ArrowTablePanelProps = {
+export type ArrowTablePanelProps = PanelProps & {
   /** Stable panel id used by parent containers. */
-  id: string;
+  id?: string;
   /** Visible heading text for the panel. */
   title: string;
   /** Arrow table to display. Accepts Apache Arrow Table-like objects and loaders.gl wrappers. */
@@ -53,15 +54,13 @@ export type ArrowTablePanelProps = {
 };
 
 /** Panel that renders an Arrow table in a scrollable grid preview. */
-export class ArrowTablePanel extends Panel {
-  /** Creates an Arrow table preview panel. */
-  constructor(props: ArrowTablePanelProps) {
-    super({
-      id: props.id,
-      title: props.title,
-      theme: props.theme ?? 'inherit',
-      content: <ArrowTablePanelContent {...props} />
-    });
+export class ArrowTablePanel extends Panel<ArrowTablePanelProps> {
+  /** Default identity, overridable when mounting multiple instances. */
+  static defaultProps = {...Panel.defaultProps, id: 'arrow-table-panel'};
+
+  /** Renders content from the current public props. */
+  override renderContent() {
+    return <ArrowTablePanelContent {...this.props} />;
   }
 }
 

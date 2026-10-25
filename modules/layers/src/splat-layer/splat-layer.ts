@@ -53,7 +53,6 @@ import {
   SplatSelectionEffect,
   type SplatBudgetGroup
 } from './splat-runtime';
-import type {SplatSource} from './splat-source';
 
 const equalOwners = (a: Owner<unknown>, b: Owner<unknown>) =>
   a.object === b.object && a.index === b.index && a.weight === b.weight;
@@ -102,13 +101,14 @@ type PreparedOwner<DataT> = {
   scale: number;
   radius: number;
 };
-type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source'> & {
+type _SplatLayerProps<DataT> = Omit<PreparedSplatProps<DataT>, 'data' | 'source' | 'hierarchy'> & {
   /** One prepared asset, or application-owned instance rows. */
   data: DataT[] | SplatDataInput;
-  /** Reusable asset per owner. Defaults to the row's splats field. */
+  /**
+   * Reusable asset per owner: a source, or a prepared-splats descriptor carrying its hierarchy.
+   * Defaults to the row's splats field.
+   */
   getSource?: Accessor<DataT, SplatDataInput>;
-  /** Legacy constant-template input. Cannot be combined with explicit getSource. */
-  source?: SplatSource;
   /** Weighted optical blending or globally depth-sorted prepared Gaussians. @default 'weighted' */
   transparency?: 'weighted' | 'sorted';
   /** Aggregate settled submission cap across visible SplatLayers on this deck/device. */
@@ -133,8 +133,14 @@ export type SplatLayerStats = {
   /** Camera owners whose optical detail mixture is still moving. */
   refiningInstances: number;
 };
+// Each owner's source and hierarchy come from data or getSource, never from a layer-wide prop.
+const {
+  source: _source,
+  hierarchy: _hierarchy,
+  ...primitiveDefaultProps
+} = SplatPrimitiveLayer.defaultProps;
 const defaultProps: DefaultProps<SplatLayerProps> = {
-  ...SplatPrimitiveLayer.defaultProps,
+  ...primitiveDefaultProps,
   // Asset URLs must not fall through the ordinary JSON data loader.
   data: {type: 'data', value: [], async: false},
   getSource: {type: 'accessor', value: DEFAULT_GET_SOURCE},
@@ -213,10 +219,8 @@ export class SplatLayer<DataT = SplatInstance> extends CompositeLayer<
       this.context.device.canvasContext?.cssToDeviceRatio() ??
       1;
     const keys = [
-      'source',
       'getSource',
       'getTransformMatrix',
-      'hierarchy',
       'support',
       'getPosition',
       'getScale',

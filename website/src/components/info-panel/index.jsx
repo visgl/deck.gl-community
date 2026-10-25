@@ -25,8 +25,8 @@ function InfoPanel({title, children, sourceLink}) {
   });
 
   useEffect(() => {
-    const manager = new PanelManager({parentElement: hostRef.current});
-    manager.setProps({
+    const manager = new PanelManager({
+      parentElement: hostRef.current,
       components: [
         new BoxPanelContainer({
           id: 'example-info',
@@ -40,10 +40,7 @@ function InfoPanel({title, children, sourceLink}) {
         })
       ]
     });
-    const observer = new ResizeObserver(() => manager.onRedraw({viewports: [], layers: []}));
-    observer.observe(hostRef.current);
     return () => {
-      observer.disconnect();
       manager.finalize();
     };
   }, [panel, title]);

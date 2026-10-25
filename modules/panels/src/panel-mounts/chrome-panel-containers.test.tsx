@@ -8,7 +8,7 @@ import {Panel} from '../panels/panel';
 import {usePanelContainerState} from '../panels/panel-container-state';
 import {HeaderPanelContainer} from './header-panel-container';
 import {FooterPanelContainer} from './footer-panel-container';
-import {SidePanelContainer} from './side-panel-container';
+import {SidebarPanelContainer} from './sidebar-panel-container';
 import {BoxPanelContainer} from './box-panel-container';
 
 class TestPanel extends Panel {}
@@ -51,7 +51,8 @@ describe('canvas chrome', () => {
     'right'
   ] as const)('hides and restores %s side chrome without remounting content', async side => {
     const {parent, content, manager} = createHost();
-    const panel = new SidePanelContainer({
+    const panel = new SidebarPanelContainer({
+      pinned: true,
       side,
       hidable: true,
       title: 'Tools',
@@ -76,14 +77,20 @@ describe('canvas chrome', () => {
     expect(panel.rootElement!.querySelector('input')).toBe(input);
     expect(input.value).toBe('Keep tools');
     expect(parent.querySelector('[aria-label="Show Tools"]')).toBeNull();
-    panel.setProps({hidden: true});
+    panel.setProps({open: false});
     manager.finalize();
     expect(parent.querySelector('[aria-label="Show Tools"]')).toBeNull();
   });
 
   it('contains restore-control gestures while leaving canvas gestures and native defaults intact', () => {
     const {parent, content, manager} = createHost();
-    const panel = new SidePanelContainer({hidable: true, title: 'Tools', hidden: true});
+    const panel = new SidebarPanelContainer({
+      pinned: true,
+      side: 'left',
+      hidable: true,
+      title: 'Tools',
+      open: false
+    });
     manager.setProps({components: [panel]});
     const restore = parent.querySelector<HTMLButtonElement>('[aria-label="Show Tools"]')!;
     for (const type of [
@@ -117,26 +124,35 @@ describe('canvas chrome', () => {
 
   it('opts into hiding and supports controlled side visibility', async () => {
     const {parent, manager} = createHost();
-    const onHiddenChange = vi.fn();
-    const panel = new SidePanelContainer({title: 'Tools', hidden: true, onHiddenChange});
+    const onOpenChange = vi.fn();
+    const panel = new SidebarPanelContainer({
+      pinned: true,
+      side: 'left',
+      hidable: false,
+      title: 'Tools',
+      open: false,
+      onOpenChange
+    });
     manager.setProps({components: [panel]});
-    expect(panel.rootElement!.hidden).toBe(false);
+    expect(panel.rootElement!.hidden).toBe(true);
     expect(panel.rootElement!.querySelector<HTMLButtonElement>('[aria-pressed]')).toBeNull();
     panel.setProps({hidable: true});
     expect(panel.rootElement!.hidden).toBe(true);
     parent.querySelector<HTMLButtonElement>('[aria-label="Show Tools"]')!.click();
-    expect(onHiddenChange).toHaveBeenCalledWith(false);
+    expect(onOpenChange).toHaveBeenCalledWith(true);
     expect(panel.rootElement!.hidden).toBe(true);
-    panel.setProps({hidden: false});
+    panel.setProps({open: true});
     panel.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Hide Tools"]')!.click();
-    expect(onHiddenChange).toHaveBeenLastCalledWith(true);
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(panel.rootElement!.hidden).toBe(false);
-    panel.setProps({hidden: undefined});
+    panel.setProps({open: undefined});
     panel.rootElement!.querySelector<HTMLButtonElement>('[aria-label="Hide Tools"]')!.click();
     expect(panel.rootElement!.hidden).toBe(true);
     panel.setProps({hidable: false});
-    expect(panel.rootElement!.hidden).toBe(false);
+    expect(panel.rootElement!.hidden).toBe(true);
     expect(parent.querySelector('[aria-label="Show Tools"]')).toBeNull();
+    panel.setProps({open: true});
+    expect(panel.rootElement!.hidden).toBe(false);
     await settle();
   });
 
@@ -239,8 +255,19 @@ describe('canvas chrome', () => {
     const original = parent.getAttribute('style');
     const header = new HeaderPanelContainer({heightPx: 60});
     const footer = new FooterPanelContainer({heightPx: 40});
-    const left = new SidePanelContainer({widthPx: 100});
-    const right = new SidePanelContainer({id: 'right', side: 'right', widthPx: 120});
+    const left = new SidebarPanelContainer({
+      pinned: true,
+      side: 'left',
+      hidable: false,
+      widthPx: 100
+    });
+    const right = new SidebarPanelContainer({
+      pinned: true,
+      hidable: false,
+      id: 'right',
+      side: 'right',
+      widthPx: 120
+    });
     const overlay = new BoxPanelContainer({
       placement: 'bottom-right',
       title: 'Overlay'
