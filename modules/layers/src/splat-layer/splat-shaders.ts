@@ -133,7 +133,7 @@ void main() {
   vPosition = commonPosition.xyz;
   vCamera = project.cameraPosition;
   vCoverageWeight = instanceCoverageWeight.x;
-  vNormal = splatProjectNormal(normal, anchor);
+  vNormal = splatProjectNormal(normal, frame);
   geometry.normal = vNormal;
   // Reuse the perspective Jacobian for all three covariance axes.
   mat4 projectionMatrix = project.viewProjectionMatrix;
