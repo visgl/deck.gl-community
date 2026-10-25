@@ -136,8 +136,12 @@ After initialization, `layer.splatStats` reports `sourceCount`, `visibleInstance
 
 ## Limitations
 
-- Supports `MapView` and Cartesian views. With `MapView.repeat`, splats render in the primary
-  world copy only. `GlobeView` reports an error.
+- Supports `MapView`, `GlobeView` and Cartesian views. With `MapView.repeat`, splats render in
+  the primary world copy only.
+- On `GlobeView`, owner-local metres point east, north and up, so a pose is unchanged when the
+  view switches to Web Mercator above zoom 12. Gaussians behind the sea-level horizon are hidden.
+  Positions resolve about 0.4 m at the surface, like deck.gl's own globe layers.
+- deck.gl 9.4 shadow maps do not fit `GlobeView`: a `_shadow: true` light darkens every layer on it.
 - deck.gl `LightingEffect` shadows work on WebGL2 only.
 - Place opaque layers before splat layers so that they occlude splats.
 - Weighted transparency approximates alpha blending. Overlapping colors can differ from a
